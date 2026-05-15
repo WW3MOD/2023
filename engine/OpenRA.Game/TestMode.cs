@@ -38,6 +38,12 @@ namespace OpenRA
 		// Test.OpenLobbyTab=Advanced launch arg.
 		public static string OpenLobbyTab { get; private set; }
 
+		// Map UID/filename to seed into the skirmish lobby when OpenSkirmishLobby
+		// is set. When null/empty, the lobby uses the default ChooseInitialMap
+		// pick — usually fine, but unstable across machines (last-played map can
+		// drift). Set via Test.LaunchLobbyMap=<map-id> for deterministic captures.
+		public static string LaunchLobbyMap { get; private set; }
+
 		// AI tournament harness — path to tournament.yaml. Activates BotVsBotMatchWatcher.
 		// Null/empty when not running a tournament match. See:
 		//   engine/OpenRA.Mods.Common/Traits/World/BotVsBotMatchWatcher.cs
@@ -92,6 +98,7 @@ namespace OpenRA
 			ScreenshotCmdFile = args.GetValue("Test.ScreenshotCmdFile", null);
 			OpenSkirmishLobby = args.GetValue("Test.OpenSkirmishLobby", "").ToLowerInvariant() == "true";
 			OpenLobbyTab = args.GetValue("Test.OpenLobbyTab", null);
+			LaunchLobbyMap = args.GetValue("Test.LaunchLobbyMap", null);
 			TestModeScreenshots.Initialize(ScreenshotDir);
 
 			Console.WriteLine($"[TestMode] active — name={Name} result={ResultPath}");

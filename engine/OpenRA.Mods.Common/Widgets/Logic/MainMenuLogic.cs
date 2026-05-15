@@ -712,7 +712,20 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			SwitchMenu(MenuType.None);
 
-			var map = modData.MapCache.ChooseInitialMap(modData.MapCache.PickLastModifiedMap(MapVisibility.Lobby) ?? Game.Settings.Server.Map, Game.CosmeticRandom);
+			// WW3MOD: Test.LaunchLobbyMap=<id> wins over the last-played pick so
+			// screenshot captures are deterministic. id matches against map title
+			// or package name (e.g. "river-zeta-ww3", "River Zeta WW3").
+			var initialUid = modData.MapCache.PickLastModifiedMap(MapVisibility.Lobby) ?? Game.Settings.Server.Map;
+			if (TestMode.IsActive && !string.IsNullOrEmpty(TestMode.LaunchLobbyMap))
+			{
+				var resolved = ResolveLobbyMapId(TestMode.LaunchLobbyMap);
+				if (!string.IsNullOrEmpty(resolved))
+					initialUid = resolved;
+				else
+					Log.Write("debug", $"[TestMode] LaunchLobbyMap '{TestMode.LaunchLobbyMap}' did not match any map; falling back to default pick");
+			}
+
+			var map = modData.MapCache.ChooseInitialMap(initialUid, Game.CosmeticRandom);
 			Game.Settings.Server.Map = map;
 			Game.Settings.Save();
 
@@ -720,6 +733,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				"",
 				OpenSkirmishLobbyPanel,
 				() => { Game.CloseServer(); SwitchMenu(MenuType.Main); });
+		}
+
+		string ResolveLobbyMapId(string id)
+		{
+			foreach (var preview in modData.MapCache)
+			{
+				if (preview.Status != MapStatus.Available)
+					continue;
+				if (string.Equals(preview.Title, id, StringComparison.OrdinalIgnoreCase))
+					return preview.Uid;
+				if (!string.IsNullOrEmpty(preview.PackageName) &&
+					preview.PackageName.Replace('\\', '/').Split('/').Any(seg =>
+						string.Equals(seg, id, StringComparison.OrdinalIgnoreCase)))
+					return preview.Uid;
+				if (string.Equals(preview.Uid, id, StringComparison.OrdinalIgnoreCase))
+					return preview.Uid;
+			}
+			return null;
 		}
 
 		void OpenMissionBrowserPanel(string map)
