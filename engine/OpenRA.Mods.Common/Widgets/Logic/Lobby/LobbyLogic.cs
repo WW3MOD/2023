@@ -980,6 +980,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					LobbyUtils.SetupReadyWidget(template, client);
 				}
 
+				LobbyUtils.SetupRowHover(template);
 				template.IsVisible = () => true;
 
 				if (idx >= players.Children.Count)
@@ -1032,6 +1033,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				}
 
 				LobbyUtils.SetupLatencyWidget(template, c, orderManager);
+				LobbyUtils.SetupRowHover(template);
 				template.IsVisible = () => true;
 
 				if (idx >= players.Children.Count)

@@ -337,6 +337,30 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
+		// Phase 11: per-row hover bg. Looks up ROW_HOVER_BG inside `row` and
+		// flips its visibility based on whether any descendant of `row` is
+		// the current MouseOverWidget. ContainerWidget itself never becomes
+		// MouseOverWidget (IgnoreMouseOver = true) — leaf children do, so we
+		// walk up the parent chain from MouseOverWidget to detect descent.
+		public static void SetupRowHover(Widget row)
+		{
+			var bg = row.GetOrNull("ROW_HOVER_BG");
+			if (bg == null)
+				return;
+
+			bg.IsVisible = () =>
+			{
+				var w = Ui.MouseOverWidget;
+				while (w != null)
+				{
+					if (w == row)
+						return true;
+					w = w.Parent;
+				}
+				return false;
+			};
+		}
+
 		public static void SetupLatencyWidget(Widget parent, Session.Client c, OrderManager orderManager)
 		{
 			var visible = c != null && c.Bot == null;

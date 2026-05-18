@@ -32,10 +32,13 @@ Possibly:
 - [x] 3 — Map panel + brackets (b2f4997c)
 - [x] 4 — Layout swap — players to right, settings to bottom-left, chat to bottom-right (04baa003)
 - [x] 5 — Players V5 rows (e4a14d1d, 63d9629c team/handicap kill)
-- [ ] 6 — Inline map browse — **DEFERRED.** Existing Change Map button works.
+- [ ] 6 — Inline map browse — **DEFERRED to v1.1.** Existing modal works; see `WORKSPACE/BACKLOG.md`.
 - [x] 7 — Chat restyle / notification palette (51350dd1)
 - [x] 8 — Polish: O3 flat (653e10b3), Start Game green chrome (c6503e95),
        opaque panel bg (cb9041c1), chat panel chrome (d17def8e)
+- [x] 9 — Full-width rows (58194ec8)
+- [x] 10 — Squared cells, two-square dropdowns, flat action buttons, Spectate moved (f95785f9 + 6f794c16 NRE fix)
+- [x] 11 — Row hover bg, remaining row chrome flattened, cross-resolution tighten, handicap deferral note
 
 ## Notes
 

@@ -130,6 +130,14 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 40
 							Visible: false
 							Children:
+								# Phase 11 — row hover bg. Visibility wired in LobbyUtils.SetupRowHover
+								# (called per-row in UpdatePlayerList). First child = lowest z-order, so
+								# the colored fill paints under every other widget on the row.
+								ColorBlock@ROW_HOVER_BG:
+									Width: PARENT_WIDTH
+									Height: PARENT_HEIGHT
+									Color: 222222FF
+									Visible: false
 								Container@LATENCY:
 									X: -2
 									Y: 12
@@ -153,6 +161,7 @@ Container@LOBBY_PLAYER_BIN:
 									Width: 40
 									Height: 40
 									IgnoreChildMouseOver: true
+									Background: lobby-button
 									Separators:
 									Children:
 										ColorBlock@COLORBLOCK:
@@ -165,6 +174,7 @@ Container@LOBBY_PLAYER_BIN:
 									Width: 120
 									Height: 40
 									IgnoreChildMouseOver: true
+									Background: lobby-button
 									Separators:
 									TooltipContainer: TOOLTIP_CONTAINER
 									PanelRoot: FACTION_DROPDOWN_PANEL_ROOT
@@ -184,6 +194,7 @@ Container@LOBBY_PLAYER_BIN:
 									Width: 80
 									Height: 40
 									Font: MediumBold
+									Background: lobby-button
 									Separators:
 									Text: label-lobby-players-spawn
 								TextField@NAME:
@@ -194,6 +205,7 @@ Container@LOBBY_PLAYER_BIN:
 									LeftMargin: 10
 									MaxLength: 16
 									Font: MediumBold
+									Background: lobby-textfield
 									Visible: false
 									Children:
 										Image@PROFILE:
@@ -216,6 +228,7 @@ Container@LOBBY_PLAYER_BIN:
 									Font: MediumBold
 									Align: Left
 									LeftMargin: 10
+									Background: lobby-button
 									Separators:
 									Visible: false
 								DropDownButton@TEAM_DROPDOWN:
@@ -252,6 +265,11 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 40
 							Visible: false
 							Children:
+								ColorBlock@ROW_HOVER_BG:
+									Width: PARENT_WIDTH
+									Height: PARENT_HEIGHT
+									Color: 222222FF
+									Visible: false
 								Container@LATENCY:
 									X: -2
 									Y: 12
@@ -313,6 +331,7 @@ Container@LOBBY_PLAYER_BIN:
 									Width: 80
 									Height: 40
 									Font: MediumBold
+									Background: lobby-button
 									Separators:
 									Visible: false
 								Label@NAME:
@@ -329,6 +348,7 @@ Container@LOBBY_PLAYER_BIN:
 									Visible: false
 									Align: Left
 									LeftMargin: 34
+									Background: lobby-button
 									Separators:
 									Children:
 										Image@PROFILE:
@@ -456,6 +476,11 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 36
 							Visible: false
 							Children:
+								ColorBlock@ROW_HOVER_BG:
+									Width: PARENT_WIDTH
+									Height: PARENT_HEIGHT
+									Color: 222222FF
+									Visible: false
 								Container@LATENCY:
 									Y: 11
 									Width: 11
@@ -480,6 +505,7 @@ Container@LOBBY_PLAYER_BIN:
 									LeftMargin: 28
 									MaxLength: 16
 									Font: MediumBold
+									Background: lobby-textfield
 									Children:
 										Image@PROFILE:
 											ImageCollection: lobby-bits
@@ -526,6 +552,11 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 36
 							Visible: false
 							Children:
+								ColorBlock@ROW_HOVER_BG:
+									Width: PARENT_WIDTH
+									Height: PARENT_HEIGHT
+									Color: 222222FF
+									Visible: false
 								Container@LATENCY:
 									Y: 11
 									Width: 11
@@ -568,6 +599,8 @@ Container@LOBBY_PLAYER_BIN:
 									Visible: false
 									Align: Left
 									LeftMargin: 28
+									Background: lobby-button
+									Separators:
 									Children:
 										Image@PROFILE:
 											ImageCollection: lobby-bits
@@ -602,65 +635,71 @@ Container@LOBBY_PLAYER_BIN:
 				# === Phase 10 — SPECTATE_AREA: pulled out of the player rows and
 				# anchored to the bottom-right of LEFT_COLUMN_PLAYERS so the spectate
 				# control is always visible regardless of how many roster rows exist.
+				# Phase 11 — tightened TOGGLE 130→110, SPECTATE 180→160, total 320→284
+				# to give the bottom strip more breathing room at 1920×1080.
 				# Visibility (per local-client-is-in-a-slot) and SPECTATE/TOGGLE_SPECTATORS
 				# wireup happen in LobbyLogic.cs at startup, not via row-template cloning.
 				Container@SPECTATE_AREA:
-					X: PARENT_WIDTH - 332
+					X: PARENT_WIDTH - 296
 					Y: PARENT_HEIGHT - 42
-					Width: 320
+					Width: 284
 					Height: 32
 					Children:
 						Checkbox@TOGGLE_SPECTATORS:
 							X: 0
 							Y: 5
-							Width: 130
+							Width: 110
 							Height: 22
 							Font: Regular
 							Background: lobby-checkbox
 							Text: checkbox-lobby-players-new-spectator-toggle
 						Button@SPECTATE:
-							X: 140
+							X: 120
 							Y: 0
-							Width: 180
+							Width: 164
 							Height: 32
 							Background: lobby-button
 							Text: button-lobby-players-spectate
 							Font: Bold
+				# Phase 11 — tighter setup-row buttons (110/130/130/140 → 90/110/110/110,
+				# 10px gaps → 6px). Total span 540 → 438. Setup row width PW-360 → PW-308.
+				# 1920×1080 now has 130px headroom (was 36px); 1366×768 still overflows
+				# slightly into SPECTATE_AREA — documented limit, no fix planned.
 				Container@LOBBY_SETUP_ROW:
 					Logic: LobbySetupRowLogic
 					X: 12
 					Y: PARENT_HEIGHT - 42
-					Width: PARENT_WIDTH - 360
+					Width: PARENT_WIDTH - 308
 					Height: 32
 					Children:
 						Button@ADD_BOTS_BUTTON:
 							X: 0
 							Y: 0
-							Width: 110
+							Width: 90
 							Height: 32
 							Font: Bold
 							Background: lobby-button
 							Text: Add Bots
 						Button@REMOVE_BOTS_BUTTON:
-							X: 120
+							X: 96
 							Y: 0
-							Width: 130
+							Width: 110
 							Height: 32
 							Font: Bold
 							Background: lobby-button
 							Text: Remove Bots
 						DropDownButton@AUTO_TEAM_BUTTON:
-							X: 260
+							X: 212
 							Y: 0
-							Width: 130
+							Width: 110
 							Height: 32
 							Font: Bold
 							Background: lobby-button
 							Text: Auto-Team
 						Button@REPLAY_LAST_BUTTON:
-							X: 400
+							X: 328
 							Y: 0
-							Width: 140
+							Width: 110
 							Height: 32
 							Font: Bold
 							Background: lobby-button
