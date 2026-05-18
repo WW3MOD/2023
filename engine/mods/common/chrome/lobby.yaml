@@ -73,26 +73,67 @@ Background@SERVER_LOBBY:
 			Width: PARENT_WIDTH - 48
 			Height: 1
 			Color: 00000000
-		# Map/Music toggle — local view switch for the top-left panel. Replaces the
-		# old global tab strip (no more right-side tabs; all options live in one scroll).
+		# === Phase 12 — TL panel tab strip: [Map] [Change Map].
+		# Music tab no longer lives here; it now overlays the chat panel
+		# (see CHAT_MUSIC_TOGGLE / MUSIC_PANEL_ROOT below). MAP_MUSIC_TOGGLE
+		# widget ID kept for grep; the wireup in LobbyLogic switched from
+		# map↔music to map↔changemap.
 		Container@MAP_MUSIC_TOGGLE:
 			X: 24
 			Y: 72
-			Width: 200
+			Width: 230
 			Height: 32
 			Children:
 				Button@MAP_VIEW_BUTTON:
 					Width: 90
 					Height: 32
 					Font: Bold
+					Background: lobby-button
 					Text: Map
-				Button@MUSIC_VIEW_BUTTON:
+				Button@CHANGE_MAP_VIEW_BUTTON:
 					X: 96
+					Width: 130
+					Height: 32
+					Font: Bold
+					Background: lobby-button
+					Text: Change Map
+				ColorBlock@MAP_VIEW_INDICATOR:
+					X: 0
+					Y: 30
+					Width: 90
+					Height: 2
+					Color: B4B4B4FF
+				ColorBlock@CHANGE_MAP_VIEW_INDICATOR:
+					X: 96
+					Y: 30
+					Width: 130
+					Height: 2
+					Color: B4B4B4FF
+		# === Phase 12 — Chat/Music toggle pinned to the chat panel's top edge.
+		# Two buttons swap LOBBYCHAT and MUSIC_PANEL_ROOT (which now overlay each
+		# other at the BR position). Default state is chat visible. Position
+		# math matches LOBBYCHAT.X (PARENT_WIDTH / 2 + 32) and its Y (anchored
+		# above the chat panel header).
+		Container@CHAT_MUSIC_TOGGLE:
+			X: PARENT_WIDTH / 2 + 32
+			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 - 24
+			Width: 230
+			Height: 32
+			Children:
+				Button@CHAT_VIEW_BUTTON:
 					Width: 90
 					Height: 32
 					Font: Bold
+					Background: lobby-button
+					Text: Chat
+				Button@MUSIC_VIEW_BUTTON:
+					X: 96
+					Width: 130
+					Height: 32
+					Font: Bold
+					Background: lobby-button
 					Text: Music
-				ColorBlock@MAP_VIEW_INDICATOR:
+				ColorBlock@CHAT_VIEW_INDICATOR:
 					X: 0
 					Y: 30
 					Width: 90
@@ -101,7 +142,7 @@ Background@SERVER_LOBBY:
 				ColorBlock@MUSIC_VIEW_INDICATOR:
 					X: 96
 					Y: 30
-					Width: 90
+					Width: 130
 					Height: 2
 					Color: B4B4B4FF
 		Container@SKIRMISH_TABS:
@@ -222,28 +263,46 @@ Background@SERVER_LOBBY:
 			Y: 116
 			Width: (PARENT_WIDTH - 64) / 2
 			Height: (PARENT_HEIGHT - 196) * 3 / 5 - 40
-		Container@MUSIC_PANEL_ROOT:
+		# === Phase 12 — inline map browser host. Same bounds as MAP_PREVIEW_ROOT;
+		# LobbyLogic toggles visibility based on the Map / Change Map tab. Lazy-loads
+		# MAPCHOOSER_INLINE into this container on first switch to the Change Map tab.
+		Container@MAP_BROWSE_ROOT:
 			X: 24
 			Y: 116
 			Width: (PARENT_WIDTH - 64) / 2
 			Height: (PARENT_HEIGHT - 196) * 3 / 5 - 40
 			Visible: False
+		# === Phase 12 — MUSIC_PANEL_ROOT now overlays LOBBYCHAT (BR), not
+		# MAP_PREVIEW_ROOT (TL). Switched by CHAT_MUSIC_TOGGLE in the chat panel header.
+		Container@MUSIC_PANEL_ROOT:
+			X: PARENT_WIDTH / 2 + 32
+			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 + 8
+			Width: (PARENT_WIDTH - 64) / 2
+			Height: PARENT_HEIGHT - (PARENT_HEIGHT - 196) * 3 / 5 - 192
+			Visible: False
 		# Scenario picker is rare (most maps run the default skirmish) so it
-		# takes the narrower slot. Change Map is the primary action — wider
-		# button on the right with the green CTA tint matching Start Game.
+		# takes the narrower slot. Phase 12 — CHANGEMAP_BUTTON dropped from the
+		# bottom row (replaced by the [Change Map] tab above the panel); scenario
+		# dropdown now spans the full bottom strip.
 		DropDownButton@SCENARIO_DROPDOWNBUTTON:
 			X: 24
 			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 - 32
-			Width: ((PARENT_WIDTH - 64) / 2) * 2 / 5 - 4
+			Width: (PARENT_WIDTH - 64) / 2
 			Height: 32
 			Font: Bold
+		# Phase 12 — CHANGEMAP_BUTTON parked off-screen. Replaced by the
+		# [Change Map] tab above the map panel. Kept in the YAML so any
+		# external lookup (gh issues / mod refs) still resolves and the C#
+		# wireup at LobbyLogic.cs around line 321 doesn't crash. The C#
+		# OnClick is repurposed to switch to the Change Map tab.
 		Button@CHANGEMAP_BUTTON:
-			X: 24 + ((PARENT_WIDTH - 64) / 2) * 2 / 5 + 4
-			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 - 32
-			Width: ((PARENT_WIDTH - 64) / 2) * 3 / 5 - 4
-			Height: 32
+			X: -2000
+			Y: -2000
+			Width: 1
+			Height: 1
 			Text: button-server-lobby-changemap
 			Font: Bold
+			Visible: False
 		DropDownButton@SLOTS_DROPDOWNBUTTON:
 			X: 24
 			Y: PARENT_HEIGHT - 80

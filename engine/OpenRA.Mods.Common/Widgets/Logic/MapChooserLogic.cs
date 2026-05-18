@@ -102,6 +102,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		string selectedUid;
 		readonly Action<string> onSelect;
+		// WW3MOD Phase 12: false when the chooser is hosted inline (e.g. inside the
+		// lobby). The caller manages closure via parent visibility instead of Ui.CloseWindow.
+		readonly bool closeOnExit;
 
 		string category;
 		string mapFilter;
@@ -111,23 +114,30 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[ObjectCreator.UseCtor]
 		internal MapChooserLogic(Widget widget, ModData modData, string initialMap, HashSet<string> remoteMapPool,
 			MapClassification initialTab, Action onExit, Action<string> onSelect, MapVisibility filter,
-			string initialCategory = null)
+			string initialCategory = null, bool closeOnExit = true)
 		{
 			this.widget = widget;
 			this.modData = modData;
 			this.onSelect = onSelect;
 			this.remoteMapPool = remoteMapPool;
+			this.closeOnExit = closeOnExit;
 			category = initialCategory;
 
 			allMaps = FluentProvider.GetMessage(AllMaps);
 
+			// WW3MOD Phase 12: closeOnExit gates the Ui.CloseWindow() call so the
+			// same chooser logic can drive both the legacy modal (closeOnExit=true,
+			// used everywhere except the lobby) and the inline lobby chooser
+			// (closeOnExit=false, parent-container visibility is the close mechanism).
+			// Inline mode relies on onSelect / onExit to flip visibility back.
 			var approving = new Action(() =>
 			{
-				Ui.CloseWindow();
+				if (closeOnExit)
+					Ui.CloseWindow();
 				onSelect?.Invoke(selectedUid);
 			});
 
-			var canceling = new Action(() => { Ui.CloseWindow(); onExit(); });
+			var canceling = new Action(() => { if (closeOnExit) Ui.CloseWindow(); onExit(); });
 
 			var okButton = widget.Get<ButtonWidget>("BUTTON_OK");
 			okButton.Disabled = this.onSelect == null;
@@ -434,7 +444,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{
 					if (onSelect != null)
 					{
-						Ui.CloseWindow();
+						if (closeOnExit)
+							Ui.CloseWindow();
 						onSelect(preview.Uid);
 					}
 				}

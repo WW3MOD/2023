@@ -567,34 +567,110 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (tabContainer != null)
 				tabContainer.IsVisible = () => false;
 
-			// Map/Music local toggle for the top-left panel.
+			// === Phase 12 — TL tab strip [Map] [Change Map], BR tab strip [Chat] [Music].
+			// Inline map chooser hosted in MAP_BROWSE_ROOT. Music panel moved from TL to BR
+			// (overlaying LOBBYCHAT). Lazy-load MAPCHOOSER_INLINE on first Change Map click —
+			// closeOnExit=false so the chooser's OK/Cancel buttons don't call Ui.CloseWindow
+			// (which would close the lobby itself); we manage visibility via showChangeMap.
 			var mapPreviewRoot = lobby.GetOrNull("MAP_PREVIEW_ROOT");
-			// Default to map view; Test.OpenLobbyTab=Music drives the toggle for screenshot tests.
+			var mapBrowseRoot = lobby.GetOrNull("MAP_BROWSE_ROOT");
+			var chatPanel = lobby.GetOrNull("LOBBYCHAT");
+			var showChangeMap = false;
 			var showMusic = TestMode.IsActive && string.Equals(TestMode.OpenLobbyTab, "music", StringComparison.OrdinalIgnoreCase);
+
 			if (mapPreviewRoot != null)
-				mapPreviewRoot.IsVisible = () => !showMusic;
+				mapPreviewRoot.IsVisible = () => !showChangeMap;
+			if (mapBrowseRoot != null)
+				mapBrowseRoot.IsVisible = () => showChangeMap;
 			if (musicPanelRoot != null)
 				musicPanelRoot.IsVisible = () => showMusic;
+			if (chatPanel != null)
+				chatPanel.IsVisible = () => !showMusic;
 
+			var mapBrowseLoaded = false;
+			void EnsureMapBrowseLoaded()
+			{
+				if (mapBrowseLoaded || mapBrowseRoot == null)
+					return;
+				mapBrowseLoaded = true;
+
+				var onSelect = new Action<string>(uid =>
+				{
+					var status = modData.MapCache[uid].Status;
+					if (uid == map.Uid || (status != MapStatus.Available && status != MapStatus.DownloadAvailable))
+						return;
+					orderManager.IssueOrder(Order.Command("map " + uid));
+					Game.Settings.Server.Map = uid;
+					Game.Settings.Save();
+					showChangeMap = false;
+				});
+
+				var onExit = new Action(() =>
+				{
+					modData.MapCache.UpdateMaps();
+					showChangeMap = false;
+				});
+
+				modData.MapCache.UpdateMaps();
+				Ui.LoadWidget("MAPCHOOSER_INLINE", mapBrowseRoot, new WidgetArgs()
+				{
+					{ "initialMap", modData.MapCache.PickLastModifiedMap(MapVisibility.Lobby) ?? map.Uid },
+					{ "remoteMapPool", orderManager.ServerMapPool },
+					{ "initialTab", MapClassification.System },
+					{ "onExit", onExit },
+					{ "onSelect", Game.IsHost ? onSelect : null },
+					{ "filter", MapVisibility.Lobby },
+					{ "initialCategory", (string)null },
+					{ "closeOnExit", false },
+				});
+			}
+
+			// TL: [Map] [Change Map] — widget ID MAP_MUSIC_TOGGLE kept for grep/back-compat.
 			var mapMusicToggle = lobby.GetOrNull("MAP_MUSIC_TOGGLE");
 			if (mapMusicToggle != null)
 			{
 				var mapViewButton = mapMusicToggle.GetOrNull<ButtonWidget>("MAP_VIEW_BUTTON");
 				if (mapViewButton != null)
 				{
-					mapViewButton.IsHighlighted = () => !showMusic;
-					mapViewButton.OnClick = () => showMusic = false;
+					mapViewButton.IsHighlighted = () => !showChangeMap;
+					mapViewButton.OnClick = () => showChangeMap = false;
 				}
-				var musicViewButton = mapMusicToggle.GetOrNull<ButtonWidget>("MUSIC_VIEW_BUTTON");
+				var changeMapButton = mapMusicToggle.GetOrNull<ButtonWidget>("CHANGE_MAP_VIEW_BUTTON");
+				if (changeMapButton != null)
+				{
+					changeMapButton.IsHighlighted = () => showChangeMap;
+					changeMapButton.IsDisabled = () => gameStarting || panel == PanelType.Kick || panel == PanelType.ForceStart ||
+						orderManager.LocalClient == null || orderManager.LocalClient.IsReady;
+					changeMapButton.OnClick = () => { EnsureMapBrowseLoaded(); showChangeMap = true; };
+				}
+				var mapIndicator = mapMusicToggle.GetOrNull("MAP_VIEW_INDICATOR");
+				if (mapIndicator != null)
+					mapIndicator.IsVisible = () => !showChangeMap;
+				var changeMapIndicator = mapMusicToggle.GetOrNull("CHANGE_MAP_VIEW_INDICATOR");
+				if (changeMapIndicator != null)
+					changeMapIndicator.IsVisible = () => showChangeMap;
+			}
+
+			// BR: [Chat] [Music] — pinned to the top edge of the chat panel.
+			var chatMusicToggle = lobby.GetOrNull("CHAT_MUSIC_TOGGLE");
+			if (chatMusicToggle != null)
+			{
+				var chatViewButton = chatMusicToggle.GetOrNull<ButtonWidget>("CHAT_VIEW_BUTTON");
+				if (chatViewButton != null)
+				{
+					chatViewButton.IsHighlighted = () => !showMusic;
+					chatViewButton.OnClick = () => showMusic = false;
+				}
+				var musicViewButton = chatMusicToggle.GetOrNull<ButtonWidget>("MUSIC_VIEW_BUTTON");
 				if (musicViewButton != null)
 				{
 					musicViewButton.IsHighlighted = () => showMusic;
 					musicViewButton.OnClick = () => showMusic = true;
 				}
-				var mapIndicator = mapMusicToggle.GetOrNull("MAP_VIEW_INDICATOR");
-				if (mapIndicator != null)
-					mapIndicator.IsVisible = () => !showMusic;
-				var musicIndicator = mapMusicToggle.GetOrNull("MUSIC_VIEW_INDICATOR");
+				var chatIndicator = chatMusicToggle.GetOrNull("CHAT_VIEW_INDICATOR");
+				if (chatIndicator != null)
+					chatIndicator.IsVisible = () => !showMusic;
+				var musicIndicator = chatMusicToggle.GetOrNull("MUSIC_VIEW_INDICATOR");
 				if (musicIndicator != null)
 					musicIndicator.IsVisible = () => showMusic;
 			}

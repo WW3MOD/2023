@@ -195,3 +195,209 @@ Background@MAPCHOOSER_PANEL:
 			Font: Bold
 			Key: escape
 		TooltipContainer@TOOLTIP_CONTAINER:
+
+# WW3MOD Phase 12 — inline variant of MAPCHOOSER_PANEL for the lobby's
+# Change Map tab. Same widget IDs (MapChooserLogic looks them up by name)
+# but parent-relative sizing so the chooser fills MAP_BROWSE_ROOT inside
+# the lobby instead of opening as a 900x600 modal that hides the lobby.
+# Caller passes closeOnExit=false so Ui.CloseWindow isn't invoked; lobby
+# manages visibility via the Map/Change Map tab toggle.
+Container@MAPCHOOSER_INLINE:
+	Logic: MapChooserLogic
+	Width: PARENT_WIDTH
+	Height: PARENT_HEIGHT
+	Children:
+		Button@SYSTEM_MAPS_TAB_BUTTON:
+			X: 8
+			Y: 4
+			Width: 140
+			Height: 28
+			Text: button-mapchooser-panel-system-maps-tab
+			Font: Bold
+			Background: lobby-button
+		Button@REMOTE_MAPS_TAB_BUTTON:
+			X: 8
+			Y: 4
+			Width: 140
+			Height: 28
+			Text: button-mapchooser-panel-remote-maps-tab
+			Font: Bold
+			Background: lobby-button
+		Button@USER_MAPS_TAB_BUTTON:
+			X: 152
+			Y: 4
+			Width: 140
+			Height: 28
+			Text: button-mapchooser-panel-user-maps-tab
+			Font: Bold
+			Background: lobby-button
+		Container@MAP_TAB_PANES:
+			X: 8
+			Y: 38
+			Width: PARENT_WIDTH - 16
+			Height: PARENT_HEIGHT - 110
+			Children:
+				Container@SYSTEM_MAPS_TAB:
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
+					Children:
+						ScrollPanel@MAP_LIST:
+							Width: PARENT_WIDTH
+							Height: PARENT_HEIGHT
+				Container@REMOTE_MAPS_TAB:
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
+					Children:
+						ScrollPanel@MAP_LIST:
+							Width: PARENT_WIDTH
+							Height: PARENT_HEIGHT
+				Container@USER_MAPS_TAB:
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
+					Children:
+						ScrollPanel@MAP_LIST:
+							Width: PARENT_WIDTH
+							Height: PARENT_HEIGHT
+		ScrollItem@MAP_TEMPLATE:
+			Width: 208
+			Height: 286
+			X: 2
+			Visible: false
+			EnableChildMouseOver: True
+			Children:
+				MapPreview@PREVIEW:
+					X: (PARENT_WIDTH - WIDTH) / 2
+					Y: 3
+					Width: 202
+					Height: 202
+					IgnoreMouseOver: true
+					IgnoreMouseInput: true
+				LabelWithTooltip@TITLE:
+					X: 4
+					Y: PARENT_HEIGHT - HEIGHT - 59
+					Width: PARENT_WIDTH - 8
+					Height: 24
+					Align: Center
+					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: SIMPLE_TOOLTIP
+				Label@DETAILS:
+					Width: PARENT_WIDTH - 8
+					Height: 12
+					X: 4
+					Y: PARENT_HEIGHT - HEIGHT - 50
+					Align: Center
+					Font: Tiny
+				LabelWithTooltip@AUTHOR:
+					Width: PARENT_WIDTH - 8
+					Height: 12
+					X: 4
+					Y: PARENT_HEIGHT - HEIGHT - 38
+					Align: Center
+					Font: Tiny
+					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: SIMPLE_TOOLTIP
+				Label@SIZE:
+					Width: PARENT_WIDTH - 8
+					Height: 12
+					X: 4
+					Y: PARENT_HEIGHT - HEIGHT - 26
+					Align: Center
+					Font: Tiny
+				Checkbox@SHELLMAP_TOGGLE:
+					X: (PARENT_WIDTH - WIDTH) / 2
+					Y: PARENT_HEIGHT - HEIGHT - 8
+					Width: 130
+					Height: 20
+					Font: Tiny
+					Text: Main Menu
+		Container@FILTER_ORDER_CONTROLS:
+			X: 8
+			Y: PARENT_HEIGHT - 70
+			Width: PARENT_WIDTH - 16
+			Height: 28
+			Children:
+				Label@FILTER_DESC:
+					Width: 50
+					Height: 24
+					Font: Bold
+					Align: Right
+					Text: label-filter-order-controls-desc
+				TextField@MAPFILTER_INPUT:
+					X: 55
+					Width: 200
+					Height: 25
+					Background: lobby-textfield
+				Label@FILTER_DESC_JOINER:
+					X: 260
+					Width: 30
+					Height: 24
+					Font: Bold
+					Align: Center
+					Text: label-filter-order-controls-desc-joiner
+				DropDownButton@GAMEMODE_FILTER:
+					X: 295
+					Width: 200
+					Height: 25
+					Background: lobby-button
+				Label@ORDERBY_LABEL:
+					X: PARENT_WIDTH - 290
+					Width: 80
+					Height: 24
+					Font: Bold
+					Align: Right
+					Text: label-filter-order-controls-orderby
+				DropDownButton@ORDERBY:
+					X: PARENT_WIDTH - 200
+					Width: 200
+					Height: 25
+					Background: lobby-button
+		Button@RANDOMMAP_BUTTON:
+			X: 8
+			Y: PARENT_HEIGHT - 36
+			Width: 120
+			Height: 28
+			Text: button-mapchooser-panel-randommap
+			Font: Bold
+			Background: lobby-button
+		Button@DELETE_MAP_BUTTON:
+			X: 136
+			Y: PARENT_HEIGHT - 36
+			Width: 120
+			Height: 28
+			Text: button-mapchooser-panel-delete-map
+			Font: Bold
+			Background: lobby-button
+		Button@DELETE_ALL_MAPS_BUTTON:
+			X: 264
+			Y: PARENT_HEIGHT - 36
+			Width: 140
+			Height: 28
+			Text: button-mapchooser-panel-delete-all-maps
+			Font: Bold
+			Background: lobby-button
+		Label@REMOTE_MAP_LABEL:
+			X: 140
+			Y: PARENT_HEIGHT - 36
+			Width: PARENT_WIDTH - 410
+			Height: 28
+			Align: Center
+			Font: Bold
+		Button@BUTTON_OK:
+			X: PARENT_WIDTH - 268
+			Y: PARENT_HEIGHT - 36
+			Width: 120
+			Height: 28
+			Text: button-mapchooser-panel-ok
+			Font: Bold
+			Background: lobby-button
+			Key: return
+		Button@BUTTON_CANCEL:
+			X: PARENT_WIDTH - 140
+			Y: PARENT_HEIGHT - 36
+			Width: 120
+			Height: 28
+			Text: button-back
+			Font: Bold
+			Background: lobby-button
+			Key: escape
+		TooltipContainer@TOOLTIP_CONTAINER:
