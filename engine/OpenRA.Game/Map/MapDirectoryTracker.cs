@@ -91,12 +91,12 @@ namespace OpenRA
 					{
 						if (mapAction.Value == MapAction.Delete)
 						{
-							Console.WriteLine(mapAction.Key + " was deleted");
+							Log.Write("debug", mapAction.Key + " was deleted");
 							map.Invalidate();
 						}
 						else
 						{
-							Console.WriteLine(mapAction.Key + " was updated");
+							Log.Write("debug", mapAction.Key + " was updated");
 							map.Invalidate();
 							mapcache.LoadMap(mapAction.Key.Replace(package.Name + Path.DirectorySeparatorChar, ""), package, classification, mapGrid, map.Uid);
 						}
@@ -105,7 +105,7 @@ namespace OpenRA
 					{
 						if (mapAction.Value != MapAction.Delete)
 						{
-							Console.WriteLine(mapAction.Key + " was added");
+							Log.Write("debug", mapAction.Key + " was added");
 							mapcache.LoadMap(mapAction.Key.Replace(package?.Name + Path.DirectorySeparatorChar, ""), package, classification, mapGrid, null);
 						}
 					}
