@@ -832,7 +832,7 @@ tunguska:
 		Condition: firing-primary
 	AmmoPool@1:
 		Name: primary-ammo
-		Armaments: primary, tertiary
+		Armaments: primary, primary-air
 		Ammo: 180
 		ReloadCount: 30
 		AmmoCondition: ammo-primary
