@@ -291,6 +291,13 @@ Note the `../` — `utility.sh` cd's into `engine/` before running. Saving a map
 
 Project layout, scenario system, custom traits, aircraft movement, suppression, AI configuration — all in [`DOCS/reference/architecture.md`](DOCS/reference/architecture.md). Read on demand when working on a specific system.
 
+### OpenRA engine debugging gotchas
+
+When traces don't fire or a unit "won't act," check these short-circuits before going deeper:
+
+- **`AttackTurreted.CanAttack` short-circuits on turret rotation.** Returns `turretReady && base.CanAttack(...)` — if the turret hasn't finished facing the target, `AttackBase.CanAttack` is never reached. Symptom: breakpoints / logs inside `AttackBase.CanAttack` silent while the unit visibly refuses to fire. See `WORKSPACE/DISCOVERIES.md` 2026-05-09.
+- **`Activity.IsCanceling` is always false inside `OnLastRun`.** `Activity.TickOuter` sets `State = Done` before calling `OnLastRun(self)`, so the cancel flag has been cleared by then. Useless for "did we end naturally vs cancelled". Better signals: `NextActivity != null` (something queued behind us implies replacement) or compare `attack.RequestedTarget` to our own `target` field. See `WORKSPACE/DISCOVERIES.md` 2026-05-09.
+
 <!-- Scenario System, Key Engine Modifications, Custom Traits, Heavily Modified Systems
      all moved to DOCS/reference/architecture.md -->
 
