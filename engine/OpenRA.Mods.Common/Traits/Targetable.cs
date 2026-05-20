@@ -51,7 +51,17 @@ namespace OpenRA.Mods.Common.Traits
 			if (cloaks.Length == 0 || (!viewer.IsDead && viewer.Info.HasTraitInfo<IgnoresCloakInfo>()))
 				return true;
 
-			return cloaks.All(c => c.IsTraitDisabled || !c.ShouldHide(self, viewer.Owner));
+			// PITFALL: don't restore cloaks.All(lambda) — that allocates a closure capturing
+			// self+viewer.Owner per attack scan. foreach short-circuits, no allocation.
+			foreach (var c in cloaks)
+			{
+				if (c.IsTraitDisabled)
+					continue;
+				if (c.ShouldHide(self, viewer.Owner))
+					return false;
+			}
+
+			return true;
 		}
 
 		public virtual BitSet<TargetableType> TargetTypes => Info.TargetTypes;
