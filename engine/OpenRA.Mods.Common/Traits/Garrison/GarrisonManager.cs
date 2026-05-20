@@ -457,13 +457,10 @@ namespace OpenRA.Mods.Common.Traits
 				if (soldier.IsDead)
 					continue;
 
-				// Suppression hysteresis: a soldier recalled at suppression ≥ SuppressionRecallThreshold
-				// (default 60) only decays ~10 stacks during SuppressionLockoutTicks (default 50, decay
-				// rate 1 per 5 ticks for infantry). Without this gate they get redeployed at a different
-				// port — port-level lockouts are per-port, not per-soldier — at suppression ~50, eat one
-				// more hit, climb back over 60, get recalled again. Cycle ≈40–60 ticks visible as
-				// shelter↔port flicker. Requiring the soldier itself to be below the redeploy threshold
-				// adds 100+ decay ticks before they're eligible anywhere, which is what stops the loop.
+				// PITFALL (2026-05): per-soldier suppression gate is what stops the recall/redeploy
+				// loop — port lockouts are per-port, so the building's other port happily redeploys
+				// the same soldier at suppression ~50, they eat a hit, recall again. Same flapping
+				// pattern as bf3e14d9 / 437e33cd. Don't replace this with a per-port check.
 				if (Info.SuppressionRedeployThreshold > 0
 					&& soldier.GetConditionCount(Info.SuppressionCondition) >= Info.SuppressionRedeployThreshold)
 					continue;
