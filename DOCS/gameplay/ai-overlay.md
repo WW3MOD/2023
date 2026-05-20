@@ -30,7 +30,7 @@ So a circle appears when two opposing forces are *within roughly 5–6 cells of 
 
 ## Why this overlay exists
 
-Real military commanders don't think in terms of "individual units" — they think in terms of *lines, sectors, axes*. WW3MOD's v2 AI is being built around the same idea (see [`../../WORKSPACE/ai/doctrine.md`](../../WORKSPACE/ai/doctrine.md)). The frontline overlay is the first piece — once the AI knows where the contested zone is, every future doctrine piece (screen placement, main-line positioning, reserve management, 3:1 concentration of force) builds on it.
+Real military commanders don't think in terms of "individual units" — they think in terms of *lines, sectors, axes*. WW3MOD's v2 AI is being built around the same idea (see [`../../WORKSPACE/ai/archive/doctrine.md`](../../WORKSPACE/ai/archive/doctrine.md)). The frontline overlay is the first piece — once the AI knows where the contested zone is, every future doctrine piece (screen placement, main-line positioning, reserve management, 3:1 concentration of force) builds on it.
 
 For a player, the overlay is *useful*:
 
@@ -50,5 +50,5 @@ The overlay refreshes whenever the InfluenceMap does (every 25 sim-sec ticks ≈
 
 ## Related docs
 
-- [`../../WORKSPACE/ai/doctrine.md`](../../WORKSPACE/ai/doctrine.md) — the doctrine roadmap. Defence in depth, 3:1 concentration, reserve management. The overlay is the visible piece of "frontline perception."
-- [`../../WORKSPACE/ai/stage_a_frontline_perception.md`](../../WORKSPACE/ai/stage_a_frontline_perception.md) — the stage spec this overlay implements.
+- [`../../WORKSPACE/ai/archive/doctrine.md`](../../WORKSPACE/ai/archive/doctrine.md) — the doctrine roadmap. Defence in depth, 3:1 concentration, reserve management. The overlay is the visible piece of "frontline perception."
+- [`../../WORKSPACE/ai/archive/stage_a_frontline_perception.md`](../../WORKSPACE/ai/archive/stage_a_frontline_perception.md) — the stage spec this overlay implements.
