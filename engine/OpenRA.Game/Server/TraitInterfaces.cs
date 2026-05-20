@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System;
 using OpenRA.Network;
 
 namespace OpenRA.Server
@@ -31,33 +30,33 @@ namespace OpenRA.Server
 	{
 		public bool InterpretCommand(Server server, Connection conn, Session.Client client, string cmd)
 		{
-			Console.WriteLine("Server received command from player {1}: {0}", cmd, conn.PlayerIndex);
+			Log.Write("server", $"Server received command from player {conn.PlayerIndex}: {cmd}");
 			return false;
 		}
 
 		public void GameStarted(Server server)
 		{
-			Console.WriteLine("GameStarted()");
+			Log.Write("server", "GameStarted()");
 		}
 
 		public void LobbyInfoSynced(Server server)
 		{
-			Console.WriteLine("LobbyInfoSynced()");
+			Log.Write("server", "LobbyInfoSynced()");
 		}
 
 		public void ServerStarted(Server server)
 		{
-			Console.WriteLine("ServerStarted()");
+			Log.Write("server", "ServerStarted()");
 		}
 
 		public void ServerShutdown(Server server)
 		{
-			Console.WriteLine("ServerShutdown()");
+			Log.Write("server", "ServerShutdown()");
 		}
 
 		public void GameEnded(Server server)
 		{
-			Console.WriteLine("GameEnded()");
+			Log.Write("server", "GameEnded()");
 		}
 	}
 }

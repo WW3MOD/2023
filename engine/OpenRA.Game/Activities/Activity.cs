@@ -226,7 +226,8 @@ namespace OpenRA.Activities
 		}
 
 		/// <summary>
-		/// <para>Prints the activity tree, starting from the top or optionally from a given origin.</para>
+		/// <para>Prints the activity tree to the debug log channel, starting from the top
+		/// or optionally from a given origin.</para>
 		/// <para>
 		/// Call this method from any place that's called during a tick, such as the Tick() method itself or
 		/// the Before(First|Last)Run() methods. The origin activity will be marked in the output.
@@ -241,11 +242,9 @@ namespace OpenRA.Activities
 				self.CurrentActivity.PrintActivityTree(self, this);
 			else
 			{
-				Console.Write(new string(' ', level * 2));
-				if (origin == this)
-					Console.Write("*");
-
-				Console.WriteLine(GetType().ToString().Split('.').Last());
+				var marker = origin == this ? "*" : "";
+				var name = GetType().ToString().Split('.').Last();
+				Log.Write("debug", $"{new string(' ', level * 2)}{marker}{name}");
 
 				ChildActivity?.PrintActivityTree(self, origin, level + 1);
 

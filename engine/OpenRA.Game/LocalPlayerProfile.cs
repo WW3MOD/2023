@@ -66,8 +66,6 @@ namespace OpenRA
 			}
 			catch (Exception e)
 			{
-				Console.WriteLine("Failed to load keys:");
-				Console.WriteLine(e);
 				Log.Write("debug", $"Failed to load player keypair from `{filePath}` with exception:");
 				Log.Write("debug", e);
 			}
@@ -142,8 +140,6 @@ namespace OpenRA
 				{
 					Log.Write("debug", "Failed to generate keypair with exception:");
 					Log.Write("debug", e);
-					Console.WriteLine("Key generation failed:");
-					Console.WriteLine(e);
 
 					innerState = LinkState.Uninitialized;
 				}
@@ -160,8 +156,6 @@ namespace OpenRA
 			{
 				Log.Write("debug", "Failed to delete keypair with exception:");
 				Log.Write("debug", e);
-				Console.WriteLine("Key deletion failed:");
-				Console.WriteLine(e);
 			}
 
 			innerState = LinkState.Uninitialized;

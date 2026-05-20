@@ -121,10 +121,7 @@ namespace OpenRA.Graphics
 					if (hardwareCursor != null)
 						template.Cursors[i] = hardwareCursor;
 					else
-					{
 						Log.Write("debug", $"Failed to initialize hardware cursor for {template.Name}.");
-						Console.WriteLine($"Failed to initialize hardware cursor for {template.Name}.");
-					}
 				}
 			}
 

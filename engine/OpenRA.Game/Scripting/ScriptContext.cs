@@ -244,7 +244,6 @@ namespace OpenRA.Scripting
 
 		void LogDebugMessage(string message)
 		{
-			Console.WriteLine($"Lua debug: {message}");
 			Log.Write("lua", message);
 		}
 
