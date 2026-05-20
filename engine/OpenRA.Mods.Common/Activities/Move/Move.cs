@@ -647,6 +647,10 @@ namespace OpenRA.Mods.Common.Activities
 								mobile.MovingBackward = false;
 						}
 
+						// PITFALL (2026-03): the MovingBackward branch is load-bearing — MoveFirstHalf
+						// chains through every remaining path cell here, so a previous fix that only
+						// preserved facing at the first transition (in Move.Tick) had the vehicle
+						// spin around mid-reverse on cell 2+. See d68e01b2.
 						var toFacing = mobile.MovingBackward
 							? new WAngle(nextFacing.Angle + 512)
 							: nextFacing;
