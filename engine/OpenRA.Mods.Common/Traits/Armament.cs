@@ -167,15 +167,12 @@ namespace OpenRA.Mods.Common.Traits
 		public int BurstWait { get; protected set; }
 		public int FireDelay { get; protected set; }
 		public bool IsBurstWait { get; protected set; }
-		public AmmoPool AmmoPool
-		{
-			get
-			{
-				var matchingAmmopool = self.TraitsImplementing<AmmoPool>().FirstOrDefault(ammopool =>
-					ammopool.Info.Armaments.Any(armament => armament == Info.Name));
-				return matchingAmmopool;
-			}
-		}
+
+		// PERF: cached in Created(); the matching AmmoPool is fixed at YAML load time so
+		// the lookup never changes. Replaces a per-call TraitsImplementing + LINQ scan
+		// that fired every render frame via NextBurstBar.GetValue.
+		AmmoPool cachedAmmoPool;
+		public AmmoPool AmmoPool => cachedAmmoPool;
 
 		public List<WPos> AimInitialTargetPosition { get; protected set; }
 		public int AimInitialTicksBefore { get; protected set; }
@@ -249,6 +246,14 @@ namespace OpenRA.Mods.Common.Traits
 			notifyBurstComplete = self.TraitsImplementing<INotifyBurstComplete>().ToArray();
 			notifyMagazineComplete = self.TraitsImplementing<INotifyMagazineComplete>().ToArray();
 			notifyAttacks = self.TraitsImplementing<INotifyAttack>().ToArray();
+
+			cachedAmmoPool = self.TraitsImplementing<AmmoPool>().FirstOrDefault(ap =>
+			{
+				foreach (var armName in ap.Info.Armaments)
+					if (armName == Info.Name)
+						return true;
+				return false;
+			});
 
 			rangeModifiers = self.TraitsImplementing<IRangeModifier>().ToArray().Select(m => m.GetRangeModifier());
 			burstWaitModifiers = self.TraitsImplementing<IBurstWaitModifier>().ToArray().Select(m => m.GetBurstWaitModifier());
