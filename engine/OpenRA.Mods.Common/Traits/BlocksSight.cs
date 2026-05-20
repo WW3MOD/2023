@@ -56,16 +56,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		byte IBlocksSight.Density { get { return Info.Density; } }
 
-		/* public static bool AnyBlockingActorAt(World world, WPos pos)
-		{
-			var dat = world.Map.DistanceAboveTerrain(pos);
-
-			return world.ActorMap.GetActorsAt(world.Map.CellContaining(pos))
-				.Any(a => a.TraitsImplementing<IBlocksSight>()
-					.Where(t => t.BlockingHeight > dat)
-					.Any(Exts.IsTraitEnabled));
-		} */
-
 		public static List<Actor> BlockingActorsBetween(Actor self, WPos end, WDist width)
 		{
 			return BlockingActorsBetween(self.World, self.CenterPosition, end, width);
