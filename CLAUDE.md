@@ -353,6 +353,15 @@ Each unit type has a base template file and two faction files:
 ### Blank lines are significant
 Templates and top-level entries must be separated by a blank line. The MiniYaml parser silently merges adjacent ones, producing confusing override behavior — not a parse error. If a template "isn't taking effect," check the blank lines first.
 
+### Empty string values: bare trailing colon, not `""`
+To disable a chrome/widget string field (`Separators`, `Background`, `Decorations`, `TooltipText`), write `Separators:` (bare colon). Writing `Separators: ""` parses as the literal 2-char string `""`, defeats `IsNullOrEmpty` checks, and crashes on lookups like `WidgetUtils.GetCachedStatefulImage("\"\"", ...)`. See `WORKSPACE/DISCOVERIES.md` 2026-05-18.
+
+### Maps require `Rules: rules.yaml`
+Without the top-level `Rules: rules.yaml` line in `map.yaml`, OpenRA silently ignores `rules.yaml` entirely — Lua scripts, AutoTarget overrides, and all rule modifications are never loaded. The map appears to work (actors spawn, terrain renders), so this fails silently. The MCP `set_map_rules` tool handles this; verify by hand if writing map YAML directly. See `WORKSPACE/DISCOVERIES.md` 2026-03-23.
+
+### `ReloadAmmoPool` `FullReloadTicks`/`FullReloadSteps` are dead
+On a `ReloadAmmoPool@X:` block these two fields are never read — only `Delay` and `Count` are. The identically-named fields on `AmmoPool` (the host trait) ARE used. YAML that sets them on `ReloadAmmoPool` does nothing. See `WORKSPACE/DISCOVERIES.md` 2026-03-23.
+
 ## Current state
 
 Live status — read `WORKSPACE/RELEASE_V1.md` (source of truth), `WORKSPACE/HOTBOARD.md` (in-flight), `WORKSPACE/BACKLOG.md` (deferred). For an overview, run `git log --oneline -20`. Engine-upgrade consideration: see `DOCS/reference/project-assessment.md` Section 5.
