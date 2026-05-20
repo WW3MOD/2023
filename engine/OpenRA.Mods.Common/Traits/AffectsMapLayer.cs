@@ -149,13 +149,6 @@ namespace OpenRA.Mods.Common.Traits
 			cachedRange = range;
 			CachedTraitDisabled = traitDisabled;
 
-			// if (checkTick-- <= 0)
-			/* {
-				// CPU improvement - Update shroud every 10 ticks
-				checkTick = 10;
-				UpdateCells(self);
-			} */
-
 			UpdateCells(self);
 		}
 
