@@ -1,0 +1,1 @@
+Auto: Drone operator (DR) idle near an enemy quadcopter must autotarget it with the DroneJammer within deadline.
