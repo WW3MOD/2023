@@ -139,7 +139,7 @@ bmp2:
 		CrewDamageThresholdPercent: 12
 		EjectionSurvivalRate: 45
 	Tooltip:
-		Name: BPM-2
+		Name: BMP-2
 		GenericName: IFV Troop Carrier
 	AnnounceOnSeen:
 		Type: Vehicle
