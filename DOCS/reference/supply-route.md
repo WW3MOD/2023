@@ -110,7 +110,7 @@ For AI design and for any strategic-layer code:
 
 - [`economy.md`](economy.md) — supply, ammo, cash flow. The economic side of how reinforcements get paid for. (The SR triggers the spend; the economy doc covers what the spend actually buys.)
 - [`architecture.md`](architecture.md) — engine layout, scenario system.
-- `WORKSPACE/ai/foundation_260511.md` — AI overhaul foundation. Its "WW3MOD-specific" section should reference this doc rather than restating the model.
+- `WORKSPACE/ai/archive/foundation_260511.md` — AI overhaul foundation. Its "WW3MOD-specific" section should reference this doc rather than restating the model.
 
 ## When you update this doc
 
