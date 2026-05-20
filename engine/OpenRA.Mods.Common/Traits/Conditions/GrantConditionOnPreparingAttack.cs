@@ -46,27 +46,11 @@ namespace OpenRA.Mods.Common.Traits
 	public class GrantConditionOnPreparingAttack : PausableConditionalTrait<GrantConditionOnPreparingAttackInfo>, INotifyCreated, ITick, INotifyAttack
 	{
 		readonly Stack<int> tokens = new Stack<int>();
-		/* readonly Stack<int> preparingTokens = new Stack<int>();
-		readonly Stack<int> attackingTokens = new Stack<int>(); */
-
-		/* INotifyAttack[] notifyAttacks; */
 
 		int cooldown = 0;
-		/* int preparingCooldown = 0;
-		int attackingCooldown = 0; */
-
-		// Only tracked when RevokeOnNewTarget is true.
-		/* readonly Target lastTarget = Target.Invalid; */
 
 		public GrantConditionOnPreparingAttack(ActorInitializer _, GrantConditionOnPreparingAttackInfo info)
 			: base(info) { }
-
-		/* protected override void Created(Actor self)
-		{
-			notifyAttacks = self.TraitsImplementing<INotifyAttack>().ToArray();
-
-			base.Created(self);
-		} */
 
 		void ITick.Tick(Actor self)
 		{
@@ -75,17 +59,6 @@ namespace OpenRA.Mods.Common.Traits
 				cooldown = Info.RevokeDelay;
 				RevokeInstance(self, Info.RevokeAll);
 			}
-
-			/* if (preparingTokens.Count > 0 && --preparingCooldown == 0)
-			{
-				preparingCooldown = Info.PreparingRevokeDelay;
-				RevokeInstance(self, Info.RevokeAll);
-			}
-			if (tokens.Count > 0 && --cooldown == 0)
-			{
-				cooldown = Info.RevokeDelay;
-				RevokeInstance(self, Info.RevokeAll);
-			} */
 		}
 
 		void INotifyAttack.PreparingAttack(Actor self, in Target target, Armament a, Barrel barrel)
@@ -97,7 +70,6 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			cooldown = Info.RevokeDelay;
-			/* preparingCooldown = Info.PreparingRevokeDelay; */
 
 			GrantInstance(self, Info.Condition);
 		}
@@ -110,19 +82,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.ArmamentNames.Contains(a.Info.Name))
 				return;
 
-			/* if (Info.RevokeOnNewTarget)
-			{
-				if (TargetChanged(lastTarget, target))
-					RevokeInstance(self, Info.RevokeAll);
-
-				lastTarget = target;
-			} */
-
 			if (tokens.Count >= Info.MaximumInstances)
 				return;
 
 			cooldown = Info.RevokeDelay;
-			/* attackingCooldown = Info.AttackingRevokeDelay; */
 
 			GrantInstance(self, Info.Condition);
 		}
