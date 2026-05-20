@@ -73,12 +73,11 @@ namespace OpenRA.Mods.Common.Activities
 			// CPU improvement - Only check every 10 ticks
 			if (checkTick-- <= 0 && (ChildActivity == null || runningMoveActivity))
 			{
-				// Scan for targets. Always bypass the AutoTarget per-actor scan-interval rate
-				// limit — AttackFollow.Tick runs opportunity-fire scans every tick and shares
-				// the same nextScanTime counter, which left AttackMove starved of scan slots
-				// during a move (the symptom: attack-move never engages, opportunity-fire fires
-				// only at the moment the unit happens to be still). The 10-tick checkTick
-				// cadence below provides our own rate limit.
+				// PITFALL (2026-05): keep ignoreScanInterval=true unconditionally. AttackFollow.Tick
+				// shares AutoTarget's per-actor nextScanTime counter and burns it every tick on
+				// opportunity-fire, so any "smarter" reuse here (e.g. !runningMoveActivity) starves
+				// attack-move scans and the unit walks straight past targets. The 10-tick checkTick
+				// below is our own rate limit.
 				target = autoTarget.ScanForTarget(self, false, true, ignoreScanInterval: true);
 
 				// Cancel the current move activity and queue attack activities if we find a new target.

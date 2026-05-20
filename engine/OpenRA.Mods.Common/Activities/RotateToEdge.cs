@@ -52,7 +52,11 @@ namespace OpenRA.Mods.Common.Activities
 			refundPercent = sellableInfo?.RefundPercent ?? 100;
 			fixedRefund = null;
 
-			// Tick every frame so the aircraft off-map despawn check fires while Fly is still running.
+			// PITFALL (2026-05): ChildHasPriority must stay false. Default-true means Tick only
+			// runs when the child completes — the IsOnMapEdge early-sell never fires mid-flight,
+			// the helicopter crosses the boundary, and Aircraft.Repulse fights it back toward map
+			// center forever. Same regression as 768df672, re-introduced by the FlyOffMap switch
+			// (8857c3a4) and re-fixed in c4e82b96.
 			ChildHasPriority = false;
 		}
 
@@ -68,6 +72,8 @@ namespace OpenRA.Mods.Common.Activities
 			refundPercent = 100;
 			fixedRefund = refundAmount;
 
+			// PITFALL: see other ctor — leaving ChildHasPriority default-true re-introduces the
+			// edge-oscillation bug.
 			ChildHasPriority = false;
 		}
 
