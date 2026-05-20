@@ -10,6 +10,7 @@
 #endregion
 
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -82,7 +83,9 @@ namespace OpenRA.Mods.Common.Traits
 				var delta = new WVec(radiusToUse, radiusToUse, WDist.Zero);
 				var tl = world.Map.CellContaining(pos - delta);
 				var br = world.Map.CellContaining(pos + delta);
-				var checkFrozen = firedBy.FrozenActorLayer.FrozenActorsInRegion(new CellRegion(world.Map.Grid.Type, tl, br));
+				var checkFrozen = firedBy.FrozenActorLayer != null
+					? firedBy.FrozenActorLayer.FrozenActorsInRegion(new CellRegion(world.Map.Grid.Type, tl, br))
+					: Enumerable.Empty<FrozenActor>();
 
 				// IsValid check filters out Frozen Actors that have not initialized their Owner
 				foreach (var scrutinized in checkFrozen)
