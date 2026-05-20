@@ -52,9 +52,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyBeingPassed.WarnPass(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
-			// if (!PassableInner(self, passer, passClasses))
-			// 	return;
-
 			// Quick fix for infantry losing their queue after being nudged by friendly vehicles
 			if (self.Owner.RelationshipWith(passer.Owner) == PlayerRelationship.Ally)
 				return;
@@ -66,9 +63,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyBeingPassed.OnBeingPassed(Actor self, Actor passer, BitSet<PassClass> passClasses)
 		{
-			/* if (!PassableInner(self, passer, passClasses))
-				return; */
-
 			Game.Sound.Play(SoundType.World, Info.CrushSound, passer.CenterPosition);
 
 			var passerMobile = passer.TraitOrDefault<Mobile>();
@@ -121,26 +115,6 @@ namespace OpenRA.Mods.Common.Traits
 				return self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask);
 
 			return self.World.NoPlayersMask;
-
-			// return self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask);
-
-			// if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Ally) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Ally))
-			// 	if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Neutral) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Neutral))
-			// 		if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Enemy) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Enemy))
-			// 			return self.World.AllPlayersMask;
-			// 		else
-			// 			return self.World.AllPlayersMask.Except(self.Owner.EnemyPlayersMask);
-			// 	else
-			// 		return self.Owner.AlliedPlayersMask;
-			// else if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Neutral) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Neutral))
-			// 		if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Enemy) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Enemy))
-			// 			return self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask);
-			// 		else
-			// 			return self.World.AllPlayersMask.Except(self.Owner.AlliedPlayersMask).Except(self.Owner.EnemyPlayersMask);
-			// else if (Info.PassedByRelationships.HasRelationship(PlayerRelationship.Enemy) || Info.CrushedByRelationships.HasRelationship(PlayerRelationship.Enemy))
-			// 	return self.Owner.EnemyPlayersMask;
-
-			// return self.World.NoPlayersMask;
 		}
 
 		bool PassableInner(Actor self, Actor passer, BitSet<PassClass> passClasses)
