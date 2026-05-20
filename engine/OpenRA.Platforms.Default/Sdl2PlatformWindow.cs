@@ -265,7 +265,6 @@ namespace OpenRA.Platforms.Default
 						catch
 						{
 							Log.Write("debug", "Failed to set _KDE_NET_WM_DESKTOP_FILE");
-							Console.WriteLine("Failed to set _KDE_NET_WM_DESKTOP_FILE");
 						}
 					}
 				}
@@ -416,7 +415,6 @@ namespace OpenRA.Platforms.Default
 			catch (Exception ex)
 			{
 				Log.Write("debug", $"Failed to create hardware cursor `{name}` - {ex.Message}");
-				Console.WriteLine($"Failed to create hardware cursor `{name}` - {ex.Message}");
 				return null;
 			}
 		}
