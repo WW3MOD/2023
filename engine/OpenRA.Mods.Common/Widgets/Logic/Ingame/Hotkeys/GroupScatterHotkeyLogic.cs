@@ -69,17 +69,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			if (selectedActors.Count == 0)
 				return false;
 
-			// Aggregate waypoints across ALL selected actors. Different actors may be at
-			// different points in their order chain (e.g., a faster unit may have completed
-			// its first order already), so taking the max from a single unit can drop waypoints
-			// that only the slowest units still hold. We dedupe by (Cell, OrderType) and
-			// preserve the order they appeared in the longest chain.
-			//
-			// Only units that contributed at least one waypoint participate in the redistribution.
-			// CollectWaypoints filters out automatic activities (autotargeting, nudges, …), so a
-			// unit whose chain holds only auto-behaviours yields an empty list and is excluded —
+			// CollectWaypoints filters out automatic activities (autotargeting, nudges, …), so
+			// a unit whose chain holds only auto-behaviours yields an empty list and is excluded —
 			// Shift-G is for redistributing human-given orders, not for press-ganging idlers.
-			var bestChain = new List<Waypoint>();
 			var allChains = new List<List<Waypoint>>();
 			var participants = new List<Actor>();
 			foreach (var actor in selectedActors)
@@ -90,40 +82,94 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 				allChains.Add(actorWaypoints);
 				participants.Add(actor);
-				if (actorWaypoints.Count > bestChain.Count)
-					bestChain = actorWaypoints;
 			}
 
-			var waypoints = new List<Waypoint>(bestChain);
-			var seen = new HashSet<(CPos, string)>(waypoints.Select(w => (w.Cell, w.OrderType)));
-
-			// Append any waypoints that other units still have but the longest chain dropped.
-			foreach (var chain in allChains)
-				foreach (var wp in chain)
-					if (seen.Add((wp.Cell, wp.OrderType)))
-						waypoints.Add(wp);
-
-			if (waypoints.Count < 2 || participants.Count == 0)
+			if (participants.Count == 0)
 			{
-				TextNotificationsManager.AddFeedbackLine($"Group Scatter requires at least 2 queued waypoints (found {waypoints.Count}).");
+				TextNotificationsManager.AddFeedbackLine("Group Scatter: no human-issued orders to redistribute.");
 				return true;
 			}
 
-			// Split waypoints into segments of consecutive same-type orders
-			var segments = BuildSegments(waypoints);
+			// Only redistribute the longest tail that's identical across every participant.
+			// That's the "group order" portion (e.g. waypoints just queued onto the whole
+			// selection). Anything before the common suffix is unit-specific — likely the
+			// result of an earlier spread or per-unit overrides. Re-mixing those would undo
+			// the previous distribution and can land units at the wrong cells. Instead we
+			// preserve each participant's prefix verbatim and only spread the shared tail.
+			var commonSuffixLen = ComputeCommonSuffixLength(allChains);
+			var commonSuffix = commonSuffixLen > 0
+				? allChains[0].Skip(allChains[0].Count - commonSuffixLen).ToList()
+				: new List<Waypoint>();
 
-			// Stop only the participating units — units excluded for lack of human-given
-			// orders keep doing whatever they were doing (autotarget, nudge response, …).
+			if (commonSuffix.Count < 2)
+			{
+				TextNotificationsManager.AddFeedbackLine($"Group Scatter requires at least 2 shared queued waypoints (found {commonSuffix.Count}).");
+				return true;
+			}
+
+			// Split the shared tail into segments of consecutive same-type orders
+			var segments = BuildSegments(commonSuffix);
+
+			// Stop participating units (clears their entire chain), then re-issue each
+			// participant's prefix before the redistributed shared tail goes on top.
 			foreach (var unit in participants)
 				world.IssueOrder(new Order("Stop", unit, false));
 
-			// Process each segment in order, always queuing (Stop already cleared activities)
+			for (var i = 0; i < participants.Count; i++)
+			{
+				var unit = participants[i];
+				var chain = allChains[i];
+				var prefixCount = chain.Count - commonSuffixLen;
+				for (var j = 0; j < prefixCount; j++)
+				{
+					var wp = chain[j];
+					world.IssueOrder(new Order(wp.OrderType, unit, wp.Target, true));
+				}
+			}
+
+			// Process each segment in order, always queuing (prefix is already in the chain)
 			foreach (var segment in segments)
 				DistributeSegment(world, participants, segment);
 
 			var segmentDesc = string.Join(" → ", segments.Select(s => $"{s.Waypoints.Count}x {s.OrderType}"));
 			TextNotificationsManager.AddFeedbackLine($"Scattered {participants.Count} units: {segmentDesc}");
 			return true;
+		}
+
+		// Returns the length of the longest tail [N waypoints] that's identical across every chain.
+		// Matching is by (Cell, OrderType) — the same dedup key BuildSegments / Stop work with.
+		static int ComputeCommonSuffixLength(List<List<Waypoint>> chains)
+		{
+			if (chains.Count == 0)
+				return 0;
+
+			var minLen = chains[0].Count;
+			for (var i = 1; i < chains.Count; i++)
+				if (chains[i].Count < minLen)
+					minLen = chains[i].Count;
+
+			var suffix = 0;
+			while (suffix < minLen)
+			{
+				var refWp = chains[0][chains[0].Count - 1 - suffix];
+				var allMatch = true;
+				for (var i = 1; i < chains.Count; i++)
+				{
+					var wp = chains[i][chains[i].Count - 1 - suffix];
+					if (wp.Cell != refWp.Cell || wp.OrderType != refWp.OrderType)
+					{
+						allMatch = false;
+						break;
+					}
+				}
+
+				if (!allMatch)
+					break;
+
+				suffix++;
+			}
+
+			return suffix;
 		}
 
 		static List<Waypoint> CollectWaypoints(World world, Actor actor)
