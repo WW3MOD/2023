@@ -110,3 +110,13 @@ function TestHarness.ScreenshotAfter(seconds, label, note)
 		Test.Screenshot(label, note or "")
 	end)
 end
+
+-- Convert a cell coordinate to the WPos at that cell's center. Optional Z for
+-- aircraft (1280 = cruising altitude). Replaces the inline helper that was
+-- copy-pasted into half a dozen scenarios.
+--
+-- Usage: TestHarness.CellPos(12, 17)         -- ground
+--        TestHarness.CellPos(12, 17, 1280)   -- airborne cruise
+function TestHarness.CellPos(cx, cy, altitude)
+	return WPos.New(cx * 1024 + 512, cy * 1024 + 512, altitude or 0)
+end
