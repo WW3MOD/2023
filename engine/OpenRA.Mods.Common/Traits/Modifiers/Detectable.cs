@@ -56,7 +56,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class Detectable : PausableConditionalTrait<DetectableInfo>, IDefaultVisibility, IRenderModifier, ITick
 	{
 		protected readonly DetectableInfo DetectableInfo;
-		IEnumerable<int> detectableModifiers;
+		IDetectableAddativeModifier[] detectableModifierTraits;
 		public int PreviousVisibility { get; set; }
 		public int CurrentVisibility { get; set; }
 		public Detectable(ActorInitializer _, DetectableInfo info)
@@ -69,12 +69,24 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			base.Created(self);
 
-			detectableModifiers = self.TraitsImplementing<IDetectableAddativeModifier>().ToArray().Select(x => x.GetDetectableVisionAddativeModifier());
+			detectableModifierTraits = self.TraitsImplementing<IDetectableAddativeModifier>().ToArray();
+		}
+
+		// PERF: hot path — called per Tick on every detectable actor and from
+		// IsVisibleInner during visibility checks. Inline the modifier loop to
+		// avoid the Select/IEnumerable enumerator allocation Util.ApplyAddative
+		// Modifiers caused on each call.
+		int ComputeDetectable()
+		{
+			var detectable = DetectableInfo.Vision;
+			foreach (var m in detectableModifierTraits)
+				detectable += m.GetDetectableVisionAddativeModifier();
+			return detectable;
 		}
 
 		void ITick.Tick(Actor self)
 		{
-			var detectable = Util.ApplyAddativeModifiers(DetectableInfo.Vision, detectableModifiers);
+			var detectable = ComputeDetectable();
 
 			if (detectable <= 0)
 				detectable = 1;
@@ -96,7 +108,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (DetectableInfo.Position == DetectablePosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			var detectable = Util.ApplyAddativeModifiers(DetectableInfo.Vision, detectableModifiers);
+			var detectable = ComputeDetectable();
 
 			if (detectable <= 0)
 				detectable = 1;
