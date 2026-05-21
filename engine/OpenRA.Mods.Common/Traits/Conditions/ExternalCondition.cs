@@ -223,16 +223,6 @@ namespace OpenRA.Mods.Common.Traits
 							count++;
 					}
 				}
-
-				/* while (count < permanentTokens.Count)
-				{
-					if (count >= Info.ReduceAmount)
-						break;
-					var token = permanentTokens[count];
-					// if (self.TokenValid(token))
-					// 	self.RevokeCondition(token);
-					count++;
-				} */
 			}
 
 			if (timedTokens.Count == 0)

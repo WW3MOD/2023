@@ -51,7 +51,6 @@ namespace OpenRA.Mods.Common.Traits
 			Info = info;
 			self = init.Self;
 			ReturnTimeRemaining = Info.ReturnAfter;
-			/* ammoPools = init.Self.TraitsImplementing<AmmoPool>().ToArray(); */
 		}
 
 		void ITick.Tick(Actor self)
@@ -96,15 +95,6 @@ namespace OpenRA.Mods.Common.Traits
 			base.LinkMaster(self, master, spawnerMaster);
 			this.spawnerMaster = spawnerMaster as CarrierMaster;
 		}
-
-		/* bool NeedToReload(Actor _)
-		{
-			// The unit may not have ammo but will have unlimited ammunitions.
-			if (ammoPools.Length == 0)
-				return false;
-
-			return ammoPools.All(x => !x.HasAmmo);
-		} */
 
 		void ReturnAfterTime(Actor self)
 		{

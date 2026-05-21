@@ -532,6 +532,7 @@ tracer_large:
 		Facings: 32
 		ZOffset: 1023
 		IgnoreWorldTint: true
+
 hjm:
 	idle:
 		Facings: 32

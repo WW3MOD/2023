@@ -1,10 +1,6 @@
 -- BALANCE: Apache vs Mi-28 1v1 to the death @ 22c0 airborne.
 -- Spawned at altitude 1280 mirroring test-heli-vs-heli-missile.
 
-local function cellPos(cx, cy, altitude)
-	return WPos.New(cx * 1024 + 512, cy * 1024 + 512, altitude or 0)
-end
-
 WorldLoaded = function()
 	local USA = Player.GetPlayer("USA")
 	local RUSSIA = Player.GetPlayer("Russia")
@@ -15,12 +11,12 @@ WorldLoaded = function()
 
 	local Apache = Actor.Create("heli", true, {
 		Owner = USA,
-		CenterPosition = cellPos(12, 17, 1280),
+		CenterPosition = TestHarness.CellPos(12, 17, 1280),
 		Facing = Angle.East,
 	})
 	local Havoc = Actor.Create("mi28", true, {
 		Owner = RUSSIA,
-		CenterPosition = cellPos(34, 17, 1280),
+		CenterPosition = TestHarness.CellPos(34, 17, 1280),
 		Facing = Angle.West,
 	})
 

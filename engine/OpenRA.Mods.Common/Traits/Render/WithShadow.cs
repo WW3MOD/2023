@@ -51,16 +51,32 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (IsTraitDisabled)
 				return r;
 
+			return ApplyShadow(self, r);
+		}
+
+		// PITFALL: don't refold this into r.Where(...).Select(...).Concat(r) — that ran on
+		// every render frame for every aircraft and most ground units (WithShadow is on
+		// defaults.yaml). Iterator method drops 2 of the 3 LINQ iterators.
+		IEnumerable<IRenderable> ApplyShadow(Actor self, IEnumerable<IRenderable> r)
+		{
 			var renderables = r.ToList();
 			var height = self.World.Map.DistanceAboveTerrain(self.CenterPosition).Length;
-			var shadowSprites = renderables.Where(s => !s.IsDecoration && s is IModifyableRenderable)
-				.Select(ma => ((IModifyableRenderable)ma).WithTint(shadowColor, ((IModifyableRenderable)ma).TintModifiers | TintModifiers.ReplaceColor)
-					.WithAlpha(shadowAlpha)
-					.OffsetBy(info.Offset - new WVec(0, 0, height))
-					.WithZOffset(ma.ZOffset + height + info.ZOffset)
-					.AsDecoration());
+			var shadowOffset = info.Offset - new WVec(0, 0, height);
 
-			return shadowSprites.Concat(renderables);
+			foreach (var s in renderables)
+			{
+				if (!s.IsDecoration && s is IModifyableRenderable m)
+				{
+					yield return m.WithTint(shadowColor, m.TintModifiers | TintModifiers.ReplaceColor)
+						.WithAlpha(shadowAlpha)
+						.OffsetBy(shadowOffset)
+						.WithZOffset(s.ZOffset + height + info.ZOffset)
+						.AsDecoration();
+				}
+			}
+
+			foreach (var s in renderables)
+				yield return s;
 		}
 
 		IEnumerable<Rectangle> IRenderModifier.ModifyScreenBounds(Actor self, WorldRenderer wr, IEnumerable<Rectangle> bounds)

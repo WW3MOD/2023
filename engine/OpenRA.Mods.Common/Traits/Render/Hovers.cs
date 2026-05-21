@@ -110,7 +110,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		IEnumerable<IRenderable> IRenderModifier.ModifyRender(Actor self, WorldRenderer wr, IEnumerable<IRenderable> r)
 		{
-			return r.Select(a => a.OffsetBy(WorldVisualOffset));
+			// PITFALL: don't restore r.Select(lambda) — Select + captured-lambda closure
+			// alloc per render frame per hovering aircraft. Iterator method saves the closure.
+			foreach (var a in r)
+				yield return a.OffsetBy(WorldVisualOffset);
 		}
 
 		IEnumerable<Rectangle> IRenderModifier.ModifyScreenBounds(Actor self, WorldRenderer wr, IEnumerable<Rectangle> bounds)

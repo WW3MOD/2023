@@ -23,8 +23,6 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Damage will be applied to actors in this area. A value of zero means only targeted actor will be damaged.")]
 		public readonly WDist Spread = new WDist(1);
 
-		/* protected override void InflictDamage(Actor victim, Actor firedBy, HitShape shape, WarheadArgs args) {} */
-
 		protected override void DoImpact(WPos pos, Actor firedBy, WarheadArgs args)
 		{
 			if (Spread == WDist.Zero)

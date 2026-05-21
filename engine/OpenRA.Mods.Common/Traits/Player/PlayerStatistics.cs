@@ -228,7 +228,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			playerStats.DeathsCost += cost;
 
-			if (e.Attacker == self)
+			if (e.Attacker == null || e.Attacker == self)
 				return;
 
 			var attackerStats = e.Attacker.Owner.PlayerActor.Trait<PlayerStatistics>();

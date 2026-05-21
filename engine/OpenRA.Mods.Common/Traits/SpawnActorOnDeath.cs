@@ -100,7 +100,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.DeathType != null && !e.Damage.DamageTypes.Contains(Info.DeathType))
 				return;
 
-			attackingPlayer = e.Attacker.Owner;
+			attackingPlayer = e.Attacker?.Owner;
 		}
 
 		// Don't add the new actor to the world before all RemovedFromWorld callbacks have run
