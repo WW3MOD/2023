@@ -121,6 +121,7 @@
 	Passenger:
 		Weight: 15
 		CargoType: Vehicle
+
 ^TrackedVehicle:
 	Inherits@Type: ^Vehicle
 	Mobile:
@@ -131,6 +132,7 @@
 	Passenger:
 		Weight: 20
 		CargoType: Vehicle
+
 ^Walker:
 	Inherits: ^Vehicle
 	Tooltip:
