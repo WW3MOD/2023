@@ -28,6 +28,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly string cashTemplate;
 
 		int displayResources;
+		int lastDisplayResources = int.MinValue;
+		int lastNet = int.MinValue;
 
 		[ObjectCreator.UseCtor]
 		public IngameCashCounterLogic(Widget widget, ModData modData, World world)
@@ -117,6 +119,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			var net = playerResources.NetChange;
+
+			// PERF: this widget Ticks every UI frame; skip the formatting churn
+			// when nothing visible has changed since last frame.
+			if (displayResources == lastDisplayResources && net == lastNet)
+				return;
+
+			lastDisplayResources = displayResources;
+			lastNet = net;
+
 			var sign = net >= 0 ? "+" : "";
 			cashLabel.Text = string.Format(cashTemplate, displayResources) + " (" + sign + string.Format(cashTemplate, net) + ")";
 		}
