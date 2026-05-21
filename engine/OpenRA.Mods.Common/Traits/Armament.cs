@@ -153,7 +153,6 @@ namespace OpenRA.Mods.Common.Traits
 		IEnumerable<int> damageModifiers;
 		IEnumerable<int> inaccuracyModifiers;
 
-		// int ticksSinceLastShot; // FF ??
 		int currentBarrel;
 		readonly int barrelCount;
 
@@ -225,10 +224,6 @@ namespace OpenRA.Mods.Common.Traits
 			lockedAimCenter = null;
 		}
 
-		// void INotifyNewTarget.Acquired(Actor self)
-		// {
-		// 	// Game.Debug("Acquired -- {0}", self.Info.Name);
-		// }
 		public virtual WDist MaxRange()
 		{
 			return new WDist(Util.ApplyPercentageModifiers(Weapon.Range.Length, rangeModifiers));

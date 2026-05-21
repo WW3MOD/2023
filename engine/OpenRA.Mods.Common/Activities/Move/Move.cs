@@ -522,14 +522,6 @@ namespace OpenRA.Mods.Common.Activities
 					progress += mobile.CurrentSpeed;
 				}
 
-				// Decelerate if close to target
-				// if (progress * (progress / mobile.Deceleration) >= Distance)
-				// {
-				// 	progress -= mobile.CurrentSpeed;
-				// 	mobile.CurrentSpeed -= mobile.Deceleration;
-				// 	progress += mobile.CurrentSpeed;
-				// }
-				// else
 				if (progress >= Distance)
 				{
 					mobile.SetCenterPosition(self, To);

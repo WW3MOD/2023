@@ -33,7 +33,6 @@ namespace OpenRA.Mods.Common.Widgets
 		int scatterHighlighted;
 		int resupplyHighlighted;
 		int stopHighlighted;
-		int patrolHighlighted;
 		int autoEnterHighlighted;
 
 
@@ -379,9 +378,6 @@ namespace OpenRA.Mods.Common.Widgets
 
 			if (stopHighlighted > 0)
 				stopHighlighted--;
-
-			if (patrolHighlighted > 0)
-				patrolHighlighted--;
 
 			if (autoEnterHighlighted > 0)
 				autoEnterHighlighted--;
