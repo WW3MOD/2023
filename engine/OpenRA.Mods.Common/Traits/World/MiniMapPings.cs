@@ -41,9 +41,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
-			foreach (var ping in Pings.ToArray())
-				if (!ping.Tick())
-					Pings.Remove(ping);
+			// PERF: reverse-iterate by index to avoid per-tick ToArray() allocation.
+			for (var i = Pings.Count - 1; i >= 0; i--)
+				if (!Pings[i].Tick())
+					Pings.RemoveAt(i);
 		}
 
 		public MiniMapPing Add(MiniMapPing radarPing)
