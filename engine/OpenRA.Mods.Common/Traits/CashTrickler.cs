@@ -9,7 +9,7 @@
  */
 #endregion
 
-using System.Linq;
+using System.Collections.Generic;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -109,10 +109,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		int GetModifiedAmount(Actor self)
 		{
-			var modifiers = self.TraitsImplementing<ICashTricklerModifier>()
-				.Concat(self.Owner.PlayerActor.TraitsImplementing<ICashTricklerModifier>())
-				.Select(x => x.GetCashTricklerModifier());
-			return Util.ApplyPercentageModifiers(info.Amount, modifiers);
+			return Util.ApplyPercentageModifiers(info.Amount, EnumerateModifiers(self));
+		}
+
+		// PITFALL: don't refold this into a Concat(...).Select(...) chain — Tick() runs
+		// GetModifiedAmount every tick per CashTrickler actor. Iterator method drops the
+		// Concat + Select iterator allocs.
+		static IEnumerable<int> EnumerateModifiers(Actor self)
+		{
+			foreach (var t in self.TraitsImplementing<ICashTricklerModifier>())
+				yield return t.GetCashTricklerModifier();
+
+			foreach (var t in self.Owner.PlayerActor.TraitsImplementing<ICashTricklerModifier>())
+				yield return t.GetCashTricklerModifier();
 		}
 
 		void Register(Actor self)
