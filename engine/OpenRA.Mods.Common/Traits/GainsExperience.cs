@@ -124,7 +124,7 @@ namespace OpenRA.Mods.Common.Traits
 					Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Sounds", info.LevelUpNotification, self.Owner.Faction.InternalName);
 					TextNotificationsManager.AddTransientLine(self.Owner, info.LevelUpTextNotification);
 
-					// FF: Dont show level up animation of enemies, which reveal their position
+					// FF: Don't show level up animation of enemies, which reveal their position
 					if ((self.Owner == self.World.RenderPlayer || self.World.IsReplay) && info.LevelUpImage != null && info.LevelUpSequence != null)
 						self.World.AddFrameEndTask(w => w.Add(new SpriteEffect(self, w, info.LevelUpImage, info.LevelUpSequence, info.LevelUpPalette)));
 				}

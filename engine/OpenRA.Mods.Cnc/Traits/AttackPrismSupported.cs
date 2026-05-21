@@ -240,7 +240,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			public IEnumerable<Actor> GetValidNeighborSupporters(Actor self, IEnumerable<Actor> traitedActors)
 			{
-				// My guess is that is is more common to have more actors within our range
+				// My guess is that it is more common to have more actors within our range
 				// than actors with this trait in the world.
 				foreach (var cand in traitedActors)
 				{

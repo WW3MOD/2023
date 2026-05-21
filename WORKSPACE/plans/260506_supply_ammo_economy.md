@@ -54,7 +54,7 @@ Workflow rules: never push to remote, commit after every response, no co-author 
 These were resolved without asking the user further. Each entry: **decision** + **why** + **how to revisit** if it turns out wrong.
 
 ### D1. One field per shot — `SupplyValue` and `CreditValue` should be set equal in YAML
-**Decision:** Treat `SupplyValue` (refill cost) and `CreditValue` (refund value) as a single per-shot cost. Convention: set them to the same number. Don't unify the fields in code (avoids breaking the engine API), but document the convention and use a helper that returns "ammo cost per shot" prefering `SupplyValue` and falling back / cross-checking against `CreditValue`.
+**Decision:** Treat `SupplyValue` (refill cost) and `CreditValue` (refund value) as a single per-shot cost. Convention: set them to the same number. Don't unify the fields in code (avoids breaking the engine API), but document the convention and use a helper that returns "ammo cost per shot" preferring `SupplyValue` and falling back / cross-checking against `CreditValue`.
 
 **Why:** The economy is closed-loop. A HIMARS rocket that costs 1500 supply to refill should also be worth 1500 credits when refunded. Today only the 2 HIMARS pools set `CreditValue` at all (both equal to `SupplyValue`); the pattern is already implicit. Standardizing is a doc + balance-pass change, not an engine change.
 
