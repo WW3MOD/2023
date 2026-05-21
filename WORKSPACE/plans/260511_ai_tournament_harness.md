@@ -184,7 +184,7 @@ Layer 4 — Autonomous tuning loop
 
 ## Phase 5 — Diagnostics & replay (later, opportunistic)
 
-- Per-match diagnostics: army peaks, capture timings, SR contestation events, AI Plan transitions (depends on AI Phase 2 from `WORKSPACE/ai/foundation_260511.md`).
+- Per-match diagnostics: army peaks, capture timings, SR contestation events, AI Plan transitions (depends on AI Phase 2 from `WORKSPACE/ai/archive/foundation_260511.md`).
 - Decisive games (margin > threshold) save their replay automatically to `tournament-results/<batch>/decisive-replays/` for user inspection.
 - Replay-friendly Plan log: each AI's Plan-over-time recorded so the debug overlay can replay it.
 

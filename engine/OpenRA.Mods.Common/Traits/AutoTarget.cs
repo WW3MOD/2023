@@ -678,7 +678,12 @@ namespace OpenRA.Mods.Common.Traits
 			var targetsInRange = self.World.FindActorsInCircle(self.CenterPosition, scanRange)
 				.Select(Target.FromActor);
 
-			if (allowMove || ab.Info.TargetFrozenActors)
+			// Player.FrozenActorLayer is TraitOrDefault and can be null (e.g. for the Neutral
+			// player or any player whose YAML omits the FrozenActorLayer trait). Network/Order.cs
+			// and SupportPowerBotModule.cs explicitly null-guard the same access; auto-target
+			// must do the same or it NREs every tick a weaponless trait host (e.g. AutoTarget on
+			// a neutral TRUK from a captured supply truck) scans for targets.
+			if ((allowMove || ab.Info.TargetFrozenActors) && self.Owner.FrozenActorLayer != null)
 				targetsInRange = targetsInRange
 					.Concat(self.Owner.FrozenActorLayer.FrozenActorsInCircle(self.World, self.CenterPosition, scanRange)
 					.Select(Target.FromFrozenActor));

@@ -280,7 +280,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine(ex);
 				Log.Write("debug", ex.ToString());
 			}
 		}

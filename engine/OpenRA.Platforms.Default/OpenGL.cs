@@ -773,7 +773,7 @@ namespace OpenRA.Platforms.Default
 
 				case GL_DEBUG_SEVERITY_MEDIUM:
 					error = BuildErrorText(source, type, severity, message);
-					Console.WriteLine(error);
+					Log.Write("graphics", error);
 					break;
 			}
 		}

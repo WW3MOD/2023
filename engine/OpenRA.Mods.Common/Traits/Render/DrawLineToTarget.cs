@@ -131,7 +131,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Reverse draw order so target markers are drawn on top of the next line
 			renderableCache.Reverse();
-			return renderableCache.ToArray();
+
+			// PERF: return the cache list directly. WorldRenderer enumerates synchronously
+			// in the same frame (see WorldRenderer.RenderAnnotations), so reusing the field
+			// is safe and avoids a per-frame array copy for every selected actor.
+			return renderableCache;
 		}
 
 		bool IRenderAnnotationsWhenSelected.SpatiallyPartitionable => false;

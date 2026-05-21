@@ -478,7 +478,7 @@ A10:
 		# Hellfire: 4 batches × 1 missile × 200 supply = 800 (~13% of cost 6000).
 		# Universal Hellfire rate.
 		SupplyValue: 200
-	ReloadAmmoPool@1:
+	ReloadAmmoPool@2:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
 		RequiresCondition: unit.docked && !airborne

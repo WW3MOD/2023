@@ -159,11 +159,6 @@ namespace OpenRA.Mods.Common.Traits
 			CurrentAmmoCount = (CurrentAmmoCount - count).Clamp(0, Info.Ammo);
 			UpdateCondition(self);
 
-			/* if (CurrentAmmoCount == 0)
-			{
-				AutoRearmIfAllEmpty(self);
-			} */
-
 			return true;
 		}
 
