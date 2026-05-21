@@ -53,6 +53,9 @@ namespace OpenRA.Mods.Common.Widgets
 		Sheet radarSheet;
 		byte[] radarData;
 
+		// PERF: reused per-tick to avoid allocating a new list every UI frame.
+		readonly List<(CPos Cell, Color Color)> cellsBuffer = new();
+
 		Sprite terrainSprite;
 		Sprite actorSprite;
 		Sprite shroudSprite;
@@ -403,8 +406,6 @@ namespace OpenRA.Mods.Common.Widgets
 				var stride = radarSheet.Size.Width;
 				Array.Clear(radarData, 4 * actorSprite.Bounds.Top * stride, 4 * actorSprite.Bounds.Height * stride);
 
-				var cells = new List<(CPos Cell, Color Color)>();
-
 				unsafe
 				{
 					fixed (byte* colorBytes = &radarData[0])
@@ -419,9 +420,9 @@ namespace OpenRA.Mods.Common.Widgets
 							if (!t.Actor.IsInWorld || (!cosmeticRevealActive && world.FogObscures(t.Actor)))
 								continue;
 
-							cells.Clear();
-							t.Trait.PopulateMiniMapSignatureCells(t.Actor, cells);
-							foreach (var cell in cells)
+							cellsBuffer.Clear();
+							t.Trait.PopulateMiniMapSignatureCells(t.Actor, cellsBuffer);
+							foreach (var cell in cellsBuffer)
 							{
 								if (!world.Map.Contains(cell.Cell))
 									continue;
