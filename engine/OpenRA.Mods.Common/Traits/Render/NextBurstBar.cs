@@ -31,7 +31,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 	{
 		readonly NextBurstBarInfo info;
 		readonly Actor self;
-		IEnumerable<Armament> armaments;
+		Armament[] armaments;
 
 		public NextBurstBar(Actor self, NextBurstBarInfo info)
 		{
@@ -41,8 +41,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		void INotifyCreated.Created(Actor self)
 		{
-			// Name check can be cached but enabled check can't.
-			armaments = self.TraitsImplementing<Armament>().Where(a => info.Armaments.Contains(a.Info.Name)).ToArray().Where(t => !t.IsTraitDisabled);
+			// PITFALL: cache the materialized Armament[] (not a deferred Where chain) so per-render
+			// GetValue() iterates the array directly — no LINQ enumerator alloc per frame.
+			armaments = self.TraitsImplementing<Armament>().Where(a => info.Armaments.Contains(a.Info.Name)).ToArray();
 		}
 
 		float ISelectionBar.GetValue()
@@ -50,17 +51,28 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (!self.Owner.IsAlliedWith(self.World.RenderPlayer))
 				return 0;
 
-			if (armaments.Any(a => !a.AmmoPool.HasAmmo))
-				return 0;
+			var min = float.MaxValue;
+			foreach (var a in armaments)
+			{
+				if (a.IsTraitDisabled)
+					continue;
 
-			return armaments.Min(a =>
-				a.Weapon.ReloadDelay > 0 && a.ReloadDelay > a.BurstWait
-				? a.ReloadDelay / (float)a.Weapon.ReloadDelay
-				: a.BurstWait / (a.IsBurstWait
-					? a.Weapon.BurstWait
-					: a.Weapon.BurstDelays.Length == 1
-						? a.BurstWait / a.Weapon.BurstDelays[0]
-						: a.BurstWait / (float)a.Weapon.BurstDelays[a.Weapon.Burst - (a.Weapon.Burst + 1)]));
+				if (!a.AmmoPool.HasAmmo)
+					return 0;
+
+				var v = a.Weapon.ReloadDelay > 0 && a.ReloadDelay > a.BurstWait
+					? a.ReloadDelay / (float)a.Weapon.ReloadDelay
+					: a.BurstWait / (a.IsBurstWait
+						? a.Weapon.BurstWait
+						: a.Weapon.BurstDelays.Length == 1
+							? a.BurstWait / a.Weapon.BurstDelays[0]
+							: a.BurstWait / (float)a.Weapon.BurstDelays[a.Weapon.Burst - (a.Weapon.Burst + 1)]);
+
+				if (v < min)
+					min = v;
+			}
+
+			return min == float.MaxValue ? 0 : min;
 		}
 
 		Color ISelectionBar.GetColor() { return info.Color; }

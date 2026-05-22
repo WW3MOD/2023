@@ -310,8 +310,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Scan for a new target
 			var newTarget = ScanForNewTarget(currentTarget, forceAttack);
-			/* 	if (newTarget.IsValidFor(self))
-					Console.WriteLine($"Unit {self} retargeted from {currentTarget.Actor} to {newTarget.Actor}"); */
 			return newTarget.IsValidFor(self) ? newTarget : currentTarget;
 		}
 

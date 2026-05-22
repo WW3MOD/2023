@@ -291,6 +291,13 @@ Note the `../` — `utility.sh` cd's into `engine/` before running. Saving a map
 
 Project layout, scenario system, custom traits, aircraft movement, suppression, AI configuration — all in [`DOCS/reference/architecture.md`](DOCS/reference/architecture.md). Read on demand when working on a specific system.
 
+### OpenRA engine debugging gotchas
+
+When traces don't fire or a unit "won't act," check these short-circuits before going deeper:
+
+- **`AttackTurreted.CanAttack` short-circuits on turret rotation.** Returns `turretReady && base.CanAttack(...)` — if the turret hasn't finished facing the target, `AttackBase.CanAttack` is never reached. Symptom: breakpoints / logs inside `AttackBase.CanAttack` silent while the unit visibly refuses to fire. See `WORKSPACE/DISCOVERIES.md` 2026-05-09.
+- **`Activity.IsCanceling` is always false inside `OnLastRun`.** `Activity.TickOuter` sets `State = Done` before calling `OnLastRun(self)`, so the cancel flag has been cleared by then. Useless for "did we end naturally vs cancelled". Better signals: `NextActivity != null` (something queued behind us implies replacement) or compare `attack.RequestedTarget` to our own `target` field. See `WORKSPACE/DISCOVERIES.md` 2026-05-09.
+
 <!-- Scenario System, Key Engine Modifications, Custom Traits, Heavily Modified Systems
      all moved to DOCS/reference/architecture.md -->
 
@@ -353,6 +360,15 @@ Each unit type has a base template file and two faction files:
 ### Blank lines are significant
 Templates and top-level entries must be separated by a blank line. The MiniYaml parser silently merges adjacent ones, producing confusing override behavior — not a parse error. If a template "isn't taking effect," check the blank lines first.
 
+### Empty string values: bare trailing colon, not `""`
+To disable a chrome/widget string field (`Separators`, `Background`, `Decorations`, `TooltipText`), write `Separators:` (bare colon). Writing `Separators: ""` parses as the literal 2-char string `""`, defeats `IsNullOrEmpty` checks, and crashes on lookups like `WidgetUtils.GetCachedStatefulImage("\"\"", ...)`. See `WORKSPACE/DISCOVERIES.md` 2026-05-18.
+
+### Maps require `Rules: rules.yaml`
+Without the top-level `Rules: rules.yaml` line in `map.yaml`, OpenRA silently ignores `rules.yaml` entirely — Lua scripts, AutoTarget overrides, and all rule modifications are never loaded. The map appears to work (actors spawn, terrain renders), so this fails silently. The MCP `set_map_rules` tool handles this; verify by hand if writing map YAML directly. See `WORKSPACE/DISCOVERIES.md` 2026-03-23.
+
+### `ReloadAmmoPool` `FullReloadTicks`/`FullReloadSteps` are dead
+On a `ReloadAmmoPool@X:` block these two fields are never read — only `Delay` and `Count` are. The identically-named fields on `AmmoPool` (the host trait) ARE used. YAML that sets them on `ReloadAmmoPool` does nothing. See `WORKSPACE/DISCOVERIES.md` 2026-03-23.
+
 ## Current state
 
 Live status — read `WORKSPACE/RELEASE_V1.md` (source of truth), `WORKSPACE/HOTBOARD.md` (in-flight), `WORKSPACE/BACKLOG.md` (deferred). For an overview, run `git log --oneline -20`. Engine-upgrade consideration: see `DOCS/reference/project-assessment.md` Section 5.
@@ -370,6 +386,8 @@ dotnet test engine/OpenRA.Test/OpenRA.Test.csproj --configuration Release
 - `SuppressionMathTest.cs` — infantry/vehicle tier progressions, decay timing, caps, prone threshold
 
 **Dev helper script:** `./ww3-dev.ps1` — build, run, test, pre-flight checks, debug log cleanup
+
+**Incremental build occasionally drops single-file edits.** `make` reports success but a single .cs change doesn't make it into the DLL — traces silent, behavior unchanged, log shows `0 errors`. Force a rebuild with `touch <file>.cs && make`. See `WORKSPACE/DISCOVERIES.md` 2026-05-09.
 
 **Building while the game is running.** Safe on both platforms, by different mechanisms:
 - **macOS/Linux:** `engine/Directory.Build.targets` unlinks each output before MSBuild's Copy. unlink(2) leaves the running game's mmap'd inode alive while the next build creates a fresh inode at the same path. Build succeeds, game keeps running, next launch picks up the new DLLs. (Without this shim, an in-place overwrite corrupts the mmap and crashes the game with "Cannot print exception string..." + Abort trap 6 — never disable the targets file.)

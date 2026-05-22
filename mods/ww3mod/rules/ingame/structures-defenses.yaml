@@ -806,6 +806,7 @@ SAM:
 		Color: 66B2FF
 		Width: 3
 		Alpha: 80
+
 HSAM:
 	Inherits: SAM
 	OwnerLostAction:

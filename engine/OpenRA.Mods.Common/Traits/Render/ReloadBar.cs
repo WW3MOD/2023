@@ -31,7 +31,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 	{
 		readonly ReloadBarInfo info;
 		readonly Actor self;
-		IEnumerable<Armament> armaments;
+		Armament[] armaments;
 
 		public ReloadBar(Actor self, ReloadBarInfo info)
 		{
@@ -41,8 +41,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		void INotifyCreated.Created(Actor self)
 		{
-			// Name check can be cached but enabled check can't.
-			armaments = self.TraitsImplementing<Armament>().Where(a => info.Armaments.Contains(a.Info.Name)).ToArray().Where(t => !t.IsTraitDisabled);
+			// PITFALL: cache the materialized Armament[] (not a deferred Where chain) so per-render
+			// GetValue() iterates the array directly — no LINQ enumerator alloc per frame.
+			armaments = self.TraitsImplementing<Armament>().Where(a => info.Armaments.Contains(a.Info.Name)).ToArray();
 		}
 
 		float ISelectionBar.GetValue()
@@ -50,7 +51,18 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (!self.Owner.IsAlliedWith(self.World.RenderPlayer))
 				return 0;
 
-			return armaments.Min(a => a.ReloadDelay / (float)a.Weapon.ReloadDelay);
+			var min = float.MaxValue;
+			foreach (var a in armaments)
+			{
+				if (a.IsTraitDisabled)
+					continue;
+
+				var v = a.ReloadDelay / (float)a.Weapon.ReloadDelay;
+				if (v < min)
+					min = v;
+			}
+
+			return min == float.MaxValue ? 0 : min;
 		}
 
 		Color ISelectionBar.GetColor() { return info.Color; }

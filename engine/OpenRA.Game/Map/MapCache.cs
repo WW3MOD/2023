@@ -170,9 +170,6 @@ namespace OpenRA
 			catch (Exception e)
 			{
 				mapPackage?.Dispose();
-				Console.WriteLine($"Failed to load map: {map}");
-				Console.WriteLine("Details:");
-				Console.WriteLine(e);
 				Log.Write("debug", $"Failed to load map: {map}");
 				Log.Write("debug", "Details:");
 				Log.Write("debug", e);

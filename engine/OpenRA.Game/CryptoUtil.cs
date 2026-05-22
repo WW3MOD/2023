@@ -192,8 +192,6 @@ namespace OpenRA
 			{
 				Log.Write("debug", "Failed to decrypt string with exception:");
 				Log.Write("debug", e);
-				Console.WriteLine("String decryption failed:");
-				Console.WriteLine(e);
 				return null;
 			}
 		}
@@ -218,8 +216,6 @@ namespace OpenRA
 			{
 				Log.Write("debug", "Failed to sign string with exception");
 				Log.Write("debug", e);
-				Console.WriteLine("String signing failed:");
-				Console.WriteLine(e);
 				return null;
 			}
 		}
@@ -244,8 +240,6 @@ namespace OpenRA
 			{
 				Log.Write("debug", "Failed to verify signature with exception:");
 				Log.Write("debug", e);
-				Console.WriteLine("Signature validation failed:");
-				Console.WriteLine(e);
 				return false;
 			}
 		}

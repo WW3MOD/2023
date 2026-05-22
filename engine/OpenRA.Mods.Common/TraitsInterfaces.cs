@@ -599,6 +599,7 @@ namespace OpenRA.Mods.Common.Traits
 			WPos? initialTargetPosition = null, Color? targetLineColor = null);
 		Activity MoveFollow(Actor self, in Target target, WDist minRange, WDist maxRange,
 			WPos? initialTargetPosition = null, Color? targetLineColor = null);
+
 		/// <summary>
 		/// Move adjacent to a target actor. May be wrapped by <see cref="IWrapMove"/> traits
 		/// (e.g. SmartMove pauses the unit to fire at intervening enemies). For movement that

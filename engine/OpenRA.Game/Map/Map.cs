@@ -457,7 +457,7 @@ namespace OpenRA
 				Height.CellEntryChanged += UpdateProjection;
 			}
 
-			// Moved from PostInit because needed below, but probably doesnt matter
+			// Moved from PostInit because needed below, but probably doesn't matter
 			var tl = new MPos(0, 0).ToCPos(this);
 			var br = new MPos(MapSize.X - 1, MapSize.Y - 1).ToCPos(this);
 			AllCells = new CellRegion(Grid.Type, tl, br);

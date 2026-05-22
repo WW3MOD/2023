@@ -44,7 +44,6 @@ namespace OpenRA.Mods.Cnc.Traits
 				catch (FileNotFoundException ex)
 				{
 					// Eat the FileNotFound exceptions from missing sprites.
-					Console.WriteLine(ex);
 					Log.Write("debug", ex.Message);
 				}
 			}

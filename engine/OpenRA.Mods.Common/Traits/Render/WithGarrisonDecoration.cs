@@ -209,7 +209,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (garrisonManager == null)
 				yield break;
 
-			var totalCount = TotalSoldierCount();
+			// PERF: TotalSoldierCount() used to enumerate AllSoldiers() (which allocates a
+			// HashSet) just to count, then the body re-enumerated to build the array. Build
+			// the array once and use its Length for the gate.
+			var soldiers = AllSoldiers().ToArray();
+			var totalCount = soldiers.Length;
 			if (totalCount == 0)
 				yield break;
 
@@ -240,7 +244,6 @@ namespace OpenRA.Mods.Common.Traits.Render
 			// Build the per-soldier ammo recipes once and use them to size the slot.
 			// Slot width must accommodate the widest ammo row across all visible soldiers
 			// so adjacent columns don't collide.
-			var soldiers = AllSoldiers().ToArray();
 			var soldierRecipes = new AmmoRecipe[soldiers.Length][];
 			var maxAmmoPipsInRow = 0;
 			for (var s = 0; s < soldiers.Length; s++)

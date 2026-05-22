@@ -63,9 +63,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (info.Visible != visibility || !self.Owner.IsAlliedWith(self.World.RenderPlayer))
 				yield break;
 
-			var range = detectCloaked
-				.Select(a => a.Range)
-				.Append(WDist.Zero).Max();
+			// PERF: avoid Select/Append/Max allocations on every render frame.
+			var range = WDist.Zero;
+			foreach (var dc in detectCloaked)
+				if (dc.Range.Length > range.Length)
+					range = dc.Range;
 
 			if (range == WDist.Zero)
 				yield break;

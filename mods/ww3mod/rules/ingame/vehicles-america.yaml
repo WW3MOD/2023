@@ -253,7 +253,7 @@ m113:
 		Width: 1
 	Rearmable:
 		RearmActors: logisticscenter
-		AmmoPools: primary-ammo, secondary-ammo, tertiary-ammo
+		AmmoPools: primary-ammo
 	AttackTurreted:
 		TargetFrozenActors: True
 		PauseOnCondition: empdisable

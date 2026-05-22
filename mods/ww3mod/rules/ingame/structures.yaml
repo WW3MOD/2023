@@ -65,6 +65,7 @@
 	MapEditorData:
 		Categories: Building
 	CommandBarBlacklist:
+
 ^Building:
 	Inherits: ^BasicBuilding
 	Inherits@EMPMechanic: ^BuildingAffectedByEMP
@@ -184,6 +185,7 @@
 		Palette: effect
 		MinimumDamageState: Heavy
 		MaximumDamageState: Dead
+
 ^BuildingAffectedByEMP:
 	WithColoredOverlay@EMP:
 		RequiresCondition: empdisable
