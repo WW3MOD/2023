@@ -21,6 +21,9 @@
   <PropertyGroup>
     <TargetFramework Condition="'$(MSBuildRuntimeType)'!='Mono'">net6.0</TargetFramework>
     <TargetFramework Condition="'$(MSBuildRuntimeType)'=='Mono'">netstandard2.1</TargetFramework>
+    <!-- Targets net6.0 for build compatibility, but allow running on any newer major
+         version (e.g. .NET 8) when net6 runtime isn't installed. -->
+    <RollForward>Major</RollForward>
   </PropertyGroup>
 
   <PropertyGroup>
