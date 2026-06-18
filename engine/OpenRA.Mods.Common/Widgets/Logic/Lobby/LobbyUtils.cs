@@ -554,7 +554,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			toggleClosed.IsVisible = () => isHost;
 			toggleClosed.IsDisabled = ConfigBusy;
-			toggleClosed.GetText = () => slot.Closed ? "Open" : "Close";
+			// PITFALL: this GetText overrides the YAML `Text:` on TOGGLE_CLOSED — the
+			// close action is a single "X" glyph in the 40px-wide Ready column, not a
+			// "Close" word. Edit here, not the chrome, to change it.
+			toggleClosed.GetText = () => slot.Closed ? "Open" : "X";
 			toggleClosed.OnClick = () =>
 			{
 				var cmd = slot.Closed ? "slot_open " : "slot_close ";
