@@ -101,6 +101,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		readonly ScrollPanelWidget players;
 
+		// Bottom action row of the Players panel (LOBBY_SETUP_ROW + SPECTATE_AREA in
+		// lobby-players.yaml). Both are bottom-anchored in the YAML; UpdatePlayerList
+		// pulls them up to hug the roster when the map has few slots. The originals
+		// are captured once at load so every sync recomputes from the YAML anchor
+		// rather than accumulating offsets.
+		readonly Widget setupRow;
+		readonly Widget spectateArea;
+		readonly int setupRowOriginalY;
+		readonly int spectateAreaOriginalY;
+
 		// Inline map browser (Change Map tab) state. Fields rather than ctor-locals
 		// so UpdateCurrentMap can close the browser when the host switches maps.
 		Widget mapBrowseRoot;
@@ -209,9 +219,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			ChromeMetrics.TryGet("PlayerLeftSound", out playerLeftSound);
 			ChromeMetrics.TryGet("LobbyOptionChangedSound", out lobbyOptionChangedSound);
 
+			// WW3MOD: uppercase to match the M2 banner styling (accent color set in YAML).
 			var name = lobby.GetOrNull<LabelWidget>("SERVER_NAME");
 			if (name != null)
-				name.GetText = () => orderManager.LobbyInfo.GlobalSettings.ServerName;
+				name.GetText = () => (orderManager.LobbyInfo.GlobalSettings.ServerName ?? "").ToUpperInvariant();
 
 			var mapContainer = Ui.LoadWidget("MAP_PREVIEW", lobby.Get("MAP_PREVIEW_ROOT"), new WidgetArgs
 			{
@@ -263,9 +274,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// Phase 10: SPECTATE_AREA — pulled out of the roster scroll panel and
 			// pinned to the bottom-right of the players cell. Wired up once at
 			// startup; visibility tracks whether the local client occupies a slot.
-			var spectateArea = playerBin.GetOrNull("SPECTATE_AREA");
+			spectateArea = playerBin.GetOrNull("SPECTATE_AREA");
 			if (spectateArea != null)
 			{
+				spectateAreaOriginalY = spectateArea.Bounds.Y;
+
 				LobbyUtils.SetupKickSpectatorsWidget(spectateArea, orderManager, lobby,
 					() => panel = PanelType.Kick, () => panel = PanelType.Players, skirmishMode);
 
@@ -282,6 +295,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				spectateArea.IsVisible = () => orderManager.LocalClient != null && orderManager.LocalClient.Slot != null;
 			}
+
+			// Bottom action row (Add Bots / Remove Bots / Auto-Team / Replay last) —
+			// same bottom anchor as SPECTATE_AREA; original Y captured for the
+			// roster-hugging reposition in UpdatePlayerList.
+			setupRow = playerBin.GetOrNull("LOBBY_SETUP_ROW");
+			if (setupRow != null)
+				setupRowOriginalY = setupRow.Bounds.Y;
 
 			colorManager = modRules.Actors[SystemActors.World].TraitInfo<IColorPickerManagerInfo>();
 
@@ -645,6 +665,29 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var statusLabel = lobby.GetOrNull<LabelWidget>("STATUS_LABEL");
 			if (statusLabel != null)
 				statusLabel.GetText = () => LobbyReady() ? "LOBBY READY" : "WAITING";
+
+			// CTA stats strip: live SLOTS / BOTS / SPECTATORS counts on the left side
+			// of the bottom banner (label geometry in lobby.yaml). Formulas mirror
+			// StartDisabled (slot fill), the Remove Bots dropdown (bot count), and the
+			// UpdatePlayerList spectator loop (non-bot clients without a slot).
+			var statsSlots = lobby.GetOrNull<LabelWidget>("STATS_SLOTS");
+			if (statsSlots != null)
+			{
+				statsSlots.GetText = () =>
+				{
+					var total = orderManager.LobbyInfo.Slots.Count;
+					var filled = orderManager.LobbyInfo.Slots.Count(sl => orderManager.LobbyInfo.ClientInSlot(sl.Key) != null);
+					return $"SLOTS {filled}/{total}";
+				};
+			}
+
+			var statsBots = lobby.GetOrNull<LabelWidget>("STATS_BOTS");
+			if (statsBots != null)
+				statsBots.GetText = () => $"BOTS {orderManager.LobbyInfo.Clients.Count(c => c.Bot != null)}";
+
+			var statsSpectators = lobby.GetOrNull<LabelWidget>("STATS_SPECTATORS");
+			if (statsSpectators != null)
+				statsSpectators.GetText = () => $"SPECTATORS {orderManager.LobbyInfo.NonBotClients.Count(c => c.IsObserver)}";
 
 			// Start Game framing chrome (bevel + fill ColorBlocks behind the button):
 			// full go-green when clickable, flat dark greys when disabled so the CTA
@@ -1150,6 +1193,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			while (players.Children.Count > idx)
 				players.RemoveChild(players.Children[idx]);
+
+			// WW3MOD: pull the bottom action row up to hug the roster instead of
+			// leaving a dead gap on maps with few slots. The roster ScrollPanel keeps
+			// its full extent — its Background is empty (paints nothing) and the
+			// action-row widgets are later siblings, so they draw on top and win
+			// mouse dispatch over any overlap. Min() clamps back to the YAML
+			// bottom-anchored position when the roster is taller than the gap.
+			// Recomputed from the captured originals every sync — never cumulative.
+			var contentBottom = players.Bounds.Y + players.ContentHeight + 8;
+			if (setupRow != null)
+				setupRow.Bounds.Y = Math.Min(setupRowOriginalY, contentBottom);
+			if (spectateArea != null)
+				spectateArea.Bounds.Y = Math.Min(spectateAreaOriginalY, contentBottom);
 
 			tabCompletion.Names = orderManager.LobbyInfo.Clients.Where(c => !c.IsBot).Select(c => c.Name).Distinct().ToList();
 		}

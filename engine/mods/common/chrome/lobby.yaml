@@ -403,6 +403,30 @@ Background@SERVER_LOBBY:
 			Width: PARENT_WIDTH
 			Height: 60
 			Color: 1C1C1CFF
+		# === WW3MOD — CTA stats strip: live SLOTS / BOTS / SPECTATORS counts on
+		# the quiet left side of the banner. Text filled by LobbyLogic; labels
+		# span the full 60px bar height so VAlign: Middle centers them.
+		Label@STATS_SLOTS:
+			X: 24
+			Y: PARENT_HEIGHT - 60
+			Width: 140
+			Height: 60
+			Font: TinyBold
+			TextColor: 686868
+		Label@STATS_BOTS:
+			X: 174
+			Y: PARENT_HEIGHT - 60
+			Width: 140
+			Height: 60
+			Font: TinyBold
+			TextColor: 686868
+		Label@STATS_SPECTATORS:
+			X: 324
+			Y: PARENT_HEIGHT - 60
+			Width: 160
+			Height: 60
+			Font: TinyBold
+			TextColor: 686868
 		# === WW3MOD — Start Game compact + right-aligned (was full-width).
 		# 400px wide button hugging the right edge (24px margin), so the
 		# CTA banner's left side reads as a quiet bar rather than a giant
