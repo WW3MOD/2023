@@ -124,7 +124,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var authorLabel = parent.Get<LabelWidget>("MAP_AUTHOR");
 				var font = Game.Renderer.Fonts[authorLabel.Font];
 				var truncateCache = new CachedTransform<MapPreview, string>(
-					m => WidgetUtils.TruncateText(authorCache.Update(m.Author), authorLabel.Bounds.Width, font));
+					m => WidgetUtils.TruncateText(authorCache.Update(m.Author).ToUpperInvariant(), authorLabel.Bounds.Width, font));
 
 				authorLabel.GetText = () => truncateCache.Update(getMap().Map);
 

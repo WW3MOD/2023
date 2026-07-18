@@ -207,6 +207,28 @@ Container@MAPCHOOSER_INLINE:
 	Width: PARENT_WIDTH
 	Height: PARENT_HEIGHT
 	Children:
+		ColorBlock@INLINE_BG:
+			Width: PARENT_WIDTH
+			Height: PARENT_HEIGHT
+			Color: 141414FF
+		ColorBlock@INLINE_BEVEL_TOP:
+			Width: PARENT_WIDTH
+			Height: 1
+			Color: 3A3A3AFF
+		ColorBlock@INLINE_BEVEL_LEFT:
+			Width: 1
+			Height: PARENT_HEIGHT
+			Color: 3A3A3AFF
+		ColorBlock@INLINE_BEVEL_RIGHT:
+			X: PARENT_WIDTH - 1
+			Width: 1
+			Height: PARENT_HEIGHT
+			Color: 030303FF
+		ColorBlock@INLINE_BEVEL_BOTTOM:
+			Y: PARENT_HEIGHT - 1
+			Width: PARENT_WIDTH
+			Height: 1
+			Color: 030303FF
 		Button@SYSTEM_MAPS_TAB_BUTTON:
 			X: 8
 			Y: 4
@@ -260,56 +282,52 @@ Container@MAPCHOOSER_INLINE:
 							Height: PARENT_HEIGHT
 		ScrollItem@MAP_TEMPLATE:
 			Width: 208
-			Height: 286
+			Height: 200
 			X: 2
 			Visible: false
 			EnableChildMouseOver: True
 			Children:
 				MapPreview@PREVIEW:
 					X: (PARENT_WIDTH - WIDTH) / 2
-					Y: 3
-					Width: 202
-					Height: 202
+					Y: 4
+					Width: 128
+					Height: 128
 					IgnoreMouseOver: true
 					IgnoreMouseInput: true
 				LabelWithTooltip@TITLE:
 					X: 4
-					Y: PARENT_HEIGHT - HEIGHT - 59
+					Y: 134
 					Width: PARENT_WIDTH - 8
-					Height: 24
+					Height: 20
 					Align: Center
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: SIMPLE_TOOLTIP
 				Label@DETAILS:
+					X: 4
+					Y: 154
 					Width: PARENT_WIDTH - 8
 					Height: 12
-					X: 4
-					Y: PARENT_HEIGHT - HEIGHT - 50
 					Align: Center
 					Font: Tiny
+					TextColor: 969696
 				LabelWithTooltip@AUTHOR:
+					X: 4
+					Y: 168
 					Width: PARENT_WIDTH - 8
 					Height: 12
-					X: 4
-					Y: PARENT_HEIGHT - HEIGHT - 38
 					Align: Center
 					Font: Tiny
+					TextColor: 686868
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: SIMPLE_TOOLTIP
 				Label@SIZE:
+					X: 4
+					Y: 182
 					Width: PARENT_WIDTH - 8
 					Height: 12
-					X: 4
-					Y: PARENT_HEIGHT - HEIGHT - 26
 					Align: Center
 					Font: Tiny
-				Checkbox@SHELLMAP_TOGGLE:
-					X: (PARENT_WIDTH - WIDTH) / 2
-					Y: PARENT_HEIGHT - HEIGHT - 8
-					Width: 130
-					Height: 20
-					Font: Tiny
-					Text: Main Menu
+					TextColor: 686868
 		Container@FILTER_ORDER_CONTROLS:
 			X: 8
 			Y: PARENT_HEIGHT - 70
@@ -339,18 +357,6 @@ Container@MAPCHOOSER_INLINE:
 					Width: 200
 					Height: 25
 					Background: lobby-button
-				Label@ORDERBY_LABEL:
-					X: PARENT_WIDTH - 290
-					Width: 80
-					Height: 24
-					Font: Bold
-					Align: Right
-					Text: label-filter-order-controls-orderby
-				DropDownButton@ORDERBY:
-					X: PARENT_WIDTH - 200
-					Width: 200
-					Height: 25
-					Background: lobby-button
 		Button@RANDOMMAP_BUTTON:
 			X: 8
 			Y: PARENT_HEIGHT - 36
@@ -370,7 +376,7 @@ Container@MAPCHOOSER_INLINE:
 		Button@DELETE_ALL_MAPS_BUTTON:
 			X: 264
 			Y: PARENT_HEIGHT - 36
-			Width: 140
+			Width: 120
 			Height: 28
 			Text: button-mapchooser-panel-delete-all-maps
 			Font: Bold
@@ -383,18 +389,18 @@ Container@MAPCHOOSER_INLINE:
 			Align: Center
 			Font: Bold
 		Button@BUTTON_OK:
-			X: PARENT_WIDTH - 268
+			X: PARENT_WIDTH - 248
 			Y: PARENT_HEIGHT - 36
-			Width: 120
+			Width: 116
 			Height: 28
 			Text: button-mapchooser-panel-ok
 			Font: Bold
 			Background: lobby-button
 			Key: return
 		Button@BUTTON_CANCEL:
-			X: PARENT_WIDTH - 140
+			X: PARENT_WIDTH - 124
 			Y: PARENT_HEIGHT - 36
-			Width: 120
+			Width: 116
 			Height: 28
 			Text: button-back
 			Font: Bold

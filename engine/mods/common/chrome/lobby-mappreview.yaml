@@ -7,11 +7,32 @@ Container@MAP_PREVIEW:
 			Width: PARENT_WIDTH
 			Height: PARENT_HEIGHT
 			Children:
-				Background@MAP_BG:
+				Container@MAP_BG:
 					Width: PARENT_WIDTH
 					Height: PARENT_HEIGHT - 50
-					Background: dialog3
 					Children:
+						ColorBlock@MAP_BG_FILL:
+							Width: PARENT_WIDTH
+							Height: PARENT_HEIGHT
+							Color: 141414FF
+						ColorBlock@MAP_BG_BEVEL_TOP:
+							Width: PARENT_WIDTH
+							Height: 1
+							Color: 3A3A3AFF
+						ColorBlock@MAP_BG_BEVEL_LEFT:
+							Width: 1
+							Height: PARENT_HEIGHT
+							Color: 3A3A3AFF
+						ColorBlock@MAP_BG_BEVEL_RIGHT:
+							X: PARENT_WIDTH - 1
+							Width: 1
+							Height: PARENT_HEIGHT
+							Color: 030303FF
+						ColorBlock@MAP_BG_BEVEL_BOTTOM:
+							Y: PARENT_HEIGHT - 1
+							Width: PARENT_WIDTH
+							Height: 1
+							Color: 030303FF
 						MapPreview@MAP_PREVIEW:
 							X: 1
 							Y: 1
@@ -89,7 +110,7 @@ Container@MAP_PREVIEW:
 				LabelWithTooltip@MAP_TITLE:
 					X: 14
 					Y: PARENT_HEIGHT - 42
-					Width: PARENT_WIDTH * 11 / 20
+					Width: PARENT_WIDTH * 11 / 20 - 14
 					Height: 36
 					Font: BigBold
 					Align: Left
@@ -100,11 +121,32 @@ Container@MAP_PREVIEW:
 			Width: PARENT_WIDTH
 			Height: PARENT_HEIGHT
 			Children:
-				Background@MAP_BG:
+				Container@MAP_BG:
 					Width: PARENT_WIDTH
 					Height: 142
-					Background: dialog3
 					Children:
+						ColorBlock@MAP_BG_FILL:
+							Width: PARENT_WIDTH
+							Height: PARENT_HEIGHT
+							Color: 141414FF
+						ColorBlock@MAP_BG_BEVEL_TOP:
+							Width: PARENT_WIDTH
+							Height: 1
+							Color: 3A3A3AFF
+						ColorBlock@MAP_BG_BEVEL_LEFT:
+							Width: 1
+							Height: PARENT_HEIGHT
+							Color: 3A3A3AFF
+						ColorBlock@MAP_BG_BEVEL_RIGHT:
+							X: PARENT_WIDTH - 1
+							Width: 1
+							Height: PARENT_HEIGHT
+							Color: 030303FF
+						ColorBlock@MAP_BG_BEVEL_BOTTOM:
+							Y: PARENT_HEIGHT - 1
+							Width: PARENT_WIDTH
+							Height: 1
+							Color: 030303FF
 						MapPreview@MAP_PREVIEW:
 							X: 1
 							Y: 1
@@ -133,7 +175,7 @@ Container@MAP_PREVIEW:
 					Height: 16
 					Font: Tiny
 					Align: Right
-					TextColor: 969696
+					TextColor: 686868
 					IgnoreMouseOver: true
 				Label@MAP_TYPE:
 					X: PARENT_WIDTH * 11 / 20
@@ -154,6 +196,7 @@ Container@MAP_PREVIEW:
 					Height: 25
 					Font: Tiny
 					Align: Center
+					TextColor: 969696
 					Text: label-map-incompatible-status-a
 					IgnoreMouseOver: true
 				Label@MAP_STATUS_B:
@@ -162,6 +205,7 @@ Container@MAP_PREVIEW:
 					Height: 25
 					Font: Tiny
 					Align: Center
+					TextColor: 969696
 					Text: label-map-incompatible-status-b
 		Container@MAP_VALIDATING:
 			Width: PARENT_WIDTH
@@ -173,6 +217,7 @@ Container@MAP_PREVIEW:
 					Height: 25
 					Font: Tiny
 					Align: Center
+					TextColor: 969696
 					Text: label-map-validating-status
 					IgnoreMouseOver: true
 				ProgressBar@MAP_VALIDATING_BAR:
@@ -225,6 +270,7 @@ Container@MAP_PREVIEW:
 			Height: 25
 			Font: Tiny
 			Align: Center
+			TextColor: 969696
 			Text: label-map-preview-searching
 			IgnoreMouseOver: true
 		Container@MAP_UNAVAILABLE:
@@ -236,6 +282,7 @@ Container@MAP_PREVIEW:
 					Height: 25
 					Font: Tiny
 					Align: Center
+					TextColor: 969696
 					Text: label-map-unavailable-a
 				Label@b:
 					Y: 171
@@ -243,6 +290,7 @@ Container@MAP_PREVIEW:
 					Height: 25
 					Font: Tiny
 					Align: Center
+					TextColor: 969696
 					Text: label-map-unavailable-b
 		Label@MAP_ERROR:
 			Y: 158
@@ -250,6 +298,7 @@ Container@MAP_PREVIEW:
 			Height: 25
 			Font: Tiny
 			Align: Center
+			TextColor: 969696
 			Text: label-map-preview-error
 		Container@MAP_DOWNLOADING:
 			Width: PARENT_WIDTH
@@ -261,6 +310,7 @@ Container@MAP_PREVIEW:
 					Height: 25
 					Font: Tiny
 					Align: Center
+					TextColor: 969696
 				ProgressBar@MAP_PROGRESSBAR:
 					Y: 194
 					Width: PARENT_WIDTH
@@ -280,6 +330,7 @@ Container@MAP_PREVIEW:
 					Height: 25
 					Font: Tiny
 					Align: Center
+					TextColor: 969696
 					Text: label-map-update-available-a
 				Label@b:
 					Y: 171
@@ -287,4 +338,5 @@ Container@MAP_PREVIEW:
 					Height: 25
 					Font: Tiny
 					Align: Center
+					TextColor: 969696
 					Text: label-map-update-available-b
