@@ -105,20 +105,25 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		readonly ScrollPanelWidget players;
 
-		// Roster auto-expand state — captured once at lobby load so we can recompute
-		// y-offsets of widgets below the player list each time the slot list rebuilds.
-		Widget rosterFlexSetupRow;
-		Widget rosterFlexActiveChanges;
-		Widget rosterFlexPresetBar;
-		Widget rosterFlexCommonHeader;
-		ScrollPanelWidget rosterFlexCommonPanel;
-		ScrollPanelWidget rosterFlexOuterScroll;
-		int rosterFlexOriginalPlayersHeight;
-		int rosterFlexOriginalSetupY;
-		int rosterFlexOriginalActiveChangesY;
-		int rosterFlexOriginalPresetY;
-		int rosterFlexOriginalCommonHeaderY;
-		int rosterFlexOriginalCommonPanelY;
+		// Inline map browser (Change Map tab) state. Fields rather than ctor-locals
+		// so UpdateCurrentMap can close the browser when the host switches maps.
+		Widget mapBrowseRoot;
+		bool showChangeMap;
+
+		// Chat/Music tab state. showMusic is a field so the chat notification
+		// handler can count messages that arrive while the chat log is hidden.
+		bool showMusic;
+		int unreadChat;
+
+		// Status dot / Start Game chrome palette (see lobby.yaml for the widget defs).
+		static readonly Color StatusReadyColor = Color.FromArgb(0x6e, 0xc8, 0x90);
+		static readonly Color StatusWaitingColor = Color.FromArgb(0x68, 0x68, 0x68);
+		static readonly Color StartBevelLightColor = Color.FromArgb(0x98, 0xe0, 0xb4);
+		static readonly Color StartFillColor = Color.FromArgb(0x6e, 0xc8, 0x90);
+		static readonly Color StartBevelDarkColor = Color.FromArgb(0x2a, 0x62, 0x3a);
+		static readonly Color StartBevelLightDisabledColor = Color.FromArgb(0x3a, 0x3a, 0x3a);
+		static readonly Color StartFillDisabledColor = Color.FromArgb(0x22, 0x22, 0x22);
+		static readonly Color StartBevelDarkDisabledColor = Color.FromArgb(0x03, 0x03, 0x03);
 
 		readonly Dictionary<string, LobbyFaction> factions = new();
 
@@ -282,26 +287,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				spectateArea.IsVisible = () => orderManager.LocalClient != null && orderManager.LocalClient.Slot != null;
 			}
 
-			// PITFALL: roster auto-expand depends on these widgets staying as direct
-			// children of LOBBY_PLAYER_BIN with the IDs below. If the layout YAML is
-			// refactored, the GetOrNull lookups will silently noop and the roster
-			// will visually overlap the widgets below it.
-			rosterFlexSetupRow = playerBin.GetOrNull("LOBBY_SETUP_ROW");
-			rosterFlexActiveChanges = playerBin.GetOrNull("LOBBY_ACTIVE_CHANGES");
-			rosterFlexPresetBar = playerBin.GetOrNull("LOBBY_PRESET_BAR");
-			rosterFlexCommonHeader = playerBin.GetOrNull("COMMON_OPTIONS_HEADER");
-			rosterFlexCommonPanel = playerBin.GetOrNull<ScrollPanelWidget>("COMMON_OPTIONS_PANEL");
-			// LOBBY_PLAYER_BIN itself is now a ScrollPanel (unified left-column scroll).
-			// We update its ContentHeight after every roster resize so the outer scroll
-			// engages when total content exceeds the visible panel height.
-			rosterFlexOuterScroll = playerBin as ScrollPanelWidget;
-			rosterFlexOriginalPlayersHeight = players.Bounds.Height;
-			rosterFlexOriginalSetupY = rosterFlexSetupRow?.Bounds.Y ?? 0;
-			rosterFlexOriginalActiveChangesY = rosterFlexActiveChanges?.Bounds.Y ?? 0;
-			rosterFlexOriginalPresetY = rosterFlexPresetBar?.Bounds.Y ?? 0;
-			rosterFlexOriginalCommonHeaderY = rosterFlexCommonHeader?.Bounds.Y ?? 0;
-			rosterFlexOriginalCommonPanelY = rosterFlexCommonPanel?.Bounds.Y ?? 0;
-
 			colorManager = modRules.Actors[SystemActors.World].TraitInfo<IColorPickerManagerInfo>();
 
 			foreach (var f in modRules.Actors[SystemActors.World].TraitInfos<FactionInfo>())
@@ -324,34 +309,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				mapButton.IsVisible = () => panel != PanelType.Servers;
 				mapButton.IsDisabled = () => gameStarting || panel == PanelType.Kick || panel == PanelType.ForceStart ||
 					orderManager.LocalClient == null || orderManager.LocalClient.IsReady;
-				mapButton.OnClick = () =>
-				{
-					var onSelect = new Action<string>(uid =>
-					{
-						// Don't select the same map again, and handle map becoming unavailable
-						var status = modData.MapCache[uid].Status;
-						if (uid == map.Uid || (status != MapStatus.Available && status != MapStatus.DownloadAvailable))
-							return;
-
-						orderManager.IssueOrder(Order.Command("map " + uid));
-						Game.Settings.Server.Map = uid;
-						Game.Settings.Save();
-					});
-
-					// Check for updated maps, if the user has edited a map we'll preselect it for them
-					modData.MapCache.UpdateMaps();
-
-					Ui.OpenWindow("MAPCHOOSER_PANEL", new WidgetArgs()
-					{
-						{ "initialMap", modData.MapCache.PickLastModifiedMap(MapVisibility.Lobby) ?? map.Uid },
-						{ "remoteMapPool", orderManager.ServerMapPool },
-						{ "initialTab", MapClassification.System },
-						{ "onExit", modData.MapCache.UpdateMaps },
-						{ "onSelect", Game.IsHost ? onSelect : null },
-						{ "filter", MapVisibility.Lobby },
-						{ "initialCategory", (string)null },
-					});
-				};
+				// Legacy widget parked off-screen in the YAML; keep its action in sync
+				// with the Change Map tab (inline browser) rather than the old modal.
+				mapButton.OnClick = OpenMapBrowser;
 			}
 
 			var scenarioDropdown = lobby.GetOrNull<DropDownButtonWidget>("SCENARIO_DROPDOWNBUTTON");
@@ -396,23 +356,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					}
 
 					scenarioDropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", values.Count * 30, values, SetupItem);
-				};
-			}
-
-			// WW3MOD: short blurb under the scenario dropdown describing what's selected.
-			// Uses the map's first Category as a fallback when no scenario is picked.
-			var scenarioDescription = lobby.GetOrNull<LabelWidget>("SCENARIO_DESCRIPTION");
-			if (scenarioDescription != null)
-			{
-				scenarioDescription.IsVisible = () => panel != PanelType.Servers;
-				scenarioDescription.GetText = () =>
-				{
-					var current = orderManager.LobbyInfo.GlobalSettings.OptionOrDefault("scenario", "none");
-					if (current != null && current != "none")
-						return "Scenario: " + current;
-
-					var category = map?.Categories?.FirstOrDefault();
-					return string.IsNullOrEmpty(category) ? "Standard skirmish" : category + " skirmish";
 				};
 			}
 
@@ -569,14 +512,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			// === Phase 12 — TL tab strip [Map] [Change Map], BR tab strip [Chat] [Music].
 			// Inline map chooser hosted in MAP_BROWSE_ROOT. Music panel moved from TL to BR
-			// (overlaying LOBBYCHAT). Lazy-load MAPCHOOSER_INLINE on first Change Map click —
+			// (overlaying LOBBYCHAT). MAPCHOOSER_INLINE is rebuilt on every Change Map click —
 			// closeOnExit=false so the chooser's OK/Cancel buttons don't call Ui.CloseWindow
 			// (which would close the lobby itself); we manage visibility via showChangeMap.
 			var mapPreviewRoot = lobby.GetOrNull("MAP_PREVIEW_ROOT");
-			var mapBrowseRoot = lobby.GetOrNull("MAP_BROWSE_ROOT");
+			mapBrowseRoot = lobby.GetOrNull("MAP_BROWSE_ROOT");
 			var chatPanel = lobby.GetOrNull("LOBBYCHAT");
-			var showChangeMap = false;
-			var showMusic = TestMode.IsActive && string.Equals(TestMode.OpenLobbyTab, "music", StringComparison.OrdinalIgnoreCase);
+			showMusic = TestMode.IsActive && string.Equals(TestMode.OpenLobbyTab, "music", StringComparison.OrdinalIgnoreCase);
 
 			if (mapPreviewRoot != null)
 				mapPreviewRoot.IsVisible = () => !showChangeMap;
@@ -587,44 +529,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (chatPanel != null)
 				chatPanel.IsVisible = () => !showMusic;
 
-			var mapBrowseLoaded = false;
-			void EnsureMapBrowseLoaded()
-			{
-				if (mapBrowseLoaded || mapBrowseRoot == null)
-					return;
-				mapBrowseLoaded = true;
-
-				var onSelect = new Action<string>(uid =>
-				{
-					var status = modData.MapCache[uid].Status;
-					if (uid == map.Uid || (status != MapStatus.Available && status != MapStatus.DownloadAvailable))
-						return;
-					orderManager.IssueOrder(Order.Command("map " + uid));
-					Game.Settings.Server.Map = uid;
-					Game.Settings.Save();
-					showChangeMap = false;
-				});
-
-				var onExit = new Action(() =>
-				{
-					modData.MapCache.UpdateMaps();
-					showChangeMap = false;
-				});
-
-				modData.MapCache.UpdateMaps();
-				Ui.LoadWidget("MAPCHOOSER_INLINE", mapBrowseRoot, new WidgetArgs()
-				{
-					{ "initialMap", modData.MapCache.PickLastModifiedMap(MapVisibility.Lobby) ?? map.Uid },
-					{ "remoteMapPool", orderManager.ServerMapPool },
-					{ "initialTab", MapClassification.System },
-					{ "onExit", onExit },
-					{ "onSelect", Game.IsHost ? onSelect : null },
-					{ "filter", MapVisibility.Lobby },
-					{ "initialCategory", (string)null },
-					{ "closeOnExit", false },
-				});
-			}
-
 			// TL: [Map] [Change Map] — widget ID MAP_MUSIC_TOGGLE kept for grep/back-compat.
 			var mapMusicToggle = lobby.GetOrNull("MAP_MUSIC_TOGGLE");
 			if (mapMusicToggle != null)
@@ -633,7 +537,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (mapViewButton != null)
 				{
 					mapViewButton.IsHighlighted = () => !showChangeMap;
-					mapViewButton.OnClick = () => showChangeMap = false;
+					mapViewButton.OnClick = CloseMapBrowser;
 				}
 				var changeMapButton = mapMusicToggle.GetOrNull<ButtonWidget>("CHANGE_MAP_VIEW_BUTTON");
 				if (changeMapButton != null)
@@ -641,7 +545,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					changeMapButton.IsHighlighted = () => showChangeMap;
 					changeMapButton.IsDisabled = () => gameStarting || panel == PanelType.Kick || panel == PanelType.ForceStart ||
 						orderManager.LocalClient == null || orderManager.LocalClient.IsReady;
-					changeMapButton.OnClick = () => { EnsureMapBrowseLoaded(); showChangeMap = true; };
+					changeMapButton.OnClick = OpenMapBrowser;
 				}
 				var mapIndicator = mapMusicToggle.GetOrNull("MAP_VIEW_INDICATOR");
 				if (mapIndicator != null)
@@ -659,7 +563,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (chatViewButton != null)
 				{
 					chatViewButton.IsHighlighted = () => !showMusic;
-					chatViewButton.OnClick = () => showMusic = false;
+					chatViewButton.OnClick = () =>
+					{
+						showMusic = false;
+						unreadChat = 0;
+					};
+
+					// Unread badge: chat messages arriving while the Music tab hides the
+					// log are counted in Handle() and surfaced on the tab button.
+					chatViewButton.GetText = () => unreadChat > 0 ? $"CHAT ({unreadChat})" : "CHAT";
 				}
 				var musicViewButton = chatMusicToggle.GetOrNull<ButtonWidget>("MUSIC_VIEW_BUTTON");
 				if (musicViewButton != null)
@@ -709,10 +621,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				(!orderManager.LobbyInfo.GlobalSettings.EnableSingleplayer && orderManager.LobbyInfo.NonBotPlayers.Count() < 2) ||
 				insufficientPlayerSpawns;
 
+			// Shared readiness check: mirrors startGameButton.IsDisabled exactly so the
+			// top-bar status dot/label and the Start Game framing chrome always agree
+			// with the button itself (including the host-only configurationDisabled part).
+			bool LobbyReady() => !configurationDisabled() && !StartDisabled();
+
 			var startGameButton = lobby.GetOrNull<ButtonWidget>("START_GAME_BUTTON");
 			if (startGameButton != null)
 			{
-				startGameButton.IsDisabled = () => configurationDisabled() || StartDisabled();
+				startGameButton.IsDisabled = () => !LobbyReady();
 
 				startGameButton.OnClick = () =>
 				{
@@ -726,6 +643,33 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					else
 						StartGame();
 				};
+			}
+
+			// Top-bar status indicator: go-green dot + "LOBBY READY" only when Start
+			// Game would actually be clickable; grey dot + "WAITING" otherwise.
+			var statusDot = lobby.GetOrNull<ColorBlockWidget>("STATUS_DOT");
+			if (statusDot != null)
+				statusDot.GetColor = () => LobbyReady() ? StatusReadyColor : StatusWaitingColor;
+
+			var statusLabel = lobby.GetOrNull<LabelWidget>("STATUS_LABEL");
+			if (statusLabel != null)
+				statusLabel.GetText = () => LobbyReady() ? "LOBBY READY" : "WAITING";
+
+			// Start Game framing chrome (bevel + fill ColorBlocks behind the button):
+			// full go-green when clickable, flat dark greys when disabled so the CTA
+			// banner stops shouting while the lobby isn't ready.
+			foreach (var (id, enabledColor, disabledColor) in new[]
+			{
+				("START_BEVEL_LIGHT_TOP", StartBevelLightColor, StartBevelLightDisabledColor),
+				("START_BEVEL_LIGHT_LEFT", StartBevelLightColor, StartBevelLightDisabledColor),
+				("START_FILL", StartFillColor, StartFillDisabledColor),
+				("START_BEVEL_DARK_RIGHT", StartBevelDarkColor, StartBevelDarkDisabledColor),
+				("START_BEVEL_DARK_BOTTOM", StartBevelDarkColor, StartBevelDarkDisabledColor),
+			})
+			{
+				var block = lobby.GetOrNull<ColorBlockWidget>(id);
+				if (block != null)
+					block.GetColor = () => LobbyReady() ? enabledColor : disabledColor;
 			}
 
 			var forceStartBin = Ui.LoadWidget("FORCE_START_DIALOG", lobby.Get("TOP_PANELS_ROOT"), new WidgetArgs());
@@ -776,13 +720,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			chatTextField.MaxLength = UnitOrders.ChatMessageMaxLength;
 
 			// In skirmish there's only one chat channel (you + bots), so the All/Team
-			// toggle is meaningless visual noise. Hide it and reclaim the 55px the
-			// textfield was offset by.
+			// toggle is meaningless visual noise. Hide it and let the textfield span
+			// the row, inset 6px per side so the panel's 1px side bevels stay visible.
 			if (skirmishMode)
 			{
 				chatMode.Visible = false;
-				chatTextField.Bounds.X = 0;
-				chatTextField.Bounds.Width = chatTextField.Parent.Bounds.Width;
+				chatTextField.Bounds.X = 6;
+				chatTextField.Bounds.Width = chatTextField.Parent.Bounds.Width - 12;
 			}
 
 			chatTextField.OnEnterKey = _ =>
@@ -923,6 +867,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			switch (notification.Pool)
 			{
 				case TextNotificationPool.Chat:
+					// The Music tab hides the chat log; count messages that arrive while
+					// it's open so the Chat tab button can show an unread badge.
+					if (showMusic)
+						unreadChat++;
+
 					Game.Sound.PlayNotification(modRules, null, "Sounds", chatLineSound, null);
 					break;
 				case TextNotificationPool.System:
@@ -937,12 +886,96 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
+		// Rebuilds the MAPCHOOSER_INLINE widget from scratch and shows the Change Map
+		// tab. Rebuilding on every open means maps installed or edited mid-lobby show
+		// up and the preselected map tracks the latest edit — the same freshness the
+		// old modal chooser got from opening a fresh window each time. It also means
+		// MapChooserLogic's ctor re-takes keyboard focus on its filter input per open.
+		// Silently no-ops (tab stays on the preview) if the chrome lacks MAP_BROWSE_ROOT.
+		void OpenMapBrowser()
+		{
+			if (mapBrowseRoot == null)
+				return;
+
+			modData.MapCache.UpdateMaps();
+
+			// Removed() on the old children disposes the previous MapChooserLogic and
+			// force-yields any keyboard focus it held.
+			mapBrowseRoot.RemoveChildren();
+
+			var onSelect = new Action<string>(uid =>
+			{
+				// Close first: even a rejected selection (same map, or a map that went
+				// missing) must flip back to the preview tab with the focus handoff —
+				// otherwise the browser looks stuck and Enter keeps driving it.
+				CloseMapBrowser();
+
+				var status = modData.MapCache[uid].Status;
+				if (uid == map.Uid || (status != MapStatus.Available && status != MapStatus.DownloadAvailable))
+					return;
+
+				orderManager.IssueOrder(Order.Command("map " + uid));
+				Game.Settings.Server.Map = uid;
+				Game.Settings.Save();
+			});
+
+			var onExitBrowser = new Action(() =>
+			{
+				modData.MapCache.UpdateMaps();
+				CloseMapBrowser();
+			});
+
+			Ui.LoadWidget("MAPCHOOSER_INLINE", mapBrowseRoot, new WidgetArgs()
+			{
+				{ "initialMap", modData.MapCache.PickLastModifiedMap(MapVisibility.Lobby) ?? map.Uid },
+				{ "remoteMapPool", orderManager.ServerMapPool },
+				{ "initialTab", MapClassification.System },
+				{ "onExit", onExitBrowser },
+				{ "onSelect", Game.IsHost ? onSelect : null },
+				{ "filter", MapVisibility.Lobby },
+				{ "initialCategory", (string)null },
+				{ "closeOnExit", false },
+			});
+
+			showChangeMap = true;
+		}
+
+		// Closes the Change Map tab from any path (OK/Cancel in the chooser, the Map
+		// tab button, or the host switching maps remotely). The chooser's filter input
+		// takes keyboard focus when loaded; if it kept focus while hidden, the chat
+		// textfield would go dead and Enter would still fire the chooser's onSelect —
+		// silently changing the map. Hand focus to chat whenever the browser held it.
+		void CloseMapBrowser()
+		{
+			showChangeMap = false;
+
+			var focus = Ui.KeyboardFocusWidget;
+			for (var w = focus; w != null; w = w.Parent)
+			{
+				if (w == mapBrowseRoot)
+				{
+					if (chatTextField != null)
+						chatTextField.TakeKeyboardFocus();
+					else
+						focus.YieldKeyboardFocus();
+
+					break;
+				}
+			}
+		}
+
 		void UpdateCurrentMap()
 		{
 			mapStatus = orderManager.LobbyInfo.GlobalSettings.MapStatus;
 			var uid = orderManager.LobbyInfo.GlobalSettings.Map;
 			if (map.Uid == uid)
 				return;
+
+			// The map actually changed (e.g. the host picked a new one while this
+			// client had the Change Map tab open) — snap back to the preview so the
+			// download/incompatible status UI is visible rather than hidden behind
+			// the browser.
+			CloseMapBrowser();
 
 			map = modData.MapCache[uid];
 
@@ -1127,19 +1160,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			while (players.Children.Count > idx)
 				players.RemoveChild(players.Children[idx]);
 
-			ResizeRosterToFit(idx);
-
 			tabCompletion.Names = orderManager.LobbyInfo.Clients.Where(c => !c.IsBot).Select(c => c.Name).Distinct().ToList();
-		}
-
-		// Roster auto-resize was useful when sections stacked vertically inside a
-		// single panel — growing the roster shifted everything below. With the
-		// new 2x2 grid layout (pass 12), the roster lives in a fixed-height cell
-		// and uses its own internal scroll for overflow. Other sections live in
-		// their own cells and don't move. So this is now a no-op.
-		void ResizeRosterToFit(int rowCount)
-		{
-			_ = rowCount;
 		}
 
 		void UpdateDiscordStatus()

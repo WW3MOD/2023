@@ -520,10 +520,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		}
 
 		// WW3MOD: inline-button replacement for the empty-slot dropdown.
-		// Host sees Play / + Any AI / + NATO AI / + Russia AI / Close-Open as visible buttons.
-		// Non-host sees the wide Join button when the slot is open, a Closed label otherwise.
-		// Faction-specific add buttons issue slot_bot eagerly and post a deferred faction order
-		// via LobbyPresetLogic.EnqueueBotFaction so the faction lands once the bot is in LobbyInfo.
+		// Host sees Play / + Add bot / X (close toggle) as visible buttons on an open
+		// slot, and a Closed label plus a widened Open toggle on a closed one.
+		// Non-host sees the wide Join button when the slot is open, the Closed label otherwise.
+		// AddBotToSlot can still queue a preferred faction via LobbyPresetLogic.EnqueueBotFaction,
+		// but the per-faction shortcut buttons were removed in Phase 2 — callers pass null.
 		public static void SetupEmptySlotButtons(Widget parent, Session.Slot slot, OrderManager orderManager,
 			MapPreview map, bool isHost, string slotKey)
 		{
@@ -558,6 +559,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// close action is a single "X" glyph in the 40px-wide Ready column, not a
 			// "Close" word. Edit here, not the chrome, to change it.
 			toggleClosed.GetText = () => slot.Closed ? "Open" : "X";
+
+			// Bold "Open" doesn't fit the 40px close-glyph square — widen the button
+			// leftward into the otherwise-blank row while the slot is closed. Setup
+			// re-runs on every session change and templates are reused, so derive both
+			// states from the invariant right edge instead of cumulative +=/-= math.
+			var toggleRight = toggleClosed.Bounds.Right;
+			var toggleWidth = slot.Closed ? 104 : 40;
+			toggleClosed.Bounds.X = toggleRight - toggleWidth;
+			toggleClosed.Bounds.Width = toggleWidth;
+
 			toggleClosed.OnClick = () =>
 			{
 				var cmd = slot.Closed ? "slot_open " : "slot_close ";
