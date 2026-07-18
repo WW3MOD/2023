@@ -25,15 +25,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		const string NotAvailable = "label-not-available";
 
 		// Visual treatment for placeholder options (LobbyOption.Placeholder=true).
-		// Matches the neutral gray used elsewhere in the dim/disabled UI palette.
-		static readonly Color PlaceholderTextColor = Color.FromArgb(0xad, 0xb5, 0xbd);
+		// ink-2 — the neutral gray used elsewhere in the dim/disabled UI palette.
+		static readonly Color PlaceholderTextColor = Color.FromArgb(0x96, 0x96, 0x96);
 		const string PlaceholderTooltipSuffix = "Not yet implemented — visual placeholder for a future feature.";
-
-		// Muted amber accent for ADVANCED section headers whose options are all placeholder.
-		// Tells the user "this whole group does nothing yet" once, instead of cluttering every row.
-		// Was a saturated orange #c2410c that visually shouted; point is to inform, not alarm.
-		static readonly Color PlaceholderSectionColor = Color.FromArgb(0xb0, 0x80, 0x50);
-		const string PlaceholderSectionSuffix = "   ·  not yet wired";
 
 		readonly ScrollPanelWidget panel;
 		readonly Widget optionsContainer;
@@ -67,7 +61,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		const string CategoryAdvanced = "Advanced";
 		const string CategoryAll = "All";
 
-		static readonly HashSet<string> CommonOptionIds = new()
+		// Shared single source of truth: LobbyActiveChangesLogic consumes these sets
+		// too (chip filtering). Keep them here — a duplicated copy over there once
+		// drifted (missing `cheats`) and sent chip clicks to the wrong tab.
+		internal static readonly HashSet<string> CommonOptionIds = new()
 		{
 			// Economy basics
 			"startingcash", "passiveincome", "incomemodifier",
@@ -86,7 +83,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// Options never shown in the lobby (deliberately removed from WW3MOD).
 		// `sync` is a netcode-debug toggle (off by default; lowers performance when
 		// enabled) — meaningless in skirmish and an attractive-nuisance for players.
-		static readonly HashSet<string> HiddenOptionIds = new()
+		internal static readonly HashSet<string> HiddenOptionIds = new()
 		{
 			"shortgame", "crates", "creeps", "buildradius", "allybuild", "techlevel", "sync"
 		};
@@ -245,7 +242,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			});
 		}
 
-		void AddSectionHeader(string text, bool allPlaceholder = false, string section = null)
+		void AddSectionHeader(string text, string section = null)
 		{
 			if (sectionHeaderTemplate == null)
 				return;
@@ -263,10 +260,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				// as triangles instead of the [+]/[-] ASCII brackets which look
 				// like console output.
 				var glyph = section != null ? (collapsed ? "▸  " : "▾  ") : string.Empty;
-				var displayText = glyph + (allPlaceholder ? text.ToUpperInvariant() + PlaceholderSectionSuffix : text.ToUpperInvariant());
+				var displayText = glyph + text.ToUpperInvariant();
 				label.GetText = () => displayText;
-				if (allPlaceholder)
-					label.GetColor = () => PlaceholderSectionColor;
 			}
 
 			// Toggle button overlay — invisible background, full-width click target.
@@ -326,25 +321,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			panel.ContentHeight = yMargin + optionsContainer.Bounds.Height;
 			optionsContainer.Bounds.Y = yMargin;
-
-			// WW3MOD: when this panel is wrapped in an outer ScrollPanel (the
-			// unified Match-tab scroll), we don't want a nested scroll. Size the
-			// panel to its natural content height so the outer scroll handles
-			// overflow on its own. On the Advanced tab the parent is a plain
-			// Container and we keep the internal scroll.
-			var hasOuterScroll = false;
-			for (var w = panel.Parent; w != null; w = w.Parent)
-			{
-				if (w is ScrollPanelWidget)
-				{
-					hasOuterScroll = true;
-					break;
-				}
-			}
-
-			if (hasOuterScroll)
-				panel.Bounds.Height = panel.ContentHeight;
-
 			panel.ScrollToTop();
 		}
 
@@ -389,7 +365,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (sectionOptions.All(o => o.Placeholder))
 					continue;
 
-				AddSectionHeader(section, false, section);
+				AddSectionHeader(section, section);
 				if (collapsedSections.TryGetValue(section, out var collapsed) && collapsed)
 					continue;
 				RenderFlatOptions(sectionOptions);
@@ -401,7 +377,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (unsectioned.Length > 0 && !unsectioned.All(o => o.Placeholder))
 			{
 				const string other = "Other";
-				AddSectionHeader(other, false, other);
+				AddSectionHeader(other, other);
 				if (!(collapsedSections.TryGetValue(other, out var oc) && oc))
 					RenderFlatOptions(unsectioned);
 			}

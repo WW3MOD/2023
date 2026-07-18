@@ -30,7 +30,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Func<MapPreview> getMap;
 		readonly Widget chipTemplate;
 		readonly LabelWidget emptyHint;
-		readonly Widget sectionBg;
+		readonly Widget emptyHintAccent;
 		string lastSnapshot = "<uninitialised>";
 
 		// Options that always render with the amber Warning treatment when set,
@@ -42,26 +42,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			"friendly-fire",
 		};
 
-		// PITFALL: this set must stay in sync with LobbyOptionsLogic.CommonOptionIds.
-		// If they drift, a chip's click-to-jump will land on the wrong tab and the
-		// option won't appear there because the option-list filter disagrees. Keep
-		// them as one list mentally; the duplication is just to avoid a public API.
-		static readonly HashSet<string> CommonOptionIds = new()
-		{
-			"startingcash", "passiveincome", "incomemodifier",
-			"explored", "fog", "separateteamspawns",
-			"gamespeed", "timelimit", "startingunits",
-			"bounty",
-		};
+		// Option-id sets live on LobbyOptionsLogic (single source of truth shared by
+		// both panels) — a duplicated copy here once drifted and misfiltered chips.
 
 		// Pass-2 polish: chips use a single neutral dark fill so they blend with the
 		// dark UI; the leading +/-/! glyph carries the classification color. Was
 		// previously pastel pink/green/amber backgrounds — read like sticky notes
 		// against the dark theme.
-		static readonly Color ChipFill = Color.FromArgb(0x2a, 0x2a, 0x2a);
-		static readonly Color IncreasedText = Color.FromArgb(0x6e, 0xd6, 0x8a);
+		static readonly Color ChipFill = Color.FromArgb(0x22, 0x22, 0x22);
+		static readonly Color IncreasedText = Color.FromArgb(0x6e, 0xd6, 0x8a); // sanctioned green exception — increase/decrease chips are informative color-coding (see _lobby-palette.yaml)
 		static readonly Color DecreasedText = Color.FromArgb(0xe7, 0x7d, 0x7d);
 		static readonly Color WarningText = Color.FromArgb(0xf0, 0xb0, 0x60);
+		static readonly Color OverflowText = Color.FromArgb(0x96, 0x96, 0x96); // ink-2 — "+N more" chip is informational, not a change classification
 
 		enum Classification { Increased, Decreased, Warning }
 
@@ -73,7 +65,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.getMap = getMap;
 			chipTemplate = widget.Get("CHIP_TEMPLATE");
 			emptyHint = widget.GetOrNull<LabelWidget>("EMPTY_HINT");
-			sectionBg = widget.GetOrNull("SECTION_BG");
+			emptyHintAccent = widget.GetOrNull("EMPTY_HINT_ACCENT");
 		}
 
 		public override void Tick()
@@ -101,32 +93,44 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		void Rebuild(MapPreview map)
 		{
 			// Drop previous chips (everything except the persistent template / hint /
-			// background widgets — those are part of the chrome, not generated chips).
+			// accent widgets — those are part of the chrome, not generated chips).
 			for (var i = container.Children.Count - 1; i >= 0; i--)
 			{
 				var c = container.Children[i];
-				if (c == chipTemplate || c == emptyHint || c == sectionBg)
+				if (c == chipTemplate || c == emptyHint || c == emptyHintAccent)
 					continue;
 				container.RemoveChild(c);
 			}
 
+			// Same visibility filtering as LobbyOptionsLogic — no chip for an option
+			// the player can't see or reset in the options grid.
 			var options = map.PlayerActorInfo.TraitInfos<ILobbyOptions>()
 				.Concat(map.WorldActorInfo.TraitInfos<ILobbyOptions>())
 				.SelectMany(t => t.LobbyOptions(map))
-				.Where(o => o.IsVisible)
+				.Where(o => o.IsVisible && o.Id != "scenario" && !LobbyOptionsLogic.HiddenOptionIds.Contains(o.Id))
 				.OrderBy(o => o.DisplayOrder)
 				.ToArray();
 
 			// Chips flow horizontally starting at x=10 (matches the EMPTY_HINT and
 			// accent line on the left edge of the panel). First chip sits just below
-			// the header strip (EMPTY_HINT Y:10 H:20 + accent Y:34 H:2 + 8px gap).
-			var x = 10;
-			var y = 46;
+			// the header strip (EMPTY_HINT Y:10 H:18 + accent Y:30 H:2 + gap).
+			const int startX = 10;
+			const int startY = 46;
 			const int spacing = 10;
 			const int rowStride = 38;
-			var count = 0;
 			var containerWidth = container.Bounds.Width;
+			var chipHeight = chipTemplate.Bounds.Height;
 
+			// Size each chip to its text rather than the template's fixed 180px.
+			// 24px total internal padding (12 left + 12 right) so the label
+			// doesn't kiss the chip edges.
+			var templateLabel = chipTemplate.GetOrNull<LabelWidget>("CHIP_LABEL");
+			var font = templateLabel != null ? Game.Renderer.Fonts[templateLabel.Font] : null;
+			int MeasureChipWidth(string text) => font != null ? Math.Min(font.Measure(text).X + 24, 260) : 180;
+
+			// Collect every changed option first so the row cap and the "+N more"
+			// overflow chip can be computed against the full set before rendering.
+			var entries = new List<(string Text, Classification Klass, int Width)>();
 			foreach (var opt in options)
 			{
 				if (!orderManager.LobbyInfo.GlobalSettings.LobbyOptions.TryGetValue(opt.Id, out var state))
@@ -135,73 +139,118 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					continue;
 
 				var (text, klass) = Classify(opt, state.Value);
-				var chip = chipTemplate.Clone();
-				chip.IsVisible = () => true;
+				entries.Add((text, klass, MeasureChipWidth(text)));
+			}
 
-				var bg = chip.GetOrNull<ColorBlockWidget>("BG");
-				var lbl = chip.GetOrNull<LabelWidget>("CHIP_LABEL");
+			// Cap rendering by the measured container height: row r fits when
+			// startY + r * rowStride + chipHeight stays inside the container.
+			var maxRows = 0;
+			if (container.Bounds.Height >= startY + chipHeight)
+				maxRows = (container.Bounds.Height - startY - chipHeight) / rowStride + 1;
 
-				// Size each chip to its text rather than the template's fixed 180px.
-				// 24px total internal padding (12 left + 12 right) so the label
-				// doesn't kiss the chip edges.
-				var chipWidth = 180;
-				if (lbl != null)
+			bool FitsAll(IReadOnlyList<int> widths)
+			{
+				var sx = startX;
+				var row = 0;
+				foreach (var w in widths)
 				{
-					var font = Game.Renderer.Fonts[lbl.Font];
-					var textWidth = font.Measure(text).X;
-					chipWidth = Math.Min(textWidth + 24, 260);
-					chip.Bounds.Width = chipWidth;
-					lbl.Bounds.Width = chipWidth;
+					if (sx > startX && sx + w > containerWidth - startX)
+					{
+						sx = startX;
+						row++;
+					}
+
+					if (row >= maxRows)
+						return false;
+
+					sx += w + spacing;
 				}
 
-				// Wrap to a new row if the chip won't fit on this row.
-				if (x > 10 && x + chipWidth > containerWidth - 10)
+				return true;
+			}
+
+			var total = entries.Count;
+			var renderCount = total;
+			string overflowText = null;
+			var widths = entries.Select(e => e.Width).ToList();
+			if (maxRows == 0)
+				renderCount = 0;
+			else if (!FitsAll(widths))
+			{
+				// Render the longest prefix that still leaves room for a compact
+				// "+N more" chip in the last available slot. k=0 always fits when
+				// maxRows >= 1 (a lone chip never wraps), so the loop terminates
+				// with a valid split.
+				for (var k = total - 1; k >= 0; k--)
 				{
-					x = 10;
+					var candidate = $"+{total - k} more";
+					var trial = widths.Take(k).ToList();
+					trial.Add(MeasureChipWidth(candidate));
+					if (FitsAll(trial))
+					{
+						renderCount = k;
+						overflowText = candidate;
+						break;
+					}
+				}
+			}
+
+			var x = startX;
+			var y = startY;
+			void AddChip(string text, Color ink, int chipWidth)
+			{
+				// Wrap to a new row if the chip won't fit on this row.
+				if (x > startX && x + chipWidth > containerWidth - startX)
+				{
+					x = startX;
 					y += rowStride;
 				}
 
+				var chip = chipTemplate.Clone();
+				chip.IsVisible = () => true;
 				chip.Bounds.X = x;
 				chip.Bounds.Y = y;
+				chip.Bounds.Width = chipWidth;
 
-				Color ink;
-				switch (klass)
-				{
-					case Classification.Increased: ink = IncreasedText; break;
-					case Classification.Decreased: ink = DecreasedText; break;
-					default: ink = WarningText; break;
-				}
-
+				var bg = chip.GetOrNull<ColorBlockWidget>("BG");
 				if (bg != null)
 					bg.GetColor = () => ChipFill;
+
+				var lbl = chip.GetOrNull<LabelWidget>("CHIP_LABEL");
 				if (lbl != null)
 				{
+					lbl.Bounds.Width = chipWidth;
 					var captured = text;
 					lbl.GetText = () => captured;
 					lbl.GetColor = () => ink;
 				}
 
-				// Clicking the chip jumps to the panel that owns this option.
-				var hit = chip.GetOrNull<ButtonWidget>("HIT");
-				if (hit != null)
-				{
-					var optId = opt.Id;
-					hit.OnClick = () =>
-					{
-						var target = CommonOptionIds.Contains(optId) ? "Players" : "Options";
-						LobbyLogic.SwitchPanel?.Invoke(target);
-					};
-				}
-
 				container.AddChild(chip);
-				x += chip.Bounds.Width + spacing;
-				count++;
+				x += chipWidth + spacing;
 			}
+
+			for (var i = 0; i < renderCount; i++)
+			{
+				var (text, klass, width) = entries[i];
+				var ink = klass switch
+				{
+					Classification.Increased => IncreasedText,
+					Classification.Decreased => DecreasedText,
+					_ => WarningText,
+				};
+				AddChip(text, ink, width);
+			}
+
+			if (overflowText != null)
+				AddChip(overflowText, OverflowText, MeasureChipWidth(overflowText));
 
 			if (emptyHint != null)
 			{
 				emptyHint.IsVisible = () => true;
-				var hintText = count == 0 ? "All settings at default" : $"ACTIVE CHANGES ({count})";
+
+				// N is always the true total of changed options, even when the
+				// row cap hides some behind the "+N more" chip.
+				var hintText = total == 0 ? "All settings at default" : $"ACTIVE CHANGES ({total})";
 				emptyHint.GetText = () => hintText;
 			}
 		}
