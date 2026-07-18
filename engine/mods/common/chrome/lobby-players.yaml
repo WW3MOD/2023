@@ -171,6 +171,32 @@ Container@LOBBY_PLAYER_BIN:
 											Y: 4
 											Width: PARENT_WIDTH - 8
 											Height: PARENT_HEIGHT - 8
+										# 1px inner bevel over the dynamic player color (later siblings
+										# draw on top): top/left light, bottom/right dark alpha overlays.
+										ColorBlock:
+											X: 4
+											Y: 4
+											Width: PARENT_WIDTH - 8
+											Height: 1
+											Color: FFFFFF3C
+										ColorBlock:
+											X: 4
+											Y: 4
+											Width: 1
+											Height: PARENT_HEIGHT - 8
+											Color: FFFFFF3C
+										ColorBlock:
+											X: 4
+											Y: PARENT_HEIGHT - 5
+											Width: PARENT_WIDTH - 8
+											Height: 1
+											Color: 0000005A
+										ColorBlock:
+											X: PARENT_WIDTH - 5
+											Y: 4
+											Width: 1
+											Height: PARENT_HEIGHT - 8
+											Color: 0000005A
 								DropDownButton@FACTION:
 									X: 48
 									Width: 120
@@ -313,6 +339,32 @@ Container@LOBBY_PLAYER_BIN:
 									Y: 4
 									Width: 32
 									Height: 32
+								# 1px inner bevel over the dynamic player color (later siblings
+								# draw on top): top/left light, bottom/right dark alpha overlays.
+								ColorBlock:
+									X: 8
+									Y: 4
+									Width: 32
+									Height: 1
+									Color: FFFFFF3C
+								ColorBlock:
+									X: 8
+									Y: 4
+									Width: 1
+									Height: 32
+									Color: FFFFFF3C
+								ColorBlock:
+									X: 8
+									Y: 35
+									Width: 32
+									Height: 1
+									Color: 0000005A
+								ColorBlock:
+									X: 39
+									Y: 4
+									Width: 1
+									Height: 32
+									Color: 0000005A
 								Container@FACTION:
 									X: 48
 									Width: 120
@@ -501,20 +553,13 @@ Container@LOBBY_PLAYER_BIN:
 									Height: PARENT_HEIGHT
 									Color: 222222FF
 									Visible: false
-								Container@LATENCY:
-									Y: 11
-									Width: 11
-									Height: 14
-									Visible: false
-									Children:
-										ColorBlock@LATENCY_COLOR:
-											X: 2
-											Y: 2
-											Width: PARENT_WIDTH - 4
-											Height: PARENT_HEIGHT - 4
+								# Latency chip removed from spectator rows — no color tile to anchor it, read
+								# as a stray square. LATENCY_REGION only parked off-row (not deleted) because
+								# LobbyUtils.SetupLatencyWidget fetches it with a plain Get() (crash-on-missing).
 								ClientTooltipRegion@LATENCY_REGION:
-									Width: 11
-									Height: 36
+									X: -200
+									Width: 1
+									Height: 1
 									TooltipContainer: TOOLTIP_CONTAINER
 									Template: LATENCY_TOOLTIP
 								TextField@NAME:
@@ -578,20 +623,13 @@ Container@LOBBY_PLAYER_BIN:
 									Height: PARENT_HEIGHT
 									Color: 222222FF
 									Visible: false
-								Container@LATENCY:
-									Y: 11
-									Width: 11
-									Height: 14
-									Visible: false
-									Children:
-										ColorBlock@LATENCY_COLOR:
-											X: 2
-											Y: 2
-											Width: PARENT_WIDTH - 4
-											Height: PARENT_HEIGHT - 4
+								# Latency chip removed from spectator rows — no color tile to anchor it, read
+								# as a stray square. LATENCY_REGION only parked off-row (not deleted) because
+								# LobbyUtils.SetupLatencyWidget fetches it with a plain Get() (crash-on-missing).
 								ClientTooltipRegion@LATENCY_REGION:
-									Width: 11
-									Height: 36
+									X: -200
+									Width: 1
+									Height: 1
 									TooltipContainer: TOOLTIP_CONTAINER
 									Template: LATENCY_TOOLTIP
 								Image@PROFILE:
@@ -826,53 +864,52 @@ Container@LOBBY_PLAYER_BIN:
 											Width: 28
 											Height: 2
 											Color: B4B4B4FF
-								# === Settings polish — checkbox row taller, checkbox more
-								# square per the player-list principles applied to settings.
-								# Was 30 row × 22 box; now 36 row × 28 box, vertically
-								# centered (Y:4).
+								# === Settings polish — checkbox row tightened so two full
+								# option rows fit the panel at 1366×768. Was 36 row × 28 box;
+								# now 32 row × 26 box, vertically centered (Y:3).
 								Container@CHECKBOX_ROW_TEMPLATE:
 									Width: PARENT_WIDTH
-									Height: 36
+									Height: 32
 									Children:
 										Checkbox@A:
 											X: 8
-											Y: 4
+											Y: 3
 											Width: PARENT_WIDTH / 4 - 12
-											Height: 28
+											Height: 26
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										Checkbox@B:
 											X: PARENT_WIDTH / 4 + 8
-											Y: 4
+											Y: 3
 											Width: PARENT_WIDTH / 4 - 12
-											Height: 28
+											Height: 26
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										Checkbox@C:
 											X: PARENT_WIDTH * 2 / 4 + 8
-											Y: 4
+											Y: 3
 											Width: PARENT_WIDTH / 4 - 12
-											Height: 28
+											Height: 26
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										Checkbox@D:
 											X: PARENT_WIDTH * 3 / 4 + 8
-											Y: 4
+											Y: 3
 											Width: PARENT_WIDTH / 4 - 12
-											Height: 28
+											Height: 26
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
-								# === Settings polish — dropdown row tighter, dropdown taller.
-								# Was 56 row × 28 dropdown; now 50 row × 30 dropdown with
-								# the label snugged closer (Y:4 → Y:2). Value reads bigger
-								# without the row eating extra vertical space.
+								# === Settings polish — dropdown row tightened so two full
+								# option rows fit the panel at 1366×768. Was 50 row (label
+								# Y:2 H:14, button Y:18 H:30); now 44 row — label Y:0 H:14,
+								# 2px gap, button Y:16 H:26, 2px bottom margin.
 								Container@DROPDOWN_ROW_TEMPLATE:
-									Height: 50
+									Height: 44
 									Width: PARENT_WIDTH
 									Children:
 										LabelForInput@A_DESC:
 											X: 8
-											Y: 2
+											Y: 0
 											Width: PARENT_WIDTH / 4 - 12
 											Height: 14
 											Visible: False
@@ -880,14 +917,14 @@ Container@LOBBY_PLAYER_BIN:
 											For: A
 										DropDownButton@A:
 											X: 8
-											Y: 18
+											Y: 16
 											Width: PARENT_WIDTH / 4 - 12
-											Height: 30
+											Height: 26
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										LabelForInput@B_DESC:
 											X: PARENT_WIDTH / 4 + 8
-											Y: 2
+											Y: 0
 											Width: PARENT_WIDTH / 4 - 12
 											Height: 14
 											Visible: False
@@ -895,14 +932,14 @@ Container@LOBBY_PLAYER_BIN:
 											For: B
 										DropDownButton@B:
 											X: PARENT_WIDTH / 4 + 8
-											Y: 18
+											Y: 16
 											Width: PARENT_WIDTH / 4 - 12
-											Height: 30
+											Height: 26
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										LabelForInput@C_DESC:
 											X: PARENT_WIDTH * 2 / 4 + 8
-											Y: 2
+											Y: 0
 											Width: PARENT_WIDTH / 4 - 12
 											Height: 14
 											Visible: False
@@ -910,14 +947,14 @@ Container@LOBBY_PLAYER_BIN:
 											For: C
 										DropDownButton@C:
 											X: PARENT_WIDTH * 2 / 4 + 8
-											Y: 18
+											Y: 16
 											Width: PARENT_WIDTH / 4 - 12
-											Height: 30
+											Height: 26
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										LabelForInput@D_DESC:
 											X: PARENT_WIDTH * 3 / 4 + 8
-											Y: 2
+											Y: 0
 											Width: PARENT_WIDTH / 4 - 12
 											Height: 14
 											Visible: False
@@ -925,9 +962,9 @@ Container@LOBBY_PLAYER_BIN:
 											For: D
 										DropDownButton@D:
 											X: PARENT_WIDTH * 3 / 4 + 8
-											Y: 18
+											Y: 16
 											Width: PARENT_WIDTH / 4 - 12
-											Height: 30
+											Height: 26
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 				# === WW3MOD — proportional split, active-changes sized for chips.
