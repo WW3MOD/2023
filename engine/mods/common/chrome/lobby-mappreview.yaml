@@ -40,9 +40,11 @@ Container@MAP_PREVIEW:
 							Height: PARENT_HEIGHT - 2
 							TooltipContainer: TOOLTIP_CONTAINER
 				# === Phase 3 — corner brackets (Westwood touch).
-				# Eight ColorBlocks composing four 12x12 L-marks in the four
-				# preview corners. Replace with a single corner-bracket sprite
-				# in Phase 8 if asset work happens. accent #B4B4B4.
+				# Eight ColorBlocks composing four 12x12 L-marks. MapPreviewLogic
+				# (UpdateBrackets) repositions them every tick to hug the
+				# letterboxed preview image; the X/Y below are only the fallback
+				# when no minimap is loaded. Replace with a single corner-bracket
+				# sprite in Phase 8 if asset work happens. accent #B4B4B4.
 				ColorBlock@BRACKET_TL_H:
 					X: 8
 					Y: 8

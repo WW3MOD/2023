@@ -63,6 +63,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly ButtonWidget retryButton;
 		bool mapUpdateAvailable = false;
 
+		// WW3MOD: corner L-brackets that hug the letterboxed preview image (see UpdateBrackets).
+		// Order: TL_H, TL_V, TR_H, TR_V, BL_H, BL_V, BR_H, BR_V.
+		readonly MapPreviewWidget largePreviewWidget;
+		readonly ColorBlockWidget[] brackets;
+		readonly WidgetBounds[] bracketFallbacks;
+
 		[ObjectCreator.UseCtor]
 		internal MapPreviewLogic(Widget widget, ModData modData, OrderManager orderManager, Func<(MapPreview Map, Session.MapStatus Status)> getMap,
 			Action<MapPreviewWidget, MapPreview, MouseInput> onMouseDown, Func<Dictionary<int, SpawnOccupant>> getSpawnOccupants,
@@ -116,7 +122,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					var cat = m.Categories.FirstOrDefault() ?? "";
 					if (m.ScenarioNames.Length > 0)
 						cat += $" | {m.ScenarioNames.Length} scenario{(m.ScenarioNames.Length != 1 ? "s" : "")}";
-					return cat;
+
+					// WW3MOD: display-only uppercase, matching the author line below.
+					return cat.ToUpperInvariant();
 				});
 
 				typeLabel.GetText = () => typeCache.Update(getMap().Map);
@@ -210,6 +218,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var previewLarge = SetupMapPreview(widget.Get("MAP_LARGE"));
 			var previewSmall = SetupMapPreview(widget.Get("MAP_SMALL"));
 
+			// WW3MOD: wire up the corner brackets so they track the letterboxed
+			// preview image instead of sitting at the panel corners. If any
+			// bracket is missing (other mods reuse this chrome), skip silently
+			// and the YAML fallback positions stand.
+			largePreviewWidget = previewLarge.GetOrNull<MapPreviewWidget>("MAP_PREVIEW");
+			var bracketIds = new[]
+			{
+				"BRACKET_TL_H", "BRACKET_TL_V", "BRACKET_TR_H", "BRACKET_TR_V",
+				"BRACKET_BL_H", "BRACKET_BL_V", "BRACKET_BR_H", "BRACKET_BR_V"
+			};
+
+			var bracketWidgets = bracketIds.Select(id => previewLarge.GetOrNull<ColorBlockWidget>(id)).ToArray();
+			if (largePreviewWidget != null && bracketWidgets.All(b => b != null))
+			{
+				brackets = bracketWidgets;
+				bracketFallbacks = bracketWidgets.Select(b => b.Bounds).ToArray();
+			}
+
 			// Widgets to be made visible.
 			previewWidgets[PreviewStatus.Unknown] =
 				new Widget[] { previewLarge };
@@ -254,8 +280,68 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		bool retryTriggered = false;
 
+		// WW3MOD: replicates the letterbox math of MapPreviewWidget.Draw
+		// (scale = min of width/height ratios, int-truncated size, centered)
+		// to find the on-screen rect of the rendered minimap.
+		Rectangle? GetPreviewImageRect()
+		{
+			if (largePreviewWidget == null)
+				return null;
+
+			var map = getMap().Map;
+			if (map == null || map == MapCache.UnknownMap)
+				return null;
+
+			var minimap = map.GetMinimap();
+			if (minimap == null || minimap.Size.X <= 0 || minimap.Size.Y <= 0)
+				return null;
+
+			var rb = largePreviewWidget.RenderBounds;
+			var scale = Math.Min(rb.Width / minimap.Size.X, rb.Height / minimap.Size.Y);
+			var w = (int)(scale * minimap.Size.X);
+			var h = (int)(scale * minimap.Size.Y);
+			return new Rectangle(rb.X + (rb.Width - w) / 2, rb.Y + (rb.Height - h) / 2, w, h);
+		}
+
+		// WW3MOD: move the four corner L-marks so they hug the rendered map
+		// image (arms lying 2px onto the image edges). Falls back to the YAML
+		// panel-corner positions while no minimap is available.
+		void UpdateBrackets()
+		{
+			if (brackets == null)
+				return;
+
+			var imageRect = GetPreviewImageRect();
+			if (imageRect == null)
+			{
+				for (var i = 0; i < brackets.Length; i++)
+					brackets[i].Bounds = bracketFallbacks[i];
+
+				return;
+			}
+
+			// Image rect is in screen space; bracket Bounds are relative to
+			// their parent (MAP_LARGE), so shift by the parent's render origin.
+			var origin = brackets[0].Parent.RenderOrigin;
+			var x = imageRect.Value.X - origin.X;
+			var y = imageRect.Value.Y - origin.Y;
+			var w = imageRect.Value.Width;
+			var h = imageRect.Value.Height;
+
+			brackets[0].Bounds = new WidgetBounds(x, y, 12, 2);
+			brackets[1].Bounds = new WidgetBounds(x, y, 2, 12);
+			brackets[2].Bounds = new WidgetBounds(x + w - 12, y, 12, 2);
+			brackets[3].Bounds = new WidgetBounds(x + w - 2, y, 2, 12);
+			brackets[4].Bounds = new WidgetBounds(x, y + h - 2, 12, 2);
+			brackets[5].Bounds = new WidgetBounds(x, y + h - 12, 2, 12);
+			brackets[6].Bounds = new WidgetBounds(x + w - 12, y + h - 2, 12, 2);
+			brackets[7].Bounds = new WidgetBounds(x + w - 2, y + h - 12, 2, 12);
+		}
+
 		public override void Tick()
 		{
+			UpdateBrackets();
+
 			if (++blinkTick >= blinkTickLength)
 			{
 				blink ^= true;
