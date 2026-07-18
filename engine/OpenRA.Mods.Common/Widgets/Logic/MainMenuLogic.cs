@@ -715,6 +715,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// WW3MOD: Test.LaunchLobbyMap=<id> wins over the last-played pick so
 			// screenshot captures are deterministic. id matches against map title
 			// or package name (e.g. "river-zeta-ww3", "River Zeta WW3").
+			// PITFALL (2026-07): this seed only picks the server's initial map — SkirmishLogic.ClientJoined
+			// then replays skirmish.<mod>.yaml from the support dir and issues a server "map" command,
+			// silently overriding it ("changed the map to <last-played>" in lobby chat). screenshot-lobby.sh
+			// moves that file aside for the run; if the seed "doesn't work", check that file before this code.
 			var initialUid = modData.MapCache.PickLastModifiedMap(MapVisibility.Lobby) ?? Game.Settings.Server.Map;
 			if (TestMode.IsActive && !string.IsNullOrEmpty(TestMode.LaunchLobbyMap))
 			{

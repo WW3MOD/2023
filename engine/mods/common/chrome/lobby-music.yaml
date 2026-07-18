@@ -52,8 +52,11 @@ Container@LOBBY_MUSIC_BIN:
 					Text: label-container-title
 					Font: TinyBold
 					TextColor: 969696
+				# Right edge at PW-44: aligned with the row values below and clear
+				# of the list's 24px scrollbar gutter (at PW-80 the header text sat
+				# 2px off the gutter and 9px right of the values).
 				Label@LENGTH:
-					X: PARENT_WIDTH - 80
+					X: PARENT_WIDTH - 94
 					Height: 20
 					Width: 50
 					Text: label-music-controls-length
@@ -182,7 +185,9 @@ Container@LOBBY_MUSIC_BIN:
 				ExponentialSlider@MUSIC_SLIDER:
 					X: 70
 					Y: 130
-					Width: PARENT_WIDTH - 80
+					# Right edge at 249 — lines up with the REPEAT checkbox column
+					# above and keeps 15px clear of the card's right edge.
+					Width: PARENT_WIDTH - 85
 					Height: 20
 					Ticks: 7
 		ScrollPanel@MUSIC_LIST:
@@ -206,7 +211,9 @@ Container@LOBBY_MUSIC_BIN:
 							TooltipContainer: TOOLTIP_CONTAINER
 							TooltipTemplate: SIMPLE_TOOLTIP
 						Label@LENGTH:
-							X: PARENT_WIDTH - 60
+							# 15px right margin inside the row so the time text
+							# doesn't crowd the scrollbar sitting past the row edge.
+							X: PARENT_WIDTH - 65
 							Width: 50
 							Height: 25
 							Align: Right

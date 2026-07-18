@@ -91,15 +91,40 @@ fi
 
 # Backup settings.yaml around the run — same pattern as run-test.sh, since the
 # engine may auto-save Sound.Mute=true otherwise.
+SUPPORT_DIR=""
 SETTINGS_FILE=""
 SETTINGS_BACKUP=""
 case "$(uname)" in
-	Darwin) SETTINGS_FILE="${HOME}/Library/Application Support/OpenRA/settings.yaml" ;;
-	Linux)  SETTINGS_FILE="${HOME}/.config/openra/settings.yaml" ;;
+	Darwin) SUPPORT_DIR="${HOME}/Library/Application Support/OpenRA" ;;
+	Linux)  SUPPORT_DIR="${HOME}/.config/openra" ;;
+	MINGW*|MSYS*|CYGWIN*)
+		# Git Bash / MSYS on Windows: the engine's support dir is %APPDATA%/OpenRA.
+		# APPDATA is exported into the MSYS environment; guard anyway.
+		if [ -n "${APPDATA:-}" ]; then
+			SUPPORT_DIR="${APPDATA}/OpenRA"
+		fi ;;
 esac
+if [ -n "${SUPPORT_DIR}" ]; then
+	SETTINGS_FILE="${SUPPORT_DIR}/settings.yaml"
+fi
 if [ -n "${SETTINGS_FILE}" ] && [ -f "${SETTINGS_FILE}" ]; then
 	SETTINGS_BACKUP="${RESULT_DIR}/settings.yaml.bak.lobby"
 	cp "${SETTINGS_FILE}" "${SETTINGS_BACKUP}"
+fi
+
+# Move the skirmish restore file aside for the run. SkirmishLogic.ClientJoined
+# replays skirmish.ww3mod.yaml when the local client joins and issues a server
+# "map <uid>" command from it — overriding Test.LaunchLobbyMap AFTER the lobby
+# was seeded (that's the "changed the map to <last-played>" chat line). With
+# the file absent the seed sticks and SkirmishLogic just adds its default bot.
+# cleanup() restores the user's original, clobbering whatever the test game
+# re-saved on LobbyInfoSynced.
+SKIRMISH_FILE=""
+SKIRMISH_BACKUP=""
+if [ -n "${SUPPORT_DIR}" ] && [ -f "${SUPPORT_DIR}/skirmish.ww3mod.yaml" ]; then
+	SKIRMISH_FILE="${SUPPORT_DIR}/skirmish.ww3mod.yaml"
+	SKIRMISH_BACKUP="${RESULT_DIR}/skirmish.ww3mod.yaml.bak.lobby"
+	mv "${SKIRMISH_FILE}" "${SKIRMISH_BACKUP}"
 fi
 
 ./launch-game.sh \
@@ -125,6 +150,9 @@ cleanup() {
 	fi
 	if [ -n "${SETTINGS_BACKUP}" ] && [ -f "${SETTINGS_BACKUP}" ]; then
 		mv "${SETTINGS_BACKUP}" "${SETTINGS_FILE}"
+	fi
+	if [ -n "${SKIRMISH_BACKUP}" ] && [ -f "${SKIRMISH_BACKUP}" ]; then
+		mv "${SKIRMISH_BACKUP}" "${SKIRMISH_FILE}"
 	fi
 }
 trap cleanup EXIT INT TERM
