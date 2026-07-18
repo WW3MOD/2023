@@ -72,10 +72,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		enum PanelType { Players, Options, Music, Servers, Kick, ForceStart }
 
-		// Static hook so other lobby logic classes (e.g. chip click handlers) can request
-		// a top-level panel switch by string name without holding a LobbyLogic reference.
-		// Accepts "Players" or "Options" — other panel types aren't exposed here.
-		public static Action<string> SwitchPanel;
 		PanelType panel = PanelType.Players;
 
 		// Test-mode pending tab switch: filled in by the constructor when
@@ -297,11 +293,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				panel == PanelType.Kick || panel == PanelType.ForceStart || !MapIsPlayable ||
 				orderManager.LocalClient == null || orderManager.LocalClient.IsReady;
 			configurationDisabledRef = configurationDisabled;
-
-			SwitchPanel = name =>
-			{
-				panel = name == "Options" ? PanelType.Options : PanelType.Players;
-			};
 
 			var mapButton = lobby.GetOrNull<ButtonWidget>("CHANGEMAP_BUTTON");
 			if (mapButton != null)

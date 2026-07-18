@@ -1,5 +1,22 @@
 # Lobby redesign — implementation plan
 
+> **STATUS (2026-07-18): shipped, with deviations.** All phases landed (see
+> `archive/sessions/active_260515_1730_lobby_implementation.md` for the commit
+> map + the 260718 finishing pass). Where this doc and the tree disagree, the
+> tree won:
+> - **Phase 4** shipped as a plain 2×2 quadrant *swap* (commit 6cfb6d23) — the
+>   unified left-column ScrollPanel was abandoned; no `LEFT_COL_SCROLL` exists.
+> - **Music** is a tab over *chat* (BR), not inside Settings (BL) — a69c05fa.
+>   decisions.md entry 4 predates this.
+> - **Phase 2 hero tiles** were not built; settings render as 36px checkbox
+>   rows + 50px dropdown rows in the 4-col grid. Option order comes from
+>   `DisplayOrder` + Economy/Match/World buckets, not the plan's list (several
+>   planned options are hidden via `HiddenOptionIds`).
+> - **Phase 6** ships the restyled *stock* chooser inline, not the designed
+>   browser (chips / CURRENT badge / search-top) — see BACKLOG.
+> - **Phase 7** scope cuts (3-way filter, SYSTEM chip, mono timestamp) — see
+>   BACKLOG.
+
 Scope: port the locked design ([`mockups/full-page-realistic.html`](mockups/full-page-realistic.html))
 into the live OpenRA chrome for the WW3MOD skirmish lobby.
 

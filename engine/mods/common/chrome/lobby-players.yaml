@@ -983,10 +983,6 @@ Container@LOBBY_PLAYER_BIN:
 									Height: PARENT_HEIGHT
 									Align: Center
 									Font: Bold
-								Button@HIT:
-									Width: PARENT_WIDTH
-									Height: PARENT_HEIGHT
-									Background: ""
 				Container@LOBBY_PRESET_BAR:
 					Logic: LobbyPresetLogic
 					X: 12

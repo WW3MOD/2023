@@ -130,7 +130,7 @@ ticker strip at the bottom).
 
 ---
 
-## 4 — Music tab moves out of global, into Settings — **LOCKED**
+## 4 — Music tab moves out of global, into Settings — **LOCKED** *(superseded in implementation: shipped as a `Chat / Music` toggle over the chat quadrant instead — a69c05fa; the tab sits on the panel it swaps, so the pattern holds, just in BR not BL)*
 
 Mockup: [`mockups/full-page-q4-locked.html`](mockups/full-page-q4-locked.html)
 
