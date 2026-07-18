@@ -24,6 +24,11 @@ namespace OpenRA.Mods.Common.Widgets
 		public string ImageCollection = "";
 		public string ImageName = "";
 		public bool ClickThrough = true;
+
+		// WW3MOD: opt-in. Widget Width/Height are layout-only for images — the sprite
+		// draws at native size unless this is set, which scales it uniformly
+		// (aspect preserved) to fit the widget bounds, centered.
+		public bool ScaleToBounds = false;
 		public Func<string> GetImageName;
 		public Func<string> GetImageCollection;
 		public Func<Sprite> GetSprite;
@@ -53,6 +58,7 @@ namespace OpenRA.Mods.Common.Widgets
 			: base(other)
 		{
 			ClickThrough = other.ClickThrough;
+			ScaleToBounds = other.ScaleToBounds;
 			ImageName = other.ImageName;
 			GetImageName = other.GetImageName;
 			ImageCollection = other.ImageCollection;
@@ -71,7 +77,17 @@ namespace OpenRA.Mods.Common.Widgets
 
 		public override void Draw()
 		{
-			WidgetUtils.DrawSprite(GetSprite(), RenderOrigin);
+			var sprite = GetSprite();
+			if (ScaleToBounds)
+			{
+				var rb = RenderBounds;
+				var scale = Math.Min(rb.Width / sprite.Size.X, rb.Height / sprite.Size.Y);
+				var size = new float2(sprite.Size.X * scale, sprite.Size.Y * scale);
+				var pos = new float2(rb.X + (rb.Width - size.X) / 2, rb.Y + (rb.Height - size.Y) / 2);
+				WidgetUtils.DrawSprite(sprite, pos, size);
+			}
+			else
+				WidgetUtils.DrawSprite(sprite, RenderOrigin);
 		}
 
 		public override bool HandleMouseInput(MouseInput mi)

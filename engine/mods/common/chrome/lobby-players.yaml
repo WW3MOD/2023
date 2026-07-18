@@ -52,10 +52,11 @@ Container@LOBBY_PLAYER_BIN:
 					Font: TinyBold
 					Align: Left
 					Text: PLAYERS
+					TextColor: B4B4B4
 				ColorBlock@CELL_LABEL_ACCENT:
 					X: 12
 					Y: 38
-					Width: 32
+					Width: 28
 					Height: 2
 					Color: B4B4B4FF
 				# === Phase 10 — column rhythm: square Color, two-square Faction/Spawn.
@@ -138,9 +139,10 @@ Container@LOBBY_PLAYER_BIN:
 									Height: PARENT_HEIGHT
 									Color: 222222FF
 									Visible: false
+								# Latency chip deliberately overlays the color tile's bottom-left corner.
 								Container@LATENCY:
-									X: -2
-									Y: 12
+									X: 4
+									Y: 26
 									Width: 11
 									Height: 14
 									Visible: false
@@ -151,7 +153,7 @@ Container@LOBBY_PLAYER_BIN:
 											Width: PARENT_WIDTH - 4
 											Height: PARENT_HEIGHT - 4
 								ClientTooltipRegion@LATENCY_REGION:
-									X: -2
+									X: 4
 									Width: 11
 									Height: 40
 									TooltipContainer: TOOLTIP_CONTAINER
@@ -179,14 +181,15 @@ Container@LOBBY_PLAYER_BIN:
 									TooltipContainer: TOOLTIP_CONTAINER
 									PanelRoot: FACTION_DROPDOWN_PANEL_ROOT
 									Children:
-										# WW3MOD: flag fills the dropdown's left square (40px tall
-										# matches the row height; 76px wide leaves a 4px gap before
+										# WW3MOD: flag scales to fill the dropdown's left square (40px
+										# tall matches the row height; 76px wide leaves a 4px gap before
 										# the 40px chevron square on the right).
 										Image@FACTIONFLAG:
 											X: 2
 											Y: 0
 											Width: 76
 											Height: 40
+											ScaleToBounds: True
 										Label@FACTIONNAME:
 											X: -200
 											Width: 1
@@ -205,7 +208,7 @@ Container@LOBBY_PLAYER_BIN:
 									Width: PARENT_WIDTH - 304
 									Height: 40
 									Text: Name
-									LeftMargin: 10
+									LeftMargin: 28
 									MaxLength: 16
 									Font: MediumBold
 									Background: lobby-textfield
@@ -213,11 +216,11 @@ Container@LOBBY_PLAYER_BIN:
 									Children:
 										Image@PROFILE:
 											ImageCollection: lobby-bits
-											X: 4
+											X: 8
 											Y: 12
 											Visible: false
 										ClientTooltipRegion@PROFILE_TOOLTIP:
-											X: 4
+											X: 8
 											Y: 12
 											Width: 16
 											Height: 16
@@ -250,12 +253,13 @@ Container@LOBBY_PLAYER_BIN:
 									Y: 0
 									Width: 40
 									Height: 40
+									Background: lobby-checkbox
 									Visible: false
 								Image@STATUS_IMAGE:
-									X: PARENT_WIDTH - 40
-									Y: 4
-									Width: 32
-									Height: 32
+									X: PARENT_WIDTH - 32
+									Y: 12
+									Width: 16
+									Height: 16
 									ImageCollection: checkmark-tick
 									ImageName: checked
 									Visible: false
@@ -273,9 +277,10 @@ Container@LOBBY_PLAYER_BIN:
 									Height: PARENT_HEIGHT
 									Color: 222222FF
 									Visible: false
+								# Latency chip deliberately overlays the color tile's bottom-left corner.
 								Container@LATENCY:
-									X: -2
-									Y: 12
+									X: 4
+									Y: 26
 									Width: 11
 									Height: 14
 									Visible: false
@@ -286,7 +291,7 @@ Container@LOBBY_PLAYER_BIN:
 											Width: PARENT_WIDTH - 4
 											Height: PARENT_HEIGHT - 4
 								ClientTooltipRegion@LATENCY_REGION:
-									X: -2
+									X: 4
 									Width: 11
 									Height: 40
 									TooltipContainer: TOOLTIP_CONTAINER
@@ -304,23 +309,23 @@ Container@LOBBY_PLAYER_BIN:
 									TooltipContainer: TOOLTIP_CONTAINER
 									Template: ANONYMOUS_PLAYER_TOOLTIP
 								ColorBlock@COLORBLOCK:
-									X: 4
-									Y: 0
-									Width: 40
-									Height: 40
+									X: 8
+									Y: 4
+									Width: 32
+									Height: 32
 								Container@FACTION:
 									X: 48
 									Width: 120
 									Height: 40
 									Children:
-										# WW3MOD: flag fills the row height; non-editable rows
-										# have no chevron so the flag can be wider than the
-										# editable variant (no 40px chevron square to clear).
+										# WW3MOD: flag scales to fill the same 76x40 box as the
+										# editable variant so both row types read identically.
 										Image@FACTIONFLAG:
 											X: 2
 											Y: 0
-											Width: 116
+											Width: 76
 											Height: 40
+											ScaleToBounds: True
 										Label@FACTIONNAME:
 											X: -200
 											Width: 1
@@ -392,10 +397,10 @@ Container@LOBBY_PLAYER_BIN:
 									TooltipContainer: TOOLTIP_CONTAINER
 									TooltipText: dropdownbutton-lobby-players-handicap-tooltip
 								Image@STATUS_IMAGE:
-									X: PARENT_WIDTH - 40
-									Y: 4
-									Width: 32
-									Height: 32
+									X: PARENT_WIDTH - 32
+									Y: 12
+									Width: 16
+									Height: 16
 									ImageCollection: checkmark-tick
 									ImageName: checked
 									Visible: false
@@ -404,7 +409,7 @@ Container@LOBBY_PLAYER_BIN:
 						# Play covers Faction (X:48 W:120) + Spawn (X:172 W:80) cells.
 						# Add bot covers the Name cell (X:256 W: PW-304).
 						# Close is a 40x40 X-icon over the Ready cell (X: PW-44).
-						# JOIN and SLOT_OPTIONS keep full-width when shown alone.
+						# JOIN keeps full-width when shown alone (non-host, open slot).
 						# PITFALL: Text icons that aren't in the bundled font render as
 						# tofu boxes. "▸"/"✕" both fail; stick to ASCII (>, X, +).
 						Container@TEMPLATE_EMPTY:
@@ -413,6 +418,7 @@ Container@LOBBY_PLAYER_BIN:
 							Height: 40
 							Visible: false
 							Children:
+								# bg-panel-2 at 38% alpha — sanctioned translucent variant
 								ColorBlock@EMPTY_BG:
 									Width: PARENT_WIDTH
 									Height: PARENT_HEIGHT
@@ -432,24 +438,11 @@ Container@LOBBY_PLAYER_BIN:
 									Width: 38
 									Height: 38
 									Color: 141414FF
-								Label@NAME:
-									Width: 200
-									Height: 40
-									X: 20
-									Text: label-lobby-players-name
-									Visible: false
-								DropDownButton@SLOT_OPTIONS:
-									X: 4
-									Width: PARENT_WIDTH - 8
-									Height: 36
-									Y: 2
-									Text: label-lobby-players-name
-									Visible: false
 								Button@PLAY:
 									X: 48
-									Y: 2
+									Y: 0
 									Width: 204
-									Height: 36
+									Height: 40
 									Font: Bold
 									Background: lobby-button
 									Text: Play
@@ -458,9 +451,9 @@ Container@LOBBY_PLAYER_BIN:
 									Visible: false
 								Button@ADD_AI:
 									X: 256
-									Y: 2
+									Y: 0
 									Width: PARENT_WIDTH - 304
-									Height: 36
+									Height: 40
 									Font: Bold
 									Background: lobby-button
 									Text: + Add bot
@@ -469,9 +462,9 @@ Container@LOBBY_PLAYER_BIN:
 									Visible: false
 								Button@TOGGLE_CLOSED:
 									X: PARENT_WIDTH - 44
-									Y: 2
+									Y: 0
 									Width: 40
-									Height: 36
+									Height: 40
 									Font: Bold
 									Background: lobby-button
 									Text: X
@@ -487,10 +480,11 @@ Container@LOBBY_PLAYER_BIN:
 									Background: lobby-button
 									Text: button-lobby-players-join
 								Label@CLOSED_LABEL:
-									X: 20
+									X: 48
 									Width: PARENT_WIDTH - 40
 									Height: 40
 									Align: Left
+									Font: MediumBold
 									Text: Closed
 									Visible: false
 						# === Phase 9 — full-width editable spectator row.
@@ -556,16 +550,17 @@ Container@LOBBY_PLAYER_BIN:
 									Align: Left
 									Font: Regular
 								Checkbox@STATUS_CHECKBOX:
-									X: PARENT_WIDTH - 56
-									Y: 2
-									Width: 48
-									Height: 32
+									X: PARENT_WIDTH - 42
+									Y: 0
+									Width: 36
+									Height: 36
+									Background: lobby-checkbox
 									Visible: false
 								Image@STATUS_IMAGE:
-									X: PARENT_WIDTH - 50
-									Y: 6
-									Width: 32
-									Height: 32
+									X: PARENT_WIDTH - 32
+									Y: 10
+									Width: 16
+									Height: 16
 									ImageCollection: checkmark-tick
 									ImageName: checked
 									Visible: false
@@ -651,10 +646,10 @@ Container@LOBBY_PLAYER_BIN:
 									Align: Left
 									Font: Regular
 								Image@STATUS_IMAGE:
-									X: PARENT_WIDTH - 50
-									Y: 6
-									Width: 32
-									Height: 32
+									X: PARENT_WIDTH - 32
+									Y: 10
+									Width: 16
+									Height: 16
 									ImageCollection: checkmark-tick
 									ImageName: checked
 									Visible: false
@@ -735,14 +730,12 @@ Container@LOBBY_PLAYER_BIN:
 		# LobbyLogic hides this whole block when the Advanced or Music tab is active —
 		# those tabs overlay LOBBY_OPTIONS_BIN / LOBBY_MUSIC_BIN over this column.
 		#
-		# WW3MOD layout (top to bottom):
-		#   Y 0–48    OPTIONS section header + accent line
-		#   Y 48–516  COMMON_OPTIONS_PANEL (scrolls if content grows; sized to fit
-		#             ECONOMY + MATCH + WORLD comfortably without forcing a scroll)
-		#   Y 524–536 divider strip
-		#   Y 544–832 LOBBY_ACTIVE_CHANGES (label is driven by the logic — "ACTIVE
-		#             CHANGES (N)" when populated, "All settings at default" otherwise)
-		#   Y 842–874 LOBBY_PRESET_BAR (anchored bottom via PARENT_HEIGHT - 42)
+		# WW3MOD layout (top to bottom) — bottom-left quadrant, proportional split:
+		#   Y 0-48            OPTIONS section header + accent line
+		#   Y 48 to PH*3/5-12 COMMON_OPTIONS_PANEL (ScrollPanel; scrolls when short)
+		#   Y PH*3/5          divider, then LOBBY_ACTIVE_CHANGES at PH*3/5+6,
+		#                     Height PH*2/5-60 (chip renderer caps rows to fit)
+		#   Y PH-42 to PH-10  LOBBY_PRESET_BAR (bottom-anchored, 32 tall)
 		# === Phase 4 — LEFT column bottom: settings (under map preview).
 		# Was full-right; swapped to bottom-left per the locked design.
 		# Widget ID kept as RIGHT_COLUMN_MATCH for grep/back-compat.
@@ -782,10 +775,11 @@ Container@LOBBY_PLAYER_BIN:
 					Font: TinyBold
 					Align: Left
 					Text: OPTIONS
+					TextColor: B4B4B4
 				ColorBlock@CELL_LABEL_ACCENT:
 					X: 12
 					Y: 38
-					Width: 32
+					Width: 28
 					Height: 2
 					Color: B4B4B4FF
 				ScrollPanel@COMMON_OPTIONS_PANEL:
@@ -793,11 +787,12 @@ Container@LOBBY_PLAYER_BIN:
 					X: 4
 					Y: 48
 					Width: PARENT_WIDTH - 8
-					# Fills the room from the OPTIONS header (ends Y:48) down to the
-					# divider that sits 6px above LOBBY_ACTIVE_CHANGES. Active changes
-					# is anchored to the bottom (PARENT_HEIGHT - 180) and is 130 tall,
-					# preset bar takes the last 42 — so options gets the rest.
-					Height: PARENT_HEIGHT - 240
+					# Proportional split: options gets the top 3/5 of the quadrant
+					# (minus the header and a 12px gap to the divider at PH*3/5).
+					# ~147 tall @1080, ~233 @1440, ~72 @768 — short screens scroll,
+					# which is fine for a ScrollPanel-backed grid. A fixed-offset
+					# height (PARENT_HEIGHT - 240) went negative at 768.
+					Height: PARENT_HEIGHT * 3 / 5 - 60
 					Background: ""
 					ScrollBar: Right
 					Children:
@@ -935,30 +930,30 @@ Container@LOBBY_PLAYER_BIN:
 											Height: 30
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
-				# === WW3MOD — bottom-anchored layout, active-changes sized for chips.
-				# Stack bottom-up: preset bar (PARENT_HEIGHT - 42, H 32) sits last;
-				# active changes is pinned above it (PARENT_HEIGHT - 180, H 130) so
-				# the chip code's internal y=46 + rowStride=38 produces ~2 rows of
-				# chips inside the container instead of overflowing onto the preset
-				# row. Divider sits 6px above active-changes. COMMON_OPTIONS_PANEL
-				# above flexes to fill the rest (Height: PARENT_HEIGHT - 240).
-				# PITFALL (2026-06): LOBBY_ACTIVE_CHANGES was Height: 40 with the
-				# chip placement code starting at internal Y:46 — every chip rendered
-				# OUTSIDE the container, sitting behind the preset bar with no way to
-				# scroll into view. Don't drop this height below ~100 without also
-				# converting the container to a ScrollPanel.
+				# === WW3MOD — proportional split, active-changes sized for chips.
+				# Options takes the top 3/5 of the quadrant, active changes the
+				# bottom 2/5 minus the preset bar: divider at PH*3/5, active
+				# changes at PH*3/5+6 with Height PH*2/5-60, preset bar bottom-
+				# anchored (PH-42, H 32). Active-changes bottom lands at ~PH-54,
+				# leaving a ~12px gap above the preset bar at every resolution
+				# (78 tall @1080, 135 @1440, 28 @768).
+				# PITFALL (2026-06): chips render from internal Y:46 downward —
+				# a too-short container used to push every chip OUTSIDE it, behind
+				# the preset bar with no way to scroll into view. The chip renderer
+				# now caps visible rows to the measured container height, so short
+				# containers (e.g. 768p) truncate gracefully instead of overflowing.
 				ColorBlock@RIGHT_DIVIDER_1:
 					X: 12
-					Y: PARENT_HEIGHT - 186
+					Y: PARENT_HEIGHT * 3 / 5
 					Width: PARENT_WIDTH - 24
 					Height: 1
 					Color: 030303FF
 				Container@LOBBY_ACTIVE_CHANGES:
 					Logic: LobbyActiveChangesLogic
 					X: 12
-					Y: PARENT_HEIGHT - 180
+					Y: PARENT_HEIGHT * 3 / 5 + 6
 					Width: PARENT_WIDTH - 24
-					Height: 130
+					Height: PARENT_HEIGHT * 2 / 5 - 60
 					Children:
 						Label@EMPTY_HINT:
 							X: 10
@@ -1034,21 +1029,22 @@ Container@LOBBY_PLAYER_BIN:
 						Button@RENAME_PRESET_BUTTON:
 							X: 400
 							Y: 0
-							Width: 80
+							Width: 70
 							Height: 32
 							Font: Bold
 							Text: Rename
 						Button@DELETE_PRESET_BUTTON:
-							X: 490
+							X: 480
 							Y: 0
 							Width: 70
 							Height: 32
 							Font: Bold
 							Text: Delete
+						# Row must end <= 626: bar width is PARENT_WIDTH - 24 = 627 @1366.
 						Button@RESET_PRESET_BUTTON:
-							X: 570
+							X: 560
 							Y: 0
-							Width: 70
+							Width: 66
 							Height: 32
 							Font: Bold
 							Text: Reset
