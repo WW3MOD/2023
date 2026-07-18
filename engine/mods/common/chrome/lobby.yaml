@@ -50,14 +50,15 @@ Background@SERVER_LOBBY:
 			TextColor: B4B4B4
 		# Status indicator on the right side of the top bar
 		# (8x8 go-coloured square + Tiny "LOBBY READY" label).
+		# Label right edge at PW-24 to match the global right margin.
 		ColorBlock@STATUS_DOT:
-			X: PARENT_WIDTH - 132
+			X: PARENT_WIDTH - 146
 			Y: 26
 			Width: 8
 			Height: 8
 			Color: 6EC890FF
 		Label@STATUS_LABEL:
-			X: PARENT_WIDTH - 120
+			X: PARENT_WIDTH - 134
 			Y: 22
 			Width: 110
 			Height: 16
@@ -88,15 +89,15 @@ Background@SERVER_LOBBY:
 					Width: 90
 					Height: 32
 					Font: Bold
-					Background: lobby-button
-					Text: Map
+					Background: ""
+					Text: MAP
 				Button@CHANGE_MAP_VIEW_BUTTON:
 					X: 96
 					Width: 130
 					Height: 32
 					Font: Bold
-					Background: lobby-button
-					Text: Change Map
+					Background: ""
+					Text: CHANGE MAP
 				ColorBlock@MAP_VIEW_INDICATOR:
 					X: 0
 					Y: 30
@@ -111,15 +112,15 @@ Background@SERVER_LOBBY:
 					Color: B4B4B4FF
 		# === WW3MOD — Chat/Music toggle parked in the gap between the players
 		# panel (above) and the chat panel (below). Players bottom sits at
-		# 116 + (PH-196)*3/5; chat top moved down to +40 so the 32-tall toggle
-		# fits cleanly in the gap with 4px breathing room on either side.
+		# (PH-196)*3/5 + 108; chat top at 116 + (PH-196)*3/5 + 40. The 32-tall
+		# toggle sits centered in that 48px gap: 8px above, 8px below.
 		# X aligned to PARENT_WIDTH/2 + 8 to match LEFT_COLUMN_PLAYERS's
 		# absolute X (= TOP_PANELS_ROOT.X(24) + (PW-48)/2 + 8). The legacy
 		# PARENT_WIDTH/2 + 32 left the chat 24px to the right of the players
 		# panel and the toggle overhanging the players area above.
 		Container@CHAT_MUSIC_TOGGLE:
 			X: PARENT_WIDTH / 2 + 8
-			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 + 4
+			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5
 			Width: 230
 			Height: 32
 			Children:
@@ -127,15 +128,15 @@ Background@SERVER_LOBBY:
 					Width: 90
 					Height: 32
 					Font: Bold
-					Background: lobby-button
-					Text: Chat
+					Background: ""
+					Text: CHAT
 				Button@MUSIC_VIEW_BUTTON:
 					X: 96
 					Width: 130
 					Height: 32
 					Font: Bold
-					Background: lobby-button
-					Text: Music
+					Background: ""
+					Text: MUSIC
 				ColorBlock@CHAT_VIEW_INDICATOR:
 					X: 0
 					Y: 30
@@ -282,23 +283,25 @@ Background@SERVER_LOBBY:
 			X: PARENT_WIDTH / 2 + 8
 			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 + 40
 			Width: PARENT_WIDTH / 2 - 32
-			Height: PARENT_HEIGHT - (PARENT_HEIGHT - 196) * 3 / 5 - 224
+			Height: PARENT_HEIGHT - (PARENT_HEIGHT - 196) * 3 / 5 - 236
 			Visible: False
 		# Scenario picker is rare (most maps run the default skirmish) so it
 		# takes the narrower slot. Phase 12 — CHANGEMAP_BUTTON dropped from the
 		# bottom row (replaced by the [Change Map] tab above the panel); scenario
-		# dropdown now spans the full bottom strip.
+		# dropdown now spans the full bottom strip. Sits flush under the map
+		# preview (top = preview bottom = 116 + (PH-196)*3/5 - 40); its bottom
+		# edge at (PH-196)*3/5 + 108 lines up with the TR players panel bottom.
 		DropDownButton@SCENARIO_DROPDOWNBUTTON:
 			X: 24
-			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 - 32
+			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 - 40
 			Width: (PARENT_WIDTH - 64) / 2
 			Height: 32
 			Font: Bold
 		# Phase 12 — CHANGEMAP_BUTTON parked off-screen. Replaced by the
 		# [Change Map] tab above the map panel. Kept in the YAML so any
 		# external lookup (gh issues / mod refs) still resolves and the C#
-		# wireup at LobbyLogic.cs around line 321 doesn't crash. The C#
-		# OnClick is repurposed to switch to the Change Map tab.
+		# wireup in LobbyLogic.cs doesn't crash. Its C# OnClick opens the
+		# inline Change Map tab (kept for programmatic/back-compat triggers).
 		Button@CHANGEMAP_BUTTON:
 			X: -2000
 			Y: -2000
@@ -307,15 +310,18 @@ Background@SERVER_LOBBY:
 			Text: button-server-lobby-changemap
 			Font: Bold
 			Visible: False
+		# Parked off-screen (same pattern as CHANGEMAP_BUTTON): both are hidden
+		# by C# IsVisible, but at their old Y (PARENT_HEIGHT - 80) they overlapped
+		# the CTA banner if that guard ever slipped.
 		DropDownButton@SLOTS_DROPDOWNBUTTON:
-			X: 24
+			X: -2000
 			Y: PARENT_HEIGHT - 80
 			Width: 185
 			Height: 25
 			Font: Bold
 			Text: dropdownbutton-server-lobby-slots
 		Button@RESET_OPTIONS_BUTTON:
-			X: 24
+			X: -2000
 			Y: PARENT_HEIGHT - 80
 			Width: 185
 			Height: 25
@@ -324,14 +330,15 @@ Background@SERVER_LOBBY:
 		# === WW3MOD — Chat aligned to the players panel above.
 		# X PW/2+8 + Width PW/2-32 = right edge at PW-24, exactly matching
 		# LEFT_COLUMN_PLAYERS so the right column reads as one stacked unit.
-		# Y shifted down 32 (Y +40 instead of +8) and H shrunk by 32 to leave
-		# a 32-tall gap above for CHAT_MUSIC_TOGGLE without overhanging the
-		# players panel.
+		# Y shifted down 32 (Y +40 instead of +8) to leave a 32-tall gap above
+		# for CHAT_MUSIC_TOGGLE without overhanging the players panel. Height
+		# term -236 puts the bottom edge at PH-80, aligned (within 1px) with
+		# the BL settings quadrant.
 		Container@LOBBYCHAT:
 			X: PARENT_WIDTH / 2 + 8
 			Y: 116 + (PARENT_HEIGHT - 196) * 3 / 5 + 40
 			Width: PARENT_WIDTH / 2 - 32
-			Height: PARENT_HEIGHT - (PARENT_HEIGHT - 196) * 3 / 5 - 224
+			Height: PARENT_HEIGHT - (PARENT_HEIGHT - 196) * 3 / 5 - 236
 			Children:
 				ColorBlock@CHAT_BG:
 					Width: PARENT_WIDTH
@@ -355,29 +362,16 @@ Background@SERVER_LOBBY:
 					Width: PARENT_WIDTH
 					Height: 1
 					Color: 030303FF
-				# === Phase 8 — CHAT header to match the OPTIONS / PLAYERS pattern.
-				Label@CHAT_LABEL:
-					X: 12
-					Y: 14
-					Width: PARENT_WIDTH - 24
-					Height: 20
-					Font: TinyBold
-					Align: Left
-					Text: CHAT
-					TextColor: B4B4B4
-				ColorBlock@CHAT_LABEL_ACCENT:
-					X: 12
-					Y: 38
-					Width: 28
-					Height: 2
-					Color: B4B4B4FF
+				# Internal CHAT header dropped — the [CHAT] tab in the strip above
+				# already labels the panel; the display reclaims the header space.
 				ScrollPanel@CHAT_DISPLAY:
 					X: 6
-					Y: 48
+					Y: 6
 					Width: PARENT_WIDTH - 12
-					Height: PARENT_HEIGHT - 86
+					Height: PARENT_HEIGHT - 44
 					TopBottomSpacing: 2
 					ItemSpacing: 2
+					Background: ""
 				Button@CHAT_MODE:
 					X: 6
 					Y: PARENT_HEIGHT - 32
@@ -388,11 +382,13 @@ Background@SERVER_LOBBY:
 					Key: ToggleChatMode
 					TooltipText: button-lobbychat-chat-mode.tooltip
 					TooltipContainer: TOOLTIP_CONTAINER
+					Background: lobby-button
 				TextField@CHAT_TEXTFIELD:
 					X: 60
 					Y: PARENT_HEIGHT - 32
 					Width: PARENT_WIDTH - 66
 					Height: 28
+					Background: lobby-textfield
 		# === Bottom CTA banner (Phase 1 — see mods/ww3mod/chrome/_lobby-palette.yaml)
 		# bg-banner fill (#1c1c1c) + bevel-dark top edge (#030303). Behind START_GAME.
 		ColorBlock@CTA_BANNER_BEVEL:
@@ -410,42 +406,44 @@ Background@SERVER_LOBBY:
 		# === WW3MOD — Start Game compact + right-aligned (was full-width).
 		# 400px wide button hugging the right edge (24px margin), so the
 		# CTA banner's left side reads as a quiet bar rather than a giant
-		# green wall. Three layers: bevel-light top+left (#98E0B4), green
-		# fill (#6EC890), bevel-dark bottom+right (#2A623A). Button itself
-		# has Background: "" so the layered chrome paints through.
-		ColorBlock@START_GAME_BEVEL_LIGHT:
+		# green wall. Vertically centered in the 60px banner: 6px above the
+		# frame (banner top PH-60), 6px below (frame bottom edge PH-6).
+		# Three layers: bevel-light top+left (#98E0B4), green fill (#6EC890),
+		# bevel-dark bottom+right (#2A623A). Button itself has
+		# Background: "" so the layered chrome paints through.
+		ColorBlock@START_BEVEL_LIGHT_TOP:
 			X: PARENT_WIDTH - 424
-			Y: PARENT_HEIGHT - 60
+			Y: PARENT_HEIGHT - 54
 			Width: 400
 			Height: 1
 			Color: 98E0B4FF
-		ColorBlock@START_GAME_BEVEL_LEFT:
+		ColorBlock@START_BEVEL_LIGHT_LEFT:
 			X: PARENT_WIDTH - 424
-			Y: PARENT_HEIGHT - 60
+			Y: PARENT_HEIGHT - 54
 			Width: 1
 			Height: 48
 			Color: 98E0B4FF
-		ColorBlock@START_GAME_FILL:
+		ColorBlock@START_FILL:
 			X: PARENT_WIDTH - 423
-			Y: PARENT_HEIGHT - 59
+			Y: PARENT_HEIGHT - 53
 			Width: 398
 			Height: 46
 			Color: 6EC890FF
-		ColorBlock@START_GAME_BEVEL_RIGHT:
+		ColorBlock@START_BEVEL_DARK_RIGHT:
 			X: PARENT_WIDTH - 25
-			Y: PARENT_HEIGHT - 60
+			Y: PARENT_HEIGHT - 54
 			Width: 1
 			Height: 48
 			Color: 2A623AFF
-		ColorBlock@START_GAME_BEVEL_DARK:
+		ColorBlock@START_BEVEL_DARK_BOTTOM:
 			X: PARENT_WIDTH - 424
-			Y: PARENT_HEIGHT - 13
+			Y: PARENT_HEIGHT - 7
 			Width: 400
 			Height: 1
 			Color: 2A623AFF
 		Button@START_GAME_BUTTON:
 			X: PARENT_WIDTH - 424
-			Y: PARENT_HEIGHT - 60
+			Y: PARENT_HEIGHT - 54
 			Width: 400
 			Height: 48
 			Text: button-server-lobby-start-game
