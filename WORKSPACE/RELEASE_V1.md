@@ -41,7 +41,7 @@
 - [ ] **Infantry mid-cell redirect** — tune `RedirectSpeedPenalty` (currently 50%)
 
 ### Supply & ammo economy
-- [T] **Supply & ammo economy overhaul** (260506, plan: `WORKSPACE/plans/260506_supply_ammo_economy.md`) — P1–P3 shipped (15 commits):
+- [T] **Supply & ammo economy overhaul** (260506, plan: `WORKSPACE/archive/plans/260506_supply_ammo_economy.md`) — P1–P3 shipped (15 commits):
   - **P1:** empty-truck refund deduction; LC `Range 3c0→2c0` + `unit.docked` gate; Ctrl+click = deliver, default = repair+refill via new `RefillFromHost`/`Restock`. Tests in `CargoSupplyEconomyTest.cs`
   - **P2:** new `IProvideTooltipDescription` interface; `AmmoPoolInfo` adds weapon block + grand-total to production tooltip
   - **P3:** ~63 AmmoPools across 9 YAMLs given explicit `SupplyValue`/`CreditValue` per tier table (T0=1 → T9=1500)

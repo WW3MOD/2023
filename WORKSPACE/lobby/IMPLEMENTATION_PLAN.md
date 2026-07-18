@@ -1,7 +1,7 @@
 # Lobby redesign — implementation plan
 
 > **STATUS (2026-07-18): shipped, with deviations.** All phases landed (see
-> `archive/sessions/active_260515_1730_lobby_implementation.md` for the commit
+> `archive/sessions/260515_1730_lobby_implementation.md` for the commit
 > map + the 260718 finishing pass). Where this doc and the tree disagree, the
 > tree won:
 > - **Phase 4** shipped as a plain 2×2 quadrant *swap* (commit 6cfb6d23) — the

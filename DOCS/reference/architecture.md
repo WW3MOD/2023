@@ -32,24 +32,22 @@ WW3MOD/
 │   │   ├── weapons/                # Weapon definitions (7 files)
 │   │   ├── ai/                     # AI configuration (ai.yaml, ai-america.yaml, ai-russia.yaml)
 │   │   └── misc.yaml               # Crates, mines, misc actors
-│   ├── maps/                       # 13 maps + test scenarios under maps/test-*/
+│   ├── maps/                       # 10 maps + test scenarios under maps/test-*/
 │   ├── bits/                       # Sprites, sounds, models
 │   ├── chrome/                     # UI layouts
 │   ├── sequences/                  # Animation definitions
 │   └── mod.yaml                    # Mod manifest
-├── DOCS/                           # Curated reference docs (this file lives here)
-│   ├── ARCHITECTURE.md             # This file
-│   ├── BALANCE_REVIEW.md           # Balance reference, linked from DOCS/recipes/BALANCE.md
-│   ├── PROJECT_ASSESSMENT.md       # Comprehensive project assessment (March 2026)
-│   ├── SHADOW_LOS_PLAN.md          # Plan for distance-based shadow falloff (in v1)
+├── DOCS/                           # Static reference — see DOCS/README.md
+│   ├── reference/                  # This file, game-model, supply-route, economy, pitfalls, …
+│   ├── modes/                      # Operating modes — see DOCS/modes/README.md
+│   ├── recipes/                    # Workflow triggers — see DOCS/recipes/README.md
+│   ├── gameplay/                   # Player-perspective mechanic docs — see DOCS/gameplay/README.md
 │   └── archive/                    # Historical: old design docs, superseded TODOs, etc.
-├── DOCS/modes/                         # Operating modes — see DOCS/modes/README.md
-├── DOCS/recipes/                       # Workflow triggers — see DOCS/recipes/README.md
-├── WORKSPACE/                         # Working state (RELEASE_V1, HOTBOARD, BACKLOG, plans, …)
+├── WORKSPACE/                      # Living state (RELEASE_V1, HOTBOARD, BACKLOG, plans, …)
 ├── tools/                          # Development tools
 │   ├── map-mcp/                    # MCP Map Creation Server (TypeScript/Node.js)
 │   ├── combat-sim/                 # Tick-by-tick combat simulator (used by DOCS/recipes/BALANCE.md)
-│   └── test/                       # Developer test harness (used by DOCS/recipes/AUTOTEST.md)
+│   └── autotest/                   # Developer test harness (used by DOCS/recipes/AUTOTEST.md)
 ├── .mcp.json                       # MCP server configuration
 ├── CLAUDE.md                       # Agent instructions
 ├── WW3MOD.sln                      # Visual Studio solution
@@ -108,6 +106,17 @@ Scenario titles follow the format **`<Scenario>: <Map Name>`** — scenario name
 | `UserInterface.SetMissionText(text)` | HUD briefing text |
 | `Media.DisplayMessage(text, prefix)` | Chat log messages |
 | `Media.PlaySpeechNotification(player, notif)` | EVA voice lines |
+
+## Regenerating shadows.bin
+
+Each map keeps a precomputed `shadows.bin` LOS cache. Changes to the shadow compute pipeline (e.g. `CellLayer.IsValidCoordinate`, `RecomputeShadowFrom`, density formulas) invalidate every cached file — the bug stays baked in until the cache is rebuilt. Two ways to refresh:
+
+```bash
+./utility.sh --regen-shadows ../mods/ww3mod/maps/<name>   # narrow: only rewrites shadows.bin
+./utility.sh --refresh-map ../mods/ww3mod/maps/<name>     # wide: also rewrites map.yaml and map.png
+```
+
+Note the `../` — `utility.sh` cd's into `engine/` before running. Saving a map in the in-game editor also triggers a regen. After a shadow-compute fix, refresh every map under `mods/ww3mod/maps/` that has a `shadows.bin` (currently: `river-zeta-ww3`, `woodland-warfare-ww3`).
 
 ## Key engine modifications
 

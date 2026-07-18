@@ -35,7 +35,7 @@ The mod is playable. Core systems function:
 - **Modified pathfinding** -- Crushable renamed to Passable, vehicles interact with obstacles
 - **Bypass system** -- projectiles can be blocked by trees and structures (partial)
 - **Custom shroud/vision** -- Shroud renamed to MapLayers, custom radar/detection system
-- **13 maps** across snow, temperate, and urban terrain
+- **10 maps** across snow, temperate, and urban terrain
 - **Modified auto-targeting** -- value-based target prioritization
 - **Custom warheads** -- ShockwaveDamageWarhead, enhanced DamageWarhead with suppression hooks
 - **Detectable trait** -- visibility system with additive modifiers for stealth/detection
@@ -136,7 +136,7 @@ OpenRA mod that only uses YAML rules could upgrade almost trivially using the `-
 utility. Your mod rewrites core engine systems.
 
 ### What the New Engine Brings
-- Revamped Map Editor (significant for your 13 maps)
+- Revamped Map Editor (significant for your 10 maps)
 - Performance improvements (faster load times, rendering)
 - HD art asset support improvements
 - Bug fixes accumulated over 2 years
@@ -260,7 +260,7 @@ WW3MOD/
 │   │       ├── weapons-missiles.yaml
 │   │       ├── weapons-explosions.yaml
 │   │       └── weapons-superweapons.yaml
-│   ├── maps/                  # 13 maps
+│   ├── maps/                  # 10 maps
 │   ├── bits/                  # Sprites, sounds, models
 │   ├── chrome/                # UI layouts
 │   ├── sequences/             # Animation definitions

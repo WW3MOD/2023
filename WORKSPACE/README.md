@@ -2,7 +2,7 @@
 
 Living state for the project. Mutable. Frequently edited. The agent reads and updates these every session.
 
-## What's here
+## Core files
 
 | File | Purpose |
 |---|---|
@@ -12,13 +12,26 @@ Living state for the project. Mutable. Frequently edited. The agent reads and up
 | [`DISCOVERIES.md`](DISCOVERIES.md) | Dated gotchas and insights from past sessions. |
 | `bugs/discovered.md` | Bugs found incidentally during other work. |
 | [`autotester_improvements.md`](autotester_improvements.md) | AUTOTEST harness friction backlog — consume in a focused improvement session. |
-| `plans/` | In-progress plans (auto-archived on FINALIZE when their work ships). |
+
+## Folders
+
+| Folder | Purpose |
+|---|---|
+| `plans/` | In-progress plans only — archived to `archive/plans/` when their work ships. |
 | `playtests/` | Raw playtest reports — historical, never edited after the session. |
-| `archive/` | Historical: shipped plans, old session logs, old playtests. Periodically cleanable. |
+| `ai/` | AI overhaul workspace — problem statement, substrate design, phase tracking (older stage docs in `ai/archive/`). |
+| `cohesion/` | Grouped-unit movement workspace — density/perception layer, design directions. |
+| `automation/` | Automation workflow plan (focus-steal fix, test lanes, autonomous queue, …). |
+| `balancing/` | Balance session findings — one-off reports; TRIAGE findings into `RELEASE_V1.md`. |
+| `lobby/` | Lobby redesign workspace — decisions, implementation plan, mockups. Implementation shipped; kept as design record. |
+| `archive/` | Historical: `archive/plans/` (shipped plans), `archive/sessions/` (finished session logs), `archive/playtests/`. Periodically cleanable. |
 
 ## Conventions
 
 - Update `RELEASE_V1.md` whenever a status changes — and commit when you do.
 - `HOTBOARD.md` reflects "what I'm working on now". Stale items get rotated out.
-- Session logs are not kept here — once finished, they go straight to `archive/sessions/` (see `DOCS/recipes/FINALIZE.md`).
+- `DISCOVERIES.md` entries are always dated.
+- Playtest reports are raw and historical — never edit a past report; TRIAGE updates `RELEASE_V1.md`.
+- Session logs: `archive/sessions/active_<YYMMDD_HHMM>_<topic>.md` while running, promoted to `archive/sessions/<YYMMDD>_<topic>.md` on FINALIZE — sessions are historical the moment they finish.
+- No duplication between WORKSPACE/ files and auto-memory (`.claude/projects/`).
 - See `DOCS/modes/RELEASE.md` for the methodology.

@@ -107,7 +107,7 @@ Recapture by the enemy is a real risk: their Technician can take the building ba
 | Normal / Rush / Turtle (legacy) | `CaptureManagerBotModule@tecn` | Picks targets by `GetSellValue()` (uniform across OILB/FCOM/BIO). Sends Technician alone. No defense. |
 | v2 (experimental) | `CaptureCoordinatorBotModule@v2.tecn` | Income-weighted scoring (BIO > FCOM > OILB), distance decay, safety bonus when no enemies nearby. Pulls 2 escort infantry along. Summons defenders when own captured under threat. |
 
-See [`../../WORKSPACE/ai/v2_experiment_002_capture_coordinator.md`](../../WORKSPACE/ai/v2_experiment_002_capture_coordinator.md) for the v2 design and measurement plan.
+See [`../../WORKSPACE/ai/archive/v2_experiment_002_capture_coordinator.md`](../../WORKSPACE/ai/archive/v2_experiment_002_capture_coordinator.md) for the v2 design and measurement plan.
 
 No engineer-targeted capture module exists — engineers don't capture by design. Neither legacy nor v2 has soldier-targeted capture wired in either; soldier capture is a player-driven late-game option, not an AI behaviour for now.
 
