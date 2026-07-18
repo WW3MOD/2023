@@ -399,6 +399,18 @@ lobby-button-disabled:
 	Inherits: ^Dialog
 	PanelRegion: 515, 259, 0, 0, 120, 120, 0, 0
 	PanelSides: Center
+# ButtonWidget.DrawBackground appends "-highlighted" to the Background name
+# when IsHighlighted() (then the usual -disabled/-pressed/-hover state suffix
+# on top of that). A missing collection draws NOTHING — TryGetPanelImages
+# returns null silently. Needed by the inline map chooser's System/User tabs.
+lobby-button-highlighted:
+	Inherits: lobby-button-pressed
+lobby-button-highlighted-hover:
+	Inherits: lobby-button-pressed
+lobby-button-highlighted-pressed:
+	Inherits: lobby-button-pressed
+lobby-button-highlighted-disabled:
+	Inherits: lobby-button-disabled
 
 lobby-textfield:
 	Inherits: lobby-button

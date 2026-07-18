@@ -3,7 +3,7 @@
 # This file is documentation, not loaded by the game. It defines the
 # colour and bevel vocabulary used by every lobby widget. Reach for
 # these tokens when editing lobby.yaml / lobby-mappreview.yaml /
-# lobby-players.yaml / lobby-options.yaml. If a value isn't here,
+# lobby-players.yaml / lobby-music.yaml. If a value isn't here,
 # check whether you should be using one — adding new ad-hoc colours
 # breaks the grayscale discipline.
 #
@@ -12,62 +12,82 @@
 #
 # Pure grayscale. No hue. Faction colours and the "go" green are the
 # only chromatic exceptions, and they appear on identifiable elements
-# only (flag fills, ready ticks, Start Game button).
+# only (flag fills, ready ticks, Start Game button). See SANCTIONED
+# EXCEPTIONS below for the full list of deliberate departures.
 
 # ===========================================================
 # COLOURS — reference these when editing widget Background /
-# Color / TextColor properties. ARGB hex, alpha first.
+# Color / TextColor properties. RRGGBBAA hex, alpha LAST
+# (the engine parses red first, alpha as the trailing byte;
+# alpha may be omitted for fully-opaque, e.g. TextColor).
 # ===========================================================
 
 # Surfaces (panel/banner/button bodies)
-# bg-app           FF0a0a0a    outer fill behind panels (lobby root)
-# bg-panel         FF141414    panel body (Map / Players / Settings / Chat)
-# bg-panel-2       FF1a1a1a    inner card / option tile / row hover
-# bg-banner        FF1c1c1c    panel head, top bar, CTA bar, map title strip
-# bg-button        FF222222    button / pill / chip
-# bg-row-hover     FF222222    row hover state (same as button on purpose)
+# bg-app           0a0a0aFF    outer fill behind panels (lobby root)
+# bg-panel         141414FF    panel body (Map / Players / Settings / Chat)
+# bg-panel-2       1a1a1aFF    inner card / option tile / row hover
+# bg-banner        1c1c1cFF    panel head, top bar, CTA bar, map title strip
+# bg-button        222222FF    button / pill / chip
+# bg-row-hover     222222FF    row hover state (same as button on purpose)
 
 # Bevel pair — every panel/button gets these as 1px lines on opposite edges
-# bevel-light      FF3a3a3a    top + left of every panel/button
-# bevel-dark       FF030303    bottom + right of every panel/button
+# bevel-light      3a3a3aFF    top + left of every panel/button
+# bevel-dark       030303FF    bottom + right of every panel/button
 
 # Dividers
-# line             FF262626    main dividers (between sections)
-# line-soft        FF1d1d1d    row separators inside lists
+# line             262626FF    main dividers (between sections)
+# line-soft        1d1d1dFF    row separators inside lists
 
 # Accent — light gray, no hue. Used for tabs (active), hyperlinks,
 # corner brackets, host badge, sys-event chip border.
-# accent           FFb4b4b4
-# accent-dim       FF6e6e6e
+# accent           b4b4b4FF
+# accent-dim       6e6e6eFF
 
 # Text (ink scale)
-# ink              FFd4d4d4    primary text
-# ink-2            FF969696    secondary text
-# ink-3            FF686868    inactive tabs, meta labels
-# ink-4            FF404040    placeholders, disabled
+# ink              d4d4d4FF    primary text
+# ink-2            969696FF    secondary text
+# ink-3            686868FF    inactive tabs, meta labels
+# ink-4            404040FF    placeholders, disabled
 
 # "Go" — reserved for ready ticks and Start Game button only.
 # Never use go-* on regular chrome.
-# go               FF6ec890    fill (Start Game body, ready tick)
-# go-light         FF98e0b4    Start Game top + left bevel
-# go-dark          FF2a623a    Start Game bottom + right bevel
-# go-text          FF0b110d    text on Start Game
+# go               6ec890FF    fill (Start Game body, ready tick)
+# go-light         98e0b4FF    Start Game top + left bevel
+# go-dark          2a623aFF    Start Game bottom + right bevel
+# go-text          0b110dFF    text on Start Game
 
 # Faction colours — flag fills and faction-text-coloured chat handles
-# us               FF6f93b8
-# us-bg            FF16212c
-# ru               FFb87070
-# ru-bg            FF261616
+# us               6f93b8FF
+# us-bg            16212cFF
+# ru               b87070FF
+# ru-bg            261616FF
+
+# ===========================================================
+# SANCTIONED EXCEPTIONS — deliberate departures from the
+# grayscale / fully-opaque discipline. Do not "correct" these.
+# ===========================================================
+#
+# 1a1a1a60         translucent bg-panel-2 — empty-slot row bg
+#                  (lobby-players.yaml)
+# 6ed68a           active-changes chip green (option increased) —
+#                  informative increase/decrease coding
+#                  (LobbyActiveChangesLogic.cs)
+# e77d7d           active-changes chip red (option decreased) —
+#                  counterpart to the green above
+# LimeGreen / Orange / Red — latency dot colours
+#                  (LobbyUtils.LatencyColor) — informative status
+# us 6f93b8 / ru b87070 — faction colours (flag fills,
+#                  faction-text chat handles); see table above
 
 # ===========================================================
 # BEVEL CONVENTION
 # ===========================================================
 #
 # Every panel and button uses the SAME bevel:
-#   top    edge: 1px ColorBlock at bevel-light  (FF3a3a3a)
-#   left   edge: 1px ColorBlock at bevel-light  (FF3a3a3a)
-#   right  edge: 1px ColorBlock at bevel-dark   (FF030303)
-#   bottom edge: 1px ColorBlock at bevel-dark   (FF030303)
+#   top    edge: 1px ColorBlock at bevel-light  (3a3a3aFF)
+#   left   edge: 1px ColorBlock at bevel-light  (3a3a3aFF)
+#   right  edge: 1px ColorBlock at bevel-dark   (030303FF)
+#   bottom edge: 1px ColorBlock at bevel-dark   (030303FF)
 #
 # Composed as 4 ColorBlocks per panel, sized:
 #   top:    X:0 Y:0      Width:PARENT_WIDTH Height:1
@@ -99,7 +119,7 @@
 # from each corner of the preview area (NOT the title strip).
 #
 # Until a corner-bracket.png sprite ships, compose each corner from
-# 2 ColorBlocks at accent (FFb4b4b4):
+# 2 ColorBlocks at accent (b4b4b4FF):
 #   horizontal arm: 12 wide x 2 tall
 #   vertical arm:    2 wide x 12 tall
 # Total: 8 ColorBlocks for the four corners.

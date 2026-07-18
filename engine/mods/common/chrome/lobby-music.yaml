@@ -4,59 +4,104 @@ Container@LOBBY_MUSIC_BIN:
 	Height: PARENT_HEIGHT
 	Children:
 		LogicTicker@SONG_WATCHER:
+		# === WW3MOD — panel chrome. This bin overlays LOBBYCHAT (via
+		# MUSIC_PANEL_ROOT in lobby.yaml), so it carries the same bg-panel
+		# fill + 4-edge 1px bevel so the quadrant keeps one visual language
+		# when the Chat / Music tab switches.
+		ColorBlock@MUSIC_BG:
+			Width: PARENT_WIDTH
+			Height: PARENT_HEIGHT
+			Color: 141414FF
+		ColorBlock@MUSIC_BEVEL_TOP:
+			Width: PARENT_WIDTH
+			Height: 1
+			Color: 3A3A3AFF
+		ColorBlock@MUSIC_BEVEL_LEFT:
+			Width: 1
+			Height: PARENT_HEIGHT
+			Color: 3A3A3AFF
+		ColorBlock@MUSIC_BEVEL_RIGHT:
+			X: PARENT_WIDTH - 1
+			Width: 1
+			Height: PARENT_HEIGHT
+			Color: 030303FF
+		ColorBlock@MUSIC_BEVEL_BOTTOM:
+			Y: PARENT_HEIGHT - 1
+			Width: PARENT_WIDTH
+			Height: 1
+			Color: 030303FF
+		# Column headers sit INSIDE the panel top. Stock chrome floated this
+		# container at Y: 0 - 24 (24px ABOVE the panel), which detached the
+		# Track/Length headers into the tab-toggle gap in the WW3MOD lobby.
+		# MUSIC label kept — LobbyLogic hides it by ID.
 		Container@LABEL_CONTAINER:
-			Y: 0 - 24
+			Y: 4
 			Width: PARENT_WIDTH
 			Children:
 				Label@MUSIC:
 					Width: 268
-					Height: 25
+					Height: 20
 					Text: label-music-title
 					Align: Center
-					Font: Bold
+					Font: TinyBold
+					TextColor: 969696
 				Label@TITLE:
-					X: 278
+					X: 282
 					Width: 230
-					Height: 25
+					Height: 20
 					Text: label-container-title
-					Font: Bold
+					Font: TinyBold
+					TextColor: 969696
 				Label@LENGTH:
 					X: PARENT_WIDTH - 80
-					Height: 25
+					Height: 20
 					Width: 50
 					Text: label-music-controls-length
-					Font: Bold
+					Font: TinyBold
+					TextColor: 969696
 					Align: Right
-		Background@CONTROLS:
-			Background: dialog3
-			Width: 268
-			Height: PARENT_HEIGHT
+		# Flat inner card (bg-panel-2, no bevel) replacing the stock dialog3
+		# chrome. Interior compacted so the bottom-most widget (volume slider,
+		# Y 130 + 20 = 150) stays inside the card at panel heights down to
+		# ~190px (card height = PARENT_HEIGHT - 32 >= 157 there).
+		Container@CONTROLS:
+			X: 4
+			Y: 28
+			Width: 264
+			Height: PARENT_HEIGHT - 32
 			Children:
+				ColorBlock@CONTROLS_BG:
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
+					Color: 1A1A1AFF
 				Label@MUTE_LABEL:
 					X: 45
-					Y: 12
-					Width: 300
+					Y: 8
+					Width: PARENT_WIDTH - 55
 					Height: 20
 					Font: Small
+					TextColor: 969696
 				Label@TITLE_LABEL:
-					Y: 46
+					Y: 28
 					Width: PARENT_WIDTH
 					Height: 25
 					Align: Center
 					Font: Bold
 				Label@TIME_LABEL:
-					Y: 66
+					Y: 48
 					Width: PARENT_WIDTH
 					Height: 25
 					Align: Center
+					TextColor: 969696
 				Container@BUTTONS:
 					X: (PARENT_WIDTH - WIDTH) / 2
-					Y: 100
+					Y: 72
 					Width: 131
 					Children:
 						Button@BUTTON_PREV:
 							Width: 26
 							Height: 26
+							Background: lobby-button
 							IgnoreChildMouseOver: true
 							Children:
 								Image@IMAGE_PREV:
@@ -68,6 +113,7 @@ Container@LOBBY_MUSIC_BIN:
 							X: 35
 							Width: 26
 							Height: 26
+							Background: lobby-button
 							IgnoreChildMouseOver: true
 							Children:
 								Image@IMAGE_PLAY:
@@ -80,6 +126,7 @@ Container@LOBBY_MUSIC_BIN:
 							X: 35
 							Width: 26
 							Height: 26
+							Background: lobby-button
 							IgnoreChildMouseOver: true
 							Children:
 								Image@IMAGE_PAUSE:
@@ -91,6 +138,7 @@ Container@LOBBY_MUSIC_BIN:
 							X: 70
 							Width: 26
 							Height: 26
+							Background: lobby-button
 							IgnoreChildMouseOver: true
 							Children:
 								Image@IMAGE_STOP:
@@ -102,6 +150,7 @@ Container@LOBBY_MUSIC_BIN:
 							X: 105
 							Width: 26
 							Height: 26
+							Background: lobby-button
 							IgnoreChildMouseOver: true
 							Children:
 								Image@IMAGE_NEXT:
@@ -111,34 +160,37 @@ Container@LOBBY_MUSIC_BIN:
 									ImageName: next
 				Checkbox@SHUFFLE:
 					X: 25
-					Y: 150
+					Y: 104
 					Width: 85
 					Height: 20
 					Font: Regular
 					Text: checkbox-music-controls-shuffle
 				Checkbox@REPEAT:
 					X: PARENT_WIDTH - 15 - WIDTH
-					Y: 150
+					Y: 104
 					Width: 70
 					Height: 20
 					Font: Regular
 					Text: checkbox-music-controls-loop
 				Label@VOLUME_LABEL:
-					Y: 181
+					Y: 126
 					Width: 65
 					Height: 25
 					Align: Right
+					TextColor: 969696
 					Text: label-music-controls-volume
 				ExponentialSlider@MUSIC_SLIDER:
 					X: 70
-					Y: 186
+					Y: 130
 					Width: PARENT_WIDTH - 80
 					Height: 20
 					Ticks: 7
 		ScrollPanel@MUSIC_LIST:
-			X: 268
-			Width: PARENT_WIDTH - 268
-			Height: PARENT_HEIGHT
+			X: 272
+			Y: 28
+			Width: PARENT_WIDTH - 276
+			Height: PARENT_HEIGHT - 32
+			Background: ""
 			Children:
 				ScrollItem@MUSIC_TEMPLATE:
 					Width: PARENT_WIDTH - 27
@@ -158,27 +210,31 @@ Container@LOBBY_MUSIC_BIN:
 							Width: 50
 							Height: 25
 							Align: Right
+							TextColor: 969696
 		Container@NO_MUSIC_LABEL:
-			X: 268
-			Width: PARENT_WIDTH - 268
+			X: 272
+			Y: 28
+			Width: PARENT_WIDTH - 276
 			Visible: false
 			Children:
 				Label@TITLE:
-					Y: 76
+					Y: 56
 					Width: PARENT_WIDTH - 24
 					Height: 25
 					Font: Bold
 					Align: Center
 					Text: label-no-music-title
 				Label@DESCA:
+					Y: 76
+					Width: PARENT_WIDTH - 24
+					Height: 25
+					Align: Center
+					TextColor: 969696
+					Text: label-no-music-desc-a
+				Label@DESCB:
 					Y: 96
 					Width: PARENT_WIDTH - 24
 					Height: 25
 					Align: Center
-					Text: label-no-music-desc-a
-				Label@DESCB:
-					Y: 116
-					Width: PARENT_WIDTH - 24
-					Height: 25
-					Align: Center
+					TextColor: 969696
 					Text: label-no-music-desc-b
