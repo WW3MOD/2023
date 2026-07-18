@@ -24,7 +24,7 @@ Four directions on the table. All drop the avatar; all use bigger type:
 
 ---
 
-## 8 — Strip everything unnecessary — **LOCKED**
+## 8 — Strip everything unnecessary — **LOCKED** *(amendment 2026-07-19: "Replay last" survived the cut in implementation and is kept deliberately — it earned its slot in daily testing use)*
 
 Mockup: [`mockups/full-page-final.html`](mockups/full-page-final.html)
 

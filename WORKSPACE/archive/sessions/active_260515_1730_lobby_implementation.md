@@ -71,7 +71,30 @@ b91b7d08, 36f82133, 41f6f891, 869f3221 + follow-up cleanup):
   underline tabs (flat, uppercase); dead `LOBBY_OPTIONS_BIN` chrome deleted;
   palette doc alpha-order corrected (RRGGBBAA) + sanctioned-exceptions section.
 
-Not built/launched (user machine under load) — verification pending.
+Round 1 verified 2026-07-19 via build + 3 SCREENSHOT captures (2560 default,
+Music tab, 1366×768) — all fixes confirmed on screen.
+
+## Round 2 — 2026-07-19 (post-verification improvements)
+
+12-item list reviewed by user ("fix everything"); 4 parallel agents
+(commits 5e776fcf, 8be9a923, 934923fd, 9c7c0c8a):
+- Corner brackets now track the letterboxed preview image per-tick from
+  MapPreviewLogic (YAML positions = fallback); map-type line uppercased
+- Spectator latency chip removed (LATENCY_REGION parked — hard Get);
+  1px alpha inner bevel on color tiles; option rows 50→44 / 36→32
+- CTA stats strip (SLOTS n/m · BOTS n · SPECTATORS n, live GetText);
+  SKIRMISH GAME accent title; Players action row rides up to hug the
+  roster via ContentHeight clamp
+- **Test.LaunchLobbyMap root cause**: SkirmishLogic.ClientJoined restores
+  %APPDATA%/OpenRA/skirmish.ww3mod.yaml and issues a map order that
+  overrides the seed — wrapper now backs up/restores that file (and
+  settings.yaml on Windows via MINGW uname case); music panel nits
+- Kept deliberately: "Replay last" (decisions.md 8 amended)
+
+Verified by build + re-capture (2560 + 1366×768): river-zeta seeds
+correctly, brackets hug the image, stats live, action row hugs roster,
+two option-row fix confirmed. Remaining engine-side nicety (skip
+skirmish-restore when TestMode seeds a map) noted in BACKLOG.
 
 ## Notes
 
