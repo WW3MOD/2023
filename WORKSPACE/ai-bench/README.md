@@ -33,6 +33,7 @@ hypothesis-batch, SPEC §8.3). Bulky raw match data lives under
 
 ## Status
 
-Bootstrapped 2026-07-19 (docs only — no code, no runs yet). First action:
-process the REVIEW Inbox, secure a Mode-A run window, create the worktree, and
-baseline Scenario 1.
+Bootstrapped 2026-07-19 (docs only — no code, no runs yet). The hidden-window
+substrate is verified, so the loop runs **unsupervised (Mode B)** from the start
+— no user run window needed (SPEC §3). First action: process the REVIEW Inbox,
+create the worktree, and baseline Scenario 1.

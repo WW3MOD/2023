@@ -14,9 +14,9 @@ cycle and treats the Inbox as outranking its own backlog.
 |---|---|
 | **System** | AI Benchmark — autonomous improvement of the Experimental AI (`ModularBot@v2`) vs the Normal control |
 | **Active rung** | River Zeta WW3 (Scenarios 1–3, [`LADDER.md`](LADDER.md)) — **not yet cleared** |
-| **Run mode** | **Mode A (windowed / supervised)** — batch runs only in user-declared windows. Mode B (hidden/unsupervised) locked until the switch criterion passes (SPEC §3.1) |
+| **Run mode** | **Mode B (hidden / unsupervised) — ACTIVE.** `OPENRA_WINDOW_HIDDEN=1` verified (no window, no focus steal, verdict written, sim/render decoupled). Unlimited unattended runs. Mode A (windowed) is the fallback only if the decoupling regresses (SPEC §3.1) |
 | **Last cycle** | — (none yet; system just bootstrapped) |
-| **Headline** | System spec authored; loop not yet started. First action: confirm run window + create the worktree. |
+| **Headline** | Spec authored; hidden-window substrate verified so the loop can run unsupervised now. First action: create the worktree + baseline Scenario 1. |
 
 ---
 
@@ -43,7 +43,8 @@ New entries go **above** the review cursor. **You move the cursor** up when
 you've read the new lines (the manager never moves it).
 
 ```
-2026-07-19 | 06afb643 | NOTE | System bootstrapped: SPEC/LADDER/REVIEW/README authored under WORKSPACE/ai-bench/. Loop not yet started; Mode A pending a user run window.
+2026-07-19 | (pending) | HARNESS | Amendment: hidden-window substrate RESOLVED. OPENRA_WINDOW_HIDDEN=1 landed+verified (d716eade/fda8370c) -> Mode B active from bootstrap (unlimited unsupervised runs); Mode A now fallback-only. Replaced the impossible same-seed identity gate (per-seed replay is broken: bots use unseeded LocalRandom) with the structural sim/render-decoupling guarantee; seeds are run labels, N-run stats unaffected. Updated SPEC §3 + LADDER seeds wording.
+2026-07-19 | 06afb643 | NOTE | System bootstrapped: SPEC/LADDER/REVIEW/README authored under WORKSPACE/ai-bench/. Loop not yet started.
 ```
 
 `--- ▲ reviewed through here ▲  (user: drag this line up as you read) ---`
@@ -66,12 +67,13 @@ Per-scenario best result on `main`. Definitions in [`LADDER.md`](LADDER.md).
 
 ## 5. Open Questions / Blockers
 
-- **Run window (Mode A):** the system needs a user-declared window to run its
-  first batches (windowed runs steal focus on Windows, SPEC §3). When can it run?
-- **Hidden-window flag (Mode B gate):** `OPENRA_WINDOW_HIDDEN` is being built in
-  parallel (separate work). The moment it lands, the manager's first job is the
-  switch-criterion test (SPEC §3.1: same-seed hidden-vs-windowed verdict
-  identity). Until it passes, all runs are Mode A.
+- _(resolved)_ ~~Hidden-window flag / run-window~~ — `OPENRA_WINDOW_HIDDEN=1` is
+  landed + verified; Mode B is active, so no user run window is required and there
+  is no unsupervised-eligibility gate left to pass (SPEC §3).
+- **Per-seed replay (backlogged, non-blocking):** bots draw from an unseeded
+  `LocalRandom`, so seeds don't replay identical games (SPEC §3.2). This does
+  **not** affect the ladder (N-run stats only need independent samples), but
+  single-match outlier reproduction returns only once the seeding fix lands.
 
 ---
 

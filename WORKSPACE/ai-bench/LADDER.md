@@ -31,10 +31,16 @@ whatever field the scenario names**, medianed over N. This keeps new scenarios
 cheap (docs + a config, no engine work).
 
 Common run knobs (in each scenario's `tournament.yaml`): `TimeLimitSeconds`,
-`SpeedMultiplier` (6 windowed / 8 hidden, SPEC §3), `Scorer`, `WinRule`,
-`Score` weights. Seeds are the harness default `MATCH_SEED = i*1000+17` for
-`i = 1..N` (`run-tournament.sh:206`) — deterministic per seed, independent across
-seeds. Re-verification reuses the **same** N seeds; distribution sampling varies N.
+`SpeedMultiplier` (8 in Mode B / 6 in the Mode A fallback, SPEC §3), `Scorer`,
+`WinRule`, `Score` weights. The harness assigns `MATCH_SEED = i*1000+17` for
+`i = 1..N` (`run-tournament.sh:206`), but **seeds are run labels, not
+reproducibility guarantees** — bots draw from an unseeded `LocalRandom`, so a
+seed does **not** replay the same game (SPEC §3.2, DISCOVERIES 2026-07-19). Every
+run is an independent sample, which is all the N-run statistics need.
+"Re-verification" therefore means **re-running the N matches** (a fresh
+independent batch), not replaying identical games; a larger N narrows the median.
+The even/odd index split still deterministically selects primary vs mirror
+*scenario* per match (that's index parity, not RNG) — bias control is unaffected.
 
 ---
 

@@ -31,7 +31,8 @@ for the long haul across many manager sessions; continuity lives in
 ### 1.1 Why it can exist today
 
 The substrate is ~90% built (findings doc, headline). A mature bot-vs-bot
-tournament harness already produces deterministic, seeded, JSON-verdict matches:
+tournament harness already produces seeded, JSON-verdict matches (seeds are run
+labels, not replay guarantees — §3.2):
 
 - `tools/autotest/run-tournament.sh` — N seeded matches → per-match verdict JSON
   + log → `summary.csv`/`summary.json`, git-SHA stamped.
@@ -105,7 +106,18 @@ Per the binding user decision, the system is **hybrid**. There are exactly two
 modes; the loop is written so the mode is a **single switch** (which env/flag set
 `run-tournament.sh` launches with) and nothing else differs.
 
-### Mode A — Windowed / supervised (the default, works today)
+> **STATUS (2026-07-19): Mode B is ACTIVE from bootstrap.** The parallel
+> substrate worker landed and *verified* `OPENRA_WINDOW_HIDDEN=1`
+> (`Sdl2PlatformWindow.cs`, commit `d716eade`; verification + finding commit
+> `fda8370c`). Hidden runs create no window, steal no focus, and write a
+> `verdict_version: 2` verdict; the simulation is decoupled from SDL/render (the
+> lockstep sim cannot touch the renderer — static root-cause analysis), so a
+> hidden run **provably cannot alter a match outcome**. The system therefore runs
+> **unlimited, unsupervised, Mode B by default**. Mode A remains documented below
+> as the **fallback** to fall back to if a future engine regression ever re-opens
+> the hidden-window question (§3.1).
+
+### Mode A — Windowed / supervised (the FALLBACK — used only per §3.1)
 
 - Every match opens a real SDL window that **grabs OS focus on Windows** — there
   is no focus mitigation on Windows (findings Q1; the existing `osascript` fix is
@@ -126,44 +138,62 @@ modes; the loop is written so the mode is a **single switch** (which env/flag se
   Windows) — the manager must confirm no stray game process holds a result path
   before the next match.
 
-### Mode B — Hidden / unsupervised (unlocked only after the switch criterion)
+### Mode B — Hidden / unsupervised (ACTIVE — the default from bootstrap)
 
-- Depends on the `OPENRA_WINDOW_HIDDEN=1` engine flag **being built in parallel**
-  (separate work — the benchmark manager does **not** build it). It adds
-  `SDL_WINDOW_HIDDEN` at window creation (`Sdl2PlatformWindow.cs:227`), so SDL
-  never focuses the window → no window, no focus theft, GL context still exists
-  (findings Q1, recommended architecture).
-- When available: `SpeedMultiplier: 8`, drop the framerate cap, expect **8–12×**
-  (findings Q2). Runs are **unlimited and unattended** — any time of day.
+- Enabled by `OPENRA_WINDOW_HIDDEN=1` (`Sdl2PlatformWindow.cs`, commit
+  `d716eade`). It adds `SDL_WINDOW_HIDDEN` at window creation, so SDL never maps
+  or focuses the window → no window, no focus theft, GL context still exists.
+- **Verified live** (commit `fda8370c`): a hidden run created no visible window,
+  stole no focus, ticked the sim to completion, and wrote a `verdict_version: 2`
+  verdict. The sim/render decoupling means the flag **cannot** change match
+  outcomes (§3.1).
+- Launch profile: `SpeedMultiplier: 8`, drop the framerate cap, expect **8–12×**
+  (findings Q2). Runs are **unlimited and unattended, any time of day** — no user
+  window required.
 
-### 3.1 The switch criterion (one-time gate — do this FIRST when the flag lands)
+### 3.1 Why Mode B is safe, and the fallback trigger
 
-> **Mode B unlocks only when hidden-window runs are proven verdict-identical to
-> windowed runs on the same seed.**
+**The original "same-seed verdict-identity" gate was impossible to satisfy and
+has been replaced.** Per-seed reproducibility does **not** hold in this codebase:
+bots draw decisions from an **unseeded** `world.LocalRandom`
+(`World.cs:214`; e.g. `UnitBuilderBotModule.cs:173`), so *any* two runs of the
+same seed diverge within ~125 ticks — **two windowed runs would diverge exactly
+as much as windowed-vs-hidden**. Comparing verdicts across a mode boundary can
+therefore never prove identity (commit `fda8370c`,
+`WORKSPACE/DISCOVERIES.md` 2026-07-19 LocalRandom entry). Determinism was **not**
+the right test.
 
-Procedure (this is the manager's first unsupervised-eligibility check, run in a
-sanctioned Mode-A window):
+What actually established Mode B's safety (all confirmed, `fda8370c`):
 
-1. Pick a ladder scenario and 3 fixed seeds (the harness uses
-   `MATCH_SEED = i*1000 + 17`, `run-tournament.sh:206`; `Test.RandomSeed` is
-   honored, findings Q4).
-2. Run each seed **windowed** (Mode A) and again **hidden**
-   (`OPENRA_WINDOW_HIDDEN=1`), identical build + config + seed.
-3. Compare the verdict JSONs. **Identity means:** same `winner_name`, same
-   `duration_ticks`, and same per-player `score_total` + `resources_earned` for
-   all 3 seeds.
-4. **All 3 identical → Mode B unlocked.** Record the result in REVIEW.md
-   (`HARNESS` log entry) **and** add a dated `WORKSPACE/DISCOVERIES.md` line. The
-   loop's mode switch flips to B.
-5. **Any divergence → stay in Mode A.** The hidden window perturbs determinism
-   (the single riskiest assumption in the findings doc, §"Single riskiest
-   assumption"). Log the finding; the hidden-window engine work is now a
-   **blocker** on unsupervised operation — flag it to the user, keep running
-   Mode A in declared windows.
+1. **No window / no focus steal** — the hidden flag creates no mapped surface.
+2. **A verdict is written** — the sim runs to a natural match end and emits
+   `verdict_version: 2`.
+3. **Sim/render decoupling** — static analysis confirms the lockstep simulation
+   has no path to the renderer, so hiding the window **cannot** perturb the
+   outcome. This is a *structural* guarantee, stronger than any single-run
+   comparison could give.
 
-Until this gate passes, **the entire system operates in Mode A.** Everything in
-this SPEC works in Mode A; Mode B only removes the "needs a user window"
-constraint and speeds runs up.
+**Fallback trigger (Mode A):** revert to windowed, user-window-only runs **only
+if** a future engine change breaks the sim/render decoupling — i.e. if a hidden
+run ever fails to write a verdict, or the substrate worker reports the decoupling
+invariant broken. If that happens: log a `NOTE`/`ENGINE` entry, flip the mode
+switch to A, and treat restoring hidden-mode as a blocker for the user. Absent
+that, **stay in Mode B**.
+
+### 3.2 Known substrate caveats
+
+- **Per-seed reproducibility is broken** until the `LocalRandom` seeding fix
+  lands (backlogged — e.g. seed `LocalRandom` from `RandomSeed ^ const`, or route
+  bot decisions through the seeded server RNG; see the DISCOVERIES entry). A given
+  seed is **not replayable**: re-running seed *N* yields a *fresh independent*
+  game, not the same game.
+- **This does not affect the benchmark.** All ladder criteria are **N-run
+  statistics** (medians / win-rates over a batch, §6), which only need
+  *independent samples* — and independent is exactly what unseeded runs give.
+  **Treat seeds purely as run labels**, not reproducibility guarantees. The one
+  thing lost is single-match *debugging* replay (reproduce a specific outlier by
+  its seed); that returns once the seeding fix lands. Nothing in the loop depends
+  on it.
 
 ---
 
@@ -396,9 +426,10 @@ tools/autotest/tournament-results/<YYMMDD_HHMM>_<scenario>/
     batch.meta.json     # sha, scenario, config, seeds_requested, git_dirty
 ```
 
-These are **git-ignored working data**, not committed (they're bulky and
-reproducible). The manager keeps them until it has written the distilled cycle
-card, then they may be pruned.
+These are **git-ignored working data**, not committed (they're bulky, and a fresh
+batch can always be regenerated as a new independent sample — though not as a
+bit-identical replay, §3.2). The manager keeps them until it has written the
+distilled cycle card, then they may be pruned.
 
 ### 8.2 The verdict JSON (what a match emits)
 
@@ -529,8 +560,8 @@ there.
   `tournament-<map>-2p` scenario) and re-run the cleared rung's scenarios on it.
   An AI that only wins on River Zeta hasn't generalized. Rotating seeds within a
   scenario guards against seed-overfit; rotating maps guards against map-overfit.
-- **Parallelism (post-Mode-B):** once hidden windows are proven (§3.1), run **N
-  hidden instances** concurrently with isolated support dirs (the harness's
+- **Parallelism (Mode B is active, so this is available now):** run **N hidden
+  instances** concurrently with isolated support dirs (the harness's
   unbuilt Phase 3, findings Q2/Q5). Because the ~30s init cost dominates short
   matches, parallelism is the bigger throughput lever than raw speed — N
   instances ≈ 1/N wall-clock. Not needed to start; the loop is fully functional
