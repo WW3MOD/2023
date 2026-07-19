@@ -1,10 +1,39 @@
 # PLAN — Experimental AI point-of-interest (POI) strategy
 
-> Status: **DRAFT — awaiting user review. No code written.**
+> Status: **APPROVED — Phase 0 + Phase 1 in progress (2026-07-19).**
 > Mode: EXPERIMENTAL. Scope: the **Experimental AI only** (`ModularBot@v2`,
 > lobby name "V2 AI (experimental)"). Normal / Rush / Turtle stay untouched as
 > the control.
 > Author date: 2026-07-19.
+
+---
+
+## Approved decisions (2026-07-19, user)
+
+The three open questions in §7 are now decided. These override any conflicting
+framing later in the doc:
+
+1. **Architecture — Path A (see §4).** Bolt the POI layer onto the live v2 bot
+   plus a per-unit **goal-guard** component, designed so it ports cleanly into a
+   future v3 brain. Path B (POI as first slice of a fresh v3 brain) is deferred.
+
+2. **Neutral Supply Route — deny-only is PERMANENT DESIGN, not a deferred fix.**
+   Realism rule: capturing an enemy Supply Route flips it **Neutral**,
+   symbolizing *cutting the enemy's reinforcement route*. The capturer must
+   **never** be able to reinforce through a captured SR — there is no
+   "capture-to-own-side" follow-up to build. Desired AI behavior (later phases):
+   **attack the enemy SR → neutralize it → hold with a SMALL garrison** so the
+   defeated player's allies can't recapture it (recapture would drag a defeated
+   player back into a team game). Every "capture the neutral SR as a new
+   reinforcement lane" phrasing below is superseded by this: the value of an SR
+   POI is **denial + a forward strongpoint to garrison**, never a lane for us.
+
+3. **Phase 3 offense — fully score-floating axes (see §5.3, §5.5).** There is
+   **no dedicated enemy-base axis**. The enemy base competes on POI score like
+   every other objective; if derricks or the enemy SR circle score higher, the
+   AI may ignore the enemy base entirely. The user explicitly accepts early
+   passive / suboptimal games — the goal is a foundation for a genuinely
+   decision-making AI, tuned over time, not an immediately strong bot.
 
 ---
 
@@ -62,13 +91,14 @@ design must respect:
   via the Supply Route and **walk in from the nearest map edge** to the rally.
   "Produce a technician" = call in a reinforcement that then has travel time.
   A POI-capture squad is not available the instant it's ordered.
-- **The Supply Route is a fixed, indestructible beachhead**, one per player,
-  more only by **capturing a neutral SR**. The AI must never try to build one.
-  A captured **neutral SR is itself a top-tier POI** (new reinforcement lane +
-  denies it to the enemy) — and neither AI currently captures it (SR is absent
-  from every `CapturableActorTypes` list). Pressuring the *enemy* SR's
-  contestation circle is the single most valuable offensive objective per the
-  SR doc — a POI in its own right, distinct from "attack the enemy base".
+- **The Supply Route is a fixed, indestructible beachhead**, one per player.
+  The AI must never try to build one. Capturing an **enemy SR flips it to
+  Neutral** (per decision #2) — this is **denial**, never a new lane for the
+  capturer: the SR POI's value is cutting the enemy's reinforcements + leaving a
+  forward strongpoint to hold with a small garrison. Neither AI currently
+  targets SRs (SR is absent from every `CapturableActorTypes` list). Pressuring
+  the *enemy* SR's contestation circle is a high-value offensive objective per
+  the SR doc — a POI in its own right, distinct from "attack the enemy base".
 - **Cost = budget allocation.** Losing an escorted TECN to a contested derrick
   is a permanent budget loss; anti-suicide gating matters.
 - **Engine still carries RA assumptions** (airpad-per-aircraft, MCV/harvester
@@ -183,6 +213,11 @@ the live Experimental AI while not digging the v2 hole deeper.
 Path A + goal-guard; if you pick B, the phases are the same but land as v3
 brain methods instead of new `IBotTick` modules.
 
+> **DECIDED: Path A + goal-guard.** Phase 0/1 implement the per-unit goal-guard
+> as a reusable component (pure ledger + thin player trait) explicitly designed
+> to port into the v3 brain — only the *assignment mechanism* (IBotTick module
+> vs brain method) moves later; the commitment/expiry logic is reused verbatim.
+
 ---
 
 ## 5. POI system design
@@ -196,7 +231,7 @@ A `Poi` is any map location worth reasoning about strategically, beyond
 |---|---|---|---|
 | Income structure | `oilb/fcom/bio` neutral or enemy | `CashTrickler` amount | **Capture** (escorted TECN) → then **Defend** |
 | Enemy Supply Route circle | enemy `supplyroute` | production-denial (contestation) | **Pressure** (park units in circle) |
-| Neutral Supply Route | neutral `supplyroute` | new reinforcement lane | **Capture** (escorted TECN) → **Defend** |
+| Enemy Supply Route (capture) | enemy `supplyroute` | denial — flips it Neutral, cuts enemy reinforcements | **Capture-to-neutralize** (escorted TECN) → **Hold** w/ small garrison (never a lane for us — decision #2) |
 | Utility structure | `miss` (radar), `hosp` (heal), enemy `logisticscenter` | tactical, not $ | **Capture** opportunistically |
 | Chokepoint | `TerrainCache` adjacency analysis | controls a lane | **Hold / screen** (defensive garrison) |
 | Enemy base center | existing intel | the death-ball target today | **Attack** — now *one* POI among several, not the only one |
@@ -229,6 +264,9 @@ lane. Keep it simple in Phase 1 (straight-line distance); add path-cost later.
   enemy income structures, enemy base center) — **spread**: assign the
   offensive pool across the top *K* scored POIs weighted by score, instead of
   all-in on base center. K scales with army size (e.g. 1 axis per ~8 units).
+  **Per decision #3, axes are fully score-floating** — the enemy base center is
+  just another scored POI with no guaranteed axis; it may be ignored entirely
+  when other POIs outscore it.
 - **Defend** a POI the moment we own it: register it as a garrison target,
   assign a minimum garrison (reuse `CaptureCoordinator`'s defense pass, which
   already summons defenders when enemy value nearby > friendly value).
@@ -252,9 +290,10 @@ New `PoiOffensiveBotModule` (or v3 brain method) that:
 4. Issues one `AttackMove` per axis to the POI cell, refreshed on a slow cadence
    with a per-squad goal guard so it doesn't re-path every scan.
 
-This is what replaces the implicit death-ball: the enemy base is still targeted,
-but it's *one* weighted axis, and derricks / chokepoints / the enemy SR circle
-pull their share of units.
+This is what replaces the implicit death-ball: the enemy base is **not**
+privileged — it competes on score like every other POI (decision #3), and
+derricks / chokepoints / the enemy SR circle pull their share of units. If they
+outscore the base, the base gets no axis at all.
 
 ### 5.6 Coexistence with existing modules (don't lose offense or break capture)
 
@@ -335,18 +374,14 @@ All gated `enable-ai-v2`; **no engine-fork, no normal-AI change.**
 
 ## 7. Risks / open questions
 
-**For the user (please decide before I code):**
-1. **The §4 fork — Path A (bolt onto v2 + goal-guard, recommended) vs Path B
-   (first slice of the v3 brain)?** Everything else follows from this.
-2. **Neutral SR capture behaviour.** SR doc flags an open question: on capture,
-   the SR currently flips to *Neutral*, not to the capturer (`OwnerLostAction`).
-   If that's still true, capturing a neutral SR may not actually give the AI a
-   usable lane. Do you want Phase 1 to include fixing capture-to-own-side, or
-   treat neutral-SR capture as deny-only for now?
-3. **How aggressive should the spread be?** One axis per ~8 units is a guess.
-   Do you want the AI to *always* keep a base-center axis, or fully float all
-   axes by score (could ignore the enemy base entirely if derricks score
-   higher)?
+**For the user (ALL THREE DECIDED 2026-07-19 — see "Approved decisions" at top):**
+1. ~~The §4 fork~~ → **Path A** (bolt onto v2 + goal-guard). ✅ DECIDED.
+2. ~~Neutral SR capture behaviour~~ → **deny-only is permanent design**; the SR
+   flipping to Neutral on capture is *intended* (cut the enemy's reinforcements),
+   not a bug to fix. No capture-to-own-side work, ever. Later: neutralize + hold
+   with a small garrison. ✅ DECIDED.
+3. ~~How aggressive should the spread be?~~ → **fully score-floating axes**, no
+   guaranteed base-center axis; early passive games accepted. ✅ DECIDED.
 
 **Technical risks I'll manage:**
 4. **Engine `CaptureManager`/capture pathing quality is unknown at scale** — the
