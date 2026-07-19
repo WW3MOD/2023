@@ -28,7 +28,7 @@ Living state for the project. Mutable. Frequently edited. The agent reads and up
 
 - Update `RELEASE_V1.md` whenever a status changes — and commit when you do.
 - `HOTBOARD.md` reflects "what I'm working on now". Stale items get rotated out.
-- `DISCOVERIES.md` entries are always dated.
+- `DISCOVERIES.md` entries are always dated, with code refs where possible. Curation passes verify and promote entries into `DOCS/reference/` (tagging `[promoted]`/`[rejected: reason]`) — see `DOCS/reference/README.md`.
 - Playtest reports are raw and historical — never edit a past report; TRIAGE updates `RELEASE_V1.md`.
 - Session logs: `archive/sessions/active_<YYMMDD_HHMM>_<topic>.md` while running, promoted to `archive/sessions/<YYMMDD>_<topic>.md` on FINALIZE — sessions are historical the moment they finish.
 - No duplication between WORKSPACE/ files and auto-memory (`.claude/projects/`).

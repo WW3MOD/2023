@@ -18,7 +18,9 @@ Static project documentation. Four kinds:
 | How WW3MOD's gameplay model differs from Red Alert (no factories, reinforcements) | `reference/game-model.md` |
 | Supply Route canonical mental model | `reference/supply-route.md` |
 | Supply/ammo economy details | `reference/economy.md` |
+| WDist / WAngle / YAML idioms / engine code rules | `reference/conventions.md` |
 | Engine layout / scenario / suppression / aircraft / AI config / shadows.bin | `reference/architecture.md` |
+| How the knowledge bank grows (curation rules) | `reference/README.md` |
 | PITFALL comment system (full spec) | `reference/pitfalls.md` |
 | Big-picture project state, engine-upgrade assessment | `reference/project-assessment.md` |
 | Shadow / firing-LOS roadmap | `reference/shadow-los-plan.md` |
