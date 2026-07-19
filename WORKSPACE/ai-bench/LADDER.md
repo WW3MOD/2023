@@ -11,10 +11,14 @@ vs control) lives in [`REVIEW.md`](REVIEW.md) §Ladder Status.
 ## Ladder structure
 
 - A **rung** is one map. The first (and currently only) rung is **River Zeta WW3**
-  (`mods/ww3mod/maps/river-zeta-ww3/`, Title "River Zeta WW3"), run via the
-  existing scenario `tournament-v2-vs-normal-2p` (P1 = Experimental/v2,
-  P2 = Normal), with its faction-swapped twin `tournament-v2-vs-normal-mirror-2p`
-  for bias control (SPEC §9.4).
+  (`mods/ww3mod/maps/river-zeta-ww3/`, Title "River Zeta WW3"). **S1 (economy)**
+  runs on `tournament-s1-eco-river-zeta` — a scenario whose `map.yaml` is derived
+  from the canonical River Zeta terrain (full 98×82, all **12 neutral OILB income
+  derricks kept**) with the harness overlay (2 SRs + 2 bot spawns). **S2 (combat)
+  and S3 (win-rate)** run on the combat stub `tournament-v2-vs-normal-2p`
+  (66×34, no POIs — fine, those facets don't need capturables). Each has a
+  faction-swapped mirror twin for bias control (SPEC §9.4). (S1's mirror,
+  `tournament-s1-eco-river-zeta-mirror`, is a required follow-up — not yet built.)
 - Each rung holds **three scenarios**, each probing a different facet of "is the
   AI actually better": **economy**, **combat efficiency**, **decisiveness**.
 - A rung is **cleared** by the **composite gate** (§ below): one single commit
@@ -51,14 +55,44 @@ The even/odd index split still deterministically selects primary vs mirror
 
 | Field | Value |
 |---|---|
-| Scenario | `tournament-v2-vs-normal-2p` (River Zeta), + mirror for bias |
+| Scenario | `tournament-s1-eco-river-zeta` (**genuinely on River Zeta terrain** — 98×82, all 12 neutral OILB derricks), + mirror for bias (mirror not yet built) |
 | Contestants | P1 Experimental (v2) vs P2 Normal (control) |
-| Match length | **5 minutes** — `TimeLimitSeconds: 300` |
+| Match length | **5 minutes** — `TimeLimitSeconds: 300` (candidate bump to 420–600s pending — see finding below) |
 | **Metric** | **`resources_earned`** (cumulative `PlayerResources.Earned`, verdict `stats.resources_earned`, `BotVsBotMatchWatcher.cs:308`) |
-| N runs | **10** (5-min matches are cheap: ~1 wall-min each windowed at 6×) |
+| N runs | **10** (5-min matches are cheap: ~1–2 wall-min each hidden at 8×) |
 | Seeds | `1017, 2017, … 10017`; even = primary, odd = mirror (`--mirror`) |
 | Advancement | `median(v2 earned) ≥ median(Normal earned) × 1.15` (15% margin) |
 | WinRule | `score_or_sr_capture` (irrelevant to the metric; keep for a valid match end) |
+
+> **RESCOPE (2026-07-19, `86aa2db` branch):** S1 was moved off the old
+> `tournament-v2-vs-normal-2p` stub, which ran on a bare 66×34 inline map with
+> **zero capturable POIs** — pinning `resources_earned` to 0/0 *by construction*
+> (diagnosis: `WORKSPACE/ai-bench/runs/260719_s1_diagnosis.md`). The prior "runs
+> on River Zeta" premise was **false**; it is now **true**. The new scenario keeps
+> the 12 OILB derricks, which are confirmed capturable (OILB → `^TechBuilding` →
+> `^BasicBuilding` → `^NeutralOrOccupiedCapturable`). SRs at **14,45** (v2) and
+> **80,35** (normal), each with a derrick ~3–4 cells away.
+>
+> **Smoke finding (N=1, hidden):** verdict written, full 7500-tick match, **but
+> `resources_earned` still 0/0** — for a *new* reason. The map-content wall is
+> gone; the smoke exposed that **neither bot captures a derrick in 5 game-minutes**
+> (score curve is pure combat, `capture_income` stays 0). Normal earning $0 is
+> correct (no capture logic — the control won't game the eco axis). **v2 earning $0
+> is the live finding:** its `PoiMap → CaptureCoordinatorBotModule` layer did not
+> convert the now-present POIs into a capture in-window. S1 is therefore now a
+> **live, discriminating** test (can read non-zero once v2 improves) rather than
+> structurally dead.
+>
+> **Required follow-ups before trusting any v2 S1 number:**
+> 1. **First AI cycle:** diagnose why v2 does not capture in the S1 window on this
+>    map (compare vs `tournament-capture-arena-2p`, which places mid-map
+>    capturables on the small stub). If v2 captures only *after* 5 min, bump the
+>    clock to 420–600s (record here); the clock was **not** the blocker in the
+>    smoke, so no bump was applied.
+> 2. **POI symmetry / calibration:** build `tournament-s1-eco-river-zeta-mirror`
+>    and gate S1 on a **Normal-vs-Normal batch landing ~even** on `resources_earned`
+>    (SPEC §9.4) — otherwise an earned-cash gap could be spawn-side derrick luck,
+>    not AI skill.
 
 > **PITFALL:** the metric is **`resources_earned`**, NOT `PlayerStatistics.Income`.
 > `Income` is a rolling 60-second figure; using it silently measures the wrong
@@ -187,11 +221,16 @@ scenarios stay live.
 
 | Scenario | Folder | Config for this ladder |
 |---|---|---|
-| S1 Economy Race | `tools/autotest/scenarios/tournament-v2-vs-normal-2p/` | a `tournament-eco-5min.yaml` (copy of `tournament.yaml`, `TimeLimitSeconds: 300`) |
-| S2 Force Efficiency | same | the committed `tournament.yaml` (`720s`) |
-| S3 Win-rate | same | the committed `tournament.yaml` (`720s`) |
-| bias twin (all) | `tools/autotest/scenarios/tournament-v2-vs-normal-mirror-2p/` | matching mirror configs |
+| S1 Economy Race | `tools/autotest/scenarios/tournament-s1-eco-river-zeta/` | `tournament-eco-5min.yaml` (`TimeLimitSeconds: 300`, `SpeedMultiplier: 8`) |
+| S2 Force Efficiency | `tools/autotest/scenarios/tournament-v2-vs-normal-2p/` | the committed `tournament.yaml` (`720s`) |
+| S3 Win-rate | `tools/autotest/scenarios/tournament-v2-vs-normal-2p/` | the committed `tournament.yaml` (`720s`) |
+| S1 bias twin | `tools/autotest/scenarios/tournament-s1-eco-river-zeta-mirror/` | **not yet built** (required follow-up) |
+| S2/S3 bias twin | `tools/autotest/scenarios/tournament-v2-vs-normal-mirror-2p/` | matching mirror configs |
 
-Creating the `tournament-eco-5min.yaml` config variant (S1) is a **harness**
-change (allowed, SPEC §4.1) — just a `TimeLimitSeconds` override on the existing
-scenario; no map or engine edit. S2 and S3 reuse the committed 720s config as-is.
+S1 now uses a **River-Zeta-derived** scenario (`tournament-s1-eco-river-zeta`):
+its `map.yaml` keeps the full River Zeta terrain + all 12 neutral OILB derricks
+and overlays the harness's 2 SRs + 2 bot spawns; `rules.yaml` and
+`tournament-eco-5min.yaml` are byte-identical to the `tournament-v2-vs-normal-2p`
+originals. This is a **harness** change (allowed, SPEC §4.1) — map/scenario only,
+no unit stat / balance / engine edit (derrick income stays `$50`). S2 and S3 keep
+the combat stub + committed 720s config as-is.

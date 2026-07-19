@@ -1,0 +1,46 @@
+{
+  "cycle_ts": "2026-07-19T18:46:24Z",
+  "scenario": "tournament-s1-eco-river-zeta",
+  "rung": "river-zeta",
+  "sha": "86aa2db",
+  "hypothesis": "HARNESS RESCOPE (no AI change): move S1 off the POI-less 66x34 stub onto a River-Zeta-derived map that keeps all 12 neutral OILB derricks, so resources_earned is no longer 0-by-construction. Smoke-verify the new scenario boots + runs a full match in Mode B.",
+  "run_mode": "hidden",
+  "n_runs": 1,
+  "seeds": [1017],
+  "metric": "resources_earned",
+  "experimental_median": 0,
+  "control_median": 0,
+  "margin_required": 0.15,
+  "margin_observed": null,
+  "verdict": "hold",
+  "no_regression_checked": [],
+  "decision": "keep_iterating",
+  "raw_result_dir": "tools/autotest/tournament-results/260719_1844_tournament-s1-eco-river-zeta",
+  "verdict_json": "260719_1844__tournament-s1-eco-river-zeta__86aa2db.verdict.json",
+  "match_detail": {
+    "winner_name": "Russia-bot",
+    "winner_bot": "normal",
+    "win_reason": "time_limit",
+    "duration_ticks": 7500,
+    "wall_clock_secs_approx": 108,
+    "players": {
+      "v2_USA": { "resources_earned": 0, "capture_income": 0, "score_total": 4450, "army_value": 1200, "kills_cost": 3250, "deaths_cost": 5150, "units_killed": 11, "units_dead": 3, "buildings_dead": 1, "order_count": 19 },
+      "normal_Russia": { "resources_earned": 0, "capture_income": 0, "score_total": 6500, "army_value": 2200, "kills_cost": 4300, "deaths_cost": 5150, "units_killed": 2, "units_dead": 10, "buildings_killed": 1, "order_count": 21 }
+    }
+  },
+  "map_rescope_verification": {
+    "boots_and_runs": "pass — match_1.log 'Game started' + 'result written: pass'; no parse error, no crash. Full 7500 ticks (300 game-seconds) reached.",
+    "terrain_loaded": "pass — watcher.log FirstTick: 4684 actors total (full River Zeta terrain), vs the stub's handful.",
+    "srs_placed": "pass — watcher.log: USA-bot SR @ 14,45 and Russia-bot SR @ 80,35 both IsInWorld/IsDead=False; 'Match active with 2 SR-owning players'.",
+    "pois_present_and_capturable": "pass (static) — 12 neutral OILB kept; OILB inherits ^TechBuilding -> ^BasicBuilding -> ^NeutralOrOccupiedCapturable (CaptureManager + Capturable@neutral), so each derrick is capturable by a neutral-capturing unit. The old 0-by-construction wall (diagnosis) is removed.",
+    "reachability": "generous — nearest derrick is 17,44 (~3 cells from USA SR 14,45) and 76,35 (~4 cells from Russia SR 80,35), both trivially inside a 5-game-minute travel budget."
+  },
+  "finding": "SUCCESS BAR NOT MET (resources_earned still 0/0) — but for a NEW reason, not the old one. The map-content blocker is fixed (POIs present, capturable, reachable, match runs full length). The smoke exposed a SECOND, distinct blocker: neither bot captured any derrick in the 5-min window. Diagnosis: (1) derricks capturable = YES; (2) reachable = YES; (3) BOTH bots played a pure combat game — the watcher score curve shows only army_value/kills_value swings, never the steady linear climb a held derrick's $50/tick CashTrickler would add, and capture_income stays 0 the whole match. Normal earning $0 is CORRECT/expected (it has no POI-capture logic — good: the control won't game the eco metric). v2 earning $0 is the real finding: v2's PoiMap -> CaptureCoordinatorBotModule layer did NOT convert the now-present POIs into a capture within 5 game-minutes on this map. That is an AI-BEHAVIOR gap, and it is exactly the facet S1 exists to measure — S1 is now a LIVE, discriminating test (can read non-zero once v2 improves) instead of structurally dead.",
+  "clock_bump": "NONE. 300s is not the blocker — the nearest derrick is ~3 cells from spawn and the bot never attempts capture, so a longer clock alone would still read 0. Kept TimeLimitSeconds:300 per LADDER S1. A 420-600s bump is recorded in LADDER as a candidate lever for the first AI cycle IF v2 turns out to capture but only later than 5 min.",
+  "followups": [
+    "FIRST AI CYCLE: investigate why v2 does not capture any derrick in the S1 window on River Zeta. Compare against tournament-capture-arena-2p (4 mid-map capturables on the small stub) — if v2 captures there but not here, the gap is distance/target-selection on the 98x82 map; if it captures on neither, it's a pure v2 capture-pipeline gap. (No new run authorized this cycle.)",
+    "CALIBRATION (required before trusting any v2 number): Normal-vs-Normal batch on this scenario must land ~even on resources_earned, and POI placement vs the two SRs must be checked for symmetry (SPEC 9.4). Build the mirror twin (tournament-s1-eco-river-zeta-mirror) for faction-bias control.",
+    "If v2 capture behavior is fixed but 5 min proves too tight for call-in+travel+capture, bump S1 to 420-600s (record in LADDER)."
+  ],
+  "notes": "N=1 harness-rescope smoke; NOT a scored baseline (LADDER S1 wants N=10). Harness + new map are fully green end-to-end in Mode B (hidden, no window, verdict written). Committed on the ai-bench branch; NOT merged to main (rescope task scope was branch-only)."
+}
