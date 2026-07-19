@@ -3,6 +3,37 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-19 — Tournament matches are NOT reproducible per seed: the AI ignores the seed via unseeded `world.LocalRandom`
+- Verified empirically: two `BotVsBotMatchWatcher` runs of the SAME scenario
+  (`tournament-arena-diagonal-2p`/`tournament-smoke.yaml`) with the SAME
+  `Test.RandomSeed=1017` produced **different** winners and scores. Divergence
+  starts within the first 125 ticks from an identical initial state (same SR
+  positions, same players). `duration_ticks` (750, the fixed time limit) is the
+  only thing that matches.
+- **Root cause:** `World.cs:213` seeds `SharedRandom` from `RandomSeed`
+  (deterministic, network-synced), but `World.cs:214` creates
+  `LocalRandom = new MersenneTwister()` **unseeded**. The bot modules make
+  *decisions* off `world.LocalRandom` — `UnitBuilderBotModule.cs:173/188` picks
+  which unit to call in; LayeredDefence / HelicopterSquad / BaseBuilder /
+  Minelayer / SupportPower all use it for scan timing and target/ location
+  choice. Unseeded → different picks every run → army composition (and thus
+  `army_value`/scores) diverges immediately.
+- **Consequence:** the `Test.RandomSeed` "reproducible per seed" claim
+  (PITFALLS §15) is only true for the *synced* sim, NOT for AI behavior. For a
+  benchmark substrate this means a fixed seed gives you a *sample*, not a
+  *reproduction*. Sample-over-N stays statistically valid; single-match
+  reproduction/debugging does not work.
+- **Fix (separable, not done here):** under `TestMode.RandomSeedOverride`, seed
+  `LocalRandom` too (e.g. `new MersenneTwister(RandomSeed ^ constant)`), or route
+  AI decision randomness through `SharedRandom`. Until then, do not expect
+  bit-identical tournament verdicts across runs.
+- **Corollary for `OPENRA_WINDOW_HIDDEN`:** the hidden-window flag does NOT
+  change sim results — it only removes SDL rendering, which is decoupled from the
+  lockstep sim and cannot touch `LocalRandom`. The hidden-vs-windowed divergence
+  observed during flag verification is entirely this pre-existing AI
+  nondeterminism, not the flag. (Flag verification: hidden run created no visible
+  window, stole no focus, completed, and wrote the v2 verdict JSON.)
+
 ## 2026-07-19 — Bot-vs-bot benchmark substrate: harness already exists but is macOS-gated; no headless mode; a hidden-window flag is the crux
 - Researching a foundation for an **autonomous AI benchmark** (many unsupervised bot-vs-bot games, metrics from logs) surfaced that most of it is **already built**: `tools/autotest/run-tournament.sh` + `loop-tournament.sh` + `aggregate-tournament.sh` run N seeded matches, aggregate to CSV/JSON, and drive a milestone loop (winrate/budget stop-conditions). Engine side: `BotVsBotMatchWatcher` (world trait) writes a per-match JSON verdict (winner, win_reason, duration, per-player score_total + components); `WeightedComponentMatchScorer` already reads live `PlayerStatistics.ArmyValue/KillsCost` + `PlayerResources.Earned` (the `tournament.yaml` "only army_value" note is stale). 7 tournament scenarios exist incl. v2-vs-normal.
 - **Two blockers for the user's Windows goal:** (1) the whole harness is `.sh` + `uname` Darwin/Linux branches + `osascript` focus mitigation — **Windows is unhandled**; (2) **no headless mode** — only one `IPlatform` (`DefaultPlatform`), the SDL window is always shown (`Sdl2PlatformWindow.cs:227`, no `SDL_WINDOW_HIDDEN`), and on Windows it **steals focus** with no mitigation. The dedicated server can't substitute — it's order-relay only (`OpenRA.Server/Program.cs:100-109`, no `World`); bots tick client-side (`ModularBot.cs:86`).
