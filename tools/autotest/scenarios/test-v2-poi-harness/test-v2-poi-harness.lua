@@ -28,11 +28,25 @@
 -- Two-or-more distinct `axis` targets with units>=MinAxisSize in one reeval =
 -- the army spread across axes instead of one clump (assert coarsely from logs).
 
-WorldLoaded = function()
-	TestHarness.FocusBetween(EnemyOilb, EnemyFcom, OpponentSR)
+-- PHASE 4 (hold captured money) assertion: HeldOilb is USA-bot-owned from tick 0
+-- (a pre-captured derrick) with a small Russia raid beside it. Read the log for
+-- the garrison pipeline:
+--   [v2-garrison] reeval ... held=N garrisons=N   -> held POIs promoted to garrisons
+--   [v2-garrison] garrison ... poi=oilb units=M   -> garrison sized by value (M 1-3)
+--   [v2-garrison] order ... poi=oilb              -> AttackMove-to-hold issued
+-- The derrick must still belong to USA-bot at the end (the garrison held it). This
+-- is the one hard verdict on this otherwise-observational map.
 
-	-- ~45s of simulation, then exit with a pass verdict (observation only).
+WorldLoaded = function()
+	TestHarness.FocusBetween(HeldOilb, EnemyFcom, OpponentSR)
+
+	-- ~45s of simulation, then verify the held derrick survived under USA-bot.
 	Trigger.AfterDelay(45 * TestHarness.TicksPerSecond, function()
-		Test.Pass()
+		local usa = Player.GetPlayer("USA-bot")
+		if HeldOilb.IsDead or HeldOilb.Owner ~= usa then
+			Test.Fail("Phase 4: held derrick was lost — v2 garrison did not hold it")
+		else
+			Test.Pass()
+		end
 	end)
 end

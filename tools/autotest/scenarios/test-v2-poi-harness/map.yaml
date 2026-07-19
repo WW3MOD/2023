@@ -186,4 +186,31 @@ Actors:
 		Owner: Russia-bot
 		Location: 50,10
 
+	# ===== POI-strategy Phase 4 (hold captured money) =====
+	# A money POI the USA v2 bot OWNS from tick 0 — as if it had already captured a
+	# derrick. GetDefendTargets returns it, so PoiGarrisonBotModule@v2 parks a SMALL
+	# garrison (value $50 -> 1 unit calm, +1 under assault) on it and holds it.
+	# Placed in the near-midfield south flank, ~15c from the USA army, distinct from
+	# the neutral capture POIs above.
+	HeldOilb: oilb
+		Owner: USA-bot
+		Location: 20,20
+
+	# A small Russia raid beside the held derrick: raises local enemy influence so
+	# GetDefendTargets sees the POI as "assaulted" (garrison threat bump) and tests
+	# the HOLD — the derrick must stay USA-owned at the end. Kept to 3 light infantry
+	# so it can't burst an oilb before the garrison (incl. an abrams) arrives.
+	Raid1: e3.russia
+		Owner: Russia-bot
+		Location: 24,20
+		Facing: 256
+	Raid2: e3.russia
+		Owner: Russia-bot
+		Location: 24,21
+		Facing: 256
+	Raid3: e3.russia
+		Owner: Russia-bot
+		Location: 24,19
+		Facing: 256
+
 Rules: rules.yaml
