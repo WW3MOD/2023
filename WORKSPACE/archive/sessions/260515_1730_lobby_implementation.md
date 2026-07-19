@@ -100,3 +100,19 @@ skirmish-restore when TestMode seeds a map) noted in BACKLOG.
 
 Will commit each phase as a separate commit. Build between phases to
 catch breakage early.
+
+## Round 3 - 2026-07-19 (spacing/modernization pass)
+
+User feedback: Start button touched the bottom; settings quadrant "not so
+pretty" - modernize margins without losing core feel. 8px-base spacing spec:
+- Settings quadrant (6d7bc114): 16px panel insets, 12px gutters, uppercase
+  TinyBold option labels with colons stripped at display point, dropdown
+  rows 54 (12 label + 18 gap-offset + 30 control), checkbox rows 38,
+  ACTIVE CHANGES chips start y36/x16, preset bar 36px centered controls
+  with uniform widths (619px budget at 1366), SECTION_BG tint removed
+- Outer chrome (4a72dadd): chat compose 30px at 8px insets, display 8px
+  insets, map strip 16px insets with -16 overlap guard, scenario strip
+  inset 16, stats pitch 24/132/220
+- CTA (d8d2de4f, lead): bar deepened 60->72, button 44 recentered 14/14 -
+  8px in a 60 bar still read as touching at 2560
+Screenshot-verified at 2560 (spacing-pass, cta-72 captures).
