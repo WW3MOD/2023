@@ -1,0 +1,16 @@
+# Harness-scenario overrides. Kept minimal so we benchmark real gameplay.
+
+Player:
+	# Both bots start with enough cash to ramp production alongside the
+	# pre-placed force. Pre-placement makes AI behaviour observable from tick 0;
+	# the cash keeps a real economy running underneath so the trace isn't
+	# purely the seeded units.
+	PlayerResources:
+		DefaultCash: 7500
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-experimental-poi-harness.lua

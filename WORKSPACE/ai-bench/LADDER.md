@@ -6,6 +6,14 @@ The **ladder** is the ordered set of standardized tests the Experimental AI
 **definition** of the rungs and scenarios; the **live standing** (current medians
 vs control) lives in [`REVIEW.md`](REVIEW.md) §Ladder Status.
 
+> **Terminology — v2 → Experimental (2026-07-20, `ai-bench` rename commit).** The
+> Experimental AI is now `ModularBot@experimental` (not `@v2`), joined by a frozen
+> `ModularBot@stable` (SPEC §13). Narrative "v2" mentions below (e.g. "P1 Experimental
+> (v2)", "median(v2 earned)") read as **Experimental** and are left as written; only
+> the machine-actionable **scenario folder paths** in the registry were repointed to
+> their new names: `tournament-v2-vs-normal-2p` → `tournament-experimental-vs-normal-2p`,
+> `tournament-v2-vs-normal-mirror-2p` → `tournament-experimental-vs-normal-mirror-2p`.
+
 ---
 
 ## Ladder structure
@@ -257,10 +265,10 @@ scenarios stay live.
 | Scenario | Folder | Config for this ladder |
 |---|---|---|
 | S1 Economy Race | `tools/autotest/scenarios/tournament-s1-eco-river-zeta/` | `tournament-eco-5min.yaml` (`TimeLimitSeconds: 300`, `SpeedMultiplier: 8`) |
-| S2 Force Efficiency | `tools/autotest/scenarios/tournament-v2-vs-normal-2p/` | the committed `tournament.yaml` (`720s`) |
-| S3 Win-rate | `tools/autotest/scenarios/tournament-v2-vs-normal-2p/` | the committed `tournament.yaml` (`720s`) |
+| S2 Force Efficiency | `tools/autotest/scenarios/tournament-experimental-vs-normal-2p/` | the committed `tournament.yaml` (`720s`) |
+| S3 Win-rate | `tools/autotest/scenarios/tournament-experimental-vs-normal-2p/` | the committed `tournament.yaml` (`720s`) |
 | S1 bias twin | `tools/autotest/scenarios/tournament-s1-eco-river-zeta-mirror/` | **not yet built** (required follow-up) |
-| S2/S3 bias twin | `tools/autotest/scenarios/tournament-v2-vs-normal-mirror-2p/` | matching mirror configs |
+| S2/S3 bias twin | `tools/autotest/scenarios/tournament-experimental-vs-normal-mirror-2p/` | matching mirror configs |
 
 S1 now uses a **River-Zeta-derived** scenario (`tournament-s1-eco-river-zeta`):
 its `map.yaml` keeps the full River Zeta terrain + all 12 neutral OILB derricks

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * WW3MOD PoiOffensiveBotModule — v2 AI, POI-strategy Phase 3 (the headline).
+ * WW3MOD PoiOffensiveBotModule — experimental AI, POI-strategy Phase 3 (the headline).
  *
  * Replaces the implicit DEATH-BALL with SCORE-FLOATING ATTACK AXES. Where the
  * fixed-wing SquadManager used to scoop the whole ground pool into one squad and
@@ -24,7 +24,7 @@
  * units consults ONE per-unit ledger (PoiGoalGuard.Ledger). CaptureCoordinator
  * commits TECNs ("capture:<id>"); this module commits combat units
  * ("offense:<targetId>"); a unit committed to anyone is invisible to the others.
- * The v2 fixed-wing SquadManager is set IgnoreGroundUnits so it no longer owns
+ * The experimental fixed-wing SquadManager is set IgnoreGroundUnits so it no longer owns
  * the ground pool at all — this module does.
  *
  * DESIGN INTENT (v3-portable): all decision MATH lives in the pure PoiOffenseMath
@@ -32,7 +32,7 @@
  * brain; only the assignment plumbing (this IBotTick module) is engine-specific.
  * Constants are Info fields so behaviour is YAML-tunable without a rebuild.
  *
- * Gated enable-ai-v2 in ai.yaml — Normal / Rush / Turtle never instantiate it.
+ * Gated enable-ai-experimental in ai.yaml — Normal / Rush / Turtle never instantiate it.
  */
 #endregion
 
@@ -44,10 +44,10 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.Player)]
-	[Desc("WW3MOD v2 AI: splits the general ground army across PoiMap-scored offensive axes",
+	[Desc("WW3MOD experimental AI: splits the general ground army across PoiMap-scored offensive axes",
 		"(enemy income = Attack, enemy Supply Route = Pressure, enemy base competes on score).",
 		"Replaces the fixed-wing SquadManager's ground death-ball. Uses the shared PoiGoalGuard",
-		"ledger as the unit-claim so capture/defense/offense never fight over units. Gate enable-ai-v2.")]
+		"ledger as the unit-claim so capture/defense/offense never fight over units. Gate enable-ai-experimental.")]
 	public class PoiOffensiveBotModuleInfo : ConditionalTraitInfo
 	{
 		[Desc("Ticks between offense re-evaluations. Slow cadence + the per-unit commitment TTL give",
@@ -166,12 +166,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (targets.Count == 0)
 			{
 				RetireAllAxes("no-targets");
-				Log.Write("debug", $"[v2-offense] reeval player={player.PlayerName} targets=0 axes=0 tick={tick}");
+				Log.Write("debug", $"[exp-offense] reeval player={player.PlayerName} targets=0 axes=0 tick={tick}");
 				return;
 			}
 
 			// 3. Free pool = eligible combat units claimed by nobody (SquadManager no
-			//    longer owns ground for v2; capture/defense commitments are respected).
+			//    longer owns ground for experimental; capture/defense commitments are respected).
 			var free = BuildFreePool();
 			var totalOffensive = free.Count + axes.Sum(a => a.Units.Count);
 
@@ -273,10 +273,10 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			Log.Write("debug",
-				$"[v2-offense] reeval player={player.PlayerName} pool={totalOffensive} free={free.Count} targets={targets.Count} axes={axes.Count} k={k} tick={tick}");
+				$"[exp-offense] reeval player={player.PlayerName} pool={totalOffensive} free={free.Count} targets={targets.Count} axes={axes.Count} k={k} tick={tick}");
 			foreach (var axis in axes)
 				Log.Write("debug",
-					$"[v2-offense] axis player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} score={axis.Score} units={axis.Units.Count} tick={tick}");
+					$"[exp-offense] axis player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} score={axis.Score} units={axis.Units.Count} tick={tick}");
 		}
 
 		// Sticky top-k selection with hysteresis: start from the score-ordered targets,
@@ -388,8 +388,8 @@ namespace OpenRA.Mods.Common.Traits
 			axis.HasOrdered = true;
 
 			Log.Write("debug",
-				$"[v2-offense] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} units={units.Length} tick={tick}");
-			AIUtils.BotDebug("AI ({0}): v2-offense — axis {1}@{2} ({3} units, score={4})",
+				$"[exp-offense] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} units={units.Length} tick={tick}");
+			AIUtils.BotDebug("AI ({0}): exp-offense — axis {1}@{2} ({3} units, score={4})",
 				player.ClientIndex, axis.TargetName, axis.TargetCell, units.Length, axis.Score);
 		}
 
@@ -403,7 +403,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (freed.Count > 0)
 				Log.Write("debug",
-					$"[v2-offense] retire player={player.PlayerName} target={axis.TargetName} freed={freed.Count} reason={reason} tick={world.WorldTick}");
+					$"[exp-offense] retire player={player.PlayerName} target={axis.TargetName} freed={freed.Count} reason={reason} tick={world.WorldTick}");
 			return freed;
 		}
 

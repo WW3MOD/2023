@@ -34,7 +34,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.Player)]
-	[Desc("WW3MOD v2: ferries infantry to the frontline using idle IFVs/APCs.")]
+	[Desc("WW3MOD experimental: ferries infantry to the frontline using idle IFVs/APCs.")]
 	public class MountedTransportBotModuleInfo : ConditionalTraitInfo
 	{
 		[Desc("Ticks between assignment passes.")]
@@ -116,12 +116,12 @@ namespace OpenRA.Mods.Common.Traits
 			scanCountdown = world.LocalRandom.Next(0, Info.ScanInterval);
 			influenceMap = world.WorldActor.TraitOrDefault<InfluenceMap>();
 
-			// Visible confirmation in chat that v2 transport is wired for this player.
+			// Visible confirmation in chat that experimental transport is wired for this player.
 			// Without this, "is the module even active?" is impossible to verify ingame.
 			TextNotificationsManager.AddSystemLine(
-				$"[v2-transport] enabled for {player.PlayerName} ({player.Faction.Name})");
+				$"[exp-transport] enabled for {player.PlayerName} ({player.Faction.Name})");
 			Log.Write("debug",
-				$"[v2-transport] TraitEnabled — player={player.PlayerName} carriers={string.Join(",", Info.CarrierTypes)} passengers={Info.PassengerTypes.Count} types");
+				$"[exp-transport] TraitEnabled — player={player.PlayerName} carriers={string.Join(",", Info.CarrierTypes)} passengers={Info.PassengerTypes.Count} types");
 		}
 
 		void IBotTick.BotTick(IBot bot)
@@ -270,11 +270,11 @@ namespace OpenRA.Mods.Common.Traits
 				// Activity name is the most useful field for diagnosing "never idle" theories.
 				var activity = a.CurrentActivity?.GetType().Name ?? "<none>";
 				Log.Write("debug",
-					$"[v2-transport] carrier {a.Info.Name}@{a.Location} idle={a.IsIdle} activity={activity} pax={(hasCargo ? cargo.PassengerCount.ToString() : "no-cargo")} task={inTask} → {(ok ? "OK" : "skip")}");
+					$"[exp-transport] carrier {a.Info.Name}@{a.Location} idle={a.IsIdle} activity={activity} pax={(hasCargo ? cargo.PassengerCount.ToString() : "no-cargo")} task={inTask} → {(ok ? "OK" : "skip")}");
 			}
 
 			Log.Write("debug",
-				$"[v2-transport] scan player={player.PlayerName} carriers-total={owned.Count} carriers-candidate={candidates.Count} tasks-active={carrierTasks.Count}");
+				$"[exp-transport] scan player={player.PlayerName} carriers-total={owned.Count} carriers-candidate={candidates.Count} tasks-active={carrierTasks.Count}");
 
 			if (candidates.Count == 0)
 				return;
@@ -302,7 +302,7 @@ namespace OpenRA.Mods.Common.Traits
 				.ToList();
 
 			Log.Write("debug",
-				$"[v2-transport] passengers-in-reserve={availablePassengers.Count} (radius={Info.ReserveZoneRadiusCells} sr-cell={srCell})");
+				$"[exp-transport] passengers-in-reserve={availablePassengers.Count} (radius={Info.ReserveZoneRadiusCells} sr-cell={srCell})");
 
 			if (availablePassengers.Count == 0)
 				return;

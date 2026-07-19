@@ -12,7 +12,7 @@
 # map.yaml's PlayerReferences). Future swap-point: a player-bot-override trait that
 # remaps bots from this config so a single map.yaml serves multiple matchups.
 Matchup:
-	P1Bot: v2
+	P1Bot: experimental
 	P2Bot: normal
 
 # Match clock — at this real-time second count, the win rule evaluates final

@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: DEMO: v2 layered defence — InfluenceMap-driven positioning
+Title: DEMO: experimental layered defence — InfluenceMap-driven positioning
 
 Author: WW3MOD
 
@@ -17,14 +17,14 @@ Visibility: MissionSelector
 Categories: Test
 
 # DEMO: Stage B.1 layered defence — viewing scenario.
-#   Left position  (6,16)  = USA-bot, faction=america, Bot=v2     ← watch this
+#   Left position  (6,16)  = USA-bot, faction=america, Bot=experimental     ← watch this
 #   Right position (58,16) = Russia-bot, faction=russia, Bot=normal
 #
 # 4 neutral capturables in the middle band. Same map as
 # tournament-capture-arena but no time limit + extra starting cash so
-# the v2 bot has plenty of units to position into layers.
+# the experimental bot has plenty of units to position into layers.
 #
-# Toggle `/frontline` to see the contested band; watch v2's units form
+# Toggle `/frontline` to see the contested band; watch experimental's units form
 # a screen (light infantry forward) + main line (vehicles standoff
 # behind) over the first 90+ sim-sec.
 Players:
@@ -43,7 +43,7 @@ Players:
 		Name: USA-bot
 		LockFaction: True
 		Faction: america
-		Bot: v2
+		Bot: experimental
 		Color: 4488FF
 		Enemies: Russia-bot
 	PlayerReference@Russia-bot:

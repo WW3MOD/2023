@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TOURNAMENT: v2 vs Normal 2P MIRROR (capture arena)
+Title: TOURNAMENT: experimental vs Normal 2P MIRROR (capture arena)
 
 Author: WW3MOD tournament harness
 
@@ -17,11 +17,11 @@ Visibility: MissionSelector
 Categories: Test
 
 # Capture-arena MATCHUP — MIRROR variant (factions swapped).
-#   Left position  (6,16)  = USA-bot, faction=russia,  Bot=v2     ← experimental, plays russia
+#   Left position  (6,16)  = USA-bot, faction=russia,  Bot=experimental     ← experimental, plays russia
 #   Right position (58,16) = Russia-bot, faction=america, Bot=normal ← baseline, plays america
 #
 # Same terrain + capturables as primary; only factions swap. Used with
-# run-tournament.sh --mirror so v2 plays both factions equally.
+# run-tournament.sh --mirror so experimental plays both factions equally.
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral
@@ -38,7 +38,7 @@ Players:
 		Name: USA-bot
 		LockFaction: True
 		Faction: russia
-		Bot: v2
+		Bot: experimental
 		Color: 4488FF
 		Enemies: Russia-bot
 	PlayerReference@Russia-bot:

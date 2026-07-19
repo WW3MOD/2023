@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TOURNAMENT: experimental vs Normal 2P (capture arena)
+Title: TOURNAMENT: experimental vs Normal 2P
 
 Author: WW3MOD tournament harness
 
@@ -16,16 +16,16 @@ Visibility: MissionSelector
 
 Categories: Test
 
-# Capture-arena MATCHUP — primary variant.
+# experimental-vs-normal MATCHUP — primary variant.
 #   Left position  (6,16)  = USA-bot, faction=america, Bot=experimental     ← experimental
 #   Right position (58,16) = Russia-bot, faction=russia, Bot=normal ← baseline
 #
-# Same terrain as tournament-experimental-vs-normal-2p but with 4 neutral
-# capturable income structures placed across the middle band. experimental's
-# CaptureCoordinatorBotModule has something to actually capture and
-# defend here. Pair with -mirror to control for faction bias.
-#
-# Income (per CashTrickler): OILB=50, FCOM=100, BIO=150 per tick.
+# Pair with tournament-experimental-vs-normal-mirror-2p via run-tournament.sh --mirror
+# to control for faction bias (experimental plays america here, russia in the mirror).
+# Aggregate experimental winrate across the mirror pair tells us whether experimental's
+# AdaptiveProductionBotModule@experimental (EvaluationInterval: 300 vs legacy 600)
+# is a real improvement or noise. See WORKSPACE/ai/sanity_findings_260512.md
+# for the baseline that this is measured against.
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral
@@ -53,6 +53,9 @@ Players:
 		Color: FF4444
 		Enemies: USA-bot
 
+# Each combatant gets a single Supply Route. The SRs sit near opposite map
+# edges per WW3MOD canon (DOCS/reference/supply-route.md) — never mid-map.
+# Bots will reinforce from the closest map edge to their SR.
 Actors:
 	OwnSR: supplyroute
 		Owner: USA-bot
@@ -60,27 +63,14 @@ Actors:
 	OpponentSR: supplyroute
 		Owner: Russia-bot
 		Location: 58,16
-
+	# mpspawn actors are required even with non-playable combatants:
+	# MapStartingLocations.AssignSpawnPoint iterates them for any client
+	# (including the local human in the Observer slot) and crashes if empty.
 	SpawnUSA: mpspawn
 		Owner: Neutral
 		Location: 6,16
 	SpawnRussia: mpspawn
 		Owner: Neutral
 		Location: 58,16
-
-	# Neutral income capturables in the contested middle. Symmetric placement
-	# so neither bot has positional advantage.
-	NeutralBio: bio
-		Owner: Neutral
-		Location: 32,10
-	NeutralFcom: fcom
-		Owner: Neutral
-		Location: 32,22
-	NeutralOilb1: oilb
-		Owner: Neutral
-		Location: 22,16
-	NeutralOilb2: oilb
-		Owner: Neutral
-		Location: 42,16
 
 Rules: rules.yaml

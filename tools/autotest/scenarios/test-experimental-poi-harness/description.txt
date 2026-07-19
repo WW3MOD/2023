@@ -1,0 +1,1 @@
+experimental POI harness: pre-placed bot force + neutral capturables at varying distance. Asserts the experimental bot captures the nearest derrick (no order-thrash) and emits [experimental-poi]/[experimental-capture] logs for live observation.

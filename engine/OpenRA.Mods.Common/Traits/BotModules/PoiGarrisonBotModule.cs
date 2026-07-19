@@ -1,8 +1,8 @@
 #region Copyright & License Information
 /*
- * WW3MOD PoiGarrisonBotModule — v2 AI, POI-strategy Phase 4 (hold captured money).
+ * WW3MOD PoiGarrisonBotModule — experimental AI, POI-strategy Phase 4 (hold captured money).
  *
- * Closes the capture loop: once the v2 AI OWNS a money POI (oil derrick, expansion
+ * Closes the capture loop: once the experimental AI OWNS a money POI (oil derrick, expansion
  * post, reactor) it must HOLD it, not leave it for a ninja-recapture. This module
  * reads PoiMap's DEFENSIVE ranking (own money POIs scored value x distance x
  * DEFENCE-urgency, where enemy pressure RAISES the score) and parks a SMALL
@@ -32,7 +32,7 @@
  * a future v3 brain; only the assignment plumbing (this IBotTick module) is
  * engine-specific. Constants are Info fields so behaviour is YAML-tunable.
  *
- * Gated enable-ai-v2 in ai.yaml — Normal / Rush / Turtle never instantiate it.
+ * Gated enable-ai-experimental in ai.yaml — Normal / Rush / Turtle never instantiate it.
  */
 #endregion
 
@@ -44,11 +44,11 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.Player)]
-	[Desc("WW3MOD v2 AI: parks a small garrison (1-3 units, scaled by value + threat) on each",
+	[Desc("WW3MOD experimental AI: parks a small garrison (1-3 units, scaled by value + threat) on each",
 		"money POI the AI OWNS so captured income is held, not ninja-recaptured. Reads PoiMap's",
 		"defensive ranking; claims units through the shared PoiGoalGuard ledger so it never",
 		"fights the offense/capture modules over a unit. Deliberately small to not starve",
-		"offense. Gate enable-ai-v2.")]
+		"offense. Gate enable-ai-experimental.")]
 	public class PoiGarrisonBotModuleInfo : ConditionalTraitInfo
 	{
 		[Desc("Ticks between garrison re-evaluations. Slow cadence + the per-unit commitment TTL",
@@ -177,7 +177,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (targets.Count == 0)
 			{
 				RetireAll("no-held-pois");
-				Log.Write("debug", $"[v2-garrison] reeval player={player.PlayerName} held=0 garrisons=0 tick={tick}");
+				Log.Write("debug", $"[exp-garrison] reeval player={player.PlayerName} held=0 garrisons=0 tick={tick}");
 				return;
 			}
 
@@ -280,10 +280,10 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			Log.Write("debug",
-				$"[v2-garrison] reeval player={player.PlayerName} held={targets.Count} pool={pool} free={free.Count} garrisons={garrisons.Count} tick={tick}");
+				$"[exp-garrison] reeval player={player.PlayerName} held={targets.Count} pool={pool} free={free.Count} garrisons={garrisons.Count} tick={tick}");
 			foreach (var g in garrisons)
 				Log.Write("debug",
-					$"[v2-garrison] garrison player={player.PlayerName} poi={g.PoiName}@{g.PoiCell} value={g.Value} score={g.Score} units={g.Units.Count} tick={tick}");
+					$"[exp-garrison] garrison player={player.PlayerName} poi={g.PoiName}@{g.PoiCell} value={g.Value} score={g.Score} units={g.Units.Count} tick={tick}");
 		}
 
 		static int TargetThreat(List<ScoredPoi> targets, uint poiId)
@@ -364,8 +364,8 @@ namespace OpenRA.Mods.Common.Traits
 			g.HasOrdered = true;
 
 			Log.Write("debug",
-				$"[v2-garrison] order player={player.PlayerName} poi={g.PoiName}@{g.PoiCell} units={units.Length} tick={tick}");
-			AIUtils.BotDebug("AI ({0}): v2-garrison — hold {1}@{2} ({3} units, score={4})",
+				$"[exp-garrison] order player={player.PlayerName} poi={g.PoiName}@{g.PoiCell} units={units.Length} tick={tick}");
+			AIUtils.BotDebug("AI ({0}): exp-garrison — hold {1}@{2} ({3} units, score={4})",
 				player.ClientIndex, g.PoiName, g.PoiCell, units.Length, g.Score);
 		}
 
@@ -379,7 +379,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (freed.Count > 0)
 				Log.Write("debug",
-					$"[v2-garrison] retire player={player.PlayerName} poi={g.PoiName} freed={freed.Count} reason={reason} tick={world.WorldTick}");
+					$"[exp-garrison] retire player={player.PlayerName} poi={g.PoiName} freed={freed.Count} reason={reason} tick={world.WorldTick}");
 			return freed;
 		}
 

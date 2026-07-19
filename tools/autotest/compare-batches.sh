@@ -3,7 +3,7 @@
 #
 # Use cases:
 #   1. A/B testing AI changes: run normal-vs-normal as baseline, run
-#      v2-vs-normal as candidate, compare to detect winrate shifts.
+#      experimental-vs-normal as candidate, compare to detect winrate shifts.
 #   2. Mirror-paired bias diagnosis: run primary scenario, run mirror
 #      scenario (factions swapped), compare to attribute bias to
 #      faction vs position.

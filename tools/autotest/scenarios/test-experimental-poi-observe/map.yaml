@@ -1,0 +1,96 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: experimental capture coordinator vs Normal AI
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# DEMO scenario — watch experimental (left, USA-bot=america) race against the legacy
+# Normal AI (right, Russia-bot=russia) to capture 4 neutral income
+# structures placed across the middle of the map. experimental should:
+#   1. Prioritize BIO (150 $/tick) and FCOM (100 $/tick) over OILB (50 $/tick),
+#      not just by sell-value but income-weighted.
+#   2. Send 2 escort infantry along with each engineer dispatch.
+#   3. If an enemy moves into one of experimental's captured structures, summon idle
+#      friendlies to defend.
+#
+# The Normal AI keeps using the legacy CaptureManagerBotModule — sends
+# engineers alone, picks targets by sell-value.
+#
+# User takes the Observer slot (spectator). Bots play automatically.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot (experimental)
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot (Normal)
+		LockFaction: True
+		Faction: russia
+		Bot: normal
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+
+	# Spawn anchors — needed even with non-playable combatants (see
+	# tournament-arena-skirmish-2p notes).
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+	# Neutral income structures — 4 capturables placed in the contested
+	# middle band. Names mirror income value rank so the user can read
+	# experimental's priority ordering: BIO (150 $/tick) > FCOM (100 $/tick) > OILB (50 $/tick).
+	#
+	# OILB1 is closer to USA-bot side; OILB2 closer to Russia. Both bots
+	# should claim the nearest OILB; the BIO/FCOM in the middle is where
+	# their priorities visibly differ.
+	NeutralBio: bio
+		Owner: Neutral
+		Location: 32,10
+	NeutralFcom: fcom
+		Owner: Neutral
+		Location: 32,22
+	NeutralOilb1: oilb
+		Owner: Neutral
+		Location: 22,16
+	NeutralOilb2: oilb
+		Owner: Neutral
+		Location: 42,16
+
+Rules: rules.yaml
