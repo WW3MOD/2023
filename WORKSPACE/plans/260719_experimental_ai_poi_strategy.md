@@ -414,6 +414,60 @@ instrumentation. Did **not** spend a second run chasing a longer window
 - **Ships:** the death-ball becomes multi-axis. This is the behaviour the user
   asked for in part 2.
 
+#### Phase 2 FINDINGS (2026-07-19) — PoiMap shipped; capture-steal root-caused + fixed
+
+**Delivered this session (Path A):**
+- **PoiMap** (`Traits/World/PoiMap.cs`, ~330 LOC incl. pure `PoiScoring`): discovers
+  income capturables + neutral/enemy SRs, scores per-player by value×distance×threat
+  (threat sampled from `InfluenceMap`). Pure scoring separated (v3-portable, like
+  `GoalGuardLedger`). Exposes `GetScoredPois` / `GetCaptureTargets` with a per-POI
+  `PoiAction`+score so Phase 3 axis assignment consumes it without rework.
+- `CaptureCoordinatorBotModule` now takes capture-target ORDERING from PoiMap
+  (legacy scan kept as fallback). Live-verified: `targets=6, top=bio score=…`,
+  order issued off PoiMap score, correct value-weighting (BIO $150 > near OILB $50).
+- **Observation harness** (`test-v2-poi-harness`) + **capture assertion**
+  (`test-v2-poi-capture`, PASS) + 14 NUnit `PoiScoring` cases (suite 243 green).
+
+**MAJOR finding #1 — corrects the Phase 0 death-ball diagnosis.** Phase 0
+concluded "v2 has no offensive brain." **That was wrong.** `SquadManagerBotModule`
+is *not* air-only — `FindNewUnits` recruits EVERY `IPositionable` unit not in
+`ExcludeFromSquadsTypes` and files non-air/non-naval ones into GROUND attack
+squads. The `@{fac}.fixedwing` SquadManagers run for v2 (`enable-ai-any`) with an
+EMPTY exclude list, so **they ARE v2's ground offensive brain** — they form ground
+squads from the whole pool and attack-move them at the enemy. The death-ball is
+this SquadManager, not an absence of one.
+- **Implication for Phase 3 (offense):** `PoiOffensiveBotModule` does NOT slot into
+  a vacuum — it must COMPETE WITH or REPLACE the fixed-wing SquadManager's ground
+  behaviour. Options: (a) broaden the v2 SquadManager's `ExcludeFromSquadsTypes` to
+  hand the ground pool to a PoiMap-scored axis module, or (b) drive the ground
+  SquadManager's targets from PoiMap. Decide before building the offense module.
+
+**MAJOR finding #2 — v2 capture NEVER completed (now fixed).** The harness exposed
+that a committed TECN's `CaptureActor` was consistently replaced by the fixed-wing
+SquadManager's ground-squad AttackMove — the TECN marched at the enemy *past* the
+target and never captured, even close/safe/uncontested. The goal-guard is
+INTRA-module (stops CaptureCoordinator re-thrash) but did not stop this INTER-module
+steal — exactly the unit-claim gap §5.6 flags. **Fix (v2-only):** re-gated the
+fixed-wing SquadManagers to `enable-ai-legacy-only` + added `enable-ai-v2` variants
+that exclude the capturer + non-combat support (`tecn/e6/truk`). Capture now runs
+to completion (verified: close derrick captured ~20s, `activity=CaptureActor`,
+`commitN=1`). Normal/Rush/Turtle byte-identical.
+- **Implication for Phase 3:** a *general* unit-claim mechanism is still wanted —
+  `ExcludeFromSquadsTypes` is a blunt per-type exclusion; offense/capture/defense
+  contention over the same *general* units (not just TECNs) needs the goal-guard
+  (or `BotBlackboard`) consulted by every module, per §5.6.
+
+**Finding #3 — the SR is NOT capturable today.** `SUPPLYROUTE` has no
+`CaptureManager`/`Capturable` (contradicts §3.3's "yes (engineer chain)"). PoiMap
+still DISCOVERS + SCORES neutral/enemy SRs as deny/pressure POIs (the capture
+consumer harmlessly skips a non-capturable target), so Phase 3's SR *pressure*
+objective is ready. But decision #2's "capture → neutralize → hold" needs a
+`CaptureManager` added to `SUPPLYROUTE` first — a game-model change (own the
+Neutral-on-capture semantics) to schedule before Phase 3 SR work.
+
+**Note — TECN limit 3:** not observed as a bottleneck now that capture completes
+reliably; left as-is (⚠️ revisit if Phase 3 wants more concurrent captures).
+
 ### Phase 3 — Defend held POIs (medium)
 - **Do:** promote every owned POI to a garrison target with a minimum garrison
   sized by POI value; reuse + tighten `CaptureCoordinator`'s defense pass;
