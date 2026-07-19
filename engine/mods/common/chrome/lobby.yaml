@@ -395,85 +395,87 @@ Background@SERVER_LOBBY:
 					Background: lobby-textfield
 		# === Bottom CTA banner (Phase 1 — see mods/ww3mod/chrome/_lobby-palette.yaml)
 		# bg-banner fill (#1c1c1c) + bevel-dark top edge (#030303). Behind START_GAME.
+		# 72px deep so the 44px Start button breathes 14px above/below (user
+		# feedback: 8px in a 60px bar still read as "touching the bottom").
 		ColorBlock@CTA_BANNER_BEVEL:
 			X: 0
-			Y: PARENT_HEIGHT - 61
+			Y: PARENT_HEIGHT - 73
 			Width: PARENT_WIDTH
 			Height: 1
 			Color: 030303FF
 		ColorBlock@CTA_BANNER_FILL:
 			X: 0
-			Y: PARENT_HEIGHT - 60
+			Y: PARENT_HEIGHT - 72
 			Width: PARENT_WIDTH
-			Height: 60
+			Height: 72
 			Color: 1C1C1CFF
 		# === WW3MOD — CTA stats strip: live SLOTS / BOTS / SPECTATORS counts on
 		# the quiet left side of the banner. Text filled by LobbyLogic; labels
-		# span the full 60px bar height so VAlign: Middle centers them.
+		# span the full 72px bar height so VAlign: Middle centers them.
 		# Pitch tuned for visually even ~44px gaps between the end of one
 		# TinyBold text and the next label (was 150px pitch — ragged 90/105).
 		Label@STATS_SLOTS:
 			X: 24
-			Y: PARENT_HEIGHT - 60
+			Y: PARENT_HEIGHT - 72
 			Width: 100
-			Height: 60
+			Height: 72
 			Font: TinyBold
 			TextColor: 686868
 		Label@STATS_BOTS:
 			X: 132
-			Y: PARENT_HEIGHT - 60
+			Y: PARENT_HEIGHT - 72
 			Width: 80
-			Height: 60
+			Height: 72
 			Font: TinyBold
 			TextColor: 686868
 		Label@STATS_SPECTATORS:
 			X: 220
-			Y: PARENT_HEIGHT - 60
+			Y: PARENT_HEIGHT - 72
 			Width: 160
-			Height: 60
+			Height: 72
 			Font: TinyBold
 			TextColor: 686868
 		# === WW3MOD — Start Game compact + right-aligned (was full-width).
 		# 400px wide button hugging the right edge (24px margin), so the
 		# CTA banner's left side reads as a quiet bar rather than a giant
-		# green wall. Vertically centered in the 60px banner: 8px above the
-		# frame (banner top PH-60), 8px below (frame bottom edge PH-8).
+		# green wall. Vertically centered in the 72px banner: 14px above the
+		# frame (banner top PH-72), 14px below (frame bottom edge PH-14).
 		# Three layers: bevel-light top+left (#98E0B4), green fill (#6EC890),
 		# bevel-dark bottom+right (#2A623A). Button itself has
 		# Background: "" so the layered chrome paints through.
 		ColorBlock@START_BEVEL_LIGHT_TOP:
 			X: PARENT_WIDTH - 424
-			Y: PARENT_HEIGHT - 52
+			Y: PARENT_HEIGHT - 58
 			Width: 400
 			Height: 1
 			Color: 98E0B4FF
 		ColorBlock@START_BEVEL_LIGHT_LEFT:
 			X: PARENT_WIDTH - 424
-			Y: PARENT_HEIGHT - 52
+			Y: PARENT_HEIGHT - 58
 			Width: 1
 			Height: 44
 			Color: 98E0B4FF
 		ColorBlock@START_FILL:
 			X: PARENT_WIDTH - 423
-			Y: PARENT_HEIGHT - 51
+			Y: PARENT_HEIGHT - 57
 			Width: 398
 			Height: 42
 			Color: 6EC890FF
 		ColorBlock@START_BEVEL_DARK_RIGHT:
 			X: PARENT_WIDTH - 25
-			Y: PARENT_HEIGHT - 52
+			Y: PARENT_HEIGHT - 58
 			Width: 1
 			Height: 44
 			Color: 2A623AFF
 		ColorBlock@START_BEVEL_DARK_BOTTOM:
 			X: PARENT_WIDTH - 424
-			Y: PARENT_HEIGHT - 9
+			Y: PARENT_HEIGHT - 15
 			Width: 400
 			Height: 1
 			Color: 2A623AFF
 		Button@START_GAME_BUTTON:
 			X: PARENT_WIDTH - 424
-			Y: PARENT_HEIGHT - 52
+			Y: PARENT_HEIGHT - 58
 			Width: 400
 			Height: 44
 			Text: button-server-lobby-start-game
