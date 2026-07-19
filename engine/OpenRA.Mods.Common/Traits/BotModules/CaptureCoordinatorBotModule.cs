@@ -173,6 +173,15 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var k in staleKeys)
 				defenderBookings.Remove(k);
 
+			// Resolve the shared goal-guard ledger up-front so BOTH the defense and
+			// capture passes honour the §5.6 unit-claim: escort/defender recruitment
+			// must not grab a unit the offense module has already committed to an axis.
+			if (!goalGuardResolved)
+			{
+				goalGuard = player.PlayerActor.TraitOrDefault<PoiGoalGuard>();
+				goalGuardResolved = true;
+			}
+
 			if (--captureScanCountdown <= 0)
 			{
 				captureScanCountdown = Info.ScanInterval;
@@ -210,12 +219,7 @@ namespace OpenRA.Mods.Common.Traits
 					$"[v2-capture] pre-scan player={player.PlayerName} actor={a.Info.Name}@{a.Location} idle={a.IsIdle} activity={activity} committed={committed} commitN={commitN} tick={world.WorldTick}");
 			}
 
-			if (!goalGuardResolved)
-			{
-				goalGuard = player.PlayerActor.TraitOrDefault<PoiGoalGuard>();
-				goalGuardResolved = true;
-			}
-
+			// goalGuard resolved in BotTick (shared with the defense pass).
 			var useGuard = goalGuard != null && !goalGuard.IsTraitDisabled;
 			if (useGuard)
 				ReconcileGuardCommitments();
@@ -572,6 +576,9 @@ namespace OpenRA.Mods.Common.Traits
 					&& !defenderBookings.ContainsKey(a)
 					&& (exclude == null || !exclude.Contains(a))
 					&& !Info.CapturingActorTypes.Contains(a.Info.Name)
+					// Shared unit-claim (§5.6): never poach a unit the offense module
+					// (or any module) has committed in the goal-guard ledger.
+					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, world.WorldTick))
 					&& a.Info.HasTraitInfo<IPositionableInfo>()
 					&& a.Info.HasTraitInfo<AttackBaseInfo>());
 

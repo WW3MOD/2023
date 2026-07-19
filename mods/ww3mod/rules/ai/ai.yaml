@@ -138,6 +138,28 @@ Player:
 		DefenseSummonCount: 3
 		DefenseEnemyValueThreshold: 200
 
+	# v2 AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
+	# ground army across the top enemy objectives ranked by PoiMap
+	# (enemy income = Attack, enemy Supply Route = Pressure; the enemy base
+	# competes on the same score — decision #3, no privileged base-beeline).
+	# Replaces the fixed-wing SquadManager's ground death-ball: those v2 managers
+	# set IgnoreGroundUnits so this module owns the ground pool. Unit contention
+	# with capture/defense is resolved through the shared PoiGoalGuard ledger.
+	# Constants are tunable here without a rebuild; early passive games accepted.
+	PoiOffensiveBotModule@v2:
+		RequiresCondition: enable-ai-v2
+		ReevaluateInterval: 100
+		UnitsPerAxis: 8
+		MinAxisSize: 3
+		MaxAxes: 4
+		AxisCommitmentTicks: 250
+		ReassignScoreThresholdPct: 30
+		RepathThresholdCells: 3
+		# Capturer + non-combat support (owned by CaptureCoordinator / SupplyFollower)
+		# and IFV carriers (owned by MountedTransport). Both factions' type names are
+		# listed; a name the faction lacks is simply never matched.
+		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
+
 	# NOTE: No engineer (^E6) capture module wired anywhere — engineers
 	# don't capture in WW3MOD by design. The Captures trait sits on
 	# Technician (^TECN) only. See DOCS/gameplay/capturing.md.
@@ -424,6 +446,10 @@ Player:
 		AttackScanRadius: 48
 		AirUnitsTypes: MIG, FROG
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+		# Phase 3: hand the ground pool to PoiOffensiveBotModule@v2 — this manager
+		# keeps only its air squads (MIG/FROG). ExcludeFromSquadsTypes is now
+		# belt-and-suspenders; IgnoreGroundUnits is the real hand-off.
+		IgnoreGroundUnits: true
 		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
 
 	# ===== Helicopters — Russia =====
@@ -480,6 +506,10 @@ Player:
 		AttackScanRadius: 48
 		AirUnitsTypes: A10, F16
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+		# Phase 3: hand the ground pool to PoiOffensiveBotModule@v2 — keeps only its
+		# air squads (A10/F16). IgnoreGroundUnits is the real hand-off; the exclude
+		# list is now belt-and-suspenders.
+		IgnoreGroundUnits: true
 		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
 
 	# ===== Helicopters — America =====

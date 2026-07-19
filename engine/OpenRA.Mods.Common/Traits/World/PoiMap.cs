@@ -48,9 +48,10 @@ namespace OpenRA.Mods.Common.Traits
 	public enum PoiAction
 	{
 		Capture,      // neutral/enemy income or utility structure — take it
-		DenyCapture,  // neutral/enemy Supply Route — capture-to-neutralize (deny)
+		DenyCapture,  // neutral Supply Route — capture-to-neutralize (deny), aspirational
 		Defend,       // a POI we already own — garrison target
-		Pressure,     // enemy Supply Route circle — park units to slow production (Phase 3)
+		Pressure,     // enemy Supply Route circle — park units to choke reinforcements (Phase 3)
+		Attack,       // enemy-owned income/utility — army objective (Phase 3)
 	}
 
 	public readonly struct ScoredPoi
@@ -232,6 +233,64 @@ namespace OpenRA.Mods.Common.Traits
 				.Where(p => p.Action == PoiAction.Capture || p.Action == PoiAction.DenyCapture)
 				.ToList();
 
+		/// <summary>OFFENSIVE targets for the general army (Phase 3), best first: every
+		/// ENEMY-owned POI projected as an army objective — enemy income/utility as
+		/// Attack, the enemy Supply Route as Pressure (its circle chokes reinforcements,
+		/// and the SR IS the enemy beachhead, so this is also "attack the enemy base").
+		/// Per decision #3 there is NO privileged base axis: the enemy SR competes on
+		/// score exactly like an enemy derrick. Scored value x distance x threat from
+		/// OUR SR (units walk in from the edge near it). PoiOffensiveBotModule consumes
+		/// this to allocate axes; the capture layer is unaffected.</summary>
+		public List<ScoredPoi> GetOffensiveTargets(Player perspective)
+		{
+			ResolveInfluence();
+
+			var ownSr = FindOwnSupplyRoute(perspective);
+			var enemyLayer = influenceMap?.GetEnemyInfluence(perspective);
+
+			var result = new List<ScoredPoi>(candidates.Count);
+			foreach (var actor in candidates)
+			{
+				if (actor.IsDead || !actor.IsInWorld || actor.Owner == null)
+					continue;
+
+				// Army objectives are enemy-owned only; neutral income is the capture
+				// layer's job and own POIs are Defend targets.
+				if (perspective.RelationshipWith(actor.Owner) != PlayerRelationship.Enemy)
+					continue;
+
+				var name = actor.Info.Name.ToLowerInvariant();
+				var isSupplyRoute = name == Info.SupplyRouteActorType;
+				var kind = isSupplyRoute ? PoiKind.SupplyRoute : PoiKind.IncomeStructure;
+				var action = isSupplyRoute ? PoiAction.Pressure : PoiAction.Attack;
+
+				var value = isSupplyRoute
+					? Info.SupplyRouteDenyValue
+					: (Info.IncomeWeights.TryGetValue(name, out var w) ? w : 0);
+				if (value <= 0)
+					continue;
+
+				var distCells = ownSr != null
+					? (actor.CenterPosition - ownSr.CenterPosition).Length / 1024
+					: 0;
+				var distFactor = PoiScoring.DistanceFactor(distCells, Info.DistanceHalfLifeCells);
+
+				var enemyInfluence = SampleThreat(actor, perspective, enemyLayer);
+				var threatFactor = PoiScoring.ThreatFactor(enemyInfluence, Info.ThreatMildThreshold,
+					Info.ThreatSafeMultiplier, Info.ThreatMildMultiplier, Info.ThreatHostileMultiplier);
+
+				var ownershipMul = PoiScoring.OwnershipMultiplier(kind, PlayerRelationship.Enemy,
+					Info.OwnershipNeutralIncomeMultiplier, Info.OwnershipEnemyIncomeMultiplier,
+					Info.OwnershipNeutralSupplyRouteMultiplier, Info.OwnershipEnemySupplyRouteMultiplier);
+
+				var score = PoiScoring.Score(value, distFactor, threatFactor, ownershipMul);
+				result.Add(new ScoredPoi(actor, kind, action, value, distCells, enemyInfluence, score));
+			}
+
+			result.Sort(CompareScoredPoi);
+			return result;
+		}
+
 		// Deterministic ordering: score desc, then nearer, then lower ActorID.
 		static int CompareScoredPoi(ScoredPoi a, ScoredPoi b)
 			=> PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
@@ -260,7 +319,12 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			else if (isSupplyRoute)
 			{
-				action = PoiAction.DenyCapture;
+				// An ENEMY Supply Route is an offensive PRESSURE target (park units in
+				// its contestation circle to choke reinforcements — decision #2, it is
+				// never a lane for us). A NEUTRAL SR stays a would-be DenyCapture/hold
+				// target. Either way the capture layer harmlessly skips it (no
+				// CaptureManager); the offense layer consumes it via GetOffensiveTargets.
+				action = rel == PlayerRelationship.Enemy ? PoiAction.Pressure : PoiAction.DenyCapture;
 			}
 			else
 			{
