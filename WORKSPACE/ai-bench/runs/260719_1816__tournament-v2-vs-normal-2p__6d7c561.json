@@ -1,0 +1,39 @@
+{
+  "cycle_ts": "2026-07-19T16:17:22Z",
+  "scenario": "tournament-v2-vs-normal-2p",
+  "rung": "river-zeta",
+  "sha": "6d7c561",
+  "hypothesis": "BOOTSTRAP: no AI change. Smoke-verify the Windows-native harness end-to-end in Mode B and record Scenario-1 baseline data point #1.",
+  "run_mode": "hidden",
+  "n_runs": 1,
+  "seeds": [1017],
+  "metric": "resources_earned",
+  "experimental_median": 0,
+  "control_median": 0,
+  "margin_required": 0.15,
+  "margin_observed": null,
+  "verdict": "hold",
+  "no_regression_checked": [],
+  "decision": "keep_iterating",
+  "raw_result_dir": "tools/autotest/tournament-results/260719_1816_tournament-v2-vs-normal-2p",
+  "verdict_json": "260719_1816__tournament-v2-vs-normal-2p__6d7c561.verdict.json",
+  "match_detail": {
+    "winner_name": "USA-bot",
+    "winner_bot": "v2",
+    "win_reason": "time_limit",
+    "duration_ticks": 7500,
+    "wall_clock_secs_approx": 58,
+    "players": {
+      "v2_USA": { "resources_earned": 0, "capture_income": 0, "score_total": 4200, "kills_cost": 3900, "deaths_cost": 4750, "units_killed": 7, "units_dead": 3 },
+      "normal_Russia": { "resources_earned": 0, "capture_income": 0, "score_total": 1100, "kills_cost": 1100, "deaths_cost": 6500, "units_killed": 5, "units_dead": 9 }
+    }
+  },
+  "windows_port_verification": {
+    "a_no_msys_double_conversion": "pass — engine received a clean single Windows path (result=C:\\Users\\...\\match_1.json), loaded mod ww3mod + map, ran to completion",
+    "b_resultpath_tournamentconfig_at_windows_paths": "pass — verdict JSON written at the cygpath-converted path; the 5-min/8x config (300s -> 7500 ticks) proves TournamentConfig was read at its converted path",
+    "c_process_image_dotnet_exe": "pass (by inference) — log 'Runtime: .NET CLR 8.0.27' + launch-game.sh selects dotnet launcher -> OS image is dotnet.exe; CIM kill-filter assumption holds. Not observed live (kill not needed).",
+    "d_watchdog_kill_live_match": "not exercised — match completed normally (~58s, well under the 150s watchdog); no hang to kill",
+    "e_settings_backup_restore_roundtrip": "pass — %APPDATA%\\OpenRA\\settings.yaml md5 identical before/after (b7e578bb2b901ec39ea2ad792a114ddf); Sound.Mute did not leak"
+  },
+  "notes": "N=1 bootstrap smoke; NOT a scored baseline (LADDER S1 wants N=10). Data point #1 for S1 control. FLAG: resources_earned is 0 for BOTH v2 and normal, and capture_income is 0 for both -> neither AI captured an income structure in 5 min, so the S1 metric is null-vs-null on this single match. resources_earned only accrues on income-structure capture in the SR budget model (no refineries), so S1 may be non-discriminating at 5 min unless capture reliably happens; candidate scenario-design item for the first hypothesis cycle (longer clock, capture-forcing map, or a fixed-target rescope per SPEC 6.3 / LADDER S1 rationale). Harness itself is fully green."
+}
