@@ -470,12 +470,19 @@ distilled cycle card, then they may be pruned.
 
 ### 8.2 The verdict JSON (what a match emits)
 
-`BotVsBotMatchWatcher.SerializeVerdict` (`BotVsBotMatchWatcher.cs:250-316`),
-`verdict_version: 2`. Per-player fields include `score_total`,
+`BotVsBotMatchWatcher.SerializeVerdict` (`BotVsBotMatchWatcher.cs`),
+`verdict_version: 4`. Per-player fields include `score_total`,
 `score_components{army_value, capture_income, kills_value}`, and a full `stats`
 block: `units_killed`, `units_dead`, `buildings_killed`, `buildings_dead`,
 `kills_cost`, `deaths_cost`, `army_value`, `assets_value`, `order_count`,
-`experience`, and **`resources_earned`** (`:308`).
+`experience`, **`resources_earned`** (net), and **`capture_income_gross`** (gross
+building income; the S1 metric, added v3).
+
+> **Scorer economy term (v4, 2026-07-20):** `score_components.capture_income` now
+> derives from the **gross** integral (`capture_income_gross`), not net
+> `resources_earned` — so the WinRule (which reads the scorer total) counts a held
+> derrick's income (LADDER §S1 follow-up 1a). No JSON field was added/removed; the
+> version bumped 3→4 to flag the changed *meaning* of the emitted `capture_income`.
 
 > **PITFALL (load-bearing for Scenario 1):** the cumulative-cash metric is
 > **`resources_earned`** ← `PlayerResources.Earned`. **Do NOT** use

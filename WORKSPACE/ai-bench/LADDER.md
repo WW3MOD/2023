@@ -26,7 +26,8 @@ vs control) lives in [`REVIEW.md`](REVIEW.md) §Ladder Status.
   and S3 (win-rate)** run on the combat stub `tournament-v2-vs-normal-2p`
   (66×34, no POIs — fine, those facets don't need capturables). Each has a
   faction-swapped mirror twin for bias control (SPEC §9.4). (S1's mirror,
-  `tournament-s1-eco-river-zeta-mirror`, is a required follow-up — not yet built.)
+  `tournament-s1-eco-river-zeta-mirror`, was **built 2026-07-20** — bot-assignment
+  swap, not faction swap, since S1's bias concern is derrick *distance* per spawn.)
 - Each rung holds **three scenarios**, each probing a different facet of "is the
   AI actually better": **economy**, **combat efficiency**, **decisiveness**.
 - A rung is **cleared** by the **composite gate** (§ below): one single commit
@@ -63,10 +64,10 @@ The even/odd index split still deterministically selects primary vs mirror
 
 | Field | Value |
 |---|---|
-| Scenario | `tournament-s1-eco-river-zeta` (**genuinely on River Zeta terrain** — 98×82, all 12 neutral OILB derricks), + mirror for bias (mirror not yet built) |
+| Scenario | `tournament-s1-eco-river-zeta` (**genuinely on River Zeta terrain** — 98×82, all 12 neutral OILB derricks), + `tournament-s1-eco-river-zeta-mirror` for bias (built 2026-07-20) |
 | Contestants | P1 Experimental (v2) vs P2 Normal (control) |
 | Match length | **5 minutes** — `TimeLimitSeconds: 300` (candidate bump to 420–600s pending — see finding below) |
-| **Metric** | **`capture_income_gross`** (cumulative GROSS building income, pre-upkeep, verdict `stats.capture_income_gross`, verdict_version 3 — integrated read-only from `PlayerResources.TotalBuildingIncome`, `GrossIncomeIntegrator`). `resources_earned` (net `PlayerResources.Earned`) stays in the verdict as **context only**, not the metric. |
+| **Metric** | **`capture_income_gross`** (cumulative GROSS building income, pre-upkeep, verdict `stats.capture_income_gross`, verdict_version 4 — integrated read-only from `PlayerResources.TotalBuildingIncome`, `GrossIncomeIntegrator`). `resources_earned` (net `PlayerResources.Earned`) stays in the verdict as **context only**, not the metric. As of verdict_version 4 the *scorer* economy term (`score_components.capture_income`, which feeds the WinRule) also reads this gross value (follow-up 1a). |
 | N runs | **10** (5-min matches are cheap: ~1–2 wall-min each hidden at 8×) |
 | Seeds | `1017, 2017, … 10017`; even = primary, odd = mirror (`--mirror`) |
 | Advancement | `median(v2 earned) ≥ median(Normal earned) × 1.15` (15% margin) |
@@ -115,20 +116,26 @@ The even/odd index split still deterministically selects primary vs mirror
 >    `BotVsBotMatchWatcher` now integrates `PlayerResources.TotalBuildingIncome` per tick
 >    into a read-only `GrossIncomeIntegrator` and emits `stats.capture_income_gross`
 >    (additive; `resources_earned` unchanged for context). S1 metric repointed above.
-> 1a. **WIN-RULE ECONOMY TERM — deserves loop-manager review (NOT changed here, by design):**
+> 1a. ~~**WIN-RULE ECONOMY TERM — deserves loop-manager review (NOT changed here, by design):**
 >    `WeightedComponentMatchScorer` still feeds its `capture_income` component (and thus
->    the `TimeOrSrCaptureWinRule` outcome for S2/S3) from **net** `PlayerResources.Earned`,
->    which is blind to a held derrick's gross income in this SR-budget economy (same defect
->    the S1 metric just fixed). Repointing that term at `capture_income_gross` would make the
->    economy axis actually count captured income in match *outcomes* — but it would **silently
->    redefine S2/S3 winners**, so it was left untouched. The loop manager should decide whether
->    the win-rule economy weight should move to gross, and re-baseline S2/S3 if so.
+>    the `TimeOrSrCaptureWinRule` outcome for S2/S3) from **net** `PlayerResources.Earned`.~~
+>    **RESOLVED (2026-07-20, user-approved) — verdict_version 3→4.** The scorer's
+>    `capture_income` component now reads the **GROSS** integral (`state.GrossCaptureIncomeFor`,
+>    the same value emitted as `capture_income_gross`) instead of net `Earned`, so the economy
+>    axis counts held-derrick income in match *outcomes* (this scorer feeds the win rule).
+>    Emitted JSON fields are unchanged (`capture_income_gross`, `resources_earned` both stay);
+>    `verdict_version` bumped 3→4 to flag the changed *meaning* of the emitted
+>    `score_components.capture_income`. Approved **now** precisely because S2/S3 have **no
+>    recorded baselines yet** — the redefinition is free (nothing to re-baseline). Extracted
+>    the weighting math to `WeightedComponentScoring` + `WeightedComponentScoringTest`
+>    (5 cases); NUnit 282→287, build green. See
+>    `runs/260720_0120__tournament-s1-eco-river-zeta__<sha>.json` and the mirror cycle card.
 > 2. **POI symmetry / calibration (after the metric can see income):** build
 >    `tournament-s1-eco-river-zeta-mirror` and gate S1 on a **Normal-vs-Normal batch
 >    landing ~even** on the new metric (SPEC §9.4) — otherwise an earned gap could be
 >    spawn-side derrick luck, not AI skill.
 
-> **PITFALL:** the S1 metric is **`capture_income_gross`** (verdict_version 3), NOT
+> **PITFALL:** the S1 metric is **`capture_income_gross`** (verdict_version 4), NOT
 > `resources_earned` and NOT `PlayerStatistics.Income`. `Income` is a rolling 60-second
 > figure and `resources_earned` (net `Earned`) is blind to held-derrick income (below) —
 > using either silently measures the wrong thing (SPEC §8.2).
@@ -267,7 +274,7 @@ scenarios stay live.
 | S1 Economy Race | `tools/autotest/scenarios/tournament-s1-eco-river-zeta/` | `tournament-eco-5min.yaml` (`TimeLimitSeconds: 300`, `SpeedMultiplier: 8`) |
 | S2 Force Efficiency | `tools/autotest/scenarios/tournament-experimental-vs-normal-2p/` | the committed `tournament.yaml` (`720s`) |
 | S3 Win-rate | `tools/autotest/scenarios/tournament-experimental-vs-normal-2p/` | the committed `tournament.yaml` (`720s`) |
-| S1 bias twin | `tools/autotest/scenarios/tournament-s1-eco-river-zeta-mirror/` | **not yet built** (required follow-up) |
+| S1 bias twin | `tools/autotest/scenarios/tournament-s1-eco-river-zeta-mirror/` | **BUILT (2026-07-20)** — byte-identical copy of the primary with the two bots' spawn assignments SWAPPED (Experimental on Russia/80,35, Normal on USA/14,45); uses the same `tournament-eco-5min.yaml`. Smoke-verified: boots + full 7500t hidden. |
 | S2/S3 bias twin | `tools/autotest/scenarios/tournament-experimental-vs-normal-mirror-2p/` | matching mirror configs |
 
 S1 now uses a **River-Zeta-derived** scenario (`tournament-s1-eco-river-zeta`):

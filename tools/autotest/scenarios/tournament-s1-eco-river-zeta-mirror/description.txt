@@ -1,0 +1,9 @@
+AI Benchmark Scenario 1 (Economy Race) — MIRROR twin of tournament-s1-eco-river-zeta.
+Byte-identical River Zeta WW3 terrain (98x82, all 12 neutral OILB oil-derrick income
+POIs) and config; the ONLY difference is the two bots' spawn assignments are SWAPPED.
+Metric: capture_income_gross (cumulative GROSS building income, verdict_version 4) over a
+5-minute clock (tournament-eco-5min.yaml, TimeLimitSeconds 300, SpeedMultiplier 8, Mode B
+hidden). In this mirror: Normal SR at USA/14,45; experimental SR at Russia/80,35 — each with
+an OILB ~3-4 cells away. Run this alongside the primary at equal N and average the metric to
+cancel spawn-side derrick-distance luck (SPEC 9.4) before trusting an experimental-vs-normal
+economy gap.

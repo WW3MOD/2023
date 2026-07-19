@@ -3,6 +3,37 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-20 — Tournament scenario bot assignment lives in `map.yaml` Players, NOT in `tournament.yaml` `Matchup`
+- Building the S1 mirror (`tournament-s1-eco-river-zeta-mirror`) required swapping
+  which bot plays which spawn. The `tournament-eco-5min.yaml` (and every scenario's
+  `tournament.yaml`) has a `Matchup: { P1Bot, P2Bot }` block that *looks* like the
+  assignment — but it is **informational only**: `TournamentConfig.LoadFromFile`
+  parses it into `config.Matchup` and **nothing in the engine ever reads that field**
+  (grep: the only references are the load site + the class def). The real assignment
+  is the `Bot:` key on each `PlayerReference@…` in `map.yaml` Players. So a mirror =
+  copy the folder, swap the two `Bot:` lines in `map.yaml`; leave `tournament.yaml`
+  byte-identical. (The existing combat-stub mirror swaps *factions* instead, because
+  S2/S3 control for faction bias; S1 controls for derrick *distance*, so it swaps the
+  bot on each fixed spawn.)
+
+## 2026-07-20 — Scorer `capture_income` term repointed net→gross; `verdict_version` 3→4 flags an emitted field's changed *meaning* (not a schema add)
+- `WeightedComponentMatchScorer.capture_income` (which feeds `TimeOrSrCaptureWinRule`,
+  i.e. match *outcomes*) previously read net `PlayerResources.Earned`. In the
+  SR-budget economy net Earned only rises on a net-positive periodic tick, so a held
+  $50 derrick whose gross income doesn't overcome upkeep contributed **0** — outcomes
+  were blind to captured income (the same defect the S1 metric fixed at v3). It now
+  reads the gross integral via `state.GrossCaptureIncomeFor(player)` (the same value
+  emitted as `capture_income_gross`), so the scorer reads `MatchTrackingState`, not
+  just player traits. **Non-obvious versioning rule applied:** no JSON field was
+  added or removed, but the *value/meaning* of an already-emitted field
+  (`score_components.capture_income`) changed, so `verdict_version` was bumped 3→4.
+  Bump on emitted-field-meaning change, not only on field add/remove — a downstream
+  parser keyed on `verdict_version` must know the economy column now means gross.
+- The weighting math was factored to a pure `WeightedComponentScoring.Compute` so it's
+  unit-testable without a World (same pattern as `PoiScoring`/`GoalGuardLedger`):
+  `WeightedComponentScoringTest` pins `capture_income == gross × weight`. This
+  supersedes the 2026-07-19 note below that the scorer "reads … `PlayerResources.Earned`".
+
 ## 2026-07-19 — Tournament matches are NOT reproducible per seed: the AI ignores the seed via unseeded `world.LocalRandom`
 - Verified empirically: two `BotVsBotMatchWatcher` runs of the SAME scenario
   (`tournament-arena-diagonal-2p`/`tournament-smoke.yaml`) with the SAME
