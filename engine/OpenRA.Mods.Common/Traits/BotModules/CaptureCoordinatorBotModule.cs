@@ -113,6 +113,14 @@ namespace OpenRA.Mods.Common.Traits
 		PoiGoalGuard goalGuard;
 		bool goalGuardResolved;
 
+		// POI-strategy Phase 2: when present, PoiMap supplies the capture-target
+		// ORDERING (value x distance x threat, scored from this player's SR),
+		// replacing this module's own per-target scan below. Resolved lazily on
+		// first tick (world trait). A missing PoiMap degrades to the legacy
+		// internal scoring path so the module still works standalone.
+		PoiMap poiMap;
+		bool poiMapResolved;
+
 		// LEGACY FALLBACK ONLY (guard not wired): capturers we've already issued
 		// orders to; cleaned when they become idle again. This is the thrash-prone
 		// path the guard exists to replace — kept so a missing PoiGoalGuard trait
@@ -229,6 +237,26 @@ namespace OpenRA.Mods.Common.Traits
 			if (idleCapturers.Length == 0)
 				return;
 
+			// Escorts already recruited THIS TICK (their AttackMove is queued but
+			// IsIdle is still true) — shared by both selection paths so a second
+			// capturer doesn't re-pick them.
+			var escortsRecruitedThisTick = new HashSet<Actor>();
+
+			// Preferred path: let PoiMap order the targets (value x distance x
+			// threat from our SR). Falls back to the legacy per-target scan below
+			// if the world has no PoiMap trait.
+			if (!poiMapResolved)
+			{
+				poiMap = world.WorldActor.TraitOrDefault<PoiMap>();
+				poiMapResolved = true;
+			}
+
+			if (poiMap != null)
+			{
+				QueueCaptureOrdersFromPoiMap(bot, idleCapturers, useGuard, escortsRecruitedThisTick);
+				return;
+			}
+
 			// Collect all targetable candidates across all eligible owners.
 			var candidates = new List<Actor>();
 			foreach (var otherPlayer in world.Players)
@@ -267,11 +295,6 @@ namespace OpenRA.Mods.Common.Traits
 			var availableCapturers = new List<TraitPair<CaptureManager>>(idleCapturers);
 			var alreadyTargetedThisTick = new HashSet<Actor>();
 
-			// Track escorts already recruited THIS TICK so a second capturer doesn't
-			// re-pick them (their AttackMove order is queued but hasn't applied yet,
-			// so IsIdle is still true for the rest of this tick).
-			var escortsRecruitedThisTick = new HashSet<Actor>();
-
 			while (availableCapturers.Count > 0)
 			{
 				var capturer = availableCapturers[0];
@@ -299,26 +322,78 @@ namespace OpenRA.Mods.Common.Traits
 				if (bestTarget == null)
 					break;
 
-				// Issue capture order. Record the commitment so the TECN is not
-				// re-ordered while it walks in — this is the anti-thrash gate.
-				bot.QueueOrder(new Order("CaptureActor", capturer.Actor, Target.FromActor(bestTarget), true));
-				if (useGuard)
-					goalGuard.Ledger.Commit(capturer.Actor, CaptureObjectiveKey(bestTarget), world.WorldTick, goalGuard.DefaultCommitmentTicks);
-				else
-					activeCapturers.Add(capturer.Actor);
+				IssueCaptureOrder(bot, capturer.Actor, bestTarget, useGuard, escortsRecruitedThisTick, bestScore);
 				alreadyTargetedThisTick.Add(bestTarget);
-
-				// Recruit escort — fire-and-forget; if no escort available, capture proceeds alone.
-				DispatchEscort(bot, capturer.Actor, bestTarget, escortsRecruitedThisTick);
-
-				Log.Write("debug",
-					$"[v2-capture] issue player={player.PlayerName} actor={capturer.Actor.Info.Name}@{capturer.Actor.Location} → {bestTarget.Info.Name}@{bestTarget.Location} score={bestScore} tick={world.WorldTick}");
-
-				AIUtils.BotDebug("AI ({0}): v2-capture — {1} → {2} (score={3})",
-					player.ClientIndex, capturer.Actor.Info.Name, bestTarget.Info.Name, bestScore);
-
 				availableCapturers.RemoveAt(0);
 			}
+		}
+
+		// PoiMap-ordered capture selection (Phase 2). PoiMap has already ranked the
+		// capture targets by value x distance x threat from our SR; we just walk
+		// that ranking and assign the NEAREST free, uncommitted, able capturer to
+		// each. This replaces the legacy per-target scan with a single strategic
+		// ordering shared across the v2 AI (and reused verbatim by Phase 3 offense).
+		void QueueCaptureOrdersFromPoiMap(IBot bot, TraitPair<CaptureManager>[] idleCapturers, bool useGuard, HashSet<Actor> escortsRecruitedThisTick)
+		{
+			var available = new List<TraitPair<CaptureManager>>(idleCapturers);
+
+			foreach (var poi in poiMap.GetCaptureTargets(player))
+			{
+				if (available.Count == 0)
+					break;
+
+				var target = poi.Actor;
+				if (target == null || target.IsDead || !target.IsInWorld)
+					continue;
+
+				// Respect the module's own targeting relationships (PoiMap already
+				// excludes our own POIs, but a captured-since-scan target may now be
+				// ours) — the CanTarget check below is the authoritative filter.
+				var cm = target.TraitOrDefault<CaptureManager>();
+				if (cm == null)
+					continue;
+
+				var bestIndex = -1;
+				var bestDistSq = long.MaxValue;
+				for (var i = 0; i < available.Count; i++)
+				{
+					if (!available[i].Trait.CanTarget(cm))
+						continue;
+
+					var distSq = (available[i].Actor.CenterPosition - target.CenterPosition).LengthSquared;
+					if (distSq < bestDistSq)
+					{
+						bestDistSq = distSq;
+						bestIndex = i;
+					}
+				}
+
+				if (bestIndex < 0)
+					continue;
+
+				IssueCaptureOrder(bot, available[bestIndex].Actor, target, useGuard, escortsRecruitedThisTick, poi.Score);
+				available.RemoveAt(bestIndex);
+			}
+		}
+
+		// Issue a capture order + record the commitment so the TECN is not
+		// re-ordered while it walks in (the anti-thrash gate), then recruit escort.
+		void IssueCaptureOrder(IBot bot, Actor capturer, Actor target, bool useGuard, HashSet<Actor> escortsRecruitedThisTick, long score)
+		{
+			bot.QueueOrder(new Order("CaptureActor", capturer, Target.FromActor(target), true));
+			if (useGuard)
+				goalGuard.Ledger.Commit(capturer, CaptureObjectiveKey(target), world.WorldTick, goalGuard.DefaultCommitmentTicks);
+			else
+				activeCapturers.Add(capturer);
+
+			// Recruit escort — fire-and-forget; if no escort available, capture proceeds alone.
+			DispatchEscort(bot, capturer, target, escortsRecruitedThisTick);
+
+			Log.Write("debug",
+				$"[v2-capture] issue player={player.PlayerName} actor={capturer.Info.Name}@{capturer.Location} → {target.Info.Name}@{target.Location} score={score} tick={world.WorldTick}");
+
+			AIUtils.BotDebug("AI ({0}): v2-capture — {1} → {2} (score={3})",
+				player.ClientIndex, capturer.Info.Name, target.Info.Name, score);
 		}
 
 		// Objective key stored in the goal-guard ledger. Namespaced string form

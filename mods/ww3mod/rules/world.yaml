@@ -285,6 +285,33 @@ World:
 	# Stage A.3: in-game debug overlay for the InfluenceMap frontline.
 	# Toggled via chat command "/frontline" — hotkey wiring is Stage A.4.
 	FrontlineOverlay:
+	# POI-strategy Phase 2: strategic point-of-interest layer. Discovers money
+	# capturables + neutral/enemy Supply Routes (deny targets) and scores them
+	# per-player by value x distance x threat (threat sampled from InfluenceMap
+	# above). Queried only by v2 AI modules (CaptureCoordinator target ordering;
+	# future offense) — Normal/Rush/Turtle never read it, so this trait's presence
+	# doesn't change their behaviour. Income weights mirror the CashTrickler
+	# amounts (OILB 50 / FCOM 100 / BIO 150) used by CaptureCoordinatorBotModule.
+	# See WORKSPACE/plans/260719_experimental_ai_poi_strategy.md.
+	PoiMap:
+		IncomeWeights:
+			oilb: 50
+			fcom: 100
+			bio: 150
+			miss: 10
+			hosp: 20
+			logisticscenter: 200
+		SupplyRouteDenyValue: 120
+		DistanceHalfLifeCells: 20
+		ThreatMildThreshold: 20
+		ThreatSafeMultiplier: 100
+		ThreatMildMultiplier: 40
+		ThreatHostileMultiplier: 10
+		OwnershipNeutralIncomeMultiplier: 100
+		OwnershipEnemyIncomeMultiplier: 70
+		OwnershipEnemySupplyRouteMultiplier: 100
+		OwnershipNeutralSupplyRouteMultiplier: 70
+		DiscoveryInterval: 50
 	ChatCommands:
 	DevCommands:
 	DebugVisualizationCommands:
