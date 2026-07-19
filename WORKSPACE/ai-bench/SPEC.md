@@ -131,12 +131,26 @@ modes; the loop is written so the mode is a **single switch** (which env/flag se
   (`Graphics.CapFramerate=true Graphics.MaxFramerate=5`, already wired
   `run-tournament.sh:224-226`) → **4–6× practical** wall-clock; a 12-min match
   ≈ ~2 wall-clock minutes windowed (findings Q2).
-- Windows portability: the `.sh` scripts branch only `Darwin`/`Linux`
-  (`run-tournament.sh:193-196`) and use `pkill`/`pgrep`/`osascript`. Run them
-  under **Git-Bash or WSL**. If a batch leaves orphan `dotnet` processes, the
-  Windows fallback is `taskkill` (the scripts' `pkill` lines are no-ops on native
-  Windows) — the manager must confirm no stray game process holds a result path
-  before the next match.
+- Windows portability: **the harness is Windows-native as of commit `4dec6a74`**
+  (run under **Git-Bash / MSYS**). That commit added additive Windows branches to
+  `run-tournament.sh`, `run-test.sh`, and `loop-tournament.sh` — macOS/Linux paths
+  are byte-for-byte unchanged; `aggregate-tournament.sh` needed no change. What it
+  covers: **cygpath POSIX→Windows conversion** for engine-bound args
+  (`Test.ResultPath` / `Test.TournamentConfig`), so the .NET process gets `C:\…`
+  not `/c/…`; a **PowerShell CIM process-kill** (`Get-CimInstance Win32_Process |
+  Stop-Process`, filtered to the `dotnet.exe`/`OpenRA*` image and the result-file
+  basename) replacing `pkill` on Windows; **`%APPDATA%\OpenRA` settings.yaml**
+  resolution (then `engine/Support`, then `Documents\OpenRA`) for the mute
+  backup/restore; and **CRLF hardening** of the awk config extractions.
+- **These 5 items are coded but await live confirmation** — the manager verifies
+  them during the bootstrap smoke run (§3.3) before trusting an unattended batch:
+  (1) MSYS passes the converted args through without re-mangling; (2) the engine
+  reads/writes `ResultPath` + `TournamentConfig` at the converted Windows paths;
+  (3) the kill-filter's `dotnet.exe` image-name assumption matches the actual game
+  process; (4) the watchdog actually terminates a *live* match (not just a
+  finished one); (5) the settings backup/restore round-trips (mute doesn't leak
+  into the user's config). None block Mode B (which doesn't need the window), but
+  all matter whenever Mode A is used as the fallback.
 
 ### Mode B — Hidden / unsupervised (ACTIVE — the default from bootstrap)
 
@@ -194,6 +208,19 @@ that, **stay in Mode B**.
   thing lost is single-match *debugging* replay (reproduce a specific outlier by
   its seed); that returns once the seeding fix lands. Nothing in the loop depends
   on it.
+
+### 3.3 Bootstrap smoke run (first thing on a fresh system)
+
+Before trusting any full batch, the first-ever manager runs a **1–2 match smoke
+run** to prove the whole pipeline end-to-end on this machine: build → launch →
+verdict written → aggregate → cycle card. It doubles as the live confirmation of
+the 5 Windows-portability items listed in Mode A above (converted-path arg
+passthrough, `ResultPath`/`TournamentConfig` read-write at Windows paths, the
+`dotnet.exe` kill-filter, watchdog kill of a *live* match, settings
+backup/restore round-trip). Run it in Mode B (hidden). Record the outcome as a
+`HARNESS` activity-log entry. If any of the 5 items fails, fix the harness (a
+`HARNESS`-category change, allowed §4.1) before starting the hypothesis loop —
+this is the only pre-loop gate that remains.
 
 ---
 

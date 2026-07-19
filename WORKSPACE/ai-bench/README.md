@@ -36,4 +36,5 @@ hypothesis-batch, SPEC §8.3). Bulky raw match data lives under
 Bootstrapped 2026-07-19 (docs only — no code, no runs yet). The hidden-window
 substrate is verified, so the loop runs **unsupervised (Mode B)** from the start
 — no user run window needed (SPEC §3). First action: process the REVIEW Inbox,
-create the worktree, and baseline Scenario 1.
+create the worktree, do the §3.3 bootstrap smoke run (proves the pipeline + the
+Windows-portability items), then baseline Scenario 1.

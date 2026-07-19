@@ -16,7 +16,7 @@ cycle and treats the Inbox as outranking its own backlog.
 | **Active rung** | River Zeta WW3 (Scenarios 1–3, [`LADDER.md`](LADDER.md)) — **not yet cleared** |
 | **Run mode** | **Mode B (hidden / unsupervised) — ACTIVE.** `OPENRA_WINDOW_HIDDEN=1` verified (no window, no focus steal, verdict written, sim/render decoupled). Unlimited unattended runs. Mode A (windowed) is the fallback only if the decoupling regresses (SPEC §3.1) |
 | **Last cycle** | — (none yet; system just bootstrapped) |
-| **Headline** | Spec authored; hidden-window substrate verified so the loop can run unsupervised now. First action: create the worktree + baseline Scenario 1. |
+| **Headline** | Spec authored; hidden-window + Windows-native harness in place so the loop can run unsupervised now. First action: create the worktree, run the §3.3 bootstrap smoke run, then baseline Scenario 1. |
 
 ---
 
@@ -43,6 +43,7 @@ New entries go **above** the review cursor. **You move the cursor** up when
 you've read the new lines (the manager never moves it).
 
 ```
+2026-07-19 | (pending) | HARNESS | Harness is Windows-native as of 4dec6a74 (cygpath arg conversion, PowerShell CIM process-kill, %APPDATA%\OpenRA settings resolution, CRLF hardening). SPEC §3 updated; 5 portability items flagged for confirmation in the §3.3 bootstrap smoke run.
 2026-07-19 | (pending) | HARNESS | Amendment: hidden-window substrate RESOLVED. OPENRA_WINDOW_HIDDEN=1 landed+verified (d716eade/fda8370c) -> Mode B active from bootstrap (unlimited unsupervised runs); Mode A now fallback-only. Replaced the impossible same-seed identity gate (per-seed replay is broken: bots use unseeded LocalRandom) with the structural sim/render-decoupling guarantee; seeds are run labels, N-run stats unaffected. Updated SPEC §3 + LADDER seeds wording.
 2026-07-19 | 06afb643 | NOTE | System bootstrapped: SPEC/LADDER/REVIEW/README authored under WORKSPACE/ai-bench/. Loop not yet started.
 ```
