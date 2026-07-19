@@ -117,13 +117,14 @@ Player:
 		CheckCaptureTargetsForVisibility: false
 		ScanInterval: 75
 		MaximumCaptureTargetOptions: 12
+		# PITFALL: only list structures that actually have CashTrickler — a $0
+		# building here outbids real income POIs and wastes the capturer.
 		IncomeWeights:
 			oilb: 50
 			fcom: 100
 			bio: 150
 			miss: 10
 			hosp: 20
-			logisticscenter: 200
 		DefaultIncomeWeight: 10
 		DistanceHalfLifeCells: 20
 		SafetyEnemyScanRadiusCells: 6

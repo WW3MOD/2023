@@ -294,13 +294,14 @@ World:
 	# amounts (OILB 50 / FCOM 100 / BIO 150) used by CaptureCoordinatorBotModule.
 	# See WORKSPACE/plans/260719_experimental_ai_poi_strategy.md.
 	PoiMap:
+		# PITFALL: only list structures that actually have CashTrickler — a $0
+		# building here outbids real income POIs and wastes the capturer.
 		IncomeWeights:
 			oilb: 50
 			fcom: 100
 			bio: 150
 			miss: 10
 			hosp: 20
-			logisticscenter: 200
 		SupplyRouteDenyValue: 120
 		DistanceHalfLifeCells: 20
 		ThreatMildThreshold: 20
