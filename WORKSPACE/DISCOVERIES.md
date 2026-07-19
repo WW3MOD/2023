@@ -50,6 +50,47 @@
 - **Gap to match the stated design:** add `CaptureManager` + a `Capturable` to SUPPLYROUTE. Note two subtleties: (1) neutral-SR capture needs `Types: building-neutral`; enemy-SR needs `building-occupied`. (2) **Standard `Captures`/`Capturable` transfers to the CAPTURER, not to Neutral** — so the "capturer can never use it, it just goes Neutral" design cannot be done with vanilla capture traits alone; it needs a custom on-capture hook (or `OwnerLostAction`-style flip triggered by capture). The commented-out `CaptureNotification` at structures.yaml:216-217 is unrelated and wires nothing.
 - No live test was needed — the YAML+C# reading is unambiguous (no Capturable anywhere on the actor). A run could only confirm the negative.
 
+## 2026-07-20 — PoiMap enemy-SR score: three factors conspire to keep it last in offensive ranking
+
+Computed from `PoiMap.GetOffensiveTargets` (PoiMap.cs:279) + world.yaml PoiMap block (line 296):
+
+**Enemy SR score formula:** `value × distFactor × threatFactor × ownershipMul × bias/100`
+- `SupplyRouteDenyValue = 120` (world.yaml:305)
+- `distFactor = 20×100/(20+dist)` → on River Zeta (spawn-to-spawn ~95 cells): **17**
+- `threatFactor` → enemy SR always has enemy troops nearby → mild=40 or hostile=10
+- `OffensiveEnemyAttackBias = 80` (shared with enemy income buildings, below 100)
+
+River Zeta concrete numbers (P1 SR at (15,6), P2 SR at (80,76)):
+- Enemy SR, mild threat: 120×17×40×100×80/100 = **6.5M**
+- Enemy SR, hostile: 120×17×10×100×80/100 = **1.6M**
+- Nearest neutral oilb (dist 3, safe): 50×87×100×100×150/100 = **65M**
+- Mid-distance neutral oilb (dist 46, safe): 50×30×100×100×150/100 = **22.5M**
+
+**The enemy SR never enters any axis with the current config.** With MaxAxes=4 and a
+32-unit army, the top-4 offensive targets are always neutral oilbs. The SR would only
+rank in the top-4 after all neutral oilbs are captured — at which point the game is
+almost certainly decided.
+
+**Root cause — three structural factors, not a single tuning miss:**
+1. **Distance:** the SR is always at max distance (enemy spawn edge). At 95 cells,
+   distFactor=17 gives 17% of a local-POI score. Half-life of 20 cells was designed for
+   income (closer = less travel time) but the SR position is fixed.
+2. **ThreatFactor semantics are inverted for Pressure:** `ThreatFactor` hostile=10 was
+   designed to deter lone TECNs from risky captures — but it also deters the entire
+   army from SR pressure. For Pressure, enemy presence near the SR is an *opportunity*
+   (garrison is there to be contested), not a deterrent. The existing threat gate is
+   intentionally kept for Cycle 1 (it prevents suicide pushes at defended SRs) but the
+   semantics mismatch is a known design tension.
+3. **OffensiveEnemyAttackBias=80 conflates Pressure (SR) with Attack (enemy income):**
+   the below-100 bias was correct for "don't rush enemy income before securing own income"
+   but wrong for the SR, which is the highest-value strategic objective in the game model.
+
+**Fix direction (Cycle 1):** raise `SupplyRouteDenyValue: 120→250` + split off a dedicated
+`OffensiveSrPressureBias: 100` field from the shared OffensiveEnemyAttackBias=80. This
+raises mild-threat SR score to 17M (competitive in top-4 mid-game) while hostile threat
+(4.25M) still prevents suicide pushes. Pure YAML + ~6 lines C#. Full design note:
+`WORKSPACE/plans/260720_sr_contestation_cycle1.md`.
+
 ## 2026-07-19 — Bot skirmish maps produce no army without a scenario applied
 - Ran a bounded v2-vs-normal capture skirmish (`test-v2-poi-observe`, a bounded
   copy of `demo-v2-capture-coordinator`) for 55s to capture live AI logs. The v2
