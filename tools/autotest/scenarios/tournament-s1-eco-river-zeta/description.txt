@@ -1,0 +1,10 @@
+AI Benchmark Scenario 1 (Economy Race). v2 vs Normal on the canonical River Zeta
+WW3 terrain (98x82) with all 12 neutral OILB oil-derrick income POIs kept intact.
+Replaces the old tournament-v2-vs-normal-2p stub for S1, which had zero capturable
+income structures and so pinned resources_earned to 0/0 by construction (see
+WORKSPACE/ai-bench/runs/260719_s1_diagnosis.md). Metric: resources_earned
+(cumulative PlayerResources.Earned) over a 5-minute clock (tournament-eco-5min.yaml,
+TimeLimitSeconds 300, SpeedMultiplier 8, Mode B hidden). USA-bot/v2 SR at 14,45;
+Russia-bot/normal SR at 80,35 — each with an OILB ~3-4 cells away. Pair with a
+mirror twin for faction-bias control; POI symmetry vs the two SRs still needs a
+Normal-vs-Normal calibration batch before v2 numbers are trusted.
