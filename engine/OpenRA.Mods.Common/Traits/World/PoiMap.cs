@@ -52,6 +52,7 @@ namespace OpenRA.Mods.Common.Traits
 		Defend,       // a POI we already own — garrison target
 		Pressure,     // enemy Supply Route circle — park units to choke reinforcements (Phase 3)
 		Attack,       // enemy-owned income/utility — army objective (Phase 3)
+		Secure,       // neutral money POI — army screens/holds it (opening income priority, Phase 3)
 	}
 
 	public readonly struct ScoredPoi
@@ -130,6 +131,18 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Radius (cells) used by the FindActorsInCircle threat fallback when InfluenceMap is",
 			"unavailable — each nearby enemy contributes 10 influence.")]
 		public readonly int ThreatFallbackRadiusCells = 6;
+
+		[Desc("OFFENSIVE ranking bias (x100) for a SECURE axis — a neutral money POI the army",
+			"screens+holds. Above 100 so the opening defaults to spreading across income POIs",
+			"(closest/highest first) before pushing the enemy. Only affects GetOffensiveTargets;",
+			"the capture layer's own ordering is untouched.")]
+		public readonly int OffensiveIncomeSecureBias = 150;
+
+		[Desc("OFFENSIVE ranking bias (x100) for an ATTACK/PRESSURE axis — enemy income or the",
+			"enemy Supply Route. Below 100 so early enemy-base pushes don't outrank securing",
+			"income; once the money POIs are captured the enemy targets are all that remain and",
+			"offense takes over. Decision #3: the enemy base is not privileged, just biased.")]
+		public readonly int OffensiveEnemyAttackBias = 80;
 
 		[Desc("Ticks between POI discovery refreshes. Scoring is recomputed per query on the",
 			"cached candidate set, so this only bounds how often the actor scan runs.")]
@@ -237,10 +250,19 @@ namespace OpenRA.Mods.Common.Traits
 		/// ENEMY-owned POI projected as an army objective — enemy income/utility as
 		/// Attack, the enemy Supply Route as Pressure (its circle chokes reinforcements,
 		/// and the SR IS the enemy beachhead, so this is also "attack the enemy base").
-		/// Per decision #3 there is NO privileged base axis: the enemy SR competes on
-		/// score exactly like an enemy derrick. Scored value x distance x threat from
-		/// OUR SR (units walk in from the edge near it). PoiOffensiveBotModule consumes
-		/// this to allocate axes; the capture layer is unaffected.</summary>
+		/// Two axis kinds compete on ONE ranking:
+		///   * SECURE — neutral capturable money/utility POIs the army screens+holds so
+		///     income is taken and kept. Boosted by OffensiveIncomeSecureBias so the
+		///     OPENING defaults to spreading across the money POIs (closest/highest
+		///     first via value x distance) BEFORE pushing the enemy.
+		///   * ATTACK / PRESSURE — enemy-owned income (Attack) and the enemy Supply
+		///     Route (Pressure). Damped by OffensiveEnemyAttackBias so early enemy-base
+		///     pushes don't outrank securing income. Per decision #3 the enemy SR/base
+		///     is not privileged — it just competes on this same biased score.
+		/// As money POIs are captured they become own (dropped here → their Secure axis
+		/// retires) and the ranking naturally shifts toward the enemy: offense emerges
+		/// AFTER income is secured, no separate "opening mode". Scored value x distance x
+		/// threat from OUR SR. The capture layer (TECN) is unaffected.</summary>
 		public List<ScoredPoi> GetOffensiveTargets(Player perspective)
 		{
 			ResolveInfluence();
@@ -254,15 +276,38 @@ namespace OpenRA.Mods.Common.Traits
 				if (actor.IsDead || !actor.IsInWorld || actor.Owner == null)
 					continue;
 
-				// Army objectives are enemy-owned only; neutral income is the capture
-				// layer's job and own POIs are Defend targets.
-				if (perspective.RelationshipWith(actor.Owner) != PlayerRelationship.Enemy)
-					continue;
+				var rel = perspective.RelationshipWith(actor.Owner);
+				var enemy = rel == PlayerRelationship.Enemy;
+				var neutral = rel == PlayerRelationship.Neutral;
+				if (!enemy && !neutral)
+					continue; // own POIs are Defend targets, handled elsewhere
 
 				var name = actor.Info.Name.ToLowerInvariant();
 				var isSupplyRoute = name == Info.SupplyRouteActorType;
 				var kind = isSupplyRoute ? PoiKind.SupplyRoute : PoiKind.IncomeStructure;
-				var action = isSupplyRoute ? PoiAction.Pressure : PoiAction.Attack;
+
+				// SR is only an offensive POI when ENEMY-owned (Pressure). A neutral SR
+				// is not a reinforcement-cutting target — skip it here (capture layer's).
+				if (isSupplyRoute && !enemy)
+					continue;
+
+				PoiAction action;
+				int bias;
+				if (isSupplyRoute)
+				{
+					action = PoiAction.Pressure;   // enemy SR
+					bias = Info.OffensiveEnemyAttackBias;
+				}
+				else if (enemy)
+				{
+					action = PoiAction.Attack;      // enemy income/utility
+					bias = Info.OffensiveEnemyAttackBias;
+				}
+				else
+				{
+					action = PoiAction.Secure;      // neutral money — opening priority
+					bias = Info.OffensiveIncomeSecureBias;
+				}
 
 				var value = isSupplyRoute
 					? Info.SupplyRouteDenyValue
@@ -279,11 +324,12 @@ namespace OpenRA.Mods.Common.Traits
 				var threatFactor = PoiScoring.ThreatFactor(enemyInfluence, Info.ThreatMildThreshold,
 					Info.ThreatSafeMultiplier, Info.ThreatMildMultiplier, Info.ThreatHostileMultiplier);
 
-				var ownershipMul = PoiScoring.OwnershipMultiplier(kind, PlayerRelationship.Enemy,
+				var ownershipMul = PoiScoring.OwnershipMultiplier(kind, rel,
 					Info.OwnershipNeutralIncomeMultiplier, Info.OwnershipEnemyIncomeMultiplier,
 					Info.OwnershipNeutralSupplyRouteMultiplier, Info.OwnershipEnemySupplyRouteMultiplier);
 
-				var score = PoiScoring.Score(value, distFactor, threatFactor, ownershipMul);
+				var score = PoiScoring.ApplyBias(
+					PoiScoring.Score(value, distFactor, threatFactor, ownershipMul), bias);
 				result.Add(new ScoredPoi(actor, kind, action, value, distCells, enemyInfluence, score));
 			}
 
@@ -447,6 +493,12 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Combined POI score. Long keeps headroom on big maps.</summary>
 		public static long Score(int value, int distanceFactor, int threatFactor, int ownershipMul)
 			=> (long)value * distanceFactor * threatFactor * ownershipMul;
+
+		/// <summary>Apply an axis-role bias (x100) to a score: >100 boosts (secure income),
+		/// &lt;100 damps (early enemy attack). Pure so the opening-priority ordering is
+		/// unit-testable and v3-portable.</summary>
+		public static long ApplyBias(long score, int biasPct)
+			=> score * Math.Max(0, biasPct) / 100;
 
 		/// <summary>Deterministic POI ordering used for the scored list: higher score first,
 		/// then nearer, then lower id. Pure so the tie-break is unit-testable + v3-portable.</summary>

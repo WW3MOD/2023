@@ -139,6 +139,50 @@ namespace OpenRA.Test
 				"threat + distance decay should let a safe near derrick outscore a distant contested SR");
 		}
 
+		// ---------- ApplyBias + opening income-secure priority ----------
+
+		[Test]
+		public void ApplyBias_BoostsAndDamps()
+		{
+			Assert.That(PoiScoring.ApplyBias(1000, 150), Is.EqualTo(1500), "150% boosts");
+			Assert.That(PoiScoring.ApplyBias(1000, 80), Is.EqualTo(800), "80% damps");
+			Assert.That(PoiScoring.ApplyBias(1000, 100), Is.EqualTo(1000), "100% is identity");
+			Assert.That(PoiScoring.ApplyBias(1000, -5), Is.EqualTo(0), "negative bias clamps to 0");
+		}
+
+		[Test]
+		public void OpeningPriority_NeutralIncomeSecureOutranksDistantEnemyBase()
+		{
+			// The opening default: a mid-distance NEUTRAL derrick (Secure, income-biased
+			// 150%) must outrank a farther ENEMY Supply Route (Pressure, attack-damped 80%),
+			// so the army spreads to secure income before pushing the base (decision #3).
+			var neutralOilb = PoiScoring.ApplyBias(
+				PoiScoring.Score(50,
+					PoiScoring.DistanceFactor(16, 20),
+					PoiScoring.ThreatFactor(0, 20, 100, 40, 10),
+					PoiScoring.OwnershipMultiplier(PoiKind.IncomeStructure, PlayerRelationship.Neutral, 100, 70, 70, 100)),
+				150);
+
+			var enemySr = PoiScoring.ApplyBias(
+				PoiScoring.Score(120,
+					PoiScoring.DistanceFactor(52, 20),
+					PoiScoring.ThreatFactor(0, 20, 100, 40, 10),
+					PoiScoring.OwnershipMultiplier(PoiKind.SupplyRoute, PlayerRelationship.Enemy, 100, 70, 70, 100)),
+				80);
+
+			Assert.That(neutralOilb, Is.GreaterThan(enemySr),
+				"opening should secure a near neutral derrick before pushing the distant enemy base");
+		}
+
+		[Test]
+		public void OpeningPriority_ClosestNeutralIncomeRanksFirstAmongCapturables()
+		{
+			// Among equal-value neutral money POIs the CLOSEST wins (closest-first default).
+			var near = PoiScoring.ApplyBias(PoiScoring.Score(50, PoiScoring.DistanceFactor(10, 20), 100, 100), 150);
+			var far = PoiScoring.ApplyBias(PoiScoring.Score(50, PoiScoring.DistanceFactor(35, 20), 100, 100), 150);
+			Assert.That(near, Is.GreaterThan(far));
+		}
+
 		// ---------- CompareForOrder: deterministic tie-break ----------
 
 		[Test]

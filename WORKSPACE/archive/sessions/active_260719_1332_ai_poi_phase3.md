@@ -65,6 +65,29 @@ attack/pressure POIs only.
       fcom OUTSCORES the enemy SR, so the base/SR is not privileged — the derrick
       pulls the biggest axis. This is the "spread not death-ball" behaviour.
 
+## Mid-task steer (2026-07-19) — opening = secure income first
+User reframed the opening: most games should START by spreading out to capture ALL
+money POIs (closest/highest first, secure income); offensive pushes come after/
+alongside; SR wiring stays DEFERRED (SRs = ordinary scored pressure POIs, no
+special handling). Endgame "should I attack?" layer is backlogged (not mine).
+
+Fold-in (no separate opening mode — emerges from scoring):
+- GetOffensiveTargets now also emits NEUTRAL money POIs as `Secure` axes (army
+  screens+holds), plus the existing enemy `Attack`/`Pressure`. New PoiMap Info
+  fields `OffensiveIncomeSecureBias` (150) and `OffensiveEnemyAttackBias` (80)
+  bias the opening toward income; both YAML-tunable. Pure `PoiScoring.ApplyBias`.
+- As money POIs are captured they become own → drop from the set → their Secure
+  axis retires → ranking shifts to the enemy: offense emerges AFTER income secured.
+- 3 new NUnit cases (ApplyBias, opening neutral-income > distant enemy base,
+  closest-neutral-first). Suite 261 green (was 258).
+
+VERIFIED (2nd harness run, PASS): opening axes are ALL `action=Secure` on the
+NEUTRAL money — bio@32,10 (96.75M) then fcom@32,22 (64.5M), oilb@22,16 (42.75M)
+joining as the pool grew. Enemy SR/base attack axes damped OUT of the top-k while
+neutral money exists. Ordering is value×distance (bio $150 first, not the closer
+$50 oilb) — the natural value×distance×threat ranking; DistanceHalfLifeCells is
+the lever if pure-closest is ever wanted. Matches the steer.
+
 ## Notes / Phase 4 hooks
 - LayeredDefence is NOT yet ledger-aware — offense may contend with frontline
   reserves once contact forms. Pre-contact (no frontline) offense owns the pool
