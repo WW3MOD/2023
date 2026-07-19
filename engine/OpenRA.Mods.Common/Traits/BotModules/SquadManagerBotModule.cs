@@ -33,9 +33,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Actor types that should generally be excluded from attack squads.")]
 		public readonly HashSet<string> ExcludeFromSquadsTypes = new HashSet<string>();
 
-		[Desc("WW3MOD v2 AI: when true, this manager NEVER recruits ground (non-air, non-naval) units —",
+		[Desc("WW3MOD experimental AI: when true, this manager NEVER recruits ground (non-air, non-naval) units —",
 			"they are left for the POI-scored PoiOffensiveBotModule to own. Air/naval squads are",
-			"unaffected. Default false keeps legacy behaviour byte-identical; only the v2 fixed-wing",
+			"unaffected. Default false keeps legacy behaviour byte-identical; only the experimental fixed-wing",
 			"variants set it true so the fixed-wing manager stops forming the ground death-ball.")]
 		public readonly bool IgnoreGroundUnits = false;
 
@@ -301,7 +301,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 				else if (Info.IgnoreGroundUnits)
 				{
-					// WW3MOD v2: this manager does not own ground units — skip without
+					// WW3MOD experimental: this manager does not own ground units — skip without
 					// claiming (not added to activeUnits) so the PoiOffensiveBotModule
 					// sees them as a free pool. Re-checked every scan in case the flag
 					// or unit set changes.

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * WW3MOD PoiMap — v2 AI, POI-strategy Phase 2.
+ * WW3MOD PoiMap — experimental AI, POI-strategy Phase 2.
  *
  * A world-level POINT-OF-INTEREST layer: it discovers the map locations worth
  * reasoning about strategically — money-granting capturables (oil derrick,
@@ -22,7 +22,7 @@
  * OpenRA-specific. Threat is sourced from the existing InfluenceMap world trait
  * (with a FindActorsInCircle fallback), not a bespoke scan.
  *
- * Gated for the v2 bot at the CONSUMER (ai.yaml wires the trait, but only v2
+ * Gated for the experimental bot at the CONSUMER (ai.yaml wires the trait, but only experimental
  * modules query it). Normal / Rush / Turtle never read it, so their behaviour
  * is unchanged even though the trait exists on the world.
  */
@@ -82,7 +82,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
-	[Desc("WW3MOD v2 AI: discovers + scores strategic points of interest (money capturables,",
+	[Desc("WW3MOD experimental AI: discovers + scores strategic points of interest (money capturables,",
 		"neutral/enemy Supply Routes as deny targets, enemy base). Perspective-scored by",
 		"value x distance x threat. Queried by CaptureCoordinatorBotModule (capture ordering)",
 		"and the Phase 3 offense module. Pure math lives in PoiScoring for v3 portability.")]

@@ -75,7 +75,7 @@ Most lobbies don't show capturable positions on the minimap before scouting. Sen
 
 ### Escort the Technician
 
-A Technician walking across the open is a $200 unit with no weapon and no armour. The cost-effective practice is to send him in the wake of an infantry squad or vehicle group already pushing toward that area — even one Rifleman alongside dramatically improves the survival rate against scouts. The v2 AI's capture coordinator does this automatically; for human players, it's a habit worth building.
+A Technician walking across the open is a $200 unit with no weapon and no armour. The cost-effective practice is to send him in the wake of an infantry squad or vehicle group already pushing toward that area — even one Rifleman alongside dramatically improves the survival rate against scouts. The Experimental AI's capture coordinator does this automatically; for human players, it's a habit worth building.
 
 ### Sabotage
 
@@ -105,11 +105,11 @@ Recapture by the enemy is a real risk: their Technician can take the building ba
 | Bot type | Module | Behaviour |
 |---|---|---|
 | Normal / Rush / Turtle (legacy) | `CaptureManagerBotModule@tecn` | Picks targets by `GetSellValue()` (uniform across OILB/FCOM/BIO). Sends Technician alone. No defense. |
-| v2 (experimental) | `CaptureCoordinatorBotModule@v2.tecn` | Income-weighted scoring (BIO > FCOM > OILB), distance decay, safety bonus when no enemies nearby. Pulls 2 escort infantry along. Summons defenders when own captured under threat. |
+| Experimental / Stable | `CaptureCoordinatorBotModule@experimental.tecn` (Stable: `@stable.tecn`) | Income-weighted scoring (BIO > FCOM > OILB), distance decay, safety bonus when no enemies nearby. Pulls 2 escort infantry along. Summons defenders when own captured under threat. |
 
 See [`../../WORKSPACE/ai/archive/v2_experiment_002_capture_coordinator.md`](../../WORKSPACE/ai/archive/v2_experiment_002_capture_coordinator.md) for the v2 design and measurement plan.
 
-No engineer-targeted capture module exists — engineers don't capture by design. Neither legacy nor v2 has soldier-targeted capture wired in either; soldier capture is a player-driven late-game option, not an AI behaviour for now.
+No engineer-targeted capture module exists — engineers don't capture by design. Neither legacy nor the Experimental/Stable AI has soldier-targeted capture wired in either; soldier capture is a player-driven late-game option, not an AI behaviour for now.
 
 ## Code pointers
 

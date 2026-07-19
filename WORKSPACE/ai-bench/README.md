@@ -1,9 +1,14 @@
 # AI Benchmark — side project
 
-An autonomous system that **improves the Experimental AI** (`ModularBot@v2`)
+An autonomous system that **improves the Experimental AI** (`ModularBot@experimental`)
 against a ladder of standardized benchmark scenarios, driven by a Maestro manager
 on autoburn. The Normal AI is the fixed yardstick; progress merges to `main`
 early and often so the user can play it.
+
+> **Terminology (2026-07-20):** the dev bot was renamed `@v2` → `@experimental`
+> ("Experimental AI"); a frozen `ModularBot@stable` ("Stable AI") now holds the last
+> validated snapshot (promotion policy: [`SPEC.md`](SPEC.md) §13). Historical "v2"
+> names in `runs/` are left as written.
 
 ## The three documents
 

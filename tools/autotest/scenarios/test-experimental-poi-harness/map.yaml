@@ -1,0 +1,216 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: experimental POI harness — pre-placed force + capture assert
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# POI-strategy Phase 2 observation harness.
+#
+# Phase 0 discovered that on a bare autotest map the experimental bot produces nothing in
+# the headless window (pool=0, zero [experimental-capture] lines) — SR reinforcement never
+# ramps fast enough to observe AI behaviour live. This map fixes that by
+# PRE-PLACING a experimental bot force so CaptureCoordinator/LayeredDefence have a real
+# TECN + army pool from tick 0, independent of the production ramp.
+#
+#   Left  (6,16)  = USA-bot, faction=america, Bot=experimental      <- the observed bot
+#   Right (58,16) = Russia-bot, faction=russia, Bot=normal <- control
+#
+# Capturable furniture at VARYING distance from the USA SR so PoiMap scoring
+# (value x distance x threat) has a real ranking to produce, and so the in-game
+# capture autotest (test-experimental-poi-harness.lua) can assert the NEAREST derrick is
+# captured — capture completing is the observable proxy for "no order-thrash".
+#
+# Distances from USA SR (6,16):
+#   NearOilb  (22,16) ~16c   OILB  $50   <- capture-test target (closest)
+#   MidFcom   (32,22) ~27c   FCOM  $100
+#   FarBio    (32,10) ~27c   BIO   $150
+#   NeutralSR (42,16) ~36c   supplyroute (neutral) — deny/hold POI
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: normal
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+
+	# Spawn anchors — MapStartingLocations.AssignSpawnPoint iterates mpspawn
+	# actors for every client (including the human Observer) and crashes if empty.
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+	# Pre-placed experimental bot force near its SR. Gives CaptureCoordinator a TECN from
+	# tick 0 and offense a real pool — the whole point of the harness (Phase 0's
+	# run had pool=0). Phase 3 needs a pool big enough to SPLIT: ~16 combat units
+	# (10 rifles + 6 tanks) so PoiOffensiveBotModule opens >=2 axes (UnitsPerAxis
+	# 8 -> 16/8 = 2). TECN is excluded from axes (capture-owned). Units face right
+	# (USA on the left, Facing 768 = East per WW3MOD counterclockwise convention).
+	BotTecn: tecn.america
+		Owner: USA-bot
+		Location: 9,16
+		Facing: 768
+	BotRifle1: ar.america
+		Owner: USA-bot
+		Location: 8,14
+		Facing: 768
+	BotRifle2: ar.america
+		Owner: USA-bot
+		Location: 8,15
+		Facing: 768
+	BotRifle3: ar.america
+		Owner: USA-bot
+		Location: 8,17
+		Facing: 768
+	BotRifle4: ar.america
+		Owner: USA-bot
+		Location: 8,18
+		Facing: 768
+	BotRifle5: ar.america
+		Owner: USA-bot
+		Location: 8,12
+		Facing: 768
+	BotRifle6: ar.america
+		Owner: USA-bot
+		Location: 8,13
+		Facing: 768
+	BotRifle7: ar.america
+		Owner: USA-bot
+		Location: 8,19
+		Facing: 768
+	BotRifle8: ar.america
+		Owner: USA-bot
+		Location: 8,20
+		Facing: 768
+	BotRifle9: ar.america
+		Owner: USA-bot
+		Location: 9,13
+		Facing: 768
+	BotRifle10: ar.america
+		Owner: USA-bot
+		Location: 9,19
+		Facing: 768
+	BotTank1: abrams
+		Owner: USA-bot
+		Location: 10,15
+		Facing: 768
+	BotTank2: abrams
+		Owner: USA-bot
+		Location: 10,17
+		Facing: 768
+	BotTank3: abrams
+		Owner: USA-bot
+		Location: 10,14
+		Facing: 768
+	BotTank4: abrams
+		Owner: USA-bot
+		Location: 10,18
+		Facing: 768
+	BotTank5: abrams
+		Owner: USA-bot
+		Location: 11,15
+		Facing: 768
+	BotTank6: abrams
+		Owner: USA-bot
+		Location: 11,17
+		Facing: 768
+
+	# Neutral capturable income structures at varying distance (see header).
+	NearOilb: oilb
+		Owner: Neutral
+		Location: 22,16
+	MidFcom: fcom
+		Owner: Neutral
+		Location: 32,22
+	FarBio: bio
+		Owner: Neutral
+		Location: 32,10
+
+	# Neutral Supply Route — a deny/hold POI (decision #2: capturing it flips it
+	# Neutral, cutting a would-be enemy lane; never a lane for us). PoiMap
+	# discovers it as a DenyCapture target.
+	NeutralSR: supplyroute
+		Owner: Neutral
+		Location: 42,16
+
+	# ENEMY-owned income structures on the Russia side — Phase 3 OFFENSIVE POIs.
+	# GetOffensiveTargets ranks these (Attack) alongside the enemy SR (Pressure),
+	# giving the USA experimental bot >=2 distinct enemy objectives so PoiOffensiveBotModule
+	# SPLITS its army across axes instead of one death-ball. Placed off the SR-to-SR
+	# centre line (rows 10 / 22) so the two axes visibly diverge.
+	EnemyFcom: fcom
+		Owner: Russia-bot
+		Location: 50,22
+	EnemyOilb: oilb
+		Owner: Russia-bot
+		Location: 50,10
+
+	# ===== POI-strategy Phase 4 (hold captured money) =====
+	# A money POI the USA experimental bot OWNS from tick 0 — as if it had already captured a
+	# derrick. GetDefendTargets returns it, so PoiGarrisonBotModule@experimental parks a SMALL
+	# garrison (value $50 -> 1 unit calm, +1 under assault) on it and holds it.
+	# Placed in the near-midfield south flank, ~15c from the USA army, distinct from
+	# the neutral capture POIs above.
+	HeldOilb: oilb
+		Owner: USA-bot
+		Location: 20,20
+
+	# A small Russia raid beside the held derrick: raises local enemy influence so
+	# GetDefendTargets sees the POI as "assaulted" (garrison threat bump) and tests
+	# the HOLD — the derrick must stay USA-owned at the end. Kept to 3 light infantry
+	# so it can't burst an oilb before the garrison (incl. an abrams) arrives.
+	Raid1: e3.russia
+		Owner: Russia-bot
+		Location: 24,20
+		Facing: 256
+	Raid2: e3.russia
+		Owner: Russia-bot
+		Location: 24,21
+		Facing: 256
+	Raid3: e3.russia
+		Owner: Russia-bot
+		Location: 24,19
+		Facing: 256
+
+Rules: rules.yaml

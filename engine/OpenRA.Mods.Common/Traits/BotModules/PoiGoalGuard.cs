@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * WW3MOD PoiGoalGuard — v2 AI, POI-strategy Phase 0/1 foundation.
+ * WW3MOD PoiGoalGuard — experimental AI, POI-strategy Phase 0/1 foundation.
  *
  * A per-unit COMMITMENT LEDGER: "unit U is pursuing objective O until tick T".
  * It exists to kill the order-overwriting bug class documented in
@@ -23,7 +23,7 @@
  * component. Objectives are namespaced strings ("capture:<actorId>") so they're
  * v3-friendly and greppable in logs.
  *
- * Gated enable-ai-v2 in ai.yaml — Normal / Rush / Turtle never see it.
+ * Gated enable-ai-experimental in ai.yaml — Normal / Rush / Turtle never see it.
  */
 #endregion
 
@@ -117,9 +117,9 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	[TraitLocation(SystemActors.Player)]
-	[Desc("WW3MOD v2 AI: per-unit commitment ledger that stops capture/offense modules re-issuing",
+	[Desc("WW3MOD experimental AI: per-unit commitment ledger that stops capture/offense modules re-issuing",
 		"orders when a unit's IsIdle flickers mid-task. Shared holder; the reusable logic is",
-		"GoalGuardLedger<Actor>. Gate under enable-ai-v2.")]
+		"GoalGuardLedger<Actor>. Gate under enable-ai-experimental.")]
 	public class PoiGoalGuardInfo : ConditionalTraitInfo
 	{
 		[Desc("Default commitment lifetime in ticks. A committed unit is left alone (not re-ordered)",

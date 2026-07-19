@@ -6,7 +6,7 @@
  *
  *   Matchup:
  *       P1Bot: normal             # informational; bot assignment is in map.yaml
- *       P2Bot: v2                 # informational
+ *       P2Bot: experimental                 # informational
  *   TimeLimitSeconds: 720         # match deadline in real game seconds
  *   Scorer: weighted_components   # MatchHarness registry key
  *   WinRule: score_or_sr_capture  # MatchHarness registry key

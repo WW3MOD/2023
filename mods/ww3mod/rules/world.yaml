@@ -288,8 +288,8 @@ World:
 	# POI-strategy Phase 2: strategic point-of-interest layer. Discovers money
 	# capturables + neutral/enemy Supply Routes (deny targets) and scores them
 	# per-player by value x distance x threat (threat sampled from InfluenceMap
-	# above). Queried only by v2 AI modules (CaptureCoordinator target ordering;
-	# future offense) — Normal/Rush/Turtle never read it, so this trait's presence
+	# above). Queried only by the Experimental/Stable AI modules (CaptureCoordinator
+	# target ordering; offense) — Normal/Rush/Turtle never read it, so this trait's presence
 	# doesn't change their behaviour. Income weights mirror the CashTrickler
 	# amounts (OILB 50 / FCOM 100 / BIO 150) used by CaptureCoordinatorBotModule.
 	# See WORKSPACE/plans/260719_experimental_ai_poi_strategy.md.

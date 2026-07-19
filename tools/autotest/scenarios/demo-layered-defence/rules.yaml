@@ -1,5 +1,5 @@
 # Demo overrides for Stage B layered-defence viewing.
-# Higher starting cash so the v2 bot has units to position quickly,
+# Higher starting cash so the experimental bot has units to position quickly,
 # and the demo Lua adds further pre-spawn around the bot's SR.
 
 Player:

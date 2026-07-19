@@ -1,1 +1,0 @@
-v2 POI harness: pre-placed bot force + neutral capturables at varying distance. Asserts the v2 bot captures the nearest derrick (no order-thrash) and emits [v2-poi]/[v2-capture] logs for live observation.

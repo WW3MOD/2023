@@ -1,1 +1,0 @@
-v2 POI focused capture: close safe high-value derrick, minimal force. Asserts the escorted TECN completes the capture (isolates execution from distance/frontline).

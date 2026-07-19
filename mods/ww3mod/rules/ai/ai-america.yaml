@@ -40,9 +40,9 @@ Player:
 			strykershorad: 2
 			sn.america: 3
 
-	# Legacy ground squad manager — gated to NON-v2 paths.
-	# v2 owns ground unit positioning via LayeredDefenceBotModule@v2 +
-	# MountedTransportBotModule@v2. Running the legacy squad manager alongside
+	# Legacy ground squad manager — gated to NON-Experimental/Stable paths.
+	# The Experimental/Stable POI layer owns ground unit positioning via
+	# LayeredDefenceBotModule + MountedTransportBotModule. Running the legacy squad manager alongside
 	# would (1) yank Bradleys/M113s into squads so MountedTransport can't ever
 	# find an idle carrier, (2) pull main-line infantry into squads instead of
 	# leaving them for LayeredDefence/MountedTransport.

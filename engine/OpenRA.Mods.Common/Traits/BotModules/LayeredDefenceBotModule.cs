@@ -37,7 +37,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.Player)]
-	[Desc("WW3MOD v2: assigns idle units to screen / main-line positions along the InfluenceMap frontline.")]
+	[Desc("WW3MOD experimental: assigns idle units to screen / main-line positions along the InfluenceMap frontline.")]
 	public class LayeredDefenceBotModuleInfo : ConditionalTraitInfo
 	{
 		[Desc("Ticks between assignment passes.")]
@@ -138,9 +138,9 @@ namespace OpenRA.Mods.Common.Traits
 			influenceMap = world.WorldActor.TraitOrDefault<InfluenceMap>();
 
 			TextNotificationsManager.AddSystemLine(
-				$"[v2-layered-defence] enabled for {player.PlayerName} ({player.Faction.Name})");
+				$"[exp-layered-defence] enabled for {player.PlayerName} ({player.Faction.Name})");
 			Log.Write("debug",
-				$"[v2-layered-defence] TraitEnabled — player={player.PlayerName} screen-types={Info.ScreenUnitTypes.Count} mainline-types={Info.MainLineUnitTypes.Count} excluded-types={Info.ExcludedActorTypes.Count}");
+				$"[exp-layered-defence] TraitEnabled — player={player.PlayerName} screen-types={Info.ScreenUnitTypes.Count} mainline-types={Info.MainLineUnitTypes.Count} excluded-types={Info.ExcludedActorTypes.Count}");
 		}
 
 		void IBotTick.BotTick(IBot bot)
@@ -161,11 +161,11 @@ namespace OpenRA.Mods.Common.Traits
 			AssignPositions(bot);
 		}
 
-		// One-line-per-scan dispersion metric for the v2 combat ground pool.
+		// One-line-per-scan dispersion metric for the experimental combat ground pool.
 		// A death-ball reads as: clumpRadiusCells stays small while pool grows,
 		// centroid sitting near the SR pre-contact then marching to the single
 		// contested band. A spread army has a large clumpRadius. Log channel
-		// [v2-poi]; read once from the debug log after a skirmish (no sweep).
+		// [exp-poi]; read once from the debug log after a skirmish (no sweep).
 		void LogPoiDispersionDiagnostic()
 		{
 			var contested = CollectContestedCells(influenceMap.GetFrontline(player)).Count;
@@ -179,7 +179,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (pool.Count == 0)
 			{
 				Log.Write("debug",
-					$"[v2-poi] disperse player={player.PlayerName} pool=0 contested={contested} tick={world.WorldTick}");
+					$"[exp-poi] disperse player={player.PlayerName} pool=0 contested={contested} tick={world.WorldTick}");
 				return;
 			}
 
@@ -215,7 +215,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			Log.Write("debug",
-				$"[v2-poi] disperse player={player.PlayerName} pool={pool.Count} centroid=({cx},{cy}) " +
+				$"[exp-poi] disperse player={player.PlayerName} pool={pool.Count} centroid=({cx},{cy}) " +
 				$"clumpRadiusCells={clumpRadius} centroidDistFromSRCells={srDist} contested={contested} tick={world.WorldTick}");
 		}
 

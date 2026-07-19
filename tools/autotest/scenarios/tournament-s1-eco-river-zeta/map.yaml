@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TOURNAMENT S1: v2 vs Normal (River Zeta economy)
+Title: TOURNAMENT S1: experimental vs Normal (River Zeta economy)
 
 Author: WW3MOD tournament harness
 
@@ -21,10 +21,10 @@ Categories: Test
 # neutral OILB oil-derrick income POIs kept intact, with the 6 original player
 # mpspawns replaced by the tournament harness overlay (2 Supply Routes + 2 bot
 # spawn markers). This is the map S1 (resources_earned) is supposed to run on —
-# the old tournament-v2-vs-normal-2p stub (66x34, zero capturable POIs) pinned
+# the old tournament-experimental-vs-normal-2p stub (66x34, zero capturable POIs) pinned
 # resources_earned to 0/0 by construction (WORKSPACE/ai-bench/runs/260719_s1_diagnosis.md).
 #
-#   Left  SR (14,45) = USA-bot,    faction=america, Bot=v2     <- experimental
+#   Left  SR (14,45) = USA-bot,    faction=america, Bot=experimental     <- experimental
 #   Right SR (80,35) = Russia-bot, faction=russia,  Bot=normal <- baseline
 # Both spawn points are designer-vetted River Zeta start locations, each with a
 # neutral OILB derrick ~3-4 cells away (17,44 for the left SR, 76,35 for the
@@ -37,7 +37,7 @@ Categories: Test
 # supplies capture targets.
 #
 # Pair with a mirror twin for faction-bias control (SPEC 9.4); POI symmetry vs
-# the two SRs still needs a Normal-vs-Normal calibration batch before v2 numbers
+# the two SRs still needs a Normal-vs-Normal calibration batch before experimental numbers
 # are trusted (LADDER S1 follow-up).
 Players:
 	PlayerReference@Neutral:
@@ -55,7 +55,7 @@ Players:
 		Name: USA-bot
 		LockFaction: True
 		Faction: america
-		Bot: v2
+		Bot: experimental
 		Color: 4488FF
 		Enemies: Russia-bot
 	PlayerReference@Russia-bot:

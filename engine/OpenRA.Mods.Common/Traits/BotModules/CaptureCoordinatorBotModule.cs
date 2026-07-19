@@ -1,8 +1,8 @@
 #region Copyright & License Information
 /*
- * WW3MOD CaptureCoordinatorBotModule — v2 AI.
+ * WW3MOD CaptureCoordinatorBotModule — experimental AI.
  *
- * Replaces CaptureManagerBotModule for v2 bots. Three behaviours over the
+ * Replaces CaptureManagerBotModule for experimental bots. Three behaviours over the
  * legacy module:
  *
  *  1. Target scoring is INCOME-WEIGHTED (OILB=50, FCOM=100, BIO=150)
@@ -15,7 +15,7 @@
  *     capturable structure under threat (enemy army value > friendly
  *     army value in the neighbourhood), summon defenders.
  *
- * Coexists with the legacy CaptureManagerBotModule — v2 YAML gates the
+ * Coexists with the legacy CaptureManagerBotModule — experimental YAML gates the
  * legacy ones to enable-ai-legacy-only so they don't double-fire.
  */
 #endregion
@@ -28,7 +28,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[TraitLocation(SystemActors.Player)]
-	[Desc("WW3MOD v2 AI: coordinates capture of income structures with escort + defense.")]
+	[Desc("WW3MOD experimental AI: coordinates capture of income structures with escort + defense.")]
 	public class CaptureCoordinatorBotModuleInfo : ConditionalTraitInfo
 	{
 		[Desc("Actor types that can capture other actors (via `Captures`). Empty = disabled.")]
@@ -216,7 +216,7 @@ namespace OpenRA.Mods.Common.Traits
 				var committed = goalGuard != null && goalGuard.Ledger.IsCommitted(a, world.WorldTick);
 				var commitN = goalGuard != null ? goalGuard.Ledger.CommitCountFor(a) : activeCapturers.Contains(a) ? 1 : 0;
 				Log.Write("debug",
-					$"[v2-capture] pre-scan player={player.PlayerName} actor={a.Info.Name}@{a.Location} idle={a.IsIdle} activity={activity} committed={committed} commitN={commitN} tick={world.WorldTick}");
+					$"[exp-capture] pre-scan player={player.PlayerName} actor={a.Info.Name}@{a.Location} idle={a.IsIdle} activity={activity} committed={committed} commitN={commitN} tick={world.WorldTick}");
 			}
 
 			// goalGuard resolved in BotTick (shared with the defense pass).
@@ -336,7 +336,7 @@ namespace OpenRA.Mods.Common.Traits
 		// capture targets by value x distance x threat from our SR; we just walk
 		// that ranking and assign the NEAREST free, uncommitted, able capturer to
 		// each. This replaces the legacy per-target scan with a single strategic
-		// ordering shared across the v2 AI (and reused verbatim by Phase 3 offense).
+		// ordering shared across the experimental AI (and reused verbatim by Phase 3 offense).
 		void QueueCaptureOrdersFromPoiMap(IBot bot, TraitPair<CaptureManager>[] idleCapturers, bool useGuard, HashSet<Actor> escortsRecruitedThisTick)
 		{
 			var available = new List<TraitPair<CaptureManager>>(idleCapturers);
@@ -346,7 +346,7 @@ namespace OpenRA.Mods.Common.Traits
 				? $"{targets[0].Actor?.Info.Name}@{targets[0].Location} action={targets[0].Action} score={targets[0].Score}"
 				: "<none>";
 			Log.Write("debug",
-				$"[v2-capture] poimap-scan player={player.PlayerName} idleCapturers={idleCapturers.Length} targets={targets.Count} top={topDesc} tick={world.WorldTick}");
+				$"[exp-capture] poimap-scan player={player.PlayerName} idleCapturers={idleCapturers.Length} targets={targets.Count} top={topDesc} tick={world.WorldTick}");
 
 			foreach (var poi in targets)
 			{
@@ -401,9 +401,9 @@ namespace OpenRA.Mods.Common.Traits
 			DispatchEscort(bot, capturer, target, escortsRecruitedThisTick);
 
 			Log.Write("debug",
-				$"[v2-capture] issue player={player.PlayerName} actor={capturer.Info.Name}@{capturer.Location} → {target.Info.Name}@{target.Location} score={score} tick={world.WorldTick}");
+				$"[exp-capture] issue player={player.PlayerName} actor={capturer.Info.Name}@{capturer.Location} → {target.Info.Name}@{target.Location} score={score} tick={world.WorldTick}");
 
-			AIUtils.BotDebug("AI ({0}): v2-capture — {1} → {2} (score={3})",
+			AIUtils.BotDebug("AI ({0}): exp-capture — {1} → {2} (score={3})",
 				player.ClientIndex, capturer.Info.Name, target.Info.Name, score);
 		}
 
@@ -497,7 +497,7 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var r in recruits)
 				alreadyRecruited.Add(r);
 
-			AIUtils.BotDebug("AI ({0}): v2-capture — escort dispatched ({1} units → {2})",
+			AIUtils.BotDebug("AI ({0}): exp-capture — escort dispatched ({1} units → {2})",
 				player.ClientIndex, recruits.Length, target.Info.Name);
 		}
 
@@ -553,7 +553,7 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var d in defenders)
 					defenderBookings[d] = world.WorldTick;
 
-				AIUtils.BotDebug("AI ({0}): v2-capture — defense summoned ({1} units → {2}, enemyVal={3})",
+				AIUtils.BotDebug("AI ({0}): exp-capture — defense summoned ({1} units → {2}, enemyVal={3})",
 					player.ClientIndex, defenders.Length, structure.Info.Name, enemyValue);
 			}
 		}

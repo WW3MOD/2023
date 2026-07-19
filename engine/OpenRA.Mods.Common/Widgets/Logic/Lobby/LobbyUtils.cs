@@ -486,7 +486,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var closed = FluentProvider.GetMessage(Closed);
 			var open = FluentProvider.GetMessage(Open);
 
-			// WW3MOD: bot names (e.g. "Normal AI", "V2 AI (experimental)") come straight
+			// WW3MOD: bot names (e.g. "Normal AI", "Experimental AI") come straight
 			// from IBotInfo.Name and aren't fluent keys, so fall back to the raw name
 			// instead of the generic "AI Player" label.
 			var clientName = new CachedTransform<MapStatus, string>(s =>
