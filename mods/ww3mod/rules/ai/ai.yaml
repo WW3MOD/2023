@@ -160,6 +160,29 @@ Player:
 		# listed; a name the faction lacks is simply never matched.
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
 
+	# v2 AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
+	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
+	# under assault) so the income isn't ninja-recaptured. Reads PoiMap's defensive
+	# ranking (own money POIs scored value x distance x defence-urgency — threat
+	# RAISES the score). Claims units through the SAME shared PoiGoalGuard ledger as
+	# capture/offense (commits "defend:<id>"), so no module fights over a unit and
+	# the offense pool isn't starved. Score-floating, no priority ladder: garrison
+	# and offense both pull from the shared free pool. Constants tunable here.
+	PoiGarrisonBotModule@v2:
+		RequiresCondition: enable-ai-v2
+		ReevaluateInterval: 100
+		ValuePerGarrisonUnit: 50
+		MinGarrison: 1
+		MaxGarrison: 3
+		ThreatGarrisonBonus: 1
+		MaxGarrisons: 4
+		GarrisonCommitmentTicks: 250
+		RepathThresholdCells: 3
+		# Same exclusions as PoiOffensiveBotModule@v2: capturer + non-combat support
+		# (owned by CaptureCoordinator / SupplyFollower) and IFV carriers (owned by
+		# MountedTransport). A name the faction lacks is simply never matched.
+		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
+
 	# NOTE: No engineer (^E6) capture module wired anywhere — engineers
 	# don't capture in WW3MOD by design. The Captures trait sits on
 	# Technician (^TECN) only. See DOCS/gameplay/capturing.md.

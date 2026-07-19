@@ -128,6 +128,19 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ownership multiplier (x100) for a NEUTRAL Supply Route (forward hold, lower urgency).")]
 		public readonly int OwnershipNeutralSupplyRouteMultiplier = 70;
 
+		[Desc("DEFENSE urgency multiplier (x100) for a held POI with NO enemy influence nearby.",
+			"Baseline — a calm POI still wants a token garrison sized by its value. Mirror of the",
+			"capture threat buckets but INVERTED: calm < probed < assaulted. Used by GetDefendTargets.")]
+		public readonly int DefendCalmMultiplier = 100;
+
+		[Desc("DEFENSE urgency multiplier (x100) for a held POI under MILD (probed) enemy influence —",
+			"raise its defend score above a calm POI so contested income is garrisoned first.")]
+		public readonly int DefendProbedMultiplier = 150;
+
+		[Desc("DEFENSE urgency multiplier (x100) for a held POI under HOSTILE (assaulted) enemy",
+			"influence — highest urgency; this POI is actively being taken and pulls the garrison bump.")]
+		public readonly int DefendAssaultedMultiplier = 250;
+
 		[Desc("Radius (cells) used by the FindActorsInCircle threat fallback when InfluenceMap is",
 			"unavailable — each nearby enemy contributes 10 influence.")]
 		public readonly int ThreatFallbackRadiusCells = 6;
@@ -337,6 +350,59 @@ namespace OpenRA.Mods.Common.Traits
 			return result;
 		}
 
+		/// <summary>DEFENSIVE targets for the garrison layer (Phase 4), best first: every money
+		/// POI WE ALREADY OWN, projected as a Defend objective. Scored value x distance x
+		/// DEFENCE-urgency from OUR SR — threat RAISES the score (a held POI under assault is
+		/// the most urgent to garrison), the mirror of the capture gate where threat deters.
+		/// The Supply Route is deliberately EXCLUDED (own-SR defence + SR neutralize/hold is
+		/// out of scope per decision #2). Consumed by PoiGarrisonBotModule, which sizes a small
+		/// garrison (1-3, by value + threat) per returned POI and commits it in the shared
+		/// PoiGoalGuard ledger so offense/capture never scoop the defenders. Offense/capture
+		/// layers are unaffected — they read GetOffensiveTargets / GetCaptureTargets.</summary>
+		public List<ScoredPoi> GetDefendTargets(Player perspective)
+		{
+			ResolveInfluence();
+
+			var ownSr = FindOwnSupplyRoute(perspective);
+			var enemyLayer = influenceMap?.GetEnemyInfluence(perspective);
+
+			var result = new List<ScoredPoi>(candidates.Count);
+			foreach (var actor in candidates)
+			{
+				if (actor.IsDead || !actor.IsInWorld || actor.Owner == null)
+					continue;
+
+				// Own (or allied) POIs only — a Defend target is something we hold.
+				var rel = perspective.RelationshipWith(actor.Owner);
+				if (actor.Owner != perspective && rel != PlayerRelationship.Ally)
+					continue;
+
+				var name = actor.Info.Name.ToLowerInvariant();
+				if (name == Info.SupplyRouteActorType)
+					continue; // SR defence is out of scope (decision #2)
+
+				var value = Info.IncomeWeights.TryGetValue(name, out var w) ? w : 0;
+				if (value <= 0)
+					continue;
+
+				var distCells = ownSr != null
+					? (actor.CenterPosition - ownSr.CenterPosition).Length / 1024
+					: 0;
+				var distFactor = PoiScoring.DistanceFactor(distCells, Info.DistanceHalfLifeCells);
+
+				var enemyInfluence = SampleThreat(actor, perspective, enemyLayer);
+				var defendFactor = PoiScoring.DefendThreatFactor(enemyInfluence, Info.ThreatMildThreshold,
+					Info.DefendCalmMultiplier, Info.DefendProbedMultiplier, Info.DefendAssaultedMultiplier);
+
+				var score = PoiScoring.Score(value, distFactor, defendFactor, Info.OwnershipNeutralIncomeMultiplier);
+				result.Add(new ScoredPoi(actor, PoiKind.IncomeStructure, PoiAction.Defend,
+					value, distCells, enemyInfluence, score));
+			}
+
+			result.Sort(CompareScoredPoi);
+			return result;
+		}
+
 		// Deterministic ordering: score desc, then nearer, then lower ActorID.
 		static int CompareScoredPoi(ScoredPoi a, ScoredPoi b)
 			=> PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
@@ -396,11 +462,16 @@ namespace OpenRA.Mods.Common.Traits
 				Info.OwnershipNeutralIncomeMultiplier, Info.OwnershipEnemyIncomeMultiplier,
 				Info.OwnershipNeutralSupplyRouteMultiplier, Info.OwnershipEnemySupplyRouteMultiplier);
 
-			// Own POIs (Defend) keep their raw value ordering but sidestep threat/ownership
-			// gating — they're not a "go capture" decision. Give them a neutral factor so
-			// they sort by value/distance for a defense consumer.
+			// Own POIs (Defend) float with value x distance x DEFENCE-urgency (threat RAISES
+			// the score — a held POI under attack is more urgent to garrison, the mirror of
+			// the capture threat gate). Ownership is neutral (it's ours, not a "go capture"
+			// decision). This keeps GetScoredPois' Defend entries consistent with the
+			// dedicated GetDefendTargets consumer (Phase 4 garrison).
 			var score = action == PoiAction.Defend
-				? PoiScoring.Score(value, distFactor, Info.ThreatSafeMultiplier, Info.OwnershipNeutralIncomeMultiplier)
+				? PoiScoring.Score(value, distFactor,
+					PoiScoring.DefendThreatFactor(enemyInfluence, Info.ThreatMildThreshold,
+						Info.DefendCalmMultiplier, Info.DefendProbedMultiplier, Info.DefendAssaultedMultiplier),
+					Info.OwnershipNeutralIncomeMultiplier)
 				: PoiScoring.Score(value, distFactor, threatFactor, ownershipMul);
 
 			scored = new ScoredPoi(actor, kind, action, value, distCells, enemyInfluence, score);
@@ -476,6 +547,22 @@ namespace OpenRA.Mods.Common.Traits
 			if (enemyInfluence <= mildThreshold)
 				return mildMul;
 			return hostileMul;
+		}
+
+		/// <summary>DEFENSE urgency bucket on enemy influence at a POI WE OWN. The MIRROR of
+		/// ThreatFactor: for capture, enemy presence DETERS (safer = higher); for defence,
+		/// enemy presence at what we hold RAISES urgency (something is attacking it), so a
+		/// held POI under assault scores higher and pulls a bigger garrison. Buckets:
+		/// calm (≤0), probed (≤mildThreshold), assaulted (above). Returns the x100 multiplier.
+		/// calm &lt; probed &lt; assaulted (opposite ordering to ThreatFactor).</summary>
+		public static int DefendThreatFactor(int enemyInfluence, int mildThreshold,
+			int calmMul, int probedMul, int assaultedMul)
+		{
+			if (enemyInfluence <= 0)
+				return calmMul;
+			if (enemyInfluence <= mildThreshold)
+				return probedMul;
+			return assaultedMul;
 		}
 
 		/// <summary>Ownership preference. Neutral income &gt; enemy income (enemy is defended);
