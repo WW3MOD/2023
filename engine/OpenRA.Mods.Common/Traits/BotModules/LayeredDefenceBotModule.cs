@@ -152,7 +152,71 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			scanCountdown = Info.ScanInterval;
 
+			// PHASE-0 DIAGNOSTIC — death-ball root-cause confirm. Runs BEFORE the
+			// frontline gate in AssignPositions so the log captures the "pooling"
+			// phase (no contact, contested=0) as well as the "flow to contact"
+			// phase. See WORKSPACE/plans/260719_experimental_ai_poi_strategy.md §0.
+			LogPoiDispersionDiagnostic();
+
 			AssignPositions(bot);
+		}
+
+		// One-line-per-scan dispersion metric for the v2 combat ground pool.
+		// A death-ball reads as: clumpRadiusCells stays small while pool grows,
+		// centroid sitting near the SR pre-contact then marching to the single
+		// contested band. A spread army has a large clumpRadius. Log channel
+		// [v2-poi]; read once from the debug log after a skirmish (no sweep).
+		void LogPoiDispersionDiagnostic()
+		{
+			var contested = CollectContestedCells(influenceMap.GetFrontline(player)).Count;
+
+			var pool = world.Actors.Where(a =>
+				a.Owner == player && !a.IsDead && a.IsInWorld
+				&& (Info.ScreenUnitTypes.Contains(a.Info.Name.ToLowerInvariant())
+					|| Info.MainLineUnitTypes.Contains(a.Info.Name.ToLowerInvariant())))
+				.ToList();
+
+			if (pool.Count == 0)
+			{
+				Log.Write("debug",
+					$"[v2-poi] disperse player={player.PlayerName} pool=0 contested={contested} tick={world.WorldTick}");
+				return;
+			}
+
+			long sx = 0, sy = 0;
+			foreach (var a in pool)
+			{
+				sx += a.Location.X;
+				sy += a.Location.Y;
+			}
+
+			var cx = (int)(sx / pool.Count);
+			var cy = (int)(sy / pool.Count);
+
+			long distSum = 0;
+			foreach (var a in pool)
+			{
+				var dx = a.Location.X - cx;
+				var dy = a.Location.Y - cy;
+				distSum += Exts.ISqrt((long)dx * dx + (long)dy * dy);
+			}
+
+			var clumpRadius = distSum / pool.Count;
+
+			var ownSR = world.Actors.FirstOrDefault(a =>
+				a.Owner == player && !a.IsDead && a.IsInWorld
+				&& Info.SupplyRouteTypes.Contains(a.Info.Name));
+			var srDist = -1L;
+			if (ownSR != null)
+			{
+				var dx = cx - ownSR.Location.X;
+				var dy = cy - ownSR.Location.Y;
+				srDist = Exts.ISqrt((long)dx * dx + (long)dy * dy);
+			}
+
+			Log.Write("debug",
+				$"[v2-poi] disperse player={player.PlayerName} pool={pool.Count} centroid=({cx},{cy}) " +
+				$"clumpRadiusCells={clumpRadius} centroidDistFromSRCells={srDist} contested={contested} tick={world.WorldTick}");
 		}
 
 		void AssignPositions(IBot bot)

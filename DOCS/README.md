@@ -20,7 +20,6 @@ Static project documentation. Four kinds:
 | Supply/ammo economy details | `reference/economy.md` |
 | Engine layout / scenario / suppression / aircraft / AI config / shadows.bin | `reference/architecture.md` |
 | PITFALL comment system (full spec) | `reference/pitfalls.md` |
-| End-of-message block spec + examples | `reference/agent-comms.md` |
 | Big-picture project state, engine-upgrade assessment | `reference/project-assessment.md` |
 | Shadow / firing-LOS roadmap | `reference/shadow-los-plan.md` |
 | What workflow runs when I type `AUTOTEST`? | `recipes/AUTOTEST.md` |

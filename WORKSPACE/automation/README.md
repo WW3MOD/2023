@@ -87,7 +87,7 @@
 
 **Files touched.**
 - New `tools/autotest/scenarios/*/tags.txt` files (one pass to backfill all existing scenarios)
-- `tools/autotest/run-batch.sh` — `--tag` flag, `--auto-only` flag (skip red-tracked / manual tests — addressed in `autotester_improvements.md`)
+- `tools/autotest/run-batch.sh` — `--tag` flag, `--auto-only` flag (skip red-tracked / manual tests — addressed in `REVIEW/autotester_improvements.md`)
 - `tools/autotest/run-queue.sh` — fail-stop, bell, append-to-commit
 - `CLAUDE.md` — document subsystem map convention
 - `DOCS/recipes/AUTOTEST.md` — tag declaration step

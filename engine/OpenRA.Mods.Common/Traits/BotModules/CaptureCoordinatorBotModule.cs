@@ -106,7 +106,17 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Predicate<Actor> unitCannotBeOrderedOrIsIdle;
 		readonly int maximumCaptureTargetOptions;
 
-		// Capturers we've already issued orders to; cleaned when they become idle again.
+		// Per-unit commitment ledger (Phase 0/1). When present it REPLACES the
+		// IsIdle-based re-eligibility below: a committed TECN is skipped even when
+		// its activity flickers idle mid-walk, so its CaptureActor order is never
+		// overwritten. Resolved lazily on first tick (sibling player trait).
+		PoiGoalGuard goalGuard;
+		bool goalGuardResolved;
+
+		// LEGACY FALLBACK ONLY (guard not wired): capturers we've already issued
+		// orders to; cleaned when they become idle again. This is the thrash-prone
+		// path the guard exists to replace — kept so a missing PoiGoalGuard trait
+		// degrades gracefully instead of crashing.
 		readonly List<Actor> activeCapturers = new();
 
 		// Defender bookings — actor → tick they were summoned. Stale entries removed on tick.
@@ -186,15 +196,32 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var a in capturingActors.Actors)
 			{
 				var activity = a.CurrentActivity?.GetType().Name ?? "<none>";
-				var inActive = activeCapturers.Contains(a);
+				var committed = goalGuard != null && goalGuard.Ledger.IsCommitted(a, world.WorldTick);
+				var commitN = goalGuard != null ? goalGuard.Ledger.CommitCountFor(a) : activeCapturers.Contains(a) ? 1 : 0;
 				Log.Write("debug",
-					$"[v2-capture] pre-scan player={player.PlayerName} actor={a.Info.Name}@{a.Location} idle={a.IsIdle} activity={activity} active={inActive} tick={world.WorldTick}");
+					$"[v2-capture] pre-scan player={player.PlayerName} actor={a.Info.Name}@{a.Location} idle={a.IsIdle} activity={activity} committed={committed} commitN={commitN} tick={world.WorldTick}");
 			}
 
-			activeCapturers.RemoveAll(unitCannotBeOrderedOrIsIdle);
+			if (!goalGuardResolved)
+			{
+				goalGuard = player.PlayerActor.TraitOrDefault<PoiGoalGuard>();
+				goalGuardResolved = true;
+			}
 
+			var useGuard = goalGuard != null && !goalGuard.IsTraitDisabled;
+			if (useGuard)
+				ReconcileGuardCommitments();
+			else
+				activeCapturers.RemoveAll(unitCannotBeOrderedOrIsIdle);
+
+			// A TECN is available for a NEW capture order only if it's idle AND not
+			// already committed. The guard path leaves a committed-but-idle-flickering
+			// TECN alone (no re-issue); the legacy path falls back to the active list.
 			var idleCapturers = capturingActors.Actors
-				.Where(a => a.IsIdle && a.Info.HasTraitInfo<IPositionableInfo>() && !activeCapturers.Contains(a))
+				.Where(a => a.IsIdle && a.Info.HasTraitInfo<IPositionableInfo>()
+					&& (useGuard
+						? !goalGuard.Ledger.IsCommitted(a, world.WorldTick)
+						: !activeCapturers.Contains(a)))
 				.Select(a => new TraitPair<CaptureManager>(a, a.TraitOrDefault<CaptureManager>()))
 				.Where(tp => tp.Trait != null)
 				.ToArray();
@@ -272,9 +299,13 @@ namespace OpenRA.Mods.Common.Traits
 				if (bestTarget == null)
 					break;
 
-				// Issue capture order.
+				// Issue capture order. Record the commitment so the TECN is not
+				// re-ordered while it walks in — this is the anti-thrash gate.
 				bot.QueueOrder(new Order("CaptureActor", capturer.Actor, Target.FromActor(bestTarget), true));
-				activeCapturers.Add(capturer.Actor);
+				if (useGuard)
+					goalGuard.Ledger.Commit(capturer.Actor, CaptureObjectiveKey(bestTarget), world.WorldTick, goalGuard.DefaultCommitmentTicks);
+				else
+					activeCapturers.Add(capturer.Actor);
 				alreadyTargetedThisTick.Add(bestTarget);
 
 				// Recruit escort — fire-and-forget; if no escort available, capture proceeds alone.
@@ -287,6 +318,46 @@ namespace OpenRA.Mods.Common.Traits
 					player.ClientIndex, capturer.Actor.Info.Name, bestTarget.Info.Name, bestScore);
 
 				availableCapturers.RemoveAt(0);
+			}
+		}
+
+		// Objective key stored in the goal-guard ledger. Namespaced string form
+		// ("capture:<actorId>") — greppable in logs and v3-portable. The actor id
+		// lets us resolve the target back to check whether the capture is done.
+		static string CaptureObjectiveKey(Actor target) => "capture:" + target.ActorID;
+
+		static bool TryParseCaptureTargetId(string objective, out uint id)
+		{
+			id = 0;
+			if (string.IsNullOrEmpty(objective))
+				return false;
+			var colon = objective.IndexOf(':');
+			return colon >= 0 && uint.TryParse(objective.AsSpan(colon + 1), out id);
+		}
+
+		// Release commitments that are done or stale so the TECN re-enters the pool:
+		//   * TECN dead / no longer ours              → Prune's keep predicate drops it
+		//   * commitment expired (walked its window)  → Prune drops it
+		//   * target captured (now ours) / gone       → explicit Release below
+		// Everything else stays committed → NOT re-ordered this scan (anti-thrash).
+		void ReconcileGuardCommitments()
+		{
+			var tick = world.WorldTick;
+			goalGuard.Ledger.Prune(tick, a => !a.IsDead && a.IsInWorld && a.Owner == player);
+
+			foreach (var tecn in capturingActors.Actors)
+			{
+				if (!goalGuard.Ledger.TryGetObjective(tecn, out var objective))
+					continue;
+
+				var target = TryParseCaptureTargetId(objective, out var id) ? world.GetActorById(id) : null;
+				var stillCapturable = target != null && !target.IsDead && target.IsInWorld
+					&& Info.CapturableRelationships.HasRelationship(player.RelationshipWith(target.Owner));
+
+				// target.Owner == player after we capture → relationship no longer
+				// Enemy/Neutral → stillCapturable false → commitment released.
+				if (!stillCapturable)
+					goalGuard.Ledger.Release(tecn);
 			}
 		}
 

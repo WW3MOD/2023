@@ -9,7 +9,7 @@ Two audiences:
 1. **A curious player** opening a doc to learn how the game works.
 2. **A future agent** picking up work and needing to make game-aware decisions without grepping the code from scratch.
 
-It is intentionally *not* a technical reference (that's `DOCS/reference/`), a balance spreadsheet (that's `WORKSPACE/balancing/`), or a tracker (that's `WORKSPACE/`).
+It is intentionally *not* a technical reference (that's `DOCS/reference/`), a balance analysis (that's `DOCS/recipes/BALANCE.md` + combat-sim), or a tracker (that's `WORKSPACE/`).
 
 The workflow for adding/updating docs is in [`../recipes/DOCUMENT.md`](../recipes/DOCUMENT.md).
 

@@ -11,7 +11,6 @@ Living state for the project. Mutable. Frequently edited. The agent reads and up
 | [`BACKLOG.md`](BACKLOG.md) | Deferred ideas (`[ ]`/`[x]`/`[dropped]`). |
 | [`DISCOVERIES.md`](DISCOVERIES.md) | Dated gotchas and insights from past sessions. |
 | `bugs/discovered.md` | Bugs found incidentally during other work. |
-| [`autotester_improvements.md`](autotester_improvements.md) | AUTOTEST harness friction backlog — consume in a focused improvement session. |
 
 ## Folders
 
@@ -22,7 +21,6 @@ Living state for the project. Mutable. Frequently edited. The agent reads and up
 | `ai/` | AI overhaul workspace — problem statement, substrate design, phase tracking (older stage docs in `ai/archive/`). |
 | `cohesion/` | Grouped-unit movement workspace — density/perception layer, design directions. |
 | `automation/` | Automation workflow plan (focus-steal fix, test lanes, autonomous queue, …). |
-| `balancing/` | Balance session findings — one-off reports; TRIAGE findings into `RELEASE_V1.md`. |
 | `lobby/` | Lobby redesign workspace — decisions, implementation plan, mockups. Implementation shipped; kept as design record. |
 | `archive/` | Historical: `archive/plans/` (shipped plans), `archive/sessions/` (finished session logs), `archive/playtests/`. Periodically cleanable. |
 

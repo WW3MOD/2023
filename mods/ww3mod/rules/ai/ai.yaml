@@ -94,6 +94,16 @@ Player:
 		CheckCaptureTargetsForVisibility: false
 		MaximumCaptureTargetOptions: 15
 
+	# v2 AI: per-unit commitment ledger (POI-strategy Phase 0/1). Stops
+	# CaptureCoordinatorBotModule below (and future POI offense modules) from
+	# re-issuing orders when a unit's IsIdle flickers mid-task. Without it the
+	# escorted TECN's CaptureActor order gets overwritten every scan and it never
+	# arrives — the "derricks ignored" bug. Reusable component, ports into v3.
+	# See WORKSPACE/plans/260719_experimental_ai_poi_strategy.md.
+	PoiGoalGuard@v2:
+		RequiresCondition: enable-ai-v2
+		DefaultCommitmentTicks: 300
+
 	# v2 AI: smart capture + escort + defense of income structures.
 	# Income weights match CashTrickler amounts in structures-neutral.yaml
 	# (OILB=50, FCOM=100, BIO=150). MISS/HOSP have no income so score low.

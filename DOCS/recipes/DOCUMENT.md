@@ -21,7 +21,7 @@ A gameplay doc:
 
 A gameplay doc is NOT:
 
-- A balance spreadsheet (those go in `WORKSPACE/balancing/`).
+- A balance analysis (that is BALANCE recipe territory).
 - An implementation walkthrough (those go in `reference/`).
 - A how-to-build-an-AI guide (that's `WORKSPACE/ai/`).
 - A patch note or changelog (commit history is fine for that).
