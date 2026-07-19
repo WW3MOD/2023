@@ -224,7 +224,15 @@ namespace OpenRA.Platforms.Default
 
 				Console.WriteLine($"Using resolution: {windowSize.Width}x{windowSize.Height}");
 
-				const SDL.SDL_WindowFlags WindowFlags = SDL.SDL_WindowFlags.SDL_WINDOW_OPENGL | SDL.SDL_WindowFlags.SDL_WINDOW_ALLOW_HIGHDPI;
+				var windowFlags = SDL.SDL_WindowFlags.SDL_WINDOW_OPENGL | SDL.SDL_WindowFlags.SDL_WINDOW_ALLOW_HIGHDPI;
+
+				// WW3MOD test harness: honor OPENRA_WINDOW_HIDDEN=1 for unattended/headless tournament runs.
+				// A window created with SDL_WINDOW_HIDDEN is never mapped and never receives focus, so it
+				// cannot steal focus from the user. Pure env-var opt-in; zero behavior change when unset.
+				// The flag also guards every code path below that would re-show/raise/minimize/grab the window.
+				var windowHidden = Environment.GetEnvironmentVariable("OPENRA_WINDOW_HIDDEN") == "1";
+				if (windowHidden)
+					windowFlags |= SDL.SDL_WindowFlags.SDL_WINDOW_HIDDEN;
 
 				// HiDPI doesn't work properly on OSX with (legacy) fullscreen mode
 				if (Platform.CurrentPlatform == PlatformType.OSX && windowMode == WindowMode.Fullscreen)
@@ -238,7 +246,7 @@ namespace OpenRA.Platforms.Default
 				var initialY = !string.IsNullOrEmpty(posYEnv) && int.TryParse(posYEnv, out var py) ? py : SDL.SDL_WINDOWPOS_CENTERED_DISPLAY(videoDisplay);
 
 				window = SDL.SDL_CreateWindow("OpenRA", initialX, initialY,
-					windowSize.Width, windowSize.Height, WindowFlags);
+					windowSize.Width, windowSize.Height, windowFlags);
 
 				if (Platform.CurrentPlatform == PlatformType.Linux)
 				{
@@ -286,12 +294,15 @@ namespace OpenRA.Platforms.Default
 				else
 					windowSize = new Size((int)(surfaceSize.Width / windowScale), (int)(surfaceSize.Height / windowScale));
 
-				if (Game.Settings.Game.LockMouseWindow)
+				// A hidden window must never grab the mouse — that would steal input focus from the user.
+				if (Game.Settings.Game.LockMouseWindow && !windowHidden)
 					GrabWindowMouseFocus();
 				else
 					ReleaseWindowMouseFocus();
 
-				if (windowMode == WindowMode.Fullscreen)
+				// Skip fullscreen when hidden: SDL_SetWindowFullscreen maps/shows the window on some platforms,
+				// which would defeat OPENRA_WINDOW_HIDDEN. Unattended runs use the default windowed size instead.
+				if (windowMode == WindowMode.Fullscreen && !windowHidden)
 				{
 					SDL.SDL_SetWindowFullscreen(Window, (uint)SDL.SDL_WindowFlags.SDL_WINDOW_FULLSCREEN);
 
@@ -308,7 +319,7 @@ namespace OpenRA.Platforms.Default
 						windowScale = 1;
 					}
 				}
-				else if (windowMode == WindowMode.PseudoFullscreen)
+				else if (windowMode == WindowMode.PseudoFullscreen && !windowHidden)
 				{
 					// Gnome >= 44 does not consider SDL_WINDOW_FULLSCREEN_DESKTOP to be borderless!
 					// This must be called before SetWindowFullscreen for the workaround to function.
@@ -344,7 +355,9 @@ namespace OpenRA.Platforms.Default
 
 				// WW3MOD test harness: honor OPENRA_WINDOW_MINIMIZED=1 (windowed mode only).
 				// Used by AUTOTEST so the game window doesn't disrupt the user during a run.
-				if (windowMode == WindowMode.Windowed
+				// A hidden window is already off-screen and unfocused; minimizing it is unnecessary
+				// and SDL_MinimizeWindow can implicitly map a hidden window, so skip it when hidden.
+				if (windowMode == WindowMode.Windowed && !windowHidden
 					&& Environment.GetEnvironmentVariable("OPENRA_WINDOW_MINIMIZED") == "1")
 					SDL.SDL_MinimizeWindow(window);
 
