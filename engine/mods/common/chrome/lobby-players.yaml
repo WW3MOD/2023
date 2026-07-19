@@ -768,12 +768,13 @@ Container@LOBBY_PLAYER_BIN:
 		# LobbyLogic hides this whole block when the Advanced or Music tab is active —
 		# those tabs overlay LOBBY_OPTIONS_BIN / LOBBY_MUSIC_BIN over this column.
 		#
-		# WW3MOD layout (top to bottom) — bottom-left quadrant, proportional split:
-		#   Y 0-48            OPTIONS section header + accent line
-		#   Y 48 to PH*3/5-12 COMMON_OPTIONS_PANEL (ScrollPanel; scrolls when short)
+		# WW3MOD layout (top to bottom) — bottom-left quadrant, proportional split.
+		# Spacing pass: 8px base grid, 16px content inset left/right throughout.
+		#   Y 0-40            OPTIONS section header + accent line
+		#   Y 40 to PH*3/5-12 COMMON_OPTIONS_PANEL (ScrollPanel; scrolls when short)
 		#   Y PH*3/5          divider, then LOBBY_ACTIVE_CHANGES at PH*3/5+6,
 		#                     Height PH*2/5-60 (chip renderer caps rows to fit)
-		#   Y PH-42 to PH-10  LOBBY_PRESET_BAR (bottom-anchored, 32 tall)
+		#   Y PH-44 to PH-8   LOBBY_PRESET_BAR (bottom-anchored, 36 tall)
 		# === Phase 4 — LEFT column bottom: settings (under map preview).
 		# Was full-right; swapped to bottom-left per the locked design.
 		# Widget ID kept as RIGHT_COLUMN_MATCH for grep/back-compat.
@@ -806,31 +807,34 @@ Container@LOBBY_PLAYER_BIN:
 					Height: 1
 					Color: 030303FF
 				Label@CELL_LABEL:
-					X: 12
-					Y: 14
-					Width: PARENT_WIDTH - 24
-					Height: 20
+					X: 16
+					Y: 12
+					Width: PARENT_WIDTH - 32
+					Height: 16
 					Font: TinyBold
 					Align: Left
 					Text: OPTIONS
 					TextColor: B4B4B4
 				ColorBlock@CELL_LABEL_ACCENT:
-					X: 12
-					Y: 38
+					X: 16
+					Y: 30
 					Width: 28
 					Height: 2
 					Color: B4B4B4FF
 				ScrollPanel@COMMON_OPTIONS_PANEL:
 					Logic: LobbyOptionsLogic
-					X: 4
-					Y: 48
-					Width: PARENT_WIDTH - 8
+					X: 0
+					Y: 40
+					# Full quadrant width minus 4 so the scrollbar (24px, drawn inside
+					# the panel's right edge) sits just off the right bevel. Row
+					# templates keep their content 4px clear of the scrollbar track.
+					Width: PARENT_WIDTH - 4
 					# Proportional split: options gets the top 3/5 of the quadrant
-					# (minus the header and a 12px gap to the divider at PH*3/5).
-					# ~147 tall @1080, ~233 @1440, ~72 @768 — short screens scroll,
+					# (minus the 40px header and a 12px gap to the divider at PH*3/5).
+					# 155 tall @1080, 241 @1440, 80 @768 — short screens scroll,
 					# which is fine for a ScrollPanel-backed grid. A fixed-offset
 					# height (PARENT_HEIGHT - 240) went negative at 768.
-					Height: PARENT_HEIGHT * 3 / 5 - 60
+					Height: PARENT_HEIGHT * 3 / 5 - 52
 					Background: ""
 					ScrollBar: Right
 					Children:
@@ -838,172 +842,183 @@ Container@LOBBY_PLAYER_BIN:
 							Visible: False
 							Text: All
 						Container@LOBBY_OPTIONS:
-							Y: 5
-							Width: PARENT_WIDTH - 24
+							Y: 8
+							Width: PARENT_WIDTH
 							Children:
-								# === Phase 2 (rerouted) — section header restyled to palette
-								# gray. Accent line swapped from green (B4B4B4FF) to accent
-								# (B4B4B4FF). Header height 42 → 36 (tighter, since the row
-								# template grew taller).
+								# === Spacing pass — section header matches the quadrant
+								# rhythm: label at the 16px inset, accent rail below,
+								# 8px bottom margin inside the 36px strip.
 								Container@SECTION_HEADER_TEMPLATE:
 									Width: PARENT_WIDTH
 									Height: 36
 									Visible: False
 									Children:
 										Label@HEADER_LABEL:
-											X: 8
-											Y: 10
-											Width: PARENT_WIDTH - 16
-											Height: 18
+											X: 16
+											Y: 8
+											Width: PARENT_WIDTH - 32
+											Height: 14
 											Font: TinyBold
 											Align: Left
 											TextColor: B4B4B4
 										ColorBlock@HEADER_ACCENT:
-											X: 8
-											Y: 30
+											X: 16
+											Y: 26
 											Width: 28
 											Height: 2
 											Color: B4B4B4FF
-								# === Settings polish — checkbox row tightened so two full
-								# option rows fit the panel at 1366×768. Was 36 row × 28 box;
-								# now 32 row × 26 box, vertically centered (Y:3).
+								# === Spacing pass — 8px grid: 38 row, 28 box at Y:4 with a
+								# 6px rhythm margin below. Grid: 4 columns, 12px gutters,
+								# 16px insets — cell X/Width derive from (PW - 32) / 4.
+								# The checkbox label offset (box + Height/2) is engine-fixed
+								# in CheckboxWidget.Draw.
 								Container@CHECKBOX_ROW_TEMPLATE:
 									Width: PARENT_WIDTH
-									Height: 32
+									Height: 38
 									Children:
 										Checkbox@A:
-											X: 8
-											Y: 3
-											Width: PARENT_WIDTH / 4 - 12
-											Height: 26
+											X: 16
+											Y: 4
+											Width: (PARENT_WIDTH - 32) / 4 - 12
+											Height: 28
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										Checkbox@B:
-											X: PARENT_WIDTH / 4 + 8
-											Y: 3
-											Width: PARENT_WIDTH / 4 - 12
-											Height: 26
+											X: (PARENT_WIDTH - 32) / 4 + 16
+											Y: 4
+											Width: (PARENT_WIDTH - 32) / 4 - 12
+											Height: 28
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										Checkbox@C:
-											X: PARENT_WIDTH * 2 / 4 + 8
-											Y: 3
-											Width: PARENT_WIDTH / 4 - 12
-											Height: 26
+											X: (PARENT_WIDTH - 32) * 2 / 4 + 16
+											Y: 4
+											Width: (PARENT_WIDTH - 32) / 4 - 12
+											Height: 28
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										Checkbox@D:
-											X: PARENT_WIDTH * 3 / 4 + 8
-											Y: 3
-											Width: PARENT_WIDTH / 4 - 12
-											Height: 26
+											X: (PARENT_WIDTH - 32) * 3 / 4 + 16
+											Y: 4
+											Width: (PARENT_WIDTH - 32) / 4 - 12
+											Height: 28
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
-								# === Settings polish — dropdown row tightened so two full
-								# option rows fit the panel at 1366×768. Was 50 row (label
-								# Y:2 H:14, button Y:18 H:30); now 44 row — label Y:0 H:14,
-								# 2px gap, button Y:16 H:26, 2px bottom margin.
+								# === Spacing pass — 54 row: micro-label Y:0 H:12 (TinyBold,
+								# muted ink, uppercased sans colon in LobbyOptionsLogic),
+								# 6px gap, control Y:18 H:30, 6px rhythm margin below.
+								# Same 4-column grid as the checkbox row.
 								Container@DROPDOWN_ROW_TEMPLATE:
-									Height: 44
+									Height: 54
 									Width: PARENT_WIDTH
 									Children:
 										LabelForInput@A_DESC:
-											X: 8
+											X: 16
 											Y: 0
-											Width: PARENT_WIDTH / 4 - 12
-											Height: 14
+											Width: (PARENT_WIDTH - 32) / 4 - 12
+											Height: 12
 											Visible: False
 											Align: Left
+											Font: TinyBold
+											TextColor: 686868
 											For: A
 										DropDownButton@A:
-											X: 8
-											Y: 16
-											Width: PARENT_WIDTH / 4 - 12
-											Height: 26
+											X: 16
+											Y: 18
+											Width: (PARENT_WIDTH - 32) / 4 - 12
+											Height: 30
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										LabelForInput@B_DESC:
-											X: PARENT_WIDTH / 4 + 8
+											X: (PARENT_WIDTH - 32) / 4 + 16
 											Y: 0
-											Width: PARENT_WIDTH / 4 - 12
-											Height: 14
+											Width: (PARENT_WIDTH - 32) / 4 - 12
+											Height: 12
 											Visible: False
 											Align: Left
+											Font: TinyBold
+											TextColor: 686868
 											For: B
 										DropDownButton@B:
-											X: PARENT_WIDTH / 4 + 8
-											Y: 16
-											Width: PARENT_WIDTH / 4 - 12
-											Height: 26
+											X: (PARENT_WIDTH - 32) / 4 + 16
+											Y: 18
+											Width: (PARENT_WIDTH - 32) / 4 - 12
+											Height: 30
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										LabelForInput@C_DESC:
-											X: PARENT_WIDTH * 2 / 4 + 8
+											X: (PARENT_WIDTH - 32) * 2 / 4 + 16
 											Y: 0
-											Width: PARENT_WIDTH / 4 - 12
-											Height: 14
+											Width: (PARENT_WIDTH - 32) / 4 - 12
+											Height: 12
 											Visible: False
 											Align: Left
+											Font: TinyBold
+											TextColor: 686868
 											For: C
 										DropDownButton@C:
-											X: PARENT_WIDTH * 2 / 4 + 8
-											Y: 16
-											Width: PARENT_WIDTH / 4 - 12
-											Height: 26
+											X: (PARENT_WIDTH - 32) * 2 / 4 + 16
+											Y: 18
+											Width: (PARENT_WIDTH - 32) / 4 - 12
+											Height: 30
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 										LabelForInput@D_DESC:
-											X: PARENT_WIDTH * 3 / 4 + 8
+											X: (PARENT_WIDTH - 32) * 3 / 4 + 16
 											Y: 0
-											Width: PARENT_WIDTH / 4 - 12
-											Height: 14
+											Width: (PARENT_WIDTH - 32) / 4 - 12
+											Height: 12
 											Visible: False
 											Align: Left
+											Font: TinyBold
+											TextColor: 686868
 											For: D
 										DropDownButton@D:
-											X: PARENT_WIDTH * 3 / 4 + 8
-											Y: 16
-											Width: PARENT_WIDTH / 4 - 12
-											Height: 26
+											X: (PARENT_WIDTH - 32) * 3 / 4 + 16
+											Y: 18
+											Width: (PARENT_WIDTH - 32) / 4 - 12
+											Height: 30
 											Visible: False
 											TooltipContainer: TOOLTIP_CONTAINER
 				# === WW3MOD — proportional split, active-changes sized for chips.
 				# Options takes the top 3/5 of the quadrant, active changes the
 				# bottom 2/5 minus the preset bar: divider at PH*3/5, active
 				# changes at PH*3/5+6 with Height PH*2/5-60, preset bar bottom-
-				# anchored (PH-42, H 32). Active-changes bottom lands at ~PH-54,
-				# leaving a ~12px gap above the preset bar at every resolution
-				# (78 tall @1080, 135 @1440, 28 @768).
-				# PITFALL (2026-06): chips render from internal Y:46 downward —
+				# anchored (PH-44, H 36). Active-changes bottom lands at ~PH-54,
+				# leaving a ~10px gap above the preset bar at every resolution
+				# (78 tall @1080, 135 @1440, 28 @768). Container spans the full
+				# quadrant width; the 16px content inset lives inside it (title
+				# X:16 here, chip startX 16 in LobbyActiveChangesLogic).
+				# PITFALL (2026-06): chips render from internal Y:36 downward —
 				# a too-short container used to push every chip OUTSIDE it, behind
 				# the preset bar with no way to scroll into view. The chip renderer
 				# now caps visible rows to the measured container height, so short
 				# containers (e.g. 768p) truncate gracefully instead of overflowing.
 				ColorBlock@RIGHT_DIVIDER_1:
-					X: 12
+					X: 16
 					Y: PARENT_HEIGHT * 3 / 5
-					Width: PARENT_WIDTH - 24
+					Width: PARENT_WIDTH - 32
 					Height: 1
 					Color: 030303FF
 				Container@LOBBY_ACTIVE_CHANGES:
 					Logic: LobbyActiveChangesLogic
-					X: 12
+					X: 0
 					Y: PARENT_HEIGHT * 3 / 5 + 6
-					Width: PARENT_WIDTH - 24
+					Width: PARENT_WIDTH
 					Height: PARENT_HEIGHT * 2 / 5 - 60
 					Children:
 						Label@EMPTY_HINT:
-							X: 10
-							Y: 10
-							Width: PARENT_WIDTH - 20
-							Height: 18
+							X: 16
+							Y: 8
+							Width: PARENT_WIDTH - 32
+							Height: 12
 							Font: TinyBold
 							Align: Left
 							Text: All settings at default
 							TextColor: 686868
 						ColorBlock@EMPTY_HINT_ACCENT:
-							X: 10
-							Y: 30
+							X: 16
+							Y: 26
 							Width: 28
 							Height: 2
 							Color: B4B4B4FF
@@ -1020,65 +1035,67 @@ Container@LOBBY_PLAYER_BIN:
 									Height: PARENT_HEIGHT
 									Align: Center
 									Font: Bold
+				# Spacing pass — bar inset to the quadrant's 16px content margin,
+				# 36 tall with 30px controls vertically centered (Y:3), uniform
+				# 8px gaps. Translucent SECTION_BG dropped: the flat quadrant
+				# panel is the background; the extra tint read as a seam.
 				Container@LOBBY_PRESET_BAR:
 					Logic: LobbyPresetLogic
-					X: 12
-					Y: PARENT_HEIGHT - 42
-					Width: PARENT_WIDTH - 24
-					Height: 32
+					X: 16
+					Y: PARENT_HEIGHT - 44
+					Width: PARENT_WIDTH - 32
+					Height: 36
 					Children:
-						ColorBlock@SECTION_BG:
-							Width: PARENT_WIDTH
-							Height: PARENT_HEIGHT
-							Color: 0000001E
 						Label@PRESET_LABEL:
-							X: 8
-							Y: 7
-							Width: 55
-							Height: 20
-							Text: Preset:
-							Font: Bold
-						TextField@PRESET_NAME:
-							X: 60
+							X: 0
 							Y: 0
-							Width: 170
-							Height: 32
+							Width: 48
+							Height: 36
+							Text: PRESET
+							Font: TinyBold
+							TextColor: 686868
+						TextField@PRESET_NAME:
+							X: 56
+							Y: 3
+							Width: 150
+							Height: 30
 							MaxLength: 32
 							Text: Default
 						DropDownButton@PRESET_DROPDOWN:
-							X: 240
-							Y: 0
-							Width: 70
-							Height: 32
+							X: 214
+							Y: 3
+							Width: 76
+							Height: 30
 							Font: Bold
 							Text: Load
 						Button@SAVE_PRESET_BUTTON:
-							X: 320
-							Y: 0
-							Width: 70
-							Height: 32
+							X: 298
+							Y: 3
+							Width: 72
+							Height: 30
 							Font: Bold
 							Text: Save
 						Button@RENAME_PRESET_BUTTON:
-							X: 400
-							Y: 0
-							Width: 70
-							Height: 32
+							X: 378
+							Y: 3
+							Width: 72
+							Height: 30
 							Font: Bold
 							Text: Rename
 						Button@DELETE_PRESET_BUTTON:
-							X: 480
-							Y: 0
-							Width: 70
-							Height: 32
+							X: 458
+							Y: 3
+							Width: 72
+							Height: 30
 							Font: Bold
 							Text: Delete
-						# Row must end <= 626: bar width is PARENT_WIDTH - 24 = 627 @1366.
+						# Row must end <= 619: bar width is PARENT_WIDTH - 32 = 619 @1366
+						# (quadrant 651 wide). 48+8+150+8+76+8+72*4+8*3 = 610, 9px slack.
 						Button@RESET_PRESET_BUTTON:
-							X: 560
-							Y: 0
-							Width: 66
-							Height: 32
+							X: 538
+							Y: 3
+							Width: 72
+							Height: 30
 							Font: Bold
 							Text: Reset
 

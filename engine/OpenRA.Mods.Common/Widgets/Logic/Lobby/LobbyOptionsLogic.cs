@@ -497,7 +497,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					var dropdownName = option.Name;
 					if (FluentProvider.TryGetMessage(option.Name, out var fluentName))
 						dropdownName = fluentName;
-					label.GetText = () => dropdownName + ":";
+
+					// Spacing pass: micro-labels render uppercase without the old
+					// trailing colon (it was appended here, not in the source
+					// strings; TrimEnd also covers any name that carries its own).
+					var displayName = dropdownName.TrimEnd(':').ToUpperInvariant();
+					label.GetText = () => displayName;
 					label.IsVisible = () => true;
 					if (option.Placeholder)
 						label.GetColor = () => PlaceholderTextColor;

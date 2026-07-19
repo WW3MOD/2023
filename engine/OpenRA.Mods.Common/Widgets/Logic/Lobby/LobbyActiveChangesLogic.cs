@@ -111,12 +111,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				.OrderBy(o => o.DisplayOrder)
 				.ToArray();
 
-			// Chips flow horizontally starting at x=10 (matches the EMPTY_HINT and
-			// accent line on the left edge of the panel). First chip sits just below
-			// the header strip (EMPTY_HINT Y:10 H:18 + accent Y:30 H:2 + gap).
-			const int startX = 10;
-			const int startY = 46;
-			const int spacing = 10;
+			// Chips flow horizontally starting at x=16 (the quadrant's shared
+			// content inset — matches the EMPTY_HINT and accent line). First chip
+			// sits just below the header strip (EMPTY_HINT Y:8 H:12 + accent
+			// Y:26 H:2 + 8px gap). Keep these in sync with LOBBY_ACTIVE_CHANGES
+			// in lobby-players.yaml.
+			const int startX = 16;
+			const int startY = 36;
+			const int spacing = 8;
 			const int rowStride = 38;
 			var containerWidth = container.Bounds.Width;
 			var chipHeight = chipTemplate.Bounds.Height;
