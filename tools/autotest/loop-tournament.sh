@@ -66,14 +66,16 @@ fi
 
 # Parse target via awk. Tab-indented YAML; values are everything after the
 # first ': ' separator. Default values supplied if keys missing.
-CONFIG=$(awk -F': *' '/^Config:/ { print $2; exit }' "${TARGET}")
-BATCH_SIZE=$(awk -F': *' '/^BatchSize:/ { print $2; exit }' "${TARGET}")
-BUDGET_HOURS=$(awk -F': *' '/^BudgetHours:/ { print $2; exit }' "${TARGET}")
-MAX_ROUNDS=$(awk -F': *' '/^MaxRounds:/ { print $2; exit }' "${TARGET}")
-STOP_WINNER=$(awk -F': *' '/^StopWinner:/ { print $2; exit }' "${TARGET}")
-STOP_THRESHOLD=$(awk -F': *' '/^StopThreshold:/ { print $2; exit }' "${TARGET}")
-MAX_WALL_SECS=$(awk -F': *' '/^MaxWallSecs:/ { print $2; exit }' "${TARGET}")
-MIRROR_SCENARIO=$(awk -F': *' '/^MirrorScenario:/ { print $2; exit }' "${TARGET}")
+# `tr -d '\r'` strips a trailing CR so a CRLF-saved target.yaml (common when
+# authored on Windows) doesn't corrupt numeric compares or path values.
+CONFIG=$(awk -F': *' '/^Config:/ { print $2; exit }' "${TARGET}" | tr -d '\r')
+BATCH_SIZE=$(awk -F': *' '/^BatchSize:/ { print $2; exit }' "${TARGET}" | tr -d '\r')
+BUDGET_HOURS=$(awk -F': *' '/^BudgetHours:/ { print $2; exit }' "${TARGET}" | tr -d '\r')
+MAX_ROUNDS=$(awk -F': *' '/^MaxRounds:/ { print $2; exit }' "${TARGET}" | tr -d '\r')
+STOP_WINNER=$(awk -F': *' '/^StopWinner:/ { print $2; exit }' "${TARGET}" | tr -d '\r')
+STOP_THRESHOLD=$(awk -F': *' '/^StopThreshold:/ { print $2; exit }' "${TARGET}" | tr -d '\r')
+MAX_WALL_SECS=$(awk -F': *' '/^MaxWallSecs:/ { print $2; exit }' "${TARGET}" | tr -d '\r')
+MIRROR_SCENARIO=$(awk -F': *' '/^MirrorScenario:/ { print $2; exit }' "${TARGET}" | tr -d '\r')
 
 [ -z "${BATCH_SIZE}" ] && BATCH_SIZE=10
 [ -z "${BUDGET_HOURS}" ] && BUDGET_HOURS=8

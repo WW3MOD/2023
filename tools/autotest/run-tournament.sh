@@ -45,6 +45,44 @@ set -e
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "${REPO_ROOT}"
 
+# --- Platform portability (macOS / Linux / Windows-Git-Bash) ------------------
+# Detect Git-Bash / MSYS / Cygwin. On those, paths handed to the .NET game
+# process must be Windows-form (C:\...), and pkill/pgrep don't exist.
+IS_WINDOWS=0
+case "$(uname -s)" in
+	MINGW*|MSYS*|CYGWIN*|Windows_NT) IS_WINDOWS=1 ;;
+esac
+
+# Translate a POSIX path to a Windows path for args consumed by the game exe.
+# Identity passthrough on macOS/Linux, so their behavior is byte-for-byte
+# unchanged. Falls back to the POSIX path (relies on MSYS auto-conversion) if
+# cygpath is somehow absent.
+to_game_path() {
+	if [ "${IS_WINDOWS}" = "1" ] && command -v cygpath >/dev/null 2>&1; then
+		cygpath -w "$1"
+	else
+		printf '%s' "$1"
+	fi
+}
+
+# Kill the game process that owns a given result file. macOS/Linux match the
+# full Test.ResultPath launch arg via pkill -f; Windows/Git-Bash has no pkill,
+# so match the (slash-agnostic) result-file basename against each game process'
+# CommandLine via PowerShell CIM and Stop-Process. The image-name filter
+# (dotnet.exe / OpenRA*) is essential: without it the query also matches its own
+# powershell.exe (whose command line embeds the pattern) and self-terminates.
+kill_game_for_result() {
+	_result_file="$1"
+	if [ "${IS_WINDOWS}" = "1" ]; then
+		_base=$(basename "${_result_file}")
+		powershell.exe -NoProfile -Command \
+			"Get-CimInstance Win32_Process | Where-Object { (\$_.Name -eq 'dotnet.exe' -or \$_.Name -like 'OpenRA*') -and \$_.CommandLine -like '*${_base}*' } | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force -ErrorAction SilentlyContinue }" \
+			>/dev/null 2>&1 || true
+	else
+		pkill -KILL -f "Test\\.ResultPath=${_result_file}" 2>/dev/null || true
+	fi
+}
+
 SCENARIO=""
 SEEDS=5
 CONFIG=""
@@ -106,9 +144,9 @@ if [ ! -f "${CONFIG}" ]; then
 fi
 
 # Extract speed config FIRST so MAX_WALL_SECS auto-calc can use it.
-GAME_SPEED=$(awk '/^GameSpeed:/ { gsub(",",""); print $2; exit }' "${CONFIG}")
+GAME_SPEED=$(awk '/^GameSpeed:/ { gsub(",",""); gsub(/\r/,""); print $2; exit }' "${CONFIG}")
 [ -z "${GAME_SPEED}" ] && GAME_SPEED="default"
-SPEED_MULT=$(awk '/^SpeedMultiplier:/ { gsub(",",""); print $2; exit }' "${CONFIG}")
+SPEED_MULT=$(awk '/^SpeedMultiplier:/ { gsub(",",""); gsub(/\r/,""); print $2; exit }' "${CONFIG}")
 [ -z "${SPEED_MULT}" ] && SPEED_MULT=1
 
 # Compute default max-wall-secs from TimeLimitSeconds × 4 / effective-speed.
@@ -116,7 +154,7 @@ SPEED_MULT=$(awk '/^SpeedMultiplier:/ { gsub(",",""); print $2; exit }' "${CONFI
 # initialization. Worst case (rendering bottleneck) the actual speed-up is
 # less than the multiplier; we still budget the full mult for the watchdog.
 if [ -z "${MAX_WALL_SECS}" ]; then
-	TIME_LIMIT_SECS=$(awk '/^TimeLimitSeconds:/ { gsub(",",""); print $2; exit }' "${CONFIG}")
+	TIME_LIMIT_SECS=$(awk '/^TimeLimitSeconds:/ { gsub(",",""); gsub(/\r/,""); print $2; exit }' "${CONFIG}")
 	SPEED_BUDGET_DIV=${SPEED_MULT}
 	[ "${SPEED_BUDGET_DIV}" -lt 1 ] && SPEED_BUDGET_DIV=1
 	if [ -z "${TIME_LIMIT_SECS}" ]; then
@@ -160,8 +198,29 @@ echo
 
 # Hand the engine the absolute config path so it can find it regardless of cwd.
 CONFIG_ABS=$(cd "$(dirname "${CONFIG}")" && pwd)/$(basename "${CONFIG}")
+CONFIG_GAME=$(to_game_path "${CONFIG_ABS}")
 
 # GAME_SPEED + SPEED_MULT already extracted above (above MAX_WALL_SECS calc).
+
+# Locate the engine's settings.yaml once, so we can back it up around each
+# launch (a saved Sound.Mute=true would otherwise leak into normal launches).
+# macOS/Linux use a fixed per-platform path; Windows checks a repo-local
+# engine/Support override, then %APPDATA%\OpenRA (modern), then
+# Documents\OpenRA (legacy). Empty result → backup silently skipped.
+SETTINGS_FILE=""
+case "$(uname -s)" in
+	Darwin) SETTINGS_FILE="${HOME}/Library/Application Support/OpenRA/settings.yaml" ;;
+	Linux)  SETTINGS_FILE="${HOME}/.config/openra/settings.yaml" ;;
+	MINGW*|MSYS*|CYGWIN*|Windows_NT)
+		for _cand in \
+			"${REPO_ROOT}/engine/Support/settings.yaml" \
+			"$(cygpath -u "${APPDATA:-}" 2>/dev/null)/OpenRA/settings.yaml" \
+			"$(cygpath -u "${USERPROFILE:-}" 2>/dev/null)/Documents/OpenRA/settings.yaml"; do
+			if [ -f "${_cand}" ]; then SETTINGS_FILE="${_cand}"; break; fi
+		done
+		[ -z "${SETTINGS_FILE}" ] && echo "==> Note: no OpenRA settings.yaml found; skipping settings backup."
+		;;
+esac
 
 OK=0
 FAIL=0
@@ -182,6 +241,8 @@ for i in $(seq 1 ${SEEDS}); do
 	# Resolve to absolute before handing off.
 	MATCH_RESULT_FILE="${REPO_ROOT}/${RESULT_DIR}/match_${i}.json"
 	MATCH_LOG="${REPO_ROOT}/${RESULT_DIR}/match_${i}.log"
+	# Windows-form path for the game arg; POSIX form stays for shell-side tests.
+	MATCH_RESULT_FILE_GAME=$(to_game_path "${MATCH_RESULT_FILE}")
 
 	# Inject the tournament config into the regular launch via Test.TournamentConfig.
 	# We re-use run-test.sh's launcher but inject extra args via env (run-test.sh
@@ -189,11 +250,7 @@ for i in $(seq 1 ${SEEDS}); do
 	# directly with the same arg shape, mirroring run-test.sh).
 	#
 	# Mirror run-test.sh's settings.yaml backup so audio mute doesn't leak.
-	SETTINGS_FILE=""
-	case "$(uname)" in
-		Darwin) SETTINGS_FILE="${HOME}/Library/Application Support/OpenRA/settings.yaml" ;;
-		Linux)  SETTINGS_FILE="${HOME}/.config/openra/settings.yaml" ;;
-	esac
+	# SETTINGS_FILE resolved once above (incl. the Windows locations).
 	SETTINGS_BACKUP=""
 	if [ -n "${SETTINGS_FILE}" ] && [ -f "${SETTINGS_FILE}" ]; then
 		SETTINGS_BACKUP="${RESULT_DIR}/.settings.yaml.bak"
@@ -215,8 +272,8 @@ for i in $(seq 1 ${SEEDS}); do
 			"Launch.Map=${MATCH_SCENARIO}" \
 			"Test.Mode=true" \
 			"Test.Name=${MATCH_SCENARIO}-match${i}" \
-			"Test.ResultPath=${MATCH_RESULT_FILE}" \
-			"Test.TournamentConfig=${CONFIG_ABS}" \
+			"Test.ResultPath=${MATCH_RESULT_FILE_GAME}" \
+			"Test.TournamentConfig=${CONFIG_GAME}" \
 			"Test.GameSpeed=${GAME_SPEED}" \
 			"Test.SpeedMultiplier=${SPEED_MULT}" \
 			"Test.RandomSeed=${MATCH_SEED}" \
@@ -246,12 +303,13 @@ for i in $(seq 1 ${SEEDS}); do
 		ELAPSED=$((NOW - WALL_START))
 		if [ ${ELAPSED} -ge ${MAX_WALL_SECS} ]; then
 			echo "  ! Wall-clock limit (${MAX_WALL_SECS}s) exceeded, killing match."
-			# GAME_PID is the subshell — the actual dotnet process is a child.
+			# GAME_PID is the subshell — the actual game process is a child.
 			# Kill by command pattern to be sure. PITFALL: SIGTERM is sometimes
 			# ignored by dotnet (process hangs after Game.Exit); SIGKILL is the
-			# only reliable terminator on macOS.
+			# only reliable terminator on macOS. kill_game_for_result is the
+			# cross-platform equivalent (pkill -f on Unix, PowerShell on Windows).
 			kill -KILL "${GAME_PID}" 2>/dev/null || true
-			pkill -KILL -f "Test\\.ResultPath=${MATCH_RESULT_FILE}" 2>/dev/null || true
+			kill_game_for_result "${MATCH_RESULT_FILE}"
 			break
 		fi
 
@@ -259,8 +317,8 @@ for i in $(seq 1 ${SEEDS}); do
 	done
 
 	wait "${GAME_PID}" 2>/dev/null || true
-	# Belt-and-braces: ensure no dotnet process is still holding our result path.
-	pkill -KILL -f "Test\\.ResultPath=${MATCH_RESULT_FILE}" 2>/dev/null || true
+	# Belt-and-braces: ensure no game process is still holding our result path.
+	kill_game_for_result "${MATCH_RESULT_FILE}"
 
 	if [ -n "${SETTINGS_BACKUP}" ] && [ -f "${SETTINGS_BACKUP}" ]; then
 		mv "${SETTINGS_BACKUP}" "${SETTINGS_FILE}"

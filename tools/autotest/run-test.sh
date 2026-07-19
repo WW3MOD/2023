@@ -91,6 +91,21 @@ fi
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "${REPO_ROOT}"
 
+# Detect Git-Bash / MSYS / Cygwin. On those, paths handed to the .NET game
+# process must be Windows-form (C:\...). Identity passthrough elsewhere so
+# macOS/Linux behavior is byte-for-byte unchanged.
+IS_WINDOWS=0
+case "$(uname -s)" in
+	MINGW*|MSYS*|CYGWIN*|Windows_NT) IS_WINDOWS=1 ;;
+esac
+to_game_path() {
+	if [ "${IS_WINDOWS}" = "1" ] && command -v cygpath >/dev/null 2>&1; then
+		cygpath -w "$1"
+	else
+		printf '%s' "$1"
+	fi
+}
+
 MAP_DIR="tools/autotest/scenarios/${TEST_NAME}"
 if [ ! -d "${MAP_DIR}" ]; then
 	echo "Error: test map not found at ${MAP_DIR}"
@@ -244,22 +259,36 @@ fi
 # normal launches. Restoring the file post-run sidesteps the risk entirely.
 SETTINGS_FILE=""
 SETTINGS_BACKUP=""
-case "$(uname)" in
+case "$(uname -s)" in
 	Darwin) SETTINGS_FILE="${HOME}/Library/Application Support/OpenRA/settings.yaml" ;;
 	Linux)  SETTINGS_FILE="${HOME}/.config/openra/settings.yaml" ;;
+	MINGW*|MSYS*|CYGWIN*|Windows_NT)
+		# engine/Support override, then %APPDATA%\OpenRA (modern), then
+		# Documents\OpenRA (legacy). First existing wins; empty → skip backup.
+		for _cand in \
+			"${REPO_ROOT}/engine/Support/settings.yaml" \
+			"$(cygpath -u "${APPDATA:-}" 2>/dev/null)/OpenRA/settings.yaml" \
+			"$(cygpath -u "${USERPROFILE:-}" 2>/dev/null)/Documents/OpenRA/settings.yaml"; do
+			if [ -f "${_cand}" ]; then SETTINGS_FILE="${_cand}"; break; fi
+		done
+		;;
 esac
 if [ -n "${SETTINGS_FILE}" ] && [ -f "${SETTINGS_FILE}" ]; then
 	SETTINGS_BACKUP="${RESULT_DIR}/settings.yaml.bak"
 	cp "${SETTINGS_FILE}" "${SETTINGS_BACKUP}"
 fi
 
+# Game-side args need Windows-form paths under Git-Bash; identity elsewhere.
+RESULT_FILE_GAME=$(to_game_path "${RESULT_FILE}")
+SCREENSHOT_DIR_GAME=$(to_game_path "${SCREENSHOT_DIR}")
+
 ./launch-game.sh \
 	"Launch.Map=${TEST_NAME}" \
 	"Test.Mode=true" \
 	"Test.Name=${TEST_NAME}" \
 	"Test.Description=${TEST_DESCRIPTION}" \
-	"Test.ResultPath=${RESULT_FILE}" \
-	"Test.ScreenshotDir=${SCREENSHOT_DIR}" \
+	"Test.ResultPath=${RESULT_FILE_GAME}" \
+	"Test.ScreenshotDir=${SCREENSHOT_DIR_GAME}" \
 	"Graphics.Mode=${GRAPHICS_MODE}" \
 	${WINDOW_ARGS} \
 	${AUDIO_ARGS} \
