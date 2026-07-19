@@ -4,13 +4,13 @@ Player:
 	# Condition map — when adding a new bot type or wiring a new module,
 	# pick the right condition:
 	#
-	#   enable-ai-any           granted to: normal, rush, turtle, v2
+	#   enable-ai-any           granted to: normal, rush, turtle, experimental, stable
 	#                           use for:    truly universal modules (intel, repair, scout)
 	#
-	#   enable-ai-player        granted to: normal, v2
+	#   enable-ai-player        granted to: normal, experimental, stable
 	#                           use for:    the "normal baseline" — modules that the
-	#                                       default Normal AI uses and that v2 inherits
-	#                                       as its starting point. Misleadingly named:
+	#                                       default Normal AI uses and that Experimental/Stable
+	#                                       inherit as their starting point. Misleadingly named:
 	#                                       it does NOT mean "any AI player". Kept for
 	#                                       backwards compatibility with existing wiring.
 	#                           PITFALL: this is not a synonym for "any AI". Rush and
@@ -18,12 +18,14 @@ Player:
 	#
 	#   enable-ai-rush          granted to: rush
 	#   enable-ai-turtle        granted to: turtle
-	#   enable-ai-v2            granted to: v2     — use for NEW v2-only modules
-	#   enable-ai-legacy-only   granted to: normal, rush, turtle (everyone except v2)
-	#                           use for:    modules that v2 replaces — keep the legacy
+	#   enable-ai-experimental  granted to: experimental — use for NEW Experimental-only modules
+	#   enable-ai-stable        granted to: stable — frozen snapshot of the last validated
+	#                                       Experimental config (promotion policy: SPEC.md §Bot pair)
+	#   enable-ai-legacy-only   granted to: normal, rush, turtle (everyone except Experimental + Stable)
+	#                           use for:    modules that Experimental replaces — keep the legacy
 	#                                       module around for tournament baselines.
 	#
-	# Tournament harness uses these conditions to A/B test v2 against the legacy
+	# Tournament harness uses these conditions to A/B test Experimental against the legacy
 	# Normal AI without rebuilding the binary. See:
 	#   WORKSPACE/plans/260511_ai_tournament_harness.md
 	#   WORKSPACE/ai/tournament_swap_guide.md
@@ -36,34 +38,43 @@ Player:
 	ModularBot@turtle:
 		Name: Turtle AI
 		Type: turtle
-	ModularBot@v2:
-		Name: V2 AI (experimental)
-		Type: v2
+	ModularBot@experimental:
+		Name: Experimental AI
+		Type: experimental
+	ModularBot@stable:
+		Name: Stable AI
+		Type: stable
 
-	# Bots list expanded to include v2 so v2 inherits the normal-tier modules
-	# as its baseline. New v2-only modules use `enable-ai-v2` instead.
+	# Bots list expanded to include experimental + stable so both inherit the
+	# normal-tier modules as their baseline. New Experimental-only modules use
+	# `enable-ai-experimental`; Stable mirrors the validated snapshot under
+	# `enable-ai-stable`.
 	GrantConditionOnBotOwner@normal:
 		Condition: enable-ai-player
-		Bots: normal, v2
+		Bots: normal, experimental, stable
 	GrantConditionOnBotOwner@rush:
 		Condition: enable-ai-rush
 		Bots: rush
 	GrantConditionOnBotOwner@turtle:
 		Condition: enable-ai-turtle
 		Bots: turtle
-	GrantConditionOnBotOwner@v2:
-		Condition: enable-ai-v2
-		Bots: v2
+	GrantConditionOnBotOwner@experimental:
+		Condition: enable-ai-experimental
+		Bots: experimental
+	GrantConditionOnBotOwner@stable:
+		Condition: enable-ai-stable
+		Bots: stable
 
 	# Unified condition for any AI type (used by shared modules)
 	GrantConditionOnBotOwner@anyai:
 		Condition: enable-ai-any
-		Bots: normal, rush, turtle, v2
+		Bots: normal, rush, turtle, experimental, stable
 
-	# Inverse of @v2 — "any legacy AI but not v2". Reserved for future use when
-	# v2 replaces a module: the old module moves to enable-ai-legacy-only, the
-	# new v2 module gets enable-ai-v2. Currently unused — every existing module
-	# is shared between normal-tier and v2 baseline.
+	# Inverse of @experimental/@stable — "any legacy AI". Reserved for future use
+	# when Experimental replaces a module: the old module moves to
+	# enable-ai-legacy-only, the new one gets enable-ai-experimental (and
+	# enable-ai-stable once promoted). Currently unused — every existing module is
+	# shared between the normal-tier baseline and the Experimental/Stable POI layer.
 	GrantConditionOnBotOwner@legacyonly:
 		Condition: enable-ai-legacy-only
 		Bots: normal, rush, turtle
@@ -83,7 +94,7 @@ Player:
 
 	# ===== Shared Modules (all AI types) =====
 
-	# Legacy capture manager — gated to non-v2 AIs. v2 uses
+	# Legacy capture manager — gated to non-experimental AIs. experimental uses
 	# CaptureCoordinatorBotModule below (income-weighted scoring + escort + defense).
 	# Only one entry: TECN is the sole neutral-capture unit (engineers don't
 	# have the Captures trait by design — see DOCS/gameplay/capturing.md).
@@ -94,23 +105,29 @@ Player:
 		CheckCaptureTargetsForVisibility: false
 		MaximumCaptureTargetOptions: 15
 
-	# v2 AI: per-unit commitment ledger (POI-strategy Phase 0/1). Stops
-	# CaptureCoordinatorBotModule below (and future POI offense modules) from
+	# Experimental/Stable AI: per-unit commitment ledger (POI-strategy Phase 0/1). Stops
+	# CaptureCoordinatorBotModule below (and the POI offense modules) from
 	# re-issuing orders when a unit's IsIdle flickers mid-task. Without it the
 	# escorted TECN's CaptureActor order gets overwritten every scan and it never
-	# arrives — the "derricks ignored" bug. Reusable component, ports into v3.
+	# arrives — the "derricks ignored" bug. Reusable component.
 	# See WORKSPACE/plans/260719_experimental_ai_poi_strategy.md.
-	PoiGoalGuard@v2:
-		RequiresCondition: enable-ai-v2
+	#
+	# SHARED SINGLETON (not duplicated into a @stable twin): consumers fetch it via
+	# player.TraitOrDefault<PoiGoalGuard>() (single-instance lookup), so two
+	# instances on one player would throw. Gated on BOTH bot conditions instead —
+	# Experimental and Stable share this ledger's one setting. (See the Stable
+	# section note + SPEC §13.)
+	PoiGoalGuard@poi:
+		RequiresCondition: enable-ai-experimental || enable-ai-stable
 		DefaultCommitmentTicks: 300
 
-	# v2 AI: smart capture + escort + defense of income structures.
+	# experimental AI: smart capture + escort + defense of income structures.
 	# Income weights match CashTrickler amounts in structures-neutral.yaml
 	# (OILB=50, FCOM=100, BIO=150). MISS/HOSP have no income so score low.
-	CaptureCoordinatorBotModule@v2.tecn:
-		RequiresCondition: enable-ai-v2
+	CaptureCoordinatorBotModule@experimental.tecn:
+		RequiresCondition: enable-ai-experimental
 		CapturingActorTypes: tecn,tecn.russia,tecn.america
-		# logisticscenter included so v2 doesn't need the legacy
+		# logisticscenter included so experimental doesn't need the legacy
 		# CaptureManagerBotModule@captureenemystructures (which competes
 		# with this module for TECN — see playtest 260513 O1).
 		CapturableActorTypes: oilb,bio,miss,fcom,hosp,logisticscenter
@@ -139,16 +156,16 @@ Player:
 		DefenseSummonCount: 3
 		DefenseEnemyValueThreshold: 200
 
-	# v2 AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
+	# experimental AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
 	# ground army across the top enemy objectives ranked by PoiMap
 	# (enemy income = Attack, enemy Supply Route = Pressure; the enemy base
 	# competes on the same score — decision #3, no privileged base-beeline).
-	# Replaces the fixed-wing SquadManager's ground death-ball: those v2 managers
+	# Replaces the fixed-wing SquadManager's ground death-ball: those experimental managers
 	# set IgnoreGroundUnits so this module owns the ground pool. Unit contention
 	# with capture/defense is resolved through the shared PoiGoalGuard ledger.
 	# Constants are tunable here without a rebuild; early passive games accepted.
-	PoiOffensiveBotModule@v2:
-		RequiresCondition: enable-ai-v2
+	PoiOffensiveBotModule@experimental:
+		RequiresCondition: enable-ai-experimental
 		ReevaluateInterval: 100
 		UnitsPerAxis: 8
 		MinAxisSize: 3
@@ -161,7 +178,7 @@ Player:
 		# listed; a name the faction lacks is simply never matched.
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
 
-	# v2 AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
+	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
 	# under assault) so the income isn't ninja-recaptured. Reads PoiMap's defensive
 	# ranking (own money POIs scored value x distance x defence-urgency — threat
@@ -169,8 +186,8 @@ Player:
 	# capture/offense (commits "defend:<id>"), so no module fights over a unit and
 	# the offense pool isn't starved. Score-floating, no priority ladder: garrison
 	# and offense both pull from the shared free pool. Constants tunable here.
-	PoiGarrisonBotModule@v2:
-		RequiresCondition: enable-ai-v2
+	PoiGarrisonBotModule@experimental:
+		RequiresCondition: enable-ai-experimental
 		ReevaluateInterval: 100
 		ValuePerGarrisonUnit: 50
 		MinGarrison: 1
@@ -179,7 +196,7 @@ Player:
 		MaxGarrisons: 4
 		GarrisonCommitmentTicks: 250
 		RepathThresholdCells: 3
-		# Same exclusions as PoiOffensiveBotModule@v2: capturer + non-combat support
+		# Same exclusions as PoiOffensiveBotModule@experimental: capturer + non-combat support
 		# (owned by CaptureCoordinator / SupplyFollower) and IFV carriers (owned by
 		# MountedTransport). A name the faction lacks is simply never matched.
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
@@ -231,8 +248,8 @@ Player:
 	# Adaptive production — counter enemy composition
 	#
 	# Two parallel definitions: legacy (normal/rush/turtle) keeps the original
-	# EvaluationInterval: 600. v2 halves it to 300 — counter-build twice as
-	# fast against scouted enemy comp. First v2 experiment (260512), measured
+	# EvaluationInterval: 600. Experimental halves it to 300 — counter-build twice as
+	# fast against scouted enemy comp. First Experimental-AI experiment (260512), measured
 	# via tournament harness mirror-paired batch.
 	AdaptiveProductionBotModule@america:
 		RequiresCondition: enable-ai-legacy-only && player.nato
@@ -252,8 +269,8 @@ Player:
 		AntiAirUnits: aa.russia, tunguska
 		MinEnemySightings: 3
 
-	AdaptiveProductionBotModule@v2.america:
-		RequiresCondition: enable-ai-v2 && player.nato
+	AdaptiveProductionBotModule@experimental.america:
+		RequiresCondition: enable-ai-experimental && player.nato
 		EvaluationInterval: 300
 		MaxRequestsPerCycle: 2
 		AntiVehicleUnits: at.america, abrams, bradley
@@ -261,8 +278,8 @@ Player:
 		AntiAirUnits: aa.america, strykershorad
 		MinEnemySightings: 3
 
-	AdaptiveProductionBotModule@v2.russia:
-		RequiresCondition: enable-ai-v2 && player.brics
+	AdaptiveProductionBotModule@experimental.russia:
+		RequiresCondition: enable-ai-experimental && player.brics
 		EvaluationInterval: 300
 		MaxRequestsPerCycle: 2
 		AntiVehicleUnits: at.russia, t90, bmp2
@@ -270,7 +287,7 @@ Player:
 		AntiAirUnits: aa.russia, tunguska
 		MinEnemySightings: 3
 
-	# v2 doctrine — Stage B.1: layered defence placement, reserve-driven.
+	# experimental doctrine — Stage B.1: layered defence placement, reserve-driven.
 	#
 	# Only RESERVES get re-tasked — units within OnLineRadiusCells of any
 	# contested cell are "on the engagement line" and stay put. Reserves
@@ -286,8 +303,8 @@ Player:
 	# B.2 will add treeline/garrison preference for the screen;
 	# B.3 will add overlapping-fields-of-fire check for the main line.
 	# See WORKSPACE/ai/stage_b_layered_defence.md.
-	LayeredDefenceBotModule@v2:
-		RequiresCondition: enable-ai-v2
+	LayeredDefenceBotModule@experimental:
+		RequiresCondition: enable-ai-experimental
 		ScanInterval: 75
 		AssignCooldownTicks: 250
 		MainLineStandoffCells: 8
@@ -297,11 +314,11 @@ Player:
 		MaxAssignsPerScan: 6
 		ScreenUnitTypes: e3.america, e3.russia, ar.america, ar.russia, at.america, at.russia, sn.america, sn.russia, tl.america, tl.russia, medi.america, medi.russia
 		# bradley / bmp2 / m113 deliberately ABSENT — they're owned by
-		# MountedTransportBotModule@v2 below (Stage B.4).
+		# MountedTransportBotModule@poi below (Stage B.4).
 		MainLineUnitTypes: e2.america, e2.russia, mt.america, mt.russia, aa.america, aa.russia, e4.america, e4.russia, abrams, t90, m109, paladin, grad, tos, m270, strykershorad, tunguska
 		ExcludedActorTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, humvee, btr, bradley, bmp2, m113
 
-	# v2 doctrine — Stage B.4: mounted infantry transport.
+	# experimental doctrine — Stage B.4: mounted infantry transport.
 	#
 	# IFVs/APCs pick up infantry from the reserve zone (near own SR), drive
 	# them to the thinnest spot on the frontline, drop off, return for the
@@ -310,8 +327,14 @@ Player:
 	# modules don't fight over the same vehicles.
 	#
 	# Spec: WORKSPACE/ai/stage_b4_mounted_transport.md.
-	MountedTransportBotModule@v2:
-		RequiresCondition: enable-ai-v2
+	#
+	# SHARED SINGLETON (not duplicated into a @stable twin): LayeredDefenceBotModule
+	# fetches it via player.TraitOrDefault<MountedTransportBotModule>() (single-instance
+	# lookup), so two instances on one player would throw. Gated on BOTH bot conditions
+	# instead — Experimental and Stable share this module's config. (See the Stable
+	# section note + SPEC §13.)
+	MountedTransportBotModule@poi:
+		RequiresCondition: enable-ai-experimental || enable-ai-stable
 		# Scan often — passengers spend only a short window idle near the SR
 		# before LayeredDefence sends them forward. The relaxed filter (see
 		# the trait) also grabs non-idle passengers in the reserve zone, but
@@ -327,7 +350,7 @@ Player:
 		ReturnArrivalRadius: 5
 
 	# Capture enemy logistics centers to deny resupply (LEGACY ONLY).
-	# v2 handles LC capture inside CaptureCoordinatorBotModule@v2.tecn so the
+	# experimental handles LC capture inside CaptureCoordinatorBotModule@experimental.tecn so the
 	# two modules don't both order TECN at the same time. See the playtest
 	# report 260513 (O1) and forensic audit for the TECN re-order bug root cause.
 	CaptureManagerBotModule@captureenemystructures:
@@ -453,24 +476,24 @@ Player:
 		AirUnitsTypes: MIG, FROG
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 
-	# v2 variant of the fixed-wing SquadManager. IMPORTANT: SquadManagerBotModule
+	# experimental variant of the fixed-wing SquadManager. IMPORTANT: SquadManagerBotModule
 	# is NOT air-only — FindNewUnits recruits EVERY IPositionable unit not in
 	# ExcludeFromSquadsTypes, filing non-air/non-naval ones into GROUND attack
 	# squads. With an empty exclude list (the legacy config above) it scoops up
 	# the capture TECN and attack-moves it at the enemy, overriding its
-	# CaptureActor order — so v2 captures never complete (POI-strategy Phase 2
+	# CaptureActor order — so experimental captures never complete (POI-strategy Phase 2
 	# finding). Excluding the capturer + non-combat support (already owned by
 	# CaptureCoordinator / SupplyFollower) lets the goal-guarded capture actually
 	# finish. Legacy AIs keep the un-excluded module above, untouched.
-	SquadManagerBotModule@v2.russia.fixedwing:
-		RequiresCondition: enable-ai-v2 && player.brics
+	SquadManagerBotModule@experimental.russia.fixedwing:
+		RequiresCondition: enable-ai-experimental && player.brics
 		SquadSize: 2
 		SquadSizeRandomBonus: 1
 		RushInterval: 600
 		AttackScanRadius: 48
 		AirUnitsTypes: MIG, FROG
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
-		# Phase 3: hand the ground pool to PoiOffensiveBotModule@v2 — this manager
+		# Phase 3: hand the ground pool to PoiOffensiveBotModule@experimental — this manager
 		# keeps only its air squads (MIG/FROG). ExcludeFromSquadsTypes is now
 		# belt-and-suspenders; IgnoreGroundUnits is the real hand-off.
 		IgnoreGroundUnits: true
@@ -519,18 +542,18 @@ Player:
 		AirUnitsTypes: A10, F16
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 
-	# v2 variant — see the russia.fixedwing v2 note above. Excludes the capture
+	# experimental variant — see the russia.fixedwing experimental note above. Excludes the capture
 	# TECN + non-combat support so the fixed-wing/ground SquadManager stops
 	# stealing the capturer mid-walk. Legacy AIs keep the module above untouched.
-	SquadManagerBotModule@v2.america.fixedwing:
-		RequiresCondition: enable-ai-v2 && player.nato
+	SquadManagerBotModule@experimental.america.fixedwing:
+		RequiresCondition: enable-ai-experimental && player.nato
 		SquadSize: 2
 		SquadSizeRandomBonus: 1
 		RushInterval: 600
 		AttackScanRadius: 48
 		AirUnitsTypes: A10, F16
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
-		# Phase 3: hand the ground pool to PoiOffensiveBotModule@v2 — keeps only its
+		# Phase 3: hand the ground pool to PoiOffensiveBotModule@experimental — keeps only its
 		# air squads (A10/F16). IgnoreGroundUnits is the real hand-off; the exclude
 		# list is now belt-and-suspenders.
 		IgnoreGroundUnits: true
@@ -566,3 +589,129 @@ Player:
 		TransportInterval: 600
 		TransportMinInfantry: 4
 		MaxActiveSquads: 3
+
+	# ===== Stable AI — frozen snapshot of the validated Experimental config =====
+	#
+	# These modules are a byte-for-byte copy of the Experimental (@experimental)
+	# POI-layer config above, gated on `enable-ai-stable` instead of
+	# `enable-ai-experimental`. Stable inherits the same normal-tier baseline
+	# (enable-ai-player / enable-ai-any) as Experimental, so only the
+	# Experimental-only modules need a Stable twin here.
+	#
+	# TWO EXCEPTIONS — PoiGoalGuard and MountedTransportBotModule are NOT twinned:
+	# consumers fetch them via a single-instance player.TraitOrDefault<T>() lookup, so
+	# a second instance on one player throws at runtime. They are defined ONCE above,
+	# gated `enable-ai-experimental || enable-ai-stable`, and thus SHARED (not
+	# independently frozen). Every other strategic module below is an independent
+	# @stable copy. (SquadManager is fetched via TraitsImplementing<T>() — multi-safe
+	# — so its @stable twins are fine.)
+	#
+	# PROMOTION POLICY (see WORKSPACE/ai-bench/SPEC.md §13): the optimization loop only
+	# ever edits the @experimental modules. When a change is validated (benchmark +
+	# user acceptance), its settings are copied down into these @stable modules —
+	# that promotion is the ONLY time this block changes. Keep the two blocks'
+	# config values identical at each promotion. Normal/Rush/Turtle stay frozen and
+	# are never touched by the loop.
+
+	CaptureCoordinatorBotModule@stable.tecn:
+		RequiresCondition: enable-ai-stable
+		CapturingActorTypes: tecn,tecn.russia,tecn.america
+		CapturableActorTypes: oilb,bio,miss,fcom,hosp,logisticscenter
+		CheckCaptureTargetsForVisibility: false
+		ScanInterval: 75
+		MaximumCaptureTargetOptions: 12
+		IncomeWeights:
+			oilb: 50
+			fcom: 100
+			bio: 150
+			miss: 10
+			hosp: 20
+		DefaultIncomeWeight: 10
+		DistanceHalfLifeCells: 20
+		SafetyEnemyScanRadiusCells: 6
+		SafetyMultiplierSafe: 100
+		SafetyMultiplierMild: 40
+		SafetyMultiplierHostile: 10
+		EscortSize: 2
+		SupportRecruitRadiusCells: 40
+		DefenseScanInterval: 150
+		DefenseEnemyScanRadiusCells: 12
+		DefenseFriendlyScanRadiusCells: 6
+		DefenseSummonCount: 3
+		DefenseEnemyValueThreshold: 200
+
+	PoiOffensiveBotModule@stable:
+		RequiresCondition: enable-ai-stable
+		ReevaluateInterval: 100
+		UnitsPerAxis: 8
+		MinAxisSize: 3
+		MaxAxes: 4
+		AxisCommitmentTicks: 250
+		ReassignScoreThresholdPct: 30
+		RepathThresholdCells: 3
+		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
+
+	PoiGarrisonBotModule@stable:
+		RequiresCondition: enable-ai-stable
+		ReevaluateInterval: 100
+		ValuePerGarrisonUnit: 50
+		MinGarrison: 1
+		MaxGarrison: 3
+		ThreatGarrisonBonus: 1
+		MaxGarrisons: 4
+		GarrisonCommitmentTicks: 250
+		RepathThresholdCells: 3
+		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
+
+	AdaptiveProductionBotModule@stable.america:
+		RequiresCondition: enable-ai-stable && player.nato
+		EvaluationInterval: 300
+		MaxRequestsPerCycle: 2
+		AntiVehicleUnits: at.america, abrams, bradley
+		AntiInfantryUnits: e3.america, ar.america, humvee
+		AntiAirUnits: aa.america, strykershorad
+		MinEnemySightings: 3
+
+	AdaptiveProductionBotModule@stable.russia:
+		RequiresCondition: enable-ai-stable && player.brics
+		EvaluationInterval: 300
+		MaxRequestsPerCycle: 2
+		AntiVehicleUnits: at.russia, t90, bmp2
+		AntiInfantryUnits: e3.russia, ar.russia, btr
+		AntiAirUnits: aa.russia, tunguska
+		MinEnemySightings: 3
+
+	LayeredDefenceBotModule@stable:
+		RequiresCondition: enable-ai-stable
+		ScanInterval: 75
+		AssignCooldownTicks: 250
+		MainLineStandoffCells: 8
+		OnLineRadiusCells: 8
+		FriendlyGapWeight: 2
+		EnemyWeaknessWeight: 1
+		MaxAssignsPerScan: 6
+		ScreenUnitTypes: e3.america, e3.russia, ar.america, ar.russia, at.america, at.russia, sn.america, sn.russia, tl.america, tl.russia, medi.america, medi.russia
+		MainLineUnitTypes: e2.america, e2.russia, mt.america, mt.russia, aa.america, aa.russia, e4.america, e4.russia, abrams, t90, m109, paladin, grad, tos, m270, strykershorad, tunguska
+		ExcludedActorTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, humvee, btr, bradley, bmp2, m113
+
+	SquadManagerBotModule@stable.russia.fixedwing:
+		RequiresCondition: enable-ai-stable && player.brics
+		SquadSize: 2
+		SquadSizeRandomBonus: 1
+		RushInterval: 600
+		AttackScanRadius: 48
+		AirUnitsTypes: MIG, FROG
+		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+		IgnoreGroundUnits: true
+		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
+
+	SquadManagerBotModule@stable.america.fixedwing:
+		RequiresCondition: enable-ai-stable && player.nato
+		SquadSize: 2
+		SquadSizeRandomBonus: 1
+		RushInterval: 600
+		AttackScanRadius: 48
+		AirUnitsTypes: A10, F16
+		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+		IgnoreGroundUnits: true
+		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk

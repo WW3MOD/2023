@@ -12,6 +12,16 @@ and self-maintaining.
 Every claim about the harness cites a script or engine file; if a cite no longer
 matches the code, trust the code and update the cite.
 
+> **Terminology — v2 → Experimental (2026-07-20, `ai-bench` rename commit).** The dev
+> bot is now `ModularBot@experimental` ("Experimental AI"), not `@v2` / "V2 AI
+> (experimental)". A frozen **`ModularBot@stable`** ("Stable AI") was added alongside it
+> — the promotion policy is **§13**. Throughout the body below, read the historical
+> identifiers `ModularBot@v2` → `@experimental`, `enable-ai-v2` → `enable-ai-experimental`,
+> `[v2-*]` logs → `[exp-*]`, and scenario `tournament-v2-vs-normal-*` →
+> `tournament-experimental-vs-normal-*`. The body is intentionally **not** rewritten
+> (its history stays legible); this note is the mapping. (The verdict-schema
+> `verdict_version: 2`/`3` in §8 is unrelated to the bot name and unchanged.)
+
 ---
 
 ## 1. What this system is
@@ -626,3 +636,43 @@ there.
   — the harness design this consumes.
 - [`../../DOCS/reference/game-model.md`](../../DOCS/reference/game-model.md) — no
   factories, SR reinforcement model, cost = budget.
+
+---
+
+## 13. The Experimental / Stable bot pair (promotion policy)
+
+There is no "V1", so the old "V2" name is retired. The lobby now offers five
+bots; the loop touches exactly one of them.
+
+- **Experimental AI** (`ModularBot@experimental`, `enable-ai-experimental`) — the
+  optimization loop's **working bot**. Every hypothesis/cycle edits *these*
+  modules. This is the bot under active development; it may be ahead of, behind,
+  or sideways of Stable at any moment.
+- **Stable AI** (`ModularBot@stable`, `enable-ai-stable`) — a **frozen snapshot**
+  of the last *validated* Experimental config. Its modules under the
+  `enable-ai-stable` gate in `mods/ww3mod/rules/ai/ai.yaml` are a byte-for-byte
+  copy of the Experimental modules at the moment of the last promotion.
+  **Two exceptions** are *shared*, not twinned: `PoiGoalGuard` and
+  `MountedTransportBotModule` are fetched by consumers via a single-instance
+  `player.TraitOrDefault<T>()` lookup, so a second trait instance on one player
+  throws at runtime (`Actor player has multiple traits of type …`). They are
+  therefore defined once, gated `enable-ai-experimental || enable-ai-stable`, and
+  shared by both bots — i.e. **not** independently frozen. Every other strategic
+  module (capture scoring, offense axes, garrison, adaptive production, layered
+  defence, fixed-wing squad managers) *is* an independent `@stable` copy, so the
+  bulk of the tunable surface is snapshotted. Making the two shared modules
+  independently freezable would need an engine change (switch those lookups to an
+  enabled-aware `TraitsImplementing<T>().FirstOrDefault(...)`); backlogged, not
+  required for the pair to work.
+- **Normal / Rush / Turtle** (`@normal` / `@rush` / `@turtle`) — the **frozen
+  control AIs / measuring sticks** (§4.2, §11). The loop **never** updates them;
+  if they drift, every historical result is invalidated.
+
+**Promotion (the only time Stable changes):** when an Experimental change is
+validated — it clears its benchmark bar **and** the user accepts it — copy the
+Experimental module settings down into the matching `@stable` modules in
+`ai.yaml`, keeping the two blocks' values identical at that instant. That copy is
+a `NOTE`/`MERGE` activity-log event. Between promotions, Stable stays put while
+Experimental keeps moving, so a player always has a known-good bot to select
+while the loop churns on the experimental one. Promotion edits only the
+`enable-ai-stable` block; it never touches Normal/Rush/Turtle.
