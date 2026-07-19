@@ -337,7 +337,14 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var available = new List<TraitPair<CaptureManager>>(idleCapturers);
 
-			foreach (var poi in poiMap.GetCaptureTargets(player))
+			var targets = poiMap.GetCaptureTargets(player);
+			var topDesc = targets.Count > 0
+				? $"{targets[0].Actor?.Info.Name}@{targets[0].Location} action={targets[0].Action} score={targets[0].Score}"
+				: "<none>";
+			Log.Write("debug",
+				$"[v2-capture] poimap-scan player={player.PlayerName} idleCapturers={idleCapturers.Length} targets={targets.Count} top={topDesc} tick={world.WorldTick}");
+
+			foreach (var poi in targets)
 			{
 				if (available.Count == 0)
 					break;

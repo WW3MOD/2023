@@ -399,13 +399,32 @@ Player:
 			FROG: 2
 
 	SquadManagerBotModule@russia.fixedwing:
-		RequiresCondition: enable-ai-any && player.brics
+		RequiresCondition: enable-ai-legacy-only && player.brics
 		SquadSize: 2
 		SquadSizeRandomBonus: 1
 		RushInterval: 600
 		AttackScanRadius: 48
 		AirUnitsTypes: MIG, FROG
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+
+	# v2 variant of the fixed-wing SquadManager. IMPORTANT: SquadManagerBotModule
+	# is NOT air-only — FindNewUnits recruits EVERY IPositionable unit not in
+	# ExcludeFromSquadsTypes, filing non-air/non-naval ones into GROUND attack
+	# squads. With an empty exclude list (the legacy config above) it scoops up
+	# the capture TECN and attack-moves it at the enemy, overriding its
+	# CaptureActor order — so v2 captures never complete (POI-strategy Phase 2
+	# finding). Excluding the capturer + non-combat support (already owned by
+	# CaptureCoordinator / SupplyFollower) lets the goal-guarded capture actually
+	# finish. Legacy AIs keep the un-excluded module above, untouched.
+	SquadManagerBotModule@v2.russia.fixedwing:
+		RequiresCondition: enable-ai-v2 && player.brics
+		SquadSize: 2
+		SquadSizeRandomBonus: 1
+		RushInterval: 600
+		AttackScanRadius: 48
+		AirUnitsTypes: MIG, FROG
+		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
 
 	# ===== Helicopters — Russia =====
 	# Helicopters are called in via Supply Route — no HPAD needed to produce them
@@ -442,13 +461,26 @@ Player:
 			F16: 2
 
 	SquadManagerBotModule@america.fixedwing:
-		RequiresCondition: enable-ai-any && player.nato
+		RequiresCondition: enable-ai-legacy-only && player.nato
 		SquadSize: 2
 		SquadSizeRandomBonus: 1
 		RushInterval: 600
 		AttackScanRadius: 48
 		AirUnitsTypes: A10, F16
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+
+	# v2 variant — see the russia.fixedwing v2 note above. Excludes the capture
+	# TECN + non-combat support so the fixed-wing/ground SquadManager stops
+	# stealing the capturer mid-walk. Legacy AIs keep the module above untouched.
+	SquadManagerBotModule@v2.america.fixedwing:
+		RequiresCondition: enable-ai-v2 && player.nato
+		SquadSize: 2
+		SquadSizeRandomBonus: 1
+		RushInterval: 600
+		AttackScanRadius: 48
+		AirUnitsTypes: A10, F16
+		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
+		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
 
 	# ===== Helicopters — America =====
 	# Helicopters are called in via Supply Route — no HPAD needed to produce them
