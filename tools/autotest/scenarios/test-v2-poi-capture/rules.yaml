@@ -1,0 +1,14 @@
+# Focused capture test. Low cash so the v2 bot produces little — the pre-placed
+# TECN + 2 escorts are essentially the whole USA force, isolating capture
+# execution from any army-pool interference.
+
+Player:
+	PlayerResources:
+		DefaultCash: 1000
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-v2-poi-capture.lua

@@ -1,0 +1,135 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: v2 POI harness — pre-placed force + capture assert
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# POI-strategy Phase 2 observation harness.
+#
+# Phase 0 discovered that on a bare autotest map the v2 bot produces nothing in
+# the headless window (pool=0, zero [v2-capture] lines) — SR reinforcement never
+# ramps fast enough to observe AI behaviour live. This map fixes that by
+# PRE-PLACING a v2 bot force so CaptureCoordinator/LayeredDefence have a real
+# TECN + army pool from tick 0, independent of the production ramp.
+#
+#   Left  (6,16)  = USA-bot, faction=america, Bot=v2      <- the observed bot
+#   Right (58,16) = Russia-bot, faction=russia, Bot=normal <- control
+#
+# Capturable furniture at VARYING distance from the USA SR so PoiMap scoring
+# (value x distance x threat) has a real ranking to produce, and so the in-game
+# capture autotest (test-v2-poi-harness.lua) can assert the NEAREST derrick is
+# captured — capture completing is the observable proxy for "no order-thrash".
+#
+# Distances from USA SR (6,16):
+#   NearOilb  (22,16) ~16c   OILB  $50   <- capture-test target (closest)
+#   MidFcom   (32,22) ~27c   FCOM  $100
+#   FarBio    (32,10) ~27c   BIO   $150
+#   NeutralSR (42,16) ~36c   supplyroute (neutral) — deny/hold POI
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: v2
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: normal
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+
+	# Spawn anchors — MapStartingLocations.AssignSpawnPoint iterates mpspawn
+	# actors for every client (including the human Observer) and crashes if empty.
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+	# Pre-placed v2 bot force near its SR. Gives CaptureCoordinator a TECN from
+	# tick 0 and LayeredDefence/offense a real pool — the whole point of the
+	# harness (Phase 0's run had pool=0). Units face right (USA on the left,
+	# Facing 768 = East per WW3MOD counterclockwise WAngle convention).
+	BotTecn: tecn.america
+		Owner: USA-bot
+		Location: 9,16
+		Facing: 768
+	BotRifle1: ar.america
+		Owner: USA-bot
+		Location: 8,14
+		Facing: 768
+	BotRifle2: ar.america
+		Owner: USA-bot
+		Location: 8,15
+		Facing: 768
+	BotRifle3: ar.america
+		Owner: USA-bot
+		Location: 8,17
+		Facing: 768
+	BotRifle4: ar.america
+		Owner: USA-bot
+		Location: 8,18
+		Facing: 768
+	BotTank1: abrams
+		Owner: USA-bot
+		Location: 10,15
+		Facing: 768
+	BotTank2: abrams
+		Owner: USA-bot
+		Location: 10,17
+		Facing: 768
+
+	# Neutral capturable income structures at varying distance (see header).
+	NearOilb: oilb
+		Owner: Neutral
+		Location: 22,16
+	MidFcom: fcom
+		Owner: Neutral
+		Location: 32,22
+	FarBio: bio
+		Owner: Neutral
+		Location: 32,10
+
+	# Neutral Supply Route — a deny/hold POI (decision #2: capturing it flips it
+	# Neutral, cutting a would-be enemy lane; never a lane for us). PoiMap
+	# discovers it as a DenyCapture target.
+	NeutralSR: supplyroute
+		Owner: Neutral
+		Location: 42,16
+
+Rules: rules.yaml
