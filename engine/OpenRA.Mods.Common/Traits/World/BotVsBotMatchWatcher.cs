@@ -16,7 +16,7 @@
  *
  * Verdict shape (serialized into TestMode.WriteResult's `notes` field):
  *   {
- *     "verdict_version": 3,
+ *     "verdict_version": 4,
  *     "scenario": "<test-name>",
  *     "seed": <int>,
  *     "git_sha": "<run-tournament.sh stamps this>",
@@ -43,6 +43,13 @@
  * they own/capture, integrated read-only from PlayerResources.TotalBuildingIncome.
  * This is the S1 economy metric; resources_earned (net) stays byte-compatible for
  * context. No scorer/win-rule input changed (see GrossIncomeIntegrator).
+ * v4 (semantics, schema-stable): the scorer's economy term now derives from the
+ * GROSS integral (capture_income_gross) instead of net resources_earned, so the
+ * emitted score_components.capture_income value — and therefore the WinRule outcome
+ * — counts held-derrick income in the SR-budget economy (LADDER S1 follow-up 1a).
+ * No JSON field was added or removed; resources_earned and capture_income_gross are
+ * both unchanged. The version bump flags the changed *meaning* of the emitted
+ * capture_income score component.
  *
  * See:
  *   WORKSPACE/plans/260511_ai_tournament_harness.md
@@ -283,7 +290,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Embedded inside TestMode's `notes` string field — escaping done by TestMode.WriteResult.
 			var sb = new StringBuilder();
 			sb.Append("{");
-			sb.Append("\"verdict_version\":3,");
+			sb.Append("\"verdict_version\":4,");
 			sb.Append($"\"duration_ticks\":{verdict.EndTick},");
 			sb.Append($"\"winner_client_index\":{verdict.Winner?.ClientIndex ?? -1},");
 			sb.Append($"\"winner_name\":\"{Escape(verdict.Winner?.PlayerName ?? "")}\",");
