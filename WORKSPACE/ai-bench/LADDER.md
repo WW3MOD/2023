@@ -83,20 +83,45 @@ The even/odd index split still deterministically selects primary vs mirror
 > **live, discriminating** test (can read non-zero once v2 improves) rather than
 > structurally dead.
 >
-> **Required follow-ups before trusting any v2 S1 number:**
-> 1. **First AI cycle:** diagnose why v2 does not capture in the S1 window on this
->    map (compare vs `tournament-capture-arena-2p`, which places mid-map
->    capturables on the small stub). If v2 captures only *after* 5 min, bump the
->    clock to 420–600s (record here); the clock was **not** the blocker in the
->    smoke, so no bump was applied.
-> 2. **POI symmetry / calibration:** build `tournament-s1-eco-river-zeta-mirror`
->    and gate S1 on a **Normal-vs-Normal batch landing ~even** on `resources_earned`
->    (SPEC §9.4) — otherwise an earned-cash gap could be spawn-side derrick luck,
->    not AI skill.
+> **UPDATE (2026-07-19, `2d5433a` branch — first AI cycle):** the "v2 doesn't
+> capture" framing above is now **resolved and superseded**. Root cause of the
+> no-capture was AI mis-scoring: `PoiMap.IncomeWeights` weighted the `$0`
+> `logisticscenter: 200` (highest of all) so v2's sole TECN was sent cross-map to
+> a no-income depot. **Fixed** by delisting `logisticscenter` from both v2 income
+> tables (`world.yaml` PoiMap + `ai.yaml` CaptureCoordinator@v2). Hidden N=1 smoke
+> **confirms the fix works**: v2's top target flipped to the nearest OILB
+> (`oilb@17,44`, `targets 15→13`), and **v2 captured it (~t1550) and still owns it
+> at match end** (`buildings_killed/dead=0` → not destroyed; USA `assets_value 1450
+> = army 1250 + 200` building). **But `resources_earned` is STILL 0** — for a *new,
+> metric-side* reason: it reports `PlayerResources.Earned`, which in this SR-budget
+> economy only rises on a **net-positive** periodic tick (`PassiveIncome +
+> TotalBuildingIncome − Upkeep`, `PlayerResources.cs:199-211`) and is never
+> credited via the (unused) harvester path. A lone captured `$50` derrick doesn't
+> net positive, so `Earned` is **structurally blind to owned-derrick income**
+> (both bots read 0 the whole match, before AND after the capture). The S1 metric
+> itself, not v2, is now the blocker. Finding: `runs/260719_s1_earned_metric_finding.md`.
+>
+> **Required follow-ups:**
+> 1. **NEXT CYCLE = metric fix (harness-side, no AI change, no re-roll):** replace
+>    `resources_earned` with a **gross** derrick-income signal — add a cumulative
+>    capture-income accumulator to `BotVsBotMatchWatcher` (sum `TotalBuildingIncome`
+>    paid per interval, or `ownedCashTricklers × rate × time`) and repoint S1 at it;
+>    or confirm the lobby `passiveincome`/upkeep settings if upkeep masks income.
+> 2. **POI symmetry / calibration (after the metric can see income):** build
+>    `tournament-s1-eco-river-zeta-mirror` and gate S1 on a **Normal-vs-Normal batch
+>    landing ~even** on the new metric (SPEC §9.4) — otherwise an earned gap could be
+>    spawn-side derrick luck, not AI skill.
 
 > **PITFALL:** the metric is **`resources_earned`**, NOT `PlayerStatistics.Income`.
 > `Income` is a rolling 60-second figure; using it silently measures the wrong
 > thing (SPEC §8.2, `BotVsBotMatchWatcher.cs:292-294`).
+>
+> **PITFALL (deeper, found `2d5433a`):** `resources_earned` = `PlayerResources.Earned`
+> is a **net** figure that only increments on a net-positive periodic economy tick and
+> via the harvester path (unused in WW3MOD). It is **blind to a captured derrick's gross
+> CashTrickler income** when that income doesn't overcome standing costs — so it can read
+> `0` even when v2 genuinely captures and holds an income structure. S1 must move to a
+> **gross** capture-income metric (see the UPDATE note above).
 
 **Why 5 minutes:** long enough for the AI to call in TECNs (travel time from map
 edge, game-model.md) and start capturing income structures; short enough to

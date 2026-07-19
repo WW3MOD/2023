@@ -1,0 +1,45 @@
+{
+  "cycle_ts": "2026-07-19T19:34:00Z",
+  "scenario": "tournament-s1-eco-river-zeta",
+  "rung": "river-zeta",
+  "sha": "2d5433a",
+  "hypothesis": "FIRST AI CYCLE. Delist $0 logisticscenter from v2's two income-scoring tables (PoiMap.IncomeWeights in world.yaml + CaptureCoordinatorBotModule@v2.tecn.IncomeWeights in ai.yaml), per 260719_s1_no_capture_diagnosis. Expectation: v2's sole TECN stops walking cross-map to the no-income Logistics Center and instead captures the nearest OILB derrick (~3 cells from its SR), lifting resources_earned off 0.",
+  "run_mode": "hidden",
+  "n_runs": 1,
+  "seeds": [1017],
+  "metric": "resources_earned",
+  "experimental_median": 0,
+  "control_median": 0,
+  "margin_required": 0.15,
+  "margin_observed": null,
+  "verdict": "hold",
+  "no_regression_checked": ["nunit_suite=275/275", "build=green", "match_completed=7500t/no-crash"],
+  "decision": "keep_fix_iterate_metric",
+  "raw_result_dir": "tools/autotest/tournament-results/260719_1934_tournament-s1-eco-river-zeta",
+  "verdict_json": "260719_1934__tournament-s1-eco-river-zeta__2d5433a.verdict.json",
+  "finding_doc": "260719_s1_earned_metric_finding.md",
+  "match_detail": {
+    "winner_name": "Russia-bot",
+    "winner_bot": "normal",
+    "win_reason": "time_limit",
+    "duration_ticks": 7500,
+    "wall_clock_secs_approx": 110,
+    "players": {
+      "v2_USA": { "resources_earned": 0, "capture_income": 0, "score_total": 2650, "army_value": 1250, "assets_value": 1450, "kills_cost": 1400, "deaths_cost": 3750, "units_killed": 8, "units_dead": 4, "buildings_killed": 0, "buildings_dead": 0, "order_count": 14 },
+      "normal_Russia": { "resources_earned": 0, "capture_income": 0, "score_total": 4250, "army_value": 3100, "assets_value": 3100, "kills_cost": 1150, "deaths_cost": 4700, "units_killed": 5, "units_dead": 9, "buildings_killed": 0, "buildings_dead": 0, "order_count": 15 }
+    }
+  },
+  "fix_verification": {
+    "retarget": "PASS — poimap-scan top flipped from logisticscenter@31,52 (score 104M, pre-fix) to oilb@17,44 (score 45M); targets 15->13 (both River Zeta LCs left the income-POI set). Capture order issued tick 1351.",
+    "capture_completed": "PASS — TECN reached 16,44 (adjacent to derrick), entered CaptureActor@t1426, consumed by ~t1550. POI targets 13->12 by t1607 via OWNERSHIP change (buildings_killed/dead=0 for both -> nothing destroyed); v2-garrison held 0->1; USA assets_value 1450 = army 1250 + 200 owned building; offense retired the target as secured.",
+    "tests": "PASS — dotnet test OpenRA.Test Release stayed 275/275; build green."
+  },
+  "finding": "FIX WORKS, BAR NOT MET FOR A NEW METRIC-SIDE REASON. The assigned AI fix is CONFIRMED CORRECT: v2 no longer sends its TECN to the $0 Logistics Center and instead CAPTURES the nearest OILB (~t1550) and still owns it at match end. But resources_earned is still 0 because it reports PlayerResources.Earned, which in WW3MOD's SR-budget economy only rises on a NET-POSITIVE periodic unified-economy tick (PassiveIncome + TotalBuildingIncome - Upkeep, PlayerResources.cs:199-211 -> ChangeCash -> GiveCash -> Earned). Both bots read Earned=0 the ENTIRE match, before AND after the capture, and the harvester/GiveResources path that credits Earned directly is never used (no harvesters). A single captured $50 derrick does not produce a positive, Earned-crediting net, so Earned is structurally blind to owned-derrick income here. capture_income score component also stayed 0. This is a HARNESS/METRIC defect, not a v2 behavior gap. CashTrickler correctly re-registers income under the capturing owner (CashTrickler.cs:71-76) and bots are Playable (map default), so those are ruled out. Full evidence: runs/260719_s1_earned_metric_finding.md.",
+  "boundary": "AI-side fix = correct & kept (commit 2d5433aa). Remaining 0 = METRIC-side: resources_earned (net PlayerResources.Earned) cannot see gross derrick income in the SR-budget economy. Same class as the prior map-content and rescope findings, one layer deeper (accounting).",
+  "followups": [
+    "NEXT CYCLE (harness/metric, no AI change, no re-roll): replace the S1 success metric with a GROSS derrick-income signal — add a cumulative capture-income accumulator to BotVsBotMatchWatcher (sum TotalBuildingIncome paid per interval, or ownedCashTricklers x rate x time) and repoint S1 at it, OR confirm the tournament lobby passiveincome/upkeep settings if upkeep is masking income.",
+    "Only after the metric can register income: re-baseline S1 at N=10, build tournament-s1-eco-river-zeta-mirror, run the Normal-vs-Normal calibration batch (SPEC §9.4).",
+    "logisticscenter-as-strategic-DENY remains a possible separate future objective type (low-priority offense/deny), never an income POI."
+  ],
+  "notes": "N=1 hidden Mode B smoke, verdict written, full 7500t, no crash. FIRST AI-side change of the benchmark era, committed on ai-bench (2d5433aa); NOT merged to main. The fix is a strict improvement (removes a real mis-scoring bug vs the approved POI plan) and green on tests; it does not clear S1 only because the eco metric itself can't see the captured income."
+}
