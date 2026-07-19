@@ -16,7 +16,7 @@
  *
  * Verdict shape (serialized into TestMode.WriteResult's `notes` field):
  *   {
- *     "verdict_version": 1,
+ *     "verdict_version": 2,
  *     "scenario": "<test-name>",
  *     "seed": <int>,
  *     "git_sha": "<run-tournament.sh stamps this>",
@@ -26,11 +26,18 @@
  *     "players": [
  *       { "name": "...", "client_index": 0,
  *         "score_total": <long>,
- *         "score_components": { "army_value": ..., "capture_income": ..., ... }
+ *         "score_components": { "army_value": ..., "capture_income": ..., ... },
+ *         "stats": { "units_killed": ..., "units_dead": ..., "buildings_killed": ...,
+ *                    "buildings_dead": ..., "kills_cost": ..., "deaths_cost": ...,
+ *                    "army_value": ..., "assets_value": ..., "order_count": ...,
+ *                    "experience": ..., "resources_earned": ... }
  *       },
  *       ...
  *     ]
  *   }
+ *
+ * v2 (additive, schema-stable): added the per-player "stats" object carrying the
+ * full PlayerStatistics observer menu + cumulative PlayerResources.Earned.
  *
  * See:
  *   WORKSPACE/plans/260511_ai_tournament_harness.md
@@ -246,7 +253,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Embedded inside TestMode's `notes` string field — escaping done by TestMode.WriteResult.
 			var sb = new StringBuilder();
 			sb.Append("{");
-			sb.Append("\"verdict_version\":1,");
+			sb.Append("\"verdict_version\":2,");
 			sb.Append($"\"duration_ticks\":{verdict.EndTick},");
 			sb.Append($"\"winner_client_index\":{verdict.Winner?.ClientIndex ?? -1},");
 			sb.Append($"\"winner_name\":\"{Escape(verdict.Winner?.PlayerName ?? "")}\",");
@@ -278,7 +285,30 @@ namespace OpenRA.Mods.Common.Traits
 					sb.Append($"\"{Escape(comp.Key)}\":{comp.Value}");
 				}
 
-				sb.Append("}}");
+				sb.Append("},");
+
+				// Full PlayerStatistics (the observer "menu" stats) plus cumulative earned
+				// resources. Additive to the schema — existing fields above are unchanged.
+				// PITFALL §14 (WORKSPACE/ai/archive/PITFALLS.md): PlayerStatistics.Income is a
+				// rolling/sampled figure, NOT lifetime income — use PlayerResources.Earned for
+				// cumulative cash earned.
+				var stats = player.PlayerActor?.TraitOrDefault<PlayerStatistics>();
+				var playerResources = player.PlayerActor?.TraitOrDefault<PlayerResources>();
+				sb.Append("\"stats\":{");
+				sb.Append($"\"units_killed\":{stats?.UnitsKilled ?? 0},");
+				sb.Append($"\"units_dead\":{stats?.UnitsDead ?? 0},");
+				sb.Append($"\"buildings_killed\":{stats?.BuildingsKilled ?? 0},");
+				sb.Append($"\"buildings_dead\":{stats?.BuildingsDead ?? 0},");
+				sb.Append($"\"kills_cost\":{stats?.KillsCost ?? 0},");
+				sb.Append($"\"deaths_cost\":{stats?.DeathsCost ?? 0},");
+				sb.Append($"\"army_value\":{stats?.ArmyValue ?? 0},");
+				sb.Append($"\"assets_value\":{stats?.AssetsValue ?? 0},");
+				sb.Append($"\"order_count\":{stats?.OrderCount ?? 0},");
+				sb.Append($"\"experience\":{stats?.Experience ?? 0},");
+				sb.Append($"\"resources_earned\":{playerResources?.Earned ?? 0}");
+				sb.Append("}");
+
+				sb.Append("}");
 			}
 
 			sb.Append("]}");
