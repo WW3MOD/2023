@@ -323,6 +323,55 @@ outscore the base, the base gets no axis at all.
   and receives no second `CaptureActor` order (mirrors success criterion S-E).
 - **Ships:** derricks actually get captured. Visible win on its own.
 
+---
+
+#### Phase 0 FINDINGS (2026-07-19) — death-ball root cause: CONFIRMED
+
+**Verdict: CONFIRMED.** The death-ball is a *structural absence of any offensive
+brain for v2*, exactly as §3.2 inferred. The original plan flagged this as
+"partly diagnosed, partly needs a runtime confirm" because the load-bearing
+claim (LayeredDefence no-ops without a frontline) rested on the file's *header
+comment*. It has now been confirmed against the **actual code**, which is more
+decisive than the runtime symptom would be:
+
+1. **LayeredDefence gates on an existing frontline.**
+   `LayeredDefenceBotModule.AssignPositions` (engine
+   `.../BotModules/LayeredDefenceBotModule.cs:161-164`) pulls the contested
+   grid and **`if (contestedCells.Count == 0) return;`** — before contact there
+   are zero contested cells, so the module does *nothing*. Its own header
+   (line 28) says "existing SquadManagerBotModule handles opening play."
+
+2. **The SquadManager that would handle opening play never runs for v2.**
+   Ground `SquadManagerBotModule@{fac}.normal` is gated
+   `RequiresCondition: enable-ai-legacy-only && enable-ai-player && player.nato`
+   (`mods/ww3mod/rules/ai/ai-america.yaml:51-52`). v2 does **not** get
+   `enable-ai-legacy-only`, so the module is never instantiated for v2.
+
+3. **No other v2 module issues offensive movement for the general pool.**
+   CaptureCoordinator only moves TECNs + their escorts; MountedTransport only
+   ferries infantry to frontline gaps (which require a frontline);
+   HelicopterSquad/fixed-wing move only air units. So before contact, the v2
+   ground army has **no order source at all** → it pools at the SR rally. Once
+   any contact creates a frontline, LayeredDefence fills the contested band —
+   and on a 2-player map that band is the single straight-line contact point,
+   so the whole reserve pool flows there. That reads as a death-ball even though
+   no squad manager exists.
+
+**Runtime instrumentation shipped:** `LayeredDefenceBotModule` now emits a
+`[v2-poi] disperse` line every scan (before the frontline gate) with
+`pool`, `centroid`, `clumpRadiusCells`, `centroidDistFromSRCells`, `contested`.
+This is the log channel to capture the live trace in one bounded skirmish:
+a death-ball reads as a small `clumpRadiusCells` that stays small while `pool`
+grows, `centroid` marching from near-SR (`centroidDistFromSRCells` low, then
+rising) toward the single contested band. Logs land in
+`AppData/Roaming/OpenRA/Logs/debug.log` on Windows.
+
+**Implication for Phase 2:** the fix is not "tune the death-ball" — it's to
+*add the missing offensive brain* (`PoiOffensiveBotModule`, plan §5.5) that
+issues multi-axis orders to the pre-contact pool. Confirmed that there is
+nothing to disable/re-tune; Phase 2 is net-new behaviour, and the score-floating
+axes (decision #3) become the sole driver of pre-contact ground offense.
+
 ### Phase 1 — `PoiMap` + income-POI capture (medium)
 - **Do:** new `PoiMap` world trait enumerating income/utility/SR POIs with
   derived `{owner, value, nearbyEnemies, distFromOwnSR, contested}` (the

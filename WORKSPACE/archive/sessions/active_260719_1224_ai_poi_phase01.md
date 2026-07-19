@@ -27,9 +27,24 @@ Three user decisions to fold into the plan first:
 - (maybe) tools/autotest/scenarios/test-v2-capture-no-thrash/ (integration autotest)
 
 ## Status
-- [ ] Plan amended with 3 decisions
-- [ ] Phase 0 death-ball confirm (log-based)
-- [ ] Phase 1 goal-guard + wiring + tests
+- [x] Plan amended with 3 decisions (commit 1)
+- [x] Phase 0 death-ball confirm — CONFIRMED by code (LayeredDefence:161-164 gate
+      + SquadManager gated legacy-only). `[v2-poi]` dispersion diagnostic shipped.
+      Findings written to plan Phase 0 section.
+- [x] Phase 1 goal-guard: GoalGuardLedger<T> + PoiGoalGuard trait + CaptureCoordinator
+      wiring + ai.yaml. NUnit PoiGoalGuardTest (10 cases) green; full suite 229 green.
+- [ ] Optional: single bounded live run to capture [v2-poi]/[v2-capture] trace.
+
+## Verdicts / notes
+- TECN limit 3 for v2 (via enable-ai-player UnitBuilder@america.normal). NOT a
+  Phase-1 blocker — goal-guard makes each of the 3 reliably complete a capture.
+  ⚠️ throughput capped at 3 concurrent captures; Phase 2/3 may want more (note, not changed).
+- Goal-guard is a reusable pure `GoalGuardLedger<TKey>` (v3-portable) + thin
+  `PoiGoalGuard` player trait holder. CaptureCoordinator gates re-issue on
+  Ledger.IsCommitted; commits on order; ReconcileGuardCommitments releases on
+  capture-done/expiry. Legacy activeCapturers path kept only as null-guard fallback.
+- TDD artifact = NUnit ledger test (encodes S-E no-thrash invariant deterministically).
+  In-game single-TECN capture autotest deferred — fragile under the single-run cap.
 
 ## Notes
 - TECN limit for v2 = 3 (shared via enable-ai-player UnitBuilder@america.normal,
