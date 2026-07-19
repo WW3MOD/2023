@@ -3,6 +3,34 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-20 — `CohesionMoveModifier` is a cover-aware intent system, NOT a simple offset system; and it DOES fire for bot orders
+
+`architecture.md` description is **wrong**: "offsets group move targets based on CohesionMode
+(Tight/Loose/Spread). Preserves relative formation shape with capped offsets." The real
+implementation (`engine/OpenRA.Mods.Common/Traits/CohesionMoveModifier.cs`) is an
+**intent-aware cover-placement system** that classifies the target cell against
+`Map.DensityLayer` and dispatches to one of four formation strategies: `Open` (box
+layout — fires on open terrain, the typical AI case), `SpreadInside` (into cover),
+`EdgeLine` (along a cover gradient), `Approach` (boundary-anchored line for far clicks).
+CohesionMode (`Tight`/`Loose`/`Spread`) controls ONLY spacing (col/row WDist), NOT
+which strategy fires. For AI AttackMoves to open-terrain objectives, `Intent.Open`
+almost always fires.
+
+**Bot-order routing confirmed**: `PoiOffensiveBotModule` issues grouped AttackMove with
+`groupedActors:` set. `Order.cs:400-401` serializes GroupedActors (flag `Grouped`).
+`UnitOrders.cs:397-413` runs the `IModifyGroupOrder` pipeline whenever
+`order.GroupedActors != null`. So CohesionMoveModifier fires for bot-issued grouped
+orders exactly as for player-issued ones. AI units default to `CohesionMode.Loose`
+(`AutoTarget.cs:120: InitialCohesionAI = CohesionMode.Loose`), giving 2-cell column
+and 1.5-cell row spacing in the Open box — tight enough to read as a death-ball.
+
+**`SetCohesion` order is bot-callable** (`AutoTarget.cs:434-435`):
+`new Order("SetCohesion", unit, false) { ExtraData = (uint)mode }`. The bot can switch
+per-unit cohesion mode before issuing a grouped AttackMove. SetCohesion orders queue
+before the AttackMove and drain first (FIFO), so the modifier reads the updated mode.
+This is the key mechanism for the Dispersion Cycle (§2,
+`WORKSPACE/plans/260720_dispersion_cycle_design.md`).
+
 ## 2026-07-20 — Tournament scenario bot assignment lives in `map.yaml` Players, NOT in `tournament.yaml` `Matchup`
 - Building the S1 mirror (`tournament-s1-eco-river-zeta-mirror`) required swapping
   which bot plays which spawn. The `tournament-eco-5min.yaml` (and every scenario's
