@@ -3,6 +3,25 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-19 — Bot skirmish maps produce no army without a scenario applied
+- Ran a bounded v2-vs-normal capture skirmish (`test-v2-poi-observe`, a bounded
+  copy of `demo-v2-capture-coordinator`) for 55s to capture live AI logs. The v2
+  bot built **nothing**: `[v2-poi] disperse pool=0 contested=0` for the whole
+  run and **zero** `[v2-capture]` lines (no TECNs ever produced). Engine logged
+  `Scenario selection: 'none', available scenarios: []`.
+- **Takeaway:** the SR reinforcement/production pipeline is (at least partly)
+  scenario-gated. A skirmish map that just places SRs + bots does NOT make the
+  bots call in units in a short window — so it's useless as a runtime AI-behaviour
+  observation vehicle. Any future live AI trace (death-ball, spread offense,
+  capture) needs a harness where the scenario/production system actually feeds
+  the SR queue, plus a longer window than ~1 min. Confirm what applies a scenario
+  before relying on bot production in autotests.
+- Logs land in `AppData/Roaming/OpenRA/Logs/debug.log` on Windows, and it
+  **rotates per run** (truncated on each launch) — snapshot/grep right after.
+- Unaffected: the `[v2-poi]` diagnostic itself works and emits clean per-scan
+  lines; the death-ball root cause is confirmed structurally in code regardless
+  (see plan 260719 Phase 0 findings).
+
 ## 2026-05-18 — Handicap unreachable in the V5 player row (deferred until usage data exists)
 - The V5 player row (`engine/mods/common/chrome/lobby-players.yaml`) keeps `DropDownButton@HANDICAP_DROPDOWN` and `Label@HANDICAP` widgets in every template, but parks them at `X: -200 W: 1 H: 1` so the C# `Get<>()` calls in `SetupEditableHandicapWidget` still resolve while nothing paints. The column was dropped in phase 5 redesign — agreed in `WORKSPACE/lobby/decisions.md` as a deliberate v1 cut.
 - **Net effect:** the handicap mechanic still works (server orders, etc.) but players cannot SEE or CHANGE their handicap value from the lobby. Default applies.

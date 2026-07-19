@@ -33,7 +33,10 @@ Three user decisions to fold into the plan first:
       Findings written to plan Phase 0 section.
 - [x] Phase 1 goal-guard: GoalGuardLedger<T> + PoiGoalGuard trait + CaptureCoordinator
       wiring + ai.yaml. NUnit PoiGoalGuardTest (10 cases) green; full suite 229 green.
-- [ ] Optional: single bounded live run to capture [v2-poi]/[v2-capture] trace.
+- [x] Single bounded live run (test-v2-poi-observe, 55s, PASS). [v2-poi] pipeline
+      works, contested=0 whole run (corroborates finding). BUT pool=0 + 0 [v2-capture]
+      = bot produced nothing ("Scenario selection: none"). Discovery logged. Did NOT
+      spend 2nd run. Code confirmation remains decisive.
 
 ## Verdicts / notes
 - TECN limit 3 for v2 (via enable-ai-player UnitBuilder@america.normal). NOT a

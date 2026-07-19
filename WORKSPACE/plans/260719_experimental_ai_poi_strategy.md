@@ -372,6 +372,21 @@ issues multi-axis orders to the pre-contact pool. Confirmed that there is
 nothing to disable/re-tune; Phase 2 is net-new behaviour, and the score-floating
 axes (decision #3) become the sole driver of pre-contact ground offense.
 
+**Runtime corroboration (1 bounded run, `test-v2-poi-observe`, 55s):** the
+`[v2-poi]` pipeline works and emitted 18 clean lines for USA-bot (v2).
+`contested=0` for the *entire* run — a frontline never formed, exactly matching
+finding #1 (nothing drives the pre-contact pool). BUT the run could not show a
+*populated* death-ball: `pool=0` throughout and **zero** `[v2-capture]` lines
+(no TECNs ever existed), and the engine logged `Scenario selection: 'none',
+available scenarios: []`. **Discovery:** on this scenario-map the SR
+reinforcement system fed the bots nothing in the window, so neither bot built a
+ground army. A live army/death-ball trace needs a runtime harness with the
+scenario/production system actually feeding the SR queue (and a longer window).
+The code evidence above remains the decisive confirmation; the run corroborates
+the "no frontline / no pre-contact order source" half and validates the
+instrumentation. Did **not** spend a second run chasing a longer window
+(single-run discipline).
+
 ### Phase 1 — `PoiMap` + income-POI capture (medium)
 - **Do:** new `PoiMap` world trait enumerating income/utility/SR POIs with
   derived `{owner, value, nearbyEnemies, distFromOwnSR, contested}` (the
