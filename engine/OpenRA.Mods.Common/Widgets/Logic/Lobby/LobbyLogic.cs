@@ -755,12 +755,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			// In skirmish there's only one chat channel (you + bots), so the All/Team
 			// toggle is meaningless visual noise. Hide it and let the textfield span
-			// the row, inset 6px per side so the panel's 1px side bevels stay visible.
+			// the row, inset 8px per side to match the chat display margins.
 			if (skirmishMode)
 			{
 				chatMode.Visible = false;
-				chatTextField.Bounds.X = 6;
-				chatTextField.Bounds.Width = chatTextField.Parent.Bounds.Width - 12;
+				chatTextField.Bounds.X = 8;
+				chatTextField.Bounds.Width = chatTextField.Parent.Bounds.Width - 16;
 			}
 
 			chatTextField.OnEnterKey = _ =>

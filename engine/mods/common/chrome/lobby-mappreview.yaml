@@ -110,9 +110,9 @@ Container@MAP_PREVIEW:
 					Height: 1
 					Color: 030303FF
 				LabelWithTooltip@MAP_TITLE:
-					X: 14
+					X: 16
 					Y: PARENT_HEIGHT - 42
-					Width: PARENT_WIDTH * 11 / 20 - 14
+					Width: PARENT_WIDTH * 11 / 20 - 16
 					Height: 36
 					Font: BigBold
 					Align: Left
@@ -173,7 +173,7 @@ Container@MAP_PREVIEW:
 				Label@MAP_AUTHOR:
 					X: PARENT_WIDTH * 11 / 20
 					Y: PARENT_HEIGHT - 40
-					Width: PARENT_WIDTH * 9 / 20 - 14
+					Width: PARENT_WIDTH * 9 / 20 - 16
 					Height: 16
 					Font: Tiny
 					Align: Right
@@ -182,7 +182,7 @@ Container@MAP_PREVIEW:
 				Label@MAP_TYPE:
 					X: PARENT_WIDTH * 11 / 20
 					Y: PARENT_HEIGHT - 22
-					Width: PARENT_WIDTH * 9 / 20 - 14
+					Width: PARENT_WIDTH * 9 / 20 - 16
 					Height: 16
 					Font: TinyBold
 					Align: Right
