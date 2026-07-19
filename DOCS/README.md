@@ -15,6 +15,7 @@ Static project documentation. Four kinds:
 
 | Looking for | Go to |
 |---|---|
+| AI design goal — realistic, doctrine-grounded bot behavior (primary AI goal) | `design/ai-realism.md` |
 | How WW3MOD's gameplay model differs from Red Alert (no factories, reinforcements) | `reference/game-model.md` |
 | Supply Route canonical mental model | `reference/supply-route.md` |
 | Supply/ammo economy details | `reference/economy.md` |
