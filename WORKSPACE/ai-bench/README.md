@@ -1,0 +1,38 @@
+# AI Benchmark — side project
+
+An autonomous system that **improves the Experimental AI** (`ModularBot@v2`)
+against a ladder of standardized benchmark scenarios, driven by a Maestro manager
+on autoburn. The Normal AI is the fixed yardstick; progress merges to `main`
+early and often so the user can play it.
+
+## The three documents
+
+| File | What it is | When to read |
+|---|---|---|
+| [`SPEC.md`](SPEC.md) | **The constitution.** The loop, run-policy modes (windowed vs hidden), mutable-scope + anti-cheat rules, worktree/merge protocol, advancement criteria, data recording, failure handling, scaling. A fresh manager bootstraps entirely from this. | Once at bootstrap; reference thereafter. |
+| [`LADDER.md`](LADDER.md) | **The tests.** The scenario-ladder protocol + the three River Zeta WW3 scenarios (economy race, force efficiency, win-rate) and the composite gate that clears a rung. | When picking what to run / defining a new scenario. |
+| [`REVIEW.md`](REVIEW.md) | **The live board.** One-minute review: at-a-glance status, a bidirectional Inbox (you write directives, the manager acts + you check them off), a categorized activity log, ladder standing, blockers. | The manager reads it **every cycle**; the user reads it to review + steer. |
+
+`runs/` holds the committed **cycle cards** (one distilled JSON per
+hypothesis-batch, SPEC §8.3). Bulky raw match data lives under
+`tools/autotest/tournament-results/` (git-ignored, harness-owned).
+
+## The loop in one line
+
+> pick a hypothesis → implement it in the `ai-bench` worktree → run a benchmark
+> batch → score vs the Normal control → log a cycle card → merge-or-revert.
+
+## Hard invariants (see SPEC §4, §11)
+
+- **Never push to remote** (the user pushes). Merges are local.
+- **Improve the AI, never shorten the yardstick** — no unit-stat / balance edits,
+  no game-rule changes to fit the benchmark. Engine fixes that *unblock* the AI
+  are fine.
+- **Control AIs (Normal/Rush/Turtle) stay behaviorally byte-identical.**
+- **A crash is the only unacceptable merge.**
+
+## Status
+
+Bootstrapped 2026-07-19 (docs only — no code, no runs yet). First action:
+process the REVIEW Inbox, secure a Mode-A run window, create the worktree, and
+baseline Scenario 1.
