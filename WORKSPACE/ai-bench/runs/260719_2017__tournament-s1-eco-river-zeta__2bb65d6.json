@@ -1,0 +1,47 @@
+{
+  "cycle_ts": "2026-07-19T20:17:00Z",
+  "scenario": "tournament-s1-eco-river-zeta",
+  "rung": "river-zeta",
+  "sha": "2bb65d6",
+  "hypothesis": "METRIC FIX (harness-side, no AI change). The S1 no-capture is resolved and the AI now captures + holds the nearest OILB derrick, but resources_earned (net PlayerResources.Earned) is structurally blind to that held income in the SR-budget economy (260719_s1_earned_metric_finding). Add a read-only GROSS capture-income accumulator (GrossIncomeIntegrator) that integrates PlayerResources.TotalBuildingIncome per tick in BotVsBotMatchWatcher, emit capture_income_gross, bump verdict_version 2->3, repoint the S1 metric. Expectation: v2 capture_income_gross > 0 (~$50/interval held ~6000 ticks -> ~$5900), normal ~= 0.",
+  "run_mode": "hidden",
+  "n_runs": 1,
+  "seeds": [1017],
+  "metric": "capture_income_gross",
+  "experimental_median": 6093,
+  "control_median": 0,
+  "margin_required": 0.15,
+  "margin_observed": null,
+  "verdict": "instrument_verified",
+  "decision": "keep_metric_advance_to_baseline",
+  "no_regression_checked": ["nunit_suite=282/282 (was 275/275, +7 new)", "build=green", "match_completed=7500t/no-crash", "additive_schema=resources_earned+all_prior_fields_byte_compatible", "scorer_winrule_inputs=unchanged (capture_income component still reads Earned)"],
+  "raw_result_dir": "tools/autotest/tournament-results/260719_2017_tournament-s1-eco-river-zeta",
+  "verdict_json": "260719_2017__tournament-s1-eco-river-zeta__2bb65d6.verdict.json",
+  "finding_doc": "260719_s1_gross_metric_verified.md",
+  "match_detail": {
+    "winner_name": "USA-bot",
+    "winner_bot": "v2",
+    "win_reason": "time_limit",
+    "duration_ticks": 7500,
+    "wall_clock_secs_approx": 90,
+    "players": {
+      "v2_USA": { "capture_income_gross": 6093, "resources_earned": 0, "capture_income": 0, "score_total": 8650, "army_value": 5500, "assets_value": 5800, "kills_cost": 3150, "deaths_cost": 1300, "units_killed": 10, "units_dead": 2, "buildings_killed": 0, "buildings_dead": 0, "order_count": 17 },
+      "normal_Russia": { "capture_income_gross": 0, "resources_earned": 0, "capture_income": 0, "score_total": 600, "army_value": 0, "assets_value": 0, "kills_cost": 600, "deaths_cost": 6350, "units_killed": 5, "units_dead": 13, "buildings_killed": 0, "buildings_dead": 0, "order_count": 17 }
+    }
+  },
+  "instrument_verification": {
+    "verdict_version": "PASS — 3 written to match_1.json.",
+    "sees_held_income": "PASS — v2 capture_income_gross=6093 (expected ~$5900: ~$50/50-tick interval held from ~t1550 to 7500). The instrument now registers the captured-derrick income that resources_earned could not.",
+    "control_zero": "PASS — normal capture_income_gross=0 (captures nothing; correct).",
+    "net_metric_context": "resources_earned stayed 0/0 for both bots as documented (net-blind in this economy) — kept in the verdict for context, no longer the metric.",
+    "side_effect_free": "Observer-only integrator: reads TotalBuildingIncome, writes to watcher state dict only. score_components.capture_income still 0 for both (reads Earned, unchanged) -> scorer/win-rule inputs untouched, S2/S3 outcomes unaffected.",
+    "tests": "PASS — dotnet test OpenRA.Test Release 282/282 (275 prior + 7 GrossIncomeIntegratorTest); build green."
+  },
+  "finding": "INSTRUMENT VERIFIED. The S1 yardstick can now see held-derrick income. With v2 capturing and holding the nearest OILB (the AI fix from 2d5433aa), capture_income_gross reads 6093 for v2 and 0 for the control in a single hidden Mode-B smoke — matching the ~$5900 predicted from $50/interval over the ~5950 held ticks. resources_earned remains 0/0 (net-blind, as root-caused) and is retained only for context. Note: v2 won this match on combat (army 5500 + kills 3150 = 8650 vs 600) — an independent RNG draw (unseeded LocalRandom), NOT an effect of the observer-only change; win-rule/scorer inputs are byte-identical.",
+  "boundary": "Metric/harness fix only. No AI, unit-stat, balance, map, or gameplay-affecting engine change. The win-rule economy term still reads net Earned by design (see followups) — repointing it would silently redefine S2/S3, deferred to the loop manager.",
+  "followups": [
+    "WIN-RULE ECONOMY TERM (loop-manager decision, recorded in LADDER.md): WeightedComponentMatchScorer.capture_income still feeds TimeOrSrCaptureWinRule from net PlayerResources.Earned (same net-blind defect). Moving it to capture_income_gross would make match outcomes count captured income but would silently redefine S2/S3 winners -> left untouched here; loop manager to decide + re-baseline S2/S3 if changed.",
+    "S1 baseline: with the metric now live, re-baseline S1 at N=10, build tournament-s1-eco-river-zeta-mirror, run the Normal-vs-Normal calibration batch so a gross-income gap is attributable to AI skill, not spawn-side derrick luck (SPEC §9.4)."
+  ],
+  "notes": "N=1 hidden Mode B smoke, verdict written, full 7500t, no crash. Instrument commit 2bb65d6c on ai-bench (NOT merged to main). Success bar met: verdict_version 3 written, v2 capture_income_gross=6093>0, control 0. GOAHEAD budget used: 1 run, 0 retries (no infra failure)."
+}
