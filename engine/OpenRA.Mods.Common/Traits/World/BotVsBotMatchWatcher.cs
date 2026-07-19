@@ -16,7 +16,7 @@
  *
  * Verdict shape (serialized into TestMode.WriteResult's `notes` field):
  *   {
- *     "verdict_version": 2,
+ *     "verdict_version": 3,
  *     "scenario": "<test-name>",
  *     "seed": <int>,
  *     "git_sha": "<run-tournament.sh stamps this>",
@@ -38,6 +38,11 @@
  *
  * v2 (additive, schema-stable): added the per-player "stats" object carrying the
  * full PlayerStatistics observer menu + cumulative PlayerResources.Earned.
+ * v3 (additive, schema-stable): added stats."capture_income_gross" — cumulative
+ * GROSS building income (pre-upkeep) granted to the player by income structures
+ * they own/capture, integrated read-only from PlayerResources.TotalBuildingIncome.
+ * This is the S1 economy metric; resources_earned (net) stays byte-compatible for
+ * context. No scorer/win-rule input changed (see GrossIncomeIntegrator).
  *
  * See:
  *   WORKSPACE/plans/260511_ai_tournament_harness.md
@@ -211,6 +216,11 @@ namespace OpenRA.Mods.Common.Traits
 					return;
 			}
 
+			// Integrate GROSS building income every tick (read-only observation — see
+			// GrossIncomeIntegrator). Sampled before the per-second countdown gate so the
+			// integral covers every tick, not just evaluation intervals.
+			AccumulateGrossIncome();
+
 			if (--countdown > 0)
 				return;
 			countdown = info.EvaluationInterval;
@@ -238,22 +248,42 @@ namespace OpenRA.Mods.Common.Traits
 			WriteVerdictAndExit(verdict);
 		}
 
+		// Read-only: accumulates each tracked player's gross building income by observing
+		// PlayerResources.TotalBuildingIncome. Never mutates actor/player/trait state.
+		void AccumulateGrossIncome()
+		{
+			foreach (var p in state.OriginalSrOwner.Keys)
+			{
+				var pr = p.PlayerActor?.TraitOrDefault<PlayerResources>();
+				if (pr == null)
+					continue;
+
+				if (!state.GrossCaptureIncome.TryGetValue(p, out var integrator))
+				{
+					integrator = new Tournament.GrossIncomeIntegrator();
+					state.GrossCaptureIncome[p] = integrator;
+				}
+
+				integrator.Tick(pr.TotalBuildingIncome, pr.Info.PassiveIncomeInterval);
+			}
+		}
+
 		void WriteVerdictAndExit(MatchVerdict verdict)
 		{
-			var json = SerializeVerdict(verdict);
+			var json = SerializeVerdict(verdict, state);
 			TestMode.WriteResult("pass", json);
 
 			Log.Write("debug", $"[Tournament] match ended at tick {verdict.EndTick}: winner={verdict.Winner?.PlayerName ?? "<none>"} reason={verdict.Reason}");
 			Game.Exit();
 		}
 
-		static string SerializeVerdict(MatchVerdict verdict)
+		static string SerializeVerdict(MatchVerdict verdict, MatchTrackingState state)
 		{
 			// Manual JSON build (no System.Text.Json dependency on the engine project).
 			// Embedded inside TestMode's `notes` string field — escaping done by TestMode.WriteResult.
 			var sb = new StringBuilder();
 			sb.Append("{");
-			sb.Append("\"verdict_version\":2,");
+			sb.Append("\"verdict_version\":3,");
 			sb.Append($"\"duration_ticks\":{verdict.EndTick},");
 			sb.Append($"\"winner_client_index\":{verdict.Winner?.ClientIndex ?? -1},");
 			sb.Append($"\"winner_name\":\"{Escape(verdict.Winner?.PlayerName ?? "")}\",");
@@ -305,7 +335,10 @@ namespace OpenRA.Mods.Common.Traits
 				sb.Append($"\"assets_value\":{stats?.AssetsValue ?? 0},");
 				sb.Append($"\"order_count\":{stats?.OrderCount ?? 0},");
 				sb.Append($"\"experience\":{stats?.Experience ?? 0},");
-				sb.Append($"\"resources_earned\":{playerResources?.Earned ?? 0}");
+				sb.Append($"\"resources_earned\":{playerResources?.Earned ?? 0},");
+				// v3: cumulative GROSS building income (pre-upkeep) — the S1 economy metric.
+				// resources_earned above (net) is unchanged and kept for context.
+				sb.Append($"\"capture_income_gross\":{state.GrossCaptureIncomeFor(player)}");
 				sb.Append("}");
 
 				sb.Append("}");

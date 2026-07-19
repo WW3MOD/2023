@@ -58,7 +58,7 @@ The even/odd index split still deterministically selects primary vs mirror
 | Scenario | `tournament-s1-eco-river-zeta` (**genuinely on River Zeta terrain** — 98×82, all 12 neutral OILB derricks), + mirror for bias (mirror not yet built) |
 | Contestants | P1 Experimental (v2) vs P2 Normal (control) |
 | Match length | **5 minutes** — `TimeLimitSeconds: 300` (candidate bump to 420–600s pending — see finding below) |
-| **Metric** | **`resources_earned`** (cumulative `PlayerResources.Earned`, verdict `stats.resources_earned`, `BotVsBotMatchWatcher.cs:308`) |
+| **Metric** | **`capture_income_gross`** (cumulative GROSS building income, pre-upkeep, verdict `stats.capture_income_gross`, verdict_version 3 — integrated read-only from `PlayerResources.TotalBuildingIncome`, `GrossIncomeIntegrator`). `resources_earned` (net `PlayerResources.Earned`) stays in the verdict as **context only**, not the metric. |
 | N runs | **10** (5-min matches are cheap: ~1–2 wall-min each hidden at 8×) |
 | Seeds | `1017, 2017, … 10017`; even = primary, odd = mirror (`--mirror`) |
 | Advancement | `median(v2 earned) ≥ median(Normal earned) × 1.15` (15% margin) |
@@ -102,26 +102,36 @@ The even/odd index split still deterministically selects primary vs mirror
 > itself, not v2, is now the blocker. Finding: `runs/260719_s1_earned_metric_finding.md`.
 >
 > **Required follow-ups:**
-> 1. **NEXT CYCLE = metric fix (harness-side, no AI change, no re-roll):** replace
->    `resources_earned` with a **gross** derrick-income signal — add a cumulative
->    capture-income accumulator to `BotVsBotMatchWatcher` (sum `TotalBuildingIncome`
->    paid per interval, or `ownedCashTricklers × rate × time`) and repoint S1 at it;
->    or confirm the lobby `passiveincome`/upkeep settings if upkeep masks income.
+> 1. ~~**NEXT CYCLE = metric fix (harness-side, no AI change, no re-roll):** replace
+>    `resources_earned` with a **gross** derrick-income signal.~~ **DONE (verdict_version 3):**
+>    `BotVsBotMatchWatcher` now integrates `PlayerResources.TotalBuildingIncome` per tick
+>    into a read-only `GrossIncomeIntegrator` and emits `stats.capture_income_gross`
+>    (additive; `resources_earned` unchanged for context). S1 metric repointed above.
+> 1a. **WIN-RULE ECONOMY TERM — deserves loop-manager review (NOT changed here, by design):**
+>    `WeightedComponentMatchScorer` still feeds its `capture_income` component (and thus
+>    the `TimeOrSrCaptureWinRule` outcome for S2/S3) from **net** `PlayerResources.Earned`,
+>    which is blind to a held derrick's gross income in this SR-budget economy (same defect
+>    the S1 metric just fixed). Repointing that term at `capture_income_gross` would make the
+>    economy axis actually count captured income in match *outcomes* — but it would **silently
+>    redefine S2/S3 winners**, so it was left untouched. The loop manager should decide whether
+>    the win-rule economy weight should move to gross, and re-baseline S2/S3 if so.
 > 2. **POI symmetry / calibration (after the metric can see income):** build
 >    `tournament-s1-eco-river-zeta-mirror` and gate S1 on a **Normal-vs-Normal batch
 >    landing ~even** on the new metric (SPEC §9.4) — otherwise an earned gap could be
 >    spawn-side derrick luck, not AI skill.
 
-> **PITFALL:** the metric is **`resources_earned`**, NOT `PlayerStatistics.Income`.
-> `Income` is a rolling 60-second figure; using it silently measures the wrong
-> thing (SPEC §8.2, `BotVsBotMatchWatcher.cs:292-294`).
+> **PITFALL:** the S1 metric is **`capture_income_gross`** (verdict_version 3), NOT
+> `resources_earned` and NOT `PlayerStatistics.Income`. `Income` is a rolling 60-second
+> figure and `resources_earned` (net `Earned`) is blind to held-derrick income (below) —
+> using either silently measures the wrong thing (SPEC §8.2).
 >
-> **PITFALL (deeper, found `2d5433a`):** `resources_earned` = `PlayerResources.Earned`
-> is a **net** figure that only increments on a net-positive periodic economy tick and
-> via the harvester path (unused in WW3MOD). It is **blind to a captured derrick's gross
-> CashTrickler income** when that income doesn't overcome standing costs — so it can read
-> `0` even when v2 genuinely captures and holds an income structure. S1 must move to a
-> **gross** capture-income metric (see the UPDATE note above).
+> **PITFALL (deeper, found `2d5433a`, RESOLVED verdict_version 3):** `resources_earned` =
+> `PlayerResources.Earned` is a **net** figure that only increments on a net-positive
+> periodic economy tick and via the harvester path (unused in WW3MOD). It is **blind to a
+> captured derrick's gross CashTrickler income** when that income doesn't overcome standing
+> costs — so it reads `0` even when v2 genuinely captures and holds an income structure.
+> S1 therefore uses **`capture_income_gross`** (gross `TotalBuildingIncome` integrated by
+> `GrossIncomeIntegrator`); `resources_earned` is kept in the verdict for context only.
 
 **Why 5 minutes:** long enough for the AI to call in TECNs (travel time from map
 edge, game-model.md) and start capturing income structures; short enough to

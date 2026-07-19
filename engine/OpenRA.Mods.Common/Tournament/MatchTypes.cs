@@ -44,8 +44,51 @@ namespace OpenRA.Mods.Common.Tournament
 		/// <summary>Cumulative value of enemy actors killed (sum of their costs).</summary>
 		public readonly Dictionary<Player, long> KillsValue = new Dictionary<Player, long>();
 
+		/// <summary>Per-player integrator of GROSS building income (pre-upkeep) actually
+		/// granted over the match. Read-only observer state — see GrossIncomeIntegrator.
+		/// This is the S1 economy metric (emitted as capture_income_gross); it is NOT read
+		/// by any scorer or win rule, so populating it cannot alter match outcomes.</summary>
+		public readonly Dictionary<Player, GrossIncomeIntegrator> GrossCaptureIncome = new Dictionary<Player, GrossIncomeIntegrator>();
+
 		public long CaptureIncomeFor(Player p) => CaptureIncome.TryGetValue(p, out var v) ? v : 0;
 		public long KillsValueFor(Player p) => KillsValue.TryGetValue(p, out var v) ? v : 0;
+
+		public long GrossCaptureIncomeFor(Player p) => GrossCaptureIncome.TryGetValue(p, out var v) ? v.Value : 0;
+	}
+
+	/// <summary>
+	/// Read-only integrator for a player's GROSS building income — the cumulative cash
+	/// that income structures (CashTrickler-bearing buildings) they own or capture have
+	/// granted them over a match, ignoring upkeep.
+	///
+	/// The unified economy pays out PlayerResources.TotalBuildingIncome (the sum of the
+	/// currently-owned income entries, before upkeep) once every PassiveIncomeInterval
+	/// ticks. Observing that value each tick and integrating the per-tick rate
+	/// (TotalBuildingIncome / PassiveIncomeInterval) reconstructs the cumulative gross
+	/// grant without ever touching sim state — the watcher only READS TotalBuildingIncome
+	/// and writes to this accumulator, so it cannot affect determinism or the experiment.
+	///
+	/// It is naturally robust to mid-match ownership changes: CashTrickler re-registers
+	/// under the new owner on capture (INotifyOwnerChanged), so TotalBuildingIncome — and
+	/// therefore this integral — follows whoever currently owns each structure.
+	/// </summary>
+	public class GrossIncomeIntegrator
+	{
+		double accumulated;
+
+		/// <summary>Cumulative gross income granted so far, truncated to whole cash units.</summary>
+		public long Value => (long)accumulated;
+
+		/// <summary>Advance one tick. totalBuildingIncome is paid every passiveIncomeInterval
+		/// ticks, so a single tick contributes totalBuildingIncome / passiveIncomeInterval.
+		/// Non-positive income or interval contributes nothing.</summary>
+		public void Tick(float totalBuildingIncome, int passiveIncomeInterval)
+		{
+			if (passiveIncomeInterval <= 0 || totalBuildingIncome <= 0f)
+				return;
+
+			accumulated += totalBuildingIncome / (double)passiveIncomeInterval;
+		}
 	}
 
 	/// <summary>
