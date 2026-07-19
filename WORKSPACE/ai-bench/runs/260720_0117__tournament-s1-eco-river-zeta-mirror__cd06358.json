@@ -1,0 +1,20 @@
+{
+  "cycle_ts": "2026-07-20T01:17:00Z",
+  "scenario": "tournament-s1-eco-river-zeta-mirror",
+  "rung": "river-zeta",
+  "sha": "cd06358",
+  "hypothesis": "Part B smoke: the new S1 mirror scenario (bots swapped) boots and runs a full 7500-tick match hidden, and the v4 scorer emits capture_income == capture_income_gross x weight.",
+  "run_mode": "hidden",
+  "n_runs": 1,
+  "seeds": [1017],
+  "metric": "capture_income_gross",
+  "experimental_median": 0,
+  "control_median": 0,
+  "margin_required": 0.15,
+  "margin_observed": null,
+  "verdict": "hold",
+  "no_regression_checked": [],
+  "decision": "keep_iterating",
+  "raw_result_dir": "tools/autotest/tournament-results/260720_0117_tournament-s1-eco-river-zeta-mirror",
+  "notes": "N=1 smoke, PART B verification. Verdict written, verdict_version:4, full 7500t time_limit — mirror boots. Winner Russia-bot (= Experimental in mirror, on Russia/80,35), score 7700 (army 5600 + kills 2100). USA-bot (= Normal, USA/14,45) score 0. Neither captured a derrick this independent draw, so capture_income_gross 0/0 and the scorer capture_income component == gross*2 == 0 for both (wiring confirmed: MATCH=True). Nonzero economy path is proven by WeightedComponentScoringTest, not this draw. Part B mechanically byte-identical to primary except the two Bot: lines (git-verified)."
+}

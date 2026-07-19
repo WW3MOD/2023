@@ -1,0 +1,20 @@
+{
+  "cycle_ts": "2026-07-20T01:20:00Z",
+  "scenario": "tournament-s1-eco-river-zeta",
+  "rung": "river-zeta",
+  "sha": "cd06358",
+  "hypothesis": "Part A verification: on the repointed v4 scorer, the primary S1 emits sane values and score_components.capture_income tracks capture_income_gross (not net Earned).",
+  "run_mode": "hidden",
+  "n_runs": 1,
+  "seeds": [1017],
+  "metric": "capture_income_gross",
+  "experimental_median": 0,
+  "control_median": 0,
+  "margin_required": 0.15,
+  "margin_observed": null,
+  "verdict": "hold",
+  "no_regression_checked": [],
+  "decision": "keep_iterating",
+  "raw_result_dir": "tools/autotest/tournament-results/260720_0120_tournament-s1-eco-river-zeta",
+  "notes": "N=1 smoke, PART A verification. verdict_version:4, full 7500t time_limit. Winner Russia-bot (Normal) score 5750 (army 1200 + kills 4550). USA-bot (Experimental) score 2350 (army 400 + kills 1950). Experimental did NOT capture a derrick this independent draw -> capture_income_gross 0/0, and the scorer capture_income == gross*2 == 0 for both players (MATCH=True, wiring confirmed). Two live draws (this + mirror) both came up gross 0 — the known S1 in-window capture-reliability variance (prior build 2bb65d6 drew a $6093 capture), orthogonal to this scorer change. The nonzero economy path (gross 5950 -> capture_income 11900) is pinned by WeightedComponentScoringTest. No crash, no regression vs prior smokes."
+}
