@@ -18,8 +18,18 @@
 -- contested midfield where a forming frontline can strand the TECN (plan
 -- risk #4). Here we only OBSERVE; there we ASSERT.
 
+-- PHASE 3 (offense) observation: this map now also pre-places a ~16-unit USA
+-- ground pool + TWO enemy-owned structures (EnemyFcom, EnemyOilb) beside the
+-- enemy SR, so PoiOffensiveBotModule has >=2 offensive POIs to SPLIT across.
+-- Read the accumulated log for the multi-axis evidence:
+--   [v2-offense] reeval ... axes=N        -> N concurrent attack axes
+--   [v2-offense] axis ... target=.. units=M -> per-axis assignment (M>0)
+--   [v2-offense] order ... target=.. units=M -> AttackMove issued per axis
+-- Two-or-more distinct `axis` targets with units>=MinAxisSize in one reeval =
+-- the army spread across axes instead of one clump (assert coarsely from logs).
+
 WorldLoaded = function()
-	TestHarness.FocusBetween(NearOilb, MidFcom, FarBio, NeutralSR)
+	TestHarness.FocusBetween(EnemyOilb, EnemyFcom, OpponentSR)
 
 	-- ~45s of simulation, then exit with a pass verdict (observation only).
 	Trigger.AfterDelay(45 * TestHarness.TicksPerSecond, function()

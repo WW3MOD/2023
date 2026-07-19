@@ -82,9 +82,11 @@ Actors:
 		Location: 58,16
 
 	# Pre-placed v2 bot force near its SR. Gives CaptureCoordinator a TECN from
-	# tick 0 and LayeredDefence/offense a real pool — the whole point of the
-	# harness (Phase 0's run had pool=0). Units face right (USA on the left,
-	# Facing 768 = East per WW3MOD counterclockwise WAngle convention).
+	# tick 0 and offense a real pool — the whole point of the harness (Phase 0's
+	# run had pool=0). Phase 3 needs a pool big enough to SPLIT: ~16 combat units
+	# (10 rifles + 6 tanks) so PoiOffensiveBotModule opens >=2 axes (UnitsPerAxis
+	# 8 -> 16/8 = 2). TECN is excluded from axes (capture-owned). Units face right
+	# (USA on the left, Facing 768 = East per WW3MOD counterclockwise convention).
 	BotTecn: tecn.america
 		Owner: USA-bot
 		Location: 9,16
@@ -105,6 +107,30 @@ Actors:
 		Owner: USA-bot
 		Location: 8,18
 		Facing: 768
+	BotRifle5: ar.america
+		Owner: USA-bot
+		Location: 8,12
+		Facing: 768
+	BotRifle6: ar.america
+		Owner: USA-bot
+		Location: 8,13
+		Facing: 768
+	BotRifle7: ar.america
+		Owner: USA-bot
+		Location: 8,19
+		Facing: 768
+	BotRifle8: ar.america
+		Owner: USA-bot
+		Location: 8,20
+		Facing: 768
+	BotRifle9: ar.america
+		Owner: USA-bot
+		Location: 9,13
+		Facing: 768
+	BotRifle10: ar.america
+		Owner: USA-bot
+		Location: 9,19
+		Facing: 768
 	BotTank1: abrams
 		Owner: USA-bot
 		Location: 10,15
@@ -112,6 +138,22 @@ Actors:
 	BotTank2: abrams
 		Owner: USA-bot
 		Location: 10,17
+		Facing: 768
+	BotTank3: abrams
+		Owner: USA-bot
+		Location: 10,14
+		Facing: 768
+	BotTank4: abrams
+		Owner: USA-bot
+		Location: 10,18
+		Facing: 768
+	BotTank5: abrams
+		Owner: USA-bot
+		Location: 11,15
+		Facing: 768
+	BotTank6: abrams
+		Owner: USA-bot
+		Location: 11,17
 		Facing: 768
 
 	# Neutral capturable income structures at varying distance (see header).
@@ -131,5 +173,17 @@ Actors:
 	NeutralSR: supplyroute
 		Owner: Neutral
 		Location: 42,16
+
+	# ENEMY-owned income structures on the Russia side — Phase 3 OFFENSIVE POIs.
+	# GetOffensiveTargets ranks these (Attack) alongside the enemy SR (Pressure),
+	# giving the USA v2 bot >=2 distinct enemy objectives so PoiOffensiveBotModule
+	# SPLITS its army across axes instead of one death-ball. Placed off the SR-to-SR
+	# centre line (rows 10 / 22) so the two axes visibly diverge.
+	EnemyFcom: fcom
+		Owner: Russia-bot
+		Location: 50,22
+	EnemyOilb: oilb
+		Owner: Russia-bot
+		Location: 50,10
 
 Rules: rules.yaml

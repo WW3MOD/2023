@@ -468,7 +468,45 @@ Neutral-on-capture semantics) to schedule before Phase 3 SR work.
 **Note — TECN limit 3:** not observed as a bottleneck now that capture completes
 reliably; left as-is (⚠️ revisit if Phase 3 wants more concurrent captures).
 
-### Phase 3 — Defend held POIs (medium)
+#### Phase 3 FINDINGS (2026-07-19) — spread offense SHIPPED; death-ball replaced
+
+**Delivered (Path A, v2-gated):**
+- **PoiOffensiveBotModule** + pure **PoiOffenseMath** (`Traits/BotModules/
+  PoiOffensiveBotModule.cs`, ~330 LOC). Reads `PoiMap.GetOffensiveTargets`
+  (new), opens score-floating axes via `DesiredAxisCount` → sticky top-k
+  (hysteresis) → `AllocateProportional`, issues one AttackMove per axis, and
+  commits every unit through the shared `PoiGoalGuard.Ledger`. All constants are
+  Info fields (YAML-tunable). Emits `[v2-offense]` reeval/axis/order/retire lines.
+- **PoiMap.GetOffensiveTargets** — enemy-owned POIs as army objectives (enemy
+  income = Attack, enemy SR = Pressure), scored value×distance×threat from own
+  SR. Added `PoiAction.Attack`; enemy SR reclassified Deny → Pressure.
+- 15 NUnit `PoiOffenseMath` cases; full suite **258 green** (was 243).
+
+**Unit-claim conflict (Phase 2 finding #1) — RESOLVED with a shared claim.**
+The fixed-wing SquadManager was v2's ground brain (the death-ball). Fix: new
+engine `SquadManagerBotModuleInfo.IgnoreGroundUnits` (default false → legacy
+byte-identical); both v2 fixed-wing managers set it true, so they keep only air
+squads and the ground pool is handed to PoiOffensiveBotModule. The **single
+`PoiGoalGuard.Ledger` is the shared blackboard** (minimal §5.6): capture commits
+"capture:<id>", offense commits "offense:<id>", each module skips anyone-committed
+units; CaptureCoordinator escort/defender recruit now also skips committed units.
+No two modules fight over a unit.
+
+**Live proof (1 run, `test-v2-poi-harness`, PASS).** Extended the harness to a
+25-unit offensive pool + 3 enemy POIs. Log shows the spread: 2 axes at pool=20,
+a 3rd opened as the pool grew to 25. Three concurrent axes, proportional by score:
+`fcom` (21.7M) → 11 units, enemy `supplyroute` Pressure (12.96M) → 7, `oilb`
+(10.85M) → 7; `free=0` (all claimed). Stable ticks 784–1084 (hysteresis, no
+thrash). **Decision #3 confirmed live:** the enemy fcom OUTSCORES the enemy SR —
+the base is not privileged; the derrick pulls the biggest axis.
+
+**Phase 4 hooks:** LayeredDefence + Garrison are NOT yet ledger-aware — pre-contact
+offense owns the pool cleanly, but once a frontline forms they may contend. Phase 4
+(defense/garrisons) should route those modules through the same ledger and add the
+"neutralize + hold SR with a small garrison" behaviour (needs SR CaptureManager,
+still absent — finding #3). TECN limit 3 unchanged.
+
+### Phase 4 — Defend held POIs (medium) [next]
 - **Do:** promote every owned POI to a garrison target with a minimum garrison
   sized by POI value; reuse + tighten `CaptureCoordinator`'s defense pass;
   optionally place a defensive structure (`gtwr`/`pbox`) near high-value held
@@ -479,7 +517,7 @@ reliably; left as-is (⚠️ revisit if Phase 3 wants more concurrent captures).
   are summoned and the derrick survives / is recaptured.
 - **Ships:** captured income is actually held, closing the loop.
 
-### Phase 4 (optional / later) — Chokepoints via `TerrainCache`
+### Phase 5 (optional / later) — Chokepoints via `TerrainCache`
 - Chokepoint detection needs the un-built `TerrainCache` (adjacency analysis at
   map load, `03_substrate.md §4.4`). Defer unless chokepoint holding proves
   necessary after Phases 2-3. Flagged so scope is explicit, not forgotten.
