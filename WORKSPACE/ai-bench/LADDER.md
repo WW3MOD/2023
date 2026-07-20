@@ -201,6 +201,19 @@ The even/odd index split still deterministically selects primary vs mirror
 > and not credited to dispersion. Analysis:
 > [`runs/260720_dispersion_verify_n10.md`](runs/260720_dispersion_verify_n10.md).
 
+> **SEEDED REFERENCE BASELINE (2026-07-20, ran at `main` @ `e5a1c967`) — bar PASS; first
+> paired-comparison reference set.** First fully-seeded N=10 of the merged bot on S1 (5 primary +
+> 5 mirror, seeds 1017…10017), run on the first build with seeded `LocalRandom` (commit `2d3c8fe0`,
+> **all verdicts v5 with `seed` stamped**). **In-window capture 8/10 ✅ (≥6); conditional gross
+> median $6,457 ✅ (≥$5000); win split 10–0 ✅** — reproduces cycle-2's merged-bot tier (8/10, 10–0;
+> cond median $7,726 there, this batch $6,457). 10/10 full 7500t matches, 0 no-verdict, 0 crashes.
+> **Both residual misses are america/primary side** (seeds 2017, 8017) — same upstream
+> production/dispatch-throughput constraint cycle-2 flagged (floor is M-2-gated, goes quiet after
+> america's first capture). Because seeds now replay identically, **future S1 cycles diff against
+> this per-seed table seed-by-seed** (paired comparison), not as independent samples; seeds
+> 2017/8017 are the natural regression/improvement watch cells. Analysis:
+> [`runs/260720_seeded_baseline_n10.md`](runs/260720_seeded_baseline_n10.md).
+
 > **PITFALL:** the S1 metric is **`capture_income_gross`** (verdict_version 4), NOT
 > `resources_earned` and NOT `PlayerStatistics.Income`. `Income` is a rolling 60-second
 > figure and `resources_earned` (net `Earned`) is blind to held-derrick income (below) —

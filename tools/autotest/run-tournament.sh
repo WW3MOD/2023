@@ -8,8 +8,9 @@
 #   ./tools/autotest/run-tournament.sh <scenario> [options]
 #
 # Options:
-#   --seeds N          Run N matches (each with a fresh in-engine seed via
-#                      Server.cs's DateTime.Now). Default: 5.
+#   --seeds N          Run N matches (each with a per-index seed Test.RandomSeed
+#                      = i*1000+17, which seeds LocalRandom → reproducible per
+#                      seed since commit 2d3c8fe0, verdict v5). Default: 5.
 #   --config <path>    Override the tournament.yaml inside the scenario.
 #                      Default: <scenario>/tournament.yaml.
 #   --result-dir <dir> Where to dump per-match results. Default:
@@ -35,9 +36,9 @@
 # Exit code: 0 if any matches ran; 3 on usage error.
 #
 # Phase 1 limitations (tracked in WORKSPACE/plans/260511_ai_tournament_harness.md):
-#   - In-engine seed is DateTime.Now-based (not deterministic across seed indices).
-#     For statistical validity over N matches it's fine; for reproduction of a
-#     specific match it isn't. Phase 2 candidate: Tournament.RandomSeed launch arg.
+#   - Seeding: RESOLVED (commit 2d3c8fe0). Test.RandomSeed=i*1000+17 seeds the
+#     engine LocalRandom, so a given seed now REPLAYS the same match (verdict v5
+#     stamps the seed). Good for both N-match statistics AND single-match repro.
 #   - Sequential only — parallel runner is Phase 3.
 
 set -e
