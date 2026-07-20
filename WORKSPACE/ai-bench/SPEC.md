@@ -60,10 +60,12 @@ Windows is headless/hidden-window support — see §3.
 
 ### 1.2 What the manager consumes vs. produces
 
-- **Consumes:** this SPEC, the LADDER, the REVIEW inbox, `git log`, the harness
-  scripts, and prior cycle cards under `WORKSPACE/ai-bench/runs/`.
+- **Consumes:** this SPEC, the LADDER, any live user questions/answers on the
+  **Maestro dashboard**, `git log`, the harness scripts, and prior cycle cards
+  under `WORKSPACE/ai-bench/runs/`.
 - **Produces:** AI/engine/harness code changes (in the worktree), merges to
-  `main`, cycle cards, and REVIEW.md activity-log + ladder-status updates.
+  `main`, cycle cards, and REVIEW.md updates (Needs attention / Highlights /
+  Current state / Activity log — §7).
 
 ---
 
@@ -72,14 +74,16 @@ Windows is headless/hidden-window support — see §3.
 Each **cycle** is one hypothesis tested to a verdict. This is the manager's
 inner loop; run it continuously while budget allows (§8).
 
-1. **Read the board.** Open [`REVIEW.md`](REVIEW.md). Process the **Inbox**
-   first (§7) — user directives outrank the manager's own backlog. Then read the
-   ladder status and the last few cycle cards to know where you left off.
+1. **Read the board.** Open [`REVIEW.md`](REVIEW.md) and check for any live user
+   questions/answers on the **Maestro dashboard** — a user answer outranks the
+   manager's own backlog. Then read the ladder status and the last few cycle
+   cards to know where you left off. REVIEW.md is now **info-only** (the loop
+   writes, the user reads — §7); steering happens on the dashboard, not in the file.
 2. **Pick a hypothesis.** One concrete, falsifiable change to the Experimental AI
    expected to move a specific ladder metric (e.g. "raising the offensive axis
    count from 3 to 4 should raise force-efficiency on Scenario 2 without hurting
-   the eco race"). Prefer the smallest change that tests one idea. Draw from: an
-   inbox directive, the current AI plan
+   the eco race"). Prefer the smallest change that tests one idea. Draw from: a
+   user directive on the dashboard, the current AI plan
    ([`../plans/260719_experimental_ai_poi_strategy.md`](../plans/260719_experimental_ai_poi_strategy.md)),
    or a weakness a prior cycle card flagged.
 3. **Implement in the worktree.** All work happens in
@@ -395,43 +399,50 @@ the ladder (new map / tighter margins / a new scenario — §11).
 ## 7. Review-board protocol (core deliverable)
 
 [`REVIEW.md`](REVIEW.md) is the single overview document. Design goal (user
-quote): **review "should ideally take a minute only."** It is **bidirectional** —
-the manager writes a categorized activity log; the user writes free-form
-directives back.
+quote): **review "should ideally take a minute only."** It is **one-way and
+information-only** — the manager writes it, the user reads it. There is **no
+inbox and no write-back in the file**: the user opens REVIEW.md to learn *is the
+loop doing well, were there larger pivots, and does it need me for anything*, and
+does any steering (directives, answers to open decisions) on the **Maestro
+dashboard**, not by editing REVIEW.md.
 
-### 7.1 File layout (top-down, so the minute-review reads newest-first)
+The board resolves the tension between chronology and urgency by putting
+**urgency-tiered sections on top and the full chronology at the bottom**: the
+reader sees what needs them *first*, the recent story *next*, and the complete
+history *only if they want it*.
+
+### 7.1 File layout (top-down = most-important-first)
 
 ```
-1. AT A GLANCE      — current rung, last cycle time+sha, one-line headline.
-2. YOUR INBOX       — user → manager. Free-form directives. (protocol below)
-3. ACTIVITY LOG     — manager → user. Reverse-chron, categorized, one line each.
-                       A REVIEW CURSOR line marks how far the user has read.
-4. LADDER STATUS    — living table: per scenario, best median vs control, verdict.
-5. OPEN QUESTIONS / BLOCKERS — what the manager needs from the user.
+1. NEEDS ATTENTION  — urgency-ordered, few items, each one line + why it matters.
+                       Open decisions running on a default, blockers, surprises.
+                       Cleared when resolved; empty = the loop is healthy.
+2. HIGHLIGHTS       — the last ~8–10 milestones/pivots/verdicts, reverse-chron,
+                       plain language with numbers ("S2 bar passed: +$4,850 edge, 10–0").
+3. CURRENT STATE    — compact: live ladder table + numbers, main SHA, in-flight,
+                       next queued.
+4. ACTIVITY LOG     — the full reverse-chron one-line-per-event history (the
+                       durable record; sections 1–3 are its digest).
 ```
 
-### 7.2 Inbox protocol (the read/clear contract)
+Sections 1–3 are a **digest the manager rewrites each cycle** to reflect the
+current picture; section 4 is **append-only history** (new lines on top). When an
+item under *Needs attention* is resolved, the manager removes it from that list
+(the fact of resolution still lives in the Highlights / Activity log).
 
-The Inbox is the only place the **user writes**. The rule set is small and
-strict so neither side ever destroys the other's text:
+### 7.2 What goes in each section (the writing contract)
 
-- **User adds** a directive as an unchecked item: `- [ ] <free-form directive>`.
-- **Manager reads the Inbox every cycle** (loop step 1), before its own backlog.
-  For each **unchecked** item it acts on it and **annotates in place**, appending
-  its response after a ` → ` on the same item, e.g.
-  `- [ ] tighten scenario 2 margin  → (mgr 2026-07-20 a1b2c3d) raised margin 10%→15%, re-baselined; see cycle card.`
-  The manager **never checks the box** and **never deletes** a user item — the
-  checkbox belongs to the user.
-- **User marks an item seen** by checking it: `- [x] ...`. That is the "I've read
-  your response" signal.
-- **Manager clears checked items:** on its next cycle, any `- [x]` item is
-  **moved out of the Inbox** into the `Resolved directives` archive at the bottom
-  of REVIEW.md (verbatim, with its date). The Inbox thus only ever contains live
-  (unchecked) items — the user's "what still needs me" list stays short.
-
-Net effect: **unchecked = live** (manager keeps acting + annotating);
-**checked = acknowledged** → manager archives it. The manager only ever *clears
-items the user has marked seen*, exactly per the binding decision.
+- **Needs attention** — anything the loop genuinely wants a human for: a pass-bar
+  running on an unratified default, a blocker it can't clear, a surprising result
+  worth a decision, a fork it will otherwise pick by default. Keep it short and
+  urgency-ordered; each item is one line plus a *why it matters*. The same item
+  should also be raised as a **Maestro dashboard question** — REVIEW.md surfaces
+  it, the dashboard is where the user answers.
+- **Highlights** — the recent milestones in the user's language, with the numbers
+  that make them legible. This is the "were there larger pivots" answer.
+- **Current state** — the smallest table that answers "where does it stand right
+  now": ladder rows + latest medians, the `main` SHA, what's running, what's next.
+- **Activity log** — see §7.3.
 
 ### 7.3 Activity-log protocol (the categorized record)
 
@@ -447,13 +458,9 @@ unblocked AI work), **`HARNESS`** (scenario/scorer/runner/metric change),
 **`MERGE`** (merged to main), **`LADDER`** (scenario passed / rung cleared /
 criterion changed), **`REVERT`** (backed out), **`NOTE`** (finding, blocker,
 handoff). Each line is dated, commit-stamped where a commit exists, and one
-sentence — so the whole history skims in a minute.
-
-**The REVIEW CURSOR:** a single line `--- ▲ reviewed through here ▲ (user moves this) ---`
-sits in the activity log. The manager **adds new entries above it** and **never
-moves it**. The user drags it up to the top when they've read the new entries —
-the log's mirror of the inbox checkbox. "New since your last review" = everything
-above the cursor.
+sentence. The log is **append-only history** — it is never pruned or reordered,
+and it carries no read-cursor (the *Highlights* digest is what tells the reader
+"what's new", so the retired `--- reviewed through here ---` cursor is gone).
 
 ---
 
@@ -570,8 +577,8 @@ Candidate build's median on a previously-passed scenario drops below its bar:
 - **On the worktree** → don't merge; either iterate to recover or abandon the
   hypothesis. Log a `NOTE`.
 - **On `main`** (a soft-merge that later proved regressive) → `git revert` the
-  offending commit on `main`, log a `REVERT`, and open a `NOTE`/inbox flag if the
-  cause is unclear. Because merges are soft and frequent (§5.2), catching
+  offending commit on `main`, log a `REVERT`, and raise it under *Needs
+  attention* (+ a dashboard question) if the cause is unclear. Because merges are soft and frequent (§5.2), catching
   regressions here is expected and cheap — the no-regression re-verification
   (§6.2) is the safety net before *advancement*, and periodic re-baselining of
   `main` against control catches soft-merge drift.

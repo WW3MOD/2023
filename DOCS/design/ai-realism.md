@@ -59,6 +59,71 @@ Any realism translation must respect two constraints (details in
    doctrine concept doesn't survive these limits, the research doc says so rather
    than forcing it.
 
+## Long-term vision (user-authored, 2026-07-20)
+
+> **Source:** captured live from the project owner while spectating an
+> Experimental-vs-Experimental match, 2026-07-20. This is the owner's statement of
+> where the AI should go — the north star for the strategic layer — recorded
+> faithfully; light editorial structure only. It sits **above** any specific
+> benchmark cycle: cycles are the means, this is the end.
+
+### 1. Territorial-control map layer (the centerpiece)
+
+A **fog-of-war-respecting map layer** that classifies territory as **safe /
+grayzone / enemy**. It is the AI's running model of who controls what, and it
+drives the whole game.
+
+- **Initial assumption:** at game start the bot treats **its own half of the map
+  as safe** — a reasonable prior in a 2-player game — until proven otherwise.
+- **Intelligence-driven, no cheating:** the layer updates from **actual
+  intelligence** (spotting enemies, contact, losses), respecting fog — **no seeing
+  through fog**. Territory is reclassified only as the bot actually learns.
+- **Safe → capture + fortify:** the bot reads safe territory as *"territory to
+  capture and to set up defensive positions in."* Safe ground is to be occupied
+  and held, not just passed through.
+- **Runs the entire game:** if the enemy retreats from or is destroyed in an area,
+  that area becomes **safer**, and the bot **advances into it** — the standing
+  principle is to **always push where the enemy is comparatively weak**.
+- **Balance-of-power reading:** the same layer, read as a balance of power, drives
+  **repositioning and reinforcing weak spots** — strength is shifted to where the
+  line is thin or threatened.
+- **End state — a defended front, stepping forward:** forces end up **spread along
+  the entire line of combat** so that *every part of the front is defended* —
+  **most important sectors first**, but eventually **at least some soldiers along
+  the whole front** — and the front **steps forward wherever it is safe to do so**.
+  Not a death-ball; a held, advancing line.
+
+### 2. Early-game economy sensibilities
+
+Behavior early in the game should match how a thinking human opens, not a
+build-order script.
+
+- **No supply trucks while every unit has full ammo.** A truck bought at the start
+  just **sits as a target** — no human plays that way. Simple rule for now (don't
+  buy resupply while ammo is full); **smarter foresight later** (buy against
+  *anticipated* need, not current emptiness).
+- **AA proportionate to the actual threat.** A **couple of AA infantry** are
+  already dangerous to any helicopter; fielding **multiple SHORAD/Tunguska at the
+  start is overbuild**. Scale AA to the air threat that actually exists.
+- **Spread out and capture fast, in small groups.** Early urgency is to **disperse
+  and grab ground quickly** rather than assembling one armada at the Supply Route.
+  Forming up is fine, but **movement can happen in smaller packets** — especially
+  early, when units are few.
+
+### 3. Mounted infantry doctrine
+
+Riding vehicles is a doctrine, weighed against its risk, not a default.
+
+- **Technicians ride to distant captures first.** Getting technicians to far-off
+  capture objectives by vehicle is the **first-priority** use of mounted movement.
+- **Soldiers ride with context-appropriate dismount tactics** (a later layer):
+  **dismount far from the enemy** when the ride is just about *reaching the front
+  to hold/defend*, and **dismount closer** when it is *assault transport* into
+  contact.
+- **Always weigh the shared-fate risk:** one missile can kill the **vehicle + the
+  squad riding it** together. Mounted movement trades speed for concentration of
+  risk, and the AI should price that in.
+
 ## Where the detail lives
 
 The concrete pattern→behavior mapping — for each modern-warfare pattern: the

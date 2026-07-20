@@ -3,6 +3,35 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-20 — Owner's long-term AI vision captured (territorial-control layer + early-eco + mounted infantry)
+
+Recorded live from the project owner while spectating an Experimental-vs-Experimental match. This is
+**north-star design intent**, not a code finding — promoted into the standing design doc
+[`DOCS/design/ai-realism.md`](../DOCS/design/ai-realism.md) → "Long-term vision (user-authored, 2026-07-20)".
+Logged here so a curation pass can link the two. Three themes:
+
+1. **Territorial-control map layer (the centerpiece).** A fog-respecting map layer classifying territory
+   **safe / grayzone / enemy**; own-half assumed safe at start (2-player prior) until proven otherwise;
+   updates only from real intel (no seeing through fog). Safe = "capture + set up defensive positions".
+   Runs the whole game: enemy retreats/dies → area safer → advance there → **always push where the enemy
+   is comparatively weak**; a balance-of-power reading of the same layer drives repositioning + reinforcing
+   weak spots. End state: forces **spread along the ENTIRE line of combat** (most important sectors first,
+   eventually some soldiers along the whole front), front **steps forward wherever it is safe**. A held,
+   advancing line — not a death-ball.
+2. **Early-game economy sensibilities.** No supply trucks while all units have full ammo (a start-bought
+   truck just sits as a target; simple rule now, foresight later). AA proportionate to the real air threat
+   (a couple of AA infantry already deter helicopters; multiple SHORAD/Tunguska at start = overbuild).
+   Early urgency to spread out + capture fast in **small groups/packets** rather than one armada at the SR.
+3. **Mounted infantry doctrine.** Technicians ride vehicles to distant captures (first priority); later,
+   soldiers ride with context-appropriate dismount (far from enemy when just reaching the front to
+   hold/defend, closer for assault transport) — always weighing that **one missile can kill vehicle +
+   squad together**.
+
+Relevant engine systems for eventual translation (per the realism doc's mapping): `InfluenceMap` /
+`PoiMap` (territory + weak-point reading), `PoiOffensiveBotModule` (advance where weak), the garrison
+module (hold captured safe ground), `MountedTransportBotModule` (mounted doctrine), the SR call-in budget
+(early-eco discipline). No code written this session — vision capture only.
+
 ## 2026-07-20 — An SR Pressure offensive axis does NOT starve the TECN capture layer (offense/capture pool independence, empirical)
 
 Found during SR-contestation cycle 1 (`runs/260720_sr_contestation_cycle1_n10.md`). With the new

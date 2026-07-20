@@ -16,7 +16,7 @@ early and often so the user can play it.
 |---|---|---|
 | [`SPEC.md`](SPEC.md) | **The constitution.** The loop, run-policy modes (windowed vs hidden), mutable-scope + anti-cheat rules, worktree/merge protocol, advancement criteria, data recording, failure handling, scaling. A fresh manager bootstraps entirely from this. | Once at bootstrap; reference thereafter. |
 | [`LADDER.md`](LADDER.md) | **The tests.** The scenario-ladder protocol + the three River Zeta WW3 scenarios (economy race, force efficiency, win-rate) and the composite gate that clears a rung. | When picking what to run / defining a new scenario. |
-| [`REVIEW.md`](REVIEW.md) | **The live board.** One-minute review: at-a-glance status, a bidirectional Inbox (you write directives, the manager acts + you check them off), a categorized activity log, ladder standing, blockers. | The manager reads it **every cycle**; the user reads it to review + steer. |
+| [`REVIEW.md`](REVIEW.md) | **The status board (info-only).** One-minute review: *Needs attention* (what wants a human) → *Highlights* (recent milestones) → *Current state* (live ladder + SHA) → *Activity log* (full history). One-way — the loop writes, you read; steering happens on the **Maestro dashboard**, not in the file. | The manager writes it **every cycle**; the user reads it to review, and steers via the dashboard. |
 
 `runs/` holds the committed **cycle cards** (one distilled JSON per
 hypothesis-batch, SPEC §8.3). Bulky raw match data lives under
@@ -40,6 +40,7 @@ hypothesis-batch, SPEC §8.3). Bulky raw match data lives under
 
 Bootstrapped 2026-07-19 (docs only — no code, no runs yet). The hidden-window
 substrate is verified, so the loop runs **unsupervised (Mode B)** from the start
-— no user run window needed (SPEC §3). First action: process the REVIEW Inbox,
-create the worktree, do the §3.3 bootstrap smoke run (proves the pipeline + the
-Windows-portability items), then baseline Scenario 1.
+— no user run window needed (SPEC §3). First action: read REVIEW.md + check the
+Maestro dashboard for any live user directions, create the worktree, do the §3.3
+bootstrap smoke run (proves the pipeline + the Windows-portability items), then
+baseline Scenario 1.

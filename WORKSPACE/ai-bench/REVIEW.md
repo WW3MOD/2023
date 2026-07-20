@@ -1,55 +1,128 @@
-# AI Benchmark — Review Board
+# AI Benchmark — Status Board
 
-**This is the one document to check.** Designed for a **one-minute review**:
-skim *At a Glance*, drop any directives in *Your Inbox*, glance at what's new
-above the *review cursor* in the *Activity Log*. Protocol defined in
-[`SPEC.md`](SPEC.md) §7. The manager reads this file at the start of **every**
-cycle and treats the Inbox as outranking its own backlog.
+**This is an information surface FOR you (the user), not a two-way channel.** The
+loop writes here; you read. It is designed so that after a stretch of autonomous
+work you can open this one file and, without reading any transcript, see: **is the
+loop doing well, were there any larger pivots, and does it need you for anything.**
+
+Read **top-down, most-urgent-first**:
+
+1. **Needs attention** — the short list of things that want a human: open decisions
+   running on a default, anything blocked, anything surprising. If this is empty,
+   the loop is healthy and self-directed.
+2. **Highlights** — the recent milestones/pivots/verdicts in plain language, so you
+   can see the shape of progress at a glance.
+3. **Current state** — the live ladder numbers, the `main` SHA, what's in flight.
+4. **Activity log** — the full reverse-chronological history at the bottom.
+
+> **To steer or answer a question, use the Maestro dashboard** — ask/answer there.
+> REVIEW.md **no longer has an inbox**; the old write-back-in-this-file mechanism
+> is retired. Anything the loop needs from you is surfaced both here (under *Needs
+> attention*) and as a dashboard question.
 
 > **Terminology — v2 → Experimental (2026-07-20, `ai-bench` rename commit).** The dev
 > bot formerly keyed `@v2` / "V2 AI (experimental)" is now `ModularBot@experimental` /
 > "Experimental AI"; a frozen **`ModularBot@stable`** ("Stable AI") holds the last
-> validated snapshot (promotion policy: SPEC §13). Old references below (`@v2`,
+> validated snapshot (promotion policy: SPEC §13). Old references (`@v2`,
 > `enable-ai-v2`, `[v2-*]` logs, `tournament-v2-vs-normal-*`) map to `@experimental` /
 > `enable-ai-experimental` / `[exp-*]` / `tournament-experimental-vs-normal-*`.
-> **Historical run records under `runs/` keep their original "v2" names** — history
-> stays as written; only "v2 median" column labels and this board's live rows read old.
+> **Historical run records under `runs/` keep their original "v2" names.**
 
 ---
 
-## 1. At a Glance
+## Needs attention
+
+Urgency-ordered. Few items, each one line + why it matters. Cleared when resolved.
+
+1. **S1 pass-bar never formally ratified.** The written LADDER bar `median(exp gross)
+   ≥ median(control) × 1.15` is **degenerate** (Normal captures ~1/20 → control
+   median ≈ 0 → anything "passes"). The loop is running on a **recommended
+   replacement** — in-window capture ≥ 6/10 **and** conditional gross median ≥ $5,000
+   — as a de-facto default. *Why it matters:* every S1 "PASS" on the board rests on
+   this unratified bar. A one-word "yes, that bar" locks it in.
+2. **S2 pass-bar running on a default too.** S2 uses a **paired-relative** bar
+   (`median(Exp swing) ≥ median(Normal swing) + $1,400`, ≥7/10 sign-delta,
+   both-spawn symmetry) chosen during calibration to cancel an attrition offset.
+   It's in use but flagged "to ratify." *Why it matters:* same as above — the S2
+   PASS depends on it.
+3. **Next behavior cycle is a fork the loop will pick by default.** After the S2
+   measurement scored dispersion's causal credit **negative**, the two live
+   candidates are a **combat-focused dispersion re-tune** or an **SR-multiplier
+   sweep** (260 vs higher/lower). Absent a steer, the loop will choose one and
+   proceed. *Why it matters:* if you have a preference for where realism effort goes
+   next, now is the cheap moment to say so.
+
+---
+
+## Highlights
+
+Most recent first. Milestones, pivots, and verdicts in plain language.
+
+- **SR-contestation cycle 1 MERGED** — the enemy Supply Route now wins an offensive
+  axis. **S1 held** (capture 8/10, win 10–0, identical to reference) and **S2 got
+  stronger**: relative edge **+$6,300** (vs +$4,850 before), win 10–0. Contesting
+  the enemy SR is *positive* on the exact S2 metric where dispersion was negative.
+- **S2 rung's first measurement: bar PASSED** — relative edge **+$4,850**, sign-delta
+  **8/10**, win **10–0**. Big pivot in the same batch: the dispersion (cohesion)
+  doctrine's **causal credit came back NEGATIVE** (ON−OFF median −$1,500) — cohesion
+  buys *decisiveness*, not exchange efficiency. Combat economy is unharmed either way.
+- **Capture-throughput design study** landed — recommends Option A (run the TECN
+  floor every scan, floor 2) then Option B (escort-bundled reinforcement packaging),
+  as separate cycles. Found a new root cause: requests die on a busy production queue.
+- **PROMOTE: Stable ← Experimental** (post-S1 snapshot) — Stable now carries the
+  TECN availability floor + dispersion doctrine; a known-good bot to play while the
+  loop keeps moving Experimental. Controls (Normal/Rush/Turtle) byte-untouched.
+- **Seeded reference baseline (N=10) PASSED** — S1 bar re-confirmed on the first
+  fully reproducible sample: capture **8/10**, conditional gross median **$6,457**,
+  win **10–0**. This per-seed table is now the paired anchor for future cycles.
+- **Full replay determinism shipped** — same seed now → byte-identical verdict.
+  Cross-cycle comparisons became *paired* (big variance win); enabled the clean
+  dispersion on/off A/B.
+- **S1 CYCLE 2 (TECN availability floor) MERGED** — in-window capture **4/10 → 8/10**,
+  conditional gross median **$7,726**, win **10–0**. Causally confirmed (298 floor
+  requests; matches fielding zero capturers all-match 5/10 → **0/10**).
+- **S1 CYCLE 1: bar FAILED, diagnosis decisive** — merged anyway as behavior-neutral
+  observability. Pinpointed the binding constraint: **TECN production/availability**,
+  not coordinator logic — which set up cycle 2's win.
+- **Dispersion cohesion MERGED** — spread-to-move, mass-to-assault. Non-regression
+  exceeded on S1; its real combat signal was deferred to the (now-built) S2 rung.
+- **S2 combat rung stood up + calibrated** — River Zeta combat scenario (720s clock),
+  Normal-vs-Normal calibration passed the min-engagement check (Normal fights, no
+  @rush fallback needed); mild russia-side lean neutralised by the mandatory mirror.
+
+---
+
+## Current state
+
+Live ladder standing on `main`. Definitions in [`LADDER.md`](LADDER.md); full
+per-scenario detail below and in `runs/`.
 
 | | |
 |---|---|
-| **System** | AI Benchmark — autonomous improvement of the Experimental AI (`ModularBot@experimental`) vs the Normal control |
-| **Active rung** | River Zeta WW3 (Scenarios 1–3, [`LADDER.md`](LADDER.md)) — **not yet cleared** |
-| **Run mode** | **Mode B (hidden / unsupervised) — ACTIVE.** `OPENRA_WINDOW_HIDDEN=1` verified (no window, no focus steal, verdict written, sim/render decoupled). Unlimited unattended runs. Mode A (windowed) is the fallback only if the decoupling regresses (SPEC §3.1) |
-| **Last cycle** | 2026-07-20 · main @ `c6a71c14` · **S1 CYCLE 2 (TECN availability floor) MERGED** — capture reliability bar **PASSED**. Default-off `TecnFloor` on `CaptureCoordinatorBotModule` requests a capturer via the shared UnitBuilder's `IBotRequestUnitProduction` queue (bypasses share-ceiling + `UnitLimits`); `TecnFloor: 1` on `@experimental.tecn` only. Prior: dispersion cohesion MERGED (`56a57349`), seeded-determinism recon landed (`aa0dc7e`). |
-| **Headline** | **S1 capture reliability bar CLEARED: in-window capture 4/10 → 8/10, conditional gross median $7,726, win split 10–0 vs Normal.** The lever was TECN *availability*, exactly as cycle-1's markers predicted: the shared UnitBuilder rolled TECN ~uniformly (~1/11) with no floor, so 5/10 matches fielded ZERO capturers all match. The floor pulls one on demand at the M-2 (no-free-capturer) branch whenever a derrick is uncaptured — CAUSALLY confirmed (298 `tecn-floor-request` fires, faction-correct type resolve, M-2 `total-tecns=0` scan share 88%→76%, zero-TECN-all-match matches 5/10→**0/10**), and unlike the confounded dispersion capture jump this one is credited (it touches the pipeline directly). Residual 2/10 misses are upstream production throughput (m2 america floor-goes-quiet after 1st capture since the gate is M-2-only; m7 russia requested 82× but never converted). **Next: extend the floor past the M-2 gate + escort-bundled reinforcement packaging (reuses this request plumbing).** Card: `runs/260720_tecn_floor_cycle2_n10.md`. |
+| **`main` @** | `2ed2c0ac` (SR-contestation cycle 1 merged; DISCOVERIES follow-up) |
+| **Active rung** | River Zeta WW3 (Scenarios 1–3) — **not yet cleared** (composite gate open) |
+| **Run mode** | Mode B (hidden / unsupervised), `OPENRA_WINDOW_HIDDEN=1` verified — unlimited unattended runs |
+| **In flight** | Nothing running (docs-only session; the run slot is free) |
+| **Next queued** | Behavior cycle: dispersion re-tune **or** SR-multiplier sweep (see *Needs attention* #3) |
+
+| Scenario | Metric | Experimental | Normal | Bar | Verdict |
+|---|---|---|---|---|---|
+| **S1** Economy Race (5 min) | `capture_income_gross` | median **$6,457**; capture **8/10**; cond. gross **$7,726** | **0** (captured 0/10) | capture ≥6/10 AND cond. gross ≥$5,000 *(reliability bar, unratified)* | **CYCLE 2 PASS** |
+| **S2** Force Efficiency (12 min) | net swing (`kills_cost − deaths_cost`) | **−200** (→ swing lifted after SR contestation) | **−5050** | paired-relative: median(Exp) ≥ median(Normal) + $1,400 *(unratified)* | **PASS** — edge +$4,850 (→ +$6,300 w/ SR contest), 10–0 |
+| **S3** Win-rate (12 min) | Exp win fraction | — | — | ≥ 0.55 (map ≈0.50) | not measured |
+| **Composite gate** | all three, one commit | — | — | all pass together | **not cleared** |
+
+Note: S2's dispersion A/B credit is **negative** (cohesion helps S3 decisiveness,
+not S2 efficiency); SR-contestation is the positive S2 lever.
 
 ---
 
-## 2. Your Inbox  (user → manager)
+## Activity log
 
-> **How to use (protocol, SPEC §7.2):**
-> - Add a directive as `- [ ] your thought here`.
-> - The manager reads every cycle, acts, and appends its response after ` → `
->   on the same line. It will **not** check the box or delete your text.
-> - When you've read the manager's response, **check the box** `- [x]`. That's
->   your "seen" signal — the manager then moves it to *Resolved directives* at
->   the bottom next cycle.
-> - Unchecked = still live. Checked = you're done with it.
-
-- [ ] (mgr-flagged 2026-07-19 `86aa2db`) S1 economy metric is `0/0` again after the map rescope — but now because **neither bot captures a derrick in 5 game-minutes**, not because the map lacks POIs (that wall is fixed). Normal earning $0 is correct (no capture logic). v2 earning $0 is the real gap: its `PoiMap → CaptureCoordinatorBotModule` layer didn't convert reachable POIs into a capture in-window. → (mgr) Recommend the **first AI cycle** target exactly this (compare v2 capture on `tournament-capture-arena-2p` vs here to localize the gap); I did **not** bump the 300s clock (nearest derrick is ~3 cells away, so the clock isn't the blocker). Flagging in case you'd rather I first bump S1 to 420–600s or add a capture-forcing setup before touching v2. Also pending: build the S1 mirror + a Normal-vs-Normal calibration batch before any v2 number is trusted (SPEC §9.4). → (mgr 2026-07-19 `0eb71d49`) **ROOT-CAUSED (static + debug log), AI-code-side.** The prior "capture layer didn't fire" framing was wrong: v2 *did* build a TECN and *did* issue a capture — but to a **Logistics Center @31,52 (score 104M), not the derrick 3 cells from its SR**. `PoiMap.IncomeWeights` (`world.yaml:303`) lists `logisticscenter: 200` — the **highest** weight — yet the LC has **no CashTrickler** (`structures.yaml:345-403`), so capturing it earns **$0**. The sole TECN is goal-guard-committed cross-map to the LC, dies ~t1737, and the 12 real OILB derricks are never touched → `resources_earned` 0 by *mis-scoring*, not map/reachability. **One-line fix (loop's first AI cycle): delist `logisticscenter` from `PoiMap.IncomeWeights` (`world.yaml:303`) + `CaptureCoordinatorBotModule@v2.tecn.IncomeWeights` (`ai.yaml:126`)** — a no-income depot must not be an income POI (PoiMap.cs:91-92 contract). I did NOT change AI code per the boundary. Full evidence: `runs/260719_s1_no_capture_diagnosis.md`. → (mgr 2026-07-19 `2d5433a`) **DONE — fix applied + verified; the capture gap is closed.** Delisted `logisticscenter` from both v2 income tables; hidden N=1 smoke confirms v2 now targets *and captures* the nearest OILB (still owns it at match end). **New blocker surfaced one layer down:** `resources_earned` (net `PlayerResources.Earned`) is structurally blind to a lone captured derrick's gross income in the SR-budget economy, so S1 still reads 0/0 — a **metric** problem, not a v2 problem. Next cycle is a harness fix (gross capture-income accumulator), not an AI change; I did **not** re-roll. Finding: `runs/260719_s1_earned_metric_finding.md`. Mirror + Normal-vs-Normal calibration still pending, now gated behind the metric fix. → (mgr 2026-07-19 `2bb65d6`) **METRIC BLOCKER RESOLVED.** Added `GrossIncomeIntegrator` (read-only, observer-only) + new stats field `capture_income_gross` (verdict_version 3, additive — no scorer/win-rule input touched). Hidden N=1 smoke: **v2 `capture_income_gross` 6093, control 0** (~$5,900 predicted from the held $50 derrick). `resources_earned` kept as net context. Tests 275→282, build green; committed `2bb65d6c`, NOT merged. **One thing for you:** the *win-rule* economy term (`WeightedComponentMatchScorer.capture_income` → `TimeOrSrCaptureWinRule`) still reads net `Earned`; I deliberately did **not** repoint it at gross because that would silently redefine S2/S3 outcomes — your call whether to move it + re-baseline S2/S3 (recorded in LADDER §S1 follow-up 1a). Mirror + Normal-vs-Normal calibration now unblocked (next). Finding: `runs/260719_s1_gross_metric_verified.md`. → (mgr 2026-07-20 `cd06358`) **WIN-RULE TERM MOVED TO GROSS (your approval, LADDER 1a) + S1 MIRROR BUILT.** Repointed `WeightedComponentMatchScorer.capture_income` (feeds `TimeOrSrCaptureWinRule`) from net `Earned` → the gross integral `state.GrossCaptureIncomeFor` (same value as `capture_income_gross`); `verdict_version` 3→4 (emitted `score_components.capture_income` changed *meaning*; no field added/removed). Safe to do now: S2/S3 have no baselines to invalidate. Built `tournament-s1-eco-river-zeta-mirror` (byte-identical to primary, two bots' spawns swapped). NUnit 282→287 (+5 `WeightedComponentScoringTest`), build green; 2 hidden N=1 smokes (mirror + primary) both boot + run full 7500t, verdict_version 4, `capture_income == gross×2` confirmed (gross 0 both draws — the known in-window capture variance, not a wiring issue). Committed `cd06358a`, NOT merged. Next: S1 N=10 baseline + Normal-vs-Normal calibration across primary+mirror.
-
----
-
-## 3. Activity Log  (manager → user)
-
-Reverse-chronological, one line each: `YYYY-MM-DD | <sha7> | CATEGORY | one-liner`.
+Full reverse-chronological history, one line each:
+`YYYY-MM-DD | <sha7> | CATEGORY | one-liner`.
 Categories: `AI` `ENGINE` `HARNESS` `MERGE` `LADDER` `REVERT` `NOTE`.
-New entries go **above** the review cursor. **You move the cursor** up when
-you've read the new lines (the manager never moves it).
+Newest at top. This is the durable record; the sections above are the digest.
 
 ```
 2026-07-20 | (srcontest) | MERGE | SR-CONTESTATION CYCLE 1 MERGED (exp-sr-contestation -> main, from 39821f93). Enemy Supply Route now wins an offensive axis: per-bot PoiOffensiveBotModule.SrPressureScoreMultiplier (x100, default 100 = INERT/frozen; guarded no-op so @stable + Normal/Rush/Turtle byte-identical) set 260 on @experimental ONLY, re-scaling the enemy-SR Pressure axis score after GetOffensiveTargets then re-sorting. 260 = (250*100)/(120*80) reproduces the plan's value=250/bias=100 uplift (addendum E supersedes the original world-level PoiMap edit — that trait is a singleton read by the frozen controls). DENY-ONLY preserved (SUPPLYROUTE has no CaptureManager -> AttackMove, never capture). Build green, NUnit 291/291. S1 NON-REGRESSION PASS (N=10 hidden Mode-B): capture 8/10, cond gross median $6,457, win 10-0 -- IDENTICAL to the seeded reference (same 2 america misses 2017/8017); the SR axis diverting combat units did NOT starve the TECN capture layer. S2 BAR PASS (N=10): median Exp swing +1125 >= Normal -5175 + $1,400 -> relative edge +$6,300 (margin +$4,900); sign-delta 8/10; both-spawn 4/5 + 4/5; min-engagement 6025 in-band; win 10-0 -- STRONGER than the dispersion-ON reference (edge +$4,850, median swing -200), lifting median Exp swing +$1,325 (Normal control stable) and rescuing the reference's worst cell (seed 3017 delta -$4,850 -> +$7,650). SR contestation is POSITIVE on the same S2 metric where dispersion's causal credit was NEGATIVE. SR Pressure axis proven live in-window: 8/10 both scenarios, first tick ~1600-2150 (mid-game, both spawns), 89-180 lines/match in S2 (sustained); 2 no-axis matches = the army-starved 2017/8017 cells. NOT promoted to @stable (separate user-accepted step, SPEC 13). Analysis: runs/260720_sr_contestation_cycle1_n10.md. NEXT: dispersion re-tune (S2 scores it negative) OR an SR-multiplier sweep (260 vs higher/lower, now that S2 gives SR contestation a positive causal score).
@@ -87,65 +160,3 @@ you've read the new lines (the manager never moves it).
 2026-07-19 | (pending) | HARNESS | Amendment: hidden-window substrate RESOLVED. OPENRA_WINDOW_HIDDEN=1 landed+verified (d716eade/fda8370c) -> Mode B active from bootstrap (unlimited unsupervised runs); Mode A now fallback-only. Replaced the impossible same-seed identity gate (per-seed replay is broken: bots use unseeded LocalRandom) with the structural sim/render-decoupling guarantee; seeds are run labels, N-run stats unaffected. Updated SPEC §3 + LADDER seeds wording.
 2026-07-19 | 06afb643 | NOTE | System bootstrapped: SPEC/LADDER/REVIEW/README authored under WORKSPACE/ai-bench/. Loop not yet started.
 ```
-
-`--- ▲ reviewed through here ▲  (user: drag this line up as you read) ---`
-
----
-
-## 4. Ladder Status  (live standing)
-
-Per-scenario best result on `main`. Definitions in [`LADDER.md`](LADDER.md).
-`—` = not yet measured.
-
-| Scenario | Metric | v2 median | Normal median | Bar | Verdict | Last sha |
-|---|---|---|---|---|---|---|
-| S1 Economy Race (5 min) | `capture_income_gross` | **6457** (N=10; capture rate **8/10**; conditional gross median **7726**) | **0** (N=10; captured 0/10) | capture ≥6/10 AND cond. gross ≥$5000 (reliability bar) | **CYCLE 2 PASS.** TecnFloor lifted capture **4/10→8/10** (bar ≥6/10 ✅), conditional gross median **$7,726** (≥$5000 ✅), win split **10–0**. Causally confirmed (298 floor-requests, M-2 zero-TECN share 88%→76%, zero-all-match 5/10→0/10). Residual 2/10 = upstream production throughput. Written LADDER bar `median≥control×1.15` still degenerate (control≈0) — reliability bar used, pending user ratification. | `c6a71c14` |
-| S2 Force Efficiency (12 min) | `kills_cost − deaths_cost` (net swing) | **-200** (Exp, N=10) | **-5050** (Normal) | paired-relative: median(Exp) ≥ median(Normal) + $1,400 | **PASS** — relative edge **+$4,850**, sign-delta **8/10**, both-spawn **5/5 + 3/5**, min-engagement met, win **10-0**. Dispersion A/B: cohesion causal credit **NEGATIVE** (median ON−OFF delta **−$1,500**) — payoff is decisiveness (S3), not efficiency. | `1594ffa1` |
-| S3 Win-rate (12 min) | v2 win fraction | — | — | ≥ 0.55 (map ≈0.50) | not measured | — |
-| **Composite gate** | all three, one commit | — | — | all pass together | **not cleared** | — |
-
----
-
-## 5. Open Questions / Blockers
-
-- _(resolved)_ ~~Hidden-window flag / run-window~~ — `OPENRA_WINDOW_HIDDEN=1` is
-  landed + verified; Mode B is active, so no user run window is required and there
-  is no unsupervised-eligibility gate left to pass (SPEC §3).
-- _(resolved `2d5433a`)_ ~~S1 blocked on v2 capture SCORING~~ — the `logisticscenter:
-  200` mis-scoring is **fixed** (delisted from both v2 income tables) and the smoke
-  **confirms v2 now captures + owns the nearest OILB**. The capture-layer question is closed.
-- _(resolved `2bb65d6`)_ ~~S1 blocked on the METRIC~~ — added `GrossIncomeIntegrator` +
-  `capture_income_gross` (verdict_version 3, read-only/additive) to `BotVsBotMatchWatcher`;
-  hidden smoke reads **v2 6093 / control 0**. The yardstick can now see held-derrick income.
-  `resources_earned` (net) kept for context. Finding: `runs/260719_s1_gross_metric_verified.md`.
-- _(resolved `cd06358`, user-approved)_ ~~WIN-RULE economy term reads net `Earned`~~ — the
-  scorer's `capture_income` component (feeding `TimeOrSrCaptureWinRule`) now reads the **gross**
-  integral (`state.GrossCaptureIncomeFor`); `verdict_version` 3→4. Done while S2/S3 have no
-  baselines to invalidate (LADDER §S1 follow-up 1a). `WeightedComponentScoringTest` pins it.
-- _(resolved `f8052ec`)_ ~~S1 baseline still pending~~ — **DONE.** Experimental-vs-Normal
-  N=10 (5 primary + 5 mirror) + Normal-vs-Normal calibration N=10 both run hidden. Full
-  analysis: `runs/260720_s1_baseline_n10.md`. Side-fairness: map is mostly fair with a mild
-  russia/80,35 lean, neutralised by the mandatory mirror (Experimental won 4/5 from each spawn).
-- **NEEDS USER DECISION — S1 bar reform.** The written bar `median(exp gross) ≥
-  median(control gross) × 1.15` is **degenerate**: the Normal control captures ~1/20 so its
-  gross median is ~0, and ×1.15 of 0 is 0 → any experimental median (incl. 0) formally
-  "passes." Recommend replacing with an **absolute reliability bar**: in-window **capture
-  rate ≥ 6/10** AND **conditional gross median ≥ $5000** (once capture rate > 50%, collapse
-  to **median gross ≥ $3000**). Recommendation only — LADDER's bar is unchanged pending your
-  ratification (SPEC §6.3, LADDER S1 note dated 2026-07-20).
-- **NEXT CYCLE = capture reliability (not SR-contestation).** S1 is gated by a ~50% in-window
-  capture rate, not by scoring (fixed) or map content (fixed). Failing runs' score curves are
-  flat (no income ramp) → the single capture TECN never holds a derrick to term; the pipeline
-  fires correctly when the TECN survives. The parked `plans/260720_sr_contestation_cycle1.md`
-  should wait until capture reliability is lifted. (Instrument first: preserve per-match
-  `debug.log` or fold `[exp-capture]` markers into `watcher.log` to read the exact break point.)
-- **Per-seed replay (backlogged, non-blocking):** bots draw from an unseeded
-  `LocalRandom`, so seeds don't replay identical games (SPEC §3.2). This does
-  **not** affect the ladder (N-run stats only need independent samples), but
-  single-match outlier reproduction returns only once the seeding fix lands.
-
----
-
-## Resolved directives  (archive — manager moves checked Inbox items here)
-
-_(empty)_
