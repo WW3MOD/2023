@@ -3,6 +3,28 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-20 — Benchmark run-to-run variance is one unseeded line; the fixed seed already flows everywhere *except* `LocalRandom`
+
+Found during the seeded-determinism recon (`WORKSPACE/plans/260720_seeded_determinism.md`).
+The S1 4/10-vs-9/10 wobble traces to a single line: `World.cs:214` builds
+`LocalRandom = new MersenneTwister()` **unseeded**, which chains to
+`this(Environment.TickCount)` (`MersenneTwister.cs:25-26`) — a wall-clock seed. ~40 bot-decision
+sites read `world.LocalRandom` (scan/reeval countdowns, unit call-in picks, squad splits, rally
+cells — see plan §1b), so bot behavior differs every launch even with an identical seed.
+
+The non-obvious part: the deterministic seed **is already plumbed end-to-end**. The tournament
+runner passes `Test.RandomSeed=$((i*1000+17))` (`run-tournament.sh:282,298`) →
+`TestMode.RandomSeedOverride` (`TestMode.cs:96-98`) → `Server.cs:310,332` →
+`GlobalSettings.RandomSeed`, which already seeds `SharedRandom` (`World.cs:213`) and `playerRandom`
+(`World.cs:237`). Combat RNG (inaccuracy/miss/burst) also rides `SharedRandom`
+(`Armament.cs:513,536,567,654`), so it is already deterministic. Only `LocalRandom` is the gap —
+seeding it (decorrelated from the shared seed) is the whole fix; no shell/YAML/env-var work needed.
+Corollary: the `BotVsBotMatchWatcher` header documents a `"seed"` verdict field (`:21`) that
+`SerializeVerdict` (`:287-356`) never actually emits.
+
+This makes the `architecture.md:291-293` note ("Bot decisions are not seed-reproducible") a
+*current-state* fact that a ~2-line change would invert — update that note if/when the seeding lands.
+
 ## 2026-07-20 — `UnitBuilderBotModule` UnitsToBuild weight is a share *ceiling*, NOT a priority
 
 Found during the TECN-availability cycle-2 recon (`WORKSPACE/plans/260720_tecn_availability_cycle2.md`).
