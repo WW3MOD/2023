@@ -22,6 +22,12 @@
 #   --audio                Keep sound on. (run-demo.sh injects this.)
 #   --mute                 Force mute. (Default for tests.)
 #
+# Speed:
+#   --speed N              Run the sim at N× wall-clock (1-16). Divides
+#                          world.Timestep via Test.SpeedMultiplier — pure
+#                          pacing, simulation stays byte-identical. Default:
+#                          unset (1×, current behavior).
+#
 # Misc:
 #   --position=<centered|left|right|full>  Long form of L/R/F.
 #   --fullscreen           Same as F + Mode=PseudoFullscreen.
@@ -42,6 +48,7 @@
 #   ./tools/autotest/run-test.sh --visible --audio test-foo   # foreground, sound on
 #   ./tools/autotest/run-test.sh --minimized test-foo         # old miniaturize behavior
 #   ./tools/autotest/run-test.sh F test-foo                   # fullscreen
+#   ./tools/autotest/run-test.sh --speed 8 test-foo           # run 8× wall-clock
 #
 # Exit code: 0=pass, 1=fail, 2=skip, 3=error.
 
@@ -51,6 +58,7 @@ GRAPHICS_MODE="Windowed"
 POSITION="centered"
 WINDOW_BEHAVIOR="background"
 AUDIO_MUTE=1
+SPEED_MULT=""
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -70,8 +78,10 @@ while [ $# -gt 0 ]; do
 		                        WINDOW_BEHAVIOR="visible"; shift ;;
 		--audio)                AUDIO_MUTE=0; shift ;;
 		--mute)                 AUDIO_MUTE=1; shift ;;
+		--speed=*)              SPEED_MULT="${1#*=}"; shift ;;
+		--speed)                SPEED_MULT="$2"; shift 2 ;;
 		--help|-h)
-			sed -n '2,46p' "$0" | sed 's/^# \?//'
+			sed -n '2,53p' "$0" | sed 's/^# \?//'
 			exit 0 ;;
 		--*)
 			echo "Unknown flag: $1"
@@ -83,9 +93,22 @@ done
 
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 [L|R|F] [--background|--minimized|--visible] [--audio] <test-folder-name>"
+	echo "Usage: $0 [L|R|F] [--background|--minimized|--visible] [--audio] [--speed N] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
+fi
+
+# Validate --speed if supplied: integer 1-16 (matches TestMode arg clamp).
+if [ -n "${SPEED_MULT}" ]; then
+	case "${SPEED_MULT}" in
+		''|*[!0-9]*)
+			echo "Error: --speed must be an integer 1-16 (got '${SPEED_MULT}')"
+			exit 3 ;;
+	esac
+	if [ "${SPEED_MULT}" -lt 1 ] || [ "${SPEED_MULT}" -gt 16 ]; then
+		echo "Error: --speed must be 1-16 (got '${SPEED_MULT}')"
+		exit 3
+	fi
 fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -190,8 +213,11 @@ fi
 AUDIO_LABEL="muted"
 [ "${AUDIO_MUTE}" = "0" ] && AUDIO_LABEL="audio"
 
+SPEED_LABEL="1x"
+[ -n "${SPEED_MULT}" ] && SPEED_LABEL="${SPEED_MULT}x"
+
 echo "==> Test: ${TEST_NAME}"
-echo "==> Mode: ${GRAPHICS_MODE} (${POSITION}, ${WINDOW_BEHAVIOR}, ${AUDIO_LABEL})"
+echo "==> Mode: ${GRAPHICS_MODE} (${POSITION}, ${WINDOW_BEHAVIOR}, ${AUDIO_LABEL}, ${SPEED_LABEL})"
 [ -n "${WINDOW_POS_ENV}" ] && echo "==> Position: ${WINDOW_POS_ENV} on ${SCREEN_W}x${SCREEN_H}"
 [ -n "${TEST_DESCRIPTION}" ] && echo "==> Description: ${TEST_DESCRIPTION}"
 echo "==> Result file: ${RESULT_FILE}"
@@ -209,8 +235,14 @@ fi
 # window creation. Only set when the user explicitly opts back in via
 # --minimized, since miniaturized SDL windows are awkward to restore on macOS
 # (Cmd+Tab can't unminiaturize — only the small dock icon next to Trash does).
+MINIMIZE_ARGS=""
 if [ "${WINDOW_BEHAVIOR}" = "minimized" ] && [ "${POSITION}" != "full" ] && [ "${GRAPHICS_MODE}" = "Windowed" ]; then
 	export OPENRA_WINDOW_MINIMIZED=1
+	# A minimized window suspends rendering; a low framerate cap would then
+	# throttle the *suspended* sim to a few ticks/s (the logic gate clears only
+	# at the render cadence). Force the cap off so a minimized run free-runs.
+	# See WORKSPACE/plans/260721_sim_throughput.md, Option C.
+	MINIMIZE_ARGS="Graphics.CapFramerate=false"
 fi
 
 # Audio mute via the Sound.Mute toggle (not by zeroing volumes — that would
@@ -219,6 +251,13 @@ fi
 AUDIO_ARGS=""
 if [ "${AUDIO_MUTE}" = "1" ]; then
 	AUDIO_ARGS="Sound.Mute=true"
+fi
+
+# Speed multiplier (Test.SpeedMultiplier) — applied universally at world load by
+# the TestModeSpeedMultiplier trait. Unset → 1× (byte-identical to old behavior).
+SPEED_ARGS=""
+if [ -n "${SPEED_MULT}" ]; then
+	SPEED_ARGS="Test.SpeedMultiplier=${SPEED_MULT}"
 fi
 
 # macOS focus handling. Capture the currently-frontmost app so we can:
@@ -292,6 +331,8 @@ SCREENSHOT_DIR_GAME=$(to_game_path "${SCREENSHOT_DIR}")
 	"Graphics.Mode=${GRAPHICS_MODE}" \
 	${WINDOW_ARGS} \
 	${AUDIO_ARGS} \
+	${SPEED_ARGS} \
+	${MINIMIZE_ARGS} \
 	|| true
 
 if [ -n "${SETTINGS_BACKUP}" ] && [ -f "${SETTINGS_BACKUP}" ]; then

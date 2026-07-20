@@ -1022,8 +1022,13 @@ namespace OpenRA
 
 						LogicTick();
 
-						// Force at least one render per tick during regular gameplay
-						if (OrderManager.World != null && !OrderManager.World.IsLoadingGameSave && !OrderManager.World.IsReplay)
+						// Force at least one render per tick during regular gameplay.
+						// Gated off under TestMode: forcing a GPU frame per logic tick is
+						// what caps realized speedup well below the configured multiplier
+						// (see WORKSPACE/plans/260721_sim_throughput.md, Option D). Rendering
+						// is unsynced, so decoupling it from logic cannot change the sim —
+						// renders still happen on the normal cadence (nextRender).
+						if (OrderManager.World != null && !OrderManager.World.IsLoadingGameSave && !OrderManager.World.IsReplay && !TestMode.IsActive)
 							renderBeforeNextTick = true;
 					}
 
