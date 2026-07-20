@@ -329,6 +329,26 @@ rather than score it.
 >   the mirror or a larger-N win-rate calibration before a win-rate is trusted.
 > First Experimental-vs-Normal S2 batch is the next S2 step (not run here).
 
+> **S2 MEASUREMENT RESULT (2026-07-20, `main @ 1594ffa1`) — BAR PASS; dispersion causal credit NEGATIVE.**
+> First Experimental-vs-Normal S2 batch (N=10, 5 primary + 5 mirror, hidden Mode-B, all 18000t/time_limit,
+> 0 crashes, verdict v5) + the deferred dispersion ON/OFF A/B on the identical seed set. Analysis
+> [`runs/260720_s2_exp_vs_normal_n10.md`](runs/260720_s2_exp_vs_normal_n10.md).
+> - **PAIRED-RELATIVE BAR: PASS.** median Exp swing **-200** ≥ median Normal swing **-5050** + $1,400
+>   → **relative edge +$4,850** (margin +$3,450 over bar); **sign-delta 8/10** (Exp swing > Normal swing,
+>   ≥7 ✅); **both-spawn 5/5 primary + 3/5 mirror** (≥3/5 each ✅); **min-engagement PASS** (Exp eng 5725
+>   in the NN band 5950–7475 — not winning by avoiding combat). **Win split 10–0.** Watch cells: mirror
+>   seeds 1017 (-500) / 3017 (-4850), both exp=russia (the only negative deltas).
+> - **DISPERSION A/B (diagnostic, not the bar): cohesion does NOT improve combat economy.** ON vs OFF on
+>   identical seeds: **median paired delta (ON−OFF) = −$1,500** (positive on only 5/10), median Exp swing
+>   **ON -200 vs OFF +2325**, engagement volume **ON 5725 vs OFF 7125** (~20% less). Win split **ON 10-0 vs
+>   OFF 9-1** — cohesion's sole gain is flipping seed 8017 (+$7,300, loss→win) at high variance. **The
+>   force-efficiency payoff the dispersion VERIFY deferred comes back NEGATIVE**; dispersion's value (if any)
+>   is decisiveness (S3), not exchange efficiency. Advancement unaffected — S2 passes with dispersion ON,
+>   and would pass more strongly with it off. Grades the doctrine *as tuned* (`AssaultRadiusCells: 15`,
+>   `ApproachCohesion: Spread`). Toggle was `@experimental`-only + reverted (never committed).
+> - **NEXT:** recommended combat-focused **dispersion re-tune** cycle (S2 now gives it a causal score to
+>   move, currently negative); or the parked SR-contestation cycle for ladder breadth.
+
 ---
 
 ## Scenario 3 — Decisive Outcome / Win-rate (proposed)
