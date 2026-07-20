@@ -222,6 +222,25 @@ case "$(uname -s)" in
 		;;
 esac
 
+# Resolve the engine's debug.log so each match's [exp-capture] markers can be
+# preserved. The engine overwrites <SupportDir>/Logs/debug.log every launch, so
+# match N's markers are gone by match N+1 unless we copy them out. Same
+# SupportDir resolution as the settings backup above.
+DEBUG_LOG=""
+case "$(uname -s)" in
+	Darwin) DEBUG_LOG="${HOME}/Library/Application Support/OpenRA/Logs/debug.log" ;;
+	Linux)  DEBUG_LOG="${HOME}/.config/openra/Logs/debug.log" ;;
+	MINGW*|MSYS*|CYGWIN*|Windows_NT)
+		for _cand in \
+			"${REPO_ROOT}/engine/Support/Logs" \
+			"$(cygpath -u "${APPDATA:-}" 2>/dev/null)/OpenRA/Logs" \
+			"$(cygpath -u "${USERPROFILE:-}" 2>/dev/null)/Documents/OpenRA/Logs"; do
+			if [ -d "${_cand}" ]; then DEBUG_LOG="${_cand}/debug.log"; break; fi
+		done
+		;;
+esac
+[ -n "${DEBUG_LOG}" ] && echo "==> Debug log:   ${DEBUG_LOG}"
+
 OK=0
 FAIL=0
 
@@ -322,6 +341,13 @@ for i in $(seq 1 ${SEEDS}); do
 
 	if [ -n "${SETTINGS_BACKUP}" ] && [ -f "${SETTINGS_BACKUP}" ]; then
 		mv "${SETTINGS_BACKUP}" "${SETTINGS_FILE}"
+	fi
+
+	# Preserve this match's debug.log (the [exp-capture] M-1/M-2/M-3 markers)
+	# before the next launch overwrites it. Best-effort; a no-verdict crash log
+	# is still worth keeping, so this runs regardless of the verdict check below.
+	if [ -n "${DEBUG_LOG}" ] && [ -f "${DEBUG_LOG}" ]; then
+		cp "${DEBUG_LOG}" "${REPO_ROOT}/${RESULT_DIR}/match_${i}_debug.log" 2>/dev/null || true
 	fi
 
 	if [ -f "${MATCH_RESULT_FILE}" ]; then
