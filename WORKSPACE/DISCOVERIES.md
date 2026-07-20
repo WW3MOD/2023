@@ -3,6 +3,18 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-21 — Autotest sim speed: single tests are 1× by omission; the render-per-tick coupling caps the tournament's 8×
+
+Found during a read-only throughput audit (full options report: `WORKSPACE/plans/260721_sim_throughput.md`).
+- **`run-test.sh` runs at 1× because it never passes a speed arg.** `TestMode.SpeedMultiplier` defaults to `1` (`engine/OpenRA.Game/TestMode.cs:80`) and the single-test launcher forwards no `Test.SpeedMultiplier` (`tools/autotest/run-test.sh:285-295`). Mod default `Timestep` is 60 ms (`mods/ww3mod/mod.yaml:369-372`) → ~16.7 sim ticks/s. Only the tournament path passes `Test.SpeedMultiplier=8` from config (`run-tournament.sh:298`).
+- **The multiplier apply-site is tournament-only.** `Test.SpeedMultiplier` is parsed + clamped 1–16 (`TestMode.cs:100-102`) but *applied* only inside `BotVsBotMatchWatcher.WorldLoaded` via `world.Timestep = max(1, base/N)` (`BotVsBotMatchWatcher.cs:152-158`). Lua single-tests get nothing even if you pass the arg — the fix must add a universal apply site (world trait or `Game.LoadMap` next to the `GameSpeedOverride` hook, `TestMode.cs:62-65`).
+- **`Test.GameSpeed=fastest` is only ~1.5×** (`Timestep: 40`, `mod.yaml:381-384`) — that's why every config note says SpeedMultiplier dominates. The cheat button caps at 8× by the same `world.Timestep` division (`SpeedControlButtonLogic.cs:58-62`).
+- **The real ceiling is CPU, and rendering is the tax.** Every `LogicTick` forces a `RenderTick` (`Game.cs:1026-1027`), so 8× also renders 8×; harness comments claim ~3-4× realized (`run-tournament.sh:286-289`). `MaxLogicTicksBehind=250` (`Game.cs:970,1010`) drops catch-up, so the sim never outruns tick-compute.
+- **Minimized window skips rendering, but only helps with an *uncapped* framerate.** SDL minimize/hide sets `IsSuspended` (`Sdl2Input.cs:124-126`) → loop skips `RenderTick` (`Game.cs:1032`) and only pumps input (`1049-1059`). BUT the forced-render flag clears only at render cadence when suspended (`Game.cs:1058`), so minimize + 5 fps cap throttles logic to ~5 ticks/s. Fast combo = **minimize + `CapFramerate=false`** (default `renderInterval≈1 ms`, `Settings.cs:201`, `Game.cs:994-998`). The tournament's current 5 fps profile is *visible*, not suspended (`run-tournament.sh:301-302`).
+- **Speed is behavior-neutral (verified).** `world.Timestep` is pure wall-clock pacing, never synced; all rendering is `Sync.RunUnsynced`; Lua timers are tick-based (`test-helpers.lua:82-83`); `OrderLatency:2` is 2 ticks. Bot decisions are a pure function of tick+seed (`BotVsBotMatchWatcher.cs:56-58`). Separate latent bug: `TicksPerSecond=25` (`test-helpers.lua:9`) vs actual 16.7 at 60 ms — constant across speeds, so not a validity issue.
+- **Headless ≠ dedicated server.** `OpenRA.Server.dll` (`launch-dedicated.sh`) is a lockstep order relay; it does not run `world.Tick()`/bots. A true headless harness is a *rendering-disabled client* (null graphics platform + a `logicInterval=1` loop branch — the engine already does exactly this for save-loading, `Game.cs:1001-1005`), not the server.
+- **Parallelism blocker is a shared support dir.** `launch-game.sh:60` sets no `Engine.SupportDir`, so instances collide on `settings.yaml`, `Logs/debug.log`, and the local server port. Per-instance `Engine.SupportDir` (the dedicated launcher already threads it, `launch-dedicated.sh:98`) + distinct ports unlocks concurrent matches.
+
 ## 2026-07-20 — `RenderPlayer = null` world view only clears shroud from a cold start; ShroudRenderer never clears it mid-game
 
 Found while adding full-map vision to the visible TestMode window (worktree `test-observer-vision`).
