@@ -1,0 +1,20 @@
+{
+  "cycle_ts": "2026-07-20T02:20:00Z",
+  "scenario": "tournament-s1-eco-cal-nn",
+  "rung": "river-zeta",
+  "sha": "f8052ec",
+  "hypothesis": "S1 side-fairness calibration: with two identical Normal bots on the S1 terrain, is River Zeta's SR/derrick layout spawn-fair (no win-rate or score skew attributable to side)?",
+  "run_mode": "hidden",
+  "n_runs": 10,
+  "seeds": [1017, 2017, 3017, 4017, 5017, 6017, 7017, 8017, 9017, 10017],
+  "metric": "winner_faction + score_total (identical-bot slot skew)",
+  "experimental_median": null,
+  "control_median": null,
+  "margin_required": null,
+  "margin_observed": null,
+  "verdict": "hold",
+  "no_regression_checked": [],
+  "decision": "keep_iterating",
+  "raw_result_dir": "tools/autotest/tournament-results/260720_b2_s1_cal_normal",
+  "notes": "New HARNESS scenario tournament-s1-eco-cal-nn: byte-identical copy of tournament-s1-eco-river-zeta with the USA-bot Bot: line experimental->normal (both bots @normal); Title/Matchup relabelled. With identical bots the mirror swap is a no-op, so ONE scenario at N=10 is the correct calibration (any skew = pure spawn/side bias). 10/10 verdicts, verdict_version 4, all time_limit. WIN SPLIT russia(80,35)=6 america(14,45)=4 (within N=10 binomial noise). SCORE MEDIAN america 2875 vs russia 3675 (~28% russia lean, mild). Normal captured once (m8 america gross 5819) -> Normal incidental capture ~1/20, NOT strictly zero. VERDICT: map+harness mostly side-fair with a MILD russia/80,35 lean; neutralised in the Experimental batch by the mandatory mirror. No map fix needed; keep mirror mandatory, consider separate primary/mirror medians if the lean persists at larger N. See 260720_s1_baseline_n10.md."
+}
