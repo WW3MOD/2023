@@ -93,7 +93,11 @@ namespace OpenRA
 
 			set
 			{
-				if (LocalPlayer == null || LocalPlayer.UnlockedRenderPlayer)
+				// TestMode.IsActive: let the local human viewer switch to world view
+				// (RenderPlayer == null) even when attached to a real player slot, so an
+				// autotest window shows the whole map. Render-side only — no player's
+				// shroud/MapLayers change, so AI perception and the verdict stay identical.
+				if (LocalPlayer == null || LocalPlayer.UnlockedRenderPlayer || TestMode.IsActive)
 				{
 					renderPlayer = value;
 

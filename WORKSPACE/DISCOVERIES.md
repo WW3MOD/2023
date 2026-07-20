@@ -3,6 +3,12 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-20 — `RenderPlayer = null` world view only clears shroud from a cold start; ShroudRenderer never clears it mid-game
+
+Found while adding full-map vision to the visible TestMode window (worktree `test-observer-vision`).
+- **`RenderPlayer` is purely render-side.** `World.FogObscures/ShroudObscures` all short-circuit to `false` when `RenderPlayer == null` (`engine/OpenRA.Game/World.cs:105-111`); no player's `MapLayers` (shroud/fog) is touched, and the sync hash reads `p.UnlockedRenderPlayer`, not `world.RenderPlayer` (`World.cs:541-544`). So switching a real player's client to world view leaves AI perception + the test verdict byte-identical. The dev "disable shroud" cheat is **not** an equivalent: `DeveloperMode` `DevVisibility/DevAll` do `MapLayers.ExploreAll()` + `MapLayers.FogDisabled = true` (`Traits/Player/DeveloperMode.cs:171-197`) on synced (`[Sync] disableFog`) per-player state — that changes the local combatant's unit targeting and the sync hash, so it's unusable under a byte-identical constraint.
+- **The trap:** `ShroudRenderer.UpdateShroud` was wrapped in `if (world.RenderPlayer != null)` (`Traits/World/ShroudRenderer.cs:252`), so when `RenderPlayer` flips to null on a *live* client the already-drawn shroud sprites are never cleared → the map stays black even though `WorldOnRenderPlayerChanged(null)` set uniform visibility. True observers look correct only because they start null and never draw shroud at all. Fix: always clear each dirty cell's sprites, then repaint only when a render player is active (same commit). This also repairs the `DevCinematicView` cheat, which toggles `RenderPlayer` to null the same way.
+
 ## 2026-07-21 — Out-of-ammo evac is engine-level and invisible to bot modules; only LayeredDefence guards it
 
 Found while triaging the "evac units re-ordered onto attacks" playtest bug (`2ed2c0ac`, plan `WORKSPACE/plans/260721_playtest_bugs_triage.md`).
