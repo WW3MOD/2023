@@ -287,3 +287,15 @@ AI is configured entirely via YAML in `mods/ww3mod/rules/ai/`:
 Key AI modules: `UnitBuilderBotModule` (what to build), `SquadManagerBotModule` (how to attack), `HelicopterSquadBotModule` (helicopter attack/scout/transport squads), `CaptureManagerBotModule` (what to capture), `BuildingRepairBotModule` (auto-repair).
 
 **Important for aircraft modules:** Helicopter `UnitBuilderBotModule` uses `SkipRearmBuildingCheck: true` because helicopters are called in via Supply Route and don't need an HPAD to be produced. Without this flag, the old RA check (`HasAdequateAirUnitReloadBuildings`) blocks aircraft production when no rearm building exists.
+
+### Bot decisions are not seed-reproducible
+
+`World.cs:213` seeds `SharedRandom` from the lobby `RandomSeed` (deterministic, network-synced), but `World.cs:214` creates `LocalRandom = new MersenneTwister()` **unseeded**. The bot modules make their *decisions* off `world.LocalRandom` (e.g. `UnitBuilderBotModule` picking which unit to call in; squad / layered-defence / support-power scan timing and target choice). So two runs of the same scenario with the same `Test.RandomSeed` diverge within the first ~125 ticks — army composition, scores, and the winner all differ. **A fixed seed gives a *sample*, not a *reproduction*:** aggregate-over-N benchmarking stays statistically valid, but single-match reproduction/debugging does not work. The lockstep sim itself is deterministic; only the AI's decision randomness is unseeded (and `OPENRA_WINDOW_HIDDEN` rendering has no effect on it). To make bot behavior reproducible you'd have to seed `LocalRandom` too, or route AI randomness through `SharedRandom`.
+
+## Widget / chrome authoring gotchas
+
+Engine widget behaviors that fail **silently** — each cost real debugging time in the lobby work:
+
+- **`ImageWidget` draws sprites at native size.** `Width`/`Height` are layout-only; `Draw()` calls `WidgetUtils.DrawSprite(sprite, RenderOrigin)` and ignores widget bounds (`ImageWidget.cs:78-91`). To scale a sprite into its bounds use the opt-in `ScaleToBounds: True` (uniform, centered). **When you add a field to a widget, mirror it in the copy-constructor** (`ImageWidget.cs:61`) — template clones run through the copy-ctor and silently drop any field you forgot.
+- **`ButtonWidget` renders nothing for a missing chrome variant.** A highlighted button looks up `<Background>-highlighted` (`ButtonWidget.cs:320`), plus `-hover`/`-pressed`/`-disabled` suffixes; if that collection is absent, `WidgetUtils.DrawPanel` early-returns with no error and the button draws with no fill. Any custom `Background:` needs the full variant set.
+- **Hidden widgets keep keyboard focus.** `Widget.IsVisible` is `() => Visible` (`Widget.cs:231`) — it checks the widget's OWN `Visible` flag, not its ancestors'. A focused `TextField` whose parent tab is hidden still looks visible to the focus system, so it keeps eating key presses (and Enter can fire its `onSelect`). Any tab-switch that hides a focused widget must hand focus off explicitly.
