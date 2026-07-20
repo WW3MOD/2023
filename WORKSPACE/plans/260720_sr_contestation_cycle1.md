@@ -426,3 +426,162 @@ This cycle does NOT change:
    field is purely a tuning constant. A live check via one S3 run and watching for
    `[exp-offense] axis ... action=Pressure` in debug.log is the appropriate verification.
 4. Commit with message describing the scoring change; no attribution trailers.
+
+---
+
+## Freshness addendum (verified @ 1594ffa1) — 2026-07-20
+
+Read-only re-recon after the plan was parked. Main verified at `1594ffa1` (S2 combat
+rung standup), i.e. after the dispersion cohesion doctrine, the TecnFloor, and the
+PROMOTE-to-@stable snapshot (`21510e05`) all landed. No code/YAML edited during this pass.
+
+### A. Line-reference audit (item 1)
+
+**`PoiMap.cs` — essentially unchanged; the plan's cited lines still land (±1–2):**
+
+| Plan cite | Actual | Note |
+|---|---|---|
+| `GetOffensiveTargets` :279 | **:279** | ✓ exact |
+| SR discovery/Pressure block :299–313 | **:298–313** | ✓ |
+| `PoiAction.Pressure` set :313 | **:311** | -2 |
+| Pressure `bias = OffensiveEnemyAttackBias` :310 | **:312** | +2 |
+| `OffensiveEnemyAttackBias` field :157 | **:158** | +1 |
+| "below 100" intent Desc :158-159 | **:154–158** | Desc now spans 154-157, field 158 |
+| `ApplyBias` call :344-345 | **:344–345** | ✓ exact |
+| `SampleThreat` :481 | **:481** | ✓ |
+| `PoiScoring.Score` :581 | **:581** | ✓ |
+| `PoiScoring.ApplyBias` :587 | **:587** | ✓ |
+| `GetCaptureTargets` :257-260 | **:257–260** | ✓ |
+| `SupplyRouteDenyValue` default | **:97** (=120), world.yaml **:305** | ✓ |
+
+**`PoiOffensiveBotModule.cs` — ALL refs drifted (dispersion code inserted). Corrected:**
+
+| Plan cite (symbol) | Actual |
+|---|---|
+| `DesiredAxisCount` :428 | static def **:507/510**, call **:210-211** |
+| `AttackMove` order :386 | **:467** |
+| CommitAndOrder block :368-394 | **:400-476** |
+| `BuildFreePool` :326-329 | **:351** |
+| `IsCommitted` :328 | **:359** |
+| retire `< MinAxisSize` :264-270 | **:296** |
+| `[exp-offense] axis ... action=Pressure` log :278 | **:310** |
+| SelectStickyTargets / sticky threshold :285-317 | **:316** (`SelectStickyTargets`), threshold `ScoreBeatsByThreshold` **:339** |
+
+The debug-log watch string in §3 / §4.5 is still correct text, but emit is now at
+`PoiOffensiveBotModule.cs:310` (axis line) and `:472` (order line, now also carries
+`cohesion=` when the dispersion switch is on).
+
+### B. Score math (item 2) — CONFIRMED, constants did not move
+
+Every scoring constant the plan depends on is unchanged on current main
+(`world.yaml:296-314` + `PoiMap.cs` defaults): `SupplyRouteDenyValue=120`,
+`DistanceHalfLifeCells=20`, `ThreatMildThreshold=20`, threat multipliers `100/40/10`,
+`OwnershipEnemySupplyRouteMultiplier=100`, `OffensiveEnemyAttackBias=80`,
+`OffensiveIncomeSecureBias=150`, `oilb=50`. The formula is verbatim as the plan states:
+`Score = value·distFactor·threatFactor·ownershipMul` (`PoiScoring.Score` :581) then
+`·bias/100` (`ApplyBias` :587); `DistanceFactor = hl·100/(hl+d)` :533; `ThreatFactor`
+buckets safe/mild/hostile :542. The plan's post-fix targets recompute exactly:
+17.0M mild / 42.5M safe / 4.25M hostile at value=250, bias=100, distFactor=17. Internally
+consistent. **Caveat:** `distCells` is Euclidean (`(center-ownSr).Length/1024`,
+:332/:453) — a DISCOVERIES-promoted fact (curation `04622b7d`); the plan's §1.2 map
+distances are hand-approximations that happen to land on the Euclidean 95 for the SR, so
+the ranking conclusion holds, but treat §1.2's per-oilb cell distances as illustrative.
+
+### C. Dispersion interaction (item 3) — CLEAN, one minor note
+
+The cohesion switch is **action-agnostic**: `PoiOffensiveBotModule.cs:424-425` gates purely
+on `distToTarget > AssaultRadiusCells` for *every* axis regardless of `PoiAction`. So a
+Pressure axis inherits Spread-approach → Tight-assault automatically once
+`CohesionSwitchEnabled: true` (set on both `@experimental` ai.yaml:192 and, post-PROMOTE,
+`@stable` :675). "Assault" against the SR resolves to the existing `AttackMove` to the SR
+cell (`:467`) under Tight cohesion — units mass in the contestation circle and fight the
+garrison. Deny-only invariant **re-confirmed**: `SUPPLYROUTE` has no `CaptureManager`
+(code comment `PoiMap.cs:219-222`), Pressure emits `AttackMove` not `CaptureActor`, and
+`GetCaptureTargets` (:257-260) filters Pressure out of the capture layer entirely.
+*Minor note (not a blocker):* `AssaultRadiusCells=15` > the ~10-cell contestation radius,
+so units tighten **before** entering the deny circle (coherent); a Tight clump on an
+indestructible building is marginally more AoE-exposed, but the hostile threat gate keeps
+the AI off a well-garrisoned SR, so the clump only forms at mild/safe threat. Fine for
+Cycle 1; worth an eyeball in S2/S3 logs.
+
+### D. TecnFloor interaction (item 4) — ORTHOGONAL, no assumption change
+
+`CaptureCoordinatorBotModule.MaintainTecnFloor` (:380) operates only on the capture layer:
+it reads `GetCaptureTargets` (:433/:464, Capture/DenyCapture only — Pressure invisible)
+and commits capturers under `"capture:<id>"` keys (:533). Its sole coupling to SR pressure
+is via the shared free pool: a reserved/pending TECN is one fewer unit in
+`BuildFreePool` (:351) — exactly the contention the plan's §2.6/§4.3 already model through
+the `MinAxisSize` retire gate. No new coupling; the plan's goal-guard arbitration story
+stands.
+
+### E. YAML placement + shared-trait defaults (item 5) — ⚠ PLAN MECHANISM SUPERSEDED
+
+This is the load-bearing staleness. The plan (§2.2/§2.4) puts `OffensiveSrPressureBias`
+and the `SupplyRouteDenyValue: 250` raise on the **world-level `PoiMap` trait**
+(`world.yaml:296`). `PoiMap` is a **single world singleton**; BOTH
+`PoiOffensiveBotModule@experimental` (ai.yaml:175) and `PoiOffensiveBotModule@stable`
+(ai.yaml:662) read the *same* `GetOffensiveTargets` output. Therefore any edit to the
+`PoiMap` block changes SR scoring for **@stable too** — silently mutating the frozen
+benchmark control. That is precisely the failure the **shared-trait-defaults rule** was
+written to forbid (`DOCS/reference/architecture.md:309`: *"any behavioural Info field
+added to a shared trait must default to the frozen/baseline behaviour and be opted in
+**per-profile via YAML**"* — modelled on `CohesionSwitchEnabled` default `false`, flipped
+`true` only on @experimental). The plan's §2.4 claim that "@stable is untouched — it reads
+the same world-level PoiMap" is now a mischaracterisation: reading the changed PoiMap *is*
+a behaviour change to the control.
+
+Two concrete violations:
+1. **Wrong trait level.** `PoiMapInfo` has no per-profile YAML, so the tunables cannot be
+   scoped @experimental-only. The `SupplyRouteDenyValue` raise is load-bearing (bias-only
+   80→100 gives just ~8.2M mild, below the mid-game oilbs), so it can't simply be dropped.
+2. **Wrong default.** Plan's `OffensiveSrPressureBias = 100` C# default does not reproduce
+   frozen behaviour (frozen SR-pressure bias = the shared `OffensiveEnemyAttackBias = 80`).
+   Per the rule the default must reproduce 80.
+
+**Required amendment — relocate to a per-bot field on `PoiOffensiveBotModule`, mirroring
+`CohesionSwitchEnabled`:**
+
+- Add `PoiOffensiveBotModuleInfo.SrPressureScoreMultiplier` (x100), **default 100 = inert /
+  frozen** (satisfies architecture.md:309).
+- In the module's ranking step (after `GetOffensiveTargets` returns, before
+  `SelectStickyTargets`/`AllocateProportional` around :210-213), re-scale each `ScoredPoi`
+  whose `Action == PoiAction.Pressure` by `SrPressureScoreMultiplier/100`, then re-sort.
+  (`ScoredPoi` is a value type carrying `Score`; construct a re-scaled copy.)
+- **Do NOT touch `world.yaml` PoiMap** and do **NOT** add `OffensiveSrPressureBias` to
+  `PoiMapInfo`. Set `SrPressureScoreMultiplier: 260` on **`PoiOffensiveBotModule@experimental`
+  ONLY**; @stable keeps the default 100 (byte-identical control). Later PROMOTE copies the
+  260 down to @stable, exactly as the dispersion doctrine was promoted.
+
+**Why 260:** a single per-bot multiplier on the frozen Pressure score reproduces the plan's
+intended relative ranking. Frozen SR score uses value=120, bias=80; plan target uses
+value=250, bias=100 → multiplier `(250·100)/(120·80) = 2.604 → 260`. Check: frozen mild
+`120·17·40·100·80/100 = 6.528M` × 2.604 = **17.0M** ✓; safe 16.32M × 2.604 = **42.5M** ✓;
+hostile 1.632M × 2.604 = **4.25M** ✓. Identical to the plan's §2.3 targets, but the other
+axes (Secure oilbs) keep their frozen scores and @stable is untouched. This also collapses
+the plan's two-knob decomposition into one per-bot knob (simpler to A/B and promote).
+
+Cost is larger than the plan's "~6 lines C# + 2 YAML": ~15–20 lines (field + a
+Pressure-score re-scale + re-sort) on `PoiOffensiveBotModule`, plus one @experimental YAML
+line. §2.2 and §2.4 of the plan are **superseded** by this addendum.
+
+### F. S2 visibility + structural options (item 6)
+
+S2 measures net combat swing / contested-mid engagement. SR-contestation success **is**
+S2-visible: an SR Pressure axis manufactures engagement deep in the enemy half (at/near
+their SR), so a working change should show as combat swing toward the enemy SR region, and
+a failed (suicide) push as a negative swing there. The plan currently anchors only to S3
+win-rate + the `[exp-offense] action=Pressure` log; **amendment:** also anchor to S2 —
+expect the net-swing/engagement centroid to shift toward the enemy SR, cross-checked
+against the Pressure-axis log line. The **mission-abstraction structural option** (parked
+for the ~5-cycle RETHINK) is **NOT triggered** by anything found here — this remains a
+scoped scoring-tuning + trait-placement change, not a change to the mission/objective
+model. Flagged, not designed.
+
+### Verdict
+
+**IMPLEMENT-READY WITH AMENDMENTS.** The scoring analysis, math, and behaviour model are
+all still valid on `1594ffa1`; the dispersion and TecnFloor interactions are clean. But the
+plan's delivery mechanism (§2.2/§2.4, world-level `PoiMap` edit) is superseded by the
+shared-trait-defaults rule that postdates it. Implement via the per-bot
+`SrPressureScoreMultiplier` (default 100, `260` on @experimental only) described in §E,
+refresh the `PoiOffensiveBotModule.cs` line refs per §A, and add the S2 anchor per §F.
