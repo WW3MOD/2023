@@ -41,6 +41,15 @@ def pget(players, bot_type):
 
 
 def summarize(rows, exp_bt="experimental", ctl_bt="normal"):
+    calib = (exp_bt == ctl_bt)
+    if not calib and rows:
+        # auto-detect control bot_type from the data (stable for the
+        # primary/mirror in the 2026-07-21 regime, normal for the sanity floor).
+        ps0 = rows[0]["players"]
+        e0 = pget(ps0, exp_bt)
+        c0 = next((p for p in ps0 if p is not e0 and p.get("bot_type")), None)
+        if c0 and c0.get("bot_type"):
+            ctl_bt = c0["bot_type"]
     print(f"\n### {exp_bt} vs {ctl_bt}  (N={len(rows)})\n")
     hdr = "| m | scen | ticks | exp faction | exp gross | exp score(a/cap/k) | ctl faction | ctl gross | ctl score(a/cap/k) | winner | reason |"
     print(hdr)
@@ -53,14 +62,18 @@ def summarize(rows, exp_bt="experimental", ctl_bt="normal"):
     for r in rows:
         ps = r["players"]
         exp = pget(ps, exp_bt)
-        # for calibration both are same bot_type; disambiguate by client/faction
-        if exp_bt == ctl_bt:
-            # identical bots: label by faction (america=USA slot 14,45 ; russia=80,35)
-            a = next((p for p in ps if p["faction"] == "america"), ps[0])
-            b = next((p for p in ps if p["faction"] == "russia"), ps[1])
+        # for calibration both are same bot_type; disambiguate by SLOT NAME
+        # (USA-bot = spawn 14,45 ; Russia-bot = spawn 80,35). Under the 2026-07-21
+        # same-faction regime both bots are america, so faction no longer labels
+        # the slot — the player Name does.
+        if calib:
+            a = next((p for p in ps if p["name"] == "USA-bot"), ps[0])
+            b = next((p for p in ps if p["name"] == "Russia-bot"), ps[1])
             exp, ctl = a, b
         else:
-            ctl = pget(ps, ctl_bt)
+            # control = the playable bot that isn't the experimental one
+            # (bot_type "stable" for primary/mirror, "normal" for the floor).
+            ctl = next((p for p in ps if p is not exp and p.get("bot_type")), None)
         eg = exp["stats"]["capture_income_gross"]
         cg = ctl["stats"]["capture_income_gross"]
         esc = exp["score_components"]; csc = ctl["score_components"]
@@ -70,12 +83,14 @@ def summarize(rows, exp_bt="experimental", ctl_bt="normal"):
         win_fac = next((p["faction"] for p in ps if p["name"] == wname), "?")
         if wname in (None, "", "draw"):
             draws += 1; wlabel = "draw"
+        elif calib:
+            # identical bots: label the win by SLOT NAME (USA-bot / Russia-bot).
+            wlabel = wname
+            slot_wins[wname] = slot_wins.get(wname, 0) + 1
         else:
-            wlabel = f"{win_fac}"
-            slot_wins[win_fac] = slot_wins.get(win_fac, 0) + 1
-            if exp_bt != ctl_bt:
-                if win_bt == exp_bt: exp_wins += 1
-                else: ctl_wins += 1
+            wlabel = win_bt
+            if win_bt == exp_bt: exp_wins += 1
+            else: ctl_wins += 1
         if eg > 0: exp_captures += 1
         exp_gross_all.append(eg); ctl_gross_all.append(cg)
         (exp_gross_mirror if r["scenario"] == "mirror" else exp_gross_primary).append(eg)
@@ -91,13 +106,13 @@ def summarize(rows, exp_bt="experimental", ctl_bt="normal"):
         print(f"- {ctl_bt} gross median ALL: {med(ctl_gross_all)}")
         print(f"- win split: {exp_bt}={exp_wins}  {ctl_bt}={ctl_wins}  draw={draws}")
     else:
-        am = [next(p for p in r['players'] if p['faction']=='america')['stats']['capture_income_gross'] for r in rows]
-        ru = [next(p for p in r['players'] if p['faction']=='russia')['stats']['capture_income_gross'] for r in rows]
-        am_s = [next(p for p in r['players'] if p['faction']=='america')['score_total'] for r in rows]
-        ru_s = [next(p for p in r['players'] if p['faction']=='russia')['score_total'] for r in rows]
-        print(f"- identical-bot win split by faction/slot: {slot_wins}  draw={draws}")
-        print(f"- america(USA 14,45) gross median: {med(am)} | russia(80,35) gross median: {med(ru)}")
-        print(f"- america score median: {med(am_s)} | russia score median: {med(ru_s)}")
+        am = [next(p for p in r['players'] if p['name']=='USA-bot')['stats']['capture_income_gross'] for r in rows]
+        ru = [next(p for p in r['players'] if p['name']=='Russia-bot')['stats']['capture_income_gross'] for r in rows]
+        am_s = [next(p for p in r['players'] if p['name']=='USA-bot')['score_total'] for r in rows]
+        ru_s = [next(p for p in r['players'] if p['name']=='Russia-bot')['score_total'] for r in rows]
+        print(f"- identical-bot win split by slot: {slot_wins}  draw={draws}")
+        print(f"- USA-bot(14,45) gross median: {med(am)} | Russia-bot(80,35) gross median: {med(ru)}")
+        print(f"- USA-bot score median: {med(am_s)} | Russia-bot score median: {med(ru_s)}")
     return {
         "exp_captures": exp_captures, "n": len(rows),
         "exp_gross_all": exp_gross_all, "ctl_gross_all": ctl_gross_all,
@@ -113,7 +128,7 @@ if __name__ == "__main__":
         if d.startswith("calib:"):
             d = d[len("calib:"):]
             print(f"\n## CALIBRATION dir: {d}")
-            summarize(load_matches(d), exp_bt="normal", ctl_bt="normal")
+            summarize(load_matches(d), exp_bt="stable", ctl_bt="stable")
         else:
             print(f"\n## dir: {d}")
             summarize(load_matches(d))

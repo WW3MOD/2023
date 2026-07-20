@@ -34,23 +34,24 @@ Read **top-down, most-urgent-first**:
 
 Urgency-ordered. Few items, each one line + why it matters. Cleared when resolved.
 
-1. **S1 pass-bar never formally ratified.** The written LADDER bar `median(exp gross)
-   ≥ median(control) × 1.15` is **degenerate** (Normal captures ~1/20 → control
-   median ≈ 0 → anything "passes"). The loop is running on a **recommended
-   replacement** — in-window capture ≥ 6/10 **and** conditional gross median ≥ $5,000
-   — as a de-facto default. *Why it matters:* every S1 "PASS" on the board rests on
-   this unratified bar. A one-word "yes, that bar" locks it in.
-2. **S2 pass-bar running on a default too.** S2 uses a **paired-relative** bar
-   (`median(Exp swing) ≥ median(Normal swing) + $1,400`, ≥7/10 sign-delta,
-   both-spawn symmetry) chosen during calibration to cancel an attrition offset.
-   It's in use but flagged "to ratify." *Why it matters:* same as above — the S2
-   PASS depends on it.
-3. **Next behavior cycle is a fork the loop will pick by default.** After the S2
-   measurement scored dispersion's causal credit **negative**, the two live
-   candidates are a **combat-focused dispersion re-tune** or an **SR-multiplier
-   sweep** (260 vs higher/lower). Absent a steer, the loop will choose one and
-   proceed. *Why it matters:* if you have a preference for where realism effort goes
-   next, now is the cheap moment to say so.
+1. **Experimental ≈ Stable on BOTH rungs — the benchmark has caught up.** The
+   2026-07-21 re-baseline shows Exp tied with Stable on S1 (5–5, capture 6/10 vs
+   6/10) **and** S2 (5–5, swing edge −350). Stable is the frozen last-validated Exp
+   snapshot, so this correctly reads "nothing has improved since the last
+   promotion." *Why it matters:* the current Exp/Stable delta (the SR-contestation
+   axis) helped vs Normal but is neutral-to-negative vs a competent Stable — the
+   **next behavior cycle needs a genuinely new lever**, not more SR multiplier.
+2. **New PROPOSED bars await ratification** (the `[pre-regime]` bars are void).
+   S1: paired win-rate ≥ 0.60 AND Exp capture-rate ≥ Stable +2/10. S2:
+   median(Exp swing) ≥ median(Stable swing) + $1,000, sign-delta ≥7/10, both-spawn.
+   *Why it matters:* these are the yardsticks the loop will run on by default; a
+   "yes" locks them, or adjust. Detail in LADDER re-baseline banner.
+3. **S2 combat signal is weak on the new regime — a scoping decision.** Same-faction
+   Stable-vs-Stable fights only ~half the time (engagement −5–6× vs pre-regime; 3/10
+   matches zero-combat). A **blocking batch-validity gate** (≥6/10 engaged, else
+   re-scope) is proposed as the guard. *Why it matters:* if S2 keeps producing
+   passive stalemates, the net-swing metric is low-signal — decide whether to move
+   S2 to a **forced-contact map / `@rush` opponent** or keep the quiet regime.
 
 ---
 
@@ -58,6 +59,17 @@ Urgency-ordered. Few items, each one line + why it matters. Cleared when resolve
 
 Most recent first. Milestones, pivots, and verdicts in plain language.
 
+- **✅ REGIME RE-BASELINE COMPLETE (2026-07-21) — Experimental ≈ Stable on both rungs.**
+  43 matches, 5 phases, 0 crashes / 0 no-verdict, ~78 min. **S1:** Exp-v-Stable
+  **5–5**, capture **6/10 vs 6/10** (both slots now capture — Motorized start + Stable
+  carries the promoted capture floor). **S2:** Exp-v-Stable **5–5**, swing edge
+  **−350** (no Exp force edge; the SR axis that beat Normal +$6,300 is neutral vs a
+  competent Stable). Calibrations: S1 side-lean **7–3 Russia-slot** (mirror mandatory),
+  S2 side **even** but **engagement collapsed ~5–6×** (3/10 zero-combat). Floor
+  (Exp-v-Normal, N=3) weak **2–1**. New proposed bars logged (LADDER banner). **Takeaway:
+  the benchmark caught up to the bot — next cycle needs a new lever.** Fast harness
+  realized ~66–71 s/match (S1) and ~138–157 s/match (S2). Full doc:
+  `runs/260721_regime_rebaseline.md`.
 - **⚠ BENCHMARK REGIME CHANGED (2026-07-21, user-directed) — every S1/S2 bar now awaits
   re-baseline.** The instrument was changed in three ways at once: (1) **Motorized
   starting units** on both sides (was `none`), (2) **same faction both sides (US vs US)**
@@ -109,26 +121,26 @@ per-scenario detail below and in `runs/`.
 
 | | |
 |---|---|
-| **`main` @** | `2ed2c0ac` (SR-contestation cycle 1 merged; DISCOVERIES follow-up) |
+| **`main` @** | `60b93501` + this re-baseline commit (regime re-baseline; scenario/harness/docs only) |
 | **Active rung** | River Zeta WW3 (Scenarios 1–3) — **not yet cleared** (composite gate open) |
-| **Run mode** | Mode B (hidden / unsupervised), `OPENRA_WINDOW_HIDDEN=1` verified — unlimited unattended runs |
-| **In flight** | Nothing running (docs-only session; the run slot is free) |
-| **Next queued** | Re-CALIBRATE (Stable-vs-Stable) + re-BASELINE S1/S2 on the new **2026-07-21 regime** (Motorized / US-US / vs `@stable`), then the behavior cycle |
+| **Run mode** | Mode B (minimized + framerate-uncapped, `SpeedMultiplier: 8`) — unlimited unattended runs |
+| **In flight** | Nothing running (re-baseline batch complete; run slot free) |
+| **Next queued** | A behavior cycle with a **new lever** (Exp≈Stable, SR axis exhausted vs Stable) — pending the S2-scoping decision |
 
-> **⚠ The ladder table below is `[pre-regime]` (measured under `startingunits=none`,
-> mixed factions, vs `@normal`).** The 2026-07-21 regime change (Motorized start,
-> same-faction US-US, opponent `@stable`) invalidated every number here — treat all
-> verdicts as **PENDING re-baseline**, not current standings.
+> **Live standing — NEW REGIME (2026-07-21: Motorized / same-faction US-US / vs `@stable`).**
+> Numbers are Experimental vs the frozen **Stable** control (not Normal). Bars are
+> PROPOSED, awaiting ratification. Full data: `runs/260721_regime_rebaseline.md`.
 
-| Scenario | Metric | Experimental | Normal | Bar | Verdict |
+| Scenario | Metric | Experimental | Stable (control) | Proposed bar | Verdict |
 |---|---|---|---|---|---|
-| **S1** Economy Race (5 min) | `capture_income_gross` | median **$6,457**; capture **8/10**; cond. gross **$7,726** | **0** (captured 0/10) | capture ≥6/10 AND cond. gross ≥$5,000 *(reliability bar, unratified)* | **CYCLE 2 PASS** |
-| **S2** Force Efficiency (12 min) | net swing (`kills_cost − deaths_cost`) | **−200** (→ swing lifted after SR contestation) | **−5050** | paired-relative: median(Exp) ≥ median(Normal) + $1,400 *(unratified)* | **PASS** — edge +$4,850 (→ +$6,300 w/ SR contest), 10–0 |
-| **S3** Win-rate (12 min) | Exp win fraction | — | — | ≥ 0.55 (map ≈0.50) | not measured |
+| **S1** Economy (5 min) | win-rate + capture-rate | win **5/10**; capture **6/10** | win 5/10; capture 6/10 | win ≥0.60 AND capture ≥ Stable +2/10 | **not passing** (tied; floor holds) |
+| **S2** Force Eff. (12 min) | net swing (`kills_cost − deaths_cost`) | median **−350**; win 5/10 | median **0** | median(Exp) ≥ median(Stable) + $1,000, sign ≥7/10 | **not passing** (edge −350; batch barely valid) |
+| **S1 floor** (vs Normal) | win-rate | **2/3**, capture 1/3 | Normal 1/3, capture 0/3 | Exp ≥ Normal (sanity) | weak **PASS** |
 | **Composite gate** | all three, one commit | — | — | all pass together | **not cleared** |
 
-Note: S2's dispersion A/B credit is **negative** (cohesion helps S3 decisiveness,
-not S2 efficiency); SR-contestation is the positive S2 lever.
+Note: Exp's only behavioral delta from Stable is the SR-contestation axis; the
+re-baseline shows it gives **no edge vs Stable** on either facet — the benchmark
+has caught up, and the next cycle needs a new improvement lever.
 
 ---
 
@@ -140,6 +152,7 @@ Categories: `AI` `ENGINE` `HARNESS` `MERGE` `LADDER` `REVERT` `NOTE`.
 Newest at top. This is the durable record; the sections above are the digest.
 
 ```
+2026-07-21 | 60b93501 | LADDER | REGIME RE-BASELINE COMPLETE (Motorized / same-faction US-US / vs @stable). 43 matches / 5 phases, hidden Mode-B (minimized+uncapped, 8x), 0 crashes / 0 no-verdict, ~78 min batch wall-clock; wall ~66-71s/match S1 (300s) and ~138-157s/match S2 (720s), ~4.3-5.2x realtime (init-dominated on short matches). PHASE 1 S1 CAL (Stable-v-Stable N=10): side lean 7-3 Russia-slot(80,35) -> mirror mandatory; BOTH slots now capture (USA-slot gross med 6113/6-10, Russia-slot 2976/~5-10) -- regime delta vs pre-regime Normal ~0-capture control. PHASE 2 S1 BASELINE (Exp-v-Stable N=10, 5+5): win 5-5, capture 6/10 vs 6/10 -> Exp HAS NO ECONOMY EDGE over Stable (Stable already carries the promoted TecnFloor+dispersion S1 rewards; S1 becomes a non-regression floor). PHASE 3 S1 FLOOR (Exp-v-Normal N=3): weak 2-1 (Exp cap 1/3, Normal 0/3) -- Motorized start equalizes early armies + single-spawn(USA) handicap compress the pre-regime 8-2/10-0 dominance; sanity PASS. PHASE 4 S2 CAL (Stable-v-Stable N=10): side EVEN 5-5 (swing 0/-725), BUT min-engagement PASS-but-FRAGILE -- engagement collapsed ~5-6x (vol med 1200/1925 vs pre-regime 7475/5950), 3/10 matches ZERO combat (seeds 3017/7017/10017), 5/10 negligible; same-faction frozen-v-frozen frequently stalemates into a passive economy race. PHASE 5 S2 BASELINE (Exp-v-Stable N=10, 5+5): win 5-5, median Exp swing -350 vs Stable 0 -> relative edge -350 (pre-regime +$1400 bar FAILS -1750), sign-delta 3/10, both-spawn 2/5+1/5 -> NO FORCE EDGE; Exp over-aggresses vs a competent defender (worst cells primary 6017/8017, Exp -4200/-4950 k/d 2-10/4-10). CORE FINDING: Experimental ~= Stable on BOTH rungs -- the SR-contestation axis (Exp's only delta from Stable, beat Normal +$6300 pre-regime) is neutral-to-negative vs Stable; the benchmark has caught up to the bot, next cycle needs a NEW lever. PROPOSED BARS (awaiting ratification, [pre-regime] bars void): S1 win-rate >=0.60 AND Exp capture >= Stable +2/10 (non-reg floor >=0.40 + capture parity); S2 median(Exp swing) >= median(Stable swing) + $1000 (offset gone -> $1400->$1000) + sign >=7/10 + both-spawn, PLUS a BLOCKING batch-validity gate >=6/10 engaged else re-scope S2 (forced-contact/@rush). OPEN USER DECISION: keep S2 on the quiet same-faction Stable regime or move to forced-contact/@rush for combat signal. HARNESS: patched parse-s1-batch.py / parse-s2-batch.py / parse-s2-bar.py for the regime (control auto-detected as the-other-bot = stable primary / normal floor; calibration slot disambiguated by player NAME USA-bot/Russia-bot not faction, since both sides america). Analysis: runs/260721_regime_rebaseline.md; LADDER re-baseline banner + REVIEW digest updated.
 2026-07-21 | (regime) | HARNESS | BENCHMARK REGIME CHANGE (user-directed, consolidated instrument update; scenario/harness + docs only, NO bot behavior / controls / @stable YAML touched). THREE changes to what S1/S2 measure: (1) STARTING UNITS = MOTORIZED both sides -- StartingUnitsClass: motorized on each bot PlayerReference (was default none = SR-only); Motorized set world.yaml:404-419, faction-ASYMMETRIC (america abrams/bradley/humvee vs russia t90/bmp2/bmp2). (2) SAME FACTION both sides (US vs US) -- both bots Faction: america, so both field the identical @Motorized_america force; removes faction + Motorized-composition imbalance from the measurement (faction balancing is later work). (3) PRIMARY OPPONENT = @stable (frozen post-S1 PROMOTE snapshot) instead of @normal; the map.yaml Bot: line is authoritative (Matchup block is documentation, unread by engine/harness -- verified). Normal DEMOTED to one Exp-vs-Normal sanity-floor scenario. Files: S1 primary/mirror/cal-nn + S2 primary/mirror/cal-nn map.yaml (Faction+Bot+StartingUnitsClass, Titles, header regime notes) + their tournament-*.yaml Matchup docs; cal-nn scenarios flipped Normal-vs-Normal -> STABLE-vs-STABLE; NEW scenario tournament-s1-eco-floor-vs-normal (copy of S1 primary, P2=@normal) as the sanity floor. LADDER scenario tables + registry updated to the new regime; a top REGIME-CHANGE banner marks ALL prior S1/S2 baselines/bars [pre-regime] (none / mixed factions / vs Normal) -- not comparable, must not be reused as bars. Consequence: both mirrors are now pure SPAWN swaps (S2's no longer flips faction too). Pure-YAML/docs change (no compile) -> no build/NUnit needed. NEXT: re-CALIBRATE (Stable-vs-Stable side-fairness + S2 min-engagement) then re-BASELINE S1/S2 vs @stable on the Motorized regime; every bar awaits re-baseline. Batch runner: scenario names in LADDER §Scenario registry.
 2026-07-20 | (srcontest) | MERGE | SR-CONTESTATION CYCLE 1 MERGED (exp-sr-contestation -> main, from 39821f93). Enemy Supply Route now wins an offensive axis: per-bot PoiOffensiveBotModule.SrPressureScoreMultiplier (x100, default 100 = INERT/frozen; guarded no-op so @stable + Normal/Rush/Turtle byte-identical) set 260 on @experimental ONLY, re-scaling the enemy-SR Pressure axis score after GetOffensiveTargets then re-sorting. 260 = (250*100)/(120*80) reproduces the plan's value=250/bias=100 uplift (addendum E supersedes the original world-level PoiMap edit — that trait is a singleton read by the frozen controls). DENY-ONLY preserved (SUPPLYROUTE has no CaptureManager -> AttackMove, never capture). Build green, NUnit 291/291. S1 NON-REGRESSION PASS (N=10 hidden Mode-B): capture 8/10, cond gross median $6,457, win 10-0 -- IDENTICAL to the seeded reference (same 2 america misses 2017/8017); the SR axis diverting combat units did NOT starve the TECN capture layer. S2 BAR PASS (N=10): median Exp swing +1125 >= Normal -5175 + $1,400 -> relative edge +$6,300 (margin +$4,900); sign-delta 8/10; both-spawn 4/5 + 4/5; min-engagement 6025 in-band; win 10-0 -- STRONGER than the dispersion-ON reference (edge +$4,850, median swing -200), lifting median Exp swing +$1,325 (Normal control stable) and rescuing the reference's worst cell (seed 3017 delta -$4,850 -> +$7,650). SR contestation is POSITIVE on the same S2 metric where dispersion's causal credit was NEGATIVE. SR Pressure axis proven live in-window: 8/10 both scenarios, first tick ~1600-2150 (mid-game, both spawns), 89-180 lines/match in S2 (sustained); 2 no-axis matches = the army-starved 2017/8017 cells. NOT promoted to @stable (separate user-accepted step, SPEC 13). Analysis: runs/260720_sr_contestation_cycle1_n10.md. NEXT: dispersion re-tune (S2 scores it negative) OR an SR-multiplier sweep (260 vs higher/lower, now that S2 gives SR contestation a positive causal score).
 2026-07-20 | (s2meas) | LADDER | S2 FIRST MEASUREMENT: bar PASS + dispersion causal credit NEGATIVE. Experimental-vs-Normal N=10 (5 primary + 5 mirror, hidden Mode-B, all 18000t/time_limit, 0 crashes, v5) @ main 1594ffa1. PAIRED-RELATIVE BAR PASS: median Exp swing -200 >= median Normal -5050 + $1,400 -> relative edge +$4,850 (margin +$3,450); sign-delta 8/10 (Exp>Normal, bar >=7); both-spawn 5/5 primary + 3/5 mirror (>=3/5 each); min-engagement PASS (Exp eng median 5725 inside NN band 5950-7475 -> not winning by avoiding combat); win split 10-0. Watch cells: mirror seeds 1017(-500)/3017(-4850), both exp=russia (only negative deltas). DISPERSION ON/OFF A/B on identical seeds (the causal credit the dispersion VERIFY deferred): median paired delta ON-OFF = -$1,500 (positive only 5/10), median Exp swing ON -200 vs OFF +2325, engagement ON 5725 vs OFF 7125 (~20% less) -> cohesion does NOT improve combat economy, slightly DEGRADES it; win split ON 10-0 vs OFF 9-1, sole gain = flipping seed 8017 (+$7,300, loss->win) at high variance. Dispersion's payoff is decisiveness (S3 win-rate), not exchange efficiency (S2); advancement UNAFFECTED (S2 passes with dispersion ON, more strongly OFF). Toggle was @experimental-only + reverted (never committed); SHA drift A(1594ffa1)->B(777c51e8) is docs-only, A/B pairing valid. Added parse-s2-bar.py (paired-relative bar + A/B; parse-s2-batch.py untouched). Docs: runs/260720_s2_exp_vs_normal_n10.md + LADDER S2 row. NEXT (recommended): combat-focused dispersion RE-TUNE cycle (S2 now gives the doctrine a causal score to move, currently negative) OR the parked SR-contestation cycle for ladder breadth.

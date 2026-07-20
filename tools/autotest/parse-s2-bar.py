@@ -37,7 +37,8 @@ def load(result_dir):
         notes = json.loads(outer["notes"])
         name = outer.get("name", "")
         exp = next((p for p in notes["players"] if p.get("bot_type") == "experimental"), None)
-        nrm = next((p for p in notes["players"] if p.get("bot_type") == "normal"), None)
+        # control = the other playable bot ("stable" in the 2026-07-21 regime; "normal" pre-regime).
+        nrm = next((p for p in notes["players"] if p is not exp and p.get("bot_type")), None)
         def sw(p):
             return p["stats"]["kills_cost"] - p["stats"]["deaths_cost"]
         def eng(p):

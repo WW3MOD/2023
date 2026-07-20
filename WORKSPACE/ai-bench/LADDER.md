@@ -51,6 +51,39 @@ vs control) lives in [`REVIEW.md`](REVIEW.md) §Ladder Status.
 
 ---
 
+> # ✅ REGIME RE-BASELINE COMPLETE — 2026-07-21 (`main` @ `60b93501`, N per SPEC)
+>
+> First full re-baseline on the new regime (Motorized / same-faction US-US / vs
+> `@stable`). 43 matches, 5 phases, **0 crashes / 0 no-verdict**, ~78 min batch
+> wall-clock. Full analysis: [`runs/260721_regime_rebaseline.md`](runs/260721_regime_rebaseline.md).
+>
+> | Rung | Calibration (Stable-v-Stable) | Baseline (Exp-v-Stable) | Verdict |
+> |---|---|---|---|
+> | **S1 eco** | side lean **7–3 Russia-slot(80,35)**; both slots capture (USA gross med 6113, Russia 2976) | win **5–5**; capture **6/10 vs 6/10** | Exp **≈** Stable — no economy edge |
+> | **S2 combat** | side **even 5–5**, swing 0 / −725; **engagement collapsed ~5–6×** (1200/1925 vs pre-regime 7475/5950), **3/10 zero-combat** | win **5–5**; swing edge **−350** | Exp **≈** Stable — no force edge |
+>
+> **Core finding:** Experimental ≈ Stable on BOTH rungs. Stable is the frozen
+> snapshot of the last validated Exp config; the only Exp/Stable delta today is the
+> SR-contestation axis, which helped vs Normal but is **neutral-to-negative vs a
+> competent same-faction Stable**. The benchmark has *caught up to the bot* — the
+> next behavior cycle needs a genuinely new lever. Floor (Exp-v-Normal, N=3) = weak
+> **2–1** pass (Motorized start equalizes early armies + single-spawn handicap).
+>
+> **PROPOSED BARS (derived from this data — PROPOSED, awaiting ratification; the
+> `[pre-regime]` bars are void):**
+> - **S1:** paired win-rate **≥ 0.60** AND Exp capture-rate ≥ Stable **+2/10**;
+>   non-regression floor win-rate ≥ 0.40 + capture parity. *(Current: 0.50, 6/10 vs
+>   6/10 → not passing; floor holds.)*
+> - **S2:** paired-relative median(Exp swing) ≥ median(Stable swing) **+ $1,000**
+>   (lowered from $1,400 — the attrition offset that inflated it is gone) AND
+>   sign-delta ≥7/10 AND both-spawn ≥3/5. **Blocking batch-validity gate:** ≥6/10
+>   matches with real engagement, else re-scope S2 (forced contact / `@rush`).
+>   *(Current: edge −350, sign 3/10 → not passing; batch 7/10 engaged, barely valid.)*
+> - **Open decision (user):** keep S2 on the quiet same-faction Stable regime, or
+>   move to a forced-contact / `@rush` variant to restore combat signal?
+
+---
+
 ## Ladder structure
 
 - A **rung** is one map. The first (and currently only) rung is **River Zeta WW3**

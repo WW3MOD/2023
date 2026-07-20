@@ -60,7 +60,14 @@ def pget(players, bot_type):
 
 def summarize(rows, exp_bt="experimental", ctl_bt="normal"):
     calib = (exp_bt == ctl_bt)
-    label = "CALIBRATION (normal vs normal)" if calib else f"{exp_bt} vs {ctl_bt}"
+    if not calib and rows:
+        # auto-detect control bot_type ("stable" for the 2026-07-21 primary/mirror).
+        ps0 = rows[0]["players"]
+        e0 = pget(ps0, exp_bt)
+        c0 = next((p for p in ps0 if p is not e0 and p.get("bot_type")), None)
+        if c0 and c0.get("bot_type"):
+            ctl_bt = c0["bot_type"]
+    label = f"CALIBRATION ({exp_bt} vs {ctl_bt})" if calib else f"{exp_bt} vs {ctl_bt}"
     print(f"\n### {label}  (N={len(rows)})\n")
     print("| m | scen | seed | ticks | A side | A swing | A eng | A k/d | B side | B swing | B eng | B k/d | winner | reason |")
     print("|" + "---|" * 14)
@@ -73,21 +80,23 @@ def summarize(rows, exp_bt="experimental", ctl_bt="normal"):
     for r in rows:
         ps = r["players"]
         if calib:
-            A = next((p for p in ps if p["faction"] == "america"), ps[0])
-            B = next((p for p in ps if p["faction"] == "russia"), ps[1])
+            # same-faction regime: disambiguate slots by NAME, not faction.
+            A = next((p for p in ps if p["name"] == "USA-bot"), ps[0])
+            B = next((p for p in ps if p["name"] == "Russia-bot"), ps[1])
         else:
-            A = pget(ps, exp_bt); B = pget(ps, ctl_bt)
+            A = pget(ps, exp_bt)
+            B = next((p for p in ps if p is not A and p.get("bot_type")), None)
         wname = r["winner_name"]
-        win_fac = next((p["faction"] for p in ps if p["name"] == wname), None)
         win_bt = next((p["bot_type"] for p in ps if p["name"] == wname), None)
         if wname in (None, "", "draw"):
             draws += 1; wlabel = "draw"
+        elif calib:
+            wlabel = wname
+            slot_wins[wname] = slot_wins.get(wname, 0) + 1
         else:
-            wlabel = win_fac if calib else win_bt
-            slot_wins[win_fac] = slot_wins.get(win_fac, 0) + 1
-            if not calib:
-                if win_bt == exp_bt: exp_wins += 1
-                else: ctl_wins += 1
+            wlabel = win_bt
+            if win_bt == exp_bt: exp_wins += 1
+            else: ctl_wins += 1
         asw, bsw = swing(A), swing(B)
         aen, ben = engagement(A), engagement(B)
         a_sw.append(asw); b_sw.append(bsw); a_eng.append(aen); b_eng.append(ben)
@@ -99,8 +108,8 @@ def summarize(rows, exp_bt="experimental", ctl_bt="normal"):
               f"{B['stats']['units_killed']}/{B['stats']['units_dead']} | {wlabel} | {r['win_reason']} |")
     print()
     if calib:
-        aname, bname = "america(USA 14,45)", "russia(80,35)"
-        print(f"- win split by faction/slot: {slot_wins}  draw={draws}")
+        aname, bname = "USA-bot(14,45)", "Russia-bot(80,35)"
+        print(f"- win split by slot: {slot_wins}  draw={draws}")
         print(f"- net-swing median: {aname}={med(a_sw)}  {bname}={med(b_sw)}  (calibration wants ~0 & symmetric)")
         print(f"- engagement-volume median (kills_cost+deaths_cost): {aname}={med(a_eng)}  {bname}={med(b_eng)}")
         print(f"- deaths_cost median: {aname}={med(a_dead)}  {bname}={med(b_dead)}  (both > 0 => a real fight)")
@@ -124,7 +133,7 @@ if __name__ == "__main__":
         if d.startswith("calib:"):
             d = d[len("calib:"):]
             print(f"\n## CALIBRATION dir: {d}")
-            summarize(load_matches(d), exp_bt="normal", ctl_bt="normal")
+            summarize(load_matches(d), exp_bt="stable", ctl_bt="stable")
         else:
             print(f"\n## dir: {d}")
             summarize(load_matches(d))

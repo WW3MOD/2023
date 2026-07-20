@@ -638,3 +638,51 @@ Other notes: DensityLayer is populated correctly (trees contribute density=10 to
 - **`PoiMap` is a world singleton; any SR-scoring tunable on `PoiMapInfo` is global to every bot profile.** Both `PoiOffensiveBotModule@experimental` (ai.yaml:175) and `@stable` (ai.yaml:662) consume the *same* `PoiMap.GetOffensiveTargets` output (`PoiMap.cs:279`), so raising `SupplyRouteDenyValue` or adding an `OffensiveSrPressureBias` **in `world.yaml:296` changes @stable too** — silently mutating the frozen benchmark control. This is exactly what the shared-trait-defaults rule forbids (`DOCS/reference/architecture.md:309`: behavioural Info fields on a shared trait must default to frozen behaviour and be opted in **per-profile via YAML**).
 - **Consequence for @experimental-only scoring changes:** a per-profile knob must live on the per-bot trait (`PoiOffensiveBotModuleInfo`), not on `PoiMapInfo`. Pattern to mirror: `CohesionSwitchEnabled` (default `false`, flipped `true` on @experimental only, `PoiOffensiveBotModule.cs:87/:424`). For SR pressure specifically, a single per-bot `SrPressureScoreMultiplier` (x100, default 100 = inert) applied to `PoiAction.Pressure` axes after `GetOffensiveTargets` reproduces a global `value 120→250` + `bias 80→100` change with multiplier `(250·100)/(120·80)=260`, while leaving @stable byte-identical. Verified against constants on `1594ffa1` (`SupplyRouteDenyValue=120`, threat 100/40/10, `OffensiveEnemyAttackBias=80`, `DistanceHalfLifeCells=20`): frozen SR mild 6.528M ×2.604 = 17.0M, safe 42.5M, hostile 4.25M.
 - **Deny-only invariant re-confirmed on current main:** `SUPPLYROUTE` has no `CaptureManager` (`PoiMap.cs:219-222`); Pressure emits `AttackMove` to the SR cell (`PoiOffensiveBotModule.cs:467`), not `CaptureActor`; `GetCaptureTargets` (`PoiMap.cs:257-260`) filters Pressure out of the capture layer. The dispersion cohesion switch is action-agnostic (`:424-425`, gates on distance only), so it applies to a Pressure axis with no special-casing.
+
+## 2026-07-21 — Regime re-baseline: the benchmark caught up to the bot (Motorized / US-US / vs @stable)
+
+Full data: `WORKSPACE/ai-bench/runs/260721_regime_rebaseline.md`. First re-baseline after the
+2026-07-21 regime change (`60b93501`). 43 matches, 0 crashes / 0 no-verdict.
+
+- **Same-faction Stable-vs-Stable frequently DOESN'T FIGHT.** The S2 combat calibration (720s,
+  both `@stable`, both `america`, Motorized start) had **3/10 matches with literally zero combat**
+  (seeds 3017/7017/10017, both sides 0/0 swing) and 5/10 negligible; engagement-volume median
+  collapsed to **1200/1925** vs the `[pre-regime]` Normal-vs-Normal **7475/5950** (~5–6× less).
+  Score is still decided (720s of derrick income dominates), so matches resolve — but the S2
+  net-swing metric is low-signal. **The zero-combat seeds recur identically in the Exp-vs-Stable
+  baseline**, i.e. it's a seed×map property (those battlefields don't force contact), not a bot
+  property. Implication: an S2 batch on this regime needs a batch-validity gate (≥6/10 engaged)
+  or a forced-contact rescope, else "force efficiency" is measured on games with no force spent.
+- **Motorized start makes BOTH bots capture — the `[pre-regime]` "control captures ~0" premise is
+  dead.** Under `startingunits=none` the Normal control captured ~1/20 (S1 control gross median ≈0,
+  which made the old ×1.15 bar degenerate). Under Motorized/same-faction, the Stable control
+  captures **6/10** (gross median ~6100) — as often as Experimental. So S1's discriminator can no
+  longer be "does Exp capture reliably" (both do); it must be "does Exp out-capture / out-win the
+  control". Capture is strongly **spawn-dependent**: the USA slot (14,45) captures ~5/5, the Russia
+  slot (80,35) ~2/5 — a derrick-distance effect symmetric across bots, cancelled by the mirror.
+- **S1 spawn lean 7–3 Russia-slot, but S2 spawn EVEN 5–5.** Identical-bot calibrations: at the 300s
+  economy clock the Russia slot (80,35) wins 7–3 (higher end army_value / position); at the 720s
+  combat clock wins are even (0 / −725 swing). So spawn bias is *clock-dependent* — the mirror is
+  mandatory for S1, recommended for S2's swing term.
+- **A frozen `@stable` snapshot is a much harder yardstick than `@normal` — by design it exposes
+  when the loop has stopped improving.** Experimental = Stable + one axis (SR-contestation,
+  `SrPressureScoreMultiplier: 260`). That axis beat **Normal** by +$6,300 on S2 `[pre-regime]`, but
+  vs **Stable** it is **neutral-to-negative** (S2 swing edge −350; Exp over-aggresses into bad
+  trades vs a competent same-faction defender — worst cells Exp −4200/−4950, k/d 2-10/4-10). Result:
+  Exp ≈ Stable on BOTH rungs (S1 5–5 / capture 6-6; S2 5–5). This is the intended signal: measuring
+  against the last validated snapshot reads "nothing improved since the last promotion", so a lever
+  that only beat the weak control no longer counts. Cranking the same axis higher is unlikely to
+  help; the next cycle needs a genuinely different improvement.
+- **Fast harness realized speedup (timed):** minimized + framerate-uncapped at `SpeedMultiplier: 8`
+  gave **~66–71 s/match** for the 300s S1 clock and **~138–157 s/match** for the 720s S2 clock —
+  ~4.3–5.2× realtime. The ~30s engine-init/map-load is fixed per match, so effective speedup is
+  below the raw 8× sim multiplier and *the shorter the match, the more init dilutes it*. The real
+  win over the `[pre-regime]` 6× windowed profile is **no window / no focus theft**, not a large
+  raw-speed jump on these clocks.
+- **Parse tooling had a same-faction hazard.** `parse-s1-batch.py` / `parse-s2-batch.py` disambiguated
+  the two calibration players by `faction` (america/russia) — which silently breaks now that both
+  sides are `america` (both match the "america" filter → same player picked twice). Fixed to key on
+  player **name** (`USA-bot` = spawn 14,45 / `Russia-bot` = spawn 80,35). Also the primary-control
+  bot_type is `stable` (not `normal`), so control selection is now "the other playable bot" rather
+  than a hardcoded `normal` lookup. General rule: **any harness code that identifies a bot by faction
+  is wrong under a same-faction regime — identify by player name / spawn slot instead.**
