@@ -133,7 +133,25 @@ The even/odd index split still deterministically selects primary vs mirror
 > 2. **POI symmetry / calibration (after the metric can see income):** build
 >    `tournament-s1-eco-river-zeta-mirror` and gate S1 on a **Normal-vs-Normal batch
 >    landing ~even** on the new metric (SPEC §9.4) — otherwise an earned gap could be
->    spawn-side derrick luck, not AI skill.
+>    spawn-side derrick luck, not AI skill. **DONE (2026-07-20, `f8052ec`):** mirror +
+>    Normal-vs-Normal calibration (`tournament-s1-eco-cal-nn`) both run at N=10 — map is
+>    mostly side-fair with a **mild russia/80,35 lean** (6–4 wins, score median 2875 vs 3675),
+>    neutralised by the mandatory mirror. Baseline: `runs/260720_s1_baseline_n10.md`.
+
+> **BASELINE + BAR-REFORM RECOMMENDATION (2026-07-20, `f8052ec`) — not yet applied,
+> pending user ratification.** N=10 Experimental-vs-Normal (5 primary + 5 mirror): Experimental
+> beats Normal **8–2, symmetric by spawn** (won 4/5 from each side — real skill, not spawn
+> luck). But **in-window capture rate is only 4/10** (6/12 incl. diagnostics), so
+> `capture_income_gross` **median is 0** (below 50% capture the median sits in the zero mass),
+> while gross-**when-captured** median is **6047**. The Normal control captures ~1/20 → its
+> gross median is ~0. **The `median ≥ control ×1.15` bar is therefore degenerate** (0 ≥ 0
+> trivially; ×1.15 of ~0 is still ~0 — it can neither fail a bad bot nor pass a good one).
+> **Recommended replacement (SPEC §6.3 fixed-target):** gate on **reliability** — in-window
+> **capture rate ≥ 6/10** (`gross > 0`) as the primary bar, plus **conditional gross median
+> ≥ $5000** over captured runs; once capture rate > 50%, collapse to a single **median gross
+> ≥ $3000**. This is a *recommendation logged here*; the Advancement row above is left
+> unchanged until the user ratifies (flagged in REVIEW Open Questions). The binding constraint
+> on S1 is **capture reliability**, not scoring — next behaviour cycle targets that.
 
 > **PITFALL:** the S1 metric is **`capture_income_gross`** (verdict_version 4), NOT
 > `resources_earned` and NOT `PlayerStatistics.Income`. `Income` is a rolling 60-second
@@ -275,6 +293,7 @@ scenarios stay live.
 | S2 Force Efficiency | `tools/autotest/scenarios/tournament-experimental-vs-normal-2p/` | the committed `tournament.yaml` (`720s`) |
 | S3 Win-rate | `tools/autotest/scenarios/tournament-experimental-vs-normal-2p/` | the committed `tournament.yaml` (`720s`) |
 | S1 bias twin | `tools/autotest/scenarios/tournament-s1-eco-river-zeta-mirror/` | **BUILT (2026-07-20)** — byte-identical copy of the primary with the two bots' spawn assignments SWAPPED (Experimental on Russia/80,35, Normal on USA/14,45); uses the same `tournament-eco-5min.yaml`. Smoke-verified: boots + full 7500t hidden. |
+| S1 calibration (N-vs-N) | `tools/autotest/scenarios/tournament-s1-eco-cal-nn/` | **BUILT (2026-07-20, `f8052ec`)** — byte-identical copy of the primary with the USA-bot `Bot:` line `experimental`→`normal` (both bots `@normal`); Title/Matchup relabelled. Side-fairness probe: with identical bots the mirror swap is a no-op, so a single N=10 batch measures pure spawn/side bias. Ran N=10 hidden (`runs/260720_s1_baseline_n10.md`). |
 | S2/S3 bias twin | `tools/autotest/scenarios/tournament-experimental-vs-normal-mirror-2p/` | matching mirror configs |
 
 S1 now uses a **River-Zeta-derived** scenario (`tournament-s1-eco-river-zeta`):
