@@ -3,6 +3,21 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-20 — Capture escorts are dispatched but NEVER committed to the goal-guard ledger
+
+Found during the mission-abstraction costing recon (`WORKSPACE/plans/260720_mission_abstraction_costing.md`).
+`CaptureCoordinatorBotModule.DispatchEscort` (`CaptureCoordinatorBotModule.cs:486-502`) issues an
+`AttackMove` to the escort units and adds them to a **per-tick** `escortsRecruitedThisTick` set
+(`:497-498`), but it never calls `goalGuard.Ledger.Commit`. Only the TECN itself is committed
+(`IssueCaptureOrder :395-396`). Consequence: ~100 ticks later `PoiOffensiveBotModule.BuildFreePool`
+(`:320-330`) sees the escorts as uncommitted and can pull them onto an attack axis, abandoning the
+escort mid-approach. This is an escort *desync* distinct from — and compounding — the known F-4
+bug (escort `AttackMove`s the derrick cell, not the capturer; `260720_capture_reliability_cycle1.md:71-82`).
+Implication: escorts are a one-shot nudge, not a durable sub-force; the mission model fixes this by
+committing the escort sub-force under `escort:<captureId>`.
+
+Code refs: `CaptureCoordinatorBotModule.cs:486-502`, `CaptureCoordinatorBotModule.cs:395-396`, `PoiOffensiveBotModule.cs:320-330`.
+
 ## 2026-07-20 — TECN is consumed on successful capture (`ConsumedByCapture: true`)
 
 > **[promoted → game-model.md — "Capturing neutral buildings consumes the technician"]** (curation 2026-07-20). Verified `infantry.yaml:897,903`.
