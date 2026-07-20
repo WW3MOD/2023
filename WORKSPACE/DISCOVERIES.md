@@ -3,6 +3,24 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-20 — An SR Pressure offensive axis does NOT starve the TECN capture layer (offense/capture pool independence, empirical)
+
+Found during SR-contestation cycle 1 (`runs/260720_sr_contestation_cycle1_n10.md`). With the new
+`PoiOffensiveBotModule.SrPressureScoreMultiplier: 260` on `@experimental`, the enemy Supply Route
+**safe-threat** Pressure score reaches ~**57M** (observed axis line: `action=Pressure score=57408000
+units=8`), which **outranks neutral oilbs** and pulls a full 8-unit offensive axis mid-game (first tick
+~1600–2150, minutes ~5–7). Despite that, the **S1 economy result was byte-for-byte the reference tier**
+(capture 8/10, conditional gross median $6,457, win 10–0, same two $0 seeds). Non-obvious takeaway: the
+offensive-axis layer (`PoiOffensiveBotModule`, combat units, `AttackMove`) and the capture layer
+(`CaptureCoordinatorBotModule`, TECNs) draw from the **shared `PoiGoalGuard` ledger free pool
+independently** — pulling combat units onto an SR Pressure axis does **not** consume the TECN pool, so
+income capture is unaffected even when the SR wins a high-scoring axis. Useful prior for any future cycle
+that boosts an offensive axis score: expect **no** first-order S1 capture regression from offense re-ranking
+alone; a capture regression would instead point at the TECN production pipeline. (Also: at `260` the SR can
+top the ranking at safe threat — a heavier multiplier risks over-prioritising it; the `ThreatHostileMultiplier`
+gate ×260 ⇒ ~4.25M still keeps the AI off a garrisoned SR. `PoiOffensiveBotModule.cs` RescaleSrPressure +
+call site ~:196.)
+
 ## 2026-07-20 — The TECN-floor request dies at a *busy Infantry queue*, and the M-2 vs every-scan placement is identical at floor 1
 
 Found during the capture-throughput recon (`WORKSPACE/plans/260720_capture_throughput_cycle.md`).
