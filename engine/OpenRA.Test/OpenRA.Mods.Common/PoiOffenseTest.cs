@@ -166,5 +166,69 @@ namespace OpenRA.Test
 			Assert.That(alloc.Count(x => x >= 3), Is.EqualTo(2), "both axes are viable");
 			Assert.That(alloc.Max(), Is.LessThan(20), "no single axis swallows the whole army");
 		}
+
+		// ---------- Dispersion geometry (spread-to-move / mass-to-assault gate) ----------
+
+		[Test]
+		public void Chebyshev_IsChessboardDistanceNotEuclidean()
+		{
+			// The diagonal case is where Chebyshev (max of the axes) diverges from Euclidean:
+			// (0,0)->(3,4) is Chebyshev 4, not the Euclidean 5.
+			Assert.That(PoiOffenseMath.Chebyshev(0, 0, 3, 4), Is.EqualTo(4));
+			Assert.That(PoiOffenseMath.Chebyshev(0, 0, 0, 0), Is.EqualTo(0));
+			Assert.That(PoiOffenseMath.Chebyshev(5, 5, 2, 9), Is.EqualTo(4), "max(|dx|=3,|dy|=4)");
+			Assert.That(PoiOffenseMath.Chebyshev(-2, -3, 4, 1), Is.EqualTo(6), "handles negatives");
+		}
+
+		[Test]
+		public void CellCentroid_IsFloorDivisionAverage()
+		{
+			var square = new List<(int X, int Y)> { (0, 0), (4, 0), (0, 4), (4, 4) };
+			Assert.That(PoiOffenseMath.CellCentroid(square), Is.EqualTo((2, 2)));
+
+			// 3 cells summing X=7 → floor(7/3)=2 (integer division, not rounding).
+			var trio = new List<(int X, int Y)> { (1, 1), (3, 2), (3, 3) };
+			Assert.That(PoiOffenseMath.CellCentroid(trio), Is.EqualTo((2, 2)));
+
+			Assert.That(PoiOffenseMath.CellCentroid(new List<(int X, int Y)>()), Is.EqualTo((0, 0)), "empty → origin");
+		}
+
+		[Test]
+		public void MaxChebyshev_IsTheClumpRadius()
+		{
+			var centroid = PoiOffenseMath.CellCentroid(
+				new List<(int X, int Y)> { (0, 0), (4, 0), (0, 4), (4, 4) });
+
+			// Spread cluster: every corner is Chebyshev 2 from the (2,2) centroid.
+			var spread = new List<(int X, int Y)> { (0, 0), (4, 0), (0, 4), (4, 4) };
+			Assert.That(PoiOffenseMath.MaxChebyshev(spread, centroid.X, centroid.Y), Is.EqualTo(2));
+
+			// Tight cluster around the same centroid → smaller clump radius (mass to assault).
+			var tight = new List<(int X, int Y)> { (2, 2), (3, 2), (2, 3), (1, 2) };
+			Assert.That(PoiOffenseMath.MaxChebyshev(tight, centroid.X, centroid.Y), Is.EqualTo(1));
+
+			Assert.That(PoiOffenseMath.MaxChebyshev(new List<(int X, int Y)>(), 0, 0), Is.EqualTo(0), "empty → 0");
+		}
+
+		[Test]
+		public void AssaultGate_FarCentroidSpreads_NearCentroidMasses()
+		{
+			// Mirrors the CommitAndOrder gate: dist > AssaultRadiusCells ⇒ approach (spread),
+			// else assault (mass). Uses AssaultRadiusCells = 15 (the shipped default).
+			const int assaultRadius = 15;
+			var target = (X: 50, Y: 50);
+
+			// Axis massed 30 cells out on X → Chebyshev 30 > 15 → en-route.
+			var farCentroid = PoiOffenseMath.CellCentroid(
+				new List<(int X, int Y)> { (20, 50), (20, 51), (20, 49) });
+			var farDist = PoiOffenseMath.Chebyshev(farCentroid.X, farCentroid.Y, target.X, target.Y);
+			Assert.That(farDist, Is.GreaterThan(assaultRadius), "far axis is en route → Spread");
+
+			// Axis sitting on the objective → Chebyshev <= 15 → assault.
+			var nearCentroid = PoiOffenseMath.CellCentroid(
+				new List<(int X, int Y)> { (48, 50), (49, 50), (50, 51) });
+			var nearDist = PoiOffenseMath.Chebyshev(nearCentroid.X, nearCentroid.Y, target.X, target.Y);
+			Assert.That(nearDist, Is.LessThanOrEqualTo(assaultRadius), "near axis is at the objective → Tight");
+		}
 	}
 }

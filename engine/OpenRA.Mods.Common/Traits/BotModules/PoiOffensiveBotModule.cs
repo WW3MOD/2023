@@ -81,6 +81,23 @@ namespace OpenRA.Mods.Common.Traits
 			"automatically by trait.")]
 		public readonly HashSet<string> ExcludeUnitTypes = new HashSet<string>();
 
+		[Desc("Master switch for the dispersion doctrine (spread to move, mass to assault). OFF by",
+			"default so the frozen Stable/Normal controls keep the pre-dispersion behaviour untouched;",
+			"only PoiOffensiveBotModule@experimental turns it on. When off, no SetCohesion is issued.")]
+		public readonly bool CohesionSwitchEnabled = false;
+
+		[Desc("Dispersion doctrine — spread to move, mass to assault. While an axis centroid is farther",
+			"than this many cells (Chebyshev) from its target it moves in ApproachCohesion; once within",
+			"this radius it switches to AssaultCohesion for the final push.")]
+		public readonly int AssaultRadiusCells = 15;
+
+		[Desc("Cohesion mode issued to axis units while en route (centroid > AssaultRadiusCells from target).",
+			"Set equal to AssaultCohesion (or both to Loose) to reproduce the pre-dispersion baseline.")]
+		public readonly CohesionMode ApproachCohesion = CohesionMode.Spread;
+
+		[Desc("Cohesion mode issued to axis units for the assault (centroid within AssaultRadiusCells of target).")]
+		public readonly CohesionMode AssaultCohesion = CohesionMode.Tight;
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 
@@ -110,6 +127,12 @@ namespace OpenRA.Mods.Common.Traits
 		bool goalGuardResolved;
 
 		readonly List<Axis> axes = new();
+
+		// Last cohesion mode we issued to each unit (dispersion doctrine). Cohesion is a
+		// property of the unit, not the axis, so a re-recruited unit keeps its mode across
+		// axes — we only re-issue SetCohesion when a unit's desired mode actually changes.
+		readonly Dictionary<Actor, CohesionMode> lastCohesion = new();
+
 		int reevalCountdown;
 
 		public PoiOffensiveBotModule(Actor self, PoiOffensiveBotModuleInfo info)
@@ -160,6 +183,14 @@ namespace OpenRA.Mods.Common.Traits
 			PruneAxes();
 			if (goalGuard != null)
 				goalGuard.Ledger.Prune(tick, a => !a.IsDead && a.IsInWorld && a.Owner == player);
+
+			// Bound the cohesion-tracking map to living units so it can't leak across a game.
+			if (lastCohesion.Count > 0)
+			{
+				var stale = lastCohesion.Keys.Where(a => a.IsDead || !a.IsInWorld || a.Owner != player).ToList();
+				foreach (var a in stale)
+					lastCohesion.Remove(a);
+			}
 
 			// 2. Score offensive targets from OUR SR (value x distance x threat).
 			var targets = poiMap.GetOffensiveTargets(player);
@@ -375,20 +406,71 @@ namespace OpenRA.Mods.Common.Traits
 					goalGuard.Ledger.Commit(u, key, tick, Info.AxisCommitmentTicks);
 			}
 
-			// Only issue a fresh AttackMove when the unit set changed or the target
-			// moved enough — stationary objectives don't need a re-path every scan.
+			// Axis spacing geometry (pure Chebyshev, cheap for N<=8) — computed for every
+			// axis so the clumpRadius telemetry gives a baseline for the frozen controls too.
+			var cells = new List<(int X, int Y)>(axis.Units.Count);
+			foreach (var u in axis.Units)
+				cells.Add((u.Location.X, u.Location.Y));
+
+			var centroid = PoiOffenseMath.CellCentroid(cells);
+			var distToTarget = PoiOffenseMath.Chebyshev(centroid.X, centroid.Y, axis.TargetCell.X, axis.TargetCell.Y);
+			var clumpRadius = PoiOffenseMath.MaxChebyshev(cells, centroid.X, centroid.Y);
+
+			// Dispersion doctrine — spread to move, mass to assault. OFF for the frozen
+			// Stable/Normal controls (CohesionSwitchEnabled=false): they keep the original
+			// single-formation AttackMove untouched — no SetCohesion, no cohesion-forced repath.
+			// When on, gate on the centroid's distance to the target: far ⇒ ApproachCohesion
+			// (fan out crossing empty ground), near ⇒ AssaultCohesion (mass at the objective).
+			var dispersion = Info.CohesionSwitchEnabled && axis.Units.Count > 0;
+			var wantMode = distToTarget > Info.AssaultRadiusCells ? Info.ApproachCohesion : Info.AssaultCohesion;
+
+			// A unit needs a fresh SetCohesion only when its desired mode actually changed —
+			// avoids re-issuing the stance every re-eval for units already in the right mode.
+			var cohesionChanged = false;
+			if (dispersion)
+			{
+				foreach (var u in axis.Units)
+				{
+					if (!lastCohesion.TryGetValue(u, out var have) || have != wantMode)
+					{
+						cohesionChanged = true;
+						break;
+					}
+				}
+			}
+
+			// Re-path when the unit set changed, the target moved enough, OR the desired
+			// cohesion changed (e.g. the axis just crossed the assault radius) so the new
+			// formation takes effect immediately rather than at the next incidental repath.
 			var moved = !axis.HasOrdered
+				|| cohesionChanged
 				|| (axis.OrderedCell - axis.TargetCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells;
 			if (!moved)
 				return;
+
+			// Queue each needed SetCohesion BEFORE the grouped AttackMove. The bot order queue
+			// drains FIFO (ModularBot), so SetCohesion resolves first and CohesionMoveModifier
+			// reads the updated CohesionValue when it lays out the AttackMove formation.
+			if (dispersion)
+			{
+				foreach (var u in axis.Units)
+				{
+					if (lastCohesion.TryGetValue(u, out var have) && have == wantMode)
+						continue;
+
+					bot.QueueOrder(new Order("SetCohesion", u, false) { ExtraData = (uint)wantMode });
+					lastCohesion[u] = wantMode;
+				}
+			}
 
 			var units = axis.Units.ToArray();
 			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, axis.TargetCell), false, groupedActors: units));
 			axis.OrderedCell = axis.TargetCell;
 			axis.HasOrdered = true;
 
+			var cohesionLog = dispersion ? $" cohesion={wantMode}" : "";
 			Log.Write("debug",
-				$"[exp-offense] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} units={units.Length} tick={tick}");
+				$"[exp-offense] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} units={units.Length}{cohesionLog} clumpRadius={clumpRadius} distToTarget={distToTarget} tick={tick}");
 			AIUtils.BotDebug("AI ({0}): exp-offense — axis {1}@{2} ({3} units, score={4})",
 				player.ClientIndex, axis.TargetName, axis.TargetCell, units.Length, axis.Score);
 		}
@@ -499,5 +581,46 @@ namespace OpenRA.Mods.Common.Traits
 		/// axis. Pure so the sticky-axis rule is unit-testable and v3-portable.</summary>
 		public static bool ScoreBeatsByThreshold(long candidate, long current, int thresholdPct)
 			=> candidate * 100 > current * (100L + Math.Max(0, thresholdPct));
+
+		/// <summary>Chebyshev (chessboard) distance between two cells, in cells. The dispersion
+		/// gate and clump telemetry both use Chebyshev — NOTE CVec.Length is Euclidean, so we
+		/// compute this directly rather than reusing it.</summary>
+		public static int Chebyshev(int ax, int ay, int bx, int by)
+			=> Math.Max(Math.Abs(ax - bx), Math.Abs(ay - by));
+
+		/// <summary>Integer (floor-division) centroid of a set of cell coordinates. Empty input
+		/// returns (0,0). Pure so the dispersion gate math is unit-testable and v3-portable.</summary>
+		public static (int X, int Y) CellCentroid(IReadOnlyList<(int X, int Y)> cells)
+		{
+			if (cells == null || cells.Count == 0)
+				return (0, 0);
+
+			long sx = 0, sy = 0;
+			for (var i = 0; i < cells.Count; i++)
+			{
+				sx += cells[i].X;
+				sy += cells[i].Y;
+			}
+
+			return ((int)(sx / cells.Count), (int)(sy / cells.Count));
+		}
+
+		/// <summary>Max Chebyshev distance from (cx,cy) to any cell — the "clump radius". Empty
+		/// input returns 0. Pure so the spacing telemetry is unit-testable and v3-portable.</summary>
+		public static int MaxChebyshev(IReadOnlyList<(int X, int Y)> cells, int cx, int cy)
+		{
+			var max = 0;
+			if (cells == null)
+				return max;
+
+			for (var i = 0; i < cells.Count; i++)
+			{
+				var d = Chebyshev(cells[i].X, cells[i].Y, cx, cy);
+				if (d > max)
+					max = d;
+			}
+
+			return max;
+		}
 	}
 }
