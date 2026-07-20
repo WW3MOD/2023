@@ -98,6 +98,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Cohesion mode issued to axis units for the assault (centroid within AssaultRadiusCells of target).")]
 		public readonly CohesionMode AssaultCohesion = CohesionMode.Tight;
 
+		[Desc("EXPERIMENTAL SR-contestation knob (x100): multiplier applied to the enemy Supply",
+			"Route PRESSURE axis score so the enemy SR can compete for an offensive axis. 100 =",
+			"inert (byte-identical to the frozen baseline — the enemy SR keeps its raw",
+			"GetOffensiveTargets score); above 100 raises it. Only PoiOffensiveBotModule@experimental",
+			"sets this above 100. Deny-only: the SUPPLYROUTE has no CaptureManager, so a Pressure",
+			"axis emits AttackMove (contest the circle), never a capture. Mirrors the",
+			"CohesionSwitchEnabled default-off pattern so the Stable/Normal controls are untouched.")]
+		public readonly int SrPressureScoreMultiplier = 100;
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 
@@ -194,6 +203,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			// 2. Score offensive targets from OUR SR (value x distance x threat).
 			var targets = poiMap.GetOffensiveTargets(player);
+
+			// 2a. Experimental SR-contestation: re-scale the enemy Supply Route Pressure axis so
+			//     it can compete for an offensive axis. A no-op at multiplier 100 (guarded), so
+			//     the frozen Stable/Normal controls keep their exact GetOffensiveTargets ranking.
+			if (Info.SrPressureScoreMultiplier != 100)
+				targets = RescaleSrPressure(targets);
+
 			if (targets.Count == 0)
 			{
 				RetireAllAxes("no-targets");
@@ -308,6 +324,30 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var axis in axes)
 				Log.Write("debug",
 					$"[exp-offense] axis player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} score={axis.Score} units={axis.Units.Count} tick={tick}");
+		}
+
+		// Re-scale each enemy-SR Pressure target's score by SrPressureScoreMultiplier/100, then
+		// re-sort by the SAME (score desc, nearer, lower id) order PoiMap.GetOffensiveTargets uses.
+		// Only Pressure (enemy Supply Route) axes are touched — Attack/Secure income axes keep
+		// their frozen scores, so the rest of the ranking is unchanged. Caller guards multiplier==100.
+		List<ScoredPoi> RescaleSrPressure(List<ScoredPoi> targets)
+		{
+			var scaled = new List<ScoredPoi>(targets.Count);
+			foreach (var p in targets)
+			{
+				if (p.Action == PoiAction.Pressure)
+				{
+					var newScore = p.Score * Info.SrPressureScoreMultiplier / 100;
+					scaled.Add(new ScoredPoi(p.Actor, p.Kind, p.Action, p.Value,
+						p.DistanceCells, p.EnemyInfluence, newScore));
+				}
+				else
+					scaled.Add(p);
+			}
+
+			scaled.Sort((a, b) => PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
+				b.Score, b.DistanceCells, b.Actor.ActorID));
+			return scaled;
 		}
 
 		// Sticky top-k selection with hysteresis: start from the score-ordered targets,

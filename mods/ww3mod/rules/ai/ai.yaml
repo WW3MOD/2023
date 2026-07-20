@@ -193,6 +193,12 @@ Player:
 		AssaultRadiusCells: 15
 		ApproachCohesion: Spread
 		AssaultCohesion: Tight
+		# Experimental-only SR contestation: multiply the enemy Supply Route Pressure-axis score
+		# so it competes for an offensive axis (frozen it scores last and never gets one). 260
+		# reproduces the design plan's value=250/bias=100 uplift over the frozen value=120/bias=80
+		# (260 = (250*100)/(120*80)): mild ~17.0M, safe ~42.5M, hostile ~4.25M — the hostile threat
+		# gate still keeps the AI off a well-garrisoned SR. Default (100) on @stable = inert.
+		SrPressureScoreMultiplier: 260
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped

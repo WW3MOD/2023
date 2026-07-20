@@ -242,6 +242,16 @@ selects primary vs mirror *scenario* per match (index parity, not RNG).
 > AUQ posted default-promote. Build green + NUnit 291/291. Commit
 > `PROMOTE: Stable <- Experimental post-S1 snapshot (TecnFloor + dispersion)`.
 
+> **SR-CONTESTATION CYCLE 1 — S1 NON-REGRESSION PASS (2026-07-20, merged `exp-sr-contestation` → main).**
+> The enemy-Supply-Route Pressure axis is now score-boosted on `@experimental` only
+> (`PoiOffensiveBotModule.SrPressureScoreMultiplier: 260`, default 100 = inert/frozen). N=10 hidden
+> Mode-B (5 primary + 5 mirror, seeds 1017…10017): **in-window capture 8/10 ✅ (≥6), conditional gross
+> median $6,457 ✅ (≥$5000), win split 10–0** — **identical to the seeded reference baseline** (same two
+> $0 misses on america seeds 2017/8017), so the SR Pressure axis diverting combat units did **not** starve
+> the TECN capture layer. **SR axis proven live in-window:** 8/10 matches open an `action=Pressure` axis at
+> tick ~1600–2150 (mid-game, both spawns) — the 2 no-axis matches are the army-starved 2017/8017 cells.
+> Analysis: [`runs/260720_sr_contestation_cycle1_n10.md`](runs/260720_sr_contestation_cycle1_n10.md).
+
 > **PITFALL:** the S1 metric is **`capture_income_gross`** (verdict_version 4), NOT
 > `resources_earned` and NOT `PlayerStatistics.Income`. `Income` is a rolling 60-second
 > figure and `resources_earned` (net `Earned`) is blind to held-derrick income (below) —
@@ -348,6 +358,19 @@ rather than score it.
 >   `ApproachCohesion: Spread`). Toggle was `@experimental`-only + reverted (never committed).
 > - **NEXT:** recommended combat-focused **dispersion re-tune** cycle (S2 now gives it a causal score to
 >   move, currently negative); or the parked SR-contestation cycle for ladder breadth.
+
+> **S2 SR-CONTESTATION RESULT (2026-07-20, merged `exp-sr-contestation` → main) — BAR PASS, stronger than
+> the pre-change reference.** `SrPressureScoreMultiplier: 260` on `@experimental` only. N=10 (5 primary +
+> 5 mirror, hidden Mode-B, all 18000t/time_limit, 0 crashes, v5). **All four gates PASS:** median Exp swing
+> **+1125** ≥ median Normal **-5175** + $1,400 → **relative edge +$6,300** (margin +$4,900); **sign-delta
+> 8/10** (≥7); **both-spawn 4/5 primary + 4/5 mirror** (≥3/5 each); **min-engagement PASS** (Exp eng median
+> 6025 inside NN band 5950–7475). **Win split 10–0.** vs the dispersion-ON reference (`1594ffa1`, median Exp
+> swing **-200**, edge +$4,850): SR contestation **lifts median Exp swing to +1125** (+$1,325, Normal control
+> stable -5050→-5175) and rescues the reference's worst cell (seed 3017 delta −$4,850 → **+$7,650**). On the
+> same S2 metric where dispersion's causal credit came back **negative**, SR contestation is **positive**.
+> SR Pressure axes live in-window 8/10 matches (89–180 lines each, sustained over 720s). Watch cells:
+> negative deltas only on 1017 (-1150) / 4017 (-250), both small. Analysis:
+> [`runs/260720_sr_contestation_cycle1_n10.md`](runs/260720_sr_contestation_cycle1_n10.md).
 
 ---
 
