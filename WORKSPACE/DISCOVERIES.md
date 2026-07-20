@@ -45,6 +45,34 @@ starve cannot be tuned away in `ai-*.yaml`.
 
 Code refs: `UnitBuilderBotModule.cs:78-97,112,125-136,167-195`, `TraitsInterfaces.cs:727-732`.
 
+## 2026-07-20 — `IBotRequestUnitProduction` demand queue is a working code-level production floor (verified live, S1 cycle 2)
+
+The cycle-2 recon's proposed fix — request production through the shared UnitBuilder's queue to
+bypass the share-ceiling — was **implemented and verified**: a default-off `TecnFloor` on
+`CaptureCoordinatorBotModule` (merged `c6a71c14`) lifted S1 in-window capture **4/10 → 8/10** and
+cut matches-fielding-zero-TECNs **5/10 → 0/10**. Confirmed mechanics from the live run:
+
+- `bot.QueueOrder` is **not** how you pull a *unit type* on demand — you call
+  `up.RequestUnitProduction(bot, name)` on each `player.PlayerActor.TraitsImplementing<IBotRequestUnitProduction>()`.
+  In WW3MOD only `UnitBuilderBotModule` implements the sink; its `BotTick` pops **one** queued
+  request per `FeedbackTime=30`-tick cycle **before** the lottery (`:87-92`) and routes it through
+  the single-name `BuildUnit` overload (`:142-165`) that skips both `UnitsToBuild` and `UnitLimits`.
+- **Drop-on-failure is real** (`:91` removes the entry whether or not the queue was free), so a
+  floor must **re-request each scan** and subtract already-queued via `RequestedProductionCount`
+  to avoid piling duplicates. `alive(pool) + pending(requested) < floor` is the correct gate.
+- **Faction-correct build type with no hardcoding:** intersect the module's `CapturingActorTypes`
+  with the player's Infantry-queue `BuildableItems()` names — the generic `~disabled` `tecn` and
+  any wrong-faction variant fall out because they aren't buildable. Resolve lazily and **don't
+  cache a null** (queues/prereqs may be cold on the first scan).
+- **Gotcha found by running it:** gating the request at the M-2 (`idleCapturers==0`) branch means
+  the floor *stops re-firing* on a bot that keeps an idle lottery-built capturer around (M-2 never
+  reached). Observed as a perfect side-split: america-side fired the floor once then went quiet
+  (still captured, ~1 derrick), russia-side fired 60–82× (multiple derricks). Fine for `floor=1`,
+  but a stricter floor should check `alive+pending < floor` every scan, not only at M-2.
+
+Code refs: `CaptureCoordinatorBotModule.cs` (`MaintainTecnFloor`/`ResolveTecnBuildType`/`CaptureTargetExists`),
+`UnitBuilderBotModule.cs:87-92,99-107,142-165`, `AdaptiveProductionBotModule.cs:62-65,153-162` (reference impl).
+
 ## 2026-07-20 — `CVec.Length` / `CPos` subtraction is EUCLIDEAN, not Chebyshev — compute cell "grid distance" by hand
 
 The dispersion design sketch (`260720_dispersion_cycle_design.md` §2b/§3b) labelled

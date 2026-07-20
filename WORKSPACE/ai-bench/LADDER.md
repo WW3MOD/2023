@@ -169,6 +169,23 @@ The even/odd index split still deterministically selects primary vs mirror
 > a "keep N ready" floor — `tecn.*: 3` is a ceiling, not a floor), upstream of the capture loop.
 > Analysis: [`runs/260720_capture_reliability_cycle1_n10.md`](runs/260720_capture_reliability_cycle1_n10.md).
 
+> **CYCLE 2 RESULT (2026-07-20, merged `c6a71c14`) — bar PASSED.**
+> TECN availability floor: a default-off `TecnFloor` field on `CaptureCoordinatorBotModule`
+> that, at the M-2 `no-idle-capturers` branch, pulls one capturer via the shared UnitBuilder's
+> `IBotRequestUnitProduction` queue when `alive+pending < floor` AND a derrick is still
+> capturable. That request path bypasses the `UnitsToBuild` share-ceiling AND `UnitLimits`,
+> so it out-competes the blind lottery that starved the pool. `TecnFloor: 1` set **only** on
+> `@experimental.tecn` (`@stable.tecn` default 0 → byte-identical). N=10 hidden Mode-B
+> (5 primary + 5 mirror): **in-window capture rate 4/10 → 8/10 ✅ (≥6/10)**; conditional gross
+> median **$7,726 ✅ (≥$5000)**; **win split 8–2 → 10–0** (no collapse — captures now feed the
+> gross-income scorer axis). **Marker proof:** `tecn-floor-request` fired 298× (faction-correct
+> build-type resolve), M-2 `total-tecns=0` scan share **88% → 76%**, and **matches fielding zero
+> TECNs all-match 5/10 → 0/10**. Residual 2/10 misses are upstream production-throughput /
+> dispatch latency (m2 america floor-goes-quiet after first capture since the gate is M-2-only;
+> m7 russia requested 82× but never converted) — **next cycle:** extend the floor past the M-2
+> gate + escort-bundled reinforcement packaging.
+> Analysis: [`runs/260720_tecn_floor_cycle2_n10.md`](runs/260720_tecn_floor_cycle2_n10.md).
+
 > **DISPERSION DOCTRINE VERIFY (2026-07-20, merged `exp-dispersion` → main) — activation +
 > non-regression PASS on S1.** Spread-to-move / mass-to-assault (`PoiOffensiveBotModule`
 > distance-gated `SetCohesion`, `@experimental`-only, kill-switch defaults off so `@stable`
