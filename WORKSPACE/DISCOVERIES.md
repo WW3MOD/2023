@@ -3,6 +3,14 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-21 — Autotest throughput plumbing landed (Recs 1-3): universal `--speed`, minimized+uncapped Mode-B, render decouple
+
+Implemented the low-risk half of the throughput plan (`WORKSPACE/plans/260721_sim_throughput.md`), branch `harness-sim-speed` (merged `bce9c3e6`). Simulation determinism untouched — wall-clock pacing / unsynced-render only.
+- **Rec 1 — universal speed multiplier.** New `TestModeSpeedMultiplier` world trait (`engine/OpenRA.Mods.Common/Traits/World/TestModeSpeedMultiplier.cs`, registered in `world.yaml`) divides `world.Timestep` at `WorldLoaded` for every non-tournament test run; guards on empty `TournamentConfigPath` so it never double-applies against `BotVsBotMatchWatcher` (which keeps its config-overridable apply). `run-test.sh` gained `--speed N` (1-16) forwarding `Test.SpeedMultiplier`; default unset = 1× (byte-identical old behavior).
+- **Rec 2 — Mode-B hidden = minimized + uncapped.** `run-tournament.sh` now launches `OPENRA_WINDOW_MINIMIZED=1` + `Graphics.CapFramerate=false` (dropped the 5 fps cap that throttled a *suspended* window to ~5 ticks/s); `run-test.sh --minimized` also forces `CapFramerate=false`. NOT re-measured with a live tournament (outside the single-run verify budget) — grounded in the recon's suspended-window model; it is a config change, not a correctness risk (worst case is efficiency, not a bad verdict).
+- **Rec 3 — render decouple under TestMode.** Gated the forced render-per-tick (`Game.cs`, the `renderBeforeNextTick = true` after `LogicTick`) on `!TestMode.IsActive`, so test logic free-runs and renders on the normal cadence instead of dragging a GPU frame per tick.
+- **Measured (one authorized run):** `run-test.sh --speed 8 test-screenshot-smoke`. `debug.log` confirms the trait fired: `[TestMode] speed multiplier 8x — Timestep 60 → 7 ms/tick`. Sim phase (screenshot timestamps, tick 0→51) = **1.86 s wall-clock vs the ~3.06 s the 60 ms timestep predicts at 1×**. Verdict `pass`, all 3 screenshots captured at ticks 0/26/51 → Rec 3's decouple does **not** break capture. Total run 16 s (init-dominated). NUnit 291/291, build clean. Caveat: this test is render/screenshot-bound and only 51 ticks — the *least* favorable case, so the realized factor understates the win; compute-heavy bot matches (mostly logic per tick) realize far more of the 8× once Timestep is 7 ms.
+
 ## 2026-07-21 — Autotest sim speed: single tests are 1× by omission; the render-per-tick coupling caps the tournament's 8×
 
 Found during a read-only throughput audit (full options report: `WORKSPACE/plans/260721_sim_throughput.md`).
