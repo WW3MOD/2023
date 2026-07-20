@@ -1,0 +1,20 @@
+{
+  "cycle_ts": "2026-07-20T02:20:00Z",
+  "scenario": "tournament-s1-eco-river-zeta",
+  "rung": "river-zeta",
+  "sha": "f8052ec",
+  "hypothesis": "S1 statistical baseline: quantify Experimental in-window derrick-capture reliability and gross-income vs Normal control over N=10 (5 primary + 5 mirror) on the v4 scorer.",
+  "run_mode": "hidden",
+  "n_runs": 10,
+  "seeds": [1017, 2017, 3017, 4017, 5017, 6017, 7017, 8017, 9017, 10017],
+  "metric": "capture_income_gross",
+  "experimental_median": 0,
+  "control_median": 0,
+  "margin_required": 0.15,
+  "margin_observed": null,
+  "verdict": "hold",
+  "no_regression_checked": [],
+  "decision": "keep_iterating",
+  "raw_result_dir": "tools/autotest/tournament-results/260720_b1_s1_exp_vs_normal",
+  "notes": "10/10 verdicts, verdict_version 4, all time_limit@7500t, no crash. Experimental in-window CAPTURE RATE 4/10 (m4/5/8/9); gross-when-captured {5882,6020,6074,11355} median 6047 (11355=2 derricks). Gross MEDIAN 0 (6/10 captured nothing -> median in zero mass), symmetric per side (2/5 primary=america, 2/5 mirror=russia). Normal control captured 0/10 -> control median 0. WIN SPLIT experimental 8 / normal 2, SYMMETRIC by spawn (4/5 from america, 4/5 from russia) -> dominance is real AI skill, not spawn luck (mirror cancelled it). BAR VERDICT: median>=control*1.15 is DEGENERATE (0>=0 trivial) because control~0; recommend absolute reliability bar (capture rate >=6/10 AND conditional gross >=$5000) — see 260720_s1_baseline_n10.md, flagged in REVIEW, NOT applied to LADDER. Capture rate <6/10 -> characterized failures: failing runs' watcher.log score curves flat (no income ramp) = TECN never held a derrick to term; pipeline itself fires (2 diag N=1 both captured, gross 11236/6131, 1-3 issues, no retire). Root cause = single-TECN availability/survival variance (reliability), not scoring/map. NEXT CYCLE = capture-reliability, not SR-contestation."
+}

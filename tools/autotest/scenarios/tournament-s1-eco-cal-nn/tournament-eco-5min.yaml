@@ -1,0 +1,37 @@
+# AI Benchmark — Scenario 1 (Economy Race) config.
+#
+# Copy of tournament.yaml with a 5-minute clock, per LADDER.md §Scenario 1 /
+# §Scenario registry. Read by BotVsBotMatchWatcher when launched with
+#   Test.Mode=true Test.TournamentConfig=<this file>
+#
+# Ladder metric is resources_earned (cumulative PlayerResources.Earned), read
+# post-hoc from the per-match verdict JSON — NOT PlayerStatistics.Income
+# (SPEC §8.2 PITFALL). The Scorer/WinRule below only decide the in-match winner;
+# they do not affect the ladder metric. Kept identical to tournament.yaml so the
+# only difference from the 720s config is the clock + speed.
+
+Matchup:
+	P1Bot: normal
+	P2Bot: normal
+
+# 5-minute match — LADDER S1 (TimeLimitSeconds: 300). Long enough for TECNs to
+# arrive and start capturing income structures; short enough to isolate economy
+# before combat attrition dominates.
+TimeLimitSeconds: 300
+
+# Mode B (hidden) launch profile: SpeedMultiplier 8 via world.Timestep override
+# (BotVsBotMatchWatcher.cs applies it at WorldLoaded). SPEC §3 / LADDER common
+# run knobs. Dominates GameSpeed (mod-capped at 2×).
+SpeedMultiplier: 8
+GameSpeed: fastest
+
+Scorer: weighted_components
+WinRule: score_or_sr_capture
+
+Score:
+	ArmyValueWeight: 1.0
+	CaptureIncomeWeight: 2.0
+	KillsValueWeight: 1.0
+	SrCaptureBonus: 100000
+
+ScoreMarginForDecisive: 0.20

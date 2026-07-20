@@ -9,7 +9,7 @@ A Supply Route is a **flag**. Think of it as the assembly area where a sector's 
 - **One per player, fixed at game start.** Every starting-units package (`StartingUnits@*` in `world.yaml`) ships with `BaseActor: supplyroute`. You don't build it, you don't choose its location — it spawns near your player's map-edge spawn point. The reason it's "near" the edge rather than *on* the edge is just to give it footprint clearance; spawn point and SR are essentially the same thing.
 - **Units don't come out of the SR.** They enter from the map edge nearest to the SR and walk/fly to the SR's rally point. The SR is the destination, not the origin. (Engine: `ProductionFromMapEdge` on the SR's queues.)
 - **Losing your SR = losing the sector.** When the SR changes hands (captured) or is contested to zero, your reinforcements from outside the map are cut off. That is the rationale for the whole building — it's the player's link to off-map reserves, and the battle for that link *is* the campaign for that sector.
-- **The SR is indestructible by design.** `Armor: Indestructable` in the YAML — it cannot be killed by damage. The only way to take it from a player is to **capture it** (then `OwnerLostAction: ChangeOwner → Neutral` neutralizes it) or to **contest** it (graduated production slowdown via `SupplyRouteContestation` while enemies stand inside the 10-cell contestation circle).
+- **The SR is indestructible by design.** `Armor: Indestructable` in the YAML — it cannot be killed by damage. **Contestation** is the only *implemented* pressure mechanic (graduated production slowdown via `SupplyRouteContestation` while enemies stand inside the 10-cell contestation circle). Capture is part of the intended design but **is not wired in the code today** — see the Capture section below for what actually happens.
 
 ## Why "Supply Route" is not "Construction Yard"
 
@@ -62,12 +62,16 @@ Open design questions about neutral SRs (tracked in `RELEASE_V1.md` under Supply
 
 ## Capture and contestation mechanics
 
-### Capture (binary)
+### Capture (binary) — DESIGN INTENT, not yet implemented
 
-The SR can be captured by an engineer/technician (any `CapturableActorTypes` chain that targets `supplyroute`). On capture:
-- `OwnerLostAction: ChangeOwner → Neutral` — the SR doesn't transfer directly to the capturing player; it goes neutral first. (Check intent: should it go to the capturer? Engine currently flips to Neutral. Possibly a v1 polish item.)
-- The previous owner loses the ability to reinforce through that SR.
-- If it was the player's only SR — they're cut off entirely.
+**Verified 2026-07-20: the SR cannot be captured today.** The intended model is that an engineer/technician takes an enemy SR and cuts off the previous owner's reinforcements. That wiring does not exist:
+
+- `SUPPLYROUTE` (`structures.yaml:202`) has **no `Capturable` and no `CaptureManager`**, and inherits none — its bases are `^ExistsInWorld` / `^SpriteActor` / `^SelectableBuilding`, none of which pull in the capture chain (`^NeutralOrOccupiedCapturable`, `structures.yaml:149`). There is no capture-type for a TECN's `Captures{building-neutral/-occupied}` to intersect, so a technician has nothing to enter. The `CaptureNotification` at `structures.yaml:216` is commented out and wires nothing.
+- **`OwnerLostAction: ChangeOwner → Neutral` (`structures.yaml:227`) does NOT fire on capture.** `OwnerLostAction` implements `INotifyOwnerLost` — "when the actor's owner is **defeated**" — and `OnOwnerLost` is called *only* from `ConquestVictoryConditions.cs:109` and `StrategicVictoryConditions.cs:152`, both iterating a just-defeated player's actors. So an SR goes Neutral **only when its owning player loses the match**, never via an engineer.
+
+Two subtleties for whoever implements this to match the design: (1) neutral-SR capture needs `Types: building-neutral`, enemy-SR needs `building-occupied`; (2) vanilla `Captures`/`Capturable` transfers to the **capturer**, not to Neutral — so the "capturer can never keep it, it just neutralizes" behavior needs a custom on-capture hook, not the stock traits alone.
+
+The rest of this doc describes the intended capture model; treat those passages as design, not current behavior, until the wiring lands.
 
 ### Contestation (graduated)
 
@@ -100,7 +104,8 @@ For AI design and for any strategic-layer code:
 
 ## Engine integration points
 
-- **Actor definition:** `mods/ww3mod/rules/ingame/structures.yaml:202` — `SUPPLYROUTE` block.
+- **Actor definition:** `mods/ww3mod/rules/ingame/structures.yaml:202` — `SUPPLYROUTE` block. Note: **no `Capturable`/`CaptureManager`** here or in any inherited template — capture is unimplemented (see the Capture section).
+- **Neutralize-on-defeat:** `OwnerLostAction` (`structures.yaml:227`) → fires only from `ConquestVictoryConditions.cs:109` / `StrategicVictoryConditions.cs:152` when the owner is defeated — **not** a capture path.
 - **Spawn wiring:** `mods/ww3mod/rules/world.yaml:316–388` — every `StartingUnits@*` has `BaseActor: supplyroute`.
 - **Contestation trait:** `SupplyRouteContestation` (engine side, paired with `WithRangeCircle@Contestation` for the visual).
 - **AI YAML:** `mods/ww3mod/rules/ai/ai.yaml` treats SR as `ConstructionYardTypes` / `VehiclesFactoryTypes` / `BarracksTypes` simultaneously. This is the OpenRA-trait integration, not a strategic statement — the AI's strategic layer should *not* read these to mean "SR is a factory."

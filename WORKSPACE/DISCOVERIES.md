@@ -31,7 +31,77 @@ The design (§2b) anticipated this with `CohesionSwitchEnabled`; shipped it **de
 field added to a trait shared by an experimental AND a frozen bot profile must default
 to the frozen behaviour and be opted-in per-profile via YAML.
 
+## 2026-07-20 — Capture escorts are dispatched but NEVER committed to the goal-guard ledger
+
+Found during the mission-abstraction costing recon (`WORKSPACE/plans/260720_mission_abstraction_costing.md`).
+`CaptureCoordinatorBotModule.DispatchEscort` (`CaptureCoordinatorBotModule.cs:486-502`) issues an
+`AttackMove` to the escort units and adds them to a **per-tick** `escortsRecruitedThisTick` set
+(`:497-498`), but it never calls `goalGuard.Ledger.Commit`. Only the TECN itself is committed
+(`IssueCaptureOrder :395-396`). Consequence: ~100 ticks later `PoiOffensiveBotModule.BuildFreePool`
+(`:320-330`) sees the escorts as uncommitted and can pull them onto an attack axis, abandoning the
+escort mid-approach. This is an escort *desync* distinct from — and compounding — the known F-4
+bug (escort `AttackMove`s the derrick cell, not the capturer; `260720_capture_reliability_cycle1.md:71-82`).
+Implication: escorts are a one-shot nudge, not a durable sub-force; the mission model fixes this by
+committing the escort sub-force under `escort:<captureId>`.
+
+Code refs: `CaptureCoordinatorBotModule.cs:486-502`, `CaptureCoordinatorBotModule.cs:395-396`, `PoiOffensiveBotModule.cs:320-330`.
+
+## 2026-07-20 — MEASURED: 88% of experimental capture scans see ZERO TECNs (availability, not survival, gates S1)
+
+Instrumented N=10 confirmation of the availability hypothesis below. With the M-2
+`no-idle-capturers` marker (`CaptureCoordinatorBotModule.cs`, the `idleCapturers.Length==0`
+branch) preserved per-match, the pooled `total-tecns` distribution over 994 capture scans on
+`tournament-s1-eco-river-zeta` (hidden Mode-B, 5min) was: **total-tecns=0 → 875 scans (88%)**,
+=1 → 94, =2 → 17, =3 → 8. **5 of 10 matches had zero TECNs for the entire match and issued 0
+capture orders.** The `tecn-killed` (M-1) marker fired only twice, and both with
+`committed=False objective=<none>` — i.e. the TECNs that died were *not* pursuing a derrick.
+So the S1 ~40% capture rate is gated by **TECN production/delivery/availability**, NOT capturer
+survival on the approach and NOT coordinator logic (which fires correctly whenever a free TECN
+exists — all 6 captures issued at ticks 680–1477). Raising `DefaultCommitmentTicks` 300→600 and
+adding an `INotifyKilled` scan-reset (cycle 1, branch `exp-capture-reliability`) left the rate
+at 4/10 — confirming the binding constraint is upstream of the capture loop. Next lever:
+TECN call-in/build cadence, `ConsumedByCapture` pool drain, and a "keep N TECNs ready" floor
+(UnitLimit `tecn.*: 3` is a ceiling, not a floor).
+
+Run: `WORKSPACE/ai-bench/runs/260720_capture_reliability_cycle1_n10.md`.
+Code refs: `CaptureCoordinatorBotModule.cs` (M-2 branch), `tools/autotest/run-tournament.sh`
+(per-match `debug.log` preservation), `ai-{america,russia}.yaml:8` (`tecn.*: 500` builder weight).
+
+## 2026-07-20 — TECN is consumed on successful capture (`ConsumedByCapture: true`)
+
+> **[promoted → game-model.md — "Capturing neutral buildings consumes the technician"]** (curation 2026-07-20). Verified `infantry.yaml:897,903`.
+
+`^CapturesNeutralBuildings` (infantry.yaml:897–905) sets `ConsumedByCapture: true`
+(infantry.yaml:903). Every successful neutral-building capture removes the TECN from
+the game. This means the AI's TECN pool shrinks by one on every SUCCESS as well as
+every combat death. With `UnitLimits: tecn.america/russia: 3` (ai-america.yaml:37,
+ai-russia.yaml:37), capturing 2–3 derricks can exhaust the live pool entirely, after
+which no further captures are possible until production replaces them. Key implication
+for capture-reliability design: the TECN pool is a **consumable**, not a persistent
+resource — availability is the binding constraint, not coordinator logic.
+
+Code refs: `infantry.yaml:903`, `ai-america.yaml:37`, `CaptureCoordinatorBotModule.cs:432`.
+
+## 2026-07-20 — `PoiGoalGuard` commitment TTL (300 ticks) is borderline short for Speed-25 infantry on 8-cell routes
+
+> **[rejected: in-flight tuning proposal tied to a WORKSPACE plan; not a timeless mechanic — the TTL value is a design knob, not reference material]** (curation 2026-07-20).
+
+`DefaultCommitmentTicks: 300` (ai.yaml:122; PoiGoalGuard.cs:129). At `Speed: 25`
+(infantry.yaml:37, `^Infantry` template inherited by `^TECN` via the chain
+`^ArmedCivilian → ^CivInfantry → ^Infantry`), one cell takes `⌈1024 / 25⌉ ≈ 41` ticks.
+An 8-cell edge-to-SR-to-target route takes ~330 ticks, exceeding the TTL. When the TTL
+expires, `Prune()` (PoiGoalGuard.cs:104–116) drops the commitment and marks the unit
+as available again. If the unit has an `IsIdle` flicker mid-walk, the coordinator can
+re-issue a new capture order, aborting the in-progress approach. Fix: raise to 600
+(covers ~14-cell walk). River Zeta derricks are ~3–4 cells from SR (baseline §failures);
+combined edge-to-SR walk ~3–5 cells; total ~6–8 cells ≈ 250–330 ticks — borderline
+at 300, safe at 600.
+
+Code refs: `ai.yaml:122`, `PoiGoalGuard.cs:104`, `infantry.yaml:37`.
+
 ## 2026-07-20 — `CohesionMoveModifier` is a cover-aware intent system, NOT a simple offset system; and it DOES fire for bot orders
+
+> **[rejected: correction already applied — architecture.md:161 already carries the four-strategy cover-aware description and the bot-order-routing note]** (curation 2026-07-20).
 
 `architecture.md` description is **wrong**: "offsets group move targets based on CohesionMode
 (Tight/Loose/Spread). Preserves relative formation shape with capped offsets." The real
@@ -60,6 +130,8 @@ This is the key mechanism for the Dispersion Cycle (§2,
 `WORKSPACE/plans/260720_dispersion_cycle_design.md`).
 
 ## 2026-07-20 — Tournament scenario bot assignment lives in `map.yaml` Players, NOT in `tournament.yaml` `Matchup`
+
+> **[rejected: already documented in-tree — the `tournament.yaml` files comment `Matchup` as "informational", and WORKSPACE/ai/archive/tournament_swap_guide.md covers swaps; harness tooling, not engine/gameplay reference]** (curation 2026-07-20). Confirmed nothing but `TournamentConfig.cs:70-71` reads the field.
 - Building the S1 mirror (`tournament-s1-eco-river-zeta-mirror`) required swapping
   which bot plays which spawn. The `tournament-eco-5min.yaml` (and every scenario's
   `tournament.yaml`) has a `Matchup: { P1Bot, P2Bot }` block that *looks* like the
@@ -73,6 +145,8 @@ This is the key mechanism for the Dispersion Cycle (§2,
   bot on each fixed spawn.)
 
 ## 2026-07-20 — Scorer `capture_income` term repointed net→gross; `verdict_version` 3→4 flags an emitted field's changed *meaning* (not a schema add)
+
+> **[rejected: in-flight scorer changelog — describes a specific code change + version bump, not a durable mechanic; belongs with the commit/WORKSPACE, not reference]** (curation 2026-07-20).
 - `WeightedComponentMatchScorer.capture_income` (which feeds `TimeOrSrCaptureWinRule`,
   i.e. match *outcomes*) previously read net `PlayerResources.Earned`. In the
   SR-budget economy net Earned only rises on a net-positive periodic tick, so a held
@@ -91,6 +165,8 @@ This is the key mechanism for the Dispersion Cycle (§2,
   supersedes the 2026-07-19 note below that the scorer "reads … `PlayerResources.Earned`".
 
 ## 2026-07-19 — Tournament matches are NOT reproducible per seed: the AI ignores the seed via unseeded `world.LocalRandom`
+
+> **[promoted → architecture.md — "Bot decisions are not seed-reproducible"]** (curation 2026-07-20). Verified `World.cs:213-214`.
 - Verified empirically: two `BotVsBotMatchWatcher` runs of the SAME scenario
   (`tournament-arena-diagonal-2p`/`tournament-smoke.yaml`) with the SAME
   `Test.RandomSeed=1017` produced **different** winners and scores. Divergence
@@ -122,6 +198,8 @@ This is the key mechanism for the Dispersion Cycle (§2,
   window, stole no focus, completed, and wrote the v2 verdict JSON.)
 
 ## 2026-07-19 — Bot-vs-bot benchmark substrate: harness already exists but is macOS-gated; no headless mode; a hidden-window flag is the crux
+
+> **[rejected: in-flight research findings — full report already lives in WORKSPACE/plans/260719_ai_benchmark_substrate_findings.md; status/effort notes, not durable reference]** (curation 2026-07-20).
 - Researching a foundation for an **autonomous AI benchmark** (many unsupervised bot-vs-bot games, metrics from logs) surfaced that most of it is **already built**: `tools/autotest/run-tournament.sh` + `loop-tournament.sh` + `aggregate-tournament.sh` run N seeded matches, aggregate to CSV/JSON, and drive a milestone loop (winrate/budget stop-conditions). Engine side: `BotVsBotMatchWatcher` (world trait) writes a per-match JSON verdict (winner, win_reason, duration, per-player score_total + components); `WeightedComponentMatchScorer` already reads live `PlayerStatistics.ArmyValue/KillsCost` + `PlayerResources.Earned` (the `tournament.yaml` "only army_value" note is stale). 7 tournament scenarios exist incl. v2-vs-normal.
 - **Two blockers for the user's Windows goal:** (1) the whole harness is `.sh` + `uname` Darwin/Linux branches + `osascript` focus mitigation — **Windows is unhandled**; (2) **no headless mode** — only one `IPlatform` (`DefaultPlatform`), the SDL window is always shown (`Sdl2PlatformWindow.cs:227`, no `SDL_WINDOW_HIDDEN`), and on Windows it **steals focus** with no mitigation. The dedicated server can't substitute — it's order-relay only (`OpenRA.Server/Program.cs:100-109`, no `World`); bots tick client-side (`ModularBot.cs:86`).
 - A true headless/null renderer was **explicitly rejected** (`WORKSPACE/ai/archive/PITFALLS.md §17`) as "days of work, risk of breaking determinism" — but that call was made for macOS where `osascript` already tamed focus. On Windows the calculus flips. **Cheapest fix: ~10-line `OPENRA_WINDOW_HIDDEN=1` env flag adding `SDL_WINDOW_HIDDEN` at window creation** — no-window + no-focus-theft in one stroke, keeps a real GL context (unlike a null platform).
@@ -130,6 +208,8 @@ This is the key mechanism for the Dispersion Cycle (§2,
 - Full report + effort estimates: [`plans/260719_ai_benchmark_substrate_findings.md`](plans/260719_ai_benchmark_substrate_findings.md).
 
 ## 2026-07-19 — SUPPLYROUTE is NOT capturable today; the doc's "capture → Neutral" is a misread of OwnerLostAction
+
+> **[promoted → supply-route.md (§Capture rewrite + engine-integration bullets) & game-model.md; drove on-sight fixes to both]** (curation 2026-07-20). Verified `structures.yaml:202-343` (no Capturable/CaptureManager), `OwnerLostAction.cs`, `ConquestVictoryConditions.cs:109` / `StrategicVictoryConditions.cs:152`.
 - The game-model docs (`DOCS/reference/supply-route.md` §Capture, `game-model.md`) state an enemy SR can be captured by an engineer/technician and flips to Neutral. **This does not work in-game.** SUPPLYROUTE has **no `Capturable` and no `CaptureManager`** — not in its own block (`mods/ww3mod/rules/ingame/structures.yaml:202-343`), not in any template it inherits (`^ExistsInWorld`, `^SpriteActor`, `^SelectableBuilding` — all clean; `defaults.yaml:2-13, 772-775`), and not patched by any map/world/ai/campaign rules (checked). The Phase-2 AI worker's report was correct.
 - **The doc conflates two unrelated mechanisms.** `OwnerLostAction: ChangeOwner → Neutral` (structures.yaml:227-229) does NOT fire on capture. `OwnerLostAction` implements `INotifyOwnerLost` (`engine/OpenRA.Mods.Common/Traits/OwnerLostAction.cs:20,42` — "when the actor's owner is **defeated**"), and `OnOwnerLost` is called **only** from `ConquestVictoryConditions.cs:109-110` and `StrategicVictoryConditions.cs:152-153`, both iterating the actors of a just-defeated player. So an SR goes Neutral **only when its owning player loses the game**, never via an engineer.
 - **Capturer side is fully wired, target side is not.** TECN inherits `^CapturesNeutralBuildings` = `CaptureManager` + `Captures{CaptureTypes: building-neutral}` (`infantry.yaml:2164, 897-904`); soldiers get `^CapturesOccupiedBuildings` (`building-occupied`, 885-896). Capturable tech buildings (OILB/FCOM/BIO…) get the matching side via `^BasicBuilding → ^NeutralOrOccupiedCapturable` (`structures.yaml:2-10, 149-157`: `Capturable@neutral: building-neutral` + `Capturable@occupied: building-occupied`). **SUPPLYROUTE inherits none of that chain**, so there is no capture-type to intersect — TECN literally has nothing to enter/capture on an SR (neutral or enemy).
@@ -138,6 +218,8 @@ This is the key mechanism for the Dispersion Cycle (§2,
 - No live test was needed — the YAML+C# reading is unambiguous (no Capturable anywhere on the actor). A run could only confirm the negative.
 
 ## 2026-07-20 — PoiMap enemy-SR score: three factors conspire to keep it last in offensive ranking
+
+> **[rejected: in-flight design analysis tied to WORKSPACE/plans/260720_sr_contestation_cycle1.md — concrete map numbers + a proposed fix direction, not a stable mechanic]** (curation 2026-07-20).
 
 Computed from `PoiMap.GetOffensiveTargets` (PoiMap.cs:279) + world.yaml PoiMap block (line 296):
 
@@ -179,6 +261,8 @@ raises mild-threat SR score to 17M (competitive in top-4 mid-game) while hostile
 `WORKSPACE/plans/260720_sr_contestation_cycle1.md`.
 
 ## 2026-07-19 — Bot skirmish maps produce no army without a scenario applied
+
+> **[rejected: AUTOTEST test-setup methodology — belongs in DOCS/recipes, not engine/gameplay reference; scenario application itself is visible at World.cs:216-222]** (curation 2026-07-20).
 - Ran a bounded v2-vs-normal capture skirmish (`test-v2-poi-observe`, a bounded
   copy of `demo-v2-capture-coordinator`) for 55s to capture live AI logs. The v2
   bot built **nothing**: `[v2-poi] disperse pool=0 contested=0` for the whole
@@ -198,17 +282,23 @@ raises mild-threat SR score to 17M (competitive in top-4 mid-game) while hostile
   (see plan 260719 Phase 0 findings).
 
 ## 2026-05-18 — Handicap unreachable in the V5 player row (deferred until usage data exists)
+
+> **[rejected: WORKSPACE/lobby v1-cut decision (deferred to v1.1) — tracker material, tied to WORKSPACE/lobby/decisions.md]** (curation 2026-07-20).
 - The V5 player row (`engine/mods/common/chrome/lobby-players.yaml`) keeps `DropDownButton@HANDICAP_DROPDOWN` and `Label@HANDICAP` widgets in every template, but parks them at `X: -200 W: 1 H: 1` so the C# `Get<>()` calls in `SetupEditableHandicapWidget` still resolve while nothing paints. The column was dropped in phase 5 redesign — agreed in `WORKSPACE/lobby/decisions.md` as a deliberate v1 cut.
 - **Net effect:** the handicap mechanic still works (server orders, etc.) but players cannot SEE or CHANGE their handicap value from the lobby. Default applies.
 - **Access path options when re-introducing** (per `IMPLEMENTATION_PLAN.md` Phase 8): right-click context menu on the player row; expandable detail row; spawn-cell dropdown overload; drop entirely if usage data shows it's unused.
 - **Decision deferred to v1.1** — needs usage telemetry first. Bot-vs-bot tournaments and human skirmishes don't touch handicap today, so impact is low.
 
 ## 2026-05-18 — Empty MiniYaml values must be a bare trailing colon, not `""`
+
+> **[promoted → conventions.md — "Disabling a string field: bare colon, not \"\""]** (curation 2026-07-20). Verified `FieldLoader.cs:161` + `DropDownButtonWidget.cs:71-73`.
 - `Separators: ""` parses as the literal 2-char string `""` (FieldLoader.ParseString returns the raw value). It then fails `IsNullOrEmpty` inside DropDownButtonWidget.Draw, and `WidgetUtils.GetCachedStatefulImage("\"\"", "separator")` throws `Sprite ""/separator was not found`.
 - Correct form: `Separators:` (bare trailing colon) — the parser treats it as a null string, IsNullOrEmpty fires, the lookup is skipped.
 - Applies to any chrome/widget string field where you want to disable a feature by clearing it (Background, Decorations, Separators, TooltipText).
 
 ## 2026-05-13 — CohesionMoveModifier feels broken because EdgeLine looks identical to the old box
+
+> **[rejected: in-flight feel-bug diagnosis (specific test probes + slot-bidder bugs) — the mechanism spec is already in architecture.md:161; diagnosis belongs in WORKSPACE]** (curation 2026-07-20).
 Autotest-driven diagnosis on real river-zeta (`test-cohesion-river-zeta-actual`, 12 probes spanning open ground / sparse fringe / dense cluster / cross-map clicks) produced the [Cohesion] log lines below. Three things, in priority order:
 
 1. **EdgeLine is the dominant intent for near-cover clicks (totalDensity 70–530), and it produces a perfectly straight perpendicular line of slots.** That visual output is indistinguishable from "spread to a line oriented along the move direction" — exactly the legacy box behavior the user thinks is broken. SpreadInside (the cluster-around-best-cover layout) only fires for clicks DEEP in dense cover (centroid offset < ~1.4 cells). Most natural clicks are at the edge of a cluster or 1–3 cells outside it — those resolve to EdgeLine.
@@ -222,47 +312,75 @@ Autotest-driven diagnosis on real river-zeta (`test-cohesion-river-zeta-actual`,
 Other notes: DensityLayer is populated correctly (trees contribute density=10 to one trunk cell via `Building.Density`; `BlocksSight` has `IDensityInfo` commented out — only Buildings contribute). The `IModifyGroupOrder` dispatch works for every Test.GroupMove probe (the older "1 of 8" datapoint must predate a fix). Diagnostic log line restored at the bottom of `CohesionMoveModifier.ModifyGroupOrder` (idx==0) — strip when the feel issue is resolved.
 
 ## 2026-05-09 — AttackTurreted overrides CanAttack and short-circuits before base
+
+> **[promoted → conventions.md — "Engine behaviors that surprise"]** (curation 2026-07-20). Verified `AttackTurreted.cs:36-48`.
 - `AttackTurreted.CanAttack(self, target)` returns `turretReady && base.CanAttack(self, target)`. When `turretReady = FaceTarget(target)` is false (turret mid-rotation), `base.CanAttack` is never reached. So traces / breakpoints in `AttackBase.CanAttack` won't fire if the turret hasn't finished aiming. If you're trying to debug "why isn't this unit firing", check `AttackTurreted.cs` first — the answer is often "turret hasn't pointed at the target yet".
 
 ## 2026-05-09 — Activity.IsCanceling is always false inside OnLastRun
+
+> **[promoted → conventions.md — "Engine behaviors that surprise"]** (curation 2026-07-20). Verified `Activity.cs:84,132-135`.
 - `Activity.TickOuter` sets `State = ActivityState.Done` *before* calling `OnLastRun(self)`. `IsCanceling` is `State == ActivityState.Canceling`, so by the time OnLastRun runs, the cancel flag has been cleared. Useless for "did we end naturally vs cancelled". Better signals: check `NextActivity is X` (a queued activity behind us implies we were replaced), or compare `attack.RequestedTarget` to our own `target` field (someone else has already set the new target if they differ).
 
 ## 2026-05-09 — Build cache occasionally skips single-file edits; touch + make to force
+
+> **[rejected: dev-workflow anecdote (macOS `make`/`touch`, "occasionally") — low-confidence build tip, not an engine/gameplay mechanic]** (curation 2026-07-20).
 - `make` reports success even when a single .cs file's edit didn't make it into the DLL. Symptoms: traces don't fire, behavior unchanged, build log says `0 errors`. Fix: `touch <file>.cs && make`. Catches incremental-build dependency-tracking misses. Cost a couple of wasted runs in the artillery debugging session before recognizing the pattern.
 
 ## 2026-05-09 — Test mode trace pattern: gate on Game.LocalTick % N == 0
+
+> **[rejected: AUTOTEST recipe tip — a debugging technique that belongs in DOCS/recipes, not reference]** (curation 2026-07-20).
 - For "I want one trace per second, not 25 per tick" diagnostics during AUTOTEST: `if (TestMode.IsActive && Game.LocalTick % 25 == 0) Console.WriteLine(...)`. Pairs with the runner stdout capture at `/private/tmp/claude-501/.../tasks/<id>.output` — grep that file post-test. Strip all of these before committing the fix.
 
 ## 2026-05-03 — GrantConditionOnPrerequisite: ownership-change crash (upstream OpenRA bug)
+
+> **[rejected: resolved-bug changelog — the fix already landed (GrantConditionOnPrerequisite.cs:62-76 unregisters/re-registers on owner change); nothing left for a future agent to act on]** (curation 2026-07-20).
 - `GrantConditionOnPrerequisiteManager` is a per-player trait — each player has their own dictionary of `{key → list of (actor, trait)}`. `GrantConditionOnPrerequisite` registers the actor with its initial owner's manager in `AddedToWorld`, but the original `OnOwnerChanged` only rebound the cached manager reference without unregistering from old / registering with new. Result: after any in-world ownership change (capture, `OwnerLostAction: ChangeOwner Owner: Neutral`, garrison transfer, scenario transfer), `RemovedFromWorld` calls `Unregister` on the wrong dictionary → `KeyNotFoundException: condition_<prerequisite>`. First seen with LOGISTICSCENTER + `global-mcv-undeploys` after a player was defeated. Fix in `engine/OpenRA.Mods.Common/Traits/Conditions/GrantConditionOnPrerequisite.cs`: `OnOwnerChanged` now unregisters from the old manager and re-registers with the new one (when in world). Also fixes a memory leak (old manager kept dangling reference) and the silent correctness bug where the new owner's tech tree wouldn't drive the actor's condition.
 
 ## 2026-03-23 — OpenRA maps MUST have `Rules: rules.yaml` in map.yaml
+
+> **[promoted → conventions.md — "Maps must declare Rules: rules.yaml"]** (curation 2026-07-20). Verified `Map.cs:176,364`.
 - Without the `Rules: rules.yaml` line at the top level of map.yaml, OpenRA silently ignores rules.yaml entirely. This means LuaScript references, AutoTarget overrides, and all rule modifications are never loaded. The map appears to work (actors spawn, terrain renders) but Lua never executes and rule overrides don't apply. The MCP map tool was missing this — now fixed in set_map_rules.
 
 ## 2026-03-23 — ReloadAmmoPool FullReloadTicks/FullReloadSteps are dead code
+
+> **[rejected: stale/wrong against current code — `ReloadAmmoPoolInfo` has no such fields (ReloadAmmoPool.cs:18-44); `FullReloadTicks`/`FullReloadSteps` exist and are actively used + unit-tested only on `AmmoPoolInfo` (AmmoPool.cs:29,32,225-234; AmmoPoolTest.cs). No dead code to document.]** (curation 2026-07-20).
 - `ReloadAmmoPoolInfo` has `FullReloadTicks` and `FullReloadSteps` fields, but they're never read in code. `ReloadAmmoPool.Tick()` calls `ammoPool.Reload(self, Info.Delay, Info.Count)` which uses `Delay` (50) and `Count` (1). The `FullReloadTicks`/`FullReloadSteps` on *AmmoPoolInfo* (not ReloadAmmoPoolInfo) ARE used inside `AmmoPool.Reload()`, but the identically-named fields on ReloadAmmoPoolInfo do nothing. Many YAML entries set these thinking they matter (e.g., `ReloadAmmoPool@1: FullReloadTicks: 200`). Either implement them or remove from YAML.
 
 ## 2026-03-23 — SupplyProvider ammo-per-cycle scaling matters
+
+> **[rejected: superseded by economy.md's `ReloadCount` batch model — this describes an older `max(1, poolCapacity/50)` fix that the current per-batch economy replaced; changelog]** (curation 2026-07-20).
 - SupplyProvider was giving 1 ammo per RearmDelay cycle regardless of pool capacity. For an AR soldier with 500 ammo capacity, this took 5+ minutes to fill. Fixed to give `max(1, poolCapacity/50)` per cycle (~50 cycles from empty). Also added MinNeedThreshold (5%) to skip nearly-full units.
 
 ## 2026-03-21 — IProductionSpeedModifier pattern
+
+> **[rejected: already covered — architecture.md's `SupplyRouteContestation` trait row names IProductionSpeedModifier; deeper interface mechanics are implementation detail]** (curation 2026-07-20).
 - Created `IProductionSpeedModifier` interface for dynamic per-tick production speed control. Unlike `IProductionTimeModifierInfo` (which only applies at production START), this uses an accumulator pattern in `ProductionQueue.TickInner` to skip ticks proportionally. Returns 0-100 (percentage). Both `ProductionQueue` and `ClassicParallelProductionQueue` support it. The modifier is queried from producing buildings (not the player actor), via `ActorsWithTrait<Production>()` iteration.
 
 ## 2026-03-21 — Supply Route contestation replaces ProximityContestable
+
+> **[rejected: already covered — architecture.md:159 (SupplyRouteContestation trait) + supply-route.md contestation section]** (curation 2026-07-20).
 - The old `ProximityContestable` trait was binary (any enemy = full production halt, no feedback). Replaced with `SupplyRouteContestation` which uses value-based force comparison, graduated depletion/recovery, and `IProductionSpeedModifier` for smooth production slowdown. Key design: bar stored as int 0-100000 for precision, depletion formula `ticksToDeplete = max(MinTicks, BaseTicks * RefValue / netSurplus)`.
 
 ## 2026-03-21 — Initial setup
+
+> **[rejected: trivial project-setup note, no reference content]** (curation 2026-07-20).
 - Created WORKSPACE/ project folder for session tracking, plans, discoveries, and bug captures.
 
 ## 2026-03-21 — MCP map actor facing
+
+> **[rejected: already covered — conventions.md "WAngle facing" table (0=N, 256=W, 512=S, 768=E) + CLAUDE.md]** (curation 2026-07-20).
 - Actor `Facing` field in map.yaml must be a WAngle integer (0-1023), not a compass string like "East". The MCP `place_actors` tool passes it through as a string, so use: **0=North, 256=West, 512=South, 768=East** (counterclockwise — see `~/.claude/projects/.../memory/feedback_facings.md` and CLAUDE.md). Using "East" crashes on map load with `FieldLoader: Cannot parse 'East' into 'value.OpenRA.WAngle'`.
 - (Corrected 2026-05-06 — earlier version of this entry had the directions wrong.)
 
 ## 2026-06-18 — autotest/screenshot scripts need `python3` on PATH
+
+> **[rejected: machine-specific environment fix (this Windows box's PATH) — not portable project reference]** (curation 2026-07-20).
 - `launch-game.sh` (used by `tools/autotest/screenshot-lobby.sh`, `screenshot.sh`, etc.) requires `python3` (or `python`) — it shells out only to resolve its own realpath. On this Windows box the only `python3` on PATH was the WindowsApps Store stub, which prints "Python was not found" and exits non-zero, so every launch died with "game process exited before lobby was ready" (no logs, because it never reached engine init).
 - Fix (permanent): real Python lives at `C:\Python314` (admin-protected, can't drop files there). Created `C:\Users\fredr\bin\python3.exe` (copy of `C:\Python314\python.exe` — a bare copy still finds its stdlib via the PEP 514 registry landmark) and prepended `C:\Users\fredr\bin` + `C:\Python314` to the **user** PATH *ahead of* WindowsApps. Wrote the registry value as `REG_EXPAND_SZ` to preserve the existing `%USERPROFILE%` entries. New terminals pick it up automatically; already-running processes need a restart.
 
 ## 2026-07-18 - Lobby finishing pass: three engine gotchas
+
+> **[promoted → architecture.md — "Widget / chrome authoring gotchas"]** (curation 2026-07-20). Verified `ImageWidget.cs:31,61,78-91`, `ButtonWidget.cs:320-323`, `Widget.cs:229-231`.
 - **ImageWidget draws sprites at native size** - Width/Height are layout-only; `WidgetUtils.DrawSprite(sprite, origin)` ignores widget bounds. The "flag fills height" commit (0100022f) was a silent no-op for months. Added opt-in `ScaleToBounds: True` (uniform scale, centered, 3-arg DrawSprite overload) - remember to mirror new fields in the widget copy-constructor or template clones lose them.
 - **ButtonWidget silently draws nothing for missing chrome variants** - a highlighted button looks up `<Background>-highlighted` (+ `-hover`/`-pressed`/`-disabled` suffixes); if the collection is absent, `WidgetUtils.DrawPanel` early-returns with no error. Our active tabs rendered with NO fill while inactive ones kept theirs (inverted emphasis). Any custom `Background:` needs the full variant set - `lobby-button-highlighted*` added 260718.
 - **Hidden widgets keep keyboard focus** - `Widget.HandleKeyPress` only checks the focus widget's OWN `IsVisible`, not its ancestors. The inline map chooser's filter TextField kept focus while its parent tab was hidden: chat field dead, and Enter could silently fire the chooser's onSelect (= change the map). Pattern: any tab-switch that hides a focused widget must hand focus off explicitly.

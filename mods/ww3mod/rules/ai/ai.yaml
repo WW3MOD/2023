@@ -119,7 +119,11 @@ Player:
 	# section note + SPEC §13.)
 	PoiGoalGuard@poi:
 		RequiresCondition: enable-ai-experimental || enable-ai-stable
-		DefaultCommitmentTicks: 300
+		# 600 (was 300): at Speed 25 one cell is ~41 ticks, so 300 only covers a
+		# ~7-cell walk — borderline for edge→SR→derrick routes, causing commitment
+		# expiry mid-approach (F-2). 600 covers ~14.6 cells with margin. Shared with
+		# @stable per SPEC §13 (single-instance module).
+		DefaultCommitmentTicks: 600
 
 	# experimental AI: smart capture + escort + defense of income structures.
 	# Income weights match CashTrickler amounts in structures-neutral.yaml
