@@ -655,6 +655,9 @@ Player:
 		DefenseFriendlyScanRadiusCells: 6
 		DefenseSummonCount: 3
 		DefenseEnemyValueThreshold: 200
+		# Promoted from @experimental (post-S1 snapshot, SPEC §13): keep >=1 capturer
+		# alive-or-pending. Validated by cycle-2 (capture 4/10->8/10, merged c6a71c14).
+		TecnFloor: 1
 
 	PoiOffensiveBotModule@stable:
 		RequiresCondition: enable-ai-stable
@@ -666,6 +669,13 @@ Player:
 		ReassignScoreThresholdPct: 30
 		RepathThresholdCells: 3
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
+		# Promoted from @experimental (post-S1 snapshot, SPEC §13): dispersion doctrine —
+		# spread to move, mass to assault. Validated by the exp-dispersion S1 non-regression
+		# run (win 9/10, capture 9/10). Now the frozen Stable behaviour too.
+		CohesionSwitchEnabled: true
+		AssaultRadiusCells: 15
+		ApproachCohesion: Spread
+		AssaultCohesion: Tight
 
 	PoiGarrisonBotModule@stable:
 		RequiresCondition: enable-ai-stable

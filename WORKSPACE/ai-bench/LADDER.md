@@ -214,6 +214,22 @@ The even/odd index split still deterministically selects primary vs mirror
 > 2017/8017 are the natural regression/improvement watch cells. Analysis:
 > [`runs/260720_seeded_baseline_n10.md`](runs/260720_seeded_baseline_n10.md).
 
+> **PROMOTE — Stable ← Experimental post-S1 snapshot (2026-07-20, SPEC §13).** The frozen
+> **Stable** control is now the post-S1 Experimental config: the two `@experimental`-vs-`@stable`
+> config deltas were copied down into the `@stable` blocks in `mods/ww3mod/rules/ai/ai.yaml` —
+> (1) `CaptureCoordinatorBotModule` **`TecnFloor: 1`** (cycle-2 availability floor, merged
+> `c6a71c14`, capture 4/10→8/10) and (2) the `PoiOffensiveBotModule` **dispersion doctrine**
+> (`CohesionSwitchEnabled: true`, `AssaultRadiusCells: 15`, `ApproachCohesion: Spread`,
+> `AssaultCohesion: Tight`; merged `56a57349`, S1 non-regression win 9/10). All other module
+> pairs were already field-identical; the two shared single-instance modules
+> **`PoiGoalGuard@poi`** and **`MountedTransportBotModule@poi`** (gated
+> `enable-ai-experimental || enable-ai-stable`) are **not** twinned and were left untouched
+> (a second instance throws — SPEC §13). Normal/Rush/Turtle byte-untouched. Evidence for the
+> promotion: the seeded reference baseline above (`runs/260720_seeded_baseline_n10.md`,
+> Experimental 8/10 capture / 10-0 vs the pre-cycles Stable-tier 4/10 / 8-2); §13 user-acceptance
+> AUQ posted default-promote. Build green + NUnit 291/291. Commit
+> `PROMOTE: Stable <- Experimental post-S1 snapshot (TecnFloor + dispersion)`.
+
 > **PITFALL:** the S1 metric is **`capture_income_gross`** (verdict_version 4), NOT
 > `resources_earned` and NOT `PlayerStatistics.Income`. `Income` is a rolling 60-second
 > figure and `resources_earned` (net `Earned`) is blind to held-derrick income (below) —
