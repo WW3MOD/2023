@@ -3,6 +3,34 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-20 — The TECN-floor request dies at a *busy Infantry queue*, and the M-2 vs every-scan placement is identical at floor 1
+
+Found during the capture-throughput recon (`WORKSPACE/plans/260720_capture_throughput_cycle.md`).
+Two non-obvious code facts about the `IBotRequestUnitProduction` floor path:
+
+1. **Request-death point (the m7-class "requested 82× never converted"):** a popped build request
+   only starts production on a queue where `!q.AllQueued().Any()` — i.e. a **free** queue —
+   `UnitBuilderBotModule.BuildUnit(name)` (`:155`). With one busy Infantry queue the popped request
+   finds no free queue and is **silently dropped** (the pop at `:90-91` removes it regardless), so
+   `RequestedProductionCount` reads 0 again and the floor re-requests next scan. N re-requests = N
+   popped-and-dropped cycles against a saturated queue — a **production-starvation** tail (with
+   `tecn-killed=0`, the unit is never produced), NOT a survival/dispatch problem. Re-requesting faster
+   cannot fix it; the lever is queue reservation / a dedicated capturer production path / lower
+   competing infantry share.
+
+2. **Floor placement is a no-op at floor 1:** moving `MaintainTecnFloor` off the M-2
+   (`idleCapturers==0`) gate (`CaptureCoordinatorBotModule.cs:271-272`) to run every scan is
+   **byte-identical at `TecnFloor: 1`** — every-scan fires only when `alive+pending<1` ⇒ `alive=0` ⇒ no
+   capturers ⇒ `idleCapturers=0` ⇒ M-2 already reached. The placement only differs at `TecnFloor ≥ 2`.
+   Practical consequence: the code move is **safe for a frozen `@stable` that stays at floor 1** with no
+   new gate field — a rare case where a shared-class behaviour change needs no default-off bool.
+
+Corollary for diagnosis: a $0 capture run that already holds ≥1 alive TECN is a **conversion stall**,
+not an availability gap — the floor is satisfied, so neither placement nor a floor bump is guaranteed to
+flip it; only redundancy (floor 2 = a second independent attempt) or a screen (escort reservation) does.
+
+Code refs: `UnitBuilderBotModule.cs:85-96,142-165`, `CaptureCoordinatorBotModule.cs:245-274,380-405`.
+
 ## 2026-07-20 — Benchmark run-to-run variance is one unseeded line; the fixed seed already flows everywhere *except* `LocalRandom`
 
 > **[promoted → architecture.md "Bot decisions ARE seed-reproducible"]** (curation 2026-07-20). Verified `World.cs:213-224` (LocalRandom now seeded from RandomSeed via the LCG transform, guarded on `!= 0`). Pre-fix recon subsumed by the verify entry below.
