@@ -1,0 +1,41 @@
+# AI Benchmark — Scenario 2 (Force Efficiency) config.
+#
+# Copy of the S1 eco config with a 12-minute clock, per LADDER.md §Scenario 2 /
+# WORKSPACE/plans/260720_s2_expand_design.md. Read by BotVsBotMatchWatcher when
+# launched with Test.Mode=true Test.TournamentConfig=<this file>.
+#
+# Ladder metric is NET COMBAT SWING = stats.kills_cost - stats.deaths_cost, read
+# post-hoc from the per-match verdict JSON (both fields already emitted by
+# BotVsBotMatchWatcher). The Scorer/WinRule below only decide the in-match winner;
+# they do NOT affect the ladder metric and are kept BYTE-IDENTICAL to the S1 eco
+# config / committed tournament.yaml — the ONLY difference from S1 is the clock
+# (300 -> 720s). Keeping the scorer/win-rule frozen means S1's baseline is not
+# invalidated (no re-BASELINE, DOCTRINE.md:11).
+
+Matchup:
+	P1Bot: experimental
+	P2Bot: normal
+
+# 12-minute match — LADDER S2 (TimeLimitSeconds: 720). Long enough for sustained
+# contact so exchange efficiency + force preservation dominate (S1's 300s isolates
+# early economy before attrition; S2 wants the fight).
+TimeLimitSeconds: 720
+
+# Mode B (hidden) launch profile: SpeedMultiplier 8 via world.Timestep override
+# (BotVsBotMatchWatcher applies it at WorldLoaded). SPEC §3 / LADDER common run
+# knobs. At 8x a 720s match is ~1.5-2 wall-min hidden. NOTE (plan R-2): give the
+# batch a generous --max-wall-secs so the wall-clock watchdog does not kill a
+# 720s match before its natural time_limit end (would break the paired model).
+SpeedMultiplier: 8
+GameSpeed: fastest
+
+Scorer: weighted_components
+WinRule: score_or_sr_capture
+
+Score:
+	ArmyValueWeight: 1.0
+	CaptureIncomeWeight: 2.0
+	KillsValueWeight: 1.0
+	SrCaptureBonus: 100000
+
+ScoreMarginForDecisive: 0.20

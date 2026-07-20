@@ -1,0 +1,14 @@
+AI Benchmark Scenario 2 (Force Efficiency). experimental vs Normal on the SAME canonical
+River Zeta WW3 terrain (98x82, all 12 neutral OILB derricks) as S1 — S1/S2/S3 differ only
+by clock + metric, which keeps the "one rung = one map, composite gate" model coherent
+(LADDER.md, plan WORKSPACE/plans/260720_s2_expand_design.md). Metric: NET COMBAT SWING =
+stats.kills_cost - stats.deaths_cost, read post-hoc from the per-match verdict JSON (both
+fields already emitted by BotVsBotMatchWatcher — no scorer change, no S1 re-BASELINE). Clock:
+tournament-combat-12min.yaml (TimeLimitSeconds 720, SpeedMultiplier 8, Mode B hidden). The
+central OILB cluster is the contested middle both armies must cross and fight over, generating
+sustained contact that exposes exchange efficiency + force preservation (dispersion's real
+payoff, which S1's economy metric could not credit). USA-bot/experimental SR at 14,45;
+Russia-bot/normal SR at 80,35. Pair with tournament-s2-combat-river-zeta-mirror (bot-assignment
+swap) for spawn/faction-bias control; gate experimental numbers on the Normal-vs-Normal
+calibration batch (tournament-s2-combat-river-zeta-cal-nn) — the min-engagement check is the
+go/no-go on Normal as the S2 opponent.

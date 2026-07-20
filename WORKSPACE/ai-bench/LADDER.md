@@ -22,12 +22,20 @@ vs control) lives in [`REVIEW.md`](REVIEW.md) §Ladder Status.
   (`mods/ww3mod/maps/river-zeta-ww3/`, Title "River Zeta WW3"). **S1 (economy)**
   runs on `tournament-s1-eco-river-zeta` — a scenario whose `map.yaml` is derived
   from the canonical River Zeta terrain (full 98×82, all **12 neutral OILB income
-  derricks kept**) with the harness overlay (2 SRs + 2 bot spawns). **S2 (combat)
-  and S3 (win-rate)** run on the combat stub `tournament-v2-vs-normal-2p`
-  (66×34, no POIs — fine, those facets don't need capturables). Each has a
-  faction-swapped mirror twin for bias control (SPEC §9.4). (S1's mirror,
+  derricks kept**) with the harness overlay (2 SRs + 2 bot spawns). **S2 (combat)**
+  runs on `tournament-s2-combat-river-zeta` — a **byte-identical copy of the S1
+  River Zeta map** with a 720s combat clock (built 2026-07-20 per
+  [`../plans/260720_s2_expand_design.md`](../plans/260720_s2_expand_design.md)); the
+  central OILB cluster is the contested middle that forces the fight. **S3 (win-rate)**
+  will reuse the same River Zeta rung (scenario TBD at S3 standup). The **old 66×34
+  combat stub `tournament-experimental-vs-normal-2p` is RETIRED from the ladder** — it
+  had zero capturables and sat on a *different* map than S1, contradicting the
+  "one rung = one map" composite-gate model (§ below). Each scenario has a
+  mirror twin for bias control (SPEC §9.4). (S1's mirror,
   `tournament-s1-eco-river-zeta-mirror`, was **built 2026-07-20** — bot-assignment
-  swap, not faction swap, since S1's bias concern is derrick *distance* per spawn.)
+  swap, not faction swap, since S1's bias concern is derrick *distance* per spawn;
+  S2's mirror `tournament-s2-combat-river-zeta-mirror` follows the same bot-swap
+  pattern, which on this fixed-faction-per-spawn map swaps spawn AND faction at once.)
 - Each rung holds **three scenarios**, each probing a different facet of "is the
   AI actually better": **economy**, **combat efficiency**, **decisiveness**.
 - A rung is **cleared** by the **composite gate** (§ below): one single commit
@@ -46,14 +54,18 @@ cheap (docs + a config, no engine work).
 Common run knobs (in each scenario's `tournament.yaml`): `TimeLimitSeconds`,
 `SpeedMultiplier` (8 in Mode B / 6 in the Mode A fallback, SPEC §3), `Scorer`,
 `WinRule`, `Score` weights. The harness assigns `MATCH_SEED = i*1000+17` for
-`i = 1..N` (`run-tournament.sh:206`), but **seeds are run labels, not
-reproducibility guarantees** — bots draw from an unseeded `LocalRandom`, so a
-seed does **not** replay the same game (SPEC §3.2, DISCOVERIES 2026-07-19). Every
-run is an independent sample, which is all the N-run statistics need.
-"Re-verification" therefore means **re-running the N matches** (a fresh
-independent batch), not replaying identical games; a larger N narrows the median.
-The even/odd index split still deterministically selects primary vs mirror
-*scenario* per match (that's index parity, not RNG) — bias control is unaffected.
+`i = 1..N` (`run-tournament.sh:283`). **UPDATE (2026-07-20, `2d3c8fe0`): per-seed
+replay is now DETERMINISTIC.** `LocalRandom` is seeded from the lobby `RandomSeed`
+via a decorrelating PCG transform (`World.cs:213-214`), and same-seed→byte-identical
+verdicts (incl. the tick-by-tick score log) were **verified** (DISCOVERIES 2026-07-20;
+the 2026-07-19 "seeds are run labels, replay broken" entries are **superseded**). So
+the fixed per-index seed set makes every cycle reuse the **same battlefields** →
+cross-cycle and control-vs-experimental comparisons are **paired** (a large variance
+reduction the S2 bar exploits). Each run is still a valid independent-across-seeds
+sample for N-run medians; "re-verification" re-runs the N matches (now reproducibly).
+**Caveat:** don't overfit behaviors to the fixed 10 seeds — rotate/expand the set at
+BASELINE if a behavior only wins on the standard set. The even/odd index split
+selects primary vs mirror *scenario* per match (index parity, not RNG).
 
 ---
 
@@ -264,11 +276,11 @@ score-floating spread offense (Phase 3, `PoiOffensiveBotModule`) **trade better*
 
 | Field | Value |
 |---|---|
-| Scenario | `tournament-v2-vs-normal-2p` (River Zeta), + mirror |
-| Contestants | P1 Experimental (v2) vs P2 Normal (control) |
+| Scenario | `tournament-s2-combat-river-zeta` (**built 2026-07-20** — byte-identical River Zeta map as S1, 720s combat clock), + `tournament-s2-combat-river-zeta-mirror` (bot-swap twin) |
+| Contestants | P1 Experimental (v2) vs P2 Normal (control) — Rush fallback if CALIBRATE shows Normal underfights |
 | Match length | **12 minutes** — `TimeLimitSeconds: 720` (guarantees sustained contact) |
-| **Metric** | **net combat budget swing** = `stats.kills_cost − stats.deaths_cost` |
-| N runs | **15** |
+| **Metric** | **net combat budget swing** = `stats.kills_cost − stats.deaths_cost` (already emitted per player — read post-hoc, no scorer change, no S1 re-BASELINE) |
+| N runs | **10** (paired seeds cut variance vs the draft's 15 — det. dividend; bump to 20 only if CALIBRATE shows control swing noisy) |
 | Seeds | `1017 … 15017`; even primary, odd mirror |
 | Advancement | `median(v2 net swing) ≥ median(Normal net swing) + margin`, margin = **1× a single mid-tier unit's cost** (an absolute floor, so a positive-but-tiny edge doesn't count as "better") |
 | WinRule | `score_or_sr_capture` |
@@ -296,6 +308,27 @@ so "efficiency" isn't achieved by refusing to fight. If both AIs turtle to a
 non-engagement, the scenario is invalid → re-scope (shorter map, forced contact)
 rather than score it.
 
+> **SCENARIO LIVE + CALIBRATE VERDICT (2026-07-20, `main @ 21510e05`).** S2 scenario
+> set built (`tournament-s2-combat-river-zeta` + `-mirror` bot-swap twin + `-cal-nn`);
+> byte-identical River Zeta map as S1, 720s combat clock, scorer/win-rule frozen (no S1
+> re-BASELINE). **Normal-vs-Normal CALIBRATE (N=10, hidden Mode-B, all 18000t/time_limit,
+> 0 crashes)** — analysis [`runs/260720_s2_calibrate_nn.md`](runs/260720_s2_calibrate_nn.md):
+> - **MIN-ENGAGEMENT: PASS → GO for Normal.** Engagement-volume median 7475/5950,
+>   deaths_cost median 5725/4400, units dying every match both sides — Normal fights hard at
+>   720s. **Opponent = `@normal` confirmed; the `@rush` fallback is NOT needed.**
+> - **SIDE LEAN: moderate russia/80,35** (win split **7-3**, score median 4525 vs 2400,
+>   net-swing median -2400 vs -3575) — stronger than S1's economy lean. **Mirror policy: mandatory
+>   5 primary + 5 mirror, and the S2 pass must hold from BOTH spawns** (≥3/5 each).
+> - **BAR (proposed, pending ratification):** the data shows **both** sides net-swing-**negative**
+>   (structural attrition offset: `deaths_cost` counts all losses, `kills_cost` only enemy kills), so
+>   the *absolute* "≥ +$1,400" form is biased against passing. **Use the PAIRED-RELATIVE bar instead:
+>   `median(Exp net swing) ≥ median(Normal net swing) + $1,400`** (one IFV) on the same deterministic
+>   seed set (cancels the shared offset), + ≥7/10 positive-delta sign robustness + both-spawn symmetry.
+>   Flagged for user ratification (DOCTRINE.md:26); loop proceeds on it.
+> - **S3 watch:** the 7-3 combat lean sits outside S3's 0.40–0.60 win-rate band — S3 must lean on
+>   the mirror or a larger-N win-rate calibration before a win-rate is trusted.
+> First Experimental-vs-Normal S2 batch is the next S2 step (not run here).
+
 ---
 
 ## Scenario 3 — Decisive Outcome / Win-rate (proposed)
@@ -305,7 +338,7 @@ rather than score it.
 
 | Field | Value |
 |---|---|
-| Scenario | `tournament-v2-vs-normal-2p` (River Zeta), + mirror (essential here) |
+| Scenario | River Zeta rung, scenario TBD at S3 standup (reuse the S2 `tournament-s2-combat-river-zeta` map + 720s clock, or a dedicated `tournament-s3-*-river-zeta`), + mirror (essential here) |
 | Contestants | P1 Experimental (v2) vs P2 Normal (control) |
 | Match length | **12 minutes** — `TimeLimitSeconds: 720` (the committed default config) |
 | **Metric** | **Experimental win-rate** (fraction of matches where `winner_name` is the v2 player), from `summary.json` |
@@ -367,16 +400,21 @@ scenarios stay live.
 | Scenario | Folder | Config for this ladder |
 |---|---|---|
 | S1 Economy Race | `tools/autotest/scenarios/tournament-s1-eco-river-zeta/` | `tournament-eco-5min.yaml` (`TimeLimitSeconds: 300`, `SpeedMultiplier: 8`) |
-| S2 Force Efficiency | `tools/autotest/scenarios/tournament-experimental-vs-normal-2p/` | the committed `tournament.yaml` (`720s`) |
-| S3 Win-rate | `tools/autotest/scenarios/tournament-experimental-vs-normal-2p/` | the committed `tournament.yaml` (`720s`) |
+| S2 Force Efficiency | `tools/autotest/scenarios/tournament-s2-combat-river-zeta/` | **BUILT (2026-07-20)** — byte-identical River Zeta map as S1 (98×82, 12 OILB derricks), `tournament-combat-12min.yaml` (`TimeLimitSeconds: 720`, `SpeedMultiplier: 8`); scorer/win-rule frozen identical to S1 (only the clock differs → no S1 re-BASELINE) |
+| S3 Win-rate | River Zeta rung — scenario TBD at S3 standup (reuse S2's map + 720s config, or a dedicated `tournament-s3-*-river-zeta`) | `tournament-combat-12min.yaml` (`720s`) |
 | S1 bias twin | `tools/autotest/scenarios/tournament-s1-eco-river-zeta-mirror/` | **BUILT (2026-07-20)** — byte-identical copy of the primary with the two bots' spawn assignments SWAPPED (Experimental on Russia/80,35, Normal on USA/14,45); uses the same `tournament-eco-5min.yaml`. Smoke-verified: boots + full 7500t hidden. |
 | S1 calibration (N-vs-N) | `tools/autotest/scenarios/tournament-s1-eco-cal-nn/` | **BUILT (2026-07-20, `f8052ec`)** — byte-identical copy of the primary with the USA-bot `Bot:` line `experimental`→`normal` (both bots `@normal`); Title/Matchup relabelled. Side-fairness probe: with identical bots the mirror swap is a no-op, so a single N=10 batch measures pure spawn/side bias. Ran N=10 hidden (`runs/260720_s1_baseline_n10.md`). |
-| S2/S3 bias twin | `tools/autotest/scenarios/tournament-experimental-vs-normal-mirror-2p/` | matching mirror configs |
+| S2 bias twin | `tools/autotest/scenarios/tournament-s2-combat-river-zeta-mirror/` | **BUILT (2026-07-20)** — byte-identical copy of the S2 primary with the two bots' spawn assignments SWAPPED (bot-swap = spawn+faction swap on this map); same `tournament-combat-12min.yaml`. |
+| S2 calibration (N-vs-N) | `tools/autotest/scenarios/tournament-s2-combat-river-zeta-cal-nn/` | **BUILT (2026-07-20)** — both bots `@normal`; single N=10 batch measures side/faction bias + min-engagement at the 720s combat clock (go/no-go on Normal as the S2 opponent). |
 
 S1 now uses a **River-Zeta-derived** scenario (`tournament-s1-eco-river-zeta`):
 its `map.yaml` keeps the full River Zeta terrain + all 12 neutral OILB derricks
 and overlays the harness's 2 SRs + 2 bot spawns; `rules.yaml` and
 `tournament-eco-5min.yaml` are byte-identical to the `tournament-v2-vs-normal-2p`
 originals. This is a **harness** change (allowed, SPEC §4.1) — map/scenario only,
-no unit stat / balance / engine edit (derrick income stays `$50`). S2 and S3 keep
-the combat stub + committed 720s config as-is.
+no unit stat / balance / engine edit (derrick income stays `$50`). **S2 now uses a
+River-Zeta-derived combat scenario too** (`tournament-s2-combat-river-zeta`, a
+byte-identical copy of the S1 map with a 720s clock) — the old 66×34
+`tournament-experimental-vs-normal-2p` combat stub is **retired from the ladder** so
+all three facets sit on one map (the rung/composite-gate model). S3 will reuse the
+same River Zeta rung at standup.

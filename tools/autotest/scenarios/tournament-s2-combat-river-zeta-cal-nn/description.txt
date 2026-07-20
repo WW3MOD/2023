@@ -1,0 +1,11 @@
+AI Benchmark Scenario 2 CALIBRATE (Normal vs Normal). Byte-identical to the S2 primary
+(tournament-s2-combat-river-zeta) EXCEPT both bots are @normal (map.yaml Bot: keys) and the
+Title/Matchup are relabelled. With identical bots the mirror swap is a no-op, so a single
+N=10 batch on THIS scenario measures pure side/faction bias at the 720s combat clock (SPEC 9.4,
+S1 cal-nn pattern). Purpose (plan §5): (1) side/faction fairness — is net swing ~0 and
+symmetric; (2) MIN-ENGAGEMENT — does Normal-vs-Normal actually fight (kills_cost+deaths_cost
+well above 0, units_dead > 0 both sides). The min-engagement result is the GO/NO-GO on Normal
+as the S2 opponent: if Normal-vs-Normal is a low-contact stalemate, Normal will also underfight
+experimental and the net-swing metric stops discriminating trade quality -> recommend switching
+the S2 control to @rush (do NOT swap unilaterally; recommend with numbers). Config:
+tournament-combat-12min.yaml (TimeLimitSeconds 720, SpeedMultiplier 8, Mode B hidden).

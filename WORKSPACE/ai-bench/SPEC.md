@@ -178,8 +178,11 @@ modes; the loop is written so the mode is a **single switch** (which env/flag se
 ### 3.1 Why Mode B is safe, and the fallback trigger
 
 **The original "same-seed verdict-identity" gate was impossible to satisfy and
-has been replaced.** Per-seed reproducibility does **not** hold in this codebase:
-bots draw decisions from an **unseeded** `world.LocalRandom`
+has been replaced.** (Historical note — this subsection describes the state
+*before* `2d3c8fe0`; per-seed replay is now deterministic, §3.2. The point below
+still stands: Mode B's safety rests on the **sim/render decoupling**, not on
+determinism, so nothing here changes.) At the time, per-seed reproducibility did
+**not** hold: bots drew decisions from an **unseeded** `world.LocalRandom`
 (`World.cs:214`; e.g. `UnitBuilderBotModule.cs:173`), so *any* two runs of the
 same seed diverge within ~125 ticks — **two windowed runs would diverge exactly
 as much as windowed-vs-hidden**. Comparing verdicts across a mode boundary can
@@ -204,20 +207,29 @@ invariant broken. If that happens: log a `NOTE`/`ENGINE` entry, flip the mode
 switch to A, and treat restoring hidden-mode as a blocker for the user. Absent
 that, **stay in Mode B**.
 
-### 3.2 Known substrate caveats
+### 3.2 Seed reproducibility — RESOLVED (2026-07-20, `2d3c8fe0`)
 
-- **Per-seed reproducibility is broken** until the `LocalRandom` seeding fix
-  lands (backlogged — e.g. seed `LocalRandom` from `RandomSeed ^ const`, or route
-  bot decisions through the seeded server RNG; see the DISCOVERIES entry). A given
-  seed is **not replayable**: re-running seed *N* yields a *fresh independent*
-  game, not the same game.
-- **This does not affect the benchmark.** All ladder criteria are **N-run
-  statistics** (medians / win-rates over a batch, §6), which only need
-  *independent samples* — and independent is exactly what unseeded runs give.
-  **Treat seeds purely as run labels**, not reproducibility guarantees. The one
-  thing lost is single-match *debugging* replay (reproduce a specific outlier by
-  its seed); that returns once the seeding fix lands. Nothing in the loop depends
-  on it.
+> **UPDATE (2026-07-20): per-seed replay is now DETERMINISTIC.** The caveat below
+> is kept for history; the "broken / backlogged" framing is **superseded**.
+
+- **Per-seed reproducibility now holds.** `LocalRandom` is seeded from the lobby
+  `RandomSeed` via a decorrelating PCG transform (`World.cs:213-214`), guarded on
+  `RandomSeed != 0` so normal gameplay still varies per launch. **Verified:** the
+  same seed run twice produces **byte-identical** verdicts — not just the winner
+  but the watcher's tick-by-tick score log (async pathfinding leaked no
+  nondeterminism); a different-seed negative control diverges as expected. The
+  verdict now stamps the authoritative `seed` (`verdict_version: 5`). See
+  DISCOVERIES 2026-07-20; the 2026-07-19 "seeds are run labels / replay broken"
+  entries are superseded.
+- **What this buys the benchmark.** Because `run-tournament.sh` already passes a
+  fixed per-index seed set (`i*1000+17`), every cycle now reuses the **same
+  battlefields**, so cross-cycle and control-vs-experimental comparisons are
+  **paired** — a large variance reduction (the S2 bar exploits it) and a clean
+  dispersion on/off A/B on identical seeds. Single-match debugging replay (reproduce
+  an outlier by its seed) also works again. N-run medians/win-rates are still the
+  advancement criteria (§6); determinism just makes them lower-variance and
+  reproducible. **Caveat:** don't overfit behaviors to the fixed seed set — rotate
+  or expand it at BASELINE if a behavior only wins on the standard 10.
 
 ### 3.3 Bootstrap smoke run (first thing on a fresh system)
 

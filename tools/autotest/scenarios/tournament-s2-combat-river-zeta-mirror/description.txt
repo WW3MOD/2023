@@ -1,0 +1,10 @@
+AI Benchmark Scenario 2 (Force Efficiency) — MIRROR twin of tournament-s2-combat-river-zeta.
+Byte-identical River Zeta WW3 terrain (98x82, all 12 neutral OILB derricks) and 720s combat
+config; the ONLY difference is the two bots' spawn assignments are SWAPPED (a bot-assignment
+swap, per the task + S1 mirror pattern — on this fixed-faction-per-spawn map a bot swap is
+simultaneously a spawn AND faction swap, so it controls for BOTH). Metric: NET COMBAT SWING =
+stats.kills_cost - stats.deaths_cost over a 12-minute clock (tournament-combat-12min.yaml,
+TimeLimitSeconds 720, SpeedMultiplier 8, Mode B hidden). In this mirror: Normal SR at USA/14,45;
+experimental SR at Russia/80,35. Run alongside the primary at equal N (even seeds primary, odd
+seeds mirror via --mirror) and require the edge to hold from BOTH spawns (plan §4.2) so a
+faction-roster or spawn advantage isn't read as skill.
