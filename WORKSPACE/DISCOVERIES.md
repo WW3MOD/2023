@@ -3,6 +3,14 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-21 — The offense scorer is blind to FRIENDLY influence; the enemy sample is already carried per-target (recon for the territorial bias)
+
+Found tracing the balance-of-power slice (plan `WORKSPACE/plans/260721_terr_offense_bias.md`).
+- **`GetFriendlyInfluence` is computed but never consumed by any bot module.** `InfluenceMap` exposes `GetFriendlyInfluence`/`GetEnemyInfluence`/`GetFrontline` per-perspective (`InfluenceMap.cs:143-175`), but the whole offense/capture/defense stack reads **only enemy** influence: `PoiMap.SampleThreat` (`PoiMap.cs:481-498`) samples the enemy grid into `ScoredPoi.EnemyInfluence`, and `PoiScoring.ThreatFactor` (`PoiMap.cs:542-550`) buckets it safe/mild/hostile. Consequence: a target with **high enemy AND high friendly** influence (a front we locally dominate) gets the *same* ×10 hostile damp as one with high enemy and zero friendly — the scorer cannot tell "winnable contact" from "lunge into strength." Reading `GetFriendlyInfluence` is a genuinely new input, not a re-weight.
+- **`PoiMap` is a shared world singleton — cannot host a per-`@experimental` scoring delta.** One `PoiMap` instance on the world actor (`world.yaml:299`) is queried by both bots; its `PoiMapInfo` has no per-profile split. So any `@experimental`-only offense bias must live in the **per-player** `PoiOffensiveBotModule` (gated `enable-ai-experimental`), rescaling the returned `List<ScoredPoi>` — exactly what `RescaleSrPressure` already does (`PoiOffensiveBotModule.cs:340-358`, guarded by `SrPressureScoreMultiplier != 100` at `:217`). That is the reusable template for "new default-off offense scoring lever."
+- **`InfluenceMap.ContributionRadius` is YAML-overridden 3→5** (`world.yaml:287` vs code default `:38`), so a single grid-cell influence sample already reflects units up to ~10 map cells away with falloff — single-cell sampling at a target is enough to register a nearby front, no neighborhood scan needed for slice 1.
+- **Batch bars read verdict JSON, not markers.** `parse-s2-batch.py` computes swing/engagement from `stats.kills_cost`/`deaths_cost` only; `[exp-*]` debug.log markers (SR-contestation, capture) are human-grep diagnostics on the preserved per-match `debug.log`, not parser inputs. New telemetry needs no parser change to gate a cycle.
+
 ## 2026-07-20 — TECN-first capture ferrying: directed ride beats the frontline-gated transport (playtest bug 3, branch `exp-tecn-ride`)
 
 "Technicians ride first" was never implemented — root cause was three independent gaps, and the clean fix was to *not* extend the existing frontline transport but to add a **directed** ferry path (`MountedTransportBotModule.cs`).
