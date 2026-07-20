@@ -5,6 +5,8 @@
 
 ## 2026-07-20 — Benchmark run-to-run variance is one unseeded line; the fixed seed already flows everywhere *except* `LocalRandom`
 
+> **[promoted → architecture.md "Bot decisions ARE seed-reproducible"]** (curation 2026-07-20). Verified `World.cs:213-224` (LocalRandom now seeded from RandomSeed via the LCG transform, guarded on `!= 0`). Pre-fix recon subsumed by the verify entry below.
+
 Found during the seeded-determinism recon (`WORKSPACE/plans/260720_seeded_determinism.md`).
 The S1 4/10-vs-9/10 wobble traces to a single line: `World.cs:214` builds
 `LocalRandom = new MersenneTwister()` **unseeded**, which chains to
@@ -27,6 +29,8 @@ This makes the `architecture.md:291-293` note ("Bot decisions are not seed-repro
 **RESOLVED** (main @ `2d3c8fe0`): the seeding landed and verified FULL determinism — see next entry.
 
 ## 2026-07-20 — Seeding `LocalRandom` gives FULL replay determinism; async pathfinding did NOT leak nondeterminism
+
+> **[promoted → architecture.md "Bot decisions ARE seed-reproducible"]** (curation 2026-07-20). Verified `World.cs:213-224`; added the async-pathfinding-is-deterministic clause to the doc. The "per-seed capture is near-binary Bernoulli" observation left here as benchmark-methodology (covered in reference by "one seed is one battlefield").
 
 Verify of the seeding fix (`World.cs:214`, main @ `2d3c8fe0`;
 `WORKSPACE/ai-bench/runs/260720_seeded_determinism_verify.md`). Two hidden Mode-B matches at the
@@ -51,6 +55,8 @@ seed (`verdict_version` 5).
 
 ## 2026-07-20 — `UnitBuilderBotModule` UnitsToBuild weight is a share *ceiling*, NOT a priority
 
+> **[promoted → architecture.md "AI production: `UnitsToBuild` weights are share ceilings"]** (curation 2026-07-20). Verified `UnitBuilderBotModule.cs:25,49,125-136,167-195` (shuffle + `count*100 < weight*total` at :190; idle-cap uniform-random path; single-name overload bypass).
+
 Found during the TECN-availability cycle-2 recon (`WORKSPACE/plans/260720_tecn_availability_cycle2.md`).
 A common misread: a big weight like `tecn.*: 500` (`ai-{america,russia}.yaml:8`) makes the AI
 *prioritize* that unit. It does not. `ChooseUnitToBuild` (`UnitBuilderBotModule.cs:177-195`)
@@ -70,6 +76,8 @@ starve cannot be tuned away in `ai-*.yaml`.
 Code refs: `UnitBuilderBotModule.cs:78-97,112,125-136,167-195`, `TraitsInterfaces.cs:727-732`.
 
 ## 2026-07-20 — `IBotRequestUnitProduction` demand queue is a working code-level production floor (verified live, S1 cycle 2)
+
+> **[promoted → architecture.md "AI production" (the code-level floor half)]** (curation 2026-07-20). Verified queue mechanics `UnitBuilderBotModule.cs:87-92,99-107,142-165` (pop-one-before-lottery, drop-on-failure at :90-91, `RequestedProductionCount`), reference impls `CaptureCoordinatorBotModule.cs:389-402` (`MaintainTecnFloor`, `alive+pending<floor`) and `AdaptiveProductionBotModule.cs:64,159`. Run-specific results (commit hashes, 4/10→8/10, side-split) kept here, not copied to reference.
 
 The cycle-2 recon's proposed fix — request production through the shared UnitBuilder's queue to
 bypass the share-ceiling — was **implemented and verified**: a default-off `TecnFloor` on
@@ -99,6 +107,8 @@ Code refs: `CaptureCoordinatorBotModule.cs` (`MaintainTecnFloor`/`ResolveTecnBui
 
 ## 2026-07-20 — `CVec.Length` / `CPos` subtraction is EUCLIDEAN, not Chebyshev — compute cell "grid distance" by hand
 
+> **[promoted → conventions.md "Engine behaviors that surprise"]** (curation 2026-07-20). Verified `CVec.cs:49-50` (`Length => Exts.ISqrt(X*X + Y*Y)`).
+
 The dispersion design sketch (`260720_dispersion_cycle_design.md` §2b/§3b) labelled
 `(centroid - axis.TargetCell).Length` as "Chebyshev". It is **not**:
 `engine/OpenRA.Game/CVec.cs:49-50` defines `Length => Exts.ISqrt(LengthSquared)` with
@@ -115,6 +125,8 @@ assault-radius gate and the `clumpRadius` telemetry. Refs:
 
 ## 2026-07-20 — Dispersion doctrine needs a kill-switch or it silently mutates the frozen `@stable` control
 
+> **[promoted → architecture.md "Adding a behavioural field to a trait shared by both bot profiles"]** (curation 2026-07-20). Verified `PoiOffensiveBotModule.cs:87` (`CohesionSwitchEnabled=false`), `:96` (`ApproachCohesion=Spread` non-baseline default), `:424` (dispersion gated on the switch); `ai.yaml:41-46` (`@experimental`/`@stable` share the trait). Generalized into the shared-trait-default rule.
+
 `PoiOffensiveBotModule` is instantiated by BOTH `ModularBot@experimental` (gate
 `enable-ai-experimental`) and `ModularBot@stable` (gate `enable-ai-stable`, the frozen
 validated snapshot — `mods/ww3mod/rules/ai/ai.yaml:44-46, 643`). New Info fields with
@@ -126,6 +138,8 @@ field added to a trait shared by an experimental AND a frozen bot profile must d
 to the frozen behaviour and be opted-in per-profile via YAML.
 
 ## 2026-07-20 — Capture escorts are dispatched but NEVER committed to the goal-guard ledger
+
+> **[rejected: incidental bug in the experimental AI (escort desync), tied to an in-flight WORKSPACE plan and slated to be fixed by the mission model — belongs in bugs/discovered.md, not reference. The experimental goal-guard/PoiOffense layer is not documented in DOCS/reference at all. Code-verified against current source: `DispatchEscort` at `CaptureCoordinatorBotModule.cs:627-643` issues the escort AttackMove and adds to the per-tick set but never calls `Ledger.Commit`; only the capturer is committed at `:516` in `IssueCaptureOrder` (line numbers shifted from the entry's :486-502/:395-396).]** (curation 2026-07-20).
 
 Found during the mission-abstraction costing recon (`WORKSPACE/plans/260720_mission_abstraction_costing.md`).
 `CaptureCoordinatorBotModule.DispatchEscort` (`CaptureCoordinatorBotModule.cs:486-502`) issues an
@@ -141,6 +155,8 @@ committing the escort sub-force under `escort:<captureId>`.
 Code refs: `CaptureCoordinatorBotModule.cs:486-502`, `CaptureCoordinatorBotModule.cs:395-396`, `PoiOffensiveBotModule.cs:320-330`.
 
 ## 2026-07-20 — MEASURED: 88% of experimental capture scans see ZERO TECNs (availability, not survival, gates S1)
+
+> **[rejected: run-specific N=10 measurement on one scenario — belongs in runs/, not reference (results decay, and the run doc `260720_capture_reliability_cycle1_n10.md` already holds it). The durable takeaway (availability, not survival, is the binding constraint; the TECN pool is a consumable) is already in reference via the promoted "TECN is consumed on successful capture" entry → game-model.md.]** (curation 2026-07-20).
 
 Instrumented N=10 confirmation of the availability hypothesis below. With the M-2
 `no-idle-capturers` marker (`CaptureCoordinatorBotModule.cs`, the `idleCapturers.Length==0`
@@ -481,7 +497,10 @@ Other notes: DensityLayer is populated correctly (trees contribute density=10 to
 
 ## 2026-07-20 — LADDER S2/S3 doc is stale post-determinism (S2 EXPAND recon)
 
+> **[rejected: concerns WORKSPACE ladder/spec tracker docs (LADDER.md/SPEC.md), not DOCS/reference — and already RESOLVED by the S2 standup cycle per the note below. The underlying determinism fact is separately promoted → architecture.md.]** (curation 2026-07-20).
+
 - **LADDER.md's S2/S3 rows describe a superseded map + a broken-determinism world.** Found while designing the S2 rung (`WORKSPACE/plans/260720_s2_expand_design.md`):
   1. **Map:** LADDER.md:238, :279, :341-342 assign S2 (Force Efficiency) and S3 (Win-rate) to the `tournament-experimental-vs-normal-2p` **66×34 combat stub** — the same bare, zero-capturable map (`grep -c oilb|Capturable` = 0) whose lack of POIs pinned S1's economy metric to 0/0 before the River Zeta rescope (LADDER.md:76-93). Putting S2/S3 on a *different* map than S1 contradicts the rung model ("a rung is one map", LADDER.md:33-36) and the composite gate ("one commit passes all three on that map", §6.4). The S2 design recommends moving S2/S3 onto the River Zeta rung.
   2. **Determinism:** LADDER.md:48-56 and SPEC §3.2 (SPEC.md:207-220) and REVIEW.md:133-136 still state seeds are "run labels, not reproducibility guarantees" and per-seed replay is "broken" because bots draw from an unseeded `LocalRandom`. **This is now false** — `LocalRandom` is seeded (World.cs:213-214) and same-seed→byte-identical verdict was VERIFIED (commits `2d3c8fe0` engine + `f3a61d9d` docs; REVIEW.md:55 activity log). The fixed per-index seed set (run-tournament.sh:282) now makes comparisons *paired*, which the S2 bar exploits.
 - **Action:** the S2-implementing cycle should update LADDER.md's S2/S3 rows (map → River Zeta rung; metric wording) and reconcile the "seeds are labels" language in LADDER §Metric-extraction + SPEC §3.2 + REVIEW Open Questions with the shipped determinism. Not fixed in this read-only recon (would touch curated ladder/spec state mid-batch); flagged here per the knowledge-bank rule.
+- **RESOLVED (2026-07-20, S2 standup cycle):** both reconciled. (1) LADDER S2 row + Scenario-registry now point to the new `tournament-s2-combat-river-zeta` (River Zeta rung, 720s clock); the 66×34 `tournament-experimental-vs-normal-2p` stub is retired from the ladder; S3 row flagged "reuse River Zeta rung, scenario TBD at standup". (2) LADDER §Metric-extraction + SPEC §3.1/§3.2 rewritten to state per-seed replay is deterministic (`2d3c8fe0`, verified byte-identical), with the anti-overfit "don't tune to the fixed 10 seeds" caveat carried in. REVIEW Open Questions left for the CALIBRATE-result update.
