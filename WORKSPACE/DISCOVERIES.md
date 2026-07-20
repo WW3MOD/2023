@@ -3,6 +3,34 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-20 — `CVec.Length` / `CPos` subtraction is EUCLIDEAN, not Chebyshev — compute cell "grid distance" by hand
+
+The dispersion design sketch (`260720_dispersion_cycle_design.md` §2b/§3b) labelled
+`(centroid - axis.TargetCell).Length` as "Chebyshev". It is **not**:
+`engine/OpenRA.Game/CVec.cs:49-50` defines `Length => Exts.ISqrt(LengthSquared)` with
+`LengthSquared => X*X + Y*Y` — i.e. rounded **Euclidean** length. Using it for the
+"cells from target" gate would make a diagonal approach read ~1.4× farther than the
+grid distance a watcher sees on the minimap.
+
+For true chessboard distance in cells, `max(|dx|, |dy|)`. The dispersion implementation
+adds pure helpers on `PoiOffenseMath` (`Chebyshev`, `CellCentroid`, `MaxChebyshev`) —
+engine-free `(int X, int Y)` tuples, unit-tested in `PoiOffenseTest` — used for both the
+assault-radius gate and the `clumpRadius` telemetry. Refs:
+`engine/OpenRA.Mods.Common/Traits/BotModules/PoiOffensiveBotModule.cs`
+(`PoiOffenseMath.Chebyshev/CellCentroid/MaxChebyshev`, `CommitAndOrder`).
+
+## 2026-07-20 — Dispersion doctrine needs a kill-switch or it silently mutates the frozen `@stable` control
+
+`PoiOffensiveBotModule` is instantiated by BOTH `ModularBot@experimental` (gate
+`enable-ai-experimental`) and `ModularBot@stable` (gate `enable-ai-stable`, the frozen
+validated snapshot — `mods/ww3mod/rules/ai/ai.yaml:44-46, 643`). New Info fields with
+non-baseline **code defaults** (e.g. `ApproachCohesion=Spread`) therefore leak into
+`@stable` even when its YAML block is left untouched — changing a benchmark control.
+The design (§2b) anticipated this with `CohesionSwitchEnabled`; shipped it **default
+`false`**, flipped `true` only on `@experimental`. Rule of thumb: any behavioural Info
+field added to a trait shared by an experimental AND a frozen bot profile must default
+to the frozen behaviour and be opted-in per-profile via YAML.
+
 ## 2026-07-20 — `CohesionMoveModifier` is a cover-aware intent system, NOT a simple offset system; and it DOES fire for bot orders
 
 `architecture.md` description is **wrong**: "offsets group move targets based on CohesionMode

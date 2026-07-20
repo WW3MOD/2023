@@ -177,6 +177,14 @@ Player:
 		# and IFV carriers (owned by MountedTransport). Both factions' type names are
 		# listed; a name the faction lacks is simply never matched.
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
+		# Dispersion doctrine — spread to move, mass to assault. Experimental-only: the switch
+		# defaults OFF so Stable/Normal controls are untouched. Axes fan out (Spread) while their
+		# centroid is farther than AssaultRadiusCells from the target, then mass (Tight) for the
+		# final push. Set CohesionSwitchEnabled: false (or ApproachCohesion: Tight) to A/B the baseline.
+		CohesionSwitchEnabled: true
+		AssaultRadiusCells: 15
+		ApproachCohesion: Spread
+		AssaultCohesion: Tight
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
