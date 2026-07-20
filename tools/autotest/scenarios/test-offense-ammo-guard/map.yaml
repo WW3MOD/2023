@@ -1,0 +1,118 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: offense ammo guard — empty unit not re-tasked onto an axis
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Fix 1 (playtest bug 1): an evacuating / out-of-ammo unit must not be recruited
+# by PoiOffensiveBotModule onto an attack axis — the AttackMove would cancel its
+# evac and send an empty unit at the enemy.
+#
+#   USA-bot (6,16) experimental  — the observed bot
+#   Russia-bot (58,16) normal    — control (gives PoiOffensive real enemy POIs)
+#
+# The USA bot has a 6-abrams offense pool (offense-eligible, not excluded) so
+# PoiOffensiveBotModule opens ONE axis toward the enemy SR (Pressure) and streams
+# them EAST along row 16. EmptyTank is a 7th abrams the Lua keeps drained to zero
+# ammo for the whole run. It sits on the SOUTH flank (10,28) — deliberately OFF
+# the row-16 axis lane so the eastward formation can't shove it. With the fix on
+# (@experimental SkipOutOfAmmoUnits: true) it is excluded from the axis and stays
+# put; with the fix off it is recruited and attack-moved east (the RED case).
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: normal
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+	# The out-of-ammo unit under test — kept at zero ammo in Lua for the whole run.
+	# Parked in the far SOUTH-WEST corner, BEHIND the SR (west of X=6) and far south,
+	# so nothing in the eastward offensive flow ever reaches it. A working guard leaves
+	# it here; a broken guard recruits it and attack-moves it north-east at the enemy.
+	EmptyTank: abrams
+		Owner: USA-bot
+		Location: 4,30
+		Facing: 768
+
+	# Witness offense pool (6 abrams >= MinAxisSize) — forms the axis and moves east.
+	Witness1: abrams
+		Owner: USA-bot
+		Location: 8,12
+		Facing: 768
+	Witness2: abrams
+		Owner: USA-bot
+		Location: 8,13
+		Facing: 768
+	Witness3: abrams
+		Owner: USA-bot
+		Location: 8,14
+		Facing: 768
+	Witness4: abrams
+		Owner: USA-bot
+		Location: 8,18
+		Facing: 768
+	Witness5: abrams
+		Owner: USA-bot
+		Location: 8,19
+		Facing: 768
+	Witness6: abrams
+		Owner: USA-bot
+		Location: 8,20
+		Facing: 768
+
+	# Enemy-owned income structures — extra offensive POIs so an axis reliably forms.
+	EnemyOilb: oilb
+		Owner: Russia-bot
+		Location: 50,10
+	EnemyFcom: fcom
+		Owner: Russia-bot
+		Location: 50,22
+
+Rules: rules.yaml

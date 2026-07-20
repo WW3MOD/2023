@@ -1,0 +1,24 @@
+# Fix 1 autotest overrides. Minimal — real gameplay, pre-placed force + small economy.
+
+# Keep the drained EmptyTank drained: default abrams resupply behaviour is
+# InitialResupplyBehaviorAI: Auto, which auto-returns an out-of-ammo AI tank to the
+# SR to rearm (0 -> full in one dock) — which would re-qualify it for the axis and
+# defeat the test premise. Hold makes an emptied abrams stay put and empty so the
+# offense ammo guard is what's actually under test. Test-scenario override only.
+abrams:
+	AutoTarget:
+		InitialResupplyBehaviorAI: Hold
+
+# No cash -> no production, so the only ground units are the pre-placed 6 witnesses
+# + EmptyTank. Keeps the corner tank fully isolated from any eastward unit flow, so
+# the verdict measures ONLY whether the guard excluded it from the axis.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-offense-ammo-guard.lua
