@@ -208,6 +208,16 @@ Player:
 		# (260 = (250*100)/(120*80)): mild ~17.0M, safe ~42.5M, hostile ~4.25M — the hostile threat
 		# gate still keeps the AI off a well-garrisoned SR. Default (100) on @stable = inert.
 		SrPressureScoreMultiplier: 260
+		# Experimental territorial balance-of-power bias (cycle 1). Rescale each offensive axis by
+		# the friendly-vs-enemy InfluenceMap share at the target cell: press contact cells we
+		# dominate (share >= 60 → x150), damp cells the enemy dominates (share <= 40 → x60), leave
+		# even fronts and empty ground untouched (x100). Advances the front where safe; stops
+		# lunging into strength. Default OFF on @stable = byte-identical.
+		BalanceOfPowerBiasEnabled: true
+		BopWeakSharePct: 40
+		BopDominantSharePct: 60
+		BopBoostMultiplier: 150
+		BopDampMultiplier: 60
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped

@@ -230,5 +230,63 @@ namespace OpenRA.Test
 			var nearDist = PoiOffenseMath.Chebyshev(nearCentroid.X, nearCentroid.Y, target.X, target.Y);
 			Assert.That(nearDist, Is.LessThanOrEqualTo(assaultRadius), "near axis is at the objective → Tight");
 		}
+
+		// ---------- BalanceOfPowerFactor (territorial balance-of-power bias) ----------
+		// Shipped @experimental tuning: weak 40, dominant 60, boost 150, damp 60.
+
+		[Test]
+		public void BalanceOfPowerFactor_NoEnemyInfluence_IsNeutral()
+		{
+			// e<=0 → not a contact cell → 100 regardless of friendly presence (the frontline guard:
+			// empty ground is never boosted, so "push where enemy is weakest" can't degenerate into
+			// an economy grab on empty ground).
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(50, 0, 40, 60, 150, 60), Is.EqualTo(100), "friendly-only ground → neutral");
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(0, 0, 40, 60, 150, 60), Is.EqualTo(100), "empty ground → neutral");
+		}
+
+		[Test]
+		public void BalanceOfPowerFactor_WeDominateContact_Boosts()
+		{
+			// share = 90*100/(90+10) = 90 >= 60 → boost.
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(90, 10, 40, 60, 150, 60), Is.EqualTo(150));
+		}
+
+		[Test]
+		public void BalanceOfPowerFactor_EnemyDominatesContact_Damps()
+		{
+			// share = 20*100/(20+80) = 20 <= 40 → damp (don't lunge into strength).
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(20, 80, 40, 60, 150, 60), Is.EqualTo(60));
+		}
+
+		[Test]
+		public void BalanceOfPowerFactor_EvenFront_IsNeutral()
+		{
+			// f==e → share 50, strictly between weak (40) and dominant (60) → unchanged.
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(50, 50, 40, 60, 150, 60), Is.EqualTo(100));
+		}
+
+		[Test]
+		public void BalanceOfPowerFactor_BoundaryInclusive()
+		{
+			// Exactly == dominant → boost; exactly == weak → damp (both thresholds inclusive).
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(60, 40, 40, 60, 150, 60), Is.EqualTo(150), "share 60 == dominant → boost");
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(40, 60, 40, 60, 150, 60), Is.EqualTo(60), "share 40 == weak → damp");
+		}
+
+		[Test]
+		public void BalanceOfPowerFactor_ZeroFriendlyWithEnemy_Damps()
+		{
+			// f=0, e>0 → share 0 <= weak → damp (deep in enemy-dominated ground, no friendly presence).
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(0, 100, 40, 60, 150, 60), Is.EqualTo(60));
+		}
+
+		[Test]
+		public void BalanceOfPowerFactor_InertMultipliersAreFrozen()
+		{
+			// The default-off sub-multipliers (boost=damp=100) leave every case at 100 — the
+			// belt-and-suspenders guard so even a stray switch-flip can't move a score.
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(90, 10, 40, 60, 100, 100), Is.EqualTo(100), "dominant with inert boost → unchanged");
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(10, 90, 40, 60, 100, 100), Is.EqualTo(100), "enemy-dominant with inert damp → unchanged");
+		}
 	}
 }

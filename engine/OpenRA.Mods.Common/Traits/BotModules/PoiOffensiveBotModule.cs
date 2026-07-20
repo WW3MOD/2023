@@ -114,6 +114,30 @@ namespace OpenRA.Mods.Common.Traits
 			"CohesionSwitchEnabled default-off pattern so the Stable/Normal controls are untouched.")]
 		public readonly int SrPressureScoreMultiplier = 100;
 
+		[Desc("EXPERIMENTAL territorial balance-of-power bias. When true, rescale each offensive",
+			"axis score by BalanceOfPowerFactor (friendly vs enemy InfluenceMap share at the target",
+			"cell) so the army advances the front into comparatively-weak enemy sectors and stops",
+			"lunging into enemy-dominated ground. OFF by default so Stable/Normal are byte-identical;",
+			"only PoiOffensiveBotModule@experimental turns it on. Mirrors the SrPressureScoreMultiplier",
+			"/ CohesionSwitchEnabled default-off pattern.")]
+		public readonly bool BalanceOfPowerBiasEnabled = false;
+
+		[Desc("Our local influence SHARE (%) at/below which a CONTACT cell counts as enemy-dominated",
+			"→ damp the axis (don't lunge into strength). Share = friendly*100/(friendly+enemy).")]
+		public readonly int BopWeakSharePct = 40;
+
+		[Desc("Our local influence SHARE (%) at/above which a CONTACT cell counts as ours to press",
+			"→ boost the axis (advance the front where we are comparatively strong).")]
+		public readonly int BopDominantSharePct = 60;
+
+		[Desc("Axis-score multiplier (x100) for a target on a contact cell we DOMINATE (share >=",
+			"BopDominantSharePct). >100 boosts. Default 100 = inert (frozen).")]
+		public readonly int BopBoostMultiplier = 100;
+
+		[Desc("Axis-score multiplier (x100) for a target on a contact cell the ENEMY dominates",
+			"(share <= BopWeakSharePct). <100 damps. Default 100 = inert (frozen).")]
+		public readonly int BopDampMultiplier = 100;
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 
@@ -141,6 +165,8 @@ namespace OpenRA.Mods.Common.Traits
 		bool poiMapResolved;
 		PoiGoalGuard goalGuard;
 		bool goalGuardResolved;
+		InfluenceMap influenceMap;
+		bool influenceResolved;
 
 		readonly List<Axis> axes = new();
 
@@ -216,6 +242,19 @@ namespace OpenRA.Mods.Common.Traits
 			//     the frozen Stable/Normal controls keep their exact GetOffensiveTargets ranking.
 			if (Info.SrPressureScoreMultiplier != 100)
 				targets = RescaleSrPressure(targets);
+
+			// 2b. Experimental territorial balance-of-power bias: press contact cells we dominate,
+			//     damp cells the enemy dominates, leave empty ground + even fronts untouched. Reads
+			//     the shared InfluenceMap friendly+enemy grids. OFF by default (switch + inert 100
+			//     sub-multipliers) so the frozen Stable/Normal controls are byte-identical.
+			if (!influenceResolved)
+			{
+				influenceMap = world.WorldActor.TraitOrDefault<InfluenceMap>();
+				influenceResolved = true;
+			}
+
+			if (Info.BalanceOfPowerBiasEnabled && influenceMap != null)
+				targets = RescaleByBalanceOfPower(targets, tick);
 
 			if (targets.Count == 0)
 			{
@@ -354,6 +393,78 @@ namespace OpenRA.Mods.Common.Traits
 
 			scaled.Sort((a, b) => PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
 				b.Score, b.DistanceCells, b.Actor.ActorID));
+			return scaled;
+		}
+
+		// EXPERIMENTAL territorial balance-of-power rescale. Reads the shared InfluenceMap friendly
+		// AND enemy grids (the offense has never consumed friendly influence), and re-scales each
+		// offensive axis by BalanceOfPowerFactor of the friendly/enemy share at the target's cell:
+		// press contact cells we dominate, damp cells the enemy dominates, leave empty ground and
+		// even fronts untouched. Grids cached once per reeval (not per target); re-sorts with the
+		// same deterministic comparator. Caller guards the switch + null map.
+		List<ScoredPoi> RescaleByBalanceOfPower(List<ScoredPoi> targets, int tick)
+		{
+			var friendly = influenceMap.GetFriendlyInfluence(player);
+			var enemy = influenceMap.GetEnemyInfluence(player);
+			var gw = influenceMap.GridWidth;
+			var gh = influenceMap.GridHeight;
+
+			var frontCells = 0;
+			for (var x = 0; x < gw; x++)
+				for (var y = 0; y < gh; y++)
+					if (friendly[x, y] > 0 && enemy[x, y] > 0)
+						frontCells++;
+
+			int boosted = 0, damped = 0, neutral = 0;
+			var scaled = new List<ScoredPoi>(targets.Count);
+			foreach (var p in targets)
+			{
+				var (gx, gy) = influenceMap.MapCellToGridCell(p.Location);
+				int f = 0, e = 0;
+				if (gx >= 0 && gx < gw && gy >= 0 && gy < gh)
+				{
+					f = friendly[gx, gy];
+					e = enemy[gx, gy];
+				}
+
+				var mul = PoiOffenseMath.BalanceOfPowerFactor(f, e,
+					Info.BopWeakSharePct, Info.BopDominantSharePct,
+					Info.BopBoostMultiplier, Info.BopDampMultiplier);
+
+				if (mul == 100)
+				{
+					neutral++;
+					scaled.Add(p);
+					continue;
+				}
+
+				if (mul > 100)
+					boosted++;
+				else
+					damped++;
+
+				var newScore = p.Score * mul / 100;
+				scaled.Add(new ScoredPoi(p.Actor, p.Kind, p.Action, p.Value,
+					p.DistanceCells, p.EnemyInfluence, newScore));
+
+				Log.Write("debug", $"[exp-terr] bop player={player.PlayerName} target={p.Actor.Info.Name}@{p.Location} " +
+					$"action={p.Action} f={f} e={e} share={(f + e > 0 ? f * 100 / (f + e) : -1)} mul={mul} " +
+					$"score={p.Score}->{newScore} tick={tick}");
+			}
+
+			// Top-MaxAxes ids before vs after the rescale — surfaces which axis decisions the bias
+			// actually changed (the deliverable "axis decisions changed" telemetry).
+			var wasTop = string.Join(",", targets.Take(Info.MaxAxes).Select(t => t.Actor.ActorID));
+
+			scaled.Sort((a, b) => PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
+				b.Score, b.DistanceCells, b.Actor.ActorID));
+
+			var nowTop = string.Join(",", scaled.Take(Info.MaxAxes).Select(t => t.Actor.ActorID));
+			if (nowTop != wasTop)
+				Log.Write("debug", $"[exp-terr] axis-shift player={player.PlayerName} nowTop={nowTop} wasTop={wasTop} tick={tick}");
+
+			Log.Write("debug", $"[exp-terr] reeval player={player.PlayerName} frontlineCells={frontCells} " +
+				$"boosted={boosted} damped={damped} neutral={neutral} tick={tick}");
 			return scaled;
 		}
 
@@ -661,6 +772,23 @@ namespace OpenRA.Mods.Common.Traits
 		/// compute this directly rather than reusing it.</summary>
 		public static int Chebyshev(int ax, int ay, int bx, int by)
 			=> Math.Max(Math.Abs(ax - bx), Math.Abs(ay - by));
+
+		/// <summary>Balance-of-power axis multiplier (x100). f,e = friendly/enemy influence at the
+		/// target cell. NO CONTACT (e&lt;=0) → 100 (neutral): empty ground is not a front — never
+		/// reward "lowest enemy influence anywhere" (the frontline guard). CONTACT (e&gt;0): local
+		/// share r = f*100/(f+e); r&gt;=dominant → boost, r&lt;=weak → damp, between → 100 (even front).</summary>
+		public static int BalanceOfPowerFactor(int f, int e, int weakSharePct, int dominantSharePct,
+			int boostMul, int dampMul)
+		{
+			if (e <= 0)
+				return 100;                       // no enemy presence → not a contact cell → neutral
+			var share = f * 100 / (f + e);        // f>=0, e>0 ⇒ denominator>0
+			if (share >= dominantSharePct)
+				return boostMul;
+			if (share <= weakSharePct)
+				return dampMul;
+			return 100;                           // even front → unchanged
+		}
 
 		/// <summary>Integer (floor-division) centroid of a set of cell coordinates. Empty input
 		/// returns (0,0). Pure so the dispersion gate math is unit-testable and v3-portable.</summary>
