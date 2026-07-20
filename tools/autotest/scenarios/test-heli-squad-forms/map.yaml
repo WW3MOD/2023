@@ -1,0 +1,112 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: helicopter squad forms without an hpad (below-full ammo)
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Fix 2 (playtest bug 2): attack helis rearm only at an hpad and the mod builds
+# none, so HelicopterSquadBotModule.IsReadyForMission (full-ammo gate) plus the
+# squad FSM's SquadHasAmmo gate permanently bench any heli below full ammo — no
+# squad ever launches and the helicopters park forever.
+#
+#   USA-bot (6,16) experimental  — owns the attack helis (bypass on)
+#   Russia-bot                   — enemy, provides an attackable target
+#
+# Three HELI (Apache, AttackHeavy) sit near the USA SR. The Lua drains a little
+# ammo from each so IsReadyForMission is false without the fix. There is NO hpad,
+# so they can never top off. The enemy is a cluster of 4 t90 tanks ~31 cells east
+# (attackable by the heli's Hellfire + 30mm). That distance is well beyond a lone
+# heli's auto-engage range, so WITHOUT a squad the helis never move. WITH the
+# experimental bypass, a squad forms and the FSM flies the helis east to attack —
+# the verdict passes the instant a heli leaves its spawn.
+#
+# No enemy SR: the squad's target-picker otherwise fixates on the (unattackable,
+# NoAutoTarget) SR and the helis never take off. The verdict passes within seconds
+# of a heli moving — long before any tank could be destroyed — so faction
+# elimination never ends the game early.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: normal
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+	# Attack helis under test — spawn near the USA SR, drained below full in Lua.
+	Heli1: heli
+		Owner: USA-bot
+		Location: 9,14
+		Facing: 768
+	Heli2: heli
+		Owner: USA-bot
+		Location: 9,16
+		Facing: 768
+	Heli3: heli
+		Owner: USA-bot
+		Location: 9,18
+		Facing: 768
+
+	# Attackable enemy cluster (Vehicle + Ground => hit by Hellfire AND 30mm), ~31
+	# cells east. Far enough that a lone heli won't auto-engage, so only a formed
+	# squad's Attack order flies the helis out to it. Four tanks so the enemy easily
+	# survives the few seconds until the verdict fires on heli movement.
+	EnemyTank1: t90
+		Owner: Russia-bot
+		Location: 40,14
+		Facing: 256
+	EnemyTank2: t90
+		Owner: Russia-bot
+		Location: 40,16
+		Facing: 256
+	EnemyTank3: t90
+		Owner: Russia-bot
+		Location: 40,18
+		Facing: 256
+	EnemyTank4: t90
+		Owner: Russia-bot
+		Location: 41,16
+		Facing: 256
+
+Rules: rules.yaml

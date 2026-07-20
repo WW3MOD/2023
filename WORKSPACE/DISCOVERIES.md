@@ -3,6 +3,13 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-21 — Heli rearm-full bench has TWO gates: the module readiness check AND the FSM's SquadHasAmmo (minimal fix is not sufficient)
+
+Found while implementing playtest Bug 2 (branch `fix-evac-heli`). The triage's minimal fix (bypass `HelicopterSquadBotModule.IsReadyForMission`'s full-ammo loop) is **necessary but not sufficient** — it lets a squad FORM but not LAUNCH.
+- **Second, independent gate:** `HelicopterStates.HelicopterIdleState.Tick` returns early on `!SquadHasAmmo(owner)` (`engine/OpenRA.Mods.Common/Traits/BotModules/Squads/States/HelicopterStates.cs:183`). `SquadHasAmmo` (`:118-131`) *skips* every unit for which `ReloadsAutomatically` is true, then returns false if none remain. `ReloadsAutomatically` (`StateBase.cs:129-139`) is true when a `Rearmable` covers all the unit's pools — EXACTLY the case for attack helis (`Rearmable{ AmmoPools: primary-ammo, secondary-ammo }`). So an all-attack-heli squad reports "no ammo" **even at full ammo**, and the idle/withdraw/re-engage gates (`:183, :427, :458`) never pass. The squad forms and sits.
+- **Proven via trace:** with only the module bypass, `squad-formed size=2` fires once, then `idle-blocked reason=SquadHasAmmo` repeats every 5 ticks forever; the helis never leave the ground. Gating those three `SquadHasAmmo` uses behind the same per-module `SkipRearmReadyCheck` flag (read from the player's `HelicopterSquadBotModule` in the FSM) makes the squad reach `HelicopterApproachState` and issue `Attack` orders — helis then take off and fly.
+- **Autotest gotcha that cost several runs:** a heli issued `Attack` on an UN-attackable target (the enemy `supplyroute` is `NoAutoTarget` and matches no weapon's `ValidTargets`) never takes off — the attack activity no-ops and the heli stays grounded. The squad target-picker also fixates on the SR over a nearer tank. A deterministic heli-movement test needs a REAL attackable target (t90: Vehicle+Ground → Hellfire+30mm) and NO enemy SR to hijack targeting. Use `TestHarness.AssertWithin` (polls + exits on first movement) rather than a fixed `AfterDelay` — the latter left games running for minutes as orphaned processes when a run was interrupted.
+
 ## 2026-07-21 — Out-of-ammo evac is engine-level and invisible to bot modules; only LayeredDefence guards it
 
 Found while triaging the "evac units re-ordered onto attacks" playtest bug (`2ed2c0ac`, plan `WORKSPACE/plans/260721_playtest_bugs_triage.md`).

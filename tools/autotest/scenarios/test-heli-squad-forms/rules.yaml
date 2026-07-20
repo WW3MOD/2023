@@ -1,0 +1,12 @@
+# Fix 2 autotest overrides. No cash so nothing is produced; the enemy is just the
+# pre-placed tank cluster and the only USA combat units are the pre-placed helis.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-heli-squad-forms.lua

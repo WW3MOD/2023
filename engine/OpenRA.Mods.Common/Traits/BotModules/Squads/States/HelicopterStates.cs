@@ -130,6 +130,19 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			return false;
 		}
 
+		// True when this squad's HelicopterSquadBotModule has the rearm-ready gate bypassed.
+		// SquadHasAmmo skips every unit whose pools are all covered by a Rearmable (they
+		// "reload automatically"), so an all-attack-heli squad reports NO ammo even at full
+		// ammo — the launch/re-engage gates then never pass and the squad parks forever.
+		// The bypass (experimental-only, default off) lets such squads fly missions anyway.
+		protected static bool RearmReadyCheckBypassed(Squad owner)
+		{
+			var module = owner.Bot.Player.PlayerActor
+				.TraitsImplementing<HelicopterSquadBotModule>()
+				.FirstOrDefault(m => !m.IsTraitDisabled);
+			return module != null && module.Info.SkipRearmReadyCheck;
+		}
+
 		protected static Actor FindClosestEnemy(Squad owner, WPos pos)
 		{
 			return owner.World.Actors
@@ -179,8 +192,11 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			if (GetSquadHealthPercent(owner) < 80)
 				return;
 
-			// Don't launch if low on ammo
-			if (!SquadHasAmmo(owner))
+			// Don't launch if low on ammo — unless the rearm-ready gate is bypassed. An all-
+			// auto-reload heli squad (every pool covered by a Rearmable) makes SquadHasAmmo
+			// return false even at FULL ammo, so without the bypass the squad never launches
+			// and the helicopters park forever (WW3MOD has no hpad to rearm at).
+			if (!RearmReadyCheckBypassed(owner) && !SquadHasAmmo(owner))
 				return;
 
 			// Find a target — prefer weak enemy clusters via ThreatMap
@@ -420,7 +436,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			SendLowAmmoUnitsHome(owner);
 
 			// Check if squad is too damaged to re-engage — full return
-			if (GetSquadHealthPercent(owner) < 50 || !SquadHasAmmo(owner))
+			if (GetSquadHealthPercent(owner) < 50 || (!RearmReadyCheckBypassed(owner) && !SquadHasAmmo(owner)))
 			{
 				owner.FuzzyStateMachine.ChangeState(owner, new HelicopterReturnState());
 				return;
@@ -451,7 +467,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			}
 
 			// After withdrawal period: re-engage if still healthy
-			if (GetSquadHealthPercent(owner) >= 70 && SquadHasAmmo(owner))
+			if (GetSquadHealthPercent(owner) >= 70 && (RearmReadyCheckBypassed(owner) || SquadHasAmmo(owner)))
 			{
 				// Find a new target
 				var leader = owner.Units.FirstOrDefault();

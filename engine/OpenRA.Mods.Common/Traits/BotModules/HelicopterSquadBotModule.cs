@@ -48,6 +48,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks between updating active squads.")]
 		public readonly int SquadUpdateInterval = 5;
 
+		[Desc("Skip the full-ammo readiness gate when launching missions. WW3MOD attack helis only refill",
+			"at an hpad and the mod builds none, so a heli below full ammo can NEVER become mission-ready —",
+			"no squad ever forms and the helicopters idle forever. This is the squad-path twin of the",
+			"production-side SkipRearmBuildingCheck trap. OFF by default so legacy/normal/stable behaviour is",
+			"unchanged; only HelicopterSquadBotModule@experimental turns it on.")]
+		public readonly bool SkipRearmReadyCheck = false;
+
 		public override object Create(ActorInitializer init) { return new HelicopterSquadBotModule(init.Self, this); }
 	}
 
@@ -395,15 +402,20 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 			}
 
-			// Check ammo
-			var ammoPools = h.TraitsImplementing<AmmoPool>().ToArray();
-			var rearmable = h.TraitOrDefault<Rearmable>();
-			if (ammoPools.Length > 0 && rearmable != null)
+			// Check ammo — unless the rearm-ready gate is bypassed. WW3MOD attack helis rearm only
+			// at an hpad (none built), so requiring full ammo permanently benches any heli that
+			// dipped below full and no squad ever forms. SkipRearmReadyCheck lets them launch anyway.
+			if (!Info.SkipRearmReadyCheck)
 			{
-				foreach (var ap in ammoPools)
+				var ammoPools = h.TraitsImplementing<AmmoPool>().ToArray();
+				var rearmable = h.TraitOrDefault<Rearmable>();
+				if (ammoPools.Length > 0 && rearmable != null)
 				{
-					if (!ap.HasFullAmmo)
-						return false;
+					foreach (var ap in ammoPools)
+					{
+						if (!ap.HasFullAmmo)
+							return false;
+					}
 				}
 			}
 

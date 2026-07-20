@@ -605,9 +605,12 @@ Player:
 			littlebird: 2500
 			TRAN: 2500
 
-	# ===== Helicopter Squad Manager (shared, all factions) =====
+	# ===== Helicopter Squad Manager (shared, all factions EXCEPT experimental) =====
+	# Split from the experimental twin below so the rearm-ready bypass is experimental-only.
+	# The !enable-ai-experimental guard keeps this one instance per player (an experimental bot
+	# would otherwise match BOTH blocks). Normal/rush/turtle/stable keep the frozen default.
 	HelicopterSquadBotModule:
-		RequiresCondition: enable-ai-any
+		RequiresCondition: enable-ai-any && !enable-ai-experimental
 		AttackSquadSize: 2
 		AttackSquadSizeBonus: 1
 		AttackCooldown: 900
@@ -615,6 +618,20 @@ Player:
 		TransportInterval: 600
 		TransportMinInfantry: 4
 		MaxActiveSquads: 3
+
+	# Experimental twin: identical config plus SkipRearmReadyCheck. WW3MOD attack helis only
+	# refill at an hpad (none built), so the full-ammo readiness gate permanently benches any
+	# heli below full ammo — no squad ever forms. The bypass lets experimental squads launch.
+	HelicopterSquadBotModule@experimental:
+		RequiresCondition: enable-ai-experimental
+		AttackSquadSize: 2
+		AttackSquadSizeBonus: 1
+		AttackCooldown: 900
+		ScoutInterval: 400
+		TransportInterval: 600
+		TransportMinInfantry: 4
+		MaxActiveSquads: 3
+		SkipRearmReadyCheck: true
 
 	# ===== Stable AI — frozen snapshot of the validated Experimental config =====
 	#
