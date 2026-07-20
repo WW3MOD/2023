@@ -16,7 +16,7 @@
  *
  * Verdict shape (serialized into TestMode.WriteResult's `notes` field):
  *   {
- *     "verdict_version": 4,
+ *     "verdict_version": 5,
  *     "scenario": "<test-name>",
  *     "seed": <int>,
  *     "git_sha": "<run-tournament.sh stamps this>",
@@ -50,6 +50,12 @@
  * No JSON field was added or removed; resources_earned and capture_income_gross are
  * both unchanged. The version bump flags the changed *meaning* of the emitted
  * capture_income score component.
+ * v5 (additive, schema-stable): emit the top-level "seed" field (the lobby RandomSeed
+ * actually used — from Test.RandomSeed or the DateTime.Now fallback). Pairs with the
+ * World.cs LocalRandom seeding fix so a fixed seed now reproduces a whole match; the
+ * verdict is self-describing (traceable to its seed without index arithmetic). The
+ * bot-decision stream is a documented pure function of this seed:
+ * localSeed = (int)(seed * 6364136223846793005 + 1442695040888963407).
  *
  * See:
  *   WORKSPACE/plans/260511_ai_tournament_harness.md
@@ -93,6 +99,10 @@ namespace OpenRA.Mods.Common.Traits
 		bool finished;
 		int countdown;
 
+		// The authoritative match seed (lobby RandomSeed — from Test.RandomSeed or the
+		// DateTime.Now fallback), captured at load so SerializeVerdict can stamp the verdict.
+		int capturedSeed;
+
 		// SR discovery is deferred to first tick because IWorldLoaded fires
 		// BEFORE SpawnMapActors creates the actor instances. See PITFALLS.md §11.
 		bool srDiscoveryDone;
@@ -107,6 +117,8 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!TestMode.IsActive || string.IsNullOrEmpty(TestMode.TournamentConfigPath))
 				return;
+
+			capturedSeed = world.LobbyInfo.GlobalSettings.RandomSeed;
 
 			// Diagnostic log next to the verdict file. Explicit flush — Log.Write is
 			// buffered with a 5s timer that doesn't reliably fire before Game.Exit.
@@ -277,20 +289,21 @@ namespace OpenRA.Mods.Common.Traits
 
 		void WriteVerdictAndExit(MatchVerdict verdict)
 		{
-			var json = SerializeVerdict(verdict, state);
+			var json = SerializeVerdict(verdict, state, capturedSeed);
 			TestMode.WriteResult("pass", json);
 
 			Log.Write("debug", $"[Tournament] match ended at tick {verdict.EndTick}: winner={verdict.Winner?.PlayerName ?? "<none>"} reason={verdict.Reason}");
 			Game.Exit();
 		}
 
-		static string SerializeVerdict(MatchVerdict verdict, MatchTrackingState state)
+		static string SerializeVerdict(MatchVerdict verdict, MatchTrackingState state, int seed)
 		{
 			// Manual JSON build (no System.Text.Json dependency on the engine project).
 			// Embedded inside TestMode's `notes` string field — escaping done by TestMode.WriteResult.
 			var sb = new StringBuilder();
 			sb.Append("{");
-			sb.Append("\"verdict_version\":4,");
+			sb.Append("\"verdict_version\":5,");
+			sb.Append($"\"seed\":{seed},");
 			sb.Append($"\"duration_ticks\":{verdict.EndTick},");
 			sb.Append($"\"winner_client_index\":{verdict.Winner?.ClientIndex ?? -1},");
 			sb.Append($"\"winner_name\":\"{Escape(verdict.Winner?.PlayerName ?? "")}\",");

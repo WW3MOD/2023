@@ -211,7 +211,17 @@ namespace OpenRA
 			Timestep = ReplayTimestep = GameSpeed.Timestep;
 
 			SharedRandom = new MersenneTwister(orderManager.LobbyInfo.GlobalSettings.RandomSeed);
-			LocalRandom = new MersenneTwister();
+
+			// LocalRandom drives bot *decisions* (unit call-in choice, squad/scan timing, target
+			// selection). Seed it from the lobby RandomSeed so a fixed Test.RandomSeed reproduces a
+			// whole match — but derive a decorrelated seed (PCG-style LCG transform) so its stream is
+			// independent of SharedRandom's combat rolls. RandomSeed==0 is the unset default (never a
+			// real match — every SP/MP/test seed is DateTime.Now-derived or Test.RandomSeed); fall back
+			// to the wall-clock ctor there so normal gameplay is not same-seeded across launches.
+			var localSeed = orderManager.LobbyInfo.GlobalSettings.RandomSeed;
+			LocalRandom = localSeed != 0
+				? new MersenneTwister(unchecked((int)(localSeed * 6364136223846793005L + 1442695040888963407L)))
+				: new MersenneTwister();
 
 			// Apply scenario if selected in lobby
 			var scenarioName = orderManager.LobbyInfo.GlobalSettings.OptionOrDefault("scenario", "none");
