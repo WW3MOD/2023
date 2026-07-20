@@ -3,6 +3,34 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-20 — TECN is consumed on successful capture (`ConsumedByCapture: true`)
+
+`^CapturesNeutralBuildings` (infantry.yaml:897–905) sets `ConsumedByCapture: true`
+(infantry.yaml:903). Every successful neutral-building capture removes the TECN from
+the game. This means the AI's TECN pool shrinks by one on every SUCCESS as well as
+every combat death. With `UnitLimits: tecn.america/russia: 3` (ai-america.yaml:37,
+ai-russia.yaml:37), capturing 2–3 derricks can exhaust the live pool entirely, after
+which no further captures are possible until production replaces them. Key implication
+for capture-reliability design: the TECN pool is a **consumable**, not a persistent
+resource — availability is the binding constraint, not coordinator logic.
+
+Code refs: `infantry.yaml:903`, `ai-america.yaml:37`, `CaptureCoordinatorBotModule.cs:432`.
+
+## 2026-07-20 — `PoiGoalGuard` commitment TTL (300 ticks) is borderline short for Speed-25 infantry on 8-cell routes
+
+`DefaultCommitmentTicks: 300` (ai.yaml:122; PoiGoalGuard.cs:129). At `Speed: 25`
+(infantry.yaml:37, `^Infantry` template inherited by `^TECN` via the chain
+`^ArmedCivilian → ^CivInfantry → ^Infantry`), one cell takes `⌈1024 / 25⌉ ≈ 41` ticks.
+An 8-cell edge-to-SR-to-target route takes ~330 ticks, exceeding the TTL. When the TTL
+expires, `Prune()` (PoiGoalGuard.cs:104–116) drops the commitment and marks the unit
+as available again. If the unit has an `IsIdle` flicker mid-walk, the coordinator can
+re-issue a new capture order, aborting the in-progress approach. Fix: raise to 600
+(covers ~14-cell walk). River Zeta derricks are ~3–4 cells from SR (baseline §failures);
+combined edge-to-SR walk ~3–5 cells; total ~6–8 cells ≈ 250–330 ticks — borderline
+at 300, safe at 600.
+
+Code refs: `ai.yaml:122`, `PoiGoalGuard.cs:104`, `infantry.yaml:37`.
+
 ## 2026-07-20 — `CohesionMoveModifier` is a cover-aware intent system, NOT a simple offset system; and it DOES fire for bot orders
 
 `architecture.md` description is **wrong**: "offsets group move targets based on CohesionMode
