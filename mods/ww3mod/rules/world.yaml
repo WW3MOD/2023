@@ -261,6 +261,9 @@ World:
 	# Test.Mode=true AND Test.TournamentConfig=<path>. See
 	# WORKSPACE/plans/260511_ai_tournament_harness.md
 	BotVsBotMatchWatcher:
+	# Universal Test.SpeedMultiplier apply for non-tournament test runs.
+	# No-op unless Test.Mode=true + Test.SpeedMultiplier>1 + no tournament config.
+	TestModeSpeedMultiplier:
 	ScenarioLobbyDropdown:
 	HealerClaimLayer:
 	UnitDefaultsManager:
