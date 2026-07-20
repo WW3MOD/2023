@@ -3,6 +3,14 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-21 — Mounted transports never dismount: the bot issues the ACTIVITY name as an order string ("UnloadCargo" ≠ "Unload") — and the autotest only proved carriage+arrival, never the unload (live-crash match triage)
+
+Found triaging a live Exp-vs-Exp match (carrier drives a TECN to the derrick and sits there loaded forever; non-TECN frontline infantry also never dismounts).
+- **Root cause: `MountedTransportBotModule.AdvanceTask` issued `new Order("UnloadCargo", carrier, …)` (`MountedTransportBotModule.cs:287`), but `Cargo.ResolveOrder` only handles `"Unload"` / `"UnloadCargoPassenger"` (`Cargo.cs:248,255`).** `UnloadCargo` is the *activity class name* (`Activities/UnloadCargo.cs`, queued internally by Cargo at `:253,519`), not an order string — the order matched nothing and was silently dropped. The carrier still transitioned `Delivering→Unloading` and then waited on `cargo.IsEmpty()`, which never became true → stuck loaded at the drop-off forever. Affected BOTH the capture ferry and the generic frontline delivery (shared code path), which is why non-TECN pax were stuck too.
+- **The unload path is shared by the `@poi` (stable) and `@experimental` twins, so the fix had to be gated.** `MountedTransportBotModule@poi` is `enable-ai-stable` (`ai.yaml:370`); `AdvanceTask` is the same C# for both. A straight string swap would change @stable and break byte-identity. Fix: new default-false `UnloadOnArrival` field — issues `"Unload"` when set, keeps the broken `"UnloadCargo"` no-op when unset — enabled only on `@experimental` (`ai.yaml`). Frozen path unchanged.
+- **`Cargo.ResolveOrder` drops even the correct `"Unload"` order when `!CanUnload()` (`Cargo.cs:250-251`)** — no adjacent cell free on arrival. Issued once on the state transition, a single drop re-creates the permanent stall. Added a re-issue in the `Unloading` branch guarded on `carrier.IsIdle && cargo.CanUnload()` so a freed cell rescues it (experimental only).
+- **Autotest blind spot (why `test-tecn-ride` was GREEN through this):** its predicate PASSes "the instant" `mounted` latches (carrier `HasPassengers`) AND the carrier arrives within 6 cells of the derrick (`test-tecn-ride.lua:29-37`). It never asserts the TECN *dismounts* or the derrick is *captured* — so the broken order string was never exercised. A carriage+arrival test cannot cover an unload bug; the pass predicate must check `cargo.IsEmpty()` post-arrival (or derrick ownership flip) to close the gap.
+
 ## 2026-07-21 — The offense scorer is blind to FRIENDLY influence; the enemy sample is already carried per-target (recon for the territorial bias)
 
 Found tracing the balance-of-power slice (plan `WORKSPACE/plans/260721_terr_offense_bias.md`).

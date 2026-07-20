@@ -3,6 +3,9 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-07-21: [high] Mounted transports never dismount — wrong order string; autotest blind to the unload (FIXED, experimental-gated) (found while: live-crash match triage)
+`MountedTransportBotModule.AdvanceTask` issued `Order("UnloadCargo", …)` but `Cargo.ResolveOrder` only handles `"Unload"`/`"UnloadCargoPassenger"` (`Cargo.cs:248,255`) — `UnloadCargo` is the *activity* class name, so the order was silently dropped and carriers sat at the drop-off loaded forever (ferry AND generic frontline delivery). Fixed behind default-false `UnloadOnArrival` (issues `"Unload"`), enabled only on `MountedTransportBotModule@experimental` so `@poi`/@stable stay byte-identical; added an idle+CanUnload re-issue guard against the `!CanUnload` first-order drop (`Cargo.cs:250`). **Autotest blind spot:** `test-tecn-ride.lua:29-37` passes on carriage+arrival-within-6-cells only; it never checks dismount or derrick capture, so the broken string went undetected. The test's pass predicate should assert `cargo.IsEmpty()` post-arrival (or the derrick ownership flip).
+
 ## 2026-03-24: AirstrikePower crash — case-sensitive actor lookup (FIXED)
 `Rules.Actors` keys are lowercase but `AirstrikePower.SendAirstrike` looked up `info.UnitType` without lowercasing. Crashed when Russia used Su-25 airstrike (`FROG.Airstrike` → `KeyNotFoundException`). Fixed: added `ToLowerInvariant()` to C# lookup + lowercased YAML UnitType values.
 

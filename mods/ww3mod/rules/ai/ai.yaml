@@ -402,6 +402,9 @@ Player:
 		ReturnArrivalRadius: 5
 		DeliverBeforeContact: true
 		PreContactStagingPct: 50
+		# Issue the engine-correct "Unload" order so carriers actually disembark passengers
+		# (the shared C# default keeps the broken "UnloadCargo" no-op for @stable byte-identity).
+		UnloadOnArrival: true
 
 	# Capture enemy logistics centers to deny resupply (LEGACY ONLY).
 	# experimental handles LC capture inside CaptureCoordinatorBotModule@experimental.tecn so the

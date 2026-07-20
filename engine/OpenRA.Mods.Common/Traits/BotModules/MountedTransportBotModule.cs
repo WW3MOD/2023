@@ -78,6 +78,13 @@ namespace OpenRA.Mods.Common.Traits
 			"50 = halfway between our SR and the top offensive POI. Only used when DeliverBeforeContact is set.")]
 		public readonly int PreContactStagingPct = 50;
 
+		[Desc("Experimental (default false = frozen): issue the engine-correct \"Unload\" order on arrival",
+			"so carriers actually disembark their passengers. The frozen default issues \"UnloadCargo\" —",
+			"which is the UnloadCargo ACTIVITY class name, not an order string, so Cargo.ResolveOrder",
+			"silently drops it and passengers never dismount (carrier idles at the drop-off loaded forever).",
+			"Kept default-off so @stable/controls stay byte-identical; only set on the @experimental twin.")]
+		public readonly bool UnloadOnArrival = false;
+
 		public override object Create(ActorInitializer init) { return new MountedTransportBotModule(init.Self, this); }
 	}
 
@@ -284,7 +291,11 @@ namespace OpenRA.Mods.Common.Traits
 					var distToDrop = (carrier.Location - task.DropOff).LengthSquared;
 					if (distToDrop <= Info.DropOffArrivalRadius * Info.DropOffArrivalRadius)
 					{
-						bot.QueueOrder(new Order("UnloadCargo", carrier, Target.Invalid, false));
+						// "UnloadCargo" is the UnloadCargo ACTIVITY name, not an order string — Cargo
+						// only resolves "Unload"/"UnloadCargoPassenger", so the legacy string is a no-op
+						// and passengers never dismount. UnloadOnArrival (experimental) issues the correct
+						// order; the frozen default keeps the broken string so @stable stays byte-identical.
+						bot.QueueOrder(new Order(Info.UnloadOnArrival ? "Unload" : "UnloadCargo", carrier, Target.Invalid, false));
 						task.State = CarrierState.Unloading;
 						task.StateChangedAtTick = world.WorldTick;
 						AIUtils.BotDebug("AI ({0}): mounted-transport — {1} unloading at {2}",
@@ -315,6 +326,13 @@ namespace OpenRA.Mods.Common.Traits
 						task.StateChangedAtTick = world.WorldTick;
 						AIUtils.BotDebug("AI ({0}): mounted-transport — {1} returning to {2}",
 							player.ClientIndex, carrier.Info.Name, task.Return);
+					}
+					else if (Info.UnloadOnArrival && carrier.IsIdle && cargo.CanUnload())
+					{
+						// The first Unload order is dropped by Cargo.ResolveOrder when no adjacent cell
+						// is free on arrival (!CanUnload); the carrier would then idle here loaded forever.
+						// Re-issue once a cell frees up (carrier idle + CanUnload) so it can never stall.
+						bot.QueueOrder(new Order("Unload", carrier, Target.Invalid, false));
 					}
 
 					break;
