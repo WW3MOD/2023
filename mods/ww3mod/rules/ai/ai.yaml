@@ -163,6 +163,11 @@ Player:
 		# derrick is uncaptured and no TECN is free. Default 0 (disabled) on the shared
 		# engine class; set ONLY here, so @stable.tecn stays byte-identical.
 		TecnFloor: 1
+		# TECN-first ferrying: for a DISTANT derrick, request a ride from the experimental
+		# MountedTransportBotModule twin instead of walking the TECN there on foot. Falls back to
+		# on-foot when no carrier is free. Default false on the engine class → @stable.tecn frozen.
+		UseTransportForDistantCaptures: true
+		TransportCaptureMinDistanceCells: 12
 
 	# experimental AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
 	# ground army across the top enemy objectives ranked by PoiMap
@@ -354,13 +359,15 @@ Player:
 	#
 	# Spec: WORKSPACE/ai/stage_b4_mounted_transport.md.
 	#
-	# SHARED SINGLETON (not duplicated into a @stable twin): LayeredDefenceBotModule
-	# fetches it via player.TraitOrDefault<MountedTransportBotModule>() (single-instance
-	# lookup), so two instances on one player would throw. Gated on BOTH bot conditions
-	# instead — Experimental and Stable share this module's config. (See the Stable
-	# section note + SPEC §13.)
+	# NOW SPLIT into @poi (stable-frozen) + @experimental twins (was a shared singleton).
+	# The split lets TECN-first ferrying + pre-contact delivery land experimental-only while
+	# @stable stays byte-identical. Consumers (LayeredDefenceBotModule, CaptureCoordinatorBotModule)
+	# resolve the ENABLED instance via TraitsImplementing<>().FirstOrDefault(m => !m.IsTraitDisabled)
+	# — TraitOrDefault would throw now that two instances exist on the player actor. The
+	# `enable-ai-stable` / `enable-ai-experimental` guards keep exactly one enabled per player
+	# (a bot is never both). Mirrors the HelicopterSquadBotModule split (commit cf7f826b).
 	MountedTransportBotModule@poi:
-		RequiresCondition: enable-ai-experimental || enable-ai-stable
+		RequiresCondition: enable-ai-stable
 		# Scan often — passengers spend only a short window idle near the SR
 		# before LayeredDefence sends them forward. The relaxed filter (see
 		# the trait) also grabs non-idle passengers in the reserve zone, but
@@ -374,6 +381,27 @@ Player:
 		LoadingTimeoutTicks: 1500
 		DropOffArrivalRadius: 3
 		ReturnArrivalRadius: 5
+
+	# Experimental twin — identical config plus two experimental-only behaviours (both
+	# default-frozen in C#, opted-in here):
+	#   * DeliverBeforeContact: deliver toward a forward staging cell (top PoiMap offensive
+	#     target) when no frontline exists yet, instead of piling carriers at the SR.
+	#   * TECN-first capture ferrying is triggered by CaptureCoordinatorBotModule@experimental.tecn
+	#     calling TryReserveCaptureFerry on THIS instance (no YAML field needed — it's a directed
+	#     call path, inert unless the experimental capture module requests a ride).
+	MountedTransportBotModule@experimental:
+		RequiresCondition: enable-ai-experimental
+		ScanInterval: 50
+		CarrierTypes: bradley, bmp2, m113
+		PassengerTypes: e3.america, e3.russia, ar.america, ar.russia, at.america, at.russia, sn.america, sn.russia, tl.america, tl.russia, medi.america, medi.russia, e2.america, e2.russia, mt.america, mt.russia, aa.america, aa.russia, e4.america, e4.russia
+		MinPassengersPerLoad: 2
+		MaxPassengersPerLoad: 5
+		ReserveZoneRadiusCells: 14
+		LoadingTimeoutTicks: 1500
+		DropOffArrivalRadius: 3
+		ReturnArrivalRadius: 5
+		DeliverBeforeContact: true
+		PreContactStagingPct: 50
 
 	# Capture enemy logistics centers to deny resupply (LEGACY ONLY).
 	# experimental handles LC capture inside CaptureCoordinatorBotModule@experimental.tecn so the
@@ -641,13 +669,14 @@ Player:
 	# (enable-ai-player / enable-ai-any) as Experimental, so only the
 	# Experimental-only modules need a Stable twin here.
 	#
-	# TWO EXCEPTIONS — PoiGoalGuard and MountedTransportBotModule are NOT twinned:
-	# consumers fetch them via a single-instance player.TraitOrDefault<T>() lookup, so
-	# a second instance on one player throws at runtime. They are defined ONCE above,
-	# gated `enable-ai-experimental || enable-ai-stable`, and thus SHARED (not
-	# independently frozen). Every other strategic module below is an independent
-	# @stable copy. (SquadManager is fetched via TraitsImplementing<T>() — multi-safe
-	# — so its @stable twins are fine.)
+	# ONE EXCEPTION — PoiGoalGuard is NOT twinned: consumers fetch it via a single-instance
+	# player.TraitOrDefault<PoiGoalGuard>() lookup, so a second instance on one player throws
+	# at runtime. It is defined ONCE above, gated `enable-ai-experimental || enable-ai-stable`,
+	# and thus SHARED (not independently frozen). MountedTransportBotModule WAS in this list but
+	# is now split (@poi stable-frozen + @experimental twin) — its consumers were migrated to the
+	# multi-safe TraitsImplementing<T>().FirstOrDefault(!IsTraitDisabled) lookup. Every other
+	# strategic module below is an independent @stable copy. (SquadManager is likewise fetched via
+	# TraitsImplementing<T>() — multi-safe — so its @stable twins are fine.)
 	#
 	# PROMOTION POLICY (see WORKSPACE/ai-bench/SPEC.md §13): the optimization loop only
 	# ever edits the @experimental modules. When a change is validated (benchmark +
