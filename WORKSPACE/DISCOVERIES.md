@@ -24,6 +24,30 @@ Corollary: the `BotVsBotMatchWatcher` header documents a `"seed"` verdict field 
 
 This makes the `architecture.md:291-293` note ("Bot decisions are not seed-reproducible") a
 *current-state* fact that a ~2-line change would invert — update that note if/when the seeding lands.
+**RESOLVED** (main @ `2d3c8fe0`): the seeding landed and verified FULL determinism — see next entry.
+
+## 2026-07-20 — Seeding `LocalRandom` gives FULL replay determinism; async pathfinding did NOT leak nondeterminism
+
+Verify of the seeding fix (`World.cs:214`, main @ `2d3c8fe0`;
+`WORKSPACE/ai-bench/runs/260720_seeded_determinism_verify.md`). Two hidden Mode-B matches at the
+same seed came back **byte-identical** — not just the final verdict, but the watcher's tick-by-tick
+score log (60 logged intervals over 7500 ticks) matched line-for-line. The plan's prime suspect for
+residual nondeterminism (async pathfinding after the seeding fix, §5.3) **did not materialize**:
+seeding the single unseeded `LocalRandom` was sufficient for full reproduction. So OpenRA's
+off-thread pathfinding applies its results deterministically on the sim thread even with WW3MOD's
+modified movement — no extra work needed for benchmark determinism.
+
+Second, non-obvious for benchmark design: **in-window derrick capture is a near-binary per-seed
+outcome, not a gradual dial.** Seed 1017 → *both* bots `capture_income_gross=0` (no capture landed
+in 7500t); seed 9017 → experimental `gross=10917`. That is the whole 4/10-vs-9/10 variance — each
+seed either lands the early capture or it doesn't. Implication: a stable capture-rate mean needs
+enough seeds to sample that Bernoulli-ish distribution; a single seed tells you nothing about the
+rate, only that *this* battlefield did/didn't capture.
+
+Transform (decorrelates `LocalRandom` from `SharedRandom` while staying a pure function of the seed):
+`(int)(RandomSeed*6364136223846793005 + 1442695040888963407)`, guarded on `RandomSeed != 0` so
+normal gameplay (seed = `DateTime.Now.ToBinary()`) still varies per launch. Verdict now records the
+seed (`verdict_version` 5).
 
 ## 2026-07-20 — `UnitBuilderBotModule` UnitsToBuild weight is a share *ceiling*, NOT a priority
 
