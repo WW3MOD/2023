@@ -169,6 +169,21 @@ The even/odd index split still deterministically selects primary vs mirror
 > a "keep N ready" floor — `tecn.*: 3` is a ceiling, not a floor), upstream of the capture loop.
 > Analysis: [`runs/260720_capture_reliability_cycle1_n10.md`](runs/260720_capture_reliability_cycle1_n10.md).
 
+> **DISPERSION DOCTRINE VERIFY (2026-07-20, merged `exp-dispersion` → main) — activation +
+> non-regression PASS on S1.** Spread-to-move / mass-to-assault (`PoiOffensiveBotModule`
+> distance-gated `SetCohesion`, `@experimental`-only, kill-switch defaults off so `@stable`
+> is untouched) run N=10 hidden Mode-B (5 primary + 5 mirror): **win 9/10 ✅ (≥7), capture
+> 9/10 ✅ (≥4), conditional gross median $11,191 ✅ (≥$5000)** — no regression on the
+> validated S1 economy behavior. **Activation proven:** 130 `[exp-offense] order` lines carry
+> the `cohesion=` token and the `AssaultRadiusCells=15` gate fired with **0 violations** (all
+> 52 Spread orders at distToTarget 16–61, all 78 Tight at 3–15). **Caveat:** S1 is an
+> *economy* scenario and cannot exhibit dispersion's real value — it is a *combat-survival*
+> movement mechanic, so **dispersion's real combat signal awaits an S2-class (Force
+> Efficiency) rung** (mean pairwise spacing en route vs at assault; units-lost-on-approach).
+> The capture-rate jump vs baseline (4/10 → 9/10) is **confounded** with main's cycle-1 merge
+> and not credited to dispersion. Analysis:
+> [`runs/260720_dispersion_verify_n10.md`](runs/260720_dispersion_verify_n10.md).
+
 > **PITFALL:** the S1 metric is **`capture_income_gross`** (verdict_version 4), NOT
 > `resources_earned` and NOT `PlayerStatistics.Income`. `Income` is a rolling 60-second
 > figure and `resources_earned` (net `Earned`) is blind to held-derrick income (below) —
