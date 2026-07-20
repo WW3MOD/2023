@@ -1,0 +1,1 @@
+Fix 2: below-full attack helis with no hpad must still form a squad and launch (experimental SkipRearmReadyCheck).

@@ -81,6 +81,13 @@ namespace OpenRA.Mods.Common.Traits
 			"automatically by trait.")]
 		public readonly HashSet<string> ExcludeUnitTypes = new HashSet<string>();
 
+		[Desc("Skip units whose AmmoPool(s) are ALL empty (evacuating / out-of-ammo). An empty unit",
+			"re-tasked onto an axis has its RotateToEdge evac cancelled by the AttackMove and is sent",
+			"at the enemy with nothing to shoot. OFF by default so the frozen Stable/Normal controls stay",
+			"byte-identical (they keep pulling every unit); only PoiOffensiveBotModule@experimental turns it",
+			"on. Mirrors LayeredDefenceBotModule.SkipOutOfAmmoUnits + the CohesionSwitchEnabled default-off pattern.")]
+		public readonly bool SkipOutOfAmmoUnits = false;
+
 		[Desc("Master switch for the dispersion doctrine (spread to move, mass to assault). OFF by",
 			"default so the frozen Stable/Normal controls keep the pre-dispersion behaviour untouched;",
 			"only PoiOffensiveBotModule@experimental turns it on. When off, no SetCohesion is issued.")]
@@ -408,7 +415,25 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 			if (a.Info.HasTraitInfo<AircraftInfo>())
 				return false;
+
+			// An out-of-ammo unit is evacuating (RotateToEdge); recruiting it cancels the evac
+			// and sends an empty unit at the enemy. Skip it until it resupplies. Default-off so
+			// the frozen controls are untouched — only @experimental sets SkipOutOfAmmoUnits.
+			if (Info.SkipOutOfAmmoUnits && IsOutOfAmmo(a))
+				return false;
+
 			return !Info.ExcludeUnitTypes.Contains(a.Info.Name);
+		}
+
+		// "Out of ammo" = the unit has AmmoPool traits AND every pool is empty. Units with no
+		// AmmoPool always return false; partial-ammo units (one pool empty, another full) too.
+		// Copied verbatim from LayeredDefenceBotModule so both modules share the same predicate.
+		static bool IsOutOfAmmo(Actor actor)
+		{
+			var pools = actor.TraitsImplementing<AmmoPool>().ToList();
+			if (pools.Count == 0)
+				return false;
+			return pools.All(p => p.CurrentAmmoCount == 0);
 		}
 
 		// Remove units that died / changed owner / lost their axis commitment.
@@ -422,6 +447,15 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					if (u.IsDead || !u.IsInWorld || u.Owner != player)
 						return true;
+
+					// A unit that emptied mid-axis must leave to evacuate — otherwise it stays
+					// committed at the objective forever. Release its ledger claim inline (PruneAxes
+					// only trims the list; ReleaseAxis isn't called here). Default-off with the guard.
+					if (Info.SkipOutOfAmmoUnits && IsOutOfAmmo(u))
+					{
+						goalGuard?.Ledger.Release(u);
+						return true;
+					}
 
 					// A committed-but-reclaimed unit (objective no longer ours) leaves.
 					if (goalGuard != null

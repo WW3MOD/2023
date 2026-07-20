@@ -1,0 +1,1 @@
+Fix 1: an out-of-ammo unit must NOT be recruited onto an offensive axis (experimental SkipOutOfAmmoUnits).
