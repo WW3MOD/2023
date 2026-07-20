@@ -1,0 +1,12 @@
+AI Benchmark S1 SANITY-FLOOR (Economy Race). Experimental vs the frozen Normal
+control on the canonical River Zeta WW3 terrain (98x82) with all 12 neutral OILB
+oil-derrick income POIs. Created 2026-07-21 with the user-directed benchmark regime
+change: the ladder's PRIMARY opponent is now @stable (tournament-s1-eco-river-zeta);
+Normal is demoted to this one Exp-vs-Normal floor check. Run under the SAME new
+regime as the primary — startingunits=Motorized both sides (StartingUnitsClass on
+each bot PlayerReference), SAME faction (america) both sides — so the floor is
+directly comparable to the primary. Purpose: confirm Experimental has not regressed
+below the frozen Normal baseline. NOT part of the composite gate; run occasionally,
+not every cycle. Metric/config identical to the S1 primary (tournament-eco-5min.yaml,
+TimeLimitSeconds 300, SpeedMultiplier 8, Mode B hidden). USA-bot/experimental SR at
+14,45; Russia-bot/normal SR at 80,35 — each with an OILB ~3-4 cells away.

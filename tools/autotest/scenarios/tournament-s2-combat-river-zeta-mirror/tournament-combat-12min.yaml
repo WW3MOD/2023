@@ -14,7 +14,7 @@
 
 Matchup:
 	P1Bot: experimental
-	P2Bot: normal
+	P2Bot: stable
 
 # 12-minute match — LADDER S2 (TimeLimitSeconds: 720). Long enough for sustained
 # contact so exchange efficiency + force preservation dominate (S1's 300s isolates

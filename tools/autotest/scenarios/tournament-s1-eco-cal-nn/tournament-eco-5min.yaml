@@ -11,8 +11,8 @@
 # only difference from the 720s config is the clock + speed.
 
 Matchup:
-	P1Bot: normal
-	P2Bot: normal
+	P1Bot: stable
+	P2Bot: stable
 
 # 5-minute match — LADDER S1 (TimeLimitSeconds: 300). Long enough for TECNs to
 # arrive and start capturing income structures; short enough to isolate economy

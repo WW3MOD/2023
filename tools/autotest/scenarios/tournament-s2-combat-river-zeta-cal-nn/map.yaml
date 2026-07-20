@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TOURNAMENT S2 CAL: Normal vs Normal (River Zeta combat side-fairness calibration)
+Title: TOURNAMENT S2 CAL: Stable vs Stable (River Zeta combat side-fairness calibration, Motorized start, US mirror)
 
 Author: WW3MOD tournament harness
 
@@ -24,8 +24,12 @@ Categories: Test
 # the old tournament-experimental-vs-normal-2p stub (66x34, zero capturable POIs) pinned
 # resources_earned to 0/0 by construction (WORKSPACE/ai-bench/runs/260719_s1_diagnosis.md).
 #
-#   Left  SR (14,45) = USA-bot,    faction=america, Bot=experimental     <- experimental
-#   Right SR (80,35) = Russia-bot, faction=russia,  Bot=normal <- baseline
+#   Left  SR (14,45) = USA-bot,    faction=america, Bot=stable  <- calibration (both bots @stable)
+#   Right SR (80,35) = Russia-bot, faction=america, Bot=stable  <- calibration (both bots @stable)
+# REGIME CHANGE (2026-07-21, user-directed): the S2 N-vs-N side-fairness calibration
+# analog is now STABLE-vs-STABLE (both bots @stable), startingunits=Motorized both
+# sides, SAME faction (america). Measures pure spawn/side bias + min-engagement at
+# the 720s combat clock under the new regime.
 # Both spawn points are designer-vetted River Zeta start locations, each with a
 # neutral OILB derrick ~3-4 cells away (17,44 for the left SR, 76,35 for the
 # right) so a called-in TECN can plausibly capture within the 5-min clock.
@@ -55,14 +59,16 @@ Players:
 		Name: USA-bot
 		LockFaction: True
 		Faction: america
-		Bot: normal
+		StartingUnitsClass: motorized
+		Bot: stable
 		Color: 4488FF
 		Enemies: Russia-bot
 	PlayerReference@Russia-bot:
 		Name: Russia-bot
 		LockFaction: True
-		Faction: russia
-		Bot: normal
+		Faction: america
+		StartingUnitsClass: motorized
+		Bot: stable
 		Color: FF4444
 		Enemies: USA-bot
 

@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TOURNAMENT S2: experimental vs Normal (River Zeta combat, MIRROR — bots swapped)
+Title: TOURNAMENT S2: experimental vs Stable (River Zeta combat, Motorized start, US mirror, MIRROR — bots swapped)
 
 Author: WW3MOD tournament harness
 
@@ -23,8 +23,11 @@ Categories: Test
 # spawn-side derrick-distance luck: whichever spawn's nearest derrick geometry
 # favours a side, each bot plays it once.
 #
-#   Left  SR (14,45) = USA-bot,    faction=america, Bot=normal        <- baseline (was experimental)
-#   Right SR (80,35) = Russia-bot, faction=russia,  Bot=experimental  <- experimental (was normal)
+#   Left  SR (14,45) = USA-bot,    faction=america, Bot=stable        <- baseline / frozen PROMOTE snapshot (was experimental)
+#   Right SR (80,35) = Russia-bot, faction=america, Bot=experimental  <- experimental (was normal)
+# REGIME CHANGE (2026-07-21, user-directed): startingunits=Motorized both sides;
+# SAME faction (america) both sides; opponent = @stable. Now-same-faction map makes
+# the bot-swap a pure SPAWN swap, isolating side bias without faction confound.
 # Both spawn points are designer-vetted River Zeta start locations, each with a
 # neutral OILB derrick ~3-4 cells away (17,44 for the left SR, 76,35 for the
 # right) so a called-in TECN can plausibly capture within the 5-min clock.
@@ -53,13 +56,15 @@ Players:
 		Name: USA-bot
 		LockFaction: True
 		Faction: america
-		Bot: normal
+		StartingUnitsClass: motorized
+		Bot: stable
 		Color: 4488FF
 		Enemies: Russia-bot
 	PlayerReference@Russia-bot:
 		Name: Russia-bot
 		LockFaction: True
-		Faction: russia
+		Faction: america
+		StartingUnitsClass: motorized
 		Bot: experimental
 		Color: FF4444
 		Enemies: USA-bot

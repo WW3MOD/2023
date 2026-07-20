@@ -9,8 +9,8 @@
 # S2 control should switch to @rush (plan §2.4 / §5).
 
 Matchup:
-	P1Bot: normal
-	P2Bot: normal
+	P1Bot: stable
+	P2Bot: stable
 
 TimeLimitSeconds: 720
 

@@ -16,6 +16,41 @@ vs control) lives in [`REVIEW.md`](REVIEW.md) §Ladder Status.
 
 ---
 
+> # ⚠ REGIME CHANGE — 2026-07-21 (user-directed). ALL NUMBERS BELOW ARE `[pre-regime]`.
+>
+> The tournament instrument was changed in three ways at once. Every S1/S2 baseline,
+> bar, median, and win-split recorded **anywhere below this banner** was measured
+> under the **OLD regime** — `startingunits=none` (bots start with only the two
+> `supplyroute` beachheads), **mixed factions** (US vs Russia), and **opponent =
+> `@normal`**. Those numbers are `[pre-regime]`: **not comparable** to the new
+> regime and **must not be silently reused as bars**. Every bar awaits **re-baseline**.
+>
+> **The new regime (what every S1/S2 scenario now measures):**
+> 1. **Starting units = Motorized** on both sides (`StartingUnitsClass: motorized`
+>    on each bot `PlayerReference`; the Motorized set is `world.yaml:404-419`).
+>    Rationale (user): "how most players will play" + gives early AA against
+>    helicopter cheese. Note the Motorized set is **faction-asymmetric** (America:
+>    `abrams,bradley,humvee`; Russia: `t90,bmp2,bmp2`) — see change 2.
+> 2. **Same faction both sides (US vs US)** — both bots `Faction: america`, so both
+>    field the identical `@Motorized_america` starting force. This removes faction
+>    imbalance (and the Motorized composition asymmetry) from the measurement.
+>    Faction balancing is explicitly **later work**.
+> 3. **Primary opponent = `@stable`** (the frozen post-S1 PROMOTE snapshot), not
+>    `@normal`. Normal is **demoted to a single sanity-floor scenario**
+>    (`tournament-s1-eco-floor-vs-normal`, Exp-vs-Normal, same new regime) — a
+>    "has Experimental regressed below the frozen control?" check, **not** part of
+>    the composite gate. Old Exp-vs-Normal history is kept, not deleted.
+>
+> **Consequence for the mirror twins:** with both sides now `america`, the S1 **and**
+> S2 bot-swap mirrors are pure **spawn** swaps (previously S2's swap also flipped
+> faction). The calibration (`-cal-nn`) scenarios are now **Stable-vs-Stable**, not
+> Normal-vs-Normal. Re-run the CALIBRATE (side-fairness + S2 min-engagement) and the
+> S1/S2 BASELINEs on the new regime before trusting any bar. Scenario tables + registry
+> below are updated to the new regime; the historical result blockquotes are left in
+> place as `[pre-regime]` record (this banner marks them all).
+
+---
+
 ## Ladder structure
 
 - A **rung** is one map. The first (and currently only) rung is **River Zeta WW3**
@@ -35,7 +70,9 @@ vs control) lives in [`REVIEW.md`](REVIEW.md) §Ladder Status.
   `tournament-s1-eco-river-zeta-mirror`, was **built 2026-07-20** — bot-assignment
   swap, not faction swap, since S1's bias concern is derrick *distance* per spawn;
   S2's mirror `tournament-s2-combat-river-zeta-mirror` follows the same bot-swap
-  pattern, which on this fixed-faction-per-spawn map swaps spawn AND faction at once.)
+  pattern. **Regime update 2026-07-21:** with both sides now `america` (same-faction
+  US-US), *both* mirrors are pure **spawn** swaps — S2's mirror no longer also flips
+  faction (see the top regime-change banner).)
 - Each rung holds **three scenarios**, each probing a different facet of "is the
   AI actually better": **economy**, **combat efficiency**, **decisiveness**.
 - A rung is **cleared** by the **composite gate** (§ below): one single commit
@@ -77,12 +114,13 @@ selects primary vs mirror *scenario* per match (index parity, not RNG).
 | Field | Value |
 |---|---|
 | Scenario | `tournament-s1-eco-river-zeta` (**genuinely on River Zeta terrain** — 98×82, all 12 neutral OILB derricks), + `tournament-s1-eco-river-zeta-mirror` for bias (built 2026-07-20) |
-| Contestants | P1 Experimental (v2) vs P2 Normal (control) |
+| **Regime (2026-07-21)** | **Motorized start both sides** (`StartingUnitsClass: motorized`), **same faction US-US** (both `america`), **opponent = `@stable`**. Mirror = pure spawn swap. Cal analog `tournament-s1-eco-cal-nn` is now **Stable-vs-Stable**. Sanity floor `tournament-s1-eco-floor-vs-normal` keeps one Exp-vs-Normal check (same regime). All numbers in this section are `[pre-regime]` (see top banner) → **re-baseline pending**. |
+| Contestants | P1 Experimental (`@experimental`) vs P2 **Stable** (`@stable`, frozen control) — *was* P2 Normal `[pre-regime]` |
 | Match length | **5 minutes** — `TimeLimitSeconds: 300` (candidate bump to 420–600s pending — see finding below) |
 | **Metric** | **`capture_income_gross`** (cumulative GROSS building income, pre-upkeep, verdict `stats.capture_income_gross`, verdict_version 4 — integrated read-only from `PlayerResources.TotalBuildingIncome`, `GrossIncomeIntegrator`). `resources_earned` (net `PlayerResources.Earned`) stays in the verdict as **context only**, not the metric. As of verdict_version 4 the *scorer* economy term (`score_components.capture_income`, which feeds the WinRule) also reads this gross value (follow-up 1a). |
 | N runs | **10** (5-min matches are cheap: ~1–2 wall-min each hidden at 8×) |
 | Seeds | `1017, 2017, … 10017`; even = primary, odd = mirror (`--mirror`) |
-| Advancement | `median(v2 earned) ≥ median(Normal earned) × 1.15` (15% margin) |
+| Advancement | `[pre-regime]` `median(v2 earned) ≥ median(Normal earned) × 1.15` (15% margin) — **await re-baseline vs `@stable` on the Motorized/same-faction regime** before this (or the recommended reliability bar below) is trusted |
 | WinRule | `score_or_sr_capture` (irrelevant to the metric; keep for a valid match end) |
 
 > **RESCOPE (2026-07-19, `86aa2db` branch):** S1 was moved off the old
@@ -287,12 +325,13 @@ score-floating spread offense (Phase 3, `PoiOffensiveBotModule`) **trade better*
 | Field | Value |
 |---|---|
 | Scenario | `tournament-s2-combat-river-zeta` (**built 2026-07-20** — byte-identical River Zeta map as S1, 720s combat clock), + `tournament-s2-combat-river-zeta-mirror` (bot-swap twin) |
-| Contestants | P1 Experimental (v2) vs P2 Normal (control) — Rush fallback if CALIBRATE shows Normal underfights |
+| **Regime (2026-07-21)** | **Motorized start both sides**, **same faction US-US** (both `america`), **opponent = `@stable`**. Now-same-faction map makes the bot-swap mirror a pure **spawn** swap (previously spawn+faction). Cal analog `tournament-s2-combat-river-zeta-cal-nn` is now **Stable-vs-Stable** (re-run CALIBRATE: side-fairness + min-engagement on the new regime). All S2 numbers below are `[pre-regime]` (top banner) → **re-baseline pending**. |
+| Contestants | P1 Experimental (`@experimental`) vs P2 **Stable** (`@stable`, frozen control) — *was* P2 Normal `[pre-regime]`. (The old Rush-fallback question is re-opened by the new opponent + regime; re-CALIBRATE decides it.) |
 | Match length | **12 minutes** — `TimeLimitSeconds: 720` (guarantees sustained contact) |
 | **Metric** | **net combat budget swing** = `stats.kills_cost − stats.deaths_cost` (already emitted per player — read post-hoc, no scorer change, no S1 re-BASELINE) |
 | N runs | **10** (paired seeds cut variance vs the draft's 15 — det. dividend; bump to 20 only if CALIBRATE shows control swing noisy) |
 | Seeds | `1017 … 15017`; even primary, odd mirror |
-| Advancement | `median(v2 net swing) ≥ median(Normal net swing) + margin`, margin = **1× a single mid-tier unit's cost** (an absolute floor, so a positive-but-tiny edge doesn't count as "better") |
+| Advancement | `[pre-regime]` `median(v2 net swing) ≥ median(Normal net swing) + margin`, margin = **1× a single mid-tier unit's cost** — now measured **vs `@stable`** on the Motorized/same-faction regime; **await re-baseline** (the paired-relative form still applies, but both the offset and the control changed) |
 | WinRule | `score_or_sr_capture` |
 
 **Why this metric:** `kills_cost − deaths_cost` is the cleanest force-efficiency
@@ -382,12 +421,13 @@ rather than score it.
 | Field | Value |
 |---|---|
 | Scenario | River Zeta rung, scenario TBD at S3 standup (reuse the S2 `tournament-s2-combat-river-zeta` map + 720s clock, or a dedicated `tournament-s3-*-river-zeta`), + mirror (essential here) |
-| Contestants | P1 Experimental (v2) vs P2 Normal (control) |
+| **Regime (2026-07-21)** | Same new regime as S1/S2 when S3 stands up: **Motorized start, same faction US-US, opponent = `@stable`**. The map-bias gate below becomes **Stable-vs-Stable ~0.50** (not Normal-vs-Normal). |
+| Contestants | P1 Experimental (`@experimental`) vs P2 **Stable** (`@stable`, frozen control) — *was* P2 Normal `[pre-regime]` |
 | Match length | **12 minutes** — `TimeLimitSeconds: 720` (the committed default config) |
-| **Metric** | **Experimental win-rate** (fraction of matches where `winner_name` is the v2 player), from `summary.json` |
+| **Metric** | **Experimental win-rate** (fraction of matches where `winner_name` is the Experimental player), from `summary.json` |
 | N runs | **20** (a win-rate needs statistical power; 20 is the harness's canonical sanity size) |
 | Seeds | `1017 … 20017`; even primary, odd mirror — **mandatory**, so win-rate isn't spawn-side artifact |
-| Advancement | **win-rate ≥ 0.55** (beats the 50/50 even-match null by a 5-point margin), AND Normal-vs-Normal on this scenario is verified ~0.50 (map isn't biased) |
+| Advancement | **win-rate ≥ 0.55** (beats the 50/50 even-match null by a 5-point margin), AND **Stable-vs-Stable** on this scenario is verified ~0.50 (map isn't biased) — `[pre-regime]` map-bias findings do not carry over |
 | WinRule | `score_or_sr_capture` (the committed `tournament.yaml` — score at 720s, or instant win on SR capture) |
 
 **Why a win-rate and why 0.55:** scenarios 1–2 measure *facets*; this measures
@@ -442,13 +482,14 @@ scenarios stay live.
 
 | Scenario | Folder | Config for this ladder |
 |---|---|---|
-| S1 Economy Race | `tools/autotest/scenarios/tournament-s1-eco-river-zeta/` | `tournament-eco-5min.yaml` (`TimeLimitSeconds: 300`, `SpeedMultiplier: 8`) |
-| S2 Force Efficiency | `tools/autotest/scenarios/tournament-s2-combat-river-zeta/` | **BUILT (2026-07-20)** — byte-identical River Zeta map as S1 (98×82, 12 OILB derricks), `tournament-combat-12min.yaml` (`TimeLimitSeconds: 720`, `SpeedMultiplier: 8`); scorer/win-rule frozen identical to S1 (only the clock differs → no S1 re-BASELINE) |
-| S3 Win-rate | River Zeta rung — scenario TBD at S3 standup (reuse S2's map + 720s config, or a dedicated `tournament-s3-*-river-zeta`) | `tournament-combat-12min.yaml` (`720s`) |
-| S1 bias twin | `tools/autotest/scenarios/tournament-s1-eco-river-zeta-mirror/` | **BUILT (2026-07-20)** — byte-identical copy of the primary with the two bots' spawn assignments SWAPPED (Experimental on Russia/80,35, Normal on USA/14,45); uses the same `tournament-eco-5min.yaml`. Smoke-verified: boots + full 7500t hidden. |
-| S1 calibration (N-vs-N) | `tools/autotest/scenarios/tournament-s1-eco-cal-nn/` | **BUILT (2026-07-20, `f8052ec`)** — byte-identical copy of the primary with the USA-bot `Bot:` line `experimental`→`normal` (both bots `@normal`); Title/Matchup relabelled. Side-fairness probe: with identical bots the mirror swap is a no-op, so a single N=10 batch measures pure spawn/side bias. Ran N=10 hidden (`runs/260720_s1_baseline_n10.md`). |
-| S2 bias twin | `tools/autotest/scenarios/tournament-s2-combat-river-zeta-mirror/` | **BUILT (2026-07-20)** — byte-identical copy of the S2 primary with the two bots' spawn assignments SWAPPED (bot-swap = spawn+faction swap on this map); same `tournament-combat-12min.yaml`. |
-| S2 calibration (N-vs-N) | `tools/autotest/scenarios/tournament-s2-combat-river-zeta-cal-nn/` | **BUILT (2026-07-20)** — both bots `@normal`; single N=10 batch measures side/faction bias + min-engagement at the 720s combat clock (go/no-go on Normal as the S2 opponent). |
+| S1 Economy Race | `tools/autotest/scenarios/tournament-s1-eco-river-zeta/` | `tournament-eco-5min.yaml` (`TimeLimitSeconds: 300`, `SpeedMultiplier: 8`). **Regime 2026-07-21:** Motorized start both sides, same faction US-US (both `america`), **Exp vs `@stable`**. |
+| S2 Force Efficiency | `tools/autotest/scenarios/tournament-s2-combat-river-zeta/` | **BUILT (2026-07-20)** — byte-identical River Zeta map as S1 (98×82, 12 OILB derricks), `tournament-combat-12min.yaml` (`TimeLimitSeconds: 720`, `SpeedMultiplier: 8`); scorer/win-rule frozen identical to S1. **Regime 2026-07-21:** Motorized start, same faction US-US, **Exp vs `@stable`**. |
+| S3 Win-rate | River Zeta rung — scenario TBD at S3 standup (reuse S2's map + 720s config, or a dedicated `tournament-s3-*-river-zeta`) | `tournament-combat-12min.yaml` (`720s`). At standup: same new regime (Motorized / US-US / **Exp vs `@stable`**). |
+| S1 bias twin | `tools/autotest/scenarios/tournament-s1-eco-river-zeta-mirror/` | **BUILT (2026-07-20; regime 2026-07-21)** — spawn assignments SWAPPED (`@stable` on USA/14,45, Experimental on Russia/80,35). With both sides now `america` this is a **pure spawn swap**. Same `tournament-eco-5min.yaml`. |
+| S1 calibration (Stable-vs-Stable) | `tools/autotest/scenarios/tournament-s1-eco-cal-nn/` | **BUILT 2026-07-20; regime 2026-07-21 → now Stable-vs-Stable** — both bots `@stable`, Motorized start, same faction. Identical bots make the mirror swap a no-op, so a single N batch measures pure spawn/side bias under the new regime. `[pre-regime]` `f8052ec` N-vs-N result superseded — re-run. |
+| S2 bias twin | `tools/autotest/scenarios/tournament-s2-combat-river-zeta-mirror/` | **BUILT (2026-07-20; regime 2026-07-21)** — spawn assignments SWAPPED. Previously bot-swap = spawn+faction; with same-faction US-US it is now a **pure spawn swap**. Same `tournament-combat-12min.yaml`. |
+| S2 calibration (Stable-vs-Stable) | `tools/autotest/scenarios/tournament-s2-combat-river-zeta-cal-nn/` | **BUILT 2026-07-20; regime 2026-07-21 → now Stable-vs-Stable** — both bots `@stable`, Motorized start, same faction. Single N batch measures side/faction bias + min-engagement at the 720s clock (re-run CALIBRATE; the `[pre-regime]` N-vs-N go/no-go on Normal is superseded). |
+| S1 sanity floor (Exp-vs-Normal) | `tools/autotest/scenarios/tournament-s1-eco-floor-vs-normal/` | **NEW 2026-07-21** — copy of the S1 primary under the new regime (Motorized / same-faction US-US) but with **P2 = `@normal`** instead of `@stable`. The single retained Exp-vs-Normal scenario: a periodic "has Experimental regressed below the frozen control?" floor check. **NOT** part of the composite gate. Same `tournament-eco-5min.yaml`. |
 
 S1 now uses a **River-Zeta-derived** scenario (`tournament-s1-eco-river-zeta`):
 its `map.yaml` keeps the full River Zeta terrain + all 12 neutral OILB derricks
