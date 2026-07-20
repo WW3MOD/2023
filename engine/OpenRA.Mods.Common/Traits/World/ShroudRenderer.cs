@@ -249,46 +249,55 @@ namespace OpenRA.Mods.Common.Traits
 			if (!anyCellDirty)
 				return;
 
-			if (world.RenderPlayer != null)
+			// RenderPlayer == null is the render-side "world view" (observers, the
+			// DevCinematicView cheat, and TestMode's full-map viewer). In that mode every
+			// dirty cell's shroud/fog sprites are cleared and nothing is repainted, so the
+			// whole map shows. Without this clear, switching to world view from a real
+			// player left the previously-drawn shroud sprites stuck on screen (black map).
+			// Player MapLayers are never touched here — only sprites — so AI perception and
+			// the test verdict stay byte-identical.
+			var renderPlayerActive = world.RenderPlayer != null;
+
+			foreach (var puv in region)
 			{
-				foreach (var puv in region)
+				var uv = (MPos)puv;
+				if (!cellsDirty[uv] || !tileInfos.Contains(uv))
+					continue;
+
+				cellsDirty[uv] = false;
+
+				for (var vLayerIndex = MapLayers.VisionLayers - 2; vLayerIndex >= 0; vLayerIndex--)
+					layers[vLayerIndex].TerrainSpriteLayer.Clear(uv.ToCPos(map));
+
+				if (!renderPlayerActive)
+					continue;
+
+				var cellVisibility = this.cellVisibility(puv);
+				var tileInfo = tileInfos[uv];
+				var pos = tileInfo.ScreenPosition;
+
+				for (var vLayerIndex = MapLayers.VisionLayers - 2; vLayerIndex >= 0; vLayerIndex--)
 				{
-					var uv = (MPos)puv;
-					if (!cellsDirty[uv] || !tileInfos.Contains(uv))
-						continue;
-
-					cellsDirty[uv] = false;
-
-					var cellVisibility = this.cellVisibility(puv);
-					var tileInfo = tileInfos[uv];
-					var pos = tileInfo.ScreenPosition;
-
-					for (var vLayerIndex = MapLayers.VisionLayers - 2; vLayerIndex >= 0; vLayerIndex--)
-						layers[vLayerIndex].TerrainSpriteLayer.Clear(uv.ToCPos(map));
-
-					for (var vLayerIndex = MapLayers.VisionLayers - 2; vLayerIndex >= 0; vLayerIndex--)
+					if (cellVisibility <= vLayerIndex)
 					{
-						if (cellVisibility <= vLayerIndex)
+						UpdateLayer(true, false, Alpha(vLayerIndex), layers[vLayerIndex].TerrainSpriteLayer, uv, puv, pos, layers[vLayerIndex].PaletteReference, tileInfo.Variant, layers[vLayerIndex].Sprites, (byte)vLayerIndex);
+					}
+					else
+					{
+						var neighbors = GetNeighborsVisbility(puv);
+						var neighborsCheck = false;
+						for (var i = 0; i <= 3; i++)
 						{
-							UpdateLayer(true, false, Alpha(vLayerIndex), layers[vLayerIndex].TerrainSpriteLayer, uv, puv, pos, layers[vLayerIndex].PaletteReference, tileInfo.Variant, layers[vLayerIndex].Sprites, (byte)vLayerIndex);
+							if (neighbors[i] <= vLayerIndex)
+							{
+								neighborsCheck = true;
+								break;
+							}
 						}
-						else
-						{
-							var neighbors = GetNeighborsVisbility(puv);
-							var neighborsCheck = false;
-							for (var i = 0; i <= 3; i++)
-							{
-								if (neighbors[i] <= vLayerIndex)
-								{
-									neighborsCheck = true;
-									break;
-								}
-							}
 
-							if (neighborsCheck)
-							{
-								UpdateLayer(false, false, Alpha(vLayerIndex), layers[vLayerIndex].TerrainSpriteLayer, uv, puv, pos, layers[vLayerIndex].PaletteReference, tileInfo.Variant, layers[vLayerIndex].Sprites, (byte)vLayerIndex);
-							}
+						if (neighborsCheck)
+						{
+							UpdateLayer(false, false, Alpha(vLayerIndex), layers[vLayerIndex].TerrainSpriteLayer, uv, puv, pos, layers[vLayerIndex].PaletteReference, tileInfo.Variant, layers[vLayerIndex].Sprites, (byte)vLayerIndex);
 						}
 					}
 				}
