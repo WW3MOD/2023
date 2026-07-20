@@ -3,7 +3,29 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
-## 2026-07-20 — Owner's long-term AI vision captured (territorial-control layer + early-eco + mounted infantry)
+## 2026-07-21 — Out-of-ammo evac is engine-level and invisible to bot modules; only LayeredDefence guards it
+
+Found while triaging the "evac units re-ordered onto attacks" playtest bug (`2ed2c0ac`, plan `WORKSPACE/plans/260721_playtest_bugs_triage.md`).
+- **Evac is a unit-level `AmmoPool` behaviour, not an AI decision.** `AmmoPool.AutoRearmIfAllEmpty` `case Evacuate` → `RotateToEdge` (`engine/OpenRA.Mods.Common/Traits/AmmoPool.cs:197-205`), fired from `INotifyAttack`/`INotifyBecomingIdle` (`:247-254`); WW3MOD vehicles opt in via `InitialResupplyBehaviorAI: Evacuate` (`mods/ww3mod/rules/ingame/vehicles.yaml:514-515`). The granted `evacuating` condition is **cosmetic only** (selection pip) — no bot module reads it, and the evac path never Commits the unit to `PoiGoalGuard.Ledger`.
+- **Therefore an evacuating unit is "free" to any module that lacks an ammo filter.** `PoiOffensiveBotModule.IsEligibleCombatUnit` (`PoiOffensiveBotModule.cs:403-412`) has none → recruits empty units onto axes, overwriting `RotateToEdge`. `LayeredDefenceBotModule` is the **only** module that guards it: `SkipOutOfAmmoUnits` (default `true`, `:102`) + `IsOutOfAmmo` = all AmmoPools at 0 (`:465-471`), applied at `:273`. Reusable pattern: any module that pulls units by proximity/idle needs this guard or a shared evac reservation.
+
+## 2026-07-21 — AI helicopters are permanently benched with no HPAD: the squad path has its own rearm-full gate
+
+Found while triaging "helis fly to a corner and idle" (`2ed2c0ac`).
+- **The documented `SkipRearmBuildingCheck` bypass only covers PRODUCTION.** The attack path has an independent gate: `HelicopterSquadBotModule.IsReadyForMission` (`engine/OpenRA.Mods.Common/Traits/BotModules/HelicopterSquadBotModule.cs:399-408`) requires **every AmmoPool `HasFullAmmo`** for any heli that has `AmmoPool`+`Rearmable`. Attack helis' `ReloadAmmoPool RequiresCondition: unit.docked && !airborne` (e.g. `mods/ww3mod/rules/ingame/aircraft-russia.yaml:178`) + `Rearmable{ RearmActors: hpad }` mean they can only refill at an HPAD — and the mod builds none. First shot ⇒ never full again ⇒ `IsReadyForMission` false forever ⇒ no squad ever forms ⇒ the `HelicopterStates` FSM never runs. Recruitment (by trait `AIHelicopterRole`, `:146`) works fine; the *readiness* gate is the block.
+- **Corner-idle is arrival logic, not RA idle-return.** `ProductionFromMapEdge` gives aircraft `hasRallyPoint ? rp.Path : {self.Location}` (`ProductionFromMapEdge.cs:89,173-175`); the SR `RallyPoint` has no default Path (`structures.yaml:272-274`) so helis fly to the SR/edge cell and stop. `Aircraft.IdleBehavior` defaults `None` (`Air/Aircraft.cs:27`), so no return-to-base residue is involved.
+
+## 2026-07-21 — MountedTransport is dormant until frontline contact, and never carries TECN (capture is fully decoupled)
+
+Found while triaging "TECN walks to captures; mounting never observed" (`2ed2c0ac`).
+- **`PickDropOffCell` returns null with no frontline**, so the whole module no-ops pre-contact: `MountedTransportBotModule.cs:313-314, 373-380` depend on `InfluenceMap.GetFrontline`, which marks only cells with **both** friendly AND enemy influence (`InfluenceMap.cs:170-174` → `DeriveFrontline` `:248-256`). Early game has no such cell → no mounting ever happens in the window players watch. Idle carriers (bradley/m113/bmp2, produced per `ai-america.yaml:27-28`, excluded from offense `ai.yaml:187` + defence `:341`) then pile up at the SR — a direct contributor to the "vehicles massing at the SR" complaint.
+- **TECN is not a passenger and capture never requests a ride.** `PassengerTypes` (`ai.yaml:366`) omits `tecn*`; `CaptureCoordinatorBotModule` issues `CaptureActor` + on-foot escort `AttackMove` (`CaptureCoordinatorBotModule.cs:514, 627-643`) with **zero** call into MountedTransport, whose destination is a frontline gap, not a capture target. "Technicians riding first" is therefore unimplemented, not merely mis-tuned — it needs a capture-aware transport path.
+
+## 2026-07-21 — The tournament ladder measures `startingunits: none`, not the Motorized regime players use
+
+Found while folding the Motorized directive into early-game recon (`2ed2c0ac`).
+- **`startingunits` is a lobby dropdown** (`SpawnStartingUnits.cs:23-53`, key `:51`, default `"none"` `:25`); values `none/squad/platoon/motorized/air` defined per-faction in `mods/ww3mod/rules/world.yaml:364-436`. **Motorized** (`:404-419`) ships abrams/bradley/humvee (America) or t90/bmp2/bmp2 (Russia) + infantry, but **no dedicated SAM** — its only AA is the humvee/bmp2 autocannon.
+- **All tournament scenarios use the default `none`** (bots start with only two hand-placed `supplyroute`; `WORKSPACE/ai-bench/LADDER.md:448-451`, no `StartingUnitsClass` on bot PlayerReferences). Optimising for Motorized ⇒ scenario change ⇒ **re-BASELINE** (S1/S2 bars) before trusting Motorized tuning; the item-b AA-share floor in particular must be tuned against Motorized's built-in AA, not the `none` regime.
 
 Recorded live from the project owner while spectating an Experimental-vs-Experimental match. This is
 **north-star design intent**, not a code finding — promoted into the standing design doc
