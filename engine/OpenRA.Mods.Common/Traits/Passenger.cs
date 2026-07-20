@@ -184,7 +184,20 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString != "EnterTransport")
 				return;
 
+			// The order can resolve a tick or more after it was issued (orders travel through
+			// the net queue). By then the target transport may have died or left the world — a
+			// bot ferry (or a human) can issue EnterTransport against a carrier that dies before
+			// it resolves. For an Actor target the Type property already reads Invalid once the
+			// actor is dead/out-of-world; for a FrozenActor target GetActor can return null when
+			// the real actor isn't revealed. Guard both before dereferencing, so ResolveOrder
+			// never crashes regardless of issuer. Mirrors CrewMember.ResolveOrder.
+			if (order.Target.Type != TargetType.Actor && order.Target.Type != TargetType.FrozenActor)
+				return;
+
 			var targetActor = GetActor(order.Target);
+			if (targetActor == null || targetActor.IsDead || !targetActor.IsInWorld)
+				return;
+
 			if (!CanEnter(targetActor))
 				return;
 
