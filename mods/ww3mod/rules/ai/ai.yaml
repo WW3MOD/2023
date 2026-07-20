@@ -159,6 +159,10 @@ Player:
 		DefenseFriendlyScanRadiusCells: 6
 		DefenseSummonCount: 3
 		DefenseEnemyValueThreshold: 200
+		# cycle 2: keep >=1 capturer alive-or-pending by pulling production when a
+		# derrick is uncaptured and no TECN is free. Default 0 (disabled) on the shared
+		# engine class; set ONLY here, so @stable.tecn stays byte-identical.
+		TecnFloor: 1
 
 	# experimental AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
 	# ground army across the top enemy objectives ranked by PoiMap
