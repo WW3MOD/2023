@@ -3,6 +3,26 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-20 — `UnitBuilderBotModule` UnitsToBuild weight is a share *ceiling*, NOT a priority
+
+Found during the TECN-availability cycle-2 recon (`WORKSPACE/plans/260720_tecn_availability_cycle2.md`).
+A common misread: a big weight like `tecn.*: 500` (`ai-{america,russia}.yaml:8`) makes the AI
+*prioritize* that unit. It does not. `ChooseUnitToBuild` (`UnitBuilderBotModule.cs:177-195`)
+**shuffles** `UnitsToBuild` and returns the **first** entry passing `count*100 < weight*total`
+(`:190`) — i.e. `count/total < weight/100`, so `weight/100` is a per-type share *ceiling as a
+percent*. Any weight ≥100 (100%) can never bind, so the unit is merely "always eligible,"
+selected **uniformly** among eligibles by the shuffle. Weight 500 = 120 = identical odds early
+game. Below the roster average weight a unit gets *throttled*; above it, no boost. Separately,
+while `idleBaseUnits < IdleBaseUnitsMaximum` (12, `:25`) the module ignores weights entirely and
+picks a **uniform random** buildable (`ChooseRandomUnitToBuild :167-175`), discarding picks not
+in `UnitsToBuild`. Net: there is **no YAML field for a production floor/priority** — `UnitsToBuild`
+is a ceiling, `UnitLimits` is a ceiling, `UnitDelays` is a delay. A guaranteed keep-N-ready
+requires code (the `IBotRequestUnitProduction` queue, which is processed first each cycle and
+bypasses both the share test and `UnitLimits` — `:87-92,142-165`). This is why cycle-1's TECN
+starve cannot be tuned away in `ai-*.yaml`.
+
+Code refs: `UnitBuilderBotModule.cs:78-97,112,125-136,167-195`, `TraitsInterfaces.cs:727-732`.
+
 ## 2026-07-20 — Capture escorts are dispatched but NEVER committed to the goal-guard ledger
 
 Found during the mission-abstraction costing recon (`WORKSPACE/plans/260720_mission_abstraction_costing.md`).
