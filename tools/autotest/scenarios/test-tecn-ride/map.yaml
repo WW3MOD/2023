@@ -1,0 +1,91 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: TECN rides a carrier to a distant derrick (capture ferry)
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Bug 3.2 (playtest, user priority): technicians WALK to distant captures — mounting
+# was never wired. CaptureCoordinatorBotModule@experimental.tecn now requests a ride
+# from MountedTransportBotModule@experimental (TryReserveCaptureFerry) for any capture
+# farther than TransportCaptureMinDistanceCells (12); the carrier drives the TECN there
+# and, on unload, hands it back its CaptureActor.
+#
+#   USA-bot (6,16) experimental  — owns one TECN + one bradley (carrier) near its SR.
+#   Russia-bot                   — enemy, kept alive by its own SR so the game doesn't
+#                                  end on faction elimination before the verdict fires.
+#
+# A NEUTRAL oil derrick sits ~39 cells east of the TECN — well past the 12-cell ferry
+# gate, so WITHOUT the fix the TECN walks and the carrier never gets a passenger (RED).
+# WITH the fix the TECN boards the bradley and is driven to the derrick.
+#
+# Verdict: PASS the instant the carrier has carried a passenger AND arrived within a few
+# cells of the derrick (mounted + delivered). No cash anywhere, so nothing is produced —
+# the only actors are the pre-placed ones.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: normal
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,30
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,30
+
+	# Capturer under test + its carrier, both near the USA SR.
+	Tecn: tecn.america
+		Owner: USA-bot
+		Location: 9,16
+	Carrier: bradley
+		Owner: USA-bot
+		Location: 10,16
+
+	# Distant NEUTRAL derrick — the capture goal, ~39 cells east of the TECN (past the
+	# 12-cell ferry gate). Neutral oilb is capturable by the TECN (building-neutral).
+	Derrick: oilb
+		Owner: Neutral
+		Location: 48,15
+
+Rules: rules.yaml

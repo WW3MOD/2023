@@ -245,7 +245,11 @@ namespace OpenRA.Mods.Common.Traits
 			// override an EnterTransport with an AttackMove.
 			var onLineRadiusSq = (long)Info.OnLineRadiusCells * Info.OnLineRadiusCells;
 			var cooldownExpiresBefore = world.WorldTick - Info.AssignCooldownTicks;
-			var transport = player.PlayerActor.TraitOrDefault<MountedTransportBotModule>();
+			// MountedTransportBotModule is split into @stable + @experimental twins (both
+			// instances exist on the player actor, one disabled), so TraitOrDefault would throw
+			// on "multiple traits". Pick the enabled one.
+			var transport = player.PlayerActor.TraitsImplementing<MountedTransportBotModule>()
+				.FirstOrDefault(m => !m.IsTraitDisabled);
 			var reserves = new List<(Actor Actor, bool IsScreen)>();
 			foreach (var actor in world.Actors)
 			{

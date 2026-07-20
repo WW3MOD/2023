@@ -100,6 +100,15 @@ namespace OpenRA.Mods.Common.Traits
 			"when a capture target exists but no capturer is free. 0 = disabled (production left to the shared unit builder).")]
 		public readonly int TecnFloor = 0;
 
+		[Desc("Experimental (default false = frozen): for captures farther than TransportCaptureMinDistanceCells,",
+			"request a mounted ride from MountedTransportBotModule (TECN-first ferrying) instead of walking the",
+			"capturer on foot. Falls back to on-foot when no carrier is free.")]
+		public readonly bool UseTransportForDistantCaptures = false;
+
+		[Desc("Minimum distance (cells) from the capturer to the target before a mounted ride is requested.",
+			"Nearer targets are walked on foot as before. Only used when UseTransportForDistantCaptures is set.")]
+		public readonly int TransportCaptureMinDistanceCells = 12;
+
 		public override object Create(ActorInitializer init) { return new CaptureCoordinatorBotModule(init.Self, this); }
 	}
 
@@ -144,6 +153,12 @@ namespace OpenRA.Mods.Common.Traits
 		// name this player can actually build (faction-correct, no hardcoding).
 		IBotRequestUnitProduction[] unitProducers;
 		string tecnBuildType;
+
+		// TECN-first ferrying (experimental): the player's enabled MountedTransportBotModule.
+		// Resolved lazily — the module is split into @stable/@experimental twins, so we pick the
+		// enabled instance (TraitOrDefault would throw on the two-instance player actor).
+		MountedTransportBotModule transportModule;
+		bool transportModuleResolved;
 
 		int captureScanCountdown;
 		int defenseScanCountdown;
@@ -511,7 +526,14 @@ namespace OpenRA.Mods.Common.Traits
 		// re-ordered while it walks in (the anti-thrash gate), then recruit escort.
 		void IssueCaptureOrder(IBot bot, Actor capturer, Actor target, bool useGuard, HashSet<Actor> escortsRecruitedThisTick, long score)
 		{
-			bot.QueueOrder(new Order("CaptureActor", capturer, Target.FromActor(target), true));
+			// TECN-first ferrying: for a DISTANT target, try to hand the capturer a mounted ride.
+			// When it succeeds the transport module owns the movement AND re-issues CaptureActor on
+			// unload, so we skip the on-foot order here. Ledger commitment + escort still fire so
+			// deconfliction and support are identical to the on-foot path.
+			var ferried = Info.UseTransportForDistantCaptures && TryFerryCapture(bot, capturer, target);
+			if (!ferried)
+				bot.QueueOrder(new Order("CaptureActor", capturer, Target.FromActor(target), true));
+
 			if (useGuard)
 				goalGuard.Ledger.Commit(capturer, CaptureObjectiveKey(target), world.WorldTick, goalGuard.DefaultCommitmentTicks);
 			else
@@ -521,10 +543,28 @@ namespace OpenRA.Mods.Common.Traits
 			DispatchEscort(bot, capturer, target, escortsRecruitedThisTick);
 
 			Log.Write("debug",
-				$"[exp-capture] issue player={player.PlayerName} actor={capturer.Info.Name}@{capturer.Location} → {target.Info.Name}@{target.Location} score={score} tick={world.WorldTick}");
+				$"[exp-capture] issue player={player.PlayerName} actor={capturer.Info.Name}@{capturer.Location} → {target.Info.Name}@{target.Location} score={score} ferried={ferried} tick={world.WorldTick}");
 
-			AIUtils.BotDebug("AI ({0}): exp-capture — {1} → {2} (score={3})",
-				player.ClientIndex, capturer.Info.Name, target.Info.Name, score);
+			AIUtils.BotDebug("AI ({0}): exp-capture — {1} → {2} (score={3}, ferried={4})",
+				player.ClientIndex, capturer.Info.Name, target.Info.Name, score, ferried);
+		}
+
+		// Request a mounted ride for a distant capture. Returns true only when a carrier was
+		// reserved (the transport module then drives + re-issues CaptureActor on unload).
+		bool TryFerryCapture(IBot bot, Actor capturer, Actor target)
+		{
+			var distCells = (target.CenterPosition - capturer.CenterPosition).Length / 1024;
+			if (distCells < Info.TransportCaptureMinDistanceCells)
+				return false;
+
+			if (!transportModuleResolved)
+			{
+				transportModule = player.PlayerActor.TraitsImplementing<MountedTransportBotModule>()
+					.FirstOrDefault(m => !m.IsTraitDisabled);
+				transportModuleResolved = true;
+			}
+
+			return transportModule != null && transportModule.TryReserveCaptureFerry(bot, capturer, target);
 		}
 
 		// Objective key stored in the goal-guard ledger. Namespaced string form

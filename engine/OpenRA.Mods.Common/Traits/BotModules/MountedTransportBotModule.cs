@@ -69,6 +69,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Actor types of the bot's home Supply Route — used to anchor the reserve zone.")]
 		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
 
+		[Desc("Experimental (default false = frozen): when no frontline contact exists yet, still deliver",
+			"toward a forward staging cell (the top PoiMap offensive target) instead of sitting idle until",
+			"contact. Only set on the @experimental twin; @stable/controls keep the frozen idle-until-contact.")]
+		public readonly bool DeliverBeforeContact = false;
+
+		[Desc("Fraction (percent) of the SR→staging-target distance used as the pre-contact drop-off cell.",
+			"50 = halfway between our SR and the top offensive POI. Only used when DeliverBeforeContact is set.")]
+		public readonly int PreContactStagingPct = 50;
+
 		public override object Create(ActorInitializer init) { return new MountedTransportBotModule(init.Self, this); }
 	}
 
@@ -84,6 +93,11 @@ namespace OpenRA.Mods.Common.Traits
 			public CPos Return;
 			public int StateChangedAtTick;
 			public HashSet<Actor> ReservedPassengers = new();
+
+			// Non-null => a DIRECTED capture ferry requested by CaptureCoordinator, not a
+			// frontline delivery. The single passenger is a TECN; on unload the carrier issues
+			// its CaptureActor so it finishes the capture the last few cells on foot.
+			public Actor CaptureTarget;
 		}
 
 		readonly World world;
@@ -92,6 +106,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Dictionary<Actor, CarrierTask> carrierTasks = new();
 		int scanCountdown;
 		InfluenceMap influenceMap;
+		PoiMap poiMap;
 
 		/// <summary>True if `actor` is currently reserved by any of this module's carrier tasks
 		/// (loading, delivering, unloading, returning). Used by LayeredDefenceBotModule to
@@ -102,6 +117,78 @@ namespace OpenRA.Mods.Common.Traits
 				if (task.ReservedPassengers.Contains(actor))
 					return true;
 			return false;
+		}
+
+		/// <summary>Directed capture ferry (experimental, TECN-first). CaptureCoordinator calls this
+		/// instead of walking a TECN to a DISTANT capture on foot: reserve the nearest free carrier,
+		/// board the capturer, drive it to the target and (on unload) hand the capturer back its
+		/// CaptureActor so it finishes the last cells and captures. Returns false when no carrier is
+		/// free — the caller then falls back to the on-foot capture, so behaviour degrades gracefully.
+		/// Bypasses the frontline PickDropOffCell path entirely: the destination IS the capture target,
+		/// so this works pre-contact with no frontline (the 3.1/3.2 unification).</summary>
+		public bool TryReserveCaptureFerry(IBot bot, Actor capturer, Actor target)
+		{
+			if (capturer == null || capturer.IsDead || !capturer.IsInWorld || capturer.Owner != player)
+				return false;
+			if (target == null || target.IsDead || !target.IsInWorld)
+				return false;
+
+			var ownSR = FindOwnSupplyRoute();
+			if (ownSR == null)
+				return false;
+
+			// Nearest free, empty carrier to the capturer.
+			Actor carrier = null;
+			var bestDistSq = long.MaxValue;
+			foreach (var a in world.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+				if (!Info.CarrierTypes.Contains(a.Info.Name.ToLowerInvariant()))
+					continue;
+				if (carrierTasks.ContainsKey(a))
+					continue;
+				var cargo = a.TraitOrDefault<Cargo>();
+				if (cargo == null || !cargo.IsEmpty())
+					continue;
+
+				var distSq = (a.CenterPosition - capturer.CenterPosition).LengthSquared;
+				if (distSq < bestDistSq)
+				{
+					bestDistSq = distSq;
+					carrier = a;
+				}
+			}
+
+			if (carrier == null)
+				return false;
+
+			// Park the carrier and board the capturer (queued false cancels any AutoTarget/Move
+			// so the passenger catches a stationary entry frame — same pattern as TryAssignNewTasks).
+			bot.QueueOrder(new Order("Stop", carrier, false));
+			bot.QueueOrder(new Order("EnterTransport", capturer, Target.FromActor(carrier), false));
+
+			carrierTasks[carrier] = new CarrierTask
+			{
+				Carrier = carrier,
+				State = CarrierState.Loading,
+				DropOff = target.Location,
+				Return = ownSR.Location,
+				CaptureTarget = target,
+				StateChangedAtTick = world.WorldTick,
+				ReservedPassengers = new HashSet<Actor> { capturer },
+			};
+
+			AIUtils.BotDebug("AI ({0}): mounted-transport — capture-ferry {1} boards {2} → {3}@{4}",
+				player.ClientIndex, capturer.Info.Name, carrier.Info.Name, target.Info.Name, target.Location);
+			return true;
+		}
+
+		Actor FindOwnSupplyRoute()
+		{
+			return world.Actors.FirstOrDefault(a =>
+				a.Owner == player && !a.IsDead && a.IsInWorld
+				&& Info.SupplyRouteTypes.Contains(a.Info.Name));
 		}
 
 		public MountedTransportBotModule(Actor self, MountedTransportBotModuleInfo info)
@@ -115,6 +202,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			scanCountdown = world.LocalRandom.Next(0, Info.ScanInterval);
 			influenceMap = world.WorldActor.TraitOrDefault<InfluenceMap>();
+			poiMap = world.WorldActor.TraitOrDefault<PoiMap>();
 
 			// Visible confirmation in chat that experimental transport is wired for this player.
 			// Without this, "is the module even active?" is impossible to verify ingame.
@@ -134,9 +222,7 @@ namespace OpenRA.Mods.Common.Traits
 			scanCountdown = Info.ScanInterval;
 
 			// Find own SR — anchor for the reserve zone + return target.
-			var ownSR = world.Actors.FirstOrDefault(a =>
-				a.Owner == player && !a.IsDead && a.IsInWorld
-				&& Info.SupplyRouteTypes.Contains(a.Info.Name));
+			var ownSR = FindOwnSupplyRoute();
 			if (ownSR == null)
 				return;
 			var srCell = ownSR.Location;
@@ -169,8 +255,10 @@ namespace OpenRA.Mods.Common.Traits
 			switch (task.State)
 			{
 				case CarrierState.Loading:
-					// Wait until we have at least MinPassengersPerLoad OR timeout fires.
-					if (cargo.PassengerCount >= Info.MinPassengersPerLoad)
+					// Wait until we have enough passengers OR timeout fires. A directed capture
+					// ferry launches with its single TECN aboard (MinPassengers doesn't apply).
+					var minPax = task.CaptureTarget != null ? 1 : Info.MinPassengersPerLoad;
+					if (cargo.PassengerCount >= minPax)
 					{
 						LaunchDelivery(bot, task);
 					}
@@ -209,6 +297,19 @@ namespace OpenRA.Mods.Common.Traits
 					// Wait until cargo is empty.
 					if (cargo.IsEmpty())
 					{
+						// Capture ferry: hand the disembarked TECN back its CaptureActor so it
+						// finishes on foot the last few cells to the target it was ferried to.
+						if (task.CaptureTarget != null && !task.CaptureTarget.IsDead && task.CaptureTarget.IsInWorld)
+						{
+							foreach (var pax in task.ReservedPassengers)
+								if (!pax.IsDead && pax.IsInWorld && pax.Owner == player)
+								{
+									bot.QueueOrder(new Order("CaptureActor", pax, Target.FromActor(task.CaptureTarget), false));
+									AIUtils.BotDebug("AI ({0}): mounted-transport — capture-ferry unloaded {1}, capturing {2}",
+										player.ClientIndex, pax.Info.Name, task.CaptureTarget.Info.Name);
+								}
+						}
+
 						bot.QueueOrder(new Order("Move", carrier, Target.FromCell(world, task.Return), false));
 						task.State = CarrierState.Returning;
 						task.StateChangedAtTick = world.WorldTick;
@@ -373,11 +474,11 @@ namespace OpenRA.Mods.Common.Traits
 		CPos? PickDropOffCell(CPos srCell)
 		{
 			if (influenceMap == null)
-				return null;
+				return Info.DeliverBeforeContact ? PreContactStagingCell(srCell) : (CPos?)null;
 
 			var frontline = influenceMap.GetFrontline(player);
 			if (frontline == null)
-				return null;
+				return Info.DeliverBeforeContact ? PreContactStagingCell(srCell) : (CPos?)null;
 
 			var friendly = influenceMap.GetFriendlyInfluence(player);
 			var cellSize = influenceMap.Info.CellSize;
@@ -412,6 +513,25 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return best;
+		}
+
+		// Pre-contact fallback (experimental, DeliverBeforeContact). No frontline exists yet, so
+		// stage delivered infantry a fraction of the way from our SR toward the highest-ranked
+		// PoiMap offensive target — pushing the reserve forward instead of piling it at the SR.
+		CPos? PreContactStagingCell(CPos srCell)
+		{
+			if (poiMap == null)
+				return null;
+
+			var targets = poiMap.GetOffensiveTargets(player);
+			if (targets.Count == 0)
+				return null;
+
+			var srPos = world.Map.CenterOfCell(srCell);
+			var tgtPos = world.Map.CenterOfCell(targets[0].Location);
+			var stagePos = srPos + (tgtPos - srPos) * Info.PreContactStagingPct / 100;
+			var cell = world.Map.CellContaining(stagePos);
+			return world.Map.Contains(cell) ? cell : (CPos?)null;
 		}
 	}
 }
