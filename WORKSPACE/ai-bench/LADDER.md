@@ -153,6 +153,22 @@ The even/odd index split still deterministically selects primary vs mirror
 > unchanged until the user ratifies (flagged in REVIEW Open Questions). The binding constraint
 > on S1 is **capture reliability**, not scoring — next behaviour cycle targets that.
 
+> **CYCLE 1 RESULT (2026-07-20, merged `4dc3939d`) — bar FAILED, diagnostic success.**
+> Capture-reliability cycle 1 (TTL 300→600 + `INotifyKilled` scan-reset + M-1/M-2/M-3 capture
+> markers + per-match `debug.log` preservation) run N=10 hidden Mode-B (5 primary + 5 mirror):
+> **in-window capture rate 4/10 → FAILS the reliability bar (≥6/10)**; conditional gross median
+> **$6,377 ✅ (≥$5000)**; **win split 8–2** (all unchanged from baseline — the change measured
+> behavior-neutral). **Marker verdict:** the binding constraint is **TECN
+> production/availability**, not survival — **88% of 994 `no-idle-capturers` scans had
+> `total-tecns=0`**, and **5/10 matches fielded zero TECNs the entire match** (0 capture orders);
+> `tecn-killed` fired only twice, both on **uncommitted** TECNs not pursuing a derrick (so F-1
+> "killed en route" and F-4 escort-screen are **not** what the runs show). F-2 (TTL expiry) is
+> minor: 2 expirations, both on ~25-cell outlier targets beyond even TTL=600. **F-5 (failure
+> break-points invisible) is now CLOSED** — that observability is the cycle's landed value.
+> **Cycle 2 targets TECN call-in/availability** (build cadence, `ConsumedByCapture` pool drain,
+> a "keep N ready" floor — `tecn.*: 3` is a ceiling, not a floor), upstream of the capture loop.
+> Analysis: [`runs/260720_capture_reliability_cycle1_n10.md`](runs/260720_capture_reliability_cycle1_n10.md).
+
 > **PITFALL:** the S1 metric is **`capture_income_gross`** (verdict_version 4), NOT
 > `resources_earned` and NOT `PlayerStatistics.Income`. `Income` is a rolling 60-second
 > figure and `resources_earned` (net `Earned`) is blind to held-derrick income (below) —
