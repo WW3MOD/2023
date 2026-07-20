@@ -18,6 +18,27 @@ committing the escort sub-force under `escort:<captureId>`.
 
 Code refs: `CaptureCoordinatorBotModule.cs:486-502`, `CaptureCoordinatorBotModule.cs:395-396`, `PoiOffensiveBotModule.cs:320-330`.
 
+## 2026-07-20 — MEASURED: 88% of experimental capture scans see ZERO TECNs (availability, not survival, gates S1)
+
+Instrumented N=10 confirmation of the availability hypothesis below. With the M-2
+`no-idle-capturers` marker (`CaptureCoordinatorBotModule.cs`, the `idleCapturers.Length==0`
+branch) preserved per-match, the pooled `total-tecns` distribution over 994 capture scans on
+`tournament-s1-eco-river-zeta` (hidden Mode-B, 5min) was: **total-tecns=0 → 875 scans (88%)**,
+=1 → 94, =2 → 17, =3 → 8. **5 of 10 matches had zero TECNs for the entire match and issued 0
+capture orders.** The `tecn-killed` (M-1) marker fired only twice, and both with
+`committed=False objective=<none>` — i.e. the TECNs that died were *not* pursuing a derrick.
+So the S1 ~40% capture rate is gated by **TECN production/delivery/availability**, NOT capturer
+survival on the approach and NOT coordinator logic (which fires correctly whenever a free TECN
+exists — all 6 captures issued at ticks 680–1477). Raising `DefaultCommitmentTicks` 300→600 and
+adding an `INotifyKilled` scan-reset (cycle 1, branch `exp-capture-reliability`) left the rate
+at 4/10 — confirming the binding constraint is upstream of the capture loop. Next lever:
+TECN call-in/build cadence, `ConsumedByCapture` pool drain, and a "keep N TECNs ready" floor
+(UnitLimit `tecn.*: 3` is a ceiling, not a floor).
+
+Run: `WORKSPACE/ai-bench/runs/260720_capture_reliability_cycle1_n10.md`.
+Code refs: `CaptureCoordinatorBotModule.cs` (M-2 branch), `tools/autotest/run-tournament.sh`
+(per-match `debug.log` preservation), `ai-{america,russia}.yaml:8` (`tecn.*: 500` builder weight).
+
 ## 2026-07-20 — TECN is consumed on successful capture (`ConsumedByCapture: true`)
 
 > **[promoted → game-model.md — "Capturing neutral buildings consumes the technician"]** (curation 2026-07-20). Verified `infantry.yaml:897,903`.

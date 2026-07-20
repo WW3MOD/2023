@@ -99,7 +99,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new CaptureCoordinatorBotModule(init.Self, this); }
 	}
 
-	public class CaptureCoordinatorBotModule : ConditionalTrait<CaptureCoordinatorBotModuleInfo>, IBotTick, INotifyActorDisposing
+	public class CaptureCoordinatorBotModule : ConditionalTrait<CaptureCoordinatorBotModuleInfo>, IBotTick, INotifyKilled, INotifyActorDisposing
 	{
 		readonly World world;
 		readonly Player player;
@@ -239,7 +239,18 @@ namespace OpenRA.Mods.Common.Traits
 				.ToArray();
 
 			if (idleCapturers.Length == 0)
+			{
+				// M-2: no capturer free to dispatch this scan. Quantifies the F-1
+				// production/survival gap — how long the pool sits empty or fully
+				// committed while derricks go uncaptured.
+				var totalTecns = capturingActors.Actors.Count;
+				var committedCount = useGuard
+					? capturingActors.Actors.Count(a => goalGuard.Ledger.IsCommitted(a, world.WorldTick))
+					: activeCapturers.Count;
+				Log.Write("debug",
+					$"[exp-capture] no-idle-capturers player={player.PlayerName} total-tecns={totalTecns} committed={committedCount} idle=0 tick={world.WorldTick}");
 				return;
+			}
 
 			// Escorts already recruited THIS TICK (their AttackMove is queued but
 			// IsIdle is still true) — shared by both selection paths so a second
@@ -429,6 +440,20 @@ namespace OpenRA.Mods.Common.Traits
 		void ReconcileGuardCommitments()
 		{
 			var tick = world.WorldTick;
+
+			// M-3 (expired): Prune drops expired commitments but doesn't report which,
+			// so snapshot the about-to-expire ones for live capturers first. A live
+			// tracked capturer that holds an objective yet reads !IsCommitted is expired
+			// (dead/unowned capturers are gone from the index and covered by M-1).
+			// reason=expired confirms F-2 — the commitment window was too short.
+			foreach (var tecn in capturingActors.Actors)
+			{
+				if (goalGuard.Ledger.TryGetObjective(tecn, out var expiredObj)
+					&& !goalGuard.Ledger.IsCommitted(tecn, tick))
+					Log.Write("debug",
+						$"[exp-capture] commitment-released player={player.PlayerName} actor={tecn.Info.Name} objective={expiredObj} reason=expired tick={tick}");
+			}
+
 			goalGuard.Ledger.Prune(tick, a => !a.IsDead && a.IsInWorld && a.Owner == player);
 
 			foreach (var tecn in capturingActors.Actors)
@@ -442,8 +467,15 @@ namespace OpenRA.Mods.Common.Traits
 
 				// target.Owner == player after we capture → relationship no longer
 				// Enemy/Neutral → stillCapturable false → commitment released.
+				// M-3 (captured/gone): target still exists but no longer capturable
+				// means we captured it; a missing/dead target means it was destroyed.
 				if (!stillCapturable)
+				{
+					var reason = target != null && !target.IsDead && target.IsInWorld ? "captured" : "gone";
+					Log.Write("debug",
+						$"[exp-capture] commitment-released player={player.PlayerName} actor={tecn.Info.Name} objective={objective} reason={reason} tick={tick}");
 					goalGuard.Ledger.Release(tecn);
+				}
 			}
 		}
 
@@ -603,6 +635,28 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var actor in world.Actors)
 				if (actor.Owner == owner && !actor.IsDead && actor.IsInWorld)
 					yield return actor;
+		}
+
+		// Player-actor INotifyKilled (Health.notifyKilledPlayer) fires with `self` =
+		// the dying OWNED actor. When one of OUR capturers dies we (1) reset the scan
+		// countdown so the next BotTick re-dispatches immediately instead of waiting up
+		// to ScanInterval ticks (F-3), and (2) emit the M-1 death marker so failing
+		// runs are legible (the commitment is still in the ledger here — Prune hasn't
+		// run yet — so we can report the objective it was pursuing).
+		void INotifyKilled.Killed(Actor self, AttackInfo e)
+		{
+			if (IsTraitDisabled || world.Type == WorldType.Editor)
+				return;
+
+			if (self.Owner != player || !Info.CapturingActorTypes.Contains(self.Info.Name))
+				return;
+
+			var committed = goalGuard != null && goalGuard.Ledger.IsCommitted(self, world.WorldTick);
+			var objective = goalGuard != null && goalGuard.Ledger.TryGetObjective(self, out var obj) ? obj : "<none>";
+			Log.Write("debug",
+				$"[exp-capture] tecn-killed player={player.PlayerName} actor={self.Info.Name}@{self.Location} committed={committed} objective={objective} tick={world.WorldTick}");
+
+			captureScanCountdown = 0;
 		}
 
 		void INotifyActorDisposing.Disposing(Actor self)
