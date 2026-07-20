@@ -96,6 +96,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimum enemy army value (engine $) within DefenseEnemyScanRadius to trigger a defense summon.")]
 		public readonly int DefenseEnemyValueThreshold = 200;
 
+		[Desc("Keep at least this many owned capturers (TECN) alive-or-pending by requesting production ",
+			"when a capture target exists but no capturer is free. 0 = disabled (production left to the shared unit builder).")]
+		public readonly int TecnFloor = 0;
+
 		public override object Create(ActorInitializer init) { return new CaptureCoordinatorBotModule(init.Self, this); }
 	}
 
@@ -131,6 +135,15 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Dictionary<Actor, int> defenderBookings = new();
 
 		readonly ActorIndex.OwnerAndNamesAndTrait<CapturesInfo> capturingActors;
+
+		// TECN availability floor (cycle 2). When Info.TecnFloor > 0 the coordinator
+		// pulls production of its own capturer via the IBotRequestUnitProduction queue
+		// (the shared UnitBuilder's request path bypasses the share/UnitLimits gates),
+		// so a run can't field zero TECNs while derricks sit uncaptured. Resolved lazily:
+		// unitProducers = the player's request sinks; tecnBuildType = the single capturer
+		// name this player can actually build (faction-correct, no hardcoding).
+		IBotRequestUnitProduction[] unitProducers;
+		string tecnBuildType;
 
 		int captureScanCountdown;
 		int defenseScanCountdown;
@@ -249,6 +262,15 @@ namespace OpenRA.Mods.Common.Traits
 					: activeCapturers.Count;
 				Log.Write("debug",
 					$"[exp-capture] no-idle-capturers player={player.PlayerName} total-tecns={totalTecns} committed={committedCount} idle=0 tick={world.WorldTick}");
+
+				// Cycle 2: no capturer is free this scan. If the alive-or-pending TECN
+				// pool has dropped below the floor AND a derrick is still worth taking,
+				// pull production so a run can't field zero capturers while targets sit
+				// uncaptured. Demand-gated here (not unconditional) so we never spend
+				// budget on a TECN with nothing to capture.
+				if (Info.TecnFloor > 0)
+					MaintainTecnFloor(bot);
+
 				return;
 			}
 
@@ -341,6 +363,93 @@ namespace OpenRA.Mods.Common.Traits
 				alreadyTargetedThisTick.Add(bestTarget);
 				availableCapturers.RemoveAt(0);
 			}
+		}
+
+		// ============================================================
+		// TECN AVAILABILITY FLOOR (cycle 2)
+		// ============================================================
+
+		// Called from the M-2 branch (no free capturer this scan). Keeps the
+		// alive-or-pending capturer pool at >= Info.TecnFloor by requesting ONE
+		// capturer through the shared UnitBuilder's IBotRequestUnitProduction queue.
+		// That request path is processed first each build cycle and bypasses both the
+		// UnitsToBuild share test AND UnitLimits (single-name BuildUnit overload), so a
+		// request out-competes the blind production lottery for the queue slot whenever
+		// the queue is free. Re-requesting each scan keeps pressure despite the request
+		// being dropped-on-failure when the queue is busy that cycle.
+		void MaintainTecnFloor(IBot bot)
+		{
+			unitProducers ??= player.PlayerActor.TraitsImplementing<IBotRequestUnitProduction>().ToArray();
+			if (unitProducers.Length == 0)
+				return;
+
+			// Resolve the faction-correct capturer name once it becomes buildable.
+			// Don't cache a null result — the Infantry queue / prereqs may not be live
+			// on the first scan, so keep retrying until a buildable name is found.
+			tecnBuildType ??= ResolveTecnBuildType();
+			if (tecnBuildType == null)
+				return;
+
+			var alive = capturingActors.Actors.Count;
+			var pending = unitProducers.Sum(u => u.RequestedProductionCount(bot, tecnBuildType));
+			if (alive + pending >= Info.TecnFloor)
+				return;
+
+			// Only pull a capturer if there is actually something to capture.
+			if (!CaptureTargetExists())
+				return;
+
+			unitProducers[0].RequestUnitProduction(bot, tecnBuildType);
+			Log.Write("debug",
+				$"[exp-capture] tecn-floor-request player={player.PlayerName} type={tecnBuildType} alive={alive} pending={pending} floor={Info.TecnFloor} tick={world.WorldTick}");
+		}
+
+		// The player's faction can build exactly one of the capturer types (e.g.
+		// nato → tecn.america). Intersect CapturingActorTypes with what the player's
+		// Infantry queue can actually build; the generic ~disabled `tecn` is filtered
+		// out because it isn't buildable, and a wrong-faction name can't be returned.
+		string ResolveTecnBuildType()
+		{
+			var buildable = AIUtils.FindQueuesByCategory(player)["Infantry"]
+				.SelectMany(q => q.BuildableItems())
+				.Select(a => a.Name)
+				.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+			return Info.CapturingActorTypes.FirstOrDefault(t => buildable.Contains(t));
+		}
+
+		// Cheap existence check for the demand gate — is any eligible capturable
+		// structure still out there? Uses PoiMap's ranked list when present (it already
+		// excludes our own POIs), else a direct scan honouring the module's filters.
+		bool CaptureTargetExists()
+		{
+			if (!poiMapResolved)
+			{
+				poiMap = world.WorldActor.TraitOrDefault<PoiMap>();
+				poiMapResolved = true;
+			}
+
+			if (poiMap != null)
+				return poiMap.GetCaptureTargets(player).Count > 0;
+
+			foreach (var otherPlayer in world.Players)
+			{
+				if (otherPlayer.Spectating)
+					continue;
+				if (!Info.CapturableRelationships.HasRelationship(player.RelationshipWith(otherPlayer)))
+					continue;
+
+				foreach (var actor in GetActorsThatCanBeOrderedByPlayer(otherPlayer))
+				{
+					if (Info.CapturableActorTypes.Count > 0
+						&& !Info.CapturableActorTypes.Contains(actor.Info.Name.ToLowerInvariant()))
+						continue;
+					if (actor.Info.HasTraitInfo<CaptureManagerInfo>())
+						return true;
+				}
+			}
+
+			return false;
 		}
 
 		// PoiMap-ordered capture selection (Phase 2). PoiMap has already ranked the
