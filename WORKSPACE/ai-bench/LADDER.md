@@ -84,6 +84,42 @@ vs control) lives in [`REVIEW.md`](REVIEW.md) §Ladder Status.
 
 ---
 
+> # ✅ `[cohesion-cap]` RE-BASELINE — 2026-07-21 (`main` @ `1eb644de`, N per SPEC)
+>
+> Declared re-baseline after Phase 0 global cohesion cap (`1eb644de`: bound
+> `ComputeBoxSlots` footprint + regroup-on-arrival), which ships to **everyone incl.
+> the frozen controls** — so the `60b93501` regime numbers above are void and
+> re-measured here. 43 matches, 5 phases, **0 crashes / 0 no-verdict**. Same regime
+> (Motorized / same-faction US-US / vs `@stable`); deltas vs `60b93501` isolate the
+> **cohesion cap alone**. Full analysis:
+> [`runs/260721_cohesion_cap_rebaseline.md`](runs/260721_cohesion_cap_rebaseline.md).
+>
+> | Rung | Calibration (Stable-v-Stable) | Baseline (Exp-v-Stable) | vs `60b93501` |
+> |---|---|---|---|
+> | **S1 eco** | 7–3 Russia-slot; USA gross med 6113 / Russia 2976 | win **5–5**; capture **6/10 vs 6/10** | **byte-identical** (cap inert) |
+> | **S2 combat** | even **5–5**, swing 0 / −725; eng 1200 / 1925; 3/10 zero-combat | win **5–5**; swing edge **−100** (was −350); Exp eng med **1775** (was 1300) | S2-cal identical; **S2-base MOVED** (cap binds) |
+>
+> **What the cap moved:** exactly one rung — **S2 Exp-vs-Stable**. All three S1
+> rungs and the S2 Stable-vs-Stable calibration are byte-identical to `60b93501`
+> (small/passive formations never reach the cap → deterministic replay unchanged).
+> On S2-base the cap **binds only** on Experimental's SR-contestation assault groups
+> (large enough to exceed the footprint cap): engagement rises **+37%** (Exp
+> 1300→1775, Stable 2800→3175) and Exp's swing edge improves **−350 → −100** — the
+> predicted direction (tighter formations → more concentrated fights). Effect is
+> seed-dependent (seed 8017 identical; 6017 shifted).
+>
+> **Nothing flips.** Win still **5–5**; edge −100 still fails the PROPOSED **+$1,000**
+> S2 bar; sign-delta **3/10** and both-spawn **2/5 / 1/5** unchanged; validity gate
+> **7/10 engaged** (VALID). **Core conclusion unchanged:** Experimental ≈ Stable on
+> both rungs; the cap is a human-play correctness fix that is benign on the benchmark.
+>
+> **PROPOSED bars now bind against `1eb644de`** (not `60b93501`) — still PROPOSED /
+> unratified, unchanged values (S1 win ≥0.60 + capture ≥ Stable +2/10; S2 edge
+> ≥ +$1,000 + sign ≥7/10 + both-spawn ≥3/5 + validity gate ≥6/10 engaged). Current:
+> S1 0.50 / 6-vs-6, S2 edge −100 / sign 3/10 / engaged 7/10 → both not passing (correct).
+
+---
+
 ## Ladder structure
 
 - A **rung** is one map. The first (and currently only) rung is **River Zeta WW3**
