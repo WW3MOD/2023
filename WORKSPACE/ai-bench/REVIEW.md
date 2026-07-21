@@ -87,7 +87,20 @@ Urgency-ordered. Few items, each one line + why it matters. Cleared when resolve
 
 Most recent first. Milestones, pivots, and verdicts in plain language.
 
-- **🚧 PHASE 2 IMPLEMENTING — red-teamed first, 3 blocking design flaws caught on
+- **✅ PHASE 2 SHIPPED (2026-07-22, merge `a88ef596`) — pricing batch now running.**
+  `StancePositioningExecutor`: idle-only, stance-conditioned repositioning to
+  threat-facing cover edges within a 4-cell leash (Hunt steps toward the threat,
+  Defensive holds the edge, HoldPosition inert), backed by `tacpos:` commitment-
+  ledger claims that the squad FSM now respects. Full pipeline: red-team →
+  SPEC hardening → implement → **independent merge review (MERGE-WITH-FIXES)** →
+  must-fix applied (claim re-commit while holding under lost threat signal) →
+  re-verified (build 0 err, NUnit 291/291, RED→GREEN autotest `test-stance-
+  positioning`: an AR relocates to the treeline edge and holds the exact cell
+  500 ticks). **Default-off for humans/@stable/@normal (inert by construction);
+  ACTIVE on @experimental** — so a pricing batch (S1 non-regression + S2 paired
+  vs the `1eb644de` reference) is running now. Accepted residual: `LayeredDefence`
+  can still re-task claimed units → explicit Phase-4 rider.
+- **🔎 PHASE 2 WAS RED-TEAMED FIRST — 3 blocking design flaws caught on
   paper (2026-07-22).** Before writing the positioning executor, a Fable red-team
   audited the Phase-2 design against the merged Phase-1 code
   (`WORKSPACE/plans/260722_phase2_redteam.md` @ `4a2c56f0`). **Three BLOCKING
@@ -233,13 +246,13 @@ per-scenario detail below and in `runs/`.
 
 | | |
 |---|---|
-| **`main` @** | `8945b373` (+ this doc commit) — Phase 1 merged `060cac2b`; Phase-2 red-team `4a2c56f0`; SPEC hardening `126e4655`; North Star §4 role ideas `8945b373` |
+| **`main` @** | `a88ef596` (+ this doc commit) — **Phase 2 merged** (executor `51024b70` + review fixes `52461451`); Phase 1 `060cac2b`; North Star §4 role ideas `8945b373` |
 | **Parked branch** | `exp-terr-bias` @ `ccd12c98` — **UNMERGED** (cycle-1 terr-bias MISS; retune-or-abandon queued behind the split plan; must rebase over `cb9d54c7`/`d256efde` first) |
 | **Active rung** | River Zeta WW3 (Scenarios 1–3) — **not yet cleared** (composite gate open) |
 | **Run mode** | Mode B (minimized + framerate-uncapped, `SpeedMultiplier: 8`) — unlimited unattended runs |
 | **Machine-hold** | **LIFTED** — builds/tests allowed, serialized (one build or one game-batch at a time) |
 | **Autoburn** | **ACTIVE** |
-| **In flight** | **Phase 2 IMPLEMENTING** — `StancePositioningExecutor` on worktree `phase2-executor`, hardened per the red-team's 3 blocking findings (idle-only v1, default-off `enable-tactical-positioning`); verify = build + NUnit + one autotest + @stable byte-identity |
+| **In flight** | **Phase-2 pricing batch** — S1 non-regression + S2 paired vs @stable (N=10 each, same seeds, serialized chunks) against the `1eb644de` reference; the executor is live on @experimental, so this batch prices it. Run doc: `runs/260722_phase2_executor_pricing.md` (pending) |
 | **Next queued** | Split plan phases 3→5 (`WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md`): Phase 3 human default-ON + event bus + role resolver riders → Phase 4 bot consumption + FULL fog migration (declared re-baseline) ∥ ops skeleton → Phase 5 extended micro + operations layer. Then: fires/artillery cycle (rides on the role model), cycle-1b terr-bias retune-or-abandon, early-game tuning, EXPAND maps. |
 
 > **Live standing — NEW REGIME + `[cohesion-cap]` (2026-07-21: Motorized /
@@ -271,6 +284,7 @@ Categories: `AI` `ENGINE` `HARNESS` `MERGE` `LADDER` `REVERT` `NOTE`.
 Newest at top. This is the durable record; the sections above are the digest.
 
 ```
+2026-07-22 | a88ef596 | MERGE | PHASE 2 MERGED (phase2-executor -> main): StancePositioningExecutor (505 lines, ConditionalTrait + INotifyIdle, idle-only + EvaluateCooldown 30) — stance-conditioned repositioning to threat-facing cover edges within a pinned 4c leash (Hunt = edge +1 step along aggregate threat bearing; Defensive = edge cell; HoldPosition inert); tacpos:<actorId> ledger claims (bot owners, re-committed every evaluation incl. while holding) + GroundStates/StateBase.ExcludeTacticallyCommitted claim filter (B1); CohesionSlotMemory Assign-on-reposition + Clear-on-abort (B2); gated aggregate threat bearing over ActiveCells w/ MinThreatIntensity 40 + ambiguity ratio + fallback chain (B3); suppression gate 30; no LocalRandom, all-integer math, [Sync] widened (enum via int projection — Sync.cs:71 throws on enums). Gating: RequiresCondition enable-tactical-positioning || enable-ai-experimental on ^Combatant + GrantConditionOnBotOwner@tacpos (experimental only) + ExternalCondition@tacpos Phase-3 seam — INERT by construction for @stable/@normal/humans (grouped-order path verified order-preserving with empty ledger), ACTIVE on @experimental. Pipeline: red-team 4a2c56f0 -> SPEC hardening 126e4655 -> implement 51024b70 -> independent merge review MERGE-WITH-FIXES -> fixes 52461451 (claim re-commit in threat-absent Arrived branches; SPEC pt7 aligned to accepted Hunt-bearing deviation) -> merged. Verify: build 0 err, NUnit 291/291, autotest test-stance-positioning RED (stayed at spawn) -> GREEN (relocates to threat-facing treeline edge, holds exact cell 500t), yaml-lint zero new messages. Autotest isolation via human owner + Lua-granted enable-tactical-positioning (Phase-3 activation path). Residual ACCEPTED: LayeredDefenceBotModule recruits without ledger checks -> can re-task claimed units; explicit Phase-4 rider. NOT a re-baseline for the controls; the @experimental delta is being priced now (S1+S2 batch vs 1eb644de reference).
 2026-07-22 | 8945b373 | NOTE | USER ANSWERED the bot-brain adoption AUQ: no adjustments, trust + adapt — the executed default stands (c0018972 SPEC ops riders). NEW USER IDEAS captured as North Star §4 (DOCS/design/ai-realism.md): unit-role model (YAML props and/or engine-derived from stats, one-time load computation cached, hybrid possible) -> roles drive doctrine (artillery standoff + suppressive fires, not main-line as ai.yaml has today); AoE damage -> prioritize formations/clusters over closest target; candidate for the SHARED autotargeter (humans benefit too). Roadmap adaptation: role resolver Phase-3 rider = the user's hybrid (derive-from-traits + YAML AiUnitRole override, load-time cached); artillery doctrine folds into the adopted fires cycle (backlog cross-linked); AoE cluster targeting queued as its own shared-trait item — default-off, benchmark-priced, Phase-3-class re-baseline if shipped to everyone per split-SPEC governance.
 2026-07-22 | 126e4655 | NOTE | PHASE-2 SPEC HARDENING (10-point AMENDED blockquote under SPEC §7 Phase 2) adopting ALL red-team findings: (1) idle-only v1 — in-transit stance detours DEFERRED to a later phase (preserves the user's transit clarification in substance, defers in timing; assumption AUQ auto-resolved to defer); (2) tacpos:<actorId> ledger claims (bot owners, TTL ~150t) + claim filter at the GroundStates grouped-order build — fixes B1 (ledger never gated the 75-tick squad re-fires); (3) executor OWNS CohesionSlotMemory slots (re-Assign to chosen cell, Clear on abort) — fixes B2 (idle return-to-slot infinite loop); (4) gated ThreatDirection (MinThreatIntensity 40 + ambiguity ratio + fallback chain: last bearing w/TTL -> bearing to commanded destination -> stay put) — fixes B3 (axis cancellation + frozen-ghost ~4x staleness); (5) stance stays L2-writable, executor re-reads each evaluation; (6) edge derivation: Defensive = threat-facing edge cell, Hunt = +1 step along OutwardFacing; tie-breaks CoverQuality desc -> angular error -> (Y,X) -> ActorID; (7) leash = last commanded destination/slot anchor, radius 4c; (8) suppression gate ~30 (move breaks prone, -90% crawl); (9) NO LocalRandom in the executor (World.cs:543 hashes only SharedRandom); (10) public AdjustmentState + CPos? CurrentTarget + reserved tacpos: grammar for the ops layer/event bus. Implementer dispatched on worktree phase2-executor (branch from main incl. this commit); gating RequiresCondition: enable-tactical-positioning || enable-ai-experimental; @stable/@normal byte-identity mandatory.
 2026-07-22 | 4a2c56f0 | NOTE | PHASE-2 RED-TEAM (Fable, read-only, vs merged Phase-1 code): WORKSPACE/plans/260722_phase2_redteam.md. 3 BLOCKING (B1 ledger/FSM 75-tick re-fire gap, grep-proven zero ledger checks in SquadManagerBotModule/GroundStates; B2 CohesionSlotMemory return-to-slot loop, ForgetAfterTicks 750 + slot refreshed by every grouped re-fire; B3 ThreatDirection degeneracies — WAngle.Zero ambiguity, FrozenWeight 60 re-injected every recompute ~4x staleness, locality zero at 6c) + S1-S8 should-fixes + N1-N4 notes + a hardened implementation brief (trait shape StancePositioningExecutor : ConditionalTrait, INotifyIdle; YAML LeashRadius 4 / EvaluateCooldown 30 / MinThreatIntensity 40 / MaxSuppressionToMove 30; 5-step decision pipeline). Red-team-before-implement caught all three on paper — zero code thrown away.
