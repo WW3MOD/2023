@@ -3,6 +3,13 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-22 — No fires/artillery bot logic exists; helis fight uncoordinated; the ratified stance-mapping is doctrinally inverted (doctrine-realism audit)
+
+Found doing the read-only doctrine-realism audit (`WORKSPACE/plans/260722_doctrine_realism_audit.md`).
+- **There is NO artillery/indirect-fire bot module.** A repo-wide grep for `artillery|indirect|counter-battery|bombard` across `engine/OpenRA.Mods.Common/Traits/BotModules` matches only `LayeredDefenceBotModule.cs`, and only as a `MainLineUnitTypes` *unit-type string* (`:54-59`) — arty is parked at a standoff and left static. No displacement/shoot-and-scoot, no counter-battery, no pre-registered fires anywhere in the bot code. Fires are the modern casualty center-of-gravity; their total absence from the ratified 260722 SPEC (six phases, zero fires behavior) is the loudest realism gap.
+- **`HelicopterSquadBotModule` runs as an independent module** with no synchronization to the ground offense axes (`PoiOffensiveBotModule`) — no air-ground task org, no CAS-on-call for a stalled axis. Helis look active but fight their own war.
+- **The ratified L3 stance→cover mapping is doctrinally inverted (design bug, not code yet).** `SPEC §4` maps Defensive to "back side of the trees … hold and return fire" — but the far side of a treeline blocks LOS (`ShadowLayer`/`BlocksSight`), so the unit literally cannot return fire. It conflates "hull-down" (mask profile, still shoot) with "hide behind cover" (no shot). Shipped default-ON in Phase 3, this would make every defender stand backs-to-the-fight. Fix is one inverted edge lookup against the planned `3b` cover-edge-orientation layer (face the *threat-facing* edge, as Hunt does, minus the creep). Same error taints the SPEC's "Ambush + cover-back" aside. Details + two more critical-pass items (aggressive "push through contact" = the RTS-blob trope; Phase-4 fog migration creates a blind window if recon is deferred) in the audit doc §2.
+
 ## 2026-07-22 — Phase 0 fix: bounded the cohesion box footprint (count-aware cap) + regroup now emerges from the existing leash
 
 Implemented the ratified Phase-0 global cohesion fix (`WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md`). Ships to everyone (humans + all bot profiles) — a declared re-baseline event; the ladder re-baseline is a manager follow-up, not part of this task.
