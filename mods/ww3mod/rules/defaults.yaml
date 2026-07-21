@@ -18,6 +18,30 @@
 
 ^Combatant:
 	CohesionSlotMemory:
+	# Phase 2 tactical positioning executor. MUST be declared AFTER CohesionSlotMemory:
+	# both act in INotifyIdle.TickIdle and run in declaration order — the executor rechecks
+	# CurrentActivity == null so a return-to-slot queued first this tick makes it a no-op (S6).
+	# Default-OFF: RequiresCondition gates it to experimental bots (enable-ai-experimental is
+	# granted per-unit below) and, in Phase 3, to humans (enable-tactical-positioning). Humans /
+	# @stable / @normal never satisfy either ⇒ byte-identical (UnloadOnArrival precedent).
+	StancePositioningExecutor:
+		RequiresCondition: enable-tactical-positioning || enable-ai-experimental
+		LeashRadius: 4
+		EvaluateCooldown: 30
+		MinThreatIntensity: 40
+		MaxSuppressionToMove: 30
+		FacingToleranceAngle: 256
+	# Per-unit membership condition: only units owned by the experimental bot enable the executor.
+	# (The like-named ai.yaml grant is on the PLAYER actor; a unit trait's RequiresCondition only
+	# sees conditions granted on the unit, so the executor needs its own per-unit grant.)
+	GrantConditionOnBotOwner@tacpos:
+		Condition: enable-ai-experimental
+		Bots: experimental
+	# Phase-3 human-enablement seam. Nothing grants this in Phase 2 (so the executor stays off for
+	# humans); declaring it here makes it a grantable token (satisfies the consumed-condition lint)
+	# that Phase 3's per-type stance wiring will grant externally.
+	ExternalCondition@tacpos:
+		Condition: enable-tactical-positioning
 
 ^StandardVision:
 	Vision@10:

@@ -1,0 +1,100 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: stance positioning — Defensive treeline hold (auto)
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Phase 2 positioning executor (§4 Defensive), tested in ISOLATION. A single AR is placed a few
+# cells SOUTH of a treeline (tank-trap density row at y=16, x=10..16) with an enemy tank sighted
+# further south. The AR is human-owned so NO bot module can move it — the ONLY thing that can is the
+# StancePositioningExecutor, which the test enables via `enable-tactical-positioning` (the real
+# Phase-3 human-activation path, granted from Lua). This deliberately keeps the assertion about the
+# executor's decision pipeline, not the strategic layer.
+#
+# Expected (GREEN, grant present): the AR walks NORTH to the treeline's threat-facing (south) cover
+# edge (y=17), a cell inside its 4-cell leash of the spawn anchor (13,19), and HOLDS there without
+# oscillating. RED (grant withheld): the executor stays disabled and the AR never leaves the spawn.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,19
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,19
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 5,19
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,19
+
+	# Treeline: a solid density row (tank traps, Density 20 each) at y=16, x=10..16.
+	Trap0: tanktrap1
+		Owner: Neutral
+		Location: 10,16
+	Trap1: tanktrap1
+		Owner: Neutral
+		Location: 11,16
+	Trap2: tanktrap1
+		Owner: Neutral
+		Location: 12,16
+	Trap3: tanktrap1
+		Owner: Neutral
+		Location: 13,16
+	Trap4: tanktrap1
+		Owner: Neutral
+		Location: 14,16
+	Trap5: tanktrap1
+		Owner: Neutral
+		Location: 15,16
+	Trap6: tanktrap1
+		Owner: Neutral
+		Location: 16,16
+
+	# Unit-under-test: one AR, Defensive by default, a few cells south of the trees.
+	Rifle: ar.america
+		Owner: USA
+		Location: 13,19
+		Facing: 512
+
+	# Sighted enemy south of the treeline — gives the sighting/threat layer a clear bearing.
+	Enemy: t90
+		Owner: Russia
+		Location: 13,22
+		Facing: 0
+
+Rules: rules.yaml

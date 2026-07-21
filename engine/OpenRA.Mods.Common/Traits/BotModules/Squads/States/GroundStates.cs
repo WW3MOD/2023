@@ -64,7 +64,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				if (owner.ApproachWaypoint.HasValue)
 					owner.ApproachWaypoint = null; // Consume the waypoint
 
-				owner.Bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(owner.World, attackTarget), false, groupedActors: owner.Units.ToArray()));
+				owner.Bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(owner.World, attackTarget), false, groupedActors: ExcludeTacticallyCommitted(owner, owner.Units)));
 
 				// We have gathered sufficient units. Attack the nearest enemy unit.
 				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsAttackMoveState());
@@ -157,7 +157,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				// Let them regroup into tighter formation.
 				owner.Bot.QueueOrder(new Order("Stop", leader, false));
 
-				var units = owner.Units.Where(a => !ownUnits.Contains(a)).ToArray();
+				var units = ExcludeTacticallyCommitted(owner, owner.Units.Where(a => !ownUnits.Contains(a)));
 				owner.Bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(owner.World, leader.Location), false, groupedActors: units));
 			}
 			else
@@ -171,7 +171,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsAttackState());
 				}
 				else
-					owner.Bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(owner.World, owner.TargetActor.Location), false, groupedActors: owner.Units.ToArray()));
+					owner.Bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(owner.World, owner.TargetActor.Location), false, groupedActors: ExcludeTacticallyCommitted(owner, owner.Units)));
 			}
 
 			if (ShouldFlee(owner))

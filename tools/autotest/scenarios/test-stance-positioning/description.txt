@@ -1,0 +1,1 @@
+Phase 2: experimental-bot Defensive infantry relocates to the threat-facing treeline edge within its leash and holds there (no oscillation) with an enemy sighted across the trees.
