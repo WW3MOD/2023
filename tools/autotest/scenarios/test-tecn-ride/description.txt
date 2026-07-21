@@ -1,1 +1,1 @@
-Bug 3.2: an experimental TECN must RIDE a carrier to a distant derrick, not walk (capture ferry).
+Bug 3.2: experimental TECN must RIDE a carrier to a distant derrick, UNLOAD, and capture it (ferry-capture).
