@@ -3,6 +3,15 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-22 — The full OpenRA observer/spectator suite is present AND wired into ww3mod (not stripped); the only real presentation gap is an auto-director camera
+
+Found doing read-only watchability research (`WORKSPACE/plans/260722_watchability_research.md`). Relevant to any spectator/broadcast/replay-analysis work — most of the substrate already ships.
+- **Observer chrome is loaded by the mod:** `mods/ww3mod/mod.yaml:173` lists `ww3mod|chrome/ingame-observer.yaml`; observer hotkeys at `mod.yaml:249` (`common|hotkeys/observer.yaml`). `LoadIngamePlayerOrObserverUILogic.cs:30-31` auto-loads `OBSERVER_WIDGETS` when `world.LocalPlayer == null`.
+- **8 stat panels exist** (`ObserverStatsLogic.cs` `ObserverStatsPanel` enum: Basic/Economy/Production/SupportPowers/Combat/Army/Graph/ArmyGraph), including two live line graphs: **income-over-time** (`ingame-observer.yaml:1055`) and **army-value-over-time** (`:1081`, `YAxisLabel: Army Value` `:1091`). Basic panel has APM; Combat panel has assets destroyed/lost, army value, vision %.
+- **Shroud selector includes "Disable Shroud"** (reveal-both-sides fog for casting) plus All-Players and per-player views (`ObserverShroudSelectorLogic.cs`).
+- **Replays auto-record** to `.orarep` on every match (`Game.cs` `recordReplay=true` default → `ReplayRecorder`); playback has pause + 4 speed tiers (`ReplayControlBarLogic.cs`). The autotest harness records these by default — bot matches are already on disk as replays.
+- **Camera primitives for a director exist:** `MiniMapPings.LastPingPosition`, a jump-to-last-event centering hotkey (`JumpToLastEventHotkeyLogic.cs`), Lua `Camera.Position` (`CameraGlobal.cs`). **MISSING (confirmed gap):** any auto-follow / combat / "storyline" camera — no code cuts the viewport to live action. That, not the panels, is the presentation keystone for bot-vs-bot spectating.
+
 ## 2026-07-22 — No fires/artillery bot logic exists; helis fight uncoordinated; the ratified stance-mapping is doctrinally inverted (doctrine-realism audit)
 
 Found doing the read-only doctrine-realism audit (`WORKSPACE/plans/260722_doctrine_realism_audit.md`).
