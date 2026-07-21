@@ -1,6 +1,9 @@
 # 260722 — Unit-Role Resolver: design
 
-**Status:** DESIGN (Phase-3 rider of the ratified strategic/tactical split SPEC).
+**Status:** IMPLEMENTED (data-only track) — `UnitRoleResolver` + `AIUnitRole` +
+world registration + `AIUnitRole` overrides landed on branch `phase3-resolver`.
+Cascade order and worked examples corrected per finding B3 (see §4 banner, §8).
+Phase-3 rider of the ratified strategic/tactical split SPEC. Inert (no consumers).
 **Mandate:** `DOCS/design/ai-realism.md` §4 (owner, 2026-07-22) — every unit has a
 known role, from YAML-facing properties or derived by the engine from the unit's
 stats; a one-time computation on first game load, cached; possibly a hybrid.
@@ -139,9 +142,11 @@ Doctrinal justification per role:
 ### 2.3 Relationship to `AIHelicopterRole`
 
 Coarse role (this enum) answers "which pool does this unit belong to";
-`AIHelicopterRole` keeps answering "how does the heli squad fly it". Mapping:
-`Scout → Recon`, `AttackLight/AttackHeavy → AttackAir`, `Transport →
-TransportLift`. No consumer of `AIHelicopterRole` changes.
+`AIHelicopterRole` keeps answering "how does the heli squad fly it". The trait
+class is `AIHelicopterRole`/`AIHelicopterRoleInfo`, but its `Role` field's enum
+type is spelled **`HelicopterAIRole`** (AIHelicopterRole.cs:16) — the resolver
+switches on that name. Mapping: `Scout → Recon`, `AttackLight/AttackHeavy →
+AttackAir`, `Transport → TransportLift`. No consumer of `AIHelicopterRole` changes.
 
 ### 2.4 Divergences from the architecture-doc sketch (§4.5)
 
@@ -184,36 +189,60 @@ caches `WeaponInfo` from the weapon name during Ruleset construction
 First match wins. Evaluated per `ActorInfo` over the flattened trait list.
 Thresholds are YAML fields on the resolver (§6 governance), defaults below.
 
+> **CASCADE ORDER CORRECTED (finding B3, `260722_phase3_redteam.md`).** The
+> original draft tested `TransportLift` (Cargo) *before* ShortRangeAD /
+> IndirectFire / Recon. Against the real YAML every fast-light and mobile-AD
+> hull also carries `Cargo` (humvee 8, btr 8, strykershorad 9), so that order
+> collapsed them all into TransportLift — ground Recon became empty and
+> ShortRangeAD lost its only mobile American member. The reordered cascade below
+> tests all combat/specialist roles first and reaches Cargo→TransportLift only
+> as the fall-through for genuine carriers. Implemented in
+> `UnitRoleResolver.Classify`.
+
 1. **Explicit override.** `AIUnitRoleInfo` present → its `Role`. Absolute;
    hybrid model per the mandate.
-2. **Air.** `AircraftInfo` present → map `AIHelicopterRoleInfo.Role` if present
-   (§2.3); else `AttackBaseInfo` present → `AttackAir`; else `CargoInfo` →
-   `TransportLift`; else `None`.
+2. **Air.** `AircraftInfo` present → map `AIHelicopterRoleInfo.Role` (enum type
+   `HelicopterAIRole`, §2.3) if present; else armed → `AttackAir`; else
+   `CargoInfo` → `TransportLift`; else `None`.
 3. **CaptureSpecialist.** Any `CapturesInfo` whose `CaptureTypes` contains
    `building-neutral` (`NeutralCaptureType`, YAML-tunable). Ordered before
-   Logistics so the unarmed tecn does not fall into the support bucket.
-4. **Logistics.** `SupplyProvider` present; OR no armament whose weapon has
-   lethal valid targets against enemies (heal/repair-only armaments — medi,
-   e6) while any armament exists; OR unarmed with `Passenger`/`Mobile` and none
-   of the above. Covers truk, medi, e6.
-5. **TransportLift.** `CargoInfo` with `MaxWeight > 0`. Ordered before combat
-   roles: an armed IFV is lift first (matches today's module ownership and the
-   :86-89 PITFALL).
-6. **ShortRangeAD.** Any armament whose `WeaponInfo.ValidTargets` contains
-   `Air` (unit is not an aircraft, per rule-2 short-circuit). Tunguska's mixed
-   AG+AA loadout still lands here — its doctrine is AD overwatch.
-7. **IndirectFire.** Longest-ranged armament has `MinRange ≥ IndirectMinRange`
-   (default `4c0`) OR `Range ≥ IndirectRangeFloor` (default `35c0`). Catches
-   m109/paladin/grad/tos/m270 (TOS via MinRange 5c0); rejects e2's grenade
-   launcher (MinRange 1c512) and all direct-fire guns.
-8. **Recon.** `MobileInfo.Speed ≥ ReconSpeedFloor` (default `110`) AND armed
-   only with weapons of `Range ≤ ReconMaxWeaponRange` (default `16c0`).
-   Catches humvee (150, MG 15c0) and btr (110, MG 16c0); grad (speed 110) is
-   already IndirectFire by rule 7. Acknowledged as the most brittle predicate —
-   `AIUnitRole: Recon` overrides on humvee/btr are the expected belt-and-braces
-   (§8 Q3).
-9. **MainBattle.** `AttackBaseInfo` + `MobileInfo` present.
-10. **None.** Everything else (buildings, husks, dummy actors).
+   Logistics so the tecn does not fall into the support bucket, and before the
+   combat roles so a capturer that also has a token weapon is still a capturer.
+4. **Logistics.** `SupplyProvider` present; OR at least one armament exists and
+   **no** armament targets enemies (heal/repair-only — medi's `Heal` armament
+   is `TargetRelationships: Ally`). Covers truk (supply) and medi (heal-only).
+   The engineer **e6 carries a lethal MP5 (targets enemies), so derivation does
+   NOT catch it — it is pinned `Logistics` by an `AIUnitRole` override** (§6.2).
+   Note: this rule was narrowed from the original draft, which also swept in any
+   "unarmed with Passenger/Mobile" actor — that mislabels radar/minelayer/MCV
+   hulls (MSAR/MNLY/LCCV) as Logistics; they now fall through to None (§7).
+5. **ShortRangeAD.** `MobileInfo` present AND any armament whose
+   `WeaponInfo.ValidTargets` contains **`Air`** (not `Helicopter` — machine guns
+   list `Helicopter` and must not count; only Stinger/9M311/MANPAD-class weapons
+   list `Air`). The Mobile guard keeps air-defence *structures* out of the
+   maneuver taxonomy (they fall to None). Catches strykershorad (Stinger.quad),
+   tunguska (9M311), MANPAD infantry — even though strykershorad also has Cargo.
+6. **IndirectFire.** Any armament whose weapon has `MinRange ≥ IndirectMinRange`
+   (default `4c0`) OR `Range ≥ IndirectRangeFloor` (default `35c0`). `^ArtilleryRound`
+   is `Range 40c0 / MinRange 10c0` (weapons-ballistics.yaml:613-614), inherited
+   unchanged by Paladin/Giatsint; grad/m270 `40c0/12c0`; tos `28c0/5c0` (MinRange
+   clause alone); mt's `60mm_Mortar` `25c0/8c0`. Rejects e2's grenade launcher
+   (MinRange 1c512) and all direct-fire tank guns (`^TankRound` 24c0/MinRange 1c512).
+7. **Recon.** `MobileInfo.Speed ≥ ReconSpeedFloor` (default `110`) AND armed
+   with at least one weapon AND **every** weapon `Range ≤ ReconMaxWeaponRange`
+   (default `16c0`). Catches humvee (150, MG 15c0) and btr (110, MG 16c0). grad
+   (speed 110) is already IndirectFire by rule 6, so rule order — not the speed
+   margin — is what keeps it out of Recon. Still the most brittle predicate;
+   `AIUnitRole: Recon` overrides remain the belt-and-braces for new units (§8 Q3).
+8. **TransportLift.** `CargoInfo` with `MaxWeight > 0`, reached only after every
+   combat/specialist role above declined. This is the finding-B3 fix: carriers
+   are the fall-through, not the pre-empt. Catches m113 (Cargo 12, slow, MG-only);
+   the armed IFVs bradley/bmp2 are pinned `MainBattle` by override (§6.2) so they
+   join the line of battle rather than the ferry pool.
+9. **MainBattle.** Armed (`ArmamentInfo` present) + `MobileInfo` present. Tank
+   hulls (abrams/t90 — direct-fire main gun) land here.
+10. **None.** Everything else (buildings, husks, dummy actors, unarmed
+    non-mobile support such as MSAR/MNLY/LCCV and air-defence structures).
 
 Determinism: the computation is a pure function of the ruleset — no randomness,
 no per-player state, no tick-time input — so it is identical on every client by
@@ -348,15 +377,18 @@ modules (Scout, SupplyFollower) last, each as its own priced change.
    or annotate `AIUnitRole: MainBattle` on medi as a transitional pin. Leaning:
    accept, and let the fires/support cycle bring medics back deliberately —
    but this changes experimental behavior and should be called out when priced.
-2. **Mortar teams (`mt`).** Weapon range ~12c0, MinRange below threshold →
-   derives `MainBattle`, matching today's list (:349). Doctrinally they are
-   light indirect fire. Defer until the fires executor exists, then decide
-   whether `AIUnitRole: IndirectFire` on mt is an improvement — priced, not
-   assumed.
-3. **Recon predicate brittleness.** Rule 8 rests on a speed threshold with a
-   narrow margin (btr 110 vs grad 110, saved only by rule order). Ship
-   `AIUnitRole: Recon` overrides on humvee/btr from day one, or trust
-   derivation? Leaning: ship the overrides — two YAML lines, and the
+2. **Mortar teams (`mt`).** CORRECTION: the earlier draft claimed mt derives
+   `MainBattle` (weapon range ~12c0, MinRange below threshold). Verified wrong —
+   mt's `60mm_Mortar` is `Range 25c0 / MinRange 8c0` (infantry.yaml:1508,
+   weapons-ballistics.yaml:522-527), so it **derives `IndirectFire`** by rule 6
+   (MinRange 8c0 ≥ 4c0), with no override. This matches its doctrine (light
+   indirect fire) and is the correct outcome; no open question remains.
+3. **Recon predicate brittleness.** Rule 7 rests on a speed threshold with a
+   narrow margin (btr 110 vs grad 110). After the finding-B3 reorder, grad is
+   caught by IndirectFire (rule 6) *before* Recon, so rule order — not the speed
+   margin — is what separates them, and humvee/btr derive `Recon` correctly
+   without overrides. The margin is still thin for future units; ship
+   `AIUnitRole: Recon` overrides if a new fast-light unit needs pinning — the
    derivation rule remains as the safety net for new units.
 4. **`SupportingUnitTypes`** (CaptureCoordinator :79, escort pool) — escorts
    are "any idle friendly" when unset; should escort selection prefer

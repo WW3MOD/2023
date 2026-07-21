@@ -1771,6 +1771,10 @@ AA:
 ^E6:
 	Inherits@Type: ^CamoSoldier
 	# Inherits@Selection: ^SelectableSupportUnit
+	# Role override: the engineer carries a lethal MP5, so trait-derivation would miss
+	# it (an armed unit is not auto-Logistics). It is a support/repair unit doctrinally.
+	AIUnitRole:
+		Role: Logistics
 	Tooltip:
 		Name: Combat Engineer
 	Buildable:
