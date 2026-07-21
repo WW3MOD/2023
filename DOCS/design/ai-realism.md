@@ -124,6 +124,39 @@ Riding vehicles is a doctrine, weighed against its risk, not a default.
   squad riding it** together. Mounted movement trades speed for concentration of
   risk, and the AI should price that in.
 
+### 4. Unit-role model + role-driven behaviors (user-authored, 2026-07-22)
+
+> **Source:** the user, answering the operations-layer adoption question,
+> 2026-07-22. Recorded faithfully; light structure only. Converges with the
+> architecture doc's role resolver (`WORKSPACE/plans/260722_bot_brain_architecture.md`)
+> and the fires/artillery behavior cycle the user already adopted.
+
+- **Every unit should have a known role.** Either **YAML-facing properties** set
+  per unit, or a role **derived from the unit's stats by the engine** — a
+  **one-time computation on first game load, cached**, so role info is readily
+  available thereafter. Possibly a **hybrid**: engine derivation plus YAML flags
+  where derivation isn't enough.
+- **Roles drive doctrine, not just grouping.** From such a calculation the AI
+  should determine that **artillery belongs far away**, providing **suppressive
+  effects during an assault** or **continuous bombardment** — not standing in the
+  line (today `ai.yaml` lumps artillery and SHORAD in with tanks as
+  "main line" units; the role model cures that).
+- **AoE-aware target selection.** From a weapon's area-of-effect damage, a unit
+  should learn to **prioritize formations/clusters of units rather than simply
+  the closest target**.
+- **Build it where both humans and bots benefit.** The AoE/cluster prioritization
+  in particular is a candidate for the **autotargeter itself** (the shared L3
+  layer), so human-owned artillery gets smarter target choice too — consistent
+  with the split plan's principle that shared unit traits serve both sides.
+
+*Roadmap mapping (agent, same date): the role resolver is already a Phase-3
+rider of the split SPEC (derive-from-traits + YAML `AiUnitRole` override — the
+user's hybrid, with load-time caching as the implementation shape); artillery
+standoff/suppressive-fires doctrine lands in the adopted fires cycle, which
+consumes the role model; AoE cluster targeting in AutoTarget is queued as its
+own shared-trait work item — default-off, benchmark-priced, and a Phase-3-class
+re-baseline if shipped to everyone, per the split SPEC's governance rules.*
+
 ## Where the detail lives
 
 The concrete pattern→behavior mapping — for each modern-warfare pattern: the
