@@ -5,6 +5,8 @@
 
 ## 2026-07-22 — Unit-role resolver: two YAML facts that make/break the taxonomy, + audit errata
 
+> **[promoted (partial): → conventions.md §Weapon `ValidTargets`: `Air` ≠ `Helicopter` (the AD-discriminator fact) + §Faction-specific files (three-tier `^Template`/bare-concrete/`X.america` naming, override the template to hit all variants)]** (curation 2026-07-22). Weapon claims verified: `^7.62mm`:144, `^12.7mm`:215, `30mm.Tunguska.AA`:455, MANPAD:339/Stinger:372/`9M311 Inherits: Stinger`:411-412, tunguska `Weapon: 9M311`:860. **Citation drift fixed:** the ballistics/missile line numbers had all shifted ~2-3 lines; and the concrete actors are **uppercase** (`E6`/`MT`/`AA`) with faction variants (`AR.america`) in `infantry-america.yaml`, NOT lowercase in `infantry.yaml` as the entry stated. **Rejected bullets:** the raw `^ArtilleryRound` 40c0/10c0 vs `^TankRound` 24c0/1c512 range *values* (volatile balance data + role-resolver-threshold-scoped, though verified at :609-614/:574-578); and the `msta`/`avenger` audit erratum (plan-doc-scoped).
+
 Implementing the Phase-3 role resolver (`260722_unit_role_resolver_DESIGN.md`). The
 audit's finding B3 (Cargo shadowing) was correct; verifying every classification against
 the real YAML surfaced two non-obvious substrate facts the whole taxonomy hinges on, plus
@@ -40,9 +42,13 @@ a couple of errata in upstream docs.
 
 ## 2026-07-22 — Autotest map-rules: override a `^Template`, not a concrete `ar.america` actor key, to add a trait
 
+> **[promoted (partial): → conventions.md §Faction-specific files (override a `^Template`/bare hull key from map rules; faction-suffixed concrete keys throw a duplicate-key load error)]** (curation 2026-07-22). Positive pattern verified in-repo: `demo-wgm-suite/rules.yaml` overrides `^Combatant` + bare hull keys `t90`/`bmp2`/`bradley`/`abrams` cleanly. The duplicate-key error is empirical (no code:line; not re-run this pass — game launch is forbidden here). **NOT promoted to reference:** the silent-fallback-to-menu / diagnose-via-debug.log methodology is DOCS/recipes/AUTOTEST material; and the "`run-test.sh` has no kill-timeout" claim is now **STALE** — a wall-clock kill-timeout watchdog landed in 2fa70d11.
+
 Adding `ar.america:\n\tExternalCondition@testdeploy:` to a test scenario's `rules.yaml` threw at load: `LoadFromManifest<Rules>, duplicate values found for the following keys: ar.america: [ActorInfo,ActorInfo]`. When map rules fail to load, the game **silently falls back to the main menu and idles forever** — no `Test.Pass/Fail`, no `result.json`, and `run-test.sh` has no kill-timeout, so the window sits on screen (diagnose via `AppData/Roaming/OpenRA/Logs/debug.log`). Overriding a concrete faction infantry key (`ar.america`) duplicates under this mod's map-rules merge, yet overriding a `^Template` (`^Combatant`, `t90`, `bradley`) merges fine (proven: `demo-wgm-suite/rules.yaml`). **Workaround:** declare the added trait on `^Combatant` (or the relevant `^Template`) rather than the concrete actor key. Always run tests with a wall-clock kill-timeout and verify the game process exited afterward.
 
 ## 2026-07-22 — B1 stale-anchor has TWO walk-back vectors; the executor anchor fix alone is insufficient because CohesionSlotMemory drags first
+
+> **[rejected: plan/executor-implementation-scoped — internals of the experimental `StancePositioningExecutor` (not documented in DOCS/reference at all), tied to the Phase-3 B1 plan + the e2208d42 merge review. The CORRECTION documents a KNOWN GAP already filed in `WORKSPACE/bugs/discovered.md` (Adjusting-window drag), which is where it belongs. The one general nugget — trait declaration order in `^Combatant` sets tick precedence, and a return-to-slot declared before the executor wins via the executor's `CurrentActivity != null` no-op guard — is specific to that experimental trait pair. Autotest timing (infantry `Speed:25`≈41 ticks/cell, use generous deadlines + `--speed 8`) is AUTOTEST-recipe + tuning-data-scoped.]** (curation 2026-07-22).
 
 Found implementing Phase-3 B1 (anchor lifecycle) in `StancePositioningExecutor.cs`. The red-team B1 finding (`260722_phase3_redteam.md`) describes ONE walk-back vector — the executor re-anchoring on a stale anchor and issuing its own Move toward the abandoned position. Fixing that (anchor invalidation + `ReleaseManagement` clears `anchor`/`hasAnchor`) is necessary but **not sufficient**, and the B1 autotest exposed the second vector:
 

@@ -63,6 +63,14 @@ Each unit type has a base template file and two faction files:
 - `infantry.yaml` → `infantry-america.yaml` + `infantry-russia.yaml`
 - `vehicles-america.yaml` + `vehicles-russia.yaml`
 
+A unit type is defined in three tiers: an abstract template `^E6` and a bare concrete `E6:` (`Inherits: ^E6`) live in the base file (`infantry.yaml`); the buildable faction variants `E6.america:` / `E6.russia:` (each `Inherits: ^E6`, adding `Buildable`/`RenderSprites`) live in the faction file (`infantry-america.yaml:95`, etc.). Keys are declared uppercase but actor lookup is case-insensitive. **To annotate every variant at once, override the `^Template`** — a trait added to `^E6` reaches the bare concrete and both faction variants in one line; single-hull tweaks (`bradley`, `bmp2`) go on the concrete key.
+
+This is also the reliable way to add a trait from **map/test `rules.yaml`**: override a `^Template` (e.g. `^Combatant`) or a bare hull key (`t90`, `bradley`), as `demo-wgm-suite/rules.yaml` does. Overriding a **faction-suffixed** concrete key (`ar.america`) from map rules has been observed to throw `LoadFromManifest<Rules>, duplicate values found for the following keys: ar.america: [ActorInfo,ActorInfo]` at load — prefer the template.
+
+### Weapon `ValidTargets`: `Air` ≠ `Helicopter`
+
+Helicopters are hit by the `Helicopter` target type, not `Air` — these are distinct. Ground autocannons and MGs list `Helicopter` and so *can* shoot helis without being air-defence: `^7.62mm` is `Infantry, Unarmored, Helicopter` (`weapons/weapons-ballistics.yaml:144`), `^12.7mm` adds `Light` (`:215`), and even Tunguska's dedicated `30mm.Tunguska.AA` autocannon is `ValidTargets: Helicopter` (`:455`). Only guided SAMs list `Air`: `MANPAD`/`Stinger`/`Stinger.quad`/`9M311` (`weapons/weapons-missiles.yaml:339,372`; `9M311 Inherits: Stinger`), which is how Tunguska gains true air-defence — via its `9M311` missile (`vehicles-russia.yaml:860`), not its gun. So any "is this an air-defence weapon?" test must key on the literal `Air` target type; keying on `Helicopter` sweeps in every MG-armed vehicle.
+
 ### Blank lines are significant
 
 Templates and top-level entries must be separated by a blank line. The MiniYaml parser silently merges adjacent ones, producing confusing override behavior — not a parse error. If a template "isn't taking effect," check the blank lines first.
