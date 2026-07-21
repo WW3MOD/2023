@@ -1,0 +1,1 @@
+DEMO: Phase-3 tactical positioning — cover-seek (left/top), threat response to an approaching probe (right), HoldPosition/deployed opt-out freeze (left/bottom).

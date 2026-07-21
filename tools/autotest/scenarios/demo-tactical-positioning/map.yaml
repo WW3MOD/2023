@@ -1,0 +1,210 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: tactical positioning — cover-seek, threat response, opt-out freeze
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Phase-3 StancePositioningExecutor, staged to be PLAYED (no verdict). Three zones on one map, all
+# USA (human) infantry so the ONLY thing that can move an idle unit is the executor (auto-enabled via
+# GrantConditionOnHumanOwner). Same treeline+sighted-enemy geometry as test-stance-positioning.
+#   ZONE A (left, top)    cover-seek: Defensive ARs south of a treeline with an enemy sighted further
+#                         south → they walk NORTH to the threat-facing (south) cover edge and hold.
+#   ZONE B (right)        threat response: Defensive ARs sit idle with NO nearby threat; a scripted
+#                         enemy probe approaches from the south → once inside scan range they take the
+#                         cover edge facing it. The probe loops (approach → retreat) so it repeats.
+#   ZONE C (left, bottom) opt-out freeze: same geometry as A, but the group is opted out — three ARs
+#                         on HoldPosition + one Defensive AR carrying the `deployed` condition → none
+#                         of them ever reposition.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,17
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 62,17
+
+	# ===================================================================
+	# ZONE A — cover-seek (left, top). Treeline y=6, x=6..12.
+	# ===================================================================
+	TrapA0: tanktrap1
+		Owner: Neutral
+		Location: 6,6
+	TrapA1: tanktrap1
+		Owner: Neutral
+		Location: 7,6
+	TrapA2: tanktrap1
+		Owner: Neutral
+		Location: 8,6
+	TrapA3: tanktrap1
+		Owner: Neutral
+		Location: 9,6
+	TrapA4: tanktrap1
+		Owner: Neutral
+		Location: 10,6
+	TrapA5: tanktrap1
+		Owner: Neutral
+		Location: 11,6
+	TrapA6: tanktrap1
+		Owner: Neutral
+		Location: 12,6
+
+	# Defensive ARs, a few cells south of the trees. Executor should relocate them to the y=7 edge.
+	SeekA0: ar.america
+		Owner: USA
+		Location: 7,9
+		Facing: 512
+	SeekA1: ar.america
+		Owner: USA
+		Location: 9,9
+		Facing: 512
+	SeekA2: ar.america
+		Owner: USA
+		Location: 11,9
+		Facing: 512
+
+	# Sighted enemy south of the treeline — gives the threat layer a clear south bearing.
+	EnemyA: t90
+		Owner: Russia
+		Location: 9,12
+		Facing: 0
+
+	# ===================================================================
+	# ZONE C — opt-out freeze (left, bottom). Treeline y=24, x=6..12.
+	# ===================================================================
+	TrapC0: tanktrap1
+		Owner: Neutral
+		Location: 6,24
+	TrapC1: tanktrap1
+		Owner: Neutral
+		Location: 7,24
+	TrapC2: tanktrap1
+		Owner: Neutral
+		Location: 8,24
+	TrapC3: tanktrap1
+		Owner: Neutral
+		Location: 9,24
+	TrapC4: tanktrap1
+		Owner: Neutral
+		Location: 10,24
+	TrapC5: tanktrap1
+		Owner: Neutral
+		Location: 11,24
+	TrapC6: tanktrap1
+		Owner: Neutral
+		Location: 12,24
+
+	# HoldPosition opt-out group. EngagementStance is a per-actor init — executor declines by stance.
+	HoldC0: ar.america
+		Owner: USA
+		Location: 7,27
+		Facing: 512
+		EngagementStance: HoldPosition
+	HoldC1: ar.america
+		Owner: USA
+		Location: 9,27
+		Facing: 512
+		EngagementStance: HoldPosition
+	HoldC2: ar.america
+		Owner: USA
+		Location: 11,27
+		Facing: 512
+		EngagementStance: HoldPosition
+
+	# Deployed opt-out. Defensive by default; the `deployed` condition is granted from Lua.
+	DeployC: ar.america
+		Owner: USA
+		Location: 13,27
+		Facing: 512
+
+	# Same sighted enemy geometry as zone A — the group resists a real threat.
+	EnemyC: t90
+		Owner: Russia
+		Location: 9,30
+		Facing: 0
+
+	# ===================================================================
+	# ZONE B — threat response (right). Treeline y=13, x=44..50.
+	# ===================================================================
+	TrapB0: tanktrap1
+		Owner: Neutral
+		Location: 44,13
+	TrapB1: tanktrap1
+		Owner: Neutral
+		Location: 45,13
+	TrapB2: tanktrap1
+		Owner: Neutral
+		Location: 46,13
+	TrapB3: tanktrap1
+		Owner: Neutral
+		Location: 47,13
+	TrapB4: tanktrap1
+		Owner: Neutral
+		Location: 48,13
+	TrapB5: tanktrap1
+		Owner: Neutral
+		Location: 49,13
+	TrapB6: tanktrap1
+		Owner: Neutral
+		Location: 50,13
+
+	# Defensive ARs. They start with NO enemy in range and sit idle until the probe approaches.
+	WatchB0: ar.america
+		Owner: USA
+		Location: 45,16
+		Facing: 512
+	WatchB1: ar.america
+		Owner: USA
+		Location: 47,16
+		Facing: 512
+	WatchB2: ar.america
+		Owner: USA
+		Location: 49,16
+		Facing: 512
+
+	# Scripted enemy probe. Starts far south (out of scan range); the Lua walks it north and back.
+	ProbeB: t90
+		Owner: Russia
+		Location: 47,31
+		Facing: 0
+
+Rules: rules.yaml

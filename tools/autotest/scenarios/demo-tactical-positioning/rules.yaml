@@ -1,0 +1,27 @@
+Player:
+	# Long-running demo: never let "Mission accomplished" fire, and keep the whole map visible so the
+	# viewer can watch all three zones (distance-gating, not fog, keeps Zone B idle until the probe nears).
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Strip per-type persisted stance overrides so every human AR is deterministically Defensive (its
+	# YAML default) regardless of this machine's saved unit defaults — a locally saved Hunt/HoldPosition
+	# default would silently change the executor's behavior in zones A and B.
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, demo-tactical-positioning.lua
+
+# Let the demo grant the `deployed` condition from Lua for zone C (the scripting GrantCondition API
+# requires an ExternalCondition source). Declared on ^Combatant (proven-overridable template) rather
+# than the ar.america actor key, which double-defines under this mod's map-rules merge. The executor
+# gates on this exact condition; granting it stands in for a real deploy.
+^Combatant:
+	ExternalCondition@testdeploy:
+		Condition: deployed
