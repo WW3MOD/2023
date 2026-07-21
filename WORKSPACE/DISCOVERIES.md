@@ -751,3 +751,12 @@ Full data: `WORKSPACE/ai-bench/runs/260721_regime_rebaseline.md`. First re-basel
   bot_type is `stable` (not `normal`), so control selection is now "the other playable bot" rather
   than a hardcoded `normal` lookup. General rule: **any harness code that identifies a bot by faction
   is wrong under a same-faction regime — identify by player name / spawn slot instead.**
+
+## 2026-07-22 — BotBlackboard's task-market API is dead code; the maneuver stack runs on two half-substrates (bot-brain architecture recon)
+
+Found while inventorying coordination primitives for `WORKSPACE/plans/260722_bot_brain_architecture.md` (main @ `0fce8bbd`).
+
+- **`BotBlackboard` carries a complete task-market API with ZERO callers.** `PostTask`/`ClaimTask`/`UpdateTaskStatus`/`GetOpenTasks` (`BotBlackboard.cs:137-191`), task types AttackArea/DefendArea/Scout/Capture/SupplyRun/Retreat/Garrison, `TaskStaleTicks=1500` — grep across all bot modules finds no module posting or claiming a task. Someone built the coordination abstraction the bot lacks and never wired the maneuver side to it.
+- **Only the blackboard's `ClaimUnit` + intel channels are live**, and only in legacy support modules: `HelicopterSquadBotModule.cs:162`, `GarrisonBotModule.cs:156`, `ScoutBotModule.cs:147` (+`PostIntel` `:275-282`), `SupplyFollowerBotModule.cs:140`, `AdaptiveProductionBotModule.cs:93-95` (`GetIntel`).
+- **The maneuver stack (SquadManager, PoiOffensive, PoiGarrison, LayeredDefence, CaptureCoordinator) never touches the blackboard** — it coordinates through the `PoiGoalGuard` ledger instead (objective-key mutual exclusion, no unit claims, no task lifecycle). Net: two parallel coordination substrates, each covering half the need (blackboard: unit claims + intel, no live task flow; ledger: objective locks, no unit ownership), with ad-hoc leaks outside both (e.g. `LayeredDefenceBotModule.cs:283` checks `transport.IsPassengerReserved` directly).
+- Implication recorded in the architecture doc (§4.4): a future operations layer should extend the ledger with unit-level claims and delete the blackboard's dead task API rather than adopt it (it stores no lifecycle/composition/conditions).
