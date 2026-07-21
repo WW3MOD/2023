@@ -130,9 +130,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (sighting == null)
 				yield break;
 
-			// Viewing player. RenderPlayer is the legal render-side per-player identity.
-			// No viewer (pure spectator) ⇒ nothing to show without leaking fog.
-			var viewer = world.RenderPlayer;
+			// The viewing player. RenderPlayer is the render-side identity in normal play,
+			// but it can be null (e.g. the autotest harness, or before it is assigned), so
+			// fall back to LocalPlayer — the same local-client identity FrontlineOverlay uses.
+			// Both are render-side only; reading the viewer's OWN per-player layer leaks
+			// nothing through fog. No local viewer (dedicated observer) ⇒ show nothing.
+			var viewer = world.RenderPlayer ?? world.LocalPlayer;
 			if (viewer == null)
 				yield break;
 

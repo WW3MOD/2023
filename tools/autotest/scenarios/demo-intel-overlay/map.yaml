@@ -1,0 +1,152 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: Intel overlay — Phase 1 sighting layer + hold-Space wash/dots
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Hidden SRs (one per side) so neither faction is eliminated by attrition.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+	# === USA (blue): 10 Abrams, cols 23 & 26, facing the enemy (east). ===
+	# Front column (26) sits ~4 cells from the Russia front (30) — inside vision,
+	# so blue gets a FRESH enemy sighting => red wash near the Russia line.
+	U1: abrams
+		Owner: USA
+		Location: 23,8
+		Facing: 768
+	U2: abrams
+		Owner: USA
+		Location: 23,12
+		Facing: 768
+	U3: abrams
+		Owner: USA
+		Location: 23,16
+		Facing: 768
+	U4: abrams
+		Owner: USA
+		Location: 23,20
+		Facing: 768
+	U5: abrams
+		Owner: USA
+		Location: 23,24
+		Facing: 768
+	U6: abrams
+		Owner: USA
+		Location: 26,8
+		Facing: 768
+	U7: abrams
+		Owner: USA
+		Location: 26,12
+		Facing: 768
+	U8: abrams
+		Owner: USA
+		Location: 26,16
+		Facing: 768
+	U9: abrams
+		Owner: USA
+		Location: 26,20
+		Facing: 768
+	U10: abrams
+		Owner: USA
+		Location: 26,24
+		Facing: 768
+
+	# === Russia (red): 10 T-90s, cols 30 & 33, facing west. ===
+	R1: t90
+		Owner: Russia
+		Location: 30,8
+		Facing: 256
+	R2: t90
+		Owner: Russia
+		Location: 30,12
+		Facing: 256
+	R3: t90
+		Owner: Russia
+		Location: 30,16
+		Facing: 256
+	R4: t90
+		Owner: Russia
+		Location: 30,20
+		Facing: 256
+	R5: t90
+		Owner: Russia
+		Location: 30,24
+		Facing: 256
+	R6: t90
+		Owner: Russia
+		Location: 33,8
+		Facing: 256
+	R7: t90
+		Owner: Russia
+		Location: 33,12
+		Facing: 256
+	R8: t90
+		Owner: Russia
+		Location: 33,16
+		Facing: 256
+	R9: t90
+		Owner: Russia
+		Location: 33,20
+		Facing: 256
+	R10: t90
+		Owner: Russia
+		Location: 33,24
+		Facing: 256
+
+	# === Russia frozen structures (behind the line, under fog). With the map
+	# explored, these ghost as FrozenActors at start => GPS dots in the overlay. ===
+	G1: gtwr
+		Owner: Russia
+		Location: 40,12
+	G2: gtwr
+		Owner: Russia
+		Location: 40,20
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 24,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 40,16
+
+Rules: rules.yaml

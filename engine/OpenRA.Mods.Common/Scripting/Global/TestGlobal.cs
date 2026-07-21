@@ -369,5 +369,56 @@ namespace OpenRA.Mods.Common.Scripting.Global
 
 			return player.MapLayers.GetVisibility(player.World.Map.CenterOfCell(cell));
 		}
+
+		[Desc("Invoke a registered chat command (as if typed into the chatbox), e.g. \"intel\" or " +
+			"\"/intel\" to toggle the Phase-1 intel overlay's dev always-on switch. Test mode only.")]
+		public void RunChatCommand(string command)
+		{
+			if (!TestMode.IsActive || string.IsNullOrEmpty(command))
+				return;
+
+			var cc = Context.World.WorldActor.TraitOrDefault<OpenRA.Mods.Common.Commands.ChatCommands>();
+			if (cc == null)
+				return;
+
+			var name = command.TrimStart('/').Split(' ')[0].ToLowerInvariant();
+			if (cc.Commands.TryGetValue(name, out var cmd))
+				cmd.InvokeCommand(name, "");
+		}
+
+		SightingThreatLayer Sighting()
+		{
+			return Context.World?.WorldActor.TraitOrDefault<SightingThreatLayer>();
+		}
+
+		[Desc("Read the §3a SightingThreatLayer enemy (threat) intensity for `player` at `cell`. " +
+			"Non-zero means the player has a live/decaying enemy sighting there. Test mode only.")]
+		public int GetThreatIntensity(Player player, CPos cell)
+		{
+			if (!TestMode.IsActive || player == null)
+				return 0;
+
+			return Sighting()?.ThreatIntensity(player, cell) ?? 0;
+		}
+
+		[Desc("Read the §3a SightingThreatLayer friendly (own + visible allied) intensity for `player` at `cell`. " +
+			"Test mode only.")]
+		public int GetFriendlyIntensity(Player player, CPos cell)
+		{
+			if (!TestMode.IsActive || player == null)
+				return 0;
+
+			return Sighting()?.FriendlyIntensity(player, cell) ?? 0;
+		}
+
+		[Desc("Read the §3a SightingThreatLayer threat bearing (WAngle, 0-1023, counterclockwise) for " +
+			"`player` at `cell` — the dominant direction toward recent enemy sightings. Test mode only.")]
+		public int GetThreatDirection(Player player, CPos cell)
+		{
+			if (!TestMode.IsActive || player == null)
+				return 0;
+
+			return Sighting()?.ThreatDirection(player, cell).Angle ?? 0;
+		}
 	}
 }
