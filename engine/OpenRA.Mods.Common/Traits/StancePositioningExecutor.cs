@@ -123,7 +123,10 @@ namespace OpenRA.Mods.Common.Traits
 		SightingThreatLayer threatLayer;
 		TerrainAffordanceLayer affordanceLayer;
 
+		[Sync]
 		int nextEvalTick;
+
+		[Sync]
 		int currentSuppression;
 
 		[Sync]
@@ -133,16 +136,25 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Sync]
 		CPos anchor;
+
+		[Sync]
 		bool hasAnchor;
 
 		[Sync]
 		CPos currentTarget;
+
+		[Sync]
 		bool hasTarget;
 
 		[Sync]
 		bool claimed;
 
 		public AdjustmentState State { get; private set; } = AdjustmentState.None;
+
+		// OpenRA's Sync hasher rejects enum types (Sync.cs:71 — only int/bool/registered structs),
+		// so sync the int projection rather than the enum property itself.
+		[Sync]
+		int SyncState => (int)State;
 
 		public CPos? CurrentTarget => hasTarget ? currentTarget : (CPos?)null;
 
@@ -235,9 +247,13 @@ namespace OpenRA.Mods.Common.Traits
 			var bearing = ComputeThreatBearing(tick);
 			if (bearing == null)
 			{
-				// No usable threat direction. If we're already holding a cover cell, stay (keep the
-				// claim); otherwise stop managing so the unit re-enters the strategic pool.
-				if (State != AdjustmentState.Arrived)
+				// No usable threat direction. If we're already holding a cover cell, STAY: re-commit
+				// the claim + slot on our current cell so protection never lapses under us (deviation
+				// 3 invariant — Arrived keeps managing). Otherwise stop managing so the unit re-enters
+				// the strategic pool.
+				if (State == AdjustmentState.Arrived)
+					CommitManagement(self.Location, tick);
+				else
 					ReleaseManagement();
 				return;
 			}
@@ -245,7 +261,11 @@ namespace OpenRA.Mods.Common.Traits
 			var target = ChooseTarget(bearing.Value, stance);
 			if (target == null)
 			{
-				if (State != AdjustmentState.Arrived)
+				// No valid cover cell. Same rule: a holding unit keeps its claim/slot on its current
+				// cell; a non-holding unit disengages.
+				if (State == AdjustmentState.Arrived)
+					CommitManagement(self.Location, tick);
+				else
 					ReleaseManagement();
 				return;
 			}
