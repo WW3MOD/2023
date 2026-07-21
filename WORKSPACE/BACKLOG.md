@@ -24,6 +24,7 @@
 - [ ] Clean up stale branches (bypass, counterbattery, speed)
 
 ## Ideas Parking Lot
+- [ ] **Deploy-to-prone → stance-governed (user idea, 2026-07-21)** — every soldier has "deploy" = forced prone (`GrantConditionOnDeploy`, `infantry.yaml` ^Soldier). Legacy feature from years back, barely used; forced-prone is a *behavior* and should be governed by the stance system (possibly related to the discussed Ambush stance) or an existing/new trait — not a manual per-unit deploy toggle. **Shape deliberately unresolved: research + verify first** — map what deploy-prone actually grants today (conditions, speed/prone modifiers, AI usage if any), then propose where the control should live (stance vs trait) before any implementation. ⚠ Interaction: Phase 3 tactical positioning treats `deployed` as a positioning/auto-target opt-out signal — changing deploy semantics must revisit that opt-out. *research-first, post-Phase-3*
 - [ ] Engine upgrade to release-20250330 (12-22 sessions, defer until gameplay done)
 - [ ] Ukraine as third faction
 - [ ] Ammo costs money — full economy rework (separate from current SupplyValue tier work)
