@@ -62,6 +62,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		public CPos? AssignedSlot => hasSlot ? (CPos?)assignedSlot : null;
 
+		// Drop the remembered slot so return-to-slot stops. Used by the Phase-2 positioning
+		// executor on abort/disengage so a released unit reverts to whatever the next grouped
+		// order assigns, rather than drifting back to the executor's cover cell (B2).
+		public void Clear()
+		{
+			hasSlot = false;
+		}
+
 		// PITFALL: this fires when ANOTHER actor wants to push through us — the Mobile trait's
 		// own INotifyBlockingMove implementation queues a Nudge(blocking) activity for us
 		// (Mobile.cs ~line 929). We piggyback on the same notification to queue a Move BACK to

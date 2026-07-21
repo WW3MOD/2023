@@ -143,5 +143,31 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			foreach (var a in squad.Units)
 				squad.Bot.QueueOrder(new Order("SetEngagementStance", a, false) { ExtraData = (uint)stance });
 		}
+
+		// B1 rider (Phase 2): the squad FSM re-issues grouped orders ~every 75 ticks, which the
+		// PoiGoalGuard commitment ledger does NOT gate — so a unit the tactical positioning executor
+		// is adjusting would be yanked back into the formation order every re-fire. Exclude units
+		// holding a `tacpos:` claim from the grouped order so their adjustment survives the re-fire.
+		//
+		// Behavior-inert where it must be: with no executor claims the ledger holds no `tacpos:`
+		// objectives, so nothing is filtered and the unit list is identical (order preserved). On
+		// profiles with no PoiGoalGuard the guard is null and the input passes through unchanged.
+		protected static Actor[] ExcludeTacticallyCommitted(Squad squad, IEnumerable<Actor> units)
+		{
+			var guard = squad.Bot.Player.PlayerActor.TraitOrDefault<PoiGoalGuard>();
+			if (guard == null)
+				return units.ToArray();
+
+			var tick = squad.World.WorldTick;
+			return units.Where(u => !IsTacticallyCommitted(guard, u, tick)).ToArray();
+		}
+
+		static bool IsTacticallyCommitted(PoiGoalGuard guard, Actor unit, int tick)
+		{
+			return guard.Ledger.IsCommitted(unit, tick)
+				&& guard.Ledger.TryGetObjective(unit, out var objective)
+				&& objective != null
+				&& objective.StartsWith("tacpos:", StringComparison.Ordinal);
+		}
 	}
 }
