@@ -34,24 +34,36 @@ Read **top-down, most-urgent-first**:
 
 Urgency-ordered. Few items, each one line + why it matters. Cleared when resolved.
 
-1. **Experimental ≈ Stable on BOTH rungs — the benchmark has caught up.** The
-   2026-07-21 re-baseline shows Exp tied with Stable on S1 (5–5, capture 6/10 vs
-   6/10) **and** S2 (5–5, swing edge −350). Stable is the frozen last-validated Exp
-   snapshot, so this correctly reads "nothing has improved since the last
-   promotion." *Why it matters:* the current Exp/Stable delta (the SR-contestation
-   axis) helped vs Normal but is neutral-to-negative vs a competent Stable — the
-   **next behavior cycle needs a genuinely new lever**, not more SR multiplier.
+1. **Two declared re-baselines are ahead** — both ratified 2026-07-21, both shift
+   every ladder baseline. (a) **Phase 0 global cohesion fix**: bound formation
+   extent + regroup-on-arrival, shipped to *everyone* including the frozen
+   controls. (b) **Phase 4 full fog migration** of the bot strategic grids
+   (InfluenceMap + ThreatMapManager → per-player fog-respecting intel), which
+   absorbs the old ladder cycle 5. *Why it matters:* expect a **bot-strength dip
+   after the fog migration** (bots lose free omniscient intel); recovered via a
+   new recon/scouting behavior cycle. Plan every S1/S2 bar as re-baselined twice
+   over the course of the split project. Spec:
+   `WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md`.
 2. **New PROPOSED bars await ratification** (the `[pre-regime]` bars are void).
    S1: paired win-rate ≥ 0.60 AND Exp capture-rate ≥ Stable +2/10. S2:
    median(Exp swing) ≥ median(Stable swing) + $1,000, sign-delta ≥7/10, both-spawn.
    *Why it matters:* these are the yardsticks the loop will run on by default; a
-   "yes" locks them, or adjust. Detail in LADDER re-baseline banner.
+   "yes" locks them, or adjust. Detail in LADDER re-baseline banner. Still running
+   on defaults.
 3. **S2 combat signal is weak on the new regime — a scoping decision.** Same-faction
    Stable-vs-Stable fights only ~half the time (engagement −5–6× vs pre-regime; 3/10
    matches zero-combat). A **blocking batch-validity gate** (≥6/10 engaged, else
    re-scope) is proposed as the guard. *Why it matters:* if S2 keeps producing
    passive stalemates, the net-swing metric is low-signal — decide whether to move
    S2 to a **forced-contact map / `@rush` opponent** or keep the quiet regime.
+   *Update:* the cycle-1 terr-bias verify measured engaged **7/10** (unchanged from
+   baseline) — the quiet-regime + validity-gate stays the default.
+4. **Sequencing now owned by the split plan (SUPERSEDES prior "which cycle runs
+   next" items).** The old cycle-2 routing / post-S1 sequencing notes (RETHINK #2's
+   5-cycle sequence) are superseded: the ratified split plan owns ordering now —
+   **verification pass → Phase 0 cohesion → Phase 1 layers+overlay** (phases run
+   0→5). Noted here rather than deleted silently; the RETHINK #2 highlight stays as
+   history.
 
 ---
 
@@ -59,6 +71,35 @@ Urgency-ordered. Few items, each one line + why it matters. Cleared when resolve
 
 Most recent first. Milestones, pivots, and verdicts in plain language.
 
+- **🎯 STRATEGIC/TACTICAL SPLIT SPEC RATIFIED (2026-07-21).** The user ratified the
+  3-layer vision: **L1 bot strategy** (where to fight) / **L2 squad ops** /
+  **L3 SHARED stance-driven unit micro** (threat response, cover-seeking, treeline
+  positioning — runs identically for bot- and human-owned units). New substrate:
+  a per-player **fog-respecting sighting layer** (ThreatDirection/ThreatIntensity
+  from own Shroud + FrozenActorLayer) + a static **cover-edge affordance layer**;
+  a **hold-Space intel overlay** (balance-of-power color wash with computed
+  grayzone + last-seen enemy **GPS dots reusing the in-repo OpenRA.Mods.Cnc GpsDot
+  substrate**). The user's aggressive/defensive treeline case maps onto the
+  existing **Engagement stance** (Hunt = cover-forward toward threat / Defensive =
+  cover-back / HoldPosition = inert) — no new stance family. In-transit semantics:
+  stances **detour** but **never cancel** an explicit order. **Forks answered by
+  the user:** global cohesion fix + declared re-baseline; human default **ON**
+  (per-type Ctrl-Alt-click defaults); **FULL** bot fog migration (absorbs ladder
+  cycle 5). Phases run 0→5. Spec:
+  `WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md` (survey input:
+  `WORKSPACE/plans/260722_stance_tactical_survey.md`, commit 9c94ce63).
+- **🔧 LIVE-PLAY TRIAGE (2026-07-21, UNVERIFIED — verification pass now running).**
+  Three fixes from live play, awaiting the verify batch: **cb9d54c7** Passenger NRE
+  crash guard (Passenger.cs:187, dead/null transport); **d256efde** no-dismount
+  root cause — the bot issued `"UnloadCargo"`, an *activity* name, not a resolvable
+  order string; the correct `"Unload"` is gated behind @experimental-only
+  `UnloadOnArrival`; **d4dc39cd** heli corner-idle diagnosed (SR-corner staging via
+  the `ProductionFromMapEdge` fallback; fix deferred pending benchmark evidence).
+- **📉 CYCLE-1 TERR-BIAS VERDICT: MISS.** The territorial offense bias (branch
+  `exp-terr-bias`) came back a miss: S2 swing **−350 = baseline**, engaged count
+  unchanged — the factor acted as a near-pure damper (the boost threshold is
+  unreachable at offensive targets). Branch **parked UNMERGED @ ccd12c98**;
+  retune-or-abandon is queued *behind* the split plan.
 - **🧭 RETHINK #2 (2026-07-21) — next lever = the territorial map layer, started as a
   small slice.** The re-baseline said the benchmark caught up (Exp≈Stable, SR axis
   exhausted). The architecture review's verdict: the next gain is **structural**, and
@@ -139,11 +180,14 @@ per-scenario detail below and in `runs/`.
 
 | | |
 |---|---|
-| **`main` @** | `60b93501` + this re-baseline commit (regime re-baseline; scenario/harness/docs only) |
+| **`main` @** | `9c94ce63` (+ this doc commit) — stance/tactical survey landed; split spec ratified |
+| **Parked branch** | `exp-terr-bias` @ `ccd12c98` — **UNMERGED** (cycle-1 terr-bias MISS; retune-or-abandon queued behind the split plan) |
 | **Active rung** | River Zeta WW3 (Scenarios 1–3) — **not yet cleared** (composite gate open) |
 | **Run mode** | Mode B (minimized + framerate-uncapped, `SpeedMultiplier: 8`) — unlimited unattended runs |
-| **In flight** | Nothing running (re-baseline batch complete; run slot free) |
-| **Next queued** | **Cycle 1 = territorial balance-of-power offense bias** (RETHINK #2 decision, `reports/260721_rethink2.md`) — reads `InfluenceMap`, targets S2 swing + engagement floor; then dispersion-disable → packet tuning → Polar Disorder rung → full territorial classification |
+| **Machine-hold** | **LIFTED** — builds/tests allowed, serialized (one build or one game-batch at a time) |
+| **Autoburn** | **ACTIVE** — 8h grant |
+| **In flight** | **Verification pass running** (the three live-play triage fixes get their regime verdict) |
+| **Next queued** | Per the ratified split plan (`WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md`): **verification pass → Phase 0 global cohesion fix → Phase 1 layers + hold-Space overlay** (phases run 0→5). Supersedes the RETHINK #2 5-cycle sequence. |
 
 > **Live standing — NEW REGIME (2026-07-21: Motorized / same-faction US-US / vs `@stable`).**
 > Numbers are Experimental vs the frozen **Stable** control (not Normal). Bars are
@@ -170,6 +214,7 @@ Categories: `AI` `ENGINE` `HARNESS` `MERGE` `LADDER` `REVERT` `NOTE`.
 Newest at top. This is the durable record; the sections above are the digest.
 
 ```
+2026-07-21 | 9c94ce63 | NOTE | STRATEGIC/TACTICAL SPLIT SPEC RATIFIED + doc persisted (this doc commit). 3-layer architecture ratified by the user: L1 bot strategy (where to fight) / L2 squad ops / L3 SHARED stance-driven unit micro that runs identically for bot- AND human-owned units (threat response, cover-seeking, treeline positioning, regroup). NEW substrate: (3a) per-player fog-respecting sighting/threat layer (ThreatDirection + ThreatIntensity from own Shroud + FrozenActorLayer, CellLayer<T> + staggered recompute); (3b) static cover-edge affordance layer (per-cell cover quality + outward edge orientation, precomputed at map load -> treeline lookup not search); (3d) hold-Space intel overlay (balance-of-power color wash w/ COMPUTED grayzone + last-seen enemy GPS dots REUSING the in-repo OpenRA.Mods.Cnc GpsDot/GpsWatcher/GpsDotEffect substrate; render-side only, reads viewing player's own layers so leaks nothing through fog). STANCE MAPPING reuses the existing Engagement family (NO new family): Hunt=cover-edge toward ThreatDirection (may creep forward within leash) / Defensive=cover-back hull-down + hold+return-fire / HoldPosition=inert. CONTRACT: upper layers command intent, L3 owns execution within a leash; L3 may DETOUR in transit but NEVER cancels an explicit order (stance-conditioned detour resumes the order); repositioning registers in the commitment ledger (PoiGoalGuard.Ledger pattern) to survive the 75-tick squad re-fire; a fresh explicit order aborts + re-arms L3. FORKS RESOLVED by user: (1) cohesion fix = GLOBAL bug fix + declared re-baseline; (2) human default autonomy = ON (per-type Ctrl-Alt-click defaults via UnitDefaultsManager, AutoTarget.cs:358-388); (3) bot fog policy = FULL migration now (Phase 4 rebuilds InfluenceMap+ThreatMapManager on per-player fog intel, absorbs ladder cycle 5 -> expect a bot-strength dip recovered by a follow-on recon/scouting cycle). PHASES 0->5 in order: 0 cohesion bug fix (bound ComputeBoxSlots footprint + regroup-on-arrival + remove stale debug log :679-695, ships to everyone incl. frozen controls, declared re-baseline) / 1 layers + overlay (pure data+render, overlay IS the verification tool) / 2 positioning executor (default-off) / 3 human enablement (default ON) / 4 bot consumption + full fog migration (declared re-baseline) / 5 extended micro (HP/threat flee AutoTarget.cs:472, bounding). DETERMINISM: LocalRandom NOT in sync hash (World.cs:543) -> SharedRandom / ActorID tie-breaks only; no RenderPlayer in sim. GOVERNANCE: shared L3 traits land default-off + priced before promotion; shipping-to-everyone is a deliberate declared re-baseline (dispersion episode = cautionary precedent). Two re-baselines ahead (Phase 0 + Phase 4). Also this turn: live-play triage (UNVERIFIED, verify pass running) cb9d54c7 Passenger NRE guard / d256efde no-dismount = "UnloadCargo" is an activity name not an order string (correct "Unload" @experimental-only) / d4dc39cd heli corner-idle = SR-corner staging via ProductionFromMapEdge fallback (fix deferred). Cycle-1 terr-bias VERDICT MISS (S2 swing -350 = baseline, engaged 7/10 unchanged, factor a near-pure damper), branch exp-terr-bias parked UNMERGED @ ccd12c98, retune-or-abandon queued behind the split plan. Machine-hold LIFTED (builds/tests allowed, serialized); autoburn active (8h grant). Spec: WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md; survey input: WORKSPACE/plans/260722_stance_tactical_survey.md. Docs only this turn (no code / no build / no run).
 2026-07-21 | 90a173c4 | NOTE | RETHINK #2 DECISION DOC (reports/260721_rethink2.md; read-only architecture review @ main 90a173c4, re-baseline was @ bfa8e876). TRIGGER: ~5 cycles elapsed + re-baseline shows Exp~=Stable on both rungs (S1 5-5/cap 6-6; S2 5-5/swing -350) -> incremental SR-multiplier tuning plateaued, next gain must be a NEW lever. VERDICT: next gain is STRUCTURAL and both the data and the user's North Star point at the same piece -- a TERRITORIAL / BALANCE-OF-POWER map layer. Loudest re-baseline signal (S2 engagement collapse ~5-6x, 3/10 zero-combat = passive economy race) is a BEHAVIOR gap: bots have no drive to press a weakening sector. RECOMMENDED CYCLE 1 = smallest behavior-bearing slice: a "push where enemy is comparatively weak / advance the front where safe" offense bias in PoiOffensiveBotModule that READS the EXISTING InfluenceMap (GetFriendlyInfluence/GetEnemyInfluence per perspective, InfluenceMap.cs:143-179) -> M effort not L (consumer of existing substrate: InfluenceMap/FrontlineOverlay/ThreatMapManager/PoiMap all present), @experimental-only default-frozen, ships with [exp-terr] telemetry markers. Targets S2 net-swing edge + S2 engagement floor (fixes the zero-combat stalemate at the bot level, not by re-scoping the map); S1 non-regression. RECOMMENDED 5-CYCLE SEQUENCE: (1) territorial bias + telemetry; (2) dispersion re-verify + DISABLE (it's in main+@stable, S2 causal credit NEGATIVE -$1500, predates evac/heli/TECN -> re-verify paired A/B on new regime then toggle CohesionSwitchEnabled:false on @experimental, flag @stable for corrective PROMOTE; do NOT retune a wrong-sign lever; unblocks cycle 3); (3) early-packet granularity (UnitsPerAxis 8->4-5 / MinAxisSize 3->2 / MaxAxes 4->5-6 @experimental, low-risk per-instance YAML, PoiOffenseTest-verifiable, North Star small-packets); (4) EXPAND Polar Disorder rung (anti-overfit gate on cycle 1 before deepening); (5) full fog-respecting territorial classification (safe/grayzone/enemy + own-half-safe prior + intel-driven, M-L, Woodland Warfare stands up here for the LOS/intel half). Q2 STRUCTURAL-vs-INCREMENTAL: recommendation IS structural (starts the North Star centerpiece), sliced for delivery; the one incremental cycle (packets) justified as a cheap complement. MISSION ABSTRACTION (the other structural option, fully costed plans/260720_mission_abstraction_costing.md step1 ~1-1.5d) DEFERRED: its decision rule not met (capture at parity 6/10, residual = production throughput not lost-TECN-no-retry) -> would buy retry/staging the current bars don't ask for while leaving the stuck S2 metric untouched; becomes the right vehicle when the territorial layer needs first-class retryable assault/garrison missions (cycle 6+). Q5 FOUNDATIONS: seeded LocalRandom determinism ALREADY LANDED (World.cs:217-228, verified) -> nothing to schedule; structured telemetry ships ALONGSIDE cycle 1 (behavior invisible in win/loss alone; capture-marker F-5-observability precedent). Q4 S2 SIGNAL: KEEP the quiet same-faction Stable regime + the blocking batch-validity gate (>=6/10 engaged), let cycle 1's engaged-count be the test of bot-passivity vs map-geometry; add a forced-contact/@rush variant ONLY if cycle 1 improves swing but fails to lift engagement (redesigning now would MASK the passivity cycle 1 is meant to cure). Q6 LADDER GROWTH: Polar Disorder AFTER cycle 1 shows signal (=cycle 4, anti-overfit gate before slice 2); Woodland Warfare held for cycle 5 (stresses the fog/LOS intel half). CAVEAT: TECN-ferry merge (90a173c4, @experimental-only) landed AFTER the re-baseline (bfa8e876) and is UNMEASURED on the new regime -> cycle 1's verify batch gives it its regime verdict for free; A/B the ferry toggle if cycle 1 reads worse than the re-baseline. No code changed / no build / no run.
 2026-07-21 | 60b93501 | LADDER | REGIME RE-BASELINE COMPLETE (Motorized / same-faction US-US / vs @stable). 43 matches / 5 phases, hidden Mode-B (minimized+uncapped, 8x), 0 crashes / 0 no-verdict, ~78 min batch wall-clock; wall ~66-71s/match S1 (300s) and ~138-157s/match S2 (720s), ~4.3-5.2x realtime (init-dominated on short matches). PHASE 1 S1 CAL (Stable-v-Stable N=10): side lean 7-3 Russia-slot(80,35) -> mirror mandatory; BOTH slots now capture (USA-slot gross med 6113/6-10, Russia-slot 2976/~5-10) -- regime delta vs pre-regime Normal ~0-capture control. PHASE 2 S1 BASELINE (Exp-v-Stable N=10, 5+5): win 5-5, capture 6/10 vs 6/10 -> Exp HAS NO ECONOMY EDGE over Stable (Stable already carries the promoted TecnFloor+dispersion S1 rewards; S1 becomes a non-regression floor). PHASE 3 S1 FLOOR (Exp-v-Normal N=3): weak 2-1 (Exp cap 1/3, Normal 0/3) -- Motorized start equalizes early armies + single-spawn(USA) handicap compress the pre-regime 8-2/10-0 dominance; sanity PASS. PHASE 4 S2 CAL (Stable-v-Stable N=10): side EVEN 5-5 (swing 0/-725), BUT min-engagement PASS-but-FRAGILE -- engagement collapsed ~5-6x (vol med 1200/1925 vs pre-regime 7475/5950), 3/10 matches ZERO combat (seeds 3017/7017/10017), 5/10 negligible; same-faction frozen-v-frozen frequently stalemates into a passive economy race. PHASE 5 S2 BASELINE (Exp-v-Stable N=10, 5+5): win 5-5, median Exp swing -350 vs Stable 0 -> relative edge -350 (pre-regime +$1400 bar FAILS -1750), sign-delta 3/10, both-spawn 2/5+1/5 -> NO FORCE EDGE; Exp over-aggresses vs a competent defender (worst cells primary 6017/8017, Exp -4200/-4950 k/d 2-10/4-10). CORE FINDING: Experimental ~= Stable on BOTH rungs -- the SR-contestation axis (Exp's only delta from Stable, beat Normal +$6300 pre-regime) is neutral-to-negative vs Stable; the benchmark has caught up to the bot, next cycle needs a NEW lever. PROPOSED BARS (awaiting ratification, [pre-regime] bars void): S1 win-rate >=0.60 AND Exp capture >= Stable +2/10 (non-reg floor >=0.40 + capture parity); S2 median(Exp swing) >= median(Stable swing) + $1000 (offset gone -> $1400->$1000) + sign >=7/10 + both-spawn, PLUS a BLOCKING batch-validity gate >=6/10 engaged else re-scope S2 (forced-contact/@rush). OPEN USER DECISION: keep S2 on the quiet same-faction Stable regime or move to forced-contact/@rush for combat signal. HARNESS: patched parse-s1-batch.py / parse-s2-batch.py / parse-s2-bar.py for the regime (control auto-detected as the-other-bot = stable primary / normal floor; calibration slot disambiguated by player NAME USA-bot/Russia-bot not faction, since both sides america). Analysis: runs/260721_regime_rebaseline.md; LADDER re-baseline banner + REVIEW digest updated.
 2026-07-21 | (regime) | HARNESS | BENCHMARK REGIME CHANGE (user-directed, consolidated instrument update; scenario/harness + docs only, NO bot behavior / controls / @stable YAML touched). THREE changes to what S1/S2 measure: (1) STARTING UNITS = MOTORIZED both sides -- StartingUnitsClass: motorized on each bot PlayerReference (was default none = SR-only); Motorized set world.yaml:404-419, faction-ASYMMETRIC (america abrams/bradley/humvee vs russia t90/bmp2/bmp2). (2) SAME FACTION both sides (US vs US) -- both bots Faction: america, so both field the identical @Motorized_america force; removes faction + Motorized-composition imbalance from the measurement (faction balancing is later work). (3) PRIMARY OPPONENT = @stable (frozen post-S1 PROMOTE snapshot) instead of @normal; the map.yaml Bot: line is authoritative (Matchup block is documentation, unread by engine/harness -- verified). Normal DEMOTED to one Exp-vs-Normal sanity-floor scenario. Files: S1 primary/mirror/cal-nn + S2 primary/mirror/cal-nn map.yaml (Faction+Bot+StartingUnitsClass, Titles, header regime notes) + their tournament-*.yaml Matchup docs; cal-nn scenarios flipped Normal-vs-Normal -> STABLE-vs-STABLE; NEW scenario tournament-s1-eco-floor-vs-normal (copy of S1 primary, P2=@normal) as the sanity floor. LADDER scenario tables + registry updated to the new regime; a top REGIME-CHANGE banner marks ALL prior S1/S2 baselines/bars [pre-regime] (none / mixed factions / vs Normal) -- not comparable, must not be reused as bars. Consequence: both mirrors are now pure SPAWN swaps (S2's no longer flips faction too). Pure-YAML/docs change (no compile) -> no build/NUnit needed. NEXT: re-CALIBRATE (Stable-vs-Stable side-fairness + S2 min-engagement) then re-BASELINE S1/S2 vs @stable on the Motorized regime; every bar awaits re-baseline. Batch runner: scenario names in LADDER §Scenario registry.
