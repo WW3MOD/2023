@@ -316,6 +316,21 @@ World:
 		OwnershipEnemySupplyRouteMultiplier: 100
 		OwnershipNeutralSupplyRouteMultiplier: 70
 		DiscoveryInterval: 50
+	# --- Strategic/tactical split, Phase 1 ---
+	# Spec: WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md (§3a/§3b/§3d).
+	# Pure data + render: NOTHING consumes these for behavior yet. The overlay is
+	# the verification tool — eyeball layer correctness before Phase 2 consumes them.
+	# §3a: per-player, FOG-RESPECTING sighting/threat field, built from each player's
+	# own vision + FrozenActorLayer (unlike the omniscient InfluenceMap/ThreatMapManager).
+	SightingThreatLayer:
+	# §3b: static per-cell cover quality + cover-edge orientation, computed once at map
+	# load from Map.DensityLayer (same cover substrate CohesionMoveModifier reads).
+	TerrainAffordanceLayer:
+	# §3d: hold-Space intel overlay — balance-of-power wash (green=friendly, red=enemy,
+	# gray=computed grayzone) + last-seen enemy GPS dots. Reads ONLY the viewing player's
+	# own §3a layer + frozen actors, so it leaks nothing through fog. Ships as hold-Space;
+	# "/intel" chat command toggles a dev always-on switch.
+	SightingIntelOverlay:
 	ChatCommands:
 	DevCommands:
 	DebugVisualizationCommands:
