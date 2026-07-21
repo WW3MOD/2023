@@ -28,6 +28,14 @@
 #                          pacing, simulation stays byte-identical. Default:
 #                          unset (1×, current behavior).
 #
+# Timeout:
+#   --timeout N            Hard wall-clock watchdog (seconds). If the game is
+#                          still alive and no verdict has been written after N
+#                          seconds, kill it and synthesize a FAIL result. Guards
+#                          against maps whose rules fail to load and idle on the
+#                          main menu forever (no Test.Pass/Fail ever runs).
+#                          Default: 300. Pure wall-clock — NOT scaled by --speed.
+#
 # Misc:
 #   --position=<centered|left|right|full>  Long form of L/R/F.
 #   --fullscreen           Same as F + Mode=PseudoFullscreen.
@@ -59,6 +67,7 @@ POSITION="centered"
 WINDOW_BEHAVIOR="background"
 AUDIO_MUTE=1
 SPEED_MULT=""
+TIMEOUT_SECS=300
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -80,8 +89,10 @@ while [ $# -gt 0 ]; do
 		--mute)                 AUDIO_MUTE=1; shift ;;
 		--speed=*)              SPEED_MULT="${1#*=}"; shift ;;
 		--speed)                SPEED_MULT="$2"; shift 2 ;;
+		--timeout=*)            TIMEOUT_SECS="${1#*=}"; shift ;;
+		--timeout)              TIMEOUT_SECS="$2"; shift 2 ;;
 		--help|-h)
-			sed -n '2,53p' "$0" | sed 's/^# \?//'
+			sed -n '2,61p' "$0" | sed 's/^# \?//'
 			exit 0 ;;
 		--*)
 			echo "Unknown flag: $1"
@@ -93,7 +104,7 @@ done
 
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 [L|R|F] [--background|--minimized|--visible] [--audio] [--speed N] <test-folder-name>"
+	echo "Usage: $0 [L|R|F] [--background|--minimized|--visible] [--audio] [--speed N] [--timeout N] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
 fi
@@ -109,6 +120,18 @@ if [ -n "${SPEED_MULT}" ]; then
 		echo "Error: --speed must be 1-16 (got '${SPEED_MULT}')"
 		exit 3
 	fi
+fi
+
+# Validate --timeout: positive integer (seconds). Pure wall-clock; deliberately
+# NOT scaled by --speed (a hung game never advances the sim, so speed is moot).
+case "${TIMEOUT_SECS}" in
+	''|*[!0-9]*)
+		echo "Error: --timeout must be a positive integer (seconds), got '${TIMEOUT_SECS}'"
+		exit 3 ;;
+esac
+if [ "${TIMEOUT_SECS}" -lt 1 ]; then
+	echo "Error: --timeout must be >= 1 (got '${TIMEOUT_SECS}')"
+	exit 3
 fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -127,6 +150,42 @@ to_game_path() {
 	else
 		printf '%s' "$1"
 	fi
+}
+
+# Kill the backgrounded launcher and the game it spawned. The PID we hold is the
+# launch-game.sh shell; on Git-Bash the actual game is a dotnet.exe child, so a
+# plain `kill` of the shell can orphan it. Translate to the Windows PID and
+# taskkill the whole tree (//T //F); fall back to POSIX kill everywhere.
+kill_game() {
+	_pid="$1"
+	if [ "${IS_WINDOWS}" = "1" ]; then
+		_winpid=""
+		[ -r "/proc/${_pid}/winpid" ] && _winpid=$(cat "/proc/${_pid}/winpid" 2>/dev/null || true)
+		if [ -n "${_winpid}" ] && command -v taskkill >/dev/null 2>&1; then
+			taskkill //PID "${_winpid}" //T //F >/dev/null 2>&1 || true
+		fi
+	else
+		# macOS/Linux: kill the game child first (pkill if present), then the shell.
+		command -v pkill >/dev/null 2>&1 && pkill -P "${_pid}" 2>/dev/null || true
+	fi
+	kill "${_pid}" 2>/dev/null || true
+}
+
+# Best-effort locate of the engine's debug.log, mirroring the settings.yaml
+# candidate search below. Echoes a path (may not exist) or nothing.
+find_debug_log() {
+	case "$(uname -s)" in
+		Darwin) echo "${HOME}/Library/Application Support/OpenRA/Logs/debug.log" ;;
+		Linux)  echo "${HOME}/.config/openra/Logs/debug.log" ;;
+		MINGW*|MSYS*|CYGWIN*|Windows_NT)
+			for _c in \
+				"${REPO_ROOT}/engine/Support/Logs/debug.log" \
+				"$(cygpath -u "${APPDATA:-}" 2>/dev/null)/OpenRA/Logs/debug.log" \
+				"$(cygpath -u "${USERPROFILE:-}" 2>/dev/null)/Documents/OpenRA/Logs/debug.log"; do
+				if [ -f "${_c}" ]; then echo "${_c}"; return; fi
+			done
+			;;
+	esac
 }
 
 MAP_DIR="tools/autotest/scenarios/${TEST_NAME}"
@@ -333,7 +392,65 @@ SCREENSHOT_DIR_GAME=$(to_game_path "${SCREENSHOT_DIR}")
 	${AUDIO_ARGS} \
 	${SPEED_ARGS} \
 	${MINIMIZE_ARGS} \
-	|| true
+	&
+LAUNCH_PID=$!
+
+# ── Hard wall-clock watchdog ────────────────────────────────────────────────
+# The engine writes result.json only when Test.Pass/Fail/Skip runs. If a map's
+# rules fail to load (e.g. a duplicate MiniYaml key), the game logs "Failed to
+# load rules" to debug.log, falls back to the main menu, and idles FOREVER — no
+# verdict is written and the window sits on screen until a human kills it. Poll
+# once a second for either a written verdict or the game exiting on its own; if
+# neither happens within TIMEOUT_SECS, kill the game and synthesize a FAIL so
+# the runner (and run-batch) always get a definite result.
+TIMED_OUT=0
+_elapsed=0
+while :; do
+	if ! kill -0 "${LAUNCH_PID}" 2>/dev/null; then
+		break            # launcher/game exited on its own
+	fi
+	if [ -f "${RESULT_FILE}" ]; then
+		break            # verdict written; let the game exit itself
+	fi
+	if [ "${_elapsed}" -ge "${TIMEOUT_SECS}" ]; then
+		TIMED_OUT=1
+		break
+	fi
+	sleep 1
+	_elapsed=$((_elapsed + 1))
+done
+
+if [ "${TIMED_OUT}" = "1" ]; then
+	echo
+	echo "==> TIMEOUT: no verdict after ${TIMEOUT_SECS}s — killing the game."
+	kill_game "${LAUNCH_PID}"
+
+	# Surface the most likely cause: rules that failed to load.
+	DEBUG_LOG=$(find_debug_log)
+	if [ -n "${DEBUG_LOG}" ] && [ -f "${DEBUG_LOG}" ]; then
+		MATCHES=$(tail -n 200 "${DEBUG_LOG}" 2>/dev/null | grep -i "Failed to load rules" || true)
+		if [ -n "${MATCHES}" ]; then
+			echo "==> debug.log reports a rules-load failure:"
+			printf '%s\n' "${MATCHES}" | sed 's/^/    /'
+		else
+			echo "==> No 'Failed to load rules' in ${DEBUG_LOG} tail — hang is elsewhere."
+		fi
+	else
+		echo "==> Could not locate debug.log to diagnose the hang."
+	fi
+
+	# Synthetic verdict in the engine's schema (name/status/notes/timestamp) so
+	# the STATUS grep below and run-batch's exit-code read both see a FAIL.
+	if [ ! -f "${RESULT_FILE}" ]; then
+		NOW_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+		NOTES="timeout: no verdict after ${TIMEOUT_SECS}s - game hung or rules failed to load; check "'%APPDATA%\\OpenRA\\Logs\\debug.log'
+		printf '{"name":"%s","status":"fail","notes":"%s","timestamp":"%s"}\n' \
+			"${TEST_NAME}" "${NOTES}" "${NOW_ISO}" > "${RESULT_FILE}"
+	fi
+fi
+
+# Reap the launcher (returns immediately if already gone or just killed).
+wait "${LAUNCH_PID}" 2>/dev/null || true
 
 if [ -n "${SETTINGS_BACKUP}" ] && [ -f "${SETTINGS_BACKUP}" ]; then
 	mv "${SETTINGS_BACKUP}" "${SETTINGS_FILE}"
