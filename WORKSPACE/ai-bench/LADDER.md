@@ -120,6 +120,40 @@ vs control) lives in [`REVIEW.md`](REVIEW.md) §Ladder Status.
 
 ---
 
+> # 🧪 PHASE-2 EXECUTOR PRICING — 2026-07-22 (`main` @ `1a65ddf1`, executor merge `a88ef596`)
+>
+> Prices `StancePositioningExecutor` (idle-only stance-conditioned repositioning to
+> threat-facing cover edges; `@experimental`-only, inert for `@stable`/`@normal`/
+> humans) — the only behavior-bearing Experimental delta since the `[cohesion-cap]`
+> re-baseline (`1eb644de`) + Phase 1 data layers. 20 matches, S1 + S2 vs `@stable`,
+> **0 crashes / 0 no-verdict**. Paired per-seed deltas isolate the executor. Full
+> analysis: [`runs/260722_phase2_executor_pricing.md`](runs/260722_phase2_executor_pricing.md).
+>
+> | Rung | Result (Exp-v-Stable) | vs `1eb644de` | Verdict |
+> |---|---|---|---|
+> | **S1 eco** | win **5–5**; capture **6/10 vs 6/10** | win/capture **identical**; order-drift on ~6 seeds, 1 outcome-neutral dip (6017) | **non-regression PASS**; promote bar not met |
+> | **S2 combat** | median Exp swing **−350** (edge −350); sign **2/10**; both-spawn **1/5+1/5**; Exp eng med **675**; engaged **6/10** (VALID, at floor); win **6–4** | S2-base **MOVED**: eng ↓ (Exp 1775→675, Stable 3175→450), median swing ↓ (−100→−350), win split 5–5→**6–4** (8017 flip) | not passing; executor **≠** force edge |
+>
+> **What the executor moved:** exactly one rung visibly — **S2 Exp-vs-Stable**. On
+> S1 the floor is byte-stable at the aggregate level (some intra-match order drift,
+> no flips). On S2 it perturbs 7/10 seeds in the **less-engagement** direction (idle
+> units hold cover instead of pressing contact → both sides' engagement volume
+> collapses), yielding a slightly worse median swing and a marginal +1 win (rescued
+> seed 8017, −4950 loss → −700 win). **Nothing flips a bar.** Both S1 and S2 remain
+> non-passing against the PROPOSED bars — the executor is neutral-to-slightly-negative
+> on force-efficiency, consistent with the standing "Experimental ≈ Stable" read.
+>
+> **Instrument watch:** the executor's engagement suppression pulled S2 to the
+> **validity floor (6/10 engaged)** — reinforces the open question of moving S2 to a
+> forced-contact / `@rush` variant to keep combat signal robust.
+>
+> **PROPOSED bars unchanged / still unratified** (S1 win ≥0.60 + capture ≥ Stable
+> +2/10; S2 edge ≥ +$1,000 + sign ≥7/10 + both-spawn ≥3/5 + validity ≥6/10 engaged).
+> Current: S1 0.50 / 6-vs-6, S2 edge −350 / sign 2/10 / engaged 6/10 → both not
+> passing (correct). No promotion claimed.
+
+---
+
 ## Ladder structure
 
 - A **rung** is one map. The first (and currently only) rung is **River Zeta WW3**
