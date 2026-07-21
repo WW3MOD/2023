@@ -44,13 +44,21 @@ Urgency-ordered. Few items, each one line + why it matters. Cleared when resolve
    (bots lose free omniscient intel); recovered via a new recon/scouting behavior
    cycle — a second re-baseline. Spec:
    `WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md`.
-2. **New PROPOSED bars await ratification** (the `[pre-regime]` bars are void).
+2. **Research-spend fork running on a default (2026-07-21).** The user asked whether
+   ~50% of a 5h budget on a broad red-team of the ratified split plan is worth it.
+   Agent's call (dashboard question posted, overridable): **broad blitz skipped** —
+   this project's surprises come from measurement, not deliberation — in favor of a
+   **targeted pair now** (watchability/spectator-product research + doctrine-realism
+   audit, ~15–20% spend, docs land in `WORKSPACE/plans/`) plus a deferred adversarial
+   review of the Phase 2 executor contract right before Phase 2 code. *Why it
+   matters:* redirect now if the broad rethink (or no research at all) is preferred.
+3. **New PROPOSED bars await ratification** (the `[pre-regime]` bars are void).
    S1: paired win-rate ≥ 0.60 AND Exp capture-rate ≥ Stable +2/10. S2:
    median(Exp swing) ≥ median(Stable swing) + $1,000, sign-delta ≥7/10, both-spawn.
    *Why it matters:* these are the yardsticks the loop will run on by default; a
    "yes" locks them, or adjust. Detail in LADDER re-baseline banner. Still running
    on defaults.
-3. **S2 combat signal is weak on the new regime — a scoping decision.** Same-faction
+4. **S2 combat signal is weak on the new regime — a scoping decision.** Same-faction
    Stable-vs-Stable fights only ~half the time (engagement −5–6× vs pre-regime; 3/10
    matches zero-combat). A **blocking batch-validity gate** (≥6/10 engaged, else
    re-scope) is proposed as the guard. *Why it matters:* if S2 keeps producing
@@ -58,7 +66,7 @@ Urgency-ordered. Few items, each one line + why it matters. Cleared when resolve
    S2 to a **forced-contact map / `@rush` opponent** or keep the quiet regime.
    *Update:* the cycle-1 terr-bias verify measured engaged **7/10** (unchanged from
    baseline) — the quiet-regime + validity-gate stays the default.
-4. **Sequencing now owned by the split plan (SUPERSEDES prior "which cycle runs
+5. **Sequencing now owned by the split plan (SUPERSEDES prior "which cycle runs
    next" items).** The old cycle-2 routing / post-S1 sequencing notes (RETHINK #2's
    5-cycle sequence) are superseded: the ratified split plan owns ordering now —
    **verification pass → Phase 0 cohesion → Phase 1 layers+overlay** (phases run
