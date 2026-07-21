@@ -17,10 +17,8 @@ WorldLoaded = function()
 	TestHarness.FocusBetween(unit, foe)
 	TestHarness.Select(unit)
 
-	-- Enable the executor via the Phase-3 human-activation condition (declared as ExternalCondition
-	-- on ^Combatant). Comment this line out for the RED baseline: with the executor disabled the AR
-	-- has no way to reach the cover edge and the test must fail.
-	if not unit.IsDead then unit.GrantCondition("enable-tactical-positioning") end
+	-- Phase 3: the executor auto-enables on human-owned units via GrantConditionOnHumanOwner (USA is
+	-- human), so no explicit grant is needed — the AR should relocate to the cover edge on its own.
 
 	-- Silence both sides: no shots ⇒ no suppression (S4 would otherwise gate the executor) and no
 	-- AutoTarget chase. Fire-discipline is orthogonal to the Defensive engagement stance under test,

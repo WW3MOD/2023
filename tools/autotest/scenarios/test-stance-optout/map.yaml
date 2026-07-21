@@ -1,0 +1,131 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: stance positioning — opt-out (HoldPosition + deployed) (auto)
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Phase-3 opt-out (option b, stance-decoupled). Both zones reproduce the exact geometry that makes a
+# Defensive AR relocate to cover (test-stance-positioning proves it moves): treeline + a sighted enemy
+# just south. The units here must NOT move, because each is opted out of tactical positioning:
+#   Zone A: HoldUnit has EngagementStance HoldPosition (init) — executor declines by stance.
+#   Zone B: DeployUnit is Defensive but carries the `deployed` condition (granted from Lua) — executor
+#           declines because a deployed unit's placement is deliberate (S2).
+# Both are human-owned (executor auto-enabled via GrantConditionOnHumanOwner). Assertion: neither unit
+# ever leaves its spawn cell for the full hold window ⇒ zero executor Move orders.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,19
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,19
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 5,19
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,19
+
+	# Zone A treeline (y=16, x=10..16).
+	TrapA0: tanktrap1
+		Owner: Neutral
+		Location: 10,16
+	TrapA1: tanktrap1
+		Owner: Neutral
+		Location: 11,16
+	TrapA2: tanktrap1
+		Owner: Neutral
+		Location: 12,16
+	TrapA3: tanktrap1
+		Owner: Neutral
+		Location: 13,16
+	TrapA4: tanktrap1
+		Owner: Neutral
+		Location: 14,16
+	TrapA5: tanktrap1
+		Owner: Neutral
+		Location: 15,16
+	TrapA6: tanktrap1
+		Owner: Neutral
+		Location: 16,16
+
+	# Zone B treeline (y=16, x=37..43).
+	TrapB0: tanktrap1
+		Owner: Neutral
+		Location: 37,16
+	TrapB1: tanktrap1
+		Owner: Neutral
+		Location: 38,16
+	TrapB2: tanktrap1
+		Owner: Neutral
+		Location: 39,16
+	TrapB3: tanktrap1
+		Owner: Neutral
+		Location: 40,16
+	TrapB4: tanktrap1
+		Owner: Neutral
+		Location: 41,16
+	TrapB5: tanktrap1
+		Owner: Neutral
+		Location: 42,16
+	TrapB6: tanktrap1
+		Owner: Neutral
+		Location: 43,16
+
+	# HoldPosition opt-out unit (zone A). EngagementStance is a per-actor init.
+	HoldUnit: ar.america
+		Owner: USA
+		Location: 13,19
+		Facing: 512
+		EngagementStance: HoldPosition
+
+	# Deployed opt-out unit (zone B). Defensive by default; `deployed` granted from Lua.
+	DeployUnit: ar.america
+		Owner: USA
+		Location: 40,19
+		Facing: 512
+
+	EnemyA: t90
+		Owner: Russia
+		Location: 13,22
+		Facing: 0
+	EnemyB: t90
+		Owner: Russia
+		Location: 40,22
+		Facing: 0
+
+Rules: rules.yaml
