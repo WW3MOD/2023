@@ -189,6 +189,12 @@ composes naturally into an ambush posture).
   ThreatMapManager rebuilt on per-player fog-respecting intel (absorbs ladder
   cycle 5). Declared re-baseline event; expect an initial bot-strength dip; opens
   a recon/scouting behavior cycle so bots buy back the lost intel.
+  *AMENDED 2026-07-21 (doctrine audit):* a **minimal scout link ships inside
+  Phase 4 itself** (e.g. cheapest fast unit periodically tasked toward stale
+  high-value cells of the per-player intel layer), not deferred to the follow-on
+  recon cycle — otherwise the phase creates a blind-and-dumb window where bots
+  march into ambushes on decayed intel. The full recon behavior cycle still
+  follows as its own priced cycle.
 - **Phase 5 — Extended micro.** HP/threat flee (the TODO at AutoTarget.cs:472),
   panic reactivation, bounding movement between covers.
 

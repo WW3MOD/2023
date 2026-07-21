@@ -44,14 +44,19 @@ Urgency-ordered. Few items, each one line + why it matters. Cleared when resolve
    (bots lose free omniscient intel); recovered via a new recon/scouting behavior
    cycle — a second re-baseline. Spec:
    `WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md`.
-2. **Research-spend fork running on a default (2026-07-21).** The user asked whether
-   ~50% of a 5h budget on a broad red-team of the ratified split plan is worth it.
-   Agent's call (dashboard question posted, overridable): **broad blitz skipped** —
-   this project's surprises come from measurement, not deliberation — in favor of a
-   **targeted pair now** (watchability/spectator-product research + doctrine-realism
-   audit, ~15–20% spend, docs land in `WORKSPACE/plans/`) plus a deferred adversarial
-   review of the Phase 2 executor contract right before Phase 2 code. *Why it
-   matters:* redirect now if the broad rethink (or no research at all) is preferred.
+2. **Research pair DELIVERED — roadmap-additions fork running on a default
+   (2026-07-21).** Instead of the broad red-team the user floated, a targeted pair
+   ran (dashboard question recorded that call). Both docs are in
+   `WORKSPACE/plans/`: `260722_watchability_research.md` (the observer suite is
+   already wired but unused; missing keystone = auto-director camera; the SHOW
+   needs a separate config from the benchmark — same-faction ladder games are
+   passive by design) and `260722_doctrine_realism_audit.md` (loudest realism gap:
+   **no fires/artillery bot logic exists at all**; also caught the §4
+   Defensive-stance inversion — **already fixed in the spec**, `5eb8755a` — and
+   the Phase-4 blind-window risk — **scout link folded into Phase 4**). A second
+   dashboard question is open: which additions join the roadmap (default on skip:
+   observer/show packaging + fires cycle). *Why it matters:* these set the
+   post-Phase-3 direction toward the watchable-bot-games goal.
 3. **New PROPOSED bars await ratification** (the `[pre-regime]` bars are void).
    S1: paired win-rate ≥ 0.60 AND Exp capture-rate ≥ Stable +2/10. S2:
    median(Exp swing) ≥ median(Stable swing) + $1,000, sign-delta ≥7/10, both-spawn.
