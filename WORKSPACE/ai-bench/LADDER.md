@@ -120,6 +120,44 @@ vs control) lives in [`REVIEW.md`](REVIEW.md) §Ladder Status.
 
 ---
 
+> # 🧪 PHASE-3 EXECUTOR RE-PRICE — 2026-07-21 (`main` @ `41a9c3d9`, hardening merge `7f1138e3`)
+>
+> Re-prices `@experimental` vs `@stable` after the Phase-3 executor-hardening merge
+> (`7f1138e3`: B1 anchor lifecycle + `CohesionSlotMemory` walk-back fix, ITick
+> mid-move slot clear, S3 arrival tolerance, S6 ledger release, human enablement).
+> `@stable` verified byte-identical in review, so only `@experimental` moves. 20
+> matches, S1 + S2 vs `@stable`, **0 crashes / 0 no-verdict**, 2 serialized chunks.
+> Paired per-seed deltas vs the **Phase-2 executor** (`a88ef596`) isolate the
+> hardening. Full analysis:
+> [`runs/260721_phase3_executor_reprice.md`](runs/260721_phase3_executor_reprice.md).
+>
+> | Rung | Result (Exp-v-Stable) | vs `a88ef596` | Verdict |
+> |---|---|---|---|
+> | **S1 eco** | win **5–5**; capture **6/10 vs 6/10** | win/capture **identical**; `@stable` byte-identical, only 3 seeds tiny drift (6017 now byte-identical) | **non-regression PASS**; promote bar not met |
+> | **S2 combat** | median Exp swing **0** (edge 0); sign **3/10**; both-spawn **2/5+1/5**; Exp eng med **1700**; engaged **7/10** (VALID, off floor); win **5–5** | S2-base **MOVED**: eng ↑ (Exp 675→1700), median swing ↑ (−350→0), win split 6–4→**5–5** (8017 un-flip) | not passing; hardening **≠** force edge |
+>
+> **What the hardening moved:** again exactly one rung visibly — **S2 Exp-vs-Stable**,
+> this time in the **opposite direction** to the Phase-2 executor. S1 stays byte-stable
+> (3 outcome-neutral drifts, `@stable` byte-identical). On S2 the hardening perturbs
+> 7/10 seeds in the **more-engagement** direction (anchors release, units re-enter
+> contact → Exp eng median 675→**1700**, back near the `[cohesion-cap]` era's 1775;
+> engaged 6→**7/10** as 4017 re-engages), returning median swing to neutral (−350→**0**)
+> and sign 2→3/10 — offset by **−1 win** (8017 un-rescued exp→stable, 6017 regressed).
+> **Nothing flips a bar.** Both S1 and S2 remain non-passing — the hardening is
+> neutral on force-efficiency (a marginal median improvement over Phase-2), consistent
+> with the standing "Experimental ≈ Stable" read.
+>
+> **Instrument watch:** the hardening pulled S2 **off** the validity floor (6/10→7/10
+> engaged), easing the Phase-2 concern about engagement suppression pushing S2 invalid.
+> The forced-contact / `@rush` S2 variant is **less urgent** but still worth doing.
+>
+> **PROPOSED bars unchanged / still unratified** (S1 win ≥0.60 + capture ≥ Stable
+> +2/10; S2 edge ≥ +$1,000 + sign ≥7/10 + both-spawn ≥3/5 + validity ≥6/10 engaged).
+> Current: S1 0.50 / 6-vs-6, S2 edge 0 / sign 3/10 / engaged 7/10 → both not passing
+> (correct). No promotion claimed.
+
+---
+
 > # 🧪 PHASE-2 EXECUTOR PRICING — 2026-07-22 (`main` @ `1a65ddf1`, executor merge `a88ef596`)
 >
 > Prices `StancePositioningExecutor` (idle-only stance-conditioned repositioning to
