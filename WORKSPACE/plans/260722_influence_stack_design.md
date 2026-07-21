@@ -23,6 +23,8 @@
 5. **Danger-gradient rear routing.** Units relocating along the front should not travel point-to-point through the danger zone: pull *back* from the frontline, travel *perpendicular/lateral* at a safer depth, then re-enter where needed. Extra important for non-combatants and high-value units (supply trucks, attack helicopters).
 6. **Assumed threat projection through fog.** Wherever the enemy is believed to control ground, project their weapon envelopes outward — e.g. enemy artillery reaching ~40 cells (illustrative) makes everything within 40 cells of believed-enemy territory *slightly* dangerous, even with no current visual, because a drone/spotter can arrive at any time.
 7. **Verdict on the naive model:** plain "who is closest" ownership will not suffice long-term if the bots are to be genuinely good.
+8. **Overlay semantics (user direction, 2026-07-22 follow-up):** the layer is per-player, and the primary color read is *safety*, not ownership — **green = verified safe**, **red = verified/assumed unsafe** (recently seen or believed enemy weapon coverage), **gray = potentially dangerous** (unknown). Consequence the user explicitly endorses: an area holding *friendly* units can still be red — those units are standing in a danger zone.
+9. **Strike-and-withdraw doctrine (long-run target):** beyond the quick standoff fix, suitable units should fight *deliberately* — held back in safety, surging forward when an opportunity arises (a target killable at acceptable exposure), striking, then withdrawing unless another safely-killable target presents. NOT helicopter-specific: it should be a general stat-driven capability where a unit's suitability is computed from its stats (speed, standoff range, burst damage, fragility/cost) — attack helicopters naturally weight highest, some helis more than others, and fast light vehicles partially qualify. Fully fluid weighting is the aspiration. "Attack-move toward the enemy base until dead" is an improvement over today's regular-move suicide but is explicitly NOT the end state.
 
 ---
 
@@ -52,10 +54,11 @@ Computed from the belief store + territory baseline, **two channels**:
 - **Persistence with capture semantics:** presence (units surviving in an area, sites captured) paints ownership; ownership *lingers* when units leave (no flicker), erodes under enemy presence, and flips when the enemy demonstrably holds it.
 - **Grayzone:** verified-clear cells (observed, no enemy) between the fronts read as gray/contested — immediately on verification, per the commander's-view rule.
 - **Site anchors:** Supply Routes, derricks, captured POIs project fixed ownership auras so territory anchors to ground, not just to roaming armies.
-- Rendering: color = owner, brightness/alpha = margin (how firmly held).
+- Rendering: secondary mode only (border tint / toggle) — the primary overlay read is the danger tri-state (see D); when shown, color = owner, brightness/alpha = margin (how firmly held).
 
 ### D. Overlay — hold-Space commander view (extends Phase-1 overlay)
-- Default mode: control field wash (green/red/gray) + danger-field brightness.
+- Per-player. **Default mode = danger tri-state** (ratified): **green** = verified safe — recently observed clear AND outside every believed enemy weapon envelope; **red** = verified/assumed unsafe — inside a believed envelope or recent contact (friendly units standing there still show red; they are in the danger zone); **gray** = potentially dangerous — unverified fog, no positive evidence either way. "Verified" is perishable: an unobserved green cell relaxes back to gray after a tunable staleness window (a commander doesn't trust a 5-minute-old "clear").
+- Ownership (control field C) is demoted to a secondary visualization — border tint or a separate toggle — the primary read is safety. C remains a first-class *data* layer regardless: strategy (Stage F) needs ownership even though the overlay leads with danger.
 - Air mode (toggle or modifier): the anti-air channel isolated — where helicopters may operate. This is also the debugging window into Stage-D behavior.
 - Dev always-on switch retained from Phase 1.
 
@@ -63,7 +66,7 @@ Computed from the belief store + territory baseline, **two channels**:
 
 ## 3. Consumers (the point of the whole stack)
 
-1. **Helicopter doctrine — flagship.** (a) *Standoff micro*: attack helicopters stop and fire at max missile range instead of overflying targets — this half is engagement logic, **independent of the layers**, and ships first as Stage 0. (b) *Layer-driven safety*: route around anti-air danger cells, leash attacks to the AA-safe envelope, withdraw when the local air-danger reading spikes (new AA sighted).
+1. **Helicopter doctrine — flagship.** (a) *Standoff micro*: attack helicopters stop and fire at max missile range instead of overflying targets — this half is engagement logic, **independent of the layers**, and ships first as Stage 0. (b) *Layer-driven safety*: route around anti-air danger cells, leash attacks to the AA-safe envelope, withdraw when the local air-danger reading spikes (new AA sighted). (c) *Strike-and-withdraw raid doctrine* (Stage D2, end state per §1.9): hold back in green, surge to a killable target when the exposure window is acceptable, strike, withdraw unless another safe target chains — implemented as a **general stat-scored capability** (`raider suitability` ← speed, standoff range, burst damage, fragility/cost), not a helicopter special case; helis score high naturally, fast light vehicles partially, and unsuitable helis correctly score lower.
 2. **High-value / non-combatant routing.** Danger field as a pathfinding cost modifier for supply trucks, evacuating units, artillery repositioning, helicopters in transit — the rear-lateral-re-enter pattern *emerges* from cost-weighted routing rather than being scripted.
 3. **Strategic repoint.** Attack-axis selection, expansion, and the revived territorial balance-of-power bias (parked `exp-terr-bias` @ ccd12c98 — its batch showed the per-POI factor was a near-pure damper; the control field is the substrate it actually needed) read the control + danger fields instead of the omniscient grids. Completes the fog migration for @experimental.
 
