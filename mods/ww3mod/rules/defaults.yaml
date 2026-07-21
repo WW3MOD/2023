@@ -37,10 +37,11 @@
 	GrantConditionOnBotOwner@tacpos:
 		Condition: enable-ai-experimental
 		Bots: experimental
-	# Phase-3 human-enablement seam. Nothing grants this in Phase 2 (so the executor stays off for
-	# humans); declaring it here makes it a grantable token (satisfies the consumed-condition lint)
-	# that Phase 3's per-type stance wiring will grant externally.
-	ExternalCondition@tacpos:
+	# Phase-3 human enablement (RATIFIED default-ON): grant the executor token to every human-owned
+	# combatant. Predicate Owner.Playable && !Owner.IsBot mirrors AutoTarget's human-defaults gate and
+	# excludes scenario garrisons (Playable: False), so garrison behaviour is unchanged. Opt-out
+	# (HoldPosition / deployed) is enforced in the executor against live SYNCED state, not this grant.
+	GrantConditionOnHumanOwner@tacpos:
 		Condition: enable-tactical-positioning
 
 ^StandardVision:

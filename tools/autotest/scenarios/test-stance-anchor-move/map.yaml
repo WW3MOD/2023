@@ -1,0 +1,158 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: stance positioning — anchor lifecycle (B1) + arrival tolerance (S3) (auto)
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# B1 (stale anchor) + S3 (arrival tolerance) regression, executor in ISOLATION (human-owned units,
+# no bot module). Three zones:
+#   Zone A (x=10..16): the Rifle spawns south of a treeline with an enemy sighted further south; the
+#     executor relocates it to the south cover edge (y=17) and anchors there — exactly test-stance-
+#     positioning. The Lua then issues a scripted Move 27 cells EAST to zone B.
+#   Zone B (x=37..43): a second treeline + sighted enemy. After the relocation the FIXED executor must
+#     re-anchor to the NEW location and, if it repositions at all, target a cover edge within leash of
+#     zone B — and must NEVER walk the Rifle back toward the abandoned zone-A anchor (the B1 bug).
+#   Zone S3 (x=23..27, south): two ARs near one treeline + one enemy. Both relocate to cover edges and
+#     must then HOLD without oscillation (the S3 1-cell arrival tolerance guards the shove case).
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,19
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,19
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 5,19
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,19
+
+	# Zone A treeline (y=16, x=10..16).
+	TrapA0: tanktrap1
+		Owner: Neutral
+		Location: 10,16
+	TrapA1: tanktrap1
+		Owner: Neutral
+		Location: 11,16
+	TrapA2: tanktrap1
+		Owner: Neutral
+		Location: 12,16
+	TrapA3: tanktrap1
+		Owner: Neutral
+		Location: 13,16
+	TrapA4: tanktrap1
+		Owner: Neutral
+		Location: 14,16
+	TrapA5: tanktrap1
+		Owner: Neutral
+		Location: 15,16
+	TrapA6: tanktrap1
+		Owner: Neutral
+		Location: 16,16
+
+	# Zone B treeline (y=16, x=37..43).
+	TrapB0: tanktrap1
+		Owner: Neutral
+		Location: 37,16
+	TrapB1: tanktrap1
+		Owner: Neutral
+		Location: 38,16
+	TrapB2: tanktrap1
+		Owner: Neutral
+		Location: 39,16
+	TrapB3: tanktrap1
+		Owner: Neutral
+		Location: 40,16
+	TrapB4: tanktrap1
+		Owner: Neutral
+		Location: 41,16
+	TrapB5: tanktrap1
+		Owner: Neutral
+		Location: 42,16
+	TrapB6: tanktrap1
+		Owner: Neutral
+		Location: 43,16
+
+	# Zone S3 treeline (y=25, x=23..27).
+	TrapS0: tanktrap1
+		Owner: Neutral
+		Location: 23,25
+	TrapS1: tanktrap1
+		Owner: Neutral
+		Location: 24,25
+	TrapS2: tanktrap1
+		Owner: Neutral
+		Location: 25,25
+	TrapS3: tanktrap1
+		Owner: Neutral
+		Location: 26,25
+	TrapS4: tanktrap1
+		Owner: Neutral
+		Location: 27,25
+
+	# Unit-under-test for B1: one AR, Defensive by default, south of zone A.
+	Rifle: ar.america
+		Owner: USA
+		Location: 13,19
+		Facing: 512
+
+	# Sighted enemies for each zone (HoldFire-silenced from Lua).
+	EnemyA: t90
+		Owner: Russia
+		Location: 13,22
+		Facing: 0
+	EnemyB: t90
+		Owner: Russia
+		Location: 40,22
+		Facing: 0
+	EnemyS: t90
+		Owner: Russia
+		Location: 25,31
+		Facing: 0
+
+	# S3 pair: two ARs south of the zone-S3 treeline.
+	PairL: ar.america
+		Owner: USA
+		Location: 24,28
+		Facing: 512
+	PairR: ar.america
+		Owner: USA
+		Location: 26,28
+		Facing: 512
+
+Rules: rules.yaml

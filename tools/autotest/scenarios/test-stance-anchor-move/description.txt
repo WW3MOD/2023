@@ -1,0 +1,1 @@
+Phase 3 B1+S3: after the executor positions a human AR at zone-A cover and the player relocates it 27 cells to zone B, the fixed executor re-anchors to zone B and never walks back to the abandoned anchor; two paired ARs settle at cover and hold without oscillation.

@@ -1,0 +1,11 @@
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Strip per-type persisted stance overrides so the human AR is deterministically Defensive
+	# (its YAML default) regardless of this machine's saved unit defaults — otherwise a locally
+	# saved AR default (Hunt / HoldPosition) would silently change the executor's behavior.
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, test-stance-anchor-move.lua

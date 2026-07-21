@@ -196,6 +196,26 @@ composes naturally into an ambush posture).
   AutoTarget.cs:358-388 — confirmed working substrate, persists per type: e.g.
   tanks default stance A, artillery stance B). Phase-2 playtest still tunes the
   leash before this ships, but the shipped default is ON.
+  > *AMENDED 2026-07-22 (red-team @ `b2b78b43`, audit `WORKSPACE/plans/260722_phase3_redteam.md`):*
+  > **(1) Human grant** is a new `GrantConditionOnHumanOwner@tacpos` trait (predicate
+  > `Owner.Playable && !Owner.IsBot`), NOT the `ExternalCondition@tacpos` seam (which
+  > cannot grant a default) and NOT the Ctrl-Alt-click UnitDefaultsManager channel.
+  > **(2) Opt-out shape = option (b), stance-decoupled.** Positioning opt-out does NOT
+  > ride the persisted per-type stance defaults (that channel is a latent per-machine /
+  > synced-sim desync — B2, filed in `WORKSPACE/bugs/discovered.md`, out of Phase-3
+  > scope). Instead the executor declines to reposition a unit whose **live synced**
+  > engagement stance is HoldPosition (already present) or that carries the **synced**
+  > `deployed` condition (new, S2) — both read in-code, so desync-free today. Realized
+  > in the executor rather than a shared `RequiresCondition` because the BooleanExpression
+  > lint is per-actor and `deployed` / `hold-position-stance` are not granted on every
+  > `^Combatant` (and N2 forbids adding an AutoTarget grantor to `^Combatant`).
+  > **(3) Executor B1/S3/S6 fixes in scope:** stale-anchor invalidation (anchor never
+  > out-lives the player's last non-executor move), 1-cell arrival tolerance, and
+  > unconditional ledger release across bot→human capture. These re-price `@experimental`.
+  > **(4) Event-bus rider CUT from Phase 3** (S7, YAGNI — zero prior art, zero Phase-3
+  > consumers; the merged N4 ledger/`AdjustmentState` surface is the seam). Re-price it
+  > with Phase 4's first real consumer. Supersedes the event-bus clause in the
+  > 2026-07-21 operations-layer amendment below for Phase 3.
 - **Phase 4 — Bot consumption + full fog migration (RATIFIED: full migration).**
   Squad FSMs delegate micro to L3 (stop re-issuing positioning); InfluenceMap +
   ThreatMapManager rebuilt on per-player fog-respecting intel (absorbs ladder

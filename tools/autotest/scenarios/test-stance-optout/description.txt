@@ -1,0 +1,1 @@
+Phase 3 opt-out: a HoldPosition AR and a deployed AR, each sitting in cover+threat geometry that would relocate a Defensive unit, must issue zero executor Move orders — both stay on their spawn cell for the whole hold window.

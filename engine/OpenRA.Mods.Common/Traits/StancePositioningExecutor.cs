@@ -99,6 +99,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Name of the variable-condition that carries the unit's suppression level (S4).")]
 		public readonly string SuppressionVariable = "suppressed";
 
+		[Desc("Phase-3 opt-out (S2): name of the variable-condition set while the unit is deployed.",
+			"A deployed unit expresses a stronger positional intent than a move order, so the executor",
+			"never repositions it. Read via a variable observer (not RequiresCondition) so units that",
+			"never grant it are simply inert — no per-actor grantor lint burden.")]
+		public readonly string DeployedVariable = "deployed";
+
 		[Desc("S2 edge-facing tolerance in WAngle units (1024 = full circle; 256 = 90 degrees).",
 			"An edge cell counts as threat-facing when its OutwardFacing is within this of the bearing.")]
 		public readonly int FacingToleranceAngle = 256;
@@ -110,7 +116,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new StancePositioningExecutor(init.Self, this); }
 	}
 
-	public class StancePositioningExecutor : ConditionalTrait<StancePositioningExecutorInfo>, INotifyIdle, ISync
+	public class StancePositioningExecutor : ConditionalTrait<StancePositioningExecutorInfo>, INotifyIdle, ITick, ISync
 	{
 		// N4: queryable per-unit state for the future operations layer / event bus.
 		public enum AdjustmentState { None, Adjusting, Arrived, Aborted }
@@ -128,6 +134,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Sync]
 		int currentSuppression;
+
+		[Sync]
+		int currentDeployed;
+
+		// S6: the ledger we committed a `tacpos:` claim to, cached so Release reaches the ORIGINAL
+		// owner's ledger even after a bot→human capture flips self.Owner (the claim would otherwise
+		// leak until TTL). Null for human-owned units — they never commit.
+		PoiGoalGuard committedGuard;
 
 		[Sync]
 		WAngle lastAcceptedBearing;
@@ -185,6 +199,7 @@ namespace OpenRA.Mods.Common.Traits
 				yield return o;
 
 			yield return new VariableObserver(SuppressionChanged, new[] { Info.SuppressionVariable });
+			yield return new VariableObserver(DeployedChanged, new[] { Info.DeployedVariable });
 		}
 
 		void SuppressionChanged(Actor self, IReadOnlyDictionary<string, int> conditions)
@@ -192,11 +207,39 @@ namespace OpenRA.Mods.Common.Traits
 			conditions.TryGetValue(Info.SuppressionVariable, out currentSuppression);
 		}
 
+		void DeployedChanged(Actor self, IReadOnlyDictionary<string, int> conditions)
+		{
+			conditions.TryGetValue(Info.DeployedVariable, out currentDeployed);
+		}
+
 		protected override void TraitDisabled(Actor self)
 		{
 			// Gate lifted mid-adjustment (profile change / lost condition) — let go cleanly.
 			ReleaseManagement();
 			State = AdjustmentState.None;
+		}
+
+		void ITick.Tick(Actor self)
+		{
+			// B1 (return-to-slot vector): catch a non-executor relocation the MOMENT it crosses the
+			// leash — mid-move, before the unit next idles. CohesionSlotMemory is declared before this
+			// trait, so on the unit's next idle its return-to-slot fires FIRST and would drag the unit
+			// back to the executor-assigned cover slot; clearing the slot here (during the move) beats
+			// it. The idle-time guard in TickIdle is a backstop. Skipped while Adjusting (our own
+			// leashed move keeps the unit inside the leash).
+			// KNOWN GAP (merge review, e2208d42): a player redirect issued WHILE Adjusting is not
+			// caught here — CohesionSlotMemory can drag the unit back to the old slot ONCE before the
+			// slot goes stale / the next redirect is handled. Bounded and self-healing; filed in
+			// WORKSPACE/bugs/discovered.md. A fix needs an Adjusting-aware leash margin to avoid
+			// false-aborting the executor's own pathing excursions.
+			if (IsTraitDisabled || State == AdjustmentState.Adjusting)
+				return;
+
+			if (hasAnchor && !WithinLeash(self.Location))
+			{
+				ReleaseManagement();
+				State = AdjustmentState.None;
+			}
 		}
 
 		void INotifyIdle.TickIdle(Actor self)
@@ -216,6 +259,17 @@ namespace OpenRA.Mods.Common.Traits
 			if (autoTarget == null)
 				return;
 
+			// Phase-3 opt-out (S2/option-b): a deployed unit has expressed a stronger positional
+			// intent than a move order — never reposition it (a move would force an undeploy). Reads
+			// the live SYNCED `deployed` condition, not the unsynced per-type defaults file, so the
+			// opt-out is desync-safe. Relinquish any prior management, same as HoldPosition.
+			if (currentDeployed > 0)
+			{
+				ReleaseManagement();
+				State = AdjustmentState.None;
+				return;
+			}
+
 			// S1: re-read stance every evaluation; never cache across evaluations.
 			var stance = autoTarget.EngagementStanceValue;
 			if (stance == EngagementStance.HoldPosition)
@@ -233,6 +287,17 @@ namespace OpenRA.Mods.Common.Traits
 			nextEvalTick = tick + Info.EvaluateCooldown;
 
 			ResolveArrivalOrAbort();
+
+			// B1: anchor invalidation. Any non-executor relocation that leaves the unit outside the
+			// leash of a settled (non-Adjusting) anchor has fossilized that anchor — a stale anchor
+			// must never out-live the player's last move, or the next threat scan drags the unit back
+			// toward its abandoned position. Release management here; the block below re-anchors to the
+			// current location this same tick. (Adjusting is handled by ResolveArrivalOrAbort above.)
+			if (hasAnchor && State != AdjustmentState.Adjusting && !WithinLeash(self.Location))
+			{
+				ReleaseManagement();
+				State = AdjustmentState.None;
+			}
 
 			// S7: capture the leash anchor ONCE per idle episode. Prefer the assigned cohesion
 			// slot (kept fresh by grouped orders) so grouped and single orders share one anchor;
@@ -292,16 +357,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (State != AdjustmentState.Adjusting || !hasTarget)
 				return;
 
-			if (self.Location == currentTarget)
+			// S3: accept arrival within 1 cell of the intended target. Cell contention (two units
+			// racing for the same edge cell) shoves the loser one cell over; reading that as a player
+			// interrupt churns the anchor. A 1-cell tolerance treats it as arrival, not abort.
+			if (WithinOneCell(self.Location, currentTarget))
 			{
 				State = AdjustmentState.Arrived;
 			}
 			else
 			{
-				// Idle, not at our target, not moving ⇒ a fresh external order replaced our Move
-				// (§2 pt 4 abort). Drop the claim/slot and re-anchor to wherever we ended up.
+				// Idle, >1 cell from our target, not moving ⇒ a fresh external order replaced our Move
+				// (§2 pt 4 abort). Drop the claim/slot; ReleaseManagement re-arms the "anchor born on
+				// next idle tick" invariant, so the block below re-anchors to wherever we ended up.
 				ReleaseManagement();
-				hasAnchor = false;
 				State = AdjustmentState.Aborted;
 			}
 		}
@@ -453,6 +521,12 @@ namespace OpenRA.Mods.Common.Traits
 			return System.Math.Abs(cell.X - anchor.X) + System.Math.Abs(cell.Y - anchor.Y) <= Info.LeashRadius;
 		}
 
+		// S3: Chebyshev "within one cell" (the 8-neighbourhood plus the cell itself).
+		static bool WithinOneCell(CPos a, CPos b)
+		{
+			return System.Math.Abs(a.X - b.X) <= 1 && System.Math.Abs(a.Y - b.Y) <= 1;
+		}
+
 		// S3: never trust the static affordance layer alone — validate passability/occupancy now.
 		bool IsUsableCell(CPos cell)
 		{
@@ -479,27 +553,33 @@ namespace OpenRA.Mods.Common.Traits
 			slotMemory?.Assign(dest, tick);
 
 			// B1: bot-owned units register a `tacpos:` claim so the Poi stack / GroundStates filter
-			// leaves them alone. Humans have no bot layer contesting them — skip the ledger.
+			// leaves them alone. Humans have no bot layer contesting them — skip the ledger. Cache the
+			// guard we committed to so Release (S6) can reach the same ledger after an owner change.
 			if (self.Owner != null && self.Owner.IsBot)
 			{
-				var guard = self.Owner.PlayerActor?.TraitOrDefault<PoiGoalGuard>();
-				guard?.Ledger.Commit(self, "tacpos:" + self.ActorID, tick, Info.ClaimTicks);
-				claimed = guard != null;
+				committedGuard = self.Owner.PlayerActor?.TraitOrDefault<PoiGoalGuard>();
+				committedGuard?.Ledger.Commit(self, "tacpos:" + self.ActorID, tick, Info.ClaimTicks);
+				claimed = committedGuard != null;
 			}
 		}
 
 		// Relinquish the claim + slot override (abort / disengage / disable).
 		void ReleaseManagement()
 		{
-			if (claimed && self.Owner != null && self.Owner.IsBot)
-			{
-				var guard = self.Owner.PlayerActor?.TraitOrDefault<PoiGoalGuard>();
-				guard?.Ledger.Release(self);
-			}
-
+			// S6: release from the ledger we actually committed to, regardless of the CURRENT owner.
+			// A bot→human capture must not leak the claim until TTL; release of an unheld claim is a
+			// no-op. committedGuard is null for units that never committed, so this is inert for them.
+			committedGuard?.Ledger.Release(self);
+			committedGuard = null;
 			claimed = false;
 			slotMemory?.Clear();
 			hasTarget = false;
+
+			// B1: every release restores the "anchor born on next idle tick" invariant, so a stale
+			// anchor can never out-live the unit's last non-executor movement. TraitDisabled, abort,
+			// disengage, HoldPosition/deploy opt-out and anchor-invalidation all route through here.
+			hasAnchor = false;
+			anchor = default;
 		}
 	}
 }
