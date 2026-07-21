@@ -127,13 +127,22 @@ Engagement axis:
 
 | Engagement stance | L3 positioning behavior in/near cover |
 |---|---|
-| **Hunt** (aggressive) | take the cover edge *toward* ThreatDirection — treeline facing the enemy; may creep forward between covers within leash |
-| **Defensive** (default) | take cover *away* from ThreatDirection — back side of the trees, hull-down equivalent; hold and return fire |
+| **Hunt** (aggressive) | take the forward-most cover edge *toward* ThreatDirection — at/just beyond the treeline facing the enemy; may creep forward between covers within leash |
+| **Defensive** (default) | take an in-cover cell **at the threat-facing edge** — concealed just inside the treeline with a line of fire toward ThreatDirection (hull-down equivalent); hold and return fire; never advances |
 | **HoldPosition** | no autonomous repositioning at all — stand exactly where placed |
 
+> **AMENDED 2026-07-21 (doctrine audit, `260722_doctrine_realism_audit.md`):** the
+> original Defensive wording ("take cover *away* from ThreatDirection — back side of
+> the trees") was inverted: LOS cover is real (BlocksSight / MissChancePerDensity),
+> so a defender on the far side of a cover cluster has no line of sight through it and
+> "hold and return fire" was unachievable as written. Corrected: **both** Hunt and
+> Defensive use the threat-facing edge; the distinction is edge position + advance
+> permission (Hunt at/beyond the edge and may creep forward; Defensive just inside it
+> and static). Ratified intent (hull-down defenders that return fire) preserved.
+
 Fire-discipline, Cohesion, Resupply families are orthogonal and unchanged
-(Cohesion gets the Phase-0 bug fix; Ambush + cover-back composes naturally into
-an ambush posture).
+(Cohesion gets the Phase-0 bug fix; Ambush + concealed-at-edge Defensive posture
+composes naturally into an ambush posture).
 
 ## 5. Determinism rules (hard, from survey Q6)
 
