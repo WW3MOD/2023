@@ -5,6 +5,8 @@
 
 ## 2026-07-22 — Phase 2 positioning executor: condition-lint, per-unit bot gating, MiniYaml removal, and stance determinism gotchas
 
+> **[promoted: → conventions.md (conditions consumed/granted lint, `-Key` full-key removal, `WVec.FromSpeedAndAngle`, UnitDefaultsManager stance-overwrite surprise) + architecture.md §AI configuration / conventions §Conditions (GrantConditionOnBotOwner actor-scoping)]** (curation 2026-07-22). All five substrate claims verified at the cited lines.
+
 Implemented Phase 2 of `WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md` (the `StancePositioningExecutor` unit trait). Five non-obvious substrate facts, each of which shaped the implementation or cost a debugging cycle:
 
 - **`ConditionalTraitInfo.RequiresCondition` is `[ConsumedConditionReference]`** (`engine/OpenRA.Mods.Common/Traits/Conditions/ConditionalTrait.cs:21`). So a unit trait gated `enable-tactical-positioning || enable-ai-experimental` marks BOTH names *consumed on that actor*, and `CheckConditions` (`Lint/CheckConditions.cs:73-75`) emits an **ERROR** (fails `make test`), not a warning, for a consumed condition nothing grants. Phase 2 grants `enable-tactical-positioning` from nothing (humans get it in Phase 3), so it had to be declared grantable without firing: an **`ExternalCondition` whose `Condition` field is `[GrantedConditionReference]`** (`Conditions/ExternalCondition.cs:28`) satisfies the lint at zero runtime cost and doubles as the Phase-3 human-activation seam (a Lua/warhead `GrantCondition("enable-tactical-positioning")` resolves to exactly that ExternalCondition).
@@ -15,6 +17,8 @@ Implemented Phase 2 of `WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md`
 
 ## 2026-07-22 — The full OpenRA observer/spectator suite is present AND wired into ww3mod (not stripped); the only real presentation gap is an auto-director camera
 
+> **[rejected: read-only observer/spectator inventory tied to WORKSPACE/plans/260722_watchability_research.md — a snapshot of existing engine features for a plan, not durable engineering reference; the durable gap (no auto-director camera) belongs in that plan]** (curation 2026-07-22).
+
 Found doing read-only watchability research (`WORKSPACE/plans/260722_watchability_research.md`). Relevant to any spectator/broadcast/replay-analysis work — most of the substrate already ships.
 - **Observer chrome is loaded by the mod:** `mods/ww3mod/mod.yaml:173` lists `ww3mod|chrome/ingame-observer.yaml`; observer hotkeys at `mod.yaml:249` (`common|hotkeys/observer.yaml`). `LoadIngamePlayerOrObserverUILogic.cs:30-31` auto-loads `OBSERVER_WIDGETS` when `world.LocalPlayer == null`.
 - **8 stat panels exist** (`ObserverStatsLogic.cs` `ObserverStatsPanel` enum: Basic/Economy/Production/SupportPowers/Combat/Army/Graph/ArmyGraph), including two live line graphs: **income-over-time** (`ingame-observer.yaml:1055`) and **army-value-over-time** (`:1081`, `YAxisLabel: Army Value` `:1091`). Basic panel has APM; Combat panel has assets destroyed/lost, army value, vision %.
@@ -24,11 +28,15 @@ Found doing read-only watchability research (`WORKSPACE/plans/260722_watchabilit
 
 ## 2026-07-22 — No fires/artillery bot logic exists; helis fight uncoordinated; the ratified stance-mapping is doctrinally inverted (doctrine-realism audit)
 
+> **[rejected: doctrine-realism design audit tied to WORKSPACE/plans/260722_doctrine_realism_audit.md + the unratified 260722 SPEC — a critique / gap-list of proposed design, not a shipped mechanic; belongs in the audit + SPEC docs]** (curation 2026-07-22).
+
 Found doing the read-only doctrine-realism audit (`WORKSPACE/plans/260722_doctrine_realism_audit.md`).
 - **There is NO artillery/indirect-fire bot module.** A repo-wide grep for `artillery|indirect|counter-battery|bombard` across `engine/OpenRA.Mods.Common/Traits/BotModules` matches only `LayeredDefenceBotModule.cs`, and only as a `MainLineUnitTypes` *unit-type string* (`:54-59`) — arty is parked at a standoff and left static. No displacement/shoot-and-scoot, no counter-battery, no pre-registered fires anywhere in the bot code. Fires are the modern casualty center-of-gravity; their total absence from the ratified 260722 SPEC (six phases, zero fires behavior) is the loudest realism gap.
 - **`HelicopterSquadBotModule` runs as an independent module** with no synchronization to the ground offense axes (`PoiOffensiveBotModule`) — no air-ground task org, no CAS-on-call for a stalled axis. Helis look active but fight their own war.
 - **The ratified L3 stance→cover mapping is doctrinally inverted (design bug, not code yet).** `SPEC §4` maps Defensive to "back side of the trees … hold and return fire" — but the far side of a treeline blocks LOS (`ShadowLayer`/`BlocksSight`), so the unit literally cannot return fire. It conflates "hull-down" (mask profile, still shoot) with "hide behind cover" (no shot). Shipped default-ON in Phase 3, this would make every defender stand backs-to-the-fight. Fix is one inverted edge lookup against the planned `3b` cover-edge-orientation layer (face the *threat-facing* edge, as Hunt does, minus the creep). Same error taints the SPEC's "Ambush + cover-back" aside. Details + two more critical-pass items (aggressive "push through contact" = the RTS-blob trope; Phase-4 fog migration creates a blind window if recon is deferred) in the audit doc §2.
 ## 2026-07-22 — Phase 1: the two new map layers + hold-Space intel overlay (strategic/tactical split)
+
+> **[promoted: → architecture.md §Custom traits (SightingThreatLayer / TerrainAffordanceLayer / SightingIntelOverlay rows) + §RenderPlayer is render-side only (autotest `?? LocalPlayer` fallback); conventions.md (Rectangular map grid)]** (curation 2026-07-22). Three trait files confirmed present; `mod.yaml:319 Type: Rectangular` verified.
 
 Implemented Phase 1 of `WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md` (§3a + §3b + §3d). Pure data + render — NOTHING consumes the layers for behavior yet; the overlay IS the verification tool. All three are World traits wired in `mods/ww3mod/rules/world.yaml` (nested under `World:`, after `PoiMap`).
 - **§3a `SightingThreatLayer` (SIM, per-player, fog-respecting)** — `engine/OpenRA.Mods.Common/Traits/World/SightingThreatLayer.cs`. World trait holding `Dictionary<Player, CellLayer<SightingCell>>` (the InfluenceMap container shape, but fog-correct instead of omniscient). Decaying-memory field: each recompute (staggered, `UpdateInterval` 25t) multiplies the field by `DecayPercent` (75) and re-injects fresh sightings, so recent contact dominates. Two channels: **EnemyIntensity + a summed direction vector** (surfaced as `ThreatIntensity`/`ThreatDirection`), and **FriendlyIntensity** (own + visible-allied units, for §3d's BoP wash). Sources are strictly per-player-legal: enemies via `Actor.CanBeViewedByPlayer(p)` (currently visible) + `player.FrozenActorLayer.FrozenActorsInRegion(map.AllCells, onlyVisible:true)` (fog-frozen last-seen). `ThreatDirection` = `new WVec(dirX,dirY,0).Yaw` — deterministic integer bearing via `WAngle.ArcTan`, consistent with engine movement facings.
@@ -42,6 +50,8 @@ Implemented Phase 1 of `WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md`
 
 ## 2026-07-22 — Phase 0 fix: bounded the cohesion box footprint (count-aware cap) + regroup now emerges from the existing leash
 
+> **[promoted: → architecture.md §Custom traits (CohesionMoveModifier bounded-footprint clause)]** (curation 2026-07-22). Cap constants verified at `CohesionMoveModifier.cs:54-73`, applied `:179-188`. Run-specific verification numbers kept here.
+
 Implemented the ratified Phase-0 global cohesion fix (`WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md`). Ships to everyone (humans + all bot profiles) — a declared re-baseline event; the ladder re-baseline is a manager follow-up, not part of this task.
 - **Root fix:** `CohesionMoveModifier.ComputeBoxSlots` now caps the box's total width/depth per mode. After `cols`/`rows` are known, if `(cols-1)*colSpacing > MaxWidth` the effective `colSpacing` is shrunk to `MaxWidth/(cols-1)` (same for depth via `MaxDepth/rowSpacing`), floored at `MinSlotSpacing` so slots stay on distinct cells. The span between outermost slot centers is now bounded regardless of unit count — previously it grew linearly with count, bounded only by `map.Clamp`.
 - **Chosen constants (WDist / cells):** MaxWidth Tight 8192 (8c) / Loose 11264 (11c) / Spread 13312 (13c); MaxDepth Tight 5120 (5c) / Loose 6144 (6c) / Spread 7168 (7c); MinSlotSpacing 1024 (1c). **Mode ordering Tight < Loose < Spread is provably preserved for every n**: effective spacing = `min(baseSpacing, MaxExtent/(cols-1))`; both `baseSpacing` and `MaxExtent` are monotonic across modes and `cols` depends only on n, so the elementwise `min` stays monotonic. Realistic groups (≤~60) never hit the 1024 floor for Spread, so no slot collisions.
@@ -50,6 +60,8 @@ Implemented the ratified Phase-0 global cohesion fix (`WORKSPACE/plans/260722_st
 
 ## 2026-07-22 — Auto-spread is ALWAYS-ON (not stance-gated) and has an unbounded footprint with no regroup (stance/tactical survey)
 
+> **[rejected: superseded survey — the unbounded-box / no-regroup finding was fixed by the Phase-0 cap (see the cohesion-cap entry above, promoted); the durable mechanic "CohesionMode selects spacing only; fires on every grouped move for humans + bots" is already in architecture.md §Custom traits (CohesionMoveModifier). Incidental stale-log / ResupplyBehavior-Desc bugs → bugs/discovered.md]** (curation 2026-07-22).
+
 Found doing the read-only stance/tactical-layer inventory (`WORKSPACE/plans/260722_stance_tactical_survey.md`), tracing the user's "units spread out way too much" report.
 - **`CohesionMoveModifier` fires on EVERY grouped `Move`/`AttackMove` with n>1, regardless of CohesionMode** (`CohesionMoveModifier.cs:588-590,600-601`). CohesionMode (Tight/Loose/Spread) only selects **spacing**, never whether the reshaping runs (`:626-627`). So "auto-spread" is live for humans AND bots on every group move, not just when Spread is selected. This is separate from the `@experimental`-only `CohesionSwitchEnabled` AI doctrine (which was benchmark-negative, ~−$1,500) — the MOVE-reshaping is unconditional and shipped to everyone.
 - **Over-spread root cause = unbounded box.** In the `Open` intent (typical open-terrain/AI case), `ComputeBoxSlots` offsets scale linearly with spacing and unit count: `perpOffset = (2*col-(unitsInRow-1))*colSpacing/2` (`:279`), `depthOffset = -row*rowSpacing` (`:283`). The **only** bound is `map.Clamp` (`:294`) — no maximum-footprint clamp. Spread spacing is 3072/2560 WDist (3 / 2.5 cells) vs Tight 1024/1024 (`:29-44`), so a Spread box is ~3× Tight and grows with N.
@@ -57,6 +69,8 @@ Found doing the read-only stance/tactical-layer inventory (`WORKSPACE/plans/2607
 - **A stale `[Cohesion]` debug log is still active** (`CohesionMoveModifier.cs:679-695`, "Strip again once we have an answer") and the `ResupplyBehavior` Desc strings say "Hold, Seek and Rotate" while the enum is Hold/Auto/Evacuate (`AutoTarget.cs:125,129` vs `:26`).
 
 ## 2026-07-22 — Cover cells and last-seen-enemy memory both exist but are NOT joined; both AI influence grids are omniscient (stance/tactical survey)
+
+> **[rejected: substrate-inventory survey largely superseded by the Phase-1 SightingThreatLayer (which joins cover + fog-correct last-seen memory, now in architecture.md §Custom traits). The omniscient-InfluenceMap contrast is captured in that row; LocalRandom-not-in-sync-hash is already in architecture.md §Bot decisions ARE seed-reproducible]** (curation 2026-07-22).
 
 Substrate inventory for a future tactical-positioning layer (same survey doc).
 - **`Map.DensityLayer` (`Map.cs:252`) makes cover cells queryable today.** `CohesionMoveModifier.CoverScore()` (`:156`) already reads it to find passable cells adjacent to dense actors (trees carry `Density:`, `decoration.yaml:104+`). LOS cover is real: `ShadowLayer` (`Map.cs:253`), `BlocksSight.cs`, weapon `MissChancePerDensity`. **MISSING:** any prone/stance-in-cover damage/detection modifier.
@@ -67,6 +81,8 @@ Substrate inventory for a future tactical-positioning layer (same survey doc).
 
 ## 2026-07-21 — Mounted transports never dismount: the bot issues the ACTIVITY name as an order string ("UnloadCargo" ≠ "Unload") — and the autotest only proved carriage+arrival, never the unload (live-crash match triage)
 
+> **[promoted: → conventions.md §Engine behaviors that surprise (a bot Order string must match a ResolveOrder case, not an activity class name)]** (curation 2026-07-22). Verified `Cargo.cs:248,255` (Unload/UnloadCargoPassenger) vs `:519` (UnloadCargo is the activity name). Fix-changelog + autotest-blind-spot detail stays here.
+
 Found triaging a live Exp-vs-Exp match (carrier drives a TECN to the derrick and sits there loaded forever; non-TECN frontline infantry also never dismounts).
 - **Root cause: `MountedTransportBotModule.AdvanceTask` issued `new Order("UnloadCargo", carrier, …)` (`MountedTransportBotModule.cs:287`), but `Cargo.ResolveOrder` only handles `"Unload"` / `"UnloadCargoPassenger"` (`Cargo.cs:248,255`).** `UnloadCargo` is the *activity class name* (`Activities/UnloadCargo.cs`, queued internally by Cargo at `:253,519`), not an order string — the order matched nothing and was silently dropped. The carrier still transitioned `Delivering→Unloading` and then waited on `cargo.IsEmpty()`, which never became true → stuck loaded at the drop-off forever. Affected BOTH the capture ferry and the generic frontline delivery (shared code path), which is why non-TECN pax were stuck too.
 - **The unload path is shared by the `@poi` (stable) and `@experimental` twins, so the fix had to be gated.** `MountedTransportBotModule@poi` is `enable-ai-stable` (`ai.yaml:370`); `AdvanceTask` is the same C# for both. A straight string swap would change @stable and break byte-identity. Fix: new default-false `UnloadOnArrival` field — issues `"Unload"` when set, keeps the broken `"UnloadCargo"` no-op when unset — enabled only on `@experimental` (`ai.yaml`). Frozen path unchanged.
@@ -74,6 +90,8 @@ Found triaging a live Exp-vs-Exp match (carrier drives a TECN to the derrick and
 - **Autotest blind spot (why `test-tecn-ride` was GREEN through this):** its predicate PASSes "the instant" `mounted` latches (carrier `HasPassengers`) AND the carrier arrives within 6 cells of the derrick (`test-tecn-ride.lua:29-37`). It never asserts the TECN *dismounts* or the derrick is *captured* — so the broken order string was never exercised. A carriage+arrival test cannot cover an unload bug; the pass predicate must check `cargo.IsEmpty()` post-arrival (or derrick ownership flip) to close the gap.
 
 ## 2026-07-21 — The offense scorer is blind to FRIENDLY influence; the enemy sample is already carried per-target (recon for the territorial bias)
+
+> **[rejected: in-flight recon tied to WORKSPACE/plans/260721_terr_offense_bias.md (mutable code-state: GetFriendlyInfluence unconsumed, ContributionRadius override). The durable lesson "PoiMap is a shared world singleton — per-profile scoring must live on the per-player module" is already generalized in architecture.md §Adding a behavioural field to a shared trait]** (curation 2026-07-22).
 
 Found tracing the balance-of-power slice (plan `WORKSPACE/plans/260721_terr_offense_bias.md`).
 - **`GetFriendlyInfluence` is computed but never consumed by any bot module.** `InfluenceMap` exposes `GetFriendlyInfluence`/`GetEnemyInfluence`/`GetFrontline` per-perspective (`InfluenceMap.cs:143-175`), but the whole offense/capture/defense stack reads **only enemy** influence: `PoiMap.SampleThreat` (`PoiMap.cs:481-498`) samples the enemy grid into `ScoredPoi.EnemyInfluence`, and `PoiScoring.ThreatFactor` (`PoiMap.cs:542-550`) buckets it safe/mild/hostile. Consequence: a target with **high enemy AND high friendly** influence (a front we locally dominate) gets the *same* ×10 hostile damp as one with high enemy and zero friendly — the scorer cannot tell "winnable contact" from "lunge into strength." Reading `GetFriendlyInfluence` is a genuinely new input, not a re-weight.
@@ -83,6 +101,8 @@ Found tracing the balance-of-power slice (plan `WORKSPACE/plans/260721_terr_offe
 
 ## 2026-07-20 — TECN-first capture ferrying: directed ride beats the frontline-gated transport (playtest bug 3, branch `exp-tecn-ride`)
 
+> **[rejected: feature changelog for branch exp-tecn-ride (directed capture-ferry impl + @stable-isolation gating) tied to the mission-abstraction plans; the experimental capture / ferry / goal-guard layer is not documented in DOCS/reference and this impl detail belongs with the commit + WORKSPACE]** (curation 2026-07-22).
+
 "Technicians ride first" was never implemented — root cause was three independent gaps, and the clean fix was to *not* extend the existing frontline transport but to add a **directed** ferry path (`MountedTransportBotModule.cs`).
 - **The frontline transport can't express a capture destination.** `PickDropOffCell` returns null pre-contact (`GetFrontline` needs both-sides influence, `InfluenceMap.cs:248-256`) and, even post-contact, its drop-off is the *thinnest frontline cell*, never a capture target. So the whole early game had zero mounting by construction. Adding TECN to `PassengerTypes` (the frontline auto-scan list) would have ferried TECNs to the *line*, not to derricks — wrong. The working model is a directed API `TryReserveCaptureFerry(bot, tecn, target)` that CaptureCoordinator calls; it bypasses `PickDropOffCell` entirely (destination = the target), which also makes it pre-contact-safe for free — 3.1 and 3.2 collapse into one path for captures.
 - **Order-cancellation choreography.** `EnterTransport` (queued false) cancels the TECN's `CaptureActor`, so after `UnloadCargo` the TECN is idle *and* still ledger-committed → CaptureCoordinator's idle filter skips it (committed), so it would sit forever. The ferry must **re-issue `CaptureActor` itself** on unload (Unloading→empty branch). Capture ferries also launch at 1 passenger, not `MinPassengersPerLoad` (2).
@@ -91,6 +111,8 @@ Found tracing the balance-of-power slice (plan `WORKSPACE/plans/260721_terr_offe
 
 ## 2026-07-21 — Autotest throughput plumbing landed (Recs 1-3): universal `--speed`, minimized+uncapped Mode-B, render decouple
 
+> **[rejected: harness changelog tied to WORKSPACE/plans/260721_sim_throughput.md — a landed-change log + one-run measurement; harness-speed how-to belongs in DOCS/recipes/AUTOTEST if anywhere, not engine/gameplay reference]** (curation 2026-07-22).
+
 Implemented the low-risk half of the throughput plan (`WORKSPACE/plans/260721_sim_throughput.md`), branch `harness-sim-speed` (merged `bce9c3e6`). Simulation determinism untouched — wall-clock pacing / unsynced-render only.
 - **Rec 1 — universal speed multiplier.** New `TestModeSpeedMultiplier` world trait (`engine/OpenRA.Mods.Common/Traits/World/TestModeSpeedMultiplier.cs`, registered in `world.yaml`) divides `world.Timestep` at `WorldLoaded` for every non-tournament test run; guards on empty `TournamentConfigPath` so it never double-applies against `BotVsBotMatchWatcher` (which keeps its config-overridable apply). `run-test.sh` gained `--speed N` (1-16) forwarding `Test.SpeedMultiplier`; default unset = 1× (byte-identical old behavior).
 - **Rec 2 — Mode-B hidden = minimized + uncapped.** `run-tournament.sh` now launches `OPENRA_WINDOW_MINIMIZED=1` + `Graphics.CapFramerate=false` (dropped the 5 fps cap that throttled a *suspended* window to ~5 ticks/s); `run-test.sh --minimized` also forces `CapFramerate=false`. NOT re-measured with a live tournament (outside the single-run verify budget) — grounded in the recon's suspended-window model; it is a config change, not a correctness risk (worst case is efficiency, not a bad verdict).
@@ -98,6 +120,8 @@ Implemented the low-risk half of the throughput plan (`WORKSPACE/plans/260721_si
 - **Measured (one authorized run):** `run-test.sh --speed 8 test-screenshot-smoke`. `debug.log` confirms the trait fired: `[TestMode] speed multiplier 8x — Timestep 60 → 7 ms/tick`. Sim phase (screenshot timestamps, tick 0→51) = **1.86 s wall-clock vs the ~3.06 s the 60 ms timestep predicts at 1×**. Verdict `pass`, all 3 screenshots captured at ticks 0/26/51 → Rec 3's decouple does **not** break capture. Total run 16 s (init-dominated). NUnit 291/291, build clean. Caveat: this test is render/screenshot-bound and only 51 ticks — the *least* favorable case, so the realized factor understates the win; compute-heavy bot matches (mostly logic per tick) realize far more of the 8× once Timestep is 7 ms.
 
 ## 2026-07-21 — Autotest sim speed: single tests are 1× by omission; the render-per-tick coupling caps the tournament's 8×
+
+> **[rejected: read-only throughput audit tied to WORKSPACE/plans/260721_sim_throughput.md; the fixes it proposed have since landed (see the throughput-plumbing entry). Harness-speed methodology belongs in DOCS/recipes/AUTOTEST, not reference]** (curation 2026-07-22).
 
 Found during a read-only throughput audit (full options report: `WORKSPACE/plans/260721_sim_throughput.md`).
 - **`run-test.sh` runs at 1× because it never passes a speed arg.** `TestMode.SpeedMultiplier` defaults to `1` (`engine/OpenRA.Game/TestMode.cs:80`) and the single-test launcher forwards no `Test.SpeedMultiplier` (`tools/autotest/run-test.sh:285-295`). Mod default `Timestep` is 60 ms (`mods/ww3mod/mod.yaml:369-372`) → ~16.7 sim ticks/s. Only the tournament path passes `Test.SpeedMultiplier=8` from config (`run-tournament.sh:298`).
@@ -111,10 +135,14 @@ Found during a read-only throughput audit (full options report: `WORKSPACE/plans
 
 ## 2026-07-20 — `RenderPlayer = null` world view only clears shroud from a cold start; ShroudRenderer never clears it mid-game
 
+> **[promoted: → architecture.md §RenderPlayer is render-side only]** (curation 2026-07-22). Verified `World.cs:109-114` (Fog/Shroud short-circuit) + `:543-547` (sync hash reads UnlockedRenderPlayer, not RenderPlayer).
+
 Found while adding full-map vision to the visible TestMode window (worktree `test-observer-vision`).
 - **`RenderPlayer` is purely render-side.** `World.FogObscures/ShroudObscures` all short-circuit to `false` when `RenderPlayer == null` (`engine/OpenRA.Game/World.cs:105-111`); no player's `MapLayers` (shroud/fog) is touched, and the sync hash reads `p.UnlockedRenderPlayer`, not `world.RenderPlayer` (`World.cs:541-544`). So switching a real player's client to world view leaves AI perception + the test verdict byte-identical. The dev "disable shroud" cheat is **not** an equivalent: `DeveloperMode` `DevVisibility/DevAll` do `MapLayers.ExploreAll()` + `MapLayers.FogDisabled = true` (`Traits/Player/DeveloperMode.cs:171-197`) on synced (`[Sync] disableFog`) per-player state — that changes the local combatant's unit targeting and the sync hash, so it's unusable under a byte-identical constraint.
 - **The trap:** `ShroudRenderer.UpdateShroud` was wrapped in `if (world.RenderPlayer != null)` (`Traits/World/ShroudRenderer.cs:252`), so when `RenderPlayer` flips to null on a *live* client the already-drawn shroud sprites are never cleared → the map stays black even though `WorldOnRenderPlayerChanged(null)` set uniform visibility. True observers look correct only because they start null and never draw shroud at all. Fix: always clear each dirty cell's sprites, then repaint only when a render player is active (same commit). This also repairs the `DevCinematicView` cheat, which toggles `RenderPlayer` to null the same way.
 ## 2026-07-21 — Heli rearm-full bench has TWO gates: the module readiness check AND the FSM's SquadHasAmmo (minimal fix is not sufficient)
+
+> **[promoted: → architecture.md §AI configuration (two full-ammo squad gates; SkipRearmReadyCheck bypass)]** (curation 2026-07-22). Verified current code — the fix landed: `HelicopterStates.cs:118-131` (SquadHasAmmo skips ReloadsAutomatically units) + `RearmReadyCheckBypassed` at `:138`; `HelicopterSquadBotModule.cs:408` (SkipRearmReadyCheck).
 
 Found while implementing playtest Bug 2 (branch `fix-evac-heli`). The triage's minimal fix (bypass `HelicopterSquadBotModule.IsReadyForMission`'s full-ammo loop) is **necessary but not sufficient** — it lets a squad FORM but not LAUNCH.
 - **Second, independent gate:** `HelicopterStates.HelicopterIdleState.Tick` returns early on `!SquadHasAmmo(owner)` (`engine/OpenRA.Mods.Common/Traits/BotModules/Squads/States/HelicopterStates.cs:183`). `SquadHasAmmo` (`:118-131`) *skips* every unit for which `ReloadsAutomatically` is true, then returns false if none remain. `ReloadsAutomatically` (`StateBase.cs:129-139`) is true when a `Rearmable` covers all the unit's pools — EXACTLY the case for attack helis (`Rearmable{ AmmoPools: primary-ammo, secondary-ammo }`). So an all-attack-heli squad reports "no ammo" **even at full ammo**, and the idle/withdraw/re-engage gates (`:183, :427, :458`) never pass. The squad forms and sits.
@@ -122,11 +150,15 @@ Found while implementing playtest Bug 2 (branch `fix-evac-heli`). The triage's m
 - **Autotest gotcha that cost several runs:** a heli issued `Attack` on an UN-attackable target (the enemy `supplyroute` is `NoAutoTarget` and matches no weapon's `ValidTargets`) never takes off — the attack activity no-ops and the heli stays grounded. The squad target-picker also fixates on the SR over a nearer tank. A deterministic heli-movement test needs a REAL attackable target (t90: Vehicle+Ground → Hellfire+30mm) and NO enemy SR to hijack targeting. Use `TestHarness.AssertWithin` (polls + exits on first movement) rather than a fixed `AfterDelay` — the latter left games running for minutes as orphaned processes when a run was interrupted.
 ## 2026-07-21 — Out-of-ammo evac is engine-level and invisible to bot modules; only LayeredDefence guards it
 
+> **[promoted: → architecture.md §AI configuration (out-of-ammo evac is unit-level; LayeredDefence is the only guard)]** (curation 2026-07-22). Verified `AmmoPool.cs:197-204` (Evacuate→RotateToEdge), `LayeredDefenceBotModule.cs:102,277,469` (SkipOutOfAmmoUnits/IsOutOfAmmo).
+
 Found while triaging the "evac units re-ordered onto attacks" playtest bug (`2ed2c0ac`, plan `WORKSPACE/plans/260721_playtest_bugs_triage.md`).
 - **Evac is a unit-level `AmmoPool` behaviour, not an AI decision.** `AmmoPool.AutoRearmIfAllEmpty` `case Evacuate` → `RotateToEdge` (`engine/OpenRA.Mods.Common/Traits/AmmoPool.cs:197-205`), fired from `INotifyAttack`/`INotifyBecomingIdle` (`:247-254`); WW3MOD vehicles opt in via `InitialResupplyBehaviorAI: Evacuate` (`mods/ww3mod/rules/ingame/vehicles.yaml:514-515`). The granted `evacuating` condition is **cosmetic only** (selection pip) — no bot module reads it, and the evac path never Commits the unit to `PoiGoalGuard.Ledger`.
 - **Therefore an evacuating unit is "free" to any module that lacks an ammo filter.** `PoiOffensiveBotModule.IsEligibleCombatUnit` (`PoiOffensiveBotModule.cs:403-412`) has none → recruits empty units onto axes, overwriting `RotateToEdge`. `LayeredDefenceBotModule` is the **only** module that guards it: `SkipOutOfAmmoUnits` (default `true`, `:102`) + `IsOutOfAmmo` = all AmmoPools at 0 (`:465-471`), applied at `:273`. Reusable pattern: any module that pulls units by proximity/idle needs this guard or a shared evac reservation.
 
 ## 2026-07-21 — AI helicopters are permanently benched with no HPAD: the squad path has its own rearm-full gate
+
+> **[promoted: → architecture.md §AI configuration (attack-heli squad gates; corner-idle = ProductionFromMapEdge arrival logic)]** (curation 2026-07-22). Verified `HelicopterSquadBotModule.cs:408` (IsReadyForMission full-ammo gate, now bypassable via SkipRearmReadyCheck). Merged with the two-gates entry above.
 
 Found while triaging "helis fly to a corner and idle" (`2ed2c0ac`).
 - **The documented `SkipRearmBuildingCheck` bypass only covers PRODUCTION.** The attack path has an independent gate: `HelicopterSquadBotModule.IsReadyForMission` (`engine/OpenRA.Mods.Common/Traits/BotModules/HelicopterSquadBotModule.cs:399-408`) requires **every AmmoPool `HasFullAmmo`** for any heli that has `AmmoPool`+`Rearmable`. Attack helis' `ReloadAmmoPool RequiresCondition: unit.docked && !airborne` (e.g. `mods/ww3mod/rules/ingame/aircraft-russia.yaml:178`) + `Rearmable{ RearmActors: hpad }` mean they can only refill at an HPAD — and the mod builds none. First shot ⇒ never full again ⇒ `IsReadyForMission` false forever ⇒ no squad ever forms ⇒ the `HelicopterStates` FSM never runs. Recruitment (by trait `AIHelicopterRole`, `:146`) works fine; the *readiness* gate is the block.
@@ -134,15 +166,21 @@ Found while triaging "helis fly to a corner and idle" (`2ed2c0ac`).
 
 ## 2026-07-21 — MountedTransport is dormant until frontline contact, and never carries TECN (capture is fully decoupled)
 
+> **[rejected: pre-fix triage superseded by the directed capture-ferry (exp-tecn-ride) that added a capture-aware transport path; belongs in WORKSPACE / bugs, and the GetFrontline both-sides-influence detail is impl-specific]** (curation 2026-07-22).
+
 Found while triaging "TECN walks to captures; mounting never observed" (`2ed2c0ac`).
 - **`PickDropOffCell` returns null with no frontline**, so the whole module no-ops pre-contact: `MountedTransportBotModule.cs:313-314, 373-380` depend on `InfluenceMap.GetFrontline`, which marks only cells with **both** friendly AND enemy influence (`InfluenceMap.cs:170-174` → `DeriveFrontline` `:248-256`). Early game has no such cell → no mounting ever happens in the window players watch. Idle carriers (bradley/m113/bmp2, produced per `ai-america.yaml:27-28`, excluded from offense `ai.yaml:187` + defence `:341`) then pile up at the SR — a direct contributor to the "vehicles massing at the SR" complaint.
 - **TECN is not a passenger and capture never requests a ride.** `PassengerTypes` (`ai.yaml:366`) omits `tecn*`; `CaptureCoordinatorBotModule` issues `CaptureActor` + on-foot escort `AttackMove` (`CaptureCoordinatorBotModule.cs:514, 627-643`) with **zero** call into MountedTransport, whose destination is a frontline gap, not a capture target. "Technicians riding first" is therefore unimplemented, not merely mis-tuned — it needs a capture-aware transport path.
 
 ## 2026-07-21 — The tournament ladder measures `startingunits: none`, not the Motorized regime players use
 
+> **[rejected: benchmark-config note (startingunits classes; ladder uses `none`) and now stale — the 2026-07-21 regime change moved the ladder to a Motorized start (see the regime-rebaseline entry below). Tracker / ladder material, not durable engine reference]** (curation 2026-07-22).
+
 Found while folding the Motorized directive into early-game recon (`2ed2c0ac`).
 - **`startingunits` is a lobby dropdown** (`SpawnStartingUnits.cs:23-53`, key `:51`, default `"none"` `:25`); values `none/squad/platoon/motorized/air` defined per-faction in `mods/ww3mod/rules/world.yaml:364-436`. **Motorized** (`:404-419`) ships abrams/bradley/humvee (America) or t90/bmp2/bmp2 (Russia) + infantry, but **no dedicated SAM** — its only AA is the humvee/bmp2 autocannon.
 - **All tournament scenarios use the default `none`** (bots start with only two hand-placed `supplyroute`; `WORKSPACE/ai-bench/LADDER.md:448-451`, no `StartingUnitsClass` on bot PlayerReferences). Optimising for Motorized ⇒ scenario change ⇒ **re-BASELINE** (S1/S2 bars) before trusting Motorized tuning; the item-b AA-share floor in particular must be tuned against Motorized's built-in AA, not the `none` regime.
+
+> **[rejected: north-star design-intent capture, already promoted to DOCS/design/ai-realism.md → "Long-term vision (user-authored, 2026-07-20)" and reflected in auto-memory; vision, not engineering reference]** (curation 2026-07-22).
 
 Recorded live from the project owner while spectating an Experimental-vs-Experimental match. This is
 **north-star design intent**, not a code finding — promoted into the standing design doc
@@ -173,6 +211,8 @@ module (hold captured safe ground), `MountedTransportBotModule` (mounted doctrin
 
 ## 2026-07-20 — An SR Pressure offensive axis does NOT starve the TECN capture layer (offense/capture pool independence, empirical)
 
+> **[rejected: run-specific empirical finding (SR-contestation cycle 1, N=10) belonging to runs/260720_sr_contestation_cycle1_n10.md; the goal-guard ledger free-pool is undocumented in DOCS/reference (cf. the 2026-07-20 escort-ledger rejection), so a pool-independence note would be orphaned]** (curation 2026-07-22).
+
 Found during SR-contestation cycle 1 (`runs/260720_sr_contestation_cycle1_n10.md`). With the new
 `PoiOffensiveBotModule.SrPressureScoreMultiplier: 260` on `@experimental`, the enemy Supply Route
 **safe-threat** Pressure score reaches ~**57M** (observed axis line: `action=Pressure score=57408000
@@ -190,6 +230,8 @@ gate ×260 ⇒ ~4.25M still keeps the AI off a garrisoned SR. `PoiOffensiveBotMo
 call site ~:196.)
 
 ## 2026-07-20 — The TECN-floor request dies at a *busy Infantry queue*, and the M-2 vs every-scan placement is identical at floor 1
+
+> **[rejected: the request-drop-on-busy-queue mechanic is already in architecture.md §AI production (IBotRequestUnitProduction demand queue, promoted); the floor-placement-no-op-at-1 point is tuning detail tied to the capture-throughput cycle]** (curation 2026-07-22).
 
 Found during the capture-throughput recon (`WORKSPACE/plans/260720_capture_throughput_cycle.md`).
 Two non-obvious code facts about the `IBotRequestUnitProduction` floor path:
@@ -721,11 +763,15 @@ Other notes: DensityLayer is populated correctly (trees contribute density=10 to
 
 ## 2026-07-20 — SR-contestation tunables can't live on the world `PoiMap` trait (SR-contest recon)
 
+> **[rejected: application of the already-promoted shared-trait-defaults rule (architecture.md §Adding a behavioural field to a shared trait) to PoiMap, plus the already-promoted SUPPLYROUTE deny-only fact (supply-route.md); recon tied to WORKSPACE/plans/260720_sr_contestation_cycle1.md]** (curation 2026-07-22).
+
 - **`PoiMap` is a world singleton; any SR-scoring tunable on `PoiMapInfo` is global to every bot profile.** Both `PoiOffensiveBotModule@experimental` (ai.yaml:175) and `@stable` (ai.yaml:662) consume the *same* `PoiMap.GetOffensiveTargets` output (`PoiMap.cs:279`), so raising `SupplyRouteDenyValue` or adding an `OffensiveSrPressureBias` **in `world.yaml:296` changes @stable too** — silently mutating the frozen benchmark control. This is exactly what the shared-trait-defaults rule forbids (`DOCS/reference/architecture.md:309`: behavioural Info fields on a shared trait must default to frozen behaviour and be opted in **per-profile via YAML**).
 - **Consequence for @experimental-only scoring changes:** a per-profile knob must live on the per-bot trait (`PoiOffensiveBotModuleInfo`), not on `PoiMapInfo`. Pattern to mirror: `CohesionSwitchEnabled` (default `false`, flipped `true` on @experimental only, `PoiOffensiveBotModule.cs:87/:424`). For SR pressure specifically, a single per-bot `SrPressureScoreMultiplier` (x100, default 100 = inert) applied to `PoiAction.Pressure` axes after `GetOffensiveTargets` reproduces a global `value 120→250` + `bias 80→100` change with multiplier `(250·100)/(120·80)=260`, while leaving @stable byte-identical. Verified against constants on `1594ffa1` (`SupplyRouteDenyValue=120`, threat 100/40/10, `OffensiveEnemyAttackBias=80`, `DistanceHalfLifeCells=20`): frozen SR mild 6.528M ×2.604 = 17.0M, safe 42.5M, hostile 4.25M.
 - **Deny-only invariant re-confirmed on current main:** `SUPPLYROUTE` has no `CaptureManager` (`PoiMap.cs:219-222`); Pressure emits `AttackMove` to the SR cell (`PoiOffensiveBotModule.cs:467`), not `CaptureActor`; `GetCaptureTargets` (`PoiMap.cs:257-260`) filters Pressure out of the capture layer. The dispersion cohesion switch is action-agnostic (`:424-425`, gates on distance only), so it applies to a Pressure axis with no special-casing.
 
 ## 2026-07-21 — Regime re-baseline: the benchmark caught up to the bot (Motorized / US-US / vs @stable)
+
+> **[rejected: run-specific benchmark writeup (43 matches) belonging to WORKSPACE/ai-bench/runs/260721_regime_rebaseline.md + REVIEW; benchmark methodology for the ai-bench area (out of scope for this pass), not engine/gameplay reference]** (curation 2026-07-22).
 
 Full data: `WORKSPACE/ai-bench/runs/260721_regime_rebaseline.md`. First re-baseline after the
 2026-07-21 regime change (`60b93501`). 43 matches, 0 crashes / 0 no-verdict.
@@ -774,6 +820,8 @@ Full data: `WORKSPACE/ai-bench/runs/260721_regime_rebaseline.md`. First re-basel
   is wrong under a same-faction regime — identify by player name / spawn slot instead.**
 
 ## 2026-07-22 — BotBlackboard's task-market API is dead code; the maneuver stack runs on two half-substrates (bot-brain architecture recon)
+
+> **[rejected: architecture recon tied to WORKSPACE/plans/260722_bot_brain_architecture.md; the bot coordination layer (PoiGoalGuard ledger / BotBlackboard) is undocumented in DOCS/reference, so a "blackboard task API is dead code" finding is orphaned there — belongs in the architecture plan, and "dead code" state is mutable]** (curation 2026-07-22).
 
 Found while inventorying coordination primitives for `WORKSPACE/plans/260722_bot_brain_architecture.md` (main @ `0fce8bbd`).
 

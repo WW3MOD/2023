@@ -22,6 +22,8 @@ OpenRA uses `WDist` (World Distance) units throughout. Notation `NcXXX`:
 
 Map placement: units on the LEFT facing right → `Facing: 768` (East); on the RIGHT facing left → `Facing: 256` (West). Conversion: `WAngle.FromFacing(old)` where old RA facing × 4 = WAngle.
 
+**Converting a bearing back to a cell step:** `WVec.FromSpeedAndAngle(speed, angle)` (`WVec.cs:94`) is the exact inverse of `WVec.Yaw` (`WVec.cs:66`). To turn a bearing `WAngle` (e.g. one built from a cell-space `WVec(dx,dy).Yaw`) back into a cell-space step, use `FromSpeedAndAngle` and take `Sign(X)/Sign(Y)` — it respects the "north = −Y" + counterclockwise convention automatically, avoiding hand-rolled `Cos()/Sin()` sign errors.
+
 ## YAML
 
 ### Templates (prefixed with ^)
@@ -49,6 +51,10 @@ SpeedMultiplier@HeavyDamage:
 
 Common conditions: `airborne`, `cruising`, `moving`, `empdisable`, `dronedisable`, `heavy-damage-attained`, `critical-damage`, `rank-veteran`, `suppression-*`, `unit.docked`
 
+**A consumed-but-ungranted condition is a `make test` ERROR (not a warning).** `ConditionalTraitInfo.RequiresCondition` is `[ConsumedConditionReference]` (`ConditionalTrait.cs:21`), so a trait gated on `foo || bar` marks BOTH names *consumed on that actor*. `CheckConditions` (`Lint/CheckConditions.cs:73-75`) calls `emitError` — which fails `make test` — for any condition an actor consumes but nothing grants. (The reverse, granted-but-unconsumed, is only a `emitWarning`, `:70-71`.) To make a name grantable-but-not-yet-fired (e.g. a seam for later Lua/warhead activation) without a live grant, declare an `ExternalCondition` whose `Condition` field is `[GrantedConditionReference]` (`Conditions/ExternalCondition.cs`) — it satisfies the lint at zero runtime cost and a later `GrantCondition("name")` resolves to it.
+
+**Grants scoped to the actor:** `GrantConditionOnBotOwner` grants only on the actor it sits on, checking `self.Owner.IsBot && Bots.Contains(self.Owner.BotType)` (`Conditions/GrantConditionOnBotOwner.cs:46`). A **unit** trait's `RequiresCondition` sees only conditions granted on that *unit*, so gating a unit trait to bot-only needs a per-unit `GrantConditionOnBotOwner` on the unit template — a Player-actor grant (e.g. the `enable-ai-experimental` grants in `ai.yaml`) does nothing for a unit trait.
+
 ### Faction-specific files
 
 Each unit type has a base template file and two faction files:
@@ -60,6 +66,14 @@ Each unit type has a base template file and two faction files:
 ### Blank lines are significant
 
 Templates and top-level entries must be separated by a blank line. The MiniYaml parser silently merges adjacent ones, producing confusing override behavior — not a parse error. If a template "isn't taking effect," check the blank lines first.
+
+### Removing an inherited trait: `-Key` matches the FULL node key
+
+`-TraitName:` removes an inherited node only by **exact key match, including any `@label`** — `ResolveInherits` does `resolved.RemoveAll(r => r.Key == removed)` and throws `There are no elements with key '<key>' to remove` if nothing matched (`MiniYaml.cs:482-483`). So `-SquadManagerBotModule:` does **not** remove `SquadManagerBotModule@experimental.america.fixedwing`; you must write `-SquadManagerBotModule@experimental.america.fixedwing:`. There is no "remove all instances of this trait type" wildcard form — each labeled instance must be listed. (A mismatch throws at load, surfacing as a load-error dialog.)
+
+### WW3MOD's map grid is `Rectangular`, not `RectangularIsometric`
+
+`mod.yaml:319` sets `MapGrid: Type: Rectangular`. So cell neighbours are the plain `(x±1, y±1)` grid, a Manhattan/Chebyshev disc maps directly to spatial adjacency, and `CellLayer.Contains(CPos)` has no `X<Y` isometric rejection. This is what lets the density-neighbour idiom (`CohesionMoveModifier.CoverScore`, and the Phase-1 map layers) step cells with raw `CVec` offsets.
 
 ### Disabling a string field: bare colon, not `""`
 
@@ -84,3 +98,5 @@ Hook install (once per clone): `ln -sf ../../tools/git-hooks/pre-commit .git/hoo
 - **`AttackTurreted.CanAttack` short-circuits before `base.CanAttack`** (`AttackTurreted.cs:47`): it returns `turretReady && base.CanAttack(...)`, and `turretReady` is false while the turret is still rotating onto the target. A trace or breakpoint in `AttackBase.CanAttack` therefore never fires until the turret has finished aiming. When debugging "why won't this unit fire?", check the turret is pointed at the target first — the answer is often just "it hasn't finished turning."
 - **`Activity.IsCanceling` is always false inside `OnLastRun`** (`Activity.cs:132-135`): `TickOuter` sets `State = Done` *before* calling `OnLastRun`, and `IsCanceling` is `State == Canceling` (`Activity.cs:84`). So `OnLastRun` cannot distinguish "ended naturally" from "was cancelled" — the flag is already cleared. Use a different signal: a queued `NextActivity` implies you were replaced, or compare `attack.RequestedTarget` to your own target field.
 - **Cell distance (`CVec.Length`, `CPos` subtraction) is Euclidean, not Chebyshev** (`CVec.cs:49-50`): `Length => Exts.ISqrt(X*X + Y*Y)` — rounded straight-line distance, so a diagonal reads ~1.4× farther than the grid distance a player/watcher sees on the minimap. For true chessboard "cells away" gates use `max(|dx|, |dy|)` computed by hand, not `.Length`.
+- **A bot `Order` string must match a `ResolveOrder` case, not an activity class name.** `Cargo.ResolveOrder` handles only `"Unload"` and `"UnloadCargoPassenger"` (`Cargo.cs:248,255`); `"UnloadCargo"` is the *activity* class name (`Activities/UnloadCargo.cs`, queued internally at `Cargo.cs:519`) and matches no order — issuing `new Order("UnloadCargo", …)` is **silently dropped**. Also, even a correct `"Unload"` is dropped when `!CanUnload()` (no free adjacent cell on arrival), so a one-shot issue can permanently stall; re-issue when a cell frees. When wiring a bot to drive a unit trait, read the trait's `ResolveOrder` for the exact accepted strings.
+- **`UnitDefaultsManager` overwrites human-owned units' stances in `Created`.** `AutoTarget.Created` applies per-type persisted defaults (fire/engagement/cohesion/resupply) **only for `self.Owner.Playable && !self.Owner.IsBot`** (`AutoTarget.cs:355-388`), read from `Platform.SupportDir/ww3mod/unit-defaults.yaml`. So a human-owned unit's stance is **per-machine state**, not the YAML default — a deterministic human-owned test must strip the bare-key `UnitDefaultsManager` World trait (`world.yaml`) or a locally-saved default silently changes behaviour. Bot-owned units skip this branch entirely (they read `Initial*StanceAI`).
