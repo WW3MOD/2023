@@ -198,6 +198,21 @@ composes naturally into an ambush posture).
 - **Phase 5 — Extended micro.** HP/threat flee (the TODO at AutoTarget.cs:472),
   panic reactivation, bounding movement between covers.
 
+> **AMENDED 2026-07-21 (operations-layer adoption, running on the posted default —
+> source: `260722_bot_brain_architecture.md`, EXTEND verdict; RETHINK #2's revival
+> rule met).** Riders on the phasing above, critical path (Phases 1–2) unchanged:
+> **Phase 3** also carries the deterministic event bus + event-driven commitment
+> revision retrofit and the unit-role resolver (each behind its own flag, priced
+> separately on the ladder; the role resolver also cures the ai.yaml:349
+> artillery/SHORAD-as-mainline conflation with no operations dependency).
+> **Phase 4** may develop the Operation skeleton (object + lifecycle + single-force
+> Assault) in parallel against omniscient scoring; its promotion gates on the
+> fog-honest intel substrate. **Phase 5** becomes the operations layer proper —
+> multi-force staging, same-tick synchronized launch, Pincer, role-based
+> combined-arms composition; PoiOffensive's axis interior retires to a proposal
+> source. The attention-scheduler commander (decisions-per-minute budget,
+> difficulty knob) opens as the phase after, only if operations price positively.
+
 Each phase is independently shippable and benchmark-priceable; Phases 1–2 are the
 critical path to the user's treeline scenario.
 

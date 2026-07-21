@@ -44,19 +44,24 @@ Urgency-ordered. Few items, each one line + why it matters. Cleared when resolve
    (bots lose free omniscient intel); recovered via a new recon/scouting behavior
    cycle — a second re-baseline. Spec:
    `WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md`.
-2. **Research pair DELIVERED — roadmap-additions fork running on a default
-   (2026-07-21).** Instead of the broad red-team the user floated, a targeted pair
-   ran (dashboard question recorded that call). Both docs are in
-   `WORKSPACE/plans/`: `260722_watchability_research.md` (the observer suite is
-   already wired but unused; missing keystone = auto-director camera; the SHOW
-   needs a separate config from the benchmark — same-faction ladder games are
-   passive by design) and `260722_doctrine_realism_audit.md` (loudest realism gap:
-   **no fires/artillery bot logic exists at all**; also caught the §4
-   Defensive-stance inversion — **already fixed in the spec**, `5eb8755a` — and
-   the Phase-4 blind-window risk — **scout link folded into Phase 4**). A second
-   dashboard question is open: which additions join the roadmap (default on skip:
-   observer/show packaging + fires cycle). *Why it matters:* these set the
-   post-Phase-3 direction toward the watchable-bot-games goal.
+2. **Bot-brain architecture verdict: EXTEND — adoption fork running on a default
+   (2026-07-21).** The user asked whether the OpenRA-style bot brain can reach
+   coordinated ops (undefended-point exploitation, squad rendezvous, synchronized
+   pincers) or needs restructuring. A Fable research worker delivered
+   `WORKSPACE/plans/260722_bot_brain_architecture.md` (`b187469e`): **keep the
+   chassis, replace the L2 idiom** — no cross-squad coordination primitive exists
+   today; role awareness is absent (`ai.yaml:349` treats artillery + SHORAD as
+   main-line); six anti-oscillation dampers all patch one root cause
+   (timer-driven re-decides). Fix = an **operations/task-force layer** (SupCom
+   platoon pattern: staging → all-forces-ready → same-tick launch), plus the
+   user's "orders one at a time" idea formalized as event-driven commitment
+   revision (near-term win) and an attention-scheduler commander (later;
+   decisions-per-minute doubles as a difficulty knob). A dashboard question is
+   open on the adoption path; **the default (now executing) folds the phasing
+   into the split SPEC**: Phase 3 += event bus + role resolver, Phase 4 ∥ ops
+   skeleton, Phase 5 = operations proper. *Why it matters:* this is the roadmap
+   for everything beyond Phase 2 — and the fires cycle (user-adopted from the
+   doctrine audit; observer packaging deselected) will ride on the role model.
 3. **New PROPOSED bars await ratification** (the `[pre-regime]` bars are void).
    S1: paired win-rate ≥ 0.60 AND Exp capture-rate ≥ Stable +2/10. S2:
    median(Exp swing) ≥ median(Stable swing) + $1,000, sign-delta ≥7/10, both-spawn.
