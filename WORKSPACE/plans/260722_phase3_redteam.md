@@ -162,9 +162,13 @@ fast-light candidate carries Cargo), ground Recon is an empty set, and ShortRang
 its only mobile American member. Two of the design doc's three worked examples for these
 rules are false; a third (§8 Q2, "mt derives MainBattle") is also false — mt's
 `60mm_Mortar` has Range 25c0 / MinRange 8c0 (infantry.yaml:1508;
-weapons-ballistics.yaml:526-527), tripping rule 7 → IndirectFire. Additional errata: the
+weapons-ballistics.yaml:526-527), tripping rule 7 → IndirectFire. ~~Additional errata: the
 design references **msta** and **avenger**, neither of which exists in the YAML (the
-Russian gun-arty is **giatsint**, vehicles-russia.yaml:450).
+Russian gun-arty is **giatsint**, vehicles-russia.yaml:450).~~
+**[CORRECTION, post-implementation review:** the msta/avenger sub-claim was a false
+positive — `git show 2e6b7fd5:…DESIGN.md` contains neither name (grep-clean); the design
+already used giatsint. Audit erratum, not a design erratum. Adjudicated during the
+phase3-resolver merge review; see DISCOVERIES 2026-07-22.**]**
 
 What *does* survive contact (verified by exhaustive classification pass): artillery
 (m109, giatsint, m270, grad, tos, HIMARS, iskander all → IndirectFire, correct — tos via

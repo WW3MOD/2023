@@ -239,6 +239,10 @@ Thresholds are YAML fields on the resolver (§6 governance), defaults below.
    are the fall-through, not the pre-empt. Catches m113 (Cargo 12, slow, MG-only);
    the armed IFVs bradley/bmp2 are pinned `MainBattle` by override (§6.2) so they
    join the line of battle rather than the ferry pool.
+   **Deliberate:** m113-class *armed* APCs derive TransportLift on purpose — there
+   is no "essentially unarmed" clause; a self-defense MG does not disqualify a
+   ferry. Do not "fix" m113 toward MainBattle; pin exceptions via `AIUnitRole`
+   instead (merge-review note, phase3-resolver).
 9. **MainBattle.** Armed (`ArmamentInfo` present) + `MobileInfo` present. Tank
    hulls (abrams/t90 — direct-fire main gun) land here.
 10. **None.** Everything else (buildings, husks, dummy actors, unarmed
