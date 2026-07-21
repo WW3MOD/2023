@@ -331,6 +331,12 @@ World:
 	# own §3a layer + frozen actors, so it leaks nothing through fog. Ships as hold-Space;
 	# "/intel" chat command toggles a dev always-on switch.
 	SightingIntelOverlay:
+	# Phase 3 role-resolver (data-only): classifies every actor into a coarse UnitRole
+	# once at map load; O(1) queries thereafter. Pure ruleset inspection — no RNG, no
+	# orders, no sim state — so registering it is behaviour-inert for every profile.
+	# NOTHING consumes it yet (Phase-4 consumers gate behind their own UseUnitRoles flag).
+	# Design: WORKSPACE/plans/260722_unit_role_resolver_DESIGN.md.
+	UnitRoleResolver:
 	ChatCommands:
 	DevCommands:
 	DebugVisualizationCommands:

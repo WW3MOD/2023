@@ -284,6 +284,10 @@ bradley:
 	Inherits@CargoPips: ^CargoPips
 	Inherits@GainsExperience: ^GainsExperience
 	Inherits@AutoTarget: ^AutoTargetIFV
+	# Role override: an IFV belongs in the line of battle, not the transport pool —
+	# without this its Cargo would derive TransportLift.
+	AIUnitRole:
+		Role: MainBattle
 	VehicleCrew:
 		CrewSlots: Driver, Gunner, Commander
 		CrewActors:

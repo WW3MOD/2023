@@ -3,6 +3,41 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-22 — Unit-role resolver: two YAML facts that make/break the taxonomy, + audit errata
+
+Implementing the Phase-3 role resolver (`260722_unit_role_resolver_DESIGN.md`). The
+audit's finding B3 (Cargo shadowing) was correct; verifying every classification against
+the real YAML surfaced two non-obvious substrate facts the whole taxonomy hinges on, plus
+a couple of errata in upstream docs.
+
+- **Weapon `ValidTargets` splits `Air` from `Helicopter` — and ground MGs list only
+  `Helicopter`.** `^7.62mm` and `^12.7mm` (humvee/btr/m113 guns) are `ValidTargets:
+  Infantry, Unarmored, Helicopter[, Light]` (`weapons-ballistics.yaml:143,215`) — they can
+  shoot helis but are NOT air-defence. Only Stinger/Stinger.quad/9M311/MANPAD list `Air`
+  (`weapons-missiles.yaml:339,372`; 9M311 inherits Stinger). Even tunguska's dedicated AA
+  autocannon `30mm.Tunguska.AA` is `ValidTargets: Helicopter` (`weapons-ballistics.yaml:455`)
+  — tunguska lands ShortRangeAD only via its **9M311** missile (`vehicles-russia.yaml:856`).
+  So the ShortRangeAD discriminator MUST key on the literal `"Air"` target type, never
+  `Helicopter`; keying on Helicopter would drag every MG-armed vehicle into AD. Under-matching
+  on `Air` is the safe direction.
+- **`^ArtilleryRound` is `Range 40c0 / MinRange 10c0`; `^TankRound` is `24c0 / MinRange 1c512`**
+  (`weapons-ballistics.yaml:613-614` vs `:577-578`). Paladin/Giatsint inherit `^ArtilleryRound`
+  unchanged (`:638-646`), so an IndirectFire threshold of `MinRange ≥ 4c0` (or `Range ≥ 35c0`)
+  cleanly separates all tube/rocket arty from direct-fire tanks. Mortar `60mm_Mortar` is
+  `25c0 / MinRange 8c0` (`:522-527`) so `mt` derives IndirectFire, not MainBattle. (A prior
+  research pass mis-read arty as `24c0/1c512` by confusing it with `^TankRound` — the design
+  doc's original `40c0/10c0` values were right.)
+- **Concrete buildable units are faction-suffixed** (`e6.america`, `tecn.america`,
+  `mt.america`, `aa.america`, …) via `Inherits: ^E6` etc., with a bare lowercase concrete
+  also present (`e6`, `tecn`, `mt`, `aa`, `truk` — `infantry.yaml:1911/2197/1554/1767`,
+  `vehicles.yaml:509`). An `AIUnitRole` override on the `^E6` template annotates every
+  variant in one line (used for `e6: Logistics`); single-hull overrides (`bradley`, `bmp2`)
+  go on the concrete actor.
+- **Audit erratum:** `260722_phase3_redteam.md:166` claims the design references phantom units
+  `msta`/`avenger`. It does not — grep of the design doc finds neither; the only Russian
+  gun-arty is `giatsint` (`vehicles-russia.yaml:382`), which the design already names. Nothing
+  to remove; recorded so the claim isn't chased again.
+
 ## 2026-07-22 — Phase 2 positioning executor: condition-lint, per-unit bot gating, MiniYaml removal, and stance determinism gotchas
 
 > **[promoted: → conventions.md (conditions consumed/granted lint, `-Key` full-key removal, `WVec.FromSpeedAndAngle`, UnitDefaultsManager stance-overwrite surprise) + architecture.md §AI configuration / conventions §Conditions (GrantConditionOnBotOwner actor-scoping)]** (curation 2026-07-22). All five substrate claims verified at the cited lines.
