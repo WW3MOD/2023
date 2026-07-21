@@ -3,6 +3,14 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-22 — Phase 0 fix: bounded the cohesion box footprint (count-aware cap) + regroup now emerges from the existing leash
+
+Implemented the ratified Phase-0 global cohesion fix (`WORKSPACE/plans/260722_strategic_tactical_split_SPEC.md`). Ships to everyone (humans + all bot profiles) — a declared re-baseline event; the ladder re-baseline is a manager follow-up, not part of this task.
+- **Root fix:** `CohesionMoveModifier.ComputeBoxSlots` now caps the box's total width/depth per mode. After `cols`/`rows` are known, if `(cols-1)*colSpacing > MaxWidth` the effective `colSpacing` is shrunk to `MaxWidth/(cols-1)` (same for depth via `MaxDepth/rowSpacing`), floored at `MinSlotSpacing` so slots stay on distinct cells. The span between outermost slot centers is now bounded regardless of unit count — previously it grew linearly with count, bounded only by `map.Clamp`.
+- **Chosen constants (WDist / cells):** MaxWidth Tight 8192 (8c) / Loose 11264 (11c) / Spread 13312 (13c); MaxDepth Tight 5120 (5c) / Loose 6144 (6c) / Spread 7168 (7c); MinSlotSpacing 1024 (1c). **Mode ordering Tight < Loose < Spread is provably preserved for every n**: effective spacing = `min(baseSpacing, MaxExtent/(cols-1))`; both `baseSpacing` and `MaxExtent` are monotonic across modes and `cols` depends only on n, so the elementwise `min` stays monotonic. Realistic groups (≤~60) never hit the 1024 floor for Spread, so no slot collisions.
+- **Regroup-on-arrival needed NO new code** — the bound repurposes the existing `CohesionSlotMemory` sticky-slot leash (`INotifyIdle`/`INotifyBlockingMove`, `defaults.yaml:20`). The survey noted the leash "reinforces spread" — that was true only because slots were unbounded; with bounded slots the same return-to-slot behavior now closes stragglers into a compact box. Deterministic (assigned slot + WorldTick, ActorID-stable), no LocalRandom.
+- **Verification (`test-cohesion-extent-cap`, 24-unit Spread grouped Move to an open cell):** RED on old code = assigned slots span **19.6 cells** > 17 cap; GREEN after fix = slots **14.4**, arrival positions **12.2**. Added `Test.SetCohesion(actor, mode)` Lua binding so the test forces Spread deterministically. Only the Open box path was bounded — the other three intent paths (SpreadInside/EdgeLine/Approach) anchor to cover cells inside fixed search radii and are already local.
+
 ## 2026-07-22 — Auto-spread is ALWAYS-ON (not stance-gated) and has an unbounded footprint with no regroup (stance/tactical survey)
 
 Found doing the read-only stance/tactical-layer inventory (`WORKSPACE/plans/260722_stance_tactical_survey.md`), tracing the user's "units spread out way too much" report.

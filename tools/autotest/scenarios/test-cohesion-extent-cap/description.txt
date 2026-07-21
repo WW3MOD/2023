@@ -1,0 +1,1 @@
+Cohesion extent cap (auto): a 24-unit Spread grouped move must produce a bounded box formation — assigned slots AND arrival positions stay under the count-aware footprint cap, not a map-spanning line.

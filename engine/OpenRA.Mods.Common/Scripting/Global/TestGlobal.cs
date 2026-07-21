@@ -240,6 +240,22 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return memory?.AssignedSlot ?? CPos.Zero;
 		}
 
+		[Desc("Force an actor's Cohesion stance (\"Tight\", \"Loose\", or \"Spread\") so a test can " +
+			"exercise a specific formation spacing deterministically, independent of the dev's " +
+			"persisted per-type defaults. No-op outside test mode.")]
+		public void SetCohesion(Actor actor, string mode)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return;
+
+			var autoTarget = actor.TraitOrDefault<AutoTarget>();
+			if (autoTarget == null)
+				return;
+
+			if (System.Enum.TryParse<CohesionMode>(mode, true, out var value))
+				autoTarget.SetCohesion(actor, value);
+		}
+
 		[Desc("Read Map.DensityLayer at a cell. Returns the byte value (0-255) summed from all " +
 			"density-bearing actors whose footprint covers this cell. Test mode only.")]
 		public int GetDensity(CPos cell)

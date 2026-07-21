@@ -1,0 +1,145 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Cohesion extent cap (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	U01: e3.america
+		Owner: USA
+		Location: 16,12
+		Facing: 768
+	U02: e3.america
+		Owner: USA
+		Location: 17,12
+		Facing: 768
+	U03: e3.america
+		Owner: USA
+		Location: 18,12
+		Facing: 768
+	U04: e3.america
+		Owner: USA
+		Location: 19,12
+		Facing: 768
+	U05: e3.america
+		Owner: USA
+		Location: 20,12
+		Facing: 768
+	U06: e3.america
+		Owner: USA
+		Location: 21,12
+		Facing: 768
+	U07: e3.america
+		Owner: USA
+		Location: 16,13
+		Facing: 768
+	U08: e3.america
+		Owner: USA
+		Location: 17,13
+		Facing: 768
+	U09: e3.america
+		Owner: USA
+		Location: 18,13
+		Facing: 768
+	U10: e3.america
+		Owner: USA
+		Location: 19,13
+		Facing: 768
+	U11: e3.america
+		Owner: USA
+		Location: 20,13
+		Facing: 768
+	U12: e3.america
+		Owner: USA
+		Location: 21,13
+		Facing: 768
+	U13: e3.america
+		Owner: USA
+		Location: 16,14
+		Facing: 768
+	U14: e3.america
+		Owner: USA
+		Location: 17,14
+		Facing: 768
+	U15: e3.america
+		Owner: USA
+		Location: 18,14
+		Facing: 768
+	U16: e3.america
+		Owner: USA
+		Location: 19,14
+		Facing: 768
+	U17: e3.america
+		Owner: USA
+		Location: 20,14
+		Facing: 768
+	U18: e3.america
+		Owner: USA
+		Location: 21,14
+		Facing: 768
+	U19: e3.america
+		Owner: USA
+		Location: 16,15
+		Facing: 768
+	U20: e3.america
+		Owner: USA
+		Location: 17,15
+		Facing: 768
+	U21: e3.america
+		Owner: USA
+		Location: 18,15
+		Facing: 768
+	U22: e3.america
+		Owner: USA
+		Location: 19,15
+		Facing: 768
+	U23: e3.america
+		Owner: USA
+		Location: 20,15
+		Facing: 768
+	U24: e3.america
+		Owner: USA
+		Location: 21,15
+		Facing: 768
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 18,14
+
+Rules: rules.yaml

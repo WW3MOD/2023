@@ -43,6 +43,35 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Row depth in WDist for Spread mode.")]
 		public readonly int SpreadRowSpacing = 2560;
 
+		// Count-aware footprint caps (WDist). The box formation's per-slot offsets grow linearly
+		// with unit count, so without a cap a large Spread group fans across the whole map (the
+		// "spread way too much" bug). These bound the TOTAL span between the outermost slot centers
+		// regardless of count: once (cols-1)*colSpacing would exceed MaxWidth, colSpacing shrinks so
+		// the span stays at MaxWidth (same for depth via MaxDepth/rowSpacing). Concrete cell values:
+		// Tight ~8x5, Loose ~11x6, Spread ~13x7 cells. Both these caps and the base spacings above
+		// are monotonic across modes, so effective spacing stays Tight < Loose < Spread for every n.
+		[Desc("Max total formation width (WDist, span between outermost slot centers) for Tight mode.")]
+		public readonly int TightMaxWidth = 8192;
+
+		[Desc("Max total formation depth (WDist, front-to-back span) for Tight mode.")]
+		public readonly int TightMaxDepth = 5120;
+
+		[Desc("Max total formation width (WDist) for Loose mode.")]
+		public readonly int LooseMaxWidth = 11264;
+
+		[Desc("Max total formation depth (WDist) for Loose mode.")]
+		public readonly int LooseMaxDepth = 6144;
+
+		[Desc("Max total formation width (WDist) for Spread mode.")]
+		public readonly int SpreadMaxWidth = 13312;
+
+		[Desc("Max total formation depth (WDist) for Spread mode.")]
+		public readonly int SpreadMaxDepth = 7168;
+
+		[Desc("Floor (WDist) the count-aware footprint cap will not shrink per-slot spacing below,",
+			"so slots stay on distinct cells and never overlap. 1024 = one cell.")]
+		public readonly int MinSlotSpacing = 1024;
+
 		[Desc("Sample radius in cells used by the intent classifier to read density distribution",
 			"around the click. A 4-cell radius means a 9x9 sample window.")]
 		public readonly int IntentSampleRadius = 4;
@@ -142,6 +171,25 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		void GetMaxExtent(CohesionMode mode, out int maxWidth, out int maxDepth)
+		{
+			switch (mode)
+			{
+				case CohesionMode.Tight:
+					maxWidth = info.TightMaxWidth;
+					maxDepth = info.TightMaxDepth;
+					return;
+				case CohesionMode.Spread:
+					maxWidth = info.SpreadMaxWidth;
+					maxDepth = info.SpreadMaxDepth;
+					return;
+				default:
+					maxWidth = info.LooseMaxWidth;
+					maxDepth = info.LooseMaxDepth;
+					return;
+			}
+		}
+
 		static int SafeDensity(Map map, CPos cell)
 		{
 			if (map.DensityLayer == null || !map.DensityLayer.IsValidCoordinate(cell.X, cell.Y))
@@ -228,7 +276,7 @@ namespace OpenRA.Mods.Common.Traits
 		// centroid→target axis. This is the v0 behavior, preserved for clicks where no cover
 		// signal warrants a smarter strategy.
 		CPos[] ComputeBoxSlots(Map map, CPos clickCell, WPos targetPos, Actor[] sortedActors,
-			int colSpacing, int rowSpacing)
+			int colSpacing, int rowSpacing, int maxWidth, int maxDepth)
 		{
 			var n = sortedActors.Length;
 
@@ -268,6 +316,18 @@ namespace OpenRA.Mods.Common.Traits
 			var cols = (int)Math.Ceiling(Math.Sqrt(n * 2.0));
 			cols = Math.Min(cols, n);
 			cols = Math.Max(cols, 2);
+
+			var rows = (n + cols - 1) / cols;
+
+			// Count-aware footprint cap: shrink per-slot spacing so the box's total width/depth stay
+			// under the per-mode maximum, no matter how many units. The raw offsets below grow
+			// linearly with cols/rows (bounded only by map.Clamp), so a large Spread group would
+			// otherwise fan across the whole map. Because both the base spacing and these caps are
+			// monotonic across modes, effective spacing stays Tight < Loose < Spread for every n.
+			if (cols > 1 && (long)(cols - 1) * colSpacing > maxWidth)
+				colSpacing = Math.Max(info.MinSlotSpacing, maxWidth / (cols - 1));
+			if (rows > 1 && (long)(rows - 1) * rowSpacing > maxDepth)
+				rowSpacing = Math.Max(info.MinSlotSpacing, maxDepth / (rows - 1));
 
 			var slots = new CPos[n];
 			for (var i = 0; i < n; i++)
@@ -625,6 +685,7 @@ namespace OpenRA.Mods.Common.Traits
 			var autoTarget = subject.TraitOrDefault<AutoTarget>();
 			var mode = autoTarget?.CohesionValue ?? CohesionMode.Loose;
 			GetSpacing(mode, out var colSpacing, out var rowSpacing);
+			GetMaxExtent(mode, out var maxWidth, out var maxDepth);
 
 			var intent = ClassifyIntent(map, clickCell, out var gradX, out var gradY);
 			var subjectMobile = subject.TraitOrDefault<Mobile>();
@@ -672,26 +733,8 @@ namespace OpenRA.Mods.Common.Traits
 
 				case Intent.Open:
 				default:
-					slots = ComputeBoxSlots(map, clickCell, targetPos, validActors, colSpacing, rowSpacing);
+					slots = ComputeBoxSlots(map, clickCell, targetPos, validActors, colSpacing, rowSpacing, maxWidth, maxDepth);
 					break;
-			}
-
-			// Temporary diagnostic: log resolved intent on the first per-actor call (idx 0) so the
-			// debug.log gets one line per grouped click instead of N. Restored 260513 to chase a
-			// gameplay feel issue on river-zeta — clicks reportedly look like the legacy box rather
-			// than cover-aware. Strip again once we have an answer.
-			if (idx == 0)
-			{
-				var totalDensityProbe = 0;
-				for (var dy = -info.IntentSampleRadius; dy <= info.IntentSampleRadius; dy++)
-					for (var dx = -info.IntentSampleRadius; dx <= info.IntentSampleRadius; dx++)
-						totalDensityProbe += SafeDensity(map, new CPos(clickCell.X + dx, clickCell.Y + dy));
-
-				var slotsStr = "";
-				for (var i = 0; i < Math.Min(slots.Length, 8); i++)
-					slotsStr += " " + slots[i];
-
-				Log.Write("debug", $"[Cohesion] click={clickCell} intent={intent} n={n} totalDensity={totalDensityProbe} grad=({gradX},{gradY}) groupCentroid={groupCentroid} slots:{slotsStr}");
 			}
 
 			if (idx >= slots.Length)
