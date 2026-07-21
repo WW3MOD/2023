@@ -225,8 +225,13 @@ namespace OpenRA.Mods.Common.Traits
 			// leash — mid-move, before the unit next idles. CohesionSlotMemory is declared before this
 			// trait, so on the unit's next idle its return-to-slot fires FIRST and would drag the unit
 			// back to the executor-assigned cover slot; clearing the slot here (during the move) beats
-			// it. The idle-time guard in TickIdle is a backstop; this is what holds against the slot
-			// drag. Skipped while Adjusting (our own leashed move keeps the unit inside the leash).
+			// it. The idle-time guard in TickIdle is a backstop. Skipped while Adjusting (our own
+			// leashed move keeps the unit inside the leash).
+			// KNOWN GAP (merge review, e2208d42): a player redirect issued WHILE Adjusting is not
+			// caught here — CohesionSlotMemory can drag the unit back to the old slot ONCE before the
+			// slot goes stale / the next redirect is handled. Bounded and self-healing; filed in
+			// WORKSPACE/bugs/discovered.md. A fix needs an Adjusting-aware leash margin to avoid
+			// false-aborting the executor's own pathing excursions.
 			if (IsTraitDisabled || State == AdjustmentState.Adjusting)
 				return;
 
