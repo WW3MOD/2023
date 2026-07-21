@@ -3,6 +3,23 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-22 — Auto-spread is ALWAYS-ON (not stance-gated) and has an unbounded footprint with no regroup (stance/tactical survey)
+
+Found doing the read-only stance/tactical-layer inventory (`WORKSPACE/plans/260722_stance_tactical_survey.md`), tracing the user's "units spread out way too much" report.
+- **`CohesionMoveModifier` fires on EVERY grouped `Move`/`AttackMove` with n>1, regardless of CohesionMode** (`CohesionMoveModifier.cs:588-590,600-601`). CohesionMode (Tight/Loose/Spread) only selects **spacing**, never whether the reshaping runs (`:626-627`). So "auto-spread" is live for humans AND bots on every group move, not just when Spread is selected. This is separate from the `@experimental`-only `CohesionSwitchEnabled` AI doctrine (which was benchmark-negative, ~−$1,500) — the MOVE-reshaping is unconditional and shipped to everyone.
+- **Over-spread root cause = unbounded box.** In the `Open` intent (typical open-terrain/AI case), `ComputeBoxSlots` offsets scale linearly with spacing and unit count: `perpOffset = (2*col-(unitsInRow-1))*colSpacing/2` (`:279`), `depthOffset = -row*rowSpacing` (`:283`). The **only** bound is `map.Clamp` (`:294`) — no maximum-footprint clamp. Spread spacing is 3072/2560 WDist (3 / 2.5 cells) vs Tight 1024/1024 (`:29-44`), so a Spread box is ~3× Tight and grows with N.
+- **No regroup / mass-to-assault for human units.** The modifier has no exit-spread path. The only mass-to-assault (`ApproachCohesion=Spread`→`AssaultCohesion=Tight` inside `AssaultRadiusCells=15`) lives in `PoiOffensiveBotModule.cs:99-106` and is gated behind default-false `CohesionSwitchEnabled` (`:87,94`), `@experimental` only. `CohesionSlotMemory` only leashes nudged units *back* to their spread slot — reinforces spread. Human units never auto-regroup.
+- **A stale `[Cohesion]` debug log is still active** (`CohesionMoveModifier.cs:679-695`, "Strip again once we have an answer") and the `ResupplyBehavior` Desc strings say "Hold, Seek and Rotate" while the enum is Hold/Auto/Evacuate (`AutoTarget.cs:125,129` vs `:26`).
+
+## 2026-07-22 — Cover cells and last-seen-enemy memory both exist but are NOT joined; both AI influence grids are omniscient (stance/tactical survey)
+
+Substrate inventory for a future tactical-positioning layer (same survey doc).
+- **`Map.DensityLayer` (`Map.cs:252`) makes cover cells queryable today.** `CohesionMoveModifier.CoverScore()` (`:156`) already reads it to find passable cells adjacent to dense actors (trees carry `Density:`, `decoration.yaml:104+`). LOS cover is real: `ShadowLayer` (`Map.cs:253`), `BlocksSight.cs`, weapon `MissChancePerDensity`. **MISSING:** any prone/stance-in-cover damage/detection modifier.
+- **`FrozenActorLayer` (`OpenRA.Game/Traits/Player/FrozenActorLayer.cs`) is the ONLY per-player, fog-correct last-seen store** — frozen `CenterPosition` per viewer, updated on shroud change (`:37-38,107,165,276`). But nothing derives an enemy **direction/density field** from it. "Position relative to known enemy direction" has raw data but **no derivation → MISSING.**
+- **Both AI spatial grids are OMNISCIENT.** `InfluenceMap.Recompute` iterates `world.Actors` with no fog check (`InfluenceMap.cs:92`; per-owner, CellSize 2, 25-tick cadence); `ThreatMapManager` likewise (`:89`). A non-cheating tactical layer needs a NEW per-player fog-derived layer built on FrozenActorLayer, modelled on `MapLayers` (synced, per-player) for determinism. Perf precedent: `CellLayer<T>` + staggered N-tick recompute is standard.
+- **Determinism trap:** bot decisions run off `LocalRandom`, which is **NOT in the sync hash** (`World.cs:543` hashes only `SharedRandom.Last`) — deterministic only by identical per-client execution, no desync tripwire. Never read `RenderPlayer`/`LocalPlayer` in sim; order HashSet/Dictionary iteration by ActorID before it gates a decision.
+- **Arbitration:** idle-gate (`IsIdle`) protects a player's active order, but bot squad orders re-fire `queued:false` every ~75 ticks (`SquadManagerBotModule` `AttackForceInterval`), so a shared-unit tactical layer must also register in a commitment ledger (`PoiGoalGuard.Ledger`, `MountedTransport.IsPassengerReserved`, `BotBlackboard.ClaimUnit`).
+
 ## 2026-07-21 — Mounted transports never dismount: the bot issues the ACTIVITY name as an order string ("UnloadCargo" ≠ "Unload") — and the autotest only proved carriage+arrival, never the unload (live-crash match triage)
 
 Found triaging a live Exp-vs-Exp match (carrier drives a TECN to the derrick and sits there loaded forever; non-TECN frontline infantry also never dismounts).
