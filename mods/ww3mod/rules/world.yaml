@@ -337,6 +337,14 @@ World:
 	# NOTHING consumes it yet (Phase-4 consumers gate behind their own UseUnitRoles flag).
 	# Design: WORKSPACE/plans/260722_unit_role_resolver_DESIGN.md.
 	UnitRoleResolver:
+	# --- Influence stack, Stage A ---
+	# Design: WORKSPACE/plans/260722_influence_stack_design.md (§2A).
+	# Per-player believed-enemy-contact memory: sight → persist-with-decay → verified-clear.
+	# Built from own vision + FrozenActorLayer (same fog-legal substrate as SightingThreatLayer),
+	# generalising frozen structures to mobile units. Pure data: NOTHING consumes it for
+	# behaviour. Registering it is behaviour-inert for every profile (@stable + control bots
+	# never read it) — only Stage-B danger fields and the later human overlay ever will.
+	BeliefStore:
 	ChatCommands:
 	DevCommands:
 	DebugVisualizationCommands:
