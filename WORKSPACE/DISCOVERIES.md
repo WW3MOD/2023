@@ -3,6 +3,15 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-22 — Ambush-tactics research: suppression silences the AT gunner mid-ambush; prone ≠ concealment; humans DO get the influence stack
+
+While designing widened Ambush behavior (`WORKSPACE/plans/260722_ambush_undetected_design.md`), three non-obvious interactions surfaced that any ambush/AT-tuning work must respect:
+
+- **Suppression silences the exact unit you'd use for a "let it pass, shoot the rear" ambush.** Suppression is otherwise NOT a fire-halt in this fork — normal rifles keep firing suppressed (only degraded). But three armaments carry `PauseOnCondition: suppressed >= 10`: the **AT Specialist ATGM** (`infantry.yaml:1652`), a repair arm (`:1865`), and an SF/demolition arm (`:2136`). So a "late spring" AT ambush that lets the target's escort return fire will get the AT gunner suppressed and **stop launching** before it exploits the rear arc. First-strike-from-concealment (pre-aimed alpha volley) avoids this; the late spring invites it.
+- **Prone gives NO detection reduction.** `ProneCondition` (`infantry.yaml:252`) → damage modifier + smaller visual + `ProneSpeedModifier`, but there is no prone/stance detection modifier anywhere (confirmed absent; only weapon `MissChancePerDensity` exists). Visibility is purely "does the actor occupy a cell the enemy's `MapLayers` reveals" (`Detectable.IsVisibleInner`, `Detectable.cs:93-116`). The real "stay hidden" lever is **halting before you enter enemy vision**, not posture.
+- **`InfluenceStack.Participates` includes human combatants** (`InfluenceStack.cs:38-48`: `player.IsBot ? BotType=="experimental" : player.Playable`). So `BeliefStore`/`DangerFieldLayer`/`ControlField` ARE computed for a human player — a human-facing behavior can read them. The narrowing is: among *bots*, only `@experimental`; and nothing keys on `RenderPlayer` (data is per-`Player`). But note `DangerFieldLayer` is threat-weighted → **value-blind**: it cannot see an undefended supply-truck convoy, so it's a poor sole trigger for a reinforcement-lane ambush.
+- **Directional/rear armor is real and free.** `DamageWarhead.ArmorDirectionPercent` (`DamageWarhead.cs:121-198`) modifies effective armor by shot-vs-facing angle from a 5-elem `Distribution` (front,side,rear,top,bottom); heavy tank `100,50,25,10,10` = ~4× rear damage. Computed inside the normal damage pipeline, so rear shots need no special code — the bonus is automatic when geometry puts the shooter behind the target.
+
 ## 2026-07-22 — Asserting the derived-role table against the REAL ruleset: an `ILintRulesPass`, not NUnit; plus the latent `^CargoPips` predicate divergence
 
 Hardening the Phase-4 role model (`UnitRoleResolver`). Three reusable findings:
