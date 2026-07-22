@@ -78,6 +78,35 @@ namespace OpenRA.Test
 
 			// Aircraft split via AIHelicopterRole (Scout -> Recon, armed).
 			("littlebird",    Facts(aircraft: true, armed: true, heliRole: true, heli: HelicopterAIRole.Scout), UnitRole.Recon),
+
+			// --- Phase-4 consumer coverage: the LayeredDefence / PoiOffensive / PoiGarrison roster ---
+			// Line + screen infantry (base Mobile.Speed 25, direct-fire, no MinRange) -> MainBattle.
+			// These MUST stay MainBattle so the migrated line/offense filters keep them eligible;
+			// only artillery/SHORAD/MANPADS drop out (the ai.yaml:349 defect cure), never the infantry.
+			("e3",            Facts(mobile: true, speed: 25, armed: true, targetsEnemy: true, maxRangeCells: 8), UnitRole.MainBattle),
+			("ar",            Facts(mobile: true, speed: 25, armed: true, targetsEnemy: true, maxRangeCells: 8), UnitRole.MainBattle),
+			// AT specialist: ATGM is Range 20c0 / MinRange 3c0 — MinRange below the 4c0 IndirectFire
+			// floor and range below 35c0, so it is a line combatant, NOT indirect fire.
+			("at",            Facts(mobile: true, speed: 25, armed: true, targetsEnemy: true, maxRangeCells: 20, maxMinRangeUnits: 3 * 1024), UnitRole.MainBattle),
+			// Sniper: 7.62mm.Sniper Range 20c0 at infantry speed 25 (< Recon floor 110) -> MainBattle.
+			("sn",            Facts(mobile: true, speed: 25, armed: true, targetsEnemy: true, maxRangeCells: 20), UnitRole.MainBattle),
+			// Team leader: DMR 15c0 + GrenadeLauncher 12c0/MinRange 1c512 (below floor) -> MainBattle.
+			("tl",            Facts(mobile: true, speed: 25, armed: true, targetsEnemy: true, maxRangeCells: 15, maxMinRangeUnits: 1536), UnitRole.MainBattle),
+			// Grenadier: GrenadeLauncher 12c0 / MinRange 1c512 -> MainBattle (design §8 worked example).
+			("e2",            Facts(mobile: true, speed: 25, armed: true, targetsEnemy: true, maxRangeCells: 12, maxMinRangeUnits: 1536), UnitRole.MainBattle),
+			// Flamethrower: Flamespray 6c0, short-range direct fire -> MainBattle.
+			("e4",            Facts(mobile: true, speed: 25, armed: true, targetsEnemy: true, maxRangeCells: 6), UnitRole.MainBattle),
+
+			// Paladin: tube artillery, ^ArtilleryRound 40c0 / MinRange 10c0 -> IndirectFire.
+			("paladin",       Facts(mobile: true, speed: 80, armed: true, targetsEnemy: true, maxRangeCells: 40, maxMinRangeUnits: 10 * 1024), UnitRole.IndirectFire),
+
+			// Russian IFV — like bradley, pinned MainBattle by AIUnitRole override (would derive
+			// TransportLift from its Cargo). Consumers additionally exclude it by CargoInfo trait so
+			// MountedTransportBotModule keeps ferrying it (see the module comments / DISCOVERIES).
+			("bmp2",          Facts(mobile: true, speed: 100, armed: true, targetsEnemy: true, maxRangeCells: 16, cargo: true, hasOverride: true, overrideRole: UnitRole.MainBattle), UnitRole.MainBattle),
+
+			// Supply Route (indestructible beachhead): a building — not mobile, not armed -> None.
+			("supplyroute",   Facts(), UnitRole.None),
 		};
 
 		[Test]

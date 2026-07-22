@@ -88,6 +88,13 @@ namespace OpenRA.Mods.Common.Traits
 			"excluded automatically by trait. Mirror PoiOffensiveBotModule's ExcludeUnitTypes.")]
 		public readonly HashSet<string> ExcludeUnitTypes = new HashSet<string>();
 
+		[Desc("EXPERIMENTAL: derive free-pool eligibility from UnitRoleResolver (role is MainBattle or",
+			"IndirectFire) instead of the ExcludeUnitTypes name list. Same filter as",
+			"PoiOffensiveBotModule — SHORAD/MANPADS/capturers/logistics/scouts drop out by class; cargo",
+			"carriers stay owned by MountedTransportBotModule. Default false = frozen list behaviour, so",
+			"the @stable twin stays byte-identical.")]
+		public readonly bool UseUnitRoles = false;
+
 		public override object Create(ActorInitializer init) { return new PoiGarrisonBotModule(init.Self, this); }
 	}
 
@@ -115,6 +122,8 @@ namespace OpenRA.Mods.Common.Traits
 		bool poiMapResolved;
 		PoiGoalGuard goalGuard;
 		bool goalGuardResolved;
+		UnitRoleResolver resolver;
+		bool resolverResolved;
 
 		readonly List<Garrison> garrisons = new();
 		int reevalCountdown;
@@ -159,6 +168,12 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				goalGuard = player.PlayerActor.TraitOrDefault<PoiGoalGuard>();
 				goalGuardResolved = true;
+			}
+
+			if (!resolverResolved)
+			{
+				resolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
+				resolverResolved = true;
 			}
 
 			var tick = world.WorldTick;
@@ -314,6 +329,17 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 			if (a.Info.HasTraitInfo<AircraftInfo>())
 				return false;
+
+			// Role-model eligibility: MainBattle line units plus IndirectFire artillery (design §6).
+			// SHORAD/MANPADS/capturers/logistics/scouts drop out by class; cargo carriers stay owned by
+			// MountedTransportBotModule (excluded by trait). See WORKSPACE/DISCOVERIES.md (2026-07-22).
+			if (Info.UseUnitRoles && resolver != null)
+			{
+				var role = resolver.GetRole(a);
+				return (role == UnitRole.MainBattle || role == UnitRole.IndirectFire)
+					&& !a.Info.HasTraitInfo<CargoInfo>();
+			}
+
 			return !Info.ExcludeUnitTypes.Contains(a.Info.Name);
 		}
 

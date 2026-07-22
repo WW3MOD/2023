@@ -114,6 +114,14 @@ namespace OpenRA.Mods.Common.Traits
 			"CohesionSwitchEnabled default-off pattern so the Stable/Normal controls are untouched.")]
 		public readonly int SrPressureScoreMultiplier = 100;
 
+		[Desc("EXPERIMENTAL: derive free-pool eligibility from UnitRoleResolver (role is MainBattle or",
+			"IndirectFire) instead of the ExcludeUnitTypes name list. Drops SHORAD/MANPADS (ShortRangeAD),",
+			"capturers, logistics and scouts off offensive axes by class — the ai.yaml:349 defect cure —",
+			"while artillery (IndirectFire) stays eligible until a dedicated fires executor exists. Cargo",
+			"carriers (bradley/bmp2/m113) are still excluded so MountedTransportBotModule keeps them. Default",
+			"false = frozen list behaviour, so the @stable twin stays byte-identical.")]
+		public readonly bool UseUnitRoles = false;
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 
@@ -141,6 +149,8 @@ namespace OpenRA.Mods.Common.Traits
 		bool poiMapResolved;
 		PoiGoalGuard goalGuard;
 		bool goalGuardResolved;
+		UnitRoleResolver resolver;
+		bool resolverResolved;
 
 		readonly List<Axis> axes = new();
 
@@ -191,6 +201,12 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				goalGuard = player.PlayerActor.TraitOrDefault<PoiGoalGuard>();
 				goalGuardResolved = true;
+			}
+
+			if (!resolverResolved)
+			{
+				resolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
+				resolverResolved = true;
 			}
 
 			var tick = world.WorldTick;
@@ -421,6 +437,18 @@ namespace OpenRA.Mods.Common.Traits
 			// the frozen controls are untouched — only @experimental sets SkipOutOfAmmoUnits.
 			if (Info.SkipOutOfAmmoUnits && IsOutOfAmmo(a))
 				return false;
+
+			// Role-model eligibility: MainBattle line units plus IndirectFire artillery (kept until a
+			// dedicated fires executor exists, else artillery orphans — design §6). SHORAD/MANPADS,
+			// capturers, logistics and scouts drop out by class. Cargo carriers (bradley/bmp2/m113) stay
+			// owned by MountedTransportBotModule even though the IFVs classify MainBattle by override, so
+			// this partial migration excludes any cargo-carrier by trait. See WORKSPACE/DISCOVERIES.md.
+			if (Info.UseUnitRoles && resolver != null)
+			{
+				var role = resolver.GetRole(a);
+				return (role == UnitRole.MainBattle || role == UnitRole.IndirectFire)
+					&& !a.Info.HasTraitInfo<CargoInfo>();
+			}
 
 			return !Info.ExcludeUnitTypes.Contains(a.Info.Name);
 		}

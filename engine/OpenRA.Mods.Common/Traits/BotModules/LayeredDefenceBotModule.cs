@@ -110,6 +110,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Search radius (map cells) around an assigned slot for cover. 0 disables cover snap.")]
 		public readonly int CoverSearchRadiusCells = 6;
 
+		[Desc("EXPERIMENTAL: derive line eligibility from UnitRoleResolver (only role==MainBattle holds",
+			"either layer) instead of the ScreenUnitTypes/MainLineUnitTypes/ExcludedActorTypes name lists.",
+			"Cures the ai.yaml:349 artillery/SHORAD/MANPADS-on-the-line defect — those roles drop out by",
+			"class. Cargo carriers (bradley/bmp2/m113) are still excluded so MountedTransportBotModule keeps",
+			"them (the IFVs classify MainBattle by override, but this partial migration leaves the transport",
+			"module on its name list). The screen/main-line partition still reads ScreenUnitTypes. Default",
+			"false = frozen list behaviour, so @stable/legacy twins stay byte-identical.")]
+		public readonly bool UseUnitRoles = false;
+
 		public override object Create(ActorInitializer init) { return new LayeredDefenceBotModule(init.Self, this); }
 	}
 
@@ -124,6 +133,7 @@ namespace OpenRA.Mods.Common.Traits
 		int scanCountdown;
 
 		InfluenceMap influenceMap;
+		UnitRoleResolver resolver;
 
 		public LayeredDefenceBotModule(Actor self, LayeredDefenceBotModuleInfo info)
 			: base(info)
@@ -136,6 +146,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			scanCountdown = world.LocalRandom.Next(0, Info.ScanInterval);
 			influenceMap = world.WorldActor.TraitOrDefault<InfluenceMap>();
+			resolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
 
 			TextNotificationsManager.AddSystemLine(
 				$"[exp-layered-defence] enabled for {player.PlayerName} ({player.Faction.Name})");
@@ -171,9 +182,7 @@ namespace OpenRA.Mods.Common.Traits
 			var contested = CollectContestedCells(influenceMap.GetFrontline(player)).Count;
 
 			var pool = world.Actors.Where(a =>
-				a.Owner == player && !a.IsDead && a.IsInWorld
-				&& (Info.ScreenUnitTypes.Contains(a.Info.Name.ToLowerInvariant())
-					|| Info.MainLineUnitTypes.Contains(a.Info.Name.ToLowerInvariant())))
+				a.Owner == player && !a.IsDead && a.IsInWorld && IsCombatPoolMember(a))
 				.ToList();
 
 			if (pool.Count == 0)
@@ -258,14 +267,29 @@ namespace OpenRA.Mods.Common.Traits
 
 				var name = actor.Info.Name.ToLowerInvariant();
 
-				// Hard exclusion (owned by other modules: capture/repair/supply/scout).
-				if (Info.ExcludedActorTypes.Contains(name))
-					continue;
+				bool isScreen;
+				if (Info.UseUnitRoles && resolver != null)
+				{
+					// Role-model eligibility: only MainBattle ground combatants hold the line.
+					// Artillery/SHORAD/MANPADS/scouts/capturers/logistics/carriers drop out by class.
+					if (!IsLineEligibleByRole(actor))
+						continue;
 
-				var isScreen = Info.ScreenUnitTypes.Contains(name);
-				var isMainLine = Info.MainLineUnitTypes.Contains(name);
-				if (!isScreen && !isMainLine)
-					continue;
+					// Screen/main-line partition stays list-based (design §2.1): screen-listed
+					// MainBattle units screen, every other MainBattle unit forms the main line.
+					isScreen = Info.ScreenUnitTypes.Contains(name);
+				}
+				else
+				{
+					// Hard exclusion (owned by other modules: capture/repair/supply/scout).
+					if (Info.ExcludedActorTypes.Contains(name))
+						continue;
+
+					isScreen = Info.ScreenUnitTypes.Contains(name);
+					var isMainLine = Info.MainLineUnitTypes.Contains(name);
+					if (!isScreen && !isMainLine)
+						continue;
+				}
 
 				if (assignedAtTick.TryGetValue(actor, out var lastTick) && lastTick > cooldownExpiresBefore)
 					continue;
@@ -401,6 +425,28 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return best;
+		}
+
+		// Role-model line eligibility (UseUnitRoles): a MainBattle ground combatant that is NOT a
+		// passenger carrier. Cargo carriers (bradley/bmp2/m113) are owned by MountedTransportBotModule;
+		// the IFVs classify MainBattle by AIUnitRole override, so this partial migration excludes any
+		// cargo-carrier by trait to keep the ferry hand-off intact until MountedTransport is itself
+		// migrated. See WORKSPACE/DISCOVERIES.md (2026-07-22) and the PITFALL at line 86.
+		bool IsLineEligibleByRole(Actor a)
+		{
+			return resolver.GetRole(a) == UnitRole.MainBattle
+				&& !a.Info.HasTraitInfo<CargoInfo>();
+		}
+
+		// The "combat ground pool" for the dispersion diagnostic: role-based when UseUnitRoles is on,
+		// otherwise the ScreenUnitTypes/MainLineUnitTypes lists (log-only, no sim effect either way).
+		bool IsCombatPoolMember(Actor a)
+		{
+			if (Info.UseUnitRoles && resolver != null)
+				return IsLineEligibleByRole(a);
+
+			var name = a.Info.Name.ToLowerInvariant();
+			return Info.ScreenUnitTypes.Contains(name) || Info.MainLineUnitTypes.Contains(name);
 		}
 
 		List<CPos> CollectContestedCells(bool[,] frontline)
