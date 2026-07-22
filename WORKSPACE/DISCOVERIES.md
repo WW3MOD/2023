@@ -36,6 +36,41 @@ It does not — the engine already stands off correctly:
   `test-heli-standoff` characterizes the underlying contract the fix rides on (a Hover heli AttackMoved
   *past* a tank engages from standoff and never crosses the tank's line), not the FSM path itself.
 
+## 2026-07-22 — Influence stack Stages A/B: per-player fog substrate facts
+
+Building the belief store + danger fields (`260722_influence_stack_design.md` §2A/§2B,
+branch `stack-spine-ab`). Non-obvious substrate facts worth keeping:
+
+- **The engine's `Shroud` is named `MapLayers` in this fork.** Per-player cell
+  visibility is `player.MapLayers.IsVisible(cell, 1)` — the `1` is the visibility
+  threshold meaning "currently unfogged" (`World.cs:110` `FogObscures` uses exactly
+  `!RenderPlayer.MapLayers.IsVisible(p, 1)`; `MapLayers.cs:556/571`). `SightingThreatLayer`
+  already gates on `player.MapLayers == null`. There is no `Shroud.cs` under Traits —
+  `grep class Shroud` finds only `ShroudRenderer`. This is the verified-clear predicate
+  for the belief store.
+- **The anti-air DANGER discriminator is the OPPOSITE of the AD-role discriminator.**
+  UnitRoleResolver's ShortRangeAD keys on the literal `"Air"` target type (dedicated SAMs
+  only). But the danger stack's anti-air channel must key on **"can hit Helicopter"**
+  (`ValidTargets.Contains("Helicopter") || Contains("Air")`) — because a ground MG that
+  lists `Helicopter` genuinely threatens our helicopters even though it is not a SAM.
+  "Danger = what can shoot me down" ≠ "AD role = what is a SAM". Same YAML fact
+  (`Air` ≠ `Helicopter`, conventions.md), opposite query. Both live in the codebase now:
+  `DangerKernelMath.WeaponThreatensAir` vs `UnitRoleResolver` `hasAirWeapon`.
+- **FrozenActorLayer already splits static vs mobile persistence for free.** The engine
+  keeps a frozen ghost for a structure under fog but (in practice) not for a roaming unit.
+  The belief store leans on this: it refreshes STATIC contacts from
+  `FrozenActorsInRegion(onlyVisible:true)` (no decay while the ghost shows) but deliberately
+  ignores mobile ghosts, so mobile belief decays from its last live sighting per §2A. Clean
+  per-class behaviour without a separate mobile-ghost tracker. (`FrozenActorLayer.cs:366`
+  `FrozenActorsInRegion`; contact cell via `Map.CellContaining(fa.CenterPosition)` — a
+  FrozenActor has `CenterPosition`/`ID`/`Info`/`Owner`/`Visible`, no `.Location`.)
+- **`ArmamentInfo.WeaponInfo` is resolved by `WorldLoaded`** (populated at RulesetLoaded),
+  so per-type kernel facts (range/throughput) can be cached once in `IWorldLoaded.WorldLoaded`
+  exactly like UnitRoleResolver — `weapon.Range.Length` (WDist units), `weapon.Warheads`
+  (`DamageWarhead.Damage` for absolute throughput), `weapon.Burst`, `weapon.ReloadDelay`.
+  `BitSet<TargetableType>` is `IEnumerable<string>` (`BitSet.cs:78`), so "any non-air target"
+  is a clean `foreach`, no hard-coded ground-type list needed.
+
 ## 2026-07-22 — Unit-role resolver: two YAML facts that make/break the taxonomy, + audit errata
 
 > **[promoted (partial): → conventions.md §Weapon `ValidTargets`: `Air` ≠ `Helicopter` (the AD-discriminator fact) + §Faction-specific files (three-tier `^Template`/bare-concrete/`X.america` naming, override the template to hit all variants)]** (curation 2026-07-22). Weapon claims verified: `^7.62mm`:144, `^12.7mm`:215, `30mm.Tunguska.AA`:455, MANPAD:339/Stinger:372/`9M311 Inherits: Stinger`:411-412, tunguska `Weapon: 9M311`:860. **Citation drift fixed:** the ballistics/missile line numbers had all shifted ~2-3 lines; and the concrete actors are **uppercase** (`E6`/`MT`/`AA`) with faction variants (`AR.america`) in `infantry-america.yaml`, NOT lowercase in `infantry.yaml` as the entry stated. **Rejected bullets:** the raw `^ArtilleryRound` 40c0/10c0 vs `^TankRound` 24c0/1c512 range *values* (volatile balance data + role-resolver-threshold-scoped, though verified at :609-614/:574-578); and the `msta`/`avenger` audit erratum (plan-doc-scoped).
