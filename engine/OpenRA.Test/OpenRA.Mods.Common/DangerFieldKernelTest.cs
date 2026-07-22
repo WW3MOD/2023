@@ -149,6 +149,20 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void TerritoryBaselineFeedsGroundOnly()
+		{
+			// The Stage-C territory baseline is derived from believed enemy GROUND reach, so it must
+			// contribute to the ground channel ONLY — never the anti-air channel. An AA-free rear
+			// area must stay air-safe for the Stage-D helicopter consumer.
+			var (ground, air) = DangerKernelMath.BaselineChannels(37);
+			Assert.Multiple(() =>
+			{
+				Assert.That(ground, Is.EqualTo(37), "baseline feeds the ground channel");
+				Assert.That(air, Is.EqualTo(0), "baseline must NOT feed the air channel");
+			});
+		}
+
+		[Test]
 		public void RadiusIsBufferedAndCapped()
 		{
 			// Buffer: reach = range + RangeBufferCells.

@@ -160,9 +160,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IWorldLoaded.WorldLoaded(World w, OpenRA.Graphics.WorldRenderer wr)
 		{
-			// Stagger the first fire so this doesn't recompute on the same tick as the
-			// other world grids. SharedRandom is synced.
-			subCountdown = w.SharedRandom.Next(0, Info.UpdateInterval);
+			// DETERMINISTIC stagger — NOT a SharedRandom draw. This trait ticks unconditionally for
+			// EVERY profile, so drawing from the synced SharedRandom here advances the stream for
+			// @stable/control games too, silently breaking replay/benchmark byte-identity vs the
+			// pre-A/B baselines. A fixed per-grid offset (BeliefStore=0, DangerFieldLayer=Interval/3,
+			// ControlField=Interval/2+1) keeps the anti-collision stagger while touching zero RNG.
+			subCountdown = 0;
 		}
 
 		void ITick.Tick(Actor self)

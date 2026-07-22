@@ -275,11 +275,11 @@ namespace OpenRA.Mods.Common.Traits
 					siteAnchorTypes.Add(ai.Name);
 			}
 
-			// DETERMINISTIC stagger — NOT a SharedRandom draw. BeliefStore/DangerFieldLayer already
-			// existed at the Stage-B baseline (their synced draws are part of it); ControlField is a
-			// NET-NEW world trait, so drawing from the synced SharedRandom here would shift the RNG
-			// stream and break the @stable/controls byte-identity invariant. A fixed mid-interval
-			// offset staggers this grid away from the others without touching any synced RNG.
+			// DETERMINISTIC stagger — NOT a SharedRandom draw. These always-on grids tick for every
+			// profile, so any synced draw at load shifts the RNG stream for @stable/controls too and
+			// breaks replay/benchmark byte-identity (see WORKSPACE/DISCOVERIES.md 2026-07-22). The
+			// whole stack uses distinct fixed offsets instead — BeliefStore=0, DangerFieldLayer=
+			// Interval/3, ControlField=Interval/2+1 — keeping the anti-collision stagger, zero RNG.
 			subCountdown = Info.UpdateInterval / 2 + 1;
 		}
 

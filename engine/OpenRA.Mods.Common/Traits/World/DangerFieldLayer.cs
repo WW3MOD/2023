@@ -173,6 +173,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			return new DangerKernel(radius, intensity);
 		}
+
+		// Territory-baseline contribution is GROUND-ONLY. The envelope is derived from believed enemy
+		// GROUND weapon reach, so it must not paint the ANTI-AIR channel: an AA-free rear area must
+		// keep reading air-safe, or the Stage-D helicopter consumer (which leashes to the AA-safe
+		// envelope) would refuse safe ground. An air baseline, if ever wanted, must derive from
+		// believed ANTI-AIR envelopes instead — a Stage-D concern, not this ground projection.
+		public static (int Ground, int Air) BaselineChannels(int contribution) => (contribution, 0);
 	}
 
 	[TraitLocation(SystemActors.World)]
@@ -280,7 +287,9 @@ namespace OpenRA.Mods.Common.Traits
 				factsByType[ai.Name] = ExtractKernelFacts(ai, Info.ThroughputWindow);
 			}
 
-			subCountdown = w.SharedRandom.Next(0, Info.UpdateInterval);
+			// DETERMINISTIC stagger — NOT a SharedRandom draw (see BeliefStore for the byte-identity
+			// rationale). Distinct offset from the other two grids to keep them off the same tick.
+			subCountdown = Info.UpdateInterval / 3;
 		}
 
 		void ITick.Tick(Actor self)
@@ -439,9 +448,12 @@ namespace OpenRA.Mods.Common.Traits
 					if (contribution <= 0)
 						continue;
 
+					// GROUND-ONLY: the envelope is a ground-weapon reach, so it feeds only the ground
+					// channel (see DangerKernelMath.BaselineChannels for why the air channel is spared).
+					var (ground, air) = DangerKernelMath.BaselineChannels(contribution);
 					var data = field.Cells[cell];
-					data.Ground += contribution;
-					data.Air += contribution;
+					data.Ground += ground;
+					data.Air += air;
 					field.Cells[cell] = data;
 					field.MarkActive(cell);
 				}
