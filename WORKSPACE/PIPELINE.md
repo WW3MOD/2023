@@ -1,0 +1,90 @@
+# PIPELINE — living roadmap
+
+> **This is the living roadmap.** The queue below reads strictly top-to-bottom in execution order: the top item is the **next thing to start**, everything under it follows in order. The manager re-evaluates ordering every time an item is added or finishes. **You steer by reordering lines, commenting, or striking items** — say the word and the order changes.
+>
+> **Every item is framed by "How will this be perceived in the game?"** — what the player or a watching viewer actually sees change. Technical notes are secondary: one line, with doc/commit refs.
+>
+> Items in progress are marked **[IN FLIGHT]**. Finished work is cleared out of the queue into **SHIPPED** at the bottom (most recent first). Source-of-truth for scope stays `RELEASE_V1.md`; what's-in-motion stays `HOTBOARD.md`; this file is the ordered plan of attack.
+
+---
+
+## GATE (now) — user in-game test of the current build
+
+**Perceived:** you sit down and play the current build to confirm the last three shipped things feel right — attack helis holding at missile range instead of overflying into AA (Stage 0 standoff), the hold-Space **/danger** overlay reading sanely (green safe / red unsafe / gray unknown), and artillery + SHORAD sitting *behind* the line rather than driving up to trade shots (Phase-4a role tasking).
+**Everything below is gated on this.** If any of the three feels wrong, that fix jumps to the top of the queue before new work starts.
+_Refs: heli standoff 090ad9d0 · Stage C overlay 0833b376 · Phase-4a role tasking acc42ad7._
+
+---
+
+## QUEUE
+
+### 1. **[IN FLIGHT]** Ambush / undetected-unit behavior — DESIGN phase
+**Perceived:** soldiers set to an Ambush stance go prone, hold their fire and stay hidden until they're actually spotted — or until they deliberately spring an ambush at the best moment. Units start to *feel alive*: reacting to whether they're seen or unseen instead of blazing away the instant anything walks into range.
+_This item is the design doc only. A worker is writing `WORKSPACE/plans/260722_ambush_undetected_design.md` now; the buildable implementation slots in at item 4 after you review the design._
+
+### 2. Influence Stage D — helicopter danger consumer
+**Perceived:** attack helis stop flying into their own funerals. They route *around* known anti-air, hold a safe leash while attacking, and pull back the moment a new AA threat lights up on the air-danger layer. The "sacrificing helicopters straight into enemy territory, looks really dumb" defect goes away.
+_Consumes the air channel of the danger field. Design: `plans/260722_influence_stack_design.md` §3.1 + Stage D. Depends on shipped Stages 0/B._
+
+### 3. Influence Stage E — danger-weighted ground routing
+**Perceived:** ground units stop marching in a straight line through known kill zones. Attacks visibly flow *around* strongpoints and defended chokes; high-value movers (trucks, artillery repositioning) pull back from the front, travel laterally at a safer depth, then re-enter where they're needed.
+_Danger field as a pathfinding cost modifier — the rear-lateral-re-enter pattern emerges from cost, not script. Design §3.2, Stage E. Cheap once Stage B exists._
+
+### 4. Ambush behavior — IMPLEMENTATION
+**Perceived:** item 1's description, now playable — prone-and-hidden Ambush units that hold fire until spotted or until springing the trap. Human-settable stance first, **default off** so nothing changes for players who don't opt in.
+_Follows the staged plan inside the design doc, once you've reviewed it (gated on item 1)._
+
+### 5. Influence Stage F — strategic repoint + territorial balance-of-power revival
+**Perceived:** the bot's offense presses where the enemy is *weak* instead of grinding head-on into the strongest point. Front lines shift more intelligently as the bot reads believed control and danger rather than omniscient grids.
+_Revives the parked `exp-terr-bias` branch @ ccd12c98 (needs rebase; the per-POI factor was a near-pure damper — the control field is the substrate it actually needed). Completes the @experimental fog migration. Carries a **declared benchmark re-baseline** (instrument change). Design §3.3, Stage F — last, so everything under it is stable first._
+
+### 6. Phase-4b role-migration wave
+**Perceived:** air squads, capture ferries and call-in composition all start respecting unit *roles* — no more odd unit choices in those subsystems (e.g. the wrong unit sent to capture, or a strange mix called in).
+_SquadManager-air / CaptureCoordinator / AdaptiveProduction consume the `UnitRoleResolver` behind `UseUnitRoles`, extending the Phase-4a wave (acc42ad7, 81f52040)._
+
+### 7. Fires / artillery doctrine cycle (user-confirmed)
+**Perceived:** artillery holds standoff range and rains suppressive fire *during* an assault, instead of driving toward the enemy to get into gun range and dying. Assaults look like real combined-arms pushes with the guns kept safely behind.
+
+### 8. Early-game tuning — no idle trucks, proportionate AA, faster spread
+**Perceived:** the opening minutes look *purposeful*. No queue of idle supply trucks sitting at the Supply Route, no wall of AA overbuilt against nothing, and a quicker grab for map territory from the beachhead. The bot's first few minutes read as competent rather than fumbling.
+
+### 9. EXPAND benchmark maps — Polar Disorder + Woodland Warfare
+**Perceived:** nothing changes in a normal game directly. Behind the scenes the bots' skill is measured on more terrain types (snow, dense woodland), so tuning stops overfitting to the current handful of maps and generalizes better.
+_Benchmark instrument work — `WORKSPACE/ai-bench/`._
+
+### 10. AoE-aware cluster targeting in AutoTarget (shared human + bot)
+**Perceived:** artillery and other area weapons aim at the *clump* of enemies, not the nearest single target — so a barrage lands where it does the most damage. This is shared micro: **human-owned guns benefit too**, not just the bot.
+
+### 11. LocalRandom seeding / SharedRandom migration for bot decisions
+**Perceived:** nothing visible in-game. Same-seed test runs become reproducible, which makes benchmark comparisons trustworthy and removes a latent desync smell. Pure dev/debug quality-of-life.
+
+### 12. Cosmetic — fix visible black batch windows during hidden test runs
+**Perceived:** nothing in-game. During hidden test batches the desktop stays clean instead of flashing black windows (SDL minimize not holding on Windows — `WORKSPACE/bugs/discovered.md`, commit e6dc7580).
+
+### 13. (User-deferred) Supply Route capture wiring
+**Perceived:** a major new win lever — you can raid and flip the enemy's reinforcement beachhead. Enemy SR → forced neutral → capturable, so knocking out their Supply Route becomes a real strategic goal.
+_Deferred by you until the opening-economy AI (item 8) is solid — a bot that can't manage its own economy shouldn't be handed a new economic target._
+
+### 14. (Future) "Should I attack?" endgame decision layer
+**Perceived:** bots consciously shift gears — from securing income to committing to a decisive offensive (and later to SR denial) — instead of drifting into an aimless late game. You can watch the AI make the call to go for the kill.
+
+---
+
+## SHIPPED
+_Most recent first. Exact wording pulled from git log / HOTBOARD; this is the archive, the commit history is authoritative._
+
+- **Influence Stage C — control field + tri-state /danger overlay** — per-player believed-territory control field (Voronoi seed + capture/persistence/grayzone/anchors) and the green/red/gray danger overlay; zero-SharedRandom stack, ground-only baseline. (`0833b376`)
+- **Phase-4 role-model hardening** — unit-role model hardened with ruleset lint table, SF/DR coverage rows, aligned Cargo/carrier predicate + NUnit pins. (`81f52040` / `55326b3e`)
+- **Phase-4a role-based tasking** — bot modules consume `UnitRoleResolver` behind `UseUnitRoles` (@experimental only); artillery / SHORAD kept off the line, IFV carriers stay back. (`acc42ad7`)
+- **Influence Stages A + B — belief / danger substrate** — per-player belief store (contact memory + decay) and per-domain danger fields (ground + air), pure-data World traits. (`e1e16b95`)
+- **Influence Stage 0 — heli standoff** — attack helis use gated attack-move standoff engagement, stop-and-fire at missile range instead of overflying. (`090ad9d0`)
+- **Phase-3 human stance defaults + unit-role resolver** — human stance enablement, data-only role resolver, executor hardening (anchor lifecycle, arrival tolerance). (`7f1138e3`)
+- **Phase-2 stance positioning executor** — tactical positioning executor for stance-driven unit placement.
+- **Phase-1 threat layer + intel overlay** — sighting-based threat perception layer + hold-Space intel overlay substrate.
+- **Phase-0 cohesion over-spread fix + re-baseline** — grouped-unit over-dispersion cured, benchmark re-baselined.
+- **Sim-throughput 8× harness** — benchmark runs at 8× speed for faster AI iteration.
+- **Observer full vision** — observer/replay watches with full-map vision.
+- **Ladder regime change + re-baseline** — benchmark ladder regime updated and re-baselined.
+- **Live-play crash fixes** — Passenger NRE + transport unload crash.
+- **TECN ferry-to-capture** — technician ferried to capture target.
+- **Evac + heli tasking fixes** — crew evacuation + helicopter tasking corrections.

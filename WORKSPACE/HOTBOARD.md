@@ -1,6 +1,7 @@
 # Hotboard
 
 > What's actively in motion **right now**. The v1 release tracker (`RELEASE_V1.md`) is the source of truth for scope and status.
+> The ordered roadmap of what's next lives in [`PIPELINE.md`](PIPELINE.md) — the user steers by reordering it.
 > Cap ~15 lines. Rotate stale entries out — once shipped or `[T]`, the tracker tells the story.
 
 ## Working on

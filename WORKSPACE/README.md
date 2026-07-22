@@ -7,6 +7,7 @@ Living state for the project. Mutable. Frequently edited. The agent reads and up
 | File | Purpose |
 |---|---|
 | [`RELEASE_V1.md`](RELEASE_V1.md) | **Source of truth** for v1 scope. Every item with a status. Updated continuously. |
+| [`PIPELINE.md`](PIPELINE.md) | **Living roadmap** — ordered queue of what's next, framed by in-game perception. The user steers by reordering. |
 | [`HOTBOARD.md`](HOTBOARD.md) | What's actively in motion right now. Capped at ~40 lines; oldest items rotate out. |
 | [`BACKLOG.md`](BACKLOG.md) | Deferred ideas (`[ ]`/`[x]`/`[dropped]`). |
 | [`DISCOVERIES.md`](DISCOVERIES.md) | Dated gotchas and insights from past sessions. |
