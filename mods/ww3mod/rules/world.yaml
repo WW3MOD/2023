@@ -349,8 +349,9 @@ World:
 	# Design: WORKSPACE/plans/260722_influence_stack_design.md (§2B).
 	# Per-player anti-ground + anti-air danger fields, stamped from the belief store above.
 	# Kernels read from actual armament data (range → radius, damage×durability×confidence →
-	# intensity). Air channel keys off "can hit Helicopter". Baseline territory projection is
-	# a Stage-C seam (needs the control field). Pure data: NOTHING consumes it for behaviour,
+	# intensity). Air channel keys off "can hit an airborne target" (Helicopter or Air).
+	# Baseline territory projection is a Stage-C seam (needs the control field). Pure data:
+	# NOTHING consumes it for behaviour,
 	# so registering it is inert for @stable + control bots — only Stage-C consumers will read.
 	DangerFieldLayer:
 	ChatCommands:

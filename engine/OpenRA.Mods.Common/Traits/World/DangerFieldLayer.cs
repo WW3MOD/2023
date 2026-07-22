@@ -13,12 +13,13 @@
  * the width of the aura, lethality sets its density.
  *
  * AIR CHANNEL DISCRIMINATOR (design §2B PITFALL): WW3MOD separates the `Air` and
- * `Helicopter` target types. The anti-AIR DANGER channel keys off "can hit
- * Helicopter" for v1 — because a ground MG that lists `Helicopter` genuinely
+ * `Helicopter` target types. The anti-AIR DANGER channel keys off "can hit an
+ * airborne target" — `Helicopter` OR `Air` (an airborne heli is targetable as both
+ * via Targetable@Airborne) — because a ground MG that lists `Helicopter` genuinely
  * threatens our helicopters even though it is not an air-defence asset. (This is
- * the OPPOSITE test from UnitRoleResolver's ShortRangeAD, which keys on `Air` to
- * find dedicated SAM carriers. Danger = "what can shoot me down"; AD role = "what
- * is a SAM".) Fixed-wing gets its own third channel later if needed.
+ * broader than UnitRoleResolver's ShortRangeAD, which keys on `Air` alone to find
+ * dedicated SAM carriers. Danger = "what can shoot me down"; AD role = "what is a
+ * SAM".) Fixed-wing gets its own third channel later if needed.
  *
  * KERNELS ARE RADIAL v1. Terrain-aware flow (a river splitting the front) is a
  * declared v2 upgrade. Ranges/damage are read from ACTUAL armament data at map
@@ -114,12 +115,21 @@ namespace OpenRA.Mods.Common.Traits
 
 	public static class DangerKernelMath
 	{
-		// The two air-domain target types. A weapon that lists either can engage our
-		// helicopters/aircraft; everything else is a ground target.
+		// Air-domain target types. A weapon that lists any of these can engage airborne
+		// targets; a weapon that lists ANYTHING ELSE is a ground threat.
+		//   - Helicopter / Air: an airborne heli is targetable as both (Targetable@Airborne),
+		//     so a weapon that can shoot our helis lists Helicopter and/or Air.
+		//   - ICBM: the interceptor/anti-missile marker. Pure anti-air weapons carry
+		//     "Air, ICBM" (20mm_CRAM, AACannon, SurfaceToAirMissile, AirToAirMissile). It is an
+		//     air-domain type, NOT a ground target — excluding it stops every SAM/CRAM/interceptor
+		//     stamping a spurious anti-ground aura at full AA range.
 		public const string AirType = "Air";
 		public const string HelicopterType = "Helicopter";
+		public const string IcbmType = "ICBM";
 
-		// The anti-air DANGER channel: "can this weapon hit a helicopter?" — includes both
+		static readonly string[] AirDomainTypes = { AirType, HelicopterType, IcbmType };
+
+		// The anti-air DANGER channel: "can this weapon hit an airborne target?" — includes
 		// dedicated SAMs (Air) and ground autocannons/MGs that list Helicopter. Danger is
 		// about what can shoot our helis down, NOT about what is an air-defence asset.
 		public static bool WeaponThreatensAir(BitSet<TargetableType> validTargets)
@@ -127,11 +137,12 @@ namespace OpenRA.Mods.Common.Traits
 			return validTargets.Contains(HelicopterType) || validTargets.Contains(AirType);
 		}
 
-		// The anti-ground channel: any valid target that is not purely an air type.
+		// The anti-ground channel: any valid target that is not an air-domain type. A weapon
+		// whose ValidTargets are ALL air-domain (e.g. "Air, ICBM") threatens no ground.
 		public static bool WeaponThreatensGround(BitSet<TargetableType> validTargets)
 		{
 			foreach (var t in validTargets)
-				if (t != AirType && t != HelicopterType)
+				if (System.Array.IndexOf(AirDomainTypes, t) < 0)
 					return true;
 
 			return false;
@@ -285,9 +296,14 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Stage-C narrowing seam: today every combatant with a belief store is computed
-		// (cheap — nothing reads it). Stage C restricts this to @experimental bots + the
-		// overlay-viewing human once there are real consumers. Kept true so behaviour is
-		// identical for all profiles regardless (the fields are never read).
+		// (cheap — nothing reads it). Kept true so behaviour is identical for all profiles
+		// regardless (the fields are never read).
+		// TODO (Stage C): once there are real consumers, this pass is two things at once —
+		//   (1) NARROW the player set to @experimental bots + the overlay-viewing human, and
+		//   (2) STAGGER per-player recompute across ticks (§6 perf guardrail). Today Recompute()
+		//       rebuilds every player's field in a single tick; Stage C must spread those rebuilds
+		//       over the UpdateInterval (e.g. one player per sub-tick / round-robin) so the two
+		//       channels × per-player cost never lands on one frame.
 		static bool ShouldComputeFor(Player player) { return true; }
 
 		void ClearField(PlayerField field)

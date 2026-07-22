@@ -40,6 +40,10 @@ namespace OpenRA.Test
 			("manpad",        new[] { "Air" },                                 false, true),
 			// Tunguska's 30mm autocannon: Helicopter only in the data — anti-air, not anti-ground.
 			("tunguska-30mm", new[] { "Helicopter" },                          false, true),
+			// Interceptors / CRAM (20mm_CRAM, AACannon, SurfaceToAirMissile, AirToAirMissile) list
+			// "Air, ICBM". ICBM is an air-domain marker, NOT a ground target — so these must NOT
+			// stamp a ground aura. Regression guard for the ICBM ground-leak fix.
+			("cram-air-icbm", new[] { "Air", "ICBM" },                         false, true),
 		};
 
 		[Test]
