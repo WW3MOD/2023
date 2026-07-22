@@ -663,6 +663,7 @@ Player:
 		TransportMinInfantry: 4
 		MaxActiveSquads: 3
 		SkipRearmReadyCheck: true
+		StandoffEngagement: true
 
 	# ===== Stable AI — frozen snapshot of the validated Experimental config =====
 	#

@@ -55,6 +55,14 @@ namespace OpenRA.Mods.Common.Traits
 			"unchanged; only HelicopterSquadBotModule@experimental turns it on.")]
 		public readonly bool SkipRearmReadyCheck = false;
 
+		[Desc("Use standoff (attack-move) engagement for attack-heli squads. When on, the squad FSM issues",
+			"AttackMove toward the target cell instead of a bare Attack on a single (possibly distant) target,",
+			"so AutoTarget engages the nearest in-range threat at weapon standoff and the squad only advances",
+			"when clear — helis stop and fire at missile range instead of overflying nearer enemies to reach a",
+			"distant target. OFF by default so legacy/normal/stable behaviour is byte-identical; only",
+			"HelicopterSquadBotModule@experimental turns it on.")]
+		public readonly bool StandoffEngagement = false;
+
 		public override object Create(ActorInitializer init) { return new HelicopterSquadBotModule(init.Self, this); }
 	}
 
