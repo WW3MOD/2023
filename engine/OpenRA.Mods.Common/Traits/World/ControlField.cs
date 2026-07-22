@@ -275,7 +275,12 @@ namespace OpenRA.Mods.Common.Traits
 					siteAnchorTypes.Add(ai.Name);
 			}
 
-			subCountdown = w.SharedRandom.Next(0, Info.UpdateInterval);
+			// DETERMINISTIC stagger — NOT a SharedRandom draw. BeliefStore/DangerFieldLayer already
+			// existed at the Stage-B baseline (their synced draws are part of it); ControlField is a
+			// NET-NEW world trait, so drawing from the synced SharedRandom here would shift the RNG
+			// stream and break the @stable/controls byte-identity invariant. A fixed mid-interval
+			// offset staggers this grid away from the others without touching any synced RNG.
+			subCountdown = Info.UpdateInterval / 2 + 1;
 		}
 
 		void ITick.Tick(Actor self)
