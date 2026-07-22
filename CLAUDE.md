@@ -37,6 +37,7 @@ Pull only what your task needs. Indexes: [`DOCS/README.md`](DOCS/README.md), [`W
 | Balance / unit tuning | [`DOCS/recipes/BALANCE.md`](DOCS/recipes/BALANCE.md) — combat-sim (`tools/combat-sim/`) |
 | Economy / ammo / resupply | [`DOCS/reference/economy.md`](DOCS/reference/economy.md) |
 | Current status, what's in flight | `WORKSPACE/RELEASE_V1.md` + `WORKSPACE/HOTBOARD.md` + `git log --oneline -20` |
+| What comes next, roadmap order | `WORKSPACE/PIPELINE.md` — living queue, top item = next to start |
 | A user-typed trigger word (`PLAN`, `TRIAGE`, `FINALIZE`, …) | [`DOCS/recipes/README.md`](DOCS/recipes/README.md) — these are docs to read, NOT harness Skills; never call the `Skill` tool for them |
 
 Modes: RELEASE (default, scope-locked v1) vs EXPERIMENTAL — [`DOCS/modes/`](DOCS/modes/README.md).
