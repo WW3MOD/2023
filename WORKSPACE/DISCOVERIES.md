@@ -5,6 +5,8 @@
 
 ## 2026-07-22 — Ambush-tactics research: suppression silences the AT gunner mid-ambush; prone ≠ concealment; humans DO get the influence stack
 
+> **[promoted (partial): → architecture.md §Suppression system (suppression is not a blanket fire-halt; three armaments hard-pause via `PauseOnCondition: suppressed >= 10`; prone gives NO detection/concealment reduction) + new §Directional / rear armor (`DamageWarhead.ArmorDirectionPercent`, 5-elem `Armor.Distribution`)]** (curation 2026-07-22). Verified `infantry.yaml:1652/1865/2136` (PauseOnCondition on ATGM/repair/heal arms), `DamageWarhead.cs:121-131` (`ArmorDirectionPercent`, `Distribution.Length == 5`). **Not promoted:** the `InfluenceStack.Participates` (human combatants + @experimental bots; DangerFieldLayer value-blind) bullet is @experimental influence-stack subsystem detail, undocumented in reference — kept here.
+
 While designing widened Ambush behavior (`WORKSPACE/plans/260722_ambush_undetected_design.md`), three non-obvious interactions surfaced that any ambush/AT-tuning work must respect:
 
 - **Suppression silences the exact unit you'd use for a "let it pass, shoot the rear" ambush.** Suppression is otherwise NOT a fire-halt in this fork — normal rifles keep firing suppressed (only degraded). But three armaments carry `PauseOnCondition: suppressed >= 10`: the **AT Specialist ATGM** (`infantry.yaml:1652`), a repair arm (`:1865`), and an SF/demolition arm (`:2136`). So a "late spring" AT ambush that lets the target's escort return fire will get the AT gunner suppressed and **stop launching** before it exploits the rear arc. First-strike-from-concealment (pre-aimed alpha volley) avoids this; the late spring invites it.
@@ -13,6 +15,8 @@ While designing widened Ambush behavior (`WORKSPACE/plans/260722_ambush_undetect
 - **Directional/rear armor is real and free.** `DamageWarhead.ArmorDirectionPercent` (`DamageWarhead.cs:121-198`) modifies effective armor by shot-vs-facing angle from a 5-elem `Distribution` (front,side,rear,top,bottom); heavy tank `100,50,25,10,10` = ~4× rear damage. Computed inside the normal damage pipeline, so rear shots need no special code — the bonus is automatic when geometry puts the shooter behind the target.
 
 ## 2026-07-22 — Asserting the derived-role table against the REAL ruleset: an `ILintRulesPass`, not NUnit; plus the latent `^CargoPips` predicate divergence
+
+> **[rejected: @experimental `UnitRoleResolver` role-model internals + NUnit/`ILintRulesPass` test-and-lint methodology (AUTOTEST-recipe territory, not durable engine/gameplay reference). The `^CargoPips`/`MaxWeight > 0` predicate divergence is confirmed **latent** — no weight-0 `Cargo` actor exists on the current roster, so both predicates are byte-identical today — and is scoped entirely to that undocumented experimental subsystem. `CargoInfo.MaxWeight` defaults to 0 (`Cargo.cs:30`, verified) but is only load-bearing for that experimental predicate.]** (curation 2026-07-22).
 
 Hardening the Phase-4 role model (`UnitRoleResolver`). Three reusable findings:
 
@@ -53,6 +57,8 @@ Hardening the Phase-4 role model (`UnitRoleResolver`). Three reusable findings:
 
 ## 2026-07-22 — A net-new always-on World trait must NOT draw from SharedRandom in WorldLoaded
 
+> **[promoted: → conventions.md §Engine behaviors that surprise (World.SharedRandom is the synced gameplay RNG — a net-new always-on trait must not draw from it at load/tick to self-stagger; derive per-instance offsets deterministically or it shifts the synced stream for control/benchmark games and breaks replay byte-identity)]** (curation 2026-07-22). Verified `World.cs:50` + `:217` (SharedRandom seeded from RandomSeed) and `:543` (`SharedRandom.Last` folded into the sync hash). The specific fix constants (BeliefStore/DangerFieldLayer/ControlField offsets) are @experimental influence-stack impl detail, kept here.
+
 `World.SharedRandom` is the synced gameplay RNG; every draw advances one shared stream shared by
 ALL profiles. An unconditional world trait (one that ticks/loads for @stable + control bots too,
 not just @experimental) that calls `w.SharedRandom.Next(...)` in `IWorldLoaded.WorldLoaded` to
@@ -76,6 +82,8 @@ though the trait itself is behaviour-inert (nothing consumes its data).
   itself part of the baseline being measured, or one gated to a profile the benchmark re-baselines.
 
 ## 2026-07-22 — Heli overflight is a bot-order defect, NOT a FlyAttack bug (Stage 0 standoff)
+
+> **[promoted (partial): → architecture.md §Aircraft movement system → new "Attack standoff" subsection (Hover aircraft hover-and-fire at max range; CanSlide aircraft zero velocity inside the weapon annulus; overflight is an `Attack`-vs-`AttackMove` order choice, not an engine attack bug)]** (curation 2026-07-22). Verified `FlyAttack.cs:183-198` (Hover falls through to the facing branches) + `Fly.cs:187-190` (CanSlide zeroes `CurrentVelocity` inside max range). The experimental fix (`HelicopterSquadBotModule.StandoffEngagement` / `BusyAttackMove` guard) + autotest-harness-limit note are impl detail, kept here.
 
 The influence-stack §1.4 defect ("bots fly helis OVER enemies, shooting opportunistically on the
 move instead of stopping at missile range") is often assumed to live in shared engine attack code.
@@ -109,6 +117,8 @@ It does not — the engine already stands off correctly:
   *past* a tank engages from standoff and never crosses the tank's line), not the FSM path itself.
 
 ## 2026-07-22 — Influence stack Stages A/B: per-player fog substrate facts
+
+> **[promoted (partial): → architecture.md §Renamed/rewritten core systems (the fog-legal per-player predicate `player.MapLayers.IsVisible(cell, 1)` — `1` = currently-unfogged threshold — vs `IsExplored` for the weaker ever-seen state)]** (curation 2026-07-22). Verified `World.cs:110-115`. The `Shroud → MapLayers` rename itself was already in that table. **Not promoted (already covered / experimental):** `Air` ≠ `Helicopter` is already in conventions.md and the danger-channel application is @experimental; FrozenActorLayer static-vs-mobile persistence is already in architecture.md §Custom traits (SightingThreatLayer row); `ArmamentInfo.WeaponInfo` resolved at WorldLoaded is influence-stack impl detail.
 
 Building the belief store + danger fields (`260722_influence_stack_design.md` §2A/§2B,
 branch `stack-spine-ab`). Non-obvious substrate facts worth keeping:
@@ -144,6 +154,8 @@ branch `stack-spine-ab`). Non-obvious substrate facts worth keeping:
   is a clean `foreach`, no hard-coded ground-type list needed.
 
 ## 2026-07-22 — Phase-4 role consumption: the `bradley/bmp2 = MainBattle` override collides with the un-migrated MountedTransport ferry pool
+
+> **[rejected: in-flight @experimental role-migration state — the partial LayeredDefence/PoiOffensive/PoiGarrison → `UnitRoleResolver` migration and the `bradley`/`bmp2` = MainBattle vs MountedTransport name-based `CarrierTypes` collision are mutable code-state inside an undocumented experimental subsystem. The durable general lesson (two modules must not claim the same units; migrate off shared name-lists in one coordinated change) is already generalized in architecture.md §Adding a behavioural field to a shared trait + the commitment-ledger pattern.]** (curation 2026-07-22).
 
 Migrating the `@experimental` front-line/offense modules (LayeredDefence, PoiOffensive,
 PoiGarrison) to consume `UnitRoleResolver` (branch `phase4-roles`). One thing the recon

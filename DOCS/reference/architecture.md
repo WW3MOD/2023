@@ -133,6 +133,8 @@ These are the custom systems that set WW3MOD apart from base OpenRA. Understandi
 | AffectsRadar → Radar.cs + Detectable.cs | Multi-layer detection/visibility |
 | RadarWidget → MiniMapWidget | Renamed + reworked minimap |
 
+Per-player visibility is queried as `player.MapLayers.IsVisible(cell, 1)` — the `1` is the visibility **threshold** meaning *currently unfogged* (`World.cs:110`: `FogObscures(CPos)` is exactly `!RenderPlayer.MapLayers.IsVisible(p, 1)`). The weaker "ever seen / explored" shroud state is `MapLayers.IsExplored(...)` (`World.cs:112-115`). This is the canonical fog-legal predicate for any per-player layer that must not see through fog.
+
 ### Custom traits (new files)
 
 | Trait | Purpose |
@@ -233,13 +235,22 @@ Aircraft:
     MaximumPitch: 56            # Max climb/dive angle
 ```
 
+### Attack standoff (per-target, engine-provided)
+
+The engine already stands a hovering/sliding attack aircraft off at weapon range — helicopter *overflight* past nearer enemies is a bot-order artifact, not an attack-code bug:
+
+- A **Hover** attack aircraft (`AttackType: Hover` + `CanHover`) neither strafes nor takes a fixed-wing attack run in `FlyAttack.Tick`; it falls through to the facing branches (`FlyAttack.cs:183-198`), so it hovers and fires from `MoveWithinRange` distance instead of running past the target.
+- A `CanSlide` aircraft's `Fly` activity zeroes `CurrentVelocity` and stops the moment it is inside the weapon annulus (`Fly.cs:187-190`). So a `MoveWithinRange`/`Attack` on a single actor already yields a per-target standoff at that armament's max range.
+- **Overflight is a targeting choice, not an engine defect.** A bare `Order("Attack", unit, oneEnemy)` flies to *that* actor's standoff, overflying nearer front-line enemies en route (they are in range but are not the locked target). `Order("AttackMove", …)` instead lets `AutoTarget` engage the nearest in-range threat and only advance when clear — the standard way to get "stop and shoot what's in front of me" behaviour from a squad or unit.
+
 ## Suppression system
 
 **Infantry suppression (10-tier, cap 100, decay 1/5 ticks):**
 - `GrantExternalCondition` warheads with Amount/Range for graduated suppression
 - Speed/vision/burst/inaccuracy multipliers (90%→0% across tiers)
-- InfantryStates triggers prone at suppression > 30
+- InfantryStates triggers prone at suppression > 30. **Prone is damage/visual/speed only — it grants NO detection or concealment reduction** (there is no prone-stealth modifier; visibility is purely whether the actor occupies a cell the enemy's `MapLayers` reveals, `Detectable.cs:93-116`). To stay hidden, halt before entering enemy vision — posture does not help.
 - 10-tier pip display (pip-suppression-1 through pip-suppression-10)
+- **Suppression is not a blanket fire-halt** — suppressed infantry keep firing, just degraded by the multipliers above. The exceptions are three armaments that hard-pause via `PauseOnCondition: suppressed >= 10`: the AT Specialist ATGM (`infantry.yaml:1652`), the engineer mine-clear/repair arm (`:1865`), and the medic heal arm (`:2136`). So a "let it pass, then shoot the rear" AT ambush that lets the escort return fire risks suppressing its own AT gunner into silence before it exploits the rear arc.
 
 **Vehicle suppression (5-tier, cap 50, decay 1/3 ticks):**
 - Only medium caliber (12.7mm+) and explosions suppress vehicles
@@ -252,6 +263,10 @@ Aircraft:
 - Ambush: pre-aim at targets, hold fire until spotted or damaged, coordinate with nearby allies
 - FireAtWill: fire at any valid target in range
 - Conditions: `stance-fireatwill`, `stance-ambush`, `stance-holdfire`
+
+## Directional / rear armor
+
+`DamageWarhead.ArmorDirectionPercent` (`DamageWarhead.cs:121-198`) scales effective armor by the shot-vs-facing angle, reading a 5-element `Armor.Distribution` `[front, side, rear, top, bottom]` (only applied when `Distribution.Length == 5`). A heavy tank's `100,50,25,10,10` means a rear shot lands ~4× the front damage. This runs inside the normal damage pipeline, so rear/flank bonuses are **automatic** from geometry — no special warhead flag or code path is needed; putting the shooter behind the target is the whole trigger.
 
 **Engagement stances (3 stances — controls WHERE to position):**
 - HoldPosition, Defensive (default), Hunt
