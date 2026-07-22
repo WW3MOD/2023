@@ -3,6 +3,40 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-22 — Phase-4 role consumption: the `bradley/bmp2 = MainBattle` override collides with the un-migrated MountedTransport ferry pool
+
+Migrating the `@experimental` front-line/offense modules (LayeredDefence, PoiOffensive,
+PoiGarrison) to consume `UnitRoleResolver` (branch `phase4-roles`). One thing the recon
+(`260722_phase4_recon.md`) and design (`260722_unit_role_resolver_DESIGN.md`) got wrong for
+this partial migration:
+
+- **The recon's "`ExcludedActorTypes` becomes `role != MainBattle`" (recon §1a) is unsafe
+  as written, because the seeded overrides pin `bradley`/`bmp2` to `MainBattle`**
+  (`vehicles-america.yaml:289`, `vehicles-russia.yaml:127`; design §4 rule 8 / §6.2). Those
+  IFVs are *carriers* owned by `MountedTransportBotModule` and are deliberately excluded from
+  the line today (`LayeredDefenceBotModule.cs:86-97` PITFALL: pulling a carrier forward makes
+  it `!IsIdle` → it never qualifies as a transport candidate → ferrying dies). A pure
+  `role == MainBattle` gate would re-admit `bradley`/`bmp2` to the line and offensive axes,
+  regressing the ferry hand-off — a behaviour change, not the intended defect cure.
+- **Root cause: the design's `bradley/bmp2 → MainBattle` decision is only safe once
+  MountedTransport is *also* migrated off its name-based `CarrierTypes`.** Migrating the
+  front-line consumers *without* migrating MountedTransport (which this task scopes out)
+  leaves two modules claiming the same IFVs.
+- **Bridge used:** each migrated consumer's role gate additionally excludes cargo carriers by
+  trait — `role ∈ {MainBattle[,IndirectFire]} && !HasTraitInfo<CargoInfo>()`. `abrams`/`t90`/
+  infantry have no `Cargo`, so only the IFV/APC hulls are held back; `m113` is `TransportLift`
+  and already drops by role. This reproduces the exact old exclusion for the current roster
+  while still curing the artillery(IndirectFire)/SHORAD(ShortRangeAD)/MANPADS-on-the-line
+  defect. When MountedTransport is later migrated to `CarrierTypes = role == TransportLift`,
+  the cargo-carrier guard on the front-line consumers can be dropped (or the IFV overrides
+  revisited) as one coordinated change.
+- **Also confirmed behaviour-preserving:** `mt` (mortar) and `medi` leave the LayeredDefence
+  line under role mode — `mt → IndirectFire` (correct, light indirect fire; design §8.2),
+  `medi → Logistics` (design §8.1, accepted). Every screen/line infantry (`e3/ar/at/sn/tl/e2/
+  e4`) stays `MainBattle`: `at`'s ATGM is `20c0/MinRange 3c0` (below the 4c0 IndirectFire
+  floor), `sn`'s sniper is `20c0` at Mobile.Speed 25 (below the Recon 110 floor), `tl`/`e2`
+  grenade launchers are `12c0/MinRange 1c512`.
+
 ## 2026-07-22 — Unit-role resolver: two YAML facts that make/break the taxonomy, + audit errata
 
 > **[promoted (partial): → conventions.md §Weapon `ValidTargets`: `Air` ≠ `Helicopter` (the AD-discriminator fact) + §Faction-specific files (three-tier `^Template`/bare-concrete/`X.america` naming, override the template to hit all variants)]** (curation 2026-07-22). Weapon claims verified: `^7.62mm`:144, `^12.7mm`:215, `30mm.Tunguska.AA`:455, MANPAD:339/Stinger:372/`9M311 Inherits: Stinger`:411-412, tunguska `Weapon: 9M311`:860. **Citation drift fixed:** the ballistics/missile line numbers had all shifted ~2-3 lines; and the concrete actors are **uppercase** (`E6`/`MT`/`AA`) with faction variants (`AR.america`) in `infantry-america.yaml`, NOT lowercase in `infantry.yaml` as the entry stated. **Rejected bullets:** the raw `^ArtilleryRound` 40c0/10c0 vs `^TankRound` 24c0/1c512 range *values* (volatile balance data + role-resolver-threshold-scoped, though verified at :609-614/:574-578); and the `msta`/`avenger` audit erratum (plan-doc-scoped).
