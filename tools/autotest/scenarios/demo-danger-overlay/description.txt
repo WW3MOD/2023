@@ -1,0 +1,1 @@
+EYEBALL: Stage-C danger overlay (control field + tri-state safety). Fog on; blue (USA) is the viewer. Captures overlay gated-off, then /danger cycles DangerGround (green=verified-safe near blue, red over the sighted T-90 line + believed-enemy-territory baseline, gray fog), DangerAir (anti-air channel), and the demoted control-field ownership wash. Skips.

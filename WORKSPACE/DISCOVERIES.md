@@ -3,6 +3,30 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-22 — A net-new always-on World trait must NOT draw from SharedRandom in WorldLoaded
+
+`World.SharedRandom` is the synced gameplay RNG; every draw advances one shared stream shared by
+ALL profiles. An unconditional world trait (one that ticks/loads for @stable + control bots too,
+not just @experimental) that calls `w.SharedRandom.Next(...)` in `IWorldLoaded.WorldLoaded` to
+"stagger its first tick" therefore shifts the stream for control-bot games as well — silently
+breaking replay/benchmark **byte-identity vs any earlier baseline that lacked the trait**, even
+though the trait itself is behaviour-inert (nothing consumes its data).
+
+- **Where it bit:** the influence stack's Stage-A/B merge added two such draws — `BeliefStore`
+  and `DangerFieldLayer` each `SharedRandom.Next(0, UpdateInterval)` at load — a **2-draw shift**
+  of the whole synced stream for @stable/controls vs the pre-A/B baseline. ControlField (Stage C)
+  would have made it 3.
+- **Fix:** replace all three with DISTINCT DETERMINISTIC offsets — `BeliefStore=0`,
+  `DangerFieldLayer=UpdateInterval/3`, `ControlField=UpdateInterval/2+1`
+  (`BeliefStore.cs` WorldLoaded, `DangerFieldLayer.cs` WorldLoaded, `ControlField.cs` WorldLoaded).
+  The anti-collision stagger (grids not all recomputing on the same tick) is preserved; the synced
+  stream is left completely untouched, so the whole influence stack now draws ZERO SharedRandom and
+  restores byte-reproducibility (re-price 40800107 / ladder unnecessary).
+- **Rule of thumb:** a net-new always-on trait must not draw from the synced stream. If you need a
+  per-instance offset, derive it deterministically (a fixed constant, or a hash of a stable, synced
+  identity) — never from `SharedRandom`. `SharedRandom` at load is only safe for a trait that is
+  itself part of the baseline being measured, or one gated to a profile the benchmark re-baselines.
+
 ## 2026-07-22 — Heli overflight is a bot-order defect, NOT a FlyAttack bug (Stage 0 standoff)
 
 The influence-stack §1.4 defect ("bots fly helis OVER enemies, shooting opportunistically on the
