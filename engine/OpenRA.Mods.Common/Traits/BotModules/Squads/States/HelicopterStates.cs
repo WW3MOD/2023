@@ -11,6 +11,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -141,6 +142,28 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				.TraitsImplementing<HelicopterSquadBotModule>()
 				.FirstOrDefault(m => !m.IsTraitDisabled);
 			return module != null && module.Info.SkipRearmReadyCheck;
+		}
+
+		// True when this squad's HelicopterSquadBotModule uses standoff (attack-move) engagement
+		// (experimental-only, default off). When on, the FSM issues AttackMove toward the target
+		// cell so helis engage the nearest in-range threat at weapon standoff instead of boring
+		// toward a distant target and overflying nearer enemies. See HelicopterSquadBotModuleInfo.
+		protected static bool StandoffEngagementEnabled(Squad owner)
+		{
+			var module = owner.Bot.Player.PlayerActor
+				.TraitsImplementing<HelicopterSquadBotModule>()
+				.FirstOrDefault(m => !m.IsTraitDisabled);
+			return module != null && module.Info.StandoffEngagement;
+		}
+
+		// True while the unit is executing an attack-move — either moving toward the destination or,
+		// via its child FlyAttack, holding at standoff on an auto-target. BusyAttack only inspects the
+		// top-level activity, which under attack-move is AttackMoveActivity, so it cannot see the
+		// nested FlyAttack; this guard stops the FSM re-issuing (and thereby cancelling) an active
+		// attack-move on every update tick, which would interrupt firing.
+		protected static bool BusyAttackMove(Actor a)
+		{
+			return !a.IsIdle && a.CurrentActivity is AttackMoveActivity;
 		}
 
 		protected static Actor FindClosestEnemy(Squad owner, WPos pos)
@@ -293,25 +316,57 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				}
 			}
 
-			// Check if we're close enough to attack
-			var distToTarget = (owner.CenterPosition - owner.TargetActor.CenterPosition).HorizontalLength;
-			if (distToTarget < WDist.FromCells(8).Length)
+			var standoff = StandoffEngagementEnabled(owner);
+
+			// Standoff engagement (experimental, default off) keeps the squad in this attack-move
+			// loop instead of handing off to the close-range AttackRun. AutoTarget engages the
+			// nearest in-range threat at weapon standoff and the squad only advances when clear, so
+			// helis never bore toward a distant TargetActor's standoff point and overfly nearer
+			// enemies. Legacy behaviour (bare Attack + AttackRun hand-off at 8 cells) is preserved
+			// byte-for-byte when the flag is off.
+			if (!standoff)
 			{
-				owner.FuzzyStateMachine.ChangeState(owner, new HelicopterAttackRunState());
-				return;
+				// Check if we're close enough to attack
+				var distToTarget = (owner.CenterPosition - owner.TargetActor.CenterPosition).HorizontalLength;
+				if (distToTarget < WDist.FromCells(8).Length)
+				{
+					owner.FuzzyStateMachine.ChangeState(owner, new HelicopterAttackRunState());
+					return;
+				}
 			}
 
 			// Move toward target
+			var engaging = false;
 			foreach (var u in owner.Units)
 			{
 				if (BusyAttack(u) || IsRearming(u))
+				{
+					engaging = true;
 					continue;
+				}
 
-				owner.Bot.QueueOrder(new Order("Attack", u, Target.FromActor(owner.TargetActor), false));
+				if (standoff)
+				{
+					// Don't re-issue while an attack-move is already running (moving or engaging under
+					// AttackMoveActivity) — that would cancel an in-progress FlyAttack every update tick.
+					if (BusyAttackMove(u))
+					{
+						engaging = true;
+						continue;
+					}
+
+					owner.Bot.QueueOrder(new Order("AttackMove", u, Target.FromCell(owner.World, owner.TargetActor.Location), false));
+				}
+				else
+					owner.Bot.QueueOrder(new Order("Attack", u, Target.FromActor(owner.TargetActor), false));
 			}
 
-			// Stuck detection
-			stuckTicks++;
+			// Stuck detection — an actively engaging / attack-moving standoff squad is not stuck.
+			if (standoff && engaging)
+				stuckTicks = 0;
+			else
+				stuckTicks++;
+
 			if (stuckTicks > 200)
 			{
 				owner.FuzzyStateMachine.ChangeState(owner, new HelicopterIdleState());

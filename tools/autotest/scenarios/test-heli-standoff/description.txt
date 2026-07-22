@@ -1,0 +1,1 @@
+Auto: an attack heli AttackMoved past a tank must fire from missile standoff and never overfly the tank.

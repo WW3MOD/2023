@@ -3,6 +3,39 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-22 — Heli overflight is a bot-order defect, NOT a FlyAttack bug (Stage 0 standoff)
+
+The influence-stack §1.4 defect ("bots fly helis OVER enemies, shooting opportunistically on the
+move instead of stopping at missile range") is often assumed to live in shared engine attack code.
+It does not — the engine already stands off correctly:
+
+- **`FlyAttack`'s Hover path already holds at max range.** WW3MOD attack helis are `AttackType: Hover`
+  + `CanHover`/`CanSlide` (`aircraft-america.yaml:156,313`; `aircraft.yaml:144`). In `FlyAttack.Tick`
+  (`Activities/Air/FlyAttack.cs:183-198`) a Hover heli is neither `Strafe` nor `Default && !CanHover`,
+  so it falls through to the facing branches — it hovers and fires, it does not run past the target.
+- **`Fly`'s CanSlide path physically stops at `maxRange`.** `Fly.Tick` for `CanSlide` aircraft
+  (`Activities/Air/Fly.cs:184-191`) zeroes velocity and returns once inside `maxRange` (= the target's
+  `GetMaximumRangeVersusTarget`, i.e. the longest valid armament — Hellfire 25c for the Apache). So a
+  `MoveWithinRange`/`Attack` on a single actor already yields a per-target standoff.
+- **The overflight is the FSM targeting a single, possibly distant, actor.** `HelicopterStates`
+  approach/attack-run issued `Order("Attack", u, owner.TargetActor)` (`HelicopterStates.cs:310,409`) —
+  a bare Attack on one chosen enemy (highest-cost in the weakest cell). The heli flies to *that*
+  target's standoff, overflying nearer front-line enemies en route (they're inside 25c but aren't the
+  locked target). Ground squads never had this: they use `Order("AttackMove", ...)`
+  (`GroundStates.cs:161,174`) so AutoTarget engages the nearest in-range threat and only advances when
+  clear.
+- **Fix = give heli squads the same attack-move semantics, gated.** New default-off
+  `HelicopterSquadBotModuleInfo.StandoffEngagement`; when on (experimental only) the FSM issues
+  `AttackMove` toward the target cell instead of the bare Attack, reusing the shared, tested
+  `AttackMoveActivity` → `FlyAttack` standoff. No engine attack code touched → @stable/controls/human
+  byte-identical. **Guard needed:** `BusyAttack` only inspects the *top-level* activity, which under
+  attack-move is `AttackMoveActivity` (child = FlyAttack), so it can't detect the nested engagement —
+  re-issuing AttackMove each update tick would cancel an in-progress FlyAttack. Added `BusyAttackMove`
+  (`CurrentActivity is AttackMoveActivity`) to suppress the re-issue.
+- **Harness limit:** the bot FSM can't run in the single-human autotest harness, so
+  `test-heli-standoff` characterizes the underlying contract the fix rides on (a Hover heli AttackMoved
+  *past* a tank engages from standoff and never crosses the tank's line), not the FSM path itself.
+
 ## 2026-07-22 — Unit-role resolver: two YAML facts that make/break the taxonomy, + audit errata
 
 > **[promoted (partial): → conventions.md §Weapon `ValidTargets`: `Air` ≠ `Helicopter` (the AD-discriminator fact) + §Faction-specific files (three-tier `^Template`/bare-concrete/`X.america` naming, override the template to hit all variants)]** (curation 2026-07-22). Weapon claims verified: `^7.62mm`:144, `^12.7mm`:215, `30mm.Tunguska.AA`:455, MANPAD:339/Stinger:372/`9M311 Inherits: Stinger`:411-412, tunguska `Weapon: 9M311`:860. **Citation drift fixed:** the ballistics/missile line numbers had all shifted ~2-3 lines; and the concrete actors are **uppercase** (`E6`/`MT`/`AA`) with faction variants (`AR.america`) in `infantry-america.yaml`, NOT lowercase in `infantry.yaml` as the entry stated. **Rejected bullets:** the raw `^ArtilleryRound` 40c0/10c0 vs `^TankRound` 24c0/1c512 range *values* (volatile balance data + role-resolver-threshold-scoped, though verified at :609-614/:574-578); and the `msta`/`avenger` audit erratum (plan-doc-scoped).
