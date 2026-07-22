@@ -435,7 +435,7 @@ namespace OpenRA.Mods.Common.Traits
 		bool IsLineEligibleByRole(Actor a)
 		{
 			return resolver.GetRole(a) == UnitRole.MainBattle
-				&& !a.Info.HasTraitInfo<CargoInfo>();
+				&& !UnitRoleResolver.IsTroopCarrier(a.Info);
 		}
 
 		// The "combat ground pool" for the dispersion diagnostic: role-based when UseUnitRoles is on,

@@ -3,6 +3,45 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-22 — Asserting the derived-role table against the REAL ruleset: an `ILintRulesPass`, not NUnit; plus the latent `^CargoPips` predicate divergence
+
+Hardening the Phase-4 role model (`UnitRoleResolver`). Three reusable findings:
+
+- **You cannot cheaply load the ww3mod ruleset inside NUnit.** `OpenRA.Test` references only
+  `OpenRA.Game` + `OpenRA.Mods.Common`; it mounts NO mod content, and **no existing test builds a
+  `ModData`** — a full ruleset load would need a from-scratch platform/filesystem/asset harness
+  (fragile, no precedent). The idiomatic way to assert `ExtractFacts→Classify` over the *actual*
+  loaded rules (with weapon references resolved) is an **`ILintRulesPass`**: `CheckYaml`
+  auto-discovers every implementer via `ObjectCreator.GetTypesImplementing<ILintRulesPass>()` and
+  runs `.Run(emitError, emitWarning, modData, rules)` against `modData.DefaultRules`
+  (`UtilityCommands/CheckYaml.cs:68,155-168`), so it lands under `make test` (`--check-yaml`) for
+  free. Implemented as `Lint/CheckUnitRoleTable.cs`; read thresholds off the world actor's
+  `UnitRoleResolverInfo` so the lint tracks live config, not a copy of the defaults. **Positively
+  confirm a new lint runs** (silence ≠ ran): a `DUMP_UNIT_ROLES=1` env gate prints the full table.
+- **Pure-NUnit trait-level tests DON'T need a ModData:** `new ActorInfo(name, params TraitInfo[])`
+  (`ActorInfo.cs:68`) builds an ActorInfo from hand-instantiated `TraitInfo`s. Set a readonly Info
+  field (e.g. `CargoInfo.MaxWeight`, `AIUnitRoleInfo.Role`) via reflection `GetField(..).SetValue`.
+  This is how the module-eligibility test fabricates a `bradley`-shaped carrier without a mod.
+- **The `^CargoPips` predicate divergence is real but currently LATENT.** `^CargoPips`
+  (`defaults.yaml:746`) grants a *bare* `Cargo:` (pip decoration only) and `CargoInfo.MaxWeight`
+  defaults to **0** (`Cargo.cs:30`). So the module bridge `!HasTraitInfo<CargoInfo>()` and the
+  resolver's `MaxWeight > 0` disagree for any weight-0-Cargo actor. **But a full-roster scan (and
+  the `DUMP_UNIT_ROLES` table) shows every `^CargoPips` inheritor overrides `MaxWeight` — no actor
+  has a weight-0 `Cargo` today** — so the two predicates are *equivalent on the current roster*;
+  the divergence would only bite a future decorative-pip unit. Aligned both onto one source of
+  truth `UnitRoleResolver.IsTroopCarrier(ActorInfo) => MaxWeight > 0` (resolver `ExtractFacts` +
+  the three module bridges). Because there's no weight-0 carrier today, this is byte-identical even
+  on the `UseUnitRoles=true` (@experimental) path — pure future-proofing. Supersedes the
+  `!HasTraitInfo<CargoInfo>()` bridge described in the entry below.
+- **SF/DR reserve-pool finding (F1):** `sf`/`dr` (and `.america`/`.russia` variants) are armed,
+  derive **MainBattle** (no override; SF DMR 11c0, DR DroneTargeter 25c0 — both below the
+  IndirectFire floor; DR's drone bay is `CarrierMaster`, NOT `CargoInfo`), and are absent from
+  every old hard-coded module list. Role mode *would* task them onto the LayeredDefence line where
+  the `MainLineUnitTypes` include-list never did. **Unreachable today**: both are
+  `Prerequisites: ~disabled` and appear in NO AI `UnitsToBuild`/AdaptiveProduction list, so the
+  @experimental reserve composition never fields them. Pinned in the NUnit table + lint so a future
+  decision to field them is deliberate, not a silent MainBattle leak.
+
 ## 2026-07-22 — A net-new always-on World trait must NOT draw from SharedRandom in WorldLoaded
 
 `World.SharedRandom` is the synced gameplay RNG; every draw advances one shared stream shared by
