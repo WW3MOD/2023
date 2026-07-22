@@ -195,6 +195,19 @@ namespace OpenRA.Mods.Common.Traits
 				: System.Array.Empty<string>();
 		}
 
+		// A single predicate for "actual troop carrier", shared by the role cascade (below) AND
+		// the bot-module CargoInfo bridge (LayeredDefence/PoiOffensive/PoiGarrison eligibility).
+		// A bare CargoInfo is NOT enough: ^CargoPips grants a weight-0 Cargo purely for the garrison
+		// pip decoration, so trait presence over-matches. MaxWeight > 0 is the truth of "can carry
+		// passengers". The modules and this cascade MUST agree, or a weight-0-Cargo MainBattle unit
+		// would be held back from the line by the modules yet classed MainBattle here — a latent
+		// divergence. See WORKSPACE/DISCOVERIES.md (2026-07-22).
+		public static bool IsTroopCarrier(ActorInfo info)
+		{
+			var cargo = info.TraitInfoOrDefault<CargoInfo>();
+			return cargo != null && cargo.MaxWeight > 0;
+		}
+
 		// Reads the flattened trait list + resolved weapon data. Weapon references are
 		// resolved by WorldLoaded (ArmamentInfo.WeaponInfo is populated at RulesetLoaded).
 		public static UnitRoleFacts ExtractFacts(ActorInfo info, in UnitRoleThresholds t)
@@ -202,7 +215,6 @@ namespace OpenRA.Mods.Common.Traits
 			var overrideInfo = info.TraitInfoOrDefault<AIUnitRoleInfo>();
 			var heli = info.TraitInfoOrDefault<AIHelicopterRoleInfo>();
 			var mobile = info.TraitInfoOrDefault<MobileInfo>();
-			var cargo = info.TraitInfoOrDefault<CargoInfo>();
 
 			var neutralCaptureType = t.NeutralCaptureType;
 			var capturesNeutral = info.TraitInfos<CapturesInfo>()
@@ -245,7 +257,7 @@ namespace OpenRA.Mods.Common.Traits
 				info.HasTraitInfo<SupplyProviderInfo>(),
 				hasArmament, anyTargetsEnemy, hasAirWeapon,
 				maxRange, maxMinRange,
-				cargo != null && cargo.MaxWeight > 0,
+				IsTroopCarrier(info),
 				mobile != null, mobile?.Speed ?? 0);
 		}
 

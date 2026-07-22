@@ -96,6 +96,14 @@ namespace OpenRA.Test
 			("e2",            Facts(mobile: true, speed: 25, armed: true, targetsEnemy: true, maxRangeCells: 12, maxMinRangeUnits: 1536), UnitRole.MainBattle),
 			// Flamethrower: Flamespray 6c0, short-range direct fire -> MainBattle.
 			("e4",            Facts(mobile: true, speed: 25, armed: true, targetsEnemy: true, maxRangeCells: 6), UnitRole.MainBattle),
+			// Special Forces: 5.56mm.DMR.silencer 11c0 at speed 32 (< Recon floor), no MinRange, no
+			// Cargo, no override -> MainBattle. Armed + MainBattle-classified + absent from every old
+			// hard-coded list, so role mode would task them where the lists never did (F1 — see the
+			// reserve-pool finding in the branch report/DISCOVERIES).
+			("sf",            Facts(mobile: true, speed: 32, armed: true, targetsEnemy: true, maxRangeCells: 11), UnitRole.MainBattle),
+			// Drone operator: DroneTargeter 25c0 + DroneJammer 20c0 (both < 35c0 floor, MinRange 0),
+			// CarrierMaster (drone slave) is NOT CargoInfo, so no TransportLift; infantry speed -> MainBattle.
+			("dr",            Facts(mobile: true, speed: 25, armed: true, targetsEnemy: true, maxRangeCells: 25), UnitRole.MainBattle),
 
 			// Paladin: tube artillery, ^ArtilleryRound 40c0 / MinRange 10c0 -> IndirectFire.
 			("paladin",       Facts(mobile: true, speed: 80, armed: true, targetsEnemy: true, maxRangeCells: 40, maxMinRangeUnits: 10 * 1024), UnitRole.IndirectFire),
@@ -151,6 +159,67 @@ namespace OpenRA.Test
 		{
 			// A building/husk: no armament, not mobile, no cargo, no capture/supply.
 			Assert.That(UnitRoleResolver.Classify(Facts(), Defaults), Is.EqualTo(UnitRole.None));
+		}
+
+		// --- F3: module-level line/offense eligibility across the CargoInfo bridge ---
+		// Mirrors LayeredDefenceBotModule.IsLineEligibleByRole / Poi{Offensive,Garrison}
+		// IsEligibleCombatUnit for a MainBattle unit: role == MainBattle && !IsTroopCarrier(info).
+		// The CargoInfo bridge is the aligned IsTroopCarrier predicate (MaxWeight > 0), the single
+		// source of truth shared with the resolver cascade.
+		static bool RoleModeLineEligible(ActorInfo info)
+		{
+			var role = UnitRoleResolver.Classify(UnitRoleResolver.ExtractFacts(info, Defaults), Defaults);
+			return role == UnitRole.MainBattle && !UnitRoleResolver.IsTroopCarrier(info);
+		}
+
+		// A MainBattle unit (pinned by AIUnitRole override, exactly like bradley/bmp2) carrying a
+		// Cargo of the given MaxWeight. maxWeight < 0 means "no CargoInfo at all" (a plain tank).
+		static ActorInfo MainBattleActor(string name, int maxWeight)
+		{
+			var role = new AIUnitRoleInfo();
+			SetReadonly(role, nameof(AIUnitRoleInfo.Role), UnitRole.MainBattle);
+
+			if (maxWeight < 0)
+				return new ActorInfo(name, role);
+
+			var cargo = new CargoInfo();
+			SetReadonly(cargo, nameof(CargoInfo.MaxWeight), maxWeight);
+			return new ActorInfo(name, role, cargo);
+		}
+
+		static void SetReadonly(object info, string field, object value)
+		{
+			info.GetType().GetField(field).SetValue(info, value);
+		}
+
+		[Test]
+		public void RoleModeHoldsBackCargoCarriers()
+		{
+			// bradley/bmp2 shape: MainBattle by override, real carrier (MaxWeight 12) -> held back so
+			// MountedTransportBotModule keeps ferrying them.
+			var bradley = MainBattleActor("bradley", 12);
+			var bmp2 = MainBattleActor("bmp2", 12);
+
+			// abrams/t90 shape: MainBattle, no Cargo at all -> holds the line.
+			var abrams = MainBattleActor("abrams", -1);
+
+			// ^CargoPips shape: a weight-0 Cargo (garrison-pip decoration only) is NOT a carrier, so it
+			// must NOT be held back. This is the latent divergence Item 3 aligned: the old bridge used
+			// !HasTraitInfo<CargoInfo>() and would have wrongly benched this unit.
+			var pipsOnly = MainBattleActor("pips-decorated-tank", 0);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(UnitRoleResolver.IsTroopCarrier(bradley), Is.True, "bradley is a real carrier");
+				Assert.That(UnitRoleResolver.IsTroopCarrier(bmp2), Is.True, "bmp2 is a real carrier");
+				Assert.That(UnitRoleResolver.IsTroopCarrier(abrams), Is.False, "abrams has no Cargo");
+				Assert.That(UnitRoleResolver.IsTroopCarrier(pipsOnly), Is.False, "weight-0 Cargo is not a carrier");
+
+				Assert.That(RoleModeLineEligible(bradley), Is.False, "bradley held back from role-mode line");
+				Assert.That(RoleModeLineEligible(bmp2), Is.False, "bmp2 held back from role-mode line");
+				Assert.That(RoleModeLineEligible(abrams), Is.True, "plain MainBattle tank passes");
+				Assert.That(RoleModeLineEligible(pipsOnly), Is.True, "weight-0-Cargo MainBattle unit passes");
+			});
 		}
 	}
 }

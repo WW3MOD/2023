@@ -337,7 +337,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var role = resolver.GetRole(a);
 				return (role == UnitRole.MainBattle || role == UnitRole.IndirectFire)
-					&& !a.Info.HasTraitInfo<CargoInfo>();
+					&& !UnitRoleResolver.IsTroopCarrier(a.Info);
 			}
 
 			return !Info.ExcludeUnitTypes.Contains(a.Info.Name);
