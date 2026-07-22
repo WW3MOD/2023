@@ -204,6 +204,21 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Cost per +1 weight point above the baseline.")]
 		public readonly int CostDivisor = 50;
 
+		[Desc("Stage-C territory baseline: low intensity added to every cell within the believed",
+			"enemy weapon envelope of believed-enemy-held ground (the 'a drone could arrive' danger).",
+			"0 disables the baseline entirely.")]
+		public readonly int BaselineIntensity = 5;
+
+		[Desc("Fallback envelope radius (cells) for the territory baseline when NO believed enemy",
+			"contact carries a ground weapon to derive it from. Default 0 = OFF — the envelope is",
+			"data-driven (longest believed enemy ground-weapon range) whenever contacts exist, so",
+			"there is deliberately no hard-coded 'arty reaches N cells' constant.")]
+		public readonly int BaselineFallbackEnvelopeCells = 0;
+
+		[Desc("Hard cap (cells) on the territory-baseline projection radius, bounding its stamp cost",
+			"even when a very-long-range enemy weapon is believed.")]
+		public readonly int BaselineMaxProjectionCells = 24;
+
 		public override object Create(ActorInitializer init) { return new DangerFieldLayer(init.Self, this); }
 	}
 
@@ -237,7 +252,10 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Dictionary<Player, PlayerField> fields = new();
 
 		BeliefStore beliefStore;
-		int updateCountdown;
+		ControlField controlField;
+		readonly List<Player> participants = new();
+		int subCountdown;
+		int cursor = -1;
 
 		public DangerFieldLayer(Actor self, DangerFieldLayerInfo info)
 		{
@@ -250,6 +268,7 @@ namespace OpenRA.Mods.Common.Traits
 		void IWorldLoaded.WorldLoaded(World w, OpenRA.Graphics.WorldRenderer wr)
 		{
 			beliefStore = w.WorldActor.TraitOrDefault<BeliefStore>();
+			controlField = w.WorldActor.TraitOrDefault<ControlField>();
 
 			// Cache kernel facts per actor type once — weapon references are resolved by now
 			// (ArmamentInfo.WeaponInfo populated at RulesetLoaded). Per-world (map overrides apply).
@@ -261,50 +280,38 @@ namespace OpenRA.Mods.Common.Traits
 				factsByType[ai.Name] = ExtractKernelFacts(ai, Info.ThroughputWindow);
 			}
 
-			updateCountdown = w.SharedRandom.Next(0, Info.UpdateInterval);
+			subCountdown = w.SharedRandom.Next(0, Info.UpdateInterval);
 		}
 
 		void ITick.Tick(Actor self)
 		{
-			if (beliefStore == null || --updateCountdown > 0)
+			if (beliefStore == null || --subCountdown > 0)
 				return;
 
-			updateCountdown = Info.UpdateInterval;
-			Recompute();
+			// §6 narrow + stagger: only @experimental bots + human combatants get a field, and
+			// exactly one participant is rebuilt per sub-slot (round-robin), so the two-channel
+			// per-player cost never lands on a single tick.
+			InfluenceStack.GatherParticipants(world, participants);
+			subCountdown = InfluenceStack.SubInterval(Info.UpdateInterval, participants.Count);
+			if (participants.Count == 0)
+				return;
+
+			cursor = (cursor + 1) % participants.Count;
+			RecomputePlayer(participants[cursor]);
 		}
 
-		void Recompute()
+		void RecomputePlayer(Player player)
 		{
-			foreach (var player in world.Players)
-			{
-				if (player.NonCombatant || player.Spectating)
-					continue;
+			if (!fields.TryGetValue(player, out var field))
+				fields[player] = field = new PlayerField(world.Map);
 
-				if (!ShouldComputeFor(player))
-					continue;
+			ClearField(field);
 
-				if (!fields.TryGetValue(player, out var field))
-					fields[player] = field = new PlayerField(world.Map);
+			foreach (var contact in beliefStore.Contacts(player))
+				StampContact(field, contact);
 
-				ClearField(field);
-
-				foreach (var contact in beliefStore.Contacts(player))
-					StampContact(field, contact);
-
-				ProjectTerritoryBaseline(player, field);
-			}
+			ProjectTerritoryBaseline(player, field);
 		}
-
-		// Stage-C narrowing seam: today every combatant with a belief store is computed
-		// (cheap — nothing reads it). Kept true so behaviour is identical for all profiles
-		// regardless (the fields are never read).
-		// TODO (Stage C): once there are real consumers, this pass is two things at once —
-		//   (1) NARROW the player set to @experimental bots + the overlay-viewing human, and
-		//   (2) STAGGER per-player recompute across ticks (§6 perf guardrail). Today Recompute()
-		//       rebuilds every player's field in a single tick; Stage C must spread those rebuilds
-		//       over the UpdateInterval (e.g. one player per sub-tick / round-robin) so the two
-		//       channels × per-player cost never lands on one frame.
-		static bool ShouldComputeFor(Player player) { return true; }
 
 		void ClearField(PlayerField field)
 		{
@@ -362,11 +369,100 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		// STAGE-C SEAM (intentionally empty in v1). The believed-territory baseline — a
-		// generic low-intensity danger projected out to the longest plausible enemy weapon
-		// envelope wherever the enemy is believed to hold ground — needs the control field
-		// (Stage C). When it lands, project it into both channels here.
-		static void ProjectTerritoryBaseline(Player player, PlayerField field) { }
+		// STAGE-C territory baseline: wherever the player believes the enemy HOLDS ground (control
+		// field), project a generic low-intensity danger outward to the believed enemy weapon
+		// envelope — the design's "a spotter/drone could arrive at any time, so everything within
+		// arty reach of enemy territory is slightly dangerous" clause. Conservative + data-driven:
+		//   - the envelope is the longest GROUND range among current believed enemy contacts (never
+		//     a hard-coded 'arty = 40 cells'); with no such contact it falls back to a knob that
+		//     DEFAULTS OFF, so the baseline simply does not fire until there is evidence to size it.
+		//   - projected only from the FRONTIER of believed-enemy territory (enemy cells touching
+		//     non-enemy ground), at coarse grid stride, so the stamp stays cheap.
+		void ProjectTerritoryBaseline(Player player, PlayerField field)
+		{
+			if (Info.BaselineIntensity <= 0 || controlField == null || !controlField.HasField(player))
+				return;
+
+			var envelopeMapCells = BelievedEnemyGroundEnvelopeCells(player);
+			if (envelopeMapCells <= 0)
+				return;
+
+			if (envelopeMapCells > Info.BaselineMaxProjectionCells)
+				envelopeMapCells = Info.BaselineMaxProjectionCells;
+
+			var cellSize = controlField.Info.CellSize;
+			var envGrid = envelopeMapCells / cellSize;
+			if (envGrid < 1)
+				envGrid = 1;
+
+			for (var gx = 0; gx < controlField.GridWidth; gx++)
+			{
+				for (var gy = 0; gy < controlField.GridHeight; gy++)
+				{
+					if (controlField.OwnerAt(player, gx, gy) != ControlOwner.Enemy)
+						continue;
+
+					if (!IsBelievedEnemyFrontier(player, gx, gy))
+						continue;
+
+					StampBaseline(field, gx, gy, envGrid);
+				}
+			}
+		}
+
+		// True when a believed-enemy grid cell borders non-enemy ground — the perimeter danger
+		// radiates from, so we do not restamp the interior of a large enemy-held region.
+		bool IsBelievedEnemyFrontier(Player player, int gx, int gy)
+		{
+			return controlField.OwnerAt(player, gx - 1, gy) != ControlOwner.Enemy
+				|| controlField.OwnerAt(player, gx + 1, gy) != ControlOwner.Enemy
+				|| controlField.OwnerAt(player, gx, gy - 1) != ControlOwner.Enemy
+				|| controlField.OwnerAt(player, gx, gy + 1) != ControlOwner.Enemy;
+		}
+
+		// Low-intensity radial stamp (grid stride) into BOTH channels around a frontier grid cell.
+		void StampBaseline(PlayerField field, int cx, int cy, int envGrid)
+		{
+			for (var dgy = -envGrid; dgy <= envGrid; dgy++)
+			{
+				for (var dgx = -envGrid; dgx <= envGrid; dgx++)
+				{
+					var d = Exts.ISqrt(dgx * dgx + dgy * dgy);
+					if (d > envGrid)
+						continue;
+
+					var cell = controlField.GridCellToMapCell(cx + dgx, cy + dgy);
+					if (!field.Cells.Contains(cell))
+						continue;
+
+					var contribution = Info.BaselineIntensity * (envGrid - d + 1) / (envGrid + 1);
+					if (contribution <= 0)
+						continue;
+
+					var data = field.Cells[cell];
+					data.Ground += contribution;
+					data.Air += contribution;
+					field.Cells[cell] = data;
+					field.MarkActive(cell);
+				}
+			}
+		}
+
+		// Longest believed enemy GROUND-weapon range (cells), the "assumed arty envelope". Read from
+		// actual armament data via the cached kernel facts — no hard-coded distance. Falls back to a
+		// default-OFF knob when no believed contact carries a ground weapon.
+		int BelievedEnemyGroundEnvelopeCells(Player player)
+		{
+			var maxRange = 0;
+			foreach (var contact in beliefStore.Contacts(player))
+				if (factsByType.TryGetValue(contact.TypeName, out var facts) && facts.GroundRange > maxRange)
+					maxRange = facts.GroundRange;
+
+			if (maxRange <= 0)
+				return Info.BaselineFallbackEnvelopeCells;
+
+			return maxRange / 1024 + Info.RangeBufferCells;
+		}
 
 		// Reads armament data for one actor type: per-domain max range + summed throughput,
 		// plus durability/value proxies. Pure ruleset inspection.

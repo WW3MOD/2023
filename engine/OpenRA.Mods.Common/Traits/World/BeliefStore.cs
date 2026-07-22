@@ -146,8 +146,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly BeliefStoreInfo Info;
 		readonly World world;
 		readonly Dictionary<Player, PlayerBeliefContacts> stores = new();
+		readonly List<Player> participants = new();
 
-		int updateCountdown;
+		int subCountdown;
+		int cursor = -1;
 		int tick;
 
 		public BeliefStore(Actor self, BeliefStoreInfo info)
@@ -160,38 +162,40 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// Stagger the first fire so this doesn't recompute on the same tick as the
 			// other world grids. SharedRandom is synced.
-			updateCountdown = w.SharedRandom.Next(0, Info.UpdateInterval);
+			subCountdown = w.SharedRandom.Next(0, Info.UpdateInterval);
 		}
 
 		void ITick.Tick(Actor self)
 		{
 			tick++;
-			if (--updateCountdown > 0)
+			if (--subCountdown > 0)
 				return;
 
-			updateCountdown = Info.UpdateInterval;
-			Recompute();
+			// §6 narrow + stagger (Stage C): only @experimental bots + human combatants keep a
+			// belief store — the players that read the influence stack — and exactly one is
+			// refreshed per sub-slot (round-robin) so no tick rebuilds every player's memory.
+			InfluenceStack.GatherParticipants(world, participants);
+			subCountdown = InfluenceStack.SubInterval(Info.UpdateInterval, participants.Count);
+			if (participants.Count == 0)
+				return;
+
+			cursor = (cursor + 1) % participants.Count;
+			RecomputePlayer(participants[cursor]);
 		}
 
-		void Recompute()
+		void RecomputePlayer(Player player)
 		{
-			foreach (var player in world.Players)
-			{
-				if (player.NonCombatant || player.Spectating)
-					continue;
+			// Fog-correct last-seen memory requires a FrozenActorLayer + MapLayers.
+			if (player.FrozenActorLayer == null || player.MapLayers == null)
+				return;
 
-				// Fog-correct last-seen memory requires a FrozenActorLayer + MapLayers.
-				if (player.FrozenActorLayer == null || player.MapLayers == null)
-					continue;
+			if (!stores.TryGetValue(player, out var store))
+				stores[player] = store = new PlayerBeliefContacts();
 
-				if (!stores.TryGetValue(player, out var store))
-					stores[player] = store = new PlayerBeliefContacts();
-
-				store.BeginPass();
-				InjectLive(player, store);
-				InjectFrozenStatics(player, store);
-				ResolveUnobserved(player, store);
-			}
+			store.BeginPass();
+			InjectLive(player, store);
+			InjectFrozenStatics(player, store);
+			ResolveUnobserved(player, store);
 		}
 
 		// Live sightings: enemy actors the player can currently, legally see.
