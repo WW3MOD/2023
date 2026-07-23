@@ -8,60 +8,78 @@
 
 ---
 
-## GATE (now) — user in-game test of the current build
+## GATE — lifted 2026-07-23
 
-**Perceived:** you sit down and play the current build to confirm the last three shipped things feel right — attack helis holding at missile range instead of overflying into AA (Stage 0 standoff), the hold-Space **/danger** overlay reading sanely (green safe / red unsafe / gray unknown), and artillery + SHORAD sitting *behind* the line rather than driving up to trade shots (Phase-4a role tasking).
-**Everything below is gated on this.** If any of the three feels wrong, that fix jumps to the top of the queue before new work starts.
-_Refs: heli standoff 090ad9d0 · Stage C overlay 0833b376 · Phase-4a role tasking acc42ad7._
+User played a 2v2 vs three bots. The three previously-gated behaviors (heli standoff `090ad9d0`, /danger overlay `0833b376`, Phase-4a role tasking `acc42ad7`) drew no complaints. The session surfaced four new items, captured as queue items 1–4 below; the queue is unblocked and reordered accordingly.
 
 ---
 
 ## QUEUE
 
-### 1. Influence Stage D — helicopter danger consumer
+### 1. Win-condition fix — SR victory declared "mission failed", everyone "Lost"
+**Perceived:** winning actually feels like winning. In the 2v2 playtest the user + ally captured/denied both enemy Supply Routes and the game correctly ended — but the score window said **"mission failed"** and ALL four players showed as **Lost**. The end screen must credit the winning team.
+_Symptom from the 2026-07-23 playtest; root cause unverified — start at the victory/objective evaluation around SR loss in team games (likely a team-victory propagation or objective-completion bug). Read `DOCS/reference/supply-route.md` + `DOCS/reference/game-model.md` first._
+
+### 2. Lobby team-selection column
+**Perceived:** a proper 2v2 can be set up from the lobby. Today there is no way to select teams — the auto-team button is the only control, and current assignments aren't even visible. Add the per-slot Team column (visible assignment + manual selection), as in standard OpenRA lobbies.
+_UI work — `DOCS/recipes/SCREENSHOT.md` applies. Upstream OpenRA has this widget; check what the WW3MOD lobby chrome removed._
+
+### 3. Cohesion stabilization — bounded spread + a treeline order that actually lines the treeline
+**Perceived:** ordering a large group no longer scatters it so wide it "barely fits on the screen"; clicking a group of trees puts the soldiers **along the treeline** — the original intent — instead of the current random-feeling placement. Goal of this item is *stable and predictable* as soon as possible; polish comes in item 5.
+_User go-ahead 2026-07-23. Two symptoms: (a) large-group footprint far too big (the count-aware cap `1eb644de` is insufficient or bypassed on this path); (b) the EdgeLine/SpreadInside treeline behavior reads as random. Likely first fixes per `WORKSPACE/cohesion/illustrations/260722_stance_proposals.html` §4: nearest-slot assignment (kills criss-cross), cover-bid-beats-geometry (stop ejecting units from cover), hard footprint bound. Read `WORKSPACE/cohesion/01_cohesion_as_built.md` + `02_problem_statement.md`._
+
+### 4. Supply truck "counts as empty" — evacuate instead of idling on crumbs
+**Perceived:** almost-empty supply trucks stop parking forever at the front holding a sliver nobody can use. When no unit in reach can be given anything from what's left, the truck **counts as empty** and evacuates (the Resupply-bar Evacuate flow); its supply bar turns **red** to signal "counts as empty, residue remains". If it passes a soldier on the way home who can use the remainder, that's a bonus — it still evacuates.
+_User design sketch 2026-07-23. Threshold rule: "empty" = nothing in reach can utilize the remainder. Read `DOCS/reference/economy.md`._
+
+### 5. Cohesion stance identities — fine-tuning wave
+**Perceived:** the three cohesion stances become three visibly different behaviors — **Tight = column** (move fast, stay together), **Loose = combat interval** (fight from cover), **Spread = dispersed** (survive artillery) — instead of one box at three widths.
+_Follows item 3. Shaped by the user's reactions to `WORKSPACE/cohesion/illustrations/260722_stance_proposals.html` (decision points DP-1..DP-5 still open — picks can arrive any time and steer this item)._
+
+### 6. Influence Stage D — helicopter danger consumer
 **Perceived:** attack helis stop flying into their own funerals. They route *around* known anti-air, hold a safe leash while attacking, and pull back the moment a new AA threat lights up on the air-danger layer. The "sacrificing helicopters straight into enemy territory, looks really dumb" defect goes away.
 _Consumes the air channel of the danger field. Design: `plans/260722_influence_stack_design.md` §3.1 + Stage D. Depends on shipped Stages 0/B._
 
-### 2. Influence Stage E — danger-weighted ground routing
+### 7. Influence Stage E — danger-weighted ground routing
 **Perceived:** ground units stop marching in a straight line through known kill zones. Attacks visibly flow *around* strongpoints and defended chokes; high-value movers (trucks, artillery repositioning) pull back from the front, travel laterally at a safer depth, then re-enter where they're needed.
 _Danger field as a pathfinding cost modifier — the rear-lateral-re-enter pattern emerges from cost, not script. Design §3.2, Stage E. Cheap once Stage B exists._
 
-### 3. Ambush behavior — IMPLEMENTATION
+### 8. Ambush behavior — IMPLEMENTATION
 **Perceived:** hidden Ambush units that hold fire until spotted or until springing the trap at the best moment; units *feel alive*, reacting to being seen/unseen. Human-settable stance first, **default off** so nothing changes for players who don't opt in.
 _Follows the staged plan in `plans/260722_ambush_undetected_design.md` — **gated on your review of the design** (4 open forks are listed there: prone semantics, moving-ambush scope, spring-timing doctrine, bot-only vs human-first)._
 
-### 4. Influence Stage F — strategic repoint + territorial balance-of-power revival
+### 9. Influence Stage F — strategic repoint + territorial balance-of-power revival
 **Perceived:** the bot's offense presses where the enemy is *weak* instead of grinding head-on into the strongest point. Front lines shift more intelligently as the bot reads believed control and danger rather than omniscient grids.
 _Revives the parked `exp-terr-bias` branch @ ccd12c98 (needs rebase; the per-POI factor was a near-pure damper — the control field is the substrate it actually needed). Completes the @experimental fog migration. Carries a **declared benchmark re-baseline** (instrument change). Design §3.3, Stage F — last, so everything under it is stable first._
 
-### 5. Phase-4b role-migration wave
+### 10. Phase-4b role-migration wave
 **Perceived:** air squads, capture ferries and call-in composition all start respecting unit *roles* — no more odd unit choices in those subsystems (e.g. the wrong unit sent to capture, or a strange mix called in).
 _SquadManager-air / CaptureCoordinator / AdaptiveProduction consume the `UnitRoleResolver` behind `UseUnitRoles`, extending the Phase-4a wave (acc42ad7, 81f52040)._
 
-### 6. Fires / artillery doctrine cycle (user-confirmed)
+### 11. Fires / artillery doctrine cycle (user-confirmed)
 **Perceived:** artillery holds standoff range and rains suppressive fire *during* an assault, instead of driving toward the enemy to get into gun range and dying. Assaults look like real combined-arms pushes with the guns kept safely behind.
 
-### 7. Early-game tuning — no idle trucks, proportionate AA, faster spread
+### 12. Early-game tuning — no idle trucks, proportionate AA, faster spread
 **Perceived:** the opening minutes look *purposeful*. No queue of idle supply trucks sitting at the Supply Route, no wall of AA overbuilt against nothing, and a quicker grab for map territory from the beachhead. The bot's first few minutes read as competent rather than fumbling.
 
-### 8. EXPAND benchmark maps — Polar Disorder + Woodland Warfare
+### 13. EXPAND benchmark maps — Polar Disorder + Woodland Warfare
 **Perceived:** nothing changes in a normal game directly. Behind the scenes the bots' skill is measured on more terrain types (snow, dense woodland), so tuning stops overfitting to the current handful of maps and generalizes better.
 _Benchmark instrument work — `WORKSPACE/ai-bench/`._
 
-### 9. AoE-aware cluster targeting in AutoTarget (shared human + bot)
+### 14. AoE-aware cluster targeting in AutoTarget (shared human + bot)
 **Perceived:** artillery and other area weapons aim at the *clump* of enemies, not the nearest single target — so a barrage lands where it does the most damage. This is shared micro: **human-owned guns benefit too**, not just the bot.
 
-### 10. LocalRandom seeding / SharedRandom migration for bot decisions
+### 15. LocalRandom seeding / SharedRandom migration for bot decisions
 **Perceived:** nothing visible in-game. Same-seed test runs become reproducible, which makes benchmark comparisons trustworthy and removes a latent desync smell. Pure dev/debug quality-of-life.
 
-### 11. Cosmetic — fix visible black batch windows during hidden test runs
+### 16. Cosmetic — fix visible black batch windows during hidden test runs
 **Perceived:** nothing in-game. During hidden test batches the desktop stays clean instead of flashing black windows (SDL minimize not holding on Windows — `WORKSPACE/bugs/discovered.md`, commit e6dc7580).
 
-### 12. (User-deferred) Supply Route capture wiring
+### 17. (User-deferred) Supply Route capture wiring
 **Perceived:** a major new win lever — you can raid and flip the enemy's reinforcement beachhead. Enemy SR → forced neutral → capturable, so knocking out their Supply Route becomes a real strategic goal.
-_Deferred by you until the opening-economy AI (item 7) is solid — a bot that can't manage its own economy shouldn't be handed a new economic target._
+_Deferred by you until the opening-economy AI (item 12) is solid — a bot that can't manage its own economy shouldn't be handed a new economic target._
 
-### 13. (Future) "Should I attack?" endgame decision layer
+### 18. (Future) "Should I attack?" endgame decision layer
 **Perceived:** bots consciously shift gears — from securing income to committing to a decisive offensive (and later to SR denial) — instead of drifting into an aimless late game. You can watch the AI make the call to go for the kill.
 
 ---
