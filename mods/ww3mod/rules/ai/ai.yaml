@@ -219,6 +219,12 @@ Player:
 		# per-player anti-ground danger field) instead of grinding head-on through them. Emits a two-leg
 		# AttackMove (lateral lane, then the objective). Experimental-only; @stable twin leaves it off.
 		DangerFieldRouting: true
+		# Fires doctrine (PIPELINE item 11): hold IndirectFire artillery at its own weapon standoff during an
+		# assault instead of marching it to the objective with the line group — it rains suppressive fire from
+		# range and backs off if the target closes, while the line units press. Peels artillery off the grouped
+		# AttackMove and issues a per-piece standoff AttackMove (max weapon range - FiresStandoffMargin from the
+		# axis target). Needs UseUnitRoles (above) to identify artillery. Experimental-only; @stable twin off.
+		FiresStandoff: true
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
