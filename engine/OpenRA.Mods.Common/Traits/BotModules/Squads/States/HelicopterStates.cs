@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Activities;
@@ -150,10 +151,58 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		// toward a distant target and overflying nearer enemies. See HelicopterSquadBotModuleInfo.
 		protected static bool StandoffEngagementEnabled(Squad owner)
 		{
+			var info = GetHeliModuleInfo(owner);
+			return info != null && info.StandoffEngagement;
+		}
+
+		// The (enabled) HelicopterSquadBotModule Info for this squad's owner, or null. One lookup point
+		// for every experimental-only heli tunable.
+		protected static HelicopterSquadBotModuleInfo GetHeliModuleInfo(Squad owner)
+		{
 			var module = owner.Bot.Player.PlayerActor
 				.TraitsImplementing<HelicopterSquadBotModule>()
 				.FirstOrDefault(m => !m.IsTraitDisabled);
-			return module != null && module.Info.StandoffEngagement;
+			return module?.Info;
+		}
+
+		// True when Stage-D anti-air danger-field consumption is enabled (experimental-only, default off).
+		// Gates the AA-avoidance routing, safe-zone leash, and withdraw-on-spike behaviours below so that
+		// every other profile's heli code path stays byte-identical.
+		protected static bool DangerFieldAvoidanceEnabled(Squad owner)
+		{
+			var info = GetHeliModuleInfo(owner);
+			return info != null && info.DangerFieldAvoidance;
+		}
+
+		// The owner's per-player ANTI-AIR danger field (Stage B), or null if the trait is absent.
+		protected static DangerFieldLayer GetDangerField(Squad owner)
+		{
+			return owner.World.WorldActor.TraitOrDefault<DangerFieldLayer>();
+		}
+
+		// An air-danger sampler bound to this squad owner's own air channel. Off-map cells read as
+		// Impassable so a leash/detour/retreat search never steers off the playable area. Fog-legal:
+		// the field is stamped from the owner's belief store; reads 0 outside every believed AA envelope.
+		protected static Func<CPos, int> AirDangerSampler(Squad owner, DangerFieldLayer field)
+		{
+			var player = owner.Bot.Player;
+			var map = owner.World.Map;
+			return c => map.Contains(c) ? field.AirDanger(player, c) : HeliDangerNav.Impassable;
+		}
+
+		// Highest anti-air danger over the squad's current unit cells — "is a believed AA now shooting us?"
+		protected static int SquadMaxAirDanger(Squad owner, DangerFieldLayer field)
+		{
+			var player = owner.Bot.Player;
+			var max = 0;
+			foreach (var u in owner.Units)
+			{
+				var d = field.AirDanger(player, u.Location);
+				if (d > max)
+					max = d;
+			}
+
+			return max;
 		}
 
 		// True while the unit is executing an attack-move — either moving toward the destination or,
@@ -318,6 +367,25 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 			var standoff = StandoffEngagementEnabled(owner);
 
+			// Stage-D anti-air consumer (experimental, rides on standoff): route around believed AA,
+			// leash the standoff to the AA-safe envelope, and withdraw the moment a NEW AA covers us.
+			var avoid = standoff && DangerFieldAvoidanceEnabled(owner);
+			var danger = avoid ? GetDangerField(owner) : null;
+			if (avoid && danger == null)
+				avoid = false;
+
+			if (avoid)
+			{
+				// Withdraw-on-spike: a newly-believed AA now reads over the squad's own position —
+				// stop pushing in, hand to the withdraw state (which re-routes to air-safe ground).
+				var info = GetHeliModuleInfo(owner);
+				if (SquadMaxAirDanger(owner, danger) > info.AirDangerSpikeThreshold)
+				{
+					owner.FuzzyStateMachine.ChangeState(owner, new HelicopterWithdrawState());
+					return;
+				}
+			}
+
 			// Standoff engagement (experimental, default off) keeps the squad in this attack-move
 			// loop instead of handing off to the close-range AttackRun. AutoTarget engages the
 			// nearest in-range threat at weapon standoff and the squad only advances when clear, so
@@ -333,6 +401,22 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					owner.FuzzyStateMachine.ChangeState(owner, new HelicopterAttackRunState());
 					return;
 				}
+			}
+
+			// Stage-D destination: leash to the AA-safe cell nearest the target, then detour around any
+			// AA the straight approach would cross. Falls back to the raw target cell when avoidance is
+			// off, so the standoff/legacy paths are unchanged.
+			var attackMoveCell = owner.TargetActor.Location;
+			if (avoid)
+			{
+				var info = GetHeliModuleInfo(owner);
+				var air = AirDangerSampler(owner, danger);
+				var engageCell = HeliDangerNav.LeashedEngageCell(
+					owner.TargetActor.Location, info.AirDangerLeashCells, info.AirDangerSafeThreshold, air);
+				var from = owner.Units.First().Location;
+				var waypoint = HeliDangerNav.DetourWaypoint(
+					from, engageCell, info.AirDangerDetourCells, info.AirDangerSafeThreshold, air);
+				attackMoveCell = waypoint ?? engageCell;
 			}
 
 			// Move toward target
@@ -355,7 +439,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 						continue;
 					}
 
-					owner.Bot.QueueOrder(new Order("AttackMove", u, Target.FromCell(owner.World, owner.TargetActor.Location), false));
+					owner.Bot.QueueOrder(new Order("AttackMove", u, Target.FromCell(owner.World, attackMoveCell), false));
 				}
 				else
 					owner.Bot.QueueOrder(new Order("Attack", u, Target.FromActor(owner.TargetActor), false));
@@ -501,14 +585,27 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			if (withdrawTicks < 75)
 			{
 				// Find safe retreat location
-				var threatMap = owner.World.WorldActor.TraitOrDefault<ThreatMapManager>();
 				CPos retreatCell;
 
-				if (threatMap != null)
-					retreatCell = threatMap.FindSafestRetreatCell(
-						owner.Units.First().Location, owner.Bot.Player, 15);
+				// Stage-D: re-route to the least AA-covered heading (air-safe corridor) instead of the
+				// omniscient ThreatMap. Experimental-only; every other profile keeps the legacy retreat.
+				var danger = DangerFieldAvoidanceEnabled(owner) ? GetDangerField(owner) : null;
+				if (danger != null)
+				{
+					var info = GetHeliModuleInfo(owner);
+					var air = AirDangerSampler(owner, danger);
+					retreatCell = HeliDangerNav.SafestAirCellOnRing(
+						owner.Units.First().Location, info.AirDangerRetreatCells, air);
+				}
 				else
-					retreatCell = RandomBuildingLocation(owner);
+				{
+					var threatMap = owner.World.WorldActor.TraitOrDefault<ThreatMapManager>();
+					if (threatMap != null)
+						retreatCell = threatMap.FindSafestRetreatCell(
+							owner.Units.First().Location, owner.Bot.Player, 15);
+					else
+						retreatCell = RandomBuildingLocation(owner);
+				}
 
 				foreach (var u in owner.Units)
 				{

@@ -676,6 +676,10 @@ Player:
 		MaxActiveSquads: 3
 		SkipRearmReadyCheck: true
 		StandoffEngagement: true
+		# Influence stack Stage D: consume the per-player anti-air danger field so attack helis route
+		# AROUND believed AA, leash their standoff to the AA-safe envelope, and withdraw/re-route the
+		# moment a new AA lights up. Rides on StandoffEngagement above. Experimental-only.
+		DangerFieldAvoidance: true
 
 	# ===== Stable AI — frozen snapshot of the validated Experimental config =====
 	#

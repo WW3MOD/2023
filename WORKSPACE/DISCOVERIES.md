@@ -3,6 +3,14 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-24 — Influence Stage D: the heli danger consumer rides on Stage 0, and the air channel's ground-only baseline is exactly what makes `safeThreshold = 0` mean something
+
+Wiring the attack-heli AA consumer (`wt/stage-d`, base e6e9f1c3) surfaced a few load-bearing facts:
+
+- **The Stage-B air channel carries NO territory baseline** (`DangerFieldLayer.StampBaseline` / `DangerKernelMath.BaselineChannels` return `(contribution, 0)`), so a non-zero `AirDanger(player, cell)` reading means *a believed enemy weapon can actually shoot a heli here* — not "near enemy ground." That is what lets Stage D use `AirDangerSafeThreshold = 0` as a literal "outside every believed AA envelope" test for both the leash target and detour acceptance. If a future air baseline is ever added, that default stops meaning "AA-clear" and the leash will refuse safe ground — the invariant in `DangerFieldLayer` (~line 177) is a Stage-D dependency, not just a Stage-B nicety.
+- **Stage D layers on Stage 0, it does not replace it.** The consumer only rewrites the *destination cell* of the existing standoff `AttackMove` (leash to the AA-safe cell nearest the target, then a lateral detour waypoint if the straight approach crosses AA) and adds a withdraw-on-spike transition. The stop-and-fire-at-missile-range mechanic is still Stage 0's `StandoffEngagement`. So `DangerFieldAvoidance` is gated to *ride on* `StandoffEngagement` (`avoid = standoff && DangerFieldAvoidanceEnabled(...)`): with standoff off there is no attack-move destination to steer, so avoidance is inert rather than issuing conflicting orders.
+- **Determinism without a determinism class.** The nav decisions (`HeliDangerNav`: path-max sampling, leash ring-search, lateral detour, safest-retreat-ring) are pure integer walks over a `Func<CPos,int>` air sampler with fixed candidate order and iteration-order tie-breaks — zero random draws, matching the influence-stack invariant (decision file 10). Off-map cells are fed as `Impassable = int.MaxValue` by the caller so a leash/detour/retreat search never steers off the playable area, and the pure functions stay world-free (NUnit feeds a synthetic radial envelope). Split from the FSM the same way `DangerKernelMath`/`ControlFieldMath` were, so the logic table is pinned at build time without a game run.
+
 ## 2026-07-24 — Lobby Team column was parked, not deleted; non-editable rows were actively suppressed
 
 The WW3MOD lobby (`engine/mods/common/chrome/lobby-players.yaml` — WW3MOD edits the shared common chrome directly, no mod override; wired via `mod.yaml:193`) had **no visible team column**, but the widgets were never removed:

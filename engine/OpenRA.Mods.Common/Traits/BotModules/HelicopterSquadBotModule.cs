@@ -63,6 +63,30 @@ namespace OpenRA.Mods.Common.Traits
 			"HelicopterSquadBotModule@experimental turns it on.")]
 		public readonly bool StandoffEngagement = false;
 
+		[Desc("Influence stack Stage D: consume the per-player ANTI-AIR danger field (DangerFieldLayer) so",
+			"attack-heli squads route AROUND believed AA, leash their standoff to the AA-safe envelope, and",
+			"withdraw/re-route when a NEW AA threat lights up on the field mid-flight. Rides on top of",
+			"StandoffEngagement (only takes effect while that is on). OFF by default so legacy/normal/stable",
+			"behaviour is byte-identical; only HelicopterSquadBotModule@experimental turns it on.")]
+		public readonly bool DangerFieldAvoidance = false;
+
+		[Desc("Stage-D: cell air-danger at or below which a cell is treated as AA-safe (leash target /",
+			"acceptable detour). 0 = strictly outside every believed anti-air envelope. Air-only tunable.")]
+		public readonly int AirDangerSafeThreshold = 0;
+
+		[Desc("Stage-D: air-danger at the squad's own position above which a newly-believed AA is taken to",
+			"cover the squad and it withdraws / re-routes. Above SafeThreshold so leash grazing does not flap.")]
+		public readonly int AirDangerSpikeThreshold = 30;
+
+		[Desc("Stage-D: how far from the target (cells) to search for an AA-safe standoff cell to leash to.")]
+		public readonly int AirDangerLeashCells = 6;
+
+		[Desc("Stage-D: lateral offset magnitude (cells) for detour waypoints that route around AA.")]
+		public readonly int AirDangerDetourCells = 6;
+
+		[Desc("Stage-D: ring radius (cells) searched for the safest air-aware retreat cell on withdraw.")]
+		public readonly int AirDangerRetreatCells = 12;
+
 		public override object Create(ActorInitializer init) { return new HelicopterSquadBotModule(init.Self, this); }
 	}
 
