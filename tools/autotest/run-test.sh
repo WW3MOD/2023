@@ -14,6 +14,12 @@
 #                          windows immediately after launch via osascript so
 #                          your terminal keeps focus. Cmd+Tab to OpenRA brings
 #                          it forward.
+#   --hidden               Never map the window (SDL_WINDOW_HIDDEN): no desktop
+#                          window, no focus grab. Rendering suspends engine-side
+#                          exactly like --minimized, so the run is invisible with
+#                          no GPU cost. This is the unattended/tournament profile;
+#                          prefer it over --minimized on Windows, where a
+#                          minimized window can surface as a black frame.
 #   --minimized            Old behavior: SDL_MinimizeWindow into the dock.
 #                          Restore by clicking the small icon next to Trash.
 #   --visible              Stay foreground. (Alias: --no-minimize.)
@@ -94,6 +100,7 @@ while [ $# -gt 0 ]; do
 		--windowed)             GRAPHICS_MODE="Windowed"; shift ;;
 		--position=*)           POSITION="${1#*=}"; shift ;;
 		--background)           WINDOW_BEHAVIOR="background"; shift ;;
+		--hidden)               WINDOW_BEHAVIOR="hidden"; shift ;;
 		--minimized)            WINDOW_BEHAVIOR="minimized"; shift ;;
 		--visible|--no-minimize|--foreground)
 		                        WINDOW_BEHAVIOR="visible"; shift ;;
@@ -118,7 +125,7 @@ done
 
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 [L|R|F] [--background|--minimized|--visible] [--audio] [--speed N] [--seed N] [--timeout N] <test-folder-name>"
+	echo "Usage: $0 [L|R|F] [--background|--hidden|--minimized|--visible] [--audio] [--speed N] [--seed N] [--timeout N] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
 fi
@@ -331,18 +338,24 @@ if [ -n "${WINDOW_POS_ENV}" ]; then
 	export OPENRA_WINDOW_Y="${WINDOW_POS_ENV#*,}"
 fi
 
-# Engine reads OPENRA_WINDOW_MINIMIZED=1 and calls SDL_MinimizeWindow after
-# window creation. Only set when the user explicitly opts back in via
-# --minimized, since miniaturized SDL windows are awkward to restore on macOS
-# (Cmd+Tab can't unminiaturize — only the small dock icon next to Trash does).
-MINIMIZE_ARGS=""
-if [ "${WINDOW_BEHAVIOR}" = "minimized" ] && [ "${POSITION}" != "full" ] && [ "${GRAPHICS_MODE}" = "Windowed" ]; then
+# Both hidden and minimized launches suspend engine-side rendering, and a low
+# framerate cap would then throttle the *suspended* sim to a few ticks/s (the
+# logic gate only clears at the render cadence). Force the cap off in either case
+# so the run free-runs. See WORKSPACE/plans/260721_sim_throughput.md, Option C.
+SUSPEND_ARGS=""
+if [ "${WINDOW_BEHAVIOR}" = "hidden" ] && [ "${POSITION}" != "full" ] && [ "${GRAPHICS_MODE}" = "Windowed" ]; then
+	# Engine reads OPENRA_WINDOW_HIDDEN=1 and creates the window with
+	# SDL_WINDOW_HIDDEN (never mapped, never focus-steals). The robust unattended
+	# profile — no visible black window on Windows (bugs/discovered.md 2026-07-22).
+	export OPENRA_WINDOW_HIDDEN=1
+	SUSPEND_ARGS="Graphics.CapFramerate=false"
+elif [ "${WINDOW_BEHAVIOR}" = "minimized" ] && [ "${POSITION}" != "full" ] && [ "${GRAPHICS_MODE}" = "Windowed" ]; then
+	# Engine reads OPENRA_WINDOW_MINIMIZED=1 and calls SDL_MinimizeWindow after
+	# window creation. Legacy opt-in — miniaturized SDL windows are awkward to
+	# restore on macOS (Cmd+Tab can't unminiaturize — only the small dock icon
+	# next to Trash does).
 	export OPENRA_WINDOW_MINIMIZED=1
-	# A minimized window suspends rendering; a low framerate cap would then
-	# throttle the *suspended* sim to a few ticks/s (the logic gate clears only
-	# at the render cadence). Force the cap off so a minimized run free-runs.
-	# See WORKSPACE/plans/260721_sim_throughput.md, Option C.
-	MINIMIZE_ARGS="Graphics.CapFramerate=false"
+	SUSPEND_ARGS="Graphics.CapFramerate=false"
 fi
 
 # Audio mute via the Sound.Mute toggle (not by zeroing volumes — that would
@@ -440,7 +453,7 @@ SCREENSHOT_DIR_GAME=$(to_game_path "${SCREENSHOT_DIR}")
 	${AUDIO_ARGS} \
 	${SPEED_ARGS} \
 	${SEED_ARGS} \
-	${MINIMIZE_ARGS} \
+	${SUSPEND_ARGS} \
 	&
 LAUNCH_PID=$!
 
