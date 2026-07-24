@@ -125,10 +125,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			// Size each chip to its text rather than the template's fixed 180px.
 			// 24px total internal padding (12 left + 12 right) so the label
-			// doesn't kiss the chip edges.
+			// doesn't kiss the chip edges. Cap at the usable row width, NOT a
+			// magic constant: the old 260px cap silently clipped any chip whose
+			// text ran past ~236px (e.g. a long option name + value — measured
+			// "~  Starting Units  Motorized" is 210px, but longer pairs exceed
+			// 260 and overflowed the fixed background). Following the panel width
+			// makes the chip fit its text for anything short of a single label
+			// wider than the whole strip.
 			var templateLabel = chipTemplate.GetOrNull<LabelWidget>("CHIP_LABEL");
 			var font = templateLabel != null ? Game.Renderer.Fonts[templateLabel.Font] : null;
-			int MeasureChipWidth(string text) => font != null ? Math.Min(font.Measure(text).X + 24, 260) : 180;
+			var maxChipWidth = Math.Max(24, containerWidth - 2 * startX);
+			int MeasureChipWidth(string text) => font != null ? Math.Min(font.Measure(text).X + 24, maxChipWidth) : 180;
 
 			// Collect every changed option first so the row cap and the "+N more"
 			// overflow chip can be computed against the full set before rendering.
