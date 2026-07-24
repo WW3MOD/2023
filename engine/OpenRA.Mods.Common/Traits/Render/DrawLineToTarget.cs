@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Orders;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -34,6 +35,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Width (in pixels) of the queued end node markers.")]
 		public readonly int QueuedMarkerWidth = 2;
+
+		[Desc("Width (in pixels) of the faint 'lesser' lines drawn to each unit's cohesion slot",
+			"(its actual final destination) when a grouped Move/AttackMove spread the unit around an",
+			"order point. Kept thinner than LineWidth so it reads as weaker than the primary line.")]
+		public readonly int LesserLineWidth = 1;
+
+		[Desc("Alpha (0-255) of the dashed 'lesser' cohesion slot lines. Combined with the thinner",
+			"width and the dashed style, these read as distinctly weaker than the solid primary line.")]
+		public readonly int LesserLineAlpha = 110;
 
 		public override object Create(ActorInitializer init) { return new DrawLineToTarget(this); }
 	}
@@ -105,6 +115,18 @@ namespace OpenRA.Mods.Common.Traits
 				return Enumerable.Empty<IRenderable>();
 
 			renderableCache.Clear();
+
+			// Cohesion order-line overlay: if a grouped Move/AttackMove spread this unit into a
+			// formation slot for its CURRENT move, render the per-unit legs below as faint "lesser"
+			// lines and add a normal-weight "primary" line to the commanded order point — so the
+			// player sees both where the order was given AND where each unit actually ends up.
+			// Purely visual: reads deterministic sim state (CohesionSlotMemory), never mutates it.
+			var slotMemory = self.TraitOrDefault<CohesionSlotMemory>();
+			var cohesionOrderPoint = CPos.Zero;
+			var haveOrderPoint = false;
+			var haveHead = false;
+			var headColor = default(Color);
+
 			var prev = self.CenterPosition;
 			var a = self.CurrentActivity;
 			for (; a != null; a = a.NextActivity)
@@ -116,11 +138,46 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					if (n.Target.Type != TargetType.Invalid && n.Tile == null)
 					{
-						var lineWidth = renderableCache.Count > 0 ? info.QueuedLineWidth : info.LineWidth;
-						var markerWidth = renderableCache.Count > 0 ? info.QueuedMarkerWidth : info.MarkerWidth;
-
 						var pos = n.Target.CenterPosition;
-						renderableCache.Add(new TargetLineRenderable(new[] { prev, pos }, n.Color, lineWidth, markerWidth));
+
+						// On the head (current) node, decide whether the overlay applies. It does only
+						// when the remembered slot matches this move's destination (the memory is live,
+						// not left over from an earlier order) and the order point differs from the slot
+						// (an actual spread happened — not a solo move or an executor reposition, both of
+						// which record order-point == slot).
+						if (!haveHead)
+						{
+							haveHead = true;
+							headColor = n.Color;
+							if (slotMemory != null && slotMemory.AssignedSlot is CPos slot && slotMemory.OrderPoint is CPos op)
+							{
+								var headCell = self.World.Map.CellContaining(pos);
+								if (slot == headCell && op != slot)
+								{
+									cohesionOrderPoint = op;
+									haveOrderPoint = true;
+								}
+							}
+						}
+
+						int lineWidth, markerWidth;
+						int? overrideAlpha = null;
+						// Lesser legs are dashed + thin + alpha-tuned so they read as unmistakably
+						// weaker than the solid, normal-weight primary order line at a glance.
+						var dashedLeg = haveOrderPoint;
+						if (haveOrderPoint)
+						{
+							lineWidth = info.LesserLineWidth;
+							markerWidth = info.LesserLineWidth;
+							overrideAlpha = info.LesserLineAlpha;
+						}
+						else
+						{
+							lineWidth = renderableCache.Count > 0 ? info.QueuedLineWidth : info.LineWidth;
+							markerWidth = renderableCache.Count > 0 ? info.QueuedMarkerWidth : info.MarkerWidth;
+						}
+
+						renderableCache.Add(new TargetLineRenderable(new[] { prev, pos }, n.Color, lineWidth, markerWidth, dashedLeg, overrideAlpha));
 						prev = pos;
 					}
 				}
@@ -131,6 +188,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Reverse draw order so target markers are drawn on top of the next line
 			renderableCache.Reverse();
+
+			// Primary order line added last so it draws on top of the faint lesser legs.
+			if (haveOrderPoint)
+			{
+				var orderPos = self.World.Map.CenterOfCell(cohesionOrderPoint);
+				renderableCache.Add(new TargetLineRenderable(new[] { self.CenterPosition, orderPos }, headColor, info.LineWidth, info.MarkerWidth));
+			}
+
 			return renderableCache.ToArray();
 		}
 

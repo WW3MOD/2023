@@ -550,7 +550,9 @@ namespace OpenRA.Mods.Common.Traits
 			hasTarget = true;
 
 			// B2: return-to-slot now reinforces our cell instead of dragging back to a stale slot.
-			slotMemory?.Assign(dest, tick);
+			// Pass dest as the order point too: this is an executor-driven reposition, not a player
+			// order, so order-point == slot and the primary order-line overlay stays suppressed.
+			slotMemory?.Assign(dest, dest, tick);
 
 			// B1: bot-owned units register a `tacpos:` claim so the Poi stack / GroundStates filter
 			// leaves them alone. Humans have no bot layer contesting them — skip the ledger. Cache the

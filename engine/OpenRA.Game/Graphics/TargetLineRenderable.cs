@@ -24,16 +24,25 @@ namespace OpenRA.Graphics
 		readonly int markerSize;
 		readonly bool dashed;
 
+		// Optional per-line alpha override. When null the default alpha (50 solid / 200 dashed) is
+		// used, preserving the look of every existing caller. DrawLineToTarget passes a lower value
+		// for the faint "lesser" cohesion slot legs so they read as weaker than the primary line.
+		readonly int? lineAlpha;
+
 		public TargetLineRenderable(IEnumerable<WPos> waypoints, Color color, int width, int markerSize)
-			: this(waypoints, color, width, markerSize, false) { }
+			: this(waypoints, color, width, markerSize, false, null) { }
 
 		public TargetLineRenderable(IEnumerable<WPos> waypoints, Color color, int width, int markerSize, bool dashed)
+			: this(waypoints, color, width, markerSize, dashed, null) { }
+
+		public TargetLineRenderable(IEnumerable<WPos> waypoints, Color color, int width, int markerSize, bool dashed, int? lineAlpha)
 		{
 			this.waypoints = waypoints;
 			this.color = color;
 			this.width = width;
 			this.markerSize = markerSize;
 			this.dashed = dashed;
+			this.lineAlpha = lineAlpha;
 		}
 
 		public WPos Pos => waypoints.First();
@@ -46,7 +55,7 @@ namespace OpenRA.Graphics
 		{
 			// Lambdas can't use 'in' variables, so capture a copy for later
 			var offset = vec;
-			return new TargetLineRenderable(waypoints.Select(w => w + offset), color, width, markerSize, dashed);
+			return new TargetLineRenderable(waypoints.Select(w => w + offset), color, width, markerSize, dashed, lineAlpha);
 		}
 
 		public IRenderable AsDecoration() { return this; }
@@ -58,8 +67,10 @@ namespace OpenRA.Graphics
 				return;
 
 			// Dashed lines deliberately use a much higher alpha than solid ones so the
-			// dashes read as dashes instead of blurring into a faint solid bar.
-			var lineColor = dashed ? Color.FromArgb(200, color) : Color.FromArgb(50, color);
+			// dashes read as dashes instead of blurring into a faint solid bar. Callers may
+			// override the alpha (e.g. faint "lesser" cohesion slot legs).
+			var baseAlpha = dashed ? 200 : 50;
+			var lineColor = Color.FromArgb(lineAlpha ?? baseAlpha, color);
 			var first = wr.Viewport.WorldToViewPx(wr.Screen3DPosition(waypoints.First()));
 			var a = first;
 			foreach (var b in waypoints.Skip(1).Select(pos => wr.Viewport.WorldToViewPx(wr.Screen3DPosition(pos))))

@@ -44,6 +44,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		bool hasSlot;
 
+		// Render-only: the player-commanded order point (click cell) this slot was spread around,
+		// as opposed to assignedSlot (the per-unit destination). Deliberately NOT [Sync] — it is
+		// never read by any sim decision (only by DrawLineToTarget to draw the primary order line),
+		// so it can never affect game state, replays, or the sync hash.
+		CPos assignedOrderPoint;
+		bool hasOrderPoint;
+
 		int lastAssignTick;
 		int lastReturnTick;
 
@@ -53,14 +60,20 @@ namespace OpenRA.Mods.Common.Traits
 			mobile = self.Trait<Mobile>();
 		}
 
-		public void Assign(CPos slot, int tick)
+		public void Assign(CPos slot, CPos orderPoint, int tick)
 		{
 			assignedSlot = slot;
 			hasSlot = true;
+			assignedOrderPoint = orderPoint;
+			hasOrderPoint = true;
 			lastAssignTick = tick;
 		}
 
 		public CPos? AssignedSlot => hasSlot ? (CPos?)assignedSlot : null;
+
+		// The order point (click cell) the last grouped Move/AttackMove spread this unit around.
+		// Render-only; see assignedOrderPoint.
+		public CPos? OrderPoint => hasSlot && hasOrderPoint ? (CPos?)assignedOrderPoint : null;
 
 		// Drop the remembered slot so return-to-slot stops. Used by the Phase-2 positioning
 		// executor on abort/disengage so a released unit reverts to whatever the next grouped
@@ -68,6 +81,7 @@ namespace OpenRA.Mods.Common.Traits
 		public void Clear()
 		{
 			hasSlot = false;
+			hasOrderPoint = false;
 		}
 
 		// PITFALL: this fires when ANOTHER actor wants to push through us — the Mobile trait's
@@ -99,6 +113,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (tick - lastAssignTick > info.ForgetAfterTicks)
 			{
 				hasSlot = false;
+				hasOrderPoint = false;
 				return;
 			}
 
