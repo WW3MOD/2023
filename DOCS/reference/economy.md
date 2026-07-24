@@ -60,6 +60,17 @@ Ammo: 900 (9 batches × 100 rounds × 5 supply = 45)
 
 Players see what one cycle costs and how many cycles fill the pool, not an opaque per-round number.
 
+### Artillery salvo economics
+
+A single artillery *volley* is priced as a batch, not per round: `SalvoCost(burst, reloadCount, supplyValue) = ceil(Burst / ReloadCount) × SupplyValue` (`FiresEconMath.cs:90`), the same whole-batch rounding the rearm/evac math uses. This is why rocket launchers and tube guns sit in different economic weight classes:
+
+- **Rocket launchers fire a large `Burst`** (Grad 40, TOS 24, M270 12 — `weapons-ballistics.yaml`), so a volley repays hundreds of supply (e.g. Grad `8×85≈680`, M270 `12×70=840`, TOS `8×120=960`).
+- **Tube guns fire `Burst` 1–3** (Paladin 3, Giatsint 1), so a shell repays ~60 supply.
+
+So a lone $100 infantryman is worth a tube shell but not a Grad volley — the arithmetic reason a fires AI should gate rocket fire on target value.
+
+**The AoE that catches a formation comes from the salvo spread, not the warhead.** The lethal footprint is the `Burst` rounds scattered across the projectile's `Inaccuracy` (the beaten zone), NOT the per-round `SpreadDamageWarhead.Spread` — which is sub-cell on every piece (64–196, i.e. < 0.2 cell; 1 cell = 1024). A cluster/AoE radius derived from warhead `Spread` alone would catch almost nothing.
+
 ## The supply chain
 
 ### Logistics Center (LC)
