@@ -373,6 +373,12 @@
 	# enable-ai-experimental token is granted per-unit only to that bot (defaults.yaml ^Combatant grant /
 	# ai.yaml), so human- and @stable-owned artillery never satisfy it — cluster scoring is inert and
 	# byte-identical for them. Humans can opt in later by pointing this at a human-granted token.
+	# NOTE-3 — the two fires-economics scopes differ, so a new rocket unit needs BOTH hooks: the EV
+	# fire gate (item 19) keys off the DYNAMIC role model (UnitRoleResolver IndirectFireKind, derived from
+	# salvo Burst) and so covers any IndirectFire actor automatically; this cluster term keys off EXPLICIT
+	# inheritance of ^AutoTargetArtillery/^AutoTargetArtilleryInfantry (5 actors today). A future rocket
+	# actor that is classified IndirectFire but does NOT inherit these templates would get the EV gate but
+	# silently miss cluster targeting — inherit the template (or move this field onto the shared base) too.
 	AutoTarget:
 		ClusterTargetingCondition: enable-ai-experimental
 	AutoTargetPriority@Heavy:

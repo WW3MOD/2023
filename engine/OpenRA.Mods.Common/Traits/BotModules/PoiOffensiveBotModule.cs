@@ -407,6 +407,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (targets.Count == 0)
 			{
 				RetireAllAxes("no-targets");
+
+				// FIX-1: no scoreable enemy POI means no fires set is built this eval, so every held rocket piece
+				// is now a stray — reconcile BEFORE the early return, or a piece held on an unworthy clump would
+				// strand in HoldFire (defenceless) for as long as the enemy has no visible POI (mop-up / fogged
+				// POIs). firesHeldThisEval was just cleared above, so this restores FireAtWill on all held pieces.
+				ReconcileFiresHoldFire(bot);
+
 				Log.Write("debug", $"[exp-offense] reeval player={player.PlayerName} targets=0 axes=0 tick={tick}");
 				return;
 			}
@@ -513,18 +520,7 @@ namespace OpenRA.Mods.Common.Traits
 				CommitAndOrder(bot, axis, tick);
 			}
 
-			// Fires EV gate: restore FireAtWill on any rocket piece that was holding fire but is no longer in a
-			// fires set (its axis retired / it was reclassified / it dropped out of range) so it never strands.
-			if (firesHeldFire.Count > 0)
-			{
-				var strays = firesHeldFire.Where(a => !firesHeldThisEval.Contains(a)).ToList();
-				foreach (var a in strays)
-				{
-					firesHeldFire.Remove(a);
-					if (!a.IsDead && a.IsInWorld && a.Owner == player)
-						bot.QueueOrder(new Order("SetUnitStance", a, false) { ExtraData = (uint)UnitStance.FireAtWill });
-				}
-			}
+			ReconcileFiresHoldFire(bot);
 
 			Log.Write("debug",
 				$"[exp-offense] reeval player={player.PlayerName} pool={totalOffensive} free={free.Count} targets={targets.Count} axes={axes.Count} k={k} tick={tick}");
@@ -942,6 +938,26 @@ namespace OpenRA.Mods.Common.Traits
 
 				Log.Write("debug",
 					$"[exp-offense] fires player={player.PlayerName} unit={u.Info.Name}#{u.ActorID} anchor={anchorCell} maxRange={maxRange} needsReposition={needs} target={axis.TargetName}@{axis.TargetCell} tick={tick}");
+			}
+		}
+
+		// Fires EV gate: restore FireAtWill on every held rocket piece that was NOT re-affirmed as held this eval
+		// (its axis retired, it was reclassified, it dropped out of range, or no scoreable POI exists so no fires
+		// set was built at all) so a held piece can never strand defenceless in HoldFire. Called on BOTH the
+		// normal post-order path and the targets.Count==0 early return. NOTE-2: a piece whose owner changed is
+		// dropped from tracking but gets no restore order — we cannot issue orders for a unit we no longer own;
+		// its new owner's logic governs its stance. Deterministic: content of the restored set is order-independent.
+		void ReconcileFiresHoldFire(IBot bot)
+		{
+			if (firesHeldFire.Count == 0)
+				return;
+
+			var strays = firesHeldFire.Where(a => !firesHeldThisEval.Contains(a)).ToList();
+			foreach (var a in strays)
+			{
+				firesHeldFire.Remove(a);
+				if (!a.IsDead && a.IsInWorld && a.Owner == player)
+					bot.QueueOrder(new Order("SetUnitStance", a, false) { ExtraData = (uint)UnitStance.FireAtWill });
 			}
 		}
 
