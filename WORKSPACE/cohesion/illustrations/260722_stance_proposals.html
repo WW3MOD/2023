@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cohesion stances — illustrated proposals (260722)</title>
+<style>
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background:#14171c; color:#d8dde6; max-width:1060px; margin:0 auto; padding:24px 32px 80px; line-height:1.5; }
+  h1 { font-size:1.5em; border-bottom:2px solid #2e3642; padding-bottom:8px; }
+  h2 { font-size:1.2em; margin-top:2.2em; color:#8fb8e8; }
+  h3 { font-size:1.0em; color:#c9a86a; margin-bottom:4px; }
+  p, li { font-size:0.93em; }
+  .panelrow { display:flex; gap:18px; flex-wrap:wrap; margin:14px 0; }
+  .panel { background:#1b2027; border:1px solid #2e3642; border-radius:8px; padding:10px 12px 6px; }
+  .panel .cap { font-size:0.8em; color:#9aa4b2; margin-top:4px; max-width:300px; }
+  .panel .cap b { color:#d8dde6; }
+  svg { display:block; background:#232a20; border-radius:4px; }
+  .bad { color:#e07a7a; font-weight:600; } .good { color:#7ac98f; font-weight:600; }
+  .tag { display:inline-block; padding:1px 8px; border-radius:10px; font-size:0.75em; font-weight:700; margin-right:6px; }
+  .tight { background:#3a4a68; color:#cfe0ff; } .loose { background:#3d5a3d; color:#d2f0d2; } .spread { background:#6a4a35; color:#ffe0c9; }
+  table { border-collapse:collapse; font-size:0.88em; margin:10px 0; }
+  td, th { border:1px solid #2e3642; padding:5px 10px; text-align:left; }
+  th { background:#1b2027; color:#8fb8e8; }
+  .dp { background:#1b2027; border-left:3px solid #c9a86a; padding:8px 14px; margin:10px 0; border-radius:0 6px 6px 0; }
+  .dp b:first-child { color:#c9a86a; }
+  code { background:#252c36; padding:1px 5px; border-radius:3px; font-size:0.88em; }
+</style>
+</head>
+<body>
+
+<h1>Cohesion stances — what each should mean</h1>
+<p>Grounded in the code as of main <code>6b720067</code>. Legend for all diagrams:
+<svg width="470" height="34" style="display:inline-block;vertical-align:middle;background:#232a20;border-radius:4px">
+  <circle cx="18" cy="17" r="6" fill="#6db3e8"/><text x="30" y="21" fill="#9aa4b2" font-size="11">unit</text>
+  <circle cx="78" cy="17" r="7" fill="#3e6b34"/><circle cx="78" cy="17" r="2.5" fill="#7a5a30"/><text x="92" y="21" fill="#9aa4b2" font-size="11">tree (cover)</text>
+  <text x="168" y="22" fill="#e8c46d" font-size="15" font-weight="bold">✕</text><text x="182" y="21" fill="#9aa4b2" font-size="11">player click</text>
+  <line x1="252" y1="17" x2="286" y2="17" stroke="#6db3e8" stroke-width="1.4" stroke-dasharray="4 3"/><text x="292" y="21" fill="#9aa4b2" font-size="11">unit path</text>
+  <rect x="352" y="10" width="14" height="14" fill="none" stroke="#c96a6a" stroke-width="1.5"/><text x="372" y="21" fill="#9aa4b2" font-size="11">danger / AoE</text>
+</svg></p>
+
+<h2>1 · Today: one behavior, three spacing numbers</h2>
+<p>All three stances run the <em>same</em> four intent bidders (Open box / SpreadInside / EdgeLine / Approach). The stance only swaps the grid spacing constants. So "Spread" = the same box or cover-bid, stretched. Nothing else changes: same leash, same assignment, same travel behavior.</p>
+
+<div class="panelrow">
+  <div class="panel">
+    <svg width="300" height="170" viewBox="0 0 300 170">
+      <text x="8" y="16" fill="#9aa4b2" font-size="11">TIGHT — 1×1 cell grid</text>
+      <text x="150" y="90" fill="#e8c46d" font-size="16" font-weight="bold">✕</text>
+      <circle cx="138" cy="78" r="6" fill="#6db3e8"/><circle cx="156" cy="78" r="6" fill="#6db3e8"/>
+      <circle cx="138" cy="96" r="6" fill="#6db3e8"/><circle cx="156" cy="96" r="6" fill="#6db3e8"/>
+      <circle cx="120" cy="78" r="6" fill="#6db3e8"/><circle cx="120" cy="96" r="6" fill="#6db3e8"/>
+    </svg>
+    <div class="cap"><b>Tight:</b> small box on the click.</div>
+  </div>
+  <div class="panel">
+    <svg width="300" height="170" viewBox="0 0 300 170">
+      <text x="8" y="16" fill="#9aa4b2" font-size="11">LOOSE — 2×1.5 cell grid</text>
+      <text x="150" y="90" fill="#e8c46d" font-size="16" font-weight="bold">✕</text>
+      <circle cx="120" cy="72" r="6" fill="#6db3e8"/><circle cx="152" cy="72" r="6" fill="#6db3e8"/><circle cx="184" cy="72" r="6" fill="#6db3e8"/>
+      <circle cx="120" cy="102" r="6" fill="#6db3e8"/><circle cx="152" cy="102" r="6" fill="#6db3e8"/><circle cx="184" cy="102" r="6" fill="#6db3e8"/>
+    </svg>
+    <div class="cap"><b>Loose (default):</b> same box, more air.</div>
+  </div>
+  <div class="panel">
+    <svg width="300" height="170" viewBox="0 0 300 170">
+      <text x="8" y="16" fill="#9aa4b2" font-size="11">SPREAD — 3×2.5 cell grid</text>
+      <text x="150" y="90" fill="#e8c46d" font-size="16" font-weight="bold">✕</text>
+      <circle cx="90" cy="60" r="6" fill="#6db3e8"/><circle cx="140" cy="60" r="6" fill="#6db3e8"/><circle cx="190" cy="60" r="6" fill="#6db3e8"/>
+      <circle cx="90" cy="112" r="6" fill="#6db3e8"/><circle cx="140" cy="112" r="6" fill="#6db3e8"/><circle cx="190" cy="112" r="6" fill="#6db3e8"/>
+    </svg>
+    <div class="cap"><b>Spread:</b> <span class="bad">same box, stretched.</span> No new intelligence, just distance.</div>
+  </div>
+</div>
+
+<h2>2 · Why Spread feels strange — three compounding causes</h2>
+<div class="panelrow">
+  <div class="panel">
+    <svg width="320" height="200" viewBox="0 0 320 200">
+      <text x="8" y="16" fill="#9aa4b2" font-size="11">(a) Criss-crossing travel (slots by ActorID)</text>
+      <circle cx="40" cy="60" r="6" fill="#6db3e8"/><circle cx="40" cy="100" r="6" fill="#6db3e8"/><circle cx="40" cy="140" r="6" fill="#6db3e8"/>
+      <circle cx="270" cy="60" r="6" fill="none" stroke="#6db3e8" stroke-dasharray="3 2"/>
+      <circle cx="270" cy="100" r="6" fill="none" stroke="#6db3e8" stroke-dasharray="3 2"/>
+      <circle cx="270" cy="140" r="6" fill="none" stroke="#6db3e8" stroke-dasharray="3 2"/>
+      <line x1="48" y1="60" x2="262" y2="140" stroke="#c96a6a" stroke-width="1.4" stroke-dasharray="4 3"/>
+      <line x1="48" y1="100" x2="262" y2="60" stroke="#c96a6a" stroke-width="1.4" stroke-dasharray="4 3"/>
+      <line x1="48" y1="140" x2="262" y2="100" stroke="#c96a6a" stroke-width="1.4" stroke-dasharray="4 3"/>
+    </svg>
+    <div class="cap">Slot i goes to the unit with the i-th lowest <b>ActorID</b>, not the nearest unit. Paths cross; wider spacing = longer crossings = more visible chaos. (<code>as-built §10.C</code>)</div>
+  </div>
+  <div class="panel">
+    <svg width="320" height="200" viewBox="0 0 320 200">
+      <text x="8" y="16" fill="#9aa4b2" font-size="11">(b) Cover-bid + big min-spacing = odd cells</text>
+      <circle cx="150" cy="90" r="8" fill="#3e6b34"/><circle cx="150" cy="90" r="3" fill="#7a5a30"/>
+      <circle cx="170" cy="110" r="8" fill="#3e6b34"/><circle cx="170" cy="110" r="3" fill="#7a5a30"/>
+      <text x="152" y="104" fill="#e8c46d" font-size="15" font-weight="bold">✕</text>
+      <circle cx="140" cy="78" r="6" fill="#6db3e8"/>
+      <circle cx="230" cy="150" r="6" fill="#6db3e8"/>
+      <circle cx="60" cy="40" r="6" fill="#6db3e8"/>
+      <text x="222" y="176" fill="#c96a6a" font-size="10">forced out of cover</text>
+      <text x="40" y="28" fill="#c96a6a" font-size="10">forced out of cover</text>
+    </svg>
+    <div class="cap">In cover, Spread's large min-spacing disqualifies the good cells near trunks — one unit gets the trunk, the rest get <b>whatever open cell satisfies the spacing</b>. The formation looks random.</div>
+  </div>
+  <div class="panel">
+    <svg width="320" height="200" viewBox="0 0 320 200">
+      <text x="8" y="16" fill="#9aa4b2" font-size="11">(c) No preview — intent is invisible</text>
+      <text x="150" y="100" fill="#e8c46d" font-size="16" font-weight="bold">✕</text>
+      <text x="60" y="140" fill="#9aa4b2" font-size="26">?</text>
+      <text x="230" y="70" fill="#9aa4b2" font-size="26">?</text>
+      <text x="120" y="55" fill="#9aa4b2" font-size="26">?</text>
+    </svg>
+    <div class="cap">No ghost markers or cue: the player can't tell a deliberate dispersed formation from units wandering. Even correct output <b>reads as broken</b>. (<code>problem §3.6</code> — called the single biggest item)</div>
+  </div>
+</div>
+
+<h2>3 · Proposal: give each stance an identity, not a number</h2>
+<p>Keep the intent classifier (it works — verified by the river-zeta probes). Change what a stance <em>means</em>: each stance gets its own formation template, its own cover policy, and its own leash strength. One sentence each:</p>
+
+<table>
+  <tr><th>Stance</th><th>Identity</th><th>Formation</th><th>Cover policy</th><th>Leash</th><th>You accept</th></tr>
+  <tr><td><span class="tag tight">TIGHT</span></td><td>"Column — move fast, stay together"</td><td>Column of 2 along approach axis</td><td>Ignores cover, prioritizes speed + road</td><td>Strong snap-back</td><td>AoE vulnerability</td></tr>
+  <tr><td><span class="tag loose">LOOSE</span></td><td>"Combat interval — fight from cover" (default)</td><td>Current box/wedge, current spacing</td><td>Cover-bid wins vs geometry (bend the line)</td><td>Medium</td><td>Slightly untidy lines</td></tr>
+  <tr><td><span class="tag spread">SPREAD</span></td><td>"Dispersed — survive artillery"</td><td>Staggered irregular line, min interval ≥ AoE radius</td><td>Every unit seeks its own cover micro-pos</td><td>Weak (units keep local freedom)</td><td>Slow, loose arrival</td></tr>
+</table>
+
+<h3>3.1 <span class="tag tight">TIGHT</span> = column. The travel/convoy stance.</h3>
+<div class="panelrow">
+  <div class="panel">
+    <svg width="420" height="180" viewBox="0 0 420 180">
+      <text x="8" y="16" fill="#9aa4b2" font-size="11">Move order in Tight: column of 2, follows the approach axis</text>
+      <rect x="0" y="70" width="420" height="44" fill="#3a3a32"/>
+      <text x="360" y="97" fill="#e8c46d" font-size="16" font-weight="bold">✕</text>
+      <circle cx="60" cy="82" r="6" fill="#6db3e8"/><circle cx="60" cy="102" r="6" fill="#6db3e8"/>
+      <circle cx="84" cy="82" r="6" fill="#6db3e8"/><circle cx="84" cy="102" r="6" fill="#6db3e8"/>
+      <circle cx="108" cy="82" r="6" fill="#6db3e8"/><circle cx="108" cy="102" r="6" fill="#6db3e8"/>
+      <line x1="120" y1="92" x2="348" y2="92" stroke="#6db3e8" stroke-width="1.4" stroke-dasharray="4 3"/>
+    </svg>
+    <div class="cap"><b>Not</b> OpenRA's converge-to-one-point: arrival is a short column (bounded footprint), not a blob. Reads as a convoy. Natural for roads, rear-area moves, mounting up.</div>
+  </div>
+</div>
+
+<h3>3.2 <span class="tag loose">LOOSE</span> = combat interval. What we have, made trustworthy.</h3>
+<div class="panelrow">
+  <div class="panel">
+    <svg width="420" height="200" viewBox="0 0 420 200">
+      <text x="8" y="16" fill="#9aa4b2" font-size="11">Cover edge click: line BENDS to put every unit behind a trunk</text>
+      <circle cx="300" cy="50" r="8" fill="#3e6b34"/><circle cx="300" cy="50" r="3" fill="#7a5a30"/>
+      <circle cx="322" cy="88" r="8" fill="#3e6b34"/><circle cx="322" cy="88" r="3" fill="#7a5a30"/>
+      <circle cx="298" cy="130" r="8" fill="#3e6b34"/><circle cx="298" cy="130" r="3" fill="#7a5a30"/>
+      <circle cx="330" cy="164" r="8" fill="#3e6b34"/><circle cx="330" cy="164" r="3" fill="#7a5a30"/>
+      <text x="255" y="105" fill="#e8c46d" font-size="16" font-weight="bold">✕</text>
+      <circle cx="288" cy="56" r="6" fill="#6db3e8"/>
+      <circle cx="310" cy="94" r="6" fill="#6db3e8"/>
+      <circle cx="286" cy="136" r="6" fill="#6db3e8"/>
+      <circle cx="318" cy="170" r="6" fill="#6db3e8"/>
+      <text x="30" y="100" fill="#7ac98f" font-size="11">every unit gets a trunk,</text>
+      <text x="30" y="114" fill="#7ac98f" font-size="11">even if the "line" bends</text>
+    </svg>
+    <div class="cap">Today a unit stands in the gap if its trunk is &gt;2 cells off the geometric line (<code>LineSlotSearchRadius=2</code>). Fix: widen the search and <b>let cover win over line shape</b> — problem doc behavior F.</div>
+  </div>
+</div>
+
+<h3>3.3 <span class="tag spread">SPREAD</span> = dispersed. The anti-artillery stance.</h3>
+<div class="panelrow">
+  <div class="panel">
+    <svg width="420" height="210" viewBox="0 0 420 210">
+      <text x="8" y="16" fill="#9aa4b2" font-size="11">Same click in Spread: staggered intervals sized to AoE, own cover each</text>
+      <rect x="150" y="60" width="56" height="56" fill="none" stroke="#c96a6a" stroke-width="1.2" stroke-dasharray="3 3"/>
+      <text x="152" y="132" fill="#c96a6a" font-size="9">one shell can only hit one unit</text>
+      <circle cx="90" cy="70" r="8" fill="#3e6b34"/><circle cx="90" cy="70" r="3" fill="#7a5a30"/>
+      <circle cx="250" cy="100" r="8" fill="#3e6b34"/><circle cx="250" cy="100" r="3" fill="#7a5a30"/>
+      <circle cx="330" cy="52" r="8" fill="#3e6b34"/><circle cx="330" cy="52" r="3" fill="#7a5a30"/>
+      <text x="200" y="92" fill="#e8c46d" font-size="16" font-weight="bold">✕</text>
+      <circle cx="98" cy="80" r="6" fill="#6db3e8"/>
+      <circle cx="178" cy="88" r="6" fill="#6db3e8"/>
+      <circle cx="258" cy="110" r="6" fill="#6db3e8"/>
+      <circle cx="338" cy="62" r="6" fill="#6db3e8"/>
+    </svg>
+    <div class="cap">Spacing is <b>derived from the artillery AoE radius</b> (a game fact, not an arbitrary number), stagger breaks the straight line, and each unit does its own local cover-seek. Irregular <b>on purpose</b> — the preview makes that legible.</div>
+  </div>
+</div>
+
+<h2>4 · Cross-cutting fixes that make all three feel natural</h2>
+<table>
+  <tr><th>#</th><th>Fix</th><th>Feel payoff</th><th>Cost</th></tr>
+  <tr><td>1</td><td><b>Nearest-slot assignment</b> (greedy by distance, replacing ActorID order)</td><td>Kills criss-crossing travel — the single cheapest feel win</td><td>Small, isolated in the modifier</td></tr>
+  <tr><td>2</td><td><b>Formation preview ghosts</b> — show slot markers at the cursor before/at click</td><td>Player <em>sees</em> the intent; deliberate ≠ broken. Problem doc: biggest item</td><td>Medium (UI/render work)</td></tr>
+  <tr><td>3</td><td><b>Formation-preserving travel</b> — long moves hold relative offsets while marching, final cover-bid only near destination</td><td>Squad looks like a formation in motion, not a swarm re-sorting</td><td>Medium (waypoint injection)</td></tr>
+  <tr><td>4</td><td><b>Stance-strength leash</b> — Tight snaps back hard, Spread barely</td><td>Formations survive an engagement instead of dissolving</td><td>Small–medium (extends <code>CohesionSlotMemory</code>)</td></tr>
+</table>
+
+<h2>5 · Decision points</h2>
+<div class="dp"><b>DP-1 · Tight = column?</b> Column-of-2 travel identity vs today's small box. The column is the biggest visible change of the proposal.</div>
+<div class="dp"><b>DP-2 · Spread spacing from AoE radius?</b> Derive the interval from a real weapon's blast radius (self-explaining) vs keep a hand-tuned constant.</div>
+<div class="dp"><b>DP-3 · Cover beats line-shape in Loose?</b> Bend the EdgeLine freely to get every unit a trunk (messier line, better cover) vs keep lines mostly straight (readable, some units exposed).</div>
+<div class="dp"><b>DP-4 · Preview ghosts in scope?</b> Include fix #2 in this work (bigger scope, biggest payoff) or defer to its own item.</div>
+<div class="dp"><b>DP-5 · Ordering.</b> Suggested build order: fix #1 (assignment) → stance identities → leash #4 → travel #3 → preview #2. Reorder freely.</div>
+
+</body>
+</html>
