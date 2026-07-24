@@ -60,6 +60,9 @@ namespace OpenRA.Mods.Common.Traits
 		// player clicked rather than near-identical slot cells. Never read by the sim.
 		readonly List<(CPos Slot, CPos OrderPoint)> batch = new();
 
+		// Upper bound on retained batch entries (see Assign). A human queued chain is well under this.
+		const int MaxBatchEntries = 16;
+
 		int lastAssignTick;
 		int lastReturnTick;
 
@@ -82,6 +85,13 @@ namespace OpenRA.Mods.Common.Traits
 				batch.Clear();
 
 			batch.Add((slot, orderPoint));
+
+			// Bound the batch: Group Scatter issues a Stop (which does NOT clear this) followed by
+			// queued Moves, so repeated re-tasking without a fresh non-queued click would otherwise
+			// grow it unbounded. Keep only the newest MaxBatchEntries; TryGetOrderPointForSlot scans
+			// newest-first, so dropping the oldest is safe.
+			if (batch.Count > MaxBatchEntries)
+				batch.RemoveAt(0);
 		}
 
 		public CPos? AssignedSlot => hasSlot ? (CPos?)assignedSlot : null;

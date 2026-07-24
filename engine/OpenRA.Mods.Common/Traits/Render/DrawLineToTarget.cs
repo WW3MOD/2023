@@ -149,10 +149,17 @@ namespace OpenRA.Mods.Common.Traits
 						{
 							haveHead = true;
 							headColor = n.Color;
-							if (slotMemory != null && slotMemory.AssignedSlot is CPos slot && slotMemory.OrderPoint is CPos op)
+
+							// Resolve the order point for THIS head slot from the batch, not the single
+							// latest AssignedSlot/OrderPoint — those hold only the last waypoint, so a
+							// queued chain (head = first waypoint's slot) would never match. TryGet
+							// returns false for any cell that isn't a recorded slot, so a solo/plain
+							// move falls through byte-identically; op != headCell suppresses the overlay
+							// when no real spread happened (order point == slot).
+							if (slotMemory != null)
 							{
 								var headCell = self.World.Map.CellContaining(pos);
-								if (slot == headCell && op != slot)
+								if (slotMemory.TryGetOrderPointForSlot(headCell, out var op) && op != headCell)
 								{
 									cohesionOrderPoint = op;
 									haveOrderPoint = true;
