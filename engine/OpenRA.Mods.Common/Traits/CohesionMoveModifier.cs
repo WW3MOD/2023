@@ -818,7 +818,7 @@ namespace OpenRA.Mods.Common.Traits
 			// ProcessOrder dispatch. Read this subject's assigned cell and skip the whole pipeline.
 			if (TryReadCache(validActors, tick, clickCell, mode, orderString, idx, out var cachedCell))
 			{
-				subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(cachedCell, tick);
+				subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(cachedCell, clickCell, tick, individualOrder.Queued);
 				return individualOrder.WithTarget(Target.FromCell(subject.World, cachedCell));
 			}
 
@@ -906,7 +906,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Remember the assigned slot on the subject so the leash (CohesionSlotMemory) can
 			// walk it back to position if it gets nudged out by a passing unit.
-			subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(cell, tick);
+			subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(cell, clickCell, tick, individualOrder.Queued);
 
 			return individualOrder.WithTarget(Target.FromCell(subject.World, cell));
 		}
