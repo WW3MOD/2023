@@ -131,6 +131,9 @@ Player:
 	CaptureCoordinatorBotModule@experimental.tecn:
 		RequiresCondition: enable-ai-experimental
 		CapturingActorTypes: tecn,tecn.russia,tecn.america
+		# Phase 4b: derive the capturer pool from UnitRoleResolver (role CaptureSpecialist) instead of
+		# CapturingActorTypes above. Same TECN set today; CapturingActorTypes stays for the frozen @stable twin.
+		UseUnitRoles: true
 		# logisticscenter included so experimental doesn't need the legacy
 		# CaptureManagerBotModule@captureenemystructures (which competes
 		# with this module for TECN — see playtest 260513 O1).
@@ -324,6 +327,10 @@ Player:
 		AntiInfantryUnits: e3.america, ar.america, humvee
 		AntiAirUnits: aa.america, strykershorad
 		MinEnemySightings: 3
+		# Phase 4b: filter each counter pool by UnitRoleResolver class (anti-air->ShortRangeAD,
+		# anti-vehicle->MainBattle/IndirectFire, anti-infantry->+Recon) before drawing. No new RNG draws;
+		# every unit above already classifies into its pool today. Off on the frozen @stable twin.
+		UseUnitRoles: true
 
 	AdaptiveProductionBotModule@experimental.russia:
 		RequiresCondition: enable-ai-experimental && player.brics
@@ -333,6 +340,10 @@ Player:
 		AntiInfantryUnits: e3.russia, ar.russia, btr
 		AntiAirUnits: aa.russia, tunguska
 		MinEnemySightings: 3
+		# Phase 4b: filter each counter pool by UnitRoleResolver class (anti-air->ShortRangeAD,
+		# anti-vehicle->MainBattle/IndirectFire, anti-infantry->+Recon) before drawing. No new RNG draws;
+		# every unit above already classifies into its pool today. Off on the frozen @stable twin.
+		UseUnitRoles: true
 
 	# experimental doctrine — Stage B.1: layered defence placement, reserve-driven.
 	#
@@ -576,6 +587,9 @@ Player:
 		# belt-and-suspenders; IgnoreGroundUnits is the real hand-off.
 		IgnoreGroundUnits: true
 		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
+		# Phase 4b: pick air-squad airframes by UnitRoleResolver (Buildable AttackAir, non-heli) instead
+		# of AirUnitsTypes above. Reproduces {MIG,FROG} today; AirUnitsTypes stays for the @stable twin.
+		UseUnitRoles: true
 
 	# ===== Helicopters — Russia =====
 	# Helicopters are called in via Supply Route — no HPAD needed to produce them
@@ -636,6 +650,9 @@ Player:
 		# list is now belt-and-suspenders.
 		IgnoreGroundUnits: true
 		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
+		# Phase 4b: pick air-squad airframes by UnitRoleResolver (Buildable AttackAir, non-heli) instead
+		# of AirUnitsTypes above. Reproduces {A10,F16} today; AirUnitsTypes stays for the @stable twin.
+		UseUnitRoles: true
 
 	# ===== Helicopters — America =====
 	# Helicopters are called in via Supply Route — no HPAD needed to produce them

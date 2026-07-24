@@ -38,17 +38,34 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimum enemy units sighted before adapting production.")]
 		public readonly int MinEnemySightings = 3;
 
+		[Desc("EXPERIMENTAL: filter each counter pool by UnitRoleResolver class before drawing a call-in,",
+			"so odd mixes are dropped — anti-air keeps only ShortRangeAD, anti-vehicle keeps MainBattle/",
+			"IndirectFire, anti-infantry keeps MainBattle/IndirectFire/Recon. For the current roster every",
+			"configured unit already classifies into its pool's class, so this is a class-purity sanity",
+			"filter (robust to roster edits) that adds NO random draws. Default false = frozen name-list",
+			"behaviour, so the @stable/legacy twins stay byte-identical.")]
+		public readonly bool UseUnitRoles = false;
+
 		public override object Create(ActorInitializer init) { return new AdaptiveProductionBotModule(init.Self, this); }
 	}
 
 	public class AdaptiveProductionBotModule : ConditionalTrait<AdaptiveProductionBotModuleInfo>, IBotTick, IBotEnabled
 	{
+		// UnitRoleResolver class-filters per counter category (UseUnitRoles). The taxonomy has no
+		// anti-vehicle/anti-infantry split, so both keep the ground-combat classes; anti-infantry also
+		// admits Recon (light wheeled scouts like humvee/btr are valid infantry counters). Anti-air maps
+		// 1:1 to ShortRangeAD. See WORKSPACE/DISCOVERIES.md (2026-07-24).
+		static readonly UnitRole[] AntiVehicleRoles = { UnitRole.MainBattle, UnitRole.IndirectFire };
+		static readonly UnitRole[] AntiInfantryRoles = { UnitRole.MainBattle, UnitRole.IndirectFire, UnitRole.Recon };
+		static readonly UnitRole[] AntiAirRoles = { UnitRole.ShortRangeAD };
+
 		readonly World world;
 		readonly Player player;
 
 		IBot bot;
 		BotBlackboard blackboard;
 		IBotRequestUnitProduction[] unitProducers;
+		UnitRoleResolver resolver;
 		int evalCountdown;
 		bool initialized;
 
@@ -75,6 +92,8 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			blackboard = player.PlayerActor.TraitsImplementing<BotBlackboard>().FirstOrDefault(b => !b.IsTraitDisabled);
+			if (Info.UseUnitRoles)
+				resolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
 			initialized = true;
 		}
 
@@ -104,21 +123,22 @@ namespace OpenRA.Mods.Common.Traits
 			enemyInfantry = Math.Max(enemyInfantry, currentEnemyComposition.Infantry);
 			var enemyAir = currentEnemyComposition.Aircraft;
 
-			// Determine what we need most
-			var requests = new List<(HashSet<string> Pool, float Priority)>();
+			// Determine what we need most. Roles is the UnitRoleResolver class-filter applied to the pool
+			// only when UseUnitRoles is set (empty on the frozen path — never consulted there).
+			var requests = new List<(HashSet<string> Pool, float Priority, UnitRole[] Roles)>();
 
 			// Anti-vehicle priority: scales with enemy vehicle count
 			if (Info.AntiVehicleUnits.Count > 0 && enemyVehicles > 0)
 			{
 				var avRatio = (float)enemyVehicles / Math.Max(totalSightings, 1);
-				requests.Add((Info.AntiVehicleUnits, avRatio * enemyVehicles));
+				requests.Add((Info.AntiVehicleUnits, avRatio * enemyVehicles, AntiVehicleRoles));
 			}
 
 			// Anti-infantry priority
 			if (Info.AntiInfantryUnits.Count > 0 && enemyInfantry > 3)
 			{
 				var aiRatio = (float)enemyInfantry / Math.Max(totalSightings, 1);
-				requests.Add((Info.AntiInfantryUnits, aiRatio * enemyInfantry * 0.5f));
+				requests.Add((Info.AntiInfantryUnits, aiRatio * enemyInfantry * 0.5f, AntiInfantryRoles));
 			}
 
 			// Anti-air priority: high urgency if any aircraft spotted
@@ -127,7 +147,7 @@ namespace OpenRA.Mods.Common.Traits
 				// AA is urgent — even 1 aircraft merits a response
 				var aaCount = CountOwnUnits(Info.AntiAirUnits);
 				if (aaCount < enemyAir * 2)
-					requests.Add((Info.AntiAirUnits, enemyAir * 3f));
+					requests.Add((Info.AntiAirUnits, enemyAir * 3f, AntiAirRoles));
 			}
 
 			// Sort by priority and request top units
@@ -143,6 +163,15 @@ namespace OpenRA.Mods.Common.Traits
 				var candidates = request.Pool
 					.Where(u => world.Map.Rules.Actors.ContainsKey(u))
 					.ToList();
+
+				// Role-model class filter (experimental): drop pool members whose resolver class does not
+				// match this request's category, so odd call-ins are pruned. Applied BEFORE the empty check
+				// and the single draw below, so the RNG call sequence is untouched (still one draw per
+				// non-empty pool). The frozen path skips this entirely and stays byte-identical.
+				if (Info.UseUnitRoles && resolver != null)
+					candidates = candidates
+						.Where(u => request.Roles.Contains(resolver.GetRole(world.Map.Rules.Actors[u])))
+						.ToList();
 
 				if (candidates.Count == 0)
 					continue;

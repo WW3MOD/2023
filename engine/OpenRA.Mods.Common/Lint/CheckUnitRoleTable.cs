@@ -94,6 +94,15 @@ namespace OpenRA.Mods.Common.Lint
 			("hind", UnitRole.AttackAir),        // AttackHeavy
 			("tran", UnitRole.TransportLift),    // Transport
 
+			// Fixed-wing strike — aircraft + armament, no AIHelicopterRole → AttackAir. The experimental
+			// fixed-wing SquadManager (Phase 4b) selects its Air squad by role (Buildable AttackAir,
+			// non-heli); pinning these fails the build if a YAML edit drops them out of AttackAir and
+			// silently empties the role-mode air squad.
+			("a10", UnitRole.AttackAir),
+			("f16", UnitRole.AttackAir),
+			("mig", UnitRole.AttackAir),
+			("frog", UnitRole.AttackAir),
+
 			// Supply Route beachhead — a building: not mobile, not armed.
 			("supplyroute", UnitRole.None),
 		};
@@ -155,9 +164,95 @@ namespace OpenRA.Mods.Common.Lint
 					emitError($"CheckUnitRoleTable: `{actor}` is not a troop carrier but IsTroopCarrier is true — it would be wrongly held back from the line.");
 			}
 
+			// --- SHOULD-FIX #2: two-directional SET-EQUALITY between each role-derived set and its name
+			// list. The Expected pins above catch a listed unit LEAVING its role; these catch a NEW unit
+			// ENTERING a role pool (a silent @experimental/@stable divergence the one-directional pins
+			// miss), over the real ruleset incl. faction variants. Compared case-insensitively: actor
+			// names are lowercased at load but the AI name lists preserve their YAML case (a10 vs A10).
+			// Only asserted on the canonical DefaultRules (not per-map) so a map that strips one faction's
+			// role-mode module while keeping the aircraft actors cannot false-positive.
+			if (ReferenceEquals(rules, modData.DefaultRules)
+				&& rules.Actors.TryGetValue("player", out var playerInfo))
+			{
+				// Air: the buildable, armed, non-helicopter fixed-wing set must equal the UNION of
+				// AirUnitsTypes across every role-mode SquadManager. The union spans both factions' pairs;
+				// a rules-only lint has no per-player faction context, so the union (not a per-faction
+				// split) is the tractable set-equality — it still catches entering/leaving.
+				var roleModeAir = playerInfo.TraitInfos<SquadManagerBotModuleInfo>().Where(i => i.UseUnitRoles).ToList();
+				if (roleModeAir.Count > 0)
+				{
+					var airRole = rules.Actors.Values
+						.Where(a => !a.Name.StartsWith("^", StringComparison.Ordinal)
+							&& RoleOf(a) == UnitRole.AttackAir
+							&& a.HasTraitInfo<BuildableInfo>()
+							&& !a.HasTraitInfo<AIHelicopterRoleInfo>())
+						.Select(a => a.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+					var airListed = roleModeAir.SelectMany(i => i.AirUnitsTypes).ToHashSet(StringComparer.OrdinalIgnoreCase);
+					ReportSetDivergence(emitError, "air (Buildable AttackAir non-heli)", "AirUnitsTypes", airRole, airListed);
+				}
+
+				// Capture: the CaptureSpecialist class must equal CapturingActorTypes across every role-mode
+				// CaptureCoordinator (both are the neutral-tech capturer set for the current roster).
+				var roleModeCapture = playerInfo.TraitInfos<CaptureCoordinatorBotModuleInfo>().Where(i => i.UseUnitRoles).ToList();
+				if (roleModeCapture.Count > 0)
+				{
+					var captureRole = rules.Actors.Values
+						.Where(a => !a.Name.StartsWith("^", StringComparison.Ordinal) && RoleOf(a) == UnitRole.CaptureSpecialist)
+						.Select(a => a.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+					var captureListed = roleModeCapture.SelectMany(i => i.CapturingActorTypes).ToHashSet(StringComparer.OrdinalIgnoreCase);
+					ReportSetDivergence(emitError, "capture (CaptureSpecialist)", "CapturingActorTypes", captureRole, captureListed);
+				}
+
+				// Adaptive production: every configured pool member must classify into its category. This is
+				// one-directional (the category→role map is not bijective — MainBattle counters both vehicles
+				// and infantry), so only membership-in-class is asserted, incl. faction variants.
+				foreach (var ap in playerInfo.TraitInfos<AdaptiveProductionBotModuleInfo>().Where(i => i.UseUnitRoles))
+				{
+					CheckCategory(emitError, rules, RoleOf, ap.AntiAirUnits, "AntiAirUnits",
+						new[] { UnitRole.ShortRangeAD });
+					CheckCategory(emitError, rules, RoleOf, ap.AntiVehicleUnits, "AntiVehicleUnits",
+						new[] { UnitRole.MainBattle, UnitRole.IndirectFire });
+					CheckCategory(emitError, rules, RoleOf, ap.AntiInfantryUnits, "AntiInfantryUnits",
+						new[] { UnitRole.MainBattle, UnitRole.IndirectFire, UnitRole.Recon });
+				}
+			}
+
 			// Optional eyeball dump of the full derived-role table (design §5). Opt-in and printed
 			// once per process so it never spams the per-map lint runs: DUMP_UNIT_ROLES=1 make test.
 			DumpTableOnce(rules, t);
+		}
+
+		// Two-directional set-equality reporter: names the units ENTERING the role class but absent from
+		// the name list (the silent-divergence case) AND those LEAVING the class but still listed.
+		static void ReportSetDivergence(Action<string> emitError, string roleLabel, string listName,
+			HashSet<string> roleSet, HashSet<string> listedSet)
+		{
+			if (roleSet.SetEquals(listedSet))
+				return;
+
+			var entering = roleSet.Except(listedSet).OrderBy(x => x, StringComparer.Ordinal).ToList();
+			var leaving = listedSet.Except(roleSet).OrderBy(x => x, StringComparer.Ordinal).ToList();
+			emitError($"CheckUnitRoleTable: role-mode {roleLabel} set != {listName}. " +
+				$"Entering (classified but NOT listed — the @experimental/@stable divergence this guards): [{string.Join(", ", entering)}]; " +
+				$"Leaving (listed but no longer in the role class): [{string.Join(", ", leaving)}]. " +
+				$"If the divergence is intended, update the @experimental {listName} and this lint together.");
+		}
+
+		// One-directional category membership: each configured pool member must classify into one of the
+		// category's allowed roles. Missing actors are skipped (map-tolerant, matching the Expected loop).
+		static void CheckCategory(Action<string> emitError, Ruleset rules, Func<ActorInfo, UnitRole> roleOf,
+			HashSet<string> pool, string poolName, UnitRole[] allowed)
+		{
+			foreach (var name in pool)
+			{
+				if (!rules.Actors.TryGetValue(name.ToLowerInvariant(), out var ai))
+					continue;
+
+				var role = roleOf(ai);
+				if (!allowed.Contains(role))
+					emitError($"CheckUnitRoleTable: {poolName} member `{name}` classifies {role}, not in the " +
+						$"category's allowed roles [{string.Join(", ", allowed)}] — a call-in from this pool would be off-class.");
+			}
 		}
 
 		static bool dumped;
