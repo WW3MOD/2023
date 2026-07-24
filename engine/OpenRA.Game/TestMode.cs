@@ -71,6 +71,14 @@ namespace OpenRA
 		// Null = non-deterministic (DateTime.Now-based).
 		public static int? RandomSeedOverride { get; private set; }
 
+		// The authoritative lobby seed the match actually used — captured by World
+		// once the seed is resolved (from RandomSeedOverride or the DateTime.Now
+		// fallback). Distinct from RandomSeedOverride, which is the *requested*
+		// override and stays null when the harness passes no seed. Stamped into the
+		// verdict so any single-test run is reproducible by re-passing it via
+		// run-test.sh --seed. Set by World; null until a world with Test.Mode loads.
+		public static int? ResolvedSeed { get; set; }
+
 		// World.Timestep multiplier applied at WorldLoaded by the tournament
 		// watcher. Works the same way the in-game SpeedControlButton works:
 		//   world.Timestep = max(1, baseTimestep / multiplier)
@@ -131,6 +139,12 @@ namespace OpenRA
 			json.Append($"\"status\":\"{JsonEscape(status ?? "")}\",");
 			json.Append($"\"notes\":\"{JsonEscape(notes ?? "")}\",");
 			json.Append($"\"timestamp\":\"{DateTime.UtcNow:o}\"");
+
+			// Additive (schema-stable): the authoritative match seed, so a single-test
+			// verdict is traceable to the run that produced it. Absent only when the
+			// world never loaded (e.g. an init-failure verdict). Reproduce via --seed.
+			if (ResolvedSeed.HasValue)
+				json.Append($",\"seed\":{ResolvedSeed.Value}");
 
 			// PITFALL: Game.TakeScreenshot is async (Renderer.SaveScreenshot via
 			// ThreadPool). When this verdict is written from Test.Pass/Fail, the

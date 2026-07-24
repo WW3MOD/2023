@@ -224,8 +224,15 @@ namespace OpenRA
 			// to the wall-clock ctor there so normal gameplay is not same-seeded across launches.
 			var localSeed = orderManager.LobbyInfo.GlobalSettings.RandomSeed;
 			LocalRandom = localSeed != 0
-				? new MersenneTwister(unchecked((int)(localSeed * 6364136223846793005L + 1442695040888963407L)))
+				? new MersenneTwister(DeriveLocalSeed(localSeed))
 				: new MersenneTwister();
+
+			// Test harness: record the authoritative lobby seed that actually seeded the
+			// streams above (Test.RandomSeed override or the DateTime.Now fallback) so the
+			// single-test verdict can stamp it and any run is reproducible via run-test.sh
+			// --seed. Gated on Test.Mode so normal gameplay is untouched; draws no RNG.
+			if (TestMode.IsActive)
+				TestMode.ResolvedSeed = localSeed;
 
 			// Apply scenario if selected in lobby
 			var scenarioName = orderManager.LobbyInfo.GlobalSettings.OptionOrDefault("scenario", "none");
@@ -265,6 +272,17 @@ namespace OpenRA
 
 			RulesContainTemporaryBlocker = Map.Rules.Actors.Any(a => a.Value.HasTraitInfo<ITemporaryBlockerInfo>());
 			gameSettings = Game.Settings.Game;
+		}
+
+		// Decorrelates the lobby RandomSeed into LocalRandom's seed via a fixed
+		// PCG-style LCG transform, so bot-decision rolls (LocalRandom) form a stream
+		// independent of SharedRandom's combat rolls under the same lobby seed. The
+		// constants are the canonical PCG64 multiplier/increment; changing them would
+		// shift every seeded LocalRandom stream and break byte-identity with the
+		// seeded benchmark history — pinned by SeedDerivationTest.
+		public static int DeriveLocalSeed(int lobbySeed)
+		{
+			return unchecked((int)(lobbySeed * 6364136223846793005L + 1442695040888963407L));
 		}
 
 		public void AddToMaps(Actor self, IOccupySpace ios)
