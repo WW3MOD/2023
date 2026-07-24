@@ -361,6 +361,17 @@ namespace OpenRA.Platforms.Default
 					&& Environment.GetEnvironmentVariable("OPENRA_WINDOW_MINIMIZED") == "1")
 					SDL.SDL_MinimizeWindow(window);
 
+				// WW3MOD test harness: a window born with SDL_WINDOW_HIDDEN is never mapped, so SDL
+				// emits no SDL_WINDOWEVENT_HIDDEN — the event Sdl2Input relies on to set IsSuspended.
+				// Left unset, IsSuspended stays false and the game renders full-speed to an invisible
+				// surface. Suspend rendering explicitly so the hidden path matches the minimized one:
+				// RenderTick is skipped (Game.cs), no GPU cost, and the suspended-run framerate-cap
+				// interaction (logic gate clears at the render cadence) holds identically. No SHOWN/
+				// RESTORED event can arrive for a window we never map, so this stays suspended for the
+				// whole unattended run.
+				if (windowHidden)
+					IsSuspended = true;
+
 				Console.WriteLine($"Using window scale {windowScale:F2}");
 			}
 

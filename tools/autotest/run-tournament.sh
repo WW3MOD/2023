@@ -283,14 +283,17 @@ for i in $(seq 1 ${SEEDS}); do
 	MATCH_SEED=$((i * 1000 + 17))
 
 	# Background launch — terminal keeps focus.
-	# Mode-B hidden profile: launch MINIMIZED with framerate UNCAPPED. A minimized
-	# window suspends rendering (Renderer.WindowIsSuspended, Game.cs), so RenderTick
-	# is skipped entirely and the sim runs CPU-bound with no GPU cost. CapFramerate
-	# must stay OFF here: a 5 fps cap throttles a *suspended* run to ~5 ticks/s
-	# because the logic gate only clears at the render cadence (Game.cs suspended
-	# path). See WORKSPACE/plans/260721_sim_throughput.md, Option C.
+	# Mode-B hidden profile: launch HIDDEN (SDL_WINDOW_HIDDEN) with framerate UNCAPPED.
+	# The engine (Sdl2PlatformWindow) creates the window unmapped and sets IsSuspended,
+	# so rendering suspends (Renderer.WindowIsSuspended, Game.cs) exactly as a minimized
+	# window would — RenderTick is skipped, the sim runs CPU-bound with no GPU cost — but
+	# the window is never mapped, so it can't appear on the desktop as a solid-black frame
+	# the way SDL_MinimizeWindow did on Windows (bugs/discovered.md 2026-07-22). CapFramerate
+	# must stay OFF here: a 5 fps cap throttles a *suspended* run to ~5 ticks/s because the
+	# logic gate only clears at the render cadence (Game.cs suspended path).
+	# See WORKSPACE/plans/260721_sim_throughput.md, Option C.
 	(
-		OPENRA_WINDOW_MINIMIZED=1 ./launch-game.sh \
+		OPENRA_WINDOW_HIDDEN=1 ./launch-game.sh \
 			"Launch.Map=${MATCH_SCENARIO}" \
 			"Test.Mode=true" \
 			"Test.Name=${MATCH_SCENARIO}-match${i}" \

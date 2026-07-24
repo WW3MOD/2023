@@ -1,12 +1,20 @@
 #!/bin/sh
 # WW3MOD developer test harness — multi-test runner
 #
-# Usage:  ./tools/autotest/run-batch.sh [--timeout N] [--seed N] <test1> <test2> ...
-#         ./tools/autotest/run-batch.sh [--timeout N] [--seed N] --all
+# Usage:  ./tools/autotest/run-batch.sh [--hidden|--minimized] [--timeout N] [--seed N] <test1> <test2> ...
+#         ./tools/autotest/run-batch.sh [--hidden|--minimized] [--timeout N] [--seed N] --all
 #
 # Runs each named test sequentially via run-test.sh, prints a per-test
 # verdict line and a final summary. Exit code: 0 if all pass; otherwise
 # the count of non-pass tests (capped at 99 so the shell doesn't truncate).
+#
+# --hidden / --minimized (optional, leading): forwarded to every run-test.sh as
+# its window behavior. --hidden creates the window with SDL_WINDOW_HIDDEN (never
+# mapped, never focus-steals) — the unattended profile, and the one to use on
+# Windows where a minimized window can surface as a black frame. --minimized is
+# the legacy SDL_MinimizeWindow (macOS dock) behavior. Omit to keep the prior
+# behavior exactly: no window flag is forwarded and run-test.sh's default
+# (visible `background`) applies.
 #
 # --timeout N (optional, leading): forwarded to every run-test.sh as its
 # per-test wall-clock kill-timeout. Omit to use run-test.sh's own default
@@ -32,17 +40,20 @@ set -u
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "${REPO_ROOT}"
 
-# Optional leading flags, forwarded to each run-test.sh. Both may appear, in any
+# Optional leading flags, forwarded to each run-test.sh. Any may appear, in any
 # order, before the first test name / --all. Stop at the first non-flag token so
 # --all (handled below) and test folder names pass through untouched.
 TIMEOUT_ARGS=""
 SEED=""
+WINDOW_ARGS=""
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--timeout=*) TIMEOUT_ARGS="--timeout ${1#*=}"; shift ;;
 		--timeout)   TIMEOUT_ARGS="--timeout ${2:-}"; shift 2 ;;
 		--seed=*)    SEED="${1#*=}"; shift ;;
 		--seed)      SEED="${2:-}"; shift 2 ;;
+		--hidden)    WINDOW_ARGS="--hidden"; shift ;;
+		--minimized) WINDOW_ARGS="--minimized"; shift ;;
 		*)           break ;;
 	esac
 done
@@ -66,8 +77,8 @@ if [ -n "${SEED}" ]; then
 fi
 
 if [ $# -eq 0 ]; then
-	echo "Usage: $0 [--timeout N] [--seed N] <test-folder> [<test-folder> ...]"
-	echo "       $0 [--timeout N] [--seed N] --all"
+	echo "Usage: $0 [--hidden|--minimized] [--timeout N] [--seed N] <test-folder> [<test-folder> ...]"
+	echo "       $0 [--hidden|--minimized] [--timeout N] [--seed N] --all"
 	exit 3
 fi
 
@@ -111,7 +122,7 @@ for t in ${TESTS}; do
 		_seed_offset=$((_seed_offset + 1))
 	fi
 
-	./tools/autotest/run-test.sh ${TIMEOUT_ARGS} ${SEED_ARGS} "${t}"
+	./tools/autotest/run-test.sh ${WINDOW_ARGS} ${TIMEOUT_ARGS} ${SEED_ARGS} "${t}"
 	rc=$?
 
 	case ${rc} in
