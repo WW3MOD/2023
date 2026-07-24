@@ -156,6 +156,20 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly CohesionMoveModifierInfo info;
 
+		// Per-order memoization of the slot layout + nearest-slot matching. ModifyGroupOrder is
+		// invoked once per subject, but UnitOrders.ProcessOrder dispatches all N subjects of a single
+		// grouped order back-to-back on the sim thread, and the full slot array + matching are
+		// provably identical across those N calls. We compute them for the FIRST subject and let the
+		// rest read their row — turning N redundant O(n²·log n) matchings into one. The cache is a
+		// pure memo keyed on deterministic sim state (see TryReadCache); a different order/tick/group/
+		// mode misses the key and recomputes, so nothing leaks across orders and no RNG is involved.
+		uint[] cacheActorIds;
+		CPos[] cacheAssignedByIdx;
+		int cacheTick;
+		CPos cacheClick;
+		CohesionMode cacheMode;
+		string cacheOrder;
+
 		public CohesionMoveModifier(CohesionMoveModifierInfo info)
 		{
 			this.info = info;
@@ -798,6 +812,16 @@ namespace OpenRA.Mods.Common.Traits
 			// grouped units share a mode, so this is acceptable for v1.
 			var autoTarget = subject.TraitOrDefault<AutoTarget>();
 			var mode = autoTarget?.CohesionValue ?? CohesionMode.Loose;
+			var tick = subject.World.WorldTick;
+
+			// Cache hit: this order's matching was already computed by an earlier subject in the same
+			// ProcessOrder dispatch. Read this subject's assigned cell and skip the whole pipeline.
+			if (TryReadCache(validActors, tick, clickCell, mode, orderString, idx, out var cachedCell))
+			{
+				subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(cachedCell, tick);
+				return individualOrder.WithTarget(Target.FromCell(subject.World, cachedCell));
+			}
+
 			GetSpacing(mode, out var colSpacing, out var rowSpacing);
 			GetMaxExtent(mode, out var maxWidth, out var maxDepth);
 
@@ -863,25 +887,78 @@ namespace OpenRA.Mods.Common.Traits
 			if (idx >= slots.Length)
 				return individualOrder;
 
-			// Position-aware slot assignment: pick which slot THIS subject takes by a deterministic
-			// nearest-matching over the whole squad, instead of slots[idx]-by-ActorID which sends the
-			// lowest-ID unit to the leftmost slot regardless of where it stands (units criss-cross).
-			var slotIdx = AssignSlot(validActors, slots, idx);
+			// Position-aware slot assignment for the WHOLE squad at once (deterministic nearest-
+			// matching, replacing slots[idx]-by-ActorID which sends the lowest-ID unit to the leftmost
+			// slot regardless of where it stands → units criss-cross). Computed once here and cached
+			// for the order's remaining subjects.
+			var matching = AssignAll(validActors, slots);
+
+			var assignedByIdx = new CPos[n];
+			for (var i = 0; i < n; i++)
+			{
+				var s = matching[i];
+				assignedByIdx[i] = s >= 0 ? slots[s] : slots[Math.Min(i, slots.Length - 1)];
+			}
+
+			StoreCache(validActors, tick, clickCell, mode, orderString, assignedByIdx);
+
+			var cell = assignedByIdx[idx];
 
 			// Remember the assigned slot on the subject so the leash (CohesionSlotMemory) can
 			// walk it back to position if it gets nudged out by a passing unit.
-			subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(slots[slotIdx], subject.World.WorldTick);
+			subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(cell, tick);
 
-			return individualOrder.WithTarget(Target.FromCell(subject.World, slots[slotIdx]));
+			return individualOrder.WithTarget(Target.FromCell(subject.World, cell));
 		}
 
-		// Deterministic position-aware assignment of actors to slots. Builds every (actor, slot)
-		// distance edge and repeatedly claims the globally-shortest unclaimed edge (greedy minimum
-		// matching), tie-breaking on actor index then slot index. Because validActors is ActorID-
-		// sorted and slots are computed identically for every per-subject call, all N calls build the
-		// same edge list and reach the same matching WITHOUT any RNG — determinism (a non-negotiable)
-		// is preserved. Returns the slot index assigned to the actor at subjectIdx.
-		static int AssignSlot(Actor[] sortedActors, CPos[] slots, int subjectIdx)
+		// Read the memoized per-idx assignment if the cache was filled for THIS exact order. The key
+		// is the full deterministic identity of the grouped order: world tick, click cell, cohesion
+		// mode, order string, and the ID-sorted actor set (compared element-wise, not hashed, so
+		// distinct groups can never collide). All of these are identical on every client and in
+		// replay, so a hit returns byte-identical data everywhere and a miss recomputes.
+		bool TryReadCache(Actor[] sortedActors, int tick, CPos click, CohesionMode mode, string order,
+			int idx, out CPos cell)
+		{
+			cell = default;
+			if (cacheAssignedByIdx == null || cacheActorIds == null)
+				return false;
+
+			if (cacheTick != tick || cacheClick != click || cacheMode != mode || cacheOrder != order)
+				return false;
+
+			if (cacheActorIds.Length != sortedActors.Length || idx >= cacheAssignedByIdx.Length)
+				return false;
+
+			for (var i = 0; i < sortedActors.Length; i++)
+				if (cacheActorIds[i] != sortedActors[i].ActorID)
+					return false;
+
+			cell = cacheAssignedByIdx[idx];
+			return true;
+		}
+
+		void StoreCache(Actor[] sortedActors, int tick, CPos click, CohesionMode mode, string order,
+			CPos[] assignedByIdx)
+		{
+			var ids = new uint[sortedActors.Length];
+			for (var i = 0; i < ids.Length; i++)
+				ids[i] = sortedActors[i].ActorID;
+
+			cacheActorIds = ids;
+			cacheAssignedByIdx = assignedByIdx;
+			cacheTick = tick;
+			cacheClick = click;
+			cacheMode = mode;
+			cacheOrder = order;
+		}
+
+		// Deterministic position-aware assignment of the whole squad to slots. Builds every (actor,
+		// slot) distance edge and repeatedly claims the globally-shortest unclaimed edge (greedy
+		// minimum matching), tie-breaking on actor index then slot index. Because validActors is
+		// ActorID-sorted and slots are identical for a given order, the edge list and matching are a
+		// pure function of the inputs WITHOUT any RNG — determinism (a non-negotiable) is preserved.
+		// Returns actorSlot[i] = slot index for the actor at ID-sorted index i (-1 if unmatched).
+		static int[] AssignAll(Actor[] sortedActors, CPos[] slots)
 		{
 			var n = sortedActors.Length;
 			var slotCount = slots.Length;
@@ -926,9 +1003,7 @@ namespace OpenRA.Mods.Common.Traits
 				assigned++;
 			}
 
-			// slots.Length == n for every bidder, so the matching is always complete; the fallback
-			// only guards against a future bidder returning fewer slots than actors.
-			return actorSlot[subjectIdx] >= 0 ? actorSlot[subjectIdx] : Math.Min(subjectIdx, slotCount - 1);
+			return actorSlot;
 		}
 	}
 }
