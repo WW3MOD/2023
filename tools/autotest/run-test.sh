@@ -28,6 +28,16 @@
 #                          pacing, simulation stays byte-identical. Default:
 #                          unset (1×, current behavior).
 #
+# Determinism:
+#   --seed N               Fix the match RNG seed (Test.RandomSeed=N). Same
+#                          seed + same code + same map = byte-identical replay
+#                          (seeds SharedRandom AND the decorrelated LocalRandom
+#                          that bot decisions draw from). Integer; may be
+#                          negative. Default: unset — the engine picks a
+#                          DateTime.Now-derived seed, which is now RECORDED in
+#                          result.json ("seed" field), so any run is reproducible
+#                          by rerunning with --seed <that recorded value>.
+#
 # Timeout:
 #   --timeout N            Hard wall-clock watchdog (seconds). If the game is
 #                          still alive and no verdict has been written after N
@@ -57,6 +67,7 @@
 #   ./tools/autotest/run-test.sh --minimized test-foo         # old miniaturize behavior
 #   ./tools/autotest/run-test.sh F test-foo                   # fullscreen
 #   ./tools/autotest/run-test.sh --speed 8 test-foo           # run 8× wall-clock
+#   ./tools/autotest/run-test.sh --seed 1017 test-foo         # fixed seed (reproducible)
 #
 # Exit code: 0=pass, 1=fail, 2=skip, 3=error.
 
@@ -67,6 +78,7 @@ POSITION="centered"
 WINDOW_BEHAVIOR="background"
 AUDIO_MUTE=1
 SPEED_MULT=""
+SEED=""
 TIMEOUT_SECS=300
 
 while [ $# -gt 0 ]; do
@@ -89,10 +101,12 @@ while [ $# -gt 0 ]; do
 		--mute)                 AUDIO_MUTE=1; shift ;;
 		--speed=*)              SPEED_MULT="${1#*=}"; shift ;;
 		--speed)                SPEED_MULT="$2"; shift 2 ;;
+		--seed=*)               SEED="${1#*=}"; shift ;;
+		--seed)                 SEED="$2"; shift 2 ;;
 		--timeout=*)            TIMEOUT_SECS="${1#*=}"; shift ;;
 		--timeout)              TIMEOUT_SECS="$2"; shift 2 ;;
 		--help|-h)
-			sed -n '2,61p' "$0" | sed 's/^# \?//'
+			sed -n '2,72p' "$0" | sed 's/^# \?//'
 			exit 0 ;;
 		--*)
 			echo "Unknown flag: $1"
@@ -104,7 +118,7 @@ done
 
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 [L|R|F] [--background|--minimized|--visible] [--audio] [--speed N] [--timeout N] <test-folder-name>"
+	echo "Usage: $0 [L|R|F] [--background|--minimized|--visible] [--audio] [--speed N] [--seed N] [--timeout N] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
 fi
@@ -120,6 +134,28 @@ if [ -n "${SPEED_MULT}" ]; then
 		echo "Error: --speed must be 1-16 (got '${SPEED_MULT}')"
 		exit 3
 	fi
+fi
+
+# Validate --seed if supplied: a (possibly negative) integer. Matches the engine's
+# int Test.RandomSeed; the DateTime.Now fallback can be negative, so allow a sign.
+if [ -n "${SEED}" ]; then
+	_seed_digits="${SEED#-}"
+	case "${_seed_digits}" in
+		''|*[!0-9]*)
+			echo "Error: --seed must be an integer, e.g. 1017 or -42 (got '${SEED}')"
+			exit 3 ;;
+	esac
+	# Reject 0 (incl. -0/00): the engine treats RandomSeed==0 as the *unset*
+	# sentinel (World.cs LocalRandom guard) and falls back to a wall-clock seed,
+	# so --seed 0 would NOT reproduce despite the harness reporting a fixed seed
+	# and the verdict stamping "seed":0. _seed_digits is all-digits here, so a
+	# value with no non-zero digit is exactly zero.
+	case "${_seed_digits}" in
+		*[!0]*) : ;;
+		*)
+			echo "Error: --seed 0 is reserved as the unset sentinel; pick any non-zero int"
+			exit 3 ;;
+	esac
 fi
 
 # Validate --timeout: positive integer (seconds). Pure wall-clock; deliberately
@@ -277,6 +313,11 @@ SPEED_LABEL="1x"
 
 echo "==> Test: ${TEST_NAME}"
 echo "==> Mode: ${GRAPHICS_MODE} (${POSITION}, ${WINDOW_BEHAVIOR}, ${AUDIO_LABEL}, ${SPEED_LABEL})"
+if [ -n "${SEED}" ]; then
+	echo "==> Seed: ${SEED} (fixed — reproducible run)"
+else
+	echo "==> Seed: wall-clock (recorded in result.json; rerun with --seed <that> to reproduce)"
+fi
 [ -n "${WINDOW_POS_ENV}" ] && echo "==> Position: ${WINDOW_POS_ENV} on ${SCREEN_W}x${SCREEN_H}"
 [ -n "${TEST_DESCRIPTION}" ] && echo "==> Description: ${TEST_DESCRIPTION}"
 echo "==> Result file: ${RESULT_FILE}"
@@ -317,6 +358,13 @@ fi
 SPEED_ARGS=""
 if [ -n "${SPEED_MULT}" ]; then
 	SPEED_ARGS="Test.SpeedMultiplier=${SPEED_MULT}"
+fi
+
+# Fixed RNG seed (Test.RandomSeed) — reproducible match. Unset → engine falls back
+# to a DateTime.Now-derived seed, which World stamps into the verdict regardless.
+SEED_ARGS=""
+if [ -n "${SEED}" ]; then
+	SEED_ARGS="Test.RandomSeed=${SEED}"
 fi
 
 # macOS focus handling. Capture the currently-frontmost app so we can:
@@ -391,6 +439,7 @@ SCREENSHOT_DIR_GAME=$(to_game_path "${SCREENSHOT_DIR}")
 	${WINDOW_ARGS} \
 	${AUDIO_ARGS} \
 	${SPEED_ARGS} \
+	${SEED_ARGS} \
 	${MINIMIZE_ARGS} \
 	&
 LAUNCH_PID=$!
