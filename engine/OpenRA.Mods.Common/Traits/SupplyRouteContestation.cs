@@ -372,7 +372,7 @@ namespace OpenRA.Mods.Common.Traits
 			// stay passive and wait for either reinstatement or the last team SR to fall.
 			// Otherwise (no remaining active team SRs, or no allies at all) the entire team is defeated.
 			if (!HasActiveTeamSupplyRoute())
-				DefeatTeam();
+				ResolveTeamElimination();
 		}
 
 		bool HasActiveTeamSupplyRoute()
@@ -396,8 +396,27 @@ namespace OpenRA.Mods.Common.Traits
 			return false;
 		}
 
-		void DefeatTeam()
+		// The team whose last active Supply Route just fell (this SR's owner + its allies) is
+		// defeated. The win is then awarded EXPLICITLY rather than left to
+		// ConquestVictoryConditions to infer ("all my enemies are Lost") — in a near-simultaneous
+		// mutual overrun the losing side is resolved before the inference tick runs, so the
+		// survivors would never be credited, previously leaving every player marked Lost and the
+		// end screen reading "mission failed".
+		//
+		// Two phases: first mark the eliminated team Lost, THEN award the win only to survivors
+		// whose every hostile is now Lost (ShouldAwardVictory). This mirrors CVC's win test so
+		// FFA / 2v2v2 correctly defers the win until one party remains — the naive "everyone not
+		// allied to the loser wins" would instantly end a 3-way game after the first elimination.
+		// The WinState guards keep a simultaneous second elimination a no-op, so tick order alone
+		// picks the winner instead of defeating everyone.
+		void ResolveTeamElimination()
 		{
+			// TestMode owns win/loss verdicts (see ConquestVictoryConditions.Tick / CheckIfGameIsOver);
+			// don't emit stray victory lines or sounds during autotests.
+			if (TestMode.IsActive)
+				return;
+
+			// Phase 1: mark the eliminated team (this SR's owner + its allies) Lost.
 			foreach (var p in self.World.Players)
 			{
 				if (p.NonCombatant || !p.Playable || p.WinState != WinState.Undefined)
@@ -412,6 +431,83 @@ namespace OpenRA.Mods.Common.Traits
 
 				var objectiveId = mo.Add(p, "Hold the Supply Route", "Primary", inhibitAnnouncement: true);
 				mo.MarkFailed(p, objectiveId);
+			}
+
+			// Phase 2: award the win to any surviving combatant whose every hostile is now Lost.
+			foreach (var p in self.World.Players)
+			{
+				if (p.NonCombatant || !p.Playable || p.WinState != WinState.Undefined)
+					continue;
+
+				if (!ShouldAwardVictory(OtherCombatants(p)))
+					continue;
+
+				var mo = p.PlayerActor.TraitOrDefault<MissionObjectives>();
+				if (mo == null)
+					continue;
+
+				AwardVictory(p, mo);
+			}
+		}
+
+		// (allied-to-survivor, win-state) for every other combatant — the input to ShouldAwardVictory.
+		IEnumerable<(bool Allied, WinState State)> OtherCombatants(Player survivor)
+		{
+			return self.World.Players
+				.Where(o => o != survivor && !o.NonCombatant && o.Playable)
+				.Select(o => (survivor.IsAlliedWith(o), o.WinState));
+		}
+
+		// Pure decision: should this surviving combatant be awarded the win? True only when every
+		// hostile (non-allied) combatant is already Lost — mirrors ConquestVictoryConditions so
+		// FFA / multi-team games defer the win until one party remains, while 2v2 awards
+		// immediately once the enemy team has been marked Lost. Allies (Undefined or Won) never
+		// block — they win together.
+		public static bool ShouldAwardVictory(IEnumerable<(bool Allied, WinState State)> otherCombatants)
+		{
+			foreach (var other in otherCombatants)
+				if (!other.Allied && other.State != WinState.Lost)
+					return false;
+
+			return true;
+		}
+
+		// Pure decision: what a team-elimination event implies for a member of the eliminated team.
+		// Returns null when the player is already decided (no change) — the invariant that stops a
+		// simultaneous second elimination from flipping the winners to Lost.
+		public static WinState? ResolveEliminationOutcome(WinState current, bool onEliminatedTeam)
+		{
+			if (current != WinState.Undefined)
+				return null;
+
+			return onEliminatedTeam ? WinState.Lost : WinState.Won;
+		}
+
+		// Firing OnPlayerWon requires ALL required objectives to be Completed. We only complete the
+		// conquest primary objective that ConquestVictoryConditions creates — NOT the whole list —
+		// so an SR contest can never force-complete scripted campaign objectives. Players without a
+		// ConquestVictoryConditions trait (e.g. campaign, -ConquestVictoryConditions) are left to
+		// their scenario logic entirely.
+		static void AwardVictory(Player p, MissionObjectives mo)
+		{
+			if (p.PlayerActor.TraitOrDefault<ConquestVictoryConditions>() == null)
+				return;
+
+			var completedAny = false;
+			for (var id = 0; id < mo.Objectives.Count; id++)
+			{
+				if (mo.Objectives[id].State == ObjectiveState.Incomplete && mo.Objectives[id].Type == "Primary")
+				{
+					completedAny = true;
+					mo.MarkCompleted(p, id);
+				}
+			}
+
+			// CVC present but its objective not registered yet — add and complete our own.
+			if (!completedAny)
+			{
+				var objectiveId = mo.Add(p, "Hold the Supply Route", "Primary", inhibitAnnouncement: true);
+				mo.MarkCompleted(p, objectiveId);
 			}
 		}
 
