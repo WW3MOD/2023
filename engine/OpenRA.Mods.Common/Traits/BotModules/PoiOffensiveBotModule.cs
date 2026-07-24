@@ -39,6 +39,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Pathfinder;
+using OpenRA.Mods.Common.Traits.BotModules.Squads;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -122,6 +124,25 @@ namespace OpenRA.Mods.Common.Traits
 			"false = frozen list behaviour, so the @stable twin stays byte-identical.")]
 		public readonly bool UseUnitRoles = false;
 
+		[Desc("Influence stack Stage E: consume the per-player ANTI-GROUND danger field (DangerFieldLayer)",
+			"so an attack axis whose straight approach crosses a defended strongpoint / choke is steered",
+			"onto a lateral lane PAST it, then in — attacks flow AROUND known kill zones instead of grinding",
+			"head-on. Emits a two-leg AttackMove (lateral waypoint, then the objective). OFF by default so",
+			"legacy/normal/stable and the frozen @stable twin stay byte-identical; only",
+			"PoiOffensiveBotModule@experimental turns it on. Inert if no DangerFieldLayer / no field yet.")]
+		public readonly bool DangerFieldRouting = false;
+
+		[Desc("Stage-E: path ground-danger above which an axis approach is rerouted around the strongpoint.",
+			"Must sit ABOVE the Stage-C territory baseline so the ambient 'deep enemy ground' danger does not",
+			"detour every axis — only genuine defended cores (dense believed-contact kernels) trigger a detour.")]
+		public readonly int GroundDangerSafeThreshold = 40;
+
+		[Desc("Stage-E: lateral offset magnitude (cells) for the flow-around waypoint.")]
+		public readonly int GroundDangerDetourCells = 6;
+
+		[Desc("Stage-E: how many lateral steps (× GroundDangerDetourCells) the detour search may probe.")]
+		public readonly int GroundDangerDetourSteps = 2;
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 
@@ -137,7 +158,8 @@ namespace OpenRA.Mods.Common.Traits
 			public long Score;
 			public PoiAction Action;
 			public string TargetName;
-			public CPos OrderedCell;   // last cell we AttackMoved to (for repath gating)
+			public CPos OrderedCell;   // last target cell we AttackMoved to (for repath gating)
+			public CPos? OrderedVia;   // last Stage-E lateral waypoint ordered (null = went direct)
 			public bool HasOrdered;
 			public readonly List<Actor> Units = new();
 		}
@@ -151,6 +173,8 @@ namespace OpenRA.Mods.Common.Traits
 		bool goalGuardResolved;
 		UnitRoleResolver resolver;
 		bool resolverResolved;
+		DangerFieldLayer dangerField;
+		bool dangerFieldResolved;
 
 		readonly List<Axis> axes = new();
 
@@ -207,6 +231,12 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				resolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
 				resolverResolved = true;
+			}
+
+			if (!dangerFieldResolved)
+			{
+				dangerField = Info.DangerFieldRouting ? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
+				dangerFieldResolved = true;
 			}
 
 			var tick = world.WorldTick;
@@ -518,6 +548,22 @@ namespace OpenRA.Mods.Common.Traits
 			var distToTarget = PoiOffenseMath.Chebyshev(centroid.X, centroid.Y, axis.TargetCell.X, axis.TargetCell.Y);
 			var clumpRadius = PoiOffenseMath.MaxChebyshev(cells, centroid.X, centroid.Y);
 
+			// Stage-E flow-around: when the axis centroid's straight approach to the objective crosses
+			// ground-danger above the threshold (a defended strongpoint / choke), route it through a
+			// lateral waypoint that lowers the worst-case exposure — attacks skirt kill zones instead of
+			// grinding head-on. null ⇒ the beeline is clear (or routing off / no field), go direct.
+			// Inert unless DangerFieldRouting is on AND a field exists, so every other profile is untouched.
+			CPos? detourVia = null;
+			if (dangerField != null)
+			{
+				var ground = GroundDangerSampler(dangerField);
+				var passable = WaypointPassable(axis.Units[0]);
+				detourVia = GroundDangerNav.DetourWaypoint(
+					new CPos(centroid.X, centroid.Y), axis.TargetCell,
+					Info.GroundDangerDetourCells, Info.GroundDangerDetourSteps,
+					Info.GroundDangerSafeThreshold, ground, passable);
+			}
+
 			// Dispersion doctrine — spread to move, mass to assault. OFF for the frozen
 			// Stable/Normal controls (CohesionSwitchEnabled=false): they keep the original
 			// single-formation AttackMove untouched — no SetCohesion, no cohesion-forced repath.
@@ -541,12 +587,14 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			// Re-path when the unit set changed, the target moved enough, OR the desired
-			// cohesion changed (e.g. the axis just crossed the assault radius) so the new
-			// formation takes effect immediately rather than at the next incidental repath.
+			// Re-path when the unit set changed, the target moved enough, the desired cohesion changed
+			// (e.g. the axis just crossed the assault radius) so the new formation takes effect
+			// immediately, OR the Stage-E lateral waypoint shifted enough (the axis advanced past the
+			// strongpoint, so the flow-around lane must be recomputed) — all bounded by RepathThreshold.
 			var moved = !axis.HasOrdered
 				|| cohesionChanged
-				|| (axis.OrderedCell - axis.TargetCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells;
+				|| (axis.OrderedCell - axis.TargetCell).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells
+				|| ViaChanged(axis.OrderedVia, detourVia, Info.RepathThresholdCells);
 			if (!moved)
 				return;
 
@@ -566,13 +614,22 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var units = axis.Units.ToArray();
-			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, axis.TargetCell), false, groupedActors: units));
+
+			// Stage-E: when a flow-around waypoint was chosen, attack-move to the lateral lane FIRST
+			// (queued: false) then chain the objective (queued: true) so the axis skirts the strongpoint
+			// and still presses on to the target. No waypoint ⇒ the single direct AttackMove, unchanged.
+			if (detourVia.HasValue)
+				bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, detourVia.Value), false, groupedActors: units));
+
+			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, axis.TargetCell), detourVia.HasValue, groupedActors: units));
 			axis.OrderedCell = axis.TargetCell;
+			axis.OrderedVia = detourVia;
 			axis.HasOrdered = true;
 
+			var viaLog = detourVia.HasValue ? $" via={detourVia.Value}" : "";
 			var cohesionLog = dispersion ? $" cohesion={wantMode}" : "";
 			Log.Write("debug",
-				$"[exp-offense] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} units={units.Length}{cohesionLog} clumpRadius={clumpRadius} distToTarget={distToTarget} tick={tick}");
+				$"[exp-offense] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} units={units.Length}{cohesionLog}{viaLog} clumpRadius={clumpRadius} distToTarget={distToTarget} tick={tick}");
 			AIUtils.BotDebug("AI ({0}): exp-offense — axis {1}@{2} ({3} units, score={4})",
 				player.ClientIndex, axis.TargetName, axis.TargetCell, units.Length, axis.Score);
 		}
@@ -596,6 +653,41 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var axis in axes)
 				ReleaseAxis(axis, reason);
 			axes.Clear();
+		}
+
+		// A ground-danger sampler bound to this player's own anti-ground channel. Off-map cells read
+		// Impassable so a detour waypoint never lands off the playable area. Fog-legal: the field is
+		// stamped from the player's belief store; reads 0 in verified-safe ground.
+		Func<CPos, int> GroundDangerSampler(DangerFieldLayer field)
+		{
+			var map = world.Map;
+			return c => map.Contains(c) ? field.GroundDanger(player, c) : GroundDangerNav.Impassable;
+		}
+
+		// A terrain-passability predicate bound to a representative axis unit's locomotor: true when the
+		// mover can actually stand on the cell (not on-map water/cliff, not off-map). Used to reject
+		// detour WAYPOINTS that read "safe" only because unstamped impassable ground carries no danger.
+		// Falls back to "all passable" if the representative has no Mobile (never rejects) — rare for a
+		// combat axis (every member has IPositionable + AttackBase).
+		Func<CPos, bool> WaypointPassable(Actor mover)
+		{
+			var loco = mover.TraitOrDefault<Mobile>()?.Locomotor;
+			if (loco == null)
+				return _ => true;
+
+			return c => loco.MovementCostForCell(c) != PathGraph.MovementCostForUnreachableCell;
+		}
+
+		// True when the Stage-E flow-around waypoint changed enough to warrant re-issuing the axis order:
+		// appeared, vanished, or shifted by >= threshold cells. Keeps the flow-around responsive as the
+		// axis advances without spamming orders on jitter. Pure.
+		static bool ViaChanged(CPos? previous, CPos? current, int thresholdCells)
+		{
+			if (previous.HasValue != current.HasValue)
+				return true;
+			if (!current.HasValue)
+				return false;
+			return (previous.Value - current.Value).LengthSquared >= thresholdCells * thresholdCells;
 		}
 
 		static string OffenseObjectiveKey(uint targetId) => "offense:" + targetId;

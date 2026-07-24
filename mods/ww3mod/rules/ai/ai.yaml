@@ -212,6 +212,10 @@ Player:
 		# (260 = (250*100)/(120*80)): mild ~17.0M, safe ~42.5M, hostile ~4.25M — the hostile threat
 		# gate still keeps the AI off a well-garrisoned SR. Default (100) on @stable = inert.
 		SrPressureScoreMultiplier: 260
+		# Influence stack Stage E: route attack axes AROUND defended strongpoints / chokes (reads the
+		# per-player anti-ground danger field) instead of grinding head-on through them. Emits a two-leg
+		# AttackMove (lateral lane, then the objective). Experimental-only; @stable twin leaves it off.
+		DangerFieldRouting: true
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
@@ -282,6 +286,11 @@ Player:
 		SafeFollowDistance: 5
 		MaxFollowDistance: 35
 		MinNearbyFriendlies: 4
+		# Influence stack Stage E: a truck relocating along the front detours via safer depth instead
+		# of driving through the kill zone — the rear-lateral-re-enter path emerges from the danger
+		# cost. Shared enable-ai-any module, so the reroute is gated on InfluenceStack.Participates
+		# too: only @experimental bots ever act on it; every other profile stays byte-identical.
+		DangerFieldRouting: true
 
 	# Adaptive production — counter enemy composition
 	#
