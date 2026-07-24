@@ -83,6 +83,15 @@ The rest of this doc describes the intended capture model; treat those passages 
 
 So a single scout sitting in your SR circle won't immediately kill production, but it will slow you down — and a sustained presence will force you to react. **This is the dominant pressure mechanic** for siege play.
 
+### Contestation to zero ends the match — the real defeat path
+
+The match-ending win/loss runs on **`SupplyRouteContestation`, not stock `ConquestVictoryConditions` alone.** The SR is `Armor: Indestructable` (`structures.yaml:270-271`) — never destroyed — so "destroy the conyard = defeat" is replaced by "contest the SR to zero":
+
+- When an SR's control bar empties, a defeat bar fills; at full it calls `OnDefeatBarFull` (`SupplyRouteContestation.cs:354`) → the owning player goes **passive** (production frozen). Elimination fires only if that team has **no other active SR** (`ResolveTeamElimination`, `:412`).
+- **The win is awarded explicitly, per survivor.** Older code only marked the *losing* team and relied on stock `ConquestVictoryConditions.Tick` to infer the win — which fails in a near-simultaneous mutual overrun (both teams resolve as `Lost` before the inference tick, so everyone shows "mission failed"). `ResolveTeamElimination` now marks the eliminated team `Lost` first, then awards `Won` to each survivor whose every non-allied combatant is now `Lost` (`ShouldAwardVictory`, `:466`) — reproducing CVC's per-survivor test so FFA / 2v2v2 don't instantly resolve when one party dies. A second elimination in the same tick is a no-op guarded by `ResolveEliminationOutcome` (`:478`, returns `null` for any already-decided player) — the anti-"everyone loses" invariant.
+- **Awarding via `MissionObjectives`:** `MarkCompleted` fires `OnPlayerWon` only when **all** required objectives are Completed (`MissionObjectives.cs:136-137`). `AwardVictory` (`:491`) therefore no-ops unless the player has a `ConquestVictoryConditions` trait and completes only its `Type == "Primary"` objectives — never blanket-completing (which would auto-win a scripted campaign mission running `-ConquestVictoryConditions` + `MissionObjectives.EarlyGameOver`).
+- **`TestMode` symmetry:** `ResolveTeamElimination` early-returns on `TestMode.IsActive` (`:416`), matching `ConquestVictoryConditions.Tick` / `MissionObjectives.CheckIfGameIsOver`, so an SR contest emits no stray victory lines mid-autotest. The pure branches (`ResolveEliminationOutcome` / `ShouldAwardVictory`) are NUnit-pinned (`SupplyRouteEliminationTest.cs`); the full team-propagation ending is verified by unit test + reasoning (no single autotest map runs 2v2 team victory).
+
 ## Strategic implications
 
 For AI design and for any strategic-layer code:

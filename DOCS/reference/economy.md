@@ -77,9 +77,15 @@ Cost 1000. Spawns with `SupplyProvider.TotalSupply: 750`.
 Truck behavior:
 - Drives near friendly **infantry** that need rearm. Delivers `ReloadCount` rounds per cycle, charges `SupplyValue` per batch from its own pool.
 - Serves units whose `Rearmable.RearmActors` lists `truk` (infantry).
-- When low (`currentSupply < RestockThreshold`), drives back to nearest LC and refills.
+- When low (`currentSupply < RestockThreshold`, 50) an **Auto**-stance truck drives back to nearest LC (`RestockActors: logisticscenter`) and refills. But TRUK's default resupply stance is **Evacuate** for both human and AI (`vehicles.yaml:514-515`), so a low truck normally rotates to the map edge to return its credit rather than shuttling — see the residue-evac rule below.
 - Refill drains the LC's `currentSupply` by the amount taken. A truck that needs 600 supply takes 600 from the LC, leaving the LC with 2400. If the LC has less than the truck wants, the truck takes what's there and leaves partially full.
 - Can drop its remaining supply as a SUPPLYCACHE box (deploy command) — see below.
+
+**Unusable-residue trucks count-as-empty and evacuate** (gated by `SupplyProvider.EvacuateOnUnusableResidue`, true only on TRUK — `vehicles.yaml:549`). A near-empty truck holding a residue too small to give any nearby soldier a batch would otherwise park at the front forever:
+
+- `SupplyProvider.CountsAsEmpty` = `currentSupply <= 0 || residueUnusable` (`SupplyProvider.cs:120`). The `residueUnusable` latch is set from a `MinNeedThreshold`-aware `ResidueVerdict` (`:693`, NUnit-pinned) — true (evac) when no reachable unit can be served a batch, false (keep serving) when one can, null (leave the latch) when there is no demand. Every refill path clears the latch, so a full truck never shows a phantom red bar.
+- An Evacuate truck **keeps serving below `RestockThreshold`** (`KeepServingBelowThreshold`, `:272-274`) instead of reserving the last bit for a drive home it will never make — it serves down to the last usable batch, *then* the residue goes unusable and `CountsAsEmpty` carries it to evac. Self-restock is stance-aware (`ShouldSelfRestock`, `:257`): an Evacuate truck does not auto-shuttle to an LC (switching it to Auto restores restock-when-low).
+- The supply **selection bar turns red** (`ISelectionBar.GetColor`, `:674`) while `residueUnusable`; a truly drained truck (`currentSupply == 0`) stays amber. The empty-evac path itself is `DropsSupplyCache.OnBecomingIdle` plus an `ITick` re-check (a truck that goes idle then has its residue become unusable never gets a second `INotifyBecomingIdle`), both gated on `CountsAsEmpty`. `SupplyFollowerBotModule.IsLowOnSupply` also returns true on `CountsAsEmpty` so the bot stops re-tasking an evacuating truck forward.
 
 ### SUPPLYCACHE (dropped supply box)
 
