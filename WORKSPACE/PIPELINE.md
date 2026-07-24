@@ -16,9 +16,9 @@ User played a 2v2 vs three bots. The three previously-gated behaviors (heli stan
 
 ## QUEUE
 
-### 5. Cohesion stance identities — fine-tuning wave
-**Perceived:** the three cohesion stances become three visibly different behaviors — **Tight = column** (move fast, stay together), **Loose = combat interval** (fight from cover), **Spread = dispersed** (survive artillery) — instead of one box at three widths.
-_Follows item 3. Shaped by the user's reactions to `WORKSPACE/cohesion/illustrations/260722_stance_proposals.html` (decision points DP-1..DP-5 still open — picks can arrive any time and steer this item)._
+### 5. Cohesion stance identities — fine-tuning wave [IN FLIGHT]
+**Perceived:** the three cohesion stances become three visibly different behaviors — **Tight = classic** (exactly original-OpenRA grouping: all cohesion adjustments off, for players who prefer vanilla or want it simple), **Loose = combat interval** (fight from cover — cover beats a perfect line), **Spread = dispersed** (survive artillery at a sensible hand-tuned interval) — instead of one box at three widths.
+_DP picks landed 2026-07-25 (`WORKSPACE/cohesion/illustrations/260722_stance_proposals.html`): **DP-1** Tight = vanilla/off (column identity dropped); **DP-2** hand-tuned spacing constant, no AoE derivation; **DP-3** bend the line freely for cover — perfect formations read unrealistic, but don't degrade them on purpose; **DP-4** preview ghosts deferred (hold-space lines suffice); **DP-5** build order = agent's choice. Rider: an ideation pass on making formations *feel* realistic without being disruptive runs alongside — adopted ideas get their own queue entries._
 
 ### 8. Ambush behavior — IMPLEMENTATION
 **Perceived:** hidden Ambush units that hold fire until spotted or until springing the trap at the best moment; units *feel alive*, reacting to being seen/unseen. Human-settable stance first, **default off** so nothing changes for players who don't opt in.
