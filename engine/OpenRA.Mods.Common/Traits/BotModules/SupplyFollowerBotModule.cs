@@ -231,15 +231,16 @@ namespace OpenRA.Mods.Common.Traits
 			return claimant != null && claimant != "supply-follow";
 		}
 
-		// A truck below its RestockThreshold has effectively no supplies to give. Don't
-		// issue forward orders — SupplyProvider's built-in restock will route it back to
-		// a LogisticsCenter / SR if we leave it alone.
+		// A truck below its RestockThreshold — or one holding an unusable residue that
+		// counts as empty — has effectively no supplies to give. Don't issue forward
+		// orders: SupplyProvider's restock / the transport's evacuate will route it away
+		// if we leave it alone. Issuing a forward Move would fight that and re-park it.
 		static bool IsLowOnSupply(Actor a)
 		{
 			var sp = a.TraitOrDefault<SupplyProvider>();
 			if (sp == null)
 				return false;
-			return sp.CurrentSupply < sp.Info.RestockThreshold;
+			return sp.CurrentSupply < sp.Info.RestockThreshold || sp.CountsAsEmpty;
 		}
 
 		protected override void TraitDisabled(Actor self)

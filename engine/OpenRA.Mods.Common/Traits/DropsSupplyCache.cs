@@ -50,12 +50,16 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new DropsSupplyCache(init, this); }
 	}
 
-	public class DropsSupplyCache : INotifyCreated, INotifyBecomingIdle, IResolveOrder,
+	public class DropsSupplyCache : INotifyCreated, INotifyBecomingIdle, ITick, IResolveOrder,
 		IIssueOrder, IIssueDeployOrder, IOrderVoice
 	{
 		public readonly DropsSupplyCacheInfo Info;
 		readonly Actor self;
 		SupplyProvider supply;
+
+		// Guards against OnBecomingIdle and ITick both firing EvacuateOrRestock on the same
+		// idle-transition frame (which would double-queue RotateToEdge).
+		int lastEvacuateTick = -1;
 
 		public DropsSupplyCache(ActorInitializer init, DropsSupplyCacheInfo info)
 		{
@@ -195,10 +199,34 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
 		{
-			// Empty truck with no orders: try to drive back to the nearest friendly
-			// LC; if none can host us, evacuate via RotateToEdge.
-			if (supply == null || supply.CurrentSupply > 0)
+			// Empty (or holding an unusable residue) truck with no orders: try to drive
+			// back to the nearest friendly LC; if none can host us, evacuate via RotateToEdge.
+			if (supply == null || !supply.CountsAsEmpty)
 				return;
+
+			EvacuateOrRestock(self);
+		}
+
+		void ITick.Tick(Actor self)
+		{
+			// A residue only becomes unusable after the truck has already gone idle at the
+			// front, so OnBecomingIdle (which fires on the idle transition) has come and gone.
+			// Re-check here: if we're idle and now count as empty, run the same evac/restock
+			// flow. RotateToEdge / the restock MoveTo make us non-idle, so this self-limits.
+			if (supply == null || !supply.CountsAsEmpty || !self.IsIdle)
+				return;
+
+			EvacuateOrRestock(self);
+		}
+
+		void EvacuateOrRestock(Actor self)
+		{
+			// Only act once per frame — OnBecomingIdle and ITick can both reach here on the
+			// same idle-transition tick.
+			if (lastEvacuateTick == self.World.WorldTick)
+				return;
+
+			lastEvacuateTick = self.World.WorldTick;
 
 			var autoTarget = self.TraitOrDefault<AutoTarget>();
 			var behavior = autoTarget?.ResupplyBehaviorValue ?? ResupplyBehavior.Auto;

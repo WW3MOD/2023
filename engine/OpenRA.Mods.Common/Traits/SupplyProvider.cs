@@ -37,6 +37,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Auto-restock when supply drops below this threshold.")]
 		public readonly int RestockThreshold = 50;
 
+		[Desc("When the provider holds a residue too small for any reachable unit to use",
+			"(no needy unit in range can be given even one batch), treat it as empty so",
+			"its transport (DropsSupplyCache) evacuates instead of parking forever.",
+			"Intended for supply trucks; leave false on Logistics Centers and caches.")]
+		public readonly bool EvacuateOnUnusableResidue = false;
+
 		[ActorReference]
 		[Desc("Actor types where the supply provider can restock.")]
 		public readonly HashSet<string> RestockActors = new HashSet<string>();
@@ -91,12 +97,27 @@ namespace OpenRA.Mods.Common.Traits
 		int conditionToken = Actor.InvalidConditionToken;
 		bool restocking;
 
+		// Latched true when EvacuateOnUnusableResidue and the remaining supply is a
+		// residue no reachable unit can utilize. Cleared on replenish or full drain.
+		bool residueUnusable;
+
 		int supplyHighToken = Actor.InvalidConditionToken;
 		int supplyMediumToken = Actor.InvalidConditionToken;
 		int supplyLowToken = Actor.InvalidConditionToken;
 		int supplyAnyToken = Actor.InvalidConditionToken;
 
 		public int CurrentSupply => currentSupply;
+
+		/// <summary>True while a residue too small for any reachable unit to use is being held.</summary>
+		public bool ResidueUnusable => residueUnusable;
+
+		/// <summary>
+		/// A provider counts as empty when it is genuinely drained, or (for trucks with
+		/// EvacuateOnUnusableResidue) when the remaining supply is a residue no reachable
+		/// unit can utilize. Transports use this to trigger the same evacuate flow an
+		/// actually-empty truck uses.
+		/// </summary>
+		public bool CountsAsEmpty => currentSupply <= 0 || residueUnusable;
 
 		public SupplyProvider(ActorInitializer init, SupplyProviderInfo info)
 			: base(info)
@@ -131,13 +152,32 @@ namespace OpenRA.Mods.Common.Traits
 			if (restocking)
 				return;
 
-			// Check if we need to restock
-			if (currentSupply <= 0 || (currentSupply < Info.RestockThreshold && currentTarget == null))
+			// Drained: clear the residue latch (a truly empty provider is not "residue"),
+			// and hand off to restock if this provider self-restocks.
+			if (currentSupply <= 0)
+			{
+				RevokeTargetCondition();
+				currentTarget = null;
+				residueUnusable = false;
+
+				if (ShouldSelfRestock())
+					TryRestock();
+
+				return;
+			}
+
+			// Below the restock threshold with no active customer: a provider that drives
+			// itself home reserves its remaining supply for the trip and stops serving. A
+			// residue-evacuating truck with no trip home (Evacuate stance) keeps serving
+			// down to the last usable batch — once the residue is genuinely unusable,
+			// CountsAsEmpty carries it to evac. Reserving supply it will never restock would
+			// just strand it, amber-barred, next to a unit it could still help.
+			if (currentSupply < Info.RestockThreshold && currentTarget == null && !KeepServingBelowThreshold())
 			{
 				RevokeTargetCondition();
 				currentTarget = null;
 
-				if (Info.RestockActors.Count > 0 && !restocking)
+				if (ShouldSelfRestock())
 					TryRestock();
 
 				return;
@@ -167,6 +207,18 @@ namespace OpenRA.Mods.Common.Traits
 			// Always re-evaluate — pick unit with greatest need
 			var bestTarget = FindGreatestNeedTarget(out var hasUnaffordableTargets);
 
+			// Residue-unusable latch, decided by the same pure predicate the tests pin.
+			// bestTarget != null means a reachable unit we can afford met MinNeedThreshold
+			// (serviceable); hasUnaffordableTargets means a reachable needy unit exists that
+			// we can't afford. A null verdict (no demand at all) leaves the latch unchanged
+			// so an already-evacuating truck stays evacuating.
+			if (Info.EvacuateOnUnusableResidue)
+			{
+				var verdict = ResidueVerdict(currentSupply, bestTarget != null, hasUnaffordableTargets);
+				if (verdict.HasValue)
+					residueUnusable = verdict.Value;
+			}
+
 			if (bestTarget == null)
 			{
 				// When in Hunt stance and no nearby targets, seek out units flagged as needing resupply
@@ -187,13 +239,39 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				// We have supply but can't afford to help anyone nearby → restock
-				if (hasUnaffordableTargets && Info.RestockActors.Count > 0 && !restocking)
+				// (unless this provider evacuates on unusable residue and is set to
+				// Evacuate — then the transport drives it off-map instead).
+				if (hasUnaffordableTargets && ShouldSelfRestock())
 					TryRestock();
 
 				return;
 			}
 
 			SetTarget(bestTarget);
+		}
+
+		/// <summary>
+		/// Whether this provider should drive itself off to a restock host. A provider set
+		/// to Evacuate never self-restocks — its transport evacuates it off-map instead.
+		/// </summary>
+		bool ShouldSelfRestock()
+		{
+			if (Info.RestockActors.Count == 0 || restocking)
+				return false;
+
+			var behavior = self.TraitOrDefault<AutoTarget>()?.ResupplyBehaviorValue ?? ResupplyBehavior.Auto;
+			return behavior != ResupplyBehavior.Evacuate;
+		}
+
+		/// <summary>
+		/// A residue-evacuating provider that will NOT drive itself home (Evacuate stance, or
+		/// no restock host) has no trip to reserve supply for — it keeps serving below the
+		/// restock threshold until the residue becomes genuinely unusable, then evacuates.
+		/// Self-restocking providers still reserve their remaining supply for the drive home.
+		/// </summary>
+		bool KeepServingBelowThreshold()
+		{
+			return Info.EvacuateOnUnusableResidue && !ShouldSelfRestock();
 		}
 
 		/// <summary>
@@ -500,10 +578,7 @@ namespace OpenRA.Mods.Common.Traits
 						var needed = Info.TotalSupply - currentSupply;
 						var taken = System.Math.Min(needed, hostProvider.CurrentSupply);
 						if (taken > 0 && hostProvider.DeductSupply(taken))
-						{
-							currentSupply += taken;
-							UpdateSupplyConditions();
-						}
+							AddSupply(taken);   // clears the residue-unusable latch on genuine refill
 					}
 
 					restocking = false;
@@ -539,6 +614,11 @@ namespace OpenRA.Mods.Common.Traits
 		public void AddSupply(int amount)
 		{
 			currentSupply += amount;
+
+			// A genuine replenish (restock/refill) makes the residue usable again.
+			if (amount > 0)
+				residueUnusable = false;
+
 			UpdateSupplyConditions();
 		}
 
@@ -589,11 +669,39 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool ISelectionBar.DisplayWhenEmpty => true;
 
-		Color ISelectionBar.GetColor() { return Color.FromArgb(255, 255, 200, 0); }
+		// Red while holding an unusable residue (counts as empty, sliver remains); the
+		// normal amber otherwise. A truly empty truck (currentSupply == 0) keeps amber.
+		Color ISelectionBar.GetColor() { return residueUnusable ? Color.FromArgb(255, 200, 0, 0) : Color.FromArgb(255, 255, 200, 0); }
 
 		bool ICargoCanLoadFilter.CanLoadPassenger(Actor self, Actor passenger)
 		{
 			return currentSupply > 0;
+		}
+
+		/// <summary>
+		/// Residue verdict that drives the residueUnusable latch (see <see cref="UpdateTarget"/>).
+		/// Pure so the unit tests pin the exact rule the live scan applies. Inputs are the two
+		/// facts a greatest-need scan produces:
+		///  - <paramref name="serviceableNeedyPresent"/>: a reachable unit we can afford one
+		///    batch for cleared MinNeedThreshold (i.e. FindGreatestNeedTarget picked a best
+		///    target). A near-full affordable unit does NOT count — it is below threshold.
+		///  - <paramref name="unaffordableNeedyPresent"/>: a reachable unit still needs ammo but
+		///    we cannot afford one batch of any of its pools.
+		/// Returns true = unusable residue (evacuate), false = still usable, null = no demand in
+		/// reach, so the caller leaves the latch unchanged (an evacuating truck keeps evacuating).
+		/// </summary>
+		public static bool? ResidueVerdict(int currentSupply, bool serviceableNeedyPresent, bool unaffordableNeedyPresent)
+		{
+			if (currentSupply <= 0)
+				return true;
+
+			if (serviceableNeedyPresent)
+				return false;
+
+			if (unaffordableNeedyPresent)
+				return true;
+
+			return null;
 		}
 
 		/// <summary>Credit value of missing supply, proportional to SupplyCreditValue.</summary>
