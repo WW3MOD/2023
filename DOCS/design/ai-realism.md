@@ -157,6 +157,36 @@ consumes the role model; AoE cluster targeting in AutoTarget is queued as its
 own shared-trait work item — default-off, benchmark-priced, and a Phase-3-class
 re-baseline if shipped to everyone, per the split SPEC's governance rules.*
 
+### 5. Fires economics — differentiated employment + ammo expected-value (user-authored, 2026-07-24)
+
+> **Source:** the user, reviewing the shipped fires-standoff doctrine,
+> 2026-07-24. Recorded faithfully; light structure only.
+
+- **Tube artillery and rocket artillery play differently, and the bots should
+  learn that.** Tube artillery (Paladin, Giatsint) can be utilized against
+  single units — though ideally against groups. Firing rocket artillery
+  (Grad, TOS, M270) against single soldiers **is not worth it**.
+- **The general rule — ammunition expected value:** when firing *any* weapon,
+  **the cost of the ammunition should be less than the projected damage to the
+  enemy** — or else the player is just wasting money firing. This applies to
+  every weapon, not just fires.
+- **Ballistic missile launchers (Iskander, HIMARS) are special cases, not
+  artillery.** The AI does not currently field them (correct). If support is
+  ever added, it must be **when-warranted only** — these units are massive
+  liabilities due to their price and volatility, so the AI should not use them
+  like regular artillery.
+- **Improvement path:** this can start as a quick fix (a cheap fire-worthiness
+  gate) or a proper implementation (a real EV model), and either way it is
+  something to **continuously try to improve** — a standing north-star item,
+  not a one-shot feature.
+
+*Roadmap mapping (agent, same date): the aim-at-clumps half is already queued
+as the AoE-aware cluster-targeting item (`WORKSPACE/PIPELINE.md` item 14, shared
+AutoTarget layer per §4); the fire-worthiness half — the ammo-EV gate and
+tube-vs-rocket differentiation — is queued as its own PIPELINE item beside it.
+Ammo costs live in the economy model (`DOCS/reference/economy.md`); the role
+model (§4) gives the resolver hooks to tell tube from rocket from ballistic.*
+
 ## Where the detail lives
 
 The concrete pattern→behavior mapping — for each modern-warfare pattern: the
