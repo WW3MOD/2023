@@ -285,7 +285,8 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!resolverResolved)
 			{
-				resolver = World.WorldActor.TraitOrDefault<UnitRoleResolver>();
+				if (Info.UseUnitRoles)
+					resolver = World.WorldActor.TraitOrDefault<UnitRoleResolver>();
 				resolverResolved = true;
 			}
 
