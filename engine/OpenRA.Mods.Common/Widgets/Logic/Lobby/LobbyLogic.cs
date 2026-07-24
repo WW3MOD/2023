@@ -1112,12 +1112,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						LobbyUtils.SetupSpawnWidget(template, client);
 					}
 
-					// Phase 5 — V5 row drops Team and Handicap. Widgets stay
-					// in the templates so other Get<>() calls resolve, but
-					// nothing unhides them so they never paint stray text.
-					LobbyUtils.HideChildWidget(template, "TEAM_DROPDOWN");
+					// WW3MOD: non-editable rows show the read-only Team label so
+					// team assignments are visible for remote players and bots.
+					// SetupTeamWidget unhides Label@TEAM and hides TEAM_DROPDOWN.
+					// Handicap stays fully hidden (V5 row drops it).
+					LobbyUtils.SetupTeamWidget(template, client);
 					LobbyUtils.HideChildWidget(template, "HANDICAP_DROPDOWN");
-					LobbyUtils.HideChildWidget(template, "TEAM");
 					LobbyUtils.HideChildWidget(template, "HANDICAP");
 
 					LobbyUtils.SetupReadyWidget(template, client);

@@ -91,10 +91,17 @@ Container@LOBBY_PLAYER_BIN:
 							Font: TinyBold
 						Label@LABEL_LOBBY_NAME:
 							X: 256
-							Width: PARENT_WIDTH - 304
+							Width: PARENT_WIDTH - 368
 							Height: 20
 							Text: label-lobby-players-name
 							Align: Left
+							Font: TinyBold
+						Label@LABEL_LOBBY_TEAM:
+							X: PARENT_WIDTH - 104
+							Width: 52
+							Height: 20
+							Text: label-lobby-players-team
+							Align: Center
 							Font: TinyBold
 						Label@LABEL_LOBBY_STATUS:
 							X: PARENT_WIDTH - 44
@@ -231,7 +238,7 @@ Container@LOBBY_PLAYER_BIN:
 									Text: label-lobby-players-spawn
 								TextField@NAME:
 									X: 256
-									Width: PARENT_WIDTH - 304
+									Width: PARENT_WIDTH - 368
 									Height: 40
 									Text: Name
 									LeftMargin: 28
@@ -254,7 +261,7 @@ Container@LOBBY_PLAYER_BIN:
 											Template: ANONYMOUS_PLAYER_TOOLTIP
 								DropDownButton@SLOT_OPTIONS:
 									X: 256
-									Width: PARENT_WIDTH - 304
+									Width: PARENT_WIDTH - 368
 									Height: 40
 									Text: label-lobby-players-name
 									Font: MediumBold
@@ -264,10 +271,15 @@ Container@LOBBY_PLAYER_BIN:
 									Separators:
 									Visible: false
 								DropDownButton@TEAM_DROPDOWN:
-									X: -200
-									Width: 1
-									Height: 1
+									X: PARENT_WIDTH - 104
+									Width: 52
+									Height: 40
+									Font: MediumBold
+									Align: Center
+									Background: lobby-button
+									Separators:
 									Text: label-lobby-players-team
+									Visible: false
 								DropDownButton@HANDICAP_DROPDOWN:
 									X: -200
 									Width: 1
@@ -399,13 +411,13 @@ Container@LOBBY_PLAYER_BIN:
 									Visible: false
 								Label@NAME:
 									X: 284
-									Width: PARENT_WIDTH - 332
+									Width: PARENT_WIDTH - 396
 									Height: 40
 									Font: MediumBold
 									Text: label-lobby-players-name
 								DropDownButton@PLAYER_ACTION:
 									X: 256
-									Width: PARENT_WIDTH - 304
+									Width: PARENT_WIDTH - 368
 									Height: 40
 									Font: MediumBold
 									Visible: false
@@ -427,9 +439,10 @@ Container@LOBBY_PLAYER_BIN:
 											TooltipContainer: TOOLTIP_CONTAINER
 											Template: ANONYMOUS_PLAYER_TOOLTIP
 								Label@TEAM:
-									X: -200
-									Width: 1
-									Height: 1
+									X: PARENT_WIDTH - 104
+									Width: 52
+									Height: 40
+									Font: MediumBold
 									Text: label-lobby-players-team
 									Align: Center
 								DropDownButton@TEAM_DROPDOWN:
