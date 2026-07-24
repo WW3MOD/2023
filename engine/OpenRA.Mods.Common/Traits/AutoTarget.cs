@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Warheads;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -154,6 +155,33 @@ namespace OpenRA.Mods.Common.Traits
 			"Only force-attacks (Ctrl+click, Lua Actor.Attack(..., forceAttack=true), AI direct AttackTarget with forceAttack=true) still fire on these targets.",
 			"Set to empty string to disable.")]
 		public readonly string BreakOffCondition = "critical-damage";
+
+		[ConsumedConditionReference]
+		[Desc("AoE-aware cluster targeting (PIPELINE item 14): while this condition is granted on the unit,",
+			"an area weapon prefers the target whose surrounding clump takes the most projected splash over",
+			"simply the closest one. Empty (default) = OFF and byte-identical to the plain closest/priority score.",
+			"Gate it to @experimental bot-owned pieces with enable-ai-experimental; a human opt-in token can be",
+			"pointed here later. Inert on units whose weapon has no meaningful area warhead (see ClusterMinWarheadSpread).")]
+		public readonly string ClusterTargetingCondition = null;
+
+		[Desc("Cluster targeting: horizontal radius around a candidate within which enemy neighbours count",
+			"toward its clump score. The splash-weight curve (ClusterMinWarheadSpread gate + falloff shape) is",
+			"weapon-derived; this sets the scale. Only read while ClusterTargetingCondition is granted.")]
+		public readonly WDist ClusterRadius = WDist.FromCells(3);
+
+		[Desc("Cluster targeting: a unit only counts as an area weapon (and gets the cluster term) if some enabled",
+			"weapon has a SpreadDamage warhead whose Spread is at least this. Excludes rifles/tank rounds even if",
+			"the condition is granted.")]
+		public readonly WDist ClusterMinWarheadSpread = new WDist(48);
+
+		[Desc("Cluster targeting: WDist length of priority pull earned per 100 cluster-score points. Higher = a",
+			"clump outweighs a larger range gap. Bounded by ClusterMaxBonus so it never crosses a priority bucket.")]
+		public readonly int ClusterBonusScale = 96;
+
+		[Desc("Cluster targeting: hard cap (WDist length) on the priority pull a clump can earn. MUST stay well",
+			"below the priority bucket size so cluster preference never lets a low-priority clump beat a",
+			"high-priority target — it only reorders WITHIN a priority class, like the soft-overkill penalty.")]
+		public readonly WDist ClusterMaxBonus = WDist.FromCells(24);
 
 		[Desc("Display order for the stance dropdown in the map editor")]
 		public readonly int EditorStanceDisplayOrder = 1;
@@ -683,6 +711,29 @@ namespace OpenRA.Mods.Common.Traits
 					.Concat(self.Owner.FrozenActorLayer.FrozenActorsInCircle(self.World, self.CenterPosition, scanRange)
 					.Select(Target.FromFrozenActor));
 
+			// AoE-aware cluster targeting (PIPELINE item 14). Active only while ClusterTargetingCondition is
+			// granted (default off ⇒ every branch below is skipped and scoring is byte-identical) AND the unit
+			// actually wields an area weapon. When on, we snapshot the hostile-actor positions ONCE (a single
+			// bounded circle over the set AutoTarget already scans — no map-wide sweep) so the per-candidate
+			// clump score is a cheap sum. Deterministic: the sum is order-independent.
+			int[] clusterFalloff = null;
+			var clusterRadius = Info.ClusterRadius.Length;
+			List<(Actor Actor, WPos Pos)> clusterField = null;
+			var clusterActive = !string.IsNullOrEmpty(Info.ClusterTargetingCondition)
+				&& self.GetConditionCount(Info.ClusterTargetingCondition) > 0
+				&& TryGetClusterFalloff(self, out clusterFalloff);
+			if (clusterActive)
+			{
+				clusterField = new List<(Actor, WPos)>();
+				foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, scanRange))
+				{
+					if (a == self || !a.AppearsHostileTo(self) || !a.CanBeViewedByPlayer(self.Owner))
+						continue;
+
+					clusterField.Add((a, a.CenterPosition));
+				}
+			}
+
 			var chosenTargetPriority = 0;
 			var chosenTargetRange = 0;
 			var chosenTargetAverageDamagePercent = 0;
@@ -780,6 +831,30 @@ namespace OpenRA.Mods.Common.Traits
 
 				var targetRange = (target.CenterPosition - self.CenterPosition).Length;
 
+				// Cluster pull (PIPELINE item 14): a distance-like BONUS subtracted from priorityValue so an
+				// area weapon prefers the target ringed by the most enemies. Computed once per candidate (same
+				// for every priority class), capped at ClusterMaxBonus so it stays WITHIN the range tiebreak and
+				// never crosses a priority bucket — exactly like the soft-overkill penalty above it. 0 (no pull)
+				// when cluster targeting is off, the candidate is a frozen actor, or it has no live neighbours.
+				var clusterBonus = 0;
+				if (clusterActive && target.Type == TargetType.Actor)
+				{
+					var aim = target.CenterPosition;
+					var clusterScore = 0;
+					for (var i = 0; i < clusterField.Count; i++)
+					{
+						// Exclude the aim unit itself; every OTHER hostile contributes its splash weight.
+						if (clusterField[i].Actor == target.Actor)
+							continue;
+
+						clusterScore += FiresEconMath.ClusterWeight(
+							(clusterField[i].Pos - aim).HorizontalLength, clusterRadius, clusterFalloff);
+					}
+
+					clusterBonus = FiresEconMath.ClusterPriorityBonus(
+						clusterScore, Info.ClusterBonusScale, Info.ClusterMaxBonus.Length);
+				}
+
 				// PITFALL: priority MUST be categorical — a tank should always shoot a tank
 				// before a crewman, regardless of how close the crewman is. The pre-260511
 				// formula was `range / Priority`, which made an Infantry-priority target at
@@ -812,6 +887,9 @@ namespace OpenRA.Mods.Common.Traits
 
 					// Shorter range has higher priority (within a bucket)
 					priorityValue += targetRange;
+
+					// Cluster pull: a clumped target scores as if it were nearer (bounded, bucket-safe).
+					priorityValue -= clusterBonus;
 
 					// Deprioritize targets with significant incoming damage (soft penalty before hard skip).
 					// Knobs surface as SoftOverkillThreshold / SoftOverkillScale on AutoTargetInfo.
@@ -846,6 +924,34 @@ namespace OpenRA.Mods.Common.Traits
 			// non-autotarget code path. See MarkTargetForAttack below.
 
 			return chosenTarget;
+		}
+
+		/// <summary>The falloff curve of this unit's widest-splash area weapon, used to weight cluster neighbours
+		/// (PIPELINE item 14). Returns false — cluster targeting stays off — when no enabled weapon has a
+		/// SpreadDamage warhead at or above ClusterMinWarheadSpread (rifles / tank rounds are not area weapons).
+		/// The falloff SHAPE is weapon-derived; the search RADIUS is the tunable Info.ClusterRadius.</summary>
+		bool TryGetClusterFalloff(Actor self, out int[] falloff)
+		{
+			falloff = null;
+			var bestSpread = 0;
+			var minSpread = Info.ClusterMinWarheadSpread.Length;
+			foreach (var arm in self.TraitsImplementing<Armament>())
+			{
+				if (arm.IsTraitDisabled || arm.Weapon == null)
+					continue;
+
+				foreach (var wh in arm.Weapon.Warheads.OfType<SpreadDamageWarhead>())
+				{
+					var spread = wh.Spread.Length;
+					if (spread > bestSpread && wh.Falloff != null && wh.Falloff.Length > 0)
+					{
+						bestSpread = spread;
+						falloff = wh.Falloff;
+					}
+				}
+			}
+
+			return bestSpread >= minSpread && falloff != null;
 		}
 
 		/// <summary>Estimate of one full burst's damage as a % of the target's max HP.

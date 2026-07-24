@@ -211,6 +211,21 @@ namespace OpenRA.Mods.Common.Traits
 			"under the margin (would otherwise anchor on top of the target).")]
 		public readonly WDist FiresStandoffFloor = WDist.FromCells(3);
 
+		[Desc("EXPERIMENTAL fires economics (PIPELINE item 19): ammo expected-value fire gate. When on (and",
+			"FiresStandoff is on — the gate rides the standoff loop), a ROCKET-artillery piece (UnitRoleResolver",
+			"IndirectFireKind.Rocket) holds fire while the best clump of spotted enemies within weapon range would",
+			"not repay the salvo's ammo cost, and returns to FireAtWill once a worthy clump is in range. TUBE pieces",
+			"are exempt (they may engage singles). OFF by default so the @stable twin stays byte-identical.")]
+		public readonly bool FiresEvGate = false;
+
+		[Desc("Fires EV gate: the projected $ damage of the best aim must be at least this percent of the salvo's",
+			"ammo cost to fire (100 = plain cost<value; >100 demands a surplus). Only read when FiresEvGate is on.")]
+		public readonly int FiresEvMarginPercent = 100;
+
+		[Desc("Fires EV gate: horizontal radius (WDist) of the beaten zone used to gather a salvo's projected clump.",
+			"Sized to the real rocket scatter (much wider than a single rocket's warhead spread). Only read when on.")]
+		public readonly WDist FiresEvClumpRadius = WDist.FromCells(4);
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 
@@ -257,6 +272,16 @@ namespace OpenRA.Mods.Common.Traits
 		// re-issue so a piece holding in-band keeps firing uninterrupted (only re-ordered when it must
 		// reposition or its anchor drifted past RepathThresholdCells). Empty unless FiresStandoff is on.
 		readonly Dictionary<Actor, CPos> lastFiresAnchor = new();
+
+		// Fires EV gate (item 19): rocket pieces we have forced to HoldFire because no worthy clump is in range,
+		// plus the subset re-affirmed this eval. A piece that leaves the fires set while held is restored to
+		// FireAtWill in the post-order reconciliation, so it can never strand in HoldFire. Empty unless FiresEvGate.
+		readonly HashSet<Actor> firesHeldFire = new();
+		readonly HashSet<Actor> firesHeldThisEval = new();
+
+		// Fires EV gate: falloff cone weighting a salvo's projected clump over FiresEvClumpRadius (centre 100% →
+		// edge 0%). A coarse, deterministic beaten-zone shape — the quick gate, not a per-rocket ballistic model.
+		static readonly int[] FiresEvFalloff = { 100, 60, 25, 0 };
 
 		// Fires doctrine: bounded Chebyshev radius (cells) for the nearest-passable clamp on a standoff anchor
 		// that lands on impassable ground. Small — a passable cell almost always sits within a cell or two of
@@ -350,6 +375,10 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var a in staleFires)
 					lastFiresAnchor.Remove(a);
 			}
+
+			// Fires EV gate: reset the per-eval "still held this eval" marker. The post-order reconciliation
+			// uses it to restore FireAtWill on any rocket piece that left the fires set while holding fire.
+			firesHeldThisEval.Clear();
 
 			// 2. Score offensive targets from OUR SR (value x distance x threat).
 			//    Stage-F strategic repoint: when on (and a control field exists), ask PoiMap for a
@@ -482,6 +511,19 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				CommitAndOrder(bot, axis, tick);
+			}
+
+			// Fires EV gate: restore FireAtWill on any rocket piece that was holding fire but is no longer in a
+			// fires set (its axis retired / it was reclassified / it dropped out of range) so it never strands.
+			if (firesHeldFire.Count > 0)
+			{
+				var strays = firesHeldFire.Where(a => !firesHeldThisEval.Contains(a)).ToList();
+				foreach (var a in strays)
+				{
+					firesHeldFire.Remove(a);
+					if (!a.IsDead && a.IsInWorld && a.Owner == player)
+						bot.QueueOrder(new Order("SetUnitStance", a, false) { ExtraData = (uint)UnitStance.FireAtWill });
+				}
 			}
 
 			Log.Write("debug",
@@ -865,6 +907,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var u in fires)
 			{
+				// Fires EV gate (item 19): decide the piece's fire stance BEFORE the standoff-positioning
+				// continues below, so an in-band piece that holds position is still gated. Rocket pieces hold
+				// fire on unworthy targets; tube pieces (and every piece when the gate is off) are untouched.
+				if (Info.FiresEvGate && resolver != null && resolver.GetIndirectKind(u) == IndirectFireKind.Rocket)
+					ApplyFiresStance(bot, u, RocketFireWorthy(u));
+
 				var maxRange = MaxWeaponRange(u);
 				if (maxRange <= 0)
 					continue;
@@ -895,6 +943,107 @@ namespace OpenRA.Mods.Common.Traits
 				Log.Write("debug",
 					$"[exp-offense] fires player={player.PlayerName} unit={u.Info.Name}#{u.ActorID} anchor={anchorCell} maxRange={maxRange} needsReposition={needs} target={axis.TargetName}@{axis.TargetCell} tick={tick}");
 			}
+		}
+
+		// Fires EV gate: force a rocket piece to HoldFire (unworthy) or restore FireAtWill (worthy), issuing a
+		// SetUnitStance order only on a transition so an already-correct piece never chatters. Tracks the held
+		// set + the per-eval "still held" marker for the post-order stranding reconciliation. Deterministic.
+		void ApplyFiresStance(IBot bot, Actor u, bool worthy)
+		{
+			if (worthy)
+			{
+				if (firesHeldFire.Remove(u))
+					bot.QueueOrder(new Order("SetUnitStance", u, false) { ExtraData = (uint)UnitStance.FireAtWill });
+
+				return;
+			}
+
+			firesHeldThisEval.Add(u);
+			if (firesHeldFire.Add(u))
+				bot.QueueOrder(new Order("SetUnitStance", u, false) { ExtraData = (uint)UnitStance.HoldFire });
+		}
+
+		// Fires EV gate core (item 19): is a rocket salvo from this piece worth its ammo cost right now? Prices
+		// one volley from the economy model (max weapon Burst rounds at the priciest ammo pool's per-batch
+		// SupplyValue) and compares it to the best projected clump value among spotted enemies in weapon range
+		// (each enemy tried as the aim point; splash-weighted enemy build value it would destroy). A piece with
+		// no priced ammo or no live weapon is always worthy (no gate); no spotted target ⇒ not worthy (hold).
+		// Deterministic: no random draws, order-independent sums, one bounded circle query. Reused pure helpers
+		// keep the arithmetic NUnit-pinned (FiresEconMathTest).
+		bool RocketFireWorthy(Actor u)
+		{
+			var burst = 0;
+			foreach (var arm in u.TraitsImplementing<Armament>())
+			{
+				if (arm.IsTraitDisabled || arm.Weapon == null)
+					continue;
+
+				if (arm.Weapon.Burst > burst)
+					burst = arm.Weapon.Burst;
+			}
+
+			var reloadCount = 1;
+			var supplyValue = 0;
+			foreach (var pool in u.TraitsImplementing<AmmoPool>())
+			{
+				if (pool.Info.SupplyValue > supplyValue)
+				{
+					supplyValue = pool.Info.SupplyValue;
+					reloadCount = pool.Info.ReloadCount;
+				}
+			}
+
+			var salvoCost = FiresEconMath.SalvoCost(burst, reloadCount, supplyValue);
+			if (salvoCost <= 0)
+				return true;
+
+			var maxRange = MaxWeaponRange(u);
+			if (maxRange <= 0)
+				return true;
+
+			var enemies = new List<FiresEconMath.ClumpTarget>();
+			var positions = new List<WPos>();
+			foreach (var a in world.FindActorsInCircle(u.CenterPosition, new WDist(maxRange)))
+			{
+				if (a == u || a.IsDead || !a.IsInWorld)
+					continue;
+
+				if (player.RelationshipWith(a.Owner) != PlayerRelationship.Enemy || !a.CanBeViewedByPlayer(player))
+					continue;
+
+				var cost = a.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
+				if (cost <= 0)
+					continue;
+
+				var dmg = AutoTarget.EstimatePercentDamage(u, Target.FromActor(a));
+				if (dmg <= 0)
+					continue;
+
+				positions.Add(a.CenterPosition);
+				enemies.Add(new FiresEconMath.ClumpTarget(cost, dmg, 0));
+			}
+
+			if (enemies.Count == 0)
+				return false;
+
+			// Best aim = the enemy whose surrounding clump repays the most. Rebuild the clump with each enemy's
+			// distance measured from that aim point (the ClumpTarget value/damage are aim-independent).
+			var radius = Info.FiresEvClumpRadius.Length;
+			long best = 0;
+			for (var i = 0; i < positions.Count; i++)
+			{
+				var aim = positions[i];
+				var clump = new List<FiresEconMath.ClumpTarget>(enemies.Count);
+				for (var j = 0; j < enemies.Count; j++)
+					clump.Add(new FiresEconMath.ClumpTarget(
+						enemies[j].Value, enemies[j].DamagePercent, (positions[j] - aim).HorizontalLength));
+
+				var val = FiresEconMath.ProjectedClumpValue(clump, radius, FiresEvFalloff);
+				if (val > best)
+					best = val;
+			}
+
+			return FiresEconMath.FireWorthy(best, salvoCost, Info.FiresEvMarginPercent);
 		}
 
 		// Largest enabled-armament max range (WDist length, with live range modifiers applied). 0 when the

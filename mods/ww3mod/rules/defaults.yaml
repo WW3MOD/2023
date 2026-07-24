@@ -369,6 +369,12 @@
 
 ^AutoTargetArtillery:
 	Inherits: ^AutoTarget
+	# AoE-aware cluster targeting (PIPELINE item 14). Gated to @experimental bot-owned pieces: the
+	# enable-ai-experimental token is granted per-unit only to that bot (defaults.yaml ^Combatant grant /
+	# ai.yaml), so human- and @stable-owned artillery never satisfy it — cluster scoring is inert and
+	# byte-identical for them. Humans can opt in later by pointing this at a human-granted token.
+	AutoTarget:
+		ClusterTargetingCondition: enable-ai-experimental
 	AutoTargetPriority@Heavy:
 		ValidTargets: Heavy
 		Priority: 5
@@ -384,6 +390,9 @@
 
 ^AutoTargetArtilleryInfantry:
 	Inherits: ^AutoTarget
+	# AoE-aware cluster targeting (PIPELINE item 14) — see ^AutoTargetArtillery. Gated to @experimental.
+	AutoTarget:
+		ClusterTargetingCondition: enable-ai-experimental
 	AutoTargetPriority@Infantry:
 		ValidTargets: Infantry
 		Priority: 5

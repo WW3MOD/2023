@@ -244,6 +244,13 @@ Player:
 		# axis target). Gated on the UnitRoleResolver world trait (identifies the artillery role), not on
 		# UseUnitRoles. Experimental-only; @stable twin off.
 		FiresStandoff: true
+		# Fires economics (PIPELINE item 19): ammo expected-value gate on the fires employment above. A ROCKET
+		# artillery piece (UnitRoleResolver IndirectFireKind.Rocket — Grad/TOS/M270, derived from salvo Burst)
+		# holds fire while the best clump of spotted enemies in weapon range would not repay the salvo's ammo
+		# cost, and returns to FireAtWill once a worthy clump is in range; TUBE pieces (Giatsint/Paladin) are
+		# exempt and may engage singles. Rides the FiresStandoff loop, so it needs FiresStandoff on (above).
+		# Experimental-only; @stable twin leaves it off (byte-identical).
+		FiresEvGate: true
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped

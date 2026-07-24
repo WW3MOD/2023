@@ -126,7 +126,8 @@ namespace OpenRA.Mods.Common.Lint
 				return;
 
 			var t = new UnitRoleThresholds(resolverInfo.IndirectMinRange, resolverInfo.IndirectRangeFloor,
-				resolverInfo.ReconMaxWeaponRange, resolverInfo.ReconSpeedFloor, resolverInfo.NeutralCaptureType);
+				resolverInfo.ReconMaxWeaponRange, resolverInfo.ReconSpeedFloor, resolverInfo.NeutralCaptureType,
+				resolverInfo.RocketSalvoBurstFloor);
 
 			UnitRole RoleOf(ActorInfo ai) => UnitRoleResolver.Classify(UnitRoleResolver.ExtractFacts(ai, t), t);
 
