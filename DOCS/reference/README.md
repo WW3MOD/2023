@@ -10,6 +10,7 @@ Curated engineering reference. The value of this folder is that its claims can b
 | [`supply-route.md`](supply-route.md) | Canonical Supply Route mental model (the recurring AI-design trap) |
 | [`economy.md`](economy.md) | Supply/ammo economy |
 | [`architecture.md`](architecture.md) | Engine layout, scenario system, custom traits, aircraft movement, suppression/stances, AI config, shadows.bin |
+| [`influence-stack.md`](influence-stack.md) | The @experimental influence stack (Stages 0 + A–F): belief store, danger fields, control field, heli/ground danger nav, strategic repoint |
 | [`conventions.md`](conventions.md) | WDist, WAngle, YAML idioms, PITFALL comments, engine code rules |
 | [`pitfalls.md`](pitfalls.md) | Full PITFALL comment-system spec |
 | [`project-assessment.md`](project-assessment.md) | Big-picture assessment, engine-upgrade considerations |

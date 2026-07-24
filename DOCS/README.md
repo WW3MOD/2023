@@ -21,6 +21,7 @@ Static project documentation. Four kinds:
 | Supply/ammo economy details | `reference/economy.md` |
 | WDist / WAngle / YAML idioms / engine code rules | `reference/conventions.md` |
 | Engine layout / scenario / suppression / aircraft / AI config / shadows.bin | `reference/architecture.md` |
+| The @experimental influence stack (belief store, danger/control fields, danger nav, strategic repoint) | `reference/influence-stack.md` |
 | How the knowledge bank grows (curation rules) | `reference/README.md` |
 | PITFALL comment system (full spec) | `reference/pitfalls.md` |
 | Big-picture project state, engine-upgrade assessment | `reference/project-assessment.md` |
