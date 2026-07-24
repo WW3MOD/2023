@@ -230,5 +230,130 @@ namespace OpenRA.Test
 			var nearDist = PoiOffenseMath.Chebyshev(nearCentroid.X, nearCentroid.Y, target.X, target.Y);
 			Assert.That(nearDist, Is.LessThanOrEqualTo(assaultRadius), "near axis is at the objective → Tight");
 		}
+
+		// ---------- Stage F: BalanceOfPowerFactor (terr-bias revival on the control field) ----------
+
+		// GrayBand mirrors the shipped ControlFieldInfo.GrayBand so the axis tri-state matches the
+		// field's own ControlFieldMath.Classify buckets exactly.
+		const int GrayBand = 150;
+		const int BopBoost = 150;
+		const int BopDamp = 60;
+
+		[Test]
+		public void BalanceOfPower_WeBelieveWeHold_Presses()
+		{
+			// control score above +GrayBand ⇒ believed OURS ⇒ the enemy's grip here is weak ⇒ boost.
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(500, GrayBand, BopBoost, BopDamp), Is.EqualTo(BopBoost));
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(151, GrayBand, BopBoost, BopDamp), Is.EqualTo(BopBoost));
+		}
+
+		[Test]
+		public void BalanceOfPower_WeBelieveEnemyHolds_Damps()
+		{
+			// control score below −GrayBand ⇒ believed ENEMY ⇒ lunging into strength ⇒ damp.
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(-500, GrayBand, BopBoost, BopDamp), Is.EqualTo(BopDamp));
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(-151, GrayBand, BopBoost, BopDamp), Is.EqualTo(BopDamp));
+		}
+
+		[Test]
+		public void BalanceOfPower_ContestedFront_IsNeutral()
+		{
+			// |score| ≤ GrayBand ⇒ contested front ⇒ 100 (neutral) — no thrash on a knife-edge balance.
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(0, GrayBand, BopBoost, BopDamp), Is.EqualTo(100));
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(100, GrayBand, BopBoost, BopDamp), Is.EqualTo(100));
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(-100, GrayBand, BopBoost, BopDamp), Is.EqualTo(100));
+		}
+
+		[Test]
+		public void BalanceOfPower_BandBoundaryIsContestedInclusive()
+		{
+			// Exactly ±GrayBand reads contested (neutral) — matches ControlFieldMath.Classify's
+			// gray-inclusive boundary (ClassifyBoundariesAreGrayInclusive), so the axis bias and the
+			// overlay/field classification never disagree at the edge.
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(GrayBand, GrayBand, BopBoost, BopDamp), Is.EqualTo(100));
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(-GrayBand, GrayBand, BopBoost, BopDamp), Is.EqualTo(100));
+		}
+
+		[Test]
+		public void BalanceOfPower_DefaultMultipliersAreInert()
+		{
+			// A bare StrategicRepointEnabled (multipliers left at the code default 100) changes only the
+			// threat SOURCE, never the ranking — every bucket returns 100.
+			Assert.Multiple(() =>
+			{
+				Assert.That(PoiOffenseMath.BalanceOfPowerFactor(500, GrayBand, 100, 100), Is.EqualTo(100));
+				Assert.That(PoiOffenseMath.BalanceOfPowerFactor(-500, GrayBand, 100, 100), Is.EqualTo(100));
+				Assert.That(PoiOffenseMath.BalanceOfPowerFactor(0, GrayBand, 100, 100), Is.EqualTo(100));
+			});
+		}
+
+		// ---------- Stage F: BelievedDangerFactor (fog-legal threat, replaces the omniscient grid) ----------
+
+		const int DangerMild = 40;
+		const int DangerHostile = 120;
+		const int DangerSafeMul = 100;
+		const int DangerMildMul = 60;
+		const int DangerHostileMul = 20;
+
+		[Test]
+		public void BelievedDanger_SafeGroundIsNeutral()
+		{
+			// At/below the mild threshold (verified-safe ground or the low Stage-C baseline) ⇒ safe ⇒
+			// not damped. This is why the threshold sits ABOVE the territory baseline intensity.
+			Assert.That(PoiOffenseMath.BelievedDangerFactor(0, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul), Is.EqualTo(DangerSafeMul));
+			Assert.That(PoiOffenseMath.BelievedDangerFactor(DangerMild, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul), Is.EqualTo(DangerSafeMul), "== mild boundary is safe-inclusive");
+		}
+
+		[Test]
+		public void BelievedDanger_ProbedGroundDamps()
+		{
+			// Between the mild and hostile thresholds ⇒ mild (probed approach) ⇒ mild damp.
+			Assert.That(PoiOffenseMath.BelievedDangerFactor(41, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul), Is.EqualTo(DangerMildMul));
+			Assert.That(PoiOffenseMath.BelievedDangerFactor(DangerHostile, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul), Is.EqualTo(DangerMildMul), "== hostile boundary is still mild");
+		}
+
+		[Test]
+		public void BelievedDanger_InsideEnvelopeIsHostile()
+		{
+			// Above the hostile threshold (a dense believed weapon envelope) ⇒ strong damp — the
+			// fog-legal analogue of the old omniscient hostile-threat gate.
+			Assert.That(PoiOffenseMath.BelievedDangerFactor(121, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul), Is.EqualTo(DangerHostileMul));
+			Assert.That(PoiOffenseMath.BelievedDangerFactor(10000, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul), Is.EqualTo(DangerHostileMul));
+		}
+
+		[Test]
+		public void BelievedDanger_DefaultMultipliersAreInert()
+		{
+			// Multipliers left at the code default 100 ⇒ inert in every bucket (bare-enable no-op).
+			Assert.Multiple(() =>
+			{
+				Assert.That(PoiOffenseMath.BelievedDangerFactor(0, DangerMild, DangerHostile, 100, 100, 100), Is.EqualTo(100));
+				Assert.That(PoiOffenseMath.BelievedDangerFactor(80, DangerMild, DangerHostile, 100, 100, 100), Is.EqualTo(100));
+				Assert.That(PoiOffenseMath.BelievedDangerFactor(500, DangerMild, DangerHostile, 100, 100, 100), Is.EqualTo(100));
+			});
+		}
+
+		[Test]
+		public void Repoint_CombinedFactorStacksBalanceAndDanger()
+		{
+			// The module multiplies the two factors (÷100): a target we believe we hold (boost x150) but
+			// which sits inside a believed weapon envelope (hostile x20) nets 150*20/100 = 30 — pressable
+			// ground is still declined when a kill-zone covers it. This is the exact combine the rescale does.
+			var bop = PoiOffenseMath.BalanceOfPowerFactor(500, GrayBand, BopBoost, BopDamp);
+			var danger = PoiOffenseMath.BelievedDangerFactor(200, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul);
+			Assert.That(bop * danger / 100, Is.EqualTo(30));
+
+			// A believed-ours cell in safe ground nets the full boost (150*100/100 = 150).
+			var safe = PoiOffenseMath.BelievedDangerFactor(0, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul);
+			Assert.That(bop * safe / 100, Is.EqualTo(BopBoost));
+		}
 	}
 }

@@ -219,6 +219,22 @@ Player:
 		# per-player anti-ground danger field) instead of grinding head-on through them. Emits a two-leg
 		# AttackMove (lateral lane, then the objective). Experimental-only; @stable twin leaves it off.
 		DangerFieldRouting: true
+		# Influence stack Stage F (strategic repoint): select offensive/expansion axes off the BELIEVED
+		# control + anti-ground danger fields instead of the omniscient InfluenceMap threat grid — the
+		# threat term is dropped from the base score and re-derived fog-legally here. Completes the
+		# @experimental fog migration for attack-axis selection. Terr-bias revival on the control field:
+		# press cells we believe we hold / the enemy holds weakly (x150), damp lunging into believed-enemy
+		# strength (x60), leave contested fronts neutral. Believed-danger damp mirrors the old omniscient
+		# threat buckets on the danger-field scale: safe x100 / mild x60 / hostile x20. Default OFF on the
+		# @stable twin = byte-identical. DECLARED benchmark re-baseline (WORKSPACE/ai-bench/), no run yet.
+		StrategicRepointEnabled: true
+		BopBoostMultiplier: 150
+		BopDampMultiplier: 60
+		BelievedDangerMildThreshold: 40
+		BelievedDangerHostileThreshold: 120
+		BelievedDangerSafeMultiplier: 100
+		BelievedDangerMildMultiplier: 60
+		BelievedDangerHostileMultiplier: 20
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
