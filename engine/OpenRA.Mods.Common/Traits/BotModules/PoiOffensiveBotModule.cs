@@ -187,6 +187,30 @@ namespace OpenRA.Mods.Common.Traits
 			"weapon envelope). <100 strongly damps lunging into believed fire. Default 100 = inert.")]
 		public readonly int BelievedDangerHostileMultiplier = 100;
 
+		[Desc("EXPERIMENTAL fires doctrine (PIPELINE item 11): hold IndirectFire (artillery) axis members at",
+			"weapon standoff during an assault instead of marching them to the objective with the line group.",
+			"When on, artillery-role units are peeled off the grouped AttackMove and each is AttackMoved to a",
+			"standoff anchor at its own max weapon range (minus FiresStandoffMargin) from the axis target — so",
+			"it rains fire from range, follows the assault forward to stay in range, and backs a leg off if the",
+			"target closes inside its band; the line units press exactly as before. The runtime gate is the presence",
+			"of the UnitRoleResolver world trait (which derives the artillery role), NOT the UseUnitRoles flag;",
+			"the feature is inert when the resolver is absent. OFF by default so the frozen @stable twin",
+			"and every legacy profile stay byte-identical; only PoiOffensiveBotModule@experimental turns it on.")]
+		public readonly bool FiresStandoff = false;
+
+		[Desc("Fires doctrine: pull the standoff anchor this far (WDist) inside the piece's own max weapon",
+			"range, so it sits just inside range with a safety cushion rather than at the very edge.")]
+		public readonly WDist FiresStandoffMargin = WDist.FromCells(2);
+
+		[Desc("Fires doctrine: hysteresis band (WDist) below the standoff radius. The piece only repositions",
+			"when the target closes nearer than (standoff - this); inside the band it holds and keeps firing.",
+			"Stops band-edge order chatter.")]
+		public readonly WDist FiresStandoffHysteresis = WDist.FromCells(2);
+
+		[Desc("Fires doctrine: floor (WDist) for the standoff radius, guarding a piece whose max range is at or",
+			"under the margin (would otherwise anchor on top of the target).")]
+		public readonly WDist FiresStandoffFloor = WDist.FromCells(3);
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 
@@ -228,6 +252,16 @@ namespace OpenRA.Mods.Common.Traits
 		// property of the unit, not the axis, so a re-recruited unit keeps its mode across
 		// axes — we only re-issue SetCohesion when a unit's desired mode actually changes.
 		readonly Dictionary<Actor, CohesionMode> lastCohesion = new();
+
+		// Fires doctrine: last standoff-anchor CELL we AttackMoved each artillery piece to. Gates
+		// re-issue so a piece holding in-band keeps firing uninterrupted (only re-ordered when it must
+		// reposition or its anchor drifted past RepathThresholdCells). Empty unless FiresStandoff is on.
+		readonly Dictionary<Actor, CPos> lastFiresAnchor = new();
+
+		// Fires doctrine: bounded Chebyshev radius (cells) for the nearest-passable clamp on a standoff anchor
+		// that lands on impassable ground. Small — a passable cell almost always sits within a cell or two of
+		// the standoff ring; if none does within this budget the raw ideal is used (pre-clamp behaviour).
+		const int FiresAnchorClampCells = 4;
 
 		int reevalCountdown;
 
@@ -307,6 +341,14 @@ namespace OpenRA.Mods.Common.Traits
 				var stale = lastCohesion.Keys.Where(a => a.IsDead || !a.IsInWorld || a.Owner != player).ToList();
 				foreach (var a in stale)
 					lastCohesion.Remove(a);
+			}
+
+			// Same bound for the fires-anchor map (only populated when FiresStandoff is on).
+			if (lastFiresAnchor.Count > 0)
+			{
+				var staleFires = lastFiresAnchor.Keys.Where(a => a.IsDead || !a.IsInWorld || a.Owner != player).ToList();
+				foreach (var a in staleFires)
+					lastFiresAnchor.Remove(a);
 			}
 
 			// 2. Score offensive targets from OUR SR (value x distance x threat).
@@ -679,10 +721,43 @@ namespace OpenRA.Mods.Common.Traits
 					goalGuard.Ledger.Commit(u, key, tick, Info.AxisCommitmentTicks);
 			}
 
+			// Fires doctrine (experimental, default off): peel IndirectFire artillery off the line group and
+			// hold each at its own weapon standoff. When off (or no resolver) groupUnits IS axis.Units by
+			// reference, so the whole block below is byte-identical to the pre-fires path.
+			var groupUnits = axis.Units;
+			if (Info.FiresStandoff && resolver != null)
+			{
+				List<Actor> fires = null;
+				foreach (var u in axis.Units)
+				{
+					if (resolver.GetRole(u) != UnitRole.IndirectFire)
+						continue;
+
+					// A degenerate piece with no live weapon has no standoff to compute — leave it in the
+					// line group rather than orphaning it with no order.
+					if (MaxWeaponRange(u) <= 0)
+						continue;
+
+					fires ??= new List<Actor>();
+					fires.Add(u);
+				}
+
+				if (fires != null)
+				{
+					OrderFiresStandoff(bot, axis, fires, tick);
+					var firesSet = new HashSet<Actor>(fires);
+					groupUnits = axis.Units.Where(u => !firesSet.Contains(u)).ToList();
+
+					// Pure-artillery axis: no line group to march. The standoff orders above stand alone.
+					if (groupUnits.Count == 0)
+						return;
+				}
+			}
+
 			// Axis spacing geometry (pure Chebyshev, cheap for N<=8) — computed for every
 			// axis so the clumpRadius telemetry gives a baseline for the frozen controls too.
-			var cells = new List<(int X, int Y)>(axis.Units.Count);
-			foreach (var u in axis.Units)
+			var cells = new List<(int X, int Y)>(groupUnits.Count);
+			foreach (var u in groupUnits)
 				cells.Add((u.Location.X, u.Location.Y));
 
 			var centroid = PoiOffenseMath.CellCentroid(cells);
@@ -698,7 +773,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (dangerField != null)
 			{
 				var ground = GroundDangerSampler(dangerField);
-				var passable = WaypointPassable(axis.Units[0]);
+				var passable = WaypointPassable(groupUnits[0]);
 				detourVia = GroundDangerNav.DetourWaypoint(
 					new CPos(centroid.X, centroid.Y), axis.TargetCell,
 					Info.GroundDangerDetourCells, Info.GroundDangerDetourSteps,
@@ -710,7 +785,7 @@ namespace OpenRA.Mods.Common.Traits
 			// single-formation AttackMove untouched — no SetCohesion, no cohesion-forced repath.
 			// When on, gate on the centroid's distance to the target: far ⇒ ApproachCohesion
 			// (fan out crossing empty ground), near ⇒ AssaultCohesion (mass at the objective).
-			var dispersion = Info.CohesionSwitchEnabled && axis.Units.Count > 0;
+			var dispersion = Info.CohesionSwitchEnabled && groupUnits.Count > 0;
 			var wantMode = distToTarget > Info.AssaultRadiusCells ? Info.ApproachCohesion : Info.AssaultCohesion;
 
 			// A unit needs a fresh SetCohesion only when its desired mode actually changed —
@@ -718,7 +793,7 @@ namespace OpenRA.Mods.Common.Traits
 			var cohesionChanged = false;
 			if (dispersion)
 			{
-				foreach (var u in axis.Units)
+				foreach (var u in groupUnits)
 				{
 					if (!lastCohesion.TryGetValue(u, out var have) || have != wantMode)
 					{
@@ -744,7 +819,7 @@ namespace OpenRA.Mods.Common.Traits
 			// reads the updated CohesionValue when it lays out the AttackMove formation.
 			if (dispersion)
 			{
-				foreach (var u in axis.Units)
+				foreach (var u in groupUnits)
 				{
 					if (lastCohesion.TryGetValue(u, out var have) && have == wantMode)
 						continue;
@@ -754,7 +829,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			var units = axis.Units.ToArray();
+			var units = groupUnits.ToArray();
 
 			// Stage-E: when a flow-around waypoint was chosen, attack-move to the lateral lane FIRST
 			// (queued: false) then chain the objective (queued: true) so the axis skirts the strongpoint
@@ -773,6 +848,71 @@ namespace OpenRA.Mods.Common.Traits
 				$"[exp-offense] order player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} action={axis.Action} units={units.Length}{cohesionLog}{viaLog} clumpRadius={clumpRadius} distToTarget={distToTarget} tick={tick}");
 			AIUtils.BotDebug("AI ({0}): exp-offense — axis {1}@{2} ({3} units, score={4})",
 				player.ClientIndex, axis.TargetName, axis.TargetCell, units.Length, axis.Score);
+		}
+
+		// Fires doctrine: hold each IndirectFire piece at its own weapon standoff from the axis target.
+		// A single AttackMove to the standoff anchor yields all three behaviours (advance to range, hold and
+		// fire, back off when the target closes) from the shared, tested AttackMove -> AutoTarget path — the
+		// ground twin of the Stage-0 heli standoff. Re-issue is gated so an in-band piece keeps firing
+		// uninterrupted: only (re)order when it must reposition (out of band) or its anchor drifted past
+		// RepathThresholdCells. Deterministic — pure integer geometry, no random draws.
+		void OrderFiresStandoff(IBot bot, Axis axis, List<Actor> fires, int tick)
+		{
+			var margin = Info.FiresStandoffMargin.Length;
+			var hysteresis = Info.FiresStandoffHysteresis.Length;
+			var floor = Info.FiresStandoffFloor.Length;
+			var repathSq = Info.RepathThresholdCells * Info.RepathThresholdCells;
+
+			foreach (var u in fires)
+			{
+				var maxRange = MaxWeaponRange(u);
+				if (maxRange <= 0)
+					continue;
+
+				var pos = u.CenterPosition;
+				var anchor = FiresStandoffMath.StandoffAnchor(axis.TargetPos, pos, maxRange, margin, floor);
+				var needs = FiresStandoffMath.NeedsReposition(axis.TargetPos, pos, maxRange, margin, hysteresis, floor);
+
+				// Clamp the anchor to a cell the piece can actually stand on (mirrors the group path's
+				// WaypointPassable guard). An impassable anchor would degrade the AttackMove to some
+				// engine-chosen reachable cell out-of-band, and the piece would then be re-ordered to the same
+				// unreachable anchor every re-eval, cancelling in-flight shots. The nearest-passable fallback
+				// keeps the destination reachable and near the standoff ring. Deterministic.
+				var idealCell = world.Map.CellContaining(anchor);
+				var anchorCell = FiresStandoffMath.NearestPassableCell(idealCell, FiresAnchorClampCells, WaypointPassable(u));
+
+				var had = lastFiresAnchor.TryGetValue(u, out var prevCell);
+				var anchorMoved = !had || (prevCell - anchorCell).LengthSquared >= repathSq;
+
+				// Never re-issue the identical reachable destination (would restart the AttackMove and cancel a
+				// shot); otherwise hold when in-band with an un-drifted anchor so AutoTarget keeps firing.
+				if ((had && prevCell == anchorCell) || (!needs && !anchorMoved))
+					continue;
+
+				bot.QueueOrder(new Order("AttackMove", u, Target.FromCell(world, anchorCell), false));
+				lastFiresAnchor[u] = anchorCell;
+
+				Log.Write("debug",
+					$"[exp-offense] fires player={player.PlayerName} unit={u.Info.Name}#{u.ActorID} anchor={anchorCell} maxRange={maxRange} needsReposition={needs} target={axis.TargetName}@{axis.TargetCell} tick={tick}");
+			}
+		}
+
+		// Largest enabled-armament max range (WDist length, with live range modifiers applied). 0 when the
+		// piece has no live weapon. Deterministic — reads only synced trait state.
+		static int MaxWeaponRange(Actor a)
+		{
+			var max = 0;
+			foreach (var arm in a.TraitsImplementing<Armament>())
+			{
+				if (arm.IsTraitDisabled)
+					continue;
+
+				var r = arm.MaxRange().Length;
+				if (r > max)
+					max = r;
+			}
+
+			return max;
 		}
 
 		// Release an axis's units back to the free pool and return them.
