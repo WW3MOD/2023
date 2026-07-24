@@ -1,7 +1,10 @@
 Player:
 	# ===== Normal AI — Russia (balanced, steady pressure) =====
+	# Split (early-econ PIPELINE 12): Experimental now uses the @russia.experimental twin below.
+	# The `!enable-ai-experimental` guard keeps exactly one UnitBuilder enabled per player —
+	# Normal + Stable keep this frozen block byte-identical. Mirrors the HelicopterSquad split.
 	UnitBuilderBotModule@russia.normal:
-		RequiresCondition: enable-ai-player && player.brics
+		RequiresCondition: enable-ai-player && !enable-ai-experimental && player.brics
 		UnitQueues: Vehicle, Infantry
 		UnitsToBuild:
 			# Conscripts -- low priority, mainly for capturing
@@ -40,6 +43,61 @@ Player:
 			grad: 2
 			tunguska: 2
 			sn.russia: 3
+
+	# ===== Experimental AI — Russia ground production (early-econ PIPELINE 12) =====
+	# Byte-for-byte copy of @russia.normal's UnitsToBuild/UnitLimits PLUS the default-off early-econ
+	# gates (behaviours 1 & 2). Experimental-only; Normal/Stable keep the frozen twin above.
+	#   * GateResupplyOnAmmoNeed — no supply trucks while every truck-rearmable unit has full ammo.
+	#   * ScaleAntiAirToThreat — cap vehicle AA (tunguska) to OBSERVED enemy air; aa.russia (cheap AA
+	#     infantry) stays ungated as the baseline picket.
+	UnitBuilderBotModule@russia.experimental:
+		RequiresCondition: enable-ai-experimental && player.brics
+		UnitQueues: Vehicle, Infantry
+		UnitsToBuild:
+			# Conscripts -- low priority, mainly for capturing
+			tecn.russia: 500
+
+			# Core infantry -- high priority mix
+			e3.russia: 120
+			ar.russia: 100
+			tl.russia: 80
+			e2.russia: 60
+
+			# Support infantry
+			at.russia: 50
+			mt.russia: 40
+			medi.russia: 40
+			aa.russia: 30
+			sn.russia: 25
+			e6.russia: 20
+
+			# Vehicles -- balanced force composition
+			btr: 30
+			bmp2: 25
+			t90: 20
+			giatsint: 15
+			tunguska: 10
+			grad: 10
+
+			# Supply trucks for field resupply (need-gated below)
+			truk: 20
+
+		UnitLimits:
+			truk: 4
+			tecn.russia: 3
+			e6.russia: 2
+			giatsint: 3
+			grad: 2
+			tunguska: 2
+			sn.russia: 3
+		# Early-econ behaviour 1: don't call in trucks while no fielded unit needs ammo.
+		GateResupplyOnAmmoNeed: true
+		ResupplyUnitTypes: truk
+		# Early-econ behaviour 2: vehicle AA proportionate to observed air (aa.russia ungated picket).
+		ScaleAntiAirToThreat: true
+		AntiAirUnitTypes: tunguska
+		AntiAirBaseline: 0
+		AntiAirPerObservedAir: 1
 
 	# Legacy ground squad manager — gated to NON-Experimental/Stable paths. The
 	# Experimental/Stable POI layer uses LayeredDefenceBotModule + MountedTransportBotModule

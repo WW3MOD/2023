@@ -65,6 +65,22 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Hard cap on concurrent attack axes regardless of army size.")]
 		public readonly int MaxAxes = 4;
 
+		[Desc("EXPERIMENTAL (early-econ behaviour 3): while the match is young use EarlyUnitsPerAxis /",
+			"EarlyMinAxisSize instead of UnitsPerAxis / MinAxisSize, so the few early units DISPERSE into",
+			"several small packets from the beachhead rather than massing one armada at the Supply Route.",
+			"OFF by default so the frozen @stable twin and every legacy profile keep their axis sizing",
+			"byte-identical; only PoiOffensiveBotModule@experimental turns it on. Pure gate on the synced tick.")]
+		public readonly bool EarlyGameSpread = false;
+
+		[Desc("Duration (sim ticks from game start) of the early-spread window. After it, normal axis sizing resumes.")]
+		public readonly int EarlyGameDurationTicks = 4500;
+
+		[Desc("UnitsPerAxis used while EarlyGameSpread is active (smaller ⇒ axes form sooner, more small packets).")]
+		public readonly int EarlyUnitsPerAxis = 3;
+
+		[Desc("MinAxisSize used while EarlyGameSpread is active (smaller ⇒ allow smaller early packets).")]
+		public readonly int EarlyMinAxisSize = 2;
+
 		[Desc("Commitment lifetime (ticks) for a unit assigned to an axis. While committed the unit is",
 			"left on its axis and is invisible to capture/defense/other axes. Refreshed each re-eval",
 			"a unit stays on its axis, so it must exceed ReevaluateInterval.")]
@@ -330,6 +346,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			var tick = world.WorldTick;
 
+			// Early-econ behaviour 3: disperse in smaller packets while the match is young. When the gate is
+			// off (default) these equal the Info values, so DesiredAxisCount / AllocateProportional / the
+			// under-min retire below are byte-identical to the pre-change path for the frozen @stable twin and
+			// every legacy profile. Pure gate on the synced sim tick — zero RNG.
+			var early = EarlyGamePhase.IsEarly(tick, Info.EarlyGameSpread, Info.EarlyGameDurationTicks);
+			var unitsPerAxis = early ? Info.EarlyUnitsPerAxis : Info.UnitsPerAxis;
+			var minAxisSize = early ? Info.EarlyMinAxisSize : Info.MinAxisSize;
+
 			// 1. Drop dead/lost units from live axes; sweep orphan offense commitments.
 			PruneAxes();
 			if (goalGuard != null)
@@ -389,7 +413,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// 4. How many axes, and which targets (sticky top-k with a hysteresis slack).
 			var k = PoiOffenseMath.DesiredAxisCount(totalOffensive, targets.Count,
-				Info.UnitsPerAxis, Info.MinAxisSize, Info.MaxAxes);
+				unitsPerAxis, minAxisSize, Info.MaxAxes);
 
 			var finalTargets = SelectStickyTargets(targets, k);
 
@@ -424,7 +448,7 @@ namespace OpenRA.Mods.Common.Traits
 			// 7. Proportional target sizes by score, min axis size enforced.
 			var orderedAxes = axes.OrderByDescending(a => a.Score).ThenBy(a => a.TargetId).ToList();
 			var sizes = PoiOffenseMath.AllocateProportional(
-				orderedAxes.Select(a => a.Score).ToList(), totalOffensive, Info.MinAxisSize);
+				orderedAxes.Select(a => a.Score).ToList(), totalOffensive, minAxisSize);
 
 			// 8. Balance each axis to its size: shed surplus to the pool, then top up.
 			for (var i = 0; i < orderedAxes.Count; i++)
@@ -474,7 +498,7 @@ namespace OpenRA.Mods.Common.Traits
 			for (var i = axes.Count - 1; i >= 0; i--)
 			{
 				var axis = axes[i];
-				if (axis.Units.Count < Info.MinAxisSize)
+				if (axis.Units.Count < minAxisSize)
 				{
 					ReleaseAxis(axis, "under-min");
 					axes.RemoveAt(i);

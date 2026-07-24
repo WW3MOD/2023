@@ -1,7 +1,11 @@
 Player:
 	# ===== Normal AI — America (balanced, steady pressure) =====
+	# Split (early-econ PIPELINE 12): Experimental now uses the @america.experimental twin
+	# below (need-gated trucks + threat-scaled AA). The `!enable-ai-experimental` guard keeps
+	# exactly one UnitBuilder enabled per player — Normal + Stable keep this frozen block
+	# byte-identical (neither holds enable-ai-experimental). Mirrors the HelicopterSquad split.
 	UnitBuilderBotModule@america.normal:
-		RequiresCondition: enable-ai-player && player.nato
+		RequiresCondition: enable-ai-player && !enable-ai-experimental && player.nato
 		UnitQueues: Vehicle, Infantry
 		UnitsToBuild:
 			# Conscripts -- low priority, mainly for capturing
@@ -39,6 +43,61 @@ Player:
 			m109: 3
 			strykershorad: 2
 			sn.america: 3
+
+	# ===== Experimental AI — America ground production (early-econ PIPELINE 12) =====
+	# Byte-for-byte copy of @america.normal's UnitsToBuild/UnitLimits PLUS three default-off
+	# early-econ gates (behaviours 1 & 2). Experimental-only condition; Normal/Stable keep the
+	# frozen twin above. The engine flags default false, so this block is the ONLY place they turn on.
+	#   * GateResupplyOnAmmoNeed — no supply trucks while every truck-rearmable unit has full ammo.
+	#   * ScaleAntiAirToThreat — cap vehicle AA (strykershorad) to OBSERVED enemy air; aa.america
+	#     (cheap AA infantry) stays ungated as the baseline picket.
+	UnitBuilderBotModule@america.experimental:
+		RequiresCondition: enable-ai-experimental && player.nato
+		UnitQueues: Vehicle, Infantry
+		UnitsToBuild:
+			# Conscripts -- low priority, mainly for capturing
+			tecn.america: 500
+
+			# Core infantry -- high priority mix
+			e3.america: 120
+			ar.america: 100
+			tl.america: 80
+			e2.america: 60
+
+			# Support infantry
+			at.america: 50
+			mt.america: 40
+			medi.america: 40
+			aa.america: 30
+			sn.america: 25
+			e6.america: 20
+
+			# Vehicles -- balanced force composition
+			humvee: 30
+			bradley: 25
+			abrams: 20
+			m113: 15
+			m109: 15
+			strykershorad: 10
+
+			# Supply trucks for field resupply (need-gated below)
+			truk: 20
+
+		UnitLimits:
+			truk: 4
+			tecn.america: 3
+			e6.america: 2
+			m109: 3
+			strykershorad: 2
+			sn.america: 3
+		# Early-econ behaviour 1: don't call in trucks while no fielded unit needs ammo.
+		GateResupplyOnAmmoNeed: true
+		ResupplyUnitTypes: truk
+		# Early-econ behaviour 2: vehicle AA proportionate to observed air (aa.america ungated picket).
+		ScaleAntiAirToThreat: true
+		AntiAirUnitTypes: strykershorad
+		AntiAirBaseline: 0
+		AntiAirPerObservedAir: 1
 
 	# Legacy ground squad manager — gated to NON-Experimental/Stable paths.
 	# The Experimental/Stable POI layer owns ground unit positioning via
