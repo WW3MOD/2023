@@ -1,0 +1,1 @@
+AI Benchmark S1 (economy) on Woodland Warfare (woodland terrain, 98x98) - new anti-overfit rung. Adapted from canonical mods/ww3mod/maps/woodland-warfare-ww3 (point-symmetric spawns). SRs: USA-bot(stable)@3,6, Russia-bot(experimental)@94,91. Variant=mirror. Config tournament-eco-5min.yaml. Mirror twin + cal-nn (Stable-vs-Stable) provided for bias control per SPEC 9.4.

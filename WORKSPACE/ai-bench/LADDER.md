@@ -632,6 +632,36 @@ scenarios stay live.
 | S2 calibration (Stable-vs-Stable) | `tools/autotest/scenarios/tournament-s2-combat-river-zeta-cal-nn/` | **BUILT 2026-07-20; regime 2026-07-21 → now Stable-vs-Stable** — both bots `@stable`, Motorized start, same faction. Single N batch measures side/faction bias + min-engagement at the 720s clock (re-run CALIBRATE; the `[pre-regime]` N-vs-N go/no-go on Normal is superseded). |
 | S1 sanity floor (Exp-vs-Normal) | `tools/autotest/scenarios/tournament-s1-eco-floor-vs-normal/` | **NEW 2026-07-21** — copy of the S1 primary under the new regime (Motorized / same-faction US-US) but with **P2 = `@normal`** instead of `@stable`. The single retained Exp-vs-Normal scenario: a periodic "has Experimental regressed below the frozen control?" floor check. **NOT** part of the composite gate. Same `tournament-eco-5min.yaml`. |
 
+### New anti-overfit map rungs — Polar Disorder + Woodland Warfare (2026-07-24, `wt/bench-maps`)
+
+Two second/third map rungs **BUILT** (PIPELINE item 13) so tuning stops overfitting
+to River Zeta. Both are adapted from **existing canonical WW3MOD map assets**
+(`mods/ww3mod/maps/polar-disorder-ww3/`, `.../woodland-warfare-ww3/`) — not new
+originals, not RA-pack imports — each 98×98 and **point-symmetric about center**
+(so the mandatory mirror twin is a clean pure-spawn swap). Each rung replicates
+the River Zeta scenario set exactly (S1 eco + S2 combat, each with a mirror twin
+and a Stable-vs-Stable cal-nn), same regime (Motorized / same-faction US-US /
+Exp-vs-`@stable`), same `tournament-eco-5min.yaml` / `tournament-combat-12min.yaml`
+configs. **Not yet baselined** — no bars measured; the manager must run the
+CALIBRATE (cal-nn side-fairness + S2 min-engagement) and BASELINE batches before
+any Polar/Woodland number is trusted.
+
+| New rung | Folders (all under `tools/autotest/scenarios/`) | Terrain / notes |
+|---|---|---|
+| **Polar Disorder** (snow) | `tournament-s1-eco-polar-disorder{,-mirror,-cal-nn}`, `tournament-s2-combat-polar-disorder{,-mirror,-cal-nn}` | **SNOW** tileset (genuinely new terrain). 12 OILB derricks (River-Zeta parity), nearest ~8–9 cells from spawn. SRs at `93,16` (USA/Exp) and `4,81` (Russia/Stable). |
+| **Woodland Warfare** (dense woodland) | `tournament-s1-eco-woodland-warfare{,-mirror,-cal-nn}`, `tournament-s2-combat-woodland-warfare{,-mirror,-cal-nn}` | **TEMPERAT** tileset — density is **1210 tree actors** (pathfinding stress), not a new tileset. 8 OILB derricks, nearest ~17–18 cells from spawn → **expect lower in-window S1 capture rate** than River Zeta. SRs at `3,6` (USA/Exp) and `94,91` (Russia/Stable). |
+
+**Wiring:** each folder is a self-contained OpenRA map dir (canonical terrain +
+the standard harness overlay: 4-player Neutral/Observer/USA-bot/Russia-bot block,
+native `mpspawn`s stripped, `OwnSR`/`OpponentSR` supplyroutes + co-located spawn
+markers, `Rules: rules.yaml`). Auto-discovered by the `tools/autotest/scenarios`
+MapFolder (`mod.yaml:96`) — **no registry/mod.yaml edit needed**. Mirror = the two
+`Bot:` values swapped in `map.yaml` (config `P1Bot/P2Bot` unchanged); cal-nn = both
+`Bot: stable` + config `P1Bot/P2Bot: stable`. **Placement risk (unverified without
+a run):** the 3×3 SR footprint was nudged 2–3 cells inward from the native corner
+spawns to stay in-bounds and clear of tree/prop actors; tileset buildability at the
+exact SR cells is confirmed only by the first smoke run.
+
 S1 now uses a **River-Zeta-derived** scenario (`tournament-s1-eco-river-zeta`):
 its `map.yaml` keeps the full River Zeta terrain + all 12 neutral OILB derricks
 and overlays the harness's 2 SRs + 2 bot spawns; `rules.yaml` and

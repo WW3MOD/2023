@@ -1,0 +1,29 @@
+# AI Benchmark — Scenario 2 CALIBRATE (Normal-vs-Normal) config.
+#
+# Byte-identical to the S2 primary combat config EXCEPT Matchup (informational)
+# reads normal/normal — the real assignment is both bots @normal in map.yaml.
+# With identical bots the mirror swap is a no-op, so a single N=10 batch on THIS
+# scenario measures pure side/faction bias at the 720s combat clock (SPEC §9.4,
+# S1 cal-nn pattern). This is the go/no-go on Normal as the S2 opponent: if
+# Normal-vs-Normal underfights (low kills_cost+deaths_cost, low units_dead), the
+# S2 control should switch to @rush (plan §2.4 / §5).
+
+Matchup:
+	P1Bot: stable
+	P2Bot: stable
+
+TimeLimitSeconds: 720
+
+SpeedMultiplier: 8
+GameSpeed: fastest
+
+Scorer: weighted_components
+WinRule: score_or_sr_capture
+
+Score:
+	ArmyValueWeight: 1.0
+	CaptureIncomeWeight: 2.0
+	KillsValueWeight: 1.0
+	SrCaptureBonus: 100000
+
+ScoreMarginForDecisive: 0.20

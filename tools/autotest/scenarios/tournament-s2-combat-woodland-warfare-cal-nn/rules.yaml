@@ -1,0 +1,18 @@
+# Tournament-scenario overrides.
+#
+# Keep this minimal — the goal is "as close to a real game as possible" so we're
+# benchmarking the same gameplay players experience. Knobs added here that shift
+# game balance (starting cash, growth rates) compromise the benchmark's validity.
+
+Player:
+	# Both bots start with enough cash to actually produce a meaningful army
+	# within the 12-minute match window. Default 5000 is fine for normal games
+	# but a tournament-length match wants faster ramp.
+	PlayerResources:
+		DefaultCash: 7500
+
+World:
+	# Disable the lobby music/notification chatter — pure simulation.
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
