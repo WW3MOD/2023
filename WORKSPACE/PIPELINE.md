@@ -16,10 +16,6 @@ User played a 2v2 vs three bots. The three previously-gated behaviors (heli stan
 
 ## QUEUE
 
-### 1. [IN FLIGHT] Win-condition fix — SR victory declared "mission failed", everyone "Lost"
-**Perceived:** winning actually feels like winning. In the 2v2 playtest the user + ally captured/denied both enemy Supply Routes and the game correctly ended — but the score window said **"mission failed"** and ALL four players showed as **Lost**. The end screen must credit the winning team.
-_Root-caused: `DefeatTeam` only marked losers Lost and relied on CVC.Tick inference, which no-ops in near-simultaneous mutual overrun. Fix 4ae664b8 on `wt/win-condition`; adversarial review verdict FIX (2v2 path correct, but FFA/multi-team over-awards Won — regression); 4 fix items routed back to the implementer._
-
 ### 4. [IN FLIGHT] Supply truck "counts as empty" — evacuate instead of idling on crumbs
 **Perceived:** almost-empty supply trucks stop parking forever at the front holding a sliver nobody can use. When no unit in reach can be given anything from what's left, the truck **counts as empty** and evacuates (the Resupply-bar Evacuate flow); its supply bar turns **red** to signal "counts as empty, residue remains". If it passes a soldier on the way home who can use the remainder, that's a bonus — it still evacuates.
 _User design sketch 2026-07-23. Threshold rule: "empty" = nothing in reach can utilize the remainder. Read `DOCS/reference/economy.md`._
@@ -79,6 +75,7 @@ _Deferred by you until the opening-economy AI (item 12) is solid — a bot that 
 ## SHIPPED
 _Most recent first. Exact wording pulled from git log / HOTBOARD; this is the archive, the commit history is authoritative._
 
+- **Win-condition fix (queue item 1)** — SR team victory now explicitly awards Won: two-phase `ResolveTeamElimination` (mark eliminated team Lost, then award per-survivor only when every non-allied combatant is Lost — FFA/2v2v2 safe, adversarial-review catch), `AwardVictory` narrowed to CVC-present + Primary objectives (campaign missions untouched), TestMode guard. 6 SR unit tests. (`4ae664b8` + `86e993a6`, merged `5ab49f18`)
 - **Cohesion stabilization (queue item 3)** — large-group line extent capped, greedy nearest-slot matching (kills criss-cross), cover-bid-beats-geometry, treeline detection via density-covariance anisotropy → soldiers line up ALONG the treeline; per-order matching memo for O(n²·log n) dispatch. Adversarially reviewed. (`d1858312` + `46a5021a`, merged `786d4770`)
 - **Lobby team-selection column (queue item 2)** — per-slot Team column restored (header + editable dropdown + read-only label for remote/bot rows); the stock controls were hidden, not deleted. Screenshot-verified 2v2. (`95329170`)
 - **Ambush / undetected-unit behavior — DESIGN** — critical design doc: existing idle-Ambush mechanics mapped (`AutoTarget.cs:511`), three premises corrected against code (prone ≠ concealment; per-unit scan is cheap; late rear-shot spring conflicts with suppression), staged implementation plan, 4 open forks awaiting user review. (`plans/260722_ambush_undetected_design.md`, `1a3f81f1`)
