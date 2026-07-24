@@ -3,6 +3,24 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-24 — Unusable supply-truck residue now counts-as-empty and evacuates (PIPELINE item 4)
+
+A near-empty supply truck holding a residue too small to give any nearby soldier a batch would park at the front forever. There are **two** distinct sticking points, both fixed:
+
+- **The only empty-truck evac path is `DropsSupplyCache.OnBecomingIdle`** (`DropsSupplyCache.cs:196`), and it early-returns on `supply.CurrentSupply > 0`. A residue truck never trips it, so it never evacuates. `INotifyBecomingIdle` also only fires on the idle *transition* — a truck that goes idle *then* has its residue become unusable never gets a second call. Fixed by (a) gating on the new `SupplyProvider.CountsAsEmpty` instead of `> 0`, and (b) adding `ITick` to `DropsSupplyCache` that re-checks `self.IsIdle && supply.CountsAsEmpty` each tick and runs the same `EvacuateOrRestock` helper. `RotateToEdge`/the restock `MoveTo` make the actor non-idle, so the tick self-limits (no re-queue spam).
+
+- **Chosen "counts as empty" predicate** (`SupplyProvider.CountsAsEmptyResidue`, pure + NUnit-tested in `SupplyResidueTest.cs`): `currentSupply <= 0`, **or** `currentSupply > 0` **and** at least one reachable friendly `Rearmable` still has a non-full pool (demand exists) **and** no reachable needy unit has a non-full pool `p` with `currentSupply >= p.Info.SupplyValue` (nobody can be given even one batch). This reuses the exact affordability quantum the live rearm path already uses (`SupplyProvider.cs` `FindGreatestNeedTarget`: `currentSupply >= p.Info.SupplyValue` = one batch of `ReloadCount` rounds). **No demand at all ≠ residue** — a truck with usable supply and no customers nearby keeps waiting, it does not evacuate. Latched (`residueUnusable`), cleared on genuine replenish (`AddSupply` with amount > 0).
+
+- **Behavior-aware self-restock.** `SupplyProvider` used to auto-`TryRestock` whenever it couldn't afford nearby demand, which for an Evacuate-stance truck fought the evac (drove it to the LC, or stuck it when no LC existed). New `ShouldSelfRestock()` returns false when the actor's `AutoTarget.ResupplyBehaviorValue == Evacuate`. TRUK is `InitialResupplyBehavior[AI]: Evacuate` (`vehicles.yaml`), so it now evacuates rather than shuttling. Only TRUK sets `RestockActors`, so LCs/caches are unaffected.
+
+- **Red supply bar** while counts-as-empty-with-residue: `ISelectionBar.GetColor` returns red (`200,0,0`) when `residueUnusable`, else the normal amber. A truly drained truck (`currentSupply == 0`) keeps amber (residue latch is only set when supply > 0).
+
+- **Bot economy layer had to stop fighting it.** `SupplyFollowerBotModule.IsLowOnSupply` (`SupplyFollowerBotModule.cs:237`) gated only on `CurrentSupply < RestockThreshold`; a residue *above* the threshold (e.g. 60 vs 50) but unusable stayed "eligible" and the bot kept issuing forward `Move` orders, re-parking it. Now also returns true on `sp.CountsAsEmpty`. This is truck behavior, so it applies to human- and bot-owned trucks alike; the bot module change is only to stop the bot re-tasking an evacuating truck.
+
+- **Opportunistic hand-off falls out for free.** `SupplyProvider.Tick` still serves affordable in-range targets while the truck evacuates (it grants ammo without queuing movement for in-range units), so a passing soldier who *can* use the remainder still takes it — but the queued `RotateToEdge` is never cancelled, so the truck keeps evacuating and does not re-park. (Edge case: a Hunt-stance provider would `MoveTo` an out-of-range flagged unit and could interrupt evac; supply trucks are not Hunt-stance, so this does not arise in practice.)
+
+Gated behind new `SupplyProviderInfo.EvacuateOnUnusableResidue` (default false; true only on TRUK) so the detection/latch/red-bar are scoped to trucks and never surprise an LC or cache.
+
 ## 2026-07-24 — Lobby Team column was parked, not deleted; non-editable rows were actively suppressed
 
 The WW3MOD lobby (`engine/mods/common/chrome/lobby-players.yaml` — WW3MOD edits the shared common chrome directly, no mod override; wired via `mod.yaml:193`) had **no visible team column**, but the widgets were never removed:

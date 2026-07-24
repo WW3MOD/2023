@@ -37,6 +37,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Auto-restock when supply drops below this threshold.")]
 		public readonly int RestockThreshold = 50;
 
+		[Desc("When the provider holds a residue too small for any reachable unit to use",
+			"(no needy unit in range can be given even one batch), treat it as empty so",
+			"its transport (DropsSupplyCache) evacuates instead of parking forever.",
+			"Intended for supply trucks; leave false on Logistics Centers and caches.")]
+		public readonly bool EvacuateOnUnusableResidue = false;
+
 		[ActorReference]
 		[Desc("Actor types where the supply provider can restock.")]
 		public readonly HashSet<string> RestockActors = new HashSet<string>();
@@ -91,12 +97,27 @@ namespace OpenRA.Mods.Common.Traits
 		int conditionToken = Actor.InvalidConditionToken;
 		bool restocking;
 
+		// Latched true when EvacuateOnUnusableResidue and the remaining supply is a
+		// residue no reachable unit can utilize. Cleared on replenish or full drain.
+		bool residueUnusable;
+
 		int supplyHighToken = Actor.InvalidConditionToken;
 		int supplyMediumToken = Actor.InvalidConditionToken;
 		int supplyLowToken = Actor.InvalidConditionToken;
 		int supplyAnyToken = Actor.InvalidConditionToken;
 
 		public int CurrentSupply => currentSupply;
+
+		/// <summary>True while a residue too small for any reachable unit to use is being held.</summary>
+		public bool ResidueUnusable => residueUnusable;
+
+		/// <summary>
+		/// A provider counts as empty when it is genuinely drained, or (for trucks with
+		/// EvacuateOnUnusableResidue) when the remaining supply is a residue no reachable
+		/// unit can utilize. Transports use this to trigger the same evacuate flow an
+		/// actually-empty truck uses.
+		/// </summary>
+		public bool CountsAsEmpty => currentSupply <= 0 || residueUnusable;
 
 		public SupplyProvider(ActorInitializer init, SupplyProviderInfo info)
 			: base(info)
@@ -137,7 +158,15 @@ namespace OpenRA.Mods.Common.Traits
 				RevokeTargetCondition();
 				currentTarget = null;
 
-				if (Info.RestockActors.Count > 0 && !restocking)
+				// Keep residue status current even below the restock threshold, where
+				// UpdateTarget doesn't run — otherwise a small unusable residue would
+				// never be flagged and the truck would never evacuate.
+				if (currentSupply <= 0)
+					residueUnusable = false;
+				else
+					RefreshResidueStatus();
+
+				if (ShouldSelfRestock())
 					TryRestock();
 
 				return;
@@ -167,6 +196,17 @@ namespace OpenRA.Mods.Common.Traits
 			// Always re-evaluate — pick unit with greatest need
 			var bestTarget = FindGreatestNeedTarget(out var hasUnaffordableTargets);
 
+			// Residue-unusable latch: we can serve someone → clear it; there is demand in
+			// reach but we can't afford even one batch for anyone → set it. When there is no
+			// demand at all, leave the latch as-is (an already-evacuating truck stays so).
+			if (Info.EvacuateOnUnusableResidue && currentSupply > 0)
+			{
+				if (bestTarget != null)
+					residueUnusable = false;
+				else if (hasUnaffordableTargets)
+					residueUnusable = true;
+			}
+
 			if (bestTarget == null)
 			{
 				// When in Hunt stance and no nearby targets, seek out units flagged as needing resupply
@@ -187,13 +227,44 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				// We have supply but can't afford to help anyone nearby → restock
-				if (hasUnaffordableTargets && Info.RestockActors.Count > 0 && !restocking)
+				// (unless this provider evacuates on unusable residue and is set to
+				// Evacuate — then the transport drives it off-map instead).
+				if (hasUnaffordableTargets && ShouldSelfRestock())
 					TryRestock();
 
 				return;
 			}
 
 			SetTarget(bestTarget);
+		}
+
+		/// <summary>
+		/// Re-scan reachable demand and update the residue-unusable latch without touching
+		/// the current target. Used on the low-supply Tick path where UpdateTarget is skipped.
+		/// </summary>
+		void RefreshResidueStatus()
+		{
+			if (!Info.EvacuateOnUnusableResidue || currentSupply <= 0)
+				return;
+
+			var best = FindGreatestNeedTarget(out var hasUnaffordableTargets);
+			if (best != null)
+				residueUnusable = false;
+			else if (hasUnaffordableTargets)
+				residueUnusable = true;
+		}
+
+		/// <summary>
+		/// Whether this provider should drive itself off to a restock host. A provider set
+		/// to Evacuate never self-restocks — its transport evacuates it off-map instead.
+		/// </summary>
+		bool ShouldSelfRestock()
+		{
+			if (Info.RestockActors.Count == 0 || restocking)
+				return false;
+
+			var behavior = self.TraitOrDefault<AutoTarget>()?.ResupplyBehaviorValue ?? ResupplyBehavior.Auto;
+			return behavior != ResupplyBehavior.Evacuate;
 		}
 
 		/// <summary>
@@ -539,6 +610,11 @@ namespace OpenRA.Mods.Common.Traits
 		public void AddSupply(int amount)
 		{
 			currentSupply += amount;
+
+			// A genuine replenish (restock/refill) makes the residue usable again.
+			if (amount > 0)
+				residueUnusable = false;
+
 			UpdateSupplyConditions();
 		}
 
@@ -589,11 +665,48 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool ISelectionBar.DisplayWhenEmpty => true;
 
-		Color ISelectionBar.GetColor() { return Color.FromArgb(255, 255, 200, 0); }
+		// Red while holding an unusable residue (counts as empty, sliver remains); the
+		// normal amber otherwise. A truly empty truck (currentSupply == 0) keeps amber.
+		Color ISelectionBar.GetColor() { return residueUnusable ? Color.FromArgb(255, 200, 0, 0) : Color.FromArgb(255, 255, 200, 0); }
 
 		bool ICargoCanLoadFilter.CanLoadPassenger(Actor self, Actor passenger)
 		{
 			return currentSupply > 0;
+		}
+
+		/// <summary>
+		/// Canonical "counts as empty" predicate as pure logic (mirrors the live scan in
+		/// <see cref="UpdateTarget"/> / <see cref="RefreshResidueStatus"/>).
+		/// A provider counts as empty when it is drained (currentSupply &lt;= 0), or when a
+		/// residue remains that no reachable unit can use: at least one reachable unit still
+		/// needs ammo, yet none has a needy pool cheap enough for even one batch
+		/// (currentSupply &gt;= that pool's SupplyValue). "One batch per unit type" is the
+		/// same eligibility quantum the rearm path uses.
+		/// Each element of <paramref name="reachableNeedyPoolCosts"/> is one reachable unit's
+		/// list of SupplyValue costs for its non-full ammo pools (empty/absent = no need).
+		/// </summary>
+		public static bool CountsAsEmptyResidue(int currentSupply, IEnumerable<IReadOnlyList<int>> reachableNeedyPoolCosts)
+		{
+			if (currentSupply <= 0)
+				return true;
+
+			var anyDemand = false;
+			foreach (var unitPoolCosts in reachableNeedyPoolCosts)
+			{
+				if (unitPoolCosts == null || unitPoolCosts.Count == 0)
+					continue;
+
+				anyDemand = true;
+
+				// This unit can be served if we can afford one batch of any pool it needs.
+				foreach (var cost in unitPoolCosts)
+					if (currentSupply >= cost)
+						return false;
+			}
+
+			// Demand exists but nobody is serviceable → unusable residue. No demand → not
+			// residue (usable supply simply waiting for customers).
+			return anyDemand;
 		}
 
 		/// <summary>Credit value of missing supply, proportional to SupplyCreditValue.</summary>

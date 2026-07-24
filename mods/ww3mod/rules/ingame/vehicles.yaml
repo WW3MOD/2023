@@ -546,6 +546,7 @@ TRUK:
 		SupplyCreditValue: 750
 		RestockActors: logisticscenter
 		RestockThreshold: 50
+		EvacuateOnUnusableResidue: true
 	DropsSupplyCache:
 		SupplyCacheActor: supplycache
 	Repairable:
