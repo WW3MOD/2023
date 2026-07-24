@@ -41,6 +41,37 @@ namespace OpenRA.Mods.Common.Traits
 			"and don't require a dedicated pad/airfield to be built first.")]
 		public readonly bool SkipRearmBuildingCheck = false;
 
+		[Desc("EXPERIMENTAL (early-econ behaviour 1): don't call in resupply units (supply trucks) while",
+			"no fielded unit a truck can rearm has meaningful ammo need. A truck bought while every unit",
+			"is full just sits as a target. Simple CURRENT-need gate — reads the SAME signal SupplyProvider",
+			"uses (missing ammo weighted by SupplyValue over capacity, over units whose Rearmable.RearmActors",
+			"lists a ResupplyUnitType). Designed so an anticipated-need model can replace the predicate later.",
+			"Default false ⇒ frozen production, byte-identical for the normal/rush/turtle/stable profiles.")]
+		public readonly bool GateResupplyOnAmmoNeed = false;
+
+		[Desc("Resupply actor types gated by GateResupplyOnAmmoNeed (e.g. supply trucks). Inert unless that flag is set.")]
+		public readonly HashSet<string> ResupplyUnitTypes = new HashSet<string>();
+
+		[Desc("Ammo-need fraction (0-1) at/above which a fielded unit counts as needing resupply.",
+			"Mirrors SupplyProvider.MinNeedThreshold so a near-full unit (e.g. 499/500) does not trigger a truck.")]
+		public readonly float ResupplyNeedThreshold = 0.05f;
+
+		[Desc("EXPERIMENTAL (early-econ behaviour 2): cap gated AA call-ins (the expensive vehicle SHORAD/",
+			"Tunguska) to the OBSERVED enemy air threat. Cheap AA infantry stay ungated as a baseline picket.",
+			"observedAir is fog-legal — only enemy aircraft the player can currently see. Prevents fielding",
+			"multiple vehicle AA at game start when no air has been seen. Default false ⇒ frozen, byte-identical",
+			"for the normal/rush/turtle/stable profiles.")]
+		public readonly bool ScaleAntiAirToThreat = false;
+
+		[Desc("Vehicle-AA actor types gated by ScaleAntiAirToThreat. Inert unless that flag is set.")]
+		public readonly HashSet<string> AntiAirUnitTypes = new HashSet<string>();
+
+		[Desc("Gated AA units permitted with ZERO observed enemy air (a small standing picket; 0 = none until air is seen).")]
+		public readonly int AntiAirBaseline = 0;
+
+		[Desc("Extra gated AA units permitted per observed enemy aircraft.")]
+		public readonly int AntiAirPerObservedAir = 1;
+
 		public override object Create(ActorInitializer init) { return new UnitBuilderBotModule(init.Self, this); }
 	}
 
@@ -135,7 +166,74 @@ namespace OpenRA.Mods.Common.Traits
 				world.Actors.Count(a => a.Owner == player && a.Info.Name == name) >= Info.UnitLimits[name])
 				return;
 
+			// EXPERIMENTAL early-econ gates (default-off; only the @experimental UnitBuilder twin enables them,
+			// so normal/rush/turtle/stable reach QueueOrder byte-identically). Both draw ZERO random.
+			if (Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name) && !AnyFieldedUnitNeedsResupply())
+				return;
+
+			if (Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())
+				return;
+
 			bot.QueueOrder(Order.StartProduction(queue.Actor, name, 1));
+		}
+
+		// Behaviour 1: is there meaningful ammo need among fielded units a gated truck can rearm? Mirrors
+		// SupplyProvider's own metric (ResupplyDemand.UnitNeed) over each such unit's truck-rearmable pools,
+		// short-circuiting on the first needy unit. Pure decision in ResupplyDemand; this only reads trait state.
+		bool AnyFieldedUnitNeedsResupply()
+		{
+			foreach (var a in world.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+
+				var rearmable = a.TraitOrDefault<Rearmable>();
+				if (rearmable == null || !rearmable.Info.RearmActors.Overlaps(Info.ResupplyUnitTypes))
+					continue;
+
+				var pools = rearmable.RearmableAmmoPools;
+				if (pools == null || pools.Length == 0)
+					continue;
+
+				var need = ResupplyDemand.UnitNeed(pools.Select(p => (p.Info.Ammo, p.CurrentAmmoCount, p.Info.SupplyValue)));
+				if (ResupplyDemand.MeetsThreshold(need, Info.ResupplyNeedThreshold))
+					return true;
+			}
+
+			return false;
+		}
+
+		// Behaviour 2: allow another gated AA unit only while owned count is under the observed-air cap.
+		bool ShouldBuildMoreAntiAir()
+		{
+			var owned = world.Actors.Count(a => a.Owner == player && !a.IsDead && a.IsInWorld
+				&& Info.AntiAirUnitTypes.Contains(a.Info.Name));
+
+			return AntiAirDemand.ShouldBuildMore(owned, CountObservedEnemyAir(),
+				Info.AntiAirBaseline, Info.AntiAirPerObservedAir);
+		}
+
+		// Fog-legal enemy-air count: only aircraft the player can currently VIEW (no omniscient read).
+		// Mirrors AdaptiveProductionBotModule.ScanEnemyComposition's aircraft branch.
+		int CountObservedEnemyAir()
+		{
+			var count = 0;
+			foreach (var actor in world.Actors)
+			{
+				if (actor.IsDead || !actor.IsInWorld || actor.Owner == null)
+					continue;
+
+				if (player.RelationshipWith(actor.Owner) != PlayerRelationship.Enemy)
+					continue;
+
+				if (!actor.CanBeViewedByPlayer(player))
+					continue;
+
+				if (actor.Info.HasTraitInfo<AircraftInfo>())
+					count++;
+			}
+
+			return count;
 		}
 
 		// In cases where we want to build a specific unit but don't know the queue name (because there's more than one possibility)

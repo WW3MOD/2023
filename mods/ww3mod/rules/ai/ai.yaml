@@ -186,6 +186,15 @@ Player:
 		UnitsPerAxis: 8
 		MinAxisSize: 3
 		MaxAxes: 4
+		# Early-econ behaviour 3 (PIPELINE 12): for the first ~3 min (4500 ticks) disperse in smaller
+		# packets — axes form at 3 units (min 2) instead of 8 (min 3) — so the few early units spread
+		# from the beachhead and grab ground/POIs quickly rather than massing one armada at the SR.
+		# Default-off in C#; only this @experimental block enables it, so PoiOffensiveBotModule@stable
+		# (which lacks these fields) keeps its axis sizing byte-identical.
+		EarlyGameSpread: true
+		EarlyGameDurationTicks: 4500
+		EarlyUnitsPerAxis: 3
+		EarlyMinAxisSize: 2
 		AxisCommitmentTicks: 250
 		ReassignScoreThresholdPct: 30
 		RepathThresholdCells: 3
