@@ -24,10 +24,6 @@ _User design sketch 2026-07-23. Threshold rule: "empty" = nothing in reach can u
 **Perceived:** the three cohesion stances become three visibly different behaviors — **Tight = column** (move fast, stay together), **Loose = combat interval** (fight from cover), **Spread = dispersed** (survive artillery) — instead of one box at three widths.
 _Follows item 3. Shaped by the user's reactions to `WORKSPACE/cohesion/illustrations/260722_stance_proposals.html` (decision points DP-1..DP-5 still open — picks can arrive any time and steer this item)._
 
-### 6. Influence Stage D — helicopter danger consumer
-**Perceived:** attack helis stop flying into their own funerals. They route *around* known anti-air, hold a safe leash while attacking, and pull back the moment a new AA threat lights up on the air-danger layer. The "sacrificing helicopters straight into enemy territory, looks really dumb" defect goes away.
-_Consumes the air channel of the danger field. Design: `plans/260722_influence_stack_design.md` §3.1 + Stage D. Depends on shipped Stages 0/B._
-
 ### 7. Influence Stage E — danger-weighted ground routing
 **Perceived:** ground units stop marching in a straight line through known kill zones. Attacks visibly flow *around* strongpoints and defended chokes; high-value movers (trucks, artillery repositioning) pull back from the front, travel laterally at a safer depth, then re-enter where they're needed.
 _Danger field as a pathfinding cost modifier — the rear-lateral-re-enter pattern emerges from cost, not script. Design §3.2, Stage E. Cheap once Stage B exists._
@@ -75,6 +71,7 @@ _Deferred by you until the opening-economy AI (item 12) is solid — a bot that 
 ## SHIPPED
 _Most recent first. Exact wording pulled from git log / HOTBOARD; this is the archive, the commit history is authoritative._
 
+- **Influence Stage D — heli danger consumer (queue item 6)** — @experimental attack helis consume the air-danger channel: engage cell leashed to the nearest AA-safe cell, lateral detour waypoint when the approach line crosses air danger, spike-triggered withdraw along the least-AA-covered heading. Pure integer nav math (`HeliDangerNav.cs`), zero-random, byte-identical when disabled; rides on Stage-0 standoff (inert when standoff off, review-hardened). 8 NUnit pins. (`36921468` + `867d9d46`, ff-merged)
 - **Win-condition fix (queue item 1)** — SR team victory now explicitly awards Won: two-phase `ResolveTeamElimination` (mark eliminated team Lost, then award per-survivor only when every non-allied combatant is Lost — FFA/2v2v2 safe, adversarial-review catch), `AwardVictory` narrowed to CVC-present + Primary objectives (campaign missions untouched), TestMode guard. 6 SR unit tests. (`4ae664b8` + `86e993a6`, merged `5ab49f18`)
 - **Cohesion stabilization (queue item 3)** — large-group line extent capped, greedy nearest-slot matching (kills criss-cross), cover-bid-beats-geometry, treeline detection via density-covariance anisotropy → soldiers line up ALONG the treeline; per-order matching memo for O(n²·log n) dispatch. Adversarially reviewed. (`d1858312` + `46a5021a`, merged `786d4770`)
 - **Lobby team-selection column (queue item 2)** — per-slot Team column restored (header + editable dropdown + read-only label for remote/bot rows); the stock controls were hidden, not deleted. Screenshot-verified 2v2. (`95329170`)
