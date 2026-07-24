@@ -34,6 +34,10 @@ _Benchmark instrument work — `WORKSPACE/ai-bench/`._
 ### 14. AoE-aware cluster targeting in AutoTarget (shared human + bot)
 **Perceived:** artillery and other area weapons aim at the *clump* of enemies, not the nearest single target — so a barrage lands where it does the most damage. This is shared micro: **human-owned guns benefit too**, not just the bot.
 
+### 19. Fires economics — ammo expected-value gate + tube-vs-rocket employment
+**Perceived:** bots stop wasting money — no Grad salvo spent on one soldier, no barrage where the shells cost more than the damage they do. Tube artillery still engages singles when nothing better offers; rocket artillery holds for groups. Watching the AI, its fire missions look *deliberate*.
+_Doctrine: `DOCS/design/ai-realism.md` §5 (user-authored 2026-07-24) — the general rule is ammo cost < projected damage for ANY weapon. Pairs with item 14 (which is the aim-at-clumps half; this is the is-it-worth-firing half). Quick-fix first (cheap fire-worthiness gate) is acceptable; proper EV model later; continuous-improvement item. Iskander/HIMARS stay out of bot rosters unless a special-case doctrine is designed — price/volatility makes them liabilities as regular artillery._
+
 ### 15. LocalRandom seeding / SharedRandom migration for bot decisions
 **Perceived:** nothing visible in-game. Same-seed test runs become reproducible, which makes benchmark comparisons trustworthy and removes a latent desync smell. Pure dev/debug quality-of-life.
 
