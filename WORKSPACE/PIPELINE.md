@@ -16,10 +16,6 @@ User played a 2v2 vs three bots. The three previously-gated behaviors (heli stan
 
 ## QUEUE
 
-### 4. [IN FLIGHT] Supply truck "counts as empty" — evacuate instead of idling on crumbs
-**Perceived:** almost-empty supply trucks stop parking forever at the front holding a sliver nobody can use. When no unit in reach can be given anything from what's left, the truck **counts as empty** and evacuates (the Resupply-bar Evacuate flow); its supply bar turns **red** to signal "counts as empty, residue remains". If it passes a soldier on the way home who can use the remainder, that's a bonus — it still evacuates.
-_User design sketch 2026-07-23. Threshold rule: "empty" = nothing in reach can utilize the remainder. Read `DOCS/reference/economy.md`._
-
 ### 5. Cohesion stance identities — fine-tuning wave
 **Perceived:** the three cohesion stances become three visibly different behaviors — **Tight = column** (move fast, stay together), **Loose = combat interval** (fight from cover), **Spread = dispersed** (survive artillery) — instead of one box at three widths.
 _Follows item 3. Shaped by the user's reactions to `WORKSPACE/cohesion/illustrations/260722_stance_proposals.html` (decision points DP-1..DP-5 still open — picks can arrive any time and steer this item)._
@@ -71,6 +67,7 @@ _Deferred by you until the opening-economy AI (item 12) is solid — a bot that 
 ## SHIPPED
 _Most recent first. Exact wording pulled from git log / HOTBOARD; this is the archive, the commit history is authoritative._
 
+- **Supply truck counts-as-empty + evacuate (queue item 4)** — unusable residue latches counts-as-empty via live tri-state `SupplyProvider.ResidueVerdict` (MinNeedThreshold-aware, NUnit-pinned); Evacuate-stance trucks keep serving below RestockThreshold down to the last usable batch (no trip home to reserve for — adversarial-review blocker catch), then evacuate via `DropsSupplyCache` with red bar; every refill path clears the latch; bot economy layer stops re-tasking evacuating trucks. Gated behind `EvacuateOnUnusableResidue` (TRUK only). (`6fb952c7` + `5863d76a`, merged `f2602e67`)
 - **Influence Stage D — heli danger consumer (queue item 6)** — @experimental attack helis consume the air-danger channel: engage cell leashed to the nearest AA-safe cell, lateral detour waypoint when the approach line crosses air danger, spike-triggered withdraw along the least-AA-covered heading. Pure integer nav math (`HeliDangerNav.cs`), zero-random, byte-identical when disabled; rides on Stage-0 standoff (inert when standoff off, review-hardened). 8 NUnit pins. (`36921468` + `867d9d46`, ff-merged)
 - **Win-condition fix (queue item 1)** — SR team victory now explicitly awards Won: two-phase `ResolveTeamElimination` (mark eliminated team Lost, then award per-survivor only when every non-allied combatant is Lost — FFA/2v2v2 safe, adversarial-review catch), `AwardVictory` narrowed to CVC-present + Primary objectives (campaign missions untouched), TestMode guard. 6 SR unit tests. (`4ae664b8` + `86e993a6`, merged `5ab49f18`)
 - **Cohesion stabilization (queue item 3)** — large-group line extent capped, greedy nearest-slot matching (kills criss-cross), cover-bid-beats-geometry, treeline detection via density-covariance anisotropy → soldiers line up ALONG the treeline; per-order matching memo for O(n²·log n) dispatch. Adversarially reviewed. (`d1858312` + `46a5021a`, merged `786d4770`)
