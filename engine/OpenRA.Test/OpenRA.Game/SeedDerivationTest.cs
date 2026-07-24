@@ -48,6 +48,17 @@ namespace OpenRA.Test
 					$"seed {s}");
 		}
 
+		[TestCase(TestName = "DeriveLocalSeed(1017) equals its frozen golden vector (both-sites constant-rename guard)")]
+		public void MatchesFrozenGoldenVector()
+		{
+			// Hand-computed once (NOT via a test run) from the frozen constants:
+			// (1017 * 6364136223846793005 + 1442695040888963407) truncated to the
+			// low 32 bits (two's complement) = 894286612. Unlike ReferenceDerive,
+			// this literal does not restate the constants, so a rename in BOTH World
+			// and ReferenceDerive still trips here.
+			Assert.That(World.DeriveLocalSeed(1017), Is.EqualTo(894286612));
+		}
+
 		[TestCase(TestName = "DeriveLocalSeed is deterministic (same input, same output)")]
 		public void Deterministic()
 		{

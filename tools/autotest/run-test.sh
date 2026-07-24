@@ -145,6 +145,17 @@ if [ -n "${SEED}" ]; then
 			echo "Error: --seed must be an integer, e.g. 1017 or -42 (got '${SEED}')"
 			exit 3 ;;
 	esac
+	# Reject 0 (incl. -0/00): the engine treats RandomSeed==0 as the *unset*
+	# sentinel (World.cs LocalRandom guard) and falls back to a wall-clock seed,
+	# so --seed 0 would NOT reproduce despite the harness reporting a fixed seed
+	# and the verdict stamping "seed":0. _seed_digits is all-digits here, so a
+	# value with no non-zero digit is exactly zero.
+	case "${_seed_digits}" in
+		*[!0]*) : ;;
+		*)
+			echo "Error: --seed 0 is reserved as the unset sentinel; pick any non-zero int"
+			exit 3 ;;
+	esac
 fi
 
 # Validate --timeout: positive integer (seconds). Pure wall-clock; deliberately
