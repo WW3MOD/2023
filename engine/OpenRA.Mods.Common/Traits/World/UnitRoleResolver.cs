@@ -47,6 +47,18 @@ namespace OpenRA.Mods.Common.Traits
 		AttackAir           // sortie-cycle air assets, owned by the air squad modules
 	}
 
+	// Sub-classification of the IndirectFire role for fires economics (PIPELINE item 19, ai-realism §5).
+	// Derived from the piece's max weapon Burst: rocket artillery fires large salvos (Grad 40, TOS 24,
+	// M270 12) whose per-volley ammo cost is high; tube artillery fires singles/short bursts (Giatsint 1,
+	// Paladin 3) that are cheap enough to spend on a lone target. NotIndirect for every non-IndirectFire role.
+	// Ballistic-missile launchers (Iskander/HIMARS) are deliberately NOT modelled — the AI does not field them.
+	public enum IndirectFireKind
+	{
+		NotIndirect,
+		Tube,
+		Rocket
+	}
+
 	[Desc("Overrides the AI role derived by UnitRoleResolver for this actor. ",
 		"Mirror of the AIHelicopterRole precedent — an explicit, YAML-facing role hint.")]
 	public class AIUnitRoleInfo : TraitInfo
@@ -71,15 +83,18 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly WDist ReconMaxWeaponRange;
 		public readonly int ReconSpeedFloor;
 		public readonly string NeutralCaptureType;
+		public readonly int RocketSalvoBurstFloor;
 
 		public UnitRoleThresholds(WDist indirectMinRange, WDist indirectRangeFloor,
-			WDist reconMaxWeaponRange, int reconSpeedFloor, string neutralCaptureType)
+			WDist reconMaxWeaponRange, int reconSpeedFloor, string neutralCaptureType,
+			int rocketSalvoBurstFloor)
 		{
 			IndirectMinRange = indirectMinRange;
 			IndirectRangeFloor = indirectRangeFloor;
 			ReconMaxWeaponRange = reconMaxWeaponRange;
 			ReconSpeedFloor = reconSpeedFloor;
 			NeutralCaptureType = neutralCaptureType;
+			RocketSalvoBurstFloor = rocketSalvoBurstFloor;
 		}
 	}
 
@@ -103,11 +118,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool HasCargo;
 		public readonly bool IsMobile;
 		public readonly int Speed;
+		public readonly int MaxWeaponBurst;
 
 		public UnitRoleFacts(bool hasOverride, UnitRole overrideRole, bool isAircraft,
 			bool hasHeliRole, HelicopterAIRole heliRole, bool capturesNeutral, bool hasSupplyProvider,
 			bool hasArmament, bool anyArmamentTargetsEnemy, bool hasAirWeapon,
-			WDist maxWeaponRange, WDist maxWeaponMinRange, bool hasCargo, bool isMobile, int speed)
+			WDist maxWeaponRange, WDist maxWeaponMinRange, bool hasCargo, bool isMobile, int speed,
+			int maxWeaponBurst)
 		{
 			HasOverride = hasOverride;
 			OverrideRole = overrideRole;
@@ -124,6 +141,7 @@ namespace OpenRA.Mods.Common.Traits
 			HasCargo = hasCargo;
 			IsMobile = isMobile;
 			Speed = speed;
+			MaxWeaponBurst = maxWeaponBurst;
 		}
 	}
 
@@ -147,6 +165,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Capture type that marks a CaptureSpecialist (neutral-tech capture). Matched against Captures.CaptureTypes.")]
 		public readonly string NeutralCaptureType = "building-neutral";
 
+		[Desc("An IndirectFire piece whose largest weapon Burst is at least this is classed rocket artillery ",
+			"(salvo fires — Grad/TOS/M270); below it is tube artillery (Giatsint/Paladin). Fires economics only.")]
+		public readonly int RocketSalvoBurstFloor = 8;
+
 		public override object Create(ActorInitializer init) { return new UnitRoleResolver(this); }
 	}
 
@@ -155,11 +177,13 @@ namespace OpenRA.Mods.Common.Traits
 		readonly UnitRoleThresholds thresholds;
 		readonly Dictionary<string, UnitRole> rolesByName = new();
 		readonly Dictionary<UnitRole, List<string>> namesByRole = new();
+		readonly Dictionary<string, IndirectFireKind> indirectKindByName = new();
 
 		public UnitRoleResolver(UnitRoleResolverInfo info)
 		{
 			thresholds = new UnitRoleThresholds(info.IndirectMinRange, info.IndirectRangeFloor,
-				info.ReconMaxWeaponRange, info.ReconSpeedFloor, info.NeutralCaptureType);
+				info.ReconMaxWeaponRange, info.ReconSpeedFloor, info.NeutralCaptureType,
+				info.RocketSalvoBurstFloor);
 		}
 
 		void IWorldLoaded.WorldLoaded(World w, OpenRA.Graphics.WorldRenderer wr)
@@ -172,8 +196,10 @@ namespace OpenRA.Mods.Common.Traits
 				if (ai.Name.StartsWith("^", System.StringComparison.Ordinal))
 					continue;
 
-				var role = Classify(ExtractFacts(ai, thresholds), thresholds);
+				var facts = ExtractFacts(ai, thresholds);
+				var role = Classify(facts, thresholds);
 				rolesByName[ai.Name] = role;
+				indirectKindByName[ai.Name] = ClassifyIndirectKind(role, facts, thresholds);
 
 				if (!namesByRole.TryGetValue(role, out var list))
 					namesByRole[role] = list = new List<string>();
@@ -187,6 +213,14 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		public UnitRole GetRole(Actor a) { return GetRole(a.Info); }
+
+		// Tube vs rocket for an IndirectFire piece (NotIndirect for anything else). Cached at load like GetRole.
+		public IndirectFireKind GetIndirectKind(ActorInfo info)
+		{
+			return indirectKindByName.TryGetValue(info.Name, out var kind) ? kind : IndirectFireKind.NotIndirect;
+		}
+
+		public IndirectFireKind GetIndirectKind(Actor a) { return GetIndirectKind(a.Info); }
 
 		public IReadOnlyCollection<string> NamesWithRole(UnitRole role)
 		{
@@ -225,6 +259,7 @@ namespace OpenRA.Mods.Common.Traits
 			var hasAirWeapon = false;
 			var maxRange = WDist.Zero;
 			var maxMinRange = WDist.Zero;
+			var maxBurst = 0;
 			foreach (var arm in info.TraitInfos<ArmamentInfo>())
 			{
 				hasArmament = true;
@@ -235,6 +270,11 @@ namespace OpenRA.Mods.Common.Traits
 				var weapon = arm.WeaponInfo;
 				if (weapon == null)
 					continue;
+
+				// Burst is the salvo size — the tube/rocket discriminator (finding: rocket arty fires 12-40,
+				// tube fires 1-3). Read here so the pure Classify path has it without touching the ruleset.
+				if (weapon.Burst > maxBurst)
+					maxBurst = weapon.Burst;
 
 				// "Air" specifically, NOT "Helicopter": machine guns list Helicopter as a
 				// valid target but are not air-defence assets; only Stinger/9M311/MANPAD-class
@@ -258,7 +298,19 @@ namespace OpenRA.Mods.Common.Traits
 				hasArmament, anyTargetsEnemy, hasAirWeapon,
 				maxRange, maxMinRange,
 				IsTroopCarrier(info),
-				mobile != null, mobile?.Speed ?? 0);
+				mobile != null, mobile?.Speed ?? 0,
+				maxBurst);
+		}
+
+		// Tube vs rocket, keyed off salvo size (max weapon Burst). Only meaningful for the IndirectFire role;
+		// every other role is NotIndirect. Pure — same inputs, same kind on every client. Ballistic-missile
+		// launchers are out of scope (the AI does not field them), so no special case for them here.
+		public static IndirectFireKind ClassifyIndirectKind(UnitRole role, in UnitRoleFacts f, in UnitRoleThresholds t)
+		{
+			if (role != UnitRole.IndirectFire)
+				return IndirectFireKind.NotIndirect;
+
+			return f.MaxWeaponBurst >= t.RocketSalvoBurstFloor ? IndirectFireKind.Rocket : IndirectFireKind.Tube;
 		}
 
 		// Deterministic first-match priority cascade. Order is the finding-B3 corrected form:

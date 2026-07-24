@@ -14,9 +14,9 @@ namespace OpenRA.Test
 	[TestFixture]
 	public class UnitRoleResolverTest
 	{
-		// Mirrors the UnitRoleResolverInfo defaults.
+		// Mirrors the UnitRoleResolverInfo defaults (last arg = RocketSalvoBurstFloor).
 		static readonly UnitRoleThresholds Defaults = new(
-			WDist.FromCells(4), new WDist(35 * 1024), new WDist(16 * 1024), 110, "building-neutral");
+			WDist.FromCells(4), new WDist(35 * 1024), new WDist(16 * 1024), 110, "building-neutral", 8);
 
 		// Builds the ruleset facts for one actor. Named/optional args keep each row readable;
 		// weapon ranges are given in whole cells, MinRange in raw WDist units (1c512 = 1536).
@@ -25,12 +25,12 @@ namespace OpenRA.Test
 			bool airWeapon = false, int maxRangeCells = 0, int maxMinRangeUnits = 0, bool cargo = false,
 			bool supply = false, bool capturesNeutral = false, bool aircraft = false,
 			bool heliRole = false, HelicopterAIRole heli = default,
-			bool hasOverride = false, UnitRole overrideRole = UnitRole.None)
+			bool hasOverride = false, UnitRole overrideRole = UnitRole.None, int burst = 0)
 		{
 			return new UnitRoleFacts(
 				hasOverride, overrideRole, aircraft, heliRole, heli,
 				capturesNeutral, supply, armed, targetsEnemy, airWeapon,
-				new WDist(maxRangeCells * 1024), new WDist(maxMinRangeUnits), cargo, mobile, speed);
+				new WDist(maxRangeCells * 1024), new WDist(maxMinRangeUnits), cargo, mobile, speed, burst);
 		}
 
 		// The audit classification table (WORKSPACE/plans/260722_phase3_redteam.md §6),
@@ -143,6 +143,48 @@ namespace OpenRA.Test
 					Assert.That(actual, Is.EqualTo(row.Expected),
 						$"{row.Name} classified {actual}, expected {row.Expected}");
 				}
+			});
+		}
+
+		// Fires economics (PIPELINE item 19): tube vs rocket, keyed off max weapon Burst against the
+		// RocketSalvoBurstFloor (8). Real WW3MOD salvo sizes: tube Giatsint 1 / Paladin 3; rocket M270 12 /
+		// TOS 24 / Grad 40. Only the IndirectFire role is sub-classified; everything else is NotIndirect.
+		[Test]
+		public void IndirectFireKind_TubeVsRocket_ByBurst()
+		{
+			Assert.Multiple(() =>
+			{
+				(string Name, int Burst, IndirectFireKind Expected)[] arty =
+				{
+					("giatsint", 1, IndirectFireKind.Tube),
+					("paladin", 3, IndirectFireKind.Tube),
+					("m270", 12, IndirectFireKind.Rocket),
+					("tos", 24, IndirectFireKind.Rocket),
+					("grad", 40, IndirectFireKind.Rocket),
+				};
+
+				foreach (var a in arty)
+				{
+					// An IndirectFire piece (long MinRange) carrying the given salvo size.
+					var facts = Facts(mobile: true, speed: 80, armed: true, targetsEnemy: true,
+						maxRangeCells: 40, maxMinRangeUnits: 10 * 1024, burst: a.Burst);
+					var role = UnitRoleResolver.Classify(facts, Defaults);
+					Assert.That(role, Is.EqualTo(UnitRole.IndirectFire), $"{a.Name} must classify IndirectFire first");
+
+					var kind = UnitRoleResolver.ClassifyIndirectKind(role, facts, Defaults);
+					Assert.That(kind, Is.EqualTo(a.Expected), $"{a.Name} (burst {a.Burst}) kind {kind}, expected {a.Expected}");
+				}
+
+				// Exactly at the floor counts as rocket (>=), one below is tube.
+				var atFloor = Facts(mobile: true, speed: 80, armed: true, targetsEnemy: true,
+					maxRangeCells: 40, maxMinRangeUnits: 10 * 1024, burst: 8);
+				Assert.That(UnitRoleResolver.ClassifyIndirectKind(UnitRole.IndirectFire, atFloor, Defaults),
+					Is.EqualTo(IndirectFireKind.Rocket), "burst == floor is rocket");
+
+				// A non-IndirectFire role is never sub-classified, whatever its burst.
+				var tank = Facts(mobile: true, speed: 90, armed: true, targetsEnemy: true, maxRangeCells: 25, burst: 40);
+				Assert.That(UnitRoleResolver.ClassifyIndirectKind(UnitRole.MainBattle, tank, Defaults),
+					Is.EqualTo(IndirectFireKind.NotIndirect), "a tank is NotIndirect regardless of burst");
 			});
 		}
 
