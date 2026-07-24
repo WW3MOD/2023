@@ -588,8 +588,11 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				CPos retreatCell;
 
 				// Stage-D: re-route to the least AA-covered heading (air-safe corridor) instead of the
-				// omniscient ThreatMap. Experimental-only; every other profile keeps the legacy retreat.
-				var danger = DangerFieldAvoidanceEnabled(owner) ? GetDangerField(owner) : null;
+				// omniscient ThreatMap. Experimental-only, and — like the approach path — rides on
+				// standoff so avoidance is fully inert when StandoffEngagement is off; every other
+				// profile keeps the legacy retreat.
+				var danger = StandoffEngagementEnabled(owner) && DangerFieldAvoidanceEnabled(owner)
+					? GetDangerField(owner) : null;
 				if (danger != null)
 				{
 					var info = GetHeliModuleInfo(owner);
