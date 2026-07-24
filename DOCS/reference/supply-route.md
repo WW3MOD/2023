@@ -113,7 +113,7 @@ For AI design and for any strategic-layer code:
 
 ## Engine integration points
 
-- **Actor definition:** `mods/ww3mod/rules/ingame/structures.yaml:202` — `SUPPLYROUTE` block. Note: **no `Capturable`/`CaptureManager`** here or in any inherited template — capture is unimplemented (see the Capture section).
+- **Actor definition:** `mods/ww3mod/rules/ingame/structures.yaml:202` — `SUPPLYROUTE` block. The physical building is a **3×3 footprint** (`=+= +++ =+=`, `Dimensions: 3,3`, `structures.yaml:242-243`), which matters for placement math: a top-left-anchored 3×3 near a map corner can overflow the map bounds, so corner SRs sit a few cells inward. Note: **no `Capturable`/`CaptureManager`** here or in any inherited template — capture is unimplemented (see the Capture section).
 - **Neutralize-on-defeat:** `OwnerLostAction` (`structures.yaml:227`) → fires only from `ConquestVictoryConditions.cs:109` / `StrategicVictoryConditions.cs:152` when the owner is defeated — **not** a capture path.
 - **Spawn wiring:** `mods/ww3mod/rules/world.yaml:316–388` — every `StartingUnits@*` has `BaseActor: supplyroute`.
 - **Contestation trait:** `SupplyRouteContestation` (engine side, paired with `WithRangeCircle@Contestation` for the visual).
