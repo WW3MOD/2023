@@ -337,11 +337,22 @@ namespace OpenRA.Mods.Common.Traits
 
 			var dest = target.Value;
 
-			if (self.Location == dest)
+			// Already on — or within the S3 arrival tolerance of — the chosen cover cell: HOLD.
+			// Commit the claim + slot to our CURRENT cell (not `dest`) so neither this executor NOR
+			// the declared-earlier CohesionSlotMemory return-to-slot re-dispatches a Move toward a
+			// cell we are already effectively at, and issue NO move.
+			//
+			// The old exact-equality `self.Location == dest` was a per-interval re-order loop (same
+			// bug class as the fires-standoff re-issue gate, 3aca99a1): cell contention lands the
+			// unit one cell off `dest`, ResolveArrivalOrAbort marks it Arrived under the 1-cell
+			// tolerance, yet this check then re-issued Move(dest) every EvaluateCooldown — a
+			// perpetual nudge. Those repeated blocked moves also shove peers past their leash edge,
+			// re-anchoring them one step forward each time; because Defensive/Hunt always bias the
+			// chosen cover cell toward the threat, that ratchet walks the squad toward the frontline.
+			// Matching the hold tolerance to the arrival tolerance kills both symptoms at the source.
+			if (WithinOneCell(self.Location, dest))
 			{
-				// Already on the best cell — hold it. Re-commit the claim + slot so protection and
-				// the return-to-slot reinforcement never lapse; issue NO move (no oscillation).
-				CommitManagement(dest, tick);
+				CommitManagement(self.Location, tick);
 				State = AdjustmentState.Arrived;
 				return;
 			}
