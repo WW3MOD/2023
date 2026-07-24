@@ -372,7 +372,7 @@ namespace OpenRA.Mods.Common.Traits
 			// stay passive and wait for either reinstatement or the last team SR to fall.
 			// Otherwise (no remaining active team SRs, or no allies at all) the entire team is defeated.
 			if (!HasActiveTeamSupplyRoute())
-				DefeatTeam();
+				ResolveTeamElimination();
 		}
 
 		bool HasActiveTeamSupplyRoute()
@@ -396,22 +396,70 @@ namespace OpenRA.Mods.Common.Traits
 			return false;
 		}
 
-		void DefeatTeam()
+		// The team whose last active Supply Route just fell (this SR's owner + its allies) is
+		// defeated; every other remaining combatant is the victor. The win is awarded EXPLICITLY
+		// here rather than left to ConquestVictoryConditions to infer ("all my enemies are Lost").
+		// In a near-simultaneous mutual overrun the losing side is resolved before the inference
+		// runs, so the survivors would never be credited — previously leaving every player marked
+		// Lost and the end screen reading "mission failed". The WinState guard in
+		// ResolveEliminationOutcome makes a second elimination call a no-op, so tick order alone
+		// decides the winner in a true simultaneous overrun instead of defeating everyone.
+		void ResolveTeamElimination()
 		{
 			foreach (var p in self.World.Players)
 			{
-				if (p.NonCombatant || !p.Playable || p.WinState != WinState.Undefined)
+				if (p.NonCombatant || !p.Playable)
 					continue;
 
-				if (p != self.Owner && !p.IsAlliedWith(self.Owner))
+				var onEliminatedTeam = p == self.Owner || p.IsAlliedWith(self.Owner);
+				var outcome = ResolveEliminationOutcome(p.WinState, onEliminatedTeam);
+				if (outcome == null)
 					continue;
 
 				var mo = p.PlayerActor.TraitOrDefault<MissionObjectives>();
 				if (mo == null)
 					continue;
 
+				if (outcome == WinState.Lost)
+				{
+					var objectiveId = mo.Add(p, "Hold the Supply Route", "Primary", inhibitAnnouncement: true);
+					mo.MarkFailed(p, objectiveId);
+				}
+				else
+					AwardVictory(p, mo);
+			}
+		}
+
+		// Pure decision: what a team-elimination event implies for one combatant. Returns null when
+		// the player is already decided (no change) — the invariant that stops a simultaneous second
+		// elimination from flipping the winners to Lost.
+		public static WinState? ResolveEliminationOutcome(WinState current, bool onEliminatedTeam)
+		{
+			if (current != WinState.Undefined)
+				return null;
+
+			return onEliminatedTeam ? WinState.Lost : WinState.Won;
+		}
+
+		// Firing OnPlayerWon requires ALL required objectives to be Completed, so clear any
+		// outstanding ones (e.g. the ConquestVictoryConditions "primary"). Completing the last
+		// incomplete required objective is what triggers the win.
+		static void AwardVictory(Player p, MissionObjectives mo)
+		{
+			var hadObjective = false;
+			for (var id = 0; id < mo.Objectives.Count; id++)
+			{
+				if (mo.Objectives[id].State == ObjectiveState.Incomplete)
+				{
+					hadObjective = true;
+					mo.MarkCompleted(p, id);
+				}
+			}
+
+			if (!hadObjective)
+			{
 				var objectiveId = mo.Add(p, "Hold the Supply Route", "Primary", inhibitAnnouncement: true);
-				mo.MarkFailed(p, objectiveId);
+				mo.MarkCompleted(p, objectiveId);
 			}
 		}
 
