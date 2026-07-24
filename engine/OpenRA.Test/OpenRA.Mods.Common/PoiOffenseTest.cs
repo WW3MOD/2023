@@ -287,6 +287,68 @@ namespace OpenRA.Test
 			});
 		}
 
+		// ---------- Stage F: NeighborhoodControlScore (anchor-exclusion — the review MERGE-WITH-FIX) ----------
+
+		// The shipped ControlField anchor footprint: AnchorRadiusCells = 4, so the module samples the ring
+		// at radius 5 (AnchorRadiusCells + 1), one grid cell past the target's own anchor taper.
+		const int RingRadius = 5;
+
+		[Test]
+		public void Neighborhood_ExcludesAnchorFlooredCentre_ReadsSurroundingTerritory()
+		{
+			// THE MOTIVATING CASE. The target's own cell is an enemy anchor floor (≈ −800 — a site-anchor
+			// structure), but it is ENCIRCLED by ours-painted ground (+500 all around). Reading the target
+			// cell directly would always damp (the shipped-before-fix defect); the ring read must ignore the
+			// centre and see the surrounding +500 → boost. Every ring point sits ≥ radius from the centre, so
+			// the −800 centre is never sampled.
+			int Sampler(int x, int y) => x == 10 && y == 10 ? -800 : 500;
+			var neighborhood = PoiOffenseMath.NeighborhoodControlScore(Sampler, 10, 10, RingRadius);
+			Assert.That(neighborhood, Is.EqualTo(500), "centre excluded → reads the surrounding +500, not the anchor floor");
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(neighborhood, GrayBand, BopBoost, BopDamp),
+				Is.EqualTo(BopBoost), "encircled enemy structure → press it (the boost the fix restores)");
+		}
+
+		[Test]
+		public void Neighborhood_DeepEnemy_Damps()
+		{
+			// A target whose surrounding territory is uniformly believed-enemy (−600) → damp, even though
+			// the centre anchor is not sampled. This is the correct "don't lunge into strength" behaviour.
+			int Sampler(int x, int y) => -600;
+			var neighborhood = PoiOffenseMath.NeighborhoodControlScore(Sampler, 10, 10, RingRadius);
+			Assert.That(neighborhood, Is.EqualTo(-600));
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(neighborhood, GrayBand, BopBoost, BopDamp), Is.EqualTo(BopDamp));
+		}
+
+		[Test]
+		public void Neighborhood_ContestedSurroundings_Neutral()
+		{
+			// Surrounding balance near zero (a genuine contested front, not an artefact of the centre anchor)
+			// → neutral. Mixed +100/−100 ring averages inside the gray band.
+			int Sampler(int x, int y) => (x + y) % 2 == 0 ? 100 : -100;
+			var neighborhood = PoiOffenseMath.NeighborhoodControlScore(Sampler, 10, 10, RingRadius);
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(neighborhood, GrayBand, BopBoost, BopDamp), Is.EqualTo(100));
+		}
+
+		[Test]
+		public void Neighborhood_SamplesEightRingPointsAtRadius_NeverTheCentre()
+		{
+			// Pin the ring geometry: exactly the 8 cardinal+diagonal points at ±radius are sampled, and the
+			// centre (gx,gy) is provably never touched (sentinel would corrupt the average if it were).
+			var sampled = new List<(int, int)>();
+			int Sampler(int x, int y)
+			{
+				sampled.Add((x, y));
+				Assert.That((x, y), Is.Not.EqualTo((10, 10)), "the centre cell must never be sampled");
+				return 0;
+			}
+
+			PoiOffenseMath.NeighborhoodControlScore(Sampler, 10, 10, RingRadius);
+			Assert.That(sampled, Has.Count.EqualTo(8), "8 fixed directions");
+			Assert.That(sampled, Does.Contain((15, 10)).And.Contain((5, 10))
+				.And.Contain((10, 15)).And.Contain((10, 5)), "cardinals at ±radius");
+			Assert.That(sampled, Does.Contain((15, 15)).And.Contain((5, 5)), "diagonals at ±radius");
+		}
+
 		// ---------- Stage F: BelievedDangerFactor (fog-legal threat, replaces the omniscient grid) ----------
 
 		const int DangerMild = 40;

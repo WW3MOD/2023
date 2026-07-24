@@ -20,9 +20,11 @@ from the **omniscient** `InfluenceMap` enemy grid (`InfluenceMap.Recompute` scan
 runs with `StrategicRepointEnabled: true`, that omniscient threat is **dropped from the
 base score** and re-derived from the **believed** control + anti-ground danger fields:
 
-- **Balance-of-power (terr-bias revival)** reads `ControlField.ScoreAt` per target cell:
-  press cells we believe we hold / the enemy holds weakly (×150), damp lunging into
-  believed-enemy strength (×60), leave contested fronts neutral.
+- **Balance-of-power (terr-bias revival)** reads the believed `ControlField` control of the
+  RING around each target (excluding the target's own cell — every enemy target is a
+  site-anchor structure the field floors deeply enemy, so its own cell always reads Enemy):
+  an enemy structure encircled by ground we believe we hold is pressed (×150), one deep in
+  believed-enemy ground is damped (×60), a contested front is left neutral.
 - **Believed danger** reads `DangerFieldLayer.GroundDanger` per target cell: safe ×100 /
   mild ×60 / hostile ×20 — the fog-legal stand-in for the old omniscient threat buckets.
 

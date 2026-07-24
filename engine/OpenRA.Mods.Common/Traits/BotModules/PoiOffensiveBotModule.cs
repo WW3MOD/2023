@@ -486,12 +486,20 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var grayBand = controlField.Info.GrayBand;
 
+			// Read the control balance from a ring JUST OUTSIDE the target's own anchor footprint: every
+			// enemy target is a site-anchor structure whose own cell (and a disc out to AnchorRadiusCells)
+			// is floored ≈ −AnchorStrength, so the target-cell read is always deeply enemy. Sampling one
+			// grid cell past that footprint reads the surrounding territory (encircled → boost). One closure
+			// alloc per reeval (not per target); the direction set + math are alloc-free.
+			var ringRadius = controlField.Info.AnchorRadiusCells + 1;
+			Func<int, int, int> scoreAt = (sx, sy) => controlField.ScoreAt(player, sx, sy);
+
 			int boosted = 0, damped = 0, neutral = 0;
 			var scaled = new List<ScoredPoi>(targets.Count);
 			foreach (var p in targets)
 			{
 				var (gx, gy) = controlField.MapCellToGridCell(p.Location);
-				var controlScore = controlField.ScoreAt(player, gx, gy);
+				var controlScore = PoiOffenseMath.NeighborhoodControlScore(scoreAt, gx, gy, ringRadius);
 				var bop = PoiOffenseMath.BalanceOfPowerFactor(controlScore, grayBand,
 					Info.BopBoostMultiplier, Info.BopDampMultiplier);
 
@@ -519,7 +527,7 @@ namespace OpenRA.Mods.Common.Traits
 					p.DistanceCells, p.EnemyInfluence, newScore));
 
 				Log.Write("debug", $"[exp-terr] repoint player={player.PlayerName} target={p.Actor.Info.Name}@{p.Location} " +
-					$"action={p.Action} control={controlScore} bop={bop} groundDanger={groundDanger} danger={dangerMul} " +
+					$"action={p.Action} nbhdControl={controlScore} bop={bop} groundDanger={groundDanger} danger={dangerMul} " +
 					$"mul={mul} score={p.Score}->{newScore} tick={tick}");
 			}
 
@@ -915,19 +923,49 @@ namespace OpenRA.Mods.Common.Traits
 		public static int Chebyshev(int ax, int ay, int bx, int by)
 			=> Math.Max(Math.Abs(ax - bx), Math.Abs(ay - by));
 
+		// Eight fixed sampling directions (cardinals + diagonals) for the neighborhood control read.
+		// Static readonly ⇒ zero allocation in the hot path; fixed order ⇒ deterministic aggregate.
+		static readonly (int Dx, int Dy)[] NeighborhoodDirections =
+		{
+			(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1),
+		};
+
+		/// <summary>STAGE F: average BELIEVED control score of the ring of cells at grid distance `radius`
+		/// around a target's grid cell (gx,gy), sampled via `scoreAt` (a ControlField.ScoreAt bound to the
+		/// perspective player). The target's OWN cell is deliberately NOT sampled: every enemy Attack/
+		/// Pressure target is a static structure (CaptureManager/SupplyProvider) that ControlField stamps
+		/// as an enemy ANCHOR, flooring its own cell AND a disc out to AnchorRadiusCells to ≈ −AnchorStrength
+		/// regardless of who actually surrounds it — so the target-cell read is ALWAYS deeply enemy and can
+		/// never see an encirclement. Sampling a ring JUST OUTSIDE that anchor footprint (caller passes
+		/// radius &gt; AnchorRadiusCells) reads the real surrounding balance instead: an enemy structure
+		/// ringed by ours-painted ground reads positive (→ boost), one deep in enemy paint reads negative
+		/// (→ damp). Off-grid samples read 0 (scoreAt's own out-of-grid return), biasing edge targets toward
+		/// neutral — a safe direction. Pure integer average over a fixed direction set ⇒ deterministic,
+		/// zero-alloc, zero RNG.</summary>
+		public static int NeighborhoodControlScore(Func<int, int, int> scoreAt, int gx, int gy, int radius)
+		{
+			long sum = 0;
+			foreach (var (dx, dy) in NeighborhoodDirections)
+				sum += scoreAt(gx + dx * radius, gy + dy * radius);
+
+			return (int)(sum / NeighborhoodDirections.Length);
+		}
+
 		/// <summary>STAGE F territorial balance-of-power axis multiplier (x100), read from the BELIEVED
 		/// control field (the terr-bias revival — 4adf867c's per-POI InfluenceMap share was a near-pure
-		/// damper; the control field is the substrate it needed). controlScore = ControlField.ScoreAt at
-		/// the target cell: &gt; +grayBand ⇒ believed OURS (we locally dominate the ground the target sits
-		/// on — the enemy's control here is weak/broken ⇒ PRESS, boostMul); &lt; −grayBand ⇒ believed ENEMY
-		/// (committing means lunging into believed strength ⇒ damp, dampMul); |score| ≤ grayBand ⇒ contested
-		/// front ⇒ 100 (neutral). grayBand mirrors ControlFieldInfo.GrayBand so the tri-state matches the
-		/// field's own classification exactly (ControlFieldMath.Classify). Pure ⇒ unit-tested, zero RNG.</summary>
-		public static int BalanceOfPowerFactor(int controlScore, int grayBand, int boostMul, int dampMul)
+		/// damper; the control field is the substrate it needed). neighborhoodScore is the SURROUNDING
+		/// control read (NeighborhoodControlScore) around the target — NOT the target's own cell, which a
+		/// site-anchor structure floors to ≈ −AnchorStrength and would make every enemy target damp. Buckets:
+		/// &gt; +grayBand ⇒ believed OURS around the target (it is encircled / the enemy's grip here is
+		/// weak/broken ⇒ PRESS, boostMul); &lt; −grayBand ⇒ believed ENEMY (committing means lunging into
+		/// believed strength ⇒ damp, dampMul); |score| ≤ grayBand ⇒ contested front ⇒ 100 (neutral). grayBand
+		/// mirrors ControlFieldInfo.GrayBand so the tri-state matches the field's own classification exactly
+		/// (ControlFieldMath.Classify). Pure ⇒ unit-tested, zero RNG.</summary>
+		public static int BalanceOfPowerFactor(int neighborhoodScore, int grayBand, int boostMul, int dampMul)
 		{
-			if (controlScore > grayBand)
+			if (neighborhoodScore > grayBand)
 				return boostMul;
-			if (controlScore < -grayBand)
+			if (neighborhoodScore < -grayBand)
 				return dampMul;
 			return 100;
 		}
