@@ -138,12 +138,37 @@ namespace OpenRA.Mods.Common.Traits
 			"2 cells off-line needs CoverScore 10 to beat an on-line candidate with zero cover.")]
 		public readonly int LineSlotDistancePenalty = 5;
 
+		[Desc("Treeline detection: the cover distribution in the classifier window is treated as a",
+			"line (→ EdgeLine, laid ALONG the cover) when its major spread axis is at least this many",
+			"times the cross axis. A round blob has ratio ~1 and stays SpreadInside; a treeline has a",
+			"much larger ratio. 2.5 = major axis spread 2.5x the cross axis.")]
+		public readonly float TreelineAnisotropyRatio = 2.5f;
+
+		[Desc("Treeline detection: minimum major-axis spread (variance, in cells²) before a click is",
+			"treated as a treeline. Guards against calling a tiny 2-3 trunk cluster a 'line'. 2 ≈ the",
+			"cover fills a ~3-cell-long band along its major axis.")]
+		public readonly float TreelineMinSpreadSq = 2f;
+
 		public override object Create(ActorInitializer init) { return new CohesionMoveModifier(this); }
 	}
 
 	public class CohesionMoveModifier : IModifyGroupOrder
 	{
 		readonly CohesionMoveModifierInfo info;
+
+		// Per-order memoization of the slot layout + nearest-slot matching. ModifyGroupOrder is
+		// invoked once per subject, but UnitOrders.ProcessOrder dispatches all N subjects of a single
+		// grouped order back-to-back on the sim thread, and the full slot array + matching are
+		// provably identical across those N calls. We compute them for the FIRST subject and let the
+		// rest read their row — turning N redundant O(n²·log n) matchings into one. The cache is a
+		// pure memo keyed on deterministic sim state (see TryReadCache); a different order/tick/group/
+		// mode misses the key and recomputes, so nothing leaks across orders and no RNG is involved.
+		uint[] cacheActorIds;
+		CPos[] cacheAssignedByIdx;
+		int cacheTick;
+		CPos cacheClick;
+		CohesionMode cacheMode;
+		string cacheOrder;
 
 		public CohesionMoveModifier(CohesionMoveModifierInfo info)
 		{
@@ -222,13 +247,21 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Classify the click by walking a sample window around it. Returns the centroid offset
-		// in cells (signed) so the EdgeLine branch can use it as the gradient direction.
-		Intent ClassifyIntent(Map map, CPos clickCell, out int centroidDxCells, out int centroidDyCells)
+		// in cells (signed) so the EdgeLine branch can use it as the gradient direction, plus a
+		// non-zero (lineAlongX, lineAlongY) when the cover forms a LINE (treeline) — the direction
+		// units should be strung ALONG. Both are 0 when no line is detected.
+		Intent ClassifyIntent(Map map, CPos clickCell, out int centroidDxCells, out int centroidDyCells,
+			out int lineAlongX, out int lineAlongY)
 		{
 			var sampleRadius = info.IntentSampleRadius;
 			var totalDensity = 0;
 			var weightedX = 0;
 			var weightedY = 0;
+
+			// Second raw moments (about the window centre) for the covariance / anisotropy test.
+			long sumXX = 0;
+			long sumYY = 0;
+			long sumXY = 0;
 
 			for (var dy = -sampleRadius; dy <= sampleRadius; dy++)
 			{
@@ -241,11 +274,16 @@ namespace OpenRA.Mods.Common.Traits
 					totalDensity += d;
 					weightedX += dx * d;
 					weightedY += dy * d;
+					sumXX += (long)dx * dx * d;
+					sumYY += (long)dy * dy * d;
+					sumXY += (long)dx * dy * d;
 				}
 			}
 
 			centroidDxCells = 0;
 			centroidDyCells = 0;
+			lineAlongX = 0;
+			lineAlongY = 0;
 
 			if (totalDensity < info.OpenDensityThreshold)
 				return Intent.Open;
@@ -253,6 +291,59 @@ namespace OpenRA.Mods.Common.Traits
 			// Integer-round the centroid offset so the gradient is whole-cell stable.
 			centroidDxCells = RoundDiv(weightedX, totalDensity);
 			centroidDyCells = RoundDiv(weightedY, totalDensity);
+
+			// Covariance of the density about its centroid (parallel-axis theorem: Cov = E[XY] - E[X]E[Y]).
+			var mx = weightedX / (double)totalDensity;
+			var my = weightedY / (double)totalDensity;
+			var cxx = sumXX / (double)totalDensity - mx * mx;
+			var cyy = sumYY / (double)totalDensity - my * my;
+			var cxy = sumXY / (double)totalDensity - mx * my;
+
+			// Eigenvalues of the symmetric covariance [[cxx,cxy],[cxy,cyy]]: lambda = tr/2 ± sqrt(...).
+			// lambda1 is the spread along the major axis, lambda2 along the cross axis (both in cells²).
+			var tr = cxx + cyy;
+			var disc = Math.Sqrt(Math.Max(0.0, tr * tr / 4.0 - (cxx * cyy - cxy * cxy)));
+			var lambda1 = tr / 2.0 + disc;
+			var lambda2 = tr / 2.0 - disc;
+
+			// Treeline: the cover is elongated (major spread dominates the cross axis) AND has real
+			// length. Route it to EdgeLine even when the centroid offset is ~0 (a click centred ON a
+			// treeline has symmetric density → tiny offset → would otherwise fall to SpreadInside and
+			// scatter). Lay the line along the major eigenvector.
+			if (lambda1 >= info.TreelineMinSpreadSq && lambda1 >= info.TreelineAnisotropyRatio * Math.Max(lambda2, 0.0))
+			{
+				// Major eigenvector of the covariance. For cxy≈0 the axes are aligned; pick the
+				// larger-variance axis. Otherwise (lambda1 - cyy, cxy) is the unnormalised major axis.
+				double vx, vy;
+				if (Math.Abs(cxy) > 1e-6)
+				{
+					vx = lambda1 - cyy;
+					vy = cxy;
+				}
+				else if (cxx >= cyy)
+				{
+					vx = 1.0;
+					vy = 0.0;
+				}
+				else
+				{
+					vx = 0.0;
+					vy = 1.0;
+				}
+
+				var vlen = Math.Sqrt(vx * vx + vy * vy);
+				if (vlen > 0)
+				{
+					// Scale to a small integer cell-space direction (×4 then round) — the layout code
+					// re-normalises, it just needs a stable non-zero direction.
+					lineAlongX = (int)Math.Round(vx / vlen * 4.0);
+					lineAlongY = (int)Math.Round(vy / vlen * 4.0);
+					if (lineAlongX == 0 && lineAlongY == 0)
+						lineAlongX = 1;
+
+					return Intent.EdgeLine;
+				}
+			}
 
 			var offsetMagSq = centroidDxCells * centroidDxCells + centroidDyCells * centroidDyCells;
 			if (offsetMagSq >= info.EdgeOffsetThresholdCellsSq)
@@ -448,8 +539,25 @@ namespace OpenRA.Mods.Common.Traits
 		// CoverScore-aware bidding via LayCoverAwareLine, so units actually land behind trunks
 		// instead of in a dead-straight geometric line that ignores nearby cover.
 		CPos[] ComputeEdgeLineSlots(Map map, CPos clickCell, int gradXCells, int gradYCells,
+			int lineAlongX, int lineAlongY, int centroidDxCells, int centroidDyCells,
 			int n, int colSpacing, Mobile subjectMobile)
 		{
+			// Treeline path: the classifier detected an elongated cover distribution. String the
+			// units ALONG the cover's major axis (lineAlong), anchored at the cover centroid, so a
+			// click on/near a treeline yields a line strung down the treeline rather than a scatter.
+			if (lineAlongX != 0 || lineAlongY != 0)
+			{
+				var alongLen = Math.Sqrt((double)lineAlongX * lineAlongX + (double)lineAlongY * lineAlongY);
+				var alongUX = lineAlongX / alongLen;
+				var alongUY = lineAlongY / alongLen;
+				var anchor = map.Clamp(new CPos(clickCell.X + centroidDxCells, clickCell.Y + centroidDyCells));
+
+				// LayCoverAwareLine strings slots along the axis perpendicular to its `forward` arg.
+				// To lay ALONG (alongUX,alongUY) we pass forward = its perpendicular (alongUY,-alongUX);
+				// that perpendicular also points across the treeline, a sane "into cover" nudge dir.
+				return LayCoverAwareLine(map, anchor, alongUY, -alongUX, n, colSpacing, subjectMobile);
+			}
+
 			var gradLenSq = gradXCells * gradXCells + gradYCells * gradYCells;
 			if (gradLenSq == 0)
 				return ComputeOpenLine(map, clickCell, n, colSpacing);
@@ -503,10 +611,15 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// For an ideal line position, search a 5x5 window and pick the passable cell with the
-		// highest score = CoverScore - chebyshev*LineSlotDistancePenalty, that doesn't violate
-		// min-spacing against already-assigned slots. Falls back to NudgeToPassable (walking back
-		// along the gradient) if no neighborhood cell scores positive — that preserves the
-		// previous "at least find SOME passable cell" guarantee.
+		// highest score = CoverScore - chebyshev*LineSlotDistancePenalty.
+		//
+		// Cover beats geometry (problem §3 / behavior F): min-spacing is a soft constraint. We track
+		// the best spacing-respecting cell AND, separately, the best cell that actually has cover
+		// (ignoring min-spacing, but never stacking on an already-taken cell). If the spacing-clean
+		// pick would leave the unit in the open while a cover cell is available nearby, we bend the
+		// line and take the cover cell — a unit standing behind a trunk one cell too close beats a
+		// unit ejected into open ground to keep the line straight. Falls back to NudgeToPassable
+		// when nothing in the window is passable.
 		CPos PickCoverSlotNear(Map map, CPos ideal, Mobile subjectMobile, List<CPos> taken,
 			int minSpacing, double backX, double backY)
 		{
@@ -515,7 +628,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			var bestScore = int.MinValue;
 			var bestCell = ideal;
+			var bestCover = 0;
 			var found = false;
+
+			// Relaxed-spacing best cover cell (only exact-overlap with a taken slot is disqualifying).
+			var bestCoverScore = int.MinValue;
+			var bestCoverCell = ideal;
+			var coverFound = false;
 
 			for (var dy = -radius; dy <= radius; dy++)
 			{
@@ -526,31 +645,40 @@ namespace OpenRA.Mods.Common.Traits
 					if (info.FilterByPathability && subjectMobile != null && !subjectMobile.CanStayInCell(cand))
 						continue;
 
-					var tooClose = false;
-					foreach (var s in taken)
-					{
-						if (Math.Max(Math.Abs(cand.X - s.X), Math.Abs(cand.Y - s.Y)) < minSpacing)
-						{
-							tooClose = true;
-							break;
-						}
-					}
-
-					if (tooClose)
-						continue;
-
 					var cover = CoverScore(map, cand);
 					var cheb = Math.Max(Math.Abs(dx), Math.Abs(dy));
 					var score = cover - cheb * distancePenalty;
 
-					if (!found || score > bestScore)
+					var minTaken = int.MaxValue;
+					foreach (var s in taken)
+					{
+						var chebTaken = Math.Max(Math.Abs(cand.X - s.X), Math.Abs(cand.Y - s.Y));
+						if (chebTaken < minTaken)
+							minTaken = chebTaken;
+					}
+
+					// Relaxed cover candidate: has cover and isn't sitting exactly on a taken slot.
+					if (cover > 0 && minTaken > 0 && (!coverFound || score > bestCoverScore))
+					{
+						bestCoverScore = score;
+						bestCoverCell = cand;
+						coverFound = true;
+					}
+
+					// Spacing-respecting candidate.
+					if (minTaken >= minSpacing && (!found || score > bestScore))
 					{
 						bestScore = score;
 						bestCell = cand;
+						bestCover = cover;
 						found = true;
 					}
 				}
 			}
+
+			// If the tidy pick has no cover but a cover cell is reachable, bend the line into cover.
+			if (coverFound && (!found || bestCover <= 0))
+				return bestCoverCell;
 
 			if (found)
 				return bestCell;
@@ -684,11 +812,29 @@ namespace OpenRA.Mods.Common.Traits
 			// grouped units share a mode, so this is acceptable for v1.
 			var autoTarget = subject.TraitOrDefault<AutoTarget>();
 			var mode = autoTarget?.CohesionValue ?? CohesionMode.Loose;
+			var tick = subject.World.WorldTick;
+
+			// Cache hit: this order's matching was already computed by an earlier subject in the same
+			// ProcessOrder dispatch. Read this subject's assigned cell and skip the whole pipeline.
+			if (TryReadCache(validActors, tick, clickCell, mode, orderString, idx, out var cachedCell))
+			{
+				subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(cachedCell, tick);
+				return individualOrder.WithTarget(Target.FromCell(subject.World, cachedCell));
+			}
+
 			GetSpacing(mode, out var colSpacing, out var rowSpacing);
 			GetMaxExtent(mode, out var maxWidth, out var maxDepth);
 
-			var intent = ClassifyIntent(map, clickCell, out var gradX, out var gradY);
+			var intent = ClassifyIntent(map, clickCell, out var gradX, out var gradY, out var lineAlongX, out var lineAlongY);
 			var subjectMobile = subject.TraitOrDefault<Mobile>();
+
+			// Hard span bound for line formations (symptom a). The box cap (1eb644de) lives inside
+			// ComputeBoxSlots and never covered EdgeLine/Approach/OpenLine, whose width is (n-1)*spacing
+			// and grows without limit — a large Spread group strings clear across the screen. Shrink
+			// the per-slot spacing so the outermost slots stay within maxWidth, mirroring the box cap.
+			var lineColSpacing = colSpacing;
+			if (n > 1 && (long)(n - 1) * lineColSpacing > maxWidth)
+				lineColSpacing = Math.Max(info.MinSlotSpacing, maxWidth / (n - 1));
 
 			// Group centroid (used by SpreadInside to bias slot picks toward the squad's side,
 			// and to detect the Approach case where the squad is far from a cover click).
@@ -724,11 +870,12 @@ namespace OpenRA.Mods.Common.Traits
 					break;
 
 				case Intent.EdgeLine:
-					slots = ComputeEdgeLineSlots(map, clickCell, gradX, gradY, n, colSpacing, subjectMobile);
+					slots = ComputeEdgeLineSlots(map, clickCell, gradX, gradY, lineAlongX, lineAlongY,
+						gradX, gradY, n, lineColSpacing, subjectMobile);
 					break;
 
 				case Intent.Approach:
-					slots = ComputeApproachSlots(map, clickCell, groupCentroid, n, colSpacing, subjectMobile);
+					slots = ComputeApproachSlots(map, clickCell, groupCentroid, n, lineColSpacing, subjectMobile);
 					break;
 
 				case Intent.Open:
@@ -740,11 +887,123 @@ namespace OpenRA.Mods.Common.Traits
 			if (idx >= slots.Length)
 				return individualOrder;
 
+			// Position-aware slot assignment for the WHOLE squad at once (deterministic nearest-
+			// matching, replacing slots[idx]-by-ActorID which sends the lowest-ID unit to the leftmost
+			// slot regardless of where it stands → units criss-cross). Computed once here and cached
+			// for the order's remaining subjects.
+			var matching = AssignAll(validActors, slots);
+
+			var assignedByIdx = new CPos[n];
+			for (var i = 0; i < n; i++)
+			{
+				var s = matching[i];
+				assignedByIdx[i] = s >= 0 ? slots[s] : slots[Math.Min(i, slots.Length - 1)];
+			}
+
+			StoreCache(validActors, tick, clickCell, mode, orderString, assignedByIdx);
+
+			var cell = assignedByIdx[idx];
+
 			// Remember the assigned slot on the subject so the leash (CohesionSlotMemory) can
 			// walk it back to position if it gets nudged out by a passing unit.
-			subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(slots[idx], subject.World.WorldTick);
+			subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(cell, tick);
 
-			return individualOrder.WithTarget(Target.FromCell(subject.World, slots[idx]));
+			return individualOrder.WithTarget(Target.FromCell(subject.World, cell));
+		}
+
+		// Read the memoized per-idx assignment if the cache was filled for THIS exact order. The key
+		// is the full deterministic identity of the grouped order: world tick, click cell, cohesion
+		// mode, order string, and the ID-sorted actor set (compared element-wise, not hashed, so
+		// distinct groups can never collide). All of these are identical on every client and in
+		// replay, so a hit returns byte-identical data everywhere and a miss recomputes.
+		bool TryReadCache(Actor[] sortedActors, int tick, CPos click, CohesionMode mode, string order,
+			int idx, out CPos cell)
+		{
+			cell = default;
+			if (cacheAssignedByIdx == null || cacheActorIds == null)
+				return false;
+
+			if (cacheTick != tick || cacheClick != click || cacheMode != mode || cacheOrder != order)
+				return false;
+
+			if (cacheActorIds.Length != sortedActors.Length || idx >= cacheAssignedByIdx.Length)
+				return false;
+
+			for (var i = 0; i < sortedActors.Length; i++)
+				if (cacheActorIds[i] != sortedActors[i].ActorID)
+					return false;
+
+			cell = cacheAssignedByIdx[idx];
+			return true;
+		}
+
+		void StoreCache(Actor[] sortedActors, int tick, CPos click, CohesionMode mode, string order,
+			CPos[] assignedByIdx)
+		{
+			var ids = new uint[sortedActors.Length];
+			for (var i = 0; i < ids.Length; i++)
+				ids[i] = sortedActors[i].ActorID;
+
+			cacheActorIds = ids;
+			cacheAssignedByIdx = assignedByIdx;
+			cacheTick = tick;
+			cacheClick = click;
+			cacheMode = mode;
+			cacheOrder = order;
+		}
+
+		// Deterministic position-aware assignment of the whole squad to slots. Builds every (actor,
+		// slot) distance edge and repeatedly claims the globally-shortest unclaimed edge (greedy
+		// minimum matching), tie-breaking on actor index then slot index. Because validActors is
+		// ActorID-sorted and slots are identical for a given order, the edge list and matching are a
+		// pure function of the inputs WITHOUT any RNG — determinism (a non-negotiable) is preserved.
+		// Returns actorSlot[i] = slot index for the actor at ID-sorted index i (-1 if unmatched).
+		static int[] AssignAll(Actor[] sortedActors, CPos[] slots)
+		{
+			var n = sortedActors.Length;
+			var slotCount = slots.Length;
+
+			var edges = new List<(long DistSq, int Actor, int Slot)>(n * slotCount);
+			for (var a = 0; a < n; a++)
+			{
+				var loc = sortedActors[a].Location;
+				for (var s = 0; s < slotCount; s++)
+				{
+					var dx = (long)(loc.X - slots[s].X);
+					var dy = (long)(loc.Y - slots[s].Y);
+					edges.Add((dx * dx + dy * dy, a, s));
+				}
+			}
+
+			edges.Sort((p, q) =>
+			{
+				if (p.DistSq != q.DistSq)
+					return p.DistSq.CompareTo(q.DistSq);
+				if (p.Actor != q.Actor)
+					return p.Actor.CompareTo(q.Actor);
+				return p.Slot.CompareTo(q.Slot);
+			});
+
+			var actorSlot = new int[n];
+			for (var i = 0; i < n; i++)
+				actorSlot[i] = -1;
+
+			var slotTaken = new bool[slotCount];
+			var assigned = 0;
+			foreach (var (_, a, s) in edges)
+			{
+				if (assigned >= n)
+					break;
+
+				if (actorSlot[a] >= 0 || slotTaken[s])
+					continue;
+
+				actorSlot[a] = s;
+				slotTaken[s] = true;
+				assigned++;
+			}
+
+			return actorSlot;
 		}
 	}
 }
