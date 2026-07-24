@@ -4,8 +4,10 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Traits;
 
 namespace OpenRA.Test
 {
@@ -78,6 +80,19 @@ namespace OpenRA.Test
 
 			// Aircraft split via AIHelicopterRole (Scout -> Recon, armed).
 			("littlebird",    Facts(aircraft: true, armed: true, heliRole: true, heli: HelicopterAIRole.Scout), UnitRole.Recon),
+
+			// --- Phase-4b air consumer coverage ---
+			// Fixed-wing strike: aircraft + armament, NO AIHelicopterRole -> AttackAir. The experimental
+			// fixed-wing SquadManager selects its Air squad from these (Buildable AttackAir, non-heli).
+			("a10",           Facts(aircraft: true, armed: true), UnitRole.AttackAir),
+			("f16",           Facts(aircraft: true, armed: true), UnitRole.AttackAir),
+			("mig",           Facts(aircraft: true, armed: true), UnitRole.AttackAir),
+			("frog",          Facts(aircraft: true, armed: true), UnitRole.AttackAir),
+			// Attack helicopter maps AttackHeavy -> AttackAir; it carries AIHelicopterRole, so the air gate
+			// below excludes it by trait (owned by HelicopterSquadBotModule, never the fixed-wing manager).
+			("hind",          Facts(aircraft: true, armed: true, heliRole: true, heli: HelicopterAIRole.AttackHeavy), UnitRole.AttackAir),
+			// Transport helicopter: no armament, has Cargo, Transport role -> TransportLift.
+			("halo",          Facts(aircraft: true, cargo: true, heliRole: true, heli: HelicopterAIRole.Transport), UnitRole.TransportLift),
 
 			// --- Phase-4 consumer coverage: the LayeredDefence / PoiOffensive / PoiGarrison roster ---
 			// Line + screen infantry (base Mobile.Speed 25, direct-fire, no MinRange) -> MainBattle.
@@ -219,6 +234,106 @@ namespace OpenRA.Test
 				Assert.That(RoleModeLineEligible(bmp2), Is.False, "bmp2 held back from role-mode line");
 				Assert.That(RoleModeLineEligible(abrams), Is.True, "plain MainBattle tank passes");
 				Assert.That(RoleModeLineEligible(pipsOnly), Is.True, "weight-0-Cargo MainBattle unit passes");
+			});
+		}
+
+		// --- Phase-4b consumer coverage ---
+
+		// Builds an aircraft ActorInfo for the air-squad gate test. AircraftInfo + ArmamentInfo makes an
+		// armed airframe (ExtractFacts sees HasArmament even with an unresolved weapon); BuildableInfo and
+		// AIHelicopterRoleInfo toggle the two trait guards the SquadManager gate reads.
+		static ActorInfo Aircraft(string name, bool armed, bool buildable, bool heliRole, HelicopterAIRole heli = default)
+		{
+			var traits = new List<TraitInfo> { new AircraftInfo() };
+			if (armed)
+				traits.Add(new ArmamentInfo());
+			if (buildable)
+				traits.Add(new BuildableInfo());
+			if (heliRole)
+			{
+				var h = new AIHelicopterRoleInfo();
+				SetReadonly(h, nameof(AIHelicopterRoleInfo.Role), heli);
+				traits.Add(h);
+			}
+
+			return new ActorInfo(name, traits.ToArray());
+		}
+
+		// Mirror of SquadManagerBotModule.IsAirSquadUnit's role branch: a Buildable AttackAir airframe
+		// that is NOT a helicopter (attack helis stay owned by HelicopterSquadBotModule; -Buildable
+		// airstrike-power spawns are never squad-managed).
+		static bool RoleModeAirSquadEligible(ActorInfo info)
+		{
+			var role = UnitRoleResolver.Classify(UnitRoleResolver.ExtractFacts(info, Defaults), Defaults);
+			return role == UnitRole.AttackAir
+				&& info.HasTraitInfo<BuildableInfo>()
+				&& !info.HasTraitInfo<AIHelicopterRoleInfo>();
+		}
+
+		[Test]
+		public void AirSquadRoleGateSelectsBuildableFixedWingStrike()
+		{
+			var fixedWing = Aircraft("a10", armed: true, buildable: true, heliRole: false);
+			var attackHeli = Aircraft("hind", armed: true, buildable: true, heliRole: true, HelicopterAIRole.AttackHeavy);
+			var airstrike = Aircraft("a10.airstrike", armed: true, buildable: false, heliRole: false);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(RoleModeAirSquadEligible(fixedWing), Is.True, "buildable fixed-wing strike joins the Air squad");
+				Assert.That(RoleModeAirSquadEligible(attackHeli), Is.False, "attack helis stay with HelicopterSquadBotModule");
+				Assert.That(RoleModeAirSquadEligible(airstrike), Is.False, "airstrike-power spawns are never squad-managed");
+			});
+		}
+
+		[Test]
+		public void CaptureRoleSelectsOnlyNeutralCapturers()
+		{
+			// CaptureCoordinator's role-mode pool is the CaptureSpecialist class (Captures targeting the
+			// neutral-tech type). A line-infantry — which may carry Captures for occupied buildings but not
+			// the neutral type — is NOT selected: the 'wrong unit sent to capture' cure by class.
+			var tecn = UnitRoleResolver.Classify(Facts(mobile: true, speed: 63, capturesNeutral: true), Defaults);
+			var lineInfantry = UnitRoleResolver.Classify(
+				Facts(mobile: true, speed: 25, armed: true, targetsEnemy: true, maxRangeCells: 8), Defaults);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(tecn, Is.EqualTo(UnitRole.CaptureSpecialist));
+				Assert.That(lineInfantry, Is.Not.EqualTo(UnitRole.CaptureSpecialist));
+			});
+		}
+
+		[Test]
+		public void AdaptiveProductionRoleFiltersMatchCounterCategories()
+		{
+			// Mirror of AdaptiveProductionBotModule's per-category allowed-role sets.
+			var antiAir = new[] { UnitRole.ShortRangeAD };
+			var antiVehicle = new[] { UnitRole.MainBattle, UnitRole.IndirectFire };
+			var antiInfantry = new[] { UnitRole.MainBattle, UnitRole.IndirectFire, UnitRole.Recon };
+
+			UnitRole R(UnitRoleFacts f) => UnitRoleResolver.Classify(f, Defaults);
+
+			// Representative pool members (facts mirror the ww3mod stats used elsewhere in this file).
+			var shorad = R(Facts(mobile: true, speed: 120, armed: true, targetsEnemy: true, airWeapon: true, maxRangeCells: 28, cargo: true)); // strykershorad
+			var tank = R(Facts(mobile: true, speed: 90, armed: true, targetsEnemy: true, maxRangeCells: 25, maxMinRangeUnits: 1536)); // abrams
+			var arty = R(Facts(mobile: true, speed: 80, armed: true, targetsEnemy: true, maxRangeCells: 40, maxMinRangeUnits: 10 * 1024)); // m109
+			var scout = R(Facts(mobile: true, speed: 150, armed: true, targetsEnemy: true, maxRangeCells: 15, cargo: true)); // humvee
+
+			Assert.Multiple(() =>
+			{
+				// Anti-air admits only SHORAD; a tank mistakenly listed there would be pruned.
+				Assert.That(antiAir, Does.Contain(shorad));
+				Assert.That(antiAir, Does.Not.Contain(tank));
+
+				// Anti-vehicle admits line combatants + artillery, not SHORAD or scouts.
+				Assert.That(antiVehicle, Does.Contain(tank));
+				Assert.That(antiVehicle, Does.Contain(arty));
+				Assert.That(antiVehicle, Does.Not.Contain(shorad));
+				Assert.That(antiVehicle, Does.Not.Contain(scout));
+
+				// Anti-infantry additionally admits Recon (light wheeled scouts like humvee/btr).
+				Assert.That(antiInfantry, Does.Contain(tank));
+				Assert.That(antiInfantry, Does.Contain(scout));
+				Assert.That(antiInfantry, Does.Not.Contain(shorad));
 			});
 		}
 	}

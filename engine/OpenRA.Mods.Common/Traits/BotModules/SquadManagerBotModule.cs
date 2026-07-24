@@ -39,6 +39,14 @@ namespace OpenRA.Mods.Common.Traits
 			"variants set it true so the fixed-wing manager stops forming the ground death-ball.")]
 		public readonly bool IgnoreGroundUnits = false;
 
+		[Desc("EXPERIMENTAL: select air-squad airframes from UnitRoleResolver (a Buildable AttackAir",
+			"airframe that is NOT a helicopter) instead of the AirUnitsTypes name list. Attack helicopters",
+			"(AIHelicopterRole) stay owned by HelicopterSquadBotModule and the transient -Buildable airstrike-",
+			"power variants (a10.airstrike/frog.airstrike) are excluded, so for the current roster this",
+			"reproduces {A10,F16}/{MIG,FROG} exactly while becoming robust to roster edits. Default false =",
+			"frozen list behaviour, so the @stable/legacy twins stay byte-identical.")]
+		public readonly bool UseUnitRoles = false;
+
 		[Desc("Actor types that are considered construction yards (base builders).")]
 		public readonly HashSet<string> ConstructionYardTypes = new HashSet<string>();
 
@@ -128,6 +136,8 @@ namespace OpenRA.Mods.Common.Traits
 		IBotPositionsUpdated[] notifyPositionsUpdated;
 		IBotNotifyIdleBaseUnits[] notifyIdleBaseUnits;
 		CaptureManagerBotModule[] captureModules;
+		UnitRoleResolver resolver;
+		bool resolverResolved;
 
 		CPos initialBaseCenter;
 
@@ -273,6 +283,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		void FindNewUnits(IBot bot)
 		{
+			if (!resolverResolved)
+			{
+				resolver = World.WorldActor.TraitOrDefault<UnitRoleResolver>();
+				resolverResolved = true;
+			}
+
 			var newUnits = World.ActorsHavingTrait<IPositionable>()
 				.Where(a => a.Owner == Player &&
 
@@ -283,7 +299,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var a in newUnits)
 			{
-				if (Info.AirUnitsTypes.Contains(a.Info.Name))
+				if (IsAirSquadUnit(a))
 				{
 					var air = GetSquadOfType(SquadType.Air);
 					if (air == null)
@@ -316,6 +332,22 @@ namespace OpenRA.Mods.Common.Traits
 			// Notifying here rather than inside the loop, should be fine and saves a bunch of notification calls
 			foreach (var n in notifyIdleBaseUnits)
 				n.UpdatedIdleBaseUnits(unitsHangingAroundTheBase);
+		}
+
+		// Air-squad membership: role-model when UseUnitRoles is on, otherwise the AirUnitsTypes name
+		// list (byte-identical to the frozen @stable/legacy twins). The role gate is a Buildable
+		// AttackAir airframe that is NOT a helicopter — attack helis (AIHelicopterRole) stay owned by
+		// HelicopterSquadBotModule, and the -Buildable airstrike-power spawns (a10.airstrike/frog.airstrike,
+		// which also classify AttackAir) are excluded so a support-power plane is never squad-managed.
+		// See WORKSPACE/DISCOVERIES.md (2026-07-24).
+		bool IsAirSquadUnit(Actor a)
+		{
+			if (Info.UseUnitRoles && resolver != null)
+				return resolver.GetRole(a) == UnitRole.AttackAir
+					&& a.Info.HasTraitInfo<BuildableInfo>()
+					&& !a.Info.HasTraitInfo<AIHelicopterRoleInfo>();
+
+			return Info.AirUnitsTypes.Contains(a.Info.Name);
 		}
 
 		void CreateAttackForce(IBot bot)

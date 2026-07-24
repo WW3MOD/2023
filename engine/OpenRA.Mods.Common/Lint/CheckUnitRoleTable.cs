@@ -94,6 +94,15 @@ namespace OpenRA.Mods.Common.Lint
 			("hind", UnitRole.AttackAir),        // AttackHeavy
 			("tran", UnitRole.TransportLift),    // Transport
 
+			// Fixed-wing strike — aircraft + armament, no AIHelicopterRole → AttackAir. The experimental
+			// fixed-wing SquadManager (Phase 4b) selects its Air squad by role (Buildable AttackAir,
+			// non-heli); pinning these fails the build if a YAML edit drops them out of AttackAir and
+			// silently empties the role-mode air squad.
+			("a10", UnitRole.AttackAir),
+			("f16", UnitRole.AttackAir),
+			("mig", UnitRole.AttackAir),
+			("frog", UnitRole.AttackAir),
+
 			// Supply Route beachhead — a building: not mobile, not armed.
 			("supplyroute", UnitRole.None),
 		};

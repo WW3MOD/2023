@@ -109,6 +109,13 @@ namespace OpenRA.Mods.Common.Traits
 			"Nearer targets are walked on foot as before. Only used when UseTransportForDistantCaptures is set.")]
 		public readonly int TransportCaptureMinDistanceCells = 12;
 
+		[Desc("EXPERIMENTAL: derive the capturer pool from UnitRoleResolver (role == CaptureSpecialist)",
+			"instead of the CapturingActorTypes name list — cures 'wrong unit sent to capture' by class,",
+			"since only neutral-tech capturers (Captures targeting the neutral capture type) are dispatched.",
+			"Same TECN set for the current roster; robust to roster edits. Default false = frozen list",
+			"behaviour, so the @stable twin stays byte-identical.")]
+		public readonly bool UseUnitRoles = false;
+
 		public override object Create(ActorInitializer init) { return new CaptureCoordinatorBotModule(init.Self, this); }
 	}
 
@@ -143,7 +150,14 @@ namespace OpenRA.Mods.Common.Traits
 		// Defender bookings — actor → tick they were summoned. Stale entries removed on tick.
 		readonly Dictionary<Actor, int> defenderBookings = new();
 
-		readonly ActorIndex.OwnerAndNamesAndTrait<CapturesInfo> capturingActors;
+		ActorIndex.OwnerAndNamesAndTrait<CapturesInfo> capturingActors;
+
+		// Role-model capturer pool (Phase 4b). When UseUnitRoles is set, the capturingActors index is
+		// rebuilt ONCE on first tick from the CaptureSpecialist role names instead of CapturingActorTypes,
+		// so every consumer of the pool below transparently becomes class-driven. Resolved lazily because
+		// the world-trait resolver's cache is only guaranteed populated by the first BotTick.
+		UnitRoleResolver resolver;
+		bool resolverResolved;
 
 		// TECN availability floor (cycle 2). When Info.TecnFloor > 0 the coordinator
 		// pulls production of its own capturer via the IBotRequestUnitProduction queue
@@ -208,6 +222,25 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				goalGuard = player.PlayerActor.TraitOrDefault<PoiGoalGuard>();
 				goalGuardResolved = true;
+			}
+
+			// Rebuild the capturer pool from the role model ONCE (experimental only). The
+			// CaptureSpecialist class (Captures targeting the neutral-tech type) replaces the
+			// CapturingActorTypes name list as the single source feeding every pool consumer below.
+			// Same TECN set today; robust to roster edits. See WORKSPACE/DISCOVERIES.md (2026-07-24).
+			if (!resolverResolved)
+			{
+				resolverResolved = true;
+				if (Info.UseUnitRoles)
+				{
+					resolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
+					if (resolver != null)
+					{
+						var roleNames = resolver.NamesWithRole(UnitRole.CaptureSpecialist).ToHashSet();
+						capturingActors.Dispose();
+						capturingActors = new ActorIndex.OwnerAndNamesAndTrait<CapturesInfo>(world, roleNames, player);
+					}
+				}
 			}
 
 			if (--captureScanCountdown <= 0)
