@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -16,15 +17,24 @@ using OpenRA.Traits;
 namespace OpenRA.Test
 {
 	/// <summary>
-	/// Locks the team-victory decision that SupplyRouteContestation applies when a team's last
-	/// active Supply Route falls. The regression this guards: a 2v2 where the winning team denied
-	/// both enemy Supply Routes ended with ALL four players marked Lost ("mission failed"), because
-	/// the win was only ever inferred by ConquestVictoryConditions and a near-simultaneous mutual
-	/// overrun resolved both teams as losers before that inference could run.
+	/// Covers the two pure decisions SupplyRouteContestation makes when a team's last active Supply
+	/// Route falls: which eliminated-team members are marked Lost (ResolveEliminationOutcome) and
+	/// which survivors are awarded Won (ShouldAwardVictory). These are unit-scoped helpers — the full
+	/// World/MissionObjectives propagation is NOT exercised here and is verified by code reasoning.
+	/// Regression guarded: a 2v2 where the winning team denied both enemy Supply Routes ended with all
+	/// four players Lost ("mission failed"), and (post-first-fix) an FFA elimination over-awarded Won
+	/// to every remaining hostile party.
 	/// </summary>
 	[TestFixture]
 	public class SupplyRouteEliminationTest
 	{
+		static IEnumerable<(bool Allied, WinState State)> Others(params (bool, WinState)[] others)
+		{
+			return others;
+		}
+
+		// --- Eliminated-team marking + simultaneous-overrun race guard ---
+
 		[Test]
 		public void EliminatedTeamMemberLoses()
 		{
@@ -34,32 +44,60 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void SurvivorIsAwardedTheWin()
-		{
-			// The core fix: survivors are credited Won explicitly, not left Undefined/Lost.
-			Assert.That(
-				SupplyRouteContestation.ResolveEliminationOutcome(WinState.Undefined, onEliminatedTeam: false),
-				Is.EqualTo(WinState.Won));
-		}
-
-		[Test]
 		public void AlreadyDecidedPlayersAreLeftUntouched()
 		{
 			// The anti "everyone loses" invariant: once a player has an outcome, a second
 			// elimination event (the other team's last SR falling in the same window) is a no-op.
-			// Without this, the winners' Won would be overwritten by the loser's DefeatTeam pass.
+			// Without this, the winners' Won would be overwritten by the loser's elimination pass —
+			// this is what guarantees exactly ONE team wins a 2v2 mutual overrun.
 			Assert.That(
 				SupplyRouteContestation.ResolveEliminationOutcome(WinState.Won, onEliminatedTeam: true),
 				Is.Null);
 			Assert.That(
-				SupplyRouteContestation.ResolveEliminationOutcome(WinState.Won, onEliminatedTeam: false),
-				Is.Null);
-			Assert.That(
-				SupplyRouteContestation.ResolveEliminationOutcome(WinState.Lost, onEliminatedTeam: true),
-				Is.Null);
-			Assert.That(
 				SupplyRouteContestation.ResolveEliminationOutcome(WinState.Lost, onEliminatedTeam: false),
 				Is.Null);
+		}
+
+		// --- Survivor win-award (the FFA regression) ---
+
+		[Test]
+		public void TwoVsTwo_EnemyTeamEliminated_SurvivorIsAwarded()
+		{
+			// (a) 2v2: survivor's two enemies are Lost, ally still Undefined → award Won.
+			var result = SupplyRouteContestation.ShouldAwardVictory(Others(
+				(true, WinState.Undefined),   // ally
+				(false, WinState.Lost),       // enemy 1
+				(false, WinState.Lost)));     // enemy 2
+
+			Assert.That(result, Is.True);
+		}
+
+		[Test]
+		public void FreeForAll_OneEliminated_NoAwardYet()
+		{
+			// (b) 3-player FFA, one eliminated: a hostile is still alive → defer, no win.
+			var result = SupplyRouteContestation.ShouldAwardVictory(Others(
+				(false, WinState.Lost),        // eliminated rival
+				(false, WinState.Undefined))); // still-fighting rival
+
+			Assert.That(result, Is.False);
+		}
+
+		[Test]
+		public void FreeForAll_LastSurvivor_IsAwarded()
+		{
+			// (c) FFA down to one survivor: every hostile is Lost → award Won.
+			var result = SupplyRouteContestation.ShouldAwardVictory(Others(
+				(false, WinState.Lost),
+				(false, WinState.Lost)));
+
+			Assert.That(result, Is.True);
+		}
+
+		[Test]
+		public void LoneSurvivor_NoOtherCombatants_IsAwarded()
+		{
+			Assert.That(SupplyRouteContestation.ShouldAwardVictory(Others()), Is.True);
 		}
 	}
 }
