@@ -143,19 +143,36 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			return waypoints;
 		}
 
+		// Cohesion rewrites each grouped Move/AttackMove target to a per-unit formation SLOT and
+		// discards the human click point. Recover it: map the slot cell back to the order point the
+		// unit was spread around (CohesionSlotMemory), so Shift-G redistributes the MAIN points the
+		// player clicked, not the near-identical slot cells. Non-cohesion units (no trait / no
+		// record for this cell) keep the raw destination cell — the historical behaviour.
+		static CPos ResolveOrderPoint(Actor actor, CPos slotCell)
+		{
+			var memory = actor.TraitOrDefault<CohesionSlotMemory>();
+			if (memory != null && memory.TryGetOrderPointForSlot(slotCell, out var orderPoint))
+				return orderPoint;
+
+			return slotCell;
+		}
+
 		static Waypoint? ExtractWaypoint(World world, Activity activity, Actor actor)
 		{
 			// AttackMoveActivity — use cached OriginalDestination (most reliable)
 			if (activity is AttackMoveActivity attackMove)
 			{
 				if (attackMove.OriginalDestination.HasValue)
+				{
+					var cell = ResolveOrderPoint(actor, attackMove.OriginalDestination.Value);
 					return new Waypoint
 					{
-						Cell = attackMove.OriginalDestination.Value,
-						Target = Target.FromCell(world, attackMove.OriginalDestination.Value),
+						Cell = cell,
+						Target = Target.FromCell(world, cell),
 						OrderType = "AttackMove",
 						IsActorTarget = false
 					};
+				}
 
 				// Fallback: TargetLineNodes (shouldn't be needed but just in case)
 				return ExtractFromTargetLineNodes(world, activity, actor, "AttackMove");
@@ -166,26 +183,32 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			if (activity is SmartMoveActivity smartMove)
 			{
 				if (smartMove.OriginalDestination.HasValue)
+				{
+					var cell = ResolveOrderPoint(actor, smartMove.OriginalDestination.Value);
 					return new Waypoint
 					{
-						Cell = smartMove.OriginalDestination.Value,
-						Target = Target.FromCell(world, smartMove.OriginalDestination.Value),
+						Cell = cell,
+						Target = Target.FromCell(world, cell),
 						OrderType = "Move",
 						IsActorTarget = false
 					};
+				}
 
 				return ExtractFromTargetLineNodes(world, activity, actor, "Move");
 			}
 
 			// Direct Move activity
 			if (activity is Move move && move.Destination.HasValue)
+			{
+				var cell = ResolveOrderPoint(actor, move.Destination.Value);
 				return new Waypoint
 				{
-					Cell = move.Destination.Value,
-					Target = Target.FromCell(world, move.Destination.Value),
+					Cell = cell,
+					Target = Target.FromCell(world, cell),
 					OrderType = "Move",
 					IsActorTarget = false
 				};
+			}
 
 			// Covers Attack (AttackFrontal), AttackFollow.AttackActivity, AttackOmni.SetTarget, FlyAttack (AttackAircraft).
 			// Only AttackSource.Default came from a human order — AutoTarget engagements and
@@ -254,13 +277,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			foreach (var node in activity.TargetLineNodes(actor))
 			{
 				if (node.Target.Type == TargetType.Terrain)
+				{
+					var cell = ResolveOrderPoint(actor, world.Map.CellContaining(node.Target.CenterPosition));
 					return new Waypoint
 					{
-						Cell = world.Map.CellContaining(node.Target.CenterPosition),
-						Target = node.Target,
+						Cell = cell,
+						Target = Target.FromCell(world, cell),
 						OrderType = orderType,
 						IsActorTarget = false
 					};
+				}
 			}
 
 			return null;
@@ -299,10 +325,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			return segments;
 		}
 
-		// Distribute waypoints among units — works for both terrain and actor targets
+		// Distribute waypoints among units — works for both terrain and actor targets. Units are
+		// bucketed per waypoint first, then each bucket is issued as ONE order: a multi-unit bucket
+		// for a terrain Move/AttackMove goes out as a GROUPED order (Subject=null, GroupedActors set)
+		// so it re-enters the normal pipeline and IModifyGroupOrder (cohesion) re-spreads that group
+		// around its point — the user's "then each group can spread out due to cohesion" clause.
 		static void DistributeSegment(World world, IList<Actor> units, Segment segment)
 		{
 			var waypoints = segment.Waypoints;
+			var buckets = new List<Actor>[waypoints.Count];
+			for (var i = 0; i < buckets.Length; i++)
+				buckets[i] = new List<Actor>();
 
 			if (units.Count <= waypoints.Count)
 			{
@@ -326,7 +359,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 					if (bestWp >= 0)
 					{
-						world.IssueOrder(new Order(segment.OrderType, unit, waypoints[bestWp].Target, true));
+						buckets[bestWp].Add(unit);
 						available.Remove(bestWp);
 					}
 				}
@@ -361,10 +394,28 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 					if (bestWp >= 0)
 					{
-						world.IssueOrder(new Order(segment.OrderType, unit, waypoints[bestWp].Target, true));
+						buckets[bestWp].Add(unit);
 						wpCapacity[bestWp]--;
 					}
 				}
+			}
+
+			// Cohesion only interprets terrain Move/AttackMove; attack/actor-target segments are
+			// issued per-unit as before (grouping them would gain nothing and cohesion ignores them).
+			var groupable = !segment.IsActorTarget && (segment.OrderType == "Move" || segment.OrderType == "AttackMove");
+
+			for (var i = 0; i < waypoints.Count; i++)
+			{
+				var bucket = buckets[i];
+				if (bucket.Count == 0)
+					continue;
+
+				var target = waypoints[i].Target;
+				if (groupable && bucket.Count > 1)
+					world.IssueOrder(new Order(segment.OrderType, null, target, true, null, bucket.ToArray()));
+				else
+					foreach (var unit in bucket)
+						world.IssueOrder(new Order(segment.OrderType, unit, target, true));
 			}
 		}
 	}

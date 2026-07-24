@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Traits;
 
@@ -44,12 +45,20 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		bool hasSlot;
 
-		// Render-only: the player-commanded order point (click cell) this slot was spread around,
+		// Render/UI-only: the player-commanded order point (click cell) this slot was spread around,
 		// as opposed to assignedSlot (the per-unit destination). Deliberately NOT [Sync] — it is
-		// never read by any sim decision (only by DrawLineToTarget to draw the primary order line),
-		// so it can never affect game state, replays, or the sync hash.
+		// never read by any sim decision (only by DrawLineToTarget for the primary order line and by
+		// GroupScatterHotkeyLogic when issuing new orders), so it can never affect game state,
+		// replays, or the sync hash.
 		CPos assignedOrderPoint;
 		bool hasOrderPoint;
+
+		// Render/UI-only, non-[Sync]: (slot, orderPoint) for every grouped Move/AttackMove of the
+		// CURRENT batch — a run of orders where the first is fresh (non-queued) and the rest are
+		// shift-queued onto it. Group Scatter reads this to map each queued formation-slot cell back
+		// to the human ORDER POINT it was spread around, so it redistributes the main points the
+		// player clicked rather than near-identical slot cells. Never read by the sim.
+		readonly List<(CPos Slot, CPos OrderPoint)> batch = new();
 
 		int lastAssignTick;
 		int lastReturnTick;
@@ -60,20 +69,45 @@ namespace OpenRA.Mods.Common.Traits
 			mobile = self.Trait<Mobile>();
 		}
 
-		public void Assign(CPos slot, CPos orderPoint, int tick)
+		public void Assign(CPos slot, CPos orderPoint, int tick, bool queued)
 		{
 			assignedSlot = slot;
 			hasSlot = true;
 			assignedOrderPoint = orderPoint;
 			hasOrderPoint = true;
 			lastAssignTick = tick;
+
+			// A fresh (non-queued) order starts a new batch; shift-queued orders extend it.
+			if (!queued)
+				batch.Clear();
+
+			batch.Add((slot, orderPoint));
 		}
 
 		public CPos? AssignedSlot => hasSlot ? (CPos?)assignedSlot : null;
 
 		// The order point (click cell) the last grouped Move/AttackMove spread this unit around.
-		// Render-only; see assignedOrderPoint.
+		// Render/UI-only; see assignedOrderPoint.
 		public CPos? OrderPoint => hasSlot && hasOrderPoint ? (CPos?)assignedOrderPoint : null;
+
+		// Map a formation-slot cell back to the human order point it was spread around, for the
+		// current batch. Returns false when this unit has no cohesion record for that cell (e.g. a
+		// non-cohesion unit, or a stale/other-order cell) so the caller keeps the raw cell. Scans
+		// newest-first so the most recent assignment for a reused cell wins. Render/UI-only.
+		public bool TryGetOrderPointForSlot(CPos slot, out CPos orderPoint)
+		{
+			for (var i = batch.Count - 1; i >= 0; i--)
+			{
+				if (batch[i].Slot == slot)
+				{
+					orderPoint = batch[i].OrderPoint;
+					return true;
+				}
+			}
+
+			orderPoint = default;
+			return false;
+		}
 
 		// Drop the remembered slot so return-to-slot stops. Used by the Phase-2 positioning
 		// executor on abort/disengage so a released unit reverts to whatever the next grouped
@@ -82,6 +116,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			hasSlot = false;
 			hasOrderPoint = false;
+			batch.Clear();
 		}
 
 		// PITFALL: this fires when ANOTHER actor wants to push through us — the Mobile trait's
@@ -114,6 +149,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				hasSlot = false;
 				hasOrderPoint = false;
+				batch.Clear();
 				return;
 			}
 
