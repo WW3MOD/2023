@@ -143,6 +143,50 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Stage-E: how many lateral steps (× GroundDangerDetourCells) the detour search may probe.")]
 		public readonly int GroundDangerDetourSteps = 2;
 
+		[Desc("Influence stack Stage F (strategic repoint): score offensive/expansion axes off the BELIEVED",
+			"control field + anti-ground danger field instead of the OMNISCIENT InfluenceMap threat grid.",
+			"When on, GetOffensiveTargets is asked for a threat-NEUTRAL base score (no omniscient read) and",
+			"this module re-shapes it with (a) the territorial balance-of-power bias read from the control",
+			"field — press cells we believe we hold / the enemy holds weakly, damp lunging into believed",
+			"strength — and (b) a fog-legal believed-danger damp from the anti-ground danger field. Completes",
+			"the @experimental fog migration for attack-axis selection. OFF by default so legacy/normal and the",
+			"frozen @stable twin stay byte-identical; only PoiOffensiveBotModule@experimental turns it on.",
+			"Inert (falls back to the omniscient path) if no ControlField exists.")]
+		public readonly bool StrategicRepointEnabled = false;
+
+		[Desc("Stage-F balance-of-power multiplier (x100) for a target on a cell we BELIEVE WE HOLD",
+			"(control score > the field's GrayBand — the enemy's grip there is weak/broken ⇒ press).",
+			">100 boosts. Default 100 = inert (frozen), so a bare StrategicRepointEnabled changes only the",
+			"threat SOURCE, not the ranking, until the @experimental YAML supplies an active value.")]
+		public readonly int BopBoostMultiplier = 100;
+
+		[Desc("Stage-F balance-of-power multiplier (x100) for a target on a cell we BELIEVE THE ENEMY HOLDS",
+			"(control score < −GrayBand — committing means lunging into believed strength ⇒ damp). <100 damps.",
+			"Default 100 = inert. A contested front (|score| ≤ GrayBand) is always left at x100 (neutral).")]
+		public readonly int BopDampMultiplier = 100;
+
+		[Desc("Stage-F believed anti-ground danger (DangerFieldLayer.GroundDanger) at/below which a target",
+			"cell counts as SAFE — the fog-legal replacement for the omniscient safe-threat bucket. On the",
+			"danger-field intensity scale (throughput-derived), NOT the InfluenceMap scale. Sits above the",
+			"Stage-C territory baseline so ambient 'deep enemy ground' danger does not damp every axis.")]
+		public readonly int BelievedDangerMildThreshold = 40;
+
+		[Desc("Stage-F believed anti-ground danger at/below which a target cell counts as MILD (above it is",
+			"HOSTILE — a dense believed weapon envelope). Boundary between the mild and hostile damp buckets.")]
+		public readonly int BelievedDangerHostileThreshold = 120;
+
+		[Desc("Stage-F axis multiplier (x100) at SAFE believed ground danger (≤ BelievedDangerMildThreshold).",
+			"Default 100 = inert / neutral (safe ground is not damped).")]
+		public readonly int BelievedDangerSafeMultiplier = 100;
+
+		[Desc("Stage-F axis multiplier (x100) at MILD believed ground danger. <100 damps a probed approach.",
+			"Default 100 = inert.")]
+		public readonly int BelievedDangerMildMultiplier = 100;
+
+		[Desc("Stage-F axis multiplier (x100) at HOSTILE believed ground danger (inside a dense believed",
+			"weapon envelope). <100 strongly damps lunging into believed fire. Default 100 = inert.")]
+		public readonly int BelievedDangerHostileMultiplier = 100;
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 
@@ -175,6 +219,8 @@ namespace OpenRA.Mods.Common.Traits
 		bool resolverResolved;
 		DangerFieldLayer dangerField;
 		bool dangerFieldResolved;
+		ControlField controlField;
+		bool controlFieldResolved;
 
 		readonly List<Axis> axes = new();
 
@@ -233,10 +279,19 @@ namespace OpenRA.Mods.Common.Traits
 				resolverResolved = true;
 			}
 
+			// The anti-ground danger field feeds BOTH the Stage-E flow-around routing and the Stage-F
+			// believed-danger axis damp, so resolve it when either is enabled.
 			if (!dangerFieldResolved)
 			{
-				dangerField = Info.DangerFieldRouting ? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
+				dangerField = Info.DangerFieldRouting || Info.StrategicRepointEnabled
+					? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
 				dangerFieldResolved = true;
+			}
+
+			if (!controlFieldResolved)
+			{
+				controlField = Info.StrategicRepointEnabled ? world.WorldActor.TraitOrDefault<ControlField>() : null;
+				controlFieldResolved = true;
 			}
 
 			var tick = world.WorldTick;
@@ -255,13 +310,28 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// 2. Score offensive targets from OUR SR (value x distance x threat).
-			var targets = poiMap.GetOffensiveTargets(player);
+			//    Stage-F strategic repoint: when on (and a control field exists), ask PoiMap for a
+			//    threat-NEUTRAL base score — no omniscient InfluenceMap read — and re-shape it below
+			//    from the BELIEVED control + danger fields. Off ⇒ the frozen omniscient path, so the
+			//    @stable twin (flag unset) and every control profile stay byte-identical.
+			var repoint = Info.StrategicRepointEnabled && controlField != null;
+			var targets = repoint
+				? poiMap.GetOffensiveTargets(player, suppressOmniscientThreat: true)
+				: poiMap.GetOffensiveTargets(player);
 
 			// 2a. Experimental SR-contestation: re-scale the enemy Supply Route Pressure axis so
 			//     it can compete for an offensive axis. A no-op at multiplier 100 (guarded), so
 			//     the frozen Stable/Normal controls keep their exact GetOffensiveTargets ranking.
 			if (Info.SrPressureScoreMultiplier != 100)
 				targets = RescaleSrPressure(targets);
+
+			// 2b. Stage-F territorial repoint: re-shape the (threat-neutral) axis scores from the
+			//     BELIEVED control field (balance-of-power: press cells we hold / the enemy holds
+			//     weakly, damp lunging into believed strength) + the fog-legal anti-ground danger
+			//     field (damp targets inside a believed weapon envelope). Replaces the omniscient
+			//     threat read suppressed above. Inert/skipped unless the repoint is active.
+			if (repoint)
+				targets = RescaleByBelievedFields(targets, tick);
 
 			if (targets.Count == 0)
 			{
@@ -400,6 +470,77 @@ namespace OpenRA.Mods.Common.Traits
 
 			scaled.Sort((a, b) => PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
 				b.Score, b.DistanceCells, b.Actor.ActorID));
+			return scaled;
+		}
+
+		// STAGE F strategic repoint. Re-shape each (threat-neutral) offensive/expansion axis score from
+		// the BELIEVED fields instead of the omniscient InfluenceMap threat that used to be baked in:
+		//   * balance-of-power (terr-bias revival) — ControlField.ScoreAt at the target cell: press cells
+		//     we believe we hold / the enemy holds weakly (boost), damp lunging into believed-enemy
+		//     strength, leave contested fronts neutral. Reads the SAME GrayBand the field classifies by.
+		//   * believed danger — DangerFieldLayer.GroundDanger at the target cell: damp targets sitting in
+		//     a believed weapon envelope, the fog-legal stand-in for the old omniscient hostile-threat damp.
+		// Both factors are pure (PoiOffenseMath) and draw ZERO random. Caller guards the switch + null
+		// control field; re-sorts with the same deterministic comparator PoiMap uses.
+		List<ScoredPoi> RescaleByBelievedFields(List<ScoredPoi> targets, int tick)
+		{
+			var grayBand = controlField.Info.GrayBand;
+
+			// Read the control balance from a ring JUST OUTSIDE the target's own anchor footprint: every
+			// enemy target is a site-anchor structure whose own cell (and a disc out to AnchorRadiusCells)
+			// is floored ≈ −AnchorStrength, so the target-cell read is always deeply enemy. Sampling one
+			// grid cell past that footprint reads the surrounding territory (encircled → boost). One closure
+			// alloc per reeval (not per target); the direction set + math are alloc-free.
+			var ringRadius = controlField.Info.AnchorRadiusCells + 1;
+			Func<int, int, int> scoreAt = (sx, sy) => controlField.ScoreAt(player, sx, sy);
+
+			int boosted = 0, damped = 0, neutral = 0;
+			var scaled = new List<ScoredPoi>(targets.Count);
+			foreach (var p in targets)
+			{
+				var (gx, gy) = controlField.MapCellToGridCell(p.Location);
+				var controlScore = PoiOffenseMath.NeighborhoodControlScore(scoreAt, gx, gy, ringRadius);
+				var bop = PoiOffenseMath.BalanceOfPowerFactor(controlScore, grayBand,
+					Info.BopBoostMultiplier, Info.BopDampMultiplier);
+
+				var groundDanger = dangerField != null ? dangerField.GroundDanger(player, p.Location) : 0;
+				var dangerMul = PoiOffenseMath.BelievedDangerFactor(groundDanger,
+					Info.BelievedDangerMildThreshold, Info.BelievedDangerHostileThreshold,
+					Info.BelievedDangerSafeMultiplier, Info.BelievedDangerMildMultiplier,
+					Info.BelievedDangerHostileMultiplier);
+
+				var mul = bop * dangerMul / 100;
+				if (mul == 100)
+				{
+					neutral++;
+					scaled.Add(p);
+					continue;
+				}
+
+				if (mul > 100)
+					boosted++;
+				else
+					damped++;
+
+				var newScore = p.Score * mul / 100;
+				scaled.Add(new ScoredPoi(p.Actor, p.Kind, p.Action, p.Value,
+					p.DistanceCells, p.EnemyInfluence, newScore));
+
+				Log.Write("debug", $"[exp-terr] repoint player={player.PlayerName} target={p.Actor.Info.Name}@{p.Location} " +
+					$"action={p.Action} nbhdControl={controlScore} bop={bop} groundDanger={groundDanger} danger={dangerMul} " +
+					$"mul={mul} score={p.Score}->{newScore} tick={tick}");
+			}
+
+			var wasTop = string.Join(",", targets.Take(Info.MaxAxes).Select(t => t.Actor.ActorID));
+
+			scaled.Sort((a, b) => PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
+				b.Score, b.DistanceCells, b.Actor.ActorID));
+
+			var nowTop = string.Join(",", scaled.Take(Info.MaxAxes).Select(t => t.Actor.ActorID));
+			if (nowTop != wasTop)
+				Log.Write("debug", $"[exp-terr] axis-shift player={player.PlayerName} nowTop={nowTop} wasTop={wasTop} tick={tick}");
+
+			Log.Write("debug", $"[exp-terr] reeval player={player.PlayerName} boosted={boosted} damped={damped} neutral={neutral} tick={tick}");
 			return scaled;
 		}
 
@@ -781,6 +922,70 @@ namespace OpenRA.Mods.Common.Traits
 		/// compute this directly rather than reusing it.</summary>
 		public static int Chebyshev(int ax, int ay, int bx, int by)
 			=> Math.Max(Math.Abs(ax - bx), Math.Abs(ay - by));
+
+		// Eight fixed sampling directions (cardinals + diagonals) for the neighborhood control read.
+		// Static readonly ⇒ zero allocation in the hot path; fixed order ⇒ deterministic aggregate.
+		static readonly (int Dx, int Dy)[] NeighborhoodDirections =
+		{
+			(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1),
+		};
+
+		/// <summary>STAGE F: average BELIEVED control score of the ring of cells at grid distance `radius`
+		/// around a target's grid cell (gx,gy), sampled via `scoreAt` (a ControlField.ScoreAt bound to the
+		/// perspective player). The target's OWN cell is deliberately NOT sampled: every enemy Attack/
+		/// Pressure target is a static structure (CaptureManager/SupplyProvider) that ControlField stamps
+		/// as an enemy ANCHOR, flooring its own cell AND a disc out to AnchorRadiusCells to ≈ −AnchorStrength
+		/// regardless of who actually surrounds it — so the target-cell read is ALWAYS deeply enemy and can
+		/// never see an encirclement. Sampling a ring JUST OUTSIDE that anchor footprint (caller passes
+		/// radius &gt; AnchorRadiusCells) reads the real surrounding balance instead: an enemy structure
+		/// ringed by ours-painted ground reads positive (→ boost), one deep in enemy paint reads negative
+		/// (→ damp). Off-grid samples read 0 (scoreAt's own out-of-grid return), biasing edge targets toward
+		/// neutral — a safe direction. Pure integer average over a fixed direction set ⇒ deterministic,
+		/// zero-alloc, zero RNG.</summary>
+		public static int NeighborhoodControlScore(Func<int, int, int> scoreAt, int gx, int gy, int radius)
+		{
+			long sum = 0;
+			foreach (var (dx, dy) in NeighborhoodDirections)
+				sum += scoreAt(gx + dx * radius, gy + dy * radius);
+
+			return (int)(sum / NeighborhoodDirections.Length);
+		}
+
+		/// <summary>STAGE F territorial balance-of-power axis multiplier (x100), read from the BELIEVED
+		/// control field (the terr-bias revival — 4adf867c's per-POI InfluenceMap share was a near-pure
+		/// damper; the control field is the substrate it needed). neighborhoodScore is the SURROUNDING
+		/// control read (NeighborhoodControlScore) around the target — NOT the target's own cell, which a
+		/// site-anchor structure floors to ≈ −AnchorStrength and would make every enemy target damp. Buckets:
+		/// &gt; +grayBand ⇒ believed OURS around the target (it is encircled / the enemy's grip here is
+		/// weak/broken ⇒ PRESS, boostMul); &lt; −grayBand ⇒ believed ENEMY (committing means lunging into
+		/// believed strength ⇒ damp, dampMul); |score| ≤ grayBand ⇒ contested front ⇒ 100 (neutral). grayBand
+		/// mirrors ControlFieldInfo.GrayBand so the tri-state matches the field's own classification exactly
+		/// (ControlFieldMath.Classify). Pure ⇒ unit-tested, zero RNG.</summary>
+		public static int BalanceOfPowerFactor(int neighborhoodScore, int grayBand, int boostMul, int dampMul)
+		{
+			if (neighborhoodScore > grayBand)
+				return boostMul;
+			if (neighborhoodScore < -grayBand)
+				return dampMul;
+			return 100;
+		}
+
+		/// <summary>STAGE F believed anti-ground danger axis multiplier (x100) — the fog-legal REPLACEMENT
+		/// for the old omniscient InfluenceMap threat. groundDanger = DangerFieldLayer.GroundDanger at the
+		/// target cell (0 in verified-safe ground; a low Stage-C territory baseline in believed-enemy rear;
+		/// a dense kernel inside a believed weapon envelope). Buckets mirror PoiScoring.ThreatFactor:
+		/// ≤ mildThreshold ⇒ safe (safeMul), ≤ hostileThreshold ⇒ mild (mildMul), else hostile (hostileMul).
+		/// Thresholds are on the DANGER-FIELD (throughput-derived) scale, NOT the InfluenceMap scale.
+		/// Pure ⇒ unit-tested, zero RNG.</summary>
+		public static int BelievedDangerFactor(int groundDanger, int mildThreshold, int hostileThreshold,
+			int safeMul, int mildMul, int hostileMul)
+		{
+			if (groundDanger <= mildThreshold)
+				return safeMul;
+			if (groundDanger <= hostileThreshold)
+				return mildMul;
+			return hostileMul;
+		}
 
 		/// <summary>Integer (floor-division) centroid of a set of cell coordinates. Empty input
 		/// returns (0,0). Pure so the dispersion gate math is unit-testable and v3-portable.</summary>

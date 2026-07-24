@@ -230,5 +230,192 @@ namespace OpenRA.Test
 			var nearDist = PoiOffenseMath.Chebyshev(nearCentroid.X, nearCentroid.Y, target.X, target.Y);
 			Assert.That(nearDist, Is.LessThanOrEqualTo(assaultRadius), "near axis is at the objective → Tight");
 		}
+
+		// ---------- Stage F: BalanceOfPowerFactor (terr-bias revival on the control field) ----------
+
+		// GrayBand mirrors the shipped ControlFieldInfo.GrayBand so the axis tri-state matches the
+		// field's own ControlFieldMath.Classify buckets exactly.
+		const int GrayBand = 150;
+		const int BopBoost = 150;
+		const int BopDamp = 60;
+
+		[Test]
+		public void BalanceOfPower_WeBelieveWeHold_Presses()
+		{
+			// control score above +GrayBand ⇒ believed OURS ⇒ the enemy's grip here is weak ⇒ boost.
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(500, GrayBand, BopBoost, BopDamp), Is.EqualTo(BopBoost));
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(151, GrayBand, BopBoost, BopDamp), Is.EqualTo(BopBoost));
+		}
+
+		[Test]
+		public void BalanceOfPower_WeBelieveEnemyHolds_Damps()
+		{
+			// control score below −GrayBand ⇒ believed ENEMY ⇒ lunging into strength ⇒ damp.
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(-500, GrayBand, BopBoost, BopDamp), Is.EqualTo(BopDamp));
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(-151, GrayBand, BopBoost, BopDamp), Is.EqualTo(BopDamp));
+		}
+
+		[Test]
+		public void BalanceOfPower_ContestedFront_IsNeutral()
+		{
+			// |score| ≤ GrayBand ⇒ contested front ⇒ 100 (neutral) — no thrash on a knife-edge balance.
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(0, GrayBand, BopBoost, BopDamp), Is.EqualTo(100));
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(100, GrayBand, BopBoost, BopDamp), Is.EqualTo(100));
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(-100, GrayBand, BopBoost, BopDamp), Is.EqualTo(100));
+		}
+
+		[Test]
+		public void BalanceOfPower_BandBoundaryIsContestedInclusive()
+		{
+			// Exactly ±GrayBand reads contested (neutral) — matches ControlFieldMath.Classify's
+			// gray-inclusive boundary (ClassifyBoundariesAreGrayInclusive), so the axis bias and the
+			// overlay/field classification never disagree at the edge.
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(GrayBand, GrayBand, BopBoost, BopDamp), Is.EqualTo(100));
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(-GrayBand, GrayBand, BopBoost, BopDamp), Is.EqualTo(100));
+		}
+
+		[Test]
+		public void BalanceOfPower_DefaultMultipliersAreInert()
+		{
+			// A bare StrategicRepointEnabled (multipliers left at the code default 100) changes only the
+			// threat SOURCE, never the ranking — every bucket returns 100.
+			Assert.Multiple(() =>
+			{
+				Assert.That(PoiOffenseMath.BalanceOfPowerFactor(500, GrayBand, 100, 100), Is.EqualTo(100));
+				Assert.That(PoiOffenseMath.BalanceOfPowerFactor(-500, GrayBand, 100, 100), Is.EqualTo(100));
+				Assert.That(PoiOffenseMath.BalanceOfPowerFactor(0, GrayBand, 100, 100), Is.EqualTo(100));
+			});
+		}
+
+		// ---------- Stage F: NeighborhoodControlScore (anchor-exclusion — the review MERGE-WITH-FIX) ----------
+
+		// The shipped ControlField anchor footprint: AnchorRadiusCells = 4, so the module samples the ring
+		// at radius 5 (AnchorRadiusCells + 1), one grid cell past the target's own anchor taper.
+		const int RingRadius = 5;
+
+		[Test]
+		public void Neighborhood_ExcludesAnchorFlooredCentre_ReadsSurroundingTerritory()
+		{
+			// THE MOTIVATING CASE. The target's own cell is an enemy anchor floor (≈ −800 — a site-anchor
+			// structure), but it is ENCIRCLED by ours-painted ground (+500 all around). Reading the target
+			// cell directly would always damp (the shipped-before-fix defect); the ring read must ignore the
+			// centre and see the surrounding +500 → boost. Every ring point sits ≥ radius from the centre, so
+			// the −800 centre is never sampled.
+			int Sampler(int x, int y) => x == 10 && y == 10 ? -800 : 500;
+			var neighborhood = PoiOffenseMath.NeighborhoodControlScore(Sampler, 10, 10, RingRadius);
+			Assert.That(neighborhood, Is.EqualTo(500), "centre excluded → reads the surrounding +500, not the anchor floor");
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(neighborhood, GrayBand, BopBoost, BopDamp),
+				Is.EqualTo(BopBoost), "encircled enemy structure → press it (the boost the fix restores)");
+		}
+
+		[Test]
+		public void Neighborhood_DeepEnemy_Damps()
+		{
+			// A target whose surrounding territory is uniformly believed-enemy (−600) → damp, even though
+			// the centre anchor is not sampled. This is the correct "don't lunge into strength" behaviour.
+			int Sampler(int x, int y) => -600;
+			var neighborhood = PoiOffenseMath.NeighborhoodControlScore(Sampler, 10, 10, RingRadius);
+			Assert.That(neighborhood, Is.EqualTo(-600));
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(neighborhood, GrayBand, BopBoost, BopDamp), Is.EqualTo(BopDamp));
+		}
+
+		[Test]
+		public void Neighborhood_ContestedSurroundings_Neutral()
+		{
+			// Surrounding balance near zero (a genuine contested front, not an artefact of the centre anchor)
+			// → neutral. Mixed +100/−100 ring averages inside the gray band.
+			int Sampler(int x, int y) => (x + y) % 2 == 0 ? 100 : -100;
+			var neighborhood = PoiOffenseMath.NeighborhoodControlScore(Sampler, 10, 10, RingRadius);
+			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(neighborhood, GrayBand, BopBoost, BopDamp), Is.EqualTo(100));
+		}
+
+		[Test]
+		public void Neighborhood_SamplesEightRingPointsAtRadius_NeverTheCentre()
+		{
+			// Pin the ring geometry: exactly the 8 cardinal+diagonal points at ±radius are sampled, and the
+			// centre (gx,gy) is provably never touched (sentinel would corrupt the average if it were).
+			var sampled = new List<(int, int)>();
+			int Sampler(int x, int y)
+			{
+				sampled.Add((x, y));
+				Assert.That((x, y), Is.Not.EqualTo((10, 10)), "the centre cell must never be sampled");
+				return 0;
+			}
+
+			PoiOffenseMath.NeighborhoodControlScore(Sampler, 10, 10, RingRadius);
+			Assert.That(sampled, Has.Count.EqualTo(8), "8 fixed directions");
+			Assert.That(sampled, Does.Contain((15, 10)).And.Contain((5, 10))
+				.And.Contain((10, 15)).And.Contain((10, 5)), "cardinals at ±radius");
+			Assert.That(sampled, Does.Contain((15, 15)).And.Contain((5, 5)), "diagonals at ±radius");
+		}
+
+		// ---------- Stage F: BelievedDangerFactor (fog-legal threat, replaces the omniscient grid) ----------
+
+		const int DangerMild = 40;
+		const int DangerHostile = 120;
+		const int DangerSafeMul = 100;
+		const int DangerMildMul = 60;
+		const int DangerHostileMul = 20;
+
+		[Test]
+		public void BelievedDanger_SafeGroundIsNeutral()
+		{
+			// At/below the mild threshold (verified-safe ground or the low Stage-C baseline) ⇒ safe ⇒
+			// not damped. This is why the threshold sits ABOVE the territory baseline intensity.
+			Assert.That(PoiOffenseMath.BelievedDangerFactor(0, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul), Is.EqualTo(DangerSafeMul));
+			Assert.That(PoiOffenseMath.BelievedDangerFactor(DangerMild, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul), Is.EqualTo(DangerSafeMul), "== mild boundary is safe-inclusive");
+		}
+
+		[Test]
+		public void BelievedDanger_ProbedGroundDamps()
+		{
+			// Between the mild and hostile thresholds ⇒ mild (probed approach) ⇒ mild damp.
+			Assert.That(PoiOffenseMath.BelievedDangerFactor(41, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul), Is.EqualTo(DangerMildMul));
+			Assert.That(PoiOffenseMath.BelievedDangerFactor(DangerHostile, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul), Is.EqualTo(DangerMildMul), "== hostile boundary is still mild");
+		}
+
+		[Test]
+		public void BelievedDanger_InsideEnvelopeIsHostile()
+		{
+			// Above the hostile threshold (a dense believed weapon envelope) ⇒ strong damp — the
+			// fog-legal analogue of the old omniscient hostile-threat gate.
+			Assert.That(PoiOffenseMath.BelievedDangerFactor(121, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul), Is.EqualTo(DangerHostileMul));
+			Assert.That(PoiOffenseMath.BelievedDangerFactor(10000, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul), Is.EqualTo(DangerHostileMul));
+		}
+
+		[Test]
+		public void BelievedDanger_DefaultMultipliersAreInert()
+		{
+			// Multipliers left at the code default 100 ⇒ inert in every bucket (bare-enable no-op).
+			Assert.Multiple(() =>
+			{
+				Assert.That(PoiOffenseMath.BelievedDangerFactor(0, DangerMild, DangerHostile, 100, 100, 100), Is.EqualTo(100));
+				Assert.That(PoiOffenseMath.BelievedDangerFactor(80, DangerMild, DangerHostile, 100, 100, 100), Is.EqualTo(100));
+				Assert.That(PoiOffenseMath.BelievedDangerFactor(500, DangerMild, DangerHostile, 100, 100, 100), Is.EqualTo(100));
+			});
+		}
+
+		[Test]
+		public void Repoint_CombinedFactorStacksBalanceAndDanger()
+		{
+			// The module multiplies the two factors (÷100): a target we believe we hold (boost x150) but
+			// which sits inside a believed weapon envelope (hostile x20) nets 150*20/100 = 30 — pressable
+			// ground is still declined when a kill-zone covers it. This is the exact combine the rescale does.
+			var bop = PoiOffenseMath.BalanceOfPowerFactor(500, GrayBand, BopBoost, BopDamp);
+			var danger = PoiOffenseMath.BelievedDangerFactor(200, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul);
+			Assert.That(bop * danger / 100, Is.EqualTo(30));
+
+			// A believed-ours cell in safe ground nets the full boost (150*100/100 = 150).
+			var safe = PoiOffenseMath.BelievedDangerFactor(0, DangerMild, DangerHostile,
+				DangerSafeMul, DangerMildMul, DangerHostileMul);
+			Assert.That(bop * safe / 100, Is.EqualTo(BopBoost));
+		}
 	}
 }

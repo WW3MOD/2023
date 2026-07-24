@@ -275,13 +275,25 @@ namespace OpenRA.Mods.Common.Traits
 		/// As money POIs are captured they become own (dropped here → their Secure axis
 		/// retires) and the ranking naturally shifts toward the enemy: offense emerges
 		/// AFTER income is secured, no separate "opening mode". Scored value x distance x
-		/// threat from OUR SR. The capture layer (TECN) is unaffected.</summary>
-		public List<ScoredPoi> GetOffensiveTargets(Player perspective)
+		/// threat from OUR SR. The capture layer (TECN) is unaffected.
+		///
+		/// STAGE F (strategic repoint): the threat term is sourced from the OMNISCIENT
+		/// InfluenceMap enemy grid (built from world.Actors regardless of fog). An
+		/// @experimental caller migrating off omniscient grids passes suppressOmniscientThreat
+		/// = true, which produces a threat-NEUTRAL base score (no InfluenceMap read at all) so
+		/// the caller can re-apply a FOG-LEGAL believed-danger/control shaping itself
+		/// (PoiOffensiveBotModule.RescaleByBelievedFields). Default false ⇒ byte-identical to
+		/// the frozen behaviour for every existing caller (control-bot MountedTransport + the
+		/// @stable offense twin).</summary>
+		public List<ScoredPoi> GetOffensiveTargets(Player perspective, bool suppressOmniscientThreat = false)
 		{
 			ResolveInfluence();
 
 			var ownSr = FindOwnSupplyRoute(perspective);
-			var enemyLayer = influenceMap?.GetEnemyInfluence(perspective);
+
+			// Only touch the omniscient enemy grid when the threat term is actually wanted.
+			// Suppressing it here keeps the @experimental repoint path off the omniscient read entirely.
+			var enemyLayer = suppressOmniscientThreat ? null : influenceMap?.GetEnemyInfluence(perspective);
 
 			var result = new List<ScoredPoi>(candidates.Count);
 			foreach (var actor in candidates)
@@ -333,7 +345,10 @@ namespace OpenRA.Mods.Common.Traits
 					: 0;
 				var distFactor = PoiScoring.DistanceFactor(distCells, Info.DistanceHalfLifeCells);
 
-				var enemyInfluence = SampleThreat(actor, perspective, enemyLayer);
+				// suppressOmniscientThreat ⇒ threat-neutral (safe bucket): the @experimental repoint
+				// caller re-applies a fog-legal believed-danger factor on top. Otherwise the frozen
+				// omniscient InfluenceMap threat sample, byte-identical for every existing caller.
+				var enemyInfluence = suppressOmniscientThreat ? 0 : SampleThreat(actor, perspective, enemyLayer);
 				var threatFactor = PoiScoring.ThreatFactor(enemyInfluence, Info.ThreatMildThreshold,
 					Info.ThreatSafeMultiplier, Info.ThreatMildMultiplier, Info.ThreatHostileMultiplier);
 
