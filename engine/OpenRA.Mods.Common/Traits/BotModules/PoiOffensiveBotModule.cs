@@ -148,8 +148,9 @@ namespace OpenRA.Mods.Common.Traits
 			"When on, artillery-role units are peeled off the grouped AttackMove and each is AttackMoved to a",
 			"standoff anchor at its own max weapon range (minus FiresStandoffMargin) from the axis target — so",
 			"it rains fire from range, follows the assault forward to stay in range, and backs a leg off if the",
-			"target closes inside its band; the line units press exactly as before. Requires the UnitRoleResolver",
-			"(role model) to identify artillery — inert if it is absent. OFF by default so the frozen @stable twin",
+			"target closes inside its band; the line units press exactly as before. The runtime gate is the presence",
+			"of the UnitRoleResolver world trait (which derives the artillery role), NOT the UseUnitRoles flag;",
+			"the feature is inert when the resolver is absent. OFF by default so the frozen @stable twin",
 			"and every legacy profile stay byte-identical; only PoiOffensiveBotModule@experimental turns it on.")]
 		public readonly bool FiresStandoff = false;
 
@@ -210,6 +211,11 @@ namespace OpenRA.Mods.Common.Traits
 		// re-issue so a piece holding in-band keeps firing uninterrupted (only re-ordered when it must
 		// reposition or its anchor drifted past RepathThresholdCells). Empty unless FiresStandoff is on.
 		readonly Dictionary<Actor, CPos> lastFiresAnchor = new();
+
+		// Fires doctrine: bounded Chebyshev radius (cells) for the nearest-passable clamp on a standoff anchor
+		// that lands on impassable ground. Small — a passable cell almost always sits within a cell or two of
+		// the standoff ring; if none does within this budget the raw ideal is used (pre-clamp behaviour).
+		const int FiresAnchorClampCells = 4;
 
 		int reevalCountdown;
 
@@ -703,7 +709,6 @@ namespace OpenRA.Mods.Common.Traits
 				player.ClientIndex, axis.TargetName, axis.TargetCell, units.Length, axis.Score);
 		}
 
-		// Release an axis's units back to the free pool and return them.
 		// Fires doctrine: hold each IndirectFire piece at its own weapon standoff from the axis target.
 		// A single AttackMove to the standoff anchor yields all three behaviours (advance to range, hold and
 		// fire, back off when the target closes) from the shared, tested AttackMove -> AutoTarget path — the
@@ -725,15 +730,22 @@ namespace OpenRA.Mods.Common.Traits
 
 				var pos = u.CenterPosition;
 				var anchor = FiresStandoffMath.StandoffAnchor(axis.TargetPos, pos, maxRange, margin, floor);
-				var anchorCell = world.Map.CellContaining(anchor);
 				var needs = FiresStandoffMath.NeedsReposition(axis.TargetPos, pos, maxRange, margin, hysteresis, floor);
+
+				// Clamp the anchor to a cell the piece can actually stand on (mirrors the group path's
+				// WaypointPassable guard). An impassable anchor would degrade the AttackMove to some
+				// engine-chosen reachable cell out-of-band, and the piece would then be re-ordered to the same
+				// unreachable anchor every re-eval, cancelling in-flight shots. The nearest-passable fallback
+				// keeps the destination reachable and near the standoff ring. Deterministic.
+				var idealCell = world.Map.CellContaining(anchor);
+				var anchorCell = FiresStandoffMath.NearestPassableCell(idealCell, FiresAnchorClampCells, WaypointPassable(u));
 
 				var had = lastFiresAnchor.TryGetValue(u, out var prevCell);
 				var anchorMoved = !had || (prevCell - anchorCell).LengthSquared >= repathSq;
 
-				// In-band and the anchor hasn't shifted: leave the piece where it is so AutoTarget keeps
-				// firing. Otherwise (re)issue the standoff move.
-				if (!needs && !anchorMoved)
+				// Never re-issue the identical reachable destination (would restart the AttackMove and cancel a
+				// shot); otherwise hold when in-band with an un-drifted anchor so AutoTarget keeps firing.
+				if ((had && prevCell == anchorCell) || (!needs && !anchorMoved))
 					continue;
 
 				bot.QueueOrder(new Order("AttackMove", u, Target.FromCell(world, anchorCell), false));

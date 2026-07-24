@@ -26,10 +26,42 @@
  */
 #endregion
 
+using System;
+
 namespace OpenRA.Mods.Common.Traits
 {
 	public static class FiresStandoffMath
 	{
+		/// <summary>The nearest cell to <paramref name="ideal"/> the mover can actually stand on, found by a
+		/// deterministic Chebyshev-ring expansion (radius 0..<paramref name="maxRadius"/>, each ring scanned in
+		/// a fixed dy-outer/dx-inner order). Returns <paramref name="ideal"/> when it is already passable, or
+		/// when nothing passable lies within the budget (the caller then orders the raw ideal, unchanged from
+		/// the pre-clamp behaviour). Pure — the passability oracle is injected, no world/RNG.</summary>
+		public static CPos NearestPassableCell(CPos ideal, int maxRadius, Func<CPos, bool> passable)
+		{
+			if (passable(ideal))
+				return ideal;
+
+			for (var r = 1; r <= maxRadius; r++)
+			{
+				for (var dy = -r; dy <= r; dy++)
+				{
+					for (var dx = -r; dx <= r; dx++)
+					{
+						// Ring boundary only — inner cells were covered by a smaller radius already.
+						if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != r)
+							continue;
+
+						var c = new CPos(ideal.X + dx, ideal.Y + dy);
+						if (passable(c))
+							return c;
+					}
+				}
+			}
+
+			return ideal;
+		}
+
 		/// <summary>The distance an indirect-fire piece should sit from its target: its own max weapon
 		/// range pulled in by <paramref name="marginLength"/> for a safety cushion, but never below
 		/// <paramref name="floorLength"/> (guards a piece whose range is at/under the margin from

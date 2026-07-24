@@ -15,6 +15,7 @@
  */
 #endregion
 
+using System;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
 
@@ -130,6 +131,49 @@ namespace OpenRA.Test
 			// One unit inside the edge trips the retreat.
 			Assert.That(FiresStandoffMath.NeedsReposition(target, new WPos(6 * Cell - 1, 0, 0), MaxRange, Margin, Hysteresis, Floor),
 				Is.True, "just inside the inner edge the piece repositions");
+		}
+
+		[Test]
+		public void NearestPassable_ReturnsIdealWhenPassable()
+		{
+			var ideal = new CPos(10, 10);
+			var cell = FiresStandoffMath.NearestPassableCell(ideal, 4, _ => true);
+			Assert.That(cell, Is.EqualTo(ideal), "a passable ideal cell is used as-is");
+		}
+
+		[Test]
+		public void NearestPassable_FindsNearestOnRing_DeterministicTieBreak()
+		{
+			var ideal = new CPos(10, 10);
+
+			// Only cells with Chebyshev distance >= 2 are passable: the r=1 ring is all blocked, so the
+			// search must reach r=2 and pick the FIRST cell in its fixed dy-outer/dx-inner scan — dy=-2, dx=-2.
+			bool Passable(CPos c) => Math.Max(Math.Abs(c.X - ideal.X), Math.Abs(c.Y - ideal.Y)) >= 2;
+
+			var cell = FiresStandoffMath.NearestPassableCell(ideal, 4, Passable);
+			Assert.That(cell, Is.EqualTo(new CPos(8, 8)), "ring scan is dy-outer then dx-inner, so (-2,-2) wins the tie");
+		}
+
+		[Test]
+		public void NearestPassable_PrefersCloserRing()
+		{
+			var ideal = new CPos(0, 0);
+
+			// Exactly one passable cell at Chebyshev 1 (north-west corner of the r=1 ring) and everything at
+			// r>=2 passable too — the closer ring must win.
+			var near = new CPos(-1, -1);
+			bool Passable(CPos c) => c == near || Math.Max(Math.Abs(c.X), Math.Abs(c.Y)) >= 2;
+
+			var cell = FiresStandoffMath.NearestPassableCell(ideal, 4, Passable);
+			Assert.That(cell, Is.EqualTo(near), "the nearer passable ring is preferred over farther ones");
+		}
+
+		[Test]
+		public void NearestPassable_FallsBackToIdealWhenNothingReachable()
+		{
+			var ideal = new CPos(3, 7);
+			var cell = FiresStandoffMath.NearestPassableCell(ideal, 4, _ => false);
+			Assert.That(cell, Is.EqualTo(ideal), "with nothing passable in budget, the raw ideal is returned (pre-clamp behaviour)");
 		}
 
 		[Test]
