@@ -57,6 +57,10 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Actor self;
 		SupplyProvider supply;
 
+		// Guards against OnBecomingIdle and ITick both firing EvacuateOrRestock on the same
+		// idle-transition frame (which would double-queue RotateToEdge).
+		int lastEvacuateTick = -1;
+
 		public DropsSupplyCache(ActorInitializer init, DropsSupplyCacheInfo info)
 		{
 			Info = info;
@@ -217,6 +221,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		void EvacuateOrRestock(Actor self)
 		{
+			// Only act once per frame — OnBecomingIdle and ITick can both reach here on the
+			// same idle-transition tick.
+			if (lastEvacuateTick == self.World.WorldTick)
+				return;
+
+			lastEvacuateTick = self.World.WorldTick;
+
 			var autoTarget = self.TraitOrDefault<AutoTarget>();
 			var behavior = autoTarget?.ResupplyBehaviorValue ?? ResupplyBehavior.Auto;
 
