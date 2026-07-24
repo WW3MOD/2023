@@ -80,9 +80,16 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		/// Candidates are perpendicular offsets of the midpoint at ±<paramref name="lateralCells"/> ×
 		/// {1..<paramref name="maxSteps"/>}, evaluated in a fixed order. The SAFER side is chosen on
 		/// strict merit, so against the Stage-B/C danger gradient the rear-lateral detour emerges by
-		/// itself; a larger <paramref name="maxSteps"/> lets a high-value mover route deeper into safety.</summary>
+		/// itself; a larger <paramref name="maxSteps"/> lets a high-value mover route deeper into safety.
+		///
+		/// A candidate whose WAYPOINT CELL the mover cannot stand on (<paramref name="waypointPassable"/>
+		/// false — on-map water/cliff or off-map) is discarded, so the chosen waypoint is always a cell the
+		/// mover can actually reach. NOTE this guards only the waypoint CELL: the line-walk sampler is left
+		/// blind to terrain (feeding impassable line cells as Impassable would make a route merely clipping a
+		/// water edge read max-exposed — the declared v2 terrain-flow problem), so a route whose straight
+		/// legs cross unreachable ground is still possible in v1 and left to the pathfinder to resolve.</summary>
 		public static CPos? DetourWaypoint(CPos from, CPos to, int lateralCells, int maxSteps,
-			int safeThreshold, Func<CPos, int> groundDangerAt)
+			int safeThreshold, Func<CPos, int> groundDangerAt, Func<CPos, bool> waypointPassable)
 		{
 			var direct = PathMaxGroundDanger(from, to, groundDangerAt);
 			if (direct <= safeThreshold)
@@ -111,6 +118,12 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 					// Perpendicular to the from→to axis is (-dy, dx); scale to `mag` cells via the axis length.
 					var wp = new CPos(mx + RoundDiv(-dy * mag, axisLen), my + RoundDiv(dx * mag, axisLen));
+
+					// The waypoint must be a cell the mover can stand on — a rear water/cliff cell reads
+					// GroundDanger 0 (maximally "safe") and would otherwise be actively preferred, then the
+					// Move to it no-ops or pathfinds straight back through the danger.
+					if (!waypointPassable(wp))
+						continue;
 
 					var worst = Math.Max(
 						PathMaxGroundDanger(from, wp, groundDangerAt),

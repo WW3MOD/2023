@@ -48,6 +48,9 @@ namespace OpenRA.Test
 				GroundDangerNav.PathMaxGroundDanger(via, to, g));
 		}
 
+		// Default passability: every cell is standable (the mover-terrain check is exercised separately).
+		static readonly Func<CPos, bool> AllPassable = _ => true;
+
 		[Test]
 		public void PathThroughStrongpointReadsHot_PathAroundReadsSafe()
 		{
@@ -68,7 +71,7 @@ namespace OpenRA.Test
 			var to = new CPos(20, 10);
 
 			var direct = GroundDangerNav.PathMaxGroundDanger(from, to, ground);
-			var wp = GroundDangerNav.DetourWaypoint(from, to, lateralCells: 8, maxSteps: 2, safeThreshold: 0, ground);
+			var wp = GroundDangerNav.DetourWaypoint(from, to, lateralCells: 8, maxSteps: 2, safeThreshold: 0, ground, AllPassable);
 
 			Assert.That(wp, Is.Not.Null, "a straight path through the strongpoint must yield a detour");
 			Assert.That(WorstOf(from, wp.Value, to, ground), Is.LessThan(direct), "the detour lowers worst-case exposure");
@@ -78,7 +81,7 @@ namespace OpenRA.Test
 		public void NoDetourWhenDirectPathIsSafe()
 		{
 			var ground = Envelope(new CPos(10, 10), 5, 100);
-			var wp = GroundDangerNav.DetourWaypoint(new CPos(0, 30), new CPos(20, 30), 8, 2, 0, ground);
+			var wp = GroundDangerNav.DetourWaypoint(new CPos(0, 30), new CPos(20, 30), 8, 2, 0, ground, AllPassable);
 			Assert.That(wp, Is.Null);
 		}
 
@@ -98,7 +101,7 @@ namespace OpenRA.Test
 
 			var from = new CPos(0, 10);
 			var to = new CPos(20, 10);
-			var wp = GroundDangerNav.DetourWaypoint(from, to, lateralCells: 6, maxSteps: 2, safeThreshold: 0, ground);
+			var wp = GroundDangerNav.DetourWaypoint(from, to, lateralCells: 6, maxSteps: 2, safeThreshold: 0, ground, AllPassable);
 
 			Assert.That(wp, Is.Not.Null, "the blocked approach must detour");
 			Assert.That(wp.Value.Y, Is.LessThan(10), "the safer (rear, -Y) side is chosen on merit");
@@ -114,8 +117,8 @@ namespace OpenRA.Test
 			var to = new CPos(20, 10);
 
 			var direct = GroundDangerNav.PathMaxGroundDanger(from, to, ground);
-			var shallow = GroundDangerNav.DetourWaypoint(from, to, lateralCells: 2, maxSteps: 1, safeThreshold: 0, ground);
-			var deep = GroundDangerNav.DetourWaypoint(from, to, lateralCells: 2, maxSteps: 6, safeThreshold: 0, ground);
+			var shallow = GroundDangerNav.DetourWaypoint(from, to, lateralCells: 2, maxSteps: 1, safeThreshold: 0, ground, AllPassable);
+			var deep = GroundDangerNav.DetourWaypoint(from, to, lateralCells: 2, maxSteps: 6, safeThreshold: 0, ground, AllPassable);
 
 			var shallowExposure = shallow.HasValue ? WorstOf(from, shallow.Value, to, ground) : direct;
 			var deepExposure = deep.HasValue ? WorstOf(from, deep.Value, to, ground) : direct;
@@ -129,6 +132,46 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void ImpassableCandidateWaypointIsRejected()
+		{
+			// A strongpoint blocks the direct approach and a gradient makes the -Y (rear) side safer, so
+			// unfiltered the detour prefers -Y. Marking -Y ON-MAP IMPASSABLE (water) must force the chosen
+			// waypoint onto a standable cell — never the falsely-"safe" (danger 0) water it would prefer.
+			var strongpoint = Envelope(new CPos(10, 10), 3, 100);
+			Func<CPos, int> ground = c =>
+			{
+				var baseline = c.Y > 10 ? (c.Y - 10) * 8 : 0; // deeper +Y costlier => -Y is the safer rear
+				return strongpoint(c) + baseline;
+			};
+			var from = new CPos(0, 10);
+			var to = new CPos(20, 10);
+
+			var openWp = GroundDangerNav.DetourWaypoint(from, to, 6, 2, 0, ground, AllPassable);
+			Assert.That(openWp, Is.Not.Null);
+			Assert.That(openWp.Value.Y, Is.LessThan(10), "unfiltered, the safer rear (-Y) side is chosen");
+
+			// Rear (-Y) is now on-map-impassable; any chosen waypoint must be standable.
+			Func<CPos, bool> passable = c => c.Y >= 10;
+			var wp = GroundDangerNav.DetourWaypoint(from, to, 6, 2, 0, ground, passable);
+			Assert.That(wp == null || passable(wp.Value), Is.True, "an on-map-impassable candidate is never chosen");
+
+			// And when EVERY candidate is impassable, there is no lane at all — go direct (null).
+			var none = GroundDangerNav.DetourWaypoint(from, to, 6, 2, 0, ground, _ => false);
+			Assert.That(none, Is.Null, "no standable candidate => null (caller goes direct)");
+		}
+
+		[Test]
+		public void NoSafeLaneReturnsNull_CallerGoesDirect()
+		{
+			// Uniform danger above the threshold: the direct route is exposed but NO lateral candidate
+			// lowers the worst-case (every cell is equally hot), so the router gives up and returns null
+			// rather than inventing a pointless dogleg — the caller then goes direct.
+			Func<CPos, int> ground = _ => 100;
+			var wp = GroundDangerNav.DetourWaypoint(new CPos(0, 10), new CPos(20, 10), 8, 3, 0, ground, AllPassable);
+			Assert.That(wp, Is.Null);
+		}
+
+		[Test]
 		public void DecisionsAreDeterministic()
 		{
 			var ground = Envelope(new CPos(10, 10), 5, 100);
@@ -137,8 +180,8 @@ namespace OpenRA.Test
 
 			Assert.Multiple(() =>
 			{
-				Assert.That(GroundDangerNav.DetourWaypoint(from, to, 8, 2, 0, ground),
-					Is.EqualTo(GroundDangerNav.DetourWaypoint(from, to, 8, 2, 0, ground)));
+				Assert.That(GroundDangerNav.DetourWaypoint(from, to, 8, 2, 0, ground, AllPassable),
+					Is.EqualTo(GroundDangerNav.DetourWaypoint(from, to, 8, 2, 0, ground, AllPassable)));
 				Assert.That(GroundDangerNav.PathMaxGroundDanger(from, to, ground),
 					Is.EqualTo(GroundDangerNav.PathMaxGroundDanger(from, to, ground)));
 			});

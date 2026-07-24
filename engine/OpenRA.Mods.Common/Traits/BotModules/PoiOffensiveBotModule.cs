@@ -39,6 +39,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Mods.Common.Traits.BotModules.Squads;
 using OpenRA.Traits;
 
@@ -556,10 +557,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (dangerField != null)
 			{
 				var ground = GroundDangerSampler(dangerField);
+				var passable = WaypointPassable(axis.Units[0]);
 				detourVia = GroundDangerNav.DetourWaypoint(
 					new CPos(centroid.X, centroid.Y), axis.TargetCell,
 					Info.GroundDangerDetourCells, Info.GroundDangerDetourSteps,
-					Info.GroundDangerSafeThreshold, ground);
+					Info.GroundDangerSafeThreshold, ground, passable);
 			}
 
 			// Dispersion doctrine — spread to move, mass to assault. OFF for the frozen
@@ -660,6 +662,20 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var map = world.Map;
 			return c => map.Contains(c) ? field.GroundDanger(player, c) : GroundDangerNav.Impassable;
+		}
+
+		// A terrain-passability predicate bound to a representative axis unit's locomotor: true when the
+		// mover can actually stand on the cell (not on-map water/cliff, not off-map). Used to reject
+		// detour WAYPOINTS that read "safe" only because unstamped impassable ground carries no danger.
+		// Falls back to "all passable" if the representative has no Mobile (never rejects) — rare for a
+		// combat axis (every member has IPositionable + AttackBase).
+		Func<CPos, bool> WaypointPassable(Actor mover)
+		{
+			var loco = mover.TraitOrDefault<Mobile>()?.Locomotor;
+			if (loco == null)
+				return _ => true;
+
+			return c => loco.MovementCostForCell(c) != PathGraph.MovementCostForUnreachableCell;
 		}
 
 		// True when the Stage-E flow-around waypoint changed enough to warrant re-issuing the axis order:

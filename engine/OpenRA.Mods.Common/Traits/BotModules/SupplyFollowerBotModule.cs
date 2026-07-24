@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Mods.Common.Traits.BotModules.Squads;
 using OpenRA.Traits;
 
@@ -56,6 +57,11 @@ namespace OpenRA.Mods.Common.Traits
 			"a larger budget lets a high-value mover route deeper into the safe rear.")]
 		public readonly int GroundDangerDetourSteps = 3;
 
+		[Desc("Stage-E deadband (cells): re-issue a truck's two-leg detour only when the recomputed",
+			"waypoint shifts by at least this much. Since the detour is recomputed from the MOVING truck",
+			"each scan, without this the waypoint recedes and the maneuver restarts before it completes.")]
+		public readonly int RepathThresholdCells = 3;
+
 		public override object Create(ActorInitializer init) { return new SupplyFollowerBotModule(init.Self, this); }
 	}
 
@@ -73,6 +79,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Track which trucks are assigned to follow duty
 		readonly HashSet<Actor> activeTrucks = new HashSet<Actor>();
+
+		// Stage-E: last detour waypoint ordered per truck (absent = last order went direct). Drives the
+		// re-issue deadband so a truck mid-detour isn't restarted every scan as its waypoint recedes.
+		readonly Dictionary<Actor, CPos> lastVia = new Dictionary<Actor, CPos>();
 
 		public SupplyFollowerBotModule(Actor self, SupplyFollowerBotModuleInfo info)
 			: base(info)
@@ -113,6 +123,14 @@ namespace OpenRA.Mods.Common.Traits
 			// Clean up dead trucks (or low-supply trucks, which we're releasing back to
 			// SupplyProvider's built-in auto-restock).
 			activeTrucks.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld || IsLowOnSupply(a));
+
+			// Keep the Stage-E deadband memory bounded to trucks still on active follow duty.
+			if (lastVia.Count > 0)
+			{
+				var stale = lastVia.Keys.Where(a => !activeTrucks.Contains(a)).ToList();
+				foreach (var a in stale)
+					lastVia.Remove(a);
+			}
 
 			// Find all supply trucks — eligible only if they actually have supplies to give.
 			// SupplyProvider auto-restocks at low/zero supply by queuing a MoveTo(LC)
@@ -161,24 +179,47 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (followPos.HasValue)
 				{
-					// Stage-E: if the straight drive from the truck to its follow cell would cross a ground
-					// kill zone, detour via a safer waypoint first (queued: false), then the follow cell
-					// (queued: true). Against the territory-baseline gradient the safer side is the rear, so
-					// the pull-back-lateral-re-enter path emerges. null / off ⇒ the single direct Move, unchanged.
-					if (dangerField != null)
+					if (dangerField == null)
 					{
+						// Flag off / non-participant: unchanged base behaviour (byte-identical), a single
+						// direct Move re-issued each scan to track the moving cluster.
+						bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), false));
+					}
+					else
+					{
+						// Stage-E: if the straight drive from the truck to its follow cell would cross a
+						// ground kill zone, detour via a safer waypoint first (queued: false), then the follow
+						// cell (queued: true). Against the territory-baseline gradient the safer side is the
+						// rear, so the pull-back-lateral-re-enter path emerges. WaypointPassable rejects a
+						// waypoint the truck cannot stand on (rear water reads 0 danger = falsely "safe").
 						var ground = GroundDangerSampler();
+						var passable = WaypointPassable(truck);
 						var via = GroundDangerNav.DetourWaypoint(
 							truck.Location, followPos.Value,
 							Info.GroundDangerDetourCells, Info.GroundDangerDetourSteps,
-							Info.GroundDangerSafeThreshold, ground);
-						if (via.HasValue)
-							bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, via.Value), false));
+							Info.GroundDangerSafeThreshold, ground, passable);
 
-						bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), via.HasValue));
+						if (via.HasValue)
+						{
+							// Deadband: leave an in-flight two-leg maneuver alone unless the recomputed
+							// waypoint shifted >= threshold. `from` is the MOVING truck, so re-issuing every
+							// scan would make the waypoint recede and restart the detour before it completes.
+							var had = lastVia.TryGetValue(truck, out var prev);
+							if (!had || (prev - via.Value).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells)
+							{
+								bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, via.Value), false));
+								bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), true));
+								lastVia[truck] = via.Value;
+							}
+						}
+						else
+						{
+							// No detour needed — a single direct Move (no restart problem) each scan, as
+							// before. Drop any stale detour memory so the next detour re-issues cleanly.
+							bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), false));
+							lastVia.Remove(truck);
+						}
 					}
-					else
-						bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), false));
 
 					if (!activeTrucks.Contains(truck))
 					{
@@ -277,6 +318,18 @@ namespace OpenRA.Mods.Common.Traits
 			return c => map.Contains(c) ? dangerField.GroundDanger(player, c) : GroundDangerNav.Impassable;
 		}
 
+		// A terrain-passability predicate bound to the truck's locomotor: true when it can actually stand
+		// on the cell (not on-map water/cliff, not off-map). Rejects detour WAYPOINTS that read "safe"
+		// only because unstamped impassable ground carries no danger. All-passable fallback if no Mobile.
+		Func<CPos, bool> WaypointPassable(Actor mover)
+		{
+			var loco = mover.TraitOrDefault<Mobile>()?.Locomotor;
+			if (loco == null)
+				return _ => true;
+
+			return c => loco.MovementCostForCell(c) != PathGraph.MovementCostForUnreachableCell;
+		}
+
 		bool IsClaimedByOtherModule(Actor a)
 		{
 			if (blackboard == null)
@@ -304,6 +357,7 @@ namespace OpenRA.Mods.Common.Traits
 					blackboard.ReleaseUnit(truck);
 
 			activeTrucks.Clear();
+			lastVia.Clear();
 		}
 
 		class UnitCluster
