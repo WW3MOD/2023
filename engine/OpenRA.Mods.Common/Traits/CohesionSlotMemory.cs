@@ -175,6 +175,10 @@ namespace OpenRA.Mods.Common.Traits
 		// One-shot turn-to-front on arrival. Only fires from the idle path (a settled, idle unit), never
 		// from a blocking-move, so it can't fight movement. Turn is interruptible and AutoTarget cancels
 		// the current activity to shoot, so a pending settle-turn never delays a shot (ideas doc #2).
+		// ACCEPTED LIMITATION: the latch (settleFacingDone) is only re-armed by a fresh Assign, not by a
+		// return-to-slot. So if a unit is nudged off its slot and walks back via TryReturnToSlot, it does
+		// NOT re-face the front on re-arrival — it keeps whatever heading the return Move left. Cosmetic
+		// only (the common case, arrival straight off the order, faces correctly); left as-is by design.
 		void TrySettleFacing(Actor self)
 		{
 			if (!hasSettleFacing || settleFacingDone)

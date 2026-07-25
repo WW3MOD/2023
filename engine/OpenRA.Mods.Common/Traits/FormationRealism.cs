@@ -72,10 +72,14 @@ namespace OpenRA.Mods.Common.Traits
 		// 1024, so adding this to the front azimuth is always valid. Pure, no RNG.
 		public static WAngle FacingFan(uint actorId, int fanWAngle) => new WAngle(SignedOffset(Hash(actorId, FanSalt), fanWAngle));
 
-		// Lateral-jitter clamp: the offset must stay strictly under HALF the minimum slot spacing so
-		// two adjacent slots (which are >= minSlotSpacing apart after the footprint cap floors at
-		// MinSlotSpacing) can never be jittered onto the same cell — "slots never overlap" (idea #1
-		// mitigation a). Returns 0 when the ceiling collapses, disabling jitter rather than overlapping.
+		// Lateral-jitter clamp: the offset stays strictly under HALF the minimum slot spacing so two
+		// adjacent slots (which are >= minSlotSpacing apart after the footprint cap floors at
+		// MinSlotSpacing) can never CROSS in world space — their WPos ordering is preserved and they
+		// cannot swap sides (idea #1 mitigation a). NOTE this bounds world positions, not post-snap
+		// cells: two slots one cell apart can still jitter toward each other and CellContaining-floor
+		// onto the same cell (~37% of positions on the capped axis). That is harmless — AssignAll keys
+		// on slot index and the Move layer resolves a shared destination like a manual double-click —
+		// so it is not de-duped here. Returns 0 when the ceiling collapses, disabling jitter.
 		public static int LateralCap(int requested, int minSlotSpacing)
 		{
 			var ceiling = minSlotSpacing / 2 - 1;
@@ -83,7 +87,8 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Depth (rolling-halt) clamp: below rowSpacing/2 AND below minSlotSpacing (idea #3 mitigation),
-		// so a rear unit's stagger can never pull it into the rank behind or overlap a neighbour.
+		// so a rear unit's world position can never cross into the rank behind. As with LateralCap this
+		// bounds world positions, not post-snap cells (a rare shared cell is left for the Move layer).
 		public static int DepthCap(int requested, int rowSpacing, int minSlotSpacing)
 		{
 			var ceiling = Math.Min(rowSpacing / 2, minSlotSpacing) - 1;

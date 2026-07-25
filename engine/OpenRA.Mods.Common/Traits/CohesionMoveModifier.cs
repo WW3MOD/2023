@@ -475,9 +475,11 @@ namespace OpenRA.Mods.Common.Traits
 			// PIPELINE-6 idea #1 (arrival jitter) + idea #3 (rolling halt): one deterministic 2D per-unit
 			// offset off the exact slot point — a LATERAL component (breaks the stamped lattice) and an
 			// ALONG-MOVE component (staggered stopping depth). Both are pure hashes of ActorID (zero RNG)
-			// and hard-clamped so slots never overlap; applied HUMAN-only, non-Tight (applyRealism), so
-			// bot and Tight box layouts stay byte-identical to before. colSpacing/rowSpacing here are the
-			// count-aware-capped effective values, so the clamp is against the true final spacing.
+			// and hard-clamped so adjacent slots never cross in world space (they cannot swap sides); a
+			// rare post-snap shared cell is left for the Move layer to resolve (see FormationRealism.
+			// LateralCap). Applied HUMAN-only, non-Tight (applyRealism), so bot and Tight box layouts stay
+			// byte-identical to before. colSpacing/rowSpacing here are the count-aware-capped effective
+			// values, so the clamp is against the true final spacing.
 			var latCap = applyRealism ? FormationRealism.LateralCap(info.ArrivalJitterLateral, info.MinSlotSpacing) : 0;
 			var depthCap = applyRealism ? FormationRealism.DepthCap(info.ArrivalJitterDepth, rowSpacing, info.MinSlotSpacing) : 0;
 			var jitterOn = applyRealism && (latCap > 0 || depthCap > 0);

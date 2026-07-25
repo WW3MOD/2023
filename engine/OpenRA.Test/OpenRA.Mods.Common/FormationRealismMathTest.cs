@@ -127,14 +127,16 @@ namespace OpenRA.Test
 			Assert.That(System.Math.Abs(depthSum / ids.Length), Is.LessThan(448 / 4));
 		}
 
-		// ---------- Clamp invariants: slots never overlap ----------
+		// ---------- Clamp invariants: adjacent slots never cross in world space ----------
 
 		[Test]
 		public void LateralCapKeepsAdjacentSlotsFromOverlapping()
 		{
-			// The core "slots never overlap" guarantee (idea #1 mitigation a): two adjacent slots are at
-			// least MinSlotSpacing apart (the footprint cap floors there), so if each jitters by at most
-			// the lateral cap toward the other, 2*cap must stay strictly below MinSlotSpacing.
+			// The core world-space non-crossing guarantee (idea #1 mitigation a): two adjacent slots are
+			// at least MinSlotSpacing apart (the footprint cap floors there), so if each jitters by at
+			// most the lateral cap toward the other, 2*cap must stay strictly below MinSlotSpacing — their
+			// WPos ordering is preserved and they cannot swap sides. (This bounds world positions, not
+			// post-snap cells; a rare shared cell after CellContaining is left for the Move layer.)
 			foreach (var minSpacing in new[] { 1024, 1536, 2048, 3072, 4096 })
 				foreach (var requested in new[] { 0, 100, 384, 511, 512, 1024, 5000 })
 				{
@@ -148,8 +150,9 @@ namespace OpenRA.Test
 		[Test]
 		public void DepthCapStaysBelowRowSpacingHalfAndMinSpacing()
 		{
-			// Idea #3 mitigation: the along-axis stagger must stay below rowSpacing/2 (so a rear unit is
-			// never pulled into the rank behind) AND below MinSlotSpacing (so it can't overlap either).
+			// Idea #3 mitigation: the along-axis stagger must stay below rowSpacing/2 (so a rear unit's
+			// world position never crosses into the rank behind) AND below MinSlotSpacing. Like LateralCap
+			// this bounds world positions, not post-snap cells.
 			foreach (var rowSpacing in new[] { 1024, 1536, 2560, 3072 })
 				foreach (var minSpacing in new[] { 1024, 2048 })
 					foreach (var requested in new[] { 0, 100, 448, 512, 2000 })
@@ -166,8 +169,9 @@ namespace OpenRA.Test
 		public void DefaultConfigCapsProduceInBoundsOffsets()
 		{
 			// End-to-end with the shipped defaults (ArrivalJitterLateral=384, ArrivalJitterDepth=448,
-			// MinSlotSpacing=1024, tightest rowSpacing=1024): the clamped offsets a unit can receive are
-			// small enough that a jitter never bridges a full cell into a neighbour's slot.
+			// MinSlotSpacing=1024, tightest rowSpacing=1024): the clamped offsets a unit can receive stay
+			// within their world-space caps (so adjacent slots never cross). A jitter CAN still floor two
+			// adjacent slots into one cell after CellContaining — harmless, resolved by the Move layer.
 			var latCap = FormationRealism.LateralCap(384, 1024);
 			var depthCap = FormationRealism.DepthCap(448, 1024, 1024);
 			Assert.That(latCap, Is.EqualTo(384));      // 384 < 1024/2 - 1 = 511, so passed through
