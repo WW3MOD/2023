@@ -512,6 +512,13 @@ namespace OpenRA.Mods.Common.Traits
 			return enemies * 10;
 		}
 
+		/// <summary>The perspective player's own Supply Route beachhead actor (the fixed home anchor), or
+		/// null if it has none. A public seam over <see cref="FindOwnSupplyRoute"/> for the lane-ambush
+		/// consumer (PIPELINE item 8 Stage 4), which needs a FRIENDLY anchor to derive the approach corridor
+		/// between our beachhead and the enemy's. The SR position is a public map fact (like the control
+		/// field's home-beachhead Voronoi seed), so reading it is fog-legal, not an omniscient leak.</summary>
+		public Actor OwnSupplyRoute(Player perspective) => FindOwnSupplyRoute(perspective);
+
 		Actor FindOwnSupplyRoute(Player perspective)
 		{
 			Actor best = null;
