@@ -411,6 +411,7 @@ SUPPLYCACHE:
 		TotalSupply: 750
 		RearmCondition: replenish-soldiers
 		SupplyCreditValue: 750
+		RemoveBelowSupply: 50
 		SupplyHighCondition: supply-high
 		SupplyMediumCondition: supply-medium
 		SupplyLowCondition: supply-low

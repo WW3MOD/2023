@@ -37,6 +37,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Auto-restock when supply drops below this threshold.")]
 		public readonly int RestockThreshold = 50;
 
+		[Desc("When a stationary provider's supply falls below this value it removes itself",
+			"from the world — the stationary analog of a truck driving home when almost empty.",
+			"A near-empty cache left on the field clutters it and misleads units into pathing",
+			"to a box that can no longer hand over a batch. 0 disables self-removal; Logistics",
+			"Centers and trucks leave it 0 (trucks evacuate via DropsSupplyCache instead).",
+			"Set 50 on SUPPLYCACHE to mirror TRUK's RestockThreshold 'almost empty' value.")]
+		public readonly int RemoveBelowSupply = 0;
+
 		[Desc("When the provider holds a residue too small for any reachable unit to use",
 			"(no needy unit in range can be given even one batch), treat it as empty so",
 			"its transport (DropsSupplyCache) evacuates instead of parking forever.",
@@ -151,6 +159,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (restocking)
 				return;
+
+			// A stationary provider flagged to self-remove when almost empty despawns once its
+			// pool drops below the threshold — the stationary analog of a truck driving home
+			// when low (DropsSupplyCache). Disposal path mirrors AbsorbsSupplyCache.cs.
+			if (Info.RemoveBelowSupply > 0 && currentSupply < Info.RemoveBelowSupply)
+			{
+				self.World.AddFrameEndTask(w => { if (!self.IsDead && self.IsInWorld) self.Dispose(); });
+				return;
+			}
 
 			// Drained: clear the residue latch (a truly empty provider is not "residue"),
 			// and hand off to restock if this provider self-restocks.
