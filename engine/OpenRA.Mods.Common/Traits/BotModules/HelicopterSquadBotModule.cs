@@ -206,18 +206,7 @@ namespace OpenRA.Mods.Common.Traits
 			idleHelicopters.RemoveAll(a => a == null || a.IsDead || !a.IsInWorld);
 
 			// Clean up squads
-			for (var i = activeSquads.Count - 1; i >= 0; i--)
-			{
-				var squad = activeSquads[i];
-				squad.Units.RemoveAll(a => a == null || a.IsDead || !a.IsInWorld
-					|| a.Owner != player);
-
-				if (!squad.IsValid)
-				{
-					activeSquads.RemoveAt(i);
-					continue;
-				}
-			}
+			PruneSquads();
 
 			// Return idle helicopters from disbanded squads back to pool
 			foreach (var h in managedHelicopters)
@@ -240,8 +229,28 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// Drop dead/not-in-world/foreign members from every active squad and remove squads left
+		// with no units. Mirrors the engine-standard SquadManagerBotModule.CleanSquads. MUST run
+		// before UpdateSquads: a squad state tick that reaches a Disposed member throws
+		// ("Attempted to get trait from destroyed object") the instant it touches a trait
+		// (GetRole/health/ammo). Pruning only on the slow ScanInterval is not enough — members die
+		// between scans and the 5-tick squad update would iterate the stale list first.
+		void PruneSquads()
+		{
+			for (var i = activeSquads.Count - 1; i >= 0; i--)
+			{
+				var squad = activeSquads[i];
+				squad.Units.RemoveAll(a => a == null || a.IsDead || !a.IsInWorld || a.Owner != player);
+
+				if (!squad.IsValid)
+					activeSquads.RemoveAt(i);
+			}
+		}
+
 		void UpdateSquads()
 		{
+			PruneSquads();
+
 			foreach (var squad in activeSquads)
 				squad.Update();
 		}
