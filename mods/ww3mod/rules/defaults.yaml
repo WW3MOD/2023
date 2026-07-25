@@ -307,6 +307,12 @@
 		FireAtWillCondition: stance-fireatwill
 		AmbushCondition: stance-ambush
 		HoldFireCondition: stance-holdfire
+		# PIPELINE item 8 (widened Ambush): default-OFF gate for Stage-2 halt-before-contact.
+		# Nothing GRANTS enable-ambush-tactics in shipped rules — the ExternalCondition below is only
+		# a lint/seam that makes the token grantable (via a future human opt-in, an @experimental bot
+		# ledger commit, or a test map), never a live grant. So GetConditionCount is 0 on every unit
+		# and AttackMoveActivity's halt branch is dead ⇒ @stable / control bots stay byte-identical.
+		AmbushTacticsCondition: enable-ambush-tactics
 		InitialCohesion: Loose
 		InitialCohesionAI: Loose
 		InitialResupplyBehavior: Auto
@@ -318,6 +324,12 @@
 	# without it, an attack-move order falls back to a plain Move (only opportunity
 	# fire compensates, and it's too slow to engage units passing through range).
 	AttackMove:
+	# Default-off grantor SEAM for the widened-ambush gate (co-located with the AutoTarget that
+	# consumes it so CheckConditions is satisfied). ExternalCondition grants only on an explicit
+	# external order / Lua / warhead — never fires from static rules — and carries no [Sync] state
+	# (its ungranted Tick is a no-op), so its mere presence is byte-identical for @stable / control.
+	ExternalCondition@ambushtactics:
+		Condition: enable-ambush-tactics
 
 ^AutoTargetMBT:
 	Inherits: ^AutoTarget

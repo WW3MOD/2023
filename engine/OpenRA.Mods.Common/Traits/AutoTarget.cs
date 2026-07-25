@@ -84,6 +84,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Range in cells within which ambush units coordinate — when one is spotted, nearby allies in Ambush also engage.")]
 		public readonly int AmbushCoordinationRadius = 10;
 
+		[ConsumedConditionReference]
+		[Desc("Widened-ambush gate (PIPELINE item 8). While this condition is granted AND the unit is in",
+			"the Ambush fire-stance, attack-move / auto-move contact HALTS the march into an idle ambush",
+			"(hold fire until spotted) instead of firing on contact — see AttackMoveActivity + AmbushTactics.",
+			"Empty (default) = OFF and byte-identical to stock attack-move engage. Point it at a default-off",
+			"token (e.g. enable-ambush-tactics) that a human opt-in / @experimental bot / test map grants;",
+			"@stable and control bots never grant it, so they stay byte-identical.")]
+		public readonly string AmbushTacticsCondition = null;
+
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while in the FireAtWill stance.")]
 		public readonly string FireAtWillCondition = null;

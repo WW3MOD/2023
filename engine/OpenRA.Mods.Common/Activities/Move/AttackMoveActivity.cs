@@ -30,6 +30,11 @@ namespace OpenRA.Mods.Common.Activities
 		Target target = Target.Invalid;
 		int checkTick = 0;
 
+		// Stage 2 (PIPELINE item 8): latched once we decide to halt into an ambush. From then on we stop
+		// scanning / advancing and only drain the cancelling move child; when it is gone the attack-move
+		// completes and the unit drops to idle (AmbushTickIdle owns the ambush from there).
+		bool haltedForAmbush = false;
+
 		/// <summary>The original destination cell, cached at construction time for reliable group scatter extraction.</summary>
 		public readonly CPos? OriginalDestination;
 
@@ -68,6 +73,12 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling || attackMove == null || autoTarget == null)
 				return TickChild(self);
 
+			// Stage 2: after an ambush halt we no longer scan or advance — just drain the cancelling
+			// move child (same idiom as the IsCanceling drain above). When it is gone TickChild returns
+			// true and the attack-move completes, dropping the unit to idle.
+			if (haltedForAmbush)
+				return TickChild(self);
+
 			var engStance = autoTarget.EngagementStanceValue;
 
 			// CPU improvement - Only check every 10 ticks
@@ -97,6 +108,36 @@ namespace OpenRA.Mods.Common.Activities
 
 				if (target.Type != TargetType.Invalid)
 				{
+					// Stage 2 — halt-before-contact (PIPELINE item 8), behind the default-off
+					// AmbushTacticsCondition gate. When an Ambush unit that is attack-moving / auto-moving
+					// scans an enemy while its group is still UNSEEN, END the march and drop the unit to
+					// idle so the proven AmbushTickIdle path (silent pre-aim + hold-fire-until-spotted +
+					// coordinated spring via TriggerNearbyAmbushAllies + damage retaliation) takes over —
+					// instead of firing on contact. Reusing the idle path adds no new fire/spring code.
+					//
+					// Byte-identity: only reached for an Ambush-stance unit WITH the gate granted. Every
+					// @stable / control bot is FireAtWill, and nothing grants the gate by default, so the
+					// short-circuit below is false everywhere and the original engage path runs unchanged.
+					// Plain player Move never enters this activity (it is a bare Move), so — per resolved
+					// fork B — a plain Move is always obeyed; only attack-move / bot auto-move can halt.
+					var ambushGate = autoTarget.Info.AmbushTacticsCondition;
+					var tacticsEnabled = autoTarget.Stance == UnitStance.Ambush
+						&& !string.IsNullOrEmpty(ambushGate)
+						&& self.GetConditionCount(ambushGate) > 0;
+
+					if (tacticsEnabled && AmbushTactics.ShouldHaltBeforeContact(
+						tacticsEnabled, autoTarget.Stance, hasValidTarget: true, GroupDetectedBy(self, autoTarget, target)))
+					{
+						// Latch the halt and cancel the march. We do NOT queue an attack — the unit will
+						// idle and AmbushTickIdle takes over (pre-aim + hold fire until spotted). Draining
+						// the cancelled child via the haltedForAmbush branch lets Mobile release its cell
+						// reservations cleanly before the activity completes.
+						haltedForAmbush = true;
+						runningMoveActivity = false;
+						ChildActivity?.Cancel(self);
+						return TickChild(self);
+					}
+
 					checkTick = 0;
 
 					runningMoveActivity = false;
@@ -117,6 +158,42 @@ namespace OpenRA.Mods.Common.Activities
 
 			// If the move activity finished, we have reached our destination and there are no more enemies on our path.
 			return TickChild(self) && runningMoveActivity;
+		}
+
+		// Stage 2 helper: is the target's owner currently able to SEE any Ambush-stance member of this
+		// unit's group (self, or a nearby ally within the coordination radius)? While false the ambush is
+		// unblown, so halting to hold the alpha strike is worthwhile; once true the group is exposed and
+		// must engage now. Determinism: the FindActorsInCircle result only gates a boolean OR (any member
+		// seen), which is iteration-order-independent; CanBeViewedByPlayer is sim-legal and draws no RNG.
+		static bool GroupDetectedBy(Actor self, AutoTarget autoTarget, in Target target)
+		{
+			var targetOwner = target.Type == TargetType.Actor ? target.Actor.Owner
+				: target.Type == TargetType.FrozenActor ? target.FrozenActor.Owner
+				: null;
+
+			// Unknown owner ⇒ treat as detected (do NOT halt): never silently stall a march on an
+			// unattributable contact.
+			if (targetOwner == null)
+				return true;
+
+			if (self.CanBeViewedByPlayer(targetOwner))
+				return true;
+
+			var coordRadius = WDist.FromCells(autoTarget.Info.AmbushCoordinationRadius);
+			foreach (var ally in self.World.FindActorsInCircle(self.CenterPosition, coordRadius))
+			{
+				if (ally == self || ally.Owner != self.Owner || !ally.IsInWorld || ally.IsDead)
+					continue;
+
+				var allyAutoTarget = ally.TraitOrDefault<AutoTarget>();
+				if (allyAutoTarget == null || allyAutoTarget.Stance != UnitStance.Ambush)
+					continue;
+
+				if (ally.CanBeViewedByPlayer(targetOwner))
+					return true;
+			}
+
+			return false;
 		}
 
 		protected override void OnLastRun(Actor self)
