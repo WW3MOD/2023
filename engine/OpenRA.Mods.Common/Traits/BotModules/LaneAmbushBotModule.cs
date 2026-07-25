@@ -141,6 +141,10 @@ namespace OpenRA.Mods.Common.Traits
 		// The enable-ambush-tactics grant we hold per posted unit, so it can be revoked precisely on release.
 		readonly Dictionary<Actor, (ExternalCondition Ec, int Token)> gateGrants = new();
 
+		// Cached each BotTick so TraitDisabled can drive the same order-based release path (it has no bot of
+		// its own). Null until the first tick — which is fine, since nothing is posted before then.
+		IBot lastBot;
+
 		int reevalCountdown;
 
 		public LaneAmbushBotModule(Actor self, LaneAmbushBotModuleInfo info)
@@ -160,6 +164,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotTick.BotTick(IBot bot)
 		{
+			// Capture the bot even on skipped ticks so a later TraitDisabled can reuse the release path.
+			lastBot = bot;
+
 			if (player.WinState != WinState.Undefined)
 				return;
 
@@ -168,6 +175,26 @@ namespace OpenRA.Mods.Common.Traits
 
 			reevalCountdown = Info.ReevaluateInterval;
 			Reevaluate(bot);
+		}
+
+		// Structural cleanup: if the module ever disables (the gate is unreachable-static today, but the
+		// invariant must hold), hand every posted unit back — revoke its granted gate token, drop its ledger
+		// commitment, and reset its stance — so nothing is left latched/committed/gated behind a dead module.
+		// Same failure class as the historical ICBM danger-channel leak; RetireAll is the existing path.
+		protected override void TraitDisabled(Actor self)
+		{
+			RetireAll(lastBot, "trait-disabled");
+
+			// Belt-and-suspenders: sweep any stray grant not tied to a live lane unit (the RetireAll invariant
+			// should already have cleared these, but a disabled module must leave zero granted tokens behind).
+			if (gateGrants.Count > 0)
+			{
+				foreach (var kv in gateGrants)
+					if (!kv.Key.IsDead && kv.Key.IsInWorld)
+						kv.Value.Ec.TryRevokeCondition(kv.Key, this, kv.Value.Token);
+
+				gateGrants.Clear();
+			}
 		}
 
 		void Reevaluate(IBot bot)
@@ -212,7 +239,10 @@ namespace OpenRA.Mods.Common.Traits
 
 			// 3. Enemy anchors = the reinforcement sources. Prefer the enemy Supply Route(s) (Pressure); fall
 			//    back to enemy income/utility (Attack) when no SR is an offensive target yet. Already score-sorted.
-			var offensive = poiMap.GetOffensiveTargets(player);
+			//    suppressOmniscientThreat: true keeps this module OFF the omniscient InfluenceMap threat grid —
+			//    the anchors + their positions are public map facts, and we only need those (the threat term
+			//    would be an omniscient read the fog-respecting stack forbids, mirroring the offense module).
+			var offensive = poiMap.GetOffensiveTargets(player, suppressOmniscientThreat: true);
 			var anchors = offensive.Where(p => p.Action == PoiAction.Pressure).ToList();
 			if (anchors.Count == 0)
 				anchors = offensive.Where(p => p.Action == PoiAction.Attack).ToList();
@@ -447,7 +477,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			goalGuard?.Ledger.Release(u);
 
-			if (resetStance && !u.IsDead && u.IsInWorld && u.Owner == player)
+			// A null bot means TraitDisabled fired before the first BotTick — but then nothing was ever posted,
+			// so there is no stance to reset here. Guard it so the release path stays safe without a bot.
+			if (resetStance && bot != null && !u.IsDead && u.IsInWorld && u.Owner == player)
 			{
 				var at = u.TraitOrDefault<AutoTarget>();
 				if (at != null && at.Stance == UnitStance.Ambush)
