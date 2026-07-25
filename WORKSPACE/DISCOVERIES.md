@@ -3,6 +3,16 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-25 — `world.Actors` includes positionless PlayerActors; any bot search that enumerates it and reads CenterPosition NREs on tick 0 (wt/heli-crash)
+
+Hard crash to desktop the instant a bot game loaded with "Air support" starting units (a HelicopterSquad exists at tick ~0). `NullReferenceException` in `Exts.CompareBy` (`Exts.cs:271`, the `selector(t)` inside `MinByOrDefault`) via `WorldUtils.ClosestToIgnoringPath` (`WorldUtils.cs:37`) from `HelicopterStateBase.FindClosestEnemy` (`HelicopterStates.cs:220`).
+
+- **Root null: an enemy `PlayerActor`'s `OccupiesSpace`.** `Actor.CenterPosition => OccupiesSpace.CenterPosition` (`Actor.cs:79`). Each `Player` builds a `PlayerActor` and `Initialize(true)`s it (`Player.cs:218-219`), so `World.Add` sets `IsInWorld = true` and inserts it into the `actors` dict (`World.cs:385-393`); `world.Actors => actors.Values` (`World.cs:522`) therefore yields every player's PlayerActor **and** the world actor. A PlayerActor has no `IOccupySpace` trait → `OccupiesSpace == null`.
+- **Why it slips through the filter.** `FindClosestEnemy`'s `.Where` checked `Owner != null && !IsDead && IsInWorld && RelationshipWith(Owner)==Enemy && !Husk && !Aircraft`. The enemy PlayerActor's `Owner` is *itself* (an enemy player), so it passes all of these; then `ClosestToIgnoringPath`'s selector reads `CenterPosition` on it → NRE. (The world actor is filtered out only incidentally — its Owner is Neutral.)
+- **Why tick-0 / Air-support specific, not every game.** `HelicopterIdleState.Tick` prefers the ThreatMap path (`FindWeakestEnemyCell` → `FindActorsInCircle`, a spatial-partition query that never contains positionless actors). Only when ThreatMap has no data yet — tick 0, before any enemy is mapped — does it fall through to the `world.Actors`-enumerating `FindClosestEnemy` (`:302-308`). Normal games have ThreatMap data by the time helis launch, so the fallback rarely runs. Air-support starts put a heli squad on the field at tick 0 with an empty ThreatMap, forcing the fallback immediately.
+- **The other two closest-enemy searches in this file are safe** (`:352-357`, `:514-519`): both source from `owner.World.FindActorsInCircle`, the spatial partition, which by construction only holds actors with a position.
+- **Fix:** add `a.OccupiesSpace != null` to `FindClosestEnemy`'s filter (`HelicopterStates.cs:220`). Deterministic, zero RNG; real units/structures always occupy space, so it only drops positionless non-targets and cannot change targeting in a normal game. This is the general guard for **any** bot code that enumerates `world.Actors` (rather than a spatial query) and later reads a position — the player/world actors are always in that sequence.
+
 ## 2026-07-25 — SUPPLYCACHE had no self-removal path except LC absorption; a crate drained via infantry rearm sat forever (wt/supply-crate-expiry)
 
 Mirroring the truck "return when almost empty" fix onto dropped supply crates. Findings:
