@@ -3,6 +3,15 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-25 — SUPPLYCACHE had no self-removal path except LC absorption; a crate drained via infantry rearm sat forever (wt/supply-crate-expiry)
+
+Mirroring the truck "return when almost empty" fix onto dropped supply crates. Findings:
+
+- **The truck "almost empty" trigger is `currentSupply < RestockThreshold`** (`SupplyProvider.cs:175`, default 50 — set explicitly on TRUK at `vehicles.yaml:548`, TotalSupply 750). For a *mobile* truck that means drive home / evacuate (`DropsSupplyCache.EvacuateOrRestock`, gated on `CountsAsEmpty`). A stationary cache has no transport, so the faithful stationary analog is despawn-in-place, not the truck's residue/`EvacuateOnUnusableResidue` machinery (which requires a `DropsSupplyCache` transport to act on).
+- **Before this change the only despawn path for a SUPPLYCACHE was `AbsorbsSupplyCache.cs:95-96`** (LC pulls a cache to 0, then `cache.Dispose()` at frame-end). Nothing removed a cache drained by *infantry rearming off it* — `SupplyProvider.ResupplyTarget` deducts supply but the `currentSupply <= 0` tick branch (`:157`) just clears the residue latch and returns; the actor lingers at 0. So near-empty AND fully-drained (via rearm) caches both cluttered the field. The new `RemoveBelowSupply` check catches both (0 < 50).
+- **Simplest deterministic mechanism = re-check in `SupplyProvider.ITick`, not on each deduction call site.** Supply leaves the pool via two paths (`ResupplyTarget` inside this trait's own tick; `DeductSupply` from `AbsorbsSupplyCache`/`QuickRearm` on other ticks). A single `ITick` guard covers every path on the next tick with no RNG. Disposal uses the established `self.World.AddFrameEndTask(w => { if (!self.IsDead && self.IsInWorld) self.Dispose(); })` idiom copied verbatim from `AbsorbsSupplyCache.cs:96`; the dead/in-world guard makes the per-tick re-queue idempotent until frame-end disposal lands.
+- **Gate is opt-in and off by default (`RemoveBelowSupply = 0`)** so the LC and TRUK — which share `SupplyProvider` — never self-destruct; only SUPPLYCACHE sets it (to 50, matching TRUK's `RestockThreshold`).
+
 ## 2026-07-25 — CohesionMoveModifier already has nearest-slot assignment + footprint caps; the 260722 survey is stale (wt/cohesion-stances, PIPELINE 5)
 
 Implementing the cohesion stance identities (DP-1..DP-5) against `main` e45fb307, the code turned out well ahead of `WORKSPACE/plans/260722_stance_tactical_survey.md`, which drove several DP framings. Two "fix #1 is MISSING / offsets grow unbounded" claims in that survey are already resolved in-tree:
