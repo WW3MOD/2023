@@ -53,6 +53,17 @@ namespace OpenRA.Mods.Common.Traits
 		CPos assignedOrderPoint;
 		bool hasOrderPoint;
 
+		// PIPELINE-6 idea #2 (settle facing + sector fan). The common formation front plus this unit's
+		// H(ActorID) micro-fan, computed by CohesionMoveModifier and handed down on Assign. On arrival at
+		// the slot the unit turns to it once (settleFacingDone latches the one-shot). Deliberately NOT
+		// [Sync] — like assignedOrderPoint it is a pure deterministic function of already-synced state
+		// (ActorID + integer positions) and only ever gates a Turn activity (whose facing IS synced), so
+		// it can never itself desync or alter the sync hash. Null on the human/AI seam's bot & Tight side
+		// (no facing passed) → no Turn is ever queued → bot behaviour is byte-identical.
+		WAngle settleFacing;
+		bool hasSettleFacing;
+		bool settleFacingDone;
+
 		// Render/UI-only, non-[Sync]: (slot, orderPoint) for every grouped Move/AttackMove of the
 		// CURRENT batch — a run of orders where the first is fresh (non-queued) and the rest are
 		// shift-queued onto it. Group Scatter reads this to map each queued formation-slot cell back
@@ -72,13 +83,20 @@ namespace OpenRA.Mods.Common.Traits
 			mobile = self.Trait<Mobile>();
 		}
 
-		public void Assign(CPos slot, CPos orderPoint, int tick, bool queued)
+		public void Assign(CPos slot, CPos orderPoint, int tick, bool queued, WAngle? settle = null)
 		{
 			assignedSlot = slot;
 			hasSlot = true;
 			assignedOrderPoint = orderPoint;
 			hasOrderPoint = true;
 			lastAssignTick = tick;
+
+			// Re-arm the one-shot settle turn. A null facing (bots / Tight / non-cohesion callers) leaves
+			// hasSettleFacing false, so TickIdle never queues a Turn — behaviour is byte-identical there.
+			hasSettleFacing = settle.HasValue;
+			if (hasSettleFacing)
+				settleFacing = settle.Value;
+			settleFacingDone = false;
 
 			// A fresh (non-queued) order starts a new batch; shift-queued orders extend it.
 			if (!queued)
@@ -126,6 +144,8 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			hasSlot = false;
 			hasOrderPoint = false;
+			hasSettleFacing = false;
+			settleFacingDone = false;
 			batch.Clear();
 		}
 
@@ -142,7 +162,37 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyIdle.TickIdle(Actor self)
 		{
+			// Already settled on the slot: turn to the formation front once (idea #2), don't re-path.
+			if (hasSlot && self.Location == assignedSlot)
+			{
+				TrySettleFacing(self);
+				return;
+			}
+
 			TryReturnToSlot(self);
+		}
+
+		// One-shot turn-to-front on arrival. Only fires from the idle path (a settled, idle unit), never
+		// from a blocking-move, so it can't fight movement. Turn is interruptible and AutoTarget cancels
+		// the current activity to shoot, so a pending settle-turn never delays a shot (ideas doc #2).
+		void TrySettleFacing(Actor self)
+		{
+			if (!hasSettleFacing || settleFacingDone)
+				return;
+
+			// Don't turn to a stale front — expire on the same horizon as return-to-slot.
+			if (self.World.WorldTick - lastAssignTick > info.ForgetAfterTicks)
+				return;
+
+			var facing = self.TraitOrDefault<IFacing>();
+			if (facing == null)
+				return;
+
+			// Latch before queuing so we never re-queue every idle tick.
+			settleFacingDone = true;
+
+			if (facing.Facing != settleFacing)
+				self.QueueActivity(new Turn(self, settleFacing));
 		}
 
 		void TryReturnToSlot(Actor self)

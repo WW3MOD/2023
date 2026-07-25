@@ -86,6 +86,29 @@ namespace OpenRA.Mods.Common.Traits
 			"so slots stay on distinct cells and never overlap. 1024 = one cell.")]
 		public readonly int MinSlotSpacing = 1024;
 
+		[Desc("PIPELINE-6 formation realism (idea #1, arrival jitter). Requested magnitude (WDist) of the",
+			"deterministic per-unit LATERAL settle offset applied to Open-box slots, so a halted squad",
+			"occupies the ground loosely instead of a stamped lattice. HARD-CLAMPED by FormationRealism",
+			"to below MinSlotSpacing/2 so two adjacent slots can never be jittered onto one cell. Offset is",
+			"a pure hash of ActorID (zero RNG). HUMAN-only, non-Tight: bot/Tight box slots are unchanged.",
+			"384 = 3/8 cell. Set 0 to disable.")]
+		public readonly int ArrivalJitterLateral = 384;
+
+		[Desc("PIPELINE-6 formation realism (idea #3, rolling halt). Requested magnitude (WDist) of the",
+			"deterministic per-unit ALONG-MOVE-AXIS settle offset for Open-box slots, so the group flows",
+			"to a stop at staggered depths instead of braking onto one crisp rank line. HARD-CLAMPED by",
+			"FormationRealism to below both rowSpacing/2 and MinSlotSpacing so a rear unit can't be pulled",
+			"into the rank behind. Pure hash of ActorID (zero RNG). HUMAN-only, non-Tight. 448 ~= 7/16 cell.",
+			"Set 0 to disable.")]
+		public readonly int ArrivalJitterDepth = 448;
+
+		[Desc("PIPELINE-6 formation realism (idea #2, settle facing + sector fan). Half-width (WAngle,",
+			"1024 = 360 degrees) of the deterministic per-unit micro-fan added to the common formation",
+			"front when a group settles, so a firing line scans slightly different sectors instead of",
+			"cloning one heading. Kept tight so it never points a unit away from the front. Pure hash of",
+			"ActorID (zero RNG). HUMAN-only, non-Tight; never moves a unit. 16 ~= 5.6 degrees. Set 0 to disable.")]
+		public readonly int SettleFacingFan = 16;
+
 		[Desc("Sample radius in cells used by the intent classifier to read density distribution",
 			"around the click. A 4-cell radius means a 9x9 sample window.")]
 		public readonly int IntentSampleRadius = 4;
@@ -192,6 +215,11 @@ namespace OpenRA.Mods.Common.Traits
 		CPos cacheClick;
 		CohesionMode cacheMode;
 		string cacheOrder;
+
+		// PIPELINE-6 idea #2: the order-level common formation front (group centroid -> target azimuth),
+		// memoized alongside the slot matching so cache-hit subjects read it instead of recomputing the
+		// centroid. Owner-independent integer geometry; each subject adds its own H(ActorID) micro-fan.
+		WAngle cacheFrontAzimuth;
 
 		public CohesionMoveModifier(CohesionMoveModifierInfo info)
 		{
@@ -391,7 +419,7 @@ namespace OpenRA.Mods.Common.Traits
 		// centroid→target axis. This is the v0 behavior, preserved for clicks where no cover
 		// signal warrants a smarter strategy.
 		CPos[] ComputeBoxSlots(Map map, CPos clickCell, WPos targetPos, Actor[] sortedActors,
-			int colSpacing, int rowSpacing, int maxWidth, int maxDepth)
+			int colSpacing, int rowSpacing, int maxWidth, int maxDepth, Mobile subjectMobile, bool applyRealism)
 		{
 			var n = sortedActors.Length;
 
@@ -444,6 +472,16 @@ namespace OpenRA.Mods.Common.Traits
 			if (rows > 1 && (long)(rows - 1) * rowSpacing > maxDepth)
 				rowSpacing = Math.Max(info.MinSlotSpacing, maxDepth / (rows - 1));
 
+			// PIPELINE-6 idea #1 (arrival jitter) + idea #3 (rolling halt): one deterministic 2D per-unit
+			// offset off the exact slot point — a LATERAL component (breaks the stamped lattice) and an
+			// ALONG-MOVE component (staggered stopping depth). Both are pure hashes of ActorID (zero RNG)
+			// and hard-clamped so slots never overlap; applied HUMAN-only, non-Tight (applyRealism), so
+			// bot and Tight box layouts stay byte-identical to before. colSpacing/rowSpacing here are the
+			// count-aware-capped effective values, so the clamp is against the true final spacing.
+			var latCap = applyRealism ? FormationRealism.LateralCap(info.ArrivalJitterLateral, info.MinSlotSpacing) : 0;
+			var depthCap = applyRealism ? FormationRealism.DepthCap(info.ArrivalJitterDepth, rowSpacing, info.MinSlotSpacing) : 0;
+			var jitterOn = applyRealism && (latCap > 0 || depthCap > 0);
+
 			var slots = new CPos[n];
 			for (var i = 0; i < n; i++)
 			{
@@ -466,7 +504,37 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				var slotPos = new WPos(targetPos.X + offsetX, targetPos.Y + offsetY, targetPos.Z);
-				slots[i] = map.Clamp(map.CellContaining(slotPos));
+				var baseCell = map.Clamp(map.CellContaining(slotPos));
+
+				if (!jitterOn)
+				{
+					slots[i] = baseCell;
+					continue;
+				}
+
+				// Jitter is keyed on the ActorID at this ID-sorted slot index (the sort key the whole
+				// modifier already uses); nearest-slot matching later re-assigns occupants, but the
+				// lattice-breaking scatter is a pure function of the slot layout either way.
+				var id = sortedActors[i].ActorID;
+				var jLat = FormationRealism.LateralOffset(id, latCap);
+				var jDepth = FormationRealism.DepthOffset(id, depthCap);
+
+				var jitterX = (int)((long)jLat * perpX / moveLen) + (int)((long)jDepth * moveDirX / moveLen);
+				var jitterY = (int)((long)jLat * perpY / moveLen) + (int)((long)jDepth * moveDirY / moveLen);
+
+				var jitteredCell = map.Clamp(map.CellContaining(
+					new WPos(slotPos.X + jitterX, slotPos.Y + jitterY, targetPos.Z)));
+
+				// Fall back to the exact slot when the jittered cell is worse ground / blocked — the same
+				// Mobile.CanStayInCell guard the line path uses. The offset is cosmetic-only: it never
+				// puts a unit anywhere it couldn't already stand. FilterByPathability=false skips the guard
+				// (the pre-filter test path), matching the rest of the file.
+				var useJitter = jitteredCell == baseCell
+					|| !info.FilterByPathability
+					|| subjectMobile == null
+					|| subjectMobile.CanStayInCell(jitteredCell);
+
+				slots[i] = useJitter ? jitteredCell : baseCell;
 			}
 
 			return slots;
@@ -853,6 +921,12 @@ namespace OpenRA.Mods.Common.Traits
 			// state (Owner.IsBot/Playable): no RNG, identical on every client, so it never desyncs.
 			var isHuman = subject.Owner.Playable && !subject.Owner.IsBot;
 
+			// PIPELINE-6 gate: the arrival-jitter / rolling-halt / settle-facing realism behaviours apply
+			// to HUMAN Loose/Spread only. Bots (frozen benchmark) and Tight (DP-1 vanilla identity) are
+			// excluded, so their layouts and facings stay byte-identical. Tight-human also returns early
+			// below, but the explicit mode check keeps the gate self-documenting.
+			var applyRealism = isHuman && mode != CohesionMode.Tight;
+
 			// DP-1: Tight = classic/vanilla for humans. ALL cohesion adjustments are OFF — the grouped
 			// order passes through unmodified, exactly like stock OpenRA (every unit converges on the
 			// click). Clear any stale slot leash first so a slot from a prior Loose/Spread order can't
@@ -865,9 +939,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Cache hit: this order's matching was already computed by an earlier subject in the same
 			// ProcessOrder dispatch. Read this subject's assigned cell and skip the whole pipeline.
-			if (TryReadCache(validActors, tick, clickCell, mode, orderString, idx, out var cachedCell))
+			if (TryReadCache(validActors, tick, clickCell, mode, orderString, idx, out var cachedCell, out var cachedFront))
 			{
-				subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(cachedCell, clickCell, tick, individualOrder.Queued);
+				var cachedSettle = applyRealism
+					? (WAngle?)(cachedFront + FormationRealism.FacingFan(subject.ActorID, info.SettleFacingFan))
+					: null;
+				subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(cachedCell, clickCell, tick, individualOrder.Queued, cachedSettle);
 				return individualOrder.WithTarget(Target.FromCell(subject.World, cachedCell));
 			}
 
@@ -901,8 +978,14 @@ namespace OpenRA.Mods.Common.Traits
 				groupCy += validActors[i].CenterPosition.Y;
 			}
 
-			var groupCentroid = map.Clamp(map.CellContaining(new WPos(
-				(int)(groupCx / n), (int)(groupCy / n), 0)));
+			var groupCentroidPos = new WPos((int)(groupCx / n), (int)(groupCy / n), 0);
+			var groupCentroid = map.Clamp(map.CellContaining(groupCentroidPos));
+
+			// PIPELINE-6 idea #2: the common formation front — the group's pre-move centroid -> target
+			// azimuth. WVec.Yaw is counterclockwise (CLAUDE.md hard rule), pure integer geometry, no RNG.
+			// A zero vector (click on the centroid) yields WAngle.Zero (north) — a harmless fallback,
+			// mirroring the box path's own degenerate-move-direction fallback.
+			var frontAzimuth = (targetPos - groupCentroidPos).Yaw;
 
 			// Reclassify SpreadInside as Approach when the group is well separated from the
 			// click. Pathfinding through dense cover usually fails, so anchoring the formation at
@@ -935,7 +1018,8 @@ namespace OpenRA.Mods.Common.Traits
 
 				case Intent.Open:
 				default:
-					slots = ComputeBoxSlots(map, clickCell, targetPos, validActors, colSpacing, rowSpacing, maxWidth, maxDepth);
+					slots = ComputeBoxSlots(map, clickCell, targetPos, validActors, colSpacing, rowSpacing,
+						maxWidth, maxDepth, subjectMobile, applyRealism);
 					break;
 			}
 
@@ -955,13 +1039,20 @@ namespace OpenRA.Mods.Common.Traits
 				assignedByIdx[i] = s >= 0 ? slots[s] : slots[Math.Min(i, slots.Length - 1)];
 			}
 
-			StoreCache(validActors, tick, clickCell, mode, orderString, assignedByIdx);
+			StoreCache(validActors, tick, clickCell, mode, orderString, assignedByIdx, frontAzimuth);
 
 			var cell = assignedByIdx[idx];
 
+			// PIPELINE-6 idea #2: hand the leash a per-unit settle facing (common front + H(id) micro-fan)
+			// so it turns to the formation front on arrival. Null for bots/Tight (applyRealism false) →
+			// CohesionSlotMemory queues no Turn → byte-identical, and no unit is ever moved.
+			var settleFacing = applyRealism
+				? (WAngle?)(frontAzimuth + FormationRealism.FacingFan(subject.ActorID, info.SettleFacingFan))
+				: null;
+
 			// Remember the assigned slot on the subject so the leash (CohesionSlotMemory) can
 			// walk it back to position if it gets nudged out by a passing unit.
-			subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(cell, clickCell, tick, individualOrder.Queued);
+			subject.TraitOrDefault<CohesionSlotMemory>()?.Assign(cell, clickCell, tick, individualOrder.Queued, settleFacing);
 
 			return individualOrder.WithTarget(Target.FromCell(subject.World, cell));
 		}
@@ -972,9 +1063,10 @@ namespace OpenRA.Mods.Common.Traits
 		// distinct groups can never collide). All of these are identical on every client and in
 		// replay, so a hit returns byte-identical data everywhere and a miss recomputes.
 		bool TryReadCache(Actor[] sortedActors, int tick, CPos click, CohesionMode mode, string order,
-			int idx, out CPos cell)
+			int idx, out CPos cell, out WAngle frontAzimuth)
 		{
 			cell = default;
+			frontAzimuth = default;
 			if (cacheAssignedByIdx == null || cacheActorIds == null)
 				return false;
 
@@ -989,11 +1081,12 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 
 			cell = cacheAssignedByIdx[idx];
+			frontAzimuth = cacheFrontAzimuth;
 			return true;
 		}
 
 		void StoreCache(Actor[] sortedActors, int tick, CPos click, CohesionMode mode, string order,
-			CPos[] assignedByIdx)
+			CPos[] assignedByIdx, WAngle frontAzimuth)
 		{
 			var ids = new uint[sortedActors.Length];
 			for (var i = 0; i < ids.Length; i++)
@@ -1005,6 +1098,7 @@ namespace OpenRA.Mods.Common.Traits
 			cacheClick = click;
 			cacheMode = mode;
 			cacheOrder = order;
+			cacheFrontAzimuth = frontAzimuth;
 		}
 
 		// Deterministic position-aware assignment of the whole squad to slots. Builds every (actor,
