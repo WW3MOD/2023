@@ -1,0 +1,1 @@
+Stage-3 degenerate case (§3.6): tanks halt in the kill-zone so the score never decreases; the ambush must still spring via the saturation trigger (4) rather than stall waiting for a departure. RED = gate off.

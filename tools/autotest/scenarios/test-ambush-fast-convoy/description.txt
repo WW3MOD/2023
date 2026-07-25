@@ -1,0 +1,1 @@
+Stage-3 degenerate case (§3.6): a fast btr column races past; the ambush must spring before it clears — via saturation at peak or the trigger-3 exit prediction, not missed by the sample cadence. RED = gate off.

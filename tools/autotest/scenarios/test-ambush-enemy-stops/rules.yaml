@@ -1,0 +1,28 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-ambush-enemy-stops.lua
+
+# Same Stage-3 test tuning as test-ambush-convoy: the halted tanks sit inside the 12c kill-zone, so the
+# worthwhile score never DECREASES (trigger 3 can't fire) but stays ≥ HighSpringThreshold and saturates —
+# this is the §3.6 "enemy stops / never decreases" degenerate case, covered by trigger 4.
+^AT:
+	AutoTarget:
+		AmbushKillZoneRadius: 12
+		AmbushScoreCadence: 25
+		AmbushMinSpringThreshold: 100
+		AmbushHighSpringThreshold: 400
+		AmbushRequiredHighSamples: 2
+		AmbushRequiredDegradeSamples: 2

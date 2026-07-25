@@ -1,0 +1,30 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-ambush-fast-convoy.lua
+
+# Fast, lower-value wheeled column (btr). Thresholds are lowered vs the MBT convoy so the lighter column
+# still saturates at peak density before it clears — and the short exit-prediction window plus 2-sample
+# degrade hysteresis (trigger 3) backstops a fast passer that peaks and leaves inside a couple of samples
+# (§3.6 fast-convoy case). The point of the case is that the ambush springs BEFORE the column clears.
+^AT:
+	AutoTarget:
+		AmbushKillZoneRadius: 12
+		AmbushScoreCadence: 25
+		AmbushMinSpringThreshold: 50
+		AmbushHighSpringThreshold: 200
+		AmbushRequiredHighSamples: 2
+		AmbushRequiredDegradeSamples: 2
+		AmbushExitPredictTicks: 25

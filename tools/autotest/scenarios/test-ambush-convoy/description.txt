@@ -1,0 +1,1 @@
+Stage-3 stationary ambush: an opted-in AT specialist springs (fires) on a t90 column passing through its kill-zone before the column clears. Spring is driven by worthwhile-score saturation, not detection. RED = gate off (see the Lua header).

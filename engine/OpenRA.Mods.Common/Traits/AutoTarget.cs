@@ -93,6 +93,58 @@ namespace OpenRA.Mods.Common.Traits
 			"@stable and control bots never grant it, so they stay byte-identical.")]
 		public readonly string AmbushTacticsCondition = null;
 
+		// ── Stage 3 (PIPELINE item 8): stationary literal-ambush state machine. ALL of the following are
+		// read ONLY on the gated path (AmbushTacticsCondition granted AND stance == Ambush). They never
+		// touch the ungated path, so their values are irrelevant to @stable / control bots — those cohorts
+		// short-circuit before any of this is read and stay byte-identical. Defaults are tuned for a
+		// sensible opt-in / test grant; the worthwhile weights/thresholds are meant to be tuned in autotest.
+		[Desc("Stage-3 ambush: radius (cells) of the kill-zone actor-scan that feeds the worthwhile score.")]
+		public readonly int AmbushKillZoneRadius = 8;
+
+		[Desc("Stage-3 ambush: minimum ticks between kill-zone rescans (worthwhile score refresh cadence).",
+			"Elapsed-based so it self-staggers by target-acquisition tick; matches the influence-stack 25-tick cadence.")]
+		public readonly int AmbushScoreCadence = 25;
+
+		[Desc("Stage-3 ambush: look-ahead (ticks) for the trigger-3 range-exit prediction on the best target.")]
+		public readonly int AmbushExitPredictTicks = 20;
+
+		[Desc("Stage-3 ambush: worthwhile-score floor for trigger 3 (best-strike degrading). Below it a",
+			"departing target is not worth breaking concealment for.")]
+		public readonly int AmbushMinSpringThreshold = 100;
+
+		[Desc("Stage-3 ambush: worthwhile-score ceiling for trigger 4 (saturation). Score at/above this,",
+			"sustained AmbushRequiredHighSamples samples, springs at peak density.")]
+		public readonly int AmbushHighSpringThreshold = 400;
+
+		[Desc("Stage-3 ambush: consecutive degrade samples required before trigger 3 fires (hysteresis).")]
+		public readonly int AmbushRequiredDegradeSamples = 2;
+
+		[Desc("Stage-3 ambush: consecutive high-score samples required before trigger 4 fires (hysteresis).")]
+		public readonly int AmbushRequiredHighSamples = 2;
+
+		[Desc("Stage-3 ambush: range-opening epsilon band (WDist) below which a sample is NOT a degrade —",
+			"jitter/rounding near a stationary target must not read as a steady retreat.")]
+		public readonly WDist AmbushDegradeEpsilon = new WDist(256);
+
+		[Desc("Stage-3 ambush: overrun floor (cells) for trigger 5 when the weapon MinRange is 0. An",
+			"engageable enemy at/inside max(weapon MinRange, this) is treated as overrunning the position.")]
+		public readonly int AmbushOverrunFloor = 2;
+
+		[Desc("Stage-3 ambush: weight on the per-contact threat term in the worthwhile score.")]
+		public readonly int AmbushThreatWeight = 1;
+
+		[Desc("Stage-3 ambush: weight on the per-contact economic-value term in the worthwhile score.")]
+		public readonly int AmbushValueWeight = 1;
+
+		[Desc("Stage-3 ambush: base threat credited to any armed contact (before HP/Cost terms).")]
+		public readonly int AmbushThreatBase = 100;
+
+		[Desc("Stage-3 ambush: divisor turning a contact's MaxHP into extra threat.")]
+		public readonly int AmbushThreatHealthDivisor = 10;
+
+		[Desc("Stage-3 ambush: divisor turning a contact's Cost into extra threat.")]
+		public readonly int AmbushThreatCostDivisor = 50;
+
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while in the FireAtWill stance.")]
 		public readonly string FireAtWillCondition = null;
@@ -282,6 +334,21 @@ namespace OpenRA.Mods.Common.Traits
 		// Ambush system: track pre-aimed target and spotted state
 		Target ambushPreAimTarget = Target.Invalid;
 		bool ambushTriggered;
+
+		// Stage 3 (PIPELINE item 8) — stationary literal-ambush tracking. NOT [Sync] (like ambushTriggered /
+		// ambushPreAimTarget / PredictedStance above): these evolve by pure integer math over already-synced
+		// world state (ranges, ActorIDs, WorldTick) with zero RNG, so they are deterministic across clients
+		// without needing to be in the sync hash. They are read/written ONLY on the gated path, so they stay
+		// at their defaults (all 0 / int.MinValue) forever for @stable / control bots.
+		int ambushLastScore;
+		int ambushLastScoreTick = int.MinValue;
+		uint ambushBestTargetId;          // ActorID of the best target at the last sample (0 = none)
+		int ambushBestPrevRange;
+		int ambushBestRadialPerTick;      // signed: positive = opening the range
+		int ambushDegradeSamples;         // consecutive "range opening" samples on the best target
+		int ambushHighSamples;            // consecutive "score ≥ HighSpringThreshold" samples
+		bool ambushBestPredictedExit;     // best target predicted to leave weapon range within K ticks
+		bool ambushOverrun;               // an engageable enemy has breached the overrun threshold
 
 		UnitStance stance;
 		EngagementStance engagementStance;
@@ -550,31 +617,230 @@ namespace OpenRA.Mods.Common.Traits
 			// Scan at full range — ambush doesn't reduce scan radius
 			var target = ScanForTarget(self, false, true);
 
+			// Stage 3 gate (PIPELINE item 8). Read FIRST, exactly like the Stage-2 halt: when the gate is
+			// not granted (the default for @stable / control bots and every un-opted-in unit) NOTHING below
+			// touches the Stage-3 state, and the else-branch is character-for-character the stock ambush idle
+			// behaviour — that is the byte-identity guarantee.
+			var stage3 = AmbushTacticsGranted(self);
+
 			if (target.Type == TargetType.Invalid)
 			{
 				ambushPreAimTarget = Target.Invalid;
-				ambushTriggered = false;
+				if (stage3)
+					// SPRUNG is terminal until stance reset (design §5.2), so DO NOT clear ambushTriggered
+					// here — only clear the tracking counters. This gives OBS-2 its clean deterministic
+					// outcome: a sprung unit that a bot re-issues away and that later re-idles stays sprung
+					// instead of re-arming and latch-churning. Un-sprung (DORMANT) units simply drop their
+					// stale counters.
+					ResetStage3Tracking();
+				else
+					ambushTriggered = false;
+
 				return;
 			}
 
-			// Pre-aim: rotate turrets toward target WITHOUT firing
+			// Pre-aim: rotate turrets toward target WITHOUT firing (identical on both paths)
 			ambushPreAimTarget = target;
 			PreAimAtTarget(self, target);
 
-			// Check if we've been spotted by the enemy — if so, open fire
+			// Check if we've been spotted by the enemy — trigger 1 (detection), evaluated fresh every scan.
 			var targetOwner = target.Type == TargetType.Actor ? target.Actor.Owner : target.FrozenActor.Owner;
 			var isSpotted = self.CanBeViewedByPlayer(targetOwner);
 
-			if (isSpotted || ambushTriggered)
+			if (!stage3)
+			{
+				// ── Ungated STOCK path — byte-identical to pre-Stage-3 behaviour. ──
+				if (isSpotted || ambushTriggered)
+				{
+					ambushTriggered = true;
+
+					// Coordinate: trigger nearby allies in Ambush to also fire
+					if (isSpotted)
+						TriggerNearbyAmbushAllies(self, target);
+
+					Attack(target, false);
+				}
+
+				return;
+			}
+
+			// ── Gated Stage-3 path — stationary literal-ambush state machine (design §5.2). ──
+			// DORMANT/TRACKING is expressed by holding fire while pre-aiming (above); SPRUNG is ambushTriggered.
+			// Triggers 3/4/5 refresh from the kill-zone scan at AmbushScoreCadence; detection (1) is fresh each
+			// scan; damage (2) is handled synchronously in INotifyDamage.Damaged (sets ambushTriggered).
+			var trigger = Stage3EvaluateSpring(self, target, isSpotted);
+
+			if (trigger != AmbushSpringTrigger.None || ambushTriggered)
 			{
 				ambushTriggered = true;
 
-				// Coordinate: trigger nearby allies in Ambush to also fire
-				if (isSpotted)
+				// Spring the whole group simultaneously on ANY fresh trigger (initiation-on-signal doctrine,
+				// §4.6) — not just on being spotted as the stock path does.
+				if (trigger != AmbushSpringTrigger.None)
 					TriggerNearbyAmbushAllies(self, target);
 
 				Attack(target, false);
 			}
+		}
+
+		/// <summary>Is the Stage-3 widened-ambush gate granted on this unit right now? Same cheap
+		/// short-circuit as the Stage-2 halt: empty condition name or zero grant ⇒ false, so the whole
+		/// Stage-3 state machine is dead for @stable / control bots and any un-opted-in unit.</summary>
+		bool AmbushTacticsGranted(Actor self)
+		{
+			var gate = Info.AmbushTacticsCondition;
+			return !string.IsNullOrEmpty(gate) && self.GetConditionCount(gate) > 0;
+		}
+
+		/// <summary>Gated Stage-3 spring decision. Refreshes the worthwhile score + trigger inputs from a
+		/// kill-zone actor-scan at AmbushScoreCadence (heavy work only ~once/cadence), then evaluates the
+		/// pure trigger table. Between refreshes the stored trigger flags are reused, so the per-idle-tick
+		/// cost off-cadence is just the pure integer compares in <see cref="AmbushTactics.EvaluateSpring"/>.</summary>
+		AmbushSpringTrigger Stage3EvaluateSpring(Actor self, in Target target, bool isSpotted)
+		{
+			var tick = self.World.WorldTick;
+			if (ambushLastScoreTick == int.MinValue || tick - ambushLastScoreTick >= Info.AmbushScoreCadence)
+			{
+				RecomputeAmbushScore(self, target, tick);
+				ambushLastScoreTick = tick;
+			}
+
+			return AmbushTactics.EvaluateSpring(
+				detected: isSpotted,
+				damaged: false,
+				bestTargetPredictedExit: ambushBestPredictedExit,
+				score: ambushLastScore,
+				minSpringThreshold: Info.AmbushMinSpringThreshold,
+				consecutiveDegradeSamples: ambushDegradeSamples,
+				requiredDegradeSamples: Info.AmbushRequiredDegradeSamples,
+				consecutiveHighSamples: ambushHighSamples,
+				requiredHighSamples: Info.AmbushRequiredHighSamples,
+				overrun: ambushOverrun);
+		}
+
+		/// <summary>The one heavy Stage-3 operation (design §5.2): a fog-filtered kill-zone actor-scan that
+		/// sums the worthwhile score, tracks the best engageable target's range trend (trigger 3) and the
+		/// nearest engageable range (trigger 5), and advances the degrade / saturation hysteresis counters.
+		/// Determinism: the FindActorsInCircle result is ordered by ActorID before ANY min/best pick, so the
+		/// order-sensitive picks (nearest, best-target identity) are stable; the score sum is
+		/// order-independent regardless. Zero RNG.</summary>
+		void RecomputeAmbushScore(Actor self, in Target target, int tick)
+		{
+			var interval = ambushLastScoreTick == int.MinValue ? 0 : tick - ambushLastScoreTick;
+
+			var killRadius = WDist.FromCells(Info.AmbushKillZoneRadius);
+			var maxRange = 0;
+			foreach (var ab in ActiveAttackBases)
+			{
+				var r = ab.GetMaximumRange().Length;
+				if (r > maxRange)
+					maxRange = r;
+			}
+
+			// Overrun stand-off: the largest weapon MinRange, floored so a MinRange-0 weapon still detects
+			// an enemy about to walk on top of it.
+			var minRange = 0;
+			foreach (var ab in ActiveAttackBases)
+			{
+				var r = ab.GetMinimumRange().Length;
+				if (r > minRange)
+					minRange = r;
+			}
+
+			var overrunThreshold = Math.Max(minRange, WDist.FromCells(Info.AmbushOverrunFloor).Length);
+
+			var score = 0;
+			var nearestEngageableRange = int.MaxValue;
+
+			var contacts = self.World.FindActorsInCircle(self.CenterPosition, killRadius)
+				.Where(a => a != self && a.IsInWorld && !a.IsDead
+					&& a.AppearsHostileTo(self)
+					&& a.CanBeViewedByPlayer(self.Owner))   // fog filter — believe only what I can legally see
+				.OrderBy(a => a.ActorID);                   // ActorID order ⇒ deterministic min/best tie-breaks
+
+			foreach (var a in contacts)
+			{
+				var range = (a.CenterPosition - self.CenterPosition).Length;
+				score += AmbushTactics.ContactScore(
+					AmbushThreatValue(a), AmbushCellValue(a), Info.AmbushThreatWeight, Info.AmbushValueWeight);
+
+				// Engageable = I hold a weapon that can hit it and it is within that weapon's reach.
+				var engageable = range <= maxRange
+					&& ActiveAttackBases.Any(ab => ab.HasAnyValidWeapons(Target.FromActor(a)));
+
+				if (engageable && range < nearestEngageableRange)
+					nearestEngageableRange = range;
+			}
+
+			ambushLastScore = score;
+
+			ambushHighSamples = AmbushTactics.UpdateSustainCounter(
+				ambushHighSamples, score >= Info.AmbushHighSpringThreshold);
+
+			// Best target = the priority-correct pick AutoTarget already chose (ambushPreAimTarget == target).
+			// Track its range trend across samples, keyed on ActorID so a target swap resets the trend.
+			var bestId = target.Type == TargetType.Actor ? target.Actor.ActorID : 0u;
+			var bestRange = (target.CenterPosition - self.CenterPosition).Length;
+
+			if (bestId != 0 && bestId == ambushBestTargetId)
+			{
+				ambushBestRadialPerTick = AmbushTactics.RadialSpeedPerTick(ambushBestPrevRange, bestRange, interval);
+				var degrade = AmbushTactics.IsDegradeSample(bestRange, ambushBestPrevRange, Info.AmbushDegradeEpsilon.Length);
+				ambushDegradeSamples = AmbushTactics.UpdateSustainCounter(ambushDegradeSamples, degrade);
+			}
+			else
+			{
+				// First sample on this target (or the best target changed) — no trend yet.
+				ambushBestRadialPerTick = 0;
+				ambushDegradeSamples = 0;
+			}
+
+			ambushBestPredictedExit = bestId != 0
+				&& AmbushTactics.PredictedToExitRange(bestRange, ambushBestRadialPerTick, Info.AmbushExitPredictTicks, maxRange);
+
+			ambushOverrun = nearestEngageableRange != int.MaxValue
+				&& AmbushTactics.IsOverrun(nearestEngageableRange, overrunThreshold);
+
+			ambushBestTargetId = bestId;
+			ambushBestPrevRange = bestRange;
+		}
+
+		/// <summary>Per-contact THREAT term for the worthwhile score. Only armed contacts (those carrying an
+		/// AttackBase) project threat; an unarmed supply truck reads 0 here — its worth comes from the VALUE
+		/// term instead, which is exactly why the split beats a value-blind danger field (design §3.2). Shape
+		/// mirrors DangerKernelMath's durability weight (base + HP + Cost).</summary>
+		int AmbushThreatValue(Actor a)
+		{
+			if (!a.Info.HasTraitInfo<AttackBaseInfo>())
+				return 0;
+
+			var hp = a.TraitOrDefault<Health>()?.MaxHP ?? 0;
+			var cost = a.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
+			return Info.AmbushThreatBase
+				+ (Info.AmbushThreatHealthDivisor > 0 ? hp / Info.AmbushThreatHealthDivisor : 0)
+				+ (Info.AmbushThreatCostDivisor > 0 ? cost / Info.AmbushThreatCostDivisor : 0);
+		}
+
+		/// <summary>Per-contact VALUE term for the worthwhile score — the contact's economic Cost. Every
+		/// enemy contributes, armed or not, so a lane of undefended reinforcements still scores worthwhile.</summary>
+		static int AmbushCellValue(Actor a)
+		{
+			return a.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
+		}
+
+		/// <summary>Clear the Stage-3 range/score tracking counters WITHOUT touching ambushTriggered (SPRUNG
+		/// is terminal until stance reset). Called when a gated ambusher loses its target.</summary>
+		void ResetStage3Tracking()
+		{
+			ambushLastScore = 0;
+			ambushLastScoreTick = int.MinValue;
+			ambushBestTargetId = 0;
+			ambushBestPrevRange = 0;
+			ambushBestRadialPerTick = 0;
+			ambushDegradeSamples = 0;
+			ambushHighSamples = 0;
+			ambushBestPredictedExit = false;
+			ambushOverrun = false;
 		}
 
 		void PreAimAtTarget(Actor self, in Target target)
@@ -616,11 +882,14 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		/// <summary>Called externally when stance changes away from Ambush to reset state.</summary>
+		/// <summary>Called externally when stance changes away from Ambush to reset state. This is the ONLY
+		/// path that clears the terminal SPRUNG latch (ambushTriggered) — see AmbushTickIdle's gated
+		/// no-target branch, which deliberately leaves it set.</summary>
 		void ResetAmbushState()
 		{
 			ambushPreAimTarget = Target.Invalid;
 			ambushTriggered = false;
+			ResetStage3Tracking();
 		}
 
 		void ITick.Tick(Actor self)

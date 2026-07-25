@@ -1,0 +1,32 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		# Fog ON: the ambusher must be able to stay UNSEEN by the convoy so the spring comes from the
+		# Stage-3 worthwhile-score triggers (saturation), not from the stock detection trigger.
+		FogCheckboxEnabled: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Strip persisted per-type stance defaults — otherwise a locally-saved unit-default could silently
+	# change the ambusher's human-owned stance (see DOCS/recipes/AUTOTEST.md / conventions.md pitfall).
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-ambush-convoy.lua
+
+# Stage-3 TEST tuning (shipped defaults live on AutoTargetInfo). Widen the kill-zone so the lane, 8
+# cells off the ambush, is inside the worthwhile-score scan, and keep the saturation ceiling low enough
+# that a 4-tank column sustains ≥ HighSpringThreshold across two samples and springs at peak density.
+^AT:
+	AutoTarget:
+		AmbushKillZoneRadius: 12
+		AmbushScoreCadence: 25
+		AmbushMinSpringThreshold: 100
+		AmbushHighSpringThreshold: 400
+		AmbushRequiredHighSamples: 2
+		AmbushRequiredDegradeSamples: 2
