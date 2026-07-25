@@ -20,6 +20,10 @@ World:
 # degrade hysteresis (trigger 3) backstops a fast passer that peaks and leaves inside a couple of samples
 # (§3.6 fast-convoy case). The point of the case is that the ambush springs BEFORE the column clears.
 ^AT:
+	# TEST: keep the ambusher unseeable at the lane gap (see test-ambush-convoy/rules.yaml) so the
+	# spring can only come from the Stage-3 score triggers, never from detection (review OBS-1).
+	Detectable:
+		Vision: 9
 	AutoTarget:
 		AmbushKillZoneRadius: 12
 		AmbushScoreCadence: 25

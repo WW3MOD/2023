@@ -10,8 +10,9 @@
 --
 -- RED baseline for the manager: comment out the GrantCondition line below (gate off ⇒ stock ambush). The
 -- ambusher should then NOT fire while the column passes undetected (ammo stays 3) and the test times out.
--- If it DOES fire with the gate off, the convoy is being SPOTTED — push the lane further from the ambush
--- (raise the y gap and AmbushKillZoneRadius together) until stock stays silent, then the gate-on run greens.
+-- Unseeability is enforced by the Detectable.Vision: 9 override in rules.yaml (visible only inside 4c) —
+-- stock detectability had the t90s spotting and killing the ambusher at the 8c gap (RED 260725). This also
+-- guarantees GREEN cannot pass via the detection trigger (review OBS-1): only the score triggers can spring.
 
 local Deadline = 20
 

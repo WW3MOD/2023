@@ -19,6 +19,10 @@ World:
 # worthwhile score never DECREASES (trigger 3 can't fire) but stays ≥ HighSpringThreshold and saturates —
 # this is the §3.6 "enemy stops / never decreases" degenerate case, covered by trigger 4.
 ^AT:
+	# TEST: keep the ambusher unseeable at the lane gap (see test-ambush-convoy/rules.yaml) so the
+	# spring can only come from the Stage-3 score triggers, never from detection (review OBS-1).
+	Detectable:
+		Vision: 9
 	AutoTarget:
 		AmbushKillZoneRadius: 12
 		AmbushScoreCadence: 25

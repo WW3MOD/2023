@@ -23,6 +23,13 @@ World:
 # cells off the ambush, is inside the worthwhile-score scan, and keep the saturation ceiling low enough
 # that a 4-tank column sustains ≥ HighSpringThreshold across two samples and springs at peak density.
 ^AT:
+	# TEST: the ambusher must be UNSEEABLE at the 8c lane gap. Stock infantry Detectable.Vision 3 (+1
+	# prone, +1 dug-in) is spotted out to 19c/16c — the t90s see and kill it (RED run 260725, seed
+	# 925192202). Vision 9 ⇒ visible only inside the strength-10 ring (4c), so (a) RED can't be
+	# spotted+killed and (b) GREEN cannot pass via the detection trigger (review OBS-1) — the spring
+	# must come from the Stage-3 score triggers.
+	Detectable:
+		Vision: 9
 	AutoTarget:
 		AmbushKillZoneRadius: 12
 		AmbushScoreCadence: 25

@@ -614,14 +614,29 @@ namespace OpenRA.Mods.Common.Traits
 
 		void AmbushTickIdle(Actor self)
 		{
-			// Scan at full range — ambush doesn't reduce scan radius
-			var target = ScanForTarget(self, false, true);
-
 			// Stage 3 gate (PIPELINE item 8). Read FIRST, exactly like the Stage-2 halt: when the gate is
 			// not granted (the default for @stable / control bots and every un-opted-in unit) NOTHING below
 			// touches the Stage-3 state, and the else-branch is character-for-character the stock ambush idle
 			// behaviour — that is the byte-identity guarantee.
 			var stage3 = AmbushTacticsGranted(self);
+
+			// Scan at full range — ambush doesn't reduce scan radius. PITFALL: ScanForTarget returns Invalid
+			// BOTH when a scan ran and found nothing AND when the scan interval simply hasn't elapsed — and a
+			// scan that does run re-arms nextScanTime, so whether THIS tick actually scanned must be captured
+			// BEFORE the call.
+			var scannedThisTick = nextScanTime <= 0;
+			var target = ScanForTarget(self, false, true);
+
+			// Gated Stage-3 only: an off-interval Invalid means "no scan happened this tick", NOT "target
+			// lost". Reuse the cached pre-aim target (if it is still alive and legally visible) so the cadence
+			// sample counters survive between scans — resetting them on every off-scan idle tick made
+			// AmbushRequiredHighSamples >= 2 unreachable, so a score-driven spring could never fire (found by
+			// the convoy GREEN autotest, 260725). The ungated stock path below is untouched.
+			if (stage3 && !scannedThisTick && target.Type == TargetType.Invalid
+				&& ambushPreAimTarget.Type == TargetType.Actor
+				&& ambushPreAimTarget.Actor.IsInWorld && !ambushPreAimTarget.Actor.IsDead
+				&& ambushPreAimTarget.Actor.CanBeViewedByPlayer(self.Owner))
+				target = ambushPreAimTarget;
 
 			if (target.Type == TargetType.Invalid)
 			{
