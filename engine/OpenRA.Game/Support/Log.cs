@@ -58,7 +58,14 @@ namespace OpenRA
 
 			Thread = new Thread(DoWork)
 			{
-				Name = "OpenRA Logging Thread"
+				Name = "OpenRA Logging Thread",
+
+				// PITFALL: must be a background thread. It is the only long-lived engine
+				// thread (Server/Connection/MapCache/graphics all set IsBackground); DoWork
+				// spins until Log.Dispose() cancels the token. A foreground thread here pins
+				// the process (lingering dotnet.exe/OpenRA.exe) on any exit path that skips
+				// the Log.Dispose() finally, or any main-thread hang during shutdown.
+				IsBackground = true
 			};
 
 			Thread.Start(CancellationToken.Token);

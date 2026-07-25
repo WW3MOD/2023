@@ -457,6 +457,13 @@ SCREENSHOT_DIR_GAME=$(to_game_path "${SCREENSHOT_DIR}")
 	&
 LAUNCH_PID=$!
 
+# If this script is interrupted (Ctrl-C, terminal close, killed by a parent)
+# the backgrounded launch-game.sh + its dotnet.exe game child would otherwise be
+# orphaned and survive — they accumulate across sessions as stray dotnet.exe.
+# Reap the whole tree on INT/TERM (kill_game uses taskkill //T on Windows). The
+# normal-completion path below is untouched (it waits for a clean self-exit).
+trap 'echo; echo "==> interrupted — killing the game."; kill_game "${LAUNCH_PID}"; exit 130' INT TERM
+
 # ── Hard wall-clock watchdog ────────────────────────────────────────────────
 # The engine writes result.json only when Test.Pass/Fail/Skip runs. If a map's
 # rules fail to load (e.g. a duplicate MiniYaml key), the game logs "Failed to
