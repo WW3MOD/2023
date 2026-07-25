@@ -3,6 +3,18 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-25 — CohesionMoveModifier already has nearest-slot assignment + footprint caps; the 260722 survey is stale (wt/cohesion-stances, PIPELINE 5)
+
+Implementing the cohesion stance identities (DP-1..DP-5) against `main` e45fb307, the code turned out well ahead of `WORKSPACE/plans/260722_stance_tactical_survey.md`, which drove several DP framings. Two "fix #1 is MISSING / offsets grow unbounded" claims in that survey are already resolved in-tree:
+
+- **Fix #1 (nearest-slot assignment) is DONE, not missing.** `CohesionMoveModifier.AssignAll` (`CohesionMoveModifier.cs:961-1007`) builds every (actor,slot) distance edge and greedily claims the globally-shortest unclaimed edge — a deterministic minimum matching, tie-broken on actor index then slot index (no RNG). `ModifyGroupOrder` calls it at `:894`. The survey's "slot i → i-th lowest ActorID → criss-crossing travel" description (its illustrated cause 2a) reflects a prior version; ActorID order now only sets the *sort* for cache identity, not slot assignment.
+- **The unbounded-footprint over-spread is already capped.** `ComputeBoxSlots` shrinks per-slot spacing when `(cols-1)*colSpacing > maxWidth` (`:418-421`, floor `MinSlotSpacing`), and the EdgeLine/Approach/OpenLine path has its own span cap at `:836-837`. Per-mode caps live in `GetMaxExtent` (`:199-216`). So "Spread fans across the whole map, only `map.Clamp` bounds it" (survey Q2 root cause) is historical. The design comment at `:46-52` asserts (and this work pins in `CohesionStanceMathTest`) that base spacings + caps are monotonic, so effective spacing stays Tight < Loose < Spread at every n.
+
+Net: the mandatory core of PIPELINE 5 reduced to the three stance *identities* (DP-1/2/3); fix #1 needed no work.
+
+- **Benchmark-isolation seam.** `subject.Owner.Playable && !subject.Owner.IsBot` is the canonical human/AI gate — same test `AutoTarget` uses to pick `InitialCohesion` vs `InitialCohesionAI` (`AutoTarget.cs:372,447`). `Player.Playable`/`IsBot` are set once from the lobby PlayerReference (`Player.cs:196,210`), so reading them in synced sim is deterministic and RNG-free. Gating all new stance behavior on it makes bot grouped moves byte-identical to e45fb307.
+- **Default bots run Loose only.** `PoiOffensiveBotModule` issues **no** `SetCohesion` unless `CohesionSwitchEnabled` (default false, `@experimental`-only) — `PoiOffensiveBotModule.cs:112,846-850` — so the frozen benchmark controls exercise bots purely in Loose (`AutoTarget.InitialCohesionAI = Loose`). Loose is therefore the benchmark-critical mode to hold constant.
+
 ## 2026-07-25 — A window born with SDL_WINDOW_HIDDEN never fires SDL_WINDOWEVENT_HIDDEN, so IsSuspended must be set by hand (PIPELINE 16 — batch-windows)
 
 Fixing the "black batch windows on Windows" cosmetic bug (`bugs/discovered.md` 2026-07-22). The `OPENRA_WINDOW_MINIMIZED=1` path called `SDL_MinimizeWindow` *after* creation; on Windows the window still flashed onto the desktop as a solid-black frame (rendering suspended = black, but the window was visibly mapped). The engine already had a more robust `OPENRA_WINDOW_HIDDEN=1` path (`d716eade`, 2026-07-19) that creates the window with the `SDL_WINDOW_HIDDEN` flag — never mapped, never focus-steals — but the launch scripts still used minimize. Findings worth keeping:

@@ -267,7 +267,14 @@ World:
 	ScenarioLobbyDropdown:
 	HealerClaimLayer:
 	UnitDefaultsManager:
+	# PIPELINE 5 cohesion stance identities (human-facing; bot moves stay byte-identical).
+	# DP-2 SpreadHuman* = hand-tuned 'dispersed' interval (NOT weapon-AoE-derived); DP-3
+	# LooseHumanCoverSearchRadius = widened cover-first search for Loose. Defaults live in
+	# CohesionMoveModifierInfo; surfaced here so they are tunable in one place.
 	CohesionMoveModifier:
+		SpreadHumanColSpacing: 4096
+		SpreadHumanRowSpacing: 3072
+		LooseHumanCoverSearchRadius: 4
 	ThreatMapManager:
 		CellSize: 8
 		UpdateInterval: 90

@@ -43,6 +43,20 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Row depth in WDist for Spread mode.")]
 		public readonly int SpreadRowSpacing = 2560;
 
+		[Desc("Human-only 'dispersed' Spread column spacing (WDist), used for grouped moves a human",
+			"(non-bot) player issues in Spread cohesion. HAND-TUNED, deliberately NOT derived from any",
+			"weapon's blast radius (DP-2) so it stays stable across weapon rebalances. 4096 = 4 cells",
+			"centre-to-centre: with WW3MOD area warheads spreading on the order of 1.5-2 cells, a",
+			"4-cell interval keeps the next unit outside the lethal ring of a single shell centred on",
+			"its neighbour — the 'one shell, one casualty' feel — while staying a coherent squad (the",
+			"count-aware footprint cap still bounds total span). Bot-owned Spread moves keep",
+			"SpreadColSpacing unchanged, so the frozen AI benchmark is byte-identical.")]
+		public readonly int SpreadHumanColSpacing = 4096;
+
+		[Desc("Human-only 'dispersed' Spread row depth (WDist) for the box formation's front-to-back",
+			"rows. Companion to SpreadHumanColSpacing; see that field. 3072 = 3 cells.")]
+		public readonly int SpreadHumanRowSpacing = 3072;
+
 		// Count-aware footprint caps (WDist). The box formation's per-slot offsets grow linearly
 		// with unit count, so without a cap a large Spread group fans across the whole map (the
 		// "spread way too much" bug). These bound the TOTAL span between the outermost slot centers
@@ -132,6 +146,15 @@ namespace OpenRA.Mods.Common.Traits
 			"from the line shape.")]
 		public readonly int LineSlotSearchRadius = 2;
 
+		[Desc("Human-only widened cover-search radius (cells) for Loose cohesion (DP-3, cover-first).",
+			"When a human (non-bot) player issues a grouped move in Loose ('fight from cover'), each",
+			"line slot searches this radius for cover instead of LineSlotSearchRadius, and cover is",
+			"allowed to win over line shape freely: a unit takes any strictly-better reachable cover",
+			"cell even if that bends the line. 4 = a 9x9 window. Where no cover exists the line stays",
+			"clean (we never degrade a formation on purpose). Bot-owned moves keep LineSlotSearchRadius,",
+			"so the frozen AI benchmark is byte-identical.")]
+		public readonly int LooseHumanCoverSearchRadius = 4;
+
 		[Desc("Distance penalty (per chebyshev cell from the ideal line position) when ranking",
 			"candidate slots for EdgeLine/Approach. Higher = stick closer to the geometric line.",
 			"Lower = more aggressive snap onto cover even if it bends the line. 5 means a candidate",
@@ -177,7 +200,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		enum Intent { Open, SpreadInside, EdgeLine, Approach }
 
-		void GetSpacing(CohesionMode mode, out int colSpacing, out int rowSpacing)
+		void GetSpacing(CohesionMode mode, bool isHuman, out int colSpacing, out int rowSpacing)
 		{
 			switch (mode)
 			{
@@ -186,8 +209,9 @@ namespace OpenRA.Mods.Common.Traits
 					rowSpacing = info.TightRowSpacing;
 					return;
 				case CohesionMode.Spread:
-					colSpacing = info.SpreadColSpacing;
-					rowSpacing = info.SpreadRowSpacing;
+					// DP-2: humans get the hand-tuned 'dispersed' interval; bots keep the frozen values.
+					colSpacing = isHuman ? info.SpreadHumanColSpacing : info.SpreadColSpacing;
+					rowSpacing = isHuman ? info.SpreadHumanRowSpacing : info.SpreadRowSpacing;
 					return;
 				default:
 					colSpacing = info.LooseColSpacing;
@@ -540,7 +564,7 @@ namespace OpenRA.Mods.Common.Traits
 		// instead of in a dead-straight geometric line that ignores nearby cover.
 		CPos[] ComputeEdgeLineSlots(Map map, CPos clickCell, int gradXCells, int gradYCells,
 			int lineAlongX, int lineAlongY, int centroidDxCells, int centroidDyCells,
-			int n, int colSpacing, Mobile subjectMobile)
+			int n, int colSpacing, Mobile subjectMobile, int coverRadius, bool coverFirst)
 		{
 			// Treeline path: the classifier detected an elongated cover distribution. String the
 			// units ALONG the cover's major axis (lineAlong), anchored at the cover centroid, so a
@@ -555,7 +579,7 @@ namespace OpenRA.Mods.Common.Traits
 				// LayCoverAwareLine strings slots along the axis perpendicular to its `forward` arg.
 				// To lay ALONG (alongUX,alongUY) we pass forward = its perpendicular (alongUY,-alongUX);
 				// that perpendicular also points across the treeline, a sane "into cover" nudge dir.
-				return LayCoverAwareLine(map, anchor, alongUY, -alongUX, n, colSpacing, subjectMobile);
+				return LayCoverAwareLine(map, anchor, alongUY, -alongUX, n, colSpacing, subjectMobile, coverRadius, coverFirst);
 			}
 
 			var gradLenSq = gradXCells * gradXCells + gradYCells * gradYCells;
@@ -573,7 +597,7 @@ namespace OpenRA.Mods.Common.Traits
 			var anchorX = clickCell.X + (int)Math.Round(unitX * advance);
 			var anchorY = clickCell.Y + (int)Math.Round(unitY * advance);
 
-			return LayCoverAwareLine(map, new CPos(anchorX, anchorY), unitX, unitY, n, colSpacing, subjectMobile);
+			return LayCoverAwareLine(map, new CPos(anchorX, anchorY), unitX, unitY, n, colSpacing, subjectMobile, coverRadius, coverFirst);
 		}
 
 		// Lay N slots in a line perpendicular to (forwardX, forwardY), anchored at `anchor`. For
@@ -582,7 +606,7 @@ namespace OpenRA.Mods.Common.Traits
 		// cover (away from the squad) — used for the pathability fallback when no neighborhood
 		// pick is viable.
 		CPos[] LayCoverAwareLine(Map map, CPos anchor, double forwardX, double forwardY,
-			int n, int colSpacing, Mobile subjectMobile)
+			int n, int colSpacing, Mobile subjectMobile, int coverRadius, bool coverFirst)
 		{
 			// Perpendicular axis (90° CCW): (-forwardY, forwardX). Symmetric — direction is
 			// arbitrary as long as slot ordering is consistent.
@@ -603,7 +627,7 @@ namespace OpenRA.Mods.Common.Traits
 				var ideal = map.Clamp(new CPos(idealX, idealY));
 
 				slots[i] = PickCoverSlotNear(map, ideal, subjectMobile, taken, minSpacing,
-					-forwardX, -forwardY);
+					-forwardX, -forwardY, coverRadius, coverFirst);
 				taken.Add(slots[i]);
 			}
 
@@ -621,9 +645,9 @@ namespace OpenRA.Mods.Common.Traits
 		// unit ejected into open ground to keep the line straight. Falls back to NudgeToPassable
 		// when nothing in the window is passable.
 		CPos PickCoverSlotNear(Map map, CPos ideal, Mobile subjectMobile, List<CPos> taken,
-			int minSpacing, double backX, double backY)
+			int minSpacing, double backX, double backY, int coverRadius, bool coverFirst)
 		{
-			var radius = info.LineSlotSearchRadius;
+			var radius = coverRadius;
 			var distancePenalty = info.LineSlotDistancePenalty;
 
 			var bestScore = int.MinValue;
@@ -634,6 +658,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Relaxed-spacing best cover cell (only exact-overlap with a taken slot is disqualifying).
 			var bestCoverScore = int.MinValue;
 			var bestCoverCell = ideal;
+			var bestCoverRaw = 0;
 			var coverFound = false;
 
 			for (var dy = -radius; dy <= radius; dy++)
@@ -662,6 +687,7 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						bestCoverScore = score;
 						bestCoverCell = cand;
+						bestCoverRaw = cover;
 						coverFound = true;
 					}
 
@@ -677,7 +703,11 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// If the tidy pick has no cover but a cover cell is reachable, bend the line into cover.
-			if (coverFound && (!found || bestCover <= 0))
+			// DP-3 cover-first (human Loose): also bend when a strictly-better cover cell is reachable,
+			// even if the tidy pick already had some cover — every unit takes the best cover it can,
+			// line shape yielding to positioning. The coverFirst term is false everywhere else, so the
+			// bot / human-Spread condition reduces to exactly the prior "bend only when tidy has none".
+			if (coverFound && (!found || bestCover <= 0 || (coverFirst && bestCoverRaw > bestCover)))
 				return bestCoverCell;
 
 			if (found)
@@ -720,7 +750,8 @@ namespace OpenRA.Mods.Common.Traits
 		// next to a tree cluster), step=1 tripped immediately and slots anchored right next to
 		// the starting position — units never reached far clicks. Walking click→group reverses
 		// that bias and keeps the "approach" intent honest.
-		CPos[] ComputeApproachSlots(Map map, CPos clickCell, CPos groupCentroid, int n, int colSpacing, Mobile subjectMobile)
+		CPos[] ComputeApproachSlots(Map map, CPos clickCell, CPos groupCentroid, int n, int colSpacing, Mobile subjectMobile,
+			int coverRadius, bool coverFirst)
 		{
 			var dxCells = clickCell.X - groupCentroid.X;
 			var dyCells = clickCell.Y - groupCentroid.Y;
@@ -750,7 +781,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			return LayCoverAwareLine(map, boundary, unitX, unitY, n, colSpacing, subjectMobile);
+			return LayCoverAwareLine(map, boundary, unitX, unitY, n, colSpacing, subjectMobile, coverRadius, coverFirst);
 		}
 
 		// Fallback when EdgeLine has no gradient: place a horizontal line through the click.
@@ -814,6 +845,24 @@ namespace OpenRA.Mods.Common.Traits
 			var mode = autoTarget?.CohesionValue ?? CohesionMode.Loose;
 			var tick = subject.World.WorldTick;
 
+			// Stance-identity gate (PIPELINE 5). The three cohesion stances get distinct HUMAN-facing
+			// identities (DP-1 Tight=vanilla, DP-2 Spread=dispersed, DP-3 Loose=cover-first), but
+			// bot-owned grouped moves must stay byte-identical to preserve the frozen AI benchmark
+			// (default AI cohesion is Loose — AutoTarget.InitialCohesionAI). isHuman mirrors the
+			// existing human/AI seam (AutoTarget.Created/ResolveOrder) and reads only synced player
+			// state (Owner.IsBot/Playable): no RNG, identical on every client, so it never desyncs.
+			var isHuman = subject.Owner.Playable && !subject.Owner.IsBot;
+
+			// DP-1: Tight = classic/vanilla for humans. ALL cohesion adjustments are OFF — the grouped
+			// order passes through unmodified, exactly like stock OpenRA (every unit converges on the
+			// click). Clear any stale slot leash first so a slot from a prior Loose/Spread order can't
+			// drag the unit back. Placed before the cache so Tight-human never reads/writes it.
+			if (isHuman && mode == CohesionMode.Tight)
+			{
+				subject.TraitOrDefault<CohesionSlotMemory>()?.Clear();
+				return individualOrder;
+			}
+
 			// Cache hit: this order's matching was already computed by an earlier subject in the same
 			// ProcessOrder dispatch. Read this subject's assigned cell and skip the whole pipeline.
 			if (TryReadCache(validActors, tick, clickCell, mode, orderString, idx, out var cachedCell))
@@ -822,11 +871,17 @@ namespace OpenRA.Mods.Common.Traits
 				return individualOrder.WithTarget(Target.FromCell(subject.World, cachedCell));
 			}
 
-			GetSpacing(mode, out var colSpacing, out var rowSpacing);
+			GetSpacing(mode, isHuman, out var colSpacing, out var rowSpacing);
 			GetMaxExtent(mode, out var maxWidth, out var maxDepth);
 
 			var intent = ClassifyIntent(map, clickCell, out var gradX, out var gradY, out var lineAlongX, out var lineAlongY);
 			var subjectMobile = subject.TraitOrDefault<Mobile>();
+
+			// DP-3: Loose = cover-first for humans. Widen the per-slot cover search and let cover win
+			// over line shape freely. Every other case (bots, human Spread) keeps LineSlotSearchRadius
+			// and the tidy-first bend, so their line layouts are byte-identical to before.
+			var coverRadius = isHuman && mode == CohesionMode.Loose ? info.LooseHumanCoverSearchRadius : info.LineSlotSearchRadius;
+			var coverFirst = isHuman && mode == CohesionMode.Loose;
 
 			// Hard span bound for line formations (symptom a). The box cap (1eb644de) lives inside
 			// ComputeBoxSlots and never covered EdgeLine/Approach/OpenLine, whose width is (n-1)*spacing
@@ -871,11 +926,11 @@ namespace OpenRA.Mods.Common.Traits
 
 				case Intent.EdgeLine:
 					slots = ComputeEdgeLineSlots(map, clickCell, gradX, gradY, lineAlongX, lineAlongY,
-						gradX, gradY, n, lineColSpacing, subjectMobile);
+						gradX, gradY, n, lineColSpacing, subjectMobile, coverRadius, coverFirst);
 					break;
 
 				case Intent.Approach:
-					slots = ComputeApproachSlots(map, clickCell, groupCentroid, n, lineColSpacing, subjectMobile);
+					slots = ComputeApproachSlots(map, clickCell, groupCentroid, n, lineColSpacing, subjectMobile, coverRadius, coverFirst);
 					break;
 
 				case Intent.Open:
