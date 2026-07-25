@@ -270,6 +270,26 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
+			// Stage 1 (PIPELINE item 8 — Phase-3 S4 fix): FIRE-stance opt-out. A unit in Ambush or
+			// HoldFire has expressed a hold / first-strike intent that is STRONGER than a reposition —
+			// walking it off its chosen cell silently defeats a human ambush placement (the un-ambush
+			// bug). Treat it exactly like the deployed / HoldPosition opt-outs above: read the live
+			// SYNCED fire-stance (never the per-machine unit-defaults file), relinquish any management,
+			// issue no move. FireAtWill — the AI default and every @stable / control bot — is < the
+			// opt-out and unaffected, so those profiles stay byte-identical (the executor is off for
+			// them anyway; even were it on, FireAtWill never trips this branch). Done in C# rather than a
+			// `!stance-ambush && !stance-holdfire` clause on RequiresCondition: that clause would make
+			// every ^Combatant CONSUME stance-ambush/stance-holdfire, which the CheckConditions lint
+			// then requires to be GRANTED on the same actor — a co-location with ^AutoTarget that is not
+			// structurally guaranteed for every combat actor. Reading autoTarget.Stance here needs no
+			// such guarantee and mirrors the existing engagement-stance HoldPosition opt-out.
+			if (autoTarget.Stance < UnitStance.FireAtWill)
+			{
+				ReleaseManagement();
+				State = AdjustmentState.None;
+				return;
+			}
+
 			// S1: re-read stance every evaluation; never cache across evaluations.
 			var stance = autoTarget.EngagementStanceValue;
 			if (stance == EngagementStance.HoldPosition)
