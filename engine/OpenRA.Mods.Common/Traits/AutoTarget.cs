@@ -316,6 +316,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		public ResupplyBehavior ResupplyBehaviorValue => resupplyBehavior;
 
+		/// <summary>True once this unit has SPRUNG its ambush (any Stage-3 trigger, a spot on the stock path,
+		/// or a retaliation) — read-only view of the internal <c>ambushTriggered</c> latch. SPRUNG is terminal
+		/// until the stance is reset away from Ambush (see <see cref="ResetAmbushState"/>), so a bot consumer
+		/// (PIPELINE item 8 Stage 4) that posts lane ambushers polls this to release a fired unit back to normal
+		/// tasking rather than leaving it latched forever. The latch evolves by pure integer/bool math over
+		/// already-synced world state with zero RNG (see the field-group comment below), so it is deterministic
+		/// across clients even though it is not itself [Sync] — a decision gated on it stays in lockstep.</summary>
+		public bool AmbushSprung => ambushTriggered;
+
 		[Sync]
 		public Actor Aggressor;
 

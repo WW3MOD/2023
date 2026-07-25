@@ -287,6 +287,35 @@ Player:
 		# above becomes inert (kept for the frozen @stable twin).
 		UseUnitRoles: true
 
+	# experimental AI: LANE AMBUSH (PIPELINE item 8 Stage 4). The strategic consumer of the shipped
+	# widened-ambush machinery — posts a few suitable units into concealed Ambush positions on the corridor
+	# between our beachhead and the enemy's and grants them the enable-ambush-tactics gate so the Stage-2/3
+	# machine runs. Claims units through the SAME shared PoiGoalGuard ledger (commits "ambush:<id>") so
+	# offense/garrison/capture never fight over them; releases sprung units back to normal tasking.
+	# Deliberately small (MaxAmbushes x UnitsPerAmbush = 4 units max) so it never starves offense.
+	#
+	# NO @stable twin: this behaviour is new + not yet benchmark-validated, so @stable must NOT run it (a
+	# twin would break @stable byte-identity). @stable/Normal/Rush/Turtle/humans never instantiate the
+	# module, and enable-ambush-tactics is granted ONLY here, so on every other profile the Stage-2/3 gate
+	# stays ungranted and the machinery is the same dead code it was at ship. The @experimental offense
+	# benchmark re-baseline (gate b) is DECLARED, not run — the loop owner prices it before any default-on.
+	LaneAmbushBotModule@experimental:
+		RequiresCondition: enable-ai-experimental
+		ReevaluateInterval: 100
+		MaxAmbushes: 2
+		UnitsPerAmbush: 2
+		PostFractionPct: 40
+		MinLaneSeparationCells: 12
+		PostCellClampCells: 6
+		AmbushCommitmentTicks: 250
+		RepathThresholdCells: 3
+		# Same exclusions as PoiOffensiveBotModule@experimental: capturer + non-combat support and IFV
+		# carriers (owned by CaptureCoordinator / SupplyFollower / MountedTransport). Role filter below makes
+		# the list inert; kept for parity. The ^AutoTargetGround family (AA IFVs + assault-move vehicles) is
+		# excluded structurally by CanHostAmbush regardless of these lists (OBS-1).
+		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
+		UseUnitRoles: true
+
 	# NOTE: No engineer (^E6) capture module wired anywhere — engineers
 	# don't capture in WW3MOD by design. The Captures trait sits on
 	# Technician (^TECN) only. See DOCS/gameplay/capturing.md.
