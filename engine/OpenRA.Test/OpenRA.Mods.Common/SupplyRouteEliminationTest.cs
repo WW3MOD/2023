@@ -99,5 +99,39 @@ namespace OpenRA.Test
 		{
 			Assert.That(SupplyRouteContestation.ShouldAwardVictory(Others()), Is.True);
 		}
+
+		// --- Winning-team guard: a team with a victor is never eliminated ---
+		// Regression: 1v2 (human vs allied bots) where one bot clinched the win via
+		// ConquestVictoryConditions a tick before the other bot's Supply Route defeat bar filled.
+		// The trailing bot was still Undefined and got marked Lost by team-elimination, so the
+		// winning team ended with one member shown "Won" and the other "Lost".
+
+		[Test]
+		public void TeamWithAWonAlly_IsVictorious()
+		{
+			// The still-Undefined teammate sees its ally already Won -> team has won, do not eliminate.
+			var result = SupplyRouteContestation.TeamHasVictor(Others(
+				(true, WinState.Won),          // ally already clinched the win
+				(false, WinState.Lost)));      // the defeated enemy
+
+			Assert.That(result, Is.True);
+		}
+
+		[Test]
+		public void NoWonAlly_TeamNotYetVictorious()
+		{
+			// A Lost ally or an enemy's Won never counts -- only a living ally's victory saves the team.
+			Assert.That(
+				SupplyRouteContestation.TeamHasVictor(Others(
+					(true, WinState.Undefined),   // ally still fighting
+					(false, WinState.Lost))),     // defeated enemy
+				Is.False);
+
+			Assert.That(
+				SupplyRouteContestation.TeamHasVictor(Others(
+					(true, WinState.Lost),         // ally already lost
+					(false, WinState.Won))),       // an ENEMY won -- must not save us
+				Is.False);
+		}
 	}
 }

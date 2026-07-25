@@ -3,6 +3,15 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-25 — Winning team could end with one member "Lost": team-elimination doesn't spare a team that already has a victor (wt/team-victory)
+
+Reported: 1 human vs 2 allied bots; bots won, human `Lost`, but only ONE bot showed `Won` — the other showed `Lost`.
+
+- **Every player owns an indestructible Supply Route (`SUPPLYROUTE`, `structures.yaml:232` `MustBeDestroyed`, `Armor: Indestructable`), so `HasNoRequiredUnits` is effectively always false for a live player.** That means `ConquestVictoryConditions.Tick`'s classic RA defeat path (`ConquestVictoryConditions.cs:69-70`) never fires in normal WW3MOD play — a player can only be defeated by **Supply Route contestation** (`SupplyRouteContestation.ResolveTeamElimination`) or by surrendering. The SR never changes owner on contest (only via `OwnerLostAction` *after* the owner is already Lost), so it can't vanish mid-game to trigger the RA path.
+- **The trait's own contract (`SupplyRouteContestation.cs:24-25`): an overrun player "is defeated (no allies) or becomes passive (has allies)."** A bot *with a living ally* is designed to only go `isPassive`, never be individually eliminated — `HasActiveTeamSupplyRoute()` keeps it alive while an ally holds an active SR. So a teammate ending `Lost` while its ally `Won` violates the trait's own design → a bug, not intended semantics.
+- **Root cause — a win/elimination interleave across ticks.** `HasActiveTeamSupplyRoute` (pre-fix `:386`) skipped any ally whose `WinState != Undefined`, i.e. it treated an ally who had **already Won** as "not an active SR." So once bot1 clinched the win (via `ConquestVictoryConditions` inference one tick earlier, or a surrender that left the bots `Undefined`), a later `OnDefeatBarFull` on bot2's SR saw "no active team SR," called `ResolveTeamElimination`, and Phase 1 (`:434-451`) marked the still-`Undefined` bot2 `Lost` while its `WinState`-guard correctly skipped the already-`Won` bot1. Net: same team, one `Won` + one `Lost`. The existing two-phase design guards the *opposing-team* mutual-overrun race (see the `AlreadyDecidedPlayersAreLeftUntouched` test) but never contemplated a member of the *winning* team still being `Undefined` and eligible for elimination.
+- **Fix (`SupplyRouteContestation.cs`):** (1) `HasActiveTeamSupplyRoute` now returns true when any ally has `WinState == Won` (a team with a victor is never eliminable); (2) `ResolveTeamElimination` Phase 1 skips any player whose team already has a victor (`TeamAlreadyWon` / pure `TeamHasVictor` helper) so Phase 2 awards it instead of defeating it. New unit tests `TeamWithAWonAlly_IsVictorious` / `NoWonAlly_TeamNotYetVictorious` in `SupplyRouteEliminationTest.cs`. NOT verified by build/test here (DLLs locked; manager verifies).
+
 ## 2026-07-25 — SUPPLYCACHE had no self-removal path except LC absorption; a crate drained via infantry rearm sat forever (wt/supply-crate-expiry)
 
 Mirroring the truck "return when almost empty" fix onto dropped supply crates. Findings:

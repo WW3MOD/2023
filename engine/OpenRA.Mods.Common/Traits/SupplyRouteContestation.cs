@@ -383,10 +383,21 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				var owner = actor.Owner;
-				if (owner.NonCombatant || !owner.Playable || owner.WinState != WinState.Undefined)
+				if (owner.NonCombatant || !owner.Playable)
 					continue;
 
 				if (!owner.IsAlliedWith(self.Owner))
+					continue;
+
+				// An ally that has already won means the whole team has won — the team is not
+				// eliminable and this SR's owner must NOT be defeated. Without this, an ally's
+				// victory (which skips it below via the Undefined guard) would leave a still-in-play
+				// teammate looking "unsupported" and drive ResolveTeamElimination to mark it Lost,
+				// producing a winning team with one member wrongly shown as defeated.
+				if (owner.WinState == WinState.Won)
+					return true;
+
+				if (owner.WinState != WinState.Undefined)
 					continue;
 
 				if (!actor.Trait<SupplyRouteContestation>().isPassive)
@@ -416,13 +427,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (TestMode.IsActive)
 				return;
 
-			// Phase 1: mark the eliminated team (this SR's owner + its allies) Lost.
+			// Phase 1: mark the eliminated team (this SR's owner + its allies) Lost — but never a
+			// team that already has a victor. If a teammate has already Won (its enemies were
+			// resolved a tick earlier), the team has won; a still-Undefined member must be awarded
+			// in Phase 2, not defeated here. Otherwise the winning team ends with one member Lost.
 			foreach (var p in self.World.Players)
 			{
 				if (p.NonCombatant || !p.Playable || p.WinState != WinState.Undefined)
 					continue;
 
 				if (p != self.Owner && !p.IsAlliedWith(self.Owner))
+					continue;
+
+				if (TeamAlreadyWon(p))
 					continue;
 
 				var mo = p.PlayerActor.TraitOrDefault<MissionObjectives>();
@@ -456,6 +473,29 @@ namespace OpenRA.Mods.Common.Traits
 			return self.World.Players
 				.Where(o => o != survivor && !o.NonCombatant && o.Playable)
 				.Select(o => (survivor.IsAlliedWith(o), o.WinState));
+		}
+
+		// True when a teammate of this player (an ally, not the player itself) has already Won.
+		// Such a team has won and none of its members may be eliminated.
+		bool TeamAlreadyWon(Player player)
+		{
+			return TeamHasVictor(self.World.Players
+				.Where(o => o != player && !o.NonCombatant && o.Playable)
+				.Select(o => (player.IsAlliedWith(o), o.WinState)));
+		}
+
+		// Pure decision: has a teammate already won? Any allied combatant marked Won means the team
+		// is victorious, so a still-Undefined member must be awarded rather than eliminated. This is
+		// the invariant that prevents a winning team from ending with one member Lost when its
+		// members' win/elimination events land on different ticks (e.g. an ally clinches the win via
+		// ConquestVictoryConditions one tick before this SR's defeat bar fills).
+		public static bool TeamHasVictor(IEnumerable<(bool Allied, WinState State)> otherCombatants)
+		{
+			foreach (var other in otherCombatants)
+				if (other.Allied && other.State == WinState.Won)
+					return true;
+
+			return false;
 		}
 
 		// Pure decision: should this surviving combatant be awarded the win? True only when every
