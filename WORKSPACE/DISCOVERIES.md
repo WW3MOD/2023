@@ -5,6 +5,8 @@
 
 ## 2026-07-25 — Lingering dotnet.exe / OpenRA.exe after the game exits: the logging thread is the engine's only *foreground* thread, so any exit that skips `Log.Dispose()` pins the process (wt/dotnet-leak)
 
+> **[promoted: the durable engine code rule — the Log thread is the only long-lived FOREGROUND thread and pins the process on any exit that skips `Log.Dispose()`; keep `IsBackground = true` (fix landed, `Log.cs:59-68`) → conventions.md §Engine behaviors that surprise. The utility-child disproof and the harness-side `run-test.sh` INT/TERM trap are AUTOTEST/commit-log material, left in git.]** (curation 2026-07-25).
+
 Investigating the "7–10 stray `.NET Host` (dotnet.exe) processes accumulate after launching/closing the game" report against `main` @ `4b28ed4f`. Symptoms vs. verified causes kept separate.
 
 - **The utility-child hypothesis is disproven for normal play.** Grepping `Process.Start`/`ProcessStartInfo` across `engine/` (all `.cs`): the game spawns **no** `OpenRA.Utility` children — map previews/minimaps are generated in-process on background threads (`MapCache.cs:405` `previewLoaderThread` is `IsBackground=true`; `MissionBrowserLogic.cs:211` a transient minimap thread). The only real spawns are (a) `OpenRA.WindowsLauncher/Program.cs:102` — the launcher's parent→child self-spawn, taken **only** when `Engine.LaunchPath=` is absent; `launch-game.cmd:23` always passes it, so the normal Windows launch is a *single* `OpenRA.exe` (`RunGame`), no waiting parent; and (b) `Game.cs:711 SwitchToExternalMod`, an intentional mod-switch restart. Neither leaks a wrapper on the normal path. So the accumulation is not orphaned utility children.
@@ -14,6 +16,8 @@ Investigating the "7–10 stray `.NET Host` (dotnet.exe) processes accumulate af
   - **Fix (harness):** added `trap '…; kill_game "${LAUNCH_PID}"; exit 130' INT TERM` right after the launch (`run-test.sh` after `:458`). Normal completion is untouched (fires on signals only); the reused `kill_game` uses `taskkill //T` on Windows.
 - **Manager-only verification (I could not launch):** launch the game, open a map so previews generate, quit normally → `Get-CimInstance Win32_Process | ? { $_.Name -eq 'dotnet.exe' -or $_.Name -like 'OpenRA*' }` should show none surviving (ignore the benign Roslyn `VBCSCompiler`). Then repeat with a hard window-close / Alt-F4 during a match, and an interrupted `run-test.sh` (Ctrl-C), re-checking each time.
 ## 2026-07-25 — Widened Ambush Stage 4 (bot lane-ambush consumer): the OBS-1 "which units can ambush" filter is structural (a template-inheritance fact), the gate is granted at runtime through the existing ExternalCondition seam, and the enemy SR is a fog-legal lane anchor (wt/ambush-s4, PIPELINE 8)
+
+> **[promoted: the LaneAmbushBotModule consumer — OBS-1 template-inheritance filter (`CanHostAmbush`), runtime gate grant through the shipped `ExternalCondition@ambushtactics` seam, `PoiGoalGuard` ledger commit (OBS-2), `AmbushSprung` release, the fog-legal `OwnSupplyRoute`/`GetOffensiveTargets(suppressOmniscientThreat)` lane anchors, and no-`@stable`-twin byte-identity → architecture.md §Widened ambush (Stages 1–4). Verified against `LaneAmbushBotModule.cs` (incl. the 67071b02 `TraitDisabled` cleanup) + `defaults.yaml:305/553` + `PoiMap.cs`.]** (curation 2026-07-25).
 
 Implementing Stage 4 of `WORKSPACE/plans/260722_ambush_undetected_design.md` §6 against `main` @ `4b28ed4f`. The consumer is `LaneAmbushBotModule` (a `PoiGarrisonBotModule`-shaped `IBotTick` player trait). Non-obvious points worth keeping:
 
@@ -25,6 +29,8 @@ Implementing Stage 4 of `WORKSPACE/plans/260722_ambush_undetected_design.md` §6
 - **Byte-identity is by ABSENCE, not a flag-off branch: no `@stable` twin.** The module is `RequiresCondition: enable-ai-experimental` with NO `@stable` copy (unlike offense/garrison, which have frozen twins). A brand-new, not-yet-validated behaviour must NOT be in `@stable` — a twin would change `@stable`. So `@stable`/Normal/Rush/Turtle/humans never instantiate the trait, never commit to a ledger, never grant `enable-ambush-tactics`; on every non-experimental profile the Stage-2/3 gate stays 0 and the machinery is the same dead code it was at ship. The `@experimental` offense benchmark re-baseline (gate b) is DECLARED, not run — priced by the loop owner before any thought of default-on.
 
 ## 2026-07-25 — Widened Ambush Stage 3 (stationary literal-ambush state machine): SPRUNG must be a terminal latch to kill re-issue oscillation, and the value/threat score split is the whole reason a truck convoy is ambushable (wt/ambush-s3, PIPELINE 8)
+
+> **[promoted: the Stage-3 stationary state machine in `AutoTarget.AmbushTickIdle` — the SPRUNG terminal latch (`ambushTriggered`, cleared only by `ResetAmbushState`), the threat/value `ContactScore` split, the range-sample radial-exit prediction, the cadence-gated kill-zone scan, and the non-`[Sync]` zero-RNG determinism → architecture.md §Widened ambush (Stages 1–4). Verified against `AutoTarget.cs:624-853`.]** (curation 2026-07-25).
 
 Implementing Stage 3 of `WORKSPACE/plans/260722_ambush_undetected_design.md` §5.2 against `main` @ `43b7a267` (code tip `3ddd0b40`). Non-obvious points worth keeping:
 
@@ -38,6 +44,8 @@ Implementing Stage 3 of `WORKSPACE/plans/260722_ambush_undetected_design.md` §5
 - **Fork A (cosmetic prone) shipped as the existing behaviour, no new code.** Prone is condition-driven with a `!moving` clause (`infantry.yaml`), so a stationary infantry ambusher already reads prone; adding a *new* Stage-3-specific cosmetic prone grant/sequence is disproportionate effort for zero mechanical value (prone confers no concealment, §3.1). Shipped without an explicit prone hook — the existing `!moving` prone already gives the visual.
 
 ## 2026-07-25 — Widened Ambush Stages 1–2: the executor fire-stance opt-out is safer in C# than the planned YAML clause; halt-before-contact reduces to "terminate the attack-move and reuse the idle-ambush path" (wt/ambush-s12, PIPELINE 8)
+
+> **[promoted: the two durable-mechanism facts — (1) the `enable-ambush-tactics` gate byte-identity (granted by nobody in shipped rules; sync-inert `ExternalCondition@ambushtactics` seam on `^AutoTarget`) and (2) Stage-2 halt-before-contact = terminate the attack-move + drop to the idle `AmbushTickIdle` path, with fork B (plain Move always obeyed) structural → architecture.md §Widened ambush (Stages 1–4). Verified against `AttackMoveActivity.cs:33-189` + `defaults.yaml:305-332`. The Stage-1/2 IMPLEMENTATION specifics (the C#-over-YAML executor opt-out rationale, the `ChildHasPriority=false` latch-and-drain idiom) stay commit-log/WORKSPACE detail.]** (curation 2026-07-25).
 
 Implementing Stages 1–2 of `WORKSPACE/plans/260722_ambush_undetected_design.md` §6 against `main` @ `38b430f1`. Non-obvious points worth keeping:
 
@@ -1385,6 +1393,8 @@ Found while inventorying coordination primitives for `WORKSPACE/plans/260722_bot
 - Implication recorded in the architecture doc (§4.4): a future operations layer should extend the ledger with unit-level claims and delete the blackboard's dead task API rather than adopt it (it stores no lifecycle/composition/conditions).
 
 ## 2026-07-25 — ScanForTarget's cooldown-Invalid conflation broke Stage-3 ambush cadence; graded-vision detection math for scenario authors
+
+> **[promoted: the `ScanForTarget` cooldown-Invalid PITFALL — `Invalid` conflates "found nothing" with "scan interval not elapsed" (`nextScanTime > 0`), so a caller must capture `scannedThisTick = nextScanTime <= 0` BEFORE the call → conventions.md §Engine behaviors that surprise. Verified against `AutoTarget.cs:928-951` + `AmbushTickIdle:636-648`. REJECTED: the "override `Detectable: Vision: 9` to author an undetected ambusher" detection-tuning and the OBS-D test-coverage gap are AUTOTEST/scenario-authoring material; the durable detection-model core (visibility = the enemy's `MapLayers` revealing the cell at the `Vision` threshold, `Detectable.cs:93-116`) is already at architecture.md §Suppression system.]** (curation 2026-07-25).
 
 Found during the granted Stage-3 RED/GREEN validation batch (PIPELINE item 8), main + uncommitted fix; fix reviewed MERGE/0-FIX/4-OBS.
 
