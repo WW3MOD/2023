@@ -219,6 +219,11 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		{
 			return owner.World.Actors
 				.Where(a => a.Owner != null && !a.IsDead && a.IsInWorld
+					// world.Actors also holds positionless actors (each player's PlayerActor, the world
+					// actor). An enemy PlayerActor passes every clause below, but has no IOccupySpace, so
+					// the CenterPosition read inside ClosestToIgnoringPath NREs. Skip anything without a
+					// position — real units/structures always occupy space, so this only drops non-targets.
+					&& a.OccupiesSpace != null
 					&& owner.Bot.Player.RelationshipWith(a.Owner) == PlayerRelationship.Enemy
 					&& !a.Info.HasTraitInfo<HuskInfo>()
 					&& !a.Info.HasTraitInfo<AircraftInfo>())
