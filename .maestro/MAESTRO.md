@@ -27,3 +27,19 @@ Deliberate experiment: larger per-worker batches vs one-item-per-worker, across 
 - **Review sizing**: full adversarial reviewer for behavior/engine changes; test-only or byte-identical batches can take a manager diff-inspection on merge instead.
 - **Known merge frictions**: `WORKSPACE/DISCOVERIES.md` conflicts append-vs-append when two branches both add entries — resolve keep-both. Windows: `git worktree remove` fails with "Permission denied" while a worker session still holds the dir as cwd — archive the worker first, then remove (a failed first attempt usually already unregistered it; just `rm -rf` the leftover dir). Worker-created worktrees: give the path with FORWARD slashes in the brief, or bash eats the backslashes and the worktree lands somewhere wrong.
 - **Shared-index hazard (doc-only workers in the main checkout)**: everyone in the same checkout shares ONE git index. A `git add <file> && git commit` by the manager (or any worker) sweeps another party's staged-but-uncommitted files into the wrong commit (happened at 7385c055). Rules: while workers are active in the main repo, commit path-limited only (`git commit <paths> -m ...`, never bare `git add`+`commit`); tell each concurrent doc worker to commit its specific files by path; anything bigger than a doc tweak goes to a worktree as usual.
+
+## Autoburn playbook (added 2026-07-26, after the first-window retrospective)
+
+Orientation order for a fresh manager told "work the pipeline":
+
+1. `WORKSPACE/PIPELINE.md` — the ordered queue; top item = next to start. Items marked user-gated need explicit grants — never self-authorize.
+2. `WORKSPACE/cases/README.md` — the scenario-case model: user-authored cases with ONE measurable bar each are the preferred unit of autonomous work. Iterate features/tuning until the case reads GREEN. Case files carry their own dependencies and status logs.
+3. `WORKSPACE/HOTBOARD.md` + `git log --oneline -20` — what just happened.
+4. The routing table in CLAUDE.md for anything a specific item touches.
+
+Retrospective lessons that bind future windows:
+
+- **Measurement is the product.** The first window's failure mode was shipping well-reviewed changes with no outcome numbers (the Stage-F benchmark re-baseline sat declared-never-run). Prefer queue items whose acceptance is a number; when a bot change ships without a valid benchmark baseline, flag it loudly in the track rather than letting it slide.
+- **Grants are the bottleneck to plan around.** Case calibration and benchmarks are user-gated (no-autonomous-multi-test). Front-load all NON-gated work (recon, features, overlays, scenario authoring) and park measurement steps with a clear "needs grant" flag, so a single user grant unlocks a batch of ready-to-run measurements instead of one.
+- **Cap needs_review pileup.** Ten subjective-review tracks accumulated in window 1. Under the case model, a GREEN bar largely self-certifies — reserve needs_review for genuine taste/feel checks and say precisely what the user should look at.
+- **Persist state relentlessly.** Anything a future manager needs lives in PIPELINE / cases / DISCOVERIES / the manager log — never only in a transcript. Assume every session can be replaced mid-arc.

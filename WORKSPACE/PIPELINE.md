@@ -14,7 +14,37 @@ User played a 2v2 vs three bots. The three previously-gated behaviors (heli stan
 
 ---
 
+## PROCESS SHIFT — scenario-case model (2026-07-26)
+
+Autoburn retrospective verdict (first window, ~07-20 → 07-25): throughput and review quality held, but **outcome measurement fell away** — later bot changes shipped verified by build/NUnit/scenario-logic, never by bot-vs-bot numbers (the Stage-F benchmark re-baseline is still declared-never-run), and ten tracks piled into needs_review because acceptance was subjective. Fix adopted: **user-authored cases with measurable bars** — see [`WORKSPACE/cases/README.md`](cases/README.md) for the model, format, and constraints. Queue items 20–25 below implement the reboot. Standing dependency: case calibration/measurement batches remain **user-gated** (no-autonomous-multi-test rule); a scoped standing grant would be the single highest-leverage unblock for autonomous case iteration.
+
+---
+
 ## QUEUE
+
+### 20. Recon — do trees conceal? (terrain concealment mechanics)
+**Perceived:** nothing yet — this is the fact-finding that decides whether case-01 (forest ambush) is buildable as painted, or needs a concealment mechanic built first.
+_Read-only recon: how do trees/terrain interact with the graded-vision detection model (`Detectable.Vision`, vision rings) today? The Stage-3 ambush scenarios had to override `Vision: 9` to author a hidden unit — suggesting terrain concealment may not exist mechanically. Deliverable: a short findings doc (what exists, what a tree-concealment mechanic would minimally require, cost estimate) + DISCOVERIES entry. Gates items 21+22. Startable autonomously — no grants needed._
+
+### 21. Stance-aware cover positioning — one order, good positions
+**Perceived:** select a squad, click once at a tree cluster — units flow in and each takes a sensible position; ambush-stance units pick concealed cells and stay hidden. The "my soldiers are smart about where they stand" feel.
+_NEW feature (the real work inside case-01): a cover-aware position-selection layer on group order resolution, stance-driven (ambush → concealment-seeking; composes with cohesion Loose=cover identity and `StancePositioningExecutor`). Depends on item 20's findings. Human-facing first, default behavior change so keep it conservative: positioning within the ordered area only, no autonomous repositioning. Byte-identity discipline applies if any bot path is touched._
+
+### 22. Case 01 — forest ambush measurement (`cases/case-01-forest-ambush.md`)
+**Perceived:** the payoff of 20+21, proven by a number: an equal-cost force walking into the treeline ambush is destroyed at ~3× the defenders' losses, repeatably.
+_Author the scenario (scripted attacker, defender squad under test), run a calibration batch, ratify the bar (provisional 1:3 cost-weighted), then iterate until GREEN. **Calibration batch needs a test grant** — user-gated._
+
+### 23. Territory overlay v2 — player-facing control view + staleness stripes
+**Perceived:** toggle a map overlay: the whole map reads red/green/gray — who controls what, even where nobody is standing — with a diagonal-stripe pattern growing in intensity over areas not scouted recently. At a glance: where ground was lost, where enemy pressure concentrates.
+_Mostly a RENDERING project — the data already exists in Stage-C `ControlField` (Voronoi whole-map seed from home beachheads, persistence without presence, gray contested band, `LastVerified` per-cell staleness). Current `/danger` overlay is dev-only and demotes control to a secondary wash. Work: promote control to a first-class polished view, add stripe-intensity ∝ ticks-since-verified, decide the player-facing toggle (hold-key? lobby option?). `DOCS/recipes/SCREENSHOT.md` applies. Render-only → no byte-identity risk. Startable autonomously. Also the best vehicle for judging whether the FIELD itself feels right (front-line plausibility) — feedback may spawn tuning items._
+
+### 24. Omniscient InfluenceMap migration — capture + garrison
+**Perceived:** the @experimental bot's capture ordering and garrison placement stop cheating through fog — decisions come from what it has actually seen, consistent with the rest of the influence stack.
+_Closes the declared Stage-F gap (`DOCS/reference/influence-stack.md` §Known gaps): `CaptureCoordinatorBotModule` + `PoiGarrisonBotModule` still read `InfluenceMap.GetEnemyInfluence`. Same `suppressOmniscientThreat` seam pattern; defense needs the mirror bucket (threat RAISES defend score, `PoiScoring.DefendThreatFactor`). End state: the omniscient InfluenceMap shrinks toward deletable — the redundancy the user flagged. Byte-identity + default-off flags as always. Startable autonomously._
+
+### 25. Benchmark re-baseline — restore the measurement instrument
+**Perceived:** nothing directly, but every future "did the bot get better?" claim becomes trustworthy again.
+_The Stage-F re-baseline is DECLARED, NEVER RUN (`WORKSPACE/ai-bench/runs/260724_stagef_repoint_rebaseline.md`) — the instrument for @experimental offense changed and was never re-zeroed. Also the natural home for item-8 gate (b) benchmark pricing (ambush default-on decision). **Entirely user-gated** (multi-test)._
 
 ### 8. Ambush behavior — IMPLEMENTATION **[ALL STAGES SHIPPED 2026-07-25 — only gate (b) benchmark pricing remains, user-gated]**
 **Perceived:** hidden Ambush units that hold fire until spotted or until springing the trap at the best moment; units *feel alive*, reacting to being seen/unseen. Human-settable stance first, **default off** so nothing changes for players who don't opt in.
