@@ -171,6 +171,18 @@ Player:
 		# on-foot when no carrier is free. Default false on the engine class → @stable.tecn frozen.
 		UseTransportForDistantCaptures: true
 		TransportCaptureMinDistanceCells: 12
+		# Influence stack (capture migration, PIPELINE item 24): order capture targets off the BELIEVED
+		# anti-ground danger field instead of the omniscient InfluenceMap threat PoiMap bakes into the capture
+		# score. When on, GetCaptureTargets is asked for a threat-NEUTRAL base score (no omniscient read) and
+		# the believed-danger damp re-orders it fog-legally — a capturer is not sent first into a believed weapon
+		# envelope. Mirrors PoiOffensiveBotModule's Stage-F believed-danger buckets on the danger-field scale:
+		# safe x100 / mild x60 / hostile x20. Default OFF on the @stable.tecn twin = byte-identical.
+		StrategicCaptureRepointEnabled: true
+		BelievedDangerMildThreshold: 40
+		BelievedDangerHostileThreshold: 120
+		BelievedDangerSafeMultiplier: 100
+		BelievedDangerMildMultiplier: 60
+		BelievedDangerHostileMultiplier: 20
 
 	# experimental AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
 	# ground army across the top enemy objectives ranked by PoiMap
@@ -286,6 +298,20 @@ Player:
 		# Phase 4: same role-based free-pool filter as PoiOffensiveBotModule@experimental. ExcludeUnitTypes
 		# above becomes inert (kept for the frozen @stable twin).
 		UseUnitRoles: true
+		# Influence stack (garrison migration, PIPELINE item 24): score held-POI defend urgency off the BELIEVED
+		# anti-ground danger field instead of the omniscient InfluenceMap threat PoiMap bakes into the defend
+		# score. When on, GetDefendTargets is asked for a threat-NEUTRAL (calm) base score (no omniscient read)
+		# and the believed-danger RAISE re-orders + resizes garrisons fog-legally — the MIRROR of the capture
+		# damp: believed danger at a POI we hold RAISES its defend score and garrison size. Buckets mirror the
+		# omniscient defend multipliers on the danger-field scale: calm x100 / probed x150 / assaulted x250.
+		# The assaulted threshold (120) is where the garrison-size threat bump fires. Default OFF on the @stable
+		# twin = byte-identical.
+		DefendRepointEnabled: true
+		BelievedDangerMildThreshold: 40
+		BelievedDangerHostileThreshold: 120
+		BelievedDangerCalmMultiplier: 100
+		BelievedDangerProbedMultiplier: 150
+		BelievedDangerAssaultedMultiplier: 250
 
 	# experimental AI: LANE AMBUSH (PIPELINE item 8 Stage 4). The strategic consumer of the shipped
 	# widened-ambush machinery — posts a few suitable units into concealed Ambush positions on the corridor

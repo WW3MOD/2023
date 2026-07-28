@@ -116,6 +116,36 @@ namespace OpenRA.Mods.Common.Traits
 			"behaviour, so the @stable twin stays byte-identical.")]
 		public readonly bool UseUnitRoles = false;
 
+		[Desc("Influence stack (capture migration): order capture targets off the BELIEVED anti-ground danger",
+			"field (DangerFieldLayer) instead of the OMNISCIENT InfluenceMap threat grid PoiMap bakes into the",
+			"capture score. When on, GetCaptureTargets is asked for a threat-NEUTRAL base score (no omniscient",
+			"read) and this module re-applies a fog-legal believed-danger damp — threat LOWERS a target's",
+			"capture-ordering score, so a capturer is not sent first into a believed weapon envelope. Completes",
+			"the @experimental fog migration for capture ordering. OFF by default so legacy/normal and the frozen",
+			"@stable twin stay byte-identical; only CaptureCoordinatorBotModule@experimental turns it on. Inert",
+			"(falls back to the omniscient path) if no DangerFieldLayer exists.")]
+		public readonly bool StrategicCaptureRepointEnabled = false;
+
+		[Desc("Capture migration: believed anti-ground danger (DangerFieldLayer.GroundDanger) at/below which a",
+			"target cell counts as SAFE. On the danger-field throughput scale (NOT the InfluenceMap scale); sits",
+			"above the Stage-C territory baseline so ambient 'deep enemy ground' danger doesn't damp every capture.")]
+		public readonly int BelievedDangerMildThreshold = 40;
+
+		[Desc("Capture migration: believed anti-ground danger at/below which a target is MILD (above it is",
+			"HOSTILE — inside a dense believed weapon envelope). Boundary between the mild and hostile damp buckets.")]
+		public readonly int BelievedDangerHostileThreshold = 120;
+
+		[Desc("Capture migration: ordering multiplier (x100) at SAFE believed danger. Default 100 = inert.")]
+		public readonly int BelievedDangerSafeMultiplier = 100;
+
+		[Desc("Capture migration: ordering multiplier (x100) at MILD believed danger. <100 damps a probed",
+			"approach so safer captures sort first. Default 100 = inert.")]
+		public readonly int BelievedDangerMildMultiplier = 100;
+
+		[Desc("Capture migration: ordering multiplier (x100) at HOSTILE believed danger (dense believed weapon",
+			"envelope). <100 strongly damps sending a capturer into believed fire first. Default 100 = inert.")]
+		public readonly int BelievedDangerHostileMultiplier = 100;
+
 		public override object Create(ActorInitializer init) { return new CaptureCoordinatorBotModule(init.Self, this); }
 	}
 
@@ -140,6 +170,12 @@ namespace OpenRA.Mods.Common.Traits
 		// internal scoring path so the module still works standalone.
 		PoiMap poiMap;
 		bool poiMapResolved;
+
+		// Influence stack (capture migration): the believed anti-ground danger field, resolved ONLY when
+		// StrategicCaptureRepointEnabled so the off/@stable path never touches it. When present it replaces
+		// the omniscient InfluenceMap threat baked into the capture score with a fog-legal damp.
+		DangerFieldLayer dangerField;
+		bool dangerFieldResolved;
 
 		// LEGACY FALLBACK ONLY (guard not wired): capturers we've already issued
 		// orders to; cleaned when they become idle again. This is the thrash-prone
@@ -491,7 +527,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			if (poiMap != null)
-				return poiMap.GetCaptureTargets(player).Count > 0;
+				return OrderedCaptureTargets().Count > 0;
 
 			foreach (var otherPlayer in world.Players)
 			{
@@ -513,6 +549,53 @@ namespace OpenRA.Mods.Common.Traits
 			return false;
 		}
 
+		// Capture-target ordering honouring the fog-migration gate. Default path (flag off / @stable) returns
+		// PoiMap's frozen omniscient GetCaptureTargets ordering VERBATIM — byte-identical. When
+		// StrategicCaptureRepointEnabled AND a DangerFieldLayer exists, PoiMap is asked for a threat-NEUTRAL
+		// base score (no omniscient read at all) and the believed anti-ground danger field re-orders it
+		// fog-legally below. Assumes poiMap != null (every caller resolves it first).
+		List<ScoredPoi> OrderedCaptureTargets()
+		{
+			if (!dangerFieldResolved)
+			{
+				dangerField = Info.StrategicCaptureRepointEnabled
+					? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
+				dangerFieldResolved = true;
+			}
+
+			var repoint = Info.StrategicCaptureRepointEnabled && dangerField != null;
+			if (!repoint)
+				return poiMap.GetCaptureTargets(player);
+
+			return RescaleCaptureByBelievedDanger(poiMap.GetCaptureTargets(player, suppressOmniscientThreat: true));
+		}
+
+		// Re-order the (threat-neutral) capture targets by the BELIEVED anti-ground danger field: believed
+		// danger LOWERS a target's capture-ordering score (safe sorts first, a dense believed weapon envelope
+		// last), the fog-legal replacement for the omniscient InfluenceMap threat PoiMap used to bake in. The
+		// EnemyInfluence field is repurposed to carry the sampled ground danger for the log line. Pure factor
+		// (PoiScoring.BelievedThreatFactor) draws ZERO random; re-sorts with the SAME comparator PoiMap uses.
+		List<ScoredPoi> RescaleCaptureByBelievedDanger(List<ScoredPoi> targets)
+		{
+			var scaled = new List<ScoredPoi>(targets.Count);
+			foreach (var p in targets)
+			{
+				var groundDanger = dangerField.GroundDanger(player, p.Location);
+				var mul = PoiScoring.BelievedThreatFactor(groundDanger,
+					Info.BelievedDangerMildThreshold, Info.BelievedDangerHostileThreshold,
+					Info.BelievedDangerSafeMultiplier, Info.BelievedDangerMildMultiplier,
+					Info.BelievedDangerHostileMultiplier);
+
+				var newScore = p.Score * mul / 100;
+				scaled.Add(new ScoredPoi(p.Actor, p.Kind, p.Action, p.Value,
+					p.DistanceCells, groundDanger, newScore));
+			}
+
+			scaled.Sort((a, b) => PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
+				b.Score, b.DistanceCells, b.Actor.ActorID));
+			return scaled;
+		}
+
 		// PoiMap-ordered capture selection (Phase 2). PoiMap has already ranked the
 		// capture targets by value x distance x threat from our SR; we just walk
 		// that ranking and assign the NEAREST free, uncommitted, able capturer to
@@ -522,7 +605,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var available = new List<TraitPair<CaptureManager>>(idleCapturers);
 
-			var targets = poiMap.GetCaptureTargets(player);
+			var targets = OrderedCaptureTargets();
 			var topDesc = targets.Count > 0
 				? $"{targets[0].Actor?.Info.Name}@{targets[0].Location} action={targets[0].Action} score={targets[0].Score}"
 				: "<none>";

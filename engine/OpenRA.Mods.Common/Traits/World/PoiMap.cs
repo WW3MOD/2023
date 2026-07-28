@@ -230,13 +230,21 @@ namespace OpenRA.Mods.Common.Traits
 		// ---------- Public query API ----------
 
 		/// <summary>All POIs scored from `perspective`, best first. Includes own-owned POIs
-		/// tagged Defend so a defense/garrison consumer can read the same list.</summary>
-		public List<ScoredPoi> GetScoredPois(Player perspective)
+		/// tagged Defend so a defense/garrison consumer can read the same list.
+		///
+		/// suppressOmniscientThreat mirrors the Stage-F GetOffensiveTargets seam: when true the
+		/// threat term is forced to the SAFE bucket (enemyInfluence = 0) and the omniscient enemy
+		/// grid is never sampled, so an @experimental caller can re-apply a FOG-LEGAL believed
+		/// shaping itself (CaptureCoordinatorBotModule). Default false ⇒ byte-identical to the frozen
+		/// omniscient behaviour for every existing caller.</summary>
+		public List<ScoredPoi> GetScoredPois(Player perspective, bool suppressOmniscientThreat = false)
 		{
 			ResolveInfluence();
 
 			var ownSr = FindOwnSupplyRoute(perspective);
-			var enemyLayer = influenceMap?.GetEnemyInfluence(perspective);
+
+			// Only touch the omniscient enemy grid when the threat term is actually wanted.
+			var enemyLayer = suppressOmniscientThreat ? null : influenceMap?.GetEnemyInfluence(perspective);
 
 			var result = new List<ScoredPoi>(candidates.Count);
 			foreach (var actor in candidates)
@@ -244,7 +252,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (actor.IsDead || !actor.IsInWorld)
 					continue;
 
-				if (TryScore(actor, perspective, ownSr, enemyLayer, out var scored))
+				if (TryScore(actor, perspective, ownSr, enemyLayer, suppressOmniscientThreat, out var scored))
 					result.Add(scored);
 			}
 
@@ -253,9 +261,10 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>Capture-actionable POIs only (Capture + DenyCapture), best first.
-		/// This is what CaptureCoordinatorBotModule iterates for target ordering.</summary>
-		public List<ScoredPoi> GetCaptureTargets(Player perspective)
-			=> GetScoredPois(perspective)
+		/// This is what CaptureCoordinatorBotModule iterates for target ordering. suppressOmniscientThreat
+		/// threads through to GetScoredPois — default false ⇒ byte-identical frozen path.</summary>
+		public List<ScoredPoi> GetCaptureTargets(Player perspective, bool suppressOmniscientThreat = false)
+			=> GetScoredPois(perspective, suppressOmniscientThreat)
 				.Where(p => p.Action == PoiAction.Capture || p.Action == PoiAction.DenyCapture)
 				.ToList();
 
@@ -373,13 +382,20 @@ namespace OpenRA.Mods.Common.Traits
 		/// out of scope per decision #2). Consumed by PoiGarrisonBotModule, which sizes a small
 		/// garrison (1-3, by value + threat) per returned POI and commits it in the shared
 		/// PoiGoalGuard ledger so offense/capture never scoop the defenders. Offense/capture
-		/// layers are unaffected — they read GetOffensiveTargets / GetCaptureTargets.</summary>
-		public List<ScoredPoi> GetDefendTargets(Player perspective)
+		/// layers are unaffected — they read GetOffensiveTargets / GetCaptureTargets.
+		///
+		/// suppressOmniscientThreat mirrors the Stage-F GetOffensiveTargets seam: when true the defend
+		/// urgency is forced to the CALM bucket (enemyInfluence = 0, no omniscient grid read) so an
+		/// @experimental caller can re-apply a FOG-LEGAL believed-danger RAISE itself (PoiGarrisonBotModule).
+		/// Default false ⇒ byte-identical to the frozen omniscient behaviour for every existing caller.</summary>
+		public List<ScoredPoi> GetDefendTargets(Player perspective, bool suppressOmniscientThreat = false)
 		{
 			ResolveInfluence();
 
 			var ownSr = FindOwnSupplyRoute(perspective);
-			var enemyLayer = influenceMap?.GetEnemyInfluence(perspective);
+
+			// Only touch the omniscient enemy grid when the threat term is actually wanted.
+			var enemyLayer = suppressOmniscientThreat ? null : influenceMap?.GetEnemyInfluence(perspective);
 
 			var result = new List<ScoredPoi>(candidates.Count);
 			foreach (var actor in candidates)
@@ -405,7 +421,10 @@ namespace OpenRA.Mods.Common.Traits
 					: 0;
 				var distFactor = PoiScoring.DistanceFactor(distCells, Info.DistanceHalfLifeCells);
 
-				var enemyInfluence = SampleThreat(actor, perspective, enemyLayer);
+				// PITFALL: when suppressing, force the CALM bucket (0) — do NOT fall through to SampleThreat.
+				// Its FindActorsInCircle fallback is ALSO omniscient (scans world.Actors regardless of fog),
+				// so calling it here would re-introduce the exact omniscient read the caller is migrating off.
+				var enemyInfluence = suppressOmniscientThreat ? 0 : SampleThreat(actor, perspective, enemyLayer);
 				var defendFactor = PoiScoring.DefendThreatFactor(enemyInfluence, Info.ThreatMildThreshold,
 					Info.DefendCalmMultiplier, Info.DefendProbedMultiplier, Info.DefendAssaultedMultiplier);
 
@@ -423,7 +442,8 @@ namespace OpenRA.Mods.Common.Traits
 			=> PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
 				b.Score, b.DistanceCells, b.Actor.ActorID);
 
-		bool TryScore(Actor actor, Player perspective, Actor ownSr, int[,] enemyLayer, out ScoredPoi scored)
+		bool TryScore(Actor actor, Player perspective, Actor ownSr, int[,] enemyLayer,
+			bool suppressOmniscientThreat, out ScoredPoi scored)
 		{
 			scored = default;
 
@@ -469,7 +489,10 @@ namespace OpenRA.Mods.Common.Traits
 				: 0;
 			var distFactor = PoiScoring.DistanceFactor(distCells, Info.DistanceHalfLifeCells);
 
-			var enemyInfluence = SampleThreat(actor, perspective, enemyLayer);
+			// PITFALL: when suppressing, force the SAFE bucket (0) — do NOT fall through to SampleThreat.
+			// Its FindActorsInCircle fallback is ALSO omniscient (scans world.Actors regardless of fog),
+			// so calling it here would re-introduce the exact omniscient read the caller is migrating off.
+			var enemyInfluence = suppressOmniscientThreat ? 0 : SampleThreat(actor, perspective, enemyLayer);
 			var threatFactor = PoiScoring.ThreatFactor(enemyInfluence, Info.ThreatMildThreshold,
 				Info.ThreatSafeMultiplier, Info.ThreatMildMultiplier, Info.ThreatHostileMultiplier);
 
@@ -583,6 +606,42 @@ namespace OpenRA.Mods.Common.Traits
 			if (enemyInfluence <= 0)
 				return calmMul;
 			if (enemyInfluence <= mildThreshold)
+				return probedMul;
+			return assaultedMul;
+		}
+
+		/// <summary>FOG-LEGAL capture threat bucket — the believed-danger twin of ThreatFactor, read from
+		/// DangerFieldLayer.GroundDanger instead of the omniscient InfluenceMap enemy grid. Threat LOWERS the
+		/// capture-ordering score exactly like ThreatFactor (safe = highest, hostile = lowest), so a capture
+		/// axis into a believed weapon envelope is deprioritised. Two thresholds (not ThreatFactor's single
+		/// ≤0 safe test) because the danger field carries a small-positive Stage-C territory baseline in
+		/// believed-enemy rear — "safe" must be baseline-tolerant, not literally zero — and the scale is
+		/// throughput-derived, NOT the InfluenceMap scale. Buckets: ≤ mildThreshold ⇒ safe (safeMul),
+		/// ≤ hostileThreshold ⇒ mild (mildMul), else hostile (hostileMul); callers set safeMul ≥ mildMul ≥
+		/// hostileMul so threat lowers. Pure ⇒ unit-tested, zero RNG, v3-portable.</summary>
+		public static int BelievedThreatFactor(int groundDanger, int mildThreshold, int hostileThreshold,
+			int safeMul, int mildMul, int hostileMul)
+		{
+			if (groundDanger <= mildThreshold)
+				return safeMul;
+			if (groundDanger <= hostileThreshold)
+				return mildMul;
+			return hostileMul;
+		}
+
+		/// <summary>FOG-LEGAL defend urgency bucket — the believed-danger twin of DefendThreatFactor, read from
+		/// DangerFieldLayer.GroundDanger instead of the omniscient InfluenceMap enemy grid. The MIRROR of
+		/// BelievedThreatFactor: for a POI WE HOLD, believed danger RAISES the defend score (something is
+		/// pressing it ⇒ garrison it first / bigger), so callers set calmMul ≤ probedMul ≤ assaultedMul. Two
+		/// thresholds on the throughput-derived danger scale (same rationale as BelievedThreatFactor). Buckets:
+		/// ≤ mildThreshold ⇒ calm (calmMul), ≤ hostileThreshold ⇒ probed (probedMul), else assaulted
+		/// (assaultedMul). Pure ⇒ unit-tested, zero RNG, v3-portable.</summary>
+		public static int BelievedDefendFactor(int groundDanger, int mildThreshold, int hostileThreshold,
+			int calmMul, int probedMul, int assaultedMul)
+		{
+			if (groundDanger <= mildThreshold)
+				return calmMul;
+			if (groundDanger <= hostileThreshold)
 				return probedMul;
 			return assaultedMul;
 		}

@@ -69,6 +69,80 @@ namespace OpenRA.Test
 			Assert.That(PoiScoring.ThreatFactor(-5, 20, 100, 40, 10), Is.EqualTo(100));
 		}
 
+		// ---------- Fog migration (PIPELINE item 24): BelievedThreatFactor (capture — threat LOWERS) ----------
+
+		[Test]
+		public void BelievedThreatFactor_BucketsOnGroundDanger()
+		{
+			// Two thresholds on the danger-field scale: mild=40, hostile=120; safe=100, mild=60, hostile=20.
+			// The Stage-C territory baseline is small-positive, so "safe" is baseline-tolerant, NOT ≤0.
+			Assert.That(PoiScoring.BelievedThreatFactor(0, 40, 120, 100, 60, 20), Is.EqualTo(100), "no danger → safe");
+			Assert.That(PoiScoring.BelievedThreatFactor(40, 40, 120, 100, 60, 20), Is.EqualTo(100), "at mild threshold → still safe");
+			Assert.That(PoiScoring.BelievedThreatFactor(41, 40, 120, 100, 60, 20), Is.EqualTo(60), "above mild → mild");
+			Assert.That(PoiScoring.BelievedThreatFactor(120, 40, 120, 100, 60, 20), Is.EqualTo(60), "at hostile threshold → still mild");
+			Assert.That(PoiScoring.BelievedThreatFactor(121, 40, 120, 100, 60, 20), Is.EqualTo(20), "above hostile → hostile");
+		}
+
+		[Test]
+		public void BelievedThreatFactor_SignConventionThreatLowers()
+		{
+			// CAPTURE sign convention: higher believed danger must NEVER raise the multiplier — safe ≥ mild ≥
+			// hostile — so a capturer is deprioritised (never prioritised) toward a believed weapon envelope.
+			var safe = PoiScoring.BelievedThreatFactor(0, 40, 120, 100, 60, 20);
+			var mild = PoiScoring.BelievedThreatFactor(80, 40, 120, 100, 60, 20);
+			var hostile = PoiScoring.BelievedThreatFactor(200, 40, 120, 100, 60, 20);
+			Assert.That(safe, Is.GreaterThanOrEqualTo(mild), "danger must not raise capture score");
+			Assert.That(mild, Is.GreaterThanOrEqualTo(hostile), "more danger must lower capture score further");
+			Assert.That(hostile, Is.LessThan(safe), "hostile capture is strictly damped vs safe");
+		}
+
+		[Test]
+		public void BelievedThreatFactor_InertAtAllHundred()
+		{
+			// Default multipliers (100/100/100) leave ordering byte-identical — the gate is a no-op until
+			// the @experimental YAML supplies active values.
+			Assert.That(PoiScoring.BelievedThreatFactor(0, 40, 120, 100, 100, 100), Is.EqualTo(100));
+			Assert.That(PoiScoring.BelievedThreatFactor(80, 40, 120, 100, 100, 100), Is.EqualTo(100));
+			Assert.That(PoiScoring.BelievedThreatFactor(500, 40, 120, 100, 100, 100), Is.EqualTo(100));
+		}
+
+		// ---------- Fog migration (PIPELINE item 24): BelievedDefendFactor (defend — threat RAISES) ----------
+
+		[Test]
+		public void BelievedDefendFactor_BucketsOnGroundDanger()
+		{
+			// Same two-threshold scale as BelievedThreatFactor, but the MIRROR multipliers: calm=100,
+			// probed=150, assaulted=250 — a held POI under believed fire is garrisoned first / bigger.
+			Assert.That(PoiScoring.BelievedDefendFactor(0, 40, 120, 100, 150, 250), Is.EqualTo(100), "no danger → calm");
+			Assert.That(PoiScoring.BelievedDefendFactor(40, 40, 120, 100, 150, 250), Is.EqualTo(100), "at mild threshold → still calm");
+			Assert.That(PoiScoring.BelievedDefendFactor(41, 40, 120, 100, 150, 250), Is.EqualTo(150), "above mild → probed");
+			Assert.That(PoiScoring.BelievedDefendFactor(120, 40, 120, 100, 150, 250), Is.EqualTo(150), "at hostile threshold → still probed");
+			Assert.That(PoiScoring.BelievedDefendFactor(121, 40, 120, 100, 150, 250), Is.EqualTo(250), "above hostile → assaulted");
+		}
+
+		[Test]
+		public void BelievedDefendFactor_SignConventionThreatRaises()
+		{
+			// DEFEND sign convention: the MIRROR of capture — higher believed danger must NEVER lower the
+			// multiplier — calm ≤ probed ≤ assaulted — so a pressed POI is reinforced, not abandoned.
+			var calm = PoiScoring.BelievedDefendFactor(0, 40, 120, 100, 150, 250);
+			var probed = PoiScoring.BelievedDefendFactor(80, 40, 120, 100, 150, 250);
+			var assaulted = PoiScoring.BelievedDefendFactor(200, 40, 120, 100, 150, 250);
+			Assert.That(probed, Is.GreaterThanOrEqualTo(calm), "danger must not lower defend score");
+			Assert.That(assaulted, Is.GreaterThanOrEqualTo(probed), "more danger must raise defend score further");
+			Assert.That(assaulted, Is.GreaterThan(calm), "assaulted defend is strictly raised vs calm");
+		}
+
+		[Test]
+		public void BelievedDefendFactor_InertAtAllHundred()
+		{
+			// Default multipliers (100/100/100) leave the defend ordering byte-identical until the
+			// @experimental YAML supplies active values.
+			Assert.That(PoiScoring.BelievedDefendFactor(0, 40, 120, 100, 100, 100), Is.EqualTo(100));
+			Assert.That(PoiScoring.BelievedDefendFactor(80, 40, 120, 100, 100, 100), Is.EqualTo(100));
+			Assert.That(PoiScoring.BelievedDefendFactor(500, 40, 120, 100, 100, 100), Is.EqualTo(100));
+		}
+
 		// ---------- OwnershipMultiplier ----------
 
 		[Test]
