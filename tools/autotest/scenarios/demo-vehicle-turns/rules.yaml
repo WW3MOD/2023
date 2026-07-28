@@ -1,0 +1,15 @@
+Player:
+	# Long-running demo: never let "Mission accomplished" fire, and keep the whole map visible so the
+	# viewer can watch every lane sweep through its serpentine.
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, demo-vehicle-turns.lua

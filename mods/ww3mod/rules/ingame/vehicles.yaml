@@ -37,7 +37,8 @@
 	Mobile:
 		PauseOnCondition: !(!empdisable && !being-captured)
 		Locomotor: wheeled
-		TurnSpeed: 20
+		TurnSpeed: 25
+		TurnSpeedLoss: 0
 	SelectionDecorations:
 	WithSpriteControlGroupDecoration:
 	Selectable:
@@ -138,7 +139,7 @@
 	Mobile:
 		Speed: 70
 		Locomotor: walker
-		TurnSpeed: 10
+		TurnSpeed: 13
 		PauseOnCondition: empdisable
 	QuantizeFacingsFromSequence:
 		Sequence: stand

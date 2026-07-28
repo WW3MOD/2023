@@ -1,0 +1,1 @@
+DEMO: vehicle turn feel (item 27, YAML-only) — 4 USA lanes loop a 90-degree serpentine; watch corners sweep with speed kept (abrams x3, bradley, humvee, TRUK). No verdict.

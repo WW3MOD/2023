@@ -61,7 +61,7 @@ btr:
 		Locomotor: lighttracked-amphibious
 		Speed: 110
 		Acceleration: 2, 3, 4, 3, 2, 1
-		TurnSpeed: 10
+		TurnSpeed: 13
 	Armament@1:
 		Name: primary
 		Weapon: 12.7mm.MG
@@ -174,7 +174,7 @@ bmp2:
 		Locomotor: lighttracked-amphibious
 		Speed: 100
 		Acceleration: 4, 3, 2, 1
-		TurnSpeed: 10
+		TurnSpeed: 13
 		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:
 		ArmamentNames: secondary
@@ -331,7 +331,7 @@ t90:
 		Locomotor: heavytracked
 		Speed: 100
 		Acceleration: 3, 2, 1
-		TurnSpeed: 10
+		TurnSpeed: 13
 		PauseOnCondition: empdisable
 	Turreted:
 		TurnSpeed: 20
@@ -445,7 +445,7 @@ giatsint:
 		Locomotor: lighttracked
 		Speed: 80
 		Acceleration: 2, 1
-		TurnSpeed: 8
+		TurnSpeed: 10
 		PauseOnCondition: firing || empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing
@@ -564,7 +564,7 @@ grad:
 	Mobile:
 		Speed: 110
 		Acceleration: 2, 3, 2, 1
-		TurnSpeed: 8
+		TurnSpeed: 10
 		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing
@@ -689,7 +689,7 @@ tos:
 	Mobile:
 		Speed: 80
 		Acceleration: 3, 2, 1
-		TurnSpeed: 10
+		TurnSpeed: 13
 		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing
@@ -802,7 +802,7 @@ tunguska:
 		Locomotor: heavytracked
 		Speed: 100
 		Acceleration: 4, 3, 2, 1
-		TurnSpeed: 10
+		TurnSpeed: 13
 		PauseOnCondition: firing-secondary || empdisable
 	Radar:
 		Range: 30c0
@@ -943,7 +943,7 @@ iskander:
 		Position: Ground
 	Mobile:
 		Speed: 80
-		TurnSpeed: 5
+		TurnSpeed: 6
 		Voice: Move
 		PauseOnCondition: firing || being-captured || empdisable
 	GrantConditionOnPreparingAttack:
