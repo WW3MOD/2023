@@ -24,6 +24,17 @@
 - [ ] Clean up stale branches (bypass, counterbattery, speed)
 
 ## Ideas Parking Lot
+
+### Engine modernization — deferred pending user judgment (2026-07-28)
+Source: `WORKSPACE/recon/260728-trees-concealment.md` + `recon/260728-movement-locomotion.md` (engine-modernization study). The safe subset went to PIPELINE items 26–28; everything below changes game feel/balance in ways the user must weigh — do NOT implement autonomously.
+- [ ] **Tanks crush trees** — today forests are absolute vehicle barriers (no locomotor Crushes/Passes tree). MBTs flattening small trees is realistic (husk + destruction plumbing exists) but removes forests as vehicle-proof terrain. *user call*
+- [ ] **Forest movement speed penalty** — trees currently slow no one (infantry cross at underlying-tile speed). Realistic, one YAML table, but slows pace in exactly the terrain case-01 wants used. *user call*
+- [ ] **Per-weapon clear-sight thresholds** (`FiringLOS`) — snipers need clean LOS, MGs spray through light foliage. Deepens the foliage game; new per-weapon tuning surface. *user call*
+- [ ] **Vehicle `CanRedirectMidCell`** — would kill the standstill stop-turn, but the code path was written for cell-sharing infantry; verify for FullCell vehicles before any trial. *verify-first*
+- [ ] **`BlocksSight` on dense forest cores** — dormant trait, binary "cannot see past"; strong ambush enabler but binary walls may feel gamey next to the graded shadow model. *user call*
+- [ ] **Dynamic battlefield foliage** — fire/artillery deforestation opening sightlines over a battle; hinges on the ShadowLayer-updates-on-tree-death question (answered by pipeline item 26 step 3). Spectacular if viable. *gated on 26(3)*
+- [ ] **Helicopter spotting asymmetry lean-in** — airborne sightlines already attenuate less through trees; tuning the gap makes helis the doctrinal counter to forest ambushes. *user call*
+- [ ] **Movement rungs (c)/(d)** — any-angle multi-cell segments / true off-grid occupancy or theta\*. Highest payoff, highest risk (breaks PopPath/blocking assumptions, determinism surface). Only if rung (b) proves appetite. *post-(b)*
 - [ ] **Deploy-to-prone → stance-governed (user idea, 2026-07-21)** — every soldier has "deploy" = forced prone (`GrantConditionOnDeploy`, `infantry.yaml` ^Soldier). Legacy feature from years back, barely used; forced-prone is a *behavior* and should be governed by the stance system (possibly related to the discussed Ambush stance) or an existing/new trait — not a manual per-unit deploy toggle. **Shape deliberately unresolved: research + verify first** — map what deploy-prone actually grants today (conditions, speed/prone modifiers, AI usage if any), then propose where the control should live (stance vs trait) before any implementation. ⚠ Interaction: Phase 3 tactical positioning treats `deployed` as a positioning/auto-target opt-out signal — changing deploy semantics must revisit that opt-out. *research-first, post-Phase-3*
 - [ ] Engine upgrade to release-20250330 (12-22 sessions, defer until gameplay done)
 - [ ] Ukraine as third faction
