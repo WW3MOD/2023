@@ -195,6 +195,30 @@ namespace OpenRA.Mods.Common.Traits
 			"cover fills a ~3-cell-long band along its major axis.")]
 		public readonly float TreelineMinSpreadSq = 2f;
 
+		[Desc("PIPELINE-21 stance-aware cover positioning. Search radius (cells) around each unit's",
+			"formation-assigned cell within which an AMBUSH fire-stance unit may re-seat onto a more",
+			"concealed cell. Larger than LineSlotSearchRadius (ambush accepts a wider hunt for a hide)",
+			"but still small so units never wander to distant cover (conservative brief). 3 = a 7x7",
+			"window. HUMAN-only, Ambush-stance only, non-Tight — every other case is byte-identical.")]
+		public readonly int AmbushConcealmentSearchRadius = 3;
+
+		[Desc("PIPELINE-21: half-width (cells) of the density window summed to score a cell's",
+			"concealment. The sum is fed through Map.ForestGroundShadow — the same superlinear curve",
+			"that bakes the per-map shadow layer — so deep forest scores far above a thin treeline and",
+			"open ground scores 0 (the refinement no-ops with no trees near). 2 = a 5x5 window.")]
+		public readonly int ConcealmentWindowRadius = 2;
+
+		[Desc("PIPELINE-21: concealment penalty per chebyshev cell between a candidate hide cell and",
+			"the unit's formation-assigned cell (the keep-assigned bias). A distant cell must be much",
+			"more concealed to win, so the squad stays near the ordered spot. 2 per cell.")]
+		public readonly int AmbushConcealmentDistancePenalty = 2;
+
+		[Desc("PIPELINE-21: minimum concealment gain (Map.ForestGroundShadow units) a candidate must",
+			"have over the assigned cell before a unit is re-seated. 1 = any strict improvement past",
+			"the distance penalty. Guards against churn on negligible differences; higher = more",
+			"conservative (units stay put unless a markedly better hide exists).")]
+		public readonly int AmbushConcealmentBendMargin = 1;
+
 		public override object Create(ActorInitializer init) { return new CohesionMoveModifier(this); }
 	}
 
@@ -215,6 +239,11 @@ namespace OpenRA.Mods.Common.Traits
 		CPos cacheClick;
 		CohesionMode cacheMode;
 		string cacheOrder;
+
+		// PIPELINE-21: whether the cached layout was computed with the ambush concealment pass on.
+		// Part of the cache identity so a hit only serves subjects whose gate matches (see the mode
+		// PITFALL — grouped units share stance in practice, so a mixed-stance group merely recomputes).
+		bool cacheAmbush;
 
 		// PIPELINE-6 idea #2: the order-level common formation front (group centroid -> target azimuth),
 		// memoized alongside the slot matching so cache-hit subjects read it instead of recomputing the
@@ -296,6 +325,179 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return sum;
+		}
+
+		// PIPELINE-21 (stance-aware cover positioning). Concealment score for a candidate cell: the
+		// summed tree density in a (2*windowRadius+1)^2 window, fed through Map.ForestGroundShadow —
+		// the SAME superlinear curve that bakes the per-map shadow layer (Map.cs). A cell ringed by
+		// dense trunks scores far above one at a sparse edge, and open ground scores 0, so the ambush
+		// refinement degrades to a no-op with no trees nearby. Viewer-independent by necessity: at
+		// order time there is no enemy position, so we score "how deep in shadow this cell sits"
+		// rather than shadow along one sightline — a cell buried in density is shadowed from every
+		// approach. Pure integer, deterministic, zero RNG (sim-path safe).
+		static int ConcealmentScore(Map map, CPos cell, int windowRadius)
+		{
+			var windowed = 0;
+			for (var dy = -windowRadius; dy <= windowRadius; dy++)
+				for (var dx = -windowRadius; dx <= windowRadius; dx++)
+					windowed += SafeDensity(map, new CPos(cell.X + dx, cell.Y + dy));
+
+			return Map.ForestGroundShadow(windowed);
+		}
+
+		// A concealment candidate for the ambush refinement: a cell offset from the assigned slot
+		// plus its concealment score. Passed to the pure PickBestConcealmentOffset ranking core.
+		public readonly struct ConcealmentCandidate
+		{
+			public readonly int Dx;
+			public readonly int Dy;
+			public readonly int Concealment;
+
+			public ConcealmentCandidate(int dx, int dy, int concealment)
+			{
+				Dx = dx;
+				Dy = dy;
+				Concealment = concealment;
+			}
+		}
+
+		// Pure ranking core for the ambush concealment refinement (extracted so it is unit-testable
+		// without a live World — the project idiom, cf. DensityModifiesDamage.SelectModifier). Given
+		// the assigned cell's own concealment and the passable, not-yet-taken candidate cells around
+		// it, return the offset of the cell to move to — or (0,0) to keep the assigned cell. A
+		// candidate qualifies only when it is STRICTLY more concealed than the assigned cell by at
+		// least `margin` (never trade concealment away; ignore negligible gains) AND wins on net after
+		// the keep-assigned distance cost (effective = concealment - cheb*distancePenalty must exceed
+		// the assigned cell's own concealment, which sits at cheb 0). Among qualifying candidates the
+		// winner maximises effective, with a deterministic total-order tie-break: effective desc, raw
+		// concealment desc, chebyshev asc, then (Dy, Dx) asc. No qualifier → (0,0), i.e. identity.
+		public static (int Dx, int Dy) PickBestConcealmentOffset(int assignedConcealment,
+			IReadOnlyList<ConcealmentCandidate> candidates, int margin, int distancePenalty)
+		{
+			var haveBest = false;
+			var bestDx = 0;
+			var bestDy = 0;
+			var bestEffective = 0;
+			var bestConcealment = 0;
+			var bestCheb = 0;
+
+			foreach (var c in candidates)
+			{
+				if (c.Concealment - assignedConcealment < margin)
+					continue;
+
+				var cheb = Math.Max(Math.Abs(c.Dx), Math.Abs(c.Dy));
+				var effective = c.Concealment - cheb * distancePenalty;
+				if (effective <= assignedConcealment)
+					continue;
+
+				var better = !haveBest
+					|| effective > bestEffective
+					|| (effective == bestEffective && c.Concealment > bestConcealment)
+					|| (effective == bestEffective && c.Concealment == bestConcealment && cheb < bestCheb)
+					|| (effective == bestEffective && c.Concealment == bestConcealment && cheb == bestCheb
+						&& (c.Dy < bestDy || (c.Dy == bestDy && c.Dx < bestDx)));
+
+				if (!better)
+					continue;
+
+				haveBest = true;
+				bestDx = c.Dx;
+				bestDy = c.Dy;
+				bestEffective = effective;
+				bestConcealment = c.Concealment;
+				bestCheb = cheb;
+			}
+
+			return haveBest ? (bestDx, bestDy) : (0, 0);
+		}
+
+		// Re-seat one formation slot onto the most concealed passable cell within the ambush search
+		// window, honouring an exclusion set (`taken`) of cells other slots already hold so no two
+		// units are sent to one cell. Builds the candidate list from the map and defers the ranking
+		// to the pure PickBestConcealmentOffset. Returns the assigned cell unchanged when nothing in
+		// the window is a strictly-better hide (open terrain, or already the best cover locally).
+		CPos PickConcealedCellNear(Map map, CPos assigned, Mobile subjectMobile, IReadOnlyList<CPos> taken,
+			int searchRadius, int windowRadius, int distancePenalty, int margin)
+		{
+			var assignedConceal = ConcealmentScore(map, assigned, windowRadius);
+			var candidates = new List<ConcealmentCandidate>();
+
+			for (var dy = -searchRadius; dy <= searchRadius; dy++)
+			{
+				for (var dx = -searchRadius; dx <= searchRadius; dx++)
+				{
+					if (dx == 0 && dy == 0)
+						continue;
+
+					var cell = new CPos(assigned.X + dx, assigned.Y + dy);
+					if (!map.Contains(cell))
+						continue;
+
+					// Deterministic conflict resolution: skip cells another slot already holds.
+					var clash = false;
+					foreach (var t in taken)
+					{
+						if (t == cell)
+						{
+							clash = true;
+							break;
+						}
+					}
+
+					if (clash)
+						continue;
+
+					// Passability first: never select a cell the unit can't stand on (trunk cells are
+					// impassable). FilterByPathability=false skips the guard, matching the rest of the file.
+					if (info.FilterByPathability && subjectMobile != null && !subjectMobile.CanStayInCell(cell))
+						continue;
+
+					candidates.Add(new ConcealmentCandidate(dx, dy, ConcealmentScore(map, cell, windowRadius)));
+				}
+			}
+
+			var (bdx, bdy) = PickBestConcealmentOffset(assignedConceal, candidates, margin, distancePenalty);
+			if (bdx == 0 && bdy == 0)
+				return assigned;
+
+			return new CPos(assigned.X + bdx, assigned.Y + bdy);
+		}
+
+		// PIPELINE-21: ambush concealment pass over the whole formation. Binds the map/mobile-dependent
+		// per-slot chooser (PickConcealedCellNear) to the pure conflict-resolution driver below.
+		CPos[] RefineSlotsForConcealment(Map map, CPos[] slots, Mobile subjectMobile)
+		{
+			return ResolveConcealmentSlots(slots, (assigned, taken) =>
+				PickConcealedCellNear(map, assigned, subjectMobile, taken,
+					info.AmbushConcealmentSearchRadius, info.ConcealmentWindowRadius,
+					info.AmbushConcealmentDistancePenalty, info.AmbushConcealmentBendMargin));
+		}
+
+		// Pure conflict-resolution driver for the ambush concealment pass (extracted so the seeding
+		// invariant is unit-testable without a live World). Re-seats each slot in order via `choose`,
+		// which returns the cell to move the assigned slot to (or the assigned cell to stay). The
+		// running `taken` exclusion set is seeded with EVERY original slot so a re-seat can never land
+		// on another unit's cell — including a later unit's not-yet-processed original — then only the
+		// current slot's own cell is freed (exactly one occurrence, so an upstream duplicate slot is
+		// preserved, not cleared) before it chooses, and the choice is re-occupied for the slots after
+		// it. `choose` must honour `taken` (never return a listed cell); PickConcealedCellNear does.
+		// A slot whose choose returns its assigned cell keeps its exact position, so a squad ordered to
+		// open ground lands in the identical formation it would today.
+		public static CPos[] ResolveConcealmentSlots(CPos[] slots, Func<CPos, IReadOnlyList<CPos>, CPos> choose)
+		{
+			var refined = new CPos[slots.Length];
+			var taken = new List<CPos>(slots);
+
+			for (var i = 0; i < slots.Length; i++)
+			{
+				taken.Remove(slots[i]);
+				var pick = choose(slots[i], taken);
+				refined[i] = pick;
+				taken.Add(pick);
+			}
+
+			return refined;
 		}
 
 		// Classify the click by walking a sample window around it. Returns the centroid offset
@@ -929,6 +1131,19 @@ namespace OpenRA.Mods.Common.Traits
 			// below, but the explicit mode check keeps the gate self-documenting.
 			var applyRealism = isHuman && mode != CohesionMode.Tight;
 
+			// PIPELINE-21 stance-aware cover positioning. A HUMAN squad in Ambush fire-stance gets each
+			// unit re-seated onto the most concealed passable cell within a small radius of its formation
+			// slot (RefineSlotsForConcealment) — the "hide my ambushers in the trees" intent. Gated exactly
+			// like the DP-1/2/3 human identities: Ambush-only (bots default to FireAtWill, so the branch is
+			// inert for them → the frozen AI benchmark stays byte-identical), non-Tight (Tight is the
+			// explicit vanilla opt-out, handled by the early return below), and human-only. Stance is read
+			// from the SUBJECT (same PITFALL as mode: mixed-stance groups take the first subject's gate,
+			// fine in practice). Composes with cohesion mode: the intent branches place the squad near
+			// cover, then this pass locally optimises each slot for concealment. Degrades to identity on
+			// open terrain (ConcealmentScore is 0 everywhere → no slot moves).
+			var stance = autoTarget?.Stance ?? UnitStance.FireAtWill;
+			var applyAmbushConcealment = isHuman && stance == UnitStance.Ambush && mode != CohesionMode.Tight;
+
 			// DP-1: Tight = classic/vanilla for humans. ALL cohesion adjustments are OFF — the grouped
 			// order passes through unmodified, exactly like stock OpenRA (every unit converges on the
 			// click). Clear any stale slot leash first so a slot from a prior Loose/Spread order can't
@@ -941,7 +1156,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Cache hit: this order's matching was already computed by an earlier subject in the same
 			// ProcessOrder dispatch. Read this subject's assigned cell and skip the whole pipeline.
-			if (TryReadCache(validActors, tick, clickCell, mode, orderString, idx, out var cachedCell, out var cachedFront))
+			if (TryReadCache(validActors, tick, clickCell, mode, orderString, applyAmbushConcealment, idx, out var cachedCell, out var cachedFront))
 			{
 				var cachedSettle = applyRealism
 					? (WAngle?)(cachedFront + FormationRealism.FacingFan(subject.ActorID, info.SettleFacingFan))
@@ -1025,6 +1240,14 @@ namespace OpenRA.Mods.Common.Traits
 					break;
 			}
 
+			// PIPELINE-21: stance-aware concealment pass. Runs AFTER the intent branch has placed the
+			// squad near cover, re-seating each slot onto the best local hide (bounded, order-time only,
+			// no autonomous follow-up). Ambush-human-non-Tight only; a no-op everywhere else, so bot and
+			// non-ambush layouts are unchanged. Kept inside the compute-once path so the whole squad's
+			// refined slots land in the cache and every subject reads a consistent layout.
+			if (applyAmbushConcealment)
+				slots = RefineSlotsForConcealment(map, slots, subjectMobile);
+
 			if (idx >= slots.Length)
 				return individualOrder;
 
@@ -1041,7 +1264,7 @@ namespace OpenRA.Mods.Common.Traits
 				assignedByIdx[i] = s >= 0 ? slots[s] : slots[Math.Min(i, slots.Length - 1)];
 			}
 
-			StoreCache(validActors, tick, clickCell, mode, orderString, assignedByIdx, frontAzimuth);
+			StoreCache(validActors, tick, clickCell, mode, orderString, applyAmbushConcealment, assignedByIdx, frontAzimuth);
 
 			var cell = assignedByIdx[idx];
 
@@ -1065,14 +1288,14 @@ namespace OpenRA.Mods.Common.Traits
 		// distinct groups can never collide). All of these are identical on every client and in
 		// replay, so a hit returns byte-identical data everywhere and a miss recomputes.
 		bool TryReadCache(Actor[] sortedActors, int tick, CPos click, CohesionMode mode, string order,
-			int idx, out CPos cell, out WAngle frontAzimuth)
+			bool ambush, int idx, out CPos cell, out WAngle frontAzimuth)
 		{
 			cell = default;
 			frontAzimuth = default;
 			if (cacheAssignedByIdx == null || cacheActorIds == null)
 				return false;
 
-			if (cacheTick != tick || cacheClick != click || cacheMode != mode || cacheOrder != order)
+			if (cacheTick != tick || cacheClick != click || cacheMode != mode || cacheOrder != order || cacheAmbush != ambush)
 				return false;
 
 			if (cacheActorIds.Length != sortedActors.Length || idx >= cacheAssignedByIdx.Length)
@@ -1088,7 +1311,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		void StoreCache(Actor[] sortedActors, int tick, CPos click, CohesionMode mode, string order,
-			CPos[] assignedByIdx, WAngle frontAzimuth)
+			bool ambush, CPos[] assignedByIdx, WAngle frontAzimuth)
 		{
 			var ids = new uint[sortedActors.Length];
 			for (var i = 0; i < ids.Length; i++)
@@ -1100,6 +1323,7 @@ namespace OpenRA.Mods.Common.Traits
 			cacheClick = click;
 			cacheMode = mode;
 			cacheOrder = order;
+			cacheAmbush = ambush;
 			cacheFrontAzimuth = frontAzimuth;
 		}
 
