@@ -42,6 +42,8 @@ namespace OpenRA.Mods.Common.Widgets
 
 		public readonly HotkeyReference ShowAllOrdersKey = new();
 
+		public readonly HotkeyReference ShowTerritoryKey = new();
+
 		// Note: LinterHotkeyNames assumes that these are disabled by default
 		public readonly string BookmarkSaveKeyPrefix = null;
 		public readonly string BookmarkRestoreKeyPrefix = null;
@@ -431,6 +433,14 @@ namespace OpenRA.Mods.Common.Widgets
 			if (showAllOrdersHotkey.Key != Keycode.UNKNOWN && e.Key == showAllOrdersHotkey.Key && e.Modifiers == showAllOrdersHotkey.Modifiers)
 			{
 				worldRenderer.ShowAllOrders = e.Event == KeyInputEvent.Down;
+				return true;
+			}
+
+			// Territory overlay — hold to show, release to hide (mirrors ShowAllOrders).
+			var showTerritoryHotkey = ShowTerritoryKey.GetValue();
+			if (showTerritoryHotkey.Key != Keycode.UNKNOWN && e.Key == showTerritoryHotkey.Key && e.Modifiers == showTerritoryHotkey.Modifiers)
+			{
+				worldRenderer.ShowTerritory = e.Event == KeyInputEvent.Down;
 				return true;
 			}
 

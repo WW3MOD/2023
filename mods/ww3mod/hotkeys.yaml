@@ -43,6 +43,11 @@ ShowAllOrders: Space
 	Types: Viewport
 	Contexts: Player
 
+ShowTerritory: T
+	Description: Hold to show the territory (control) overlay
+	Types: Viewport
+	Contexts: Player
+
 PowerDown: # X
 	Description: Power-down mode
 	Types: OrderGenerator

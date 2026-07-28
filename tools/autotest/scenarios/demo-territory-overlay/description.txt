@@ -1,0 +1,1 @@
+EYEBALL: Territory overlay v2. Fog on; blue holds the left, red the right, front line mid-map. Captures overlay gated-off vs /territory-on — first-class red/green/gray control wash across the WHOLE map + diagonal staleness stripes (clean where blue has eyes, heavy over the unseen enemy half). Skips after captures flush.

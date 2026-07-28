@@ -31,6 +31,10 @@ namespace OpenRA.Graphics
 		/// <summary>When true, renders order lines for all friendly units, not just selected ones.</summary>
 		public bool ShowAllOrders { get; set; }
 
+		/// <summary>When true, the player-facing territory (control) overlay is shown. Held-key driven,
+		/// mirroring ShowAllOrders. Render-side only — no simulation state depends on it.</summary>
+		public bool ShowTerritory { get; set; }
+
 		public readonly Size TileSize;
 		public readonly int TileScale;
 		public readonly World World;

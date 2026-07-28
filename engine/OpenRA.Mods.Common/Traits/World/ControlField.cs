@@ -550,5 +550,19 @@ namespace OpenRA.Mods.Common.Traits
 			var last = f.LastVerified[gx, gy];
 			return last > 0 && tick - last <= Info.StalenessWindow;
 		}
+
+		/// <summary>Ticks since this grid cell was last observed — the staleness the territory
+		/// overlay maps to stripe intensity. int.MaxValue when never observed (or no field): the
+		/// maximally-stale reading (belief held from seed/persistence, never verified). Pure read —
+		/// no sim state is touched.</summary>
+		public int TicksSinceVerified(Player player, int gx, int gy)
+		{
+			var f = FieldOrNull(player);
+			if (f == null || !InGrid(gx, gy))
+				return int.MaxValue;
+
+			var last = f.LastVerified[gx, gy];
+			return last > 0 ? tick - last : int.MaxValue;
+		}
 	}
 }
