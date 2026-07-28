@@ -7,9 +7,14 @@
  * feeds shadow concealment, so a unit standing AMONG dense trees takes modestly reduced damage.
  *
  * Cover signal = summed tree density in a (2*SampleRadius+1)^2 window centred on the actor's
- * cell — the actor's own cell plus its neighbours. This mirrors CohesionMoveModifier.CoverScore
+ * cell — the actor's own cell plus its neighbours. Adapted from CohesionMoveModifier.CoverScore
  * (a unit is "in the trees" when surrounded by density, whether it stands on a trunk cell or a
- * passable gap between trunks), so it composes with the shipped stance cover-positioning.
+ * passable gap between trunks), so it composes with the shipped stance cover-positioning. Two
+ * deliberate differences from CoverScore: (a) this window INCLUDES the centre cell, and (b) it
+ * has NO "own-cell density > 0 -> score 0" guard (CohesionMoveModifier.cs:281-299 excludes both,
+ * because it BIDS for standable cells). Functionally identical for infantry — trunk cells carry
+ * density but are impassable, so an infantryman's own cell is ~always 0 — but for the damage use
+ * case we count wherever the unit actually stands, so including a (rare) on-trunk cell is correct.
  *
  * Pure integer, deterministic, zero RNG (sim-path safe). Global by design — affects humans and
  * bots alike (item 26); combat outcomes shift, so the AI benchmark must be re-baselined (item 25).
@@ -56,8 +61,10 @@ namespace OpenRA.Mods.Common.Traits
 		int IDamageModifier.GetDamageModifier(Actor attacker, Damage damage)
 		{
 			// Never dampen healing (negative damage) unless explicitly opted in — cover shouldn't
-			// weaken a medic. Simpler and strictly safer than the sibling trait's allied-attacker
-			// gate, which crashed on a null attacker and left null-source healing modifiable.
+			// weaken a medic. Belt-and-suspenders: Health.cs:167 already gates the modifier loop on
+			// `damage.Value > 0`, so negative damage never actually reaches this method today. Kept
+			// as a local invariant (some other IDamageModifier caller could differ) and simpler than
+			// the sibling trait's allied-attacker gate, which NRE'd on a null attacker.
 			if (!Info.ModifyHealing && damage != null && damage.Value < 0)
 				return FullDamage;
 

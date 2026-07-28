@@ -1104,6 +1104,12 @@ namespace OpenRA
 			if (crossedDensity <= 0)
 				return 0;
 
+			// Below-knee is integer ceil(density/10), which reproduces the pre-change float curve
+			// (Σ density/10f then Math.Ceiling) BYTE-FOR-BYTE — but only because every authored
+			// Building.Density is a multiple of 5, so each density/10f term is an exact-in-binary
+			// half (0.5, 1.0, 1.5, …) and the float sum never drifts across an integer boundary.
+			// An odd density (e.g. 7 → 0.7f, inexact) could round the old cache differently, so the
+			// "below-knee cache is unchanged" property would no longer hold — regen and diff if so.
 			if (crossedDensity <= ForestShadowKneeDensity)
 				return (crossedDensity + 9) / 10; // ceil(density / 10)
 
