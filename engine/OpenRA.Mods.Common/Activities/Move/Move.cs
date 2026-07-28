@@ -361,11 +361,15 @@ namespace OpenRA.Mods.Common.Activities
 		// --- WW3MOD path string-pulling (item 28, recon §Q7(b)) ---
 		// Corner-cut the RENDERED segment target toward the farthest visible upcoming waypoint while the A*
 		// cell path, cell reservations and per-cell pop/crush cadence stay exactly as the pathfinder made them.
-		// Disabled for AlwaysTurnInPlace units (infantry, which move through cell centres) and on custom layers,
-		// whose coordinate mapping differs from the Rectangular DDA in PathStringPulling.
+		// Excluded for SharesCell (subcell) movers — the four foot* infantry locomotors (world.yaml) — whose
+		// units sit at subcell offsets, which breaks this helper's full-cell Rectangular geometry (cell centres,
+		// floor(pos/1024), the half-cell divergence bound). SharesCell is the locomotor-structural property that
+		// captures the hazard directly; AlwaysTurnInPlace is unset mod-wide so it cannot serve as the gate, and
+		// CanRedirectMidCell is a per-unit flag that could later be trialled on a vehicle we DO want smoothed.
+		// Also excluded on custom layers, whose coordinate mapping differs from the DDA in PathStringPulling.
 		bool StringPullEnabled =>
 			mobile.Info.StringPullMovement
-			&& !mobile.Info.AlwaysTurnInPlace
+			&& !mobile.Info.LocomotorInfo.SharesCell
 			&& mobile.FromCell.Layer == 0
 			&& mobile.ToCell.Layer == 0;
 

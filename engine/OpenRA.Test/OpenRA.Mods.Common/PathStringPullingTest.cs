@@ -141,17 +141,20 @@ namespace OpenRA.Test
 		[Test]
 		public void ShadowDivergenceStaysBounded()
 		{
-			// Walk a 45-degree zig-zag (E, NE, E, NE, ...) and confirm every rendered shadow stays within one
-			// cell of the reserved geometric boundary it replaces — the documented visual-vs-reserved bound.
+			// Mirror the STATEFUL sim: each segment's sightline starts from the PREVIOUS rendered shadow (the
+			// actor's actual CenterPosition), not a fresh cell centre — so this exercises the re-anchor
+			// accumulation the clamp is designed to bound, walking a 45-degree zig-zag (E, NE, E, NE, ...).
 			var zig = new List<CPos>
 			{
 				C(0, 0), C(1, 0), C(2, 1), C(3, 1), C(4, 2), C(5, 2), C(6, 3)
 			};
 
+			var from = Center(zig[0]);
 			var maxDivergenceSq = 0L;
-			for (var i = 1; i < zig.Count - 1; i++)
+			for (var i = 1; i < zig.Count; i++)
 			{
-				var from = Center(zig[i - 1]);
+				// geomBoundary is always the midpoint of the two cell CENTRES (as Move.BetweenCells computes it),
+				// independent of the actor's off-centre actual position.
 				var geomBoundary = WPos.Lerp(Center(zig[i - 1]), Center(zig[i]), 1, 2);
 				var upcoming = zig.GetRange(i, zig.Count - i);
 				var smoothed = PathStringPulling.SmoothTarget(from, geomBoundary, upcoming, 8, Center, AllOpen);
@@ -159,9 +162,14 @@ namespace OpenRA.Test
 				var dx = (long)smoothed.X - geomBoundary.X;
 				var dy = (long)smoothed.Y - geomBoundary.Y;
 				maxDivergenceSq = Math.Max(maxDivergenceSq, dx * dx + dy * dy);
+
+				// Re-anchor on the actual rendered position for the next segment, exactly as MovePart carries
+				// CenterPosition forward into the next segment's From.
+				from = smoothed;
 			}
 
-			// Bound: the hard clamp keeps every shadow within half a cell of its reserved boundary.
+			// Bound: the hard clamp keeps every shadow within half a cell of its reserved boundary, even under
+			// the accumulating re-anchor.
 			Assert.That(maxDivergenceSq, Is.LessThanOrEqualTo(
 				(long)PathStringPulling.DefaultMaxDivergence * PathStringPulling.DefaultMaxDivergence),
 				"rendered shadow never diverges past the clamp from its reserved boundary");

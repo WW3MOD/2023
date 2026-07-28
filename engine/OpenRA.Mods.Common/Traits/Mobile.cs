@@ -101,8 +101,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Corner-cut (string-pull) the rendered movement line toward the farthest visible waypoint on the ",
 			"remaining cell path, killing the 8-direction 45-degree zig-zag. The A* path, cell reservations and ",
-			"per-cell pop/crush cadence are untouched; only the traversed WPos line changes. Ground layer only, ",
-			"and skipped for AlwaysTurnInPlace units (infantry). Default on for WW3MOD.")]
+			"per-cell pop/crush cadence are untouched; only the traversed WPos line changes. Applies to full-cell ",
+			"ground movers only: SharesCell (subcell) locomotors are excluded, since their subcell offsets break ",
+			"the full-cell geometry. Default on for WW3MOD (vehicles/naval/walker; infantry are SharesCell).")]
 		public readonly bool StringPullMovement = true;
 
 		[Desc("Maximum number of cells ahead the string-pull sightline may reach. Bounds both cost and the ",
