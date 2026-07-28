@@ -15,7 +15,7 @@
 - [ ] **Team/Handicap access path** — per-player dropdowns parked off-screen; only host Auto-Team assigns teams, so a non-host can never enable their own Team chat in MP. Restore an affordance (context menu?) or hide the chat mode pill in MP too. *v1.1*
 - [ ] **Lobby handicap access path** — V5 row dropped Handicap; column parked at X:-200 W:1 H:1 in lobby-players.yaml. Decide path (context-menu / expandable detail / spawn-cell overload / drop entirely) once usage telemetry exists. See `DISCOVERIES.md` 2026-05-18. *v1.1*
 - [ ] **Lobby 1366×768 bottom-strip overflow** — at 1366 wide the setup-row buttons overflow into SPECTATE_AREA by ~80px. Phase 11 tightened widths to give 1920×1080 headroom; 1366 still cramped. Fix only if a player reports it. *v1.1*
-- [ ] **Flashing pips honour real-time, not game-speed** — out-of-ammo pip blinks on game ticks; on fast-forward they strobe, on slow they crawl. Drive flash from wall-clock instead. *Reported 260503*
+- [x] **Flashing pips honour real-time, not game-speed** — shipped 260728 (merge `184b40bf`): `WithDecorationBase` blink phase now derives from `Game.RunTime` anchored to `Ui.Timestep` (render-only, pure helper `DecorationBlink.PhaseIndex`, 6 NUnit pins). Fixes all `WithDecoration` blinks incl. out-of-ammo pip and low-fuel/damage vehicle blink. `WithHealFlash` is a different (event-driven) mechanism, untouched. *Reported 260503*
 - [ ] Per-Supply-Route production queues (requires engine changes)
 - [ ] Per-unit rot sprites (bleedout uses generic e1 frames)
 - [ ] Group Scatter polish (mixed unit types, UI feedback)
