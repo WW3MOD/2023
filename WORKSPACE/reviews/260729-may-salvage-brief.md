@@ -123,3 +123,81 @@ matters. The other 6 fixes are crash-avoidance or cosmetic only.
 - Out of scope by design (per recon doc, not attempted here): CHANGELOG regen (`7ba39a62`),
   the perf micro-opt batch, dead-code/console-cleanup, docs promotions, and tests — all
   classified superseded or conflict-prone.
+
+---
+
+## Adversarial review — 260729 (independent reviewer)
+
+Reviewer did not author the salvage. Every brief claim was re-checked at file:line in the
+worktree (`auto/may-salvage`, base `main @ 3ec115db`). Diffs: `git diff 3ec115db..631c9bad`
+and `631c9bad..07aed0ae`.
+
+**VERDICT: MERGE-WITH-NITS.** No blocking findings. All 7 fixes are faithful, correct, and
+crash-only on the previously-working path. Nits below are awareness items, not defects.
+
+### C# guards — all four verified
+
+1. **AutoTarget.cs:1016** — `Player.FrozenActorLayer` is `TraitOrDefault<FrozenActorLayer>()`
+   (Player.cs:222) → genuinely nullable (Neutral / trait-omitting players). Only two derefs in
+   `ChooseTarget`: line 1016 (guard) + line 1018 (inside the `if`). `&&` short-circuits before
+   1018 — correct. Sibling guards confirmed: `Order.cs:138`, `SupportPowerBotModule.cs:156`.
+   Non-crash path (FrozenActorLayer != null) is byte-identical to pre-change. ✓
+2. **SpawnActorOnDeath.cs:103** — `AttackInfo.Attacker` is a plain field (`TraitsInterfaces.cs:83`),
+   nullable on terrain/ownerless kills. `e.Attacker?.Owner` leaves `attackingPlayer` null; the
+   **pre-existing** guard at line 109 (`if (attackingPlayer == null) return;`) then early-returns.
+   Original path NRE'd, so no working behavior is lost. See Nit N2. ✓
+3. **PlayerStatistics.cs:231** — `if (e.Attacker == null || e.Attacker == self) return;`. All
+   accounting (`ArmyValue`/`AssetsValue`/`DeathsCost`) already ran above (line 229). The
+   pre-existing `== self` branch already returned; adding `== null` only adds a new skip for the
+   null case and cannot alter the non-null path. Deref at 234 would NRE without it. ✓
+4. **BuildingRepairBotModule.cs:30** — guard is the first statement; nothing skipped. Deref at
+   line 36 (`e.Attacker.Owner`) would NRE on null. Sibling precedent: `SmartMove.cs:45`. See Nit N1. ✓
+
+### YAML — all three verified
+
+- **tunguska** (`vehicles-russia.yaml:839`): block defines armaments `primary` (Armament@1),
+  `primary-air` (Armament@1_Air), `secondary` (Armament@2) only — **no `tertiary`** (was dangling).
+  After: `primary, primary-air`, both real; `primary-air` now owned by exactly one AmmoPool (no
+  double-own). Balance note in §"Behavioral risk" is accurate and honestly disclosed. ✓
+- **m113** (`vehicles-america.yaml:256`): actor defines only `AmmoPool@1` (`Name: primary-ammo`),
+  so `secondary-ammo`/`tertiary-ammo` were dangling. After: `primary-ammo` resolves. **strykershorad**
+  (which legitimately defines all three pools at :876/:903/:936) is correctly left UNCHANGED at :965. ✓
+- **bmp2** (`vehicles-russia.yaml:146`): `BPM-2` → `BMP-2`, Tooltip.Name only; actor id/image untouched. ✓
+- All edits are in-place value changes on existing lines — **no MiniYaml blank-line merge risk** introduced. ✓
+
+### Provenance & completeness
+
+All 7 May source SHAs reachable from the worktree; subjects match; salvaged changed-lines are
+**byte-identical** to the May originals (spot-checked 53d4ad72, f2a0aa10, 0e3858d2, b1ca86a3).
+All 7 fixes represented across the two commits — **nothing dropped**. ✓
+
+### Verification (worktree only)
+
+- `make all` — **Build succeeded, 0 errors** (salvage projects OpenRA.Game / OpenRA.Mods.Common clean).
+- `dotnet test …/OpenRA.Test.csproj -c Release` — **Passed 524, Failed 0, Skipped 0** (matches baseline).
+- `make test` (YAML lint) — **NOT run.** A live tournament autotest is running on the main checkout
+  (`Test.Mode=true tournament-s1-eco-cal-nn`, PID observed); `utility.sh --check-yaml` is CPU-heavy and
+  `timeout(1)` is unavailable on this macOS host to bound the run, so executing it would starve the live
+  match. Substituted with full static ref-resolution (above): every edited armament/ammo-pool/tooltip ref
+  resolves; no dangling `tertiary`/`secondary-ammo` remains on the edited actors. Recommend a full lint on
+  a quiet machine to capture the pre-existing map-cordon error the brief already flagged (branch-independent).
+
+### Nits (non-blocking)
+
+- **N1 — brief claim #3 slightly overstated for BuildingRepairBotModule.** The guard includes
+  `|| e.Attacker.Disposed`, which is broader than pure null-avoidance: a *non-null-but-disposed*
+  attacker previously reached line 36 (`RelationshipWith`) and could queue a repair order; it now
+  early-returns. This is a real (if degenerate) sim-behavior change in bot repair-response — but it is
+  **deterministic** (`Disposed` is sim-state, no desync risk), arguably more correct, and inherited
+  **verbatim** from May `f2a0aa10`. Awareness only.
+- **N2 — SpawnActorOnDeath null-attacker → no spawn, even for attacker-independent spawn types.** For
+  `OwnerType.Victim`/`InternalOwner` spawns (which don't use the attacker), a null-attacker kill now
+  yields **no spawn** (attackingPlayer null → line-109 early-return), rather than a victim-owned spawn.
+  Because the original path NRE'd, this is strictly-better crash recovery, not a regression — but the
+  outcome is "silently no spawn," which a future reader should know. Non-blocking.
+- **N3 — cosmetic.** Brief says `make all` "0 warnings"; a sub-build emits 17 pre-existing engine
+  warnings (final stage 0). Immaterial to the salvage.
+
+Nothing above blocks merge. Determinism invariants hold: no guard alters sim state on the
+previously-working (non-crash) path; the only genuine gameplay change (tunguska AA ammo) is the
+*correct* resolution of a dangling ref and is flagged for playtest.
