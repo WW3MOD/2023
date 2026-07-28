@@ -34,4 +34,5 @@ NOT ratified. First calibration batch measures what the combat math actually yie
 
 ## Status log
 
+- **2026-07-28 — Dependency 1 RESOLVED (pipeline item 20 done).** Trees DO conceal mechanically (density→shadow vision attenuation) but weakly: ~1 strength per fully-dense tree cell on the sightline; stock infantry (Vision 3) needs ~7 such cells to every viewer. Deep stacked forest works, thin treelines don't. Case is buildable as painted **if** the map uses a genuinely dense cluster, but the ambush likely needs concealment strengthening to read reliably — seams mapped in `WORKSPACE/recon/260728-trees-concealment.md` (vision-attenuation retune, `Detectable` terrain bump, dormant `TerrainModifiesDamage` for cover). Remaining gates: item 21 (positioning) + test grant.
 - **2026-07-26 — DRAFT.** Intent captured from the user's discussion turn; decomposition + provisional bar recorded. No scenario authored yet.

@@ -22,9 +22,8 @@ Autoburn retrospective verdict (first window, ~07-20 → 07-25): throughput and 
 
 ## QUEUE
 
-### 20. Recon — do trees conceal? (terrain concealment mechanics)
-**Perceived:** nothing yet — this is the fact-finding that decides whether case-01 (forest ambush) is buildable as painted, or needs a concealment mechanic built first.
-_Read-only recon: how do trees/terrain interact with the graded-vision detection model (`Detectable.Vision`, vision rings) today? The Stage-3 ambush scenarios had to override `Vision: 9` to author a hidden unit — suggesting terrain concealment may not exist mechanically. Deliverable: a short findings doc (what exists, what a tree-concealment mechanic would minimally require, cost estimate) + DISCOVERIES entry. Gates items 21+22. Startable autonomously — no grants needed._
+### 20. Recon — do trees conceal? — **DONE 2026-07-28**, findings: [`recon/260728-trees-concealment.md`](recon/260728-trees-concealment.md)
+**Answer: YES, mechanically, but WEAKLY.** Trees (destructible neutral actors) feed a density field → precomputed shadow layer → subtracted from projected vision strength before `Detectable` reads it. Magnitude is the problem: ~1 strength point per fully-dense tree cell on the sightline; a stock infantryman (Vision 3) needs ~7 such cells to every viewer to vanish. Deep forest (stacked density) works; thin treelines barely register. The Stage-3 `Vision: 9` override was a range trick, not a trees trick. **Case-01 is buildable**, but likely needs concealment strengthening (7 seams mapped in the recon doc). Dormant ready-to-wire engine seams found: `TerrainModifiesDamage` (terrain cover damage reduction, zero users), `BlocksSight` (hard LOS block, zero users/callers). Open question: does `ShadowLayer` update when trees die, or stay baked from `shadows.bin`? **Items 21+22 ungated.** Companion movement recon: [`recon/260728-movement-locomotion.md`](recon/260728-movement-locomotion.md) (engine-modernization study, pipeline additions pending user discussion)._
 
 ### 21. Stance-aware cover positioning — one order, good positions
 **Perceived:** select a squad, click once at a tree cluster — units flow in and each takes a sensible position; ambush-stance units pick concealed cells and stay hidden. The "my soldiers are smart about where they stand" feel.
