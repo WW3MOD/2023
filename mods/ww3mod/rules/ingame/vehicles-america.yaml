@@ -61,7 +61,7 @@ humvee:
 		Locomotor: lightwheeled
 		Speed: 150
 		Acceleration: 3, 4, 5, 6, 5, 4, 3, 2, 1
-		TurnSpeed: 15
+		TurnSpeed: 19
 		PauseOnCondition: empdisable
 	Turreted:
 		TurnSpeed: 20
@@ -222,7 +222,7 @@ m113:
 		Locomotor: lighttracked-amphibious
 		Speed: 100
 		Acceleration: 4, 3, 2, 1
-		TurnSpeed: 10
+		TurnSpeed: 13
 		# PauseOnCondition: empdisable || !notmobile
 	Armament@1:
 		Name: primary
@@ -341,7 +341,7 @@ bradley:
 		Locomotor: lighttracked
 		Speed: 100
 		Acceleration: 4, 3, 2, 1
-		TurnSpeed: 10
+		TurnSpeed: 13
 		PauseOnCondition: empdisable
 	GrantConditionOnPreparingAttack:
 		ArmamentNames: secondary
@@ -499,7 +499,7 @@ abrams:
 		Locomotor: heavytracked
 		Speed: 90
 		Acceleration: 3, 2, 1
-		TurnSpeed: 10
+		TurnSpeed: 13
 		PauseOnCondition: empdisable
 	Turreted:
 		TurnSpeed: 20
@@ -606,7 +606,7 @@ m109:
 	Mobile:
 		Speed: 80
 		Acceleration: 2, 1
-		TurnSpeed: 8
+		TurnSpeed: 10
 		Locomotor: lighttracked
 		PauseOnCondition: firing || empdisable
 	GrantConditionOnPreparingAttack:
@@ -740,7 +740,7 @@ m270:
 		Locomotor: lighttracked
 		Speed: 80
 		Acceleration: 2, 1
-		TurnSpeed: 8
+		TurnSpeed: 10
 		PauseOnCondition: firing || empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing
@@ -854,7 +854,7 @@ strykershorad:
 	Mobile:
 		Speed: 120
 		Acceleration: 3, 4, 3, 2, 1
-		TurnSpeed: 10
+		TurnSpeed: 13
 		Locomotor: heavywheeled
 		PauseOnCondition: empdisable
 	Radar:
@@ -1028,7 +1028,7 @@ HIMARS:
 	Mobile:
 		Locomotor: lighttracked
 		Speed: 70
-		TurnSpeed: 8
+		TurnSpeed: 10
 		PauseOnCondition: firing || being-captured || empdisable
 	GrantConditionOnPreparingAttack:
 		Condition: firing
