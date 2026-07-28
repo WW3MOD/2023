@@ -99,6 +99,16 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Percentage of current speed retained when redirecting mid-cell with a sharp direction change (>90 degrees). 100 = no penalty.")]
 		public readonly int RedirectSpeedPenalty = 50;
 
+		[Desc("Corner-cut (string-pull) the rendered movement line toward the farthest visible waypoint on the ",
+			"remaining cell path, killing the 8-direction 45-degree zig-zag. The A* path, cell reservations and ",
+			"per-cell pop/crush cadence are untouched; only the traversed WPos line changes. Ground layer only, ",
+			"and skipped for AlwaysTurnInPlace units (infantry). Default on for WW3MOD.")]
+		public readonly bool StringPullMovement = true;
+
+		[Desc("Maximum number of cells ahead the string-pull sightline may reach. Bounds both cost and the ",
+			"rendered-vs-reserved visual divergence.")]
+		public readonly int StringPullMaxLookahead = 6;
+
 		[Desc("Actor will only try to move backwards when the path (in cells) is shorter than this value.",
 			"If set to -1 the unit will be allowed to move backwards without range limit.")]
 		public readonly int MaxBackwardCells = 15;

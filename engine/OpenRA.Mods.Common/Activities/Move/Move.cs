@@ -222,14 +222,15 @@ namespace OpenRA.Mods.Common.Activities
 				self.World.GetCustomMovementLayers()[mobile.FromCell.Layer].CenterOfCell(mobile.FromCell)) +
 				map.Grid.OffsetOfSubCell(mobile.FromSubCell);
 
-			// For units that can redirect mid-cell, use their actual position instead of cell center
-			// to avoid a visual snap when starting a new move after a mid-cell cancellation.
-			var from = mobile.Info.CanRedirectMidCell && mobile.CenterPosition != cellCenter
+			// For units that can redirect mid-cell (or string-pull), use their actual position instead of cell
+			// center to avoid a visual snap when the previous segment ended off the geometric boundary.
+			var from = (mobile.Info.CanRedirectMidCell || StringPullEnabled) && mobile.CenterPosition != cellCenter
 				? mobile.CenterPosition
 				: cellCenter;
 
-			var to = Util.BetweenCells(self.World, mobile.FromCell, mobile.ToCell) +
+			var geomTo = Util.BetweenCells(self.World, mobile.FromCell, mobile.ToCell) +
 				(map.Grid.OffsetOfSubCell(mobile.FromSubCell) + map.Grid.OffsetOfSubCell(mobile.ToSubCell)) / 2;
+			var to = SmoothSegmentTarget(self, from, geomTo, mobile.ToCell);
 
 			WRot? toTerrainOrientation = null;
 			var margin = mobile.Info.TerrainOrientationAdjustmentMargin.Length;
@@ -355,6 +356,41 @@ namespace OpenRA.Mods.Common.Activities
 		protected override void OnLastRun(Actor self)
 		{
 			path = null;
+		}
+
+		// --- WW3MOD path string-pulling (item 28, recon §Q7(b)) ---
+		// Corner-cut the RENDERED segment target toward the farthest visible upcoming waypoint while the A*
+		// cell path, cell reservations and per-cell pop/crush cadence stay exactly as the pathfinder made them.
+		// Disabled for AlwaysTurnInPlace units (infantry, which move through cell centres) and on custom layers,
+		// whose coordinate mapping differs from the Rectangular DDA in PathStringPulling.
+		bool StringPullEnabled =>
+			mobile.Info.StringPullMovement
+			&& !mobile.Info.AlwaysTurnInPlace
+			&& mobile.FromCell.Layer == 0
+			&& mobile.ToCell.Layer == 0;
+
+		// Returns the smoothed WPos target for a segment heading toward `immediate`, or geomTo verbatim when
+		// there is no useful straight-line shortcut. `from` must be the actor's actual current position so the
+		// rendered line is continuous across segments (the previous segment ended off the geometric boundary).
+		WPos SmoothSegmentTarget(Actor self, WPos from, WPos geomTo, CPos immediate)
+		{
+			if (!StringPullEnabled)
+				return geomTo;
+
+			var lookahead = mobile.Info.StringPullMaxLookahead;
+			if (lookahead <= 1)
+				return geomTo;
+
+			// Ordered upcoming cells: [0] = the cell this segment heads toward, then the farther waypoints from
+			// the remaining (reverse-stored) path, capped at the lookahead window.
+			var upcoming = new List<CPos>(lookahead) { immediate };
+			for (var i = path.Count - 1; i >= 0 && upcoming.Count < lookahead; i--)
+				upcoming.Add(path[i]);
+
+			var map = self.World.Map;
+			return PathStringPulling.SmoothTarget(from, geomTo, upcoming, lookahead,
+				c => map.CenterOfCell(c),
+				c => c.Layer == 0 && mobile.CanEnterCell(c, ignoreActor, BlockedByActor.Immovable));
 		}
 
 		static bool CellIsEvacuating(Actor self, CPos cell)
@@ -651,10 +687,18 @@ namespace OpenRA.Mods.Common.Activities
 							? new WAngle(nextFacing.Angle + 512)
 							: nextFacing;
 
+						// String-pull: keep the rendered line continuous from the actor's actual position and cut the
+						// corner toward the farthest visible waypoint. Facings/turn decisions are untouched.
+						var arcFrom = parent.StringPullEnabled
+							? mobile.CenterPosition
+							: Util.BetweenCells(self.World, mobile.FromCell, mobile.ToCell) + (fromSubcellOffset + toSubcellOffset) / 2;
+						var arcGeomTo = Util.BetweenCells(self.World, mobile.ToCell, nextCell.Value.Cell) + (toSubcellOffset + nextSubcellOffset) / 2;
+						var arcTo = parent.SmoothSegmentTarget(self, arcFrom, arcGeomTo, nextCell.Value.Cell);
+
 						var ret = new MoveFirstHalf(
 							Move,
-							Util.BetweenCells(self.World, mobile.FromCell, mobile.ToCell) + (fromSubcellOffset + toSubcellOffset) / 2,
-							Util.BetweenCells(self.World, mobile.ToCell, nextCell.Value.Cell) + (toSubcellOffset + nextSubcellOffset) / 2,
+							arcFrom,
+							arcTo,
 							mobile.Facing,
 							toFacing,
 							ToTerrainOrientation,
@@ -675,9 +719,15 @@ namespace OpenRA.Mods.Common.Activities
 				var toPos = mobile.ToCell.Layer == 0 ? map.CenterOfCell(mobile.ToCell) :
 					self.World.GetCustomMovementLayers()[mobile.ToCell.Layer].CenterOfCell(mobile.ToCell);
 
+				// String-pull: start from the actor's actual position so a prior corner-cut segment does not snap.
+				// The target stays the cell centre — this "entering" half re-anchors the unit onto the grid.
+				var secondFrom = parent.StringPullEnabled
+					? mobile.CenterPosition
+					: Util.BetweenCells(self.World, mobile.FromCell, mobile.ToCell) + (fromSubcellOffset + toSubcellOffset) / 2;
+
 				var ret2 = new MoveSecondHalf(
 					Move,
-					Util.BetweenCells(self.World, mobile.FromCell, mobile.ToCell) + (fromSubcellOffset + toSubcellOffset) / 2,
+					secondFrom,
 					toPos + toSubcellOffset,
 					mobile.Facing,
 					mobile.Facing,

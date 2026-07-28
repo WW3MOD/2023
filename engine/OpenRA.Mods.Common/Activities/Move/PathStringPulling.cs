@@ -31,6 +31,11 @@ namespace OpenRA.Mods.Common.Activities
 	{
 		public const int CellSize = 1024;
 
+		// Hard ceiling on how far the rendered (smoothed) position may sit from the un-smoothed on-grid
+		// boundary point it replaces — half a cell. This is what bounds the visual-vs-reserved divergence in
+		// the stateful sim (where each segment re-anchors on the previous shadow), independent of corridor shape.
+		public const int DefaultMaxDivergence = 512;
+
 		// Floor division (round toward negative infinity) so cell derivation is correct for negative positions.
 		public static int FloorDiv(int a, int b)
 		{
@@ -186,10 +191,30 @@ namespace OpenRA.Mods.Common.Activities
 			return new WPos(px, py, geomTo.Z);
 		}
 
+		// Clamp `smoothed` so it is never more than maxDivergence WDist from geomTo (the un-smoothed on-grid
+		// point). Guarantees the documented rendered-vs-reserved bound regardless of corridor geometry.
+		public static WPos ClampDivergence(WPos smoothed, WPos geomTo, int maxDivergence)
+		{
+			if (maxDivergence <= 0)
+				return smoothed;
+
+			var off = smoothed - geomTo;
+			var lenSq = (long)off.X * off.X + (long)off.Y * off.Y;
+			if (lenSq <= (long)maxDivergence * maxDivergence)
+				return smoothed;
+
+			var len = off.HorizontalLength;
+			if (len == 0)
+				return smoothed;
+
+			return geomTo + new WVec(off.X * maxDivergence / len, off.Y * maxDivergence / len, 0);
+		}
+
 		// Full pipeline: returns the smoothed segment target, or geomTo unchanged when there is no useful
 		// straight-line shortcut. `upcoming[0]` is the cell geomTo heads toward; later entries are farther.
+		// The result is clamped to within maxDivergence WDist of geomTo (pass 0 to disable the clamp).
 		public static WPos SmoothTarget(WPos from, WPos geomTo, IReadOnlyList<CPos> upcoming, int maxLookahead,
-			Func<CPos, WPos> centerOf, Func<CPos, bool> canEnter)
+			Func<CPos, WPos> centerOf, Func<CPos, bool> canEnter, int maxDivergence = DefaultMaxDivergence)
 		{
 			if (upcoming.Count == 0 || maxLookahead <= 1)
 				return geomTo;
@@ -198,7 +223,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (k <= 0)
 				return geomTo;
 
-			return ProjectOntoSightline(from, geomTo, centerOf(upcoming[k]));
+			return ClampDivergence(ProjectOntoSightline(from, geomTo, centerOf(upcoming[k])), geomTo, maxDivergence);
 		}
 	}
 }

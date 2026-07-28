@@ -161,9 +161,31 @@ namespace OpenRA.Test
 				maxDivergenceSq = Math.Max(maxDivergenceSq, dx * dx + dy * dy);
 			}
 
-			// Bound: strictly under one cell (1024 WDist) of divergence from the reserved boundary.
-			Assert.That(maxDivergenceSq, Is.LessThan(1024L * 1024L),
-				"rendered shadow never diverges a full cell from its reserved boundary");
+			// Bound: the hard clamp keeps every shadow within half a cell of its reserved boundary.
+			Assert.That(maxDivergenceSq, Is.LessThanOrEqualTo(
+				(long)PathStringPulling.DefaultMaxDivergence * PathStringPulling.DefaultMaxDivergence),
+				"rendered shadow never diverges past the clamp from its reserved boundary");
+		}
+
+		[Test]
+		public void ClampDivergenceCapsTheOffset()
+		{
+			var geomTo = new WPos(1000, 2000, 0);
+
+			// Within the cap: unchanged.
+			var near = new WPos(1000 + 300, 2000, 0);
+			Assert.That(PathStringPulling.ClampDivergence(near, geomTo, 512), Is.EqualTo(near));
+
+			// Beyond the cap: pulled back onto the cap radius (integer, along the same direction).
+			var far = new WPos(1000 + 900, 2000, 0);
+			var clamped = PathStringPulling.ClampDivergence(far, geomTo, 512);
+			Assert.Multiple(() =>
+			{
+				Assert.That(clamped, Is.EqualTo(new WPos(1000 + 512, 2000, 0)), "clamped to the cap along +x");
+
+				// maxDivergence 0 disables the clamp entirely.
+				Assert.That(PathStringPulling.ClampDivergence(far, geomTo, 0), Is.EqualTo(far));
+			});
 		}
 
 		[Test]
