@@ -95,6 +95,37 @@ namespace OpenRA.Mods.Common.Traits
 			"the @stable twin stays byte-identical.")]
 		public readonly bool UseUnitRoles = false;
 
+		[Desc("Influence stack (garrison migration): score held-POI defend urgency off the BELIEVED anti-ground",
+			"danger field (DangerFieldLayer) instead of the OMNISCIENT InfluenceMap threat grid PoiMap bakes into",
+			"the defend score. When on, GetDefendTargets is asked for a threat-NEUTRAL (calm) base score (no",
+			"omniscient read) and this module re-applies a fog-legal believed-danger RAISE — the MIRROR of the",
+			"capture damp: believed danger at a POI we hold RAISES its defend score and garrison size (something",
+			"is pressing it). Completes the @experimental fog migration for garrison ordering. OFF by default so",
+			"legacy/normal and the frozen @stable twin stay byte-identical; only PoiGarrisonBotModule@experimental",
+			"turns it on. Inert (falls back to the omniscient path) if no DangerFieldLayer exists.")]
+		public readonly bool DefendRepointEnabled = false;
+
+		[Desc("Garrison migration: believed anti-ground danger (DangerFieldLayer.GroundDanger) at/below which a",
+			"held POI counts as CALM. On the danger-field throughput scale (NOT the InfluenceMap scale); sits",
+			"above the Stage-C territory baseline so ambient 'deep enemy ground' danger doesn't raise every POI.")]
+		public readonly int BelievedDangerMildThreshold = 40;
+
+		[Desc("Garrison migration: believed anti-ground danger above which a held POI is ASSAULTED (inside a dense",
+			"believed weapon envelope) — the level at which the garrison-size threat bump fires. Boundary between",
+			"the probed and assaulted buckets.")]
+		public readonly int BelievedDangerHostileThreshold = 120;
+
+		[Desc("Garrison migration: defend-ordering multiplier (x100) at CALM believed danger. Default 100 = inert.")]
+		public readonly int BelievedDangerCalmMultiplier = 100;
+
+		[Desc("Garrison migration: defend-ordering multiplier (x100) at PROBED believed danger. >100 RAISES a",
+			"probed POI above a calm one so contested income is garrisoned first. Default 100 = inert.")]
+		public readonly int BelievedDangerProbedMultiplier = 100;
+
+		[Desc("Garrison migration: defend-ordering multiplier (x100) at ASSAULTED believed danger (dense believed",
+			"weapon envelope) — highest urgency, this POI is actively being taken. >100 RAISES most. Default 100 = inert.")]
+		public readonly int BelievedDangerAssaultedMultiplier = 100;
+
 		public override object Create(ActorInitializer init) { return new PoiGarrisonBotModule(init.Self, this); }
 	}
 
@@ -120,6 +151,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		PoiMap poiMap;
 		bool poiMapResolved;
+
+		// Influence stack (garrison migration): the believed anti-ground danger field, resolved ONLY when
+		// DefendRepointEnabled so the off/@stable path never touches it. When present it replaces the
+		// omniscient InfluenceMap threat baked into the defend score/size with a fog-legal RAISE.
+		DangerFieldLayer dangerField;
+		bool dangerFieldResolved;
+
 		PoiGoalGuard goalGuard;
 		bool goalGuardResolved;
 		UnitRoleResolver resolver;
@@ -164,6 +202,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (poiMap == null)
 				return;
 
+			if (!dangerFieldResolved)
+			{
+				dangerField = Info.DefendRepointEnabled
+					? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
+				dangerFieldResolved = true;
+			}
+
 			if (!goalGuardResolved)
 			{
 				goalGuard = player.PlayerActor.TraitOrDefault<PoiGoalGuard>();
@@ -184,8 +229,14 @@ namespace OpenRA.Mods.Common.Traits
 				goalGuard.Ledger.Prune(tick, a => !a.IsDead && a.IsInWorld && a.Owner == player);
 
 			// 2. Score our held money POIs (value x distance x defence-urgency). Cap to
-			//    MaxGarrisons highest-urgency POIs.
-			var targets = poiMap.GetDefendTargets(player);
+			//    MaxGarrisons highest-urgency POIs. Garrison migration: when DefendRepointEnabled (and a
+			//    DangerFieldLayer exists) ask PoiMap for a threat-NEUTRAL (calm) base score — no omniscient
+			//    read — and re-apply a fog-legal believed-danger RAISE. Off ⇒ the frozen omniscient path, so
+			//    the @stable twin (flag unset) stays byte-identical.
+			var repoint = Info.DefendRepointEnabled && dangerField != null;
+			var targets = repoint
+				? RescaleDefendByBelievedDanger(poiMap.GetDefendTargets(player, suppressOmniscientThreat: true))
+				: poiMap.GetDefendTargets(player);
 			if (targets.Count > Info.MaxGarrisons)
 				targets = targets.Take(Info.MaxGarrisons).ToList();
 
@@ -231,9 +282,14 @@ namespace OpenRA.Mods.Common.Traits
 			free.AddRange(BuildFreePool());
 			var pool = free.Count + ordered.Sum(g => g.Units.Count);
 
+			// Sizing threat bump fires when the POI's threat exceeds this threshold. On the omniscient path that
+			// is the InfluenceMap ThreatMildThreshold; under the fog migration TargetThreat carries BELIEVED
+			// ground danger (danger-field scale), so the bump must key on the ASSAULTED threshold instead —
+			// only a dense believed weapon envelope, not the ambient Stage-C baseline, reinforces the hold.
+			var sizeThreatThreshold = repoint ? Info.BelievedDangerHostileThreshold : poiMap.Info.ThreatMildThreshold;
 			var desired = ordered
 				.Select(g => PoiGarrisonMath.GarrisonSize(g.Value,
-					TargetThreat(targets, g.PoiId), poiMap.Info.ThreatMildThreshold,
+					TargetThreat(targets, g.PoiId), sizeThreatThreshold,
 					Info.ValuePerGarrisonUnit, Info.MinGarrison, Info.MaxGarrison, Info.ThreatGarrisonBonus))
 				.ToList();
 			var sizes = PoiGarrisonMath.AllocateGarrisons(desired, pool);
@@ -307,6 +363,33 @@ namespace OpenRA.Mods.Common.Traits
 				if (t.Actor.ActorID == poiId)
 					return t.EnemyInfluence;
 			return 0;
+		}
+
+		// Re-score the (calm-neutral) defend targets by the BELIEVED anti-ground danger field: believed
+		// danger RAISES a held POI's defend score (calm < probed < assaulted), the MIRROR of the capture
+		// damp and the fog-legal replacement for the omniscient InfluenceMap threat PoiMap used to bake in.
+		// The EnemyInfluence field is repurposed to carry the sampled ground danger so TargetThreat (garrison
+		// sizing) reads the believed danger too. Pure factor (PoiScoring.BelievedDefendFactor) draws ZERO
+		// random; re-sorts with the SAME comparator PoiMap uses.
+		List<ScoredPoi> RescaleDefendByBelievedDanger(List<ScoredPoi> targets)
+		{
+			var scaled = new List<ScoredPoi>(targets.Count);
+			foreach (var p in targets)
+			{
+				var groundDanger = dangerField.GroundDanger(player, p.Location);
+				var mul = PoiScoring.BelievedDefendFactor(groundDanger,
+					Info.BelievedDangerMildThreshold, Info.BelievedDangerHostileThreshold,
+					Info.BelievedDangerCalmMultiplier, Info.BelievedDangerProbedMultiplier,
+					Info.BelievedDangerAssaultedMultiplier);
+
+				var newScore = p.Score * mul / 100;
+				scaled.Add(new ScoredPoi(p.Actor, p.Kind, p.Action, p.Value,
+					p.DistanceCells, groundDanger, newScore));
+			}
+
+			scaled.Sort((a, b) => PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
+				b.Score, b.DistanceCells, b.Actor.ActorID));
+			return scaled;
 		}
 
 		List<Actor> BuildFreePool()
