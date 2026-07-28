@@ -20,6 +20,12 @@ Autoburn retrospective verdict (first window, ~07-20 → 07-25): throughput and 
 
 ---
 
+## STANDING GRANT — next autoburn window (user, 2026-07-28)
+
+The user granted the full test ladder for the **next autoburn window**: "When the next autoburn starts you can use whatever tools you need, unless otherwise specified." Covers single autotests, calibration batches (item 22), and the Stage-F full ladder re-baseline + gate (b) benchmark pricing (item 25). **Autoburn itself is NOT started yet — the user said hold off; the grant activates when the user starts the window.** Outside autoburn, the per-turn goahead rule still applies.
+
+---
+
 ## QUEUE
 
 ### 20. Recon — do trees conceal? — **DONE 2026-07-28**, findings: [`recon/260728-trees-concealment.md`](recon/260728-trees-concealment.md)
@@ -35,7 +41,7 @@ _NEW feature (the real work inside case-01): a cover-aware position-selection la
 
 ### 22. Case 01 — forest ambush measurement (`cases/case-01-forest-ambush.md`)
 **Perceived:** the payoff of 20+21, proven by a number: an equal-cost force walking into the treeline ambush is destroyed at ~3× the defenders' losses, repeatably.
-_Author the scenario (scripted attacker, defender squad under test), run a calibration batch, ratify the bar (provisional 1:3 cost-weighted), then iterate until GREEN. **Calibration batch needs a test grant** — user-gated._
+_Author the scenario (scripted attacker, defender squad under test), run a calibration batch, ratify the bar (provisional 1:3 cost-weighted), then iterate until GREEN. **Calibration batch: GRANTED for the next autoburn window** (STANDING GRANT above)._
 
 ### 27. Vehicle turn feel — YAML tuning (movement rung (a))
 **Perceived:** vehicles sweep through turns keeping speed instead of sluggish segmented pivots; columns read less robotic.
@@ -55,7 +61,7 @@ _Closes the declared Stage-F gap (`DOCS/reference/influence-stack.md` §Known ga
 
 ### 25. Benchmark re-baseline — restore the measurement instrument
 **Perceived:** nothing directly, but every future "did the bot get better?" claim becomes trustworthy again.
-_The Stage-F re-baseline is DECLARED, NEVER RUN (`WORKSPACE/ai-bench/runs/260724_stagef_repoint_rebaseline.md`) — the instrument for @experimental offense changed and was never re-zeroed. Also the natural home for item-8 gate (b) benchmark pricing (ambush default-on decision). **Entirely user-gated** (multi-test)._
+_The Stage-F re-baseline is DECLARED, NEVER RUN (`WORKSPACE/ai-bench/runs/260724_stagef_repoint_rebaseline.md`) — the instrument for @experimental offense changed and was never re-zeroed. Also the natural home for item-8 gate (b) benchmark pricing (ambush default-on decision). **GRANTED for the next autoburn window** (STANDING GRANT above; long run — steals window focus while it runs)._
 
 ### 8. Ambush behavior — IMPLEMENTATION **[ALL STAGES SHIPPED 2026-07-25 — only gate (b) benchmark pricing remains, user-gated]**
 **Perceived:** hidden Ambush units that hold fire until spotted or until springing the trap at the best moment; units *feel alive*, reacting to being seen/unseen. Human-settable stance first, **default off** so nothing changes for players who don't opt in.
