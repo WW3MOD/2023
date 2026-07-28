@@ -19,7 +19,7 @@ Order: `Mobile.ResolveOrder` (`Mobile.cs:986-1013`) → `WrapMove(new Move(...))
 ## Q2 — Turning: stop-turn only from standstill; mid-path turns are curved
 
 - Standstill/re-align: yes, stop-turn (`Move.cs:210-216`).
-- Mid-path: curved arcs via `EnableArc` (`Move.cs:446-468`); only sharp turns (~135°+, `delta < 384 || delta > 640`, `:613`) revert to turn-in-place. `AlwaysTurnInPlace` (`Mobile.cs:53`) forces it for infantry.
+- Mid-path: curved arcs via `EnableArc` (`Move.cs:446-468`); only sharp turns (~135°+, `delta < 384 || delta > 640`, `:613`) revert to turn-in-place. `AlwaysTurnInPlace` (`Mobile.cs:53`) is the engine flag that *would* force turn-in-place, **but it is unset mod-wide** — commented out at `infantry.yaml:48` and uncommented nowhere in `mods/ww3mod/`, so no WW3MOD unit is AlwaysTurnInPlace. (Corrected 2026-07-28, item 28 review: an earlier revision claimed "forces it for infantry", which seeded a no-op gate. The real infantry discriminator is `LocomotorInfo.SharesCell` on the four `foot*` locomotors — `world.yaml:32,47,64,80`.)
 - Knobs: `TurnSpeed`, `TurnSpeedLoss` (`Mobile.cs:46-47`, applied `Move.cs:551-553`), `Acceleration`/`Deceleration` momentum (`Mobile.cs:44,50`; `Move.cs:514-522`), infantry `CanRedirectMidCell`+`RedirectSpeedPenalty` (`Mobile.cs:96-100`, `Move.cs:125-138`), reverse drive (`CanMoveBackward`, `Move.cs:190-208`).
 - **TRAP: `MobileInfo.TurnsWhileMoving` (`Mobile.cs:55-56`) is declared but NEVER read — inert flag.**
 - Continuous-turn precedent: aircraft `Fly` computes real turn radius (`Fly.cs:360-366`) and steers curved intercepts (`:323-344`).
