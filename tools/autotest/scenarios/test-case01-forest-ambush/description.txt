@@ -1,0 +1,1 @@
+CASE-01 forest ambush: 5 concealed USA defenders (Ambush, one group order into a dense grove, item-21 cover-seated) vs 5 equal-cost scripted Russia attackers attack-moving through. Measures cost-weighted losses + ratio (calibration capture-mode: passes on resolution).

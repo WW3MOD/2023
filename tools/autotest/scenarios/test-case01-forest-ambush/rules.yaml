@@ -1,0 +1,34 @@
+Player:
+	# Elimination must NOT end the match before the Lua poller writes the verdict — the
+	# ambush annihilates one side by design. Both factions also keep a supplyroute (map.yaml)
+	# so a wiped combat squad doesn't trip the Mission-Accomplished overlay (AUTOTEST gotcha #5).
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		# Fog ON is the whole point: the defenders must be able to stay UNSEEN by the attacker
+		# via TREE-DENSITY shadow attenuation (item 26), so the spring is earned by concealment,
+		# not gifted. NO Detectable.Vision override here (unlike test-ambush-convoy) — stock
+		# Vision 3 defenders are hidden purely by the grove's depth.
+		FogCheckboxEnabled: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Strip persisted per-type stance defaults so the human defenders are deterministically
+	# whatever the Lua sets (Ambush), regardless of this machine's saved unit defaults.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-case01-forest-ambush.lua
+
+# Defender tuning: widen the ambush kill-zone so the stationary spring machine (Stage 3)
+# reliably scores the approaching column once it becomes fog-visible at close range and
+# springs within two samples. Scoped to E3.america (the defender type); the attacker's
+# E3.russia never runs the Stage-3 machine (not in Ambush stance, gate not granted), so
+# this override is inert for them.
+E3.america:
+	AutoTarget:
+		AmbushKillZoneRadius: 12
