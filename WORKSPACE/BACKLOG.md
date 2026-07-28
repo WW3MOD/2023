@@ -25,6 +25,13 @@
 
 ## Ideas Parking Lot
 
+### Sprite/asset generation — deferred for hands-on work with the user (2026-07-28)
+Source: `WORKSPACE/recon/260728-sprite-tooling.md`. The tooling FOUNDATION went to PIPELINE item 29 (wrapper scripts, loose-file verify, PngSheet enable); everything below is the *creative* use of that pipeline — the user wants a hands-on approach, so do NOT start these autonomously.
+- [ ] **Graded tree damage art (image-gen pilot)** — engine already supports 4 damage tiers (`scuffed-`/`scratched-`/`damaged-`/`critical-`, auto-selected at 75/50/25% HP); trees have art for none. Pilot: export one tree, generate 4 damage variants, quantize to `temperat.pal`, wire sequences, screenshot eval. The proof-of-concept for the whole gen-assisted content strategy. *hands-on*
+- [ ] **Graded building damage art** — buildings ship 2 visual states (bare + `damaged-`); `scuffed-`/`scratched-`/`critical-` sequences are 0-2 uses across the mod. Same recipe as trees, per-building art volume. *hands-on*
+- [ ] **Multi-part buildings (independently destructible wings)** — shipped-tools route: N co-located actors + condition graph (no C#); elegant route: new per-segment health trait. Bridge precedent is tile-based — wrong fit. Needs a design session first. *hands-on, design-first*
+- [ ] **Integrated image-gen step** — agent-driven "take this tree, generate it 20/40/60/80% damaged" automation (API integration, quantization step `-remap temperat.pal`). Only worth building after the manual pilot proves the art direction. *post-pilot*
+
 ### Engine modernization — deferred pending user judgment (2026-07-28)
 Source: `WORKSPACE/recon/260728-trees-concealment.md` + `recon/260728-movement-locomotion.md` (engine-modernization study). The safe subset went to PIPELINE items 26–28; everything below changes game feel/balance in ways the user must weigh — do NOT implement autonomously.
 - [ ] **Tanks crush trees** — today forests are absolute vehicle barriers (no locomotor Crushes/Passes tree). MBTs flattening small trees is realistic (husk + destruction plumbing exists) but removes forests as vehicle-proof terrain. *user call*
