@@ -27,6 +27,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBotRespondToAttack.RespondToAttack(IBot bot, Actor self, AttackInfo e)
 		{
+			if (e.Attacker == null || e.Attacker.Disposed)
+				return;
+
 			// HACK: We don't want D2k bots to repair all their buildings on placement
 			// where half their HP is removed via neutral terrain damage.
 			// TODO: Implement concrete placement for D2k bots and remove this hack on players relationship check.
