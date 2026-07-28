@@ -1,0 +1,384 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: CASE-01B: Forest ambush (DETECT variant) — fire-lane measurability
+
+Author: WW3MOD case harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# CASE-01B — DETECT VARIANT of test-case01-forest-ambush (pipeline item 22 follow-up).
+# Geometry + forces are CLONED VERBATIM from the calibration scenario (same wall / clearing /
+# cover-patch kill-clearing, same 5x e3.america vs 5x e3.russia at exact 100cr parity). The ONLY
+# gameplay difference is a MAP-LOCAL detection override in rules.yaml — see that file — that lets
+# the attackers ACQUIRE the seated defenders, so the fight actually RESOLVES instead of measuring
+# pure concealment.
+#
+# WHY: the case-01 calibration (main @ e5b7bbcc; WORKSPACE/cases/case-01-forest-ambush.md) found a
+# detection asymmetry — concealed defenders read attacker-perceived strength ~1 < their stock
+# Detectable.Vision 3, so attackers NEVER acquired them (0 defender losses in all 6 seeds). That
+# batch measured concealment, not fighting. The firing-lane recon (WORKSPACE/recon/
+# 260729-firing-lane-seating.md) then established that ground-shadow interposition is
+# DIRECTION-SYMMETRIC: the same tree density that hides a seated defender also blocks its OWN
+# outgoing DMR fire (5.56mm.DMR uses the engine-default ClearSightThreshold 5, WeaponInfo.cs:146 —
+# the DMR sets no override; the recon's "threshold 4" was the ^9mm value). So item-21's
+# max-omnidirectional-density seat picker can bury a defender where it is concealed AND fire-blocked.
+#
+# This variant exists to MEASURE that. With attackers able to detect the defenders, engagements
+# occur and the Lua can record, per defender: did-it-ever-fire, time-to-first-shot, rifle shots
+# fired, and casualties both sides. Defender detection-of-attacker AND firing-at-attacker are left
+# to the honest symmetric shadow byte (only the defender's DETECTABILITY is raised), so a
+# fire-blocked seat shows up as "sprang late / never / few shots" rather than being masked.
+#
+# KILL-CLEARING layout (N-S) — unchanged from case-01:
+#   - WALL (concealment barrier): solid t01, x 24..40, trunk rows y 9..11 (3 rows).
+#   - CLEARING (kill zone): open ground the scripted attacker crosses EXPOSED.
+#   - COVER PATCH: solid t01, x 24..40, trunk rows y 19..20 — item-21 seats the Ambush defenders at
+#     ~y21..22; their density is what both conceals them and (the point of this test) can block
+#     their northward return fire across the clearing.
+#
+# COST PARITY: 5x e3.america (100cr) vs 5x e3.russia (100cr) — both inherit ^E3 (Valued.Cost 100).
+#
+# CALIBRATION MODE: the Lua verdict PASSES on sim resolution or deadline + metric capture; it does
+# NOT gate on any ratio (the value is the fire-lane metrics, not the pass/fail).
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,29
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,3
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 32,25
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 32,3
+	W001: t01
+		Owner: Neutral
+		Location: 24,9
+	W002: t01
+		Owner: Neutral
+		Location: 25,9
+	W003: t01
+		Owner: Neutral
+		Location: 26,9
+	W004: t01
+		Owner: Neutral
+		Location: 27,9
+	W005: t01
+		Owner: Neutral
+		Location: 28,9
+	W006: t01
+		Owner: Neutral
+		Location: 29,9
+	W007: t01
+		Owner: Neutral
+		Location: 30,9
+	W008: t01
+		Owner: Neutral
+		Location: 31,9
+	W009: t01
+		Owner: Neutral
+		Location: 32,9
+	W010: t01
+		Owner: Neutral
+		Location: 33,9
+	W011: t01
+		Owner: Neutral
+		Location: 34,9
+	W012: t01
+		Owner: Neutral
+		Location: 35,9
+	W013: t01
+		Owner: Neutral
+		Location: 36,9
+	W014: t01
+		Owner: Neutral
+		Location: 37,9
+	W015: t01
+		Owner: Neutral
+		Location: 38,9
+	W016: t01
+		Owner: Neutral
+		Location: 39,9
+	W017: t01
+		Owner: Neutral
+		Location: 40,9
+	W018: t01
+		Owner: Neutral
+		Location: 24,10
+	W019: t01
+		Owner: Neutral
+		Location: 25,10
+	W020: t01
+		Owner: Neutral
+		Location: 26,10
+	W021: t01
+		Owner: Neutral
+		Location: 27,10
+	W022: t01
+		Owner: Neutral
+		Location: 28,10
+	W023: t01
+		Owner: Neutral
+		Location: 29,10
+	W024: t01
+		Owner: Neutral
+		Location: 30,10
+	W025: t01
+		Owner: Neutral
+		Location: 31,10
+	W026: t01
+		Owner: Neutral
+		Location: 32,10
+	W027: t01
+		Owner: Neutral
+		Location: 33,10
+	W028: t01
+		Owner: Neutral
+		Location: 34,10
+	W029: t01
+		Owner: Neutral
+		Location: 35,10
+	W030: t01
+		Owner: Neutral
+		Location: 36,10
+	W031: t01
+		Owner: Neutral
+		Location: 37,10
+	W032: t01
+		Owner: Neutral
+		Location: 38,10
+	W033: t01
+		Owner: Neutral
+		Location: 39,10
+	W034: t01
+		Owner: Neutral
+		Location: 40,10
+	W035: t01
+		Owner: Neutral
+		Location: 24,11
+	W036: t01
+		Owner: Neutral
+		Location: 25,11
+	W037: t01
+		Owner: Neutral
+		Location: 26,11
+	W038: t01
+		Owner: Neutral
+		Location: 27,11
+	W039: t01
+		Owner: Neutral
+		Location: 28,11
+	W040: t01
+		Owner: Neutral
+		Location: 29,11
+	W041: t01
+		Owner: Neutral
+		Location: 30,11
+	W042: t01
+		Owner: Neutral
+		Location: 31,11
+	W043: t01
+		Owner: Neutral
+		Location: 32,11
+	W044: t01
+		Owner: Neutral
+		Location: 33,11
+	W045: t01
+		Owner: Neutral
+		Location: 34,11
+	W046: t01
+		Owner: Neutral
+		Location: 35,11
+	W047: t01
+		Owner: Neutral
+		Location: 36,11
+	W048: t01
+		Owner: Neutral
+		Location: 37,11
+	W049: t01
+		Owner: Neutral
+		Location: 38,11
+	W050: t01
+		Owner: Neutral
+		Location: 39,11
+	W051: t01
+		Owner: Neutral
+		Location: 40,11
+	C001: t01
+		Owner: Neutral
+		Location: 24,19
+	C002: t01
+		Owner: Neutral
+		Location: 25,19
+	C003: t01
+		Owner: Neutral
+		Location: 26,19
+	C004: t01
+		Owner: Neutral
+		Location: 27,19
+	C005: t01
+		Owner: Neutral
+		Location: 28,19
+	C006: t01
+		Owner: Neutral
+		Location: 29,19
+	C007: t01
+		Owner: Neutral
+		Location: 30,19
+	C008: t01
+		Owner: Neutral
+		Location: 31,19
+	C009: t01
+		Owner: Neutral
+		Location: 32,19
+	C010: t01
+		Owner: Neutral
+		Location: 33,19
+	C011: t01
+		Owner: Neutral
+		Location: 34,19
+	C012: t01
+		Owner: Neutral
+		Location: 35,19
+	C013: t01
+		Owner: Neutral
+		Location: 36,19
+	C014: t01
+		Owner: Neutral
+		Location: 37,19
+	C015: t01
+		Owner: Neutral
+		Location: 38,19
+	C016: t01
+		Owner: Neutral
+		Location: 39,19
+	C017: t01
+		Owner: Neutral
+		Location: 40,19
+	C018: t01
+		Owner: Neutral
+		Location: 24,20
+	C019: t01
+		Owner: Neutral
+		Location: 25,20
+	C020: t01
+		Owner: Neutral
+		Location: 26,20
+	C021: t01
+		Owner: Neutral
+		Location: 27,20
+	C022: t01
+		Owner: Neutral
+		Location: 28,20
+	C023: t01
+		Owner: Neutral
+		Location: 29,20
+	C024: t01
+		Owner: Neutral
+		Location: 30,20
+	C025: t01
+		Owner: Neutral
+		Location: 31,20
+	C026: t01
+		Owner: Neutral
+		Location: 32,20
+	C027: t01
+		Owner: Neutral
+		Location: 33,20
+	C028: t01
+		Owner: Neutral
+		Location: 34,20
+	C029: t01
+		Owner: Neutral
+		Location: 35,20
+	C030: t01
+		Owner: Neutral
+		Location: 36,20
+	C031: t01
+		Owner: Neutral
+		Location: 37,20
+	C032: t01
+		Owner: Neutral
+		Location: 38,20
+	C033: t01
+		Owner: Neutral
+		Location: 39,20
+	C034: t01
+		Owner: Neutral
+		Location: 40,20
+	D1: e3.america
+		Owner: USA
+		Location: 28,25
+		Facing: 0
+	D2: e3.america
+		Owner: USA
+		Location: 30,25
+		Facing: 0
+	D3: e3.america
+		Owner: USA
+		Location: 32,25
+		Facing: 0
+	D4: e3.america
+		Owner: USA
+		Location: 34,25
+		Facing: 0
+	D5: e3.america
+		Owner: USA
+		Location: 36,25
+		Facing: 0
+	A1: e3.russia
+		Owner: Russia
+		Location: 28,3
+		Facing: 512
+	A2: e3.russia
+		Owner: Russia
+		Location: 30,3
+		Facing: 512
+	A3: e3.russia
+		Owner: Russia
+		Location: 32,3
+		Facing: 512
+	A4: e3.russia
+		Owner: Russia
+		Location: 34,3
+		Facing: 512
+	A5: e3.russia
+		Owner: Russia
+		Location: 36,3
+		Facing: 512
+
+Rules: rules.yaml

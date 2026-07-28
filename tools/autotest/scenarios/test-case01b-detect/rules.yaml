@@ -1,0 +1,44 @@
+Player:
+	# Elimination must NOT end the match before the Lua poller writes the verdict. Both factions also
+	# keep a supplyroute (map.yaml) so a wiped combat squad doesn't trip the Mission-Accomplished
+	# overlay (AUTOTEST gotcha #5).
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		# Fog ON: detection is still earned per-cell via the shadow substrate. The DETECT override
+		# below only lowers the DEFENDERS' detectability threshold — it does not switch fog off, so
+		# the defenders' own detection-of-attacker and firing-at-attacker remain governed by the
+		# honest (direction-symmetric) ground-shadow byte. That coupling is the thing under test.
+		FogCheckboxEnabled: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Strip persisted per-type stance defaults so the human defenders are deterministically
+	# whatever the Lua sets (Ambush), regardless of this machine's saved unit defaults.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-case01b-detect.lua
+
+# Defender-only overrides (scoped to the defender type E3.america; the attacker's E3.russia is
+# untouched — it keeps stock Detectable.Vision 3 and never runs the Stage-3 ambush machine).
+#
+#   * AutoTarget.AmbushKillZoneRadius 12 — inherited from case-01: widen the spring kill-zone so the
+#     stationary Stage-3 machine scores the approaching column and springs promptly once it becomes
+#     fog-visible.
+#   * Detectable.Vision 1 — THE DETECT VARIANT'S ONE GAMEPLAY CHANGE. ^Infantry sets Vision 3
+#     (infantry.yaml:95-96); a concealed defender's attacker-perceived strength floors at 1, so at
+#     stock Vision 3 the attackers could never acquire it (case-01's degenerate 0-loss batch).
+#     Lowering the DEFENDER'S required-vision tier to 1 means the floored strength-1 view is enough
+#     to detect it, so the attackers engage and the fight RESOLVES. This raises only the defender's
+#     DETECTABILITY; it deliberately does NOT touch the shadow byte that gates the defender's own
+#     fire — so whether a max-density-seated defender can shoot back stays measurable.
+E3.america:
+	AutoTarget:
+		AmbushKillZoneRadius: 12
+	Detectable:
+		Vision: 1
