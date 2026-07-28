@@ -30,4 +30,4 @@ One file per case: `case-NN-<slug>.md`, containing:
 
 | Case | Title | State |
 |---|---|---|
-| [case-01](case-01-forest-ambush.md) | Forest ambush — defenders win 3:1 from concealment | DRAFT |
+| [case-01](case-01-forest-ambush.md) | Forest ambush — defenders win 3:1 from concealment | BUILDABLE |

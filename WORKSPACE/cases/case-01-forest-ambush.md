@@ -1,6 +1,6 @@
 # Case 01 — Forest ambush: defenders win decisively from concealment
 
-**State: DRAFT** (dependencies not yet landed — see below)
+**State: BUILDABLE** (all dependencies landed 2026-07-28; scenario authoring is next — pipeline item 22)
 
 ## Intent (user's description, 2026-07-26)
 
@@ -34,6 +34,7 @@ NOT ratified. First calibration batch measures what the combat math actually yie
 
 ## Status log
 
+- **2026-07-28 — BUILDABLE (pipeline item 21 merged @ `5c6cc1f0`).** Last dependency resolved: stance-aware cover positioning shipped — an ambush-stance squad given ONE group order at a tree cluster now has each formation slot refined to the best concealed cell (radius 3, `ForestGroundShadow` scoring, strict-improvement margin, conflict-free, deterministic). Bots byte-identical (human+Ambush+non-Tight gate); open terrain byte-identical. Review GREEN-WITH-NITS, both nits resolved; NUnit baseline 499. Post-merge verify on main: build 0 errors, 499/499. **Case is now buildable exactly as painted in Setup** — next: author the scenario + calibration batch (item 22, batch covered by the STANDING GRANT).
 - **2026-07-28 — Concealment strengthened (pipeline item 26 merged @ `fc9fe396`).** The weak-concealment concern from the item-20 recon is addressed: superlinear ground shadow curve (`Map.ForestGroundShadow` — density-10 cells now ladder 1→1, 2→2, 3→4, 4→6, 5→8, 6→10 strength; 4 dense cells hide stock infantry at 13–16c, 6 hide until point-blank) plus new `DensityModifiesDamage` cover trait on `^Infantry` (3×3 density window: 15→94%, 30→88%, 50→80% damage taken). Both maps' `shadows.bin` regenerated. NUnit baseline now 485. The test-run grant is covered by this window's STANDING GRANT. **Remaining gate: pipeline item 21 (stance-aware cover positioning) — dispatched next.**
 - **2026-07-28 — Dependency 1 RESOLVED (pipeline item 20 done).** Trees DO conceal mechanically (density→shadow vision attenuation) but weakly: ~1 strength per fully-dense tree cell on the sightline; stock infantry (Vision 3) needs ~7 such cells to every viewer. Deep stacked forest works, thin treelines don't. Case is buildable as painted **if** the map uses a genuinely dense cluster, but the ambush likely needs concealment strengthening to read reliably — seams mapped in `WORKSPACE/recon/260728-trees-concealment.md` (vision-attenuation retune, `Detectable` terrain bump, dormant `TerrainModifiesDamage` for cover). Remaining gates: item 21 (positioning) + test grant.
 - **2026-07-26 — DRAFT.** Intent captured from the user's discussion turn; decomposition + provisional bar recorded. No scenario authored yet.
