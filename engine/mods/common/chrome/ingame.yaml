@@ -57,6 +57,7 @@ Container@INGAME_ROOT:
 					BookmarkRestoreKeyPrefix: MapBookmarkRestore
 					BookmarkKeyCount: 4
 					ShowAllOrdersKey: ShowAllOrders
+					ShowTerritoryKey: ShowTerritory
 				StrategicProgress@STRATEGIC_PROGRESS:
 					X: WINDOW_WIDTH / 2
 					Y: 40
