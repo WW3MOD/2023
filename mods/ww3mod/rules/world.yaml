@@ -373,6 +373,12 @@ World:
 	# nothing through fog). OFF by default — cycled by the "/danger" dev chat command; never
 	# ships on hold-Space. No simulation state depends on this render path.
 	DangerOverlay:
+	# Stage-C PLAYER-FACING territory overlay: first-class red/green/gray control wash + diagonal
+	# staleness stripes (intensity ∝ ticks since a cell was last observed). Render-only (reads the
+	# viewer's own ControlField, leaks nothing through fog). Ships as a dedicated HOLD-KEY (T) —
+	# separate from hold-Space so it does not z-fight the SightingIntel wash; "/territory" forces it
+	# on for dev/screenshots. No simulation state depends on this render path (byte-identical sim).
+	TerritoryOverlay:
 	ChatCommands:
 	DevCommands:
 	DebugVisualizationCommands:
