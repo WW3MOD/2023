@@ -1,0 +1,104 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: vehicle turn feel — sweeping serpentine turns
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# YAML-only turn tuning (PIPELINE item 27). Four representative USA vehicles each run a looping
+# horizontal serpentine of 90-degree corners so the viewer can feel the post-tuning behaviour:
+# vehicles carry speed through the arcs (TurnSpeedLoss 1->0 on ^Vehicle) and swing onto the new
+# heading faster (raised Mobile TurnSpeed). Everything is HoldFire and scripted from Lua, so the
+# ONLY motion on screen is the turn behaviour under test.
+#   Lane 1 (top)     abrams column x3   — MBT, heavytracked. Watch the COLUMN read less robotic.
+#   Lane 2           bradley            — IFV, lighttracked.
+#   Lane 3           humvee             — fast wheeled scout, lightwheeled.
+#   Lane 4 (bottom)  TRUK               — unarmed supply truck on the ^Vehicle template default turn.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,3
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,3
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 62,30
+
+	# ===================================================================
+	# Lane 1 — abrams column (MBT, heavytracked). Base row y=4, jog to y=8.
+	# ===================================================================
+	Mbt0: abrams
+		Owner: USA
+		Location: 4,4
+		Facing: 768
+	Mbt1: abrams
+		Owner: USA
+		Location: 3,4
+		Facing: 768
+	Mbt2: abrams
+		Owner: USA
+		Location: 2,4
+		Facing: 768
+
+	# ===================================================================
+	# Lane 2 — bradley (IFV, lighttracked). Base row y=12, jog to y=16.
+	# ===================================================================
+	Ifv0: bradley
+		Owner: USA
+		Location: 4,12
+		Facing: 768
+
+	# ===================================================================
+	# Lane 3 — humvee (fast wheeled scout, lightwheeled). Base row y=20, jog to y=24.
+	# ===================================================================
+	Scout0: humvee
+		Owner: USA
+		Location: 4,20
+		Facing: 768
+
+	# ===================================================================
+	# Lane 4 — TRUK (unarmed supply truck, ^Vehicle template turn). Base row y=28, jog to y=31.
+	# ===================================================================
+	Truck0: truk
+		Owner: USA
+		Location: 4,28
+		Facing: 768
+
+Rules: rules.yaml
