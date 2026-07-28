@@ -15,10 +15,25 @@ using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Support;
 using OpenRA.Traits;
+using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Traits.Render
 {
 	public enum BlinkState { Off, On }
+
+	public static class DecorationBlink
+	{
+		// Render-only blink-phase math. Derives the pattern index from wall-clock milliseconds so the
+		// blink cadence is constant regardless of game speed (fast-forward / slow-motion). One pattern
+		// step lasts blinkInterval nominal ticks; nominalTickMs anchors that to real time (Ui.Timestep
+		// at normal speed) so the on-screen appearance is unchanged at default speed. Pure: reads no
+		// sim / [Sync] state and writes nothing — safe to call from the render path only.
+		public static int PhaseIndex(long runTimeMs, int blinkInterval, int nominalTickMs, int patternLength)
+		{
+			var stepMs = Math.Max(1L, (long)blinkInterval * nominalTickMs);
+			return (int)(runTimeMs / stepMs % patternLength);
+		}
+	}
 
 	public abstract class WithDecorationBaseInfo : ConditionalTraitInfo
 	{
@@ -75,7 +90,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 			if (blinkPattern != null && blinkPattern.Length > 0)
 			{
-				var i = self.World.WorldTick / Info.BlinkInterval % blinkPattern.Length;
+				// PITFALL: drive the blink from wall-clock (Game.RunTime), NOT self.World.WorldTick — ticks
+				// advance at the game-speed logic rate, so a WorldTick-driven blink strobes on fast-forward
+				// and crawls on slow-motion. Ui.Timestep anchors the cadence to normal speed. Render-only.
+				var i = DecorationBlink.PhaseIndex(Game.RunTime, Info.BlinkInterval, Ui.Timestep, blinkPattern.Length);
 				if (blinkPattern[i] != BlinkState.On)
 					return false;
 			}
