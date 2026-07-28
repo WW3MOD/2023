@@ -19,8 +19,8 @@ namespace OpenRA.Test
 		// Mirrors the TerritoryOverlayInfo defaults: (StripeMinAlpha, StripeMaxAlpha) with the
 		// ControlFieldInfo StalenessWindow default.
 		const int Window = 500;
-		const int MinAlpha = 35;
-		const int MaxAlpha = 150;
+		const int MinAlpha = 45;
+		const int MaxAlpha = 165;
 
 		[Test]
 		public void FreshCellHasNoStripe()

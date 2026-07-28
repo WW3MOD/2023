@@ -79,21 +79,23 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly Color ContestedColor = Color.FromArgb(255, 140, 140, 140);
 
 		[Desc("Min / max blend alpha for a CONTROLLED (own/enemy) cell — alpha ∝ |score| margin.",
-			"Kept below opaque so units and terrain stay readable underneath.")]
-		public readonly int OwnedMinAlpha = 55;
-		public readonly int OwnedMaxAlpha = 125;
+			"Bold enough that the whole map reads green/red over dark terrain, but below opaque so",
+			"units and terrain stay readable underneath.")]
+		public readonly int OwnedMinAlpha = 95;
+		public readonly int OwnedMaxAlpha = 180;
 
 		[Desc("Fixed blend alpha for a contested/grayzone cell (muted vs. firmly-owned ground).")]
-		public readonly int ContestedAlpha = 45;
+		public readonly int ContestedAlpha = 70;
 
-		[Desc("Diagonal staleness-stripe colour (a dark veil that reads on both green and red).",
+		[Desc("Diagonal staleness-stripe colour. LIGHT on purpose so the hatch reads over both the",
+			"green/red wash AND the dark terrain (a near-black stripe vanishes on dark ground).",
 			"Alpha is computed per cell from staleness; this RGB is the tint.")]
-		public readonly Color StripeColor = Color.FromArgb(255, 15, 15, 15);
+		public readonly Color StripeColor = Color.FromArgb(255, 235, 235, 235);
 
 		[Desc("Min / max stripe alpha across the staleness ramp. A barely-stale cell gets MinAlpha;",
 			"a cell aged past the control field's StalenessWindow (or never observed) gets MaxAlpha.")]
-		public readonly int StripeMinAlpha = 35;
-		public readonly int StripeMaxAlpha = 150;
+		public readonly int StripeMinAlpha = 45;
+		public readonly int StripeMaxAlpha = 165;
 
 		[Desc("Screen-pixel width of the diagonal stripe lines.")]
 		public readonly int StripeWidth = 2;
