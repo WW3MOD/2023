@@ -1,0 +1,24 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# Fog ON is essential: the control field and the overlay are fog-respecting.
+		# Explored ON so the enemy frozen SR ghosts immediately (=> believed-enemy anchor).
+		FogCheckboxEnabled: true
+		ExploredMapCheckboxEnabled: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, demo-territory-overlay.lua
+
+^Combatant:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+		InitialEngagementStance: HoldPosition
+		InitialEngagementStanceAI: HoldPosition
