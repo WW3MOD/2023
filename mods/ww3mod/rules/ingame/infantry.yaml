@@ -33,6 +33,15 @@
 		HP: 200
 	Armor:
 		Type: None
+	DensityModifiesDamage:
+		# Forest cover: reduced damage while standing among dense trees (Map.DensityLayer, the same
+		# field that feeds shadow concealment). Keyed on the 3x3 windowed tree-density sum so a unit
+		# in the gaps of a cluster still counts as "in the trees". Conservative first values (item 26)
+		# — max 20% reduction in genuinely deep forest; a lone treeline barely helps.
+		DensityModifier:
+			15: 94
+			30: 88
+			50: 80
 	Mobile:
 		Speed: 25
 		TurnSpeed: 100
