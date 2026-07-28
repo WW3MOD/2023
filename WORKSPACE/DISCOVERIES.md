@@ -3,6 +3,15 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-28 — Loose-file-over-mix precedence CONFIRMED: last-mounted package wins, and `ww3mod|bits` mounts after the RA mixes, so a loose sprite shadows the mix copy (sprite tooling, PIPELINE 29 ph2)
+
+Verified for PIPELINE item 29 (sprite pipeline foundation) against `main` @ `2cca6275`. The recon (`recon/260728-sprite-tooling.md`, Seam #6 / Open questions) flagged loose-vs-mix override as assumed-but-unproven. **Answer: the loose file wins — drop-in replacement works.**
+
+- **The rule is "last-mounted package wins."** `FileSystem.GetFromCache` resolves a filename via `fileIndex[filename].LastOrDefault(x => x.Contains(filename))` (`engine/OpenRA.Game/FileSystem/FileSystem.cs:195`); the `fileIndex` list is built in `Packages:` mount order, and the fallback path also uses `mountedPackages.Keys.LastOrDefault` (`:246`). So a filename present in multiple packages resolves to the one mounted **latest**.
+- **Mount order puts loose dirs after the mixes.** In `mods/ww3mod/mod.yaml` the RA `.mix` archives are mounted at lines 21–37 and the loose `ww3mod|bits*` dirs at lines 49–59 — later ⇒ they win.
+- **Empirically proven via the shipped Utility** (same `ModData.DefaultFileSystem` the game mounts): extracted `3tnk.shp` from the mix (sha `2c512f0f…`), rebuilt a byte-different-but-valid copy through `tools/sprite/import.sh` (sha `bb052330…`), dropped it at `mods/ww3mod/bits/3tnk.shp`, and re-ran `--extract 3tnk.shp` → resolved bytes = the **loose** copy (`bb052330…`), not the mix. Removing the loose file restored the mix result. Throwaway cleaned up.
+- **CAVEAT — filename must match the sprite's *resolved* name, including tileset extension.** Trees/terrain use `UseTilesetExtension: true` (`DefaultSpriteSequence.InferExtension`, `engine/OpenRA.Mods.Common/Graphics/DefaultSpriteSequence.cs:363-377`), so the `t01` tree sequence resolves to `t01.tem` on TEMPERAT, `t01.sno` on SNOW, etc. A loose `t01.shp` will **not** shadow it — the drop-in for a tree must be named `t01.tem` (and one file per tileset you care about). Units referenced by a plain `.shp` sequence shadow with a loose `.shp`. `import.sh` always emits `.shp`; rename to the tileset extension for tree/terrain drop-ins.
+
 ## 2026-07-28 — Order-time concealment is necessarily VIEWER-INDEPENDENT: the baked ShadowLayer is indexed [from][to] and needs an enemy cell you don't have at order resolution, so ambush cover-positioning scores "how deep in shadow a cell sits" (windowed density → ForestGroundShadow) instead of shadow along a real sightline (wt/stance-cover-positioning, PIPELINE 21)
 
 Building PIPELINE item 21 (stance-aware cover positioning) against `main` @ `fc9fe396`. Non-obvious points worth keeping:
