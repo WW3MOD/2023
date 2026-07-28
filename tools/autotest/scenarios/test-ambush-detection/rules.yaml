@@ -1,0 +1,50 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		# Fog ON so detection is a live signal: the ambusher becomes "detected" only when the enemy's
+		# vision layer actually reaches its cell. Without fog every actor is permanently visible and
+		# trigger 1 could never be isolated as a transition.
+		FogCheckboxEnabled: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Strip persisted per-type stance defaults — otherwise a locally-saved unit-default could silently
+	# change the ambusher's human-owned stance (see DOCS/recipes/AUTOTEST.md / conventions.md pitfall).
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-ambush-detection.lua
+
+# TEST tuning — isolate Stage-3 trigger 1 (Detected) as the ONLY trigger that can spring the ambush.
+# ^StandardVision (mods/ww3mod/rules/defaults.yaml) gives a viewer these vision-strength bands by range:
+#   10 @ 0-4c · 9 @ 4-7c · 8 @ 7-10c · 7 @ 10-13c · 6 @ 13-16c · 5 @ 16-19c · 4 @ 19-22c · 3 @ 22-25c ...
+# An actor with Detectable.Vision V is DETECTED when the viewer's strength at its cell is >= V.
+# Detectable.Vision: 5 ⇒ the ambusher is detected only when the enemy is within 19c (strength >= 5).
+# The detector spawns 22c away (strength 4 < 5 ⇒ UNSEEN ⇒ the ambusher holds); the Lua drives it inward
+# past the 19c band, where strength climbs to 5 and detection flips true ⇒ trigger 1 springs. The RED
+# baseline comments out that advance, so the detector stays at 22c, never detected ⇒ timeout.
+^AT:
+	Detectable:
+		Vision: 5
+	AutoTarget:
+		# Disable the score-derived triggers (3 best-strike-degrading, 4 saturation) outright: with the
+		# spring thresholds set unreachably high, no kill-zone score can ever satisfy them, so a spring can
+		# ONLY come from detection (1) — damage (2) is removed by the detector's HoldFire stance and overrun
+		# (5) by keeping the detector's advance stop well outside the 3c stand-off. This is the trigger
+		# isolation the OBS-D coverage debt requires.
+		AmbushMinSpringThreshold: 100000000
+		AmbushHighSpringThreshold: 100000000
+		AmbushRequiredHighSamples: 2
+		AmbushRequiredDegradeSamples: 2
+
+# The lone detector. Detectable.Vision: 1 ⇒ USA sees it from anywhere inside 32c, so the ambusher has a
+# valid pre-aim target from tick 0 (it holds fire on it while still UNDETECTED itself) in BOTH RED and
+# GREEN — the ambush is exercising the hold-then-spring path, not merely idling with no target.
+t90:
+	Detectable:
+		Vision: 1
