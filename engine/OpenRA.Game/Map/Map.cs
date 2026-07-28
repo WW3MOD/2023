@@ -1082,6 +1082,44 @@ namespace OpenRA
 		}
 
 		/// <summary>
+		/// WW3MOD forest-concealment curve. <paramref name="crossedDensity"/> is the summed tree
+		/// Building.Density of every cell strictly BETWEEN viewer and target on the sightline
+		/// (a fully-dense tree cell contributes 10). Returns the ground vision-strength to subtract.
+		///
+		/// Below the knee the response is linear — a thin 1-cell treeline barely dents detection
+		/// (density 10 → 1). Above it, each further unit of crossed density counts double, so a
+		/// genuinely DEEP cluster ramps up to real concealment (4 dense cells → 6, enough to hide
+		/// stock Vision-3 infantry from a moderate-range viewer) without a thin line ever cloaking.
+		/// Deliberately superlinear: linear alone cannot keep 1 cell weak AND make 4 cells hide.
+		/// Pure integer, deterministic, zero RNG. Conservative first values (item 26) — the goal is
+		/// "deep forest genuinely hides", not invisibility; calibration/review may retune the knee.
+		///
+		/// Reference table (uniform density-10 cells): 1→1, 2→2, 3→4, 4→6, 5→8, 6→10.
+		/// Vision-strength ladder (^StandardVision): str 10 @0-4c, 9 @4-7c, 8 @7-10c, 7 @10-13c,
+		/// 6 @13-16c … Detection hides Vision-3 when (strength - shadow) &lt;= 3.
+		/// </summary>
+		public const int ForestShadowKneeDensity = 20; // ~2 fully-dense tree cells stay linear
+		public static int ForestGroundShadow(int crossedDensity)
+		{
+			if (crossedDensity <= 0)
+				return 0;
+
+			// Below-knee is integer ceil(density/10), which reproduces the pre-change float curve
+			// (Σ density/10f then Math.Ceiling) BYTE-FOR-BYTE — but only because every authored
+			// Building.Density is a multiple of 5, so each density/10f term is an exact-in-binary
+			// half (0.5, 1.0, 1.5, …) and the float sum never drifts across an integer boundary.
+			// An odd density (e.g. 7 → 0.7f, inexact) could round the old cache differently, so the
+			// "below-knee cache is unchanged" property would no longer hold — regen and diff if so.
+			if (crossedDensity <= ForestShadowKneeDensity)
+				return (crossedDensity + 9) / 10; // ceil(density / 10)
+
+			// Above the knee: 2 (the linear value at the knee) plus ceil(extra / 5) — extra crossed
+			// density counts double vs. the sub-knee slope of 1-per-10.
+			var extra = crossedDensity - ForestShadowKneeDensity;
+			return 2 + (extra + 4) / 5; // 2 + ceil(extra / 5)
+		}
+
+		/// <summary>
 		/// Recompute all shadow values originating from a single "from" cell.
 		/// Iterates all cells in annulus 2-32 and traces density along the line to each.
 		/// </summary>
@@ -1095,7 +1133,7 @@ namespace OpenRA
 				var toUV = tilePos.ToMPos(this);
 				var tiles = ShadowLayer.TilesIntersectingLine(fromUV, toUV);
 
-				var totalGround = 0f;
+				var totalGroundDensity = 0;
 				var totalAirborne = 0f;
 
 				var z_a = 2048;
@@ -1116,7 +1154,7 @@ namespace OpenRA
 					if (tile == fromUV || tile == toUV)
 						continue;
 
-					totalGround += DensityLayer[tile] / 10f;
+					totalGroundDensity += DensityLayer[tile];
 
 					var tileCenter = CenterOfCell(tile.ToCPos(this));
 					var vecToTile = new WVec(tileCenter.X - p0.X, tileCenter.Y - p0.Y, 0);
@@ -1131,7 +1169,11 @@ namespace OpenRA
 						totalAirborne += DensityLayer[tile] / 5f;
 				}
 
-				var groundShadow = (byte)Math.Min(Math.Ceiling(totalGround), byte.MaxValue);
+				// PITFALL: this ground curve is BAKED into shadows.bin at map load. Editing it does
+				// NOTHING for maps that ship a shadows.bin until you regen (utility --regen-shadows).
+				// A stale cache silently keeps the old concealment. Airborne stays linear on purpose
+				// (see ForestGroundShadow) — do not "fix" the asymmetry without owning the heli impact.
+				var groundShadow = (byte)Math.Min(ForestGroundShadow(totalGroundDensity), (int)byte.MaxValue);
 				var airborneShadow = (byte)Math.Min(Math.Ceiling(totalAirborne), byte.MaxValue);
 
 				ShadowLayer[fromUV][toUV] = (groundShadow, airborneShadow);
