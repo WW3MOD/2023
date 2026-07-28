@@ -10,6 +10,7 @@
 #endregion
 
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
 
@@ -150,6 +151,118 @@ namespace OpenRA.Test
 			};
 
 			Assert.That(Pick(0, candidates, margin: 1, penalty: 0), Is.EqualTo((1, 0)));
+		}
+
+		// ---------- Conflict-resolution driver (ResolveConcealmentSlots) ----------
+		//
+		// These pin the `taken`-set seeding invariant the DISCOVERIES entry calls the subtle part:
+		// re-seating one unit must never land it on another unit's cell, own-cell freeing removes
+		// exactly one occurrence (so upstream duplicates survive), and prior picks block later units.
+		// The map/mobile-dependent chooser is replaced with a pure fake so the driver is exercised in
+		// isolation. `Stay` keeps every unit put; `Preferring` moves a unit to a desired cell only
+		// when the driver has not already reserved it — exactly the contract PickConcealedCellNear honours.
+
+		static CPos Stay(CPos assigned, IReadOnlyList<CPos> taken) => assigned;
+
+		static System.Func<CPos, IReadOnlyList<CPos>, CPos> Preferring(IDictionary<CPos, CPos> desired)
+		{
+			return (assigned, taken) =>
+			{
+				if (!desired.TryGetValue(assigned, out var want))
+					return assigned;
+
+				// The chooser must respect the driver's exclusion set (never return a reserved cell).
+				return taken.Any(t => t == want) ? assigned : want;
+			};
+		}
+
+		[Test]
+		public void DistinctSlotsNeverCollideAfterRefinement()
+		{
+			// Three units all want the same hot cover cell. The driver reserves it for whoever reaches
+			// it first (slot order); the others are blocked and keep their positions. No two share a cell.
+			var slots = new[] { new CPos(0, 0), new CPos(0, 2), new CPos(2, 0) };
+			var hot = new CPos(1, 1);
+			var refined = CohesionMoveModifier.ResolveConcealmentSlots(slots,
+				Preferring(new Dictionary<CPos, CPos> { { slots[0], hot }, { slots[1], hot }, { slots[2], hot } }));
+
+			Assert.That(refined[0], Is.EqualTo(hot));         // first claimant wins
+			Assert.That(refined[1], Is.EqualTo(new CPos(0, 2)));
+			Assert.That(refined[2], Is.EqualTo(new CPos(2, 0)));
+			Assert.That(refined.Distinct().Count(), Is.EqualTo(3), "refined slots must stay pairwise distinct");
+		}
+
+		[Test]
+		public void EarlyPickCannotTakeALaterUnitsOriginalCell()
+		{
+			// The reviewer's explicit case: unit 0 would prefer to sit on unit 1's ORIGINAL cell.
+			// Because `taken` is seeded with every original slot, that cell is reserved during unit 0's
+			// turn, so unit 0 is blocked and stays — the squad never double-occupies unit 1's spot.
+			var slots = new[] { new CPos(0, 0), new CPos(2, 2) };
+			var refined = CohesionMoveModifier.ResolveConcealmentSlots(slots,
+				Preferring(new Dictionary<CPos, CPos> { { slots[0], new CPos(2, 2) } }));
+
+			Assert.That(refined[0], Is.EqualTo(new CPos(0, 0)));   // blocked from (2,2)
+			Assert.That(refined[1], Is.EqualTo(new CPos(2, 2)));
+			Assert.That(refined[0], Is.Not.EqualTo(refined[1]));
+		}
+
+		[Test]
+		public void AVacatedOriginalCellBecomesReusableByALaterUnit()
+		{
+			// Freeing is scoped but real: once unit 0 moves off its original cell, that cell is no
+			// longer reserved, so a later unit may legitimately take it — no permanent phantom block.
+			var slots = new[] { new CPos(0, 0), new CPos(1, 1) };
+			var free = new CPos(5, 5);
+			var refined = CohesionMoveModifier.ResolveConcealmentSlots(slots,
+				Preferring(new Dictionary<CPos, CPos> { { slots[0], free }, { slots[1], new CPos(0, 0) } }));
+
+			Assert.That(refined[0], Is.EqualTo(free));            // unit 0 moved away
+			Assert.That(refined[1], Is.EqualTo(new CPos(0, 0)));  // unit 1 took the vacated cell
+			Assert.That(refined.Distinct().Count(), Is.EqualTo(2));
+		}
+
+		[Test]
+		public void SeedsEveryOriginalSlotThenReAddsPriorPicks()
+		{
+			// Capture the exclusion set handed to each choose call (all units stay). The set must be
+			// every OTHER original slot on the first pass, with each processed slot's pick re-added for
+			// the units after it — the exact seed/free/re-occupy sequence the invariant depends on.
+			var slots = new[] { new CPos(0, 0), new CPos(1, 0), new CPos(2, 0) };
+			var seen = new List<CPos[]>();
+
+			CohesionMoveModifier.ResolveConcealmentSlots(slots, (assigned, taken) =>
+			{
+				seen.Add(taken.ToArray());
+				return assigned;
+			});
+
+			// Order within each snapshot is an implementation detail; assert set membership.
+			Assert.That(seen[0], Is.EquivalentTo(new[] { slots[1], slots[2] }));           // A's turn: {B,C}
+			Assert.That(seen[1], Is.EquivalentTo(new[] { slots[2], slots[0] }));           // B's turn: {C, A(re-added)}
+			Assert.That(seen[2], Is.EquivalentTo(new[] { slots[0], slots[1] }));           // C's turn: {A, B}
+		}
+
+		[Test]
+		public void OwnCellFreeingRemovesExactlyOneOccurrenceSoDuplicatesSurvive()
+		{
+			// Upstream formation branches can emit a duplicate cell (e.g. click-cell padding). Freeing
+			// the current slot's own cell must remove EXACTLY ONE occurrence, so the duplicate held by
+			// the sibling slot stays reserved — the pass never multiplies or silently drops it.
+			var d = new CPos(1, 1);
+			var slots = new[] { d, d };
+			var seen = new List<CPos[]>();
+
+			var refined = CohesionMoveModifier.ResolveConcealmentSlots(slots, (assigned, taken) =>
+			{
+				seen.Add(taken.ToArray());
+				return assigned;
+			});
+
+			// On slot 0's turn, the sibling duplicate is still present (one removed, one remains).
+			Assert.That(seen[0], Is.EqualTo(new[] { d }));
+			// The duplicate is preserved, not multiplied: exactly the two cells we started with.
+			Assert.That(refined, Is.EqualTo(new[] { d, d }));
 		}
 	}
 }

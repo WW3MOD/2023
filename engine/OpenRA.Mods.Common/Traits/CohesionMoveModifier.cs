@@ -417,7 +417,7 @@ namespace OpenRA.Mods.Common.Traits
 		// units are sent to one cell. Builds the candidate list from the map and defers the ranking
 		// to the pure PickBestConcealmentOffset. Returns the assigned cell unchanged when nothing in
 		// the window is a strictly-better hide (open terrain, or already the best cover locally).
-		CPos PickConcealedCellNear(Map map, CPos assigned, Mobile subjectMobile, List<CPos> taken,
+		CPos PickConcealedCellNear(Map map, CPos assigned, Mobile subjectMobile, IReadOnlyList<CPos> taken,
 			int searchRadius, int windowRadius, int distancePenalty, int margin)
 		{
 			var assignedConceal = ConcealmentScore(map, assigned, windowRadius);
@@ -464,25 +464,37 @@ namespace OpenRA.Mods.Common.Traits
 			return new CPos(assigned.X + bdx, assigned.Y + bdy);
 		}
 
-		// PIPELINE-21: ambush concealment pass over the whole formation. Each slot is re-seated onto
-		// the best nearby concealed cell (PickConcealedCellNear), processed in slot order with a
-		// running `taken` exclusion set seeded with EVERY original slot so the refinement can never
-		// move one unit onto another unit's cell. A slot with no better hide keeps its exact position,
-		// so a squad ordered to open ground lands in the identical formation it would today.
+		// PIPELINE-21: ambush concealment pass over the whole formation. Binds the map/mobile-dependent
+		// per-slot chooser (PickConcealedCellNear) to the pure conflict-resolution driver below.
 		CPos[] RefineSlotsForConcealment(Map map, CPos[] slots, Mobile subjectMobile)
+		{
+			return ResolveConcealmentSlots(slots, (assigned, taken) =>
+				PickConcealedCellNear(map, assigned, subjectMobile, taken,
+					info.AmbushConcealmentSearchRadius, info.ConcealmentWindowRadius,
+					info.AmbushConcealmentDistancePenalty, info.AmbushConcealmentBendMargin));
+		}
+
+		// Pure conflict-resolution driver for the ambush concealment pass (extracted so the seeding
+		// invariant is unit-testable without a live World). Re-seats each slot in order via `choose`,
+		// which returns the cell to move the assigned slot to (or the assigned cell to stay). The
+		// running `taken` exclusion set is seeded with EVERY original slot so a re-seat can never land
+		// on another unit's cell — including a later unit's not-yet-processed original — then only the
+		// current slot's own cell is freed (exactly one occurrence, so an upstream duplicate slot is
+		// preserved, not cleared) before it chooses, and the choice is re-occupied for the slots after
+		// it. `choose` must honour `taken` (never return a listed cell); PickConcealedCellNear does.
+		// A slot whose choose returns its assigned cell keeps its exact position, so a squad ordered to
+		// open ground lands in the identical formation it would today.
+		public static CPos[] ResolveConcealmentSlots(CPos[] slots, Func<CPos, IReadOnlyList<CPos>, CPos> choose)
 		{
 			var refined = new CPos[slots.Length];
 			var taken = new List<CPos>(slots);
 
 			for (var i = 0; i < slots.Length; i++)
 			{
-				// Free this slot's own original cell so the keep-assigned incumbent is always allowed,
-				// then re-occupy with the chosen cell before the next slot picks.
 				taken.Remove(slots[i]);
-				refined[i] = PickConcealedCellNear(map, slots[i], subjectMobile, taken,
-					info.AmbushConcealmentSearchRadius, info.ConcealmentWindowRadius,
-					info.AmbushConcealmentDistancePenalty, info.AmbushConcealmentBendMargin);
-				taken.Add(refined[i]);
+				var pick = choose(slots[i], taken);
+				refined[i] = pick;
+				taken.Add(pick);
 			}
 
 			return refined;
