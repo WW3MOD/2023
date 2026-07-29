@@ -548,6 +548,18 @@ echo "==> Result:"
 cat "${RESULT_FILE}"
 echo
 
+# Archive the verdict into the per-run dir so batch runs don't lose it. run-batch.sh
+# calls this script once per seed and the single ${RESULT_FILE} (result.json) is rm -f'd
+# at the top of every run, so only the LAST seed's verdict survives there. RUN_ID is
+# unique per invocation (timestamp + scenario), so this copy keeps every seed's verdict,
+# alongside that run's screenshots. The 7-day screenshot-dir prune (find -mtime +7 above)
+# also reaps these, so no unbounded growth. cp is POSIX-portable (macOS bash).
+if [ -d "${SCREENSHOT_DIR}" ]; then
+	cp "${RESULT_FILE}" "${SCREENSHOT_DIR}/result.json" 2>/dev/null || true
+	echo "==> Verdict archived: ${SCREENSHOT_DIR}/result.json"
+	echo
+fi
+
 # PITFALL: Game.TakeScreenshot is async (ThreadPool via Renderer.SaveScreenshot).
 # When the verdict is written from Test.Pass/Fail, the PNG files referenced in
 # the JSON may still be flushing. A brief settle wait keeps the post-run
