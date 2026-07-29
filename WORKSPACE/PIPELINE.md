@@ -53,16 +53,18 @@ _Deferred by you until the opening-economy AI (item 12) is solid — a bot that 
 
 ---
 
-## REVIEWED — awaiting harness merge (2026-07-29)
-Three auto-branches passed adversarial review (MERGE-WITH-NITS) and are queued for the next harness merge composition:
-- **auto/may-salvage** (`ec757ad4`) — tunguska AA ammo-pool ownership fix (`primary-air` rejoins the shared 180-round pool, closing a free-AA-ammo exploit) + m113 dead-reference cleanup; quantified ship-as-is (`plans/260729_tunguska_ammo_note.md`).
-- **auto/spread-prefix** (`a55c8b6a`).
-- **auto/b1-walkback** (`864fdb39`) — residual-B1 mid-adjust fix.
+## LANDED — harness merge complete (2026-07-29)
+The three reviewed auto-branches were merged into main on 2026-07-29 via clean `--no-ff` merges (all on origin). Branches left intact — disposition is the user's call (open question posted).
+- **auto/may-salvage** (`ec757ad4`) → merged `ae7ca6d8` — tunguska AA ammo-pool ownership fix (`primary-air` rejoins the shared 180-round pool, closing a free-AA-ammo exploit) + m113 dead-reference cleanup; quantified ship-as-is (`plans/260729_tunguska_ammo_note.md`).
+- **auto/spread-prefix** (`a55c8b6a`) → merged `23398408` — spread preserves per-unit prefix waypoints.
+- **auto/b1-walkback** (`864fdb39`) → merged `2bf335cf` — residual-B1 mid-adjust fix.
 
 ---
 
 ## SHIPPED
 _Most recent first. Exact wording pulled from git log / HOTBOARD; this is the archive, the commit history is authoritative._
+
+- **FiringLOS off-map crash fix (live-play bug, 2026-07-30)** — `HasClearLOS` indexed `map.ShadowLayer[lookupFrom]` with no outer bounds check (the existing "Bounds check" comment only guarded the inner layer). Off-map actors are routine (map-edge reinforcements; airborne targets past the edge), and `CellLayer`'s indexer throws `IndexOutOfRangeException` on an out-of-map `MPos` — crashing the game from `AttackFollow`'s tick. Reported from live play on two machines. Fix guards both `HasClearLOS` (off-map → treat as clear, consistent with the other no-data paths) and `GetGroundShadowDensity` (off-map → return 0). Engine, 1 file, +9/−1. (`99a58363`, on main — pushed)
 
 - **Omniscient InfluenceMap migration — capture + garrison repointed to belief (queue item 24, default-off, @experimental gates)** — closes the declared Stage-F gap: `CaptureCoordinatorBotModule` capture ordering and `PoiGarrisonBotModule` garrison ordering AND sizing stop reading the omniscient `InfluenceMap.GetEnemyInfluence` and re-derive threat from the BELIEVED `DangerFieldLayer.GroundDanger` (fog-legal: per-player field, own belief, 0 fallback for never-observed). Same `suppressOmniscientThreat` seam pattern as Stage-F offense: PoiMap grows the default-false seam + `BelievedThreatFactor` (capture: threat lowers score, 100/60/20 decreasing) / `BelievedDefendFactor` (defend: threat raises score, 100/150/250 increasing — the mirror bucket); gated call sites `Info.StrategicCaptureRepointEnabled` / `Info.DefendRepointEnabled`, both `&& dangerField != null`. **Byte-identity off-gate proven at review**: `suppress ? null : ...` / `suppress ? 0 : SampleThreat(...)` collapse verbatim to the old expressions; zero new SharedRandom draws; ActorID total-order sorts. YAML gates live ONLY under @experimental (ai.yaml capture :180-185, garrison :309-314); @stable twins carry NONE; per-profile trait instances with distinct `RequiresCondition` make the single flag sufficient. Two DISCOVERIES surprises: `SampleThreat`'s fallback path is itself omniscient (`FindActorsInCircle`) — suppressed at both call sites with PITFALLs; garrison consumed threat twice (ordering + sizing), both repointed together for scale consistency (`BelievedDangerHostileThreshold: 120` on the GroundDanger scale). Residual omniscient callers (deliberate, out of scope): `LayeredDefence` :248-249, `MountedTransport` GetFrontline/GetFriendlyInfluence, `FrontlineOverlay` :54. Adversarial review: **MERGE** — all 7 brief points attacked at file:line and held, incl. file-level YAML verification (the item-28 failure mode) and byte-identity line trace; NIT: `influence-stack.md` §Known gaps line now stale for @experimental (curation pass); OBS: capture path runs suppress+rescale twice per tick under repoint (deterministic, accepted). **Gate enablement awaits the item-25 re-baseline** before any @experimental default-on claim. 6 NUnit sign-convention pins (`PoiMapTest`; **524 total = new baseline**). Verified post-merge on main: build 0 errors, NUnit 524/524. (4 commits `670d05d5`..`ba387afa`, merged `646515bd`)
 
