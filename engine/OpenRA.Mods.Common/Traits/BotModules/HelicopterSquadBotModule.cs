@@ -87,6 +87,28 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Stage-D: ring radius (cells) searched for the safest air-aware retreat cell on withdraw.")]
 		public readonly int AirDangerRetreatCells = 12;
 
+		[Desc("Experimental (default false = frozen): when an idle attack heli is still loitering",
+			"within ForwardStagingMaxDistanceCells of its own Supply Route and no squad has formed,",
+			"push it forward to a pre-contact staging cell (a fraction of the way from the SR toward",
+			"the top PoiMap offensive target) instead of leaving it hovering at the SR corner. Mirrors",
+			"MountedTransportBotModule.DeliverBeforeContact. OFF by default so normal/rush/turtle/stable",
+			"stay byte-identical; only HelicopterSquadBotModule@experimental turns it on.")]
+		public readonly bool ForwardStaging = false;
+
+		[Desc("Fraction (percent) of the SR->top-offensive-POI distance used as the staging cell.",
+			"50 = halfway between our SR and the top offensive POI. Clamp well short of contact so",
+			"ammo-carrying, target-less helis do not stage into believed AA. Only used when ForwardStaging is set.")]
+		public readonly int ForwardStagingPct = 40;
+
+		[Desc("Only stage attack helis whose distance from the SR is at or below this (map cells).",
+			"Helis already forward (e.g. a low-ammo heli that returned near the front) are left alone.",
+			"Only used when ForwardStaging is set.")]
+		public readonly int ForwardStagingMaxDistanceCells = 8;
+
+		[Desc("Actor types of the bot's home Supply Route — used to anchor the staging vector.",
+			"Mirrors MountedTransportBotModuleInfo.SupplyRouteTypes.")]
+		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
+
 		public override object Create(ActorInitializer init) { return new HelicopterSquadBotModule(init.Self, this); }
 	}
 
@@ -98,10 +120,12 @@ namespace OpenRA.Mods.Common.Traits
 		readonly List<Squad> activeSquads = new List<Squad>();
 		readonly List<Actor> idleHelicopters = new List<Actor>();
 		readonly HashSet<Actor> managedHelicopters = new HashSet<Actor>();
+		readonly Dictionary<Actor, CPos> stagedTo = new Dictionary<Actor, CPos>();
 
 		IBot bot;
 		SquadManagerBotModule squadManagerRef;
 		ThreatMapManager threatMap;
+		PoiMap poiMap;
 		BotBlackboard blackboard;
 		bool initialized;
 
@@ -133,6 +157,7 @@ namespace OpenRA.Mods.Common.Traits
 				.FirstOrDefault(s => !s.IsTraitDisabled);
 
 			threatMap = world.WorldActor.TraitOrDefault<ThreatMapManager>();
+			poiMap = world.WorldActor.TraitOrDefault<PoiMap>();
 			blackboard = player.PlayerActor.TraitsImplementing<BotBlackboard>()
 				.FirstOrDefault(b => !b.IsTraitDisabled);
 
@@ -156,6 +181,7 @@ namespace OpenRA.Mods.Common.Traits
 				scanCountdown = Info.ScanInterval;
 				FindNewHelicopters();
 				CleanUpHelicopters();
+				StageIdleHelicopters();
 			}
 
 			// Attack missions
@@ -205,6 +231,13 @@ namespace OpenRA.Mods.Common.Traits
 			managedHelicopters.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
 			idleHelicopters.RemoveAll(a => a == null || a.IsDead || !a.IsInWorld);
 
+			// Drop staged entries the moment a heli dies OR leaves the idle pool (recruited into a
+			// squad). A returning heli is re-eligible for staging only when near the SR again (§distance
+			// gate). Only ever populated on the ForwardStaging path, so this is a no-op when the flag is off.
+			foreach (var a in stagedTo.Keys.ToList())
+				if (a == null || a.IsDead || !a.IsInWorld || !idleHelicopters.Contains(a))
+					stagedTo.Remove(a);
+
 			// Clean up squads
 			PruneSquads();
 
@@ -227,6 +260,83 @@ namespace OpenRA.Mods.Common.Traits
 				if (!inSquad && !idleHelicopters.Contains(h))
 					idleHelicopters.Add(h);
 			}
+		}
+
+		Actor FindOwnSupplyRoute()
+		{
+			return world.Actors.FirstOrDefault(a =>
+				a.Owner == player && !a.IsDead && a.IsInWorld
+				&& Info.SupplyRouteTypes.Contains(a.Info.Name));
+		}
+
+		// Pre-contact forward staging (experimental, ForwardStaging). Push idle attack helis that
+		// are still loitering near the SR forward to a fraction of the SR->top-POI vector, so they
+		// stage toward the fight instead of hovering at the SR corner. Deterministic: PoiMap query
+		// + integer vector math, ZERO random draws. Fully skipped (byte-identical) when the flag is off.
+		void StageIdleHelicopters()
+		{
+			if (!Info.ForwardStaging)
+				return;
+
+			var ownSR = FindOwnSupplyRoute();
+			if (ownSR == null)
+				return;
+			var srCell = ownSR.Location;
+
+			var stageCell = ForwardStagingCell(srCell);
+			if (!stageCell.HasValue)
+				return;
+
+			var maxDistSq = (long)Info.ForwardStagingMaxDistanceCells * Info.ForwardStagingMaxDistanceCells;
+
+			foreach (var h in idleHelicopters)
+			{
+				if (h.IsDead || !h.IsInWorld || !h.IsIdle)
+					continue;
+				if (stagedTo.ContainsKey(h))
+					continue;
+
+				// Attack helis only — scouts/transports have their own mission paths.
+				var role = h.TraitOrDefault<AIHelicopterRole>();
+				if (role == null)
+					continue;
+				var r = role.Info.Role;
+				if (r != HelicopterAIRole.AttackHeavy && r != HelicopterAIRole.AttackLight)
+					continue;
+
+				// Same readiness definition the squad launch uses (health gate always applies;
+				// ammo gate bypassed under SkipRearmReadyCheck exactly as for TryLaunchAttackMission).
+				if (!IsReadyForMission(h))
+					continue;
+
+				// Only stage helis still loitering near the SR — leave forward/returned helis alone.
+				if ((h.Location - srCell).LengthSquared > maxDistSq)
+					continue;
+
+				bot.QueueOrder(new Order("Move", h, Target.FromCell(world, stageCell.Value), false));
+				stagedTo[h] = stageCell.Value;
+
+				AIUtils.BotDebug("AI ({0}): heli forward-staging {1} {2} -> {3}",
+					player.ClientIndex, h.Info.Name, h.Location, stageCell.Value);
+			}
+		}
+
+		// Staging-cell math — mirrors MountedTransportBotModule.PreContactStagingCell exactly.
+		// The pure WPos interpolation is extracted to HeliStagingMath (NUnit-pinned, world-free).
+		CPos? ForwardStagingCell(CPos srCell)
+		{
+			if (poiMap == null)
+				return null;
+
+			var targets = poiMap.GetOffensiveTargets(player);
+			if (targets.Count == 0)
+				return null;
+
+			var srPos = world.Map.CenterOfCell(srCell);
+			var tgtPos = world.Map.CenterOfCell(targets[0].Location);
+			var stagePos = HeliStagingMath.StagePos(srPos, tgtPos, Info.ForwardStagingPct);
+			var cell = world.Map.CellContaining(stagePos);
+			return world.Map.Contains(cell) ? cell : (CPos?)null;
 		}
 
 		// Drop dead/not-in-world/foreign members from every active squad and remove squads left
@@ -482,6 +592,21 @@ namespace OpenRA.Mods.Common.Traits
 			managedHelicopters.Clear();
 			idleHelicopters.Clear();
 			activeSquads.Clear();
+			stagedTo.Clear();
+		}
+	}
+
+	// Pure, world-free staging-vector math for HelicopterSquadBotModule forward staging.
+	// Split out for NUnit like HeliDangerNav / the influence-stack math classes — deterministic,
+	// zero RNG. StagePos mirrors MountedTransportBotModule.PreContactStagingCell's WPos interpolation.
+	public static class HeliStagingMath
+	{
+		// A fraction (percent) of the way from the SR position toward the target position.
+		// pct = 0 -> sr, pct = 100 -> tgt, pct = 50 -> midpoint. Integer WVec math, no rounding drift
+		// beyond what the shipped MountedTransport pattern already accepts.
+		public static WPos StagePos(WPos sr, WPos tgt, int pct)
+		{
+			return sr + (tgt - sr) * pct / 100;
 		}
 	}
 }
