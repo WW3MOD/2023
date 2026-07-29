@@ -3,6 +3,16 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-07-29 — `AmmoPool.Reload()` is DEAD CODE — there is NO in-field ammo trickle from the pool itself; passive refill exists ONLY on the separate `ReloadAmmoPool` trait, and dry units must dock (tunguska AA quantify, PIPELINE may-salvage)
+
+Found while quantifying the tunguska AA ammo-pool fix on `auto/may-salvage` (`WORKSPACE/plans/260729_tunguska_ammo_note.md`, base main @ `72594441`). Verified by grep + reading the two traits.
+
+- **`AmmoPool` (`AmmoPool.cs:111`) is NOT `ITick`** — it implements `INotifyCreated, INotifyAttack, INotifyBecomingIdle, IResolveOrder, ISync` only. So the pool has no per-tick hook of its own and cannot self-regenerate on the battlefield.
+- **`AmmoPool.Reload(Actor, int, int)` (`AmmoPool.cs:361`) has ZERO callers.** `grep '\.Reload('` → no matches; `grep 'Reload(self'` → the sole hit is `ReloadAmmoPool.cs:80` calling its *own* 4-arg `Reload(Actor, int, int, string sound)` (`ReloadAmmoPool.cs:83`), a different method on a different class. The `RemainingTicks`/`FullReloadTicks`/`FullReloadSteps` countdown machinery on `AmmoPool` is initialised in `Created` (`:225-234`) but only ever consumed by the dead `Reload()` — so it is inert.
+- **Passive trickle exists only on the separate `ReloadAmmoPool` trait** (`ReloadAmmoPool.cs:46`), which IS `ITick` and calls `ammoPool.GiveAmmo(self, Count)` every `Delay` ticks (`:75-92`). A unit refills in place ONLY if it carries this trait. It appears in 7 mod YAML files, but **most units — including tunguska — do not carry it** (the only `ReloadAmmoPool` in `vehicles-russia.yaml` is a commented-out tesla block at `:1127`).
+- **Without `ReloadAmmoPool`, refill is dock-only** — `GiveAmmo` is otherwise reached only through the resupply/rearm paths (`Rearmable` + `Resupply`/`AutoRearm`) at a rearm actor (tunguska: dock at `logisticscenter`). A dry unit must retreat and rearm; it does not top up in the field.
+- **Complements the rejected 2026-03-23 entry (below).** That entry was rejected because it mis-located `FullReloadTicks`/`FullReloadSteps` on `ReloadAmmoPoolInfo` — they live on `AmmoPoolInfo` and are referenced. The subtler truth: they ARE referenced, but their only live-looking consumer (`AmmoPool.Reload`) is uncalled, so the fields drive nothing at runtime. "Dead code" is the *method*, not the fields.
+
 ## 2026-07-28 — A concealed forest ambush wins by DETECTION ASYMMETRY, not by cover/first-strike — and concealment-by-interposition blocks the defenders' own fire (case-01 authoring, PIPELINE 22)
 
 Authoring the case-01 forest-ambush measurement scenario (`tools/autotest/scenarios/test-case01-forest-ambush/`) against `main` @ `57d88a74`. Three geometries measured before a robust defender win emerged; the failures are the insight.

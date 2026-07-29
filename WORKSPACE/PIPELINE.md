@@ -22,7 +22,7 @@ Autoburn retrospective verdict (first window, ~07-20 → 07-25): throughput and 
 
 ## STANDING GRANT — next autoburn window (user, 2026-07-28)
 
-The user granted the full test ladder for the **next autoburn window**: "When the next autoburn starts you can use whatever tools you need, unless otherwise specified." Covers single autotests, calibration batches (item 22), and the Stage-F full ladder re-baseline + gate (b) benchmark pricing (item 25). **Autoburn itself is NOT started yet — the user said hold off; the grant activates when the user starts the window.** Outside autoburn, the per-turn goahead rule still applies.
+The user granted the full test ladder for the **next autoburn window**: "When the next autoburn starts you can use whatever tools you need, unless otherwise specified." Covers single autotests, calibration batches (item 22), and the Stage-F full ladder re-baseline + gate (b) benchmark pricing (item 25). **Window now ACTIVE (2026-07-29)** — the item-22 calibration batch has run and the item-25 re-baseline is RUNNING under the grant. Outside autoburn, the per-turn goahead rule still applies.
 
 ---
 
@@ -31,13 +31,13 @@ The user granted the full test ladder for the **next autoburn window**: "When th
 ### 20. Recon — do trees conceal? — **DONE 2026-07-28**, findings: [`recon/260728-trees-concealment.md`](recon/260728-trees-concealment.md)
 **Answer: YES, mechanically, but WEAKLY.** Trees (destructible neutral actors) feed a density field → precomputed shadow layer → subtracted from projected vision strength before `Detectable` reads it. Magnitude is the problem: ~1 strength point per fully-dense tree cell on the sightline; a stock infantryman (Vision 3) needs ~7 such cells to every viewer to vanish. Deep forest (stacked density) works; thin treelines barely register. The Stage-3 `Vision: 9` override was a range trick, not a trees trick. **Case-01 is buildable**, but likely needs concealment strengthening (7 seams mapped in the recon doc). Dormant ready-to-wire engine seams found: `TerrainModifiesDamage` (terrain cover damage reduction, zero users), `BlocksSight` (hard LOS block, zero users/callers). Open question: does `ShadowLayer` update when trees die, or stay baked from `shadows.bin`? **Items 21+22 ungated.** Companion movement recon: [`recon/260728-movement-locomotion.md`](recon/260728-movement-locomotion.md) (engine-modernization study, pipeline additions pending user discussion)._
 
-### 22. Case 01 — forest ambush measurement (`cases/case-01-forest-ambush.md`)
+### 22. Case 01 — forest ambush measurement (`cases/case-01-forest-ambush.md`) — **CALIBRATING (bar-ADJUST awaiting user)**
 **Perceived:** the payoff of 20+21, proven by a number: an equal-cost force walking into the treeline ambush is destroyed at ~3× the defenders' losses, repeatably.
-_Author the scenario (scripted attacker, defender squad under test), run a calibration batch, ratify the bar (provisional 1:3 cost-weighted), then iterate until GREEN. **Calibration batch: GRANTED for the next autoburn window** (STANDING GRANT above)._
+_Scenario authored (`tools/autotest/scenarios/test-case01-forest-ambush/`, scripted attacker + defender squad under test); calibration batch RUN. Finding: the provisional **1:3 cost-weighted ratio is ill-posed** — a holding concealment drives defender losses to **zero** (÷0), so the bar must reframe to "def casualties ≤ X AND att casualties ≥ Y over N seeds" (DISCOVERIES 2026-07-28). **Bar ratification awaits user** before iterating to GREEN. Detect-enabled fire-lane variant authored as case-01b (`4846a60a`)._
 
-### 25. Benchmark re-baseline — restore the measurement instrument
+### 25. Benchmark re-baseline — restore the measurement instrument — **[IN FLIGHT] RUNNING now**
 **Perceived:** nothing directly, but every future "did the bot get better?" claim becomes trustworthy again.
-_The Stage-F re-baseline is DECLARED, NEVER RUN (`WORKSPACE/ai-bench/runs/260724_stagef_repoint_rebaseline.md`) — the instrument for @experimental offense changed and was never re-zeroed. Also the natural home for item-8 gate (b) benchmark pricing (ambush default-on decision). **GRANTED for the next autoburn window** (STANDING GRANT above; long run — steals window focus while it runs)._
+_The Stage-F re-baseline (`WORKSPACE/ai-bench/runs/260724_stagef_repoint_rebaseline.md`) is **RUNNING** per the run plan `7fa0b046` — the instrument for @experimental offense changed and is being re-zeroed. Also the natural home for item-8 gate (b) benchmark pricing (ambush default-on decision), designed in that same commit. Long run — steals window focus while it runs; its numbers unblock the item-24 gate-enablement A/B (`plans/260729_item24_ab_plan.md`, `77dbfb7d`)._
 
 ### 8. Ambush behavior — IMPLEMENTATION **[ALL STAGES SHIPPED 2026-07-25 — only gate (b) benchmark pricing remains, user-gated]**
 **Perceived:** hidden Ambush units that hold fire until spotted or until springing the trap at the best moment; units *feel alive*, reacting to being seen/unseen. Human-settable stance first, **default off** so nothing changes for players who don't opt in.
@@ -50,6 +50,14 @@ _Deferred by you until the opening-economy AI (item 12) is solid — a bot that 
 
 ### 18. (Future) "Should I attack?" endgame decision layer
 **Perceived:** bots consciously shift gears — from securing income to committing to a decisive offensive (and later to SR denial) — instead of drifting into an aimless late game. You can watch the AI make the call to go for the kill.
+
+---
+
+## REVIEWED — awaiting harness merge (2026-07-29)
+Three auto-branches passed adversarial review (MERGE-WITH-NITS) and are queued for the next harness merge composition:
+- **auto/may-salvage** (`ec757ad4`) — tunguska AA ammo-pool ownership fix (`primary-air` rejoins the shared 180-round pool, closing a free-AA-ammo exploit) + m113 dead-reference cleanup; quantified ship-as-is (`plans/260729_tunguska_ammo_note.md`).
+- **auto/spread-prefix** (`a55c8b6a`).
+- **auto/b1-walkback** (`864fdb39`) — residual-B1 mid-adjust fix.
 
 ---
 

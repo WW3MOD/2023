@@ -4,21 +4,20 @@
 > The ordered roadmap of what's next lives in [`PIPELINE.md`](PIPELINE.md) — the user steers by reordering it.
 > Cap ~40 lines. Rotate stale entries out — once shipped or `[T]`, the tracker / commit history tells the story.
 
-## GATE — user in-game test of the current build
-Everything below is gated on this. Sit down and confirm the last three shipped things feel right:
-- **Heli standoff** — attack helis hold at missile range instead of overflying into AA (Stage 0, `090ad9d0`).
-- **/danger overlay** — hold-Space reads green safe / red unsafe / gray unknown (Stage C, `0833b376`).
-- **Phase-4a role tasking** — artillery + SHORAD sit *behind* the line, don't drive up to trade (`acc42ad7`).
-
-If any of the three feels wrong, that fix jumps to the top of PIPELINE before new work starts.
+## Autoburn window ACTIVE (2026-07-29)
+The standing test-ladder grant is live (see PIPELINE "STANDING GRANT"). Two measurement threads in motion.
 
 ## Working on
-- **Ambush / undetected-unit behavior — DESIGN shipped, IMPLEMENTATION gated on user review.** Design doc `plans/260722_ambush_undetected_design.md` landed (`1a3f81f1`) — prone-and-hidden Ambush stance holding fire until spotted or springing the trap; 4 open forks await user review (prone semantics, moving-ambush scope, spring-timing doctrine, bot-only vs human-first). Implementation is next once reviewed (PIPELINE #3).
-- **Influence stack — Stages D/E/F queued** (gated on the GATE above). D = helicopter air-danger consumer (helis route around AA); E = danger-weighted ground routing (attacks flow around kill zones); F = strategic repoint + territorial balance-of-power revival (revives parked `exp-terr-bias` @ ccd12c98). Design: `plans/260722_influence_stack_design.md`. Stages 0/A/B/C shipped.
-- **Autonomous AI-improvement loop (260719–, autoburn).** Benchmark substrate live (`WORKSPACE/ai-bench/`). Governing spec: `plans/260722_strategic_tactical_split_SPEC.md` (3-layer split). Phases 0→4a shipped; Phase-4b role migration (air/capture/production consume `UnitRoleResolver`) queued.
+- **Item 25 — Stage-F benchmark re-baseline: RUNNING now** (run plan `7fa0b046`). Re-zeroing the @experimental offense instrument so future "did the bot get better?" claims are trustworthy again; also carries item-8 gate (b) ambush pricing. Long run — steals window focus. Its numbers unblock the item-24 gate-enablement A/B (`plans/260729_item24_ab_plan.md`, `77dbfb7d`).
+- **Item 22 — case-01 forest ambush: CALIBRATING, awaiting user bar.** Scenario authored + calibration batch run; the provisional 1:3 cost-weighted ratio is ill-posed (a holding concealment drives defender losses to 0 → ÷0). Reframe to "def ≤ X AND att ≥ Y over N seeds" awaits user ratify before iterating to GREEN.
 
-## Queued (not started — see PIPELINE.md for exact order)
-- Phase-4b role migration · fires / artillery doctrine cycle · early-game tuning (idle trucks / AA / spread) · EXPAND benchmark maps · AoE cluster targeting · SharedRandom→LocalRandom migration.
+## Reviewed — awaiting harness merge
+- **auto/may-salvage** (`ec757ad4`) — tunguska AA ammo-pool ownership fix (+ m113 dead-ref cleanup); ship-as-is · **auto/spread-prefix** (`a55c8b6a`) · **auto/b1-walkback** (`864fdb39`).
+
+## Pending user sign-off
+- **Item 27 vehicle turn feel** (merged `aab56954`) — feel A/B: `./tools/autotest/run-demo.sh demo-vehicle-turns`.
+- **Item 24 gate enablement** — fog-legal @experimental reads committed ON (`ba387afa`); default-on A/B awaits item-25 numbers.
+- **Item 8 ambush gate (b)** — benchmark pricing owed before any default-on (folded into item 25).
 
 ## Quick Stats
 - Engine files modified: 280+
