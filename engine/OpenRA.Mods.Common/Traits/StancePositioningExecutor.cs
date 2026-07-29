@@ -113,6 +113,17 @@ namespace OpenRA.Mods.Common.Traits
 			"evaluation while managing, so it never lapses under us; released on abort/disengage.")]
 		public readonly int ClaimTicks = 150;
 
+		[Desc("Residual-B1 margin (cells) added to LeashRadius when deciding, WHILE Adjusting, whether a",
+			"unit that strayed has been externally redirected. Our own adjustment Move always targets a",
+			"WithinLeash cell and only paths a BOUNDED distance outside the leash while routing around",
+			"obstacles, so a unit beyond LeashRadius + this margin cannot be on our own move — it is a",
+			"player redirect. Abort the stale adjust so the next idle re-anchors at the redirect target",
+			"instead of CohesionSlotMemory dragging the unit back to the old cover cell once. Too small",
+			"⇒ our own pathing detours false-abort and drop the mid-adjust claim/slot (B1/B2); too large",
+			"⇒ a nearby redirect is missed and the walk-back recurs. 2 = a couple of cells (see the",
+			"260729_b1_walkback brief for the derivation).")]
+		public readonly int AdjustLeashMargin = 2;
+
 		public override object Create(ActorInitializer init) { return new StancePositioningExecutor(init.Self, this); }
 	}
 
@@ -221,20 +232,41 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
+			// Byte-identity: gated off (IsTraitDisabled) for @stable / @normal / non-experimental bots,
+			// so this whole method is inert there — the executor only ticks for experimental bots and,
+			// in Phase 3, human-owned combatants.
+			if (IsTraitDisabled)
+				return;
+
 			// B1 (return-to-slot vector): catch a non-executor relocation the MOMENT it crosses the
 			// leash — mid-move, before the unit next idles. CohesionSlotMemory is declared before this
 			// trait, so on the unit's next idle its return-to-slot fires FIRST and would drag the unit
 			// back to the executor-assigned cover slot; clearing the slot here (during the move) beats
-			// it. The idle-time guard in TickIdle is a backstop. Skipped while Adjusting (our own
-			// leashed move keeps the unit inside the leash).
-			// KNOWN GAP (merge review, e2208d42): a player redirect issued WHILE Adjusting is not
-			// caught here — CohesionSlotMemory can drag the unit back to the old slot ONCE before the
-			// slot goes stale / the next redirect is handled. Bounded and self-healing; filed in
-			// WORKSPACE/bugs/discovered.md. A fix needs an Adjusting-aware leash margin to avoid
-			// false-aborting the executor's own pathing excursions.
-			if (IsTraitDisabled || State == AdjustmentState.Adjusting)
-				return;
+			// it. The idle-time guard in TickIdle is a backstop.
+			if (State == AdjustmentState.Adjusting)
+			{
+				// Residual-B1 fix (closes the e2208d42 merge-review gap): a player redirect issued WHILE
+				// Adjusting replaces our Move and drives the unit toward a FAR cell, but the old code
+				// skipped the leash check entirely while Adjusting — so the slot was never cleared and
+				// CohesionSlotMemory dragged the unit back to the abandoned cover cell ONCE on its next
+				// idle. We cannot use the BARE leash here: our own adjustment Move targets a WithinLeash
+				// cell (ChooseTarget only returns cells WithinLeash) and can path a bounded distance
+				// OUTSIDE the leash while routing around obstacles — a bare check would false-abort that
+				// and drop the mid-adjust ledger claim/slot the Adjusting state exists to hold (B1/B2).
+				// Beyond leash + AdjustLeashMargin the unit cannot be on our own leashed move, so it is an
+				// external relocation: release NOW (clears the slot before the unit idles), and let the
+				// next idle re-anchor at the redirect target.
+				if (hasAnchor && !WithinLeash(self.Location, Info.AdjustLeashMargin))
+				{
+					ReleaseManagement();
+					State = AdjustmentState.None;
+				}
 
+				return;
+			}
+
+			// Settled (non-Adjusting) anchor: any location outside the BARE leash is a completed external
+			// relocation — release so the next idle re-anchors, never walking back toward the fossil anchor.
 			if (hasAnchor && !WithinLeash(self.Location))
 			{
 				ReleaseManagement();
@@ -547,9 +579,25 @@ namespace OpenRA.Mods.Common.Traits
 			return haveBest ? bestTarget : (CPos?)null;
 		}
 
+		// Pure Manhattan leash predicate. Extracted static (anchor + radius as parameters) so the
+		// residual-B1 Adjusting-abort threshold is unit-testable without a live actor — pinned in
+		// StancePositioningLeashTest. Manhattan (not Chebyshev) matches ChooseTarget's leash disk.
+		public static bool WithinManhattan(CPos cell, CPos anchor, int radius)
+		{
+			return System.Math.Abs(cell.X - anchor.X) + System.Math.Abs(cell.Y - anchor.Y) <= radius;
+		}
+
 		bool WithinLeash(CPos cell)
 		{
-			return System.Math.Abs(cell.X - anchor.X) + System.Math.Abs(cell.Y - anchor.Y) <= Info.LeashRadius;
+			return WithinManhattan(cell, anchor, Info.LeashRadius);
+		}
+
+		// Residual-B1 abort band: leash + margin. Beyond this a unit cannot be on our own leashed
+		// adjustment Move (dest is WithinLeash; obstacle detours stay within the margin), so it is an
+		// external redirect. See ITick and the AdjustLeashMargin Info field.
+		bool WithinLeash(CPos cell, int margin)
+		{
+			return WithinManhattan(cell, anchor, Info.LeashRadius + margin);
 		}
 
 		// S3: Chebyshev "within one cell" (the 8-neighbourhood plus the cell itself).
