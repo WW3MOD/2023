@@ -103,8 +103,13 @@ namespace OpenRA.Mods.Common.Traits
 			"remaining cell path, killing the 8-direction 45-degree zig-zag. The A* path, cell reservations and ",
 			"per-cell pop/crush cadence are untouched; only the traversed WPos line changes. Applies to full-cell ",
 			"ground movers only: SharesCell (subcell) locomotors are excluded, since their subcell offsets break ",
-			"the full-cell geometry. Default on for WW3MOD (vehicles/naval/walker; infantry are SharesCell).")]
-		public readonly bool StringPullMovement = true;
+			"the full-cell geometry (vehicles/naval/walker; infantry are SharesCell).",
+			"DISABLED BY DEFAULT (pipeline item 28 REGRESSED): aiming the rendered travel at the sightline while ",
+			"facing stays on the cell axis crabs the unit sideways every cell, and the MoveSecondHalf snap back to ",
+			"the cell centre makes it a per-cell sawtooth wobble. A correct fix must ride the sightline across cells ",
+			"(smooth both halves + stop the centre-snap), which touches synced CenterPosition — deferred to its own ",
+			"pipeline item. Pinned by PathStringPullingTest.SmoothedTravelCrabsOffTheFacingAxis.")]
+		public readonly bool StringPullMovement = false;
 
 		[Desc("Maximum number of cells ahead the string-pull sightline may reach. Bounds both cost and the ",
 			"rendered-vs-reserved visual divergence.")]

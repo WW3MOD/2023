@@ -139,11 +139,47 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void SmoothedTravelCrabsOffTheFacingAxis()
+		{
+			// WOBBLE ROOT CAUSE (item 28): the Move activity aims each rendered segment at the string-pulled
+			// sightline target while the unit's FACING still points along the cell axis (FromCell -> ToCell) —
+			// string-pull leaves facing/turn decisions untouched. The rendered travel therefore has a large
+			// component PERPENDICULAR to the facing, so a full-cell mover visibly crabs side-to-side on any
+			// near-straight (non-axis-aligned) path. The MoveSecondHalf snap back to the exact cell centre then
+			// makes it a per-cell sawtooth. This pins the crab so it cannot be silently reintroduced, and shows
+			// the un-smoothed geometric target (what the fix falls back to) travels straight along the facing.
+			//
+			// Shallow diagonal (slope 1/2) path (0,0)->(1,0)->(2,1)->(3,1)->(4,2); the first segment heads E to
+			// (1,0), so the facing axis is due East. `from` is the FromCell centre because MoveSecondHalf snaps
+			// CenterPosition to the exact cell centre at every cell arrival (Mobile.SetPosition), so each segment
+			// really does re-anchor on the grid — NOT on the previous shadow.
+			var from = Center(C(0, 0));                                  // (512,512)
+			var geomBoundary = new WPos(1024, 512, 0);                   // midpoint of (0,0) and (1,0) centres
+			var upcoming = new List<CPos> { C(1, 0), C(2, 1), C(3, 1), C(4, 2) };
+
+			var smoothed = PathStringPulling.SmoothTarget(from, geomBoundary, upcoming, 6, Center, AllOpen);
+			Assert.That(smoothed, Is.EqualTo(new WPos(921, 716, 0)), "pinned smoothed target on the (4,2) sightline");
+
+			// Facing axis for this segment is FromCell -> ToCell = due East, so the perpendicular (lateral)
+			// component is the y delta. Smoothing drags the travel 204 WDist sideways off the facing every cell.
+			var smoothedLateral = Math.Abs(smoothed.Y - from.Y);
+			var geomLateral = Math.Abs(geomBoundary.Y - from.Y);
+			Assert.Multiple(() =>
+			{
+				Assert.That(smoothedLateral, Is.EqualTo(204), "string-pull crabs the render ~1/5 cell off the facing axis");
+				Assert.That(geomLateral, Is.EqualTo(0), "the un-smoothed geometric target travels straight along the facing");
+			});
+		}
+
+		[Test]
 		public void ShadowDivergenceStaysBounded()
 		{
-			// Mirror the STATEFUL sim: each segment's sightline starts from the PREVIOUS rendered shadow (the
-			// actor's actual CenterPosition), not a fresh cell centre — so this exercises the re-anchor
-			// accumulation the clamp is designed to bound, walking a 45-degree zig-zag (E, NE, E, NE, ...).
+			// Exercises the clamp under a hypothetical CONTINUOUS re-anchor (each segment starting from the
+			// previous smoothed shadow). NOTE: this is NOT how the Move activity actually re-anchors — a
+			// full-cell mover snaps CenterPosition back to the exact cell centre at every arrival
+			// (Mobile.SetPosition in MoveSecondHalf.OnComplete), so the real render is the sharper sawtooth
+			// pinned by SmoothedTravelCrabsOffTheFacingAxis. This test only bounds the clamp itself, walking a
+			// 45-degree zig-zag (E, NE, E, NE, ...).
 			var zig = new List<CPos>
 			{
 				C(0, 0), C(1, 0), C(2, 1), C(3, 1), C(4, 2), C(5, 2), C(6, 3)
