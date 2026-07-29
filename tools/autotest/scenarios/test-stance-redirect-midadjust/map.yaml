@@ -1,0 +1,104 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: stance positioning — mid-adjust redirect (residual B1) (auto)
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Residual-B1 regression, executor in ISOLATION (one human-owned AR, no bot module).
+#   Zone A (x=10..16, treeline y=16): the Rifle spawns 4 cells SOUTH of the treeline (13,21) with an
+#     enemy sighted further south. The executor (Defensive) relocates it NORTH to the south cover edge
+#     (13,17) — a 4-cell adjustment, ~164 ticks, the recorded trigger window. WHILE that adjustment is
+#     in flight (State == Adjusting) the Lua injects a scripted single-unit Move ~9 cells EAST to zone B.
+#   Zone B (x=22, no cover, no enemy): the redirect target. With the FIX the executor detects — mid-move,
+#     in ITick — that the unit has left the leash+margin band around the zone-A anchor, aborts the stale
+#     adjust and CLEARS the cohesion slot, so on arrival at B nothing drags the Rifle back. With the BUG
+#     the Adjusting-time ITick guard skips, the slot stays pointed at (13,17), and CohesionSlotMemory's
+#     return-to-slot walks the Rifle ~9 cells back west to the abandoned cover cell ONCE. The redirect is
+#     kept short enough (~9 cells ≈ 450 ticks) that the round trip finishes inside ForgetAfterTicks(750),
+#     so the slot stays FRESH — this is the non-self-healing window the residual bug lives in.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,19
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,19
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 5,19
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,19
+
+	# Zone A treeline (y=16, x=10..16) — density source; its south cover edge is y=17.
+	TrapA0: tanktrap1
+		Owner: Neutral
+		Location: 10,16
+	TrapA1: tanktrap1
+		Owner: Neutral
+		Location: 11,16
+	TrapA2: tanktrap1
+		Owner: Neutral
+		Location: 12,16
+	TrapA3: tanktrap1
+		Owner: Neutral
+		Location: 13,16
+	TrapA4: tanktrap1
+		Owner: Neutral
+		Location: 14,16
+	TrapA5: tanktrap1
+		Owner: Neutral
+		Location: 15,16
+	TrapA6: tanktrap1
+		Owner: Neutral
+		Location: 16,16
+
+	# Unit-under-test: one AR, Defensive by default, 4 cells SOUTH of the zone-A cover edge so the
+	# executor's adjustment is a long-enough move (~4 cells) to inject a redirect mid-flight.
+	Rifle: ar.america
+		Owner: USA
+		Location: 13,21
+		Facing: 512
+
+	# Sighted enemy south of the Rifle: fixes the threat bearing south so the executor relocates the
+	# Rifle north to the treeline's south cover edge (hull-down). HoldFire-silenced from Lua.
+	EnemyA: t90
+		Owner: Russia
+		Location: 13,24
+		Facing: 0
+
+Rules: rules.yaml
