@@ -30,6 +30,24 @@ local TPS            = TestHarness.TicksPerSecond
 local Defenders = { D1, D2, D3, D4, D5 }
 local Attackers = { A1, A2, A3, A4, A5 }
 
+-- Per-kill + return-fire instrumentation (item 260729 bar-mining §6). EXTRA LOGGING ONLY —
+-- none of this feeds Test.Pass/Fail; the verdict semantics are unchanged. Kill events go to
+-- debug.log via print() (the same per-unit channel as the settle snapshot); compact kill-curve
+-- and defender-damage aggregates are additionally folded into the surviving verdict note so they
+-- outlive an overwritten debug.log.
+local launchTick   = nil          -- DateTime.GameTime captured when the attackers are launched
+local firstAttKillT = nil         -- ticks-since-launch of the FIRST attacker death (burst onset)
+local lastAttKillT  = nil         -- ticks-since-launch of the LAST attacker death (attrition tail)
+local attKilled     = 0           -- attacker deaths seen via the kill hook (cross-check on liveCount)
+local defDmg        = {}           -- per-defender cumulative damage taken (index matches Defenders)
+local defDmgFirstT  = {}           -- ticks-since-launch of first damage on that defender, nil if none
+
+-- Ticks elapsed since the attackers launched (-1 before launch; deaths shouldn't occur pre-launch).
+local function sinceLaunch()
+	if launchTick == nil then return -1 end
+	return DateTime.GameTime - launchTick
+end
+
 local function liveCount(team)
 	local n = 0
 	for _, a in ipairs(team) do if a and not a.IsDead then n = n + 1 end end
@@ -82,6 +100,45 @@ WorldLoaded = function()
 
 	print("[case01] order issued: 5 defenders Ambush/Loose, group Move -> (32,20)")
 
+	-- Instrumentation hooks (extra logging only — do NOT affect the verdict). Register at
+	-- WorldLoaded so damage/deaths across the whole scenario are caught; ticks are reported
+	-- relative to attacker launch (sinceLaunch()), so pre-launch events read t=-1 (shouldn't occur).
+	for i, d in ipairs(Defenders) do
+		defDmg[i] = 0
+		defDmgFirstT[i] = nil
+		if d and not d.IsDead then
+			local idx, utype = i, d.Type
+			-- Return-fire signal: cumulative damage TAKEN by this defender. Distinguishes
+			-- "attackers fired at / damaged defenders" from "attackers died blind" (§4 inference).
+			Trigger.OnDamaged(d, function(self, attacker, damage)
+				if damage and damage > 0 then
+					defDmg[idx] = defDmg[idx] + damage
+					if defDmgFirstT[idx] == nil then defDmgFirstT[idx] = sinceLaunch() end
+				end
+			end)
+			Trigger.OnKilled(d, function(self, killer)
+				local st = sinceLaunch()
+				print(string.format(
+					"[case01] KILL side=DEF type=%s cost=%d tick=%d t=%.1fs dmgTaken=%d",
+					utype, DEF_COST, DateTime.GameTime, st / TPS, defDmg[idx]))
+			end)
+		end
+	end
+	for _, a in ipairs(Attackers) do
+		if a and not a.IsDead then
+			local utype = a.Type
+			Trigger.OnKilled(a, function(self, killer)
+				local st = sinceLaunch()
+				attKilled = attKilled + 1
+				if firstAttKillT == nil then firstAttKillT = st end
+				lastAttKillT = st
+				print(string.format(
+					"[case01] KILL side=ATT type=%s cost=%d tick=%d t=%.1fs",
+					utype, ATT_COST, DateTime.GameTime, st / TPS))
+			end)
+		end
+	end
+
 	Trigger.AfterDelay(SETTLE_TICKS, function()
 		-- Snapshot concealment seating (item-21 verification + hidden-until-close premise).
 		local refined = 0
@@ -105,6 +162,7 @@ WorldLoaded = function()
 
 		-- Launch the scripted attackers: each attack-moves straight down its column, through
 		-- the grove, to a cell south of the defenders. Deterministic (harness seed only).
+		launchTick = DateTime.GameTime   -- baseline for per-kill / first-damage tick deltas
 		for _, a in ipairs(Attackers) do
 			if not a.IsDead then a.AttackMove(CPos.New(a.Location.X, 28)) end
 		end
@@ -129,11 +187,30 @@ WorldLoaded = function()
 				if defLoss > 0 then ratio = attLoss / defLoss else ratio = attLoss end  -- attacker loss per 1 defender loss
 				local sprang = (totalAmmo(Defenders) < defStartAmmo) or (attDead > 0)
 
+				-- Aggregate the return-fire (defender damage-taken) signal + kill-curve into the
+				-- surviving note. These are logging-only; they do not gate the verdict.
+				local secs = function(t) if t == nil or t < 0 then return "-" end return string.format("%.1f", t / TPS) end
+				local defDmgTotal, defDmgd = 0, 0
+				for i = 1, #Defenders do
+					defDmgTotal = defDmgTotal + (defDmg[i] or 0)
+					if (defDmg[i] or 0) > 0 then defDmgd = defDmgd + 1 end
+				end
+
+				-- Per-defender damage-taken fingerprint to debug.log (mirrors the settle snapshot).
+				for i = 1, #Defenders do
+					print(string.format(
+						"[case01] D%d dmgTaken=%d firstDmg=%ss alive=%s",
+						i, defDmg[i] or 0, secs(defDmgFirstT[i]),
+						tostring(Defenders[i] and not Defenders[i].IsDead)))
+				end
+
 				local note = string.format(
-					"defLoss=%d attLoss=%d ratio=%.2f survDef=%d/5 survAtt=%d/5 sprang=%s refined=%d/5 resolved=%s t=%.1fs",
+					"defLoss=%d attLoss=%d ratio=%.2f survDef=%d/5 survAtt=%d/5 sprang=%s refined=%d/5 resolved=%s t=%.1fs "
+					.. "firstKill=%ss lastKill=%ss attKilled=%d defDmgd=%d/5 defDmgTot=%d",
 					defLoss, attLoss, ratio, liveDef, liveAtt,
 					tostring(sprang), refinedCount,
-					tostring(resolved), elapsed / TPS)
+					tostring(resolved), elapsed / TPS,
+					secs(firstAttKillT), secs(lastAttKillT), attKilled, defDmgd, defDmgTotal)
 
 				print("[case01] RESULT " .. note)
 

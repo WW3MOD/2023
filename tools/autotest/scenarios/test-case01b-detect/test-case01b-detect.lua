@@ -50,6 +50,21 @@ local defTtf     = {}   -- ticks (since launch) of first shot, -1 if never
 local attLast    = {}
 local attShots   = {}
 
+-- Per-kill instrumentation (item 260729 bar-mining §6). EXTRA LOGGING ONLY — does not gate the
+-- verdict. case01b already measures the fire-lane (defShots/ttfShot); this adds the missing
+-- kill-curve: the tick each unit dies. Per-kill lines go to debug.log; first/last-kill ticks are
+-- folded into the surviving note.
+local launchTick    = nil          -- DateTime.GameTime captured when the attackers are launched
+local firstAttKillT = nil          -- ticks-since-launch of the FIRST attacker death
+local lastAttKillT  = nil          -- ticks-since-launch of the LAST attacker death
+local firstDefKillT = nil          -- ticks-since-launch of the FIRST defender death
+local lastDefKillT  = nil          -- ticks-since-launch of the LAST defender death
+
+local function sinceLaunch()
+	if launchTick == nil then return -1 end
+	return DateTime.GameTime - launchTick
+end
+
 local function liveCount(team)
 	local n = 0
 	for _, a in ipairs(team) do if a and not a.IsDead then n = n + 1 end end
@@ -96,6 +111,35 @@ WorldLoaded = function()
 	Test.GroupMove(Defenders, CPos.New(32, 20), "Move")
 	print("[case01b] order issued: 5 defenders Ambush/Loose, group Move -> (32,20)")
 
+	-- Per-kill hooks (extra logging only — do NOT affect the verdict). Ticks are reported
+	-- relative to attacker launch; pre-launch events read t=-1 (shouldn't occur).
+	for _, d in ipairs(Defenders) do
+		if d and not d.IsDead then
+			local utype = d.Type
+			Trigger.OnKilled(d, function(self, killer)
+				local st = sinceLaunch()
+				if firstDefKillT == nil then firstDefKillT = st end
+				lastDefKillT = st
+				print(string.format(
+					"[case01b] KILL side=DEF type=%s cost=%d tick=%d t=%.1fs",
+					utype, DEF_COST, DateTime.GameTime, st / TPS))
+			end)
+		end
+	end
+	for _, a in ipairs(Attackers) do
+		if a and not a.IsDead then
+			local utype = a.Type
+			Trigger.OnKilled(a, function(self, killer)
+				local st = sinceLaunch()
+				if firstAttKillT == nil then firstAttKillT = st end
+				lastAttKillT = st
+				print(string.format(
+					"[case01b] KILL side=ATT type=%s cost=%d tick=%d t=%.1fs",
+					utype, ATT_COST, DateTime.GameTime, st / TPS))
+			end)
+		end
+	end
+
 	Trigger.AfterDelay(SETTLE_TICKS, function()
 		-- Snapshot seating (item-21 verification) and initialise per-unit fire-lane state.
 		local refined = 0
@@ -131,6 +175,7 @@ WorldLoaded = function()
 
 		-- Launch the scripted attackers: each attack-moves straight down its column, through the
 		-- wall and across the clearing, to a cell south of the defenders. Deterministic.
+		launchTick = DateTime.GameTime   -- baseline for per-kill tick deltas
 		for _, a in ipairs(Attackers) do
 			if not a.IsDead then a.AttackMove(CPos.New(a.Location.X, 28)) end
 		end
@@ -203,13 +248,22 @@ WorldLoaded = function()
 						defShots[i] or 0, tostring(Defenders[i] and not Defenders[i].IsDead)))
 				end
 
+				-- Kill-curve ticks (logging-only; do not gate the verdict). Guard the -1 pre-launch
+				-- sentinel through the existing nil-only `secs` helper.
+				local atk1 = (firstAttKillT and firstAttKillT >= 0) and firstAttKillT or nil
+				local atkN = (lastAttKillT  and lastAttKillT  >= 0) and lastAttKillT  or nil
+				local def1 = (firstDefKillT and firstDefKillT >= 0) and firstDefKillT or nil
+				local defN = (lastDefKillT  and lastDefKillT  >= 0) and lastDefKillT  or nil
+
 				local note = string.format(
 					"defFired=%d/5 ttfShot(min/mean/max)=%s/%s/%ss defShots=%d attShots=%d "
-					.. "defKilled=%d/5 attKilled=%d/5 defLoss=%d attLoss=%d refined=%d/5 resolved=%s t=%.1fs",
+					.. "defKilled=%d/5 attKilled=%d/5 defLoss=%d attLoss=%d refined=%d/5 resolved=%s t=%.1fs "
+					.. "firstAttKill=%ss lastAttKill=%ss firstDefKill=%ss lastDefKill=%ss",
 					firedCount, secs(ttfMin), secs(ttfMean), secs(ttfMax),
 					totDefShots, totAttShots,
 					defDead, attDead, defLoss, attLoss, refinedCount,
-					tostring(resolved), elapsed / TPS)
+					tostring(resolved), elapsed / TPS,
+					secs(atk1), secs(atkN), secs(def1), secs(defN))
 
 				print("[case01b] RESULT " .. note)
 

@@ -183,3 +183,15 @@ batch self-documenting instead of leaning on hand-transcription:
 None of these are needed to ratify Bar A/B against the *current* data — the survival axis is
 already decisive — but they would harden a re-measurement and remove the reliance on a
 now-overwritten `debug.log`.
+
+---
+
+**Update (2026-07-29):** all three §6 additions landed. (1) verdict archival is on branch
+`auto/harness-verdict-archive` (run-test.sh copies each run's `result.json` into the per-run
+screenshot dir; DO-NOT-MERGE until the ladder frees the harness). (2)+(3) per-kill ticks and
+per-defender damage-taken instrumentation added to `test-case01-forest-ambush.lua` (and per-kill
+ticks to `test-case01b-detect.lua`), via `Trigger.OnKilled`/`OnDamaged` + `DateTime.GameTime`,
+folded into the surviving verdict note (`firstKill`/`lastKill`/`attKilled`/`defDmgd`/`defDmgTot`);
+verdict semantics unchanged (still `Test.Pass(note)`). **UNVERIFIED until the ratification rerun** —
+authored under a harness embargo, self-reviewed against `test-case01b-detect` precedent but not
+executed.
