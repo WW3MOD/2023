@@ -51,6 +51,41 @@ vs control) lives in [`REVIEW.md`](REVIEW.md) §Ladder Status.
 
 ---
 
+> # ✅ CURRENT STANDING — POST-26/28 RE-BASELINE — 2026-07-29 (`main` @ `e5b7bbcc`, N=10/rung)
+>
+> **This block supersedes the `1eb644de` / `a88ef596` / `60b93501` rows below for
+> comparison.** The instrument CHANGED: items 26 (`fc9fe396`, forest density-damage +
+> superlinear ground-shadow) and 28 (`1f036ecb`, path string-pulling) broke `@stable`
+> byte-identity globally, so pre-26/28 rows are **not comparable** to these numbers.
+> Full card: [`runs/260728_rebaseline_result.md`](runs/260728_rebaseline_result.md).
+> 60 matches (40 measured + 20 cal), 0 crashes. Config: item-25 `StrategicRepointEnabled`
+> **ON**, item-24 belief-repoint (`StrategicCaptureRepointEnabled`/`DefendRepointEnabled`)
+> held **OFF** (the clean zero, per user decision — those gates ship ON but item-24
+> pricing is a separate later A/B), ambush ON = default.
+>
+> | Rung | Calibration (Stable-v-Stable) | Baseline (Exp-v-Stable, Arm A) | Verdict |
+> |---|---|---|---|
+> | **S1 eco** | win 4–6; capture P1 6188 / P2 2976 gross (spawn bias, mirror cancels) | win **3–7**; capture **4/10 vs 4/10** (parity); swing med −1425 | Exp **BELOW** Stable (win-rate 0.30) |
+> | **S2 combat** | win 4–6; swing med **−225** (±$2000 band); engaged **7/10** | win **4–6**; swing edge **−1425** (sign 2/10); engaged **10/10** valid | Exp **BELOW** Stable — ~$1,425 combat deficit |
+>
+> **Core finding:** on the post-26/28 instrument the Experimental bot **underperforms
+> Stable on BOTH rungs** — a regression from the pre-26/28 `260721` "Exp ≈ Stable"
+> baseline. The aggressive Exp bot (engaged 10/10, engagement med 2600) trades poorly
+> after item-26's forest cover-damage changes. `[exp-terr]` repoint fires but is
+> behaviorally quiet (mostly neutral) on these maps. **A genuinely new lever is needed;
+> fixing this Exp-vs-Stable deficit dwarfs any per-module tuning.**
+>
+> **Item-8 gate (b) — ambush default-on pricing (paired Arm A ON vs Arm B OFF):**
+> - S2 (primary): ambush ON mildly **better** — paired swing Δ median **+$425** (mean +630,
+>   6/10 positive), win 0.40 vs 0.30. S1 (guard): ambush ON **worse** — win **0.30 vs 0.50**
+>   (below the 0.40 floor), swing Δ mean 0. Capture parity identical (4/10) everywhere.
+> - **Recommendation (USER DECISION — not applied; ai.yaml left default-on):
+>   default-on NOT SUPPORTED / lean-OFF, but within noise / inconclusive at N=10.** Rungs
+>   disagree, both effects noise-scale; keep-on needs non-harm on both rungs and S1
+>   regresses. Qualitative "units feel alive" value is a legitimate user tie-breaker.
+
+---
+
 > # ✅ REGIME RE-BASELINE COMPLETE — 2026-07-21 (`main` @ `60b93501`, N per SPEC)
 >
 > First full re-baseline on the new regime (Motorized / same-faction US-US / vs
