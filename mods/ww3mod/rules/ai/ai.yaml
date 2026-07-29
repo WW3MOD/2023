@@ -802,6 +802,13 @@ Player:
 		# AROUND believed AA, leash their standoff to the AA-safe envelope, and withdraw/re-route the
 		# moment a new AA lights up. Rides on StandoffEngagement above. Experimental-only.
 		DangerFieldAvoidance: true
+		# Forward-staging (experimental-only, default-frozen in C#): push idle attack helis that are
+		# still loitering near the SR forward to ~40% of the SR->top-POI vector, so they stage toward
+		# the fight instead of hovering at the SR corner. Pct clamped short of contact per the recon's
+		# AA-attrition caveat. OFF for every non-experimental profile (shared base block sets nothing).
+		ForwardStaging: true
+		ForwardStagingPct: 40
+		ForwardStagingMaxDistanceCells: 8
 
 	# ===== Stable AI — frozen snapshot of the validated Experimental config =====
 	#
