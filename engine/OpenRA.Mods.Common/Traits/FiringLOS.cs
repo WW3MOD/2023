@@ -95,7 +95,11 @@ namespace OpenRA.Mods.Common.Traits
 			var lookupFrom = swap ? toMPos : fromMPos;
 			var lookupTo = swap ? fromMPos : toMPos;
 
-			// Bounds check — ensure cells are within map
+			// PITFALL: off-map actors are routine here (map-edge reinforcements) — CellLayer's
+			// indexer does NOT bounds-check, so an out-of-map MPos throws IndexOutOfRange.
+			if (!map.ShadowLayer.Contains(lookupFrom))
+				return true;
+
 			var shadowFromCell = map.ShadowLayer[lookupFrom];
 			if (shadowFromCell == null)
 				return true;
@@ -147,6 +151,10 @@ namespace OpenRA.Mods.Common.Traits
 			var swap = !firerAirborne && targetAirborne;
 			var lookupFrom = swap ? toMPos : fromMPos;
 			var lookupTo = swap ? fromMPos : toMPos;
+
+			// PITFALL: same off-map guard as HasClearLOS — CellLayer indexer does not bounds-check.
+			if (!map.ShadowLayer.Contains(lookupFrom))
+				return 0;
 
 			var shadowFromCell = map.ShadowLayer[lookupFrom];
 			if (shadowFromCell == null || !shadowFromCell.Contains(lookupTo))
