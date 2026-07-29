@@ -25,6 +25,8 @@ If anything here disagrees with code, the doc is right and the code needs to cha
 
 Vehicles are budgeted around dock-at-LC logistics. Adding `truk` to `Rearmable.RearmActors` on a vehicle is a balance change.
 
+**An `AmmoPool` never refills itself on the battlefield — passive trickle is opt-in via `ReloadAmmoPool`.** `AmmoPool` is not `ITick` (`AmmoPool.cs:111` implements only `INotifyCreated, INotifyAttack, INotifyBecomingIdle, IResolveOrder, ISync`), and its self-reload method `AmmoPool.Reload()` (`AmmoPool.cs:361`) has **zero callers** engine-wide — so the `RemainingTicks`/`FullReloadTicks`/`FullReloadSteps` countdown it decrements (`:366`) never advances. The `ReloadDelay` field only *seeds* that inert countdown (`:237`) and is re-seeded on a dock rearm (`Rearmable.cs:52,66`). Actual in-field trickle exists **only** on the separate `ReloadAmmoPool` trait (`ReloadAmmoPool.cs:46`, which *is* `ITick` and calls `ammoPool.GiveAmmo(self, Count)` every `Delay` ticks, `:91`). A unit that does not carry `ReloadAmmoPool` therefore cannot top up in place — it must retreat and rearm at a provider (LC / TRUK / cache via `Rearmable` + `Resupply`). `ReloadAmmoPool` appears in only 7 mod YAML files (mostly static defenses); most units, including tunguska AA, lack it. **Do not read `AmmoPool.ReloadDelay` as "seconds to self-reload in the field" — it drives nothing without `ReloadAmmoPool`.**
+
 ## Ammo pools, batches, and per-round cost
 
 ### Properties

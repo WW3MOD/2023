@@ -5,6 +5,8 @@
 
 ## 2026-07-29 — `AmmoPool.Reload()` is DEAD CODE — there is NO in-field ammo trickle from the pool itself; passive refill exists ONLY on the separate `ReloadAmmoPool` trait, and dry units must dock (tunguska AA quantify, PIPELINE may-salvage)
 
+> **[promoted: → economy.md §What rearms what (an `AmmoPool` never self-refills in the field — not `ITick`, `Reload()` uncalled, `ReloadDelay` seeds an inert countdown; in-field trickle exists only via `ReloadAmmoPool` ITick→`GiveAmmo`; units without it must dock). Re-verified this pass against `AmmoPool.cs:111/:237/:361/:366`, zero `.Reload(` callers engine-wide, `ReloadAmmoPool.cs:46/:91`, `Rearmable.cs:52/:66`; 7 mod YAML refs.]** (curation 2026-07-29).
+
 Found while quantifying the tunguska AA ammo-pool fix on `auto/may-salvage` (`WORKSPACE/plans/260729_tunguska_ammo_note.md`, base main @ `72594441`). Verified by grep + reading the two traits.
 
 - **`AmmoPool` (`AmmoPool.cs:111`) is NOT `ITick`** — it implements `INotifyCreated, INotifyAttack, INotifyBecomingIdle, IResolveOrder, ISync` only. So the pool has no per-tick hook of its own and cannot self-regenerate on the battlefield.
@@ -171,6 +173,8 @@ Shipping the top-3 ideas from `WORKSPACE/cohesion/260725_formation_realism_ideas
 Pure math lives in `engine/OpenRA.Mods.Common/Traits/FormationRealism.cs` (hash → signed offset, fan angle, the two clamps), pinned in `engine/OpenRA.Test/OpenRA.Mods.Common/FormationRealismMathTest.cs` (11 tests). NOT built/tested here (DLLs locked; manager verifies).
 
 ## 2026-07-25 — `world.Actors` includes positionless PlayerActors; any bot search that enumerates it and reads CenterPosition NREs on tick 0 (wt/heli-crash)
+
+> **[promoted: → conventions.md §Engine behaviors that surprise (the general rule — `world.Actors` = `actors.Values` includes positionless PlayerActors/world actor; `Actor.CenterPosition => OccupiesSpace.CenterPosition` NREs on them; an enemy PlayerActor's Owner is itself so relationship filters don't drop it; guard `a.OccupiesSpace != null`; spatial `FindActorsInCircle` is safe). Re-verified against `World.cs:522`, `Actor.cs:79`, `HelicopterStates.cs:226` (fix landed). The heli-specific tick-0/ThreatMap-fallthrough triage stays here.]** (curation 2026-07-29).
 
 Hard crash to desktop the instant a bot game loaded with "Air support" starting units (a HelicopterSquad exists at tick ~0). `NullReferenceException` in `Exts.CompareBy` (`Exts.cs:271`, the `selector(t)` inside `MinByOrDefault`) via `WorldUtils.ClosestToIgnoringPath` (`WorldUtils.cs:37`) from `HelicopterStateBase.FindClosestEnemy` (`HelicopterStates.cs:220`).
 
