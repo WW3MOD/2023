@@ -83,6 +83,13 @@ vs control) lives in [`REVIEW.md`](REVIEW.md) §Ladder Status.
 >   default-on NOT SUPPORTED / lean-OFF, but within noise / inconclusive at N=10.** Rungs
 >   disagree, both effects noise-scale; keep-on needs non-harm on both rungs and S1
 >   regresses. Qualitative "units feel alive" value is a legitimate user tie-breaker.
+>
+> **Item-24 gate-enablement A/B — 2026-07-29 (both arms fresh, N=10/rung, `main` @ `2bf335cf`):
+> KEEP OFF (recommendation).** Capture/garrison belief-repoint (`StrategicCaptureRepointEnabled`
+> / `DefendRepointEnabled`) ON vs OFF is **byte-identical across all 20 matches** (B−A = 0 on
+> every metric) — the repoint fires but is numerically inert on these rungs. Pure wash → tie →
+> OFF; no ai.yaml change committed. Reuse of the ladder Arm A was VOID (instrument moved
+> `e5b7bbcc`→`2bf335cf`). Card: [`runs/260729_item24_ab_result.md`](runs/260729_item24_ab_result.md).
 
 ---
 
