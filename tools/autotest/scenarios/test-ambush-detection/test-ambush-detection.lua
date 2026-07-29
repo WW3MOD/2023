@@ -12,9 +12,9 @@
 --                 score can ever satisfy the degrading / saturation triggers.
 --   5 Overrun   : the detector's advance stops ~12c out, far outside the 3c stand-off, so it never overruns.
 -- With 2-5 impossible, a spring can ONLY be a detection spring. Geometry (rules.yaml): the ambusher's
--- Detectable.Vision is 5, so it is detected only when the enemy closes inside 19c (^StandardVision strength
--- >= 5). The detector spawns 22c away (strength 4 ⇒ UNSEEN ⇒ the ambusher HOLDS FIRE), then drives inward
--- across the 19c band, where detection flips true and the ambush springs. "Held fire before detection" is
+-- Detectable.Vision is 5, so it is detected only when the enemy closes inside 16c (^StandardVision strength
+-- STRICTLY > 5, i.e. >= 6). The detector spawns 22c away (strength 4 ⇒ UNSEEN ⇒ the ambusher HOLDS FIRE),
+-- then drives inward across the 16c band, where detection flips true and the ambush springs. "Held fire before detection" is
 -- therefore built into the setup (undetected until 19c) and is proven complementarily by the RED run below.
 --
 -- RED baseline for the manager: comment out the single Detector.Move line marked GREEN below. The detector

@@ -23,11 +23,12 @@ World:
 # TEST tuning — isolate Stage-3 trigger 1 (Detected) as the ONLY trigger that can spring the ambush.
 # ^StandardVision (mods/ww3mod/rules/defaults.yaml) gives a viewer these vision-strength bands by range:
 #   10 @ 0-4c · 9 @ 4-7c · 8 @ 7-10c · 7 @ 10-13c · 6 @ 13-16c · 5 @ 16-19c · 4 @ 19-22c · 3 @ 22-25c ...
-# An actor with Detectable.Vision V is DETECTED when the viewer's strength at its cell is >= V.
-# Detectable.Vision: 5 ⇒ the ambusher is detected only when the enemy is within 19c (strength >= 5).
-# The detector spawns 22c away (strength 4 < 5 ⇒ UNSEEN ⇒ the ambusher holds); the Lua drives it inward
-# past the 19c band, where strength climbs to 5 and detection flips true ⇒ trigger 1 springs. The RED
-# baseline comments out that advance, so the detector stays at 22c, never detected ⇒ timeout.
+# An actor with Detectable.Vision V is DETECTED when the viewer's strength at its cell STRICTLY exceeds V
+# (MapLayers.cs:576 `ResolvedVisibility > visibility`).
+# Detectable.Vision: 5 ⇒ the ambusher is detected only when the enemy is within 16c (strength >= 6, i.e.
+# the 13-16c band). The detector spawns 22c away (strength 4 ⇒ UNSEEN ⇒ the ambusher holds); the Lua
+# drives it inward past the 16c band, where strength climbs to 6 and detection flips true ⇒ trigger 1
+# springs. The RED baseline comments out that advance, so the detector stays at 22c, never detected ⇒ timeout.
 ^AT:
 	Detectable:
 		Vision: 5
