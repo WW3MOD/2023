@@ -69,16 +69,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			if (selectedActors.Count == 0)
 				return false;
 
-			// Aggregate waypoints across ALL selected actors. Different actors may be at
-			// different points in their order chain (e.g., a faster unit may have completed
-			// its first order already), so taking the max from a single unit can drop waypoints
-			// that only the slowest units still hold. We dedupe by (Cell, OrderType) and
-			// preserve the order they appeared in the longest chain.
-			//
-			// Only units that contributed at least one waypoint participate in the redistribution.
-			// CollectWaypoints filters out automatic activities (autotargeting, nudges, …), so a
-			// unit whose chain holds only auto-behaviours yields an empty list and is excluded —
-			// Shift-G is for redistributing human-given orders, not for press-ganging idlers.
+			// Collect each participant's order chain. Only units that contributed at least one
+			// waypoint participate in the redistribution. CollectWaypoints filters out automatic
+			// activities (autotargeting, nudges, …), so a unit whose chain holds only auto-behaviours
+			// yields an empty list and is excluded — Shift-G is for redistributing human-given orders,
+			// not for press-ganging idlers.
 			var bestChain = new List<Waypoint>();
 			var allChains = new List<List<Waypoint>>();
 			var participants = new List<Actor>();
@@ -94,10 +89,63 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 					bestChain = actorWaypoints;
 			}
 
+			// The shared group-orders are the LONGEST COMMON SUFFIX across the participant chains:
+			// when a player group-queues orders on a whole selection, every unit ends up with the
+			// same trailing run. Anything ahead of that suffix is a unit's UNIQUE prefix — the result
+			// of an earlier per-unit spread (or individual click). Shift-G must redistribute only the
+			// shared suffix and leave each unit's unique prefix intact. Pooling the prefixes into the
+			// global waypoint set (the legacy path below) re-broadcasts them to every unit, which is
+			// the "first orders get removed and re-added after the attack-move" bug.
+			var suffixLen = CommonSuffixLength(allChains
+				.Select(c => (IReadOnlyList<(CPos, string)>)c.Select(w => (w.Cell, w.OrderType)).ToList())
+				.ToList());
+			var hasUniquePrefix = allChains.Any(c => c.Count > suffixLen);
+
+			if (suffixLen >= 1 && hasUniquePrefix)
+			{
+				// Suffix-only redistribution. Every chain shares the same last `suffixLen` waypoints
+				// (by Cell+OrderType), so take the suffix payload from any participant.
+				var reference = allChains[0];
+				var commonSuffix = reference.GetRange(reference.Count - suffixLen, suffixLen);
+
+				// Stop clears queued activities so re-issued orders start from a clean chain.
+				foreach (var unit in participants)
+					world.IssueOrder(new Order("Stop", unit, false));
+
+				// Preserve each unit's unique prefix by re-issuing it to that same unit, queued and in
+				// order — never redistributed. (Same per-unit order construction DistributeSegment uses.)
+				for (var p = 0; p < participants.Count; p++)
+				{
+					var chain = allChains[p];
+					var prefixCount = chain.Count - suffixLen;
+					for (var i = 0; i < prefixCount; i++)
+					{
+						var wp = chain[i];
+						if (wp.OrderType == null)
+							continue;
+
+						world.IssueOrder(new Order(wp.OrderType, participants[p], wp.Target, true));
+					}
+				}
+
+				// Redistribute only the shared suffix, queued behind the preserved prefixes.
+				var suffixSegments = BuildSegments(commonSuffix);
+				foreach (var segment in suffixSegments)
+					DistributeSegment(world, participants, segment);
+
+				var suffixDesc = string.Join(" → ", suffixSegments.Select(s => $"{s.Waypoints.Count}x {s.OrderType}"));
+				TextNotificationsManager.AddFeedbackLine($"Scattered {participants.Count} units (prefixes preserved): {suffixDesc}");
+				return true;
+			}
+
+			// Legacy global-pool aggregation. Reached when there is no shared suffix (fully divergent
+			// chains) or no unique prefix (every participant holds the same chain — the common basic
+			// case, where suffix == whole chain and this path is equivalent to the suffix path). We
+			// dedupe by (Cell, OrderType) and preserve the order they appeared in the longest chain,
+			// appending any waypoints that other units still have but the longest chain dropped.
 			var waypoints = new List<Waypoint>(bestChain);
 			var seen = new HashSet<(CPos, string)>(waypoints.Select(w => (w.Cell, w.OrderType)));
 
-			// Append any waypoints that other units still have but the longest chain dropped.
 			foreach (var chain in allChains)
 				foreach (var wp in chain)
 					if (seen.Add((wp.Cell, wp.OrderType)))
@@ -124,6 +172,45 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			var segmentDesc = string.Join(" → ", segments.Select(s => $"{s.Waypoints.Count}x {s.OrderType}"));
 			TextNotificationsManager.AddFeedbackLine($"Scattered {participants.Count} units: {segmentDesc}");
 			return true;
+		}
+
+		// Longest common suffix length across the given order-key chains, comparing waypoints by
+		// (Cell, OrderType). A single chain yields its own full length; an empty set yields 0; the
+		// result never exceeds the shortest chain. Pure and deterministic — pinned by NUnit.
+		public static int CommonSuffixLength(IReadOnlyList<IReadOnlyList<(CPos Cell, string OrderType)>> chains)
+		{
+			if (chains == null || chains.Count == 0)
+				return 0;
+
+			var minLen = int.MaxValue;
+			foreach (var c in chains)
+				minLen = Math.Min(minLen, c.Count);
+
+			if (minLen == 0)
+				return 0;
+
+			var len = 0;
+			while (len < minLen)
+			{
+				var reference = chains[0][chains[0].Count - 1 - len];
+				var allMatch = true;
+				for (var i = 1; i < chains.Count; i++)
+				{
+					var wp = chains[i][chains[i].Count - 1 - len];
+					if (wp.Cell != reference.Cell || wp.OrderType != reference.OrderType)
+					{
+						allMatch = false;
+						break;
+					}
+				}
+
+				if (!allMatch)
+					break;
+
+				len++;
+			}
+
+			return len;
 		}
 
 		static List<Waypoint> CollectWaypoints(World world, Actor actor)
