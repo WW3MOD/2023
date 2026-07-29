@@ -143,7 +143,7 @@ bmp2:
 		CrewDamageThresholdPercent: 12
 		EjectionSurvivalRate: 45
 	Tooltip:
-		Name: BPM-2
+		Name: BMP-2
 		GenericName: IFV Troop Carrier
 	AnnounceOnSeen:
 		Type: Vehicle
@@ -836,7 +836,7 @@ tunguska:
 		Condition: firing-primary
 	AmmoPool@1:
 		Name: primary-ammo
-		Armaments: primary, tertiary
+		Armaments: primary, primary-air
 		Ammo: 180
 		ReloadCount: 30
 		AmmoCondition: ammo-primary
