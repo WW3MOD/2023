@@ -94,6 +94,35 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void EscortCount_IsReductionOnly()
+		{
+			Assert.Multiple(() =>
+			{
+				// None sends the technician alone; Full leaves the pre-lever want untouched.
+				Assert.That(EscortSizingMath.ResolveEscortCount(2, EscortSizingMath.EscortTier.None, 2), Is.EqualTo(0),
+					"NONE reserves no combat units");
+				Assert.That(EscortSizingMath.ResolveEscortCount(3, EscortSizingMath.EscortTier.Full, 1), Is.EqualTo(3),
+					"FULL keeps the (possibly contested-larger) escort");
+
+				// Light clamps to min(want, lightSize) — and CRUCIALLY never rises above the pre-lever want even if
+				// LightEscortSize is mis-tuned above it. This is the reduction-only guarantee the Math.Min encodes.
+				Assert.That(EscortSizingMath.ResolveEscortCount(2, EscortSizingMath.EscortTier.Light, 1), Is.EqualTo(1),
+					"LIGHT shrinks toward the small size");
+				Assert.That(EscortSizingMath.ResolveEscortCount(1, EscortSizingMath.EscortTier.Light, 5), Is.EqualTo(1),
+					"LIGHT never RAISES: min clamps to the pre-lever want even when LightEscortSize exceeds it");
+
+				// The invariant, exhaustively across every tier and a range of sizes: the resolved count never
+				// exceeds the pre-lever want — the lever is provably incapable of enlarging an escort.
+				foreach (var tier in new[]
+					{ EscortSizingMath.EscortTier.None, EscortSizingMath.EscortTier.Light, EscortSizingMath.EscortTier.Full })
+					for (var want = 0; want <= 4; want++)
+						for (var light = 0; light <= 6; light++)
+							Assert.That(EscortSizingMath.ResolveEscortCount(want, tier, light), Is.LessThanOrEqualTo(want),
+								$"tier={tier} want={want} light={light} must never raise the escort");
+			});
+		}
+
+		[Test]
 		public void DistanceGateDisabled_AllowsNoneAtAnyDistance()
 		{
 			// safeMaxDistanceFromSRCells <= 0 disables the distance gate entirely.

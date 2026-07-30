@@ -271,6 +271,14 @@ namespace OpenRA.Mods.Common.Traits
 			"screen units carries a live weapon (degenerate). Only read when EchelonPositioning is on.")]
 		public readonly WDist EchelonScreenRangeFallback = WDist.FromCells(5);
 
+		[Desc("EXPERIMENTAL frontier standoff (builds on the echelon): hold each echeloned IndirectFire piece at",
+			"least this many COARSE control-field cells behind the believed enemy frontier (ControlField's",
+			"distance-to-enemy-region). When the echelon anchor lands closer than this to the front, it is walked",
+			"rearward along the anchor axis (bounded — never a free search) so artillery stands off BEHIND the",
+			"front line, not on it. 0 = OFF (default; @stable/frozen byte-identical). Suggested ~4 (≈8 map cells).",
+			"Needs EchelonPositioning on + a ControlField present; inert until the field is populated for this player.")]
+		public readonly int MinFrontierDistanceCells = 0;
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 
@@ -392,9 +400,12 @@ namespace OpenRA.Mods.Common.Traits
 				dangerFieldResolved = true;
 			}
 
+			// The control field feeds the Stage-F strategic repoint AND the echelon frontier standoff, so
+			// resolve it when either is enabled.
 			if (!controlFieldResolved)
 			{
-				controlField = Info.StrategicRepointEnabled ? world.WorldActor.TraitOrDefault<ControlField>() : null;
+				controlField = Info.StrategicRepointEnabled || Info.MinFrontierDistanceCells > 0
+					? world.WorldActor.TraitOrDefault<ControlField>() : null;
 				controlFieldResolved = true;
 			}
 
@@ -1008,6 +1019,15 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var depth = EchelonMath.EchelonDepth(maxRange, screenRange, Info.EchelonBuffer.Length, Info.EchelonMinDepth.Length);
 					anchor = EchelonMath.EchelonAnchor(screenLine, axis.TargetPos, depth);
+
+					// Frontier standoff (experimental, default off): if the echelon anchor still sits within
+					// MinFrontierDistanceCells of the believed enemy frontier, walk it rearward along the anchor
+					// axis until it clears — so the piece holds BEHIND the believed front, not on it. Inert until
+					// a ControlField is populated for this player (FrontierDistanceAt reads the 'far' sentinel ⇒
+					// zero steps ⇒ byte-identical to the pre-frontier anchor).
+					if (controlField != null && Info.MinFrontierDistanceCells > 0)
+						anchor = PushEchelonBehindFrontier(anchor, axis.TargetPos);
+
 					needs = EchelonMath.NeedsReposition(anchor, pos, Info.EchelonTolerance.Length);
 				}
 				else
@@ -1038,6 +1058,31 @@ namespace OpenRA.Mods.Common.Traits
 				Log.Write("debug",
 					$"[exp-offense] fires player={player.PlayerName} unit={u.Info.Name}#{u.ActorID} anchor={anchorCell} maxRange={maxRange} needsReposition={needs} target={axis.TargetName}@{axis.TargetCell} tick={tick}");
 			}
+		}
+
+		// Frontier standoff: walk an echelon anchor rearward (directly AWAY from the target, along the existing
+		// anchor axis) in one-coarse-cell hops until the believed frontier distance at the anchor reaches
+		// MinFrontierDistanceCells, bounded by a small step budget so it is never a free search. The frontier read
+		// is the fog-legal ControlField distance-to-enemy-region; the step count decision is the pure, NUnit-pinned
+		// FrontierStandoffMath.RearwardSteps. Deterministic integer geometry, zero random draws.
+		WPos PushEchelonBehindFrontier(WPos anchor, WPos target)
+		{
+			// One coarse cell along the dominant axis of the away-from-target bearing (max-norm, so a diagonal
+			// hop still crosses a full coarse cell — no undershoot).
+			var step = FrontierStandoffMath.RearwardStep(anchor - target, WDist.FromCells(controlField.Info.CellSize).Length);
+			if (step == WVec.Zero)
+				return anchor; // degenerate (anchor on the target) — no rearward bearing to walk.
+
+			var maxSteps = Info.MinFrontierDistanceCells + 2; // enough to lift a distance-0 anchor clear, bounded.
+			var steps = FrontierStandoffMath.RearwardSteps(anchor, step, Info.MinFrontierDistanceCells, maxSteps,
+				w =>
+				{
+					var (gx, gy) = controlField.MapCellToGridCell(world.Map.CellContaining(w));
+					return controlField.FrontierDistanceAt(player, gx, gy);
+				},
+				w => world.Map.Contains(world.Map.CellContaining(w)));
+
+			return anchor + new WVec(step.X * steps, step.Y * steps, 0);
 		}
 
 		// Fires EV gate: restore FireAtWill on every held rocket piece that was NOT re-affirmed as held this eval

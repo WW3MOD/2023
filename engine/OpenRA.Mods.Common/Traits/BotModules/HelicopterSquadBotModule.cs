@@ -87,6 +87,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Stage-D: ring radius (cells) searched for the safest air-aware retreat cell on withdraw.")]
 		public readonly int AirDangerRetreatCells = 12;
 
+		[Desc("Influence-stack frontier standoff: hold the attack-heli standoff at least this many COARSE",
+			"control-field cells behind the believed enemy frontier (ControlField distance-to-enemy-region).",
+			"When the leashed engage cell lands closer than this, it is walked rearward (bounded) toward the",
+			"squad so helis hold BEHIND the believed front line, not on it. Rides on StandoffEngagement.",
+			"0 = OFF (default; byte-identical). Inert until a ControlField is populated for this player.")]
+		public readonly int MinFrontierDistanceCells = 0;
+
 		[Desc("Experimental (default false = frozen): when an idle attack heli is still loitering",
 			"within ForwardStagingMaxDistanceCells of its own Supply Route and no squad has formed,",
 			"push it forward to a pre-contact staging cell (a fraction of the way from the SR toward",

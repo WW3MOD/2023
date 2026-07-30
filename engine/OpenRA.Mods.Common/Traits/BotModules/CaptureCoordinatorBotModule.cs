@@ -983,14 +983,15 @@ namespace OpenRA.Mods.Common.Traits
 			// this composes with ContestAwareSupport rather than undoing it. NONE ⇒ the technician goes alone and NO
 			// combat units are reserved (they stay idle for the offense / other captures); LIGHT ⇒ min with the small
 			// escort so the lever only ever reduces. Lever off / contested / a missing field all keep the value above.
+			// The tier->count mapping is the REDUCTION-ONLY guarantee (None->0, Light->min(want, LightEscortSize),
+			// Full->want) and is extracted to EscortSizingMath.ResolveEscortCount so an NUnit pin holds the invariant
+			// "the lever never RAISES an escort" — the load-bearing Math.Min lives there. Byte-identical to the
+			// inline mapping it replaces.
 			var tier = EscortSizingMath.EscortTier.Full;
 			if (Info.EscortTierSizingEnabled && !contested)
 			{
 				tier = ResolveEscortTier(target.Location, distanceFromSRCells);
-				if (tier == EscortSizingMath.EscortTier.None)
-					wantEscort = 0;
-				else if (tier == EscortSizingMath.EscortTier.Light)
-					wantEscort = Math.Min(wantEscort, Info.LightEscortSize);
+				wantEscort = EscortSizingMath.ResolveEscortCount(wantEscort, tier, Info.LightEscortSize);
 			}
 
 			if (wantEscort <= 0)
