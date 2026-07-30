@@ -2,11 +2,11 @@
 --
 -- LAYOUT
 --   USA-bot (experimental, america)    @ (6,16)  ← left SR
---   Russia-bot (normal, russia) @ (58,16) ← right SR
+--   Russia-bot (stable, russia) @ (58,16) ← right SR
 --   BIO   (150 $/tick)       @ (32,10)
 --   FCOM  (100 $/tick)       @ (32,22)
 --   OILB1 (50 $/tick)        @ (22,16) ← closer to experimental
---   OILB2 (50 $/tick)        @ (42,16) ← closer to normal
+--   OILB2 (50 $/tick)        @ (42,16) ← closer to stable
 --
 -- WHAT TO WATCH
 --   1. PRIORITY — experimental should target BIO (highest income) before OILB1

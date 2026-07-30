@@ -12,7 +12,7 @@
 
 Matchup:
 	P1Bot: experimental
-	P2Bot: normal
+	P2Bot: stable
 
 # 5-minute match — LADDER S1 (TimeLimitSeconds: 300). Long enough for TECNs to
 # arrive and start capturing income structures; short enough to isolate economy

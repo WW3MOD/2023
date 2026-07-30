@@ -170,14 +170,16 @@ namespace OpenRA.Mods.Common.Server
 			var skirmishFile = Path.Combine(Platform.SupportDir, $"skirmish.{server.ModData.Manifest.Id}.yaml");
 			var loaded = TryInitializeFromFile(server, skirmishFile, conn);
 
-			// WW3MOD: always seed a Normal AI opponent if the lobby has no bots —
-			// either fresh skirmish, or the saved file has no bots in it.
+			// WW3MOD: always seed a Stable AI opponent if the lobby has no bots —
+			// either fresh skirmish, or the saved file has no bots in it. (Normal/Rush/Turtle
+			// were removed 2026-07-30; only Experimental + Stable ship. Stable is the frozen,
+			// benchmark-validated default.)
 			if (loaded && server.LobbyInfo.Clients.Any(c => c.IsBot))
 				return;
 
 			var slot = server.LobbyInfo.FirstEmptyBotSlot();
 			var availableBots = server.Map.PlayerActorInfo.TraitInfos<IBotInfo>().Select(t => t.Type).ToList();
-			var bot = availableBots.FirstOrDefault(t => t == "normal") ?? availableBots.FirstOrDefault();
+			var bot = availableBots.FirstOrDefault(t => t == "stable") ?? availableBots.FirstOrDefault();
 			var botController = server.LobbyInfo.Clients.FirstOrDefault(c => c.IsAdmin);
 			if (slot != null && bot != null)
 				server.InterpretCommand($"slot_bot {slot} {botController.Index} {bot}", conn);

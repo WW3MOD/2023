@@ -1,8 +1,8 @@
 Player:
-	# ===== Normal AI — Russia (balanced, steady pressure) =====
-	# Split (early-econ PIPELINE 12): Experimental now uses the @russia.experimental twin below.
+	# ===== Baseline ground production — Russia (enable-ai-player, non-Experimental) =====
+	# Split (early-econ PIPELINE 12): Experimental uses the @russia.experimental twin below.
 	# The `!enable-ai-experimental` guard keeps exactly one UnitBuilder enabled per player —
-	# Normal + Stable keep this frozen block byte-identical. Mirrors the HelicopterSquad split.
+	# Stable holds this frozen block. Mirrors the HelicopterSquad split.
 	UnitBuilderBotModule@russia.normal:
 		RequiresCondition: enable-ai-player && !enable-ai-experimental && player.brics
 		UnitQueues: Vehicle, Infantry
@@ -46,7 +46,7 @@ Player:
 
 	# ===== Experimental AI — Russia ground production (early-econ PIPELINE 12) =====
 	# Byte-for-byte copy of @russia.normal's UnitsToBuild/UnitLimits PLUS the default-off early-econ
-	# gates (behaviours 1 & 2). Experimental-only; Normal/Stable keep the frozen twin above.
+	# gates (behaviours 1 & 2). Experimental-only; Stable keeps the frozen twin above.
 	#   * GateResupplyOnAmmoNeed — no supply trucks while every truck-rearmable unit has full ammo.
 	#   * ScaleAntiAirToThreat — cap vehicle AA (tunguska) to OBSERVED enemy air; aa.russia (cheap AA
 	#     infantry) stays ungated as the baseline picket.
@@ -98,107 +98,3 @@ Player:
 		AntiAirUnitTypes: tunguska
 		AntiAirBaseline: 0
 		AntiAirPerObservedAir: 1
-
-	# Legacy ground squad manager — gated to NON-Experimental/Stable paths. The
-	# Experimental/Stable POI layer uses LayeredDefenceBotModule + MountedTransportBotModule
-	# for ground positioning; running the legacy here too would steal carriers and
-	# infantry from those modules. See WORKSPACE/ai/playtest_260513.md.
-	SquadManagerBotModule@russia.normal:
-		RequiresCondition: enable-ai-legacy-only && enable-ai-player && player.brics
-		SquadSize: 6
-		SquadSizeRandomBonus: 14
-		RushInterval: 150
-		AttackScanRadius: 32
-		DangerScanRadius: 25
-		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, medi.russia, HALO, HIND, MI28
-		IgnoredEnemyTargetTypes: IgnoreThis
-
-	# ===== Rush AI — Russia (fast, aggressive, smaller squads) =====
-	UnitBuilderBotModule@russia.rush:
-		RequiresCondition: enable-ai-rush && player.brics
-		UnitQueues: Vehicle, Infantry
-		UnitsToBuild:
-			# Heavy infantry focus for early aggression
-			e3.russia: 150
-			ar.russia: 120
-			tl.russia: 80
-			e2.russia: 70
-
-			# Minimal support
-			at.russia: 40
-			mt.russia: 30
-			medi.russia: 20
-
-			# Fast vehicles for early strikes
-			btr: 50
-			bmp2: 30
-
-			# Minimal logistics
-			truk: 10
-
-		UnitLimits:
-			truk: 2
-			tecn.russia: 2
-			e6.russia: 1
-
-	SquadManagerBotModule@russia.rush:
-		RequiresCondition: enable-ai-rush && player.brics
-		SquadSize: 4
-		SquadSizeRandomBonus: 6
-		RushInterval: 80
-		AttackScanRadius: 40
-		DangerScanRadius: 20
-		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, medi.russia, HALO, HIND, MI28
-		IgnoredEnemyTargetTypes: IgnoreThis
-
-	# ===== Turtle AI — Russia (builds up, large squads, combined arms) =====
-	UnitBuilderBotModule@russia.turtle:
-		RequiresCondition: enable-ai-turtle && player.brics
-		UnitQueues: Vehicle, Infantry
-		UnitsToBuild:
-			# Conscripts for capturing
-			tecn.russia: 500
-
-			# Infantry -- more balanced with support emphasis
-			e3.russia: 100
-			ar.russia: 80
-			tl.russia: 60
-			e2.russia: 50
-
-			# Strong support roster
-			at.russia: 60
-			mt.russia: 50
-			medi.russia: 50
-			aa.russia: 40
-			sn.russia: 35
-			e6.russia: 25
-
-			# Heavy vehicle emphasis
-			btr: 20
-			bmp2: 35
-			t90: 40
-			giatsint: 25
-			tunguska: 15
-			grad: 15
-
-			# Supply trucks
-			truk: 25
-
-		UnitLimits:
-			truk: 5
-			tecn.russia: 3
-			e6.russia: 3
-			giatsint: 4
-			grad: 3
-			tunguska: 3
-			sn.russia: 4
-
-	SquadManagerBotModule@russia.turtle:
-		RequiresCondition: enable-ai-turtle && player.brics
-		SquadSize: 10
-		SquadSizeRandomBonus: 15
-		RushInterval: 300
-		AttackScanRadius: 35
-		DangerScanRadius: 30
-		ExcludeFromSquadsTypes: tecn.russia, e6.russia, truk, medi.russia, HALO, HIND, MI28
-		IgnoredEnemyTargetTypes: IgnoreThis

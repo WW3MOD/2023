@@ -13,7 +13,7 @@
 # remaps bots from this config so a single map.yaml serves multiple matchups.
 Matchup:
 	P1Bot: experimental
-	P2Bot: normal
+	P2Bot: stable
 
 # Match clock — at this real-time second count, the win rule evaluates final
 # scores and declares a winner regardless of game state. 720s = 12 in-game

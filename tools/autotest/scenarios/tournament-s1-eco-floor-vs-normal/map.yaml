@@ -70,7 +70,7 @@ Players:
 		LockFaction: True
 		Faction: america
 		StartingUnitsClass: motorized
-		Bot: normal
+		Bot: stable
 		Color: FF4444
 		Enemies: USA-bot
 

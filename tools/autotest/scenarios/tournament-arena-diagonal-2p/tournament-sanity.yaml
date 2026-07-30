@@ -8,8 +8,8 @@
 # 20 seeds ≈ 20 min total wall-clock. (Empirical — adjust based on hardware.)
 
 Matchup:
-	P1Bot: normal
-	P2Bot: normal
+	P1Bot: stable
+	P2Bot: stable
 
 TimeLimitSeconds: 180
 

@@ -5,7 +5,7 @@
 
 Matchup:
 	P1Bot: experimental
-	P2Bot: normal
+	P2Bot: stable
 
 TimeLimitSeconds: 30
 
