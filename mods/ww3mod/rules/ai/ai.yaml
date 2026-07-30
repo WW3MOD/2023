@@ -523,6 +523,17 @@ Player:
 		# Issue the engine-correct "Unload" order so carriers actually disembark passengers
 		# (the shared C# default keeps the broken "UnloadCargo" no-op for @stable byte-identity).
 		UnloadOnArrival: true
+		# Pickup corridor: also grab PassengerTypes infantry walking the SR→drop lane (within 6 cells of
+		# it), not just the 14-cell reserve bubble — fresh infantry that transits the bubble between 50-tick
+		# scans would otherwise walk the whole map. Experimental-only; frozen twin keeps reserve-bubble-only.
+		PickupCorridorCells: 6
+		# Fog-legal vision-aware drop: back the drop cell off toward our SR until the BELIEVED anti-ground
+		# danger (DangerFieldLayer, from the BeliefStore — no enemy world scan) clears, plus a 2-cell buffer.
+		# Drops infantry just OUTSIDE believed enemy sight/danger instead of into a hot omniscient cell.
+		BelievedDangerStandoff: true
+		StandoffDangerThreshold: 0
+		StandoffMarginCells: 2
+		StandoffMaxBackoffCells: 20
 
 	# ===== Base Builder — shared baseline (enable-ai-player) =====
 	BaseBuilderBotModule@normal:

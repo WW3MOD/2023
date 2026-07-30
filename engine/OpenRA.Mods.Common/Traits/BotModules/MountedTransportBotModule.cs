@@ -85,6 +85,35 @@ namespace OpenRA.Mods.Common.Traits
 			"Kept default-off so @stable/controls stay byte-identical; only set on the @experimental twin.")]
 		public readonly bool UnloadOnArrival = false;
 
+		[Desc("Experimental (default 0 = off): half-width, in map cells, of a pickup CORRIDOR along the",
+			"SR→drop-off lane. Fresh infantry spawns at the map edge and WALKS toward the front, transiting",
+			"the ReserveZoneRadiusCells bubble between scans and never getting caught — so it walks the whole",
+			"map. When > 0, PassengerTypes infantry within this perpendicular distance of the SR→drop lane (and",
+			"within the lane's span) are ALSO eligible for loading, catching mid-walk units. 0 keeps the frozen",
+			"reserve-bubble-only gate; only set on the @experimental twin.")]
+		public readonly int PickupCorridorCells = 0;
+
+		[Desc("Experimental (default false = frozen): make the drop-off fog-LEGAL and vision-aware. When set,",
+			"the chosen drop cell (frontline OR pre-contact staging) is backed off toward our SR until the",
+			"believed anti-ground danger (DangerFieldLayer.GroundDanger — derived from the BeliefStore, no",
+			"world scan of enemy actors) at the cell is at/below StandoffDangerThreshold, plus StandoffMarginCells",
+			"more. Reads only the fog-legal believed field; zero RNG. Default off ⇒ the frozen @poi/@stable twin",
+			"keeps its omniscient thinnest-frontline drop byte-identically. Only set on the @experimental twin.")]
+		public readonly bool BelievedDangerStandoff = false;
+
+		[Desc("Believed anti-ground danger (DangerFieldLayer.GroundDanger) at/below which a cell counts as",
+			"\"outside believed enemy sight/danger\" — a safe drop. Only used when BelievedDangerStandoff is set.",
+			"Default 0 = drop only where the believed field reads completely clear.")]
+		public readonly int StandoffDangerThreshold = 0;
+
+		[Desc("Extra cells to back off toward our SR beyond the first believed-safe cell, for a standoff buffer.",
+			"Only used when BelievedDangerStandoff is set.")]
+		public readonly int StandoffMarginCells = 2;
+
+		[Desc("Cap (map cells) on how far back toward our SR the standoff search walks before giving up and",
+			"using the furthest-back sampled cell. Only used when BelievedDangerStandoff is set.")]
+		public readonly int StandoffMaxBackoffCells = 20;
+
 		public override object Create(ActorInitializer init) { return new MountedTransportBotModule(init.Self, this); }
 	}
 
@@ -114,6 +143,11 @@ namespace OpenRA.Mods.Common.Traits
 		int scanCountdown;
 		InfluenceMap influenceMap;
 		PoiMap poiMap;
+
+		// Fog-legal believed anti-ground danger field (Stage B). Resolved ONLY when BelievedDangerStandoff
+		// is set (the @experimental twin) — the frozen @poi/@stable twin leaves this null and never touches
+		// the layer, so its omniscient drop path stays byte-identical. See DOCS/reference/influence-stack.md.
+		DangerFieldLayer dangerField;
 
 		/// <summary>True if `actor` is currently reserved by any of this module's carrier tasks
 		/// (loading, delivering, unloading, returning). Used by LayeredDefenceBotModule to
@@ -210,6 +244,11 @@ namespace OpenRA.Mods.Common.Traits
 			scanCountdown = world.LocalRandom.Next(0, Info.ScanInterval);
 			influenceMap = world.WorldActor.TraitOrDefault<InfluenceMap>();
 			poiMap = world.WorldActor.TraitOrDefault<PoiMap>();
+
+			// Only the @experimental twin (BelievedDangerStandoff set) reads the danger field; the frozen
+			// twin keeps dangerField null so ApplyStandoff is an identity pass-through for it.
+			dangerField = Info.BelievedDangerStandoff
+				? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
 
 			// Visible confirmation in chat that experimental transport is wired for this player.
 			// Without this, "is the module even active?" is impossible to verify ingame.
@@ -411,24 +450,38 @@ namespace OpenRA.Mods.Common.Traits
 			var reservedByOthers = new HashSet<Actor>(
 				carrierTasks.Values.SelectMany(t => t.ReservedPassengers));
 
+			// Drop-off cell (thinnest frontline / pre-contact staging, fog-legal standoff when enabled).
+			// Experimental-only: when a pickup corridor is configured we need the drop cell FIRST to define
+			// the SR→drop lane. The frozen twin (PickupCorridorCells 0) keeps the original ordering — the
+			// passenger scan below runs on the reserve bubble only, then PickDropOffCell is called once,
+			// exactly as before (byte-identical).
+			var corridorOn = Info.PickupCorridorCells > 0;
+			CPos? dropOff = null;
+			if (corridorOn)
+				dropOff = PickDropOffCell(srCell);
+
 			var reserveRadiusSq = (long)Info.ReserveZoneRadiusCells * Info.ReserveZoneRadiusCells;
 			var availablePassengers = world.Actors
 				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld
 					&& Info.PassengerTypes.Contains(a.Info.Name.ToLowerInvariant())
 					&& !reservedByOthers.Contains(a)
 					&& a.Info.HasTraitInfo<PassengerInfo>()
-					&& (a.Location - srCell).LengthSquared <= reserveRadiusSq)
+					&& ((a.Location - srCell).LengthSquared <= reserveRadiusSq
+						|| (dropOff.HasValue
+							&& MountedTransportMath.InCorridor(srCell, dropOff.Value, a.Location, Info.PickupCorridorCells))))
 				.ToList();
 
 			Log.Write("debug",
-				$"[exp-transport] passengers-in-reserve={availablePassengers.Count} (radius={Info.ReserveZoneRadiusCells} sr-cell={srCell})");
+				$"[exp-transport] passengers-eligible={availablePassengers.Count} (reserve-radius={Info.ReserveZoneRadiusCells} corridor={Info.PickupCorridorCells} sr-cell={srCell})");
 
 			if (availablePassengers.Count == 0)
 				return;
 
 			// Compute one shared drop-off cell per pass — the thinnest part of our frontline.
-			// All carriers in this pass deliver to it; next pass picks a fresh one.
-			var dropOff = PickDropOffCell(srCell);
+			// All carriers in this pass deliver to it; next pass picks a fresh one. Already computed
+			// above when a corridor is active; otherwise compute it now (frozen call-site preserved).
+			if (!corridorOn)
+				dropOff = PickDropOffCell(srCell);
 			if (!dropOff.HasValue)
 				return;
 
@@ -530,7 +583,10 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			return best;
+			// Fog-legal standoff (experimental): back the thinnest-frontline cell off toward our SR until it
+			// leaves the believed enemy ground-danger envelope. Identity pass-through when dangerField is null
+			// (frozen twin) — so @poi/@stable keep the raw omniscient cell byte-identically.
+			return best.HasValue ? ApplyStandoff(best.Value, srCell) : best;
 		}
 
 		// Pre-contact fallback (experimental, DeliverBeforeContact). No frontline exists yet, so
@@ -549,7 +605,102 @@ namespace OpenRA.Mods.Common.Traits
 			var tgtPos = world.Map.CenterOfCell(targets[0].Location);
 			var stagePos = srPos + (tgtPos - srPos) * Info.PreContactStagingPct / 100;
 			var cell = world.Map.CellContaining(stagePos);
-			return world.Map.Contains(cell) ? cell : (CPos?)null;
+			if (!world.Map.Contains(cell))
+				return null;
+
+			// Pre-contact the 50% lerp is blind; apply the same fog-legal standoff so we never stage the
+			// reserve inside a believed enemy ground-danger envelope. Identity pass-through when disabled.
+			return ApplyStandoff(cell, srCell);
+		}
+
+		// Fog-legal standoff: walk the drop cell back toward our SR (deterministic 1-cell steps, zero RNG)
+		// sampling the believed anti-ground danger field, and pick the first cell at/below the threshold
+		// plus StandoffMarginCells more. When dangerField is null (frozen twin / no field) this is an
+		// identity pass-through, preserving @poi/@stable byte-identity. Reads ONLY DangerFieldLayer
+		// (derived from the BeliefStore) — never a world scan of enemy actors.
+		CPos ApplyStandoff(CPos target, CPos srCell)
+		{
+			if (dangerField == null || target == srCell)
+				return target;
+
+			var targetPos = world.Map.CenterOfCell(target);
+			var delta = world.Map.CenterOfCell(srCell) - targetPos;
+			var totalCells = delta.Length / 1024;
+			if (totalCells <= 0)
+				return target;
+
+			var maxBack = System.Math.Min(Info.StandoffMaxBackoffCells, totalCells);
+
+			// Sample distinct on-map cells from the target (step 0) back toward the SR.
+			var cells = new List<CPos>();
+			var dangers = new List<int>();
+			for (var i = 0; i <= maxBack; i++)
+			{
+				var cell = world.Map.CellContaining(targetPos + delta * i / totalCells);
+				if (!world.Map.Contains(cell))
+					continue;
+				if (cells.Count > 0 && cell == cells[cells.Count - 1])
+					continue;
+				cells.Add(cell);
+				dangers.Add(dangerField.GroundDanger(player, cell));
+			}
+
+			if (cells.Count == 0)
+				return target;
+
+			var idx = MountedTransportMath.ChooseStandoffIndex(dangers,
+				Info.StandoffDangerThreshold, Info.StandoffMarginCells);
+			return cells[idx];
+		}
+	}
+
+	// Pure, world-free geometry for MountedTransportBotModule — split out for NUnit like the other
+	// influence-stack math classes (GroundDangerNav, DangerKernelMath). Zero RNG; integer-only.
+	public static class MountedTransportMath
+	{
+		/// <summary>Is cell <paramref name="p"/> within <paramref name="halfWidthCells"/> perpendicular
+		/// cells of the segment <paramref name="a"/>→<paramref name="b"/>, AND within the segment's span
+		/// (its projection lies between the endpoints)? Exact integer math — the perpendicular test is
+		/// `cross² ≤ halfWidth² · |b−a|²` to avoid a square root. A degenerate (zero-length) lane or a
+		/// non-positive width is never in-corridor.</summary>
+		public static bool InCorridor(CPos a, CPos b, CPos p, int halfWidthCells)
+		{
+			if (halfWidthCells <= 0)
+				return false;
+
+			long dx = b.X - a.X, dy = b.Y - a.Y;
+			var lenSq = dx * dx + dy * dy;
+			if (lenSq == 0)
+				return false;
+
+			long ex = p.X - a.X, ey = p.Y - a.Y;
+			var dot = ex * dx + ey * dy;
+			if (dot < 0 || dot > lenSq)
+				return false;
+
+			var cross = ex * dy - ey * dx;
+			long w = halfWidthCells;
+			return cross * cross <= w * w * lenSq;
+		}
+
+		/// <summary>Given believed anti-ground danger sampled at successive cells from the intended drop
+		/// (index 0) back toward our SR, pick the index of the standoff drop cell: the target itself if it
+		/// is already at/below <paramref name="threshold"/>, otherwise the first at/below-threshold cell
+		/// plus <paramref name="margin"/> more (clamped to the sampled range). If no cell within the sampled
+		/// budget is safe, returns the furthest-back cell (closest to our SR). Deterministic; no RNG.</summary>
+		public static int ChooseStandoffIndex(IReadOnlyList<int> dangers, int threshold, int margin)
+		{
+			if (dangers == null || dangers.Count == 0)
+				return 0;
+
+			if (dangers[0] <= threshold)
+				return 0;
+
+			for (var i = 1; i < dangers.Count; i++)
+				if (dangers[i] <= threshold)
+					return System.Math.Min(i + System.Math.Max(0, margin), dangers.Count - 1);
+
+			return dangers.Count - 1;
 		}
 	}
 }
