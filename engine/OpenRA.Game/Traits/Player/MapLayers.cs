@@ -270,9 +270,12 @@ namespace OpenRA.Traits
 
 					if (!disabledChanged && (fogEnabled || !ExploreMapEnabled))
 					{
-						if (visibility > 0)
+						// Only count a cell when its visibility CROSSES the 0 boundary.
+						// Counting every change to a positive level (e.g. 1->2) double-counts
+						// already-revealed cells, making RevealedCells accumulate without bound.
+						if (visibility > 0 && oldResolvedVisibility == 0)
 							RevealedCells++;
-						else if (fogEnabled && oldResolvedVisibility > 0)
+						else if (visibility == 0 && oldResolvedVisibility > 0 && fogEnabled)
 							RevealedCells--;
 					}
 
