@@ -29,6 +29,8 @@ def load_matches(result_dir):
             "winner_name": notes.get("winner_name"),
             "win_reason": notes.get("win_reason"),
             "players": players,
+            # v6 (Option 4.D) top-level two-sided capture-event stream; absent pre-v6.
+            "capture_events": notes.get("capture_events", []),
         })
     return rows
 
@@ -120,6 +122,92 @@ def summarize(rows, exp_bt="experimental", ctl_bt="normal"):
     }
 
 
+def _resolve_sides(r, exp_bt, calib):
+    """Return (exp_player, ctl_player) for a row, matching summarize()'s logic."""
+    ps = r["players"]
+    exp = pget(ps, exp_bt)
+    if calib:
+        a = next((p for p in ps if p["name"] == "USA-bot"), ps[0])
+        b = next((p for p in ps if p["name"] == "Russia-bot"), ps[1])
+        return a, b
+    ctl = next((p for p in ps if p is not exp and p.get("bot_type")), None)
+    return exp, ctl
+
+
+def _stat(p, key, default=0):
+    return (p or {}).get("stats", {}).get(key, default)
+
+
+def summarize_4d(rows, exp_bt="experimental", ctl_bt="normal"):
+    """Option 4.D (verdict_version >= 6): two-sided capture-contest + POI-income digest.
+
+    Prints the §4.1 per-side table (time-to-first-capture, hold-seconds, POI gross, churn)
+    and applies the §4.2 decision rule (H1 held-shorter / H2 captured-later / H3 army).
+    Silently no-ops on pre-v6 result dirs (the new fields are absent)."""
+    v6 = [r for r in rows if (r.get("vv") or 0) >= 6]
+    if not v6:
+        return
+    calib = (exp_bt == ctl_bt)
+
+    print(f"\n### Option 4.D capture-contest digest  (N={len(v6)} v6 matches)\n")
+    print("| m | scen | exp ttfc | exp hold_s | exp poi_gross | exp L/R | ctl ttfc | ctl hold_s | ctl poi_gross | ctl L/R |")
+    print("|" + "---|" * 10)
+
+    exp_ttfc, exp_hold, exp_gross, exp_loss, exp_recap = [], [], [], [], []
+    ctl_ttfc, ctl_hold, ctl_gross, ctl_loss, ctl_recap = [], [], [], [], []
+    for r in v6:
+        exp, ctl = _resolve_sides(r, exp_bt, calib)
+
+        def row_side(p, ttfc_l, hold_l, gross_l, loss_l, recap_l):
+            ttfc = _stat(p, "time_to_first_capture_tick", -1)
+            hold_s = _stat(p, "hold_ticks", 0) / 25.0
+            gross = _stat(p, "poi_income_gross", 0)
+            loss = _stat(p, "losses_count", 0)
+            recap = _stat(p, "recaptures_count", 0)
+            if ttfc is not None and ttfc >= 0:
+                ttfc_l.append(ttfc)
+            hold_l.append(hold_s); gross_l.append(gross)
+            loss_l.append(loss); recap_l.append(recap)
+            return ttfc, hold_s, gross, loss, recap
+
+        et, eh, eg, el, er = row_side(exp, exp_ttfc, exp_hold, exp_gross, exp_loss, exp_recap)
+        ct, ch, cg, cl, cr = row_side(ctl, ctl_ttfc, ctl_hold, ctl_gross, ctl_loss, ctl_recap)
+        print(f"| {r['match']} | {r['scenario']} | {et} | {eh:.0f} | {eg} | {el}/{er} | "
+              f"{ct} | {ch:.0f} | {cg} | {cl}/{cr} |")
+
+    def med(x): return statistics.median(x) if x else 0
+
+    e_ttfc, c_ttfc = med(exp_ttfc), med(ctl_ttfc)
+    e_hold, c_hold = med(exp_hold), med(ctl_hold)
+    e_gross, c_gross = med(exp_gross), med(ctl_gross)
+    ratio = (c_gross / e_gross) if e_gross else float("inf")
+    print()
+    print(f"- time-to-first-capture median (ticks): exp={e_ttfc} (n={len(exp_ttfc)})  ctl={c_ttfc} (n={len(ctl_ttfc)})")
+    print(f"- hold-seconds median: exp={e_hold:.0f}  ctl={c_hold:.0f}")
+    print(f"- POI gross median: exp={e_gross}  ctl={c_gross}  (ctl/exp ratio={ratio:.2f}x; cf. ~1.9x contested, ~1.0x control)")
+    print(f"- contested churn (loss/recapture totals): exp={sum(exp_loss)}/{sum(exp_recap)}  ctl={sum(ctl_loss)}/{sum(ctl_recap)}")
+
+    # §4.2 decision rule (thresholds are indicative; run over the contested seeds only).
+    def near(a, b, tol=0.12):
+        hi = max(abs(a), abs(b), 1)
+        return abs(a - b) / hi <= tol
+    later = (e_ttfc > c_ttfc) and not near(e_ttfc, c_ttfc)
+    hold_lower = (e_hold < c_hold) and not near(e_hold, c_hold)
+    gross_lower = (e_gross < c_gross) and not near(e_gross, c_gross)
+    churn_hi = sum(exp_loss) + sum(exp_recap) > sum(ctl_loss) + sum(ctl_recap)
+    if later:
+        verdict = "H2 (captured later) -> Option C (race/ferry)"
+    elif hold_lower and gross_lower:
+        verdict = "H1 (held shorter) -> Option A (escort/defense)"
+        if churn_hi:
+            verdict += "; elevated churn -> consider Option B (loses-then-retakes)"
+    elif near(e_ttfc, c_ttfc) and near(e_hold, c_hold) and near(e_gross, c_gross):
+        verdict = "H3 (supporting-army divergence) -> out of lever-1 scope (Stage E/F offense)"
+    else:
+        verdict = "mixed / inconclusive — inspect the per-match table + seeds"
+    print(f"- §4.2 selected hypothesis: {verdict}")
+
+
 if __name__ == "__main__":
     dirs = sys.argv[1:]
     if not dirs:
@@ -128,7 +216,11 @@ if __name__ == "__main__":
         if d.startswith("calib:"):
             d = d[len("calib:"):]
             print(f"\n## CALIBRATION dir: {d}")
-            summarize(load_matches(d), exp_bt="stable", ctl_bt="stable")
+            rows = load_matches(d)
+            summarize(rows, exp_bt="stable", ctl_bt="stable")
+            summarize_4d(rows, exp_bt="stable", ctl_bt="stable")
         else:
             print(f"\n## dir: {d}")
-            summarize(load_matches(d))
+            rows = load_matches(d)
+            summarize(rows)
+            summarize_4d(rows)
