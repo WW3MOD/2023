@@ -451,12 +451,26 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Phase 2: award the win to any surviving combatant whose every hostile is now Lost.
-			foreach (var p in self.World.Players)
+			AwardDecidedSurvivors(self.World);
+		}
+
+		// Award the win to every still-Undefined combatant whose every hostile is now Lost. This is
+		// the single, path-independent win-award: safe to call after ANY defeat — contestation
+		// elimination (above), loss of all required units (ConquestVictoryConditions), surrender, or a
+		// near-simultaneous mutual defeat. It is idempotent (ShouldAwardVictory + MarkCompleted only
+		// touch Undefined/Incomplete state), so re-running it never flips a decided player. Firing it
+		// synchronously the moment a hostile falls is what prevents the "everyone Lost, no winner"
+		// end-screen: the naive alternative — leaving the win to ConquestVictoryConditions.Tick's
+		// next-tick inference — no-ops once the survivor is itself marked Lost, so two defeats landing
+		// in the same tick would resolve both to Lost before either inference ran.
+		public static void AwardDecidedSurvivors(World world)
+		{
+			foreach (var p in world.Players)
 			{
 				if (p.NonCombatant || !p.Playable || p.WinState != WinState.Undefined)
 					continue;
 
-				if (!ShouldAwardVictory(OtherCombatants(p)))
+				if (!ShouldAwardVictory(OtherCombatants(world, p)))
 					continue;
 
 				var mo = p.PlayerActor.TraitOrDefault<MissionObjectives>();
@@ -468,9 +482,9 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// (allied-to-survivor, win-state) for every other combatant — the input to ShouldAwardVictory.
-		IEnumerable<(bool Allied, WinState State)> OtherCombatants(Player survivor)
+		static IEnumerable<(bool Allied, WinState State)> OtherCombatants(World world, Player survivor)
 		{
-			return self.World.Players
+			return world.Players
 				.Where(o => o != survivor && !o.NonCombatant && o.Playable)
 				.Select(o => (survivor.IsAlliedWith(o), o.WinState));
 		}

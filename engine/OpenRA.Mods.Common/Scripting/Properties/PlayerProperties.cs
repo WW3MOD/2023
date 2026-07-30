@@ -68,6 +68,9 @@ namespace OpenRA.Mods.Common.Scripting
 		[Desc("Returns true if the player is non combatant.")]
 		public bool IsNonCombatant => Player.NonCombatant;
 
+		[Desc("The player's win/loss outcome: \"Undefined\", \"Won\", or \"Lost\".")]
+		public string WinState => Player.WinState.ToString();
+
 		[Desc("Returns true if the player is the local player.")]
 		public bool IsLocalPlayer => Player == (Player.World.RenderPlayer ?? Player.World.LocalPlayer);
 
