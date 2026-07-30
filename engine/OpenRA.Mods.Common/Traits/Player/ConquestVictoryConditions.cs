@@ -109,6 +109,15 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var a in player.World.ActorsWithTrait<INotifyOwnerLost>().Where(a => a.Actor.Owner == player))
 				a.Trait.OnOwnerLost(a.Actor);
 
+			// Path-independent win award: the instant any player is defeated, credit any survivor whose
+			// every hostile is now Lost. Tick()'s inference below can't cover a near-simultaneous mutual
+			// defeat — once a survivor is itself marked Lost, its Tick early-returns and never infers the
+			// win — so two defeats in the same tick would otherwise leave EVERY player Lost with no
+			// winner (the "both teams show Lost / mission failed" bug). SupplyRouteContestation only
+			// awarded on its own contestation-elimination path; this closes the sibling paths (loss of
+			// required units, surrender). Runs regardless of TestMode and is idempotent.
+			SupplyRouteContestation.AwardDecidedSurvivors(player.World);
+
 			if (info.SuppressNotifications)
 				return;
 

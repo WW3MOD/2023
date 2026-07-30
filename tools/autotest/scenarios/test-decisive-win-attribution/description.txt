@@ -1,0 +1,1 @@
+REGRESSION: defeating one side must leave exactly one Won + one Lost (no "both Lost, no winner").

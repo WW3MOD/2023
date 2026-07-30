@@ -1,0 +1,7 @@
+World:
+    -StartGameNotification:
+    -SpawnStartingUnits:
+    -MapStartingLocations:
+    -CrateSpawner:
+    LuaScript:
+        Scripts: test-helpers.lua, test-decisive-win-attribution.lua
