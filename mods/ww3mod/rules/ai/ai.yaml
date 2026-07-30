@@ -144,6 +144,20 @@ Player:
 		BelievedDangerSafeMultiplier: 100
 		BelievedDangerMildMultiplier: 60
 		BelievedDangerHostileMultiplier: 20
+		# Lever-4 diagnostics (PIPELINE lever 1, §4.D): two-sided derrick-ownership snapshot each capture scan so
+		# the capture race is legible on BOTH bots (the commit markers only track this player's capturers). Logging
+		# only, no behaviour. Default false on the @stable.tecn twin = its code path is unchanged.
+		CaptureTelemetryEnabled: true
+		# Capture-contest lever (PIPELINE lever 1, Option A): make the HOLD contest-aware. A derrick whose
+		# neighbourhood reads contested (believed anti-ground danger over ContestedDangerThreshold, or the control-field
+		# ring reads Enemy/Contested) gets a LARGER escort on dispatch (4 vs 2) and pre-summons defenders at a LOWER
+		# enemy-value gate ($100 vs $200) so a light re-capture probe is met before it flips the structure. Targets the
+		# measured ~1.9x contested-capture HOLD deficit (WORKSPACE/recon/260729-lever1-capture-contest-design.md §5).
+		# Reads only fog-legal believed fields; zero RNG. Default OFF on the @stable.tecn twin = byte-identical.
+		ContestAwareSupportEnabled: true
+		ContestedEscortSize: 4
+		ContestedDefenseEnemyValueThreshold: 100
+		ContestedDangerThreshold: 40
 
 	# experimental AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
 	# ground army across the top enemy objectives ranked by PoiMap

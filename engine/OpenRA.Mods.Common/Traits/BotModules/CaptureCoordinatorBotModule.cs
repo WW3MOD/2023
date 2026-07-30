@@ -146,6 +146,37 @@ namespace OpenRA.Mods.Common.Traits
 			"envelope). <100 strongly damps sending a capturer into believed fire first. Default 100 = inert.")]
 		public readonly int BelievedDangerHostileMultiplier = 100;
 
+		[Desc("Lever-4 diagnostics (experimental only): each capture scan, emit a TWO-SIDED ownership snapshot —",
+			"for every non-spectating player, the set of income-derrick (CaptureManager) actors it currently owns.",
+			"Integrated over ticks this is the capture-income timeseries proxy that separates 'captured later' from",
+			"'held shorter' and makes the capture race legible on BOTH bots (the [exp-capture] commit markers only",
+			"track this player's own capturers). Diagnostics only — no decision reads it, zero RNG, zero sim effect.",
+			"Default false on the engine class so the @stable twin's code path is unchanged; set only on @experimental.")]
+		public readonly bool CaptureTelemetryEnabled = false;
+
+		[Desc("Contest-aware support (Option A, capture-contest lever): when a capture target's neighbourhood OR an",
+			"owned derrick's neighbourhood reads CONTESTED — believed anti-ground danger above ContestedDangerThreshold,",
+			"or the control-field ring around it reads believed-ENEMY — dispatch ContestedEscortSize escorts instead of",
+			"EscortSize and pre-summon defenders at ContestedDefenseEnemyValueThreshold instead of DefenseEnemyValueThreshold.",
+			"Reads only fog-legal believed fields (DangerFieldLayer / ControlField); zero RNG. Default false on the engine",
+			"class = byte-identical to today; set ONLY on CaptureCoordinatorBotModule@experimental so @stable/normal are frozen.")]
+		public readonly bool ContestAwareSupportEnabled = false;
+
+		[Desc("Escort size for a CONTESTED capture target (see ContestAwareSupportEnabled). Uncontested targets keep",
+			"EscortSize. Only consulted when ContestAwareSupportEnabled; defaults to 2 = today's EscortSize so an",
+			"un-tuned experimental build is unchanged.")]
+		public readonly int ContestedEscortSize = 2;
+
+		[Desc("Minimum enemy army value (engine $) to summon defenders when the owned derrick reads CONTESTED. Set",
+			"BELOW DefenseEnemyValueThreshold to pre-summon before a light re-capture probe crosses the normal gate.",
+			"Only consulted when ContestAwareSupportEnabled; defaults to 200 = today's DefenseEnemyValueThreshold.")]
+		public readonly int ContestedDefenseEnemyValueThreshold = 200;
+
+		[Desc("Believed anti-ground danger (DangerFieldLayer.GroundDanger) above which a target/derrick cell counts as",
+			"CONTESTED for support sizing. On the danger-field throughput scale (NOT the InfluenceMap scale); sits above",
+			"the Stage-C territory baseline so ambient 'deep enemy ground' danger doesn't flag every capture contested.")]
+		public readonly int ContestedDangerThreshold = 40;
+
 		public override object Create(ActorInitializer init) { return new CaptureCoordinatorBotModule(init.Self, this); }
 	}
 
@@ -176,6 +207,19 @@ namespace OpenRA.Mods.Common.Traits
 		// the omniscient InfluenceMap threat baked into the capture score with a fog-legal damp.
 		DangerFieldLayer dangerField;
 		bool dangerFieldResolved;
+
+		// Contest-aware support (Option A): the believed control + anti-ground danger fields, resolved ONLY when
+		// ContestAwareSupportEnabled so the off/@stable path never touches them. Kept separate from `dangerField`
+		// above (which is tied to StrategicCaptureRepointEnabled) so the two levers are independently gated.
+		ControlField contestControlField;
+		DangerFieldLayer contestDangerField;
+		bool contestFieldsResolved;
+
+		// Case-insensitive copy of Info.CapturableActorTypes, built once, so the telemetry hot loop matches actor
+		// names without a per-actor ToLowerInvariant() allocation. Empty stays empty (= match all capturables).
+		HashSet<string> capturableTypesCI;
+		HashSet<string> CapturableTypesForTelemetry =>
+			capturableTypesCI ??= new HashSet<string>(Info.CapturableActorTypes, StringComparer.OrdinalIgnoreCase);
 
 		// LEGACY FALLBACK ONLY (guard not wired): capturers we've already issued
 		// orders to; cleaned when they become idle again. This is the thrash-prone
@@ -307,6 +351,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		void QueueCaptureOrders(IBot bot)
 		{
+			// Lever-4 diagnostics: two-sided derrick-ownership snapshot (see CaptureTelemetryEnabled). Fired before
+			// the capturer-pool early-out so it records the race even on scans where this player has no free capturer.
+			if (Info.CaptureTelemetryEnabled)
+				LogOwnershipSnapshot();
+
 			// PITFALL: CapturingActorTypes is load-bearing even in role mode — it is the on/off switch on the
 			// off/@stable path AND the fallback whenever the resolver is absent or the first-tick rebuild
 			// hasn't run yet (CapturerNames returns it until capturerNames is populated). Emptying it disables
@@ -459,6 +508,45 @@ namespace OpenRA.Mods.Common.Traits
 				IssueCaptureOrder(bot, capturer.Actor, bestTarget, useGuard, escortsRecruitedThisTick, bestScore);
 				alreadyTargetedThisTick.Add(bestTarget);
 				availableCapturers.RemoveAt(0);
+			}
+		}
+
+		// Lever-4 two-sided capture telemetry (diagnostics only, emitted by the @experimental instance). For every
+		// non-spectating player, log the income-derrick (CaptureManager) actors it currently owns. Integrated over
+		// the scan cadence this is the ownership timeseries that distinguishes "captured later" (ownership flips to
+		// us later) from "held shorter" (ownership flips away from us sooner) — the H1-vs-H2 disambiguator the
+		// attribution recon flagged as missing. Ground-truth read, but NOTHING here feeds a bot decision, so the
+		// no-fog-cheating rule (which governs behaviour reads) is not engaged; zero RNG, zero sim side-effect.
+		// SCOPE: the ownership timeseries is the shipped §4.D artifact; the commit-tick/capturer-count half of §4.D
+		// is deliberately deferred (the [exp-capture] issue/commit markers already carry per-dispatch timing).
+		// PERF: a SINGLE world.Actors pass bucketed by owner (not a Where-scan per player), matching names against
+		// the pre-built case-insensitive set so no per-actor string is allocated — telemetry fires every
+		// ScanInterval throughout long benchmark runs, exactly where GC churn hurts.
+		void LogOwnershipSnapshot()
+		{
+			var types = CapturableTypesForTelemetry;
+			var byOwner = new Dictionary<Player, List<Actor>>();
+			foreach (var a in world.Actors)
+			{
+				if (a.IsDead || !a.IsInWorld || !a.Info.HasTraitInfo<CaptureManagerInfo>())
+					continue;
+				if (types.Count > 0 && !types.Contains(a.Info.Name))
+					continue;
+
+				if (!byOwner.TryGetValue(a.Owner, out var list))
+					byOwner[a.Owner] = list = new List<Actor>();
+				list.Add(a);
+			}
+
+			// Emit in world.Players order, skipping spectators — identical output ordering to the per-player scan.
+			foreach (var owner in world.Players)
+			{
+				if (owner.Spectating || !byOwner.TryGetValue(owner, out var derricks))
+					continue;
+
+				var held = string.Join(",", derricks.Select(a => $"{a.Info.Name}#{a.ActorID}@{a.Location}"));
+				Log.Write("debug",
+					$"[exp-capture] ownership-snapshot observer={player.PlayerName} owner={owner.PlayerName} count={derricks.Count} held={held} tick={world.WorldTick}");
 			}
 		}
 
@@ -793,12 +881,67 @@ namespace OpenRA.Mods.Common.Traits
 			return Info.IncomeWeights.TryGetValue(name, out var v) ? v : Info.DefaultIncomeWeight;
 		}
 
+		// Eight cardinal+diagonal unit steps — the control-ring sample directions (fixed order, zero RNG).
+		static readonly (int Dx, int Dy)[] RingDirections =
+		{
+			(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1),
+		};
+
+		// Contest-aware support (Option A): does the neighbourhood of `cell` read CONTESTED from the fog-legal
+		// believed fields? Two signals, either sufficient: (1) believed anti-ground danger over the cell exceeds
+		// ContestedDangerThreshold (a believed weapon envelope actively reaches it); (2) the control-field RING one
+		// step past the anchor footprint reads believed-ENEMY (we think the enemy holds ground next to the derrick).
+		// The ring — not the target's own cell — is sampled because an owned/enemy site anchor floors its own grid
+		// cell (Stage-C), so the own cell is uninformative. ENEMY only (not gray/Contested) is deliberate: a derrick
+		// in unheld no-man's-land is NOT flagged contested, so the larger escort / earlier defense stay SURGICAL to
+		// genuinely disputed derricks (the measured deficit is on the both-capture seeds) rather than inflating
+		// support on every open-ground capture and thinning the offense (the design's combat-net-swing guardrail).
+		// Returns false immediately when the lever is off, so the @stable path never resolves a field and stays
+		// byte-identical. Pure reads, zero RNG.
+		// ACCEPTED GAP: an unescorted WEAPONLESS enemy probe (a lone engineer) trips neither channel — it stamps no
+		// danger kernel and doesn't paint control presence (that needs an armed unit) — so a derrick can be re-taken
+		// by a light probe without the larger escort / earlier defense engaging. Accepted; the 4.D ownership
+		// timeseries reveals derricks lost this way, which would motivate a follow-up lever if it shows up.
+		bool IsContestedNeighbourhood(CPos cell)
+		{
+			if (!Info.ContestAwareSupportEnabled)
+				return false;
+
+			if (!contestFieldsResolved)
+			{
+				contestControlField = world.WorldActor.TraitOrDefault<ControlField>();
+				contestDangerField = world.WorldActor.TraitOrDefault<DangerFieldLayer>();
+				contestFieldsResolved = true;
+			}
+
+			if (contestDangerField != null
+				&& contestDangerField.GroundDanger(player, cell) > Info.ContestedDangerThreshold)
+				return true;
+
+			if (contestControlField != null && contestControlField.HasField(player))
+			{
+				var (gx, gy) = contestControlField.MapCellToGridCell(cell);
+				var r = contestControlField.Info.AnchorRadiusCells + 1;
+				foreach (var (dx, dy) in RingDirections)
+					if (contestControlField.OwnerAt(player, gx + dx * r, gy + dy * r) == ControlOwner.Enemy)
+						return true;
+			}
+
+			return false;
+		}
+
 		void DispatchEscort(IBot bot, Actor capturer, Actor target, HashSet<Actor> alreadyRecruited)
 		{
-			if (Info.EscortSize <= 0)
+			// Contest-aware sizing (Option A): a contested target gets ContestedEscortSize (larger) instead of the
+			// flat EscortSize, so a derrick under believed enemy pressure is not walked in with the same two guards
+			// as an uncontested one. When the lever is off, contested is always false → wantEscort == Info.EscortSize
+			// → byte-identical to today.
+			var contested = IsContestedNeighbourhood(target.Location);
+			var wantEscort = contested ? Info.ContestedEscortSize : Info.EscortSize;
+			if (wantEscort <= 0)
 				return;
 
-			var recruits = FindIdleSupportersNear(capturer.CenterPosition, Info.EscortSize, alreadyRecruited);
+			var recruits = FindIdleSupportersNear(capturer.CenterPosition, wantEscort, alreadyRecruited);
 			if (recruits.Length == 0)
 				return;
 
@@ -807,8 +950,8 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var r in recruits)
 				alreadyRecruited.Add(r);
 
-			AIUtils.BotDebug("AI ({0}): exp-capture — escort dispatched ({1} units → {2})",
-				player.ClientIndex, recruits.Length, target.Info.Name);
+			AIUtils.BotDebug("AI ({0}): exp-capture — escort dispatched ({1} units → {2}, contested={3})",
+				player.ClientIndex, recruits.Length, target.Info.Name, contested);
 		}
 
 		// ============================================================
@@ -841,8 +984,16 @@ namespace OpenRA.Mods.Common.Traits
 				if (enemies.Count == 0)
 					continue;
 
+				// Contest-aware pre-summon (Option A): a derrick whose neighbourhood reads contested triggers
+				// defenders at the lower ContestedDefenseEnemyValueThreshold, so a light re-capture probe below the
+				// normal $200 gate is met before it flips the structure. Lever off ⇒ contested false ⇒ the threshold
+				// is Info.DefenseEnemyValueThreshold ⇒ byte-identical to today.
+				var contested = IsContestedNeighbourhood(structure.Location);
+				var enemyValueThreshold = contested
+					? Info.ContestedDefenseEnemyValueThreshold : Info.DefenseEnemyValueThreshold;
+
 				var enemyValue = enemies.Sum(a => a.GetSellValue());
-				if (enemyValue < Info.DefenseEnemyValueThreshold)
+				if (enemyValue < enemyValueThreshold)
 					continue;
 
 				var friendlies = world.FindActorsInCircle(structure.CenterPosition, friendlyRadius)
