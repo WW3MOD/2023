@@ -1067,28 +1067,22 @@ namespace OpenRA.Mods.Common.Traits
 		// FrontierStandoffMath.RearwardSteps. Deterministic integer geometry, zero random draws.
 		WPos PushEchelonBehindFrontier(WPos anchor, WPos target)
 		{
-			var away = anchor - target;
-			var dist = away.HorizontalLength;
-			if (dist <= 0)
+			// One coarse cell along the dominant axis of the away-from-target bearing (max-norm, so a diagonal
+			// hop still crosses a full coarse cell — no undershoot).
+			var step = FrontierStandoffMath.RearwardStep(anchor - target, WDist.FromCells(controlField.Info.CellSize).Length);
+			if (step == WVec.Zero)
 				return anchor; // degenerate (anchor on the target) — no rearward bearing to walk.
 
-			var stepLen = WDist.FromCells(controlField.Info.CellSize).Length; // one coarse cell
-			var stepX = (int)((long)away.X * stepLen / dist);
-			var stepY = (int)((long)away.Y * stepLen / dist);
-			if (stepX == 0 && stepY == 0)
-				return anchor;
-
 			var maxSteps = Info.MinFrontierDistanceCells + 2; // enough to lift a distance-0 anchor clear, bounded.
-			var steps = FrontierStandoffMath.RearwardSteps(
-				i =>
+			var steps = FrontierStandoffMath.RearwardSteps(anchor, step, Info.MinFrontierDistanceCells, maxSteps,
+				w =>
 				{
-					var w = anchor + new WVec(stepX * i, stepY * i, 0);
 					var (gx, gy) = controlField.MapCellToGridCell(world.Map.CellContaining(w));
 					return controlField.FrontierDistanceAt(player, gx, gy);
 				},
-				Info.MinFrontierDistanceCells, maxSteps);
+				w => world.Map.Contains(world.Map.CellContaining(w)));
 
-			return anchor + new WVec(stepX * steps, stepY * steps, 0);
+			return anchor + new WVec(step.X * steps, step.Y * steps, 0);
 		}
 
 		// Fires EV gate: restore FireAtWill on every held rocket piece that was NOT re-affirmed as held this eval

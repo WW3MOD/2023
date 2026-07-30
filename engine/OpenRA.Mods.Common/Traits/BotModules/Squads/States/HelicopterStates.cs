@@ -196,33 +196,30 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		// Frontier standoff: walk the standoff `cell` rearward — from the target toward the squad (the rear
 		// bearing) — in one-coarse-cell hops until the believed frontier distance reaches minFrontierCells,
 		// bounded by a small step budget so it is never a free search. Keeps the heli standoff BEHIND the
-		// believed front line. The frontier read is the fog-legal ControlField distance-to-enemy-region; the
-		// step-count decision is the pure, NUnit-pinned FrontierStandoffMath.RearwardSteps. Zero random draws.
+		// believed front line. Done in WPos (sub-cell) so a diagonal hop crosses a full coarse cell without the
+		// integer-cell-space undershoot; the shared FrontierStandoffMath helper also halts at the grid boundary
+		// so the engage cell never lands off the playable area. Fog-legal read (ControlField), zero random draws.
 		protected static CPos PushHeliBehindFrontier(Squad owner, ControlField control, CPos cell, CPos target, int minFrontierCells)
 		{
+			var map = owner.World.Map;
 			var player = owner.Bot.Player;
-			var away = owner.Units.First().Location - target; // toward our own rear
-			var len = Exts.ISqrt(away.X * away.X + away.Y * away.Y);
-			if (len <= 0)
+
+			var away = map.CenterOfCell(owner.Units.First().Location) - map.CenterOfCell(target); // toward our own rear
+			var step = FrontierStandoffMath.RearwardStep(away, WDist.FromCells(control.Info.CellSize).Length);
+			if (step == WVec.Zero)
 				return cell;
 
-			var cs = control.Info.CellSize;
-			var stepX = away.X * cs / len;
-			var stepY = away.Y * cs / len;
-			if (stepX == 0 && stepY == 0)
-				return cell;
-
+			var start = map.CenterOfCell(cell);
 			var maxSteps = minFrontierCells + 2; // enough to lift a distance-0 cell clear, bounded.
-			var steps = FrontierStandoffMath.RearwardSteps(
-				i =>
+			var steps = FrontierStandoffMath.RearwardSteps(start, step, minFrontierCells, maxSteps,
+				w =>
 				{
-					var c = new CPos(cell.X + stepX * i, cell.Y + stepY * i);
-					var (gx, gy) = control.MapCellToGridCell(c);
+					var (gx, gy) = control.MapCellToGridCell(map.CellContaining(w));
 					return control.FrontierDistanceAt(player, gx, gy);
 				},
-				minFrontierCells, maxSteps);
+				w => map.Contains(map.CellContaining(w)));
 
-			return new CPos(cell.X + stepX * steps, cell.Y + stepY * steps);
+			return map.CellContaining(start + new WVec(step.X * steps, step.Y * steps, 0));
 		}
 
 		// An air-danger sampler bound to this squad owner's own air channel. Off-map cells read as
