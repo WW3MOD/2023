@@ -242,6 +242,35 @@ namespace OpenRA.Mods.Common.Traits
 			"Sized to the real rocket scatter (much wider than a single rocket's warhead spread). Only read when on.")]
 		public readonly WDist FiresEvClumpRadius = WDist.FromCells(4);
 
+		[Desc("EXPERIMENTAL defence-in-depth echelon (builds on the fires standoff): position each IndirectFire",
+			"piece ECHELONED BEHIND the axis's MainBattle SCREEN line instead of at a ring around the target, so",
+			"artillery stays on the friendly side of the tanks/infantry rather than driving alone to the front. The",
+			"echelon depth behind the screen centroid = max(EchelonMinDepth, (own max weapon range - the screen's",
+			"engagement range) + EchelonBuffer), where the screen's engagement range is the longest weapon reach",
+			"among the axis's non-fires (screen) units; the anchor is that depth behind the screen, offset directly",
+			"away from the target. OVERRIDE: a piece with NO screen on its axis (pure-artillery axis / deliberately",
+			"solo fire tasking) falls back to the target-relative FiresStandoff anchor and goes where the mission",
+			"needs. Rides the FiresStandoff peel-off loop, so it needs FiresStandoff on. OFF by default so the frozen",
+			"@stable twin stays byte-identical; only PoiOffensiveBotModule@experimental turns it on.")]
+		public readonly bool EchelonPositioning = false;
+
+		[Desc("Echelon: additive cushion (WDist) on the range surplus, so a piece sits a touch further back than",
+			"'just barely in range of the front'. Only read when EchelonPositioning is on.")]
+		public readonly WDist EchelonBuffer = WDist.FromCells(1);
+
+		[Desc("Echelon: floor (WDist) on the echelon depth. Holds an indirect-fire piece that does NOT outrange",
+			"the screen (surplus 0) at least this far behind it. Only read when EchelonPositioning is on.")]
+		public readonly WDist EchelonMinDepth = WDist.FromCells(3);
+
+		[Desc("Echelon: hold tolerance (WDist) around the echelon anchor. The piece only repositions when it",
+			"drifts farther than this from its anchor; inside it holds so AutoTarget keeps firing (stops re-order",
+			"chatter as the screen jitters). Only read when EchelonPositioning is on.")]
+		public readonly WDist EchelonTolerance = WDist.FromCells(2);
+
+		[Desc("Echelon: fallback screen engagement range (WDist) used when the axis has a screen but none of its",
+			"screen units carries a live weapon (degenerate). Only read when EchelonPositioning is on.")]
+		public readonly WDist EchelonScreenRangeFallback = WDist.FromCells(5);
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 
@@ -806,9 +835,13 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (fires != null)
 				{
-					OrderFiresStandoff(bot, axis, fires, tick);
+					// The SCREEN is every axis member that is NOT a fires piece — the MainBattle tanks/infantry
+					// the echelon holds artillery behind. Computed before the standoff so OrderFiresStandoff can
+					// anchor each piece relative to it (echelon) or fall back to the target ring (no screen).
 					var firesSet = new HashSet<Actor>(fires);
-					groupUnits = axis.Units.Where(u => !firesSet.Contains(u)).ToList();
+					var screen = axis.Units.Where(u => !firesSet.Contains(u)).ToList();
+					OrderFiresStandoff(bot, axis, fires, screen, tick);
+					groupUnits = screen;
 
 					// Pure-artillery axis: no line group to march. The standoff orders above stand alone.
 					if (groupUnits.Count == 0)
@@ -918,12 +951,40 @@ namespace OpenRA.Mods.Common.Traits
 		// ground twin of the Stage-0 heli standoff. Re-issue is gated so an in-band piece keeps firing
 		// uninterrupted: only (re)order when it must reposition (out of band) or its anchor drifted past
 		// RepathThresholdCells. Deterministic — pure integer geometry, no random draws.
-		void OrderFiresStandoff(IBot bot, Axis axis, List<Actor> fires, int tick)
+		void OrderFiresStandoff(IBot bot, Axis axis, List<Actor> fires, List<Actor> screen, int tick)
 		{
 			var margin = Info.FiresStandoffMargin.Length;
 			var hysteresis = Info.FiresStandoffHysteresis.Length;
 			var floor = Info.FiresStandoffFloor.Length;
 			var repathSq = Info.RepathThresholdCells * Info.RepathThresholdCells;
+
+			// Defence-in-depth echelon (experimental, default off): when a live screen exists, anchor each
+			// piece behind the screen LINE instead of at the target ring. The screen reference is precomputed
+			// once — its centroid (order-independent sum) and its engagement range (order-independent max
+			// weapon reach) — so the per-piece anchors are byte-identical without an ActorID sort. With the
+			// echelon off, or no screen to hide behind, hasScreen stays false and every piece uses the exact
+			// pre-echelon target-standoff path below (byte-identical).
+			var hasScreen = false;
+			var screenLine = WPos.Zero;
+			var screenRange = 0;
+			if (Info.EchelonPositioning && screen != null && screen.Count > 0)
+			{
+				long sx = 0, sy = 0;
+				var maxScreenRange = 0;
+				foreach (var s in screen)
+				{
+					var sp = s.CenterPosition;
+					sx += sp.X;
+					sy += sp.Y;
+					var sr = MaxWeaponRange(s);
+					if (sr > maxScreenRange)
+						maxScreenRange = sr;
+				}
+
+				screenLine = new WPos((int)(sx / screen.Count), (int)(sy / screen.Count), 0);
+				screenRange = maxScreenRange > 0 ? maxScreenRange : Info.EchelonScreenRangeFallback.Length;
+				hasScreen = true;
+			}
 
 			foreach (var u in fires)
 			{
@@ -938,8 +999,22 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				var pos = u.CenterPosition;
-				var anchor = FiresStandoffMath.StandoffAnchor(axis.TargetPos, pos, maxRange, margin, floor);
-				var needs = FiresStandoffMath.NeedsReposition(axis.TargetPos, pos, maxRange, margin, hysteresis, floor);
+
+				// Echelon when there is a screen to hide behind; otherwise the target-relative standoff (the
+				// override: a solo / no-screen fires tasking goes where the mission needs it).
+				WPos anchor;
+				bool needs;
+				if (hasScreen)
+				{
+					var depth = EchelonMath.EchelonDepth(maxRange, screenRange, Info.EchelonBuffer.Length, Info.EchelonMinDepth.Length);
+					anchor = EchelonMath.EchelonAnchor(screenLine, axis.TargetPos, depth);
+					needs = EchelonMath.NeedsReposition(anchor, pos, Info.EchelonTolerance.Length);
+				}
+				else
+				{
+					anchor = FiresStandoffMath.StandoffAnchor(axis.TargetPos, pos, maxRange, margin, floor);
+					needs = FiresStandoffMath.NeedsReposition(axis.TargetPos, pos, maxRange, margin, hysteresis, floor);
+				}
 
 				// Clamp the anchor to a cell the piece can actually stand on (mirrors the group path's
 				// WaypointPassable guard). An impassable anchor would degrade the AttackMove to some
