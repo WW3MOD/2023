@@ -30,7 +30,7 @@ Player:
 		Name: Experimental AI
 		Type: experimental
 	ModularBot@stable:
-		Name: Stable AI
+		Name: Stable AI 0730
 		Type: stable
 
 	# Both surviving bots inherit the shared baseline (enable-ai-player / enable-ai-any).
