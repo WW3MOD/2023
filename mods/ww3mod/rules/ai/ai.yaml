@@ -368,6 +368,14 @@ Player:
 		# anti-vehicle->MainBattle/IndirectFire, anti-infantry->+Recon) before drawing. No new RNG draws;
 		# every unit above already classifies into its pool today. Off on the frozen @stable twin.
 		UseUnitRoles: true
+		# SR-DEFENSE: read the belief-based ground-danger field near our own Supply Route; when armor is
+		# closing on the beachhead (peak danger >= threshold), call in AT infantry -> Bradley (TOW) -> Abrams
+		# in that order, BYPASSING MinEnemySightings. Threshold is on the DangerFieldLayer throughput scale
+		# and near our own SR the territory baseline is ~0, so this fires only on a real armored threat.
+		# Deterministic (no random draw). Off on the frozen @stable twin (threshold defaults 0).
+		SupplyRouteDangerThreshold: 100
+		SupplyRouteScanRadius: 8
+		SupplyRouteDefenseUnits: at.america, bradley, abrams
 
 	AdaptiveProductionBotModule@experimental.russia:
 		RequiresCondition: enable-ai-experimental && player.brics
@@ -381,6 +389,14 @@ Player:
 		# anti-vehicle->MainBattle/IndirectFire, anti-infantry->+Recon) before drawing. No new RNG draws;
 		# every unit above already classifies into its pool today. Off on the frozen @stable twin.
 		UseUnitRoles: true
+		# SR-DEFENSE: read the belief-based ground-danger field near our own Supply Route; when armor is
+		# closing on the beachhead (peak danger >= threshold), call in AT infantry -> BMP-2 (ATGM) -> T-90
+		# in that order, BYPASSING MinEnemySightings. Threshold is on the DangerFieldLayer throughput scale
+		# and near our own SR the territory baseline is ~0, so this fires only on a real armored threat.
+		# Deterministic (no random draw). Off on the frozen @stable twin (threshold defaults 0).
+		SupplyRouteDangerThreshold: 100
+		SupplyRouteScanRadius: 8
+		SupplyRouteDefenseUnits: at.russia, bmp2, t90
 
 	# experimental doctrine — Stage B.1: layered defence placement, reserve-driven.
 	#
