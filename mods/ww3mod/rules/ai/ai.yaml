@@ -247,6 +247,18 @@ Player:
 		# exempt and may engage singles. Rides the FiresStandoff loop, so it needs FiresStandoff on (above).
 		# Experimental-only; @stable twin leaves it off (byte-identical).
 		FiresEvGate: true
+		# Defence-in-depth echelon (builds on FiresStandoff): position each IndirectFire piece BEHIND the axis's
+		# MainBattle screen (tanks/infantry) rather than at a ring around the target, so artillery stops driving
+		# alone to the front and dying. Depth behind the screen centroid = max(EchelonMinDepth, (own max weapon
+		# range - the screen's longest weapon reach) + EchelonBuffer); the anchor is that far behind the screen,
+		# offset away from the target. Override: a piece with NO screen on its axis (pure-artillery axis / solo
+		# fire tasking) falls back to the target-relative FiresStandoff anchor. Needs FiresStandoff on (above).
+		# Experimental-only; @stable twin (which lacks these fields) stays byte-identical.
+		EchelonPositioning: true
+		EchelonBuffer: 1c0
+		EchelonMinDepth: 3c0
+		EchelonTolerance: 2c0
+		EchelonScreenRangeFallback: 5c0
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
