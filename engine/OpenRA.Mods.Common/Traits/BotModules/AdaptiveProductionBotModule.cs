@@ -46,25 +46,38 @@ namespace OpenRA.Mods.Common.Traits
 			"behaviour, so the @stable/legacy twins stay byte-identical.")]
 		public readonly bool UseUnitRoles = false;
 
-		[Desc("SR-DEFENSE (experimental): believed anti-ground danger near our own Supply Route at or",
-			"above which we push prioritized anti-armor call-ins, BYPASSING MinEnemySightings (a 2-tank",
-			"rush = 2 sightings never trips MinEnemySightings=3). On the DangerFieldLayer throughput scale;",
-			"a tank's danger kernel is far denser than infantry, so a value above ambient/light-infantry",
-			"noise makes this fire on ARMOR near the SR. Near our own SR the territory baseline is ~0, so",
-			"any real reading here is a believed enemy weapon actually reaching the beachhead. Default 0 =",
-			"disabled: the @stable/frozen twin never enters the SR-defense path -> byte-identical, zero new RNG.")]
-		public readonly int SupplyRouteDangerThreshold = 0;
+		[Desc("SR-DEFENSE (experimental) master gate. When on, believed enemy contacts near our own Supply",
+			"Route(s) are classified by attacker class (air/armor/infantry) and the MATCHED counter pool",
+			"(AntiAirUnits / AntiVehicleUnits / AntiInfantryUnits) is called in, BYPASSING MinEnemySightings",
+			"(a 2-tank rush = 2 sightings never trips MinEnemySightings=3). Reads the fog-legal belief store",
+			"(same source the danger field stamps from), so it carries actor identity — classification, not a",
+			"scalar danger read, so an anti-air threat buys AA (not AT) and light infantry never draws AT.",
+			"Default false: the @stable/frozen twin never enters this path -> byte-identical, zero new RNG.")]
+		public readonly bool SupplyRouteDefenseEnabled = false;
 
-		[Desc("SR-DEFENSE: Chebyshev radius (cells) around our Supply Route to sample for ground danger.")]
-		public readonly int SupplyRouteScanRadius = 8;
+		[Desc("SR-DEFENSE: Chebyshev cell radius around each owned Supply Route within which a believed enemy",
+			"contact counts as an SR threat. Contact cells are read directly (no danger-kernel tail), so this",
+			"is a literal proximity radius.")]
+		public readonly int SupplyRouteScanRadius = 10;
 
-		[Desc("SR-DEFENSE: anti-armor units to call in, IN PRIORITY ORDER (AT infantry first, then IFV/tank),",
-			"when the SR is under armored threat. Requested deterministically in this order (no random draw).",
-			"Empty = off.")]
-		public readonly string[] SupplyRouteDefenseUnits = System.Array.Empty<string>();
+		[Desc("SR-DEFENSE: believed enemy ARMOR value near the SR at or above which we call in an anti-armor",
+			"counter. Value = sum over believed armored contacts of (unit build cost * confidence / 100), on",
+			"the unit-cost scale (mirrors the DefenseEnemyValueThreshold $-value convention). Set above a lone",
+			"light-recon vehicle so a scout does not draw a counter; a fresh IFV/MBT or a 2-tank rush trips it.")]
+		public readonly int SupplyRouteArmorValueThreshold = 1200;
 
-		[Desc("SR-DEFENSE: actor name(s) of our Supply Route beachhead, used to locate it on the map.",
-			"Mirrors MountedTransportBotModuleInfo.SupplyRouteTypes.")]
+		[Desc("SR-DEFENSE: believed enemy AIR value threshold -> anti-air counter (AA infantry / SHORAD / Tunguska).",
+			"Aircraft are expensive, so a single attack aircraft near the SR trips this.")]
+		public readonly int SupplyRouteAirValueThreshold = 1000;
+
+		[Desc("SR-DEFENSE: believed enemy INFANTRY value threshold -> anti-infantry counter. Set high enough that",
+			"a lone scout does not trip it (needs a real squad) — this restores, per class, the anti-overreaction",
+			"the MinEnemySightings gate provided.")]
+		public readonly int SupplyRouteInfantryValueThreshold = 1000;
+
+		[Desc("SR-DEFENSE: actor name(s) of our Supply Route beachhead(s), used to locate them on the map.",
+			"Mirrors MountedTransportBotModuleInfo.SupplyRouteTypes. ALL owned SRs are scanned (capture can",
+			"grant more than one).")]
 		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
 
 		public override object Create(ActorInitializer init) { return new AdaptiveProductionBotModule(init.Self, this); }
@@ -87,7 +100,7 @@ namespace OpenRA.Mods.Common.Traits
 		BotBlackboard blackboard;
 		IBotRequestUnitProduction[] unitProducers;
 		UnitRoleResolver resolver;
-		DangerFieldLayer dangerField;
+		BeliefStore beliefStore;
 		int evalCountdown;
 		bool initialized;
 
@@ -117,10 +130,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.UseUnitRoles)
 				resolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
 
-			// SR-defense reads the belief-based danger field only when enabled (threshold > 0).
-			// Left null on the frozen path, so @stable never touches the field or its trait lookup.
-			if (Info.SupplyRouteDangerThreshold > 0)
-				dangerField = world.WorldActor.TraitOrDefault<DangerFieldLayer>();
+			// SR-defense reads the fog-legal belief store only when enabled. Left null on the frozen
+			// path, so @stable never touches the store or its trait lookup.
+			if (Info.SupplyRouteDefenseEnabled)
+				beliefStore = world.WorldActor.TraitOrDefault<BeliefStore>();
 
 			initialized = true;
 		}
@@ -143,14 +156,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			var totalSightings = enemyVehicles + enemyInfantry;
 
-			// SR-DEFENSE (experimental): read the fog-legal believed ground-danger field near our own
-			// Supply Route and, when armored threat is closing on the beachhead, push deliberate
-			// prioritized anti-armor call-ins AHEAD of the static composition — BYPASSING the
-			// MinEnemySightings gate below (2 rushing tanks = 2 sightings never trips it). Frozen when
-			// SupplyRouteDangerThreshold <= 0, so the @stable twin skips the whole block (dangerField is
-			// null there) and stays byte-identical — zero new RNG on any path.
+			// SR-DEFENSE (experimental): classify believed enemy contacts near our own Supply Route(s)
+			// and call in the MATCHED counter (armor->AntiVehicle, air->AntiAir, infantry->AntiInfantry)
+			// AHEAD of the static composition — BYPASSING the MinEnemySightings gate below (2 rushing
+			// tanks = 2 sightings never trips it). Reserves AT MOST ONE request/cycle so the scouted-
+			// composition path below is never starved. Frozen when SupplyRouteDefenseEnabled is false,
+			// so the @stable twin skips the whole block (beliefStore is null there) and stays
+			// byte-identical — zero new RNG on any path.
 			var requestsMade = 0;
-			if (Info.SupplyRouteDangerThreshold > 0)
+			if (Info.SupplyRouteDefenseEnabled)
 				requestsMade = TrySupplyRouteDefense();
 
 			if (requestsMade >= Info.MaxRequestsPerCycle)
@@ -234,46 +248,82 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		// Deterministic, fog-legal SR defense. Samples the believed anti-ground danger field within a
-		// Chebyshev radius of our own Supply Route; if the peak exceeds SupplyRouteDangerThreshold
-		// (armor-weighted — a tank's kernel is far denser than infantry) it requests the configured
-		// anti-armor units IN DECLARED PRIORITY ORDER (AT infantry first, then IFV/tank). No random draw:
-		// fixed iteration over ActiveCells + the ordered unit list, integer compares only.
+		enum ThreatClass { None, Air, Armor, Infantry }
+
+		// Deterministic, fog-legal SR defense. Classifies believed enemy contacts within
+		// SupplyRouteScanRadius of ANY owned Supply Route by attacker class, accumulating believed VALUE
+		// (unit build cost * confidence / 100) per class, and calls in the MATCHED counter for the single
+		// most-threatening class over its per-class value threshold. Reserves AT MOST ONE request/cycle
+		// (FIX 4a — never starves the scouted-composition path). Zero RNG: additive value sums are
+		// order-independent, the class pick uses a fixed evaluation order with a strict-greater tie-break,
+		// and the counter is the cheapest buildable in the matched pool (stable cost+name ordering).
 		int TrySupplyRouteDefense()
 		{
-			if (dangerField == null || Info.SupplyRouteDefenseUnits.Length == 0)
+			if (beliefStore == null)
 				return 0;
 
-			var ownSR = world.Actors.FirstOrDefault(a =>
-				a.Owner == player && !a.IsDead && a.IsInWorld
-				&& Info.SupplyRouteTypes.Contains(a.Info.Name));
-			if (ownSR == null)
+			// All owned Supply Routes (capture can grant more than one) — FIX 4b.
+			var srCells = new List<CPos>();
+			foreach (var a in world.Actors)
+				if (a.Owner == player && !a.IsDead && a.IsInWorld && Info.SupplyRouteTypes.Contains(a.Info.Name))
+					srCells.Add(a.Location);
+
+			if (srCells.Count == 0)
 				return 0;
 
-			var srCell = ownSR.Location;
-			var peakDanger = 0;
-			foreach (var c in dangerField.ActiveCells(player))
+			// Believed enemy value per attacker class within reach of any owned SR.
+			long airValue = 0, armorValue = 0, infantryValue = 0;
+			foreach (var c in beliefStore.Contacts(player))
 			{
-				if (Math.Max(Math.Abs(c.X - srCell.X), Math.Abs(c.Y - srCell.Y)) > Info.SupplyRouteScanRadius)
+				if (c.IsStatic || !NearAnySupplyRoute(c.Cell, srCells))
 					continue;
 
-				var d = dangerField.GroundDanger(player, c);
-				if (d > peakDanger)
-					peakDanger = d;
+				if (!world.Map.Rules.Actors.TryGetValue(c.TypeName, out var ai))
+					continue;
+
+				var value = (long)UnitCost(ai) * c.Confidence / 100;
+				if (value <= 0)
+					continue;
+
+				switch (ClassifyContact(ai))
+				{
+					case ThreatClass.Air: airValue += value; break;
+					case ThreatClass.Armor: armorValue += value; break;
+					case ThreatClass.Infantry: infantryValue += value; break;
+				}
 			}
 
-			if (peakDanger < Info.SupplyRouteDangerThreshold)
+			// Pick the single most-threatening class over its threshold. Fixed evaluation order with a
+			// strict-greater comparison makes ties deterministic (earlier-listed class wins): Air first
+			// (only AA can answer it), then Armor, then Infantry.
+			HashSet<string> pool = null;
+			var bestExcess = -1L;
+			foreach (var cand in new[]
+			{
+				(Excess: airValue - Info.SupplyRouteAirValueThreshold, Pool: Info.AntiAirUnits),
+				(Excess: armorValue - Info.SupplyRouteArmorValueThreshold, Pool: Info.AntiVehicleUnits),
+				(Excess: infantryValue - Info.SupplyRouteInfantryValueThreshold, Pool: Info.AntiInfantryUnits),
+			})
+			{
+				if (cand.Excess >= 0 && cand.Excess > bestExcess)
+				{
+					bestExcess = cand.Excess;
+					pool = cand.Pool;
+				}
+			}
+
+			if (pool == null || pool.Count == 0)
 				return 0;
 
-			var made = 0;
-			foreach (var unit in Info.SupplyRouteDefenseUnits)
+			// Cheapest buildable counter first (AT infantry before tanks, AA infantry before SHORAD),
+			// name-ordinal tie-break — deterministic, no random draw.
+			var ordered = pool
+				.Where(u => world.Map.Rules.Actors.ContainsKey(u))
+				.OrderBy(u => UnitCost(world.Map.Rules.Actors[u]))
+				.ThenBy(u => u, StringComparer.Ordinal);
+
+			foreach (var unit in ordered)
 			{
-				if (made >= Info.MaxRequestsPerCycle)
-					break;
-
-				if (!world.Map.Rules.Actors.ContainsKey(unit))
-					continue;
-
 				// Don't stack more than a couple of the same call-in (mirrors the static-counter cap below).
 				var alreadyRequested = unitProducers.Sum(up => up.RequestedProductionCount(bot, unit));
 				if (alreadyRequested >= 2)
@@ -282,12 +332,39 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var up in unitProducers)
 				{
 					up.RequestUnitProduction(bot, unit);
-					made++;
-					break;
+					return 1; // Reserve at most ONE slot per cycle for SR defense.
 				}
 			}
 
-			return made;
+			return 0;
+		}
+
+		bool NearAnySupplyRoute(CPos cell, List<CPos> srCells)
+		{
+			foreach (var sr in srCells)
+				if (Math.Max(Math.Abs(cell.X - sr.X), Math.Abs(cell.Y - sr.Y)) <= Info.SupplyRouteScanRadius)
+					return true;
+
+			return false;
+		}
+
+		static ThreatClass ClassifyContact(ActorInfo ai)
+		{
+			// Classify by the ENEMY unit's own type, not by what its weapon can target — so an attack
+			// helicopter is AIR (answered by AA), never ground (which would draw AT it cannot use).
+			if (ai.HasTraitInfo<AircraftInfo>())
+				return ThreatClass.Air;
+
+			if (!ai.HasTraitInfo<MobileInfo>())
+				return ThreatClass.None; // structures / immobile — not a mobile SR threat.
+
+			return ai.HasTraitInfo<Render.WithInfantryBodyInfo>() ? ThreatClass.Infantry : ThreatClass.Armor;
+		}
+
+		static int UnitCost(ActorInfo ai)
+		{
+			var valued = ai.TraitInfoOrDefault<ValuedInfo>();
+			return valued?.Cost ?? 0;
 		}
 
 		int CountOwnUnits(HashSet<string> unitTypes)
