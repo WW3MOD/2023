@@ -56,6 +56,12 @@
  * verdict is self-describing (traceable to its seed without index arithmetic). The
  * bot-decision stream is a documented pure function of this seed:
  * localSeed = (int)(seed * 6364136223846793005 + 1442695040888963407).
+ * v6 (additive, schema-stable): Option 4.D capture-contest + income telemetry, ALL
+ * OBSERVATION-ONLY (spec WORKSPACE/recon/260729-4d-instrumentation-spec.md). Adds per-player
+ * stats scalars (time_to_first_capture_tick, hold_ticks, captures/steals/recaptures/losses
+ * counts, poi_income_gross), a top-level "capture_events" stream, and per-player
+ * "income_samples" timeseries (the latter gated by EmitTimeseries, default true). Nothing
+ * feeds a scorer/win rule, draws RNG, or mutates sim state — byte-identical simulation.
  *
  * See:
  *   WORKSPACE/plans/260511_ai_tournament_harness.md
@@ -84,6 +90,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Tick interval between win-rule evaluations. Default 25 = once per second.")]
 		public readonly int EvaluationInterval = 25;
 
+		[Desc("Option 4.D: tick interval between POI income-timeseries samples. Default 25 = 1s.")]
+		public readonly int PoiSampleInterval = 25;
+
+		[Desc("Option 4.D: emit the per-player income_samples timeseries arrays into result.json.",
+			"Scalars and the capture_events stream are always emitted; this only gates the (larger)",
+			"per-tick sample arrays. Observation-only either way — never affects the simulation.")]
+		public readonly bool EmitTimeseries = true;
+
 		public override object Create(ActorInitializer init) { return new BotVsBotMatchWatcher(this); }
 	}
 
@@ -107,6 +121,13 @@ namespace OpenRA.Mods.Common.Traits
 		// BEFORE SpawnMapActors creates the actor instances. See PITFALLS.md §11.
 		bool srDiscoveryDone;
 		Action<string> diag;
+
+		// Option 4.D (observation-only). Seeded on the first POI poll; transient per-tick buffers
+		// reused to avoid per-tick allocations. sampleCountdown paces the income timeseries.
+		bool poiSeedDone;
+		int sampleCountdown;
+		readonly HashSet<uint> liveThisTick = new HashSet<uint>();
+		readonly List<uint> deadThisTick = new List<uint>();
 
 		public BotVsBotMatchWatcher(BotVsBotMatchWatcherInfo info)
 		{
@@ -166,6 +187,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				active = true;
 				countdown = info.EvaluationInterval;
+				sampleCountdown = info.PoiSampleInterval;
 			}
 			catch (Exception e)
 			{
@@ -240,6 +262,16 @@ namespace OpenRA.Mods.Common.Traits
 			// integral covers every tick, not just evaluation intervals.
 			AccumulateGrossIncome();
 
+			// Option 4.D telemetry — all observation-only, run every tick before the eval gate so
+			// capture events resolve at exact ticks and the POI income integral covers every tick.
+			PollPoiOwnership(self.World);
+			AccumulatePoiIncome();
+			if (--sampleCountdown <= 0)
+			{
+				sampleCountdown = info.PoiSampleInterval;
+				SamplePoiIncome(self.World.WorldTick);
+			}
+
 			if (--countdown > 0)
 				return;
 			countdown = info.EvaluationInterval;
@@ -287,22 +319,201 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// Option 4.D (spec §3.1) — read-only two-sided POI ownership poll. Seeds the tracked POI
+		// set on first call, then each tick classifies ownership transitions of CashTrickler-bearing
+		// income POIs, appends them to the capture-event stream, and accrues per-bot hold time.
+		// Writes ONLY to MatchTrackingState (its own observer state); reads actor.Owner/Info.Name;
+		// mutates no actor/player/trait state and draws no RNG. ActorsWithTrait iteration order is
+		// sim-irrelevant here — it can only change the order of appended log records, never a
+		// decision (spec §5), and hold/income aggregates are order-independent sums.
+		void PollPoiOwnership(World world)
+		{
+			if (!poiSeedDone)
+			{
+				poiSeedDone = true;
+
+				foreach (var tp in world.ActorsWithTrait<CashTrickler>())
+				{
+					var a = tp.Actor;
+					state.PoiOwner[a.ActorID] = a.Owner;
+					state.PoiType[a.ActorID] = a.Info.Name;
+					state.PoiActorTypes.Add(a.Info.Name);
+					if (a.Owner != null && state.OriginalSrOwner.ContainsKey(a.Owner))
+						GetPastOwners(a.ActorID).Add(a.Owner);
+				}
+
+				diag?.Invoke($"FirstTick: seeded {state.PoiOwner.Count} income POIs (types: {string.Join(",", state.PoiActorTypes)})");
+				return; // seed tick: initial owners are Neutral, so no transitions and no bot hold yet
+			}
+
+			liveThisTick.Clear();
+			foreach (var tp in world.ActorsWithTrait<CashTrickler>())
+			{
+				var a = tp.Actor;
+				var id = a.ActorID;
+				var owner = a.Owner;
+				liveThisTick.Add(id);
+
+				if (!state.PoiOwner.TryGetValue(id, out var prev))
+				{
+					// A POI that appeared after the seed tick (not expected in this model). Register
+					// it without emitting an event so subsequent transitions classify correctly.
+					state.PoiOwner[id] = owner;
+					state.PoiType[id] = a.Info.Name;
+					state.PoiActorTypes.Add(a.Info.Name);
+					prev = owner;
+				}
+				else if (owner != prev)
+				{
+					var oldWasNeutral = prev == null || prev.NonCombatant;
+					var oldWasTrackedBot = prev != null && prev != owner && state.OriginalSrOwner.ContainsKey(prev);
+					var newPreviouslyOwned = owner != null
+						&& state.PoiPastBotOwners.TryGetValue(id, out var past) && past.Contains(owner);
+					var evt = PoiEventClassifier.Classify(oldWasNeutral, newPreviouslyOwned, oldWasTrackedBot);
+
+					state.CaptureEvents.Add(new PoiCaptureEvent
+					{
+						Tick = world.WorldTick,
+						PoiId = id,
+						PoiType = state.PoiType.TryGetValue(id, out var pt) ? pt : a.Info.Name,
+						OldOwner = OwnerIndex(prev),
+						NewOwner = OwnerIndex(owner),
+						Event = evt,
+					});
+
+					state.PoiOwner[id] = owner;
+					if (owner != null && state.OriginalSrOwner.ContainsKey(owner))
+						GetPastOwners(id).Add(owner);
+				}
+
+				// Live hold accrual: credit the current owner one tick if it is a tracked bot.
+				if (owner != null && state.OriginalSrOwner.ContainsKey(owner))
+					state.PoiHoldTicks[owner] = state.PoiHoldTicksFor(owner) + 1;
+			}
+
+			// Destruction sweep (spec §2.3): a tracked POI no longer live left the world (its husk
+			// carries no CashTrickler, verified at spec time). Emit `destroyed` if a bot held it —
+			// closing that owner's hold implicitly, since it stops accruing — then drop it.
+			deadThisTick.Clear();
+			foreach (var kv in state.PoiOwner)
+				if (!liveThisTick.Contains(kv.Key))
+					deadThisTick.Add(kv.Key);
+
+			foreach (var id in deadThisTick)
+			{
+				var prev = state.PoiOwner[id];
+				if (prev != null && state.OriginalSrOwner.ContainsKey(prev))
+				{
+					state.CaptureEvents.Add(new PoiCaptureEvent
+					{
+						Tick = world.WorldTick,
+						PoiId = id,
+						PoiType = state.PoiType.TryGetValue(id, out var pt) ? pt : "",
+						OldOwner = OwnerIndex(prev),
+						NewOwner = -1,
+						Event = PoiEventClassifier.Destroyed,
+					});
+				}
+
+				state.PoiOwner.Remove(id);
+				state.PoiType.Remove(id);
+				state.PoiPastBotOwners.Remove(id);
+			}
+		}
+
+		HashSet<Player> GetPastOwners(uint id)
+		{
+			if (!state.PoiPastBotOwners.TryGetValue(id, out var set))
+			{
+				set = new HashSet<Player>();
+				state.PoiPastBotOwners[id] = set;
+			}
+
+			return set;
+		}
+
+		// ClientIndex for owner fields; -1 for Neutral / any non-combatant (spec §2.1).
+		static int OwnerIndex(Player p) => (p == null || p.NonCombatant) ? -1 : p.ClientIndex;
+
+		// Option 4.D (spec §3.2) — read-only per-player POI-ONLY gross-income integrator. The
+		// POI-filtered twin of AccumulateGrossIncome: sums only IncomeEntries whose ActorType is a
+		// CashTrickler-bearing type (PoiActorTypes, the single source of truth), then feeds the same
+		// GrossIncomeIntegrator. Reads only; mutates no sim state.
+		void AccumulatePoiIncome()
+		{
+			foreach (var p in state.OriginalSrOwner.Keys)
+			{
+				var pr = p.PlayerActor?.TraitOrDefault<PlayerResources>();
+				if (pr == null)
+					continue;
+
+				var rate = 0f;
+				foreach (var e in pr.IncomeEntries)
+					if (state.PoiActorTypes.Contains(e.ActorType))
+						rate += e.AmountPerInterval;
+
+				if (!state.PoiIncome.TryGetValue(p, out var integrator))
+				{
+					integrator = new Tournament.GrossIncomeIntegrator();
+					state.PoiIncome[p] = integrator;
+				}
+
+				integrator.Tick(rate, pr.Info.PassiveIncomeInterval);
+			}
+		}
+
+		// Option 4.D (spec §2.2) — append one income-timeseries sample per tracked player. Pure
+		// reads: the instantaneous POI income rate, the running POI-only gross integral, and the
+		// count of POIs currently owned (from the poll's PoiOwner map).
+		void SamplePoiIncome(int tick)
+		{
+			foreach (var p in state.OriginalSrOwner.Keys)
+			{
+				var pr = p.PlayerActor?.TraitOrDefault<PlayerResources>();
+
+				var rate = 0f;
+				if (pr != null)
+					foreach (var e in pr.IncomeEntries)
+						if (state.PoiActorTypes.Contains(e.ActorType))
+							rate += e.AmountPerInterval;
+
+				var count = 0;
+				foreach (var kv in state.PoiOwner)
+					if (kv.Value == p)
+						count++;
+
+				if (!state.IncomeSamples.TryGetValue(p, out var list))
+				{
+					list = new List<IncomeSample>();
+					state.IncomeSamples[p] = list;
+				}
+
+				list.Add(new IncomeSample
+				{
+					Tick = tick,
+					IncomeRate = (long)rate,
+					IncomeGross = state.PoiIncomeFor(p),
+					PoiCount = count,
+				});
+			}
+		}
+
 		void WriteVerdictAndExit(MatchVerdict verdict)
 		{
-			var json = SerializeVerdict(verdict, state, capturedSeed);
+			var json = SerializeVerdict(verdict, state, capturedSeed, info.EmitTimeseries);
 			TestMode.WriteResult("pass", json);
 
 			Log.Write("debug", $"[Tournament] match ended at tick {verdict.EndTick}: winner={verdict.Winner?.PlayerName ?? "<none>"} reason={verdict.Reason}");
 			Game.Exit();
 		}
 
-		static string SerializeVerdict(MatchVerdict verdict, MatchTrackingState state, int seed)
+		static string SerializeVerdict(MatchVerdict verdict, MatchTrackingState state, int seed, bool emitTimeseries)
 		{
 			// Manual JSON build (no System.Text.Json dependency on the engine project).
 			// Embedded inside TestMode's `notes` string field — escaping done by TestMode.WriteResult.
 			var sb = new StringBuilder();
 			sb.Append("{");
-			sb.Append("\"verdict_version\":5,");
+			sb.Append("\"verdict_version\":6,");
 			sb.Append($"\"seed\":{seed},");
 			sb.Append($"\"duration_ticks\":{verdict.EndTick},");
 			sb.Append($"\"winner_client_index\":{verdict.Winner?.ClientIndex ?? -1},");
@@ -358,13 +569,56 @@ namespace OpenRA.Mods.Common.Traits
 				sb.Append($"\"resources_earned\":{playerResources?.Earned ?? 0},");
 				// v3: cumulative GROSS building income (pre-upkeep) — the S1 economy metric.
 				// resources_earned above (net) is unchanged and kept for context.
-				sb.Append($"\"capture_income_gross\":{state.GrossCaptureIncomeFor(player)}");
+				sb.Append($"\"capture_income_gross\":{state.GrossCaptureIncomeFor(player)},");
+
+				// v6 (Option 4.D): per-side capture-contest + POI income rollups, computed from the
+				// observation-only capture-event stream + live hold/income accumulators. Additive.
+				var roll = PoiRollup.Compute(state.CaptureEvents, player.ClientIndex);
+				sb.Append($"\"time_to_first_capture_tick\":{roll.FirstCaptureTick},");
+				sb.Append($"\"hold_ticks\":{state.PoiHoldTicksFor(player)},");
+				sb.Append($"\"captures_count\":{roll.Captures},");
+				sb.Append($"\"steals_count\":{roll.Steals},");
+				sb.Append($"\"recaptures_count\":{roll.Recaptures},");
+				sb.Append($"\"losses_count\":{roll.Losses},");
+				sb.Append($"\"poi_income_gross\":{state.PoiIncomeFor(player)}");
 				sb.Append("}");
+
+				// v6: per-player income timeseries (spec §2.2), gated by EmitTimeseries.
+				if (emitTimeseries)
+				{
+					sb.Append(",\"income_samples\":[");
+					if (state.IncomeSamples.TryGetValue(player, out var samples))
+					{
+						var sFirst = true;
+						foreach (var s in samples)
+						{
+							if (!sFirst) sb.Append(",");
+							sFirst = false;
+							sb.Append($"{{\"tick\":{s.Tick},\"poi_income_rate\":{s.IncomeRate},\"poi_income_gross\":{s.IncomeGross},\"poi_count\":{s.PoiCount}}}");
+						}
+					}
+
+					sb.Append("]");
+				}
 
 				sb.Append("}");
 			}
 
-			sb.Append("]}");
+			sb.Append("]"); // close players array
+
+			// v6: top-level two-sided capture-event stream (spec §2.1), appended in tick order.
+			sb.Append(",\"capture_events\":[");
+			var eFirst = true;
+			foreach (var ev in state.CaptureEvents)
+			{
+				if (!eFirst) sb.Append(",");
+				eFirst = false;
+				sb.Append($"{{\"tick\":{ev.Tick},\"poi_id\":{ev.PoiId},\"poi_type\":\"{Escape(ev.PoiType)}\",\"old_owner\":{ev.OldOwner},\"new_owner\":{ev.NewOwner},\"event\":\"{Escape(ev.Event)}\"}}");
+			}
+
+			sb.Append("]");
+
+			sb.Append("}");
 			return sb.ToString();
 		}
 
