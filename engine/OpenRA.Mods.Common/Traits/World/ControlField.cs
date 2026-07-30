@@ -153,6 +153,21 @@ namespace OpenRA.Mods.Common.Traits
 			return ControlOwner.Contested;
 		}
 
+		/// <summary>The FRONTLINE is the boundary of the believed-ENEMY region — the forward line of
+		/// contact. A cell is "enemy side" when its control score classifies Enemy (score &lt; −grayBand,
+		/// exactly the red wash); everything else — believed-ours AND the CONTESTED no-man's-land — is
+		/// "our side" of the front. True when two adjacent cells fall on opposite sides of that split,
+		/// so their shared border is a frontline edge.
+		///
+		/// Keyed on a BINARY half-plane (enemy vs not-enemy), NOT a raw sign flip, on purpose: the
+		/// verified-clear rule relaxes every observed-empty cell to score 0, opening a wide neutral
+		/// buffer between the two armies. A strict +/− sign-flip contour vanishes in that buffer (0 is
+		/// neither sign); a half-plane boundary is ALWAYS a continuous closed contour around the enemy
+		/// region — no gaps — which is what "reliably say where the front line is" needs. Where the two
+		/// territories directly abut (no buffer) this degenerates to the true own/enemy divide.</summary>
+		public static bool IsFrontlineEdge(int scoreA, int scoreB, int grayBand)
+			=> scoreA < -grayBand != scoreB < -grayBand;
+
 		// Decay magnitude toward zero by `percent` (integer, truncates toward zero for both signs).
 		static int Decay(int v, int percent)
 		{

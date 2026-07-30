@@ -100,6 +100,16 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Screen-pixel width of the diagonal stripe lines.")]
 		public readonly int StripeWidth = 2;
 
+		[Desc("FRONTLINE contour colour — the explicit line hugging the forward edge of believed-enemy",
+			"territory (the boundary of the red wash / Classify==Enemy region). Bright + high-alpha on",
+			"purpose so the front reads at a glance over the red/green wash; this is the 'where is the",
+			"front line' answer the whole overlay exists to give.")]
+		public readonly Color FrontlineColor = Color.FromArgb(255, 255, 235, 40);
+
+		[Desc("Screen-pixel width of the frontline contour line — thicker than the staleness stripes",
+			"so the front reads as the dominant edge on the map.")]
+		public readonly int FrontlineWidth = 3;
+
 		[Desc("Dev chat command that force-enables the overlay (for autotest/screenshot capture).",
 			"Ships as the ShowTerritory hold-key regardless of this switch.")]
 		public readonly string CommandName = "territory";
@@ -203,6 +213,42 @@ namespace OpenRA.Mods.Common.Traits
 						origin + new WVec(0, side, 0), origin + new WVec(side, 0, 0), info.StripeWidth, stripe);
 					yield return new LineAnnotationRenderable(
 						origin + new WVec(half, side, 0), origin + new WVec(side, half, 0), info.StripeWidth, stripe);
+				}
+			}
+
+			// --- FRONTLINE contour, in a SECOND pass so the line sits above every cell's wash and
+			// stripes (annotations render in yield order). An edge is drawn on the shared border of
+			// two adjacent grid cells that fall on opposite sides of the believed-ENEMY boundary
+			// (ControlFieldMath.IsFrontlineEdge). Because that is a binary half-plane split, the
+			// per-border segments join into ONE continuous contour hugging the red wash — the forward
+			// line of contact — even across the wide neutral buffer the verified-clear rule opens.
+			// Only borders between two on-map cells are drawn, so the contour stops cleanly at the map
+			// edge (off-map cells read score 0 = our side). ---
+			var band = control.Info.GrayBand;
+			for (var gx = 0; gx < control.GridWidth; gx++)
+			{
+				for (var gy = 0; gy < control.GridHeight; gy++)
+				{
+					var originCell = new CPos(gx * cellSize, gy * cellSize);
+					if (!world.Map.Contains(originCell))
+						continue;
+
+					var origin = world.Map.CenterOfCell(originCell) - new WVec(512, 512, 0);
+					var s = control.ScoreAt(viewer, gx, gy);
+
+					// Shared border with the RIGHT neighbour → a vertical segment on this cell's right edge.
+					if (gx + 1 < control.GridWidth && world.Map.Contains(new CPos((gx + 1) * cellSize, gy * cellSize))
+						&& ControlFieldMath.IsFrontlineEdge(s, control.ScoreAt(viewer, gx + 1, gy), band))
+						yield return new LineAnnotationRenderable(
+							origin + new WVec(side, 0, 0), origin + new WVec(side, side, 0),
+							info.FrontlineWidth, info.FrontlineColor);
+
+					// Shared border with the BOTTOM neighbour → a horizontal segment on this cell's bottom edge.
+					if (gy + 1 < control.GridHeight && world.Map.Contains(new CPos(gx * cellSize, (gy + 1) * cellSize))
+						&& ControlFieldMath.IsFrontlineEdge(s, control.ScoreAt(viewer, gx, gy + 1), band))
+						yield return new LineAnnotationRenderable(
+							origin + new WVec(0, side, 0), origin + new WVec(side, side, 0),
+							info.FrontlineWidth, info.FrontlineColor);
 				}
 			}
 		}

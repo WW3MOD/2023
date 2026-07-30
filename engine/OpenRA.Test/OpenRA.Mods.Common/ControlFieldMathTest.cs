@@ -153,5 +153,35 @@ namespace OpenRA.Test
 				Assert.That(ControlFieldMath.Classify(0, 150), Is.EqualTo(ControlOwner.Contested));
 			});
 		}
+
+		[Test]
+		public void FrontlineIsTheEnemyRegionBoundary()
+		{
+			const int band = 150;
+			Assert.Multiple(() =>
+			{
+				// Enemy (score < −band) meeting anything not-enemy ⇒ frontline edge (order-independent).
+				Assert.That(ControlFieldMath.IsFrontlineEdge(-500, 500, band), Is.True, "enemy | ours");
+				Assert.That(ControlFieldMath.IsFrontlineEdge(500, -500, band), Is.True, "ours | enemy");
+
+				// THE load-bearing case: the verified-clear rule relaxes observed-empty ground to 0
+				// (contested no-man's-land). Enemy | neutral MUST still draw the front — a strict sign
+				// flip would miss it and the contour would vanish in the buffer.
+				Assert.That(ControlFieldMath.IsFrontlineEdge(-500, 0, band), Is.True, "enemy | neutral buffer");
+				Assert.That(ControlFieldMath.IsFrontlineEdge(0, -500, band), Is.True, "neutral buffer | enemy");
+
+				// The boundary sits exactly at the red-wash edge (Classify's Enemy threshold): a weak
+				// enemy lean still inside the gray band (−100, classifies Contested) is "our side".
+				Assert.That(ControlFieldMath.IsFrontlineEdge(-100, -500, band), Is.True, "gray-band lean | firm enemy");
+				Assert.That(ControlFieldMath.IsFrontlineEdge(-150, -500, band), Is.True, "== −band is our side | enemy");
+
+				// Same side ⇒ no edge. Both enemy, both ours, both neutral, ours | neutral all quiet —
+				// only the enemy frontier draws, so held pockets aren't boxed and the buffer isn't split.
+				Assert.That(ControlFieldMath.IsFrontlineEdge(-500, -250, band), Is.False, "both firm enemy");
+				Assert.That(ControlFieldMath.IsFrontlineEdge(500, 250, band), Is.False, "both ours");
+				Assert.That(ControlFieldMath.IsFrontlineEdge(0, 0, band), Is.False, "both neutral");
+				Assert.That(ControlFieldMath.IsFrontlineEdge(500, 0, band), Is.False, "ours | neutral is not the front");
+			});
+		}
 	}
 }
