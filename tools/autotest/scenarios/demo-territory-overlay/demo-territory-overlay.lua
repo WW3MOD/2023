@@ -37,7 +37,8 @@ WorldLoaded = function()
 	TestHarness.ScreenshotAfter(4, "02-territory-on",
 		"expects: full-map wash — GREEN over blue's left, RED over the enemy right " ..
 		"(incl. the fogged SR corner), GRAY contested midline; diagonal STALENESS STRIPES " ..
-		"over controlled cells — light/clean around blue's units, heavy over the unseen enemy half")
+		"over controlled cells — light/clean around blue's units, heavy over the unseen enemy half; " ..
+		"and a bright YELLOW FRONTLINE CONTOUR line running top-to-bottom down the green/red divide")
 
 	-- t~5.6s: clean exit (Skip, not Pass/Fail) after the captures flush.
 	Trigger.AfterDelay(140, function()

@@ -16,7 +16,9 @@
  *   - DangerGround / DangerAir: the tri-state above, on the anti-ground or anti-air channel. The
  *     air channel is the debugging window into Stage-D helicopter safety.
  *   - Control: the control field DEMOTED to a secondary visualization — owner colour, brightness by
- *     margin (how firmly held). A first-class DATA layer regardless; the overlay just leads with danger.
+ *     margin (how firmly held), PLUS the explicit FRONTLINE contour (the line where believed-ours meets
+ *     believed-enemy). A first-class DATA layer regardless; the overlay just leads with danger. The
+ *     player-facing first-class control view is the separate hold-key TerritoryOverlay.
  *
  * DEV-GATED, OFF BY DEFAULT: reachable only via the chat command (same mechanism as FrontlineOverlay /
  * SightingIntelOverlay's dev switch). It does NOT ship on hold-Space — this is a development/debug tool.
@@ -66,6 +68,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimum / maximum blend alpha for the control-mode wash.")]
 		public readonly int ControlMinAlpha = 40;
 		public readonly int ControlMaxAlpha = 150;
+
+		[Desc("Control mode: FRONTLINE contour colour — the explicit line at the forward edge of",
+			"believed-enemy territory. Mirrors the player-facing TerritoryOverlay's front.")]
+		public readonly Color FrontlineColor = Color.FromArgb(255, 255, 235, 40);
+
+		[Desc("Control mode: screen-pixel width of the frontline contour line.")]
+		public readonly int FrontlineWidth = 3;
 
 		public override object Create(ActorInitializer init) { return new DangerOverlay(this); }
 	}
@@ -143,6 +152,39 @@ namespace OpenRA.Mods.Common.Traits
 					};
 
 					yield return new FilledQuadAnnotationRenderable(corners, color);
+				}
+			}
+
+			// Control mode carries the same explicit FRONTLINE contour the player-facing TerritoryOverlay
+			// draws: the boundary of the believed-enemy region (ControlFieldMath.IsFrontlineEdge — a
+			// continuous half-plane contour hugging the red wash), in a SECOND pass so it sits above the
+			// wash. The danger tri-state modes have no ownership divide, so the contour is Control-only.
+			if (mode != Mode.Control)
+				yield break;
+
+			var band = control.Info.GrayBand;
+			for (var gx = 0; gx < control.GridWidth; gx++)
+			{
+				for (var gy = 0; gy < control.GridHeight; gy++)
+				{
+					var originCell = new CPos(gx * cellSize, gy * cellSize);
+					if (!world.Map.Contains(originCell))
+						continue;
+
+					var origin = world.Map.CenterOfCell(originCell) - new WVec(512, 512, 0);
+					var s = control.ScoreAt(viewer, gx, gy);
+
+					if (gx + 1 < control.GridWidth && world.Map.Contains(new CPos((gx + 1) * cellSize, gy * cellSize))
+						&& ControlFieldMath.IsFrontlineEdge(s, control.ScoreAt(viewer, gx + 1, gy), band))
+						yield return new LineAnnotationRenderable(
+							origin + new WVec(sideWDist, 0, 0), origin + new WVec(sideWDist, sideWDist, 0),
+							info.FrontlineWidth, info.FrontlineColor);
+
+					if (gy + 1 < control.GridHeight && world.Map.Contains(new CPos(gx * cellSize, (gy + 1) * cellSize))
+						&& ControlFieldMath.IsFrontlineEdge(s, control.ScoreAt(viewer, gx, gy + 1), band))
+						yield return new LineAnnotationRenderable(
+							origin + new WVec(0, sideWDist, 0), origin + new WVec(sideWDist, sideWDist, 0),
+							info.FrontlineWidth, info.FrontlineColor);
 				}
 			}
 		}
