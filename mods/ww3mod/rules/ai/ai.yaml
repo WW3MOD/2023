@@ -158,6 +158,19 @@ Player:
 		ContestedEscortSize: 4
 		ContestedDefenseEnemyValueThreshold: 100
 		ContestedDangerThreshold: 40
+		# Escort right-sizing (income lever): scale the capture party DOWN by believed threat at the target. A derrick
+		# in our own verified-safe territory near our SR is captured with the TECN ALONE (no combat units reserved to
+		# babysit it while it works), a mildly-exposed one with a small escort, and a contested one keeps the full
+		# escort above. Reduction ONLY — it never raises an escort and never shrinks a target ContestAware already
+		# flagged contested, so the two levers compose. Frees combat units from safe-POI babysitting for the offense /
+		# other captures (the highest-impact income lever spotted from spectator games — the bot was sending a full
+		# escort to zero-threat derricks next to its own SR). Reads only fog-legal believed fields (ControlField /
+		# DangerFieldLayer); zero RNG. Default OFF on the @stable.tecn twin = byte-identical.
+		EscortTierSizingEnabled: true
+		SafeControlScoreThreshold: 300
+		SafeDangerThreshold: 40
+		SafeMaxDistanceFromSRCells: 24
+		LightEscortSize: 2
 
 	# experimental AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
 	# ground army across the top enemy objectives ranked by PoiMap

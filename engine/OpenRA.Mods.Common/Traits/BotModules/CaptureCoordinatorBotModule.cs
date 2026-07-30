@@ -177,6 +177,36 @@ namespace OpenRA.Mods.Common.Traits
 			"the Stage-C territory baseline so ambient 'deep enemy ground' danger doesn't flag every capture contested.")]
 		public readonly int ContestedDangerThreshold = 40;
 
+		[Desc("Escort right-sizing lever (income lever): scale the capture escort DOWN by believed threat at the target.",
+			"A derrick in our own verified-safe territory near our SR is captured with the technician ALONE (no combat",
+			"units reserved to babysit it), a mildly-exposed one with a small LightEscortSize, and a contested one keeps",
+			"the full escort (ContestedEscortSize/EscortSize). Reduction ONLY — it never raises an escort, and never",
+			"shrinks a target IsContestedNeighbourhood already flags, so it composes with ContestAwareSupportEnabled",
+			"rather than fighting it. Reads only fog-legal believed fields (ControlField + DangerFieldLayer); if either",
+			"is absent the lever is inert (no reduction). Zero RNG. Default OFF on the engine class = byte-identical to",
+			"today; set ONLY on CaptureCoordinatorBotModule@experimental so @stable/normal are frozen.")]
+		public readonly bool EscortTierSizingEnabled = false;
+
+		[Desc("Escort right-sizing: ring-averaged believed control score (ControlField, positive = ours) at/above which a",
+			"target's surroundings count STRONGLY-OURS — the ownership half of the NONE (technician-alone) tier. Sampled",
+			"one grid cell past the anchor footprint (like the Stage-F balance-of-power read), NOT the target's own cell.",
+			"Only consulted when EscortTierSizingEnabled.")]
+		public readonly int SafeControlScoreThreshold = 300;
+
+		[Desc("Escort right-sizing: believed anti-ground danger (DangerFieldLayer.GroundDanger) at/below which a target",
+			"cell counts LOW-DANGER — the safety half of the NONE tier. On the danger-field throughput scale, above the",
+			"Stage-C territory baseline. Only consulted when EscortTierSizingEnabled.")]
+		public readonly int SafeDangerThreshold = 40;
+
+		[Desc("Escort right-sizing: a target within this many cells of our own SR counts NEAR for the NONE tier (an",
+			"oil derrick on our doorstep). Distance is measured fog-legally from our SR (PoiMap's DistanceCells).",
+			"<= 0 disables the distance gate. Only consulted when EscortTierSizingEnabled.")]
+		public readonly int SafeMaxDistanceFromSRCells = 24;
+
+		[Desc("Escort right-sizing: escort count for the LIGHT tier (mildly-exposed open ground). The final escort is",
+			"min(this, the contested/normal size) so the lever only ever reduces. Only consulted when EscortTierSizingEnabled.")]
+		public readonly int LightEscortSize = 2;
+
 		public override object Create(ActorInitializer init) { return new CaptureCoordinatorBotModule(init.Self, this); }
 	}
 
@@ -214,6 +244,13 @@ namespace OpenRA.Mods.Common.Traits
 		ControlField contestControlField;
 		DangerFieldLayer contestDangerField;
 		bool contestFieldsResolved;
+
+		// Escort right-sizing (EscortTierSizingEnabled): the believed control + anti-ground danger fields, resolved
+		// ONLY when the lever is on so the off/@stable path never touches them. Kept separate from the two references
+		// above so this reduction lever is independently gated from StrategicCaptureRepoint and ContestAwareSupport.
+		ControlField tierControlField;
+		DangerFieldLayer tierDangerField;
+		bool tierFieldsResolved;
 
 		// Case-insensitive copy of Info.CapturableActorTypes, built once, so the telemetry hot loop matches actor
 		// names without a per-actor ToLowerInvariant() allocation. Empty stays empty (= match all capturables).
@@ -505,7 +542,9 @@ namespace OpenRA.Mods.Common.Traits
 				if (bestTarget == null)
 					break;
 
-				IssueCaptureOrder(bot, capturer.Actor, bestTarget, useGuard, escortsRecruitedThisTick, bestScore);
+				// Legacy no-PoiMap path: no fog-legal SR distance available, so pass -1 (unknown) — the
+				// right-sizing lever treats unknown distance as failing the near-SR gate (never sends a lone capturer).
+				IssueCaptureOrder(bot, capturer.Actor, bestTarget, useGuard, escortsRecruitedThisTick, bestScore, -1);
 				alreadyTargetedThisTick.Add(bestTarget);
 				availableCapturers.RemoveAt(0);
 			}
@@ -734,14 +773,14 @@ namespace OpenRA.Mods.Common.Traits
 				if (bestIndex < 0)
 					continue;
 
-				IssueCaptureOrder(bot, available[bestIndex].Actor, target, useGuard, escortsRecruitedThisTick, poi.Score);
+				IssueCaptureOrder(bot, available[bestIndex].Actor, target, useGuard, escortsRecruitedThisTick, poi.Score, poi.DistanceCells);
 				available.RemoveAt(bestIndex);
 			}
 		}
 
 		// Issue a capture order + record the commitment so the TECN is not
 		// re-ordered while it walks in (the anti-thrash gate), then recruit escort.
-		void IssueCaptureOrder(IBot bot, Actor capturer, Actor target, bool useGuard, HashSet<Actor> escortsRecruitedThisTick, long score)
+		void IssueCaptureOrder(IBot bot, Actor capturer, Actor target, bool useGuard, HashSet<Actor> escortsRecruitedThisTick, long score, int distanceFromSRCells)
 		{
 			// TECN-first ferrying: for a DISTANT target, try to hand the capturer a mounted ride.
 			// When it succeeds the transport module owns the movement AND re-issues CaptureActor on
@@ -757,7 +796,7 @@ namespace OpenRA.Mods.Common.Traits
 				activeCapturers.Add(capturer);
 
 			// Recruit escort — fire-and-forget; if no escort available, capture proceeds alone.
-			DispatchEscort(bot, capturer, target, escortsRecruitedThisTick);
+			DispatchEscort(bot, capturer, target, escortsRecruitedThisTick, distanceFromSRCells);
 
 			Log.Write("debug",
 				$"[exp-capture] issue player={player.PlayerName} actor={capturer.Info.Name}@{capturer.Location} → {target.Info.Name}@{target.Location} score={score} ferried={ferried} tick={world.WorldTick}");
@@ -930,7 +969,7 @@ namespace OpenRA.Mods.Common.Traits
 			return false;
 		}
 
-		void DispatchEscort(IBot bot, Actor capturer, Actor target, HashSet<Actor> alreadyRecruited)
+		void DispatchEscort(IBot bot, Actor capturer, Actor target, HashSet<Actor> alreadyRecruited, int distanceFromSRCells)
 		{
 			// Contest-aware sizing (Option A): a contested target gets ContestedEscortSize (larger) instead of the
 			// flat EscortSize, so a derrick under believed enemy pressure is not walked in with the same two guards
@@ -938,6 +977,22 @@ namespace OpenRA.Mods.Common.Traits
 			// → byte-identical to today.
 			var contested = IsContestedNeighbourhood(target.Location);
 			var wantEscort = contested ? Info.ContestedEscortSize : Info.EscortSize;
+
+			// Escort right-sizing (income lever): scale the party DOWN by believed threat at the target. Applied ONLY
+			// to targets not already flagged contested — a contested derrick keeps its (possibly larger) escort, so
+			// this composes with ContestAwareSupport rather than undoing it. NONE ⇒ the technician goes alone and NO
+			// combat units are reserved (they stay idle for the offense / other captures); LIGHT ⇒ min with the small
+			// escort so the lever only ever reduces. Lever off / contested / a missing field all keep the value above.
+			var tier = EscortSizingMath.EscortTier.Full;
+			if (Info.EscortTierSizingEnabled && !contested)
+			{
+				tier = ResolveEscortTier(target.Location, distanceFromSRCells);
+				if (tier == EscortSizingMath.EscortTier.None)
+					wantEscort = 0;
+				else if (tier == EscortSizingMath.EscortTier.Light)
+					wantEscort = Math.Min(wantEscort, Info.LightEscortSize);
+			}
+
 			if (wantEscort <= 0)
 				return;
 
@@ -950,8 +1005,40 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var r in recruits)
 				alreadyRecruited.Add(r);
 
-			AIUtils.BotDebug("AI ({0}): exp-capture — escort dispatched ({1} units → {2}, contested={3})",
-				player.ClientIndex, recruits.Length, target.Info.Name, contested);
+			AIUtils.BotDebug("AI ({0}): exp-capture — escort dispatched ({1} units → {2}, contested={3}, tier={4})",
+				player.ClientIndex, recruits.Length, target.Info.Name, contested, tier);
+		}
+
+		// Escort right-sizing (EscortTierSizingEnabled): bucket a capture target into an escort tier from the fog-legal
+		// believed fields. The ring-averaged control score is sampled one cell PAST the anchor footprint (the target's
+		// own cell is anchor-floored — Stage-C — so it is uninformative; same reason the Stage-F balance-of-power read
+		// samples the ring). Requires BOTH fields: a missing ControlField/DangerFieldLayer (or no control field for this
+		// player yet) returns Full so the capture keeps its full escort rather than gambling a lone technician on an
+		// unverifiable read. Resolved lazily and only when the lever is on, so the off/@stable path never touches them.
+		EscortSizingMath.EscortTier ResolveEscortTier(CPos cell, int distanceFromSRCells)
+		{
+			if (!tierFieldsResolved)
+			{
+				tierControlField = world.WorldActor.TraitOrDefault<ControlField>();
+				tierDangerField = world.WorldActor.TraitOrDefault<DangerFieldLayer>();
+				tierFieldsResolved = true;
+			}
+
+			if (tierControlField == null || !tierControlField.HasField(player) || tierDangerField == null)
+				return EscortSizingMath.EscortTier.Full;
+
+			var (gx, gy) = tierControlField.MapCellToGridCell(cell);
+			var r = tierControlField.Info.AnchorRadiusCells + 1;
+			long sum = 0;
+			foreach (var (dx, dy) in RingDirections)
+				sum += tierControlField.ScoreAt(player, gx + dx * r, gy + dy * r);
+			var ringControl = (int)(sum / RingDirections.Length);
+
+			var groundDanger = tierDangerField.GroundDanger(player, cell);
+
+			return EscortSizingMath.Resolve(ringControl, groundDanger, distanceFromSRCells,
+				Info.SafeControlScoreThreshold, Info.SafeDangerThreshold, Info.SafeMaxDistanceFromSRCells,
+				tierControlField.Info.GrayBand, Info.ContestedDangerThreshold);
 		}
 
 		// ============================================================
