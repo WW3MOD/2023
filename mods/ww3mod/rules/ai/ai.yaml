@@ -272,6 +272,13 @@ Player:
 		EchelonMinDepth: 3c0
 		EchelonTolerance: 2c0
 		EchelonScreenRangeFallback: 5c0
+		# Frontier standoff (builds on the echelon + the shipped frontline contour): hold each echeloned
+		# artillery piece at least this many COARSE control-field cells behind the believed enemy frontier
+		# (ControlField distance-to-enemy-region). If the echelon anchor lands closer, it is walked rearward
+		# along the anchor axis (bounded) so the piece stands off BEHIND the front, not on it. 4 coarse cells
+		# ≈ 8 map cells. Needs EchelonPositioning + a ControlField (present via the influence stack). @stable
+		# twin (which lacks this field) stays byte-identical.
+		MinFrontierDistanceCells: 4
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
@@ -746,6 +753,11 @@ Player:
 		ForwardStaging: true
 		ForwardStagingPct: 40
 		ForwardStagingMaxDistanceCells: 8
+		# Frontier standoff: hold the attack-heli standoff at least this many COARSE control-field cells behind
+		# the believed enemy frontier (ControlField distance-to-enemy-region), walking the leashed engage cell
+		# rearward toward the squad when it lands closer. Rides on StandoffEngagement above. 4 coarse cells ≈
+		# 8 map cells. Experimental-only; every other profile leaves it 0 (byte-identical).
+		MinFrontierDistanceCells: 4
 
 	# ===== Stable AI — frozen snapshot of the validated Experimental config =====
 	#

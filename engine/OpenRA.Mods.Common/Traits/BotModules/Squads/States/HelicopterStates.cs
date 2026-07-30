@@ -180,6 +180,51 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			return owner.World.WorldActor.TraitOrDefault<DangerFieldLayer>();
 		}
 
+		// Minimum coarse-cell frontier standoff for this squad's heli module (experimental-only, default 0 = off).
+		protected static int MinFrontierDistanceCells(Squad owner)
+		{
+			var info = GetHeliModuleInfo(owner);
+			return info != null ? info.MinFrontierDistanceCells : 0;
+		}
+
+		// The believed-territory control field (Stage C), or null if the trait is absent.
+		protected static ControlField GetControlField(Squad owner)
+		{
+			return owner.World.WorldActor.TraitOrDefault<ControlField>();
+		}
+
+		// Frontier standoff: walk the standoff `cell` rearward — from the target toward the squad (the rear
+		// bearing) — in one-coarse-cell hops until the believed frontier distance reaches minFrontierCells,
+		// bounded by a small step budget so it is never a free search. Keeps the heli standoff BEHIND the
+		// believed front line. The frontier read is the fog-legal ControlField distance-to-enemy-region; the
+		// step-count decision is the pure, NUnit-pinned FrontierStandoffMath.RearwardSteps. Zero random draws.
+		protected static CPos PushHeliBehindFrontier(Squad owner, ControlField control, CPos cell, CPos target, int minFrontierCells)
+		{
+			var player = owner.Bot.Player;
+			var away = owner.Units.First().Location - target; // toward our own rear
+			var len = Exts.ISqrt(away.X * away.X + away.Y * away.Y);
+			if (len <= 0)
+				return cell;
+
+			var cs = control.Info.CellSize;
+			var stepX = away.X * cs / len;
+			var stepY = away.Y * cs / len;
+			if (stepX == 0 && stepY == 0)
+				return cell;
+
+			var maxSteps = minFrontierCells + 2; // enough to lift a distance-0 cell clear, bounded.
+			var steps = FrontierStandoffMath.RearwardSteps(
+				i =>
+				{
+					var c = new CPos(cell.X + stepX * i, cell.Y + stepY * i);
+					var (gx, gy) = control.MapCellToGridCell(c);
+					return control.FrontierDistanceAt(player, gx, gy);
+				},
+				minFrontierCells, maxSteps);
+
+			return new CPos(cell.X + stepX * steps, cell.Y + stepY * steps);
+		}
+
 		// An air-danger sampler bound to this squad owner's own air channel. Off-map cells read as
 		// Impassable so a leash/detour/retreat search never steers off the playable area. Fog-legal:
 		// the field is stamped from the owner's belief store; reads 0 outside every believed AA envelope.
@@ -422,6 +467,18 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				var waypoint = HeliDangerNav.DetourWaypoint(
 					from, engageCell, info.AirDangerDetourCells, info.AirDangerSafeThreshold, air);
 				attackMoveCell = waypoint ?? engageCell;
+			}
+
+			// Frontier standoff (experimental, rides on standoff): push the standoff cell rearward until it is
+			// at least MinFrontierDistanceCells behind the believed enemy frontier, so helis hold BEHIND the
+			// front line. Inert until a ControlField is populated for this player (⇒ zero steps, byte-identical).
+			var minFrontier = standoff ? MinFrontierDistanceCells(owner) : 0;
+			if (minFrontier > 0)
+			{
+				var control = GetControlField(owner);
+				if (control != null && control.HasField(owner.Bot.Player))
+					attackMoveCell = PushHeliBehindFrontier(
+						owner, control, attackMoveCell, owner.TargetActor.Location, minFrontier);
 			}
 
 			// Move toward target

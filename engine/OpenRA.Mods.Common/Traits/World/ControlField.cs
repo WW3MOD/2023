@@ -153,6 +153,61 @@ namespace OpenRA.Mods.Common.Traits
 			return ControlOwner.Contested;
 		}
 
+		/// <summary>Multi-source BFS distance-to-believed-ENEMY-region over the coarse score grid, written
+		/// into <paramref name="dist"/> (same dims). Seeds every cell that classifies ENEMY (score &lt; −grayBand)
+		/// at distance 0, then flood-fills outward by 4-connectivity — one coarse cell per step. Cells farther
+		/// than <paramref name="maxDistance"/>, and EVERY cell when no believed enemy region exists anywhere,
+		/// read the <paramref name="maxDistance"/> FAR sentinel. This is the data seam standoff placement reads
+		/// to hold BEHIND the believed front line (the boundary <see cref="IsFrontlineEdge"/> draws).
+		///
+		/// DETERMINISM (influence-stack invariant): row-major seeding, FIFO queue, integer only, ZERO RNG.
+		/// Distance is an edge count, so neighbour visit order can never change a stored value — the fixed
+		/// order is belt-and-braces. Bounded work: the flood stops expanding once a ring would exceed the cap.</summary>
+		public static void ComputeFrontierDistance(int[,] score, int[,] dist, int gridWidth, int gridHeight,
+			int grayBand, int maxDistance)
+		{
+			var queue = new Queue<int>();
+			for (var gx = 0; gx < gridWidth; gx++)
+			{
+				for (var gy = 0; gy < gridHeight; gy++)
+				{
+					if (Classify(score[gx, gy], grayBand) == ControlOwner.Enemy)
+					{
+						dist[gx, gy] = 0;
+						queue.Enqueue((gx << 16) | gy);
+					}
+					else
+						dist[gx, gy] = maxDistance;
+				}
+			}
+
+			while (queue.Count > 0)
+			{
+				var packed = queue.Dequeue();
+				var gx = packed >> 16;
+				var gy = packed & 0xFFFF;
+				var nd = dist[gx, gy] + 1;
+				if (nd >= maxDistance)
+					continue; // a farther ring is all sentinel anyway — stop, keeping the flood O(maxDistance rings).
+
+				RelaxFrontier(dist, queue, gx - 1, gy, nd, gridWidth, gridHeight);
+				RelaxFrontier(dist, queue, gx + 1, gy, nd, gridWidth, gridHeight);
+				RelaxFrontier(dist, queue, gx, gy - 1, nd, gridWidth, gridHeight);
+				RelaxFrontier(dist, queue, gx, gy + 1, nd, gridWidth, gridHeight);
+			}
+		}
+
+		static void RelaxFrontier(int[,] dist, Queue<int> queue, int gx, int gy, int nd, int w, int h)
+		{
+			if (gx < 0 || gx >= w || gy < 0 || gy >= h)
+				return;
+			if (nd < dist[gx, gy])
+			{
+				dist[gx, gy] = nd;
+				queue.Enqueue((gx << 16) | gy);
+			}
+		}
+
 		/// <summary>The FRONTLINE is the boundary of the believed-ENEMY region — the forward line of
 		/// contact. A cell is "enemy side" when its control score classifies Enemy (score &lt; −grayBand,
 		/// exactly the red wash); everything else — believed-ours AND the CONTESTED no-man's-land — is
@@ -229,6 +284,13 @@ namespace OpenRA.Mods.Common.Traits
 			"(verified-safe) reading relaxes to gray past this window. Perishable intel.")]
 		public readonly int StalenessWindow = 500;
 
+		[Desc("Frontier seam: the BFS distance (coarse cells) from each cell to the nearest believed-ENEMY",
+			"cell is capped here to bound the flood-fill; cells beyond it — and every cell when no believed",
+			"enemy region exists anywhere — read this as the 'far' sentinel. Consumed by @experimental standoff",
+			"placement (echelon / heli) to hold indirect-fire units BEHIND the believed front line. Recomputed",
+			"on the same per-player cadence as the score field, for participating players only.")]
+		public readonly int MaxFrontierDistanceCells = 64;
+
 		public override object Create(ActorInitializer init) { return new ControlField(init.Self, this); }
 	}
 
@@ -238,12 +300,14 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			public readonly int[,] Score;
 			public readonly int[,] LastVerified;   // ControlField tick a cell was last observed; 0 = never.
+			public readonly int[,] FrontierDistance; // Coarse-cell distance to the nearest believed-enemy cell.
 			public bool Seeded;
 
 			public PlayerControl(int w, int h)
 			{
 				Score = new int[w, h];
 				LastVerified = new int[w, h];
+				FrontierDistance = new int[w, h];
 			}
 		}
 
@@ -353,6 +417,13 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			ApplyAnchors(player, pc);
+
+			// Frontier distance rides the SAME per-player recompute (no second timer): the score field is now
+			// final for this participant this cycle, so flood-fill distance-to-enemy-region from it. Computed
+			// only here ⇒ only for participants (RecomputePlayer is reached only via the InfluenceStack
+			// participant cursor), so @stable/normal never build it — byte-identical.
+			ControlFieldMath.ComputeFrontierDistance(pc.Score, pc.FrontierDistance, gridWidth, gridHeight,
+				Info.GrayBand, Info.MaxFrontierDistanceCells);
 		}
 
 		// --- Seeding ------------------------------------------------------------------
@@ -552,6 +623,16 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Tri-state believed ownership at a grid cell.</summary>
 		public ControlOwner OwnerAt(Player player, int gx, int gy)
 			=> ControlFieldMath.Classify(ScoreAt(player, gx, gy), Info.GrayBand);
+
+		/// <summary>Believed distance (coarse cells) from a grid cell to the nearest believed-ENEMY cell —
+		/// "how far behind the front line is this". Returns the FAR sentinel (MaxFrontierDistanceCells) with
+		/// no field, off-grid, or no believed enemy region anywhere — so a consumer reads "far behind the
+		/// front" (⇒ no rearward push) until the field is populated, keeping the un-consumed path inert.</summary>
+		public int FrontierDistanceAt(Player player, int gx, int gy)
+		{
+			var f = FieldOrNull(player);
+			return f != null && InGrid(gx, gy) ? f.FrontierDistance[gx, gy] : Info.MaxFrontierDistanceCells;
+		}
 
 		/// <summary>Was this grid cell observed recently enough to still count as "verified"?
 		/// Perishable — false once the observation ages past StalenessWindow (the overlay's

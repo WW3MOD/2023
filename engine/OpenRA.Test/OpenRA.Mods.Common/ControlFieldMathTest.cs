@@ -183,5 +183,75 @@ namespace OpenRA.Test
 				Assert.That(ControlFieldMath.IsFrontlineEdge(500, 0, band), Is.False, "ours | neutral is not the front");
 			});
 		}
+
+		[Test]
+		public void FrontierDistanceIsBfsFromTheEnemyRegion()
+		{
+			const int band = 150;
+			const int far = 64;
+
+			// A 5x1 strip: one believed-enemy cell (score < -band) at gx=0, the rest neutral/ours.
+			// Distance should be the coarse-cell hop count from each cell to that enemy cell.
+			var score = new int[5, 1];
+			score[0, 0] = -500; // enemy
+			score[1, 0] = 0;    // neutral no-man's-land (still "our side" of the front)
+			score[2, 0] = 0;
+			score[3, 0] = 200;  // ours
+			score[4, 0] = 500;  // ours
+
+			var dist = new int[5, 1];
+			ControlFieldMath.ComputeFrontierDistance(score, dist, 5, 1, band, far);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(dist[0, 0], Is.EqualTo(0), "the enemy cell is on the front (distance 0)");
+				Assert.That(dist[1, 0], Is.EqualTo(1), "neutral buffer one hop behind the front");
+				Assert.That(dist[2, 0], Is.EqualTo(2));
+				Assert.That(dist[3, 0], Is.EqualTo(3), "friendly ground three hops behind — this is what standoff reads");
+				Assert.That(dist[4, 0], Is.EqualTo(4));
+			});
+		}
+
+		[Test]
+		public void FrontierDistanceIsMultiSourceAndBounded()
+		{
+			const int band = 150;
+
+			// Enemy cells at both ends of a 5x1 strip: BFS takes the nearer of the two sources.
+			var score = new int[5, 1];
+			score[0, 0] = -300;
+			score[4, 0] = -300;
+
+			var dist = new int[5, 1];
+			ControlFieldMath.ComputeFrontierDistance(score, dist, 5, 1, band, 64);
+			Assert.Multiple(() =>
+			{
+				Assert.That(dist[0, 0], Is.EqualTo(0));
+				Assert.That(dist[1, 0], Is.EqualTo(1));
+				Assert.That(dist[2, 0], Is.EqualTo(2), "middle cell is 2 from the nearer of the two enemy sources");
+				Assert.That(dist[3, 0], Is.EqualTo(1));
+				Assert.That(dist[4, 0], Is.EqualTo(0));
+			});
+
+			// No believed enemy region anywhere ⇒ every cell reads the 'far' sentinel (the cap), never 0.
+			var empty = new int[3, 1];
+			var emptyDist = new int[3, 1];
+			ControlFieldMath.ComputeFrontierDistance(empty, emptyDist, 3, 1, band, 64);
+			Assert.That(emptyDist[0, 0], Is.EqualTo(64), "no enemy region ⇒ far sentinel");
+			Assert.That(emptyDist[2, 0], Is.EqualTo(64));
+
+			// The cap bounds the reading: a lone enemy source with a tiny cap leaves distant cells at the cap.
+			var one = new int[6, 1];
+			one[0, 0] = -300;
+			var capped = new int[6, 1];
+			ControlFieldMath.ComputeFrontierDistance(one, capped, 6, 1, band, 3);
+			Assert.Multiple(() =>
+			{
+				Assert.That(capped[0, 0], Is.EqualTo(0));
+				Assert.That(capped[2, 0], Is.EqualTo(2), "within the cap the true distance stands");
+				Assert.That(capped[3, 0], Is.EqualTo(3), "beyond the cap reads the sentinel, not the true distance");
+				Assert.That(capped[5, 0], Is.EqualTo(3), "far cell clamped to the cap sentinel");
+			});
+		}
 	}
 }
