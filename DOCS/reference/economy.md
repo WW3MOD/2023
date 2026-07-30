@@ -25,6 +25,8 @@ If anything here disagrees with code, the doc is right and the code needs to cha
 
 Vehicles are budgeted around dock-at-LC logistics. Adding `truk` to `Rearmable.RearmActors` on a vehicle is a balance change.
 
+**Provider rearm is a PUSH gated on the RECIPIENT's condition, not on `RearmActors`.** `SupplyProvider.Tick` scans `FindActorsInCircle`, picks the greatest-need friendly `Rearmable` in range, and calls `GiveAmmo` on it directly (`SupplyProvider.cs:225/:308/:546`) — it **never consults the recipient's `Rearmable.RearmActors`**. What gates the push is `IsValidTarget` (`:403-440`): the recipient must be a friendly `Rearmable` with a non-full pool AND (when the provider sets one) carry the provider's `RearmCondition` external condition — default `replenish-soldiers` (`:59`), which only infantry hold. That is why a truck/cache tops up nearby infantry but skips vehicles, with no driving involved. `RearmActors` gates the *other* path — the recipient-initiated drive-to-a-host PULL (`AmmoPool.ChooseResupplier`, `:340`) — so adding `truk` to a vehicle's `RearmActors` lets that vehicle dock at a truck but does not make the truck's push serve it.
+
 **An `AmmoPool` never refills itself on the battlefield — passive trickle is opt-in via `ReloadAmmoPool`.** `AmmoPool` is not `ITick` (`AmmoPool.cs:111` implements only `INotifyCreated, INotifyAttack, INotifyBecomingIdle, IResolveOrder, ISync`), and its self-reload method `AmmoPool.Reload()` (`AmmoPool.cs:361`) has **zero callers** engine-wide — so the `RemainingTicks`/`FullReloadTicks`/`FullReloadSteps` countdown it decrements (`:366`) never advances. The `ReloadDelay` field only *seeds* that inert countdown (`:237`) and is re-seeded on a dock rearm (`Rearmable.cs:52,66`). Actual in-field trickle exists **only** on the separate `ReloadAmmoPool` trait (`ReloadAmmoPool.cs:46`, which *is* `ITick` and calls `ammoPool.GiveAmmo(self, Count)` every `Delay` ticks, `:91`). A unit that does not carry `ReloadAmmoPool` therefore cannot top up in place — it must retreat and rearm at a provider (LC / TRUK / cache via `Rearmable` + `Resupply`). `ReloadAmmoPool` appears in only 7 mod YAML files (mostly static defenses); most units, including tunguska AA, lack it. **Do not read `AmmoPool.ReloadDelay` as "seconds to self-reload in the field" — it drives nothing without `ReloadAmmoPool`.**
 
 ## Ammo pools, batches, and per-round cost
@@ -108,6 +110,8 @@ Spawned when a truck unloads its supply on the ground. Functionally a stationary
 - **Selection bar** showing remaining supply. *(Pending visual verification in-game.)*
 - Sprite tier (Full/Mid/Low) reflects the supply remaining.
 - Capturable by enemies (`ProximityCapturable`) — if the enemy reaches it first, the supply changes hands at full value.
+- **Auto-targetable like the truck — carries no `NoAutoTarget`.** Its `Targetable: TargetTypes: Ground, Structure` (`misc.yaml:387`) matches the base `AutoTargetPriority@FireAtWill`, so nearby enemies engage and destroy it unaided (HP 5000, Light armor). An earlier `NoAutoTarget` that made it inert to enemy fire was removed.
+- **Serves down to empty — `RemoveBelowSupply: 1` (`misc.yaml:418`).** `SupplyProvider.Tick` despawns a provider once `currentSupply < RemoveBelowSupply` (`SupplyProvider.cs:166`). A stationary cache has no drive-home trip to reserve supply for (unlike TRUK's `RestockThreshold`), so the threshold is 1 — a freshly dropped low-supply crate no longer self-vanishes on its first tick.
 - Sits in place until drained, captured, or destroyed. The player recovers a cache's remaining supply by absorbing it into a friendly LC (the LC's `AbsorbsSupplyCache` trait pulls in any nearby cache) or by spending it through infantry rearming off it.
 
 ### Cash flow recap
@@ -179,7 +183,7 @@ Trucks, LCs, and SUPPLYCACHEs all use `SupplyProvider`. They differ only in YAML
 |---|---|---|---|
 | `logisticscenter` | 3000 | (none) | Mounts at base; drains until empty. `AbsorbsSupplyCache` recovers dropped boxes. |
 | `truk` | 750 | `[logisticscenter]` | Mobile; drives to LC when low; can drop a SUPPLYCACHE. |
-| `supplycache` | 500 | (none) | Stationary; drained to zero, then despawns or is captured. |
+| `supplycache` | 750 | (none) | Stationary; serves down to supply 1 (`RemoveBelowSupply: 1`), then despawns or is captured. |
 
 ### Rearm cost math
 
