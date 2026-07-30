@@ -215,6 +215,12 @@ namespace OpenRA.Mods.Common.Traits
 		DangerFieldLayer contestDangerField;
 		bool contestFieldsResolved;
 
+		// Case-insensitive copy of Info.CapturableActorTypes, built once, so the telemetry hot loop matches actor
+		// names without a per-actor ToLowerInvariant() allocation. Empty stays empty (= match all capturables).
+		HashSet<string> capturableTypesCI;
+		HashSet<string> CapturableTypesForTelemetry =>
+			capturableTypesCI ??= new HashSet<string>(Info.CapturableActorTypes, StringComparer.OrdinalIgnoreCase);
+
 		// LEGACY FALLBACK ONLY (guard not wired): capturers we've already issued
 		// orders to; cleaned when they become idle again. This is the thrash-prone
 		// path the guard exists to replace — kept so a missing PoiGoalGuard trait
@@ -511,21 +517,31 @@ namespace OpenRA.Mods.Common.Traits
 		// us later) from "held shorter" (ownership flips away from us sooner) — the H1-vs-H2 disambiguator the
 		// attribution recon flagged as missing. Ground-truth read, but NOTHING here feeds a bot decision, so the
 		// no-fog-cheating rule (which governs behaviour reads) is not engaged; zero RNG, zero sim side-effect.
+		// SCOPE: the ownership timeseries is the shipped §4.D artifact; the commit-tick/capturer-count half of §4.D
+		// is deliberately deferred (the [exp-capture] issue/commit markers already carry per-dispatch timing).
+		// PERF: a SINGLE world.Actors pass bucketed by owner (not a Where-scan per player), matching names against
+		// the pre-built case-insensitive set so no per-actor string is allocated — telemetry fires every
+		// ScanInterval throughout long benchmark runs, exactly where GC churn hurts.
 		void LogOwnershipSnapshot()
 		{
-			foreach (var owner in world.Players)
+			var types = CapturableTypesForTelemetry;
+			var byOwner = new Dictionary<Player, List<Actor>>();
+			foreach (var a in world.Actors)
 			{
-				if (owner.Spectating)
+				if (a.IsDead || !a.IsInWorld || !a.Info.HasTraitInfo<CaptureManagerInfo>())
+					continue;
+				if (types.Count > 0 && !types.Contains(a.Info.Name))
 					continue;
 
-				var derricks = world.Actors
-					.Where(a => a.Owner == owner && !a.IsDead && a.IsInWorld
-						&& a.Info.HasTraitInfo<CaptureManagerInfo>()
-						&& (Info.CapturableActorTypes.Count == 0
-							|| Info.CapturableActorTypes.Contains(a.Info.Name.ToLowerInvariant())))
-					.ToList();
+				if (!byOwner.TryGetValue(a.Owner, out var list))
+					byOwner[a.Owner] = list = new List<Actor>();
+				list.Add(a);
+			}
 
-				if (derricks.Count == 0)
+			// Emit in world.Players order, skipping spectators — identical output ordering to the per-player scan.
+			foreach (var owner in world.Players)
+			{
+				if (owner.Spectating || !byOwner.TryGetValue(owner, out var derricks))
 					continue;
 
 				var held = string.Join(",", derricks.Select(a => $"{a.Info.Name}#{a.ActorID}@{a.Location}"));
@@ -882,6 +898,10 @@ namespace OpenRA.Mods.Common.Traits
 		// support on every open-ground capture and thinning the offense (the design's combat-net-swing guardrail).
 		// Returns false immediately when the lever is off, so the @stable path never resolves a field and stays
 		// byte-identical. Pure reads, zero RNG.
+		// ACCEPTED GAP: an unescorted WEAPONLESS enemy probe (a lone engineer) trips neither channel — it stamps no
+		// danger kernel and doesn't paint control presence (that needs an armed unit) — so a derrick can be re-taken
+		// by a light probe without the larger escort / earlier defense engaging. Accepted; the 4.D ownership
+		// timeseries reveals derricks lost this way, which would motivate a follow-up lever if it shows up.
 		bool IsContestedNeighbourhood(CPos cell)
 		{
 			if (!Info.ContestAwareSupportEnabled)
