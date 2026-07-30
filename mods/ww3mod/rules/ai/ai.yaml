@@ -377,6 +377,20 @@ Player:
 		# cost. Shared enable-ai-any module, so the reroute is gated on InfluenceStack.Participates
 		# too: only @experimental bots ever act on it; every other profile stays byte-identical.
 		DangerFieldRouting: true
+		# @experimental supply logistics (all three double-gated on InfluenceStack.Participates, so
+		# @stable/Normal/Rush/Turtle stay byte-identical even though this is a shared enable-ai-any module):
+		#  - SectorSpread: several free trucks fan out to DISTINCT needy clusters instead of piling onto
+		#    the one biggest blob; they only double up once trucks outnumber clusters.
+		#  - SmallSquadCoverage: drop the servable-cluster floor to 2 so small squads get a truck once the
+		#    big clusters are covered (the neediest-first order still fills big clusters first).
+		#  - DangerEvac: a truck whose position (or its cluster) reads high believed ground danger pulls
+		#    back toward its Supply Route instead of dying in the fire. Fog-legal (DangerFieldLayer only).
+		SectorSpread: true
+		SmallSquadCoverage: true
+		SmallSquadMinNearbyFriendlies: 2
+		DangerEvac: true
+		EvacDangerThreshold: 60
+		EvacRetreatCells: 12
 
 	# Adaptive production — counter enemy composition.
 	# Experimental halves EvaluationInterval to 300 (counter-build twice as fast against
