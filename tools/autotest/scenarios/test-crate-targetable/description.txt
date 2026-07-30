@@ -1,0 +1,1 @@
+A dropped SUPPLYCACHE must be auto-targeted and destroyed by an enemy unit like the truck it came from: an enemy MBT in FireAtWill stance next to the crate should kill it unaided.

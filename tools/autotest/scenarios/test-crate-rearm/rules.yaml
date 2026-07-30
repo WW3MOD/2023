@@ -1,0 +1,13 @@
+# Crate-rearm autotest overrides. Minimal — pre-placed unit + crate, no economy.
+
+# No cash -> no production; the only actors are the pre-placed Customer + Crate.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-crate-rearm.lua

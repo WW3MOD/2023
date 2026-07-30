@@ -1,0 +1,1 @@
+A dropped SUPPLYCACHE must rearm a nearby friendly unit like the truck it came from: drained rifleman next to a full crate should climb back above zero ammo.

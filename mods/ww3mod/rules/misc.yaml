@@ -384,7 +384,7 @@ SUPPLYCACHE:
 	Armor:
 		Type: Light
 	Targetable:
-		TargetTypes: Ground, Structure, NoAutoTarget
+		TargetTypes: Ground, Structure
 	ProximityCapturable:
 		Range: 1c512
 		Sticky: true
@@ -411,7 +411,11 @@ SUPPLYCACHE:
 		TotalSupply: 750
 		RearmCondition: replenish-soldiers
 		SupplyCreditValue: 750
-		RemoveBelowSupply: 50
+		# Remove only once genuinely drained (supply 0). A crate has no trip home to
+		# reserve supply for (unlike TRUK's RestockThreshold), so it serves down to the
+		# last usable batch. A higher threshold would silently vanish a freshly-dropped
+		# crate carrying less than that value — the "inert crate" report.
+		RemoveBelowSupply: 1
 		SupplyHighCondition: supply-high
 		SupplyMediumCondition: supply-medium
 		SupplyLowCondition: supply-low
