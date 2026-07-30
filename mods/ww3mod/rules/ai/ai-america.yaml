@@ -1,9 +1,9 @@
 Player:
-	# ===== Normal AI — America (balanced, steady pressure) =====
-	# Split (early-econ PIPELINE 12): Experimental now uses the @america.experimental twin
-	# below (need-gated trucks + threat-scaled AA). The `!enable-ai-experimental` guard keeps
-	# exactly one UnitBuilder enabled per player — Normal + Stable keep this frozen block
-	# byte-identical (neither holds enable-ai-experimental). Mirrors the HelicopterSquad split.
+	# ===== Baseline ground production — America (enable-ai-player, non-Experimental) =====
+	# Split (early-econ PIPELINE 12): Experimental uses the @america.experimental twin below
+	# (need-gated trucks + threat-scaled AA). The `!enable-ai-experimental` guard keeps exactly
+	# one UnitBuilder enabled per player — Stable holds this frozen block (it has
+	# enable-ai-player but not enable-ai-experimental). Mirrors the HelicopterSquad split.
 	UnitBuilderBotModule@america.normal:
 		RequiresCondition: enable-ai-player && !enable-ai-experimental && player.nato
 		UnitQueues: Vehicle, Infantry
@@ -46,7 +46,7 @@ Player:
 
 	# ===== Experimental AI — America ground production (early-econ PIPELINE 12) =====
 	# Byte-for-byte copy of @america.normal's UnitsToBuild/UnitLimits PLUS three default-off
-	# early-econ gates (behaviours 1 & 2). Experimental-only condition; Normal/Stable keep the
+	# early-econ gates (behaviours 1 & 2). Experimental-only condition; Stable keeps the
 	# frozen twin above. The engine flags default false, so this block is the ONLY place they turn on.
 	#   * GateResupplyOnAmmoNeed — no supply trucks while every truck-rearmable unit has full ammo.
 	#   * ScaleAntiAirToThreat — cap vehicle AA (strykershorad) to OBSERVED enemy air; aa.america
@@ -98,110 +98,3 @@ Player:
 		AntiAirUnitTypes: strykershorad
 		AntiAirBaseline: 0
 		AntiAirPerObservedAir: 1
-
-	# Legacy ground squad manager — gated to NON-Experimental/Stable paths.
-	# The Experimental/Stable POI layer owns ground unit positioning via
-	# LayeredDefenceBotModule + MountedTransportBotModule. Running the legacy squad manager alongside
-	# would (1) yank Bradleys/M113s into squads so MountedTransport can't ever
-	# find an idle carrier, (2) pull main-line infantry into squads instead of
-	# leaving them for LayeredDefence/MountedTransport.
-	# Condition resolves to "normal AI nato" only (legacy AND has the
-	# enable-ai-player condition; among legacy bots only normal has it).
-	SquadManagerBotModule@america.normal:
-		RequiresCondition: enable-ai-legacy-only && enable-ai-player && player.nato
-		SquadSize: 6
-		SquadSizeRandomBonus: 14
-		RushInterval: 150
-		AttackScanRadius: 32
-		DangerScanRadius: 25
-		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, medi.america, TRAN, littlebird, HELI
-		IgnoredEnemyTargetTypes: IgnoreThis
-
-	# ===== Rush AI — America (fast, aggressive, smaller squads) =====
-	UnitBuilderBotModule@america.rush:
-		RequiresCondition: enable-ai-rush && player.nato
-		UnitQueues: Vehicle, Infantry
-		UnitsToBuild:
-			# Heavy infantry focus for early aggression
-			e3.america: 150
-			ar.america: 120
-			tl.america: 80
-			e2.america: 70
-
-			# Minimal support
-			at.america: 40
-			mt.america: 30
-			medi.america: 20
-
-			# Fast vehicles for early strikes
-			humvee: 50
-			bradley: 30
-
-			# Minimal logistics
-			truk: 10
-
-		UnitLimits:
-			truk: 2
-			tecn.america: 2
-			e6.america: 1
-
-	SquadManagerBotModule@america.rush:
-		RequiresCondition: enable-ai-rush && player.nato
-		SquadSize: 4
-		SquadSizeRandomBonus: 6
-		RushInterval: 80
-		AttackScanRadius: 40
-		DangerScanRadius: 20
-		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, medi.america, TRAN, littlebird, HELI
-		IgnoredEnemyTargetTypes: IgnoreThis
-
-	# ===== Turtle AI — America (builds up, large squads, combined arms) =====
-	UnitBuilderBotModule@america.turtle:
-		RequiresCondition: enable-ai-turtle && player.nato
-		UnitQueues: Vehicle, Infantry
-		UnitsToBuild:
-			# Conscripts for capturing
-			tecn.america: 500
-
-			# Infantry -- more balanced with support emphasis
-			e3.america: 100
-			ar.america: 80
-			tl.america: 60
-			e2.america: 50
-
-			# Strong support roster
-			at.america: 60
-			mt.america: 50
-			medi.america: 50
-			aa.america: 40
-			sn.america: 35
-			e6.america: 25
-
-			# Heavy vehicle emphasis
-			humvee: 20
-			bradley: 35
-			abrams: 40
-			m113: 20
-			m109: 25
-			strykershorad: 15
-
-			# Supply trucks
-			truk: 25
-
-		UnitLimits:
-			truk: 5
-			tecn.america: 3
-			e6.america: 3
-			m109: 4
-			strykershorad: 3
-			sn.america: 4
-
-	SquadManagerBotModule@america.turtle:
-		RequiresCondition: enable-ai-turtle && player.nato
-		SquadSize: 10
-		SquadSizeRandomBonus: 15
-		RushInterval: 300
-		AttackScanRadius: 35
-		DangerScanRadius: 30
-		ExcludeFromSquadsTypes: tecn.america, e6.america, truk, medi.america, TRAN, littlebird, HELI
-		IgnoredEnemyTargetTypes: IgnoreThis

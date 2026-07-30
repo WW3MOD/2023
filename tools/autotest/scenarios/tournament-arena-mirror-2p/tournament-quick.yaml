@@ -5,8 +5,8 @@
 # for batch tractability — 20 seeds in ~30 min instead of 60 min.
 
 Matchup:
-	P1Bot: normal
-	P2Bot: normal
+	P1Bot: stable
+	P2Bot: stable
 
 TimeLimitSeconds: 60
 

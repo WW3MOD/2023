@@ -45,7 +45,7 @@ Players:
 		Name: Russia-bot
 		LockFaction: True
 		Faction: america
-		Bot: normal
+		Bot: stable
 		Color: FF4444
 		Enemies: USA-bot
 

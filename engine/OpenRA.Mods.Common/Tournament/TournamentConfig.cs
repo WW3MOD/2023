@@ -5,7 +5,7 @@
  * Schema:
  *
  *   Matchup:
- *       P1Bot: normal             # informational; bot assignment is in map.yaml
+ *       P1Bot: stable             # informational; bot assignment is in map.yaml
  *       P2Bot: experimental                 # informational
  *   TimeLimitSeconds: 720         # match deadline in real game seconds
  *   Scorer: weighted_components   # MatchHarness registry key
@@ -25,8 +25,8 @@ namespace OpenRA.Mods.Common.Tournament
 	{
 		public class MatchupConfig
 		{
-			public string P1Bot = "normal";
-			public string P2Bot = "normal";
+			public string P1Bot = "stable";
+			public string P2Bot = "stable";
 		}
 
 		public class ScoreConfig

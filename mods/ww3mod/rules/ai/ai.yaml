@@ -1,43 +1,31 @@
 Player:
 	# ===== Bot Types =====
 	#
+	# Only two AI bots ship: Experimental (the live-tuned config) and Stable (its
+	# frozen, benchmark-validated snapshot). The legacy Normal/Rush/Turtle bots and
+	# their enable-ai-rush / enable-ai-turtle / enable-ai-legacy-only conditions were
+	# removed 2026-07-30. The tournament harness A/Bs Experimental against Stable.
+	#
 	# Condition map — when adding a new bot type or wiring a new module,
 	# pick the right condition:
 	#
-	#   enable-ai-any           granted to: normal, rush, turtle, experimental, stable
+	#   enable-ai-any           granted to: experimental, stable
 	#                           use for:    truly universal modules (intel, repair, scout)
 	#
-	#   enable-ai-player        granted to: normal, experimental, stable
-	#                           use for:    the "normal baseline" — modules that the
-	#                                       default Normal AI uses and that Experimental/Stable
-	#                                       inherit as their starting point. Misleadingly named:
-	#                                       it does NOT mean "any AI player". Kept for
-	#                                       backwards compatibility with existing wiring.
-	#                           PITFALL: this is not a synonym for "any AI". Rush and
-	#                                    turtle do NOT get this condition.
+	#   enable-ai-player        granted to: experimental, stable
+	#                           use for:    the shared baseline tier — modules both bots
+	#                                       inherit as their starting point (base builder,
+	#                                       ground production). Historically the Normal AI's
+	#                                       baseline; now that Normal/Rush/Turtle are gone it
+	#                                       overlaps enable-ai-any (both surviving bots hold
+	#                                       both). Kept as a distinct gate because some blocks
+	#                                       still combine it with !enable-ai-experimental to
+	#                                       resolve to Stable-only (see @america.normal /
+	#                                       @russia.normal unit builders).
 	#
-	#   enable-ai-rush          granted to: rush
-	#   enable-ai-turtle        granted to: turtle
 	#   enable-ai-experimental  granted to: experimental — use for NEW Experimental-only modules
 	#   enable-ai-stable        granted to: stable — frozen snapshot of the last validated
 	#                                       Experimental config (promotion policy: SPEC.md §Bot pair)
-	#   enable-ai-legacy-only   granted to: normal, rush, turtle (everyone except Experimental + Stable)
-	#                           use for:    modules that Experimental replaces — keep the legacy
-	#                                       module around for tournament baselines.
-	#
-	# Tournament harness uses these conditions to A/B test Experimental against the legacy
-	# Normal AI without rebuilding the binary. See:
-	#   WORKSPACE/plans/260511_ai_tournament_harness.md
-	#   WORKSPACE/ai/tournament_swap_guide.md
-	ModularBot@normal:
-		Name: Normal AI
-		Type: normal
-	ModularBot@rush:
-		Name: Rush AI
-		Type: rush
-	ModularBot@turtle:
-		Name: Turtle AI
-		Type: turtle
 	ModularBot@experimental:
 		Name: Experimental AI
 		Type: experimental
@@ -45,19 +33,12 @@ Player:
 		Name: Stable AI
 		Type: stable
 
-	# Bots list expanded to include experimental + stable so both inherit the
-	# normal-tier modules as their baseline. New Experimental-only modules use
-	# `enable-ai-experimental`; Stable mirrors the validated snapshot under
-	# `enable-ai-stable`.
+	# Both surviving bots inherit the shared baseline (enable-ai-player / enable-ai-any).
+	# New Experimental-only modules use `enable-ai-experimental`; Stable mirrors the
+	# validated snapshot under `enable-ai-stable`.
 	GrantConditionOnBotOwner@normal:
 		Condition: enable-ai-player
-		Bots: normal, experimental, stable
-	GrantConditionOnBotOwner@rush:
-		Condition: enable-ai-rush
-		Bots: rush
-	GrantConditionOnBotOwner@turtle:
-		Condition: enable-ai-turtle
-		Bots: turtle
+		Bots: experimental, stable
 	GrantConditionOnBotOwner@experimental:
 		Condition: enable-ai-experimental
 		Bots: experimental
@@ -68,16 +49,7 @@ Player:
 	# Unified condition for any AI type (used by shared modules)
 	GrantConditionOnBotOwner@anyai:
 		Condition: enable-ai-any
-		Bots: normal, rush, turtle, experimental, stable
-
-	# Inverse of @experimental/@stable — "any legacy AI". Reserved for future use
-	# when Experimental replaces a module: the old module moves to
-	# enable-ai-legacy-only, the new one gets enable-ai-experimental (and
-	# enable-ai-stable once promoted). Currently unused — every existing module is
-	# shared between the normal-tier baseline and the Experimental/Stable POI layer.
-	GrantConditionOnBotOwner@legacyonly:
-		Condition: enable-ai-legacy-only
-		Bots: normal, rush, turtle
+		Bots: experimental, stable
 
 	# Shared blackboard for inter-module coordination
 	BotBlackboard@ai:
@@ -93,17 +65,6 @@ Player:
 		Prerequisites: global-disablenavy
 
 	# ===== Shared Modules (all AI types) =====
-
-	# Legacy capture manager — gated to non-experimental AIs. experimental uses
-	# CaptureCoordinatorBotModule below (income-weighted scoring + escort + defense).
-	# Only one entry: TECN is the sole neutral-capture unit (engineers don't
-	# have the Captures trait by design — see DOCS/gameplay/capturing.md).
-	CaptureManagerBotModule@tecn:
-		RequiresCondition: enable-ai-legacy-only
-		CapturingActorTypes: tecn,tecn.russia,tecn.america
-		CapturableActorTypes: oilb,bio,miss,fcom,hosp
-		CheckCaptureTargetsForVisibility: false
-		MaximumCaptureTargetOptions: 15
 
 	# Experimental/Stable AI: per-unit commitment ledger (POI-strategy Phase 0/1). Stops
 	# CaptureCoordinatorBotModule below (and the POI offense modules) from
@@ -391,30 +352,10 @@ Player:
 		# too: only @experimental bots ever act on it; every other profile stays byte-identical.
 		DangerFieldRouting: true
 
-	# Adaptive production — counter enemy composition
-	#
-	# Two parallel definitions: legacy (normal/rush/turtle) keeps the original
-	# EvaluationInterval: 600. Experimental halves it to 300 — counter-build twice as
-	# fast against scouted enemy comp. First Experimental-AI experiment (260512), measured
-	# via tournament harness mirror-paired batch.
-	AdaptiveProductionBotModule@america:
-		RequiresCondition: enable-ai-legacy-only && player.nato
-		EvaluationInterval: 600
-		MaxRequestsPerCycle: 2
-		AntiVehicleUnits: at.america, abrams, bradley
-		AntiInfantryUnits: e3.america, ar.america, humvee
-		AntiAirUnits: aa.america, strykershorad
-		MinEnemySightings: 3
-
-	AdaptiveProductionBotModule@russia:
-		RequiresCondition: enable-ai-legacy-only && player.brics
-		EvaluationInterval: 600
-		MaxRequestsPerCycle: 2
-		AntiVehicleUnits: at.russia, t90, bmp2
-		AntiInfantryUnits: e3.russia, ar.russia, btr
-		AntiAirUnits: aa.russia, tunguska
-		MinEnemySightings: 3
-
+	# Adaptive production — counter enemy composition.
+	# Experimental halves EvaluationInterval to 300 (counter-build twice as fast against
+	# scouted enemy comp). First Experimental-AI experiment (260512), measured via the
+	# tournament harness mirror-paired batch. Stable's frozen twin lives in the Stable block below.
 	AdaptiveProductionBotModule@experimental.america:
 		RequiresCondition: enable-ai-experimental && player.nato
 		EvaluationInterval: 300
@@ -534,18 +475,7 @@ Player:
 		# (the shared C# default keeps the broken "UnloadCargo" no-op for @stable byte-identity).
 		UnloadOnArrival: true
 
-	# Capture enemy logistics centers to deny resupply (LEGACY ONLY).
-	# experimental handles LC capture inside CaptureCoordinatorBotModule@experimental.tecn so the
-	# two modules don't both order TECN at the same time. See the playtest
-	# report 260513 (O1) and forensic audit for the TECN re-order bug root cause.
-	CaptureManagerBotModule@captureenemystructures:
-		RequiresCondition: enable-ai-legacy-only
-		CapturingActorTypes: tecn,tecn.russia,tecn.america
-		CapturableActorTypes: logisticscenter
-		CheckCaptureTargetsForVisibility: true
-		MaximumCaptureTargetOptions: 10
-
-	# ===== Base Builder — Normal =====
+	# ===== Base Builder — shared baseline (enable-ai-player) =====
 	BaseBuilderBotModule@normal:
 		RequiresCondition: enable-ai-player
 		ConstructionYardTypes: supplyroute
@@ -577,67 +507,6 @@ Player:
 			sam: 2
 			hsam: 2
 
-	# ===== Base Builder — Rush (minimal defenses, fast logistics) =====
-	BaseBuilderBotModule@rush:
-		RequiresCondition: enable-ai-rush
-		ConstructionYardTypes: supplyroute
-		VehiclesFactoryTypes: supplyroute
-		BarracksTypes: supplyroute
-		HeliTypes: hpad
-		AirfieldTypes: afld
-		ProductionTypes: supplyroute, hpad, afld
-		DefenseTypes: gtwr, pbox, agun
-		BuildingQueues: Building
-		DefenseQueues: Defense
-		MinBaseRadius: 2
-		MaxBaseRadius: 20
-		PlaceDefenseTowardsEnemyChance: 60
-		MinimumDefenseRadius: 3
-		MaximumDefenseRadius: 10
-		NewProductionCashThreshold: 3000
-		RallyPointScanRadius: 10
-		BuildingLimits:
-			hpad: 2
-			afld: 1
-		BuildingFractions:
-			hpad: 4
-			afld: 3
-			gtwr: 4
-			pbox: 2
-			agun: 2
-
-	# ===== Base Builder — Turtle (heavy defenses, full infrastructure) =====
-	BaseBuilderBotModule@turtle:
-		RequiresCondition: enable-ai-turtle
-		ConstructionYardTypes: supplyroute
-		VehiclesFactoryTypes: supplyroute
-		BarracksTypes: supplyroute
-		HeliTypes: hpad
-		AirfieldTypes: afld
-		ProductionTypes: supplyroute, hpad, afld
-		DefenseTypes: gtwr, pbox, hbox, agun, sam, hsam
-		BuildingQueues: Building
-		DefenseQueues: Defense
-		MinBaseRadius: 2
-		MaxBaseRadius: 20
-		PlaceDefenseTowardsEnemyChance: 100
-		MinimumDefenseRadius: 5
-		MaximumDefenseRadius: 20
-		NewProductionCashThreshold: 8000
-		RallyPointScanRadius: 10
-		BuildingLimits:
-			hpad: 4
-			afld: 3
-		BuildingFractions:
-			hpad: 8
-			afld: 6
-			gtwr: 12
-			pbox: 8
-			hbox: 5
-			agun: 6
-			sam: 4
-			hsam: 3
-
 	# ===== Fixed-Wing Aircraft — Russia =====
 	# Fixed-wing called in via Supply Route — no AFLD needed to produce them
 	UnitBuilderBotModule@russia.fixedwing:
@@ -652,24 +521,14 @@ Player:
 			MIG: 2
 			FROG: 2
 
-	SquadManagerBotModule@russia.fixedwing:
-		RequiresCondition: enable-ai-legacy-only && player.brics
-		SquadSize: 2
-		SquadSizeRandomBonus: 1
-		RushInterval: 600
-		AttackScanRadius: 48
-		AirUnitsTypes: MIG, FROG
-		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
-
 	# experimental variant of the fixed-wing SquadManager. IMPORTANT: SquadManagerBotModule
 	# is NOT air-only — FindNewUnits recruits EVERY IPositionable unit not in
 	# ExcludeFromSquadsTypes, filing non-air/non-naval ones into GROUND attack
-	# squads. With an empty exclude list (the legacy config above) it scoops up
-	# the capture TECN and attack-moves it at the enemy, overriding its
-	# CaptureActor order — so experimental captures never complete (POI-strategy Phase 2
-	# finding). Excluding the capturer + non-combat support (already owned by
-	# CaptureCoordinator / SupplyFollower) lets the goal-guarded capture actually
-	# finish. Legacy AIs keep the un-excluded module above, untouched.
+	# squads. Without excluding the capturer + non-combat support (already owned by
+	# CaptureCoordinator / SupplyFollower) it would scoop up the capture TECN and
+	# attack-move it at the enemy, overriding its CaptureActor order — so captures
+	# never complete (POI-strategy Phase 2 finding). The exclusions below let the
+	# goal-guarded capture actually finish.
 	SquadManagerBotModule@experimental.russia.fixedwing:
 		RequiresCondition: enable-ai-experimental && player.brics
 		SquadSize: 2
@@ -721,18 +580,9 @@ Player:
 			A10: 2
 			F16: 2
 
-	SquadManagerBotModule@america.fixedwing:
-		RequiresCondition: enable-ai-legacy-only && player.nato
-		SquadSize: 2
-		SquadSizeRandomBonus: 1
-		RushInterval: 600
-		AttackScanRadius: 48
-		AirUnitsTypes: A10, F16
-		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
-
 	# experimental variant — see the russia.fixedwing experimental note above. Excludes the capture
 	# TECN + non-combat support so the fixed-wing/ground SquadManager stops
-	# stealing the capturer mid-walk. Legacy AIs keep the module above untouched.
+	# stealing the capturer mid-walk.
 	SquadManagerBotModule@experimental.america.fixedwing:
 		RequiresCondition: enable-ai-experimental && player.nato
 		SquadSize: 2
@@ -773,7 +623,7 @@ Player:
 	# ===== Helicopter Squad Manager (shared, all factions EXCEPT experimental) =====
 	# Split from the experimental twin below so the rearm-ready bypass is experimental-only.
 	# The !enable-ai-experimental guard keeps this one instance per player (an experimental bot
-	# would otherwise match BOTH blocks). Normal/rush/turtle/stable keep the frozen default.
+	# would otherwise match BOTH blocks). Stable keeps this frozen default.
 	HelicopterSquadBotModule:
 		RequiresCondition: enable-ai-any && !enable-ai-experimental
 		AttackSquadSize: 2
@@ -831,8 +681,7 @@ Player:
 	# ever edits the @experimental modules. When a change is validated (benchmark +
 	# user acceptance), its settings are copied down into these @stable modules —
 	# that promotion is the ONLY time this block changes. Keep the two blocks'
-	# config values identical at each promotion. Normal/Rush/Turtle stay frozen and
-	# are never touched by the loop.
+	# config values identical at each promotion.
 
 	CaptureCoordinatorBotModule@stable.tecn:
 		RequiresCondition: enable-ai-stable

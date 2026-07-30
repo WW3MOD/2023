@@ -4,8 +4,8 @@
 # the game runs at fastest game speed (2× simulation pace).
 
 Matchup:
-	P1Bot: normal
-	P2Bot: normal
+	P1Bot: stable
+	P2Bot: stable
 
 TimeLimitSeconds: 30
 
