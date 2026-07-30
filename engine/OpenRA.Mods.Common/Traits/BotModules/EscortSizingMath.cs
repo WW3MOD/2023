@@ -83,5 +83,24 @@ namespace OpenRA.Mods.Common.Traits
 			// Everything between contested and verified-safe.
 			return EscortTier.Light;
 		}
+
+		/// <summary>Map a resolved escort <paramref name="tier"/> to a final escort COUNT, given the pre-lever
+		/// desired count and the LIGHT-tier size. REDUCTION-ONLY by construction — the lever can only ever SHRINK
+		/// an escort, never raise it: None ⇒ 0, Full ⇒ the pre-lever want unchanged, Light ⇒ min(want, lightSize).
+		/// The Math.Min in the Light case is the load-bearing guarantee: even if <paramref name="lightEscortSize"/>
+		/// were mis-tuned ABOVE the pre-lever want, the result is clamped down to want, so the lever is provably
+		/// incapable of raising an escort. Pure integer, zero RNG.</summary>
+		public static int ResolveEscortCount(int preLeverWant, EscortTier tier, int lightEscortSize)
+		{
+			switch (tier)
+			{
+				case EscortTier.None:
+					return 0;
+				case EscortTier.Light:
+					return preLeverWant < lightEscortSize ? preLeverWant : lightEscortSize; // min — never raises
+				default:
+					return preLeverWant; // Full: keep the (possibly contested-larger) escort untouched.
+			}
+		}
 	}
 }
