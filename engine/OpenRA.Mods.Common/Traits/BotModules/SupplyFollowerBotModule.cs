@@ -62,6 +62,38 @@ namespace OpenRA.Mods.Common.Traits
 			"each scan, without this the waypoint recedes and the maneuver restarts before it completes.")]
 		public readonly int RepathThresholdCells = 3;
 
+		[Desc("@experimental sector spread: when several trucks are free, greedily assign each to a DISTINCT",
+			"unit cluster (neediest first) instead of every truck piling onto the same blob; only double up",
+			"when trucks outnumber clusters. This is a shared enable-ai-ANY module, so it is additionally gated",
+			"on InfluenceStack.Participates — OFF by default, every non-@experimental profile byte-identical.")]
+		public readonly bool SectorSpread = false;
+
+		[Desc("@experimental small-squad coverage: lower the servable-cluster floor to",
+			"SmallSquadMinNearbyFriendlies (below MinNearbyFriendlies) so small squads become visible to the",
+			"follower once the big clusters are covered. OFF by default; double-gated on InfluenceStack.Participates.")]
+		public readonly bool SmallSquadCoverage = false;
+
+		[Desc("Minimum friendlies to form a servable cluster when SmallSquadCoverage is on. Only applied for",
+			"participating (@experimental / human) profiles; capped at MinNearbyFriendlies so it only widens.")]
+		public readonly int SmallSquadMinNearbyFriendlies = 2;
+
+		[Desc("@experimental danger evac: when the believed ground danger at the truck (or its target cluster",
+			"centroid) reaches EvacDangerThreshold, retreat the truck toward its Supply Route instead of idling",
+			"in the fire. Fog-legal — reads DangerFieldLayer only, never an omniscient enemy scan. OFF by",
+			"default; double-gated on InfluenceStack.Participates.")]
+		public readonly bool DangerEvac = false;
+
+		[Desc("Danger-evac: believed ground-danger reading at/above which a truck pulls back. Set ABOVE the",
+			"Stage-E reroute threshold — a reroute avoids exposure, an evac abandons a spot already too hot.")]
+		public readonly int EvacDangerThreshold = 60;
+
+		[Desc("Danger-evac: how far (cells) to pull the truck back toward its Supply Route when evacuating.")]
+		public readonly int EvacRetreatCells = 12;
+
+		[Desc("Actor types that count as the player's own Supply Route (the safe rear an evacuating truck",
+			"pulls back toward). Only read when DangerEvac is on.")]
+		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
+
 		public override object Create(ActorInitializer init) { return new SupplyFollowerBotModule(init.Self, this); }
 	}
 
@@ -76,6 +108,12 @@ namespace OpenRA.Mods.Common.Traits
 		DangerFieldLayer dangerField;
 		int scanCountdown;
 		bool initialized;
+
+		// Cached in Initialize: whether this player reads the influence stack (only @experimental bots / humans),
+		// and whether the Stage-E two-leg reroute is live. Every new @experimental behaviour is double-gated on
+		// `participates` so @stable/Normal/Rush/Turtle stay byte-identical.
+		bool participates;
+		bool routeViaDanger;
 
 		// Track which trucks are assigned to follow duty
 		readonly HashSet<Actor> activeTrucks = new HashSet<Actor>();
@@ -104,10 +142,19 @@ namespace OpenRA.Mods.Common.Traits
 			threatMap = world.WorldActor.TraitOrDefault<ThreatMapManager>();
 			blackboard = player.PlayerActor.TraitsImplementing<BotBlackboard>().FirstOrDefault(b => !b.IsTraitDisabled);
 
-			// Stage-E danger-weighted routing. enable-ai-ANY module, so ALSO gate on Participates:
-			// only @experimental bots read the influence stack, keeping every other profile byte-identical.
-			dangerField = Info.DangerFieldRouting && InfluenceStack.Participates(player)
+			// enable-ai-ANY module: only @experimental bots (and humans) read the influence stack. Cache the
+			// participation gate once — every new @experimental behaviour double-gates on it so every other
+			// profile is byte-identical.
+			participates = InfluenceStack.Participates(player);
+
+			// Fetch the ground danger field if any believed-danger consumer (Stage-E reroute or danger evac) is
+			// active. With DangerEvac at its default off, this is exactly the old condition.
+			dangerField = participates && (Info.DangerFieldRouting || Info.DangerEvac)
 				? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
+
+			// The Stage-E two-leg reroute stays the old condition (DangerFieldRouting + a live field), so
+			// enabling DangerEvac alone never flips a truck onto the reroute path.
+			routeViaDanger = Info.DangerFieldRouting && dangerField != null;
 
 			initialized = true;
 		}
@@ -156,30 +203,89 @@ namespace OpenRA.Mods.Common.Traits
 			if (friendlyUnits.Count == 0)
 				return;
 
-			// Find unit clusters by looking for groups of friendly units away from base
-			var clusters = FindUnitClusters(friendlyUnits);
+			// @experimental small-squad coverage widens the servable-cluster floor so small squads (< the
+			// default 4) become visible once big clusters are covered. Capped at MinNearbyFriendlies so it only
+			// ever widens; off / non-participant profiles use the frozen floor → byte-identical.
+			var minFriendlies = Info.SmallSquadCoverage && participates
+				? Math.Max(1, Math.Min(Info.MinNearbyFriendlies, Info.SmallSquadMinNearbyFriendlies))
+				: Info.MinNearbyFriendlies;
 
-			foreach (var truck in trucks)
+			// Find unit clusters by looking for groups of friendly units away from base
+			var clusters = FindUnitClusters(friendlyUnits, minFriendlies);
+
+			var spread = Info.SectorSpread && participates;
+			var evac = Info.DangerEvac && dangerField != null;
+			var maxFollowLength = WDist.FromCells(Info.MaxFollowDistance).Length;
+
+			// @experimental sector spread: precompute distinct-cluster assignments over a STABLY sorted truck
+			// list (ActorID) so the greedy result is enumeration-order-independent and deterministic.
+			Dictionary<Actor, UnitCluster> spreadTargets = null;
+			var orderedTrucks = trucks;
+			if (spread && clusters.Count > 0)
+			{
+				orderedTrucks = trucks.OrderBy(t => t.ActorID).ToList();
+				var truckPositions = orderedTrucks.Select(t => t.CenterPosition).ToList();
+				var sectors = clusters.Select(c => new SupplyLogisticsMath.Sector(c.Center, NeedScore(c.AmmoNeed))).ToList();
+				var assignment = SupplyLogisticsMath.AssignSectors(truckPositions, sectors, maxFollowLength);
+
+				spreadTargets = new Dictionary<Actor, UnitCluster>();
+				for (var i = 0; i < orderedTrucks.Count; i++)
+					if (assignment[i] != SupplyLogisticsMath.NoSector)
+						spreadTargets[orderedTrucks[i]] = clusters[assignment[i]];
+			}
+
+			// Own SR — the fog-legal safe rear an evacuating truck pulls back toward (our own actor).
+			var srActor = evac ? FindOwnSupplyRoute() : null;
+
+			foreach (var truck in orderedTrucks)
 			{
 				if (clusters.Count == 0)
 					break;
 
 				// Find the best cluster for this truck (closest cluster with ammo need)
-				var bestCluster = clusters
-					.Where(c => (c.Center - truck.CenterPosition).Length < WDist.FromCells(Info.MaxFollowDistance).Length)
-					.OrderByDescending(c => c.AmmoNeed)
-					.ThenBy(c => (c.Center - truck.CenterPosition).LengthSquared)
-					.FirstOrDefault();
+				UnitCluster bestCluster;
+				if (spread)
+				{
+					if (spreadTargets == null || !spreadTargets.TryGetValue(truck, out bestCluster))
+						continue;
+				}
+				else
+				{
+					bestCluster = clusters
+						.Where(c => (c.Center - truck.CenterPosition).Length < WDist.FromCells(Info.MaxFollowDistance).Length)
+						.OrderByDescending(c => c.AmmoNeed)
+						.ThenBy(c => (c.Center - truck.CenterPosition).LengthSquared)
+						.FirstOrDefault();
+				}
 
 				if (bestCluster == null)
 					continue;
+
+				// @experimental danger evac: a truck whose follow position (or cluster centroid) reads high
+				// believed ground danger pulls back toward its SR rather than dying in place. Fog-legal.
+				if (evac && srActor != null && ShouldEvacuate(truck, bestCluster))
+				{
+					var retreat = SupplyLogisticsMath.RetreatTarget(
+						truck.CenterPosition, srActor.CenterPosition, WDist.FromCells(Info.EvacRetreatCells).Length);
+					bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, world.Map.CellContaining(retreat)), false));
+					lastVia.Remove(truck);
+
+					if (!activeTrucks.Contains(truck))
+					{
+						activeTrucks.Add(truck);
+						if (blackboard != null)
+							blackboard.ClaimUnit(truck, "supply-follow");
+					}
+
+					continue;
+				}
 
 				// Find a safe position behind the cluster (away from enemy threat)
 				var followPos = FindSafeFollowPosition(bestCluster);
 
 				if (followPos.HasValue)
 				{
-					if (dangerField == null)
+					if (!routeViaDanger)
 					{
 						// Flag off / non-participant: unchanged base behaviour (byte-identical), a single
 						// direct Move re-issued each scan to track the moving cluster.
@@ -231,7 +337,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		List<UnitCluster> FindUnitClusters(List<Actor> units)
+		List<UnitCluster> FindUnitClusters(List<Actor> units, int minFriendlies)
 		{
 			var clusters = new List<UnitCluster>();
 			var assigned = new HashSet<Actor>();
@@ -246,7 +352,7 @@ namespace OpenRA.Mods.Common.Traits
 					.Where(a => !assigned.Contains(a) && (a.CenterPosition - unit.CenterPosition).Length < WDist.FromCells(10).Length)
 					.ToList();
 
-				if (nearby.Count < Info.MinNearbyFriendlies)
+				if (nearby.Count < minFriendlies)
 					continue;
 
 				// Calculate cluster center and ammo need
@@ -328,6 +434,32 @@ namespace OpenRA.Mods.Common.Traits
 				return _ => true;
 
 			return c => loco.MovementCostForCell(c) != PathGraph.MovementCostForUnreachableCell;
+		}
+
+		// The player's own Supply Route (our own actor — fog-legal to read), the safe rear an evacuating truck
+		// pulls back toward. Null before one exists / if it was lost, in which case evac is skipped.
+		Actor FindOwnSupplyRoute()
+		{
+			return world.Actors.FirstOrDefault(a =>
+				a.Owner == player && !a.IsDead && a.IsInWorld
+				&& Info.SupplyRouteTypes.Contains(a.Info.Name));
+		}
+
+		// Believed ground danger (DangerFieldLayer) at the truck and at its target cluster centroid, vs the
+		// evac threshold. Fog-legal by construction; dangerField is non-null only for participating profiles.
+		bool ShouldEvacuate(Actor truck, UnitCluster cluster)
+		{
+			var dangerAtTruck = dangerField.GroundDanger(player, truck.Location);
+			var dangerAtCluster = dangerField.GroundDanger(player, cluster.CenterCell);
+			return SupplyLogisticsMath.ShouldEvacuate(dangerAtTruck, dangerAtCluster, Info.EvacDangerThreshold);
+		}
+
+		// Scale the float AmmoNeed to a stable non-negative integer for the deterministic sector assignment.
+		// Only used on the @experimental spread path, so it never touches the byte-identical base ordering.
+		static int NeedScore(float ammoNeed)
+		{
+			var s = (int)(ammoNeed * 1000f);
+			return s < 0 ? 0 : s;
 		}
 
 		bool IsClaimedByOtherModule(Actor a)
