@@ -1,0 +1,61 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: dropped supply crate rearms a nearby friendly unit
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# A stationary SUPPLYCACHE (the actor a supply truck drops) sits 2 cells from a
+# rifleman whose ammo the Lua drains to zero. The cache should behave like the
+# truck: passively rearm the friendly unit in range. PASS = the rifleman's
+# primary-ammo climbs back above zero within the window.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		Faction: america
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	# The out-of-ammo unit under test — drained to zero in Lua.
+	Customer: e3
+		Owner: Me
+		Location: 20,16
+		Facing: 768
+
+	# The dropped supply crate, pre-placed 2 cells east of the customer (well
+	# within the cache's 4c0 SupplyProvider range). Full supply.
+	Crate: supplycache
+		Owner: Me
+		Location: 22,16
+
+Rules: rules.yaml

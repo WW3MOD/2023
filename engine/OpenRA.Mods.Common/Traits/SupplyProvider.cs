@@ -38,11 +38,11 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int RestockThreshold = 50;
 
 		[Desc("When a stationary provider's supply falls below this value it removes itself",
-			"from the world — the stationary analog of a truck driving home when almost empty.",
-			"A near-empty cache left on the field clutters it and misleads units into pathing",
-			"to a box that can no longer hand over a batch. 0 disables self-removal; Logistics",
-			"Centers and trucks leave it 0 (trucks evacuate via DropsSupplyCache instead).",
-			"Set 50 on SUPPLYCACHE to mirror TRUK's RestockThreshold 'almost empty' value.")]
+			"from the world — declutters a drained cache no unit can draw a batch from. 0",
+			"disables self-removal; Logistics Centers and trucks leave it 0 (trucks evacuate",
+			"via DropsSupplyCache instead). A ground cache has no trip home to reserve supply",
+			"for, so set 1 on SUPPLYCACHE: it serves down to empty and only despawns at 0. A",
+			"higher threshold would vanish a freshly-dropped crate carrying less than it.")]
 		public readonly int RemoveBelowSupply = 0;
 
 		[Desc("When the provider holds a residue too small for any reachable unit to use",

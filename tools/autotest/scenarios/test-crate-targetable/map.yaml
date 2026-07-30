@@ -1,0 +1,75 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: dropped supply crate is auto-targeted and destroyed by the enemy
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# A dropped SUPPLYCACHE (Crate, owned by Me) sits 4 cells from an enemy MBT
+# (EnemyTank) in default FireAtWill stance. With NoAutoTarget removed, the crate's
+# "Ground" target type matches the base FireAtWill auto-target priority, so the
+# enemy tank acquires and destroys it on its own — exactly like it would a truck.
+#   PASS = Crate is dead within the window (enemy auto-engaged and destroyed it).
+#   FAIL = Crate survives (still NoAutoTarget / not auto-targetable) or tank dies.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		LockFaction: True
+		Faction: america
+		Enemies: Enemy
+	PlayerReference@Enemy:
+		Name: Enemy
+		LockFaction: True
+		Faction: america
+		Enemies: Me
+
+Actors:
+	MySR: supplyroute
+		Owner: Me
+		Location: 4,4
+	EnemySR: supplyroute
+		Owner: Enemy
+		Location: 60,30
+
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,4
+	SpawnEnemy: mpspawn
+		Owner: Neutral
+		Location: 60,30
+
+	# The dropped supply crate under test.
+	Crate: supplycache
+		Owner: Me
+		Location: 20,16
+
+	# Enemy MBT in default FireAtWill stance, 4 cells east — within vision and gun
+	# range of the crate.
+	EnemyTank: abrams
+		Owner: Enemy
+		Location: 24,16
+		Facing: 768
+
+Rules: rules.yaml

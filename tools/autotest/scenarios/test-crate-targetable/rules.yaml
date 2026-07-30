@@ -1,0 +1,13 @@
+# Crate-targetable autotest overrides. Minimal — pre-placed crate + enemy tank.
+
+# No cash -> no production; the only actors are the pre-placed Crate + EnemyTank.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-crate-targetable.lua
