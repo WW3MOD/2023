@@ -382,6 +382,17 @@ Player:
 		# anti-vehicle->MainBattle/IndirectFire, anti-infantry->+Recon) before drawing. No new RNG draws;
 		# every unit above already classifies into its pool today. Off on the frozen @stable twin.
 		UseUnitRoles: true
+		# SR-DEFENSE: classify believed enemy contacts near our own Supply Route(s) by attacker class and
+		# call in the MATCHED counter, BYPASSING MinEnemySightings. Armor -> AntiVehicleUnits (cheapest
+		# first: at.america -> bradley -> abrams), air -> AntiAirUnits (aa.america/strykershorad), infantry
+		# -> AntiInfantryUnits. Reads the fog-legal belief store (actor identity, not a scalar danger read),
+		# so a helicopter draws AA not AT, and a lone scout never draws a counter. Per-class thresholds are
+		# on the unit-cost scale. Deterministic; reserves <=1 request/cycle. Off on the frozen @stable twin.
+		SupplyRouteDefenseEnabled: true
+		SupplyRouteScanRadius: 10
+		SupplyRouteArmorValueThreshold: 1200
+		SupplyRouteAirValueThreshold: 1000
+		SupplyRouteInfantryValueThreshold: 1000
 
 	AdaptiveProductionBotModule@experimental.russia:
 		RequiresCondition: enable-ai-experimental && player.brics
@@ -395,6 +406,18 @@ Player:
 		# anti-vehicle->MainBattle/IndirectFire, anti-infantry->+Recon) before drawing. No new RNG draws;
 		# every unit above already classifies into its pool today. Off on the frozen @stable twin.
 		UseUnitRoles: true
+		# SR-DEFENSE: classify believed enemy contacts near our own Supply Route(s) by attacker class and
+		# call in the MATCHED counter, BYPASSING MinEnemySightings. Armor -> AntiVehicleUnits (cheapest
+		# first: at.russia -> bmp2 (ATGM) -> t90), air -> AntiAirUnits (aa.russia/tunguska), infantry ->
+		# AntiInfantryUnits. Reads the fog-legal belief store (actor identity, not a scalar danger read),
+		# so a helicopter draws AA (tunguska, correctly) not AT, and a lone scout never draws a counter.
+		# Per-class thresholds are on the unit-cost scale. Deterministic; reserves <=1 request/cycle.
+		# Off on the frozen @stable twin.
+		SupplyRouteDefenseEnabled: true
+		SupplyRouteScanRadius: 10
+		SupplyRouteArmorValueThreshold: 1200
+		SupplyRouteAirValueThreshold: 1000
+		SupplyRouteInfantryValueThreshold: 1000
 
 	# experimental doctrine — Stage B.1: layered defence placement, reserve-driven.
 	#
