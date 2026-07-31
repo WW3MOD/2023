@@ -125,12 +125,14 @@ namespace OpenRA.Mods.Common.Traits
 				// @experimental priority requests first — before the normal FIFO and the blind lottery below —
 				// so a capture-supply floor claims the queue slot ahead of combat buys. Empty for every profile
 				// that never opts in ⇒ this block is skipped ⇒ byte-identical.
-				if (priorityBuildRequests.Count > 0)
-				{
-					var priorityRequest = priorityBuildRequests[0];
-					BuildUnit(bot, priorityRequest);
+				// PEEK-DON'T-POP: only remove the head once BuildUnit has ACTUALLY issued the order. When the
+				// Infantry queue is busy this cycle BuildUnit returns false and the request STAYS at the head, so
+				// it is retried next cycle and claims the NEXT free slot — instead of being silently discarded
+				// while combat buys churn the queue (the measured supply-side deadlock). The drain still runs
+				// before the FIFO/lottery below, so the surviving priority item pre-empts the next free slot; an
+				// in-progress build is never cancelled (BuildUnit only takes an empty queue).
+				if (priorityBuildRequests.Count > 0 && BuildUnit(bot, priorityBuildRequests[0]))
 					priorityBuildRequests.RemoveAt(0);
-				}
 
 				var buildRequest = queuedBuildRequests.FirstOrDefault();
 				if (buildRequest != null)
@@ -149,9 +151,17 @@ namespace OpenRA.Mods.Common.Traits
 			queuedBuildRequests.Add(requestedActor);
 		}
 
-		void IBotRequestPriorityUnitProduction.RequestPriorityUnitProduction(IBot bot, string requestedActor)
+		bool IBotRequestPriorityUnitProduction.RequestPriorityUnitProduction(IBot bot, string requestedActor)
 		{
+			// Reject when this twin is condition-disabled: its BotTick never runs (ModularBot ticks only enabled
+			// modules), so a request accepted here would never be drained/built — it would only inflate the
+			// caller's pending count forever (the measured pending=82 / alive=0 deadlock). The caller routes to
+			// the first twin that returns true, guaranteeing the request lands on the enabled UnitBuilder.
+			if (IsTraitDisabled)
+				return false;
+
 			priorityBuildRequests.Add(requestedActor);
+			return true;
 		}
 
 		int IBotRequestUnitProduction.RequestedProductionCount(IBot bot, string requestedActor)
@@ -261,16 +271,18 @@ namespace OpenRA.Mods.Common.Traits
 			return count;
 		}
 
-		// In cases where we want to build a specific unit but don't know the queue name (because there's more than one possibility)
-		void BuildUnit(IBot bot, string name)
+		// In cases where we want to build a specific unit but don't know the queue name (because there's more than one possibility).
+		// Returns true iff an order was actually issued (a matching queue was free). The priority-drain caller uses
+		// this to peek-don't-pop: a request that can't be placed this cycle (busy queue) stays queued for retry.
+		bool BuildUnit(IBot bot, string name)
 		{
 			var actorInfo = world.Map.Rules.Actors[name];
 			if (actorInfo == null)
-				return;
+				return false;
 
 			var buildableInfo = actorInfo.TraitInfoOrDefault<BuildableInfo>();
 			if (buildableInfo == null)
-				return;
+				return false;
 
 			ProductionQueue queue = null;
 			foreach (var pq in buildableInfo.Queue)
@@ -284,7 +296,10 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				bot.QueueOrder(Order.StartProduction(queue.Actor, name, 1));
 				AIUtils.BotDebug("{0} decided to build {1} (external request)", queue.Actor.Owner, name);
+				return true;
 			}
+
+			return false;
 		}
 
 		ActorInfo ChooseRandomUnitToBuild(ProductionQueue queue)

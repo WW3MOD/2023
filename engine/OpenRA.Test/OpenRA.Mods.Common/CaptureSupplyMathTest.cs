@@ -7,7 +7,8 @@
  *   (1) EffectiveFloor — scaling OFF reproduces the static floor exactly (the frozen path); scaling ON is
  *       ~one capturer per neutral money POI, clamped to [staticFloor, cap].
  *   (2) ShouldRequestTecn — with the staleness knob OFF the predicate is EXACTLY the frozen
- *       `alive + pending < floor` gate; with it ON an undelivered pending request is re-issued once stale.
+ *       `alive + pending < floor` gate; with it ON a stale pending request is re-issued ONLY while pending is
+ *       below the floor (the in-flight cap that bounds pending to [0, floor] — the pending=82 deadlock fix).
  * Pure integer decisions; no world mounted.
  */
 #endregion
@@ -100,20 +101,69 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void ShouldRequestTecn_PendingButUndelivered_ReissuesOnceStale()
+		public void ShouldRequestTecn_PartialFloorPendingBelowFloor_ReissuesOnceStale()
 		{
-			// Floor met only by a pending request that hasn't delivered a TECN. Not yet stale ⇒ hold; once the
-			// bounded tick age passes ⇒ re-issue (the un-deadlock).
+			// A partial in-flight case where pending is BELOW the floor (some capturers alive, one request in
+			// flight): floor met only by alive+pending, pending < floor ⇒ the staleness backstop still applies.
+			// Not yet stale ⇒ hold; once the bounded tick age passes ⇒ re-issue.
 			const int Stale = 200;
 			var lastRequest = 1000;
 
+			// floor=3, alive=2, pending=1 ⇒ alive+pending==floor (met only by the pending request), pending<floor.
 			// 199 ticks later — not stale yet.
-			Assert.That(CaptureSupplyMath.ShouldRequestTecn(1, 0, 1, lastRequest + Stale - 1, lastRequest, Stale),
+			Assert.That(CaptureSupplyMath.ShouldRequestTecn(3, 2, 1, lastRequest + Stale - 1, lastRequest, Stale),
 				Is.False, "must not re-issue before the staleness age");
 
 			// Exactly the staleness age — re-issue.
-			Assert.That(CaptureSupplyMath.ShouldRequestTecn(1, 0, 1, lastRequest + Stale, lastRequest, Stale),
+			Assert.That(CaptureSupplyMath.ShouldRequestTecn(3, 2, 1, lastRequest + Stale, lastRequest, Stale),
 				Is.True, "must re-issue once the pending request has gone stale");
+		}
+
+		// ---- ShouldRequestTecn: in-flight CAP (pending bounded to the floor) ----
+
+		[Test]
+		public void ShouldRequestTecn_PendingAtFloor_NeverReissues_EvenWhenStale()
+		{
+			// The measured deadlock (pending=82 / alive=0): the staleness re-issue used to fire whenever alive <
+			// floor, adding a duplicate every stale interval without bound. With reliable peek-don't-pop delivery
+			// the in-flight request is no longer lost, so once pending already meets the floor NO further request
+			// is issued — however old the outstanding request is. This caps pending at the floor.
+			Assert.That(CaptureSupplyMath.ShouldRequestTecn(5, 0, 5, 999999, 0, 200), Is.False,
+				"pending==floor must not re-issue even long past the staleness age");
+
+			// One over the floor (defensive) — still capped.
+			Assert.That(CaptureSupplyMath.ShouldRequestTecn(5, 0, 6, 999999, 0, 200), Is.False);
+
+			// The exact benchmark smell: floor=5, alive=0, pending climbing — never re-issued at/above floor.
+			Assert.That(CaptureSupplyMath.ShouldRequestTecn(5, 0, 5, 17961, 17061, 200), Is.False,
+				"the pending=82 growth path is now bounded at the floor");
+		}
+
+		[Test]
+		public void ShouldRequestTecn_PendingBoundedToFloor_OverManyStaleScans()
+		{
+			// Simulate repeated stale scans with alive stuck at 0 (delivery not yet landed). Model the coordinator
+			// loop: each scan that returns true adds one to pending. Assert pending never exceeds the floor —
+			// i.e. it converges to the floor and stops, instead of growing to 82.
+			const int Floor = 5;
+			const int Stale = 200;
+			var pending = 0;
+			var lastRequest = 0;
+			var tick = 0;
+
+			for (var scan = 0; scan < 200; scan++)
+			{
+				tick += Stale; // every scan is "stale" so the cap — not the timer — is what bounds growth.
+				if (CaptureSupplyMath.ShouldRequestTecn(Floor, 0, pending, tick, lastRequest, Stale))
+				{
+					pending++;
+					lastRequest = tick;
+				}
+
+				Assert.That(pending, Is.LessThanOrEqualTo(Floor), $"pending must stay bounded (scan {scan})");
+			}
+
+			Assert.That(pending, Is.EqualTo(Floor), "pending converges to exactly the floor");
 		}
 	}
 }
