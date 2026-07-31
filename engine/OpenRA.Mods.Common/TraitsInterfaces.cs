@@ -731,6 +731,17 @@ namespace OpenRA.Mods.Common.Traits
 		int RequestedProductionCount(IBot bot, string requestedActor);
 	}
 
+	// WW3MOD @experimental: a request that must OUT-PRIORITISE ordinary combat-unit buys for a queue slot.
+	// The producer drains priority requests before both its normal request FIFO and the blind lottery, so a
+	// capture-supply floor (CaptureCoordinatorBotModule) cannot be starved by combat production. Separate from
+	// IBotRequestUnitProduction so existing implementers are untouched; a producer that ignores it simply never
+	// receives priority requests (byte-identical). Only exercised when a caller opts in via a default-off flag.
+	[RequireExplicitImplementation]
+	public interface IBotRequestPriorityUnitProduction
+	{
+		void RequestPriorityUnitProduction(IBot bot, string requestedActor);
+	}
+
 	[RequireExplicitImplementation]
 	public interface IBotRequestPauseUnitProduction
 	{
