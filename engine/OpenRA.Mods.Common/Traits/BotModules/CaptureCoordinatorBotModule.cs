@@ -100,6 +100,34 @@ namespace OpenRA.Mods.Common.Traits
 			"when a capture target exists but no capturer is free. 0 = disabled (production left to the shared unit builder).")]
 		public readonly int TecnFloor = 0;
 
+		[Desc("Capture-supply un-deadlock (@experimental): re-issue a floor production request once the",
+			"outstanding request has gone UNDELIVERED for this many ticks (the shared build FIFO can sit on a",
+			"lone pending request while combat buys churn the queue, so alive+pending>=floor suppresses all",
+			"re-requests forever). Tick-based, no wall-clock. 0 = DISABLED = frozen behaviour (request only",
+			"while alive+pending < floor), so @stable and any non-opting config stay byte-identical.")]
+		public readonly int TecnRequestStaleTicks = 0;
+
+		[Desc("Capture-supply scaling (@experimental): scale TecnFloor to the number of reachable NEUTRAL money",
+			"POIs (~one capturer per free oil derrick), clamped to [TecnFloor, TecnFloorMax]. Off = the static",
+			"TecnFloor above (frozen). Default false so @stable / any non-opting config is byte-identical.")]
+		public readonly bool ScaleTecnFloorToPois = false;
+
+		[Desc("Capture-supply scaling cap (@experimental): upper bound on the POI-scaled floor (see",
+			"ScaleTecnFloorToPois). Should be >= TecnFloor. Only consulted when ScaleTecnFloorToPois is set.")]
+		public readonly int TecnFloorMax = 0;
+
+		[Desc("Capture-supply priority (@experimental): route the floor production request through the",
+			"IBotRequestPriorityUnitProduction path so it OUT-PRIORITISES combat-unit buys for the queue slot",
+			"(the floor cannot be starved by combat production). Off = the ordinary request path (frozen).",
+			"Default false so @stable / any non-opting config is byte-identical.")]
+		public readonly bool TecnRequestPriority = false;
+
+		[Desc("Capture fan-out (@experimental): in the PoiMap-ordered capture pass, EXCLUDE targets already",
+			"being captured by an in-flight committed capturer so N free capturers fan out to N DISTINCT neutral",
+			"oilbs instead of clustering onto one already claimed. Requires the goal-guard ledger. Off = frozen",
+			"(no exclusion). Default false so @stable / any non-opting config is byte-identical.")]
+		public readonly bool CaptureFanoutEnabled = false;
+
 		[Desc("Experimental (default false = frozen): for captures farther than TransportCaptureMinDistanceCells,",
 			"request a mounted ride from MountedTransportBotModule (TECN-first ferrying) instead of walking the",
 			"capturer on foot. Falls back to on-foot when no carrier is free.")]
@@ -292,6 +320,14 @@ namespace OpenRA.Mods.Common.Traits
 		// name this player can actually build (faction-correct, no hardcoding).
 		IBotRequestUnitProduction[] unitProducers;
 		string tecnBuildType;
+
+		// Capture-supply priority (TecnRequestPriority): the priority-request sinks, resolved lazily ONLY when the
+		// flag is on so the off/@stable path never touches them. The tick of the last floor request feeds the
+		// tick-based staleness re-issue (TecnRequestStaleTicks); written unconditionally but only READ when the
+		// staleness knob is on, so it is inert on the frozen path.
+		IBotRequestPriorityUnitProduction[] priorityProducers;
+		bool priorityProducersResolved;
+		int lastFloorRequestTick = int.MinValue;
 
 		// TECN-first ferrying (experimental): the player's enabled MountedTransportBotModule.
 		// Resolved lazily — the module is split into @stable/@experimental twins, so we pick the
@@ -614,18 +650,82 @@ namespace OpenRA.Mods.Common.Traits
 			if (tecnBuildType == null)
 				return;
 
+			// (b) Floor scaling: the static TecnFloor, or one capturer per reachable NEUTRAL money POI clamped
+			// to [TecnFloor, TecnFloorMax]. Off (@stable / non-opting) ⇒ EffectiveFloor returns Info.TecnFloor.
+			var floor = CaptureSupplyMath.EffectiveFloor(Info.ScaleTecnFloorToPois, Info.TecnFloor,
+				Info.ScaleTecnFloorToPois ? CountReachableNeutralMoneyPois() : 0, Info.TecnFloorMax);
+
 			var alive = capturingActors.Actors.Count;
 			var pending = unitProducers.Sum(u => u.RequestedProductionCount(bot, tecnBuildType));
-			if (alive + pending >= Info.TecnFloor)
+
+			// (a) Re-request gate + un-deadlock. With TecnRequestStaleTicks == 0 this is EXACTLY the frozen
+			// `alive + pending < floor` test; with it on, an undelivered pending request is re-issued once it
+			// has gone stale (tick-based), so the floor can't sit forever behind a starved queue slot.
+			if (!CaptureSupplyMath.ShouldRequestTecn(floor, alive, pending,
+				world.WorldTick, lastFloorRequestTick, Info.TecnRequestStaleTicks))
 				return;
 
 			// Only pull a capturer if there is actually something to capture.
 			if (!CaptureTargetExists())
 				return;
 
-			unitProducers[0].RequestUnitProduction(bot, tecnBuildType);
+			// (c) Priority: when opted in, route through the priority sink so the request out-competes combat
+			// buys for the queue slot. Falls back to the ordinary path (frozen behaviour) if not opted in or no
+			// priority sink exists.
+			var issuedPriority = false;
+			if (Info.TecnRequestPriority)
+			{
+				if (!priorityProducersResolved)
+				{
+					priorityProducers = player.PlayerActor.TraitsImplementing<IBotRequestPriorityUnitProduction>().ToArray();
+					priorityProducersResolved = true;
+				}
+
+				if (priorityProducers.Length > 0)
+				{
+					priorityProducers[0].RequestPriorityUnitProduction(bot, tecnBuildType);
+					issuedPriority = true;
+				}
+			}
+
+			if (!issuedPriority)
+				unitProducers[0].RequestUnitProduction(bot, tecnBuildType);
+
+			lastFloorRequestTick = world.WorldTick;
 			Log.Write("debug",
-				$"[exp-capture] tecn-floor-request player={player.PlayerName} type={tecnBuildType} alive={alive} pending={pending} floor={Info.TecnFloor} tick={world.WorldTick}");
+				$"[exp-capture] tecn-floor-request player={player.PlayerName} type={tecnBuildType} alive={alive} pending={pending} floor={floor} priority={issuedPriority} tick={world.WorldTick}");
+		}
+
+		// (b) Count reachable NEUTRAL money POIs — free oil derricks worth ~one capturer each — from the same
+		// PoiMap-ordered candidate list the capture pass uses. Neutral income structures only (Capture action,
+		// IncomeStructure kind, Neutral owner): enemy-owned income is defended, and Supply Routes are not money.
+		// Deterministic: iterates the sorted target list, integer count. Only called when ScaleTecnFloorToPois.
+		int CountReachableNeutralMoneyPois()
+		{
+			if (!poiMapResolved)
+			{
+				poiMap = world.WorldActor.TraitOrDefault<PoiMap>();
+				poiMapResolved = true;
+			}
+
+			if (poiMap == null)
+				return 0;
+
+			var count = 0;
+			foreach (var poi in OrderedCaptureTargets())
+			{
+				if (poi.Kind != PoiKind.IncomeStructure || poi.Action != PoiAction.Capture)
+					continue;
+
+				var target = poi.Actor;
+				if (target == null || target.IsDead || !target.IsInWorld)
+					continue;
+
+				if (player.RelationshipWith(target.Owner) == PlayerRelationship.Neutral)
+					count++;
+			}
+
+			return count;
 		}
 
 		// The player's faction can build exactly one of the capturer types (e.g.
@@ -733,6 +833,28 @@ namespace OpenRA.Mods.Common.Traits
 			var available = new List<TraitPair<CaptureManager>>(idleCapturers);
 
 			var targets = OrderedCaptureTargets();
+
+			// (d) Fan-out: drop targets already being captured by an in-flight committed capturer so the
+			// newly-free capturers this scan fan out to DISTINCT neutral oilbs instead of clustering onto one
+			// already claimed (the measured 2-TECN→1-oilb waste). Deterministic — the in-flight set is built
+			// from the synced capturer index and SelectDistinctTargets preserves the ranked order, querying only
+			// set membership. Off / no guard ⇒ the frozen unfiltered list.
+			if (Info.CaptureFanoutEnabled && useGuard)
+			{
+				var inFlight = BuildInFlightCaptureTargetIds();
+				if (inFlight.Count > 0)
+				{
+					var orderedIds = new List<uint>(targets.Count);
+					foreach (var poi in targets)
+						if (poi.Actor != null)
+							orderedIds.Add(poi.Actor.ActorID);
+
+					var keep = new HashSet<uint>(
+						CaptureFanoutMath.SelectDistinctTargets(orderedIds, inFlight, targets.Count));
+					targets = targets.Where(t => t.Actor != null && keep.Contains(t.Actor.ActorID)).ToList();
+				}
+			}
+
 			var topDesc = targets.Count > 0
 				? $"{targets[0].Actor?.Info.Name}@{targets[0].Location} action={targets[0].Action} score={targets[0].Score}"
 				: "<none>";
@@ -776,6 +898,29 @@ namespace OpenRA.Mods.Common.Traits
 				IssueCaptureOrder(bot, available[bestIndex].Actor, target, useGuard, escortsRecruitedThisTick, poi.Score, poi.DistanceCells);
 				available.RemoveAt(bestIndex);
 			}
+		}
+
+		// (d) Actor IDs of capture targets currently claimed by an in-flight committed capturer. Iterates the
+		// synced capturer index; a committed capturer's objective "capture:<id>" contributes its target id. Only
+		// membership of the returned set is queried by the fan-out filter, so no hash enumeration order feeds a
+		// sim decision. Empty when no guard / no committed capturer ⇒ the fan-out filter is a no-op.
+		HashSet<uint> BuildInFlightCaptureTargetIds()
+		{
+			var ids = new HashSet<uint>();
+			if (goalGuard == null)
+				return ids;
+
+			foreach (var tecn in capturingActors.Actors)
+			{
+				if (!goalGuard.Ledger.IsCommitted(tecn, world.WorldTick))
+					continue;
+
+				if (goalGuard.Ledger.TryGetObjective(tecn, out var objective)
+					&& TryParseCaptureTargetId(objective, out var id))
+					ids.Add(id);
+			}
+
+			return ids;
 		}
 
 		// Issue a capture order + record the commitment so the TECN is not

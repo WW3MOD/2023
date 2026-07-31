@@ -127,6 +127,22 @@ Player:
 		# derrick is uncaptured and no TECN is free. Default 0 (disabled) on the shared
 		# engine class; set ONLY here, so @stable.tecn stays byte-identical.
 		TecnFloor: 1
+		# Capture-supply guarantee (S2-loss fix, WORKSPACE/recon/260731): the S2 rung seeds ~14 neutral oilb
+		# income POIs (~33k each held to clock); the capture race decides the game, yet Experimental fielded ZERO
+		# TECN in 6/10 games. Four coupled opt-ins below, ALL default-off on the shared engine class so @stable.tecn
+		# (which omits them) is byte-identical:
+		#  (a) re-issue an UNDELIVERED floor request after ~200 ticks so a starved queue slot can't deadlock the
+		#      floor (the alive+pending>=floor gate otherwise sits forever on one pending request).
+		TecnRequestStaleTicks: 200
+		#  (b) scale the floor to reachable neutral money POIs (~1 capturer per free oilb), clamped to [1, 5].
+		ScaleTecnFloorToPois: true
+		TecnFloorMax: 5
+		#  (c) route the floor request through the priority production path so it out-prioritises combat buys for
+		#      the queue slot (the floor cannot be starved by combat production).
+		TecnRequestPriority: true
+		#  (d) in the PoiMap capture pass, exclude oilbs already being captured by an in-flight capturer so N free
+		#      TECN fan out to N DISTINCT derricks instead of clustering (the measured 2-TECN->1-oilb waste).
+		CaptureFanoutEnabled: true
 		# TECN-first ferrying: for a DISTANT derrick, request a ride from the experimental
 		# MountedTransportBotModule twin instead of walking the TECN there on foot. Falls back to
 		# on-foot when no carrier is free. Default false on the engine class → @stable.tecn frozen.
