@@ -75,7 +75,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new UnitBuilderBotModule(init.Self, this); }
 	}
 
-	public class UnitBuilderBotModule : ConditionalTrait<UnitBuilderBotModuleInfo>, IBotTick, IBotNotifyIdleBaseUnits, IBotRequestUnitProduction, IGameSaveTraitData
+	public class UnitBuilderBotModule : ConditionalTrait<UnitBuilderBotModuleInfo>, IBotTick, IBotNotifyIdleBaseUnits, IBotRequestUnitProduction, IBotRequestPriorityUnitProduction, IGameSaveTraitData
 	{
 		public const int FeedbackTime = 30; // ticks; = a bit over 1s. must be >= netlag.
 
@@ -83,6 +83,13 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Player player;
 
 		readonly List<string> queuedBuildRequests = new List<string>();
+
+		// WW3MOD @experimental: high-priority requests, drained BEFORE the normal FIFO and the blind lottery so
+		// a capture-supply floor out-competes combat buys for the queue slot. Stays EMPTY unless a caller opts in
+		// via IBotRequestPriorityUnitProduction — no @experimental capture floor requesting here ⇒ the list is
+		// never populated ⇒ BotTick is byte-identical for normal/rush/turtle/@stable. Transient (not persisted):
+		// the requester re-issues each scan, so a save/load simply re-derives it.
+		readonly List<string> priorityBuildRequests = new List<string>();
 
 		IBotRequestPauseUnitProduction[] requestPause;
 		int idleUnitCount;
@@ -115,6 +122,16 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (ticks % FeedbackTime == 0)
 			{
+				// @experimental priority requests first — before the normal FIFO and the blind lottery below —
+				// so a capture-supply floor claims the queue slot ahead of combat buys. Empty for every profile
+				// that never opts in ⇒ this block is skipped ⇒ byte-identical.
+				if (priorityBuildRequests.Count > 0)
+				{
+					var priorityRequest = priorityBuildRequests[0];
+					BuildUnit(bot, priorityRequest);
+					priorityBuildRequests.RemoveAt(0);
+				}
+
 				var buildRequest = queuedBuildRequests.FirstOrDefault();
 				if (buildRequest != null)
 				{
@@ -132,9 +149,17 @@ namespace OpenRA.Mods.Common.Traits
 			queuedBuildRequests.Add(requestedActor);
 		}
 
+		void IBotRequestPriorityUnitProduction.RequestPriorityUnitProduction(IBot bot, string requestedActor)
+		{
+			priorityBuildRequests.Add(requestedActor);
+		}
+
 		int IBotRequestUnitProduction.RequestedProductionCount(IBot bot, string requestedActor)
 		{
-			return queuedBuildRequests.Count(r => r == requestedActor);
+			// Count BOTH lists so a requester's alive-or-pending gate sees priority requests in flight too.
+			// priorityBuildRequests is empty on every non-opted-in profile ⇒ same result as the frozen path.
+			return priorityBuildRequests.Count(r => r == requestedActor)
+				+ queuedBuildRequests.Count(r => r == requestedActor);
 		}
 
 		void BuildUnit(IBot bot, string category, bool buildRandom)
