@@ -736,10 +736,14 @@ namespace OpenRA.Mods.Common.Traits
 	// capture-supply floor (CaptureCoordinatorBotModule) cannot be starved by combat production. Separate from
 	// IBotRequestUnitProduction so existing implementers are untouched; a producer that ignores it simply never
 	// receives priority requests (byte-identical). Only exercised when a caller opts in via a default-off flag.
+	// Returns TRUE iff the producer ACCEPTED the request (it is enabled and will actually drain it). A player
+	// carries several UnitBuilder twins (normal/experimental/air), all but one condition-DISABLED per game;
+	// a disabled twin still answers interface calls but its BotTick never runs, so a request handed to it is
+	// never built. The caller must route to the first producer that returns true (see MaintainTecnFloor).
 	[RequireExplicitImplementation]
 	public interface IBotRequestPriorityUnitProduction
 	{
-		void RequestPriorityUnitProduction(IBot bot, string requestedActor);
+		bool RequestPriorityUnitProduction(IBot bot, string requestedActor);
 	}
 
 	[RequireExplicitImplementation]

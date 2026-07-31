@@ -635,8 +635,11 @@ namespace OpenRA.Mods.Common.Traits
 		// That request path is processed first each build cycle and bypasses both the
 		// UnitsToBuild share test AND UnitLimits (single-name BuildUnit overload), so a
 		// request out-competes the blind production lottery for the queue slot whenever
-		// the queue is free. Re-requesting each scan keeps pressure despite the request
-		// being dropped-on-failure when the queue is busy that cycle.
+		// the queue is free. When TecnRequestPriority is on the request rides the priority
+		// path, which the UnitBuilder drains BEFORE the FIFO/lottery and now peek-don't-pops
+		// (a busy-queue cycle keeps the request queued for the next free slot rather than
+		// dropping it), so a single in-flight request reliably delivers — the ShouldRequestTecn
+		// in-flight cap then keeps pending bounded to the floor.
 		void MaintainTecnFloor(IBot bot)
 		{
 			unitProducers ??= player.PlayerActor.TraitsImplementing<IBotRequestUnitProduction>().ToArray();
@@ -681,10 +684,18 @@ namespace OpenRA.Mods.Common.Traits
 					priorityProducersResolved = true;
 				}
 
-				if (priorityProducers.Length > 0)
+				// Route to the FIRST producer that ACCEPTS (returns true). A player carries several UnitBuilder
+				// twins (normal / experimental / air), all but one condition-disabled per game; a disabled twin
+				// answers the interface but never ticks, so handing it the request deadlocks the floor (its
+				// pending count climbs while nothing is ever built — the measured pending=82 / alive=0). Skipping
+				// to the first accepting (enabled) twin lands the request on the UnitBuilder that will drain it.
+				foreach (var p in priorityProducers)
 				{
-					priorityProducers[0].RequestPriorityUnitProduction(bot, tecnBuildType);
-					issuedPriority = true;
+					if (p.RequestPriorityUnitProduction(bot, tecnBuildType))
+					{
+						issuedPriority = true;
+						break;
+					}
 				}
 			}
 

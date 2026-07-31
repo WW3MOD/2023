@@ -85,6 +85,16 @@ namespace OpenRA.Mods.Common.Traits
 			if (staleTicks <= 0)
 				return false;
 
+			// IN-FLIGHT CAP (@experimental): never re-issue once pending already meets the floor. The staleness
+			// re-issue was a backstop for a request the shared FIFO silently DROPPED; supply-side peek-don't-pop
+			// delivery now keeps a popped request until the queue accepts it, so an in-flight request is no longer
+			// lost — re-issuing at/above the floor would only DUPLICATE it and let pending grow without bound (the
+			// measured pending=82 smell). Capping at the floor bounds pending to [0, floor] while still allowing a
+			// stale re-issue in the partial case (some alive, pending below floor). Inert on the frozen path
+			// (reached only when staleTicks > 0), so @stable is byte-identical.
+			if (pending >= floor)
+				return false;
+
 			return currentTick - lastRequestTick >= staleTicks;
 		}
 	}
