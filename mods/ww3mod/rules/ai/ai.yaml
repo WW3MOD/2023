@@ -455,6 +455,12 @@ Player:
 		SupplyRouteArmorValueThreshold: 1200
 		SupplyRouteAirValueThreshold: 1000
 		SupplyRouteInfantryValueThreshold: 1000
+		# Routing fix: deliver counter-buys to the first ENABLED UnitBuilder twin. On @experimental NATO
+		# unitProducers[0] is @russia.fixedwing (disabled: player.brics false) whose BotTick never runs, so
+		# every counter-buy was silently lost and the alreadyRequested>=2 gate wedged re-issue. Default false
+		# on the engine class => @stable.america (which omits this) keeps the frozen unitProducers[0]
+		# routing = byte-identical. Same seam McvManager/Harvester already use (Exts.FirstEnabledTraitOrDefault).
+		RouteToEnabledProducer: true
 
 	AdaptiveProductionBotModule@experimental.russia:
 		RequiresCondition: enable-ai-experimental && player.brics
@@ -480,6 +486,12 @@ Player:
 		SupplyRouteArmorValueThreshold: 1200
 		SupplyRouteAirValueThreshold: 1000
 		SupplyRouteInfantryValueThreshold: 1000
+		# Routing fix: deliver counter-buys to the first ENABLED UnitBuilder twin. On @experimental NATO
+		# unitProducers[0] is @russia.fixedwing (disabled: player.brics false) whose BotTick never runs, so
+		# every counter-buy was silently lost and the alreadyRequested>=2 gate wedged re-issue. Default false
+		# on the engine class => @stable.russia (which omits this) keeps the frozen unitProducers[0]
+		# routing = byte-identical. Same seam McvManager/Harvester already use (Exts.FirstEnabledTraitOrDefault).
+		RouteToEnabledProducer: true
 
 	# experimental doctrine — Stage B.1: layered defence placement, reserve-driven.
 	#
