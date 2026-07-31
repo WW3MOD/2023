@@ -80,6 +80,18 @@ namespace OpenRA.Mods.Common.Traits
 			"grant more than one).")]
 		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
 
+		[Desc("EXPERIMENTAL routing fix: send counter-composition buys to the FIRST ENABLED UnitBuilder twin",
+			"(Exts.FirstEnabledTraitOrDefault — the same seam McvManager/Harvester already use) instead of the",
+			"legacy unitProducers[0]. A player carries several UnitBuilder twins (normal/experimental/fixedwing/",
+			"heli, per faction); all but a few are condition-DISABLED per game. A disabled twin still answers the",
+			"IBotRequestUnitProduction interface but its BotTick never runs (ModularBot ticks only enabled",
+			"modules), so a request handed to it is silently lost — and RequestedProductionCount sums that stuck",
+			"queue, so the alreadyRequested>=2 gate then wedges re-issue. On @experimental NATO unitProducers[0]",
+			"is @russia.fixedwing (disabled: player.brics is false), so every counter-buy is lost. Default false =",
+			"frozen legacy behaviour (route to unitProducers[0]); the @stable twin omits this field and stays",
+			"byte-identical. Deterministic (fixed construction-order scan, no RNG).")]
+		public readonly bool RouteToEnabledProducer = false;
+
 		public override object Create(ActorInitializer init) { return new AdaptiveProductionBotModule(init.Self, this); }
 	}
 
@@ -239,13 +251,32 @@ namespace OpenRA.Mods.Common.Traits
 				if (alreadyRequested >= 2)
 					continue;
 
-				foreach (var up in unitProducers)
+				var producer = SelectUnitProducer();
+				if (producer != null)
 				{
-					up.RequestUnitProduction(bot, unitToBuild);
+					producer.RequestUnitProduction(bot, unitToBuild);
 					requestsMade++;
-					break;
 				}
 			}
+		}
+
+		// Route a call-in to the UnitBuilder twin that will actually build it. Frozen default (@stable):
+		// legacy unitProducers[0]. Experimental (RouteToEnabledProducer): the first ENABLED twin, skipping the
+		// condition-disabled twins whose BotTick never runs (a request handed to one is silently lost). The
+		// index decision is NUnit-pinned in AdaptiveRoutingMath; no RNG, single ordered walk over the fixed
+		// construction-order array. Returns null only when the player carries no UnitBuilder at all — matching
+		// the old foreach-over-empty no-op.
+		IBotRequestUnitProduction SelectUnitProducer()
+		{
+			if (unitProducers.Length == 0)
+				return null;
+
+			var enabled = new bool[unitProducers.Length];
+			for (var i = 0; i < unitProducers.Length; i++)
+				enabled[i] = unitProducers[i].IsTraitEnabled();
+
+			var idx = AdaptiveRoutingMath.SelectProducerIndex(enabled, Info.RouteToEnabledProducer);
+			return idx >= 0 ? unitProducers[idx] : null;
 		}
 
 		enum ThreatClass { None, Air, Armor, Infantry }
@@ -322,6 +353,10 @@ namespace OpenRA.Mods.Common.Traits
 				.OrderBy(u => UnitCost(world.Map.Rules.Actors[u]))
 				.ThenBy(u => u, StringComparer.Ordinal);
 
+			var producer = SelectUnitProducer();
+			if (producer == null)
+				return 0;
+
 			foreach (var unit in ordered)
 			{
 				// Don't stack more than a couple of the same call-in (mirrors the static-counter cap below).
@@ -329,11 +364,8 @@ namespace OpenRA.Mods.Common.Traits
 				if (alreadyRequested >= 2)
 					continue;
 
-				foreach (var up in unitProducers)
-				{
-					up.RequestUnitProduction(bot, unit);
-					return 1; // Reserve at most ONE slot per cycle for SR defense.
-				}
+				producer.RequestUnitProduction(bot, unit);
+				return 1; // Reserve at most ONE slot per cycle for SR defense.
 			}
 
 			return 0;
