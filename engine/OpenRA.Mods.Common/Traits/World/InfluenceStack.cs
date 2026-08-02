@@ -27,21 +27,25 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public static class InfluenceStack
 	{
-		// ai.yaml gives the Experimental AI `Type: experimental`. The influence stack is
-		// @experimental-only on the bot side; Normal/Rush/Turtle/@stable never read it, so
-		// they are deliberately excluded from participation and stay byte-identical.
+		// ai.yaml gives the Experimental AI `Type: experimental` and the Stable AI `Type: stable`.
+		// Both fog-respecting bots read the influence stack; any other bot profile never reads it
+		// and stays byte-identical. (2026-08-02: @stable was promoted to full @experimental parity,
+		// so it now participates too — its ai.yaml twins set the same fog-legal consumer flags, which
+		// are inert without a field. See ai.yaml Stable-block header + DOCS/reference/influence-stack.md.)
 		public const string ExperimentalBotType = "experimental";
+		public const string StableBotType = "stable";
 
-		/// <summary>Does this player read the influence stack? @experimental bots (Stage-D
-		/// strategy) + human combatants (the sim-legal stand-in for "the overlay viewer").
-		/// Never reads RenderPlayer, so no simulation state depends on the render path.</summary>
+		/// <summary>Does this player read the influence stack? The fog-respecting bots
+		/// (@experimental + @stable, Stage-D strategy) + human combatants (the sim-legal stand-in
+		/// for "the overlay viewer"). Never reads RenderPlayer, so no simulation state depends on
+		/// the render path.</summary>
 		public static bool Participates(Player player)
 		{
 			if (player == null || player.NonCombatant || player.Spectating)
 				return false;
 
 			if (player.IsBot)
-				return player.BotType == ExperimentalBotType;
+				return player.BotType == ExperimentalBotType || player.BotType == StableBotType;
 
 			// Human combatant. Playable rules out dedicated observers.
 			return player.Playable;

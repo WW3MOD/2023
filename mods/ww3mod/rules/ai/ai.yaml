@@ -24,13 +24,15 @@ Player:
 	#                                       @russia.normal unit builders).
 	#
 	#   enable-ai-experimental  granted to: experimental — use for NEW Experimental-only modules
-	#   enable-ai-stable        granted to: stable — frozen snapshot of the last validated
-	#                                       Experimental config (promotion policy: SPEC.md §Bot pair)
+	#   enable-ai-stable        granted to: stable — snapshot of the last validated Experimental
+	#                                       config (promotion policy: SPEC.md §Bot pair). Promoted
+	#                                       2026-08-02 to FULL @experimental parity; @stable now also
+	#                                       participates in the influence stack (InfluenceStack.cs).
 	ModularBot@experimental:
 		Name: Experimental AI
 		Type: experimental
 	ModularBot@stable:
-		Name: Stable AI 0730
+		Name: Stable AI 0802
 		Type: stable
 
 	# Both surviving bots inherit the shared baseline (enable-ai-player / enable-ai-any).
@@ -343,11 +345,10 @@ Player:
 	# offense/garrison/capture never fight over them; releases sprung units back to normal tasking.
 	# Deliberately small (MaxAmbushes x UnitsPerAmbush = 4 units max) so it never starves offense.
 	#
-	# NO @stable twin: this behaviour is new + not yet benchmark-validated, so @stable must NOT run it (a
-	# twin would break @stable byte-identity). @stable/Normal/Rush/Turtle/humans never instantiate the
-	# module, and enable-ambush-tactics is granted ONLY here, so on every other profile the Stage-2/3 gate
-	# stays ungranted and the machinery is the same dead code it was at ship. The @experimental offense
-	# benchmark re-baseline (gate b) is DECLARED, not run — the loop owner prices it before any default-on.
+	# 2026-08-02 promotion: @stable now runs a twin of this module (LaneAmbushBotModule@stable, in the
+	# Stable block below) at full parity. Each module grants enable-ambush-tactics ONLY to the units it
+	# posts (LaneAmbushBotModule.cs:418/439), so the twin activates the Stage-2/3 machinery for its own
+	# ambushers without any shared/global grant; humans and any non-fog bot still never instantiate it.
 	LaneAmbushBotModule@experimental:
 		RequiresCondition: enable-ai-experimental
 		ReevaluateInterval: 100
@@ -561,6 +562,17 @@ Player:
 		LoadingTimeoutTicks: 1500
 		DropOffArrivalRadius: 3
 		ReturnArrivalRadius: 5
+		# 2026-08-02 promotion — full @experimental transport parity. DeliverBeforeContact/PickupCorridor/
+		# UnloadOnArrival are engine-independent; BelievedDangerStandoff reads the danger field, now LIVE
+		# for @stable (influence-stack participation). See the @experimental twin for per-flag rationale.
+		DeliverBeforeContact: true
+		PreContactStagingPct: 50
+		UnloadOnArrival: true
+		PickupCorridorCells: 6
+		BelievedDangerStandoff: true
+		StandoffDangerThreshold: 0
+		StandoffMarginCells: 2
+		StandoffMaxBackoffCells: 20
 
 	# Experimental twin — identical config plus two experimental-only behaviours (both
 	# default-frozen in C#, opted-in here):
@@ -742,12 +754,17 @@ Player:
 			littlebird: 2500
 			TRAN: 2500
 
-	# ===== Helicopter Squad Manager (shared, all factions EXCEPT experimental) =====
-	# Split from the experimental twin below so the rearm-ready bypass is experimental-only.
-	# The !enable-ai-experimental guard keeps this one instance per player (an experimental bot
-	# would otherwise match BOTH blocks). Stable keeps this frozen default.
-	HelicopterSquadBotModule:
-		RequiresCondition: enable-ai-any && !enable-ai-experimental
+	# ===== Helicopter Squad Manager — Stable twin =====
+	# 2026-08-02 promotion: @stable now runs the SAME heli behaviour as @experimental (the SR-only,
+	# no-hpad rearm bypass + fog-legal AA nav). Was previously the frozen `enable-ai-any &&
+	# !enable-ai-experimental` shared block (which only ever enabled for @stable, since enable-ai-any
+	# is granted only to experimental+stable). Now a proper @stable twin gated `enable-ai-stable`, at
+	# full parity with the @experimental twin below. Consumers resolve the ENABLED instance via
+	# TraitsImplementing<>().FirstOrDefault(!IsTraitDisabled) (HelicopterStates.cs:143/162), and the
+	# enable-ai-stable / enable-ai-experimental guards keep exactly one enabled per player.
+	# DangerFieldAvoidance + frontier standoff read the influence stack, now LIVE for @stable.
+	HelicopterSquadBotModule@stable:
+		RequiresCondition: enable-ai-stable
 		AttackSquadSize: 2
 		AttackSquadSizeBonus: 1
 		AttackCooldown: 900
@@ -755,6 +772,13 @@ Player:
 		TransportInterval: 600
 		TransportMinInfantry: 4
 		MaxActiveSquads: 3
+		SkipRearmReadyCheck: true
+		StandoffEngagement: true
+		DangerFieldAvoidance: true
+		ForwardStaging: true
+		ForwardStagingPct: 40
+		ForwardStagingMaxDistanceCells: 8
+		MinFrontierDistanceCells: 4
 
 	# Experimental twin: identical config plus SkipRearmReadyCheck. WW3MOD attack helis only
 	# refill at an hpad (none built), so the full-ammo readiness gate permanently benches any
@@ -787,22 +811,37 @@ Player:
 		# 8 map cells. Experimental-only; every other profile leaves it 0 (byte-identical).
 		MinFrontierDistanceCells: 4
 
-	# ===== Stable AI — frozen snapshot of the validated Experimental config =====
+	# ===== Stable AI — snapshot of the validated Experimental config =====
 	#
-	# These modules are a byte-for-byte copy of the Experimental (@experimental)
-	# POI-layer config above, gated on `enable-ai-stable` instead of
-	# `enable-ai-experimental`. Stable inherits the same normal-tier baseline
-	# (enable-ai-player / enable-ai-any) as Experimental, so only the
-	# Experimental-only modules need a Stable twin here.
+	# 2026-08-02 PROMOTION (user-authorised): these @stable modules are now a FULL copy of the
+	# @experimental config above — same modules enabled, same flags, same tuning — gated on
+	# `enable-ai-stable` instead of `enable-ai-experimental`. A 30-0 benchmark + live-play confirmed
+	# @experimental outclassed the previous frozen @stable (0730), so @stable was promoted to parity
+	# (renamed 0730 -> 0802). The two profiles remain a SEPARATE A/B pair: @experimental can diverge
+	# again by editing only the @experimental blocks; @stable is re-synced at the next promotion.
 	#
-	# ONE EXCEPTION — PoiGoalGuard is NOT twinned: consumers fetch it via a single-instance
-	# player.TraitOrDefault<PoiGoalGuard>() lookup, so a second instance on one player throws
-	# at runtime. It is defined ONCE above, gated `enable-ai-experimental || enable-ai-stable`,
-	# and thus SHARED (not independently frozen). MountedTransportBotModule WAS in this list but
-	# is now split (@poi stable-frozen + @experimental twin) — its consumers were migrated to the
-	# multi-safe TraitsImplementing<T>().FirstOrDefault(!IsTraitDisabled) lookup. Every other
-	# strategic module below is an independent @stable copy. (SquadManager is likewise fetched via
-	# TraitsImplementing<T>() — multi-safe — so its @stable twins are fine.)
+	# NOTE — @stable is NO LONGER byte-identical to the old frozen bot. As part of this promotion,
+	# InfluenceStack.Participates (InfluenceStack.cs) was widened so `stable` bots ALSO build the
+	# belief/danger/control fields. Without that engine change the fog-legal consumer flags copied
+	# below (DangerFieldRouting, StrategicRepoint, DefendRepoint, DangerFieldAvoidance, SR-defense,
+	# BelievedDangerStandoff, frontier standoff, escort right-sizing, contest-aware support) would be
+	# INERT — the copied YAML alone cannot reach parity. Inline "byte-identical @stable twin" remarks
+	# in the @experimental blocks above describe the ENGINE-CLASS DEFAULTS (still off there); they are
+	# historical for @stable now that the twins opt in. The two world layers are RNG-free (deterministic
+	# stagger offsets), so adding a participant introduces no new RNG / desync.
+	#
+	# STRUCTURE — most modules are an independent @stable twin (own block, `enable-ai-stable`). Three
+	# do NOT follow that shape:
+	#   * PoiGoalGuard is NOT twinned — consumers fetch it via single-instance
+	#     player.TraitOrDefault<PoiGoalGuard>(), so a second instance throws. Defined ONCE above, gated
+	#     `enable-ai-experimental || enable-ai-stable` (SHARED). Both profiles share its one setting.
+	#   * MountedTransportBotModule is split (@poi = stable, @experimental twin); consumers use the
+	#     multi-safe TraitsImplementing<T>().FirstOrDefault(!IsTraitDisabled) lookup.
+	#   * HelicopterSquadBotModule@stable (above, in the heli section) is likewise a twin resolved via
+	#     TraitsImplementing<> — the enable-ai-stable / enable-ai-experimental guards keep exactly one
+	#     enabled per player. SupplyFollowerBotModule@supply stays a SHARED enable-ai-any instance; its
+	#     experimental behaviours are double-gated on InfluenceStack.Participates, so @stable now gets
+	#     them automatically (no twin needed) via the widened participation.
 	#
 	# PROMOTION POLICY (see WORKSPACE/ai-bench/SPEC.md §13): the optimization loop only
 	# ever edits the @experimental modules. When a change is validated (benchmark +
@@ -813,6 +852,7 @@ Player:
 	CaptureCoordinatorBotModule@stable.tecn:
 		RequiresCondition: enable-ai-stable
 		CapturingActorTypes: tecn,tecn.russia,tecn.america
+		UseUnitRoles: true
 		CapturableActorTypes: oilb,bio,miss,fcom,hosp,logisticscenter
 		CheckCaptureTargetsForVisibility: false
 		ScanInterval: 75
@@ -836,9 +876,33 @@ Player:
 		DefenseFriendlyScanRadiusCells: 6
 		DefenseSummonCount: 3
 		DefenseEnemyValueThreshold: 200
-		# Promoted from @experimental (post-S1 snapshot, SPEC §13): keep >=1 capturer
-		# alive-or-pending. Validated by cycle-2 (capture 4/10->8/10, merged c6a71c14).
+		# 2026-08-02 promotion — full @experimental.tecn parity (values mirror the @experimental
+		# block above; see that block for the per-flag rationale). @stable now participates in the
+		# influence stack (InfluenceStack.cs), so the fog-legal capture levers below are LIVE, not inert.
 		TecnFloor: 1
+		TecnRequestStaleTicks: 200
+		ScaleTecnFloorToPois: true
+		TecnFloorMax: 5
+		TecnRequestPriority: true
+		CaptureFanoutEnabled: true
+		UseTransportForDistantCaptures: true
+		TransportCaptureMinDistanceCells: 12
+		StrategicCaptureRepointEnabled: true
+		BelievedDangerMildThreshold: 40
+		BelievedDangerHostileThreshold: 120
+		BelievedDangerSafeMultiplier: 100
+		BelievedDangerMildMultiplier: 60
+		BelievedDangerHostileMultiplier: 20
+		CaptureTelemetryEnabled: true
+		ContestAwareSupportEnabled: true
+		ContestedEscortSize: 4
+		ContestedDefenseEnemyValueThreshold: 100
+		ContestedDangerThreshold: 40
+		EscortTierSizingEnabled: true
+		SafeControlScoreThreshold: 300
+		SafeDangerThreshold: 40
+		SafeMaxDistanceFromSRCells: 24
+		LightEscortSize: 2
 
 	PoiOffensiveBotModule@stable:
 		RequiresCondition: enable-ai-stable
@@ -846,17 +910,41 @@ Player:
 		UnitsPerAxis: 8
 		MinAxisSize: 3
 		MaxAxes: 4
+		# 2026-08-02 promotion — full @experimental parity (values mirror the @experimental block
+		# above; see it for per-flag rationale). @stable now participates in the influence stack, so
+		# DangerFieldRouting / StrategicRepoint / believed-danger buckets / frontier standoff are LIVE.
+		EarlyGameSpread: true
+		EarlyGameDurationTicks: 4500
+		EarlyUnitsPerAxis: 3
+		EarlyMinAxisSize: 2
 		AxisCommitmentTicks: 250
 		ReassignScoreThresholdPct: 30
 		RepathThresholdCells: 3
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
-		# Promoted from @experimental (post-S1 snapshot, SPEC §13): dispersion doctrine —
-		# spread to move, mass to assault. Validated by the exp-dispersion S1 non-regression
-		# run (win 9/10, capture 9/10). Now the frozen Stable behaviour too.
+		UseUnitRoles: true
+		SkipOutOfAmmoUnits: true
 		CohesionSwitchEnabled: true
 		AssaultRadiusCells: 15
 		ApproachCohesion: Spread
 		AssaultCohesion: Tight
+		SrPressureScoreMultiplier: 260
+		DangerFieldRouting: true
+		StrategicRepointEnabled: true
+		BopBoostMultiplier: 150
+		BopDampMultiplier: 60
+		BelievedDangerMildThreshold: 40
+		BelievedDangerHostileThreshold: 120
+		BelievedDangerSafeMultiplier: 100
+		BelievedDangerMildMultiplier: 60
+		BelievedDangerHostileMultiplier: 20
+		FiresStandoff: true
+		FiresEvGate: true
+		EchelonPositioning: true
+		EchelonBuffer: 1c0
+		EchelonMinDepth: 3c0
+		EchelonTolerance: 2c0
+		EchelonScreenRangeFallback: 5c0
+		MinFrontierDistanceCells: 4
 
 	PoiGarrisonBotModule@stable:
 		RequiresCondition: enable-ai-stable
@@ -869,6 +957,33 @@ Player:
 		GarrisonCommitmentTicks: 250
 		RepathThresholdCells: 3
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
+		# 2026-08-02 promotion — full @experimental parity (mirrors the @experimental garrison block).
+		# @stable now participates in the influence stack, so DefendRepoint (believed-danger defend
+		# ordering + size bump) is LIVE, not inert.
+		UseUnitRoles: true
+		DefendRepointEnabled: true
+		BelievedDangerMildThreshold: 40
+		BelievedDangerHostileThreshold: 120
+		BelievedDangerCalmMultiplier: 100
+		BelievedDangerProbedMultiplier: 150
+		BelievedDangerAssaultedMultiplier: 250
+
+	# 2026-08-02 promotion — LANE AMBUSH twin at full @experimental parity. Grants enable-ambush-tactics
+	# only to its own posted units (LaneAmbushBotModule.cs:418/439), so the Stage-2/3 machine runs for
+	# @stable's ambushers. Claims units through the shared PoiGoalGuard ledger; MaxAmbushes x
+	# UnitsPerAmbush = 4 units max so it never starves offense.
+	LaneAmbushBotModule@stable:
+		RequiresCondition: enable-ai-stable
+		ReevaluateInterval: 100
+		MaxAmbushes: 2
+		UnitsPerAmbush: 2
+		PostFractionPct: 40
+		MinLaneSeparationCells: 12
+		PostCellClampCells: 6
+		AmbushCommitmentTicks: 250
+		RepathThresholdCells: 3
+		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
+		UseUnitRoles: true
 
 	AdaptiveProductionBotModule@stable.america:
 		RequiresCondition: enable-ai-stable && player.nato
@@ -878,6 +993,16 @@ Player:
 		AntiInfantryUnits: e3.america, ar.america, humvee
 		AntiAirUnits: aa.america, strykershorad
 		MinEnemySightings: 3
+		# 2026-08-02 promotion — full @experimental.america parity. SR-defense reads the belief store,
+		# now LIVE for @stable (influence-stack participation). RouteToEnabledProducer is the delivery
+		# fix (route counter-buys to the first ENABLED UnitBuilder twin) — engine-independent, always live.
+		UseUnitRoles: true
+		SupplyRouteDefenseEnabled: true
+		SupplyRouteScanRadius: 10
+		SupplyRouteArmorValueThreshold: 1200
+		SupplyRouteAirValueThreshold: 1000
+		SupplyRouteInfantryValueThreshold: 1000
+		RouteToEnabledProducer: true
 
 	AdaptiveProductionBotModule@stable.russia:
 		RequiresCondition: enable-ai-stable && player.brics
@@ -887,6 +1012,16 @@ Player:
 		AntiInfantryUnits: e3.russia, ar.russia, btr
 		AntiAirUnits: aa.russia, tunguska
 		MinEnemySightings: 3
+		# 2026-08-02 promotion — full @experimental.russia parity. SR-defense reads the belief store,
+		# now LIVE for @stable (influence-stack participation). RouteToEnabledProducer is the delivery
+		# fix (route counter-buys to the first ENABLED UnitBuilder twin) — engine-independent, always live.
+		UseUnitRoles: true
+		SupplyRouteDefenseEnabled: true
+		SupplyRouteScanRadius: 10
+		SupplyRouteArmorValueThreshold: 1200
+		SupplyRouteAirValueThreshold: 1000
+		SupplyRouteInfantryValueThreshold: 1000
+		RouteToEnabledProducer: true
 
 	LayeredDefenceBotModule@stable:
 		RequiresCondition: enable-ai-stable
@@ -897,6 +1032,9 @@ Player:
 		FriendlyGapWeight: 2
 		EnemyWeaknessWeight: 1
 		MaxAssignsPerScan: 6
+		# 2026-08-02 promotion — @experimental parity: role-based line eligibility (drops SHORAD/MANPADS
+		# by class, cures the :349 defect). ScreenUnitTypes still partitions screen vs main line.
+		UseUnitRoles: true
 		ScreenUnitTypes: e3.america, e3.russia, ar.america, ar.russia, at.america, at.russia, sn.america, sn.russia, tl.america, tl.russia, medi.america, medi.russia
 		MainLineUnitTypes: e2.america, e2.russia, mt.america, mt.russia, aa.america, aa.russia, e4.america, e4.russia, abrams, t90, m109, paladin, grad, tos, m270, strykershorad, tunguska
 		ExcludedActorTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, humvee, btr, bradley, bmp2, m113
@@ -911,6 +1049,8 @@ Player:
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 		IgnoreGroundUnits: true
 		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
+		# 2026-08-02 promotion — @experimental parity: pick air-squad airframes by UnitRoleResolver.
+		UseUnitRoles: true
 
 	SquadManagerBotModule@stable.america.fixedwing:
 		RequiresCondition: enable-ai-stable && player.nato
@@ -922,3 +1062,5 @@ Player:
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 		IgnoreGroundUnits: true
 		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
+		# 2026-08-02 promotion — @experimental parity: pick air-squad airframes by UnitRoleResolver.
+		UseUnitRoles: true
