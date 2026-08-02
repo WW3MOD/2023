@@ -261,8 +261,9 @@ namespace OpenRA.Mods.Common.Traits
 			"A CaptureSpecialist has no AttackBase, so it is EXCLUDED from every combat free pool and from this",
 			"module's own escort/defender recruitment — nothing re-collects an idle TECN, so without this it is a",
 			"free kill parked at the front. A TECN consumed by the capture is already dead/not-in-world and is",
-			"skipped. Deterministic (SR lookup + Move order), zero RNG. Default false on the engine class so",
-			"legacy/normal and the frozen @stable.tecn twin stay byte-identical; set on both live .tecn twins.")]
+			"skipped. Deterministic (SR lookup + Move order), zero RNG. Engine default false keeps any profile",
+			"that OMITS the field byte-identical (legacy/normal); both live .tecn twins enable it DELIBERATELY —",
+			"this is a bug-class fix, not a tuning lever, so it is turned on wherever the module actually runs.")]
 		public readonly bool RetreatCapturerWhenDone = false;
 
 		[Desc("Actor types of the bot's home Supply Route — the retreat anchor for RetreatCapturerWhenDone.",
@@ -500,16 +501,21 @@ namespace OpenRA.Mods.Common.Traits
 
 			// goalGuard resolved in BotTick (shared with the defense pass).
 			var useGuard = goalGuard != null && !goalGuard.IsTraitDisabled;
+			HashSet<Actor> retreatedThisScan = null;
 			if (useGuard)
-				ReconcileGuardCommitments(bot);
+				retreatedThisScan = ReconcileGuardCommitments(bot);
 			else
 				activeCapturers.RemoveAll(unitCannotBeOrderedOrIsIdle);
 
 			// A TECN is available for a NEW capture order only if it's idle AND not
 			// already committed. The guard path leaves a committed-but-idle-flickering
 			// TECN alone (no re-issue); the legacy path falls back to the active list.
+			// A TECN retreated home THIS scan (RetreatCapturerWhenDone) still reads IsIdle, so exclude
+			// it too — otherwise a fresh CaptureActor would queue behind its retreat Move and yank it
+			// back to the front on a wasteful round trip.
 			var idleCapturers = capturingActors.Actors
 				.Where(a => a.IsIdle && a.Info.HasTraitInfo<IPositionableInfo>()
+					&& (retreatedThisScan == null || !retreatedThisScan.Contains(a))
 					&& (useGuard
 						? !goalGuard.Ledger.IsCommitted(a, world.WorldTick)
 						: !activeCapturers.Contains(a)))
@@ -1074,11 +1080,6 @@ namespace OpenRA.Mods.Common.Traits
 			return colon >= 0 && uint.TryParse(objective.AsSpan(colon + 1), out id);
 		}
 
-		// Release commitments that are done or stale so the TECN re-enters the pool:
-		//   * TECN dead / no longer ours              → Prune's keep predicate drops it
-		//   * commitment expired (walked its window)  → Prune drops it
-		//   * target captured (now ours) / gone       → explicit Release below
-		// Everything else stays committed → NOT re-ordered this scan (anti-thrash).
 		Actor FindOwnSupplyRoute()
 		{
 			return world.Actors.FirstOrDefault(a =>
@@ -1086,9 +1087,19 @@ namespace OpenRA.Mods.Common.Traits
 				&& Info.SupplyRouteTypes.Contains(a.Info.Name));
 		}
 
-		void ReconcileGuardCommitments(IBot bot)
+		// Release commitments that are done or stale so the TECN re-enters the pool:
+		//   * TECN dead / no longer ours              → Prune's keep predicate drops it
+		//   * commitment expired (walked its window)  → Prune drops it
+		//   * target captured (now ours) / gone       → explicit Release below
+		// Everything else stays committed → NOT re-ordered this scan (anti-thrash).
+		// Returns the set of TECNs issued a retreat-home order THIS scan (empty unless
+		// RetreatCapturerWhenDone) so the caller can skip re-selecting them for a fresh capture the
+		// same scan — a just-released TECN still reads IsIdle, and a CaptureActor queued behind the
+		// retreat Move would drag it back out on a wasteful round trip.
+		HashSet<Actor> ReconcileGuardCommitments(IBot bot)
 		{
 			var tick = world.WorldTick;
+			var retreated = new HashSet<Actor>();
 
 			// M-3 (expired): Prune drops expired commitments but doesn't report which,
 			// so snapshot the about-to-expire ones for live capturers first. A live
@@ -1136,12 +1147,15 @@ namespace OpenRA.Mods.Common.Traits
 						if (ownSR != null)
 						{
 							bot.QueueOrder(new Order("Move", tecn, Target.FromCell(world, ownSR.Location), false));
+							retreated.Add(tecn);
 							AIUtils.BotDebug("AI ({0}): capture-coordinator — {1} done ({2}), retreating to SR {3}",
 								player.ClientIndex, tecn.Info.Name, reason, ownSR.Location);
 						}
 					}
 				}
 			}
+
+			return retreated;
 		}
 
 		long ScoreTarget(Actor capturer, Actor target)
