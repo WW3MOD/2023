@@ -28,9 +28,9 @@ The user granted the full test ladder for the **next autoburn window**: "When th
 
 ## QUEUE
 
-### 30. Composition intelligence — threat-aware unit buying **[IN FLIGHT 2026-08-02]**
+### 30. Composition intelligence — threat-aware unit buying — **DONE 2026-08-02** (`f05e31b7`, in main @ `1c1469a8`)
 **Perceived:** bots buy what the battlefield calls for — attack helicopters appear (rarely, when income allows) against weak enemy AA instead of littlebird-only spam; AT shows up against armor pushes. From user live-play: "does the bot have some way of buying intelligently? … for all units there could be some kind of system to determine what is needed most."
-_Two parts: (a) root-cause why US bots never buy the attack heli (littlebird-only — pool config? cost gate? case-mismatch?); (b) extend AdaptiveProductionBotModule's counter-buy (unwedged @ `cb93015c`) with a believed-composition-gap need-scoring pass, @experimental-gated, weights as YAML tunables. Worker on `auto/composition-intel`._
+_Both parts landed @ `f05e31b7`: (a) root cause CONFIRMED as the UnitBuilder case-mismatch family — heli pool keys `HELI`/`TRAN` uppercase, only `littlebird` matched; keys lowercased + pools filled (`america.heli` heli 80 / littlebird 40, `russia.heli` mi28 50). Config defect, no unit stats touched — but shared blocks, so `@stable` benchmark control re-baselines. (b) `CompositionNeedMath` (integer-only, zero RNG, 11 NUnit pins): counter-score + AA-gap air-opportunity score + budget-reserve affordability + deterministic argmax; default-OFF fields on AdaptiveProductionBotModule, only `@experimental` enables (weights 100, `AirStrikeUnits: heli, a10` / `mi28, frog`); `@stable` omits all → byte-identical. Effect measurement rides the user-gated benchmark re-baseline._
 
 ### 31. Aggressiveness slider + opportunistic advance (user-mandated, folded into Brain design)
 **Perceived:** bots exploit granted opportunities — when a sector is undefended and a free path forward exists, they advance and keep pressure up instead of only spreading to POIs. And instead of discrete bot personalities ("Rush bot"), an **Aggressiveness slider**: YAML/programmatic now for test sweeps to find the right baseline, lobby-facing later. Other knobs (risk tolerance, capture-vs-combat priority) follow the same slider pattern.
