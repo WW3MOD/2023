@@ -27,11 +27,12 @@ namespace OpenRA.Test
 		[Test]
 		public void SpentAndCannotRearm_EvacuatesRegardlessOfEverythingElse()
 		{
-			// No ammo + no rearm host ⇒ evac even with a live target, forward, and well inside the window.
+			// No ammo + no rearm host ⇒ evac even with a live target, forward, inside the window, and BEFORE
+			// first contact (rule 1 is unconditional — a disarmed heli has no value regardless of phase).
 			Assert.That(
 				HeliEmploymentMath.Decide(
 					hasUsableAmmo: false, canRearm: false, hasWorthwhileTarget: true,
-					nearHome: false, idleTicks: 0, evacuateIdleTicks: Window),
+					contactEverObserved: false, nearHome: false, idleTicks: 0, evacuateIdleTicks: Window),
 				Is.EqualTo(HeliDisposition.Evacuate));
 		}
 
@@ -43,7 +44,7 @@ namespace OpenRA.Test
 			Assert.That(
 				HeliEmploymentMath.Decide(
 					hasUsableAmmo: false, canRearm: true, hasWorthwhileTarget: false,
-					nearHome: true, idleTicks: 0, evacuateIdleTicks: Window),
+					contactEverObserved: true, nearHome: true, idleTicks: 0, evacuateIdleTicks: Window),
 				Is.EqualTo(HeliDisposition.HoldForMission));
 		}
 
@@ -55,18 +56,30 @@ namespace OpenRA.Test
 			Assert.That(
 				HeliEmploymentMath.Decide(
 					hasUsableAmmo: false, canRearm: false, hasWorthwhileTarget: false,
-					nearHome: true, idleTicks: 0, evacuateIdleTicks: Window),
+					contactEverObserved: true, nearHome: true, idleTicks: 0, evacuateIdleTicks: Window),
 				Is.EqualTo(HeliDisposition.Evacuate));
 		}
 
 		[Test]
-		public void NoTargetAtHomePastWindow_Evacuates()
+		public void NoTargetAtHomePastWindow_AfterContact_Evacuates()
 		{
 			Assert.That(
 				HeliEmploymentMath.Decide(
 					hasUsableAmmo: true, canRearm: false, hasWorthwhileTarget: false,
-					nearHome: true, idleTicks: Window, evacuateIdleTicks: Window),
+					contactEverObserved: true, nearHome: true, idleTicks: Window, evacuateIdleTicks: Window),
 				Is.EqualTo(HeliDisposition.Evacuate));
+		}
+
+		[Test]
+		public void NoTargetAtHomePastWindow_BeforeFirstContact_Holds()
+		{
+			// The first-contact gate: identical to the evac case above but no enemy has EVER been believed,
+			// so an anticipatory heli is held (staged forward) rather than evac'd and re-bought pre-contact.
+			Assert.That(
+				HeliEmploymentMath.Decide(
+					hasUsableAmmo: true, canRearm: false, hasWorthwhileTarget: false,
+					contactEverObserved: false, nearHome: true, idleTicks: Window * 4, evacuateIdleTicks: Window),
+				Is.EqualTo(HeliDisposition.HoldForMission));
 		}
 
 		[Test]
@@ -76,7 +89,7 @@ namespace OpenRA.Test
 			Assert.That(
 				HeliEmploymentMath.Decide(
 					hasUsableAmmo: true, canRearm: false, hasWorthwhileTarget: false,
-					nearHome: true, idleTicks: Window - 1, evacuateIdleTicks: Window),
+					contactEverObserved: true, nearHome: true, idleTicks: Window - 1, evacuateIdleTicks: Window),
 				Is.EqualTo(HeliDisposition.HoldForMission));
 		}
 
@@ -87,7 +100,7 @@ namespace OpenRA.Test
 			Assert.That(
 				HeliEmploymentMath.Decide(
 					hasUsableAmmo: true, canRearm: false, hasWorthwhileTarget: true,
-					nearHome: true, idleTicks: Window * 4, evacuateIdleTicks: Window),
+					contactEverObserved: true, nearHome: true, idleTicks: Window * 4, evacuateIdleTicks: Window),
 				Is.EqualTo(HeliDisposition.HoldForMission));
 		}
 
@@ -98,7 +111,7 @@ namespace OpenRA.Test
 			Assert.That(
 				HeliEmploymentMath.Decide(
 					hasUsableAmmo: true, canRearm: false, hasWorthwhileTarget: false,
-					nearHome: false, idleTicks: Window * 4, evacuateIdleTicks: Window),
+					contactEverObserved: true, nearHome: false, idleTicks: Window * 4, evacuateIdleTicks: Window),
 				Is.EqualTo(HeliDisposition.HoldForMission));
 		}
 
@@ -134,8 +147,8 @@ namespace OpenRA.Test
 		public void DecisionsAreDeterministic()
 		{
 			Assert.That(
-				HeliEmploymentMath.Decide(true, false, false, true, Window, Window),
-				Is.EqualTo(HeliEmploymentMath.Decide(true, false, false, true, Window, Window)));
+				HeliEmploymentMath.Decide(true, false, false, true, true, Window, Window),
+				Is.EqualTo(HeliEmploymentMath.Decide(true, false, false, true, true, Window, Window)));
 		}
 	}
 }
