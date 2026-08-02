@@ -1,0 +1,1 @@
+TOURNAMENT: Parity mirror US 2-player. US vs US (stable bot both sides) on the arena-skirmish terrain — faction held constant so any winrate deviation from ~50/50 over seeds is map-side or harness bias, not balance. Noise-floor baseline for the faction parity audit (WORKSPACE/balance/260802-parity-audit.md §6). Authored NOT run — awaiting user grant per AWAITING-USER.md.

@@ -1,0 +1,1 @@
+TOURNAMENT: Parity mirror RU 2-player. Russia vs Russia (stable bot both sides) on the arena-skirmish terrain — RU-roster noise-floor / side-bias baseline for the faction parity audit (WORKSPACE/balance/260802-parity-audit.md §6), complementing tournament-parity-mirror-us. Authored NOT run — awaiting user grant per AWAITING-USER.md.

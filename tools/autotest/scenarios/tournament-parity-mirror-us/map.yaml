@@ -1,0 +1,68 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TOURNAMENT: Parity Mirror US 2P
+
+Author: WW3MOD balance audit (item 32)
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# US-vs-US mirror for the faction parity audit (WORKSPACE/balance/260802-parity-audit.md §6).
+# Purpose: establish the harness noise floor and side bias with faction held constant.
+# Distinct player names (US-A / US-B) so aggregate-tournament.sh winner_name winrates
+# expose map-side bias — with identical factions, any deviation from ~50/50 across
+# seeds is positional or harness bias, not balance signal.
+#
+# Terrain, SR/spawn placement, and player layout cloned from
+# tournament-arena-skirmish-2p; only names/factions differ.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@US-A:
+		Name: US-A
+		LockFaction: True
+		Faction: america
+		Bot: stable
+		Color: 4488FF
+		Enemies: US-B
+	PlayerReference@US-B:
+		Name: US-B
+		LockFaction: True
+		Faction: america
+		Bot: stable
+		Color: 44DDFF
+		Enemies: US-A
+
+Actors:
+	OwnSR: supplyroute
+		Owner: US-A
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: US-B
+		Location: 58,16
+	SpawnA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnB: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+Rules: rules.yaml
