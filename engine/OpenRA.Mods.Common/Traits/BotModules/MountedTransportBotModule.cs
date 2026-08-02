@@ -324,12 +324,17 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			var srCell = ownSR.Location;
 
-			// Drop stale tasks (dead/foreign carriers).
+			// Drop stale tasks (dead/foreign carriers). A carrier destroyed mid-Loading still has ALIVE
+			// passengers committed under transport:<carrierId> — release them here too (like every other
+			// teardown path) or they stay ledger-locked out of offense's free pool until the TTL lapses.
 			var stale = carrierTasks.Keys
 				.Where(c => c.IsDead || !c.IsInWorld || c.Owner != player)
 				.ToList();
 			foreach (var c in stale)
+			{
+				ReleaseTaskPassengers(carrierTasks[c]);
 				carrierTasks.Remove(c);
+			}
 
 			// Advance existing tasks.
 			foreach (var task in carrierTasks.Values.ToList())
@@ -524,6 +529,10 @@ namespace OpenRA.Mods.Common.Traits
 				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld
 					&& Info.PassengerTypes.Contains(a.Info.Name.ToLowerInvariant())
 					&& !reservedByOthers.Contains(a)
+					// Commit-on-order (§4): never ferry a unit another POI-stack writer already committed —
+					// otherwise Commit() below would overwrite its objective. Inert when the flag is off
+					// (goalGuard null) ⇒ byte-identical. Mirrors GarrisonBotModule's free-pool gate.
+					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, world.WorldTick))
 					&& a.Info.HasTraitInfo<PassengerInfo>()
 					&& ((a.Location - srCell).LengthSquared <= reserveRadiusSq
 						|| (dropOff.HasValue

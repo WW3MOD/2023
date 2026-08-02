@@ -137,5 +137,30 @@ namespace OpenRA.Test
 			Assert.That(ledger.Release(Pax), Is.True);
 			Assert.That(ledger.IsCommitted(Pax, 50), Is.False, "released on unload ⇒ free before TTL lapses");
 		}
+
+		// A carrier destroyed mid-Loading must release ALL its still-committed passengers (the stale-task
+		// teardown), or they stay ledger-locked out of offense's free pool until the TTL lapses. This mirrors
+		// ReleaseTaskPassengers iterating a task's ReservedPassengers — expressed at the ledger level (the
+		// module's teardown is otherwise a World-harness path). Pins the invariant the review's FIX 1 restores.
+		[Test]
+		public void CarrierDeath_ReleasesAllReservedPassengers()
+		{
+			const int Ttl = 300;
+			var ledger = new GoalGuardLedger<int>();
+			var reserved = new[] { 31, 32, 33 }; // a task's ReservedPassengers
+
+			foreach (var pax in reserved)
+				ledger.Commit(pax, "transport:99", currentTick: 0, ttlTicks: Ttl);
+			Assert.That(ledger.Count, Is.EqualTo(3), "all boarding passengers committed for the ride");
+
+			// Carrier dies at tick 40 (far inside the TTL). Teardown releases every reserved passenger.
+			foreach (var pax in reserved)
+				ledger.Release(pax);
+
+			foreach (var pax in reserved)
+				Assert.That(ledger.IsCommitted(pax, 41), Is.False,
+					$"passenger {pax} freed on carrier death, not stranded until the TTL");
+			Assert.That(ledger.Count, Is.EqualTo(0));
+		}
 	}
 }
