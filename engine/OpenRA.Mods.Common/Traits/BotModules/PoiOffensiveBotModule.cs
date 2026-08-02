@@ -389,6 +389,14 @@ namespace OpenRA.Mods.Common.Traits
 			"Only read when MissionCommitmentEnabled.")]
 		public readonly int MissionBetterOppMarginSlopePct = 0;
 
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase).
+			ActorNameCase.NormalizeInPlace(ExcludeUnitTypes);
+		}
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 

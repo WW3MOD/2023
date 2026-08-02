@@ -114,6 +114,18 @@ namespace OpenRA.Mods.Common.Traits
 			"using the furthest-back sampled cell. Only used when BelievedDangerStandoff is set.")]
 		public readonly int StandoffMaxBackoffCells = 20;
 
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase). CarrierTypes/PassengerTypes are the
+			// "half-guarded" fields — the query sites lowercase the actor name but the sets were built
+			// case-sensitively; normalizing the sets closes that gap. SupplyRouteTypes is a hardcoded
+			// lowercase default and stays untouched.
+			ActorNameCase.NormalizeInPlace(CarrierTypes);
+			ActorNameCase.NormalizeInPlace(PassengerTypes);
+		}
+
 		public override object Create(ActorInitializer init) { return new MountedTransportBotModule(init.Self, this); }
 	}
 

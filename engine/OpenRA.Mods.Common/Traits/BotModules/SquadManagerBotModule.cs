@@ -103,6 +103,16 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			base.RulesetLoaded(rules, ai);
 
+			// Case-harden actor-name config (see ActorNameCase). IgnoredEnemyTargetTypes is a
+			// target-type BitSet, not an actor-name set, so it stays ordinal.
+			ActorNameCase.NormalizeInPlace(AirUnitsTypes);
+			ActorNameCase.NormalizeInPlace(ExcludeFromSquadsTypes);
+			ActorNameCase.NormalizeInPlace(NavalUnitsTypes);
+			ActorNameCase.NormalizeInPlace(IncludeInSquadTypes);
+			ActorNameCase.NormalizeInPlace(ConstructionYardTypes);
+			ActorNameCase.NormalizeInPlace(NavalProductionTypes);
+			ActorNameCase.NormalizeInPlace(ProtectionTypes);
+
 			if (DangerScanRadius <= 0)
 				throw new YamlException("DangerScanRadius must be greater than zero.");
 		}

@@ -126,6 +126,14 @@ namespace OpenRA.Mods.Common.Traits
 			"weapon envelope) — highest urgency, this POI is actively being taken. >100 RAISES most. Default 100 = inert.")]
 		public readonly int BelievedDangerAssaultedMultiplier = 100;
 
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase).
+			ActorNameCase.NormalizeInPlace(ExcludeUnitTypes);
+		}
+
 		public override object Create(ActorInitializer init) { return new PoiGarrisonBotModule(init.Self, this); }
 	}
 

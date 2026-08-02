@@ -33,6 +33,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Prefer buildings closer to enemies (uses ThreatMapManager if available).")]
 		public readonly bool PrioritizeExposed = true;
 
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase).
+			ActorNameCase.NormalizeInPlace(GarrisonActorTypes);
+		}
+
 		public override object Create(ActorInitializer init) { return new GarrisonBotModule(init.Self, this); }
 	}
 

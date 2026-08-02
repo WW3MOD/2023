@@ -107,6 +107,14 @@ namespace OpenRA.Mods.Common.Traits
 			"of the ExcludeUnitTypes name list — same filter as PoiOffensiveBotModule. Default false.")]
 		public readonly bool UseUnitRoles = false;
 
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase).
+			ActorNameCase.NormalizeInPlace(ExcludeUnitTypes);
+		}
+
 		public override object Create(ActorInitializer init) { return new LaneAmbushBotModule(init.Self, this); }
 	}
 

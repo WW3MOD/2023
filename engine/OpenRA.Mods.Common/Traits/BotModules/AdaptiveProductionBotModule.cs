@@ -139,6 +139,18 @@ namespace OpenRA.Mods.Common.Traits
 			"expensive airframes; cheap counters clear it almost always. 0 disables the gate. Default 200.")]
 		public readonly int NeedBudgetReservePct = 200;
 
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase). SupplyRouteTypes is a hardcoded
+			// lowercase default (not user config), so it is left untouched.
+			ActorNameCase.NormalizeInPlace(AntiVehicleUnits);
+			ActorNameCase.NormalizeInPlace(AntiInfantryUnits);
+			ActorNameCase.NormalizeInPlace(AntiAirUnits);
+			ActorNameCase.NormalizeInPlace(AirStrikeUnits);
+		}
+
 		public override object Create(ActorInitializer init) { return new AdaptiveProductionBotModule(init.Self, this); }
 	}
 

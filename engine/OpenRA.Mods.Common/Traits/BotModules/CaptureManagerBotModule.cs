@@ -41,6 +41,16 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Player relationships that capturers should attempt to target.")]
 		public readonly PlayerRelationship CapturableRelationships = PlayerRelationship.Enemy | PlayerRelationship.Neutral;
 
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase). Legacy module (folded into
+			// CaptureCoordinator, not instantiated in ww3mod) — hardened for family completeness.
+			ActorNameCase.NormalizeInPlace(CapturingActorTypes);
+			ActorNameCase.NormalizeInPlace(CapturableActorTypes);
+		}
+
 		public override object Create(ActorInitializer init) { return new CaptureManagerBotModule(init.Self, this); }
 	}
 

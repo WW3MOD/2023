@@ -72,6 +72,19 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Extra gated AA units permitted per observed enemy aircraft.")]
 		public readonly int AntiAirPerObservedAir = 1;
 
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase). UnitQueues holds production-queue
+			// Type tokens (Vehicle/Infantry/Aircraft), NOT actor names, so it stays ordinal.
+			ActorNameCase.NormalizeKeysInPlace(UnitsToBuild);
+			ActorNameCase.NormalizeKeysInPlace(UnitLimits);
+			ActorNameCase.NormalizeKeysInPlace(UnitDelays);
+			ActorNameCase.NormalizeInPlace(ResupplyUnitTypes);
+			ActorNameCase.NormalizeInPlace(AntiAirUnitTypes);
+		}
+
 		public override object Create(ActorInitializer init) { return new UnitBuilderBotModule(init.Self, this); }
 	}
 

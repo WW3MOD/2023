@@ -94,6 +94,15 @@ namespace OpenRA.Mods.Common.Traits
 			"pulls back toward). Only read when DangerEvac is on.")]
 		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
 
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase). SupplyRouteTypes is a hardcoded
+			// lowercase default (not user config), so it is left untouched.
+			ActorNameCase.NormalizeInPlace(SupplyTruckTypes);
+		}
+
 		public override object Create(ActorInitializer init) { return new SupplyFollowerBotModule(init.Self, this); }
 	}
 
