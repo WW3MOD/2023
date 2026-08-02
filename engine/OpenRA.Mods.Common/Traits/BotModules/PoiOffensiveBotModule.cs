@@ -279,6 +279,49 @@ namespace OpenRA.Mods.Common.Traits
 			"Needs EchelonPositioning on + a ControlField present; inert until the field is populated for this player.")]
 		public readonly int MinFrontierDistanceCells = 0;
 
+		[Desc("EXPERIMENTAL force-preservation (combat-quality lever 1): an axis that is LOSING its fight —",
+			"believed local enemy force at least RetreatForceRatioPct% of its own remaining force, SUSTAINED for",
+			"RetreatSustainEvals consecutive re-evals — falls back toward friendly control (a grouped AttackMove to",
+			"the rally cell = our own Supply Route) instead of grinding to the death at the objective. Believed enemy",
+			"force is tallied from the fog-legal BeliefStore (armed contacts within ForceRatioRadiusCells of the axis",
+			"centroid, weighted by build cost x confidence); own force is the axis's HEALTH-weighted build value — the",
+			"SAME cost scale, so the ratio is meaningful. Hysteresis: a retreating axis COMMITS to the retreat until",
+			"it reaches safety or the ratio recovers past ReengageForceRatioPct% (stricter), so it never flip-flops.",
+			"Shaped as an ABORT TRIGGER (a force-ratio spike), not a competing order stream — composes with squad",
+			"mission-commitment. OFF by default so legacy/normal and the frozen @stable twin stay byte-identical;",
+			"only PoiOffensiveBotModule@experimental turns it on. Inert with no BeliefStore / no own Supply Route.")]
+		public readonly bool RetreatWhenLosing = false;
+
+		[Desc("EXPERIMENTAL force-preservation (combat-quality lever 2): stop feeding fresh units PIECEMEAL into an",
+			"axis whose fight is already lost (the SAME believed-force-ratio 'losing' state as RetreatWhenLosing). A",
+			"trickle of reinforcements into a meat grinder is the classic 2x-deaths mechanism; when on, a losing axis",
+			"is not topped up — the free units stay in the pool for other axes / a rally instead. Independent of the",
+			"retreat-order gate (either lever can run alone). OFF by default = byte-identical.")]
+		public readonly bool NoReinforceLostFights = false;
+
+		[Desc("Force-preservation: believed enemy-to-own local force ratio (x100) at/above which an axis counts as",
+			"LOSING and (after RetreatSustainEvals) retreats. 200 = retreat once the believed enemy force is 2x our",
+			"remaining force. Only read when RetreatWhenLosing / NoReinforceLostFights is on.")]
+		public readonly int RetreatForceRatioPct = 200;
+
+		[Desc("Force-preservation hysteresis EXIT (x100): a RETREATING axis only re-engages once the believed enemy",
+			"force falls to at/below this percent of its own force (or it reaches safety). Must be <= RetreatForceRatioPct",
+			"so the trigger and release bands don't overlap (no advance/retreat oscillation). 120 = re-engage when back",
+			"within 20% of parity.")]
+		public readonly int ReengageForceRatioPct = 120;
+
+		[Desc("Force-preservation: consecutive losing re-evals required before an axis commits to a retreat (a window",
+			"so a single unlucky field read never triggers a fall-back). 1 = retreat on the first losing read.")]
+		public readonly int RetreatSustainEvals = 2;
+
+		[Desc("Force-preservation: radius (cells, Chebyshev) around an axis centroid over which believed enemy force",
+			"is tallied from the BeliefStore for the losing-ratio test.")]
+		public readonly int ForceRatioRadiusCells = 8;
+
+		[Desc("Force-preservation: a retreating axis is 'safe' (and may re-engage) once its centroid is within this",
+			"many cells (Chebyshev) of the rally cell (our own Supply Route). Ends the committed retreat.")]
+		public readonly int RetreatSafeDistanceCells = 10;
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 
@@ -297,6 +340,15 @@ namespace OpenRA.Mods.Common.Traits
 			public CPos OrderedCell;   // last target cell we AttackMoved to (for repath gating)
 			public CPos? OrderedVia;   // last Stage-E lateral waypoint ordered (null = went direct)
 			public bool HasOrdered;
+
+			// Combat-quality force-preservation FSM state (levers 1+2). Engaged (default) reproduces the
+			// legacy assault path exactly; Retreating falls back / is not reinforced. LosingStreak counts an
+			// unbroken run of losing evals toward RetreatSustainEvals. OrderedRetreat records that the last
+			// order issued was a fall-back (so the state flip back to Engaged forces an assault re-issue).
+			public int LosingStreak;
+			public RetreatDecision Retreat;
+			public bool OrderedRetreat;
+
 			public readonly List<Actor> Units = new();
 		}
 
@@ -313,8 +365,19 @@ namespace OpenRA.Mods.Common.Traits
 		bool dangerFieldResolved;
 		ControlField controlField;
 		bool controlFieldResolved;
+		BeliefStore beliefStore;
+		bool beliefStoreResolved;
 
 		readonly List<Axis> axes = new();
+
+		// Combat-quality force-preservation: rally cell (our own Supply Route) resolved once per re-eval when a
+		// force-preservation lever is on — a losing axis falls back to it and counts as safe near it. Null when
+		// no lever is active or we have no SR to fall back to.
+		CPos? rallyCell;
+
+		// Cached (build cost, armed) per believed-contact TypeName, resolved from world rules on first use, so
+		// the believed-enemy force tally doesn't re-walk the actor rules every eval. Deterministic.
+		readonly Dictionary<string, (int Cost, bool Armed)> contactFactCache = new();
 
 		// Last cohesion mode we issued to each unit (dispersion doctrine). Cohesion is a
 		// property of the unit, not the axis, so a re-recruited unit keeps its mode across
@@ -408,6 +471,19 @@ namespace OpenRA.Mods.Common.Traits
 					? world.WorldActor.TraitOrDefault<ControlField>() : null;
 				controlFieldResolved = true;
 			}
+
+			// Combat-quality force-preservation: the belief store feeds the believed-enemy force tally for both
+			// levers, so resolve it when either is on. Inert (never resolved) otherwise ⇒ byte-identical.
+			if (!beliefStoreResolved)
+			{
+				beliefStore = Info.RetreatWhenLosing || Info.NoReinforceLostFights
+					? world.WorldActor.TraitOrDefault<BeliefStore>() : null;
+				beliefStoreResolved = true;
+			}
+
+			// Rally cell for the fall-back / safety test — our own Supply Route. Resolved once per eval only when
+			// a lever is on (one FindOwnSupplyRoute scan); null otherwise, so no cost on the frozen path.
+			rallyCell = Info.RetreatWhenLosing || Info.NoReinforceLostFights ? RallyCell() : null;
 
 			var tick = world.WorldTick;
 
@@ -521,6 +597,13 @@ namespace OpenRA.Mods.Common.Traits
 				axis.TargetName = t.Actor.Info.Name;
 			}
 
+			// 6b. Combat-quality: update each axis's LOSING/RETREAT state from the believed force ratio BEFORE
+			//     allocation, so the no-reinforce lever can skip topping up a lost fight (step 8) and CommitAndOrder
+			//     can issue a fall-back instead of an assault (step 9). Pure abort-trigger shape — no orders here.
+			//     Inert unless a lever is on AND a BeliefStore exists; every axis stays Engaged otherwise (legacy).
+			if ((Info.RetreatWhenLosing || Info.NoReinforceLostFights) && beliefStore != null)
+				UpdateRetreatStates(tick);
+
 			// 7. Proportional target sizes by score, min axis size enforced.
 			var orderedAxes = axes.OrderByDescending(a => a.Score).ThenBy(a => a.TargetId).ToList();
 			var sizes = PoiOffenseMath.AllocateProportional(
@@ -556,6 +639,12 @@ namespace OpenRA.Mods.Common.Traits
 				if (need <= 0)
 					continue;
 
+				// Combat-quality lever 2: don't reinforce a lost fight — a losing axis is NOT topped up, so units
+				// aren't fed piecemeal into a meat grinder. They stay free for other axes / a rally. Inert unless
+				// the lever is on and the axis is in the Retreating state.
+				if (Info.NoReinforceLostFights && axis.Retreat == RetreatDecision.Retreating)
+					continue;
+
 				var recruits = free
 					.OrderBy(u => (u.CenterPosition - axis.TargetPos).LengthSquared)
 					.ThenBy(u => u.ActorID)
@@ -574,7 +663,12 @@ namespace OpenRA.Mods.Common.Traits
 			for (var i = axes.Count - 1; i >= 0; i--)
 			{
 				var axis = axes[i];
-				if (axis.Units.Count < minAxisSize)
+
+				// Keep a RETREATING axis intact even below min size so its fall-back order keeps issuing until it
+				// reaches safety (retiring it would drop the units to the pool mid-withdrawal). Only applies when
+				// lever 1 is on with a valid rally; otherwise the legacy under-min retire is byte-identical.
+				var retreating = CombatRetreatMath.ShouldRetreat(Info.RetreatWhenLosing, axis.Retreat) && rallyCell.HasValue;
+				if (axis.Units.Count < minAxisSize && !retreating)
 				{
 					ReleaseAxis(axis, "under-min");
 					axes.RemoveAt(i);
@@ -815,12 +909,32 @@ namespace OpenRA.Mods.Common.Traits
 
 		void CommitAndOrder(IBot bot, Axis axis, int tick)
 		{
-			// (Re)commit every unit to this axis so the shared ledger keeps them ours.
+			// (Re)commit every unit to this axis so the shared ledger keeps them ours. (Retreating units stay
+			// committed too — they are ours, just withdrawing — so nothing else re-recruits them mid-retreat.)
 			if (goalGuard != null)
 			{
 				var key = OffenseObjectiveKey(axis.TargetId);
 				foreach (var u in axis.Units)
 					goalGuard.Ledger.Commit(u, key, tick, Info.AxisCommitmentTicks);
+			}
+
+			// Combat-quality lever 1: a LOSING axis falls back toward friendly control instead of assaulting. A
+			// single grouped AttackMove to the rally cell (attack-move ⇒ units still defend themselves while
+			// withdrawing) replaces the assault order, and the fires/echelon/detour assault machinery is skipped
+			// entirely. Gated on a valid rally target; inert unless RetreatWhenLosing is on and the axis is
+			// Retreating, so every other profile / the frozen @stable twin takes the assault path below unchanged.
+			if (CombatRetreatMath.ShouldRetreat(Info.RetreatWhenLosing, axis.Retreat) && rallyCell.HasValue)
+			{
+				OrderRetreat(bot, axis, rallyCell.Value, tick);
+				return;
+			}
+
+			// Just left the retreat state (recovered / reached safety): the last order was a fall-back, so force
+			// the assault order below to re-issue rather than assume the stale attack order still holds.
+			if (axis.OrderedRetreat)
+			{
+				axis.OrderedRetreat = false;
+				axis.HasOrdered = false;
 			}
 
 			// Fires doctrine (experimental, default off): peel IndirectFire artillery off the line group and
@@ -1281,6 +1395,160 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		static string OffenseObjectiveKey(uint targetId) => "offense:" + targetId;
+
+		// ===== Combat-quality force-preservation (levers 1+2) =====
+
+		// The rally / safety anchor: our own Supply Route beachhead (the strongest friendly control). Null when
+		// we have none — then a losing axis has nowhere to fall back, so lever 1 is inert (it still declines to
+		// reinforce under lever 2). One FindOwnSupplyRoute scan per eval, only when a lever is on.
+		CPos? RallyCell()
+		{
+			var sr = poiMap?.OwnSupplyRoute(player);
+			return sr != null && !sr.IsDead && sr.IsInWorld ? sr.Location : (CPos?)null;
+		}
+
+		// Update every axis's losing/retreat FSM state from the believed local force ratio. Own force is the
+		// axis's health-weighted build value; believed enemy force is the fog-legal BeliefStore tally near the
+		// centroid — the SAME cost scale. Safety is proximity to the rally cell. Pure integer inputs into the
+		// NUnit-pinned CombatRetreatMath.Step; zero RNG. A not-yet-staffed axis is held Engaged (it must be built,
+		// not retreated). Only called when a lever is on and a BeliefStore exists.
+		void UpdateRetreatStates(int tick)
+		{
+			foreach (var axis in axes)
+			{
+				if (axis.Units.Count == 0)
+				{
+					axis.Retreat = RetreatDecision.Engaged;
+					axis.LosingStreak = 0;
+					continue;
+				}
+
+				var centroid = AxisCentroidCell(axis);
+				var own = OwnAxisStrength(axis);
+				var enemy = BelievedEnemyStrength(centroid);
+				var safe = rallyCell.HasValue
+					&& PoiOffenseMath.Chebyshev(centroid.X, centroid.Y, rallyCell.Value.X, rallyCell.Value.Y)
+						<= Info.RetreatSafeDistanceCells;
+
+				var (decision, streak) = CombatRetreatMath.Step(axis.Retreat, axis.LosingStreak,
+					own, enemy, Info.RetreatForceRatioPct, Info.ReengageForceRatioPct, safe, Info.RetreatSustainEvals);
+				axis.Retreat = decision;
+				axis.LosingStreak = streak;
+
+				if (decision == RetreatDecision.Retreating)
+					Log.Write("debug",
+						$"[exp-retreat] state player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
+						$"own={own} enemy={enemy} streak={streak} safe={safe} tick={tick}");
+			}
+		}
+
+		CPos AxisCentroidCell(Axis axis)
+		{
+			var cells = new List<(int X, int Y)>(axis.Units.Count);
+			foreach (var u in axis.Units)
+				cells.Add((u.Location.X, u.Location.Y));
+
+			var c = PoiOffenseMath.CellCentroid(cells);
+			return new CPos(c.X, c.Y);
+		}
+
+		// Own force = sum of health-weighted build value over the axis's units. Order-independent sum ⇒ no sort.
+		int OwnAxisStrength(Axis axis)
+		{
+			var sum = 0;
+			foreach (var u in axis.Units)
+				sum += UnitStrength(u);
+			return sum;
+		}
+
+		// Health-weighted build value: full cost scaled by the current HP fraction, so a wounded unit contributes
+		// less to "our remaining force". Reads only synced trait state; zero RNG.
+		static int UnitStrength(Actor u)
+		{
+			var cost = u.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
+			if (cost <= 0)
+				return 0;
+
+			var health = u.TraitOrDefault<Health>();
+			if (health == null || health.MaxHP <= 0)
+				return cost;
+
+			return (int)((long)cost * health.HP / health.MaxHP);
+		}
+
+		// Believed enemy force near a cell: sum over ARMED believed contacts within ForceRatioRadiusCells
+		// (Chebyshev) of build cost x confidence. Fog-legal (belief store only). Addition is order-independent,
+		// so iterating the belief dictionary needs no sort for determinism; zero RNG.
+		int BelievedEnemyStrength(CPos centre)
+		{
+			if (beliefStore == null)
+				return 0;
+
+			var sum = 0;
+			var r = Info.ForceRatioRadiusCells;
+			foreach (var c in beliefStore.Contacts(player))
+			{
+				if (PoiOffenseMath.Chebyshev(c.Cell.X, c.Cell.Y, centre.X, centre.Y) > r)
+					continue;
+
+				var fact = ContactFact(c.TypeName);
+				if (!fact.Armed || fact.Cost <= 0)
+					continue;
+
+				var confidence = c.Confidence < 0 ? 0 : (c.Confidence > 100 ? 100 : c.Confidence);
+				sum += fact.Cost * confidence / 100;
+			}
+
+			return sum;
+		}
+
+		// (build cost, armed) for a believed-contact type name, cached from the actor rules. An armed contact
+		// carries AttackBase; an unarmed one (supply truck, capturer) contributes no combat force to the ratio.
+		(int Cost, bool Armed) ContactFact(string typeName)
+		{
+			if (typeName == null)
+				return (0, false);
+
+			if (contactFactCache.TryGetValue(typeName, out var fact))
+				return fact;
+
+			var cost = 0;
+			var armed = false;
+			if (world.Map.Rules.Actors.TryGetValue(typeName, out var info))
+			{
+				cost = info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
+				armed = info.HasTraitInfo<AttackBaseInfo>();
+			}
+
+			fact = (cost, armed);
+			contactFactCache[typeName] = fact;
+			return fact;
+		}
+
+		// Issue the fall-back: a grouped AttackMove toward the rally cell for every unit on the axis. Re-issued
+		// only when the axis just entered the retreat (or its unit set changed ⇒ HasOrdered cleared upstream), or
+		// the rally cell drifted past the repath threshold — so a squad already withdrawing keeps its order
+		// uninterrupted. Deterministic.
+		void OrderRetreat(IBot bot, Axis axis, CPos rally, int tick)
+		{
+			var moved = !axis.HasOrdered
+				|| !axis.OrderedRetreat
+				|| (axis.OrderedCell - rally).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells;
+			if (!moved)
+				return;
+
+			var units = axis.Units.ToArray();
+			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, rally), false, groupedActors: units));
+			axis.OrderedCell = rally;
+			axis.OrderedVia = null;
+			axis.OrderedRetreat = true;
+			axis.HasOrdered = true;
+
+			Log.Write("debug",
+				$"[exp-retreat] fallback player={player.PlayerName} target={axis.TargetName} rally={rally} units={units.Length} tick={tick}");
+			AIUtils.BotDebug("AI ({0}): exp-offense — axis {1} RETREATING to {2} ({3} units)",
+				player.ClientIndex, axis.TargetName, rally, units.Length);
+		}
 	}
 
 	// ============================================================

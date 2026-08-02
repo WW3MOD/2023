@@ -58,6 +58,23 @@ namespace OpenRA.Mods.Common.Traits
 			return scaled;
 		}
 
+		/// <summary>Combat-quality budget split (@experimental): clamp the capturer floor so the alive-or-pending
+		/// TECN pool can never DEMAND more than <paramref name="sharePct"/>% of the current combat army — a single
+		/// dial that shifts production budget between capture and combat. <paramref name="sharePct"/> &gt;= 100
+		/// (the default) is INERT: the clamp never binds and the floor passes through verbatim (byte-identical, and
+		/// the caller skips even counting the army). Below 100 it lowers the floor to
+		/// floor(<paramref name="totalCombatArmy"/> * sharePct / 100) whenever that is smaller — so capture demand
+		/// yields to combat while the army is thin, then relaxes as the army grows. Never RAISES the floor. Pure
+		/// integer (widened to avoid overflow), zero RNG.</summary>
+		public static int ClampFloorToArmyShare(int floor, int totalCombatArmy, int sharePct)
+		{
+			if (sharePct >= 100)
+				return floor;
+
+			var cap = (int)((long)totalCombatArmy * sharePct / 100);
+			return floor < cap ? floor : cap;
+		}
+
 		/// <summary>Should the coordinator issue a floor production request this scan?
 		///
 		/// Reproduces today's gate EXACTLY when <paramref name="staleTicks"/> &lt;= 0 (the frozen path requests

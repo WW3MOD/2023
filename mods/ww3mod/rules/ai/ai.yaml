@@ -187,6 +187,22 @@ Player:
 		SafeDangerThreshold: 40
 		SafeMaxDistanceFromSRCells: 24
 		LightEscortSize: 2
+		# ===== CAPTURE <-> COMBAT BUDGET SPLIT (combat-quality lever 3) =====
+		# The @experimental bot fields a smaller, more expendable combat force because build/production budget is
+		# diverted to the capture race. That split is governed by THREE tunables, surfaced here so a future tuning
+		# pass (or a human) can shift budget toward combat WITHOUT a rebuild. Current values reproduce today's
+		# behaviour; nothing changes until they are tuned.
+		#  (1) TECN production floor — how many capturers to keep alive-or-pending (TecnFloor / ScaleTecnFloorToPois
+		#      / TecnFloorMax above). More capturers = fewer combat buys from the shared production lottery.
+		#  (2) Escort reservation — combat units locked to babysit each capture (EscortSize / ContestedEscortSize /
+		#      LightEscortSize above). Higher = more combat force diverted off the offense onto capture duty.
+		#  (3) TecnFloorArmyShareCapPct (below) — a NEW single dial: cap the capturer floor at this % of the current
+		#      COMBAT army, so capture demand can't crowd out combat production when the army is thin. 100 = INERT
+		#      (the clamp never binds and the combat-army count is not even computed — byte-identical to today).
+		#      Lower it (e.g. 50 = capturers may not exceed half the combat army) to move budget toward combat.
+		# The production SHARE weights themselves (tecn vs combat unit types) live in UnitsToBuild / UnitLimits in
+		# ai-america.yaml / ai-russia.yaml — see the budget-split note there. Default 100 on @stable.tecn = inert.
+		TecnFloorArmyShareCapPct: 100
 
 	# experimental AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
 	# ground army across the top enemy objectives ranked by PoiMap
@@ -295,6 +311,27 @@ Player:
 		# ≈ 8 map cells. Needs EchelonPositioning + a ControlField (present via the influence stack). @stable
 		# twin (which lacks this field) stays byte-identical.
 		MinFrontierDistanceCells: 4
+		# Combat-quality force preservation (levers 1+2, WORKSPACE/benchmarks/260802-exp-vs-stable0730-combatweighted.md):
+		# the @experimental bot kills evenly with @stable yet DIES for ~2x the army value — it treats its combat force
+		# as expendable while it wins the capture race. These two levers keep the capture strength but stop bleeding the
+		# army. Both read only the fog-legal belief store (armed contacts near the axis, cost x confidence) vs the axis's
+		# own health-weighted build value — the SAME cost scale, so the ratio is meaningful; zero RNG. Shaped as an ABORT
+		# TRIGGER (a force-ratio spike), NOT a competing order stream, so it composes with the squad mission-commitment
+		# work. Both default OFF on the shared engine class ⇒ the @stable twin (which omits them) is byte-identical.
+		#  Lever 1 — retreat when losing: an axis whose believed local enemy force is >= RetreatForceRatioPct% of its
+		#  own, sustained RetreatSustainEvals evals, falls back (grouped AttackMove) to the rally cell = our own SR
+		#  instead of grinding to death. Hysteresis: it COMMITS to the retreat until it reaches safety
+		#  (RetreatSafeDistanceCells of the rally) or the ratio recovers past ReengageForceRatioPct% (stricter, so no
+		#  advance/retreat oscillation).
+		RetreatWhenLosing: true
+		#  Lever 2 — don't reinforce a lost fight: a losing axis is NOT topped up (no piecemeal trickle into a meat
+		#  grinder, the classic 2x-deaths mechanism); the free units stay for other axes / a rally.
+		NoReinforceLostFights: true
+		RetreatForceRatioPct: 200
+		ReengageForceRatioPct: 120
+		RetreatSustainEvals: 2
+		ForceRatioRadiusCells: 8
+		RetreatSafeDistanceCells: 10
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped

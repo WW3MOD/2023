@@ -165,5 +165,27 @@ namespace OpenRA.Test
 
 			Assert.That(pending, Is.EqualTo(Floor), "pending converges to exactly the floor");
 		}
+
+		// ---------- ClampFloorToArmyShare (combat-quality budget split) ----------
+
+		[Test]
+		public void ClampFloorToArmyShare_InertAtOrAboveHundred()
+		{
+			// >= 100 = never bind: the floor passes through verbatim regardless of the army.
+			Assert.That(CaptureSupplyMath.ClampFloorToArmyShare(5, 0, 100), Is.EqualTo(5));
+			Assert.That(CaptureSupplyMath.ClampFloorToArmyShare(5, 2, 100), Is.EqualTo(5));
+			Assert.That(CaptureSupplyMath.ClampFloorToArmyShare(5, 100, 150), Is.EqualTo(5));
+		}
+
+		[Test]
+		public void ClampFloorToArmyShare_LowersWhenArmyThin()
+		{
+			// 50% of an 8-unit army = 4, below the floor of 5 ⇒ clamped down to 4 (budget yields to combat).
+			Assert.That(CaptureSupplyMath.ClampFloorToArmyShare(5, 8, 50), Is.EqualTo(4));
+			// A 20-unit army at 50% = 10 >= floor 5 ⇒ floor unchanged (clamp only ever lowers).
+			Assert.That(CaptureSupplyMath.ClampFloorToArmyShare(5, 20, 50), Is.EqualTo(5));
+			// No army at all ⇒ clamp to 0 (don't force capturers when there's no combat force to share with).
+			Assert.That(CaptureSupplyMath.ClampFloorToArmyShare(5, 0, 50), Is.EqualTo(0));
+		}
 	}
 }

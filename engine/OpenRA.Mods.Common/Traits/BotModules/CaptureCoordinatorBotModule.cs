@@ -100,6 +100,14 @@ namespace OpenRA.Mods.Common.Traits
 			"when a capture target exists but no capturer is free. 0 = disabled (production left to the shared unit builder).")]
 		public readonly int TecnFloor = 0;
 
+		[Desc("Combat-quality budget split (@experimental): cap the alive-or-pending capturer (TECN) floor at this",
+			"percent of the current COMBAT army, so the capture budget can never crowd out combat production when the",
+			"army is thin. 100 (default) = INERT — the clamp never binds, the combat-army count is not even computed,",
+			"and the floor is byte-identical to today. Below 100 shifts budget toward combat (e.g. 50 = capturers may",
+			"not exceed half the combat army). Never RAISES the floor. Only consulted when < 100, so @stable / any",
+			"non-opting config stays byte-identical.")]
+		public readonly int TecnFloorArmyShareCapPct = 100;
+
 		[Desc("Capture-supply un-deadlock (@experimental): re-issue a floor production request once the",
 			"outstanding request has gone UNDELIVERED for this many ticks (the shared build FIFO can sit on a",
 			"lone pending request while combat buys churn the queue, so alive+pending>=floor suppresses all",
@@ -658,6 +666,12 @@ namespace OpenRA.Mods.Common.Traits
 			var floor = CaptureSupplyMath.EffectiveFloor(Info.ScaleTecnFloorToPois, Info.TecnFloor,
 				Info.ScaleTecnFloorToPois ? CountReachableNeutralMoneyPois() : 0, Info.TecnFloorMax);
 
+			// Combat-quality budget split: optionally clamp the floor to a share of the combat army so capture
+			// demand can't crowd out combat production. Inert at 100 (the default) — the army count is skipped
+			// entirely, so @stable / any non-opting config is byte-identical.
+			if (Info.TecnFloorArmyShareCapPct < 100)
+				floor = CaptureSupplyMath.ClampFloorToArmyShare(floor, CountOwnCombatArmy(), Info.TecnFloorArmyShareCapPct);
+
 			var alive = capturingActors.Actors.Count;
 			var pending = unitProducers.Sum(u => u.RequestedProductionCount(bot, tecnBuildType));
 
@@ -705,6 +719,28 @@ namespace OpenRA.Mods.Common.Traits
 			lastFloorRequestTick = world.WorldTick;
 			Log.Write("debug",
 				$"[exp-capture] tecn-floor-request player={player.PlayerName} type={tecnBuildType} alive={alive} pending={pending} floor={floor} priority={issuedPriority} tick={world.WorldTick}");
+		}
+
+		// Combat-quality budget split: count this player's fielded COMBAT units — armed (AttackBase) and
+		// ground-mobile, excluding aircraft. Capturers/logistics have no AttackBase and don't count. Only called
+		// when the army-share cap is active (< 100), so the frozen path never pays for the scan. Deterministic
+		// integer count over the world actor list; zero RNG.
+		int CountOwnCombatArmy()
+		{
+			var n = 0;
+			foreach (var a in world.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+				if (!a.Info.HasTraitInfo<AttackBaseInfo>() || !a.Info.HasTraitInfo<MobileInfo>())
+					continue;
+				if (a.Info.HasTraitInfo<AircraftInfo>())
+					continue;
+
+				n++;
+			}
+
+			return n;
 		}
 
 		// (b) Count reachable NEUTRAL money POIs — free oil derricks worth ~one capturer each — from the same
