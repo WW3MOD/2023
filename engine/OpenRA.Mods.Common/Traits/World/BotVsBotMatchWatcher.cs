@@ -513,7 +513,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Embedded inside TestMode's `notes` string field — escaping done by TestMode.WriteResult.
 			var sb = new StringBuilder();
 			sb.Append("{");
-			sb.Append("\"verdict_version\":6,");
+			sb.Append("\"verdict_version\":7,");
 			sb.Append($"\"seed\":{seed},");
 			sb.Append($"\"duration_ticks\":{verdict.EndTick},");
 			sb.Append($"\"winner_client_index\":{verdict.Winner?.ClientIndex ?? -1},");
@@ -581,6 +581,33 @@ namespace OpenRA.Mods.Common.Traits
 				sb.Append($"\"recaptures_count\":{roll.Recaptures},");
 				sb.Append($"\"losses_count\":{roll.Losses},");
 				sb.Append($"\"poi_income_gross\":{state.PoiIncomeFor(player)}");
+				sb.Append("}");
+
+				// v7: per-actor-type composition telemetry — produced/lost/alive counts + costs,
+				// keyed by actor type name. Sourced from PlayerStatistics.UnitTypeStats, which is
+				// OBSERVER-ONLY bookkeeping (no synced state, no RNG, no orders). Additive field;
+				// absent in pre-v7 verdicts, so existing consumers ignore it.
+				sb.Append(",\"unit_types\":{");
+				if (stats != null)
+				{
+					var utFirst = true;
+					foreach (var ut in stats.UnitTypeStats.Sorted())
+					{
+						if (!utFirst) sb.Append(",");
+						utFirst = false;
+
+						var t = ut.Value;
+						sb.Append($"\"{Escape(ut.Key)}\":{{");
+						sb.Append($"\"produced_count\":{t.ProducedCount},");
+						sb.Append($"\"produced_cost\":{t.ProducedCost},");
+						sb.Append($"\"lost_count\":{t.LostCount},");
+						sb.Append($"\"lost_cost\":{t.LostCost},");
+						sb.Append($"\"alive_count\":{t.AliveCount},");
+						sb.Append($"\"alive_value\":{t.AliveValue}");
+						sb.Append("}");
+					}
+				}
+
 				sb.Append("}");
 
 				// v6: per-player income timeseries (spec §2.2), gated by EmitTimeseries.
