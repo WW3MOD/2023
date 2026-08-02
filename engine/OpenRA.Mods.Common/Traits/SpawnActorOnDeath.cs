@@ -119,11 +119,24 @@ namespace OpenRA.Mods.Common.Traits
 			if (defeated && !Info.SpawnAfterDefeat)
 				return;
 
+			// Clamp the spawn cell into map bounds. A dying actor can be off-map (e.g. an aircraft
+			// husk drifting past the edge under FallsToEarth: Moves), and an off-map LocationInit
+			// crashes downstream terrain lookups such as HuskDecay.AddedToWorld. When the cell is
+			// moved, snap CenterPosition to the clamped cell so the two inits stay consistent.
+			var map = self.World.Map;
+			var spawnCell = self.Location + Info.Offset;
+			var spawnCenter = self.CenterPosition;
+			if (!map.Contains(spawnCell))
+			{
+				spawnCell = map.Clamp(spawnCell);
+				spawnCenter = map.CenterOfCell(spawnCell) + new WVec(0, 0, spawnCenter.Z);
+			}
+
 			var td = new TypeDictionary
 			{
 				new ParentActorInit(self),
-				new LocationInit(self.Location + Info.Offset),
-				new CenterPositionInit(self.CenterPosition),
+				new LocationInit(spawnCell),
+				new CenterPositionInit(spawnCenter),
 				new FactionInit(faction)
 			};
 

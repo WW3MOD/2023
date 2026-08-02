@@ -67,8 +67,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyAddedToWorld.AddedToWorld(Actor self)
 		{
-			var terrainType = self.World.Map.GetTerrainInfo(self.Location).Type;
-			onWater = info.WaterTerrainTypes.Contains(terrainType);
+			// PITFALL: Map.GetTerrainInfo(cell) throws IndexOutOfRange off-map (unguarded array index in
+			// GetTerrainIndex) — a husk CAN be added off-map (aircraft husk drifts past the edge under
+			// FallsToEarth, then SpawnActorOnDeath spawns the ground husk there). Guard, defaulting off-map
+			// to land decay.
+			var map = self.World.Map;
+			onWater = map.Contains(self.Location)
+				&& info.WaterTerrainTypes.Contains(map.GetTerrainInfo(self.Location).Type);
 			ticks = 0;
 			currentPhase = Phase.Waiting;
 		}
