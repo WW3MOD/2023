@@ -247,6 +247,18 @@ Player:
 		MissionBetterOppMarginPct: 50
 		MissionIneffectiveNumerator: 1
 		MissionIneffectiveDenominator: 2
+		# Phase 1c: quantize both scores before the trigger-3 rival compare so a believed-field bucket-edge
+		# wobble (BalanceOfPowerFactor 150/100/60, BelievedDangerFactor 100/60/20 — a single crossing is up to a
+		# 3x jump, larger than the 50% margin) can't ping-pong abort/re-propose. Band = 60% of the top score, so a
+		# rival must be a full band (~1.67x) clear to count as materially better — a bucket-aware threshold. 0 on the
+		# engine class => @stable twin (which omits this field) keeps the raw pre-1c compare byte-identical. Initial
+		# value; sweep target once the ai-bench ladder is run. Only active with MissionCommitmentEnabled.
+		MissionScoreQuantizeBandPct: 60
+		# Phase 1d: Aggressiveness slider scaffolding (§2.7), first knob, landed on the offense module (its first
+		# consumer) pending migration to the SquadBrain. 50 = neutral; threaded through pure PoiOffenseMath.ShiftByKnob
+		# only. The slope below is 0 (INERT) so this ships with no behaviour change until a sweep sets a nonzero slope.
+		Aggressiveness: 50
+		MissionBetterOppMarginSlopePct: 0
 		# Capturer + non-combat support (owned by CaptureCoordinator / SupplyFollower)
 		# and IFV carriers (owned by MountedTransport). Both factions' type names are
 		# listed; a name the faction lacks is simply never matched.

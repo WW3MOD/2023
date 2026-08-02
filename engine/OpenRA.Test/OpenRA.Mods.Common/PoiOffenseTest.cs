@@ -417,5 +417,33 @@ namespace OpenRA.Test
 				DangerSafeMul, DangerMildMul, DangerHostileMul);
 			Assert.That(bop * safe / 100, Is.EqualTo(BopBoost));
 		}
+
+		// ---------- ShiftByKnob (Phase 1d slider seam) ----------
+
+		[Test]
+		public void ShiftByKnob_NeutralKnob_IsNoOp()
+		{
+			// knob 50 = neutral: the base is returned unchanged for ANY slope.
+			Assert.That(PoiOffenseMath.ShiftByKnob(50, 50, 100), Is.EqualTo(50));
+			Assert.That(PoiOffenseMath.ShiftByKnob(50, 50, 0), Is.EqualTo(50));
+		}
+
+		[Test]
+		public void ShiftByKnob_ZeroSlope_IsInertForEveryKnob()
+		{
+			// slope 0 = the frozen default: the knob cannot move the base regardless of its value.
+			Assert.That(PoiOffenseMath.ShiftByKnob(50, 0, 0), Is.EqualTo(50));
+			Assert.That(PoiOffenseMath.ShiftByKnob(50, 100, 0), Is.EqualTo(50));
+		}
+
+		[Test]
+		public void ShiftByKnob_ShiftsLinearlyAroundNeutral()
+		{
+			// effective = base + (knob-50)*slope/100. slope 40: knob 100 => +20, knob 0 => -20.
+			Assert.That(PoiOffenseMath.ShiftByKnob(50, 100, 40), Is.EqualTo(70));
+			Assert.That(PoiOffenseMath.ShiftByKnob(50, 0, 40), Is.EqualTo(30));
+			// Integer truncation toward zero: (65-50)*40/100 = 600/100 = 6.
+			Assert.That(PoiOffenseMath.ShiftByKnob(50, 65, 40), Is.EqualTo(56));
+		}
 	}
 }

@@ -365,6 +365,30 @@ namespace OpenRA.Mods.Common.Traits
 			"when MissionCommitmentEnabled.")]
 		public readonly int MissionIneffectiveDenominator = 2;
 
+		[Desc("Phase 1c — trigger-3 score QUANTIZATION band, as a percent of the larger of the two compared scores.",
+			"The believed-field factors that scale an axis score are bucketed (BalanceOfPowerFactor 150/100/60,",
+			"BelievedDangerFactor 100/60/20), so a single bucket crossing can multiply a raw score by up to 3× —",
+			"more than any percent margin — and a RAW better-opportunity compare then ping-pongs abort/re-propose on",
+			"a believed-field wobble at a bucket edge. When > 0, both scores are floored to a band of this percent of",
+			"the top score before the MissionBetterOppMarginPct test, so a rival must be a full band clear to count as",
+			"materially better (a bucket-aware threshold a single wobble cannot manufacture). 0 (default) = the raw",
+			"pre-1c compare, byte-identical. Only read when MissionCommitmentEnabled. Pure MissionCommitmentMath.")]
+		public readonly int MissionScoreQuantizeBandPct = 0;
+
+		[Desc("Phase 1d — Aggressiveness slider (0 cautious … 50 neutral … 100 reckless), the first tunable-parameter",
+			"knob (§2.7). Stood up on the offense module because that is where the first consumer lands; it migrates to",
+			"the SquadBrain in a later phase. Threaded ONLY through pure PoiOffenseMath.ShiftByKnob so a sweep harness",
+			"can vary it per match. 50 = neutral (no shift); with the slope pair below at 0 it is fully INERT, so the",
+			"default is byte-identical regardless of value. Reserved for the Brain's posture/advance eagerness later.")]
+		public readonly int Aggressiveness = 50;
+
+		[Desc("Phase 1d — slope (range) the Aggressiveness knob spans when shifting MissionBetterOppMarginPct: effective",
+			"margin = MissionBetterOppMarginPct + (Aggressiveness - 50) · this / 100. A higher Aggressiveness LOWERS the",
+			"better-opportunity margin (more willing to abandon a mission for a clearly better attack). 0 (default) =",
+			"INERT: the margin is unchanged for any Aggressiveness, so the slider scaffolding ships without behaviour.",
+			"Only read when MissionCommitmentEnabled.")]
+		public readonly int MissionBetterOppMarginSlopePct = 0;
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 
@@ -895,11 +919,18 @@ namespace OpenRA.Mods.Common.Traits
 				var currentStrength = axis.Units.Count;
 				var bestAlt = BestAlternativeScore(targets, axis.TargetId);
 
+				// Trigger-3 material-improvement margin, shifted by the Aggressiveness slider (1d) — inert at the
+				// default slope 0 / knob 50 — and compared on believed-field-QUANTIZED scores (1c, band pct below).
+				// Both are same-KIND by construction: every entry in `targets` is an offensive POI scored under the
+				// one offense factor stack, so the FIX-7 "same-kind only" rule needs no extra filter here.
+				var betterOppMargin = PoiOffenseMath.ShiftByKnob(
+					Info.MissionBetterOppMarginPct, Info.Aggressiveness, Info.MissionBetterOppMarginSlopePct);
+
 				var reassign = MissionCommitmentMath.ShouldReassign(
 					objectiveValid,
 					axis.CommitTick, tick, Info.MissionCommitmentWindowTicks,
 					axis.CommitDanger, currentDanger, Info.MissionDangerSpikePct, Info.MissionDangerSpikeFloor,
-					currentScore, bestAlt, Info.MissionBetterOppMarginPct,
+					currentScore, bestAlt, betterOppMargin, Info.MissionScoreQuantizeBandPct,
 					axis.CommitStrength, currentStrength,
 					Info.MissionIneffectiveNumerator, Info.MissionIneffectiveDenominator);
 
@@ -1880,6 +1911,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (groundDanger <= hostileThreshold)
 				return mildMul;
 			return hostileMul;
+		}
+
+		/// <summary>Phase 1d — tunable-slider shift (§2.7 base ± slope). A knob in 0..100 (50 = neutral) shifts a
+		/// base threshold/weight by <c>(knob - 50) · slopePct / 100</c>, integer-only. slopePct is the range the
+		/// slider spans (itself tunable), so a slopePct of 0 makes the knob INERT — the base is returned unchanged
+		/// for ANY knob value, which is the frozen default (byte-identical). knob = 50 is likewise always a no-op.
+		/// This is the single pure seam every future slider (Aggressiveness, RiskTolerance, …) threads through so
+		/// the whole decision stays NUnit-pinnable and a sweep harness can vary a knob per match. Deterministic,
+		/// zero RNG.</summary>
+		public static int ShiftByKnob(int baseValue, int knob, int slopePct)
+		{
+			return baseValue + (knob - 50) * slopePct / 100;
 		}
 
 		/// <summary>Integer (floor-division) centroid of a set of cell coordinates. Empty input

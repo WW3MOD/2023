@@ -182,5 +182,103 @@ namespace OpenRA.Test
 
 			Assert.That(releases, Is.EqualTo(0), "a committed mission is never re-tasked on jitter alone");
 		}
+
+		// ---------- Phase 1c: score quantization for the trigger-3 rival compare ----------
+
+		[Test]
+		public void Quantize_NonPositiveBand_IsIdentity()
+		{
+			// Band <= 0 is the frozen default: the score passes through untouched, so the raw compare is
+			// preserved byte-for-byte when the caller opts out.
+			Assert.That(MissionCommitmentMath.QuantizeAxisScore(1650, 0), Is.EqualTo(1650));
+			Assert.That(MissionCommitmentMath.QuantizeAxisScore(1650, -5), Is.EqualTo(1650));
+			Assert.That(MissionCommitmentMath.QuantizeAxisScore(0, 0), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void Quantize_FloorsToBandLowEdge()
+		{
+			// Floor-to-band: snap DOWN to the nearest multiple of the band.
+			Assert.That(MissionCommitmentMath.QuantizeAxisScore(1650, 990), Is.EqualTo(990), "1650 -> band 990");
+			Assert.That(MissionCommitmentMath.QuantizeAxisScore(990, 990), Is.EqualTo(990), "on the edge stays");
+			Assert.That(MissionCommitmentMath.QuantizeAxisScore(989, 990), Is.EqualTo(0), "just below floors to 0");
+			Assert.That(MissionCommitmentMath.QuantizeAxisScore(2970, 990), Is.EqualTo(2970));
+			// Scale-invariant across the huge offense-score range (up to ~1e12).
+			Assert.That(MissionCommitmentMath.QuantizeAxisScore(1_650_000_000L, 990_000_000L),
+				Is.EqualTo(990_000_000L));
+		}
+
+		[Test]
+		public void BetterOpportunityQuantized_ZeroBandPct_MatchesRaw()
+		{
+			// bandPct <= 0 collapses VERBATIM to BetterOpportunity — the byte-identical pre-1c path. Pin it on
+			// the trigger-3 boundary and either side of it.
+			foreach (var (committed, alt) in new[] { (1000L, 1500L), (1000L, 1501L), (1000L, 0L), (0L, 1L) })
+			{
+				Assert.That(
+					MissionCommitmentMath.BetterOpportunityQuantized(committed, alt, OppMarginPct, 0),
+					Is.EqualTo(MissionCommitmentMath.BetterOpportunity(committed, alt, OppMarginPct)),
+					$"committed={committed} alt={alt}");
+			}
+		}
+
+		[Test]
+		public void BetterOpportunityQuantized_KillsBucketCrossingPingPong()
+		{
+			// The review's flagged case (FIX 7): a committed axis at 1000 vs a rival whose OWN cell wobbles at a
+			// believed-danger bucket edge — safe reads 1650, mild reads 990 (a single bucket crossing, ~1.67x).
+			// RAW trigger-3 FLIPS: 1650 clears the 50% margin (release), 990 does not (hold) — the abort/re-propose
+			// ping-pong one level up. Quantized to a 60%-of-top band, BOTH states HOLD, killing the dither.
+			const int BandPct = 60;
+
+			// Raw: flips.
+			Assert.That(MissionCommitmentMath.BetterOpportunity(1000, 1650, OppMarginPct), Is.True, "raw safe releases");
+			Assert.That(MissionCommitmentMath.BetterOpportunity(1000, 990, OppMarginPct), Is.False, "raw mild holds");
+
+			// Quantized: both states hold — the wobble can no longer clear the margin.
+			Assert.That(MissionCommitmentMath.BetterOpportunityQuantized(1000, 1650, OppMarginPct, BandPct), Is.False,
+				"quantized safe holds");
+			Assert.That(MissionCommitmentMath.BetterOpportunityQuantized(1000, 990, OppMarginPct, BandPct), Is.False,
+				"quantized mild holds");
+		}
+
+		[Test]
+		public void BetterOpportunityQuantized_GenuineMaterialRival_StillReleases()
+		{
+			// Quantization is a bucket-edge damper, NOT a freeze: a rival that is genuinely far better (3x, a
+			// clear band jump) still releases the committed mission.
+			Assert.That(MissionCommitmentMath.BetterOpportunityQuantized(1000, 3000, OppMarginPct, 60), Is.True);
+		}
+
+		[Test]
+		public void ShouldReassign_QuantizeOverload_ZeroBandPct_MatchesLegacy()
+		{
+			// The 16-arg overload with band pct 0 must equal the legacy 15-arg predicate (the 15-arg delegates
+			// here with 0) — the byte-identity gate for the quantization seam.
+			var legacy = ShouldReassign(committedScore: 1000, bestAlternativeScore: 1501); // legacy True at the boundary
+			var quantOff = MissionCommitmentMath.ShouldReassign(
+				true, 0, 0, 0, 0, 0, SpikePct, SpikeFloor,
+				1000, 1501, OppMarginPct, 0,
+				6, 6, IneffNum, IneffDen);
+			Assert.That(quantOff, Is.EqualTo(legacy));
+			Assert.That(quantOff, Is.True);
+		}
+
+		[Test]
+		public void ShouldReassign_QuantizeOverload_HoldsBucketCrossingRival()
+		{
+			// End-to-end through the aggregate: the 1650/990 rival wobble that RAW trigger-3 would release on
+			// (safe state) is HELD when the quantize band is on. A healthy axis, only the rival perturbed.
+			var raw = MissionCommitmentMath.ShouldReassign(
+				true, 0, 0, 0, 0, 0, SpikePct, SpikeFloor,
+				1000, 1650, OppMarginPct, 0,
+				6, 6, IneffNum, IneffDen);
+			var quantized = MissionCommitmentMath.ShouldReassign(
+				true, 0, 0, 0, 0, 0, SpikePct, SpikeFloor,
+				1000, 1650, OppMarginPct, 60,
+				6, 6, IneffNum, IneffDen);
+			Assert.That(raw, Is.True, "raw releases on the safe-state rival");
+			Assert.That(quantized, Is.False, "quantized holds the mission");
+		}
 	}
 }
