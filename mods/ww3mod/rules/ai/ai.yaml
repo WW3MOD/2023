@@ -931,6 +931,21 @@ Player:
 		EvacuateIdleTicks: 500
 		EvacuateHomeRadiusCells: 12
 		MissionTargetRangeCells: 60
+		# Phase 4 strategic-target pinning (experimental-only, default-frozen in C#): pin an attack-heli
+		# squad's STRATEGIC objective separately from its tactical TargetActor, so 5-tick FSM predicate
+		# flapping (too-hot soft-swaps, tactical-target death, withdraw/re-engage) can re-aim the tactical
+		# target but no longer churn the strategic destination (root cause C, design §1.3/§3.3). The squad
+		# resumes toward the pinned objective across those micro-transitions and re-picks only when an abort
+		# trigger releases the pin: objective invalid / objective-too-hot-with-no-divert / stalled-unreachable
+		# / the bounded commit window below. OFF for every non-experimental profile (@stable omits it, so its
+		# heli path is byte-identical). Heli twin of the offense module's MissionCommitmentEnabled.
+		StrategicTargetPinning: true
+		# Bounded commit-window backstop (§3.3 TTL valve): a healthy pin is held on the event-driven triggers
+		# above, but an objective that neither dies nor trips the stall/too-hot triggers cannot orbit forever —
+		# after this many ticks the pin releases for a fresh re-plan. Generous so the pin genuinely persists
+		# across the hit-and-run withdraw/re-engage cycles (cooldown 150 + withdraw 75); the real releases are
+		# the event triggers, this is only the safety valve. 0 would disable it.
+		PinCommitWindowTicks: 1200
 
 	# ===== Stable AI — snapshot of the validated Experimental config =====
 	#

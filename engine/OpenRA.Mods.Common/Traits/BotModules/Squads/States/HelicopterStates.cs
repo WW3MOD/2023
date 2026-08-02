@@ -174,6 +174,53 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			return info != null && info.DangerFieldAvoidance;
 		}
 
+		// True when Phase-4 strategic-target pinning is enabled (experimental-only, default off). Gates every
+		// pin read/write in the states below so that with the flag off Squad.StrategicTarget is never touched
+		// and each state's target logic is byte-identical to the frozen path.
+		protected static bool StrategicTargetPinningEnabled(Squad owner)
+		{
+			var info = GetHeliModuleInfo(owner);
+			return info != null && info.StrategicTargetPinning;
+		}
+
+		// Bounded commit-window backstop (ticks) for a pinned strategic objective; 0 = off.
+		protected static int PinCommitWindowTicks(Squad owner)
+		{
+			var info = GetHeliModuleInfo(owner);
+			return info != null ? info.PinCommitWindowTicks : 0;
+		}
+
+		// True while the squad's pinned strategic objective is still a worthwhile, engageable target — alive,
+		// in world, occupies space, still an enemy, and not a husk or aircraft. Mirrors the FindClosestEnemy
+		// filter so a pin and a fresh re-pick agree on what counts as a target. False (⇒ trigger-1 release) when
+		// no pin is set. Reads live actor state exactly as the legacy IsTargetValid/FindClosestEnemy already do
+		// (the heli FSM's target choice is not a fog-legal layer; that concern is the danger fields', not this).
+		protected static bool StrategicTargetValid(Squad owner)
+		{
+			var t = owner.StrategicTarget;
+			return t != null && !t.IsDead && t.IsInWorld && t.OccupiesSpace != null
+				&& owner.Bot.Player.RelationshipWith(t.Owner) == PlayerRelationship.Enemy
+				&& !t.Info.HasTraitInfo<HuskInfo>()
+				&& !t.Info.HasTraitInfo<AircraftInfo>();
+		}
+
+		// Set (pin) the squad's strategic objective and stamp the commit tick. Only ever called under the
+		// StrategicTargetPinning flag.
+		protected static void PinStrategicTarget(Squad owner, Actor target)
+		{
+			owner.StrategicTarget = target;
+			owner.StrategicCommitTick = owner.World.WorldTick;
+		}
+
+		// The pin's lease is still good this eval (trigger 1 + bounded window). Convenience wrapper over the
+		// pure HeliMissionPinMath.EvaluatePin so the states read as intent.
+		protected static bool StrategicPinHolds(Squad owner)
+		{
+			return HeliMissionPinMath.EvaluatePin(
+				StrategicTargetValid(owner), owner.StrategicCommitTick, owner.World.WorldTick, PinCommitWindowTicks(owner))
+				== HeliPinState.Hold;
+		}
+
 		// The owner's per-player ANTI-AIR danger field (Stage B), or null if the trait is absent.
 		protected static DangerFieldLayer GetDangerField(Squad owner)
 		{
@@ -318,6 +365,24 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			if (!RearmReadyCheckBypassed(owner) && !SquadHasAmmo(owner))
 				return;
 
+			// Phase-4 strategic-target pinning: if this squad is already committed to a strategic objective
+			// (it dropped back to Idle from Approach/Withdraw still carrying a pin), resume toward THAT
+			// objective instead of re-picking the closest enemy — the whole point of the pin is that the
+			// strategic destination outlives FSM micro-transitions (design §3.3: gate the Idle re-pick behind
+			// "mission assigned"). The pin releases here (→ fresh re-pick below) only when its lease is up
+			// (objective invalid / bounded window elapsed). Skipped entirely when the flag is off ⇒ byte-identical.
+			if (StrategicTargetPinningEnabled(owner) && owner.StrategicTarget != null)
+			{
+				if (StrategicPinHolds(owner))
+				{
+					owner.TargetActor = owner.StrategicTarget;
+					owner.FuzzyStateMachine.ChangeState(owner, new HelicopterApproachState());
+					return;
+				}
+
+				owner.StrategicTarget = null;
+			}
+
 			// Find a target — prefer weak enemy clusters via ThreatMap
 			var threatMap = owner.World.WorldActor.TraitOrDefault<ThreatMapManager>();
 			Actor target = null;
@@ -358,6 +423,13 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				return;
 
 			owner.TargetActor = target;
+
+			// Pin the freshly-acquired target as the squad's strategic objective (experimental). From here
+			// the tactical TargetActor may be re-aimed by micro-transitions, but this pin holds the strategic
+			// destination until an abort trigger releases it.
+			if (StrategicTargetPinningEnabled(owner))
+				PinStrategicTarget(owner, target);
+
 			owner.FuzzyStateMachine.ChangeState(owner, new HelicopterApproachState());
 		}
 
@@ -387,8 +459,27 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 			if (!owner.IsTargetValid)
 			{
-				owner.FuzzyStateMachine.ChangeState(owner, new HelicopterIdleState());
-				return;
+				// Phase-4 pinning: a lapsed TACTICAL target (a transient soft-swap that died, or the objective
+				// itself) does not end the mission. If the strategic pin is still valid and its lease holds,
+				// resume toward the objective and keep approaching this tick; only when the pin's lease is up
+				// (objective invalid / window elapsed) do we release it and fall back to the legacy → Idle re-pick.
+				var resumed = false;
+				if (StrategicTargetPinningEnabled(owner) && owner.StrategicTarget != null)
+				{
+					if (StrategicPinHolds(owner))
+					{
+						owner.TargetActor = owner.StrategicTarget;
+						resumed = true;
+					}
+					else
+						owner.StrategicTarget = null;
+				}
+
+				if (!resumed)
+				{
+					owner.FuzzyStateMachine.ChangeState(owner, new HelicopterIdleState());
+					return;
+				}
 			}
 
 			// Check if target has become too dangerous
@@ -407,6 +498,16 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					owner.TargetActor = softTarget;
 				else
 				{
+					// Phase-4 pinning, trigger 2 (heli form, §3.3 N5): the current target is too hot and there is
+					// NO soft target to divert to. If that too-hot target IS the strategic objective, release the
+					// pin so the squad does not withdraw and then loop straight back onto an unassailable objective.
+					// A too-hot TRANSIENT target (soft-swap victim) leaves the pin intact — only the objective itself
+					// being unassailable is an abort. ObjectiveTooHotAbort(true, false) centralises the N5 rule.
+					if (StrategicTargetPinningEnabled(owner)
+						&& ReferenceEquals(owner.TargetActor, owner.StrategicTarget)
+						&& HeliMissionPinMath.ObjectiveTooHotAbort(objectiveTooHot: true, softTargetAvailable: false))
+						owner.StrategicTarget = null;
+
 					owner.FuzzyStateMachine.ChangeState(owner, new HelicopterWithdrawState());
 					return;
 				}
@@ -512,6 +613,14 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 			if (stuckTicks > 200)
 			{
+				// Phase-4 pinning, trigger 6 (stalled): the squad made no progress toward the objective for the
+				// stuck window (unreachable — terrain / pathing / an immovable block). Release the pin so the
+				// return to Idle does a FRESH re-pick instead of resuming onto the same unreachable objective
+				// (which would loop Approach→Idle→Approach forever). Mirrors the design's stall trigger reusing
+				// this exact retired safety (§3.3 FIX 4). No-op when the flag is off ⇒ byte-identical.
+				if (StrategicTargetPinningEnabled(owner))
+					owner.StrategicTarget = null;
+
 				owner.FuzzyStateMachine.ChangeState(owner, new HelicopterIdleState());
 				return;
 			}
@@ -687,6 +796,23 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				var leader = owner.Units.FirstOrDefault();
 				if (leader != null)
 				{
+					// Phase-4 pinning: the withdraw is a tactical pause; the strategic destination outlives it.
+					// Re-engage toward the pinned objective (if its lease holds and it is not itself too hot)
+					// rather than the nearest enemy, so the squad returns to its mission instead of drifting to
+					// whatever wandered closest during the retreat. A lease that is up, or an objective now too
+					// hot, releases the pin and falls through to the legacy closest-enemy re-pick.
+					if (StrategicTargetPinningEnabled(owner) && owner.StrategicTarget != null)
+					{
+						if (StrategicPinHolds(owner) && !IsTargetTooHot(owner, owner.StrategicTarget.CenterPosition))
+						{
+							owner.TargetActor = owner.StrategicTarget;
+							owner.FuzzyStateMachine.ChangeState(owner, new HelicopterApproachState());
+							return;
+						}
+
+						owner.StrategicTarget = null;
+					}
+
 					var newTarget = FindClosestEnemy(owner, leader.CenterPosition);
 					if (newTarget != null && !IsTargetTooHot(owner, newTarget.CenterPosition))
 					{
@@ -726,5 +852,50 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		}
 
 		public void Deactivate(Squad owner) { }
+	}
+
+	// Whether a squad should keep pursuing its pinned strategic objective this eval or release it.
+	public enum HeliPinState { Hold, Release }
+
+	// Pure, world-free strategic-target-pinning decision math for attack-heli squads (Phase 4). Split out for
+	// NUnit like HeliDangerNav / HeliStagingMath / HeliEmploymentMath — deterministic, integer-only, zero RNG.
+	//
+	// This is the heli-squad analogue of MissionCommitmentMath.ShouldReassign: MissionCommitmentMath governs a
+	// GROUND offense axis; HeliMissionPinMath governs a heli squad's pinned strategic objective. The rule is the
+	// same "commit and HOLD; release only on an explicit abort trigger" — but the trigger set is the SUBSET a
+	// heli FSM can feed without the full Brain's score/danger plumbing (design §3.3):
+	//   trigger 1 — objective invalid (dead / gone / no longer enemy)     → EvaluatePin
+	//   backstop  — bounded commit window (safety valve; <= 0 disables)    → EvaluatePin
+	//   trigger 2 — objective ITSELF too hot with no soft target to divert → ObjectiveTooHotAbort (N5)
+	//   trigger 6 — stalled: objective unreachable (FSM stuck counter)     → handled at the stuck transition
+	// Danger-spike-along-route (full trigger 2) and better-opportunity (trigger 3) need the danger field / rival
+	// scores and belong to the future SquadBrain, not this executor-local pin — deliberately out of scope here.
+	public static class HeliMissionPinMath
+	{
+		/// <summary>Trigger 1 + bounded-window backstop — the per-tick lease check. <paramref name="objectiveValid"/>
+		/// folds trigger 1 (the pinned objective is dead / gone / no longer an enemy). A
+		/// <paramref name="commitWindowTicks"/> &lt;= 0 disables the time valve (hold purely on validity), exactly as
+		/// MissionCommitmentMath's window does. Integer-only, deterministic, zero RNG. Mirrors the trigger-1 +
+		/// window head of <see cref="MissionCommitmentMath.ShouldReassign(bool,int,int,int,int,int,int,int,long,long,int,int,int,int,int)"/>.</summary>
+		public static HeliPinState EvaluatePin(bool objectiveValid, int commitTick, int currentTick, int commitWindowTicks)
+		{
+			if (!objectiveValid)
+				return HeliPinState.Release;
+
+			if (commitWindowTicks > 0 && currentTick - commitTick >= commitWindowTicks)
+				return HeliPinState.Release;
+
+			return HeliPinState.Hold;
+		}
+
+		/// <summary>Trigger 2 (heli form, design §3.3 N5) — the strategic objective ITSELF reads too hot AND there is
+		/// no soft target to service en route. Objective-too-hot WITH a soft target available is executor-local
+		/// liberty (the FSM swaps to the soft target and resumes toward the objective), NOT a mission abort; only
+		/// too-hot-with-nowhere-to-divert releases the pin, so the squad does not loop back onto an unassailable
+		/// objective after every withdraw. Pure boolean predicate.</summary>
+		public static bool ObjectiveTooHotAbort(bool objectiveTooHot, bool softTargetAvailable)
+		{
+			return objectiveTooHot && !softTargetAvailable;
+		}
 	}
 }
