@@ -5,6 +5,8 @@
 
 ## 2026-07-31 — AdaptiveProduction combat-buy routing hazard is LIVE on @experimental NATO (not BRICS): `unitProducers[0]` is the DISABLED `@russia.fixedwing` twin, so every counter-buy vanished — fixed with the canonical `FirstEnabledTraitOrDefault` seam, gated so @stable stays byte-identical (auto/adaptive-routing)
 
+> **[promoted: → architecture.md §AI production (disabled-but-constructed producer twins — `TraitsImplementing<IBotRequestUnitProduction>` returns condition-DISABLED twins in construct/merge order; routing to `[0]` lets a disabled twin swallow requests so `pending` climbs while `alive` stays 0; fix routes to the first ENABLED producer via `Exts.FirstEnabledTraitOrDefault`, `AdaptiveProduction` gated default-off `RouteToEnabledProducer`). Verified `AdaptiveProductionBotModule.cs:93/:128/:269`, `AdaptiveRoutingMath.cs:35`, `Exts.cs:596-606`, `McvManagerBotModule.cs:117`, `HarvesterBotModule.cs:158`. Call-site line refs drifted +12 (:242/:332 → :254/:356).]** (curation 2026-08-02).
+
 Closed the "NOTE (out of scope)" the `auto/tecn-priority-fix` entry below left open (line ~15): `AdaptiveProductionBotModule` carried the IDENTICAL `[0]`-routing hazard on the COMBAT path that a3bceb5a fixed on the capture path. Base `main` @ `a3bceb5a`. Verified LIVE before fixing, then fixed only where live.
 
 - **VERDICT: LIVE on @experimental NATO; a no-op on @experimental BRICS; must stay frozen on @stable.** `unitProducers = PlayerActor.TraitsImplementing<IBotRequestUnitProduction>()` returns ALL `UnitBuilderBotModule` twins incl. condition-disabled ones, in trait CONSTRUCT order. Construct order preserves YAML/merge order among same-type traits (`ActorInfo.TraitsInConstructOrder` seeds `resolved` from source order; all UnitBuilder twins share one dependency profile so they never reorder relative to each other). Merge order = mod.yaml Rules load order: `ai.yaml` (`:622` russia.fixedwing, `:661` russia.heli, `:681` america.fixedwing, `:715` america.heli) THEN `ai-america.yaml` (`:7` america.normal, `:54` america.experimental) THEN `ai-russia.yaml`. So `unitProducers[0]` = **`UnitBuilderBotModule@russia.fixedwing`** on EVERY player.
@@ -16,6 +18,8 @@ Closed the "NOTE (out of scope)" the `auto/tecn-priority-fix` entry below left o
 - **Verification.** `make.ps1 all` clean (0 errors); NUnit **622/622** (617 baseline + 5 `AdaptiveRoutingMathTest` pins: frozen-always-0 incl. disabled-`[0]`, first-enabled-skips-disabled, `[0]`-enabled no-op, none-enabled → −1, empty/null → −1). No in-game/autotest run (hard rule) — the "counter-buys now actually build on @experimental NATO" behaviour is only observable in a full @experimental bot-vs-bot game.
 
 ## 2026-07-31 — TECN priority deadlock RESOLVED: the request was landing on a condition-DISABLED UnitBuilder twin (its BotTick never runs), NOT dropped by a busy queue — pending=82/alive=0 was a routing bug, fixed by routing to the first ENABLED producer + peek-don't-pop delivery + an in-flight cap (auto/tecn-priority-fix)
+
+> **[promoted: → architecture.md §AI production (same disabled-twin routing paragraph — the accept/reject handshake half: `IBotRequestPriorityUnitProduction.RequestPriorityUnitProduction` returns `false` when `IsTraitDisabled`, and `CaptureCoordinatorBotModule` routes to the first twin that accepts; peek-don't-pop priority drain makes delivery non-lossy). Verified `UnitBuilderBotModule.cs:154-164`, `CaptureCoordinatorBotModule.cs:683-694`, `ModularBot.cs:96`.]** (curation 2026-08-02).
 
 Confirmed and fixed the supply-side deadlock the `auto/tecn-supply` merge (`f9da1860`) left behind. Base `main` @ `02667dfb`. The prior entry's "REPORT DISCREPANCY" bullet guessed the pending-gate deadlock could only happen "unless the target `unitProducers[0]` instance is perpetually paused/never-ticked (unconfirmed)" — this pass **confirms exactly that**, but the cause is condition-DISABLE, not pausing, and the task's stated "busy-queue drop" mechanism is NOT what the benchmark exhibited.
 
@@ -29,6 +33,8 @@ Confirmed and fixed the supply-side deadlock the `auto/tecn-supply` merge (`f9da
 
 ## 2026-07-31 — TECN capture-supply guarantee: the S2-loss "TecnFloor deadlock" is really a queue-slot STARVATION, not a pending-gate deadlock; all four fixes gate off NEW default-off Info fields because @stable.tecn ALSO sets TecnFloor:1 (auto/tecn-supply)
 
+> **[rejected: superseded by the `auto/tecn-priority-fix` entry above — this entry's "REPORT DISCREPANCY" bullet guessed the deadlock could only come from a paused/never-ticked producer; the later entry CONFIRMED exactly that, but the cause is condition-DISABLE, not pausing, and it fixed the routing. The durable routing fact is promoted via that entry → architecture.md §AI production; the per-feature byte-identity gating (`@stable.tecn` also sets `TecnFloor:1`, so each fix keys off a NEW default-off Info field reproducing the frozen path) is an application of the already-promoted shared-trait rule (architecture.md §Adding a behavioural field to a trait shared by both bot profiles).]** (curation 2026-08-02).
+
 Implemented the four coupled capture-supply fixes on `auto/tecn-supply`, base `main` @ `e3ba32f9`, driven by `WORKSPACE/recon/260731-loss-analysis-exp-vs-stable0730.md` (Experimental fielded ZERO TECN in 6/10 S2 games → captured nothing → lost; each held oilb ≈33k dwarfs 2–8k combat). New pure math `CaptureSupplyMath` (floor scaling + re-request predicate) + `CaptureFanoutMath` (distinct-target selection), consumed by `CaptureCoordinatorBotModule`; new `IBotRequestPriorityUnitProduction` dormant seam on `UnitBuilderBotModule`.
 
 - **The byte-identity gate is NOT `TecnFloor > 0` — `@stable.tecn` sets `TecnFloor: 1` too (`ai.yaml:813`), so it runs `MaintainTecnFloor` every scan.** The recon/task framing ("set only on @experimental, so @stable stays byte-identical") is right about the *value* but the master gate had to be per-feature: every new behaviour keys off a NEW Info field whose default reproduces the current code path (`TecnRequestStaleTicks=0`, `ScaleTecnFloorToPois=false`, `TecnRequestPriority=false`, `CaptureFanoutEnabled=false`), and `@stable.tecn` omits all four → its `MaintainTecnFloor` and PoiMap capture pass are bit-for-bit unchanged. `CaptureSupplyMath.ShouldRequestTecn(floor,alive,pending,tick,last,staleTicks<=0)` is provably the exact frozen `alive+pending<floor` gate (NUnit-pinned across the whole boundary), and `EffectiveFloor(scaleEnabled=false,…)` returns the static floor verbatim.
@@ -39,6 +45,8 @@ Implemented the four coupled capture-supply fixes on `auto/tecn-supply`, base `m
 - **Verification.** `make.ps1 all` clean (0 errors); NUnit **615/615** (600 baseline + 9 `CaptureSupplyMathTest` + 6 `CaptureFanoutMathTest`). No in-game run / autotest (hard rule + the fix is only observable in a full @experimental bot-vs-bot S2 game) — declared as the later benchmark check, same posture the escort/echelon/standoff levers shipped under.
 
 ## 2026-07-31 — Frontier-distance BFS needs no new timer or gate — it rides RecomputePlayer, which IS the Participates gate; standoff push-back reduces to a coordinate-agnostic step count (auto/frontier-standoff)
+
+> **[promoted: → influence-stack.md §@experimental consumers (frontier-distance standoff — `DistanceToEnemyFrontier` BFS computed at the tail of `ControlField.RecomputePlayer` so it rides the Participates gate with no new timer; both consumers reduce to `FrontierStandoffMath.RearwardSteps`, one Chebyshev-scaled coarse-cell hop with an explicit off-grid hard-stop; default-off `MinFrontierDistanceCells`). Verified `FrontierStandoffMath.cs:59`, `PoiOffensiveBotModule.cs:280/:407/:1028`, `HelicopterSquadBotModule.cs:95`. Item B (escort reduction-only `EscortSizingMath.ResolveEscortCount`) is already covered by the promoted escort-sizing entry above.]** (curation 2026-08-02).
 
 Implemented `DistanceToEnemyFrontier` + standoff consumers on `auto/frontier-standoff`, base `main` @ `3975b012`. The follow-on seam after the frontline contour shipped: the front is well-defined data-side (`ControlFieldMath.IsFrontlineEdge`, the enemy-region half-plane), so give standoff units a distance-to-that-region field to hold behind.
 
@@ -293,6 +301,8 @@ Implementing Stages 1–2 of `WORKSPACE/plans/260722_ambush_undetected_design.md
 
 ## 2026-07-25 — Formation realism micro-wave (arrival jitter / rolling halt / settle facing): the whole feature is deterministic-by-slot-index, and byte-identity survives because bots take a jitterOn=false branch that reduces to the old single line (wt/formation-realism, PIPELINE 6)
 
+> **[rejected: feature changelog for the `CohesionMoveModifier` formation-realism micro-wave (arrival jitter / rolling halt / settle-facing) — a human-facing RELEASE feature whose byte-identity rides the already-promoted human-gate + shared-trait pattern (architecture.md §Custom traits / §Adding a behavioural field to a trait shared by both bot profiles). The slot-cell-snap geometry (a sub-cell jitter moves the `CellContaining`-snapped cell only near a boundary) and the non-`[Sync]` settle-facing field are impl detail of an already-documented trait.]** (curation 2026-08-02).
+
 Shipping the top-3 ideas from `WORKSPACE/cohesion/260725_formation_realism_ideas.md` into `CohesionMoveModifier` / `CohesionSlotMemory`. Non-obvious points worth keeping:
 
 - **Slots are cell-snapped `CPos`, so a "⅓-cell" jitter only *sometimes* moves the cell.** `ComputeBoxSlots` ends every slot with `map.Clamp(map.CellContaining(slotPos))` (`CohesionMoveModifier.cs:507`). A sub-cell WDist offset changes the resulting cell only when `slotPos` is already near a cell boundary — so the perceptual break-up is real but gentle, and there is *no* continuous-space formation to preserve. Jitter is therefore a `WPos` nudge added *before* the `CellContaining` snap (`:522-526`), not a `CPos` delta.
@@ -319,6 +329,8 @@ Hard crash to desktop the instant a bot game loaded with "Air support" starting 
 
 ## 2026-07-25 — Winning team could end with one member "Lost": team-elimination doesn't spare a team that already has a victor (wt/team-victory)
 
+> **[rejected: bug-fix changelog for `SupplyRouteContestation` team elimination (a winning team's still-`Undefined` member was marked Lost; fixed via `HasActiveTeamSupplyRoute`/`TeamHasVictor`). The durable game-model core — the SR is `Armor: Indestructable` so the stock `HasNoRequiredUnits` conquest path never fires and a player can only be defeated by contestation-to-zero or surrender — is already in supply-route.md §Capture and contestation (lines 12/88-91), and the path-independent win award is covered by the promoted `AwardDecidedSurvivors` entries. The team-victor-never-eliminable nuance is impl bug-fix detail.]** (curation 2026-08-02).
+
 Reported: 1 human vs 2 allied bots; bots won, human `Lost`, but only ONE bot showed `Won` — the other showed `Lost`.
 
 - **Every player owns an indestructible Supply Route (`SUPPLYROUTE`, `structures.yaml:232` `MustBeDestroyed`, `Armor: Indestructable`), so `HasNoRequiredUnits` is effectively always false for a live player.** That means `ConquestVictoryConditions.Tick`'s classic RA defeat path (`ConquestVictoryConditions.cs:69-70`) never fires in normal WW3MOD play — a player can only be defeated by **Supply Route contestation** (`SupplyRouteContestation.ResolveTeamElimination`) or by surrendering. The SR never changes owner on contest (only via `OwnerLostAction` *after* the owner is already Lost), so it can't vanish mid-game to trigger the RA path.
@@ -328,6 +340,8 @@ Reported: 1 human vs 2 allied bots; bots won, human `Lost`, but only ONE bot sho
 
 ## 2026-07-25 — SUPPLYCACHE had no self-removal path except LC absorption; a crate drained via infantry rearm sat forever (wt/supply-crate-expiry)
 
+> **[rejected: superseded changelog — this is the earlier SUPPLYCACHE self-removal cut (`RemoveBelowSupply` = 50); the later crate-rearm entry (2026-07-30, promoted) reset it to `1` and promoted the mechanism → economy.md §SUPPLYCACHE. Nothing left to land.]** (curation 2026-08-02).
+
 Mirroring the truck "return when almost empty" fix onto dropped supply crates. Findings:
 
 - **The truck "almost empty" trigger is `currentSupply < RestockThreshold`** (`SupplyProvider.cs:175`, default 50 — set explicitly on TRUK at `vehicles.yaml:548`, TotalSupply 750). For a *mobile* truck that means drive home / evacuate (`DropsSupplyCache.EvacuateOrRestock`, gated on `CountsAsEmpty`). A stationary cache has no transport, so the faithful stationary analog is despawn-in-place, not the truck's residue/`EvacuateOnUnusableResidue` machinery (which requires a `DropsSupplyCache` transport to act on).
@@ -336,6 +350,8 @@ Mirroring the truck "return when almost empty" fix onto dropped supply crates. F
 - **Gate is opt-in and off by default (`RemoveBelowSupply = 0`)** so the LC and TRUK — which share `SupplyProvider` — never self-destruct; only SUPPLYCACHE sets it (to 50, matching TRUK's `RestockThreshold`).
 
 ## 2026-07-25 — CohesionMoveModifier already has nearest-slot assignment + footprint caps; the 260722 survey is stale (wt/cohesion-stances, PIPELINE 5)
+
+> **[rejected: survey-staleness correction — the two facts it confirms are already in reference. The `CohesionMoveModifier` bounded-footprint caps were promoted → architecture.md §Custom traits (cohesion-cap entry), and the nearest-slot deterministic `AssignAll` matching is impl internals of that already-documented trait. Consistent with prior cohesion-survey rejections; the `Playable && !IsBot` benchmark gate is the already-promoted shared-trait/human-gate pattern.]** (curation 2026-08-02).
 
 Implementing the cohesion stance identities (DP-1..DP-5) against `main` e45fb307, the code turned out well ahead of `WORKSPACE/plans/260722_stance_tactical_survey.md`, which drove several DP framings. Two "fix #1 is MISSING / offsets grow unbounded" claims in that survey are already resolved in-tree:
 
@@ -348,6 +364,8 @@ Net: the mandatory core of PIPELINE 5 reduced to the three stance *identities* (
 - **Default bots run Loose only.** `PoiOffensiveBotModule` issues **no** `SetCohesion` unless `CohesionSwitchEnabled` (default false, `@experimental`-only) — `PoiOffensiveBotModule.cs:112,846-850` — so the frozen benchmark controls exercise bots purely in Loose (`AutoTarget.InitialCohesionAI = Loose`). Loose is therefore the benchmark-critical mode to hold constant.
 
 ## 2026-07-25 — A window born with SDL_WINDOW_HIDDEN never fires SDL_WINDOWEVENT_HIDDEN, so IsSuspended must be set by hand (PIPELINE 16 — batch-windows)
+
+> **[rejected: batch/headless-window harness changelog (a window created with the `SDL_WINDOW_HIDDEN` flag emits no HIDDEN event, so `IsSuspended` must be set by hand) — AUTOTEST/harness-infrastructure material tied to the tournament hidden-window profile, not engine/gameplay reference; consistent with prior sim-throughput/harness rejections. Env-var-gated, so normal windowed launches are untouched.]** (curation 2026-08-02).
 
 Fixing the "black batch windows on Windows" cosmetic bug (`bugs/discovered.md` 2026-07-22). The `OPENRA_WINDOW_MINIMIZED=1` path called `SDL_MinimizeWindow` *after* creation; on Windows the window still flashed onto the desktop as a solid-black frame (rendering suspended = black, but the window was visibly mapped). The engine already had a more robust `OPENRA_WINDOW_HIDDEN=1` path (`d716eade`, 2026-07-19) that creates the window with the `SDL_WINDOW_HIDDEN` flag — never mapped, never focus-steals — but the launch scripts still used minimize. Findings worth keeping:
 
@@ -1641,6 +1659,8 @@ Found during the granted Stage-3 RED/GREEN validation batch (PIPELINE item 8), m
 
 ## 2026-07-25 — Bot squad modules must prune dead members BEFORE every squad update, not on the slow scan cadence (heli withdraw CTD)
 
+> **[promoted: → conventions.md §Engine behaviors that surprise (reading ANY trait of a Disposed actor throws via `TraitDictionary.CheckDestroyed`, so bot squad modules must prune-before-update — the engine-standard `SquadManagerBotModule.CleanSquads` runs before every `Update`; `HelicopterSquadBotModule.PruneSquads` mirrors it). Verified `TraitDictionary.cs:81-84`, `SquadManagerBotModule.cs:229-233`, `HelicopterSquadBotModule.cs:249/:355`.]** (curation 2026-08-02).
+
 Found via user-reported CTD (`InvalidOperationException: Attempted to get trait from destroyed object (hind 4780 (not in world))` at `HelicopterStates.cs:100`), main @ `0665c2e0`; fix merged @ `3c500132` (impl `63b76596`, worktree heli-withdraw-crash).
 
 - **PITFALL: any bot module that ticks squad states on a faster cadence than it prunes squad membership will eventually iterate a Disposed actor and CTD.** `TraitDictionary.CheckDestroyed` (`engine/OpenRA.Game/TraitDictionary.cs:83`) throws on ANY trait read of a Disposed actor — `TraitOrDefault` included. `HelicopterSquadBotModule.UpdateSquads()` ran every 5 ticks (`SquadUpdateInterval`) but member pruning lived only in `CleanUpHelicopters()` on the 100-tick `ScanInterval`, so `Squad.Units` routinely held dead hinds for up to 95 ticks; the first state tick touching a trait (`GetRole` → `TraitOrDefault<AIHelicopterRole>`) threw.
@@ -1648,6 +1668,8 @@ Found via user-reported CTD (`InvalidOperationException: Attempted to get trait 
 - **General rule for new bot squad modules**: don't guard individual trait reads inside squad states — enforce list hygiene upstream at the single choke point that runs before every update. Per-site guards rot; the choke point can't be bypassed.
 
 ## 2026-07-28 — Engine-modernization recon: trees conceal weakly; movement arcs already exist; three inert/dormant traps
+
+> **[rejected: read-only engine-modernization recon (full reports in WORKSPACE/recon/260728-trees-concealment.md + 260728-movement-locomotion.md) — a trap-list for future sessions, not a shipped mechanic. The durable slivers are covered elsewhere: the graded shadow-attenuated vision lives on the `Vision` trait and the detection core (`Detectable.IsVisibleInner`) is already at architecture.md §Suppression; ShadowLayer-baked-at-load and the movement-arc / string-pulling seam are promoted via the shadow-layer + path-string-pulling entries; the inert/dormant traits (`MobileInfo.TurnsWhileMoving`, `TerrainModifiesDamage`, `BlocksSight`) are "don't build on this yet" navigation notes, not reference facts.]** (curation 2026-08-02).
 
 Two read-only recons (full reports: `WORKSPACE/recon/260728-trees-concealment.md`, `WORKSPACE/recon/260728-movement-locomotion.md`, main @ 33747425). Headline facts + traps for future sessions:
 
@@ -1660,6 +1682,8 @@ Two read-only recons (full reports: `WORKSPACE/recon/260728-trees-concealment.md
 - Sim-side float uses (pre-existing): `Move.cs:517-519`, `Move.cs:134-135` — new movement math must stay integer WDist/WAngle.
 
 ## 2026-07-28 — Post-Windows-sync Mac toolchain diagnostic: everything came up green with zero fixes — CRLF normalization held across ~310 Windows commits, and a .NET 6-only SDK is sufficient for the whole pipeline
+
+> **[rejected: machine/session-specific post-Windows-sync Mac toolchain diagnostic (everything green, zero fixes — CRLF held across ~310 commits, net6-only SDK sufficient, exec bits, node tools) — a status snapshot, not durable engine/gameplay reference; consistent with the machine-specific-environment rejection pattern. The one general fact (the net6 target is real, not aspirational) is already noted in CLAUDE.md / build docs.]** (curation 2026-08-02).
 
 Ran the full THIS-Mac verification after fast-forwarding `main` to `03818f08` past ~310 commits authored on the user's Windows machine (first build on this Mac since May). **Nothing was broken; no fixes were needed.** Non-obvious points worth keeping so the next post-sync verifier doesn't re-fear these:
 
@@ -1683,6 +1707,8 @@ Implemented the three-part transport-shuttle improvement on `MountedTransportBot
 - **Chose NUnit over a Lua autotest harness run deliberately.** The full ferry-and-drop loop needs a live `@experimental` bot with a populated BeliefStore/DangerFieldLayer — not deterministically reproducible in the single-human-slot Lua harness without heavy scaffolding. The pure-math NUnit tests give the deterministic RED/GREEN proof of the two load-bearing decisions (corridor membership, standoff index), matching the codebase norm (`GroundDangerNavTest` et al.).
 
 ## 2026-07-31 — S2 combat rung is an under-contested oilb-grab, NOT a combat rung: the game is decided by TECN capturer supply, and Exp fields ZERO in 6/10 games (batch 260731 @ main 3975b012)
+
+> **[rejected: run-specific batch forensics (260731 s2-combat, Exp 3/Stable 7) belonging to WORKSPACE/recon/260731-loss-analysis-exp-vs-stable0730.md — results decay. Its central mechanism (the `:619` pending-gate deadlocks on a stuck `pending=1`) was superseded by the later `auto/tecn-priority-fix` entry, which proved the real cause was routing to a condition-DISABLED UnitBuilder twin; that durable fact is promoted → architecture.md §AI production. The rung-is-an-income-grab / oilb-differential-predicts-winner observations are tracker material.]** (curation 2026-08-02).
 
 Forensics on `tools/autotest/tournament-results/260731_streak_exp_vs_stable0730_s2combat/` (Exp 3 / Stable 7). Full report: `WORKSPACE/recon/260731-loss-analysis-exp-vs-stable0730.md`. Non-obvious, verified facts:
 
