@@ -33,6 +33,8 @@ DEFAULTS = {
     "r1_max_orders": 1,     # R1: <= this many orders over a lifetime = under-tasked
     "idle_total": 1500,     # R2: total idle ticks (~60s @ 25t/s)
     "idle_span": 750,       # R2: single idle span ticks (~30s)
+    "min_life": 250,        # R1/R6: ignore units that lived < this (late call-ins
+                            # aren't "forgotten" — they haven't had time yet, ~10s)
 }
 
 
@@ -49,7 +51,7 @@ def load(path):
     def unit(aid):
         return units.setdefault(aid, {
             "aid": aid, "type": None, "owner": None,
-            "spawn_tick": None, "cost": 0, "last_tick": None,
+            "spawn_tick": None, "cost": 0, "last_tick": None, "mobile": None,
             "orders": [], "idle_events": [], "death": None, "end": None,
         })
 
@@ -99,6 +101,7 @@ def load(path):
                 u["owner"] = e.get("owner")
                 u["spawn_tick"] = t
                 u["cost"] = e.get("cost", 0)
+                u["mobile"] = e.get("mobile")
             elif ev in ("idle_start", "idle_end"):
                 u["idle_events"].append(e)
             elif ev == "death":
@@ -186,17 +189,28 @@ def summarize(u, match_end):
     else:
         end_longest = longest[2] if longest else 0
 
+    death_tick = u["death"]["t"] if u["death"] else None
+    exit_tick = death_tick if death_tick is not None else match_end
+    spawn_tick = u["spawn_tick"]
+    lifetime = (exit_tick - spawn_tick) if spawn_tick is not None else 0
+
+    # Missing `mobile` (pre-field logs) defaults to mover so nothing is silently
+    # hidden; the trait always stamps it now (1 for Mobile/Aircraft, 0 structures).
+    mobile = u["mobile"] if u["mobile"] is not None else True
+
     return {
         "aid": u["aid"],
         "type": u["type"] or "?",
         "owner": u["owner"] if u["owner"] is not None else -1,
         "orders": len(u["orders"]),
-        "spawn_tick": u["spawn_tick"],
+        "spawn_tick": spawn_tick,
+        "mobile": bool(mobile),
+        "lifetime": lifetime,
         "total_idle": total_idle,
         "longest_idle": end_longest,
         "longest_span": longest,
         "died": u["death"] is not None,
-        "death_tick": u["death"]["t"] if u["death"] else None,
+        "death_tick": death_tick,
         "survived": end is not None,
         "end_idle": bool(end.get("idle")) if end else False,
         "spans": spans,
@@ -210,25 +224,31 @@ def run_rules(units, match_window_ticks, cfg):
     for aid, u in units.items():
         summaries[aid] = summarize(u, last_tick)
 
-    # R1 — under-tasked: <= r1_max_orders over lifetime. Only units we saw spawn
-    # (a real call-in), so untracked-subject order noise can't create phantoms.
+    # The "forgotten unit" rules apply only to combat MOVERS. Structures carry
+    # UpdatesPlayerStatistics (so the trait tracks them) but are inherently idle
+    # and never ordered — flagging them would bury the real signal (movers that
+    # got one order and were abandoned). Mobility comes from the spawn `mobile`
+    # field (IPositionableInfo). Rules also skip late call-ins that lived too
+    # briefly to have been "forgotten".
     for aid, s in summaries.items():
-        if units[aid]["spawn_tick"] is None:
-            continue
-        if s["orders"] <= cfg["r1_max_orders"]:
+        # R1 — under-tasked: <= r1_max_orders over lifetime. Only units we saw
+        # spawn (a real call-in), so untracked-subject order noise can't phantom.
+        if (s["mobile"] and units[aid]["spawn_tick"] is not None
+                and s["lifetime"] >= cfg["min_life"]
+                and s["orders"] <= cfg["r1_max_orders"]):
             warns.append(("R1", aid, s,
                           f"orders={s['orders']} (<= {cfg['r1_max_orders']}) over lifetime"))
 
-    # R2 — excessive idle while at war.
-    for aid, s in summaries.items():
-        if s["total_idle"] > cfg["idle_total"] or s["longest_idle"] > cfg["idle_span"]:
+        # R2 — excessive idle while at war.
+        if s["mobile"] and (s["total_idle"] > cfg["idle_total"]
+                            or s["longest_idle"] > cfg["idle_span"]):
             terr = s["longest_span"][3] if s["longest_span"] else "?"
             warns.append(("R2", aid, s,
                           f"idle_total={s['total_idle']}t longest={s['longest_idle']}t terr={terr}"))
 
-    # R6 — died with zero orders.
-    for aid, s in summaries.items():
-        if s["died"] and s["orders"] == 0:
+        # R6 — died with zero orders (and lived long enough to be commandable).
+        if (s["mobile"] and s["died"] and s["orders"] == 0
+                and s["lifetime"] >= cfg["min_life"]):
             warns.append(("R6", aid, s,
                           f"died t={s['death_tick']} orders=0"))
 
@@ -236,10 +256,14 @@ def run_rules(units, match_window_ticks, cfg):
 
 
 def census_by_type(summaries):
-    """R8 — per type: survivors, idle-at-end count/fraction, median total_idle."""
+    """R8 — per type: survivors, idle-at-end count/fraction, median total_idle.
+
+    Movers only — a structure census ("supplyroute idle=1") is noise; the view
+    exists to answer "which units were standing around when the game ended".
+    """
     by_owner_type = {}
     for s in summaries.values():
-        if not s["survived"]:
+        if not s["survived"] or not s["mobile"]:
             continue
         key = (s["owner"], s["type"])
         by_owner_type.setdefault(key, []).append(s)

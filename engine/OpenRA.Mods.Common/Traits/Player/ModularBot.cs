@@ -106,14 +106,21 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				Sync.RunUnsynced(Game.Settings.Debug.SyncCheckBotModuleCode, world, () =>
 				{
-					foreach (var t in tickModules)
-						if (t.IsTraitEnabled())
-						{
-							currentModuleTag = t.GetType().Name;
-							t.BotTick(this);
-						}
-
-					currentModuleTag = "";
+					try
+					{
+						foreach (var t in tickModules)
+							if (t.IsTraitEnabled())
+							{
+								currentModuleTag = t.GetType().Name;
+								t.BotTick(this);
+							}
+					}
+					finally
+					{
+						// Never leave a stale tag if a module throws — orders queued
+						// outside a module tick must attribute as "" (see QueueOrder).
+						currentModuleTag = "";
+					}
 				});
 			}
 
@@ -140,14 +147,19 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				Sync.RunUnsynced(Game.Settings.Debug.SyncCheckBotModuleCode, world, () =>
 				{
-					foreach (var t in attackResponseModules)
-						if (t.IsTraitEnabled())
-						{
-							currentModuleTag = t.GetType().Name;
-							t.RespondToAttack(this, self, e);
-						}
-
-					currentModuleTag = "";
+					try
+					{
+						foreach (var t in attackResponseModules)
+							if (t.IsTraitEnabled())
+							{
+								currentModuleTag = t.GetType().Name;
+								t.RespondToAttack(this, self, e);
+							}
+					}
+					finally
+					{
+						currentModuleTag = "";
+					}
 				});
 			}
 		}

@@ -286,6 +286,13 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var cost = a.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost ?? 0;
+
+			// Movers (Mobile/Aircraft) implement IPositionableInfo; structures are
+			// caught by IsInteresting only via UpdatesPlayerStatisticsInfo and lack
+			// it. The analyzer keys "forgotten unit" rules (R1/R2/R6) off this so a
+			// stationary structure being idle/untasked isn't flagged as a pathology.
+			var mobile = a.Info.HasTraitInfo<IPositionableInfo>();
+
 			tracks[a.ActorID] = new UnitTrack
 			{
 				Actor = a,
@@ -300,6 +307,7 @@ namespace OpenRA.Mods.Common.Traits
 			Field("x", a.Location.X);
 			Field("y", a.Location.Y);
 			Field("cost", cost);
+			Field("mobile", mobile ? 1 : 0);
 			EndLine();
 		}
 
