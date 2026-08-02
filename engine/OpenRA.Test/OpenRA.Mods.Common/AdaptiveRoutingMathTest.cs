@@ -63,5 +63,42 @@ namespace OpenRA.Test
 			Assert.That(AdaptiveRoutingMath.SelectProducerIndex(null, false), Is.EqualTo(-1));
 			Assert.That(AdaptiveRoutingMath.SelectProducerIndex(null, true), Is.EqualTo(-1));
 		}
+
+		// ---- single-element boundary (the smallest non-empty list) ----
+
+		[Test]
+		public void SingleElement_FrozenPath_AlwaysIndexZero()
+		{
+			// A one-producer player on the frozen path always routes to index 0 — even when that lone
+			// producer is disabled (byte-identical with legacy unitProducers[0]).
+			Assert.That(AdaptiveRoutingMath.SelectProducerIndex(new[] { true }, false), Is.EqualTo(0));
+			Assert.That(AdaptiveRoutingMath.SelectProducerIndex(new[] { false }, false), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void SingleElement_RouteToEnabled_ReflectsThatOneFlag()
+		{
+			// One enabled producer ⇒ 0; one disabled producer ⇒ -1 (nothing to route to).
+			Assert.That(AdaptiveRoutingMath.SelectProducerIndex(new[] { true }, true), Is.EqualTo(0));
+			Assert.That(AdaptiveRoutingMath.SelectProducerIndex(new[] { false }, true), Is.EqualTo(-1));
+		}
+
+		// ---- tie-break + last-slot determinism ----
+
+		[Test]
+		public void RouteToEnabled_FirstEnabledWins_LowestIndexTieBreak()
+		{
+			// Multiple enabled producers ⇒ the LOWEST enabled index is chosen deterministically, never a
+			// later one — the single ordered forward walk pins the tie-break.
+			Assert.That(AdaptiveRoutingMath.SelectProducerIndex(new[] { false, true, true }, true), Is.EqualTo(1));
+			Assert.That(AdaptiveRoutingMath.SelectProducerIndex(new[] { true, true, true }, true), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void RouteToEnabled_OnlyLastEnabled_FallsAllTheWayThrough()
+		{
+			// Every twin but the last is disabled ⇒ the walk must reach the final index rather than stop early.
+			Assert.That(AdaptiveRoutingMath.SelectProducerIndex(new[] { false, false, true }, true), Is.EqualTo(2));
+		}
 	}
 }

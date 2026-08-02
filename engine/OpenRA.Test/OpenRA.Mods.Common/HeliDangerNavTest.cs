@@ -150,5 +150,66 @@ namespace OpenRA.Test
 					Is.EqualTo(HeliDangerNav.SafestAirCellOnRing(from, 4, air)));
 			});
 		}
+
+		// ---------- degenerate / boundary inputs ----------
+
+		[Test]
+		public void PathMaxOfZeroLengthFlight_IsTheSingleCellSample()
+		{
+			// from == to: steps = 0, so the reading is exactly the air-danger at that one cell.
+			var air = Envelope(new CPos(10, 10), 5, 100);
+			Assert.That(HeliDangerNav.PathMaxAirDanger(new CPos(10, 10), new CPos(10, 10), air), Is.EqualTo(100));
+			Assert.That(HeliDangerNav.PathMaxAirDanger(new CPos(99, 99), new CPos(99, 99), air), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void DetourWithZeroLengthAxis_ReturnsNull_EvenWhenHot()
+		{
+			// from == to inside the SAM: passes the danger gate but has no axis (axisLen == 0) ⇒ null,
+			// never a divide-by-zero.
+			var air = Envelope(new CPos(10, 10), 5, 100);
+			Assert.That(HeliDangerNav.DetourWaypoint(new CPos(10, 10), new CPos(10, 10), 8, 0, air), Is.Null);
+		}
+
+		[Test]
+		public void LeashZeroRadius_UnsafeTarget_FallsBackToTarget()
+		{
+			// leashCells == 0: the expanding-ring loop never runs, so an unsafe target is returned unchanged
+			// (the withdraw guards handle it) — pins the empty-search fallback.
+			var centre = new CPos(10, 10);
+			var air = Envelope(centre, 5, 100);
+			Assert.That(HeliDangerNav.LeashedEngageCell(centre, leashCells: 0, safeThreshold: 0, air), Is.EqualTo(centre));
+		}
+
+		[Test]
+		public void LeashTieBreak_PicksTopLeftNeighbourFirst()
+		{
+			// Target hot, every neighbour safe: the fixed dy-then-dx scan at r=1 reaches (X-1, Y-1) first, so
+			// that corner is the deterministic winner among the 8 equally-safe cells. Pins WHICH cell wins.
+			var target = new CPos(10, 10);
+			Func<CPos, int> air = c => c == target ? 100 : 0;
+			Assert.That(HeliDangerNav.LeashedEngageCell(target, leashCells: 4, safeThreshold: 0, air),
+				Is.EqualTo(new CPos(9, 9)));
+		}
+
+		[Test]
+		public void SafestRingBelowRadiusOne_ReturnsOrigin()
+		{
+			// ringCells < 1 has no ring to scan ⇒ the origin is returned (the caller stays put).
+			var air = Envelope(new CPos(10, 10), 5, 100);
+			Assert.That(HeliDangerNav.SafestAirCellOnRing(new CPos(3, 3), 0, air), Is.EqualTo(new CPos(3, 3)));
+			Assert.That(HeliDangerNav.SafestAirCellOnRing(new CPos(3, 3), -2, air), Is.EqualTo(new CPos(3, 3)));
+		}
+
+		[Test]
+		public void SafestRingTieBreak_PicksFirstScannedCellOnUniformField()
+		{
+			// A uniform field (every ring cell equal) resolves to the FIRST cell in scan order — dy=-r then
+			// dx=-r, i.e. the (X-r, Y-r) corner — because only a strictly-lower reading displaces it. Pins the
+			// tie-break so a uniform retreat is deterministic rather than arbitrary.
+			Func<CPos, int> flat = _ => 50;
+			var origin = new CPos(10, 10);
+			Assert.That(HeliDangerNav.SafestAirCellOnRing(origin, ringCells: 2, flat), Is.EqualTo(new CPos(8, 8)));
+		}
 	}
 }

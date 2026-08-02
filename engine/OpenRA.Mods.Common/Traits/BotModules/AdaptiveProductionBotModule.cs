@@ -92,6 +92,53 @@ namespace OpenRA.Mods.Common.Traits
 			"byte-identical. Deterministic (fixed construction-order scan, no RNG).")]
 		public readonly bool RouteToEnabledProducer = false;
 
+		[Desc("COMPOSITION-NEED (experimental) master gate. When on, a believed-composition need-scoring pass runs",
+			"each cycle (after SR-defense, before the scouted-composition path, sharing the same MaxRequestsPerCycle",
+			"budget): it reads the fog-legal belief store, values the believed enemy force per class, and scores each",
+			"thing it can call in by how much that class is warranted NOW — heavy believed armor raises anti-armor,",
+			"heavy infantry raises anti-infantry, heavy air raises anti-air, and — the new lever — a WEAK believed",
+			"enemy anti-air posture opens an AIR-STRIKE window (raises the AirStrikeUnits score). The single",
+			"highest-scoring AFFORDABLE class is called in (reserves <=1 request/cycle). BYPASSES MinEnemySightings",
+			"(belief persists through fog, so it works with nothing currently visible). Default false: the",
+			"@stable/frozen twin never enters this path (belief store + resolver stay null) -> byte-identical, zero",
+			"new RNG. All *NeedWeight below also default 0, so even a stray enable is inert until weights are set.")]
+		public readonly bool CompositionNeedEnabled = false;
+
+		[Desc("COMPOSITION-NEED: the offensive AIR-STRIKE pool (attack helis / strike aircraft, e.g. heli, a10)",
+			"called in when the believed enemy sky reads weakly defended. Deliberately the EXPENSIVE airframes —",
+			"the affordability gate (NeedBudgetReservePct) keeps them a rare-but-real buy. Names are actor keys and",
+			"MUST be lowercase (the demand-queue BuildUnit does a case-sensitive rules lookup). Empty = lever inert.")]
+		public readonly HashSet<string> AirStrikeUnits = new HashSet<string>();
+
+		[Desc("COMPOSITION-NEED weight (percent) on the anti-armor score = believedArmorValue * weight / 100.",
+			"0 (default) disables the anti-armor term.")]
+		public readonly int AntiArmorNeedWeight = 0;
+
+		[Desc("COMPOSITION-NEED weight (percent) on the anti-infantry score = believedInfantryValue * weight / 100.",
+			"0 (default) disables the anti-infantry term.")]
+		public readonly int AntiInfantryNeedWeight = 0;
+
+		[Desc("COMPOSITION-NEED weight (percent) on the anti-air score = believedAirValue * weight / 100.",
+			"0 (default) disables the anti-air term. (Independent of the reactive AA path above — this is the",
+			"belief-store, fog-persisting variant.)")]
+		public readonly int AntiAirNeedWeight = 0;
+
+		[Desc("COMPOSITION-NEED weight (percent) on the AIR-STRIKE (weak-enemy-AA) opportunity score:",
+			"score = weight * believedGroundValue * (AaWeakThreshold - believedAaValue) / (AaWeakThreshold * 100).",
+			"0 (default) disables the lever.")]
+		public readonly int AirStrikeNeedWeight = 0;
+
+		[Desc("COMPOSITION-NEED: believed enemy anti-air VALUE (unit cost * confidence / 100, summed over believed",
+			"dedicated AA — mobile SHORAD/MANPADS classed ShortRangeAD) at/above which the enemy sky counts as",
+			"DEFENDED, closing the air-strike window. Below it the window opens, wider the weaker the AA. Set near",
+			"the value of ~one AA asset so that 'no believed AA / one fading contact' reads weak. Default 2000.")]
+		public readonly int AaWeakThreshold = 2000;
+
+		[Desc("COMPOSITION-NEED: budget-reserve percent an affordable call-in must clear — availableBudget*100 >=",
+			"unitCost*reservePct (100 = exactly affordable, 200 = need 2x its cost banked). The rarity dial for",
+			"expensive airframes; cheap counters clear it almost always. 0 disables the gate. Default 200.")]
+		public readonly int NeedBudgetReservePct = 200;
+
 		public override object Create(ActorInitializer init) { return new AdaptiveProductionBotModule(init.Self, this); }
 	}
 
@@ -139,12 +186,15 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			blackboard = player.PlayerActor.TraitsImplementing<BotBlackboard>().FirstOrDefault(b => !b.IsTraitDisabled);
-			if (Info.UseUnitRoles)
+
+			// The role resolver is needed by the pool class-filter (UseUnitRoles) AND by composition-need
+			// (to class believed contacts as dedicated AA -> ShortRangeAD). Left null when neither is set.
+			if (Info.UseUnitRoles || Info.CompositionNeedEnabled)
 				resolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
 
-			// SR-defense reads the fog-legal belief store only when enabled. Left null on the frozen
-			// path, so @stable never touches the store or its trait lookup.
-			if (Info.SupplyRouteDefenseEnabled)
+			// SR-defense and composition-need both read the fog-legal belief store. Left null on the frozen
+			// path (both flags off), so @stable never touches the store or its trait lookup.
+			if (Info.SupplyRouteDefenseEnabled || Info.CompositionNeedEnabled)
 				beliefStore = world.WorldActor.TraitOrDefault<BeliefStore>();
 
 			initialized = true;
@@ -178,6 +228,14 @@ namespace OpenRA.Mods.Common.Traits
 			var requestsMade = 0;
 			if (Info.SupplyRouteDefenseEnabled)
 				requestsMade = TrySupplyRouteDefense();
+
+			// COMPOSITION-NEED (experimental): buy what the BELIEVED battlefield needs most — heavy believed
+			// armor/infantry/air raise the matching counter, and a weak believed enemy AA posture opens an
+			// air-strike window. Affordability-gated so expensive airframes stay rare. Shares this cycle's
+			// request budget with SR-defense and (below) the scouted-composition path; reserves <=1 request.
+			// Frozen when CompositionNeedEnabled is false (beliefStore/resolver null) -> @stable byte-identical.
+			if (Info.CompositionNeedEnabled && requestsMade < Info.MaxRequestsPerCycle)
+				requestsMade += TryCompositionNeed();
 
 			if (requestsMade >= Info.MaxRequestsPerCycle)
 				return;
@@ -378,6 +436,123 @@ namespace OpenRA.Mods.Common.Traits
 					return true;
 
 			return false;
+		}
+
+		// COMPOSITION-NEED (experimental). Value the BELIEVED enemy force per class (fog-legal belief store
+		// only), score each buyable category via the pure CompositionNeedMath, and call in the single
+		// highest-scoring AFFORDABLE class. The air-strike term is a GAP detector: weak believed enemy AA +
+		// a believed ground force worth hitting raises the (expensive, rare) strike-airframe score. Zero RNG:
+		// additive value sums are order-independent, scoring is integer, the winner is a deterministic argmax
+		// with a fixed Order tie-break, and the counter is the cheapest buildable (stable cost+name ordering).
+		// Reserves AT MOST ONE request/cycle so it never starves the scouted-composition path below.
+		int TryCompositionNeed()
+		{
+			if (beliefStore == null || resolver == null)
+				return 0;
+
+			// Believed enemy value per class. Dedicated AA (mobile SHORAD/MANPADS -> ShortRangeAD) is tallied
+			// separately as the "is the enemy sky defended" signal; it is fog-legal and DECAYS in the belief
+			// store (mobile contacts fade), so an unseen-for-a-while AA line correctly reads as a weakening sky.
+			long armorValue = 0, infantryValue = 0, airValue = 0, aaValue = 0;
+			foreach (var c in beliefStore.Contacts(player))
+			{
+				if (!world.Map.Rules.Actors.TryGetValue(c.TypeName, out var ai))
+					continue;
+
+				var value = (long)UnitCost(ai) * c.Confidence / 100;
+				if (value <= 0)
+					continue;
+
+				if (resolver.GetRole(ai) == UnitRole.ShortRangeAD)
+					aaValue += value;
+
+				switch (ClassifyContact(ai))
+				{
+					case ThreatClass.Air: airValue += value; break;
+					case ThreatClass.Armor: armorValue += value; break;
+					case ThreatClass.Infantry: infantryValue += value; break;
+				}
+			}
+
+			var groundValue = armorValue + infantryValue;
+
+			// Fixed Order is the tie-break only (score + affordability dominate): air-strike is listed first so a
+			// score tie resolves to the opportunistic buy, then the counters in armor/infantry/air order.
+			var candidates = new List<CompositionNeedMath.Candidate>
+			{
+				new CompositionNeedMath.Candidate(
+					CompositionNeedMath.AirOpportunityScore(aaValue, groundValue, Info.AaWeakThreshold, Info.AirStrikeNeedWeight),
+					CheapestBuildableCost(Info.AirStrikeUnits), 0),
+				new CompositionNeedMath.Candidate(
+					CompositionNeedMath.CounterScore(armorValue, Info.AntiArmorNeedWeight),
+					CheapestBuildableCost(Info.AntiVehicleUnits), 1),
+				new CompositionNeedMath.Candidate(
+					CompositionNeedMath.CounterScore(infantryValue, Info.AntiInfantryNeedWeight),
+					CheapestBuildableCost(Info.AntiInfantryUnits), 2),
+				new CompositionNeedMath.Candidate(
+					CompositionNeedMath.CounterScore(airValue, Info.AntiAirNeedWeight),
+					CheapestBuildableCost(Info.AntiAirUnits), 3),
+			};
+
+			var idx = CompositionNeedMath.SelectNeed(candidates, AvailableBudget(), Info.NeedBudgetReservePct);
+			if (idx < 0)
+				return 0;
+
+			var pool = idx == 0 ? Info.AirStrikeUnits
+				: idx == 1 ? Info.AntiVehicleUnits
+				: idx == 2 ? Info.AntiInfantryUnits
+				: Info.AntiAirUnits;
+
+			return RequestCheapestBuildable(pool);
+		}
+
+		// Spendable budget = cash + banked resources (both synced). 0 when the player has no resources trait.
+		long AvailableBudget()
+		{
+			var res = player.PlayerActor.TraitOrDefault<PlayerResources>();
+			return res != null ? (long)res.Cash + res.Resources : 0;
+		}
+
+		// Cost of the cheapest buildable-in-rules member of a pool; int.MaxValue when the pool has no known
+		// member (so the affordability gate rejects it — we cannot buy what does not exist).
+		int CheapestBuildableCost(HashSet<string> pool)
+		{
+			var min = int.MaxValue;
+			foreach (var u in pool)
+				if (world.Map.Rules.Actors.TryGetValue(u, out var ai))
+				{
+					var cost = UnitCost(ai);
+					if (cost > 0 && cost < min)
+						min = cost;
+				}
+
+			return min;
+		}
+
+		// Request the cheapest buildable member of a pool (cheapest first, name-ordinal tie-break — deterministic,
+		// no random draw), respecting the same <=2-in-flight cap the other paths use. Returns 1 on a request, else 0.
+		int RequestCheapestBuildable(HashSet<string> pool)
+		{
+			var ordered = pool
+				.Where(u => world.Map.Rules.Actors.ContainsKey(u))
+				.OrderBy(u => UnitCost(world.Map.Rules.Actors[u]))
+				.ThenBy(u => u, StringComparer.Ordinal);
+
+			var producer = SelectUnitProducer();
+			if (producer == null)
+				return 0;
+
+			foreach (var unit in ordered)
+			{
+				var alreadyRequested = unitProducers.Sum(up => up.RequestedProductionCount(bot, unit));
+				if (alreadyRequested >= 2)
+					continue;
+
+				producer.RequestUnitProduction(bot, unit);
+				return 1;
+			}
+
+			return 0;
 		}
 
 		static ThreatClass ClassifyContact(ActorInfo ai)

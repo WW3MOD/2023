@@ -227,5 +227,54 @@ namespace OpenRA.Test
 			Assert.That(left, Is.GreaterThan(0));
 			Assert.That(right, Is.GreaterThan(0));
 		}
+
+		// ---------- golden hash values: freeze the exact avalanche constants ----------
+
+		[Test]
+		public void HashGoldenValues_FreezeTheAvalancheMix()
+		{
+			// The determinism / replay byte-identity guarantee rests on the EXACT hash output, not merely that
+			// it is stable within one run. These golden values pin the finalizer constants (Knuth 2654435761,
+			// 2246822519, the >>15 / >>13 shifts) so any change to the mix — which would silently shift every
+			// unit's jitter across the whole install base and break replay — fails loudly here.
+			Assert.That(FormationRealism.Hash(0, FormationRealism.LateralSalt), Is.EqualTo(774098401u));
+			Assert.That(FormationRealism.Hash(1, FormationRealism.LateralSalt), Is.EqualTo(2369308743u));
+			Assert.That(FormationRealism.Hash(1, FormationRealism.DepthSalt), Is.EqualTo(3021802736u));
+			Assert.That(FormationRealism.Hash(1, FormationRealism.FanSalt), Is.EqualTo(3659616023u));
+			Assert.That(FormationRealism.Hash(uint.MaxValue, FormationRealism.LateralSalt), Is.EqualTo(4068595929u));
+		}
+
+		[Test]
+		public void OffsetGoldenValues_FreezeTheDerivedScatter()
+		{
+			// Downstream of Hash, pin the concrete per-unit offsets a known ActorID receives at the shipped
+			// caps, so a change to either the hash OR the SignedOffset modulo maths is caught.
+			Assert.That(FormationRealism.LateralOffset(1, 384), Is.EqualTo(134));
+			Assert.That(FormationRealism.DepthOffset(1, 448), Is.EqualTo(349));
+			Assert.That(FormationRealism.SignedOffset(FormationRealism.Hash(1, FormationRealism.FanSalt), 16), Is.EqualTo(-8));
+		}
+
+		// ---------- cap ceiling-collapse boundary ----------
+
+		[Test]
+		public void LateralCapCollapsesToZeroAtTinySpacing()
+		{
+			// When minSlotSpacing/2 - 1 <= 0 the ceiling collapses and jitter is disabled (returns 0) with no
+			// special-casing — the documented "ceiling collapses" branch. Spacing 2 => ceiling 0; spacing 1 =>
+			// ceiling -1 (both floored to 0); spacing 4 => ceiling 1 (first non-collapsed value).
+			Assert.That(FormationRealism.LateralCap(100, 2), Is.Zero);
+			Assert.That(FormationRealism.LateralCap(100, 1), Is.Zero);
+			Assert.That(FormationRealism.LateralCap(100, 4), Is.EqualTo(1));
+		}
+
+		[Test]
+		public void DepthCapCollapsesToZeroAtTinySpacing()
+		{
+			// min(rowSpacing/2, minSlotSpacing) - 1 <= 0 collapses the depth stagger to 0. A tiny rowSpacing
+			// dominates the min even when MinSlotSpacing is large.
+			Assert.That(FormationRealism.DepthCap(100, 1, 1024), Is.Zero);
+			Assert.That(FormationRealism.DepthCap(100, 2, 1024), Is.Zero);
+			Assert.That(FormationRealism.DepthCap(100, 1024, 1), Is.Zero);
+		}
 	}
 }

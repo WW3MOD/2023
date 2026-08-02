@@ -116,6 +116,100 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
+	// ============================================================
+	// Pure MISSION-commitment decision math — engine-free, unit-tested
+	// (MissionCommitmentMathTest). The GoalGuardLedger above answers "is this
+	// UNIT still claimed"; this answers "should this SQUAD's committed mission be
+	// abandoned THIS eval". Kept a pure static class (like PoiOffenseMath) so it
+	// ports verbatim into the future v3 brain — only the snapshot plumbing (the
+	// offense module's Axis fields) is engine-specific.
+	//
+	// The rule: once a squad has an objective, HOLD it. Do NOT re-task merely
+	// because scores jittered. Re-task ONLY on an explicit trigger:
+	//   1. objective invalid  — target gone / captured / POI resolved,
+	//   2. danger spike        — believed danger at the objective jumped vs commit,
+	//   3. better opportunity  — a rival objective beats the committed one by a
+	//                            hysteresis margin (not a tie-break flip),
+	//   4. combat-ineffective  — the squad is ground below a fraction of its
+	//                            commit-time strength,
+	//   (+ an optional bounded commit window as a safety re-plan valve).
+	// Integer-only, deterministic, zero RNG.
+	// ============================================================
+	public static class MissionCommitmentMath
+	{
+		/// <summary>Trigger 2 — believed danger at/along the objective spiked materially above what it
+		/// was when the squad committed. Fires when current strictly exceeds commit + max(floor, commit·pct/100).
+		/// The absolute floor lets a fresh weapon envelope over previously-quiet ground (commit ≈ 0) trip it;
+		/// the percentage scales the reaction to an already-dangerous commit so ambient baseline jitter does
+		/// not. Integer-only, monotonic.</summary>
+		public static bool DangerSpiked(int commitDanger, int currentDanger, int spikePct, int spikeFloor)
+		{
+			if (currentDanger <= commitDanger)
+				return false;
+
+			var margin = commitDanger * Math.Max(0, spikePct) / 100;
+			if (margin < spikeFloor)
+				margin = spikeFloor;
+
+			return currentDanger - commitDanger > margin;
+		}
+
+		/// <summary>Trigger 3 — a rival objective is MATERIALLY better than the committed one. Same
+		/// hysteresis form as PoiOffenseMath.ScoreBeatsByThreshold: the alternative must beat the committed
+		/// score by strictly more than marginPct (a mere tie-break flip does not qualify). A non-positive
+		/// alternative never wins; a non-positive committed score is always beatable by any positive rival.</summary>
+		public static bool BetterOpportunity(long committedScore, long bestAlternativeScore, int marginPct)
+		{
+			if (bestAlternativeScore <= 0)
+				return false;
+			if (committedScore <= 0)
+				return true;
+
+			return bestAlternativeScore * 100 > committedScore * (100L + Math.Max(0, marginPct));
+		}
+
+		/// <summary>Trigger 4 — the squad has been ground below a fraction of its commit-time strength.
+		/// Fires when current·denom &lt; commit·numer (e.g. numer/denom = 1/2 ⇒ below half). A degenerate
+		/// commit strength of 0 (or denom ≤ 0) never trips — nothing to lose.</summary>
+		public static bool CombatIneffective(int commitStrength, int currentStrength, int numer, int denom)
+		{
+			if (commitStrength <= 0 || denom <= 0)
+				return false;
+
+			return (long)currentStrength * denom < (long)commitStrength * numer;
+		}
+
+		/// <summary>Aggregate: should a committed mission be RELEASED for re-tasking this eval? Trigger 1
+		/// (objective invalid) short-circuits; then the optional bounded commit window; then the danger /
+		/// opportunity / attrition triggers. A commitWindowTicks ≤ 0 disables the time valve (hold purely
+		/// on the triggers — objective completion is itself trigger 1). Pure &amp; deterministic: the module
+		/// snapshots the commit-time values and feeds the current reads.</summary>
+		public static bool ShouldReassign(
+			bool objectiveValid,
+			int commitTick, int currentTick, int commitWindowTicks,
+			int commitDanger, int currentDanger, int dangerSpikePct, int dangerSpikeFloor,
+			long committedScore, long bestAlternativeScore, int betterOppMarginPct,
+			int commitStrength, int currentStrength, int ineffectiveNumer, int ineffectiveDenom)
+		{
+			if (!objectiveValid)
+				return true;
+
+			if (commitWindowTicks > 0 && currentTick - commitTick >= commitWindowTicks)
+				return true;
+
+			if (DangerSpiked(commitDanger, currentDanger, dangerSpikePct, dangerSpikeFloor))
+				return true;
+
+			if (BetterOpportunity(committedScore, bestAlternativeScore, betterOppMarginPct))
+				return true;
+
+			if (CombatIneffective(commitStrength, currentStrength, ineffectiveNumer, ineffectiveDenom))
+				return true;
+
+			return false;
+		}
+	}
+
 	[TraitLocation(SystemActors.Player)]
 	[Desc("WW3MOD experimental AI: per-unit commitment ledger that stops capture/offense modules re-issuing",
 		"orders when a unit's IsIdle flickers mid-task. Shared holder; the reusable logic is",

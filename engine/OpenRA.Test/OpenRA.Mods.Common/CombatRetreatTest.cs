@@ -162,5 +162,32 @@ namespace OpenRA.Test
 			Assert.That(CombatRetreatMath.ShouldRetreat(true, RetreatDecision.Retreating), Is.True);
 			Assert.That(CombatRetreatMath.ShouldRetreat(true, RetreatDecision.Engaged), Is.False);
 		}
+
+		// ---------- ShouldReleaseHeld: N3 lever composition ----------
+
+		[Test]
+		public void ShouldReleaseHeld_DisabledNeverReleases()
+		{
+			// Retreat lever off ⇒ mission-commitment hold is unchanged (byte-identical), even for a losing axis.
+			Assert.That(CombatRetreatMath.ShouldReleaseHeld(false, RetreatDecision.Retreating, 100, 500, 200), Is.False);
+			Assert.That(CombatRetreatMath.ShouldReleaseHeld(false, RetreatDecision.Engaged, 100, 500, 200), Is.False);
+		}
+
+		[Test]
+		public void ShouldReleaseHeld_AlreadyRetreatingIsAlwaysReleased()
+		{
+			// A retreating axis stays released even when its current force ratio no longer reads losing (it moved
+			// away from the enemy) — so the FSM keeps stepping until it transitions back to Engaged at safety.
+			Assert.That(CombatRetreatMath.ShouldReleaseHeld(true, RetreatDecision.Retreating, 100, 100, 200), Is.True);
+		}
+
+		[Test]
+		public void ShouldReleaseHeld_EngagedButLosingIsReleased()
+		{
+			// An axis that STARTS losing while held (frozen FSM state still Engaged) is released on the fresh read.
+			Assert.That(CombatRetreatMath.ShouldReleaseHeld(true, RetreatDecision.Engaged, 100, 300, 200), Is.True);
+			// Engaged and not losing ⇒ held as normal (mission-commitment governs).
+			Assert.That(CombatRetreatMath.ShouldReleaseHeld(true, RetreatDecision.Engaged, 100, 150, 200), Is.False);
+		}
 	}
 }

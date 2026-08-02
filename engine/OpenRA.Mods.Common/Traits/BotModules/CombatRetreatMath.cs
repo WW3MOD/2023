@@ -103,5 +103,20 @@ namespace OpenRA.Mods.Common.Traits
 		/// explicit (disabled ⇒ false regardless of state ⇒ the assault path is taken, byte-identical).</summary>
 		public static bool ShouldRetreat(bool enabled, RetreatDecision decision)
 			=> enabled && decision == RetreatDecision.Retreating;
+
+		/// <summary>Lever composition (N3): must a mission-commitment HELD axis be RELEASED into the live set so
+		/// the retreat FSM can step it? A held axis skips the FSM entirely, so mission-commitment's hold would
+		/// freeze a losing squad in place — the retreat could only fire after the attrition it exists to prevent.
+		/// Release iff the retreat lever is <paramref name="retreatEnabled"/> AND the axis is EITHER already
+		/// <see cref="RetreatDecision.Retreating"/> (keep it released until its FSM transitions back to Engaged at
+		/// safety/recovery) OR its CURRENT force ratio reads <see cref="LosingBeyond"/> the trigger (catch an axis
+		/// that STARTS losing while held — its frozen FSM state is still Engaged, so the fresh read is what trips
+		/// the release). <paramref name="retreatEnabled"/> false ⇒ false regardless, so byte-identity holds when
+		/// the retreat lever is off (mission-commitment's hold is unchanged). Pure, zero RNG.</summary>
+		public static bool ShouldReleaseHeld(bool retreatEnabled, RetreatDecision current,
+			int ownStrength, int enemyStrength, int retreatRatioPct)
+			=> retreatEnabled
+				&& (current == RetreatDecision.Retreating
+					|| LosingBeyond(ownStrength, enemyStrength, retreatRatioPct));
 	}
 }

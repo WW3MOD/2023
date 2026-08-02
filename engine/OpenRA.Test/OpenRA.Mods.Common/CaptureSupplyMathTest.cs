@@ -56,6 +56,34 @@ namespace OpenRA.Test
 			Assert.That(CaptureSupplyMath.EffectiveFloor(true, 1, 6, 5), Is.EqualTo(5));
 		}
 
+		[Test]
+		public void EffectiveFloor_ScalingOn_ExactBoundaries()
+		{
+			// POI count exactly at the static floor ⇒ that floor (the scaled < floor branch is not taken).
+			Assert.That(CaptureSupplyMath.EffectiveFloor(true, 3, 3, 5), Is.EqualTo(3));
+			// POI count exactly at the cap ⇒ the cap (the scaled > cap branch is not taken).
+			Assert.That(CaptureSupplyMath.EffectiveFloor(true, 1, 5, 5), Is.EqualTo(5));
+		}
+
+		[Test]
+		public void EffectiveFloor_ScalingOn_CapBelowStaticFloor_CapWins()
+		{
+			// Documented (intentional) mis-set: floorCap < staticFloor. The floor lift runs first
+			// (scaled=max(poi, staticFloor)) then the cap clamp runs LAST, so the cap is the outer bound and
+			// wins — lowering demand below the static floor. A safe direction, not a bug (see CaptureSupplyMath
+			// EffectiveFloor doc). Pins that the clamp order is floor-then-cap.
+			Assert.That(CaptureSupplyMath.EffectiveFloor(true, 5, 3, 2), Is.EqualTo(2));
+			Assert.That(CaptureSupplyMath.EffectiveFloor(true, 5, 9, 2), Is.EqualTo(2));
+		}
+
+		[Test]
+		public void EffectiveFloor_ScalingOn_NegativePoiCount_HeldAtStaticFloor()
+		{
+			// Defensive: a negative POI count (should never happen) is lifted to the static floor by the
+			// never-below-floor clamp, so demand can't go negative.
+			Assert.That(CaptureSupplyMath.EffectiveFloor(true, 1, -5, 5), Is.EqualTo(1));
+		}
+
 		// ---- ShouldRequestTecn: frozen behaviour (staleTicks <= 0) ----
 
 		[Test]
@@ -164,6 +192,27 @@ namespace OpenRA.Test
 			}
 
 			Assert.That(pending, Is.EqualTo(Floor), "pending converges to exactly the floor");
+		}
+
+		// ---- ShouldRequestTecn: degenerate floor + non-monotonic tick guards ----
+
+		[Test]
+		public void ShouldRequestTecn_FloorZeroOrNegative_NeverRequests()
+		{
+			// A zero (or negative) floor means "no capturers required" — alive >= floor is trivially true, so
+			// the first gate short-circuits to false regardless of pending / staleness.
+			Assert.That(CaptureSupplyMath.ShouldRequestTecn(0, 0, 0, 5000, 0, 200), Is.False);
+			Assert.That(CaptureSupplyMath.ShouldRequestTecn(-1, 0, 0, 5000, 0, 200), Is.False);
+		}
+
+		[Test]
+		public void ShouldRequestTecn_NonMonotonicTick_DoesNotFalselyReissue()
+		{
+			// Defensive: if currentTick < lastRequestTick (should never happen with a synced monotonic clock),
+			// the age is negative so the >= staleTicks staleness test is false ⇒ no premature re-issue in the
+			// partial in-flight case (alive+pending==floor, pending<floor).
+			Assert.That(CaptureSupplyMath.ShouldRequestTecn(3, 2, 1, 900, 1000, 200), Is.False,
+				"a backwards tick must not read as stale");
 		}
 
 		// ---------- ClampFloorToArmyShare (combat-quality budget split) ----------
