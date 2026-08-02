@@ -18,6 +18,18 @@ namespace OpenRA.Mods.CA.Traits.Render
 {
 	public enum TrailType { Cell, CenterPosition }
 
+	// Pure off-map trail decision, pinned by LeavesTrailsCAMathTest.
+	public static class LeavesTrailsCAMath
+	{
+		// When the trail's spawn cell is off the map, GetTerrainInfo cannot be read (it throws
+		// IndexOutOfRange). A terrain-restricted trail (TerrainTypes non-empty) can never match
+		// off-map terrain, so it skips; an unrestricted trail (the V3/ICBM case) still spawns.
+		public static bool SkipsOffMapTrail(bool inBounds, int terrainRestrictionCount)
+		{
+			return !inBounds && terrainRestrictionCount > 0;
+		}
+	}
+
 	[Desc("Renders a sprite effect when leaving a cell.")]
 	public class LeavesTrailsCAInfo : ConditionalTraitInfo
 	{
@@ -118,11 +130,16 @@ namespace OpenRA.Mods.CA.Traits.Render
 			{
 				var spawnCell = Info.SpawnAtLastPosition ? self.World.Map.CellContaining(cachedPosition) : self.World.Map.CellContaining(self.CenterPosition);
 
-				/* ---- removed for CA version for V3/ICBM
-				if (!self.World.Map.Contains(spawnCell))
+				// The stock "if (!Contains(spawnCell)) return;" guard is intentionally not restored:
+				// V3/ICBM projectiles arc past the map edge and must keep trailing off-map. But
+				// GetTerrainInfo indexes a per-cell array unguarded and throws off-map, so only read
+				// the terrain type in-bounds. Off-map counts as "no terrain type": untyped trails
+				// (TerrainTypes empty, the V3/ICBM case) still spawn; terrain-restricted trails skip.
+				var inBounds = self.World.Map.Contains(spawnCell);
+				if (LeavesTrailsCAMath.SkipsOffMapTrail(inBounds, Info.TerrainTypes.Count))
 					return;
-				*/
-				var type = self.World.Map.GetTerrainInfo(spawnCell).Type;
+
+				var type = inBounds ? self.World.Map.GetTerrainInfo(spawnCell).Type : null;
 
 				if (++offset >= Info.Offsets.Length)
 					offset = 0;
