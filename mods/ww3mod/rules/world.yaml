@@ -261,6 +261,11 @@ World:
 	# Test.Mode=true AND Test.TournamentConfig=<path>. See
 	# WORKSPACE/plans/260511_ai_tournament_harness.md
 	BotVsBotMatchWatcher:
+	# Behavior-lint per-unit lifecycle logger. Silently no-op unless launched with
+	# both Test.Mode=true AND Test.UnitLifecycleLog=<true|path>. Emits a JSONL event
+	# stream (meta/spawn/order/idle/death/end) for tools/behavior-lint. Observation-
+	# only — never affects the simulation. See WORKSPACE/behavior-lint-spec.md.
+	UnitLifecycleLogger:
 	# Universal Test.SpeedMultiplier apply for non-tournament test runs.
 	# No-op unless Test.Mode=true + Test.SpeedMultiplier>1 + no tournament config.
 	TestModeSpeedMultiplier:

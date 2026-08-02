@@ -3,6 +3,17 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-03 — behavior-lint FIRST SLICE shipped (`auto/behavior-lint`, from main @ 1c3cb070): UnitLifecycleLogger + analyzer, and the `Game.OnQuit`-vs-teardown gotcha
+
+Implemented the first slice of `WORKSPACE/behavior-lint-spec.md` (meta/spawn/order/idle_start/idle_end/death(minimal)/end + analyzer rules R1/R2/R6/R8). Grounded facts + deviations for the full build:
+
+- **`Game.Exit()` does NOT flush anything and `Game.OnQuit` fires too late to read the world.** `Game.Exit()` (`Game.cs:1101`) merely sets `state = Success`; the game loop then unwinds and `OnQuit()` is invoked at `Game.cs:1096` **after** `worldRenderer.Dispose()` + `ModData.Dispose()`. So the end-of-game census MUST be built from trait-held state only — reading `world.Actors`/`InfluenceMap` at OnQuit is unsafe. Solution: the logger keeps a self-contained `Dictionary<uint,UnitTrack>` and refreshes `LastCell`/idle state every tick, so `Flush()` (hooked on `Game.OnQuit`, guarded by a `flushed` bool + immediate unsubscribe) needs zero world reads. `world.WorldTick` is a plain int auto-property and stays readable post-teardown, so it's used for the final tick.
+- **`InfluenceMap.GetEnemyInfluence/GetFriendlyInfluence` allocate a fresh `int[,]` grid on EVERY call** (`InfluenceMap.cs:143/:156`). Attaching `terr` to edge events would allocate a grid per idle edge — cached per `(owner, tick)` in the logger so co-tick edges reuse one pair of grids. Still logging-ON-only cost.
+- **Zero-cost-when-off proof:** `UnitLifecycleLogger.WorldLoaded` returns before opening a file / subscribing / hooking `OnQuit` unless `TestMode.IsActive && TestMode.UnitLifecycleLogPath != null`; `enabled` stays false. `ModularBot.QueueOrder` calls `lifecycleLogger?.LogOrder(...)` which early-returns on `!enabled` before any allocation. The `currentModuleTag = t.GetType().Name` set around the tick loops is a cached-string field write (RuntimeType caches `.Name`), so it is allocation-free after first touch even when logging is off.
+- **DEVIATION from §2a (minor, additive):** §2a's minimal `death` schema is `{x,y,orders}`, but §2d says terr is attached to death/idle/end. Followed §2d — the `death` line also carries `terr` (omniscient `InfluenceMap` bucket). Harmless superset; the analyzer reads it for the drill-down but no first-slice rule depends on it.
+- **DEVIATION from §2b (scope, first slice):** "game active for owner" narrowing by SR-loss is deferred — the first slice has no SR-actor tagging, so R1/R2's "while at war" window is the whole match (min→max event tick). Noted in `behavior_lint.py:match_window`. Full build adds per-side SR-loss from a tagged SR death.
+- **Testability:** idle-span arithmetic (fold spans → total + longest; snapshot an open span at match end without mutating) extracted to the pure `IdleSpanAccumulator` struct and pinned in `IdleSpanMathTest.cs` (9 cases: idempotent Start, no-op End, negative-dur clamp, non-mutating Snapshot). Suite 745 → 754, all green.
+
 ## 2026-08-03 — `ModularBot.QueueOrder` is the single funnel for ALL bot-issued orders; issuing-module identity is recoverable there with no per-call-site edits (spec: `WORKSPACE/behavior-lint-spec.md`, main @ 45210768)
 
 Researching a unit-lifecycle logger to auto-detect "strange AI behavior" (idling/parked/never-re-tasked units) from sim logs. Key structural facts for any future per-order instrumentation:

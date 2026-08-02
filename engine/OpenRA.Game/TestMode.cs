@@ -87,6 +87,16 @@ namespace OpenRA
 		// at 2× and applied via a lobby setup order that races state-Ready.
 		public static int SpeedMultiplier { get; private set; } = 1;
 
+		// Resolved output path for the UnitLifecycleLogger world trait's JSONL
+		// event stream. Null/empty = the logger is inert (no file, no per-tick
+		// work). Set via the Test.UnitLifecycleLog launch arg:
+		//   Test.UnitLifecycleLog=true  → <ResultPath> with a .lifecycle.jsonl
+		//                                  extension (sibling of the verdict, like
+		//                                  BotVsBotMatchWatcher's .watcher.log).
+		//   Test.UnitLifecycleLog=<path> → that explicit path.
+		// Absent when the arg is not passed, so the trait no-ops in normal play.
+		public static string UnitLifecycleLogPath { get; private set; }
+
 		public static void Initialize(Arguments args)
 		{
 			var modeArg = args.GetValue("Test.Mode", null);
@@ -115,6 +125,22 @@ namespace OpenRA
 			OpenLobbyTab = args.GetValue("Test.OpenLobbyTab", null);
 			LaunchLobbyMap = args.GetValue("Test.LaunchLobbyMap", null);
 			LobbyReadyFile = args.GetValue("Test.LobbyReadyFile", null);
+
+			// UnitLifecycleLogger gate. "true"/"1" derives a sibling of the verdict
+			// file; anything else is an explicit output path. Left null (inert) when
+			// the arg is absent, matching the off-by-default discipline of the harness.
+			var lifecycleArg = args.GetValue("Test.UnitLifecycleLog", null);
+			if (!string.IsNullOrEmpty(lifecycleArg))
+			{
+				var lower = lifecycleArg.ToLowerInvariant();
+				if (lower == "true" || lower == "1")
+					UnitLifecycleLogPath = string.IsNullOrEmpty(ResultPath)
+						? null
+						: Path.ChangeExtension(ResultPath, ".lifecycle.jsonl");
+				else
+					UnitLifecycleLogPath = lifecycleArg;
+			}
+
 			TestModeScreenshots.Initialize(ScreenshotDir);
 
 			Console.WriteLine($"[TestMode] active — name={Name} result={ResultPath}");
@@ -126,6 +152,8 @@ namespace OpenRA
 				Log.Write("debug", $"[TestMode] random seed override: {RandomSeedOverride.Value}");
 			if (SpeedMultiplier > 1)
 				Log.Write("debug", $"[TestMode] speed multiplier: {SpeedMultiplier}x");
+			if (!string.IsNullOrEmpty(UnitLifecycleLogPath))
+				Log.Write("debug", $"[TestMode] unit lifecycle log: {UnitLifecycleLogPath}");
 		}
 
 		public static void WriteResult(string status, string notes)
