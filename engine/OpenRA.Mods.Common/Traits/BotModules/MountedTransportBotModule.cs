@@ -405,6 +405,19 @@ namespace OpenRA.Mods.Common.Traits
 						// and passengers never dismount. UnloadOnArrival (experimental) issues the correct
 						// order; the frozen default keeps the broken string so @stable stays byte-identical.
 						bot.QueueOrder(new Order(Info.UnloadOnArrival ? "Unload" : "UnloadCargo", carrier, Target.Invalid, false));
+
+						// WW3MOD retreat-on-unload: QUEUE the return move right behind the Unload so the carrier
+						// withdraws the instant unloading completes, instead of hovering IDLE at the drop for up to
+						// a full ScanInterval until the Unloading state below detects empty. Only when the REAL
+						// "Unload" order was issued (UnloadOnArrival) AND a drop cell is free right now (CanUnload) —
+						// otherwise the Unload is dropped by Cargo.ResolveOrder and a queued Move would fly the carrier
+						// home still LOADED. When not pre-queued (frozen "UnloadCargo" no-op, or no free cell yet), the
+						// Unloading state's empty-detection issues the move exactly as before (ledger release + capture
+						// hand-back still run there). Gated implicitly on UnloadOnArrival ⇒ a twin with it off (engine
+						// default) never unloads, so this branch stays inert and byte-identical for it.
+						if (Info.UnloadOnArrival && cargo.CanUnload())
+							bot.QueueOrder(new Order("Move", carrier, Target.FromCell(world, task.Return), true));
+
 						task.State = CarrierState.Unloading;
 						task.StateChangedAtTick = world.WorldTick;
 						AIUtils.BotDebug("AI ({0}): mounted-transport — {1} unloading at {2}",

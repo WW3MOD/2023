@@ -255,6 +255,21 @@ namespace OpenRA.Mods.Common.Traits
 			"set only on CaptureCoordinatorBotModule@experimental.")]
 		public readonly bool CommitSupportUnits = false;
 
+		[Desc("Retreat-when-done (orderless-at-hostile-location bug class): when a capture COMPLETES (target now",
+			"ours) or the target is GONE (destroyed/uncapturable), send the surviving capturer BACK to our Supply",
+			"Route instead of leaving it idle at the captured structure, typically deep in neutral/enemy territory.",
+			"A CaptureSpecialist has no AttackBase, so it is EXCLUDED from every combat free pool and from this",
+			"module's own escort/defender recruitment — nothing re-collects an idle TECN, so without this it is a",
+			"free kill parked at the front. A TECN consumed by the capture is already dead/not-in-world and is",
+			"skipped. Deterministic (SR lookup + Move order), zero RNG. Engine default false keeps any profile",
+			"that OMITS the field byte-identical (legacy/normal); both live .tecn twins enable it DELIBERATELY —",
+			"this is a bug-class fix, not a tuning lever, so it is turned on wherever the module actually runs.")]
+		public readonly bool RetreatCapturerWhenDone = false;
+
+		[Desc("Actor types of the bot's home Supply Route — the retreat anchor for RetreatCapturerWhenDone.",
+			"Mirrors MountedTransportBotModuleInfo.SupplyRouteTypes.")]
+		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -486,16 +501,21 @@ namespace OpenRA.Mods.Common.Traits
 
 			// goalGuard resolved in BotTick (shared with the defense pass).
 			var useGuard = goalGuard != null && !goalGuard.IsTraitDisabled;
+			HashSet<Actor> retreatedThisScan = null;
 			if (useGuard)
-				ReconcileGuardCommitments();
+				retreatedThisScan = ReconcileGuardCommitments(bot);
 			else
 				activeCapturers.RemoveAll(unitCannotBeOrderedOrIsIdle);
 
 			// A TECN is available for a NEW capture order only if it's idle AND not
 			// already committed. The guard path leaves a committed-but-idle-flickering
 			// TECN alone (no re-issue); the legacy path falls back to the active list.
+			// A TECN retreated home THIS scan (RetreatCapturerWhenDone) still reads IsIdle, so exclude
+			// it too — otherwise a fresh CaptureActor would queue behind its retreat Move and yank it
+			// back to the front on a wasteful round trip.
 			var idleCapturers = capturingActors.Actors
 				.Where(a => a.IsIdle && a.Info.HasTraitInfo<IPositionableInfo>()
+					&& (retreatedThisScan == null || !retreatedThisScan.Contains(a))
 					&& (useGuard
 						? !goalGuard.Ledger.IsCommitted(a, world.WorldTick)
 						: !activeCapturers.Contains(a)))
@@ -1060,14 +1080,26 @@ namespace OpenRA.Mods.Common.Traits
 			return colon >= 0 && uint.TryParse(objective.AsSpan(colon + 1), out id);
 		}
 
+		Actor FindOwnSupplyRoute()
+		{
+			return world.Actors.FirstOrDefault(a =>
+				a.Owner == player && !a.IsDead && a.IsInWorld
+				&& Info.SupplyRouteTypes.Contains(a.Info.Name));
+		}
+
 		// Release commitments that are done or stale so the TECN re-enters the pool:
 		//   * TECN dead / no longer ours              → Prune's keep predicate drops it
 		//   * commitment expired (walked its window)  → Prune drops it
 		//   * target captured (now ours) / gone       → explicit Release below
 		// Everything else stays committed → NOT re-ordered this scan (anti-thrash).
-		void ReconcileGuardCommitments()
+		// Returns the set of TECNs issued a retreat-home order THIS scan (empty unless
+		// RetreatCapturerWhenDone) so the caller can skip re-selecting them for a fresh capture the
+		// same scan — a just-released TECN still reads IsIdle, and a CaptureActor queued behind the
+		// retreat Move would drag it back out on a wasteful round trip.
+		HashSet<Actor> ReconcileGuardCommitments(IBot bot)
 		{
 			var tick = world.WorldTick;
+			var retreated = new HashSet<Actor>();
 
 			// M-3 (expired): Prune drops expired commitments but doesn't report which,
 			// so snapshot the about-to-expire ones for live capturers first. A live
@@ -1103,8 +1135,27 @@ namespace OpenRA.Mods.Common.Traits
 					Log.Write("debug",
 						$"[exp-capture] commitment-released player={player.PlayerName} actor={tecn.Info.Name} objective={objective} reason={reason} tick={tick}");
 					goalGuard.Ledger.Release(tecn);
+
+					// Retreat-when-done (orderless-at-hostile-location bug class): the capturer's job is over but it
+					// is now parked at the (just-captured or destroyed) target, deep in contested territory, and no
+					// combat free pool will re-collect a CaptureSpecialist. Send it home to our SR. queued=false so
+					// it cancels any lingering (now-invalid) CaptureActor activity. A consumed capturer fails the
+					// alive/in-world guard and is skipped. Inert (byte-identical) when the flag is off.
+					if (Info.RetreatCapturerWhenDone && !tecn.IsDead && tecn.IsInWorld && tecn.Owner == player)
+					{
+						var ownSR = FindOwnSupplyRoute();
+						if (ownSR != null)
+						{
+							bot.QueueOrder(new Order("Move", tecn, Target.FromCell(world, ownSR.Location), false));
+							retreated.Add(tecn);
+							AIUtils.BotDebug("AI ({0}): capture-coordinator — {1} done ({2}), retreating to SR {3}",
+								player.ClientIndex, tecn.Info.Name, reason, ownSR.Location);
+						}
+					}
 				}
 			}
+
+			return retreated;
 		}
 
 		long ScoreTarget(Actor capturer, Actor target)

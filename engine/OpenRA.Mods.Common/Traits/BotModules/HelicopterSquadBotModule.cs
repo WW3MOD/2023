@@ -225,6 +225,16 @@ namespace OpenRA.Mods.Common.Traits
 		readonly HashSet<Actor> evacuating = new HashSet<Actor>();
 		bool enemyEverObserved;
 
+		// Transport-role helis dispatched on a delivery, tracked until their cargo is confirmed unloaded.
+		// The dispatch queues an immediate Move home for the common (successful-unload) case; this set is the
+		// safety net for the rare case where the drop cell is unlandable, so UnloadCargo completes WITHOUT
+		// unloading (Cargo.CanUnload false → UnloadCargo.cs:161 returns done) and the queued Move would fly the
+		// heli home still LOADED. EnsureTransportsUnload re-issues Unload wherever it ends up, so a full
+		// transport never idles loaded. (The mounted path's dispatch-time CanUnload gate does NOT transfer
+		// here: at dispatch the passengers are only just ordered to board, so cargo is empty and the heli is
+		// not at the drop yet — CanUnload would always be false and would delete the retreat entirely.)
+		readonly HashSet<Actor> transportsAwaitingUnload = new HashSet<Actor>();
+
 		IBot bot;
 		SquadManagerBotModule squadManagerRef;
 		ThreatMapManager threatMap;
@@ -288,6 +298,7 @@ namespace OpenRA.Mods.Common.Traits
 				CleanUpHelicopters();
 				StageIdleHelicopters();
 				MarkScoutExploration();
+				EnsureTransportsUnload(bot);
 			}
 
 			// Attack missions
@@ -363,6 +374,10 @@ namespace OpenRA.Mods.Common.Traits
 			// Drop evacuating helis once they have left the world (RotateToEdge disposes them at the map
 			// edge). Predicate-based ⇒ iteration-order-independent. No-op when the flag is off.
 			evacuating.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
+
+			// Drop dead/gone transports from the awaiting-unload tracker (EnsureTransportsUnload also prunes,
+			// but keep the hygiene at the same choke point as the other sets). No-op when none are tracked.
+			transportsAwaitingUnload.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
 
 			// Clean up squads
 			PruneSquads();
@@ -755,7 +770,57 @@ namespace OpenRA.Mods.Common.Traits
 			bot.QueueOrder(new Order("Move", transport, Target.FromCell(world, dropZone.Value), queued: true));
 			bot.QueueOrder(new Order("Unload", transport, queued: true));
 
+			// WW3MOD retreat-on-unload: withdraw the transport heli to our Supply Route the instant unloading
+			// completes, instead of leaving it hovering IDLE at the drop zone deep in contested territory — an
+			// easy kill. Queued after the Unload so the return is engine-driven (no scan-loop gap). A Transport-
+			// role heli is not covered by EvaluateIdleHelicopters (attack-only), and CleanUpHelicopters would
+			// only re-pool it FOR THE NEXT transport mission (>=4 idle infantry + a weak drop cell, up to
+			// TransportInterval away) — so without this order nothing brings it home. Bug-class fix, ungated:
+			// applies to every profile that runs this module (@stable + @experimental). We also TRACK it so
+			// EnsureTransportsUnload can re-dump the cargo in the rare unlandable-drop case (see the field
+			// comment) — the queued Move alone would otherwise fly the heli home still loaded.
+			var ownSR = FindOwnSupplyRoute();
+			if (ownSR != null)
+				bot.QueueOrder(new Order("Move", transport, Target.FromCell(world, ownSR.Location), queued: true));
+			transportsAwaitingUnload.Add(transport);
+
 			idleHelicopters.Remove(transport);
+		}
+
+		// Safety net for the pre-queued transport retreat: confirm each dispatched transport heli actually
+		// unloaded. Common path — Unload empties the cargo and the queued Move flies it home — is a no-op here
+		// (empty ⇒ dropped from tracking). Rare path — the drop cell was unlandable so UnloadCargo finished
+		// without unloading and the heli flew home LOADED — is caught here: re-issue Unload wherever it now
+		// sits (typically the open SR area, so it dumps safely) rather than leaving a full transport idle and
+		// loaded. Deterministic: ActorID-ordered, zero RNG. Inert (byte-identical) until a transport is
+		// actually dispatched, so attack/scout-only profiles are unaffected.
+		void EnsureTransportsUnload(IBot bot)
+		{
+			if (transportsAwaitingUnload.Count == 0)
+				return;
+
+			foreach (var h in transportsAwaitingUnload.OrderBy(a => a.ActorID).ToList())
+			{
+				if (h == null || h.IsDead || !h.IsInWorld)
+				{
+					transportsAwaitingUnload.Remove(h);
+					continue;
+				}
+
+				var cargo = h.TraitOrDefault<Cargo>();
+				if (cargo == null || cargo.IsEmpty())
+				{
+					// Delivered (and already retreating/home via the queued Move) — done tracking.
+					transportsAwaitingUnload.Remove(h);
+					continue;
+				}
+
+				// Still loaded: only act once it is idle (the delivery/return chain has run to its end and
+				// left it loaded), so we never interrupt an in-progress unload or flight. Re-issue Unload to
+				// dump the cargo where it sits; keep tracking until the cargo actually empties.
+				if (h.IsIdle)
+					bot.QueueOrder(new Order("Unload", h, false));
+			}
 		}
 
 		bool IsReadyForMission(Actor h)
@@ -950,6 +1015,7 @@ namespace OpenRA.Mods.Common.Traits
 			stagedTo.Clear();
 			idleTicks.Clear();
 			evacuating.Clear();
+			transportsAwaitingUnload.Clear();
 			enemyEverObserved = false;
 		}
 	}
