@@ -142,6 +142,23 @@ namespace OpenRA.Mods.Common.Traits
 			"evac-eligible. Only used when EvacuateWhenIdle is set.")]
 		public readonly int MissionTargetRangeCells = 60;
 
+		[Desc("Phase 4 strategic-target pinning (experimental, default false = frozen). Pin an attack-heli",
+			"squad's STRATEGIC objective in the squad separate from its tactical TargetActor: the FSM keeps its",
+			"5-tick standoff/danger-nav micro AND the bounded too-hot soft-swap, but a lapsed tactical target,",
+			"a too-hot cell, or a withdraw no longer churn the strategic destination — the squad resumes toward",
+			"the pinned objective instead of re-picking the nearest enemy (root cause C, design §1.3/§3.3). The",
+			"pin releases ONLY on an abort trigger: objective invalid / objective-too-hot-with-no-divert / stalled",
+			"(unreachable) / the bounded commit window below. OFF by default so legacy/normal/rush/turtle/stable are",
+			"byte-identical; only HelicopterSquadBotModule@experimental turns it on. Mirrors the offense module's",
+			"MissionCommitmentEnabled gating.")]
+		public readonly bool StrategicTargetPinning = false;
+
+		[Desc("Bounded commit-window backstop (ticks) for a pinned strategic objective (design §3.3 TTL valve).",
+			"A pin held longer than this releases so an objective that never resolves cannot trap the squad",
+			"forever. 0 = OFF (hold purely on the abort triggers), matching MissionCommitmentMath's window valve.",
+			"Only used when StrategicTargetPinning is set.")]
+		public readonly int PinCommitWindowTicks = 0;
+
 		public override object Create(ActorInitializer init) { return new HelicopterSquadBotModule(init.Self, this); }
 	}
 

@@ -35,6 +35,22 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		/// toward this cell before engaging the main target.</summary>
 		internal CPos? ApproachWaypoint;
 
+		/// <summary>Phase 4 strategic-target pinning (experimental, heli squads). The DURABLE
+		/// strategic objective the squad is committed to, kept SEPARATE from the tactical
+		/// <see cref="TargetActor"/>: FSM micro-transitions (too-hot soft-swaps, tactical-target
+		/// death, withdraw/re-engage) re-aim <see cref="TargetActor"/> but never touch this pin,
+		/// so 5-tick predicate flapping can no longer churn the strategic destination (root cause C,
+		/// design §1.3/§3.3). null = unpinned (legacy: TargetActor is both strategic and tactical).
+		/// The pin is the heli-squad analogue of a Mission.Objective; released only by the abort
+		/// triggers in <see cref="HelicopterStateBase"/> (objective invalid / too-hot-no-divert /
+		/// stalled / bounded window). Transient bot state — not serialized (mirrors ApproachWaypoint);
+		/// only ever written on the experimental pinning path ⇒ byte-identical when the flag is off.</summary>
+		internal Actor StrategicTarget;
+
+		/// <summary>World tick the current <see cref="StrategicTarget"/> pin was committed — feeds the
+		/// bounded commit-window backstop (design §3.3 TTL valve). Only meaningful while StrategicTarget != null.</summary>
+		internal int StrategicCommitTick;
+
 		public Squad(IBot bot, SquadManagerBotModule squadManager, SquadType type)
 			: this(bot, squadManager, type, null) { }
 
