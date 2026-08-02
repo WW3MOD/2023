@@ -1,0 +1,55 @@
+# AI Benchmark — Scenario 2 COMBAT-WEIGHTED scorer variant.
+#
+# WHAT DIFFERS FROM tournament-combat-12min.yaml (the capture-weighted config
+# used by all three river-zeta / polar / woodland benchmark rungs):
+#
+#   Score.CaptureIncomeWeight:  2.0  ->  0.0   (the ONLY changed line)
+#
+# Everything else is BYTE-for-BYTE the capture-weighted config: same 720s clock,
+# same SpeedMultiplier 8 / GameSpeed fastest, same Scorer (weighted_components),
+# same WinRule (score_or_sr_capture) and same SrCaptureBonus 100000, same
+# ArmyValueWeight 1.0 / KillsValueWeight 1.0, same ScoreMarginForDecisive 0.20.
+#
+# WHY: the 30-0 Experimental-vs-Stable sweep was measured entirely under a
+# CAPTURE-weighted scorer (CaptureIncomeWeight 2.0). With ~14 neutral oilbs on
+# these maps a single held oilb integrates to ~33k of score, so the capture term
+# structurally dwarfs army (~2-8k) and kills — the sweep could in principle be
+# pure capture-race dominance rather than combat superiority. This variant zeroes
+# the capture term so the in-match winner is decided by COMBAT ONLY:
+#
+#   score_total = ArmyValueWeight * army_value  +  KillsValueWeight * kills_value
+#               = army_value  +  kills_value              (capture_income term = 0)
+#
+# army_value (force preservation) and kills_value (exchange) are both combat
+# outcomes; capture income no longer contributes. Single-knob change keeps the
+# confound minimal — any W-L difference vs the capture-weighted river-zeta 10-0 is
+# attributable to removing the capture term, nothing else.
+#
+# HARNESS-ONLY: this touches only the tournament scorer weights read by
+# BotVsBotMatchWatcher. No mod rules, bot YAML, or engine code are changed, so the
+# bots play identically to the capture-weighted rungs — only the winner *scoring*
+# differs. The score_components.capture_income field will read 0 for every player
+# under this config (verification hook for the sanity run).
+#
+# Read by BotVsBotMatchWatcher when launched with Test.Mode=true
+# Test.TournamentConfig=<this file>. Pass via run-tournament.sh --config <this>.
+
+Matchup:
+	P1Bot: experimental
+	P2Bot: stable
+
+TimeLimitSeconds: 720
+
+SpeedMultiplier: 8
+GameSpeed: fastest
+
+Scorer: weighted_components
+WinRule: score_or_sr_capture
+
+Score:
+	ArmyValueWeight: 1.0
+	CaptureIncomeWeight: 0.0
+	KillsValueWeight: 1.0
+	SrCaptureBonus: 100000
+
+ScoreMarginForDecisive: 0.20
