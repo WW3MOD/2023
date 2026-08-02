@@ -94,6 +94,34 @@ namespace OpenRA.Test
 			Assert.That(AmbushLaneMath.PostPosition(f, e, 40), Is.EqualTo(new WPos(6000, 0, 0)));
 		}
 
+		[Test]
+		public void PostSurvivesLargeMapDeltaWithoutOverflow()
+		{
+			// The (long) cast guards (delta × percent) from 32-bit overflow on a large map. Here
+			// delta = 50,000,000 and pct = 50 ⇒ delta*pct = 2.5e9, which overflows int32 (max 2.147e9);
+			// the long path yields 25,000,000 exactly. A regression to a bare int multiply would wrap here.
+			var f = new WPos(0, 0, 0);
+			var e = new WPos(50_000_000, 0, 0);
+			Assert.That(AmbushLaneMath.PostPosition(f, e, 50), Is.EqualTo(new WPos(25_000_000, 0, 0)));
+		}
+
+		[Test]
+		public void PostTruncatesTowardZeroSymmetrically()
+		{
+			// Integer division truncates toward zero (C# semantics), so a positive and the mirrored negative
+			// delta round the SAME way (both drop the .3), keeping interpolation direction-symmetric.
+			var origin = new WPos(0, 0, 0);
+			Assert.That(AmbushLaneMath.PostPosition(origin, new WPos(10, 0, 0), 33), Is.EqualTo(new WPos(3, 0, 0)));
+			Assert.That(AmbushLaneMath.PostPosition(origin, new WPos(-10, 0, 0), 33), Is.EqualTo(new WPos(-3, 0, 0)));
+		}
+
+		[Test]
+		public void LaneViableWhenSeparationAndThresholdBothZero()
+		{
+			// The zero/zero boundary: separation 0 with a 0 floor is viable (>= is inclusive).
+			Assert.That(AmbushLaneMath.LaneIsViable(0, 0), Is.True);
+		}
+
 		// ── LaneIsViable: reject degenerate near-adjacent beachheads ──
 
 		[Test]

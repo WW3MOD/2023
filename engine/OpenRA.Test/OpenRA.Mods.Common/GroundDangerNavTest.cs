@@ -186,5 +186,38 @@ namespace OpenRA.Test
 					Is.EqualTo(GroundDangerNav.PathMaxGroundDanger(from, to, ground)));
 			});
 		}
+
+		// ---------- degenerate / boundary inputs ----------
+
+		[Test]
+		public void PathMaxOfZeroLengthPath_IsTheSingleCellSample()
+		{
+			// from == to: steps = 0, the loop never runs, so the reading is exactly the danger at that one cell.
+			var ground = Envelope(new CPos(5, 5), 5, 100);
+			Assert.That(GroundDangerNav.PathMaxGroundDanger(new CPos(5, 5), new CPos(5, 5), ground), Is.EqualTo(100));
+			Assert.That(GroundDangerNav.PathMaxGroundDanger(new CPos(99, 99), new CPos(99, 99), ground), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void DetourWithZeroLengthAxis_ReturnsNull_EvenWhenHot()
+		{
+			// A degenerate from == to inside a hot cell passes the danger>threshold gate but has no axis to
+			// offset from (axisLen == 0) ⇒ null (go direct), never a divide-by-zero.
+			var ground = Envelope(new CPos(5, 5), 5, 100);
+			Assert.That(GroundDangerNav.DetourWaypoint(new CPos(5, 5), new CPos(5, 5), 8, 2, 0, ground, AllPassable),
+				Is.Null);
+		}
+
+		[Test]
+		public void MaxStepsBelowOne_ClampedToOne()
+		{
+			// maxSteps <= 0 is clamped up to 1, so a mis-configured 0 behaves exactly like a single-step budget
+			// rather than emitting no candidates at all.
+			var ground = Envelope(new CPos(10, 10), 5, 100);
+			var from = new CPos(0, 10);
+			var to = new CPos(20, 10);
+			Assert.That(GroundDangerNav.DetourWaypoint(from, to, 8, 0, 0, ground, AllPassable),
+				Is.EqualTo(GroundDangerNav.DetourWaypoint(from, to, 8, 1, 0, ground, AllPassable)));
+		}
 	}
 }

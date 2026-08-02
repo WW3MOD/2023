@@ -71,5 +71,28 @@ namespace OpenRA.Test
 			// Every candidate is already being captured ⇒ nothing to fan out to this scan.
 			Assert.That(Select(new uint[] { 1, 2, 3 }, new uint[] { 1, 2, 3 }, 4), Is.Empty);
 		}
+
+		[Test]
+		public void FewerTargetsThanCapturers_TakesAllDistinct()
+		{
+			// More free capturers than candidates ⇒ take every distinct target (the cap is an upper bound, not
+			// a requirement to fill). The surplus capturers simply get no target this scan.
+			Assert.That(Select(new uint[] { 1, 2 }, new uint[0], 5), Is.EqualTo(new List<uint> { 1, 2 }));
+		}
+
+		[Test]
+		public void NullOrderedList_SelectsNothing()
+		{
+			// A null candidate list is treated as "no candidates" ⇒ empty, not an exception.
+			Assert.That(CaptureFanoutMath.SelectDistinctTargets(null, new HashSet<uint>(), 3), Is.Empty);
+		}
+
+		[Test]
+		public void NullInFlightSet_TreatedAsNoneClaimed()
+		{
+			// A null in-flight set is the "nothing claimed yet" case ⇒ the top-K distinct, same as an empty set.
+			Assert.That(CaptureFanoutMath.SelectDistinctTargets(new uint[] { 10, 20, 30 }, null, 2),
+				Is.EqualTo(new List<uint> { 10, 20 }));
+		}
 	}
 }
