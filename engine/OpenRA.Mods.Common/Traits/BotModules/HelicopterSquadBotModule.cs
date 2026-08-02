@@ -11,6 +11,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Traits.BotModules.Squads;
 using OpenRA.Mods.Common.Traits.Render;
 using OpenRA.Traits;
@@ -116,6 +117,31 @@ namespace OpenRA.Mods.Common.Traits
 			"Mirrors MountedTransportBotModuleInfo.SupplyRouteTypes.")]
 		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
 
+		[Desc("Experimental mission-employment (default false = frozen): treat attack helis as hit-and-run",
+			"assets with an exit strategy. An attack heli that goes idle with no believed worthwhile target",
+			"— or is spent (out of ammo) with no rearm host to refill at — is EVACUATED to reserves via the",
+			"map edge (RotateToEdge), reclaiming its salvage value (full Cost with ammo, less spent-ammo value)",
+			"and stopping its upkeep drain, instead of parking at the SR/staging corner forever (the corner-idle",
+			"bug). A believed target instead keeps the heli HELD for the squad mission loop. Fog-legal: the",
+			"'worthwhile target' read is the belief store, never ground truth. OFF by default so normal/rush/",
+			"turtle/stable stay byte-identical; only HelicopterSquadBotModule@experimental turns it on.")]
+		public readonly bool EvacuateWhenIdle = false;
+
+		[Desc("Consecutive idle ticks an attack heli must loiter near home with no believed worthwhile target",
+			"before it is evacuated to reserves. Spent-with-no-rearm helis evac immediately (this gate does not",
+			"apply to them). Only used when EvacuateWhenIdle is set.")]
+		public readonly int EvacuateIdleTicks = 500;
+
+		[Desc("Radius (map cells) around the own Supply Route within which an idle, target-less heli counts as",
+			"'loitering at home' and becomes evac-eligible. A heli forward of this (e.g. mid-withdraw near the",
+			"front) is left to the squad FSM. Only used when EvacuateWhenIdle is set.")]
+		public readonly int EvacuateHomeRadiusCells = 12;
+
+		[Desc("Max distance (map cells) from a heli to a believed enemy contact for that contact to count as a",
+			"worthwhile mission target: a target in range HOLDS the heli for a mission, none in range makes it",
+			"evac-eligible. Only used when EvacuateWhenIdle is set.")]
+		public readonly int MissionTargetRangeCells = 60;
+
 		public override object Create(ActorInitializer init) { return new HelicopterSquadBotModule(init.Self, this); }
 	}
 
@@ -129,10 +155,22 @@ namespace OpenRA.Mods.Common.Traits
 		readonly HashSet<Actor> managedHelicopters = new HashSet<Actor>();
 		readonly Dictionary<Actor, CPos> stagedTo = new Dictionary<Actor, CPos>();
 
+		// EvacuateWhenIdle bookkeeping (experimental). Consecutive idle ticks per managed heli, a reused
+		// scratch list of believed-contact cells so the worthwhile-target scan allocates nothing per tick,
+		// and the set of helis currently flying their evac (RotateToEdge) — excluded from re-adoption and
+		// recruitment so the evac is never cancelled by a squad order. `enemyEverObserved` latches once the
+		// belief store has ever held a contact, gating the target-less evac branch. All only ever touched
+		// on the EvacuateWhenIdle path ⇒ inert (byte-identical) when the flag is off.
+		readonly Dictionary<Actor, int> idleTicks = new Dictionary<Actor, int>();
+		readonly List<CPos> targetScratch = new List<CPos>();
+		readonly HashSet<Actor> evacuating = new HashSet<Actor>();
+		bool enemyEverObserved;
+
 		IBot bot;
 		SquadManagerBotModule squadManagerRef;
 		ThreatMapManager threatMap;
 		PoiMap poiMap;
+		BeliefStore beliefStore;
 		BotBlackboard blackboard;
 		bool initialized;
 
@@ -165,6 +203,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			threatMap = world.WorldActor.TraitOrDefault<ThreatMapManager>();
 			poiMap = world.WorldActor.TraitOrDefault<PoiMap>();
+			beliefStore = world.WorldActor.TraitOrDefault<BeliefStore>();
 			blackboard = player.PlayerActor.TraitsImplementing<BotBlackboard>()
 				.FirstOrDefault(b => !b.IsTraitDisabled);
 
@@ -211,12 +250,22 @@ namespace OpenRA.Mods.Common.Traits
 				transportCooldown = Info.TransportInterval;
 				TryLaunchTransportMission();
 			}
+
+			// Mission-employment: evacuate idle/spent attack helis to reserves (experimental-only,
+			// default off ⇒ byte-identical). Runs every tick so the idle-duration gate counts game
+			// ticks, not scan intervals.
+			EvaluateIdleHelicopters();
 		}
 
 		void FindNewHelicopters()
 		{
+			// Exclude helis currently flying their evac: re-adopting one (it left managedHelicopters when
+			// evacuated) would put it back in the idle pool and a squad order would cancel the RotateToEdge,
+			// so the heli would fight without ammo and never stop draining upkeep. The set is only ever
+			// populated on the EvacuateWhenIdle path, so this clause is a no-op (byte-identical) when off.
 			var helicopters = world.ActorsHavingTrait<AIHelicopterRole>()
-				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld && !managedHelicopters.Contains(a));
+				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld
+					&& !managedHelicopters.Contains(a) && !evacuating.Contains(a));
 
 			foreach (var h in helicopters)
 			{
@@ -244,6 +293,16 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var a in stagedTo.Keys.ToList())
 				if (a == null || a.IsDead || !a.IsInWorld || !idleHelicopters.Contains(a))
 					stagedTo.Remove(a);
+
+			// Drop idle-tick counters for helis that died or left management (evacuated / disowned).
+			// Only ever populated on the EvacuateWhenIdle path, so this is a no-op when the flag is off.
+			foreach (var a in idleTicks.Keys.ToList())
+				if (a == null || a.IsDead || !a.IsInWorld || !managedHelicopters.Contains(a))
+					idleTicks.Remove(a);
+
+			// Drop evacuating helis once they have left the world (RotateToEdge disposes them at the map
+			// edge). Predicate-based ⇒ iteration-order-independent. No-op when the flag is off.
+			evacuating.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
 
 			// Clean up squads
 			PruneSquads();
@@ -550,6 +609,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (h.IsDead || !h.IsInWorld)
 				return false;
 
+			// A heli flying its evac must never be recruited/staged — that would cancel the RotateToEdge.
+			// Empty set when EvacuateWhenIdle is off ⇒ byte-identical for every other profile.
+			if (evacuating.Contains(h))
+				return false;
+
 			// Check HP
 			var health = h.TraitOrDefault<IHealth>();
 			if (health != null)
@@ -588,6 +652,136 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
+		// Mission-employment evac (experimental, EvacuateWhenIdle). An attack heli that is genuinely idle
+		// (empty activity queue — so never one mid-mission, mid-withdraw, or already flying its evac) is
+		// evacuated to reserves when it has no further use: either it is spent with no rearm host, or it has
+		// loitered near home past the patience window with no believed worthwhile target. Evac reclaims the
+		// heli's salvage value (RotateToEdge → GetSellValue: full Cost with ammo, less spent-ammo value) and
+		// stops its upkeep drain — the "helicopters are perfect for short hit-and-run missions" model, and the
+		// fix for the SR/staging corner-idle park. Deterministic: belief-store + integer geometry, ActorID-
+		// ordered iteration, ZERO random draws. Fully skipped (byte-identical) when the flag is off.
+		void EvaluateIdleHelicopters()
+		{
+			if (!Info.EvacuateWhenIdle || managedHelicopters.Count == 0)
+				return;
+
+			// Latch first contact: once the belief store has EVER held an enemy contact, the target-less
+			// evac branch is allowed. Before first contact the bot cannot know where the enemy is, so
+			// anticipatory helis are HELD (and staged forward) rather than evac'd and re-bought — this
+			// matters because EvacuateHomeRadiusCells (12) > ForwardStagingMaxDistanceCells (8), so a
+			// forward-staged, target-less heli is otherwise inside the evac-eligible home radius.
+			if (!enemyEverObserved && beliefStore != null && beliefStore.Contacts(player).Count > 0)
+				enemyEverObserved = true;
+
+			var ownSR = FindOwnSupplyRoute();
+			var homeRadiusSq = (long)Info.EvacuateHomeRadiusCells * Info.EvacuateHomeRadiusCells;
+			var missionRangeSq = (long)Info.MissionTargetRangeCells * Info.MissionTargetRangeCells;
+
+			// managedHelicopters is a HashSet (iteration order not guaranteed); sort by synced ActorID
+			// for lockstep-deterministic order. OrderBy buffers, and ToList snapshots, so Evacuate can
+			// mutate the set safely inside the loop.
+			foreach (var h in managedHelicopters.OrderBy(a => a.ActorID).ToList())
+			{
+				if (h == null || h.IsDead || !h.IsInWorld)
+					continue;
+
+				var role = h.TraitOrDefault<AIHelicopterRole>();
+				if (role == null)
+					continue;
+				var r = role.Info.Role;
+				if (r != HelicopterAIRole.AttackHeavy && r != HelicopterAIRole.AttackLight)
+					continue;
+
+				// Only act on a heli with an empty activity queue. A heli executing a mission
+				// (attack-move / attack / return) or already flying its evac is never idle, so the
+				// active FSM arc is never disturbed.
+				if (!h.IsIdle)
+				{
+					idleTicks[h] = 0;
+					continue;
+				}
+
+				var ticks = (idleTicks.TryGetValue(h, out var t) ? t : 0) + 1;
+				idleTicks[h] = ticks;
+
+				var hasUsableAmmo = HasUsableAmmo(h);
+				var canRearm = CanRearm(h);
+				var nearHome = ownSR == null || (h.Location - ownSR.Location).LengthSquared <= homeRadiusSq;
+				var hasTarget = HasWorthwhileBelievedTarget(h, missionRangeSq);
+
+				if (HeliEmploymentMath.Decide(hasUsableAmmo, canRearm, hasTarget, enemyEverObserved, nearHome, ticks, Info.EvacuateIdleTicks)
+					== HeliDisposition.Evacuate)
+					Evacuate(h);
+			}
+		}
+
+		// True if the heli still has a usable round in any pool. A heli carrying no AmmoPool at all is
+		// not ammo-limited, so it never counts as "spent".
+		static bool HasUsableAmmo(Actor h)
+		{
+			var any = false;
+			foreach (var ap in h.TraitsImplementing<AmmoPool>())
+			{
+				any = true;
+				if (ap.HasAmmo)
+					return true;
+			}
+
+			return !any;
+		}
+
+		// True if any friendly rearm host this heli could dock at exists in the world. WW3MOD builds no
+		// hpad, so this is normally false and a spent heli evacs; written generally so it self-heals if a
+		// rearm structure is ever added. Boolean Any ⇒ iteration-order-independent (deterministic).
+		bool CanRearm(Actor h)
+		{
+			var rearmable = h.TraitOrDefault<Rearmable>();
+			if (rearmable == null || rearmable.Info.RearmActors.Count == 0)
+				return false;
+
+			var hosts = rearmable.Info.RearmActors;
+			return world.Actors.Any(a => a.Owner == player && !a.IsDead && a.IsInWorld && hosts.Contains(a.Info.Name));
+		}
+
+		// Fog-legal worthwhile-target test: is any BELIEVED enemy contact within mission range of the heli?
+		// Reads the belief store (Stage A), never ground truth. No belief field ⇒ we cannot assert a target
+		// ⇒ evac-eligible — we do not cheat by peeking through fog.
+		bool HasWorthwhileBelievedTarget(Actor h, long missionRangeSq)
+		{
+			if (beliefStore == null)
+				return false;
+
+			targetScratch.Clear();
+			foreach (var c in beliefStore.Contacts(player))
+				targetScratch.Add(c.Cell);
+
+			return HeliEmploymentMath.AnyTargetWithin(h.Location, targetScratch, missionRangeSq);
+		}
+
+		// Evacuate a heli to reserves and drop it from ALL bot management so nothing re-tasks it and cancels
+		// the evac (the recruit-cancels-evac hazard PoiOffensive guards against for out-of-ammo ground units).
+		void Evacuate(Actor h)
+		{
+			h.QueueActivity(false, new RotateToEdge(h, true, h.GetSellValue()));
+
+			// Mark evacuating BEFORE dropping from management: FindNewHelicopters / IsReadyForMission both
+			// exclude this set, so the heli can never be re-adopted or recruited while flying its evac (the
+			// order would cancel the RotateToEdge). Cleared once it leaves the world (CleanUpHelicopters).
+			evacuating.Add(h);
+
+			idleHelicopters.Remove(h);
+			foreach (var squad in activeSquads)
+				squad.Units.Remove(h);
+			managedHelicopters.Remove(h);
+			stagedTo.Remove(h);
+			idleTicks.Remove(h);
+			if (blackboard != null)
+				blackboard.ReleaseUnit(h);
+
+			AIUtils.BotDebug("AI ({0}): heli evac-to-reserves {1} at {2}",
+				player.ClientIndex, h.Info.Name, h.Location);
+		}
+
 		protected override void TraitDisabled(Actor self)
 		{
 			// Release all helicopters
@@ -600,6 +794,9 @@ namespace OpenRA.Mods.Common.Traits
 			idleHelicopters.Clear();
 			activeSquads.Clear();
 			stagedTo.Clear();
+			idleTicks.Clear();
+			evacuating.Clear();
+			enemyEverObserved = false;
 		}
 	}
 
@@ -614,6 +811,56 @@ namespace OpenRA.Mods.Common.Traits
 		public static WPos StagePos(WPos sr, WPos tgt, int pct)
 		{
 			return sr + (tgt - sr) * pct / 100;
+		}
+	}
+
+	// What to do with an idle attack heli that is not currently executing a mission.
+	public enum HeliDisposition { HoldForMission, Evacuate }
+
+	// Pure, world-free mission-employment decision math for HelicopterSquadBotModule. Split out for NUnit
+	// like HeliStagingMath / HeliDangerNav — deterministic, integer-only, zero RNG.
+	public static class HeliEmploymentMath
+	{
+		// Decide the disposition of an idle attack heli.
+		//   hasUsableAmmo        — any pool still has a round.
+		//   canRearm             — a friendly rearm host exists it could refill at.
+		//   hasWorthwhileTarget  — a believed enemy contact is within mission range.
+		//   contactEverObserved  — the bot has believed at least one enemy contact at some point (first
+		//                          contact has happened). Gates the target-less branch so anticipatory
+		//                          helis are not evac'd/re-bought during the opening before any contact.
+		//   nearHome             — the heli is loitering within the home radius (at the SR/staging area).
+		//   idleTicks            — consecutive ticks the heli has been idle.
+		//   evacuateIdleTicks    — patience window before a target-less home heli is evacuated.
+		public static HeliDisposition Decide(
+			bool hasUsableAmmo, bool canRearm, bool hasWorthwhileTarget,
+			bool contactEverObserved, bool nearHome, int idleTicks, int evacuateIdleTicks)
+		{
+			// Spent and unable to refill: no combat value remains — bank the salvage and stop the upkeep
+			// drain rather than parking a disarmed heli forever. Fires regardless of target/home/window/contact.
+			if (!hasUsableAmmo && !canRearm)
+				return HeliDisposition.Evacuate;
+
+			// Armed (or able to rearm) but nothing believed worth striking, and loitering at home past the
+			// patience window: reclaim full value + stop upkeep instead of corner-parking. Only once first
+			// contact has been made — a believed target instead keeps the heli HELD for the squad mission loop.
+			if (contactEverObserved && !hasWorthwhileTarget && nearHome && idleTicks >= evacuateIdleTicks)
+				return HeliDisposition.Evacuate;
+
+			return HeliDisposition.HoldForMission;
+		}
+
+		// True if any candidate cell is within maxRangeCellsSq (squared map-cell distance) of the heli.
+		// Caller supplies the believed-contact cells; pure integer geometry, deterministic.
+		public static bool AnyTargetWithin(CPos heliCell, IReadOnlyList<CPos> candidateCells, long maxRangeCellsSq)
+		{
+			for (var i = 0; i < candidateCells.Count; i++)
+			{
+				var d = candidateCells[i] - heliCell;
+				if ((long)d.LengthSquared <= maxRangeCellsSq)
+					return true;
+			}
+
+			return false;
 		}
 	}
 }
