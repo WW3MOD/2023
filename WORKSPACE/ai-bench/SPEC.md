@@ -675,9 +675,13 @@ bots; the loop touches exactly one of them.
   modules. This is the bot under active development; it may be ahead of, behind,
   or sideways of Stable at any moment.
 - **Stable AI** (`ModularBot@stable`, `enable-ai-stable`) — a **frozen snapshot**
-  of the last *validated* Experimental config. Its modules under the
-  `enable-ai-stable` gate in `mods/ww3mod/rules/ai/ai.yaml` are a byte-for-byte
-  copy of the Experimental modules at the moment of the last promotion.
+  of the last *validated* Experimental config, frozen *between* promotions. Its
+  modules under the `enable-ai-stable` gate in `mods/ww3mod/rules/ai/ai.yaml` are
+  a byte-for-byte copy of the Experimental modules at the moment of the last
+  promotion. *Since the 2026-08-02 promotion ("Stable AI 0802") this is a
+  full-parity copy: every experimental module has a `@stable` twin and stable
+  participates in the influence stack (`InfluenceStack.Participates` accepts
+  `BotType == "stable"`).*
   **Two exceptions** are *shared*, not twinned: `PoiGoalGuard` and
   `MountedTransportBotModule` are fetched by consumers via a single-instance
   `player.TraitOrDefault<T>()` lookup, so a second trait instance on one player
