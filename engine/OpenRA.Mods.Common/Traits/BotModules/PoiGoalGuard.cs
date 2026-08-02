@@ -168,6 +168,45 @@ namespace OpenRA.Mods.Common.Traits
 			return bestAlternativeScore * 100 > committedScore * (100L + Math.Max(0, marginPct));
 		}
 
+		/// <summary>Phase 1c — snap an axis score DOWN to the low edge of a coarse band (floor-to-band).
+		/// The believed-field factors that build the score are BUCKETED, not continuous (BalanceOfPowerFactor
+		/// steps 150/100/60, BelievedDangerFactor steps 100/60/20 — PoiOffensiveBotModule), so a single bucket
+		/// crossing multiplies a raw score by up to 3×. Comparing raw scores therefore ping-pongs abort/re-propose
+		/// every time a believed-field read wobbles at a bucket edge. Quantizing both sides to a band before the
+		/// trigger-3 compare snaps a wobbling upper value DOWN into the committed axis's band, so the bucket-edge
+		/// wobble can no longer clear the better-opportunity margin. A band ≤ 0 is IDENTITY (returns score
+		/// unchanged) — the frozen default, so the raw comparison is preserved byte-for-byte when the caller opts
+		/// out. Integer-only, deterministic, zero RNG. Non-negative scores expected (offense scores are a product
+		/// of non-negative factors); a negative score truncates toward zero, still monotonic.</summary>
+		public static long QuantizeAxisScore(long score, long band)
+		{
+			if (band <= 0)
+				return score;
+
+			return (score / band) * band;
+		}
+
+		/// <summary>Phase 1c — trigger-3 better-opportunity test on QUANTIZED scores. The band is RELATIVE to the
+		/// pair (a percent of the larger operand) so it is scale-invariant across the wide offense-score range
+		/// (value × distance × threat × ownership × believed-field mul spans ~1e8–1e12). Both scores are floored
+		/// to that band, then the same hysteresis-margin test as <see cref="BetterOpportunity"/> is applied. Effect:
+		/// a rival must be a full band (≈ quantizeBandPct% of the top score) clear of the committed axis to count as
+		/// materially better — a bucket-aware threshold that a single believed-field bucket wobble on EITHER cell
+		/// cannot manufacture. A quantizeBandPct ≤ 0 collapses VERBATIM to <see cref="BetterOpportunity"/> (the
+		/// byte-identical frozen path). Integer-only, deterministic, zero RNG.</summary>
+		public static bool BetterOpportunityQuantized(
+			long committedScore, long bestAlternativeScore, int marginPct, int quantizeBandPct)
+		{
+			if (quantizeBandPct <= 0)
+				return BetterOpportunity(committedScore, bestAlternativeScore, marginPct);
+
+			var band = Math.Max(committedScore, bestAlternativeScore) * quantizeBandPct / 100;
+			return BetterOpportunity(
+				QuantizeAxisScore(committedScore, band),
+				QuantizeAxisScore(bestAlternativeScore, band),
+				marginPct);
+		}
+
 		/// <summary>Trigger 4 — the squad has been ground below a fraction of its commit-time strength.
 		/// Fires when current·denom &lt; commit·numer (e.g. numer/denom = 1/2 ⇒ below half). A degenerate
 		/// commit strength of 0 (or denom ≤ 0) never trips — nothing to lose.</summary>
@@ -190,6 +229,23 @@ namespace OpenRA.Mods.Common.Traits
 			int commitDanger, int currentDanger, int dangerSpikePct, int dangerSpikeFloor,
 			long committedScore, long bestAlternativeScore, int betterOppMarginPct,
 			int commitStrength, int currentStrength, int ineffectiveNumer, int ineffectiveDenom)
+			=> ShouldReassign(
+				objectiveValid,
+				commitTick, currentTick, commitWindowTicks,
+				commitDanger, currentDanger, dangerSpikePct, dangerSpikeFloor,
+				committedScore, bestAlternativeScore, betterOppMarginPct, 0,
+				commitStrength, currentStrength, ineffectiveNumer, ineffectiveDenom);
+
+		/// <summary>Phase 1c overload — identical to the 15-arg <see cref="ShouldReassign(bool,int,int,int,int,int,int,int,long,long,int,int,int,int,int)"/>
+		/// except trigger 3 runs on QUANTIZED scores (<see cref="BetterOpportunityQuantized"/>). A
+		/// betterOppQuantizeBandPct ≤ 0 makes this collapse VERBATIM to the raw path, so the 15-arg overload
+		/// above — which delegates here with 0 — is byte-identical to the pre-1c predicate.</summary>
+		public static bool ShouldReassign(
+			bool objectiveValid,
+			int commitTick, int currentTick, int commitWindowTicks,
+			int commitDanger, int currentDanger, int dangerSpikePct, int dangerSpikeFloor,
+			long committedScore, long bestAlternativeScore, int betterOppMarginPct, int betterOppQuantizeBandPct,
+			int commitStrength, int currentStrength, int ineffectiveNumer, int ineffectiveDenom)
 		{
 			if (!objectiveValid)
 				return true;
@@ -200,7 +256,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (DangerSpiked(commitDanger, currentDanger, dangerSpikePct, dangerSpikeFloor))
 				return true;
 
-			if (BetterOpportunity(committedScore, bestAlternativeScore, betterOppMarginPct))
+			if (BetterOpportunityQuantized(committedScore, bestAlternativeScore, betterOppMarginPct, betterOppQuantizeBandPct))
 				return true;
 
 			if (CombatIneffective(commitStrength, currentStrength, ineffectiveNumer, ineffectiveDenom))
