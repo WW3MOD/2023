@@ -3,6 +3,17 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-03 — `ModularBot.QueueOrder` is the single funnel for ALL bot-issued orders; issuing-module identity is recoverable there with no per-call-site edits (spec: `WORKSPACE/behavior-lint-spec.md`, main @ 45210768)
+
+Researching a unit-lifecycle logger to auto-detect "strange AI behavior" (idling/parked/never-re-tasked units) from sim logs. Key structural facts for any future per-order instrumentation:
+
+- **One choke point.** Every `bot.QueueOrder(...)` call across the ~25 BotModules lands in `ModularBot.QueueOrder(Order)` (`engine/OpenRA.Mods.Common/Traits/Player/ModularBot.cs:81-84`), which enqueues; `ModularBot.Tick` (`:101-112`) dequeues and `world.IssueOrder`s them. Tagging every order with its origin is a single-file change, not 25.
+- **Module identity is known at the tick loop, not at `QueueOrder`.** The order carries no producer. But `ModularBot.Tick` runs each `IBotTick` module via `t.BotTick(this)` (`:95-97`) and attack responses via `RespondToAttack` (`:124-126`). Set a `currentModuleTag = t.GetType().Name` field around those two loops and read it in `QueueOrder` → per-order module attribution for free.
+- **No bot-order logging exists today.** `PlayerStatistics.ResolveOrder` (`PlayerStatistics.cs:122-128`) only bumps a global `OrderCount` (skips `Dev*`), no per-unit/module/target.
+- **Per-unit-type telemetry (verdict_version 7, `UnitTypeTelemetry` in `PlayerStatistics.cs:203-252`) is per-player×per-type AGGREGATE only** — produced/lost/alive counts+cost, no ActorID/position/time/order resolution. Fed by `UpdatesPlayerStatistics` INotify callbacks; serialized as the `unit_types` block (`BotVsBotMatchWatcher.cs:586-611`).
+- **Territory classification for an arbitrary bot must use the OMNISCIENT `InfluenceMap`, not the belief `ControlField`.** `ControlField.OwnerAt`/`DangerFieldLayer.GroundDanger` only exist for `InfluenceStack.Participates` players (`@experimental` + humans; `InfluenceStack.cs:38-48`) — `@stable`/normal tournament bots have no field. `InfluenceMap.GetEnemyInfluence/GetFriendlyInfluence` (`InfluenceMap.cs:143/:156`) scan `world.Actors` fog-free for every profile and are legal at LOG time (diagnostics ≠ sim).
+- **Off-by-default logging gate idiom:** launch arg via `TestMode` (parse in `TestMode.cs:90-129`, no-op unless `TestMode.IsActive`), writing a sibling of `ResultPath` (`Path.ChangeExtension(...,".jsonl")`) — same pattern as the watcher's `.watcher.log` (`BotVsBotMatchWatcher.cs:146-159`). Global spawn/death hooks: `World.ActorAdded/ActorRemoved` (`World.cs:436-437`); death CAUSE needs `INotifyKilled`'s `AttackInfo` (not on `ActorRemoved`).
+
 ## 2026-08-03 — Off-map `Map.GetTerrainInfo(CPos)` CTD family: HuskDecay crash root-caused + guarded, source clamped, one twin found (`auto/husk-crash`, from main @ 45210768)
 
 Recurring hard crash `IndexOutOfRangeException` at `Map.GetTerrainIndex` (`Map.cs:1630`) from `HuskDecay.AddedToWorld` (`HuskDecay.cs:70`). Root-caused, fixed at source + consumer, swept the whole `GetTerrainInfo(CPos)`/`GetTerrainIndex(CPos)` surface for the same class.
