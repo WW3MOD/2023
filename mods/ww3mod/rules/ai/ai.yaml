@@ -189,6 +189,11 @@ Player:
 		SafeDangerThreshold: 40
 		SafeMaxDistanceFromSRCells: 24
 		LightEscortSize: 2
+		# Phase 2 commit-on-order audit (§4): commit recruited escorts (capture-escort:<id>) and structure
+		# defenders (capture-defend:<id>) to the shared PoiGoalGuard ledger, not just the capturer. Closes the
+		# ledger-blind steal channel where offense's BuildFreePool re-grabbed a just-dispatched escort/defender.
+		# Default OFF on the @stable.tecn twin (which omits it) = byte-identical.
+		CommitSupportUnits: true
 		# ===== CAPTURE <-> COMBAT BUDGET SPLIT (combat-quality lever 3) =====
 		# The @experimental bot fields a smaller, more expendable combat force because build/production budget is
 		# diverted to the capture race. That split is governed by THREE tunables, surfaced here so a future tuning
@@ -467,6 +472,11 @@ Player:
 		MaxGarrisonRadius: 25
 		MaxOrdersPerTick: 2
 		PrioritizeExposed: true
+		# Phase 2 commit-on-order audit (§4): recruit only from the ledger-checked free pool and commit
+		# garrisoned infantry (garrison:<buildingId>) to the shared PoiGoalGuard ledger. SHARED enable-ai-any
+		# module, so the engine confines this to the @experimental player at runtime (explicit BotType gate);
+		# Normal / legacy / @stable that share the instance are byte-identical (no ledger read, no commit).
+		CommitGarrisonedUnits: true
 
 	# Supply trucks follow the army to resupply in the field
 	SupplyFollowerBotModule@supply:
@@ -616,6 +626,10 @@ Player:
 		# forward/back loop). Default OFF on the engine class => @stable twin (which omits this field) stays
 		# byte-identical; only this @experimental instance cooperates with the shared claim.
 		RespectCommitmentLedger: true
+		# Phase 2 commit-on-order audit (§4): also WRITE line assignments to the ledger (defend-line:<cell>),
+		# not just read it. Closes the reverse steal channel (N6) — offense's BuildFreePool now defers to a
+		# committed line unit for the assignment-cooldown window. Default OFF on the @stable twin = byte-identical.
+		CommitLineAssignments: true
 		# Phase 4: classify line eligibility by UnitRoleResolver instead of the lists below. Only
 		# role==MainBattle (minus cargo carriers) holds the line — artillery/SHORAD/MANPADS drop out
 		# by class, curing the :349 defect. ScreenUnitTypes still partitions screen vs main-line; the
@@ -705,6 +719,11 @@ Player:
 		StandoffDangerThreshold: 0
 		StandoffMarginCells: 2
 		StandoffMaxBackoffCells: 20
+		# Phase 2 commit-on-order audit (§4): commit boarding passengers to the shared PoiGoalGuard ledger
+		# (transport:<carrierId>), released on unload. Replaces the bespoke IsPassengerReserved seam as the
+		# cross-module lock — offense's BuildFreePool already excludes ledger-committed units, so it no longer
+		# yanks infantry mid-board. Default OFF on the @poi (stable) twin = byte-identical.
+		CommitPassengers: true
 
 	# ===== Base Builder — shared baseline (enable-ai-player) =====
 	BaseBuilderBotModule@normal:

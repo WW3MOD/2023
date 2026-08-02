@@ -243,6 +243,18 @@ namespace OpenRA.Mods.Common.Traits
 			"min(this, the contested/normal size) so the lever only ever reduces. Only consulted when EscortTierSizingEnabled.")]
 		public readonly int LightEscortSize = 2;
 
+		[Desc("Phase 2 commit-on-order audit (§4): also COMMIT recruited escorts and defenders to the shared",
+			"PoiGoalGuard ledger — under disjoint keys capture-escort:<targetId> / capture-defend:<structureId> —",
+			"not just the capturer. Today only the capturer is committed (IssueCaptureOrder); escorts (DispatchEscort)",
+			"and defenders (QueueDefenseOrders) are recruited from the ledger-checked pool, ordered, then left",
+			"UNCOMMITTED, so the offense free pool re-grabs them on its next eval — a ledger-blind steal channel.",
+			"Committing them at order time closes it (commit-on-order, the coexistence invariant). Recruits already",
+			"come only from the free pool (FindIdleSupportersNear checks IsCommitted); release is via the shared",
+			"ledger TTL / Prune (a disembarked or fought-out support unit re-enters the pool on expiry, same backstop",
+			"the capturer uses). Default false ⇒ escorts/defenders stay uncommitted ⇒ byte-identical @stable/legacy;",
+			"set only on CaptureCoordinatorBotModule@experimental.")]
+		public readonly bool CommitSupportUnits = false;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -1033,6 +1045,12 @@ namespace OpenRA.Mods.Common.Traits
 		// lets us resolve the target back to check whether the capture is done.
 		static string CaptureObjectiveKey(Actor target) => "capture:" + target.ActorID;
 
+		// Phase 2 commit-on-order audit: disjoint ledger keys for the SUPPORT units (escorts / structure
+		// defenders), kept distinct from the capturer's "capture:" grammar AND from PoiGarrison's "defend:"
+		// so every commitment is attributable to exactly one executor (audit requirement (d)).
+		static string CaptureEscortObjectiveKey(Actor target) => "capture-escort:" + target.ActorID;
+		static string CaptureDefendObjectiveKey(Actor structure) => "capture-defend:" + structure.ActorID;
+
 		static bool TryParseCaptureTargetId(string objective, out uint id)
 		{
 			id = 0;
@@ -1211,6 +1229,16 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var r in recruits)
 				alreadyRecruited.Add(r);
 
+			// Phase 2 commit-on-order (§4): stake each escort in the shared ledger so no other writer
+			// (offense's BuildFreePool, LayeredDefence) can poach it mid-approach. Gate mirrors the byte-identity
+			// contract — off ⇒ no commit ⇒ frozen path. Recruits already came from the ledger-checked free pool.
+			if (CommitOnOrderMath.ShouldCommit(Info.CommitSupportUnits, goalGuard != null && !goalGuard.IsTraitDisabled))
+			{
+				var key = CaptureEscortObjectiveKey(target);
+				foreach (var r in recruits)
+					goalGuard.Ledger.Commit(r, key, world.WorldTick, goalGuard.DefaultCommitmentTicks);
+			}
+
 			AIUtils.BotDebug("AI ({0}): exp-capture — escort dispatched ({1} units → {2}, contested={3}, tier={4})",
 				player.ClientIndex, recruits.Length, target.Info.Name, contested, tier);
 		}
@@ -1306,6 +1334,17 @@ namespace OpenRA.Mods.Common.Traits
 				bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, structure.Location), false, groupedActors: defenders));
 				foreach (var d in defenders)
 					defenderBookings[d] = world.WorldTick;
+
+				// Phase 2 commit-on-order (§4): defenderBookings is a BESPOKE lock only this module honours
+				// (FindIdleSupportersNear), invisible to offense/LayeredDefence — so a summoned defender is
+				// free for them to steal. Commit it in the SHARED ledger too (disjoint capture-defend:<id> key)
+				// so every writer defers. Off ⇒ no commit ⇒ frozen path (defenderBookings unchanged either way).
+				if (CommitOnOrderMath.ShouldCommit(Info.CommitSupportUnits, goalGuard != null && !goalGuard.IsTraitDisabled))
+				{
+					var key = CaptureDefendObjectiveKey(structure);
+					foreach (var d in defenders)
+						goalGuard.Ledger.Commit(d, key, world.WorldTick, goalGuard.DefaultCommitmentTicks);
+				}
 
 				AIUtils.BotDebug("AI ({0}): exp-capture — defense summoned ({1} units → {2}, enemyVal={3})",
 					player.ClientIndex, defenders.Length, structure.Info.Name, enemyValue);
