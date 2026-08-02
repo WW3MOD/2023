@@ -216,6 +216,21 @@ Player:
 		AxisCommitmentTicks: 250
 		ReassignScoreThresholdPct: 30
 		RepathThresholdCells: 3
+		# Mission commitment (Phase-1 anti-thrash): once an axis is ordered at an objective, HOLD it —
+		# don't re-task on the next re-eval just because scores jittered. A committed axis is released
+		# ONLY on an explicit trigger: objective invalid, a believed-danger spike at the objective
+		# (> commit + max(40, +50%)), a rival objective beating it by > MissionBetterOppMarginPct (50%,
+		# above the 30% target-set stickiness), or the squad ground below half its commit-time strength.
+		# Kills the "go one way, stop, reverse, loop" churn from the 100-tick re-issue cadence overwriting
+		# live orders. Default OFF on the engine class => PoiOffensiveBotModule@stable (which omits these
+		# fields) keeps re-tasking every eval byte-identical; only this @experimental block turns it on.
+		MissionCommitmentEnabled: true
+		MissionCommitmentWindowTicks: 0
+		MissionDangerSpikePct: 50
+		MissionDangerSpikeFloor: 40
+		MissionBetterOppMarginPct: 50
+		MissionIneffectiveNumerator: 1
+		MissionIneffectiveDenominator: 2
 		# Capturer + non-combat support (owned by CaptureCoordinator / SupplyFollower)
 		# and IFV carriers (owned by MountedTransport). Both factions' type names are
 		# listed; a name the faction lacks is simply never matched.
@@ -519,6 +534,12 @@ Player:
 		FriendlyGapWeight: 2
 		EnemyWeaknessWeight: 1
 		MaxAssignsPerScan: 6
+		# Mission-commitment interop: honour the shared PoiGoalGuard ledger before pulling a reserve onto
+		# the line. Without this, LayeredDefence is a ledger-blind second writer — it yanks a briefly-idle
+		# offense/capture/garrison unit back to a line slot and offense re-grabs it next eval (the live-play
+		# forward/back loop). Default OFF on the engine class => @stable twin (which omits this field) stays
+		# byte-identical; only this @experimental instance cooperates with the shared claim.
+		RespectCommitmentLedger: true
 		# Phase 4: classify line eligibility by UnitRoleResolver instead of the lists below. Only
 		# role==MainBattle (minus cargo carriers) holds the line — artillery/SHORAD/MANPADS drop out
 		# by class, curing the :349 defect. ScreenUnitTypes still partitions screen vs main-line; the
