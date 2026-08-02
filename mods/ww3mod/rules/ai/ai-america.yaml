@@ -54,8 +54,17 @@ Player:
 	UnitBuilderBotModule@america.experimental:
 		RequiresCondition: enable-ai-experimental && player.nato
 		UnitQueues: Vehicle, Infantry
+		# ===== CAPTURE <-> COMBAT BUDGET SPLIT (combat-quality lever 3, production side) =====
+		# These weights + UnitLimits are the STRATEGIC half of the capture/combat budget split (the tactical half —
+		# capturer floor + escort reservation — is on CaptureCoordinatorBotModule@experimental in ai.yaml). The
+		# capturer share is tecn.america here; every other type is combat force. NOTE (engine): a UnitsToBuild weight
+		# is a share CEILING, not a priority — any weight >= 100 never binds, so it only marks a type "always eligible"
+		# (picked uniformly), and the REAL cap on simultaneous capturers is UnitLimits.tecn.america below. To move
+		# budget toward combat: lower UnitLimits.tecn.america (fewer capturers on the map) and/or raise combat-type
+		# weights that currently sit below the roster average (throttled). Values below are unchanged (no behaviour
+		# change until tuned).
 		UnitsToBuild:
-			# Conscripts -- low priority, mainly for capturing
+			# Conscripts -- low priority, mainly for capturing (the capture side of the budget split)
 			tecn.america: 500
 
 			# Core infantry -- high priority mix

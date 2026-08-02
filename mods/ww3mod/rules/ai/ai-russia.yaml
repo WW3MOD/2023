@@ -53,8 +53,15 @@ Player:
 	UnitBuilderBotModule@russia.experimental:
 		RequiresCondition: enable-ai-experimental && player.brics
 		UnitQueues: Vehicle, Infantry
+		# ===== CAPTURE <-> COMBAT BUDGET SPLIT (combat-quality lever 3, production side) =====
+		# STRATEGIC half of the capture/combat budget split (tactical half — capturer floor + escort reservation —
+		# is on CaptureCoordinatorBotModule@experimental in ai.yaml). tecn.russia is the capturer share; every other
+		# type is combat force. NOTE (engine): a UnitsToBuild weight is a share CEILING, not a priority — any weight
+		# >= 100 never binds (only marks "always eligible", picked uniformly); the REAL cap on simultaneous capturers
+		# is UnitLimits.tecn.russia below. To move budget toward combat: lower UnitLimits.tecn.russia and/or raise
+		# throttled combat-type weights. Values below unchanged (no behaviour change until tuned).
 		UnitsToBuild:
-			# Conscripts -- low priority, mainly for capturing
+			# Conscripts -- low priority, mainly for capturing (the capture side of the budget split)
 			tecn.russia: 500
 
 			# Core infantry -- high priority mix
