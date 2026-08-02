@@ -618,6 +618,17 @@ namespace OpenRA.Mods.Common.Traits
 			bot.QueueOrder(new Order("Move", transport, Target.FromCell(world, dropZone.Value), queued: true));
 			bot.QueueOrder(new Order("Unload", transport, queued: true));
 
+			// WW3MOD retreat-on-unload: withdraw the transport heli to our Supply Route the instant unloading
+			// completes, instead of leaving it hovering IDLE at the drop zone deep in contested territory — an
+			// easy kill. Queued after the Unload so the return is engine-driven (no scan-loop gap). A Transport-
+			// role heli is not covered by EvaluateIdleHelicopters (attack-only), and CleanUpHelicopters would
+			// only re-pool it FOR THE NEXT transport mission (>=4 idle infantry + a weak drop cell, up to
+			// TransportInterval away) — so without this order nothing brings it home. Bug-class fix, ungated:
+			// applies to every profile that runs this module (@stable + @experimental).
+			var ownSR = FindOwnSupplyRoute();
+			if (ownSR != null)
+				bot.QueueOrder(new Order("Move", transport, Target.FromCell(world, ownSR.Location), queued: true));
+
 			idleHelicopters.Remove(transport);
 		}
 

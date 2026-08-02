@@ -255,6 +255,20 @@ namespace OpenRA.Mods.Common.Traits
 			"set only on CaptureCoordinatorBotModule@experimental.")]
 		public readonly bool CommitSupportUnits = false;
 
+		[Desc("Retreat-when-done (orderless-at-hostile-location bug class): when a capture COMPLETES (target now",
+			"ours) or the target is GONE (destroyed/uncapturable), send the surviving capturer BACK to our Supply",
+			"Route instead of leaving it idle at the captured structure, typically deep in neutral/enemy territory.",
+			"A CaptureSpecialist has no AttackBase, so it is EXCLUDED from every combat free pool and from this",
+			"module's own escort/defender recruitment — nothing re-collects an idle TECN, so without this it is a",
+			"free kill parked at the front. A TECN consumed by the capture is already dead/not-in-world and is",
+			"skipped. Deterministic (SR lookup + Move order), zero RNG. Default false on the engine class so",
+			"legacy/normal and the frozen @stable.tecn twin stay byte-identical; set on both live .tecn twins.")]
+		public readonly bool RetreatCapturerWhenDone = false;
+
+		[Desc("Actor types of the bot's home Supply Route — the retreat anchor for RetreatCapturerWhenDone.",
+			"Mirrors MountedTransportBotModuleInfo.SupplyRouteTypes.")]
+		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -487,7 +501,7 @@ namespace OpenRA.Mods.Common.Traits
 			// goalGuard resolved in BotTick (shared with the defense pass).
 			var useGuard = goalGuard != null && !goalGuard.IsTraitDisabled;
 			if (useGuard)
-				ReconcileGuardCommitments();
+				ReconcileGuardCommitments(bot);
 			else
 				activeCapturers.RemoveAll(unitCannotBeOrderedOrIsIdle);
 
@@ -1065,7 +1079,14 @@ namespace OpenRA.Mods.Common.Traits
 		//   * commitment expired (walked its window)  → Prune drops it
 		//   * target captured (now ours) / gone       → explicit Release below
 		// Everything else stays committed → NOT re-ordered this scan (anti-thrash).
-		void ReconcileGuardCommitments()
+		Actor FindOwnSupplyRoute()
+		{
+			return world.Actors.FirstOrDefault(a =>
+				a.Owner == player && !a.IsDead && a.IsInWorld
+				&& Info.SupplyRouteTypes.Contains(a.Info.Name));
+		}
+
+		void ReconcileGuardCommitments(IBot bot)
 		{
 			var tick = world.WorldTick;
 
@@ -1103,6 +1124,22 @@ namespace OpenRA.Mods.Common.Traits
 					Log.Write("debug",
 						$"[exp-capture] commitment-released player={player.PlayerName} actor={tecn.Info.Name} objective={objective} reason={reason} tick={tick}");
 					goalGuard.Ledger.Release(tecn);
+
+					// Retreat-when-done (orderless-at-hostile-location bug class): the capturer's job is over but it
+					// is now parked at the (just-captured or destroyed) target, deep in contested territory, and no
+					// combat free pool will re-collect a CaptureSpecialist. Send it home to our SR. queued=false so
+					// it cancels any lingering (now-invalid) CaptureActor activity. A consumed capturer fails the
+					// alive/in-world guard and is skipped. Inert (byte-identical) when the flag is off.
+					if (Info.RetreatCapturerWhenDone && !tecn.IsDead && tecn.IsInWorld && tecn.Owner == player)
+					{
+						var ownSR = FindOwnSupplyRoute();
+						if (ownSR != null)
+						{
+							bot.QueueOrder(new Order("Move", tecn, Target.FromCell(world, ownSR.Location), false));
+							AIUtils.BotDebug("AI ({0}): capture-coordinator — {1} done ({2}), retreating to SR {3}",
+								player.ClientIndex, tecn.Info.Name, reason, ownSR.Location);
+						}
+					}
 				}
 			}
 		}
