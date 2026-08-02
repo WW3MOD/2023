@@ -129,6 +129,18 @@ namespace OpenRA.Mods.Common.Traits
 			"false = frozen list behaviour, so @stable/legacy twins stay byte-identical.")]
 		public readonly bool UseUnitRoles = false;
 
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase). SupplyRouteTypes is a hardcoded
+			// lowercase default and CoverTerrainTypes holds terrain tokens (Tree/Rough/Field), NOT
+			// actor names — both stay ordinal.
+			ActorNameCase.NormalizeInPlace(ScreenUnitTypes);
+			ActorNameCase.NormalizeInPlace(MainLineUnitTypes);
+			ActorNameCase.NormalizeInPlace(ExcludedActorTypes);
+		}
+
 		public override object Create(ActorInitializer init) { return new LayeredDefenceBotModule(init.Self, this); }
 	}
 

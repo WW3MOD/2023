@@ -103,6 +103,26 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("When should the AI start building specific buildings.")]
 		public readonly Dictionary<string, int> BuildingDelays = null;
 
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase). BuildingQueues/DefenseQueues hold
+			// production-queue Type tokens and WaterTerrainTypes holds terrain tokens — NOT actor
+			// names — so those stay ordinal.
+			ActorNameCase.NormalizeInPlace(ConstructionYardTypes);
+			ActorNameCase.NormalizeInPlace(VehiclesFactoryTypes);
+			ActorNameCase.NormalizeInPlace(BarracksTypes);
+			ActorNameCase.NormalizeInPlace(HeliTypes);
+			ActorNameCase.NormalizeInPlace(AirfieldTypes);
+			ActorNameCase.NormalizeInPlace(ProductionTypes);
+			ActorNameCase.NormalizeInPlace(NavalProductionTypes);
+			ActorNameCase.NormalizeInPlace(DefenseTypes);
+			ActorNameCase.NormalizeKeysInPlace(BuildingFractions);
+			ActorNameCase.NormalizeKeysInPlace(BuildingLimits);
+			ActorNameCase.NormalizeKeysInPlace(BuildingDelays);
+		}
+
 		public override object Create(ActorInitializer init) { return new BaseBuilderBotModule(init.Self, this); }
 	}
 

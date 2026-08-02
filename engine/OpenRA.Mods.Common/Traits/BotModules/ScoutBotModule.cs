@@ -35,6 +35,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("How many cells of vision radius to assume per scout unit for exploration tracking.")]
 		public readonly int ScoutVisionRadius = 8;
 
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase).
+			ActorNameCase.NormalizeInPlace(ScoutTypes);
+		}
+
 		public override object Create(ActorInitializer init) { return new ScoutBotModule(init.Self, this); }
 	}
 

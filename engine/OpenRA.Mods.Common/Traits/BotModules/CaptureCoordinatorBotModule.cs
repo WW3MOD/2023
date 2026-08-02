@@ -243,6 +243,19 @@ namespace OpenRA.Mods.Common.Traits
 			"min(this, the contested/normal size) so the lever only ever reduces. Only consulted when EscortTierSizingEnabled.")]
 		public readonly int LightEscortSize = 2;
 
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			// Case-harden actor-name config (see ActorNameCase). CapturableActorTypes is one of the
+			// "half-guarded" fields — the query sites lowercase the actor name but the set was built
+			// case-sensitively; normalizing the set closes that gap.
+			ActorNameCase.NormalizeInPlace(CapturingActorTypes);
+			ActorNameCase.NormalizeInPlace(CapturableActorTypes);
+			ActorNameCase.NormalizeInPlace(SupportingUnitTypes);
+			ActorNameCase.NormalizeKeysInPlace(IncomeWeights);
+		}
+
 		public override object Create(ActorInitializer init) { return new CaptureCoordinatorBotModule(init.Self, this); }
 	}
 
