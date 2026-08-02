@@ -53,6 +53,15 @@ namespace OpenRA.Mods.Common.Traits
 		IBotTick[] tickModules;
 		IBotRespondToAttack[] attackResponseModules;
 
+		// Behavior-lint order funnel (WORKSPACE/behavior-lint-spec.md §1.3).
+		// Set to the concrete type name of the module currently running its
+		// BotTick/RespondToAttack, so every order queued below can be attributed
+		// to its issuing module. Reset to "" outside a module tick. The logger is
+		// resolved once at Activate; when the trait is inert (gate off) LogOrder
+		// returns before any allocation, so this stays cost-free in normal play.
+		string currentModuleTag = "";
+		UnitLifecycleLogger lifecycleLogger;
+
 		IBotInfo IBot.Info => info;
 		Player IBot.Player => player;
 
@@ -74,12 +83,17 @@ namespace OpenRA.Mods.Common.Traits
 			player = p;
 			tickModules = p.PlayerActor.TraitsImplementing<IBotTick>().ToArray();
 			attackResponseModules = p.PlayerActor.TraitsImplementing<IBotRespondToAttack>().ToArray();
+			lifecycleLogger = world.WorldActor.TraitOrDefault<UnitLifecycleLogger>();
 			foreach (var ibe in p.PlayerActor.TraitsImplementing<IBotEnabled>())
 				ibe.BotEnabled(this);
 		}
 
 		void IBot.QueueOrder(Order order)
 		{
+			// Attribute this order to the module currently ticking, then queue it
+			// unchanged. LogOrder self-gates to a no-op when lifecycle logging is
+			// off, so this is free in normal play and never touches the order.
+			lifecycleLogger?.LogOrder(player, currentModuleTag, order);
 			orders.Enqueue(order);
 		}
 
@@ -92,9 +106,21 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				Sync.RunUnsynced(Game.Settings.Debug.SyncCheckBotModuleCode, world, () =>
 				{
-					foreach (var t in tickModules)
-						if (t.IsTraitEnabled())
-							t.BotTick(this);
+					try
+					{
+						foreach (var t in tickModules)
+							if (t.IsTraitEnabled())
+							{
+								currentModuleTag = t.GetType().Name;
+								t.BotTick(this);
+							}
+					}
+					finally
+					{
+						// Never leave a stale tag if a module throws — orders queued
+						// outside a module tick must attribute as "" (see QueueOrder).
+						currentModuleTag = "";
+					}
 				});
 			}
 
@@ -121,9 +147,19 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				Sync.RunUnsynced(Game.Settings.Debug.SyncCheckBotModuleCode, world, () =>
 				{
-					foreach (var t in attackResponseModules)
-						if (t.IsTraitEnabled())
-							t.RespondToAttack(this, self, e);
+					try
+					{
+						foreach (var t in attackResponseModules)
+							if (t.IsTraitEnabled())
+							{
+								currentModuleTag = t.GetType().Name;
+								t.RespondToAttack(this, self, e);
+							}
+					}
+					finally
+					{
+						currentModuleTag = "";
+					}
 				});
 			}
 		}

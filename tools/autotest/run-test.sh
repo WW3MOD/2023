@@ -52,6 +52,14 @@
 #                          main menu forever (no Test.Pass/Fail ever runs).
 #                          Default: 300. Pure wall-clock — NOT scaled by --speed.
 #
+# Behavior lint:
+#   --lifecycle            Enable the off-by-default UnitLifecycleLogger, which
+#                          writes a per-unit JSONL event stream, then run the
+#                          tools/behavior-lint analyzer after the match and echo
+#                          its WARN report. Advisory ONLY — never changes the
+#                          pass/fail verdict. The .lifecycle.jsonl is archived
+#                          alongside result.json in the per-run screenshot dir.
+#
 # Misc:
 #   --position=<centered|left|right|full>  Long form of L/R/F.
 #   --fullscreen           Same as F + Mode=PseudoFullscreen.
@@ -74,6 +82,7 @@
 #   ./tools/autotest/run-test.sh F test-foo                   # fullscreen
 #   ./tools/autotest/run-test.sh --speed 8 test-foo           # run 8× wall-clock
 #   ./tools/autotest/run-test.sh --seed 1017 test-foo         # fixed seed (reproducible)
+#   ./tools/autotest/run-test.sh --lifecycle test-foo         # + behavior-lint report
 #
 # Exit code: 0=pass, 1=fail, 2=skip, 3=error.
 
@@ -86,6 +95,7 @@ AUDIO_MUTE=1
 SPEED_MULT=""
 SEED=""
 TIMEOUT_SECS=300
+LIFECYCLE=0
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -112,8 +122,9 @@ while [ $# -gt 0 ]; do
 		--seed)                 SEED="$2"; shift 2 ;;
 		--timeout=*)            TIMEOUT_SECS="${1#*=}"; shift ;;
 		--timeout)              TIMEOUT_SECS="$2"; shift 2 ;;
+		--lifecycle)            LIFECYCLE=1; shift ;;
 		--help|-h)
-			sed -n '2,72p' "$0" | sed 's/^# \?//'
+			sed -n '2,87p' "$0" | sed 's/^# \?//'
 			exit 0 ;;
 		--*)
 			echo "Unknown flag: $1"
@@ -125,7 +136,7 @@ done
 
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 [L|R|F] [--background|--hidden|--minimized|--visible] [--audio] [--speed N] [--seed N] [--timeout N] <test-folder-name>"
+	echo "Usage: $0 [L|R|F] [--background|--hidden|--minimized|--visible] [--audio] [--speed N] [--seed N] [--timeout N] [--lifecycle] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
 fi
@@ -441,6 +452,16 @@ fi
 RESULT_FILE_GAME=$(to_game_path "${RESULT_FILE}")
 SCREENSHOT_DIR_GAME=$(to_game_path "${SCREENSHOT_DIR}")
 
+# Behavior-lint (opt-in --lifecycle): the UnitLifecycleLogger writes a per-unit
+# JSONL event stream to this sibling of the verdict file. Advisory only — the
+# analyzer runs after the match and never changes the pass/fail verdict.
+LIFECYCLE_ARGS=""
+LIFECYCLE_FILE="${RESULT_FILE%.json}.lifecycle.jsonl"
+if [ "${LIFECYCLE}" = "1" ]; then
+	rm -f "${LIFECYCLE_FILE}"
+	LIFECYCLE_ARGS="Test.UnitLifecycleLog=$(to_game_path "${LIFECYCLE_FILE}")"
+fi
+
 ./launch-game.sh \
 	"Launch.Map=${TEST_NAME}" \
 	"Test.Mode=true" \
@@ -453,6 +474,7 @@ SCREENSHOT_DIR_GAME=$(to_game_path "${SCREENSHOT_DIR}")
 	${AUDIO_ARGS} \
 	${SPEED_ARGS} \
 	${SEED_ARGS} \
+	${LIFECYCLE_ARGS} \
 	${SUSPEND_ARGS} \
 	&
 LAUNCH_PID=$!
@@ -557,6 +579,24 @@ echo
 if [ -d "${SCREENSHOT_DIR}" ]; then
 	cp "${RESULT_FILE}" "${SCREENSHOT_DIR}/result.json" 2>/dev/null || true
 	echo "==> Verdict archived: ${SCREENSHOT_DIR}/result.json"
+	echo
+fi
+
+# Behavior lint (advisory). If --lifecycle produced a log, archive it beside the
+# verdict and run the analyzer. This is purely informational: its output is
+# echoed for the operator but the pass/fail exit below is untouched by it.
+if [ "${LIFECYCLE}" = "1" ] && [ -f "${LIFECYCLE_FILE}" ]; then
+	if [ -d "${SCREENSHOT_DIR}" ]; then
+		cp "${LIFECYCLE_FILE}" "${SCREENSHOT_DIR}/result.lifecycle.jsonl" 2>/dev/null || true
+	fi
+	LINT_PY="$(dirname "$0")/../behavior-lint/behavior_lint.py"
+	if [ -f "${LINT_PY}" ]; then
+		echo "==> Behavior lint:"
+		python3 "${LINT_PY}" "${LIFECYCLE_FILE}" || true
+		echo
+	fi
+elif [ "${LIFECYCLE}" = "1" ]; then
+	echo "==> Behavior lint: no lifecycle log written (${LIFECYCLE_FILE})."
 	echo
 fi
 
