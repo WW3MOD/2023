@@ -461,6 +461,20 @@ Player:
 		# on the engine class => @stable.america (which omits this) keeps the frozen unitProducers[0]
 		# routing = byte-identical. Same seam McvManager/Harvester already use (Exts.FirstEnabledTraitOrDefault).
 		RouteToEnabledProducer: true
+		# COMPOSITION-NEED: buy what the BELIEVED battlefield needs most (fog-legal belief store). Heavy believed
+		# armor/infantry/air raise the matching counter; a WEAK believed enemy AA posture opens an air-strike
+		# window that raises AirStrikeUnits (Apache heli / A-10). Highest-scoring AFFORDABLE class wins, <=1
+		# request/cycle, BYPASSES MinEnemySightings. Off on the frozen @stable twin (byte-identical).
+		# Weights are on the unit-cost/believed-value scale; NeedBudgetReservePct is the rarity dial for the
+		# $6000 airframes (need 2x = $12000 banked). All are tunables — starting values, benchmark-tunable.
+		CompositionNeedEnabled: true
+		AirStrikeUnits: heli, a10
+		AntiArmorNeedWeight: 100
+		AntiInfantryNeedWeight: 100
+		AntiAirNeedWeight: 100
+		AirStrikeNeedWeight: 100
+		AaWeakThreshold: 2000
+		NeedBudgetReservePct: 200
 
 	AdaptiveProductionBotModule@experimental.russia:
 		RequiresCondition: enable-ai-experimental && player.brics
@@ -492,6 +506,16 @@ Player:
 		# on the engine class => @stable.russia (which omits this) keeps the frozen unitProducers[0]
 		# routing = byte-identical. Same seam McvManager/Harvester already use (Exts.FirstEnabledTraitOrDefault).
 		RouteToEnabledProducer: true
+		# COMPOSITION-NEED (mirror of the NATO block above): weak believed enemy AA opens an air-strike window
+		# for the MI-28 attack heli / Su-25 (frog). Off on the frozen @stable twin (byte-identical). Tunable.
+		CompositionNeedEnabled: true
+		AirStrikeUnits: mi28, frog
+		AntiArmorNeedWeight: 100
+		AntiInfantryNeedWeight: 100
+		AntiAirNeedWeight: 100
+		AirStrikeNeedWeight: 100
+		AaWeakThreshold: 2000
+		NeedBudgetReservePct: 200
 
 	# experimental doctrine — Stage B.1: layered defence placement, reserve-driven.
 	#
@@ -631,17 +655,22 @@ Player:
 
 	# ===== Fixed-Wing Aircraft — Russia =====
 	# Fixed-wing called in via Supply Route — no AFLD needed to produce them
+	# BUGFIX (case-mismatch): actor names are lowercased at ruleset load (Ruleset.cs:126), but
+	# UnitBuilderBotModule matches UnitsToBuild/UnitLimits/UnitDelays keys case-SENSITIVELY against them
+	# (ChooseUnitToBuild :327 `b.Name == unit.Key`; the random path's `!UnitsToBuild.ContainsKey(name)`
+	# :191). Uppercase keys (MIG/FROG/…) never matched -> these aircraft were UNBUILDABLE. Keys lowercased
+	# to the actor names so the pool actually builds. Same case-mismatch family as the AirUnitsTypes bug.
 	UnitBuilderBotModule@russia.fixedwing:
 		RequiresCondition: enable-ai-any && player.brics
 		IdleBaseUnitsMaximum: 0
 		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
 		UnitsToBuild:
-			MIG: 30
-			FROG: 20
+			mig: 30
+			frog: 20
 		UnitLimits:
-			MIG: 2
-			FROG: 2
+			mig: 2
+			frog: 2
 
 	# experimental variant of the fixed-wing SquadManager. IMPORTANT: SquadManagerBotModule
 	# is NOT air-only — FindNewUnits recruits EVERY IPositionable unit not in
@@ -670,37 +699,41 @@ Player:
 
 	# ===== Helicopters — Russia =====
 	# Helicopters are called in via Supply Route — no HPAD needed to produce them
+	# BUGFIX (case-mismatch, see russia.fixedwing above): uppercase keys never matched the lowercased
+	# actor names, so Russia built NO helicopters at all. Keys lowercased to the actor names.
 	UnitBuilderBotModule@russia.heli:
 		RequiresCondition: enable-ai-any && player.brics
 		IdleBaseUnitsMaximum: 8
 		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
 		UnitsToBuild:
-			HIND: 80
-			MI28: 50
-			HALO: 15
+			hind: 80
+			mi28: 50
+			halo: 15
 		UnitLimits:
-			HIND: 4
-			MI28: 3
-			HALO: 2
+			hind: 4
+			mi28: 3
+			halo: 2
 		UnitDelays:
-			HIND: 2500
-			MI28: 3500
-			HALO: 2500
+			hind: 2500
+			mi28: 3500
+			halo: 2500
 
 	# ===== Fixed-Wing Aircraft — America =====
 	# Fixed-wing called in via Supply Route — no AFLD needed to produce them
+	# BUGFIX (case-mismatch, see russia.fixedwing above): uppercase keys never matched the lowercased
+	# actor names, so America built NO fixed-wing aircraft. Keys lowercased to the actor names.
 	UnitBuilderBotModule@america.fixedwing:
 		RequiresCondition: enable-ai-any && player.nato
 		IdleBaseUnitsMaximum: 0
 		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
 		UnitsToBuild:
-			A10: 40
-			F16: 30
+			a10: 40
+			f16: 30
 		UnitLimits:
-			A10: 2
-			F16: 2
+			a10: 2
+			f16: 2
 
 	# experimental variant — see the russia.fixedwing experimental note above. Excludes the capture
 	# TECN + non-combat support so the fixed-wing/ground SquadManager stops
@@ -724,23 +757,28 @@ Player:
 
 	# ===== Helicopters — America =====
 	# Helicopters are called in via Supply Route — no HPAD needed to produce them
+	# BUGFIX (case-mismatch, see russia.fixedwing above): `HELI` (Apache) and `TRAN` (Chinook) are uppercase
+	# actor keys that never matched the lowercased actor names "heli"/"tran", so ChooseUnitToBuild and the
+	# random path both discarded them — ONLY `littlebird` (already lowercase) ever matched. THIS is the
+	# reported "US bots only ever buy the littlebird, never the attack helicopter." Keys lowercased so the
+	# Apache/Chinook enter the pool at their intended weight/limit/delay.
 	UnitBuilderBotModule@america.heli:
 		RequiresCondition: enable-ai-any && player.nato
 		IdleBaseUnitsMaximum: 8
 		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
 		UnitsToBuild:
-			HELI: 80
+			heli: 80
 			littlebird: 40
-			TRAN: 15
+			tran: 15
 		UnitLimits:
-			HELI: 4
+			heli: 4
 			littlebird: 2
-			TRAN: 2
+			tran: 2
 		UnitDelays:
-			HELI: 2500
+			heli: 2500
 			littlebird: 2500
-			TRAN: 2500
+			tran: 2500
 
 	# ===== Helicopter Squad Manager (shared, all factions EXCEPT experimental) =====
 	# Split from the experimental twin below so the rearm-ready bypass is experimental-only.
