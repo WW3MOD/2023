@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — what changed since the 2026-08-02 baseline</title>
+<style>
+  body { font-family: Segoe UI, system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; line-height: 1.55; }
+  h1 { font-size: 1.5rem; border-bottom: 2px solid #333; padding-bottom: .4rem; }
+  h2 { font-size: 1.15rem; margin-top: 2rem; color: #17335c; }
+  .tag { display: inline-block; font-size: .72rem; font-weight: 600; padding: .1rem .45rem; border-radius: 3px; vertical-align: middle; margin-left: .4rem; }
+  .exp { background: #e3ecfb; color: #1b4e9b; }
+  .both { background: #e8f5e9; color: #1e6b2f; }
+  .stable { background: #fdeede; color: #9c5210; }
+  .none { background: #eee; color: #666; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  td, th { border: 1px solid #ccc; padding: .4rem .6rem; text-align: left; vertical-align: top; }
+  th { background: #f4f6f8; }
+  code { background: #f2f2f2; padding: .05rem .3rem; border-radius: 3px; font-size: .85em; }
+  .warn { background: #fff5e5; border-left: 4px solid #e8a33d; padding: .6rem .9rem; margin: 1rem 0; }
+  .meta { color: #666; font-size: .85rem; }
+</style>
+</head>
+<body>
+
+<h1>WW3MOD — what changed since the 2026-08-02 baseline</h1>
+<p class="meta">Window: merges landed on <code>main</code> between the 2026-08-02 morning state and <code>main @ fd31210d</code> (2026-08-03). All work passed adversarial review before merge. Test suite: 650 → <b>742</b> NUnit pins over the window.</p>
+
+<p>Tags mark which bot profile a change affects in a played game: <span class="tag exp">EXPERIMENTAL</span> only the Experimental AI, <span class="tag stable">STABLE</span> the Stable AI, <span class="tag both">BOTH</span> both bots, <span class="tag none">INVISIBLE</span> no gameplay change by design.</p>
+
+<h2>1. Stable bot got a big free upgrade <span class="tag stable">STABLE</span></h2>
+<p>The Stable profile was promoted to full parity with the 08-02 Experimental build (<code>d1b662cc</code>, "Stable 0802"). A Stable opponent now plays with the entire influence-stack toolkit that Experimental had accumulated — expect it to be markedly stronger than the older Stable. Two genuine bug fixes also changed Stable behavior:</p>
+<ul>
+  <li><b>Fixed-wing aircraft recognized in squads again</b> — an <code>AirUnitsTypes</code> case-mismatch made the bot treat its jets as non-air units (<code>1c1469a8</code>).</li>
+  <li><b>Attack helicopters are actually bought and pooled now</b> — the heli purchase pool had a matching case bug (<code>f05e31b7</code>). Expect noticeably more bot air activity from both profiles.</li>
+</ul>
+
+<h2>2. Helicopters behave like a doctrine air arm <span class="tag exp">EXPERIMENTAL</span></h2>
+<ul>
+  <li><b>Mission system with evacuation</b> (<code>a9f32bcc</code>): helis fly hit-and-run employment cycles instead of loitering; a damaged heli enters an <i>uncancellable evacuation</i> home; a first-contact gate stops them from wandering blind into unscouted AA.</li>
+  <li><b>Strategic-target pinning</b> (phase 4, <code>d2811343</code>): once a heli squad commits to a strategic target it stays pinned for up to 1200 ticks instead of flip-flopping between targets each re-evaluation. Expect committed, repeated strikes on one objective rather than indecisive shuttling.</li>
+</ul>
+
+<h2>3. Ground force keeps its commitments <span class="tag exp">EXPERIMENTAL</span></h2>
+<p>The recurring "my units got yanked mid-job" class of bot bugs was systematically closed:</p>
+<ul>
+  <li><b>Mission-commitment hold</b> (<code>6aff93c3</code>, tuned to a 400-tick window in <code>1c1469a8</code>): squads hold their assigned mission through a commitment window instead of re-deciding every eval.</li>
+  <li><b>Commit-on-order audit</b> (phase 2, <code>fd31210d</code>): capture escorts/defenders, garrisoning infantry, transport passengers, and defence-line assignments are now all registered in the shared commitment ledger the moment they are ordered. The offense pool can no longer steal infantry that is walking to board a transport, and transport can no longer poach units another system committed. Includes a fix for commitments leaking when a carrier dies mid-pickup.</li>
+  <li><b>Quantized rival-release + aggressiveness knobs</b> (phase 1c/1d, <code>1bae9628</code>): squads release a contested objective in cleaner, less oscillatory decisions.</li>
+</ul>
+<p>Net effect on-screen: fewer units dithering between jobs, capture attempts that keep their escorts, transports that complete their runs, defence lines that stay manned.</p>
+
+<h2>4. Combat quality <span class="tag exp">EXPERIMENTAL</span></h2>
+<ul>
+  <li><b>Force-preservation retreat FSM</b> (<code>cd396526</code>): mauled squads pull back to preserve force instead of fighting to the last unit.</li>
+  <li><b>TECN army-share floor cap + held-axis release</b>: capture units no longer starve the field army; a held axis frees its units when no longer contested.</li>
+  <li><b>Need-based composition buying</b> (<code>cbb6c023</code>): the bot buys counters weighted by what it has actually seen (fog-legal), instead of a fixed mix.</li>
+</ul>
+
+<h2>5. Invisible by design <span class="tag none">INVISIBLE</span></h2>
+<ul>
+  <li><b>Actor-name case-hardening</b> (<code>e73b233b</code>): all bot-module actor-name config is normalized at rule load. Verified behavior-identical today — it exists so the <i>next</i> case typo becomes a non-event instead of a silent bot lobotomy (the class that caused §1's two bugs).</li>
+  <li><b>Per-unit-type telemetry</b> (<code>9392540c</code>) and +tests/docs across the window.</li>
+</ul>
+
+<div class="warn">
+<b>Benchmark caveat.</b> Because Stable itself changed this window (§1), any Experimental-vs-Stable win-rate impression from before 08-02 is invalid. A benchmark re-baseline is queued but user-gated (multi-test grant required) — until it runs, treat cross-profile comparisons as anecdotal.
+</div>
+
+<h2>What to try in a self-played game</h2>
+<table>
+  <tr><th>Set-up</th><th>What should be observable</th></tr>
+  <tr><td>Skirmish vs <b>Experimental AI</b></td><td>Helicopter strike packages that commit to a target, evacuate when damaged; capture parties that keep escorts; transports completing runs; retreats instead of last-stands; composition adapting to the player's army.</td></tr>
+  <tr><td>Skirmish vs <b>Stable AI</b></td><td>A much stronger baseline bot than pre-08-02, with working fixed-wing squads and attack helicopters.</td></tr>
+  <tr><td>Either</td><td>More bot air presence overall (heli-pool fix affects purchasing for both).</td></tr>
+</table>
+
+<p class="meta">Verification: every branch merged via implementer → adversarial reviewer → merge-on-green. Build 0 errors and NUnit green re-verified on <code>main</code> after each merge (phase 2's on-main run queued behind the currently-running game instance holding the engine DLLs; branch-level verification was 728/728 including an independent reviewer run). Unit stats: <b>no unit stat changes</b> — balance proposals 001-003 remain docs-only awaiting sign-off.</p>
+
+</body>
+</html>
