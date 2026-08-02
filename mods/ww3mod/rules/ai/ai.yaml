@@ -241,7 +241,10 @@ Player:
 		# live orders. Default OFF on the engine class => PoiOffensiveBotModule@stable (which omits these
 		# fields) keeps re-tasking every eval byte-identical; only this @experimental block turns it on.
 		MissionCommitmentEnabled: true
-		MissionCommitmentWindowTicks: 0
+		# Bounded safety re-plan valve (ticks from commit): the hold spans ~3 re-evals (ReevaluateInterval=100)
+		# then force-releases at 400t even if no abort trigger fired — set ABOVE AxisCommitmentTicks (250) so it's
+		# an outer backstop, not per-ledger churn. Engine default is 0 (inert); @stable omits it => byte-identical.
+		MissionCommitmentWindowTicks: 400
 		MissionDangerSpikePct: 50
 		MissionDangerSpikeFloor: 40
 		MissionBetterOppMarginPct: 50
@@ -756,7 +759,7 @@ Player:
 		SquadSizeRandomBonus: 1
 		RushInterval: 600
 		AttackScanRadius: 48
-		AirUnitsTypes: MIG, FROG
+		AirUnitsTypes: mig, frog
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 		# Phase 3: hand the ground pool to PoiOffensiveBotModule@experimental — this manager
 		# keeps only its air squads (MIG/FROG). ExcludeFromSquadsTypes is now
@@ -764,7 +767,8 @@ Player:
 		IgnoreGroundUnits: true
 		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
 		# Phase 4b: pick air-squad airframes by UnitRoleResolver (Buildable AttackAir, non-heli) instead
-		# of AirUnitsTypes above. Reproduces {MIG,FROG} today; AirUnitsTypes stays for the @stable twin.
+		# of AirUnitsTypes for IsAirSquadUnit. AirUnitsTypes is still read UNCONDITIONALLY by TryToRushAttack
+		# (SquadManagerBotModule.cs:421/:430) — so its keys are lowercased here too (case-mismatch bugfix).
 		UseUnitRoles: true
 
 	# ===== Helicopters — Russia =====
@@ -814,7 +818,7 @@ Player:
 		SquadSizeRandomBonus: 1
 		RushInterval: 600
 		AttackScanRadius: 48
-		AirUnitsTypes: A10, F16
+		AirUnitsTypes: a10, f16
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 		# Phase 3: hand the ground pool to PoiOffensiveBotModule@experimental — keeps only its
 		# air squads (A10/F16). IgnoreGroundUnits is the real hand-off; the exclude
@@ -822,7 +826,7 @@ Player:
 		IgnoreGroundUnits: true
 		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
 		# Phase 4b: pick air-squad airframes by UnitRoleResolver (Buildable AttackAir, non-heli) instead
-		# of AirUnitsTypes above. Reproduces {A10,F16} today; AirUnitsTypes stays for the @stable twin.
+		# of AirUnitsTypes for IsAirSquadUnit; keys lowercased for TryToRushAttack (see russia.fixedwing).
 		UseUnitRoles: true
 
 	# ===== Helicopters — America =====
@@ -1150,7 +1154,12 @@ Player:
 		SquadSizeRandomBonus: 1
 		RushInterval: 600
 		AttackScanRadius: 48
-		AirUnitsTypes: MIG, FROG
+		# BUGFIX (case-mismatch, same family as the UnitBuilder keys above): AirUnitsTypes is a case-SENSITIVE
+		# HashSet<string> (SquadManagerBotModule.cs:31) tested against actor names lowercased at load, so uppercase
+		# MIG/FROG never matched. UseUnitRoles now drives IsAirSquadUnit, but TryToRushAttack reads AirUnitsTypes
+		# UNCONDITIONALLY (:421 own-unit filter, :430 "don't rush enemy aircraft") — so uppercase let own aircraft
+		# be scooped into a ground rush and enemy aircraft be rushed. Keys lowercased to the actor names.
+		AirUnitsTypes: mig, frog
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 		IgnoreGroundUnits: true
 		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
@@ -1163,7 +1172,7 @@ Player:
 		SquadSizeRandomBonus: 1
 		RushInterval: 600
 		AttackScanRadius: 48
-		AirUnitsTypes: A10, F16
+		AirUnitsTypes: a10, f16
 		IgnoredEnemyTargetTypes: Submarine, IgnoreThis
 		IgnoreGroundUnits: true
 		ExcludeFromSquadsTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk
