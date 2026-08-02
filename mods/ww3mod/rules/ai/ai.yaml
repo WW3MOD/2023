@@ -919,6 +919,13 @@ Player:
 		AttackSquadSize: 2
 		AttackSquadSizeBonus: 1
 		AttackCooldown: 900
+		# Solo-heli doctrine (experimental-only, default-frozen in C#): a single attack heli is already a
+		# large investment, so deploy it rather than benching it until a full pair forms. Still PREFERS a
+		# pair — it holds out for a second only when income is high enough to afford massing one; below that
+		# the lone heli commits. @stable omits these ⇒ its attack-package behaviour is byte-identical.
+		AllowSoloAttackHeli: true
+		MinAttackSquadSize: 1
+		PairUpIncomeThreshold: 6000
 		ScoutInterval: 400
 		TransportInterval: 600
 		TransportMinInfantry: 4
@@ -950,6 +957,10 @@ Player:
 		EvacuateIdleTicks: 500
 		EvacuateHomeRadiusCells: 12
 		MissionTargetRangeCells: 60
+		# Mission-complete evac (experimental-only, default-frozen in C#): a heli that finished a mission
+		# FORWARD and has since idled past the window with no believed target evacuates too, instead of
+		# loitering at the front with no follow-up. Routes toward its own SR edge, banking the refund.
+		EvacuateForwardIdle: true
 		# Phase 4 strategic-target pinning (experimental-only, default-frozen in C#): pin an attack-heli
 		# squad's STRATEGIC objective separately from its tactical TargetActor, so 5-tick FSM predicate
 		# flapping (too-hot soft-swaps, tactical-target death, withdraw/re-engage) can re-aim the tactical
