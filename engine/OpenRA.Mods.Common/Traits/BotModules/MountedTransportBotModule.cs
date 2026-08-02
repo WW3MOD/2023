@@ -114,6 +114,16 @@ namespace OpenRA.Mods.Common.Traits
 			"using the furthest-back sampled cell. Only used when BelievedDangerStandoff is set.")]
 		public readonly int StandoffMaxBackoffCells = 20;
 
+		[Desc("Phase 2 commit-on-order audit (§4): COMMIT frontline-delivery passengers to the shared PoiGoalGuard",
+			"ledger (key transport:<carrierId>) on load, and RELEASE them on unload. Today this module is fully",
+			"ledger-blind — its only cross-module lock is the bespoke IsPassengerReserved seam, which offense's",
+			"BuildFreePool does NOT honour, so offense yanks infantry mid-boarding (cancels their EnterTransport).",
+			"Committing the passengers in the SHARED ledger makes BuildFreePool's existing IsCommitted check exclude",
+			"them — the single-lock replacement for the bespoke seam the design specifies. The capture-ferry path is",
+			"NOT committed here: its TECN is already committed by CaptureCoordinator (capture:<id>) and is not in the",
+			"world while aboard. Default false ⇒ no commit ⇒ byte-identical @stable/@poi (which omit it).")]
+		public readonly bool CommitPassengers = false;
+
 		public override object Create(ActorInitializer init) { return new MountedTransportBotModule(init.Self, this); }
 	}
 
@@ -144,6 +154,11 @@ namespace OpenRA.Mods.Common.Traits
 		InfluenceMap influenceMap;
 		PoiMap poiMap;
 
+		// Phase 2 commit-on-order (§4): shared commitment ledger. Resolved only when CommitPassengers is on,
+		// so the frozen @stable/@poi twin never looks it up ⇒ byte-identical. Null when the player has no
+		// PoiGoalGuard ⇒ every commit/release below is inert.
+		PoiGoalGuard goalGuard;
+
 		// Fog-legal believed anti-ground danger field (Stage B). Resolved ONLY when BelievedDangerStandoff
 		// is set (the @experimental twin) — the frozen @poi/@stable twin leaves this null and never touches
 		// the layer, so its omniscient drop path stays byte-identical. See DOCS/reference/influence-stack.md.
@@ -158,6 +173,37 @@ namespace OpenRA.Mods.Common.Traits
 				if (task.ReservedPassengers.Contains(actor))
 					return true;
 			return false;
+		}
+
+		// Phase 2 commit-on-order (§4). Objective key namespaces the carrier so the grammar is disjoint from
+		// every other executor's (capture:/offense:/defend:/garrison:/…) — audit requirement (d).
+		static string TransportObjectiveKey(Actor carrier) => "transport:" + carrier.ActorID;
+
+		// Commit every reserved passenger of a FRONTLINE-DELIVERY task to the shared ledger. Skipped for a
+		// capture ferry (task.CaptureTarget != null): its passenger is a TECN already committed to capture:<id>
+		// by CaptureCoordinator and is not in the world while aboard, so committing here would only clobber that
+		// key. Inert when the flag is off (goalGuard null) ⇒ byte-identical frozen path.
+		void CommitTaskPassengers(CarrierTask task)
+		{
+			if (!CommitOnOrderMath.ShouldCommit(Info.CommitPassengers, goalGuard != null && !goalGuard.IsTraitDisabled)
+				|| task.CaptureTarget != null)
+				return;
+
+			var key = TransportObjectiveKey(task.Carrier);
+			foreach (var pax in task.ReservedPassengers)
+				goalGuard.Ledger.Commit(pax, key, world.WorldTick, goalGuard.DefaultCommitmentTicks);
+		}
+
+		// Release a task's passengers from the ledger (on unload / task teardown) so a delivered unit re-enters
+		// the free pool for offense immediately rather than idling until the TTL lapses. Idempotent — a second
+		// release for an already-freed unit is a no-op, so calling it at both unload and teardown is safe.
+		void ReleaseTaskPassengers(CarrierTask task)
+		{
+			if (goalGuard == null || goalGuard.IsTraitDisabled || task.CaptureTarget != null)
+				return;
+
+			foreach (var pax in task.ReservedPassengers)
+				goalGuard.Ledger.Release(pax);
 		}
 
 		/// <summary>Directed capture ferry (experimental, TECN-first). CaptureCoordinator calls this
@@ -250,6 +296,11 @@ namespace OpenRA.Mods.Common.Traits
 			dangerField = Info.BelievedDangerStandoff
 				? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
 
+			// Commit-on-order ledger (experimental twin only): the frozen twin leaves this null so its
+			// commit/release calls are inert and its byte-identity is preserved.
+			goalGuard = Info.CommitPassengers
+				? player.PlayerActor.TraitOrDefault<PoiGoalGuard>() : null;
+
 			// Visible confirmation in chat that experimental transport is wired for this player.
 			// Without this, "is the module even active?" is impossible to verify ingame.
 			TextNotificationsManager.AddSystemLine(
@@ -294,6 +345,7 @@ namespace OpenRA.Mods.Common.Traits
 			var cargo = carrier.TraitOrDefault<Cargo>();
 			if (cargo == null)
 			{
+				ReleaseTaskPassengers(task);
 				carrierTasks.Remove(carrier);
 				return;
 			}
@@ -319,6 +371,7 @@ namespace OpenRA.Mods.Common.Traits
 							// No one boarded in time — abandon task; carrier returns to idle pool.
 							AIUtils.BotDebug("AI ({0}): mounted-transport — {1} loading timed out empty, releasing",
 								player.ClientIndex, carrier.Info.Name);
+							ReleaseTaskPassengers(task);
 							carrierTasks.Remove(carrier);
 						}
 					}
@@ -360,6 +413,11 @@ namespace OpenRA.Mods.Common.Traits
 								}
 						}
 
+						// Delivered: the passengers have dismounted at the front. Release their ledger claim so
+						// offense can recruit them straight away (better than holding them to the transport TTL
+						// through the carrier's whole return trip — the bespoke IsPassengerReserved used to).
+						ReleaseTaskPassengers(task);
+
 						bot.QueueOrder(new Order("Move", carrier, Target.FromCell(world, task.Return), false));
 						task.State = CarrierState.Returning;
 						task.StateChangedAtTick = world.WorldTick;
@@ -382,6 +440,7 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						AIUtils.BotDebug("AI ({0}): mounted-transport — {1} returned, ready for next load",
 							player.ClientIndex, carrier.Info.Name);
+						ReleaseTaskPassengers(task);
 						carrierTasks.Remove(carrier);
 					}
 
@@ -526,6 +585,10 @@ namespace OpenRA.Mods.Common.Traits
 					ReservedPassengers = new HashSet<Actor>(toLoad),
 				};
 				carrierTasks[carrier] = task;
+
+				// Phase 2 commit-on-order (§4): stake the boarding passengers in the shared ledger so offense's
+				// BuildFreePool (which honours the ledger but NOT IsPassengerReserved) can't yank them mid-board.
+				CommitTaskPassengers(task);
 
 				// Remove reserved passengers from the pool for the next carrier in this pass.
 				foreach (var p in toLoad)

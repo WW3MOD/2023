@@ -33,6 +33,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Prefer buildings closer to enemies (uses ThreatMapManager if available).")]
 		public readonly bool PrioritizeExposed = true;
 
+		[Desc("Phase 2 commit-on-order audit (§4): recruit infantry only from the ledger-checked free pool AND",
+			"commit each garrisoned unit to the shared PoiGoalGuard ledger (key garrison:<buildingId>). Today this",
+			"module is ledger-blind — its only lock is BotBlackboard.ClaimUnit, invisible to the POI stack, so it",
+			"and offense can both grab the same infantry. IMPORTANT: this is a SHARED enable-ai-any module (one",
+			"instance runs for BOTH bots and for Normal/legacy), so the flag alone can't confine it to @experimental",
+			"— the commit + ledger-read fire ONLY for the @experimental player (explicit BotType gate, §6). Off /",
+			"non-experimental / no PoiGoalGuard ⇒ inert ⇒ byte-identical for @stable / Normal / legacy.")]
+		public readonly bool CommitGarrisonedUnits = false;
+
 		public override object Create(ActorInitializer init) { return new GarrisonBotModule(init.Self, this); }
 	}
 
@@ -47,6 +56,17 @@ namespace OpenRA.Mods.Common.Traits
 		CPos baseCenter;
 		int scanCountdown;
 		bool initialized;
+
+		// Phase 2 commit-on-order (§4). Shared enable-ai-any module: goalGuard is resolved ONLY for the
+		// @experimental player with the flag on (isExperimentalBot gates every use via ShouldCommitShared),
+		// so Normal / legacy / @stable stay byte-identical. Null for every other profile.
+		PoiGoalGuard goalGuard;
+		bool isExperimentalBot;
+
+		bool LedgerActive => CommitOnOrderMath.ShouldCommitShared(
+			Info.CommitGarrisonedUnits, goalGuard != null && !goalGuard.IsTraitDisabled, isExperimentalBot);
+
+		static string GarrisonObjectiveKey(Actor building) => "garrison:" + building.ActorID;
 
 		// Track which buildings we've already assigned garrison orders to avoid spamming
 		readonly Dictionary<Actor, int> garrisonedBuildings = new Dictionary<Actor, int>();
@@ -70,6 +90,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			threatMap = world.WorldActor.TraitOrDefault<ThreatMapManager>();
 			blackboard = player.PlayerActor.TraitsImplementing<BotBlackboard>().FirstOrDefault(b => !b.IsTraitDisabled);
+
+			// Commit-on-order (§4): resolve the shared ledger only for the @experimental bot when the flag is on.
+			isExperimentalBot = player.BotType == InfluenceStack.ExperimentalBotType;
+			goalGuard = Info.CommitGarrisonedUnits
+				? player.PlayerActor.TraitOrDefault<PoiGoalGuard>() : null;
 
 			var bases = world.ActorsHavingTrait<Building>()
 				.Where(a => a.Owner == player)
@@ -123,7 +148,10 @@ namespace OpenRA.Mods.Common.Traits
 					&& !a.IsDead
 					&& a.IsInWorld
 					&& IsGarrisonEligible(a)
-					&& !IsClaimedByOtherModule(a))
+					&& !IsClaimedByOtherModule(a)
+						// Commit-on-order (§4): for @experimental, also skip units another POI-stack writer
+						// (offense / capture / defense) already committed in the shared ledger. Inert otherwise.
+						&& (!LedgerActive || !goalGuard.Ledger.IsCommitted(a, world.WorldTick)))
 				.ToList();
 
 			if (availableInfantry.Count == 0)
@@ -154,6 +182,12 @@ namespace OpenRA.Mods.Common.Traits
 				// Claim the unit so other modules don't steal it
 				if (blackboard != null)
 					blackboard.ClaimUnit(infantry, "garrison");
+
+				// Commit-on-order (§4): also stake it in the SHARED ledger (garrison:<buildingId>) so the POI
+				// stack (which doesn't read the blackboard) defers too. Released via ledger TTL / Prune once the
+				// unit is inside the building (it leaves the world, so it's unorderable anyway). @experimental only.
+				if (LedgerActive)
+					goalGuard.Ledger.Commit(infantry, GarrisonObjectiveKey(building), world.WorldTick, goalGuard.DefaultCommitmentTicks);
 
 				availableInfantry.Remove(infantry);
 

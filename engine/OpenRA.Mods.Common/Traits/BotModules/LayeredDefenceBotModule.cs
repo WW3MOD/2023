@@ -120,6 +120,16 @@ namespace OpenRA.Mods.Common.Traits
 			"only LayeredDefenceBotModule@experimental turns it on. Inert if no PoiGoalGuard exists on the player.")]
 		public readonly bool RespectCommitmentLedger = false;
 
+		[Desc("Phase 2 commit-on-order audit (§4): also COMMIT each line/screen assignment to the shared",
+			"PoiGoalGuard ledger (key defend-line:<cell>). RespectCommitmentLedger landed only the READ side —",
+			"LayeredDefence skips units offense committed, but never WRITES its own, so offense's BuildFreePool",
+			"still strips an idle line unit (the reverse steal channel N6 documents). Committing the assignment",
+			"closes it. TTL is the assignment cooldown (AssignCooldownTicks), so the ledger claim and this module's",
+			"own assignedAtTick anti-thrash cooldown expire together — the line re-flows on the same clock while",
+			"other writers defer for the cooldown window. Requires a resolved ledger (implies RespectCommitmentLedger",
+			"on the same twin). Default false ⇒ no write ⇒ byte-identical @stable/legacy.")]
+		public readonly bool CommitLineAssignments = false;
+
 		[Desc("EXPERIMENTAL: derive line eligibility from UnitRoleResolver (only role==MainBattle holds",
 			"either layer) instead of the ScreenUnitTypes/MainLineUnitTypes/ExcludedActorTypes name lists.",
 			"Cures the ai.yaml:349 artillery/SHORAD/MANPADS-on-the-line defect — those roles drop out by",
@@ -146,6 +156,11 @@ namespace OpenRA.Mods.Common.Traits
 		UnitRoleResolver resolver;
 		PoiGoalGuard goalGuard;
 
+		// Phase 2 commit-on-order (§4): ledger key for a line/screen slot. The slot is a CELL, not an actor,
+		// so the grammar (defend-line:<x>,<y>) is disjoint from every actor-keyed executor (capture:/defend:/
+		// garrison:/transport:/offense:) — audit requirement (d).
+		static string LineObjectiveKey(CPos slot) => "defend-line:" + slot.X + "," + slot.Y;
+
 		public LayeredDefenceBotModule(Actor self, LayeredDefenceBotModuleInfo info)
 			: base(info)
 		{
@@ -162,7 +177,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Shared commitment ledger (experimental interop): only consulted when RespectCommitmentLedger
 			// is on, so @stable/legacy never look it up ⇒ byte-identical. Null when the player has no
 			// PoiGoalGuard (every non-@experimental profile) ⇒ the check below is inert.
-			goalGuard = Info.RespectCommitmentLedger
+			goalGuard = Info.RespectCommitmentLedger || Info.CommitLineAssignments
 				? player.PlayerActor.TraitOrDefault<PoiGoalGuard>() : null;
 
 			TextNotificationsManager.AddSystemLine(
@@ -423,6 +438,13 @@ namespace OpenRA.Mods.Common.Traits
 
 				bot.QueueOrder(new Order("AttackMove", actor, Target.FromCell(world, targetCell), false));
 				assignedAtTick[actor] = world.WorldTick;
+
+				// Phase 2 commit-on-order (§4): stake the line assignment in the shared ledger so offense's
+				// BuildFreePool defers (closes the reverse steal). TTL = the assignment cooldown, so the claim
+				// lapses exactly when this module would itself re-consider the unit. Off ⇒ no write ⇒ frozen.
+				if (CommitOnOrderMath.ShouldCommit(Info.CommitLineAssignments, goalGuard != null && !goalGuard.IsTraitDisabled))
+					goalGuard.Ledger.Commit(actor, LineObjectiveKey(bestSlot), world.WorldTick, Info.AssignCooldownTicks);
+
 				assignedSlots.Add(bestSlot);
 				assignsThisPass++;
 

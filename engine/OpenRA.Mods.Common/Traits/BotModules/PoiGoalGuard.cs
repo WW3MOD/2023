@@ -266,6 +266,41 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
+	// ============================================================
+	// Pure COMMIT-ON-ORDER gate — engine-free, unit-tested (CommitOnOrderMathTest).
+	// Phase 2 (§4 executor commit audit): the coexistence invariant is commit-on-order —
+	// EVERY executor commits EVERY unit it orders into a mission, at order time, so no other
+	// writer can poach a briefly-idle recruited unit. The known-blind writers (CaptureCoordinator
+	// escorts/defenders, MountedTransport passengers, GarrisonBotModule@defenses, LayeredDefence
+	// line slots) each recruit from the ledger-checked free pool but never commit — this gate is
+	// the single pure predicate every one of them consults before committing, so the byte-identity
+	// contract (§6) is expressed once and pinned once.
+	//
+	// The gate is deliberately trivial (two/three booleans) but load-bearing: getting it wrong
+	// either breaks @stable byte-identity (commit fires when it must not) or leaves the steal
+	// window open (commit skipped when it must fire). Keeping it a pure static mirrors PoiOffenseMath
+	// and makes the frozen-off / experimental-on split NUnit-provable without a game.
+	// Integer/boolean-only, deterministic, zero RNG.
+	// ============================================================
+	public static class CommitOnOrderMath
+	{
+		/// <summary>Per-profile executor (a per-bot-type trait twin, e.g. CaptureCoordinator@experimental,
+		/// LayeredDefence@experimental, MountedTransport@experimental): the default-off flag being on and a
+		/// live ledger being present is sufficient to confine the commit to @experimental, because the
+		/// @stable twin simply omits the flag. Off flag OR no ledger ⇒ NO commit ⇒ frozen behaviour
+		/// (the recruited unit stays uncommitted and therefore poachable — byte-identical to today).</summary>
+		public static bool ShouldCommit(bool commitEnabled, bool ledgerAvailable)
+			=> commitEnabled && ledgerAvailable;
+
+		/// <summary>SHARED executor bolted onto an <c>enable-ai-any</c> module (GarrisonBotModule@defenses):
+		/// a single instance runs for BOTH bots, and post stable-0802 <see cref="InfluenceStack.Participates"/>
+		/// admits @stable too, so the flag+ledger pair is NOT enough to keep the commit off the @stable player.
+		/// This overload adds the explicit bot-type gate the §6 note requires — the commit fires only for the
+		/// @experimental player, leaving the @stable player that shares the instance byte-identical.</summary>
+		public static bool ShouldCommitShared(bool commitEnabled, bool ledgerAvailable, bool isExperimentalBot)
+			=> commitEnabled && ledgerAvailable && isExperimentalBot;
+	}
+
 	[TraitLocation(SystemActors.Player)]
 	[Desc("WW3MOD experimental AI: per-unit commitment ledger that stops capture/offense modules re-issuing",
 		"orders when a unit's IsIdle flickers mid-task. Shared holder; the reusable logic is",
