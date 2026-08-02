@@ -65,6 +65,10 @@ namespace OpenRA.Mods.Common.Traits
 		bool incomeGraphDisabled;
 		public readonly Cache<string, ArmyUnit> Units;
 
+		// Observer-only per-actor-type composition telemetry (autotest/tournament output).
+		// Pure bookkeeping — NOT synced simulation state, no RNG, no orders. See UnitTypeTelemetry.
+		public readonly UnitTypeTelemetry UnitTypeStats = new();
+
 		public PlayerStatistics(Actor self)
 		{
 			Units = new Cache<string, ArmyUnit>(name => new ArmyUnit(self.World.Map.Rules.Actors[name], self.Owner));
@@ -173,6 +177,80 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
+	// Per-actor-type composition tally for a single player: how many of a type were
+	// produced (entered play), lost (killed in combat), and remain alive at match end,
+	// with the cost/value totals alongside each count.
+	public sealed class UnitTypeTally
+	{
+		public int ProducedCount;
+		public long ProducedCost;
+		public int LostCount;
+		public long LostCost;
+		public int AliveCount;
+		public long AliveValue;
+	}
+
+	// Observer-only aggregation of per-actor-type production/loss for one player.
+	//
+	// This is pure bookkeeping that lives OUTSIDE synced simulation state: it holds no
+	// [Sync] fields, issues no orders, and draws no RNG. It is fed by lifecycle callbacks
+	// on UpdatesPlayerStatistics (Created/Killed/Disposing/OwnerChanged) purely to observe,
+	// mirroring the existing ArmyValue/DeathsCost accounting that already runs there.
+	//
+	// Alive-count semantics deliberately match the proven includedInArmyValue guard on the
+	// caller: Produced() adds one live unit; the caller removes it exactly once via RemoveAlive()
+	// on the first of kill/dispose/transfer so a killed-then-disposed actor is not double-counted.
+	public sealed class UnitTypeTelemetry
+	{
+		readonly Dictionary<string, UnitTypeTally> tallies = new();
+
+		UnitTypeTally Get(string actorName)
+		{
+			if (!tallies.TryGetValue(actorName, out var tally))
+				tallies[actorName] = tally = new UnitTypeTally();
+
+			return tally;
+		}
+
+		public void Produced(string actorName, int cost)
+		{
+			var t = Get(actorName);
+			t.ProducedCount++;
+			t.ProducedCost += cost;
+			t.AliveCount++;
+			t.AliveValue += cost;
+		}
+
+		public void Lost(string actorName, int cost)
+		{
+			var t = Get(actorName);
+			t.LostCount++;
+			t.LostCost += cost;
+		}
+
+		public void AddAlive(string actorName, int cost)
+		{
+			var t = Get(actorName);
+			t.AliveCount++;
+			t.AliveValue += cost;
+		}
+
+		public void RemoveAlive(string actorName, int cost)
+		{
+			var t = Get(actorName);
+			t.AliveCount--;
+			t.AliveValue -= cost;
+		}
+
+		public UnitTypeTally this[string actorName] => Get(actorName);
+
+		public int TypeCount => tallies.Count;
+
+		// Deterministic, key-sorted enumeration for stable serialized output.
+		public IEnumerable<KeyValuePair<string, UnitTypeTally>> Sorted()
+			=> tallies.OrderBy(kv => kv.Key, StringComparer.Ordinal);
+	}
+
 	[Desc("Attach this to a unit to update observer stats.")]
 	public class UpdatesPlayerStatisticsInfo : TraitInfo
 	{
@@ -198,6 +276,10 @@ namespace OpenRA.Mods.Common.Traits
 		PlayerStatistics playerStats;
 		bool includedInArmyValue = false;
 		bool includedInAssetsValue = false;
+
+		// Observer-only: tracks whether this actor currently contributes +1 to its
+		// type's alive tally, so kill/dispose/transfer remove it exactly once.
+		bool countedAlive = false;
 
 		public UpdatesPlayerStatistics(UpdatesPlayerStatisticsInfo info, Actor self)
 		{
@@ -227,6 +309,10 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			playerStats.DeathsCost += cost;
+
+			// Observer-only composition telemetry: this actor type was lost in combat.
+			playerStats.UnitTypeStats.Lost(actorName, cost);
+			RemoveFromAlive();
 
 			if (e.Attacker == null || e.Attacker == self)
 				return;
@@ -263,10 +349,29 @@ namespace OpenRA.Mods.Common.Traits
 			includedInAssetsValue = info.AddToAssetsValue;
 			if (includedInAssetsValue)
 				playerStats.AssetsValue += cost;
+
+			// Observer-only composition telemetry: this actor type entered play.
+			playerStats.UnitTypeStats.Produced(actorName, cost);
+			countedAlive = true;
+		}
+
+		// Observer-only: drop this actor from its type's alive tally at most once,
+		// mirroring the includedInArmyValue guard so kill+dispose can't double-remove.
+		void RemoveFromAlive()
+		{
+			if (!countedAlive)
+				return;
+
+			countedAlive = false;
+			playerStats.UnitTypeStats.RemoveAlive(actorName, cost);
 		}
 
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
 		{
+			// Observer-only: move this unit's alive contribution from old to new owner.
+			var wasAlive = countedAlive;
+			RemoveFromAlive();
+
 			var newOwnerStats = newOwner.PlayerActor.Trait<PlayerStatistics>();
 			if (includedInArmyValue)
 			{
@@ -283,6 +388,13 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			playerStats = newOwnerStats;
+
+			// Re-add the alive contribution under the new owner (transfer, not a loss).
+			if (wasAlive)
+			{
+				playerStats.UnitTypeStats.AddAlive(actorName, cost);
+				countedAlive = true;
+			}
 		}
 
 		void INotifyActorDisposing.Disposing(Actor self)
@@ -299,6 +411,9 @@ namespace OpenRA.Mods.Common.Traits
 				playerStats.AssetsValue -= cost;
 				includedInAssetsValue = false;
 			}
+
+			// Observer-only: non-combat removal drops it from the alive tally (once).
+			RemoveFromAlive();
 		}
 	}
 }
