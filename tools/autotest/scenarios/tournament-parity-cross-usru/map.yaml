@@ -1,0 +1,71 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TOURNAMENT: Parity Cross US-RU 2P
+
+Author: WW3MOD balance audit (item 32)
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# US-vs-RU cross-faction probe for the parity audit
+# (WORKSPACE/balance/260802-parity-audit.md §6). US on the west SR, RU east.
+# Run paired with tournament-parity-cross-usru-swapped via --mirror so each seed
+# is played from both map sides and side bias cancels; aggregate faction_winrate_pct
+# is the balance signal (BotVsBotMatchWatcher records faction per combatant).
+#
+# Names follow the arena-mirror convention: player NAMES stay USA-bot/Russia-bot
+# across the pair while FACTION assignment swaps in the -swapped variant.
+#
+# Terrain, SR/spawn placement, and player layout cloned from
+# tournament-arena-skirmish-2p.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: stable
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: stable
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+Rules: rules.yaml

@@ -1,0 +1,68 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TOURNAMENT: Parity Mirror RU 2P
+
+Author: WW3MOD balance audit (item 32)
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# RU-vs-RU mirror for the faction parity audit (WORKSPACE/balance/260802-parity-audit.md §6).
+# Purpose: same noise-floor / side-bias baseline as tournament-parity-mirror-us but with
+# the Russia roster and RU AI profile, so faction-specific harness effects (e.g. the RU
+# attack-heli-heavy bot fleet, A1 in the audit) show up in the baseline rather than being
+# misread as cross-faction imbalance.
+#
+# Terrain, SR/spawn placement, and player layout cloned from
+# tournament-arena-skirmish-2p; only names/factions differ.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@RU-A:
+		Name: RU-A
+		LockFaction: True
+		Faction: russia
+		Bot: stable
+		Color: FF4444
+		Enemies: RU-B
+	PlayerReference@RU-B:
+		Name: RU-B
+		LockFaction: True
+		Faction: russia
+		Bot: stable
+		Color: FF9944
+		Enemies: RU-A
+
+Actors:
+	OwnSR: supplyroute
+		Owner: RU-A
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: RU-B
+		Location: 58,16
+	SpawnA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnB: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+Rules: rules.yaml
