@@ -786,6 +786,15 @@ Player:
 		# rearward toward the squad when it lands closer. Rides on StandoffEngagement above. 4 coarse cells ≈
 		# 8 map cells. Experimental-only; every other profile leaves it 0 (byte-identical).
 		MinFrontierDistanceCells: 4
+		# Mission-employment exit strategy (experimental-only, default-frozen in C#): evacuate an idle attack
+		# heli to reserves when it is spent (out of ammo, no hpad to rearm at) or has loitered near home with no
+		# believed worthwhile target — reclaiming salvage value and stopping upkeep drain instead of parking at
+		# the SR/staging corner forever. The exit half of "helicopters are perfect for short hit-and-run
+		# missions". Belief-store read (fog-legal), zero RNG. OFF for every non-experimental profile.
+		EvacuateWhenIdle: true
+		EvacuateIdleTicks: 500
+		EvacuateHomeRadiusCells: 12
+		MissionTargetRangeCells: 60
 
 	# ===== Stable AI — frozen snapshot of the validated Experimental config =====
 	#
