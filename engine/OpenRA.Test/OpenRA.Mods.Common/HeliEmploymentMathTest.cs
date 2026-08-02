@@ -108,10 +108,63 @@ namespace OpenRA.Test
 		public void NoTargetButForward_Holds()
 		{
 			// Idle with no target but positioned forward (not near home) ⇒ left to the squad FSM, not evac'd.
+			// Default (EvacuateForwardIdle off) preserves the frozen forward-hold behaviour.
 			Assert.That(
 				HeliEmploymentMath.Decide(
 					hasUsableAmmo: true, canRearm: false, hasWorthwhileTarget: false,
 					contactEverObserved: true, nearHome: false, idleTicks: Window * 4, evacuateIdleTicks: Window),
+				Is.EqualTo(HeliDisposition.HoldForMission));
+		}
+
+		[Test]
+		public void NoTargetButForward_WithForwardEvac_Evacuates()
+		{
+			// Mission-complete evac (Item C): the SAME forward, target-less, past-window heli now evacuates
+			// when EvacuateForwardIdle is set — it does not loiter at the front with no follow-up mission.
+			Assert.That(
+				HeliEmploymentMath.Decide(
+					hasUsableAmmo: true, canRearm: false, hasWorthwhileTarget: false,
+					contactEverObserved: true, nearHome: false, idleTicks: Window * 4, evacuateIdleTicks: Window,
+					evacuateForwardIdle: true),
+				Is.EqualTo(HeliDisposition.Evacuate));
+		}
+
+		[Test]
+		public void NoTargetButForward_WithForwardEvac_WithinWindow_Holds()
+		{
+			// The patience window still applies with forward evac on: one tick short ⇒ still holding, so a
+			// heli briefly idle between engagements at the front is not dumped.
+			Assert.That(
+				HeliEmploymentMath.Decide(
+					hasUsableAmmo: true, canRearm: false, hasWorthwhileTarget: false,
+					contactEverObserved: true, nearHome: false, idleTicks: Window - 1, evacuateIdleTicks: Window,
+					evacuateForwardIdle: true),
+				Is.EqualTo(HeliDisposition.HoldForMission));
+		}
+
+		[Test]
+		public void HasTargetForward_WithForwardEvac_Holds()
+		{
+			// A believed target keeps a forward heli committed even with forward evac enabled — evac is only
+			// for the genuinely-nothing-to-do case.
+			Assert.That(
+				HeliEmploymentMath.Decide(
+					hasUsableAmmo: true, canRearm: false, hasWorthwhileTarget: true,
+					contactEverObserved: true, nearHome: false, idleTicks: Window * 4, evacuateIdleTicks: Window,
+					evacuateForwardIdle: true),
+				Is.EqualTo(HeliDisposition.HoldForMission));
+		}
+
+		[Test]
+		public void NoTargetForward_WithForwardEvac_BeforeFirstContact_Holds()
+		{
+			// The first-contact gate still applies: an anticipatory forward heli before any believed enemy is
+			// held (staged), not evac'd/re-bought, even with forward evac enabled.
+			Assert.That(
+				HeliEmploymentMath.Decide(
+					hasUsableAmmo: true, canRearm: false, hasWorthwhileTarget: false,
+					contactEverObserved: false, nearHome: false, idleTicks: Window * 4, evacuateIdleTicks: Window,
+					evacuateForwardIdle: true),
 				Is.EqualTo(HeliDisposition.HoldForMission));
 		}
 

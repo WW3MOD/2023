@@ -31,6 +31,23 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks between launching attack missions.")]
 		public readonly int AttackCooldown = 900;
 
+		[Desc("Doctrine (default false = frozen pairing): allow launching an attack-heli mission BELOW the",
+			"randomised preferred size — down to MinAttackSquadSize — instead of benching helis until a full",
+			"pair/trio is ready. A single attack heli is already a large investment; waiting for a second is",
+			"too restrictive unless income is high. OFF by default so legacy/normal/@stable stay byte-identical",
+			"(the preferred-size RNG draw is unchanged); only HelicopterSquadBotModule@experimental turns it on.")]
+		public readonly bool AllowSoloAttackHeli = false;
+
+		[Desc("Smallest attack-heli count that may launch a mission when AllowSoloAttackHeli is set.",
+			"1 = a lone heli deploys rather than idling. Only used when AllowSoloAttackHeli is set.")]
+		public readonly int MinAttackSquadSize = 1;
+
+		[Desc("Spendable resources (Cash + Resources) at or above which income counts as HIGH: with a solo",
+			"heli ready and no second yet, the bot WAITS to accumulate a pair (it can afford to mass); below",
+			"it, the lone heli is committed rather than benched. ~one attack heli's cost. Only used when",
+			"AllowSoloAttackHeli is set.")]
+		public readonly int PairUpIncomeThreshold = 6000;
+
 		[Desc("Ticks between scout missions.")]
 		public readonly int ScoutInterval = 400;
 
@@ -48,6 +65,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Ticks between updating active squads.")]
 		public readonly int SquadUpdateInterval = 5;
+
+		[Desc("Recon: minimum distance (map cells) from the scout's own Supply Route a recon target must",
+			"be, so scout helis sweep OUT over the map instead of hovering above home. Mirrors",
+			"ScoutBotModule.MinScoutDistance.")]
+		public readonly int ScoutMinDistanceCells = 15;
+
+		[Desc("Recon: minimum spacing (map cells) between the recon targets handed to two scout helis in",
+			"the same pass, so multiple littlebirds fan out to DISTINCT areas instead of stacking on one",
+			"cell. Only relevant when more than one scout heli is idle at once.")]
+		public readonly int ScoutTargetSpacingCells = 12;
 
 		[Desc("Skip the full-ammo readiness gate when launching missions. WW3MOD attack helis only refill",
 			"at an hpad and the mod builds none, so a heli below full ammo can NEVER become mission-ready —",
@@ -142,6 +169,15 @@ namespace OpenRA.Mods.Common.Traits
 			"evac-eligible. Only used when EvacuateWhenIdle is set.")]
 		public readonly int MissionTargetRangeCells = 60;
 
+		[Desc("Mission-complete evac (experimental, default false = frozen). Extend the idle evac so an attack",
+			"heli that finished a mission FORWARD (beyond EvacuateHomeRadiusCells) and has since gone idle past",
+			"the window with NO believed worthwhile target evacuates to reserves too, instead of loitering at the",
+			"front indefinitely with no follow-up mission. RotateToEdge routes it toward its OWN Supply-Route edge",
+			"(friendly side), banking the salvage refund and ending the upkeep drain. Without this, only helis",
+			"idling within the home radius are reclaimed. Only used when EvacuateWhenIdle is set; OFF by default so",
+			"the frozen forward-hold behaviour is preserved for any profile that does not opt in.")]
+		public readonly bool EvacuateForwardIdle = false;
+
 		[Desc("Phase 4 strategic-target pinning (experimental, default false = frozen). Pin an attack-heli",
 			"squad's STRATEGIC objective in the squad separate from its tactical TargetActor: the FSM keeps its",
 			"5-tick standoff/danger-nav micro AND the bounded too-hot soft-swap, but a lapsed tactical target,",
@@ -171,6 +207,12 @@ namespace OpenRA.Mods.Common.Traits
 		readonly List<Actor> idleHelicopters = new List<Actor>();
 		readonly HashSet<Actor> managedHelicopters = new HashSet<Actor>();
 		readonly Dictionary<Actor, CPos> stagedTo = new Dictionary<Actor, CPos>();
+
+		// Reused scratch for the rotating-recon scout picker so a scan allocates nothing per tick:
+		// believed-POI cells gathered once per pass, and the targets already handed out this pass
+		// (so a second scout is fanned to a distinct area). Only touched on the scout path.
+		readonly List<CPos> poiScratchCells = new List<CPos>();
+		readonly List<CPos> assignedScratch = new List<CPos>();
 
 		// EvacuateWhenIdle bookkeeping (experimental). Consecutive idle ticks per managed heli, a reused
 		// scratch list of believed-contact cells so the worthwhile-target scan allocates nothing per tick,
@@ -245,6 +287,7 @@ namespace OpenRA.Mods.Common.Traits
 				FindNewHelicopters();
 				CleanUpHelicopters();
 				StageIdleHelicopters();
+				MarkScoutExploration();
 			}
 
 			// Attack missions
@@ -343,6 +386,13 @@ namespace OpenRA.Mods.Common.Traits
 				if (!inSquad && !idleHelicopters.Contains(h))
 					idleHelicopters.Add(h);
 			}
+		}
+
+		// Spendable resources for the pair-up income gate (Cash + Resources). 0 if no PlayerResources.
+		int SpendableResources()
+		{
+			var pr = player.PlayerActor.TraitOrDefault<PlayerResources>();
+			return pr != null ? pr.Cash + pr.Resources : 0;
 		}
 
 		Actor FindOwnSupplyRoute()
@@ -470,8 +520,22 @@ namespace OpenRA.Mods.Common.Traits
 				.Where(h => IsReadyForMission(h))
 				.ToList();
 
-			var neededSize = Info.AttackSquadSize + world.LocalRandom.Next(Info.AttackSquadSizeBonus + 1);
-			if (attackHelicopters.Count < neededSize)
+			// Preferred (pairing) size. The RNG draw is kept in the same place with the same arguments so
+			// the frozen path stays byte-identical for @stable / legacy.
+			var preferredSize = Info.AttackSquadSize + world.LocalRandom.Next(Info.AttackSquadSizeBonus + 1);
+			var ready = attackHelicopters.Count;
+
+			// Frozen doctrine: launch ONLY once the full preferred pair/trio is ready, else wait.
+			// Solo doctrine (experimental): a lone attack heli is already a big investment — don't bench it
+			// forever waiting for a twin. Commit down to MinAttackSquadSize, holding out for a pair only when
+			// income is high enough to afford massing a second. HeliPackageMath keeps this pure/NUnit-pinned.
+			int launchSize;
+			if (ready >= preferredSize)
+				launchSize = preferredSize;
+			else if (Info.AllowSoloAttackHeli
+				&& HeliPackageMath.ShouldLaunchPartial(ready, preferredSize, Info.MinAttackSquadSize, SpendableResources(), Info.PairUpIncomeThreshold))
+				launchSize = ready;
+			else
 				return;
 
 			// Create a helicopter attack squad
@@ -480,7 +544,7 @@ namespace OpenRA.Mods.Common.Traits
 			var assigned = 0;
 			foreach (var h in attackHelicopters)
 			{
-				if (assigned >= neededSize)
+				if (assigned >= launchSize)
 					break;
 
 				squad.Units.Add(h);
@@ -491,66 +555,139 @@ namespace OpenRA.Mods.Common.Traits
 			activeSquads.Add(squad);
 		}
 
+		// Rotating recon employment for scout helis (littlebirds). Root-cause fix for the corner-park bug:
+		// the old picker read GetExplorationAge but NEVER called MarkExplored on the heli path, so every
+		// never-visited cell stayed at the int.MaxValue sentinel and the strict `age > bestAge` from 0
+		// locked onto the FIRST in-bounds grid cell (a fixed map corner) every single mission — the scout
+		// was re-issued a Move to the identical corner it already sat on forever, and only ONE scout was
+		// ever tasked. Now EVERY idle scout is handed a DISTINCT rotating destination (a believed POI or
+		// the stalest far area), the destination + the scout's trail are marked explored so staleness
+		// evolves, and a deterministic far-first tie-break spreads the sweep from the opening (before any
+		// cell is explored) instead of camping (0,0). Shared code ⇒ fixes BOTH bot profiles. Zero RNG.
 		void TryLaunchScoutMission()
 		{
-			if (activeSquads.Count >= Info.MaxActiveSquads)
-				return;
-
-			if (squadManagerRef == null)
-				return;
-
-			// Get an idle scout helicopter
-			var scout = idleHelicopters
+			// Scouts are singletons (no Squad is ever formed for them), so they are NOT gated by the
+			// active-squad cap or the squad manager — the old early-returns on those benched recon
+			// whenever 3 attack/transport squads were live. Task every ready idle scout instead.
+			var scouts = idleHelicopters
 				.Where(h =>
 				{
 					var role = h.TraitOrDefault<AIHelicopterRole>();
 					return role != null && role.Info.Role == HelicopterAIRole.Scout;
 				})
-				.Where(h => IsReadyForMission(h))
-				.FirstOrDefault();
+				.Where(IsReadyForMission)
+				.OrderBy(h => h.ActorID)
+				.ToList();
 
-			if (scout == null)
+			if (scouts.Count == 0)
 				return;
 
-			// Scouts go alone — find unexplored areas
-			CPos? scoutTarget = null;
+			var ownSR = FindOwnSupplyRoute();
+			var homeCell = ownSR?.Location ?? player.HomeLocation;
+			var minDistSq = (long)Info.ScoutMinDistanceCells * Info.ScoutMinDistanceCells;
+			var spacingSq = (long)Info.ScoutTargetSpacingCells * Info.ScoutTargetSpacingCells;
 
+			// Believed POIs to keep intel fresh on (fog-legal: map-fact structures + enemy SR).
+			// suppressOmniscientThreat keeps the picker off the omniscient InfluenceMap threat grid —
+			// we only read the POI LOCATIONS, so this is fog-legal for @experimental and inert for @stable.
+			poiScratchCells.Clear();
+			if (poiMap != null)
+				foreach (var p in poiMap.GetOffensiveTargets(player, suppressOmniscientThreat: true))
+					poiScratchCells.Add(p.Location);
+
+			assignedScratch.Clear();
+
+			foreach (var scout in scouts)
+			{
+				var target = PickReconTarget(scout, homeCell, minDistSq, spacingSq);
+				if (!target.HasValue)
+					continue;
+
+				bot.QueueOrder(new Order("Move", scout, Target.FromCell(world, target.Value), false));
+				idleHelicopters.Remove(scout);
+				assignedScratch.Add(target.Value);
+
+				// Mark the destination explored so its staleness resets and the NEXT scout / next pass
+				// picks a genuinely different area (mirrors ScoutBotModule) — the missing call that let
+				// the old code re-issue the SAME corner every mission.
+				threatMap?.MarkExplored(target.Value);
+
+				AIUtils.BotDebug("AI ({0}): heli recon {1} {2} -> {3}",
+					player.ClientIndex, scout.Info.Name, scout.Location, target.Value);
+			}
+		}
+
+		// Pick the highest-desirability recon destination for one scout: a believed POI or the stalest
+		// far area, excluding cells near home or within spacing of a target already handed out this pass.
+		// Deterministic (fixed iteration order + strict-greater first-wins), zero RNG.
+		CPos? PickReconTarget(Actor scout, CPos homeCell, long minDistSq, long spacingSq)
+		{
+			CPos? best = null;
+			var bestScore = int.MinValue;
+
+			// Source 1: believed POIs — purposeful recon of known enemy/neutral anchors.
+			foreach (var c in poiScratchCells)
+				ConsiderReconCandidate(c, scout, homeCell, minDistSq, spacingSq, true, ref best, ref bestScore);
+
+			// Source 2: stale-area sweep over the coarse exploration grid.
 			if (threatMap != null)
-			{
-				var bestAge = 0;
 				for (var gx = 0; gx < threatMap.GridWidth; gx++)
-				{
 					for (var gy = 0; gy < threatMap.GridHeight; gy++)
-					{
-						var mapCell = threatMap.GridToMapCell(gx, gy);
-						if (!world.Map.Contains(mapCell))
-							continue;
+						ConsiderReconCandidate(threatMap.GridToMapCell(gx, gy), scout, homeCell, minDistSq, spacingSq, false, ref best, ref bestScore);
 
-						var age = threatMap.GetExplorationAge(mapCell);
-						if (age > bestAge)
-						{
-							bestAge = age;
-							scoutTarget = mapCell;
-						}
-					}
-				}
-			}
+			return best;
+		}
 
-			if (!scoutTarget.HasValue)
+		void ConsiderReconCandidate(CPos cell, Actor scout, CPos homeCell, long minDistSq, long spacingSq,
+			bool isPoi, ref CPos? best, ref int bestScore)
+		{
+			if (!world.Map.Contains(cell))
+				return;
+
+			// Keep recon out over the map, not hovering above home.
+			if ((cell - homeCell).LengthSquared < minDistSq)
+				return;
+
+			// Fan multiple scouts out: skip a cell too close to one already handed out this pass.
+			foreach (var a in assignedScratch)
+				if ((cell - a).LengthSquared < spacingSq)
+					return;
+
+			var age = threatMap?.GetExplorationAge(cell) ?? ScoutReconMath.MaxTrackedAge;
+			var score = ScoutReconMath.Score(age, IsEdgeCell(cell), isPoi, (cell - scout.Location).Length);
+
+			if (score > bestScore)
 			{
-				// Random location
-				var map = world.Map;
-				scoutTarget = new CPos(
-					world.LocalRandom.Next(map.Bounds.Left, map.Bounds.Right),
-					world.LocalRandom.Next(map.Bounds.Top, map.Bounds.Bottom));
+				bestScore = score;
+				best = cell;
 			}
+		}
 
-			// Send scout directly — don't need a full squad for one unit
-			bot.QueueOrder(new Order("Move", scout, Target.FromCell(world, scoutTarget.Value), false));
-			idleHelicopters.Remove(scout);
+		// Edge cells are likely enemy approach routes — worth extra recon weight (mirrors ScoutBotModule).
+		bool IsEdgeCell(CPos cell)
+		{
+			var b = world.Map.Bounds;
+			return cell.X < b.Left + 5 || cell.X > b.Right - 5
+				|| cell.Y < b.Top + 5 || cell.Y > b.Bottom - 5;
+		}
 
-			// Still track as managed — it'll return to idle pool when it comes home
-			// Don't create a squad for a single scout; just let it explore
+		// Refresh the shared exploration grid from where the scout helis actually are, so their trails
+		// register as freshly explored and successive recon legs rotate to new stale areas (mirrors
+		// ScoutBotModule.cs:110). Deterministic: an int-grid write of the synced WorldTick, zero RNG.
+		void MarkScoutExploration()
+		{
+			if (threatMap == null)
+				return;
+
+			foreach (var h in managedHelicopters)
+			{
+				if (h == null || h.IsDead || !h.IsInWorld)
+					continue;
+
+				var role = h.TraitOrDefault<AIHelicopterRole>();
+				if (role != null && role.Info.Role == HelicopterAIRole.Scout)
+					threatMap.MarkExplored(h.Location);
+			}
 		}
 
 		void TryLaunchTransportMission()
@@ -726,7 +863,7 @@ namespace OpenRA.Mods.Common.Traits
 				var nearHome = ownSR == null || (h.Location - ownSR.Location).LengthSquared <= homeRadiusSq;
 				var hasTarget = HasWorthwhileBelievedTarget(h, missionRangeSq);
 
-				if (HeliEmploymentMath.Decide(hasUsableAmmo, canRearm, hasTarget, enemyEverObserved, nearHome, ticks, Info.EvacuateIdleTicks)
+				if (HeliEmploymentMath.Decide(hasUsableAmmo, canRearm, hasTarget, enemyEverObserved, nearHome, ticks, Info.EvacuateIdleTicks, Info.EvacuateForwardIdle)
 					== HeliDisposition.Evacuate)
 					Evacuate(h);
 			}
@@ -831,6 +968,65 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
+	// Pure, world-free recon-desirability scoring for the scout-heli rotating-recon picker. Split out for
+	// NUnit like HeliStagingMath / HeliEmploymentMath — deterministic, integer-only, overflow-safe, zero RNG.
+	public static class ScoutReconMath
+	{
+		// Never-visited cells report GetExplorationAge == int.MaxValue; clamp so staleness never overflows
+		// when bonuses are added and so a single ancient cell cannot swamp the POI/edge/distance shaping.
+		public const int MaxTrackedAge = 6000;
+
+		// Edge cells (map approach routes) and believed POIs get flat bonuses; the distance term is a
+		// deterministic far-first tie-break that spreads the sweep before any cell has been explored.
+		public const int EdgeBonus = 3000;
+		public const int PoiBonus = 8000;
+
+		// Desirability of sending a scout to a candidate cell.
+		//   age              — GetExplorationAge (int.MaxValue = never visited); clamped to MaxTrackedAge.
+		//   isEdge           — cell sits in the map's edge band (likely enemy approach route).
+		//   isPoi            — cell is a believed enemy/neutral POI (keep intel fresh, stays in rotation).
+		//   distToScoutCells — cells from the scout's current position (far-first tie-break).
+		public static int Score(int age, bool isEdge, bool isPoi, int distToScoutCells)
+		{
+			var staleness = age < 0 || age > MaxTrackedAge ? MaxTrackedAge : age;
+			var s = staleness;
+			if (isEdge)
+				s += EdgeBonus;
+			if (isPoi)
+				s += PoiBonus;
+
+			if (distToScoutCells > 0)
+				s += distToScoutCells;
+
+			return s;
+		}
+	}
+
+	// Pure, world-free attack-heli package-size doctrine. Split out for NUnit like the other heli math
+	// helpers — deterministic, integer-only, zero RNG.
+	public static class HeliPackageMath
+	{
+		// Whether to launch a partial (below-preferred) attack-heli package.
+		//   ready         — attack helis ready to launch now.
+		//   preferredSize — the randomised pairing target already computed by the caller.
+		//   minSize       — smallest package allowed to launch (1 = a lone heli deploys).
+		//   spendable     — Cash + Resources.
+		//   incomeThresh  — spendable at/above which we can afford to wait for a pair.
+		// Launch when at least minSize is ready AND we are not deliberately holding out for a pair. We hold
+		// out only when income is high (can afford to mass a second) and we are still short of preferredSize.
+		public static bool ShouldLaunchPartial(int ready, int preferredSize, int minSize, int spendable, int incomeThresh)
+		{
+			if (ready < minSize)
+				return false;
+
+			var incomeHigh = spendable >= incomeThresh;
+			if (incomeHigh && ready < preferredSize)
+				return false;
+
+			return true;
+		}
+	}
+
 	// What to do with an idle attack heli that is not currently executing a mission.
 	public enum HeliDisposition { HoldForMission, Evacuate }
 
@@ -847,20 +1043,25 @@ namespace OpenRA.Mods.Common.Traits
 		//                          helis are not evac'd/re-bought during the opening before any contact.
 		//   nearHome             — the heli is loitering within the home radius (at the SR/staging area).
 		//   idleTicks            — consecutive ticks the heli has been idle.
-		//   evacuateIdleTicks    — patience window before a target-less home heli is evacuated.
+		//   evacuateIdleTicks    — patience window before a target-less heli is evacuated.
+		//   evacuateForwardIdle  — also evac a target-less idle heli that finished a mission FORWARD (beyond
+		//                          the home radius); when false the forward heli is HELD (frozen behaviour).
 		public static HeliDisposition Decide(
 			bool hasUsableAmmo, bool canRearm, bool hasWorthwhileTarget,
-			bool contactEverObserved, bool nearHome, int idleTicks, int evacuateIdleTicks)
+			bool contactEverObserved, bool nearHome, int idleTicks, int evacuateIdleTicks,
+			bool evacuateForwardIdle = false)
 		{
 			// Spent and unable to refill: no combat value remains — bank the salvage and stop the upkeep
 			// drain rather than parking a disarmed heli forever. Fires regardless of target/home/window/contact.
 			if (!hasUsableAmmo && !canRearm)
 				return HeliDisposition.Evacuate;
 
-			// Armed (or able to rearm) but nothing believed worth striking, and loitering at home past the
-			// patience window: reclaim full value + stop upkeep instead of corner-parking. Only once first
-			// contact has been made — a believed target instead keeps the heli HELD for the squad mission loop.
-			if (contactEverObserved && !hasWorthwhileTarget && nearHome && idleTicks >= evacuateIdleTicks)
+			// Armed (or able to rearm) but nothing believed worth striking, idle past the patience window:
+			// reclaim full value + stop upkeep instead of loitering. Only once first contact has been made —
+			// a believed target instead keeps the heli HELD for the squad mission loop. By default this only
+			// fires near home; EvacuateForwardIdle extends it to a heli that finished a mission FORWARD so it
+			// does not sit at the front indefinitely with no follow-up (it evacs toward its own friendly edge).
+			if (contactEverObserved && !hasWorthwhileTarget && (nearHome || evacuateForwardIdle) && idleTicks >= evacuateIdleTicks)
 				return HeliDisposition.Evacuate;
 
 			return HeliDisposition.HoldForMission;
