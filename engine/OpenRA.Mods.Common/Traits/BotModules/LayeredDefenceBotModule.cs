@@ -110,6 +110,16 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Search radius (map cells) around an assigned slot for cover. 0 disables cover snap.")]
 		public readonly int CoverSearchRadiusCells = 6;
 
+		[Desc("EXPERIMENTAL mission-commitment interop: before pulling a reserve onto the line, skip any unit",
+			"that is currently COMMITTED in the shared PoiGoalGuard ledger (an offense axis / capture / garrison",
+			"already owns it). Without this, LayeredDefence is a ledger-BLIND second writer: an offense unit that",
+			"idles for an instant at its objective between offense evals gets yanked back to a line slot, then",
+			"offense re-grabs it next eval — the forward/back dithering loop. Honouring the ledger (like the",
+			"transport-reservation check already does) makes LayeredDefence cooperate with the shared claim.",
+			"Default false so @stable/Normal/legacy twins stay byte-identical (they never consult the ledger);",
+			"only LayeredDefenceBotModule@experimental turns it on. Inert if no PoiGoalGuard exists on the player.")]
+		public readonly bool RespectCommitmentLedger = false;
+
 		[Desc("EXPERIMENTAL: derive line eligibility from UnitRoleResolver (only role==MainBattle holds",
 			"either layer) instead of the ScreenUnitTypes/MainLineUnitTypes/ExcludedActorTypes name lists.",
 			"Cures the ai.yaml:349 artillery/SHORAD/MANPADS-on-the-line defect — those roles drop out by",
@@ -134,6 +144,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		InfluenceMap influenceMap;
 		UnitRoleResolver resolver;
+		PoiGoalGuard goalGuard;
 
 		public LayeredDefenceBotModule(Actor self, LayeredDefenceBotModuleInfo info)
 			: base(info)
@@ -147,6 +158,12 @@ namespace OpenRA.Mods.Common.Traits
 			scanCountdown = world.LocalRandom.Next(0, Info.ScanInterval);
 			influenceMap = world.WorldActor.TraitOrDefault<InfluenceMap>();
 			resolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
+
+			// Shared commitment ledger (experimental interop): only consulted when RespectCommitmentLedger
+			// is on, so @stable/legacy never look it up ⇒ byte-identical. Null when the player has no
+			// PoiGoalGuard (every non-@experimental profile) ⇒ the check below is inert.
+			goalGuard = Info.RespectCommitmentLedger
+				? player.PlayerActor.TraitOrDefault<PoiGoalGuard>() : null;
 
 			TextNotificationsManager.AddSystemLine(
 				$"[exp-layered-defence] enabled for {player.PlayerName} ({player.Faction.Name})");
@@ -305,6 +322,13 @@ namespace OpenRA.Mods.Common.Traits
 				// actor as a passenger, leave it alone — overriding with AttackMove here
 				// would cancel its EnterTransport.
 				if (transport != null && transport.IsPassengerReserved(actor))
+					continue;
+
+				// Mission-commitment interop (experimental, default off): a unit COMMITTED in the shared
+				// PoiGoalGuard ledger belongs to an offense axis / capture / garrison. Skip it so we don't
+				// yank a briefly-idle committed unit back to the line and start the forward/back loop. Off ⇒
+				// goalGuard is null ⇒ inert (byte-identical). Mirrors PoiOffensiveBotModule's free-pool gate.
+				if (goalGuard != null && goalGuard.Ledger.IsCommitted(actor, world.WorldTick))
 					continue;
 
 				// On-the-line check: skip if any contested cell is within OnLineRadiusCells.

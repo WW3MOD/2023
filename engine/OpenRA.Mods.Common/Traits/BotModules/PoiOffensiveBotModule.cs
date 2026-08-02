@@ -279,6 +279,49 @@ namespace OpenRA.Mods.Common.Traits
 			"Needs EchelonPositioning on + a ControlField present; inert until the field is populated for this player.")]
 		public readonly int MinFrontierDistanceCells = 0;
 
+		[Desc("MISSION COMMITMENT (Phase-1 anti-thrash stopgap). Once an axis has been ordered at an objective,",
+			"do NOT re-task it on the next re-eval merely because scores jittered — HOLD the mission and leave its",
+			"in-flight order alone. A committed axis is released for re-tasking ONLY on an explicit trigger:",
+			"objective invalid (target gone/captured), a believed-danger spike at the objective, a rival objective",
+			"beating it by MissionBetterOppMarginPct, or the squad ground below MissionIneffectiveNumerator/",
+			"Denominator of its commit-time strength. Kills the 'go one way, stop, go the other, loop' churn from",
+			"the steady re-issue cadence overwriting live orders. OFF by default so the frozen @stable twin and",
+			"every legacy profile keep re-tasking every eval byte-identical; only PoiOffensiveBotModule@experimental",
+			"turns it on. Decision math is the pure MissionCommitmentMath (NUnit-pinned), v3-brain-portable.")]
+		public readonly bool MissionCommitmentEnabled = false;
+
+		[Desc("Mission commitment: bounded safety re-plan window (ticks from the commit). When > 0 a committed",
+			"axis is force-released for re-evaluation once this many ticks elapse even if no other trigger fired.",
+			"0 (default) = pure-trigger hold: the mission persists until its objective completes (trigger 1) or a",
+			"danger/opportunity/attrition trigger fires. Only read when MissionCommitmentEnabled is on.")]
+		public readonly int MissionCommitmentWindowTicks = 0;
+
+		[Desc("Mission commitment trigger 2 (danger spike): percent above the commit-time believed danger the",
+			"current danger at the objective must rise to abandon the mission. Scales the reaction to an already-",
+			"dangerous commit so ambient baseline jitter doesn't trip it. Only read when MissionCommitmentEnabled.")]
+		public readonly int MissionDangerSpikePct = 50;
+
+		[Desc("Mission commitment trigger 2: ABSOLUTE floor (danger-field intensity scale) on the spike margin, so",
+			"a fresh weapon envelope appearing over previously-quiet ground (commit danger ≈ 0) still trips the abort.",
+			"Set at the mild-danger threshold (a genuine believed weapon envelope, above baseline stacking). Only read",
+			"when MissionCommitmentEnabled.")]
+		public readonly int MissionDangerSpikeFloor = 40;
+
+		[Desc("Mission commitment trigger 3 (better opportunity): a rival objective must beat the committed axis's",
+			"score by strictly MORE than this percent to abandon the current mission. Set ABOVE ReassignScoreThresholdPct",
+			"so mission-level re-tasking needs a bigger delta than the target-set stickiness — a mere tie-break flip never",
+			"re-tasks. Only read when MissionCommitmentEnabled.")]
+		public readonly int MissionBetterOppMarginPct = 50;
+
+		[Desc("Mission commitment trigger 4 (combat-ineffective): numerator of the commit-time-strength fraction below",
+			"which a gutted squad is released to re-task/regroup. With the denominator below, 1/2 = 'below half the units",
+			"it committed with'. Only read when MissionCommitmentEnabled.")]
+		public readonly int MissionIneffectiveNumerator = 1;
+
+		[Desc("Mission commitment trigger 4: denominator of the commit-time-strength fraction (see numerator). Only read",
+			"when MissionCommitmentEnabled.")]
+		public readonly int MissionIneffectiveDenominator = 2;
+
 		public override object Create(ActorInitializer init) { return new PoiOffensiveBotModule(init.Self, this); }
 	}
 
@@ -298,6 +341,15 @@ namespace OpenRA.Mods.Common.Traits
 			public CPos? OrderedVia;   // last Stage-E lateral waypoint ordered (null = went direct)
 			public bool HasOrdered;
 			public readonly List<Actor> Units = new();
+
+			// MISSION COMMITMENT snapshot (populated only when MissionCommitmentEnabled). Committed = the
+			// axis has been ordered at least once and holds a mission; the Commit* fields are the baseline
+			// captured at that order, against which MissionCommitmentMath tests the abort triggers each eval.
+			public bool Committed;
+			public int CommitTick;
+			public long CommitScore;
+			public int CommitDanger;
+			public int CommitStrength;
 		}
 
 		readonly World world;
@@ -391,11 +443,11 @@ namespace OpenRA.Mods.Common.Traits
 				resolverResolved = true;
 			}
 
-			// The anti-ground danger field feeds BOTH the Stage-E flow-around routing and the Stage-F
-			// believed-danger axis damp, so resolve it when either is enabled.
+			// The anti-ground danger field feeds the Stage-E flow-around routing, the Stage-F believed-danger
+			// axis damp, AND the mission-commitment danger-spike trigger, so resolve it when any is enabled.
 			if (!dangerFieldResolved)
 			{
-				dangerField = Info.DangerFieldRouting || Info.StrategicRepointEnabled
+				dangerField = Info.DangerFieldRouting || Info.StrategicRepointEnabled || Info.MissionCommitmentEnabled
 					? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
 				dangerFieldResolved = true;
 			}
@@ -482,14 +534,26 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
+			// 2c. MISSION COMMITMENT (experimental, default off): pull every axis that still HOLDS its
+			//     mission out of the reshuffle universe BEFORE the free pool / allocation runs, so a
+			//     committed squad is neither re-sized nor re-ordered this eval — its in-flight order
+			//     stands. An axis is held unless MissionCommitmentMath fires an abort trigger (objective
+			//     invalid, danger spike, materially better rival, or combat-ineffective). Held units stay
+			//     ledger-committed (TTL refreshed) so BuildFreePool below excludes them, and held targets
+			//     are dropped from the candidate list so no duplicate axis forms for them. When the flag is
+			//     off heldAxes stays null and every line below is byte-identical to the pre-change path.
+			var heldAxes = PartitionHeldAxes(ref targets, tick);
+
 			// 3. Free pool = eligible combat units claimed by nobody (SquadManager no
 			//    longer owns ground for experimental; capture/defense commitments are respected).
 			var free = BuildFreePool();
 			var totalOffensive = free.Count + axes.Sum(a => a.Units.Count);
 
-			// 4. How many axes, and which targets (sticky top-k with a hysteresis slack).
+			// 4. How many axes, and which targets (sticky top-k with a hysteresis slack). Held axes already
+			//    hold their slots + targets, so the assignable budget is MaxAxes minus the held count.
+			var maxAxes = Math.Max(0, Info.MaxAxes - (heldAxes?.Count ?? 0));
 			var k = PoiOffenseMath.DesiredAxisCount(totalOffensive, targets.Count,
-				unitsPerAxis, minAxisSize, Info.MaxAxes);
+				unitsPerAxis, minAxisSize, maxAxes);
 
 			var finalTargets = SelectStickyTargets(targets, k);
 
@@ -583,6 +647,12 @@ namespace OpenRA.Mods.Common.Traits
 
 				CommitAndOrder(bot, axis, tick);
 			}
+
+			// Mission commitment: fold the held (frozen) axes back into the live set. They kept their units,
+			// target and in-flight order untouched this eval and already had their ledger TTL refreshed in
+			// PartitionHeldAxes. No-op when the flag is off (heldAxes is null).
+			if (heldAxes != null && heldAxes.Count > 0)
+				axes.AddRange(heldAxes);
 
 			ReconcileFiresHoldFire(bot);
 
@@ -686,6 +756,85 @@ namespace OpenRA.Mods.Common.Traits
 
 			Log.Write("debug", $"[exp-terr] reeval player={player.PlayerName} boosted={boosted} damped={damped} neutral={neutral} tick={tick}");
 			return scaled;
+		}
+
+		// MISSION COMMITMENT: remove every axis still HOLDING its mission from `axes` (returning them so the
+		// caller re-adds them after the reshuffle), refresh their ledger claims, and strip their targets from
+		// the candidate list so no duplicate axis forms. An axis is held unless MissionCommitmentMath fires an
+		// abort trigger. Returns null (and touches nothing) when the flag is off / no ledger / no axes — that
+		// path is byte-identical to the pre-change module. Deterministic: reverse index walk, zero RNG.
+		List<Axis> PartitionHeldAxes(ref List<ScoredPoi> targets, int tick)
+		{
+			if (!Info.MissionCommitmentEnabled || goalGuard == null || axes.Count == 0)
+				return null;
+
+			List<Axis> held = null;
+			HashSet<uint> heldIds = null;
+
+			for (var i = axes.Count - 1; i >= 0; i--)
+			{
+				var axis = axes[i];
+
+				// A brand-new axis that has not yet issued an order has no baseline to test — let it flow
+				// through the normal assignment path (it snapshots when CommitAndOrder runs this eval).
+				if (!axis.Committed)
+					continue;
+
+				var scored = targets.FirstOrDefault(t => t.Actor.ActorID == axis.TargetId);
+				var objectiveValid = scored.Actor != null;
+				var currentScore = objectiveValid ? scored.Score : 0;
+				var currentDanger = dangerField != null ? dangerField.GroundDanger(player, axis.TargetCell) : 0;
+				var currentStrength = axis.Units.Count;
+				var bestAlt = BestAlternativeScore(targets, axis.TargetId);
+
+				var reassign = MissionCommitmentMath.ShouldReassign(
+					objectiveValid,
+					axis.CommitTick, tick, Info.MissionCommitmentWindowTicks,
+					axis.CommitDanger, currentDanger, Info.MissionDangerSpikePct, Info.MissionDangerSpikeFloor,
+					currentScore, bestAlt, Info.MissionBetterOppMarginPct,
+					axis.CommitStrength, currentStrength,
+					Info.MissionIneffectiveNumerator, Info.MissionIneffectiveDenominator);
+
+				if (reassign)
+					continue; // release to the normal reshuffle / re-task path
+
+				// HELD: keep the mission. Refresh the ledger claim so the units stay ours and BuildFreePool
+				// excludes them; keep any FiresEvGate-held pieces held (their axis skips this eval's fires
+				// reconciliation, so mark them so ReconcileFiresHoldFire doesn't restore FireAtWill).
+				var key = OffenseObjectiveKey(axis.TargetId);
+				foreach (var u in axis.Units)
+				{
+					goalGuard.Ledger.Commit(u, key, tick, Info.AxisCommitmentTicks);
+					if (firesHeldFire.Contains(u))
+						firesHeldThisEval.Add(u);
+				}
+
+				(held ??= new List<Axis>()).Add(axis);
+				(heldIds ??= new HashSet<uint>()).Add(axis.TargetId);
+				axes.RemoveAt(i);
+
+				Log.Write("debug",
+					$"[exp-offense] hold player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
+					$"units={currentStrength} commitScore={axis.CommitScore} score={currentScore} " +
+					$"commitDanger={axis.CommitDanger} danger={currentDanger} tick={tick}");
+			}
+
+			if (heldIds != null)
+				targets = targets.Where(t => !heldIds.Contains(t.Actor.ActorID)).ToList();
+
+			return held;
+		}
+
+		// Highest score among the scored targets that is NOT `excludeId` — the best rival objective a
+		// committed axis could switch to. `targets` arrives score-desc, so the first non-excluded entry
+		// is the max. 0 when no other target exists. Pure.
+		static long BestAlternativeScore(List<ScoredPoi> targets, uint excludeId)
+		{
+			foreach (var t in targets)
+				if (t.Actor.ActorID != excludeId)
+					return t.Score;
+
+			return 0;
 		}
 
 		// Sticky top-k selection with hysteresis: start from the score-ordered targets,
@@ -821,6 +970,19 @@ namespace OpenRA.Mods.Common.Traits
 				var key = OffenseObjectiveKey(axis.TargetId);
 				foreach (var u in axis.Units)
 					goalGuard.Ledger.Commit(u, key, tick, Info.AxisCommitmentTicks);
+			}
+
+			// Mission commitment: snapshot the baseline this (re)tasking commits to. Any axis reaching
+			// CommitAndOrder is being freshly assigned or re-tasked (a HELD axis is pulled out before here),
+			// so its baseline resets to the current score / believed danger / squad size. Next eval
+			// PartitionHeldAxes tests the abort triggers against this snapshot. Guarded ⇒ inert when off.
+			if (Info.MissionCommitmentEnabled)
+			{
+				axis.Committed = true;
+				axis.CommitTick = tick;
+				axis.CommitScore = axis.Score;
+				axis.CommitDanger = dangerField != null ? dangerField.GroundDanger(player, axis.TargetCell) : 0;
+				axis.CommitStrength = axis.Units.Count;
 			}
 
 			// Fires doctrine (experimental, default off): peel IndirectFire artillery off the line group and
