@@ -422,8 +422,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		Actor FindBridgeHutAt(CPos cell)
 			=> world.Actors.FirstOrDefault(a =>
-				!a.IsDead && a.IsInWorld && a.Location == cell
-				&& (a.Info.HasTraitInfo<LegacyBridgeHutInfo>() || a.Info.HasTraitInfo<BridgeHutInfo>()));
+				!a.IsDead && a.IsInWorld
+				// world.Actors includes non-positional actors (Player, World) whose OccupiesSpace is null —
+				// Actor.Location would NRE on them, so filter by trait (and null-guard) BEFORE touching Location.
+				&& (a.Info.HasTraitInfo<LegacyBridgeHutInfo>() || a.Info.HasTraitInfo<BridgeHutInfo>())
+				&& a.OccupiesSpace != null && a.Location == cell);
 
 		// Nearest own engineer (RepairsBridges) that is alive, positionable, and NOT already committed to another
 		// task. Deterministic (nearest by squared distance, tie-break lowest ActorID).
@@ -436,6 +439,8 @@ namespace OpenRA.Mods.Common.Traits
 				if (actor.Owner != player || actor.IsDead || !actor.IsInWorld)
 					continue;
 				if (!actor.Info.HasTraitInfo<RepairsBridgesInfo>())
+					continue;
+				if (actor.OccupiesSpace == null)
 					continue;
 				if (goalGuard != null && goalGuard.Ledger.IsCommitted(actor, world.WorldTick))
 					continue;
