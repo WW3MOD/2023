@@ -5,6 +5,8 @@
 
 ## 2026-08-03 — The fires/artillery doctrine cycle is already SHIPPED + ENABLED in `@experimental` (standoff + echelon + frontier + EV gate + cluster targeting); the "artillery charges like MBTs" premise is stale — the residual gaps are bombardment / prep-fires / suppression-feedback / measurement (fires-cycle design recon)
 
+> **[promoted (partial): the two genuinely-missing durable slivers → architecture.md §AI fires paragraph — `FiresEvGate` (rocket-only ammo-EV gate: `RocketFireWorthy` over `FiresEconMath.SalvoCost`/`ProjectedClumpValue`, tube pieces exempt) and the SHARED-`AutoTarget` AoE cluster targeting (`ClusterTargetingCondition: enable-ai-experimental`, defaults.yaml:395,413). The rest is NOT banked: standoff/echelon/role-split are already in architecture.md:321/364, frontier-hold in influence-stack.md:113, and the two-missing-employments + unmeasured-A/B is plan/tracker material tied to `WORKSPACE/plans/260803_fires_cycle_design.md` (deep-linked from architecture.md). Verified `ai.yaml:341/348/356`, `FiresEconMath.cs:90/:121`, `PoiOffensiveBotModule.cs:1987`, `AutoTarget.cs:225-231`.]** (curation 2026-08-03).
+
 A recon+design tasking for the fires/artillery behaviour cycle assumed a greenfield design ("today `ai.yaml` lumps artillery/SHORAD with tanks, they charge like MBTs"). That premise is **stale** — the core doctrine is built, committed, and on. Pinned so it isn't re-scoped as new work:
 
 - **Shipped + enabled in `@experimental` (all default-off on the class, YAML-on only under `@experimental`):** `UseUnitRoles` role split incl. tube-vs-rocket `IndirectFireKind` (`UnitRoleResolver.cs:50-60/:308-314/:364`); `FiresStandoff` weapon-range standoff (`FiresStandoffMath.cs`; consumed `PoiOffensiveBotModule.cs:1684-1715/:1819`; commit `6a33813d`); `EchelonPositioning` hold-behind-screen (`EchelonMath.cs`; `:1874-1875`; commit `c43dc391`); `MinFrontierDistanceCells:4` hold-behind-frontier (`PushEchelonBehindFrontier`, `:1922`); `FiresEvGate` rocket-only ammo-EV gate (`FiresEconMath.SalvoCost/ProjectedClumpValue/FireWorthy`; `RocketFireWorthy` `:1987-2061`; commit `b25ba2f0`); AoE cluster targeting in the SHARED autotargeter (`AutoTarget.cs:1141-1198`, `ClusterTargetingCondition: enable-ai-experimental` at `defaults.yaml:395,413`). ai.yaml flags at `:282/:335-367`.
@@ -12,6 +14,8 @@ A recon+design tasking for the fires/artillery behaviour cycle assumed a greenfi
 - **The whole cycle is UNMEASURED:** every fires flag is on, yet the item-25 re-baseline shows `@experimental` underperforming `@stable` with everything enabled (influence-stack.md §Known gaps). A fires-on vs fires-off isolation A/B has never been run — a prerequisite before stacking more fires behaviour. Design + gap phases: `WORKSPACE/plans/260803_fires_cycle_design.md`.
 
 ## 2026-08-03 — VERDICT (re-investigation of the LocalRandom-seed determinism question): the fix already landed — option (a)/(b) "seed LocalRandom from RandomSeed via a decorrelated LCG" is committed on `main`; re-implementing would be a no-op and re-doing it as (b')="move bot decisions into SharedRandom" would be the WRONG fix
+
+> **[promoted: the sync-semantics verdict → architecture.md §Bot decisions ARE seed-reproducible — "do not route bot decisions through `SharedRandom`": `LocalRandom` is excluded from `World.SyncHash()` (folds only Actors + `ISync` + synced effects + `SharedRandom.Last`), bots emit orders not RNG draws, and moving draws into `SharedRandom` would shift every combat roll and break the frozen `@stable` A/B baseline recorded on the seeded-`LocalRandom` build `2d3c8fe0`. The seeding FACT itself was already promoted there. Verified `World.cs:217/:225-228/:283-286/:540-554`.]** (curation 2026-08-03).
 
 A tasking asked to decide the right fix for "same-seed bot games diverge because `World.cs:214` leaves `LocalRandom` unseeded" (citing the 2026-07-19 finding). That premise is **stale**: the fix shipped ~2 weeks ago and the cited line numbers (213/214) predate it. No new code was written; this entry is the verdict + the sync-semantics reasoning so the question is not re-opened a third time.
 
@@ -22,6 +26,8 @@ A tasking asked to decide the right fix for "same-seed bot games diverge because
 - **VERDICT: HOLD — no code.** The unambiguous-safe option is already in `main`; a worktree/build/test cycle would produce an empty diff. Delivered as written verdict only, per the "if implementing changes nothing you cannot rule out, deliver the verdict" clause. (Did not build, did not run tests, did not run any game/autotest.)
 
 ## 2026-08-03 — The heli transport drop-site picker is the ONE transport drop that uses the omniscient `ThreatMap.FindWeakestEnemyCell` (not the fog-legal MountedTransport path) — root cause of "drops land behind the enemy SR" (air-polish, `auto/air-polish`)
+
+> **[promoted: → influence-stack.md §@experimental consumers beyond D/E/F — new "Heli transport drop-site reshaping" consumer (`RiskWeightedDropSite`): the heli drop was the one transport drop still committing to the raw omniscient `ThreatMap.FindWeakestEnemyCell`, now reshaped fog-legally by `TransportDropSiteMath.ScoreDrop` over believed control depth + danger + own-SR distance (weight not filter, candidate-source omniscience precedented); plus the `FlightPathHysteresis` order-cadence damper. Verified `HelicopterSquadBotModule.cs:263/:246/:944/:1022`, `ThreatMapManager.cs:232`.]** (curation 2026-08-03).
 
 Polishing the bot air/transport subsystem surfaced a drop-site asymmetry worth pinning:
 
@@ -2015,6 +2021,8 @@ Forensics on `tools/autotest/tournament-results/260731_streak_exp_vs_stable0730_
 - **#1 lever:** raise `TecnFloor` (scale toward one capturer per reachable neutral oilb, ~3–5) AND give the TECN request real priority in the supply budget (`AdaptiveProductionBotModule`/`SupplyFollowerBotModule`) so combat buys can't starve it — the `:619` pending deadlock must not sit on an undelivered request. Projects to flip ~6–7 of the 7 losses; low risk since oilbs are uncontested. The frontier-standoff fix (`9136368e`, post-batch) targets army preservation (lever #3), NOT capture, so it does not address the dominant mechanism.
 
 ## 2026-08-03 — world.Actors contains null-OccupiesSpace actors: Actor.Location NREs in bare predicates (live-game crash, fixed @ caff1c5f)
+
+> **[rejected: the bug CLASS + safe pattern is already documented at conventions.md:115 (world.Actors includes positionless PlayerActors; filter `OccupiesSpace != null`). This is a re-occurrence via `Location` (not `CenterPosition`). Applied a completeness correction to that existing bullet instead of a duplicate: noted `Location => OccupiesSpace.TopLeft` (`Actor.cs:78`) also NREs, the left-to-right predicate field-access ORDER (trait/guard before `.Location`), and cited `caff1c5f` as the reoccurrence. Verified `Actor.cs:78`, `caff1c5f`.]** (curation 2026-08-03).
 
 Live game crash a few minutes in: `NullReferenceException` at `Actor.get_Location` (Actor.cs:78, `Location => OccupiesSpace.TopLeft`) from `EngineerRouteOpenBotModule.FindBridgeHutAt` (:425) via `TryStartMission` → ModularBot tick — terminated the game process.
 
