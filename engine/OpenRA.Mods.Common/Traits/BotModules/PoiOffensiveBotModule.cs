@@ -226,6 +226,11 @@ namespace OpenRA.Mods.Common.Traits
 			"amphibious route). Default 100 = inert; set < the repairable/amphibious multipliers to strongly damp.")]
 		public readonly int ReachabilityUnreachableMultiplier = 100;
 
+		[Desc("Emit the per-POI [exp-reach-dist]/[exp-reach] debug lines (two Log.Write per POI per re-eval).",
+			"Default OFF — only a per-reeval summary line is logged — so a normal match doesn't flood debug.log;",
+			"turn on in an observation scenario to inspect the reachability/through-crossing decision per POI.")]
+		public readonly bool DebugReachLogging = false;
+
 		[Desc("EXPERIMENTAL fires doctrine (PIPELINE item 11): hold IndirectFire (artillery) axis members at",
 			"weapon standoff during an assault instead of marching them to the objective with the line group.",
 			"When on, artillery-role units are peeled off the grouped AttackMove and each is AttackMoved to a",
@@ -977,21 +982,23 @@ namespace OpenRA.Mods.Common.Traits
 
 			var hasAmphibiousPool = HasAmphibiousPool();
 
-			int same = 0, intact = 0, repairable = 0, amphib = 0, unreach = 0, typed = 0, barrierPois = 0;
+			int same = 0, intact = 0, repairable = 0, amphib = 0, unreach = 0, typed = 0;
 			var scaled = new List<ScoredPoi>(targets.Count);
 			foreach (var p in targets)
 			{
 				var reach = crossingMap.ClassifyGroundReach(srCell.Value, p.Location);
 				var amphibReachable = crossingMap.AmphibiousReachable(srCell.Value, p.Location);
 
-				// Phase 1.5 diagnostic: p.DistanceCells already carries the through-crossing distance PoiMap
-				// substituted (crow-flies for same-bank POIs). Log which far-bank POIs crossed a water barrier
-				// so the axis de-concentration is observable in one run.
-				var crossesBarrier = crossingMap.CrossesGroundBarrier(srCell.Value, p.Location);
-				if (crossesBarrier)
-					barrierPois++;
-				Log.Write("debug", $"[exp-reach-dist] player={player.PlayerName} target={p.Actor.Info.Name}@{p.Location} " +
-					$"dist={p.DistanceCells} crossesBarrier={crossesBarrier} reach={reach} score={p.Score} tick={world.WorldTick}");
+				// Phase 1.5 per-POI diagnostic (default OFF — see DebugReachLogging). p.DistanceCells already
+				// carries the through-crossing distance PoiMap substituted (crow-flies for same-bank POIs). The
+				// barrier line-walk + string interpolation run ONLY when the flag is on, so a normal match pays
+				// nothing per POI here.
+				if (Info.DebugReachLogging)
+				{
+					var crossesBarrier = crossingMap.CrossesGroundBarrier(srCell.Value, p.Location);
+					Log.Write("debug", $"[exp-reach-dist] player={player.PlayerName} target={p.Actor.Info.Name}@{p.Location} " +
+						$"dist={p.DistanceCells} crossesBarrier={crossesBarrier} reach={reach} score={p.Score} tick={world.WorldTick}");
+				}
 
 				switch (reach)
 				{
@@ -1022,17 +1029,20 @@ namespace OpenRA.Mods.Common.Traits
 				scaled.Add(new ScoredPoi(p.Actor, p.Kind, p.Action, p.Value,
 					p.DistanceCells, p.EnemyInfluence, newScore));
 
-				Log.Write("debug", $"[exp-reach] player={player.PlayerName} target={p.Actor.Info.Name}@{p.Location} " +
-					$"reach={reach} amphibReachable={amphibReachable} hasAmphib={hasAmphibiousPool} mul={mul} " +
-					$"score={p.Score}->{newScore} tick={world.WorldTick}");
+				if (Info.DebugReachLogging)
+					Log.Write("debug", $"[exp-reach] player={player.PlayerName} target={p.Actor.Info.Name}@{p.Location} " +
+						$"reach={reach} amphibReachable={amphibReachable} hasAmphib={hasAmphibiousPool} mul={mul} " +
+						$"score={p.Score}->{newScore} tick={world.WorldTick}");
 			}
 
 			scaled.Sort((a, b) => PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
 				b.Score, b.DistanceCells, b.Actor.ActorID));
 
+			// One unconditional per-reeval summary line (cheap, continuity). Per-POI barrier counts are only
+			// tallied under DebugReachLogging, so barrierCrossed is reported there, not here.
 			Log.Write("debug", $"[exp-reach] reeval player={player.PlayerName} pois={targets.Count} same={same} " +
 				$"intactCrossing={intact} repairable={repairable} amphibiousOnly={amphib} unreachable={unreach} " +
-				$"amphibTyped={typed} barrierCrossed={barrierPois} crossingCells={crossingMap.CrossingCellCount} " +
+				$"amphibTyped={typed} crossingCells={crossingMap.CrossingCellCount} " +
 				$"hasAmphibPool={hasAmphibiousPool} tick={world.WorldTick}");
 			return scaled;
 		}

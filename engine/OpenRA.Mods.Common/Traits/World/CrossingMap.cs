@@ -271,6 +271,45 @@ namespace OpenRA.Mods.Common.Traits
 
 			return GroundReach.Unreachable;
 		}
+
+		/// <summary>Deterministic integer Bresenham line walk from (x0,y0) to (x1,y1): true if any
+		/// INTERMEDIATE cell (endpoints excluded) satisfies <paramref name="predicate"/>. Used for the
+		/// through-crossing barrier test (predicate = "is a water cell"). Zero alloc, zero RNG.</summary>
+		public static bool AnyOnLine(int x0, int y0, int x1, int y1, Func<int, int, bool> predicate)
+		{
+			var dx = Math.Abs(x1 - x0);
+			var dy = Math.Abs(y1 - y0);
+			var sx = x0 < x1 ? 1 : -1;
+			var sy = y0 < y1 ? 1 : -1;
+			var err = dx - dy;
+			var x = x0;
+			var y = y0;
+			while (true)
+			{
+				if (x == x1 && y == y1)
+					return false;
+
+				if (!(x == x0 && y == y0) && predicate(x, y))
+					return true;
+
+				var e2 = 2 * err;
+				if (e2 > -dy) { err -= dy; x += sx; }
+				if (e2 < dx) { err += dx; y += sy; }
+			}
+		}
+
+		/// <summary>A crossing SPAN cell: LAND at (x,y) with WATER on opposite sides (N&amp;S or E&amp;W) — a
+		/// bridge/ford narrow enough that a ground force must funnel over it. isLand / isWater are grid
+		/// predicates (out-of-bounds handled by the caller's predicates). Pure ⇒ unit-testable.</summary>
+		public static bool IsCrossingSpan(int x, int y, Func<int, int, bool> isLand, Func<int, int, bool> isWater)
+		{
+			if (!isLand(x, y))
+				return false;
+
+			var spanNS = isWater(x, y - 1) && isWater(x, y + 1);
+			var spanEW = isWater(x - 1, y) && isWater(x + 1, y);
+			return spanNS || spanEW;
+		}
 	}
 
 	[TraitLocation(SystemActors.World)]
@@ -328,8 +367,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Representative crossing points (bridges/fords): land cells that span a water barrier — where a
 		// ground force actually crosses the river. Detected geometrically (a foot-passable cell with
-		// foot-impassable water on opposite sides), clustered to one representative per crossing.
+		// water on opposite sides), clustered to one representative per crossing.
 		readonly List<CPos> crossingCells = new();
+
+		// Per-cell WATER mask, keyed on the actual water TERRAIN types (Info.WaterTerrainTypes), NOT on
+		// foot-impassability — so non-water foot obstacles (cliffs/walls with no foot speed) are not misread
+		// as a river barrier. The barrier/crossing tests read this; the foot graph is still used for the
+		// "is this a passable land cell" side of a crossing span.
+		bool[,] waterCells;
 
 		// Bridge huts discovered once at build (map-static actor set); status is re-read on revalidate.
 		readonly List<Actor> bridgeHuts = new();
@@ -425,29 +470,30 @@ namespace OpenRA.Mods.Common.Traits
 
 			var crowFlies = (poiCell - srCell).Length; // Euclidean cells (CVec.Length = ISqrt).
 			var crosses = AnyBarrierOnLine(srCell.X, srCell.Y, poiCell.X, poiCell.Y);
-			if (!crosses || crossingCells.Count == 0)
-				return null;
+			var hasCrossing = crosses && crossingCells.Count > 0;
 
 			// Nearest crossing by the two-leg detour SR→crossing + crossing→POI (deterministic min, ties by
 			// row-major crossing order — crossingCells is built row-major).
 			var bestLeg1 = 0;
 			var bestLeg2 = 0;
-			var bestSum = int.MaxValue;
-			foreach (var c in crossingCells)
+			if (hasCrossing)
 			{
-				var leg1 = (c - srCell).Length;
-				var leg2 = (poiCell - c).Length;
-				var sum = leg1 + leg2;
-				if (sum < bestSum)
+				var bestSum = int.MaxValue;
+				foreach (var c in crossingCells)
 				{
-					bestSum = sum;
-					bestLeg1 = leg1;
-					bestLeg2 = leg2;
+					var leg1 = (c - srCell).Length;
+					var leg2 = (poiCell - c).Length;
+					var sum = leg1 + leg2;
+					if (sum < bestSum)
+					{
+						bestSum = sum;
+						bestLeg1 = leg1;
+						bestLeg2 = leg2;
+					}
 				}
 			}
 
-			var eff = PoiReachabilityMath.EffectiveDistanceCells(crowFlies, true, true, bestLeg1, bestLeg2);
-			return eff == crowFlies ? (int?)null : eff;
+			return PoiReachabilityMath.DistanceOverride(crowFlies, crosses, hasCrossing, bestLeg1, bestLeg2);
 		}
 
 		/// <summary>Classify how a POI cell relates to the SR cell for a GROUND force: same component,
@@ -495,6 +541,7 @@ namespace OpenRA.Mods.Common.Traits
 			amphibiousPairs = CrossingMapMath.AmphibiousCrossablePairs(
 				groundLabels, groundCount, amphibiousLabels, width, height);
 
+			ComputeWaterCells();
 			DetectCrossingCells();
 
 			DiscoverBridgeHuts();
@@ -505,42 +552,53 @@ namespace OpenRA.Mods.Common.Traits
 				$"repairableCrossings={crossings.Count} map={width}x{height}");
 		}
 
-		// True when the water-barrier (infantry-impassable, in-bounds) is present at (x,y). The non-fording
-		// infantry graph treats deep river/water as impassable, so this marks the ground army's real barriers
-		// even where the fording `tracked` locomotor could slowly cross.
-		bool InfantryWater(int x, int y)
-			=> x >= 0 && y >= 0 && x < width && y < height
-				&& CrossingMapMath.LabelAt(infantryLabels, width, height, x, y) == CrossingMapMath.Impassable;
-
-		// Integer supercover-ish line walk (Bresenham) from (x0,y0) to (x1,y1): true if any INTERMEDIATE cell
-		// is a water barrier. Endpoints (the SR / POI, on land) are excluded. Deterministic, zero alloc.
-		bool AnyBarrierOnLine(int x0, int y0, int x1, int y1)
+		// Build the per-cell water mask from the actual water TERRAIN types (Info.WaterTerrainTypes), resolved
+		// safely against the tileset's own type list (GetTerrainIndex(string) throws on an unknown type). A
+		// cell is water iff its terrain type is one of those — cliffs/walls that merely lack a foot speed are
+		// NOT water, so they never false-positive the barrier/crossing tests. Deterministic single scan.
+		void ComputeWaterCells()
 		{
-			var dx = Math.Abs(x1 - x0);
-			var dy = Math.Abs(y1 - y0);
-			var sx = x0 < x1 ? 1 : -1;
-			var sy = y0 < y1 ? 1 : -1;
-			var err = dx - dy;
-			var x = x0;
-			var y = y0;
-			while (true)
+			waterCells = new bool[width, height];
+
+			var terrainInfo = world.Map.Rules.TerrainInfo;
+			var waterIndices = new HashSet<byte>();
+			var types = terrainInfo.TerrainTypes;
+			for (var i = 0; i < types.Length; i++)
+				if (Array.IndexOf(Info.WaterTerrainTypes, types[i].Type) >= 0)
+					waterIndices.Add((byte)i);
+
+			if (waterIndices.Count == 0)
+				return;
+
+			for (var y = 0; y < height; y++)
 			{
-				if (x == x1 && y == y1)
-					return false;
-
-				if (!(x == x0 && y == y0) && InfantryWater(x, y))
-					return true;
-
-				var e2 = 2 * err;
-				if (e2 > -dy) { err -= dy; x += sx; }
-				if (e2 < dx) { err += dx; y += sy; }
+				for (var x = 0; x < width; x++)
+				{
+					var cell = new CPos(x, y);
+					if (world.Map.Contains(cell) && waterIndices.Contains(world.Map.GetTerrainIndex(cell)))
+						waterCells[x, y] = true;
+				}
 			}
 		}
 
-		// A crossing cell = a foot-passable land cell that SPANS the water barrier (foot-impassable water on
-		// opposite sides — N&S or E&W): a bridge/ford narrow enough that the ground army must funnel over it.
-		// Adjacent crossing cells are clustered (4-conn) to one representative each (row-major minimum), so a
-		// multi-cell bridge yields one crossing point. Deterministic single map scan.
+		// True when (x,y) is a WATER cell (in-bounds, terrain type in Info.WaterTerrainTypes). This is the
+		// non-fording barrier the ground army detours around even where a fording locomotor could slowly cross.
+		bool IsWaterBarrier(int x, int y)
+			=> x >= 0 && y >= 0 && x < width && y < height && waterCells[x, y];
+
+		// True when (x,y) is a foot-passable LAND cell — the "you can stand here" side of a crossing span.
+		bool IsFootLand(int x, int y)
+			=> CrossingMapMath.LabelAt(infantryLabels, width, height, x, y) != CrossingMapMath.Impassable;
+
+		// The straight cell-line from a to b crosses a water barrier (any intermediate water cell). Thin
+		// wrapper over the pure, NUnit-pinned CrossingMapMath.AnyOnLine with the water predicate.
+		bool AnyBarrierOnLine(int x0, int y0, int x1, int y1)
+			=> CrossingMapMath.AnyOnLine(x0, y0, x1, y1, IsWaterBarrier);
+
+		// A crossing cell = a foot-passable land cell that SPANS water (on opposite sides — N&S or E&W): a
+		// bridge/ford narrow enough that the ground army must funnel over it. Adjacent crossing cells are
+		// clustered (4-conn) to one representative each (row-major minimum), so a multi-cell bridge yields one
+		// crossing point. Span test is the pure, NUnit-pinned CrossingMapMath.IsCrossingSpan. Deterministic.
 		void DetectCrossingCells()
 		{
 			crossingCells.Clear();
@@ -550,13 +608,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				for (var x = 0; x < width; x++)
 				{
-					// Must itself be foot-passable land (a bridge/ford tile), not water.
-					if (CrossingMapMath.LabelAt(infantryLabels, width, height, x, y) == CrossingMapMath.Impassable)
-						continue;
-
-					var spanNS = InfantryWater(x, y - 1) && InfantryWater(x, y + 1);
-					var spanEW = InfantryWater(x - 1, y) && InfantryWater(x + 1, y);
-					if (spanNS || spanEW)
+					if (CrossingMapMath.IsCrossingSpan(x, y, IsFootLand, IsWaterBarrier))
 						isCrossing[x, y] = true;
 				}
 			}

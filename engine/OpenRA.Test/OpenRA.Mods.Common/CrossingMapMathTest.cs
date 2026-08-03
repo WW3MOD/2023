@@ -182,6 +182,48 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void AnyOnLineDetectsAWaterCrossingAndExcludesEndpoints()
+		{
+			// Water is a vertical strip at x==5, y in [3,7].
+			bool Water(int x, int y) => x == 5 && y >= 3 && y <= 7;
+
+			Assert.Multiple(() =>
+			{
+				// Horizontal line through the strip crosses water at (5,5) — an intermediate cell.
+				Assert.That(CrossingMapMath.AnyOnLine(0, 5, 10, 5, Water), Is.True, "line crosses the river");
+
+				// A line entirely on the clear side never touches water.
+				Assert.That(CrossingMapMath.AnyOnLine(0, 0, 4, 0, Water), Is.False, "clear line, no barrier");
+
+				// The water cell is the ENDPOINT — endpoints are excluded, so no crossing is reported.
+				Assert.That(CrossingMapMath.AnyOnLine(0, 5, 5, 5, Water), Is.False, "endpoint water excluded");
+
+				// Symmetric: start on the water endpoint.
+				Assert.That(CrossingMapMath.AnyOnLine(5, 5, 10, 5, Water), Is.False, "start endpoint water excluded");
+			});
+		}
+
+		[Test]
+		public void IsCrossingSpanFindsLandBetweenWater()
+		{
+			// Water at (5,3) and (5,5); everything else is land.
+			bool Water(int x, int y) => x == 5 && (y == 3 || y == 5);
+			bool Land(int x, int y) => !Water(x, y);
+
+			Assert.Multiple(() =>
+			{
+				// Land cell (5,4) has water N and S ⇒ a crossing span.
+				Assert.That(CrossingMapMath.IsCrossingSpan(5, 4, Land, Water), Is.True, "land spanning water N&S");
+
+				// A water cell itself is never a crossing (not land).
+				Assert.That(CrossingMapMath.IsCrossingSpan(5, 3, Land, Water), Is.False, "water cell is not a span");
+
+				// Open land with no flanking water is not a crossing.
+				Assert.That(CrossingMapMath.IsCrossingSpan(0, 0, Land, Water), Is.False, "open land is not a span");
+			});
+		}
+
+		[Test]
 		public void ComponentLabellingIsDeterministicRowMajor()
 		{
 			var a = GroundLabels(out _);

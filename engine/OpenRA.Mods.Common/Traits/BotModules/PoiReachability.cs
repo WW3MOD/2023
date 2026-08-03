@@ -89,6 +89,19 @@ namespace OpenRA.Mods.Common.Traits
 			return ThroughCrossingDistanceCells(crowFliesCells, srToCrossingCells, crossingToPoiCells);
 		}
 
+		/// <summary>The distance SUBSTITUTION the PoiMap provider returns: the through-crossing distance when
+		/// it is strictly LONGER than crow-flies (a real detour), else null so the caller keeps its exact
+		/// Euclidean distance unchanged. Collapses the two "no change" cases — no barrier / no crossing, and a
+		/// detour that isn't actually longer — into a single null so only genuinely-farther POIs are re-scored.
+		/// Pure ⇒ unit-tested; the trait's ThroughCrossingDistanceOverride is a thin wrapper over this.</summary>
+		public static int? DistanceOverride(int crowFliesCells, bool crossesBarrier, bool hasCrossing,
+			int srToCrossingCells, int crossingToPoiCells)
+		{
+			var eff = EffectiveDistanceCells(crowFliesCells, crossesBarrier, hasCrossing,
+				srToCrossingCells, crossingToPoiCells);
+			return eff == crowFliesCells ? (int?)null : eff;
+		}
+
 		static int Clamp(int pct) => pct < 0 ? 0 : pct > 100 ? 100 : pct;
 	}
 }

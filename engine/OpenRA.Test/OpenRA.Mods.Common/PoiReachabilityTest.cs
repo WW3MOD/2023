@@ -125,5 +125,28 @@ namespace OpenRA.Test
 					Is.EqualTo(30));
 			});
 		}
+
+		[Test]
+		public void DistanceOverrideReturnsNullUnlessTheDetourIsGenuinelyLonger()
+		{
+			Assert.Multiple(() =>
+			{
+				// No barrier crossed ⇒ null (caller keeps its exact Euclidean distance).
+				Assert.That(PoiReachabilityMath.DistanceOverride(12, crossesBarrier: false, hasCrossing: true, 9, 10),
+					Is.Null);
+
+				// Barrier crossed but no crossing to route through ⇒ null (distance is not fabricated).
+				Assert.That(PoiReachabilityMath.DistanceOverride(12, crossesBarrier: true, hasCrossing: false, 9, 10),
+					Is.Null);
+
+				// Barrier + crossing but the detour is NOT longer than crow-flies ⇒ null (no change).
+				Assert.That(PoiReachabilityMath.DistanceOverride(12, crossesBarrier: true, hasCrossing: true, 3, 4),
+					Is.Null);
+
+				// Barrier + crossing + a genuinely longer detour ⇒ the through-crossing sum.
+				Assert.That(PoiReachabilityMath.DistanceOverride(12, crossesBarrier: true, hasCrossing: true, 9, 10),
+					Is.EqualTo(19));
+			});
+		}
 	}
 }
