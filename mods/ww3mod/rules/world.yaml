@@ -373,6 +373,11 @@ World:
 	# field's territory baseline and the overlay below. Pure data — @experimental + human-overlay
 	# only (narrowed via InfluenceStack); @stable + control bots never read it (byte-identical).
 	ControlField:
+	# frontline-influence Phase 0: terrain/reachability model (per-locomotor connected components +
+	# repairable-bridge crossings + amphibious-crossable component pairs). Computed LAZILY on first
+	# request from a participating @experimental/@stable bot; @stable-off/normal/human games never
+	# build it, so it is byte-identical (inert data, zero RNG, no per-tick work until first query).
+	CrossingMap:
 	# Stage-C dev commander's overlay: tri-state danger safety (green/red/gray) + air-channel
 	# toggle + control-field secondary wash. Render-only (reads the viewer's own layers, leaks
 	# nothing through fog). OFF by default — cycled by the "/danger" dev chat command; never

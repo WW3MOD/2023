@@ -203,6 +203,29 @@ namespace OpenRA.Mods.Common.Traits
 			"weapon envelope). <100 strongly damps lunging into believed fire. Default 100 = inert.")]
 		public readonly int BelievedDangerHostileMultiplier = 100;
 
+		[Desc("frontline-influence Phase 1 (reachability-gated + amphibious-typed targeting): re-shape each",
+			"offensive axis score by whether a GROUND force can actually reach the POI from our Supply Route,",
+			"read from the CrossingMap terrain model. A POI across an uncrossable river no longer scores as if",
+			"adjacent: it is damped for land units unless (a) an intact crossing connects the banks, (b) we own",
+			"amphibious units and a water route exists (then the axis is typed amphibious so those units go), or",
+			"(c) only a repairable destroyed bridge connects them (reduced, kept on the radar for Phase 6). OFF",
+			"by default ⇒ the factor is a constant 100 and axis typing never fires, so legacy/normal and the",
+			"frozen @stable twin stay byte-identical. Inert if no CrossingMap exists.")]
+		public readonly bool ReachabilityGatingEnabled = false;
+
+		[Desc("Phase-1 score multiplier (x100) for a POI reachable only via a REPAIRABLE (destroyed) bridge and",
+			"NOT by our amphibious units — reduced but kept on the radar for the Phase-6 engineer route-opening.",
+			"Default 100 = inert (a bare ReachabilityGatingEnabled changes nothing until the YAML supplies < 100).")]
+		public readonly int ReachabilityRepairableMultiplier = 100;
+
+		[Desc("Phase-1 score multiplier (x100) for a POI reachable by the amphibious locomotor when we own NO",
+			"amphibious units to crew the axis. Default 100 = inert.")]
+		public readonly int ReachabilityAmphibiousMultiplier = 100;
+
+		[Desc("Phase-1 score multiplier (x100) for a POI a ground force genuinely cannot reach (no crossing, no",
+			"amphibious route). Default 100 = inert; set < the repairable/amphibious multipliers to strongly damp.")]
+		public readonly int ReachabilityUnreachableMultiplier = 100;
+
 		[Desc("EXPERIMENTAL fires doctrine (PIPELINE item 11): hold IndirectFire (artillery) axis members at",
 			"weapon standoff during an assault instead of marching them to the objective with the line group.",
 			"When on, artillery-role units are peeled off the grouped AttackMove and each is AttackMoved to a",
@@ -434,6 +457,10 @@ namespace OpenRA.Mods.Common.Traits
 			public long CommitScore;
 			public int CommitDanger;
 			public int CommitStrength;
+
+			// Phase 1: this axis targets a far-bank POI reachable only by water, so it must be crewed by
+			// amphibious units (set from the reachability reshape). Default false ⇒ the legacy recruit path.
+			public bool AmphibiousTyped;
 		}
 
 		readonly World world;
@@ -451,8 +478,14 @@ namespace OpenRA.Mods.Common.Traits
 		bool controlFieldResolved;
 		BeliefStore beliefStore;
 		bool beliefStoreResolved;
+		CrossingMap crossingMap;
+		bool crossingMapResolved;
 
 		readonly List<Axis> axes = new();
+
+		// Phase 1: targetId → the axis should be crewed by amphibious units (a water-only far-bank POI).
+		// Rebuilt each reeval by the reachability reshape; empty (and unread) unless ReachabilityGatingEnabled.
+		readonly Dictionary<uint, bool> amphibiousTargets = new();
 
 		// Combat-quality force-preservation: rally cell (our own Supply Route) resolved once per re-eval when a
 		// force-preservation lever is on — a losing axis falls back to it and counts as safe near it. Null when
@@ -556,6 +589,15 @@ namespace OpenRA.Mods.Common.Traits
 				controlFieldResolved = true;
 			}
 
+			// Phase-1 reachability model: resolve the CrossingMap only when the gate is on (its first query
+			// triggers the lazy terrain build). Null otherwise ⇒ the reshape/typing below is skipped entirely.
+			if (!crossingMapResolved)
+			{
+				crossingMap = Info.ReachabilityGatingEnabled
+					? world.WorldActor.TraitOrDefault<CrossingMap>() : null;
+				crossingMapResolved = true;
+			}
+
 			// Combat-quality force-preservation: the belief store feeds the believed-enemy force tally for both
 			// levers, so resolve it when either is on. Inert (never resolved) otherwise ⇒ byte-identical.
 			if (!beliefStoreResolved)
@@ -628,6 +670,15 @@ namespace OpenRA.Mods.Common.Traits
 			if (repoint)
 				targets = RescaleByBelievedFields(targets, tick);
 
+			// 2d. frontline-influence Phase 1: reachability-gate + amphibious-type the axis scores from the
+			//     CrossingMap terrain model. Damps a far-bank POI a land force cannot reach and records which
+			//     targets must be crewed by amphibious units (consumed in the recruit step). Inert/skipped —
+			//     amphibiousTargets stays empty — unless the gate is on AND a CrossingMap exists, so every
+			//     other profile is byte-identical.
+			amphibiousTargets.Clear();
+			if (Info.ReachabilityGatingEnabled && crossingMap != null)
+				targets = RescaleByReachability(targets);
+
 			if (targets.Count == 0)
 			{
 				RetireAllAxes("no-targets");
@@ -691,6 +742,10 @@ namespace OpenRA.Mods.Common.Traits
 				axis.Score = t.Score;
 				axis.Action = t.Action;
 				axis.TargetName = t.Actor.Info.Name;
+
+				// Phase 1: a far-bank water-only target is crewed by amphibious units. Empty map ⇒ always false
+				// (byte-identical) when the reachability gate is off.
+				axis.AmphibiousTyped = amphibiousTargets.TryGetValue(axis.TargetId, out var amphib) && amphib;
 			}
 
 			// 6b. Combat-quality: update each axis's LOSING/RETREAT state from the believed force ratio BEFORE
@@ -741,7 +796,17 @@ namespace OpenRA.Mods.Common.Traits
 				if (Info.NoReinforceLostFights && axis.Retreat == RetreatDecision.Retreating)
 					continue;
 
-				var recruits = free
+				// Phase 1: an amphibious-typed axis (far-bank water-only POI) recruits ONLY amphibious-capable
+				// units, so we don't send land units that strand at the bank. Falls back to the full pool if
+				// there aren't enough amphibious units, rather than leaving the axis empty. Inert (candidates ==
+				// free) when the reachability gate is off, so the recruit set is byte-identical.
+				var candidates = axis.AmphibiousTyped && crossingMap != null
+					? free.Where(IsAmphibiousUnit).ToList()
+					: free;
+				if (candidates.Count == 0)
+					candidates = free;
+
+				var recruits = candidates
 					.OrderBy(u => (u.CenterPosition - axis.TargetPos).LengthSquared)
 					.ThenBy(u => u.ActorID)
 					.Take(need)
@@ -882,6 +947,73 @@ namespace OpenRA.Mods.Common.Traits
 
 			Log.Write("debug", $"[exp-terr] reeval player={player.PlayerName} boosted={boosted} damped={damped} neutral={neutral} tick={tick}");
 			return scaled;
+		}
+
+		// frontline-influence Phase 1: re-shape each axis score by GROUND reachability from our SR (read from
+		// the CrossingMap terrain model) and record which far-bank water-only targets must be crewed by
+		// amphibious units. A POI a land force cannot reach is damped so it stops scoring as if adjacent; a
+		// POI our amphibious units CAN reach keeps full value and is flagged for amphibious typing. Caller
+		// guards ReachabilityGatingEnabled + a non-null CrossingMap, so this is never entered (and
+		// amphibiousTargets stays empty) for any other profile ⇒ byte-identical. Re-sorts with the same
+		// deterministic comparator PoiMap uses. Zero RNG.
+		List<ScoredPoi> RescaleByReachability(List<ScoredPoi> targets)
+		{
+			var srCell = poiMap.OwnSupplyRoute(player)?.Location;
+			if (srCell == null)
+				return targets; // no SR anchor ⇒ nothing to measure reachability from; leave scores untouched.
+
+			var hasAmphibiousPool = HasAmphibiousPool();
+
+			var scaled = new List<ScoredPoi>(targets.Count);
+			foreach (var p in targets)
+			{
+				var reach = crossingMap.ClassifyGroundReach(srCell.Value, p.Location);
+				var amphibReachable = crossingMap.AmphibiousReachable(srCell.Value, p.Location);
+
+				if (PoiReachabilityMath.ShouldTypeAmphibious(reach, amphibReachable, hasAmphibiousPool))
+					amphibiousTargets[p.Actor.ActorID] = true;
+
+				var mul = PoiReachabilityMath.ReachabilityFactor(reach, amphibReachable, hasAmphibiousPool,
+					Info.ReachabilityRepairableMultiplier, Info.ReachabilityAmphibiousMultiplier,
+					Info.ReachabilityUnreachableMultiplier);
+
+				if (mul == 100)
+				{
+					scaled.Add(p);
+					continue;
+				}
+
+				var newScore = p.Score * mul / 100;
+				scaled.Add(new ScoredPoi(p.Actor, p.Kind, p.Action, p.Value,
+					p.DistanceCells, p.EnemyInfluence, newScore));
+
+				Log.Write("debug", $"[exp-reach] player={player.PlayerName} target={p.Actor.Info.Name}@{p.Location} " +
+					$"reach={reach} amphibReachable={amphibReachable} hasAmphib={hasAmphibiousPool} mul={mul} " +
+					$"score={p.Score}->{newScore} tick={world.WorldTick}");
+			}
+
+			scaled.Sort((a, b) => PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
+				b.Score, b.DistanceCells, b.Actor.ActorID));
+			return scaled;
+		}
+
+		// Does the free pool contain at least one amphibious-capable combat unit? Cheap scan over eligible
+		// units; only called on the reachability path (gate on). A unit is amphibious iff its Mobile
+		// locomotor can cross water (CrossingMap.IsAmphibiousLocomotor).
+		bool HasAmphibiousPool()
+		{
+			foreach (var a in world.Actors)
+				if (IsEligibleCombatUnit(a) && IsAmphibiousUnit(a))
+					return true;
+			return false;
+		}
+
+		// True when the actor's Mobile locomotor is water-capable (amphibious). False for aircraft / units
+		// with no Mobile. Guarded by a non-null crossingMap at the call sites.
+		bool IsAmphibiousUnit(Actor a)
+		{
+			var loco = a.TraitOrDefault<Mobile>()?.Info.Locomotor;
+			return loco != null && crossingMap.IsAmphibiousLocomotor(loco);
 		}
 
 		// MISSION COMMITMENT: remove every axis still HOLDING its mission from `axes` (returning them so the
