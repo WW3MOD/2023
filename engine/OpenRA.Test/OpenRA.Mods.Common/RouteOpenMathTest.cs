@@ -86,6 +86,24 @@ namespace OpenRA.Test
 			});
 		}
 
+		[Test]
+		public void AttemptCountIncrementsOnFailureAndResetsOnSuccess()
+		{
+			Assert.Multiple(() =>
+			{
+				// Failure bumps the count (bounded later by CanAttempt).
+				Assert.That(RouteOpenMath.NextAttemptCount(0, success: false), Is.EqualTo(1), "first failure ⇒ 1");
+				Assert.That(RouteOpenMath.NextAttemptCount(2, success: false), Is.EqualTo(3), "each failure increments");
+
+				// Success resets to 0, so a later re-destroyed bridge is a fresh target — even from an exhausted count.
+				Assert.That(RouteOpenMath.NextAttemptCount(3, success: true), Is.EqualTo(0), "success clears failure memory");
+
+				// After a success-reset the hut is eligible again (was budget-exhausted at attempts==max).
+				Assert.That(RouteOpenMath.CanAttempt(RouteOpenMath.NextAttemptCount(3, true), maxAttempts: 3), Is.True,
+					"reset re-enables a previously budget-exhausted hut");
+			});
+		}
+
 		// ---------- Mission timeout ----------
 
 		[Test]

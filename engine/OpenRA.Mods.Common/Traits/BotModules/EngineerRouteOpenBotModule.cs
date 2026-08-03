@@ -69,6 +69,13 @@ namespace OpenRA.Mods.Common.Traits
 		public static bool MissionTimedOut(int startTick, int currentTick, int timeoutTicks)
 			=> timeoutTicks > 0 && currentTick - startTick >= timeoutTicks;
 
+		/// <summary>The hut's per-hut attempt count after a mission resolves: a SUCCESS resets it to 0 (a repaired
+		/// bridge that is later re-destroyed must be a fresh target, not one that inherited a stale failure count and
+		/// could exhaust its retry budget prematurely); a FAILURE increments it (bounded by
+		/// <see cref="CanAttempt"/>). Pure so the reset-on-success semantics is pinned without a World.</summary>
+		public static int NextAttemptCount(int current, bool success)
+			=> success ? 0 : current + 1;
+
 		/// <summary>How many combat units to actually pull for the screen: the desired size clamped to what is
 		/// available, floored at zero. The mission proceeds on the engineer alone if the pool is empty (a best-
 		/// effort screen — repairing the route is the objective), so this never blocks the dispatch.</summary>
@@ -197,6 +204,23 @@ namespace OpenRA.Mods.Common.Traits
 				$"timeout={Info.MissionTimeoutTicks} cooldown={Info.RetryCooldownTicks} maxAttempts={Info.MaxAttemptsPerHut}");
 		}
 
+		protected override void TraitDisabled(Actor self)
+		{
+			// If the enabling condition toggles off mid-mission, release the in-flight commitments now instead of
+			// leaking them until TTL self-expiry, and reset mission state. NOT a failure — no cooldown / attempt bump
+			// (the disable is external, not the hut's fault). Mirrors the CompleteMission release path (reviewer NIT-3).
+			if (missionHut == null)
+				return;
+
+			ReleaseCommitment(missionEngineer);
+			foreach (var s in missionScreen)
+				ReleaseCommitment(s);
+
+			missionHut = null;
+			missionEngineer = null;
+			missionScreen.Clear();
+		}
+
 		void IBotTick.BotTick(IBot bot)
 		{
 			if (!Info.RouteOpenEnabled || player.WinState != WinState.Undefined || controlField == null)
@@ -277,10 +301,18 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var s in missionScreen)
 				ReleaseCommitment(s);
 
-			if (!success)
+			attemptsByHut.TryGetValue(hutId, out var n);
+			var next = RouteOpenMath.NextAttemptCount(n, success);
+			if (next == 0)
 			{
-				attemptsByHut.TryGetValue(hutId, out var n);
-				attemptsByHut[hutId] = n + 1;
+				// SUCCESS (or a reset): clear the hut's failure memory so a later re-destroyed bridge is a fresh
+				// target and doesn't inherit a stale attempt count / cooldown (reviewer NIT-2).
+				attemptsByHut.Remove(hutId);
+				lastFailTickByHut.Remove(hutId);
+			}
+			else
+			{
+				attemptsByHut[hutId] = next;
 				lastFailTickByHut[hutId] = world.WorldTick;
 			}
 
