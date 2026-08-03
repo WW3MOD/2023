@@ -294,7 +294,8 @@ namespace OpenRA.Mods.Common.Traits
 		/// (PoiOffensiveBotModule.RescaleByBelievedFields). Default false ⇒ byte-identical to
 		/// the frozen behaviour for every existing caller (control-bot MountedTransport + the
 		/// @stable offense twin).</summary>
-		public List<ScoredPoi> GetOffensiveTargets(Player perspective, bool suppressOmniscientThreat = false)
+		public List<ScoredPoi> GetOffensiveTargets(Player perspective, bool suppressOmniscientThreat = false,
+			Func<CPos, int?> throughCrossingDistance = null)
 		{
 			ResolveInfluence();
 
@@ -349,9 +350,16 @@ namespace OpenRA.Mods.Common.Traits
 				if (value <= 0)
 					continue;
 
-				var distCells = ownSr != null
+				// frontline-influence Phase 1.5: when a through-crossing distance provider is supplied (only
+				// the @experimental reachability path passes one) AND it returns a value for this POI, the
+				// crow-flies distance is replaced by the honest through-crossing detour distance so a far-bank
+				// target no longer scores as if adjacent. A null return (segment crosses no water barrier, or
+				// no provider at all) keeps the exact Euclidean distance ⇒ byte-identical for every other
+				// caller and for same-bank POIs.
+				var overrideDist = throughCrossingDistance?.Invoke(actor.Location);
+				var distCells = overrideDist ?? (ownSr != null
 					? (actor.CenterPosition - ownSr.CenterPosition).Length / 1024
-					: 0;
+					: 0);
 				var distFactor = PoiScoring.DistanceFactor(distCells, Info.DistanceHalfLifeCells);
 
 				// suppressOmniscientThreat ⇒ threat-neutral (safe bucket): the @experimental repoint

@@ -1,0 +1,23 @@
+# frontline-influence Phase 1 behavior observation — reachability-gated + amphibious-typed targeting.
+#
+# Real River Zeta terrain + the @experimental bot with ReachabilityGatingEnabled ON (ai.yaml default).
+# Runs a bounded window so the offense module's [exp-reach] classification logs and [exp-offense] axis
+# lines accumulate, then Test.Pass() so the runner exits and the debug.log can be read:
+#   [exp-reach] ... reach=<Same|IntactCrossing|RepairableCrossing|AmphibiousOnly|Unreachable> ...
+#     -> Phase 0 CrossingMap built on real terrain + Phase 1 reshape engaging on real POIs.
+#   [exp-offense] axis ... target=<name>@<cell> -> which POIs became axes (bank of the target cell).
+# A healthy result shows a MIX of reach classes (near-bank Same, far-bank non-Same) — i.e. the bot now
+# distinguishes reachable from unreachable POIs instead of scoring every far-bank target as if adjacent.
+
+Player:
+	# Enough cash to field a meaningful army inside the observation window (mirrors the tournament rules).
+	PlayerResources:
+		DefaultCash: 7500
+
+World:
+	-StartGameNotification:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-frontline-reachability.lua

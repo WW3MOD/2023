@@ -320,6 +320,18 @@ Player:
 		BelievedDangerSafeMultiplier: 100
 		BelievedDangerMildMultiplier: 60
 		BelievedDangerHostileMultiplier: 20
+		# frontline-influence Phase 1 (reachability-gated + amphibious-typed targeting): re-shape each axis
+		# score by whether a GROUND force can reach the POI from our Supply Route (read from the CrossingMap
+		# terrain model, Phase 0). A far-bank objective behind an uncrossable river no longer scores as if
+		# adjacent — it is damped for land units unless an intact crossing connects the banks, our amphibious
+		# units can reach it (then the axis is typed amphibious so those units go, not stranded land units), or
+		# only a repairable destroyed bridge connects them (reduced x60, kept on the radar for the Phase-6
+		# engineer route-opening). A genuinely unreachable POI is heavily damped (x10); an amphibious route we
+		# cannot crew ⇒ x30. Default OFF on the @stable twin (which omits these fields) ⇒ byte-identical.
+		ReachabilityGatingEnabled: true
+		ReachabilityRepairableMultiplier: 60
+		ReachabilityAmphibiousMultiplier: 30
+		ReachabilityUnreachableMultiplier: 10
 		# Fires doctrine (PIPELINE item 11): hold IndirectFire artillery at its own weapon standoff during an
 		# assault instead of marching it to the objective with the line group — it rains suppressive fire from
 		# range and backs off if the target closes, while the line units press. Peels artillery off the grouped
