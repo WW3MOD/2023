@@ -484,6 +484,13 @@ namespace OpenRA.Mods.Common.Traits
 			"is 2× our own committed strength there. Only read when SectorPostureHoldEnabled; <= 0 disables the hold.")]
 		public readonly int SectorPostureHoldRatioPct = 200;
 
+		[Desc("Phase-5 posture hold: minimum believed OWN strength (armed-unit presence count) an axis's CONTACT",
+			"sector must carry before the hold ratio is even considered — you cannot HOLD a sector you do not",
+			"occupy. Below this floor the axis PRESSES. Guards the degenerate own≈0 case that would otherwise freeze",
+			"an offensive axis pushing into believed strength. Only read when SectorPostureHoldEnabled; <= 0 disables",
+			"the floor (legacy own=0-vs-enemy ⇒ hold). Presence scale is ~1 per own armed unit in the sector.")]
+		public readonly int SectorPostureHoldOwnFloor = 3;
+
 		[Desc("MISSION COMMITMENT (Phase-1 anti-thrash stopgap). Once an axis has been ordered at an objective,",
 			"do NOT re-task it on the next re-eval merely because scores jittered — HOLD the mission and leave its",
 			"in-flight order alone. A committed axis is released for re-tasking ONLY on an explicit trigger:",
@@ -1274,7 +1281,7 @@ namespace OpenRA.Mods.Common.Traits
 			var scaled = new List<ScoredPoi>(targets.Count);
 			foreach (var p in targets)
 			{
-				var sector = SectorOfTargetCell(p.Location);
+				var sector = SectorOfCell(p.Location);
 				var mul = FrontlineAllocationMath.WeakestSectorBiasFactor(sector, weakest, Info.WeakestPointBiasMultiplier);
 				if (mul == 100)
 				{
@@ -1295,11 +1302,12 @@ namespace OpenRA.Mods.Common.Traits
 			return scaled;
 		}
 
-		// The frontier sector a target MAP cell falls into (its X column bucketed into the control field's
-		// equal-width vertical bands) — the same partition FrontlineProfileMath uses to build the profile, so a
-		// target's sector index lines up with WeakestEnemySector / SectorProfile. Deterministic, fog-legal (map
-		// geometry only). Returns NoSector when no control field exists.
-		int SectorOfTargetCell(CPos cell)
+		// The frontier sector a MAP cell falls into (its X column bucketed into the control field's equal-width
+		// vertical bands) — the same partition FrontlineProfileMath uses to build the profile, so the returned
+		// sector index lines up with WeakestEnemySector / SectorProfile. Used for both a target cell (weakest-point
+		// bias) and an axis's own centroid cell (posture hold). Deterministic, fog-legal (map geometry only).
+		// Returns NoSector when no control field exists.
+		int SectorOfCell(CPos cell)
 		{
 			if (controlField == null)
 				return FrontlineProfileMath.NoSector;
@@ -2497,23 +2505,31 @@ namespace OpenRA.Mods.Common.Traits
 			=> RetreatDamperMath.ShouldHold(axis.Retreat, axis.ReadvanceHold, axis.NearRally,
 				OwnAxisStrength(axis), Info.MinAdvanceStrength);
 
-		// Phase 5: should this axis HOLD because its target sector reads too strong? Reads the believed per-sector
-		// profile (own vs enemy strength + front presence) and delegates the ratio test to the pure
-		// FrontlineAllocationMath.SectorPostureHold. Inert (false) until the profile is built for this player; the
-		// caller only reaches here when SectorPostureHoldEnabled with a valid rally, and NEVER on a Retreating axis
-		// (the retreat gate returned upstream), so a genuine withdrawal is never converted into a hold.
+		// Phase 5: should this axis HOLD because the sector it STANDS IN reads too strong? Reads the believed
+		// per-sector profile (own vs enemy strength + front presence) and delegates the ratio test to the pure
+		// FrontlineAllocationMath.SectorPostureHold. Evaluated at the axis's own CONTACT sector (its unit centroid),
+		// NOT the deep TARGET sector: an offensive axis's target lies in the enemy rear where our believed own
+		// strength is ~0, which made the ratio trivially "outnumbered" and froze every push at home. The centroid
+		// sector counts the axis's own units, so sectorOwn reflects the committed force; the own-strength floor is
+		// the backstop for a sector we don't actually occupy. Inert (false) until the profile is built for this
+		// player; the caller only reaches here when SectorPostureHoldEnabled with a valid rally, and NEVER on a
+		// Retreating axis (the retreat gate returned upstream), so a genuine withdrawal is never converted to a hold.
 		bool PostureShouldHold(Axis axis)
 		{
 			if (controlField == null || !controlField.HasFrontlineProfile(player))
 				return false;
 
-			var sector = SectorOfTargetCell(axis.TargetCell);
+			// No units ⇒ nothing to hold with (and no centroid); an empty axis is not a hold candidate.
+			if (axis.Units.Count == 0)
+				return false;
+
+			var sector = SectorOfCell(AxisCentroidCell(axis));
 			if (sector == FrontlineProfileMath.NoSector)
 				return false;
 
 			var prof = controlField.SectorProfile(player, sector);
 			return FrontlineAllocationMath.SectorPostureHold(prof.OwnStrength, prof.EnemyStrength,
-				prof.FrontierEdges, Info.SectorPostureHoldRatioPct);
+				prof.FrontierEdges, Info.SectorPostureHoldRatioPct, Info.SectorPostureHoldOwnFloor);
 		}
 
 		CPos AxisCentroidCell(Axis axis)

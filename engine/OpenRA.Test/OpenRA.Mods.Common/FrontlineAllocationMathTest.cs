@@ -166,14 +166,16 @@ namespace OpenRA.Test
 		[Test]
 		public void PostureHoldFlipsAtThePinnedRatioBoundary()
 		{
+			// ownStrengthFloor 0 ⇒ floor disabled, so this pins the pure ratio math (identical to the pre-floor
+			// signature). own 5 is above any sensible floor anyway.
 			Assert.Multiple(() =>
 			{
 				// holdRatioPct 200 = "hold when the enemy is at least 2× our strength here."
-				Assert.That(FrontlineAllocationMath.SectorPostureHold(sectorOwn: 5, sectorEnemy: 10, frontierEdges: 2, holdRatioPct: 200),
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(sectorOwn: 5, sectorEnemy: 10, frontierEdges: 2, holdRatioPct: 200, ownStrengthFloor: 0),
 					Is.True, "enemy exactly 2× own ⇒ hold (boundary inclusive)");
-				Assert.That(FrontlineAllocationMath.SectorPostureHold(5, 9, 2, 200),
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(5, 9, 2, 200, 0),
 					Is.False, "enemy just under 2× own ⇒ press");
-				Assert.That(FrontlineAllocationMath.SectorPostureHold(5, 11, 2, 200),
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(5, 11, 2, 200, 0),
 					Is.True, "enemy over 2× own ⇒ hold");
 			});
 		}
@@ -184,25 +186,77 @@ namespace OpenRA.Test
 			Assert.Multiple(() =>
 			{
 				// Not on the front (no frontier edge) ⇒ never hold, however lopsided.
-				Assert.That(FrontlineAllocationMath.SectorPostureHold(0, 50, frontierEdges: 0, holdRatioPct: 200),
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(0, 50, frontierEdges: 0, holdRatioPct: 200, ownStrengthFloor: 3),
 					Is.False, "a sector off the front is not a hold candidate");
 
 				// No believed enemy force ⇒ never hold (nothing to hold against).
-				Assert.That(FrontlineAllocationMath.SectorPostureHold(0, 0, 2, 200), Is.False, "no enemy ⇒ press");
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(0, 0, 2, 200, 3), Is.False, "no enemy ⇒ press");
 
-				// Own = 0 with enemy present ⇒ hold (we have nothing there; don't lunge in).
-				Assert.That(FrontlineAllocationMath.SectorPostureHold(0, 4, 2, 200), Is.True, "empty-vs-enemy ⇒ hold");
+				// A genuinely outnumbered line we DO occupy still holds (own above the floor, enemy ≥ 2× own).
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(5, 20, 2, 200, 3), Is.True,
+					"occupied + outnumbered ⇒ still hold");
+			});
+		}
+
+		[Test]
+		public void PostureHoldReleasesASectorWeDoNotOccupy()
+		{
+			// The live River Zeta freeze: an offensive axis's TARGET sector sits in the enemy rear where our
+			// believed own strength is ~0, so "enemy ≥ own × ratio" was trivially true and every push held at home.
+			// The own-strength floor is the backstop — below it, PRESS (you cannot hold a sector you don't occupy).
+			Assert.Multiple(() =>
+			{
+				// own = 0 vs enemy present, floor 3 ⇒ the degeneracy no longer holds.
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(0, 4, 2, 200, 3), Is.False,
+					"degeneracy fixed: own 0 (unoccupied) ⇒ press, not hold");
+
+				// Just below the floor still presses, even against overwhelming believed force.
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(2, 100, 2, 200, 3), Is.False,
+					"own below floor ⇒ press regardless of ratio");
+
+				// At the floor we occupy the sector, so the ratio decides: floor-strength vs 100 enemy ⇒ hold.
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(3, 100, 2, 200, 3), Is.True,
+					"own == floor + outnumbered ⇒ hold");
+
+				// At the floor but NOT outnumbered ⇒ press (occupies the sector, enemy under 2×).
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(3, 5, 2, 200, 3), Is.False,
+					"own == floor + enemy under 2× ⇒ press");
+			});
+		}
+
+		[Test]
+		public void PostureHoldPressesFromOwnHeldGround()
+		{
+			// Consequence of evaluating the axis's CONTACT sector (its unit centroid) instead of the deep target
+			// sector: an axis standing on its own held ground reads high sectorOwn + low believed enemy ⇒ it presses
+			// forward rather than freezing. (The old target-sector evaluation read the enemy rear here and froze.)
+			Assert.That(FrontlineAllocationMath.SectorPostureHold(40, 10, 2, 200, 3), Is.False,
+				"own-heavy contact sector ⇒ press");
+		}
+
+		[Test]
+		public void PostureHoldFloorZeroPreservesLegacyMath()
+		{
+			// ownStrengthFloor <= 0 disables the floor ⇒ byte-identical to the pre-fix ratio-only behaviour,
+			// including the degenerate own=0-vs-enemy hold. Documents the floor's off sentinel.
+			Assert.Multiple(() =>
+			{
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(0, 4, 2, 200, 0), Is.True,
+					"floor 0 ⇒ legacy own-0-vs-enemy hold");
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(0, 4, 2, 200, -1), Is.True,
+					"negative floor ⇒ also disabled (legacy hold)");
 			});
 		}
 
 		[Test]
 		public void PostureHoldIsInertWhenDisabled()
 		{
-			// holdRatioPct <= 0 is the disabled sentinel ⇒ always press, even into an overwhelming sector.
+			// holdRatioPct <= 0 is the disabled sentinel ⇒ always press, even into an overwhelming sector. The
+			// ratio gate is checked before the floor, so a disabled hold presses whatever the floor.
 			Assert.Multiple(() =>
 			{
-				Assert.That(FrontlineAllocationMath.SectorPostureHold(1, 100, 2, 0), Is.False, "ratio 0 ⇒ disabled");
-				Assert.That(FrontlineAllocationMath.SectorPostureHold(1, 100, 2, -5), Is.False, "negative ratio ⇒ disabled");
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(1, 100, 2, 0, 3), Is.False, "ratio 0 ⇒ disabled");
+				Assert.That(FrontlineAllocationMath.SectorPostureHold(1, 100, 2, -5, 3), Is.False, "negative ratio ⇒ disabled");
 			});
 		}
 	}
