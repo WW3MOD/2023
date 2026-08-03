@@ -981,6 +981,22 @@ Player:
 		# across the hit-and-run withdraw/re-engage cycles (cooldown 150 + withdraw 75); the real releases are
 		# the event triggers, this is only the safety valve. 0 would disable it.
 		PinCommitWindowTicks: 1200
+		# Careful scout employment (experimental-only, default-frozen in C#): the littlebird is a fragile troop-
+		# carrier/scout, not a strike aircraft, so its recon target + flight path respect the KNOWN (fog-legal)
+		# anti-air danger field and a penetration bound — it will not dive a lone scout deep into unscouted
+		# territory or through believed AA and get shot down. Reads DangerFieldLayer (Stage B), never omniscient.
+		# Cap 40 cells ≈ own half + the contested middle; threshold 0 = strictly outside every believed AA envelope
+		# (the air channel carries no territory baseline). OFF for every non-experimental profile (byte-identical).
+		CarefulScoutEmployment: true
+		ScoutAirDangerSafeThreshold: 0
+		ScoutMaxDistanceCells: 40
+		# Empty-delivery commit-on-order (experimental-only, default-frozen in C#): commit each ordered transport
+		# passenger to the shared PoiGoalGuard ledger (key transport:<heliId>) while it walks to the heli, so no
+		# other module poaches it mid-board. The staged loading that fixes the empty delivery itself is an ungated
+		# C# correctness change (applies to every profile); this lever only adds the anti-poach guard. OFF for every
+		# non-experimental profile ⇒ no ledger interaction there (byte-identical). Uses the shared PoiGoalGuard@poi
+		# defined above (gated enable-ai-experimental || enable-ai-stable).
+		CommitTransportPassengers: true
 
 	# ===== Stable AI — snapshot of the validated Experimental config =====
 	#
