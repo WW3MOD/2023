@@ -99,5 +99,31 @@ namespace OpenRA.Test
 				Assert.That(PoiReachabilityMath.ThroughCrossingDistanceCells(0, 0, 0), Is.EqualTo(0));
 			});
 		}
+
+		[Test]
+		public void EffectiveDistanceKeepsCrowFliesUnlessBarrierAndCrossing()
+		{
+			Assert.Multiple(() =>
+			{
+				// Same bank (no barrier crossed): crow-flies is kept EXACTLY — this is the byte-identity case
+				// for same-bank POIs (and, with the gate off, every POI, since no provider is passed).
+				Assert.That(PoiReachabilityMath.EffectiveDistanceCells(12, crossesBarrier: false, hasCrossing: true, 5, 6),
+					Is.EqualTo(12));
+
+				// Barrier crossed but no crossing exists to route through: crow-flies kept (the reachability
+				// FACTOR damps it separately; distance is not fabricated).
+				Assert.That(PoiReachabilityMath.EffectiveDistanceCells(12, crossesBarrier: true, hasCrossing: false, 5, 6),
+					Is.EqualTo(12));
+
+				// Far bank across a barrier WITH a crossing: honest through-crossing detour (SR→crossing→POI),
+				// which is longer than the crow-flies line ⇒ the central-crossing advantage becomes honest.
+				Assert.That(PoiReachabilityMath.EffectiveDistanceCells(12, crossesBarrier: true, hasCrossing: true, 9, 10),
+					Is.EqualTo(19));
+
+				// The detour is clamped ≥ crow-flies (a crossing never reads CLOSER than straight-line).
+				Assert.That(PoiReachabilityMath.EffectiveDistanceCells(30, crossesBarrier: true, hasCrossing: true, 5, 5),
+					Is.EqualTo(30));
+			});
+		}
 	}
 }

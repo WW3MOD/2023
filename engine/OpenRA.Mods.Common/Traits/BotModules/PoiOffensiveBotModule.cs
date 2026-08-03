@@ -651,10 +651,23 @@ namespace OpenRA.Mods.Common.Traits
 			//    threat-NEUTRAL base score — no omniscient InfluenceMap read — and re-shape it below
 			//    from the BELIEVED control + danger fields. Off ⇒ the frozen omniscient path, so the
 			//    @stable twin (flag unset) and every control profile stay byte-identical.
+			// frontline-influence Phase 1.5: honest through-crossing distance. When reachability gating is on
+			// and a CrossingMap exists, supply PoiMap a distance provider that replaces a far-bank POI's
+			// crow-flies distance with its through-crossing detour (SR→crossing→POI), so central crossings
+			// lose their artificial "as-if-adjacent" advantage. Null (flag off / no CrossingMap / no SR) ⇒
+			// PoiMap keeps its exact Euclidean distance ⇒ byte-identical for @stable/normal/human.
+			Func<CPos, int?> throughDist = null;
+			if (Info.ReachabilityGatingEnabled && crossingMap != null)
+			{
+				var srForDist = poiMap.OwnSupplyRoute(player)?.Location;
+				if (srForDist != null)
+					throughDist = poiCell => crossingMap.ThroughCrossingDistanceOverride(srForDist.Value, poiCell);
+			}
+
 			var repoint = Info.StrategicRepointEnabled && controlField != null;
 			var targets = repoint
-				? poiMap.GetOffensiveTargets(player, suppressOmniscientThreat: true)
-				: poiMap.GetOffensiveTargets(player);
+				? poiMap.GetOffensiveTargets(player, suppressOmniscientThreat: true, throughDist)
+				: poiMap.GetOffensiveTargets(player, throughCrossingDistance: throughDist);
 
 			// 2a. Experimental SR-contestation: re-scale the enemy Supply Route Pressure axis so
 			//     it can compete for an offensive axis. A no-op at multiplier 100 (guarded), so
@@ -964,12 +977,21 @@ namespace OpenRA.Mods.Common.Traits
 
 			var hasAmphibiousPool = HasAmphibiousPool();
 
-			int same = 0, intact = 0, repairable = 0, amphib = 0, unreach = 0, typed = 0;
+			int same = 0, intact = 0, repairable = 0, amphib = 0, unreach = 0, typed = 0, barrierPois = 0;
 			var scaled = new List<ScoredPoi>(targets.Count);
 			foreach (var p in targets)
 			{
 				var reach = crossingMap.ClassifyGroundReach(srCell.Value, p.Location);
 				var amphibReachable = crossingMap.AmphibiousReachable(srCell.Value, p.Location);
+
+				// Phase 1.5 diagnostic: p.DistanceCells already carries the through-crossing distance PoiMap
+				// substituted (crow-flies for same-bank POIs). Log which far-bank POIs crossed a water barrier
+				// so the axis de-concentration is observable in one run.
+				var crossesBarrier = crossingMap.CrossesGroundBarrier(srCell.Value, p.Location);
+				if (crossesBarrier)
+					barrierPois++;
+				Log.Write("debug", $"[exp-reach-dist] player={player.PlayerName} target={p.Actor.Info.Name}@{p.Location} " +
+					$"dist={p.DistanceCells} crossesBarrier={crossesBarrier} reach={reach} score={p.Score} tick={world.WorldTick}");
 
 				switch (reach)
 				{
@@ -1010,7 +1032,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			Log.Write("debug", $"[exp-reach] reeval player={player.PlayerName} pois={targets.Count} same={same} " +
 				$"intactCrossing={intact} repairable={repairable} amphibiousOnly={amphib} unreachable={unreach} " +
-				$"amphibTyped={typed} hasAmphibPool={hasAmphibiousPool} tick={world.WorldTick}");
+				$"amphibTyped={typed} barrierCrossed={barrierPois} crossingCells={crossingMap.CrossingCellCount} " +
+				$"hasAmphibPool={hasAmphibiousPool} tick={world.WorldTick}");
 			return scaled;
 		}
 

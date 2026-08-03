@@ -326,6 +326,11 @@ namespace OpenRA.Mods.Common.Traits
 		// Every locomotor name that can traverse water — the set that types a unit as amphibious-capable.
 		readonly HashSet<string> amphibiousLocomotorNames = new();
 
+		// Representative crossing points (bridges/fords): land cells that span a water barrier — where a
+		// ground force actually crosses the river. Detected geometrically (a foot-passable cell with
+		// foot-impassable water on opposite sides), clustered to one representative per crossing.
+		readonly List<CPos> crossingCells = new();
+
 		// Bridge huts discovered once at build (map-static actor set); status is re-read on revalidate.
 		readonly List<Actor> bridgeHuts = new();
 
@@ -396,6 +401,55 @@ namespace OpenRA.Mods.Common.Traits
 			return a >= 0 && a == b;
 		}
 
+		public int CrossingCellCount { get { EnsureBuilt(); return crossingCells.Count; } }
+
+		/// <summary>Does the straight cell-line from a to b pass through a WATER BARRIER — a cell impassable
+		/// for the non-fording infantry locomotor (deep river/water the ground army must detour around, even
+		/// where a fording locomotor like `tracked` could slowly cross)? The signal that a POI is "across the
+		/// river" so its crow-flies distance understates the real path. Deterministic integer line walk.</summary>
+		public bool CrossesGroundBarrier(CPos a, CPos b)
+		{
+			EnsureBuilt();
+			return AnyBarrierOnLine(a.X, a.Y, b.X, b.Y);
+		}
+
+		/// <summary>The through-crossing ground distance (cells) from the SR to a POI when the straight path
+		/// crosses a water barrier AND a crossing exists — SR→nearest crossing + crossing→POI, so a far-bank
+		/// target reads its honest (longer) detour distance instead of the crow-flies line that makes central
+		/// crossings look adjacent. Returns null when the segment crosses no barrier (or no crossing exists),
+		/// so the caller keeps its exact Euclidean distance ⇒ only barrier-crossing POIs change. The single
+		/// Phase-1.5 distance read; pure decision in PoiReachabilityMath.EffectiveDistanceCells.</summary>
+		public int? ThroughCrossingDistanceOverride(CPos srCell, CPos poiCell)
+		{
+			EnsureBuilt();
+
+			var crowFlies = (poiCell - srCell).Length; // Euclidean cells (CVec.Length = ISqrt).
+			var crosses = AnyBarrierOnLine(srCell.X, srCell.Y, poiCell.X, poiCell.Y);
+			if (!crosses || crossingCells.Count == 0)
+				return null;
+
+			// Nearest crossing by the two-leg detour SR→crossing + crossing→POI (deterministic min, ties by
+			// row-major crossing order — crossingCells is built row-major).
+			var bestLeg1 = 0;
+			var bestLeg2 = 0;
+			var bestSum = int.MaxValue;
+			foreach (var c in crossingCells)
+			{
+				var leg1 = (c - srCell).Length;
+				var leg2 = (poiCell - c).Length;
+				var sum = leg1 + leg2;
+				if (sum < bestSum)
+				{
+					bestSum = sum;
+					bestLeg1 = leg1;
+					bestLeg2 = leg2;
+				}
+			}
+
+			var eff = PoiReachabilityMath.EffectiveDistanceCells(crowFlies, true, true, bestLeg1, bestLeg2);
+			return eff == crowFlies ? (int?)null : eff;
+		}
+
 		/// <summary>Classify how a POI cell relates to the SR cell for a GROUND force: same component,
 		/// walkable via an intact crossing, only via a repairable bridge, only amphibious, or unreachable.
 		/// The single Phase-1 reachability read.</summary>
@@ -441,8 +495,105 @@ namespace OpenRA.Mods.Common.Traits
 			amphibiousPairs = CrossingMapMath.AmphibiousCrossablePairs(
 				groundLabels, groundCount, amphibiousLabels, width, height);
 
+			DetectCrossingCells();
+
 			DiscoverBridgeHuts();
 			RevalidateCrossings();
+
+			Log.Write("debug", $"[crossingmap] built ground={groundCount} infantry={infantryCount} " +
+				$"amphibious={amphibiousCount} amphibPairs={amphibiousPairs.Count} crossingCells={crossingCells.Count} " +
+				$"repairableCrossings={crossings.Count} map={width}x{height}");
+		}
+
+		// True when the water-barrier (infantry-impassable, in-bounds) is present at (x,y). The non-fording
+		// infantry graph treats deep river/water as impassable, so this marks the ground army's real barriers
+		// even where the fording `tracked` locomotor could slowly cross.
+		bool InfantryWater(int x, int y)
+			=> x >= 0 && y >= 0 && x < width && y < height
+				&& CrossingMapMath.LabelAt(infantryLabels, width, height, x, y) == CrossingMapMath.Impassable;
+
+		// Integer supercover-ish line walk (Bresenham) from (x0,y0) to (x1,y1): true if any INTERMEDIATE cell
+		// is a water barrier. Endpoints (the SR / POI, on land) are excluded. Deterministic, zero alloc.
+		bool AnyBarrierOnLine(int x0, int y0, int x1, int y1)
+		{
+			var dx = Math.Abs(x1 - x0);
+			var dy = Math.Abs(y1 - y0);
+			var sx = x0 < x1 ? 1 : -1;
+			var sy = y0 < y1 ? 1 : -1;
+			var err = dx - dy;
+			var x = x0;
+			var y = y0;
+			while (true)
+			{
+				if (x == x1 && y == y1)
+					return false;
+
+				if (!(x == x0 && y == y0) && InfantryWater(x, y))
+					return true;
+
+				var e2 = 2 * err;
+				if (e2 > -dy) { err -= dy; x += sx; }
+				if (e2 < dx) { err += dx; y += sy; }
+			}
+		}
+
+		// A crossing cell = a foot-passable land cell that SPANS the water barrier (foot-impassable water on
+		// opposite sides — N&S or E&W): a bridge/ford narrow enough that the ground army must funnel over it.
+		// Adjacent crossing cells are clustered (4-conn) to one representative each (row-major minimum), so a
+		// multi-cell bridge yields one crossing point. Deterministic single map scan.
+		void DetectCrossingCells()
+		{
+			crossingCells.Clear();
+
+			var isCrossing = new bool[width, height];
+			for (var y = 0; y < height; y++)
+			{
+				for (var x = 0; x < width; x++)
+				{
+					// Must itself be foot-passable land (a bridge/ford tile), not water.
+					if (CrossingMapMath.LabelAt(infantryLabels, width, height, x, y) == CrossingMapMath.Impassable)
+						continue;
+
+					var spanNS = InfantryWater(x, y - 1) && InfantryWater(x, y + 1);
+					var spanEW = InfantryWater(x - 1, y) && InfantryWater(x + 1, y);
+					if (spanNS || spanEW)
+						isCrossing[x, y] = true;
+				}
+			}
+
+			// Cluster adjacent crossing cells (4-conn), representative = row-major first cell reached.
+			var seen = new bool[width, height];
+			var stack = new Stack<int>();
+			for (var sy = 0; sy < height; sy++)
+			{
+				for (var sx = 0; sx < width; sx++)
+				{
+					if (!isCrossing[sx, sy] || seen[sx, sy])
+						continue;
+
+					crossingCells.Add(new CPos(sx, sy));
+					seen[sx, sy] = true;
+					stack.Push((sx << 16) | sy);
+					while (stack.Count > 0)
+					{
+						var packed = stack.Pop();
+						var cx = packed >> 16;
+						var cy = packed & 0xFFFF;
+						foreach (var (dx, dy) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+						{
+							var nx = cx + dx;
+							var ny = cy + dy;
+							if (nx < 0 || ny < 0 || nx >= width || ny >= height)
+								continue;
+							if (!isCrossing[nx, ny] || seen[nx, ny])
+								continue;
+
+							seen[nx, ny] = true;
+							stack.Push((nx << 16) | ny);
+						}
+					}
+				}
+			}
 		}
 
 		int LabelFor(Locomotor loco, int[,] labels)

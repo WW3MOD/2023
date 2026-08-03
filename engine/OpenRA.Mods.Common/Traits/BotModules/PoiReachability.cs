@@ -74,6 +74,21 @@ namespace OpenRA.Mods.Common.Traits
 			return Math.Max(Math.Max(0, directCells), through);
 		}
 
+		/// <summary>The WIRING decision: which distance feeds PoiScoring.DistanceFactor. When the crow-flies
+		/// segment crosses a water barrier AND a crossing exists, the honest distance routes THROUGH the
+		/// crossing (SR→crossing + crossing→POI) so a far-bank POI stops reading as if adjacent and a central
+		/// crossing loses its artificial distance advantage. Otherwise the crow-flies distance is kept
+		/// unchanged (so a same-bank POI — and every POI when the gate is off — is byte-identical). Pure ⇒
+		/// unit-tested, v3-portable.</summary>
+		public static int EffectiveDistanceCells(int crowFliesCells, bool crossesBarrier, bool hasCrossing,
+			int srToCrossingCells, int crossingToPoiCells)
+		{
+			if (!crossesBarrier || !hasCrossing)
+				return crowFliesCells;
+
+			return ThroughCrossingDistanceCells(crowFliesCells, srToCrossingCells, crossingToPoiCells);
+		}
+
 		static int Clamp(int pct) => pct < 0 ? 0 : pct > 100 ? 100 : pct;
 	}
 }
