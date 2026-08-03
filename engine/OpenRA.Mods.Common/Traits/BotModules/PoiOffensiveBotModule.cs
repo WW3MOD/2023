@@ -322,6 +322,65 @@ namespace OpenRA.Mods.Common.Traits
 			"many cells (Chebyshev) of the rally cell (our own Supply Route). Ends the committed retreat.")]
 		public readonly int RetreatSafeDistanceCells = 10;
 
+		[Desc("PHASE 2 (@experimental) free-pool FORWARD STAGING. Uncommitted combat units (the free pool) are",
+			"walked to a forward muster point a safe standoff BEHIND the believed friendly frontier instead of",
+			"idling at the Supply Route where they mustered in (the 'units pool at spawn, clogging the road to the",
+			"front' symptom). The staging point is found by steepest descent on the control field's",
+			"distance-to-enemy-frontier BFS (from the SR toward the nearest front) and ADVANCES as the front moves.",
+			"Units fan out over several cells (deterministic ring spread) — no pile on one cell. Committed",
+			"(ledger/axis) and retreating units are never staged. OFF by default so the frozen @stable twin and",
+			"every legacy profile keep the reserve idling at the SR byte-identical; only",
+			"PoiOffensiveBotModule@experimental turns it on. Inert (reserve idles as before) until a ControlField",
+			"exists and its frontier field is populated. Pure ForwardStagingMath (NUnit-pinned), zero RNG.")]
+		public readonly bool ForwardStagingEnabled = false;
+
+		[Desc("Forward staging: hold the muster point at least this many COARSE control-field cells behind the",
+			"believed enemy frontier (the standoff at which the gradient descent stops). Only read when",
+			"ForwardStagingEnabled.")]
+		public readonly int StagingStandoffCells = 6;
+
+		[Desc("Forward staging: never route the muster descent into a cell whose believed anti-ground danger",
+			"exceeds this (danger-field intensity scale) — keeps the staging point BEHIND defended fronts, not on",
+			"them. Set at the same scale as GroundDangerSafeThreshold. Negative disables the danger guard. Only",
+			"read when ForwardStagingEnabled.")]
+		public readonly int StagingDangerSafeThreshold = 40;
+
+		[Desc("Forward staging: spacing (map cells) between staged units on the deterministic ring spread around",
+			"the muster anchor — the anti-clog spread. Only read when ForwardStagingEnabled.")]
+		public readonly int StagingSpreadStepCells = 2;
+
+		[Desc("Forward staging: hysteresis (map cells, Chebyshev) — the muster anchor is only re-ADOPTED (and the",
+			"formation re-laid) when it advances at least this far from the last adopted anchor, so a small field",
+			"wobble doesn't spam staging orders. Only read when ForwardStagingEnabled.")]
+		public readonly int StagingHysteresisCells = 3;
+
+		[Desc("Forward staging: bounded budget (coarse cells) on the gradient-descent walk from the SR to the",
+			"muster point — a walk-forward, never a free search. Only read when ForwardStagingEnabled.")]
+		public readonly int StagingMaxDescentSteps = 64;
+
+		[Desc("PHASE 3 (@experimental) RETREAT-OSCILLATION DAMPER. Builds on RetreatWhenLosing: stops small",
+			"early-spread axes ping-ponging into the SR bubble (advance, read losing, fall back, re-form, repeat).",
+			"Adds two anti-oscillation gates on TOP of the sustained-streak retreat ENTRY that RetreatWhenLosing",
+			"already has: (a) a post-retreat DWELL (RetreatReadvanceDwellEvals) an axis must hold before it may",
+			"re-advance on the same target, and (b) an advance-STRENGTH floor (MinAdvanceStrength) below which an",
+			"axis still massing near the rally holds/merges rather than trickling 2-3 units forward. NEITHER delays",
+			"a genuine retreat — a truly-losing axis still withdraws promptly (that decision is upstream); the",
+			"damper only delays RE-advance and filters noise-massing. OFF by default = byte-identical; only",
+			"PoiOffensiveBotModule@experimental turns it on. Requires RetreatWhenLosing + a BeliefStore to have any",
+			"effect (the FSM it damps runs only then). Pure RetreatDamperMath (NUnit-pinned), zero RNG.")]
+		public readonly bool RetreatDamperEnabled = false;
+
+		[Desc("Retreat damper (a): evals an axis must HOLD after completing a retreat before it may re-advance on",
+			"the same target — the post-retreat dwell that converts advance/lose/retreat churn into hold-then-push.",
+			"0 (default) = inert (no dwell). Only read when RetreatDamperEnabled.")]
+		public readonly int RetreatReadvanceDwellEvals = 0;
+
+		[Desc("Retreat damper (b): minimum own force (health-weighted build value, SAME scale as the retreat",
+			"force ratio) an axis still massing near the rally must reach before it advances — below it the axis",
+			"waits/merges instead of trickling a 2-3-unit packet forward. 0 (default) = inert (no floor). Only read",
+			"when RetreatDamperEnabled.")]
+		public readonly int MinAdvanceStrength = 0;
+
 		[Desc("MISSION COMMITMENT (Phase-1 anti-thrash stopgap). Once an axis has been ordered at an objective,",
 			"do NOT re-task it on the next re-eval merely because scores jittered — HOLD the mission and leave its",
 			"in-flight order alone. A committed axis is released for re-tasking ONLY on an explicit trigger:",
@@ -424,6 +483,13 @@ namespace OpenRA.Mods.Common.Traits
 			public RetreatDecision Retreat;
 			public bool OrderedRetreat;
 
+			// Phase 3 retreat-oscillation damper (populated only when RetreatDamperEnabled). ReadvanceHold counts
+			// down the post-retreat DWELL (evals an axis holds after completing a retreat before it may re-advance
+			// on the same target). NearRally records whether the axis centroid is within RetreatSafeDistanceCells
+			// of the rally this eval (the "still massing in the rear" gate for the advance-strength floor).
+			public int ReadvanceHold;
+			public bool NearRally;
+
 			public readonly List<Actor> Units = new();
 
 			// MISSION COMMITMENT snapshot (populated only when MissionCommitmentEnabled). Committed = the
@@ -458,6 +524,17 @@ namespace OpenRA.Mods.Common.Traits
 		// force-preservation lever is on — a losing axis falls back to it and counts as safe near it. Null when
 		// no lever is active or we have no SR to fall back to.
 		CPos? rallyCell;
+
+		// Phase 2 free-pool forward staging: the muster point THIS eval (a safe standoff behind the believed
+		// frontier, resolved from the SR down the control field's distance-to-frontier gradient). Null when
+		// staging is off, no control field / SR, or the field is unpopulated (⇒ reserve idles at the SR, legacy).
+		CPos? stagingAnchor;
+
+		// The last ADOPTED staging anchor (Chebyshev hysteresis, so a 1-cell field wobble doesn't re-lay the
+		// formation every eval), and the last staging cell each idle unit was AttackMoved to (re-issue dedup so a
+		// unit already walking up keeps its order). Both empty/null unless ForwardStagingEnabled.
+		CPos? lastStagingAnchor;
+		readonly Dictionary<Actor, CPos> stagedCells = new();
 
 		// Cached (build cost, armed) per believed-contact TypeName, resolved from world rules on first use, so
 		// the believed-enemy force tally doesn't re-walk the actor rules every eval. Deterministic.
@@ -543,6 +620,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!dangerFieldResolved)
 			{
 				dangerField = Info.DangerFieldRouting || Info.StrategicRepointEnabled || Info.MissionCommitmentEnabled
+					|| Info.ForwardStagingEnabled
 					? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
 				dangerFieldResolved = true;
 			}
@@ -552,6 +630,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!controlFieldResolved)
 			{
 				controlField = Info.StrategicRepointEnabled || Info.MinFrontierDistanceCells > 0
+					|| Info.ForwardStagingEnabled
 					? world.WorldActor.TraitOrDefault<ControlField>() : null;
 				controlFieldResolved = true;
 			}
@@ -567,7 +646,16 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Rally cell for the fall-back / safety test — our own Supply Route. Resolved once per eval only when
 			// a lever is on (one FindOwnSupplyRoute scan); null otherwise, so no cost on the frozen path.
-			rallyCell = Info.RetreatWhenLosing || Info.NoReinforceLostFights ? RallyCell() : null;
+			// ForwardStaging also needs the SR as the descent start (the muster walk begins at the beachhead).
+			rallyCell = Info.RetreatWhenLosing || Info.NoReinforceLostFights || Info.ForwardStagingEnabled
+				? RallyCell() : null;
+
+			// Phase 2: resolve the forward staging anchor for this eval (safe standoff behind the frontier, walked
+			// from the SR down the control field's distance-to-frontier gradient, with anchor hysteresis). Null
+			// when staging is off / no field / unpopulated ⇒ the reserve idles at the SR exactly as before. Shared
+			// by the free-pool stager AND (as the preferred hold target) the Phase-3 damper, so it is resolved once
+			// here before both consumers run.
+			stagingAnchor = Info.ForwardStagingEnabled ? ResolveStagingAnchor() : null;
 
 			var tick = world.WorldTick;
 
@@ -779,6 +867,11 @@ namespace OpenRA.Mods.Common.Traits
 			// PartitionHeldAxes. No-op when the flag is off (heldAxes is null).
 			if (heldAxes != null && heldAxes.Count > 0)
 				axes.AddRange(heldAxes);
+
+			// Phase 2: walk the genuinely-idle reserve (uncommitted, un-axis'd — re-scanned so under-min releases
+			// and shed surplus this eval are caught too) to the forward staging point, instead of leaving it idle
+			// at the SR clogging the road to the front. Skipped ⇒ byte-identical (reserve keeps its empty activity).
+			StageFreePool(bot, tick);
 
 			ReconcileFiresHoldFire(bot);
 
@@ -1034,6 +1127,101 @@ namespace OpenRA.Mods.Common.Traits
 				.ToList();
 		}
 
+		// Phase 2: resolve this eval's forward staging anchor — a safe standoff BEHIND the believed friendly
+		// frontier. Walks from the SR grid cell DOWN the control field's distance-to-enemy-frontier gradient
+		// toward the nearest front (steepest descent, staying out of believed danger envelopes), then applies
+		// Chebyshev hysteresis so the anchor doesn't jitter on a 1-cell field wobble. Returns null when there is
+		// no field / no SR, or the descent stays at the SR (flat/unpopulated field, or the front is already at the
+		// SR) — in which case the reserve idles at the SR exactly as the legacy path would. Pure ForwardStagingMath.
+		CPos? ResolveStagingAnchor()
+		{
+			if (controlField == null || !rallyCell.HasValue)
+			{
+				lastStagingAnchor = null;
+				return null;
+			}
+
+			var (sgx, sgy) = controlField.MapCellToGridCell(rallyCell.Value);
+			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
+				Info.StagingStandoffCells, Info.StagingDangerSafeThreshold, Info.StagingMaxDescentSteps,
+				(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
+				(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
+				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight);
+
+			var candidate = controlField.GridCellToMapCell(agx, agy);
+
+			// Descent stayed at the SR ⇒ no forward gradient (field unpopulated, or the front is on top of us):
+			// no staging this eval, reset the hysteresis memory so a later populated field re-adopts cleanly.
+			if (candidate == rallyCell.Value)
+			{
+				lastStagingAnchor = null;
+				return null;
+			}
+
+			// Hysteresis: keep the previously-adopted anchor unless the new one advanced past the threshold.
+			if (lastStagingAnchor.HasValue
+				&& !ForwardStagingMath.AnchorShifted(lastStagingAnchor.Value.X, lastStagingAnchor.Value.Y,
+					candidate.X, candidate.Y, Info.StagingHysteresisCells))
+				return lastStagingAnchor;
+
+			lastStagingAnchor = candidate;
+			return candidate;
+		}
+
+		// Phase 2: walk the genuinely-idle reserve to the forward staging anchor, fanned out over a deterministic
+		// ring so it doesn't pile on one cell. The idle set is re-scanned via BuildFreePool (excludes axis-claimed
+		// AND ledger-committed units, so retreating/held axes are never staged), catching units released under-min
+		// or shed as surplus this eval. A staging move is (re)issued only when a unit's target cell changed (newly
+		// idle, or the anchor advanced) so a unit already walking up keeps its order. Units are NOT ledger-committed
+		// — staging is a soft muster, so a staged unit is fully re-eligible for an axis next eval. Skipped entirely
+		// when ForwardStagingEnabled is off ⇒ the reserve keeps its empty activity (idles at the SR), byte-identical.
+		void StageFreePool(IBot bot, int tick)
+		{
+			if (!Info.ForwardStagingEnabled)
+				return;
+
+			var idle = BuildFreePool();
+
+			// Prune the staged-cell memory to units still idle + ours (so a re-recruited/dead unit drops out).
+			if (stagedCells.Count > 0)
+			{
+				var live = new HashSet<Actor>(idle);
+				List<Actor> stale = null;
+				foreach (var a in stagedCells.Keys)
+					if (a.IsDead || !a.IsInWorld || a.Owner != player || !live.Contains(a))
+						(stale ??= new List<Actor>()).Add(a);
+
+				if (stale != null)
+					foreach (var a in stale)
+						stagedCells.Remove(a);
+			}
+
+			if (!stagingAnchor.HasValue || idle.Count == 0)
+				return;
+
+			var anchor = stagingAnchor.Value;
+			var ordered = idle.OrderBy(u => u.ActorID).ToList();
+			var staged = 0;
+			for (var i = 0; i < ordered.Count; i++)
+			{
+				var (cx, cy) = ForwardStagingMath.SpreadCell(anchor.X, anchor.Y, i, Info.StagingSpreadStepCells,
+					(mx, my) => world.Map.Contains(new CPos(mx, my)));
+				var target = new CPos(cx, cy);
+				var u = ordered[i];
+
+				if (stagedCells.TryGetValue(u, out var prev) && prev == target)
+					continue;
+
+				bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, target), false, groupedActors: new[] { u }));
+				stagedCells[u] = target;
+				staged++;
+			}
+
+			if (staged > 0)
+				Log.Write("debug",
+					$"[exp-staging] player={player.PlayerName} anchor={anchor} idle={idle.Count} staged={staged} tick={tick}");
+		}
+
 		bool IsEligibleCombatUnit(Actor a)
 		{
 			if (a.Owner != player || a.IsDead || !a.IsInWorld)
@@ -1130,6 +1318,23 @@ namespace OpenRA.Mods.Common.Traits
 			if (CombatRetreatMath.ShouldRetreat(Info.RetreatWhenLosing, axis.Retreat) && rallyCell.HasValue)
 			{
 				OrderRetreat(bot, axis, rallyCell.Value, tick);
+				return;
+			}
+
+			// Phase 3 retreat-oscillation damper (experimental, default off; builds on RetreatWhenLosing). HOLD an
+			// axis at the muster point instead of RE-advancing in two cases — NEITHER delays a genuine retreat (the
+			// retreat check above already returned for a Retreating axis), so a truly-losing axis still withdraws:
+			//   (a) post-retreat DWELL — an axis that JUST completed a retreat (ReadvanceHold > 0) waits before it
+			//       re-advances on the same target, converting the small-axis advance/lose/retreat ping-pong into
+			//       hold-then-push-as-a-group.
+			//   (b) advance-STRENGTH floor — an axis still massing near the rally (NearRally) whose own force is
+			//       below MinAdvanceStrength holds/merges rather than trickling 2-3 units forward into the enemy.
+			// Held at the forward staging anchor when Phase-2 staging is on (off the SR road), else the rally cell.
+			// Reuses OrderRetreat's gated grouped AttackMove; runs BEFORE the mission-commitment snapshot + RETURNS,
+			// so a damped axis is never marked Committed (same discipline as the retreat above). Inert when off.
+			if (Info.RetreatDamperEnabled && rallyCell.HasValue && DamperShouldHold(axis))
+			{
+				OrderRetreat(bot, axis, stagingAnchor ?? rallyCell.Value, tick);
 				return;
 			}
 
@@ -1637,6 +1842,8 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					axis.Retreat = RetreatDecision.Engaged;
 					axis.LosingStreak = 0;
+					axis.ReadvanceHold = 0;
+					axis.NearRally = false;
 					continue;
 				}
 
@@ -1647,16 +1854,45 @@ namespace OpenRA.Mods.Common.Traits
 					&& PoiOffenseMath.Chebyshev(centroid.X, centroid.Y, rallyCell.Value.X, rallyCell.Value.Y)
 						<= Info.RetreatSafeDistanceCells;
 
+				var prev = axis.Retreat;
 				var (decision, streak) = CombatRetreatMath.Step(axis.Retreat, axis.LosingStreak,
 					own, enemy, Info.RetreatForceRatioPct, Info.ReengageForceRatioPct, safe, Info.RetreatSustainEvals);
 				axis.Retreat = decision;
 				axis.LosingStreak = streak;
+
+				// Phase 3 retreat-oscillation damper: track the post-retreat dwell + the "still massing in the
+				// rear" flag. Both only read under RetreatDamperEnabled, so they never affect the base retreat
+				// lever. StepReadvanceHold arms the dwell on a Retreating->Engaged transition (retreat completed)
+				// and counts it down while Engaged; it is 0 whenever the axis is Retreating, so the damper can
+				// NEVER delay a genuine withdrawal.
+				if (Info.RetreatDamperEnabled)
+				{
+					axis.ReadvanceHold = RetreatDamperMath.StepReadvanceHold(
+						axis.ReadvanceHold, prev, decision, Info.RetreatReadvanceDwellEvals);
+					axis.NearRally = safe;
+				}
 
 				if (decision == RetreatDecision.Retreating)
 					Log.Write("debug",
 						$"[exp-retreat] state player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
 						$"own={own} enemy={enemy} streak={streak} safe={safe} tick={tick}");
 			}
+		}
+
+		// Phase 3: should the retreat-oscillation damper HOLD this axis (at the muster point) instead of letting it
+		// re-advance? True when (a) the axis is inside its post-retreat dwell, or (b) it is a sub-strength axis
+		// still massing near the rally. The caller guards RetreatDamperEnabled + a valid rally. Never consulted for
+		// a Retreating axis (the retreat path returns first), so this is a fresh-ADVANCE gate only — a genuine
+		// withdrawal is unaffected. Pure reads over the axis + RetreatDamperMath; zero RNG.
+		bool DamperShouldHold(Axis axis)
+		{
+			if (axis.ReadvanceHold > 0)
+				return true; // (a) post-retreat dwell — don't re-advance yet.
+
+			// (b) too weak to advance AND still in the rear ⇒ wait for mass. Gating on NearRally means an axis
+			// already forward (committed to its assault) is never yanked back merely for being small — only the
+			// rear trickle is held.
+			return axis.NearRally && RetreatDamperMath.BelowAdvanceStrength(OwnAxisStrength(axis), Info.MinAdvanceStrength);
 		}
 
 		CPos AxisCentroidCell(Axis axis)
