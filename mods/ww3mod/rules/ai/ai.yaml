@@ -365,6 +365,16 @@ Player:
 		# ≈ 8 map cells. Needs EchelonPositioning + a ControlField (present via the influence stack). @stable
 		# twin (which lacks this field) stays byte-identical.
 		MinFrontierDistanceCells: 4
+		# Fires doctrine Phase 1 (gap G1): CONTINUOUS BOMBARDMENT of believed-static positions. Idle artillery with
+		# ammo and a believed-static enemy position (BeliefStore IsStatic contact — defence/garrison/structure) in
+		# weapon range takes a STANDING fire mission: it holds at the FiresStandoff anchor and shells that position
+		# independent of any offensive axis. Targets come ONLY from the fog-legal belief store; worthiness reuses the
+		# FiresEconMath EV gate (rocket needs a believed-static CLUMP to repay its salvo, tube may shell a single);
+		# committed to the shared PoiGoalGuard ledger so no axis double-tasks it. Reuses FiresEvMarginPercent /
+		# FiresEvClumpRadius. Default OFF on the engine class ⇒ the @stable twin (which omits these fields) is
+		# byte-identical; only this @experimental block turns it on. Needs the UnitRoleResolver + BeliefStore (both
+		# present via the influence stack).
+		ContinuousBombardment: true
 		# Combat-quality force preservation (levers 1+2, WORKSPACE/benchmarks/260802-exp-vs-stable0730-combatweighted.md):
 		# the @experimental bot kills evenly with @stable yet DIES for ~2x the army value — it treats its combat force
 		# as expendable while it wins the capture race. These two levers keep the capture strength but stop bleeding the

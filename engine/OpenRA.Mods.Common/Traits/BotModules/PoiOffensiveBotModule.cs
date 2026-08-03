@@ -270,6 +270,39 @@ namespace OpenRA.Mods.Common.Traits
 			"Sized to the real rocket scatter (much wider than a single rocket's warhead spread). Only read when on.")]
 		public readonly WDist FiresEvClumpRadius = WDist.FromCells(4);
 
+		[Desc("EXPERIMENTAL fires doctrine Phase 1 (gap G1): CONTINUOUS BOMBARDMENT of believed STATIC positions.",
+			"An idle IndirectFire piece with ammo and a believed-static enemy position (defence / garrison /",
+			"structure — BeliefStore.Contacts flagged IsStatic) in weapon range takes a STANDING fire mission: it",
+			"is AttackMoved to the target-relative FiresStandoff anchor and left to shell that position, INDEPENDENT",
+			"of any offensive axis (the residual free pool no axis claimed). Targets come ONLY from the fog-legal",
+			"belief store (no omniscient enemy scan); worthiness REUSES the FiresEconMath EV gate (a rocket piece",
+			"only fires when the believed-static CLUMP repays its salvo, a tube piece may shell a single static —",
+			"the tube/rocket split); positioning REUSES FiresStandoffMath; the piece is committed to the shared",
+			"PoiGoalGuard ledger under 'bombard:<targetId>' so no axis double-tasks it, released when it runs dry",
+			"(→ evac) or the target leaves the belief set. The decision (assignment + re-target hysteresis + per-",
+			"target order cap) is the pure ContinuousBombardMath (NUnit-pinned), zero RNG. OFF by default so the",
+			"frozen @stable twin and every legacy profile stay byte-identical; only PoiOffensiveBotModule@experimental",
+			"turns it on. Inert when the UnitRoleResolver or the BeliefStore is absent. Reuses FiresEvMarginPercent /",
+			"FiresEvClumpRadius for the EV gate.")]
+		public readonly bool ContinuousBombardment = false;
+
+		[Desc("Continuous bombardment: cap on how many idle pieces may pile onto ONE believed-static position, so a",
+			"whole battery isn't dumped on a single bunker while other positions go unshelled. A piece ALREADY",
+			"shelling a position keeps its slot regardless (the cap limits new pile-on). Only read when",
+			"ContinuousBombardment is on.")]
+		public readonly int BombardMaxPiecesPerTarget = 2;
+
+		[Desc("Continuous bombardment: re-target hysteresis (cells). A piece already shelling a believed-static",
+			"position holds it unless another worthy in-range position is closer by MORE THAN this many cells — the",
+			"anti-flip-flop discipline that makes fires committed and repeated, not thrashing between targets each",
+			"scan. Only read when ContinuousBombardment is on.")]
+		public readonly int BombardRetargetHysteresisCells = 4;
+
+		[Desc("Continuous bombardment: ledger commitment lifetime (ticks) for a piece assigned to a standing fire",
+			"mission. Refreshed each re-eval a piece keeps its mission, so it must exceed ReevaluateInterval. Only",
+			"read when ContinuousBombardment is on.")]
+		public readonly int BombardCommitmentTicks = 250;
+
 		[Desc("EXPERIMENTAL defence-in-depth echelon (builds on the fires standoff): position each IndirectFire",
 			"piece ECHELONED BEHIND the axis's MainBattle SCREEN line instead of at a ring around the target, so",
 			"artillery stays on the friendly side of the tanks/infantry rather than driving alone to the front. The",
@@ -636,6 +669,14 @@ namespace OpenRA.Mods.Common.Traits
 		readonly HashSet<Actor> firesHeldFire = new();
 		readonly HashSet<Actor> firesHeldThisEval = new();
 
+		// Continuous bombardment (Phase 1): each idle piece currently on a standing fire mission → the believed
+		// static target (belief-contact ActorID) it is shelling, and the last standoff-anchor CELL it was
+		// AttackMoved to (re-issue dedup, mirrors lastFiresAnchor). A tracked piece is committed to the shared
+		// ledger under "bombard:<targetId>"; it is released + untracked when it runs dry / dies / the target
+		// leaves the belief set. Both empty unless ContinuousBombardment is on ⇒ byte-identical when off.
+		readonly Dictionary<Actor, uint> bombardAssigned = new();
+		readonly Dictionary<Actor, CPos> lastBombardAnchor = new();
+
 		// Fires EV gate: falloff cone weighting a salvo's projected clump over FiresEvClumpRadius (centre 100% →
 		// edge 0%). A coarse, deterministic beaten-zone shape — the quick gate, not a per-rocket ballistic model.
 		static readonly int[] FiresEvFalloff = { 100, 60, 25, 0 };
@@ -733,10 +774,11 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Combat-quality force-preservation: the belief store feeds the believed-enemy force tally for both
-			// levers, so resolve it when either is on. Inert (never resolved) otherwise ⇒ byte-identical.
+			// levers; continuous bombardment (Phase 1) reads its IsStatic contacts as the fog-legal target set.
+			// Resolve it when any is on. Inert (never resolved) otherwise ⇒ byte-identical.
 			if (!beliefStoreResolved)
 			{
-				beliefStore = Info.RetreatWhenLosing || Info.NoReinforceLostFights
+				beliefStore = Info.RetreatWhenLosing || Info.NoReinforceLostFights || Info.ContinuousBombardment
 					? world.WorldActor.TraitOrDefault<BeliefStore>() : null;
 				beliefStoreResolved = true;
 			}
@@ -784,6 +826,16 @@ namespace OpenRA.Mods.Common.Traits
 				var staleFires = lastFiresAnchor.Keys.Where(a => a.IsDead || !a.IsInWorld || a.Owner != player).ToList();
 				foreach (var a in staleFires)
 					lastFiresAnchor.Remove(a);
+			}
+
+			// Same bound for the bombardment anchor map (only populated when ContinuousBombardment is on). The
+			// bombardAssigned ledger-commitment map is pruned inside BombardStaticPositions (it must RELEASE the
+			// ledger claim, not just drop the key), so it is not swept here.
+			if (lastBombardAnchor.Count > 0)
+			{
+				var staleBombard = lastBombardAnchor.Keys.Where(a => a.IsDead || !a.IsInWorld || a.Owner != player).ToList();
+				foreach (var a in staleBombard)
+					lastBombardAnchor.Remove(a);
 			}
 
 			// Fires EV gate: reset the per-eval "still held this eval" marker. The post-order reconciliation
@@ -1010,6 +1062,12 @@ namespace OpenRA.Mods.Common.Traits
 			// PartitionHeldAxes. No-op when the flag is off (heldAxes is null).
 			if (heldAxes != null && heldAxes.Count > 0)
 				axes.AddRange(heldAxes);
+
+			// Phase 1 fires doctrine: give idle artillery a STANDING bombardment mission on believed-static enemy
+			// positions BEFORE forward staging, so a piece that can shell a known defence line does so instead of
+			// mustering forward empty-handed. Commits each bombarding piece to the shared ledger, so the StageFreePool
+			// scan below (and next eval's axis free pool) excludes it. Skipped ⇒ byte-identical (no orders/commits).
+			BombardStaticPositions(bot, tick);
 
 			// Phase 2: walk the genuinely-idle reserve (uncommitted, un-axis'd — re-scanned so under-min releases
 			// and shed surplus this eval are caught too) to the forward staging point, instead of leaving it idle
@@ -2059,6 +2117,238 @@ namespace OpenRA.Mods.Common.Traits
 
 			return FiresEconMath.FireWorthy(best, salvoCost, Info.FiresEvMarginPercent);
 		}
+
+		// ===== Continuous bombardment (Phase 1, gap G1) =====
+
+		// Give idle artillery a STANDING fire mission on believed-static enemy positions, independent of any
+		// offensive axis. The target set is the fog-legal belief store (IsStatic contacts only — no world.Actors /
+		// omniscient scan); worthiness reuses the FiresEconMath EV gate; positioning reuses FiresStandoffMath; the
+		// piece is committed to the shared PoiGoalGuard ledger under "bombard:<targetId>" so no axis double-tasks
+		// it. The assignment + re-target hysteresis + per-target cap decision is the pure ContinuousBombardMath.
+		// OFF (ContinuousBombardment=false) ⇒ nothing tracked, immediate return, zero orders/commits ⇒ byte-identical.
+		void BombardStaticPositions(IBot bot, int tick)
+		{
+			// First carry forward pieces already on a mission (they are ledger-committed, so BuildFreePool below
+			// can't see them), releasing any that died / changed owner / ran dry / lost their weapon. When the
+			// feature has never run, bombardAssigned is empty and this loop is a no-op.
+			List<Actor> continuing = null;
+			if (bombardAssigned.Count > 0)
+			{
+				List<Actor> drop = null;
+				foreach (var u in bombardAssigned.Keys)
+				{
+					if (u.IsDead || !u.IsInWorld || u.Owner != player || IsOutOfAmmo(u) || MaxWeaponRange(u) <= 0)
+						(drop ??= new List<Actor>()).Add(u);
+					else
+						(continuing ??= new List<Actor>()).Add(u);
+				}
+
+				if (drop != null)
+					foreach (var u in drop)
+						ReleaseBombard(u);
+			}
+
+			// Feature off, or a dependency (role resolver / belief store) is absent: release every remaining
+			// mission so no piece strands committed, and take no new action. This is the whole cost when off.
+			if (!Info.ContinuousBombardment || resolver == null || beliefStore == null)
+			{
+				if (continuing != null)
+					foreach (var u in continuing)
+						ReleaseBombard(u);
+				return;
+			}
+
+			// 1. Fog-legal target set: believed STATIC enemy positions with a build value. Belief store ONLY — the
+			//    contact's cell is its fog-correct last-seen cell, so no ground-truth/omniscient position is read.
+			var statics = new List<(uint Id, CPos Cell, int Value)>();
+			foreach (var c in beliefStore.Contacts(player))
+			{
+				if (!c.IsStatic)
+					continue;
+
+				var value = ContactFact(c.TypeName).Cost;
+				if (value <= 0)
+					continue;
+
+				statics.Add((c.Key, c.Cell, value));
+			}
+
+			if (statics.Count == 0)
+			{
+				if (continuing != null)
+					foreach (var u in continuing)
+						ReleaseBombard(u);
+				return;
+			}
+
+			// 2. Price each position's rocket CLUMP numerator: the splash-weighted value of the believed-static
+			//    clump around it (FiresEconMath — the same beaten-zone kernel the reactive EV gate uses). Static
+			//    structures carry no fog-legal HP, so the burst is assumed to threaten full value (damage 100) — a
+			//    "worth firing at this position" heuristic, not a per-structure ballistic model. O(statics^2), and
+			//    believed statics are few (structures). The tube numerator is the position's own value (Value).
+			var clumpRadius = Info.FiresEvClumpRadius.Length;
+			var mtargets = new List<ContinuousBombardMath.StaticTarget>(statics.Count);
+			var targetCells = new Dictionary<uint, CPos>(statics.Count);
+			for (var i = 0; i < statics.Count; i++)
+			{
+				var t = statics[i];
+				var aim = world.Map.CenterOfCell(t.Cell);
+				var clump = new List<FiresEconMath.ClumpTarget>(statics.Count);
+				for (var j = 0; j < statics.Count; j++)
+					clump.Add(new FiresEconMath.ClumpTarget(
+						statics[j].Value, 100, (world.Map.CenterOfCell(statics[j].Cell) - aim).HorizontalLength));
+
+				var clumpValue = FiresEconMath.ProjectedClumpValue(clump, clumpRadius, FiresEvFalloff);
+				var clumpValueInt = clumpValue > int.MaxValue ? int.MaxValue : (int)clumpValue;
+				mtargets.Add(new ContinuousBombardMath.StaticTarget(t.Id, t.Cell.X, t.Cell.Y, t.Value, clumpValueInt));
+				targetCells[t.Id] = t.Cell;
+			}
+
+			// 3. Piece set: carried-in missions (their current target id) plus newly-idle artillery from the free
+			//    pool (uncommitted, un-axis'd — role IndirectFire, with a live weapon and ammo). BuildFreePool
+			//    filters IPositionable+AttackBase before any .Location read, so positionless PlayerActors can't
+			//    NRE here (conventions.md world.Actors pattern). Fixed ActorID order ⇒ deterministic assignment.
+			var pieceList = new List<ContinuousBombardMath.FiresPiece>();
+			var pieceActors = new Dictionary<uint, Actor>();
+			if (continuing != null)
+				foreach (var u in continuing)
+					AddBombardPiece(pieceList, pieceActors, u, bombardAssigned[u]);
+
+			foreach (var a in BuildFreePool())
+			{
+				if (resolver.GetRole(a) != UnitRole.IndirectFire || MaxWeaponRange(a) <= 0 || IsOutOfAmmo(a))
+					continue;
+
+				AddBombardPiece(pieceList, pieceActors, a, 0);
+			}
+
+			if (pieceList.Count == 0)
+				return;
+
+			pieceList.Sort((x, y) => x.Id.CompareTo(y.Id));
+
+			// 4. Pure decision: which piece shells which believed-static position (nearest worthwhile in reach,
+			//    re-target hysteresis, per-target cap). Zero RNG, deterministic tie-breaks.
+			var assignments = ContinuousBombardMath.SelectAssignments(
+				pieceList, mtargets, Info.FiresEvMarginPercent, Info.BombardMaxPiecesPerTarget,
+				Info.BombardRetargetHysteresisCells);
+
+			// 5. Issue standoff orders + (re)commit. Reuses the exact FiresStandoffMath geometry + nearest-passable
+			//    clamp + re-issue dedup as the reactive OrderFiresStandoff no-screen path, against the BELIEVED
+			//    target cell centre (never a live-actor read, so a fogged position is still a legal aim point).
+			var margin = Info.FiresStandoffMargin.Length;
+			var hysteresis = Info.FiresStandoffHysteresis.Length;
+			var floor = Info.FiresStandoffFloor.Length;
+			var repathSq = Info.RepathThresholdCells * Info.RepathThresholdCells;
+			var stillTasked = new HashSet<Actor>();
+
+			foreach (var asn in assignments)
+			{
+				if (!asn.HasTarget)
+					continue;
+
+				var u = pieceActors[asn.PieceId];
+				var targetCell = targetCells[asn.TargetId];
+				var targetPos = world.Map.CenterOfCell(targetCell);
+				var maxRange = MaxWeaponRange(u);
+				if (maxRange <= 0)
+					continue;
+
+				var pos = u.CenterPosition;
+				var anchor = FiresStandoffMath.StandoffAnchor(targetPos, pos, maxRange, margin, floor);
+				var needs = FiresStandoffMath.NeedsReposition(targetPos, pos, maxRange, margin, hysteresis, floor);
+
+				var idealCell = world.Map.CellContaining(anchor);
+				var anchorCell = FiresStandoffMath.NearestPassableCell(idealCell, FiresAnchorClampCells, WaypointPassable(u));
+
+				// Commit to the shared ledger BEFORE any early-out below, so a held-in-band piece is still claimed
+				// (no axis / stager may poach it while it keeps firing). TTL refreshed each eval it holds a mission.
+				goalGuard?.Ledger.Commit(u, BombardObjectiveKey(asn.TargetId), tick, Info.BombardCommitmentTicks);
+				bombardAssigned[u] = asn.TargetId;
+				stillTasked.Add(u);
+
+				var had = lastBombardAnchor.TryGetValue(u, out var prevCell);
+				var anchorMoved = !had || (prevCell - anchorCell).LengthSquared >= repathSq;
+
+				// Never re-issue the identical reachable destination (restarting the AttackMove cancels a shot);
+				// hold when in-band with an un-drifted anchor so AutoTarget keeps firing on the position.
+				if ((had && prevCell == anchorCell) || (!needs && !anchorMoved))
+					continue;
+
+				bot.QueueOrder(new Order("AttackMove", u, Target.FromCell(world, anchorCell), false));
+				lastBombardAnchor[u] = anchorCell;
+
+				Log.Write("debug",
+					$"[exp-offense] bombard player={player.PlayerName} unit={u.Info.Name}#{u.ActorID} anchor={anchorCell} maxRange={maxRange} target={asn.TargetId}@{targetCell} tick={tick}");
+			}
+
+			// 6. Reconcile: any carried-in mission NOT re-tasked this eval (nothing worthy in reach, or the cap/
+			//    hysteresis left it with no candidate) is released so the piece can evac / rejoin the offense pool.
+			if (bombardAssigned.Count > 0)
+			{
+				var strays = bombardAssigned.Keys.Where(u => !stillTasked.Contains(u)).ToList();
+				foreach (var u in strays)
+					ReleaseBombard(u);
+			}
+		}
+
+		// Build a pure ContinuousBombardMath.FiresPiece from a live artillery actor + its current mission target
+		// (0 = none). Range is the Chebyshev-cell in-reach gate (WDist / cell length); kind selects the EV
+		// numerator; salvo cost prices its volley from the shared economy model. Deterministic — synced reads only.
+		void AddBombardPiece(List<ContinuousBombardMath.FiresPiece> pieceList,
+			Dictionary<uint, Actor> pieceActors, Actor u, uint currentTargetId)
+		{
+			var maxRangeCells = MaxWeaponRange(u) / WDist.FromCells(1).Length;
+			var isRocket = resolver.GetIndirectKind(u) == IndirectFireKind.Rocket;
+			pieceList.Add(new ContinuousBombardMath.FiresPiece(
+				u.ActorID, u.Location.X, u.Location.Y, maxRangeCells, isRocket, SalvoCostOf(u), currentTargetId));
+			pieceActors[u.ActorID] = u;
+		}
+
+		// Price one salvo from this piece: max weapon Burst rounds at the priciest ammo pool's per-batch
+		// SupplyValue (FiresEconMath). 0 when the weapon has no priced ammo (⇒ FireWorthy treats it as free).
+		// Same pricing RocketFireWorthy uses; kept a separate helper so the frozen reactive path is untouched.
+		int SalvoCostOf(Actor u)
+		{
+			var burst = 0;
+			foreach (var arm in u.TraitsImplementing<Armament>())
+			{
+				if (arm.IsTraitDisabled || arm.Weapon == null)
+					continue;
+
+				if (arm.Weapon.Burst > burst)
+					burst = arm.Weapon.Burst;
+			}
+
+			var reloadCount = 1;
+			var supplyValue = 0;
+			foreach (var pool in u.TraitsImplementing<AmmoPool>())
+			{
+				if (pool.Info.SupplyValue > supplyValue)
+				{
+					supplyValue = pool.Info.SupplyValue;
+					reloadCount = pool.Info.ReloadCount;
+				}
+			}
+
+			return FiresEconMath.SalvoCost(burst, reloadCount, supplyValue);
+		}
+
+		// Release a piece from its standing bombardment: drop the shared-ledger claim (only when it is actually a
+		// bombard claim — never stomp another module's) and clear both tracking maps. Idempotent.
+		void ReleaseBombard(Actor u)
+		{
+			if (goalGuard != null
+				&& goalGuard.Ledger.TryGetObjective(u, out var obj)
+				&& obj != null
+				&& obj.StartsWith("bombard:", StringComparison.Ordinal))
+				goalGuard.Ledger.Release(u);
+
+			bombardAssigned.Remove(u);
+			lastBombardAnchor.Remove(u);
+		}
+
+		static string BombardObjectiveKey(uint targetId) => "bombard:" + targetId;
 
 		// Largest enabled-armament max range (WDist length, with live range modifiers applied). 0 when the
 		// piece has no live weapon. Deterministic — reads only synced trait state.
