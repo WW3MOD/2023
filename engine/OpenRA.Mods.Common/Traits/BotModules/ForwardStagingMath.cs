@@ -46,12 +46,32 @@ namespace OpenRA.Mods.Common.Traits
 			(0, -1), (1, 0), (0, 1), (-1, 0), (1, -1), (1, 1), (-1, 1), (-1, -1)
 		};
 
+		// Number of octant directions per spread ring (must equal SpreadDirs.Length below).
+		public const int RingOctants = 8;
+
 		// Fixed octant order for the reserve spread. Ring r puts up to 8 units at r*step along each octant, so
-		// consecutive unit indices fan out over distinct cells (cardinals first for a tidy near-anchor cluster).
+		// consecutive slots fan out over distinct cells (cardinals first for a tidy near-anchor cluster).
 		static readonly (int Dx, int Dy)[] SpreadDirs =
 		{
 			(0, -1), (1, 0), (0, 1), (-1, 0), (1, -1), (1, 1), (-1, 1), (-1, -1)
 		};
+
+		/// <summary>The STABLE spread slot for a unit, derived from its OWN <paramref name="actorId"/> so that a
+		/// pool-composition change (one unit dies/leaves) never re-slots any OTHER unit — eliminating the order
+		/// churn a list-position slot would cause. Bounded to [0, <paramref name="maxRings"/>·<see cref="RingOctants"/>]
+		/// so the resulting ring radius stays within the staging standoff: slots therefore cannot land forward of
+		/// the frontier the anchor already stood off from (the danger the anchor descent excluded). The caller sizes
+		/// <paramref name="maxRings"/> from the standoff (see PoiOffensiveBotModule.StageFreePool). Two ids congruent
+		/// mod the slot count share a slot (a cell, not a crash) — accepted: stability beats perfect packing here.
+		/// <paramref name="maxRings"/> &lt;= 0 ⇒ everyone on the anchor (slot 0). Pure integer, zero RNG.</summary>
+		public static int StableSlot(uint actorId, int maxRings)
+		{
+			if (maxRings <= 0)
+				return 0;
+
+			var slotCount = maxRings * RingOctants + 1; // +1 for the anchor (slot 0).
+			return (int)(actorId % (uint)slotCount);
+		}
 
 		/// <summary>Walk from the SR grid cell (<paramref name="startX"/>,<paramref name="startY"/>) DOWN the
 		/// distance-to-enemy-frontier gradient toward the nearest front, and return the staging grid cell — a
@@ -117,12 +137,16 @@ namespace OpenRA.Mods.Common.Traits
 			return (cx, cy);
 		}
 
-		/// <summary>The spread cell for the <paramref name="index"/>-th staged unit around the anchor
-		/// (<paramref name="anchorX"/>,<paramref name="anchorY"/>) in MAP cells. Index 0 sits on the anchor; each
-		/// subsequent index takes the next octant on the current ring, incrementing the ring every 8 units, so N
-		/// units fan out over concentric octagons at <paramref name="ringStep"/>-cell spacing. Falls back to the
-		/// anchor when the computed cell is off <paramref name="onGrid"/> (or when ringStep &lt;= 0). Deterministic:
-		/// a given index always maps to the same cell, so a unit keeps its slot across evals (stable, no churn).</summary>
+		/// <summary>The spread cell for a staged unit's <paramref name="index"/> (its <see cref="StableSlot"/>)
+		/// around the anchor (<paramref name="anchorX"/>,<paramref name="anchorY"/>) in MAP cells. Index 0 sits on
+		/// the anchor; each subsequent index takes the next octant on the current ring, incrementing the ring every
+		/// <see cref="RingOctants"/> slots, so slots fan out over concentric octagons at <paramref name="ringStep"/>-
+		/// cell spacing. Falls back to the anchor when the computed cell is off <paramref name="onGrid"/> (or when
+		/// ringStep &lt;= 0). Deterministic: a given index always maps to the same cell — and because the caller
+		/// feeds a per-unit STABLE slot (not a list position), a unit keeps its cell across evals (no churn).
+		/// NOTE: the ring is NOT danger-guarded per cell; correctness relies on the caller bounding the max ring
+		/// radius below the staging standoff (via StableSlot's maxRings) so slots stay behind the frontier the
+		/// anchor descent already cleared of danger.</summary>
 		public static (int X, int Y) SpreadCell(int anchorX, int anchorY, int index, int ringStep, Func<int, int, bool> onGrid)
 		{
 			if (index <= 0 || ringStep <= 0)

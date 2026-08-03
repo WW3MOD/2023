@@ -1200,14 +1200,26 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var anchor = stagingAnchor.Value;
+
+			// Bound the fan-out so the widest ring radius (maxRings * StagingSpreadStepCells map cells) stays
+			// STRICTLY inside the standoff (StagingStandoffCells coarse cells = *CellSize map cells) — so a spread
+			// slot can never sit forward of the frontier the anchor descent already cleared of believed danger
+			// (SpreadCell is not danger-guarded per cell; this is the invariant it documents). standoffMapCells-1
+			// keeps radius < standoff even at the outermost ring.
+			var standoffMapCells = Info.StagingStandoffCells * controlField.Info.CellSize;
+			var maxRings = Math.Max(0, (standoffMapCells - 1) / Math.Max(1, Info.StagingSpreadStepCells));
+
+			// Iterate ActorID-sorted (deterministic order), but slot each unit by a STABLE per-unit key
+			// (StableSlot(ActorID)) rather than its list position — so a pool-composition change re-slots nobody
+			// else (no order churn). Collisions (two ids sharing a slot) just share a cell.
 			var ordered = idle.OrderBy(u => u.ActorID).ToList();
 			var staged = 0;
-			for (var i = 0; i < ordered.Count; i++)
+			foreach (var u in ordered)
 			{
-				var (cx, cy) = ForwardStagingMath.SpreadCell(anchor.X, anchor.Y, i, Info.StagingSpreadStepCells,
+				var slot = ForwardStagingMath.StableSlot(u.ActorID, maxRings);
+				var (cx, cy) = ForwardStagingMath.SpreadCell(anchor.X, anchor.Y, slot, Info.StagingSpreadStepCells,
 					(mx, my) => world.Map.Contains(new CPos(mx, my)));
 				var target = new CPos(cx, cy);
-				var u = ordered[i];
 
 				if (stagedCells.TryGetValue(u, out var prev) && prev == target)
 					continue;
@@ -1880,20 +1892,14 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Phase 3: should the retreat-oscillation damper HOLD this axis (at the muster point) instead of letting it
-		// re-advance? True when (a) the axis is inside its post-retreat dwell, or (b) it is a sub-strength axis
-		// still massing near the rally. The caller guards RetreatDamperEnabled + a valid rally. Never consulted for
-		// a Retreating axis (the retreat path returns first), so this is a fresh-ADVANCE gate only — a genuine
-		// withdrawal is unaffected. Pure reads over the axis + RetreatDamperMath; zero RNG.
+		// re-advance? Delegates to the pure RetreatDamperMath.ShouldHold, which carries a DEFENSIVE guard — a
+		// Retreating axis is never held — so the "damper never delays a genuine withdrawal" property is structural
+		// and no longer depends on the caller's retreat gate running first (NIT-3). (a) post-retreat dwell or
+		// (b) a sub-strength axis still massing near the rally holds; an axis already forward is never yanked back
+		// merely for being small. Zero RNG.
 		bool DamperShouldHold(Axis axis)
-		{
-			if (axis.ReadvanceHold > 0)
-				return true; // (a) post-retreat dwell — don't re-advance yet.
-
-			// (b) too weak to advance AND still in the rear ⇒ wait for mass. Gating on NearRally means an axis
-			// already forward (committed to its assault) is never yanked back merely for being small — only the
-			// rear trickle is held.
-			return axis.NearRally && RetreatDamperMath.BelowAdvanceStrength(OwnAxisStrength(axis), Info.MinAdvanceStrength);
-		}
+			=> RetreatDamperMath.ShouldHold(axis.Retreat, axis.ReadvanceHold, axis.NearRally,
+				OwnAxisStrength(axis), Info.MinAdvanceStrength);
 
 		CPos AxisCentroidCell(Axis axis)
 		{

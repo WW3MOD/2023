@@ -147,6 +147,44 @@ namespace OpenRA.Test
 				Is.EqualTo((0, 0)), "an off-grid spread cell falls back to the anchor");
 		}
 
+		// ---------- StableSlot (NIT-1: no composition churn) ----------
+
+		[Test]
+		public void StableSlot_DependsOnlyOnOwnId_NoChurn()
+		{
+			// A unit's slot is a function of its OWN id + maxRings only — it does NOT depend on the pool contents,
+			// so removing any OTHER unit cannot change it. This is the anti-churn guarantee.
+			const int MaxRings = 3;
+			var slotA = ForwardStagingMath.StableSlot(actorId: 40u, MaxRings);
+			var slotB = ForwardStagingMath.StableSlot(actorId: 57u, MaxRings);
+
+			// Re-derive after "unit 40 left the pool": 57's slot is unchanged (it never referenced 40).
+			Assert.That(ForwardStagingMath.StableSlot(57u, MaxRings), Is.EqualTo(slotB),
+				"a unit's slot is stable across pool-composition changes");
+			Assert.That(slotA, Is.Not.EqualTo(slotB), "distinct ids here fall on distinct slots");
+		}
+
+		[Test]
+		public void StableSlot_BoundedToMaxRings()
+		{
+			// Every slot stays within [0, maxRings*RingOctants], so SpreadCell's ring never exceeds maxRings and
+			// the fan-out radius stays inside the standoff (NIT-2 invariant).
+			const int MaxRings = 3;
+			var max = MaxRings * ForwardStagingMath.RingOctants;
+			for (var id = 0u; id < 200u; id++)
+			{
+				var slot = ForwardStagingMath.StableSlot(id, MaxRings);
+				Assert.That(slot, Is.InRange(0, max), $"id {id} slot within the ring bound");
+			}
+		}
+
+		[Test]
+		public void StableSlot_ZeroRingsIsAnchorOnly()
+		{
+			Assert.That(ForwardStagingMath.StableSlot(12345u, maxRings: 0), Is.EqualTo(0),
+				"maxRings <= 0 ⇒ everyone on the anchor (slot 0)");
+		}
+
 		// ---------- AnchorShifted ----------
 
 		[Test]

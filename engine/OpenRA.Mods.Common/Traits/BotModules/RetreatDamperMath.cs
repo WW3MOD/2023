@@ -68,5 +68,26 @@ namespace OpenRA.Mods.Common.Traits
 		/// is why the safety property holds. Pure integer, zero RNG.</summary>
 		public static bool BelowAdvanceStrength(int ownStrength, int floor)
 			=> floor > 0 && ownStrength < floor;
+
+		/// <summary>Should the damper HOLD this axis at the muster point instead of letting it re-advance? Folds
+		/// the two hold gates behind a DEFENSIVE safety guard so the "never delays a genuine withdrawal" property
+		/// is STRUCTURAL, not dependent on the caller running its retreat gate first:
+		///   * <paramref name="current"/> == Retreating ⇒ ALWAYS false. A retreating axis is owned by the retreat
+		///     path; the damper must never hold it (this is the load-bearing safety guard NIT-3 hardens).
+		///   * else (a) post-retreat dwell: <paramref name="readvanceHold"/> &gt; 0 ⇒ hold.
+		///   * else (b) advance-strength floor: still massing near the rally (<paramref name="nearRally"/>) AND
+		///     <see cref="BelowAdvanceStrength"/> the <paramref name="advanceFloor"/> ⇒ hold.
+		/// Pure, zero RNG.</summary>
+		public static bool ShouldHold(RetreatDecision current, int readvanceHold, bool nearRally,
+			int ownStrength, int advanceFloor)
+		{
+			if (current == RetreatDecision.Retreating)
+				return false;
+
+			if (readvanceHold > 0)
+				return true;
+
+			return nearRally && BelowAdvanceStrength(ownStrength, advanceFloor);
+		}
 	}
 }

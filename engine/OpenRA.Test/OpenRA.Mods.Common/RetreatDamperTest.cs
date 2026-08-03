@@ -75,6 +75,47 @@ namespace OpenRA.Test
 			});
 		}
 
+		// ---------- ShouldHold (NIT-3: structural safety guard) ----------
+
+		[Test]
+		public void ShouldHold_NeverHoldsWhileRetreating()
+		{
+			// The defensive guard: even with a live dwell AND below the strength floor, a Retreating axis is NEVER
+			// held by the damper — the retreat path owns it. This makes "never delays a withdrawal" structural,
+			// independent of caller gate-ordering.
+			Assert.That(RetreatDamperMath.ShouldHold(RetreatDecision.Retreating, readvanceHold: 5,
+				nearRally: true, ownStrength: 1, advanceFloor: 1000), Is.False,
+				"a retreating axis is never held, whatever the dwell/strength say");
+		}
+
+		[Test]
+		public void ShouldHold_DwellHoldsWhenEngaged()
+		{
+			Assert.That(RetreatDamperMath.ShouldHold(RetreatDecision.Engaged, readvanceHold: 2,
+				nearRally: false, ownStrength: 9999, advanceFloor: 1000), Is.True,
+				"(a) an in-dwell engaged axis holds regardless of strength/position");
+		}
+
+		[Test]
+		public void ShouldHold_StrengthFloorOnlyNearRally()
+		{
+			Assert.Multiple(() =>
+			{
+				Assert.That(RetreatDamperMath.ShouldHold(RetreatDecision.Engaged, 0,
+					nearRally: true, ownStrength: 500, advanceFloor: 1000), Is.True,
+					"(b) sub-floor AND near the rally ⇒ hold (wait for mass)");
+				Assert.That(RetreatDamperMath.ShouldHold(RetreatDecision.Engaged, 0,
+					nearRally: false, ownStrength: 500, advanceFloor: 1000), Is.False,
+					"sub-floor but already forward ⇒ not yanked back");
+				Assert.That(RetreatDamperMath.ShouldHold(RetreatDecision.Engaged, 0,
+					nearRally: true, ownStrength: 1500, advanceFloor: 1000), Is.False,
+					"at/above the floor ⇒ advance");
+				Assert.That(RetreatDamperMath.ShouldHold(RetreatDecision.Engaged, 0,
+					nearRally: true, ownStrength: 1, advanceFloor: 0), Is.False,
+					"floor <= 0 ⇒ inert (never holds on strength)");
+			});
+		}
+
 		// ---------- End-to-end: damper composed with the retreat FSM ----------
 
 		[Test]
