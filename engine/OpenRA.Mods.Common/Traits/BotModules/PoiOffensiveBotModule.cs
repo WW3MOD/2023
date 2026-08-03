@@ -491,6 +491,35 @@ namespace OpenRA.Mods.Common.Traits
 			"the floor (legacy own=0-vs-enemy ⇒ hold). Presence scale is ~1 per own armed unit in the sector.")]
 		public readonly int SectorPostureHoldOwnFloor = 3;
 
+		[Desc("PHASE 7 (@experimental) LATERAL SPREAD. The counter to SR-Pressure single-axis funnelling: after the",
+			"score-proportional AllocateProportional runs, CAP the enemy-Supply-Route Pressure axis at SrPoolSharePct%",
+			"of the whole offensive pool and REDISTRIBUTE the freed units across the other axes — coverage-first (every",
+			"axis staffed = the front is covered) then mass concentrated on the weakest-enemy sectors (press where",
+			"thin). Reuses the pinned FrontlineAllocationMath.AllocateAcrossAvenues for the redistribution and the",
+			"belief-side ControlField per-sector profile for the opportunity weight (same read WeakestPointBias uses),",
+			"so it does NOT touch SrPressureScoreMultiplier (parked behind a measured A/B). Conserves the total unit",
+			"count. The existing gates (posture-hold, damper, retreat) still decide advance/hold PER axis — this only",
+			"decides WHERE units go. OFF by default so the frozen @stable twin / normal / human stay byte-identical;",
+			"only PoiOffensiveBotModule@experimental turns it on. Inert until a ControlField profile exists. Pure",
+			"LateralSpreadMath (NUnit-pinned), zero RNG.")]
+		public readonly bool LateralSpreadEnabled = false;
+
+		[Desc("Phase-7 lateral spread: the enemy-Supply-Route Pressure axis's MAX share (percent) of the whole",
+			"offensive pool. 40 = the SR-pressure standoff axis may hold at most 40% of the army; the rest is spread",
+			"across the other axes. Floored at the axis funding minimum so a capped SR axis is never retired. <= 0 or",
+			">= 100 = inert (no cap). Only read when LateralSpreadEnabled. If the enemy SR is the ONLY viable target",
+			"(no other axis to receive the excess) the cap is not applied — funnelling onto the sole target is correct.")]
+		public readonly int SrPoolSharePct = 0;
+
+		[Desc("PHASE 7 (@experimental) FORWARD MUSTER. When a held axis (posture-hold / damper) falls back, muster it",
+			"at a forward cell in ITS OWN contact sector — seed the ForwardStaging gradient-descent from the axis's",
+			"unit CENTROID instead of the single module-wide rear anchor — so held units regroup AT the line in their",
+			"sector, not deep in the rear (the rally=13,45-vs-targets-at-X≈79 pooling in the diagnosis). Reuses the",
+			"pinned ForwardStagingMath.StagingCell (halts StagingStandoffCells short of the front, never steps into a",
+			"danger cell). OFF by default ⇒ the fall-back uses the existing stagingAnchor ?? rallyCell, byte-identical;",
+			"only PoiOffensiveBotModule@experimental turns it on. Inert until a ControlField exists. Zero RNG.")]
+		public readonly bool ForwardMusterEnabled = false;
+
 		[Desc("MISSION COMMITMENT (Phase-1 anti-thrash stopgap). Once an axis has been ordered at an objective,",
 			"do NOT re-task it on the next re-eval merely because scores jittered — HOLD the mission and leave its",
 			"in-flight order alone. A committed axis is released for re-tasking ONLY on an explicit trigger:",
@@ -985,6 +1014,13 @@ namespace OpenRA.Mods.Common.Traits
 			var sizes = PoiOffenseMath.AllocateProportional(
 				orderedAxes.Select(a => a.Score).ToList(), totalOffensive, minAxisSize);
 
+			// 7b. PHASE 7 LATERAL SPREAD (@experimental, default off): reshape the score-proportional sizes so the
+			//     enemy-SR Pressure axis can't funnel the whole army — cap its pool share and spread the freed units
+			//     across the other axes (coverage-first, mass toward the weakest-enemy sectors). A pure transform on
+			//     the size vector; the gates below still decide advance/hold per axis. Inert until the profile exists.
+			if (Info.LateralSpreadEnabled && controlField != null && controlField.HasFrontlineProfile(player))
+				sizes = ApplyLateralSpread(orderedAxes, sizes, totalOffensive, minAxisSize, tick);
+
 			// 8. Balance each axis to its size: shed surplus to the pool, then top up.
 			for (var i = 0; i < orderedAxes.Count; i++)
 			{
@@ -1302,6 +1338,53 @@ namespace OpenRA.Mods.Common.Traits
 			return scaled;
 		}
 
+		// Phase 7 lateral spread: cap the enemy-SR Pressure axis's pool share + spread the freed units across the
+		// other axes by believed-weakest-enemy-sector opportunity. Delegates the reshaping to the pure, pinned
+		// LateralSpreadMath.Rebalance (which itself reuses the pinned AllocateAcrossAvenues). Only builds the
+		// isSr/opportunity vectors from the belief-side per-sector profile — no ground truth. Caller guarantees
+		// controlField != null && a profile exists. Returns the reshaped size vector (same length/order as axes).
+		int[] ApplyLateralSpread(List<Axis> orderedAxes, int[] baseSizes, int total, int minAxisSize, int tick)
+		{
+			var n = orderedAxes.Count;
+			if (n == 0 || Info.SrPoolSharePct <= 0 || Info.SrPoolSharePct >= 100)
+				return baseSizes;
+
+			var isSr = new bool[n];
+			var sectorEnemy = new int[n];
+			var refEnemy = 0;
+			for (var i = 0; i < n; i++)
+			{
+				isSr[i] = orderedAxes[i].Action == PoiAction.Pressure;
+				var sector = SectorOfCell(orderedAxes[i].TargetCell);
+				var e = sector == FrontlineProfileMath.NoSector ? 0 : controlField.SectorProfile(player, sector).EnemyStrength;
+				sectorEnemy[i] = e;
+				if (!isSr[i] && e > refEnemy)
+					refEnemy = e;
+			}
+
+			// Opportunity = how far BELOW the strongest non-SR sector's believed enemy strength this axis sits —
+			// the weakest-enemy sector draws the most redistributed mass; floor 1 keeps every non-SR axis covered.
+			var opportunity = new int[n];
+			for (var i = 0; i < n; i++)
+				opportunity[i] = Math.Max(1, refEnemy - sectorEnemy[i]);
+
+			var sizes = LateralSpreadMath.Rebalance(baseSizes, isSr, opportunity, total, Info.SrPoolSharePct, minAxisSize);
+
+			var srBefore = 0;
+			var srAfter = 0;
+			for (var i = 0; i < n; i++)
+			{
+				if (!isSr[i])
+					continue;
+				srBefore += baseSizes[i];
+				srAfter += sizes[i];
+			}
+
+			Log.Write("debug", $"[exp-spread] player={player.PlayerName} total={total} cap={Info.SrPoolSharePct}% " +
+				$"srBefore={srBefore} srAfter={srAfter} axes={n} tick={tick}");
+			return sizes;
+		}
+
 		// The frontier sector a MAP cell falls into (its X column bucketed into the control field's equal-width
 		// vertical bands) — the same partition FrontlineProfileMath uses to build the profile, so the returned
 		// sector index lines up with WeakestEnemySector / SectorProfile. Used for both a target cell (weakest-point
@@ -1526,6 +1609,28 @@ namespace OpenRA.Mods.Common.Traits
 			return candidate;
 		}
 
+		// Phase 7 FORWARD MUSTER: a PER-AXIS muster cell for a held (posture/damper) axis, so it regroups AT the line
+		// in its OWN contact sector instead of the single module-wide rear anchor (the rally=13,45-vs-targets-at-X≈79
+		// pooling in the diagnosis). Seeds the SAME pinned ForwardStagingMath.StagingCell gradient-descent as
+		// ResolveStagingAnchor, but from the axis's unit CENTROID rather than the shared SR seed — so the descent
+		// halts StagingStandoffCells short of the front NEAREST THIS AXIS. An axis already forward reads no improving
+		// neighbour ⇒ the descent returns its own position ⇒ hold in place at the line. Default-off ⇒ returns null ⇒
+		// the caller falls back to stagingAnchor ?? rallyCell, byte-identical. Inert without a ControlField.
+		CPos? ResolveMusterAnchor(Axis axis)
+		{
+			if (!Info.ForwardMusterEnabled || controlField == null || axis.Units.Count == 0)
+				return null;
+
+			var (sgx, sgy) = controlField.MapCellToGridCell(AxisCentroidCell(axis));
+			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
+				Info.StagingStandoffCells, Info.StagingDangerSafeThreshold, Info.StagingMaxDescentSteps,
+				(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
+				(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
+				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight);
+
+			return controlField.GridCellToMapCell(agx, agy);
+		}
+
 		// Phase 2: walk the genuinely-idle reserve to the forward staging anchor, fanned out over a deterministic
 		// ring so it doesn't pile on one cell. The idle set is re-scanned via BuildFreePool (excludes axis-claimed
 		// AND ledger-committed units, so retreating/held axes are never staged), catching units released under-min
@@ -1704,7 +1809,7 @@ namespace OpenRA.Mods.Common.Traits
 			// so a damped axis is never marked Committed (same discipline as the retreat above). Inert when off.
 			if (Info.RetreatDamperEnabled && rallyCell.HasValue && DamperShouldHold(axis))
 			{
-				OrderRetreat(bot, axis, stagingAnchor ?? rallyCell.Value, tick);
+				OrderRetreat(bot, axis, ResolveMusterAnchor(axis) ?? stagingAnchor ?? rallyCell.Value, tick);
 				return;
 			}
 
@@ -1718,7 +1823,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Inert unless the flag is on with a valid rally AND the profile reads the sector as overmatched.
 			if (Info.SectorPostureHoldEnabled && rallyCell.HasValue && PostureShouldHold(axis))
 			{
-				OrderRetreat(bot, axis, stagingAnchor ?? rallyCell.Value, tick);
+				OrderRetreat(bot, axis, ResolveMusterAnchor(axis) ?? stagingAnchor ?? rallyCell.Value, tick);
 				return;
 			}
 

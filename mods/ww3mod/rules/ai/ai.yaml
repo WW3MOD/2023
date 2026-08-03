@@ -451,6 +451,16 @@ Player:
 		SectorPostureHoldEnabled: true
 		SectorPostureHoldRatioPct: 200
 		SectorPostureHoldOwnFloor: 3
+		# PHASE 7 (@experimental) LATERAL SPREAD + FORWARD MUSTER. The counter to SR-Pressure single-axis funnelling
+		# (WORKSPACE/DISCOVERIES.md 2026-08-03: ~90% of the army pooled on one standoff axis mid-map). LateralSpread
+		# caps the enemy-SR Pressure axis at SrPoolSharePct% of the pool and spreads the freed units across the other
+		# axes (coverage-first, mass toward the believed-weakest sectors) — does NOT touch SrPressureScoreMultiplier
+		# (parked behind a measured A/B). ForwardMuster regroups a held axis at its OWN contact sector, not the rear
+		# anchor. Both default OFF on the shared engine class ⇒ the @stable twin (which omits these fields) is
+		# byte-identical. Conservative initial 40% cap — the benchmark ladder (WORKSPACE/ai-bench/) is the tuning path.
+		LateralSpreadEnabled: true
+		SrPoolSharePct: 40
+		ForwardMusterEnabled: true
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
