@@ -23,9 +23,23 @@
 <body>
 
 <h1>WW3MOD — what changed since the 2026-08-02 baseline</h1>
-<p class="meta">Window: merges landed on <code>main</code> between the 2026-08-02 morning state and <code>main @ fd31210d</code> (2026-08-03). All work passed adversarial review before merge. Test suite: 650 → <b>742</b> NUnit pins over the window.</p>
+<p class="meta">Window: merges landed on <code>main</code> between the 2026-08-02 morning state and <code>main @ 39111b17</code> (2026-08-03, today's tip). All work passed adversarial review before merge. Test suite: 650 → <b>873</b> NUnit pins over the window (the frontline arc below added most of the recent pins).</p>
 
 <p>Tags mark which bot profile a change affects in a played game: <span class="tag exp">EXPERIMENTAL</span> only the Experimental AI, <span class="tag stable">STABLE</span> the Stable AI, <span class="tag both">BOTH</span> both bots, <span class="tag none">INVISIBLE</span> no gameplay change by design.</p>
+
+<h2>★ Headline: the Frontline Influence layer (P0–P6) <span class="tag exp">EXPERIMENTAL</span></h2>
+<p>The largest arc of the window. The Experimental bot gained an end-to-end sense of <i>the front as a line with sectors and crossings</i>, and now positions, attacks, and even engineers new routes against it. Six phases, all landed on <code>main</code>, all NUnit-pinned. Each behavior is behind its own default-off flag and enabled only in the <code>@experimental</code> ai.yaml block — <code>@stable</code>/normal/human games never opt in and stay byte-identical (zero RNG).</p>
+<ul>
+  <li><b>Terrain reachability model — no more "across the river = adjacent"</b> (P0/P1, <code>643a2c75</code>; P1.5, <code>cc960ade</code>; merge <code>a5e22144</code>). A map-static <code>CrossingMap</code> labels which cells each unit class can actually reach and finds the real river crossings. A far-bank objective is now scored by its <i>through-crossing</i> distance (to the nearest bridge/ford, then on), not the crow-flies distance — so the bot stops piling every axis onto one central crossing that only <i>looked</i> adjacent. On River Zeta this measurably de-concentrated the bot's axes onto the near-bank objectives and the enemy Supply Route.</li>
+  <li><b>Amphibious axis typing</b> (P1). A POI its amphibious units can reach keeps full value and that axis recruits amphibious-capable units instead of stranding land units at the water's edge.</li>
+  <li><b>Forward staging + retreat damper — stop clogging the road to the front</b> (P2/P3, <code>31409790</code>; merge <code>3c7ee3c3</code>). Uncommitted units now walk to a muster point a safe standoff <i>behind the believed frontier</i> (fanning out to avoid clogging), advancing as the front moves, rather than idling at the Supply Route. A post-retreat dwell + advance-strength floor stops small axes from ping-ponging back into the spawn bubble — without ever delaying a genuine withdrawal.</li>
+  <li><b>Frontline strength profile — sensor</b> (P4, <code>55c34134</code>; merge <code>62ad3908</code>). The bot now builds a per-sector belief of own-vs-enemy strength along the front and maps which crossing opens into each sector, so it can answer "where is the enemy line thinnest, and how do I get there." No orders change in this phase — it is the input the next two consume.</li>
+  <li><b>Man-the-line + weakest-point bias + posture-hold</b> (P5, <code>2b18aa02</code>; merge <code>578e3770</code>). Defensive reserves spread across the actual crossing avenues weighted by sector threat (cover every avenue first, pile surplus on the outnumbered ones). Offensively, axes aimed at the believed-thinnest enemy sector are boosted; where a sector reads too strong, the axis holds via the same retreat fall-back (placed after the genuine-retreat gate, so it can never block a losing withdrawal).</li>
+  <li><b>Engineer route-opening — open a new axis</b> (P6, <code>a7646012</code>; merge <code>16affd44</code>). If the thinnest enemy sector's only avenue is a <i>repairable destroyed bridge</i>, the bot dispatches an engineer (e6) plus a small combat screen to repair the bridge hut and open a brand-new land axis. On repair it hands the now-intact avenue back to the man-the-line / weakest-point machinery. Bounded failure handling throughout (engineer dies en route ⇒ cooldown + retry; hut gone ⇒ abandon; already repaired on arrival ⇒ success). Every dispatched unit is staked in the shared commitment ledger so the offense pool can't poach it mid-mission.</li>
+</ul>
+<div class="warn">
+<b>This arc is unit-tested but not yet eyeball-verified in a live game.</b> Every phase is NUnit-pinned and passed adversarial review, and P1.5's through-crossing de-concentration was confirmed once in autotest logs — but the <i>on-screen</i> frontline behavior (spreading along the line, contesting flanks, sending an engineer to reopen a bridge) has not yet been watched end-to-end in a played match. It is the single most important thing to verify by eye this session.
+</div>
 
 <h2>1. Stable bot got a big free upgrade <span class="tag stable">STABLE</span></h2>
 <p>The Stable profile was promoted to full parity with the 08-02 Experimental build (<code>d1b662cc</code>, "Stable 0802"). A Stable opponent now plays with the entire influence-stack toolkit that Experimental had accumulated — expect it to be markedly stronger than the older Stable. Two genuine bug fixes also changed Stable behavior:</p>
@@ -56,10 +70,21 @@
   <li><b>Need-based composition buying</b> (<code>cbb6c023</code>): the bot buys counters weighted by what it has actually seen (fog-legal), instead of a fixed mix.</li>
 </ul>
 
-<h2>5. Invisible by design <span class="tag none">INVISIBLE</span></h2>
+<h2>5. Air / transport polish <span class="tag exp">EXPERIMENTAL</span></h2>
+<p>Two user-reported polish items on the Experimental air arm (merge <code>18ff375b</code>, feat <code>92723af3</code>); both default-off in C# and byte-identical for <code>@stable</code>:</p>
+<ul>
+  <li><b>Heli flight-path hysteresis — no more mid-flight zigzag</b>. Attack helis used to re-issue a fresh move/attack-move path on every 5-tick re-eval, reading as indecisive. They now hold the committed leg until the recomputed destination shifts far enough (or the leg finishes). This is order-cadence only — <i>which</i> target is chosen is unchanged, so the first-contact AA gate, strategic-target pin, and uncancellable evacuation all still apply.</li>
+  <li><b>Fog-legal transport drop-site selection</b>. Transports previously dropped at an omniscient "weakest enemy cell" that could sit deep behind the enemy Supply Route (one cheap unit there reads as "weakest"). Drop sites are now ranked by <i>believed</i> control depth, believed danger, and distance from our own Supply Route — belief-side only, never a ground-truth enemy position. It is a weight, not a hard filter.</li>
+</ul>
+
+<h2>6. Stability fix <span class="tag exp">EXPERIMENTAL</span></h2>
+<p><b>Live-game crash fixed</b> (<code>caff1c5f</code>). The new engineer route-opening module (P6) scanned <code>world.Actors</code> and read each actor's location before filtering — but non-positional actors (Player, World) have no position, so this threw a null-reference exception mid-tick and terminated the game. The scan is now trait-filtered and null-guarded first. Only reachable when playing against the Experimental bot with route-opening active.</p>
+
+<h2>7. Invisible by design <span class="tag none">INVISIBLE</span></h2>
 <ul>
   <li><b>Actor-name case-hardening</b> (<code>e73b233b</code>): all bot-module actor-name config is normalized at rule load. Verified behavior-identical today — it exists so the <i>next</i> case typo becomes a non-event instead of a silent bot lobotomy (the class that caused §1's two bugs).</li>
   <li><b>Per-unit-type telemetry</b> (<code>9392540c</code>) and +tests/docs across the window.</li>
+  <li><b>Fires/artillery-cycle design doc</b> (<code>39111b17</code>) — documentation only, no gameplay change; a forward design for residual fire-support gaps.</li>
 </ul>
 
 <div class="warn">
@@ -69,12 +94,13 @@
 <h2>What to try in a self-played game</h2>
 <table>
   <tr><th>Set-up</th><th>What should be observable</th></tr>
-  <tr><td>Skirmish vs <b>Experimental AI</b></td><td>Helicopter strike packages that commit to a target, evacuate when damaged; capture parties that keep escorts; transports completing runs; retreats instead of last-stands; composition adapting to the player's army.</td></tr>
-  <tr><td>Skirmish vs <b>Stable AI</b></td><td>A much stronger baseline bot than pre-08-02, with working fixed-wing squads and attack helicopters.</td></tr>
+  <tr><td><b>River Zeta</b> vs <b>Experimental AI</b> ★</td><td><b>The frontline arc — most important to verify by eye.</b> Expect the bot to spread along the front rather than pile onto one crossing, contest the flanks, hold sectors it can't crack, and — the standout to watch for — dispatch an engineer with a small escort to <i>repair a destroyed bridge</i> and open a new axis. All of this is unit-tested but not yet observed in a live game, so watch whether it actually plays out on screen.</td></tr>
+  <tr><td>Skirmish vs <b>Experimental AI</b></td><td>Helicopter strike packages that commit to a target and now fly a <i>smooth</i> path (no per-eval zigzag), evacuate when damaged; capture parties that keep escorts; transports that drop at sane, belief-plausible sites instead of deep behind enemy lines; retreats instead of last-stands; composition adapting to the player's army.</td></tr>
+  <tr><td>Skirmish vs <b>Stable AI</b></td><td>A much stronger baseline bot than pre-08-02, with working fixed-wing squads and attack helicopters. (The frontline arc is Experimental-only — Stable does not get it.)</td></tr>
   <tr><td>Either</td><td>More bot air presence overall (heli-pool fix affects purchasing for both).</td></tr>
 </table>
 
-<p class="meta">Verification: every branch merged via implementer → adversarial reviewer → merge-on-green. Build 0 errors and NUnit green re-verified on <code>main</code> after each merge (phase 2's on-main run queued behind the currently-running game instance holding the engine DLLs; branch-level verification was 728/728 including an independent reviewer run). Unit stats: <b>no unit stat changes</b> — balance proposals 001-003 remain docs-only awaiting sign-off.</p>
+<p class="meta">Verification: every branch merged via implementer → adversarial reviewer → merge-on-green. Build 0 errors and NUnit green re-verified after each merge; the suite stands at <b>873/873</b> at today's tip (<code>39111b17</code>). The one gap is <i>on-screen</i> confirmation of the frontline arc — pinned in tests, not yet watched in a live game (see the headline caveat). Unit stats: <b>no unit stat changes</b> — balance proposals 001-003 remain docs-only awaiting sign-off; the frontline arc changed no unit stats or purchasing (e6 was already in the bot build list).</p>
 
 </body>
 </html>
