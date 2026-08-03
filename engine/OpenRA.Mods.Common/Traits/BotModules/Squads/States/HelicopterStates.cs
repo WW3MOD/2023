@@ -190,6 +190,22 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			return info != null ? info.PinCommitWindowTicks : 0;
 		}
 
+		// True when flight-path hysteresis is enabled (experimental-only, default off). Gates the move/attack-move
+		// re-issue damping in the Approach/Withdraw states so every other profile's order cadence is byte-identical.
+		protected static bool FlightPathHysteresisEnabled(Squad owner)
+		{
+			var info = GetHeliModuleInfo(owner);
+			return info != null && info.FlightPathHysteresis;
+		}
+
+		// Minimum Chebyshev cell shift a recomputed destination must clear before a new path order is issued
+		// mid-leg (experimental-only). 0 when off/absent ⇒ HeliPathHysteresis.ShouldRetarget always retargets.
+		protected static int FlightPathHysteresisCells(Squad owner)
+		{
+			var info = GetHeliModuleInfo(owner);
+			return info != null ? info.FlightPathHysteresisCells : 0;
+		}
+
 		// True while the squad's pinned strategic objective is still a worthwhile, engageable target — alive,
 		// in world, occupies space, still an enemy, and not a husk or aircraft. Mirrors the FindClosestEnemy
 		// filter so a pin and a fresh re-pick agree on what counts as a target. False (⇒ trigger-1 release) when
@@ -440,9 +456,15 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 	{
 		int stuckTicks;
 
+		// Flight-path hysteresis: the attack-move destination the squad is currently committed to. Held across
+		// re-evals so a sub-threshold shift in the recomputed cell does not re-path the squad every tick. Only
+		// ever written on the experimental hysteresis path ⇒ inert (byte-identical) when the flag is off.
+		CPos? committedApproachCell;
+
 		public void Activate(Squad owner)
 		{
 			stuckTicks = 0;
+			committedApproachCell = null;
 		}
 
 		public void Tick(Squad owner)
@@ -577,6 +599,21 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				if (control != null && control.HasField(owner.Bot.Player))
 					attackMoveCell = PushHeliBehindFrontier(
 						owner, control, attackMoveCell, owner.TargetActor.Location, minFrontier);
+			}
+
+			// Flight-path hysteresis (experimental, standoff-only): hold the committed attack-move destination
+			// unless the recomputed cell has shifted at least the threshold — so the squad does not re-path on
+			// every 5-tick re-eval (which reads as indecisive trajectory churn). A completed leg still re-issues
+			// below via the BusyAttackMove guard. Order-cadence only: the destination is still the one the
+			// standoff/danger-nav/frontier logic chose above, so the first-contact AA gate stays intact. Off ⇒
+			// attackMoveCell is the freshly-computed cell (byte-identical).
+			if (standoff && FlightPathHysteresisEnabled(owner))
+			{
+				if (HeliPathHysteresis.ShouldRetarget(committedApproachCell.HasValue,
+					committedApproachCell ?? attackMoveCell, attackMoveCell, FlightPathHysteresisCells(owner)))
+					committedApproachCell = attackMoveCell;
+
+				attackMoveCell = committedApproachCell.Value;
 			}
 
 			// Move toward target
@@ -726,9 +763,16 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 	{
 		int withdrawTicks;
 
+		// Flight-path hysteresis: the retreat cell the squad is currently committed to. The withdraw block
+		// otherwise re-issues a Move every tick to a per-tick-recomputed (jittering) cell — the loudest source
+		// of the "indecisive" back-and-forth. Only ever written on the experimental hysteresis path ⇒ inert
+		// (byte-identical) when the flag is off.
+		CPos? committedRetreatCell;
+
 		public void Activate(Squad owner)
 		{
 			withdrawTicks = 0;
+			committedRetreatCell = null;
 		}
 
 		public void Tick(Squad owner)
@@ -778,12 +822,29 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 						retreatCell = RandomBuildingLocation(owner);
 				}
 
+				// Flight-path hysteresis (experimental): commit to a retreat cell and only adopt a new one once the
+				// recomputed cell has shifted at least the threshold, so the squad stops re-pathing every tick. A
+				// unit that has completed its leg (idle) still gets re-issued. Off ⇒ Move to the fresh cell every
+				// tick for every non-rearming unit, exactly as before (byte-identical).
+				var hysteresis = FlightPathHysteresisEnabled(owner);
+				var retargeted = true;
+				if (hysteresis)
+				{
+					retargeted = HeliPathHysteresis.ShouldRetarget(committedRetreatCell.HasValue,
+						committedRetreatCell ?? retreatCell, retreatCell, FlightPathHysteresisCells(owner));
+					if (retargeted)
+						committedRetreatCell = retreatCell;
+
+					retreatCell = committedRetreatCell.Value;
+				}
+
 				foreach (var u in owner.Units)
 				{
 					if (IsRearming(u))
 						continue;
 
-					owner.Bot.QueueOrder(new Order("Move", u, Target.FromCell(owner.World, retreatCell), false));
+					if (!hysteresis || retargeted || u.IsIdle)
+						owner.Bot.QueueOrder(new Order("Move", u, Target.FromCell(owner.World, retreatCell), false));
 				}
 
 				return;
@@ -852,6 +913,40 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		}
 
 		public void Deactivate(Squad owner) { }
+	}
+
+	// Pure, world-free flight-path hysteresis for attack-heli squads — split out for NUnit like HeliMissionPinMath
+	// / HeliDangerNav. Decides whether a recomputed move/attack-move destination has shifted enough to warrant
+	// re-pathing, versus holding the leg the squad is already committed to. The point is to stop the FSM re-issuing
+	// a fresh path on every 5-tick re-eval (which reads as indecisive trajectory churn) while still following a
+	// genuinely relocated objective. Integer-only, deterministic, zero RNG.
+	public static class HeliPathHysteresis
+	{
+		/// <summary>Chebyshev (chessboard) cell distance. WW3MOD's map grid is Rectangular, so max(|dx|,|dy|) is
+		/// the true "cells away" a watcher reads on the minimap (conventions.md: CVec.Length is Euclidean and
+		/// over-reads diagonals ~1.4x).</summary>
+		public static int CellDistance(CPos a, CPos b)
+		{
+			var dx = a.X - b.X; if (dx < 0) dx = -dx;
+			var dy = a.Y - b.Y; if (dy < 0) dy = -dy;
+			return dx > dy ? dx : dy;
+		}
+
+		/// <summary>Should the squad ADOPT <paramref name="candidate"/> as its committed leg destination? True when
+		/// it has no committed destination yet, when <paramref name="thresholdCells"/> is non-positive (hysteresis
+		/// off ⇒ always retarget), or when the candidate has moved at least the threshold (Chebyshev) from the
+		/// committed cell. A sub-threshold shift returns false — the squad holds its committed leg, ignoring the
+		/// churn. Deterministic; no RNG.</summary>
+		public static bool ShouldRetarget(bool hasCommitted, CPos committed, CPos candidate, int thresholdCells)
+		{
+			if (!hasCommitted)
+				return true;
+
+			if (thresholdCells <= 0)
+				return true;
+
+			return CellDistance(committed, candidate) >= thresholdCells;
+		}
 	}
 
 	// Whether a squad should keep pursuing its pinned strategic objective this eval or release it.

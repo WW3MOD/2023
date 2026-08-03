@@ -236,6 +236,49 @@ namespace OpenRA.Mods.Common.Traits
 			"Only used when StrategicTargetPinning is set.")]
 		public readonly int PinCommitWindowTicks = 0;
 
+		[Desc("Flight-path hysteresis (experimental, default false = frozen). Smooth attack-heli movement so it",
+			"reads as DELIBERATE instead of indecisive: the squad only re-issues a move / attack-move path order",
+			"when the recomputed destination has shifted at least FlightPathHysteresisCells from the leg it is",
+			"already committed to (or the leg completed), rather than re-pathing on every 5-tick re-eval. Affects",
+			"ONLY order-issue cadence — the destination itself is still chosen by the existing standoff / danger-nav",
+			"/ frontier logic, so the first-contact AA gate, strategic-target pin, and evacuation are untouched. OFF",
+			"by default so legacy/@stable stay byte-identical; only HelicopterSquadBotModule@experimental turns it on.")]
+		public readonly bool FlightPathHysteresis = false;
+
+		[Desc("Flight-path hysteresis: minimum Chebyshev (chessboard) cell distance the recomputed destination",
+			"must shift before a new path order is issued mid-leg. Below it the squad holds its committed",
+			"destination; a completed leg (unit idle) always re-issues. Larger = more deliberate but slower to",
+			"track a relocating objective. Only used when FlightPathHysteresis is set.")]
+		public readonly int FlightPathHysteresisCells = 3;
+
+		[Desc("Risk/reachability-weighted transport drop-site selection (experimental, default false = frozen).",
+			"The frozen picker drops infantry at the single omniscient WEAKEST enemy cell, which can land the drop",
+			"deep behind the enemy Supply Route (a lone cheap unit there reads 'weakest') — unreachable and lethal.",
+			"When set, the picker instead RANKS a candidate set (the weak cell + the top believed offensive POIs)",
+			"by a fog-legal risk/reachability score and drops at the best: cells deep in BELIEVED-enemy territory,",
+			"far from our own SR, or inside a believed danger envelope are heavily penalised versus reachable flank",
+			"/ side POIs. A weight, not a filter — a deep cell can still win if it is the least-bad option. Reads",
+			"ControlField / DangerFieldLayer (belief-side) + own-SR distance ONLY, never ground-truth enemy",
+			"positions. OFF by default so legacy/@stable stay byte-identical; only @experimental turns it on.")]
+		public readonly bool RiskWeightedDropSite = false;
+
+		[Desc("Risk-weighted drop: number of top believed offensive POIs added to the drop-site candidate set",
+			"(the reachable flank/side alternatives to the omniscient weak cell). Only used when RiskWeightedDropSite is set.")]
+		public readonly int DropSiteCandidatePois = 6;
+
+		[Desc("Risk-weighted drop: penalty weight (x100) applied to believed-ENEMY control DEPTH at a candidate",
+			"cell (ControlField negative score magnitude — how far behind the believed front / enemy SR anchor it",
+			"sits). The dominant term against deep-behind-enemy-SR drops. Only used when RiskWeightedDropSite is set.")]
+		public readonly int DropEnemyControlWeight = 100;
+
+		[Desc("Risk-weighted drop: penalty weight (x100) applied to believed danger (ground + air DangerFieldLayer",
+			"readings) at a candidate cell. Only used when RiskWeightedDropSite is set.")]
+		public readonly int DropDangerWeight = 100;
+
+		[Desc("Risk-weighted drop: penalty per map cell of distance from our own Supply Route to the candidate",
+			"(reachability — a farther drop means a longer, more exposed flight). Only used when RiskWeightedDropSite is set.")]
+		public readonly int DropReachWeight = 5;
+
 		public override object Create(ActorInitializer init) { return new HelicopterSquadBotModule(init.Self, this); }
 	}
 
@@ -299,6 +342,11 @@ namespace OpenRA.Mods.Common.Traits
 		// reference is behaviour-inert, so leaving it always-resolved does not affect byte-identity.
 		DangerFieldLayer dangerField;
 
+		// Fog-legal believed-territory control field (Stage C). Read ONLY on the risk-weighted drop-site path;
+		// resolving the reference is behaviour-inert. Null ⇒ the control term is skipped (reachability + danger
+		// still reshape), and the whole path is gated by RiskWeightedDropSite anyway ⇒ byte-identical when off.
+		ControlField controlField;
+
 		// Per-pass careful-scout config, set at the top of TryLaunchScoutMission and read by ConsiderReconCandidate
 		// (same reused-scratch idiom as poiScratchCells). scoutAirDangerAt is null when the lever is off / no field,
 		// which is the signal ConsiderReconCandidate uses to skip the danger gate entirely (byte-identical).
@@ -349,6 +397,7 @@ namespace OpenRA.Mods.Common.Traits
 			poiMap = world.WorldActor.TraitOrDefault<PoiMap>();
 			beliefStore = world.WorldActor.TraitOrDefault<BeliefStore>();
 			dangerField = world.WorldActor.TraitOrDefault<DangerFieldLayer>();
+			controlField = world.WorldActor.TraitOrDefault<ControlField>();
 			blackboard = player.PlayerActor.TraitsImplementing<BotBlackboard>()
 				.FirstOrDefault(b => !b.IsTraitDisabled);
 
@@ -882,10 +931,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (infantry.Count < Info.TransportMinInfantry)
 				return;
 
-			// Find a front-line drop zone
+			// Find a front-line drop zone. Risk-weighted picker (experimental) reshapes the candidate ranking by a
+			// fog-legal risk/reachability score so drops stop landing deep behind the enemy SR; default off ⇒ the
+			// frozen single-weakest-enemy-cell path below runs byte-identically.
 			CPos? dropZone = null;
 
-			if (threatMap != null)
+			if (Info.RiskWeightedDropSite)
+				dropZone = PickRiskWeightedDropZone();
+			else if (threatMap != null)
 			{
 				// Find an enemy-adjacent cell that isn't too dangerous
 				var weakCell = threatMap.FindWeakestEnemyCell(player);
@@ -929,6 +982,72 @@ namespace OpenRA.Mods.Common.Traits
 
 			AIUtils.BotDebug("AI ({0}): transport heli {1} loading {2} pax for drop at {3}",
 				player.ClientIndex, transport.Info.Name, infantry.Count, dropZone.Value);
+		}
+
+		// Risk/reachability-weighted transport drop-site selection (experimental, RiskWeightedDropSite). Ranks a
+		// candidate set — the omniscient weakest-enemy cell PLUS the top believed offensive POIs (reachable flank
+		// targets) — by a FOG-LEGAL score (TransportDropSiteMath.ScoreDrop) that penalises believed-enemy control
+		// depth, believed danger, and distance from our own SR, and returns the best. A weight, not a filter: even
+		// a deep-behind-enemy cell can win if nothing better exists. Belief-side reads only (ControlField /
+		// DangerFieldLayer) + own-SR distance — never a ground-truth enemy position. Deterministic: fixed candidate
+		// order (weak cell first, then POIs in PoiMap's score order), first-wins on ties, zero RNG.
+		CPos? PickRiskWeightedDropZone()
+		{
+			var ownSR = FindOwnSupplyRoute();
+			var srCell = ownSR?.Location;
+
+			CPos? best = null;
+			var bestScore = int.MinValue;
+
+			void Consider(CPos cell)
+			{
+				if (!world.Map.Contains(cell))
+					return;
+
+				// Belief-side territory: negative ControlField score = believed enemy; deep behind the enemy SR
+				// anchor floors to ~-800. 0 when no field (control term simply drops out — reach/danger still rank).
+				var believedControl = 0;
+				if (controlField != null && controlField.HasField(player))
+				{
+					var (gx, gy) = controlField.MapCellToGridCell(cell);
+					believedControl = controlField.ScoreAt(player, gx, gy);
+				}
+
+				var groundDanger = dangerField != null ? dangerField.GroundDanger(player, cell) : 0;
+				var airDanger = dangerField != null ? dangerField.AirDanger(player, cell) : 0;
+
+				// Reachability: distance from our OWN SR (a public/own fact, fog-legal). 0 when the SR is gone.
+				var reachCells = srCell.HasValue ? TransportDropSiteMath.CellDistance(srCell.Value, cell) : 0;
+
+				var score = TransportDropSiteMath.ScoreDrop(believedControl, groundDanger, airDanger, reachCells,
+					Info.DropEnemyControlWeight, Info.DropDangerWeight, Info.DropReachWeight);
+
+				if (score > bestScore)
+				{
+					bestScore = score;
+					best = cell;
+				}
+			}
+
+			// Candidate 1: the frozen weakest-enemy cell (kept, so the reshaping never strictly loses the old
+			// option — it can still win when it is genuinely the least-risky reachable drop).
+			if (threatMap != null)
+			{
+				var weakCell = threatMap.FindWeakestEnemyCell(player);
+				if (weakCell != CPos.Zero && threatMap.GetThreat(weakCell, player) < 50)
+					Consider(weakCell);
+			}
+
+			// Candidates 2..: the top believed offensive POIs — the reachable flank/side alternatives.
+			if (poiMap != null)
+			{
+				var pois = poiMap.GetOffensiveTargets(player);
+				var take = Math.Min(Info.DropSiteCandidatePois, pois.Count);
+				for (var i = 0; i < take; i++)
+					Consider(pois[i].Location);
+			}
+
+			return best;
 		}
 
 		// Advance every transport heli that is mid-load: dispatch the delivery only once cargo has actually
@@ -1281,6 +1400,45 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	// What to do with a transport heli that is mid-load this eval.
+	// Pure, world-free risk/reachability drop-site scoring for the heli transport (experimental
+	// RiskWeightedDropSite). Split out for NUnit like TransportLoadMath / HeliEmploymentMath — deterministic,
+	// integer-only, zero RNG. Higher score = better drop site. Every input is FOG-LEGAL: believed control
+	// (ControlField), believed danger (DangerFieldLayer), and distance from our OWN Supply Route — never a
+	// ground-truth enemy position. The score is the negative of a weighted penalty sum, so a cell deep in
+	// believed-enemy territory (behind the enemy SR anchor), far from our SR, or inside a believed danger
+	// envelope is demoted below a reachable flank POI. A weight, not a filter — nothing is hard-banned.
+	public static class TransportDropSiteMath
+	{
+		/// <summary>Chebyshev (chessboard) cell distance — WW3MOD's map grid is Rectangular (conventions.md),
+		/// so max(|dx|,|dy|) is the true "cells away" reachability metric.</summary>
+		public static int CellDistance(CPos a, CPos b)
+		{
+			var dx = a.X - b.X; if (dx < 0) dx = -dx;
+			var dy = a.Y - b.Y; if (dy < 0) dy = -dy;
+			return dx > dy ? dx : dy;
+		}
+
+		/// <summary>Drop-site desirability (higher = better). <paramref name="believedControl"/> is the
+		/// ControlField score at the cell (+ ours, − believed enemy, 0 no field); only the ENEMY depth (its
+		/// negative magnitude) is penalised, so believed-ours/contested add nothing. <paramref name="groundDanger"/>
+		/// + <paramref name="airDanger"/> are the DangerFieldLayer readings. <paramref name="reachCells"/> is the
+		/// distance (cells) from our own SR. The control + danger weights are x100 (percent) scalers; the reach
+		/// weight is per cell. All penalties subtract, so the return is ≤ 0 and the LEAST-penalised candidate wins.</summary>
+		public static int ScoreDrop(int believedControl, int groundDanger, int airDanger, int reachCells,
+			int enemyControlWeight, int dangerWeight, int reachWeight)
+		{
+			var enemyDepth = believedControl < 0 ? -believedControl : 0;
+			var danger = (groundDanger < 0 ? 0 : groundDanger) + (airDanger < 0 ? 0 : airDanger);
+			var reach = reachCells < 0 ? 0 : reachCells;
+
+			var score = 0;
+			score -= enemyDepth * enemyControlWeight / 100;
+			score -= danger * dangerWeight / 100;
+			score -= reach * reachWeight;
+			return score;
+		}
+	}
+
 	public enum TransportLoadDecision { Wait, Dispatch, Abort }
 
 	// Pure, world-free transport-loading decision math — the empty-delivery gate. Split out for NUnit like the
