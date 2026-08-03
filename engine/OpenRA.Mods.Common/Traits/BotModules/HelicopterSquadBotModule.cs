@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Activities;
@@ -57,6 +58,23 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimum infantry to load before launching a transport mission.")]
 		public readonly int TransportMinInfantry = 4;
 
+		[Desc("Ticks a dispatched transport heli waits for its ordered passengers to actually board before",
+			"the mission is resolved without a full load. If at least one passenger is aboard when this",
+			"elapses the heli delivers a partial load; if NONE boarded the mission is ABORTED (cargo never",
+			"embarked — a lost/poached/killed load) and the heli returns to the idle pool instead of flying",
+			"the delivery leg EMPTY. Mirrors MountedTransportBotModuleInfo.LoadingTimeoutTicks. Bug-class:",
+			"the empty-delivery fix is a correctness change and applies to every profile (see the staged",
+			"loading in TryLaunchTransportMission / AdvanceTransportTasks).")]
+		public readonly int TransportLoadTimeoutTicks = 1500;
+
+		[Desc("Commit each ordered transport passenger to the shared PoiGoalGuard ledger (key transport:<heliId>)",
+			"the moment the board order is issued, so no other bot module poaches a soldier while it is walking",
+			"to the heli — the 'passengers poached en route to boarding' half of the empty-delivery bug. Released",
+			"on delivery dispatch, on abort, and on teardown. OFF by default so legacy/@stable stay byte-identical",
+			"(no ledger interaction); only HelicopterSquadBotModule@experimental turns it on. Mirrors",
+			"MountedTransportBotModuleInfo.CommitPassengers.")]
+		public readonly bool CommitTransportPassengers = false;
+
 		[Desc("Maximum number of active helicopter squads at once.")]
 		public readonly int MaxActiveSquads = 3;
 
@@ -75,6 +93,29 @@ namespace OpenRA.Mods.Common.Traits
 			"the same pass, so multiple littlebirds fan out to DISTINCT areas instead of stacking on one",
 			"cell. Only relevant when more than one scout heli is idle at once.")]
 		public readonly int ScoutTargetSpacingCells = 12;
+
+		[Desc("Careful scout employment (default false = frozen). The littlebird is a fragile troop-carrier/",
+			"scout, not a strike aircraft — so route + recon-target selection respects the KNOWN (fog-legal)",
+			"anti-air danger field and a penetration bound: a recon cell whose believed air-danger — or whose",
+			"straight flight path's believed air-danger — exceeds ScoutAirDangerSafeThreshold is REJECTED, and",
+			"a cell farther than ScoutMaxDistanceCells from home is rejected so a lone scout does not dive deep",
+			"into unscouted territory and get shot down. Reads DangerFieldLayer (Stage B), never the omniscient",
+			"threat grid. OFF by default so legacy/@stable stay byte-identical (the picker is unchanged); only",
+			"HelicopterSquadBotModule@experimental turns it on.")]
+		public readonly bool CarefulScoutEmployment = false;
+
+		[Desc("Careful scout employment: believed air-danger at or below which a recon cell / flight path is",
+			"treated as safe. 0 = strictly outside every believed anti-air envelope (the air channel carries no",
+			"territory baseline, so 0 is a true 'no believed AA can shoot a heli here' test). Only used when",
+			"CarefulScoutEmployment is set.")]
+		public readonly int ScoutAirDangerSafeThreshold = 0;
+
+		[Desc("Careful scout employment: maximum distance (map cells) from the scout's own home a recon target",
+			"may be — the penetration bound against blindly scouting the enemy backfield alone. Unscouted cells",
+			"carry no belief data (air-danger reads 0), so this geometry cap is what 'no deep penetration into",
+			"unscouted territory' rests on before first contact. 0 = no cap (danger gate only). Only used when",
+			"CarefulScoutEmployment is set.")]
+		public readonly int ScoutMaxDistanceCells = 0;
 
 		[Desc("Skip the full-ammo readiness gate when launching missions. WW3MOD attack helis only refill",
 			"at an hpad and the mod builds none, so a heli below full ammo can NEVER become mission-ready —",
@@ -235,12 +276,36 @@ namespace OpenRA.Mods.Common.Traits
 		// not at the drop yet — CanUnload would always be false and would delete the retreat entirely.)
 		readonly HashSet<Actor> transportsAwaitingUnload = new HashSet<Actor>();
 
+		// Empty-delivery fix: transport helis that have been ORDERED to load but have not yet confirmed a
+		// full/partial cargo aboard. A dispatched transport now stages Loading -> Delivering: it does not fly
+		// the delivery leg until AdvanceTransportTasks confirms cargo actually embarked, so a heli whose
+		// passengers were killed/poached/never-boarded aborts instead of delivering nothing. Once dispatched it
+		// leaves this map and (loaded) joins transportsAwaitingUnload for the existing retreat/safety net.
+		readonly Dictionary<Actor, TransportLoadTask> transportTasks = new Dictionary<Actor, TransportLoadTask>();
+
 		IBot bot;
 		SquadManagerBotModule squadManagerRef;
 		ThreatMapManager threatMap;
 		PoiMap poiMap;
 		BeliefStore beliefStore;
 		BotBlackboard blackboard;
+
+		// Per-unit commitment ledger (shared PoiGoalGuard). Resolved ONLY when CommitTransportPassengers is on,
+		// so the frozen/@stable path never looks it up ⇒ byte-identical. Null when the player has no PoiGoalGuard
+		// ⇒ every commit/release below is inert. Mirrors MountedTransportBotModule.goalGuard.
+		PoiGoalGuard goalGuard;
+
+		// Fog-legal believed anti-air danger field (Stage B). Read ONLY on the careful-scout path; resolving the
+		// reference is behaviour-inert, so leaving it always-resolved does not affect byte-identity.
+		DangerFieldLayer dangerField;
+
+		// Per-pass careful-scout config, set at the top of TryLaunchScoutMission and read by ConsiderReconCandidate
+		// (same reused-scratch idiom as poiScratchCells). scoutAirDangerAt is null when the lever is off / no field,
+		// which is the signal ConsiderReconCandidate uses to skip the danger gate entirely (byte-identical).
+		Func<CPos, int> scoutAirDangerAt;
+		long scoutMaxDistSq;
+		int scoutAirSafeThreshold;
+
 		bool initialized;
 
 		int scanCountdown;
@@ -248,6 +313,16 @@ namespace OpenRA.Mods.Common.Traits
 		int scoutCooldown;
 		int transportCooldown;
 		int squadUpdateCountdown;
+
+		// A transport heli that has been ordered to load but has not yet confirmed cargo aboard. Only the
+		// short Loading phase lives here; on dispatch the heli moves to transportsAwaitingUnload.
+		sealed class TransportLoadTask
+		{
+			public Actor Transport;
+			public CPos DropZone;
+			public int StateChangedAtTick;
+			public HashSet<Actor> ReservedPassengers = new HashSet<Actor>();
+		}
 
 		public HelicopterSquadBotModule(Actor self, HelicopterSquadBotModuleInfo info)
 			: base(info)
@@ -273,8 +348,14 @@ namespace OpenRA.Mods.Common.Traits
 			threatMap = world.WorldActor.TraitOrDefault<ThreatMapManager>();
 			poiMap = world.WorldActor.TraitOrDefault<PoiMap>();
 			beliefStore = world.WorldActor.TraitOrDefault<BeliefStore>();
+			dangerField = world.WorldActor.TraitOrDefault<DangerFieldLayer>();
 			blackboard = player.PlayerActor.TraitsImplementing<BotBlackboard>()
 				.FirstOrDefault(b => !b.IsTraitDisabled);
+
+			// Resolve the shared commitment ledger only when the transport-passenger commit lever is on, so the
+			// frozen path never touches it ⇒ byte-identical (mirrors MountedTransportBotModule).
+			goalGuard = Info.CommitTransportPassengers
+				? player.PlayerActor.TraitOrDefault<PoiGoalGuard>() : null;
 
 			initialized = true;
 		}
@@ -298,6 +379,7 @@ namespace OpenRA.Mods.Common.Traits
 				CleanUpHelicopters();
 				StageIdleHelicopters();
 				MarkScoutExploration();
+				AdvanceTransportTasks(bot);
 				EnsureTransportsUnload(bot);
 			}
 
@@ -379,6 +461,18 @@ namespace OpenRA.Mods.Common.Traits
 			// but keep the hygiene at the same choke point as the other sets). No-op when none are tracked.
 			transportsAwaitingUnload.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
 
+			// Drop dead/gone transports mid-load: release any ledger commitment for their reserved passengers
+			// (so a soldier that survived the heli's death re-enters offense's free pool) and forget the task.
+			// AdvanceTransportTasks also prunes, but do it at the same choke point as the other sets.
+			foreach (var a in transportTasks.Keys.ToList())
+			{
+				if (a == null || a.IsDead || !a.IsInWorld)
+				{
+					ReleaseTaskPassengers(transportTasks[a]);
+					transportTasks.Remove(a);
+				}
+			}
+
 			// Clean up squads
 			PruneSquads();
 
@@ -386,6 +480,13 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var h in managedHelicopters)
 			{
 				if (h.IsDead || !h.IsInWorld)
+					continue;
+
+				// A transport that is mid-load (Loading task live) or mid-delivery (loaded, awaiting unload) is
+				// deliberately NOT idle-pooled: it must not be re-picked for a second mission while it still holds
+				// or is boarding cargo. It re-enters the pool via AdvanceTransportTasks (abort) or once the delivery
+				// completes (EnsureTransportsUnload drops it from transportsAwaitingUnload when its cargo empties).
+				if (transportTasks.ContainsKey(h) || transportsAwaitingUnload.Contains(h))
 					continue;
 
 				var inSquad = false;
@@ -602,6 +703,23 @@ namespace OpenRA.Mods.Common.Traits
 			var minDistSq = (long)Info.ScoutMinDistanceCells * Info.ScoutMinDistanceCells;
 			var spacingSq = (long)Info.ScoutTargetSpacingCells * Info.ScoutTargetSpacingCells;
 
+			// Careful scout employment (experimental-only, default off ⇒ byte-identical). Build the per-pass
+			// safety config once: a fog-legal air-danger sampler (off-map = Impassable so no route steers off the
+			// playable area) plus the penetration cap and safe threshold. scoutAirDangerAt stays null — the skip
+			// signal for ConsiderReconCandidate — when the lever is off OR no field exists yet.
+			if (Info.CarefulScoutEmployment && dangerField != null)
+			{
+				scoutAirDangerAt = c => world.Map.Contains(c) ? dangerField.AirDanger(player, c) : HeliDangerNav.Impassable;
+				scoutAirSafeThreshold = Info.ScoutAirDangerSafeThreshold;
+			}
+			else
+				scoutAirDangerAt = null;
+
+			// The penetration cap is pure geometry, so it applies even before any belief data exists (the
+			// 'no deep dive into unscouted territory' bound). 0 ⇒ no cap. Only consulted when the lever is on.
+			scoutMaxDistSq = Info.CarefulScoutEmployment
+				? (long)Info.ScoutMaxDistanceCells * Info.ScoutMaxDistanceCells : 0;
+
 			// Believed POIs to keep intel fresh on (fog-legal: map-fact structures + enemy SR).
 			// suppressOmniscientThreat keeps the picker off the omniscient InfluenceMap threat grid —
 			// we only read the POI LOCATIONS, so this is fog-legal for @experimental and inert for @stable.
@@ -668,6 +786,21 @@ namespace OpenRA.Mods.Common.Traits
 				if ((cell - a).LengthSquared < spacingSq)
 					return;
 
+			// Careful scout employment (experimental-only): reject a recon leg that is too deep (penetration cap)
+			// or that would send / fly the fragile littlebird through a believed anti-air envelope. Fog-legal —
+			// air-danger reads 0 for unscouted cells, so this only avoids KNOWN AA and leans on the geometry cap
+			// before contact. Skipped entirely (byte-identical) when the lever is off (cap 0 AND sampler null).
+			if (scoutMaxDistSq > 0 || scoutAirDangerAt != null)
+			{
+				var distFromHomeSq = (long)(cell - homeCell).LengthSquared;
+				var destAir = scoutAirDangerAt != null ? scoutAirDangerAt(cell) : 0;
+				var pathMax = scoutAirDangerAt != null
+					? HeliDangerNav.PathMaxAirDanger(scout.Location, cell, scoutAirDangerAt) : 0;
+
+				if (!ReconSafetyMath.Acceptable(destAir, pathMax, scoutAirSafeThreshold, distFromHomeSq, scoutMaxDistSq))
+					return;
+			}
+
 			var age = threatMap?.GetExplorationAge(cell) ?? ScoutReconMath.MaxTrackedAge;
 			var score = ScoutReconMath.Score(age, IsEdgeCell(cell), isPoi, (cell - scout.Location).Length);
 
@@ -731,13 +864,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (cargo == null)
 				return;
 
-			// Find idle infantry near base to load
+			// Find idle infantry near base to load. Defense-in-depth: also skip any soldier already committed in
+			// the shared ledger (another transport's boarding walk, a capture/garrison/offense task) so heli
+			// transport and MountedTransport are mutually poach-safe by construction — mirrors
+			// MountedTransportBotModule.BuildFreePool, which likewise selects on more than IsIdle. goalGuard is
+			// null unless CommitTransportPassengers is on, so the extra clause is inert (byte-identical) when off.
 			var infantry = world.ActorsHavingTrait<Mobile>()
 				.Where(a => a.Owner == player
 					&& !a.IsDead && a.IsInWorld
 					&& a.IsIdle
 					&& a.Info.HasTraitInfo<WithInfantryBodyInfo>()
-					&& cargo.Info.Types.Overlaps(a.GetAllTargetTypes()))
+					&& cargo.Info.Types.Overlaps(a.GetAllTargetTypes())
+					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, world.WorldTick)))
 				.Take(cargo.Info.MaxWeight)
 				.ToList();
 
@@ -762,29 +900,145 @@ namespace OpenRA.Mods.Common.Traits
 			if (!dropZone.HasValue)
 				return;
 
-			// Load infantry into transport
+			// EMPTY-DELIVERY FIX (bug-class, ungated — applies to every profile that runs this module). The old
+			// code ordered the infantry to EnterTransport and, in the SAME pass, queued the transport's whole
+			// delivery chain (Move drop -> Unload -> Move home). Those queued orders sit on the transport's OWN
+			// (empty) activity queue, so the Move to the drop began IMMEDIATELY — the heli flew off before any
+			// soldier had walked over and boarded, delivered nothing, and returned. Now we only ORDER the load
+			// here and record a Loading task; AdvanceTransportTasks confirms cargo is actually aboard before it
+			// dispatches the delivery leg, and ABORTS (returns the heli to the pool) if nobody boarded in time —
+			// a transport never flies a delivery empty again.
 			foreach (var inf in infantry)
 				bot.QueueOrder(new Order("EnterTransport", inf, Target.FromActor(transport), false));
 
-			// Send transport to drop zone after loading, then unload
-			bot.QueueOrder(new Order("Move", transport, Target.FromCell(world, dropZone.Value), queued: true));
+			var task = new TransportLoadTask
+			{
+				Transport = transport,
+				DropZone = dropZone.Value,
+				StateChangedAtTick = world.WorldTick,
+				ReservedPassengers = new HashSet<Actor>(infantry),
+			};
+			transportTasks[transport] = task;
+
+			// Protect the boarding walk: commit each ordered passenger to the shared ledger so no other module
+			// poaches a soldier while it heads for the heli (the 'poached en route' half of the bug). Gated /
+			// inert when CommitTransportPassengers is off ⇒ byte-identical. Released on dispatch / abort / death.
+			CommitTaskPassengers(task);
+
+			idleHelicopters.Remove(transport);
+
+			AIUtils.BotDebug("AI ({0}): transport heli {1} loading {2} pax for drop at {3}",
+				player.ClientIndex, transport.Info.Name, infantry.Count, dropZone.Value);
+		}
+
+		// Advance every transport heli that is mid-load: dispatch the delivery only once cargo has actually
+		// embarked (verified via Cargo.PassengerCount), deliver a partial load on timeout if at least one boarded,
+		// or ABORT an empty load (nobody boarded — killed / poached / never reached the heli) by returning the heli
+		// to the idle pool. Deterministic: ActorID-ordered iteration, zero RNG. Inert (no tasks) for attack/scout-
+		// only profiles ⇒ byte-identical there; the staged loading itself is the ungated correctness fix.
+		void AdvanceTransportTasks(IBot bot)
+		{
+			if (transportTasks.Count == 0)
+				return;
+
+			foreach (var h in transportTasks.Keys.OrderBy(a => a.ActorID).ToList())
+			{
+				var task = transportTasks[h];
+
+				// Dead / gone / disowned transport mid-load — release the boarding claims and forget it.
+				if (h == null || h.IsDead || !h.IsInWorld || h.Owner != player)
+				{
+					ReleaseTaskPassengers(task);
+					transportTasks.Remove(h);
+					continue;
+				}
+
+				var cargo = h.TraitOrDefault<Cargo>();
+				if (cargo == null)
+				{
+					ReleaseTaskPassengers(task);
+					transportTasks.Remove(h);
+					continue;
+				}
+
+				var aboard = cargo.PassengerCount;
+				var ticksLoading = world.WorldTick - task.StateChangedAtTick;
+
+				switch (TransportLoadMath.Decide(aboard, Info.TransportMinInfantry, ticksLoading, Info.TransportLoadTimeoutTicks))
+				{
+					case TransportLoadDecision.Dispatch:
+						DispatchTransportDelivery(bot, task);
+						break;
+
+					case TransportLoadDecision.Abort:
+						// Nobody boarded before the timeout — the load evaporated. Do NOT fly the empty delivery;
+						// release the ledger claims and return the heli to the idle pool for a later attempt.
+						AIUtils.BotDebug("AI ({0}): transport heli {1} load aborted empty after {2} ticks — returning to pool",
+							player.ClientIndex, h.Info.Name, ticksLoading);
+						ReleaseTaskPassengers(task);
+						transportTasks.Remove(h);
+						if (!idleHelicopters.Contains(h))
+							idleHelicopters.Add(h);
+						break;
+
+					// Wait: still boarding, still within the timeout — leave the task alone.
+				}
+			}
+		}
+
+		// Dispatch a confirmed-loaded transport on its delivery: fly to the drop, unload, then withdraw to our SR
+		// (the WW3MOD retreat-on-unload). Mirrors the pre-fix order chain, but now issued ONLY after cargo is
+		// verified aboard. Hands the heli to transportsAwaitingUnload so EnsureTransportsUnload can re-dump the
+		// cargo in the rare unlandable-drop case (the queued Move alone would otherwise fly it home still loaded).
+		void DispatchTransportDelivery(IBot bot, TransportLoadTask task)
+		{
+			var transport = task.Transport;
+
+			bot.QueueOrder(new Order("Move", transport, Target.FromCell(world, task.DropZone), false));
 			bot.QueueOrder(new Order("Unload", transport, queued: true));
 
-			// WW3MOD retreat-on-unload: withdraw the transport heli to our Supply Route the instant unloading
-			// completes, instead of leaving it hovering IDLE at the drop zone deep in contested territory — an
-			// easy kill. Queued after the Unload so the return is engine-driven (no scan-loop gap). A Transport-
-			// role heli is not covered by EvaluateIdleHelicopters (attack-only), and CleanUpHelicopters would
-			// only re-pool it FOR THE NEXT transport mission (>=4 idle infantry + a weak drop cell, up to
-			// TransportInterval away) — so without this order nothing brings it home. Bug-class fix, ungated:
-			// applies to every profile that runs this module (@stable + @experimental). We also TRACK it so
-			// EnsureTransportsUnload can re-dump the cargo in the rare unlandable-drop case (see the field
-			// comment) — the queued Move alone would otherwise fly the heli home still loaded.
 			var ownSR = FindOwnSupplyRoute();
 			if (ownSR != null)
 				bot.QueueOrder(new Order("Move", transport, Target.FromCell(world, ownSR.Location), queued: true));
+
 			transportsAwaitingUnload.Add(transport);
 
-			idleHelicopters.Remove(transport);
+			// Passengers are aboard now (removed from the world), so they can no longer be poached — drop their
+			// ledger claim so it never outlives the boarding window. Idempotent / inert when commit was off.
+			ReleaseTaskPassengers(task);
+			transportTasks.Remove(transport);
+
+			AIUtils.BotDebug("AI ({0}): transport heli {1} delivering {2} pax to {3}",
+				player.ClientIndex, transport.Info.Name, transport.Trait<Cargo>().PassengerCount, task.DropZone);
+		}
+
+		// Phase-2 commit-on-order (mirrors MountedTransportBotModule). Objective key namespaces the CARRIER so it
+		// is disjoint from every other executor's keys and from a second heli's. Inert (goalGuard null) when the
+		// CommitTransportPassengers lever is off ⇒ byte-identical frozen path.
+		static string TransportObjectiveKey(Actor transport) => "transport:" + transport.ActorID;
+
+		void CommitTaskPassengers(TransportLoadTask task)
+		{
+			if (!CommitOnOrderMath.ShouldCommit(Info.CommitTransportPassengers, goalGuard != null && !goalGuard.IsTraitDisabled))
+				return;
+
+			// TTL must outlast the whole boarding window: the load task lives until TransportLoadTimeoutTicks, so
+			// a claim of only DefaultCommitmentTicks (300) would lapse mid-board and a still-walking soldier could
+			// be poached (MountedTransport.BuildFreePool does not require IsIdle). Cover the longer of the two so
+			// the claim holds for as long as the pax might be walking. Released early on dispatch/abort/death.
+			var ttl = Math.Max(goalGuard.DefaultCommitmentTicks, Info.TransportLoadTimeoutTicks);
+			var key = TransportObjectiveKey(task.Transport);
+			foreach (var pax in task.ReservedPassengers)
+				goalGuard.Ledger.Commit(pax, key, world.WorldTick, ttl);
+		}
+
+		void ReleaseTaskPassengers(TransportLoadTask task)
+		{
+			if (goalGuard == null || goalGuard.IsTraitDisabled)
+				return;
+
+			foreach (var pax in task.ReservedPassengers)
+				goalGuard.Ledger.Release(pax);
 		}
 
 		// Safety net for the pre-queued transport retreat: confirm each dispatched transport heli actually
@@ -1009,6 +1263,11 @@ namespace OpenRA.Mods.Common.Traits
 					if (h != null && !h.IsDead)
 						blackboard.ReleaseUnit(h);
 
+			// Release any live boarding claims before dropping the tasks, so a disabled module never leaves a
+			// soldier ledger-locked out of the free pool.
+			foreach (var task in transportTasks.Values)
+				ReleaseTaskPassengers(task);
+
 			managedHelicopters.Clear();
 			idleHelicopters.Clear();
 			activeSquads.Clear();
@@ -1016,7 +1275,64 @@ namespace OpenRA.Mods.Common.Traits
 			idleTicks.Clear();
 			evacuating.Clear();
 			transportsAwaitingUnload.Clear();
+			transportTasks.Clear();
 			enemyEverObserved = false;
+		}
+	}
+
+	// What to do with a transport heli that is mid-load this eval.
+	public enum TransportLoadDecision { Wait, Dispatch, Abort }
+
+	// Pure, world-free transport-loading decision math — the empty-delivery gate. Split out for NUnit like the
+	// other heli math helpers (CommitOnOrderMath precedent) — deterministic, integer-only, zero RNG. Mirrors the
+	// Loading-state logic of MountedTransportBotModule.AdvanceTask.
+	public static class TransportLoadMath
+	{
+		// Decide a loading transport's disposition.
+		//   passengersAboard — Cargo.PassengerCount right now.
+		//   minPassengers    — the full-load threshold (TransportMinInfantry).
+		//   ticksLoading     — ticks since the load order was issued.
+		//   loadTimeoutTicks — patience before we stop waiting for a full load.
+		// Dispatch once the full load is aboard. On timeout, deliver a partial load if ANY boarded, else ABORT
+		// (nobody embarked — never fly the delivery empty). Otherwise keep waiting.
+		public static TransportLoadDecision Decide(int passengersAboard, int minPassengers, int ticksLoading, int loadTimeoutTicks)
+		{
+			if (passengersAboard >= minPassengers)
+				return TransportLoadDecision.Dispatch;
+
+			if (ticksLoading > loadTimeoutTicks)
+				return passengersAboard > 0 ? TransportLoadDecision.Dispatch : TransportLoadDecision.Abort;
+
+			return TransportLoadDecision.Wait;
+		}
+	}
+
+	// Pure, world-free careful-scout recon-safety gate for the littlebird. Split out for NUnit like the other heli
+	// math helpers — deterministic, integer-only, zero RNG. Reads only what the caller samples from the fog-legal
+	// air-danger field (never omniscient), so a candidate is accepted iff it is a survivable recon leg.
+	public static class ReconSafetyMath
+	{
+		// True if a scout may be sent to a candidate recon cell.
+		//   destAirDanger      — believed anti-air danger AT the destination cell (0 = no believed AA / unscouted).
+		//   pathMaxAirDanger   — worst believed anti-air danger along the straight flight to it.
+		//   safeThreshold      — danger at or below which a cell / path is treated as safe.
+		//   distFromHomeSq     — squared map-cell distance from the scout's own home.
+		//   maxReconRadiusSq   — squared penetration cap (0 = no cap: geometry gate disabled).
+		// Reject a cell beyond the penetration cap (the 'don't dive into unscouted enemy backfield' bound), a
+		// destination inside a believed AA envelope, or a route that would cross one. All three must pass.
+		public static bool Acceptable(int destAirDanger, int pathMaxAirDanger, int safeThreshold,
+			long distFromHomeSq, long maxReconRadiusSq)
+		{
+			if (maxReconRadiusSq > 0 && distFromHomeSq > maxReconRadiusSq)
+				return false;
+
+			if (destAirDanger > safeThreshold)
+				return false;
+
+			if (pathMaxAirDanger > safeThreshold)
+				return false;
+
+			return true;
 		}
 	}
 
