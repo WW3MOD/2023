@@ -836,14 +836,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.ReachabilityGatingEnabled && crossingMap != null)
 				targets = RescaleByReachability(targets);
 
-				// 2e. frontline-influence Phase 5: weakest-point attack bias. Boost axes whose target sits in the
-				//     believed-thinnest enemy frontier sector (ControlField.WeakestEnemySector) so the push flows
-				//     toward the enemy line's weak point. A BIAS — the same deterministic comparator re-sorts — so
-				//     a bare enable (multiplier 100) or an un-built profile leaves the ranking byte-identical.
-				//     Inert/skipped unless the flag is on AND a ControlField profile exists for this player.
-				if (Info.WeakestPointBiasEnabled && controlField != null
-					&& controlField.HasFrontlineProfile(player) && Info.WeakestPointBiasMultiplier != 100)
-					targets = RescaleByWeakestSector(targets, tick);
+			// 2e. frontline-influence Phase 5: weakest-point attack bias. Boost axes whose target sits in the
+			//     believed-thinnest enemy frontier sector (ControlField.WeakestEnemySector) so the push flows
+			//     toward the enemy line's weak point. A BIAS — the same deterministic comparator re-sorts — so
+			//     a bare enable (multiplier 100) or an un-built profile leaves the ranking byte-identical.
+			//     Inert/skipped unless the flag is on AND a ControlField profile exists for this player.
+			if (Info.WeakestPointBiasEnabled && controlField != null
+				&& controlField.HasFrontlineProfile(player) && Info.WeakestPointBiasMultiplier != 100)
+				targets = RescaleByWeakestSector(targets, tick);
 
 			if (targets.Count == 0)
 			{
@@ -1200,9 +1200,6 @@ namespace OpenRA.Mods.Common.Traits
 			return scaled;
 		}
 
-		// Does the free pool contain at least one amphibious-capable combat unit? Cheap scan over eligible
-		// units; only called on the reachability path (gate on). A unit is amphibious iff its Mobile
-		// locomotor can cross water (CrossingMap.IsAmphibiousLocomotor).
 		// frontline-influence Phase 5: weakest-point attack bias. Multiply each axis score by
 		// FrontlineAllocationMath.WeakestSectorBiasFactor — a >100 boost for a target sitting in the believed-
 		// weakest enemy frontier sector, 100 (neutral) everywhere else. The believed-weakest sector and the
