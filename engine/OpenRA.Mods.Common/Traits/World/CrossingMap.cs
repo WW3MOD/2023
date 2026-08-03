@@ -448,6 +448,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		public int CrossingCellCount { get { EnsureBuilt(); return crossingCells.Count; } }
 
+		/// <summary>The representative crossing cells (intact bridges/fords — land spanning water). Row-major
+		/// order. Consumed by the Phase-4 frontline avenue mapping (crossing → frontier sector).</summary>
+		public IReadOnlyList<CPos> CrossingCells { get { EnsureBuilt(); return crossingCells; } }
+
 		/// <summary>Does the straight cell-line from a to b pass through a WATER BARRIER — a cell impassable
 		/// for the non-fording infantry locomotor (deep river/water the ground army must detour around, even
 		/// where a fording locomotor like `tracked` could slowly cross)? The signal that a POI is "across the

@@ -409,6 +409,16 @@ namespace OpenRA.Mods.Common.Traits
 			"when RetreatDamperEnabled.")]
 		public readonly int MinAdvanceStrength = 0;
 
+		[Desc("PHASE 4 (@experimental) FRONTLINE STRENGTH PROFILE (sensor only — no order-issuing change).",
+			"Opts this player in to the ControlField's per-frontier-sector believed OWN-vs-ENEMY strength",
+			"profile + avenue (crossing) mapping, so a future consumer can ask 'which frontier sector is the",
+			"enemy line thinnest in, and which crossing opens into it.' Phase 4 only BUILDS the sensor (rides",
+			"the control field's existing per-player recompute cadence, no new timer); nothing acts on it yet.",
+			"OFF by default so the frozen @stable twin, normal, and human games never opt in — the profile",
+			"arrays are then never built and they stay byte-identical; only PoiOffensiveBotModule@experimental",
+			"turns it on. Inert until a ControlField exists. Pure FrontlineProfileMath (NUnit-pinned), zero RNG.")]
+		public readonly bool FrontlineProfileEnabled = false;
+
 		[Desc("MISSION COMMITMENT (Phase-1 anti-thrash stopgap). Once an axis has been ordered at an objective,",
 			"do NOT re-task it on the next re-eval merely because scores jittered — HOLD the mission and leave its",
 			"in-flight order alone. A committed axis is released for re-tasking ONLY on an explicit trigger:",
@@ -668,9 +678,15 @@ namespace OpenRA.Mods.Common.Traits
 			if (!controlFieldResolved)
 			{
 				controlField = Info.StrategicRepointEnabled || Info.MinFrontierDistanceCells > 0
-					|| Info.ForwardStagingEnabled
+					|| Info.ForwardStagingEnabled || Info.FrontlineProfileEnabled
 					? world.WorldActor.TraitOrDefault<ControlField>() : null;
 				controlFieldResolved = true;
+
+				// Phase-4: opt this @experimental player in to the frontline strength profile (sensor only).
+				// Idempotent; only reached when the flag is on ⇒ @stable / normal / human never opt in and the
+				// profile is never built for them (byte-identical).
+				if (Info.FrontlineProfileEnabled)
+					controlField?.RequestFrontlineProfile(player);
 			}
 
 			// Phase-1 reachability model: resolve the CrossingMap only when the gate is on (its first query

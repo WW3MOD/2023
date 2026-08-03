@@ -414,6 +414,14 @@ Player:
 		RetreatDamperEnabled: true
 		RetreatReadvanceDwellEvals: 3
 		MinAdvanceStrength: 1200
+		# PHASE 4 (frontline-influence) — FRONTLINE STRENGTH PROFILE (sensor only). Opts this @experimental
+		# player in to the ControlField's per-frontier-sector believed OWN-vs-ENEMY strength profile + avenue
+		# (CrossingMap crossing) mapping, so a later consumer can ask "which frontier sector is the enemy line
+		# thinnest in, and which crossing opens into it." Phase 4 only BUILDS the sensor (rides the control
+		# field's existing per-player recompute cadence, no new timer, zero RNG); nothing acts on it yet.
+		# Default OFF on the shared engine class ⇒ the @stable twin (which omits this field) never opts in, so
+		# the profile arrays are never built and it stays byte-identical. Inert until a ControlField exists.
+		FrontlineProfileEnabled: true
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
