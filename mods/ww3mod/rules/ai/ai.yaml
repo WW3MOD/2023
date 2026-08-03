@@ -1092,6 +1092,25 @@ Player:
 		# non-experimental profile ⇒ no ledger interaction there (byte-identical). Uses the shared PoiGoalGuard@poi
 		# defined above (gated enable-ai-experimental || enable-ai-stable).
 		CommitTransportPassengers: true
+		# Flight-path smoothing (experimental-only, default-frozen in C#): only re-issue an attack heli's
+		# move / attack-move path when the recomputed destination has shifted at least the threshold from the
+		# leg it is already committed to (or the leg completed), instead of re-pathing every 5-tick re-eval —
+		# so employment-cycle movement reads DELIBERATE, not indecisive. Order-cadence only; the destination is
+		# still chosen by the standoff/danger-nav/frontier logic, so the first-contact AA gate, strategic pin,
+		# and evacuation are untouched. OFF for every non-experimental profile (byte-identical).
+		FlightPathHysteresis: true
+		FlightPathHysteresisCells: 3
+		# Risk/reachability-weighted transport drop (experimental-only, default-frozen in C#): rank the drop
+		# candidates (omniscient weak cell + top believed offensive POIs) by a FOG-LEGAL risk score and drop at
+		# the best, instead of always taking the single weakest enemy cell — which can sit deep behind the enemy
+		# SR (unreachable, lethal). Penalises believed-enemy control depth (ControlField), believed danger
+		# (DangerFieldLayer) and distance from our own SR; a weight, not a filter. Belief-side reads only. OFF
+		# for every non-experimental profile (byte-identical).
+		RiskWeightedDropSite: true
+		DropSiteCandidatePois: 6
+		DropEnemyControlWeight: 100
+		DropDangerWeight: 100
+		DropReachWeight: 5
 
 	# ===== Stable AI — snapshot of the validated Experimental config =====
 	#
