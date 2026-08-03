@@ -419,6 +419,38 @@ namespace OpenRA.Mods.Common.Traits
 			"turns it on. Inert until a ControlField exists. Pure FrontlineProfileMath (NUnit-pinned), zero RNG.")]
 		public readonly bool FrontlineProfileEnabled = false;
 
+		[Desc("PHASE 5 (@experimental) WEAKEST-POINT ATTACK BIAS. Reads the Phase-4 frontline strength profile",
+			"(ControlField.WeakestEnemySector + the per-sector believed strength) and BIASES offensive axis",
+			"selection toward targets sitting in the believed-thinnest enemy frontier sector — 'push where the",
+			"enemy line is weakest.' Implemented as a score MULTIPLIER (WeakestPointBiasMultiplier), not a hard",
+			"override: the existing value×distance×threat scoring + deterministic comparator stay authoritative,",
+			"so a bare enable (multiplier 100) is inert and the ranking is byte-identical. Opts this player into",
+			"the frontline profile the same way FrontlineProfileEnabled does. OFF by default so the frozen @stable",
+			"twin / normal / human never opt in ⇒ byte-identical. Inert until a ControlField profile exists. Pure",
+			"FrontlineAllocationMath (NUnit-pinned), zero RNG.")]
+		public readonly bool WeakestPointBiasEnabled = false;
+
+		[Desc("Phase-5 weakest-point bias: score multiplier (x100) applied to an axis whose target lies in the",
+			"believed-weakest enemy frontier sector. >100 boosts the push toward the thin sector. Default 100 =",
+			"inert (a bare WeakestPointBiasEnabled changes nothing until the @experimental YAML supplies >100).")]
+		public readonly int WeakestPointBiasMultiplier = 100;
+
+		[Desc("PHASE 5 (@experimental) SECTOR POSTURE HOLD. Where the Phase-4 profile reads a target's frontier",
+			"sector as TOO STRONG — believed enemy force ≥ SectorPostureHoldRatioPct% of our own believed strength",
+			"in that sector — the axis HOLDS/defends (a grouped fall-back to the rally/staging anchor) instead of",
+			"pressing into believed strength. Shaped as a HOLD TRIGGER that RIDES the existing retreat/damper",
+			"fall-back path (reuses OrderRetreat, no new order writer) and runs ONLY AFTER the genuine-retreat and",
+			"damper gates — so it can NEVER block a truly-losing withdrawal (that decision is upstream). Needs a",
+			"rally anchor (own Supply Route). OFF by default so the frozen @stable twin / normal / human stay",
+			"byte-identical; only PoiOffensiveBotModule@experimental turns it on. Inert until a ControlField profile",
+			"exists. Pure FrontlineAllocationMath (NUnit-pinned), zero RNG.")]
+		public readonly bool SectorPostureHoldEnabled = false;
+
+		[Desc("Phase-5 posture hold: believed enemy-to-own strength ratio (x100) in a target's frontier sector at/",
+			"above which the axis holds rather than presses. 200 = hold once the believed enemy force in the sector",
+			"is 2× our own committed strength there. Only read when SectorPostureHoldEnabled; <= 0 disables the hold.")]
+		public readonly int SectorPostureHoldRatioPct = 200;
+
 		[Desc("MISSION COMMITMENT (Phase-1 anti-thrash stopgap). Once an axis has been ordered at an objective,",
 			"do NOT re-task it on the next re-eval merely because scores jittered — HOLD the mission and leave its",
 			"in-flight order alone. A committed axis is released for re-tasking ONLY on an explicit trigger:",
@@ -679,13 +711,15 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				controlField = Info.StrategicRepointEnabled || Info.MinFrontierDistanceCells > 0
 					|| Info.ForwardStagingEnabled || Info.FrontlineProfileEnabled
+					|| Info.WeakestPointBiasEnabled || Info.SectorPostureHoldEnabled
 					? world.WorldActor.TraitOrDefault<ControlField>() : null;
 				controlFieldResolved = true;
 
-				// Phase-4: opt this @experimental player in to the frontline strength profile (sensor only).
-				// Idempotent; only reached when the flag is on ⇒ @stable / normal / human never opt in and the
-				// profile is never built for them (byte-identical).
-				if (Info.FrontlineProfileEnabled)
+				// Phase-4/5: opt this @experimental player in to the frontline strength profile. Idempotent; only
+				// reached when a profile CONSUMER flag is on (the Phase-4 sensor opt-in or a Phase-5 consumer that
+				// reads it) ⇒ @stable / normal / human never opt in and the profile is never built for them
+				// (byte-identical).
+				if (Info.FrontlineProfileEnabled || Info.WeakestPointBiasEnabled || Info.SectorPostureHoldEnabled)
 					controlField?.RequestFrontlineProfile(player);
 			}
 
@@ -711,6 +745,7 @@ namespace OpenRA.Mods.Common.Traits
 			// a lever is on (one FindOwnSupplyRoute scan); null otherwise, so no cost on the frozen path.
 			// ForwardStaging also needs the SR as the descent start (the muster walk begins at the beachhead).
 			rallyCell = Info.RetreatWhenLosing || Info.NoReinforceLostFights || Info.ForwardStagingEnabled
+				|| Info.SectorPostureHoldEnabled
 				? RallyCell() : null;
 
 			// Phase 2: resolve the forward staging anchor for this eval (safe standoff behind the frontier, walked
@@ -800,6 +835,15 @@ namespace OpenRA.Mods.Common.Traits
 			amphibiousTargets.Clear();
 			if (Info.ReachabilityGatingEnabled && crossingMap != null)
 				targets = RescaleByReachability(targets);
+
+				// 2e. frontline-influence Phase 5: weakest-point attack bias. Boost axes whose target sits in the
+				//     believed-thinnest enemy frontier sector (ControlField.WeakestEnemySector) so the push flows
+				//     toward the enemy line's weak point. A BIAS — the same deterministic comparator re-sorts — so
+				//     a bare enable (multiplier 100) or an un-built profile leaves the ranking byte-identical.
+				//     Inert/skipped unless the flag is on AND a ControlField profile exists for this player.
+				if (Info.WeakestPointBiasEnabled && controlField != null
+					&& controlField.HasFrontlineProfile(player) && Info.WeakestPointBiasMultiplier != 100)
+					targets = RescaleByWeakestSector(targets, tick);
 
 			if (targets.Count == 0)
 			{
@@ -1154,6 +1198,59 @@ namespace OpenRA.Mods.Common.Traits
 				$"amphibTyped={typed} crossingCells={crossingMap.CrossingCellCount} " +
 				$"hasAmphibPool={hasAmphibiousPool} tick={world.WorldTick}");
 			return scaled;
+		}
+
+		// Does the free pool contain at least one amphibious-capable combat unit? Cheap scan over eligible
+		// units; only called on the reachability path (gate on). A unit is amphibious iff its Mobile
+		// locomotor can cross water (CrossingMap.IsAmphibiousLocomotor).
+		// frontline-influence Phase 5: weakest-point attack bias. Multiply each axis score by
+		// FrontlineAllocationMath.WeakestSectorBiasFactor — a >100 boost for a target sitting in the believed-
+		// weakest enemy frontier sector, 100 (neutral) everywhere else. The believed-weakest sector and the
+		// target's sector are both deterministic ControlField reads (fog-legal — belief-side profile only). This
+		// is a BIAS: the SAME PoiScoring comparator re-sorts, so an un-built profile (WeakestEnemySector == −1)
+		// or a bare enable (multiplier 100, filtered by the caller) leaves the ranking byte-identical. Zero RNG.
+		List<ScoredPoi> RescaleByWeakestSector(List<ScoredPoi> targets, int tick)
+		{
+			var weakest = controlField.WeakestEnemySector(player);
+			if (weakest == FrontlineProfileMath.NoSector)
+				return targets; // no believed front ⇒ nothing to bias toward; ranking untouched.
+
+			var boosted = 0;
+			var scaled = new List<ScoredPoi>(targets.Count);
+			foreach (var p in targets)
+			{
+				var sector = SectorOfTargetCell(p.Location);
+				var mul = FrontlineAllocationMath.WeakestSectorBiasFactor(sector, weakest, Info.WeakestPointBiasMultiplier);
+				if (mul == 100)
+				{
+					scaled.Add(p);
+					continue;
+				}
+
+				boosted++;
+				var newScore = p.Score * mul / 100;
+				scaled.Add(new ScoredPoi(p.Actor, p.Kind, p.Action, p.Value, p.DistanceCells, p.EnemyInfluence, newScore));
+			}
+
+			scaled.Sort((a, b) => PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
+				b.Score, b.DistanceCells, b.Actor.ActorID));
+
+			Log.Write("debug", $"[exp-weakpoint] reeval player={player.PlayerName} weakestSector={weakest} " +
+				$"boosted={boosted} mul={Info.WeakestPointBiasMultiplier} tick={tick}");
+			return scaled;
+		}
+
+		// The frontier sector a target MAP cell falls into (its X column bucketed into the control field's
+		// equal-width vertical bands) — the same partition FrontlineProfileMath uses to build the profile, so a
+		// target's sector index lines up with WeakestEnemySector / SectorProfile. Deterministic, fog-legal (map
+		// geometry only). Returns NoSector when no control field exists.
+		int SectorOfTargetCell(CPos cell)
+		{
+			if (controlField == null)
+				return FrontlineProfileMath.NoSector;
+
+			return FrontlineProfileMath.SectorOfMapCellX(cell.X, controlField.Info.CellSize,
+				controlField.GridWidth, controlField.FrontlineSectorCount);
 		}
 
 		// Does the free pool contain at least one amphibious-capable combat unit? Cheap scan over eligible
@@ -1543,6 +1640,20 @@ namespace OpenRA.Mods.Common.Traits
 			// Reuses OrderRetreat's gated grouped AttackMove; runs BEFORE the mission-commitment snapshot + RETURNS,
 			// so a damped axis is never marked Committed (same discipline as the retreat above). Inert when off.
 			if (Info.RetreatDamperEnabled && rallyCell.HasValue && DamperShouldHold(axis))
+			{
+				OrderRetreat(bot, axis, stagingAnchor ?? rallyCell.Value, tick);
+				return;
+			}
+
+			// frontline-influence Phase 5 SECTOR POSTURE HOLD: where the believed profile reads this axis's target
+			// sector as TOO STRONG (enemy force >= SectorPostureHoldRatioPct% of our own believed strength there),
+			// hold/defend instead of pressing into believed strength. Reuses the SAME grouped fall-back order as the
+			// retreat/damper (no competing writer), held at the forward staging anchor when Phase-2 staging is on
+			// else the rally cell. Placed AFTER the genuine-retreat gate (which already RETURNED for a Retreating
+			// axis) and the damper — so it can NEVER convert a truly-losing withdrawal into a hold. Runs BEFORE the
+			// mission-commitment snapshot + RETURNS, so a held axis is never marked Committed (same discipline).
+			// Inert unless the flag is on with a valid rally AND the profile reads the sector as overmatched.
+			if (Info.SectorPostureHoldEnabled && rallyCell.HasValue && PostureShouldHold(axis))
 			{
 				OrderRetreat(bot, axis, stagingAnchor ?? rallyCell.Value, tick);
 				return;
@@ -2098,6 +2209,25 @@ namespace OpenRA.Mods.Common.Traits
 		bool DamperShouldHold(Axis axis)
 			=> RetreatDamperMath.ShouldHold(axis.Retreat, axis.ReadvanceHold, axis.NearRally,
 				OwnAxisStrength(axis), Info.MinAdvanceStrength);
+
+		// Phase 5: should this axis HOLD because its target sector reads too strong? Reads the believed per-sector
+		// profile (own vs enemy strength + front presence) and delegates the ratio test to the pure
+		// FrontlineAllocationMath.SectorPostureHold. Inert (false) until the profile is built for this player; the
+		// caller only reaches here when SectorPostureHoldEnabled with a valid rally, and NEVER on a Retreating axis
+		// (the retreat gate returned upstream), so a genuine withdrawal is never converted into a hold.
+		bool PostureShouldHold(Axis axis)
+		{
+			if (controlField == null || !controlField.HasFrontlineProfile(player))
+				return false;
+
+			var sector = SectorOfTargetCell(axis.TargetCell);
+			if (sector == FrontlineProfileMath.NoSector)
+				return false;
+
+			var prof = controlField.SectorProfile(player, sector);
+			return FrontlineAllocationMath.SectorPostureHold(prof.OwnStrength, prof.EnemyStrength,
+				prof.FrontierEdges, Info.SectorPostureHoldRatioPct);
+		}
 
 		CPos AxisCentroidCell(Axis axis)
 		{
