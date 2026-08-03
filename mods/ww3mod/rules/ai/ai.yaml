@@ -717,6 +717,30 @@ Player:
 		MainLineUnitTypes: e2.america, e2.russia, mt.america, mt.russia, aa.america, aa.russia, e4.america, e4.russia, abrams, t90, m109, paladin, grad, tos, m270, strykershorad, tunguska
 		ExcludedActorTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, humvee, btr, bradley, bmp2, m113
 
+	# PHASE 6 (frontline-influence) — ENGINEER ROUTE-OPENING. When the Phase-4 frontline strength profile
+	# says the enemy line is thinnest in a sector whose avenue is a REPAIRABLE destroyed bridge (CrossingMap
+	# crossing Status == Repairable), send an engineer (e6, RepairsBridges) to the bridge hut with the
+	# RepairBridge order and a small combat screen to open a NEW land axis. On repair the module releases its
+	# commitments and lets the now-INTACT avenue be picked up by the Phase-5 man-the-line / weakest-point
+	# machinery above (no separate attack path). Every dispatched unit is staked in the shared PoiGoalGuard
+	# ledger (engineer bridge-repair:<hutId>, screen bridge-screen:<hutId>) so the offense pool can't poach
+	# it mid-mission. Failure modes are all bounded: engineer dies en route ⇒ per-hut cooldown + bounded
+	# retry; hut gone ⇒ abandon; bridge already repaired on arrival ⇒ success; timeout ⇒ cooldown + re-attempt.
+	# Opts this player into the ControlField frontline profile (per-player recipe, never a world global).
+	# Default OFF on the engine class (RouteOpenEnabled) + declared ONLY here ⇒ @stable / normal / human never
+	# instantiate it and it is inert regardless ⇒ byte-identical. Pure RouteOpenMath (NUnit-pinned), zero RNG.
+	EngineerRouteOpenBotModule@experimental:
+		RequiresCondition: enable-ai-experimental
+		RouteOpenEnabled: true
+		ScanInterval: 100
+		MissionTimeoutTicks: 1500
+		RetryCooldownTicks: 900
+		MaxAttemptsPerHut: 3
+		ScreenSize: 3
+		ScreenStandoffCells: 3
+		CommitTtlTicks: 400
+		ExcludedActorTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, humvee, btr, bradley, bmp2, m113
+
 	# experimental doctrine — Stage B.4: mounted infantry transport.
 	#
 	# IFVs/APCs pick up infantry from the reserve zone (near own SR), drive
