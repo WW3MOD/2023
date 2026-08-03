@@ -374,6 +374,34 @@ Player:
 		RetreatSustainEvals: 2
 		ForceRatioRadiusCells: 8
 		RetreatSafeDistanceCells: 10
+		# PHASE 2 (frontline-influence) — free-pool FORWARD STAGING. Uncommitted combat units are walked to a
+		# muster point a safe standoff BEHIND the believed frontier (steepest descent on the control field's
+		# distance-to-enemy-frontier BFS from the SR) instead of idling at the Supply Route clogging the road to
+		# the front. The muster point ADVANCES as the front moves; units fan out (ring spread) so they don't pile
+		# on one cell; committed/retreating units are never staged. Default OFF on the shared engine class ⇒ the
+		# @stable twin (which omits these fields) idles the reserve at the SR byte-identical. Inert until the
+		# ControlField frontier BFS is populated. Standoff 6 coarse cells ≈ 12 map cells behind the line; the
+		# danger guard (40, the same scale as GroundDangerSafeThreshold) keeps the muster BEHIND defended fronts.
+		ForwardStagingEnabled: true
+		StagingStandoffCells: 6
+		StagingDangerSafeThreshold: 40
+		StagingSpreadStepCells: 2
+		StagingHysteresisCells: 3
+		StagingMaxDescentSteps: 64
+		# PHASE 3 (frontline-influence) — RETREAT-OSCILLATION DAMPER. Builds on RetreatWhenLosing to stop small
+		# early-spread axes ping-ponging into the SR bubble (advance, read losing, fall back into the 10-cell
+		# bubble, re-form, repeat — the "small movements near spawn" symptom). Adds two gates ON TOP of the
+		# sustained-streak retreat ENTRY that RetreatWhenLosing already has: (a) a post-retreat DWELL of 3 evals an
+		# axis must hold before it may re-advance on the same target (converts churn into hold-then-push), and (b)
+		# an advance-STRENGTH floor (own health-weighted build value, SAME scale as the retreat force ratio) below
+		# which an axis still massing near the rally waits/merges rather than trickling 2-3 units forward. NEITHER
+		# delays a genuine retreat — a truly-losing axis still withdraws promptly. When Phase-2 staging is on the
+		# held axis waits at the forward muster point (off the SR road). Default OFF on the shared engine class ⇒
+		# the @stable twin (which omits these fields) is byte-identical. Conservative initial values — the ladder
+		# sweep (WORKSPACE/ai-bench/) is the tuning path, user-gated.
+		RetreatDamperEnabled: true
+		RetreatReadvanceDwellEvals: 3
+		MinAdvanceStrength: 1200
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
