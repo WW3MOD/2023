@@ -437,15 +437,20 @@ Player:
 		# WeakestPointBias: multiply an axis score by 150 (x100) when its target sits in the believed-thinnest
 		# enemy frontier sector, so the push flows toward the weak point — a BIAS, the value×distance×threat
 		# scoring + deterministic comparator stay authoritative (a bare enable at 100 is inert). SectorPostureHold:
-		# where a target sector reads too strong (believed enemy force >= 200% of our own believed strength there),
-		# the axis holds/defends via the SAME retreat/damper fall-back (reuses OrderRetreat, never a new writer)
-		# and only AFTER the genuine-retreat gate — so it can never block a truly-losing withdrawal. Default OFF on
-		# the shared engine class ⇒ the @stable twin (which omits these fields) is byte-identical. Conservative
-		# initial values — the benchmark ladder (WORKSPACE/ai-bench/, user-gated) is the tuning path.
+		# where the sector the axis STANDS IN reads too strong (believed enemy force >= 200% of our own believed
+		# strength there), the axis holds/defends via the SAME retreat/damper fall-back (reuses OrderRetreat, never a
+		# new writer) and only AFTER the genuine-retreat gate — so it can never block a truly-losing withdrawal.
+		# Evaluated at the axis's own CONTACT sector (unit centroid), NOT the deep target sector: the target sits in
+		# the enemy rear where our believed own strength is ~0, which made the ratio trivially "outnumbered" and
+		# froze every push at home (live River Zeta regression). SectorPostureHoldOwnFloor is the backstop — below
+		# ~3 own armed-unit presence in the evaluated sector we don't occupy it, so we press rather than "hold" it.
+		# Default OFF on the shared engine class ⇒ the @stable twin (which omits these fields) is byte-identical.
+		# Conservative initial values — the benchmark ladder (WORKSPACE/ai-bench/, user-gated) is the tuning path.
 		WeakestPointBiasEnabled: true
 		WeakestPointBiasMultiplier: 150
 		SectorPostureHoldEnabled: true
 		SectorPostureHoldRatioPct: 200
+		SectorPostureHoldOwnFloor: 3
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped

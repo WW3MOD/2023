@@ -166,25 +166,37 @@ namespace OpenRA.Mods.Common.Traits
 
 		// ---------- (3) Sector posture hold ----------
 
-		/// <summary>Should an axis targeting a sector HOLD/defend instead of pressing, because the believed enemy
-		/// force there is too strong relative to our own committed strength? True when the sector is ON THE FRONT
-		/// (<paramref name="frontierEdges"/> &gt; 0), carries believed enemy force, and
-		/// <paramref name="sectorEnemy"/> ≥ <paramref name="sectorOwn"/> × <paramref name="holdRatioPct"/>/100.
+		/// <summary>Should an axis standing in a frontier sector HOLD/defend instead of pressing, because the
+		/// believed enemy force there is too strong relative to our own committed strength? True when the sector is
+		/// ON THE FRONT (<paramref name="frontierEdges"/> &gt; 0), carries believed enemy force, we actually OCCUPY
+		/// it (<paramref name="sectorOwn"/> ≥ <paramref name="ownStrengthFloor"/>), and <paramref name="sectorEnemy"/>
+		/// ≥ <paramref name="sectorOwn"/> × <paramref name="holdRatioPct"/>/100.
 		///
-		/// <paramref name="holdRatioPct"/> &lt;= 0 ⇒ false (inert / disabled). The comparison is cross-multiplied
-		/// (no division), so the boundary is exact: at holdRatioPct 200, own 5 vs enemy 10 HOLDS (enemy is exactly
-		/// 2× own) while own 5 vs enemy 9 presses.
+		/// <paramref name="holdRatioPct"/> &lt;= 0 ⇒ false (inert / disabled). The ratio comparison is cross-
+		/// multiplied (no division), so the boundary is exact: at holdRatioPct 200, own 5 vs enemy 10 HOLDS (enemy
+		/// is exactly 2× own) while own 5 vs enemy 9 presses.
+		///
+		/// OWN-STRENGTH FLOOR (<paramref name="ownStrengthFloor"/>): you cannot HOLD a sector you do not occupy.
+		/// Below the floor of believed own presence the ratio is meaningless — own ≈ 0 makes "enemy ≥ own × ratio"
+		/// trivially true, which (when the caller mistakenly evaluated the enemy-REAR target sector, where our
+		/// believed presence is ~0) froze every offensive axis at home. The consumer now evaluates the axis's own
+		/// CONTACT sector — where its units stand, so sectorOwn reflects the committed force — and this floor is the
+		/// backstop that keeps an unoccupied sector from ever reading as a hold. <paramref name="ownStrengthFloor"/>
+		/// &lt;= 0 disables the floor (legacy: own = 0 vs enemy present ⇒ hold).
 		///
 		/// SAFETY: this is a HOLD trigger the consumer runs AFTER its genuine-retreat gate, so it can never block a
 		/// truly-losing withdrawal (that decision is upstream). It composes with the retreat/damper FSM by reusing
 		/// the same fall-back-to-rally order, not by writing a competing order stream. Zero RNG.</summary>
-		public static bool SectorPostureHold(int sectorOwn, int sectorEnemy, int frontierEdges, int holdRatioPct)
+		public static bool SectorPostureHold(int sectorOwn, int sectorEnemy, int frontierEdges, int holdRatioPct,
+			int ownStrengthFloor)
 		{
 			if (holdRatioPct <= 0)
 				return false;
 			if (frontierEdges <= 0)
 				return false;
 			if (sectorEnemy <= 0)
+				return false;
+			if (sectorOwn < ownStrengthFloor)
 				return false;
 
 			return (long)sectorEnemy * 100 >= (long)sectorOwn * holdRatioPct;
