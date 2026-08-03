@@ -422,6 +422,20 @@ Player:
 		# Default OFF on the shared engine class ⇒ the @stable twin (which omits this field) never opts in, so
 		# the profile arrays are never built and it stays byte-identical. Inert until a ControlField exists.
 		FrontlineProfileEnabled: true
+		# PHASE 5 (frontline-influence) — WEAKEST-POINT ATTACK BIAS + SECTOR POSTURE HOLD. Consumes the Phase-4
+		# frontline strength profile (built by FrontlineProfileEnabled above / opted-in by these flags too).
+		# WeakestPointBias: multiply an axis score by 150 (x100) when its target sits in the believed-thinnest
+		# enemy frontier sector, so the push flows toward the weak point — a BIAS, the value×distance×threat
+		# scoring + deterministic comparator stay authoritative (a bare enable at 100 is inert). SectorPostureHold:
+		# where a target sector reads too strong (believed enemy force >= 200% of our own believed strength there),
+		# the axis holds/defends via the SAME retreat/damper fall-back (reuses OrderRetreat, never a new writer)
+		# and only AFTER the genuine-retreat gate — so it can never block a truly-losing withdrawal. Default OFF on
+		# the shared engine class ⇒ the @stable twin (which omits these fields) is byte-identical. Conservative
+		# initial values — the benchmark ladder (WORKSPACE/ai-bench/, user-gated) is the tuning path.
+		WeakestPointBiasEnabled: true
+		WeakestPointBiasMultiplier: 150
+		SectorPostureHoldEnabled: true
+		SectorPostureHoldRatioPct: 200
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped
@@ -688,6 +702,15 @@ Player:
 		# by class, curing the :349 defect. ScreenUnitTypes still partitions screen vs main-line; the
 		# MainLineUnitTypes/ExcludedActorTypes lists become inert (kept for the frozen @stable twin).
 		UseUnitRoles: true
+		# PHASE 5 (frontline-influence) — MAN-THE-LINE avenue allocation. Instead of clustering reserves only on the
+		# lowest-density contested InfluenceMap cells, spread them across the enumerated frontline AVENUES (the
+		# ControlField Phase-4 crossing→sector map): every avenue whose sector carries a meaningful believed threat
+		# (enemy strength >= 1) gets a picket where the budget allows, surplus on the outnumbered avenues. Falls
+		# back to the contested-cell path when the profile isn't built / no avenue carries threat, so the module is
+		# never idle. Opts this player into the frontline profile. Default OFF on the shared engine class ⇒ the
+		# @stable twin (which omits these fields) stays byte-identical. Respects + writes the same ledger as above.
+		ManTheLineEnabled: true
+		ManTheLineMinThreat: 1
 		ScreenUnitTypes: e3.america, e3.russia, ar.america, ar.russia, at.america, at.russia, sn.america, sn.russia, tl.america, tl.russia, medi.america, medi.russia
 		# bradley / bmp2 / m113 deliberately ABSENT — they're owned by
 		# MountedTransportBotModule@poi below (Stage B.4).

@@ -139,6 +139,24 @@ namespace OpenRA.Mods.Common.Traits
 			"false = frozen list behaviour, so @stable/legacy twins stay byte-identical.")]
 		public readonly bool UseUnitRoles = false;
 
+		[Desc("PHASE 5 (@experimental) MAN-THE-LINE avenue allocation. Instead of clustering reserves only on the",
+			"lowest-density contested InfluenceMap cells, spread them across the enumerated frontline AVENUES (the",
+			"ControlField Phase-4 crossing→sector map): every avenue whose frontier sector carries a MEANINGFUL",
+			"believed threat (enemy strength >= ManTheLineMinThreat) gets at least a picket where the reserve budget",
+			"allows, and any surplus concentrates on the avenues where the enemy OUTNUMBERS us — 'man the bridges/",
+			"crossings the enemy can actually use.' Screen units picket at the crossing (+cover snap); main-line",
+			"units stand off behind it toward our SR, exactly as the contested-cell path does. Opts this player into",
+			"the ControlField frontline profile. Falls back to the contested-cell path when the profile is not yet",
+			"built or no avenue carries threat, so the module is never idle. OFF by default so the frozen @stable",
+			"twin / normal / human never opt in ⇒ byte-identical. Pure FrontlineAllocationMath (NUnit-pinned), zero",
+			"RNG. Respects + writes the SAME PoiGoalGuard ledger as the contested-cell path (CommitLineAssignments).")]
+		public readonly bool ManTheLineEnabled = false;
+
+		[Desc("Man-the-line: believed ENEMY sector strength (unit-count scale of the ControlField profile) at/above",
+			"which an avenue's frontier sector counts as a MEANINGFUL threat that must be picketed. Avenues in",
+			"quieter sectors are left to the reserve pool. Only read when ManTheLineEnabled.")]
+		public readonly int ManTheLineMinThreat = 1;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -168,6 +186,11 @@ namespace OpenRA.Mods.Common.Traits
 		UnitRoleResolver resolver;
 		PoiGoalGuard goalGuard;
 
+		// Phase 5 man-the-line: the frontline strength profile / avenue map. Resolved + opted-in ONLY when
+		// ManTheLineEnabled, so @stable/normal/human never touch it (the profile is never built for them) ⇒
+		// byte-identical. Null on any other profile.
+		ControlField controlField;
+
 		// Phase 2 commit-on-order (§4): ledger key for a line/screen slot. The slot is a CELL, not an actor,
 		// so the grammar (defend-line:<x>,<y>) is disjoint from every actor-keyed executor (capture:/defend:/
 		// garrison:/transport:/offense:) — audit requirement (d).
@@ -191,6 +214,15 @@ namespace OpenRA.Mods.Common.Traits
 			// PoiGoalGuard (every non-@experimental profile) ⇒ the check below is inert.
 			goalGuard = Info.RespectCommitmentLedger || Info.CommitLineAssignments
 				? player.PlayerActor.TraitOrDefault<PoiGoalGuard>() : null;
+
+			// Phase 5 man-the-line: resolve the ControlField and opt this player into the frontline strength
+			// profile ONLY when the flag is on. Idempotent; @stable/normal/human never reach here ⇒ the profile
+			// arrays are never built for them (byte-identical). Inert until the field populates the profile.
+			if (Info.ManTheLineEnabled)
+			{
+				controlField = world.WorldActor.TraitOrDefault<ControlField>();
+				controlField?.RequestFrontlineProfile(player);
+			}
 
 			TextNotificationsManager.AddSystemLine(
 				$"[exp-layered-defence] enabled for {player.PlayerName} ({player.Faction.Name})");
@@ -277,7 +309,17 @@ namespace OpenRA.Mods.Common.Traits
 			// Pull the contested grid. If no contact yet, hand off to existing logic.
 			var frontline = influenceMap.GetFrontline(player);
 			var contestedCells = CollectContestedCells(frontline);
-			if (contestedCells.Count == 0)
+
+			// Phase 5 man-the-line: gather the enumerated avenues + their frontier-sector believed strengths (only
+			// when enabled AND the ControlField profile is built). manThreat is true iff at least one avenue carries
+			// a meaningful believed threat — then we picket the crossings instead of the contested-cell density map.
+			List<CPos> avenueCells = null;
+			int[] avenueEnemy = null, avenueOwn = null;
+			var manThreat = Info.ManTheLineEnabled
+				&& TryBuildAvenueData(out avenueCells, out avenueEnemy, out avenueOwn);
+
+			// Hand off to opening-play logic only when there is neither contact NOR a crossing worth manning.
+			if (contestedCells.Count == 0 && !manThreat)
 				return;
 
 			// Own SR — first one found. Used to compute the "behind" vector.
@@ -381,6 +423,17 @@ namespace OpenRA.Mods.Common.Traits
 			if (reserves.Count == 0)
 				return;
 
+			// Phase 5 man-the-line: when avenues carry threat, allocate the reserve budget across the crossings
+			// (coverage first, mass on the outnumbered avenues) and RETURN — the avenue path and the contested-cell
+			// density path are ALTERNATIVES, not both-run. Does its own dead-actor cleanup. Off/ not-ready ⇒ falls
+			// through to the byte-identical contested-cell path below.
+			if (manThreat)
+			{
+				AssignAlongAvenues(bot, reserves, avenueCells, avenueEnemy, avenueOwn, srCell);
+				PruneAssignedTicks();
+				return;
+			}
+
 			// Score every contested cell as a candidate slot. Lower combined density
 			// (friendly gap + enemy weakness) → higher score. Cells already assigned
 			// this tick get a heavy penalty so we spread across the line.
@@ -465,9 +518,136 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Drop dead-actor entries so the dictionary doesn't grow.
+			PruneAssignedTicks();
+		}
+
+		// Drop dead / departed actors from the anti-thrash cooldown map so it doesn't grow unbounded. Shared by
+		// the contested-cell path and the Phase-5 man-the-line path.
+		void PruneAssignedTicks()
+		{
 			var deadKeys = assignedAtTick.Keys.Where(a => a.IsDead || !a.IsInWorld).ToList();
 			foreach (var k in deadKeys)
 				assignedAtTick.Remove(k);
+		}
+
+		// Phase 5 man-the-line: gather the enumerated frontline avenues (ControlField Phase-4 crossing→sector map)
+		// into parallel per-avenue cell / believed-enemy / believed-own arrays, reading each avenue's frontier-
+		// sector strength from the profile. Returns false (and leaves the outs null) when the profile is not built
+		// or there are no avenues — the caller then falls back to the contested-cell path. `manThreat` is signalled
+		// by the return: true iff at least one avenue's sector carries enemy strength >= ManTheLineMinThreat.
+		// Fog-legal (belief-side profile only) and deterministic (Avenues is in a fixed mapping order). Zero RNG.
+		bool TryBuildAvenueData(out List<CPos> cells, out int[] enemy, out int[] own)
+		{
+			cells = null;
+			enemy = null;
+			own = null;
+
+			if (controlField == null || !controlField.HasFrontlineProfile(player))
+				return false;
+
+			var avenues = controlField.Avenues;
+			if (avenues.Count == 0)
+				return false;
+
+			var c = new List<CPos>(avenues.Count);
+			var e = new int[avenues.Count];
+			var o = new int[avenues.Count];
+			var anyThreat = false;
+			for (var i = 0; i < avenues.Count; i++)
+			{
+				var a = avenues[i];
+				var prof = controlField.SectorProfile(player, a.Sector);
+				c.Add(a.Cell);
+				e[i] = prof.EnemyStrength;
+				o[i] = prof.OwnStrength;
+				if (prof.EnemyStrength >= Info.ManTheLineMinThreat)
+					anyThreat = true;
+			}
+
+			if (!anyThreat)
+				return false;
+
+			cells = c;
+			enemy = e;
+			own = o;
+			return true;
+		}
+
+		// Phase 5 man-the-line: assign the reserve budget across the avenues per FrontlineAllocationMath. Coverage
+		// first (every meaningfully-threatened avenue gets a picket where the budget allows), surplus on the
+		// outnumbered avenues. Slots are visited heaviest-threat-first (enemy desc, index asc); each slot pulls the
+		// NEAREST still-free reserve (tie-break lowest ActorID) — deterministic, zero RNG. Screen units picket at
+		// the crossing (+cover snap); main-line units stand off toward our SR, exactly as the contested path does.
+		void AssignAlongAvenues(IBot bot, List<(Actor Actor, bool IsScreen)> reserves,
+			List<CPos> cells, int[] enemy, int[] own, CPos srCell)
+		{
+			var budget = System.Math.Min(reserves.Count, Info.MaxAssignsPerScan);
+			var alloc = FrontlineAllocationMath.AllocateAcrossAvenues(enemy, own, budget, Info.ManTheLineMinThreat);
+
+			// Expand the allocation into an ordered slot list: avenues heaviest-threat-first, each repeated by its
+			// picket count. Deterministic order so the assignment is reproducible.
+			var order = new List<int>();
+			for (var i = 0; i < cells.Count; i++)
+				if (alloc[i] > 0)
+					order.Add(i);
+			order.Sort((a, b) =>
+			{
+				var byThreat = enemy[b].CompareTo(enemy[a]);
+				return byThreat != 0 ? byThreat : a.CompareTo(b);
+			});
+
+			var used = new HashSet<Actor>();
+			foreach (var i in order)
+			{
+				for (var k = 0; k < alloc[i]; k++)
+				{
+					var slot = cells[i];
+
+					// Nearest still-free reserve to this crossing (tie-break lowest ActorID for determinism).
+					Actor best = null;
+					var bestScreen = false;
+					var bestDist = long.MaxValue;
+					foreach (var (actor, isScreen) in reserves)
+					{
+						if (used.Contains(actor))
+							continue;
+
+						var dx = actor.Location.X - slot.X;
+						var dy = actor.Location.Y - slot.Y;
+						var d = (long)dx * dx + (long)dy * dy;
+						if (d < bestDist || (d == bestDist && (best == null || actor.ActorID < best.ActorID)))
+						{
+							bestDist = d;
+							best = actor;
+							bestScreen = isScreen;
+						}
+					}
+
+					if (best == null)
+						return; // reserves exhausted.
+
+					used.Add(best);
+
+					// Screen units picket at the crossing (prefer nearby cover); main-line units stand off behind it.
+					var targetCell = bestScreen
+						? (Info.CoverSearchRadiusCells > 0 ? FindCoverNear(slot, Info.CoverSearchRadiusCells) ?? slot : slot)
+						: ShiftToward(slot, srCell, Info.MainLineStandoffCells);
+
+					if (!world.Map.Contains(targetCell))
+						continue;
+
+					bot.QueueOrder(new Order("AttackMove", best, Target.FromCell(world, targetCell), false));
+					assignedAtTick[best] = world.WorldTick;
+
+					// Same commit-on-order audit as the contested path: stake the crossing slot in the shared ledger
+					// (defend-line:<cell>) so offense's BuildFreePool defers for the cooldown window. Off ⇒ no write.
+					if (CommitOnOrderMath.ShouldCommit(Info.CommitLineAssignments, goalGuard != null && !goalGuard.IsTraitDisabled))
+						goalGuard.Ledger.Commit(best, LineObjectiveKey(slot), world.WorldTick, Info.AssignCooldownTicks);
+
+					AIUtils.BotDebug("AI ({0}): man-the-line — {1} ({2}) → {3} (avenue {4} enemy {5} own {6})",
+						player.ClientIndex, best.Info.Name, bestScreen ? "SCREEN" : "MAIN", targetCell, slot, enemy[i], own[i]);
+				}
+			}
 		}
 
 		static long MinSqDistTo(CPos from, List<CPos> cells)
