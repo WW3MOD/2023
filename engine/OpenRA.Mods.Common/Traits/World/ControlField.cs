@@ -237,6 +237,148 @@ namespace OpenRA.Mods.Common.Traits
 		static int Clamp(int v, int lo, int hi) => v < lo ? lo : v > hi ? hi : v;
 	}
 
+	// One frontier sector's believed strength read (frontline-influence Phase 4). Belief-side only for
+	// the enemy total — never ground truth. FrontierEdges is the count of IsFrontlineEdge edges falling
+	// in the sector: 0 ⇒ this sector is not on the front line (so weakest-sector selection skips it).
+	public readonly struct FrontlineSector
+	{
+		public readonly int OwnStrength;
+		public readonly int EnemyStrength;
+		public readonly int FrontierEdges;
+
+		public FrontlineSector(int ownStrength, int enemyStrength, int frontierEdges)
+		{
+			OwnStrength = ownStrength;
+			EnemyStrength = enemyStrength;
+			FrontierEdges = frontierEdges;
+		}
+
+		public bool OnFront => FrontierEdges > 0;
+	}
+
+	// A crossing (CrossingMap avenue) associated with the frontier sector it opens into. Status carries
+	// Intact (a passable bridge/ford) vs Repairable (a destroyed bridge an engineer could reopen).
+	public readonly struct FrontlineAvenue
+	{
+		public readonly CPos Cell;
+		public readonly CrossingStatus Status;
+		public readonly int Sector;
+
+		public FrontlineAvenue(CPos cell, CrossingStatus status, int sector)
+		{
+			Cell = cell;
+			Status = status;
+			Sector = sector;
+		}
+	}
+
+	// The pure, engine-free frontline strength-profile math (frontline-influence Phase 4). Split from
+	// the trait (mirroring ControlFieldMath / CrossingMapMath) so the sector partition, own/enemy
+	// accumulation, weakest-enemy-sector selection + tie-break, and avenue→sector association the NUnit
+	// table pins are unit-testable without mounting a world. Integer only, ZERO RNG, deterministic
+	// (row-major scans, fixed neighbour order, lowest-index tie-breaks).
+	public static class FrontlineProfileMath
+	{
+		public const int NoSector = -1;
+
+		/// <summary>Which sector a grid COLUMN falls into. Sectors are equal-width vertical bands across
+		/// the grid width; integer math folds the remainder into the last band so every in-range column
+		/// maps to [0, sectorCount). Deterministic and monotone in gx.</summary>
+		public static int SectorOfColumn(int gx, int gridWidth, int sectorCount)
+		{
+			if (sectorCount <= 1 || gridWidth <= 0)
+				return 0;
+
+			if (gx < 0)
+				gx = 0;
+			else if (gx >= gridWidth)
+				gx = gridWidth - 1;
+
+			var s = gx * sectorCount / gridWidth;
+			return s >= sectorCount ? sectorCount - 1 : s;
+		}
+
+		/// <summary>Which sector a MAP cell's X falls into: convert to a grid column via the control
+		/// field's CellSize, then bucket. Used to associate a crossing cell (map coords) with a sector.</summary>
+		public static int SectorOfMapCellX(int mapCellX, int cellSize, int gridWidth, int sectorCount)
+		{
+			var gx = cellSize > 0 ? mapCellX / cellSize : mapCellX;
+			return SectorOfColumn(gx, gridWidth, sectorCount);
+		}
+
+		/// <summary>Accumulate per-sector own/enemy strength totals + frontier-edge counts from the score
+		/// grid and the two belief-side strength grids. The frontier edge count per sector comes from
+		/// <see cref="ControlFieldMath.IsFrontlineEdge"/> tested on each cell's EAST and SOUTH neighbour
+		/// (fixed order), attributed to the current (lower-index) cell's sector. Outputs (length
+		/// sectorCount) are CLEARED first. Deterministic row-major scan; iteration order can never change
+		/// a stored total (sums are commutative) — the fixed order is belt-and-braces.</summary>
+		public static void Accumulate(int[,] score, int[,] ownStrength, int[,] enemyStrength,
+			int gridWidth, int gridHeight, int grayBand, int sectorCount,
+			int[] ownTotals, int[] enemyTotals, int[] frontierEdges)
+		{
+			for (var s = 0; s < sectorCount; s++)
+			{
+				ownTotals[s] = 0;
+				enemyTotals[s] = 0;
+				frontierEdges[s] = 0;
+			}
+
+			for (var gy = 0; gy < gridHeight; gy++)
+			{
+				for (var gx = 0; gx < gridWidth; gx++)
+				{
+					var sec = SectorOfColumn(gx, gridWidth, sectorCount);
+					ownTotals[sec] += ownStrength[gx, gy];
+					enemyTotals[sec] += enemyStrength[gx, gy];
+
+					if (gx + 1 < gridWidth && ControlFieldMath.IsFrontlineEdge(score[gx, gy], score[gx + 1, gy], grayBand))
+						frontierEdges[sec]++;
+					if (gy + 1 < gridHeight && ControlFieldMath.IsFrontlineEdge(score[gx, gy], score[gx, gy + 1], grayBand))
+						frontierEdges[sec]++;
+				}
+			}
+		}
+
+		/// <summary>The WEAKEST enemy sector: the sector ON THE FRONT (frontierEdges &gt; 0) with the
+		/// minimum believed enemy strength — where to push. Returns <see cref="NoSector"/> (−1) when no
+		/// sector carries a frontier edge (no believed front anywhere ⇒ nothing to pick). Tie-break is the
+		/// LOWEST sector index (strict &lt; keeps the first minimum), so the choice is deterministic.</summary>
+		public static int WeakestEnemySector(int[] enemyTotals, int[] frontierEdges, int sectorCount)
+		{
+			var best = NoSector;
+			var bestVal = int.MaxValue;
+			for (var s = 0; s < sectorCount; s++)
+			{
+				if (frontierEdges[s] <= 0)
+					continue;
+				if (enemyTotals[s] < bestVal)
+				{
+					bestVal = enemyTotals[s];
+					best = s;
+				}
+			}
+
+			return best;
+		}
+
+		/// <summary>Indices into <paramref name="avenueMapCellX"/> whose crossing cell falls in
+		/// <paramref name="targetSector"/> — the avenues serving that sector. Deterministic ascending
+		/// order. Empty (never null) when the target sector has no avenue, or is <see cref="NoSector"/>.</summary>
+		public static List<int> AvenueIndicesForSector(IReadOnlyList<int> avenueMapCellX,
+			int cellSize, int gridWidth, int sectorCount, int targetSector)
+		{
+			var result = new List<int>();
+			if (targetSector == NoSector || avenueMapCellX == null)
+				return result;
+
+			for (var i = 0; i < avenueMapCellX.Count; i++)
+				if (SectorOfMapCellX(avenueMapCellX[i], cellSize, gridWidth, sectorCount) == targetSector)
+					result.Add(i);
+
+			return result;
+		}
+	}
+
 	[TraitLocation(SystemActors.World)]
 	[Desc("WW3MOD influence stack Stage C: per-player believed-territory (control) field.",
 		"Voronoi-seeded full-map ownership with capture/persistence/grayzone semantics + site anchors.",
@@ -291,6 +433,13 @@ namespace OpenRA.Mods.Common.Traits
 			"on the same per-player cadence as the score field, for participating players only.")]
 		public readonly int MaxFrontierDistanceCells = 64;
 
+		[Desc("frontline-influence Phase 4: number of equal-width vertical sectors the frontier is split",
+			"into for the believed OWN-vs-ENEMY strength profile + avenue mapping. Only built for players",
+			"that opt in via RequestFrontlineProfile (the @experimental offense module) — @stable / normal /",
+			"human never opt in, so the profile arrays are never built and those games stay byte-identical.",
+			"Rides the same per-player Participates/UpdateInterval cadence as the score field (no new timer).")]
+		public readonly int FrontlineSectorCount = 8;
+
 		public override object Create(ActorInitializer init) { return new ControlField(init.Self, this); }
 	}
 
@@ -303,11 +452,28 @@ namespace OpenRA.Mods.Common.Traits
 			public readonly int[,] FrontierDistance; // Coarse-cell distance to the nearest believed-enemy cell.
 			public bool Seeded;
 
+			// Phase-4 frontline strength profile (only allocated for opt-in players — null otherwise, so
+			// @stable / normal / human carry no extra state and stay byte-identical).
+			public int[] SectorOwn;
+			public int[] SectorEnemy;
+			public int[] SectorFrontierEdges;
+			public bool ProfileBuilt;
+
 			public PlayerControl(int w, int h)
 			{
 				Score = new int[w, h];
 				LastVerified = new int[w, h];
 				FrontierDistance = new int[w, h];
+			}
+
+			public void EnsureProfile(int sectorCount)
+			{
+				if (SectorOwn != null)
+					return;
+
+				SectorOwn = new int[sectorCount];
+				SectorEnemy = new int[sectorCount];
+				SectorFrontierEdges = new int[sectorCount];
 			}
 		}
 
@@ -325,6 +491,20 @@ namespace OpenRA.Mods.Common.Traits
 		int subCountdown;
 		int cursor = -1;
 		int tick;
+
+		// Phase-4 frontline profile. Built only for players in profileEnabled (opt-in via
+		// RequestFrontlineProfile) — empty by default ⇒ no profile work, byte-identical. Strength grids
+		// are trait-level scratch (reused across players, cleared per build) so the count scan does not
+		// allocate per recompute. Avenues (crossing→sector) are map-static geometry, shared across
+		// players, refreshed from the lazily-resolved CrossingMap.
+		readonly HashSet<Player> profileEnabled = new();
+		int[,] ownStrengthScratch;
+		int[,] enemyStrengthScratch;
+		readonly List<FrontlineAvenue> avenues = new();
+		readonly List<int> avenueCellX = new();
+		CrossingMap crossingMap;
+		bool crossingMapResolved;
+		int avenuesTick = -1;
 
 		public ControlField(Actor self, ControlFieldInfo info)
 		{
@@ -394,7 +574,10 @@ namespace OpenRA.Mods.Common.Traits
 				pc.Seeded = true;
 			}
 
-			GatherPresence(player);
+			// Phase-4: only opt-in players (the @experimental offense module) build the strength profile,
+			// so only for them does the presence scan additionally tally per-cell own/enemy counts.
+			var buildProfile = profileEnabled.Contains(player);
+			GatherPresence(player, buildProfile);
 
 			for (var gx = 0; gx < gridWidth; gx++)
 			{
@@ -424,6 +607,12 @@ namespace OpenRA.Mods.Common.Traits
 			// participant cursor), so @stable/normal never build it — byte-identical.
 			ControlFieldMath.ComputeFrontierDistance(pc.Score, pc.FrontierDistance, gridWidth, gridHeight,
 				Info.GrayBand, Info.MaxFrontierDistanceCells);
+
+			// Phase-4 frontline strength profile rides the SAME per-player recompute: the score field +
+			// presence counts are final for this participant this cycle. Built only for opt-in players,
+			// so @stable / normal / human never reach this ⇒ byte-identical.
+			if (buildProfile)
+				BuildFrontlineProfile(pc);
 		}
 
 		// --- Seeding ------------------------------------------------------------------
@@ -469,10 +658,20 @@ namespace OpenRA.Mods.Common.Traits
 
 		// --- Presence gathering -------------------------------------------------------
 
-		void GatherPresence(Player player)
+		void GatherPresence(Player player, bool trackStrength)
 		{
 			selfCells.Clear();
 			enemyCells.Clear();
+
+			// Phase-4: reset the per-cell strength (unit-count) scratch grids for the opt-in path only.
+			// These are the belief-side OWN / ENEMY force totals the sector profile accumulates.
+			if (trackStrength)
+			{
+				ownStrengthScratch ??= new int[gridWidth, gridHeight];
+				enemyStrengthScratch ??= new int[gridWidth, gridHeight];
+				Array.Clear(ownStrengthScratch, 0, ownStrengthScratch.Length);
+				Array.Clear(enemyStrengthScratch, 0, enemyStrengthScratch.Length);
+			}
 
 			// Own + allied fighting units paint ownership (armed-only, mirroring InfluenceMap —
 			// trucks/civilians do not hold ground).
@@ -490,7 +689,11 @@ namespace OpenRA.Mods.Common.Traits
 
 				var (gx, gy) = MapCellToGridCell(actor.Location);
 				if (InGrid(gx, gy))
+				{
 					selfCells.Add(Key(gx, gy));
+					if (trackStrength)
+						ownStrengthScratch[gx, gy]++;
+				}
 			}
 
 			// Enemy presence comes ONLY from the fog-legal belief store (assumed-still-there memory).
@@ -500,7 +703,11 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var (gx, gy) = MapCellToGridCell(contact.Cell);
 					if (InGrid(gx, gy))
+					{
 						enemyCells.Add(Key(gx, gy));
+						if (trackStrength)
+							enemyStrengthScratch[gx, gy]++;
+					}
 				}
 			}
 		}
@@ -572,6 +779,61 @@ namespace OpenRA.Mods.Common.Traits
 					pc.Score[gx, gy] = ControlFieldMath.ApplyAnchor(pc.Score[gx, gy], strength, self);
 				}
 			}
+		}
+
+		// --- Frontline strength profile (Phase 4) -------------------------------------
+
+		// Accumulate the score field + the presence-count scratch grids into the per-sector believed
+		// OWN / ENEMY strength profile. Pure math (FrontlineProfileMath); the trait only supplies the
+		// (already gathered, fog-legal) inputs. Avenue geometry is refreshed once per tick.
+		void BuildFrontlineProfile(PlayerControl pc)
+		{
+			var sectorCount = Math.Max(1, Info.FrontlineSectorCount);
+			pc.EnsureProfile(sectorCount);
+
+			FrontlineProfileMath.Accumulate(pc.Score, ownStrengthScratch, enemyStrengthScratch,
+				gridWidth, gridHeight, Info.GrayBand, sectorCount,
+				pc.SectorOwn, pc.SectorEnemy, pc.SectorFrontierEdges);
+
+			pc.ProfileBuilt = true;
+
+			RefreshAvenues(sectorCount);
+		}
+
+		// Map every CrossingMap crossing (intact span cells + repairable destroyed bridges) to the frontier
+		// sector its column opens into. Map-static geometry, so shared across players and rebuilt at most
+		// once per tick. The CrossingMap is resolved lazily on first request from this (participating) path
+		// — @stable / normal / human never opt in, so they never trigger the terrain build (byte-identical).
+		void RefreshAvenues(int sectorCount)
+		{
+			if (avenuesTick == tick)
+				return;
+			avenuesTick = tick;
+
+			avenues.Clear();
+			avenueCellX.Clear();
+
+			if (!crossingMapResolved)
+			{
+				crossingMap = world.WorldActor.TraitOrDefault<CrossingMap>();
+				crossingMapResolved = true;
+			}
+
+			if (crossingMap == null)
+				return;
+
+			foreach (var cell in crossingMap.CrossingCells)
+				AddAvenue(cell, CrossingStatus.Intact, sectorCount);
+
+			foreach (var c in crossingMap.Crossings)
+				AddAvenue(new CPos(c.CellX, c.CellY), c.Status, sectorCount);
+		}
+
+		void AddAvenue(CPos cell, CrossingStatus status, int sectorCount)
+		{
+			var sector = FrontlineProfileMath.SectorOfMapCellX(cell.X, Info.CellSize, gridWidth, sectorCount);
+			avenues.Add(new FrontlineAvenue(cell, status, sector));
+			avenueCellX.Add(cell.X);
 		}
 
 		// --- Helpers ------------------------------------------------------------------
@@ -660,5 +922,72 @@ namespace OpenRA.Mods.Common.Traits
 			var last = f.LastVerified[gx, gy];
 			return last > 0 ? tick - last : int.MaxValue;
 		}
+
+		// ---------- Frontline strength profile query API (Phase 4) ----------
+
+		/// <summary>Opt this player in to the frontline strength profile. Idempotent. Called once by a
+		/// consumer that has its profile flag on (the @experimental offense module) — until at least one
+		/// player opts in, NO profile arrays are built and the whole path is inert (byte-identical for
+		/// @stable / normal / human, which never call this). The profile then rides the player's existing
+		/// per-participant recompute cadence; there is no new timer or ITick work.</summary>
+		public void RequestFrontlineProfile(Player player)
+		{
+			if (player != null)
+				profileEnabled.Add(player);
+		}
+
+		public int FrontlineSectorCount => Math.Max(1, Info.FrontlineSectorCount);
+
+		/// <summary>Has this player's frontline strength profile been built at least once?</summary>
+		public bool HasFrontlineProfile(Player player)
+		{
+			var f = FieldOrNull(player);
+			return f != null && f.ProfileBuilt;
+		}
+
+		/// <summary>The believed strength read for one frontier sector (own/enemy totals + frontier-edge
+		/// count). Reads a zeroed sector (not on the front) when there is no profile / out-of-range sector,
+		/// so an un-consumed path sees an empty, inert profile.</summary>
+		public FrontlineSector SectorProfile(Player player, int sector)
+		{
+			var f = FieldOrNull(player);
+			if (f == null || !f.ProfileBuilt || f.SectorOwn == null || sector < 0 || sector >= f.SectorOwn.Length)
+				return default;
+
+			return new FrontlineSector(f.SectorOwn[sector], f.SectorEnemy[sector], f.SectorFrontierEdges[sector]);
+		}
+
+		/// <summary>The weakest believed-enemy frontier sector (minimum enemy strength among sectors on the
+		/// front), or −1 when no profile exists / no sector carries a frontier. Deterministic tie-break
+		/// (lowest sector index). This is the "which sector is the enemy line thinnest in" read a future
+		/// consumer (Squad Brain / PoiOffensive / LayeredDefence) uses to pick where to push.</summary>
+		public int WeakestEnemySector(Player player)
+		{
+			var f = FieldOrNull(player);
+			if (f == null || !f.ProfileBuilt || f.SectorEnemy == null)
+				return FrontlineProfileMath.NoSector;
+
+			return FrontlineProfileMath.WeakestEnemySector(f.SectorEnemy, f.SectorFrontierEdges, f.SectorEnemy.Length);
+		}
+
+		/// <summary>The avenues (CrossingMap crossings — intact spans + repairable destroyed bridges) that
+		/// open into the given frontier sector. Empty (never null) when the sector has none / no CrossingMap.
+		/// Player-independent (map geometry); pair with <see cref="WeakestEnemySector"/> to answer "which
+		/// avenue serves the weakest sector."</summary>
+		public IReadOnlyList<FrontlineAvenue> AvenuesForSector(int sector)
+		{
+			var result = new List<FrontlineAvenue>();
+			if (sector == FrontlineProfileMath.NoSector)
+				return result;
+
+			foreach (var a in avenues)
+				if (a.Sector == sector)
+					result.Add(a);
+
+			return result;
+		}
+
+		/// <summary>All modelled avenues (crossing → sector), in the deterministic order they were mapped.</summary>
+		public IReadOnlyList<FrontlineAvenue> Avenues => avenues;
 	}
 }
