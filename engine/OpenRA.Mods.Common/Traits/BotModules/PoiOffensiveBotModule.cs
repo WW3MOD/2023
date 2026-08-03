@@ -964,14 +964,27 @@ namespace OpenRA.Mods.Common.Traits
 
 			var hasAmphibiousPool = HasAmphibiousPool();
 
+			int same = 0, intact = 0, repairable = 0, amphib = 0, unreach = 0, typed = 0;
 			var scaled = new List<ScoredPoi>(targets.Count);
 			foreach (var p in targets)
 			{
 				var reach = crossingMap.ClassifyGroundReach(srCell.Value, p.Location);
 				var amphibReachable = crossingMap.AmphibiousReachable(srCell.Value, p.Location);
 
+				switch (reach)
+				{
+					case GroundReach.Same: same++; break;
+					case GroundReach.IntactCrossing: intact++; break;
+					case GroundReach.RepairableCrossing: repairable++; break;
+					case GroundReach.AmphibiousOnly: amphib++; break;
+					default: unreach++; break;
+				}
+
 				if (PoiReachabilityMath.ShouldTypeAmphibious(reach, amphibReachable, hasAmphibiousPool))
+				{
 					amphibiousTargets[p.Actor.ActorID] = true;
+					typed++;
+				}
 
 				var mul = PoiReachabilityMath.ReachabilityFactor(reach, amphibReachable, hasAmphibiousPool,
 					Info.ReachabilityRepairableMultiplier, Info.ReachabilityAmphibiousMultiplier,
@@ -994,6 +1007,10 @@ namespace OpenRA.Mods.Common.Traits
 
 			scaled.Sort((a, b) => PoiScoring.CompareForOrder(a.Score, a.DistanceCells, a.Actor.ActorID,
 				b.Score, b.DistanceCells, b.Actor.ActorID));
+
+			Log.Write("debug", $"[exp-reach] reeval player={player.PlayerName} pois={targets.Count} same={same} " +
+				$"intactCrossing={intact} repairable={repairable} amphibiousOnly={amphib} unreachable={unreach} " +
+				$"amphibTyped={typed} hasAmphibPool={hasAmphibiousPool} tick={world.WorldTick}");
 			return scaled;
 		}
 

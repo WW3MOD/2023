@@ -1,0 +1,1 @@
+frontline-influence Phase 1: @experimental bot on real River Zeta with reachability gating ON. Observation window, then Test.Pass — read debug.log [exp-reach] / [exp-offense] axis lines.
