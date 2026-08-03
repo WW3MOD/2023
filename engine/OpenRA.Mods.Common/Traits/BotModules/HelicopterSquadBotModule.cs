@@ -864,13 +864,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (cargo == null)
 				return;
 
-			// Find idle infantry near base to load
+			// Find idle infantry near base to load. Defense-in-depth: also skip any soldier already committed in
+			// the shared ledger (another transport's boarding walk, a capture/garrison/offense task) so heli
+			// transport and MountedTransport are mutually poach-safe by construction — mirrors
+			// MountedTransportBotModule.BuildFreePool, which likewise selects on more than IsIdle. goalGuard is
+			// null unless CommitTransportPassengers is on, so the extra clause is inert (byte-identical) when off.
 			var infantry = world.ActorsHavingTrait<Mobile>()
 				.Where(a => a.Owner == player
 					&& !a.IsDead && a.IsInWorld
 					&& a.IsIdle
 					&& a.Info.HasTraitInfo<WithInfantryBodyInfo>()
-					&& cargo.Info.Types.Overlaps(a.GetAllTargetTypes()))
+					&& cargo.Info.Types.Overlaps(a.GetAllTargetTypes())
+					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, world.WorldTick)))
 				.Take(cargo.Info.MaxWeight)
 				.ToList();
 
@@ -1017,9 +1022,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (!CommitOnOrderMath.ShouldCommit(Info.CommitTransportPassengers, goalGuard != null && !goalGuard.IsTraitDisabled))
 				return;
 
+			// TTL must outlast the whole boarding window: the load task lives until TransportLoadTimeoutTicks, so
+			// a claim of only DefaultCommitmentTicks (300) would lapse mid-board and a still-walking soldier could
+			// be poached (MountedTransport.BuildFreePool does not require IsIdle). Cover the longer of the two so
+			// the claim holds for as long as the pax might be walking. Released early on dispatch/abort/death.
+			var ttl = Math.Max(goalGuard.DefaultCommitmentTicks, Info.TransportLoadTimeoutTicks);
 			var key = TransportObjectiveKey(task.Transport);
 			foreach (var pax in task.ReservedPassengers)
-				goalGuard.Ledger.Commit(pax, key, world.WorldTick, goalGuard.DefaultCommitmentTicks);
+				goalGuard.Ledger.Commit(pax, key, world.WorldTick, ttl);
 		}
 
 		void ReleaseTaskPassengers(TransportLoadTask task)

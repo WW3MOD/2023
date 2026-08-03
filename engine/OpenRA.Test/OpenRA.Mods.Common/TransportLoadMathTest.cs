@@ -97,6 +97,23 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void PartialLoadStaysWaitingAcrossTheWholeWindow_ThenResolves()
+		{
+			// The window property the ledger claim must cover (NIT-1): a not-yet-full load stays Wait for EVERY
+			// tick in [0, timeout] — the soldiers may be walking the entire time — and only resolves once the
+			// window elapses. So a boarding passenger's ledger commitment must outlast loadTimeoutTicks, not the
+			// shorter default TTL, or it lapses mid-board and becomes poachable.
+			for (var t = 0; t <= Timeout; t++)
+				Assert.That(TransportLoadMath.Decide(2, Min, t, Timeout), Is.EqualTo(TransportLoadDecision.Wait),
+					$"still boarding at tick {t} within the window");
+
+			Assert.That(TransportLoadMath.Decide(2, Min, Timeout + 1, Timeout), Is.EqualTo(TransportLoadDecision.Dispatch),
+				"partial load past the window dispatches");
+			Assert.That(TransportLoadMath.Decide(0, Min, Timeout + 1, Timeout), Is.EqualTo(TransportLoadDecision.Abort),
+				"empty load past the window aborts");
+		}
+
+		[Test]
 		public void DecisionsAreDeterministic()
 		{
 			Assert.That(
