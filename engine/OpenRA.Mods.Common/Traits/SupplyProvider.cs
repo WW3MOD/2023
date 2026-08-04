@@ -579,11 +579,11 @@ namespace OpenRA.Mods.Common.Traits
 		/// every serving cycle, so this is an ordinary occurrence, not a corner case.
 		///
 		/// Note what does NOT stop the trait: leaving the world. ITick traits are not driven from the
-		/// `actors` dict (World.cs:505-506 ticks that only for ACTIVITIES) but through
+		/// `actors` dict (World.cs:496-497 ticks that only for ACTIVITIES) but through
 		/// ApplyToActorsWithTraitTimed&lt;ITick&gt; → TraitDictionary.ApplyToAllTimed
 		/// (TraitDictionary.cs:305-316), which walks the trait container with NO IsInWorld or
 		/// Disposed filter. An actor leaves that container only in Actor.Dispose's frame-end task
-		/// (Actor.cs:468), so a removed-but-not-disposed provider KEEPS TICKING — see the IsInWorld
+		/// (Actor.cs:469), so a removed-but-not-disposed provider KEEPS TICKING — see the IsInWorld
 		/// guard at the top of Tick, which is what actually stops it.
 		///
 		/// Three notifications, because they answer different questions:
