@@ -78,6 +78,33 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Maximum number of active helicopter squads at once.")]
 		public readonly int MaxActiveSquads = 3;
 
+		[Desc("EXPERIMENTAL transport employment (default 0 = frozen): reserved transport-mission slots, so lift",
+			"stops competing with the attack loop for MaxActiveSquads. TryLaunchTransportMission bails on",
+			"`activeSquads.Count >= MaxActiveSquads` but a transport mission never ADDS to activeSquads — so once",
+			"the attack loop holds MaxActiveSquads squads, lift is starved PERMANENTLY while the counter never",
+			"reflects a single transport mission. That asymmetry (not a missing role case — the launcher does",
+			"select Role == Transport) is why bought transports idle at the SR all match. When > 0 the launcher",
+			"uses this reserved slice instead; 0 keeps the frozen shared-budget gate ⇒ byte-identical.")]
+		public readonly int TransportMissionSlots = 0;
+
+		[Desc("EXPERIMENTAL transport employment (default false = frozen): USE-OR-EVAC. A transport heli that has",
+			"been idle past TransportIdleEvacuateTicks with no lift it can fly — no load waiting, no free mission",
+			"slot, or not mission-READY (a chip-damaged transport can never be picked: ReEngageHealthPercent is 90",
+			"and there is no AI repair host) — is evacuated to reserves, banking",
+			"its salvage refund and ending its upkeep drain, instead of parking at the Supply Route for the rest",
+			"of the match. Terminal by design — no hold-and-recheck. Independent of EvacuateWhenIdle, which covers",
+			"only the ATTACK roles (the idle evaluator's role filter admits AttackHeavy/AttackLight and skips",
+			"Transport entirely, so nothing ever retired a transport). OFF by default so @stable is byte-identical.")]
+		public readonly bool EvacuateIdleTransports = false;
+
+		[Desc("Consecutive idle ticks a transport heli must sit with no flyable lift before it is evacuated to",
+			"reserves. Only used when EvacuateIdleTransports is set; 0 disables the evac branch.",
+			"CONFIG COUPLING: 'flyable' means the reserved-slice launcher could take it, so with",
+			"TransportMissionSlots at 0 (the frozen shared-budget launcher) Employ is UNREACHABLE — every",
+			"transport evacuates at this window even when the frozen launcher could have flown it. Set both",
+			"together, or neither.")]
+		public readonly int TransportIdleEvacuateTicks = 900;
+
 		[Desc("Ticks between checking helicopter pool for new assignments.")]
 		public readonly int ScanInterval = 100;
 
@@ -506,9 +533,11 @@ namespace OpenRA.Mods.Common.Traits
 			// edge). Predicate-based ⇒ iteration-order-independent. No-op when the flag is off.
 			evacuating.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
 
-			// Drop dead/gone transports from the awaiting-unload tracker (EnsureTransportsUnload also prunes,
-			// but keep the hygiene at the same choke point as the other sets). No-op when none are tracked.
-			transportsAwaitingUnload.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
+			// Drop dead/gone/DISOWNED transports from the awaiting-unload tracker (EnsureTransportsUnload also
+			// prunes, but keep the hygiene at the same choke point as the other sets). The owner clause mirrors
+			// AdvanceTransportTasks: a captured transport we keep tracking would pin a reserved mission slot
+			// (ActiveTransportMissions) for the rest of the match. No-op when none are tracked.
+			transportsAwaitingUnload.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld || a.Owner != player);
 
 			// Drop dead/gone transports mid-load: release any ledger commitment for their reserved passengers
 			// (so a soldier that survived the heli's death re-enters offense's free pool) and forget the task.
@@ -887,9 +916,22 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// Transport missions in flight right now: staged-to-load plus dispatched-awaiting-unload. This is the
+		// occupancy the reserved slice is measured against (a plain count ⇒ order-independent).
+		int ActiveTransportMissions => transportTasks.Count + transportsAwaitingUnload.Count;
+
 		void TryLaunchTransportMission()
 		{
-			if (activeSquads.Count >= Info.MaxActiveSquads)
+			// STARVATION FIX (experimental, TransportMissionSlots > 0). The frozen gate below shares
+			// MaxActiveSquads with the attack loop, yet a transport mission never increments activeSquads —
+			// so three live attack squads block lift forever and the transports we bought never fly. The
+			// reserved slice bounds transport missions against their OWN occupancy instead. 0 ⇒ frozen path.
+			if (Info.TransportMissionSlots > 0)
+			{
+				if (!TransportEmploymentMath.MissionSlotAvailable(ActiveTransportMissions, Info.TransportMissionSlots))
+					return;
+			}
+			else if (activeSquads.Count >= Info.MaxActiveSquads)
 				return;
 
 			if (squadManagerRef == null)
@@ -1174,7 +1216,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var h in transportsAwaitingUnload.OrderBy(a => a.ActorID).ToList())
 			{
-				if (h == null || h.IsDead || !h.IsInWorld)
+				// Owner check mirrors AdvanceTransportTasks: a CAPTURED transport is no longer ours to order,
+				// and leaving it tracked would pin a reserved mission slot (ActiveTransportMissions) forever.
+				if (h == null || h.IsDead || !h.IsInWorld || h.Owner != player)
 				{
 					transportsAwaitingUnload.Remove(h);
 					continue;
@@ -1254,7 +1298,10 @@ namespace OpenRA.Mods.Common.Traits
 		// ordered iteration, ZERO random draws. Fully skipped (byte-identical) when the flag is off.
 		void EvaluateIdleHelicopters()
 		{
-			if (!Info.EvacuateWhenIdle || managedHelicopters.Count == 0)
+			// Two independent policies share this walk: EvacuateWhenIdle retires spent/target-less ATTACK helis,
+			// EvacuateIdleTransports retires unemployable TRANSPORTS (use-or-evac). Either alone is enough to
+			// enter; neither ⇒ frozen, byte-identical.
+			if ((!Info.EvacuateWhenIdle && !Info.EvacuateIdleTransports) || managedHelicopters.Count == 0)
 				return;
 
 			// Latch first contact: once the belief store has EVER held an enemy contact, the target-less
@@ -1281,6 +1328,20 @@ namespace OpenRA.Mods.Common.Traits
 				if (role == null)
 					continue;
 				var r = role.Info.Role;
+
+				// Transports run the use-or-evac policy on their own flag/window; attack helis run the
+				// hit-and-run employment policy. Scouts are claimed by neither and stay untouched. Before
+				// this branch existed the filter admitted ONLY the two attack roles, so a transport could
+				// never be retired at all — the confirmed half of the idle-transport bug.
+				if (r == HelicopterAIRole.Transport)
+				{
+					EvaluateIdleTransport(h);
+					continue;
+				}
+
+				if (!Info.EvacuateWhenIdle)
+					continue;
+
 				if (r != HelicopterAIRole.AttackHeavy && r != HelicopterAIRole.AttackLight)
 					continue;
 
@@ -1305,6 +1366,85 @@ namespace OpenRA.Mods.Common.Traits
 					== HeliDisposition.Evacuate)
 					Evacuate(h);
 			}
+		}
+
+		// USE-OR-EVAC for a transport heli (experimental, EvacuateIdleTransports). A transport that cannot be
+		// employed — no full minimum load waiting, no reserved mission slot to fly it in, or not mission-READY
+		// — is idle capital parked in a warzone. Past the patience window it evacuates to reserves, banking the
+		// salvage refund (RotateToEdge → GetSellValue) and ending its upkeep drain. Terminal: no hold-and-recheck.
+		// Employment always outranks retirement (TransportEmploymentMath.Decide), so a transport that could fly
+		// a lift this instant is held for TryLaunchTransportMission rather than refunded.
+		void EvaluateIdleTransport(Actor h)
+		{
+			if (!Info.EvacuateIdleTransports)
+				return;
+
+			// Mid-load or mid-delivery is employment, not idleness — reset the counter and leave the mission
+			// chain alone. (CleanUpHelicopters keeps these two sets pruned at the same choke point.)
+			if (transportTasks.ContainsKey(h) || transportsAwaitingUnload.Contains(h))
+			{
+				idleTicks[h] = 0;
+				return;
+			}
+
+			if (!h.IsIdle)
+			{
+				idleTicks[h] = 0;
+				return;
+			}
+
+			var ticks = (idleTicks.TryGetValue(h, out var t) ? t : 0) + 1;
+			idleTicks[h] = ticks;
+
+			var cargo = h.TraitOrDefault<Cargo>();
+			var hasDemand = cargo != null
+				&& TransportEmploymentMath.HasLiftDemand(CountLiftCandidates(cargo), Info.TransportMinInfantry);
+			var slotFree = TransportEmploymentMath.MissionSlotAvailable(ActiveTransportMissions, Info.TransportMissionSlots);
+
+			// INVARIANT: Employ must imply ACTUALLY-LAUNCHABLE. This proxy has to apply every gate the executor
+			// (TryLaunchTransportMission) applies, or it can report Employ for a transport the launcher will
+			// never pick — and because Employ shadows Evacuate, that pins the airframe at the SR forever, which
+			// is the very symptom this behaviour exists to fix. The gate that bites in practice is
+			// IsReadyForMission's health check: TRAN/HALO ship ReEngageHealthPercent 90 and there is no AI
+			// repair host, so a chip-damaged transport is permanently unpickable. Folding it into the demand
+			// argument (rather than into TransportEmploymentMath, which stays pure and world-free) makes an
+			// unlaunchable transport fall through to the evac window — it retires, and the demand gate then
+			// authorises a healthy replacement.
+			// ACCEPTED RESIDUAL: the launcher's dropZone.HasValue precondition is NOT folded in. It is
+			// transient in a live game (the drop-site picker recovers as the threat map fills), so treating it
+			// as unlaunchable would evac transports over a momentary gap.
+			var launchable = IsReadyForMission(h);
+
+			if (TransportEmploymentMath.Decide(ticks, Info.TransportIdleEvacuateTicks, hasDemand && launchable, slotFree)
+				== TransportDisposition.Evacuate)
+				Evacuate(h);
+		}
+
+		// Infantry available and willing to ride this airframe — the LIFT DEMAND signal. Mirrors the candidate
+		// filter TryLaunchTransportMission loads from, so the demand test and the mission it predicts agree.
+		// Returns a capped COUNT, so world iteration order cannot affect it (determinism invariant).
+		int CountLiftCandidates(Cargo cargo)
+		{
+			var count = 0;
+			foreach (var a in world.ActorsHavingTrait<Mobile>())
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld || !a.IsIdle)
+					continue;
+
+				if (!a.Info.HasTraitInfo<WithInfantryBodyInfo>())
+					continue;
+
+				if (!cargo.Info.Types.Overlaps(a.GetAllTargetTypes()))
+					continue;
+
+				if (goalGuard != null && goalGuard.Ledger.IsCommitted(a, world.WorldTick))
+					continue;
+
+				if (++count >= cargo.Info.MaxWeight)
+					break;
+			}
+
+			return count;
 		}
 
 		// True if the heli still has a usable round in any pool. A heli carrying no AmmoPool at all is

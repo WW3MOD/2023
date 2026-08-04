@@ -73,6 +73,30 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Extra gated AA units permitted per observed enemy aircraft.")]
 		public readonly int AntiAirPerObservedAir = 1;
 
+		[Desc("EXPERIMENTAL (early-econ behaviour 3): don't call in a TRANSPORT (a carrier with no weapon,",
+			"e.g. the tran/halo transport helicopter) unless there is real LIFT DEMAND — infantry actually",
+			"available and waiting for a ride — and no idle transport we already own can serve it. The frozen",
+			"path buys transports on a flat lottery weight with no demand test at all, so they are called in",
+			"during the opening and then park at the Supply Route for the whole match (River Zeta issue 4).",
+			"NOTE — 'idle transport we already own' is the raw IsIdle test, NOT a launchability test: a",
+			"chip-damaged transport the squad launcher can never pick still counts as spare capacity here and",
+			"so defers a replacement buy. That is bounded, not permanent — the squad module's use-or-evac",
+			"(EvacuateIdleTransports) retires the unlaunchable airframe at its idle window, owned drops, and",
+			"this gate then authorises the replacement. Without that counterpart flag the deferral IS permanent.",
+			"Composes with CompositionDirected rather than fighting it: helicopter pools stay deliberately",
+			"absent from UnitTargetShares (deferred to their own builder twins) and this gate is applied at",
+			"BOTH post-pick sites, so it behaves identically whether the pick came from the deficit picker or",
+			"the legacy lottery. Default false ⇒ frozen production, byte-identical for normal/rush/turtle/stable.")]
+		public readonly bool GateTransportOnDemand = false;
+
+		[Desc("Transport actor types gated by GateTransportOnDemand (e.g. tran, halo). Inert unless that flag is set.")]
+		public readonly HashSet<string> TransportUnitTypes = new HashSet<string>();
+
+		[Desc("Passengers a transport mission needs before lift demand counts as real. Should match the consuming",
+			"squad module's TransportMinInfantry — a stray rifleman is not a reason to call in an airframe.",
+			"Only used when GateTransportOnDemand is set.")]
+		public readonly int TransportMinPassengers = 4;
+
 		[Desc("EXPERIMENTAL (composition-directed purchasing): replace the ground-unit LOTTERY with a",
 			"census-vs-target deficit pick. The frozen path buys uniformly at random (idleUnitCount stays 0",
 			"under IgnoreGroundUnits, so buildRandom is always true), which makes the STANDING composition",
@@ -124,6 +148,7 @@ namespace OpenRA.Mods.Common.Traits
 			ActorNameCase.NormalizeKeysInPlace(UnitDelays);
 			ActorNameCase.NormalizeInPlace(ResupplyUnitTypes);
 			ActorNameCase.NormalizeInPlace(AntiAirUnitTypes);
+			ActorNameCase.NormalizeInPlace(TransportUnitTypes);
 
 			// UnitTargetShares is keyed by actor name and compared against Info.Name (always lowercase, see
 			// conventions.md) — the same case-mismatch trap the sets above are hardened against. UnitRoles
@@ -378,6 +403,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())
 				return;
 
+			if (Info.GateTransportOnDemand && Info.TransportUnitTypes.Contains(name) && !ShouldBuyTransport(unit))
+				return;
+
 			bot.QueueOrder(Order.StartProduction(queue.Actor, name, 1));
 		}
 
@@ -415,6 +443,70 @@ namespace OpenRA.Mods.Common.Traits
 
 			return AntiAirDemand.ShouldBuildMore(owned, CountObservedEnemyAir(),
 				Info.AntiAirBaseline, Info.AntiAirPerObservedAir);
+		}
+
+		// Behaviour 3: is calling in one more transport justified? Refuses unless there is a full minimum
+		// load of infantry actually waiting AND no idle transport we already own could carry them
+		// (transports-first). The decision itself lives in TransportEmploymentMath; this only samples world
+		// state. Both counts are ORDER-INDEPENDENT (plain sums over a filter, and the candidate tally is
+		// capped at the airframe's own MaxWeight), so world.Actors' iteration order cannot leak into the
+		// decision — the determinism invariant the byte-identity argument rests on.
+		bool ShouldBuyTransport(ActorInfo transportInfo)
+		{
+			// A gated type that carries nothing has no lift-demand model — leave the frozen decision alone
+			// rather than silently banning it.
+			var cargo = transportInfo.TraitInfoOrDefault<CargoInfo>();
+			if (cargo == null)
+				return true;
+
+			var owned = 0;
+			var idle = 0;
+			foreach (var a in world.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+
+				if (!Info.TransportUnitTypes.Contains(a.Info.Name))
+					continue;
+
+				owned++;
+
+				// A transport mid-load or mid-delivery is NOT spare capacity; only a genuinely idle one
+				// counts against the transports-first test.
+				if (a.IsIdle)
+					idle++;
+			}
+
+			var candidates = 0;
+			foreach (var a in world.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld || !a.IsIdle)
+					continue;
+
+				if (!a.Info.HasTraitInfo<Render.WithInfantryBodyInfo>() || !a.Info.HasTraitInfo<MobileInfo>())
+					continue;
+
+				if (!cargo.Types.Overlaps(a.GetAllTargetTypes()))
+					continue;
+
+				if (++candidates >= cargo.MaxWeight)
+					break;
+			}
+
+			// Reuse the configured per-type ceiling as the transport cap. NOTE what this does and does NOT buy:
+			// UnitLimits counts WORLD ACTORS only, so a call-in still sitting in the production queue is
+			// invisible to it — and this cap inherits exactly that blind spot. It is therefore not what stops a
+			// concurrent second call-in. UnitDelays does not either: it is an ABSOLUTE world-tick opening
+			// threshold, not a repeat cooldown. The real serializer is BuildUnit's empty-queue precondition
+			// (it only picks a queue with nothing already queued), and with one Aircraft queue per Supply Route
+			// that admits no second simultaneous call-in; once ProductionFromMapEdge spawns the unit into the
+			// world, UnitLimits bounds the rest. The residual is multi-SR (a second captured SR = a second
+			// queue), and it is bounded by UnitLimits at spawn. 0 ⇒ no ceiling configured.
+			var cap = 0;
+			if (Info.UnitLimits != null && Info.UnitLimits.TryGetValue(transportInfo.Name, out var limit))
+				cap = limit;
+
+			return TransportEmploymentMath.ShouldBuy(owned, cap, idle, candidates, Info.TransportMinPassengers);
 		}
 
 		// Fog-legal enemy-air count: only aircraft the player can currently VIEW (no omniscient read).
@@ -729,6 +821,9 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			if (Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())
+				return false;
+
+			if (Info.GateTransportOnDemand && Info.TransportUnitTypes.Contains(name) && !ShouldBuyTransport(actorInfo))
 				return false;
 
 			if (!CompositionNeedMath.Affordable(budget, UnitCost(actorInfo), 100))
