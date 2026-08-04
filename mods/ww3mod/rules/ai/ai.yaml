@@ -482,6 +482,19 @@ Player:
 		RetreatDamperEnabled: true
 		RetreatReadvanceDwellEvals: 3
 		MinAdvanceStrength: 1200
+		# Wave B: cap the MinAdvanceStrength hold. That floor is an absolute value on the health-weighted build
+		# scale, so an axis the allocator only funds to 2-3 hulls could never clear 1200 and parked in the rear
+		# bubble for the whole match. The gate now also requires the axis to still be RECEIVING its allocated
+		# force (engine-side fill-completion reshape), and this caps even that at 6 consecutive evals so a
+		# starved axis always advances eventually. 0 = uncapped. Default 0 on the @stable twin.
+		MaxAdvanceHoldEvals: 6
+		# Wave B SHORAD line-fold — STAGED BUT OFF, deliberately, even here. ShortRangeAD units are bought by
+		# AdaptiveProductionBotModule and then owned by no ground movement module (dropped by role from this
+		# module / PoiGarrison / LayeredDefence; strykershorad is also caught by the troop-carrier exclusion and
+		# is absent from MountedTransport's CarrierTypes), so they stand at the SR all match. Enabling this folds
+		# them into the offense pool — but that moves the air cover off the rear and onto the push, which is a
+		# doctrine A/B (WORKSPACE/ai-bench/), not a bug fix. Flip to true only under a measured run.
+		FoldShortRangeAdIntoLine: false
 		# PHASE 4 (frontline-influence) — FRONTLINE STRENGTH PROFILE (sensor only). Opts this @experimental
 		# player in to the ControlField's per-frontier-sector believed OWN-vs-ENEMY strength profile + avenue
 		# (CrossingMap crossing) mapping, so a later consumer can ask "which frontier sector is the enemy line

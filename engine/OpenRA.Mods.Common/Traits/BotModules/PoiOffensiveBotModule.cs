@@ -126,6 +126,15 @@ namespace OpenRA.Mods.Common.Traits
 			"legacy AmmoPool.AutoRearm reading). Only read when EvacuateOutOfAmmoUnits.")]
 		public readonly int OutOfAmmoRearmSeekRadiusCells = 0;
 
+		[Desc("WAVE B (@experimental, and OFF even there) SHORAD LINE-FOLD. Admits ShortRangeAD units to the offense",
+			"free pool. Without it a mobile AA vehicle is bought by AdaptiveProductionBotModule and then owned by",
+			"NOBODY: the role filter drops it from this module, PoiGarrisonBotModule and LayeredDefenceBotModule,",
+			"strykershorad is additionally caught by the troop-carrier exclusion (it has a Cargo bay) and it is not",
+			"in MountedTransportBotModule's CarrierTypes — so it stands at the Supply Route all match. Requires",
+			"UseUnitRoles (the name-list path has no role concept). Shipped OFF in @experimental too: putting the air",
+			"defence on the attack axis moves the air cover off the rear, which is a doctrine A/B rather than a fix.")]
+		public readonly bool FoldShortRangeAdIntoLine = false;
+
 		[Desc("Master switch for the dispersion doctrine (spread to move, mass to assault). OFF by",
 			"default so the frozen Stable/Normal controls keep the pre-dispersion behaviour untouched;",
 			"only PoiOffensiveBotModule@experimental turns it on. When off, no SetCohesion is issued.")]
@@ -520,6 +529,13 @@ namespace OpenRA.Mods.Common.Traits
 			"when RetreatDamperEnabled.")]
 		public readonly int MinAdvanceStrength = 0;
 
+		[Desc("WAVE B: cap (in re-evals) on how long the MinAdvanceStrength gate may hold one axis massing in the",
+			"rear. The backstop behind the fill-completion reshape: an axis whose allocated force never fully",
+			"arrives (the pool ran dry, NoReinforceLostFights is starving it) would otherwise hold indefinitely,",
+			"which is the units-pooling symptom the reshape removes. After this many consecutive held evals the axis",
+			"advances regardless. 0 = UNCAPPED (the pre-reshape reading). Only read when RetreatDamperEnabled.")]
+		public readonly int MaxAdvanceHoldEvals = 0;
+
 		[Desc("PHASE 4 (@experimental) FRONTLINE STRENGTH PROFILE (sensor only — no order-issuing change).",
 			"Opts this player in to the ControlField's per-frontier-sector believed OWN-vs-ENEMY strength",
 			"profile + avenue (crossing) mapping, so a future consumer can ask 'which frontier sector is the",
@@ -724,6 +740,14 @@ namespace OpenRA.Mods.Common.Traits
 			// of the rally this eval (the "still massing in the rear" gate for the advance-strength floor).
 			public int ReadvanceHold;
 			public bool NearRally;
+
+			// Wave B fill-completion damper. AllocatedSize is the unit count the allocator gave this axis THIS eval
+			// (written in the balance pass, read by the strength gate): the strength floor now means "wait until your
+			// allocated force has arrived", not "wait until you are absolutely strong", so it terminates. FillHoldEvals
+			// counts consecutive evals the damper has held this axis, capped by MaxAdvanceHoldEvals so a starved axis
+			// still eventually advances. Both 0/unread unless RetreatDamperEnabled.
+			public int AllocatedSize;
+			public int FillHoldEvals;
 
 			public readonly List<Actor> Units = new();
 
@@ -1156,6 +1180,11 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var axis = orderedAxes[i];
 				var want = sizes[i];
+
+				// Wave B: record the allocation so the damper's strength gate can read "has my allocated force
+				// arrived yet?" instead of an absolute bar it may never clear. Written unconditionally (cheap, and
+				// the field is only READ under RetreatDamperEnabled ⇒ byte-identical when the damper is off).
+				axis.AllocatedSize = want;
 
 				if (axis.Units.Count > want)
 				{
@@ -1758,6 +1787,17 @@ namespace OpenRA.Mods.Common.Traits
 				(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
 				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight);
 
+			// WAVE B SELF-SEED GUARD. The descent seed is this axis's OWN centroid, so on a flat/unpopulated field
+			// (no improving neighbour) StagingCell returns the seed back — and returning that as a muster anchor made
+			// the caller order the axis to fall back to where it already stands. That is a no-op order that ALSO
+			// swallows the `?? stagingAnchor ?? rallyCell` fall-back chain (the coalesce never fires on a non-null
+			// return), so a held axis froze in place; near the SR that is exactly the units-pooling symptom.
+			// Returning null instead hands the decision back to that chain. Compared in GRID space on purpose:
+			// GridCellToMapCell yields the grid cell CENTRE, so a map-space round-trip only reproduces the seed for
+			// odd coordinates and would miss the no-move case on even ones.
+			if (agx == sgx && agy == sgy)
+				return null;
+
 			return controlField.GridCellToMapCell(agx, agy);
 		}
 
@@ -1856,6 +1896,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.UseUnitRoles && resolver != null)
 			{
 				var role = resolver.GetRole(a);
+
+				// WAVE B SHORAD LINE-FOLD. AdaptiveProductionBotModule BUYS ShortRangeAD (its AntiAirRoles set is
+				// exactly {ShortRangeAD}) but no ground movement module will take one: the role filter below drops it
+				// here, in PoiGarrisonBotModule and in LayeredDefenceBotModule alike, and strykershorad is ALSO caught
+				// by the troop-carrier term (Cargo MaxWeight 9) while not appearing in MountedTransportBotModule's
+				// CarrierTypes — so nothing owns it and it stands at the Supply Route for the match. Folding it into
+				// the line pool gives the air defence something to escort and removes that pool of parked hulls.
+				// Deliberately bypasses the carrier term too, since for SHORAD the Cargo bay is incidental, not its
+				// job. DEFAULT OFF — off even in @experimental — because SHORAD on an offensive axis trades air cover
+				// over the rear for air cover over the push; that is a doctrine call to A/B, not a bug fix.
+				if (Info.FoldShortRangeAdIntoLine && role == UnitRole.ShortRangeAD)
+					return true;
+
 				return (role == UnitRole.MainBattle || role == UnitRole.IndirectFire)
 					&& !UnitRoleResolver.IsTroopCarrier(a.Info);
 			}
@@ -2053,12 +2106,21 @@ namespace OpenRA.Mods.Common.Traits
 			//   (a) post-retreat DWELL — an axis that JUST completed a retreat (ReadvanceHold > 0) waits before it
 			//       re-advances on the same target, converting the small-axis advance/lose/retreat ping-pong into
 			//       hold-then-push-as-a-group.
-			//   (b) advance-STRENGTH floor — an axis still massing near the rally (NearRally) whose own force is
-			//       below MinAdvanceStrength holds/merges rather than trickling 2-3 units forward into the enemy.
+			//   (b) advance-STRENGTH floor, in Wave B FILL-COMPLETION form — an axis still massing near the rally
+			//       (NearRally) below MinAdvanceStrength holds only while the force ALLOCATED to it has not all
+			//       arrived, and only for MaxAdvanceHoldEvals evals. As an absolute bar this gate could never be
+			//       cleared by an axis the allocator funds to 2-3 hulls, so it parked them in the rear all match.
 			// Held at the forward staging anchor when Phase-2 staging is on (off the SR road), else the rally cell.
 			// Reuses OrderRetreat's gated grouped AttackMove; runs BEFORE the mission-commitment snapshot + RETURNS,
 			// so a damped axis is never marked Committed (same discipline as the retreat above). Inert when off.
-			if (Info.RetreatDamperEnabled && rallyCell.HasValue && DamperShouldHold(axis))
+			var damperHold = Info.RetreatDamperEnabled && rallyCell.HasValue && DamperShouldHold(axis);
+
+			// Step the consecutive-hold counter the eval cap reads. Done on every pass (not only when holding) so a
+			// released axis resets its budget; the predicate itself stays side-effect-free.
+			if (Info.RetreatDamperEnabled)
+				axis.FillHoldEvals = RetreatDamperMath.StepFillHold(axis.FillHoldEvals, damperHold);
+
+			if (damperHold)
 			{
 				OrderRetreat(bot, axis, ResolveMusterAnchor(axis) ?? stagingAnchor ?? rallyCell.Value, tick);
 				return;
@@ -2871,6 +2933,7 @@ namespace OpenRA.Mods.Common.Traits
 					axis.LosingStreak = 0;
 					axis.ReadvanceHold = 0;
 					axis.NearRally = false;
+					axis.FillHoldEvals = 0;
 					continue;
 				}
 
@@ -2897,6 +2960,12 @@ namespace OpenRA.Mods.Common.Traits
 					axis.ReadvanceHold = RetreatDamperMath.StepReadvanceHold(
 						axis.ReadvanceHold, prev, decision, Info.RetreatReadvanceDwellEvals);
 					axis.NearRally = safe;
+
+					// A retreating axis is owned by the retreat path and never reaches the damper gate, so its
+					// massing budget is reset here — otherwise a stale count would carry into the post-retreat
+					// re-advance (the dwell owns that window).
+					if (decision == RetreatDecision.Retreating)
+						axis.FillHoldEvals = 0;
 				}
 
 				if (decision == RetreatDecision.Retreating)
@@ -2912,9 +2981,13 @@ namespace OpenRA.Mods.Common.Traits
 		// and no longer depends on the caller's retreat gate running first (NIT-3). (a) post-retreat dwell or
 		// (b) a sub-strength axis still massing near the rally holds; an axis already forward is never yanked back
 		// merely for being small. Zero RNG.
+		// Wave B: the strength gate is now FILL-COMPLETION — it holds only while the force ALLOCATED to this axis has
+		// not all arrived, and only for MaxAdvanceHoldEvals evals. As an absolute bar it could never be satisfied by a
+		// small axis, so it parked units in the rear for the whole match.
 		bool DamperShouldHold(Axis axis)
 			=> RetreatDamperMath.ShouldHold(axis.Retreat, axis.ReadvanceHold, axis.NearRally,
-				OwnAxisStrength(axis), Info.MinAdvanceStrength);
+				OwnAxisStrength(axis), Info.MinAdvanceStrength, axis.Units.Count, axis.AllocatedSize,
+				axis.FillHoldEvals, Info.MaxAdvanceHoldEvals);
 
 		// Phase 5: should this axis HOLD because the sector it STANDS IN reads too strong? Reads the believed
 		// per-sector profile (own vs enemy strength + front presence) and delegates the ratio test to the pure
