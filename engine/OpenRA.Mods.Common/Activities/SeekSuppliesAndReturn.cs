@@ -60,25 +60,27 @@ namespace OpenRA.Mods.Common.Activities
 			move = self.Trait<IMove>();
 			moveInfo = self.Info.TraitInfo<IMoveInfo>();
 
-			var rearmable = self.TraitOrDefault<Rearmable>();
-			pools = rearmable != null
-				? rearmable.RearmableAmmoPools.ToArray()
-				: self.TraitsImplementing<AmmoPool>().ToArray();
+			// Only ever queued by AutoSeekSupplies, which requires Rearmable — a provider will not
+			// select a unit without it, so there is no meaningful supply run for such a unit.
+			pools = self.Trait<Rearmable>().RearmableAmmoPools.ToArray();
 
 			// Captured once, at hunt start — the cell to come back to. Read now rather than on
 			// arrival, since by then the unit is standing next to the truck.
 			origin = self.Location;
 
 			this.provider = provider;
-			providerTrait = provider.TraitOrDefault<SupplyProvider>();
+			providerTrait = provider.Trait<SupplyProvider>();
 		}
 
-		bool ProviderUsable()
+		/// <summary>
+		/// Exactly the test the seeker's scan used to pick this provider, re-asked every tick — so a
+		/// truck that pauses, drains, or turns for home releases us immediately instead of stranding
+		/// us in the aura until the stall guard expires. Symmetry by construction: one predicate,
+		/// both sides.
+		/// </summary>
+		bool ProviderUsable(Actor self)
 		{
-			if (provider == null || provider.IsDead || !provider.IsInWorld || providerTrait == null)
-				return false;
-
-			return !providerTrait.CountsAsEmpty && !providerTrait.IsTraitDisabled;
+			return AutoSeekSupplies.CanServe(self, provider);
 		}
 
 		bool Replenished()
@@ -100,7 +102,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling)
 				return true;
 
-			var providerUsable = ProviderUsable();
+			var providerUsable = ProviderUsable(self);
 			var inAura = providerUsable &&
 				SupplyProvider.InAuraRange(provider.CenterPosition, self.CenterPosition, providerTrait.Info.Range);
 

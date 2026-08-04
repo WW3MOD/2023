@@ -92,6 +92,30 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new SupplyProvider(init, this); }
 	}
 
+	/// <summary>
+	/// What a provider may do with the target it is currently holding, this tick. Produced by
+	/// <see cref="SupplyProvider.DecideServe"/> and consumed by both the delivery path and the
+	/// condition tracker, so the two cannot disagree about whether a target is being served.
+	/// </summary>
+	public readonly struct SupplyServeDecision
+	{
+		/// <summary>Ammo may be handed over now.</summary>
+		public readonly bool Deliver;
+
+		/// <summary>The RearmCondition should be granted to the target.</summary>
+		public readonly bool HoldCondition;
+
+		/// <summary>The target stays selected even when it cannot be served yet.</summary>
+		public readonly bool KeepTarget;
+
+		public SupplyServeDecision(bool deliver, bool holdCondition, bool keepTarget)
+		{
+			Deliver = deliver;
+			HoldCondition = holdCondition;
+			KeepTarget = keepTarget;
+		}
+	}
+
 	public class SupplyProvider : PausableConditionalTrait<SupplyProviderInfo>, ITick,
 		ITransformActorInitModifier, ISelectionBar, ICargoCanLoadFilter
 	{
@@ -206,6 +230,12 @@ namespace OpenRA.Mods.Common.Traits
 				scanTicks = Info.ScanInterval;
 				UpdateTarget();
 			}
+
+			// Keep the rearm condition tracking aura membership every tick. This CANNOT live on
+			// SetTarget's target-change edge: SetTarget early-returns when the target is unchanged,
+			// so a target that leaves (or enters) the aura while still selected would never be
+			// re-evaluated, and the condition would latch.
+			SyncTargetCondition();
 
 			// Resupply current target
 			if (currentTarget != null)
@@ -451,9 +481,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Sheltered passengers in garrison buildings aren't in the world; their
 			// CenterPosition is stale. The building they're inside is, by definition,
-			// already in range — so skip move-toward and skip granting the rearm
-			// condition (invisible anyway, and would leak if the soldier later
-			// deploys to a port before our next ResupplyTarget tick).
+			// already in range — so skip move-toward for them.
 			if (currentTarget != null && currentTarget.IsInWorld)
 			{
 				// If target is out of range (Hunt mode found a distant flagged unit), move toward it
@@ -466,18 +494,50 @@ namespace OpenRA.Mods.Common.Traits
 						self.QueueActivity(false, move.MoveTo(targetCell, 2));
 					}
 				}
-
-				// Grant condition to new target
-				if (!string.IsNullOrEmpty(Info.RearmCondition))
-				{
-					targetConditionTrait = currentTarget.TraitsImplementing<ExternalCondition>()
-						.FirstOrDefault(e => e.Info.Condition == Info.RearmCondition);
-					if (targetConditionTrait != null)
-						conditionToken = targetConditionTrait.GrantCondition(currentTarget, this);
-				}
 			}
 
+			// The rearm condition is NOT granted here. Granting on the target-change edge is what
+			// let it latch on an out-of-aura target: this method early-returns when the target is
+			// unchanged, so it never gets a second look. SyncTargetCondition owns the whole
+			// grant/revoke lifecycle and re-evaluates every tick.
 			rearmTicks = Info.RearmDelay;
+		}
+
+		/// <summary>
+		/// Grants or revokes the rearm condition so it tracks aura membership, re-evaluated every
+		/// tick for as long as the target is held. Out of the aura the condition comes off — it
+		/// enables the target's own ReloadAmmoPool trickle, which has no range check of its own —
+		/// and goes back on when the target enters the aura, without the target ever being dropped.
+		/// </summary>
+		void SyncTargetCondition()
+		{
+			if (currentTarget == null || currentTarget.IsDead)
+			{
+				RevokeTargetCondition();
+				return;
+			}
+
+			if (string.IsNullOrEmpty(Info.RearmCondition))
+				return;
+
+			var inWorld = currentTarget.IsInWorld;
+			var inAura = inWorld && InAuraRange(self.CenterPosition, currentTarget.CenterPosition, Info.Range);
+			var shouldHold = DecideServe(inWorld, inAura).HoldCondition;
+			var held = conditionToken != Actor.InvalidConditionToken;
+
+			if (shouldHold == held)
+				return;
+
+			if (!shouldHold)
+			{
+				RevokeTargetCondition();
+				return;
+			}
+
+			targetConditionTrait = currentTarget.TraitsImplementing<ExternalCondition>()
+				.FirstOrDefault(e => e.Info.Condition == Info.RearmCondition);
+			if (targetConditionTrait != null)
+				conditionToken = targetConditionTrait.GrantCondition(currentTarget, this);
 		}
 
 		void RevokeTargetCondition()
@@ -518,11 +578,15 @@ namespace OpenRA.Mods.Common.Traits
 			// the Hunt branch in UpdateTarget picks a flagged unit anywhere on the map and SetTarget
 			// only *starts* driving toward it — and a selected target can also walk out of the aura
 			// during the RearmDelay wait. Without this gate GiveAmmo fires at any distance.
-			// Sheltered garrison passengers are exempt: they are !IsInWorld with a stale
-			// CenterPosition, and their building was in range when they were picked (see SetTarget).
-			if (currentTarget.IsInWorld && !InAuraRange(self.CenterPosition, currentTarget.CenterPosition, Info.Range))
+			var inWorld = currentTarget.IsInWorld;
+			var decision = DecideServe(inWorld,
+				inWorld && InAuraRange(self.CenterPosition, currentTarget.CenterPosition, Info.Range));
+
+			if (!decision.Deliver)
 			{
-				// Keep the target so an approaching provider serves it on arrival; just don't deliver yet.
+				// Keep the target so an approaching provider serves it on arrival; just don't deliver
+				// yet. SyncTargetCondition has already taken the rearm condition off, and puts it
+				// back the tick we arrive.
 				rearmTicks = Info.RearmDelay;
 				return;
 			}
@@ -705,6 +769,69 @@ namespace OpenRA.Mods.Common.Traits
 		bool ICargoCanLoadFilter.CanLoadPassenger(Actor self, Actor passenger)
 		{
 			return currentSupply > 0;
+		}
+
+		/// <summary>
+		/// The whole per-tick "what may I do with this target" rule, kept pure so both the delivery
+		/// path and the condition tracker read it from one place.
+		///
+		/// The aura is a proximity push, so an out-of-aura target gets neither ammo NOR the
+		/// RearmCondition — the condition enables the target's own ReloadAmmoPool (a free in-place
+		/// trickle that carries no range check of its own), so leaving it granted at unlimited range
+		/// is the same exploit as delivering at unlimited range. The target is still KEPT, because
+		/// selection can legitimately hand us something we are only just driving toward; we simply
+		/// serve it on arrival.
+		///
+		/// Sheltered garrison passengers are the exception: they are removed from the world with a
+		/// stale CenterPosition, and their building was in range when they were picked, so they are
+		/// served — but never granted the condition, which would be invisible and would leak if the
+		/// soldier later deployed out.
+		/// </summary>
+		public static SupplyServeDecision DecideServe(bool targetInWorld, bool inAura)
+		{
+			if (!targetInWorld)
+				return new SupplyServeDecision(deliver: true, holdCondition: false, keepTarget: true);
+
+			if (inAura)
+				return new SupplyServeDecision(deliver: true, holdCondition: true, keepTarget: true);
+
+			return new SupplyServeDecision(deliver: false, holdCondition: false, keepTarget: true);
+		}
+
+		/// <summary>
+		/// Whether this provider is in a state where it serves anyone at all this tick — the exact
+		/// early-return ladder <see cref="ITick.Tick"/> walks before it ever looks for a target.
+		/// Exposed so a unit deciding whether to walk here can ask instead of reproducing the rule
+		/// (and reading `restocking`, which is private for good reason).
+		/// </summary>
+		public bool CanServeNow
+		{
+			get
+			{
+				// Tick: paused/disabled clears the target and returns.
+				if (IsTraitPaused || IsTraitDisabled)
+					return false;
+
+				// Tick: mid-restock drive — serves nobody until it arrives.
+				if (restocking)
+					return false;
+
+				// Tick: about to remove itself from the world.
+				if (Info.RemoveBelowSupply > 0 && currentSupply < Info.RemoveBelowSupply)
+					return false;
+
+				// Tick: drained.
+				if (currentSupply <= 0)
+					return false;
+
+				// Tick: below the restock threshold with no active customer, and not one of the
+				// evacuating trucks that keep serving down to the last usable batch — it is about
+				// to reserve its remainder and drive home.
+				if (currentSupply < Info.RestockThreshold && currentTarget == null && !KeepServingBelowThreshold())
+					return false;
+
+				return true;
+			}
 		}
 
 		/// <summary>

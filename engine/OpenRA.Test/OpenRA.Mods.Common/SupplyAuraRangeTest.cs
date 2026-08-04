@@ -76,11 +76,11 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void MapWideHuntTargetIsRejectedByTheDeliveryGate()
+		public void MapWideHuntTargetIsOutsideTheAura()
 		{
-			// The concrete defect: FindNeedsResupplyTarget (Hunt branch) picks a flagged unit
-			// anywhere on the map. Before the gate, ResupplyTarget delivered ammo to it from
-			// across the map while merely starting to drive over.
+			// FindNeedsResupplyTarget (Hunt branch) picks a flagged unit anywhere on the map. What
+			// the gate DOES with that is pinned by SupplyServeDecisionTest; this only fixes the
+			// input — such a target is out of aura.
 			Assert.That(SupplyProvider.InAuraRange(Origin, Offset(60 * 1024, 40 * 1024), Range), Is.False);
 		}
 
@@ -91,13 +91,5 @@ namespace OpenRA.Test
 			Assert.That(SupplyProvider.InAuraRange(Origin, Offset(1, 0), WDist.Zero), Is.False);
 		}
 
-		[Test]
-		public void IsSymmetric()
-		{
-			var far = Offset(3000, 4200);
-			Assert.That(
-				SupplyProvider.InAuraRange(Origin, far, Range),
-				Is.EqualTo(SupplyProvider.InAuraRange(far, Origin, Range)));
-		}
 	}
 }

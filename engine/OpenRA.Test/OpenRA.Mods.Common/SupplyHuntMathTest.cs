@@ -109,27 +109,49 @@ namespace OpenRA.Test
 				Is.False);
 		}
 
-		[Test]
-		public void StanceGateMatrixIsExhaustive()
+		// Hand-enumerated truth table for all 3x3x3 stance combinations. Written out literally
+		// rather than derived from the same boolean expression the implementation uses — a derived
+		// expectation only catches a non-conjunctive rewrite, and would happily agree with a gate
+		// that had the wrong policy in it. Exactly four rows permit the run.
+		static readonly object[] StanceGateCases =
 		{
-			// Every combination: permitted iff Auto AND not HoldPosition AND not Ambush. Locks the
-			// gate as a conjunction, so adding a stance value cannot silently open a hole.
-			foreach (var fire in new[] { UnitStance.HoldFire, UnitStance.Ambush, UnitStance.FireAtWill })
-			{
-				foreach (var engagement in new[] { EngagementStance.HoldPosition, EngagementStance.Defensive, EngagementStance.Hunt })
-				{
-					foreach (var resupply in new[] { ResupplyBehavior.Hold, ResupplyBehavior.Auto, ResupplyBehavior.Evacuate })
-					{
-						var expected = resupply == ResupplyBehavior.Auto
-							&& engagement != EngagementStance.HoldPosition
-							&& fire != UnitStance.Ambush;
+			new object[] { UnitStance.HoldFire, EngagementStance.HoldPosition, ResupplyBehavior.Hold, false },
+			new object[] { UnitStance.HoldFire, EngagementStance.HoldPosition, ResupplyBehavior.Auto, false },
+			new object[] { UnitStance.HoldFire, EngagementStance.HoldPosition, ResupplyBehavior.Evacuate, false },
+			new object[] { UnitStance.HoldFire, EngagementStance.Defensive, ResupplyBehavior.Hold, false },
+			new object[] { UnitStance.HoldFire, EngagementStance.Defensive, ResupplyBehavior.Auto, true },
+			new object[] { UnitStance.HoldFire, EngagementStance.Defensive, ResupplyBehavior.Evacuate, false },
+			new object[] { UnitStance.HoldFire, EngagementStance.Hunt, ResupplyBehavior.Hold, false },
+			new object[] { UnitStance.HoldFire, EngagementStance.Hunt, ResupplyBehavior.Auto, true },
+			new object[] { UnitStance.HoldFire, EngagementStance.Hunt, ResupplyBehavior.Evacuate, false },
 
-						Assert.That(
-							SupplyHuntMath.StancesPermitHunt(fire, engagement, resupply), Is.EqualTo(expected),
-							$"fire={fire} engagement={engagement} resupply={resupply}");
-					}
-				}
-			}
+			new object[] { UnitStance.Ambush, EngagementStance.HoldPosition, ResupplyBehavior.Hold, false },
+			new object[] { UnitStance.Ambush, EngagementStance.HoldPosition, ResupplyBehavior.Auto, false },
+			new object[] { UnitStance.Ambush, EngagementStance.HoldPosition, ResupplyBehavior.Evacuate, false },
+			new object[] { UnitStance.Ambush, EngagementStance.Defensive, ResupplyBehavior.Hold, false },
+			new object[] { UnitStance.Ambush, EngagementStance.Defensive, ResupplyBehavior.Auto, false },
+			new object[] { UnitStance.Ambush, EngagementStance.Defensive, ResupplyBehavior.Evacuate, false },
+			new object[] { UnitStance.Ambush, EngagementStance.Hunt, ResupplyBehavior.Hold, false },
+			new object[] { UnitStance.Ambush, EngagementStance.Hunt, ResupplyBehavior.Auto, false },
+			new object[] { UnitStance.Ambush, EngagementStance.Hunt, ResupplyBehavior.Evacuate, false },
+
+			new object[] { UnitStance.FireAtWill, EngagementStance.HoldPosition, ResupplyBehavior.Hold, false },
+			new object[] { UnitStance.FireAtWill, EngagementStance.HoldPosition, ResupplyBehavior.Auto, false },
+			new object[] { UnitStance.FireAtWill, EngagementStance.HoldPosition, ResupplyBehavior.Evacuate, false },
+			new object[] { UnitStance.FireAtWill, EngagementStance.Defensive, ResupplyBehavior.Hold, false },
+			new object[] { UnitStance.FireAtWill, EngagementStance.Defensive, ResupplyBehavior.Auto, true },
+			new object[] { UnitStance.FireAtWill, EngagementStance.Defensive, ResupplyBehavior.Evacuate, false },
+			new object[] { UnitStance.FireAtWill, EngagementStance.Hunt, ResupplyBehavior.Hold, false },
+			new object[] { UnitStance.FireAtWill, EngagementStance.Hunt, ResupplyBehavior.Auto, true },
+			new object[] { UnitStance.FireAtWill, EngagementStance.Hunt, ResupplyBehavior.Evacuate, false },
+		};
+
+		[TestCaseSource(nameof(StanceGateCases))]
+		public void StanceGateMatrix(UnitStance fire, EngagementStance engagement, ResupplyBehavior resupply, bool expected)
+		{
+			Assert.That(
+				SupplyHuntMath.StancesPermitHunt(fire, engagement, resupply), Is.EqualTo(expected),
+				$"fire={fire} engagement={engagement} resupply={resupply}");
 		}
 
 		[Test]
