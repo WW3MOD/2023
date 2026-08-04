@@ -105,3 +105,62 @@ Player:
 		AntiAirUnitTypes: tunguska
 		AntiAirBaseline: 0
 		AntiAirPerObservedAir: 1
+		# ===== COMPOSITION-DIRECTED PURCHASING (experimental-only; C# default is false) =====
+		# Mirror of the America block — see ai-america.yaml for the full rationale. Short version: with
+		# IgnoreGroundUnits on both @experimental SquadManagers, buildRandom is always true, so every
+		# ground call-in was a uniform lottery and the standing army settled proportional to each type's
+		# LIFETIME (long-lived rear-line mortars accumulate). This buys the type furthest below target.
+		CompositionDirected: true
+		# TARGETS (not ceilings): per-mille of army VALUE. Sums to 1000. Helicopters are deliberately
+		# absent (deferred to their own lane) and so are never chosen by this pick.
+		UnitTargetShares:
+			# Armour core.
+			t90: 190
+			bmp2: 140
+			# Screen / lift (BTR covers the humvee + m113 roles NATO splits).
+			btr: 70
+			# Indirect fire — mt.russia is the type that was drifting; 50 is the deliberate cap-by-target.
+			mt.russia: 50
+			giatsint: 35
+			grad: 25
+			# Air defence (tunguska additionally stays capped by ScaleAntiAirToThreat above).
+			tunguska: 50
+			aa.russia: 40
+			# Line infantry.
+			e3.russia: 60
+			ar.russia: 60
+			tl.russia: 40
+			e2.russia: 40
+			# Anti-armour infantry.
+			at.russia: 90
+			# Specialists and logistics (each additionally bounded by UnitLimits above).
+			sn.russia: 15
+			medi.russia: 15
+			e6.russia: 15
+			tecn.russia: 25
+			truk: 40
+		# Role tokens — the row/column keys for CounterMatrixPct below.
+		UnitRoles:
+			t90: frontline
+			bmp2: frontline
+			e3.russia: frontline
+			ar.russia: frontline
+			tl.russia: frontline
+			e2.russia: frontline
+			at.russia: antitank
+			tunguska: antiair
+			aa.russia: antiair
+			mt.russia: mortar
+			giatsint: mortar
+			grad: mortar
+			btr: recon
+			sn.russia: recon
+			truk: support
+			medi.russia: support
+			e6.russia: support
+			tecn.russia: support
+		# Counter bias (v1, minimal) — believed enemy class -> own role, fog-legal (belief store only).
+		CounterMatrixPct:
+			air>antiair: 60
+			armor>antitank: 40
+			infantry>frontline: 20
