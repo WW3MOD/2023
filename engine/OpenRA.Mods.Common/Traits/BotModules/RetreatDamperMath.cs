@@ -26,6 +26,12 @@
  * arrived yet (FillIncomplete), and a max-evals cap (HoldBudgetExhausted) bounds even that. Both new conditions
  * fail OPEN — toward advancing — because parking is the failure being cured, not a safe default.
  *
+ * The cap is spent ONCE PER MASSING EPISODE, which is what makes it a terminating condition rather than a
+ * duty-cycle limiter. StepFillHold therefore PERSISTS the counter across the release eval while the episode is
+ * still alive (near the rally and still under-filled) and clears it only when the episode genuinely ends. A
+ * counter that reset on release refunded the budget the instant it was spent, so the axis re-parked next eval and
+ * ping-ponged hold x N / advance x 1 — issuing a fall-back order on every hold. See StepFillHold's remarks.
+ *
  * LOAD-BEARING SAFETY PROPERTY (stated so it can't silently regress): the damper only ever DELAYS RE-ADVANCE and
  * FILTERS massing — it NEVER delays or blocks a genuine RETREAT. A truly-losing axis still withdraws promptly
  * (the retreat decision is taken upstream by CombatRetreatMath.Step, unaffected here). The dwell counter is
@@ -102,12 +108,26 @@ namespace OpenRA.Mods.Common.Traits
 		public static bool HoldBudgetExhausted(int heldEvals, int maxHoldEvals)
 			=> maxHoldEvals > 0 && heldEvals >= maxHoldEvals;
 
-		/// <summary>Advance the consecutive-hold counter that <see cref="HoldBudgetExhausted"/> reads: count up
-		/// while the consumer is holding this axis, reset to 0 the moment it is not. Kept as a separate step (rather
-		/// than folded into <see cref="ShouldHold"/>) so the predicate stays side-effect-free and the counter is
-		/// owned by the caller. Pure.</summary>
-		public static int StepFillHold(int heldEvals, bool holding)
-			=> holding ? heldEvals + 1 : 0;
+		/// <summary>Advance the hold counter that <see cref="HoldBudgetExhausted"/> reads. Counts up while the
+		/// consumer is holding; on a non-hold eval it PERSISTS while <paramref name="stillMassing"/> and clears only
+		/// once the massing episode has genuinely ended. Kept as a separate step (rather than folded into
+		/// <see cref="ShouldHold"/>) so the predicate stays side-effect-free and the counter is owned by the caller.
+		///
+		/// <para>The persistence is what makes the cap a TERMINATING condition rather than a duty-cycle limiter. A
+		/// plain <c>holding ? held + 1 : 0</c> refunds the whole budget on the very eval it is spent, so a
+		/// still-near-rally, still-under-filled axis re-parks on the next eval (<see cref="HoldBudgetExhausted"/>
+		/// reads 0 again) — hold x N, release, hold x N, with every hold re-issuing a fall-back order. That is the
+		/// "small movements near spawn" symptom, and it self-terminated only when something else happened to carry
+		/// the axis out of the rally bubble (never, for an axis whose objective sits inside the bubble or that is
+		/// pinned in contact near its own SR). Spending the budget ONCE per episode means that after exhaustion the
+		/// axis advances EVERY eval for as long as the episode lasts (a sticky release), and a fresh budget is
+		/// granted only when the episode really ends.</para>
+		///
+		/// <paramref name="stillMassing"/> is the episode-alive test — near the rally AND
+		/// <see cref="FillIncomplete"/>. The other two episode ends (the axis entered a retreat, or lost its units)
+		/// are reset by the consumer's own FSM update, not here. Pure.</summary>
+		public static int StepFillHold(int heldEvals, bool holding, bool stillMassing)
+			=> holding ? heldEvals + 1 : (stillMassing ? heldEvals : 0);
 
 		/// <summary>Should the damper HOLD this axis at the muster point instead of letting it re-advance? Folds
 		/// the two hold gates behind a DEFENSIVE safety guard so the "never delays a genuine withdrawal" property

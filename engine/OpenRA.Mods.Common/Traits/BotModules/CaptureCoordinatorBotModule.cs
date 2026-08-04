@@ -74,8 +74,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly HashSet<string> SupplyDepotActorTypes = new();
 
 		[Desc("Income weight for SupplyDepotActorTypes when CaptureSupplyDepots is on. Set this BELOW the lowest",
-			"IncomeWeights entry so a depot never outbids a cash building, and above DefaultIncomeWeight so it",
-			"outranks the no-income civilian structures that share that default.")]
+			"CASH-PRODUCING IncomeWeights entry (oilb: 50 in current tuning) so a depot never outbids a real income",
+			"building, and above DefaultIncomeWeight so it outranks the no-income civilian structures that share that",
+			"default. It deliberately sits ABOVE the non-cash IncomeWeights entries (miss: 10, hosp: 20) — those are",
+			"listed to hold them DOWN, not because they earn anything.")]
 		public readonly int SupplyDepotIncomeWeight = 25;
 
 		[Desc("Number of cells over which target-distance score halves (rough decay scale).")]

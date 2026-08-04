@@ -86,9 +86,9 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Cash an evacuating unit returns to the treasury: <paramref name="sellValue"/> scaled by the
 		/// surviving health fraction. This is the DOCS/reference/economy.md evac rule and mirrors the engine's own
 		/// arithmetic at RotateToEdge.cs:275-280 (integer-truncating, long-widened so a large sell value on a
-		/// high-MaxHP hull cannot overflow). Exposed so the sweep can LOG what a disposition is worth — the refund
-		/// itself is paid by the activity, not by this class. A non-positive <paramref name="maxHp"/> reads as
-		/// full health (the engine's health == null fallback). Pure.</summary>
+		/// high-MaxHP hull cannot overflow). Exposed so the sweep can LOG what a disposition is worth (the `banked=`
+		/// field of the `[exp-ooa] sweep` line) — the refund itself is paid by the activity, not by this class. A
+		/// non-positive <paramref name="maxHp"/> reads as full health (the engine's health == null fallback). Pure.</summary>
 		public static int EvacRefund(int sellValue, int hp, int maxHp)
 		{
 			if (sellValue <= 0)

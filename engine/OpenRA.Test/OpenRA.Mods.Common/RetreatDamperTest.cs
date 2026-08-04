@@ -11,6 +11,11 @@
  * damper: a SUSTAINED-losing axis still retreats within the bounded sustain delay, and the dwell only ever
  * delays the RE-advance AFTER a completed retreat — it never keeps the axis engaged while it is losing. A noisy
  * (oscillating) losing signal never trips a retreat, so it never arms a dwell either.
+ *
+ * The Wave B reshape of (b) adds a second load-bearing property with its own sequences: the hold TERMINATES. The
+ * massing budget is spent once per episode and is NOT refunded on the release eval, so the release is STICKY —
+ * Sequence_StarvedAxisHoldsForABoundedNumberOfEvalsThenAdvances holds nearRally true throughout precisely because
+ * an earlier fixture that flipped it on release hid a hold x Cap / advance x 1 ping-pong.
  */
 #endregion
 
@@ -105,14 +110,20 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void StepFillHold_CountsUpWhileHoldingAndResetsOtherwise()
+		public void StepFillHold_CountsUpWhileHoldingAndPersistsAcrossTheRelease()
 		{
 			Assert.Multiple(() =>
 			{
-				Assert.That(RetreatDamperMath.StepFillHold(0, true), Is.EqualTo(1));
-				Assert.That(RetreatDamperMath.StepFillHold(3, true), Is.EqualTo(4));
-				Assert.That(RetreatDamperMath.StepFillHold(4, false), Is.EqualTo(0),
-					"a released axis gets its full massing budget back");
+				Assert.That(RetreatDamperMath.StepFillHold(0, true, stillMassing: true), Is.EqualTo(1));
+				Assert.That(RetreatDamperMath.StepFillHold(3, true, stillMassing: true), Is.EqualTo(4));
+
+				// The load-bearing case: the budget must NOT be refunded on the eval it is spent, or the cap becomes
+				// a duty-cycle limiter (hold x N, release, hold x N ...) instead of a terminating condition.
+				Assert.That(RetreatDamperMath.StepFillHold(6, false, stillMassing: true), Is.EqualTo(6),
+					"released but the massing episode is still alive ⇒ the spent budget PERSISTS");
+
+				Assert.That(RetreatDamperMath.StepFillHold(6, false, stillMassing: false), Is.EqualTo(0),
+					"episode over ⇒ a fresh budget for the next one");
 			});
 		}
 
@@ -199,38 +210,85 @@ namespace OpenRA.Test
 		{
 			// End-to-end anti-park pin: an axis that is permanently sub-floor AND permanently under-filled (the pool
 			// is dry / a reinforcement skip is starving it) must not hold forever. Drive the counter exactly the way
-			// the consumer does. `nearRally` models the integration: while held the axis stays at the muster point,
-			// and the eval it is released it advances off the rally — after which the strength gate cannot apply to
-			// it again at all (that is what makes the release final rather than an oscillation).
+			// the consumer does.
+			//
+			// `nearRally` is held TRUE for the whole run on purpose — this is the worst case, and an earlier version
+			// of this fixture flipped it to false on the release eval, which masked a real defect: with a budget that
+			// refunded on release, the axis re-parked on the very next eval and ping-ponged hold x Cap / advance x 1
+			// forever. Keeping the axis in the bubble is exactly the situation the cap has to terminate on its own
+			// (an objective inside the rally bubble, or an axis pinned in contact near its own SR).
 			const int Cap = 6;
-			var consecutiveHolds = 0;
+			var holds = 0;
 			var fillHoldEvals = 0;
-			var nearRally = true;
-			var advanced = false;
+			var released = false;
 
-			for (var i = 0; i < Cap + 10; i++)
+			for (var i = 0; i < Cap + 20; i++)
 			{
 				var hold = RetreatDamperMath.ShouldHold(RetreatDecision.Engaged, 0,
-					nearRally, ownStrength: 100, advanceFloor: 5000,
+					nearRally: true, ownStrength: 100, advanceFloor: 5000,
 					currentUnits: 1, allocatedUnits: 9, fillHoldEvals: fillHoldEvals, maxFillHoldEvals: Cap);
 
-				fillHoldEvals = RetreatDamperMath.StepFillHold(fillHoldEvals, hold);
+				// The episode never ends here: still near the rally, still under-filled.
+				fillHoldEvals = RetreatDamperMath.StepFillHold(fillHoldEvals, hold,
+					stillMassing: RetreatDamperMath.FillIncomplete(1, 9));
 
 				if (hold)
 				{
-					Assert.That(advanced, Is.False, "once released the axis must never be re-parked by this gate");
-					consecutiveHolds++;
+					Assert.That(released, Is.False,
+						"STICKY RELEASE: once the budget is spent the axis must advance on EVERY later eval — a "
+						+ "re-park here is the duty-cycle bug (budget refunded on the release eval)");
+					holds++;
 				}
 				else
-				{
-					advanced = true;
-					nearRally = false; // it left the rally bubble
-				}
+					released = true;
 			}
 
-			Assert.That(consecutiveHolds, Is.EqualTo(Cap),
+			Assert.That(holds, Is.EqualTo(Cap),
 				"the hold is bounded by the cap — never indefinite, whatever the strength/fill say");
-			Assert.That(advanced, Is.True, "the axis does eventually advance");
+			Assert.That(released, Is.True, "the axis does advance once the budget is spent");
+		}
+
+		[Test]
+		public void Sequence_BudgetRefreshesOnlyWhenTheMassingEpisodeEnds()
+		{
+			// The other half of the per-episode contract: the budget is not permanently burnt either. Once the
+			// episode genuinely ends (the axis leaves the rally bubble, or its fill completes), the counter clears so
+			// a LATER massing episode gets a fresh budget.
+			const int Cap = 3;
+			var fillHoldEvals = 0;
+
+			// Episode 1: spend the whole budget.
+			for (var i = 0; i < Cap; i++)
+			{
+				var hold = RetreatDamperMath.ShouldHold(RetreatDecision.Engaged, 0,
+					nearRally: true, ownStrength: 100, advanceFloor: 5000,
+					currentUnits: 1, allocatedUnits: 9, fillHoldEvals: fillHoldEvals, maxFillHoldEvals: Cap);
+				Assert.That(hold, Is.True, $"eval {i} is inside the budget");
+				fillHoldEvals = RetreatDamperMath.StepFillHold(fillHoldEvals, hold, stillMassing: true);
+			}
+
+			Assert.That(RetreatDamperMath.HoldBudgetExhausted(fillHoldEvals, Cap), Is.True, "budget spent");
+
+			// The axis advances out of the bubble ⇒ episode over ⇒ counter clears.
+			fillHoldEvals = RetreatDamperMath.StepFillHold(fillHoldEvals, holding: false, stillMassing: false);
+			Assert.That(fillHoldEvals, Is.EqualTo(0), "leaving the rally bubble ends the episode");
+
+			// Episode 2 (it was pushed back to the rally later): a full fresh budget, not an instant release.
+			Assert.That(RetreatDamperMath.ShouldHold(RetreatDecision.Engaged, 0,
+				nearRally: true, ownStrength: 100, advanceFloor: 5000,
+				currentUnits: 1, allocatedUnits: 9, fillHoldEvals: fillHoldEvals, maxFillHoldEvals: Cap), Is.True,
+				"a NEW massing episode may hold again");
+		}
+
+		[Test]
+		public void StepFillHold_FillCompletionAlsoEndsTheEpisode()
+		{
+			// `stillMassing` is nearRally AND FillIncomplete, so an axis that finished filling releases its budget
+			// even while it sits in the bubble — it is no longer massing, it is simply ready.
+			var stillMassing = true && RetreatDamperMath.FillIncomplete(9, 9);
+			Assert.That(stillMassing, Is.False, "fill complete ⇒ not massing");
+			Assert.That(RetreatDamperMath.StepFillHold(6, holding: false, stillMassing), Is.EqualTo(0),
+				"a completed fill grants a fresh budget for any later episode");
 		}
 
 		// ---------- End-to-end: damper composed with the retreat FSM ----------
