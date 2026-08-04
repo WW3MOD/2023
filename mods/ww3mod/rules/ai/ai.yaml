@@ -267,6 +267,20 @@ Player:
 		# engine class => @stable twin (which omits this field) keeps the raw pre-1c compare byte-identical. Initial
 		# value; sweep target once the ai-bench ladder is run. Only active with MissionCommitmentEnabled.
 		MissionScoreQuantizeBandPct: 60
+		# Phase 1c leg (a): the SIZING sibling of the band above. The same bucketed believed-field factors also drive
+		# the score-PROPORTIONAL axis sizing, so one bucket crossing re-sizes an axis by a unit and the shed/top-up
+		# pass hands that marginal unit to a rival axis pointing the other way (root cause B — a unit between two
+		# axes is by construction the "farthest" from whichever it is on). Snapping each score to the NEAREST multiple
+		# of a band (band = this % of the top score) makes two NEAR-TIED axes size identically, so 25-tick field
+		# jitter can't reshuffle the marginal unit between them. Axis ORDER stays on raw scores. Round-to-nearest,
+		# NOT the floor-to-band the rival compare above uses: flooring is right for a ratio test but zeroes every
+		# axis below one band when fed to a proportional allocator. 25 is the recommended sweep starting point (see
+		# the pins in PoiOffenseTest, which assert the damping AT that value).
+		#
+		# HELD AT 0 (OFF) pending that sweep, alongside the two fires levers below — same manager decision, same
+		# rationale: this reshapes live allocation and is unpriced. 0 on the engine class too => @stable twin (which
+		# omits this field) keeps the raw pre-1c sizing byte-identical.
+		AllocationScoreQuantizeBandPct: 0
 		# Phase 1d: Aggressiveness slider scaffolding (§2.7), first knob, landed on the offense module (its first
 		# consumer) pending migration to the SquadBrain. 50 = neutral; threaded through pure PoiOffenseMath.ShiftByKnob
 		# only. The slope below is 0 (INERT) so this ships with no behaviour change until a sweep sets a nonzero slope.
@@ -375,6 +389,34 @@ Player:
 		# byte-identical; only this @experimental block turns it on. Needs the UnitRoleResolver + BeliefStore (both
 		# present via the influence stack).
 		ContinuousBombardment: true
+		# Fires doctrine Phase 2 (gap G2): PREPARATORY FIRES. On an axis carrying BOTH a screen and artillery, hold
+		# the screen at a start line while the peeled-off guns (already at their standoff/echelon anchors) shell the
+		# objective, then assault — so the barrage lands FIRST instead of screen and guns arriving together. Held
+		# only inside the PRODUCTIVE band: beyond AssaultRadiusCells (still approaching) but no further out than the
+		# guns can range the objective from their echelon anchor, so a fresh far-out axis presses on rather than
+		# stalling with nothing landing. A prep-holding axis is NOT marked mission-Committed, so PartitionHeldAxes
+		# cannot freeze it out of its own release gate and PrepFireMaxTicks really does govern the release.
+		#
+		# HELD OFF pending a priced sweep (manager decision, 2026-08-04). @experimental's top live regression is
+		# axes that hold and never close (see DISCOVERIES 2026-08-03: ~85-92% of the army standing off on one
+		# SR-Pressure axis), so no new HOLD discipline goes live until a user-gated sweep says it helps. The code is
+		# correct and pinned; flipping these to true is the whole enablement. Default OFF on the engine class too ⇒
+		# the @stable twin (which omits these fields) is byte-identical either way.
+		PreparatoryFires: false
+		PrepFireMaxTicks: 150
+		# Fires doctrine Phase 3 (gap G3): SUPPRESSION-COORDINATED ADVANCE. Upgrades the Phase-2 timer with a
+		# FOG-LEGAL suppression read — the screen steps off as soon as the objective is observably suppressed (the
+		# barrage has done its job), else still at PrepFireMaxTicks, so fires and manoeuvre are talking to each other
+		# instead of running on independent clocks. The read is taken on EVERY evaluation pass while the hold is
+		# active, and AVERAGES the shipped suppression mechanic's condition stacks over the ARMED enemies the player
+		# may LEGALLY SEE (CanBeViewedByPlayer) within PrepSuppressionRadius — the same fog discipline as the fires
+		# EV gate's clump scan, never an omniscient read of enemy state. Averaged so the bar means "the defenders are
+		# suppressed" regardless of how many there are; threshold is on the per-actor stack scale (GarrisonManager
+		# ducks a soldier at 30, recalls it at 60). Needs PreparatoryFires on (it only swaps that gate's release
+		# predicate). Held OFF with Phase 2 above, same rationale. Experimental-only; @stable twin off.
+		SuppressionCoordinatedAdvance: false
+		PrepSuppressionThreshold: 60
+		PrepSuppressionRadius: 5c0
 		# Combat-quality force preservation (levers 1+2, WORKSPACE/benchmarks/260802-exp-vs-stable0730-combatweighted.md):
 		# the @experimental bot kills evenly with @stable yet DIES for ~2x the army value — it treats its combat force
 		# as expendable while it wins the capture race. These two levers keep the capture strength but stop bleeding the

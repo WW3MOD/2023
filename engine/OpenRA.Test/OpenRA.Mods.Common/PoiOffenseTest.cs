@@ -445,5 +445,104 @@ namespace OpenRA.Test
 			// Integer truncation toward zero: (65-50)*40/100 = 600/100 = 6.
 			Assert.That(PoiOffenseMath.ShiftByKnob(50, 65, 40), Is.EqualTo(56));
 		}
+
+		// ---------- QuantizeSizingScores (Phase 1c leg a) ----------
+		//
+		// SweepBand is the value a future sweep should START from, and every damping pin below is asserted AT it —
+		// the review's first finding was that the old pins all proved their point at a band that did not ship, so
+		// the transform was green in CI and inert in the mod. Do not change SweepBand without re-reading these.
+		const int SweepBand = 25;
+
+		[Test]
+		public void QuantizeSizingScores_ZeroBandPct_IsBitwisePassThrough()
+		{
+			// The frozen default: band pct <= 0 returns the scores untouched, element for element, so
+			// AllocateProportional sees exactly the pre-1c list and the sizing is byte-identical.
+			var raw = new List<long> { 1650, 1000, 990, 1, 0 };
+			Assert.That(PoiOffenseMath.QuantizeSizingScores(raw, 0), Is.EqualTo(raw));
+			Assert.That(PoiOffenseMath.QuantizeSizingScores(raw, -5), Is.EqualTo(raw));
+
+			// An all-zero set has no band to snap to, so it likewise passes through rather than being reshaped.
+			Assert.That(PoiOffenseMath.QuantizeSizingScores(new List<long> { 0, 0 }, SweepBand),
+				Is.EqualTo(new List<long> { 0, 0 }));
+		}
+
+		[Test]
+		public void QuantizeSizingScores_DampsNearTiesAtTheSweepBand()
+		{
+			// FIX 1 — the transform must actually DAMP at the band we would ship. Near-tied axes are exactly where
+			// the shed/top-up pass churns (a unit between two comparable axes is by construction the "farthest" from
+			// whichever it is on), and they snap to one value, so the sizes are identical and there is nothing to
+			// reshuffle when the believed field wobbles.
+			var nearTie = PoiOffenseMath.QuantizeSizingScores(new List<long> { 1000, 999 }, SweepBand);
+			Assert.That(nearTie[0], Is.EqualTo(nearTie[1]), "a 0.1% gap collapses");
+
+			var wobble = PoiOffenseMath.QuantizeSizingScores(new List<long> { 1000, 900 }, SweepBand);
+			Assert.That(wobble[0], Is.EqualTo(wobble[1]), "a 10% wobble still collapses");
+		}
+
+		[Test]
+		public void QuantizeSizingScores_DoesNotAmplifyNearTies()
+		{
+			// FIX 2 — the defect that mattered most: band-index weighting turned a 0.06% score gap into an 11%
+			// allocation gap, inverting the goal exactly where axes are close. Assert the ALLOCATION, not just the
+			// transform: quantized sizing of a near-tie must be no more lopsided than the raw sizing.
+			var raw = new List<long> { 1000, 999 };
+			var quantized = PoiOffenseMath.QuantizeSizingScores(raw, SweepBand);
+
+			var rawSizes = PoiOffenseMath.AllocateProportional(raw, 20, 2);
+			var quantizedSizes = PoiOffenseMath.AllocateProportional(quantized, 20, 2);
+
+			Assert.That(quantizedSizes[0] - quantizedSizes[1], Is.LessThanOrEqualTo(rawSizes[0] - rawSizes[1]),
+				"quantizing a near-tie must not widen the allocation gap");
+			Assert.That(quantizedSizes[0], Is.EqualTo(quantizedSizes[1]), "and here it closes it entirely");
+		}
+
+		[Test]
+		public void QuantizeSizingScores_DoesNotInflateWorthlessAxes()
+		{
+			// FIX 3 — the +1 offset handed a 0.1% axis 16.7% of the leftover (167x its raw share). Snapping to the
+			// nearest band sends it to 0 instead; the allocator's own Math.Max(1, ...) floor and minAxisSize are what
+			// keep it alive, so nothing here needs to inflate it.
+			var quantized = PoiOffenseMath.QuantizeSizingScores(new List<long> { 1000, 1 }, SweepBand);
+			Assert.That(quantized[1], Is.EqualTo(0), "a worthless axis snaps to zero, not to a floor share");
+
+			// End to end: it still gets its min size and no more, exactly as the raw scores would give it.
+			var rawSizes = PoiOffenseMath.AllocateProportional(new List<long> { 1000, 1 }, 20, 2);
+			var quantizedSizes = PoiOffenseMath.AllocateProportional(quantized, 20, 2);
+			Assert.That(quantizedSizes, Is.EqualTo(rawSizes), "allocation matches the raw-score allocation");
+		}
+
+		[Test]
+		public void QuantizeSizingScores_KeepsSeparatedScoresRoughlyProportional()
+		{
+			// The lever must damp jitter, not flatten the ranking. A 3x separation stays a comparable separation —
+			// within one band, which is the quantiser's inherent error bound.
+			var quantized = PoiOffenseMath.QuantizeSizingScores(new List<long> { 3000, 1000 }, SweepBand);
+			Assert.That(quantized[0], Is.GreaterThan(quantized[1]), "the leader still leads");
+
+			var rawSizes = PoiOffenseMath.AllocateProportional(new List<long> { 3000, 1000 }, 20, 2);
+			var quantizedSizes = PoiOffenseMath.AllocateProportional(quantized, 20, 2);
+			Assert.That(System.Math.Abs(quantizedSizes[0] - rawSizes[0]), Is.LessThanOrEqualTo(2),
+				"well-separated axes keep roughly their raw sizes");
+		}
+
+		[Test]
+		public void QuantizeSizingScores_IsOrderIndependentAndHandlesDegenerateSets()
+		{
+			// Band is relative to the SET's top score (max is order-independent), so the same multiset of scores
+			// quantizes to the same multiset whatever order it arrives in — no enumeration order reaches a decision.
+			var a = PoiOffenseMath.QuantizeSizingScores(new List<long> { 1650, 1000, 990 }, SweepBand);
+			var b = PoiOffenseMath.QuantizeSizingScores(new List<long> { 990, 1650, 1000 }, SweepBand);
+			Assert.That(a.OrderBy(x => x), Is.EqualTo(b.OrderBy(x => x)));
+
+			// Degenerate sets never divide by zero or lose entries.
+			Assert.That(PoiOffenseMath.QuantizeSizingScores(new List<long>(), SweepBand), Is.Empty);
+
+			// The top score snaps to itself whenever the band divides it evenly, which it does at any band pct that
+			// divides 100 — so the leader is neither floored away nor inflated at the recommended value.
+			var single = PoiOffenseMath.QuantizeSizingScores(new List<long> { 1000 }, SweepBand);
+			Assert.That(single, Is.EqualTo(new List<long> { 1000 }));
+		}
 	}
 }
