@@ -309,42 +309,50 @@ namespace OpenRA.Mods.Common.Traits
 			"AssaultRadiusCells) it is HELD at a start line for up to PrepFireMaxTicks while the peeled-off artillery",
 			"— already in position from FiresStandoff / EchelonPositioning — shells the objective; then it assaults.",
 			"The guns' orders are untouched (the peel-off runs first), so the barrage is already landing during the",
-			"hold. The decision is the pure PrepFireMath.ShouldHoldScreen (NUnit-pinned), a BOUNDED countdown that",
-			"fails OPEN — a non-positive PrepFireMaxTicks, or a screen already inside the assault radius, never holds",
-			"— so it can not deadlock an axis. Needs FiresStandoff on (that is what produces the screen/fires split).",
+			"hold. The hold is bounded in DISTANCE as well as time: it is only entered where the guns can actually",
+			"range the objective from the anchor they will occupy (under the echelon that is roughly the SCREEN's own",
+			"engagement range, not the gun's), so a fresh axis tens of cells out presses on instead of stalling with",
+			"no shell landing. The decision is the pure PrepFireMath.ShouldHoldScreen (NUnit-pinned), which fails OPEN",
+			"on every edge — a non-positive PrepFireMaxTicks, a screen already inside the assault radius, or an axis",
+			"beyond the guns' reach never holds — so it can not deadlock an axis. A prep-holding axis is deliberately",
+			"NOT marked mission-Committed, so PartitionHeldAxes can not freeze it out of its own release gate.",
+			"Needs FiresStandoff on (that is what produces the screen/fires split).",
 			"OFF by default so the frozen @stable twin and every legacy profile stay byte-identical; only",
 			"PoiOffensiveBotModule@experimental turns it on.")]
 		public readonly bool PreparatoryFires = false;
 
 		[Desc("Preparatory fires: length (ticks) of the prep window a screen may be held at its start line before it",
 			"assaults regardless. The bounded countdown that makes the hold deadlock-proof; 0 disables prep entirely.",
-			"NOTE the composition with MissionCommitmentEnabled: an axis held by PartitionHeldAxes skips CommitAndOrder",
-			"entirely, so while mission commitment is on the effective release is the first re-eval that reaches",
-			"CommitAndOrder with the window elapsed — i.e. this is a FLOOR on the prep window, with the ceiling set by",
-			"MissionCommitmentWindowTicks. Only read when PreparatoryFires is on.")]
+			"A prep-holding axis does NOT take a mission-commitment snapshot, so it is re-evaluated every re-eval and",
+			"this knob — not MissionCommitmentWindowTicks — governs the release. Resolution is therefore the re-eval",
+			"cadence: at ReevaluateInterval 100 a 150-tick window gives the hold ~2 evaluation passes (and so ~2",
+			"suppression re-reads when Phase 3 is on). Only read when PreparatoryFires is on.")]
 		public readonly int PrepFireMaxTicks = 150;
 
 		[Desc("EXPERIMENTAL fires doctrine Phase 3 (gap G3): SUPPRESSION-COORDINATED ADVANCE — upgrade the Phase 2",
 			"timer with a FOG-LEGAL suppression read, so the screen steps off WHEN the objective is actually",
-			"suppressed rather than on a fixed clock. While the prep hold is active, the observed suppression on",
-			"enemies at the objective is tallied and the screen releases EARLY once it reaches",
-			"PrepSuppressionThreshold; otherwise it still releases at PrepFireMaxTicks (no deadlock). The tally sums",
-			"the shipped suppression mechanic's condition stacks over enemies the player may LEGALLY SEE",
-			"(CanBeViewedByPlayer) inside PrepSuppressionRadius of the objective — the same fog discipline as the",
-			"fires EV gate's clump scan, no omniscient read of enemy state. The decision is the pure",
-			"AdvanceUnderCoverMath.ScreenMayAdvance (NUnit-pinned). Needs PreparatoryFires on (it only swaps that",
-			"gate's release predicate). OFF by default ⇒ the @stable twin and legacy profiles stay byte-identical.")]
+			"suppressed rather than on a fixed clock. The read is taken on EVERY evaluation pass while the hold is",
+			"active — not once when it starts, which would sample the objective before a single shell had landed —",
+			"and the screen releases EARLY once it reaches PrepSuppressionThreshold; otherwise it still releases at",
+			"PrepFireMaxTicks (no deadlock). The read AVERAGES the shipped suppression mechanic's condition stacks",
+			"over the ARMED enemy defenders the player may LEGALLY SEE (CanBeViewedByPlayer) inside",
+			"PrepSuppressionRadius of the objective — the same fog discipline as the fires EV gate's clump scan, no",
+			"omniscient read of enemy state. The decisions are the pure AdvanceUnderCoverMath.NormalizeSuppression /",
+			"ScreenMayAdvance (NUnit-pinned). Needs PreparatoryFires on (it only swaps that gate's release",
+			"predicate). OFF by default ⇒ the @stable twin and legacy profiles stay byte-identical.")]
 		public readonly bool SuppressionCoordinatedAdvance = false;
 
-		[Desc("Suppression-coordinated advance: total observed suppression (summed condition stacks over legally",
-			"visible enemies near the objective) at which the screen releases EARLY. Scaled to the shipped",
-			"suppression system's stack counts (GarrisonManager ducks a soldier at 30 and recalls it at 60), so this",
-			"is roughly 'one defender pinned or two rattled'. 0 releases immediately. Only read when",
-			"SuppressionCoordinatedAdvance is on.")]
+		[Desc("Suppression-coordinated advance: PER-DEFENDER suppression (condition stacks averaged over the armed,",
+			"legally-visible enemies near the objective) at which the screen releases EARLY. Averaged, not summed, so",
+			"the bar means 'the defenders are suppressed' and does not get EASIER the more defenders there are.",
+			"Scaled to the shipped suppression system's per-actor stack counts (GarrisonManager ducks a soldier at 30",
+			"and recalls it at 60), so 60 is roughly 'the typical defender is pinned'. 0 releases immediately; an",
+			"objective with no visible armed defender reads 0 and keeps prepping until the window expires. Only read",
+			"when SuppressionCoordinatedAdvance is on.")]
 		public readonly int PrepSuppressionThreshold = 60;
 
 		[Desc("Suppression-coordinated advance: horizontal radius (WDist) around the axis objective inside which",
-			"legally-visible enemy suppression is tallied. Bounded so the read is one small circle query per held",
+			"legally-visible armed enemy suppression is read. Bounded so the read is one small circle query per held",
 			"axis per re-eval. Only read when SuppressionCoordinatedAdvance is on.")]
 		public readonly WDist PrepSuppressionRadius = WDist.FromCells(5);
 
@@ -628,14 +636,16 @@ namespace OpenRA.Mods.Common.Traits
 			"bucketed believed-field factors that defeat a raw rival compare also drive the score-PROPORTIONAL axis",
 			"sizing, so a single bucket crossing re-sizes an axis by one unit and the shed/top-up pass hands the",
 			"marginal unit to a rival axis pointing the other way (root cause B — the design's 'so 25-tick field",
-			"jitter cannot flip proportional sizes'). When > 0, each axis is weighted by its BAND INDEX (band = this",
-			"percent of the top score) rather than its raw score before AllocateProportional, so two axes inside one",
-			"band size identically and a wobble cannot reshuffle them. The axis ORDER is deliberately left on raw",
-			"scores (quantizing it would change which axis wins the largest-remainder tie-break — a second behaviour",
-			"on one flag). TRADEOFF: the weights carry only ~100/this distinct levels, so a COARSER band buys",
-			"stickiness by spending allocation resolution; it wants a sweep, not a guess. Deliberately finer than",
-			"MissionScoreQuantizeBandPct — that one is a ratio test with a margin, this one has to preserve a usable",
-			"proportional spread. 0 (default) = the raw pre-1c sizing, byte-identical. Pure",
+			"jitter cannot flip proportional sizes'). When > 0, each axis score is SNAPPED TO THE NEAREST MULTIPLE of",
+			"a band (band = this percent of the top score) before AllocateProportional, so two NEAR-TIED axes snap",
+			"together, size identically, and a wobble between them cannot reshuffle the marginal unit. The axis ORDER",
+			"is deliberately left on raw scores (quantizing it would change which axis wins the largest-remainder",
+			"tie-break — a second behaviour on one flag). Round-to-nearest, NOT the floor-to-band that",
+			"MissionScoreQuantizeBandPct uses: flooring is right for a ratio test with a margin but zeroes every axis",
+			"below one band when fed to a proportional allocator. A near-zero axis correctly snaps to 0 and is floored",
+			"by the allocator's own Math.Max(1, …); starvation is already prevented by minAxisSize. Coarser bands damp",
+			"a wider tie but distort well-separated axes by up to one band, so this wants a sweep, not a guess —",
+			"recommended starting point 25. 0 (default) = raw pre-1c sizing, a bitwise pass-through. Pure",
 			"PoiOffenseMath.QuantizeSizingScores.")]
 		public readonly int AllocationScoreQuantizeBandPct = 0;
 
@@ -1927,8 +1937,23 @@ namespace OpenRA.Mods.Common.Traits
 			// CommitAndOrder is being freshly assigned or re-tasked (a HELD axis is pulled out before here),
 			// so its baseline resets to the current score / believed danger / squad size. Next eval
 			// PartitionHeldAxes tests the abort triggers against this snapshot. Guarded ⇒ inert when off.
-			if (Info.MissionCommitmentEnabled)
+			//
+			// HOISTED INTO A LOCAL AND APPLIED PER EXIT PATH (review FIX 4). It is stamped on every path that
+			// actually commits the axis to an assault — the pure-artillery return below and the ordering path at
+			// the end — but deliberately NOT on the PREP-HOLD exit, for exactly the reason the retreat / damper /
+			// posture-hold gates return ABOVE this point: an axis marked Committed is frozen by PartitionHeldAxes,
+			// which skips CommitAndOrder entirely, so a prep-holding axis would never re-reach its own release
+			// gate. That made PrepFireMaxTicks a dead knob (the real hold ran to MissionCommitmentWindowTicks) and
+			// left the Phase-3 suppression read evaluated exactly once, at elapsed 0, before a shell had landed.
+			// Not stamping on the hold keeps the axis flowing through this method every eval, which is what makes
+			// both the countdown and the suppression re-read reachable. Nothing between here and the call sites
+			// reads the Commit* fields (OrderFiresStandoff touches only TargetPos/TargetCell/TargetName), so with
+			// PreparatoryFires off this is a pure reordering — every reachable exit stamps exactly as before.
+			void ApplyMissionCommitment()
 			{
+				if (!Info.MissionCommitmentEnabled)
+					return;
+
 				axis.Committed = true;
 				axis.CommitTick = tick;
 				axis.CommitScore = axis.Score;
@@ -1940,7 +1965,7 @@ namespace OpenRA.Mods.Common.Traits
 			// hold each at its own weapon standoff. When off (or no resolver) groupUnits IS axis.Units by
 			// reference, so the whole block below is byte-identical to the pre-fires path.
 			var groupUnits = axis.Units;
-			var hasFires = false;
+			var prepReachCells = 0;
 			if (Info.FiresStandoff && resolver != null)
 			{
 				List<Actor> fires = null;
@@ -1967,11 +1992,19 @@ namespace OpenRA.Mods.Common.Traits
 					var screen = axis.Units.Where(u => !firesSet.Contains(u)).ToList();
 					OrderFiresStandoff(bot, axis, fires, screen, tick);
 					groupUnits = screen;
-					hasFires = true;
+
+					// Prep fires: how far out from the objective a start-line hold is still PRODUCTIVE, i.e. the
+					// best reach any of these guns has from the anchor it will occupy (review FIX 6). Computed only
+					// under PreparatoryFires, so it costs nothing — and writes nothing — for any other profile.
+					if (Info.PreparatoryFires)
+						prepReachCells = PrepFiresReachCells(fires, screen);
 
 					// Pure-artillery axis: no line group to march. The standoff orders above stand alone.
 					if (groupUnits.Count == 0)
+					{
+						ApplyMissionCommitment();
 						return;
+					}
 				}
 			}
 
@@ -1989,10 +2022,13 @@ namespace OpenRA.Mods.Common.Traits
 			// peeled off and ordered to their standoff anchors just above, so the barrage is landing — prep the
 			// objective, then assault. Placed AFTER the fires peel-off on purpose (holding before it would leave the
 			// artillery unordered and there would be no barrage to wait for) and BEFORE the assault order it gates.
-			// Requires fires ON THIS AXIS: a pure-screen axis has nothing prepping, so it presses on unchanged.
-			// Bounded by PrepFireMath's countdown ⇒ never a deadlock. Inert unless PreparatoryFires is on, so every
-			// other profile — and @experimental with the flag off — falls straight through to the order below.
-			if (Info.PreparatoryFires && hasFires && PrepHoldScreen(axis, distToTarget, tick))
+			// A zero prepReachCells means no fires on this axis (or none that can support from their anchors), so a
+			// pure-screen axis presses on unchanged. Bounded in BOTH time (PrepFireMath's countdown) and distance
+			// (prepReachCells) ⇒ never a deadlock, never a stall out of artillery range. Returns WITHOUT stamping
+			// mission commitment — see ApplyMissionCommitment above, that is what keeps this gate reachable next
+			// eval. Inert unless PreparatoryFires is on, so every other profile — and @experimental with the flag
+			// off — falls straight through to the order below.
+			if (Info.PreparatoryFires && PrepHoldScreen(axis, distToTarget, prepReachCells, tick))
 			{
 				OrderPrepHold(bot, axis, groupUnits, centroid, tick);
 				return;
@@ -2006,6 +2042,11 @@ namespace OpenRA.Mods.Common.Traits
 				axis.OrderedPrepHold = false;
 				axis.HasOrdered = false;
 			}
+
+			// Past every fall-back gate: this axis is assaulting, so it takes the mission-commitment baseline. Must
+			// run BEFORE the !moved early-return below so an axis that merely keeps its existing order still has its
+			// commitment refreshed — that is what the pre-hoist code did from the top of the method.
+			ApplyMissionCommitment();
 
 			// Stage-E flow-around: when the axis centroid's straight approach to the objective crosses
 			// ground-danger above the threshold (a defended strongpoint / choke), route it through a
@@ -2834,11 +2875,57 @@ namespace OpenRA.Mods.Common.Traits
 
 		// ===== Preparatory fires + suppression-coordinated advance (fires Phases 2+3, gaps G2+G3) =====
 
+		// How far out from the objective a start-line hold is still PRODUCTIVE (cells) — the best reach any gun on
+		// this axis has FROM THE ANCHOR IT WILL ACTUALLY OCCUPY (review FIX 6). Under EchelonPositioning a piece is
+		// held EchelonDepth behind the screen, so its reach past the screen is (maxRange - depth); with the depth
+		// formula max(EchelonMinDepth, (ownRange - screenRange) + EchelonBuffer) that collapses to roughly
+		// (screenRange - EchelonBuffer) for a long gun — far shorter than the gun's own range, and the reason an
+		// unbounded hold would stall a fresh 40-100-cell-out axis with no shell landing. Mirrors OrderFiresStandoff's
+		// own inputs exactly (same screen-range max, same fallback) so the bound tracks where the guns really go.
+		// With the echelon off, a piece anchors on the target ring instead and ranges the objective from anywhere;
+		// the bound is then its plain max range, which still keeps the screen inside supporting distance rather than
+		// holding it far back while the guns drive up alone. Deterministic: order-independent maxima, zero draws.
+		int PrepFiresReachCells(List<Actor> fires, List<Actor> screen)
+		{
+			var screenRange = 0;
+			foreach (var s in screen)
+			{
+				var sr = MaxWeaponRange(s);
+				if (sr > screenRange)
+					screenRange = sr;
+			}
+
+			if (screenRange <= 0)
+				screenRange = Info.EchelonScreenRangeFallback.Length;
+
+			var best = 0;
+			foreach (var u in fires)
+			{
+				var maxRange = MaxWeaponRange(u);
+				if (maxRange <= 0)
+					continue;
+
+				var reach = Info.EchelonPositioning
+					? maxRange - EchelonMath.EchelonDepth(maxRange, screenRange, Info.EchelonBuffer.Length, Info.EchelonMinDepth.Length)
+					: maxRange;
+
+				if (reach > best)
+					best = reach;
+			}
+
+			// WDist length -> whole cells (1024 units per cell), floored so the bound is conservative.
+			return best / 1024;
+		}
+
 		// Is this axis's SCREEN still prepping? Stamps/refreshes the prep window first — a NEW objective preps
 		// afresh, an ongoing approach on the SAME objective keeps its elapsed count (so an axis can never loop
-		// prep→assault→prep on one target) — then defers to the pure predicates. Called ONLY under
-		// Info.PreparatoryFires, so no prep state is ever written for another profile ⇒ byte-identical when off.
-		bool PrepHoldScreen(Axis axis, int distToTarget, int tick)
+		// prep→assault→prep on one target; and because the window only opens inside the bounded reach band, a
+		// target flip cannot manufacture an unbounded new hold either) — then defers to the pure predicates.
+		// Called ONLY under Info.PreparatoryFires, so no prep state is ever written for another profile ⇒
+		// byte-identical when off. Re-entered EVERY eval while the hold is active (the prep-hold exit does not
+		// stamp mission commitment, so PartitionHeldAxes cannot freeze the axis out of this method), which is what
+		// makes both the countdown and the Phase-3 suppression re-read reachable — review FIX 4/5.
+		bool PrepHoldScreen(Axis axis, int distToTarget, int firesReachCells, int tick)
 		{
 			if (!axis.PrepStarted || axis.PrepTargetCell != axis.TargetCell)
 			{
@@ -2848,12 +2935,14 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var elapsed = tick - axis.PrepStartTick;
-			if (!PrepFireMath.ShouldHoldScreen(distToTarget, Info.AssaultRadiusCells, elapsed, Info.PrepFireMaxTicks))
+			if (!PrepFireMath.ShouldHoldScreen(distToTarget, Info.AssaultRadiusCells, firesReachCells, elapsed, Info.PrepFireMaxTicks))
 				return false;
 
 			// Phase 3 swaps the release predicate for the suppression read: step off as soon as the objective is
 			// observably suppressed, else at the same window expiry. Evaluated only while Phase 2 would otherwise
-			// hold, so the bounded fog-legal circle query never runs on an axis that is already assaulting.
+			// hold, so the bounded fog-legal circle query never runs on an axis that is already assaulting — and
+			// re-evaluated on each such pass, so it samples the objective AFTER shells have started landing rather
+			// than once at elapsed 0.
 			if (Info.SuppressionCoordinatedAdvance
 				&& AdvanceUnderCoverMath.ScreenMayAdvance(
 					ObservedSuppressionAt(axis.TargetPos), Info.PrepSuppressionThreshold, elapsed, Info.PrepFireMaxTicks))
@@ -2862,14 +2951,22 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
-		// Fires Phase 3: the FOG-LEGAL suppression tally at an objective — summed suppression-condition stacks over
-		// the enemy actors this player may LEGALLY SEE within PrepSuppressionRadius. Mirrors RocketFireWorthy's scan
-		// discipline exactly (one bounded circle query, CanBeViewedByPlayer, order-independent integer sum), so the
-		// coordination reads only what a commander can observe — no omniscient read of enemy suppression state
-		// enters the fires cycle. Deterministic: zero draws, and the sum does not depend on iteration order.
+		// Fires Phase 3: the FOG-LEGAL suppression read at an objective — the PER-DEFENDER AVERAGE of the
+		// suppression-condition stacks carried by the armed enemy actors this player may LEGALLY SEE within
+		// PrepSuppressionRadius. Mirrors RocketFireWorthy's scan discipline (one bounded circle query,
+		// CanBeViewedByPlayer, order-independent integer accumulation), so the coordination reads only what a
+		// commander can observe — no omniscient read of enemy suppression state enters the fires cycle.
+		//
+		// AVERAGED, NOT SUMMED (review FIX 7): a raw sum makes the threshold EASIER the more defenders there are,
+		// so five lightly-rattled defenders would read "suppressed" while one pinned defender would not — backwards.
+		// The average keeps the threshold on the same per-actor scale the mechanic itself uses. Only ARMED actors
+		// count as defenders (AttackBase, the same "holds ground" test the control field uses for presence), so a
+		// suppressed supply truck parked at the objective cannot dilute or fake the reading.
+		// Deterministic: both accumulators are order-independent, zero draws.
 		int ObservedSuppressionAt(WPos target)
 		{
 			var total = 0;
+			var defenders = 0;
 			foreach (var a in world.FindActorsInCircle(target, Info.PrepSuppressionRadius))
 			{
 				if (a.IsDead || !a.IsInWorld)
@@ -2878,10 +2975,14 @@ namespace OpenRA.Mods.Common.Traits
 				if (player.RelationshipWith(a.Owner) != PlayerRelationship.Enemy || !a.CanBeViewedByPlayer(player))
 					continue;
 
+				if (!a.Info.HasTraitInfo<AttackBaseInfo>())
+					continue;
+
+				defenders++;
 				total += a.GetConditionCount(Info.SuppressionCondition);
 			}
 
-			return total;
+			return AdvanceUnderCoverMath.NormalizeSuppression(total, defenders);
 		}
 
 		// Hold the screen at its start line: a grouped AttackMove to the screen's own centroid, so it stops
@@ -3100,10 +3201,11 @@ namespace OpenRA.Mods.Common.Traits
 			return hostileMul;
 		}
 
-		/// <summary>Phase 1c leg (a) — turn raw axis scores into coarse BAND-INDEX weights for score-PROPORTIONAL
-		/// sizing, so a believed-field bucket crossing cannot flip the axis sizes (and thereby hand a marginal unit
-		/// to a rival axis pointing the other way — root cause B). Two axes whose scores land in the same band get
-		/// the same weight, hence the same size, hence nothing to shed or top up when the field wobbles.
+		/// <summary>Phase 1c leg (a) — SNAP each axis score to the nearest multiple of a coarse band before
+		/// score-PROPORTIONAL sizing, so believed-field jitter between axes of comparable score cannot flip the
+		/// axis sizes (and thereby hand a marginal unit to a rival axis pointing the other way — root cause B).
+		/// Two NEAR-TIED scores snap to the same multiple, get identical weights, and therefore size identically:
+		/// nothing to shed, nothing to top up, no reshuffle.
 		///
 		/// The band is RELATIVE to the TOP score in the set, mirroring
 		/// <see cref="MissionCommitmentMath.BetterOpportunityQuantized"/>'s pair-relative band, because offense
@@ -3111,19 +3213,30 @@ namespace OpenRA.Mods.Common.Traits
 		/// pairwise) is what makes the result ORDER-INDEPENDENT: max is order-independent, so every axis is banded
 		/// against the same yardstick and the sizing is a function of the score SET, not of its enumeration.
 		///
-		/// The weight is the band INDEX PLUS ONE, not the floored score. Flooring the score itself is what the
-		/// rival compare wants (a ratio test with a margin), but it is WRONG for a proportional allocator: every
-		/// axis below one band would floor to 0 and be starved of the leftover units — a far bigger distortion than
-		/// the jitter being damped. Index+1 keeps the weight monotone in the score, never zero, and small.
-		/// TRADEOFF (deliberate, and the reason bandPct is tunable): the weights carry only ~100/bandPct distinct
-		/// levels, so a coarse band buys stickiness by spending allocation RESOLUTION. That is the intended
-		/// direction — sizes are meant to be sticky — but it is why the band wants a sweep, not a guess.
+		/// ROUND-TO-NEAREST, not floor-to-band and not a band index — the review killed both alternatives, and the
+		/// reasons are the pins in PoiOffenseTest:
+		/// <list type="bullet">
+		/// <item>FLOOR (the rival-compare primitive <see cref="MissionCommitmentMath.QuantizeAxisScore"/>) is right
+		/// for a ratio test with a margin, but fed to a proportional allocator it zeroes every axis below one band
+		/// and hands the leader the whole leftover.</item>
+		/// <item>BAND INDEX + 1 fixed that but broke worse: at a usable band it is a NO-OP for near-ties (the very
+		/// case it exists to damp), it AMPLIFIES them where it does bite (a 0.06% score gap becoming an 11%
+		/// allocation gap, because index arithmetic exaggerates small absolute differences), and the +1 inflates a
+		/// worthless axis to a fixed floor share (a 0.1% axis drawing 16.7% of the leftover).</item>
+		/// <item>ROUND has none of those: near-ties collapse to EQUAL, well-separated scores stay within one band of
+		/// their raw ratio, and a near-zero score snaps to 0 rather than being inflated. Starvation needs no
+		/// special case here — <see cref="AllocateProportional"/> already funds every axis at minAxisSize and
+		/// floors weights through <c>Math.Max(1, …)</c>.</item>
+		/// </list>
+		/// The residual cost is the quantiser boundary: two scores straddling a rounding edge separate by up to one
+		/// band instead of collapsing. That is inherent to any quantiser (only hysteresis removes it), it is
+		/// bounded by one band, and round centres the error where floor biased it.
 		///
-		/// A bandPct ≤ 0, an empty set, or an all-zero set returns the scores unchanged (the frozen path).
-		/// Integer-only, deterministic, zero RNG.</summary>
+		/// A bandPct ≤ 0, an empty set, or an all-zero set returns the scores unchanged — a bitwise pass-through,
+		/// which is the frozen default. Integer-only, deterministic, zero RNG.</summary>
 		public static List<long> QuantizeSizingScores(IReadOnlyList<long> scores, int bandPct)
 		{
-			var weights = new List<long>(scores.Count);
+			var snapped = new List<long>(scores.Count);
 
 			long top = 0;
 			for (var i = 0; i < scores.Count; i++)
@@ -3137,17 +3250,20 @@ namespace OpenRA.Mods.Common.Traits
 				// Flag off, empty set, or every score zero — hand back the raw list so the allocator sees exactly
 				// the pre-1c input.
 				for (var i = 0; i < scores.Count; i++)
-					weights.Add(scores[i]);
+					snapped.Add(scores[i]);
 
-				return weights;
+				return snapped;
 			}
 
-			// scores[i] / band is the band index (floor division; a negative score, which offense scoring cannot
-			// produce, truncates toward 0 and is simply the bottom band).
 			for (var i = 0; i < scores.Count; i++)
-				weights.Add(scores[i] / band + 1);
+			{
+				// Round half up to the nearest band multiple. Guarded on > 0 so a non-positive score (which the
+				// offense factor stack cannot produce) passes through rather than rounding misleadingly.
+				var s = scores[i];
+				snapped.Add(s > 0 ? (s + band / 2) / band * band : s);
+			}
 
-			return weights;
+			return snapped;
 		}
 
 		/// <summary>Phase 1d — tunable-slider shift (§2.7 base ± slope). A knob in 0..100 (50 = neutral) shifts a
