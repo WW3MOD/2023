@@ -170,11 +170,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// The same margin is what keeps the order from being a no-op, i.e. from resolving to the cell the
 		/// truck is already standing in. The chain: this function only runs behind NeedsApproach, which
 		/// compares squared lengths as integers (WDist.LengthSquared is (long)Length * Length — no sqrt on
-		/// that side), so dSq > auraSq gives true distance D > aura exactly. The stop point lies at most
-		/// stop = aura - 1024 from the soldier — truncation in the scaling can only shorten it — so its
-		/// distance from the truck is more than D - stop > aura - (aura - 1024) = 1024. A RESTING truck sits
-		/// on its cell centre, and every point of a cell is within 724 of that centre; since 1024 > 724, the
-		/// stop point provably falls outside the truck's own cell. Caveat: a truck caught MID-MOVE is off
+		/// that side), so dSq > auraSq gives true distance D > aura exactly. The stop point then sits within
+		/// one world-unit of stop = aura - 1024 from the soldier — NOT merely at most stop: HorizontalLength
+		/// is a FLOOR integer sqrt (Exts.ISqrt), so it understates the true length, which overstates the
+		/// scale factor stop/distance and pushes the point OUTWARD, while the per-component (int) casts floor
+		/// it back inward. Net it is strictly under stop + 1, since the overstatement is under one part in
+		/// `distance` and distance > stop on this branch. Its distance from the truck therefore exceeds
+		/// D - (stop + 1) > aura - stop - 1 = 1023. A RESTING truck sits on its cell centre, and every point
+		/// of a cell is within 724 of that centre; since 1023 > 724, the stop point provably falls outside
+		/// the truck's own cell. Caveat: a truck caught MID-MOVE is off
 		/// centre, so it can in principle resolve to the cell it currently occupies — it then halts there,
 		/// and the next scan recomputes from a cell centre and moves it. That is a one-scan delay, not the
 		/// stall this margin exists to prevent.
