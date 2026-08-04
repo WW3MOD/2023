@@ -92,8 +92,33 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new SupplyProvider(init, this); }
 	}
 
+	/// <summary>
+	/// What a provider may do with the target it is currently holding, this tick. Produced by
+	/// <see cref="SupplyProvider.DecideServe"/> and consumed by both the delivery path and the
+	/// condition tracker, so the two cannot disagree about whether a target is being served.
+	/// </summary>
+	public readonly struct SupplyServeDecision
+	{
+		/// <summary>Ammo may be handed over now.</summary>
+		public readonly bool Deliver;
+
+		/// <summary>The RearmCondition should be granted to the target.</summary>
+		public readonly bool HoldCondition;
+
+		/// <summary>The target stays selected even when it cannot be served yet.</summary>
+		public readonly bool KeepTarget;
+
+		public SupplyServeDecision(bool deliver, bool holdCondition, bool keepTarget)
+		{
+			Deliver = deliver;
+			HoldCondition = holdCondition;
+			KeepTarget = keepTarget;
+		}
+	}
+
 	public class SupplyProvider : PausableConditionalTrait<SupplyProviderInfo>, ITick,
-		ITransformActorInitModifier, ISelectionBar, ICargoCanLoadFilter
+		ITransformActorInitModifier, ISelectionBar, ICargoCanLoadFilter,
+		INotifyKilled, INotifyRemovedFromWorld, INotifyActorDisposing
 	{
 		readonly Actor self;
 		int currentSupply;
@@ -150,6 +175,20 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
+			// Removed from the world but still ticking: ITick traits run off the trait container,
+			// which has no IsInWorld filter and is only cleaned when the actor is disposed
+			// (TraitDictionary.cs:305-316, Actor.cs:468). A truck picked up by a Carryall is removed
+			// without being disposed (PickupUnit.cs:174), as is one loaded into cargo, and its
+			// CenterPosition stays frozen at the pickup point — so without this guard it would go on
+			// scanning from there: re-granting the rearm condition one tick after RemovedFromWorld
+			// revoked it, and pushing ammo to units near its last position from inside the carrier.
+			// Unloading needs no re-acquisition logic; the next UpdateTarget scan picks a target again.
+			if (!self.IsInWorld)
+			{
+				ReleaseTargetOnExit();
+				return;
+			}
+
 			if (IsTraitPaused || IsTraitDisabled)
 			{
 				RevokeTargetCondition();
@@ -158,13 +197,26 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			if (restocking)
+			{
+				// Defensive, and a no-op today: every path that sets restocking already revoked and
+				// nulled the target first, so conditionToken is already invalid here. Stating it
+				// locally means the "a restocking provider holds no grant" safety no longer rests on
+				// reading three other call sites.
+				RevokeTargetCondition();
 				return;
+			}
 
 			// A stationary provider flagged to self-remove when almost empty despawns once its
 			// pool drops below the threshold — the stationary analog of a truck driving home
 			// when low (DropsSupplyCache). Disposal path mirrors AbsorbsSupplyCache.cs.
 			if (Info.RemoveBelowSupply > 0 && currentSupply < Info.RemoveBelowSupply)
 			{
+				// Defensive, and a no-op today: currentSupply only falls in ResupplyTarget, whose tail
+				// already revoked and cleared the target. Doing it here too means the grant is released
+				// before the frame-end Dispose regardless of how we reached this branch.
+				RevokeTargetCondition();
+				currentTarget = null;
+
 				self.World.AddFrameEndTask(w => { if (!self.IsDead && self.IsInWorld) self.Dispose(); });
 				return;
 			}
@@ -206,6 +258,12 @@ namespace OpenRA.Mods.Common.Traits
 				scanTicks = Info.ScanInterval;
 				UpdateTarget();
 			}
+
+			// Keep the rearm condition tracking aura membership every tick. This CANNOT live on
+			// SetTarget's target-change edge: SetTarget early-returns when the target is unchanged,
+			// so a target that leaves (or enters) the aura while still selected would never be
+			// re-evaluated, and the condition would latch.
+			SyncTargetCondition();
 
 			// Resupply current target
 			if (currentTarget != null)
@@ -409,8 +467,7 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			// Must be in range
-			var dist = (a.CenterPosition - self.CenterPosition).HorizontalLength;
-			if (dist > Info.Range.Length)
+			if (!InAuraRange(self.CenterPosition, a.CenterPosition, Info.Range))
 				return false;
 
 			// If a docking gate is configured (e.g. unit.docked on the LC), the target
@@ -452,14 +509,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Sheltered passengers in garrison buildings aren't in the world; their
 			// CenterPosition is stale. The building they're inside is, by definition,
-			// already in range — so skip move-toward and skip granting the rearm
-			// condition (invisible anyway, and would leak if the soldier later
-			// deploys to a port before our next ResupplyTarget tick).
+			// already in range — so skip move-toward for them.
 			if (currentTarget != null && currentTarget.IsInWorld)
 			{
 				// If target is out of range (Hunt mode found a distant flagged unit), move toward it
-				var dist = (currentTarget.CenterPosition - self.CenterPosition).HorizontalLength;
-				if (dist > Info.Range.Length)
+				if (!InAuraRange(self.CenterPosition, currentTarget.CenterPosition, Info.Range))
 				{
 					var move = self.TraitOrDefault<IMove>();
 					if (move != null)
@@ -468,24 +522,111 @@ namespace OpenRA.Mods.Common.Traits
 						self.QueueActivity(false, move.MoveTo(targetCell, 2));
 					}
 				}
-
-				// Grant condition to new target
-				if (!string.IsNullOrEmpty(Info.RearmCondition))
-				{
-					targetConditionTrait = currentTarget.TraitsImplementing<ExternalCondition>()
-						.FirstOrDefault(e => e.Info.Condition == Info.RearmCondition);
-					if (targetConditionTrait != null)
-						conditionToken = targetConditionTrait.GrantCondition(currentTarget, this);
-				}
 			}
 
+			// The rearm condition is NOT granted here. Granting on the target-change edge is what
+			// let it latch on an out-of-aura target: this method early-returns when the target is
+			// unchanged, so it never gets a second look. SyncTargetCondition owns the whole
+			// grant/revoke lifecycle and re-evaluates every tick.
 			rearmTicks = Info.RearmDelay;
 		}
 
+		/// <summary>
+		/// Grants or revokes the rearm condition so it tracks aura membership, re-evaluated every
+		/// tick for as long as the target is held. Out of the aura the condition comes off — it
+		/// enables the target's own ReloadAmmoPool trickle, which has no range check of its own —
+		/// and goes back on when the target enters the aura, without the target ever being dropped.
+		/// </summary>
+		void SyncTargetCondition()
+		{
+			if (currentTarget == null || currentTarget.IsDead)
+			{
+				RevokeTargetCondition();
+				return;
+			}
+
+			if (string.IsNullOrEmpty(Info.RearmCondition))
+				return;
+
+			var inWorld = currentTarget.IsInWorld;
+			var inAura = inWorld && InAuraRange(self.CenterPosition, currentTarget.CenterPosition, Info.Range);
+			var shouldHold = DecideServe(inWorld, inAura).HoldCondition;
+			var held = conditionToken != Actor.InvalidConditionToken;
+
+			if (shouldHold == held)
+				return;
+
+			if (!shouldHold)
+			{
+				RevokeTargetCondition();
+				return;
+			}
+
+			targetConditionTrait = currentTarget.TraitsImplementing<ExternalCondition>()
+				.FirstOrDefault(e => e.Info.Condition == Info.RearmCondition);
+			if (targetConditionTrait != null)
+				conditionToken = targetConditionTrait.GrantCondition(currentTarget, this);
+		}
+
+		/// <summary>
+		/// Release the rearm condition when this provider leaves play. Without this the grant is
+		/// ORPHANED: ExternalCondition.permanentTokens is keyed by granting source and has no
+		/// source-death sweep (the Tick expiry loop only walks timedTokens, and the ReduceTicks
+		/// decay path is inert unless configured — infantry's ExternalCondition@AmmoReplenish sets
+		/// only Condition). So a provider destroyed while serving leaves its target holding
+		/// replenish-soldiers forever, which keeps ReloadAmmoPool trickling free ammo for the rest
+		/// of the match. A parked truck is a prime artillery target and the token is held during
+		/// every serving cycle, so this is an ordinary occurrence, not a corner case.
+		///
+		/// Note what does NOT stop the trait: leaving the world. ITick traits are not driven from the
+		/// `actors` dict (World.cs:496-497 ticks that only for ACTIVITIES) but through
+		/// ApplyToActorsWithTraitTimed&lt;ITick&gt; → TraitDictionary.ApplyToAllTimed
+		/// (TraitDictionary.cs:305-316), which walks the trait container with NO IsInWorld or
+		/// Disposed filter. An actor leaves that container only in Actor.Dispose's frame-end task
+		/// (Actor.cs:469), so a removed-but-not-disposed provider KEEPS TICKING — see the IsInWorld
+		/// guard at the top of Tick, which is what actually stops it.
+		///
+		/// Three notifications, because they answer different questions:
+		///  - Killed and Disposing are the terminal pair, and between them they cover every way a
+		///    provider permanently leaves play: combat death, the RemoveBelowSupply self-Dispose in
+		///    Tick, sell, and the TRUK/LCCV transform. Killed fires at the moment of death, ahead of
+		///    Dispose's frame-end task, so a truck destroyed mid-cycle releases its target
+		///    immediately rather than at end of frame; Disposing is the backstop that fires however
+		///    the actor got there, including when it was already out of the world (Actor.Dispose
+		///    calls World.Remove only `if (IsInWorld)`, Actor.cs:463).
+		///  - RemovedFromWorld is belt and braces at the removal moment, and the only one that fires
+		///    for a NON-terminal exit — a Carryall pickup removes the truck without disposing it
+		///    (PickupUnit.cs:174), as does loading into cargo. It revokes immediately; the Tick
+		///    guard then keeps the trait from re-granting on the following tick.
+		///
+		/// Redundant revokes are harmless: TryRevokeCondition returns false once the token is gone,
+		/// and conditionToken is zeroed on the first call. It is world-independent and acts on the
+		/// TARGET's trait, so running it while SELF is dead or disposing is safe.
+		/// </summary>
+		void ReleaseTargetOnExit()
+		{
+			RevokeTargetCondition();
+			currentTarget = null;
+		}
+
+		void INotifyKilled.Killed(Actor self, AttackInfo e) { ReleaseTargetOnExit(); }
+
+		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self) { ReleaseTargetOnExit(); }
+
+		void INotifyActorDisposing.Disposing(Actor self) { ReleaseTargetOnExit(); }
+
 		void RevokeTargetCondition()
 		{
+			// IsInWorld is deliberately NOT checked. A held target boarding a garrison shelter is
+			// exactly when this revoke must fire: the soldier leaves the world, DecideServe drops
+			// HoldCondition (shelter passengers are served but never granted), and SyncTargetCondition
+			// revokes — but an IsInWorld guard would skip TryRevokeCondition while the fields below
+			// are zeroed regardless, orphaning a permanent token that no longer has an owner to
+			// release it. The soldier would then carry a free perpetual ReloadAmmoPool trickle out of
+			// the garrison. TryRevokeCondition is world-independent (list bookkeeping plus a
+			// TokenValid-guarded revoke), so calling it on an out-of-world actor is safe.
 			if (conditionToken != Actor.InvalidConditionToken && currentTarget != null &&
-				!currentTarget.IsDead && currentTarget.IsInWorld && targetConditionTrait != null)
+				!currentTarget.IsDead && targetConditionTrait != null)
 			{
 				targetConditionTrait.TryRevokeCondition(currentTarget, this, conditionToken);
 			}
@@ -512,6 +653,24 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				RevokeTargetCondition();
 				currentTarget = null;
+				return;
+			}
+
+			// The aura is a proximity push: enforce Range on delivery, not just on selection.
+			// Target selection can legitimately hand us a target that is out of range right now —
+			// the Hunt branch in UpdateTarget picks a flagged unit anywhere on the map and SetTarget
+			// only *starts* driving toward it — and a selected target can also walk out of the aura
+			// during the RearmDelay wait. Without this gate GiveAmmo fires at any distance.
+			var inWorld = currentTarget.IsInWorld;
+			var decision = DecideServe(inWorld,
+				inWorld && InAuraRange(self.CenterPosition, currentTarget.CenterPosition, Info.Range));
+
+			if (!decision.Deliver)
+			{
+				// Keep the target so an approaching provider serves it on arrival; just don't deliver
+				// yet. SyncTargetCondition has already taken the rearm condition off, and puts it
+				// back the tick we arrive.
+				rearmTicks = Info.RearmDelay;
 				return;
 			}
 
@@ -693,6 +852,81 @@ namespace OpenRA.Mods.Common.Traits
 		bool ICargoCanLoadFilter.CanLoadPassenger(Actor self, Actor passenger)
 		{
 			return currentSupply > 0;
+		}
+
+		/// <summary>
+		/// The whole per-tick "what may I do with this target" rule, kept pure so both the delivery
+		/// path and the condition tracker read it from one place.
+		///
+		/// The aura is a proximity push, so an out-of-aura target gets neither ammo NOR the
+		/// RearmCondition — the condition enables the target's own ReloadAmmoPool (a free in-place
+		/// trickle that carries no range check of its own), so leaving it granted at unlimited range
+		/// is the same exploit as delivering at unlimited range. The target is still KEPT, because
+		/// selection can legitimately hand us something we are only just driving toward; we simply
+		/// serve it on arrival.
+		///
+		/// Sheltered garrison passengers are the exception: they are removed from the world with a
+		/// stale CenterPosition, and their building was in range when they were picked, so they are
+		/// served — but never granted the condition, which would be invisible and would leak if the
+		/// soldier later deployed out.
+		/// </summary>
+		public static SupplyServeDecision DecideServe(bool targetInWorld, bool inAura)
+		{
+			if (!targetInWorld)
+				return new SupplyServeDecision(deliver: true, holdCondition: false, keepTarget: true);
+
+			if (inAura)
+				return new SupplyServeDecision(deliver: true, holdCondition: true, keepTarget: true);
+
+			return new SupplyServeDecision(deliver: false, holdCondition: false, keepTarget: true);
+		}
+
+		/// <summary>
+		/// Whether this provider is in a state where it serves anyone at all this tick — the exact
+		/// early-return ladder <see cref="ITick.Tick"/> walks before it ever looks for a target.
+		/// Exposed so a unit deciding whether to walk here can ask instead of reproducing the rule
+		/// (and reading `restocking`, which is private for good reason).
+		/// </summary>
+		public bool CanServeNow
+		{
+			get
+			{
+				// Tick: paused/disabled clears the target and returns.
+				if (IsTraitPaused || IsTraitDisabled)
+					return false;
+
+				// Tick: mid-restock drive — serves nobody until it arrives.
+				if (restocking)
+					return false;
+
+				// Tick: about to remove itself from the world.
+				if (Info.RemoveBelowSupply > 0 && currentSupply < Info.RemoveBelowSupply)
+					return false;
+
+				// Tick: drained.
+				if (currentSupply <= 0)
+					return false;
+
+				// Tick: below the restock threshold with no active customer, and not one of the
+				// evacuating trucks that keep serving down to the last usable batch — it is about
+				// to reserve its remainder and drive home.
+				if (currentSupply < Info.RestockThreshold && currentTarget == null && !KeepServingBelowThreshold())
+					return false;
+
+				return true;
+			}
+		}
+
+		/// <summary>
+		/// Whether a target sits inside the provider's push aura. Horizontal (2D) distance compared
+		/// squared, which is exactly the filter WorldUtils.FindActorsInCircle applies
+		/// (<c>HorizontalLengthSquared &lt;= r.LengthSquared</c>) — so selection and delivery agree on
+		/// the boundary instead of drifting by the floor() that WVec.HorizontalLength's ISqrt applies.
+		/// Pure so the unit tests pin the exact rule every range site in this trait uses.
+		/// </summary>
+		public static bool InAuraRange(WPos providerPos, WPos targetPos, WDist range)
+		{
+			return (targetPos - providerPos).HorizontalLengthSquared <= range.LengthSquared;
 		}
 
 		/// <summary>

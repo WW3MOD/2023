@@ -213,6 +213,10 @@
 		Margin: 0,6
 	ExternalCondition@AmmoReplenish:
 		Condition: replenish-soldiers
+	# Idle + low ammo -> walk to the nearest truck/cache whose aura can refill us, then walk back.
+	# Ships OFF; flipping Enabled to true turns it on for every soldier, human- and bot-owned alike.
+	AutoSeekSupplies:
+		Enabled: false
 	GainsExperienceMultiplier@TLBoost:
 		RequiresCondition: morale-boost
 		Modifier: 150

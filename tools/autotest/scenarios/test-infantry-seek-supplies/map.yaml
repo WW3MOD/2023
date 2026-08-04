@@ -1,0 +1,63 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: idle low-ammo infantry seeks supplies and returns
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# A rifleman stands 12 cells from a full supply truck — outside the truck's 5c0
+# push aura, inside the 20-cell hunt leash. The Lua drains his rifle to 10% (NOT
+# to zero: an all-pools-empty unit would be moved by the pre-existing
+# AmmoPool.AutoRearmIfAllEmpty path, and the test would pass without the new
+# behaviour). Nothing else can move him, so any rearm proves he walked.
+# PASS = ammo climbs above the drained baseline AND he ends up back where he started.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		Faction: america
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	# The unit under test. Drained to 10/100 primary in Lua; RPG left full so the
+	# all-pools-empty legacy rearm path stays out of the way.
+	Customer: e3
+		Owner: Me
+		Location: 18,16
+		Facing: 768
+
+	# Full supply truck, 12 cells east — well outside its own 5c0 aura reach.
+	Truck: truk
+		Owner: Me
+		Location: 30,16
+
+Rules: rules.yaml
