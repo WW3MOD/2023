@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Traits;
@@ -72,6 +73,46 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Extra gated AA units permitted per observed enemy aircraft.")]
 		public readonly int AntiAirPerObservedAir = 1;
 
+		[Desc("EXPERIMENTAL (composition-directed purchasing): replace the ground-unit LOTTERY with a",
+			"census-vs-target deficit pick. The frozen path buys uniformly at random (idleUnitCount stays 0",
+			"under IgnoreGroundUnits, so buildRandom is always true), which makes the STANDING composition",
+			"proportional to each type's LIFETIME — long-lived rear-line mortars accumulate. With this on, the",
+			"module measures what it owns (per-mille of army VALUE), compares against UnitTargetShares, and buys",
+			"the type furthest below target. Default false ⇒ the legacy ternary runs unchanged, including the",
+			"LocalRandom draw count and order, so normal/rush/turtle/@stable are byte-identical.")]
+		public readonly bool CompositionDirected = false;
+
+		[Desc("Target share (per-mille of army VALUE) per actor type. These are TARGETS, not the ceilings",
+			"UnitsToBuild weights are. Only types listed here are eligible for the composition-directed pick —",
+			"an unlisted buyable type is simply never chosen by it (that is how helicopter pools stay deferred).",
+			"Inert unless CompositionDirected is set. Values need not sum to 1000; they are apportioned.")]
+		public readonly Dictionary<string, int> UnitTargetShares = null;
+
+		[Desc("Own actor type -> role token (frontline/antitank/antiair/mortar/support/...). Used only as the",
+			"row/column key for CounterMatrixPct; a type with no role simply receives no counter bias.")]
+		public readonly Dictionary<string, string> UnitRoles = null;
+
+		[Desc("Counter bias, keyed \"enemyclass>ownrole\" (e.g. \"armor>antitank: 40\"). Enemy classes are the",
+			"existing 3-way believed classification: air, armor, infantry. The value is a percent contribution",
+			"scaled by that class's share of the believed enemy force, summed per own-role and clamped to",
+			"+/-CounterBiasMaxPct before being applied to the target shares.")]
+		public readonly Dictionary<string, int> CounterMatrixPct = null;
+
+		[Desc("Clamp on the summed counter bias, in percent of the base target share. 0 disables the bias.")]
+		public readonly int CounterBiasMaxPct = 200;
+
+		[Desc("Integer EMA alpha (percent) for the believed enemy class shares. Lower = smoother/slower.")]
+		public readonly int ThreatSmoothingAlphaPct = 20;
+
+		[Desc("Believed enemy class shares (per-mille) strictly below this contribute NO counter bias —",
+			"a single scouted unit must not re-plan the army.")]
+		public readonly int ThreatDeadbandPerMille = 30;
+
+		[Desc("Own units currently granted this condition are EXCLUDED from the composition census.",
+			"An evacuating unit is leaving the battlefield, so it is not force-in-being and must not",
+			"suppress a replacement buy. Empty ⇒ no exclusion.")]
+		public readonly string CensusExcludeCondition = "evacuating";
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -83,6 +124,12 @@ namespace OpenRA.Mods.Common.Traits
 			ActorNameCase.NormalizeKeysInPlace(UnitDelays);
 			ActorNameCase.NormalizeInPlace(ResupplyUnitTypes);
 			ActorNameCase.NormalizeInPlace(AntiAirUnitTypes);
+
+			// UnitTargetShares is keyed by actor name and compared against Info.Name (always lowercase, see
+			// conventions.md) — the same case-mismatch trap the sets above are hardened against. UnitRoles
+			// (string values, no ActorNameCase overload) and the CounterMatrixPct "enemyclass>ownrole" tokens
+			// are lowercased where the module flattens them in Created.
+			ActorNameCase.NormalizeKeysInPlace(UnitTargetShares);
 		}
 
 		public override object Create(ActorInitializer init) { return new UnitBuilderBotModule(init.Self, this); }
@@ -109,6 +156,25 @@ namespace OpenRA.Mods.Common.Traits
 
 		int ticks;
 
+		// ===== Composition-directed purchasing (@experimental; all null/empty when CompositionDirected is off) =====
+		// The Dictionaries are flattened ONCE in Created into ordinal-ordered arrays: the runtime math must never
+		// depend on Dictionary enumeration order (it is unspecified and can differ between runs of the same seed).
+		// compositionTypes[i] is the actor name of ordinal slot i; every other array is parallel to it.
+		string[] compositionTypes;
+		int[] compositionTargets;      // designer target share per slot, per-mille (pre-bias).
+		int[] compositionRoleIndex;    // slot -> index into compositionRoles, or -1 for "no role".
+		string[] compositionRoles;     // ordinal-sorted distinct role tokens.
+		int[,] counterMatrix;          // [enemy class, role index] percent, from CounterMatrixPct.
+		int[] smoothedThreatShares;    // persisted EMA state, parallel to ThreatClasses.
+		BeliefStore beliefStore;
+		bool compositionInitialized;
+		bool beliefStoreResolved;
+		int lastThreatTick = -1;
+
+		// The believed-enemy classification is the existing 3-way split (see AdaptiveProductionBotModule
+		// .ClassifyContact); this array fixes both the ordinal slot order and the YAML key spelling.
+		static readonly string[] ThreatClasses = { "air", "armor", "infantry" };
+
 		public UnitBuilderBotModule(Actor self, UnitBuilderBotModuleInfo info)
 			: base(info)
 		{
@@ -119,6 +185,92 @@ namespace OpenRA.Mods.Common.Traits
 		protected override void Created(Actor self)
 		{
 			requestPause = self.Owner.PlayerActor.TraitsImplementing<IBotRequestPauseUnitProduction>().ToArray();
+
+			InitializeComposition();
+		}
+
+		// Flatten the composition config into ordinal-ordered arrays exactly once. Skipped entirely when the
+		// flag is off ⇒ no allocation, no belief-store lookup, nothing to diverge on the frozen path.
+		void InitializeComposition()
+		{
+			if (compositionInitialized)
+				return;
+
+			compositionInitialized = true;
+
+			if (!Info.CompositionDirected || Info.UnitTargetShares == null || Info.UnitTargetShares.Count == 0)
+				return;
+
+			// An all-zero (or all-negative) share table is a CONFIG ERROR, not a policy. SharesPerMille would
+			// apportion it to all zeros, every deficit would tie at 0, and the ordinal tie-break would then buy
+			// the lowest-ordinal eligible type forever. Stay inactive (legacy picker) and say so once, instead
+			// of silently shipping a degenerate purchase plan.
+			if (!Info.UnitTargetShares.Values.Any(v => v > 0))
+			{
+				AIUtils.BotDebug("{0} CompositionDirected is set but no UnitTargetShares entry is positive — falling back to the legacy picker.", player);
+				return;
+			}
+
+			// Ordinal sort by actor name: the slot order is then a pure function of the config text.
+			compositionTypes = Info.UnitTargetShares.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray();
+			compositionTargets = new int[compositionTypes.Length];
+			compositionRoleIndex = new int[compositionTypes.Length];
+
+			// Role token per type (lowercased here — UnitRoles has string values, so ActorNameCase's
+			// Dictionary<string,int> key-normalizer does not apply to it).
+			var rolesByType = new Dictionary<string, string>();
+			if (Info.UnitRoles != null)
+				foreach (var kv in Info.UnitRoles)
+					rolesByType[kv.Key.ToLowerInvariant()] = kv.Value.ToLowerInvariant();
+
+			compositionRoles = rolesByType.Values.Distinct().OrderBy(r => r, StringComparer.Ordinal).ToArray();
+
+			for (var i = 0; i < compositionTypes.Length; i++)
+			{
+				compositionTargets[i] = Info.UnitTargetShares[compositionTypes[i]];
+				compositionRoleIndex[i] = rolesByType.TryGetValue(compositionTypes[i], out var role)
+					? Array.IndexOf(compositionRoles, role)
+					: -1;
+			}
+
+			// Targets are apportioned once so the runtime compares like with like (census is per-mille too).
+			compositionTargets = ForceCompositionMath.SharesPerMille(compositionTargets);
+
+			// The YAML matrix is keyed by ROLE, but the target vector the bias is applied to is indexed by
+			// TYPE — so parse into a role matrix and then EXPAND it into type columns here, once. Doing this
+			// at flatten time is what keeps the per-buy math a plain array read (and stops a role/type index
+			// mix-up from silently disabling the bias: ApplyCounterBias requires column count == targets).
+			var roleMatrix = new int[ThreatClasses.Length, compositionRoles.Length];
+			if (Info.CounterMatrixPct != null)
+			{
+				foreach (var kv in Info.CounterMatrixPct)
+				{
+					var key = kv.Key.ToLowerInvariant();
+					var sep = key.IndexOf('>');
+					if (sep <= 0 || sep >= key.Length - 1)
+						continue;
+
+					var enemyClass = Array.IndexOf(ThreatClasses, key.Substring(0, sep).Trim());
+					var ownRole = Array.IndexOf(compositionRoles, key.Substring(sep + 1).Trim());
+					if (enemyClass < 0 || ownRole < 0)
+						continue;
+
+					roleMatrix[enemyClass, ownRole] = kv.Value;
+				}
+			}
+
+			counterMatrix = new int[ThreatClasses.Length, compositionTypes.Length];
+			for (var i = 0; i < compositionTypes.Length; i++)
+			{
+				var role = compositionRoleIndex[i];
+				if (role < 0)
+					continue;
+
+				for (var c = 0; c < ThreatClasses.Length; c++)
+					counterMatrix[c, i] = roleMatrix[c, role];
+			}
+
+			smoothedThreatShares = new int[ThreatClasses.Length];
 		}
 
 		void IBotNotifyIdleBaseUnits.UpdatedIdleBaseUnits(List<Actor> idleUnits)
@@ -192,9 +344,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (queue == null)
 				return;
 
-			var unit = buildRandom ?
-				ChooseRandomUnitToBuild(queue) :
-				ChooseUnitToBuild(queue);
+			// @experimental composition-directed pick. When the flag is off the legacy ternary below is reached
+			// unchanged — same branches, same LocalRandom draws, same order — so the frozen profiles are
+			// byte-identical. When it is on, ChooseByDeficit draws ZERO random and falls back to the SAME
+			// ternary for a queue it has no opinion about (e.g. a heli-only queue with no target shares).
+			var unit = Info.CompositionDirected ?
+				ChooseByDeficit(queue, buildRandom) :
+				(buildRandom ? ChooseRandomUnitToBuild(queue) : ChooseUnitToBuild(queue));
 
 			if (unit == null)
 				return;
@@ -345,6 +501,269 @@ namespace OpenRA.Mods.Common.Traits
 			return null;
 		}
 
+		// ===== Composition-directed pick (@experimental) =====
+		// Buy the type the army is furthest BELOW its target share, instead of drawing uniformly at random.
+		// Zero random draws. Returns null only when the legacy fallback also declines; a queue this pass has no
+		// opinion about (nothing eligible — e.g. a pool with no UnitTargetShares entries at all) falls back to
+		// the legacy ternary so purchase VOLUME is never reduced by the flag.
+		ActorInfo ChooseByDeficit(ProductionQueue queue, bool buildRandom)
+		{
+			if (compositionTypes == null || compositionTypes.Length == 0)
+				return buildRandom ? ChooseRandomUnitToBuild(queue) : ChooseUnitToBuild(queue);
+
+			var buildableThings = queue.BuildableItems();
+			if (!buildableThings.Any())
+				return null;
+
+			var census = ForceCompositionMath.SharesPerMille(CensusValues());
+			var targets = ForceCompositionMath.ApplyCounterBias(compositionTargets, UpdateThreatShares(),
+				counterMatrix, Info.CounterBiasMaxPct, Info.ThreatDeadbandPerMille);
+
+			// Materialize once: BuildableItems() is a lazy query and eligibility probes it per slot.
+			var buildableNames = new HashSet<string>(buildableThings.Select(b => b.Name));
+
+			var budget = AvailableBudget();
+			var eligible = new bool[compositionTypes.Length];
+			for (var i = 0; i < compositionTypes.Length; i++)
+				eligible[i] = IsCompositionCandidateEligible(compositionTypes[i], buildableNames, budget);
+
+			var idx = ForceCompositionMath.SelectDeficit(targets, census, eligible);
+			if (idx < 0)
+				return buildRandom ? ChooseRandomUnitToBuild(queue) : ChooseUnitToBuild(queue);
+
+			LogCompositionChoice(compositionTypes[idx], ForceCompositionMath.DeficitAt(targets, census, idx), census, targets);
+
+			return world.Map.Rules.Actors[compositionTypes[idx]];
+		}
+
+		// Own-force census in VALUE (ValuedInfo.Cost), bucketed into the ordinal slots. Two deliberate details:
+		//   * EVACUATING units are excluded — a unit flying/driving off the map to refund its cost is not
+		//     force-in-being, and counting it would suppress the very replacement buy it should trigger.
+		//   * PENDING call-ins are credited at FULL cost. The purchase cycle is 30 ticks but a reinforcement
+		//     takes far longer to walk in from the map edge, so without this the bot would re-pick the same
+		//     deficit type every cycle and badly overshoot it before the first one ever arrives.
+		// The accumulation is additive into fixed slots, so it is order-independent by construction (same
+		// argument AdaptiveProductionBotModule uses for its believed-value sums) — no sort needed for determinism.
+		int[] CensusValues()
+		{
+			var values = new int[compositionTypes.Length];
+			var excludeCondition = Info.CensusExcludeCondition;
+			var hasExclude = !string.IsNullOrEmpty(excludeCondition);
+
+			foreach (var a in world.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+
+				var slot = Array.IndexOf(compositionTypes, a.Info.Name);
+				if (slot < 0)
+					continue;
+
+				if (hasExclude && a.GetConditionCount(excludeCondition) > 0)
+					continue;
+
+				values[slot] += UnitCost(a.Info);
+			}
+
+			// Pending credit: everything already queued/in-progress on the module's own queues, plus both
+			// request lists. The queue BuildUnit selected is empty by construction (it filters on
+			// !AllQueued().Any()), so crediting only "this queue" would always be a no-op — the credit has to
+			// span the module's queues to actually damp the overshoot it exists to prevent.
+			var queues = AIUtils.FindQueuesByCategory(player);
+			foreach (var category in Info.UnitQueues)
+			{
+				foreach (var q in queues[category])
+				{
+					foreach (var item in q.AllQueued())
+					{
+						var slot = Array.IndexOf(compositionTypes, item.Item);
+						if (slot >= 0 && world.Map.Rules.Actors.TryGetValue(item.Item, out var pendingInfo))
+							values[slot] += UnitCost(pendingInfo);
+					}
+				}
+			}
+
+			CreditTransportedUnits(values, excludeCondition, hasExclude);
+
+			CreditRequests(values, priorityBuildRequests);
+			CreditRequests(values, queuedBuildRequests);
+
+			return values;
+		}
+
+		// TRANSPORTED / GARRISONED units are ABSENT from world.Actors entirely, so the loop above cannot see
+		// them — boarding REMOVES the passenger from the world dictionary (RideTransport.cs:85 `w.Remove(self)`,
+		// right after Cargo.Load), it does not merely clear IsInWorld. Both loaders are live on the profile that
+		// enables this: MountedTransportBotModule loads infantry into bradley/bmp2/m113, and GarrisonBotModule
+		// garrisons infantry into buildings. Without this pass every loaded unit reads as a PERMANENT deficit and
+		// the bot re-buys it forever — self-reinforcing, and able to re-create the exact mortar pile-up this lane
+		// exists to fix (mortar infantry is transportable).
+		//
+		// Cargo is the single authoritative container for both cases: a garrison's shelter soldiers live in the
+		// building's own Cargo (GarrisonManager.cs:185/:1209 — shelterPassengers mirrors it), and a soldier
+		// DEPLOYED to a firing port is `cargo.Unload`ed and re-added to the world (:341/:372), so it is already
+		// counted by the main loop. The two sources are therefore disjoint: no double-count against world.Actors,
+		// and none against the pending-queue/request credit either (that counts things not yet delivered).
+		void CreditTransportedUnits(int[] values, string excludeCondition, bool hasExclude)
+		{
+			foreach (var pair in world.ActorsWithTrait<Cargo>())
+			{
+				var transport = pair.Actor;
+				if (transport.IsDead || !transport.IsInWorld)
+					continue;
+
+				// Look inside our own and allied containers only. This misses nothing, because a container
+				// holding THIS player's soldiers is always player- or ally-owned: a garrison claims its
+				// building for the entering soldier's owner on the way in (GarrisonManager.OnPassengerEntered
+				// -> ChangeOwnerInPlace, :253-262) and reverts/transfers only once occupants leave (:320-332),
+				// and vehicle transports are loaded by MountedTransportBotModule pairing the bot's own infantry
+				// with its own carriers. (Cargo.CanLoad itself does NOT gate on ownership — it tests only
+				// LoadingBlocked, the ICargoCanLoadFilter hooks, and space, Cargo.cs:279-289.) Restricting the
+				// scan also keeps the census off enemy cargo — the fog-legality constraint is that this pass
+				// reads the player's OWN force, not hidden enemy state.
+				if (transport.Owner != player && player.RelationshipWith(transport.Owner) != PlayerRelationship.Ally)
+					continue;
+
+				// NOTE: passengers are deliberately NOT IsInWorld-checked — being out of the world is precisely
+				// what makes them invisible to the main census loop.
+				foreach (var passenger in pair.Trait.Passengers)
+				{
+					if (passenger.Owner != player || passenger.IsDead)
+						continue;
+
+					var slot = Array.IndexOf(compositionTypes, passenger.Info.Name);
+					if (slot < 0)
+						continue;
+
+					if (hasExclude && passenger.GetConditionCount(excludeCondition) > 0)
+						continue;
+
+					values[slot] += UnitCost(passenger.Info);
+				}
+			}
+		}
+
+		void CreditRequests(int[] values, List<string> requests)
+		{
+			foreach (var request in requests)
+			{
+				var slot = Array.IndexOf(compositionTypes, request);
+				if (slot >= 0 && world.Map.Rules.Actors.TryGetValue(request, out var requestInfo))
+					values[slot] += UnitCost(requestInfo);
+			}
+		}
+
+		// Believed enemy value per class -> per-mille shares -> integer EMA. FOG-LEGAL: the belief store is the
+		// player's own memory of what it has legally seen (never ground truth). Recomputed at most once per world
+		// tick so the two BuildUnit calls in one BotTick cycle share one EMA step instead of double-advancing it.
+		int[] UpdateThreatShares()
+		{
+			if (!beliefStoreResolved)
+			{
+				beliefStoreResolved = true;
+				beliefStore = world.WorldActor.TraitOrDefault<BeliefStore>();
+			}
+
+			if (beliefStore == null || world.WorldTick == lastThreatTick)
+				return smoothedThreatShares;
+
+			lastThreatTick = world.WorldTick;
+
+			var values = new int[ThreatClasses.Length];
+			foreach (var c in beliefStore.Contacts(player))
+			{
+				if (!world.Map.Rules.Actors.TryGetValue(c.TypeName, out var ai))
+					continue;
+
+				var value = UnitCost(ai) * c.Confidence / 100;
+				if (value <= 0)
+					continue;
+
+				var cls = ClassifyBelievedContact(ai);
+				if (cls >= 0)
+					values[cls] += value;
+			}
+
+			smoothedThreatShares = ForceCompositionMath.SmoothShares(smoothedThreatShares,
+				ForceCompositionMath.SharesPerMille(values), Info.ThreatSmoothingAlphaPct);
+
+			return smoothedThreatShares;
+		}
+
+		// Index into ThreatClasses, or -1 for "not a mobile threat". Classify by the ENEMY unit's own type, not
+		// by what its weapon can target — so an attack helicopter is AIR (answered by AA), never ground.
+		// Mirrors AdaptiveProductionBotModule.ClassifyContact (private there; the two must stay in step).
+		static int ClassifyBelievedContact(ActorInfo ai)
+		{
+			if (ai.HasTraitInfo<AircraftInfo>())
+				return 0; // air
+
+			if (!ai.HasTraitInfo<MobileInfo>())
+				return -1; // structures / immobile
+
+			return ai.HasTraitInfo<Render.WithInfantryBodyInfo>() ? 2 : 1; // infantry : armor
+		}
+
+		// A slot is eligible only if the buy would ACTUALLY go through — every gate BuildUnit applies after the
+		// pick is checked here too, so an ineligible type is skipped rather than silently wasting the cycle
+		// (BuildUnit's post-pick gates `return` without buying anything).
+		bool IsCompositionCandidateEligible(string name, HashSet<string> buildableNames, long budget)
+		{
+			if (!buildableNames.Contains(name))
+				return false;
+
+			if (!world.Map.Rules.Actors.TryGetValue(name, out var actorInfo))
+				return false;
+
+			if (Info.UnitsToBuild != null && !Info.UnitsToBuild.ContainsKey(name))
+				return false;
+
+			if (Info.UnitDelays != null && Info.UnitDelays.TryGetValue(name, out var delay) && delay > world.WorldTick)
+				return false;
+
+			if (Info.UnitLimits != null && Info.UnitLimits.TryGetValue(name, out var limit) &&
+				world.Actors.Count(a => a.Owner == player && a.Info.Name == name) >= limit)
+				return false;
+
+			if (Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name) && !AnyFieldedUnitNeedsResupply())
+				return false;
+
+			if (Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())
+				return false;
+
+			if (!CompositionNeedMath.Affordable(budget, UnitCost(actorInfo), 100))
+				return false;
+
+			return HasAdequateAirUnitReloadBuildings(actorInfo);
+		}
+
+		// Observability channel: one line per composition-directed selection, so autotest log-mining can chart
+		// the standing composition against its targets without a benchmark run. Top 3 by census share — the
+		// over-accumulating types are exactly the ones that need to show up in the chart.
+		void LogCompositionChoice(string chosen, int deficit, int[] census, int[] targets)
+		{
+			var top = Enumerable.Range(0, compositionTypes.Length)
+				.OrderByDescending(i => census[i])
+				.ThenBy(i => i)
+				.Take(3)
+				.Select(i => compositionTypes[i] + " " + census[i] + "/" + targets[i]);
+
+			AIUtils.BotDebug("{0} composition-directed buy: {1} (deficit {2}) [top {3}]",
+				player, chosen, deficit, string.Join(", ", top));
+		}
+
+		long AvailableBudget()
+		{
+			var res = player.PlayerActor.TraitOrDefault<PlayerResources>();
+			return res != null ? (long)res.Cash + res.Resources : 0;
+		}
+
+		static int UnitCost(ActorInfo ai)
+		{
+			var valued = ai.TraitInfoOrDefault<ValuedInfo>();
+			return valued?.Cost ?? 0;
+		}
+
 		// For mods like RA (number of RearmActors must match the number of aircraft).
 		// WW3MOD: Aircraft are called in via Supply Route and don't need a dedicated
 		// pad to be produced — SkipRearmBuildingCheck bypasses this for reinforcement-model mods.
@@ -375,11 +794,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (IsTraitDisabled)
 				return null;
 
-			return new List<MiniYamlNode>()
+			var data = new List<MiniYamlNode>()
 			{
 				new MiniYamlNode("QueuedBuildRequests", FieldSaver.FormatValue(queuedBuildRequests.ToArray())),
 				new MiniYamlNode("IdleUnitCount", FieldSaver.FormatValue(idleUnitCount))
 			};
+
+			// Composition-directed EMA state. Only emitted when the flag is on, so a frozen-profile save is
+			// byte-identical to before. Reloading without it would restart the threat smoothing from zero and
+			// briefly un-bias the targets.
+			if (smoothedThreatShares != null)
+				data.Add(new MiniYamlNode("SmoothedThreatShares", FieldSaver.FormatValue(smoothedThreatShares)));
+
+			return data;
 		}
 
 		void IGameSaveTraitData.ResolveTraitData(Actor self, MiniYaml data)
@@ -397,6 +824,16 @@ namespace OpenRA.Mods.Common.Traits
 			var idleUnitCountNode = data.Nodes.FirstOrDefault(n => n.Key == "IdleUnitCount");
 			if (idleUnitCountNode != null)
 				idleUnitCount = FieldLoader.GetValue<int>("IdleUnitCount", idleUnitCountNode.Value.Value);
+
+			// Restore only into a live composition array — a save written with the flag on must not resurrect
+			// state on a profile that has it off (the arrays stay null there and nothing reads them anyway).
+			var threatSharesNode = data.Nodes.FirstOrDefault(n => n.Key == "SmoothedThreatShares");
+			if (threatSharesNode != null && smoothedThreatShares != null)
+			{
+				var restored = FieldLoader.GetValue<int[]>("SmoothedThreatShares", threatSharesNode.Value.Value);
+				if (restored != null && restored.Length == smoothedThreatShares.Length)
+					smoothedThreatShares = restored;
+			}
 		}
 	}
 }

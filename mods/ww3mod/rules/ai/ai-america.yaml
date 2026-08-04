@@ -107,3 +107,74 @@ Player:
 		AntiAirUnitTypes: strykershorad
 		AntiAirBaseline: 0
 		AntiAirPerObservedAir: 1
+		# ===== COMPOSITION-DIRECTED PURCHASING (experimental-only; C# default is false) =====
+		# Fixes "the army drifts to mortars". Both @experimental SquadManagers run IgnoreGroundUnits, so
+		# idleUnitCount never rises above 0, so buildRandom is ALWAYS true and every ground call-in was a
+		# UNIFORM lottery over the buildable list. A uniform BUY rate with unequal lifetimes settles the
+		# STANDING army proportional to lifetime — long-lived rear-line mortars pile up while frontline
+		# armour is eaten. With this on, the module censuses what it owns (per-mille of army VALUE, with
+		# pending call-ins credited and evacuating units excluded) and buys the type furthest below target.
+		CompositionDirected: true
+		# TARGETS (not the ceilings UnitsToBuild weights are): per-mille of army VALUE. Sums to 1000.
+		# Only types listed here are eligible for this pick — helicopters are deliberately absent (deferred
+		# to their own lane) and so are never chosen by it.
+		UnitTargetShares:
+			# Armour core — the force that actually takes and holds ground.
+			abrams: 190
+			bradley: 140
+			# Screen / lift.
+			humvee: 40
+			m113: 30
+			# Indirect fire — mt.america is the type that was drifting; 50 is the deliberate cap-by-target.
+			mt.america: 50
+			m109: 60
+			# Air defence (strykershorad additionally stays capped by ScaleAntiAirToThreat above).
+			strykershorad: 50
+			aa.america: 40
+			# Line infantry.
+			e3.america: 60
+			ar.america: 60
+			tl.america: 40
+			e2.america: 40
+			# Anti-armour infantry — the cheap answer to a believed enemy tank push.
+			at.america: 90
+			# Specialists and logistics (each additionally bounded by UnitLimits above).
+			sn.america: 15
+			medi.america: 15
+			e6.america: 15
+			tecn.america: 25
+			truk: 40
+		# Role tokens — the row/column keys for CounterMatrixPct below. A type with no role simply
+		# receives no counter bias. The armour line and the foot line are SEPARATE tokens on purpose:
+		# sharing one "frontline" token would make believed enemy infantry raise the Abrams target by
+		# exactly as much as the rifleman target, which is not what an infantry threat warrants. Same
+		# reason mt (infantry mortar) is split from m109 (self-propelled artillery) — both are indirect
+		# fire, but only one of them is the type that was drifting.
+		UnitRoles:
+			abrams: armorline
+			bradley: armorline
+			e3.america: infantryline
+			ar.america: infantryline
+			tl.america: infantryline
+			e2.america: infantryline
+			at.america: antitank
+			strykershorad: antiair
+			aa.america: antiair
+			mt.america: mortar
+			m109: artillery
+			humvee: recon
+			sn.america: recon
+			m113: support
+			truk: support
+			medi.america: support
+			e6.america: support
+			tecn.america: support
+		# Counter bias (v1, minimal): believed enemy class -> own role, as a percent contribution scaled
+		# by that class's SHARE of the believed enemy force. Fog-legal — the believed composition comes
+		# from the same belief store AdaptiveProduction reads, never ground truth. Clamped to
+		# +/-CounterBiasMaxPct and renormalised, so it nudges the shape above without replacing it.
+		# Believed enemy infantry answers the FOOT line (buy more of our own infantry), not the armour line.
+		CounterMatrixPct:
+			air>antiair: 60
+			armor>antitank: 40
+			infantry>infantryline: 20
