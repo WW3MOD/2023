@@ -1,0 +1,1 @@
+An idle rifleman low (not empty) on ammo must walk to a supply truck 12 cells away, top up from its aura, and walk back to where it was standing.
