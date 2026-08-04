@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — Live Status Board</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; background:#14171c; color:#d6dae0; max-width: 880px; margin: 24px auto; padding: 0 20px; line-height: 1.45; font-size: 15px; }
+  h1 { font-size: 21px; color:#fff; border-bottom: 2px solid #2e3640; padding-bottom: 8px; margin-bottom: 2px;}
+  .stamp { color:#7b8694; font-size: 12.5px; margin-bottom: 18px; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; margin: 22px 0 8px; }
+  h2.now { color:#5ec26a; } h2.next { color:#5aa7e8; } h2.issues { color:#e8a75a; } h2.q { color:#e86a6a; }
+  table { border-collapse: collapse; width: 100%; margin: 4px 0 6px; }
+  td, th { padding: 5px 9px; border-bottom: 1px solid #242b33; vertical-align: top; text-align: left; }
+  th { color:#8a95a3; font-weight: 600; font-size: 12.5px; }
+  .tag { display:inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 9px; white-space: nowrap; }
+  .run { background:#1e3a26; color:#6fd67e; } .build { background:#1c3348; color:#6fb6f0; }
+  .wait { background:#40331c; color:#e8c06a; } .park { background:#33262a; color:#d98a9a; }
+  ul { margin: 4px 0 6px; padding-left: 20px; } li { margin: 3px 0; }
+  code { background:#20262e; padding: 1px 5px; border-radius: 4px; font-size: 13px; color:#c8d3e0; }
+  .dim { color:#7b8694; } .hot { color:#f0c674; font-weight:600; }
+  .foot { margin-top: 22px; padding-top: 10px; border-top: 1px solid #242b33; color:#7b8694; font-size: 12.5px; }
+</style>
+</head>
+<body>
+
+<h1>WW3MOD — Live Status Board</h1>
+<div class="stamp">Updated 2026-08-04 · maintained by the manager, refreshed on every state change · autoburn window active (Mac)</div>
+
+<h2 class="now">Now — most important</h2>
+<p style="margin:2px 0 6px"><span class="hot">Priority: the four live-play issues (River Zeta session) are fixed before anything else new.</span> Four parallel root-cause investigations are running; each fix will be personally verified by the manager (solution + test soundness) before being marked done.</p>
+<table>
+  <tr><th>#</th><th>Issue</th><th>State</th></tr>
+  <tr><td>1</td><td><b>Out-of-ammo vehicles don't evacuate</b> — OOA units must evac via SR immediately, never join offense; + bot should capture the Logistics center (tier below money buildings)</td><td><span class="tag run">INVESTIGATING</span></td></tr>
+  <tr><td>2</td><td><b>Supply trucks idle while infantry starve</b> — truck "hunt" mode + soldiers auto-seek supplies; tactical layer shared human+bot, stance-gated, default-on, no auto-drop</td><td><span class="tag run">INVESTIGATING</span></td></tr>
+  <tr><td>3</td><td><b>Units pool at SR instead of reinforcing front</b> — kill the value/batch threshold; spawn → move to where needed (transport-fill waits stay legitimate)</td><td><span class="tag run">INVESTIGATING</span></td></tr>
+  <tr><td>4</td><td><b>Idle transport helis</b> — use them or evacuate for cashback and re-spend; general no-idle-units policy</td><td><span class="tag run">INVESTIGATING</span></td></tr>
+  <tr><td>—</td><td><b>Fires P2+P3 + brain 1c/1d batch</b> — PreparatoryFires, SuppressionCoordinatedAdvance, QuantizeAxisScore, Aggressiveness scaffold; all default-off @experimental, branch <code>auto/brain-fires-batch</code></td><td><span class="tag build">IMPLEMENTING</span></td></tr>
+</table>
+
+<h2 class="next">Coming next</h2>
+<ul>
+  <li>Per investigation report: manager verifies the root cause in code, then dispatches the fix (batched where lanes share a subsystem — issues 1+4 both touch evac mechanics).</li>
+  <li>Fires/brain batch → independent adversarial review → merge on green.</li>
+  <li>Sequencing: fixes touching <code>PoiOffensiveBotModule.cs</code> (likely issues 1, 3, 4) land <i>after</i> the batch merges to avoid conflicting edits.</li>
+  <li>After live-play fixes: brain Phase 2/3 and remaining pipeline items resume.</li>
+</ul>
+
+<h2 class="issues">Issues / risks</h2>
+<ul>
+  <li><b>Item-24 repoint gates are ON in @stable at HEAD</b> (<code>ai.yaml</code> :1216/:1294) although A/B data said KEEP OFF — the shipping baseline bot runs them and @stable byte-identity is broken vs its pre-item-24 form. Needs the user's call (below).</li>
+  <li>Issue-2 design has real forks (stance semantics, hunt-radius, return behavior) — expect one consolidated question after the investigation reports.</li>
+  <li>Case-01 (forest ambush) is stalled in CALIBRATING until its bar is ratified.</li>
+</ul>
+
+<h2 class="q">Questions to the user <span class="dim" style="text-transform:none;font-weight:400">(full queue: <code>WORKSPACE/AWAITING-USER.md</code>)</span></h2>
+<table>
+  <tr><td><span class="tag park">DECIDE</span></td><td><b>Balance proposals 001–003</b> — Tunguska duplicate <code>Health:</code>, HIMARS↔Iskander parity (Iskander→8000?), Mi-28 broken AA. Per-proposal sign-off; no stat change without approval.</td></tr>
+  <tr><td><span class="tag park">DECIDE</span></td><td><b>Item-24 gates</b> — flip OFF in both profiles (restores @stable byte-identity, matches A/B) or accept ON as the new baseline.</td></tr>
+  <tr><td><span class="tag park">DECIDE</span></td><td><b>Case-01 bar</b> — ratify the reframe: "defender casualties ≤ X AND attacker casualties ≥ Y over N seeds" (needs the numbers).</td></tr>
+  <tr><td><span class="tag wait">GRANT</span></td><td><b>Parity tournament runs</b> — configs merged and ready; 20-seed mirror + cross batches await goahead (after burn-lane merges settle).</td></tr>
+  <tr><td><span class="tag wait">GRANT</span></td><td><b>Post-merge benchmark</b> — re-baseline Experimental vs Stable-0802 once current merges land.</td></tr>
+  <tr><td><span class="tag wait">VERDICT</span></td><td><b>Item-27 turn-feel A/B</b> — in-game feel check is with the user.</td></tr>
+  <tr><td><span class="tag wait">POSTED</span></td><td><b>Streak protocol ×3</b> — dashboard questions on what counts as a game / non-wins / queue precedence.</td></tr>
+</table>
+
+<div class="foot">Standing gates honored: no batch/tournament/multi-test runs without explicit goahead · no pushes to remote · no unit stat changes without review · lateral-spread live validation stays with the user.</div>
+
+</body>
+</html>
