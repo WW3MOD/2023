@@ -113,6 +113,14 @@ Player:
 			miss: 10
 			hosp: 20
 		DefaultIncomeWeight: 10
+		# Wave A, experimental-only: a Logistics Centre is the ONLY rearm host a ground vehicle has
+		# (economy.md), so taking one keeps a dry armoured force fighting — but it trickles no cash, so it
+		# scored at DefaultIncomeWeight, level with the worthless MISS/HOSP. 25 gives it an explicit tier
+		# BELOW every cash building (lowest is oilb 50) and above the no-income default. Weight only:
+		# membership already comes from CapturableActorTypes above. Default false on the @stable twin.
+		CaptureSupplyDepots: true
+		SupplyDepotActorTypes: logisticscenter
+		SupplyDepotIncomeWeight: 25
 		DistanceHalfLifeCells: 20
 		SafetyEnemyScanRadiusCells: 6
 		SafetyMultiplierSafe: 100
@@ -298,6 +306,14 @@ Player:
 		# AttackMove would cancel their RotateToEdge evac and send an empty unit at the enemy.
 		# Default false on the frozen @stable twin (byte-identical); mirrors LayeredDefence.
 		SkipOutOfAmmoUnits: true
+		# Wave A, experimental-only: SkipOutOfAmmoUnits above only stops us RECRUITING a dry unit — it leaves
+		# it standing where it emptied, because the engine's own fallback is flag-only (AmmoPool.cs:313-320
+		# sets NeedsResupply and returns, and vehicles default to ResupplyBehavior.Auto). This sweeps our dry
+		# vehicles each re-eval: drive to a Logistics Centre if one is within the seek radius, else terminal
+		# evac banking GetSellValue x HP/MaxHP. 0 = unlimited seek; 40 keeps a dry hull from crossing the
+		# whole map past the enemy to reach the last surviving depot. Default false on the @stable twin.
+		EvacuateOutOfAmmoUnits: true
+		OutOfAmmoRearmSeekRadiusCells: 40
 		# Dispersion doctrine — spread to move, mass to assault. Experimental-only: the switch
 		# defaults OFF so Stable/Normal controls are untouched. Axes fan out (Spread) while their
 		# centroid is farther than AssaultRadiusCells from the target, then mass (Tight) for the
@@ -466,6 +482,19 @@ Player:
 		RetreatDamperEnabled: true
 		RetreatReadvanceDwellEvals: 3
 		MinAdvanceStrength: 1200
+		# Wave B: cap the MinAdvanceStrength hold. That floor is an absolute value on the health-weighted build
+		# scale, so an axis the allocator only funds to 2-3 hulls could never clear 1200 and parked in the rear
+		# bubble for the whole match. The gate now also requires the axis to still be RECEIVING its allocated
+		# force (engine-side fill-completion reshape), and this caps even that at 6 consecutive evals so a
+		# starved axis always advances eventually. 0 = uncapped. Default 0 on the @stable twin.
+		MaxAdvanceHoldEvals: 6
+		# Wave B SHORAD line-fold — STAGED BUT OFF, deliberately, even here. ShortRangeAD units are bought by
+		# AdaptiveProductionBotModule and then owned by no ground movement module (dropped by role from this
+		# module / PoiGarrison / LayeredDefence; strykershorad is also caught by the troop-carrier exclusion and
+		# is absent from MountedTransport's CarrierTypes), so they stand at the SR all match. Enabling this folds
+		# them into the offense pool — but that moves the air cover off the rear and onto the push, which is a
+		# doctrine A/B (WORKSPACE/ai-bench/), not a bug fix. Flip to true only under a measured run.
+		FoldShortRangeAdIntoLine: false
 		# PHASE 4 (frontline-influence) — FRONTLINE STRENGTH PROFILE (sensor only). Opts this @experimental
 		# player in to the ControlField's per-frontier-sector believed OWN-vs-ENEMY strength profile + avenue
 		# (CrossingMap crossing) mapping, so a later consumer can ask "which frontier sector is the enemy line

@@ -39,6 +39,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Mods.Common.Traits.BotModules.Squads;
 using OpenRA.Traits;
@@ -105,6 +106,34 @@ namespace OpenRA.Mods.Common.Traits
 			"byte-identical (they keep pulling every unit); only PoiOffensiveBotModule@experimental turns it",
 			"on. Mirrors LayeredDefenceBotModule.SkipOutOfAmmoUnits + the CohesionSwitchEnabled default-off pattern.")]
 		public readonly bool SkipOutOfAmmoUnits = false;
+
+		[Desc("WAVE A (@experimental) OUT-OF-AMMO DISPOSITION. SkipOutOfAmmoUnits above only stops the offense",
+			"RECRUITING a dry unit — it does not give that unit anything to do, so an empty vehicle just stands",
+			"where it emptied. The engine cannot fix this either: AmmoPool.AutoRearm's else branch, taken when no",
+			"resupplier is found, is FLAG-ONLY (sets NeedsResupply and returns, AmmoPool.cs:313-320) and ground",
+			"vehicles default to ResupplyBehavior.Auto, so an empty vehicle with no reachable Logistics Centre",
+			"keeps fighting with an empty gun. When ON, the bot sweeps its own dry combat vehicles each re-eval",
+			"and disposes of each one: drive to a rearm source if one is worth reaching, else TERMINAL evac (rotate",
+			"off the map edge, refunding GetSellValue x HP/MaxHP per economy.md). Decision is the pure",
+			"AmmoEvacMath.Decide (NUnit-pinned), zero RNG. Needs SkipOutOfAmmoUnits to be useful — without it the",
+			"recruit pass re-tasks the unit and cancels its evac. OFF by default = byte-identical; only",
+			"PoiOffensiveBotModule@experimental turns it on.")]
+		public readonly bool EvacuateOutOfAmmoUnits = false;
+
+		[Desc("Out-of-ammo disposition: max distance (cells, Chebyshev) to a rearm source still worth driving to.",
+			"Beyond it the unit evacuates instead — a dry hull crossing the map past the enemy to reach the one",
+			"surviving depot is worth more as a refund. 0 = UNLIMITED (any existing source is worth the drive, the",
+			"legacy AmmoPool.AutoRearm reading). Only read when EvacuateOutOfAmmoUnits.")]
+		public readonly int OutOfAmmoRearmSeekRadiusCells = 0;
+
+		[Desc("WAVE B (@experimental, and OFF even there) SHORAD LINE-FOLD. Admits ShortRangeAD units to the offense",
+			"free pool. Without it a mobile AA vehicle is bought by AdaptiveProductionBotModule and then owned by",
+			"NOBODY: the role filter drops it from this module, PoiGarrisonBotModule and LayeredDefenceBotModule,",
+			"strykershorad is additionally caught by the troop-carrier exclusion (it has a Cargo bay) and it is not",
+			"in MountedTransportBotModule's CarrierTypes — so it stands at the Supply Route all match. Requires",
+			"UseUnitRoles (the name-list path has no role concept). Shipped OFF in @experimental too: putting the air",
+			"defence on the attack axis moves the air cover off the rear, which is a doctrine A/B rather than a fix.")]
+		public readonly bool FoldShortRangeAdIntoLine = false;
 
 		[Desc("Master switch for the dispersion doctrine (spread to move, mass to assault). OFF by",
 			"default so the frozen Stable/Normal controls keep the pre-dispersion behaviour untouched;",
@@ -500,6 +529,17 @@ namespace OpenRA.Mods.Common.Traits
 			"when RetreatDamperEnabled.")]
 		public readonly int MinAdvanceStrength = 0;
 
+		[Desc("WAVE B: cap (in re-evals) on how long the DAMPER may hold one axis massing in the rear. The backstop",
+			"behind the fill-completion reshape: an axis whose allocated force never fully arrives (the pool ran dry,",
+			"NoReinforceLostFights is starving it) would otherwise hold indefinitely, which is the units-pooling",
+			"symptom the reshape removes. NOTE the counter tallies EVERY damper hold, dwell included — it is not a",
+			"MinAdvanceStrength-only budget — so with RetreatReadvanceDwellEvals: 3 a post-retreat axis has already",
+			"spent 3 of this cap on its dwell before the strength gate is even consulted. Size it above the dwell.",
+			"Once spent, the budget is NOT refunded until the massing episode ends (the axis leaves the rally bubble,",
+			"completes its fill, retreats, or dies), so the release is sticky rather than a hold/advance ping-pong.",
+			"0 = UNCAPPED (the pre-reshape reading). Only read when RetreatDamperEnabled.")]
+		public readonly int MaxAdvanceHoldEvals = 0;
+
 		[Desc("PHASE 4 (@experimental) FRONTLINE STRENGTH PROFILE (sensor only — no order-issuing change).",
 			"Opts this player in to the ControlField's per-frontier-sector believed OWN-vs-ENEMY strength",
 			"profile + avenue (crossing) mapping, so a future consumer can ask 'which frontier sector is the",
@@ -705,6 +745,14 @@ namespace OpenRA.Mods.Common.Traits
 			public int ReadvanceHold;
 			public bool NearRally;
 
+			// Wave B fill-completion damper. AllocatedSize is the unit count the allocator gave this axis THIS eval
+			// (written in the balance pass, read by the strength gate): the strength floor now means "wait until your
+			// allocated force has arrived", not "wait until you are absolutely strong", so it terminates. FillHoldEvals
+			// counts consecutive evals the damper has held this axis, capped by MaxAdvanceHoldEvals so a starved axis
+			// still eventually advances. Both 0/unread unless RetreatDamperEnabled.
+			public int AllocatedSize;
+			public int FillHoldEvals;
+
 			public readonly List<Actor> Units = new();
 
 			// MISSION COMMITMENT snapshot (populated only when MissionCommitmentEnabled). Committed = the
@@ -772,6 +820,15 @@ namespace OpenRA.Mods.Common.Traits
 		// unit already walking up keeps its order). Both empty/null unless ForwardStagingEnabled.
 		CPos? lastStagingAnchor;
 		readonly Dictionary<Actor, CPos> stagedCells = new();
+
+		// Wave A out-of-ammo disposition: units already sent to TERMINAL evac (RotateToEdge). Held so the recruit
+		// pass can never re-task an evacuating unit — an AttackMove would cancel the RotateToEdge and send an empty
+		// hull at the enemy. This tracks a DISPOSITION ("we decided this unit is leaving"), which is why it is a set
+		// and not a re-reading of the ammo state: the IsOutOfAmmo predicate is gated behind a SEPARATE flag
+		// (SkipOutOfAmmoUnits), so with that flag off the set is the only thing keeping an evacuating unit out of the
+		// pool. Mirrors HelicopterSquadBotModule's `evacuating` set. Empty unless EvacuateOutOfAmmoUnits ⇒
+		// byte-identical when off.
+		readonly HashSet<Actor> evacuatingOutOfAmmo = new();
 
 		// Cached (build cost, armed) per believed-contact TypeName, resolved from world rules on first use, so
 		// the believed-enemy force tally doesn't re-walk the actor rules every eval. Deterministic.
@@ -935,6 +992,11 @@ namespace OpenRA.Mods.Common.Traits
 			PruneAxes();
 			if (goalGuard != null)
 				goalGuard.Ledger.Prune(tick, a => !a.IsDead && a.IsInWorld && a.Owner == player);
+
+			// 1a. Wave A: give every DRY vehicle of ours a disposition (rearm host, or terminal evac). Runs after
+			//     PruneAxes released them from their axes and BEFORE BuildFreePool, so a unit sent to evac this eval
+			//     is excluded from the free pool rather than being recruited straight back out of its evac.
+			SweepOutOfAmmoUnits(tick);
 
 			// Bound the cohesion-tracking map to living units so it can't leak across a game.
 			if (lastCohesion.Count > 0)
@@ -1124,6 +1186,11 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var axis = orderedAxes[i];
 				var want = sizes[i];
+
+				// Wave B: record the allocation so the damper's strength gate can read "has my allocated force
+				// arrived yet?" instead of an absolute bar it may never clear. Written unconditionally (cheap, and
+				// the field is only READ under RetreatDamperEnabled ⇒ byte-identical when the damper is off).
+				axis.AllocatedSize = want;
 
 				if (axis.Units.Count > want)
 				{
@@ -1712,8 +1779,9 @@ namespace OpenRA.Mods.Common.Traits
 		// pooling in the diagnosis). Seeds the SAME pinned ForwardStagingMath.StagingCell gradient-descent as
 		// ResolveStagingAnchor, but from the axis's unit CENTROID rather than the shared SR seed — so the descent
 		// halts StagingStandoffCells short of the front NEAREST THIS AXIS. An axis already forward reads no improving
-		// neighbour ⇒ the descent returns its own position ⇒ hold in place at the line. Default-off ⇒ returns null ⇒
-		// the caller falls back to stagingAnchor ?? rallyCell, byte-identical. Inert without a ControlField.
+		// neighbour ⇒ the descent returns its own position ⇒ it holds in place at the line (the anchor resolves to
+		// that position, and OrderRetreat's `moved` guard then suppresses the repeat order). Default-off ⇒ returns
+		// null ⇒ the caller falls back to stagingAnchor ?? rallyCell, byte-identical. Inert without a ControlField.
 		CPos? ResolveMusterAnchor(Axis axis)
 		{
 			if (!Info.ForwardMusterEnabled || controlField == null || axis.Units.Count == 0)
@@ -1725,6 +1793,41 @@ namespace OpenRA.Mods.Common.Traits
 				(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
 				(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
 				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight);
+
+			// SELF-SEED, TWO OPPOSITE MEANINGS — so the response is gated on WHERE the axis stands.
+			//
+			// StagingCell hands its seed back in three distinct situations, and only ONE of them is a pathology:
+			//   (1) frontierAt(seed) <= standoffCells — the axis is ALREADY at the standoff short of the front
+			//       (ForwardStagingMath.cs:97-98, an immediate return);
+			//   (2) every forward neighbour is danger-blocked or none is strictly closer, so the walk breaks at
+			//       step 0 (ForwardStagingMath.cs:116-117 + :128-129) — the axis is in contact, under a believed
+			//       anti-ground envelope at the front;
+			//   (3) the field is flat/unpopulated — no gradient to descend anywhere.
+			// (1) and (2) are the DESIGNED Phase-7 contract: hold in place at the line. (3) near the SR is the
+			// units-pooling pathology this wave exists to remove.
+			//
+			// Returning null in ALL three cases (as first written) was a live regression, not a fix: null makes the
+			// caller fall through to `?? stagingAnchor ?? rallyCell`, i.e. a grouped AttackMove REARWARD toward the
+			// SR-side anchor. And the posture-hold that consumes this only fires on a FORWARD axis in contact —
+			// FrontlineAllocationMath.SectorPostureHold requires frontierEdges > 0 and an enemy present
+			// (FrontlineAllocationMath.cs:195-198) — which is exactly cases (1)/(2). So the guard was manufacturing
+			// the rearward flow it was meant to prevent.
+			//
+			// NearRally is the discriminator: it is the same rally-proximity test the retreat FSM uses, recomputed in
+			// UpdateRetreatStates every eval BEFORE CommitAndOrder reaches either consumer, so it is current here.
+			//   * self-seed AND near the rally ⇒ case (3) in the rear ⇒ null ⇒ the chain pulls the axis FORWARD.
+			//   * self-seed and NOT near the rally ⇒ case (1)/(2) at the line ⇒ return the axis's own cell ⇒
+			//     OrderRetreat's `moved` guard suppresses the re-order ⇒ hold in place.
+			// (Deliberately NOT discriminated on FrontierDistanceAt >= MaxFrontierDistanceCells: a POPULATED field
+			// near the SR would then re-freeze the rear axis, which is the case (3) pathology again.)
+			// NOTE NearRally is only maintained while RetreatDamperEnabled; with the damper off it stays false, so a
+			// self-seed reads as "hold in place" — correct, because posture-hold is then the only consumer and it is
+			// forward-only by construction.
+			//
+			// Compared in GRID space on purpose: GridCellToMapCell yields the grid cell CENTRE, so a map-space
+			// round-trip only reproduces the seed for odd coordinates and would miss the no-move case on even ones.
+			if (agx == sgx && agy == sgy)
+				return axis.NearRally ? (CPos?)null : controlField.GridCellToMapCell(sgx, sgy);
 
 			return controlField.GridCellToMapCell(agx, agy);
 		}
@@ -1810,6 +1913,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.SkipOutOfAmmoUnits && IsOutOfAmmo(a))
 				return false;
 
+			// Wave A: a unit already flying a terminal evac is out of the bot's hands — recruiting it would cancel the
+			// RotateToEdge. Checked independently of the ammo predicate above because that one lives behind a
+			// different flag (SkipOutOfAmmoUnits): with the evac lever on and the skip lever off, this set is the only
+			// exclusion. The set is empty unless EvacuateOutOfAmmoUnits ⇒ byte-identical when off.
+			if (evacuatingOutOfAmmo.Contains(a))
+				return false;
+
 			// Role-model eligibility: MainBattle line units plus IndirectFire artillery (kept until a
 			// dedicated fires executor exists, else artillery orphans — design §6). SHORAD/MANPADS,
 			// capturers, logistics and scouts drop out by class. Cargo carriers (bradley/bmp2/m113) stay
@@ -1818,11 +1928,165 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.UseUnitRoles && resolver != null)
 			{
 				var role = resolver.GetRole(a);
+
+				// WAVE B SHORAD LINE-FOLD. AdaptiveProductionBotModule BUYS ShortRangeAD (its AntiAirRoles set is
+				// exactly {ShortRangeAD}) but no ground movement module will take one: the role filter below drops it
+				// here, in PoiGarrisonBotModule and in LayeredDefenceBotModule alike, and strykershorad is ALSO caught
+				// by the troop-carrier term (Cargo MaxWeight 9) while not appearing in MountedTransportBotModule's
+				// CarrierTypes — so nothing owns it and it stands at the Supply Route for the match. Folding it into
+				// the line pool gives the air defence something to escort and removes that pool of parked hulls.
+				// Deliberately bypasses the carrier term too, since for SHORAD the Cargo bay is incidental, not its
+				// job. DEFAULT OFF — off even in @experimental — because SHORAD on an offensive axis trades air cover
+				// over the rear for air cover over the push; that is a doctrine call to A/B, not a bug fix.
+				if (Info.FoldShortRangeAdIntoLine && role == UnitRole.ShortRangeAD)
+					return true;
+
 				return (role == UnitRole.MainBattle || role == UnitRole.IndirectFire)
 					&& !UnitRoleResolver.IsTroopCarrier(a.Info);
 			}
 
 			return !Info.ExcludeUnitTypes.Contains(a.Info.Name);
+		}
+
+		// WAVE A OUT-OF-AMMO DISPOSITION. SkipOutOfAmmoUnits only makes the offense STOP RECRUITING a dry unit; it
+		// leaves that unit standing wherever it emptied, because the engine's own fallback is flag-only (AmmoPool's
+		// AutoRearm else-branch just sets NeedsResupply, AmmoPool.cs:313-320, and ground vehicles default to
+		// ResupplyBehavior.Auto). This sweep closes that gap: every dry vehicle of ours gets an explicit disposition
+		// each re-eval — drive to a rearm host, or TERMINAL evac banking GetSellValue x HP/MaxHP.
+		//
+		// Runs BEFORE the free pool is built so a unit disposed of this eval is never also recruited onto an axis.
+		// Per-unit dispositions are independent of one another, so world.Actors' enumeration order cannot change any
+		// outcome (the determinism invariant); the decision itself is the pure AmmoEvacMath.Decide, zero RNG.
+		// Skipped wholesale when the flag is off ⇒ byte-identical for @stable / normal / human.
+		void SweepOutOfAmmoUnits(int tick)
+		{
+			if (!Info.EvacuateOutOfAmmoUnits)
+				return;
+
+			// Bound the evac set to living units of ours so it can't leak across a game.
+			if (evacuatingOutOfAmmo.Count > 0)
+				evacuatingOutOfAmmo.RemoveWhere(a => a.IsDead || !a.IsInWorld || a.Owner != player);
+
+			var sought = 0;
+			var evacuated = 0;
+			var banked = 0;
+
+			// Materialised before ordering: the evac path mutates evacuatingOutOfAmmo, which the candidate
+			// predicate reads.
+			foreach (var unit in world.Actors.Where(IsOutOfAmmoSweepCandidate).ToList())
+			{
+				// Source DISCOVERY stays with the engine's own scan (ownership + RearmActors + remaining supply),
+				// so the bot and the unit-side trait agree on what counts as a host. Note it does NOT path-check,
+				// so "reachable" is existence plus the Chebyshev seek budget below — a deliberate cheap proxy.
+				var host = AmmoPool.ChooseResupplier(unit);
+				var distance = host != null
+					? PoiOffenseMath.Chebyshev(unit.Location.X, unit.Location.Y, host.Location.X, host.Location.Y)
+					: 0;
+
+				switch (AmmoEvacMath.Decide(true, unit.TraitOrDefault<IMove>() != null, host != null,
+					distance, Info.OutOfAmmoRearmSeekRadiusCells))
+				{
+					case AmmoEvacAction.SeekRearm:
+						// A unit already driving to a host is left alone. AutoRearm queues with
+						// QueueActivity(false, …), which CANCELS the current activity — so re-dispatching every eval
+						// would tear down and re-plan an in-flight resupply run each time, and a unit whose eval
+						// cadence beats its travel time could shuffle indefinitely without ever docking. These are
+						// the three activities AutoRearm can queue (AmmoPool.cs:290/:302/:311).
+						if (IsAlreadySeekingRearm(unit))
+							break;
+
+						// Delegate to the engine's own rearm dispatcher rather than re-deriving the activity: it
+						// picks SeekSupplyProvider / RideTransport / Resupply per host kind (AmmoPool.cs:277-312).
+						// Its flag-only else-branch is unreachable here — we only call it with a live host.
+						AmmoPool.AutoRearm(unit);
+						sought++;
+						break;
+
+					case AmmoEvacAction.Evacuate:
+						banked += EvacuateOutOfAmmoUnit(unit);
+						evacuated++;
+						break;
+				}
+			}
+
+			if (sought > 0 || evacuated > 0)
+				Log.Write("debug",
+					$"[exp-ooa] sweep player={player.PlayerName} rearm={sought} evac={evacuated} banked={banked} " +
+					$"evacuating={evacuatingOutOfAmmo.Count} tick={tick}");
+		}
+
+		// Is this unit already on its way to a rearm host? Covers every activity AmmoPool.AutoRearm can queue, so a
+		// re-dispatch is suppressed rather than cancelling an in-flight run. `Resupply` also covers the docked state
+		// (the activity runs until the pool is full).
+		static bool IsAlreadySeekingRearm(Actor unit)
+		{
+			var current = unit.CurrentActivity;
+			return current is SeekSupplyProvider || current is Resupply || current is RideTransport;
+		}
+
+		// Terminal disposition: rotate the dry unit off the map edge for a refund, and drop it from bot management so
+		// nothing re-tasks it (an AttackMove would cancel the RotateToEdge and send an empty hull at the enemy). The
+		// same shape as HelicopterSquadBotModule.Evacuate. The ledger claim is released explicitly — this unit is
+		// leaving, so holding an offense commitment would strand the objective.
+		// Returns the cash this evac is expected to bank (for the sweep's log line) — the activity pays the refund
+		// itself; AmmoEvacMath.EvacRefund just reproduces its arithmetic so the decision is observable in the log.
+		int EvacuateOutOfAmmoUnit(Actor unit)
+		{
+			var sellValue = unit.GetSellValue();
+			var health = unit.TraitOrDefault<IHealth>();
+			var refund = AmmoEvacMath.EvacRefund(sellValue, health?.HP ?? 0, health?.MaxHP ?? 0);
+
+			unit.QueueActivity(false, new RotateToEdge(unit, true, sellValue));
+			unit.ShowTargetLines();
+
+			// Marked BEFORE the management drop: IsEligibleCombatUnit excludes this set, so the unit can never be
+			// re-recruited or re-staged while flying its evac.
+			evacuatingOutOfAmmo.Add(unit);
+
+			goalGuard?.Ledger.Release(unit);
+			lastCohesion.Remove(unit);
+			stagedCells.Remove(unit);
+
+			foreach (var axis in axes)
+				axis.Units.Remove(unit);
+
+			return refund;
+		}
+
+		// Sweep candidate: one of OUR dry, orderable GROUND VEHICLES that is not already evacuating.
+		bool IsOutOfAmmoSweepCandidate(Actor a)
+		{
+			if (a.Owner != player || a.IsDead || !a.IsInWorld)
+				return false;
+
+			// IPositionable first — world.Actors carries positionless PlayerActors and the reads below (and the
+			// caller's .Location) would NRE on one (see conventions.md).
+			if (!a.Info.HasTraitInfo<IPositionableInfo>() || !a.Info.HasTraitInfo<AttackBaseInfo>())
+				return false;
+
+			// Aircraft rearm at HPAD/AFLD on their own path; heli evac belongs to HelicopterSquadBotModule.
+			if (a.Info.HasTraitInfo<AircraftInfo>())
+				return false;
+
+			// Already disposed of — never re-order it, that would cancel the evac.
+			if (evacuatingOutOfAmmo.Contains(a))
+				return false;
+
+			// VEHICLES only. Infantry are topped up IN PLACE by a truck/cache PUSH, which is gated on the recipient's
+			// replenish-soldiers condition that only infantry hold (economy.md) — walking a rifleman to a depot would
+			// fight the supply model. SharesCell is the structural infantry tell: every foot* locomotor sets it and no
+			// vehicle locomotor does (world.yaml), so this needs no actor-name list. Also requires Mobile, i.e. the
+			// unit can actually be sent somewhere.
+			var mobile = a.Info.TraitInfoOrDefault<MobileInfo>();
+			if (mobile == null || mobile.LocomotorInfo.SharesCell)
+				return false;
+
+			// A unit that trickles its own ammo back in the field (ReloadAmmoPool — static defences) is never
+			// stranded, so it is not the sweep's business (economy.md).
+			if (a.Info.HasTraitInfo<ReloadAmmoPoolInfo>())
+				return false;
+
+			return IsOutOfAmmo(a);
 		}
 
 		// "Out of ammo" = the unit has AmmoPool traits AND every pool is empty. Units with no
@@ -1900,12 +2164,29 @@ namespace OpenRA.Mods.Common.Traits
 			//   (a) post-retreat DWELL — an axis that JUST completed a retreat (ReadvanceHold > 0) waits before it
 			//       re-advances on the same target, converting the small-axis advance/lose/retreat ping-pong into
 			//       hold-then-push-as-a-group.
-			//   (b) advance-STRENGTH floor — an axis still massing near the rally (NearRally) whose own force is
-			//       below MinAdvanceStrength holds/merges rather than trickling 2-3 units forward into the enemy.
+			//   (b) advance-STRENGTH floor, in Wave B FILL-COMPLETION form — an axis still massing near the rally
+			//       (NearRally) below MinAdvanceStrength holds only while the force ALLOCATED to it has not all
+			//       arrived, and only for MaxAdvanceHoldEvals evals. As an absolute bar this gate could never be
+			//       cleared by an axis the allocator funds to 2-3 hulls, so it parked them in the rear all match.
 			// Held at the forward staging anchor when Phase-2 staging is on (off the SR road), else the rally cell.
 			// Reuses OrderRetreat's gated grouped AttackMove; runs BEFORE the mission-commitment snapshot + RETURNS,
 			// so a damped axis is never marked Committed (same discipline as the retreat above). Inert when off.
-			if (Info.RetreatDamperEnabled && rallyCell.HasValue && DamperShouldHold(axis))
+			var damperHold = Info.RetreatDamperEnabled && rallyCell.HasValue && DamperShouldHold(axis);
+
+			// Step the hold counter the eval cap reads. Stepped on every pass (not only when holding) so the budget
+			// clears the moment the massing EPISODE ends — but it must PERSIST across the release itself, or the cap
+			// degrades from a terminating condition into a duty-cycle limiter: refunding the budget on the release
+			// eval lets a still-near-rally, still-under-filled axis re-park on the next eval, giving a hold/advance
+			// ping-pong that re-issues a fall-back order every cycle. `stillMassing` is the episode-alive test; the
+			// other two episode ends (entered a retreat / lost its units) are reset in UpdateRetreatStates.
+			if (Info.RetreatDamperEnabled)
+			{
+				var stillMassing = axis.NearRally
+					&& RetreatDamperMath.FillIncomplete(axis.Units.Count, axis.AllocatedSize);
+				axis.FillHoldEvals = RetreatDamperMath.StepFillHold(axis.FillHoldEvals, damperHold, stillMassing);
+			}
+
+			if (damperHold)
 			{
 				OrderRetreat(bot, axis, ResolveMusterAnchor(axis) ?? stagingAnchor ?? rallyCell.Value, tick);
 				return;
@@ -2718,6 +2999,7 @@ namespace OpenRA.Mods.Common.Traits
 					axis.LosingStreak = 0;
 					axis.ReadvanceHold = 0;
 					axis.NearRally = false;
+					axis.FillHoldEvals = 0;
 					continue;
 				}
 
@@ -2744,6 +3026,12 @@ namespace OpenRA.Mods.Common.Traits
 					axis.ReadvanceHold = RetreatDamperMath.StepReadvanceHold(
 						axis.ReadvanceHold, prev, decision, Info.RetreatReadvanceDwellEvals);
 					axis.NearRally = safe;
+
+					// A retreating axis is owned by the retreat path and never reaches the damper gate, so its
+					// massing budget is reset here — otherwise a stale count would carry into the post-retreat
+					// re-advance (the dwell owns that window).
+					if (decision == RetreatDecision.Retreating)
+						axis.FillHoldEvals = 0;
 				}
 
 				if (decision == RetreatDecision.Retreating)
@@ -2759,9 +3047,13 @@ namespace OpenRA.Mods.Common.Traits
 		// and no longer depends on the caller's retreat gate running first (NIT-3). (a) post-retreat dwell or
 		// (b) a sub-strength axis still massing near the rally holds; an axis already forward is never yanked back
 		// merely for being small. Zero RNG.
+		// Wave B: the strength gate is now FILL-COMPLETION — it holds only while the force ALLOCATED to this axis has
+		// not all arrived, and only for MaxAdvanceHoldEvals evals. As an absolute bar it could never be satisfied by a
+		// small axis, so it parked units in the rear for the whole match.
 		bool DamperShouldHold(Axis axis)
 			=> RetreatDamperMath.ShouldHold(axis.Retreat, axis.ReadvanceHold, axis.NearRally,
-				OwnAxisStrength(axis), Info.MinAdvanceStrength);
+				OwnAxisStrength(axis), Info.MinAdvanceStrength, axis.Units.Count, axis.AllocatedSize,
+				axis.FillHoldEvals, Info.MaxAdvanceHoldEvals);
 
 		// Phase 5: should this axis HOLD because the sector it STANDS IN reads too strong? Reads the believed
 		// per-sector profile (own vs enemy strength + front presence) and delegates the ratio test to the pure
