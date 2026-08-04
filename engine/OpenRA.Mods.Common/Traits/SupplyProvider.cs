@@ -542,8 +542,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		void RevokeTargetCondition()
 		{
+			// IsInWorld is deliberately NOT checked. A held target boarding a garrison shelter is
+			// exactly when this revoke must fire: the soldier leaves the world, DecideServe drops
+			// HoldCondition (shelter passengers are served but never granted), and SyncTargetCondition
+			// revokes — but an IsInWorld guard would skip TryRevokeCondition while the fields below
+			// are zeroed regardless, orphaning a permanent token that no longer has an owner to
+			// release it. The soldier would then carry a free perpetual ReloadAmmoPool trickle out of
+			// the garrison. TryRevokeCondition is world-independent (list bookkeeping plus a
+			// TokenValid-guarded revoke), so calling it on an out-of-world actor is safe.
 			if (conditionToken != Actor.InvalidConditionToken && currentTarget != null &&
-				!currentTarget.IsDead && currentTarget.IsInWorld && targetConditionTrait != null)
+				!currentTarget.IsDead && targetConditionTrait != null)
 			{
 				targetConditionTrait.TryRevokeCondition(currentTarget, this, conditionToken);
 			}
