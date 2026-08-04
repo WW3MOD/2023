@@ -41,8 +41,8 @@ namespace OpenRA.Test
 		// TRUK's push aura (vehicles.yaml Range: 5c0) — the number the approach clamp stops short of.
 		const int Aura = 5 * Cell;
 
-		// Half a cell diagonal, 1024 * sqrt(2) / 2, rounded UP: the worst-case distance between a point and
-		// the centre of the cell Map.CellContaining resolves it to. The margin has to beat this.
+		// Half a cell diagonal, 1024 * sqrt(2) / 2 = 724.077…, rounded DOWN: the worst-case distance between
+		// a point and the centre of the cell Map.CellContaining resolves it to. The margin has to beat this.
 		const int HalfCellDiagonal = 724;
 
 		static WPos Pos(int x, int y) => new(x, y, 0);
@@ -419,6 +419,10 @@ namespace OpenRA.Test
 		{
 			// 3-4-5: the truck sits exactly one aura out on a diagonal. The stop point must be on the same
 			// line at the margin distance — within the engine's integer-sqrt rounding, not exact.
+			// NOTE this input sits at exactly dSq == auraSq, which NeedsApproach gates OFF (strict >), so
+			// this pin exercises ray direction and totality on a call the live path would not make. The
+			// >= Cell separation below computes to exactly 1025 here — incidental to this geometry, NOT the
+			// gate-derived D > aura guarantee the anti-stall argument rests on.
 			var soldier = Pos(0, 0);
 			var truck = Pos(3 * Cell, 4 * Cell);
 

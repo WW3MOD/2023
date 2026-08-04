@@ -165,9 +165,19 @@ namespace OpenRA.Mods.Common.Traits
 		/// edge would therefore resolve, half the time, to a cell OUTSIDE the aura; a truck at aura + ε would
 		/// order itself somewhere it still cannot push from, re-derive the same point next scan, and park
 		/// just out of range while the soldier starves. One CellLength of margin covers the error with room
-		/// to spare (aura - 1024 + 724 = aura - 300, strictly inside), and it also guarantees the order is
-		/// never a no-op: the stop point is at least 1024 - 724 = 300 from the truck, and two distinct cell
-		/// centres are at least 1024 apart, so the resolved cell cannot be the truck's own.
+		/// to spare (aura - 1024 + 724 = aura - 300, strictly inside).
+		///
+		/// The same margin is what keeps the order from being a no-op, i.e. from resolving to the cell the
+		/// truck is already standing in. The chain: this function only runs behind NeedsApproach, which
+		/// compares squared lengths as integers (WDist.LengthSquared is (long)Length * Length — no sqrt on
+		/// that side), so dSq > auraSq gives true distance D > aura exactly. The stop point lies at most
+		/// stop = aura - 1024 from the soldier — truncation in the scaling can only shorten it — so its
+		/// distance from the truck is more than D - stop > aura - (aura - 1024) = 1024. A RESTING truck sits
+		/// on its cell centre, and every point of a cell is within 724 of that centre; since 1024 > 724, the
+		/// stop point provably falls outside the truck's own cell. Caveat: a truck caught MID-MOVE is off
+		/// centre, so it can in principle resolve to the cell it currently occupies — it then halts there,
+		/// and the next scan recomputes from a cell centre and moves it. That is a one-scan delay, not the
+		/// stall this margin exists to prevent.
 		///
 		/// Total by construction: an aura no wider than the margin has no room to stop short, so it falls
 		/// back to the soldier's own position (TRUK's 5c0 never reaches that branch); a truck already inside
