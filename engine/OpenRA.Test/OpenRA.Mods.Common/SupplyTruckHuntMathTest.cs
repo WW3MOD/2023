@@ -14,6 +14,9 @@
  *   (5) DETERMINISM — the pick is independent of enumeration order, and repeats exactly.
  *   (6) THE GATES — NeedsApproach (a truck already covering its pick must not be re-ordered) and
  *       ShouldHunt (the shared-instance @experimental BotType gate).
+ *   (7) THE APPROACH CLAMP — the truck stops one cell short of the aura edge instead of driving onto the
+ *       soldier, and the margin is large enough that the quantized destination cell still lies inside the
+ *       aura AND is not the truck's own cell (the anti-stall property).
  * Pure math over synthetic candidates; no world mounted.
  */
 #endregion
@@ -34,6 +37,17 @@ namespace OpenRA.Test
 
 		// The shipped band (ai.yaml @supply): 10% of capacity per band.
 		const int Band = 100;
+
+		// TRUK's push aura (vehicles.yaml Range: 5c0) — the number the approach clamp stops short of.
+		const int Aura = 5 * Cell;
+
+		// Half a cell diagonal, 1024 * sqrt(2) / 2, rounded UP: the worst-case distance between a point and
+		// the centre of the cell Map.CellContaining resolves it to. The margin has to beat this.
+		const int HalfCellDiagonal = 724;
+
+		static WPos Pos(int x, int y) => new(x, y, 0);
+
+		static int DistanceFrom(WPos a, WPos b) => (b - a).HorizontalLength;
 
 		static long DistSqCells(int xCells, int yCells) =>
 			((long)xCells * Cell * xCells * Cell) + ((long)yCells * Cell * yCells * Cell);
@@ -315,6 +329,17 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void WithinTheAura_NeverConsultsTheClamp()
+		{
+			// The clamp only ever runs behind NeedsApproach. Pinned together so the "already covering him ⇒
+			// issue no order at all" contract can't be quietly relaxed by a later change to the stop rule.
+			var aura = (long)Aura * Aura;
+
+			Assert.That(SupplyTruckHuntMath.NeedsApproach(DistSqCells(3, 0), aura), Is.False);
+			Assert.That(SupplyTruckHuntMath.NeedsApproach(DistSqCells(3, 4), aura), Is.False);
+		}
+
+		[Test]
 		public void ShouldHunt_RequiresBothTheFlagAndTheExperimentalBot()
 		{
 			// The shared-instance gate: the flag alone must never reach the @stable player, because
@@ -323,6 +348,100 @@ namespace OpenRA.Test
 			Assert.That(SupplyTruckHuntMath.ShouldHunt(true, false), Is.False);
 			Assert.That(SupplyTruckHuntMath.ShouldHunt(false, true), Is.False);
 			Assert.That(SupplyTruckHuntMath.ShouldHunt(false, false), Is.False);
+		}
+
+		#endregion
+
+		#region (7) The approach clamp
+
+		[Test]
+		public void ApproachTarget_StopsOneCellShortOfTheAuraEdge()
+		{
+			// Soldier at the origin, truck 12 cells east, TRUK's 5c0 aura. The truck should be sent to
+			// 4 cells from the SOLDIER — inside the push aura — not onto his cell 12 cells away.
+			var stop = SupplyTruckHuntMath.ApproachTarget(Pos(12 * Cell, 0), Pos(0, 0), Aura);
+
+			Assert.That(DistanceFrom(Pos(0, 0), stop), Is.EqualTo(Aura - Cell));
+		}
+
+		[Test]
+		public void ApproachTarget_JustOutsideTheAura_SurvivesCellQuantization()
+		{
+			// The stall case. A truck one world unit outside the aura must be given a destination that is
+			// still strictly inside the aura AFTER Map.CellContaining snaps it to a cell centre, and that
+			// cannot snap back onto the truck's own cell — otherwise the Move is a no-op, the next scan
+			// re-derives the same point, and the truck parks out of range forever.
+			var soldier = Pos(0, 0);
+			var truck = Pos(Aura + 1, 0);
+
+			var stop = SupplyTruckHuntMath.ApproachTarget(truck, soldier, Aura);
+
+			// (a) Worst-case quantized cell centre is still inside the aura.
+			Assert.That(DistanceFrom(soldier, stop) + HalfCellDiagonal, Is.LessThan(Aura));
+
+			// (b) The point is at least a full cell from the truck, and two distinct cell centres are at
+			// least one cell apart — so the resolved cell is never the truck's own and the order moves it.
+			Assert.That(DistanceFrom(truck, stop), Is.GreaterThanOrEqualTo(Cell));
+		}
+
+		[Test]
+		public void ApproachTarget_SmallAura_FallsBackToTheSoldiersCell()
+		{
+			// Degenerate: an aura no wider than the margin leaves nothing to stop short of, so the rule
+			// collapses to the old behaviour rather than producing a point behind the truck. TRUK never
+			// reaches this, but the function has to be total.
+			var soldier = Pos(0, 0);
+			var truck = Pos(20 * Cell, 0);
+
+			Assert.That(SupplyTruckHuntMath.ApproachTarget(truck, soldier, Cell), Is.EqualTo(soldier));
+			Assert.That(SupplyTruckHuntMath.ApproachTarget(truck, soldier, 500), Is.EqualTo(soldier));
+			Assert.That(SupplyTruckHuntMath.ApproachTarget(truck, soldier, 0), Is.EqualTo(soldier));
+
+			// One unit above the margin is no longer degenerate: it stops 1 unit from the soldier.
+			Assert.That(DistanceFrom(soldier, SupplyTruckHuntMath.ApproachTarget(truck, soldier, Cell + 1)), Is.EqualTo(1));
+		}
+
+		[Test]
+		public void ApproachTarget_TruckAlreadyInsideTheStopRadius_IsNotPushedOut()
+		{
+			// Out of the caller's contract (NeedsApproach gates it), but the math must not answer "drive
+			// away from him". Includes the co-located case, which is also what keeps the scaling from
+			// dividing by zero.
+			var soldier = Pos(0, 0);
+			var near = Pos(2 * Cell, 0);
+
+			Assert.That(SupplyTruckHuntMath.ApproachTarget(near, soldier, Aura), Is.EqualTo(near));
+			Assert.That(SupplyTruckHuntMath.ApproachTarget(soldier, soldier, Aura), Is.EqualTo(soldier));
+		}
+
+		[Test]
+		public void ApproachTarget_HoldsOnADiagonal()
+		{
+			// 3-4-5: the truck sits exactly one aura out on a diagonal. The stop point must be on the same
+			// line at the margin distance — within the engine's integer-sqrt rounding, not exact.
+			var soldier = Pos(0, 0);
+			var truck = Pos(3 * Cell, 4 * Cell);
+
+			var stop = SupplyTruckHuntMath.ApproachTarget(truck, soldier, Aura);
+
+			Assert.That(DistanceFrom(soldier, stop), Is.EqualTo(Aura - Cell).Within(2));
+			Assert.That(DistanceFrom(soldier, stop) + HalfCellDiagonal, Is.LessThan(Aura));
+			Assert.That(DistanceFrom(truck, stop), Is.GreaterThanOrEqualTo(Cell));
+
+			// Still on the soldier→truck ray (both components shrink in the same proportion, sign kept).
+			Assert.That(stop.X, Is.GreaterThan(0));
+			Assert.That(stop.Y, Is.GreaterThan(stop.X));
+		}
+
+		[Test]
+		public void ApproachTarget_IsDeterministic()
+		{
+			var soldier = Pos(1234, 5678);
+			var truck = Pos(9012, 3456);
+
+			var first = SupplyTruckHuntMath.ApproachTarget(truck, soldier, Aura);
+			for (var i = 0; i < 50; i++)
+				Assert.That(SupplyTruckHuntMath.ApproachTarget(truck, soldier, Aura), Is.EqualTo(first));
 		}
 
 		#endregion

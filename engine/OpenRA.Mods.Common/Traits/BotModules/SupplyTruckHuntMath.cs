@@ -153,6 +153,48 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// Where an approaching truck should STOP: the point on the soldier→truck line sitting one cell
+		/// short of the aura edge, measured from the SOLDIER. Driving onto his cell instead would buy up to
+		/// a full aura's worth of extra exposure (5 cells for TRUK) for nothing — the push only needs him
+		/// inside the aura, and the truck is a soft, high-value target in a position the caller reaches
+		/// precisely when the line has scattered.
+		///
+		/// THE MARGIN IS NOT COSMETIC — it is what stops the truck stalling. The destination is quantized to
+		/// a cell (Map.CellContaining) before it is ordered, and a cell centre sits up to half a cell
+		/// diagonal — 1024 * sqrt(2) / 2 ≈ 724 — from the point that produced it. Clamping to the exact aura
+		/// edge would therefore resolve, half the time, to a cell OUTSIDE the aura; a truck at aura + ε would
+		/// order itself somewhere it still cannot push from, re-derive the same point next scan, and park
+		/// just out of range while the soldier starves. One CellLength of margin covers the error with room
+		/// to spare (aura - 1024 + 724 = aura - 300, strictly inside), and it also guarantees the order is
+		/// never a no-op: the stop point is at least 1024 - 724 = 300 from the truck, and two distinct cell
+		/// centres are at least 1024 apart, so the resolved cell cannot be the truck's own.
+		///
+		/// Total by construction: an aura no wider than the margin has no room to stop short, so it falls
+		/// back to the soldier's own position (TRUK's 5c0 never reaches that branch); a truck already inside
+		/// the stop radius is returned unmoved rather than pushed back out. Integer WPos/WVec math with a
+		/// long intermediate so the scale never overflows; WVec.HorizontalLength is the engine's
+		/// deterministic integer sqrt. Zero RNG.
+		/// </summary>
+		public static WPos ApproachTarget(WPos truckPos, WPos soldierPos, int auraLength)
+		{
+			if (auraLength <= SupplyHuntMath.CellLength)
+				return soldierPos;
+
+			var stop = auraLength - SupplyHuntMath.CellLength;
+
+			var delta = truckPos - soldierPos;
+			var distance = delta.HorizontalLength;
+
+			// Also covers the co-located case (distance 0), so the scaling below never divides by zero.
+			if (distance <= stop)
+				return truckPos;
+
+			var x = soldierPos.X + (int)((long)delta.X * stop / distance);
+			var y = soldierPos.Y + (int)((long)delta.Y * stop / distance);
+			return new WPos(x, y, truckPos.Z);
+		}
+
+		/// <summary>
 		/// The shared-instance gate. SupplyFollowerBotModule is a single enable-ai-ANY instance shared by
 		/// every bot profile, and post stable-0802 <see cref="InfluenceStack.Participates"/> admits @stable
 		/// as well — so the YAML flag ALONE cannot keep this off the @stable player. Mirrors

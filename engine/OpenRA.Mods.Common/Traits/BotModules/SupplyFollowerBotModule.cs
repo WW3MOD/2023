@@ -404,8 +404,11 @@ namespace OpenRA.Mods.Common.Traits
 		/// @experimental bot with IdleTruckHunt on.
 		///
 		/// Infantry only, and by construction rather than by a name list: the candidate must carry the
-		/// truck's OWN RearmCondition — replenish-soldiers for TRUK (vehicles.yaml:546), an
-		/// ExternalCondition only soldiers hold (infantry.yaml:214-215). A vehicle therefore never appears
+		/// truck's OWN RearmCondition — replenish-soldiers for TRUK (vehicles.yaml:546), which only soldiers
+		/// HOLD as an ExternalCondition (infantry.yaml:215). LOGISTICSCENTER names the same condition
+		/// (structures.yaml:382-386) but as a ProximityExternalCondition GRANTER, which is not an
+		/// ExternalCondition subclass — so the TraitsImplementing&lt;ExternalCondition&gt; scan below does not
+		/// match it, and the building never reads as demand. A vehicle therefore never appears
 		/// as demand here, which is correct: the only provider that serves replenish-vehicles is the static
 		/// Logistics Centre (structures.yaml:394), and it is docking-gated, so vehicles PULL and trucks
 		/// cannot push to them.
@@ -480,8 +483,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (!SupplyTruckHuntMath.NeedsApproach(demands[pick].DistanceSquared, provider.Info.Range.LengthSquared))
 				return;
 
+			// Stop as soon as he is inside the push aura (less a cell of margin), not on top of him — the
+			// last aura's worth of driving buys nothing and this sweep runs precisely where the line has
+			// come apart. The margin is also what keeps the order from stalling on cell quantization; the
+			// reasoning lives with the constant, in ApproachTarget.
 			var target = candidates[pick];
-			bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, world.Map.CellContaining(target.CenterPosition)), false));
+			var stopPosition = SupplyTruckHuntMath.ApproachTarget(truck.CenterPosition, target.CenterPosition, provider.Info.Range.Length);
+			bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, world.Map.CellContaining(stopPosition)), false));
 			lastVia.Remove(truck);
 
 			if (!activeTrucks.Contains(truck))
