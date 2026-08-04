@@ -612,9 +612,15 @@ namespace OpenRA.Mods.Common.Traits
 				if (transport.IsDead || !transport.IsInWorld)
 					continue;
 
-				// Look inside our own and allied containers only. Cargo.CanLoad never admits a passenger from a
-				// non-ally, so this misses nothing, and it keeps the census from enumerating enemy cargo — the
-				// fog-legality constraint is that this pass reads the player's OWN force, not hidden enemy state.
+				// Look inside our own and allied containers only. This misses nothing, because a container
+				// holding THIS player's soldiers is always player- or ally-owned: a garrison claims its
+				// building for the entering soldier's owner on the way in (GarrisonManager.OnPassengerEntered
+				// -> ChangeOwnerInPlace, :253-262) and reverts/transfers only once occupants leave (:320-332),
+				// and vehicle transports are loaded by MountedTransportBotModule pairing the bot's own infantry
+				// with its own carriers. (Cargo.CanLoad itself does NOT gate on ownership — it tests only
+				// LoadingBlocked, the ICargoCanLoadFilter hooks, and space, Cargo.cs:279-289.) Restricting the
+				// scan also keeps the census off enemy cargo — the fog-legality constraint is that this pass
+				// reads the player's OWN force, not hidden enemy state.
 				if (transport.Owner != player && player.RelationshipWith(transport.Owner) != PlayerRelationship.Ally)
 					continue;
 
