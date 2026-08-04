@@ -409,8 +409,7 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			// Must be in range
-			var dist = (a.CenterPosition - self.CenterPosition).HorizontalLength;
-			if (dist > Info.Range.Length)
+			if (!InAuraRange(self.CenterPosition, a.CenterPosition, Info.Range))
 				return false;
 
 			// If a docking gate is configured (e.g. unit.docked on the LC), the target
@@ -458,8 +457,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (currentTarget != null && currentTarget.IsInWorld)
 			{
 				// If target is out of range (Hunt mode found a distant flagged unit), move toward it
-				var dist = (currentTarget.CenterPosition - self.CenterPosition).HorizontalLength;
-				if (dist > Info.Range.Length)
+				if (!InAuraRange(self.CenterPosition, currentTarget.CenterPosition, Info.Range))
 				{
 					var move = self.TraitOrDefault<IMove>();
 					if (move != null)
@@ -512,6 +510,20 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				RevokeTargetCondition();
 				currentTarget = null;
+				return;
+			}
+
+			// The aura is a proximity push: enforce Range on delivery, not just on selection.
+			// Target selection can legitimately hand us a target that is out of range right now —
+			// the Hunt branch in UpdateTarget picks a flagged unit anywhere on the map and SetTarget
+			// only *starts* driving toward it — and a selected target can also walk out of the aura
+			// during the RearmDelay wait. Without this gate GiveAmmo fires at any distance.
+			// Sheltered garrison passengers are exempt: they are !IsInWorld with a stale
+			// CenterPosition, and their building was in range when they were picked (see SetTarget).
+			if (currentTarget.IsInWorld && !InAuraRange(self.CenterPosition, currentTarget.CenterPosition, Info.Range))
+			{
+				// Keep the target so an approaching provider serves it on arrival; just don't deliver yet.
+				rearmTicks = Info.RearmDelay;
 				return;
 			}
 
@@ -693,6 +705,18 @@ namespace OpenRA.Mods.Common.Traits
 		bool ICargoCanLoadFilter.CanLoadPassenger(Actor self, Actor passenger)
 		{
 			return currentSupply > 0;
+		}
+
+		/// <summary>
+		/// Whether a target sits inside the provider's push aura. Horizontal (2D) distance compared
+		/// squared, which is exactly the filter WorldUtils.FindActorsInCircle applies
+		/// (<c>HorizontalLengthSquared &lt;= r.LengthSquared</c>) — so selection and delivery agree on
+		/// the boundary instead of drifting by the floor() that WVec.HorizontalLength's ISqrt applies.
+		/// Pure so the unit tests pin the exact rule every range site in this trait uses.
+		/// </summary>
+		public static bool InAuraRange(WPos providerPos, WPos targetPos, WDist range)
+		{
+			return (targetPos - providerPos).HorizontalLengthSquared <= range.LengthSquared;
 		}
 
 		/// <summary>
