@@ -39,6 +39,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Mods.Common.Traits.BotModules.Squads;
 using OpenRA.Traits;
@@ -105,6 +106,25 @@ namespace OpenRA.Mods.Common.Traits
 			"byte-identical (they keep pulling every unit); only PoiOffensiveBotModule@experimental turns it",
 			"on. Mirrors LayeredDefenceBotModule.SkipOutOfAmmoUnits + the CohesionSwitchEnabled default-off pattern.")]
 		public readonly bool SkipOutOfAmmoUnits = false;
+
+		[Desc("WAVE A (@experimental) OUT-OF-AMMO DISPOSITION. SkipOutOfAmmoUnits above only stops the offense",
+			"RECRUITING a dry unit — it does not give that unit anything to do, so an empty vehicle just stands",
+			"where it emptied. The engine cannot fix this either: AmmoPool.AutoRearm's else branch, taken when no",
+			"resupplier is found, is FLAG-ONLY (sets NeedsResupply and returns, AmmoPool.cs:313-320) and ground",
+			"vehicles default to ResupplyBehavior.Auto, so an empty vehicle with no reachable Logistics Centre",
+			"keeps fighting with an empty gun. When ON, the bot sweeps its own dry combat vehicles each re-eval",
+			"and disposes of each one: drive to a rearm source if one is worth reaching, else TERMINAL evac (rotate",
+			"off the map edge, refunding GetSellValue x HP/MaxHP per economy.md). Decision is the pure",
+			"AmmoEvacMath.Decide (NUnit-pinned), zero RNG. Needs SkipOutOfAmmoUnits to be useful — without it the",
+			"recruit pass re-tasks the unit and cancels its evac. OFF by default = byte-identical; only",
+			"PoiOffensiveBotModule@experimental turns it on.")]
+		public readonly bool EvacuateOutOfAmmoUnits = false;
+
+		[Desc("Out-of-ammo disposition: max distance (cells, Chebyshev) to a rearm source still worth driving to.",
+			"Beyond it the unit evacuates instead — a dry hull crossing the map past the enemy to reach the one",
+			"surviving depot is worth more as a refund. 0 = UNLIMITED (any existing source is worth the drive, the",
+			"legacy AmmoPool.AutoRearm reading). Only read when EvacuateOutOfAmmoUnits.")]
+		public readonly int OutOfAmmoRearmSeekRadiusCells = 0;
 
 		[Desc("Master switch for the dispersion doctrine (spread to move, mass to assault). OFF by",
 			"default so the frozen Stable/Normal controls keep the pre-dispersion behaviour untouched;",
@@ -773,6 +793,13 @@ namespace OpenRA.Mods.Common.Traits
 		CPos? lastStagingAnchor;
 		readonly Dictionary<Actor, CPos> stagedCells = new();
 
+		// Wave A out-of-ammo disposition: units already sent to TERMINAL evac (RotateToEdge). Held so the recruit
+		// pass can never re-task an evacuating unit — an AttackMove would cancel the RotateToEdge and send an empty
+		// hull at the enemy (the same hazard SkipOutOfAmmoUnits guards, but that predicate reads live ammo and an
+		// evacuating unit may be topped up en route by a passing truck). Mirrors HelicopterSquadBotModule's
+		// `evacuating` set. Empty unless EvacuateOutOfAmmoUnits ⇒ byte-identical when off.
+		readonly HashSet<Actor> evacuatingOutOfAmmo = new();
+
 		// Cached (build cost, armed) per believed-contact TypeName, resolved from world rules on first use, so
 		// the believed-enemy force tally doesn't re-walk the actor rules every eval. Deterministic.
 		readonly Dictionary<string, (int Cost, bool Armed)> contactFactCache = new();
@@ -935,6 +962,11 @@ namespace OpenRA.Mods.Common.Traits
 			PruneAxes();
 			if (goalGuard != null)
 				goalGuard.Ledger.Prune(tick, a => !a.IsDead && a.IsInWorld && a.Owner == player);
+
+			// 1a. Wave A: give every DRY vehicle of ours a disposition (rearm host, or terminal evac). Runs after
+			//     PruneAxes released them from their axes and BEFORE BuildFreePool, so a unit sent to evac this eval
+			//     is excluded from the free pool rather than being recruited straight back out of its evac.
+			SweepOutOfAmmoUnits(tick);
 
 			// Bound the cohesion-tracking map to living units so it can't leak across a game.
 			if (lastCohesion.Count > 0)
@@ -1810,6 +1842,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.SkipOutOfAmmoUnits && IsOutOfAmmo(a))
 				return false;
 
+			// Wave A: a unit already flying a terminal evac is out of the bot's hands — recruiting it would cancel
+			// the RotateToEdge. Distinct from the ammo predicate above, which a passing truck can silently falsify
+			// mid-evac. The set is empty unless EvacuateOutOfAmmoUnits ⇒ byte-identical when off.
+			if (evacuatingOutOfAmmo.Contains(a))
+				return false;
+
 			// Role-model eligibility: MainBattle line units plus IndirectFire artillery (kept until a
 			// dedicated fires executor exists, else artillery orphans — design §6). SHORAD/MANPADS,
 			// capturers, logistics and scouts drop out by class. Cargo carriers (bradley/bmp2/m113) stay
@@ -1823,6 +1861,121 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return !Info.ExcludeUnitTypes.Contains(a.Info.Name);
+		}
+
+		// WAVE A OUT-OF-AMMO DISPOSITION. SkipOutOfAmmoUnits only makes the offense STOP RECRUITING a dry unit; it
+		// leaves that unit standing wherever it emptied, because the engine's own fallback is flag-only (AmmoPool's
+		// AutoRearm else-branch just sets NeedsResupply, AmmoPool.cs:313-320, and ground vehicles default to
+		// ResupplyBehavior.Auto). This sweep closes that gap: every dry vehicle of ours gets an explicit disposition
+		// each re-eval — drive to a rearm host, or TERMINAL evac banking GetSellValue x HP/MaxHP.
+		//
+		// Runs BEFORE the free pool is built so a unit disposed of this eval is never also recruited onto an axis.
+		// Per-unit dispositions are independent of one another, so world.Actors' enumeration order cannot change any
+		// outcome (the determinism invariant); the decision itself is the pure AmmoEvacMath.Decide, zero RNG.
+		// Skipped wholesale when the flag is off ⇒ byte-identical for @stable / normal / human.
+		void SweepOutOfAmmoUnits(int tick)
+		{
+			if (!Info.EvacuateOutOfAmmoUnits)
+				return;
+
+			// Bound the evac set to living units of ours so it can't leak across a game.
+			if (evacuatingOutOfAmmo.Count > 0)
+				evacuatingOutOfAmmo.RemoveWhere(a => a.IsDead || !a.IsInWorld || a.Owner != player);
+
+			var sought = 0;
+			var evacuated = 0;
+
+			// Materialised before ordering: the evac path mutates evacuatingOutOfAmmo, which the candidate
+			// predicate reads.
+			foreach (var unit in world.Actors.Where(IsOutOfAmmoSweepCandidate).ToList())
+			{
+				// Source DISCOVERY stays with the engine's own scan (ownership + RearmActors + remaining supply),
+				// so the bot and the unit-side trait agree on what counts as a host. Note it does NOT path-check,
+				// so "reachable" is existence plus the Chebyshev seek budget below — a deliberate cheap proxy.
+				var host = AmmoPool.ChooseResupplier(unit);
+				var distance = host != null
+					? PoiOffenseMath.Chebyshev(unit.Location.X, unit.Location.Y, host.Location.X, host.Location.Y)
+					: 0;
+
+				switch (AmmoEvacMath.Decide(true, unit.TraitOrDefault<IMove>() != null, host != null,
+					distance, Info.OutOfAmmoRearmSeekRadiusCells))
+				{
+					case AmmoEvacAction.SeekRearm:
+						// Delegate to the engine's own rearm dispatcher rather than re-deriving the activity: it
+						// picks SeekSupplyProvider / RideTransport / Resupply per host kind (AmmoPool.cs:277-312).
+						// Its flag-only else-branch is unreachable here — we only call it with a live host.
+						AmmoPool.AutoRearm(unit);
+						sought++;
+						break;
+
+					case AmmoEvacAction.Evacuate:
+						EvacuateOutOfAmmoUnit(unit);
+						evacuated++;
+						break;
+				}
+			}
+
+			if (sought > 0 || evacuated > 0)
+				Log.Write("debug",
+					$"[exp-ooa] sweep player={player.PlayerName} rearm={sought} evac={evacuated} " +
+					$"evacuating={evacuatingOutOfAmmo.Count} tick={tick}");
+		}
+
+		// Terminal disposition: rotate the dry unit off the map edge for a refund, and drop it from bot management so
+		// nothing re-tasks it (an AttackMove would cancel the RotateToEdge and send an empty hull at the enemy). The
+		// same shape as HelicopterSquadBotModule.Evacuate. The ledger claim is released explicitly — this unit is
+		// leaving, so holding an offense commitment would strand the objective.
+		void EvacuateOutOfAmmoUnit(Actor unit)
+		{
+			unit.QueueActivity(false, new RotateToEdge(unit, true, unit.GetSellValue()));
+			unit.ShowTargetLines();
+
+			// Marked BEFORE the management drop: IsEligibleCombatUnit excludes this set, so the unit can never be
+			// re-recruited or re-staged while flying its evac.
+			evacuatingOutOfAmmo.Add(unit);
+
+			goalGuard?.Ledger.Release(unit);
+			lastCohesion.Remove(unit);
+			stagedCells.Remove(unit);
+
+			foreach (var axis in axes)
+				axis.Units.Remove(unit);
+		}
+
+		// Sweep candidate: one of OUR dry, orderable GROUND VEHICLES that is not already evacuating.
+		bool IsOutOfAmmoSweepCandidate(Actor a)
+		{
+			if (a.Owner != player || a.IsDead || !a.IsInWorld)
+				return false;
+
+			// IPositionable first — world.Actors carries positionless PlayerActors and the reads below (and the
+			// caller's .Location) would NRE on one (see conventions.md).
+			if (!a.Info.HasTraitInfo<IPositionableInfo>() || !a.Info.HasTraitInfo<AttackBaseInfo>())
+				return false;
+
+			// Aircraft rearm at HPAD/AFLD on their own path; heli evac belongs to HelicopterSquadBotModule.
+			if (a.Info.HasTraitInfo<AircraftInfo>())
+				return false;
+
+			// Already disposed of — never re-order it, that would cancel the evac.
+			if (evacuatingOutOfAmmo.Contains(a))
+				return false;
+
+			// VEHICLES only. Infantry are topped up IN PLACE by a truck/cache PUSH, which is gated on the recipient's
+			// replenish-soldiers condition that only infantry hold (economy.md) — walking a rifleman to a depot would
+			// fight the supply model. SharesCell is the structural infantry tell: every foot* locomotor sets it and no
+			// vehicle locomotor does (world.yaml), so this needs no actor-name list. Also requires Mobile, i.e. the
+			// unit can actually be sent somewhere.
+			var mobile = a.Info.TraitInfoOrDefault<MobileInfo>();
+			if (mobile == null || mobile.LocomotorInfo.SharesCell)
+				return false;
+
+			// A unit that trickles its own ammo back in the field (ReloadAmmoPool — static defences) is never
+			// stranded, so it is not the sweep's business (economy.md).
+			if (a.Info.HasTraitInfo<ReloadAmmoPoolInfo>())
+				return false;
+
+			return IsOutOfAmmo(a);
 		}
 
 		// "Out of ammo" = the unit has AmmoPool traits AND every pool is empty. Units with no

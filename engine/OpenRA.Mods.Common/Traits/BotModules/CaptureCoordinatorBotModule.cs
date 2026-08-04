@@ -59,6 +59,25 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Income weight used when a target type is not listed in IncomeWeights.")]
 		public readonly int DefaultIncomeWeight = 10;
 
+		[Desc("WAVE A (@experimental) SUPPLY-DEPOT CAPTURE TIER. A Logistics Centre is the ONLY thing a ground",
+			"vehicle can rearm at (economy.md), so taking one is what keeps a dry armoured force in the fight —",
+			"but it earns no cash, so it falls to DefaultIncomeWeight and ranks level with the worthless MISS/HOSP",
+			"civilian structures. When ON, types in SupplyDepotActorTypes are scored at their own explicit tier",
+			"(SupplyDepotIncomeWeight) placed BELOW every cash-producing building: a depot is worth taking, but",
+			"never at the cost of an income POI. Weight only — membership still comes from CapturableActorTypes, and",
+			"an explicit IncomeWeights entry always wins. OFF by default = byte-identical; only the @experimental",
+			"block turns it on.")]
+		public readonly bool CaptureSupplyDepots = false;
+
+		[Desc("Actor types treated as rearm/resupply depots by the CaptureSupplyDepots tier. Lookup by lowercased",
+			"actor name. Only read when CaptureSupplyDepots.")]
+		public readonly HashSet<string> SupplyDepotActorTypes = new();
+
+		[Desc("Income weight for SupplyDepotActorTypes when CaptureSupplyDepots is on. Set this BELOW the lowest",
+			"IncomeWeights entry so a depot never outbids a cash building, and above DefaultIncomeWeight so it",
+			"outranks the no-income civilian structures that share that default.")]
+		public readonly int SupplyDepotIncomeWeight = 25;
+
 		[Desc("Number of cells over which target-distance score halves (rough decay scale).")]
 		public readonly int DistanceHalfLifeCells = 20;
 
@@ -281,6 +300,7 @@ namespace OpenRA.Mods.Common.Traits
 			ActorNameCase.NormalizeInPlace(CapturableActorTypes);
 			ActorNameCase.NormalizeInPlace(SupportingUnitTypes);
 			ActorNameCase.NormalizeKeysInPlace(IncomeWeights);
+			ActorNameCase.NormalizeInPlace(SupplyDepotActorTypes);
 		}
 
 		public override object Create(ActorInitializer init) { return new CaptureCoordinatorBotModule(init.Self, this); }
@@ -1191,7 +1211,16 @@ namespace OpenRA.Mods.Common.Traits
 		int GetIncomeWeight(Actor target)
 		{
 			var name = target.Info.Name.ToLowerInvariant();
-			return Info.IncomeWeights.TryGetValue(name, out var v) ? v : Info.DefaultIncomeWeight;
+			if (Info.IncomeWeights.TryGetValue(name, out var v))
+				return v;
+
+			// Wave A supply-depot tier: a rearm depot earns no cash, so without this it shares DefaultIncomeWeight
+			// with the worthless civilian structures. Checked only AFTER an explicit IncomeWeights entry, so YAML
+			// tuning always wins. Off ⇒ falls through to the default exactly as before.
+			if (Info.CaptureSupplyDepots && Info.SupplyDepotActorTypes.Contains(name))
+				return Info.SupplyDepotIncomeWeight;
+
+			return Info.DefaultIncomeWeight;
 		}
 
 		// Eight cardinal+diagonal unit steps — the control-ring sample directions (fixed order, zero RNG).
