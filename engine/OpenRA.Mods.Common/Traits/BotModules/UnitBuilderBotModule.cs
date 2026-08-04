@@ -78,6 +78,11 @@ namespace OpenRA.Mods.Common.Traits
 			"available and waiting for a ride — and no idle transport we already own can serve it. The frozen",
 			"path buys transports on a flat lottery weight with no demand test at all, so they are called in",
 			"during the opening and then park at the Supply Route for the whole match (River Zeta issue 4).",
+			"NOTE — 'idle transport we already own' is the raw IsIdle test, NOT a launchability test: a",
+			"chip-damaged transport the squad launcher can never pick still counts as spare capacity here and",
+			"so defers a replacement buy. That is bounded, not permanent — the squad module's use-or-evac",
+			"(EvacuateIdleTransports) retires the unlaunchable airframe at its idle window, owned drops, and",
+			"this gate then authorises the replacement. Without that counterpart flag the deferral IS permanent.",
 			"Composes with CompositionDirected rather than fighting it: helicopter pools stay deliberately",
 			"absent from UnitTargetShares (deferred to their own builder twins) and this gate is applied at",
 			"BOTH post-pick sites, so it behaves identically whether the pick came from the deficit picker or",
@@ -488,8 +493,15 @@ namespace OpenRA.Mods.Common.Traits
 					break;
 			}
 
-			// The configured per-type ceiling doubles as the transport cap, so the gate can never authorise a
-			// buy the UnitLimits check below/above would reject anyway. 0 ⇒ no ceiling configured.
+			// Reuse the configured per-type ceiling as the transport cap. NOTE what this does and does NOT buy:
+			// UnitLimits counts WORLD ACTORS only, so a call-in still sitting in the production queue is
+			// invisible to it — and this cap inherits exactly that blind spot. It is therefore not what stops a
+			// concurrent second call-in. UnitDelays does not either: it is an ABSOLUTE world-tick opening
+			// threshold, not a repeat cooldown. The real serializer is BuildUnit's empty-queue precondition
+			// (it only picks a queue with nothing already queued), and with one Aircraft queue per Supply Route
+			// that admits no second simultaneous call-in; once ProductionFromMapEdge spawns the unit into the
+			// world, UnitLimits bounds the rest. The residual is multi-SR (a second captured SR = a second
+			// queue), and it is bounded by UnitLimits at spawn. 0 ⇒ no ceiling configured.
 			var cap = 0;
 			if (Info.UnitLimits != null && Info.UnitLimits.TryGetValue(transportInfo.Name, out var limit))
 				cap = limit;

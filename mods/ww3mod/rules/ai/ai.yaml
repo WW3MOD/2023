@@ -1247,6 +1247,13 @@ Player:
 		#   * EvacuateIdleTransports — nothing ever RETIRED a transport: the idle evaluator's role filter admits
 		#     AttackHeavy/AttackLight only, so Transport fell through. Use-or-evac makes an unemployable
 		#     transport bank its salvage refund instead of parking forever. Terminal; no hold-and-recheck.
+		#     "Unemployable" applies EVERY gate the launcher applies — including IsReadyForMission. That matters
+		#     most for HEALTH: tran/halo ship ReEngageHealthPercent 90 and no AI repair host exists, so a
+		#     chip-damaged transport can never be picked; it must retire so the demand gate can buy a healthy
+		#     replacement. An Employ verdict that omitted this pinned the airframe at the SR forever — the exact
+		#     symptom this wave fixes (found by adversarial review of 41913bd8).
+		# NOTE: these two flags are COUPLED — with TransportMissionSlots at 0, Employ is unreachable and every
+		# transport would evacuate at its window. Ship them together.
 		# Both OFF for every non-experimental profile ⇒ byte-identical.
 		TransportMissionSlots: 1
 		EvacuateIdleTransports: true

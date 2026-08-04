@@ -88,7 +88,9 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int TransportMissionSlots = 0;
 
 		[Desc("EXPERIMENTAL transport employment (default false = frozen): USE-OR-EVAC. A transport heli that has",
-			"been idle past TransportIdleEvacuateTicks with no lift it can fly is evacuated to reserves, banking",
+			"been idle past TransportIdleEvacuateTicks with no lift it can fly — no load waiting, no free mission",
+			"slot, or not mission-READY (a chip-damaged transport can never be picked: ReEngageHealthPercent is 90",
+			"and there is no AI repair host) — is evacuated to reserves, banking",
 			"its salvage refund and ending its upkeep drain, instead of parking at the Supply Route for the rest",
 			"of the match. Terminal by design — no hold-and-recheck. Independent of EvacuateWhenIdle, which covers",
 			"only the ATTACK roles (the idle evaluator's role filter admits AttackHeavy/AttackLight and skips",
@@ -96,7 +98,11 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool EvacuateIdleTransports = false;
 
 		[Desc("Consecutive idle ticks a transport heli must sit with no flyable lift before it is evacuated to",
-			"reserves. Only used when EvacuateIdleTransports is set; 0 disables the evac branch.")]
+			"reserves. Only used when EvacuateIdleTransports is set; 0 disables the evac branch.",
+			"CONFIG COUPLING: 'flyable' means the reserved-slice launcher could take it, so with",
+			"TransportMissionSlots at 0 (the frozen shared-budget launcher) Employ is UNREACHABLE — every",
+			"transport evacuates at this window even when the frozen launcher could have flown it. Set both",
+			"together, or neither.")]
 		public readonly int TransportIdleEvacuateTicks = 900;
 
 		[Desc("Ticks between checking helicopter pool for new assignments.")]
@@ -527,9 +533,11 @@ namespace OpenRA.Mods.Common.Traits
 			// edge). Predicate-based ⇒ iteration-order-independent. No-op when the flag is off.
 			evacuating.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
 
-			// Drop dead/gone transports from the awaiting-unload tracker (EnsureTransportsUnload also prunes,
-			// but keep the hygiene at the same choke point as the other sets). No-op when none are tracked.
-			transportsAwaitingUnload.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld);
+			// Drop dead/gone/DISOWNED transports from the awaiting-unload tracker (EnsureTransportsUnload also
+			// prunes, but keep the hygiene at the same choke point as the other sets). The owner clause mirrors
+			// AdvanceTransportTasks: a captured transport we keep tracking would pin a reserved mission slot
+			// (ActiveTransportMissions) for the rest of the match. No-op when none are tracked.
+			transportsAwaitingUnload.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld || a.Owner != player);
 
 			// Drop dead/gone transports mid-load: release any ledger commitment for their reserved passengers
 			// (so a soldier that survived the heli's death re-enters offense's free pool) and forget the task.
@@ -1208,7 +1216,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var h in transportsAwaitingUnload.OrderBy(a => a.ActorID).ToList())
 			{
-				if (h == null || h.IsDead || !h.IsInWorld)
+				// Owner check mirrors AdvanceTransportTasks: a CAPTURED transport is no longer ours to order,
+				// and leaving it tracked would pin a reserved mission slot (ActiveTransportMissions) forever.
+				if (h == null || h.IsDead || !h.IsInWorld || h.Owner != player)
 				{
 					transportsAwaitingUnload.Remove(h);
 					continue;
@@ -1359,9 +1369,9 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// USE-OR-EVAC for a transport heli (experimental, EvacuateIdleTransports). A transport that cannot be
-		// employed — no full minimum load waiting, or no reserved mission slot to fly it in — is idle capital
-		// parked in a warzone. Past the patience window it evacuates to reserves, banking the salvage refund
-		// (RotateToEdge → GetSellValue) and ending its upkeep drain. Terminal by decision: no hold-and-recheck.
+		// employed — no full minimum load waiting, no reserved mission slot to fly it in, or not mission-READY
+		// — is idle capital parked in a warzone. Past the patience window it evacuates to reserves, banking the
+		// salvage refund (RotateToEdge → GetSellValue) and ending its upkeep drain. Terminal: no hold-and-recheck.
 		// Employment always outranks retirement (TransportEmploymentMath.Decide), so a transport that could fly
 		// a lift this instant is held for TryLaunchTransportMission rather than refunded.
 		void EvaluateIdleTransport(Actor h)
@@ -1391,7 +1401,21 @@ namespace OpenRA.Mods.Common.Traits
 				&& TransportEmploymentMath.HasLiftDemand(CountLiftCandidates(cargo), Info.TransportMinInfantry);
 			var slotFree = TransportEmploymentMath.MissionSlotAvailable(ActiveTransportMissions, Info.TransportMissionSlots);
 
-			if (TransportEmploymentMath.Decide(ticks, Info.TransportIdleEvacuateTicks, hasDemand, slotFree)
+			// INVARIANT: Employ must imply ACTUALLY-LAUNCHABLE. This proxy has to apply every gate the executor
+			// (TryLaunchTransportMission) applies, or it can report Employ for a transport the launcher will
+			// never pick — and because Employ shadows Evacuate, that pins the airframe at the SR forever, which
+			// is the very symptom this behaviour exists to fix. The gate that bites in practice is
+			// IsReadyForMission's health check: TRAN/HALO ship ReEngageHealthPercent 90 and there is no AI
+			// repair host, so a chip-damaged transport is permanently unpickable. Folding it into the demand
+			// argument (rather than into TransportEmploymentMath, which stays pure and world-free) makes an
+			// unlaunchable transport fall through to the evac window — it retires, and the demand gate then
+			// authorises a healthy replacement.
+			// ACCEPTED RESIDUAL: the launcher's dropZone.HasValue precondition is NOT folded in. It is
+			// transient in a live game (the drop-site picker recovers as the threat map fills), so treating it
+			// as unlaunchable would evac transports over a momentary gap.
+			var launchable = IsReadyForMission(h);
+
+			if (TransportEmploymentMath.Decide(ticks, Info.TransportIdleEvacuateTicks, hasDemand && launchable, slotFree)
 				== TransportDisposition.Evacuate)
 				Evacuate(h);
 		}

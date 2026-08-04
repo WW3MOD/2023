@@ -101,6 +101,27 @@ namespace OpenRA.Test
 			Assert.That(TransportEmploymentMath.EvaluatePurchase(3, 2, 0, 12, 4),
 				Is.EqualTo(TransportPurchaseDecision.AtCap),
 				"already over the ceiling stays refused");
+
+			// PRECEDENCE: cap outranks transports-first. Both reasons apply here (at cap AND an idle
+			// transport is available); AtCap must be the reported one, or the ordering in EvaluatePurchase
+			// could be silently reversed without a failing test.
+			Assert.That(TransportEmploymentMath.EvaluatePurchase(2, 2, 1, 12, 4),
+				Is.EqualTo(TransportPurchaseDecision.AtCap),
+				"cap is checked before transports-first");
+
+			// PRECEDENCE: cap outranks the demand gate too (at cap AND no demand).
+			Assert.That(TransportEmploymentMath.EvaluatePurchase(2, 2, 0, 0, 4),
+				Is.EqualTo(TransportPurchaseDecision.AtCap),
+				"cap is checked before the demand gate");
+		}
+
+		[Test]
+		public void TransportsFirstOutranksTheDemandGate()
+		{
+			// Under the cap, an idle transport available AND no demand — transports-first is reported.
+			Assert.That(TransportEmploymentMath.EvaluatePurchase(1, 2, 1, 0, 4),
+				Is.EqualTo(TransportPurchaseDecision.IdleTransportAvailable),
+				"transports-first is checked before the demand gate");
 		}
 
 		[Test]
@@ -192,6 +213,56 @@ namespace OpenRA.Test
 			Assert.That(TransportEmploymentMath.Decide(900, 900, true, false),
 				Is.EqualTo(TransportDisposition.Evacuate),
 				"unservable demand past the window is still terminal");
+		}
+
+		[Test]
+		public void NoDemandNoSlotHoldsWithinTheWindow()
+		{
+			// The DAMAGED-TRANSPORT path. The caller folds launchability into the demand argument
+			// (HelicopterSquadBotModule.EvaluateIdleTransport), so a chip-damaged transport the launcher can
+			// never pick arrives here with hasLiftDemand FALSE regardless of how many infantry are waiting.
+			// Within the window it holds; past it, it must retire — see the next test. Before the blocker fix
+			// this row was reached with demand TRUE, Employ shadowed Evacuate, and the airframe pinned forever.
+			Assert.That(TransportEmploymentMath.Decide(100, 900, false, false),
+				Is.EqualTo(TransportDisposition.Hold),
+				"nothing to do and nowhere to do it — still inside the window");
+		}
+
+		[Test]
+		public void NoDemandNoSlotEvacuatesPastTheWindow()
+		{
+			Assert.That(TransportEmploymentMath.Decide(900, 900, false, false),
+				Is.EqualTo(TransportDisposition.Evacuate),
+				"the damaged-transport path must terminate, or the wave reproduces River Zeta issue 4");
+		}
+
+		[Test]
+		public void DemandAndSlotEmployWithinTheWindow()
+		{
+			Assert.That(TransportEmploymentMath.Decide(100, 900, true, true),
+				Is.EqualTo(TransportDisposition.Employ),
+				"a launchable transport with a waiting load flies immediately, not at the window");
+		}
+
+		[Test]
+		public void DecideTableIsExhaustivelyPinned()
+		{
+			// Full demand x slot x window truth table. Employ iff (demand && slot) — and because the caller
+			// folds IsReadyForMission into `demand`, Employ here means genuinely launchable. Otherwise the
+			// window decides: Hold inside it, Evacuate at or past it.
+			var within = 100;
+			var past = 900;
+			var window = 900;
+
+			Assert.That(TransportEmploymentMath.Decide(within, window, true, true), Is.EqualTo(TransportDisposition.Employ));
+			Assert.That(TransportEmploymentMath.Decide(within, window, true, false), Is.EqualTo(TransportDisposition.Hold));
+			Assert.That(TransportEmploymentMath.Decide(within, window, false, true), Is.EqualTo(TransportDisposition.Hold));
+			Assert.That(TransportEmploymentMath.Decide(within, window, false, false), Is.EqualTo(TransportDisposition.Hold));
+
+			Assert.That(TransportEmploymentMath.Decide(past, window, true, true), Is.EqualTo(TransportDisposition.Employ));
+			Assert.That(TransportEmploymentMath.Decide(past, window, true, false), Is.EqualTo(TransportDisposition.Evacuate));
+			Assert.That(TransportEmploymentMath.Decide(past, window, false, true), Is.EqualTo(TransportDisposition.Evacuate));
+			Assert.That(TransportEmploymentMath.Decide(past, window, false, false), Is.EqualTo(TransportDisposition.Evacuate));
 		}
 
 		// ===== Determinism =====
