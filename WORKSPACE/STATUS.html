@@ -25,24 +25,25 @@
 <body>
 
 <h1>WW3MOD — Live Status Board</h1>
-<div class="stamp">Updated 2026-08-04 (evening) · maintained by the manager, refreshed on every state change · autoburn window active (Mac)</div>
+<div class="stamp">Updated 2026-08-04 (late evening) · maintained by the manager, refreshed on every state change · autoburn window active (Mac) · <b>pacing pause: no new dispatches until 5h pace ≤ 1.0</b></div>
 
 <h2 class="now">Now — most important</h2>
 <p style="margin:2px 0 6px"><span class="hot">All five live-play issues (River Zeta) are root-caused and manager-verified in code. Implementation phase running: three implementer lanes in flight, two waves queued behind merges.</span></p>
 <table>
   <tr><th>#</th><th>Issue</th><th>State</th></tr>
-  <tr><td>1</td><td><b>OOA vehicles don't evacuate</b> — cause confirmed: AmmoPool auto-rearm else-branch is flag-only, empty vehicles keep fighting. Fix = Wave A: bot OOA sweep + terminal evac/sell fallback + Logistics-center capture tier (below money buildings)</td><td><span class="tag queue">WAVE A QUEUED</span><br><span class="dim">after batch merge</span></td></tr>
+  <tr><td>1</td><td><b>OOA vehicles don't evacuate</b> — cause confirmed: AmmoPool auto-rearm else-branch is flag-only, empty vehicles keep fighting. Fix = Wave A: bot OOA sweep + terminal evac/sell fallback + Logistics-center capture tier (below money buildings)</td><td><span class="tag wait">WAVE A READY</span><br><span class="dim">held for 5h-pace recovery</span></td></tr>
   <tr><td>2</td><td><b>Supply trucks idle / infantry starve</b> — implementer running: B3 distance-bug audit + T1 infantry auto-seek (idle-triggered, stance-gated, 20-cell leash, returns to origin). Truck hunt mode (T2) is the next wave</td><td><span class="tag build">IMPLEMENTING</span><br><code>auto/supply-hunt</code></td></tr>
-  <tr><td>3</td><td><b>Units pool at SR</b> — causes confirmed: retreat-damper floor, muster-anchor self-seed, SHORAD orphaned by movement modules. Fix = Wave B: fill-completion damper + muster null-check + SHORAD line-fold</td><td><span class="tag queue">WAVE B QUEUED</span><br><span class="dim">after batch merge</span></td></tr>
+  <tr><td>3</td><td><b>Units pool at SR</b> — causes confirmed: retreat-damper floor, muster-anchor self-seed, SHORAD orphaned by movement modules. Fix = Wave B: fill-completion damper + muster null-check + SHORAD line-fold</td><td><span class="tag wait">WAVE B READY</span><br><span class="dim">held for 5h-pace recovery</span></td></tr>
   <tr><td>4</td><td><b>Idle transport helis</b> — cause confirmed: helicopter-squad role filter never employs or retires transports. Fix = transport-employment wave: demand-gated purchase, use-or-evac at ~900 ticks idle</td><td><span class="tag queue">QUEUED</span><br><span class="dim">after composition merge</span></td></tr>
-  <tr><td>5</td><td><b>Composition drift (mortar pile-up)</b> — cause confirmed: bot buys uniformly at random (idle-count bug starves the weighted picker; weights are ceilings, not targets; no census). Implementer running: deficit-directed purchasing vs per-mille targets + counter-bias from spotted enemy mix</td><td><span class="tag build">IMPLEMENTING</span><br><code>auto/composition</code></td></tr>
-  <tr><td>—</td><td><b>Fires P2+P3 + brain 1c/1d batch</b> — adversarial review returned 7 FIX items (all real defects); FIX round with the implementer now. Decision: batch merges with the new features <b>flags OFF</b> in @experimental until a priced sweep (user-gated), so the merge is behaviorally neutral and unblocks Waves A/B</td><td><span class="tag build">FIX ROUND</span><br><code>auto/brain-fires-batch</code></td></tr>
+  <tr><td>5</td><td><b>Composition drift (mortar pile-up)</b> — cause confirmed: bot buys uniformly at random (idle-count bug starves the weighted picker; weights are ceilings, not targets; no census). <b>Implemented</b> on <code>auto/composition</code> (3 commits: ForceCompositionMath + UnitBuilder rework + tests + both-faction @experimental YAML, default-off); manager verification + adversarial review dispatch on pace recovery</td><td><span class="tag wait">IMPLEMENTED</span><br><span class="dim">review held for pacing</span></td></tr>
+  <tr><td>—</td><td><b>Fires P2+P3 + brain 1c/1d batch</b> — all 7 FIX items verified fixed (independent NUnit 919/919 green + manager full-diff review of the module) and <b>merged @ <code>ea0d0f89</code>, pushed to origin</b>. New features are <b>flags OFF</b> in @experimental → merge is behaviorally neutral; enablement waits on the priced sweep (user-gated)</td><td><span class="tag run">MERGED</span><br><span class="dim">pushed</span></td></tr>
 </table>
 
 <h2 class="next">Coming next</h2>
 <ul>
-  <li>Per lane on report: manager personally verifies solution + test soundness → adversarial review (behavior/engine changes) → merge on green → <b>push to origin immediately</b> (new standing policy, below).</li>
-  <li>Sequencing: Waves A+B (both touch <code>PoiOffensiveBotModule.cs</code>) start after the brain-fires batch merges; transport-employment wave after composition merges (<code>UnitBuilderBotModule.cs</code> overlap); supply-hunt T2 + default-ON flips after T1.</li>
+  <li><b>Budget pacing (user directive 2026-08-04):</b> 5h-window pace stays at/under 1.0. In-flight workers (composition, supply-hunt) run to completion; autoburn snoozes until pace recovers, then the next round dispatches. Weekly budget reaches 100% only at the very end of the week.</li>
+  <li>Per lane on report: manager personally verifies solution + test soundness → adversarial review (behavior/engine changes) → merge on green → <b>push to origin immediately</b> (standing policy, below).</li>
+  <li>Sequencing: batch merged — Waves A+B (both touch <code>PoiOffensiveBotModule.cs</code>) are ready and dispatch on pace recovery; transport-employment wave after composition merges (<code>UnitBuilderBotModule.cs</code> overlap); supply-hunt T2 + default-ON flips after T1.</li>
   <li>After the campaign: brain Phase 2/3 and remaining pipeline items resume.</li>
 </ul>
 
