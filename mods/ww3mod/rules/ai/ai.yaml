@@ -1253,7 +1253,9 @@ Player:
 		#     replacement. An Employ verdict that omitted this pinned the airframe at the SR forever — the exact
 		#     symptom this wave fixes (found by adversarial review of 41913bd8).
 		# NOTE: these two flags are COUPLED — with TransportMissionSlots at 0, Employ is unreachable and every
-		# transport would evacuate at its window. Ship them together.
+		# transport would evacuate at its window. Ship them together. RiskWeightedDropSite (above) is a third
+		# leg: the frozen drop-site picker filters on threat and can stay closed indefinitely, re-opening the
+		# Employ-shadows-Evacuate pin via the unfolded dropZone residual (delta re-review of fd3bc036).
 		# Both OFF for every non-experimental profile ⇒ byte-identical.
 		TransportMissionSlots: 1
 		EvacuateIdleTransports: true

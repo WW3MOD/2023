@@ -102,7 +102,9 @@ namespace OpenRA.Mods.Common.Traits
 			"CONFIG COUPLING: 'flyable' means the reserved-slice launcher could take it, so with",
 			"TransportMissionSlots at 0 (the frozen shared-budget launcher) Employ is UNREACHABLE — every",
 			"transport evacuates at this window even when the frozen launcher could have flown it. Set both",
-			"together, or neither.")]
+			"together, or neither. SECOND COUPLING: RiskWeightedDropSite must also be on — the frozen drop-site",
+			"picker filters on threat < 50 and can stay closed indefinitely, re-opening the Employ-shadows-Evacuate",
+			"pin via the unfolded dropZone residual; the risk-weighted picker is a weight, not a filter.")]
 		public readonly int TransportIdleEvacuateTicks = 900;
 
 		[Desc("Ticks between checking helicopter pool for new assignments.")]
@@ -1412,7 +1414,11 @@ namespace OpenRA.Mods.Common.Traits
 			// authorises a healthy replacement.
 			// ACCEPTED RESIDUAL: the launcher's dropZone.HasValue precondition is NOT folded in. It is
 			// transient in a live game (the drop-site picker recovers as the threat map fills), so treating it
-			// as unlaunchable would evac transports over a momentary gap.
+			// as unlaunchable would evac transports over a momentary gap. NOTE this residual is only safe
+			// because RiskWeightedDropSite makes the picker a weight, not a filter — see the coupling note on
+			// EvacuateIdleTransports. Also not folded: the launcher's squadManagerRef == null bail-out —
+			// unreachable in every shipped profile (each faction x profile configures a SquadManagerBotModule
+			// twin), and a missing squad manager would kill attack squads long before presenting here.
 			var launchable = IsReadyForMission(h);
 
 			if (TransportEmploymentMath.Decide(ticks, Info.TransportIdleEvacuateTicks, hasDemand && launchable, slotFree)
