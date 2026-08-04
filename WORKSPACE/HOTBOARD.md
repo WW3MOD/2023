@@ -4,24 +4,23 @@
 > The ordered roadmap of what's next lives in [`PIPELINE.md`](PIPELINE.md) — the user steers by reordering it.
 > Cap ~40 lines. Rotate stale entries out — once shipped or `[T]`, the tracker / commit history tells the story.
 
-## Autoburn window ACTIVE (2026-07-29)
-The standing test-ladder grant is live (see PIPELINE "STANDING GRANT").
+## Autoburn window ACTIVE (2026-08-04, Mac)
+Continuous autoburn until this machine's weekly reset. Gates unchanged: no batch/tournament/multi-test runs without explicit user goahead; user-gated items stay parked in [`AWAITING-USER.md`](AWAITING-USER.md).
 
 ## Working on
-- **Wobble regression investigation** — a movement-feel wobble surfaced; prime suspects are item-27 (vehicle turn-feel, `aab56954`) and item-28 (path string-pulling, `1f036ecb`), both of which changed vehicle trajectories. Bisecting which change (or their interaction) introduced it.
-- **Lever-4.D instrumentation build** — two-sided capture + income-timeseries instrumentation; recon spec implementation-ready (`c4ba0eee`).
-- **Heli forward-staging (Option A) build** — forward-staging attack helis; recon spec implementation-ready (`c61d1011`).
-- **Item 22 — case-01 forest ambush: CALIBRATING, awaiting user bar.** Scenario authored + calibration batch run; the provisional cost-weighted ratio is ill-posed (holding concealment → defender losses 0 → ÷0). Reframe to "def ≤ X AND att ≥ Y over N seeds" awaits user ratify.
+- **Fires P2+P3 + brain 1c+1d batch** — implementer on worktree branch `auto/brain-fires-batch`: PreparatoryFires (screen holds until prep bombardment elapses), SuppressionCoordinatedAdvance (screen advances when observed suppression clears the bar), QuantizeAxisScore (brain 1c — stop believed-field bucket jitter defeating the reassign margin), Aggressiveness slider scaffold (brain 1d, byte-identical at 50). All default-off @experimental. Adversarial review + merge to follow. Specs: `plans/260803_fires_cycle_design.md`, `plans/260802_squad_brain_design.md`.
+- **DISCOVERIES curation pass** — verify-and-promote of the unpromoted tail since `f1e8cc18` into `DOCS/reference/`; includes the stale influence-stack.md repoint-gate line fix.
+- **Item 22 — case-01 forest ambush: CALIBRATING, awaiting user bar.** The provisional cost-ratio bar is ill-posed (÷0); reframe awaits user ratify (`AWAITING-USER.md`).
 
 ## Recently shipped / landed
-- **FiringLOS off-map crash fix** (`99a58363`, pushed) — guarded `ShadowLayer` lookup against off-map cells in `HasClearLOS` + `GetGroundShadowDensity`; crash reported from live play on two machines.
-- **Harness merge complete (2026-07-29)** — auto/may-salvage (`ae7ca6d8`), auto/spread-prefix (`23398408`), auto/b1-walkback (`2bf335cf`) all merged to main. Branch disposition is an open user question.
-- **Item 25 re-baseline DONE + item-24 A/B CLOSED** (`af95e178`, `db1cff01`) — @experimental offense instrument re-zeroed; item-24 belief-repoint gate priced **KEEP OFF** (A≡B byte-identical).
+- **Frontline arc complete (2026-08-03)** — posture fix (`82779a2e`, merged `7baa3885`: contact-sector evaluation + own-strength floor) + Phase 7 lateral spread / forward muster (`97db9a15`, merged `4e53d428`). Live-game validation of lateral-spread is with the user.
+- **Fires Phase 1** (`c6634d24`, merged `c2ed0c67`) — continuous bombardment of believed-static positions, @experimental.
+- **Lever-4.D instrumentation** (`159a2204`, merged `b00b1b44`) — two-sided capture-contest + income-timeseries, observation-only.
+- **Heli forward-staging Option A** (`c417ca63`, merged `ec61df58`) — idle attack helis stage forward, gate default OFF @experimental.
+- **Wobble RESOLVED (2026-07-30)** — root cause was item-28 string-pulling, not item-27 turn tuning; `StringPullMovement` flipped default OFF (item-27 gains kept). Rework parked as its own pipeline item.
 
 ## Pending user sign-off
-- **Item 27 vehicle turn feel** (merged `aab56954`) — feel A/B: `./tools/autotest/run-demo.sh demo-vehicle-turns` (also a wobble suspect, above).
-- **Item 24 gate enablement** — fog-legal @experimental reads committed ON (`ba387afa`); default-on A/B recommendation is KEEP OFF pending user call.
-- **Item 8 ambush gate (b)** — @experimental benchmark pricing owed before any default-on.
+See [`AWAITING-USER.md`](AWAITING-USER.md) — the full user-gate queue. Highlights: balance proposals 001–003, parity batch runs (configs authored, runs need grant), post-merge benchmark goahead, case-01 bar, item-24 gate disposition (KEEP OFF recommended, committed ON), item-27 turn-feel A/B.
 
 ## Quick Stats
 - Engine files modified: 280+
