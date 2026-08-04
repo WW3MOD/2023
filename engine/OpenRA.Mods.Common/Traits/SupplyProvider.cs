@@ -117,7 +117,8 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class SupplyProvider : PausableConditionalTrait<SupplyProviderInfo>, ITick,
-		ITransformActorInitModifier, ISelectionBar, ICargoCanLoadFilter
+		ITransformActorInitModifier, ISelectionBar, ICargoCanLoadFilter,
+		INotifyKilled, INotifyRemovedFromWorld, INotifyActorDisposing
 	{
 		readonly Actor self;
 		int currentSupply;
@@ -182,13 +183,26 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			if (restocking)
+			{
+				// Defensive, and a no-op today: every path that sets restocking already revoked and
+				// nulled the target first, so conditionToken is already invalid here. Stating it
+				// locally means the "a restocking provider holds no grant" safety no longer rests on
+				// reading three other call sites.
+				RevokeTargetCondition();
 				return;
+			}
 
 			// A stationary provider flagged to self-remove when almost empty despawns once its
 			// pool drops below the threshold — the stationary analog of a truck driving home
 			// when low (DropsSupplyCache). Disposal path mirrors AbsorbsSupplyCache.cs.
 			if (Info.RemoveBelowSupply > 0 && currentSupply < Info.RemoveBelowSupply)
 			{
+				// Defensive, and a no-op today: currentSupply only falls in ResupplyTarget, whose tail
+				// already revoked and cleared the target. Doing it here too means the grant is released
+				// before the frame-end Dispose regardless of how we reached this branch.
+				RevokeTargetCondition();
+				currentTarget = null;
+
 				self.World.AddFrameEndTask(w => { if (!self.IsDead && self.IsInWorld) self.Dispose(); });
 				return;
 			}
@@ -539,6 +553,45 @@ namespace OpenRA.Mods.Common.Traits
 			if (targetConditionTrait != null)
 				conditionToken = targetConditionTrait.GrantCondition(currentTarget, this);
 		}
+
+		/// <summary>
+		/// Release the rearm condition when this provider leaves play. Without this the grant is
+		/// ORPHANED: ExternalCondition.permanentTokens is keyed by granting source and has no
+		/// source-death sweep (the Tick expiry loop only walks timedTokens, and the ReduceTicks
+		/// decay path is inert unless configured — infantry's ExternalCondition@AmmoReplenish sets
+		/// only Condition). So a provider destroyed while serving leaves its target holding
+		/// replenish-soldiers forever, which keeps ReloadAmmoPool trickling free ammo for the rest
+		/// of the match. A parked truck is a prime artillery target and the token is held during
+		/// every serving cycle, so this is an ordinary occurrence, not a corner case.
+		///
+		/// Three notifications, because no single one covers every exit:
+		///  - RemovedFromWorld is the universal catch and the load-bearing one. Every exit path goes
+		///    through World.Remove (World.cs:395-403), which is also the exact moment ITick stops —
+		///    the actor leaves the `actors` dict, so SyncTargetCondition can never run again. Covers
+		///    combat death, the RemoveBelowSupply self-Dispose in Tick, sell, the TRUK/LCCV transform
+		///    (ITransformActorInitModifier), and being picked up by a Carryall — the last of which
+		///    removes the truck WITHOUT disposing it, so Disposing alone would miss it entirely.
+		///  - Killed fires at the moment of death, ahead of Dispose's frame-end task, so a truck
+		///    destroyed mid-cycle releases its target immediately rather than at end of frame.
+		///  - Disposing covers dispose-while-already-out-of-world: Actor.Dispose only calls
+		///    World.Remove `if (IsInWorld)` (Actor.cs:463), so an actor removed earlier (carried,
+		///    then destroyed) would otherwise never fire RemovedFromWorld again.
+		///
+		/// Redundant revokes are harmless: TryRevokeCondition returns false once the token is gone,
+		/// and conditionToken is zeroed on the first call. It is world-independent and acts on the
+		/// TARGET's trait, so running it while SELF is dead or disposing is safe.
+		/// </summary>
+		void ReleaseTargetOnExit()
+		{
+			RevokeTargetCondition();
+			currentTarget = null;
+		}
+
+		void INotifyKilled.Killed(Actor self, AttackInfo e) { ReleaseTargetOnExit(); }
+
+		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self) { ReleaseTargetOnExit(); }
+
+		void INotifyActorDisposing.Disposing(Actor self) { ReleaseTargetOnExit(); }
 
 		void RevokeTargetCondition()
 		{

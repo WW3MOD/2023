@@ -59,6 +59,10 @@ namespace OpenRA.Mods.Common.Traits
 		AutoTarget autoTarget;
 		int scanTicks;
 
+		// Per-actor constants, cached so the eligibility test is allocation-free in the steady
+		// state — SeekSuppliesAndReturn re-asks it every tick for the whole trip.
+		ExternalCondition[] externalConditions;
+
 		public AutoSeekSupplies(Actor self, AutoSeekSuppliesInfo info)
 		{
 			this.info = info;
@@ -74,6 +78,7 @@ namespace OpenRA.Mods.Common.Traits
 			rearmable = self.TraitOrDefault<Rearmable>();
 			move = self.TraitOrDefault<IMove>();
 			autoTarget = self.TraitOrDefault<AutoTarget>();
+			externalConditions = self.TraitsImplementing<ExternalCondition>().ToArray();
 		}
 
 		void INotifyIdle.TickIdle(Actor self)
@@ -131,7 +136,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var a in self.World.ActorsHavingTrait<SupplyProvider>())
 			{
-				if (!CanServe(self, a))
+				var provider = a.TraitOrDefault<SupplyProvider>();
+				if (provider == null || !CanServe(self, a, provider))
 					continue;
 
 				var distanceSquared = (a.CenterPosition - self.CenterPosition).HorizontalLengthSquared;
@@ -154,18 +160,20 @@ namespace OpenRA.Mods.Common.Traits
 		///
 		/// Mirrors the gates SupplyProvider applies from the other side, so a unit never walks to a
 		/// source that would refuse it on arrival.
+		///
+		/// An instance method reading cached per-actor traits, so the every-tick call from the
+		/// activity allocates nothing. The provider trait is passed in rather than looked up: the
+		/// activity already holds it, and the scan resolves it once per candidate anyway.
 		/// </summary>
-		public static bool CanServe(Actor seeker, Actor providerActor)
+		public bool CanServe(Actor seeker, Actor providerActor, SupplyProvider provider)
 		{
 			if (providerActor == null || providerActor.IsDead || !providerActor.IsInWorld || providerActor == seeker)
 				return false;
 
-			var provider = providerActor.TraitOrDefault<SupplyProvider>();
 			if (provider == null)
 				return false;
 
 			// No Rearmable, no selection: SupplyProvider.IsValidTarget rejects such a unit outright.
-			var rearmable = seeker.TraitOrDefault<Rearmable>();
 			if (rearmable == null)
 				return false;
 
@@ -187,17 +195,26 @@ namespace OpenRA.Mods.Common.Traits
 			// The recipient-side gate: the provider only pushes to units carrying its RearmCondition
 			// (replenish-soldiers, which only infantry hold). This is what makes "would this aura
 			// actually replenish THIS unit" a real question rather than a proximity check.
-			if (!string.IsNullOrEmpty(provider.Info.RearmCondition))
-			{
-				var granted = seeker.TraitsImplementing<ExternalCondition>()
-					.Any(e => e.Info.Condition == provider.Info.RearmCondition);
-				if (!granted)
-					return false;
-			}
+			if (!string.IsNullOrEmpty(provider.Info.RearmCondition) && !HasExternalCondition(provider.Info.RearmCondition))
+				return false;
 
 			// Must be able to afford at least one batch of something we are short of, or the walk
 			// buys us nothing.
-			return rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo && provider.CurrentSupply >= p.Info.SupplyValue);
+			foreach (var p in rearmable.RearmableAmmoPools)
+				if (!p.HasFullAmmo && provider.CurrentSupply >= p.Info.SupplyValue)
+					return true;
+
+			return false;
+		}
+
+		/// <summary>Cached-array lookup — no closure, so the per-tick call stays allocation-free.</summary>
+		bool HasExternalCondition(string condition)
+		{
+			foreach (var e in externalConditions)
+				if (e.Info.Condition == condition)
+					return true;
+
+			return false;
 		}
 	}
 }

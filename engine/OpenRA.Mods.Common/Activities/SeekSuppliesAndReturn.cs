@@ -35,6 +35,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly CPos origin;
 		readonly Actor provider;
 		readonly SupplyProvider providerTrait;
+		readonly AutoSeekSupplies seeker;
 
 		// A mobile provider can walk out from under an in-flight approach, so one re-plan is
 		// normal; repeated failures mean it is simply unreachable and we should go home.
@@ -70,17 +71,21 @@ namespace OpenRA.Mods.Common.Activities
 
 			this.provider = provider;
 			providerTrait = provider.Trait<SupplyProvider>();
+
+			// Only ever queued by AutoSeekSupplies; borrowing its cached per-actor lookups keeps the
+			// every-tick eligibility check allocation-free.
+			seeker = self.Trait<AutoSeekSupplies>();
 		}
 
 		/// <summary>
 		/// Exactly the test the seeker's scan used to pick this provider, re-asked every tick — so a
 		/// truck that pauses, drains, or turns for home releases us immediately instead of stranding
 		/// us in the aura until the stall guard expires. Symmetry by construction: one predicate,
-		/// both sides.
+		/// both sides. Everything it reads is cached, so this allocates nothing per tick.
 		/// </summary>
 		bool ProviderUsable(Actor self)
 		{
-			return AutoSeekSupplies.CanServe(self, provider);
+			return seeker.CanServe(self, provider, providerTrait);
 		}
 
 		bool Replenished()
