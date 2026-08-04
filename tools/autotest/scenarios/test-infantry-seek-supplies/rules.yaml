@@ -18,6 +18,9 @@ World:
 		Scripts: test-helpers.lua, test-infantry-seek-supplies.lua
 
 # The master flag ships OFF. Turn it on for the scenario only.
+# Verified RED by flipping this to false: the rifleman never leaves and the test
+# fails at baseline 10, confirming nothing pre-existing (notably the all-pools-empty
+# AmmoPool.AutoRearmIfAllEmpty path) can satisfy the assertion on its own.
 ^Soldier:
 	AutoSeekSupplies:
 		Enabled: true
