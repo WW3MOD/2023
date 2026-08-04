@@ -973,8 +973,10 @@ Player:
 	# Helicopters are called in via Supply Route — no HPAD needed to produce them
 	# BUGFIX (case-mismatch, see russia.fixedwing above): uppercase keys never matched the lowercased
 	# actor names, so Russia built NO helicopters at all. Keys lowercased to the actor names.
+	# Frozen twin — Stable only (`enable-ai-any && !enable-ai-experimental`, mirroring the ground-production
+	# split in ai-america.yaml). Experimental uses the demand-gated twin below.
 	UnitBuilderBotModule@russia.heli:
-		RequiresCondition: enable-ai-any && player.brics
+		RequiresCondition: enable-ai-any && !enable-ai-experimental && player.brics
 		IdleBaseUnitsMaximum: 8
 		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
@@ -990,6 +992,36 @@ Player:
 			hind: 2500
 			mi28: 3500
 			halo: 2500
+
+	# ===== Experimental helicopter production — Russia (transport demand gate) =====
+	# Byte-for-byte copy of @russia.heli PLUS the default-off transport demand gate. The frozen weights buy
+	# the halo on a flat lottery weight with NO demand test, so it is called in during the opening and then
+	# parks at the Supply Route for the match (River Zeta issue 4). GateTransportOnDemand refuses the call-in
+	# unless a full minimum load of infantry is actually waiting AND no idle halo we already own could carry
+	# them (transports-first). Attack helis (hind/mi28) are untouched.
+	# COMPOSITION: helicopters stay deliberately absent from the ground twins' UnitTargetShares (deferred to
+	# this lane) — the gate is applied at BOTH post-pick sites in UnitBuilderBotModule, so it composes with
+	# CompositionDirected instead of fighting it.
+	UnitBuilderBotModule@experimental.russia.heli:
+		RequiresCondition: enable-ai-experimental && player.brics
+		IdleBaseUnitsMaximum: 8
+		SkipRearmBuildingCheck: true
+		UnitQueues: Aircraft
+		UnitsToBuild:
+			hind: 80
+			mi28: 50
+			halo: 15
+		UnitLimits:
+			hind: 4
+			mi28: 3
+			halo: 2
+		UnitDelays:
+			hind: 2500
+			mi28: 3500
+			halo: 2500
+		GateTransportOnDemand: true
+		TransportUnitTypes: halo
+		TransportMinPassengers: 4
 
 	# ===== Fixed-Wing Aircraft — America =====
 	# Fixed-wing called in via Supply Route — no AFLD needed to produce them
@@ -1034,8 +1066,10 @@ Player:
 	# random path both discarded them — ONLY `littlebird` (already lowercase) ever matched. THIS is the
 	# reported "US bots only ever buy the littlebird, never the attack helicopter." Keys lowercased so the
 	# Apache/Chinook enter the pool at their intended weight/limit/delay.
+	# Frozen twin — Stable only (`enable-ai-any && !enable-ai-experimental`, mirroring the ground-production
+	# split in ai-america.yaml). Experimental uses the demand-gated twin below.
 	UnitBuilderBotModule@america.heli:
-		RequiresCondition: enable-ai-any && player.nato
+		RequiresCondition: enable-ai-any && !enable-ai-experimental && player.nato
 		IdleBaseUnitsMaximum: 8
 		SkipRearmBuildingCheck: true
 		UnitQueues: Aircraft
@@ -1051,6 +1085,32 @@ Player:
 			heli: 2500
 			littlebird: 2500
 			tran: 2500
+
+	# ===== Experimental helicopter production — America (transport demand gate) =====
+	# Byte-for-byte copy of @america.heli PLUS the default-off transport demand gate. See the Russia twin
+	# above for the rationale: the frozen weights buy the tran with NO demand test, so it idles at the SR all
+	# match. Attack helis (heli/littlebird) are untouched, and helicopters remain absent from the ground
+	# twins' UnitTargetShares — the gate rides the post-pick path, so it composes with CompositionDirected.
+	UnitBuilderBotModule@experimental.america.heli:
+		RequiresCondition: enable-ai-experimental && player.nato
+		IdleBaseUnitsMaximum: 8
+		SkipRearmBuildingCheck: true
+		UnitQueues: Aircraft
+		UnitsToBuild:
+			heli: 80
+			littlebird: 40
+			tran: 15
+		UnitLimits:
+			heli: 4
+			littlebird: 2
+			tran: 2
+		UnitDelays:
+			heli: 2500
+			littlebird: 2500
+			tran: 2500
+		GateTransportOnDemand: true
+		TransportUnitTypes: tran
+		TransportMinPassengers: 4
 
 	# ===== Helicopter Squad Manager — Stable twin =====
 	# 2026-08-02 promotion: @stable now runs the SAME heli behaviour as @experimental (the SR-only,
@@ -1178,6 +1238,19 @@ Player:
 		DropEnemyControlWeight: 100
 		DropDangerWeight: 100
 		DropReachWeight: 5
+		# Transport EMPLOYMENT (experimental-only, default-frozen in C#). Two halves of the same bug — bought
+		# transport helis idle at the SR all match (River Zeta issue 4):
+		#   * TransportMissionSlots — lift had to share MaxActiveSquads with the attack loop, but a transport
+		#     mission never increments activeSquads, so three live attack squads starved lift PERMANENTLY while
+		#     the counter never showed a transport mission. The launcher's role filter was never the problem
+		#     (it does select Role == Transport); this budget asymmetry was. Reserved slice fixes it.
+		#   * EvacuateIdleTransports — nothing ever RETIRED a transport: the idle evaluator's role filter admits
+		#     AttackHeavy/AttackLight only, so Transport fell through. Use-or-evac makes an unemployable
+		#     transport bank its salvage refund instead of parking forever. Terminal; no hold-and-recheck.
+		# Both OFF for every non-experimental profile ⇒ byte-identical.
+		TransportMissionSlots: 1
+		EvacuateIdleTransports: true
+		TransportIdleEvacuateTicks: 900
 
 	# ===== Stable AI — snapshot of the validated Experimental config =====
 	#
