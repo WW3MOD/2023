@@ -267,6 +267,17 @@ Player:
 		# engine class => @stable twin (which omits this field) keeps the raw pre-1c compare byte-identical. Initial
 		# value; sweep target once the ai-bench ladder is run. Only active with MissionCommitmentEnabled.
 		MissionScoreQuantizeBandPct: 60
+		# Phase 1c leg (a): the SIZING sibling of the band above. The same bucketed believed-field factors also drive
+		# the score-PROPORTIONAL axis sizing, so one bucket crossing re-sizes an axis by a unit and the shed/top-up
+		# pass hands that marginal unit to a rival axis pointing the other way (root cause B — a unit between two
+		# axes is by construction the "farthest" from whichever it is on). Weighting each axis by its BAND INDEX
+		# (band = this % of the top score) instead of its raw score makes two axes inside one band size identically,
+		# so 25-tick field jitter can't reshuffle them. Axis ORDER stays on raw scores. FINER than the 60% rival band
+		# above on purpose: that one is a ratio test with a margin, this one has to leave a usable proportional
+		# spread — 25% gives ~4-5 allocation levels, where 60% would collapse every set to "leader vs the rest".
+		# Initial value; sweep target once the ai-bench ladder is run. 0 on the engine class => @stable twin (which
+		# omits this field) keeps the raw pre-1c sizing byte-identical.
+		AllocationScoreQuantizeBandPct: 25
 		# Phase 1d: Aggressiveness slider scaffolding (§2.7), first knob, landed on the offense module (its first
 		# consumer) pending migration to the SquadBrain. 50 = neutral; threaded through pure PoiOffenseMath.ShiftByKnob
 		# only. The slope below is 0 (INERT) so this ships with no behaviour change until a sweep sets a nonzero slope.
@@ -375,6 +386,29 @@ Player:
 		# byte-identical; only this @experimental block turns it on. Needs the UnitRoleResolver + BeliefStore (both
 		# present via the influence stack).
 		ContinuousBombardment: true
+		# Fires doctrine Phase 2 (gap G2): PREPARATORY FIRES. On an axis carrying BOTH a screen and artillery, hold
+		# the screen at a start line while the peeled-off guns (already at their standoff/echelon anchors) shell the
+		# objective, then assault — so the barrage lands FIRST instead of screen and guns arriving together. Only
+		# while the axis is still approaching (centroid beyond AssaultRadiusCells); a screen already inside the
+		# assault radius is committed and presses on. Bounded by PrepFireMaxTicks (pure PrepFireMath, fail-open: a
+		# zero window or an inside-radius screen never holds), so it can not deadlock an axis. Needs FiresStandoff
+		# (above) — that is what produces the screen/fires split. Default OFF on the engine class ⇒ the @stable twin
+		# (which omits these fields) is byte-identical; only this @experimental block turns it on.
+		# NOTE the composition with MissionCommitmentEnabled: an axis frozen by PartitionHeldAxes skips CommitAndOrder,
+		# so PrepFireMaxTicks is the FLOOR on the prep window and MissionCommitmentWindowTicks (400) the ceiling.
+		PreparatoryFires: true
+		PrepFireMaxTicks: 150
+		# Fires doctrine Phase 3 (gap G3): SUPPRESSION-COORDINATED ADVANCE. Upgrades the Phase-2 timer with a
+		# FOG-LEGAL suppression read — the screen steps off as soon as the objective is observably suppressed (the
+		# barrage has done its job), else still at PrepFireMaxTicks, so fires and manoeuvre are talking to each other
+		# instead of running on independent clocks. The tally sums the shipped suppression mechanic's condition
+		# stacks over enemies the player may LEGALLY SEE (CanBeViewedByPlayer) within PrepSuppressionRadius — the
+		# same fog discipline as the fires EV gate's clump scan, never an omniscient read of enemy state. Threshold
+		# is on the suppression-stack scale (GarrisonManager ducks a soldier at 30, recalls it at 60). Needs
+		# PreparatoryFires on (it only swaps that gate's release predicate). Experimental-only; @stable twin off.
+		SuppressionCoordinatedAdvance: true
+		PrepSuppressionThreshold: 60
+		PrepSuppressionRadius: 5c0
 		# Combat-quality force preservation (levers 1+2, WORKSPACE/benchmarks/260802-exp-vs-stable0730-combatweighted.md):
 		# the @experimental bot kills evenly with @stable yet DIES for ~2x the army value — it treats its combat force
 		# as expendable while it wins the capture race. These two levers keep the capture strength but stop bleeding the

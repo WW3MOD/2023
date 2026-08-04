@@ -445,5 +445,77 @@ namespace OpenRA.Test
 			// Integer truncation toward zero: (65-50)*40/100 = 600/100 = 6.
 			Assert.That(PoiOffenseMath.ShiftByKnob(50, 65, 40), Is.EqualTo(56));
 		}
+
+		// ---------- QuantizeSizingScores (Phase 1c leg a) ----------
+
+		[Test]
+		public void QuantizeSizingScores_ZeroBandPct_IsIdentity()
+		{
+			// The frozen default: band pct <= 0 returns the scores untouched, so AllocateProportional sees exactly
+			// the pre-1c list and the sizing is byte-identical.
+			var raw = new List<long> { 1650, 1000, 990, 0 };
+			Assert.That(PoiOffenseMath.QuantizeSizingScores(raw, 0), Is.EqualTo(raw));
+			Assert.That(PoiOffenseMath.QuantizeSizingScores(raw, -5), Is.EqualTo(raw));
+		}
+
+		[Test]
+		public void QuantizeSizingScores_BucketCrossingLandsInTheSameBand()
+		{
+			// THE pin this lever exists for. Two equal axes; one axis's believed-field factor then crosses a bucket
+			// (BelievedDangerFactor 100 -> 60), a raw step big enough to shift the proportional sizes and hand the
+			// marginal unit to the rival. Quantized to a 60% band of the top score both land on the SAME value, so
+			// AllocateProportional (a pure function of these scores) sizes them identically and the shed/top-up pass
+			// has nothing to reshuffle.
+			var beforeCrossing = PoiOffenseMath.QuantizeSizingScores(new List<long> { 1000, 1000 }, 60);
+			Assert.That(beforeCrossing[0], Is.EqualTo(beforeCrossing[1]), "equal axes band together");
+
+			var afterCrossing = PoiOffenseMath.QuantizeSizingScores(new List<long> { 1000, 600 }, 60);
+			Assert.That(afterCrossing[0], Is.EqualTo(afterCrossing[1]), "the bucket crossing does NOT change the band");
+
+			// The 1650/990 pair the trigger-3 pin uses (a full believed-field factor swing) is likewise one band.
+			var fullSwing = PoiOffenseMath.QuantizeSizingScores(new List<long> { 1650, 990 }, 60);
+			Assert.That(fullSwing[0], Is.EqualTo(fullSwing[1]), "1650/990 is a single band at 60%");
+		}
+
+		[Test]
+		public void QuantizeSizingScores_NeverWeightsAnAxisZero()
+		{
+			// The reason the weight is the band INDEX+1 rather than the floored score: flooring would zero every
+			// axis below one band, starving it of the leftover units — a far bigger distortion than the jitter being
+			// damped. Even a near-zero axis against a huge leader keeps a positive weight.
+			var q = PoiOffenseMath.QuantizeSizingScores(new List<long> { 1_000_000_000L, 1 }, 25);
+			Assert.That(q[1], Is.GreaterThan(0), "the weakest axis still carries weight");
+			Assert.That(q[0], Is.GreaterThan(q[1]), "and the leader still outweighs it");
+		}
+
+		[Test]
+		public void QuantizeSizingScores_GenuineSeparationSurvives()
+		{
+			// The lever must damp jitter, not flatten the ranking: an axis that is genuinely several bands better
+			// still sizes larger, so score-proportional allocation keeps working.
+			var q = PoiOffenseMath.QuantizeSizingScores(new List<long> { 3000, 1000 }, 60);
+			Assert.That(q[0], Is.GreaterThan(q[1]), "a 3x separation is still separated after banding");
+		}
+
+		[Test]
+		public void QuantizeSizingScores_IsOrderIndependentAndHandlesDegenerateSets()
+		{
+			// Band is relative to the SET's top score (max is order-independent), so the same multiset of scores
+			// quantizes to the same multiset whatever order it arrives in — no enumeration order reaches a decision.
+			var a = PoiOffenseMath.QuantizeSizingScores(new List<long> { 1650, 1000, 990 }, 60);
+			var b = PoiOffenseMath.QuantizeSizingScores(new List<long> { 990, 1650, 1000 }, 60);
+			Assert.That(a.OrderBy(x => x), Is.EqualTo(b.OrderBy(x => x)));
+
+			// Degenerate sets never divide by zero or lose entries. An all-zero set has no band, so it falls back
+			// to the raw list rather than manufacturing weights.
+			Assert.That(PoiOffenseMath.QuantizeSizingScores(new List<long>(), 60), Is.Empty);
+			Assert.That(PoiOffenseMath.QuantizeSizingScores(new List<long> { 0, 0 }, 60), Is.EqualTo(new List<long> { 0, 0 }));
+
+			// A single axis is trivially its own top band — one positive weight, and the allocator gives it
+			// everything either way.
+			var single = PoiOffenseMath.QuantizeSizingScores(new List<long> { 1650 }, 60);
+			Assert.That(single.Count, Is.EqualTo(1));
+			Assert.That(single[0], Is.GreaterThan(0));
+		}
 	}
 }
