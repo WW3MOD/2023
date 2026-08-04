@@ -175,6 +175,20 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
+			// Removed from the world but still ticking: ITick traits run off the trait container,
+			// which has no IsInWorld filter and is only cleaned when the actor is disposed
+			// (TraitDictionary.cs:305-316, Actor.cs:468). A truck picked up by a Carryall is removed
+			// without being disposed (PickupUnit.cs:174), as is one loaded into cargo, and its
+			// CenterPosition stays frozen at the pickup point — so without this guard it would go on
+			// scanning from there: re-granting the rearm condition one tick after RemovedFromWorld
+			// revoked it, and pushing ammo to units near its last position from inside the carrier.
+			// Unloading needs no re-acquisition logic; the next UpdateTarget scan picks a target again.
+			if (!self.IsInWorld)
+			{
+				ReleaseTargetOnExit();
+				return;
+			}
+
 			if (IsTraitPaused || IsTraitDisabled)
 			{
 				RevokeTargetCondition();
@@ -564,18 +578,26 @@ namespace OpenRA.Mods.Common.Traits
 		/// of the match. A parked truck is a prime artillery target and the token is held during
 		/// every serving cycle, so this is an ordinary occurrence, not a corner case.
 		///
-		/// Three notifications, because no single one covers every exit:
-		///  - RemovedFromWorld is the universal catch and the load-bearing one. Every exit path goes
-		///    through World.Remove (World.cs:395-403), which is also the exact moment ITick stops —
-		///    the actor leaves the `actors` dict, so SyncTargetCondition can never run again. Covers
-		///    combat death, the RemoveBelowSupply self-Dispose in Tick, sell, the TRUK/LCCV transform
-		///    (ITransformActorInitModifier), and being picked up by a Carryall — the last of which
-		///    removes the truck WITHOUT disposing it, so Disposing alone would miss it entirely.
-		///  - Killed fires at the moment of death, ahead of Dispose's frame-end task, so a truck
-		///    destroyed mid-cycle releases its target immediately rather than at end of frame.
-		///  - Disposing covers dispose-while-already-out-of-world: Actor.Dispose only calls
-		///    World.Remove `if (IsInWorld)` (Actor.cs:463), so an actor removed earlier (carried,
-		///    then destroyed) would otherwise never fire RemovedFromWorld again.
+		/// Note what does NOT stop the trait: leaving the world. ITick traits are not driven from the
+		/// `actors` dict (World.cs:505-506 ticks that only for ACTIVITIES) but through
+		/// ApplyToActorsWithTraitTimed&lt;ITick&gt; → TraitDictionary.ApplyToAllTimed
+		/// (TraitDictionary.cs:305-316), which walks the trait container with NO IsInWorld or
+		/// Disposed filter. An actor leaves that container only in Actor.Dispose's frame-end task
+		/// (Actor.cs:468), so a removed-but-not-disposed provider KEEPS TICKING — see the IsInWorld
+		/// guard at the top of Tick, which is what actually stops it.
+		///
+		/// Three notifications, because they answer different questions:
+		///  - Killed and Disposing are the terminal pair, and between them they cover every way a
+		///    provider permanently leaves play: combat death, the RemoveBelowSupply self-Dispose in
+		///    Tick, sell, and the TRUK/LCCV transform. Killed fires at the moment of death, ahead of
+		///    Dispose's frame-end task, so a truck destroyed mid-cycle releases its target
+		///    immediately rather than at end of frame; Disposing is the backstop that fires however
+		///    the actor got there, including when it was already out of the world (Actor.Dispose
+		///    calls World.Remove only `if (IsInWorld)`, Actor.cs:463).
+		///  - RemovedFromWorld is belt and braces at the removal moment, and the only one that fires
+		///    for a NON-terminal exit — a Carryall pickup removes the truck without disposing it
+		///    (PickupUnit.cs:174), as does loading into cargo. It revokes immediately; the Tick
+		///    guard then keeps the trait from re-granting on the following tick.
 		///
 		/// Redundant revokes are harmless: TryRevokeCondition returns false once the token is gone,
 		/// and conditionToken is zeroed on the first call. It is world-independent and acts on the

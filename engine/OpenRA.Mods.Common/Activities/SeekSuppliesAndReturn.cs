@@ -83,9 +83,9 @@ namespace OpenRA.Mods.Common.Activities
 		/// us in the aura until the stall guard expires. Symmetry by construction: one predicate,
 		/// both sides. Everything it reads is cached, so this allocates nothing per tick.
 		/// </summary>
-		bool ProviderUsable(Actor self)
+		bool ProviderUsable()
 		{
-			return seeker.CanServe(self, provider, providerTrait);
+			return seeker.CanServe(provider, providerTrait);
 		}
 
 		bool Replenished()
@@ -107,7 +107,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling)
 				return true;
 
-			var providerUsable = ProviderUsable(self);
+			var providerUsable = ProviderUsable();
 			var inAura = providerUsable &&
 				SupplyProvider.InAuraRange(provider.CenterPosition, self.CenterPosition, providerTrait.Info.Range);
 

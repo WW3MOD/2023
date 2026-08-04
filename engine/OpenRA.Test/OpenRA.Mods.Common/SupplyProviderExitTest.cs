@@ -29,9 +29,14 @@ namespace OpenRA.Test
 	/// SCOPE, stated honestly: this is a STRUCTURAL pin, not a behavioural one. It asserts the trait
 	/// still subscribes to the notifications that make the revoke reachable. It does NOT drive a
 	/// serving cycle and observe a revoke — that needs a live Actor/World, and this test project has
-	/// no such harness (every other fixture here is pure logic over structs). What it does catch is
-	/// the realistic regression: someone refactoring the trait and dropping an interface from the
-	/// declaration, which would silently restore the orphan with no other symptom.
+	/// no such harness (every other fixture here is pure logic over structs).
+	///
+	/// Nor does it catch a slip: the three implementations are explicit interface implementations,
+	/// so dropping an interface from the class declaration and leaving the body behind is a compile
+	/// error (CS0540), not a silent regression. What this pin guards is the DELIBERATE removal of an
+	/// interface together with its implementation — someone deciding one of these notifications is
+	/// redundant — and, just as much, it documents the exit contract in a place a reader will find:
+	/// which notification exists for which exit path, and why all three are here.
 	/// </summary>
 	[TestFixture]
 	public class SupplyProviderExitTest

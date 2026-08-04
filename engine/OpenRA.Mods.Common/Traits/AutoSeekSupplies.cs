@@ -54,6 +54,10 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly AutoSeekSuppliesInfo info;
 
+		// The actor this trait belongs to. CanServe reads per-actor state cached below, so it can
+		// only ever answer for this actor — taking a seeker parameter implied otherwise.
+		readonly Actor self;
+
 		Rearmable rearmable;
 		IMove move;
 		AutoTarget autoTarget;
@@ -66,6 +70,7 @@ namespace OpenRA.Mods.Common.Traits
 		public AutoSeekSupplies(Actor self, AutoSeekSuppliesInfo info)
 		{
 			this.info = info;
+			this.self = self;
 
 			// Deterministic per-actor phase so a squad that goes idle together does not scan on the
 			// same tick. Must NOT come from World.SharedRandom: this trait loads for every profile,
@@ -137,7 +142,7 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var a in self.World.ActorsHavingTrait<SupplyProvider>())
 			{
 				var provider = a.TraitOrDefault<SupplyProvider>();
-				if (provider == null || !CanServe(self, a, provider))
+				if (provider == null || !CanServe(a, provider))
 					continue;
 
 				var distanceSquared = (a.CenterPosition - self.CenterPosition).HorizontalLengthSquared;
@@ -162,12 +167,13 @@ namespace OpenRA.Mods.Common.Traits
 		/// source that would refuse it on arrival.
 		///
 		/// An instance method reading cached per-actor traits, so the every-tick call from the
-		/// activity allocates nothing. The provider trait is passed in rather than looked up: the
-		/// activity already holds it, and the scan resolves it once per candidate anyway.
+		/// activity allocates nothing — and answering only for its OWN actor, which is why it takes
+		/// no seeker argument. The provider trait is passed in rather than looked up: the activity
+		/// already holds it, and the scan resolves it once per candidate anyway.
 		/// </summary>
-		public bool CanServe(Actor seeker, Actor providerActor, SupplyProvider provider)
+		public bool CanServe(Actor providerActor, SupplyProvider provider)
 		{
-			if (providerActor == null || providerActor.IsDead || !providerActor.IsInWorld || providerActor == seeker)
+			if (providerActor == null || providerActor.IsDead || !providerActor.IsInWorld || providerActor == self)
 				return false;
 
 			if (provider == null)
@@ -183,7 +189,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (provider.CountsAsEmpty || !provider.CanServeNow)
 				return false;
 
-			if (!provider.Info.ValidRelationships.HasRelationship(providerActor.Owner.RelationshipWith(seeker.Owner)))
+			if (!provider.Info.ValidRelationships.HasRelationship(providerActor.Owner.RelationshipWith(self.Owner)))
 				return false;
 
 			// A docking-gated provider (the Logistics Center's unit.docked) does not resupply by
