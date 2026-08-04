@@ -17,6 +17,9 @@
 - **Item-24 repoint gates disposition** *(2026-07-29; sharpened 2026-08-04)* — A/B (40 matches) showed byte-identical arms → KEEP OFF recommendation, but at HEAD the gates are committed **ON in BOTH profiles**: @experimental (`ai.yaml:159`/`:498`) **and @stable** (`:1216`/`:1294`, since stable-0802) — so the shipping baseline bot runs them and @stable is no longer byte-identical to its pre-item-24 form. Decide: flip to OFF (both profiles) or accept ON. Doc gap line updated in curation `a313b306`.
 
 ### Posted questions (in the dashboard, unanswered)
+- **Tactical-layer default for humans** *(2026-08-04, proceeding on default)* — auto supply-seek / OOA evac ON by default for human units, stance-disableable (default, conf 85) vs OFF until tried in-game. The default-ON flip ships as its own one-line commit; redirect reverses it trivially.
+- **OOA fallback** *(2026-08-04, proceeding on default)* — vehicle out of ammo with NO reachable rearm source: terminal evac + sell (default, conf 80) vs hold safe + periodic re-check.
+- **SR flow shape** *(2026-08-04, proceeding on default)* — fresh spawns: forward-assemble with capped wait at the forward muster (default, conf 75) vs advance immediately, singly. Transport-fill waits legitimate either way.
 - **Streak protocol** *(2026-07-31)* — what counts as one game in the 10-win streak.
 - **Non-wins** *(2026-07-31)* — do draws / timeouts / crashes break the streak.
 - **Queue handling** *(2026-07-31)* — do the streak campaign + fixes supersede the parked pipeline items.
