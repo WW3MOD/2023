@@ -145,19 +145,23 @@ Player:
 			tecn.america: 25
 			truk: 40
 		# Role tokens — the row/column keys for CounterMatrixPct below. A type with no role simply
-		# receives no counter bias.
+		# receives no counter bias. The armour line and the foot line are SEPARATE tokens on purpose:
+		# sharing one "frontline" token would make believed enemy infantry raise the Abrams target by
+		# exactly as much as the rifleman target, which is not what an infantry threat warrants. Same
+		# reason mt (infantry mortar) is split from m109 (self-propelled artillery) — both are indirect
+		# fire, but only one of them is the type that was drifting.
 		UnitRoles:
-			abrams: frontline
-			bradley: frontline
-			e3.america: frontline
-			ar.america: frontline
-			tl.america: frontline
-			e2.america: frontline
+			abrams: armorline
+			bradley: armorline
+			e3.america: infantryline
+			ar.america: infantryline
+			tl.america: infantryline
+			e2.america: infantryline
 			at.america: antitank
 			strykershorad: antiair
 			aa.america: antiair
 			mt.america: mortar
-			m109: mortar
+			m109: artillery
 			humvee: recon
 			sn.america: recon
 			m113: support
@@ -169,7 +173,8 @@ Player:
 		# by that class's SHARE of the believed enemy force. Fog-legal — the believed composition comes
 		# from the same belief store AdaptiveProduction reads, never ground truth. Clamped to
 		# +/-CounterBiasMaxPct and renormalised, so it nudges the shape above without replacing it.
+		# Believed enemy infantry answers the FOOT line (buy more of our own infantry), not the armour line.
 		CounterMatrixPct:
 			air>antiair: 60
 			armor>antitank: 40
-			infantry>frontline: 20
+			infantry>infantryline: 20

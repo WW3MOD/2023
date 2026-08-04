@@ -201,6 +201,16 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.CompositionDirected || Info.UnitTargetShares == null || Info.UnitTargetShares.Count == 0)
 				return;
 
+			// An all-zero (or all-negative) share table is a CONFIG ERROR, not a policy. SharesPerMille would
+			// apportion it to all zeros, every deficit would tie at 0, and the ordinal tie-break would then buy
+			// the lowest-ordinal eligible type forever. Stay inactive (legacy picker) and say so once, instead
+			// of silently shipping a degenerate purchase plan.
+			if (!Info.UnitTargetShares.Values.Any(v => v > 0))
+			{
+				AIUtils.BotDebug("{0} CompositionDirected is set but no UnitTargetShares entry is positive — falling back to the legacy picker.", player);
+				return;
+			}
+
 			// Ordinal sort by actor name: the slot order is then a pure function of the config text.
 			compositionTypes = Info.UnitTargetShares.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray();
 			compositionTargets = new int[compositionTypes.Length];
@@ -573,10 +583,58 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
+			CreditTransportedUnits(values, excludeCondition, hasExclude);
+
 			CreditRequests(values, priorityBuildRequests);
 			CreditRequests(values, queuedBuildRequests);
 
 			return values;
+		}
+
+		// TRANSPORTED / GARRISONED units are ABSENT from world.Actors entirely, so the loop above cannot see
+		// them — boarding REMOVES the passenger from the world dictionary (RideTransport.cs:85 `w.Remove(self)`,
+		// right after Cargo.Load), it does not merely clear IsInWorld. Both loaders are live on the profile that
+		// enables this: MountedTransportBotModule loads infantry into bradley/bmp2/m113, and GarrisonBotModule
+		// garrisons infantry into buildings. Without this pass every loaded unit reads as a PERMANENT deficit and
+		// the bot re-buys it forever — self-reinforcing, and able to re-create the exact mortar pile-up this lane
+		// exists to fix (mortar infantry is transportable).
+		//
+		// Cargo is the single authoritative container for both cases: a garrison's shelter soldiers live in the
+		// building's own Cargo (GarrisonManager.cs:185/:1209 — shelterPassengers mirrors it), and a soldier
+		// DEPLOYED to a firing port is `cargo.Unload`ed and re-added to the world (:341/:372), so it is already
+		// counted by the main loop. The two sources are therefore disjoint: no double-count against world.Actors,
+		// and none against the pending-queue/request credit either (that counts things not yet delivered).
+		void CreditTransportedUnits(int[] values, string excludeCondition, bool hasExclude)
+		{
+			foreach (var pair in world.ActorsWithTrait<Cargo>())
+			{
+				var transport = pair.Actor;
+				if (transport.IsDead || !transport.IsInWorld)
+					continue;
+
+				// Look inside our own and allied containers only. Cargo.CanLoad never admits a passenger from a
+				// non-ally, so this misses nothing, and it keeps the census from enumerating enemy cargo — the
+				// fog-legality constraint is that this pass reads the player's OWN force, not hidden enemy state.
+				if (transport.Owner != player && player.RelationshipWith(transport.Owner) != PlayerRelationship.Ally)
+					continue;
+
+				// NOTE: passengers are deliberately NOT IsInWorld-checked — being out of the world is precisely
+				// what makes them invisible to the main census loop.
+				foreach (var passenger in pair.Trait.Passengers)
+				{
+					if (passenger.Owner != player || passenger.IsDead)
+						continue;
+
+					var slot = Array.IndexOf(compositionTypes, passenger.Info.Name);
+					if (slot < 0)
+						continue;
+
+					if (hasExclude && passenger.GetConditionCount(excludeCondition) > 0)
+						continue;
+
+					values[slot] += UnitCost(passenger.Info);
+				}
+			}
 		}
 
 		void CreditRequests(int[] values, List<string> requests)

@@ -139,20 +139,24 @@ Player:
 			e6.russia: 15
 			tecn.russia: 25
 			truk: 40
-		# Role tokens — the row/column keys for CounterMatrixPct below.
+		# Role tokens — the row/column keys for CounterMatrixPct below. Armour line and foot line are
+		# SEPARATE tokens on purpose: sharing one "frontline" token would make believed enemy infantry
+		# raise the T-90 target by exactly as much as the rifleman target. Likewise mt (infantry mortar)
+		# is split from the giatsint/grad tube+rocket artillery — both are indirect fire, but only mt is
+		# the type that was drifting.
 		UnitRoles:
-			t90: frontline
-			bmp2: frontline
-			e3.russia: frontline
-			ar.russia: frontline
-			tl.russia: frontline
-			e2.russia: frontline
+			t90: armorline
+			bmp2: armorline
+			e3.russia: infantryline
+			ar.russia: infantryline
+			tl.russia: infantryline
+			e2.russia: infantryline
 			at.russia: antitank
 			tunguska: antiair
 			aa.russia: antiair
 			mt.russia: mortar
-			giatsint: mortar
-			grad: mortar
+			giatsint: artillery
+			grad: artillery
 			btr: recon
 			sn.russia: recon
 			truk: support
@@ -160,7 +164,8 @@ Player:
 			e6.russia: support
 			tecn.russia: support
 		# Counter bias (v1, minimal) — believed enemy class -> own role, fog-legal (belief store only).
+		# Believed enemy infantry answers the FOOT line, not the armour line.
 		CounterMatrixPct:
 			air>antiair: 60
 			armor>antitank: 40
-			infantry>frontline: 20
+			infantry>infantryline: 20
