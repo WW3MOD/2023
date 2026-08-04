@@ -214,9 +214,12 @@
 	ExternalCondition@AmmoReplenish:
 		Condition: replenish-soldiers
 	# Idle + low ammo -> walk to the nearest truck/cache whose aura can refill us, then walk back.
-	# Ships OFF; flipping Enabled to true turns it on for every soldier, human- and bot-owned alike.
+	# ON by default (tactical layer for humans). This is a TRAIT, not a bot module, so the one switch
+	# covers every soldier — human- and bot-owned alike; there is no owner-side split. Disableable per
+	# unit via stance: Resupply Hold or Evacuate, engagement HoldPosition, or fire Ambush all veto it
+	# (SupplyHuntMath.StancesPermitHunt). Flip to false to take the whole layer back off.
 	AutoSeekSupplies:
-		Enabled: false
+		Enabled: true
 	GainsExperienceMultiplier@TLBoost:
 		RequiresCondition: morale-boost
 		Modifier: 150

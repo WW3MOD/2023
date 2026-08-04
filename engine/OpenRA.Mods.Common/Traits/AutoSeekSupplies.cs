@@ -78,7 +78,9 @@ namespace OpenRA.Mods.Common.Traits
 			scanTicks = info.ScanInterval > 0 ? (int)(self.ActorID % (uint)info.ScanInterval) : 0;
 		}
 
-		void INotifyCreated.Created(Actor self)
+		// The interface hands us the actor these run for, which is always the one cached in `self` — the
+		// parameters only shadowed the field, so they are discarded and every site reads the field.
+		void INotifyCreated.Created(Actor _)
 		{
 			rearmable = self.TraitOrDefault<Rearmable>();
 			move = self.TraitOrDefault<IMove>();
@@ -86,7 +88,7 @@ namespace OpenRA.Mods.Common.Traits
 			externalConditions = self.TraitsImplementing<ExternalCondition>().ToArray();
 		}
 
-		void INotifyIdle.TickIdle(Actor self)
+		void INotifyIdle.TickIdle(Actor _)
 		{
 			// No Rearmable means no provider can ever select us (SupplyProvider.IsValidTarget
 			// requires it), so the whole errand is futile — the combat engineer carries an AmmoPool
@@ -103,7 +105,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!StancesPermit() || !NeedsSupplies())
 				return;
 
-			var provider = FindNearestUsableProvider(self);
+			var provider = FindNearestUsableProvider();
 			if (provider == null)
 				return;
 
@@ -132,9 +134,10 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Nearest provider inside the leash whose push would actually reach this unit.
+		/// Nearest provider inside the leash whose push would actually reach this unit. Answers only for
+		/// this trait's own actor (like <see cref="CanServe"/>), so it takes no seeker argument.
 		/// </summary>
-		Actor FindNearestUsableProvider(Actor self)
+		Actor FindNearestUsableProvider()
 		{
 			var candidates = new List<SupplyHuntMath.Candidate>();
 			var actors = new List<Actor>();

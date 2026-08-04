@@ -668,6 +668,20 @@ Player:
 		DangerEvac: true
 		EvacDangerThreshold: 60
 		EvacRetreatCells: 12
+		# TIER 2 idle-truck hunt: a truck the follow pass left unassigned (no cluster in range, or no
+		# cluster at all) drives to the neediest STARVING soldier within HuntLeashCells instead of parking
+		# until someone wanders into its aura. Tier 1 gave the soldier the legs (AutoSeekSupplies); this is
+		# the truck closing the other half of the distance. Infantry-only by construction — the candidate
+		# must carry the truck's own replenish-soldiers condition; vehicles pull from the Logistics Centre.
+		# Bounded: no in-leash demand => no order => the truck stays put (no cross-map wandering).
+		# NOTE this is a SHARED enable-ai-any instance and InfluenceStack.Participates admits @stable since
+		# the 0802 promotion (see the note in the Stable block below), so the flag ALONE would not keep this
+		# off the @stable player — the engine adds an explicit @experimental BotType gate. @stable / Normal
+		# / legacy take the identical old path.
+		IdleTruckHunt: true
+		HuntStarvingThresholdPerMille: 250
+		HuntLeashCells: 20
+		HuntNeedBandPerMille: 100
 
 	# Adaptive production — counter enemy composition.
 	# Experimental halves EvaluationInterval to 300 (counter-build twice as fast against

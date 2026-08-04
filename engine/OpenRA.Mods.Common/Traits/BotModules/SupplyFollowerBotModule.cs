@@ -94,6 +94,35 @@ namespace OpenRA.Mods.Common.Traits
 			"pulls back toward). Only read when DangerEvac is on.")]
 		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
 
+		[Desc("TIER 2 (@experimental) IDLE-TRUCK HUNT. The follow path above only tasks a truck that has a",
+			"CLUSTER to follow (MinNearbyFriendlies-strong); a truck with none parks and waits for units to",
+			"wander into its aura. Tier 1 gave the infantry the legs (AutoSeekSupplies walks a dry soldier to",
+			"a truck) — this closes the other half: an unassigned truck drives to the neediest STARVING",
+			"soldier inside HuntLeashCells. INFANTRY ONLY, by construction rather than by a name list — the",
+			"candidate must carry the truck's own RearmCondition (replenish-soldiers), which only soldiers",
+			"hold; vehicles pull from the static Logistics Centre instead (replenish-vehicles, docked). No",
+			"in-leash demand ⇒ no order ⇒ the truck stays put, so there is no cross-map wandering. Decision is",
+			"the pure SupplyTruckHuntMath (NUnit-pinned), zero RNG. OFF by default; and because this is a",
+			"SHARED enable-ai-any module whose Participates gate now admits @stable too, the flag is",
+			"additionally confined to the @experimental player by an explicit BotType gate — @stable / Normal",
+			"/ legacy take the identical old path and are byte-identical.")]
+		public readonly bool IdleTruckHunt = false;
+
+		[Desc("Idle-truck hunt: a soldier whose ammo pool sits below this many parts per thousand of capacity",
+			"counts as starving (250 = 25%). Matches AutoSeekSupplies.AutoSeekAmmoThresholdPerMille so the",
+			"truck and the soldier agree on who needs help. Only read when IdleTruckHunt is on.")]
+		public readonly int HuntStarvingThresholdPerMille = 250;
+
+		[Desc("Idle-truck hunt: furthest (cells, straight-line) a starving soldier can be and still be worth",
+			"driving to. This is the bound on the sweep — same leash metric as AutoSeekSupplies, not a",
+			"parallel one. Only read when IdleTruckHunt is on.")]
+		public readonly int HuntLeashCells = 20;
+
+		[Desc("Idle-truck hunt: shortfall band width in parts per thousand. Needs within one band tie and",
+			"DISTANCE decides, so a landed ammo pip can't make the truck re-target across the sector every",
+			"scan. 0 or 1 disables banding (raw shortfall order). Only read when IdleTruckHunt is on.")]
+		public readonly int HuntNeedBandPerMille = 100;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -123,6 +152,11 @@ namespace OpenRA.Mods.Common.Traits
 		// `participates` so @stable/Normal/Rush/Turtle stay byte-identical.
 		bool participates;
 		bool routeViaDanger;
+
+		// Tier 2 idle-truck hunt. Participates is NOT enough to confine this one: it admits @stable since the
+		// 0802 promotion (ai.yaml:1335-1337), and this module is a single shared instance. Cached BotType gate,
+		// same seam GarrisonBotModule uses for its shared-instance commit (GarrisonBotModule.cs:102).
+		bool isExperimentalBot;
 
 		// Track which trucks are assigned to follow duty
 		readonly HashSet<Actor> activeTrucks = new HashSet<Actor>();
@@ -155,6 +189,9 @@ namespace OpenRA.Mods.Common.Traits
 			// participation gate once — every new @experimental behaviour double-gates on it so every other
 			// profile is byte-identical.
 			participates = InfluenceStack.Participates(player);
+
+			// Tier 2 hunt: explicit bot-type gate (see the field comment) — never widened to Participates.
+			isExperimentalBot = player.BotType == InfluenceStack.ExperimentalBotType;
 
 			// Fetch the ground danger field if any believed-danger consumer (Stage-E reroute or danger evac) is
 			// active. With DangerEvac at its default off, this is exactly the old condition.
@@ -224,6 +261,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var spread = Info.SectorSpread && participates;
 			var evac = Info.DangerEvac && dangerField != null;
+			var hunt = SupplyTruckHuntMath.ShouldHunt(Info.IdleTruckHunt, isExperimentalBot);
 			var maxFollowLength = WDist.FromCells(Info.MaxFollowDistance).Length;
 
 			// @experimental sector spread: precompute distinct-cluster assignments over a STABLY sorted truck
@@ -249,14 +287,21 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var truck in orderedTrucks)
 			{
 				if (clusters.Count == 0)
-					break;
+				{
+					// Hunt off: `break` as before — clusters.Count is loop-invariant, so bailing on the first
+					// truck is the same as never entering the loop. Byte-identical.
+					if (!hunt)
+						break;
+
+					HuntStarvingInfantry(truck);
+					continue;
+				}
 
 				// Find the best cluster for this truck (closest cluster with ammo need)
-				UnitCluster bestCluster;
+				UnitCluster bestCluster = null;
 				if (spread)
 				{
-					if (spreadTargets == null || !spreadTargets.TryGetValue(truck, out bestCluster))
-						continue;
+					spreadTargets?.TryGetValue(truck, out bestCluster);
 				}
 				else
 				{
@@ -267,8 +312,15 @@ namespace OpenRA.Mods.Common.Traits
 						.FirstOrDefault();
 				}
 
+				// Tier 2: an unassigned truck hunts rather than parking. Hunt off ⇒ plain `continue`, the
+				// old behaviour for both the no-spread-target and the no-in-range-cluster cases.
 				if (bestCluster == null)
+				{
+					if (hunt)
+						HuntStarvingInfantry(truck);
+
 					continue;
+				}
 
 				// @experimental danger evac: a truck whose follow position (or cluster centroid) reads high
 				// believed ground danger pulls back toward its SR rather than dying in place. Fog-legal.
@@ -343,6 +395,107 @@ namespace OpenRA.Mods.Common.Traits
 							blackboard.ClaimUnit(truck, "supply-follow");
 					}
 				}
+			}
+		}
+
+		/// <summary>
+		/// Tier 2 idle-truck hunt: drive an unassigned truck to the neediest starving soldier inside its
+		/// leash. Called only for a truck the follow pass left with nothing to do, and only for the
+		/// @experimental bot with IdleTruckHunt on.
+		///
+		/// Infantry only, and by construction rather than by a name list: the candidate must carry the
+		/// truck's OWN RearmCondition — replenish-soldiers for TRUK (vehicles.yaml:546), which only soldiers
+		/// HOLD as an ExternalCondition (infantry.yaml:215). LOGISTICSCENTER names the same condition
+		/// (structures.yaml:382-386) but as a ProximityExternalCondition GRANTER, which is not an
+		/// ExternalCondition subclass — so the TraitsImplementing&lt;ExternalCondition&gt; scan below does not
+		/// match it, and the building never reads as demand. A vehicle therefore never appears
+		/// as demand here, which is correct: the only provider that serves replenish-vehicles is the static
+		/// Logistics Centre (structures.yaml:394), and it is docking-gated, so vehicles PULL and trucks
+		/// cannot push to them.
+		///
+		/// The candidate scan is a leash-radius spatial query, so the bound holds twice over: FindActorsInCircle
+		/// applies the identical inclusive squared-distance filter SupplyHuntMath.WithinLeash does, and the
+		/// pure selection re-checks it. No candidate ⇒ no order ⇒ the truck stays put.
+		/// </summary>
+		void HuntStarvingInfantry(Actor truck)
+		{
+			var provider = truck.TraitOrDefault<SupplyProvider>();
+
+			// CanServeNow is the provider's own serving ladder — a truck that is paused, mid-restock or
+			// reserving its remainder for the drive home would arrive with nothing to give.
+			if (provider == null || provider.CountsAsEmpty || !provider.CanServeNow)
+				return;
+
+			// No recipient-side condition means no way to tell infantry demand from vehicle demand, and a
+			// truck without one would push to anything — don't guess.
+			var rearmCondition = provider.Info.RearmCondition;
+			if (string.IsNullOrEmpty(rearmCondition))
+				return;
+
+			var demands = new List<SupplyTruckHuntMath.Demand>();
+			var candidates = new List<Actor>();
+
+			foreach (var a in world.FindActorsInCircle(truck.CenterPosition, WDist.FromCells(Info.HuntLeashCells)))
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld || a == truck)
+					continue;
+
+				if (Info.SupplyTruckTypes.Contains(a.Info.Name))
+					continue;
+
+				var rearmable = a.TraitOrDefault<Rearmable>();
+				if (rearmable == null)
+					continue;
+
+				if (!a.TraitsImplementing<ExternalCondition>().Any(e => e.Info.Condition == rearmCondition))
+					continue;
+
+				// Worst starving pool we can actually afford a batch of. An unaffordable pool is not demand
+				// this truck can relieve, so it must not pull it out of position.
+				var shortfall = 0;
+				foreach (var pool in rearmable.RearmableAmmoPools)
+				{
+					if (provider.CurrentSupply < pool.Info.SupplyValue)
+						continue;
+
+					if (!SupplyTruckHuntMath.IsStarving(pool.CurrentAmmoCount, pool.Info.Ammo, Info.HuntStarvingThresholdPerMille))
+						continue;
+
+					var s = SupplyTruckHuntMath.ShortfallPerMille(pool.CurrentAmmoCount, pool.Info.Ammo);
+					if (s > shortfall)
+						shortfall = s;
+				}
+
+				if (shortfall == 0)
+					continue;
+
+				var distanceSquared = (a.CenterPosition - truck.CenterPosition).HorizontalLengthSquared;
+				demands.Add(new SupplyTruckHuntMath.Demand(distanceSquared, shortfall, a.ActorID));
+				candidates.Add(a);
+			}
+
+			var pick = SupplyTruckHuntMath.SelectDemand(demands, Info.HuntLeashCells, Info.HuntNeedBandPerMille);
+			if (pick == SupplyTruckHuntMath.NoDemand)
+				return;
+
+			// Already covering him: the push is reaching him where the truck stands, so issue nothing rather
+			// than nudging a serving truck onto his cell every scan.
+			if (!SupplyTruckHuntMath.NeedsApproach(demands[pick].DistanceSquared, provider.Info.Range.LengthSquared))
+				return;
+
+			// Stop as soon as he is inside the push aura (less a cell of margin), not on top of him — the
+			// last aura's worth of driving buys nothing and this sweep runs precisely where the line has
+			// come apart. The margin is also what keeps the order from stalling on cell quantization; the
+			// reasoning lives with the constant, in ApproachTarget.
+			var target = candidates[pick];
+			var stopPosition = SupplyTruckHuntMath.ApproachTarget(truck.CenterPosition, target.CenterPosition, provider.Info.Range.Length);
+			bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, world.Map.CellContaining(stopPosition)), false));
+			lastVia.Remove(truck);
+
+			if (!activeTrucks.Contains(truck))
+			{
+				activeTrucks.Add(truck);
+				blackboard?.ClaimUnit(truck, "supply-follow");
 			}
 		}
 
