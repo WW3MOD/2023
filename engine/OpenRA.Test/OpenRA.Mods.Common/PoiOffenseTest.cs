@@ -446,6 +446,27 @@ namespace OpenRA.Test
 			Assert.That(PoiOffenseMath.ShiftByKnob(50, 65, 40), Is.EqualTo(56));
 		}
 
+		[Test]
+		public void ClampKnob_PassesTheDeclaredDomainThrough()
+		{
+			// In-domain values are untouched — which is what makes clamping at the seam byte-identical for every
+			// shipped config.
+			Assert.That(PoiOffenseMath.ClampKnob(0), Is.EqualTo(0));
+			Assert.That(PoiOffenseMath.ClampKnob(50), Is.EqualTo(50));
+			Assert.That(PoiOffenseMath.ClampKnob(100), Is.EqualTo(100));
+			Assert.That(PoiOffenseMath.ClampKnob(65), Is.EqualTo(65));
+		}
+
+		[Test]
+		public void ShiftByKnob_OutOfDomainKnob_DegeneratesToTheExtreme()
+		{
+			// Sliders are swept programmatically per match, so an out-of-range point is a plausible harness typo.
+			// It must land on the cautious/reckless EXTREME — a legible sweep result — not run past the clamp and
+			// produce a threshold no slider setting was ever meant to reach.
+			Assert.That(PoiOffenseMath.ShiftByKnob(50, 400, 40), Is.EqualTo(PoiOffenseMath.ShiftByKnob(50, 100, 40)));
+			Assert.That(PoiOffenseMath.ShiftByKnob(50, -400, 40), Is.EqualTo(PoiOffenseMath.ShiftByKnob(50, 0, 40)));
+		}
+
 		// ---------- QuantizeSizingScores (Phase 1c leg a) ----------
 		//
 		// SweepBand is the value a future sweep should START from, and every damping pin below is asserted AT it —

@@ -289,11 +289,47 @@ Player:
 		# rationale: this reshapes live allocation and is unpriced. 0 on the engine class too => @stable twin (which
 		# omits this field) keeps the raw pre-1c sizing byte-identical.
 		AllocationScoreQuantizeBandPct: 0
-		# Phase 1d: Aggressiveness slider scaffolding (§2.7), first knob, landed on the offense module (its first
-		# consumer) pending migration to the SquadBrain. 50 = neutral; threaded through pure PoiOffenseMath.ShiftByKnob
-		# only. The slope below is 0 (INERT) so this ships with no behaviour change until a sweep sets a nonzero slope.
+		# ===== ITEM 31: THE AGGRESSIVENESS SLIDER =====
+		# One scalar (0 cautious … 50 neutral … 100 reckless) that shifts thresholds so the SAME code plays
+		# cautious at 20 and reckless at 80 — deliberately a slider, NOT a set of discrete "Rush bot / Turtle bot"
+		# personalities. It is an ordinary Info field, so a sweep harness sets it per match exactly like any other
+		# AI YAML (a scenario/map rules.yaml override on this block, or a batch-injected value): to find the
+		# baseline, run the S1/S2 ladder seed-matched over Aggressiveness in {20,35,50,65,80} and read the
+		# win-rate/territory curve. No code edit per sweep point. The eventual lobby slider writes this same field.
+		# Every consumer reads it ONLY through pure PoiOffenseMath.ShiftByKnob (effective = base + (knob-50)*slope/100,
+		# integer-only, zero RNG), which also clamps it to 0..100 — so a sweep typo lands on an extreme instead of
+		# somewhere undefined. Each consumer owns its OWN base/slope pair, so their ranges tune independently.
+		# 50 here reproduces the tuned baseline for every consumer, whatever their slopes.
 		Aggressiveness: 50
+		# Consumer 1 (Phase 1d): the mission trigger-3 better-opportunity margin. Slope 0 = INERT — this one rides
+		# MissionCommitmentEnabled (ON below), so slope 0 is its only guarantee of no behaviour change. Sweep target.
 		MissionBetterOppMarginSlopePct: 0
+		# Consumer 2 (item 31 / design §2.6): OPPORTUNISTIC ADVANCE — the behaviour the user asked for, "when a
+		# sector is undefended and a free path exists, generally advance". The idle reserve stops holding at the
+		# muster standoff when the ground in front reads GRANTED (not believed-enemy ground, no believed contact,
+		# believed danger under the ceiling, and passable), walks a capped screen into it, and keeps extending while
+		# the next sector ahead still reads clear. The abort is structural: the anchor is re-derived every re-eval,
+		# so a contact appearing in the corridor simply shortens the walk and the screen falls back to the line.
+		# Needs ForwardStagingEnabled (below) — the staging anchor is the seed this walk extends from.
+		# HELD OFF pending the priced sweep — same discipline as AllocationScoreQuantizeBandPct above: this
+		# reshapes live behaviour and is unmeasured. Flip to true (the three slopes below are already live) to
+		# sweep it. The @stable twin omits every field in this group, so it is byte-identical either way.
+		OpportunisticAdvanceEnabled: false
+		# The three §2.6 dials the slider drives, each with its own range. Unlike consumer 1 these ship with LIVE
+		# slopes — they sit behind the default-off gate above, so inertness comes from the gate, and a sweep that
+		# turns the gate on gets a slider that actually moves. Ranges at the shipped pairings, knob 0 -> 100:
+		#   depth   1 -> 5 sectors    how far a chaining advance commits
+		#   ceiling 0 -> 40 danger    0 = totally clear ground only; 40 = the staging/mild-danger threshold
+		#   force   2 -> 8 units      a small screen ... a real push; the rest of the reserve keeps mustering
+		AdvanceMaxSectors: 3
+		AdvanceMaxSectorsSlopePct: 4
+		AdvanceDangerCeiling: 20
+		AdvanceDangerCeilingSlopePct: 40
+		AdvanceMinUnits: 2
+		AdvanceForceCap: 5
+		AdvanceForceCapSlopePct: 6
+		AdvanceSpreadRings: 1
+		AdvanceHysteresisCells: 3
 		# Capturer + non-combat support (owned by CaptureCoordinator / SupplyFollower)
 		# and IFV carriers (owned by MountedTransport). Both factions' type names are
 		# listed; a name the faction lacks is simply never matched.
