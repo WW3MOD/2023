@@ -150,6 +150,9 @@ namespace OpenRA
 
 		readonly GameInformation gameInfo;
 
+		// default(DateTime) until LoadComplete runs — callers must treat that as "not started yet".
+		public DateTime GameStartTimeUtc => gameInfo.StartTimeUtc;
+
 		// Hide the OrderManager from mod code
 		public void IssueOrder(Order o) { OrderManager.IssueOrder(o); }
 

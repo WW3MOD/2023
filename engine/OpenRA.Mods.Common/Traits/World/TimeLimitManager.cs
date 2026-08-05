@@ -125,8 +125,10 @@ namespace OpenRA.Mods.Common.Traits
 			countdownLabel = Ui.Root.GetOrNull<LabelWidget>(info.CountdownLabel);
 			if (countdownLabel != null)
 			{
+				// PITFALL: not w.Timestep — that is mutated by the debug speed button, which would
+				// rescale the countdown away from the tick-based TimeLimit and the game clock.
 				countdown = new CachedTransform<int, string>(t =>
-					string.Format(info.CountdownText, WidgetUtils.FormatTime(t, true, w.Timestep)));
+					string.Format(info.CountdownText, WidgetUtils.FormatTime(t, true, w.GameSpeed.Timestep)));
 				countdownLabel.GetText = () => TimeLimit > 0 ? countdown.Update(ticksRemaining) : "";
 			}
 		}

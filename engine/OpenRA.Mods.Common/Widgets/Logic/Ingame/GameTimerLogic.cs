@@ -31,6 +31,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[FluentReference("percentage")]
 		const string Complete = "label-replay-complete";
 
+		[FluentReference("time")]
+		const string RealTime = "label-real-time";
+
 		[ObjectCreator.UseCtor]
 		public GameTimerLogic(Widget widget, ModData modData, OrderManager orderManager, World world)
 		{
@@ -38,6 +41,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var status = widget.GetOrNull<LabelWidget>("GAME_TIMER_STATUS");
 			var tlm = world.WorldActor.TraitOrDefault<TimeLimitManager>();
 			var startTick = Ui.LastTickTime.Value;
+
+			// PITFALL: world.Timestep is mutated at runtime (debug speed button, test-mode speed
+			// multipliers), so formatting elapsed ticks with it retroactively rescales the whole
+			// displayed match duration. GameSpeed.Timestep is the match's configured value and never
+			// changes — it keeps ticks -> displayed gametime constant for the whole match.
+			var baseTimestep = world.GameSpeed.Timestep;
 
 			bool ShouldShowStatus() => (world.Paused || world.ReplayTimestep != world.Timestep)
 				&& (Ui.LastTickTime.Value - startTick) / 1000 % 2 == 0;
@@ -58,7 +67,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 					var timeLimit = tlm?.TimeLimit ?? 0;
 					var displayTick = timeLimit > 0 ? timeLimit - world.WorldTick : world.WorldTick;
-					return WidgetUtils.FormatTime(Math.Max(0, displayTick), world.Timestep);
+					return WidgetUtils.FormatTime(Math.Max(0, displayTick), baseTimestep);
 				};
 			}
 
@@ -83,12 +92,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (timer is LabelWithTooltipWidget timerTooltip)
 			{
 				var connection = orderManager.Connection as ReplayConnection;
+				Func<string> completion = null;
 				if (connection != null && connection.FinalGameTick != 0)
-					timerTooltip.GetTooltipText = () => timerText.Update(world.WorldTick * 100 / connection.FinalGameTick);
+					completion = () => timerText.Update(world.WorldTick * 100 / connection.FinalGameTick);
 				else if (connection != null && connection.TickCount != 0)
-					timerTooltip.GetTooltipText = () => timerText.Update(orderManager.NetFrameNumber * 100 / connection.TickCount);
-				else
-					timerTooltip.GetTooltipText = null;
+					completion = () => timerText.Update(orderManager.NetFrameNumber * 100 / connection.TickCount);
+
+				timerTooltip.GetTooltipText = () =>
+				{
+					var start = world.GameStartTimeUtc;
+					var elapsed = start == default ? TimeSpan.Zero : DateTime.UtcNow - start;
+					var realTime = FluentProvider.GetMessage(RealTime, "time",
+						WidgetUtils.FormatTimeSeconds((int)Math.Max(0, elapsed.TotalSeconds)));
+
+					return completion == null ? realTime : realTime + " — " + completion();
+				};
 			}
 		}
 	}
