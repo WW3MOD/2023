@@ -132,6 +132,24 @@ namespace OpenRA.Mods.Common.Traits
 			"a single scouted unit must not re-plan the army.")]
 		public readonly int ThreatDeadbandPerMille = 30;
 
+		[Desc("EXPERIMENTAL (composition ceilings): treat UnitTargetShares as a CEILING as well as a target.",
+			"Three coupled effects, all inert without this flag:",
+			"  * the deficit pick considers only classes strictly BELOW their target share, so an over-target",
+			"    support class is never called in while any class is still short. It is prefer-under-target,",
+			"    not forbid-spending: with nothing under target it still takes the least-over eligible type,",
+			"    because shares are a shape and not a size — a strict ceiling would stall production whenever",
+			"    the only under-target classes are the UnitLimits-capped ones;",
+			"  * a cycle where composed types are buildable but all priced out or capped DECLINES instead of",
+			"    falling back to ChooseRandomUnitToBuild — that fallback is a uniform lottery, i.e. exactly the",
+			"    lifetime-proportional drift CompositionDirected exists to remove, so taking it whenever the bot",
+			"    is momentarily broke quietly re-admits the bug;",
+			"  * the external-request FIFO (counter-composition buys from AdaptiveProductionBotModule) is folded",
+			"    under the same ceiling, so a side lane cannot buy past the composition targets. The PRIORITY",
+			"    lane is deliberately NOT bounded — the capture-supply floor must stay able to out-compete.",
+			"Default false ⇒ the frozen ternary, the frozen fallback and the unbounded FIFO all run unchanged,",
+			"so normal/rush/turtle/@stable keep their RNG draw count and order.")]
+		public readonly bool CompositionEnforceTargetCeiling = false;
+
 		[Desc("Own units currently granted this condition are EXCLUDED from the composition census.",
 			"An evacuating unit is leaving the battlefield, so it is not force-in-being and must not",
 			"suppress a replacement buy. Empty ⇒ no exclusion.")]
@@ -324,10 +342,17 @@ namespace OpenRA.Mods.Common.Traits
 				if (priorityBuildRequests.Count > 0 && BuildUnit(bot, priorityBuildRequests[0]))
 					priorityBuildRequests.RemoveAt(0);
 
+				// The FIFO carries counter-composition buys (AdaptiveProductionBotModule). Those ride the
+				// single-name BuildUnit overload, which applies NO UnitsToBuild / UnitDelays / UnitLimits and
+				// no composition test — so without the ceiling below a counter class is bought without bound.
+				// The request is consumed either way (as before): the requester re-issues each of its own
+				// cycles, so dropping a refused one keeps the list from growing behind a permanent ceiling.
 				var buildRequest = queuedBuildRequests.FirstOrDefault();
 				if (buildRequest != null)
 				{
-					BuildUnit(bot, buildRequest);
+					if (!RequestIsOverCompositionCeiling(buildRequest))
+						BuildUnit(bot, buildRequest);
+
 					queuedBuildRequests.Remove(buildRequest);
 				}
 
@@ -616,16 +641,63 @@ namespace OpenRA.Mods.Common.Traits
 
 			var budget = AvailableBudget();
 			var eligible = new bool[compositionTypes.Length];
+			var anyComposedTypeInQueue = false;
 			for (var i = 0; i < compositionTypes.Length; i++)
+			{
 				eligible[i] = IsCompositionCandidateEligible(compositionTypes[i], buildableNames, budget);
+				anyComposedTypeInQueue |= buildableNames.Contains(compositionTypes[i]);
+			}
 
-			var idx = ForceCompositionMath.SelectDeficit(targets, census, eligible);
+			var idx = ForceCompositionMath.SelectDeficit(targets, census, eligible,
+				Info.CompositionEnforceTargetCeiling);
+
+			// Ceiling policy is PREFER-under-target, not forbid-spending. Shares are a shape, not a size, so a
+			// strict ceiling would stall production outright whenever the only under-target classes happen to
+			// be the UnitLimits-capped ones (sniper/engineer/technician sit under their small targets at their
+			// cap, everything else a hair over) — the bot would bank cash and stop growing. Falling back to the
+			// least-over ELIGIBLE type keeps volume identical to the frozen path while still guaranteeing the
+			// thing that matters: an over-target class is never bought while any class is still under target.
+			if (idx < 0 && Info.CompositionEnforceTargetCeiling)
+				idx = ForceCompositionMath.SelectDeficit(targets, census, eligible, false);
+
 			if (idx < 0)
+			{
+				// Nothing eligible — but for two very different reasons, and the frozen path conflates them.
+				// "No composed type is buildable from this queue at all" is genuinely no opinion (a heli-only
+				// pool) and must fall back so purchase volume is unchanged. "Composed types ARE buildable but
+				// every one is priced out or at its UnitLimit" is a DECISION not to buy: falling back there
+				// draws the uniform lottery, which buys by lifetime and rebuilds the very drift this lane
+				// exists to remove — and since a bot spends to zero routinely, the affordability case alone
+				// makes that fallback frequent enough to dominate the outcome.
+				if (Info.CompositionEnforceTargetCeiling && anyComposedTypeInQueue)
+					return null;
+
 				return buildRandom ? ChooseRandomUnitToBuild(queue) : ChooseUnitToBuild(queue);
+			}
 
 			LogCompositionChoice(compositionTypes[idx], ForceCompositionMath.DeficitAt(targets, census, idx), census, targets);
 
 			return world.Map.Rules.Actors[compositionTypes[idx]];
+		}
+
+		// Is an externally requested call-in already at or over its composition target? Only the FIFO drain
+		// asks; the priority drain (capture-supply floor) is deliberately exempt. A type with no target share
+		// — helicopters, MCVs, harvesters — has no composition opinion and is never refused here. Reuses the
+		// same census/target pair the deficit pick uses, so the two lanes cannot disagree about who is over.
+		bool RequestIsOverCompositionCeiling(string name)
+		{
+			if (!Info.CompositionEnforceTargetCeiling || compositionTypes == null)
+				return false;
+
+			var slot = Array.IndexOf(compositionTypes, name);
+			if (slot < 0)
+				return false;
+
+			var census = ForceCompositionMath.SharesPerMille(CensusValues());
+			var targets = ForceCompositionMath.ApplyCounterBias(compositionTargets, UpdateThreatShares(),
+				counterMatrix, Info.CounterBiasMaxPct, Info.ThreatDeadbandPerMille);
+
+			return ForceCompositionMath.DeficitAt(targets, census, slot) <= 0;
 		}
 
 		// Own-force census in VALUE (ValuedInfo.Cost), bucketed into the ordinal slots. Two deliberate details:

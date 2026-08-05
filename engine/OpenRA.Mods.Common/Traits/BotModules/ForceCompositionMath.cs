@@ -190,12 +190,28 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Pick the eligible entry with the LARGEST <c>target - census</c> — the type the army is
 		/// furthest short of. Strict-greater comparison walking ordinally, so ties resolve to the LOWER index.
 		///
-		/// There is deliberately NO positive-deficit requirement: when every eligible type already sits at or
+		/// By default there is NO positive-deficit requirement: when every eligible type already sits at or
 		/// above its target this returns the LEAST-OVER one. That keeps the purchase VOLUME identical to the
 		/// frozen path (we still buy on every cycle — budget is spent, not withheld) while keeping the
 		/// proportions as close to target as a single buy can. Returns -1 ONLY when nothing is eligible, which
 		/// the caller treats as "this queue has no composition opinion" and falls back to the legacy pick.</summary>
 		public static int SelectDeficit(int[] targetsPerMille, int[] censusPerMille, bool[] eligible)
+		{
+			return SelectDeficit(targetsPerMille, censusPerMille, eligible, false);
+		}
+
+		/// <summary>As <see cref="SelectDeficit(int[],int[],bool[])"/>, but with an explicit TARGET CEILING.
+		///
+		/// With <paramref name="requireUnderTarget"/> set, a slot is selectable only while it is STRICTLY below
+		/// its target share, so a class that has reached its ceiling stops being bought entirely instead of
+		/// being picked as the least-over entry. -1 then means "every eligible type is at or over target" and
+		/// the caller must DECLINE the cycle rather than fall back to the uniform lottery — falling back is
+		/// what re-admits the lifetime-proportional drift this whole lane exists to remove.
+		///
+		/// The three-argument overload passes false and is therefore byte-identical to the frozen behaviour;
+		/// only a caller that opts in can reach the ceiling branch. Explicit conjunctive gate, no RNG.</summary>
+		public static int SelectDeficit(int[] targetsPerMille, int[] censusPerMille, bool[] eligible,
+			bool requireUnderTarget)
 		{
 			if (targetsPerMille == null || eligible == null)
 				return -1;
@@ -210,6 +226,11 @@ namespace OpenRA.Mods.Common.Traits
 
 				var census = censusPerMille != null && i < censusPerMille.Length ? censusPerMille[i] : 0;
 				var deficit = targetsPerMille[i] - census;
+
+				// Ceiling: at or over target is not a purchase candidate at all. Strictly-greater-than-zero,
+				// so a class sitting exactly on its target is held there rather than nudged over by one buy.
+				if (requireUnderTarget && deficit <= 0)
+					continue;
 
 				if (best < 0 || deficit > bestDeficit)
 				{

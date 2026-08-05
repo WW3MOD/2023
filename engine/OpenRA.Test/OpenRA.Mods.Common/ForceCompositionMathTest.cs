@@ -235,6 +235,107 @@ namespace OpenRA.Test
 			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, new[] { false, true, false }), Is.EqualTo(1));
 		}
 
+		// ===== (4b) SelectDeficit with the target CEILING (CompositionEnforceTargetCeiling) =====
+
+		[Test]
+		public void SelectDeficitCeiling_ThreeArgOverloadIsTheUncappedBehaviour()
+		{
+			// The frozen call site must keep selecting the least-over entry — the ceiling is opt-in only, and
+			// this is what @stable byte-identity rests on.
+			var targets = new[] { 300, 300, 400 };
+			var census = new[] { 400, 310, 500 };
+
+			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, AllEligible(3)),
+				Is.EqualTo(ForceCompositionMath.SelectDeficit(targets, census, AllEligible(3), false)));
+			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, AllEligible(3), false), Is.EqualTo(1));
+		}
+
+		[Test]
+		public void SelectDeficitCeiling_OverTargetSupportIsNeverSelected()
+		{
+			// Every eligible type is at or over target: the uncapped pick buys the least-over one, the capped
+			// pick refuses outright so the caller can decline the cycle.
+			var targets = new[] { 300, 300, 400 };
+			var census = new[] { 400, 310, 500 };
+
+			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, AllEligible(3), true), Is.EqualTo(-1));
+		}
+
+		[Test]
+		public void SelectDeficitCeiling_ExactlyOnTargetIsNotSelected()
+		{
+			// Strictly-below, so a class sitting exactly on its share is held there instead of being nudged
+			// over by one more buy.
+			var targets = new[] { 300, 700 };
+			var census = new[] { 300, 700 };
+
+			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, AllEligible(2), true), Is.EqualTo(-1));
+		}
+
+		[Test]
+		public void SelectDeficitCeiling_ZeroStandingBaselineWinsOverOverTargetSupport()
+		{
+			// The live-play shape, in the units the fix is about. Slot 0 = mortar, 1 = AA, 2 = medic — all
+			// far over their support targets; slot 3 = rifleman, 4 = LMG — both at ZERO standing value.
+			var targets = new[] { 37, 28, 9, 95, 78 };
+			var census = new[] { 330, 270, 57, 0, 0 };
+
+			var pick = ForceCompositionMath.SelectDeficit(targets, census, AllEligible(5), true);
+
+			Assert.That(pick, Is.EqualTo(3), "The starved rifleman has the largest positive deficit.");
+			Assert.That(ForceCompositionMath.DeficitAt(targets, census, 0), Is.LessThan(0),
+				"Mortar is over target and must not be a candidate at all.");
+		}
+
+		[Test]
+		public void SelectDeficitCeiling_StillBuysTheOnlyUnderTargetTypeEvenIfItIsSupport()
+		{
+			// The ceiling is not a ban on support: a support class BELOW its share is still the right buy when
+			// the line is already at target. Slot 0 = rifleman (on target), 1 = antitank (starved).
+			var targets = new[] { 95, 66 };
+			var census = new[] { 95, 10 };
+
+			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, AllEligible(2), true), Is.EqualTo(1));
+		}
+
+		[Test]
+		public void SelectDeficitCeiling_TiesStillResolveToTheLowerOrdinalIndex()
+		{
+			var targets = new[] { 300, 300, 400 };
+			var census = new[] { 200, 200, 400 };
+
+			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, AllEligible(3), true), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void SelectDeficitCeiling_PreferUnderTargetPolicyNeverStalls()
+		{
+			// The two-stage policy ChooseByDeficit runs: strict pass first, least-over pass only if the strict
+			// pass finds nothing. The stall case it exists for — the ONLY under-target slot (2) is capped by
+			// UnitLimits, everything else is a hair over. Strict alone would decline forever; the policy still
+			// buys, and buys the least-over of what it can actually get.
+			var targets = new[] { 300, 300, 400 };
+			var census = new[] { 340, 310, 350 };
+			var eligible = new[] { true, true, false };
+
+			var strict = ForceCompositionMath.SelectDeficit(targets, census, eligible, true);
+			Assert.That(strict, Is.EqualTo(-1), "No eligible slot is under target.");
+
+			var policy = strict >= 0 ? strict : ForceCompositionMath.SelectDeficit(targets, census, eligible, false);
+			Assert.That(policy, Is.EqualTo(1), "Least-over eligible slot, so production never stalls.");
+		}
+
+		[Test]
+		public void SelectDeficitCeiling_IneligibleUnderTargetSlotIsStillSkipped()
+		{
+			// Capped/unaffordable/not-buildable-here beats "is under target": slot 1 must not be picked.
+			var targets = new[] { 300, 300, 400 };
+			var census = new[] { 290, 0, 500 };
+			var eligible = new[] { true, false, true };
+
+			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, eligible, true), Is.EqualTo(0));
+		}
+
 		// ===== (5) The regression this whole lane exists to fix =====
 
 		[Test]
