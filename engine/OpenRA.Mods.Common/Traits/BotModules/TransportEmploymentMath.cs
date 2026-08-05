@@ -141,7 +141,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (maxInfantry > 0 && maxInfantry < cap)
 				cap = maxInfantry;
 
-			// Never cap below the launch threshold: a cap under minInfantry could never assemble a load at all.
+			// Never cap below the launch threshold: a cap under minInfantry could never assemble a load at all,
+			// which would silently disable lift — the exact failure this whole change exists to remove.
+			// NOTE this can return MORE than cargoMaxWeight for an airframe smaller than the threshold. That is
+			// deliberate but is only SAFE because the caller stands down stragglers on both task exits: the
+			// surplus soldiers are ordered, cannot fit (Cargo.ReserveSpace refuses on HasSpace), and are then
+			// released. Without that stand-down this branch would strand them holding reservations.
 			if (cap < minInfantry)
 				cap = minInfantry;
 

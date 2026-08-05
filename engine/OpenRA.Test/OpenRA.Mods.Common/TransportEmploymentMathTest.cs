@@ -290,6 +290,10 @@ namespace OpenRA.Test
 			// A cap under minPassengers could never assemble a launchable load — that would silently disable
 			// lift entirely, which is the exact failure this whole change exists to remove.
 			Assert.That(TransportEmploymentMath.LoadCap(2, 36, 4), Is.EqualTo(4));
+
+			// Deliberately EXCEEDS a 2-seat airframe. Safe only because the caller stands down stragglers on
+			// both task exits: the surplus is refused by Cargo.ReserveSpace and then released. Exceeding
+			// physical capacity is not free in general — it is free here because of StandDownStragglers.
 			Assert.That(TransportEmploymentMath.LoadCap(8, 2, 4), Is.EqualTo(4), "tiny airframe still tries");
 			Assert.That(TransportEmploymentMath.LoadCap(0, 0, 0), Is.EqualTo(1), "never zero or negative");
 		}

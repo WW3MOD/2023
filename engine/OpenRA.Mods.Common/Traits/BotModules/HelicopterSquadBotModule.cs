@@ -63,8 +63,12 @@ namespace OpenRA.Mods.Common.Traits
 			"TransportMinInfantry, so every extra ordered soldier is left chasing a departing helicopter while",
 			"still holding a cargo reservation, and Cargo.ReleaseLock only fires at reservedWeight == 0 — the",
 			"stragglers pin the airframe's pickup lock. America's tran carries MaxWeight 36 against a threshold",
-			"of 4. Effective cap is min(this, Cargo.MaxWeight), never below TransportMinInfantry. 0 or less =",
-			"no cap of our own (airframe capacity only). Mirrors MountedTransportBotModuleInfo.MaxPassengersPerLoad.")]
+			"of 4. Effective cap is min(this, Cargo.MaxWeight), never below TransportMinInfantry. Mirrors",
+			"MountedTransportBotModuleInfo.MaxPassengersPerLoad.",
+			"HAZARD — setting this to 0 or less means 'no cap of our own', which falls straight back to",
+			"Cargo.MaxWeight and re-opens the over-ordering bug described above (36 for tran). It is an opt-OUT",
+			"of this protection, not a sane default; the only reason it is not fatal is that the dispatch/abort",
+			"stand-down releases the surplus reservations. Do not set it to 0 to mean 'unlimited'.")]
 		public readonly int TransportMaxInfantry = 8;
 
 		[Desc("Restrict lift passengers to UnitRoleResolver role MainBattle — line infantry. Without it the",
@@ -599,6 +603,13 @@ namespace OpenRA.Mods.Common.Traits
 			// (ActiveTransportMissions) for the rest of the match. No-op when none are tracked.
 			transportsAwaitingUnload.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld || a.Owner != player);
 
+			// Same hygiene for the unload retry counters. EnsureTransportsUnload prunes its own entries, but it
+			// early-returns on an empty tracking set — so a transport dropped by the RemoveWhere above would
+			// leave its counter behind forever. Keyed on the same condition as the set it shadows.
+			foreach (var a in unloadRetries.Keys.ToList())
+				if (a == null || a.IsDead || !a.IsInWorld || !transportsAwaitingUnload.Contains(a))
+					unloadRetries.Remove(a);
+
 			// Drop dead/gone transports mid-load: release any ledger commitment for their reserved passengers
 			// (so a soldier that survived the heli's death re-enters offense's free pool) and forget the task.
 			// AdvanceTransportTasks also prunes, but do it at the same choke point as the other sets.
@@ -1021,8 +1032,9 @@ namespace OpenRA.Mods.Common.Traits
 			// The SAME predicate backs CountLiftCandidates, so the demand signal and this load agree.
 			var homeCell = LiftHomeCell();
 			var reserved = ReservedPassengers();
+			var mounted = MountedTransportRef();
 			var infantry = world.ActorsHavingTrait<Mobile>()
-				.Where(a => IsLiftCandidate(a, cargo, homeCell, reserved))
+				.Where(a => IsLiftCandidate(a, cargo, homeCell, reserved, mounted))
 				.Take(LiftLoadCap(cargo))
 				.ToList();
 
@@ -1328,10 +1340,11 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				// BOUNDED. Cargo.ResolveOrder DROPS an Unload with no free adjacent cell, so a transport sitting
-				// somewhere permanently un-unloadable would retry every tick forever while still counted in
-				// ActiveTransportMissions — pinning a reserved mission slot and never returning to the pool.
-				// Give up after a few attempts and stop tracking it: the airframe is then re-poolable, and
-				// use-or-evac can retire it if it stays useless.
+				// somewhere permanently un-unloadable would retry on every scan without end while still counted
+				// in ActiveTransportMissions — pinning a reserved mission slot and never returning to the pool.
+				// This runs on ScanInterval (100), so the limit spends ~500 ticks of patience before giving up
+				// and untracking: the airframe is then re-poolable, and use-or-evac can retire it if it stays
+				// useless.
 				var retries = unloadRetries.TryGetValue(h, out var r) ? r : 0;
 				if (retries >= UnloadRetryLimit)
 				{
@@ -1566,7 +1579,8 @@ namespace OpenRA.Mods.Common.Traits
 		//     needed because the ledger does NOT cover this on @stable (MountedTransportBotModule resolves
 		//     goalGuard only under CommitPassengers, which its @poi twin does not set).
 		//   * role MainBattle — line infantry only. Without it the lift ferries the capture engineer.
-		bool IsLiftCandidate(Actor a, Cargo cargo, CPos homeCell, HashSet<Actor> reservedByOthers)
+		bool IsLiftCandidate(Actor a, Cargo cargo, CPos homeCell, HashSet<Actor> reservedByOthers,
+			MountedTransportBotModule mounted)
 		{
 			if (a.Owner != player || a.IsDead || !a.IsInWorld)
 				return false;
@@ -1586,7 +1600,6 @@ namespace OpenRA.Mods.Common.Traits
 			if (reservedByOthers.Contains(a))
 				return false;
 
-			var mounted = MountedTransportRef();
 			if (mounted != null && mounted.IsPassengerReserved(a))
 				return false;
 
@@ -1643,12 +1656,13 @@ namespace OpenRA.Mods.Common.Traits
 		int CountLiftCandidates(Cargo cargo, CPos homeCell)
 		{
 			var reserved = ReservedPassengers();
+			var mounted = MountedTransportRef();
 			var cap = LiftLoadCap(cargo);
 
 			var count = 0;
 			foreach (var a in world.ActorsHavingTrait<Mobile>())
 			{
-				if (!IsLiftCandidate(a, cargo, homeCell, reserved))
+				if (!IsLiftCandidate(a, cargo, homeCell, reserved, mounted))
 					continue;
 
 				if (++count >= cap)

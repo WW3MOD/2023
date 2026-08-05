@@ -111,7 +111,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Cap on the demand count, matching the consuming squad module's TransportMaxInfantry. Counting to",
 			"the airframe's Cargo.MaxWeight instead would report demand no single lift can consume (America's",
 			"tran carries 36 against a 4-passenger launch threshold). Effective cap is min(this, Cargo.MaxWeight),",
-			"never below TransportMinPassengers. Only used when GateTransportOnDemand is set.")]
+			"never below TransportMinPassengers. 0 or less falls back to Cargo.MaxWeight — see the HAZARD note on",
+			"HelicopterSquadBotModuleInfo.TransportMaxInfantry; keep the two in step. Only used when",
+			"GateTransportOnDemand is set.")]
 		public readonly int TransportMaxPassengers = 8;
 
 		[Desc("Count only UnitRoleResolver role MainBattle infantry as lift demand — the same restriction the",
