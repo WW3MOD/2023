@@ -265,6 +265,37 @@ namespace OpenRA.Test
 			Assert.That(TransportEmploymentMath.Decide(past, window, false, false), Is.EqualTo(TransportDisposition.Evacuate));
 		}
 
+		// ===== Reserve zone (lift availability) =====
+
+		[Test]
+		public void ReserveZoneIsInclusiveAtTheRadius()
+		{
+			// Boundary is the whole contract: the caller passes a SQUARED cell distance, so a soldier exactly
+			// on the radius must qualify (<=), and one past it must not.
+			Assert.That(TransportEmploymentMath.InReserveZone(0, 14), Is.True, "at the Supply Route");
+			Assert.That(TransportEmploymentMath.InReserveZone(14 * 14, 14), Is.True, "exactly on the radius");
+			Assert.That(TransportEmploymentMath.InReserveZone((14 * 14) + 1, 14), Is.False, "just past the radius");
+			Assert.That(TransportEmploymentMath.InReserveZone(15 * 15, 14), Is.False, "a cell past the radius");
+		}
+
+		[Test]
+		public void NonPositiveRadiusDisablesTheSpatialGate()
+		{
+			// 0 or less means "no spatial restriction" — NOT "nobody qualifies". Getting this backwards would
+			// silently ban every lift for a profile that leaves the knob unset.
+			Assert.That(TransportEmploymentMath.InReserveZone(1000 * 1000, 0), Is.True);
+			Assert.That(TransportEmploymentMath.InReserveZone(1000 * 1000, -1), Is.True);
+		}
+
+		[Test]
+		public void ReserveZoneDoesNotOverflowAtMapScaleDistances()
+		{
+			// Squared distances arrive as long. Pin that the radius multiply stays in long arithmetic so a
+			// far-away soldier can never wrap into "in the zone".
+			Assert.That(TransportEmploymentMath.InReserveZone(524288L * 524288L, 14), Is.False);
+			Assert.That(TransportEmploymentMath.InReserveZone(0, int.MaxValue), Is.True);
+		}
+
 		// ===== Determinism =====
 
 		[Test]

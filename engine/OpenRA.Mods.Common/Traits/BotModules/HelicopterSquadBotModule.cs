@@ -58,6 +58,16 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimum infantry to load before launching a transport mission.")]
 		public readonly int TransportMinInfantry = 4;
 
+		[Desc("Radius (map cells) around the bot's own Supply Route inside which infantry count as RESERVE —",
+			"available to be lifted. Troops outside it are already on the line and keep their forward orders,",
+			"so a lift never strips the frontline. This is the substantive availability gate that replaced the",
+			"old raw Actor.IsIdle passenger test: infantry pushed forward by LayeredDefence/PoiOffensive engage",
+			"through AutoTarget and are never idle again, so requiring TransportMinInfantry simultaneously-idle",
+			"soldiers was unsatisfiable in practice and NO lift ever launched. Mirrors",
+			"MountedTransportBotModuleInfo.ReserveZoneRadiusCells (14), which abandoned IsIdle for the same",
+			"reason. 0 or less = no spatial restriction (the whole map is liftable).")]
+		public readonly int LiftReserveZoneRadiusCells = 14;
+
 		[Desc("Ticks a dispatched transport heli waits for its ordered passengers to actually board before",
 			"the mission is resolved without a full load. If at least one passenger is aboard when this",
 			"elapses the heli delivers a partial load; if NONE boarded the mission is ABORTED (cargo never",
@@ -430,10 +440,11 @@ namespace OpenRA.Mods.Common.Traits
 			blackboard = player.PlayerActor.TraitsImplementing<BotBlackboard>()
 				.FirstOrDefault(b => !b.IsTraitDisabled);
 
-			// Resolve the shared commitment ledger only when the transport-passenger commit lever is on, so the
-			// frozen path never touches it ⇒ byte-identical (mirrors MountedTransportBotModule).
-			goalGuard = Info.CommitTransportPassengers
-				? player.PlayerActor.TraitOrDefault<PoiGoalGuard>() : null;
+			// Resolved unconditionally: the READ side (IsLiftCandidate's committed-elsewhere check) is now a real
+			// availability gate for every profile — a soldier another module has claimed for a capture/garrison/
+			// offense task must not be lifted out from under it. WRITES stay gated on CommitTransportPassengers
+			// via CommitOnOrderMath, so a profile that does not opt in still never stakes a claim of its own.
+			goalGuard = player.PlayerActor.TraitOrDefault<PoiGoalGuard>();
 
 			initialized = true;
 		}
@@ -620,7 +631,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var h in idleHelicopters)
 			{
-				if (h.IsDead || !h.IsInWorld || !h.IsIdle)
+				// IsUnoccupied, not IsIdle: a heli loitering at the SR hovers on FlyIdle forever, so the old
+				// !IsIdle guard skipped EVERY candidate and forward staging never moved a single airframe.
+				if (h.IsDead || !h.IsInWorld || !IsUnoccupied(h))
 					continue;
 				if (stagedTo.ContainsKey(h))
 					continue;
@@ -957,18 +970,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (cargo == null)
 				return;
 
-			// Find idle infantry near base to load. Defense-in-depth: also skip any soldier already committed in
-			// the shared ledger (another transport's boarding walk, a capture/garrison/offense task) so heli
-			// transport and MountedTransport are mutually poach-safe by construction — mirrors
-			// MountedTransportBotModule.BuildFreePool, which likewise selects on more than IsIdle. goalGuard is
-			// null unless CommitTransportPassengers is on, so the extra clause is inert (byte-identical) when off.
+			// Reserve-pool infantry available to ride — see IsLiftCandidate for why raw IsIdle is not the test.
+			// The SAME predicate backs CountLiftCandidates, so the demand signal and this load agree.
+			var srCell = FindOwnSupplyRoute()?.Location;
+			var reserved = ReservedPassengers();
 			var infantry = world.ActorsHavingTrait<Mobile>()
-				.Where(a => a.Owner == player
-					&& !a.IsDead && a.IsInWorld
-					&& a.IsIdle
-					&& a.Info.HasTraitInfo<WithInfantryBodyInfo>()
-					&& cargo.Info.Types.Overlaps(a.GetAllTargetTypes())
-					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, world.WorldTick)))
+				.Where(a => IsLiftCandidate(a, cargo, srCell, reserved))
 				.Take(cargo.Info.MaxWeight)
 				.ToList();
 
@@ -1197,7 +1204,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ReleaseTaskPassengers(TransportLoadTask task)
 		{
-			if (goalGuard == null || goalGuard.IsTraitDisabled)
+			// Gated identically to CommitTaskPassengers. goalGuard is now resolved for every profile (the READ
+			// side is a live availability gate), so an ungated release would clear a claim we never staked —
+			// i.e. another module's claim on a soldier committed during our boarding walk.
+			if (!CommitOnOrderMath.ShouldCommit(Info.CommitTransportPassengers, goalGuard != null && !goalGuard.IsTraitDisabled))
 				return;
 
 			foreach (var pax in task.ReservedPassengers)
@@ -1234,10 +1244,11 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 				}
 
-				// Still loaded: only act once it is idle (the delivery/return chain has run to its end and
-				// left it loaded), so we never interrupt an in-progress unload or flight. Re-issue Unload to
-				// dump the cargo where it sits; keep tracking until the cargo actually empties.
-				if (h.IsIdle)
+				// Still loaded: only act once the delivery/return chain has run to its end and left it loaded,
+				// so we never interrupt an in-progress unload or flight. IsUnoccupied, not IsIdle — a heli that
+				// finished the chain hovers on FlyIdle, so the old guard never fired and a transport that came
+				// home loaded stayed loaded for the rest of the match.
+				if (IsUnoccupied(h))
 					bot.QueueOrder(new Order("Unload", h, false));
 			}
 		}
@@ -1279,7 +1290,12 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			// Check if currently rearming
+			// Check if currently rearming. DELIBERATELY still Actor.IsIdle, unlike every other airframe test in
+			// this file: the guard is only a fast path around the null-activity case, and the DECISION is made
+			// by the Resupply type check inside it. A hovering heli takes the branch (FlyIdle is not null) and
+			// falls through because FlyIdle is not Resupply — the correct answer. Swapping in IsUnoccupied would
+			// change nothing except to make the fast path skip a heli that is genuinely hovering, so it is left
+			// alone: it is correct as written, and "fixing" it would be churn.
 			if (!h.IsIdle)
 			{
 				var activity = h.CurrentActivity;
@@ -1337,7 +1353,7 @@ namespace OpenRA.Mods.Common.Traits
 				// never be retired at all — the confirmed half of the idle-transport bug.
 				if (r == HelicopterAIRole.Transport)
 				{
-					EvaluateIdleTransport(h);
+					EvaluateIdleTransport(h, ownSR?.Location);
 					continue;
 				}
 
@@ -1347,10 +1363,11 @@ namespace OpenRA.Mods.Common.Traits
 				if (r != HelicopterAIRole.AttackHeavy && r != HelicopterAIRole.AttackLight)
 					continue;
 
-				// Only act on a heli with an empty activity queue. A heli executing a mission
-				// (attack-move / attack / return) or already flying its evac is never idle, so the
-				// active FSM arc is never disturbed.
-				if (!h.IsIdle)
+				// Only act on a heli that is doing nothing. A heli executing a mission (attack-move / attack /
+				// return) or already flying its evac carries that activity, so the active FSM arc is never
+				// disturbed. IsUnoccupied, not IsIdle — a spent heli parked at the SR hovers on FlyIdle, so the
+				// old guard reset idleTicks every tick and EvacuateIdleTicks was unreachable.
+				if (!IsUnoccupied(h))
 				{
 					idleTicks[h] = 0;
 					continue;
@@ -1376,7 +1393,7 @@ namespace OpenRA.Mods.Common.Traits
 		// salvage refund (RotateToEdge → GetSellValue) and ending its upkeep drain. Terminal: no hold-and-recheck.
 		// Employment always outranks retirement (TransportEmploymentMath.Decide), so a transport that could fly
 		// a lift this instant is held for TryLaunchTransportMission rather than refunded.
-		void EvaluateIdleTransport(Actor h)
+		void EvaluateIdleTransport(Actor h, CPos? srCell)
 		{
 			if (!Info.EvacuateIdleTransports)
 				return;
@@ -1400,7 +1417,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var cargo = h.TraitOrDefault<Cargo>();
 			var hasDemand = cargo != null
-				&& TransportEmploymentMath.HasLiftDemand(CountLiftCandidates(cargo), Info.TransportMinInfantry);
+				&& TransportEmploymentMath.HasLiftDemand(CountLiftCandidates(cargo, srCell), Info.TransportMinInfantry);
 			var slotFree = TransportEmploymentMath.MissionSlotAvailable(ActiveTransportMissions, Info.TransportMissionSlots);
 
 			// INVARIANT: Employ must imply ACTUALLY-LAUNCHABLE. This proxy has to apply every gate the executor
@@ -1426,40 +1443,80 @@ namespace OpenRA.Mods.Common.Traits
 				Evacuate(h);
 		}
 
-		// Actor.IsIdle (CurrentActivity == null) is the WRONG idleness test for an airframe and is essentially
-		// never true for one. With the default IdleBehavior (None) and the helicopter above LandAltitude,
-		// Aircraft.OnBecomingIdle queues FlyIdle (Aircraft.cs:936), and FlyIdle.Tick never returns true while
-		// nothing is queued behind it (FlyIdle.cs:39-41: remainingTicks -1 and NextActivity null). A transport
-		// hovering over its Supply Route therefore carries that activity forever, so a plain !IsIdle test reset
-		// idleTicks every tick and TransportIdleEvacuateTicks could never be reached — the transport parked at
-		// the SR permanently. Hovering on FlyIdle with nothing queued behind it IS doing nothing.
-		static bool IsUnoccupied(Actor h)
-		{
-			if (h.IsIdle)
-				return true;
+		// Airframe idleness — see AIUtils.IsUnoccupiedAirframe. Actor.IsIdle is never true for a hovering
+		// helicopter, so every plain IsIdle test on one is dead code.
+		static bool IsUnoccupied(Actor h) => AIUtils.IsUnoccupiedAirframe(h);
 
-			var current = h.CurrentActivity;
-			return current is FlyIdle && current.NextActivity == null;
+		// AVAILABILITY-FOR-TASKING, not idleness. `a.IsIdle` is technically reachable for ground infantry
+		// (Mobile.OnBecomingIdle queues nothing at layer 0 when the unit may stay in its cell,
+		// Mobile.cs:923-934) — so unlike the airframe case this is not dead code. It is empty in PRACTICE:
+		// infantry that LayeredDefence/PoiOffensive have pushed onto the line engage through AutoTarget and
+		// are never idle again, the documented `carriers-candidate=0` failure mode
+		// (LayeredDefenceBotModule.cs:86-89 PITFALL). Requiring FOUR simultaneously-idle soldiers on the tick
+		// TryLaunchTransportMission happens to sample therefore essentially never held, and no lift ever
+		// launched. MountedTransportBotModule already abandoned IsIdle here for exactly this reason
+		// (MountedTransportBotModule.cs:531-535) — the EnterTransport order is issued with queued=false, so a
+		// soldier walking forward simply turns around and boards.
+		//
+		// What replaces it is the same three-part availability test that module uses:
+		//   * inside the SR reserve zone — the substantive gate. Troops ALREADY on the line keep their
+		//     forward orders; only the reserve pool near home is liftable. Without this, dropping IsIdle
+		//     would strip the frontline.
+		//   * not committed in the shared PoiGoalGuard ledger — another module's capture/garrison/offense
+		//     claim outranks a lift.
+		//   * not already reserved by one of OUR OWN live transport tasks. IsIdle used to provide this by
+		//     accident (a soldier walking to board carries EnterTransport ⇒ not idle), so removing it
+		//     WITHOUT this clause would let a second transport pick a load that is already boarding.
+		bool IsLiftCandidate(Actor a, Cargo cargo, CPos? srCell, HashSet<Actor> reservedByOthers)
+		{
+			if (a.Owner != player || a.IsDead || !a.IsInWorld)
+				return false;
+
+			if (!a.Info.HasTraitInfo<WithInfantryBodyInfo>())
+				return false;
+
+			if (!cargo.Info.Types.Overlaps(a.GetAllTargetTypes()))
+				return false;
+
+			if (reservedByOthers.Contains(a))
+				return false;
+
+			if (goalGuard != null && !goalGuard.IsTraitDisabled && goalGuard.Ledger.IsCommitted(a, world.WorldTick))
+				return false;
+
+			// No SR (dead/captured) ⇒ the spatial gate cannot be evaluated; fall back to no restriction
+			// rather than silently refusing every lift.
+			if (srCell.HasValue
+				&& !TransportEmploymentMath.InReserveZone((a.Location - srCell.Value).LengthSquared, Info.LiftReserveZoneRadiusCells))
+				return false;
+
+			return true;
 		}
 
-		// Infantry available and willing to ride this airframe — the LIFT DEMAND signal. Mirrors the candidate
-		// filter TryLaunchTransportMission loads from, so the demand test and the mission it predicts agree.
-		// Returns a capped COUNT, so world iteration order cannot affect it (determinism invariant).
-		int CountLiftCandidates(Cargo cargo)
+		// Passengers held by every live load task other than the one being assembled. Plain set membership ⇒
+		// order-independent.
+		HashSet<Actor> ReservedPassengers()
 		{
+			var reserved = new HashSet<Actor>();
+			foreach (var t in transportTasks.Values)
+				reserved.UnionWith(t.ReservedPassengers);
+
+			return reserved;
+		}
+
+		// Infantry available and willing to ride this airframe — the LIFT DEMAND signal. Shares IsLiftCandidate
+		// with TryLaunchTransportMission, so the demand test and the load it predicts agree BY CONSTRUCTION
+		// (that agreement is load-bearing: Employ shadows Evacuate, so a demand signal the launcher cannot
+		// satisfy pins the airframe at the SR forever). Returns a capped COUNT, so world iteration order cannot
+		// affect it (determinism invariant).
+		int CountLiftCandidates(Cargo cargo, CPos? srCell)
+		{
+			var reserved = ReservedPassengers();
+
 			var count = 0;
 			foreach (var a in world.ActorsHavingTrait<Mobile>())
 			{
-				if (a.Owner != player || a.IsDead || !a.IsInWorld || !a.IsIdle)
-					continue;
-
-				if (!a.Info.HasTraitInfo<WithInfantryBodyInfo>())
-					continue;
-
-				if (!cargo.Info.Types.Overlaps(a.GetAllTargetTypes()))
-					continue;
-
-				if (goalGuard != null && goalGuard.Ledger.IsCommitted(a, world.WorldTick))
+				if (!IsLiftCandidate(a, cargo, srCell, reserved))
 					continue;
 
 				if (++count >= cargo.Info.MaxWeight)

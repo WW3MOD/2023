@@ -118,6 +118,22 @@ namespace OpenRA.Mods.Common.Traits
 				== TransportPurchaseDecision.Buy;
 		}
 
+		/// <summary>Is a soldier close enough to home to count as LIFTABLE RESERVE?
+		///   <paramref name="distanceSqCells"/> — squared cell distance from the soldier to our own Supply Route.
+		///   <paramref name="radiusCells"/>     — reserve-zone radius; 0 or less means "no spatial restriction".
+		/// This is the gate that makes dropping the old raw-IsIdle passenger test safe. Availability for a lift
+		/// is not idleness (infantry on the line engage through AutoTarget and are never idle, so the idle pool
+		/// is empty in practice and no lift ever launched) — it is being part of the REAR RESERVE. Troops past
+		/// the radius are already committed to the line and keep their forward orders. Mirrors
+		/// MountedTransportBotModule's ReserveZoneRadiusCells bubble.</summary>
+		public static bool InReserveZone(long distanceSqCells, int radiusCells)
+		{
+			if (radiusCells <= 0)
+				return true;
+
+			return distanceSqCells <= (long)radiusCells * radiusCells;
+		}
+
 		/// <summary>Is a transport-mission slot free? Lift gets its OWN reserved budget rather than competing
 		/// with the attack loop for MaxActiveSquads (which transport missions never increment — the starvation
 		/// asymmetry). <paramref name="maxTransportMissions"/> of 0 or less means the reserved slice is

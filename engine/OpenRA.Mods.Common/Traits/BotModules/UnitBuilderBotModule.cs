@@ -97,6 +97,17 @@ namespace OpenRA.Mods.Common.Traits
 			"Only used when GateTransportOnDemand is set.")]
 		public readonly int TransportMinPassengers = 4;
 
+		[Desc("Radius (map cells) around the bot's own Supply Route inside which infantry count as liftable",
+			"RESERVE for the demand gate. MUST match the consuming squad module's LiftReserveZoneRadiusCells:",
+			"this count predicts the load HelicopterSquadBotModule will actually assemble, and a disagreement",
+			"either buys an airframe the launcher can never fill or starves it of one it needs. 0 or less = no",
+			"spatial restriction. Only used when GateTransportOnDemand is set.")]
+		public readonly int LiftReserveZoneRadiusCells = 14;
+
+		[Desc("Actor types of the bot's home Supply Route, used to anchor the lift reserve zone.",
+			"Only used when GateTransportOnDemand is set.")]
+		public readonly HashSet<string> SupplyRouteTypes = new HashSet<string> { "supplyroute" };
+
 		[Desc("EXPERIMENTAL (composition-directed purchasing): replace the ground-unit LOTTERY with a",
 			"census-vs-target deficit pick. The frozen path buys uniformly at random (idleUnitCount stays 0",
 			"under IgnoreGroundUnits, so buildRandom is always true), which makes the STANDING composition",
@@ -500,6 +511,16 @@ namespace OpenRA.Mods.Common.Traits
 			if (cargo == null)
 				return true;
 
+			CPos? srCell = null;
+			foreach (var a in world.Actors)
+			{
+				if (a.Owner == player && !a.IsDead && a.IsInWorld && Info.SupplyRouteTypes.Contains(a.Info.Name))
+				{
+					srCell = a.Location;
+					break;
+				}
+			}
+
 			var owned = 0;
 			var idle = 0;
 			foreach (var a in world.Actors)
@@ -512,22 +533,38 @@ namespace OpenRA.Mods.Common.Traits
 
 				owned++;
 
-				// A transport mid-load or mid-delivery is NOT spare capacity; only a genuinely idle one
-				// counts against the transports-first test.
-				if (a.IsIdle)
+				// A transport mid-load or mid-delivery is NOT spare capacity; only a genuinely unoccupied one
+				// counts against the transports-first test. IsUnoccupiedAirframe, not Actor.IsIdle: a transport
+				// hovering at the SR carries FlyIdle forever, so the old test counted ZERO idle transports
+				// always — the transports-first branch could never fire and only UnitLimits capped the buy.
+				if (AIUtils.IsUnoccupiedAirframe(a))
 					idle++;
 			}
 
+			// Lift demand. Must agree with the consuming squad module's CountLiftCandidates or the two halves of
+			// the transport policy contradict each other (buy an airframe the launcher will never load, or refuse
+			// one it is starving for). Same predicate: infantry of a compatible cargo type inside the SR reserve
+			// bubble and not claimed by another module. NOT Actor.IsIdle — infantry on the line engage through
+			// AutoTarget and are never idle, so the old world-wide idle scan almost never reached
+			// TransportMinPassengers and the demand gate refused essentially every call-in.
+			var goalGuard = player.PlayerActor.TraitOrDefault<PoiGoalGuard>();
 			var candidates = 0;
 			foreach (var a in world.Actors)
 			{
-				if (a.Owner != player || a.IsDead || !a.IsInWorld || !a.IsIdle)
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
 					continue;
 
 				if (!a.Info.HasTraitInfo<Render.WithInfantryBodyInfo>() || !a.Info.HasTraitInfo<MobileInfo>())
 					continue;
 
 				if (!cargo.Types.Overlaps(a.GetAllTargetTypes()))
+					continue;
+
+				if (goalGuard != null && !goalGuard.IsTraitDisabled && goalGuard.Ledger.IsCommitted(a, world.WorldTick))
+					continue;
+
+				if (srCell.HasValue
+					&& !TransportEmploymentMath.InReserveZone((a.Location - srCell.Value).LengthSquared, Info.LiftReserveZoneRadiusCells))
 					continue;
 
 				if (++candidates >= cargo.MaxWeight)
