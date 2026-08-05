@@ -317,9 +317,10 @@ Player:
 		# anchor that stops passing the grant test, or a walk that no longer reaches as far, is dropped at once,
 		# and only a DEEPENING or lateral move could ever be damped. Symmetric hysteresis would suppress exactly
 		# the one-sector closure the abort exists for, since one sector is Chebyshev 2 at CellSize 2.
-		# AdvanceHysteresisCells is then 0 (see below): with the dangerous direction already blocked by the
-		# one-way rule, damping had nothing safe left to do, and any non-zero value blocks one-sector RE-deepening
-		# forever — the advance would ratchet to the shallowest depth it ever reached.
+		# AdvanceHysteresisCells is then 0 (see below): once the direction was fixed, damping had no useful
+		# non-zero setting left, because any non-zero value blocks one-sector RE-deepening forever and the
+		# advance would ratchet to the shallowest depth it ever reached. At 0 the adopt rule reduces to "take
+		# the fresh walk" — the one-way rule is not doing any blocking there, since nothing is ever held.
 		# Needs ForwardStagingEnabled (below) — the staging anchor is the seed this walk extends from.
 		# HELD OFF pending the priced sweep — same discipline as AllocationScoreQuantizeBandPct above: this
 		# reshapes live behaviour and is unmeasured. Flip to true (the three slopes below are already live) to

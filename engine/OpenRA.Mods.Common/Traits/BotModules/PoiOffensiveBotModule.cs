@@ -597,9 +597,11 @@ namespace OpenRA.Mods.Common.Traits
 			"equals 0) and a 2-sector threshold re-creates the block. If lateral jitter ever measures as a real",
 			"cost, the fix is to split the test by DIRECTION — damp lateral, never damp depth — not to raise a",
 			"scalar. What keeps a static anchor from re-issuing orders is not this knob but the per-unit target-cell",
-			"dedup in StageFreePool. NOTE the value is fed to ForwardStagingMath.AnchorShifted, where a non-positive",
-			"threshold returns true UNCONDITIONALLY (an early return, not a displacement test), so 0 means 'always",
-			"adopt the fresh walk'. Only read when OpportunisticAdvanceEnabled.")]
+			"dedup in StageFreePool. NOTE the value is fed to ForwardStagingMath.AnchorShifted, whose displacement",
+			"test is VACUOUS at a non-positive threshold — Chebyshev distance is never negative, so `>= threshold`",
+			"holds for every displacement including zero; the early return there merely says so explicitly rather",
+			"than being what makes it true. Either way 0 means 'always adopt the fresh walk'. Only read when",
+			"OpportunisticAdvanceEnabled.")]
 		public readonly int AdvanceHysteresisCells = 0;
 
 		[Desc("PHASE 3 (@experimental) RETREAT-OSCILLATION DAMPER. Builds on RetreatWhenLosing: stops small",

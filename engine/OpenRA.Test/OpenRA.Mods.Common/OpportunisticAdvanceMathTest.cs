@@ -15,6 +15,12 @@
  *   * a closing corridor SHORTENS the walk — the §2.6 abort, with no abort code;
  *   * the knob spans its declared range and CLAMPS at both extremes rather than inverting;
  *   * termination is guaranteed by the strict frontier-distance decrease plus the step budget.
+ *
+ * SHIPPED-CONFIG CONSTANTS ARE HAND-MIRRORED. The Depth/Ceiling/Force base+slope consts, SweepGrid and
+ * ShippedHysteresisCells below are copies of the engine defaults and the @experimental ai.yaml block, kept in
+ * sync manually — nothing here reads a Ruleset, because these are World-free pure-math pins (the house pattern
+ * for every *Math test in this tree). So a test named "..._ShippedConfig_..." asserts the behaviour AT those
+ * values, not that the mod still sets them; if you retune a dial in YAML, retune it here too or the name lies.
  */
 #endregion
 
@@ -268,11 +274,17 @@ namespace OpenRA.Test
 		[Test]
 		public void AnchorShifted_ZeroThreshold_AdoptsUnconditionally_IncludingZeroDisplacement()
 		{
-			// Load-bearing dependency pin, stated because it is easy to assume the wrong mechanism: a
-			// non-positive threshold is an EARLY RETURN of true (ForwardStagingMath.cs:169-170), NOT a
-			// "displacement > threshold" test. So at the shipped 0 the hysteresis disjunct is always true even
-			// when the anchor has not moved at all — and what actually prevents a re-issue in that case is the
-			// per-unit target-cell dedup in StageFreePool, not this function.
+			// Dependency pin on the OBSERVABLE: at the shipped 0 the hysteresis disjunct is true for every
+			// displacement, including none at all. Worth pinning because it is easy to assume the opposite —
+			// that a threshold of 0 means "adopt only if it actually moved" — and the whole FIX B argument
+			// rests on it being unconditional.
+			//
+			// The mechanism is that AnchorShifted's displacement test is VACUOUS at a non-positive threshold:
+			// Chebyshev distance is never negative, so Math.Max(|dx|,|dy|) >= thresholdCells holds for any
+			// displacement. The early return at ForwardStagingMath.cs:169-170 states that explicitly but is
+			// behaviourally REDUNDANT — deleting it changes nothing, so no mutation of it can red this pin.
+			// What actually prevents a re-issue when nothing has moved is the per-unit target-cell dedup in
+			// StageFreePool, not this function.
 			Assert.That(ForwardStagingMath.AnchorShifted(10, 10, 10, 10, ShippedHysteresisCells), Is.True);
 			Assert.That(ForwardStagingMath.AnchorShifted(10, 10, 12, 10, ShippedHysteresisCells), Is.True);
 		}
