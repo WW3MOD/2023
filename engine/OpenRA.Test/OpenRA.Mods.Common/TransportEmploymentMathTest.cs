@@ -265,6 +265,35 @@ namespace OpenRA.Test
 			Assert.That(TransportEmploymentMath.Decide(past, window, false, false), Is.EqualTo(TransportDisposition.Evacuate));
 		}
 
+		// ===== Load cap (how many we may ORDER aboard) =====
+
+		[Test]
+		public void LoadCapPrefersTheDoctrineCapOverAirframeCapacity()
+		{
+			// The real case: America's tran carries 36, but a lift launches at 4. Ordering 36 leaves 32
+			// soldiers chasing the departing heli while holding reservations that pin its pickup lock.
+			Assert.That(TransportEmploymentMath.LoadCap(8, 36, 4), Is.EqualTo(8));
+		}
+
+		[Test]
+		public void LoadCapNeverExceedsAirframeCapacity()
+		{
+			// Russia's halo carries 8; a doctrine cap above that must not order passengers who cannot fit.
+			Assert.That(TransportEmploymentMath.LoadCap(12, 8, 4), Is.EqualTo(8));
+			Assert.That(TransportEmploymentMath.LoadCap(0, 8, 4), Is.EqualTo(8), "0 = no cap of our own");
+			Assert.That(TransportEmploymentMath.LoadCap(-1, 8, 4), Is.EqualTo(8));
+		}
+
+		[Test]
+		public void LoadCapIsNeverBelowTheLaunchThreshold()
+		{
+			// A cap under minPassengers could never assemble a launchable load — that would silently disable
+			// lift entirely, which is the exact failure this whole change exists to remove.
+			Assert.That(TransportEmploymentMath.LoadCap(2, 36, 4), Is.EqualTo(4));
+			Assert.That(TransportEmploymentMath.LoadCap(8, 2, 4), Is.EqualTo(4), "tiny airframe still tries");
+			Assert.That(TransportEmploymentMath.LoadCap(0, 0, 0), Is.EqualTo(1), "never zero or negative");
+		}
+
 		// ===== Reserve zone (lift availability) =====
 
 		[Test]

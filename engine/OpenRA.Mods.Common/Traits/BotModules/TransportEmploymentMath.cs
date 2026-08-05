@@ -27,10 +27,14 @@
  * plain scalars in, enum out. Every function is a pure deterministic map from its arguments, so ordering of
  * any caller-side collection cannot leak into a decision.
  *
- * BYTE-IDENTITY: nothing here is reachable unless the caller's gating flag is set. All three consumer flags
- * (UnitBuilderBotModuleInfo.GateTransportOnDemand, HelicopterSquadBotModuleInfo.TransportMissionSlots,
- * HelicopterSquadBotModuleInfo.EvacuateIdleTransports) default false/0 and are set only in @experimental
- * blocks — so normal/rush/turtle/@stable never enter this path and keep their RNG draw count and order.
+ * GATING (NO LONGER byte-identical for every entry point). The three EMPLOYMENT flags below are still
+ * @experimental-only and still default false/0: UnitBuilderBotModuleInfo.GateTransportOnDemand,
+ * HelicopterSquadBotModuleInfo.TransportMissionSlots, HelicopterSquadBotModuleInfo.EvacuateIdleTransports —
+ * EvaluatePurchase / ShouldBuy / MissionSlotAvailable / Decide are unreachable without one of them. But
+ * InReserveZone and LoadCap are reached from the UNGATED lift path (HelicopterSquadBotModule.IsLiftCandidate /
+ * TryLaunchTransportMission), so @stable DOES enter this file now — by deliberate user grant, since the raw
+ * Actor.IsIdle passenger test it replaced meant no profile ever flew a lift at all. Still zero RNG, so the
+ * lockstep-determinism half of the old argument is untouched; only the "@stable never gets here" half is.
  *
  * Split out as a pure static class (mirrors ForceCompositionMath / TransportLoadMath / HeliEmploymentMath)
  * so the whole decision is NUnit-pinned WITHOUT a game run.
@@ -116,6 +120,32 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			return EvaluatePurchase(ownedTransports, maxTransports, idleTransports, liftCandidates, minPassengers)
 				== TransportPurchaseDecision.Buy;
+		}
+
+		/// <summary>How many passengers one lift may ORDER aboard.
+		///   <paramref name="maxInfantry"/>    — the doctrine cap (a squad-sized load); 0 or less = no own cap.
+		///   <paramref name="cargoMaxWeight"/> — the airframe's physical capacity.
+		///   <paramref name="minInfantry"/>    — the launch threshold; the result is never below it.
+		/// The airframe capacity ALONE is the wrong cap and is actively harmful. Ordering `EnterTransport` is
+		/// not a request — Passenger.ResolveOrder queues RideTransport non-queued (Passenger.cs:207), cancelling
+		/// whatever each soldier was doing, and reserving cargo space LOCKS the transport (Cargo.LockForPickup,
+		/// Cargo.cs:333-349). But the load dispatches as soon as `minInfantry` are aboard
+		/// (TransportLoadMath.Decide), so every extra ordered soldier is left chasing a departing helicopter
+		/// while still holding its reservation — and Cargo.ReleaseLock only fires at reservedWeight == 0
+		/// (Cargo.cs:351-353), so the stragglers pin the airframe's lock. The America `tran` carries
+		/// MaxWeight 36 against a launch threshold of 4, so the uncapped form ordered 36 soldiers for a 4-man
+		/// lift. Mirrors MountedTransportBotModule's Math.Min(MaxPassengersPerLoad, MaxWeight).</summary>
+		public static int LoadCap(int maxInfantry, int cargoMaxWeight, int minInfantry)
+		{
+			var cap = cargoMaxWeight;
+			if (maxInfantry > 0 && maxInfantry < cap)
+				cap = maxInfantry;
+
+			// Never cap below the launch threshold: a cap under minInfantry could never assemble a load at all.
+			if (cap < minInfantry)
+				cap = minInfantry;
+
+			return cap < 1 ? 1 : cap;
 		}
 
 		/// <summary>Is a soldier close enough to home to count as LIFTABLE RESERVE?

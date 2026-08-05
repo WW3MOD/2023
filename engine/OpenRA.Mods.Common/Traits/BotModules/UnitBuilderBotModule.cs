@@ -78,7 +78,7 @@ namespace OpenRA.Mods.Common.Traits
 			"available and waiting for a ride — and no idle transport we already own can serve it. The frozen",
 			"path buys transports on a flat lottery weight with no demand test at all, so they are called in",
 			"during the opening and then park at the Supply Route for the whole match (River Zeta issue 4).",
-			"NOTE — 'idle transport we already own' is the raw IsIdle test, NOT a launchability test: a",
+			"NOTE — 'idle transport we already own' is an UNOCCUPIED-AIRFRAME test, NOT a launchability test: a",
 			"chip-damaged transport the squad launcher can never pick still counts as spare capacity here and",
 			"so defers a replacement buy. That is bounded, not permanent — the squad module's use-or-evac",
 			"(EvacuateIdleTransports) retires the unlaunchable airframe at its idle window, owned drops, and",
@@ -107,6 +107,17 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Actor types of the bot's home Supply Route, used to anchor the lift reserve zone.",
 			"Only used when GateTransportOnDemand is set.")]
 		public readonly HashSet<string> SupplyRouteTypes = new HashSet<string> { "supplyroute" };
+
+		[Desc("Cap on the demand count, matching the consuming squad module's TransportMaxInfantry. Counting to",
+			"the airframe's Cargo.MaxWeight instead would report demand no single lift can consume (America's",
+			"tran carries 36 against a 4-passenger launch threshold). Effective cap is min(this, Cargo.MaxWeight),",
+			"never below TransportMinPassengers. Only used when GateTransportOnDemand is set.")]
+		public readonly int TransportMaxPassengers = 8;
+
+		[Desc("Count only UnitRoleResolver role MainBattle infantry as lift demand — the same restriction the",
+			"consuming squad module applies. Without it the capture engineer, medics and MANPADS read as demand",
+			"and buy an airframe that will never carry them. Only used when GateTransportOnDemand is set.")]
+		public readonly bool RestrictLiftToLineInfantry = true;
 
 		[Desc("EXPERIMENTAL (composition-directed purchasing): replace the ground-unit LOTTERY with a",
 			"census-vs-target deficit pick. The frozen path buys uniformly at random (idleUnitCount stays 0",
@@ -224,6 +235,11 @@ namespace OpenRA.Mods.Common.Traits
 		IBotRequestPauseUnitProduction[] requestPause;
 		int idleUnitCount;
 
+		// Transport demand-gate lookups, resolved once (both are single-instance: PoiGoalGuard is a shared
+		// singleton per player, UnitRoleResolver a world trait). Only read on the GateTransportOnDemand path.
+		PoiGoalGuard goalGuard;
+		UnitRoleResolver roleResolver;
+
 		int ticks;
 
 		// ===== Composition-directed purchasing (@experimental; all null/empty when CompositionDirected is off) =====
@@ -255,6 +271,8 @@ namespace OpenRA.Mods.Common.Traits
 		protected override void Created(Actor self)
 		{
 			requestPause = self.Owner.PlayerActor.TraitsImplementing<IBotRequestPauseUnitProduction>().ToArray();
+			goalGuard = self.Owner.PlayerActor.TraitOrDefault<PoiGoalGuard>();
+			roleResolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
 
 			InitializeComposition();
 		}
@@ -511,7 +529,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (cargo == null)
 				return true;
 
-			CPos? srCell = null;
+			// Reserve-bubble anchor. Falls back to the player's spawn when the SR is dead or captured — a
+			// missing anchor must not silently remove the spatial gate and make the whole map liftable.
+			// MULTI-SR: lowest-ActorID owned SR, matching HelicopterSquadBotModule.FindOwnSupplyRoute. That the
+			// two AGREE is what matters here, since this count has to predict the load that module assembles; a
+			// CAPTURED second SR gets no reserve bubble of its own on either side.
+			var srCell = player.HomeLocation;
 			foreach (var a in world.Actors)
 			{
 				if (a.Owner == player && !a.IsDead && a.IsInWorld && Info.SupplyRouteTypes.Contains(a.Info.Name))
@@ -533,10 +556,12 @@ namespace OpenRA.Mods.Common.Traits
 
 				owned++;
 
-				// A transport mid-load or mid-delivery is NOT spare capacity; only a genuinely unoccupied one
-				// counts against the transports-first test. IsUnoccupiedAirframe, not Actor.IsIdle: a transport
-				// hovering at the SR carries FlyIdle forever, so the old test counted ZERO idle transports
-				// always — the transports-first branch could never fire and only UnitLimits capped the buy.
+				// Spare capacity for the transports-first test. IsUnoccupiedAirframe, not Actor.IsIdle: a
+				// transport hovering at the SR carries FlyIdle forever, so the old test counted ZERO idle
+				// transports always — the branch could never fire and only UnitLimits capped the buy.
+				// KNOWN OVERCOUNT: a transport whose passengers are still walking has not been reserved yet, so
+				// it is still on FlyIdle and counts as spare here. The error is in the SAFE direction (defer a
+				// purchase we could have made) and it self-clears within a load window.
 				if (AIUtils.IsUnoccupiedAirframe(a))
 					idle++;
 			}
@@ -547,7 +572,9 @@ namespace OpenRA.Mods.Common.Traits
 			// bubble and not claimed by another module. NOT Actor.IsIdle — infantry on the line engage through
 			// AutoTarget and are never idle, so the old world-wide idle scan almost never reached
 			// TransportMinPassengers and the demand gate refused essentially every call-in.
-			var goalGuard = player.PlayerActor.TraitOrDefault<PoiGoalGuard>();
+			// Cap at the same number the squad module will actually ORDER aboard, not the airframe's physical
+			// capacity — counting to tran's MaxWeight of 36 would report demand no lift can consume.
+			var loadCap = TransportEmploymentMath.LoadCap(Info.TransportMaxPassengers, cargo.MaxWeight, Info.TransportMinPassengers);
 			var candidates = 0;
 			foreach (var a in world.Actors)
 			{
@@ -560,14 +587,20 @@ namespace OpenRA.Mods.Common.Traits
 				if (!cargo.Types.Overlaps(a.GetAllTargetTypes()))
 					continue;
 
+				// Same role gate the squad module applies, or this over-counts: without it the capture
+				// engineer, medics and MANPADS all read as lift demand and buy an airframe that will never
+				// carry them. Fails closed with no resolver, exactly as the squad module does.
+				if (Info.RestrictLiftToLineInfantry
+					&& (roleResolver == null || roleResolver.GetRole(a) != UnitRole.MainBattle))
+					continue;
+
 				if (goalGuard != null && !goalGuard.IsTraitDisabled && goalGuard.Ledger.IsCommitted(a, world.WorldTick))
 					continue;
 
-				if (srCell.HasValue
-					&& !TransportEmploymentMath.InReserveZone((a.Location - srCell.Value).LengthSquared, Info.LiftReserveZoneRadiusCells))
+				if (!TransportEmploymentMath.InReserveZone((a.Location - srCell).LengthSquared, Info.LiftReserveZoneRadiusCells))
 					continue;
 
-				if (++candidates >= cargo.MaxWeight)
+				if (++candidates >= loadCap)
 					break;
 			}
 

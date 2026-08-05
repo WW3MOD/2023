@@ -36,7 +36,7 @@ namespace OpenRA.Mods.Common
 
 		// Actor.IsIdle (CurrentActivity == null) is the WRONG idleness test for an AIRFRAME and is
 		// essentially never true for one. With the default IdleBehavior (None) and the aircraft above
-		// LandAltitude, Aircraft.OnBecomingIdle queues FlyIdle (Aircraft.cs:898), and FlyIdle.Tick never
+		// LandAltitude, Aircraft.OnBecomingIdle queues FlyIdle (Aircraft.cs:936), and FlyIdle.Tick never
 		// returns true while nothing is queued behind it (FlyIdle.cs:39-41). Actor.Tick runs the queued
 		// activity in the SAME tick it fires the becoming-idle notification (Actor.cs:290-299), so a bot
 		// module can never observe the null-activity window either. A helicopter hovering over its Supply

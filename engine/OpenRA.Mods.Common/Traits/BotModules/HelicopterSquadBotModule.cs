@@ -58,6 +58,24 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimum infantry to load before launching a transport mission.")]
 		public readonly int TransportMinInfantry = 4;
 
+		[Desc("Maximum infantry ORDERED aboard for one lift — a squad-sized load, not the airframe's physical",
+			"capacity. Capping at Cargo.MaxWeight alone is actively harmful: the load DISPATCHES at",
+			"TransportMinInfantry, so every extra ordered soldier is left chasing a departing helicopter while",
+			"still holding a cargo reservation, and Cargo.ReleaseLock only fires at reservedWeight == 0 — the",
+			"stragglers pin the airframe's pickup lock. America's tran carries MaxWeight 36 against a threshold",
+			"of 4. Effective cap is min(this, Cargo.MaxWeight), never below TransportMinInfantry. 0 or less =",
+			"no cap of our own (airframe capacity only). Mirrors MountedTransportBotModuleInfo.MaxPassengersPerLoad.")]
+		public readonly int TransportMaxInfantry = 8;
+
+		[Desc("Restrict lift passengers to UnitRoleResolver role MainBattle — line infantry. Without it the",
+			"passenger filter is 'has WithInfantryBody and fits the cargo type', which admits the capture",
+			"engineer (^TECN inherits ^ArmedCivilian's WithInfantryBody and configures Passenger), medics and",
+			"MANPADS, so the lift ferries the capture specialist to a front-line drop zone. Every peer consumer",
+			"filters — MountedTransportBotModule uses an allowlist that omits tecn, LayeredDefenceBotModule uses",
+			"IsLineEligibleByRole. Fails CLOSED: with no UnitRoleResolver on the world actor nothing is liftable,",
+			"because the failure mode of failing open is delivering the engineer to the enemy.")]
+		public readonly bool RestrictLiftToLineInfantry = true;
+
 		[Desc("Radius (map cells) around the bot's own Supply Route inside which infantry count as RESERVE —",
 			"available to be lifted. Troops outside it are already on the line and keep their forward orders,",
 			"so a lift never strips the frontline. This is the substantive availability gate that replaced the",
@@ -365,6 +383,12 @@ namespace OpenRA.Mods.Common.Traits
 		// leaves this map and (loaded) joins transportsAwaitingUnload for the existing retreat/safety net.
 		readonly Dictionary<Actor, TransportLoadTask> transportTasks = new Dictionary<Actor, TransportLoadTask>();
 
+		// Bounded retry for the still-loaded Unload re-issue (EnsureTransportsUnload). Cargo.ResolveOrder drops
+		// an Unload with no free adjacent cell, so an unbounded retry on a permanently blocked spot would pin a
+		// reserved mission slot forever.
+		const int UnloadRetryLimit = 5;
+		readonly Dictionary<Actor, int> unloadRetries = new Dictionary<Actor, int>();
+
 		IBot bot;
 		SquadManagerBotModule squadManagerRef;
 		ThreatMapManager threatMap;
@@ -376,6 +400,27 @@ namespace OpenRA.Mods.Common.Traits
 		// so the frozen/@stable path never looks it up ⇒ byte-identical. Null when the player has no PoiGoalGuard
 		// ⇒ every commit/release below is inert. Mirrors MountedTransportBotModule.goalGuard.
 		PoiGoalGuard goalGuard;
+
+		// Cross-module poach-safety seam with the OTHER half of the transport system. The ledger cannot carry
+		// this on @stable: MountedTransportBotModule resolves its own goalGuard only under CommitPassengers,
+		// which the @poi (stable) twin does not set, so it neither reads nor writes the ledger there. Both
+		// modules draw infantry from the same reserve bubble, so without a direct seam each would yank the
+		// other's boarding passenger. Resolved the way LayeredDefenceBotModule does it (:346) — TraitsImplementing
+		// + first enabled — because the module is twinned and TraitOrDefault would throw on "multiple traits".
+		// Resolved lazily rather than in Initialize: the filter is "first ENABLED instance", and caching a null
+		// from a tick where the twin's condition had not settled would silently disable the seam for the whole
+		// match — an invisible failure (each module quietly poaching the other's boarders).
+		MountedTransportBotModule mountedTransport;
+
+		MountedTransportBotModule MountedTransportRef()
+		{
+			return mountedTransport ??= player.PlayerActor.TraitsImplementing<MountedTransportBotModule>()
+				.FirstOrDefault(m => !m.IsTraitDisabled);
+		}
+
+		// Role classification for the passenger filter (RestrictLiftToLineInfantry). World trait, always present
+		// in WW3MOD (world.yaml:351).
+		UnitRoleResolver roleResolver;
 
 		// Fog-legal believed anti-air danger field (Stage B). Read ONLY on the careful-scout path; resolving the
 		// reference is behaviour-inert, so leaving it always-resolved does not affect byte-identity.
@@ -445,6 +490,8 @@ namespace OpenRA.Mods.Common.Traits
 			// offense task must not be lifted out from under it. WRITES stay gated on CommitTransportPassengers
 			// via CommitOnOrderMath, so a profile that does not opt in still never stakes a claim of its own.
 			goalGuard = player.PlayerActor.TraitOrDefault<PoiGoalGuard>();
+
+			roleResolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
 
 			initialized = true;
 		}
@@ -972,11 +1019,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Reserve-pool infantry available to ride — see IsLiftCandidate for why raw IsIdle is not the test.
 			// The SAME predicate backs CountLiftCandidates, so the demand signal and this load agree.
-			var srCell = FindOwnSupplyRoute()?.Location;
+			var homeCell = LiftHomeCell();
 			var reserved = ReservedPassengers();
 			var infantry = world.ActorsHavingTrait<Mobile>()
-				.Where(a => IsLiftCandidate(a, cargo, srCell, reserved))
-				.Take(cargo.Info.MaxWeight)
+				.Where(a => IsLiftCandidate(a, cargo, homeCell, reserved))
+				.Take(LiftLoadCap(cargo))
 				.ToList();
 
 			if (infantry.Count < Info.TransportMinInfantry)
@@ -1145,6 +1192,11 @@ namespace OpenRA.Mods.Common.Traits
 						// release the ledger claims and return the heli to the idle pool for a later attempt.
 						AIUtils.BotDebug("AI ({0}): transport heli {1} load aborted empty after {2} ticks — returning to pool",
 							player.ClientIndex, h.Info.Name, ticksLoading);
+
+						// Nobody boarded, so EVERY ordered passenger is still walking and still holding a
+						// reservation. Without this the aborted heli returns to the pool still Locked for
+						// pickup and can never load again.
+						StandDownStragglers(bot, task);
 						ReleaseTaskPassengers(task);
 						transportTasks.Remove(h);
 						if (!idleHelicopters.Contains(h))
@@ -1160,9 +1212,30 @@ namespace OpenRA.Mods.Common.Traits
 		// (the WW3MOD retreat-on-unload). Mirrors the pre-fix order chain, but now issued ONLY after cargo is
 		// verified aboard. Hands the heli to transportsAwaitingUnload so EnsureTransportsUnload can re-dump the
 		// cargo in the rare unlandable-drop case (the queued Move alone would otherwise fly it home still loaded).
+		// Release every ordered passenger that did not make it aboard, on BOTH task exits (dispatch and abort).
+		// A load closes as soon as TransportMinInfantry are in, so the rest are still walking — and still
+		// holding a cargo reservation. Left alone they chase the transport across the map (Enter re-approaches
+		// a moving target), and because Cargo.ReleaseLock only fires at reservedWeight == 0 (Cargo.cs:351-353)
+		// their reservations pin the airframe's pickup lock, so it can never load again. Stop cancels
+		// RideTransport, whose Cancel calls Passenger.Unreserve (RideTransport.cs:93-98) and frees the lock.
+		// A boarded passenger has been removed from the world, so IsInWorld is exactly the "did not make it"
+		// test. ActorID-ordered for lockstep determinism.
+		void StandDownStragglers(IBot bot, TransportLoadTask task)
+		{
+			foreach (var pax in task.ReservedPassengers.OrderBy(a => a.ActorID))
+			{
+				if (pax == null || pax.IsDead || !pax.IsInWorld)
+					continue;
+
+				bot.QueueOrder(new Order("Stop", pax, false));
+			}
+		}
+
 		void DispatchTransportDelivery(IBot bot, TransportLoadTask task)
 		{
 			var transport = task.Transport;
+
+			StandDownStragglers(bot, task);
 
 			bot.QueueOrder(new Order("Move", transport, Target.FromCell(world, task.DropZone), false));
 			bot.QueueOrder(new Order("Unload", transport, queued: true));
@@ -1232,6 +1305,7 @@ namespace OpenRA.Mods.Common.Traits
 				// and leaving it tracked would pin a reserved mission slot (ActiveTransportMissions) forever.
 				if (h == null || h.IsDead || !h.IsInWorld || h.Owner != player)
 				{
+					unloadRetries.Remove(h);
 					transportsAwaitingUnload.Remove(h);
 					continue;
 				}
@@ -1239,6 +1313,8 @@ namespace OpenRA.Mods.Common.Traits
 				var cargo = h.TraitOrDefault<Cargo>();
 				if (cargo == null || cargo.IsEmpty())
 				{
+					unloadRetries.Remove(h);
+
 					// Delivered (and already retreating/home via the queued Move) — done tracking.
 					transportsAwaitingUnload.Remove(h);
 					continue;
@@ -1248,8 +1324,26 @@ namespace OpenRA.Mods.Common.Traits
 				// so we never interrupt an in-progress unload or flight. IsUnoccupied, not IsIdle — a heli that
 				// finished the chain hovers on FlyIdle, so the old guard never fired and a transport that came
 				// home loaded stayed loaded for the rest of the match.
-				if (IsUnoccupied(h))
-					bot.QueueOrder(new Order("Unload", h, false));
+				if (!IsUnoccupied(h))
+					continue;
+
+				// BOUNDED. Cargo.ResolveOrder DROPS an Unload with no free adjacent cell, so a transport sitting
+				// somewhere permanently un-unloadable would retry every tick forever while still counted in
+				// ActiveTransportMissions — pinning a reserved mission slot and never returning to the pool.
+				// Give up after a few attempts and stop tracking it: the airframe is then re-poolable, and
+				// use-or-evac can retire it if it stays useless.
+				var retries = unloadRetries.TryGetValue(h, out var r) ? r : 0;
+				if (retries >= UnloadRetryLimit)
+				{
+					AIUtils.BotDebug("AI ({0}): transport heli {1} could not unload after {2} attempts — untracking",
+						player.ClientIndex, h.Info.Name, retries);
+					unloadRetries.Remove(h);
+					transportsAwaitingUnload.Remove(h);
+					continue;
+				}
+
+				unloadRetries[h] = retries + 1;
+				bot.QueueOrder(new Order("Unload", h, false));
 			}
 		}
 
@@ -1353,7 +1447,7 @@ namespace OpenRA.Mods.Common.Traits
 				// never be retired at all — the confirmed half of the idle-transport bug.
 				if (r == HelicopterAIRole.Transport)
 				{
-					EvaluateIdleTransport(h, ownSR?.Location);
+					EvaluateIdleTransport(h, ownSR?.Location ?? player.HomeLocation);
 					continue;
 				}
 
@@ -1393,7 +1487,7 @@ namespace OpenRA.Mods.Common.Traits
 		// salvage refund (RotateToEdge → GetSellValue) and ending its upkeep drain. Terminal: no hold-and-recheck.
 		// Employment always outranks retirement (TransportEmploymentMath.Decide), so a transport that could fly
 		// a lift this instant is held for TryLaunchTransportMission rather than refunded.
-		void EvaluateIdleTransport(Actor h, CPos? srCell)
+		void EvaluateIdleTransport(Actor h, CPos homeCell)
 		{
 			if (!Info.EvacuateIdleTransports)
 				return;
@@ -1417,7 +1511,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var cargo = h.TraitOrDefault<Cargo>();
 			var hasDemand = cargo != null
-				&& TransportEmploymentMath.HasLiftDemand(CountLiftCandidates(cargo, srCell), Info.TransportMinInfantry);
+				&& TransportEmploymentMath.HasLiftDemand(CountLiftCandidates(cargo, homeCell), Info.TransportMinInfantry);
 			var slotFree = TransportEmploymentMath.MissionSlotAvailable(ActiveTransportMissions, Info.TransportMissionSlots);
 
 			// INVARIANT: Employ must imply ACTUALLY-LAUNCHABLE. This proxy has to apply every gate the executor
@@ -1455,8 +1549,9 @@ namespace OpenRA.Mods.Common.Traits
 		// (LayeredDefenceBotModule.cs:86-89 PITFALL). Requiring FOUR simultaneously-idle soldiers on the tick
 		// TryLaunchTransportMission happens to sample therefore essentially never held, and no lift ever
 		// launched. MountedTransportBotModule already abandoned IsIdle here for exactly this reason
-		// (MountedTransportBotModule.cs:531-535) — the EnterTransport order is issued with queued=false, so a
-		// soldier walking forward simply turns around and boards.
+		// (MountedTransportBotModule.cs:531-535) — the EnterTransport ORDER is issued with queued=false, so a
+		// soldier walking forward simply turns around and boards (the resulting ACTIVITY is RideTransport,
+		// Passenger.cs:207).
 		//
 		// What replaces it is the same three-part availability test that module uses:
 		//   * inside the SR reserve zone — the substantive gate. Troops ALREADY on the line keep their
@@ -1464,10 +1559,14 @@ namespace OpenRA.Mods.Common.Traits
 		//     would strip the frontline.
 		//   * not committed in the shared PoiGoalGuard ledger — another module's capture/garrison/offense
 		//     claim outranks a lift.
-		//   * not already reserved by one of OUR OWN live transport tasks. IsIdle used to provide this by
-		//     accident (a soldier walking to board carries EnterTransport ⇒ not idle), so removing it
-		//     WITHOUT this clause would let a second transport pick a load that is already boarding.
-		bool IsLiftCandidate(Actor a, Cargo cargo, CPos? srCell, HashSet<Actor> reservedByOthers)
+		//   * not already reserved by a live transport task — OURS or the mounted twin's. IsIdle used to
+		//     provide BOTH by accident (a soldier walking to board carries RideTransport ⇒ not idle), so
+		//     removing it without replacing both would let a second airframe pick a load already boarding.
+		//     Ours is ReservedPassengers(); the mounted twin's is its IsPassengerReserved seam, which is
+		//     needed because the ledger does NOT cover this on @stable (MountedTransportBotModule resolves
+		//     goalGuard only under CommitPassengers, which its @poi twin does not set).
+		//   * role MainBattle — line infantry only. Without it the lift ferries the capture engineer.
+		bool IsLiftCandidate(Actor a, Cargo cargo, CPos homeCell, HashSet<Actor> reservedByOthers)
 		{
 			if (a.Owner != player || a.IsDead || !a.IsInWorld)
 				return false;
@@ -1478,20 +1577,32 @@ namespace OpenRA.Mods.Common.Traits
 			if (!cargo.Info.Types.Overlaps(a.GetAllTargetTypes()))
 				return false;
 
+			// Fails closed when the resolver is absent: no lift at all is the pre-fix status quo, whereas
+			// failing open delivers the capture specialist to a front-line drop zone.
+			if (Info.RestrictLiftToLineInfantry
+				&& (roleResolver == null || roleResolver.GetRole(a) != UnitRole.MainBattle))
+				return false;
+
 			if (reservedByOthers.Contains(a))
+				return false;
+
+			var mounted = MountedTransportRef();
+			if (mounted != null && mounted.IsPassengerReserved(a))
 				return false;
 
 			if (goalGuard != null && !goalGuard.IsTraitDisabled && goalGuard.Ledger.IsCommitted(a, world.WorldTick))
 				return false;
 
-			// No SR (dead/captured) ⇒ the spatial gate cannot be evaluated; fall back to no restriction
-			// rather than silently refusing every lift.
-			if (srCell.HasValue
-				&& !TransportEmploymentMath.InReserveZone((a.Location - srCell.Value).LengthSquared, Info.LiftReserveZoneRadiusCells))
-				return false;
-
-			return true;
+			return TransportEmploymentMath.InReserveZone((a.Location - homeCell).LengthSquared, Info.LiftReserveZoneRadiusCells);
 		}
+
+		// Anchor for the reserve bubble. Falls back to the player's spawn when the SR is dead or captured
+		// (the idiom already used for the scout home cell, :795) — a null anchor would otherwise remove the
+		// spatial gate entirely at exactly the moment we have no rear area to draw from.
+		// MULTI-SR: FindOwnSupplyRoute takes the lowest-ActorID owned SR, and ShouldBuyTransport's scan agrees
+		// with it — that agreement is what matters, since the two counts must predict each other. A CAPTURED
+		// second SR therefore gets no reserve bubble of its own; infantry massing there are not liftable.
+		CPos LiftHomeCell() => FindOwnSupplyRoute()?.Location ?? player.HomeLocation;
 
 		// Passengers held by every live load task other than the one being assembled. Plain set membership ⇒
 		// order-independent.
@@ -1504,22 +1615,43 @@ namespace OpenRA.Mods.Common.Traits
 			return reserved;
 		}
 
+		/// <summary>True if `actor` is earmarked by one of this module's live transport load tasks. The
+		/// symmetric twin of MountedTransportBotModule.IsPassengerReserved: the two transport systems must be
+		/// mutually poach-safe, and on @stable neither writes the commitment ledger, so this direct seam is the
+		/// only thing that stops a bradley from yanking a soldier that is walking to a helicopter.</summary>
+		public bool IsPassengerReserved(Actor actor)
+		{
+			foreach (var task in transportTasks.Values)
+				if (task.ReservedPassengers.Contains(actor))
+					return true;
+
+			return false;
+		}
+
+		// Passengers one lift may order aboard — see TransportEmploymentMath.LoadCap for why the airframe's
+		// own MaxWeight is the wrong number.
+		int LiftLoadCap(Cargo cargo)
+		{
+			return TransportEmploymentMath.LoadCap(Info.TransportMaxInfantry, cargo.Info.MaxWeight, Info.TransportMinInfantry);
+		}
+
 		// Infantry available and willing to ride this airframe — the LIFT DEMAND signal. Shares IsLiftCandidate
 		// with TryLaunchTransportMission, so the demand test and the load it predicts agree BY CONSTRUCTION
 		// (that agreement is load-bearing: Employ shadows Evacuate, so a demand signal the launcher cannot
 		// satisfy pins the airframe at the SR forever). Returns a capped COUNT, so world iteration order cannot
 		// affect it (determinism invariant).
-		int CountLiftCandidates(Cargo cargo, CPos? srCell)
+		int CountLiftCandidates(Cargo cargo, CPos homeCell)
 		{
 			var reserved = ReservedPassengers();
+			var cap = LiftLoadCap(cargo);
 
 			var count = 0;
 			foreach (var a in world.ActorsHavingTrait<Mobile>())
 			{
-				if (!IsLiftCandidate(a, cargo, srCell, reserved))
+				if (!IsLiftCandidate(a, cargo, homeCell, reserved))
 					continue;
 
-				if (++count >= cargo.Info.MaxWeight)
+				if (++count >= cap)
 					break;
 			}
 
