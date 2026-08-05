@@ -313,10 +313,13 @@ Player:
 		# over time as the muster point itself creeps forward. It is not a ratchet that accumulates ground, and
 		# that bounds what the sweep can show: raising the depth dial widens the standing offset.
 		# The abort is structural — the anchor is re-derived every re-eval, so a contact appearing in the corridor
-		# shortens the walk and the screen is re-ordered rearward. Its hysteresis is ONE-WAY for that reason
-		# (AdvanceHysteresisCells damps only a DEEPENING or lateral move; an anchor that stops passing the grant
-		# test, or a walk that no longer reaches as far, is dropped at once). Symmetric hysteresis would suppress
-		# exactly the one-sector closure the abort exists for, since one sector is Chebyshev 2 at CellSize 2.
+		# shortens the walk and the screen is re-ordered rearward. Its adopt rule is ONE-WAY for that reason: an
+		# anchor that stops passing the grant test, or a walk that no longer reaches as far, is dropped at once,
+		# and only a DEEPENING or lateral move could ever be damped. Symmetric hysteresis would suppress exactly
+		# the one-sector closure the abort exists for, since one sector is Chebyshev 2 at CellSize 2.
+		# AdvanceHysteresisCells is then 0 (see below): with the dangerous direction already blocked by the
+		# one-way rule, damping had nothing safe left to do, and any non-zero value blocks one-sector RE-deepening
+		# forever — the advance would ratchet to the shallowest depth it ever reached.
 		# Needs ForwardStagingEnabled (below) — the staging anchor is the seed this walk extends from.
 		# HELD OFF pending the priced sweep — same discipline as AllocationScoreQuantizeBandPct above: this
 		# reshapes live behaviour and is unmeasured. Flip to true (the three slopes below are already live) to
@@ -346,7 +349,16 @@ Player:
 		# sits one sector short of believed-enemy ground — so each advance spread slot is grant-tested and a
 		# failing slot collapses onto the anchor cell. Rings stay small so the screen is mutually supporting.
 		AdvanceSpreadRings: 1
-		AdvanceHysteresisCells: 3
+		# 0 = no damping, and that is the considered answer rather than a disabled knob. The anchor is a control-
+		# grid cell CENTRE, so it can only move in whole sectors; combined with the one-way adopt rule a scalar
+		# threshold has no useful non-zero setting. Under one sector it damps nothing; at or above one sector it
+		# permanently blocks a one-sector RE-deepening, because the identical gap recurs every re-eval and there
+		# is no later pass where the move wins — so the advance would ratchet to the shallowest depth seen and
+		# quietly bias the depth dial the sweep is meant to read. Grid-space units would not rescue it either
+		# (1 sector admits everything, 2 sectors re-creates the block); if lateral jitter ever measures as a real
+		# cost the fix is to split the test by direction. Order churn is prevented by the per-unit target-cell
+		# dedup in StageFreePool, not by this knob.
+		AdvanceHysteresisCells: 0
 		# Capturer + non-combat support (owned by CaptureCoordinator / SupplyFollower)
 		# and IFV carriers (owned by MountedTransport). Both factions' type names are
 		# listed; a name the faction lacks is simply never matched.

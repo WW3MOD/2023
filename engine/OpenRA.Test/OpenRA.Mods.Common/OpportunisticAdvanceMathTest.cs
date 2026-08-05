@@ -257,6 +257,73 @@ namespace OpenRA.Test
 				heldStillGranted: true, heldDepth: 3, candidateDepth: 1, shiftedPastHysteresis: true), Is.True);
 		}
 
+		// The shipped @experimental value. 0 is a considered setting, not a disabled knob — see the field Desc.
+		const int ShippedHysteresisCells = 0;
+
+		// One sector of anchor movement in MAP cells: anchors are control-grid cell CENTRES, so the smallest
+		// possible move is ControlField.CellSize (2) map cells. This is the quantum every hysteresis threshold
+		// is really being compared against, and the reason a scalar map-cell threshold is ill-posed here.
+		const int OneSectorInMapCells = 2;
+
+		[Test]
+		public void AnchorShifted_ZeroThreshold_AdoptsUnconditionally_IncludingZeroDisplacement()
+		{
+			// Load-bearing dependency pin, stated because it is easy to assume the wrong mechanism: a
+			// non-positive threshold is an EARLY RETURN of true (ForwardStagingMath.cs:169-170), NOT a
+			// "displacement > threshold" test. So at the shipped 0 the hysteresis disjunct is always true even
+			// when the anchor has not moved at all — and what actually prevents a re-issue in that case is the
+			// per-unit target-cell dedup in StageFreePool, not this function.
+			Assert.That(ForwardStagingMath.AnchorShifted(10, 10, 10, 10, ShippedHysteresisCells), Is.True);
+			Assert.That(ForwardStagingMath.AnchorShifted(10, 10, 12, 10, ShippedHysteresisCells), Is.True);
+		}
+
+		[Test]
+		public void AdoptAdvanceAnchor_ShippedConfig_ReadoptsDepthAfterAClosure()
+		{
+			// THE regression trace for FIX B, run at the SHIPPED config rather than at hand-chosen booleans.
+			// Depth here is FRONTIER DISTANCE, so "3 sectors deep" is frontier distance 1 and one sector of
+			// retreat is distance 2. Eval A holds the deep cell. Eval B: ground closes, the walk only reaches
+			// one sector shallower — adopt (that is FIX 2 working). Eval C: the ground re-opens and the walk
+			// reaches the deep cell again — this MUST adopt. With a non-zero map-cell threshold it never could
+			// (next test), so the advance would ratchet to the shallowest depth it had ever seen and quietly
+			// bias the very dial the sweep is meant to read.
+			bool Shifted(int fromX, int toX) =>
+				ForwardStagingMath.AnchorShifted(fromX, 0, toX, 0, ShippedHysteresisCells);
+
+			// B: held at frontier distance 1, candidate one sector shallower (distance 2).
+			Assert.That(OpportunisticAdvanceMath.AdoptAdvanceAnchor(
+				heldStillGranted: true, heldDepth: 1, candidateDepth: 2,
+				shiftedPastHysteresis: Shifted(10, 10 + OneSectorInMapCells)), Is.True, "closure must adopt");
+
+			// C: held at the shallower cell (distance 2), candidate one sector DEEPER again (distance 1), and
+			// the held anchor still reads granted — so the first two disjuncts are both false by construction
+			// and only the hysteresis term can carry this. That is exactly what the shipped 0 guarantees.
+			Assert.That(OpportunisticAdvanceMath.AdoptAdvanceAnchor(
+				heldStillGranted: true, heldDepth: 2, candidateDepth: 1,
+				shiftedPastHysteresis: Shifted(10 + OneSectorInMapCells, 10)), Is.True, "re-deepening must adopt");
+		}
+
+		[Test]
+		public void AdoptAdvanceAnchor_NonZeroMapCellHysteresis_PermanentlyBlocksOneSectorRedeepening()
+		{
+			// Why the shipped value is 0, pinned as the counterfactual. At the previously-shipped 3, a
+			// one-sector re-deepening (Chebyshev 2 < 3) fires none of the three disjuncts — and because the
+			// identical 1-sector gap recurs on every re-eval there is no later pass where it wins. Not a delay:
+			// a permanent refusal.
+			const int OldHysteresisCells = 3;
+
+			var shifted = ForwardStagingMath.AnchorShifted(10, 0, 10 + OneSectorInMapCells, 0, OldHysteresisCells);
+			Assert.That(shifted, Is.False, "one sector is below a 3-map-cell threshold");
+
+			Assert.That(OpportunisticAdvanceMath.AdoptAdvanceAnchor(
+				heldStillGranted: true, heldDepth: 2, candidateDepth: 1, shiftedPastHysteresis: shifted), Is.False);
+
+			// And the grid-space alternative is no rescue: a 1-sector threshold admits every move (equivalent to
+			// 0), while a 2-sector threshold re-creates exactly the refusal above.
+			Assert.That(ForwardStagingMath.AnchorShifted(5, 0, 6, 0, thresholdCells: 1), Is.True, "grid threshold 1 == no damping");
+			Assert.That(ForwardStagingMath.AnchorShifted(5, 0, 6, 0, thresholdCells: 2), Is.False, "grid threshold 2 blocks 1 sector");
+		}
+
 		// ---------- AdvanceCell — the extend-while-clear walk ----------
 
 		[Test]

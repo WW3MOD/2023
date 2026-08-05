@@ -585,10 +585,22 @@ namespace OpenRA.Mods.Common.Traits
 			"OpportunisticAdvanceEnabled.")]
 		public readonly int AdvanceSpreadRings = 1;
 
-		[Desc("Opportunistic advance: hysteresis (map cells, Chebyshev) — the advance anchor is only re-ADOPTED when",
-			"it shifts at least this far, so field jitter one cell wide doesn't re-lay the screen every re-eval.",
-			"Mirrors StagingHysteresisCells. Only read when OpportunisticAdvanceEnabled.")]
-		public readonly int AdvanceHysteresisCells = 3;
+		[Desc("Opportunistic advance: hysteresis (map cells, Chebyshev) on re-ADOPTING the advance anchor.",
+			"DEFAULT 0 = OFF, and that is a considered value, not a disabled knob. A scalar map-cell threshold is",
+			"ill-posed against this anchor: anchors are control-grid cell CENTRES, so the anchor can only ever move",
+			"in whole sectors (CellSize map cells), and combined with the one-way adopt rule the threshold has no",
+			"useful non-zero setting. Below one sector it damps nothing; at or above one sector it blocks a",
+			"one-sector RE-DEEPENING permanently — the same gap recurs every re-eval, so unlike an ordinary damper",
+			"there is no later pass where the move wins, and the advance ratchets to the shallowest depth it has",
+			"ever seen. That silently biases effective depth downward and confounds the AdvanceMaxSectors dial.",
+			"Expressing it in grid cells instead would NOT rescue it: a 1-sector threshold admits every move (so it",
+			"equals 0) and a 2-sector threshold re-creates the block. If lateral jitter ever measures as a real",
+			"cost, the fix is to split the test by DIRECTION — damp lateral, never damp depth — not to raise a",
+			"scalar. What keeps a static anchor from re-issuing orders is not this knob but the per-unit target-cell",
+			"dedup in StageFreePool. NOTE the value is fed to ForwardStagingMath.AnchorShifted, where a non-positive",
+			"threshold returns true UNCONDITIONALLY (an early return, not a displacement test), so 0 means 'always",
+			"adopt the fresh walk'. Only read when OpportunisticAdvanceEnabled.")]
+		public readonly int AdvanceHysteresisCells = 0;
 
 		[Desc("PHASE 3 (@experimental) RETREAT-OSCILLATION DAMPER. Builds on RetreatWhenLosing: stops small",
 			"early-spread axes ping-ponging into the SR bubble (advance, read losing, fall back, re-form, repeat).",
@@ -913,11 +925,13 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Dictionary<Actor, CPos> stagedCells = new();
 
 		// Item 31 opportunistic advance: the last ADOPTED advance anchor. This IS retained cross-eval state — the
-		// advance is not stateless, and its hysteresis is deliberately ONE-WAY (see AdoptAdvanceAnchor): it damps
-		// a deepening or lateral move, but a held anchor that no longer passes the grant test, or a walk that no
-		// longer reaches as far, replaces it immediately. Nulled whenever the gate declines or the walk grants
-		// nothing, so a re-opened corridor is re-adopted cleanly instead of being compared against a stale deep
-		// anchor. Null unless OpportunisticAdvanceEnabled.
+		// advance is not stateless. Its hysteresis is ONE-WAY (see AdoptAdvanceAnchor): a held anchor that no
+		// longer passes the grant test, or a walk that no longer reaches as far, replaces it immediately, and
+		// only a deepening or lateral move can ever be damped. At the shipped AdvanceHysteresisCells: 0 nothing
+		// is damped at all, so this field tracks the fresh walk exactly and is behaviourally inert — it earns its
+		// keep only if someone sets a non-zero threshold, which the Desc argues against. Nulled whenever the gate
+		// declines or the walk grants nothing, so a re-opened corridor is re-adopted cleanly instead of being
+		// compared against a stale deep anchor. Null unless OpportunisticAdvanceEnabled.
 		CPos? lastAdvanceAnchor;
 
 		// Wave A out-of-ammo disposition: units already sent to TERMINAL evac (RotateToEdge). Held so the recruit
@@ -1898,7 +1912,10 @@ namespace OpenRA.Mods.Common.Traits
 		// COARSENESS, stated rather than hidden: every sampler reads the coarse cell's CENTRE map cell, so the
 		// grant test resolves the ground at one-sector granularity and a sub-sector obstacle is invisible to it.
 		// What is NOT left to that coarseness is the fan-out: <paramref name="slotGranted"/> hands the caller the
-		// same grant test in MAP-cell terms so every spread slot is checked before a unit is ordered to it. That
+		// same grant test keyed by MAP cell but resolved at SECTOR granularity — it maps the cell back to its
+		// coarse cell and tests there, which is exact only while StagingSpreadStepCells == ControlField.CellSize
+		// (both 2 today), i.e. while one spread ring is exactly one sector. Every spread slot is checked before a
+		// unit is ordered to it. That
 		// matters because one spread ring at the shipped spacing is a whole coarse sector, and a depth-maximising
 		// walk routinely ends one sector short of believed-enemy ground — so an unchecked ring would order part
 		// of the screen into exactly the cells the walk refused. StableSlot's contract assumes the caller bounds
@@ -1956,24 +1973,27 @@ namespace OpenRA.Mods.Common.Traits
 			int FrontierAt(int gx, int gy) => controlField.FrontierDistanceAt(player, gx, gy);
 			bool OnGrid(int gx, int gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight;
 
-			// The single grant test, bound once and reused by all three consumers this eval — the walk's per-step
-			// admissibility, the held-anchor staleness re-test, and the spread-slot filter. One definition, so the
-			// three can never drift apart.
+			// The four condition samplers, bound ONCE as named locals. Everything that asks "is this sector
+			// granted?" this eval is built from these same four objects: the walk takes them as its per-step
+			// admissibility arguments, and Granted() below composes them for the two consumers that need the
+			// answer as a single bool. That is what makes the walk and the re-tests literally the same test —
+			// an earlier cut bound a second, separately-written set of lambdas for the walk, which was
+			// semantically identical but free to drift on the next edit.
+			bool EnemyAt(int gx, int gy) => controlField.OwnerAt(player, gx, gy) == ControlOwner.Enemy;
+			bool ContactAt(int gx, int gy) => contactCells.Contains((gx, gy));
+			int DangerAt(int gx, int gy) => dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy));
+			bool PassableAt(int gx, int gy) => passable(controlField.GridCellToMapCell(gx, gy));
+
+			// The grant test as one bool, for the held-anchor staleness re-test and the spread-slot filter. The
+			// walk cannot consume this shape — it needs the conditions separately so its own SectorIsClear call
+			// stays NUnit-pinnable without a World — so the guarantee is sameness of the SAMPLERS, not of the
+			// call. AdvanceCell's signature is deliberately untouched here: 25 pins depend on it.
 			bool Granted(int gx, int gy) => OpportunisticAdvanceMath.SectorIsClear(
-				controlField.OwnerAt(player, gx, gy) == ControlOwner.Enemy,
-				contactCells.Contains((gx, gy)),
-				dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)),
-				ceiling,
-				passable(controlField.GridCellToMapCell(gx, gy)));
+				EnemyAt(gx, gy), ContactAt(gx, gy), DangerAt(gx, gy), ceiling, PassableAt(gx, gy));
 
 			var (sgx, sgy) = controlField.MapCellToGridCell(stagingSeed);
 			var (agx, agy) = OpportunisticAdvanceMath.AdvanceCell(sgx, sgy, maxSectors, ceiling,
-				FrontierAt,
-				(gx, gy) => dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)),
-				(gx, gy) => controlField.OwnerAt(player, gx, gy) == ControlOwner.Enemy,
-				(gx, gy) => contactCells.Contains((gx, gy)),
-				(gx, gy) => passable(controlField.GridCellToMapCell(gx, gy)),
-				OnGrid);
+				FrontierAt, DangerAt, EnemyAt, ContactAt, PassableAt, OnGrid);
 
 			// Compared in GRID space, not map space: GridCellToMapCell yields the grid cell CENTRE, so a map-space
 			// round-trip only reproduces the seed on odd coordinates (the same trap ResolveMusterAnchor documents).
@@ -1994,10 +2014,16 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Hysteresis, but ONE-WAY: it may damp a deepening or lateral move and nothing else. A held anchor
 			// that no longer passes the grant test, or a fresh walk that no longer reaches as far as the held
-			// anchor, is replaced at once — otherwise a one-sector closure (Chebyshev CellSize, under the
-			// threshold) would be suppressed and the screen kept at ground that just failed. See
+			// anchor, is replaced at once — otherwise a one-sector closure (Chebyshev CellSize, under any
+			// threshold worth setting) would be suppressed and the screen kept at ground that just failed. See
 			// OpportunisticAdvanceMath.AdoptAdvanceAnchor for why staging can keep plain symmetric hysteresis
 			// and this cannot.
+			//
+			// AT THE SHIPPED AdvanceHysteresisCells: 0 the third disjunct is always true, so this reduces to
+			// "adopt the fresh walk" and the first two never decide anything — they exist for a non-zero
+			// threshold, which the Desc argues against setting. Keeping a static anchor from re-issuing orders is
+			// NOT this block's job: the per-unit dedup below compares target CELLS, so an unchanged field yields
+			// unchanged targets and no order, whatever this returns.
 			if (lastAdvanceAnchor.HasValue)
 			{
 				var (lgx, lgy) = controlField.MapCellToGridCell(lastAdvanceAnchor.Value);

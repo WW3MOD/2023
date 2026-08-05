@@ -173,7 +173,17 @@ namespace OpenRA.Mods.Common.Traits
 		/// So the guard is an enter/exit asymmetry, the same shape as the Stage-E/F strict-improvement rule:
 		/// hysteresis may only ever damp a DEEPENING or lateral move. Either of the two retreat cases adopts
 		/// immediately — the held anchor no longer passing the grant test, or the fresh walk not reaching as far
-		/// as the held anchor. Advancing is damped; giving ground is not.</summary>
+		/// as the held anchor. Giving ground is never damped.
+		///
+		/// THE SHIPPED CONFIG PASSES <paramref name="shiftedPastHysteresis"/> = true ALWAYS, so in practice this
+		/// reduces to "adopt the fresh walk". That is deliberate. Making the asymmetry one-way removed the danger
+		/// from damping, but it also exposed that damping had nothing safe left to do: the anchor moves only in
+		/// whole sectors, so any scalar threshold either admits every move or blocks a one-sector re-deepening —
+		/// and a blocked re-deepening never gets a later pass to win, because the identical one-sector gap recurs
+		/// each eval. The advance would ratchet to the shallowest depth it had ever reached. See
+		/// PoiOffensiveBotModule.AdvanceHysteresisCells for the full argument and for why grid-space units do not
+		/// rescue it. The parameter is kept — the asymmetry is the load-bearing part and must survive anyone who
+		/// sets a non-zero threshold — but the shipped answer is 0.</summary>
 		public static bool AdoptAdvanceAnchor(bool heldStillGranted, int heldDepth, int candidateDepth, bool shiftedPastHysteresis)
 		{
 			return !heldStillGranted
