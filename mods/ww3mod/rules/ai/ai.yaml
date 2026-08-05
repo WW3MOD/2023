@@ -532,6 +532,18 @@ Player:
 		LateralSpreadEnabled: true
 		SrPoolSharePct: 40
 		ForwardMusterEnabled: true
+		# SR FLOW SHAPE (user decision 2026-08-05, fork record "SR flow shape" in WORKSPACE/AWAITING-USER.md):
+		# fresh spawns ADVANCE IMMEDIATELY, SINGLY — zero assembly anywhere — rather than forward-assembling with
+		# a capped wait at the forward muster. This suppresses damper arm (b), the fill-completion massing hold:
+		# an axis still receiving its allocation now commits straight to its objective, so a reinforcement leaves
+		# for the demand point the eval it is recruited and the axis arrives piecemeal into contact (the accepted
+		# cost of the pick — maximum responsiveness). Nothing else is suppressed: the post-retreat dwell,
+		# SectorPostureHold, the free-pool forward stager and transport-fill waits are separate disciplines and
+		# stay live, so the muster machinery above is untouched. MinAdvanceStrength / MaxAdvanceHoldEvals are
+		# consequently inert for this profile while this is true — they are kept as the revert path (drop this
+		# one line and the forward-assemble shape returns). Default OFF on the engine class ⇒ the @stable twin
+		# (which omits this field) is byte-identical.
+		ImmediateReinforcementCommit: true
 
 	# experimental AI: HOLD captured money POIs (POI-strategy Phase 4). Once the AI owns an
 	# oilb/fcom/bio it parks a SMALL garrison (1-3 units, scaled by value + bumped

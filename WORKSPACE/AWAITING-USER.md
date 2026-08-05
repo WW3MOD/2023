@@ -19,7 +19,6 @@
 ### Posted questions (in the dashboard, unanswered)
 - **Tactical-layer default for humans** *(2026-08-04, proceeding on default)* — auto supply-seek / OOA evac ON by default for human units, stance-disableable (default, conf 85) vs OFF until tried in-game. The default-ON flip ships as its own one-line commit; redirect reverses it trivially.
 - **OOA fallback** *(2026-08-04, proceeding on default)* — vehicle out of ammo with NO reachable rearm source: terminal evac + sell (default, conf 80) vs hold safe + periodic re-check.
-- **SR flow shape** *(2026-08-04, proceeding on default)* — fresh spawns: forward-assemble with capped wait at the forward muster (default, conf 75) vs advance immediately, singly. Transport-fill waits legitimate either way.
 - **Streak protocol** *(2026-07-31)* — what counts as one game in the 10-win streak.
 - **Non-wins** *(2026-07-31)* — do draws / timeouts / crashes break the streak.
 - **Queue handling** *(2026-07-31)* — do the streak campaign + fixes supersede the parked pipeline items.
@@ -30,3 +29,5 @@
 
 ## RESOLVED
 _Move items here with the decision + date._
+
+- **SR flow shape** *(posted 2026-08-04, DECIDED 2026-08-05)* — user picked the non-default arm: **"Advance immediately, singly — zero assembly anywhere; maximally responsive but arrives piecemeal into contact."** Implemented on `auto/spawn-flow` as `ImmediateReinforcementCommit` (`SpawnFlowMath.SuppressMassingHold`), which suppresses damper arm (b) — the fill-completion massing hold at the forward muster — and nothing else. Post-retreat dwell, `SectorPostureHold`, the free-pool forward stager and transport-fill waits stay live (the last per the fork record's own "legitimate either way"). @experimental-only; `@stable` byte-identical. Revert path: drop the single `ImmediateReinforcementCommit: true` line from `ai.yaml`.
