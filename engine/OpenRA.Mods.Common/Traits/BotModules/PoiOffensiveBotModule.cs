@@ -540,6 +540,20 @@ namespace OpenRA.Mods.Common.Traits
 			"0 = UNCAPPED (the pre-reshape reading). Only read when RetreatDamperEnabled.")]
 		public readonly int MaxAdvanceHoldEvals = 0;
 
+		[Desc("SR FLOW SHAPE (@experimental) — IMMEDIATE REINFORCEMENT COMMIT. Takes the 'advance immediately,",
+			"singly' arm of the fresh-spawn fork (user decision 2026-08-05) over the shipped 'forward-assemble",
+			"with a capped wait at the forward muster'. Suppresses damper arm (b) — the FILL-COMPLETION massing",
+			"hold — so an axis still receiving its allocation commits straight to its objective instead of",
+			"gathering at the muster first. Every reinforcement therefore leaves for the demand point the eval it",
+			"is recruited, and the axis arrives piecemeal into contact: that is the accepted cost of the pick.",
+			"Suppresses NOTHING else — the post-retreat dwell (a), SectorPostureHold, the free-pool forward",
+			"stager and transport-fill waits are all different disciplines and stay live, so the muster machinery",
+			"itself is untouched. While this is on, MinAdvanceStrength / MaxAdvanceHoldEvals / the fill-completion",
+			"reshape are unreachable for arm (b) and thus inert (they stay in the YAML as the revert path).",
+			"OFF by default ⇒ the @stable twin (which omits this field) keeps the forward-assemble shape,",
+			"byte-identical. Pure SpawnFlowMath (NUnit-pinned), zero RNG.")]
+		public readonly bool ImmediateReinforcementCommit = false;
+
 		[Desc("PHASE 4 (@experimental) FRONTLINE STRENGTH PROFILE (sensor only — no order-issuing change).",
 			"Opts this player in to the ControlField's per-frontier-sector believed OWN-vs-ENEMY strength",
 			"profile + avenue (crossing) mapping, so a future consumer can ask 'which frontier sector is the",
@@ -2171,6 +2185,8 @@ namespace OpenRA.Mods.Common.Traits
 			// Held at the forward staging anchor when Phase-2 staging is on (off the SR road), else the rally cell.
 			// Reuses OrderRetreat's gated grouped AttackMove; runs BEFORE the mission-commitment snapshot + RETURNS,
 			// so a damped axis is never marked Committed (same discipline as the retreat above). Inert when off.
+			// SR flow shape: ImmediateReinforcementCommit suppresses (b) entirely — see DamperShouldHold — so under
+			// that doctrine only (a) can reach this hold, and FillHoldEvals below then only ever tallies dwell evals.
 			var damperHold = Info.RetreatDamperEnabled && rallyCell.HasValue && DamperShouldHold(axis);
 
 			// Step the hold counter the eval cap reads. Stepped on every pass (not only when holding) so the budget
@@ -3050,10 +3066,16 @@ namespace OpenRA.Mods.Common.Traits
 		// Wave B: the strength gate is now FILL-COMPLETION — it holds only while the force ALLOCATED to this axis has
 		// not all arrived, and only for MaxAdvanceHoldEvals evals. As an absolute bar it could never be satisfied by a
 		// small axis, so it parked units in the rear for the whole match.
+		// SR flow shape: under ImmediateReinforcementCommit the massing arm (b) is suppressed outright, so a
+		// still-filling axis advances on its objective the eval it is formed instead of waiting at the muster
+		// for the rest of its allocation. Conjunctive on ReadvanceHold, so the post-retreat dwell (arm a) —
+		// which is retreat-oscillation damping, not reinforcement assembly — still holds. Everything the gate
+		// leaves reachable is byte-identical, and with the flag off the whole line is.
 		bool DamperShouldHold(Axis axis)
-			=> RetreatDamperMath.ShouldHold(axis.Retreat, axis.ReadvanceHold, axis.NearRally,
-				OwnAxisStrength(axis), Info.MinAdvanceStrength, axis.Units.Count, axis.AllocatedSize,
-				axis.FillHoldEvals, Info.MaxAdvanceHoldEvals);
+			=> !SpawnFlowMath.SuppressMassingHold(Info.ImmediateReinforcementCommit, axis.ReadvanceHold)
+				&& RetreatDamperMath.ShouldHold(axis.Retreat, axis.ReadvanceHold, axis.NearRally,
+					OwnAxisStrength(axis), Info.MinAdvanceStrength, axis.Units.Count, axis.AllocatedSize,
+					axis.FillHoldEvals, Info.MaxAdvanceHoldEvals);
 
 		// Phase 5: should this axis HOLD because the sector it STANDS IN reads too strong? Reads the believed
 		// per-sector profile (own vs enemy strength + front presence) and delegates the ratio test to the pure
