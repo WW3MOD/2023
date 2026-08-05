@@ -115,9 +115,22 @@ Player:
 		# armour is eaten. With this on, the module censuses what it owns (per-mille of army VALUE, with
 		# pending call-ins credited and evacuating units excluded) and buys the type furthest below target.
 		CompositionDirected: true
+		# Targets are also CEILINGS: a class at or over its share stops being called in, a cycle where every
+		# composed candidate is over target declines instead of falling back to the uniform lottery, and the
+		# counter-buy FIFO is folded under the same ceiling. See UnitBuilderBotModuleInfo for why the lottery
+		# fallback mattered — a bot spends to zero routinely and the affordability gate made it frequent.
+		CompositionEnforceTargetCeiling: true
 		# TARGETS (not the ceilings UnitsToBuild weights are): per-mille of army VALUE. Sums to 1000.
 		# Only types listed here are eligible for this pick — helicopters are deliberately absent (deferred
 		# to their own lane) and so are never chosen by it.
+		#
+		# PROVISIONAL RETUNE (2026-08-05, baseline-bulk direction) — REVIEW AT MERGE. The infantry block is
+		# unchanged in TOTAL (450, vehicles keep 550); only its internal split moved. Shares are per VALUE but
+		# the design intent is per HEAD, and line infantry is the cheap end of the roster (rifle/LMG/grenadier
+		# 100, mortar/AT/AA 300, sniper 400), so a value share converts to very different head counts. The old
+		# split put line infantry at 65% of infantry HEADS; this one puts it at 80%, i.e. ~2.5 support per 10
+		# line instead of ~5.2. Per 10 line infantry the support tail is now AT 0.9, mortar 0.5, AA 0.4,
+		# medic 0.4, sniper 0.1, engineer 0.1, technician 0.1.
 		UnitTargetShares:
 			# Armour core — the force that actually takes and holds ground.
 			abrams: 190
@@ -125,25 +138,28 @@ Player:
 			# Screen / lift.
 			humvee: 40
 			m113: 30
-			# Indirect fire — mt.america is the type that was drifting; 50 is the deliberate cap-by-target.
-			mt.america: 50
+			# Indirect fire.
 			m109: 60
 			# Air defence (strykershorad additionally stays capped by ScaleAntiAirToThreat above).
 			strykershorad: 50
-			aa.america: 40
-			# Line infantry.
-			e3.america: 60
-			ar.america: 60
-			tl.america: 40
-			e2.america: 40
-			# Anti-armour infantry — the cheap answer to a believed enemy tank push.
-			at.america: 90
-			# Specialists and logistics (each additionally bounded by UnitLimits above).
-			sn.america: 15
-			medi.america: 15
-			e6.america: 15
-			tecn.america: 25
 			truk: 40
+			# ===== Line infantry — the BULK of the foot force (80% of infantry head count) =====
+			e3.america: 95
+			ar.america: 78
+			tl.america: 62
+			e2.america: 47
+			# ===== Support infantry — small fractions of the line, not a second army =====
+			# Anti-armour infantry — the cheap answer to a believed enemy tank push, and the largest support
+			# share; the armor>antitank counter bias can lift it further when armour is actually believed.
+			at.america: 66
+			# mt.america is the type that was drifting; this is the deliberate cap-by-target.
+			mt.america: 37
+			aa.america: 28
+			# Specialists and logistics (each additionally bounded by UnitLimits above).
+			sn.america: 12
+			medi.america: 9
+			e6.america: 8
+			tecn.america: 8
 		# Role tokens — the row/column keys for CounterMatrixPct below. A type with no role simply
 		# receives no counter bias. The armour line and the foot line are SEPARATE tokens on purpose:
 		# sharing one "frontline" token would make believed enemy infantry raise the Abrams target by
