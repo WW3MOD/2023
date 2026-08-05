@@ -122,11 +122,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 					yield return new TargetLineRenderable(ActivityTargetPath(self), Color.Green, 1, 2);
 			}
 
-			// Hide decorations for spectators that zoom out further than the normal minimum level
-			// This avoids graphical glitches with pip rows and icons overlapping the selection box
-			if (wr.Viewport.Zoom < wr.Viewport.MinZoom)
-				yield break;
-
+			// PITFALL: do NOT reinstate upstream's `if (wr.Viewport.Zoom < wr.Viewport.MinZoom) yield break;` here.
+			// It assumed sub-MinZoom is a spectator-only regime, but WW3MOD unlocks the min zoom for every
+			// viewport (Viewport.cs:69 `unlockMinZoom = true`), so sub-MinZoom is the bottom half of the
+			// ordinary player zoom range — the gate made pips vanish mid-zoom-out during normal play.
 			var renderDecorations = selected ? selectedDecorations : decorations;
 			foreach (var r in renderDecorations)
 				foreach (var rr in r.RenderDecoration(self, wr, this))
