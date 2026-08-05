@@ -196,6 +196,7 @@ label-paused = Paused
 label-max-speed = Max Speed
 label-replay-speed = { $percentage }% Speed
 label-replay-complete = { $percentage }% complete
+label-real-time = Real time: { $time }
 
 ## LobbyLogic, InGameChatLogic
 label-chat-disabled = Chat Disabled

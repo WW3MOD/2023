@@ -1,0 +1,1 @@
+Auto: Screenshot the in-game clock at known WorldTicks while the sim runs at an accelerated world.Timestep. Verifies the clock reports GAMETIME (ticks x configured timestep) and does not rescale with speed.

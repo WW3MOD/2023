@@ -1477,7 +1477,7 @@ Container@PLAYER_WIDGETS:
 							Y: 4
 							ImageCollection: cash-icons
 							ImageName: cash-normal
-				Label@GAME_TIMER:
+				LabelWithTooltip@GAME_TIMER:
 					Logic: GameTimerLogic
 					X: PARENT_WIDTH - WIDTH - 5
 					Y: 3
@@ -1485,6 +1485,8 @@ Container@PLAYER_WIDGETS:
 					Height: 23
 					Align: Center
 					Font: TinyBold
+					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: SIMPLE_TOOLTIP
 
 				# LabelWithTooltip@UPKEEP:
 				# 	Logic: IngamePowerCounterLogic

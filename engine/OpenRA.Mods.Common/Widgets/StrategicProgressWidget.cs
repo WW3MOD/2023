@@ -65,7 +65,9 @@ namespace OpenRA.Mods.Common.Widgets
 			var winnerSvc = pendingWinner.PlayerActor.Trait<StrategicVictoryConditions>();
 
 			var isVictory = pendingWinner.RelationshipWith(world.LocalPlayer) == PlayerRelationship.Ally;
-			var tc = $"Strategic {(isVictory ? "victory" : "defeat")} in {WidgetUtils.FormatTime(winnerSvc.TicksLeft, world.Timestep)}";
+			// PITFALL: not world.Timestep — the debug speed button mutates it, rescaling this
+			// countdown out of step with the game clock.
+			var tc = $"Strategic {(isVictory ? "victory" : "defeat")} in {WidgetUtils.FormatTime(winnerSvc.TicksLeft, world.GameSpeed.Timestep)}";
 
 			var font = Game.Renderer.Fonts["Bold"];
 
