@@ -132,8 +132,8 @@ namespace OpenRA.Mods.Common.Traits
 			"a single scouted unit must not re-plan the army.")]
 		public readonly int ThreatDeadbandPerMille = 30;
 
-		[Desc("EXPERIMENTAL (composition ceilings): stop the two lanes that buy PAST UnitTargetShares.",
-			"Exactly two effects, both inert without this flag:",
+		[Desc("EXPERIMENTAL (composition ceilings): stop the three lanes that buy PAST UnitTargetShares.",
+			"All three effects are inert without this flag:",
 			"  * a cycle where composed types are buildable but all priced out or at their UnitLimit DECLINES",
 			"    instead of falling back to ChooseRandomUnitToBuild — that fallback is a uniform lottery, i.e.",
 			"    exactly the lifetime-proportional drift CompositionDirected exists to remove, so taking it",
@@ -141,13 +141,18 @@ namespace OpenRA.Mods.Common.Traits
 			"  * the external-request FIFO (counter-composition buys from AdaptiveProductionBotModule) is folded",
 			"    under the targets, so a side lane cannot buy past them. The PRIORITY lane is deliberately NOT",
 			"    bounded — the capture-supply floor must stay able to out-compete — and types named in",
-			"    CompositionCeilingExemptTypes are exempt on the FIFO lane too.",
-			"It does NOT change the deficit pick. Restricting that argmax to under-target classes is a provable",
-			"no-op (see ForceCompositionMath.SelectDeficit): the unrestricted maximizer is already under target",
-			"whenever any slot is, so 'never buy an over-target class while any class is short' is a property",
-			"the plain argmax always had.",
-			"Default false ⇒ the frozen fallback and the unbounded FIFO both run unchanged, so",
-			"normal/rush/turtle/@stable keep their RNG draw count and order.")]
+			"    CompositionCeilingExemptTypes are exempt on the FIFO lane too;",
+			"  * the module's OWN deficit pick drops every class STRICTLY over target",
+			"    (ForceCompositionMath.ApplyCeilingEligibility), so an over-target class is never bought at all.",
+			"That third lane is NOT the no-op it looks like. Restricting the argmax and then falling BACK to the",
+			"unrestricted one would be (see ForceCompositionMath.SelectDeficit); restricting it and DECLINING is",
+			"not, because eligibility is affordability-filtered. In the low-cash band the only eligible member of",
+			"a queue is its CHEAPEST type, so the unrestricted argmax degenerates into 'buy the cheapest thing'",
+			"every cycle without limit — measured live as a bot that filled its Supply Route with 10+ humvees",
+			"(450, the cheapest composed vehicle) against a 40‰ target while never banking enough for the armour",
+			"core. Declining banks the cash instead.",
+			"Default false ⇒ the frozen fallback, the unbounded FIFO and the unrestricted argmax all run",
+			"unchanged, so normal/rush/turtle/@stable keep their RNG draw count and order.")]
 		public readonly bool CompositionEnforceTargetCeiling = false;
 
 		[Desc("Actor types whose EXTERNAL requests bypass the composition ceiling on the FIFO lane. The",
@@ -658,6 +663,14 @@ namespace OpenRA.Mods.Common.Traits
 				eligible[i] = IsCompositionCandidateEligible(compositionTypes[i], buildableNames, budget);
 				anyComposedTypeInQueue |= buildableNames.Contains(compositionTypes[i]);
 			}
+
+			// CEILING on our OWN pick (experimental). Without this the affordability filter above turns the
+			// argmax into "buy the cheapest composed type in this queue" whenever cash is in the low band, no
+			// matter how far over target that type already sits — see ApplyCeilingEligibility. anyComposedTypeInQueue
+			// is measured before this, so stripping the over-target slots routes into the decline path below
+			// (bank the cash) rather than the uniform-lottery fallback.
+			if (Info.CompositionEnforceTargetCeiling)
+				eligible = ForceCompositionMath.ApplyCeilingEligibility(targets, census, eligible);
 
 			var idx = ForceCompositionMath.SelectDeficit(targets, census, eligible);
 			if (idx < 0)

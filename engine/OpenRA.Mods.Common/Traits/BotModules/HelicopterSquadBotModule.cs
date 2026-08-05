@@ -1389,7 +1389,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			if (!h.IsIdle)
+			if (!IsUnoccupied(h))
 			{
 				idleTicks[h] = 0;
 				return;
@@ -1424,6 +1424,22 @@ namespace OpenRA.Mods.Common.Traits
 			if (TransportEmploymentMath.Decide(ticks, Info.TransportIdleEvacuateTicks, hasDemand && launchable, slotFree)
 				== TransportDisposition.Evacuate)
 				Evacuate(h);
+		}
+
+		// Actor.IsIdle (CurrentActivity == null) is the WRONG idleness test for an airframe and is essentially
+		// never true for one. With the default IdleBehavior (None) and the helicopter above LandAltitude,
+		// Aircraft.OnBecomingIdle queues FlyIdle (Aircraft.cs:936), and FlyIdle.Tick never returns true while
+		// nothing is queued behind it (FlyIdle.cs:39-41: remainingTicks -1 and NextActivity null). A transport
+		// hovering over its Supply Route therefore carries that activity forever, so a plain !IsIdle test reset
+		// idleTicks every tick and TransportIdleEvacuateTicks could never be reached — the transport parked at
+		// the SR permanently. Hovering on FlyIdle with nothing queued behind it IS doing nothing.
+		static bool IsUnoccupied(Actor h)
+		{
+			if (h.IsIdle)
+				return true;
+
+			var current = h.CurrentActivity;
+			return current is FlyIdle && current.NextActivity == null;
 		}
 
 		// Infantry available and willing to ride this airframe — the LIFT DEMAND signal. Mirrors the candidate
