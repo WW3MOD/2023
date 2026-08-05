@@ -14,6 +14,10 @@
  *   (4) SELECTION — largest deficit wins, ties resolve to the lower ordinal, ineligible slots are skipped,
  *       an all-at-or-over-target vector still selects (the least-over entry), and -1 comes back ONLY when
  *       nothing is eligible.
+ *   (4b) THE CEILING — the two things CompositionEnforceTargetCeiling actually changes: when a build cycle
+ *       DECLINES rather than falling back to the uniform lottery, and when an external FIFO request is over
+ *       target. Note what is absent: the flag does NOT change the pick, because restricting the argmax to
+ *       under-target slots is a provable no-op.
  *   (5) THE REGRESSION — the measured drift shape (mortars far over target, frontline far under) must select
  *       frontline and must never select mortar.
  * Pure integer math; no world mounted.
@@ -233,6 +237,118 @@ namespace OpenRA.Test
 			var census = new[] { 0, 0, 0 };
 			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, new[] { false, false, false }), Is.EqualTo(-1));
 			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, new[] { false, true, false }), Is.EqualTo(1));
+		}
+
+		// ===== (4b) The two real effects of CompositionEnforceTargetCeiling =====
+		//
+		// NOT pinned here, deliberately: "the pick prefers under-target classes". Restricting SelectDeficit to
+		// deficit > 0 and falling back to the unrestricted argmax when that finds nothing is a provable no-op
+		// (if any eligible slot is under target, the unrestricted maximizer is itself under target and both
+		// walks tie-break to the same lowest index), so there is nothing to pin. The flag's real effects are
+		// the declined cycle and the FIFO ceiling below.
+
+		[Test]
+		public void ShouldDeclineCycle_FlagOffAlwaysTakesTheLegacyFallback()
+		{
+			// The byte-identity guarantee: with the flag off nothing can ever decline, whatever the queue looks
+			// like, so the frozen path still reaches ChooseRandomUnitToBuild and keeps its RNG draw.
+			Assert.That(ForceCompositionMath.ShouldDeclineCycle(false, false, true), Is.False);
+			Assert.That(ForceCompositionMath.ShouldDeclineCycle(false, false, false), Is.False);
+		}
+
+		[Test]
+		public void ShouldDeclineCycle_NothingEligibleButComposedTypesBuildableDeclines()
+		{
+			// Composed types ARE buildable here and none came back eligible — priced out, or at UnitLimit.
+			// That is a decision not to buy, not an absence of opinion.
+			Assert.That(ForceCompositionMath.ShouldDeclineCycle(true, false, true), Is.True);
+		}
+
+		[Test]
+		public void ShouldDeclineCycle_NoComposedTypeInThisQueueStillFallsBack()
+		{
+			// A heli-only pool has no composition opinion at all; declining there would cut purchase volume.
+			Assert.That(ForceCompositionMath.ShouldDeclineCycle(true, false, false), Is.False);
+		}
+
+		[Test]
+		public void ShouldDeclineCycle_ASelectionNeverDeclines()
+		{
+			Assert.That(ForceCompositionMath.ShouldDeclineCycle(true, true, true), Is.False);
+			Assert.That(ForceCompositionMath.ShouldDeclineCycle(true, true, false), Is.False);
+		}
+
+		[Test]
+		public void RequestExceedsCeiling_ExcludesTheRequestsOwnPendingCredit()
+		{
+			// THE FIX-3 CASE. Slot 0 is antitank at cost 300; the census already credits the very request under
+			// test (it is still on queuedBuildRequests when the predicate is asked). Raw census 300/2700 is
+			// exactly 100‰ against a 100‰ target — reading that as "at target" would refuse a class whose
+			// STANDING share is 0. Excluding the candidate's own cost is what restores "already over".
+			var census = new[] { 300, 2700 };
+			var targets = new[] { 100, 900 };
+
+			Assert.That(ForceCompositionMath.RequestExceedsCeiling(census, 0, 300, targets), Is.False,
+				"Standing value at this slot is zero once the request's own credit comes out.");
+
+			// Same numbers WITHOUT the exclusion is the buggy reading, and it refuses.
+			Assert.That(ForceCompositionMath.DeficitAt(targets, ForceCompositionMath.SharesPerMille(census), 0),
+				Is.LessThanOrEqualTo(0), "The un-subtracted census is exactly at target — the old rule refused here.");
+		}
+
+		[Test]
+		public void RequestExceedsCeiling_GenuinelyOverTargetIsStillRefused()
+		{
+			// 1500 standing + 300 for the request under test, against a 100‰ target on a 3000 army: still far
+			// over once its own cost is removed.
+			var census = new[] { 1800, 1200 };
+			var targets = new[] { 100, 900 };
+
+			Assert.That(ForceCompositionMath.RequestExceedsCeiling(census, 0, 300, targets), Is.True);
+		}
+
+		[Test]
+		public void RequestExceedsCeiling_UnderTargetIsAllowed()
+		{
+			var census = new[] { 300, 2700 };
+			var targets = new[] { 400, 600 };
+
+			Assert.That(ForceCompositionMath.RequestExceedsCeiling(census, 0, 300, targets), Is.False);
+		}
+
+		[Test]
+		public void RequestExceedsCeiling_NeverMutatesTheCallersCensus()
+		{
+			// The caller reuses CensusValues() output; a subtracting predicate must not corrupt it.
+			var census = new[] { 1800, 1200 };
+			var targets = new[] { 100, 900 };
+
+			ForceCompositionMath.RequestExceedsCeiling(census, 0, 300, targets);
+
+			Assert.That(census, Is.EqualTo(new[] { 1800, 1200 }));
+		}
+
+		[Test]
+		public void RequestExceedsCeiling_UnknownSlotOrNullInputReadsAsNotOver()
+		{
+			var census = new[] { 1800, 1200 };
+			var targets = new[] { 100, 900 };
+
+			Assert.That(ForceCompositionMath.RequestExceedsCeiling(census, -1, 300, targets), Is.False);
+			Assert.That(ForceCompositionMath.RequestExceedsCeiling(census, 9, 300, targets), Is.False);
+			Assert.That(ForceCompositionMath.RequestExceedsCeiling(null, 0, 300, targets), Is.False);
+			Assert.That(ForceCompositionMath.RequestExceedsCeiling(census, 0, 300, null), Is.False);
+		}
+
+		[Test]
+		public void RequestExceedsCeiling_CostLargerThanTheCensusClampsToZero()
+		{
+			// Defensive: a cost bigger than the recorded slot value must floor at 0, not go negative and
+			// corrupt the apportionment.
+			var census = new[] { 100, 900 };
+			var targets = new[] { 100, 900 };
+
+			Assert.That(ForceCompositionMath.RequestExceedsCeiling(census, 0, 5000, targets), Is.False);
 		}
 
 		// ===== (5) The regression this whole lane exists to fix =====

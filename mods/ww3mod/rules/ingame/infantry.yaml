@@ -1176,6 +1176,8 @@ E1R1:
 		Description: Standard infantry rifleman and backbone of the fire team.\n\n - 5.56mm rifle\n - Disposable anti-tank rocket (supply: 25)\n - No armor
 	Valued:
 		Cost: 100
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	AttackFrontal:
 		ForceFireIgnoresActors: True
 	Armament@1:
@@ -1293,6 +1295,8 @@ E3R1:
 		Description: Delivers sustained suppressive fire against area targets.\n\n - 5.56mm light machine gun\n - High ammo capacity\n - No armor
 	Valued:
 		Cost: 100
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Armament@1:
 		Name: primary
 		Weapon: 5.56mm.AR
@@ -1357,6 +1361,8 @@ AR:
 		Description: High-explosive specialist effective against infantry and light vehicles.\n\n - Grenade launcher (supply: 3/rnd)\n - 30 round magazine\n - No armor
 	Valued:
 		Cost: 100
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Armament@1:
 		Name: primary
 		Weapon: GrenadeLauncher.5mag
@@ -1427,6 +1433,8 @@ E2R1:
 		Description: Squad leader and designated marksman. Boosts morale of nearby soldiers.\n\n - 7.62mm DMR\n - 40mm grenade launcher (supply: 10/rnd)\n - Morale boost aura (4 cells)\n - No armor
 	Valued:
 		Cost: 200
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	ProximityExternalCondition@TLBoost:
 		Condition: morale-boost
 		ValidRelationships: Ally
@@ -2196,6 +2204,8 @@ MEDI:
 		Description: Operates buildings and captures neutral structures.\n\n - Unarmed\n - No armor
 	Valued:
 		Cost: 250
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Passenger:
 		CustomPipType: tecn_class
 	WithDecoration@Class:

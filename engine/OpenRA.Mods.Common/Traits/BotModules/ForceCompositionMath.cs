@@ -194,7 +194,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// above its target this returns the LEAST-OVER one. That keeps the purchase VOLUME identical to the
 		/// frozen path (we still buy on every cycle — budget is spent, not withheld) while keeping the
 		/// proportions as close to target as a single buy can. Returns -1 ONLY when nothing is eligible, which
-		/// the caller treats as "this queue has no composition opinion" and falls back to the legacy pick.</summary>
+		/// the caller treats as "this queue has no composition opinion" and falls back to the legacy pick.
+		///
+		/// NOTE for anyone tempted to add a "only buy classes under target" filter here: restricting this
+		/// argmax to deficit &gt; 0 and falling back to the unrestricted argmax when that finds nothing is a
+		/// PROVABLE NO-OP. If any eligible slot is under target then the unrestricted maximizer is itself under
+		/// target, so it lies in the restricted candidate set and both walks tie-break to the same lowest
+		/// index; if none is, the restricted pass returns -1 and the fallback runs the unrestricted pass
+		/// anyway. The useful property — an over-target class is never bought while any class is still short —
+		/// is already a property of the plain argmax below.</summary>
 		public static int SelectDeficit(int[] targetsPerMille, int[] censusPerMille, bool[] eligible)
 		{
 			if (targetsPerMille == null || eligible == null)
@@ -219,6 +227,41 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return best;
+		}
+
+		/// <summary>Should this build cycle DECLINE rather than fall back to the legacy uniform lottery?
+		///
+		/// Only when the ceiling is enabled, the deficit pick found nothing, AND at least one composed type is
+		/// actually buildable from this queue. That last term is the whole point: "no composed type is
+		/// buildable here at all" is genuine no-opinion (a heli-only pool) and MUST still fall back so purchase
+		/// volume is unchanged, whereas "composed types exist but every one is priced out or at its UnitLimit"
+		/// is a decision not to buy — and falling back there draws the lifetime-proportional lottery that
+		/// composition-directed purchasing exists to remove.</summary>
+		public static bool ShouldDeclineCycle(bool ceilingEnabled, bool selectionFound, bool anyComposedTypeBuildable)
+		{
+			return ceilingEnabled && !selectionFound && anyComposedTypeBuildable;
+		}
+
+		/// <summary>Is an externally requested call-in of <paramref name="candidateCost"/> at slot
+		/// <paramref name="slot"/> ALREADY at or over its target share — i.e. excluding the request's own
+		/// pending credit?
+		///
+		/// The caller's census credits every entry of its request lists, and the request under test is still on
+		/// one of them when this is asked, so its own cost has to come back out first. Without that subtraction
+		/// the rule silently becomes "would be over AFTER this buy", which refuses a class that is legitimately
+		/// still short by less than one unit's worth of share.
+		///
+		/// <paramref name="censusValues"/> is the raw per-slot VALUE census (not yet apportioned); it is
+		/// copied, never mutated. A slot outside either array, or a null input, reads as "not over".</summary>
+		public static bool RequestExceedsCeiling(int[] censusValues, int slot, int candidateCost, int[] targetsPerMille)
+		{
+			if (censusValues == null || targetsPerMille == null || slot < 0 || slot >= censusValues.Length)
+				return false;
+
+			var adjusted = (int[])censusValues.Clone();
+			adjusted[slot] = adjusted[slot] > candidateCost ? adjusted[slot] - candidateCost : 0;
+
+			return DeficitAt(targetsPerMille, SharesPerMille(adjusted), slot) <= 0;
 		}
 
 		/// <summary>The deficit the selection was made on — exposed so the caller can log it without

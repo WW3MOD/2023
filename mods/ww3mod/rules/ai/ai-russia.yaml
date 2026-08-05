@@ -111,34 +111,45 @@ Player:
 		# ground call-in was a uniform lottery and the standing army settled proportional to each type's
 		# LIFETIME (long-lived rear-line mortars accumulate). This buys the type furthest below target.
 		CompositionDirected: true
+		# Stops the two lanes that bought PAST the targets (declined cycle instead of a lottery fallback, and
+		# the counter-buy FIFO folded under the targets). It does NOT change the deficit pick — restricting
+		# that argmax to under-target slots is a provable no-op. Mirror of the America block; see
+		# ai-america.yaml for the full rationale, and CompositionCeilingExemptTypes for the capturer carve-out.
+		CompositionEnforceTargetCeiling: true
+		CompositionCeilingExemptTypes: tecn.russia
 		# TARGETS (not ceilings): per-mille of army VALUE. Sums to 1000. Helicopters are deliberately
 		# absent (deferred to their own lane) and so are never chosen by this pick.
+		#
+		# PROVISIONAL RETUNE (2026-08-05, baseline-bulk direction) — REVIEW AT MERGE. Identical infantry block
+		# to America (same costs, same roles); the infantry total is unchanged at 450 and only its internal
+		# split moved — line infantry 65% -> 80% of infantry HEAD count.
 		UnitTargetShares:
 			# Armour core.
 			t90: 190
 			bmp2: 140
 			# Screen / lift (BTR covers the humvee + m113 roles NATO splits).
 			btr: 70
-			# Indirect fire — mt.russia is the type that was drifting; 50 is the deliberate cap-by-target.
-			mt.russia: 50
+			# Indirect fire.
 			giatsint: 35
 			grad: 25
 			# Air defence (tunguska additionally stays capped by ScaleAntiAirToThreat above).
 			tunguska: 50
-			aa.russia: 40
-			# Line infantry.
-			e3.russia: 60
-			ar.russia: 60
-			tl.russia: 40
-			e2.russia: 40
-			# Anti-armour infantry.
-			at.russia: 90
-			# Specialists and logistics (each additionally bounded by UnitLimits above).
-			sn.russia: 15
-			medi.russia: 15
-			e6.russia: 15
-			tecn.russia: 25
 			truk: 40
+			# ===== Line infantry — the BULK of the foot force (80% of infantry head count) =====
+			e3.russia: 95
+			ar.russia: 78
+			tl.russia: 62
+			e2.russia: 47
+			# ===== Support infantry — small fractions of the line, not a second army =====
+			at.russia: 66
+			# mt.russia is the type that was drifting; this is the deliberate cap-by-target.
+			mt.russia: 37
+			aa.russia: 28
+			# Specialists and logistics (each additionally bounded by UnitLimits above).
+			sn.russia: 12
+			medi.russia: 9
+			e6.russia: 8
+			tecn.russia: 8
 		# Role tokens — the row/column keys for CounterMatrixPct below. Armour line and foot line are
 		# SEPARATE tokens on purpose: sharing one "frontline" token would make believed enemy infantry
 		# raise the T-90 target by exactly as much as the rifleman target. Likewise mt (infantry mortar)
