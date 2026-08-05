@@ -14,10 +14,11 @@
  *   (4) SELECTION — largest deficit wins, ties resolve to the lower ordinal, ineligible slots are skipped,
  *       an all-at-or-over-target vector still selects (the least-over entry), and -1 comes back ONLY when
  *       nothing is eligible.
- *   (4b) THE CEILING — the two things CompositionEnforceTargetCeiling actually changes: when a build cycle
- *       DECLINES rather than falling back to the uniform lottery, and when an external FIFO request is over
- *       target. Note what is absent: the flag does NOT change the pick, because restricting the argmax to
- *       under-target slots is a provable no-op.
+ *   (4b) THE CEILING — the three things CompositionEnforceTargetCeiling actually changes: when a build cycle
+ *       DECLINES rather than falling back to the uniform lottery, when an external FIFO request is over
+ *       target, and (ApplyCeilingEligibility) that the module's own argmax may not pick an over-target class
+ *       at all. That last one is NOT the no-op it resembles — restrict-then-fall-back would be, but
+ *       restrict-then-DECLINE is what stops the cheapest-affordable-type pump.
  *   (5) THE REGRESSION — the measured drift shape (mortars far over target, frontline far under) must select
  *       frontline and must never select mortar.
  * Pure integer math; no world mounted.
@@ -349,6 +350,118 @@ namespace OpenRA.Test
 			var targets = new[] { 100, 900 };
 
 			Assert.That(ForceCompositionMath.RequestExceedsCeiling(census, 0, 5000, targets), Is.False);
+		}
+
+		// ===== (4c) ApplyCeilingEligibility — the ceiling on the module's OWN pick =====
+
+		[Test]
+		public void ApplyCeilingEligibility_DropsOverTargetSlotsAndKeepsTheRest()
+		{
+			var targets = new[] { 100, 200, 300, 400 };
+
+			// Slot 0 over, slot 1 exactly AT target (kept — see below), slot 2 short, slot 3 over.
+			var census = new[] { 250, 200, 100, 450 };
+
+			var filtered = ForceCompositionMath.ApplyCeilingEligibility(targets, census, AllEligible(4));
+
+			Assert.That(filtered, Is.EqualTo(new[] { false, true, true, false }));
+		}
+
+		[Test]
+		public void ApplyCeilingEligibility_APerfectlyShapedArmyStillBuys()
+		{
+			// Both vectors are apportioned to exactly 1000, so "every slot sits exactly on target" is the one
+			// shape where at-or-over would strike EVERYTHING and freeze purchasing outright. An army that is
+			// already the right shape must keep growing, so at-target stays eligible.
+			var targets = new[] { 250, 250, 250, 250 };
+
+			var filtered = ForceCompositionMath.ApplyCeilingEligibility(targets, targets, AllEligible(4));
+
+			Assert.That(filtered, Is.EqualTo(AllEligible(4)));
+			Assert.That(ForceCompositionMath.SelectDeficit(targets, targets, filtered), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void ApplyCeilingEligibility_NeverEmptiesASetHoldingAGenuinelyShortSlot()
+		{
+			// The safety property the strictly-over rule rests on: census and targets both sum to 1000, so an
+			// over-target slot implies an under-target one, and that one always survives the filter.
+			var targets = new[] { 100, 200, 300, 400 };
+			var census = new[] { 500, 200, 200, 100 };
+
+			var filtered = ForceCompositionMath.ApplyCeilingEligibility(targets, census, AllEligible(4));
+
+			Assert.That(filtered.Any(e => e), Is.True);
+			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, filtered), Is.EqualTo(3));
+		}
+
+		[Test]
+		public void ApplyCeilingEligibility_NeverReinstatesAnIneligibleSlot()
+		{
+			// Under target but priced out / at its UnitLimit upstream — the ceiling may only ever REMOVE.
+			var targets = new[] { 500, 500 };
+			var census = new[] { 0, 0 };
+
+			var filtered = ForceCompositionMath.ApplyCeilingEligibility(targets, census, new[] { false, true });
+
+			Assert.That(filtered, Is.EqualTo(new[] { false, true }));
+		}
+
+		[Test]
+		public void ApplyCeilingEligibility_DoesNotMutateItsInput()
+		{
+			var eligible = new[] { true, true };
+			ForceCompositionMath.ApplyCeilingEligibility(new[] { 100, 900 }, new[] { 900, 100 }, eligible);
+
+			Assert.That(eligible, Is.EqualTo(new[] { true, true }));
+		}
+
+		[Test]
+		public void ApplyCeilingEligibility_NullInputsAreSafe()
+		{
+			Assert.That(ForceCompositionMath.ApplyCeilingEligibility(new[] { 100 }, new[] { 0 }, null),
+				Is.Empty);
+
+			// A null/short target vector cannot certify any slot as short ⇒ nothing survives.
+			Assert.That(ForceCompositionMath.ApplyCeilingEligibility(null, new[] { 0, 0 }, AllEligible(2)),
+				Is.EqualTo(new[] { false, false }));
+			Assert.That(ForceCompositionMath.ApplyCeilingEligibility(new[] { 100 }, null, AllEligible(2)),
+				Is.EqualTo(new[] { true, false }));
+		}
+
+		[Test]
+		public void Regression_CheapestAffordableTypeIsNotPumpedPastItsTarget()
+		{
+			// The measured live shape (2026-08-05): the @experimental America bot parked 10+ humvees at its
+			// Supply Route. Slot 0 = humvee (450, the CHEAPEST composed vehicle, target 40‰), 1 = bradley
+			// (1500), 2 = abrams (2500). With cash in the 450..1499 band only the humvee clears the
+			// affordability filter, so it is the only ELIGIBLE slot.
+			var targets = new[] { 40, 140, 190 };
+			var census = new[] { 400, 100, 100 };
+			var onlyHumveeAffordable = new[] { true, false, false };
+
+			// Unrestricted (ceiling OFF): the argmax still buys the humvee — it is the least-over of the
+			// eligible set — which is exactly the pump. Pinned so the motivation cannot be lost.
+			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, onlyHumveeAffordable), Is.EqualTo(0));
+
+			// Ceiling ON: the over-target humvee is struck out, nothing is eligible, and the caller's decline
+			// path banks the cash instead of buying an eleventh one.
+			var filtered = ForceCompositionMath.ApplyCeilingEligibility(targets, census, onlyHumveeAffordable);
+			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, filtered), Is.EqualTo(-1));
+			Assert.That(ForceCompositionMath.ShouldDeclineCycle(true, false, true), Is.True);
+		}
+
+		[Test]
+		public void CeilingEligibility_StillBuysWhenSomethingIsGenuinelyShort()
+		{
+			// Same army, but the bank has reached 1500 so the bradley is affordable and under target. The
+			// ceiling must not turn into a blanket purchase freeze — it only strikes the over-target slots.
+			var targets = new[] { 40, 140, 190 };
+			var census = new[] { 400, 100, 100 };
+
+			var filtered = ForceCompositionMath.ApplyCeilingEligibility(targets, census, new[] { true, true, false });
+
+			Assert.That(ForceCompositionMath.SelectDeficit(targets, census, filtered), Is.EqualTo(1));
 		}
 
 		// ===== (5) The regression this whole lane exists to fix =====

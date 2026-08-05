@@ -229,6 +229,44 @@ namespace OpenRA.Mods.Common.Traits
 			return best;
 		}
 
+		/// <summary>Drop eligibility for every slot STRICTLY OVER its target share (deficit &lt; 0), so the argmax
+		/// can only pick a class the army is not already carrying too much of.
+		///
+		/// Strictly-over, not at-or-over, on purpose. Census and targets are both apportioned to exactly
+		/// <see cref="Total"/>, so if any slot is over then some other slot MUST be under — striking the
+		/// over-target slots can therefore never empty a set that had a genuinely short member in it. Striking
+		/// at-target slots too would break that guarantee in the one case where every slot sits exactly on its
+		/// target: everything would be removed and the bot would stop buying entirely instead of growing an
+		/// army that is already the right shape.
+		///
+		/// This is what makes CompositionEnforceTargetCeiling bound the module's OWN pick and not just the
+		/// external request lane. <see cref="SelectDeficit"/> deliberately has no positive-deficit requirement —
+		/// when every ELIGIBLE type is over target it returns the least-over one so a buy still happens. But
+		/// eligibility is affordability-filtered, and a bot spends to zero routinely, so in the low-cash band the
+		/// only eligible member of a queue is its CHEAPEST type. The argmax then degenerates into "buy the
+		/// cheapest thing" every cycle, without limit, however far over target that type already is — the
+		/// standing army fills up with the cheap screening type while the expensive core it is saving for is
+		/// never reached. Removing those slots instead makes the caller's decline path fire, banking the cash
+		/// until something under target becomes affordable.
+		///
+		/// Returns a NEW array (inputs are never mutated). A null/short input reads as ineligible.</summary>
+		public static bool[] ApplyCeilingEligibility(int[] targetsPerMille, int[] censusPerMille, bool[] eligible)
+		{
+			if (eligible == null)
+				return System.Array.Empty<bool>();
+
+			var result = new bool[eligible.Length];
+			for (var i = 0; i < eligible.Length; i++)
+			{
+				if (!eligible[i] || targetsPerMille == null || i >= targetsPerMille.Length)
+					continue;
+
+				result[i] = DeficitAt(targetsPerMille, censusPerMille, i) >= 0;
+			}
+
+			return result;
+		}
+
 		/// <summary>Should this build cycle DECLINE rather than fall back to the legacy uniform lottery?
 		///
 		/// Only when the ceiling is enabled, the deficit pick found nothing, AND at least one composed type is

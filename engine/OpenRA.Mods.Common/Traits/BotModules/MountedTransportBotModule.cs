@@ -539,6 +539,16 @@ namespace OpenRA.Mods.Common.Traits
 			var reservedByOthers = new HashSet<Actor>(
 				carrierTasks.Values.SelectMany(t => t.ReservedPassengers));
 
+			// The HELICOPTER transport module draws from the same reserve bubble and its passenger filter is a
+			// superset of PassengerTypes, so without this we yank soldiers that are already walking to a heli
+			// (and it yanks ours — it consults our IsPassengerReserved for the same reason). The commitment
+			// ledger does NOT cover this on @stable: neither module sets its commit flag there, so both leave
+			// goalGuard null and never touch it. Resolved per-pass rather than cached because this module is
+			// constructed before the heli twin on some profiles; TraitsImplementing + first-enabled because the
+			// module is twinned and TraitOrDefault would throw on "multiple traits".
+			var heliTransport = player.PlayerActor.TraitsImplementing<HelicopterSquadBotModule>()
+				.FirstOrDefault(m => !m.IsTraitDisabled);
+
 			// Drop-off cell (thinnest frontline / pre-contact staging, fog-legal standoff when enabled).
 			// Experimental-only: when a pickup corridor is configured we need the drop cell FIRST to define
 			// the SR→drop lane. The frozen twin (PickupCorridorCells 0) keeps the original ordering — the
@@ -554,6 +564,7 @@ namespace OpenRA.Mods.Common.Traits
 				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld
 					&& Info.PassengerTypes.Contains(a.Info.Name.ToLowerInvariant())
 					&& !reservedByOthers.Contains(a)
+					&& (heliTransport == null || !heliTransport.IsPassengerReserved(a))
 					// Commit-on-order (§4): never ferry a unit another POI-stack writer already committed —
 					// otherwise Commit() below would overwrite its objective. Inert when the flag is off
 					// (goalGuard null) ⇒ byte-identical. Mirrors GarrisonBotModule's free-pool gate.

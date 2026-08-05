@@ -265,6 +265,70 @@ namespace OpenRA.Test
 			Assert.That(TransportEmploymentMath.Decide(past, window, false, false), Is.EqualTo(TransportDisposition.Evacuate));
 		}
 
+		// ===== Load cap (how many we may ORDER aboard) =====
+
+		[Test]
+		public void LoadCapPrefersTheDoctrineCapOverAirframeCapacity()
+		{
+			// The real case: America's tran carries 36, but a lift launches at 4. Ordering 36 leaves 32
+			// soldiers chasing the departing heli while holding reservations that pin its pickup lock.
+			Assert.That(TransportEmploymentMath.LoadCap(8, 36, 4), Is.EqualTo(8));
+		}
+
+		[Test]
+		public void LoadCapNeverExceedsAirframeCapacity()
+		{
+			// Russia's halo carries 8; a doctrine cap above that must not order passengers who cannot fit.
+			Assert.That(TransportEmploymentMath.LoadCap(12, 8, 4), Is.EqualTo(8));
+			Assert.That(TransportEmploymentMath.LoadCap(0, 8, 4), Is.EqualTo(8), "0 = no cap of our own");
+			Assert.That(TransportEmploymentMath.LoadCap(-1, 8, 4), Is.EqualTo(8));
+		}
+
+		[Test]
+		public void LoadCapIsNeverBelowTheLaunchThreshold()
+		{
+			// A cap under minPassengers could never assemble a launchable load — that would silently disable
+			// lift entirely, which is the exact failure this whole change exists to remove.
+			Assert.That(TransportEmploymentMath.LoadCap(2, 36, 4), Is.EqualTo(4));
+
+			// Deliberately EXCEEDS a 2-seat airframe. Safe only because the caller stands down stragglers on
+			// both task exits: the surplus is refused by Cargo.ReserveSpace and then released. Exceeding
+			// physical capacity is not free in general — it is free here because of StandDownStragglers.
+			Assert.That(TransportEmploymentMath.LoadCap(8, 2, 4), Is.EqualTo(4), "tiny airframe still tries");
+			Assert.That(TransportEmploymentMath.LoadCap(0, 0, 0), Is.EqualTo(1), "never zero or negative");
+		}
+
+		// ===== Reserve zone (lift availability) =====
+
+		[Test]
+		public void ReserveZoneIsInclusiveAtTheRadius()
+		{
+			// Boundary is the whole contract: the caller passes a SQUARED cell distance, so a soldier exactly
+			// on the radius must qualify (<=), and one past it must not.
+			Assert.That(TransportEmploymentMath.InReserveZone(0, 14), Is.True, "at the Supply Route");
+			Assert.That(TransportEmploymentMath.InReserveZone(14 * 14, 14), Is.True, "exactly on the radius");
+			Assert.That(TransportEmploymentMath.InReserveZone((14 * 14) + 1, 14), Is.False, "just past the radius");
+			Assert.That(TransportEmploymentMath.InReserveZone(15 * 15, 14), Is.False, "a cell past the radius");
+		}
+
+		[Test]
+		public void NonPositiveRadiusDisablesTheSpatialGate()
+		{
+			// 0 or less means "no spatial restriction" — NOT "nobody qualifies". Getting this backwards would
+			// silently ban every lift for a profile that leaves the knob unset.
+			Assert.That(TransportEmploymentMath.InReserveZone(1000 * 1000, 0), Is.True);
+			Assert.That(TransportEmploymentMath.InReserveZone(1000 * 1000, -1), Is.True);
+		}
+
+		[Test]
+		public void ReserveZoneDoesNotOverflowAtMapScaleDistances()
+		{
+			// Squared distances arrive as long. Pin that the radius multiply stays in long arithmetic so a
+			// far-away soldier can never wrap into "in the zone".
+			Assert.That(TransportEmploymentMath.InReserveZone(524288L * 524288L, 14), Is.False);
+			Assert.That(TransportEmploymentMath.InReserveZone(0, int.MaxValue), Is.True);
+		}
+
 		// ===== Determinism =====
 
 		[Test]

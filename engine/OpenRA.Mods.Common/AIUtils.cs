@@ -34,6 +34,23 @@ namespace OpenRA.Mods.Common
 							.Any(availableCells => availableCells > 0);
 		}
 
+		// Actor.IsIdle (CurrentActivity == null) is the WRONG idleness test for an AIRFRAME and is
+		// essentially never true for one. With the default IdleBehavior (None) and the aircraft above
+		// LandAltitude, Aircraft.OnBecomingIdle queues FlyIdle (Aircraft.cs:936), and FlyIdle.Tick never
+		// returns true while nothing is queued behind it (FlyIdle.cs:39-41). Actor.Tick runs the queued
+		// activity in the SAME tick it fires the becoming-idle notification (Actor.cs:290-299), so a bot
+		// module can never observe the null-activity window either. A helicopter hovering over its Supply
+		// Route therefore carries FlyIdle forever and every `IsIdle` test applied to it is dead code.
+		// Hovering on FlyIdle with nothing queued behind it IS doing nothing.
+		public static bool IsUnoccupiedAirframe(Actor a)
+		{
+			if (a.IsIdle)
+				return true;
+
+			var current = a.CurrentActivity;
+			return current is Activities.FlyIdle && current.NextActivity == null;
+		}
+
 		public static ILookup<string, ProductionQueue> FindQueuesByCategory(Player player)
 		{
 			return player.World.ActorsWithTrait<ProductionQueue>()
