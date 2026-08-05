@@ -28,12 +28,19 @@
  *     record calls these legitimate under either arm).
  *
  * The muster MACHINERY is therefore untouched and still consumed by all three survivors above; only the
- * reinforcement flow's wait on it is removed.
+ * reinforcement flow's wait on it is removed. NOTE that removing a hold RE-ROUTES the axis rather than just
+ * deleting a wait — the damper hold is an early return, so a still-filling axis now reaches SectorPostureHold
+ * and the mission-commitment snapshot while under-filled. PoiOffensiveBotModule.DamperShouldHold carries the
+ * full account of what that changes; read it before assuming the flag only subtracts.
  *
- * BYTE-IDENTITY: PoiOffensiveBotModule is instantiated as SEPARATE per-profile twins (@experimental /
- * @stable, each behind its own RequiresCondition), not as one shared enable-ai-any instance — so unlike
+ * BYTE-IDENTITY (the flag-OFF path only — see the re-route note above for what flag-ON widens):
+ * PoiOffensiveBotModule is instantiated as SEPARATE per-profile twins (@experimental / @stable, each behind
+ * its own RequiresCondition), not as one shared enable-ai-any instance — so unlike
  * CommitOnOrderMath.ShouldCommitShared / SupplyTruckHuntMath.ShouldHunt this gate needs no BotType
  * confinement: the @stable twin omits the field, reads the C# default false, and never suppresses anything.
+ * Stronger still on @stable as it stands today, and worth knowing before anyone "hardens" this: that block
+ * carries NO damper knobs at all, so RetreatDamperEnabled is false there and DamperShouldHold is never
+ * invoked in the first place.
  * The flag is the whole enablement, and reverting the YAML line alone restores the forward-assemble shape.
  *
  * DETERMINISM (influence-stack invariant): ZERO random draws, pure boolean/integer comparison. Two clients

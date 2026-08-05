@@ -3069,8 +3069,25 @@ namespace OpenRA.Mods.Common.Traits
 		// SR flow shape: under ImmediateReinforcementCommit the massing arm (b) is suppressed outright, so a
 		// still-filling axis advances on its objective the eval it is formed instead of waiting at the muster
 		// for the rest of its allocation. Conjunctive on ReadvanceHold, so the post-retreat dwell (arm a) —
-		// which is retreat-oscillation damping, not reinforcement assembly — still holds. Everything the gate
-		// leaves reachable is byte-identical, and with the flag off the whole line is.
+		// which is retreat-oscillation damping, not reinforcement assembly — still holds.
+		//
+		// SUPPRESSING A HOLD RE-ROUTES THE AXIS, it does not merely delete a wait — and the re-route is the part
+		// worth reading before touching this. The damper hold is an early RETURN in CommitAndOrder, so removing it
+		// for a still-filling near-rally axis (Engaged, no dwell, own strength below MinAdvanceStrength, Units.Count
+		// below AllocatedSize) lets that axis fall through to two gates it could not previously reach WHILE FILLING:
+		//   * SectorPostureHold — it may now hold on posture instead, at the same muster anchor. Not a regression:
+		//     that is a believed-strength read about the sector it stands in, not a wait for its own stragglers.
+		//   * ApplyMissionCommitment — it may now be stamped Committed with CommitStrength snapshotted at PARTIAL
+		//     fill. PartitionHeldAxes then pulls it out of the reshuffle universe for MissionCommitmentWindowTicks
+		//     (400 = 4 evals at ReevaluateInterval 100), so it is not re-sized or topped up for that window, and the
+		//     MissionIneffective abort trigger measures decay against the partial baseline rather than a full one.
+		// Both follow from the doctrine rather than contradicting it: committing at partial fill is what "advance
+		// immediately, singly" MEANS, and the units the frozen axis is therefore not handed stay in the free pool
+		// (held axes are excluded before BuildFreePool) where StageFreePool walks them forward — they do not strand.
+		//
+		// So: byte-identical on the flag-OFF path only. With the flag ON the reachable-state set genuinely widens;
+		// there is no byte-identity claim to make for @experimental, only the scoping claim that arm (b) is the one
+		// hold zeroed.
 		bool DamperShouldHold(Axis axis)
 			=> !SpawnFlowMath.SuppressMassingHold(Info.ImmediateReinforcementCommit, axis.ReadvanceHold)
 				&& RetreatDamperMath.ShouldHold(axis.Retreat, axis.ReadvanceHold, axis.NearRally,

@@ -32,9 +32,12 @@ namespace OpenRA.Test
 		const int Floor = 1200;
 		const int Cap = 6;
 
-		// Fill levels are kept ENGINE-REACHABLE: step 9 of Reevaluate retires any axis below MinAxisSize (3 in
-		// the @experimental profile) before CommitAndOrder is called, so the damper never sees a 1-of-N axis.
-		// The massing window an axis can actually be observed in is [MinAxisSize, AllocatedSize).
+		// Fill levels are kept ENGINE-REACHABLE: step 9 of Reevaluate retires any axis below the effective min
+		// axis size before CommitAndOrder is called, so the damper never sees a 1-of-N axis. That floor is NOT a
+		// constant — EarlyGameSpread (ai.yaml:246) swaps MinAxisSize 3 for EarlyMinAxisSize 2 (:249) inside
+		// EarlyGameDurationTicks, so 2-unit axes are reachable in the early window and 3-unit ones after it. 3 is
+		// used below as the steady-state floor; the sweep's coverage does not depend on which floor applies,
+		// since arm (b) reads only the fill RELATION (FillIncomplete), never the axis size itself.
 		const int MinAxisSize = 3;
 		const int Allocated = 6;
 
