@@ -2204,6 +2204,8 @@ MEDI:
 		Description: Operates buildings and captures neutral structures.\n\n - Unarmed\n - No armor
 	Valued:
 		Cost: 250
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Passenger:
 		CustomPipType: tecn_class
 	WithDecoration@Class:

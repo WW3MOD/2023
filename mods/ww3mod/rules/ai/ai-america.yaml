@@ -115,11 +115,20 @@ Player:
 		# armour is eaten. With this on, the module censuses what it owns (per-mille of army VALUE, with
 		# pending call-ins credited and evacuating units excluded) and buys the type furthest below target.
 		CompositionDirected: true
-		# Targets are also CEILINGS: a class at or over its share stops being called in, a cycle where every
-		# composed candidate is over target declines instead of falling back to the uniform lottery, and the
-		# counter-buy FIFO is folded under the same ceiling. See UnitBuilderBotModuleInfo for why the lottery
-		# fallback mattered — a bot spends to zero routinely and the affordability gate made it frequent.
+		# Stops the two lanes that bought PAST the targets. It does NOT change the deficit pick — that argmax
+		# already never picks an over-target class while any class is still short (restricting it to
+		# under-target slots is a provable no-op; see ForceCompositionMath.SelectDeficit). The two real
+		# effects: (1) a cycle where composed types are buildable but all priced out or at their UnitLimit
+		# DECLINES instead of falling back to the uniform lottery — a bot spends to zero routinely, so the
+		# affordability gate made that fallback frequent enough to dominate; (2) the counter-buy FIFO from
+		# AdaptiveProductionBotModule is folded under the targets.
 		CompositionEnforceTargetCeiling: true
+		# The capture-supply floor is exempt on the FIFO lane: "a capturer must be obtainable when there is
+		# something to capture" outranks the composition shape, and CaptureCoordinator's own alive-or-pending
+		# floor already bounds it. Named explicitly rather than leaning on TecnRequestPriority being true in
+		# ai.yaml — that flag is in another file, and its FIFO fall-back path would be silently ceiling-bounded
+		# the moment someone turned it off.
+		CompositionCeilingExemptTypes: tecn.america
 		# TARGETS (not the ceilings UnitsToBuild weights are): per-mille of army VALUE. Sums to 1000.
 		# Only types listed here are eligible for this pick — helicopters are deliberately absent (deferred
 		# to their own lane) and so are never chosen by it.

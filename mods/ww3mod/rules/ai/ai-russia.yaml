@@ -111,8 +111,12 @@ Player:
 		# ground call-in was a uniform lottery and the standing army settled proportional to each type's
 		# LIFETIME (long-lived rear-line mortars accumulate). This buys the type furthest below target.
 		CompositionDirected: true
-		# Targets are also CEILINGS — mirror of the America block; see ai-america.yaml for the rationale.
+		# Stops the two lanes that bought PAST the targets (declined cycle instead of a lottery fallback, and
+		# the counter-buy FIFO folded under the targets). It does NOT change the deficit pick — restricting
+		# that argmax to under-target slots is a provable no-op. Mirror of the America block; see
+		# ai-america.yaml for the full rationale, and CompositionCeilingExemptTypes for the capturer carve-out.
 		CompositionEnforceTargetCeiling: true
+		CompositionCeilingExemptTypes: tecn.russia
 		# TARGETS (not ceilings): per-mille of army VALUE. Sums to 1000. Helicopters are deliberately
 		# absent (deferred to their own lane) and so are never chosen by this pick.
 		#
