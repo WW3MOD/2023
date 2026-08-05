@@ -18,6 +18,7 @@
  */
 #endregion
 
+using System.Linq;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
 
@@ -37,13 +38,51 @@ namespace OpenRA.Test
 
 		// ---------- The knob-shifted dials (§2.6/§2.7) ----------
 
+		// The shipped base/slope pairings (ai.yaml @experimental) and the parked sweep grid. Kept as named
+		// constants because the pins below assert the dials move AT these grid points — the first cut advertised
+		// ranges that were only reachable at knob 0/100, so on-grid movement is the property under test.
+		const int DepthBase = 3;
+		const int DepthSlope = 7;
+		const int CeilingBase = 20;
+		const int CeilingSlope = 40;
+		const int ForceBase = 5;
+		const int ForceSlope = 7;
+		static readonly int[] SweepGrid = { 20, 35, 50, 65, 80 };
+
 		[Test]
 		public void Dials_AtNeutralKnob_ReturnTheirBase()
 		{
-			// 50 is the tuned baseline by definition: every dial reads its own base, whatever the slope.
-			Assert.That(OpportunisticAdvanceMath.MaxSectors(3, 50, 4), Is.EqualTo(3));
-			Assert.That(OpportunisticAdvanceMath.DangerCeiling(20, 50, 40), Is.EqualTo(20));
-			Assert.That(OpportunisticAdvanceMath.ForceCap(5, 50, 6), Is.EqualTo(5));
+			// 50 is the tuned baseline by definition: every dial reads its own base, whatever the slope. This is
+			// also what makes WIDENING a slope safe — (50-50)*slope/100 = 0 for any slope, so re-ranging a dial
+			// never moves the neutral bot.
+			Assert.That(OpportunisticAdvanceMath.MaxSectors(DepthBase, 50, DepthSlope), Is.EqualTo(DepthBase));
+			Assert.That(OpportunisticAdvanceMath.DangerCeiling(CeilingBase, 50, CeilingSlope), Is.EqualTo(CeilingBase));
+			Assert.That(OpportunisticAdvanceMath.ForceCap(ForceBase, 50, ForceSlope), Is.EqualTo(ForceBase));
+
+			// Neutrality is slope-independent, not just true at the shipped numbers.
+			Assert.That(OpportunisticAdvanceMath.MaxSectors(DepthBase, 50, 999), Is.EqualTo(DepthBase));
+			Assert.That(OpportunisticAdvanceMath.ForceCap(ForceBase, 50, 999), Is.EqualTo(ForceBase));
+		}
+
+		[Test]
+		public void Dials_MoveAtEveryPointOfTheParkedSweepGrid()
+		{
+			// THE pin that the first cut would have failed. Integer division truncates toward zero, so a knob 15
+			// points off neutral needs slope >= 7 to shift an integer dial at all: at the original depth-4 /
+			// force-6 slopes the grid produced {2,3,3,3,4} and {4,5,5,5,6}, i.e. three of five points identical
+			// to neutral, and a sweep over them would have measured the danger ceiling alone.
+			var depth = SweepGrid.Select(k => OpportunisticAdvanceMath.MaxSectors(DepthBase, k, DepthSlope)).ToArray();
+			var ceiling = SweepGrid.Select(k => OpportunisticAdvanceMath.DangerCeiling(CeilingBase, k, CeilingSlope)).ToArray();
+			var force = SweepGrid.Select(k => OpportunisticAdvanceMath.ForceCap(ForceBase, k, ForceSlope)).ToArray();
+
+			Assert.That(depth, Is.EqualTo(new[] { 1, 2, 3, 4, 5 }));
+			Assert.That(ceiling, Is.EqualTo(new[] { 8, 14, 20, 26, 32 }));
+			Assert.That(force, Is.EqualTo(new[] { 3, 4, 5, 6, 7 }));
+
+			// Strictly monotonic across the grid — every sweep point is a distinct configuration on every dial.
+			foreach (var series in new[] { depth, ceiling, force })
+				for (var i = 1; i < series.Length; i++)
+					Assert.That(series[i], Is.GreaterThan(series[i - 1]), "a sweep point must differ from its neighbour");
 		}
 
 		[Test]
@@ -57,18 +96,19 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void Dials_SpanTheShippedRangeAcrossTheKnob()
+		public void Dials_SpanTheShippedEndpointsAcrossTheKnob()
 		{
-			// The shipped base/slope pairings, end to end. Cautious: a 2-unit screen, 1 sector deep, into
-			// TOTALLY clear ground only (ceiling 0) — §2.6's stated low-aggressiveness behaviour.
-			Assert.That(OpportunisticAdvanceMath.MaxSectors(3, 0, 4), Is.EqualTo(1));
-			Assert.That(OpportunisticAdvanceMath.DangerCeiling(20, 0, 40), Is.EqualTo(0));
-			Assert.That(OpportunisticAdvanceMath.ForceCap(5, 0, 6), Is.EqualTo(2));
+			// The absolute endpoints, off-grid. Cautious: a 2-unit screen into TOTALLY clear ground only
+			// (ceiling 0), with depth floored to 0 — advance disabled outright, the blessed cautious extreme
+			// (§2.3 blesses the mirror case for the posture cuts).
+			Assert.That(OpportunisticAdvanceMath.MaxSectors(DepthBase, 0, DepthSlope), Is.EqualTo(0));
+			Assert.That(OpportunisticAdvanceMath.DangerCeiling(CeilingBase, 0, CeilingSlope), Is.EqualTo(0));
+			Assert.That(OpportunisticAdvanceMath.ForceCap(ForceBase, 0, ForceSlope), Is.EqualTo(2));
 
 			// Reckless: deeper, through more marginal danger, with a larger force.
-			Assert.That(OpportunisticAdvanceMath.MaxSectors(3, 100, 4), Is.EqualTo(5));
-			Assert.That(OpportunisticAdvanceMath.DangerCeiling(20, 100, 40), Is.EqualTo(40));
-			Assert.That(OpportunisticAdvanceMath.ForceCap(5, 100, 6), Is.EqualTo(8));
+			Assert.That(OpportunisticAdvanceMath.MaxSectors(DepthBase, 100, DepthSlope), Is.EqualTo(6));
+			Assert.That(OpportunisticAdvanceMath.DangerCeiling(CeilingBase, 100, CeilingSlope), Is.EqualTo(40));
+			Assert.That(OpportunisticAdvanceMath.ForceCap(ForceBase, 100, ForceSlope), Is.EqualTo(8));
 		}
 
 		[Test]
@@ -167,6 +207,56 @@ namespace OpenRA.Test
 			Assert.That(OpportunisticAdvanceMath.ShouldAdvance(true, true, 3, 0), Is.False, "no screen");
 		}
 
+		// ---------- AdoptAdvanceAnchor — one-way hysteresis ----------
+		//
+		// Depth is FRONTIER DISTANCE: larger = shallower. The whole point of these pins is that hysteresis may
+		// damp only a DEEPENING move; every way of giving ground adopts at once.
+
+		[Test]
+		public void AdoptAdvanceAnchor_HeldAnchorNoLongerGranted_AdoptsImmediately()
+		{
+			// The defect this guard exists for: candidates are grid-cell CENTRES one coarse cell apart, so a
+			// one-sector closure moves the anchor by CellSize (2) — under the shipped hysteresis of 3. Symmetric
+			// hysteresis would suppress it and keep ordering the screen at ground that just FAILED the grant test.
+			Assert.That(OpportunisticAdvanceMath.AdoptAdvanceAnchor(
+				heldStillGranted: false, heldDepth: 1, candidateDepth: 1, shiftedPastHysteresis: false), Is.True);
+		}
+
+		[Test]
+		public void AdoptAdvanceAnchor_ShallowerCandidate_AdoptsImmediately()
+		{
+			// The walk no longer reaches as far (frontier distance 1 -> 3 = two sectors shallower). Giving ground
+			// is never damped, even while the held anchor still happens to read granted.
+			Assert.That(OpportunisticAdvanceMath.AdoptAdvanceAnchor(
+				heldStillGranted: true, heldDepth: 1, candidateDepth: 3, shiftedPastHysteresis: false), Is.True);
+		}
+
+		[Test]
+		public void AdoptAdvanceAnchor_DeeperCandidateWithinHysteresis_HoldsTheAnchor()
+		{
+			// The one case hysteresis is allowed to damp: the walk found deeper ground but only just, so the
+			// screen is not re-laid on a one-cell field wobble.
+			Assert.That(OpportunisticAdvanceMath.AdoptAdvanceAnchor(
+				heldStillGranted: true, heldDepth: 3, candidateDepth: 1, shiftedPastHysteresis: false), Is.False);
+		}
+
+		[Test]
+		public void AdoptAdvanceAnchor_EqualDepthWithinHysteresis_HoldsTheAnchor()
+		{
+			// A lateral move at the same depth is also damped — that is the jitter case staging's hysteresis
+			// exists for, and it is retained here.
+			Assert.That(OpportunisticAdvanceMath.AdoptAdvanceAnchor(
+				heldStillGranted: true, heldDepth: 2, candidateDepth: 2, shiftedPastHysteresis: false), Is.False);
+		}
+
+		[Test]
+		public void AdoptAdvanceAnchor_PastHysteresis_AdoptsEvenWhenDeepening()
+		{
+			// Hysteresis is a damper, not a lock: a big enough shift is adopted on the ordinary path.
+			Assert.That(OpportunisticAdvanceMath.AdoptAdvanceAnchor(
+				heldStillGranted: true, heldDepth: 3, candidateDepth: 1, shiftedPastHysteresis: true), Is.True);
+		}
+
 		// ---------- AdvanceCell — the extend-while-clear walk ----------
 
 		[Test]
@@ -235,17 +325,38 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void AdvanceCell_StopsAtABelievedContact()
+		public void AdvanceCell_BelievedContact_BendsTheCorridorOffAxis()
 		{
 			// Condition (2) is genuinely independent of (1) and (3): a lone cheap contact may neither flip control
 			// nor stamp danger above the ceiling, yet the sector is not undefended.
+			//
+			// PINNED AS AN EXACT PATH, not as a bound. The earlier form asserted only X < 9 and != (8,0), which
+			// a build with the !contactPresent term DELETED also satisfies (it runs straight down y=0 to (4,0)).
+			// The contact at (8,0) denies that cell outright while its diagonals stay clear, so the walk steps
+			// (10,0) -> (9,0) -> (8,1) and then continues west along y=1. The y coordinate is therefore the
+			// witness: neuter condition (2) and the walk lands on y == 0, reddening this pin.
 			var cell = OpportunisticAdvanceMath.AdvanceCell(10, 0, maxSectors: 6, dangerCeiling: 20,
 				FrontierByX, NoDanger, NoEnemyGround, (gx, gy) => gx == 8 && gy == 0, AllPassable, BigGrid);
 
-			// x=8 is denied outright; the diagonals at x=8 are still clear, so the walk continues past it off-axis
-			// rather than stalling — the corridor bends around the contact instead of stopping dead.
-			Assert.That(cell.X, Is.LessThan(9));
-			Assert.That(cell, Is.Not.EqualTo((8, 0)));
+			Assert.That(cell, Is.EqualTo((4, 1)));
+
+			// The detour step itself, pinned at the budget where it happens, so a regression in the bend is
+			// distinguishable from a regression in the run-out.
+			var detour = OpportunisticAdvanceMath.AdvanceCell(10, 0, maxSectors: 2, dangerCeiling: 20,
+				FrontierByX, NoDanger, NoEnemyGround, (gx, gy) => gx == 8 && gy == 0, AllPassable, BigGrid);
+
+			Assert.That(detour, Is.EqualTo((8, 1)));
+		}
+
+		[Test]
+		public void AdvanceCell_ContactWallAcrossTheCorridor_StopsTheWalk()
+		{
+			// The other half of condition (2): a contact set the walk cannot bend around halts it outright, with
+			// no danger and no enemy classification anywhere. Without the term the walk would reach (6,0).
+			var cell = OpportunisticAdvanceMath.AdvanceCell(10, 0, maxSectors: 4, dangerCeiling: 20,
+				FrontierByX, NoDanger, NoEnemyGround, (gx, gy) => gx <= 9, AllPassable, BigGrid);
+
+			Assert.That(cell, Is.EqualTo((10, 0)));
 		}
 
 		[Test]

@@ -509,10 +509,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("ITEM 31 / design §2.6 — OPPORTUNISTIC ADVANCE. The reserve stops holding at the muster standoff",
 			"when the ground in front of it is GRANTED: a sector reading no believed enemy ownership, no believed",
 			"contact, believed danger at/under AdvanceDangerCeiling, and terrain the movers can occupy. A capped",
-			"screen is then walked INTO that ground and keeps extending while the next sector ahead still reads",
-			"clear — the 'exploit the opening instead of sitting on the capture' behaviour. Extends the muster walk,",
-			"so it needs ForwardStagingEnabled (the staging anchor is its seed) plus a ControlField AND a",
-			"DangerFieldLayer; a missing danger field is NOT waived to zero danger, it disables the advance.",
+			"screen is then walked INTO that ground, one granted sector after the next, up to the depth dial —",
+			"the 'exploit the opening instead of sitting on the capture' behaviour. That chaining happens WITHIN a",
+			"walk: each re-eval re-seeds from the staging anchor, so the screen holds a bounded offset ahead of the",
+			"muster point and deepens over time only as that muster point creeps forward. It is not a ratchet.",
+			"Extends the muster walk, so it needs ForwardStagingEnabled (the staging anchor is its seed) plus a",
+			"ControlField, a DangerFieldLayer AND a BeliefStore — none is defaulted, because a missing danger field",
+			"reads 0 danger everywhere and a missing belief store reads no contacts anywhere, and both waive a",
+			"condition permissively.",
 			"Aggressiveness scales all three of §2.6's dials via the slope pairs below. The §2.6 ABORT needs no",
 			"machinery: the anchor is re-derived every re-eval, so a contact or danger spike appearing in the",
 			"corridor simply shortens the next walk and the screen falls back toward the line. OFF by default —",
@@ -528,12 +532,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Opportunistic advance: the range the Aggressiveness knob spans over AdvanceMaxSectors — effective",
 			"sectors = AdvanceMaxSectors + (Aggressiveness - 50) · this / 100, floored at 0. Positive: a bolder bot",
-			"commits DEEPER. At the shipped 3/4 pairing the knob spans 1 sector (cautious) to 5 (reckless). NONZERO",
-			"by default, deliberately unlike the Phase-1d slope: that knob rides MissionCommitmentEnabled (ON in",
-			"@experimental) so slope 0 was its only inertness guarantee, whereas this one rides its OWN default-off",
-			"gate — so it can ship live and give the sweep a slider that actually moves. Only read when",
-			"OpportunisticAdvanceEnabled.")]
-		public readonly int AdvanceMaxSectorsSlopePct = 4;
+			"commits DEEPER. SIZE THE SLOPE AGAINST THE SWEEP GRID, NOT THE ENDPOINTS: the shift is integer",
+			"division truncating toward zero, so a knob 15 points off neutral needs slope >= 7 to move the dial at",
+			"all (15·6/100 = 0). At the shipped 3/7 pairing the parked grid {20,35,50,65,80} gives {1,2,3,4,5}",
+			"sectors — every point distinct — and the absolute endpoints are knob 0 => 0 (the floor: advance",
+			"disabled, the blessed cautious extreme) and knob 100 => 6. NONZERO by default, deliberately unlike the",
+			"Phase-1d slope: that knob rides MissionCommitmentEnabled (ON in @experimental) so slope 0 was its only",
+			"inertness guarantee, whereas this one rides its OWN default-off gate — so it can ship live and give",
+			"the sweep a slider that actually moves. Only read when OpportunisticAdvanceEnabled.")]
+		public readonly int AdvanceMaxSectorsSlopePct = 7;
 
 		[Desc("Opportunistic advance: believed anti-ground danger (danger-field intensity scale, same scale as",
 			"StagingDangerSafeThreshold) at/under which a sector still counts as clear, at neutral Aggressiveness.",
@@ -544,9 +551,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Opportunistic advance: the range the Aggressiveness knob spans over AdvanceDangerCeiling — effective",
 			"ceiling = AdvanceDangerCeiling + (Aggressiveness - 50) · this / 100, floored at 0. Positive: a bolder",
-			"bot pushes through more marginal danger. At the shipped 20/40 pairing the knob spans 0 (advance only",
-			"into TOTALLY clear ground — §2.6's cautious extreme) to 40 (the staging/mild-danger threshold). Only",
-			"read when OpportunisticAdvanceEnabled.")]
+			"bot pushes through more marginal danger. At the shipped 20/40 pairing the parked grid {20,35,50,65,80}",
+			"gives ceilings {8,14,20,26,32}, and the absolute endpoints are knob 0 => 0 (advance only into TOTALLY",
+			"clear ground — §2.6's cautious extreme) and knob 100 => 40 (the staging/mild-danger threshold). This",
+			"is the one dial whose slope was already coarse enough to move at every grid point; the depth and force",
+			"slopes had to be widened to 7 for the same reason (integer truncation). Only read when",
+			"OpportunisticAdvanceEnabled.")]
 		public readonly int AdvanceDangerCeilingSlopePct = 40;
 
 		[Desc("Opportunistic advance: the smallest screen worth sending. A reserve that cannot field this many idle",
@@ -562,10 +572,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Opportunistic advance: the range the Aggressiveness knob spans over AdvanceForceCap — effective cap =",
 			"AdvanceForceCap + (Aggressiveness - 50) · this / 100, floored at 0. Positive: a bolder bot spends more",
-			"of the reserve. At the shipped 5/6 pairing the knob spans a 2-unit screen (cautious, equal to",
-			"AdvanceMinUnits) to 8 (reckless) — §2.6's 'small screen at low, larger force at high'. A cap driven",
-			"below AdvanceMinUnits cancels the advance outright. Only read when OpportunisticAdvanceEnabled.")]
-		public readonly int AdvanceForceCapSlopePct = 6;
+			"of the reserve. Same truncation arithmetic as the depth slope, so likewise >= 7 to move at a knob 15",
+			"points off neutral. At the shipped 5/7 pairing the parked grid {20,35,50,65,80} gives {3,4,5,6,7}",
+			"units, and the absolute endpoints are knob 0 => 2 (a minimal screen, equal to AdvanceMinUnits) and",
+			"knob 100 => 8 — §2.6's 'small screen at low, larger force at high'. A cap driven below AdvanceMinUnits",
+			"cancels the advance outright. Only read when OpportunisticAdvanceEnabled.")]
+		public readonly int AdvanceForceCapSlopePct = 7;
 
 		[Desc("Opportunistic advance: how many rings of the deterministic spread the advancing screen fans out over",
 			"(spacing reuses StagingSpreadStepCells). Small on purpose — a screen pushing into open ground wants to",
@@ -900,10 +912,12 @@ namespace OpenRA.Mods.Common.Traits
 		CPos? lastStagingAnchor;
 		readonly Dictionary<Actor, CPos> stagedCells = new();
 
-		// Item 31 opportunistic advance: the last ADOPTED advance anchor (Chebyshev hysteresis, mirroring
-		// lastStagingAnchor). Null unless OpportunisticAdvanceEnabled AND the last walk actually granted ground —
-		// it is reset the moment the walk stops granting, so a re-opened corridor is re-adopted cleanly rather
-		// than being held off by hysteresis against a stale deep anchor.
+		// Item 31 opportunistic advance: the last ADOPTED advance anchor. This IS retained cross-eval state — the
+		// advance is not stateless, and its hysteresis is deliberately ONE-WAY (see AdoptAdvanceAnchor): it damps
+		// a deepening or lateral move, but a held anchor that no longer passes the grant test, or a walk that no
+		// longer reaches as far, replaces it immediately. Nulled whenever the gate declines or the walk grants
+		// nothing, so a re-opened corridor is re-adopted cleanly instead of being compared against a stale deep
+		// anchor. Null unless OpportunisticAdvanceEnabled.
 		CPos? lastAdvanceAnchor;
 
 		// Wave A out-of-ammo disposition: units already sent to TERMINAL evac (RotateToEdge). Held so the recruit
@@ -1881,18 +1895,24 @@ namespace OpenRA.Mods.Common.Traits
 		// orderedIdle is the ActorID-ordered idle reserve; the advance takes its LOWEST-id prefix, so its first
 		// element is always the representative whose locomotor defines passability for the group.
 		//
-		// COARSENESS, stated rather than hidden: every sampler reads the coarse cell's CENTRE map cell, and the
-		// caller's SpreadCell fan-out around the returned anchor is bounded only by Map.Contains — so an outer
-		// spread slot can still land on ground the grant test never saw. That is the same v1 limitation the
-		// staging formation carries (ForwardStagingMath.SpreadCell's own note), and it is why AdvanceSpreadRings
-		// is small: the screen stays within a couple of cells of the anchor that WAS tested.
-		CPos? ResolveAdvanceAnchor(CPos stagingSeed, IReadOnlyList<Actor> orderedIdle, out int groupSize)
+		// COARSENESS, stated rather than hidden: every sampler reads the coarse cell's CENTRE map cell, so the
+		// grant test resolves the ground at one-sector granularity and a sub-sector obstacle is invisible to it.
+		// What is NOT left to that coarseness is the fan-out: <paramref name="slotGranted"/> hands the caller the
+		// same grant test in MAP-cell terms so every spread slot is checked before a unit is ordered to it. That
+		// matters because one spread ring at the shipped spacing is a whole coarse sector, and a depth-maximising
+		// walk routinely ends one sector short of believed-enemy ground — so an unchecked ring would order part
+		// of the screen into exactly the cells the walk refused. StableSlot's contract assumes the caller bounds
+		// the ring by a standoff; the advance has no standoff, so it pays for the ring with a test instead.
+		CPos? ResolveAdvanceAnchor(CPos stagingSeed, IReadOnlyList<Actor> orderedIdle, out int groupSize,
+			out Func<CPos, bool> slotGranted)
 		{
 			groupSize = 0;
+			slotGranted = null;
 
-			// A missing danger field is disqualifying, NOT a zero-danger reading: waiving condition (3) would let
-			// the screen walk into any envelope. Contrast the staging descent, whose null-field fallback to 0 is
-			// safe because its OWN standoff still holds it behind the line.
+			// All three reads are REQUIRED, not defaulted. A missing danger field would read 0 everywhere
+			// (waiving condition 3), and a missing belief store no contacts anywhere (waiving condition 2) —
+			// both permissive. Contrast the staging descent, whose null-field fallback to 0 is safe only
+			// because its OWN standoff still holds the reserve behind the line.
 			var fieldsAvailable = controlField != null && dangerField != null && beliefStore != null;
 
 			var maxSectors = OpportunisticAdvanceMath.MaxSectors(
@@ -1909,6 +1929,21 @@ namespace OpenRA.Mods.Common.Traits
 				return null;
 			}
 
+			// Passability is read through the locomotor of a representative advancing unit — the same discipline
+			// GroundDangerNav applies to its detour waypoint, and for the same reason (unstamped water/cliff reads
+			// as maximally safe danger, so a danger-only test would steer the screen into a lake). WaypointPassable
+			// degrades to "everything passable" for a representative with no Mobile, which would waive condition
+			// (4) for the whole screen; every other consumer tolerates that, but this is the one that would then
+			// order units INTO the lake. Behind this gate we can simply decline and let the reserve muster.
+			var mover = orderedIdle[0];
+			if (mover.TraitOrDefault<Mobile>() == null)
+			{
+				lastAdvanceAnchor = null;
+				return null;
+			}
+
+			var passable = WaypointPassable(mover);
+
 			// Believed contacts, bucketed once per eval into the coarse grid cells they occupy — so the per-cell
 			// condition (2) test is a set lookup, not a rescan of the contact list per candidate neighbour.
 			var contactCells = new HashSet<(int X, int Y)>();
@@ -1918,19 +1953,27 @@ namespace OpenRA.Mods.Common.Traits
 			var ceiling = OpportunisticAdvanceMath.DangerCeiling(
 				Info.AdvanceDangerCeiling, Info.Aggressiveness, Info.AdvanceDangerCeilingSlopePct);
 
-			// Passability is read through the locomotor of a representative advancing unit — the same discipline
-			// GroundDangerNav applies to its detour waypoint, and for the same reason (unstamped water/cliff reads
-			// as maximally safe danger, so a danger-only test would steer the screen into a lake).
-			var passable = WaypointPassable(orderedIdle[0]);
+			int FrontierAt(int gx, int gy) => controlField.FrontierDistanceAt(player, gx, gy);
+			bool OnGrid(int gx, int gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight;
+
+			// The single grant test, bound once and reused by all three consumers this eval — the walk's per-step
+			// admissibility, the held-anchor staleness re-test, and the spread-slot filter. One definition, so the
+			// three can never drift apart.
+			bool Granted(int gx, int gy) => OpportunisticAdvanceMath.SectorIsClear(
+				controlField.OwnerAt(player, gx, gy) == ControlOwner.Enemy,
+				contactCells.Contains((gx, gy)),
+				dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)),
+				ceiling,
+				passable(controlField.GridCellToMapCell(gx, gy)));
 
 			var (sgx, sgy) = controlField.MapCellToGridCell(stagingSeed);
 			var (agx, agy) = OpportunisticAdvanceMath.AdvanceCell(sgx, sgy, maxSectors, ceiling,
-				(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
+				FrontierAt,
 				(gx, gy) => dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)),
 				(gx, gy) => controlField.OwnerAt(player, gx, gy) == ControlOwner.Enemy,
 				(gx, gy) => contactCells.Contains((gx, gy)),
 				(gx, gy) => passable(controlField.GridCellToMapCell(gx, gy)),
-				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight);
+				OnGrid);
 
 			// Compared in GRID space, not map space: GridCellToMapCell yields the grid cell CENTRE, so a map-space
 			// round-trip only reproduces the seed on odd coordinates (the same trap ResolveMusterAnchor documents).
@@ -1941,14 +1984,34 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			groupSize = size;
+			slotGranted = c =>
+			{
+				var (gx, gy) = controlField.MapCellToGridCell(c);
+				return OnGrid(gx, gy) && Granted(gx, gy);
+			};
+
 			var candidate = controlField.GridCellToMapCell(agx, agy);
 
-			// Hysteresis: keep the adopted anchor unless the new one shifted past the threshold, so a one-cell
-			// field wobble doesn't re-lay the screen every re-eval.
-			if (lastAdvanceAnchor.HasValue
-				&& !ForwardStagingMath.AnchorShifted(lastAdvanceAnchor.Value.X, lastAdvanceAnchor.Value.Y,
-					candidate.X, candidate.Y, Info.AdvanceHysteresisCells))
-				return lastAdvanceAnchor;
+			// Hysteresis, but ONE-WAY: it may damp a deepening or lateral move and nothing else. A held anchor
+			// that no longer passes the grant test, or a fresh walk that no longer reaches as far as the held
+			// anchor, is replaced at once — otherwise a one-sector closure (Chebyshev CellSize, under the
+			// threshold) would be suppressed and the screen kept at ground that just failed. See
+			// OpportunisticAdvanceMath.AdoptAdvanceAnchor for why staging can keep plain symmetric hysteresis
+			// and this cannot.
+			if (lastAdvanceAnchor.HasValue)
+			{
+				var (lgx, lgy) = controlField.MapCellToGridCell(lastAdvanceAnchor.Value);
+				var heldOnGrid = OnGrid(lgx, lgy);
+				var adopt = OpportunisticAdvanceMath.AdoptAdvanceAnchor(
+					heldOnGrid && Granted(lgx, lgy),
+					heldOnGrid ? FrontierAt(lgx, lgy) : int.MaxValue,
+					FrontierAt(agx, agy),
+					ForwardStagingMath.AnchorShifted(lastAdvanceAnchor.Value.X, lastAdvanceAnchor.Value.Y,
+						candidate.X, candidate.Y, Info.AdvanceHysteresisCells));
+
+				if (!adopt)
+					return lastAdvanceAnchor;
+			}
 
 			lastAdvanceAnchor = candidate;
 			return candidate;
@@ -2064,8 +2127,9 @@ namespace OpenRA.Mods.Common.Traits
 			// Gate checked here as well as inside ShouldAdvance so the frozen path does literally no extra work,
 			// not merely no observable work — the same early-out discipline this method opens with.
 			var advanceCount = 0;
+			Func<CPos, bool> advanceSlotGranted = null;
 			var advanceAnchor = Info.OpportunisticAdvanceEnabled
-				? ResolveAdvanceAnchor(anchor, ordered, out advanceCount) : null;
+				? ResolveAdvanceAnchor(anchor, ordered, out advanceCount, out advanceSlotGranted) : null;
 			var advanced = 0;
 
 			var staged = 0;
@@ -2085,9 +2149,24 @@ namespace OpenRA.Mods.Common.Traits
 					(mx, my) => world.Map.Contains(new CPos(mx, my)));
 				var target = new CPos(cx, cy);
 
+				// The walk's "never enters believed-enemy ground" property is about the ANCHOR. One spread ring is
+				// a full coarse sector at the shipped spacing, and the anchor often sits exactly one sector short
+				// of the enemy classification, so several octants of ring 1 would land INSIDE it. Grant-test each
+				// advance slot and collapse a failing one onto the anchor cell. Units sharing the anchor is the
+				// accepted cost; ordering a unit into ground the walk refused is not. Staging slots need no such
+				// test: they are bounded by the standoff, which is what StableSlot's contract assumes.
+				//
+				// The fallback is only sound because the anchor is granted on BOTH of ResolveAdvanceAnchor's
+				// return paths — a fresh candidate is a cell the walk stepped onto (so it passed), and a
+				// hysteresis-HELD anchor was re-tested this eval and would have been dropped had it failed.
+				if (onAdvance && !advanceSlotGranted(target))
+					target = groupAnchor;
+
 				// Same dedup for both groups, which is also what makes the §2.6 fall-back a single order: when the
 				// corridor closes, a unit's target reverts to its staging cell, differs from what it was last sent
-				// to, and is re-issued rearward. Nothing tracks "was advancing" — the target cell is the state.
+				// to, and is re-issued rearward. No PER-UNIT "was advancing" flag is needed — the target cell in
+				// stagedCells carries that. (The MODULE does keep one piece of advance state, lastAdvanceAnchor,
+				// for the one-way hysteresis; the claim here is about the units, not the module.)
 				if (stagedCells.TryGetValue(u, out var prev) && prev == target)
 					continue;
 

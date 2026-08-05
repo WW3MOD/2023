@@ -307,9 +307,16 @@ Player:
 		# Consumer 2 (item 31 / design §2.6): OPPORTUNISTIC ADVANCE — the behaviour the user asked for, "when a
 		# sector is undefended and a free path exists, generally advance". The idle reserve stops holding at the
 		# muster standoff when the ground in front reads GRANTED (not believed-enemy ground, no believed contact,
-		# believed danger under the ceiling, and passable), walks a capped screen into it, and keeps extending while
-		# the next sector ahead still reads clear. The abort is structural: the anchor is re-derived every re-eval,
-		# so a contact appearing in the corridor simply shortens the walk and the screen falls back to the line.
+		# believed danger under the ceiling, and passable): a capped screen walks into it, chaining one granted
+		# sector to the next up to the depth dial. That chaining is WITHIN a single walk — every re-eval re-seeds
+		# from the staging anchor, so the screen holds a bounded offset AHEAD of the muster point and only deepens
+		# over time as the muster point itself creeps forward. It is not a ratchet that accumulates ground, and
+		# that bounds what the sweep can show: raising the depth dial widens the standing offset.
+		# The abort is structural — the anchor is re-derived every re-eval, so a contact appearing in the corridor
+		# shortens the walk and the screen is re-ordered rearward. Its hysteresis is ONE-WAY for that reason
+		# (AdvanceHysteresisCells damps only a DEEPENING or lateral move; an anchor that stops passing the grant
+		# test, or a walk that no longer reaches as far, is dropped at once). Symmetric hysteresis would suppress
+		# exactly the one-sector closure the abort exists for, since one sector is Chebyshev 2 at CellSize 2.
 		# Needs ForwardStagingEnabled (below) — the staging anchor is the seed this walk extends from.
 		# HELD OFF pending the priced sweep — same discipline as AllocationScoreQuantizeBandPct above: this
 		# reshapes live behaviour and is unmeasured. Flip to true (the three slopes below are already live) to
@@ -317,17 +324,27 @@ Player:
 		OpportunisticAdvanceEnabled: false
 		# The three §2.6 dials the slider drives, each with its own range. Unlike consumer 1 these ship with LIVE
 		# slopes — they sit behind the default-off gate above, so inertness comes from the gate, and a sweep that
-		# turns the gate on gets a slider that actually moves. Ranges at the shipped pairings, knob 0 -> 100:
-		#   depth   1 -> 5 sectors    how far a chaining advance commits
-		#   ceiling 0 -> 40 danger    0 = totally clear ground only; 40 = the staging/mild-danger threshold
-		#   force   2 -> 8 units      a small screen ... a real push; the rest of the reserve keeps mustering
+		# turns the gate on gets a slider that actually moves.
+		# SIZE SLOPES AGAINST THE SWEEP GRID, NOT THE ENDPOINTS. The shift is integer division truncating toward
+		# zero, so a knob 15 points off neutral (35 or 65 on the parked grid) needs slope >= 7 to move an integer
+		# dial AT ALL. The first cut used depth 4 / force 6, which advertised 1->5 and 2->8 but produced depth
+		# {2,3,3,3,4} and force {4,5,5,5,6} on the grid — three of five points identical to neutral, so the sweep
+		# would have measured the ceiling alone. Widened to 7. Values on the parked grid {20,35,50,65,80}:
+		#   depth   {1,2,3,4,5} sectors   endpoints knob 0 -> 0 (advance disabled) .. knob 100 -> 6
+		#   ceiling {8,14,20,26,32}       endpoints knob 0 -> 0 (totally clear ground only) .. knob 100 -> 40
+		#   force   {3,4,5,6,7} units     endpoints knob 0 -> 2 (minimal screen) .. knob 100 -> 8
+		# Widening a slope keeps neutral EXACT by construction — (50-50)*slope/100 = 0 for any slope — so the
+		# knob-50 baseline is unchanged and this is not a re-tuning of the neutral bot.
 		AdvanceMaxSectors: 3
-		AdvanceMaxSectorsSlopePct: 4
+		AdvanceMaxSectorsSlopePct: 7
 		AdvanceDangerCeiling: 20
 		AdvanceDangerCeilingSlopePct: 40
 		AdvanceMinUnits: 2
 		AdvanceForceCap: 5
-		AdvanceForceCapSlopePct: 6
+		AdvanceForceCapSlopePct: 7
+		# One spread ring is a full coarse sector at StagingSpreadStepCells 2 / CellSize 2, and the anchor often
+		# sits one sector short of believed-enemy ground — so each advance spread slot is grant-tested and a
+		# failing slot collapses onto the anchor cell. Rings stay small so the screen is mutually supporting.
 		AdvanceSpreadRings: 1
 		AdvanceHysteresisCells: 3
 		# Capturer + non-combat support (owned by CaptureCoordinator / SupplyFollower)

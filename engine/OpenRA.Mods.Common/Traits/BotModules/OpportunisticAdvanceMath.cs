@@ -23,9 +23,25 @@
  *   - Each accepted step is ONE coarse cell from the last and is itself clear-tested, so the accepted path IS
  *     the corridor. There is no "score the far sector, then hope the lane is open" gap.
  *   - The BFS seeds from cells the control field classifies Enemy, so a frontier distance of 0 IS believed
- *     enemy ground. Condition (1) rejects those cells, so the walk provably halts on OUR side of the frontline
- *     contour — the "forward frontier cell" §2.6 names as the objective — and can never march into a believed
- *     enemy core. Condition (3) is what stops it inside no-man's-land that a defender covers by fire.
+ *     enemy ground. Condition (1) rejects those cells, so the WALK provably halts on OUR side of the frontline
+ *     contour — the "forward frontier cell" §2.6 names as the objective. Condition (3) is what stops it inside
+ *     no-man's-land that a defender covers by fire.
+ *
+ * SCOPE OF THAT HALTING GUARANTEE — it covers the ANCHOR, not the units, and the difference is a whole sector.
+ * The walk's output is one cell; the consumer then FANS the screen around it (ForwardStagingMath.SpreadCell).
+ * At the shipped spacing one spread ring is a full coarse sector, and a depth-maximising walk routinely ends at
+ * frontier distance 1 — so several octants of ring 1 land at distance 0, i.e. inside the very ground the walk
+ * refused. StableSlot's own contract assumes the caller bounds the ring radius by a standoff, and the advance
+ * HAS no standoff. The fan-out is therefore grant-tested slot by slot in the consumer (a failing slot falls back
+ * to the anchor cell), which is what extends the guarantee from the anchor to every ordered destination. Do not
+ * re-derive the ring bound from the staging path's arithmetic: that bound is the standoff, which does not exist
+ * here.
+ *
+ * WHAT THE WALK DOES NOT DO — cross-eval chaining. Each evaluation re-seeds from the STAGING anchor, so the
+ * advance is a bounded (<= maxSectors) offset ahead of the muster point, re-derived from scratch; it deepens
+ * across evals only as the staging anchor itself creeps forward. §2.6's "extends while clear" is therefore
+ * realised WITHIN one walk, not as a ratchet that accumulates ground over time. This bounds what a sweep can
+ * show: raising the depth dial widens the standing offset, it does not let the screen run away.
  *
  * AGGRESSIVENESS (§2.7) enters as the three shifts §2.6 asks for, each through the single PoiOffenseMath
  * .ShiftByKnob seam with its own base/slope pair: how marginal a danger reading still counts as clear
@@ -126,15 +142,43 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>The master gate, conjunctive and explicit so the whole enable path is one readable line at
-		/// the call site. <paramref name="fieldsAvailable"/> is the caller's "I have BOTH a control field and a
-		/// danger field" — a missing danger field must NOT be waived to 0, because 0 danger would make every
-		/// cell pass condition (3) and turn the cautious ceiling into a blank cheque.</summary>
+		/// the call site. <paramref name="fieldsAvailable"/> is the caller's "I have ALL THREE reads this
+		/// decision needs" — control field, danger field AND belief store. None may be waived to a default:
+		/// a missing danger field would read 0 danger everywhere and turn the cautious ceiling into a blank
+		/// cheque (condition 3), and a missing belief store would read no contacts anywhere and silently waive
+		/// condition (2) — the one condition that has no proxy, since a lone cheap contact may neither flip
+		/// control nor stamp danger above the ceiling. Both failure modes are permissive, which is why they are
+		/// gated here rather than handled with a null-coalescing default at the sampler.</summary>
 		public static bool ShouldAdvance(bool advanceEnabled, bool fieldsAvailable, int maxSectors, int groupSize)
 		{
 			return advanceEnabled
 				&& fieldsAvailable
 				&& maxSectors > 0
 				&& groupSize > 0;
+		}
+
+		/// <summary>Whether to adopt the freshly-walked <paramref name="candidateDepth"/> cell over the anchor
+		/// already being held, given plain Chebyshev hysteresis in
+		/// <paramref name="shiftedPastHysteresis"/>. Depth is FRONTIER DISTANCE, so a LARGER value is SHALLOWER.
+		///
+		/// Plain hysteresis alone is wrong here, and the reason is the asymmetry with staging. A stale STAGING
+		/// anchor is still safe ground — it was chosen a standoff behind the line, so holding it one eval too
+		/// long costs nothing and the jitter damping is pure win. A stale ADVANCE anchor is the opposite: it was
+		/// chosen precisely because it passed a grant test, so the moment it stops passing, holding it means
+		/// ordering the screen at ground we have just decided is not free. Worse, the candidates are grid-cell
+		/// CENTRES spaced one coarse cell apart, so a one-sector shortening moves the candidate by exactly
+		/// CellSize map cells — below a hysteresis of 3 — and the §2.6 abort would be suppressed exactly when it
+		/// is needed most.
+		///
+		/// So the guard is an enter/exit asymmetry, the same shape as the Stage-E/F strict-improvement rule:
+		/// hysteresis may only ever damp a DEEPENING or lateral move. Either of the two retreat cases adopts
+		/// immediately — the held anchor no longer passing the grant test, or the fresh walk not reaching as far
+		/// as the held anchor. Advancing is damped; giving ground is not.</summary>
+		public static bool AdoptAdvanceAnchor(bool heldStillGranted, int heldDepth, int candidateDepth, bool shiftedPastHysteresis)
+		{
+			return !heldStillGranted
+				|| candidateDepth > heldDepth
+				|| shiftedPastHysteresis;
 		}
 
 		/// <summary>Walk forward from the muster seed (<paramref name="startX"/>,<paramref name="startY"/>) down
