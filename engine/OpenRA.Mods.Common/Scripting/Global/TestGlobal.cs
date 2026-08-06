@@ -7,6 +7,7 @@
  */
 #endregion
 
+using System;
 using System.Linq;
 using OpenRA.Mods.Common.Projectiles;
 using OpenRA.Mods.Common.Traits;
@@ -94,6 +95,22 @@ namespace OpenRA.Mods.Common.Scripting.Global
 
 			var tick = Context.World != null ? Context.World.WorldTick : -1;
 			return TestModeScreenshots.Capture(label, note ?? "", tick);
+		}
+
+		[Desc("Set the camera zoom to `scale` × the viewport's default (minimum) zoom, so screenshots " +
+			"can be taken at reproducible zoom levels: 1 = default, >1 zoomed in, <1 zoomed out " +
+			"(0.25 is the fully-zoomed-out floor). Clamped to the viewport's own limits. " +
+			"Returns the resulting zoom as a multiple of MinZoom. Test mode only.")]
+		public double SetZoom(double scale)
+		{
+			if (!TestMode.IsActive)
+				return 0;
+
+			var viewport = Context.WorldRenderer.Viewport;
+
+			// Zoom has no public setter — AdjustZoom applies an exponential delta and does the clamping.
+			viewport.AdjustZoom((float)Math.Log(viewport.MinZoom * scale / viewport.Zoom));
+			return viewport.Zoom / viewport.MinZoom;
 		}
 
 		[Desc("Resolve the rally-point order type a click on `cell` from `producer` (with optional " +
