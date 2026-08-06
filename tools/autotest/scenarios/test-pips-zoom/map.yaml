@@ -1,0 +1,75 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Pips at all zoom levels (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Transport: bradley
+		Owner: USA
+		Location: 33,18
+		Facing: 768
+	Rifle1: e1
+		Owner: USA
+		Location: 32,20
+	Rifle2: e1
+		Owner: USA
+		Location: 33,20
+	Rifle3: e1
+		Owner: USA
+		Location: 34,20
+	Rifle4: e1
+		Owner: USA
+		Location: 35,20
+	Escort: abrams
+		Owner: USA
+		Location: 36,18
+		Facing: 768
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,14
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,26
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 33,14
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 33,26
+
+Rules: rules.yaml

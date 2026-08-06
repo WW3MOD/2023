@@ -1,0 +1,1 @@
+Auto: Capture cargo/ammo pips at three zoom levels (default, half zoomed out, fully zoomed out).
