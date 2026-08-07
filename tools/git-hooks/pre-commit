@@ -60,4 +60,41 @@ if [ -n "$violations" ]; then
     exit 1
 fi
 
+# CRLF backstop.
+#
+# .gitattributes now normalizes text to LF via `* text=auto eol=lf` in BOTH the repo
+# root and engine/, so CRLF should be structurally unable to enter the index. This
+# check exists because that guarantee has silently failed before: the old `* text=lf`
+# was a no-op ("lf" is not a valid `text` value), and a Python writer using the
+# platform default newline put 2276 CR bytes into WORKSPACE/DISCOVERIES.md on
+# 2026-08-05 with nothing complaining. If the attributes ever regress, this fails the
+# commit instead of letting the damage land.
+#
+# Reads the STAGED blob, not the working tree, so it sees exactly what would be
+# committed. Binary files are skipped via git's own text/binary attribute.
+crlf_files=""
+while IFS= read -r path; do
+    [ -z "$path" ] && continue
+    # Skip anything git considers binary (attribute `text` unset, e.g. *.png *.shp).
+    case "$(git check-attr text -- "$path")" in
+        *": text: unset") continue ;;
+    esac
+    if git show ":$path" 2>/dev/null | grep -qU $'\r'; then
+        crlf_files="$crlf_files  $path"$'\n'
+    fi
+done < <(git diff --cached --name-only --diff-filter=AM)
+
+if [ -n "$crlf_files" ]; then
+    echo ""
+    echo "CRLF line endings in staged text files — this repository is LF-only:"
+    echo ""
+    printf '%s' "$crlf_files"
+    echo ""
+    echo "Fix, then re-stage:  git add --renormalize <file>"
+    echo "If a file is genuinely binary, pin it in .gitattributes (and engine/.gitattributes"
+    echo "if it lives under engine/ — a deeper .gitattributes wins per-attribute)."
+    echo ""
+    exit 1
+fi
+
 exit 0
