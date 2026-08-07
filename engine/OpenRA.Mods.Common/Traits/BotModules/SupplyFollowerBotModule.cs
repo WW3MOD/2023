@@ -577,6 +577,17 @@ namespace OpenRA.Mods.Common.Traits
 		/// filter rather than a hard veto. Only reached when evac is live, so non-participating profiles keep
 		/// the old candidate set exactly.
 		///
+		/// <para>THE VALVE IS THE ORDINARY IN-CONTACT PATH, NOT A CORNER CASE — read the two branches as equal
+		/// partners. GroundDangerAt lifts every cell to at least its control-block baseline, that baseline
+		/// stacks additively past 40 in a dense sector (DOCS/reference/influence-stack.md, Stage B), and the
+		/// gate sits at 45 — so anywhere near a contested frontier the servable set is routinely EMPTY before
+		/// a single weapon is counted. Add one contact kernel and the relieved cluster is at or above the evac
+		/// entry threshold, which is to say: the valve fires precisely when a cluster is in a firefight, which
+		/// is precisely when resupply matters most. The resulting design is deliberate and is the whole
+		/// contract of this module's danger handling: GATE TO COMFORTABLE CELLS WHERE ANY EXIST, OTHERWISE
+		/// APPROACH THE LEAST-BAD ONE AND ABORT ON THE TRUCK'S OWN READING. Treating the second branch as a
+		/// rare fallback is how it ends up feeding ungated readings into gates that assume bounded input.</para>
+		///
 		/// <para>Two things a plain "drop everything over the threshold" gets wrong. First, a hard veto can
 		/// empty the set, and an empty set is not a safe default — the truck falls through to a bare
 		/// <c>continue</c> and PARKS on every profile except @experimental, because the idle-truck hunt that
@@ -602,8 +613,17 @@ namespace OpenRA.Mods.Common.Traits
 			// Relief valve: nothing is comfortably approachable, so fall back to the least dangerous needy
 			// cluster(s) rather than abandoning resupply entirely. Ties are kept so the ordinary need-desc
 			// selection still decides between equally-safe clusters; min over a list is order-independent.
+			//
+			// Marked Relieved because these clusters did NOT pass the gate — Danger here is unbounded and is
+			// routinely at or above the evac entry threshold. StepEvac must therefore not feed it to the evac
+			// decision (SupplyLogisticsMath.DestinationDanger); the truck approaches under its own reading
+			// instead, which is exactly the contract in this method's summary.
 			var minDanger = needy.Min(c => c.Danger);
-			return needy.Where(c => c.Danger == minDanger).ToList();
+			var relieved = needy.Where(c => c.Danger == minDanger).ToList();
+			foreach (var c in relieved)
+				c.Relieved = true;
+
+			return relieved;
 		}
 
 		List<UnitCluster> FindUnitClusters(List<Actor> units, int minFriendlies)
@@ -756,9 +776,11 @@ namespace OpenRA.Mods.Common.Traits
 		///
 		/// <para>Taking the MAX over the cell and its grid-centre representative recovers the stamped baseline
 		/// for every member of the block while keeping the densely-stamped contact kernel at the cell itself.
-		/// MAX rather than mean or min because under-reporting danger is the unsafe direction here, and
-		/// because a mean would divide the baseline by the number of unstamped neighbours — re-introducing the
-		/// same parity dependence with a smaller amplitude.</para></summary>
+		/// MIN is simply unsafe — it reports the unstamped member, i.e. it under-reports danger, which is the
+		/// wrong direction for a safety gate. A MEAN over the block would NOT reintroduce parity (a mean over
+		/// a fixed block is uniform within it); the objection to it is different and is about the other term:
+		/// it dilutes the densely-stamped CONTACT kernel across four cells, roughly quartering the local peak
+		/// that the gate exists to notice. MAX is the only one of the three that preserves both terms.</para></summary>
 		int GroundDangerAt(CPos cell)
 		{
 			var danger = dangerField.GroundDanger(player, cell);
@@ -800,10 +822,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			var dangerAtTruck = GroundDangerAt(truck.Location);
 
-			// The cell the truck is being SENT to (already de-aliased and gated when the cluster was chosen).
-			// No cluster ⇒ no destination term: it exists to catch the front arriving on a destination that
-			// passed the gate, so with nothing chosen it must not contribute a reading of its own.
-			var dangerAtDestination = cluster?.Danger ?? 0;
+			// The cell the truck is being SENT to — but read ONLY when that cell passed the danger gate this
+			// scan. No cluster, or a cluster that came through the relief valve, contributes nothing: the
+			// term exists to catch the front arriving on a GATED destination, and an ungated reading in the
+			// entry test pins the branch true forever regardless of where the truck drives. The reasoning,
+			// and why 0 is the valve's contract rather than a fudge, is on DestinationDanger.
+			var destinationWasGated = cluster is { Relieved: false };
+			var dangerAtDestination = SupplyLogisticsMath.DestinationDanger(destinationWasGated, cluster?.Danger ?? 0);
 
 			var evacNow = SupplyLogisticsMath.EvacuateWithDwell(wasEvacuating, heldBefore,
 				dangerAtTruck, dangerAtDestination, Info.EvacDangerThreshold, Info.EvacReleaseHysteresis);
@@ -920,6 +945,12 @@ namespace OpenRA.Mods.Common.Traits
 			// not, which would put the veto and the destination on two different quantities.
 			public CPos FollowCell;
 			public int Danger;
+
+			// True when this cluster reached selection through the relief valve rather than through the
+			// danger gate — i.e. Danger is NOT bounded by the gate and may sit at or above the evac entry
+			// threshold. The evac decision must not read the destination of such a cluster; see
+			// SupplyLogisticsMath.DestinationDanger for why that is a latch rather than a conservatism.
+			public bool Relieved;
 		}
 	}
 }

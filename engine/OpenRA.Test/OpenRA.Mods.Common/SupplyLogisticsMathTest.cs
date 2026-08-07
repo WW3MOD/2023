@@ -259,6 +259,32 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void DestinationDanger_RelievedDestinationIsNotRead_SoTheEntryTestCannotLatch()
+		{
+			// The relief valve hands back the least-dangerous NEEDY cluster when nothing passed the danger
+			// gate — and near a contested frontier that is the ordinary path, not a corner case, so the
+			// reading it returns is routinely at or above the entry threshold. Feeding it to the entry test
+			// pins the branch true on every scan whatever the truck does (entry short-circuits ahead of both
+			// the dwell and the release), so the truck legs to the SR, drifts out of follow range, releases,
+			// re-selects the same cluster through the valve and re-enters: parked at the SR resupplying
+			// nobody, which is the starvation the valve exists to prevent.
+			Assert.That(SupplyLogisticsMath.DestinationDanger(destinationWasGated: true, 50), Is.EqualTo(50),
+				"a gated destination is read as-is");
+			Assert.That(SupplyLogisticsMath.DestinationDanger(destinationWasGated: false, 70), Is.EqualTo(0),
+				"an ungated (relieved) destination contributes nothing");
+
+			// The composed property: a relieved cluster deep in a firefight must NOT evacuate a cold truck.
+			var relieved = SupplyLogisticsMath.DestinationDanger(destinationWasGated: false, 70);
+			Assert.That(Evac(wasEvacuating: false, hold: 0, dangerAtTruck: 0, dangerAtDestination: relieved),
+				Is.False, "the truck sets off toward a relieved cluster instead of refusing to move");
+
+			// ...and the abort criterion for that approach is undiminished: its OWN cell going hot still
+			// pulls it back on the scan that sees it, which is what makes approaching safe to allow.
+			Assert.That(Evac(wasEvacuating: false, hold: 0, dangerAtTruck: Threshold, dangerAtDestination: relieved),
+				Is.True, "the truck's own reading still aborts the approach at full strength");
+		}
+
+		[Test]
 		public void EvacDwell_DestinationTermStillTriggersEntry_WhenTheFrontArrivesOnIt()
 		{
 			// The destination term survives on the ENTRY side only. The caller gates selection at

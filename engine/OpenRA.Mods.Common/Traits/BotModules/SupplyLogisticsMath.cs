@@ -196,6 +196,36 @@ namespace OpenRA.Mods.Common.Traits
 			return dangerAtTruck >= ReleaseLevel(threshold, releaseHysteresis);
 		}
 
+		/// <summary>The destination reading <see cref="EvacuateWithDwell"/> is allowed to see — the reading
+		/// itself when <paramref name="destinationWasGated"/>, and 0 otherwise. This is the ENFORCEMENT POINT
+		/// for the responsive-terms invariant, deliberately a named function rather than an inline test at the
+		/// call site, because getting it wrong does not look like a bug at the call site.
+		///
+		/// <para>The invariant generalises: A TEST THAT CAN PIN THE BRANCH TRUE MAY READ ONLY RESPONSIVE
+		/// TERMS, UNLESS ITS NON-RESPONSIVE TERMS ARE BOUNDED BY A GATE APPLIED IN THE SAME SCAN. The entry
+		/// test can pin the branch true — it short-circuits ahead of both the dwell and the release, which is
+		/// the safety asymmetry working as designed — and a destination reading is not responsive: retreating
+		/// changes where the TRUCK is, never what the destination reads. What made the entry test safe was
+		/// never the term itself but the caller's selection gate, which guaranteed the reading sat below the
+		/// entry threshold. Any caller path that BYPASSES that gate — a relief valve handing back an
+		/// over-threshold destination because nothing better exists — removes the bound and restores the
+		/// latch: entry true on every scan whatever the truck does, so the truck legs to the SR, drifts out of
+		/// follow range, releases, re-selects the same ungated destination and re-enters. Parked at the SR
+		/// resupplying nobody, which is the starvation the valve exists to prevent.</para>
+		///
+		/// <para>Passing 0 for a relieved destination is not a fudge — it is the valve's contract made
+		/// explicit. An ungated destination is one the caller has decided to approach ANYWAY because the
+		/// alternative is not resupplying at all; the abort criterion for that approach is the truck's own
+		/// reading, which the undamped entry test still applies at full strength. So the truck advances until
+		/// its OWN cell is genuinely too hot and then pulls back, instead of refusing to set off. Capping the
+		/// valve at the entry threshold instead would simply restore park-and-starve for the exact regime the
+		/// valve exists for.</para>
+		/// Pure, zero RNG.</summary>
+		public static int DestinationDanger(bool destinationWasGated, int dangerAtDestination)
+		{
+			return destinationWasGated ? dangerAtDestination : 0;
+		}
+
 		/// <summary>Step the dwell counter <see cref="EvacuateWithDwell"/> reads. Armed to
 		/// <paramref name="dwellScans"/> on the scan a truck STARTS evacuating (<paramref name="startedEvacuating"/>
 		/// — the caller's <c>evacNow &amp;&amp; !wasEvacuating</c>), counted down otherwise, floored at 0.
