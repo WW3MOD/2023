@@ -1,47 +1,45 @@
-# Enforce LF normalization on Windows
+# Line-ending policy: everything text is LF in the repository.
 #
-# NOTE: the `* text=lf` catch-all at the bottom DOES NOTHING. `lf` is not a valid
-# value for the `text` attribute — git accepts set / unset / `auto` and treats
-# anything else as undefined, falling through to core.autocrlf. Every extension
-# that needs LF must therefore be listed EXPLICITLY below; `eol=lf` works because
-# it implies text. This gap silently let a Windows tool commit 2276 CRLF lines
-# into WORKSPACE/DISCOVERIES.md on 2026-08-05.
+# HISTORY: this file previously relied on `* text=lf`, which is a NO-OP — `lf` is not
+# a valid value for the `text` attribute (git accepts set / unset / `auto` and treats
+# anything else as undefined), so it fell through to core.autocrlf. Only the explicit
+# `eol=lf` lines ever worked, which is why .cs warned on CRLF while .md silently took
+# 2276 CR bytes into WORKSPACE/DISCOVERIES.md on 2026-08-05.
 #
-# Deliberately left in place rather than changed to `* text=auto`, which would
-# mark the whole tree for renormalization (user decision, 2026-08-06). Every
-# extension listed here was verified LF-clean in the tree at the time it was
-# added, so none of these lines rewrites an existing file.
+# NOTE: engine/.gitattributes carries the same policy and MUST be kept in sync — a
+# deeper .gitattributes wins per-attribute, so anything set only here is inert for
+# every path under engine/.
 
-# Code
-*.cs eol=lf
-*.csproj eol=lf
-*.sln eol=lf
-*.lua eol=lf
-*.py eol=lf
-*.ts eol=lf
+# Catch-all: auto-detect text vs binary, normalize text to LF in the repo. This is
+# what covers EXTENSIONLESS files (Makefile, openra, pre-commit, COPYING, AUTHORS,
+# VERSION) and any new file type nobody remembers to list below.
+* text=auto eol=lf
 
-# Data / config
-*.yaml eol=lf
-*.yml eol=lf
-*.json eol=lf
-*.ftl eol=lf
-*.in eol=lf
-
-# Docs / prose
-*.md eol=lf
-*.txt eol=lf
-*.html eol=lf
-
-# Scripts — .cmd and .ps1 included deliberately: all are already LF in-tree and
-# run correctly that way, so pinning them costs nothing and stops a Windows
-# editor from flipping them.
-*.sh eol=lf
-*.ps1 eol=lf
-*.cmd eol=lf
-
-# Inert — see the note at the top. Kept only so its absence isn't read as an
-# intentional removal; it provides no normalization.
-* text=lf
+# Binary formats — pinned explicitly so content auto-detection can never misfire on
+# a game asset or an image. This is NOT belt-and-braces: engine/packaging/artwork
+# PNGs legitimately contain CR bytes (ra_16x16.png is 632 bytes with 5 CRs), and
+# normalizing one strips a byte and corrupts the image.
+*.shp binary
+*.aud binary
+*.des binary
+*.jun binary
+*.tem binary
+*.sno binary
+*.int binary
+*.tmp binary
+*.pal binary
+*.bin binary
+*.mix binary
+*.dat binary
+*.win binary
+*.oramap binary
+*.a00 binary
+*.a01 binary
+*.a02 binary
+*.a03 binary
+*.png binary
+*.wav binary
+*.ttf binary
 
 # Custom for Visual Studio
 *.cs     diff=csharp

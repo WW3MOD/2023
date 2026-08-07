@@ -1,10 +1,38 @@
-# Enforce LF normalization on Windows
-*.yaml eol=lf
-*.lua eol=lf
-*.cs eol=lf
-*.csproj eol=lf
-*.sln eol=lf
-* text=lf
+# Line-ending policy for the in-repo engine tree.
+#
+# This file EXISTS AND MATTERS: a deeper .gitattributes wins per-attribute, so this
+# governs every path under engine/ (1800+ .cs files and all packaging artwork) and
+# the repo-root .gitattributes cannot reach them. Keep the two in sync.
+#
+# Previously `* text=lf`, which is a no-op — `lf` is not a valid `text` value.
+
+* text=auto eol=lf
+
+# Binary formats — pinned explicitly so content auto-detection can never misfire on
+# a game asset or an image. This is NOT belt-and-braces: engine/packaging/artwork
+# PNGs legitimately contain CR bytes (ra_16x16.png is 632 bytes with 5 CRs), and
+# normalizing one strips a byte and corrupts the image.
+*.shp binary
+*.aud binary
+*.des binary
+*.jun binary
+*.tem binary
+*.sno binary
+*.int binary
+*.tmp binary
+*.pal binary
+*.bin binary
+*.mix binary
+*.dat binary
+*.win binary
+*.oramap binary
+*.a00 binary
+*.a01 binary
+*.a02 binary
+*.a03 binary
+*.png binary
+*.wav binary
+*.ttf binary
 
 # Custom for Visual Studio
 *.cs     diff=csharp
