@@ -749,12 +749,17 @@ Player:
 		EvacDangerThreshold: 60
 		EvacRetreatCells: 12
 		# Evac damper (2026-08-07). Without these the evac branch was a memoryless comparator sampled every
-		# scan and the truck oscillated forward/back to the SR without ever delivering: the cluster danger
-		# term does not fall when the truck retreats, and need-descending selection prefers exactly the hot
-		# cluster the evac rule then refuses. EvacDangerThreshold now also filters selection (engine side),
-		# and these two give the decision memory — a retreat is held for one leg and the truck must fall to
-		# 45 before it follows again. ENTERING an evac is never delayed. 0 dwell = the old broken reading.
-		EvacDwellScans: 2
+		# scan and the truck oscillated forward/back to the SR without ever delivering: the danger reading at
+		# the destination does not fall when the truck retreats, and need-descending selection prefers exactly
+		# the hot cluster the evac rule then refuses. The engine now gates SELECTION on the believed danger at
+		# the cell the truck would actually be sent to, at the RELEASE level (60 - 15 = 45) — the same number
+		# the truck must fall below to resume following, so "will go here" and "will leave here" bracket a
+		# real band. Gating at 60 while releasing at 45 would leave [45,59] as a latch, which is the original
+		# bug one threshold lower. ENTERING an evac is never delayed by any of this.
+		# Dwell 1: a 12-cell leg is ~164 ticks + acceleration against a 150-tick scan, so one held scan puts
+		# the re-decision at the first boundary after the leg lands. Retreat DISTANCE is bounded separately
+		# (one leg issued at a time), so the dwell does not need to cover the drive. 0 disables the dwell.
+		EvacDwellScans: 1
 		EvacReleaseHysteresis: 15
 		# TIER 2 idle-truck hunt: a truck the follow pass left unassigned (no cluster in range, or no
 		# cluster at all) drives to the neediest STARVING soldier within HuntLeashCells instead of parking

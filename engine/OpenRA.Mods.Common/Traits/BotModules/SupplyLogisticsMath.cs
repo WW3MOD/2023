@@ -27,11 +27,19 @@
  *     neediest cluster is the one that has been fighting — i.e. the one deepest in believed danger, which is
  *     exactly what the level test then rejects. The module systematically chose the cluster it was about to
  *     refuse to approach.
- * The fix is in two halves and BOTH are load-bearing. The caller now filters clusters at or above the evac
- * threshold OUT OF SELECTION ENTIRELY (breaking the correlation — see SupplyFollowerBotModule.BotTick), which
- * leaves dangerAtTruck as the term that actually drives the decision, and dangerAtTruck DOES fall as the truck
- * retreats. That makes the loop closed and therefore settleable. This file supplies the other half: a dwell +
- * release deadband so a retreat already ordered is not re-decided or re-issued while it is still being driven.
+ * The fix is in two halves and BOTH are load-bearing. The caller gates SELECTION on the believed danger at the
+ * cell the truck would actually be sent to (breaking the correlation — see SupplyFollowerBotModule.BotTick),
+ * which leaves dangerAtTruck as the term that actually drives the decision, and dangerAtTruck DOES fall as the
+ * truck retreats. That makes the loop closed and therefore settleable. This file supplies the other half: a
+ * dwell + release deadband so a retreat already ordered is not re-decided while it is still being driven.
+ *
+ * THE TWO LEVELS MUST BRACKET A REAL BAND, AND THE RELEASE MUST READ ONLY RESPONSIVE TERMS. The first version
+ * of this fix got both wrong in the same place: it gated selection at the ENTRY threshold (60) while releasing
+ * at ReleaseLevel (45) via a shared helper that ORed the destination reading. A destination in [45, 59] then
+ * passed the gate AND made the release permanently true no matter where the truck drove — the original bug at
+ * full amplitude, one threshold lower. Selection is therefore gated at ReleaseLevel, so "will go here" (< 45)
+ * and "will leave here" (>= 60) are separated by a genuine band, and EvacuateWithDwell's release reads
+ * dangerAtTruck alone. See the RESPONSIVE-TERMS INVARIANT on that method.
  *
  * ASYMMETRY (load-bearing safety property, stated so it cannot silently regress): the damper only ever DELAYS
  * THE RETURN TO FOLLOWING. ENTERING an evac is never delayed — EvacuateWithDwell tests the entry threshold
@@ -154,20 +162,29 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>The evac branch decision WITH MEMORY — the anti-oscillation replacement for calling
 		/// <see cref="ShouldEvacuate"/> bare every scan. Three steps, in this order:
-		///   1. ENTRY IS NEVER DAMPED. If danger reaches <paramref name="threshold"/> the answer is true
-		///      immediately, whatever <paramref name="hold"/> says. This is the safety property in the file
-		///      header: a genuine withdrawal is never delayed by the damper.
+		///   1. ENTRY IS NEVER DAMPED. If danger at the truck OR at the cell it is being sent to reaches
+		///      <paramref name="threshold"/> the answer is true immediately, whatever <paramref name="hold"/>
+		///      says. This is the safety property in the file header: a genuine withdrawal is never delayed.
 		///   2. A truck that was not evacuating and is not over the entry level keeps following.
 		///   3. LEAVING IS DAMPED. An evacuating truck stays evacuating while <paramref name="hold"/> &gt; 0 (the
 		///      dwell — the retreat it was already given is still being driven, so the branch is not re-decided),
-		///      and once the dwell expires it must fall all the way through <see cref="ReleaseLevel"/> before it
-		///      follows again (the deadband).
+		///      and once the dwell expires it must fall through <see cref="ReleaseLevel"/> before it follows
+		///      again (the deadband).
+		///
+		/// <para>RESPONSIVE-TERMS INVARIANT — the release test reads <paramref name="dangerAtTruck"/> AND
+		/// NOTHING ELSE, and that is load-bearing rather than incidental. A retreat moves the truck, so it can
+		/// only change readings taken AT the truck; <paramref name="dangerAtDestination"/> is unaffected by
+		/// anything the truck does. Putting a non-responsive term in the release makes the decision unable to
+		/// become false — a LATCH, not a deadband — and it latches for every reading in the whole band between
+		/// the destination gate and the release level. That is exactly the open-loop defect described in the
+		/// EVAC DAMPER note, reintroduced one threshold lower, and it is why the entry and release tests here
+		/// deliberately do not share a helper. Any term added to the release must be one the retreat moves.</para>
 		/// <paramref name="hold"/> is stepped by <see cref="StepEvacDwell"/> and owned by the caller, matching
 		/// RetreatDamperMath's split of predicate from counter. Pure integer, zero RNG.</summary>
-		public static bool EvacuateWithDwell(bool wasEvacuating, int hold, int dangerAtTruck, int dangerAtCluster,
+		public static bool EvacuateWithDwell(bool wasEvacuating, int hold, int dangerAtTruck, int dangerAtDestination,
 			int threshold, int releaseHysteresis)
 		{
-			if (ShouldEvacuate(dangerAtTruck, dangerAtCluster, threshold))
+			if (ShouldEvacuate(dangerAtTruck, dangerAtDestination, threshold))
 				return true;
 
 			if (!wasEvacuating)
@@ -176,7 +193,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (hold > 0)
 				return true;
 
-			return ShouldEvacuate(dangerAtTruck, dangerAtCluster, ReleaseLevel(threshold, releaseHysteresis));
+			return dangerAtTruck >= ReleaseLevel(threshold, releaseHysteresis);
 		}
 
 		/// <summary>Step the dwell counter <see cref="EvacuateWithDwell"/> reads. Armed to

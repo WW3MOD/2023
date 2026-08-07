@@ -193,9 +193,31 @@ namespace OpenRA.Test
 		const int Threshold = 60;
 		const int Hysteresis = 15; // release level 45
 
-		static bool Evac(bool wasEvacuating, int hold, int dangerAtTruck, int dangerAtCluster = 0) =>
-			SupplyLogisticsMath.EvacuateWithDwell(wasEvacuating, hold, dangerAtTruck, dangerAtCluster,
+		static bool Evac(bool wasEvacuating, int hold, int dangerAtTruck, int dangerAtDestination = 0) =>
+			SupplyLogisticsMath.EvacuateWithDwell(wasEvacuating, hold, dangerAtTruck, dangerAtDestination,
 				Threshold, Hysteresis);
+
+		[Test]
+		public void EvacDwell_ReleaseIgnoresTheDestination_SoItCannotLatch()
+		{
+			// THE REGRESSION THIS FILE EXISTS TO PREVENT, and the one the first version of the fix shipped.
+			// The release test must read ONLY terms the retreat itself moves. A destination reading is not
+			// one: retreating changes where the TRUCK is, never what the destination reads. When the release
+			// ORed it in, any destination in [ReleaseLevel, Threshold) — i.e. every value the selection gate
+			// admits, since that gate is at ReleaseLevel — made the release permanently true however far the
+			// truck drove, so the truck re-retreated every scan. That is the reported bug at full amplitude.
+			//
+			// The original pins all passed dangerAtDestination: 0, which is exactly why they missed it. Any
+			// new release assertion must exercise a NON-ZERO destination.
+			Assert.That(Evac(wasEvacuating: true, hold: 0, dangerAtTruck: 0, dangerAtDestination: 50),
+				Is.False, "a cold truck releases even with a warm destination — the destination is not a responsive term");
+			Assert.That(Evac(wasEvacuating: true, hold: 0, dangerAtTruck: 0, dangerAtDestination: 59),
+				Is.False, "and at the top of the band the selection gate admits");
+
+			// The truck's own reading still governs the release in both directions.
+			Assert.That(Evac(wasEvacuating: true, hold: 0, dangerAtTruck: 45, dangerAtDestination: 0),
+				Is.True, "the truck's own reading at the release level still holds the evac");
+		}
 
 		[Test]
 		public void EvacDwell_EnteringIsNeverDelayed_EvenWithAHoldStanding()
@@ -237,13 +259,18 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void EvacDwell_ClusterTermStillTriggers_WhenTheFrontMovesOntoTheCluster()
+		public void EvacDwell_DestinationTermStillTriggersEntry_WhenTheFrontArrivesOnIt()
 		{
-			// The caller filters over-threshold clusters out of SELECTION, so this term can now only fire when
-			// the cluster went hot AFTER it was chosen — a genuine "conditions changed" evac, which is what the
-			// branch was written for. Pinned so the filter is never mistaken for a reason to drop the term.
-			Assert.That(Evac(wasEvacuating: false, hold: 0, dangerAtTruck: 0, dangerAtCluster: Threshold),
-				Is.True, "a cluster that goes hot after selection still evacuates the truck");
+			// The destination term survives on the ENTRY side only. The caller gates selection at
+			// ReleaseLevel, so a destination can only reach the entry threshold by going hot between scans —
+			// a genuine "conditions changed" evac, which is what the branch was written for. Pinned so the
+			// gate is never mistaken for a reason to drop the term entirely.
+			Assert.That(Evac(wasEvacuating: false, hold: 0, dangerAtTruck: 0, dangerAtDestination: Threshold),
+				Is.True, "a destination that goes hot after selection still evacuates the truck");
+
+			// But strictly below the entry threshold it must not, or the gate band is fiction.
+			Assert.That(Evac(wasEvacuating: false, hold: 0, dangerAtTruck: 0, dangerAtDestination: Threshold - 1),
+				Is.False, "a destination inside the band does not pull a following truck out");
 		}
 
 		[Test]
@@ -288,37 +315,34 @@ namespace OpenRA.Test
 		public void EvacDwell_FullCycle_SettlesInsteadOfOscillating()
 		{
 			// The regression this whole damper exists for, walked end to end. Pre-fix, a truck whose cluster
-			// read hot re-took the retreat on EVERY scan (the cluster term does not fall when the truck moves),
-			// and flipped back to following the moment selection found a cooler cluster — forward, back, repeat.
-			// Here the truck drives into danger, retreats ONCE, holds while the leg completes, and settles.
+			// read hot re-took the retreat on EVERY scan (that term does not fall when the truck moves), and
+			// flipped back to following the moment selection found a cooler cluster — forward, back, repeat.
+			//
+			// The destination is held at 50 THROUGHOUT: inside the band the selection gate admits, and the
+			// value that latched the first version of the fix. The cycle must still settle.
+			const int WarmDestination = 50;
 			var hold = 0;
 			var evacuating = false;
 
-			// Scan 1: truck drives into fire. Enters evac, arms the dwell. Caller issues the retreat.
-			var now = Evac(evacuating, hold, dangerAtTruck: 80);
+			// Scan 1: truck drives into fire. Enters evac, arms the dwell. Caller issues one retreat leg.
+			var now = Evac(evacuating, hold, dangerAtTruck: 80, dangerAtDestination: WarmDestination);
 			Assert.That(now, Is.True, "scan 1: enters evac");
-			hold = SupplyLogisticsMath.StepEvacDwell(hold, now && !evacuating, dwellScans: 2);
+			hold = SupplyLogisticsMath.StepEvacDwell(hold, now && !evacuating, dwellScans: 1);
 			evacuating = now;
-			Assert.That(hold, Is.EqualTo(2));
+			Assert.That(hold, Is.EqualTo(1));
 
-			// Scan 2: retreat is under way and the truck has already cooled. Pre-fix this is where the branch
-			// flipped back and the maneuver restarted. The dwell holds it, and hold > 0 also tells the caller
-			// not to re-issue the Move from the truck's new (nearer) position.
-			now = Evac(evacuating, hold, dangerAtTruck: 20);
-			Assert.That(now, Is.True, "scan 2: held — branch not re-decided mid-retreat");
-			hold = SupplyLogisticsMath.StepEvacDwell(hold, now && !evacuating, dwellScans: 2);
-			Assert.That(hold, Is.EqualTo(1), "and the dwell is counting down, not re-arming");
+			// Scan 2: the leg is still being driven and the truck has already cooled. Pre-damper this is where
+			// the branch flipped back and the maneuver restarted. The dwell holds it.
+			now = Evac(evacuating, hold, dangerAtTruck: 20, dangerAtDestination: WarmDestination);
+			Assert.That(now, Is.True, "scan 2: held — branch not re-decided mid-leg");
+			hold = SupplyLogisticsMath.StepEvacDwell(hold, now && !evacuating, dwellScans: 1);
+			Assert.That(hold, Is.EqualTo(0), "and the dwell counts down, it does not re-arm");
 
-			// Scan 3: dwell decays to 0.
-			now = Evac(evacuating, hold, dangerAtTruck: 20);
-			Assert.That(now, Is.True, "scan 3: still held");
-			hold = SupplyLogisticsMath.StepEvacDwell(hold, now && !evacuating, dwellScans: 2);
-			Assert.That(hold, Is.EqualTo(0));
-
-			// Scan 4: free to re-decide, and the truck is clear of the deadband → back to following. ONE
-			// retreat was taken for one danger episode; that is the fixed point the pre-fix code never reached.
-			now = Evac(evacuating, hold, dangerAtTruck: 20);
-			Assert.That(now, Is.False, "scan 4: released — resumes following");
+			// Scan 3: free to re-decide. The truck is clear of the deadband, so it follows again — EVEN THOUGH
+			// the destination still reads 50. ONE retreat for one danger episode: the fixed point the pre-fix
+			// code never reached, and the one the latch took away again.
+			now = Evac(evacuating, hold, dangerAtTruck: 20, dangerAtDestination: WarmDestination);
+			Assert.That(now, Is.False, "scan 3: released despite the warm destination");
 		}
 	}
 }
