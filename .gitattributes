@@ -1,9 +1,46 @@
 # Enforce LF normalization on Windows
-*.yaml eol=lf
-*.lua eol=lf
+#
+# NOTE: the `* text=lf` catch-all at the bottom DOES NOTHING. `lf` is not a valid
+# value for the `text` attribute — git accepts set / unset / `auto` and treats
+# anything else as undefined, falling through to core.autocrlf. Every extension
+# that needs LF must therefore be listed EXPLICITLY below; `eol=lf` works because
+# it implies text. This gap silently let a Windows tool commit 2276 CRLF lines
+# into WORKSPACE/DISCOVERIES.md on 2026-08-05.
+#
+# Deliberately left in place rather than changed to `* text=auto`, which would
+# mark the whole tree for renormalization (user decision, 2026-08-06). Every
+# extension listed here was verified LF-clean in the tree at the time it was
+# added, so none of these lines rewrites an existing file.
+
+# Code
 *.cs eol=lf
 *.csproj eol=lf
 *.sln eol=lf
+*.lua eol=lf
+*.py eol=lf
+*.ts eol=lf
+
+# Data / config
+*.yaml eol=lf
+*.yml eol=lf
+*.json eol=lf
+*.ftl eol=lf
+*.in eol=lf
+
+# Docs / prose
+*.md eol=lf
+*.txt eol=lf
+*.html eol=lf
+
+# Scripts — .cmd and .ps1 included deliberately: all are already LF in-tree and
+# run correctly that way, so pinning them costs nothing and stops a Windows
+# editor from flipping them.
+*.sh eol=lf
+*.ps1 eol=lf
+*.cmd eol=lf
+
+# Inert — see the note at the top. Kept only so its absence isn't read as an
+# intentional removal; it provides no normalization.
 * text=lf
 
 # Custom for Visual Studio
