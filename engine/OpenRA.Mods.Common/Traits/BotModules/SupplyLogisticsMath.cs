@@ -33,13 +33,21 @@
  * truck retreats. That makes the loop closed and therefore settleable. This file supplies the other half: a
  * dwell + release deadband so a retreat already ordered is not re-decided while it is still being driven.
  *
- * THE TWO LEVELS MUST BRACKET A REAL BAND, AND THE RELEASE MUST READ ONLY RESPONSIVE TERMS. The first version
- * of this fix got both wrong in the same place: it gated selection at the ENTRY threshold (60) while releasing
- * at ReleaseLevel (45) via a shared helper that ORed the destination reading. A destination in [45, 59] then
- * passed the gate AND made the release permanently true no matter where the truck drove — the original bug at
- * full amplitude, one threshold lower. Selection is therefore gated at ReleaseLevel, so "will go here" (< 45)
- * and "will leave here" (>= 60) are separated by a genuine band, and EvacuateWithDwell's release reads
- * dangerAtTruck alone. See the RESPONSIVE-TERMS INVARIANT on that method.
+ * THE ADMIT LEVEL AND THE RELEASE LEVEL MUST BE THE SAME NUMBER, AND THE RELEASE MUST READ ONLY RESPONSIVE
+ * TERMS. The first version of this fix got both wrong in the same place: it gated selection at the ENTRY
+ * threshold (60) while releasing at ReleaseLevel (45) via a shared helper that ORed the destination reading. A
+ * destination in [45, 59] then passed the gate AND made the release permanently true no matter where the truck
+ * drove — the original bug at full amplitude, one threshold lower. Selection is therefore gated at
+ * ReleaseLevel, so no gap is left between "will go here" and "will leave here", and EvacuateWithDwell's
+ * release reads dangerAtTruck alone. See the RESPONSIVE-TERMS INVARIANT on that method.
+ *
+ * WHAT THE HYSTERESIS DOES NOT DO. Do not read the 45/60 gap as the thing that stops the oscillating — it is
+ * not, and the earlier framing of it as a Schmitt deadband overclaimed. The danger field steps by tens to
+ * hundreds per cell near a believed contact, so 15 units is spatially SUB-CELL: the truck crosses the entire
+ * band in one step and never dwells inside it. The stabilisation is entirely temporal and comes from the two
+ * memory mechanisms — the dwell (the branch cannot be re-decided mid-leg) and the caller's leg model (the
+ * retreat is not re-issued until it has been driven). The hysteresis' real job is choosing WHICH geometric
+ * contour of the contact envelope counts as the edge, which matters for delivery margin, not for settling.
  *
  * ASYMMETRY (load-bearing safety property, stated so it cannot silently regress): the damper only ever DELAYS
  * THE RETURN TO FOLLOWING. ENTERING an evac is never delayed — EvacuateWithDwell tests the entry threshold
@@ -220,6 +228,14 @@ namespace OpenRA.Mods.Common.Traits
 		/// its OWN cell is genuinely too hot and then pulls back, instead of refusing to set off. Capping the
 		/// valve at the entry threshold instead would simply restore park-and-starve for the exact regime the
 		/// valve exists for.</para>
+		///
+		/// <para>NOTE THE POLARITY, which the caller must preserve: the parameter asks whether the reading is
+		/// KNOWN GOOD, not whether it is known bad. This function cannot enforce the bound — the caller still
+		/// supplies the bool — so the next best thing is that forgetting to supply it fails SAFE. A caller
+		/// tracking "was relieved" would default a newly-added selection path to trusted and silently restore
+		/// the latch, which is how this defect got through twice; a caller tracking "was gated" defaults it to
+		/// ignored, costing at most some sensitivity. The flag must be set where the gate is applied and
+		/// nowhere else, so it can never claim more than the gate established.</para>
 		/// Pure, zero RNG.</summary>
 		public static int DestinationDanger(bool destinationWasGated, int dangerAtDestination)
 		{

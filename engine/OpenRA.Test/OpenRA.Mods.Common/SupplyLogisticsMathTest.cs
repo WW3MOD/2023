@@ -287,10 +287,13 @@ namespace OpenRA.Test
 		[Test]
 		public void EvacDwell_DestinationTermStillTriggersEntry_WhenTheFrontArrivesOnIt()
 		{
-			// The destination term survives on the ENTRY side only. The caller gates selection at
-			// ReleaseLevel, so a destination can only reach the entry threshold by going hot between scans —
-			// a genuine "conditions changed" evac, which is what the branch was written for. Pinned so the
-			// gate is never mistaken for a reason to drop the term entirely.
+			// HELPER-CONTRACT ONLY — NOT coverage of live module behaviour. SupplyFollowerBotModule can no
+			// longer produce this state: a destination is read only when it passed the gate (Danger < 45),
+			// which is below the 60 entry threshold, and an ungated one is zeroed by DestinationDanger. So
+			// the entry test's destination disjunct is provably unreachable from that caller. It is pinned
+			// because EvacuateWithDwell is a general helper whose contract includes this term, and a future
+			// caller with a different gating discipline would depend on it. Do not read a pass here as
+			// evidence that the module evacuates on destination readings — it does not.
 			Assert.That(Evac(wasEvacuating: false, hold: 0, dangerAtTruck: 0, dangerAtDestination: Threshold),
 				Is.True, "a destination that goes hot after selection still evacuates the truck");
 

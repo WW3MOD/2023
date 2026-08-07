@@ -102,9 +102,16 @@ namespace OpenRA.Mods.Common.Traits
 			"delayed by this; only the return to following is. 0 disables the dwell.")]
 		public readonly int EvacDwellScans = 1;
 
-		[Desc("Danger-evac damper: how far below EvacDangerThreshold the danger must fall before an evacuating",
-			"truck follows again. Without this deadband a reading parked on the threshold flips the branch on",
-			"alternate scans. Clamped so the release level is never below 1.")]
+		[Desc("Danger-evac: how far below EvacDangerThreshold the danger must fall before an evacuating truck",
+			"follows again; also sets the level SELECTION is gated at, so both sides use one number. Clamped",
+			"so the release level is never below 1.",
+			"HONEST SCOPE — this is NOT what stabilises the loop, despite reading like a classic Schmitt",
+			"deadband. The danger field steps by tens to hundreds per cell near a contact (see GroundDangerAt),",
+			"so a 15-unit band is narrower than one cell: the truck crosses the whole 45..60 span in a single",
+			"step and the band is never dwelt in. What actually damps the oscillation is EvacDwellScans (the",
+			"branch cannot be re-decided mid-leg) and the leg model in StepEvac (the retreat is not re-issued",
+			"until it has been driven). Tuning this knob will not visibly change stability; it moves the",
+			"geometric contour the truck treats as the edge of the contact, which is a different lever.")]
 		public readonly int EvacReleaseHysteresis = 15;
 
 		[Desc("Actor types that count as the player's own Supply Route (the safe rear an evacuating truck",
@@ -608,22 +615,26 @@ namespace OpenRA.Mods.Common.Traits
 
 			var servable = needy.Where(c => c.Danger < releaseLevel).ToList();
 			if (servable.Count > 0)
+			{
+				// Mark AT the gate — this is the only place a cluster becomes trusted, so the flag cannot
+				// claim more than the gate actually established.
+				foreach (var c in servable)
+					c.Gated = true;
+
 				return servable;
+			}
 
 			// Relief valve: nothing is comfortably approachable, so fall back to the least dangerous needy
 			// cluster(s) rather than abandoning resupply entirely. Ties are kept so the ordinary need-desc
 			// selection still decides between equally-safe clusters; min over a list is order-independent.
 			//
-			// Marked Relieved because these clusters did NOT pass the gate — Danger here is unbounded and is
-			// routinely at or above the evac entry threshold. StepEvac must therefore not feed it to the evac
-			// decision (SupplyLogisticsMath.DestinationDanger); the truck approaches under its own reading
-			// instead, which is exactly the contract in this method's summary.
+			// Deliberately NOT marked Gated: these clusters did not pass the gate, so Danger here is unbounded
+			// and is routinely at or above the evac entry threshold. StepEvac therefore will not feed it to
+			// the evac decision (SupplyLogisticsMath.DestinationDanger) and the truck approaches under its own
+			// reading instead, which is exactly the contract in this method's summary. Nothing to set — the
+			// default is the safe value.
 			var minDanger = needy.Min(c => c.Danger);
-			var relieved = needy.Where(c => c.Danger == minDanger).ToList();
-			foreach (var c in relieved)
-				c.Relieved = true;
-
-			return relieved;
+			return needy.Where(c => c.Danger == minDanger).ToList();
 		}
 
 		List<UnitCluster> FindUnitClusters(List<Actor> units, int minFriendlies)
@@ -827,8 +838,7 @@ namespace OpenRA.Mods.Common.Traits
 			// term exists to catch the front arriving on a GATED destination, and an ungated reading in the
 			// entry test pins the branch true forever regardless of where the truck drives. The reasoning,
 			// and why 0 is the valve's contract rather than a fudge, is on DestinationDanger.
-			var destinationWasGated = cluster is { Relieved: false };
-			var dangerAtDestination = SupplyLogisticsMath.DestinationDanger(destinationWasGated, cluster?.Danger ?? 0);
+			var dangerAtDestination = SupplyLogisticsMath.DestinationDanger(cluster?.Gated ?? false, cluster?.Danger ?? 0);
 
 			var evacNow = SupplyLogisticsMath.EvacuateWithDwell(wasEvacuating, heldBefore,
 				dangerAtTruck, dangerAtDestination, Info.EvacDangerThreshold, Info.EvacReleaseHysteresis);
@@ -946,11 +956,16 @@ namespace OpenRA.Mods.Common.Traits
 			public CPos FollowCell;
 			public int Danger;
 
-			// True when this cluster reached selection through the relief valve rather than through the
-			// danger gate — i.e. Danger is NOT bounded by the gate and may sit at or above the evac entry
-			// threshold. The evac decision must not read the destination of such a cluster; see
-			// SupplyLogisticsMath.DestinationDanger for why that is a latch rather than a conservatism.
-			public bool Relieved;
+			// True only when this cluster reached selection by PASSING the danger gate, so Danger is known to
+			// sit below the gate level. The evac decision may read the destination of such a cluster and no
+			// other; see SupplyLogisticsMath.DestinationDanger for why reading an ungated one is a latch.
+			//
+			// The polarity is deliberate and is the point: default false means "not known to be gated", so a
+			// selection path that produces clusters and forgets to set this fails SAFE — the destination term
+			// is ignored and the truck decides on its own reading. The opposite spelling (a Relieved flag
+			// defaulting to false = trusted) makes forgetting it restore the latch silently, which is exactly
+			// how the same defect got through twice. Set it where the gate is applied, nowhere else.
+			public bool Gated;
 		}
 	}
 }
