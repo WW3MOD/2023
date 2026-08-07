@@ -33,7 +33,15 @@ ALLOWLIST_PATTERNS=(
 
 ALLOW_REGEX=$(IFS='|'; echo "${ALLOWLIST_PATTERNS[*]}")
 
-violations=$(git diff --cached --diff-filter=AM -U0 -- '*.cs' | awk -v allow="$ALLOW_REGEX" '
+# Passed through the ENVIRONMENT rather than `awk -v`, deliberately. A -v assignment
+# undergoes escape processing first, so a `\.` written naturally in the array above
+# reaches awk as a bare `.` — awk warns "escape sequence \. treated as plain ." on
+# every single commit, and the dots silently degrade into match-anything wildcards.
+# ENVIRON is passed verbatim, so the patterns mean exactly what they say and stay
+# readable with single backslashes, which is what the comment at the top tells a
+# future contributor to write.
+violations=$(git diff --cached --diff-filter=AM -U0 -- '*.cs' | ALLOW_REGEX="$ALLOW_REGEX" awk '
+    BEGIN { allow = ENVIRON["ALLOW_REGEX"] }
     /^diff --git/ { in_block = 0 }
     /^\+\+\+ b\// {
         path = substr($0, 7)
