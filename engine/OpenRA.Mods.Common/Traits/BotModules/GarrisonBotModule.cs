@@ -79,6 +79,13 @@ namespace OpenRA.Mods.Common.Traits
 		// Track which buildings we've already assigned garrison orders to avoid spamming
 		readonly Dictionary<Actor, int> garrisonedBuildings = new Dictionary<Actor, int>();
 
+		// Units this module currently holds a BotBlackboard claim on. The claim used to be write-only — taken
+		// at order time and never released — which permanently removed the unit from every other module's pool
+		// (they all skip actors GetUnitClaimant reports to someone else). Combined with the over-wide
+		// eligibility fallback below that froze SUPPLY TRUCKS for the rest of the match. Held here so the
+		// claims can be released when the errand ends, and dropped wholesale in TraitDisabled.
+		readonly HashSet<Actor> claimedUnits = new HashSet<Actor>();
+
 		public GarrisonBotModule(Actor self, GarrisonBotModuleInfo info)
 			: base(info)
 		{
@@ -128,6 +135,8 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var b in deadBuildings)
 				garrisonedBuildings.Remove(b);
 
+			ReleaseFinishedClaims();
+
 			// Find garrisonable buildings near our base
 			var garrisonableBuildings = world.ActorsHavingTrait<GarrisonManager>()
 				.Where(a => !a.IsDead && a.IsInWorld
@@ -176,20 +185,27 @@ namespace OpenRA.Mods.Common.Traits
 				if (cargo == null || !cargo.HasSpace(1))
 					continue;
 
-				// Find the closest eligible infantry
+				// Find the closest eligible infantry THIS building can actually accept. The cargo-type match
+				// is the same test Passenger.ResolveOrder applies when the order lands, so without it the
+				// module happily issues EnterTransport orders that are guaranteed no-ops — and then claims
+				// the unit for an errand that can never start. That is how supply trucks got frozen: TRUK
+				// inherits Passenger (CargoType: Vehicle) from ^WheeledVehicle, so it passed the
+				// PassengerInfo eligibility fallback, while garrison buildings take Types: Infantry.
 				var infantry = availableInfantry
+					.Where(a => CanEnter(a, cargo))
 					.OrderBy(a => (a.Location - building.Location).LengthSquared)
 					.FirstOrDefault();
 
 				if (infantry == null)
-					break;
+					continue;
 
 				// Issue garrison order (EnterTransport is how infantry enter garrisoned buildings)
 				bot.QueueOrder(new Order("EnterTransport", infantry, Target.FromActor(building), false));
 
-				// Claim the unit so other modules don't steal it
-				if (blackboard != null)
-					blackboard.ClaimUnit(infantry, "garrison");
+				// Claim the unit so other modules don't steal it. Recorded so ReleaseFinishedClaims can hand
+				// it back when the errand ends — an unreleased claim is a permanently unusable unit.
+				if (blackboard != null && blackboard.ClaimUnit(infantry, "garrison"))
+					claimedUnits.Add(infantry);
 
 				// Commit-on-order (§4): also stake it in the SHARED ledger (garrison:<buildingId>) so the POI
 				// stack (which doesn't read the blackboard) defers too. Released via ledger TTL / Prune once the
@@ -207,13 +223,51 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>Can this unit actually be loaded into this building? Mirrors Passenger.IsCorrectCargoType
+		/// (Passenger.cs:113-121) — the check the order itself runs when it lands — so the module stops issuing
+		/// EnterTransport orders that are guaranteed to be dropped, and stops claiming units for them.</summary>
+		static bool CanEnter(Actor passenger, Cargo cargo)
+		{
+			if (cargo.LoadingBlocked)
+				return false;
+
+			var cargoType = passenger.Info.TraitInfoOrDefault<PassengerInfo>()?.CargoType;
+			return cargoType != null && cargo.Info.Types.Contains(cargoType);
+		}
+
+		/// <summary>Hand back the claims on units whose garrison errand is over, so they return to the pool the
+		/// other modules recruit from. Released when the unit is dead, has left the world (it is inside the
+		/// building — the errand SUCCEEDED, and a sheltered passenger is unorderable so the claim buys nothing),
+		/// or has gone idle again (the order completed, failed, or was overridden by another writer).
+		///
+		/// <para>Without this the claim was permanent: GarrisonBotModule never called ReleaseUnit anywhere, so
+		/// any unit it ever ordered was invisible to every other module for the rest of the match.</para></summary>
+		void ReleaseFinishedClaims()
+		{
+			if (blackboard == null || claimedUnits.Count == 0)
+				return;
+
+			var finished = claimedUnits.Where(a => a == null || a.IsDead || !a.IsInWorld || a.IsIdle).ToList();
+			foreach (var a in finished)
+			{
+				if (a != null)
+					blackboard.ReleaseUnit(a);
+
+				claimedUnits.Remove(a);
+			}
+		}
+
 		bool IsGarrisonEligible(Actor a)
 		{
-			// Only use specified infantry types, or if none specified, any infantry with Passenger trait
+			// Only use specified actor types, or if none specified, anything that can be a passenger.
 			if (Info.GarrisonActorTypes.Count > 0)
 				return Info.GarrisonActorTypes.Contains(a.Info.Name);
 
-			// Default: any infantry that can be a passenger
+			// NOTE this fallback is wider than the trait's name suggests: it admits ANY Passenger holder, not
+			// just infantry. In WW3MOD ^WheeledVehicle grants Passenger (vehicles.yaml:116-123), so supply
+			// trucks and other vehicles reach it. GarrisonActorTypes is unset in mod YAML, so this IS the live
+			// path. The narrowing that makes it correct is the per-building CanEnter cargo-type match at the
+			// pairing site — do not drop it and rely on this predicate alone.
 			return a.Info.HasTraitInfo<PassengerInfo>();
 		}
 
@@ -228,6 +282,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void TraitDisabled(Actor self)
 		{
+			if (blackboard != null)
+				foreach (var a in claimedUnits)
+					blackboard.ReleaseUnit(a);
+
+			claimedUnits.Clear();
 			garrisonedBuildings.Clear();
 		}
 	}

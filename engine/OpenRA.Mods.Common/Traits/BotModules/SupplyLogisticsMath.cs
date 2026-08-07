@@ -8,12 +8,52 @@
  * clusters. And a truck whose follow position reads high believed ground danger PULLS BACK toward its
  * Supply Route instead of idling in the fire.
  *
- * This carries the three decisions SupplyFollowerBotModule turns into Move orders when the @experimental
+ * This carries the decisions SupplyFollowerBotModule turns into Move orders when the @experimental
  * keys are on:
  *   (1) SECTOR SPREAD — AssignSectors: greedy distinct-cluster assignment over a caller-sorted truck list.
- *   (2) DANGER EVAC decision — ShouldEvacuate: the higher of the truck's / cluster's believed danger vs a
+ *   (2) DANGER EVAC level test — ShouldEvacuate: the higher of the truck's / cluster's believed danger vs a
  *       threshold (the danger reads themselves are supplied by the caller and are fog-legal).
- *   (3) EVAC GEOMETRY — RetreatTarget: a pull-back point stepped toward the SR, clamped to never overshoot.
+ *   (3) DANGER EVAC decision WITH MEMORY — EvacuateWithDwell / StepEvacDwell: the level test above is
+ *       memoryless, which made it a guaranteed limit cycle (see the EVAC DAMPER note below).
+ *   (4) EVAC GEOMETRY — RetreatTarget: a pull-back point stepped toward the SR, clamped to never overshoot.
+ *
+ * EVAC DAMPER (2026-08-07) — why (3) exists. As first shipped, the evac branch was chosen every scan by the
+ * bare level test (2), and the module oscillated: drive part-way to the front, get ordered back toward the
+ * Supply Route, repeat, never delivering. Two properties made that a limit cycle rather than mere jitter.
+ *   * The dangerAtCluster term DOES NOT RESPOND TO THE TRUCK MOVING. Retreating lowers dangerAtTruck only, so
+ *     while the assigned cluster read hot the truck re-took the retreat on EVERY scan, monotonically, until
+ *     the geometry clamped it at the SR. A control loop whose input ignores its own output cannot settle.
+ *   * SELECTION AND REJECTION WERE POSITIVELY CORRELATED. The caller picks the NEEDIEST cluster, and the
+ *     neediest cluster is the one that has been fighting — i.e. the one deepest in believed danger, which is
+ *     exactly what the level test then rejects. The module systematically chose the cluster it was about to
+ *     refuse to approach.
+ * The fix is in two halves and BOTH are load-bearing. The caller gates SELECTION on the believed danger at the
+ * cell the truck would actually be sent to (breaking the correlation — see SupplyFollowerBotModule.BotTick),
+ * which leaves dangerAtTruck as the term that actually drives the decision, and dangerAtTruck DOES fall as the
+ * truck retreats. That makes the loop closed and therefore settleable. This file supplies the other half: a
+ * dwell + release deadband so a retreat already ordered is not re-decided while it is still being driven.
+ *
+ * THE ADMIT LEVEL AND THE RELEASE LEVEL MUST BE THE SAME NUMBER, AND THE RELEASE MUST READ ONLY RESPONSIVE
+ * TERMS. The first version of this fix got both wrong in the same place: it gated selection at the ENTRY
+ * threshold (60) while releasing at ReleaseLevel (45) via a shared helper that ORed the destination reading. A
+ * destination in [45, 59] then passed the gate AND made the release permanently true no matter where the truck
+ * drove — the original bug at full amplitude, one threshold lower. Selection is therefore gated at
+ * ReleaseLevel, so no gap is left between "will go here" and "will leave here", and EvacuateWithDwell's
+ * release reads dangerAtTruck alone. See the RESPONSIVE-TERMS INVARIANT on that method.
+ *
+ * WHAT THE HYSTERESIS DOES NOT DO. Do not read the 45/60 gap as the thing that stops the oscillating — it is
+ * not, and the earlier framing of it as a Schmitt deadband overclaimed. The danger field steps by tens to
+ * hundreds per cell near a believed contact, so 15 units is spatially SUB-CELL: the truck crosses the entire
+ * band in one step and never dwells inside it. The stabilisation is entirely temporal and comes from the two
+ * memory mechanisms — the dwell (the branch cannot be re-decided mid-leg) and the caller's leg model (the
+ * retreat is not re-issued until it has been driven). The hysteresis' real job is choosing WHICH geometric
+ * contour of the contact envelope counts as the edge, which matters for delivery margin, not for settling.
+ *
+ * ASYMMETRY (load-bearing safety property, stated so it cannot silently regress): the damper only ever DELAYS
+ * THE RETURN TO FOLLOWING. ENTERING an evac is never delayed — EvacuateWithDwell tests the entry threshold
+ * FIRST and returns true immediately, whatever the dwell counter holds. So a truck standing in fire always
+ * pulls back on the very scan that sees the fire, and the damper cannot turn a withdrawal into a last stand.
+ * This mirrors RetreatDamperMath's guard for the infantry retreat FSM, which cures the same failure mode.
  *
  * DETERMINISM (influence-stack invariant): ZERO random draws. AssignSectors iterates trucks in the given
  * (caller-sorted, stable) order and sectors in index order, choosing on strict merit (unserved over served,
@@ -111,6 +151,118 @@ namespace OpenRA.Mods.Common.Traits
 		public static bool ShouldEvacuate(int dangerAtTruck, int dangerAtCluster, int threshold)
 		{
 			return dangerAtTruck >= threshold || dangerAtCluster >= threshold;
+		}
+
+		/// <summary>The believed-danger level at which an ALREADY-evacuating truck is allowed to go back to
+		/// following: <paramref name="threshold"/> minus <paramref name="releaseHysteresis"/>. The gap is the
+		/// deadband — without it a reading parked on the threshold flips the branch on alternate scans.
+		///
+		/// <para>Floored at 1 on purpose. A hysteresis at or above the threshold would put the release level at
+		/// or below 0, and since a danger read is never negative the truck would then satisfy "still hot" on a
+		/// completely cold cell and evacuate forever. Failing to a level of 1 means a genuinely 0-danger cell
+		/// always releases, so a misconfiguration costs sensitivity, never a permanently parked truck.</para>
+		/// Pure integer, zero RNG.</summary>
+		public static int ReleaseLevel(int threshold, int releaseHysteresis)
+		{
+			var release = threshold - (releaseHysteresis > 0 ? releaseHysteresis : 0);
+			return release < 1 ? 1 : release;
+		}
+
+		/// <summary>The evac branch decision WITH MEMORY — the anti-oscillation replacement for calling
+		/// <see cref="ShouldEvacuate"/> bare every scan. Three steps, in this order:
+		///   1. ENTRY IS NEVER DAMPED. If danger at the truck OR at the cell it is being sent to reaches
+		///      <paramref name="threshold"/> the answer is true immediately, whatever <paramref name="hold"/>
+		///      says. This is the safety property in the file header: a genuine withdrawal is never delayed.
+		///   2. A truck that was not evacuating and is not over the entry level keeps following.
+		///   3. LEAVING IS DAMPED. An evacuating truck stays evacuating while <paramref name="hold"/> &gt; 0 (the
+		///      dwell — the retreat it was already given is still being driven, so the branch is not re-decided),
+		///      and once the dwell expires it must fall through <see cref="ReleaseLevel"/> before it follows
+		///      again (the deadband).
+		///
+		/// <para>RESPONSIVE-TERMS INVARIANT — the release test reads <paramref name="dangerAtTruck"/> AND
+		/// NOTHING ELSE, and that is load-bearing rather than incidental. A retreat moves the truck, so it can
+		/// only change readings taken AT the truck; <paramref name="dangerAtDestination"/> is unaffected by
+		/// anything the truck does. Putting a non-responsive term in the release makes the decision unable to
+		/// become false — a LATCH, not a deadband — and it latches for every reading in the whole band between
+		/// the destination gate and the release level. That is exactly the open-loop defect described in the
+		/// EVAC DAMPER note, reintroduced one threshold lower, and it is why the entry and release tests here
+		/// deliberately do not share a helper. Any term added to the release must be one the retreat moves.</para>
+		/// <paramref name="hold"/> is stepped by <see cref="StepEvacDwell"/> and owned by the caller, matching
+		/// RetreatDamperMath's split of predicate from counter. Pure integer, zero RNG.</summary>
+		public static bool EvacuateWithDwell(bool wasEvacuating, int hold, int dangerAtTruck, int dangerAtDestination,
+			int threshold, int releaseHysteresis)
+		{
+			if (ShouldEvacuate(dangerAtTruck, dangerAtDestination, threshold))
+				return true;
+
+			if (!wasEvacuating)
+				return false;
+
+			if (hold > 0)
+				return true;
+
+			return dangerAtTruck >= ReleaseLevel(threshold, releaseHysteresis);
+		}
+
+		/// <summary>The destination reading <see cref="EvacuateWithDwell"/> is allowed to see — the reading
+		/// itself when <paramref name="destinationWasGated"/>, and 0 otherwise. This is the ENFORCEMENT POINT
+		/// for the responsive-terms invariant, deliberately a named function rather than an inline test at the
+		/// call site, because getting it wrong does not look like a bug at the call site.
+		///
+		/// <para>The invariant generalises: A TEST THAT CAN PIN THE BRANCH TRUE MAY READ ONLY RESPONSIVE
+		/// TERMS, UNLESS ITS NON-RESPONSIVE TERMS ARE BOUNDED BY A GATE APPLIED IN THE SAME SCAN. The entry
+		/// test can pin the branch true — it short-circuits ahead of both the dwell and the release, which is
+		/// the safety asymmetry working as designed — and a destination reading is not responsive: retreating
+		/// changes where the TRUCK is, never what the destination reads. What made the entry test safe was
+		/// never the term itself but the caller's selection gate, which guaranteed the reading sat below the
+		/// entry threshold. Any caller path that BYPASSES that gate — a relief valve handing back an
+		/// over-threshold destination because nothing better exists — removes the bound and restores the
+		/// latch: entry true on every scan whatever the truck does, so the truck legs to the SR, drifts out of
+		/// follow range, releases, re-selects the same ungated destination and re-enters. Parked at the SR
+		/// resupplying nobody, which is the starvation the valve exists to prevent.</para>
+		///
+		/// <para>Passing 0 for a relieved destination is not a fudge — it is the valve's contract made
+		/// explicit. An ungated destination is one the caller has decided to approach ANYWAY because the
+		/// alternative is not resupplying at all; the abort criterion for that approach is the truck's own
+		/// reading, which the undamped entry test still applies at full strength. So the truck advances until
+		/// its OWN cell is genuinely too hot and then pulls back, instead of refusing to set off. Capping the
+		/// valve at the entry threshold instead would simply restore park-and-starve for the exact regime the
+		/// valve exists for.</para>
+		///
+		/// <para>NOTE THE POLARITY, which the caller must preserve: the parameter asks whether the reading is
+		/// KNOWN GOOD, not whether it is known bad. This function cannot enforce the bound — the caller still
+		/// supplies the bool — so the next best thing is that forgetting to supply it fails SAFE. A caller
+		/// tracking "was relieved" would default a newly-added selection path to trusted and silently restore
+		/// the latch, which is how this defect got through twice; a caller tracking "was gated" defaults it to
+		/// ignored, costing at most some sensitivity. The flag must be set where the gate is applied and
+		/// nowhere else, so it can never claim more than the gate established.</para>
+		/// Pure, zero RNG.</summary>
+		public static int DestinationDanger(bool destinationWasGated, int dangerAtDestination)
+		{
+			return destinationWasGated ? dangerAtDestination : 0;
+		}
+
+		/// <summary>Step the dwell counter <see cref="EvacuateWithDwell"/> reads. Armed to
+		/// <paramref name="dwellScans"/> on the scan a truck STARTS evacuating (<paramref name="startedEvacuating"/>
+		/// — the caller's <c>evacNow &amp;&amp; !wasEvacuating</c>), counted down otherwise, floored at 0.
+		/// <paramref name="dwellScans"/> &lt;= 0 ⇒ 0 (damper inert, the pre-fix memoryless reading).
+		///
+		/// <para>The counter is armed on the ENTRY EDGE only, which is what bounds the retreat. A counter re-armed
+		/// on every evacuating scan would hold the branch for as long as the truck stayed hot and could never
+		/// expire; arming on the edge means the dwell covers exactly one retreat leg, after which the truck
+		/// re-decides against the release level. The caller additionally uses hold &gt; 0 to SUPPRESS RE-ISSUING
+		/// the retreat Move, because the retreat point is recomputed from the truck's own moving position — the
+		/// same receding-target restart the Stage-E detour deadband cures one branch over.</para>
+		/// Pure integer, zero RNG.</summary>
+		public static int StepEvacDwell(int hold, bool startedEvacuating, int dwellScans)
+		{
+			if (dwellScans <= 0)
+				return 0;
+
+			if (startedEvacuating)
+				return dwellScans;
+
+			return hold > 0 ? hold - 1 : 0;
 		}
 
 		/// <summary>A pull-back point <paramref name="retreatLength"/> toward <paramref name="towards"/> (the
