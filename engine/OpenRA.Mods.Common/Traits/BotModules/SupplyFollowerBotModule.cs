@@ -27,9 +27,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Delay (in ticks) between supply follow-up scans.")]
 		public readonly int ScanInterval = 120;
 
-		[Desc("Minimum distance in cells to keep from the front line (stay behind the army).")]
-		public readonly int SafeFollowDistance = 5;
-
 		[Desc("Maximum distance in cells a truck will travel to follow a squad.")]
 		public readonly int MaxFollowDistance = 40;
 
@@ -42,7 +39,8 @@ namespace OpenRA.Mods.Common.Traits
 			"ground expensive while the friendly rear reads ~0, the pull-back / lateral / re-enter path EMERGES",
 			"from the cost rather than being scripted. Emits a two-leg Move (safe waypoint, then the follow",
 			"cell). This module is enable-ai-ANY, so the reroute is additionally gated on",
-			"InfluenceStack.Participates (only @experimental bots read the stack) — every other profile is",
+			"InfluenceStack.Participates — which admits BOTH fog-respecting profiles (@experimental and,",
+			"since the 2026-08-02 parity promotion, @stable); only Normal/Rush/Turtle and legacy are",
 			"byte-identical. OFF by default; the @supply instance opts in via YAML.")]
 		public readonly bool DangerFieldRouting = false;
 
@@ -62,33 +60,50 @@ namespace OpenRA.Mods.Common.Traits
 			"each scan, without this the waypoint recedes and the maneuver restarts before it completes.")]
 		public readonly int RepathThresholdCells = 3;
 
-		[Desc("@experimental sector spread: when several trucks are free, greedily assign each to a DISTINCT",
-			"unit cluster (neediest first) instead of every truck piling onto the same blob; only double up",
-			"when trucks outnumber clusters. This is a shared enable-ai-ANY module, so it is additionally gated",
-			"on InfluenceStack.Participates — OFF by default, every non-@experimental profile byte-identical.")]
+		[Desc("Sector spread: when several trucks are free, greedily assign each to a DISTINCT unit cluster",
+			"(neediest first) instead of every truck piling onto the same blob; only double up when trucks",
+			"outnumber clusters. This is a shared enable-ai-ANY module, so it is additionally gated on",
+			"InfluenceStack.Participates — which admits @stable as well as @experimental. OFF by default; only",
+			"Normal/Rush/Turtle and legacy profiles are byte-identical.")]
 		public readonly bool SectorSpread = false;
 
-		[Desc("@experimental small-squad coverage: lower the servable-cluster floor to",
-			"SmallSquadMinNearbyFriendlies (below MinNearbyFriendlies) so small squads become visible to the",
-			"follower once the big clusters are covered. OFF by default; double-gated on InfluenceStack.Participates.")]
+		[Desc("Small-squad coverage: lower the servable-cluster floor to SmallSquadMinNearbyFriendlies (below",
+			"MinNearbyFriendlies) so small squads become visible to the follower once the big clusters are",
+			"covered. OFF by default; gated on InfluenceStack.Participates (both fog-respecting profiles).")]
 		public readonly bool SmallSquadCoverage = false;
 
 		[Desc("Minimum friendlies to form a servable cluster when SmallSquadCoverage is on. Only applied for",
-			"participating (@experimental / human) profiles; capped at MinNearbyFriendlies so it only widens.")]
+			"participating (fog-respecting bot / human) profiles; capped at MinNearbyFriendlies so it only widens.")]
 		public readonly int SmallSquadMinNearbyFriendlies = 2;
 
-		[Desc("@experimental danger evac: when the believed ground danger at the truck (or its target cluster",
-			"centroid) reaches EvacDangerThreshold, retreat the truck toward its Supply Route instead of idling",
-			"in the fire. Fog-legal — reads DangerFieldLayer only, never an omniscient enemy scan. OFF by",
-			"default; double-gated on InfluenceStack.Participates.")]
+		[Desc("Danger evac: when the believed ground danger at the truck (or its target cluster centroid)",
+			"reaches EvacDangerThreshold, retreat the truck toward its Supply Route instead of idling in the",
+			"fire. Fog-legal — reads DangerFieldLayer only, never an omniscient enemy scan. OFF by default;",
+			"gated on InfluenceStack.Participates, which since the 2026-08-02 @stable parity promotion admits",
+			"@stable as well as @experimental — so this is NOT @experimental-only, and the damper below is",
+			"therefore load-bearing on both fog-respecting profiles.")]
 		public readonly bool DangerEvac = false;
 
 		[Desc("Danger-evac: believed ground-danger reading at/above which a truck pulls back. Set ABOVE the",
-			"Stage-E reroute threshold — a reroute avoids exposure, an evac abandons a spot already too hot.")]
+			"Stage-E reroute threshold — a reroute avoids exposure, an evac abandons a spot already too hot.",
+			"Doubles as the SELECTION filter: a cluster whose centroid is at/above this never becomes a follow",
+			"target, so the module cannot pick a cluster it is about to refuse to approach.")]
 		public readonly int EvacDangerThreshold = 60;
 
 		[Desc("Danger-evac: how far (cells) to pull the truck back toward its Supply Route when evacuating.")]
 		public readonly int EvacRetreatCells = 12;
+
+		[Desc("Danger-evac damper: scans an evacuating truck holds its retreat before the branch may be",
+			"re-decided, and during which the retreat Move is NOT re-issued. One leg takes slightly longer than",
+			"one scan to drive, so the default covers exactly one leg. ENTERING an evac is never delayed by this",
+			"— only the return to following is. 0 disables the damper (the memoryless pre-fix reading, which",
+			"oscillates; see SupplyLogisticsMath's EVAC DAMPER note).")]
+		public readonly int EvacDwellScans = 2;
+
+		[Desc("Danger-evac damper: how far below EvacDangerThreshold the danger must fall before an evacuating",
+			"truck follows again. Without this deadband a reading parked on the threshold flips the branch on",
+			"alternate scans. Clamped so the release level is never below 1.")]
+		public readonly int EvacReleaseHysteresis = 15;
 
 		[Desc("Actor types that count as the player's own Supply Route (the safe rear an evacuating truck",
 			"pulls back toward). Only read when DangerEvac is on.")]
@@ -147,9 +162,12 @@ namespace OpenRA.Mods.Common.Traits
 		int scanCountdown;
 		bool initialized;
 
-		// Cached in Initialize: whether this player reads the influence stack (only @experimental bots / humans),
-		// and whether the Stage-E two-leg reroute is live. Every new @experimental behaviour is double-gated on
-		// `participates` so @stable/Normal/Rush/Turtle stay byte-identical.
+		// Cached in Initialize: whether this player reads the influence stack, and whether the Stage-E two-leg
+		// reroute is live. NOTE `participates` is NOT an @experimental-only gate — since the 2026-08-02 @stable
+		// parity promotion (b8d2e601) InfluenceStack.Participates admits BOTH fog-respecting bot profiles
+		// (InfluenceStack.cs:47-48), so a flag gated on it alone reaches @stable too. Only Normal/Rush/Turtle
+		// and legacy profiles stay byte-identical. Behaviour that must be @experimental-only needs the explicit
+		// BotType gate below instead.
 		bool participates;
 		bool routeViaDanger;
 
@@ -164,6 +182,11 @@ namespace OpenRA.Mods.Common.Traits
 		// Stage-E: last detour waypoint ordered per truck (absent = last order went direct). Drives the
 		// re-issue deadband so a truck mid-detour isn't restarted every scan as its waypoint recedes.
 		readonly Dictionary<Actor, CPos> lastVia = new Dictionary<Actor, CPos>();
+
+		// Danger-evac damper state per truck: whether it is currently on the evac branch, and how many scans
+		// that decision is still committed for. Absent = following, no dwell. Read only for the truck being
+		// processed (never enumerated for a decision), so it adds no ordering dependence.
+		readonly Dictionary<Actor, EvacState> evacState = new Dictionary<Actor, EvacState>();
 
 		public SupplyFollowerBotModule(Actor self, SupplyFollowerBotModuleInfo info)
 			: base(info)
@@ -185,9 +208,9 @@ namespace OpenRA.Mods.Common.Traits
 			threatMap = world.WorldActor.TraitOrDefault<ThreatMapManager>();
 			blackboard = player.PlayerActor.TraitsImplementing<BotBlackboard>().FirstOrDefault(b => !b.IsTraitDisabled);
 
-			// enable-ai-ANY module: only @experimental bots (and humans) read the influence stack. Cache the
-			// participation gate once — every new @experimental behaviour double-gates on it so every other
-			// profile is byte-identical.
+			// enable-ai-ANY module: cache the participation gate once. See the field comment — this admits
+			// @stable as well as @experimental, so it narrows to "the fog-respecting profiles", not to
+			// @experimental alone.
 			participates = InfluenceStack.Participates(player);
 
 			// Tier 2 hunt: explicit bot-type gate (see the field comment) — never widened to Participates.
@@ -213,11 +236,11 @@ namespace OpenRA.Mods.Common.Traits
 			scanCountdown = Info.ScanInterval;
 			Initialize();
 
-			// Clean up dead trucks (or low-supply trucks, which we're releasing back to
-			// SupplyProvider's built-in auto-restock).
+			// Clean up dead trucks, and low-supply ones (see IsLowOnSupply — they are released because they
+			// have nothing left to give, NOT because a restock is waiting to claim them).
 			activeTrucks.RemoveWhere(a => a == null || a.IsDead || !a.IsInWorld || IsLowOnSupply(a));
 
-			// Keep the Stage-E deadband memory bounded to trucks still on active follow duty.
+			// Keep the per-truck deadband / damper memory bounded to trucks still on active follow duty.
 			if (lastVia.Count > 0)
 			{
 				var stale = lastVia.Keys.Where(a => !activeTrucks.Contains(a)).ToList();
@@ -225,10 +248,23 @@ namespace OpenRA.Mods.Common.Traits
 					lastVia.Remove(a);
 			}
 
-			// Find all supply trucks — eligible only if they actually have supplies to give.
-			// SupplyProvider auto-restocks at low/zero supply by queuing a MoveTo(LC)
-			// activity; if we issue a forward Move here it cancels that restock and the
-			// empty truck ends up at the front with nothing to give. Filter them out.
+			if (evacState.Count > 0)
+			{
+				var stale = evacState.Keys.Where(a => !activeTrucks.Contains(a)).ToList();
+				foreach (var a in stale)
+					evacState.Remove(a);
+			}
+
+			// Find all supply trucks — eligible only if they actually have supplies to give. An empty truck
+			// driven forward just arrives at the front with nothing, so filter them out.
+			//
+			// CORRECTION (2026-08-07): this filter used to be justified by "SupplyProvider auto-restocks by
+			// queuing a MoveTo(LC) and a forward Move would cancel it". That is FALSE for AI trucks. Every
+			// TryRestock call site is gated on ShouldSelfRestock (SupplyProvider.cs:330-338), which returns
+			// false under ResupplyBehavior.Evacuate — and TRUK ships InitialResupplyBehaviorAI: Evacuate
+			// (vehicles.yaml:514-516). There is no restock activity to protect here; what actually picks a
+			// released truck up is DropsSupplyCache, which drives it to the MAP EDGE and sells it. The filter
+			// is still right, but for the plain reason above, not the one it used to claim.
 			var trucks = world.ActorsHavingTrait<Mobile>()
 				.Where(a => a.Owner == player
 					&& !a.IsDead
@@ -261,6 +297,23 @@ namespace OpenRA.Mods.Common.Traits
 
 			var spread = Info.SectorSpread && participates;
 			var evac = Info.DangerEvac && dangerField != null;
+
+			// DECORRELATE SELECTION FROM REJECTION. Cluster choice below is need-descending, and the neediest
+			// cluster is the one that has been fighting — i.e. the one deepest in believed danger, which is
+			// exactly what the evac rule then refuses to approach. Selecting a cluster the module is about to
+			// reject is what turned the evac branch into a limit cycle (SupplyLogisticsMath's EVAC DAMPER note).
+			// Dropping over-threshold clusters BEFORE selection makes the two criteria consistent by
+			// construction rather than merely less correlated: after this filter the only way the cluster term
+			// can trip an evac is if the front moved onto the cluster SINCE it was chosen — which is a genuine
+			// "conditions changed" evac, and is the behaviour the branch was written for.
+			//
+			// Chosen over softening the merit (need weighted against danger) because a weighting always leaves
+			// inputs where a big enough need still selects a cluster the truck will refuse, so the cycle
+			// survives at lower frequency; a filter leaves none. A truck whose every in-range cluster is hot
+			// correctly gets no follow target and falls through to the hunt / hold path instead of driving in.
+			if (evac)
+				clusters.RemoveAll(c => dangerField.GroundDanger(player, c.CenterCell) >= Info.EvacDangerThreshold);
+
 			var hunt = SupplyTruckHuntMath.ShouldHunt(Info.IdleTruckHunt, isExperimentalBot);
 			var maxFollowLength = WDist.FromCells(Info.MaxFollowDistance).Length;
 
@@ -286,31 +339,36 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var truck in orderedTrucks)
 			{
-				if (clusters.Count == 0)
+				// Find the best cluster for this truck (closest cluster with ammo need). Null when there are
+				// no clusters at all, none in range, or the spread left this truck unassigned.
+				UnitCluster bestCluster = null;
+				if (clusters.Count > 0)
 				{
-					// Hunt off: `break` as before — clusters.Count is loop-invariant, so bailing on the first
-					// truck is the same as never entering the loop. Byte-identical.
-					if (!hunt)
-						break;
-
-					HuntStarvingInfantry(truck);
-					continue;
+					if (spread)
+					{
+						spreadTargets?.TryGetValue(truck, out bestCluster);
+					}
+					else
+					{
+						bestCluster = clusters
+							.Where(c => (c.Center - truck.CenterPosition).Length < WDist.FromCells(Info.MaxFollowDistance).Length)
+							.OrderByDescending(c => c.AmmoNeed)
+							.ThenBy(c => (c.Center - truck.CenterPosition).LengthSquared)
+							.FirstOrDefault();
+					}
 				}
 
-				// Find the best cluster for this truck (closest cluster with ammo need)
-				UnitCluster bestCluster = null;
-				if (spread)
+				// Danger evac, damped. Deliberately evaluated BEFORE the no-cluster bail and with a possibly
+				// null cluster: the danger filter above can legitimately leave a truck with no follow target
+				// precisely when the whole neighbourhood is hot, and a truck standing in fire must still be
+				// able to pull back. Pre-damper this case fell through unevacuated.
+				if (evac && srActor != null)
 				{
-					spreadTargets?.TryGetValue(truck, out bestCluster);
+					if (StepEvac(truck, srActor, bestCluster))
+						continue;
 				}
 				else
-				{
-					bestCluster = clusters
-						.Where(c => (c.Center - truck.CenterPosition).Length < WDist.FromCells(Info.MaxFollowDistance).Length)
-						.OrderByDescending(c => c.AmmoNeed)
-						.ThenBy(c => (c.Center - truck.CenterPosition).LengthSquared)
-						.FirstOrDefault();
-				}
+					evacState.Remove(truck);
 
 				// Tier 2: an unassigned truck hunts rather than parking. Hunt off ⇒ plain `continue`, the
 				// old behaviour for both the no-spread-target and the no-in-range-cluster cases.
@@ -318,25 +376,6 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					if (hunt)
 						HuntStarvingInfantry(truck);
-
-					continue;
-				}
-
-				// @experimental danger evac: a truck whose follow position (or cluster centroid) reads high
-				// believed ground danger pulls back toward its SR rather than dying in place. Fog-legal.
-				if (evac && srActor != null && ShouldEvacuate(truck, bestCluster))
-				{
-					var retreat = SupplyLogisticsMath.RetreatTarget(
-						truck.CenterPosition, srActor.CenterPosition, WDist.FromCells(Info.EvacRetreatCells).Length);
-					bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, world.Map.CellContaining(retreat)), false));
-					lastVia.Remove(truck);
-
-					if (!activeTrucks.Contains(truck))
-					{
-						activeTrucks.Add(truck);
-						if (blackboard != null)
-							blackboard.ClaimUnit(truck, "supply-follow");
-					}
 
 					continue;
 				}
@@ -607,13 +646,61 @@ namespace OpenRA.Mods.Common.Traits
 				&& Info.SupplyRouteTypes.Contains(a.Info.Name));
 		}
 
-		// Believed ground danger (DangerFieldLayer) at the truck and at its target cluster centroid, vs the
-		// evac threshold. Fog-legal by construction; dangerField is non-null only for participating profiles.
-		bool ShouldEvacuate(Actor truck, UnitCluster cluster)
+		/// <summary>Run the DAMPED danger-evac decision for one truck and, when it is on the evac branch, issue
+		/// the retreat. Returns true when the caller should skip the follow path this scan.
+		///
+		/// Believed ground danger (DangerFieldLayer) at the truck and at its target cluster centroid drives the
+		/// decision — fog-legal by construction; dangerField is non-null only for participating profiles.
+		///
+		/// Two pieces of memory live here, and they are what stop the branch oscillating (the full reasoning is
+		/// in SupplyLogisticsMath's EVAC DAMPER note):
+		///   * the DWELL latches the branch for EvacDwellScans so a retreat already ordered is not re-decided
+		///     while it is still being driven, and the RELEASE DEADBAND then requires danger to fall clear of
+		///     the threshold before the truck follows again. Entering an evac is never delayed by either.
+		///   * the retreat Move is RE-ISSUED ONLY when the branch was actually re-decided this scan. The retreat
+		///     point is stepped from the truck's OWN moving position, so re-issuing mid-dwell would recompute a
+		///     shorter leg from a nearer place every scan and restart the maneuver before it completes — the
+		///     same receding-target restart the Stage-E detour deadband cures on the other branch.
+		/// </summary>
+		bool StepEvac(Actor truck, Actor srActor, UnitCluster cluster)
 		{
+			// An entry exists exactly while the truck is on the evac branch (it is removed on release below).
+			var wasEvacuating = evacState.TryGetValue(truck, out var state);
+			var heldBefore = wasEvacuating ? state.Hold : 0;
+
 			var dangerAtTruck = dangerField.GroundDanger(player, truck.Location);
-			var dangerAtCluster = dangerField.GroundDanger(player, cluster.CenterCell);
-			return SupplyLogisticsMath.ShouldEvacuate(dangerAtTruck, dangerAtCluster, Info.EvacDangerThreshold);
+
+			// No cluster ⇒ no cluster term. It exists to catch the front moving ONTO an already-chosen
+			// cluster, so with nothing chosen it must not contribute a reading of its own.
+			var dangerAtCluster = cluster != null ? dangerField.GroundDanger(player, cluster.CenterCell) : 0;
+
+			var evacNow = SupplyLogisticsMath.EvacuateWithDwell(wasEvacuating, heldBefore,
+				dangerAtTruck, dangerAtCluster, Info.EvacDangerThreshold, Info.EvacReleaseHysteresis);
+
+			if (!evacNow)
+			{
+				evacState.Remove(truck);
+				return false;
+			}
+
+			evacState[truck] = new EvacState(
+				SupplyLogisticsMath.StepEvacDwell(heldBefore, !wasEvacuating, Info.EvacDwellScans));
+
+			if (heldBefore <= 0)
+			{
+				var retreat = SupplyLogisticsMath.RetreatTarget(
+					truck.CenterPosition, srActor.CenterPosition, WDist.FromCells(Info.EvacRetreatCells).Length);
+				bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, world.Map.CellContaining(retreat)), false));
+				lastVia.Remove(truck);
+			}
+
+			if (!activeTrucks.Contains(truck))
+			{
+				activeTrucks.Add(truck);
+				blackboard?.ClaimUnit(truck, "supply-follow");
+			}
+
+			return true;
 		}
 
 		// Scale the float AmmoNeed to a stable non-negative integer for the deterministic sector assignment.
@@ -633,10 +720,14 @@ namespace OpenRA.Mods.Common.Traits
 			return claimant != null && claimant != "supply-follow";
 		}
 
-		// A truck below its RestockThreshold — or one holding an unusable residue that
-		// counts as empty — has effectively no supplies to give. Don't issue forward
-		// orders: SupplyProvider's restock / the transport's evacuate will route it away
-		// if we leave it alone. Issuing a forward Move would fight that and re-park it.
+		// A truck below its RestockThreshold — or one holding an unusable residue that counts as empty — has
+		// effectively no supplies to give, so don't issue forward orders for it.
+		//
+		// CORRECTION (2026-08-07): the old comment here claimed "SupplyProvider's restock / the transport's
+		// evacuate will route it away if we leave it alone". Only the second half is true for AI trucks. The
+		// restock half is inert — ShouldSelfRestock (SupplyProvider.cs:330-338) returns false under
+		// ResupplyBehavior.Evacuate, which is TRUK's AI default. Releasing the truck hands it to
+		// DropsSupplyCache, which sends it to the map edge; it is NOT going to refill and come back.
 		static bool IsLowOnSupply(Actor a)
 		{
 			var sp = a.TraitOrDefault<SupplyProvider>();
@@ -653,6 +744,16 @@ namespace OpenRA.Mods.Common.Traits
 
 			activeTrucks.Clear();
 			lastVia.Clear();
+			evacState.Clear();
+		}
+
+		// Danger-evac damper state for one truck on the evac branch: scans the branch is still committed for
+		// (0 = free to re-decide next scan). Presence in the dictionary IS the "currently evacuating" flag.
+		readonly struct EvacState
+		{
+			public readonly int Hold;
+
+			public EvacState(int hold) { Hold = hold; }
 		}
 
 		class UnitCluster

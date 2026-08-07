@@ -297,7 +297,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (beliefStore == null || --subCountdown > 0)
 				return;
 
-			// §6 narrow + stagger: only @experimental bots + human combatants get a field, and
+			// §6 narrow + stagger: only the fog-respecting bot profiles (@experimental AND @stable since the
+			// 2026-08-02 parity promotion, InfluenceStack.cs:47-48) plus human combatants get a field, and
 			// exactly one participant is rebuilt per sub-slot (round-robin), so the two-channel
 			// per-player cost never lands on a single tick.
 			InfluenceStack.GatherParticipants(world, participants);
