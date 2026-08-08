@@ -147,6 +147,75 @@ namespace OpenRA.Mods.Common.Traits
 			"scan. 0 or 1 disables banding (raw shortfall order). Only read when IdleTruckHunt is on.")]
 		public readonly int HuntNeedBandPerMille = 100;
 
+		[Desc("DROP-AND-LEAVE. A loaded truck drives ONCE to a forward supply point behind the believed",
+			"friendly frontier, unloads its whole stock as a SUPPLYCACHE, and leaves; infantry walk to the",
+			"cache via AutoSeekSupplies. This is an ADDED MODE, not a replacement — a truck that does not",
+			"meet the drop conditions follows exactly as before.",
+			"WHY, rather than more damping of the follow/evac cycle: that cycle is a limit cycle by",
+			"CONSTRUCTION (the relief valve re-selects the same needy cluster the moment the truck cools), and",
+			"the pull side has the mirror defect (AutoSeekSupplies leashes at selection only and then rides an",
+			"actor-tracking move, so infantry at speed 25 chase a truck at 75 without bound). Both are the same",
+			"shape and both dissolve against a destination that DOES NOT MOVE. Damping bounds an excursion; a",
+			"static destination removes it.",
+			"SCOPE: gated on InfluenceStack.Participates as well as this flag, because the anchor is walked",
+			"down ControlField's frontier-distance field and that field exists only for participating players.",
+			"That admits BOTH fog-respecting profiles (@experimental and @stable); Normal/Rush/Turtle and",
+			"legacy keep a flat field, the descent returns the Supply Route unchanged, no anchor is",
+			"established and the mode is inert — so they stay byte-identical without needing a second gate.")]
+		public readonly bool DropAndLeave = false;
+
+		[Desc("Drop-and-leave: how many COARSE control-grid cells short of the believed enemy frontier the",
+			"forward supply point sits. This is the knob that manages the risk the SUPPLYCACHE is designed to",
+			"carry — the crate is ProximityCapturable by infantry, vehicles and tanks and is shot at unaided,",
+			"so a point too far forward gifts the enemy a resupply node. Deliberately LARGER than",
+			"PoiOffensiveBotModule's StagingStandoffCells (a supply dump stands off further than a rifle",
+			"squad), and deliberately smaller than AutoSeekSupplies' 20-cell selection leash in map cells, or",
+			"the soldiers it exists for could never select it.")]
+		public readonly int DropStandoffCells = 8;
+
+		[Desc("Drop-and-leave: believed ground danger above which the anchor descent refuses to step into a",
+			"cell. Matches PoiOffensiveBotModule's StagingDangerSafeThreshold on purpose: it is the same",
+			"primitive doing the same job, and the STANDOFF above — not this number — is the lever that keeps",
+			"the supply point further back than a staging area. A negative value disables the guard.")]
+		public readonly int DropDangerSafeThreshold = 40;
+
+		[Desc("Drop-and-leave: step budget for the anchor's steepest-descent walk down the frontier-distance",
+			"field. Frontier distance strictly decreases per accepted step, so this only bounds work.")]
+		public readonly int DropMaxDescentSteps = 64;
+
+		[Desc("Drop-and-leave: MAP-cell Chebyshev hysteresis on the forward supply point. The anchor is",
+			"re-derived every scan from a field that is rebuilt every 25 ticks, so without this a one-cell",
+			"belief wobble would move the destination — and a destination that moves is the entire defect this",
+			"mode exists to remove. Non-positive re-adopts every scan (no hysteresis).")]
+		public readonly int DropAnchorHysteresisCells = 3;
+
+		[Desc("Drop-and-leave: radius in MAP cells around the anchor searched for both halves of the decision —",
+			"the starving soldiers that justify a drop, and the existing caches that make one redundant. Sized",
+			"to AutoSeekSupplies' SupplyHuntLeashCells: a soldier further from the crate than its own selection",
+			"leash cannot pick it, so counting him as demand would drop a crate he will never walk to.")]
+		public readonly int DropDemandRadiusCells = 20;
+
+		[Desc("Drop-and-leave: how many starving soldiers must be within DropDemandRadiusCells of the anchor",
+			"to justify unloading. Floored at 1 by SupplyDropMath — 0 cannot mean 'no requirement'.")]
+		public readonly int DropMinStarvingUnits = 3;
+
+		[Desc("Drop-and-leave: minimum stock a truck must hold to be worth a drop. Below this it keeps serving",
+			"from its own aura instead of littering crates that vanish at the cache's RemoveBelowSupply.")]
+		public readonly int DropMinSupply = 250;
+
+		[Desc("Drop-and-leave: supply already sitting in friendly caches within DropDemandRadiusCells at or",
+			"above which the demand counts as covered and no second crate is dropped. Same-cell drops merge,",
+			"so this covers the NEAR-miss case. Non-positive DISABLES the redundancy gate — it is not floored,",
+			"because the literal reading of 0 ('any cache supply is redundant') would silently disable the",
+			"whole mode, which looks like a broken feature rather than a config typo.")]
+		public readonly int DropRedundantCacheSupply = 100;
+
+		[Desc("Emit the per-scan [supply] diagnostic lines (scan summary, anchor descent, per-cluster",
+			"selection, and the reason a drop was declined). Default OFF so an ordinary match does not flood",
+			"debug.log. EDGES — truck adopted/released, evac entered/left, a drop issued — are logged",
+			"REGARDLESS, because they are rare and they are exactly what this subsystem had no record of.")]
+		public readonly bool DebugLogging = false;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -203,6 +272,17 @@ namespace OpenRA.Mods.Common.Traits
 		// processed (never enumerated for a decision), so it adds no ordering dependence.
 		readonly Dictionary<Actor, EvacState> evacState = new Dictionary<Actor, EvacState>();
 
+		// Drop-and-leave: the last ADOPTED forward supply point per Supply Route, which is what the anchor
+		// hysteresis is applied against. Keyed by SR rather than held as one value because a player can hold
+		// several (the beachhead plus any captured neutral ones) and each has its own descent toward its own
+		// nearest front — one shared slot would thrash between them. Pruned to living SRs each scan.
+		//
+		// This is the mode's ONLY memory, and note what it is memory OF: it stabilises the DESTINATION, not
+		// the decision. The drop decision itself is memoryless and re-derived from scratch every scan (see
+		// SupplyDropMath), so there is no "already dropping" latch that could pin a branch while reading a
+		// term that cannot respond to it.
+		readonly Dictionary<Actor, CPos> dropAnchor = new Dictionary<Actor, CPos>();
+
 		public SupplyFollowerBotModule(Actor self, SupplyFollowerBotModuleInfo info)
 			: base(info)
 		{
@@ -233,10 +313,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Fetch the ground danger field if any believed-danger consumer (Stage-E reroute or danger evac) is
 			// active. With DangerEvac at its default off, this is exactly the old condition.
-			dangerField = participates && (Info.DangerFieldRouting || Info.DangerEvac)
+			dangerField = participates && (Info.DangerFieldRouting || Info.DangerEvac || Info.DropAndLeave)
 				? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
 
-			// Grid geometry for GroundDangerAt's de-aliasing. Null is tolerated (raw single-cell reads).
+			// Grid geometry for GroundDangerAt's de-aliasing, and — for drop-and-leave — the frontier-distance
+			// field the forward supply point is walked down. Null is tolerated (raw single-cell reads; and no
+			// anchor, so the drop mode is inert).
 			controlField = dangerField != null ? world.WorldActor.TraitOrDefault<ControlField>() : null;
 
 			// The Stage-E two-leg reroute stays the old condition (DangerFieldRouting + a live field), so
@@ -244,6 +326,16 @@ namespace OpenRA.Mods.Common.Traits
 			routeViaDanger = Info.DangerFieldRouting && dangerField != null;
 
 			initialized = true;
+
+			// One line per player per match recording which of this module's modes are actually LIVE. Every
+			// flag here is double-gated on a runtime trait lookup, so the YAML alone does not tell you what
+			// ran — which is why two days of reasoning about truck behaviour had no way to check its premise.
+			Log.Write("debug",
+				$"[supply] init player={player.PlayerName} bot={player.BotType} participates={participates} "
+				+ $"exp={isExperimentalBot} dangerField={dangerField != null} controlField={controlField != null} "
+				+ $"evac={Info.DangerEvac && dangerField != null} reroute={routeViaDanger} "
+				+ $"spread={Info.SectorSpread && participates} hunt={SupplyTruckHuntMath.ShouldHunt(Info.IdleTruckHunt, isExperimentalBot)} "
+				+ $"drop={Info.DropAndLeave && controlField != null}");
 		}
 
 		void IBotTick.BotTick(IBot bot)
@@ -268,6 +360,15 @@ namespace OpenRA.Mods.Common.Traits
 				activeTrucks.Remove(a);
 				if (a != null && blackboard != null && blackboard.IsUnitClaimedBy(a, "supply-follow"))
 					blackboard.ReleaseUnit(a);
+
+				// Lifecycle EDGE — unconditional. "Where did the truck go?" is the question this subsystem
+				// could never answer, and a release is the moment it stops being ours: from here
+				// DropsSupplyCache owns it, and under TRUK's Evacuate default that means the map edge.
+				if (a != null)
+					Log.Write("debug",
+						$"[supply] release truck={a.ActorID}@{(a.IsInWorld ? a.Location.ToString() : "<out-of-world>")} "
+						+ $"reason={(a.IsDead ? "dead" : !a.IsInWorld ? "out-of-world" : "low-supply")} "
+						+ $"supply={a.TraitOrDefault<SupplyProvider>()?.CurrentSupply.ToString() ?? "n/a"}");
 			}
 
 			// Keep the per-truck deadband / damper memory bounded to trucks still on active follow duty.
@@ -324,9 +425,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Find unit clusters by looking for groups of friendly units away from base
 			var clusters = FindUnitClusters(friendlyUnits, minFriendlies);
+			var clustersFound = clusters.Count;
 
 			var spread = Info.SectorSpread && participates;
 			var evac = Info.DangerEvac && dangerField != null;
+
+			// Drop-and-leave needs the frontier-distance field to place its anchor, so controlField being
+			// non-null carries the Participates gate with it (Initialize only resolves it for participants).
+			var dropLive = Info.DropAndLeave && controlField != null;
 
 			// Selection is gated at the RELEASE level, not the entry threshold. Gating at the entry threshold
 			// while releasing lower leaves the whole band between them as a latch — see the two-levels note in
@@ -373,9 +479,30 @@ namespace OpenRA.Mods.Common.Traits
 						spreadTargets[orderedTrucks[i]] = clusters[assignment[i]];
 			}
 
-			// Own SRs — the fog-legal safe rear an evacuating truck pulls back toward (our own actors). A
-			// player can hold more than one, so the NEAREST is picked per truck inside the loop.
-			var supplyRoutes = evac ? FindOwnSupplyRoutes() : null;
+			// Own SRs — the fog-legal safe rear an evacuating truck pulls back toward, and the seed the
+			// drop-and-leave anchor descends FROM (our own actors). A player can hold more than one, so the
+			// NEAREST is picked per truck inside the loop.
+			var supplyRoutes = evac || dropLive ? FindOwnSupplyRoutes() : null;
+
+			// Keep the per-SR anchor hysteresis bounded to SRs we still hold.
+			if (dropAnchor.Count > 0)
+			{
+				var staleAnchors = dropAnchor.Keys.Where(a => a.IsDead || !a.IsInWorld || a.Owner != player).ToList();
+				foreach (var a in staleAnchors)
+					dropAnchor.Remove(a);
+			}
+
+			if (Info.DebugLogging)
+				Log.Write("debug",
+					$"[supply] scan player={player.PlayerName} trucks={trucks.Count} friendlies={friendlyUnits.Count} "
+					+ $"clusters-found={clustersFound} clusters-selected={clusters.Count} "
+					+ $"evac={evac} drop={dropLive} release-level={releaseLevel} srs={supplyRoutes?.Count ?? 0}");
+
+			if (Info.DebugLogging && evac)
+				foreach (var c in clusters)
+					Log.Write("debug",
+						$"[supply] cluster cell={c.CenterCell} follow={c.FollowCell} units={c.UnitCount} "
+						+ $"need={NeedScore(c.AmmoNeed)} danger={c.Danger} gated={c.Gated}");
 
 			foreach (var truck in orderedTrucks)
 			{
@@ -410,6 +537,26 @@ namespace OpenRA.Mods.Common.Traits
 				}
 				else
 					evacState.Remove(truck);
+
+				// DROP-AND-LEAVE. Evaluated AFTER the evac branch — deliberately, and the ordering is the
+				// safety property: a truck standing in fire pulls back before it considers an errand, so the
+				// undamped withdrawal asymmetry that SupplyLogisticsMath's header pins is preserved intact.
+				// Evaluated BEFORE the follow branch because the drop REPLACES following for this truck this
+				// scan; the two must never both issue a Move.
+				//
+				// Re-issuing the identical errand every scan is harmless HERE and is why this branch needs no
+				// "already dropping" memory: the anchor is static (belief-field descent + Chebyshev
+				// hysteresis), so a re-issued MoveTo resumes toward the same cell rather than chasing a
+				// receding one. That is the same property that makes the mode work for the infantry walking
+				// to the crate, applied to the truck. The one cost is a re-issue that lands in the same tick
+				// the arrival CallFunc would have run, which cancels that drop; the truck is already there,
+				// so the next scan's errand completes it. Bounded at one scan, self-correcting.
+				if (dropLive)
+				{
+					var dropSr = srActor ?? NearestSupplyRoute(supplyRoutes, truck.CenterPosition);
+					if (TryDropAndLeave(truck, dropSr))
+						continue;
+				}
 
 				// Tier 2: an unassigned truck hunts rather than parking. Hunt off ⇒ plain `continue`, the
 				// old behaviour for both the no-spread-target and the no-in-range-cluster cases.
@@ -469,14 +616,213 @@ namespace OpenRA.Mods.Common.Traits
 						}
 					}
 
-					if (!activeTrucks.Contains(truck))
-					{
-						activeTrucks.Add(truck);
-						if (blackboard != null)
-							blackboard.ClaimUnit(truck, "supply-follow");
-					}
+					Adopt(truck);
 				}
 			}
+		}
+
+		/// <summary>DROP-AND-LEAVE: send one loaded truck to unload its whole stock at the forward supply point.
+		/// Returns true when the errand was issued and the caller should skip the follow path this scan.
+		///
+		/// <para>WHOLE LOAD, NOT A RESERVE — a stated choice. Three reasons, in order of weight. (1) A truck that
+		/// held back a remainder would still be dropped from this module's roster the moment that remainder fell
+		/// under RestockThreshold, so "keep a reserve" buys a smaller version of the same lifecycle question
+		/// rather than avoiding it. (2) A stationary 4-cell cache aura serves better than a mobile 5-cell one:
+		/// the pull side terminates against it (MoveWithinRange can actually stop), and a soldier that drifts out
+		/// of a parked aura walks back in rather than flipping to a fresh chase. (3) DropSupplyCacheHere is
+		/// all-or-nothing today, and splitting it means changing a shipped trait that a human's deploy button and
+		/// cargo panel also drive. The supply VALUE is conserved either way — the crate carries SupplyCreditValue
+		/// 750, the same as the truck's load — so this is not a write-off.</para>
+		///
+		/// <para>WHEN THE FRONT MOVES AWAY FROM AN EXISTING CACHE, nothing is done actively, and that is
+		/// deliberate: the anchor tracks the frontier, so the NEXT drop lands at the new supply point, while the
+		/// stranded crate drains normally (RemoveBelowSupply 1 disposes it) or is captured. Reclaiming a crate
+		/// back into a truck does not exist in this codebase (the census's missing crate → truck leg), and
+		/// inventing it here would be a second feature hiding inside this one.</para></summary>
+		bool TryDropAndLeave(Actor truck, Actor srActor)
+		{
+			var anchor = ResolveDropAnchor(srActor);
+
+			var provider = truck.TraitOrDefault<SupplyProvider>();
+			var cacheActor = truck.TraitOrDefault<DropsSupplyCache>()?.Info.SupplyCacheActor;
+			if (provider == null || string.IsNullOrEmpty(cacheActor))
+				return false;
+
+			var starving = anchor.HasValue ? CountStarvingNear(anchor.Value, provider) : 0;
+			var cacheSupply = anchor.HasValue ? CacheSupplyNear(anchor.Value, cacheActor) : 0;
+
+			var drop = SupplyDropMath.ShouldDrop(anchor.HasValue,
+				provider.CurrentSupply, Info.DropMinSupply,
+				starving, Info.DropMinStarvingUnits,
+				cacheSupply, Info.DropRedundantCacheSupply);
+
+			if (!drop)
+			{
+				// Per-scan LEVEL — gated. This is the "why did it not drop?" line, and it carries every term
+				// the decision read, so the answer never needs a rebuild to obtain.
+				if (Info.DebugLogging)
+					Log.Write("debug",
+						$"[supply] drop-declined truck={truck.ActorID}@{truck.Location} "
+						+ $"anchor={(anchor.HasValue ? anchor.Value.ToString() : "<none>")} "
+						+ $"supply={provider.CurrentSupply}/{Info.DropMinSupply} "
+						+ $"starving={starving}/{Info.DropMinStarvingUnits} "
+						+ $"cache-near={cacheSupply}/{Info.DropRedundantCacheSupply}");
+
+				return false;
+			}
+
+			// EDGE — unconditional. The drop and its chosen cell are the two facts the whole mode turns on.
+			Log.Write("debug",
+				$"[supply] drop truck={truck.ActorID}@{truck.Location} anchor={anchor.Value} "
+				+ $"load={provider.CurrentSupply} starving={starving} cache-near={cacheSupply} "
+				+ $"danger-at-anchor={GroundDangerAt(anchor.Value)} frontier={FrontierDistanceAt(anchor.Value)}");
+
+			bot.QueueOrder(new Order("DropSupplyCacheAt", truck, Target.FromCell(world, anchor.Value), false));
+
+			// Any in-flight Stage-E detour memory is void — the errand supersedes it.
+			lastVia.Remove(truck);
+			Adopt(truck);
+			return true;
+		}
+
+		/// <summary>The forward supply point for one Supply Route: walk DOWN ControlField's distance-to-enemy-
+		/// frontier field from the SR toward the nearest believed front, halting a standoff short of it and
+		/// never stepping into a believed weapon envelope. Null when no anchor could be established.
+		///
+		/// <para>This is <see cref="ForwardStagingMath.StagingCell"/> — the SAME primitive
+		/// PoiOffensiveBotModule.ResolveStagingAnchor consumes, at a larger standoff — rather than a second
+		/// placement algorithm, and the reuse buys the property the drop mode most needs: the descent already
+		/// carries Chebyshev anchor hysteresis, which is exactly the memory the evac decision was missing.</para>
+		///
+		/// <para>THE INERT FALLBACK IS LOAD-BEARING, NOT A GUARD CLAUSE. A flat field — no believed enemy
+		/// anywhere, or a non-participating profile with no field at all — yields no improving neighbour, so the
+		/// descent returns the SR unchanged. Treating that as "no anchor" rather than "anchor at the SR" is what
+		/// stops the truck unloading its stock at the beachhead, and it is also what makes the whole mode
+		/// self-disable on Normal/Rush/Turtle without a second gate.</para></summary>
+		CPos? ResolveDropAnchor(Actor srActor)
+		{
+			if (controlField == null || srActor == null)
+				return null;
+
+			var (sgx, sgy) = controlField.MapCellToGridCell(srActor.Location);
+			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
+				Info.DropStandoffCells, Info.DropDangerSafeThreshold, Info.DropMaxDescentSteps,
+				(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
+				(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
+				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight);
+
+			if (agx == sgx && agy == sgy)
+			{
+				dropAnchor.Remove(srActor);
+				if (Info.DebugLogging)
+					Log.Write("debug",
+						$"[supply] anchor sr={srActor.Location} → <none> (descent stalled at the SR: flat field, or "
+						+ $"the front is on top of us) frontier-at-sr={controlField.FrontierDistanceAt(player, sgx, sgy)}");
+
+				return null;
+			}
+
+			var candidate = controlField.GridCellToMapCell(agx, agy);
+
+			var had = dropAnchor.TryGetValue(srActor, out var prev);
+			if (had && !ForwardStagingMath.AnchorShifted(prev.X, prev.Y, candidate.X, candidate.Y, Info.DropAnchorHysteresisCells))
+				return prev;
+
+			dropAnchor[srActor] = candidate;
+			if (Info.DebugLogging)
+				Log.Write("debug",
+					$"[supply] anchor sr={srActor.Location} → {candidate} standoff={Info.DropStandoffCells} "
+					+ $"frontier={controlField.FrontierDistanceAt(player, agx, agy)} danger={GroundDangerAt(candidate)} "
+					+ $"shifted-from={(had ? prev.ToString() : "<new>")}");
+
+			return candidate;
+		}
+
+		/// <summary>How many of our soldiers within <see cref="SupplyFollowerBotModuleInfo.DropDemandRadiusCells"/>
+		/// of the anchor are starving in a pool this truck could actually afford a batch of. Deliberately the SAME
+		/// eligibility shape the Tier-2 hunt uses — the candidate must carry the provider's own RearmCondition
+		/// (which only soldiers hold, so a vehicle never registers as demand a truck cannot relieve) and the pool
+		/// must be affordable — so the drop decision and the hunt cannot disagree about who counts as needy.
+		/// A count, so it is order-independent; no RNG.</summary>
+		int CountStarvingNear(CPos anchor, SupplyProvider provider)
+		{
+			var rearmCondition = provider.Info.RearmCondition;
+			if (string.IsNullOrEmpty(rearmCondition))
+				return 0;
+
+			var count = 0;
+			foreach (var a in world.FindActorsInCircle(world.Map.CenterOfCell(anchor), WDist.FromCells(Info.DropDemandRadiusCells)))
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+
+				if (Info.SupplyTruckTypes.Contains(a.Info.Name))
+					continue;
+
+				var rearmable = a.TraitOrDefault<Rearmable>();
+				if (rearmable == null)
+					continue;
+
+				if (!a.TraitsImplementing<ExternalCondition>().Any(e => e.Info.Condition == rearmCondition))
+					continue;
+
+				foreach (var pool in rearmable.RearmableAmmoPools)
+				{
+					if (provider.CurrentSupply < pool.Info.SupplyValue)
+						continue;
+
+					if (!SupplyTruckHuntMath.IsStarving(pool.CurrentAmmoCount, pool.Info.Ammo, Info.HuntStarvingThresholdPerMille))
+						continue;
+
+					count++;
+					break;
+				}
+			}
+
+			return count;
+		}
+
+		/// <summary>Supply already sitting in our own caches within the demand radius of the anchor. A sum, so it
+		/// is order-independent; no RNG. Only OUR caches count — an ally's crate does serve our soldiers, but the
+		/// crate is ProximityCapturable and can change hands, and counting a foreign one would let an opponent
+		/// suppress our resupply by parking a crate near our front.</summary>
+		int CacheSupplyNear(CPos anchor, string cacheActor)
+		{
+			var total = 0;
+			foreach (var a in world.FindActorsInCircle(world.Map.CenterOfCell(anchor), WDist.FromCells(Info.DropDemandRadiusCells)))
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld || a.Info.Name != cacheActor)
+					continue;
+
+				total += a.TraitOrDefault<SupplyProvider>()?.CurrentSupply ?? 0;
+			}
+
+			return total;
+		}
+
+		/// <summary>Believed distance to the enemy frontier at a map cell, in coarse control-grid cells. Purely
+		/// diagnostic — nothing decides on it.</summary>
+		int FrontierDistanceAt(CPos cell)
+		{
+			if (controlField == null)
+				return -1;
+
+			var (gx, gy) = controlField.MapCellToGridCell(cell);
+			return controlField.FrontierDistanceAt(player, gx, gy);
+		}
+
+		/// <summary>Put a truck on follow duty and claim it, logging the EDGE. One place, so every branch that
+		/// tasks a truck reports it identically.</summary>
+		void Adopt(Actor truck)
+		{
+			if (activeTrucks.Contains(truck))
+				return;
+
+			activeTrucks.Add(truck);
+			blackboard?.ClaimUnit(truck, "supply-follow");
+			Log.Write("debug",
+				$"[supply] adopt truck={truck.ActorID}@{truck.Location} "
+				+ $"supply={truck.TraitOrDefault<SupplyProvider>()?.CurrentSupply.ToString() ?? "n/a"}");
 		}
 
 		/// <summary>
@@ -573,11 +919,12 @@ namespace OpenRA.Mods.Common.Traits
 			bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, world.Map.CellContaining(stopPosition)), false));
 			lastVia.Remove(truck);
 
-			if (!activeTrucks.Contains(truck))
-			{
-				activeTrucks.Add(truck);
-				blackboard?.ClaimUnit(truck, "supply-follow");
-			}
+			if (Info.DebugLogging)
+				Log.Write("debug",
+					$"[supply] hunt truck={truck.ActorID}@{truck.Location} → {world.Map.CellContaining(stopPosition)} "
+					+ $"target={target.ActorID}@{target.Location} shortfall={demands[pick].ShortfallPerMille} candidates={demands.Count}");
+
+			Adopt(truck);
 		}
 
 		/// <summary>Narrow the clusters to the ones actually worth sending a truck to, as a RELIEF-VALVED
@@ -845,6 +1192,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (!evacNow)
 			{
+				// EXIT EDGE — unconditional, and only on the transition. Logging every non-evacuating scan
+				// would bury the transitions that matter in a level nobody reads.
+				if (wasEvacuating)
+					Log.Write("debug",
+						$"[supply] evac-exit truck={truck.ActorID}@{truck.Location} danger={dangerAtTruck} "
+						+ $"release-level={SupplyLogisticsMath.ReleaseLevel(Info.EvacDangerThreshold, Info.EvacReleaseHysteresis)} "
+						+ $"held={heldBefore}");
+
 				evacState.Remove(truck);
 				return false;
 			}
@@ -870,14 +1225,22 @@ namespace OpenRA.Mods.Common.Traits
 				lastVia.Remove(truck);
 			}
 
+			// ENTRY EDGE unconditional; subsequent held/legged scans are a level, so they are gated. Both
+			// carry `leg`, which is what makes the TWO-LEG retreat (the dwell holds the branch for one scan,
+			// and the leg model then observes leg 1 as driven and issues leg 2) visible in a log rather than
+			// only derivable on paper — see WORKSPACE/recon/260808-truck-post-fix-behaviour.md §1.3.
+			if (!wasEvacuating)
+				Log.Write("debug",
+					$"[supply] evac-enter truck={truck.ActorID}@{truck.Location} danger={dangerAtTruck} "
+					+ $"dest-danger={dangerAtDestination} gated={cluster?.Gated ?? false} "
+					+ $"threshold={Info.EvacDangerThreshold} leg={retreatCell} sr={srActor.Location}");
+			else if (Info.DebugLogging)
+				Log.Write("debug",
+					$"[supply] evac-hold truck={truck.ActorID}@{truck.Location} danger={dangerAtTruck} "
+					+ $"held={heldBefore}→{hold} leg-driven={legDriven} leg={retreatCell}");
+
 			evacState[truck] = new EvacState(hold, retreatCell);
-
-			if (!activeTrucks.Contains(truck))
-			{
-				activeTrucks.Add(truck);
-				blackboard?.ClaimUnit(truck, "supply-follow");
-			}
-
+			Adopt(truck);
 			return true;
 		}
 
@@ -923,6 +1286,7 @@ namespace OpenRA.Mods.Common.Traits
 			activeTrucks.Clear();
 			lastVia.Clear();
 			evacState.Clear();
+			dropAnchor.Clear();
 		}
 
 		// Danger-evac damper state for one truck on the evac branch: scans the branch is still committed for

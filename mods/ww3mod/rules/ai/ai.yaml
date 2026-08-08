@@ -801,6 +801,56 @@ Player:
 		HuntStarvingThresholdPerMille: 250
 		HuntLeashCells: 20
 		HuntNeedBandPerMille: 100
+		# DROP-AND-LEAVE (2026-08-08). A loaded truck drives ONCE to a forward supply point behind the
+		# believed frontier, unloads its whole 750 as a SUPPLYCACHE, and leaves; infantry walk to the crate.
+		# This is an ADDED mode — a truck that does not meet the drop conditions follows exactly as before.
+		#
+		# WHY, rather than more damping. The 2026-08-07 four-commit fix closed every latch and the truck
+		# still visibly dithered, because approach -> abort -> approach is a limit cycle BY CONSTRUCTION:
+		# the relief valve re-selects the same needy cluster the moment the truck cools (period ~5 scans /
+		# ~30 s, amplitude ~23 cells). The pull side has the MIRROR defect — AutoSeekSupplies applies its
+		# 20-cell leash at SELECTION only and then rides an actor-tracking MoveWithinRange, so infantry at
+		# speed 25 chase a truck at 75 and lose ~7.3 cells per scan while combat-inert. Both are the same
+		# shape and both dissolve against a destination that DOES NOT MOVE. Damping bounds an excursion; a
+		# static destination removes it. It is also why the two reported symptoms are one mechanism: the
+		# truck leaving its own aura is precisely what flips a replenishing soldier back to approaching.
+		#
+		# SCOPE: the engine double-gates on InfluenceStack.Participates, because the anchor is walked down
+		# ControlField's frontier-distance field and that field exists only for participating players. So
+		# this reaches BOTH fog-respecting profiles (@experimental AND @stable) — deliberately, since the
+		# limit cycle it removes ships to both. Normal/Rush/Turtle and legacy keep a flat field, the descent
+		# returns the Supply Route unchanged, no anchor is established, and the mode is inert — byte-identical
+		# without needing a second gate.
+		DropAndLeave: true
+		# Standoff is the risk lever, and the risk is intentional: SUPPLYCACHE is ProximityCapturable by
+		# Player/Vehicle/Tank/Infantry and is shot at unaided, so a point too far forward gifts the enemy a
+		# resupply node. 8 COARSE control-grid cells = 16 map cells at CellSize 2 — further back than
+		# PoiOffensiveBotModule's StagingStandoffCells: 6 (a supply dump stands off further than a rifle
+		# squad), and inside AutoSeekSupplies' 20-cell selection leash, or the soldiers it exists for could
+		# never pick it. The danger threshold matches the offense module's on purpose: same primitive, same
+		# job, and the STANDOFF is what makes this point safer, not a different danger number.
+		DropStandoffCells: 8
+		DropDangerSafeThreshold: 40
+		DropMaxDescentSteps: 64
+		# The anchor is re-derived every scan from a field rebuilt every 25 ticks. Without hysteresis a
+		# one-cell belief wobble would move the destination — and a destination that moves is the entire
+		# defect this mode exists to remove.
+		DropAnchorHysteresisCells: 3
+		# Demand radius sized to HuntLeashCells / AutoSeekSupplies' SupplyHuntLeashCells: a soldier further
+		# from the crate than his own selection leash cannot pick it, so counting him as demand would drop a
+		# crate nobody walks to. The same radius finds crates that already cover the demand (same-cell drops
+		# merge, so that gate is for the near-miss case).
+		DropDemandRadiusCells: 20
+		DropMinStarvingUnits: 3
+		DropMinSupply: 250
+		DropRedundantCacheSupply: 100
+		# Instrumentation, ON. Until now the ENTIRE supply path — SupplyFollowerBotModule, SupplyProvider,
+		# AutoSeekSupplies, SeekSupplyProvider — contained zero Log.Write/BotDebug calls, so a 1.5 MB
+		# debug.log from a real session carried nothing about trucks and no setting could turn it on; two
+		# days of reasoning about this subsystem had no way to check its premise. Costs roughly 1-2k lines
+		# per 20-minute match per AI (comparable to [exp-transport]). Turn OFF once the behaviour is settled;
+		# the EDGE lines (adopt/release, evac enter/exit, drop issued) are logged either way.
+		DebugLogging: true
 
 	# Adaptive production — counter enemy composition.
 	# Experimental halves EvaluationInterval to 300 (counter-build twice as fast against
