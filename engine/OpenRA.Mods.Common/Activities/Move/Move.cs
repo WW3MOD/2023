@@ -262,7 +262,7 @@ namespace OpenRA.Mods.Common.Activities
 			// Next cell in the move is blocked by another actor, or a blocker appeared after the path was found
 			// and the step into it would now squeeze between two solid cells.
 			if (containsTemporaryBlocker || !mobile.CanEnterCell(nextCell, ignoreActor) ||
-				mobile.Locomotor.IsDiagonalSqueeze(self, mobile.ToCell, nextCell))
+				mobile.Locomotor.IsDiagonalSqueeze(self, mobile.ToCell, nextCell, ignoreActor))
 			{
 				// Are we close enough?
 				var cellRange = nearEnough.Length / 1024;

@@ -232,7 +232,14 @@ namespace OpenRA.Mods.Common.Traits
 				!CanMoveFreelyInto(actor, destNode, SubCell.FullCell, check, ignoreActor))
 				return PathGraph.MovementCostForUnreachableCell;
 
-			if (check != BlockedByActor.None && IsDiagonalSqueeze(actor, srcNode, destNode))
+			// The BlockedByActor.None gate is load-bearing twice over, so do not relax it casually.
+			// (1) It excludes HierarchicalPathFinder.MovementAllowedBetweenCells (:593, which passes None), leaving the
+			//     abstract graph permissive. That is not merely the safer failure direction: a permissive abstract
+			//     graph underestimates true cost, so the heuristic it feeds stays admissible and A* stays correct.
+			//     Syncing it to this stricter rule would raise the estimate and cost that guarantee.
+			// (2) That same call site passes actor: null, and CellBlocksCorner treats a null actor as unable to pass
+			//     anything — so were the gate relaxed, every occupied cell would read as solid to it.
+			if (check != BlockedByActor.None && IsDiagonalSqueeze(actor, srcNode, destNode, ignoreActor))
 				return PathGraph.MovementCostForUnreachableCell;
 
 			return cellCost;
@@ -244,7 +251,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// a solid-looking diagonal line stops nothing. Only cells that no unit action can clear count as blockers, so
 		/// vehicles never wall each other in.
 		/// </summary>
-		public bool IsDiagonalSqueeze(Actor actor, CPos srcNode, CPos destNode)
+		public bool IsDiagonalSqueeze(Actor actor, CPos srcNode, CPos destNode, Actor ignoreActor = null)
 		{
 			// Something that occupies only part of a cell can plausibly slip past a corner; a full-cell occupant
 			// cannot. SharesCell is not a proxy for that distinction, it IS the switch — ToSubCell is assigned
@@ -255,6 +262,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.SharesCell)
 				return false;
 
+			// A search carrying an ignoreActor can enter cells CellBlocksCorner calls solid, which would break the
+			// "the expanding cell is passable" premise the pruning argument below rests on and cost paths rather than
+			// squeezes. Drop the rule instead of disagreeing with CanMoveFreelyInto — the same call the PathFinder
+			// makes when it falls back to the blocking-agnostic HPF for an ignoreActor search (PathFinder.cs:154-158).
+			if (ignoreActor != null)
+				return false;
+
 			if (srcNode.Layer != destNode.Layer)
 				return false;
 
@@ -263,10 +277,15 @@ namespace OpenRA.Mods.Common.Traits
 			if (dx * dx != 1 || dy * dy != 1)
 				return false;
 
-			// Both shoulders must be blocked, never either. One shoulder of every diagonal that the
-			// DensePathGraph.DirectedNeighbors pruning discards is the cell currently being expanded, which is always
-			// passable — so requiring both keeps that pruning complete. Blocking on either would silently drop
-			// reachable cells from the search.
+			// Both shoulders must be blocked, never either, and that is what keeps the DensePathGraph
+			// DirectedNeighbors pruning complete. Checked against all nine entries:
+			//   * Diagonal arrivals (idx 0/2/6/8) are safe for free — every neighbour they prune is reached from the
+			//     parent by an ORTHOGONAL step, which this rule never touches.
+			//   * Orthogonal arrivals (idx 1/3/5/7) are the only ones needing the argument: each pruned neighbour is
+			//     reached from the parent diagonally, but one shoulder of that diagonal is the cell being expanded,
+			//     which is passable by construction — so a both-shoulders rule can never deny it.
+			// Blocking on either shoulder breaks exactly there: at idx 1 with X = (-1,1) blocked it denies parent->N
+			// while the expanding cell has already pruned N, so N becomes genuinely unreachable.
 			return CellBlocksCorner(actor, new CPos(srcNode.X, destNode.Y, srcNode.Layer))
 				&& CellBlocksCorner(actor, new CPos(destNode.X, srcNode.Y, srcNode.Layer));
 		}
@@ -283,8 +302,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (cellFlag == CellFlag.HasFreeSpace)
 				return false;
 
-			// Anything that can move aside or be driven through is not a wall.
-			if (cellFlag.HasCellFlag(CellFlag.HasMovableActor) || cellFlag.HasCellFlag(CellFlag.HasTransitOnlyActor))
+			// Anything that can move aside, stop blocking, or be driven through is not a wall. Temporary blockers are
+			// excluded to stay consistent with CanMoveFreelyInto, which routes them to its slow path and may well let
+			// the mover in — a shoulder this test calls solid but the search can enter would break the premise above.
+			if (cellFlag.HasCellFlag(CellFlag.HasMovableActor) ||
+				cellFlag.HasCellFlag(CellFlag.HasTransitOnlyActor) ||
+				cellFlag.HasCellFlag(CellFlag.HasTemporaryBlocker))
 				return false;
 
 			return actor == null || !cellCache.Passable.Overlaps(actor.Owner.PlayerMask);
