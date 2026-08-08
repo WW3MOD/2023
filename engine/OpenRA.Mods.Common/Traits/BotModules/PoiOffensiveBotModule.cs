@@ -4019,8 +4019,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (!moved)
 				return;
 
+			// Reflex: a withdrawal must never be held back by the funnel gate. These units are our own
+			// `offense:` incumbents so ownership would pass anyway, but declaring it keeps the property
+			// true if the axis is ever built from units another module claimed.
 			var units = axis.Units.ToArray();
-			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, rally), false, groupedActors: units));
+			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, rally), false, groupedActors: units), BotOrderUrgency.Reflex);
 			axis.OrderedCell = rally;
 			axis.OrderedVia = null;
 			axis.OrderedRetreat = true;

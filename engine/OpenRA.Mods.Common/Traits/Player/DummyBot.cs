@@ -50,6 +50,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IBot.QueueOrder(Order order) { }
 
+		void IBot.QueueOrder(Order order, BotOrderUrgency urgency) { }
+
 		IBotInfo IBot.Info => info;
 		Player IBot.Player => player;
 	}

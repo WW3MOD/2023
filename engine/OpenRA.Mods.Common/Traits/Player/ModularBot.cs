@@ -33,6 +33,27 @@ namespace OpenRA.Mods.Common.Traits
 			"Excess orders remain queued for subsequent ticks.")]
 		public readonly int MinOrderQuotientPerTick = 5;
 
+		[Desc("WW3MOD bot-brain Stage 1, predicate (a). Enforce the commitment ledger AT THE FUNNEL:",
+			"drop a tasking order when every one of its target units already holds a live commitment",
+			"belonging to a module that outranks (or ties) the issuer. Replaces today's conflict",
+			"resolution, which is 'whichever module is declared later in ai.yaml wins' — an emergent",
+			"property of trait construct order that is documented nowhere and that no losing module is",
+			"ever told about. Default false ⇒ the funnel is a pass-through, byte-identical to before.")]
+		public readonly bool RespectCommitmentsOnIssue = false;
+
+		[Desc("WW3MOD bot-brain Stage 1, predicate (b). Minimum ticks a unit keeps a standing order",
+			"before a DIFFERENT destination may be issued to it. Only bites while the unit is still",
+			"executing something: an idle unit is always re-orderable, and a Reflex order (retreat /",
+			"evacuation / damage response) always passes. This is the inverse of a same-destination",
+			"dedup — the churn census found the top suspects all issue genuinely DIFFERENT",
+			"destinations, so equivalence dedup cannot see them. 0 disables (the inert default).")]
+		public readonly int ReorderDwellTicks = 0;
+
+		[Desc("Ticks between funnel-gate suppression summaries in the unit-lifecycle log. One line per",
+			"(issuing module, reason) pair per window, so the stream stays bounded. 0 disables.",
+			"Costs nothing unless Test.Mode=true Test.UnitLifecycleLog=<path> is set.")]
+		public readonly int OrderGateLogIntervalTicks = 500;
+
 		string IBotInfo.Type => Type;
 
 		string IBotInfo.Name => Name;
@@ -62,6 +83,17 @@ namespace OpenRA.Mods.Common.Traits
 		string currentModuleTag = "";
 		UnitLifecycleLogger lifecycleLogger;
 
+		// WW3MOD bot-brain Stage 1. Null unless at least one gate lever is set, in which case
+		// QueueOrder is the pre-Stage-1 pass-through exactly as before.
+		BotOrderGate gate;
+		PoiGoalGuard goalGuard;
+		readonly List<BotOrderTarget> gateTargets = new();
+
+		// Every order queued while INotifyDamage.Damaged is running IS a damage response, so the whole
+		// IBotRespondToAttack path is Reflex structurally — no module needs to declare it, and a module
+		// added later inherits it. This is the one urgency class that needs no call-site annotation.
+		bool inAttackResponse;
+
 		IBotInfo IBot.Info => info;
 		Player IBot.Player => player;
 
@@ -84,17 +116,93 @@ namespace OpenRA.Mods.Common.Traits
 			tickModules = p.PlayerActor.TraitsImplementing<IBotTick>().ToArray();
 			attackResponseModules = p.PlayerActor.TraitsImplementing<IBotRespondToAttack>().ToArray();
 			lifecycleLogger = world.WorldActor.TraitOrDefault<UnitLifecycleLogger>();
+			goalGuard = p.PlayerActor.TraitOrDefault<PoiGoalGuard>();
+			if (info.RespectCommitmentsOnIssue || info.ReorderDwellTicks > 0)
+				gate = new BotOrderGate(info.RespectCommitmentsOnIssue, info.ReorderDwellTicks);
+
 			foreach (var ibe in p.PlayerActor.TraitsImplementing<IBotEnabled>())
 				ibe.BotEnabled(this);
 		}
 
-		void IBot.QueueOrder(Order order)
+		void IBot.QueueOrder(Order order) => QueueOrder(order, BotOrderUrgency.Directive);
+
+		void IBot.QueueOrder(Order order, BotOrderUrgency urgency) => QueueOrder(order, urgency);
+
+		void QueueOrder(Order order, BotOrderUrgency urgency)
 		{
-			// Attribute this order to the module currently ticking, then queue it
-			// unchanged. LogOrder self-gates to a no-op when lifecycle logging is
-			// off, so this is free in normal play and never touches the order.
+			// HUMANS CANNOT REACH THIS. IBot.QueueOrder is only ever called by bot modules holding an
+			// IBot; a human's orders come from the UI straight to World.IssueOrder and never enter this
+			// queue. The gate is therefore unreachable from a human-owned unit by construction, not by a
+			// predicate that could be got wrong. What it also means: the gate is blind to the SECOND order
+			// layer — the activity-queueing traits (StancePositioningExecutor, AutoSeekSupplies,
+			// CohesionSlotMemory, DropsSupplyCache) that call Actor.QueueActivity directly and emit no
+			// Order at all. Two of those are default-ON for humans. Nothing here can damp them, in either
+			// direction. See WORKSPACE/recon/260807-order-source-census.md.
+			if (gate != null)
+			{
+				var effective = inAttackResponse ? BotOrderUrgency.Reflex : urgency;
+				var verdict = gate.Admit(
+					order.OrderString, order.Queued, effective, currentModuleTag, world.WorldTick,
+					DestinationKeyOf(order), ResolveGateTargets(order));
+
+				if (verdict != BotOrderVerdict.Admitted)
+					return;
+			}
+
+			// Attribute this order to the module currently ticking, then queue it unchanged. LogOrder
+			// self-gates to a no-op when lifecycle logging is off, so this is free in normal play and
+			// never touches the order. Logged AFTER the gate deliberately: the `order` stream then
+			// contains only orders that were really queued, so comparing two runs' order counts measures
+			// exactly what the gate removed, and the `ordgate` lines say who lost and why.
 			lifecycleLogger?.LogOrder(player, currentModuleTag, order);
 			orders.Enqueue(order);
+		}
+
+		// Subject ∪ GroupedActors: a grouped order carries a null Subject, so both must be walked.
+		List<BotOrderTarget> ResolveGateTargets(Order order)
+		{
+			gateTargets.Clear();
+			var ledger = goalGuard != null && !goalGuard.IsTraitDisabled ? goalGuard.Ledger : null;
+			var tick = world.WorldTick;
+
+			AddGateTarget(order.Subject, ledger, tick);
+			if (order.GroupedActors != null)
+				foreach (var a in order.GroupedActors)
+					if (a != order.Subject)
+						AddGateTarget(a, ledger, tick);
+
+			return gateTargets;
+		}
+
+		void AddGateTarget(Actor a, GoalGuardLedger<Actor> ledger, int tick)
+		{
+			if (a == null || a.IsDead || !a.IsInWorld)
+				return;
+
+			string objective = null;
+			if (ledger != null && ledger.IsCommitted(a, tick) && ledger.TryGetObjective(a, out var o))
+				objective = o;
+
+			gateTargets.Add(new BotOrderTarget(a.ActorID, objective, !a.IsIdle));
+		}
+
+		long DestinationKeyOf(Order order)
+		{
+			var target = order.Target;
+			switch (target.Type)
+			{
+				case TargetType.Actor:
+					if (target.Actor != null)
+						return OrderArbitrationMath.DestinationKey(true, target.Actor.ActorID, 0, 0, true);
+
+					break;
+				case TargetType.FrozenActor:
+				case TargetType.Terrain:
+					var cell = world.Map.CellContaining(target.CenterPosition);
+					return OrderArbitrationMath.DestinationKey(false, 0, cell.X, cell.Y, true);
+			}
+
+			return OrderArbitrationMath.DestinationKey(false, 0, 0, 0, false);
 		}
 
 		void ITick.Tick(Actor self)
@@ -108,6 +216,16 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					try
 					{
+						// DO NOT GATE THIS LOOP. Every module's cadence is a per-call `--countdown`
+						// decrement (24 sites) and every Ledger.Commit refresh in every bot module sits
+						// behind its module's own countdown, so withholding a BotTick stretches that
+						// module's interval by the withhold factor and — at TTL/interval = 250/100 = 2.5x
+						// headroom on the POI modules — silently drops its units out of the ledger while
+						// it still lists them in axis.Units. An attention scheduler must refuse the
+						// RE-DECISION inside the module's own eval (where the claim refresh already
+						// lives), never the tick. Gating here re-opens a 25-site tick-stamp conversion
+						// whose coverage is not statically verifiable.
+						// See WORKSPACE/plans/260808-bot-brain-staging.md §7.
 						foreach (var t in tickModules)
 							if (t.IsTraitEnabled())
 							{
@@ -124,6 +242,18 @@ namespace OpenRA.Mods.Common.Traits
 				});
 			}
 
+			if (gate != null)
+			{
+				gate.Prune(world.WorldTick);
+				ReportGateSuppressions();
+			}
+
+			// NOTE (Stage 1): suppressing orders above perturbs orders.Count, and this quotient is
+			// computed from it — so the drain SCHEDULE changes for every module, including ones the gate
+			// never inspects. Fewer queued orders means a smaller per-tick quotient, which can delay an
+			// unrelated order in the tail of a burst by a few ticks. FIFO order among survivors is
+			// preserved exactly and nothing is lost, so the effect is bounded latency, not reordering.
+			// This is a deliberate, visible @stable change: re-take the ai-bench baseline knowingly.
 			var ordersToIssueThisTick = Math.Min((orders.Count + info.MinOrderQuotientPerTick - 1) / info.MinOrderQuotientPerTick, orders.Count);
 			var controlAllManager = world.WorldActor.TraitOrDefault<ControlAllUnitsManager>();
 			for (var i = 0; i < ordersToIssueThisTick; i++)
@@ -138,6 +268,23 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// One line per (issuing module, reason) per window into the same stream ModularBot already logs
+		// orders to, so a single Test.Mode run can measure how much churn the gate actually removed
+		// without one line per suppression per tick.
+		void ReportGateSuppressions()
+		{
+			if (info.OrderGateLogIntervalTicks <= 0 || lifecycleLogger == null || !lifecycleLogger.Enabled)
+				return;
+
+			if (world.WorldTick % info.OrderGateLogIntervalTicks != 0 || gate.Suppressions.Count == 0)
+				return;
+
+			foreach (var s in gate.Suppressions)
+				lifecycleLogger.LogOrderGate(player, s.ModuleTag, s.Verdict.ToString(), s.Count, gate.StandingCount);
+
+			gate.ResetSuppressions();
+		}
+
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
 			if (!IsEnabled || self.World.IsLoadingGameSave)
@@ -149,6 +296,7 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					try
 					{
+						inAttackResponse = true;
 						foreach (var t in attackResponseModules)
 							if (t.IsTraitEnabled())
 							{
@@ -158,6 +306,7 @@ namespace OpenRA.Mods.Common.Traits
 					}
 					finally
 					{
+						inAttackResponse = false;
 						currentModuleTag = "";
 					}
 				});

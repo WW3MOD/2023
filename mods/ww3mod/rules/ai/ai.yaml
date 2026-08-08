@@ -28,12 +28,29 @@ Player:
 	#                                       config (promotion policy: SPEC.md §Bot pair). Promoted
 	#                                       2026-08-02 to FULL @experimental parity; @stable now also
 	#                                       participates in the influence stack (InfluenceStack.cs).
+	# Bot-brain Stage 1 — the order funnel gate, ON for BOTH profiles.
+	#
+	# Turned on for @stable deliberately, per settled CLAUDE.md policy: @stable inherits
+	# improvements and no gate exists whose purpose is to withhold one from it. This DOES move the
+	# benchmark control — suppressed orders change orders.Count, hence the ceil(N/5) drain schedule,
+	# for every module including untouched ones — so the ai-bench baseline must be re-taken knowingly.
+	#
+	# ReorderDwellTicks: 120 (7.2 s at Timestep 60 => 16.667 ticks/s). Chosen to strictly exceed the
+	# longest re-decision period the churn census measured (100 t: the POI ReevaluateInterval, and the
+	# axis<->staging beat), so every identified beat is damped rather than half-damped, while staying
+	# well under the shortest commitment TTL (250 t) so a dwell can never outlive the commitment it is
+	# protecting. It only ever holds a unit that is STILL EXECUTING something — an idle unit is
+	# re-orderable immediately — and Reflex orders (retreat / evacuation / damage response) bypass it.
 	ModularBot@experimental:
 		Name: Experimental AI
 		Type: experimental
+		RespectCommitmentsOnIssue: true
+		ReorderDwellTicks: 120
 	ModularBot@stable:
 		Name: Stable AI 0802
 		Type: stable
+		RespectCommitmentsOnIssue: true
+		ReorderDwellTicks: 120
 
 	# Both surviving bots inherit the shared baseline (enable-ai-player / enable-ai-any).
 	# New Experimental-only modules use `enable-ai-experimental`; Stable mirrors the

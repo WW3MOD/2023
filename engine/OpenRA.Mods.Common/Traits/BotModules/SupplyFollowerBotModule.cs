@@ -1547,7 +1547,11 @@ namespace OpenRA.Mods.Common.Traits
 				var retreat = SupplyLogisticsMath.RetreatTarget(
 					truck.CenterPosition, srActor.CenterPosition, WDist.FromCells(Info.EvacRetreatCells).Length);
 				retreatCell = world.Map.CellContaining(retreat);
-				bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, retreatCell), false));
+				// Reflex: this is the single-actor evacuation Move, and it is exactly the case the funnel
+				// gate's dwell predicate would otherwise catch — a preceding follow Move to a different
+				// cell, still young, on a truck that is still driving. A truck that cannot leave the
+				// danger it was told to leave is far worse than one that dithers.
+				bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, retreatCell), false), BotOrderUrgency.Reflex);
 				lastVia.Remove(truck);
 				lastFollow.Remove(truck);
 			}

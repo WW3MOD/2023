@@ -424,10 +424,27 @@ namespace OpenRA.Traits
 		string Name { get; }
 	}
 
+	// WW3MOD bot-brain Stage 1: the urgency channel through the bot order funnel. The funnel gate
+	// (OrderArbitrationMath / BotOrderGate) may suppress an ordinary tasking order to damp churn, and
+	// there is no way to tell a retreat from an advance by inspecting the Order — both are a non-queued
+	// "AttackMove" at a cell. So urgency is declared by the issuing call site. Ordered scale: a higher
+	// value is harder to suppress, which is the seam later scheduler stages extend.
+	public enum BotOrderUrgency
+	{
+		// Ordinary tasking. Subject to the funnel gate.
+		Directive = 0,
+
+		// Self-preservation or immediate response: evacuation, retreat, damage response. Never
+		// suppressed. Getting this wrong is the way the gate hurts rather than helps — a unit that
+		// cannot flee because a stale incumbency holds it is far worse than a unit that wiggles.
+		Reflex = 1,
+	}
+
 	public interface IBot
 	{
 		void Activate(Player p);
 		void QueueOrder(Order order);
+		void QueueOrder(Order order, BotOrderUrgency urgency);
 		IBotInfo Info { get; }
 		Player Player { get; }
 	}

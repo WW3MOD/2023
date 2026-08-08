@@ -390,6 +390,25 @@ namespace OpenRA.Mods.Common.Traits
 			EndLine();
 		}
 
+		// Called from ModularBot on a tick-stamped window: an AGGREGATE of funnel-gate suppressions,
+		// one line per (issuing module, reason) pair per window rather than one per suppression, so the
+		// stream stays bounded while still answering "how much churn did the gate remove, and whose".
+		public void LogOrderGate(Player owner, string moduleTag, string reason, int count, int standing)
+		{
+			if (!enabled)
+				return;
+
+			EnsureSeeded();
+
+			BeginLine("ordgate", 0, includeAid: false);
+			Field("owner", owner?.ClientIndex ?? -1);
+			Field("mod", moduleTag ?? "");
+			Field("reason", reason ?? "");
+			Field("count", count);
+			Field("standing", standing);
+			EndLine();
+		}
+
 		// End-of-game census: one `end` line per surviving tracked actor, built from
 		// the tracked dictionary alone (no world reads) so it is valid post-teardown.
 		void Flush()
