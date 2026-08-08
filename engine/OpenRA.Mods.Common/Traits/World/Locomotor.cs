@@ -246,6 +246,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public bool IsDiagonalSqueeze(Actor actor, CPos srcNode, CPos destNode)
 		{
+			// Something that occupies only part of a cell can plausibly slip past a corner; a full-cell occupant
+			// cannot. SharesCell is not a proxy for that distinction, it IS the switch — ToSubCell is assigned
+			// straight from it (Mobile.cs:321) and the actor's own IOccupySpaceInfo.SharesCell just forwards it
+			// (Mobile.cs:198) — so this can never drift out of sync with how the unit occupies space. Reading it off
+			// the locomotor rather than the actor also keeps the rule uniform within a single pathfind, which is what
+			// the DirectedNeighbors pruning argument below depends on.
+			if (Info.SharesCell)
+				return false;
+
 			if (srcNode.Layer != destNode.Layer)
 				return false;
 

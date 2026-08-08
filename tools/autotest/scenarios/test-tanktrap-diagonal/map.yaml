@@ -102,6 +102,31 @@ Actors:
 		Owner: Neutral
 		Location: 31,17
 
+	# --- Infantry pocket: the squeeze pocket again, at 40,16. Infantry use the
+	# --- foot locomotor, which is SharesCell, so they are exempt from the rule
+	# --- and must still get in. This lane pins the scoping decision itself.
+	InNW: tanktrap2
+		Owner: Neutral
+		Location: 39,15
+	InN: tanktrap2
+		Owner: Neutral
+		Location: 40,15
+	InW: tanktrap2
+		Owner: Neutral
+		Location: 39,16
+	InE: tanktrap2
+		Owner: Neutral
+		Location: 41,16
+	InSW: tanktrap2
+		Owner: Neutral
+		Location: 39,17
+	InS: tanktrap2
+		Owner: Neutral
+		Location: 40,17
+	InSE: tanktrap2
+		Owner: Neutral
+		Location: 41,17
+
 	Squeezer: bradley
 		Owner: USA
 		Location: 22,11
@@ -109,6 +134,10 @@ Actors:
 	Control: bradley
 		Owner: USA
 		Location: 30,11
+		Facing: 512
+	Grunt: e3.america
+		Owner: USA
+		Location: 42,13
 		Facing: 512
 
 Rules: rules.yaml
