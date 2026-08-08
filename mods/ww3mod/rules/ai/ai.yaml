@@ -859,6 +859,11 @@ Player:
 		# descent, per-cluster readings, the reason a drop was declined) and is OFF: RELEASE mode runs on a
 		# player's machine and should not carry 1-2k lines per match per AI. Turn on for an observation run.
 		DebugLogging: false
+		# Roll-up interval for the one unconditional line that can repeat: a frontier descent that keeps
+		# landing on unreachable ground. First rejection and recovery are always logged, so each episode is
+		# bounded exactly; this caps the middle at ~1 line/min/player instead of ~10 while still carrying the
+		# consecutive count. NOT a flat dedup — the frequency of bad descents is the measurement.
+		AnchorRejectRollupScans: 10
 
 	# Adaptive production — counter enemy composition.
 	# Experimental halves EvaluationInterval to 300 (counter-build twice as fast against

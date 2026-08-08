@@ -78,7 +78,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// <para>WHY THIS GATE CARRIES MORE THAN IT LOOKS LIKE. An earlier version of this comment said
 		/// same-cell drops merge and that this gate therefore only covered the near-miss case. That premise
 		/// is FALSE: SUPPLYCACHE is a Building with `Footprint: x` (misc.yaml), and `x` is
-		/// FootprintCellType.Occupied — a blocked cell (Building.cs:18-26) — so a truck can never stand on a
+		/// FootprintCellType.Occupied — a blocked cell (Building.cs:20-27) — so a truck can never stand on a
 		/// cache's cell. `DropSupplyCacheHere`'s merge branch and `CanDropCache`'s co-located allowance are
 		/// therefore both UNREACHABLE, and EVERY drop is the near-miss case. Nothing coalesces crates; this
 		/// gate alone is what stops them stacking.</para>
@@ -156,6 +156,35 @@ namespace OpenRA.Mods.Common.Traits
 		public static bool ShouldIssueDrop(bool alreadyDispatched, int sentToX, int sentToY, int anchorX, int anchorY)
 		{
 			return !alreadyDispatched || sentToX != anchorX || sentToY != anchorY;
+		}
+
+		/// <summary>Is a recorded drop errand still actually RUNNING? False when the truck has gone idle while
+		/// still holding its load, which means the errand ended without unloading — and the caller must then
+		/// void its dispatch record so the retry is not suppressed.
+		///
+		/// <para>THIS EXISTS BECAUSE THE RE-ISSUE DEDUP CREATED A LATCH, and it is the specific defect species
+		/// that has bitten this branch repeatedly: a test that pins a branch while reading a term that cannot
+		/// respond. Suppressing re-issue is correct while an errand runs, but two refusals inside the errand
+		/// are designed to be SELF-CORRECTING — arrival on a cell that turned out to be occupied
+		/// (`CanDropCache` false), and a destination that became unreachable after issue (the arrival check
+		/// refuses) — and both self-corrections happen by RE-ISSUING next scan. The dedup silently deleted
+		/// both, converting "retries" into "parks on its anchor forever, holding a full load".</para>
+		///
+		/// <para><paramref name="idle"/> is the responsive term and is what makes this safe: re-issuing the
+		/// errand makes the truck non-idle, so the void condition switches itself off. It is the same
+		/// observable `StepEvac`'s leg model uses to notice a Move that never arrived. A truck that DID unload
+		/// sits at 0 supply and has already left the eligible roster, so it is pruned rather than reaching
+		/// here — which is why "idle" can be read as "finished without effect" rather than merely
+		/// "finished".</para>
+		///
+		/// <para>Note the polarity, chosen so a forgotten call fails SAFE: the question is whether the errand
+		/// is KNOWN to be running. A caller that never asks keeps `dispatched` true and suppresses — so the
+		/// call site is the load-bearing part, and it is pinned in both directions rather than only in the
+		/// direction that happens to be true today.</para>
+		/// Pure, zero RNG.</summary>
+		public static bool ErrandStillRunning(bool dispatched, bool idle)
+		{
+			return dispatched && !idle;
 		}
 	}
 }

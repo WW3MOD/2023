@@ -11,6 +11,24 @@
  *   (3) MISCONFIGURATION FAILS TOWARD NOT DROPPING — with the one documented exception (a non-positive
  *       redundancy level DISABLES that gate rather than pinning it true, which would disable the mode).
  * Pure math over synthetic readings; no world mounted.
+ *
+ * WHAT THESE PINS DO **NOT** COVER — stated here because a false coverage claim is worse than an admitted
+ * gap, and a previous version of this file made one. Everything below is a KNOWN, DELIBERATE gap:
+ *
+ *   * THE FLEET-DUMP MECHANISM ITSELF. The pins cover the PREDICATE — that committed supply counts toward
+ *     redundancy, and that ground and in-flight sum rather than max. They do NOT cover the plumbing that
+ *     produces the in-flight figure: the mid-scan write (`dropTarget[truck] = anchor`) read back by LATER
+ *     trucks in the same loop. Delete that write, or pass a literal 0 for inFlight at the call site, and
+ *     every pin here stays green while the fleet dumps again.
+ *   * ANCHOR PASSABILITY (the wrong-cell-dump fix, first line of defence). Needs a Locomotor and a Map, so
+ *     it cannot be reached without mounting a world. Reverting both WaypointPassable grant-tests in
+ *     ResolveDropAnchor leaves every pin green. The three ArrivedAtDropCell pins cover the SECOND line of
+ *     defence only — they are not a substitute.
+ *   * THE REVOKE PATH. Its decision ("dispatched, and no longer justified") is too thin to pin without
+ *     writing another tautology; the defect was that the branch did not EXIST, which is a code-presence
+ *     property, not a value property. This is the gap I would most want closed, because the failure is
+ *     SILENT on @stable — a truck completes an errand on a withdrawn decision and nothing in the log says
+ *     so unless you already suspect it. Closing it needs a module-level harness, not another pure pin.
  */
 #endregion
 
@@ -209,14 +227,48 @@ namespace OpenRA.Test
 			Assert.That(SupplyDropMath.ShouldIssueDrop(true, 12, 34, 12, 34), Is.False);
 		}
 
+		// ---- the void condition: the latch the re-issue dedup created ----
+		//
+		// These replace an earlier pin that asserted ShouldIssueDrop(false, 12, 34, 12, 34) is True. That was
+		// a TAUTOLOGY over the function's own signature — passing alreadyDispatched: false short-circuits on
+		// the first term — so it stayed green whether or not the module voided anything, while its comment
+		// read as though it covered the void. Coverage that cannot fail is worse than an admitted gap,
+		// because the next audit counts it.
+
 		[Test]
-		public void ShouldIssueDrop_ErrandNoLongerRunning_Reissues()
+		public void ErrandStillRunning_DispatchedAndBusy_IsRunning()
 		{
-			// The caller clears its record when the truck went idle still holding its load — the errand ended
-			// without dropping (blocked cell, or a destination that went unreachable after issue). It then
-			// passes alreadyDispatched: false, and the retry must go out: suppressing it would convert a
-			// self-correcting refusal into a truck parked on its anchor forever.
-			Assert.That(SupplyDropMath.ShouldIssueDrop(false, 12, 34, 12, 34), Is.True);
+			Assert.That(SupplyDropMath.ErrandStillRunning(true, false), Is.True);
+		}
+
+		[Test]
+		public void ErrandIdleWhileStillLoaded_IsNotRunning_SoTheRecordIsVoid()
+		{
+			// THE LATCH. The truck was dispatched and has gone idle still holding its load, so the errand
+			// ended WITHOUT unloading — arrival on an occupied cell, or a destination that went unreachable
+			// after issue. Both refusals are designed to self-correct by re-issuing next scan; the dedup
+			// deleted that, parking a fully-loaded truck on its anchor forever. Deleting the module's void
+			// block makes this direction unreachable in production, which is what the pin defends.
+			Assert.That(SupplyDropMath.ErrandStillRunning(true, true), Is.False);
+		}
+
+		[Test]
+		public void ErrandNeverDispatched_IsNotRunning()
+		{
+			// Both polarities of the idle term, so the predicate cannot be reduced to `!idle`.
+			Assert.That(SupplyDropMath.ErrandStillRunning(false, true), Is.False);
+			Assert.That(SupplyDropMath.ErrandStillRunning(false, false), Is.False);
+		}
+
+		[Test]
+		public void VoidedRecord_ThenReissues_TheTwoHalvesCompose()
+		{
+			// The repair end to end at the predicate layer: a finished-without-effect errand is not running,
+			// so the caller voids its record, and the retry to the same cell then goes out. Composing them
+			// here is what stops the two halves being individually green and jointly useless.
+			var running = SupplyDropMath.ErrandStillRunning(true, true);
+			Assert.That(running, Is.False);
+			Assert.That(SupplyDropMath.ShouldIssueDrop(running, 12, 34, 12, 34), Is.True);
 		}
 
 		[Test]

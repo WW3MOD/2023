@@ -196,6 +196,12 @@ namespace OpenRA.Mods.Common.Traits
 			"leash cannot pick it, so counting him as demand would drop a crate he will never walk to.")]
 		public readonly int DropDemandRadiusCells = 20;
 
+		[Desc("Scans between roll-up lines while an SR's frontier descent keeps producing an unreachable cell.",
+			"The first rejection and the recovery are always logged; this only bounds the noise in between,",
+			"WITHOUT losing the count (the roll-up carries it), because the frequency of bad descents is the",
+			"measurement those lines exist to take. 0 disables the roll-up (first + recovery only).")]
+		public readonly int AnchorRejectRollupScans = 10;
+
 		[Desc("Drop-and-leave: shrink the DEMAND search by this many cells (the redundancy search keeps the full",
 			"radius). The crate lands up to DropsSupplyCache.DropAtToleranceCells off the anchor, so a soldier",
 			"counted at exactly the radius could end up beyond his own selection leash from the crate that was",
@@ -240,6 +246,39 @@ namespace OpenRA.Mods.Common.Traits
 			// while the danger gate on selection keeps running.
 			ActorNameCase.NormalizeInPlace(SupplyTruckTypes);
 			ActorNameCase.NormalizeInPlace(SupplyRouteTypes);
+
+			// CROSS-TRAIT ARITHMETIC THAT NOTHING ELSE ENFORCES. The drop is only useful if a soldier counted
+			// as demand can still SELECT the crate dropped for him, and that holds by exactly zero margin:
+			// demand is counted at (DropDemandRadiusCells - DropDemandMarginCells), the crate lands up to
+			// DropAtToleranceCells off the anchor, and AutoSeekSupplies' leash admits the sum inclusively.
+			// At the shipped values 18 + 2 = 20 <= 20 — correct, with nothing to spare.
+			//
+			// The two knobs live on DIFFERENT TRAITS ON DIFFERENT ACTORS (this module on the player; the
+			// tolerance on the truck), so no single YAML block shows the relation and no existing validation
+			// spans them. Raising the tolerance to 3 makes it 18 + 3 = 21 > 20 and the mode degrades in the
+			// most expensive possible way: it still drops, and nobody collects. Warn rather than clamp — the
+			// right value depends on the leash, which lives on a third actor again, so silently "fixing" one
+			// side would just move the surprise.
+			if (!DropAndLeave)
+				return;
+
+			foreach (var truckType in SupplyTruckTypes)
+			{
+				if (!rules.Actors.TryGetValue(truckType, out var truckInfo))
+					continue;
+
+				var dropInfo = truckInfo.TraitInfoOrDefault<DropsSupplyCacheInfo>();
+				if (dropInfo == null)
+					continue;
+
+				if (DropDemandMarginCells < dropInfo.DropAtToleranceCells)
+					Log.Write("debug",
+						$"[supply] CONFIG WARNING: DropDemandMarginCells ({DropDemandMarginCells}) is below "
+						+ $"{truckType}'s DropAtToleranceCells ({dropInfo.DropAtToleranceCells}). A crate can land "
+						+ "further from the anchor than the demand search was shrunk by, so a soldier counted as "
+						+ "demand can end up outside his own AutoSeekSupplies leash from the crate dropped for "
+						+ "him — the drop still happens and nobody collects it.");
+			}
 		}
 
 		public override object Create(ActorInitializer init) { return new SupplyFollowerBotModule(init.Self, this); }
@@ -296,6 +335,11 @@ namespace OpenRA.Mods.Common.Traits
 		// SupplyDropMath), so there is no "already dropping" latch that could pin a branch while reading a
 		// term that cannot respond to it.
 		readonly Dictionary<Actor, CPos> dropAnchor = new Dictionary<Actor, CPos>();
+
+		// Consecutive scans each SR's frontier descent has produced an unreachable cell. Purely an
+		// instrumentation counter — nothing reads it for a decision, so it adds no ordering dependence.
+		// Absent = the last descent for that SR was fine.
+		readonly Dictionary<Actor, int> anchorRejectStreak = new Dictionary<Actor, int>();
 
 		// Drop-and-leave: the cell each truck was last DISPATCHED to unload at. This is memory of the ORDER,
 		// not of the decision — the same distinction the dropAnchor comment above draws — and it is one map
@@ -504,6 +548,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			// @experimental sector spread: precompute distinct-cluster assignments over a STABLY sorted truck
 			// list (ActorID) so the greedy result is enumeration-order-independent and deterministic.
+			//
+			// THIS SORT IS NOT WHAT MAKES THE DROP GATE DETERMINISTIC — it only runs when the spread is on
+			// AND clusters exist, and the drop path needs a stable order unconditionally. What actually
+			// supplies it is ambient: world.ActorsHavingTrait<Mobile>() enumerates through TraitDictionary,
+			// which keeps its actor list sorted by ActorID and seeks with BinarySearchMany(ActorID + 1)
+			// (TraitDictionary.cs:153-155), so `trucks` is already in ActorID order before this line. That
+			// matters more than it used to: the redundancy gate makes each truck's decision depend on what
+			// EARLIER trucks in the loop claimed this scan, where previously every truck dropped and the
+			// order was irrelevant. Same-scan claims resolve lowest-ActorID-first on both clients.
 			Dictionary<Actor, UnitCluster> spreadTargets = null;
 			var orderedTrucks = trucks;
 			if (spread && clusters.Count > 0)
@@ -530,6 +583,13 @@ namespace OpenRA.Mods.Common.Traits
 				var staleAnchors = dropAnchor.Keys.Where(a => a.IsDead || !a.IsInWorld || a.Owner != player).ToList();
 				foreach (var a in staleAnchors)
 					dropAnchor.Remove(a);
+			}
+
+			if (anchorRejectStreak.Count > 0)
+			{
+				var staleStreaks = anchorRejectStreak.Keys.Where(a => a.IsDead || !a.IsInWorld || a.Owner != player).ToList();
+				foreach (var a in staleStreaks)
+					anchorRejectStreak.Remove(a);
 			}
 
 			if (Info.DebugLogging)
@@ -691,7 +751,7 @@ namespace OpenRA.Mods.Common.Traits
 			// re-issuing makes it false — and it is the same observable StepEvac's leg model uses to notice a
 			// Move that never arrived. A truck that DID drop is at 0 supply and has already left the eligible
 			// roster, so it is pruned rather than reaching here.
-			if (dispatched && truck.IsIdle)
+			if (dispatched && !SupplyDropMath.ErrandStillRunning(dispatched, truck.IsIdle))
 			{
 				dropTarget.Remove(truck);
 				dispatched = false;
@@ -863,14 +923,40 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				dropAnchor.Remove(srActor);
 
-				// EDGE — unconditional. How OFTEN the descent lands on unreachable ground is the open
+				// EDGE — unconditional, because how OFTEN the descent lands on unreachable ground is the open
 				// question this mode's usefulness turns on, and it cannot be answered statically.
-				Log.Write("debug",
-					$"[supply] anchor-impassable sr={srActor.Location} → {candidate} "
-					+ $"on-map={world.Map.Contains(candidate)} standoff={Info.DropStandoffCells} "
-					+ $"frontier={controlField.FrontierDistanceAt(player, agx, agy)} — no anchor this scan");
+				//
+				// LOGGED ON TRANSITION PLUS A PERIODIC ROLL-UP, NOT DEDUPED FLAT. A persistently-bad descent
+				// re-derives every scan — ~10 lines/min/player — and this is now the loudest unconditional
+				// line, which matters since DebugLogging went off precisely to control volume. But a flat
+				// dedup would delete the very signal the line exists to produce: "rejected once" and
+				// "rejected for the whole match" would look identical, and frequency is the measurement.
+				// So the streak is COUNTED and reported — first rejection in full, then a rolling count, and
+				// a recovery line when it clears (below), which together bound each episode exactly.
+				anchorRejectStreak.TryGetValue(srActor, out var streak);
+				streak++;
+				anchorRejectStreak[srActor] = streak;
+
+				if (streak == 1)
+					Log.Write("debug",
+						$"[supply] anchor-impassable sr={srActor.Location} → {candidate} "
+						+ $"on-map={world.Map.Contains(candidate)} standoff={Info.DropStandoffCells} "
+						+ $"frontier={controlField.FrontierDistanceAt(player, agx, agy)} — no anchor this scan");
+				else if (Info.AnchorRejectRollupScans > 0 && streak % Info.AnchorRejectRollupScans == 0)
+					Log.Write("debug",
+						$"[supply] anchor-impassable-continuing sr={srActor.Location} consecutive={streak} "
+						+ $"latest={candidate} frontier={controlField.FrontierDistanceAt(player, agx, agy)}");
 
 				return null;
+			}
+
+			// Recovery closes the episode, so a reader can compute both how often the descent fails and how
+			// long each failure lasts without inferring it from the absence of lines.
+			if (anchorRejectStreak.TryGetValue(srActor, out var clearedAfter))
+			{
+				anchorRejectStreak.Remove(srActor);
+				Log.Write("debug",
+					$"[supply] anchor-recovered sr={srActor.Location} → {candidate} after={clearedAfter} scans");
 			}
 
 			var had = dropAnchor.TryGetValue(srActor, out var prev);
@@ -911,6 +997,20 @@ namespace OpenRA.Mods.Common.Traits
 			// Margin: the crate lands up to the errand's stop tolerance off the anchor, so a soldier counted
 			// at exactly the radius could end up beyond his own selection leash from the crate dropped for
 			// him — which is precisely what sizing the radius to that leash was meant to prevent.
+			//
+			// THE WORST CASE IS EXACT, WITH ZERO SLACK, AND IT HOLDS — but only because every comparison in
+			// the chain is inclusive, so treat all three of these numbers as load-bearing together:
+			//   * demand is counted at <= 18 cells   — FindActorsInCircle: `HorizontalLengthSquared <= r^2`
+			//                                          (WorldUtils.cs:83-84), no actor-radius expansion
+			//   * the crate lands <= 2 cells off     — SupplyDropMath.ArrivedAtDropCell: `dx^2+dy^2 <= t^2`,
+			//                                          Euclidean, so (2,0) is the true maximum and (2,2) is
+			//                                          already refused
+			//   * the soldier's leash admits <= 20   — SupplyHuntMath.WithinLeash: `distanceSquared <=
+			//                                          LeashLengthSquared`, same squared-WPos geometry
+			// Collinear worst case is therefore 18 + 2 = 20 EXACTLY, which the leash admits. A strict `<` in
+			// any of the three, an actor-radius expansion in the sweep, or a Chebyshev arrival check would
+			// each push the boundary soldier outside the leash of the crate dropped for him. Raising this
+			// margin to 3 buys a whole cell of slack for one cell of reach if that ever feels too tight.
 			var radius = Math.Max(1, Info.DropDemandRadiusCells - Math.Max(0, Info.DropDemandMarginCells));
 
 			var count = 0;
@@ -1439,6 +1539,21 @@ namespace OpenRA.Mods.Common.Traits
 		// restock half is inert — ShouldSelfRestock (SupplyProvider.cs:330-338) returns false under
 		// ResupplyBehavior.Evacuate, which is TRUK's AI default. Releasing the truck hands it to
 		// DropsSupplyCache, which sends it to the map edge; it is NOT going to refill and come back.
+		// A NOTE ON residueUnusable, WHICH THIS ALSO READS VIA CountsAsEmpty (SupplyProvider.cs:294). It is a
+		// latch that can make a LOADED truck count as empty, which would drop it from the roster mid-errand
+		// and hand it to DropsSupplyCache's map-edge evac still holding its load — the loop already recorded
+		// separately in WORKSPACE/bugs/discovered.md (see 3effb1d2). It cannot reach the drop path, for two
+		// independent reasons, both checked rather than assumed:
+		//   * IT CANNOT ARM ON A DISPATCHED TRUCK. The residue latches only when every servable target is
+		//     unaffordable, and a truck can only ever target actors holding its RearmCondition
+		//     (replenish-soldiers), which vehicles and aircraft do not. The dearest pool on anything else in
+		//     the mod costs 65; DropMinSupply is 250, so a truck eligible to be dispatched affords the
+		//     costliest batch it could ever be asked for almost four times over. (The 1500-cost pools are on
+		//     vehicles-america/russia, which a truck can never serve.)
+		//   * AND IF IT DID, THE STALE RECORD COULD NOT BE READ. dropTarget is pruned against the freshly
+		//     derived eligible-truck list — which this predicate filters — at the top of the scan, BEFORE
+		//     any truck computes in-flight supply, so a latched truck's load cannot be counted as committed.
+		// Re-check the first bullet if a soldier-servable pool is ever priced above DropMinSupply.
 		static bool IsLowOnSupply(Actor a)
 		{
 			var sp = a.TraitOrDefault<SupplyProvider>();
@@ -1458,6 +1573,7 @@ namespace OpenRA.Mods.Common.Traits
 			evacState.Clear();
 			dropAnchor.Clear();
 			dropTarget.Clear();
+			anchorRejectStreak.Clear();
 		}
 
 		// Danger-evac damper state for one truck on the evac branch: scans the branch is still committed for
