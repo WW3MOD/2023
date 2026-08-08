@@ -290,13 +290,14 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void PostureBudgetIsMonotoneAcrossTheLimitCycle()
+		public void PostureBudgetIsMonotoneAcrossAFlippingVerdict()
 		{
-			// THE LOAD-BEARING PROPERTY. The failure being fixed is a period-2 oscillation: the axis holds, is
-			// marched back, its own units leave the sector, sectorOwn drops under the floor, the floor fails OPEN,
-			// it re-advances, and the hold re-fires. The counter must NOT decay on the press half of that cycle —
-			// a decaying counter refunds the budget as fast as it is spent and bounds nothing at all. Simulate the
-			// cycle (hold, press, hold, press, ...) and assert the budget still terminates.
+			// THE LOAD-BEARING PROPERTY. Wherever the posture verdict FLIPS between evals — the period-2 shape that
+			// arises when the hold's muster resolves rearward, so the axis leaves its sector, sectorOwn drops under
+			// the floor, the floor fails OPEN and it re-advances — the counter must NOT decay on the press half, or
+			// it refunds the budget as fast as it is spent and bounds nothing at all. (On the shipping profile the
+			// hold instead FREEZES in place, which a monotone counter bounds trivially; this test pins the harder
+			// case.) Simulate the flip (hold, press, hold, press, ...) and assert the budget still terminates.
 			const int Budget = 3;
 			var evals = 0;
 			var held = 0;

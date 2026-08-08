@@ -207,36 +207,58 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Has this axis spent its per-mission budget of posture holds? <paramref name="maxHoldEvals"/>
 		/// &lt;= 0 ⇒ false (unbounded — legacy behaviour).
 		///
-		/// <para>WHY A BUDGET AT ALL. <see cref="SectorPostureHold"/> is evaluated at the axis's CONTACT sector, and
-		/// a sector's own-strength is a live count of our armed actors standing in it — so on a deep flank, where no
-		/// other friendly force is present, THE AXIS IS ESSENTIALLY THE WHOLE OF sectorOwn. The hold therefore
-		/// controls its own input: holding marches the axis rearward, which drops sectorOwn below
-		/// <paramref name="ownStrengthFloor"/>'s counterpart in <see cref="SectorPostureHold"/>, which makes the very
-		/// next evaluation fail OPEN and re-advance, which restores sectorOwn and re-triggers the hold. That is a
-		/// period-2 LIMIT CYCLE, not a decision: the axis is ordered back and forward on alternate evals and never
-		/// resolves either way. The floor and the contact-sector read are each individually correct — the cycle is
-		/// emergent from closing the loop between them.</para>
+		/// <para>WHY A BUDGET AT ALL — the general reason, which holds however the hold fails in practice: an
+		/// unclearable caution is a permanent veto wearing the costume of a delay. The consumer documents THREE
+		/// candidate failure shapes (silent period-1 stall / period-2 oscillation / selection churn), none of them
+		/// yet confirmed by a game run; a bound is warranted under all three, and is what makes the gate terminate.</para>
+		///
+		/// <para>THE COUPLING, which is a real defect independent of which shape dominates and is NOT solved here.
+		/// <see cref="SectorPostureHold"/> is evaluated at the axis's CONTACT sector, and a sector's own-strength is
+		/// a live count of our armed actors standing in it — so the gate can read its own consequence: if the hold
+		/// moves the axis out of the sector, sectorOwn falls, the own-strength floor fails OPEN, and the verdict
+		/// flips. HOW STRONG that self-reference is depends entirely on the sector, and the honest bound is much
+		/// weaker than "the axis IS sectorOwn": a sector is a full-map-HEIGHT column strip (~12 cells wide on
+		/// river-zeta) and the strength sum spans the WHOLE column, counting own AND allied actors including
+		/// defensive structures. So the axis dominates sectorOwn only in a flank strip that crosses none of our
+		/// line, no garrison and no other axis — the deep-flank case, and not the general one. Near our own base
+		/// the column carries so much other strength that the axis barely moves the number. A budget TRUNCATES this
+		/// coupling rather than removing it; a non-self-referential predicate (e.g. the axis's own OwnAxisStrength,
+		/// which travels with the axis and is invariant to where it stands) would be the actual repair, and would
+		/// STILL need a budget to terminate — so this bound is necessary either way, and the self-reference remains
+		/// open.</para>
 		///
 		/// <para>A budget is the standard shape for this in the module (see RetreatDamperMath.HoldBudgetExhausted,
 		/// added for the same class of failure): a momentary caution may DELAY a press, it may not veto it forever.
-		/// The counter is monotone within a mission (an Axis is keyed by target and never retargeted, so the object's
-		/// lifetime IS the mission), which is what makes it immune to the cycle — a counter that decayed on the
-		/// no-hold half of the cycle would refund the budget as fast as it was spent and bound nothing.</para>
+		/// The counter is monotone over one (target, uninterrupted axis existence) — an Axis is keyed by target and
+		/// never retargeted, so the object's lifetime is the mission, but DESTROYING the axis refunds the budget in
+		/// full. That is a real limit: selection churn that retires and re-forms an axis for the same POI defeats
+		/// the bound entirely. Within one lifetime the monotonicity is what makes the counter immune to a flipping
+		/// verdict — a counter that decayed on the press half would refund the budget as fast as it was spent.</para>
 		///
-		/// <para>Fails OPEN (toward pressing) exactly as the damper's budget does, because an unresolved oscillation
-		/// is the failure mode being removed. Safety is unaffected: this gate only ever runs on a NON-retreating axis
-		/// (the consumer's genuine-retreat gate returned upstream), so exhausting the budget cannot convert a losing
-		/// withdrawal into a last stand — a genuinely losing axis is still taken by the retreat FSM.</para>
+		/// <para>SAFETY — handed off, not preserved unconditionally. Fails OPEN (toward pressing), as the damper's
+		/// budget does. This gate only ever runs on a NON-retreating axis (the consumer's genuine-retreat gate
+		/// returned upstream), so an exhausted budget cannot convert an in-progress withdrawal into a last stand.
+		/// But "released" is not "retreating": PartitionHeldAxes releases a committed axis on a BARE force-ratio read
+		/// (CombatRetreatMath.ShouldReleaseHeld → LosingBeyond, no sustain window) while the axis's own Retreat
+		/// decision needs RetreatSustainEvals (2) consecutive losing evals. In that gap a losing axis re-enters the
+		/// consumer, fails the retreat gate, and meets an exhausted posture gate that waves it through — roughly two
+		/// evals in which it presses with no posture brake. The real safety argument is not that nothing changes, it
+		/// is that the decision MOVES TO A BETTER SENSOR: the retreat gate compares the axis's own health-weighted
+		/// build value against believed enemy COST within ForceRatioRadiusCells of its centroid, which is a strictly
+		/// more local and better-scaled danger read than posture's whole-column presence COUNTS. Exhausting posture
+		/// therefore defers to the sharper instrument, with a bounded latency.</para>
 		/// Pure integer, zero RNG.</summary>
 		public static bool PostureBudgetExhausted(int holdEvals, int maxHoldEvals)
 			=> maxHoldEvals > 0 && holdEvals >= maxHoldEvals;
 
 		/// <summary>Advance the posture-hold budget counter that <see cref="PostureBudgetExhausted"/> reads.
 		/// Counts UP on an eval that actually held and is otherwise UNCHANGED — deliberately monotone, see the
-		/// limit-cycle note on <see cref="PostureBudgetExhausted"/>. Saturates at <paramref name="maxHoldEvals"/> so
-		/// exhaustion is sticky for the rest of the mission and the counter cannot grow without bound over a long
-		/// match. Reset is external and happens only on a genuine mission break (the axis retreats or loses its
-		/// units); a fresh target is a fresh Axis object, hence a fresh counter. Pure, zero RNG.</summary>
+		/// coupling note on <see cref="PostureBudgetExhausted"/>. WHEN A CAP IS SET (<paramref name="maxHoldEvals"/>
+		/// &gt; 0) it saturates there, so exhaustion is sticky and the counter cannot grow without bound; with the
+		/// cap at its 0 default nothing reads the counter and it simply keeps counting (the step stays total).
+		/// Reset is external and happens only on a genuine mission break (the axis retreats or loses its units); a
+		/// fresh target is a fresh Axis object, hence a fresh counter — which also means axis DESTRUCTION refunds
+		/// the whole budget. Pure, zero RNG.</summary>
 		public static int StepPostureHold(int holdEvals, bool holding, int maxHoldEvals)
 		{
 			if (!holding)
