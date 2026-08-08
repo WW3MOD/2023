@@ -757,6 +757,12 @@ Player:
 		RequireBelievedThreat: true
 		MinBelievedDanger: 1
 		ReleaseWhenThreatClears: true
+		# Enter and release are exactly complementary predicates over an INTEGER field that is fully restamped
+		# each recompute, so at a kernel's outermost ring one confidence step moves the whole contour across the
+		# threshold. Damped on TIME, not with a value band: near the edge the reading is quantised to 0/1/2, and
+		# every threshold has its own +/-1 outermost contour, so raising the bar would MOVE the flap rather than
+		# stop it. ~45 s at 25 ticks/s; delays only LEAVING cover — entry is still answered on the next scan.
+		MinGarrisonDwellTicks: 750
 		# Phase 2 commit-on-order audit (§4): recruit only from the ledger-checked free pool and commit
 		# garrisoned infantry (garrison:<buildingId>) to the shared PoiGoalGuard ledger. SHARED enable-ai-any
 		# module, so the engine confines this to the @experimental player at runtime (explicit BotType gate);

@@ -70,10 +70,21 @@ namespace OpenRA.Mods.Common.Traits
 			"issues Unload at a garrison building (every Unload site in BotModules targets a carrier the issuing",
 			"module owns a task for), while ReleaseFinishedClaims hands the blackboard claim back the moment the",
 			"unit leaves the world — so the books show a free unit and the battlefield shows nothing. Orderable",
-			"because GarrisonManager.DynamicOwnership flips a neutral house to the entering soldier's owner",
-			"(GarrisonManager.cs:257-262); without that flip the order would fail ValidateOrder and be dropped.",
+			"because the order is issued at the BUILDING and ValidateOrder compares the subject owner's ClientIndex",
+			"against the sender's — a map player such as Neutral is assigned the ADMIN client index (Player.cs:191)",
+			"and bot orders ride that same stream, so a still-neutral house validates. (GarrisonManager's",
+			"DynamicOwnership does flip the house to us on entry, but that flip is NOT what makes this orderable.)",
 			"Rides the same danger-field-availability gate as RequireBelievedThreat, and is inert without it.")]
 		public readonly bool ReleaseWhenThreatClears = false;
+
+		[Desc("Minimum ticks a building must have been observed garrisoned before release is eligible. Entry and",
+			"release are exactly complementary predicates over an INTEGER field that is fully restamped each",
+			"recompute, so at a kernel's outermost ring one step of confidence decay moves the contour across the",
+			"threshold — without a dwell the pair flaps and a soldier walks in and out on a multi-scan cycle. A",
+			"value band cannot fix that (the reading is quantised to 0/1/2 near the edge, and every threshold has",
+			"its own ±1 outermost contour), so the damping is on TIME instead. Delays only leaving cover; entering",
+			"is unaffected. Only read when ReleaseWhenThreatClears is active.")]
+		public readonly int MinGarrisonDwellTicks = 750;
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
@@ -120,6 +131,13 @@ namespace OpenRA.Mods.Common.Traits
 		// scans on tick 1 (scanCountdown defaults to 0) — a field-existence test would therefore fail OPEN for
 		// precisely the opening window the bug was reported in. Participates is knowable at tick 0, and a
 		// participant whose field is not built yet honestly reads "no believed threat", which it is.
+		//
+		// CaptureCoordinatorBotModule.ResolveReserveAnchor answers the same question with the OPPOSITE polarity —
+		// it DOES require the field to exist — and both are right, because both fail closed toward doing nothing:
+		// here that means suppressing the garrison, there it means issuing no muster order. The pair is coupled,
+		// though, and the coupling runs one way: during the opening window the capturer reserve is silent, so a
+		// technician with no capture target is idle and unclaimed, and this gate is the only thing keeping that
+		// state harmless. Loosening it re-opens the reserve's hole as well as its own.
 		DangerFieldLayer dangerField;
 
 		bool ThreatGateActive =>
@@ -128,10 +146,39 @@ namespace OpenRA.Mods.Common.Traits
 		bool WorthGarrisoning(Actor building)
 			=> dangerField.GroundDanger(player, building.Location) >= Info.MinBelievedDanger;
 
+		/// <summary>Does this building currently hold at least one of OUR soldiers? Both halves are needed: the
+		/// shelter occupants are Cargo passengers, while a soldier deployed to a firing port is in-world and is
+		/// NOT in the cargo list (GarrisonManager.cs:342 unloads it from Cargo when it deploys).</summary>
+		static bool OccupiedBy(Actor building, Player owner)
+		{
+			var cargo = building.TraitOrDefault<Cargo>();
+			if (cargo != null)
+				foreach (var p in cargo.Passengers)
+					if (p != null && !p.IsDead && p.Owner == owner)
+						return true;
+
+			var garrison = building.TraitOrDefault<GarrisonManager>();
+			if (garrison?.PortStates != null)
+				foreach (var ps in garrison.PortStates)
+					if (ps.DeployedSoldier != null && !ps.DeployedSoldier.IsDead && ps.DeployedSoldier.Owner == owner)
+						return true;
+
+			return false;
+		}
+
 		static string GarrisonObjectiveKey(Actor building) => "garrison:" + building.ActorID;
 
-		// Track which buildings we've already assigned garrison orders to avoid spamming
-		readonly Dictionary<Actor, int> garrisonedBuildings = new Dictionary<Actor, int>();
+		// Buildings OBSERVED to hold one of our soldiers, mapped to the tick we first saw it occupied.
+		//
+		// Derived from the world each scan rather than written at order time, and that distinction is the whole
+		// point: an order-time entry names a building the unit has not reached yet, so a release pass firing in
+		// the window between the order and the arrival would queue an Unload against an EMPTY building — which
+		// Cargo drops (CanUnload requires !IsEmpty, Cargo.cs:265-271) — and then forget the building, after which
+		// the unit walks in and nothing can ever get it out again. That is exactly the terminal garrison this
+		// change exists to remove, so the tracked set has to mean "occupied", never "ordered".
+		//
+		// The tick is the dwell clock (see MinGarrisonDwellTicks).
+		readonly Dictionary<Actor, int> garrisonedSince = new Dictionary<Actor, int>();
 
 		// Units this module currently holds a BotBlackboard claim on. The claim used to be write-only — taken
 		// at order time and never released — which permanently removed the unit from every other module's pool
@@ -187,15 +234,11 @@ namespace OpenRA.Mods.Common.Traits
 			scanCountdown = Info.ScanInterval;
 			Initialize();
 
-			// Clean up dead buildings from tracking
-			var deadBuildings = garrisonedBuildings.Keys.Where(a => a.IsDead || !a.IsInWorld).ToList();
-			foreach (var b in deadBuildings)
-				garrisonedBuildings.Remove(b);
-
 			ReleaseFinishedClaims();
 
-			// Before any early return below, or a garrison could never be released once the threat that
-			// justified it has moved on.
+			// Both before any early return below, or a garrison could never be released once the threat that
+			// justified it has moved on. Sync first: the release pass reads the dwell clock this maintains.
+			SyncGarrisonedBuildings();
 			ReleaseClearedGarrisons(bot);
 
 			// Find garrisonable buildings near our base
@@ -289,10 +332,8 @@ namespace OpenRA.Mods.Common.Traits
 
 				availableInfantry.Remove(infantry);
 
-				if (!garrisonedBuildings.ContainsKey(building))
-					garrisonedBuildings[building] = 0;
-				garrisonedBuildings[building]++;
-
+				// Deliberately NOT recorded as garrisoned here — the unit has not arrived. SyncGarrisonedBuildings
+				// picks the building up once it is actually occupied; see garrisonedSince.
 				ordersIssued++;
 			}
 		}
@@ -331,36 +372,80 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		/// <summary>Eject the garrison of every building we filled whose believed threat has since cleared, so a
+		/// <summary>Reconcile the tracked set against what is actually in the buildings: adopt any garrisonable
+		/// building now holding one of ours (starting its dwell clock), and drop any that no longer does — the
+		/// occupants left, died, or the building did. Runs every scan, so a building we never ordered into (a
+		/// human ally's soldier, a unit that wandered in) is tracked too, which is correct: the release pass asks
+		/// "is anyone of ours sitting in a house for no reason", not "did I put them there".</summary>
+		void SyncGarrisonedBuildings()
+		{
+			// The tracked set exists only to feed the release pass, so a profile that never releases does no work
+			// here at all — not merely no observable work (the same early-out discipline StageFreePool opens with).
+			if (!Info.ReleaseWhenThreatClears || !ThreatGateActive)
+			{
+				garrisonedSince.Clear();
+				return;
+			}
+
+			if (garrisonedSince.Count > 0)
+			{
+				List<Actor> gone = null;
+				foreach (var b in garrisonedSince.Keys)
+					if (b.IsDead || !b.IsInWorld || !OccupiedBy(b, player))
+						(gone ??= new List<Actor>()).Add(b);
+
+				if (gone != null)
+					foreach (var b in gone)
+						garrisonedSince.Remove(b);
+			}
+
+			foreach (var b in world.ActorsHavingTrait<GarrisonManager>())
+				if (!b.IsDead && b.IsInWorld && !garrisonedSince.ContainsKey(b) && OccupiedBy(b, player))
+					garrisonedSince[b] = world.WorldTick;
+		}
+
+		/// <summary>Eject the garrison of every tracked building whose believed threat has since cleared, so a
 		/// soldier goes back to being a soldier. The Unload lands on the BUILDING (GarrisonManager.cs:1338 ejects
 		/// port soldiers, Cargo.cs:248-253 queues UnloadCargo for the shelter) — the passengers themselves are out
 		/// of the world and unorderable, which is exactly why nothing else could ever recover them.
 		///
-		/// <para>Keys off the same predicate that admitted the building, so garrison holds for as long as the
-		/// reason holds and no longer. Buildings are collected before the removals because garrisonedBuildings is
-		/// mutated here.</para></summary>
+		/// <para>The entry is NOT removed here. Removal is SyncGarrisonedBuildings' job, on the next scan, once
+		/// the building is observably empty — so an Unload that did not take effect is simply re-issued rather
+		/// than silently forgotten. Only buildings already observed occupied are ever candidates, so the Unload
+		/// always has something to unload.</para></summary>
 		void ReleaseClearedGarrisons(IBot bot)
 		{
-			if (!Info.ReleaseWhenThreatClears || !ThreatGateActive || garrisonedBuildings.Count == 0)
+			if (!Info.ReleaseWhenThreatClears || !ThreatGateActive || garrisonedSince.Count == 0)
 				return;
 
-			List<Actor> cleared = null;
-			foreach (var b in garrisonedBuildings.Keys)
-				if (!WorthGarrisoning(b))
-					(cleared ??= new List<Actor>()).Add(b);
+			var tick = world.WorldTick;
 
-			if (cleared == null)
-				return;
-
-			foreach (var b in cleared)
+			foreach (var kv in garrisonedSince)
 			{
-				bot.QueueOrder(new Order("Unload", b, false));
+				if (WorthGarrisoning(kv.Key))
+					continue;
+
+				// Dwell. Entry (>= MinBelievedDanger) and release (< MinBelievedDanger) are exactly
+				// complementary by construction, so without this the pair flaps: the danger field is cleared and
+				// fully restamped each recompute, and the stamped contribution is INTEGER, so at a kernel's
+				// outermost ring one step of confidence decay moves the whole contour across the threshold.
+				//
+				// A value band is the wrong instrument for that. Near the edge the reading is quantised to 0/1/2,
+				// so any band wide enough to matter swallows most of the kernel, and — the real objection — every
+				// threshold has its own outermost ±1 contour, so raising the bar MOVES the flap rather than
+				// damping it. A dwell bounds the flap FREQUENCY instead, which is the part that shows on screen,
+				// and it does so without any assumption about the field's scale.
+				//
+				// Asymmetric on purpose: it delays only LEAVING cover. Entering stays instantaneous, so a real
+				// threat is still answered on the next scan.
+				if (tick - kv.Value < Info.MinGarrisonDwellTicks)
+					continue;
+
+				bot.QueueOrder(new Order("Unload", kv.Key, false));
 
 				Log.Write("debug",
-					$"[garrison] release player={player.PlayerName} building={b.Info.Name}#{b.ActorID} " +
-					$"cell={b.Location} held={garrisonedBuildings[b]} tick={world.WorldTick}");
-
-				garrisonedBuildings.Remove(b);
+					$"[garrison] release player={player.PlayerName} building={kv.Key.Info.Name}#{kv.Key.ActorID} " +
+					$"cell={kv.Key.Location} held-ticks={tick - kv.Value} tick={tick}");
 			}
 		}
 
@@ -394,7 +479,7 @@ namespace OpenRA.Mods.Common.Traits
 					blackboard.ReleaseUnit(a);
 
 			claimedUnits.Clear();
-			garrisonedBuildings.Clear();
+			garrisonedSince.Clear();
 		}
 	}
 }

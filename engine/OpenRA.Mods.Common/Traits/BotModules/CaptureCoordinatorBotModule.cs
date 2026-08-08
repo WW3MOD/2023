@@ -309,7 +309,12 @@ namespace OpenRA.Mods.Common.Traits
 			"capturer holds at the beachhead: correct doctrine for an unarmed consumable with nothing to take and",
 			"nowhere scouted. As a front forms it follows one bound behind, ready when a derrick is uncovered.",
 			"Reads only fog-legal believed fields (ControlField + DangerFieldLayer); zero RNG. Never ledger-committed",
-			"— a reserve capturer must stay instantly re-dispatchable. Default false ⇒ byte-identical when off.")]
+			"— a reserve capturer must stay instantly re-dispatchable. Default false ⇒ byte-identical when off.",
+			"",
+			"SCOPE: the PoiMap dispatch path only. The legacy no-PoiMap fallback still discards its own remainder,",
+			"and is deliberately left alone — WW3MOD always has the PoiMap world trait (rules/world.yaml), so that",
+			"branch is unreachable here and wiring it would be adding untested code to a dead path. A mod that runs",
+			"this module WITHOUT a PoiMap gets the old discard behaviour.")]
 		public readonly bool StageIdleCapturers = false;
 
 		[Desc("Idle-capturer reserve: halt this many coarse frontier cells short of the believed line. Deliberately",
@@ -324,6 +329,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Idle-capturer reserve: descent step budget, so the walk is never a free search.")]
 		public readonly int ReserveMaxDescentSteps = 64;
+
+		[Desc("Idle-capturer reserve: keep the previously adopted anchor unless the newly resolved one moved at",
+			"least this many map cells (Chebyshev). The anchor is a COARSE grid cell mapped back through",
+			"GridCellToMapCell, so a one-grid-cell field wobble displaces the destination by a whole CellSize and",
+			"re-lays the entire reserve. Mirrors PoiOffensiveBotModule.StagingHysteresisCells, which exists for",
+			"exactly this reason. 0 disables the damping (every resolve is adopted).")]
+		public readonly int ReserveHysteresisCells = 3;
+
+		[Desc("Idle-capturer reserve: ring spacing, in map cells, of the fan-out around the reserve anchor. Without",
+			"a fan-out every reserved capturer is sent to the SAME cell and they clog it. Mirrors",
+			"PoiOffensiveBotModule.StagingSpreadStepCells; the ring count is bounded so the widest ring stays",
+			"strictly inside the standoff. 0 disables the fan-out (all capturers muster on the anchor cell).")]
+		public readonly int ReserveSpreadStepCells = 2;
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
@@ -391,6 +409,10 @@ namespace OpenRA.Mods.Common.Traits
 		DangerFieldLayer reserveDangerField;
 		bool reserveFieldsResolved;
 		readonly Dictionary<Actor, CPos> reserveCells = new();
+
+		// Last anchor actually ADOPTED, for the hysteresis in ResolveReserveAnchor. Without it a one-grid-cell
+		// wobble in the frontier field moves the destination by a whole CellSize and re-issues every reserve move.
+		CPos? lastReserveAnchor;
 
 		// Case-insensitive copy of Info.CapturableActorTypes, built once, so the telemetry hot loop matches actor
 		// names without a per-actor ToLowerInvariant() allocation. Empty stays empty (= match all capturables).
@@ -1078,31 +1100,48 @@ namespace OpenRA.Mods.Common.Traits
 					reserveCells.Remove(a);
 			}
 
+			// Bound the fan-out so the widest ring stays STRICTLY inside the standoff — a reserve slot must never
+			// sit forward of the frontier the anchor descent already cleared of believed danger, because
+			// SpreadCell is not danger-guarded per cell. Same invariant, and same arithmetic, as StageFreePool.
+			var standoffMapCells = Info.ReserveStandoffCells * reserveControlField.Info.CellSize;
+			var maxRings = Info.ReserveSpreadStepCells > 0
+				? Math.Max(0, (standoffMapCells - 1) / Info.ReserveSpreadStepCells)
+				: 0;
+
 			// ActorID order so the issue sequence cannot depend on the pool's composition.
 			foreach (var tp in undispatched.OrderBy(p => p.Actor.ActorID))
 			{
 				var unit = tp.Actor;
 
+				// Slot by a STABLE per-unit key rather than list position, so a capturer leaving the reserve
+				// (dispatched, or consumed by a capture) does not re-slot everyone else and re-issue their moves.
+				// Without any fan-out at all every reserved capturer is sent to the identical cell and clogs it.
+				var slot = ForwardStagingMath.StableSlot(unit.ActorID, maxRings);
+				var (cx, cy) = ForwardStagingMath.SpreadCell(anchor.Value.X, anchor.Value.Y, slot,
+					Info.ReserveSpreadStepCells, (mx, my) => world.Map.Contains(new CPos(mx, my)));
+				var target = new CPos(cx, cy);
+
 				// Re-issue only when the destination CHANGED (newly reserved, or the anchor advanced with the
 				// front), so a capturer already walking up keeps its order instead of restarting every scan.
-				if (reserveCells.TryGetValue(unit, out var prev) && prev == anchor.Value)
+				if (reserveCells.TryGetValue(unit, out var prev) && prev == target)
 					continue;
 
-				if (unit.Location == anchor.Value)
+				if (unit.Location == target)
 				{
-					reserveCells[unit] = anchor.Value;
+					reserveCells[unit] = target;
 					continue;
 				}
 
-				bot.QueueOrder(new Order("Move", unit, Target.FromCell(world, anchor.Value), false));
-				reserveCells[unit] = anchor.Value;
+				bot.QueueOrder(new Order("Move", unit, Target.FromCell(world, target), false));
+				reserveCells[unit] = target;
 
 				// Bounded by definition: one line per capturer per anchor CHANGE, not per scan. This is the
 				// line that answers "did the unit that stopped garrisoning get a purpose instead?" from
 				// ordinary play — reason distinguishes "nothing to capture" from "nothing I can capture".
 				Log.Write("debug",
 					$"[exp-capture] reserve player={player.PlayerName} unit={unit.Info.Name}#{unit.ActorID} " +
-					$"from={unit.Location} to={anchor.Value} reason={(targetCount == 0 ? "no-targets" : "no-cantarget")} " +
+					$"from={unit.Location} to={target} anchor={anchor.Value} " +
+					$"reason={(targetCount == 0 ? "no-targets" : "no-cantarget")} " +
 					$"targets={targetCount} tick={world.WorldTick}");
 			}
 		}
@@ -1112,7 +1151,16 @@ namespace OpenRA.Mods.Common.Traits
 		/// danger envelope. Same primitive as PoiOffensiveBotModule's forward staging, seeded and tuned for an
 		/// unarmed consumable. Returns the SR cell itself when the field is flat (no believed contact — the
 		/// opening), which is the intended "hold at the beachhead". Null only when there is no field or no SR,
-		/// in which case we have nothing honest to say and issue nothing.</summary>
+		/// in which case we have nothing honest to say and issue nothing.
+		///
+		/// <para>NOTE the HasField conjunct below is the opposite polarity to GarrisonBotModule.ThreatGateActive,
+		/// which deliberately does NOT test it. Both are correct because both fail CLOSED toward doing nothing,
+		/// but they are the same question answered oppositely and the difference is load-bearing: there, a
+		/// not-yet-built field must read "no believed threat" so the garrison gate SUPPRESSES on tick 1; here, a
+		/// not-yet-built field means the descent has no gradient to walk, so there is no honest destination and
+		/// the muster stays silent. The consequence is a real coupling worth naming — in the opening window this
+		/// module issues nothing, so a capturer with no target is idle and unclaimed, and it is the garrison gate
+		/// that keeps that state harmless. Weakening that gate re-opens this hole, not only its own.</para></summary>
 		CPos? ResolveReserveAnchor()
 		{
 			if (!reserveFieldsResolved)
@@ -1123,11 +1171,17 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			if (reserveControlField == null || !reserveControlField.HasField(player))
+			{
+				lastReserveAnchor = null;
 				return null;
+			}
 
 			var sr = FindOwnSupplyRoute();
 			if (sr == null)
+			{
+				lastReserveAnchor = null;
 				return null;
+			}
 
 			var (sgx, sgy) = reserveControlField.MapCellToGridCell(sr.Location);
 			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
@@ -1138,7 +1192,19 @@ namespace OpenRA.Mods.Common.Traits
 				(gx, gy) => gx >= 0 && gx < reserveControlField.GridWidth
 					&& gy >= 0 && gy < reserveControlField.GridHeight);
 
-			return reserveControlField.GridCellToMapCell(agx, agy);
+			var candidate = reserveControlField.GridCellToMapCell(agx, agy);
+
+			// Hold the adopted anchor until the new one has moved far enough to be worth re-laying the reserve for.
+			// Compared in MAP space, matching ResolveStagingAnchor — the threshold is expressed in map cells, and
+			// unlike that method's no-move test this is a distance comparison, so the grid-centre parity trap the
+			// forward-muster resolver documents does not apply here.
+			if (lastReserveAnchor.HasValue
+				&& !ForwardStagingMath.AnchorShifted(lastReserveAnchor.Value.X, lastReserveAnchor.Value.Y,
+					candidate.X, candidate.Y, Info.ReserveHysteresisCells))
+				return lastReserveAnchor;
+
+			lastReserveAnchor = candidate;
+			return candidate;
 		}
 
 		// (d) Actor IDs of capture targets currently claimed by an in-flight committed capturer. Iterates the

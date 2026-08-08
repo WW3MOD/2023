@@ -1354,7 +1354,18 @@ namespace OpenRA.Mods.Common.Traits
 						// Soldier is already in world at port position — just needs to scatter
 					}
 
-					// Shelter soldiers will be ejected by Cargo's normal Unload handling
+					// Shelter soldiers will be ejected by Cargo's normal Unload handling, and each of those exits
+					// runs OnPassengerExited → CheckOwnershipAfterExit. The PORT soldiers cleared above take no
+					// such path: they are already in-world, so no Cargo exit fires for them, and UnloadCargo's own
+					// revert is skipped entirely when the shelter is empty (Cargo.CanUnload requires !IsEmpty).
+					// Without this call a building emptied through the port path stays owned by the garrisoning
+					// player forever — for a neutral civilian house, a permanent silent annexation. It matters
+					// beyond cosmetics because owned buildings feed ControlField's territory classification, which
+					// feeds the believed danger field that GarrisonBotModule's own garrison gate reads.
+					//
+					// Safe to call before the shelter has drained: it keeps ownership while any occupant remains,
+					// and each subsequent shelter exit re-runs it, so the last one out reverts.
+					CheckOwnershipAfterExit();
 					break;
 				}
 
