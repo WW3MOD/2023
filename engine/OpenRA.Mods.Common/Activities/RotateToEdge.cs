@@ -32,11 +32,21 @@ namespace OpenRA.Mods.Common.Activities
 		CPos? edgeCell;
 		WPos? aircraftDespawnPos;
 		bool movingToEdge;
+		bool drivingOffMap;
+		int driveOffDeadline;
 		int edgeRetries;
 		int evacuatingToken = Actor.InvalidConditionToken;
 
 		// Anti-cheese: helicopter must clear this many cells past the boundary before despawn so in-flight missiles can land.
 		const int AircraftOffMapCells = 5;
+
+		// How far past the boundary a GROUND unit drives before it sells. Kept short: maps vary in how much authored
+		// border they have (test maps here run Bounds tight against MapSize, i.e. none), and a unit driven far out
+		// would be sliding over nothing.
+		const int GroundOffMapCells = 2;
+
+		// Slack over the honest travel time, so the drive-off deadline only fires for a STALLED leg.
+		const int DriveOffDeadlineSlack = 50;
 
 		/// <summary>
 		/// Constructor for Sellable trait (existing behavior).
@@ -167,6 +177,27 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 			}
 
+			// The ground drive-off leg REPLACES what used to be an unconditional DoSell, so it must not be able to
+			// end without selling. Two exits, and they are exhaustive:
+			//   * the Drag finished — the normal case, and it lands exactly on the off-map target, so this doubles
+			//     as the "arrived" signal. There is deliberately no separate boundary predicate: it could only fire
+			//     EARLIER than this, which would pop the unit mid-slide and truncate the very animation this leg
+			//     exists to produce.
+			//   * the deadline expired — the backstop for the one case with no natural end. Drag stops advancing
+			//     while its mover trait is disabled (Drag.cs:49-50), so an EMP'd unit would otherwise sit out
+			//     there forever, unsellable.
+			if (drivingOffMap)
+			{
+				if (ChildActivity == null || --driveOffDeadline <= 0)
+				{
+					DoSell(self);
+					return true;
+				}
+
+				TickChild(self);
+				return false;
+			}
+
 			// ChildHasPriority is false, so child activities are not auto-ticked — do it manually.
 			if (ChildActivity != null)
 			{
@@ -196,12 +227,22 @@ namespace OpenRA.Mods.Common.Activities
 				return false;
 			}
 
-			// Only sell if we actually reached the edge (or close to it).
+			// Only proceed if we actually reached the edge (or close to it).
 			// If the move was blocked (e.g. building in the way), don't sell mid-map.
+			// The margin is unchanged: this still means "the move succeeded". Only what happens on success has
+			// changed — a ground unit now drives the remaining cells off the map instead of vanishing here.
 			if (IsNearMapEdge(self, 4))
 			{
-				DoSell(self);
-				return true;
+				// Aircraft keep the original immediate sell — they already exit past the boundary under their own
+				// power, so this is only the fallback for a Fly that ended early.
+				if (isAircraft)
+				{
+					DoSell(self);
+					return true;
+				}
+
+				StartDriveOff(self);
+				return false;
 			}
 
 			// Not near edge — path was blocked. Try again with a direct edge cell.
@@ -223,6 +264,61 @@ namespace OpenRA.Mods.Common.Activities
 			var mpos = self.Location.ToMPos(map);
 			return mpos.U <= map.Bounds.Left + margin - 1 || mpos.U >= map.Bounds.Right - margin
 				|| mpos.V <= map.Bounds.Top + margin - 1 || mpos.V >= map.Bounds.Bottom - margin;
+		}
+
+		// Hand the ground unit off from the pathfinder to world-space movement for the last few cells. It has to be
+		// a hand-off rather than a longer move order: a Mobile actor cannot path out there at all, because
+		// Locomotor.MovementCostForCell reports every cell outside Map.Bounds as unreachable (Locomotor.cs:191-193).
+		//
+		// WHAT DRAG ACTUALLY MOVES, because two things here depend on it: Drag drives SetCenterPosition, which sets
+		// CenterPosition and notifies, but never calls SetLocation (Mobile.cs:540-553 vs :591-610). Actor.Location
+		// is ToCell, so only the WORLD POSITION leaves the map — the actor's CELL stays at the last in-bounds cell
+		// for the whole leg. Consequences:
+		//   * every CPos-keyed consumer (shroud, influence, pathing) is safe by construction, not by guard;
+		//   * the unit KEEPS OCCUPYING that cell until Dispose, because AddInfluence/RemoveInfluence only re-run on
+		//     SetLocation (Mobile.cs:638-648). So it blocks the cell it left from for the length of the leg —
+		//     roughly 1-2s for a vehicle and up to several seconds for Speed-25 infantry. That is a real @stable
+		//     behaviour change and it matters where several units evacuate to the same edge or a SpawnArea.
+		void StartDriveOff(Actor self)
+		{
+			drivingOffMap = true;
+
+			var target = ComputeOffMapPos(self, edgeCell.Value, GroundOffMapCells);
+			var speed = self.Info.TraitInfoOrDefault<MobileInfo>()?.Speed ?? 0;
+			var ticks = EvacDriveOffMath.DriveOffTicks((target - self.CenterPosition).HorizontalLength, speed);
+			driveOffDeadline = ticks + DriveOffDeadlineSlack;
+
+			// Refuse cancellation for the last two cells. Activity.Cancel tests IsInterruptible on ITSELF, not on
+			// its child (Activity.cs:197-208), so without this a cancel would set Canceling on us, the IsCanceling
+			// branch in Tick would drop the still-Active Drag, and the actor would be left alive outside the map
+			// with no sell and no refund. Reachable on @stable by hand: sell a vehicle, then order it to move.
+			IsInterruptible = false;
+
+			QueueChild(new Drag(self, self.CenterPosition, target, ticks));
+		}
+
+		// World position `cellsPast` cells outside the boundary, on the far side of the edge cell.
+		//
+		// Takes its direction from the map centre rather than from the unit's own approach vector (the way
+		// ComputePastEdgePos does) because by the time this is called the unit is essentially ON the edge cell, so
+		// the approach vector has collapsed to near-zero and its direction is noise. Centre-to-edge is always
+		// outward and never degenerate, since an edge cell is never the centre.
+		static WPos ComputeOffMapPos(Actor self, CPos edgeCell, int cellsPast)
+		{
+			var map = self.World.Map;
+			var edgePos = map.CenterOfCell(edgeCell);
+			var centre = map.CenterOfCell(new MPos(
+				(map.Bounds.Left + map.Bounds.Right) / 2,
+				(map.Bounds.Top + map.Bounds.Bottom) / 2).ToCPos(map));
+
+			var diff = edgePos - centre;
+			var dist = diff.HorizontalLength;
+			if (dist <= 0)
+				return edgePos;
+
+			var extLen = cellsPast * 1024;
+			var ext = new WVec((int)((long)diff.X * extLen / dist), (int)((long)diff.Y * extLen / dist), 0);
+			return edgePos + ext;
 		}
 
 		// True when the actor is at least `cellsPast` cells outside the map boundary on any side.

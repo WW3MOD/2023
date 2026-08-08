@@ -120,6 +120,17 @@ namespace OpenRA.Mods.Common.Traits
 			"PoiOffensiveBotModule@experimental turns it on.")]
 		public readonly bool EvacuateOutOfAmmoUnits = false;
 
+		[Desc("PIPELINE item 36 (@experimental) EJECTED-CREW DISPOSITION. Crew that bail out of a wrecked vehicle",
+			"(CrewMemberInfo — the ten crew.* actors) are worth far more cashed in than fed into a line fight: they",
+			"cost 100, sell for essentially all of it (their pistol magazine is worth 3, so unlike an emptied supply",
+			"truck almost nothing is deducted), and a pistol infantryman contributes near zero to an armoured push.",
+			"When ON, the bot walks each of its stray crew off the map edge for the refund. Note this is only the",
+			"CASHING-IN half: crew are excluded from offensive recruitment UNCONDITIONALLY, flag or no flag, because",
+			"putting pistol infantry on an axis is a bug rather than a doctrine choice. What this flag buys is the",
+			"disposition — and what it costs is the crew's other use, walking back to re-man a vehicle via",
+			"EnterAsCrewMember. OFF by default = byte-identical; only PoiOffensiveBotModule@experimental turns it on.")]
+		public readonly bool EvacuateEjectedCrew = false;
+
 		[Desc("Out-of-ammo disposition: max distance (cells, Chebyshev) to a rearm source still worth driving to.",
 			"Beyond it the unit evacuates instead — a dry hull crossing the map past the enemy to reach the one",
 			"surviving depot is worth more as a refund. 0 = UNLIMITED (any existing source is worth the drive, the",
@@ -1156,6 +1167,11 @@ namespace OpenRA.Mods.Common.Traits
 			//     PruneAxes released them from their axes and BEFORE BuildFreePool, so a unit sent to evac this eval
 			//     is excluded from the free pool rather than being recruited straight back out of its evac.
 			SweepOutOfAmmoUnits(tick);
+
+			// 1b. Item 36: same slot, same reason — dispose of ejected crew before the free pool is built. Ordered
+			//     after the ammo sweep only for readability; the two candidate sets are disjoint (crew are infantry,
+			//     that sweep takes vehicles only) so neither can see the other's work.
+			SweepEjectedCrew(tick);
 
 			// Bound the cohesion-tracking map to living units so it can't leak across a game.
 			if (lastCohesion.Count > 0)
@@ -2285,6 +2301,61 @@ namespace OpenRA.Mods.Common.Traits
 			if (evacuatingOutOfAmmo.Contains(a))
 				return false;
 
+			// PIPELINE item 36 — the GENERAL form of the exclusion above. It does NOT replace the set; the two cover
+			// different things and BOTH are needed. Deleting either one reopens a hole.
+			//   * the set is a record of the evacs THIS MODULE started, marked the instant the order is issued. It
+			//     covers ownership, not mechanism: it knows about a unit the sweep has decided on even before the
+			//     order has taken hold anywhere observable.
+			//   * this test observes the unit itself, so it covers evacs the module did NOT start — the ejected-crew
+			//     sweep below, a future caller, a human player selling a unit the bot then re-tasks. Without it each
+			//     new evac source would need its own set, and a set per source is precisely the bookkeeping that
+			//     goes stale: a latch asserting a decision instead of observing the world.
+			// It is also self-clearing in the direction that matters, which the set is not: a cancelled evac stops
+			// satisfying this test on the very next eval and the unit becomes eligible again, whereas a set entry has
+			// to be remembered and removed by hand.
+			//
+			// UNGATED, and byte-identical wherever no evac is running: with no RotateToEdge queued anywhere this
+			// walks a short chain and always answers false, so every profile that evacuates nothing behaves as it did.
+			if (IsEvacuating(a))
+				return false;
+
+			// PIPELINE item 36 — ejected crew are not line infantry and must not be recruited onto an axis.
+			//
+			// SUPPRESSION LEDGER (what stops happening when this returns false). Crew classify MainBattle today:
+			// UnitRoleResolver.Classify reaches its "armed and mobile" fallback for them because a pistol is not
+			// indirect, not anti-air and not long-ranged, and their Speed of 25 is far under the recon floor of 110.
+			// So they are currently recruited, staged and given AttackMove like a tank. Excluding them stops exactly
+			// four things, and all four are intended:
+			//   * they stop being assigned to axes and stop receiving AttackMove — the point of the item;
+			//   * they stop being staged forward by StageFreePool — they now hold where they ejected, which is what
+			//     Defensive engagement stance already wants them to do;
+			//   * they stop counting toward OpportunisticAdvance's AdvanceMinUnits of 2. This is the one exclusion
+			//     with a real cost: two ejected crew could previously trip an advance on their own. An advance whose
+			//     entire force is two pistol infantry is the pathology, not the feature;
+			//   * they stop holding ledger claims and cohesion entries, which is pure cleanup.
+			// It does not disarm them — AutoTarget is untouched and they still return fire.
+			//
+			// WHAT THIS EXCLUSION HANDS THEM TO, grepped rather than assumed (an earlier revision of this comment
+			// claimed "no other module recruits crew" and that was simply false). This module is the only one that
+			// tests CrewMemberInfo; the others filter by ROLE, and crew resolve to MainBattle, so they pass:
+			// LayeredDefenceBotModule (IsLineEligibleByRole), PoiGarrisonBotModule (IsEligibleCombatUnit),
+			// LaneAmbushBotModule (IsEligibleAmbusher) — all when UseUnitRoles is on, which @experimental sets —
+			// plus EngineerRouteOpenBotModule's screen pool and HelicopterSquadBotModule's lift filter. Only
+			// ScoutBotModule and MountedTransportBotModule reject them, and only because both use actor-name
+			// allowlists that crew are absent from. SquadManagerBotModule would take them but its ground FSMs are
+			// dead code on both profiles.
+			// CONSEQUENCE, and it is a real open gap rather than a nuance: excluding crew HERE does not make them
+			// unavailable, it re-homes them — and none of those modules consult IsEvacuating, so with
+			// EvacuateEjectedCrew on they can re-task a crew member and cancel its evac. See
+			// WORKSPACE/bugs/discovered.md 2026-08-08. Not fixed here: a general fix means teaching six modules the
+			// same predicate, which is its own change and its own review.
+			//
+			// UNGATED and independent of the evac lever below. Whether or not the bot chooses to cash them in, a
+			// pistol-armed survivor does not belong in an armoured push, and gating the exclusion on the evac flag
+			// would leave the un-gated profiles doing the thing the item exists to stop.
+			if (a.Info.HasTraitInfo<CrewMemberInfo>())
+				return false;
+
 			// Role-model eligibility: MainBattle line units plus IndirectFire artillery (kept until a
 			// dedicated fires executor exists, else artillery orphans — design §6). SHORAD/MANPADS,
 			// capturers, logistics and scouts drop out by class. Cargo carriers (bradley/bmp2/m113) stay
@@ -2416,6 +2487,128 @@ namespace OpenRA.Mods.Common.Traits
 				axis.Units.Remove(unit);
 
 			return refund;
+		}
+
+		// Ground-truth "is this unit on a terminal evac, or about to be". No stored state, so nothing to keep in sync
+		// and nothing to go stale.
+		//
+		// WALKS THE QUEUE RATHER THAN TESTING THE HEAD, and that is the whole point of the method. Queueing an evac
+		// uses QueueActivity(false, …), which cancels the current activity but does NOT replace it: Cancel only
+		// raises IsCanceling, and the new activity is appended behind the one that is still winding down
+		// (Actor.cs:381-386 into Activity.Queue, Activity.cs:212-217). So for at least one tick after the order,
+		// CurrentActivity is still the OLD activity and a head-only test — the shape IsAlreadySeekingRearm uses
+		// above, which is safe there because it only ever asks about activities that are already running — would
+		// answer "not evacuating" about a unit that demonstrably is. That one-tick blind spot is exactly the window
+		// in which a re-recruit cancels the evac, so the head test would miss the case it exists to catch.
+		//
+		// Walks NextActivity only, NOT ChildActivity — correct while every caller queues RotateToEdge at top level
+		// (all eight sites do). A caller that queued it as a CHILD of something else would make this silently blind.
+		//
+		// Bounded so a malformed chain cannot spin. Depth 8 is far past any real queue: an evac order truncates the
+		// queue to the cancelling activity plus RotateToEdge.
+		static bool IsEvacuating(Actor a)
+		{
+			var act = a.CurrentActivity;
+			for (var depth = 0; act != null && depth < 8; depth++)
+			{
+				if (act is RotateToEdge)
+					return true;
+
+				act = act.NextActivity;
+			}
+
+			return false;
+		}
+
+		// PIPELINE item 36. Ejected crew walk off the map and are cashed in rather than dying on the line.
+		//
+		// WHY THIS IS A DISPOSITION AND NOT A STANCE FIX: the crew's stance is already right. AutoTarget gives every
+		// bot-owned actor InitialEngagementStanceAI = Defensive (AutoTarget.cs:160), which returns fire but never
+		// moves toward a target — "only fight to defend themselves", exactly. What made crew fight was never their
+		// stance, it was this module recruiting them onto axes and issuing AttackMove. The eligibility exclusion in
+		// IsEligibleCombatUnit stops that on its own; this sweep is the second half — having stopped ordering them
+		// forward, do something with them rather than leave them standing where the tank died.
+		//
+		// THE VALUE ARGUMENT, CHECKED RATHER THAN ASSUMED: a crew member is Valued.Cost 100 (crew.yaml:14-15) and
+		// carries a Pistol whose whole magazine is worth 3 (SupplyValue 1 x 3 batches), so GetSellValue returns
+		// essentially the full 100 and the refund is ~100 x HP/MaxHP. This is NOT the emptied-supply-truck case where
+		// missing supply is subtracted down to the chassis — crew hold no supply and the ammo deduction is ~3% — so
+		// the sell really does pay out near cost. Against that, a pistol infantryman contributes close to nothing to
+		// a line fight and dies to the first thing that notices him. Evacuating is the better trade at essentially
+		// any HP, which is why there is no health threshold here.
+		//
+		// GATED, default-off. The exclusion above is ungated because leaving pistol infantry out of an armoured push
+		// is a correctness fix; ACTIVELY CASHING THEM IN is a doctrine choice with a real balance surface — it
+		// converts recoverable manpower into budget, and it gives up the crew's other use, walking back to re-man a
+		// vehicle via EnterAsCrewMember (CrewMember.cs:52-58). That trade wants a benchmark, not a default.
+		//
+		// Runs from the same place and under the same rules as SweepOutOfAmmoUnits: BEFORE the free pool is built,
+		// with per-unit independent dispositions, so world.Actors' enumeration order cannot change any outcome.
+		void SweepEjectedCrew(int tick)
+		{
+			if (!Info.EvacuateEjectedCrew)
+				return;
+
+			var evacuated = 0;
+			var banked = 0;
+
+			foreach (var crew in world.Actors.Where(IsEjectedCrewSweepCandidate).ToList())
+			{
+				var sellValue = crew.GetSellValue();
+				var health = crew.TraitOrDefault<IHealth>();
+				banked += AmmoEvacMath.EvacRefund(sellValue, health?.HP ?? 0, health?.MaxHP ?? 0);
+
+				crew.QueueActivity(false, new RotateToEdge(crew, true, sellValue));
+				crew.ShowTargetLines();
+
+				// Same management drop as the out-of-ammo path: a crew member should never have held an axis slot or
+				// a ledger claim (IsEligibleCombatUnit excludes them), but releasing is cheap and this is what stops
+				// a claim from an earlier build stranding an objective.
+				goalGuard?.Ledger.Release(crew);
+				lastCohesion.Remove(crew);
+				stagedCells.Remove(crew);
+
+				foreach (var axis in axes)
+					axis.Units.Remove(crew);
+
+				evacuated++;
+			}
+
+			if (evacuated > 0)
+				Log.Write("debug",
+					$"[exp-crew] sweep player={player.PlayerName} evac={evacuated} banked={banked} tick={tick}");
+		}
+
+		// Sweep candidate: one of OUR ejected crew, on foot, orderable, and not already leaving.
+		bool IsEjectedCrewSweepCandidate(Actor a)
+		{
+			if (a.Owner != player || a.IsDead || !a.IsInWorld)
+				return false;
+
+			// IPositionable first — world.Actors carries positionless PlayerActors and the reads below would NRE on
+			// one (see conventions.md).
+			if (!a.Info.HasTraitInfo<IPositionableInfo>())
+				return false;
+
+			// The classification hook. CrewMemberInfo is carried by exactly the ten crew actors and nothing else
+			// (crew.yaml), and it is what the actor IS rather than how it happens to be equipped — so unlike a
+			// weapon or cost test it cannot be knocked off by a rules tweak elsewhere.
+			if (!a.Info.HasTraitInfo<CrewMemberInfo>())
+				return false;
+
+			// Must be able to walk to the edge at all; RotateToEdge on an immobile actor sells it on the spot, which
+			// would teleport the refund and defeat item 38's whole point.
+			if (a.Info.TraitInfoOrDefault<MobileInfo>() == null)
+				return false;
+
+			// Already leaving — re-ordering would cancel the evac and start it over.
+			if (IsEvacuating(a))
+				return false;
+
+			// Inside a vehicle it is crew again, not a stray: EnterAsCrew has put it in a Cargo bay and it has no
+			// business being ordered anywhere. IsInWorld already excludes most of this; the explicit check covers a
+			// passenger that stays in-world.
+			return a.TraitOrDefault<Passenger>()?.Transport == null;
 		}
 
 		// Sweep candidate: one of OUR dry, orderable GROUND VEHICLES that is not already evacuating.
