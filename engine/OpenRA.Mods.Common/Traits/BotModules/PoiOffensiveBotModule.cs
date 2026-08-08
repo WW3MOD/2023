@@ -2292,7 +2292,13 @@ namespace OpenRA.Mods.Common.Traits
 				// Only advance the "already ordered" memory if the funnel ACCEPTED the order: a silent drop
 				// plus an advanced cache strands the unit on its old destination permanently, because the
 				// dedup above then believes it is already going to the new one.
-				if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, target), false, groupedActors: new[] { u })))
+				// RECURRING — census §4.2: the axis<->staging beat, re-evaluated every ReevaluateInterval
+				// (100 t) and re-issued whenever the unit re-enters the free pool, which is what makes the
+				// rearward lurch/forward re-order cycle the user sees. Re-offered every eval, and the
+				// stagedCells write below is guarded on acceptance.
+				if (!bot.QueueOrder(
+					new Order("AttackMove", null, Target.FromCell(world, target), false, groupedActors: new[] { u }),
+					BotOrderDamping.Recurring))
 					continue;
 
 				stagedCells[u] = target;
@@ -2741,8 +2747,7 @@ namespace OpenRA.Mods.Common.Traits
 			// retreating axis is never marked Committed — otherwise PartitionHeldAxes would freeze it retreating.
 			if (CombatRetreatMath.ShouldRetreat(Info.RetreatWhenLosing, axis.Retreat) && rallyCell.HasValue)
 			{
-				// The genuine withdrawal — Reflex, so nothing may hold it back.
-				OrderRetreat(bot, axis, rallyCell.Value, tick, BotOrderUrgency.Reflex);
+				OrderRetreat(bot, axis, rallyCell.Value, tick);
 				return;
 			}
 
@@ -2778,8 +2783,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (damperHold)
 			{
-				// Forward muster, not a withdrawal: ordinary Directive so the dwell still damps it.
-				OrderRetreat(bot, axis, ResolveMusterAnchor(axis) ?? stagingAnchor ?? rallyCell.Value, tick, BotOrderUrgency.Directive);
+				OrderRetreat(bot, axis, ResolveMusterAnchor(axis) ?? stagingAnchor ?? rallyCell.Value, tick);
 				return;
 			}
 
@@ -2860,8 +2864,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (postureHold)
 				{
-					// Sector-posture hold sends the axis to a staging anchor, not out of danger: Directive.
-					OrderRetreat(bot, axis, ResolveMusterAnchor(axis) ?? stagingAnchor ?? rallyCell.Value, tick, BotOrderUrgency.Directive);
+					OrderRetreat(bot, axis, ResolveMusterAnchor(axis) ?? stagingAnchor ?? rallyCell.Value, tick);
 					return;
 				}
 			}
@@ -4038,11 +4041,10 @@ namespace OpenRA.Mods.Common.Traits
 		// only when the axis just entered the retreat (or its unit set changed ⇒ HasOrdered cleared upstream), or
 		// the rally cell drifted past the repath threshold — so a squad already withdrawing keeps its order
 		// uninterrupted. Deterministic.
-		// URGENCY IS A PARAMETER, NOT A CONSTANT, because this helper is shared: two of its three call
-		// sites pass a FORWARD muster/staging anchor (damper hold, sector-posture hold), not a withdrawal.
-		// Marking Reflex inside here would exempt the axis-vs-staging beat the funnel dwell was sized to
-		// damp, and would refresh every group member's standing tick on a staging move.
-		void OrderRetreat(IBot bot, Axis axis, CPos rally, int tick, BotOrderUrgency urgency)
+		// All three call sites are Protected (the default). Two of them pass a FORWARD muster/staging
+		// anchor rather than a withdrawal, so this helper must never assert an urgency of its own — that
+		// mistake, made once, exempted the axis-vs-staging beat the dwell was sized to damp.
+		void OrderRetreat(IBot bot, Axis axis, CPos rally, int tick)
 		{
 			var moved = !axis.HasOrdered
 				|| !axis.OrderedRetreat
@@ -4051,7 +4053,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var units = axis.Units.ToArray();
-			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, rally), false, groupedActors: units), urgency))
+			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, rally), false, groupedActors: units)))
 				return;
 
 			axis.OrderedCell = rally;

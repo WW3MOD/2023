@@ -34,15 +34,23 @@
  *       holds the unit's commitment keeps it unless the challenger OUTRANKS it.
  *
  *       AUDITED REACH, because the plan's "closes five of the six worst poachers" was wrong.
- *       Predicate (a) only adds anything where the poacher does not ALREADY consult the ledger
- *       when building its pool. Counted against the shipped yaml: LayeredDefence (:400),
- *       GarrisonBotModule@defenses (:287) and MountedTransport (:571) each resolve their goalGuard
- *       field only when an @experimental-only flag is set, so on @stable it is null and their read
- *       is inert — those three are genuinely closed here. HelicopterSquad (:1606) and
- *       CaptureCoordinator (:1647) resolve it UNCONDITIONALLY and already skip committed units on
- *       both profiles, so (a) is redundant for them. StancePositioningExecutor never reaches this
- *       funnel at all. So: THREE of six, and only on @stable — on @experimental every flag is on,
- *       so (a) closes nothing new there. The predicate that damps the user's churn is (b).
+ *       Predicate (a) only adds anything where the poacher does not ALREADY consult the ledger when
+ *       building its pool, which turns on whether its goalGuard FIELD is resolved at all:
+ *         - LayeredDefence          — field resolved only under @experimental-only flags
+ *                                     (LayeredDefenceBotModule.cs:215), so null on @stable; its
+ *                                     IsCommitted read at :400 is inert there   ⇒ CLOSED by (a)
+ *         - GarrisonBotModule@defenses — LedgerActive false for a non-experimental bot, and the read
+ *                                     at :287 is `!LedgerActive || !IsCommitted` ⇒ CLOSED by (a)
+ *         - MountedTransport        — field resolved only under CommitPassengers
+ *                                     (MountedTransportBotModule.cs:313)         ⇒ CLOSED by (a)
+ *         - HelicopterSquad         — field resolved UNCONDITIONALLY
+ *                                     (HelicopterSquadBotModule.cs:496), so it already skips
+ *                                     committed units on both profiles            ⇒ redundant
+ *         - CaptureCoordinator      — likewise, resolved unconditionally
+ *                                     (CaptureCoordinatorBotModule.cs:516-520)    ⇒ redundant
+ *         - StancePositioningExecutor — activity layer, never reaches this funnel  ⇒ out of scope
+ *       So THREE of six, and only on @stable: on @experimental every flag is on, so (a) closes
+ *       nothing new there. The predicate that damps the user's churn is (b).
  *
  *   (b) DWELL. Suppress a DIFFERENT-destination order to a unit whose standing order is
  *       still young and still running. Note this is the INVERSE of a destination-
@@ -50,6 +58,23 @@
  *       suspects the destinations genuinely DIFFER (forward cell -> carrier -> a different
  *       forward cell), so an equivalence gate passes all three. The churn is decision
  *       instability, not duplicate orders.
+ *
+ * SUPPRESSION IS OPT-IN PER CALL SITE (BotOrderDamping.Recurring); RECORDING IS NOT. Every tasking
+ * order establishes the standing record, so an unmarked flee or withdrawal still PROTECTS its unit
+ * from the next Recurring challenger — the narrow suppressible set narrows what can be dropped
+ * without narrowing what can be defended. As shipped, FIVE call sites are Recurring and they are
+ * the census's named beats that this gate is the right layer for: MountedTransport passenger
+ * boarding (50 t) and LayeredDefence line assignment x2 (75 t) — the §4.1 pair that matches the
+ * user's report verbatim and is live on both profiles — and PoiOffensive StageFreePool (§4.2).
+ *
+ * SupplyFollower's two follow Moves (§3.3) are deliberately NOT in that set, though the census
+ * called one of them the most undamped site it found. The gate provably cannot suppress a truck
+ * order: trucks are single-owner and never ledger-committed, so predicate (a) has no incumbent to
+ * find, and SupplyFollower's ScanInterval (150 t) strictly exceeds ReorderDwellTicks (120 t), so two
+ * consecutive standing records for one truck are always further apart than the dwell window and
+ * predicate (b) cannot fire either. That oscillation is damped in SupplyFollowerBotModule instead,
+ * by a distance deadband — the right instrument for a destination that moves by construction, and
+ * the one the equivalence-vs-dwell argument above says belongs at the caller rather than here.
  *
  * RANK IS NOT DECORATION, IT IS A CORRECTNESS REQUIREMENT. StancePositioningExecutor
  * stamps a `tacpos:` claim on every @experimental bot-owned combatant it positions
@@ -406,24 +431,40 @@ namespace OpenRA.Mods.Common.Traits
 		public BotOrderVerdict Admit(
 			string orderString,
 			bool queued,
-			BotOrderUrgency urgency,
+			BotOrderDamping damping,
 			string moduleTag,
 			int currentTick,
 			long destinationKey,
 			List<BotOrderTarget> targets)
 		{
+			// CLASSIFY FIRST. This ordering is load-bearing: the previous cut tested `queued` before the
+			// whitelist, so a QUEUED PASSTHROUGH order could be dropped by the sequence binding below.
+			// That really happened — CaptureCoordinator's on-foot fallback `CaptureActor` (queued, and
+			// deliberately outside the whitelist) was dropped because the ferry attempt's EnterTransport
+			// for the same capturer had been suppressed in the same tick. An order the gate does not own
+			// must be unreachable from every path in it, not merely from the suppression predicates.
+			var cls = OrderArbitrationMath.Classify(orderString);
+			if (cls == BotOrderClass.Passthrough)
+				return BotOrderVerdict.Admitted;
+
 			// A queued order APPENDS (Actor.QueueActivity(true, …)) so it cancels nothing and is not itself
 			// a churn source. But it is NOT independent of what came before it. A two-leg maneuver issues
-			// the danger-avoiding waypoint non-queued and then CHAINS the direct leg queued
-			// (SupplyFollowerBotModule.cs:706-707, PoiOffensiveBotModule.cs:3055-3057). Admitting the tail
-			// after dropping the head leaves the direct leg to execute ALONE — i.e. it drives exactly the
-			// straight line the detour existed to avoid. A partly-issued plan is worse than no suppression
-			// at all, so bind the tail to its head: same tick, same actor, head suppressed ⇒ drop the tail.
+			// the danger-avoiding waypoint non-queued and then CHAINS the direct leg queued. Admitting the
+			// tail after dropping the head leaves the direct leg to execute ALONE — i.e. it drives exactly
+			// the straight line the detour existed to avoid. A partly-issued plan is worse than no
+			// suppression at all, so bind the tail to its head: same tick, same actor, head suppressed ⇒
+			// drop the tail. Restricted to Tasking orders, which is also what makes the binding SOUND:
+			// a queued tasking order is by construction a continuation of a chain, whereas an
+			// alternative (a fallback for the same actor) is never issued queued.
 			//
 			// Same-tick is the correct scope and is deliberately INFERRED rather than declared. An
 			// atomicity marker on the call site would have to be remembered by every future author of a
 			// multi-leg pair — the same failure mode that produced this defect. Structure cannot be
 			// forgotten, and a tick boundary needs no lifetime management.
+			//
+			// As shipped no multi-leg HEAD is marked Recurring, so this has zero live cases today. It is
+			// kept as the structural guard that stops the first future Recurring mark on a chain head from
+			// re-running that defect.
 			if (queued)
 			{
 				if (targets != null && targets.Count > 0 && SequenceSuppressed(targets, currentTick))
@@ -434,10 +475,6 @@ namespace OpenRA.Mods.Common.Traits
 
 				return BotOrderVerdict.Admitted;
 			}
-
-			var cls = OrderArbitrationMath.Classify(orderString);
-			if (cls == BotOrderClass.Passthrough)
-				return BotOrderVerdict.Admitted;
 
 			if (cls == BotOrderClass.Cancel)
 			{
@@ -454,9 +491,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (targets == null || targets.Count == 0)
 				return BotOrderVerdict.Admitted;
 
-			// Reflex — evacuation, retreat, damage response. Bypasses BOTH predicates and still becomes
-			// the new standing order, so a Directive aimed elsewhere cannot immediately undo it.
-			if (urgency == BotOrderUrgency.Reflex)
+			// SUPPRESSION IS OPT-IN. A Protected order — which is everything the call site did not
+			// explicitly mark — is recorded and admitted. Recording it anyway is what keeps the damping
+			// broad despite the narrow suppressible set: a flee, a withdrawal or a one-shot delivery still
+			// establishes the standing order that PROTECTS its unit from the next Recurring challenger.
+			// So the inversion narrows what can be dropped without narrowing what can be defended.
+			if (damping != BotOrderDamping.Recurring)
 			{
 				ClearSequenceSuppressed(targets, currentTick);
 				Record(targets, destinationKey, currentTick);

@@ -50,7 +50,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IBot.QueueOrder(Order order) { return true; }
 
-		bool IBot.QueueOrder(Order order, BotOrderUrgency urgency) { return true; }
+		bool IBot.QueueOrder(Order order, BotOrderDamping damping) { return true; }
 
 		IBotInfo IBot.Info => info;
 		Player IBot.Player => player;

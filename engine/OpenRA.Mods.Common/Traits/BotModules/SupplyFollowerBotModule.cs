@@ -695,6 +695,17 @@ namespace OpenRA.Mods.Common.Traits
 						// and the defect it preserved is the one the mode exists to remove — the destination
 						// is a moving centroid, so an undamped re-issue cancels the drive and restarts the
 						// path every 150 ticks, forever, on a unit whose entire job is to arrive.
+						//
+						// DELIBERATELY NOT BotOrderDamping.Recurring, and this is worth stating so nobody
+						// "completes" the set later. The funnel gate cannot suppress a truck follow Move at
+						// all: trucks are single-owner (truk is excluded by every other module), they are
+						// never ledger-committed, so predicate (a) has no incumbent to find; and this
+						// module's own ScanInterval (150 t) strictly exceeds ReorderDwellTicks (120 t), so
+						// consecutive standing records for one truck are always further apart than the dwell
+						// window and predicate (b) can never fire either. Marking it would assert damping
+						// that provably cannot occur, and would put a real stranding hazard on the
+						// lastFollow write below for nothing. The oscillation is damped HERE instead, by
+						// distance — the right instrument for a destination that moves by construction.
 						if (ShouldReissueFollow(truck, followPos.Value))
 						{
 							bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), false));
@@ -746,8 +757,11 @@ namespace OpenRA.Mods.Common.Traits
 						else
 						{
 							// No detour needed — a single direct Move each scan, damped exactly as the
-							// flag-off branch above. Drop any stale detour memory so the next detour
-							// re-issues cleanly.
+							// flag-off branch above and Protected for the same reason stated there.
+							// lastVia.Remove is UNCONDITIONAL, deliberately: no detour is needed this scan, so
+							// the detour memory is stale whether or not the deadband let the Move through. (An
+							// earlier cut made it conditional on the order being accepted; that only made sense
+							// while this order could be refused, which it now cannot.)
 							if (ShouldReissueFollow(truck, followPos.Value))
 							{
 								bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), false));
@@ -1563,11 +1577,9 @@ namespace OpenRA.Mods.Common.Traits
 				var retreat = SupplyLogisticsMath.RetreatTarget(
 					truck.CenterPosition, srActor.CenterPosition, WDist.FromCells(Info.EvacRetreatCells).Length);
 				retreatCell = world.Map.CellContaining(retreat);
-				// Reflex: this is the single-actor evacuation Move, and it is exactly the case the funnel
-				// gate's dwell predicate would otherwise catch — a preceding follow Move to a different
-				// cell, still young, on a truck that is still driving. A truck that cannot leave the
-				// danger it was told to leave is far worse than one that dithers.
-				bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, retreatCell), false), BotOrderUrgency.Reflex);
+				// The evacuation Move. Unmarked ⇒ Protected: a truck that cannot leave the danger it was
+				// told to leave is far worse than one that dithers.
+				bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, retreatCell), false));
 				lastVia.Remove(truck);
 				lastFollow.Remove(truck);
 			}

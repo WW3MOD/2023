@@ -843,15 +843,14 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					if (IsRearming(u))
 						continue;
 
-					// REFLEX. Entry to this withdrawal is PREDICTIVE — IsTargetTooHot and the believed-AA danger
-					// spike, neither of which requires taking damage — so ModularBot's structural
-					// damage-response Reflex does not cover it. And committedRetreatCell is stamped ABOVE this
-					// loop, so a suppressed Move would leave retargeted false forever after while the unit is
-					// non-idle (it is still flying the AttackMove that created the standing record) — the
-					// withdrawal would be lost permanently and the squad would fly on into the AA envelope.
-					// The pre-loop stamp is sound ONLY because Reflex is never suppressed.
+					// committedRetreatCell is stamped ABOVE this loop, so a dropped Move would leave
+					// retargeted false forever after while the unit is non-idle (still flying the AttackMove
+					// that created the standing record) — the withdrawal would be lost and the squad would
+					// fly on into the AA envelope. That pre-loop stamp is sound because this order is
+					// unmarked, hence Protected, hence never droppable. Do NOT mark it Recurring: this is a
+					// one-shot-per-state issuance with no retry, so it cannot satisfy the Recurring contract.
 					if (!hysteresis || retargeted || u.IsIdle)
-						owner.Bot.QueueOrder(new Order("Move", u, Target.FromCell(owner.World, retreatCell), false), BotOrderUrgency.Reflex);
+						owner.Bot.QueueOrder(new Order("Move", u, Target.FromCell(owner.World, retreatCell), false));
 				}
 
 				return;

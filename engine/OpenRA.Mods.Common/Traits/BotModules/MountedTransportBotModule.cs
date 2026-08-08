@@ -262,13 +262,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (carrier == null)
 				return false;
 
-			// Park the carrier and board the capturer (queued false cancels any AutoTarget/Move
-			// so the passenger catches a stationary entry frame — same pattern as TryAssignNewTasks).
-			bot.QueueOrder(new Order("Stop", carrier, false));
-			// Refused ⇒ do not create the task: a CarrierTask whose capturer was never told to board would
-			// occupy the carrier until the loading timeout for nothing.
+			// Board the capturer FIRST, then park the carrier. The reverse order left the carrier stopped
+			// with no task whenever the boarding order was abandoned below. Both land in the same drain
+			// batch and the passenger's arrival is many ticks away, so the "stationary entry frame" the
+			// Stop exists for is unaffected by which of the two is issued first.
+			//
+			// Refused ⇒ do not stop the carrier and do not create the task: a CarrierTask whose capturer was
+			// never told to board would occupy the carrier until the loading timeout for nothing. This order
+			// is Protected (a directed one-shot ferry, not a recurring stream), so it cannot in fact be
+			// refused today — the check is the standing convention for a bool-returning QueueOrder.
 			if (!bot.QueueOrder(new Order("EnterTransport", capturer, Target.FromActor(carrier), false)))
 				return false;
+
+			bot.QueueOrder(new Order("Stop", carrier, false));
 
 			carrierTasks[carrier] = new CarrierTask
 			{
@@ -630,8 +636,20 @@ namespace OpenRA.Mods.Common.Traits
 				bot.QueueOrder(new Order("Stop", carrier, false));
 
 				// Issue EnterTransport order to each. They walk to the carrier and board.
+				// RECURRING — census §2 rank 1 and the other half of the §4.1 beat: 50 t (3.0 s), no dedup on
+				// the passenger, and IsIdle DELIBERATELY not required, so it turns a unit that LayeredDefence
+				// just sent forward straight back around. TryAssignNewTasks re-offers it every scan.
+				//
+				// Reserve only the passengers that were actually told to board. A refused passenger left in
+				// ReservedPassengers is one the carrier then waits LoadingTimeoutTicks (1500 t = 90 s) for
+				// while it never walks over — bounded, but a carrier idling a minute and a half for nobody.
+				var boarding = new List<Actor>();
 				foreach (var pax in toLoad)
-					bot.QueueOrder(new Order("EnterTransport", pax, Target.FromActor(carrier), false));
+					if (bot.QueueOrder(new Order("EnterTransport", pax, Target.FromActor(carrier), false), BotOrderDamping.Recurring))
+						boarding.Add(pax);
+
+				if (boarding.Count == 0)
+					continue;
 
 				var task = new CarrierTask
 				{
@@ -640,7 +658,7 @@ namespace OpenRA.Mods.Common.Traits
 					DropOff = dropOff.Value,
 					Return = srCell,
 					StateChangedAtTick = world.WorldTick,
-					ReservedPassengers = new HashSet<Actor>(toLoad),
+					ReservedPassengers = new HashSet<Actor>(boarding),
 				};
 				carrierTasks[carrier] = task;
 

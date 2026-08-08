@@ -1240,9 +1240,14 @@ namespace OpenRA.Mods.Common.Traits
 			// When it succeeds the transport module owns the movement AND re-issues CaptureActor on
 			// unload, so we skip the on-foot order here. Ledger commitment + escort still fire so
 			// deconfliction and support are identical to the on-foot path.
+			// The ferry attempt and this on-foot order are ALTERNATIVES, not a chain — nothing may couple
+			// them. Both are Protected, and CaptureActor is outside the suppressible whitelist entirely, so
+			// neither can be refused; the check keeps the claim below honest regardless, because committing a
+			// capturer at RankMission for a unit that received no order would have predicate (a) defend a
+			// phantom claim with the highest rank in the table.
 			var ferried = Info.UseTransportForDistantCaptures && TryFerryCapture(bot, capturer, target);
-			if (!ferried)
-				bot.QueueOrder(new Order("CaptureActor", capturer, Target.FromActor(target), true));
+			if (!ferried && !bot.QueueOrder(new Order("CaptureActor", capturer, Target.FromActor(target), true)))
+				return;
 
 			if (useGuard)
 				goalGuard.Ledger.Commit(capturer, CaptureObjectiveKey(target), world.WorldTick, goalGuard.DefaultCommitmentTicks);
@@ -1363,10 +1368,10 @@ namespace OpenRA.Mods.Common.Traits
 						var ownSR = FindOwnSupplyRoute();
 						if (ownSR != null)
 						{
-							// Reflex: this is a withdrawal out of contested ground for a scarce capturer, and
-							// `retreated` is a one-shot latch — a dropped order here would park the TECN at the
-							// captured target for good.
-							if (!bot.QueueOrder(new Order("Move", tecn, Target.FromCell(world, ownSR.Location), false), BotOrderUrgency.Reflex))
+							// Unmarked ⇒ Protected. `retreated` is a one-shot latch, so a dropped order would
+							// park the TECN at the captured target for good; the return check stays as the
+							// standing convention even though this order cannot currently be refused.
+							if (!bot.QueueOrder(new Order("Move", tecn, Target.FromCell(world, ownSR.Location), false)))
 								continue;
 
 							retreated.Add(tecn);

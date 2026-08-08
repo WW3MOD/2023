@@ -44,7 +44,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("WW3MOD bot-brain Stage 1, predicate (b). Minimum ticks a unit keeps a standing order",
 			"before a DIFFERENT destination may be issued to it. Only bites while the unit is still",
 			"executing something: an idle unit is always re-orderable, and a Reflex order (retreat /",
-			"evacuation / damage response) always passes. This is the inverse of a same-destination",
+			"executing something, and only where a call site has OPTED IN by passing",
+			"BotOrderDamping.Recurring. This is the inverse of a same-destination",
 			"dedup — the churn census found the top suspects all issue genuinely DIFFERENT",
 			"destinations, so equivalence dedup cannot see them. 0 disables (the inert default).")]
 		public readonly int ReorderDwellTicks = 0;
@@ -89,11 +90,6 @@ namespace OpenRA.Mods.Common.Traits
 		PoiGoalGuard goalGuard;
 		readonly List<BotOrderTarget> gateTargets = new();
 
-		// Every order queued while INotifyDamage.Damaged is running IS a damage response, so the whole
-		// IBotRespondToAttack path is Reflex structurally — no module needs to declare it, and a module
-		// added later inherits it. This is the one urgency class that needs no call-site annotation.
-		bool inAttackResponse;
-
 		IBotInfo IBot.Info => info;
 		Player IBot.Player => player;
 
@@ -124,11 +120,11 @@ namespace OpenRA.Mods.Common.Traits
 				ibe.BotEnabled(this);
 		}
 
-		bool IBot.QueueOrder(Order order) => QueueOrder(order, BotOrderUrgency.Directive);
+		bool IBot.QueueOrder(Order order) => QueueOrder(order, BotOrderDamping.Protected);
 
-		bool IBot.QueueOrder(Order order, BotOrderUrgency urgency) => QueueOrder(order, urgency);
+		bool IBot.QueueOrder(Order order, BotOrderDamping damping) => QueueOrder(order, damping);
 
-		bool QueueOrder(Order order, BotOrderUrgency urgency)
+		bool QueueOrder(Order order, BotOrderDamping damping)
 		{
 			// HUMANS CANNOT REACH THIS. IBot.QueueOrder is only ever called by bot modules holding an
 			// IBot; a human's orders come from the UI straight to World.IssueOrder and never enter this
@@ -140,9 +136,8 @@ namespace OpenRA.Mods.Common.Traits
 			// direction. See WORKSPACE/recon/260807-order-source-census.md.
 			if (gate != null)
 			{
-				var effective = inAttackResponse ? BotOrderUrgency.Reflex : urgency;
 				var verdict = gate.Admit(
-					order.OrderString, order.Queued, effective, currentModuleTag, world.WorldTick,
+					order.OrderString, order.Queued, damping, currentModuleTag, world.WorldTick,
 					DestinationKeyOf(order), ResolveGateTargets(order));
 
 				if (verdict != BotOrderVerdict.Admitted)
@@ -297,7 +292,6 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					try
 					{
-						inAttackResponse = true;
 						foreach (var t in attackResponseModules)
 							if (t.IsTraitEnabled())
 							{
@@ -307,7 +301,6 @@ namespace OpenRA.Mods.Common.Traits
 					}
 					finally
 					{
-						inAttackResponse = false;
 						currentModuleTag = "";
 					}
 				});

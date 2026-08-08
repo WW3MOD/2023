@@ -233,12 +233,31 @@ namespace OpenRA.Test
 			// admit, so the pre-Stage-1 funnel is reproduced exactly.
 			var g = Gate(ownership: false, dwell: 0);
 			Assert.That(
-				g.Admit("AttackMove", false, BotOrderUrgency.Directive, "LayeredDefenceBotModule", 0, Cell(1, 1), Targets(Unit(1))),
+				g.Admit("AttackMove", false, BotOrderDamping.Recurring, "LayeredDefenceBotModule", 0, Cell(1, 1), Targets(Unit(1))),
 				Is.EqualTo(BotOrderVerdict.Admitted));
 			Assert.That(
-				g.Admit("AttackMove", false, BotOrderUrgency.Directive, "LayeredDefenceBotModule", 5, Cell(9, 9), Targets(Unit(1, "capture-escort:9"))),
+				g.Admit("AttackMove", false, BotOrderDamping.Recurring, "LayeredDefenceBotModule", 5, Cell(9, 9), Targets(Unit(1, "capture-escort:9"))),
 				Is.EqualTo(BotOrderVerdict.Admitted));
 			Assert.That(g.StandingCount, Is.EqualTo(0), "the inert gate keeps no state at all");
+		}
+
+		[Test]
+		public void Gate_QueuedPassthroughOrderCanNeverBeSequenceSuppressed()
+		{
+			// FIX 2. The previous cut tested `queued` BEFORE the whitelist, so a queued Passthrough order
+			// was reachable by the sequence binding: CaptureCoordinator's on-foot fallback CaptureActor
+			// (queued: true, deliberately outside the whitelist) was dropped because the ferry attempt's
+			// EnterTransport for the same capturer had been suppressed in the same tick — leaving the
+			// capturer committed at RankMission with no order at all. An order the gate does not own must
+			// be unreachable from EVERY path in it.
+			var g = Gate();
+			g.Admit("Move", false, BotOrderDamping.Recurring, "CaptureCoordinatorBotModule", 0, Cell(1, 1), Targets(Unit(5)));
+			Assert.That(
+				g.Admit("Move", false, BotOrderDamping.Recurring, "CaptureCoordinatorBotModule", 10, Cell(2, 2), Targets(Unit(5))),
+				Is.EqualTo(BotOrderVerdict.SuppressedDwell), "the head is suppressed");
+			Assert.That(
+				g.Admit("CaptureActor", true, BotOrderDamping.Recurring, "CaptureCoordinatorBotModule", 10, Cell(9, 9), Targets(Unit(5))),
+				Is.EqualTo(BotOrderVerdict.Admitted), "a queued order outside the whitelist is never the gate's business");
 		}
 
 		[Test]
@@ -246,7 +265,7 @@ namespace OpenRA.Test
 		{
 			var g = Gate();
 			Assert.That(
-				g.Admit("SetUnitStance", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 0, 0L, Targets(Unit(1, "capture-escort:9"))),
+				g.Admit("SetUnitStance", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 0, 0L, Targets(Unit(1, "capture-escort:9"))),
 				Is.EqualTo(BotOrderVerdict.Admitted));
 			Assert.That(g.StandingCount, Is.EqualTo(0));
 		}
@@ -257,19 +276,19 @@ namespace OpenRA.Test
 			// A queued order APPENDS and cancels nothing, so it is not a churn source. It must also not
 			// overwrite the record, or the leading non-queued leg of a two-leg maneuver would be forgotten.
 			var g = Gate();
-			g.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 0, Cell(1, 1), Targets(Unit(1)));
+			g.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 0, Cell(1, 1), Targets(Unit(1)));
 			Assert.That(
-				g.Admit("AttackMove", true, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 10, Cell(5, 5), Targets(Unit(1))),
+				g.Admit("AttackMove", true, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 10, Cell(5, 5), Targets(Unit(1))),
 				Is.EqualTo(BotOrderVerdict.Admitted));
 
 			// The record still says (1,1)@0, so re-issuing (1,1) is "same destination" and admits...
 			Assert.That(
-				g.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 20, Cell(1, 1), Targets(Unit(1))),
+				g.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 20, Cell(1, 1), Targets(Unit(1))),
 				Is.EqualTo(BotOrderVerdict.Admitted));
 
 			// ...while a third cell inside the window is still suppressed.
 			Assert.That(
-				g.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 30, Cell(7, 7), Targets(Unit(1))),
+				g.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 30, Cell(7, 7), Targets(Unit(1))),
 				Is.EqualTo(BotOrderVerdict.SuppressedDwell));
 		}
 
@@ -279,17 +298,17 @@ namespace OpenRA.Test
 			// Without this a cancel would freeze the unit for a whole dwell window: the record would still
 			// name a destination the unit is no longer heading to, and every real re-task would be dropped.
 			var g = Gate();
-			g.Admit("Move", false, BotOrderUrgency.Directive, "SupplyFollowerBotModule", 0, Cell(1, 1), Targets(Unit(1)));
+			g.Admit("Move", false, BotOrderDamping.Recurring, "SupplyFollowerBotModule", 0, Cell(1, 1), Targets(Unit(1)));
 			Assert.That(g.StandingCount, Is.EqualTo(1));
 
 			Assert.That(
-				g.Admit("Stop", false, BotOrderUrgency.Directive, "SupplyFollowerBotModule", 5, 0L, Targets(Unit(1))),
+				g.Admit("Stop", false, BotOrderDamping.Recurring, "SupplyFollowerBotModule", 5, 0L, Targets(Unit(1))),
 				Is.EqualTo(BotOrderVerdict.Admitted));
 			Assert.That(g.StandingCount, Is.EqualTo(0));
 
 			// Inside the dwell window, and would have been suppressed had the Stop not cleared the record.
 			Assert.That(
-				g.Admit("Move", false, BotOrderUrgency.Directive, "SupplyFollowerBotModule", 10, Cell(9, 9), Targets(Unit(1))),
+				g.Admit("Move", false, BotOrderDamping.Recurring, "SupplyFollowerBotModule", 10, Cell(9, 9), Targets(Unit(1))),
 				Is.EqualTo(BotOrderVerdict.Admitted));
 		}
 
@@ -299,45 +318,48 @@ namespace OpenRA.Test
 			// The census's §4.1 shape: a forward cell, then a grab to somewhere else 25 ticks later.
 			var g = Gate();
 			Assert.That(
-				g.Admit("AttackMove", false, BotOrderUrgency.Directive, "LayeredDefenceBotModule", 100, Cell(20, 5), Targets(Unit(42))),
+				g.Admit("AttackMove", false, BotOrderDamping.Recurring, "LayeredDefenceBotModule", 100, Cell(20, 5), Targets(Unit(42))),
 				Is.EqualTo(BotOrderVerdict.Admitted));
 			Assert.That(
-				g.Admit("EnterTransport", false, BotOrderUrgency.Directive, "MountedTransportBotModule", 125, ActorTarget(77), Targets(Unit(42))),
+				g.Admit("EnterTransport", false, BotOrderDamping.Recurring, "MountedTransportBotModule", 125, ActorTarget(77), Targets(Unit(42))),
 				Is.EqualTo(BotOrderVerdict.SuppressedDwell));
 			Assert.That(
-				g.Admit("EnterTransport", false, BotOrderUrgency.Directive, "MountedTransportBotModule", 100 + Dwell, ActorTarget(77), Targets(Unit(42))),
+				g.Admit("EnterTransport", false, BotOrderDamping.Recurring, "MountedTransportBotModule", 100 + Dwell, ActorTarget(77), Targets(Unit(42))),
 				Is.EqualTo(BotOrderVerdict.Admitted), "the window is finite — the unit is not owned forever");
 		}
 
 		[Test]
-		public void Gate_ReflexBypassesBothPredicates()
+		public void Gate_ProtectedBypassesBothPredicates()
 		{
-			// A withdrawal, an evacuation or a damage response must never be held back — by a stale
-			// incumbency or by a young dwell. A unit that cannot flee is far worse than one that wiggles.
+			// Protected is the DEFAULT, so this is what an unmarked order gets: a withdrawal, an
+			// evacuation, a flee, a one-shot delivery. Never held back by a stale incumbency or a young
+			// dwell. A unit that cannot flee is far worse than one that wiggles.
 			var g = Gate();
-			g.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 0, Cell(20, 5), Targets(Unit(42)));
+			g.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 0, Cell(20, 5), Targets(Unit(42)));
 
 			Assert.That(
-				g.Admit("AttackMove", false, BotOrderUrgency.Reflex, "PoiOffensiveBotModule", 5, Cell(1, 1), Targets(Unit(42, "capture-escort:9"))),
+				g.Admit("AttackMove", false, BotOrderDamping.Protected, "PoiOffensiveBotModule", 5, Cell(1, 1), Targets(Unit(42, "capture-escort:9"))),
 				Is.EqualTo(BotOrderVerdict.Admitted));
 
-			// And the same order as a Directive would have been dropped — proving Reflex is what saved it.
+			// The same order marked Recurring WOULD have been dropped — proving the marking is what decides.
 			var h = Gate();
-			h.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 0, Cell(20, 5), Targets(Unit(42)));
+			h.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 0, Cell(20, 5), Targets(Unit(42)));
 			Assert.That(
-				h.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 5, Cell(1, 1), Targets(Unit(42, "capture-escort:9"))),
+				h.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 5, Cell(1, 1), Targets(Unit(42, "capture-escort:9"))),
 				Is.EqualTo(BotOrderVerdict.SuppressedOwnership));
 		}
 
 		[Test]
-		public void Gate_ReflexBecomesTheNewStandingOrder()
+		public void Gate_ProtectedOrderBecomesTheNewStandingOrder()
 		{
-			// Otherwise the record would still name the pre-retreat destination, and the very next
-			// ordinary order would be measured against a stale cell and let through — undoing the retreat.
+			// RECORDING IS NOT OPT-IN. This is what keeps the damping broad while the suppressible set is
+			// narrow: an unmarked flee still establishes the standing order that protects its unit from the
+			// next Recurring challenger. Without it the record would still name the pre-retreat
+			// destination and the next Recurring order would be measured against a stale cell.
 			var g = Gate(ownership: false);
-			g.Admit("AttackMove", false, BotOrderUrgency.Reflex, "PoiOffensiveBotModule", 0, Cell(1, 1), Targets(Unit(42)));
+			g.Admit("AttackMove", false, BotOrderDamping.Protected, "PoiOffensiveBotModule", 0, Cell(1, 1), Targets(Unit(42)));
 			Assert.That(
-				g.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 10, Cell(20, 5), Targets(Unit(42))),
+				g.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 10, Cell(20, 5), Targets(Unit(42))),
 				Is.EqualTo(BotOrderVerdict.SuppressedDwell));
 		}
 
@@ -349,17 +371,17 @@ namespace OpenRA.Test
 			// must still get a record — that is what stops a single-actor grab from turning one unit out
 			// of a moving group around, which is the shape the user sees as "units wiggle".
 			var g = Gate(ownership: false);
-			g.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 0, Cell(30, 30), Targets(Unit(1), Unit(2), Unit(3)));
+			g.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 0, Cell(30, 30), Targets(Unit(1), Unit(2), Unit(3)));
 			Assert.That(g.StandingCount, Is.EqualTo(3));
 
 			// A second grouped order to a different cell inside the window is NOT dwell-suppressed.
 			Assert.That(
-				g.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 10, Cell(31, 31), Targets(Unit(1), Unit(2), Unit(3))),
+				g.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 10, Cell(31, 31), Targets(Unit(1), Unit(2), Unit(3))),
 				Is.EqualTo(BotOrderVerdict.Admitted));
 
 			// A single-actor grab of member #2 is.
 			Assert.That(
-				g.Admit("EnterTransport", false, BotOrderUrgency.Directive, "MountedTransportBotModule", 20, ActorTarget(9), Targets(Unit(2))),
+				g.Admit("EnterTransport", false, BotOrderDamping.Recurring, "MountedTransportBotModule", 20, ActorTarget(9), Targets(Unit(2))),
 				Is.EqualTo(BotOrderVerdict.SuppressedDwell));
 		}
 
@@ -370,13 +392,13 @@ namespace OpenRA.Test
 
 			// One free member ⇒ the whole grouped order goes through (conservative: no partial drops).
 			Assert.That(
-				g.Admit("AttackMove", false, BotOrderUrgency.Directive, "LayeredDefenceBotModule", 0, Cell(5, 5),
+				g.Admit("AttackMove", false, BotOrderDamping.Recurring, "LayeredDefenceBotModule", 0, Cell(5, 5),
 					Targets(Unit(1, "offense:12"), Unit(2))),
 				Is.EqualTo(BotOrderVerdict.Admitted));
 
 			// Every member claimed by a module that outranks-or-ties us ⇒ dropped.
 			Assert.That(
-				g.Admit("AttackMove", false, BotOrderUrgency.Directive, "LayeredDefenceBotModule", 0, Cell(5, 5),
+				g.Admit("AttackMove", false, BotOrderDamping.Recurring, "LayeredDefenceBotModule", 0, Cell(5, 5),
 					Targets(Unit(1, "offense:12"), Unit(2, "capture:9"))),
 				Is.EqualTo(BotOrderVerdict.SuppressedOwnership));
 		}
@@ -387,10 +409,10 @@ namespace OpenRA.Test
 			// Every target dead / out of world ⇒ nothing to arbitrate, and nothing to record.
 			var g = Gate();
 			Assert.That(
-				g.Admit("Move", false, BotOrderUrgency.Directive, "ScoutBotModule", 0, Cell(1, 1), Targets()),
+				g.Admit("Move", false, BotOrderDamping.Recurring, "ScoutBotModule", 0, Cell(1, 1), Targets()),
 				Is.EqualTo(BotOrderVerdict.Admitted));
 			Assert.That(
-				g.Admit("Move", false, BotOrderUrgency.Directive, "ScoutBotModule", 0, Cell(1, 1), null),
+				g.Admit("Move", false, BotOrderDamping.Recurring, "ScoutBotModule", 0, Cell(1, 1), null),
 				Is.EqualTo(BotOrderVerdict.Admitted));
 			Assert.That(g.StandingCount, Is.EqualTo(0));
 		}
@@ -406,9 +428,9 @@ namespace OpenRA.Test
 			foreach (var objective in new[] { null, "offense:12", "tacpos:5" })
 			{
 				var g = Gate();
-				g.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 0, Cell(20, 5), Targets(Unit(42, objective)));
+				g.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 0, Cell(20, 5), Targets(Unit(42, objective)));
 				Assert.That(
-					g.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 30, Cell(21, 6), Targets(Unit(42, objective))),
+					g.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 30, Cell(21, 6), Targets(Unit(42, objective))),
 					Is.EqualTo(BotOrderVerdict.SuppressedDwell), objective ?? "uncommitted");
 			}
 		}
@@ -417,10 +439,10 @@ namespace OpenRA.Test
 		public void Gate_SuppressionsAreCountedPerModuleAndReason()
 		{
 			var g = Gate();
-			g.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 0, Cell(1, 1), Targets(Unit(1)));
-			g.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 1, Cell(2, 2), Targets(Unit(1)));
-			g.Admit("AttackMove", false, BotOrderUrgency.Directive, "PoiOffensiveBotModule", 2, Cell(3, 3), Targets(Unit(1)));
-			g.Admit("AttackMove", false, BotOrderUrgency.Directive, "LayeredDefenceBotModule", 3, Cell(4, 4), Targets(Unit(2, "capture:9")));
+			g.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 0, Cell(1, 1), Targets(Unit(1)));
+			g.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 1, Cell(2, 2), Targets(Unit(1)));
+			g.Admit("AttackMove", false, BotOrderDamping.Recurring, "PoiOffensiveBotModule", 2, Cell(3, 3), Targets(Unit(1)));
+			g.Admit("AttackMove", false, BotOrderDamping.Recurring, "LayeredDefenceBotModule", 3, Cell(4, 4), Targets(Unit(2, "capture:9")));
 
 			Assert.That(g.Suppressions.Count, Is.EqualTo(2), "one bucket per (module, reason), not one line per event");
 			Assert.That(g.Suppressions[0].ModuleTag, Is.EqualTo("PoiOffensiveBotModule"));
@@ -437,8 +459,8 @@ namespace OpenRA.Test
 		public void Gate_PruneDropsOnlyRecordsPastTheDwell()
 		{
 			var g = Gate(dwell: 100);
-			g.Admit("Move", false, BotOrderUrgency.Directive, "ScoutBotModule", 0, Cell(1, 1), Targets(Unit(1)));
-			g.Admit("Move", false, BotOrderUrgency.Directive, "ScoutBotModule", 250, Cell(2, 2), Targets(Unit(2)));
+			g.Admit("Move", false, BotOrderDamping.Recurring, "ScoutBotModule", 0, Cell(1, 1), Targets(Unit(1)));
+			g.Admit("Move", false, BotOrderDamping.Recurring, "ScoutBotModule", 250, Cell(2, 2), Targets(Unit(2)));
 
 			// Prune is tick-stamped, not countdown-decremented, so calling it more often changes nothing.
 			for (var t = 0; t <= 300; t++)
@@ -446,7 +468,7 @@ namespace OpenRA.Test
 
 			Assert.That(g.StandingCount, Is.EqualTo(1), "the tick-0 record aged out; the tick-250 one is still live");
 			Assert.That(
-				g.Admit("Move", false, BotOrderUrgency.Directive, "ScoutBotModule", 300, Cell(3, 3), Targets(Unit(2))),
+				g.Admit("Move", false, BotOrderDamping.Recurring, "ScoutBotModule", 300, Cell(3, 3), Targets(Unit(2))),
 				Is.EqualTo(BotOrderVerdict.SuppressedDwell));
 		}
 	}
