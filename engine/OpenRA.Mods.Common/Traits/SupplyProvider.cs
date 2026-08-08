@@ -299,12 +299,19 @@ namespace OpenRA.Mods.Common.Traits
 			// so an already-evacuating truck stays evacuating.
 			//
 			// DWELL, and it is the ONLY assignment of residueUnusable from a verdict — the
-			// confirm counter cannot be bypassed by adding a caller. Setting the latch commits
-			// the truck to driving off the map and SELLING itself (DropsSupplyCache.ITick fires
-			// RotateToEdge within ONE tick of CountsAsEmpty going true), so it is damped; clearing
-			// it only resumes serving, which the next scan can undo, so it is not. Same asymmetry
-			// rule as the evac damper one file over, applied in the opposite direction because
-			// there the expensive move is the one that is NOT taken by default.
+			// confirm counter cannot be bypassed by adding a caller. Setting the latch sends an
+			// IDLE truck map-edge-ward to sell itself (DropsSupplyCache.ITick queues RotateToEdge
+			// within one tick of CountsAsEmpty going true), so it is damped; clearing it only
+			// resumes serving, so it is not.
+			//
+			// NOT because the set is irreversible — it is not, and an earlier version of this
+			// comment claimed otherwise. Clearing the latch puts the truck back on the follow
+			// roster and the next Move cancels the drive; that reversal is exactly the wiggle
+			// being fixed here. The set is damped because it is EXPENSIVE: the recovery is owned
+			// by a 150-tick bot scan, so a spurious set costs ~9 s of a truck driving the wrong
+			// way, while a spurious clear costs one 7-tick scan of serving nobody. Polarity comes
+			// from the costs, and is the opposite of the evac damper's one file over for the same
+			// reason — there the expensive error is a DELAYED withdrawal.
 			//
 			// Why a DWELL and not a value band: the verdict is a boolean function of a SET SCAN
 			// (aura membership + need >= MinNeedThreshold + affordability), not a threshold on one
@@ -321,8 +328,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.EvacuateOnUnusableResidue)
 			{
 				var verdict = ResidueVerdict(currentSupply, bestTarget != null, hasUnaffordableTargets);
-				residueConfirmations = StepResidueConfirmations(residueConfirmations, verdict, Info.ResidueConfirmScans);
-				residueUnusable = ResidueLatched(residueUnusable, verdict, residueConfirmations, Info.ResidueConfirmScans);
+				(residueUnusable, residueConfirmations) = StepResidueLatch(
+					residueUnusable, residueConfirmations, verdict, Info.ResidueConfirmScans);
 			}
 
 			if (bestTarget == null)
@@ -992,62 +999,58 @@ namespace OpenRA.Mods.Common.Traits
 			return null;
 		}
 
-		/// <summary>Step the consecutive-unusable-verdict counter that <see cref="ResidueLatched"/> reads.
-		/// Call this FIRST and pass its result in, so the latch tests the count including this scan.
-		/// Predicate split from counter, matching SupplyLogisticsMath's EvacuateWithDwell/StepEvacDwell pair.
+		/// <summary>The residue latch WITH MEMORY — the anti-oscillation replacement for assigning the raw
+		/// <see cref="ResidueVerdict"/> straight to the latch every scan. Returns the new latch state AND the
+		/// new confirmation count together, deliberately as ONE call: an earlier split into a step-the-counter
+		/// function plus a read-the-counter predicate left the ordering as a caller obligation enforced only
+		/// by a doc comment, and swapping the two lines cost a scan silently. Shape mirrors
+		/// CombatRetreatMath.Step, which returns its decision and its streak for the same reason.
 		///
-		/// <para>A <c>true</c> verdict counts up (saturating at <paramref name="requiredConfirmations"/> so a
-		/// long-latched truck cannot overflow, and so clearing is always exactly one <c>false</c> away rather
-		/// than however many scans it spent latched). A <c>false</c> verdict resets to 0 — the evidence for
-		/// "nobody can use this" is destroyed the moment somebody can. A <c>null</c> verdict (no demand in
-		/// reach) HOLDS the count, matching the null contract of <see cref="ResidueVerdict"/>: it is the
-		/// absence of evidence, so it must neither confirm nor deny.</para>
-		/// Pure integer, zero RNG.</summary>
-		public static int StepResidueConfirmations(int confirmations, bool? verdict, int requiredConfirmations)
+		/// <para>Three rules:</para>
+		/// <list type="number">
+		/// <item>CLEARING IS NEVER DAMPED. A <c>false</c> verdict (someone in reach can be served a batch)
+		/// clears the latch on the scan it is seen, whatever the count says, and resets the count — the
+		/// evidence for "nobody can use this" is destroyed the moment somebody can.</item>
+		/// <item>A <c>null</c> verdict (no demand in reach) leaves BOTH alone, matching the null contract of
+		/// <see cref="ResidueVerdict"/>: absence of evidence must neither confirm nor deny.</item>
+		/// <item>LATCHING IS DAMPED. A <c>true</c> verdict counts up — saturating at
+		/// <paramref name="requiredConfirmations"/>, so a long-latched truck cannot overflow and stays exactly
+		/// one <c>false</c> away from clearing — and sets the latch only on reaching it.</item>
+		/// </list>
+		///
+		/// <para>WHY THE ASYMMETRY, CORRECTED. An earlier version of this comment said setting the latch
+		/// "drives the truck off the map and sells it, which no later scan can undo". THAT IS FALSE, and the
+		/// falsehood mattered: <c>RotateToEdge</c> is queued only while the truck <c>IsIdle</c>
+		/// (DropsSupplyCache.cs), and once the latch clears the truck re-enters the follow roster and the next
+		/// Move cancels the drive. The set is reversible right up until the sale actually completes — indeed
+		/// that reversal IS the observed wiggle. The asymmetry is justified on COST, not reversibility: a
+		/// truck driving map-edge-ward is doing nothing useful for as long as it takes a 150-tick bot scan to
+		/// notice the latch cleared and yank it back, whereas a truck left serving with a residue it cannot
+		/// spend has merely wasted one 7-tick scan. Damp the expensive direction; the cheap one stays instant.
+		/// (Contrast the evac damper one file over, which damps the OPPOSITE direction — there the expensive
+		/// error is a delayed withdrawal. Derive the polarity from the costs each time; do not copy it.)</para>
+		///
+		/// <para><paramref name="requiredConfirmations"/> &lt;= 1 ⇒ latch on the first true verdict, i.e. the
+		/// pre-damper behaviour, so the field can be turned back off to a known baseline.</para>
+		///
+		/// <para>A genuinely DRAINED provider does not depend on this at all: <c>CountsAsEmpty</c> ORs
+		/// <c>currentSupply &lt;= 0</c> independently of the latch, and Tick early-returns on that case before
+		/// UpdateTarget ever runs. So the dwell can never strand an actually-empty truck at the front — it
+		/// governs only the residue judgement, which is the one that was flipping.</para>
+		/// Pure, zero RNG.</summary>
+		public static (bool Latched, int Confirmations) StepResidueLatch(
+			bool latched, int confirmations, bool? verdict, int requiredConfirmations)
 		{
 			var required = requiredConfirmations > 0 ? requiredConfirmations : 1;
 
 			if (!verdict.HasValue)
-				return confirmations > required ? required : confirmations;
+				return (latched, confirmations > required ? required : confirmations);
 
 			if (!verdict.Value)
-				return 0;
+				return (false, 0);
 
-			return confirmations >= required ? required : confirmations + 1;
-		}
-
-		/// <summary>The residue latch WITH MEMORY — the anti-oscillation replacement for assigning the raw
-		/// <see cref="ResidueVerdict"/> straight to the latch every scan. Asymmetric on purpose:
-		///   1. CLEARING IS NEVER DAMPED. A <c>false</c> verdict (someone in reach can be served a batch)
-		///      clears the latch on the scan it is seen, whatever the counter says.
-		///   2. A <c>null</c> verdict leaves the latch alone, unchanged from the undamped contract.
-		///   3. LATCHING IS DAMPED. A <c>true</c> verdict sets the latch only once
-		///      <paramref name="steppedConfirmations"/> has reached <paramref name="requiredConfirmations"/>.
-		///
-		/// <para>THE ASYMMETRY IS THE POINT, and it is the mirror of the evac damper's rather than a copy of
-		/// it. There, entry (withdraw) is undamped because delaying a retreat gets the truck killed. Here the
-		/// damped direction is the OTHER one, because the expensive action sits on the other branch: setting
-		/// this latch drives the truck to the map edge and sells it, which no later scan can undo, while
-		/// leaving it clear merely keeps a truck serving that might have nothing to give — recoverable next
-		/// scan. Damp the irreversible transition, never the reversible one.</para>
-		///
-		/// <para><paramref name="requiredConfirmations"/> &lt;= 1 ⇒ latch on the first true verdict, i.e. the
-		/// pre-damper behaviour, so the field can be turned off to a known baseline.</para>
-		///
-		/// <para>A genuinely DRAINED provider does not depend on this at all: CountsAsEmpty ORs
-		/// <c>currentSupply &lt;= 0</c> independently of the latch, and Tick early-returns on that case before
-		/// UpdateTarget ever runs. So the dwell can never delay the evacuation of an actually-empty truck —
-		/// it only governs the residue judgement, which is the one that was flipping.</para>
-		/// Pure, zero RNG.</summary>
-		public static bool ResidueLatched(bool latched, bool? verdict, int steppedConfirmations, int requiredConfirmations)
-		{
-			if (!verdict.HasValue)
-				return latched;
-
-			if (!verdict.Value)
-				return false;
-
-			return steppedConfirmations >= (requiredConfirmations > 0 ? requiredConfirmations : 1);
+			var stepped = confirmations >= required ? required : confirmations + 1;
+			return (stepped >= required, stepped);
 		}
 
 		/// <summary>Credit value of missing supply, proportional to SupplyCreditValue.</summary>

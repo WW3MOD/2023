@@ -1627,6 +1627,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			activeTrucks.Clear();
 			lastVia.Clear();
+			lastFollow.Clear();
 			evacState.Clear();
 			dropAnchor.Clear();
 			dropTarget.Clear();
