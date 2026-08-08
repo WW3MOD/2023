@@ -69,7 +69,7 @@
  * SUPPRESSION IS OPT-IN PER CALL SITE (BotOrderDamping.Recurring); RECORDING IS NOT. Every tasking
  * order establishes the standing record, so an unmarked flee or withdrawal still PROTECTS its unit
  * from the next Recurring challenger — the narrow suppressible set narrows what can be dropped
- * without narrowing what can be defended. As shipped, FIVE call sites are Recurring and they are
+ * without narrowing what can be defended. As shipped, FOUR call sites are Recurring and they are
  * the census's named beats that this gate is the right layer for: MountedTransport passenger
  * boarding (50 t) and LayeredDefence line assignment x2 (75 t) — the §4.1 pair that matches the
  * user's report verbatim and is live on both profiles — and PoiOffensive StageFreePool (§4.2).
@@ -467,7 +467,7 @@ namespace OpenRA.Mods.Common.Traits
 			// tasking order is by construction a continuation"), which is FALSE — there are two
 			// counterexamples in the tree. The binding can only fire when a head was suppressed this tick,
 			// and only a Recurring order can be suppressed. Of the five queued Tasking sites:
-			//   * PoiOffensiveBotModule:3057, SupplyFollowerBotModule:716 and
+			//   * PoiOffensiveBotModule:3073, SupplyFollowerBotModule:744 and
 			//     HelicopterSquadBotModule:1270 each have a Protected NON-QUEUED head for the same actor
 			//     in the same tick, and a Protected order calls ClearSequenceSuppressed — so the mark is
 			//     always clear by the time the tail arrives. These are genuine continuations.

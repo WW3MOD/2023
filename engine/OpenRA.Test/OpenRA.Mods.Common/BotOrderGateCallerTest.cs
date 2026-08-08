@@ -45,8 +45,10 @@ namespace OpenRA.Test
 		const int Dwell = 120;
 
 		// The census-named churn sources, and the only orders the funnel may drop. Enumerated in
-		// OrderArbitrationMath's header.
-		const int ExpectedRecurringSites = 6;
+		// OrderArbitrationMath's header. Was 6 until SupplyFollower's two follow Moves were handed to
+		// auto/truck-churn's caller-side distance deadband — the gate provably could not suppress them
+		// (ScanInterval 150 t > ReorderDwellTicks 120 t, and trucks are never ledger-committed).
+		const int ExpectedRecurringSites = 4;
 
 		static long Cell(int x, int y) => OrderArbitrationMath.DestinationKey(false, 0, x, y, true);
 		static List<BotOrderTarget> One(uint id, string objective = null, bool busy = true)
@@ -405,10 +407,10 @@ namespace OpenRA.Test
 			// what happened. Adding or removing a suppressible site must be a deliberate edit here.
 			Assert.That(recurringSites, Is.EqualTo(ExpectedRecurringSites),
 				$"expected exactly {ExpectedRecurringSites} BotOrderDamping.Recurring call sites — "
-				+ "MountedTransport passenger boarding, LayeredDefence line assignment x2, PoiOffensive "
-				+ "StageFreePool, and SupplyFollower's two follow Moves. If you added or removed one "
-				+ "deliberately, update ExpectedRecurringSites and say why in the commit message; if you "
-				+ "did not, the scan has lost sight of a site it is supposed to be policing.");
+				+ "MountedTransport passenger boarding, LayeredDefence line assignment x2, and PoiOffensive "
+				+ "StageFreePool. If you added or removed one deliberately, update ExpectedRecurringSites "
+				+ "and say why in the commit message; if you did not, the scan has lost sight of a site it "
+				+ "is supposed to be policing.");
 			Assert.That(offenders, Is.Empty,
 				"A Recurring order may be dropped by the funnel. Every such call site must check QueueOrder's "
 				+ "return value before advancing any memory, booking, ledger claim or state transition — "
