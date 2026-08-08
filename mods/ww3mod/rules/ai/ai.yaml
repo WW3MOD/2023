@@ -223,6 +223,14 @@ Player:
 		# combat free pool re-collects). Enabled on both live .tecn twins — it's a bug-class fix, not a tuning
 		# lever; the engine default stays false so any profile that omits the module is byte-identical.
 		RetreatCapturerWhenDone: true
+		# Unit-purpose: a capturer this scan could not dispatch (no scoreable capture target, or none it can
+		# target) used to be dropped on the floor — no order, no claim — which left it IsIdle and unclaimed in
+		# both registries, i.e. exactly the pool GarrisonBotModule recruits from. This module has to own it:
+		# PoiOffensiveBotModule's StageFreePool structurally cannot, because BuildFreePool narrows to role
+		# MainBattle/IndirectFire and a capturer is CaptureSpecialist. Musters it behind the believed frontier
+		# (flat field / opening => the descent returns its seed, so it holds at the beachhead).
+		StageIdleCapturers: true
+		ReserveStandoffCells: 10
 
 	# experimental AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
 	# ground army across the top enemy objectives ranked by PoiMap
@@ -727,13 +735,36 @@ Player:
 		MinScoutDistance: 15
 		ScoutVisionRadius: 8
 
-	# Garrison defense structures with infantry for base defense
+	# Garrison nearby friendly-or-neutral garrisonable buildings as a DEFENSIVE REACTION.
+	# Note what this actually recruits, which the old comment here got wrong: GarrisonActorTypes is unset,
+	# so the unit side is any Passenger holder (narrowed per building by the cargo-type match), and
+	# ^CivBuilding carries GarrisonManager, so the building side is mostly neutral civilian houses.
 	GarrisonBotModule@defenses:
 		RequiresCondition: enable-ai-any
 		ScanInterval: 200
 		MaxGarrisonRadius: 25
 		MaxOrdersPerTick: 2
 		PrioritizeExposed: true
+		# Unit-purpose: require a REASON to garrison. PrioritizeExposed above is a List.Sort comparator, never
+		# a filter, so without this the module carries no enemy/danger term at all and puts idle units into an
+		# arbitrary rear house on the bot's very first tick — permanently, since nothing ever unloaded them.
+		# Reads the fog-legal believed danger field, not the omniscient ThreatMapManager. Release makes the
+		# cover temporary, which is the whole difference between taking cover and leaving the match.
+		# A bug-class fix on a SHARED enable-ai-any module, so it is deliberately NOT narrowed by bot type —
+		# @stable inherits it. It reaches only profiles that actually build a danger field (@experimental and
+		# @stable, which Participate); legacy/normal build none, read 0 danger everywhere, and keep the old
+		# behaviour rather than having the module silently disabled. THIS CHANGES @stable — see the commit.
+		RequireBelievedThreat: true
+		MinBelievedDanger: 1
+		ReleaseWhenThreatClears: true
+		# Enter and release are exactly complementary predicates over an INTEGER field that is fully restamped
+		# each recompute, so at a kernel's outermost ring one confidence step moves the whole contour across the
+		# threshold. Raising MinBelievedDanger would NOT fix that — every threshold has its own +/-1 outermost
+		# contour, so a higher bar moves the flap rather than damping it. A two-threshold dead band would fix it,
+		# but at MinBelievedDanger: 1 there is no room below for a release threshold, so a band would mean raising
+		# ENTRY (a doctrine change, not a debounce). Hence damping on TIME. 750 ticks = ~45 s at the mod default
+		# Timestep of 60 ms (16.67 ticks/s). Delays only LEAVING cover — entry is still answered on the next scan.
+		MinGarrisonDwellTicks: 750
 		# Phase 2 commit-on-order audit (§4): recruit only from the ledger-checked free pool and commit
 		# garrisoned infantry (garrison:<buildingId>) to the shared PoiGoalGuard ledger. SHARED enable-ai-any
 		# module, so the engine confines this to the @experimental player at runtime (explicit BotType gate);
@@ -1582,6 +1613,12 @@ Player:
 		# instead of leaving it idle at the front. Bug-class fix enabled on both live .tecn twins; engine default
 		# stays false so any profile omitting the module is byte-identical. See @experimental.tecn for rationale.
 		RetreatCapturerWhenDone: true
+		# Same bug class as RetreatCapturerWhenDone above and enabled on both twins for the same reason: an
+		# undispatchable capturer was dropped on the floor with no order and no claim, which is what left it in
+		# the idle unclaimed pool GarrisonBotModule recruits from. @stable participates in the influence stack,
+		# so the reserve muster's ControlField descent works here identically. See @experimental.tecn.
+		StageIdleCapturers: true
+		ReserveStandoffCells: 10
 
 	PoiOffensiveBotModule@stable:
 		RequiresCondition: enable-ai-stable

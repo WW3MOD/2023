@@ -1,0 +1,93 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: an idle TECN with nothing to capture gets a purpose, not a civilian house
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# The state test-tecn-ride structurally cannot reach: a technician with NO capture target
+# and NO enemy anywhere. That is the whole early game, and nothing pinned it.
+#
+#   USA-bot (6,16) experimental — owns one TECN, parked 14 cells forward of its SR.
+#   House (21,17)               — a NEUTRAL v01 civilian building, i.e. a GarrisonManager
+#                                 holder, 15 cells from the SR so it sits inside
+#                                 GarrisonBotModule's MaxGarrisonRadius of 25.
+#   Russia-bot (58,30)          — far away, unarmed SR only, so it contributes no believed
+#                                 danger kernel; it exists to keep the match alive.
+#
+# There is deliberately NO derrick: OrderedCaptureTargets is empty, so CaptureCoordinator
+# has nothing to dispatch the TECN to. Pre-fix that combination left the TECN idle and
+# unclaimed in both registries, which is exactly the pool GarrisonBotModule recruits from —
+# and GarrisonBotModule had no enemy/danger term at all, so it fired on the bot's first
+# tick and walked the TECN into the house permanently (no bot module issues Unload at a
+# garrison building).
+#
+# Verdict: the house must never flip to USA-bot (garrisoning a neutral building transfers
+# it via GarrisonManager.DynamicOwnership — a clean positive detector), AND the TECN must
+# be given a disposition it actually executes: withdraw to the reserve muster behind the
+# believed frontier, i.e. move back toward its own SR.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: stable
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,30
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,30
+
+	# The unit under test: a capture specialist with nothing to capture, parked forward of
+	# its SR so "it was given a disposition and executed it" is observable as displacement.
+	Tecn: tecn.america
+		Owner: USA-bot
+		Location: 20,16
+
+	# The attractive nuisance. Neutral ^CivBuilding => GarrisonManager + Cargo Types: Infantry,
+	# and ^TECN's Passenger CargoType is Infantry, so the TECN passes CanEnter.
+	House: v01
+		Owner: Neutral
+		Location: 21,17
+
+Rules: rules.yaml

@@ -200,5 +200,55 @@ namespace OpenRA.Test
 					"a non-positive threshold always re-adopts (no hysteresis)");
 			});
 		}
+
+		// ---------- MaxSpreadRings ----------
+
+		// The property under test is SpreadCell's own stated precondition: the widest ring a spread can produce
+		// must sit STRICTLY inside the standoff, because ring cells are NOT danger-guarded individually and the
+		// anchor descent only cleared ground up to the standoff. A ring exactly ON the standoff would place a
+		// unit on the frontier the descent deliberately stopped short of.
+		static void AssertRingsStayInsideStandoff(int standoffMapCells, int ringStep)
+		{
+			var rings = ForwardStagingMath.MaxSpreadRings(standoffMapCells, ringStep);
+			Assert.That(rings * ringStep, Is.LessThan(standoffMapCells),
+				$"widest ring radius must stay strictly inside the standoff (standoff={standoffMapCells}, step={ringStep})");
+		}
+
+		[Test]
+		public void MaxSpreadRings_ShippedReserveConfig_StaysInsideStandoff()
+		{
+			// The shipped capturer reserve: ReserveStandoffCells 10 x ControlField CellSize 2 = 20 map cells, with
+			// ReserveSpreadStepCells 2 ⇒ 9 rings ⇒ widest radius 18 < 20. Dropping the -1 that makes the bound
+			// strict yields 10 rings ⇒ radius 20, exactly ON the standoff, and both assertions below fail.
+			Assert.That(ForwardStagingMath.MaxSpreadRings(20, 2), Is.EqualTo(9));
+			AssertRingsStayInsideStandoff(20, 2);
+		}
+
+		[Test]
+		public void MaxSpreadRings_HoldsAcrossStandoffAndStepRange()
+		{
+			Assert.Multiple(() =>
+			{
+				for (var standoff = 1; standoff <= 64; standoff++)
+					for (var step = 1; step <= 8; step++)
+						AssertRingsStayInsideStandoff(standoff, step);
+			});
+		}
+
+		[Test]
+		public void MaxSpreadRings_DegenerateInputs()
+		{
+			Assert.Multiple(() =>
+			{
+				Assert.That(ForwardStagingMath.MaxSpreadRings(20, 0), Is.EqualTo(0),
+					"a non-positive step means no fan-out — everyone musters on the anchor cell");
+				Assert.That(ForwardStagingMath.MaxSpreadRings(20, -3), Is.EqualTo(0),
+					"a negative step must not produce a negative ring count");
+				Assert.That(ForwardStagingMath.MaxSpreadRings(1, 2), Is.EqualTo(0),
+					"a step wider than the standoff leaves no room for any ring");
+				Assert.That(ForwardStagingMath.MaxSpreadRings(0, 2), Is.EqualTo(0),
+					"a zero standoff admits no ring at all");
+			});
+		}
 	}
 }
