@@ -201,5 +201,51 @@ namespace OpenRA.Mods.Common.Traits
 
 			return (long)sectorEnemy * 100 >= (long)sectorOwn * holdRatioPct;
 		}
+
+		// ---------- (3b) Posture hold BUDGET — "look, then commit" ----------
+
+		/// <summary>Has this axis spent its per-mission budget of posture holds? <paramref name="maxHoldEvals"/>
+		/// &lt;= 0 ⇒ false (unbounded — legacy behaviour).
+		///
+		/// <para>WHY A BUDGET AT ALL. <see cref="SectorPostureHold"/> is evaluated at the axis's CONTACT sector, and
+		/// a sector's own-strength is a live count of our armed actors standing in it — so on a deep flank, where no
+		/// other friendly force is present, THE AXIS IS ESSENTIALLY THE WHOLE OF sectorOwn. The hold therefore
+		/// controls its own input: holding marches the axis rearward, which drops sectorOwn below
+		/// <paramref name="ownStrengthFloor"/>'s counterpart in <see cref="SectorPostureHold"/>, which makes the very
+		/// next evaluation fail OPEN and re-advance, which restores sectorOwn and re-triggers the hold. That is a
+		/// period-2 LIMIT CYCLE, not a decision: the axis is ordered back and forward on alternate evals and never
+		/// resolves either way. The floor and the contact-sector read are each individually correct — the cycle is
+		/// emergent from closing the loop between them.</para>
+		///
+		/// <para>A budget is the standard shape for this in the module (see RetreatDamperMath.HoldBudgetExhausted,
+		/// added for the same class of failure): a momentary caution may DELAY a press, it may not veto it forever.
+		/// The counter is monotone within a mission (an Axis is keyed by target and never retargeted, so the object's
+		/// lifetime IS the mission), which is what makes it immune to the cycle — a counter that decayed on the
+		/// no-hold half of the cycle would refund the budget as fast as it was spent and bound nothing.</para>
+		///
+		/// <para>Fails OPEN (toward pressing) exactly as the damper's budget does, because an unresolved oscillation
+		/// is the failure mode being removed. Safety is unaffected: this gate only ever runs on a NON-retreating axis
+		/// (the consumer's genuine-retreat gate returned upstream), so exhausting the budget cannot convert a losing
+		/// withdrawal into a last stand — a genuinely losing axis is still taken by the retreat FSM.</para>
+		/// Pure integer, zero RNG.</summary>
+		public static bool PostureBudgetExhausted(int holdEvals, int maxHoldEvals)
+			=> maxHoldEvals > 0 && holdEvals >= maxHoldEvals;
+
+		/// <summary>Advance the posture-hold budget counter that <see cref="PostureBudgetExhausted"/> reads.
+		/// Counts UP on an eval that actually held and is otherwise UNCHANGED — deliberately monotone, see the
+		/// limit-cycle note on <see cref="PostureBudgetExhausted"/>. Saturates at <paramref name="maxHoldEvals"/> so
+		/// exhaustion is sticky for the rest of the mission and the counter cannot grow without bound over a long
+		/// match. Reset is external and happens only on a genuine mission break (the axis retreats or loses its
+		/// units); a fresh target is a fresh Axis object, hence a fresh counter. Pure, zero RNG.</summary>
+		public static int StepPostureHold(int holdEvals, bool holding, int maxHoldEvals)
+		{
+			if (!holding)
+				return holdEvals;
+
+			if (maxHoldEvals > 0 && holdEvals >= maxHoldEvals)
+				return holdEvals;
+
+			return holdEvals + 1;
+		}
 	}
 }

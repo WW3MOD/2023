@@ -678,8 +678,8 @@ namespace OpenRA.Mods.Common.Traits
 			"inert (a bare WeakestPointBiasEnabled changes nothing until the @experimental YAML supplies >100).")]
 		public readonly int WeakestPointBiasMultiplier = 100;
 
-		[Desc("PHASE 5 (@experimental) SECTOR POSTURE HOLD. Where the Phase-4 profile reads a target's frontier",
-			"sector as TOO STRONG — believed enemy force ≥ SectorPostureHoldRatioPct% of our own believed strength",
+		[Desc("PHASE 5 (@experimental) SECTOR POSTURE HOLD. Where the Phase-4 profile reads the frontier sector the",
+			"axis STANDS IN as TOO STRONG — believed enemy force ≥ SectorPostureHoldRatioPct% of our own strength",
 			"in that sector — the axis HOLDS/defends (a grouped fall-back to the rally/staging anchor) instead of",
 			"pressing into believed strength. Shaped as a HOLD TRIGGER that RIDES the existing retreat/damper",
 			"fall-back path (reuses OrderRetreat, no new order writer) and runs ONLY AFTER the genuine-retreat and",
@@ -689,7 +689,7 @@ namespace OpenRA.Mods.Common.Traits
 			"exists. Pure FrontlineAllocationMath (NUnit-pinned), zero RNG.")]
 		public readonly bool SectorPostureHoldEnabled = false;
 
-		[Desc("Phase-5 posture hold: believed enemy-to-own strength ratio (x100) in a target's frontier sector at/",
+		[Desc("Phase-5 posture hold: believed enemy-to-own strength ratio (x100) in the axis's CONTACT sector at/",
 			"above which the axis holds rather than presses. 200 = hold once the believed enemy force in the sector",
 			"is 2× our own committed strength there. Only read when SectorPostureHoldEnabled; <= 0 disables the hold.")]
 		public readonly int SectorPostureHoldRatioPct = 200;
@@ -700,6 +700,20 @@ namespace OpenRA.Mods.Common.Traits
 			"an offensive axis pushing into believed strength. Only read when SectorPostureHoldEnabled; <= 0 disables",
 			"the floor (legacy own=0-vs-enemy ⇒ hold). Presence scale is ~1 per own armed unit in the sector.")]
 		public readonly int SectorPostureHoldOwnFloor = 3;
+
+		[Desc("Phase-5 posture hold: how many evals ONE axis may spend posture-holding on its current mission before",
+			"the hold stops firing and it commits to the press. This is the 'look, then commit' bound. Without it the",
+			"hold has no terminating condition and — because a deep-flank axis IS essentially the own-strength of the",
+			"sector it stands in — it oscillates: hold marches the axis back, that drops sector own-strength under",
+			"SectorPostureHoldOwnFloor, the floor fails open, the axis re-advances, and the hold re-fires. The counter",
+			"is monotone within a mission (it does NOT decay on the press half of that cycle, or it would refund the",
+			"budget as fast as it is spent) and resets only when the axis genuinely retreats or loses its units; a new",
+			"target is a new axis, hence a new budget. Exhausting the budget hands the axis to the mission-commitment",
+			"snapshot, which is the point — that is what makes a bot pick a fight and stay in it. 0 = unbounded, i.e.",
+			"the legacy behaviour, so every profile that does not set this stays byte-identical. Only read when",
+			"SectorPostureHoldEnabled. Safety is unchanged: this gate runs only on a NON-retreating axis (the genuine-",
+			"retreat gate returned upstream), so a bounded hold can never become a last stand.")]
+		public readonly int SectorPostureHoldMaxEvals = 0;
 
 		[Desc("PHASE 7 (@experimental) LATERAL SPREAD. The counter to SR-Pressure single-axis funnelling: after the",
 			"score-proportional AllocateProportional runs, CAP the enemy-Supply-Route Pressure axis at SrPoolSharePct%",
@@ -871,6 +885,12 @@ namespace OpenRA.Mods.Common.Traits
 			// still eventually advances. Both 0/unread unless RetreatDamperEnabled.
 			public int AllocatedSize;
 			public int FillHoldEvals;
+
+			// Phase-5 posture-hold budget: how many evals this axis has spent posture-held on THIS mission. Monotone
+			// within the mission and saturating at SectorPostureHoldMaxEvals; reset only on a genuine mission break
+			// (retreat / lost its units). An Axis is keyed by TargetId and never retargeted, so the object's lifetime
+			// IS the mission and a new target starts from 0 for free. 0/unread unless SectorPostureHoldEnabled.
+			public int PostureHoldEvals;
 
 			public readonly List<Actor> Units = new();
 
@@ -2522,18 +2542,49 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			// frontline-influence Phase 5 SECTOR POSTURE HOLD: where the believed profile reads this axis's target
-			// sector as TOO STRONG (enemy force >= SectorPostureHoldRatioPct% of our own believed strength there),
+			// frontline-influence Phase 5 SECTOR POSTURE HOLD: where the believed profile reads the sector this axis
+			// STANDS IN (its centroid / CONTACT sector — never the deep target sector, see PostureShouldHold) as TOO
+			// STRONG (enemy force >= SectorPostureHoldRatioPct% of our own believed strength there),
 			// hold/defend instead of pressing into believed strength. Reuses the SAME grouped fall-back order as the
 			// retreat/damper (no competing writer), held at the forward staging anchor when Phase-2 staging is on
 			// else the rally cell. Placed AFTER the genuine-retreat gate (which already RETURNED for a Retreating
 			// axis) and the damper — so it can NEVER convert a truly-losing withdrawal into a hold. Runs BEFORE the
 			// mission-commitment snapshot + RETURNS, so a held axis is never marked Committed (same discipline).
 			// Inert unless the flag is on with a valid rally AND the profile reads the sector as overmatched.
-			if (Info.SectorPostureHoldEnabled && rallyCell.HasValue && PostureShouldHold(axis))
+			// BOUNDED (SectorPostureHoldMaxEvals): the hold above is a momentary caution, and a caution with no
+			// terminating condition is a veto wearing the costume of a delay. It is worse than that here, because the
+			// hold CONTROLS ITS OWN INPUT — a sector's own-strength is a live count of our armed actors standing in it
+			// (ControlField.cs:690-696), so on a deep flank the axis IS essentially sectorOwn. Holding marches it
+			// rearward ⇒ sectorOwn falls under SectorPostureHoldOwnFloor ⇒ the floor fails OPEN ⇒ it re-advances ⇒ the
+			// hold re-fires. Period-2 limit cycle, one real order per flip (OrderRetreat's `moved` guard passes on
+			// every flip because axis.OrderedRetreat alternates), which is the live "ordered back, then forward again,
+			// stuck in a loop" report. The budget bounds it; see FrontlineAllocationMath.PostureBudgetExhausted.
+			//
+			// THE FALL-THROUGH IS THE FIX, NOT A SIDE EFFECT. Suppressing an early-return hold RE-ROUTES the axis, so
+			// the successor matters: an exhausted axis now reaches ApplyMissionCommitment and is stamped Committed,
+			// which is exactly the "decide to attack here, with these units, and commit" behaviour the oscillation was
+			// preventing. PartitionHeldAxes then keeps it on its mission for MissionCommitmentWindowTicks, and because
+			// a held axis skips CommitAndOrder entirely, that window is also what structurally breaks the cycle. The
+			// commitment is not a suicide pact: PartitionHeldAxes:1745-1751 releases a held axis the moment the
+			// force-ratio reads it as losing, so the retreat FSM still reclaims it.
+			//
+			// Counter stepped INSIDE the enabled guard and only on a hold, so with the knob at its 0 default
+			// PostureBudgetExhausted is constant-false, `postureHold` is exactly the old PostureShouldHold, and the
+			// only difference is a write nobody reads ⇒ byte-identical for every profile that does not opt in.
+			if (Info.SectorPostureHoldEnabled && rallyCell.HasValue)
 			{
-				OrderRetreat(bot, axis, ResolveMusterAnchor(axis) ?? stagingAnchor ?? rallyCell.Value, tick);
-				return;
+				var postureHold = !FrontlineAllocationMath.PostureBudgetExhausted(
+						axis.PostureHoldEvals, Info.SectorPostureHoldMaxEvals)
+					&& PostureShouldHold(axis);
+
+				axis.PostureHoldEvals = FrontlineAllocationMath.StepPostureHold(
+					axis.PostureHoldEvals, postureHold, Info.SectorPostureHoldMaxEvals);
+
+				if (postureHold)
+				{
+					OrderRetreat(bot, axis, ResolveMusterAnchor(axis) ?? stagingAnchor ?? rallyCell.Value, tick);
+					return;
+				}
 			}
 
 			// Just left the retreat state (recovered / reached safety): the last order was a fall-back, so force
@@ -3330,6 +3381,7 @@ namespace OpenRA.Mods.Common.Traits
 					axis.ReadvanceHold = 0;
 					axis.NearRally = false;
 					axis.FillHoldEvals = 0;
+					axis.PostureHoldEvals = 0;
 					continue;
 				}
 
@@ -3363,6 +3415,13 @@ namespace OpenRA.Mods.Common.Traits
 					if (decision == RetreatDecision.Retreating)
 						axis.FillHoldEvals = 0;
 				}
+
+				// Same discipline for the posture-hold budget: a Retreating axis is owned by the retreat path and
+				// never reaches the posture gate, so a stale count must not carry into the post-retreat re-advance.
+				// A genuine retreat is a real mission break — the situation that spent the budget has changed and the
+				// damper's dwell governs the re-advance — so the axis gets a fresh look when it comes back.
+				if (Info.SectorPostureHoldEnabled && decision == RetreatDecision.Retreating)
+					axis.PostureHoldEvals = 0;
 
 				if (decision == RetreatDecision.Retreating)
 					Log.Write("debug",

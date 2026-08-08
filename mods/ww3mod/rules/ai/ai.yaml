@@ -588,6 +588,16 @@ Player:
 		SectorPostureHoldEnabled: true
 		SectorPostureHoldRatioPct: 200
 		SectorPostureHoldOwnFloor: 3
+		# "Look, then commit" bound on the hold above (0 = unbounded = the legacy behaviour every other profile keeps).
+		# The floor and the contact-sector read are each correct, but TOGETHER they close a feedback loop: a sector's
+		# own-strength is a live count of our armed units standing in it, so a deep-flank axis IS essentially sectorOwn
+		# — holding marches it back, sectorOwn drops under the floor, the floor fails open, it re-advances, the hold
+		# re-fires. Period-2 limit cycle = the live 2026-08-08 report of a flanking group "constantly ordered back,
+		# and then forward again, and back". 3 evals (ReevaluateInterval 100) lets the axis take a genuine look at a
+		# sector before it presses; then it falls through to the mission-commitment snapshot and holds its mission for
+		# MissionCommitmentWindowTicks (400 = ~4 evals) instead of re-deciding every eval. Sweep target once the
+		# ai-bench ladder is run — this is the caution/commitment duty cycle, and it has never been measured.
+		SectorPostureHoldMaxEvals: 3
 		# PHASE 7 (@experimental) LATERAL SPREAD + FORWARD MUSTER. The counter to SR-Pressure single-axis funnelling
 		# (WORKSPACE/DISCOVERIES.md 2026-08-03: ~90% of the army pooled on one standoff axis mid-map). LateralSpread
 		# caps the enemy-SR Pressure axis at SrPoolSharePct% of the pool and spreads the freed units across the other
