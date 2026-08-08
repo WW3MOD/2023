@@ -258,11 +258,11 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			var containsTemporaryBlocker = self.World.ContainsTemporaryBlocker(nextCell, self);
+			var squeeze = mobile.Locomotor.IsDiagonalSqueeze(mobile.ToCell, nextCell, ignoreActor);
 
 			// Next cell in the move is blocked by another actor, or a blocker appeared after the path was found
 			// and the step into it would now squeeze between two solid cells.
-			if (containsTemporaryBlocker || !mobile.CanEnterCell(nextCell, ignoreActor) ||
-				mobile.Locomotor.IsDiagonalSqueeze(mobile.ToCell, nextCell, ignoreActor))
+			if (containsTemporaryBlocker || !mobile.CanEnterCell(nextCell, ignoreActor) || squeeze)
 			{
 				// Are we close enough?
 				var cellRange = nearEnough.Length / 1024;
@@ -293,8 +293,15 @@ namespace OpenRA.Mods.Common.Activities
 					}
 				}
 
-				// There is no point in waiting for the other actor to move if it is incapable of moving.
-				if (!mobile.CanEnterCell(nextCell, ignoreActor, BlockedByActor.Immovable))
+				// There is no point in waiting for the other actor to move if it is incapable of moving. A squeeze has
+				// to take this exit as well, and cannot be detected by the CanEnterCell term: its blockage is in the
+				// two shoulders, so nextCell is ordinary open ground and CanEnterCell returns true. Without the extra
+				// term nothing below ever clears the path — NotifyBlocker pokes an empty cell, CellIsEvacuating sees
+				// nothing leaving, and because OnFirstRun's last resort is BlockedByActor.None (PathSearchOrder), for
+				// which the squeeze rule is gated off, the unit holds a path through a corner that every subsequent
+				// EvalPath(All) refuses to reproduce. That spins a full A* every WaitAverage ticks forever. Same
+				// principle as Mobile.GetAdjacentCell: a squeeze is geometry, so waiting can never resolve it.
+				if (squeeze || !mobile.CanEnterCell(nextCell, ignoreActor, BlockedByActor.Immovable))
 				{
 					path = EvalPath(BlockedByActor.Immovable).Path;
 					return null;

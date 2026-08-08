@@ -260,20 +260,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.SharesCell)
 				return false;
 
-			// The pruning argument below needs "a cell the search can expand is never a blocked shoulder". A tagged
-			// obstacle is impassable to everything, so the only way that can fail is a search told to ignore the
-			// obstacle itself — which is exactly what this tests, rather than bailing on any ignoreActor at all.
-			// The blanket form used to except all five docking approaches, two of which are the supply loop, so in a
-			// mod whose economy is the Supply Route the rule was off for supply traffic on every restock trip.
+			// FUTURE-PROOFING, NOT LIVE PROTECTION: no caller passes a tagged obstacle today. The four live
+			// ignoreActor sites all pass buildings — the rearm host (LayMines.cs:109), the dock host on the ground
+			// egress leg (Resupply.cs:258), the cache absorber (DropsSupplyCache.cs:185) and the restock target
+			// (SupplyProvider.cs:741). (Resupply.cs:234 looks like a fifth but is inert: it sits in the aircraft
+			// branch and Aircraft.MoveTo discards ignoreActor entirely, Aircraft.cs:1065-1069.) The test earns its
+			// place by keeping the pruning argument below true by construction rather than by call-site audit: that
+			// argument needs "a cell the search can expand is never a blocked shoulder", and since a tagged obstacle
+			// is impassable to everything, the only way it can fail is a search told to ignore the obstacle itself.
 			if (ignoreActor != null && ignoreActor.Info.HasTraitInfo<BlocksDiagonalSqueezeInfo>())
 				return false;
 
-			if (srcNode.Layer != destNode.Layer)
-				return false;
-
-			var dx = destNode.X - srcNode.X;
-			var dy = destNode.Y - srcNode.Y;
-			if (dx * dx != 1 || dy * dy != 1)
+			if (!DiagonalSqueezeGeometry.IsCornerCrossing(srcNode, destNode))
 				return false;
 
 			// Both shoulders must be blocked, never either, and that is what keeps the DensePathGraph
@@ -285,8 +283,10 @@ namespace OpenRA.Mods.Common.Traits
 			//     which is passable by construction — so a both-shoulders rule can never deny it.
 			// Blocking on either shoulder breaks exactly there: at idx 1 with X = (-1,1) blocked it denies parent->N
 			// while the expanding cell has already pruned N, so N becomes genuinely unreachable.
-			return CellBlocksCorner(new CPos(srcNode.X, destNode.Y, srcNode.Layer))
-				&& CellBlocksCorner(new CPos(destNode.X, srcNode.Y, srcNode.Layer));
+			// The "one shoulder is the expanding cell" step needs Shoulders to never return an endpoint and to be
+			// direction-independent; both are pinned in DiagonalSqueezeGeometryTest.
+			var (first, second) = DiagonalSqueezeGeometry.Shoulders(srcNode, destNode);
+			return CellBlocksCorner(first) && CellBlocksCorner(second);
 		}
 
 		bool CellBlocksCorner(CPos cell)
