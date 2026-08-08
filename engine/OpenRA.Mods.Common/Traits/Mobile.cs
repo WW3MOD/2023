@@ -432,7 +432,7 @@ namespace OpenRA.Mods.Common.Traits
 				// notStupidCells deliberately bypasses CanEnterCell — its whole point is to shove an idle ally out of
 				// the way — but a squeeze is geometry, and no amount of the occupant moving widens a corner. So it has
 				// to gate both lists, or the fallback at the bottom of this method hands back a cell the rule denied.
-				var squeeze = Locomotor.IsDiagonalSqueeze(self, ToCell, p);
+				var squeeze = Locomotor.IsDiagonalSqueeze(ToCell, p);
 				if (CanEnterCell(p) && CanStayInCell(p) && !squeeze && (preferToAvoid == null || !preferToAvoid(p)))
 					availCells.Add(p);
 				else if (p != nextCell && p != ToCell && !squeeze)
