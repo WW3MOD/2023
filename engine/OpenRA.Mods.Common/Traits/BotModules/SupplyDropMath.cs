@@ -57,12 +57,31 @@ namespace OpenRA.Mods.Common.Traits
 		/// that vanish at RemoveBelowSupply. Responsive: the drop sets supply to 0.</item>
 		/// <item><paramref name="starvingNearAnchor"/> ≥ <paramref name="minStarving"/> — real demand within
 		/// walking distance of the anchor. Responsive: soldiers that reach the cache stop starving.</item>
-		/// <item><paramref name="cacheSupplyNearAnchor"/> &lt; <paramref name="redundantCacheSupply"/> — the
-		/// demand is not already covered by a crate we (or an ally) left here. Responsive, and the strongest
-		/// of the four: the drop creates exactly the cache this gate then sees. Same-cell drops merge
-		/// (DropsSupplyCache.DropSupplyCacheHere), so this gate exists for the NEAR-miss case where the
-		/// truck stopped a cell or two off the anchor.</item>
+		/// <item><paramref name="cacheSupplyNearAnchor"/> + <paramref name="inFlightSupplyToAnchor"/> &lt;
+		/// <paramref name="redundantCacheSupply"/> — the demand is not already covered, counting BOTH the
+		/// crates on the ground and the loads of trucks already dispatched here. Responsive, and the load
+		/// bearer of the four (see the note below on why it carries more weight than first assumed).</item>
 		/// </list>
+		///
+		/// <para>IN-FLIGHT SUPPLY IS NOT AN OPTIMISATION — WITHOUT IT THE GATE SEES THE FLEET ONE SCAN LATE
+		/// AND EVERY TRUCK DROPS AT ONCE. The three responsive terms all respond to a COMPLETED drop, and
+		/// completion takes a drive. Trucks are evaluated in one loop over unchanged world state, so on the
+		/// first scan that the conditions hold, every truck reads <paramref name="cacheSupplyNearAnchor"/> = 0,
+		/// every truck passes, and the whole fleet unloads at one cell and is then retired empty. The
+		/// invariant "every term responds to the action" survives literally and is still useless here,
+		/// because it is satisfied a scan too late for every truck but the first. So the gate must count
+		/// supply that is COMMITTED, not merely supply that has LANDED. The caller derives this by summing
+		/// the loads of trucks whose recorded drop target is this anchor — memory of the ORDER, not of the
+		/// decision, and the same map that suppresses duplicate re-issue, so there is no second piece of
+		/// state that can drift out of agreement with the first.</para>
+		///
+		/// <para>WHY THIS GATE CARRIES MORE THAN IT LOOKS LIKE. An earlier version of this comment said
+		/// same-cell drops merge and that this gate therefore only covered the near-miss case. That premise
+		/// is FALSE: SUPPLYCACHE is a Building with `Footprint: x` (misc.yaml), and `x` is
+		/// FootprintCellType.Occupied — a blocked cell (Building.cs:18-26) — so a truck can never stand on a
+		/// cache's cell. `DropSupplyCacheHere`'s merge branch and `CanDropCache`'s co-located allowance are
+		/// therefore both UNREACHABLE, and EVERY drop is the near-miss case. Nothing coalesces crates; this
+		/// gate alone is what stops them stacking.</para>
 		///
 		/// <para>FLOOR POLICY — every knob fails toward NOT dropping. <paramref name="minSupply"/> and
 		/// <paramref name="minStarving"/> are floored at 1, so "0" cannot be read as "no requirement" and
@@ -75,7 +94,7 @@ namespace OpenRA.Mods.Common.Traits
 			bool anchorEstablished,
 			int truckSupply, int minSupply,
 			int starvingNearAnchor, int minStarving,
-			int cacheSupplyNearAnchor, int redundantCacheSupply)
+			int cacheSupplyNearAnchor, int inFlightSupplyToAnchor, int redundantCacheSupply)
 		{
 			if (!anchorEstablished)
 				return false;
@@ -86,10 +105,57 @@ namespace OpenRA.Mods.Common.Traits
 			if (starvingNearAnchor < (minStarving > 0 ? minStarving : 1))
 				return false;
 
-			if (redundantCacheSupply > 0 && cacheSupplyNearAnchor >= redundantCacheSupply)
+			if (redundantCacheSupply > 0 && cacheSupplyNearAnchor + inFlightSupplyToAnchor >= redundantCacheSupply)
 				return false;
 
 			return true;
+		}
+
+		/// <summary>Has the truck actually reached the cell it was sent to unload at? Chebyshev-free squared
+		/// comparison against the move's own stop tolerance, matching how Move measures "near enough"
+		/// (Move.cs: `(mobile.ToCell - destination).LengthSquared &lt;= cellRange * cellRange`).
+		///
+		/// <para>THIS IS THE GUARD AGAINST DUMPING THE LOAD AT THE WRONG END OF THE MAP, and it is needed
+		/// because an unreachable destination does not fail loudly. The anchor comes from a belief-field
+		/// descent that guards bounds and danger but NOT terrain, so it can land on water, cliff or outside
+		/// the playable area. `PathFinder.FindPathToTargetCell` bails to NoPath when the target cell is
+		/// inaccessible, and `Move.Tick` treats an empty path as "arrived" — it sets destination to the
+		/// current cell and completes in about two ticks. The move's own `nearEnough` tolerance does NOT
+		/// rescue this: it is consumed only inside `PopPath`'s actor-blocked branch, which an empty path
+		/// never reaches. So without this check the follow-on unload runs at whatever cell the truck was
+		/// standing on when it got the order — typically the beachhead — and the caller's redundancy gate,
+		/// which measures around the ANCHOR, never sees the crate and lets the next truck repeat it.</para>
+		///
+		/// <para>Note the actor-blocked case is genuinely handled by the engine and is not what this guards:
+		/// a path exists, `PopPath` finds the next cell occupied, and the tolerance applies as intended.
+		/// Terrain-impassable is the case with no path at all.</para>
+		/// Pure integer, zero RNG.</summary>
+		public static bool ArrivedAtDropCell(int dx, int dy, int toleranceCells)
+		{
+			var t = toleranceCells > 0 ? toleranceCells : 0;
+			return dx * dx + dy * dy <= t * t;
+		}
+
+		/// <summary>Should the caller ISSUE a drop errand, given it may already have one in flight? False when
+		/// this truck was already dispatched to this exact cell.
+		///
+		/// <para>Suppressing the re-issue matters even though the order handler rebuilds the whole chain, so
+		/// it is not merely tidiness. The errand is issued non-queued, so re-issuing CANCELS the running
+		/// activity — nulling its continuation and destroying the queued unload and restock tail — then
+		/// rebuilds it, at the cost of a fresh pathfind and, via `Move.Cancel` clearing the path mid-step, up
+		/// to a cell of backslide. Repeated every scan forever, on a unit whose entire job is to arrive, that
+		/// reproduces the visible stutter this mode exists to remove. `PoiOffensiveBotModule`, the sibling
+		/// consumer of the same staging primitive, keeps exactly this per-unit last-target dedup for the same
+		/// reason even though its anchor is static too.</para>
+		///
+		/// <para>The dedup key is the TARGET CELL, not a boolean, and that is what keeps it from becoming a
+		/// latch: an anchor that moves differs from what was recorded and re-issues by itself, so no separate
+		/// "is it still valid" flag exists to go stale. The caller is still responsible for clearing the
+		/// record whenever something else cancels the errand — see the revoke path in the module.</para>
+		/// Pure, zero RNG.</summary>
+		public static bool ShouldIssueDrop(bool alreadyDispatched, int sentToX, int sentToY, int anchorX, int anchorY)
+		{
+			return !alreadyDispatched || sentToX != anchorX || sentToY != anchorY;
 		}
 	}
 }

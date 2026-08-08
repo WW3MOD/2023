@@ -838,19 +838,27 @@ Player:
 		DropAnchorHysteresisCells: 3
 		# Demand radius sized to HuntLeashCells / AutoSeekSupplies' SupplyHuntLeashCells: a soldier further
 		# from the crate than his own selection leash cannot pick it, so counting him as demand would drop a
-		# crate nobody walks to. The same radius finds crates that already cover the demand (same-cell drops
-		# merge, so that gate is for the near-miss case).
+		# crate nobody walks to. The margin keeps that promise honest — the crate lands up to the errand's
+		# 2-cell stop tolerance off the anchor, so demand is counted at 18 while crates that already cover
+		# the demand are searched for at the full 20 (strict about demand, generous about coverage).
 		DropDemandRadiusCells: 20
+		DropDemandMarginCells: 2
 		DropMinStarvingUnits: 3
 		DropMinSupply: 250
+		# This gate does the ENTIRE anti-stacking job, and counts supply already committed by other trucks as
+		# well as supply on the ground. Both halves are load-bearing. SUPPLYCACHE is a Building with
+		# Footprint: x — a BLOCKED cell — so a truck can never stand on a cache and DropSupplyCacheHere's
+		# merge branch is unreachable: nothing coalesces crates. And trucks are evaluated against unchanged
+		# world state in one loop, so without the in-flight term all four would pass on the same scan and
+		# unload 3000 at one cell, then be retired empty.
 		DropRedundantCacheSupply: 100
-		# Instrumentation, ON. Until now the ENTIRE supply path — SupplyFollowerBotModule, SupplyProvider,
-		# AutoSeekSupplies, SeekSupplyProvider — contained zero Log.Write/BotDebug calls, so a 1.5 MB
-		# debug.log from a real session carried nothing about trucks and no setting could turn it on; two
-		# days of reasoning about this subsystem had no way to check its premise. Costs roughly 1-2k lines
-		# per 20-minute match per AI (comparable to [exp-transport]). Turn OFF once the behaviour is settled;
-		# the EDGE lines (adopt/release, evac enter/exit, drop issued) are logged either way.
-		DebugLogging: true
+		# Instrumentation. The EDGE lines — module init, truck adopt/release, evac enter/exit, drop issued /
+		# revoked, and an impassable anchor — are logged unconditionally and are the valuable half; they are
+		# what a live session needs to answer how often the frontier descent lands on unreachable ground,
+		# which is this mode's main open question. This flag adds the per-SCAN levels (scan summary, anchor
+		# descent, per-cluster readings, the reason a drop was declined) and is OFF: RELEASE mode runs on a
+		# player's machine and should not carry 1-2k lines per match per AI. Turn on for an observation run.
+		DebugLogging: false
 
 	# Adaptive production — counter enemy composition.
 	# Experimental halves EvaluationInterval to 300 (counter-build twice as fast against

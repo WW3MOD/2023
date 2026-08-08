@@ -114,8 +114,9 @@ namespace OpenRA.Mods.Common.Traits
 			"geometric contour the truck treats as the edge of the contact, which is a different lever.")]
 		public readonly int EvacReleaseHysteresis = 15;
 
-		[Desc("Actor types that count as the player's own Supply Route (the safe rear an evacuating truck",
-			"pulls back toward). Only read when DangerEvac is on.")]
+		[Desc("Actor types that count as the player's own Supply Route. Read when DangerEvac is on (the safe",
+			"rear an evacuating truck pulls back toward) AND when DropAndLeave is on (the seed the forward",
+			"supply point's frontier descent starts from).")]
 		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
 
 		[Desc("TIER 2 (@experimental) IDLE-TRUCK HUNT. The follow path above only tasks a truck that has a",
@@ -195,19 +196,32 @@ namespace OpenRA.Mods.Common.Traits
 			"leash cannot pick it, so counting him as demand would drop a crate he will never walk to.")]
 		public readonly int DropDemandRadiusCells = 20;
 
-		[Desc("Drop-and-leave: how many starving soldiers must be within DropDemandRadiusCells of the anchor",
-			"to justify unloading. Floored at 1 by SupplyDropMath — 0 cannot mean 'no requirement'.")]
+		[Desc("Drop-and-leave: shrink the DEMAND search by this many cells (the redundancy search keeps the full",
+			"radius). The crate lands up to DropsSupplyCache.DropAtToleranceCells off the anchor, so a soldier",
+			"counted at exactly the radius could end up beyond his own selection leash from the crate that was",
+			"dropped for him — which is the very thing sizing the radius to that leash was meant to prevent.",
+			"Asymmetric on purpose: strict about what counts as demand, generous about what counts as already",
+			"covered. Keep at/above DropsSupplyCache.DropAtToleranceCells.")]
+		public readonly int DropDemandMarginCells = 2;
+
+		[Desc("Drop-and-leave: how many starving soldiers must be within the (margin-reduced) demand radius of",
+			"the anchor to justify unloading. Floored at 1 by SupplyDropMath — 0 cannot mean 'no requirement'.")]
 		public readonly int DropMinStarvingUnits = 3;
 
 		[Desc("Drop-and-leave: minimum stock a truck must hold to be worth a drop. Below this it keeps serving",
 			"from its own aura instead of littering crates that vanish at the cache's RemoveBelowSupply.")]
 		public readonly int DropMinSupply = 250;
 
-		[Desc("Drop-and-leave: supply already sitting in friendly caches within DropDemandRadiusCells at or",
-			"above which the demand counts as covered and no second crate is dropped. Same-cell drops merge,",
-			"so this covers the NEAR-miss case. Non-positive DISABLES the redundancy gate — it is not floored,",
-			"because the literal reading of 0 ('any cache supply is redundant') would silently disable the",
-			"whole mode, which looks like a broken feature rather than a config typo.")]
+		[Desc("Drop-and-leave: supply at or above which the demand counts as covered and no further crate is",
+			"dropped, counting BOTH crates on the ground within DropDemandRadiusCells AND the loads of trucks",
+			"already dispatched to this anchor. The in-flight half is not an optimisation: trucks are evaluated",
+			"against unchanged world state in one loop, so without it the whole fleet passes on the same scan",
+			"and unloads at one cell. NOTE this gate carries the entire anti-stacking job alone — SUPPLYCACHE",
+			"is a Building with Footprint: x (a BLOCKED cell), so a truck can never stand on a cache and",
+			"DropSupplyCacheHere's merge branch is unreachable; nothing coalesces crates. Non-positive DISABLES",
+			"the gate — it is not floored, because the literal reading of 0 ('any cache supply is redundant')",
+			"would be permanently true and silently disable the whole mode, which looks like a broken feature",
+			"rather than a config typo.")]
 		public readonly int DropRedundantCacheSupply = 100;
 
 		[Desc("Emit the per-scan [supply] diagnostic lines (scan summary, anchor descent, per-cluster",
@@ -282,6 +296,21 @@ namespace OpenRA.Mods.Common.Traits
 		// SupplyDropMath), so there is no "already dropping" latch that could pin a branch while reading a
 		// term that cannot respond to it.
 		readonly Dictionary<Actor, CPos> dropAnchor = new Dictionary<Actor, CPos>();
+
+		// Drop-and-leave: the cell each truck was last DISPATCHED to unload at. This is memory of the ORDER,
+		// not of the decision — the same distinction the dropAnchor comment above draws — and it is one map
+		// serving two jobs deliberately, so they cannot drift apart:
+		//   * SUPPRESS RE-ISSUE. The errand is issued non-queued, so re-issuing cancels the running activity
+		//     and destroys its queued unload/restock tail before rebuilding it — a pathfind and up to a cell
+		//     of backslide every scan, on a unit whose whole job is to arrive.
+		//   * COUNT COMMITTED SUPPLY. Summing the loads of trucks recorded against an anchor is what stops
+		//     the entire fleet passing the redundancy gate on the same scan and unloading at one cell.
+		// Keyed by TARGET CELL rather than a boolean, so an anchor that moves re-issues by itself and there
+		// is no "still valid?" flag to go stale. The caller must still CLEAR the record wherever something
+		// else cancels the errand (the evac branch) or the decision is withdrawn (the revoke path), and it is
+		// pruned each scan against the freshly-derived eligible-truck list rather than against activeTrucks —
+		// a truck that is not eligible this scan cannot have a live errand of ours.
+		readonly Dictionary<Actor, CPos> dropTarget = new Dictionary<Actor, CPos>();
 
 		public SupplyFollowerBotModule(Actor self, SupplyFollowerBotModuleInfo info)
 			: base(info)
@@ -404,6 +433,17 @@ namespace OpenRA.Mods.Common.Traits
 					&& !IsClaimedByOtherModule(a)
 					&& !IsLowOnSupply(a))
 				.ToList();
+
+			// Prune the dispatch record against the trucks that are ELIGIBLE this scan, not against
+			// activeTrucks. A truck that dropped is low on supply and gone from this list; one claimed by
+			// another module is gone too; either way an errand of ours is no longer running, and a record
+			// that outlived its errand would suppress the re-issue that should restart it.
+			if (dropTarget.Count > 0)
+			{
+				var staleTargets = dropTarget.Keys.Where(a => !trucks.Contains(a)).ToList();
+				foreach (var a in staleTargets)
+					dropTarget.Remove(a);
+			}
 
 			if (trucks.Count == 0)
 				return;
@@ -554,7 +594,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (dropLive)
 				{
 					var dropSr = srActor ?? NearestSupplyRoute(supplyRoutes, truck.CenterPosition);
-					if (TryDropAndLeave(truck, dropSr))
+					if (StepDrop(truck, dropSr))
 						continue;
 				}
 
@@ -639,50 +679,130 @@ namespace OpenRA.Mods.Common.Traits
 		/// stranded crate drains normally (RemoveBelowSupply 1 disposes it) or is captured. Reclaiming a crate
 		/// back into a truck does not exist in this codebase (the census's missing crate → truck leg), and
 		/// inventing it here would be a second feature hiding inside this one.</para></summary>
-		bool TryDropAndLeave(Actor truck, Actor srActor)
+		bool StepDrop(Actor truck, Actor srActor)
 		{
-			var anchor = ResolveDropAnchor(srActor);
+			var dispatched = dropTarget.TryGetValue(truck, out var sentTo);
+
+			// AN IDLE TRUCK THAT STILL HOLDS ITS LOAD HAS FINISHED THE ERRAND WITHOUT DROPPING — it stopped on
+			// a cell already occupied (CanDropCache refused), or the destination went unreachable after issue
+			// and the arrival check refused. Clearing the record here is what keeps the re-issue dedup from
+			// turning those two SELF-CORRECTING refusals into a truck parked on its anchor forever: the
+			// suppression is only safe while an errand is actually running. IsIdle is the responsive term —
+			// re-issuing makes it false — and it is the same observable StepEvac's leg model uses to notice a
+			// Move that never arrived. A truck that DID drop is at 0 supply and has already left the eligible
+			// roster, so it is pruned rather than reaching here.
+			if (dispatched && truck.IsIdle)
+			{
+				dropTarget.Remove(truck);
+				dispatched = false;
+			}
 
 			var provider = truck.TraitOrDefault<SupplyProvider>();
 			var cacheActor = truck.TraitOrDefault<DropsSupplyCache>()?.Info.SupplyCacheActor;
 			if (provider == null || string.IsNullOrEmpty(cacheActor))
 				return false;
 
+			var anchor = ResolveDropAnchor(srActor, truck);
+
 			var starving = anchor.HasValue ? CountStarvingNear(anchor.Value, provider) : 0;
 			var cacheSupply = anchor.HasValue ? CacheSupplyNear(anchor.Value, cacheActor) : 0;
+			var inFlight = anchor.HasValue ? InFlightSupplyTo(anchor.Value, truck) : 0;
 
 			var drop = SupplyDropMath.ShouldDrop(anchor.HasValue,
 				provider.CurrentSupply, Info.DropMinSupply,
 				starving, Info.DropMinStarvingUnits,
-				cacheSupply, Info.DropRedundantCacheSupply);
+				cacheSupply, inFlight, Info.DropRedundantCacheSupply);
 
 			if (!drop)
 			{
-				// Per-scan LEVEL — gated. This is the "why did it not drop?" line, and it carries every term
-				// the decision read, so the answer never needs a rebuild to obtain.
+				// REVOKE. A module that can START an errand must be able to STOP one, and here that is not a
+				// nicety: the conditions can go false while a truck is still driving (the demand refilled, a
+				// crate landed, the anchor became unreachable), and the errand would otherwise run to
+				// completion and unload on a decision that is no longer true. Relying on some LATER branch to
+				// cancel it by side effect is what makes this unsafe rather than untidy — the follow and hunt
+				// branches happen to issue a cancelling Move, but on @stable IdleTruckHunt is BotType-gated
+				// off, so a truck with no cluster falls through to a bare `continue` that issues nothing at
+				// all, and drives on to drop. An explicit Stop makes the revocation independent of whatever
+				// the rest of the scan happens to do.
+				if (dispatched)
+				{
+					bot.QueueOrder(new Order("Stop", truck, false));
+					dropTarget.Remove(truck);
+					Log.Write("debug",
+						$"[supply] drop-revoked truck={truck.ActorID}@{truck.Location} was-sent-to={sentTo} "
+						+ $"anchor={(anchor.HasValue ? anchor.Value.ToString() : "<none>")} "
+						+ $"supply={provider.CurrentSupply} starving={starving} "
+						+ $"cache-near={cacheSupply} in-flight={inFlight}");
+				}
+
+				// Per-scan LEVEL — gated. The "why did it not drop?" line, carrying every term the decision
+				// read so the answer never needs a rebuild to obtain.
 				if (Info.DebugLogging)
 					Log.Write("debug",
 						$"[supply] drop-declined truck={truck.ActorID}@{truck.Location} "
 						+ $"anchor={(anchor.HasValue ? anchor.Value.ToString() : "<none>")} "
 						+ $"supply={provider.CurrentSupply}/{Info.DropMinSupply} "
 						+ $"starving={starving}/{Info.DropMinStarvingUnits} "
-						+ $"cache-near={cacheSupply}/{Info.DropRedundantCacheSupply}");
+						+ $"cache-near={cacheSupply}+in-flight={inFlight}/{Info.DropRedundantCacheSupply}");
 
 				return false;
+			}
+
+			// Already on our way to this exact cell: issue NOTHING, but still take the branch — returning
+			// false here would drop through to the follow path, whose non-queued Move would cancel the very
+			// errand this record exists to protect.
+			if (!SupplyDropMath.ShouldIssueDrop(dispatched, sentTo.X, sentTo.Y, anchor.Value.X, anchor.Value.Y))
+			{
+				if (Info.DebugLogging)
+					Log.Write("debug",
+						$"[supply] drop-inflight truck={truck.ActorID}@{truck.Location} anchor={anchor.Value} "
+						+ $"load={provider.CurrentSupply} activity={truck.CurrentActivity?.GetType().Name ?? "<none>"}");
+
+				return true;
 			}
 
 			// EDGE — unconditional. The drop and its chosen cell are the two facts the whole mode turns on.
 			Log.Write("debug",
 				$"[supply] drop truck={truck.ActorID}@{truck.Location} anchor={anchor.Value} "
-				+ $"load={provider.CurrentSupply} starving={starving} cache-near={cacheSupply} "
-				+ $"danger-at-anchor={GroundDangerAt(anchor.Value)} frontier={FrontierDistanceAt(anchor.Value)}");
+				+ $"load={provider.CurrentSupply} starving={starving} cache-near={cacheSupply} in-flight={inFlight} "
+				+ $"danger-at-anchor={GroundDangerAt(anchor.Value)} frontier={FrontierDistanceAt(anchor.Value)} "
+				+ $"{(dispatched ? $"retargeted-from={sentTo}" : "new")}");
 
 			bot.QueueOrder(new Order("DropSupplyCacheAt", truck, Target.FromCell(world, anchor.Value), false));
+			dropTarget[truck] = anchor.Value;
 
 			// Any in-flight Stage-E detour memory is void — the errand supersedes it.
 			lastVia.Remove(truck);
 			Adopt(truck);
 			return true;
+		}
+
+		/// <summary>Supply already COMMITTED to this anchor by other trucks — the loads of trucks this module
+		/// dispatched here whose errands have not yet landed. Excludes <paramref name="self"/>, which is the
+		/// truck being decided about. Order-independent (a sum); no RNG.
+		///
+		/// <para>Reconstructed from the dispatch map rather than tracked separately, so it cannot disagree
+		/// with the record that suppresses re-issue — there is exactly one piece of state and both jobs read
+		/// it. A truck that has already unloaded holds 0 and contributes nothing even before its record is
+		/// pruned, so the sum degrades gracefully rather than double-counting.</para></summary>
+		int InFlightSupplyTo(CPos anchor, Actor self)
+		{
+			if (dropTarget.Count == 0)
+				return 0;
+
+			var total = 0;
+			foreach (var kv in dropTarget)
+			{
+				if (kv.Key == self || kv.Value != anchor)
+					continue;
+
+				if (kv.Key.IsDead || !kv.Key.IsInWorld)
+					continue;
+
+				total += kv.Key.TraitOrDefault<SupplyProvider>()?.CurrentSupply ?? 0;
+			}
+
+			return total;
 		}
 
 		/// <summary>The forward supply point for one Supply Route: walk DOWN ControlField's distance-to-enemy-
@@ -698,8 +818,19 @@ namespace OpenRA.Mods.Common.Traits
 		/// anywhere, or a non-participating profile with no field at all — yields no improving neighbour, so the
 		/// descent returns the SR unchanged. Treating that as "no anchor" rather than "anchor at the SR" is what
 		/// stops the truck unloading its stock at the beachhead, and it is also what makes the whole mode
-		/// self-disable on Normal/Rush/Turtle without a second gate.</para></summary>
-		CPos? ResolveDropAnchor(Actor srActor)
+		/// self-disable on Normal/Rush/Turtle without a second gate.</para>
+		///
+		/// <para>PASSABILITY IS TESTED HERE, ENGINE-SIDE, BECAUSE THE DESCENT CANNOT DO IT. StagingCell guards
+		/// bounds and believed danger only; it has no terrain awareness, and `GridCellToMapCell` picks ONE fixed
+		/// cell of each coarse block, so a 20-40 step walk can perfectly well terminate on water, a cliff or
+		/// outside the playable area. That is not a harmless mistake downstream: `PathFinder` bails to NoPath on
+		/// an inaccessible target and `Move` treats an empty path as arrival, so an unreachable anchor would let
+		/// the unload run at whatever cell the truck was standing on. Refusing to ADOPT such a cell is the first
+		/// of two lines (the second is the arrival check in the errand itself), and it is tested on BOTH return
+		/// paths — a fresh candidate and a hysteresis-HELD one — for the same reason
+		/// PoiOffensiveBotModule.ResolveAdvanceAnchor grants on both of its: a caller downstream must be able to
+		/// assume the property without re-deriving which path produced the cell.</para></summary>
+		CPos? ResolveDropAnchor(Actor srActor, Actor mover)
 		{
 			if (controlField == null || srActor == null)
 				return null;
@@ -724,9 +855,36 @@ namespace OpenRA.Mods.Common.Traits
 
 			var candidate = controlField.GridCellToMapCell(agx, agy);
 
+			// Same locomotor-bound predicate the Stage-E detour uses to reject a waypoint that reads "safe"
+			// only because unstamped impassable ground carries no danger. The failure mode here is worse than
+			// a bad detour, so the same guard is applied to the destination itself.
+			var passable = WaypointPassable(mover);
+			if (!world.Map.Contains(candidate) || !passable(candidate))
+			{
+				dropAnchor.Remove(srActor);
+
+				// EDGE — unconditional. How OFTEN the descent lands on unreachable ground is the open
+				// question this mode's usefulness turns on, and it cannot be answered statically.
+				Log.Write("debug",
+					$"[supply] anchor-impassable sr={srActor.Location} → {candidate} "
+					+ $"on-map={world.Map.Contains(candidate)} standoff={Info.DropStandoffCells} "
+					+ $"frontier={controlField.FrontierDistanceAt(player, agx, agy)} — no anchor this scan");
+
+				return null;
+			}
+
 			var had = dropAnchor.TryGetValue(srActor, out var prev);
 			if (had && !ForwardStagingMath.AnchorShifted(prev.X, prev.Y, candidate.X, candidate.Y, Info.DropAnchorHysteresisCells))
-				return prev;
+			{
+				// A HELD anchor is re-tested rather than trusted: terrain does not change, but a Building
+				// placed on the cell does, and the held cell is not the one just granted above.
+				if (world.Map.Contains(prev) && passable(prev))
+					return prev;
+
+				dropAnchor.Remove(srActor);
+				Log.Write("debug", $"[supply] anchor-impassable sr={srActor.Location} held={prev} — dropped, re-deriving next scan");
+				return null;
+			}
 
 			dropAnchor[srActor] = candidate;
 			if (Info.DebugLogging)
@@ -750,8 +908,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (string.IsNullOrEmpty(rearmCondition))
 				return 0;
 
+			// Margin: the crate lands up to the errand's stop tolerance off the anchor, so a soldier counted
+			// at exactly the radius could end up beyond his own selection leash from the crate dropped for
+			// him — which is precisely what sizing the radius to that leash was meant to prevent.
+			var radius = Math.Max(1, Info.DropDemandRadiusCells - Math.Max(0, Info.DropDemandMarginCells));
+
 			var count = 0;
-			foreach (var a in world.FindActorsInCircle(world.Map.CenterOfCell(anchor), WDist.FromCells(Info.DropDemandRadiusCells)))
+			foreach (var a in world.FindActorsInCircle(world.Map.CenterOfCell(anchor), WDist.FromCells(radius)))
 			{
 				if (a.Owner != player || a.IsDead || !a.IsInWorld)
 					continue;
@@ -1206,6 +1369,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			var hold = SupplyLogisticsMath.StepEvacDwell(heldBefore, !wasEvacuating, Info.EvacDwellScans);
 
+			// The evac branch pre-empts any drop errand — its retreat Move cancels the activity chain — so the
+			// dispatch record must go with it. Leaving it would suppress the re-issue once the truck cools,
+			// stranding a truck that believes it is already on its way to a cell it is no longer driving to.
+			// This is the one cancellation the drop branch cannot observe for itself, because the evac branch
+			// runs first and returns before it.
+			dropTarget.Remove(truck);
+
 			// Step a new leg on entry, and thereafter only once the previous one has been driven. The arrival
 			// tolerance reuses RepathThresholdCells, the same deadband the Stage-E detour uses one branch
 			// over. IsIdle is the second half and is not optional: a truck whose Move failed (blocked cell,
@@ -1287,6 +1457,7 @@ namespace OpenRA.Mods.Common.Traits
 			lastVia.Clear();
 			evacState.Clear();
 			dropAnchor.Clear();
+			dropTarget.Clear();
 		}
 
 		// Danger-evac damper state for one truck on the evac branch: scans the branch is still committed for

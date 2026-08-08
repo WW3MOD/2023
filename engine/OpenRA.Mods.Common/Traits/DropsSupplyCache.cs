@@ -47,6 +47,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Voice played when ordered to drop a SUPPLYCACHE.")]
 		public readonly string DropCacheVoice = "Action";
 
+		[Desc("DropSupplyCacheAt: how close (cells) the transport must get to the ordered cell, both as the",
+			"move's stop tolerance AND as the arrival check that gates the unload. ONE number for both on",
+			"purpose — the unload must not run at a cell the move never actually reached, and two constants",
+			"would drift. A bot sizing its demand search around the ordered cell should subtract this, since",
+			"the crate can land this far off it (SupplyFollowerBotModule.DropDemandMarginCells).")]
+		public readonly int DropAtToleranceCells = 2;
+
 		public override object Create(ActorInitializer init) { return new DropsSupplyCache(init, this); }
 	}
 
@@ -147,17 +154,28 @@ namespace OpenRA.Mods.Common.Traits
 				if (dropMove == null)
 					return;
 
-				// Stop WITHIN 2 cells rather than on the exact cell: the anchor is a belief-field cell, not a
-				// reserved parking space, and an exact-cell MoveTo fails outright when something is standing
-				// there. The crate lands on whatever cell the truck actually stopped on.
+				// Stop WITHIN DropAtToleranceCells rather than on the exact cell: the ordered cell is a
+				// belief-field cell, not a reserved parking space, and an exact-cell MoveTo gives up outright
+				// when something is standing there. The crate lands on whatever cell the truck stopped on.
 				var dropCell = self.World.Map.CellContaining(order.Target.CenterPosition);
-				self.QueueActivity(order.Queued, dropMove.MoveTo(dropCell, 2));
+				self.QueueActivity(order.Queued, dropMove.MoveTo(dropCell, Info.DropAtToleranceCells));
 
-				// CanDropCache re-checked at arrival, not at issue: the cell's occupancy is only knowable
-				// once we are there. A blocked cell means no drop this errand — the truck keeps its load and
-				// its owner re-decides next scan, which is self-correcting because the blocker moves.
 				self.QueueActivity(true, new CallFunc(() =>
 				{
+					// ARRIVAL CHECK — the load-bearing guard, not a formality. A Move to a TERRAIN-impassable
+					// cell does not fail: PathFinder bails to NoPath, and Move.Tick treats an empty path as
+					// arrival, completing in ~2 ticks at the cell the truck was already on. Without this test
+					// the unload would then run THERE — typically the beachhead — dumping the whole load at an
+					// arbitrary place while the issuer's redundancy accounting, measured around the ORDERED
+					// cell, never sees it. Refusing instead keeps the supply in the truck, which is always
+					// recoverable. (The issuer should also refuse to adopt an impassable cell; this is the
+					// second line, and it is the one that holds when the cell became unreachable after issue.)
+					var delta = self.Location - dropCell;
+					if (!SupplyDropMath.ArrivedAtDropCell(delta.X, delta.Y, Info.DropAtToleranceCells))
+						return;
+
+					// Occupancy is only knowable on arrival. A blocked cell means no drop this errand — the
+					// truck keeps its load and its owner re-decides, which self-corrects as the blocker moves.
 					if (CanDropCache())
 						DropSupplyCacheHere();
 				}));
@@ -233,6 +251,12 @@ namespace OpenRA.Mods.Common.Traits
 			self.QueueActivity(new Wait(25));
 			self.QueueActivity(new CallFunc(() =>
 			{
+				// The host is captured at ISSUE time but the transfer happens after a drive, so re-validate:
+				// an LC destroyed or captured mid-drive would otherwise be deducted from as a dead actor. The
+				// truck simply arrives at a stale cell and takes nothing, which its owner re-decides from.
+				if (host.IsDead || !host.IsInWorld)
+					return;
+
 				var hostProvider = host.TraitOrDefault<SupplyProvider>();
 				if (hostProvider == null || supply == null)
 					return;
