@@ -1,0 +1,114 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Tank traps block the diagonal squeeze (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 25,11
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 25,25
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 8,25
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 56,25
+
+	# --- Squeeze pocket: goal cell 20,16 is walled on every side except the
+	# --- corner it shares with 21,15. Reaching it means driving diagonally
+	# --- between the traps at 20,15 and 21,16 — the defect under test.
+	SqNW: tanktrap2
+		Owner: Neutral
+		Location: 19,15
+	SqN: tanktrap2
+		Owner: Neutral
+		Location: 20,15
+	SqW: tanktrap2
+		Owner: Neutral
+		Location: 19,16
+	SqE: tanktrap2
+		Owner: Neutral
+		Location: 21,16
+	SqSW: tanktrap2
+		Owner: Neutral
+		Location: 19,17
+	SqS: tanktrap2
+		Owner: Neutral
+		Location: 20,17
+	SqSE: tanktrap2
+		Owner: Neutral
+		Location: 21,17
+
+	# --- Control pocket: same seven traps, but rotated so the gap at 30,15 is
+	# --- an orthogonal opening. A vehicle must still get in here, which proves
+	# --- the terrain, the orders and the pathfinder all work in this map band.
+	CtNW: tanktrap2
+		Owner: Neutral
+		Location: 29,15
+	CtNE: tanktrap2
+		Owner: Neutral
+		Location: 31,15
+	CtW: tanktrap2
+		Owner: Neutral
+		Location: 29,16
+	CtE: tanktrap2
+		Owner: Neutral
+		Location: 31,16
+	CtSW: tanktrap2
+		Owner: Neutral
+		Location: 29,17
+	CtS: tanktrap2
+		Owner: Neutral
+		Location: 30,17
+	CtSE: tanktrap2
+		Owner: Neutral
+		Location: 31,17
+
+	Squeezer: bradley
+		Owner: USA
+		Location: 22,11
+		Facing: 512
+	Control: bradley
+		Owner: USA
+		Location: 30,11
+		Facing: 512
+
+Rules: rules.yaml

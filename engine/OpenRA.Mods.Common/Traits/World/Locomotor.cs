@@ -232,7 +232,53 @@ namespace OpenRA.Mods.Common.Traits
 				!CanMoveFreelyInto(actor, destNode, SubCell.FullCell, check, ignoreActor))
 				return PathGraph.MovementCostForUnreachableCell;
 
+			if (check != BlockedByActor.None && IsDiagonalSqueeze(actor, srcNode, destNode))
+				return PathGraph.MovementCostForUnreachableCell;
+
 			return cellCost;
+		}
+
+		/// <summary>
+		/// Returns true when a diagonal step from <paramref name="srcNode"/> to <paramref name="destNode"/> would pass
+		/// through the corner shared by two permanently blocked cells — the "drive between two tank traps" case, where
+		/// a solid-looking diagonal line stops nothing. Only cells that no unit action can clear count as blockers, so
+		/// vehicles never wall each other in.
+		/// </summary>
+		public bool IsDiagonalSqueeze(Actor actor, CPos srcNode, CPos destNode)
+		{
+			if (srcNode.Layer != destNode.Layer)
+				return false;
+
+			var dx = destNode.X - srcNode.X;
+			var dy = destNode.Y - srcNode.Y;
+			if (dx * dx != 1 || dy * dy != 1)
+				return false;
+
+			// Both shoulders must be blocked, never either. One shoulder of every diagonal that the
+			// DensePathGraph.DirectedNeighbors pruning discards is the cell currently being expanded, which is always
+			// passable — so requiring both keeps that pruning complete. Blocking on either would silently drop
+			// reachable cells from the search.
+			return CellBlocksCorner(actor, new CPos(srcNode.X, destNode.Y, srcNode.Layer))
+				&& CellBlocksCorner(actor, new CPos(destNode.X, srcNode.Y, srcNode.Layer));
+		}
+
+		bool CellBlocksCorner(Actor actor, CPos cell)
+		{
+			// Off-map cells return an unreachable cost, so the map edge counts as solid.
+			if (MovementCostForCell(cell) == PathGraph.MovementCostForUnreachableCell)
+				return true;
+
+			var cellCache = GetCache(cell);
+			var cellFlag = cellCache.CellFlag;
+
+			if (cellFlag == CellFlag.HasFreeSpace)
+				return false;
+
+			// Anything that can move aside or be driven through is not a wall.
+			if (cellFlag.HasCellFlag(CellFlag.HasMovableActor) || cellFlag.HasCellFlag(CellFlag.HasTransitOnlyActor))
+				return false;
+
+			return actor == null || !cellCache.Passable.Overlaps(actor.Owner.PlayerMask);
 		}
 
 		// Determines whether the actor is blocked by other Actors

@@ -1,0 +1,1 @@
+Auto: a vehicle must not squeeze diagonally between two tank traps, while a control vehicle still enters an identical pocket through a real orthogonal gap.

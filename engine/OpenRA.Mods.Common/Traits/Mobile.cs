@@ -428,7 +428,8 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var direction in CVec.Directions)
 			{
 				var p = ToCell + direction;
-				if (CanEnterCell(p) && CanStayInCell(p) && (preferToAvoid == null || !preferToAvoid(p)))
+				if (CanEnterCell(p) && CanStayInCell(p) && !Locomotor.IsDiagonalSqueeze(self, ToCell, p) &&
+					(preferToAvoid == null || !preferToAvoid(p)))
 					availCells.Add(p);
 				else if (p != nextCell && p != ToCell)
 					notStupidCells.Add(p);
