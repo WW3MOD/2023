@@ -223,6 +223,14 @@ Player:
 		# combat free pool re-collects). Enabled on both live .tecn twins — it's a bug-class fix, not a tuning
 		# lever; the engine default stays false so any profile that omits the module is byte-identical.
 		RetreatCapturerWhenDone: true
+		# Unit-purpose: a capturer this scan could not dispatch (no scoreable capture target, or none it can
+		# target) used to be dropped on the floor — no order, no claim — which left it IsIdle and unclaimed in
+		# both registries, i.e. exactly the pool GarrisonBotModule recruits from. This module has to own it:
+		# PoiOffensiveBotModule's StageFreePool structurally cannot, because BuildFreePool narrows to role
+		# MainBattle/IndirectFire and a capturer is CaptureSpecialist. Musters it behind the believed frontier
+		# (flat field / opening => the descent returns its seed, so it holds at the beachhead).
+		StageIdleCapturers: true
+		ReserveStandoffCells: 10
 
 	# experimental AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
 	# ground army across the top enemy objectives ranked by PoiMap
@@ -727,13 +735,26 @@ Player:
 		MinScoutDistance: 15
 		ScoutVisionRadius: 8
 
-	# Garrison defense structures with infantry for base defense
+	# Garrison nearby friendly-or-neutral garrisonable buildings as a DEFENSIVE REACTION.
+	# Note what this actually recruits, which the old comment here got wrong: GarrisonActorTypes is unset,
+	# so the unit side is any Passenger holder (narrowed per building by the cargo-type match), and
+	# ^CivBuilding carries GarrisonManager, so the building side is mostly neutral civilian houses.
 	GarrisonBotModule@defenses:
 		RequiresCondition: enable-ai-any
 		ScanInterval: 200
 		MaxGarrisonRadius: 25
 		MaxOrdersPerTick: 2
 		PrioritizeExposed: true
+		# Unit-purpose: require a REASON to garrison. PrioritizeExposed above is a List.Sort comparator, never
+		# a filter, so without this the module carries no enemy/danger term at all and puts idle units into an
+		# arbitrary rear house on the bot's very first tick — permanently, since nothing ever unloaded them.
+		# Reads the fog-legal believed danger field, not the omniscient ThreatMapManager. Release makes the
+		# cover temporary, which is the whole difference between taking cover and leaving the match.
+		# SHARED enable-ai-any module, so the engine confines all three to the @experimental player at runtime
+		# (explicit BotType gate); Normal / legacy / @stable are byte-identical.
+		RequireBelievedThreat: true
+		MinBelievedDanger: 1
+		ReleaseWhenThreatClears: true
 		# Phase 2 commit-on-order audit (§4): recruit only from the ledger-checked free pool and commit
 		# garrisoned infantry (garrison:<buildingId>) to the shared PoiGoalGuard ledger. SHARED enable-ai-any
 		# module, so the engine confines this to the @experimental player at runtime (explicit BotType gate);

@@ -15,7 +15,12 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	[Desc("Sends idle infantry to garrison friendly defense structures and nearby buildings.")]
+	[Desc("Sends idle passengers to garrison friendly-or-neutral GarrisonManager buildings near the base.",
+		"NOT infantry-and-defence-structures only, whatever the name suggests: GarrisonActorTypes is unset in",
+		"WW3MOD so the unit side falls back to any Passenger holder (narrowed per building by the CanEnter",
+		"cargo-type match), and ^CivBuilding carries GarrisonManager so the building side is dominated by",
+		"neutral civilian houses. RequireBelievedThreat is what makes it a defensive reaction rather than an",
+		"unconditional drain on the idle pool.")]
 	public class GarrisonBotModuleInfo : ConditionalTraitInfo
 	{
 		[Desc("Actor types eligible for garrisoning (infantry only).")]
@@ -41,6 +46,33 @@ namespace OpenRA.Mods.Common.Traits
 			"— the commit + ledger-read fire ONLY for the @experimental player (explicit BotType gate, §6). Off /",
 			"non-experimental / no PoiGoalGuard ⇒ inert ⇒ byte-identical for @stable / Normal / legacy.")]
 		public readonly bool CommitGarrisonedUnits = false;
+
+		[Desc("Require a REASON to garrison: only hold a building a believed enemy weapon can actually reach.",
+			"Without this the module carries no enemy, danger, belief, influence or POI term at all —",
+			"PrioritizeExposed below is a List.Sort comparator, a reordering that never removes a candidate, so",
+			"with no enemies every building scores 0 and the pairing degenerates to an arbitrary house near",
+			"baseCenter. That is the idle-technician-in-a-civilian-house bug, and it fires on the bot's very",
+			"first tick (scanCountdown defaults to 0). Reads the fog-legal believed DangerFieldLayer.GroundDanger,",
+			"NOT ThreatMapManager — the latter's FindActorsInCircle is omniscient and would be a fog leak on the",
+			"@experimental profile. IMPORTANT: this is a SHARED enable-ai-any module, so the flag alone can't",
+			"confine it — the gate fires ONLY for the @experimental player (explicit BotType gate, same shape as",
+			"CommitGarrisonedUnits). Off / non-experimental / no DangerFieldLayer ⇒ inert ⇒ byte-identical for",
+			"@stable / Normal / legacy.")]
+		public readonly bool RequireBelievedThreat = false;
+
+		[Desc("Believed anti-ground danger at a building's cell at/above which garrisoning it is worth a soldier.",
+			"Only read when RequireBelievedThreat is active. 1 = 'any believed weapon envelope reaches here'.")]
+		public readonly int MinBelievedDanger = 1;
+
+		[Desc("Un-garrison once the believed threat that justified the garrison has passed, so cover is TEMPORARY",
+			"rather than terminal. A garrisoned bot unit is otherwise lost for the match: no bot module anywhere",
+			"issues Unload at a garrison building (every Unload site in BotModules targets a carrier the issuing",
+			"module owns a task for), while ReleaseFinishedClaims hands the blackboard claim back the moment the",
+			"unit leaves the world — so the books show a free unit and the battlefield shows nothing. Orderable",
+			"because GarrisonManager.DynamicOwnership flips a neutral house to the entering soldier's owner",
+			"(GarrisonManager.cs:257-262); without that flip the order would fail ValidateOrder and be dropped.",
+			"Same @experimental-only gate as RequireBelievedThreat, and inert without it.")]
+		public readonly bool ReleaseWhenThreatClears = false;
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
@@ -73,6 +105,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool LedgerActive => CommitOnOrderMath.ShouldCommitShared(
 			Info.CommitGarrisonedUnits, goalGuard != null && !goalGuard.IsTraitDisabled, isExperimentalBot);
+
+		// Believed-threat gate. Same shared-module BotType conjunct as LedgerActive — a bare flag would reach
+		// @stable/Normal through the one shared instance.
+		DangerFieldLayer dangerField;
+
+		bool ThreatGateActive => CommitOnOrderMath.ShouldCommitShared(
+			Info.RequireBelievedThreat, dangerField != null, isExperimentalBot);
+
+		bool WorthGarrisoning(Actor building)
+			=> dangerField.GroundDanger(player, building.Location) >= Info.MinBelievedDanger;
 
 		static string GarrisonObjectiveKey(Actor building) => "garrison:" + building.ActorID;
 
@@ -111,6 +153,9 @@ namespace OpenRA.Mods.Common.Traits
 			goalGuard = Info.CommitGarrisonedUnits
 				? player.PlayerActor.TraitOrDefault<PoiGoalGuard>() : null;
 
+			dangerField = Info.RequireBelievedThreat
+				? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
+
 			var bases = world.ActorsHavingTrait<Building>()
 				.Where(a => a.Owner == player)
 				.ToList();
@@ -137,12 +182,20 @@ namespace OpenRA.Mods.Common.Traits
 
 			ReleaseFinishedClaims();
 
+			// Before any early return below, or a garrison could never be released once the threat that
+			// justified it has moved on.
+			ReleaseClearedGarrisons(bot);
+
 			// Find garrisonable buildings near our base
 			var garrisonableBuildings = world.ActorsHavingTrait<GarrisonManager>()
 				.Where(a => !a.IsDead && a.IsInWorld
 					&& (a.Owner == player || a.Owner.RelationshipWith(player) == PlayerRelationship.Neutral)
 					&& (a.Location - baseCenter).Length <= Info.MaxGarrisonRadius)
 				.ToList();
+
+			// The reason-to-garrison gate. Note this is a FILTER, which PrioritizeExposed below is not.
+			if (ThreatGateActive)
+				garrisonableBuildings.RemoveAll(a => !WorthGarrisoning(a));
 
 			if (garrisonableBuildings.Count == 0)
 				return;
@@ -202,6 +255,15 @@ namespace OpenRA.Mods.Common.Traits
 				// Issue garrison order (EnterTransport is how infantry enter garrisoned buildings)
 				bot.QueueOrder(new Order("EnterTransport", infantry, Target.FromActor(building), false));
 
+				// Episode-bounded (MaxOrdersPerTick per ScanInterval), and it carries the believed danger that
+				// justified the order — so a live match can answer "was there a reason?" without a batch run.
+				// Paired with the release line below; the two bracket the unit's time out of the fight.
+				Log.Write("debug",
+					$"[garrison] enter player={player.PlayerName} unit={infantry.Info.Name}#{infantry.ActorID} " +
+					$"building={building.Info.Name}#{building.ActorID} cell={building.Location} " +
+					$"danger={(ThreatGateActive ? dangerField.GroundDanger(player, building.Location) : -1)} " +
+					$"tick={world.WorldTick}");
+
 				// Claim the unit so other modules don't steal it. Recorded so ReleaseFinishedClaims can hand
 				// it back when the errand ends — an unreleased claim is a permanently unusable unit.
 				if (blackboard != null && blackboard.ClaimUnit(infantry, "garrison"))
@@ -254,6 +316,39 @@ namespace OpenRA.Mods.Common.Traits
 					blackboard.ReleaseUnit(a);
 
 				claimedUnits.Remove(a);
+			}
+		}
+
+		/// <summary>Eject the garrison of every building we filled whose believed threat has since cleared, so a
+		/// soldier goes back to being a soldier. The Unload lands on the BUILDING (GarrisonManager.cs:1338 ejects
+		/// port soldiers, Cargo.cs:248-253 queues UnloadCargo for the shelter) — the passengers themselves are out
+		/// of the world and unorderable, which is exactly why nothing else could ever recover them.
+		///
+		/// <para>Keys off the same predicate that admitted the building, so garrison holds for as long as the
+		/// reason holds and no longer. Buildings are collected before the removals because garrisonedBuildings is
+		/// mutated here.</para></summary>
+		void ReleaseClearedGarrisons(IBot bot)
+		{
+			if (!Info.ReleaseWhenThreatClears || !ThreatGateActive || garrisonedBuildings.Count == 0)
+				return;
+
+			List<Actor> cleared = null;
+			foreach (var b in garrisonedBuildings.Keys)
+				if (!WorthGarrisoning(b))
+					(cleared ??= new List<Actor>()).Add(b);
+
+			if (cleared == null)
+				return;
+
+			foreach (var b in cleared)
+			{
+				bot.QueueOrder(new Order("Unload", b, false));
+
+				Log.Write("debug",
+					$"[garrison] release player={player.PlayerName} building={b.Info.Name}#{b.ActorID} " +
+					$"cell={b.Location} held={garrisonedBuildings[b]} tick={world.WorldTick}");
+
+				garrisonedBuildings.Remove(b);
 			}
 		}
 

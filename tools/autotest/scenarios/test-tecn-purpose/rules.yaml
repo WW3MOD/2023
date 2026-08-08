@@ -1,0 +1,14 @@
+# No cash, so nothing is called in and the only actors are the pre-placed ones.
+# MapStartingLocations is deliberately NOT removed: ControlField seeds its Voronoi from
+# Player.HomeLocation, and stripping the spawn assigner drops both players to CPos.Zero,
+# which washes the whole field to Contested and leaves the frontier-distance gradient the
+# reserve muster descends completely flat.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-tecn-purpose.lua

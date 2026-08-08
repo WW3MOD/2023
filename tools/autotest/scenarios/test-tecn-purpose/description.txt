@@ -1,0 +1,1 @@
+A technician with no capture target and no enemy must not garrison a rear civilian house, and must still be given a purpose it executes (withdraw to the reserve muster).

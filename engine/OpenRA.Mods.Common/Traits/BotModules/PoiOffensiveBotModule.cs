@@ -1262,6 +1262,30 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				RetireAllAxes("no-targets");
 
+				// Unit-purpose: "no scoreable enemy POI" is a DISPOSITION state, not a nothing-to-do state, and it
+				// used to return ~200 lines before the two passes that give the reserve a disposition — including
+				// StageFreePool, whose own comment (below, at the full-path call site) says it exists to stop a unit
+				// "idle at the SR clogging the road to the front". The remedy was written for exactly this case and
+				// sat behind the gate that fires in it. Both passes are run here in the SAME order as the full path
+				// (bombard commits its pieces to the ledger, so the stager below cannot also march them off), and
+				// both are already gated by their own @experimental-only flags — ContinuousBombardment and
+				// ForwardStagingEnabled — so no profile that omits them changes at all.
+				//
+				// Bombard is not merely an ordering nicety here: its first loop RELEASES the ledger commitment of a
+				// piece that died / ran dry, and at targets==0 that cleanup previously never ran, stranding the
+				// commitment for as long as the enemy had no visible POI.
+				//
+				// WHAT NOW REACHES StageFreePool in this state: everything BuildFreePool admits with axes just
+				// retired — the whole ground line plus artillery (role MainBattle/IndirectFire, minus troop
+				// carriers, aircraft, ejected crew, evacuating/dry units and anything ledger-committed). That
+				// includes in-flight capture ESCORTS, which CaptureCoordinator deliberately never commits. That
+				// sweep is not new — the full path has done it on every eval with a target since forward staging
+				// landed — but it is newly reachable in the no-target state, which is where escorts matter most.
+				// Accepted because an escort re-tasked to a staging anchor behind our own frontier is a coherent
+				// unit, whereas the alternative on this path is the one being fixed: none at all.
+				BombardStaticPositions(bot, tick);
+				StageFreePool(bot, tick);
+
 				// FIX-1: no scoreable enemy POI means no fires set is built this eval, so every held rocket piece
 				// is now a stray — reconcile BEFORE the early return, or a piece held on an unworthy clump would
 				// strand in HoldFire (defenceless) for as long as the enemy has no visible POI (mop-up / fogged

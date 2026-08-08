@@ -291,6 +291,40 @@ namespace OpenRA.Mods.Common.Traits
 			"Mirrors MountedTransportBotModuleInfo.SupplyRouteTypes.")]
 		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
 
+		[Desc("Unit-purpose: give a capturer this scan could NOT dispatch — no scoreable capture target at all, or",
+			"none it CanTarget — an explicit disposition instead of dropping it on the floor. Today the undispatched",
+			"remainder of QueueCaptureOrdersFromPoiMap is simply discarded: no Move, no park, no rally, no claim. That",
+			"leaves a CaptureSpecialist standing wherever it arrived, IsIdle and unclaimed in BOTH registries — which",
+			"is precisely the pool GarrisonBotModule recruits from, and is how idle technicians ended up garrisoning",
+			"rear civilian houses for the rest of the match.",
+			"",
+			"NOTE this module, not PoiOffensiveBotModule, is the only possible owner: StageFreePool cannot stage a",
+			"capturer at ANY point in the offense path, because BuildFreePool → IsEligibleCombatUnit narrows to role",
+			"MainBattle/IndirectFire under UseUnitRoles, and a capturer is CaptureSpecialist. Making the offense's",
+			"targets==0 early return fall through does not reach this unit class.",
+			"",
+			"The disposition is a reserve muster BEHIND the believed frontier — the same ForwardStagingMath descent",
+			"the offense stages its line pool with, seeded from our own SR and standing off further. With a flat or",
+			"unpopulated control field (the opening, no believed contact) the descent returns its seed, so the",
+			"capturer holds at the beachhead: correct doctrine for an unarmed consumable with nothing to take and",
+			"nowhere scouted. As a front forms it follows one bound behind, ready when a derrick is uncovered.",
+			"Reads only fog-legal believed fields (ControlField + DangerFieldLayer); zero RNG. Never ledger-committed",
+			"— a reserve capturer must stay instantly re-dispatchable. Default false ⇒ byte-identical when off.")]
+		public readonly bool StageIdleCapturers = false;
+
+		[Desc("Idle-capturer reserve: halt this many coarse frontier cells short of the believed line. Deliberately",
+			"larger than PoiOffensiveBotModule.StagingStandoffCells (6) — a 250-cost consumable that dies to one",
+			"burst stands off further than a rifle squad. Only read when StageIdleCapturers is on.")]
+		public readonly int ReserveStandoffCells = 10;
+
+		[Desc("Idle-capturer reserve: believed anti-ground danger above which a descent step is refused, so the",
+			"reserve never musters inside a believed weapon envelope. 0 = 'outside every believed envelope';",
+			"negative disables the danger guard. Only read when StageIdleCapturers is on.")]
+		public readonly int ReserveDangerSafeThreshold = 0;
+
+		[Desc("Idle-capturer reserve: descent step budget, so the walk is never a free search.")]
+		public readonly int ReserveMaxDescentSteps = 64;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -349,6 +383,14 @@ namespace OpenRA.Mods.Common.Traits
 		ControlField tierControlField;
 		DangerFieldLayer tierDangerField;
 		bool tierFieldsResolved;
+
+		// Idle-capturer reserve (StageIdleCapturers): same fields again, resolved independently so this lever is
+		// gated on its own. reserveCells is the per-unit last-issued destination — the dedup that keeps a capturer
+		// walking to the anchor instead of restarting the move every scan.
+		ControlField reserveControlField;
+		DangerFieldLayer reserveDangerField;
+		bool reserveFieldsResolved;
+		readonly Dictionary<Actor, CPos> reserveCells = new();
 
 		// Case-insensitive copy of Info.CapturableActorTypes, built once, so the telemetry hot loop matches actor
 		// names without a per-actor ToLowerInvariant() allocation. Empty stays empty (= match all capturables).
@@ -1012,6 +1054,91 @@ namespace OpenRA.Mods.Common.Traits
 				IssueCaptureOrder(bot, available[bestIndex].Actor, target, useGuard, escortsRecruitedThisTick, poi.Score, poi.DistanceCells);
 				available.RemoveAt(bestIndex);
 			}
+
+			// Whatever is left got no order above — the state that had no owner. Give it one.
+			StageIdleCapturersReserve(bot, available, targets.Count);
+		}
+
+		/// <summary>Muster the capturers this scan could not dispatch at a reserve anchor behind the believed
+		/// frontier, rather than discarding them. See StageIdleCapturers for why this module has to own it.</summary>
+		void StageIdleCapturersReserve(IBot bot, List<TraitPair<CaptureManager>> undispatched, int targetCount)
+		{
+			if (!Info.StageIdleCapturers || undispatched.Count == 0)
+				return;
+
+			var anchor = ResolveReserveAnchor();
+			if (anchor == null)
+				return;
+
+			// Prune the memory to units still ours, so a dead/consumed capturer can't pin an entry.
+			if (reserveCells.Count > 0)
+			{
+				var stale = reserveCells.Keys.Where(a => a.IsDead || !a.IsInWorld || a.Owner != player).ToList();
+				foreach (var a in stale)
+					reserveCells.Remove(a);
+			}
+
+			// ActorID order so the issue sequence cannot depend on the pool's composition.
+			foreach (var tp in undispatched.OrderBy(p => p.Actor.ActorID))
+			{
+				var unit = tp.Actor;
+
+				// Re-issue only when the destination CHANGED (newly reserved, or the anchor advanced with the
+				// front), so a capturer already walking up keeps its order instead of restarting every scan.
+				if (reserveCells.TryGetValue(unit, out var prev) && prev == anchor.Value)
+					continue;
+
+				if (unit.Location == anchor.Value)
+				{
+					reserveCells[unit] = anchor.Value;
+					continue;
+				}
+
+				bot.QueueOrder(new Order("Move", unit, Target.FromCell(world, anchor.Value), false));
+				reserveCells[unit] = anchor.Value;
+
+				// Bounded by definition: one line per capturer per anchor CHANGE, not per scan. This is the
+				// line that answers "did the unit that stopped garrisoning get a purpose instead?" from
+				// ordinary play — reason distinguishes "nothing to capture" from "nothing I can capture".
+				Log.Write("debug",
+					$"[exp-capture] reserve player={player.PlayerName} unit={unit.Info.Name}#{unit.ActorID} " +
+					$"from={unit.Location} to={anchor.Value} reason={(targetCount == 0 ? "no-targets" : "no-cantarget")} " +
+					$"targets={targetCount} tick={world.WorldTick}");
+			}
+		}
+
+		/// <summary>The reserve muster cell: steepest descent on the believed frontier-distance gradient from our
+		/// own SR, halting ReserveStandoffCells short of the line and never stepping into a believed anti-ground
+		/// danger envelope. Same primitive as PoiOffensiveBotModule's forward staging, seeded and tuned for an
+		/// unarmed consumable. Returns the SR cell itself when the field is flat (no believed contact — the
+		/// opening), which is the intended "hold at the beachhead". Null only when there is no field or no SR,
+		/// in which case we have nothing honest to say and issue nothing.</summary>
+		CPos? ResolveReserveAnchor()
+		{
+			if (!reserveFieldsResolved)
+			{
+				reserveControlField = world.WorldActor.TraitOrDefault<ControlField>();
+				reserveDangerField = world.WorldActor.TraitOrDefault<DangerFieldLayer>();
+				reserveFieldsResolved = true;
+			}
+
+			if (reserveControlField == null || !reserveControlField.HasField(player))
+				return null;
+
+			var sr = FindOwnSupplyRoute();
+			if (sr == null)
+				return null;
+
+			var (sgx, sgy) = reserveControlField.MapCellToGridCell(sr.Location);
+			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
+				Info.ReserveStandoffCells, Info.ReserveDangerSafeThreshold, Info.ReserveMaxDescentSteps,
+				(gx, gy) => reserveControlField.FrontierDistanceAt(player, gx, gy),
+				(gx, gy) => reserveDangerField != null
+					? reserveDangerField.GroundDanger(player, reserveControlField.GridCellToMapCell(gx, gy)) : 0,
+				(gx, gy) => gx >= 0 && gx < reserveControlField.GridWidth
+					&& gy >= 0 && gy < reserveControlField.GridHeight);
+
+			return reserveControlField.GridCellToMapCell(agx, agy);
 		}
 
 		// (d) Actor IDs of capture targets currently claimed by an in-flight committed capturer. Iterates the
