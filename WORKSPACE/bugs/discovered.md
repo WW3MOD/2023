@@ -72,3 +72,14 @@ User still reports "helis fly to the map corner and stay" after the `SkipRearmRe
 
 ## 2026-03-24: HeliAutorotate/HeliCrashLand build errors
 Untracked WIP files `engine/OpenRA.Mods.Common/Activities/Air/HeliAutorotate.cs` and `HeliCrashLand.cs` fail to compile: `IActivity` type not found. These files are interdependent with `HeliEmergencyLanding.cs` trait. Pre-existing issue, not caused by stance rework.
+
+## 2026-08-08: [med] Supply truck `residueUnusable` <-> map-edge loop — SECOND truck loop, untouched by the 2026-08-07 evac fix (found while: diagnosing the user's live-play report)
+
+Recon `WORKSPACE/recon/260808-truck-post-fix-behaviour.md` (`4d747384`) established that TWO distinct loops make a supply truck visibly travel back and forth, with different signatures:
+
+- **Loop A** — the approach-abort cycle, period ~5 scans / ~30 s, amplitude ~23 cells, heading back toward the player's own SR with a HEALTHY supply bar. Diagnosed and being addressed by drop-and-leave on `auto/supply-drop`. **This is the one the user confirmed observing (2026-08-08).**
+- **Loop B (this entry)** — a truck whose remaining supply is unusable enters a `residueUnusable` <-> map-edge cycle: RED/empty supply bar, heading for a MAP EDGE rather than the SR. The 2026-08-07 merge (`e79ddd97`) did not touch this path and the drop-and-leave work does not address it.
+
+Not yet root-caused. Kept as a separate entry specifically because the two are easy to conflate by eye and a future report of "trucks still dither" must be discriminated by **bar colour + heading** before any diagnosis is trusted: healthy bar toward the SR is Loop A, red bar toward a map edge is Loop B.
+
+Relevant when picking this up: the entire supply path has ZERO `Log.Write`/`BotDebug` instrumentation, so neither loop is observable in `%APPDATA%\OpenRA\Logs\debug.log` today. Instrumentation is being added as part of the drop-and-leave branch; do this one after that lands so it can be diagnosed from evidence rather than by reading code.
