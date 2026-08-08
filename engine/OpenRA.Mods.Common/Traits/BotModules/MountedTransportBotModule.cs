@@ -265,7 +265,10 @@ namespace OpenRA.Mods.Common.Traits
 			// Park the carrier and board the capturer (queued false cancels any AutoTarget/Move
 			// so the passenger catches a stationary entry frame — same pattern as TryAssignNewTasks).
 			bot.QueueOrder(new Order("Stop", carrier, false));
-			bot.QueueOrder(new Order("EnterTransport", capturer, Target.FromActor(carrier), false));
+			// Refused ⇒ do not create the task: a CarrierTask whose capturer was never told to board would
+			// occupy the carrier until the loading timeout for nothing.
+			if (!bot.QueueOrder(new Order("EnterTransport", capturer, Target.FromActor(carrier), false)))
+				return false;
 
 			carrierTasks[carrier] = new CarrierTask
 			{
@@ -448,7 +451,12 @@ namespace OpenRA.Mods.Common.Traits
 						// through the carrier's whole return trip — the bespoke IsPassengerReserved used to).
 						ReleaseTaskPassengers(task);
 
-						bot.QueueOrder(new Order("Move", carrier, Target.FromCell(world, task.Return), false));
+						// Only advance the FSM if the move was accepted. Neither Delivering nor Returning has a
+						// timeout (LoadingTimeoutTicks guards Loading only), so a dropped Move plus a state
+						// advance parks the carrier at the front forever.
+						if (!bot.QueueOrder(new Order("Move", carrier, Target.FromCell(world, task.Return), false)))
+							break;
+
 						task.State = CarrierState.Returning;
 						task.StateChangedAtTick = world.WorldTick;
 						AIUtils.BotDebug("AI ({0}): mounted-transport — {1} returning to {2}",
@@ -480,7 +488,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		void LaunchDelivery(IBot bot, CarrierTask task)
 		{
-			bot.QueueOrder(new Order("Move", task.Carrier, Target.FromCell(world, task.DropOff), false));
+			// Same rule, and this is the worse case: the carrier is LOADED. Staying in Loading means the
+			// existing LoadingTimeoutTicks path retries and can still release the passengers; advancing to
+			// Delivering without a move would strand them aboard permanently.
+			if (!bot.QueueOrder(new Order("Move", task.Carrier, Target.FromCell(world, task.DropOff), false)))
+				return;
+
 			task.State = CarrierState.Delivering;
 			task.StateChangedAtTick = world.WorldTick;
 			AIUtils.BotDebug("AI ({0}): mounted-transport — {1} delivering {2} pax to {3}",

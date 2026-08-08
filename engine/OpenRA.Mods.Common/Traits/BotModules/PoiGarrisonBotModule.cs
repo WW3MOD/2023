@@ -476,7 +476,9 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var units = g.Units.ToArray();
-			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, g.PoiCell), false, groupedActors: units));
+			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, g.PoiCell), false, groupedActors: units)))
+				return;
+
 			g.OrderedCell = g.PoiCell;
 			g.HasOrdered = true;
 

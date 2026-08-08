@@ -12,10 +12,19 @@
  * re-issue. Seven independent per-module dedups have failed for this reason; an eighth
  * would too.
  *
- * THE FIX: one record per unit, owned by the PLAYER (not by any module), whose lifetime
- * depends on nothing but the tick clock and whether the unit is still executing something.
- * No module can purge it and no eligibility predicate can reach it. That lifetime property
- * — not the predicate shape — is the whole point.
+ * THE FIX, AND EXACTLY HOW FAR IT REACHES: predicate (b)'s standing record is one record per
+ * unit, owned by the PLAYER (not by any module), whose lifetime depends on nothing but the tick
+ * clock and whether the unit is still executing something. No module can purge it and no
+ * eligibility predicate can reach it. That lifetime property — not the predicate shape — is the
+ * point, and it is the half of this gate that actually cures the disease.
+ *
+ * PREDICATE (a) DOES NOT HAVE THAT PROPERTY, and the claim must not be overstated. It reads
+ * GoalGuardLedger, which is still eligibility-coupled in two ways: Commit() with a DIFFERENT
+ * objective silently overwrites the incumbent claim (PoiGoalGuard.cs:68-76), and Release() is
+ * keyed on the actor rather than on the objective (:100), so e.g.
+ * StancePositioningExecutor.ReleaseManagement deletes whichever claim the actor happens to hold.
+ * So ownership arbitration remains subject to the same amnesia it is meant to arbitrate around.
+ * It fails open, so that costs damping and not correctness — but the cure is (b), not (a).
  *
  * TWO COMPOSED PREDICATES, both applied at ModularBot.QueueOrder (the single funnel):
  *
@@ -23,6 +32,17 @@
  *       whichever module is declared LATER in ai.yaml — an emergent property of trait
  *       construct order, documented nowhere. Replaced here by: the module that already
  *       holds the unit's commitment keeps it unless the challenger OUTRANKS it.
+ *
+ *       AUDITED REACH, because the plan's "closes five of the six worst poachers" was wrong.
+ *       Predicate (a) only adds anything where the poacher does not ALREADY consult the ledger
+ *       when building its pool. Counted against the shipped yaml: LayeredDefence (:400),
+ *       GarrisonBotModule@defenses (:287) and MountedTransport (:571) each resolve their goalGuard
+ *       field only when an @experimental-only flag is set, so on @stable it is null and their read
+ *       is inert — those three are genuinely closed here. HelicopterSquad (:1606) and
+ *       CaptureCoordinator (:1647) resolve it UNCONDITIONALLY and already skip committed units on
+ *       both profiles, so (a) is redundant for them. StancePositioningExecutor never reaches this
+ *       funnel at all. So: THREE of six, and only on @stable — on @experimental every flag is on,
+ *       so (a) closes nothing new there. The predicate that damps the user's churn is (b).
  *
  *   (b) DWELL. Suppress a DIFFERENT-destination order to a unit whose standing order is
  *       still young and still running. Note this is the INVERSE of a destination-
@@ -39,9 +59,12 @@
  * the bot would stop playing. Ambient claims must lose to real tasking; that is what the
  * rank ladder encodes.
  *
- * FAIL-OPEN EVERYWHERE. An unknown objective prefix, an unattributed order, a missing
- * ledger and an unknown order string all ADMIT. The consequence is that table rot degrades
- * to "no suppression", never to a wrong suppression.
+ * FAIL-OPEN EVERYWHERE, INCLUDING THE CHALLENGER. An unknown objective prefix, an unattributed
+ * order, an unknown order string, a missing ledger AND an unrecognised issuing module all ADMIT.
+ * The challenger case matters most for the stages still to come: a module added in Stage 2+ that
+ * nobody remembered to add to the table below would otherwise be unable to task any committed
+ * unit at all, with no signal whatsoever to its author. Table rot must degrade to "no
+ * suppression", never to "this module silently cannot give orders".
  *
  * Integer/string-only, zero RNG, no iteration-order dependence: the only dictionary is
  * keyed by ActorID (a uint) and is read by key; its one iteration (Prune) removes by age,
@@ -78,6 +101,10 @@ namespace OpenRA.Mods.Common.Traits
 		Admitted,
 		SuppressedOwnership,
 		SuppressedDwell,
+
+		/// <summary>A queued follow-on leg whose non-queued head was suppressed this tick. See
+		/// <see cref="BotOrderGate.Admit"/>: a partly-issued multi-leg maneuver is worse than none of it.</summary>
+		SuppressedSequence,
 	}
 
 	/// <summary>Per-target state the funnel resolves before asking for a verdict. Deliberately
@@ -158,8 +185,28 @@ namespace OpenRA.Mods.Common.Traits
 			new("capture-defend:", RankMission, "CaptureCoordinatorBotModule"),
 			new("bridge-repair:", RankMission, "EngineerRouteOpenBotModule"),
 			new("bridge-screen:", RankMission, "EngineerRouteOpenBotModule"),
+			// StancePositioningExecutor is a per-unit ConditionalTrait, not an IBotTick, so currentModuleTag
+			// can never equal this name and the owner column here is documentation only — the row exists
+			// purely to RANK the claim below everything real. It also only ever lands on an IDLE unit
+			// (CommitManagement is reachable only from the INotifyIdle.TickIdle region), which is precisely
+			// why ranking it as tasking would be so damaging: it marks units that are free.
 			new("tacpos:", RankAmbient, "StancePositioningExecutor"),
 		};
+
+		/// <summary>Is this module tag present in the table at all? A tag that is absent is a module that
+		/// never writes an objective (SupplyFollower, Scout, SquadManager…) or one added after this table
+		/// was written. Either way it must FAIL OPEN — see the file header.</summary>
+		public static bool IsKnownModule(string moduleTag)
+		{
+			if (string.IsNullOrEmpty(moduleTag))
+				return false;
+
+			foreach (var e in Table)
+				if (e.ModuleA == moduleTag || (e.ModuleB != null && e.ModuleB == moduleTag))
+					return true;
+
+			return false;
+		}
 
 		/// <summary>Classify an order string. WHITELIST: only these four strings are suppressible, and
 		/// they are exactly the Tier-1 churn sources the census ranked (EnterTransport ~3.0s,
@@ -210,10 +257,10 @@ namespace OpenRA.Mods.Common.Traits
 			return false;
 		}
 
-		/// <summary>Rank a challenging module carries, derived from the highest-ranked objective prefix
-		/// it owns. A module that writes no objective at all (SupplyFollower, Scout, SquadManager…)
-		/// ranks as ordinary tasking — enough to beat an ambient `tacpos:` claim, not enough to poach a
-		/// mission.</summary>
+		/// <summary>Rank a challenging module carries, derived from the highest-ranked objective prefix it
+		/// owns. Only meaningful for a module the table knows; <see cref="OwnershipBlocks"/> checks
+		/// <see cref="IsKnownModule"/> first, so the RankTasking floor here is never used to BLOCK an
+		/// unrecognised module.</summary>
 		public static int ModuleRank(string moduleTag)
 		{
 			if (string.IsNullOrEmpty(moduleTag))
@@ -237,6 +284,11 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			if (ObjectiveOwnedBy(incumbentObjective, challengerModuleTag))
+				return false;
+
+			// FAIL OPEN on a challenger the table does not know. Blocking here would mean a module whose
+			// author never touched this file silently cannot task any committed unit, with no diagnostic.
+			if (!IsKnownModule(challengerModuleTag))
 				return false;
 
 			var incumbentRank = ObjectiveRank(incumbentObjective);
@@ -315,17 +367,33 @@ namespace OpenRA.Mods.Common.Traits
 		// Insertion-ordered (module tick order is deterministic) so the drained report is reproducible.
 		readonly List<SuppressionCount> counters = new();
 
+		// Sequence binding for multi-leg maneuvers (see Admit). Scoped to a single world tick and
+		// self-clearing, because the legs of a maneuver are always adjacent statements inside one module
+		// tick. Membership tests only — never iterated — so it cannot introduce order dependence.
+		readonly HashSet<uint> suppressedThisTick = new();
+		int sequenceTick = int.MinValue;
+
+		// A queued order waits at least one tick in ModularBot's queue before World.IssueOrder runs, and
+		// longer under a large ceil(N/5) burst, so a unit reads IDLE for the first few ticks after we
+		// recorded its standing order — which would hand a competing grab a free pass in exactly the
+		// window the fastest churn sources live in. Treat a just-ordered unit as busy until its order has
+		// had time to land. Safe against the idle escape hatch: a genuinely finished errand is always far
+		// older than this, because no movement completes in five ticks.
+		const int ActivationGraceTicks = 5;
+
 		readonly int dwellTicks;
 		readonly bool ownershipEnabled;
 		readonly int pruneIntervalTicks;
 
 		int lastPruneTick = int.MinValue;
 
-		public BotOrderGate(bool ownershipEnabled, int dwellTicks, int pruneIntervalTicks = 250)
+		// pruneIntervalTicks <= 0 derives the sweep period from the dwell, so a record outlives its
+		// usefulness by at most one dwell window rather than by a fixed 250 ticks.
+		public BotOrderGate(bool ownershipEnabled, int dwellTicks, int pruneIntervalTicks = 0)
 		{
 			this.ownershipEnabled = ownershipEnabled;
 			this.dwellTicks = dwellTicks;
-			this.pruneIntervalTicks = Math.Max(1, pruneIntervalTicks);
+			this.pruneIntervalTicks = pruneIntervalTicks > 0 ? pruneIntervalTicks : Math.Max(60, dwellTicks);
 		}
 
 		/// <summary>Diagnostics: live standing records.</summary>
@@ -344,10 +412,28 @@ namespace OpenRA.Mods.Common.Traits
 			long destinationKey,
 			List<BotOrderTarget> targets)
 		{
-			// A queued order APPENDS (Actor.QueueActivity(true, …)) — it cancels nothing, so it is not a
-			// churn source and suppressing it could only strand the leading leg of a two-leg maneuver.
+			// A queued order APPENDS (Actor.QueueActivity(true, …)) so it cancels nothing and is not itself
+			// a churn source. But it is NOT independent of what came before it. A two-leg maneuver issues
+			// the danger-avoiding waypoint non-queued and then CHAINS the direct leg queued
+			// (SupplyFollowerBotModule.cs:706-707, PoiOffensiveBotModule.cs:3055-3057). Admitting the tail
+			// after dropping the head leaves the direct leg to execute ALONE — i.e. it drives exactly the
+			// straight line the detour existed to avoid. A partly-issued plan is worse than no suppression
+			// at all, so bind the tail to its head: same tick, same actor, head suppressed ⇒ drop the tail.
+			//
+			// Same-tick is the correct scope and is deliberately INFERRED rather than declared. An
+			// atomicity marker on the call site would have to be remembered by every future author of a
+			// multi-leg pair — the same failure mode that produced this defect. Structure cannot be
+			// forgotten, and a tick boundary needs no lifetime management.
 			if (queued)
+			{
+				if (targets != null && targets.Count > 0 && SequenceSuppressed(targets, currentTick))
+				{
+					Count(moduleTag, BotOrderVerdict.SuppressedSequence);
+					return BotOrderVerdict.SuppressedSequence;
+				}
+
 				return BotOrderVerdict.Admitted;
+			}
 
 			var cls = OrderArbitrationMath.Classify(orderString);
 			if (cls == BotOrderClass.Passthrough)
@@ -356,8 +442,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (cls == BotOrderClass.Cancel)
 			{
 				if (targets != null)
+				{
+					ClearSequenceSuppressed(targets, currentTick);
 					foreach (var t in targets)
 						standing.Remove(t.ActorId);
+				}
 
 				return BotOrderVerdict.Admitted;
 			}
@@ -369,6 +458,7 @@ namespace OpenRA.Mods.Common.Traits
 			// the new standing order, so a Directive aimed elsewhere cannot immediately undo it.
 			if (urgency == BotOrderUrgency.Reflex)
 			{
+				ClearSequenceSuppressed(targets, currentTick);
 				Record(targets, destinationKey, currentTick);
 				return BotOrderVerdict.Admitted;
 			}
@@ -391,6 +481,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (allBlocked)
 				{
+					MarkSequenceSuppressed(targets, currentTick);
 					Count(moduleTag, BotOrderVerdict.SuppressedOwnership);
 					return BotOrderVerdict.SuppressedOwnership;
 				}
@@ -402,16 +493,58 @@ namespace OpenRA.Mods.Common.Traits
 			if (dwellTicks > 0 && targets.Count == 1)
 			{
 				var t = targets[0];
+				var stillWorking = t.Busy || IsWithinActivationGrace(t.ActorId, currentTick);
 				if (standing.TryGetValue(t.ActorId, out var s)
-					&& OrderArbitrationMath.DwellBlocks(s.Tick, currentTick, dwellTicks, s.DestinationKey != destinationKey, t.Busy))
+					&& OrderArbitrationMath.DwellBlocks(s.Tick, currentTick, dwellTicks, s.DestinationKey != destinationKey, stillWorking))
 				{
+					MarkSequenceSuppressed(targets, currentTick);
 					Count(moduleTag, BotOrderVerdict.SuppressedDwell);
 					return BotOrderVerdict.SuppressedDwell;
 				}
 			}
 
+			ClearSequenceSuppressed(targets, currentTick);
 			Record(targets, destinationKey, currentTick);
 			return BotOrderVerdict.Admitted;
+		}
+
+		bool IsWithinActivationGrace(uint actorId, int currentTick)
+			=> standing.TryGetValue(actorId, out var s) && currentTick - s.Tick >= 0 && currentTick - s.Tick < ActivationGraceTicks;
+
+		void MarkSequenceSuppressed(List<BotOrderTarget> targets, int currentTick)
+		{
+			if (sequenceTick != currentTick)
+			{
+				suppressedThisTick.Clear();
+				sequenceTick = currentTick;
+			}
+
+			foreach (var t in targets)
+				suppressedThisTick.Add(t.ActorId);
+		}
+
+		// ANY member, not all: if one member of a group lost its head leg, the group's chained leg is
+		// already an incoherent plan for that member.
+		bool SequenceSuppressed(List<BotOrderTarget> targets, int currentTick)
+		{
+			if (sequenceTick != currentTick || suppressedThisTick.Count == 0)
+				return false;
+
+			foreach (var t in targets)
+				if (suppressedThisTick.Contains(t.ActorId))
+					return true;
+
+			return false;
+		}
+
+		// A later ADMITTED head in the same tick re-opens the actor for its own chained tail.
+		void ClearSequenceSuppressed(List<BotOrderTarget> targets, int currentTick)
+		{
+			if (sequenceTick != currentTick || suppressedThisTick.Count == 0)
+				return;
+
+			foreach (var t in targets)
+				suppressedThisTick.Remove(t.ActorId);
 		}
 
 		void Record(List<BotOrderTarget> targets, long destinationKey, int currentTick)

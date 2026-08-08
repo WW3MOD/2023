@@ -124,11 +124,11 @@ namespace OpenRA.Mods.Common.Traits
 				ibe.BotEnabled(this);
 		}
 
-		void IBot.QueueOrder(Order order) => QueueOrder(order, BotOrderUrgency.Directive);
+		bool IBot.QueueOrder(Order order) => QueueOrder(order, BotOrderUrgency.Directive);
 
-		void IBot.QueueOrder(Order order, BotOrderUrgency urgency) => QueueOrder(order, urgency);
+		bool IBot.QueueOrder(Order order, BotOrderUrgency urgency) => QueueOrder(order, urgency);
 
-		void QueueOrder(Order order, BotOrderUrgency urgency)
+		bool QueueOrder(Order order, BotOrderUrgency urgency)
 		{
 			// HUMANS CANNOT REACH THIS. IBot.QueueOrder is only ever called by bot modules holding an
 			// IBot; a human's orders come from the UI straight to World.IssueOrder and never enter this
@@ -146,7 +146,7 @@ namespace OpenRA.Mods.Common.Traits
 					DestinationKeyOf(order), ResolveGateTargets(order));
 
 				if (verdict != BotOrderVerdict.Admitted)
-					return;
+					return false;
 			}
 
 			// Attribute this order to the module currently ticking, then queue it unchanged. LogOrder
@@ -156,6 +156,7 @@ namespace OpenRA.Mods.Common.Traits
 			// exactly what the gate removed, and the `ordgate` lines say who lost and why.
 			lifecycleLogger?.LogOrder(player, currentModuleTag, order);
 			orders.Enqueue(order);
+			return true;
 		}
 
 		// Subject ∪ GroupedActors: a grouped order carries a null Subject, so both must be walked.

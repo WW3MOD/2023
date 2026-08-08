@@ -218,7 +218,9 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					continue;
 				}
 
-				owner.Bot.QueueOrder(new Order("Move", a, Target.FromCell(owner.World, RandomBuildingLocation(owner)), false));
+				// Reflex: this is the flee state — a predictive disengage, not damage-triggered, so the
+				// structural damage-response Reflex does not reach it.
+				owner.Bot.QueueOrder(new Order("Move", a, Target.FromCell(owner.World, RandomBuildingLocation(owner)), false), BotOrderUrgency.Reflex);
 			}
 
 			owner.FuzzyStateMachine.ChangeState(owner, new AirIdleState());

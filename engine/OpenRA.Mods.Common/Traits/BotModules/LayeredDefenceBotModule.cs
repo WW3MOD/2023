@@ -501,7 +501,12 @@ namespace OpenRA.Mods.Common.Traits
 				if (!world.Map.Contains(targetCell))
 					continue;
 
-				bot.QueueOrder(new Order("AttackMove", actor, Target.FromCell(world, targetCell), false));
+				// A dropped order must not leave a ledger claim (or a bespoke booking) behind: that would
+				// reserve a unit nobody ever moved, and predicate (a) would then defend the phantom claim
+				// against every other module.
+				if (!bot.QueueOrder(new Order("AttackMove", actor, Target.FromCell(world, targetCell), false)))
+					continue;
+
 				assignedAtTick[actor] = world.WorldTick;
 
 				// Phase 2 commit-on-order (§4): stake the line assignment in the shared ledger so offense's
@@ -636,7 +641,10 @@ namespace OpenRA.Mods.Common.Traits
 					if (!world.Map.Contains(targetCell))
 						continue;
 
-					bot.QueueOrder(new Order("AttackMove", best, Target.FromCell(world, targetCell), false));
+					// Same rule as the contested path: no acceptance, no cooldown stamp and no ledger claim.
+					if (!bot.QueueOrder(new Order("AttackMove", best, Target.FromCell(world, targetCell), false)))
+						continue;
+
 					assignedAtTick[best] = world.WorldTick;
 
 					// Same commit-on-order audit as the contested path: stake the crossing slot in the shared ledger

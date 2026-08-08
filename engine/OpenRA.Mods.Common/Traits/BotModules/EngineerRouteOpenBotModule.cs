@@ -370,7 +370,11 @@ namespace OpenRA.Mods.Common.Traits
 			var screenKey = ScreenObjectiveKey(hut.ActorID);
 			foreach (var s in screen)
 			{
-				bot.QueueOrder(new Order("AttackMove", s, Target.FromCell(world, holdCell), false));
+				// No acceptance, no claim and no roster entry — a screen unit listed but never ordered would
+				// sit at the SR while the mission believes the bridge is screened.
+				if (!bot.QueueOrder(new Order("AttackMove", s, Target.FromCell(world, holdCell), false)))
+					continue;
+
 				CommitUnit(s, screenKey);
 				missionScreen.Add(s);
 			}

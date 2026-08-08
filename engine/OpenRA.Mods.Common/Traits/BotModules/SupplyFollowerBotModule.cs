@@ -723,14 +723,24 @@ namespace OpenRA.Mods.Common.Traits
 							var had = lastVia.TryGetValue(truck, out var prev);
 							if (!had || (prev - via.Value).LengthSquared >= Info.RepathThresholdCells * Info.RepathThresholdCells)
 							{
-								bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, via.Value), false));
-								bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), true));
-								lastVia[truck] = via.Value;
+								// ALL-OR-NOTHING. Leg 1 is the danger-avoiding waypoint and is non-queued, hence
+								// suppressible; leg 2 is the direct line and is queued. Issuing leg 2 alone drives the
+								// truck along exactly the straight path the detour exists to avoid, and lastVia's
+								// deadband would then block the re-issue that could recover it. Refused head ⇒ issue
+								// nothing and remember nothing, so the next scan retries the whole maneuver.
+								if (bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, via.Value), false)))
+								{
+									bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), true));
+									lastVia[truck] = via.Value;
 
-								// The two-leg maneuver terminates at followPos, so it IS a follow dispatch and
-								// must be recorded as one — otherwise the direct branch would see no record the
-								// scan the detour stops being needed and re-issue on top of a running detour.
-								lastFollow[truck] = followPos.Value;
+									// The two-leg maneuver terminates at followPos, so it IS a follow dispatch and
+									// must be recorded as one — otherwise the direct branch would see no record the
+									// scan the detour stops being needed and re-issue on top of a running detour.
+									// INSIDE the guard: recording a follow dispatch that was never issued is exactly
+									// the stranding shape, and lastFollow now feeds ShouldReissueFollow's deadband,
+									// so a phantom record would suppress the re-issue that should restart it.
+									lastFollow[truck] = followPos.Value;
+								}
 							}
 						}
 						else
@@ -880,7 +890,13 @@ namespace OpenRA.Mods.Common.Traits
 				+ $"danger-at-anchor={GroundDangerAt(anchor.Value)} frontier={FrontierDistanceAt(anchor.Value)} "
 				+ $"{(dispatched ? $"retargeted-from={sentTo}" : "new")}");
 
-			bot.QueueOrder(new Order("DropSupplyCacheAt", truck, Target.FromCell(world, anchor.Value), false));
+			// Refused ⇒ issue NOTHING and remember nothing, but still take the branch — exactly the idiom
+			// used for the in-flight case above. Returning false would fall through to the follow path,
+			// whose non-queued Move would cancel whatever the truck is doing; and caching the anchor would
+			// make ShouldIssueDrop suppress the retry. The next scan re-issues cleanly.
+			if (!bot.QueueOrder(new Order("DropSupplyCacheAt", truck, Target.FromCell(world, anchor.Value), false)))
+				return true;
+
 			dropTarget[truck] = anchor.Value;
 
 			// Any in-flight Stage-E detour memory is void — the errand supersedes it. The follow

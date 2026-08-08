@@ -96,8 +96,11 @@ namespace OpenRA.Test
 		[Test]
 		public void Ownership_ForeignTaskingIncumbentBeatsTaskingChallenger()
 		{
-			// The five-poacher fix: LayeredDefence may no longer yank an offense-committed unit, and it
-			// needed no edit of its own to stop.
+			// LayeredDefence may no longer yank an offense-committed unit, and it needed no edit of its own
+			// to stop. NOTE the audited scope: this only bites where the poacher does not already read the
+			// ledger itself, which is the @stable profile for LayeredDefence / GarrisonBotModule@defenses /
+			// MountedTransport (their goalGuard field is left null there because the flags are
+			// @experimental-only). Three modules, not five — see the header of OrderArbitrationMath.
 			Assert.That(OrderArbitrationMath.OwnershipBlocks("LayeredDefenceBotModule", "offense:12"), Is.True);
 			Assert.That(OrderArbitrationMath.OwnershipBlocks("GarrisonBotModule", "defend:7"), Is.True);
 			Assert.That(OrderArbitrationMath.OwnershipBlocks("PoiOffensiveBotModule", "defend-line:3,4"), Is.True);
@@ -150,7 +153,7 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void Ownership_FailsOpenOnEveryUnknown()
+		public void Ownership_FailsOpenOnEveryUnknownIncludingTheChallenger()
 		{
 			// No incumbent, an unattributed order (queued outside a module tick), and an unrecognised
 			// prefix all ADMIT. Table rot therefore costs damping, never correctness.
@@ -159,8 +162,14 @@ namespace OpenRA.Test
 			Assert.That(OrderArbitrationMath.OwnershipBlocks("", "offense:12"), Is.False);
 			Assert.That(OrderArbitrationMath.OwnershipBlocks(null, "offense:12"), Is.False);
 			Assert.That(OrderArbitrationMath.OwnershipBlocks("LayeredDefenceBotModule", "supply-follow:3"), Is.False);
-			Assert.That(OrderArbitrationMath.OwnershipBlocks("ModuleAddedNextYear", "offense:12"), Is.True,
-				"an unlisted CHALLENGER still ranks as ordinary tasking, so it cannot poach silently");
+			// An unlisted CHALLENGER must fail open too. Blocking here would mean a module added in a later
+			// stage — whose author never touched the table — silently cannot task any committed unit, with
+			// no diagnostic at all. Modules that legitimately write no objective (SupplyFollower, Scout,
+			// SquadManager) are in the same bucket.
+			Assert.That(OrderArbitrationMath.OwnershipBlocks("ModuleAddedNextYear", "offense:12"), Is.False);
+			Assert.That(OrderArbitrationMath.OwnershipBlocks("SupplyFollowerBotModule", "offense:12"), Is.False);
+			Assert.That(OrderArbitrationMath.IsKnownModule("PoiOffensiveBotModule"), Is.True);
+			Assert.That(OrderArbitrationMath.IsKnownModule("ModuleAddedNextYear"), Is.False);
 		}
 
 		// ---------- Dwell ----------

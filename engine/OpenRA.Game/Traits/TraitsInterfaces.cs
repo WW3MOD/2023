@@ -443,8 +443,12 @@ namespace OpenRA.Traits
 	public interface IBot
 	{
 		void Activate(Player p);
-		void QueueOrder(Order order);
-		void QueueOrder(Order order, BotOrderUrgency urgency);
+		// Returns TRUE when the order was accepted into the bot's order queue and FALSE when the funnel
+		// gate discarded it. A caller that caches "I already ordered this unit to X" MUST advance that
+		// cache only on true: a silent drop plus an advanced cache strands the unit on its old
+		// destination permanently while the module believes it is on the new one.
+		bool QueueOrder(Order order);
+		bool QueueOrder(Order order, BotOrderUrgency urgency);
 		IBotInfo Info { get; }
 		Player Player { get; }
 	}

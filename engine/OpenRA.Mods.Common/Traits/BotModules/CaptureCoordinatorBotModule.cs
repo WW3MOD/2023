@@ -1130,7 +1130,11 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 				}
 
-				bot.QueueOrder(new Order("Move", unit, Target.FromCell(world, target), false));
+				// Only remember the slot if the order was accepted; otherwise the dedup above suppresses the
+				// re-issue and the capturer never walks up until the anchor drifts past the hysteresis.
+				if (!bot.QueueOrder(new Order("Move", unit, Target.FromCell(world, target), false)))
+					continue;
+
 				reserveCells[unit] = target;
 
 				// Bounded by definition: one line per capturer per anchor CHANGE, not per scan. This is the
@@ -1359,7 +1363,12 @@ namespace OpenRA.Mods.Common.Traits
 						var ownSR = FindOwnSupplyRoute();
 						if (ownSR != null)
 						{
-							bot.QueueOrder(new Order("Move", tecn, Target.FromCell(world, ownSR.Location), false));
+							// Reflex: this is a withdrawal out of contested ground for a scarce capturer, and
+							// `retreated` is a one-shot latch — a dropped order here would park the TECN at the
+							// captured target for good.
+							if (!bot.QueueOrder(new Order("Move", tecn, Target.FromCell(world, ownSR.Location), false), BotOrderUrgency.Reflex))
+								continue;
+
 							retreated.Add(tecn);
 							AIUtils.BotDebug("AI ({0}): capture-coordinator — {1} done ({2}), retreating to SR {3}",
 								player.ClientIndex, tecn.Info.Name, reason, ownSR.Location);
@@ -1497,7 +1506,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (recruits.Length == 0)
 				return;
 
-			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, target.Location), false, groupedActors: recruits));
+			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, target.Location), false, groupedActors: recruits)))
+				return;
 
 			foreach (var r in recruits)
 				alreadyRecruited.Add(r);
@@ -1604,7 +1614,12 @@ namespace OpenRA.Mods.Common.Traits
 				if (defenders.Length == 0)
 					continue;
 
-				bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, structure.Location), false, groupedActors: defenders));
+				// A dropped order must not leave a ledger claim (or a bespoke booking) behind: that would
+				// reserve a unit nobody ever moved, and predicate (a) would then defend the phantom claim
+				// against every other module.
+				if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, structure.Location), false, groupedActors: defenders)))
+					continue;
+
 				foreach (var d in defenders)
 					defenderBookings[d] = world.WorldTick;
 
