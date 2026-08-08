@@ -778,6 +778,18 @@ Player:
 		ScanInterval: 150
 		MaxFollowDistance: 35
 		MinNearbyFriendlies: 4
+		# Stated explicitly (matches the engine default) because as of 2026-08-08 it governs THREE
+		# deadbands, not one: the Stage-E detour waypoint, the evac leg-arrival test, and — new — the
+		# plain follow Move. That last was the single most undamped movement site in the order-churn
+		# census: a non-queued Move re-issued every scan at a destination derived from a MOVING cluster
+		# centroid, so it necessarily differed every scan, cancelled the drive and restarted the path,
+		# forever, on a unit whose entire job is to arrive. It was left that way only to preserve
+		# byte-identity for @stable, a commitment retired by 875c93c1. Deliberately reuses this field
+		# rather than adding a fourth threshold knob — the census's finding was that ~28
+		# independently-invented dampers are themselves part of the disease.
+		# NOTE this module is a SHARED enable-ai-any instance with no @stable twin, so the follow
+		# deadband reaches @stable too; that is intended and declared, not silent drift. 0 disables it.
+		RepathThresholdCells: 3
 		# Influence stack Stage E: a truck relocating along the front detours via safer depth instead
 		# of driving through the kill zone — the rear-lateral-re-enter path emerges from the danger
 		# cost. Shared enable-ai-any module, so the reroute is gated on InfluenceStack.Participates.

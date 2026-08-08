@@ -265,6 +265,46 @@ namespace OpenRA.Mods.Common.Traits
 			return hold > 0 ? hold - 1 : 0;
 		}
 
+		/// <summary>Should the caller re-issue the plain follow Move, given the truck may already be driving to
+		/// a follow cell from an earlier scan? The follow destination is a MOVING cluster centroid, so it
+		/// differs by a cell or two every scan by construction, and the Move is non-queued — re-issuing cancels
+		/// the drive, discards the path and restarts it, which is the visible stutter. This is the same
+		/// deadband the Stage-E detour waypoint already carries one branch over, applied to the branch that
+		/// never got one.
+		///
+		/// <para>TWO TERMS, BOTH COPIED IN SHAPE FROM THIS MODULE rather than newly invented — the codebase
+		/// already carries ~28 independently-reimplemented dampers and the shapes disagreeing with each other
+		/// is itself part of the defect. The distance test is <c>lastVia</c>'s
+		/// (<c>LengthSquared &gt;= threshold²</c>, the same <c>RepathThresholdCells</c> field, no new knob);
+		/// the liveness test is <see cref="SupplyDropMath.ErrandStillRunning"/>, CALLED rather than re-derived
+		/// so there is exactly one definition of "is my errand still running" in the supply subsystem.</para>
+		///
+		/// <para>THE IDLE TERM IS NOT OPTIONAL — WITHOUT IT THIS IS A LATCH, NOT A DEADBAND. It is the
+		/// responsive term: re-issuing makes the truck non-idle, so the suppression switches itself off, and a
+		/// truck that arrived (or whose Move died on a blocked cell or an absent path) reads idle and is
+		/// re-ordered rather than parked forever on a stale record. That is the exact defect
+		/// <see cref="SupplyDropMath.ErrandStillRunning"/> was written to fix on the drop path, and it applies
+		/// here for the same reason. Note the whole predicate is reachable ONLY by a truck that is NOT
+		/// evacuating — the evac branch issues its own retreat and returns before the follow branch — so
+		/// damping here can never delay a withdrawal, which is this file header's safety invariant.</para>
+		///
+		/// <para><paramref name="thresholdCells"/> &lt;= 0 ⇒ always re-issue, the undamped per-scan behaviour,
+		/// so the deadband can be turned back off to a known baseline.</para>
+		/// Pure integer, zero RNG.</summary>
+		public static bool ShouldReissueFollow(bool dispatched, bool idle, int prevX, int prevY, int cellX, int cellY,
+			int thresholdCells)
+		{
+			if (!SupplyDropMath.ErrandStillRunning(dispatched, idle))
+				return true;
+
+			if (thresholdCells <= 0)
+				return true;
+
+			var dx = cellX - prevX;
+			var dy = cellY - prevY;
+			return dx * dx + dy * dy >= thresholdCells * thresholdCells;
+		}
+
 		/// <summary>A pull-back point <paramref name="retreatLength"/> toward <paramref name="towards"/> (the
 		/// Supply Route / safe rear) from <paramref name="from"/>. Clamped so it never overshoots the
 		/// destination. Pure integer vector math with a long intermediate so the scale never overflows on large

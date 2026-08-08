@@ -548,6 +548,17 @@ TRUK:
 		RestockActors: logisticscenter
 		RestockThreshold: 50
 		EvacuateOnUnusableResidue: true
+		# Stated explicitly (matches the engine default) because it is the only thing standing
+		# between a 7-tick residue re-decision and a per-tick RotateToEdge: DropsSupplyCache
+		# re-checks CountsAsEmpty EVERY tick and sells the truck the moment it reads true, so an
+		# undamped latch turned one bad scan into a drive off the map. 5 scans x SupplyProvider's
+		# 7-tick ScanInterval = 35 ticks; mod.yaml DefaultSpeed 'default' is Timestep 60ms
+		# (16.667 ticks/s), so 35 x 0.06 = 2.1s of agreement before a truck is written off. A
+		# soldier crossing the aura edge, or a single volley, no longer costs a truck. Clearing
+		# stays instant, so a truck that CAN serve never waits. 0/1 restores the undamped
+		# behaviour. NOTE the whole point is the ALTERNATING case: a verdict flipping every scan
+		# runs the counter 1,0,1,0 and never latches at all.
+		ResidueConfirmScans: 5
 	DropsSupplyCache:
 		SupplyCacheActor: supplycache
 	Repairable:
