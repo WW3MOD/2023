@@ -44,6 +44,10 @@ namespace OpenRA.Test
 	{
 		const int Dwell = 120;
 
+		// The census-named churn sources, and the only orders the funnel may drop. Enumerated in
+		// OrderArbitrationMath's header.
+		const int ExpectedRecurringSites = 6;
+
 		static long Cell(int x, int y) => OrderArbitrationMath.DestinationKey(false, 0, x, y, true);
 		static List<BotOrderTarget> One(uint id, string objective = null, bool busy = true)
 			=> new() { new BotOrderTarget(id, objective, busy) };
@@ -265,7 +269,12 @@ namespace OpenRA.Test
 
 		// ---------- Source scan: the only pin covering the real call sites ----------
 
-		static readonly Regex OrderIssue = new(@"QueueOrder\(\s*new Order\(""(\w+)""", RegexOptions.Compiled);
+		// Matches the CALL, not the call plus its first argument. Requiring `new Order("` on the same
+		// physical line is what hid PoiOffensive's staging site from this scan: fitting the damping
+		// argument wrapped `QueueOrder(` and `new Order("` onto separate lines, so the census's §4.2 beat
+		// silently left the scan's scope and a `> 0` sentinel could not tell 5 sites from 6. The dot
+		// keeps this from matching the interface declarations (which live outside BotModules anyway).
+		static readonly Regex OrderIssue = new(@"\.QueueOrder\(", RegexOptions.Compiled);
 		static readonly Regex RecurringMark = new(@"BotOrderDamping\.Recurring", RegexOptions.Compiled);
 		static readonly Regex Guarded = new(@"if\s*\(\s*!?\w+(\.\w+)*\.QueueOrder|!\w+(\.\w+)*\.QueueOrder", RegexOptions.Compiled);
 
@@ -349,10 +358,14 @@ namespace OpenRA.Test
 					if (!OrderIssue.IsMatch(lines[i]))
 						continue;
 
+					// Accumulate the whole STATEMENT before testing anything about it, and skip the lines it
+					// consumed so a wrapped call cannot be counted twice.
 					var statement = lines[i];
 					var end = i;
 					while (CountOf(statement, '(') > CountOf(statement, ')') && end + 1 < lines.Length)
 						statement += " " + lines[++end].Trim();
+
+					i = end;
 
 					if (!RecurringMark.IsMatch(statement))
 						continue;
@@ -387,8 +400,15 @@ namespace OpenRA.Test
 				}
 			}
 
-			Assert.That(recurringSites, Is.GreaterThan(0),
-				"the scan found no Recurring sites at all — it has stopped testing anything");
+			// An EXACT count, so the scan is a contract rather than a smoke test. A `> 0` sentinel cannot
+			// distinguish "the scope is right" from "the scope silently lost a site", which is precisely
+			// what happened. Adding or removing a suppressible site must be a deliberate edit here.
+			Assert.That(recurringSites, Is.EqualTo(ExpectedRecurringSites),
+				$"expected exactly {ExpectedRecurringSites} BotOrderDamping.Recurring call sites — "
+				+ "MountedTransport passenger boarding, LayeredDefence line assignment x2, PoiOffensive "
+				+ "StageFreePool, and SupplyFollower's two follow Moves. If you added or removed one "
+				+ "deliberately, update ExpectedRecurringSites and say why in the commit message; if you "
+				+ "did not, the scan has lost sight of a site it is supposed to be policing.");
 			Assert.That(offenders, Is.Empty,
 				"A Recurring order may be dropped by the funnel. Every such call site must check QueueOrder's "
 				+ "return value before advancing any memory, booking, ledger claim or state transition — "

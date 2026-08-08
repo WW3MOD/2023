@@ -59,6 +59,13 @@
  *       forward cell), so an equivalence gate passes all three. The churn is decision
  *       instability, not duplicate orders.
  *
+ * THE GUARANTEE, STATED PRECISELY: a NON-QUEUED Protected order is never dropped. A QUEUED Tasking
+ * order marked Protected IS dropped when the head it continues was suppressed in the same tick — the
+ * sequence-binding branch is not damping-aware, and that is deliberate. Exempting a Protected tail
+ * from a dropped Recurring head would let the tail execute alone, which is the entire defect the
+ * binding exists to prevent. So the exception is the one case where dropping a Protected order is the
+ * safe choice, and it is the only one.
+ *
  * SUPPRESSION IS OPT-IN PER CALL SITE (BotOrderDamping.Recurring); RECORDING IS NOT. Every tasking
  * order establishes the standing record, so an unmarked flee or withdrawal still PROTECTS its unit
  * from the next Recurring challenger — the narrow suppressible set narrows what can be dropped
@@ -453,9 +460,27 @@ namespace OpenRA.Mods.Common.Traits
 			// tail after dropping the head leaves the direct leg to execute ALONE — i.e. it drives exactly
 			// the straight line the detour existed to avoid. A partly-issued plan is worse than no
 			// suppression at all, so bind the tail to its head: same tick, same actor, head suppressed ⇒
-			// drop the tail. Restricted to Tasking orders, which is also what makes the binding SOUND:
-			// a queued tasking order is by construction a continuation of a chain, whereas an
-			// alternative (a fallback for the same actor) is never issued queued.
+			// drop the tail. Restricted to Tasking orders, which is what keeps an order the gate does not
+			// own out of reach of this branch entirely.
+			//
+			// WHY THIS IS SOUND, stated exactly rather than by the slogan it used to carry ("a queued
+			// tasking order is by construction a continuation"), which is FALSE — there are two
+			// counterexamples in the tree. The binding can only fire when a head was suppressed this tick,
+			// and only a Recurring order can be suppressed. Of the five queued Tasking sites:
+			//   * PoiOffensiveBotModule:3057, SupplyFollowerBotModule:716 and
+			//     HelicopterSquadBotModule:1270 each have a Protected NON-QUEUED head for the same actor
+			//     in the same tick, and a Protected order calls ClearSequenceSuppressed — so the mark is
+			//     always clear by the time the tail arrives. These are genuine continuations.
+			//   * McvManagerBotModule:163 queues a Move behind the MCV's EXISTING activity with no
+			//     same-tick head at all, and MountedTransportBotModule:428's predecessor is Unload, which
+			//     is Passthrough and therefore never clears the mark. Neither is a continuation of
+			//     anything this gate saw.
+			// Those last two are safe ONLY because their actors are disjoint from every Recurring site's
+			// actor set: an MCV fails AttackBaseInfo in IsEligibleCombatUnit and is in none of
+			// LayeredDefence's whitelists, and carriers are excluded by name in ExcludedActorTypes and by
+			// ExcludeUnitTypes + IsTroopCarrier on both profiles. THAT DISJOINTNESS IS A REAL DEPENDENCY
+			// AND NOTHING ENFORCES IT. If a future Recurring mark ever reaches an MCV or a troop carrier,
+			// these two queued orders become droppable with no head to justify it — re-check them then.
 			//
 			// Same-tick is the correct scope and is deliberately INFERRED rather than declared. An
 			// atomicity marker on the call site would have to be remembered by every future author of a
@@ -496,6 +521,9 @@ namespace OpenRA.Mods.Common.Traits
 			// broad despite the narrow suppressible set: a flee, a withdrawal or a one-shot delivery still
 			// establishes the standing order that PROTECTS its unit from the next Recurring challenger.
 			// So the inversion narrows what can be dropped without narrowing what can be defended.
+			//
+			// Note this is reached only for a NON-QUEUED order: the queued branch above returns before it
+			// and is deliberately NOT damping-aware. See the guarantee stated in the file header.
 			if (damping != BotOrderDamping.Recurring)
 			{
 				ClearSequenceSuppressed(targets, currentTick);

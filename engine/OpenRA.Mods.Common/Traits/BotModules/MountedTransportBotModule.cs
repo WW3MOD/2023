@@ -628,13 +628,6 @@ namespace OpenRA.Mods.Common.Traits
 				if (toLoad.Count < Info.MinPassengersPerLoad)
 					continue;
 
-				// Park the carrier so passengers can board. Without this, AutoTarget can hold the
-				// carrier in an Attack activity against a distant target; passengers walking
-				// up to it never catch a stationary entry frame and Loading times out empty.
-				// Stop clears the current activity (Attack, Move, …); the carrier idles in place
-				// while passengers EnterTransport.
-				bot.QueueOrder(new Order("Stop", carrier, false));
-
 				// Issue EnterTransport order to each. They walk to the carrier and board.
 				// RECURRING — census §2 rank 1 and the other half of the §4.1 beat: 50 t (3.0 s), no dedup on
 				// the passenger, and IsIdle DELIBERATELY not required, so it turns a unit that LayeredDefence
@@ -651,6 +644,15 @@ namespace OpenRA.Mods.Common.Traits
 				if (boarding.Count == 0)
 					continue;
 
+				// Park the carrier so passengers can board, but only now that at least one of them was
+				// actually told to come. Without this, AutoTarget can hold the carrier in an Attack
+				// activity against a distant target; passengers walking up to it never catch a stationary
+				// entry frame and Loading times out empty. Stop clears the current activity (Attack,
+				// Move, …); the carrier idles in place while passengers EnterTransport. Issued AFTER the
+				// boarding loop for the same reason as the capture ferry: stopping first would leave a
+				// carrier parked with no task whenever every boarding order was refused.
+				bot.QueueOrder(new Order("Stop", carrier, false));
+
 				var task = new CarrierTask
 				{
 					Carrier = carrier,
@@ -666,12 +668,15 @@ namespace OpenRA.Mods.Common.Traits
 				// BuildFreePool (which honours the ledger but NOT IsPassengerReserved) can't yank them mid-board.
 				CommitTaskPassengers(task);
 
-				// Remove reserved passengers from the pool for the next carrier in this pass.
+				// Remove from the pool for the next carrier in this pass. Deliberately toLoad and not
+				// boarding: a passenger whose order was just refused would be refused again by every later
+				// carrier in the same pass, since they all read the same standing record on the same tick.
+				// Skipping it for the rest of the pass is right; it returns to the pool on the next scan.
 				foreach (var p in toLoad)
 					availablePassengers.Remove(p);
 
-				AIUtils.BotDebug("AI ({0}): mounted-transport — {1} reserved {2} pax (cap {3}), drop-off {4}",
-					player.ClientIndex, carrier.Info.Name, toLoad.Count, capacity, dropOff.Value);
+				AIUtils.BotDebug("AI ({0}): mounted-transport — {1} reserved {2} of {3} pax (cap {4}), drop-off {5}",
+					player.ClientIndex, carrier.Info.Name, boarding.Count, toLoad.Count, capacity, dropOff.Value);
 
 				if (availablePassengers.Count < Info.MinPassengersPerLoad)
 					break;
