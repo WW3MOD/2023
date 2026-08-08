@@ -54,10 +54,11 @@ namespace OpenRA.Mods.Common.Traits
 			"baseCenter. That is the idle-technician-in-a-civilian-house bug, and it fires on the bot's very",
 			"first tick (scanCountdown defaults to 0). Reads the fog-legal believed DangerFieldLayer.GroundDanger,",
 			"NOT ThreatMapManager — the latter's FindActorsInCircle is omniscient and would be a fog leak on the",
-			"@experimental profile. IMPORTANT: this is a SHARED enable-ai-any module, so the flag alone can't",
-			"confine it — the gate fires ONLY for the @experimental player (explicit BotType gate, same shape as",
-			"CommitGarrisonedUnits). Off / non-experimental / no DangerFieldLayer ⇒ inert ⇒ byte-identical for",
-			"@stable / Normal / legacy.")]
+			"fog-respecting profiles. NOT narrowed by bot type: this is a bug-class fix on a module every profile",
+			"shares, so @stable inherits it. It reaches the players that Participate in the influence stack",
+			"(@experimental + @stable) and therefore have a believed-danger signal at all; legacy/normal bots",
+			"build no field, read 0 danger everywhere, and keep the old behaviour rather than having the module",
+			"silently disabled. Default false ⇒ a profile that omits the field is unchanged.")]
 		public readonly bool RequireBelievedThreat = false;
 
 		[Desc("Believed anti-ground danger at a building's cell at/above which garrisoning it is worth a soldier.",
@@ -71,7 +72,7 @@ namespace OpenRA.Mods.Common.Traits
 			"unit leaves the world — so the books show a free unit and the battlefield shows nothing. Orderable",
 			"because GarrisonManager.DynamicOwnership flips a neutral house to the entering soldier's owner",
 			"(GarrisonManager.cs:257-262); without that flip the order would fail ValidateOrder and be dropped.",
-			"Same @experimental-only gate as RequireBelievedThreat, and inert without it.")]
+			"Rides the same danger-field-availability gate as RequireBelievedThreat, and is inert without it.")]
 		public readonly bool ReleaseWhenThreatClears = false;
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
@@ -106,12 +107,23 @@ namespace OpenRA.Mods.Common.Traits
 		bool LedgerActive => CommitOnOrderMath.ShouldCommitShared(
 			Info.CommitGarrisonedUnits, goalGuard != null && !goalGuard.IsTraitDisabled, isExperimentalBot);
 
-		// Believed-threat gate. Same shared-module BotType conjunct as LedgerActive — a bare flag would reach
-		// @stable/Normal through the one shared instance.
+		// Believed-threat gate. Deliberately NOT narrowed by bot type: this is a bug-class fix on a module every
+		// profile shares, so every profile that can supply the signal gets it (CLAUDE.md — @stable inherits
+		// improvements, never gated off on purpose). Participates is a RESOURCE test, not a withholding one:
+		// legacy/normal bots build no danger field at all, so GroundDanger reads 0 for them everywhere and a
+		// gate would silently disable the module instead of improving it — they keep the legacy behaviour until
+		// there is an honest signal to gate them with.
+		//
+		// It must be Participates and NOT "has a field been built yet", even though the latter looks like the
+		// more direct question. Fields are created lazily on a participant's first RecomputePlayer, which the
+		// deterministic stagger (UpdateInterval/3) plus round-robin puts several ticks in, whereas this module
+		// scans on tick 1 (scanCountdown defaults to 0) — a field-existence test would therefore fail OPEN for
+		// precisely the opening window the bug was reported in. Participates is knowable at tick 0, and a
+		// participant whose field is not built yet honestly reads "no believed threat", which it is.
 		DangerFieldLayer dangerField;
 
-		bool ThreatGateActive => CommitOnOrderMath.ShouldCommitShared(
-			Info.RequireBelievedThreat, dangerField != null, isExperimentalBot);
+		bool ThreatGateActive =>
+			Info.RequireBelievedThreat && dangerField != null && InfluenceStack.Participates(player);
 
 		bool WorthGarrisoning(Actor building)
 			=> dangerField.GroundDanger(player, building.Location) >= Info.MinBelievedDanger;
