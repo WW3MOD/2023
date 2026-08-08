@@ -30,6 +30,7 @@ namespace OpenRA.Mods.Common.Traits
 		HasPassableActor = 8,
 		HasTemporaryBlocker = 16,
 		HasTransitOnlyActor = 32,
+		HasDiagonalSqueezeBlocker = 64,
 	}
 
 	public static class LocomoterExts
@@ -232,7 +233,74 @@ namespace OpenRA.Mods.Common.Traits
 				!CanMoveFreelyInto(actor, destNode, SubCell.FullCell, check, ignoreActor))
 				return PathGraph.MovementCostForUnreachableCell;
 
+			// The BlockedByActor.None gate excludes HierarchicalPathFinder.MovementAllowedBetweenCells (:593, which
+			// passes None), leaving the abstract graph permissive. That is not merely the safer failure direction: a
+			// permissive abstract graph underestimates true cost, so the heuristic it feeds stays admissible and A*
+			// stays correct. Syncing it to this stricter rule would raise the estimate and cost that guarantee.
+			if (check != BlockedByActor.None && IsDiagonalSqueeze(srcNode, destNode, ignoreActor))
+				return PathGraph.MovementCostForUnreachableCell;
+
 			return cellCost;
+		}
+
+		/// <summary>
+		/// Returns true when a diagonal step from <paramref name="srcNode"/> to <paramref name="destNode"/> would pass
+		/// through the corner shared by two cells that each hold a <see cref="BlocksDiagonalSqueeze"/> obstacle — the
+		/// "drive between two tank traps" case, where a solid-looking diagonal line stops nothing. Scoped to that tag
+		/// alone: terrain, buildings and trees keep their diagonal gaps.
+		/// </summary>
+		public bool IsDiagonalSqueeze(CPos srcNode, CPos destNode, Actor ignoreActor = null)
+		{
+			// Something that occupies only part of a cell can plausibly slip past a corner; a full-cell occupant
+			// cannot. SharesCell is not a proxy for that distinction, it IS the switch — ToSubCell is assigned
+			// straight from it (Mobile.cs:321) and the actor's own IOccupySpaceInfo.SharesCell just forwards it
+			// (Mobile.cs:198) — so this can never drift out of sync with how the unit occupies space. Reading it off
+			// the locomotor rather than the actor also keeps the rule uniform within a single pathfind, which is what
+			// the DirectedNeighbors pruning argument below depends on.
+			if (Info.SharesCell)
+				return false;
+
+			// FUTURE-PROOFING, NOT LIVE PROTECTION: no caller passes a tagged obstacle today. The four live
+			// ignoreActor sites all pass buildings — the rearm host (LayMines.cs:109), the dock host on the ground
+			// egress leg (Resupply.cs:258), the cache absorber (DropsSupplyCache.cs:185) and the restock target
+			// (SupplyProvider.cs:741). (Resupply.cs:234 looks like a fifth but is inert: it sits in the aircraft
+			// branch and Aircraft.MoveTo discards ignoreActor entirely, Aircraft.cs:1065-1069.) The test earns its
+			// place by keeping the pruning argument below true by construction rather than by call-site audit: that
+			// argument needs "a cell the search can expand is never a blocked shoulder", and since a tagged obstacle
+			// is impassable to everything, the only way it can fail is a search told to ignore the obstacle itself.
+			if (ignoreActor != null && ignoreActor.Info.HasTraitInfo<BlocksDiagonalSqueezeInfo>())
+				return false;
+
+			if (!DiagonalSqueezeGeometry.IsCornerCrossing(srcNode, destNode))
+				return false;
+
+			// Both shoulders must be blocked, never either, and that is what keeps the DensePathGraph
+			// DirectedNeighbors pruning complete. Checked against all nine entries:
+			//   * Diagonal arrivals (idx 0/2/6/8) are safe for free — every neighbour they prune is reached from the
+			//     parent by an ORTHOGONAL step, which this rule never touches.
+			//   * Orthogonal arrivals (idx 1/3/5/7) are the only ones needing the argument: each pruned neighbour is
+			//     reached from the parent diagonally, but one shoulder of that diagonal is the cell being expanded,
+			//     which is passable by construction — so a both-shoulders rule can never deny it.
+			// Blocking on either shoulder breaks exactly there: at idx 1 with X = (-1,1) blocked it denies parent->N
+			// while the expanding cell has already pruned N, so N becomes genuinely unreachable.
+			// The "one shoulder is the expanding cell" step needs Shoulders to never return an endpoint and to be
+			// direction-independent; both are pinned in DiagonalSqueezeGeometryTest.
+			var (first, second) = DiagonalSqueezeGeometry.Shoulders(srcNode, destNode);
+			return CellBlocksCorner(first) && CellBlocksCorner(second);
+		}
+
+		bool CellBlocksCorner(CPos cell)
+		{
+			// Only a purpose-built anti-vehicle obstacle closes a corner. This deliberately does NOT include terrain:
+			// cliffs, the map edge, buildings, rocks and above all trees and hedges keep their diagonal gaps, because
+			// natural cover is not meant to be an impermeable line and players do not read it as one. Scoping it to a
+			// tag rather than to "is this cell impassable" is what keeps the rule off every wooded map — see
+			// WORKSPACE/DISCOVERIES.md 2026-08-08 for the audit that found tree corners closing when it was not.
+			// Map.Contains guards the cache index: GetCache would index the CellLayer out of bounds off-map.
+			if (!world.Map.Contains(cell))
+				return false;
+
+			return GetCache(cell).CellFlag.HasCellFlag(CellFlag.HasDiagonalSqueezeBlocker);
 		}
 
 		// Determines whether the actor is blocked by other Actors
@@ -499,6 +567,12 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (isTransitOnly)
 						cellFlag |= CellFlag.HasTransitOnlyActor;
+
+					// Only ever read by CellBlocksCorner, which the HierarchicalPathFinder never reaches (the
+					// BlockedByActor.None gate in MovementCostToEnterCell excludes it), so the ActorIsBlocking
+					// replication this method's remark warns about does not apply to this flag.
+					if (actor.Info.HasTraitInfo<BlocksDiagonalSqueezeInfo>())
+						cellFlag |= CellFlag.HasDiagonalSqueezeBlocker;
 
 					if (passables.Any())
 					{

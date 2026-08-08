@@ -110,6 +110,12 @@ namespace OpenRA.Mods.Common.Traits
 					// Unlike the destination cell, the source cell is allowed to have an unreachable movement cost.
 					if (!PathSearch.CellAllowsMovement(self.World, locomotor, source, customCost))
 						return NoPath;
+
+					// This shortcut skips the graph, so the source-aware rules the graph would have applied to the step
+					// (diagonal squeezes, height discontinuities) have to be applied here instead.
+					if (locomotor.MovementCostToEnterCell(self, source, target, check, ignoreActor) == PathGraph.MovementCostForUnreachableCell)
+						return NoPath;
+
 					return new List<CPos>(2) { target, source };
 				}
 

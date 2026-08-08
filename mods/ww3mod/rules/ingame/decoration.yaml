@@ -530,6 +530,9 @@ TANKTRAP1:
 		Footprint: x
 		Density: 20
 		Dimensions: 1,1
+	# Anti-vehicle by purpose, so a diagonal line of these reads as solid to full-cell movers instead of
+	# being porous at every corner. Deliberately absent from ^Rock and ^Tree: natural cover keeps its gaps.
+	BlocksDiagonalSqueeze:
 	Tooltip:
 		Name: Tank Trap
 	MapEditorData:
@@ -542,6 +545,7 @@ TANKTRAP2:
 		Footprint: x
 		Density: 20
 		Dimensions: 1,1
+	BlocksDiagonalSqueeze:
 	Tooltip:
 		Name: Tank Trap
 	MapEditorData:

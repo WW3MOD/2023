@@ -1,0 +1,1 @@
+Auto: a vehicle must not squeeze diagonally between two tank traps, a rifleman still may (subcell exemption), and a control vehicle enters an identical pocket through a real orthogonal gap.
