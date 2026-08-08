@@ -751,7 +751,11 @@ namespace OpenRA.Mods.Common.Traits
 			// re-issuing makes it false — and it is the same observable StepEvac's leg model uses to notice a
 			// Move that never arrived. A truck that DID drop is at 0 supply and has already left the eligible
 			// roster, so it is pruned rather than reaching here.
-			if (dispatched && !SupplyDropMath.ErrandStillRunning(dispatched, truck.IsIdle))
+			// No outer `dispatched &&` guard: the predicate already carries that term, and repeating it here
+			// would make the call read as optional decoration at the one site whose whole point is that it is
+			// not. The not-dispatched case falls into this block and both statements are no-ops, which is the
+			// intended cost of leaving the predicate as the single authority.
+			if (!SupplyDropMath.ErrandStillRunning(dispatched, truck.IsIdle))
 			{
 				dropTarget.Remove(truck);
 				dispatched = false;
