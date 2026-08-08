@@ -264,8 +264,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			// A search carrying an ignoreActor can enter cells CellBlocksCorner calls solid, which would break the
 			// "the expanding cell is passable" premise the pruning argument below rests on and cost paths rather than
-			// squeezes. Drop the rule instead of disagreeing with CanMoveFreelyInto — the same call the PathFinder
-			// makes when it falls back to the blocking-agnostic HPF for an ignoreActor search (PathFinder.cs:154-158).
+			// squeezes. Drop the rule rather than disagree with CanMoveFreelyInto. PathFinder.cs:154-158 makes a
+			// comparable concession — but only comparable: there ignoreActor picks a more permissive *heuristic*
+			// source and local search stays authoritative, whereas this disables a hard passability rule inside the
+			// authoritative search itself. The precedent motivates the shape; it does not carry the safety guarantee.
+			// Narrow in practice — the only callers that pass one are the five docking approaches, which in this mod
+			// means the supply loop runs without the rule (see WORKSPACE/DISCOVERIES.md, 2026-08-08).
 			if (ignoreActor != null)
 				return false;
 
@@ -305,6 +309,9 @@ namespace OpenRA.Mods.Common.Traits
 			// Anything that can move aside, stop blocking, or be driven through is not a wall. Temporary blockers are
 			// excluded to stay consistent with CanMoveFreelyInto, which routes them to its slow path and may well let
 			// the mover in — a shoulder this test calls solid but the search can enter would break the premise above.
+			// The exclusion is unconditional, so a gate this particular mover cannot open also stops counting as a
+			// shoulder. That makes the rule under-apply rather than over-apply, which is the direction to fail in:
+			// a missed squeeze is a cosmetic gap, a spurious one costs a path.
 			if (cellFlag.HasCellFlag(CellFlag.HasMovableActor) ||
 				cellFlag.HasCellFlag(CellFlag.HasTransitOnlyActor) ||
 				cellFlag.HasCellFlag(CellFlag.HasTemporaryBlocker))
