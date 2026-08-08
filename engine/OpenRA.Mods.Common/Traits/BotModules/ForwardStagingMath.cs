@@ -162,6 +162,26 @@ namespace OpenRA.Mods.Common.Traits
 			return (cx, cy);
 		}
 
+		/// <summary>The largest ring index a spread may use, given a standoff of <paramref name="standoffMapCells"/>
+		/// map cells and <paramref name="ringStep"/>-cell ring spacing. This is the bound <see cref="SpreadCell"/>
+		/// documents as its correctness precondition: the widest ring's Chebyshev radius (maxRings * ringStep)
+		/// must stay STRICTLY inside the standoff, so no spread slot sits forward of the frontier the anchor
+		/// descent already cleared of believed danger. The -1 is what makes it strict rather than touching.
+		/// A non-positive ringStep means "no fan-out" and yields 0. Pure integer, zero RNG.
+		///
+		/// <para>NOTE PoiOffensiveBotModule.StageFreePool still computes this inline and differs for a
+		/// non-positive ringStep (it clamps the divisor to 1 instead, giving a large but inert maxRings — inert
+		/// because SpreadCell returns the anchor at ringStep &lt;= 0 regardless). Deliberately NOT unified here:
+		/// that call site is a shipped @experimental/@stable lever, so folding it in is a behaviour question
+		/// needing its own measurement rather than a correction-round change.</para></summary>
+		public static int MaxSpreadRings(int standoffMapCells, int ringStep)
+		{
+			if (ringStep <= 0)
+				return 0;
+
+			return Math.Max(0, (standoffMapCells - 1) / ringStep);
+		}
+
 		/// <summary>Has the staging anchor moved far enough (Chebyshev &gt;= <paramref name="thresholdCells"/>) to
 		/// be re-ADOPTED? Hysteresis so a small field wobble doesn't re-lay the whole formation every eval. A
 		/// non-positive threshold always re-adopts (no hysteresis). Pure integer, zero RNG.</summary>

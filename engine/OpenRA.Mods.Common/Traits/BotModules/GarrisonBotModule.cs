@@ -74,16 +74,24 @@ namespace OpenRA.Mods.Common.Traits
 			"against the sender's — a map player such as Neutral is assigned the ADMIN client index (Player.cs:191)",
 			"and bot orders ride that same stream, so a still-neutral house validates. (GarrisonManager's",
 			"DynamicOwnership does flip the house to us on entry, but that flip is NOT what makes this orderable.)",
+			"That equality is the one load-bearing assumption: it holds while the bot host IS the admin client",
+			"(Player.cs:225 activates bot logic only on the host). Should the two ever diverge, ValidateOrder drops",
+			"the Unload and the release pass re-issues it every scan forever — fail-safe, since no unit is lost and",
+			"nothing is corrupted, but a silent permanent no-op, so suspect this first if garrisons stop releasing.",
 			"Rides the same danger-field-availability gate as RequireBelievedThreat, and is inert without it.")]
 		public readonly bool ReleaseWhenThreatClears = false;
 
 		[Desc("Minimum ticks a building must have been observed garrisoned before release is eligible. Entry and",
 			"release are exactly complementary predicates over an INTEGER field that is fully restamped each",
 			"recompute, so at a kernel's outermost ring one step of confidence decay moves the contour across the",
-			"threshold — without a dwell the pair flaps and a soldier walks in and out on a multi-scan cycle. A",
-			"value band cannot fix that (the reading is quantised to 0/1/2 near the edge, and every threshold has",
-			"its own ±1 outermost contour), so the damping is on TIME instead. Delays only leaving cover; entering",
-			"is unaffected. Only read when ReleaseWhenThreatClears is active.")]
+			"threshold — without a dwell the pair flaps and a soldier walks in and out on a multi-scan cycle.",
+			"Raising MinBelievedDanger does NOT fix that: every threshold has its own ±1 outermost contour, so a",
+			"higher bar moves the flap instead of damping it. A two-threshold dead band (enter >= T_in, release <",
+			"T_out) would, but it is unavailable at MinBelievedDanger: 1 — there is no room below 1 for a T_out, so",
+			"a band would mean raising ENTRY, a doctrine change rather than a debounce. Hence damping on TIME,",
+			"which also stays correct if the kernel intensities are ever retuned. 750 ticks is ~45 s at the mod",
+			"default Timestep of 60 ms (16.67 ticks/s, mod.yaml GameSpeeds DefaultSpeed: default). Delays only",
+			"leaving cover; entering is unaffected. Only read when ReleaseWhenThreatClears is active.")]
 		public readonly int MinGarrisonDwellTicks = 750;
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
@@ -374,9 +382,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>Reconcile the tracked set against what is actually in the buildings: adopt any garrisonable
 		/// building now holding one of ours (starting its dwell clock), and drop any that no longer does — the
-		/// occupants left, died, or the building did. Runs every scan, so a building we never ordered into (a
-		/// human ally's soldier, a unit that wandered in) is tracked too, which is correct: the release pass asks
-		/// "is anyone of ours sitting in a house for no reason", not "did I put them there".</summary>
+		/// occupants left, died, or the building did. Runs every scan, so a building we never ordered into (one
+		/// of OUR units that got there some other way) is tracked too, which is correct: the release pass asks
+		/// "is a unit of mine sitting in a house for no reason", not "did I put it there".
+		///
+		/// <para>Scope is strictly our own units — OccupiedBy tests <c>Owner == owner</c>, so an ALLY's soldier
+		/// neither adopts a building nor holds one adopted, and we never order an ally's garrison out.</para>
+		///
+		/// <para>Known one-tick blind spot, harmless: GarrisonManager.RecallToShelter nulls DeployedSoldier
+		/// (:408) but defers the cargo load to a frame-end task (:414-428), so for one tick a recalled soldier is
+		/// in neither half of OccupiedBy and its building is briefly dropped. It cannot reintroduce the terminal
+		/// garrison — the adopt loop below re-scans every GarrisonManager actor unconditionally, so the building
+		/// is picked up again on the next scan. The only cost is a reset dwell clock, and it resets during
+		/// combat, which is exactly when no release is wanted anyway.</para></summary>
 		void SyncGarrisonedBuildings()
 		{
 			// The tracked set exists only to feed the release pass, so a profile that never releases does no work
@@ -412,7 +430,13 @@ namespace OpenRA.Mods.Common.Traits
 		/// <para>The entry is NOT removed here. Removal is SyncGarrisonedBuildings' job, on the next scan, once
 		/// the building is observably empty — so an Unload that did not take effect is simply re-issued rather
 		/// than silently forgotten. Only buildings already observed occupied are ever candidates, so the Unload
-		/// always has something to unload.</para></summary>
+		/// always has something to unload.</para>
+		///
+		/// <para>Deliberately uncapped, unlike the assign pass's MaxOrdersPerTick. The asymmetry is intended:
+		/// the cap exists to stop the module draining the idle pool faster than the rest of the AI can react,
+		/// and releasing has the opposite sign — it RETURNS units. Capping it would strand the overflow in cover
+		/// for another scan for no benefit. The order count is bounded anyway by the tracked set, and ModularBot
+		/// drains its queue at a fixed rate regardless.</para></summary>
 		void ReleaseClearedGarrisons(IBot bot)
 		{
 			if (!Info.ReleaseWhenThreatClears || !ThreatGateActive || garrisonedSince.Count == 0)
@@ -430,11 +454,14 @@ namespace OpenRA.Mods.Common.Traits
 				// fully restamped each recompute, and the stamped contribution is INTEGER, so at a kernel's
 				// outermost ring one step of confidence decay moves the whole contour across the threshold.
 				//
-				// A value band is the wrong instrument for that. Near the edge the reading is quantised to 0/1/2,
-				// so any band wide enough to matter swallows most of the kernel, and — the real objection — every
-				// threshold has its own outermost ±1 contour, so raising the bar MOVES the flap rather than
-				// damping it. A dwell bounds the flap FREQUENCY instead, which is the part that shows on screen,
-				// and it does so without any assumption about the field's scale.
+				// Note precisely what this does and does not claim. A single WIDER threshold cannot fix it: every
+				// threshold has its own outermost ±1 contour, so raising the bar moves the flap rather than
+				// damping it. A two-threshold DEAD BAND (enter >= T_in, release < T_out with T_out < T_in) genuinely
+				// would — a ±1 wobble cannot cross a 2-wide band — and that form is simply unavailable at the
+				// shipped config, because MinBelievedDanger is 1 and there is no room below it for a T_out; a band
+				// would mean raising entry, which is a doctrine change, not a debounce. So the damping is on TIME:
+				// it bounds the flap FREQUENCY, which is the part that shows on screen, and it does so without any
+				// assumption about the field's scale — it stays correct if the kernel intensities are ever retuned.
 				//
 				// Asymmetric on purpose: it delays only LEAVING cover. Entering stays instantaneous, so a real
 				// threat is still answered on the next scan.

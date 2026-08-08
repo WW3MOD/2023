@@ -1104,9 +1104,7 @@ namespace OpenRA.Mods.Common.Traits
 			// sit forward of the frontier the anchor descent already cleared of believed danger, because
 			// SpreadCell is not danger-guarded per cell. Same invariant, and same arithmetic, as StageFreePool.
 			var standoffMapCells = Info.ReserveStandoffCells * reserveControlField.Info.CellSize;
-			var maxRings = Info.ReserveSpreadStepCells > 0
-				? Math.Max(0, (standoffMapCells - 1) / Info.ReserveSpreadStepCells)
-				: 0;
+			var maxRings = ForwardStagingMath.MaxSpreadRings(standoffMapCells, Info.ReserveSpreadStepCells);
 
 			// ActorID order so the issue sequence cannot depend on the pool's composition.
 			foreach (var tp in undispatched.OrderBy(p => p.Actor.ActorID))
