@@ -259,5 +259,89 @@ namespace OpenRA.Test
 				Assert.That(FrontlineAllocationMath.SectorPostureHold(1, 100, 2, -5, 3), Is.False, "negative ratio ⇒ disabled");
 			});
 		}
+
+		// ---------- posture hold budget ("look, then commit") ----------
+
+		[Test]
+		public void PostureBudgetUnboundedByDefault()
+		{
+			// 0 (and negative) is the off sentinel: the hold is never budget-exhausted, i.e. exactly the legacy
+			// behaviour. This is what makes the knob's default inert for every profile that does not set it.
+			Assert.Multiple(() =>
+			{
+				Assert.That(FrontlineAllocationMath.PostureBudgetExhausted(0, 0), Is.False);
+				Assert.That(FrontlineAllocationMath.PostureBudgetExhausted(9999, 0), Is.False,
+					"budget 0 ⇒ unbounded however many evals were spent");
+				Assert.That(FrontlineAllocationMath.PostureBudgetExhausted(9999, -3), Is.False,
+					"negative budget ⇒ also unbounded");
+			});
+		}
+
+		[Test]
+		public void PostureBudgetExhaustsAtTheCap()
+		{
+			// Boundary is inclusive: with a budget of 3, the axis has spent it once it has held 3 evals.
+			Assert.Multiple(() =>
+			{
+				Assert.That(FrontlineAllocationMath.PostureBudgetExhausted(2, 3), Is.False, "2 of 3 spent ⇒ may still hold");
+				Assert.That(FrontlineAllocationMath.PostureBudgetExhausted(3, 3), Is.True, "3 of 3 ⇒ exhausted");
+				Assert.That(FrontlineAllocationMath.PostureBudgetExhausted(4, 3), Is.True, "over cap ⇒ still exhausted");
+			});
+		}
+
+		[Test]
+		public void PostureBudgetIsMonotoneAcrossAFlippingVerdict()
+		{
+			// THE LOAD-BEARING PROPERTY. Wherever the posture verdict FLIPS between evals — the period-2 shape that
+			// arises when the hold's muster resolves rearward, so the axis leaves its sector, sectorOwn drops under
+			// the floor, the floor fails OPEN and it re-advances — the counter must NOT decay on the press half, or
+			// it refunds the budget as fast as it is spent and bounds nothing at all. (On the shipping profile the
+			// hold instead FREEZES in place, which a monotone counter bounds trivially; this test pins the harder
+			// case.) Simulate the flip (hold, press, hold, press, ...) and assert the budget still terminates.
+			const int Budget = 3;
+			var evals = 0;
+			var held = 0;
+			for (var i = 0; i < 12; i++)
+			{
+				var wantsHold = i % 2 == 0; // the oscillation: posture reads hold on alternate evals only
+				var holding = !FrontlineAllocationMath.PostureBudgetExhausted(evals, Budget) && wantsHold;
+				if (holding)
+					held++;
+
+				evals = FrontlineAllocationMath.StepPostureHold(evals, holding, Budget);
+			}
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(held, Is.EqualTo(Budget),
+					"the oscillation must terminate after exactly Budget holds, not run forever");
+				Assert.That(FrontlineAllocationMath.PostureBudgetExhausted(evals, Budget), Is.True,
+					"and stay exhausted for the rest of the mission");
+			});
+		}
+
+		[Test]
+		public void PostureBudgetStepOnlyCountsHolds()
+		{
+			Assert.Multiple(() =>
+			{
+				Assert.That(FrontlineAllocationMath.StepPostureHold(1, false, 3), Is.EqualTo(1),
+					"a press eval leaves the budget untouched (monotone, does not decay)");
+				Assert.That(FrontlineAllocationMath.StepPostureHold(1, true, 3), Is.EqualTo(2), "a hold eval spends one");
+			});
+		}
+
+		[Test]
+		public void PostureBudgetSaturatesAtTheCap()
+		{
+			// Exhaustion is sticky and the counter cannot grow without bound over a long match.
+			Assert.Multiple(() =>
+			{
+				Assert.That(FrontlineAllocationMath.StepPostureHold(3, true, 3), Is.EqualTo(3), "saturates at the cap");
+				Assert.That(FrontlineAllocationMath.StepPostureHold(5, true, 3), Is.EqualTo(5), "never climbs past it");
+				Assert.That(FrontlineAllocationMath.StepPostureHold(9999, true, 0), Is.EqualTo(10000),
+					"unbounded budget still counts (nothing reads it, but the step stays total)");
+			});
+		}
 	}
 }

@@ -588,6 +588,20 @@ Player:
 		SectorPostureHoldEnabled: true
 		SectorPostureHoldRatioPct: 200
 		SectorPostureHoldOwnFloor: 3
+		# "Look, then commit" bound on the hold above (0 = unbounded = the legacy behaviour every other profile keeps).
+		# The hold has no terminating condition of its own, and ON THIS PROFILE that does not produce an oscillation:
+		# with ForwardMusterEnabled below, a held axis's destination resolves FORWARD or in place, never rearward
+		# (only a NearRally axis falls back to the rear anchor), so a held flank axis FREEZES — first hold orders it
+		# where it already stands, later holds emit nothing. The bound turns that freeze into "look for 3 evals, then
+		# commit": it falls through to the mission-commitment snapshot and holds its mission for
+		# MissionCommitmentWindowTicks (400 = ~4 evals) instead of re-deciding every eval.
+		# WHAT THIS DOES NOT FIX: the live 2026-08-08 "ordered back, then forward again, and back" report is equally
+		# consistent with SELECTION CHURN (axis freezes, its POI churns out of the top-k, the axis is destroyed, the
+		# free-pool stager walks the units back, a new axis re-forms and walks them forward). A destroyed axis refunds
+		# this budget, so the knob is INERT against that path. The [exp-posture] / [exp-offense] axis-new / retire log
+		# lines exist to tell the two apart in a live run — do not treat this as diagnosed. Sweep target once the
+		# ai-bench ladder is run; the caution/commitment duty cycle has never been measured.
+		SectorPostureHoldMaxEvals: 3
 		# PHASE 7 (@experimental) LATERAL SPREAD + FORWARD MUSTER. The counter to SR-Pressure single-axis funnelling
 		# (WORKSPACE/DISCOVERIES.md 2026-08-03: ~90% of the army pooled on one standoff axis mid-map). LateralSpread
 		# caps the enemy-SR Pressure axis at SrPoolSharePct% of the pool and spreads the freed units across the other
