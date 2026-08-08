@@ -843,6 +843,12 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					if (IsRearming(u))
 						continue;
 
+					// committedRetreatCell is stamped ABOVE this loop, so a dropped Move would leave
+					// retargeted false forever after while the unit is non-idle (still flying the AttackMove
+					// that created the standing record) — the withdrawal would be lost and the squad would
+					// fly on into the AA envelope. That pre-loop stamp is sound because this order is
+					// unmarked, hence Protected, hence never droppable. Do NOT mark it Recurring: this is a
+					// one-shot-per-state issuance with no retry, so it cannot satisfy the Recurring contract.
 					if (!hysteresis || retargeted || u.IsIdle)
 						owner.Bot.QueueOrder(new Order("Move", u, Target.FromCell(owner.World, retreatCell), false));
 				}

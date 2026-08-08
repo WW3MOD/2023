@@ -713,7 +713,11 @@ namespace OpenRA.Mods.Common.Traits
 				if ((h.Location - srCell).LengthSquared > maxDistSq)
 					continue;
 
-				bot.QueueOrder(new Order("Move", h, Target.FromCell(world, stageCell.Value), false));
+				// The guard above is `stagedTo.ContainsKey(h)` — unconditional, not a drift test — so caching a
+				// dropped order removes this airframe from forward staging PERMANENTLY.
+				if (!bot.QueueOrder(new Order("Move", h, Target.FromCell(world, stageCell.Value), false)))
+					continue;
+
 				stagedTo[h] = stageCell.Value;
 
 				AIUtils.BotDebug("AI ({0}): heli forward-staging {1} {2} -> {3}",
@@ -887,7 +891,11 @@ namespace OpenRA.Mods.Common.Traits
 				if (!target.HasValue)
 					continue;
 
-				bot.QueueOrder(new Order("Move", scout, Target.FromCell(world, target.Value), false));
+				// Refused ⇒ leave the scout in the idle pool and the target unclaimed, so the next pass can
+				// try again instead of believing this recon leg was dispatched.
+				if (!bot.QueueOrder(new Order("Move", scout, Target.FromCell(world, target.Value), false)))
+					continue;
+
 				idleHelicopters.Remove(scout);
 				assignedScratch.Add(target.Value);
 
@@ -1249,7 +1257,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			StandDownStragglers(bot, task);
 
-			bot.QueueOrder(new Order("Move", transport, Target.FromCell(world, task.DropZone), false));
+			// THREE-LEG CHAIN, and the head is the only suppressible leg. Unload and the return Move are both
+			// queued, so admitting them after a dropped head would unload the passengers WHEREVER the
+			// transport happens to be hovering instead of at the drop zone. All-or-nothing.
+			if (!bot.QueueOrder(new Order("Move", transport, Target.FromCell(world, task.DropZone), false)))
+				return;
+
 			bot.QueueOrder(new Order("Unload", transport, queued: true));
 
 			var ownSR = FindOwnSupplyRoute();

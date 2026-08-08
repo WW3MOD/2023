@@ -95,7 +95,20 @@ The funnel gate replaces that with **the incumbent commitment wins**. Its real l
 | `CaptureCoordinatorBotModule` escorts/defenders on `@stable` | `CommitSupportUnits` absent from `@stable.tecn` | **yes** |
 | `StancePositioningExecutor` | write-only, and never reaches the funnel | **no — needs Stage 1b** |
 
-That is five of the six worst offenders closed by one file. It is also the correct composition point for the parallel churn audit (§6).
+~~That is five of the six worst offenders closed by one file.~~ **CORRECTED 2026-08-08 by the Stage-1 caller audit (branch `auto/order-gate`): the real number is THREE, and only on `@stable`.** The table above asked the wrong question. Predicate (a) adds something only where the poacher does **not already consult the ledger when building its pool**, and that turns on whether the module's `goalGuard` FIELD is resolved at all:
+
+| Poacher | `goalGuard` on `@stable` | Already skips committed? | Closed by (a)? |
+|---|---|---|---|
+| `LayeredDefenceBotModule` (`:400`) | **null** — resolved only under `RespectCommitmentLedger \|\| CommitLineAssignments` (`:215`), both `@experimental`-only (`ai.yaml:1035`/`:1039`) | no | **yes** |
+| `GarrisonBotModule@defenses` (`:287`) | non-null, but `LedgerActive` is false for a non-experimental bot, and the read is `!LedgerActive \|\| !IsCommitted` | no | **yes** |
+| `MountedTransportBotModule` (`:571`) | **null** — resolved only under `CommitPassengers` (`:313`), `@experimental`-only (`ai.yaml:1166`) | no | **yes** |
+| `HelicopterSquadBotModule` (`:1606`) | **non-null** — resolved unconditionally (`:496`) | **yes** | no (redundant), and it writes no claim so (a) cannot protect its passengers either |
+| `CaptureCoordinatorBotModule` (`:1647`) | **non-null** — resolved unconditionally (`:518`) | **yes** | no (redundant) |
+| `StancePositioningExecutor` | n/a — activity layer, never reaches the funnel | n/a | no |
+
+On `@experimental` all six flags are set, so every module already reads the ledger and predicate (a) closes **zero** additional recruitment paths there. The predicate that damps the user's visible churn is (b), the dwell. Predicate (a)'s remaining value is that it is a shared enforcement point rather than five voluntary conventions — worth having, but it is not the headline.
+
+§2 is also the correct composition point for the parallel churn audit (§6).
 
 ---
 

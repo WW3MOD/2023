@@ -501,7 +501,16 @@ namespace OpenRA.Mods.Common.Traits
 				if (!world.Map.Contains(targetCell))
 					continue;
 
-				bot.QueueOrder(new Order("AttackMove", actor, Target.FromCell(world, targetCell), false));
+				// A dropped order must not leave a ledger claim (or a bespoke booking) behind: that would
+				// reserve a unit nobody ever moved, and predicate (a) would then defend the phantom claim
+				// against every other module.
+				// RECURRING — census §4.1 rank 2: this is one half of the beat that matches the user's
+				// report verbatim ("forward, back, forward again to a different spot"), re-issued every
+				// ScanInterval (75 t) against MountedTransport's 50 t. Re-offered on the next scan, and
+				// every write below is guarded on acceptance.
+				if (!bot.QueueOrder(new Order("AttackMove", actor, Target.FromCell(world, targetCell), false), BotOrderDamping.Recurring))
+					continue;
+
 				assignedAtTick[actor] = world.WorldTick;
 
 				// Phase 2 commit-on-order (§4): stake the line assignment in the shared ledger so offense's
@@ -636,7 +645,11 @@ namespace OpenRA.Mods.Common.Traits
 					if (!world.Map.Contains(targetCell))
 						continue;
 
-					bot.QueueOrder(new Order("AttackMove", best, Target.FromCell(world, targetCell), false));
+					// Same rule as the contested path: no acceptance, no cooldown stamp and no ledger claim.
+					// RECURRING, same beat as the contested path above.
+					if (!bot.QueueOrder(new Order("AttackMove", best, Target.FromCell(world, targetCell), false), BotOrderDamping.Recurring))
+						continue;
+
 					assignedAtTick[best] = world.WorldTick;
 
 					// Same commit-on-order audit as the contested path: stake the crossing slot in the shared ledger

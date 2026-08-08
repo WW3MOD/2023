@@ -262,10 +262,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (carrier == null)
 				return false;
 
-			// Park the carrier and board the capturer (queued false cancels any AutoTarget/Move
-			// so the passenger catches a stationary entry frame — same pattern as TryAssignNewTasks).
+			// Board the capturer FIRST, then park the carrier. The reverse order left the carrier stopped
+			// with no task whenever the boarding order was abandoned below. Both land in the same drain
+			// batch and the passenger's arrival is many ticks away, so the "stationary entry frame" the
+			// Stop exists for is unaffected by which of the two is issued first.
+			//
+			// Refused ⇒ do not stop the carrier and do not create the task: a CarrierTask whose capturer was
+			// never told to board would occupy the carrier until the loading timeout for nothing. This order
+			// is Protected (a directed one-shot ferry, not a recurring stream), so it cannot in fact be
+			// refused today — the check is the standing convention for a bool-returning QueueOrder.
+			if (!bot.QueueOrder(new Order("EnterTransport", capturer, Target.FromActor(carrier), false)))
+				return false;
+
 			bot.QueueOrder(new Order("Stop", carrier, false));
-			bot.QueueOrder(new Order("EnterTransport", capturer, Target.FromActor(carrier), false));
 
 			carrierTasks[carrier] = new CarrierTask
 			{
@@ -448,7 +457,12 @@ namespace OpenRA.Mods.Common.Traits
 						// through the carrier's whole return trip — the bespoke IsPassengerReserved used to).
 						ReleaseTaskPassengers(task);
 
-						bot.QueueOrder(new Order("Move", carrier, Target.FromCell(world, task.Return), false));
+						// Only advance the FSM if the move was accepted. Neither Delivering nor Returning has a
+						// timeout (LoadingTimeoutTicks guards Loading only), so a dropped Move plus a state
+						// advance parks the carrier at the front forever.
+						if (!bot.QueueOrder(new Order("Move", carrier, Target.FromCell(world, task.Return), false)))
+							break;
+
 						task.State = CarrierState.Returning;
 						task.StateChangedAtTick = world.WorldTick;
 						AIUtils.BotDebug("AI ({0}): mounted-transport — {1} returning to {2}",
@@ -480,7 +494,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		void LaunchDelivery(IBot bot, CarrierTask task)
 		{
-			bot.QueueOrder(new Order("Move", task.Carrier, Target.FromCell(world, task.DropOff), false));
+			// Same rule, and this is the worse case: the carrier is LOADED. Staying in Loading means the
+			// existing LoadingTimeoutTicks path retries and can still release the passengers; advancing to
+			// Delivering without a move would strand them aboard permanently.
+			if (!bot.QueueOrder(new Order("Move", task.Carrier, Target.FromCell(world, task.DropOff), false)))
+				return;
+
 			task.State = CarrierState.Delivering;
 			task.StateChangedAtTick = world.WorldTick;
 			AIUtils.BotDebug("AI ({0}): mounted-transport — {1} delivering {2} pax to {3}",
@@ -609,16 +628,30 @@ namespace OpenRA.Mods.Common.Traits
 				if (toLoad.Count < Info.MinPassengersPerLoad)
 					continue;
 
-				// Park the carrier so passengers can board. Without this, AutoTarget can hold the
-				// carrier in an Attack activity against a distant target; passengers walking
-				// up to it never catch a stationary entry frame and Loading times out empty.
-				// Stop clears the current activity (Attack, Move, …); the carrier idles in place
-				// while passengers EnterTransport.
-				bot.QueueOrder(new Order("Stop", carrier, false));
-
 				// Issue EnterTransport order to each. They walk to the carrier and board.
+				// RECURRING — census §2 rank 1 and the other half of the §4.1 beat: 50 t (3.0 s), no dedup on
+				// the passenger, and IsIdle DELIBERATELY not required, so it turns a unit that LayeredDefence
+				// just sent forward straight back around. TryAssignNewTasks re-offers it every scan.
+				//
+				// Reserve only the passengers that were actually told to board. A refused passenger left in
+				// ReservedPassengers is one the carrier then waits LoadingTimeoutTicks (1500 t = 90 s) for
+				// while it never walks over — bounded, but a carrier idling a minute and a half for nobody.
+				var boarding = new List<Actor>();
 				foreach (var pax in toLoad)
-					bot.QueueOrder(new Order("EnterTransport", pax, Target.FromActor(carrier), false));
+					if (bot.QueueOrder(new Order("EnterTransport", pax, Target.FromActor(carrier), false), BotOrderDamping.Recurring))
+						boarding.Add(pax);
+
+				if (boarding.Count == 0)
+					continue;
+
+				// Park the carrier so passengers can board, but only now that at least one of them was
+				// actually told to come. Without this, AutoTarget can hold the carrier in an Attack
+				// activity against a distant target; passengers walking up to it never catch a stationary
+				// entry frame and Loading times out empty. Stop clears the current activity (Attack,
+				// Move, …); the carrier idles in place while passengers EnterTransport. Issued AFTER the
+				// boarding loop for the same reason as the capture ferry: stopping first would leave a
+				// carrier parked with no task whenever every boarding order was refused.
+				bot.QueueOrder(new Order("Stop", carrier, false));
 
 				var task = new CarrierTask
 				{
@@ -627,7 +660,7 @@ namespace OpenRA.Mods.Common.Traits
 					DropOff = dropOff.Value,
 					Return = srCell,
 					StateChangedAtTick = world.WorldTick,
-					ReservedPassengers = new HashSet<Actor>(toLoad),
+					ReservedPassengers = new HashSet<Actor>(boarding),
 				};
 				carrierTasks[carrier] = task;
 
@@ -635,12 +668,15 @@ namespace OpenRA.Mods.Common.Traits
 				// BuildFreePool (which honours the ledger but NOT IsPassengerReserved) can't yank them mid-board.
 				CommitTaskPassengers(task);
 
-				// Remove reserved passengers from the pool for the next carrier in this pass.
+				// Remove from the pool for the next carrier in this pass. Deliberately toLoad and not
+				// boarding: a passenger whose order was just refused would be refused again by every later
+				// carrier in the same pass, since they all read the same standing record on the same tick.
+				// Skipping it for the rest of the pass is right; it returns to the pool on the next scan.
 				foreach (var p in toLoad)
 					availablePassengers.Remove(p);
 
-				AIUtils.BotDebug("AI ({0}): mounted-transport — {1} reserved {2} pax (cap {3}), drop-off {4}",
-					player.ClientIndex, carrier.Info.Name, toLoad.Count, capacity, dropOff.Value);
+				AIUtils.BotDebug("AI ({0}): mounted-transport — {1} reserved {2} of {3} pax (cap {4}), drop-off {5}",
+					player.ClientIndex, carrier.Info.Name, boarding.Count, toLoad.Count, capacity, dropOff.Value);
 
 				if (availablePassengers.Count < Info.MinPassengersPerLoad)
 					break;

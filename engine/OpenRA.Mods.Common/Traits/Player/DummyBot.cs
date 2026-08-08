@@ -48,7 +48,9 @@ namespace OpenRA.Mods.Common.Traits
 			player = p;
 		}
 
-		void IBot.QueueOrder(Order order) { }
+		bool IBot.QueueOrder(Order order) { return true; }
+
+		bool IBot.QueueOrder(Order order, BotOrderDamping damping) { return true; }
 
 		IBotInfo IBot.Info => info;
 		Player IBot.Player => player;

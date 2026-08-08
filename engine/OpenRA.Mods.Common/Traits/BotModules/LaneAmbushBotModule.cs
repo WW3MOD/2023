@@ -436,7 +436,9 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var units = lane.Units.ToArray();
-			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, lane.PostCell), false, groupedActors: units));
+			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, lane.PostCell), false, groupedActors: units)))
+				return;
+
 			lane.OrderedCell = lane.PostCell;
 			lane.HasOrdered = true;
 

@@ -1130,7 +1130,11 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 				}
 
-				bot.QueueOrder(new Order("Move", unit, Target.FromCell(world, target), false));
+				// Only remember the slot if the order was accepted; otherwise the dedup above suppresses the
+				// re-issue and the capturer never walks up until the anchor drifts past the hysteresis.
+				if (!bot.QueueOrder(new Order("Move", unit, Target.FromCell(world, target), false)))
+					continue;
+
 				reserveCells[unit] = target;
 
 				// Bounded by definition: one line per capturer per anchor CHANGE, not per scan. This is the
@@ -1236,9 +1240,14 @@ namespace OpenRA.Mods.Common.Traits
 			// When it succeeds the transport module owns the movement AND re-issues CaptureActor on
 			// unload, so we skip the on-foot order here. Ledger commitment + escort still fire so
 			// deconfliction and support are identical to the on-foot path.
+			// The ferry attempt and this on-foot order are ALTERNATIVES, not a chain — nothing may couple
+			// them. Both are Protected, and CaptureActor is outside the suppressible whitelist entirely, so
+			// neither can be refused; the check keeps the claim below honest regardless, because committing a
+			// capturer at RankMission for a unit that received no order would have predicate (a) defend a
+			// phantom claim with the highest rank in the table.
 			var ferried = Info.UseTransportForDistantCaptures && TryFerryCapture(bot, capturer, target);
-			if (!ferried)
-				bot.QueueOrder(new Order("CaptureActor", capturer, Target.FromActor(target), true));
+			if (!ferried && !bot.QueueOrder(new Order("CaptureActor", capturer, Target.FromActor(target), true)))
+				return;
 
 			if (useGuard)
 				goalGuard.Ledger.Commit(capturer, CaptureObjectiveKey(target), world.WorldTick, goalGuard.DefaultCommitmentTicks);
@@ -1359,7 +1368,12 @@ namespace OpenRA.Mods.Common.Traits
 						var ownSR = FindOwnSupplyRoute();
 						if (ownSR != null)
 						{
-							bot.QueueOrder(new Order("Move", tecn, Target.FromCell(world, ownSR.Location), false));
+							// Unmarked ⇒ Protected. `retreated` is a one-shot latch, so a dropped order would
+							// park the TECN at the captured target for good; the return check stays as the
+							// standing convention even though this order cannot currently be refused.
+							if (!bot.QueueOrder(new Order("Move", tecn, Target.FromCell(world, ownSR.Location), false)))
+								continue;
+
 							retreated.Add(tecn);
 							AIUtils.BotDebug("AI ({0}): capture-coordinator — {1} done ({2}), retreating to SR {3}",
 								player.ClientIndex, tecn.Info.Name, reason, ownSR.Location);
@@ -1497,7 +1511,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (recruits.Length == 0)
 				return;
 
-			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, target.Location), false, groupedActors: recruits));
+			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, target.Location), false, groupedActors: recruits)))
+				return;
 
 			foreach (var r in recruits)
 				alreadyRecruited.Add(r);
@@ -1604,7 +1619,12 @@ namespace OpenRA.Mods.Common.Traits
 				if (defenders.Length == 0)
 					continue;
 
-				bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, structure.Location), false, groupedActors: defenders));
+				// A dropped order must not leave a ledger claim (or a bespoke booking) behind: that would
+				// reserve a unit nobody ever moved, and predicate (a) would then defend the phantom claim
+				// against every other module.
+				if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, structure.Location), false, groupedActors: defenders)))
+					continue;
+
 				foreach (var d in defenders)
 					defenderBookings[d] = world.WorldTick;
 

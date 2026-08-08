@@ -424,10 +424,41 @@ namespace OpenRA.Traits
 		string Name { get; }
 	}
 
+	// WW3MOD bot-brain Stage 1: whether the funnel gate (OrderArbitrationMath / BotOrderGate) is
+	// permitted to DROP this order to damp churn. There is no way to tell a retreat from an advance by
+	// inspecting the Order — both are a non-queued "AttackMove" at a cell — so the call site must say.
+	//
+	// SUPPRESSION IS OPT-IN, AND THAT DIRECTION IS THE WHOLE POINT. The first cut of this gate made
+	// every movement order suppressible unless someone remembered to mark it as an emergency, and two
+	// review rounds found six separate places where nobody had: a flee, a withdrawal, a predictive
+	// disengage, a capture-party extraction. Forgetting an annotation cost SAFETY. Inverted, forgetting
+	// one costs only damping — so `Protected` is the default and `default(BotOrderDamping)` is the safe
+	// value.
+	public enum BotOrderDamping
+	{
+		// Must be delivered. The gate never drops it. Everything is this unless proven otherwise.
+		Protected = 0,
+
+		// Opt-in suppressible. Marking a call site Recurring ASSERTS TWO THINGS, and both must be true:
+		//   1. the issuing module re-offers this order on its own cadence, so a drop costs a delay and
+		//      never the errand, and
+		//   2. the call site checks QueueOrder's return value before advancing any memory, booking,
+		//      ledger claim or state transition.
+		// A site that transitions state once and never revisits (the squad-state FSMs) can NEVER
+		// satisfy (1). BotOrderGateCallerTest enforces (2) over the real sources.
+		Recurring = 1,
+	}
+
 	public interface IBot
 	{
 		void Activate(Player p);
-		void QueueOrder(Order order);
+		// Returns TRUE when the order was accepted into the bot's order queue and FALSE when the funnel
+		// gate discarded it. Only a Recurring order can ever return false — but a caller that caches
+		// "I already ordered this unit to X" MUST still advance that cache only on true: a silent drop
+		// plus an advanced cache strands the unit on its old destination permanently while the module
+		// believes it is on the new one.
+		bool QueueOrder(Order order);
+		bool QueueOrder(Order order, BotOrderDamping damping);
 		IBotInfo Info { get; }
 		Player Player { get; }
 	}

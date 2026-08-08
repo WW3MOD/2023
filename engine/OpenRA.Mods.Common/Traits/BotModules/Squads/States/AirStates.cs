@@ -218,6 +218,9 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					continue;
 				}
 
+				// Unmarked ⇒ Protected ⇒ the funnel can never drop it. That is the point of the inverted
+				// default: this flee, and the identical ones in GroundStates/NavyStates/ProtectionStates,
+				// are safe without anyone having to notice them.
 				owner.Bot.QueueOrder(new Order("Move", a, Target.FromCell(owner.World, RandomBuildingLocation(owner)), false));
 			}
 

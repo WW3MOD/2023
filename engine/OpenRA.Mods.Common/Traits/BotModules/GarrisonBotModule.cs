@@ -315,8 +315,12 @@ namespace OpenRA.Mods.Common.Traits
 				if (infantry == null)
 					continue;
 
-				// Issue garrison order (EnterTransport is how infantry enter garrisoned buildings)
-				bot.QueueOrder(new Order("EnterTransport", infantry, Target.FromActor(building), false));
+				// Issue garrison order (EnterTransport is how infantry enter garrisoned buildings).
+				// Refused ⇒ claim nothing, commit nothing, keep the unit in the available pool and do not
+				// spend an order slot: a `garrison:` claim is RankTasking, so predicate (a) would defend it
+				// against every other module for a unit that was never sent anywhere.
+				if (!bot.QueueOrder(new Order("EnterTransport", infantry, Target.FromActor(building), false)))
+					continue;
 
 				// Episode-bounded (MaxOrdersPerTick per ScanInterval), and it carries the believed danger that
 				// justified the order — so a live match can answer "was there a reason?" without a batch run.

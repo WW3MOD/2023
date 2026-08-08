@@ -2289,7 +2289,18 @@ namespace OpenRA.Mods.Common.Traits
 				if (stagedCells.TryGetValue(u, out var prev) && prev == target)
 					continue;
 
-				bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, target), false, groupedActors: new[] { u }));
+				// Only advance the "already ordered" memory if the funnel ACCEPTED the order: a silent drop
+				// plus an advanced cache strands the unit on its old destination permanently, because the
+				// dedup above then believes it is already going to the new one.
+				// RECURRING — census §4.2: the axis<->staging beat, re-evaluated every ReevaluateInterval
+				// (100 t) and re-issued whenever the unit re-enters the free pool, which is what makes the
+				// rearward lurch/forward re-order cycle the user sees. Re-offered every eval, and the
+				// stagedCells write below is guarded on acceptance.
+				if (!bot.QueueOrder(
+					new Order("AttackMove", null, Target.FromCell(world, target), false, groupedActors: new[] { u }),
+					BotOrderDamping.Recurring))
+					continue;
+
 				stagedCells[u] = target;
 				if (onAdvance)
 					advanced++;
@@ -3051,10 +3062,17 @@ namespace OpenRA.Mods.Common.Traits
 			// Stage-E: when a flow-around waypoint was chosen, attack-move to the lateral lane FIRST
 			// (queued: false) then chain the objective (queued: true) so the axis skirts the strongpoint
 			// and still presses on to the target. No waypoint ⇒ the single direct AttackMove, unchanged.
-			if (detourVia.HasValue)
-				bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, detourVia.Value), false, groupedActors: units));
+			// ALL-OR-NOTHING. The lateral leg is non-queued and therefore suppressible; the objective leg is
+			// QUEUED and would otherwise execute alone, driving the axis straight through the strongpoint the
+			// detour exists to skirt. If either leg is refused, issue nothing further and leave axis.Ordered*
+			// untouched so the next re-eval re-issues the whole maneuver.
+			if (detourVia.HasValue
+				&& !bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, detourVia.Value), false, groupedActors: units)))
+				return;
 
-			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, axis.TargetCell), detourVia.HasValue, groupedActors: units));
+			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, axis.TargetCell), detourVia.HasValue, groupedActors: units)))
+				return;
+
 			axis.OrderedCell = axis.TargetCell;
 			axis.OrderedVia = detourVia;
 			axis.HasOrdered = true;
@@ -3163,7 +3181,12 @@ namespace OpenRA.Mods.Common.Traits
 				if ((had && prevCell == anchorCell) || (!needs && !anchorMoved))
 					continue;
 
-				bot.QueueOrder(new Order("AttackMove", u, Target.FromCell(world, anchorCell), false));
+				// Only advance the "already ordered" memory if the funnel ACCEPTED the order: a silent drop
+				// plus an advanced cache strands the unit on its old destination permanently, because the
+				// dedup above then believes it is already going to the new one.
+				if (!bot.QueueOrder(new Order("AttackMove", u, Target.FromCell(world, anchorCell), false)))
+					continue;
+
 				lastFiresAnchor[u] = anchorCell;
 
 				Log.Write("debug",
@@ -3474,7 +3497,12 @@ namespace OpenRA.Mods.Common.Traits
 				if ((had && prevCell == anchorCell) || (!needs && !anchorMoved))
 					continue;
 
-				bot.QueueOrder(new Order("AttackMove", u, Target.FromCell(world, anchorCell), false));
+				// Only advance the "already ordered" memory if the funnel ACCEPTED the order: a silent drop
+				// plus an advanced cache strands the unit on its old destination permanently, because the
+				// dedup above then believes it is already going to the new one.
+				if (!bot.QueueOrder(new Order("AttackMove", u, Target.FromCell(world, anchorCell), false)))
+					continue;
+
 				lastBombardAnchor[u] = anchorCell;
 
 				Log.Write("debug",
@@ -3996,7 +4024,9 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var units = screen.ToArray();
-			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, holdCell), false, groupedActors: units));
+			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, holdCell), false, groupedActors: units)))
+				return;
+
 			axis.OrderedCell = holdCell;
 			axis.OrderedVia = null;
 			axis.OrderedPrepHold = true;
@@ -4011,6 +4041,9 @@ namespace OpenRA.Mods.Common.Traits
 		// only when the axis just entered the retreat (or its unit set changed ⇒ HasOrdered cleared upstream), or
 		// the rally cell drifted past the repath threshold — so a squad already withdrawing keeps its order
 		// uninterrupted. Deterministic.
+		// All three call sites are Protected (the default). Two of them pass a FORWARD muster/staging
+		// anchor rather than a withdrawal, so this helper must never assert an urgency of its own — that
+		// mistake, made once, exempted the axis-vs-staging beat the dwell was sized to damp.
 		void OrderRetreat(IBot bot, Axis axis, CPos rally, int tick)
 		{
 			var moved = !axis.HasOrdered
@@ -4020,7 +4053,9 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var units = axis.Units.ToArray();
-			bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, rally), false, groupedActors: units));
+			if (!bot.QueueOrder(new Order("AttackMove", null, Target.FromCell(world, rally), false, groupedActors: units)))
+				return;
+
 			axis.OrderedCell = rally;
 			axis.OrderedVia = null;
 			axis.OrderedRetreat = true;
