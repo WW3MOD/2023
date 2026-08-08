@@ -373,5 +373,90 @@ namespace OpenRA.Test
 			now = Evac(evacuating, hold, dangerAtTruck: 20, dangerAtDestination: WarmDestination);
 			Assert.That(now, Is.False, "scan 3: released despite the warm destination");
 		}
+
+		// -------------------------------------------------------------------------------------------
+		// ShouldReissueFollow — the deadband the plain follow Move never had (2026-08-08). The follow
+		// cell is recomputed from a MOVING cluster centroid every 150-tick scan, so it differs by a cell
+		// or two by construction, and the Move is non-queued: re-issuing cancels the drive, discards the
+		// path and restarts it. Forever, on a unit whose whole job is to arrive.
+		//
+		// SCOPE, STATED: as with the residue dwell, these pin the RULE and not the WIRING. The two call
+		// sites live in SupplyFollowerBotModule.ManageTrucks, which needs a World, a bot and live
+		// Actors; nothing in this test project constructs any of those. Reverting the call sites alone
+		// would leave these green. What they do catch is any weakening of the predicate itself — in
+		// particular the loss of the idle term, which is what separates a deadband from a latch.
+		// -------------------------------------------------------------------------------------------
+
+		const int RepathCells = 3;
+
+		static bool Reissue(bool dispatched, bool idle, int prevX, int prevY, int cellX, int cellY) =>
+			SupplyLogisticsMath.ShouldReissueFollow(dispatched, idle, prevX, prevY, cellX, cellY, RepathCells);
+
+		[Test]
+		public void FirstFollowOrderIsAlwaysIssued()
+		{
+			// No record: nothing to suppress. The prev coordinates are the default(CPos) the caller's
+			// failed TryGetValue leaves behind, and must not be read as a real destination.
+			Assert.That(Reissue(dispatched: false, idle: false, 0, 0, 0, 0), Is.True);
+			Assert.That(Reissue(dispatched: false, idle: false, 0, 0, 40, 40), Is.True);
+		}
+
+		[Test]
+		public void AnIdleTruckIsReorderedEvenAtTheIdenticalCell()
+		{
+			// THE ANTI-LATCH PIN, and the most load-bearing test here. The truck has a record saying it
+			// was sent to exactly this cell, and the cell has not moved — the maximum-suppression case.
+			// It must STILL re-issue, because idle means the errand ended: it arrived, or the Move died
+			// on a blocked cell or an absent path. Without this term the record suppresses forever and
+			// the truck parks at the front, which is strictly worse than the churn being fixed.
+			Assert.That(Reissue(dispatched: true, idle: true, 12, 12, 12, 12), Is.True);
+			Assert.That(Reissue(dispatched: true, idle: true, 12, 12, 13, 12), Is.True);
+		}
+
+		[Test]
+		public void CentroidJitterUnderTheThresholdIsSuppressed()
+		{
+			// A moving truck whose destination drifted less than RepathThresholdCells keeps driving.
+			// This is the whole point: red the moment the predicate degenerates to "always re-issue".
+			Assert.That(Reissue(dispatched: true, idle: false, 12, 12, 12, 12), Is.False, "identical cell");
+			Assert.That(Reissue(dispatched: true, idle: false, 12, 12, 13, 12), Is.False, "1 cell");
+			Assert.That(Reissue(dispatched: true, idle: false, 12, 12, 14, 12), Is.False, "2 cells");
+			Assert.That(Reissue(dispatched: true, idle: false, 12, 12, 14, 14), Is.False, "2,2 — under, squared");
+		}
+
+		[Test]
+		public void RealClusterMovementStillRepaths()
+		{
+			// The deadband must not become a leash: once the army has genuinely moved on, the truck
+			// follows. Boundary is inclusive, matching the lastVia deadband one branch over.
+			Assert.That(Reissue(dispatched: true, idle: false, 12, 12, 15, 12), Is.True, "exactly 3 — inclusive");
+			Assert.That(Reissue(dispatched: true, idle: false, 12, 12, 12, 15), Is.True);
+			Assert.That(Reissue(dispatched: true, idle: false, 12, 12, 30, 30), Is.True);
+		}
+
+		[Test]
+		public void ZeroThresholdIsTheUndampedBaseline()
+		{
+			// The documented off-switch: RepathThresholdCells 0 restores the per-scan re-issue.
+			Assert.That(SupplyLogisticsMath.ShouldReissueFollow(true, false, 12, 12, 12, 12, 0), Is.True);
+			Assert.That(SupplyLogisticsMath.ShouldReissueFollow(true, false, 12, 12, 12, 12, -1), Is.True);
+		}
+
+		[Test]
+		public void LivenessIsTheSharedDefinitionNotAReimplementation()
+		{
+			// The supply subsystem must keep exactly one answer to "is my errand still running".
+			// Pinned as a truth table against the drop path's helper so a future edit that re-derives
+			// the idle rule locally — the habit that produced ~28 disagreeing dampers — breaks here.
+			foreach (var dispatched in new[] { true, false })
+			{
+				foreach (var idle in new[] { true, false })
+				{
+					var running = SupplyDropMath.ErrandStillRunning(dispatched, idle);
+					Assert.That(Reissue(dispatched, idle, 12, 12, 12, 12), Is.EqualTo(!running),
+						$"dispatched={dispatched} idle={idle}: a zero-drift follow re-issues exactly when the errand is NOT running");
+				}
+			}
+		}
 	}
 }

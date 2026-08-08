@@ -320,6 +320,12 @@ namespace OpenRA.Mods.Common.Traits
 		// re-issue deadband so a truck mid-detour isn't restarted every scan as its waypoint recedes.
 		readonly Dictionary<Actor, CPos> lastVia = new Dictionary<Actor, CPos>();
 
+		// The follow cell each truck was last SENT to — the deadband memory for the plain follow Move,
+		// which until now re-issued a cancelling Move to a recomputed moving centroid every single scan.
+		// Voided (not merely overwritten) by every branch that takes the truck away from following, the
+		// same way lastVia is, so a stale record can never suppress the re-issue that restarts it.
+		readonly Dictionary<Actor, CPos> lastFollow = new Dictionary<Actor, CPos>();
+
 		// Danger-evac damper state per truck: whether it is currently on the evac branch, and how many scans
 		// that decision is still committed for. Absent = following, no dwell. Read only for the truck being
 		// processed (never enumerated for a decision), so it adds no ordering dependence.
@@ -450,6 +456,13 @@ namespace OpenRA.Mods.Common.Traits
 				var stale = lastVia.Keys.Where(a => !activeTrucks.Contains(a)).ToList();
 				foreach (var a in stale)
 					lastVia.Remove(a);
+			}
+
+			if (lastFollow.Count > 0)
+			{
+				var stale = lastFollow.Keys.Where(a => !activeTrucks.Contains(a)).ToList();
+				foreach (var a in stale)
+					lastFollow.Remove(a);
 			}
 
 			if (evacState.Count > 0)
@@ -676,9 +689,17 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					if (!routeViaDanger)
 					{
-						// Flag off / non-participant: unchanged base behaviour (byte-identical), a single
-						// direct Move re-issued each scan to track the moving cluster.
-						bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), false));
+						// Flag off / non-participant: a single direct Move toward the cluster, now DAMPED.
+						// This used to re-issue every scan and was justified as "byte-identical base
+						// behaviour"; that justification was retired with the byte-identity policy (875c93c1)
+						// and the defect it preserved is the one the mode exists to remove — the destination
+						// is a moving centroid, so an undamped re-issue cancels the drive and restarts the
+						// path every 150 ticks, forever, on a unit whose entire job is to arrive.
+						if (ShouldReissueFollow(truck, followPos.Value))
+						{
+							bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), false));
+							lastFollow[truck] = followPos.Value;
+						}
 					}
 					else
 					{
@@ -705,13 +726,24 @@ namespace OpenRA.Mods.Common.Traits
 								bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, via.Value), false));
 								bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), true));
 								lastVia[truck] = via.Value;
+
+								// The two-leg maneuver terminates at followPos, so it IS a follow dispatch and
+								// must be recorded as one — otherwise the direct branch would see no record the
+								// scan the detour stops being needed and re-issue on top of a running detour.
+								lastFollow[truck] = followPos.Value;
 							}
 						}
 						else
 						{
-							// No detour needed — a single direct Move (no restart problem) each scan, as
-							// before. Drop any stale detour memory so the next detour re-issues cleanly.
-							bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), false));
+							// No detour needed — a single direct Move each scan, damped exactly as the
+							// flag-off branch above. Drop any stale detour memory so the next detour
+							// re-issues cleanly.
+							if (ShouldReissueFollow(truck, followPos.Value))
+							{
+								bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, followPos.Value), false));
+								lastFollow[truck] = followPos.Value;
+							}
+
 							lastVia.Remove(truck);
 						}
 					}
@@ -719,6 +751,15 @@ namespace OpenRA.Mods.Common.Traits
 					Adopt(truck);
 				}
 			}
+		}
+
+		/// <summary>Is the follow Move worth re-issuing for this truck this scan? Thin engine-side wrapper that
+		/// samples the two observables and defers the rule to the pinned pure predicate.</summary>
+		bool ShouldReissueFollow(Actor truck, CPos followPos)
+		{
+			var dispatched = lastFollow.TryGetValue(truck, out var prev);
+			return SupplyLogisticsMath.ShouldReissueFollow(
+				dispatched, truck.IsIdle, prev.X, prev.Y, followPos.X, followPos.Y, Info.RepathThresholdCells);
 		}
 
 		/// <summary>DROP-AND-LEAVE: send one loaded truck to unload its whole stock at the forward supply point.
@@ -792,6 +833,13 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					bot.QueueOrder(new Order("Stop", truck, false));
 					dropTarget.Remove(truck);
+
+					// The Stop kills whatever is running, and this scan falls through to the follow
+					// branch immediately afterwards. Void the follow record too, or that branch reads a
+					// truck that is still nominally driving to its old follow cell (IsIdle is not yet
+					// true — the Stop has not been drained from the order queue) and suppresses the very
+					// Move that is supposed to pick the truck back up, parking it until the next scan.
+					lastFollow.Remove(truck);
 					Log.Write("debug",
 						$"[supply] drop-revoked truck={truck.ActorID}@{truck.Location} was-sent-to={sentTo} "
 						+ $"anchor={(anchor.HasValue ? anchor.Value.ToString() : "<none>")} "
@@ -835,8 +883,11 @@ namespace OpenRA.Mods.Common.Traits
 			bot.QueueOrder(new Order("DropSupplyCacheAt", truck, Target.FromCell(world, anchor.Value), false));
 			dropTarget[truck] = anchor.Value;
 
-			// Any in-flight Stage-E detour memory is void — the errand supersedes it.
+			// Any in-flight Stage-E detour memory is void — the errand supersedes it. The follow
+			// record goes with it: the errand cancels whatever follow Move was running, so a
+			// surviving record would claim a drive that no longer exists.
 			lastVia.Remove(truck);
+			lastFollow.Remove(truck);
 			Adopt(truck);
 			return true;
 		}
@@ -1185,6 +1236,7 @@ namespace OpenRA.Mods.Common.Traits
 			var stopPosition = SupplyTruckHuntMath.ApproachTarget(truck.CenterPosition, target.CenterPosition, provider.Info.Range.Length);
 			bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, world.Map.CellContaining(stopPosition)), false));
 			lastVia.Remove(truck);
+			lastFollow.Remove(truck);
 
 			if (Info.DebugLogging)
 				Log.Write("debug",
@@ -1497,6 +1549,7 @@ namespace OpenRA.Mods.Common.Traits
 				retreatCell = world.Map.CellContaining(retreat);
 				bot.QueueOrder(new Order("Move", truck, Target.FromCell(world, retreatCell), false));
 				lastVia.Remove(truck);
+				lastFollow.Remove(truck);
 			}
 
 			// ENTRY EDGE unconditional; subsequent held/legged scans are a level, so they are gated. Both
