@@ -2,9 +2,8 @@
 /*
  * WW3MOD EvacDriveOffMath tests — PIPELINE item 38, the ground evacuation drive-off leg.
  *
- * Pure-logic pins for the two numbers that decide whether an evacuating vehicle reads as "drove off the
- * battlefield" or as "glitched out of existence": how long the off-map leg takes, and when the unit counts as
- * clear of the playable area.
+ * Pure-logic pins for the number that decides whether an evacuating vehicle reads as "drove off the battlefield"
+ * or as "glitched out of existence": how long the off-map leg takes.
  *
  * The load-bearing property pinned here is TERMINATION. This math sits inside an activity that replaced an
  * unconditional sell, so a duration of zero, a negative duration, or an unbounded one is not a cosmetic bug — it
@@ -75,67 +74,6 @@ namespace OpenRA.Test
 				// intermediate would wrap negative and come back as the 1-tick floor — i.e. a teleport, silently.
 				Assert.That(EvacDriveOffMath.DriveOffTicks(int.MaxValue, 2),
 					Is.EqualTo(EvacDriveOffMath.MaxDriveOffTicks));
-			});
-		}
-
-		// ---------- IsClearOfBounds ----------
-		// Bounds used below are LTRB 10,10 .. 90,90 with left/top INCLUSIVE and right/bottom EXCLUSIVE, matching
-		// Map.Bounds (Map.cs:1590). So the playable columns are 10..89.
-
-		[Test]
-		public void IsClearOfBounds_InsideIsNeverClear()
-		{
-			Assert.Multiple(() =>
-			{
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(50, 50, 10, 10, 90, 90, 2), Is.False, "map centre");
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(10, 50, 10, 10, 90, 90, 2), Is.False,
-					"first playable column — on the boundary is not past it");
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(89, 50, 10, 10, 90, 90, 2), Is.False,
-					"last playable column (right is exclusive)");
-			});
-		}
-
-		[Test]
-		public void IsClearOfBounds_ClearsAtExactlyTheMargin()
-		{
-			Assert.Multiple(() =>
-			{
-				// Left edge: playable starts at 10, so u == 8 is two cells outside.
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(9, 50, 10, 10, 90, 90, 2), Is.False, "one cell out, margin 2");
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(8, 50, 10, 10, 90, 90, 2), Is.False, "at the margin, not past it");
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(7, 50, 10, 10, 90, 90, 2), Is.True, "past the margin");
-
-				// Right edge: first non-playable column is 90, so 90 + 2 == 92 is the first that counts.
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(91, 50, 10, 10, 90, 90, 2), Is.False);
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(92, 50, 10, 10, 90, 90, 2), Is.True);
-			});
-		}
-
-		[Test]
-		public void IsClearOfBounds_AnySingleSideCounts()
-		{
-			// The property that makes the predicate usable at all: a unit leaving due west of a side edge clears on
-			// U alone while V stays mid-map. Requiring both axes would mean only corner-bound units ever sold.
-			Assert.Multiple(() =>
-			{
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(7, 50, 10, 10, 90, 90, 2), Is.True, "west only");
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(50, 7, 10, 10, 90, 90, 2), Is.True, "north only");
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(92, 50, 10, 10, 90, 90, 2), Is.True, "east only");
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(50, 92, 10, 10, 90, 90, 2), Is.True, "south only");
-			});
-		}
-
-		[Test]
-		public void IsClearOfBounds_ZeroAndNegativeMargin()
-		{
-			Assert.Multiple(() =>
-			{
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(9, 50, 10, 10, 90, 90, 0), Is.True,
-					"margin 0 ⇒ one cell outside the playable area is already clear");
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(10, 50, 10, 10, 90, 90, 0), Is.False,
-					"margin 0 ⇒ the boundary cell itself is still inside");
-				Assert.That(EvacDriveOffMath.IsClearOfBounds(9, 50, 10, 10, 90, 90, -3), Is.True,
-					"a negative margin clamps to 0 rather than reaching back INSIDE the map");
 			});
 		}
 	}

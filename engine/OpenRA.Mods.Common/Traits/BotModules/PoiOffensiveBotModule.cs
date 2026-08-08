@@ -2333,9 +2333,22 @@ namespace OpenRA.Mods.Common.Traits
 			//     with a real cost: two ejected crew could previously trip an advance on their own. An advance whose
 			//     entire force is two pistol infantry is the pathology, not the feature;
 			//   * they stop holding ledger claims and cohesion entries, which is pure cleanup.
-			// Nothing that was load-bearing is suppressed: no other module recruits crew (they appear in no
-			// ExcludeFromSquadsTypes list precisely because nothing else looks at them), so this does not hand them
-			// to a second owner, and it does not disarm them — AutoTarget is untouched and they still return fire.
+			// It does not disarm them — AutoTarget is untouched and they still return fire.
+			//
+			// WHAT THIS EXCLUSION HANDS THEM TO, grepped rather than assumed (an earlier revision of this comment
+			// claimed "no other module recruits crew" and that was simply false). This module is the only one that
+			// tests CrewMemberInfo; the others filter by ROLE, and crew resolve to MainBattle, so they pass:
+			// LayeredDefenceBotModule (IsLineEligibleByRole), PoiGarrisonBotModule (IsEligibleCombatUnit),
+			// LaneAmbushBotModule (IsEligibleAmbusher) — all when UseUnitRoles is on, which @experimental sets —
+			// plus EngineerRouteOpenBotModule's screen pool and HelicopterSquadBotModule's lift filter. Only
+			// ScoutBotModule and MountedTransportBotModule reject them, and only because both use actor-name
+			// allowlists that crew are absent from. SquadManagerBotModule would take them but its ground FSMs are
+			// dead code on both profiles.
+			// CONSEQUENCE, and it is a real open gap rather than a nuance: excluding crew HERE does not make them
+			// unavailable, it re-homes them — and none of those modules consult IsEvacuating, so with
+			// EvacuateEjectedCrew on they can re-task a crew member and cancel its evac. See
+			// WORKSPACE/bugs/discovered.md 2026-08-08. Not fixed here: a general fix means teaching six modules the
+			// same predicate, which is its own change and its own review.
 			//
 			// UNGATED and independent of the evac lever below. Whether or not the bot chooses to cash them in, a
 			// pistol-armed survivor does not belong in an armoured push, and gating the exclusion on the evac flag
@@ -2487,6 +2500,9 @@ namespace OpenRA.Mods.Common.Traits
 		// above, which is safe there because it only ever asks about activities that are already running — would
 		// answer "not evacuating" about a unit that demonstrably is. That one-tick blind spot is exactly the window
 		// in which a re-recruit cancels the evac, so the head test would miss the case it exists to catch.
+		//
+		// Walks NextActivity only, NOT ChildActivity — correct while every caller queues RotateToEdge at top level
+		// (all eight sites do). A caller that queued it as a CHILD of something else would make this silently blind.
 		//
 		// Bounded so a malformed chain cannot spin. Depth 8 is far past any real queue: an evac order truncates the
 		// queue to the cancelling activity plus RotateToEdge.
