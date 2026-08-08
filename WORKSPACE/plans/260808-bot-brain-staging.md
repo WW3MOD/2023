@@ -103,10 +103,19 @@ That is five of the six worst offenders closed by one file. It is also the corre
 
 Each stage is independently mergeable and independently verifiable. Costs are in **focused sessions** and include NUnit pins and a review pass; they are deliberately pessimistic (see §8).
 
-### Stage 1 — Incumbency arbitration. **Behaviour-changing. Visible. ~1.5–2 sessions.**
+### Stage 1 — Incumbency arbitration. **Behaviour-changing. Visible. ~2–2.5 sessions.**
 
-**1a — the funnel gate.**
-- `engine/OpenRA.Mods.Common/Traits/Player/ModularBot.cs` — new `ModularBotInfo` field `RespectCommitmentsOnIssue` (default **false**, per the shared-trait rule at `architecture.md:373-375`). In `IBot.QueueOrder` (`:91-98`), when on: resolve `PoiGoalGuard` off `player.PlayerActor`, collect the order's target actors (`Subject` ∪ `GroupedActors`), and **drop the order iff *every* target holds a live commitment whose objective prefix maps to a module other than `currentModuleTag`**.
+**1a — the funnel gate. TWO predicates, one gate.** (Revised after `260808-order-churn-census.md` landed — see §6.)
+
+- `engine/OpenRA.Mods.Common/Traits/Player/ModularBot.cs` — new `ModularBotInfo` fields (default **false**/inert, per the shared-trait rule at `architecture.md:373-375`). In `IBot.QueueOrder` (`:91-98`), when on, drop an order if **either** predicate fires:
+  - **Ownership (cross-module):** collect the order's target actors (`Subject` ∪ `GroupedActors`); drop iff *every* target holds a live commitment whose objective prefix maps to a module other than `currentModuleTag`.
+  - **Dwell (within-module):** for a movement order naming exactly one actor, drop iff the actor's standing order is younger than `ReorderDwellTicks`, the new destination **differs**, the actor is not idle, and the order is not urgent. Per-unit standing state `{OrderString, Cell, Tick}` keyed by `ActorID`, owned by the *player* — which is the lifetime property every existing damper lacks.
+
+  These belong in one gate because they share the choke point, the drop path, the `IsUrgent` classification and the byte-identity consequence below. The dwell predicate is the churn census's §7.3 recommendation, adopted verbatim in shape.
+
+- **`IsUrgent` is the real cost of 1a, not the line count.** Suppressing an evac `Move`, a `Stop` or a retreat for up to N ticks is a genuine regression risk, so order strings must be classified by priority. The churn census is right that **this classification is the first component of the scheduler and there is no version of this work that avoids authoring it** — which is an argument for doing it now, in Stage 1, where it is small and testable, rather than discovering it in Stage 3.
+
+- **Not byte-identical for `@stable`, and not only for the modules it touches.** Dropping orders changes `orders.Count`, which changes `⌈N/5⌉` at `ModularBot.cs:127`, which changes *which* orders drain on *which* tick for **every** module — including ones the gate never inspects. Permissible per `CLAUDE.md` as deliberate visible improvement, but it must be called out in the commit message so the baseline is re-taken knowingly (§5).
 - **All-or-nothing, never partial.** `Order.Subject` and `Order.GroupedActors` are `readonly` (`Network/Order.cs:61/:64`); reconstructing a grouped order to drop one member is a real risk for no gain. It is also near-lossless in practice: the POI modules recruit only from the ledger-checked free pool, so their grouped orders are homogeneous in ownership.
 - New pure class `OrderArbitrationMath` (house idiom — `CommitOnOrderMath`, `MissionCommitmentMath`, `FrontlineAllocationMath` are all this shape) holding the **prefix → owning-module table**: `offense:`/`bombard:` → PoiOffensive, `garrison:` → PoiGarrison, `ambush:` → LaneAmbush, `capture:`/`capture-escort:`/`capture-defend:` → CaptureCoordinator, `transport:` → MountedTransport + HelicopterSquad, `defend:`/`defend-line:` → LayeredDefence, `bridge-repair:`/`bridge-screen:` → EngineerRouteOpen, `tacpos:` → StancePositioningExecutor. **Make this table the single source of truth** — have the modules read their prefix from it rather than string-literalling it, so the mapping cannot rot. (Cheaper and stronger than a lint; the `Lint/CheckUnitRoleTable.cs` precedent exists if a lint is wanted later.)
 - YAML: set `RespectCommitmentsOnIssue: true` on **both** `ModularBot@experimental` (`ai.yaml:31-33`) and `ModularBot@stable` (`:34-36`). These are separate trait instances, so this is a deliberate, visible improvement flowing to `@stable` exactly as `CLAUDE.md` policy prescribes — **and the commit message must say so**, because the benchmark baseline must be re-taken knowingly.
@@ -117,7 +126,7 @@ Each stage is independently mergeable and independently verifiable. Costs are in
 
 **What the user SEES** — §9.
 
-**Verification (no autotest required).** `OrderArbitrationMathTest.cs` pinning: foreign live claim on all targets ⇒ drop; own-module claim ⇒ allow; *expired* claim ⇒ allow (`IsCommitted` tests `currentTick < ExpiresAtTick`, `PoiGoalGuard.cs:81-82`); mixed group ⇒ allow; null ledger ⇒ allow (the byte-identity path); unknown prefix ⇒ allow (fail-open). Plus `dotnet test` and `make test`. `GoalGuardLedger<TKey>` is generic **specifically so it can be driven with `string` keys without constructing an Actor** (`PoiGoalGuard.cs:36-38`, and `PoiGoalGuardTest.cs:28-46` already does exactly that) — the withhold-vs-TTL interaction is statically testable today.
+**Verification (no autotest required).** `OrderArbitrationMathTest.cs` pinning **ownership**: foreign live claim on all targets ⇒ drop; own-module claim ⇒ allow; *expired* claim ⇒ allow (`IsCommitted` tests `currentTick < ExpiresAtTick`, `PoiGoalGuard.cs:81-82`); mixed group ⇒ allow; null ledger ⇒ allow (the byte-identity path); unknown prefix ⇒ allow (fail-open). And **dwell**: same destination ⇒ allow (not an equivalence gate); different destination inside the window ⇒ drop; outside the window ⇒ allow; idle actor ⇒ allow; **urgent order ⇒ always allow** (the regression guard that matters most — pin every string in the urgent set explicitly, so adding an order type cannot silently make it suppressible). Plus `dotnet test` and `make test`. `GoalGuardLedger<TKey>` is generic **specifically so it can be driven with `string` keys without constructing an Actor** (`PoiGoalGuard.cs:36-38`, and `PoiGoalGuardTest.cs:28-46` already does exactly that) — the withhold-vs-TTL interaction is statically testable today.
 
 **Unblocks:** every later stage. Once incumbency is enforced, "granted attention" and "holds the units" stop being two different things.
 
@@ -168,13 +177,21 @@ The one thing this costs the user: **`@stable` moving means the benchmark contro
 
 ---
 
-## 6. Composing with the parallel order-churn audit
+## 6. Composing with the parallel order-churn audit — it landed; here is the reconciliation
 
-Assume its findings exist and land independently. The contract:
+`WORKSPACE/recon/260808-order-churn-census.md` (commit `977210c7`) merged while this plan was being written, researched against the same `09877fd5`. **The two compose, and its central finding improved Stage 1.** Reconciled honestly:
 
-- Stage 1 gives it an **enforcement point it can target**. Any churn finding of the form "module A yanks units from module B" becomes either (a) a new objective prefix, (b) a row in the `OrderArbitrationMath` prefix table, or (c) a documented exemption. None of those is a code-structure change — they are data.
-- Stage 1 gives it **free instrumentation**. The drop decision sits one line from `lifecycleLogger?.LogOrder(player, currentModuleTag, order)` (`ModularBot.cs:96`), which already records the issuing module and self-gates to a no-op when lifecycle logging is off. Counting drops per `(issuer, incumbent)` pair is a few lines inside the existing `TestMode` gate. Note the census flag: offline order-churn detection (R5) is **specified but not implemented** (`tools/behavior-lint/README.md:46`) — this is where it would attach.
-- **Conflict risk is low but real:** if the churn audit proposes per-module order dedup or suppression *inside* modules, that competes with the funnel gate. Prefer the funnel — one file, all modules, no cadence coupling. If it proposes fixing individual poachers by making them ledger-participants (adding the missing `CommitSupportUnits`/`CommitLineAssignments` flags to `@stable`), that is **complementary, not redundant**: the module-side fix makes the module a good citizen, the funnel gate makes citizenship unnecessary.
+- **Where it agrees:** `ModularBot.QueueOrder` is the genuine choke point (~60 call sites across 12 modules), and state placed there is owned by the *player*, not by any module — the lifetime property every existing damper lacks. Both documents land on the same seam independently.
+- **Where it corrected me.** Its thesis is **eligibility-coupled amnesia**: commitment is not absent — it counted 28 distinct damping mechanisms — but every one is private to the module that wrote it and is garbage-collected the moment the unit leaves that module's *eligibility set*, and eligibility is exactly what flickers (believed-danger fields, POI visibility, residue verdicts, ledger TTLs, `IsIdle`, all on their own faster clocks). The consequence that bites this plan: **one module with a flickering eligibility predicate produces the full wiggle by itself**, so an inter-module *ownership* gate alone would not stop it. That is why Stage 1a now carries the dwell predicate too, and why §9's claim about the Supply Route shuffle is stated more carefully than it originally was.
+- **Where it warns off a design I did not propose:** a *destination-equivalence* gate ("drop if the destination is the SAME") would not fix the top suspects, because their destinations genuinely differ. Its §7.3 inverts the predicate to a dwell instead. Neither of my predicates is equivalence-based; the warning is heeded, not contradicted.
+- **What it flags that this plan does not cover:** the gate is blind to the activity layer, so **it does not fix supply trucks**. Those need the `residueUnusable` latch hysteresis at `SupplyProvider.cs:292-294` (~5 lines) and a deadband on the follow `Move` — separate, smaller, lower-risk, and correctly kept out of this arc (§4).
+- **One correction it carries that is worth propagating:** `260808-truck-post-fix-behaviour.md` §1.2 uses 25 ticks/s; the real timestep is **16.667 ticks/s** (`mod.yaml:371`, `Timestep: 60`), so every wall-clock figure in that document is ~1.5× too fast. Not this plan's to fix, but do not reason from it.
+
+The standing contract for its remaining findings:
+
+- Stage 1 gives it an **enforcement point to target**. Any finding of the form "module A yanks units from module B" becomes either (a) a new objective prefix, (b) a row in the `OrderArbitrationMath` prefix table, or (c) a documented exemption. None is a code-structure change — they are data.
+- Stage 1 gives it **free instrumentation**. The drop decision sits one line from `lifecycleLogger?.LogOrder(player, currentModuleTag, order)` (`ModularBot.cs:96`), which already records the issuing module and self-gates to a no-op when lifecycle logging is off. Counting drops per `(issuer, incumbent)` pair is a few lines inside the existing `TestMode` gate. Offline order-churn detection (R5) is **specified but not implemented** (`tools/behavior-lint/README.md:46`) — this is where it attaches.
+- **Prefer the funnel over per-module dedup.** The census's own diagnosis is that seven independent per-module reimplementations of dedup have not fixed the symptom, because each inherits the same purge-on-eligibility-exit lifetime. An eighth would too. Fixing individual poachers by making them ledger-participants (adding the missing `CommitSupportUnits` / `CommitLineAssignments` / `CommitTransportPassengers` flags to `@stable`) is **complementary, not redundant**: the module-side fix makes a module a good citizen, the funnel gate makes citizenship unnecessary.
 
 ---
 
@@ -192,7 +209,7 @@ Put a comment at `ModularBot.cs:111-116` recording that gating that loop re-open
 
 ## 8. Total cost — honestly
 
-**Stages 1–3: roughly 6–8 focused sessions.** Stage 4 adds 2–3. The deferred cadence refactor adds 2–3 more if ever triggered. Call the whole arc **8–11 sessions**, plus **two ai-bench re-baselines** (§5) which are user-gated wall-clock, not agent time.
+**Stages 1–3: roughly 6.5–8.5 focused sessions.** Stage 4 adds 2–3. The deferred cadence refactor adds 2–3 more if ever triggered. Call the whole arc **9–12 sessions**, plus **two ai-bench re-baselines** (§5) which are user-gated wall-clock, not agent time.
 
 Where the estimate is most likely to be wrong, in order:
 1. **Stage 3.** "One group at a time" is a tuning problem as much as a code problem — the budget size, the starvation bound and the priority order will want iteration, and iteration here means bot-vs-bot matches, which are user-gated. Static verification proves the budget is *deterministic and non-starving*; it cannot prove it is *good*. This is the stage most likely to double.
@@ -207,7 +224,7 @@ An optimistic version of this number would be worse than useless — this is a m
 
 | # | Stage | Cost | Behaviour | Verified by |
 |---|---|---|---|---|
-| 1 | Incumbency arbitration — funnel gate (1a) + `StancePositioningExecutor` ledger read (1b) | 1.5–2 sessions | **changing, visible** | `OrderArbitrationMathTest` + `dotnet test` + `make test` |
+| 1 | Incumbency arbitration — funnel gate, ownership + dwell (1a) + `StancePositioningExecutor` ledger read (1b) | 2–2.5 sessions | **changing, visible** | `OrderArbitrationMathTest` + `dotnet test` + `make test` |
 | 2 | Generalise the hold to Garrison / LaneAmbush | ~2 sessions | **changing, visible** | pure-helper NUnit; reuses pinned `MissionCommitmentMath` |
 | 3 | Attention budget — one plan re-decided at a time | 2–3 sessions | **changing, visible** — the actual ask | `AttentionBudgetMath` NUnit (order, refusal, starvation bound) |
 | 4 | Event-driven revision (optional) | 2–3 sessions | changing | pure event-ordering NUnit |
@@ -217,8 +234,11 @@ An optimistic version of this number would be worse than useless — this is a m
 
 **A group sent at an objective keeps going.** Today a unit that has just been committed to an attack axis, a capture escort or a garrison can be grabbed a few seconds later by a different part of the bot — the defence line, the garrison sweep, the helicopter lift — and turned around mid-move, losing its progress at the cell boundary. After Stage 1 the first commitment holds and the later grab is refused.
 
-**The shuffling around the Supply Route stops.** Infantry standing near the SR are the most contested class in the whole bot — seven consumers draw from that same pool. Today they twitch: a couple of cells one way, then back. After Stage 1 they either stay put or leave with a purpose, and the fastest twitch source of all — the tactical-positioning nudge that fires every 1.8 seconds — no longer fires on a unit that already has a job.
+**The shuffling around the Supply Route settles down.** Infantry standing near the SR are the most contested class in the whole bot — seven consumers draw from that same pool. Today they twitch: a couple of cells one way, then back, every few seconds. After Stage 1 a unit that has just been sent somewhere keeps walking there for at least the dwell window even if the bot changes its mind, and the fastest twitch source of all — the tactical-positioning nudge that fires every 1.8 seconds — no longer fires on a unit that already has a job. Stated carefully: this **damps** the shuffle, it does not prove it eliminated. The churn census's eligibility-coupled-amnesia finding means some of it is a single module changing its own mind, and how much survives a dwell window is an empirical question the dwell length answers.
 
 **Fewer units standing still doing nothing.** A silently-dropped order today is indistinguishable from a delivered one, so a unit can end up between two modules' intentions and execute neither.
 
-**What the user will NOT see after Stage 1:** the flanking group is *still* going to march back and forth, because that loop is one module ordering its own units and is fixed on `auto/posture-veto`, not here (§4). And the bot will not yet "commit to one thing at a time" — it will commit to *everything* it starts, which is a different and lesser property. That arrives at Stage 3.
+**What the user will NOT see after Stage 1:**
+- **The flanking loop is still there.** That is one module ordering its own units to a receding anchor, and it is fixed on `auto/posture-veto`, not here (§4). Do not test Stage 1 against it.
+- **Supply trucks still dither.** The truck's fast oscillator is an *activity*, not an order, so it never reaches the funnel. It needs the `residueUnusable` latch hysteresis (§6) — separate and smaller.
+- **The bot does not yet commit to one thing at a time.** It will commit to *everything* it starts, which is a different and lesser property. That arrives at Stage 3.
