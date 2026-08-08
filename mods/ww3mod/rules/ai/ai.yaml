@@ -380,6 +380,13 @@ Player:
 		# whole map past the enemy to reach the last surviving depot. Default false on the @stable twin.
 		EvacuateOutOfAmmoUnits: true
 		OutOfAmmoRearmSeekRadiusCells: 40
+		# Item 36, experimental-only: crew that bail out of a wrecked vehicle walk off the map and are cashed
+		# in. They sell for essentially their full cost of 100 (their pistol magazine deducts 3), and a pistol
+		# infantryman adds nothing to an armoured push. NOTE this flag is only the cashing-in half — crew are
+		# kept out of offensive recruitment on EVERY profile, flag or no flag, because putting them on an axis
+		# is a bug rather than a doctrine choice. What this buys is the disposition; what it gives up is
+		# walking them back to re-man a vehicle via EnterAsCrewMember. Default false on the @stable twin.
+		EvacuateEjectedCrew: true
 		# Dispersion doctrine — spread to move, mass to assault. Experimental-only: the switch
 		# defaults OFF so Stable/Normal controls are untouched. Axes fan out (Spread) while their
 		# centroid is farther than AssaultRadiusCells from the target, then mass (Tight) for the
