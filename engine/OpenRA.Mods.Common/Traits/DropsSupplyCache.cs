@@ -47,6 +47,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Voice played when ordered to drop a SUPPLYCACHE.")]
 		public readonly string DropCacheVoice = "Action";
 
+		[Desc("DropSupplyCacheAt: how close (cells) the transport must get to the ordered cell, both as the",
+			"move's stop tolerance AND as the arrival check that gates the unload. ONE number for both on",
+			"purpose — the unload must not run at a cell the move never actually reached, and two constants",
+			"would drift. A bot sizing its demand search around the ordered cell should subtract this, since",
+			"the crate can land this far off it (SupplyFollowerBotModule.DropDemandMarginCells).")]
+		public readonly int DropAtToleranceCells = 2;
+
 		public override object Create(ActorInitializer init) { return new DropsSupplyCache(init, this); }
 	}
 
@@ -132,6 +139,64 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
+			// DROP-AND-LEAVE (bot-issued; no targeter, so it never appears on a human's cursor). The WHOLE
+			// errand — drive out, unload, then dispose of the emptied chassis — is composed here as ONE
+			// activity chain rather than as a sequence of orders, and that is a correctness requirement, not
+			// tidiness. Dropping calls SetSupply(0), which makes CountsAsEmpty true, and the ITick below
+			// fires EvacuateOrRestock on ANY tick the truck is idle-and-empty: under TRUK's AI default
+			// (InitialResupplyBehaviorAI: Evacuate, vehicles.yaml) that means RotateToEdge — driven to the
+			// map edge and sold. A caller issuing "drop" and "then restock" as two orders loses that race,
+			// because ModularBot meters its queue (MinOrderQuotientPerTick) and can put the two on different
+			// ticks. Chaining them means the truck is never idle between the drop and its disposition.
+			if (order.OrderString == "DropSupplyCacheAt")
+			{
+				var dropMove = self.TraitOrDefault<IMove>();
+				if (dropMove == null)
+					return;
+
+				// Stop WITHIN DropAtToleranceCells rather than on the exact cell: the ordered cell is a
+				// belief-field cell, not a reserved parking space, and an exact-cell MoveTo gives up outright
+				// when something is standing there. The crate lands on whatever cell the truck stopped on.
+				var dropCell = self.World.Map.CellContaining(order.Target.CenterPosition);
+				self.QueueActivity(order.Queued, dropMove.MoveTo(dropCell, Info.DropAtToleranceCells));
+
+				self.QueueActivity(true, new CallFunc(() =>
+				{
+					// ARRIVAL CHECK — the load-bearing guard, not a formality. A Move to a TERRAIN-impassable
+					// cell does not fail: PathFinder bails to NoPath, and Move.Tick treats an empty path as
+					// arrival, completing in ~2 ticks at the cell the truck was already on. Without this test
+					// the unload would then run THERE — typically the beachhead — dumping the whole load at an
+					// arbitrary place while the issuer's redundancy accounting, measured around the ORDERED
+					// cell, never sees it. Refusing instead keeps the supply in the truck, which is always
+					// recoverable. (The issuer should also refuse to adopt an impassable cell; this is the
+					// second line, and it is the one that holds when the cell became unreachable after issue.)
+					var delta = self.Location - dropCell;
+					if (!SupplyDropMath.ArrivedAtDropCell(delta.X, delta.Y, Info.DropAtToleranceCells))
+						return;
+
+					// Occupancy is only knowable on arrival. A blocked cell means no drop this errand — the
+					// truck keeps its load and its owner re-decides, which self-corrects as the blocker moves.
+					if (CanDropCache())
+						DropSupplyCacheHere();
+				}));
+
+				// POST-DROP DISPOSITION, decided here so it is a stated design rather than an emergent
+				// consequence of the idle path above. If we hold a docking-aware host (a Logistics Centre) the
+				// truck runs a real supply shuttle: drive back, refill, and its owner re-adopts it once it is
+				// no longer low on supply. Otherwise NOTHING is appended and the existing evacuate path
+				// retires the chassis for its sell value — which is not a regression but the status quo made
+				// deliberate, since an emptied truck is dropped by SupplyFollowerBotModule and retired that
+				// way today regardless of where its supply went. LOGISTICSCENTER is Prerequisites: ~disabled
+				// and exists only as a neutral capturable, so the retire arm is the ORDINARY case and the
+				// shuttle arm is the reward for having taken one.
+				var restockHost = NearestRestockHost();
+				if (restockHost != null)
+					QueueDriveAndRestock(restockHost, true);
+
+				self.ShowTargetLines();
+				return;
+			}
+
 			if (order.OrderString == "Restock")
 			{
 				if (order.Target.Type != TargetType.Actor)
@@ -175,17 +240,23 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		void QueueDriveAndRestock(Actor host)
+		void QueueDriveAndRestock(Actor host, bool queued = false)
 		{
 			var move = self.TraitOrDefault<IMove>();
 			if (move == null)
 				return;
 
 			var targetCell = self.World.Map.CellContaining(host.CenterPosition);
-			self.QueueActivity(false, move.MoveTo(targetCell, ignoreActor: host));
+			self.QueueActivity(queued, move.MoveTo(targetCell, ignoreActor: host));
 			self.QueueActivity(new Wait(25));
 			self.QueueActivity(new CallFunc(() =>
 			{
+				// The host is captured at ISSUE time but the transfer happens after a drive, so re-validate:
+				// an LC destroyed or captured mid-drive would otherwise be deducted from as a dead actor. The
+				// truck simply arrives at a stale cell and takes nothing, which its owner re-decides from.
+				if (host.IsDead || !host.IsInWorld)
+					return;
+
 				var hostProvider = host.TraitOrDefault<SupplyProvider>();
 				if (hostProvider == null || supply == null)
 					return;
@@ -249,20 +320,27 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		bool TryQueueRestockAtNearestHost(Actor self)
+		/// <summary>The nearest host this truck could actually refill at, or null. Only docking-aware
+		/// providers (Logistics Centres) qualify, so an empty truck never tries to "dock" at a ground
+		/// SUPPLYCACHE — the crate has no DockedCondition and no arrival gate, and the transfer path assumes
+		/// one. Shared by the idle evacuate/restock path and by the drop errand's post-drop disposition so
+		/// the two can never disagree about what counts as a host.</summary>
+		Actor NearestRestockHost()
 		{
 			if (self.TraitOrDefault<IMove>() == null || supply == null)
-				return false;
+				return null;
 
-			// Only target docking-aware hosts (LCs), so an empty truck doesn't try
-			// to "dock" at a ground SUPPLYCACHE.
-			var host = self.World.ActorsHavingTrait<SupplyProvider>()
+			return self.World.ActorsHavingTrait<SupplyProvider>()
 				.Where(a => !a.IsDead && a.IsInWorld && a != self
 					&& Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(a.Owner))
 					&& a.Trait<SupplyProvider>().CurrentSupply > 0
 					&& !string.IsNullOrEmpty(a.Trait<SupplyProvider>().Info.DockedCondition))
 				.ClosestToIgnoringPath(self);
+		}
 
+		bool TryQueueRestockAtNearestHost(Actor self)
+		{
+			var host = NearestRestockHost();
 			if (host == null)
 				return false;
 
