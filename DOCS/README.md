@@ -22,6 +22,7 @@ Static project documentation. Four kinds:
 | WDist / WAngle / YAML idioms / engine code rules | `reference/conventions.md` |
 | Engine layout / scenario / suppression / aircraft / AI config / shadows.bin | `reference/architecture.md` |
 | The @experimental influence stack (belief store, danger/control fields, danger nav, strategic repoint) | `reference/influence-stack.md` |
+| **How the bots work, start to finish** — architecture, a unit's whole life, what does not run, how to spot problems | [`bots/README.md`](bots/README.md) — read that first; `bots/02`–`06` are the technical set behind it |
 | How the knowledge bank grows (curation rules) | `reference/README.md` |
 | PITFALL comment system (full spec) | `reference/pitfalls.md` |
 | Big-picture project state, engine-upgrade assessment | `reference/project-assessment.md` |
