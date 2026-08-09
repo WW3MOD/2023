@@ -78,7 +78,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					continue;
 
 				var ammoPools = a.TraitsImplementing<AmmoPool>();
-				if (!ReloadsAutomatically(ammoPools, a.TraitOrDefault<Rearmable>()))
+				if (!ReloadsAutomatically(a, ammoPools, a.TraitOrDefault<Rearmable>()))
 				{
 					if (IsRearming(a))
 						continue;
@@ -235,7 +235,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 				// Send units with no ammo to resupply instead of uselessly attacking
 				var ammoPools = a.TraitsImplementing<AmmoPool>();
-				if (!ReloadsAutomatically(ammoPools, a.TraitOrDefault<Rearmable>()))
+				if (!ReloadsAutomatically(a, ammoPools, a.TraitOrDefault<Rearmable>()))
 				{
 					if (IsRearming(a))
 						continue;

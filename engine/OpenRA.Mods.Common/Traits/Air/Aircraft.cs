@@ -1197,15 +1197,27 @@ namespace OpenRA.Mods.Common.Traits
 			return null;
 		}
 
+		/// <summary>
+		/// Whether a ReturnToBase order can accomplish anything for this aircraft.
+		/// A non-empty RearmActors list is a statement about the RULES; it says nothing about the
+		/// WORLD. When it names only actors that are not present, ReturnToBase resolves no
+		/// resupplier and degrades to FlyIdle-then-finish, so accepting the order buys nothing and
+		/// costs whatever activity it cancelled (an unqueued order replaces the current one).
+		/// </summary>
+		bool CanReturnToBase(Actor self)
+		{
+			return rearmable != null && rearmable.Info.RearmActors.Count > 0 && ReturnToBase.AnyResupplierExists(self);
+		}
+
 		Order IIssueDeployOrder.IssueDeployOrder(Actor self, bool queued)
 		{
-			if (IsTraitDisabled || rearmable == null || rearmable.Info.RearmActors.Count == 0)
+			if (IsTraitDisabled || !CanReturnToBase(self))
 				return null;
 
 			return new Order("ReturnToBase", self, queued);
 		}
 
-		bool IIssueDeployOrder.CanIssueDeployOrder(Actor self, bool queued) { return rearmable != null && rearmable.Info.RearmActors.Count > 0; }
+		bool IIssueDeployOrder.CanIssueDeployOrder(Actor self, bool queued) { return CanReturnToBase(self); }
 
 		public string VoicePhraseForOrder(Actor self, Order order)
 		{
@@ -1230,7 +1242,7 @@ namespace OpenRA.Mods.Common.Traits
 				case "Scatter":
 					return Info.Voice;
 				case "ReturnToBase":
-					return rearmable != null && rearmable.Info.RearmActors.Count > 0 ? Info.Voice : null;
+					return CanReturnToBase(self) ? Info.Voice : null;
 				default: return null;
 			}
 		}
@@ -1315,8 +1327,9 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			else if (orderString == "ReturnToBase")
 			{
-				// Do nothing if not rearmable and don't restart activity every time deploy hotkey is triggered
-				if (rearmable == null || rearmable.Info.RearmActors.Count == 0 || self.CurrentActivity is ReturnToBase || GetActorBelow() != null)
+				// Do nothing if there is no resupplier to return to, and don't restart the activity
+				// every time the deploy hotkey is triggered
+				if (!CanReturnToBase(self) || self.CurrentActivity is ReturnToBase || GetActorBelow() != null)
 					return;
 
 				if (!order.Queued)

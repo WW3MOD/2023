@@ -177,7 +177,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					continue;
 
 				var ammoPools = a.TraitsImplementing<AmmoPool>();
-				if (!ReloadsAutomatically(ammoPools, a.TraitOrDefault<Rearmable>()))
+				if (!ReloadsAutomatically(a, ammoPools, a.TraitOrDefault<Rearmable>()))
 				{
 					if (IsRearming(a))
 						continue;
@@ -209,7 +209,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			foreach (var a in owner.Units)
 			{
 				var ammoPools = a.TraitsImplementing<AmmoPool>();
-				if (!ReloadsAutomatically(ammoPools, a.TraitOrDefault<Rearmable>()) && !FullAmmo(ammoPools))
+				if (!ReloadsAutomatically(a, ammoPools, a.TraitOrDefault<Rearmable>()) && !FullAmmo(ammoPools))
 				{
 					if (IsRearming(a))
 						continue;

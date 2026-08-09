@@ -10,9 +10,9 @@ If anything here disagrees with code, the doc is right and the code needs to cha
 
 1. **Every unit, every magazine, every supply box has a cost.** Cash spent buys ammo + body together. Selling or evacuating refunds what's left.
 2. **A unit of supply is worth a fixed amount of cash** wherever it sits — in an LC, a truck, a cache. When the player gets it back on evac, capture, or absorb, it returns at face value.
-3. **Supply is finite.** A Logistics Center spawns with a fixed pool. Trucks carry a fixed amount. Drained pools stay drained until the player builds more LCs or calls in more trucks.
+3. **Supply is finite.** A Logistics Center spawns with a fixed pool. Trucks carry a fixed amount. Drained pools stay drained until the player calls in more trucks — LCs are **not** buildable (`Buildable.Prerequisites: ~disabled`, `structures.yaml:367`); the only ones in a match are the Neutral pre-placed ones you can capture, on the three maps that have any.
 4. **Trucks, LCs, and dropped supply caches share one trait** (`SupplyProvider`). Players see the same UI (range circle, supply bar) everywhere.
-5. **`ReloadCount` is the canonical batch size for rearm.** Whether an Apache is topping up at an HPAD, a Bradley docks at the LC, or a soldier waits next to a truck, the per-pool `ReloadCount` decides how many rounds arrive per cycle and `SupplyValue` decides what one cycle costs.
+5. **`ReloadCount` is the canonical batch size for rearm.** Whether a Bradley docks at the LC or a soldier waits next to a truck, the per-pool `ReloadCount` decides how many rounds arrive per cycle and `SupplyValue` decides what one cycle costs. (Aircraft have no reachable host at all — see "What rearms what".)
 
 ## What rearms what
 
@@ -20,10 +20,14 @@ If anything here disagrees with code, the doc is right and the code needs to cha
 |---|---|
 | Infantry | TRUK (supply truck), SUPPLYCACHE (dropped box), Logistics Center |
 | Ground vehicles | Logistics Center only |
-| Aircraft | HPAD (helicopter pad), AFLD (airfield) |
+| Aircraft | **Nothing reachable.** They name HPAD / AFLD, neither of which can exist — see below. |
 | Static defenses (CRAM, AGUN) | Self-reload via `ReloadAmmoPool` (no external supply consumed) |
 
 Vehicles are budgeted around dock-at-LC logistics. Adding `truk` to `Rearmable.RearmActors` on a vehicle is a balance change.
+
+**Aircraft ammunition and health are one-way, and that is a fact about the world rather than a design statement.** Every airframe declares `Rearmable.RearmActors: hpad`/`afld` and `Repairable.RepairActors: hpad`/`afld` (`aircraft.yaml:79-80`, `:162-163`; `aircraft-america.yaml:219,376,498`; `aircraft-russia.yaml:224,392,530,625`), but **both hosts carry `Buildable.Prerequisites: ~disabled`** (`structures.yaml:432`, `:500`) and **nothing in the repo provides `disabled`**, so neither can be built; and neither is pre-placed on any of the ten shipped maps. `logisticscenter` — which does have `RepairsUnits` (`structures.yaml:377`) and `SupplyProvider` (`:387`), is pre-placed as a Neutral capturable on `polar-disorder`, `river-zeta` and `woodland-warfare`, and is already named by every infantry and ground-vehicle `RearmActors`/`RepairActors` list — is **not** named by any aircraft. So no aircraft can rearm or repair anywhere today. There is one latent exception that no code drives: `ReloadAmmoPool@1/@2` on the airframes is gated `unit.docked && !airborne` (e.g. `aircraft-america.yaml:175`, `:205`), and a *captured* LC grants `unit.docked` within 2c0 (`structures.yaml:400-404`), so an aircraft landed beside a captured LC would trickle-refill. Nothing — human UI or bot — ever sends one there.
+
+Consequences worth knowing before touching aircraft logic: `ReturnToBase` resolves no resupplier and degrades to `FlyIdle`-then-finish (`ReturnToBase.cs:104-106`), and any gate of the form "wait until healthy / wait until full" is **unsatisfiable, not merely pessimistic**. The bot readiness gates therefore ask whether a host actually exists rather than whether one is named (`AirframeReadiness`), and `Aircraft` refuses a `ReturnToBase` order when none does, so a no-op return cannot cancel a live attack.
 
 **A truck can never rearm a vehicle anywhere — the split is structural, not a tuning choice.** The provider PUSH is gated on the recipient declaring the provider's `RearmCondition` as an `ExternalCondition`; TRUK (`vehicles.yaml:546`) and SUPPLYCACHE (`misc.yaml:412`) both name `replenish-soldiers`, which is declared **only** on `^Soldier` (`infantry.yaml:214-215`). The only provider naming `replenish-vehicles` is the static `logisticscenter` (`structures.yaml:394`), additionally `DockedCondition: unit.docked` — so a vehicle can only ever be served standing at a fixed building. Two corollaries that are easy to get wrong: (1) even at the LC the *push* reaches only the two vehicles that declare the receiving condition (`himars`, `vehicles-america.yaml:1080`; `iskander`, `vehicles-russia.yaml:980`) — every other vehicle rearms through the `Rearmable`/`Resupply` **pull**, not `SupplyProvider`; (2) no `RearmActors` list anywhere names `supplycache`, so a cache can never be *walked to* — it is push-only, infantry-only. Any "supply truck follows the army" reasoning that counts vehicle ammo as demand is counting demand the truck cannot relieve (`SupplyFollowerBotModule`'s cluster `AmmoNeed` sums every `AmmoPool` in the cluster, vehicles included — `:523-531` — so a pure-armour cluster still attracts a truck that can do nothing for it).
 

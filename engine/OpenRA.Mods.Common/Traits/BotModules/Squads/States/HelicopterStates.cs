@@ -109,7 +109,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			foreach (var u in owner.Units)
 			{
 				var ammoPools = u.TraitsImplementing<AmmoPool>();
-				if (!ReloadsAutomatically(ammoPools, u.TraitOrDefault<Rearmable>()) && !HasAmmo(ammoPools))
+				if (!ReloadsAutomatically(u, ammoPools, u.TraitOrDefault<Rearmable>()) && !HasAmmo(ammoPools))
 				{
 					if (!IsRearming(u))
 						owner.Bot.QueueOrder(new Order("ReturnToBase", u, false));
@@ -122,27 +122,42 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			foreach (var u in owner.Units)
 			{
 				var ammoPools = u.TraitsImplementing<AmmoPool>();
-				if (ReloadsAutomatically(ammoPools, u.TraitOrDefault<Rearmable>()))
+				if (ReloadsAutomatically(u, ammoPools, u.TraitOrDefault<Rearmable>()))
 					continue;
 
-				if (HasAmmo(ammoPools))
+				if (IsAmmoReady(u, ammoPools))
 					return true;
 			}
 
 			return false;
 		}
 
-		// True when this squad's HelicopterSquadBotModule has the rearm-ready gate bypassed.
-		// SquadHasAmmo skips every unit whose pools are all covered by a Rearmable (they
-		// "reload automatically"), so an all-attack-heli squad reports NO ammo even at full
-		// ammo — the launch/re-engage gates then never pass and the squad parks forever.
-		// The bypass (experimental-only, default off) lets such squads fly missions anyway.
-		protected static bool RearmReadyCheckBypassed(Squad owner)
+		/// <summary>
+		/// Whether any unit in this squad has a repair host it could actually reach. When false the
+		/// squad's health only ever decreases, so a "recover to X% before re-committing" bar is not
+		/// pessimistic — it is unsatisfiable, and everything below it is benched for the match.
+		/// </summary>
+		protected static bool SquadHasRepairHost(Squad owner)
 		{
-			var module = owner.Bot.Player.PlayerActor
-				.TraitsImplementing<HelicopterSquadBotModule>()
-				.FirstOrDefault(m => !m.IsTraitDisabled);
-			return module != null && module.Info.SkipRearmReadyCheck;
+			foreach (var u in owner.Units)
+				if (AirframeReadiness.HasRepairHost(u))
+					return true;
+
+			return false;
+		}
+
+		/// <summary>
+		/// The squad-average health a squad must hold to be worth committing.
+		///
+		/// The inherited bars (launch at 80, re-engage at 70, give up at 50) are RECOVERY bars: they
+		/// presuppose a damaged squad can be repaired back above them. Where nothing can repair
+		/// these units, the meaningful bar is instead the one the squad already acts on — the flee
+		/// bar. Above it the squad stands and fights rather than running, so it is worth sending;
+		/// below it, it would turn round on arrival anyway.
+		/// </summary>
+		protected static int CommitHealthThreshold(Squad owner, int recoveryBar)
+		{
+			return AirframeReadiness.CommitHealthBar(SquadHasRepairHost(owner), recoveryBar, GetFleeThreshold(owner));
 		}
 
 		// True when this squad's HelicopterSquadBotModule uses standoff (attack-move) engagement
@@ -370,15 +385,13 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				if (IsRearming(u))
 					return;
 
-			// Don't launch if squad is damaged — wait for repair
-			if (GetSquadHealthPercent(owner) < 80)
+			// Don't launch if the squad is too damaged to be worth committing. Where a repair host
+			// exists this is the inherited "wait for repair" bar; where none does it is the flee bar.
+			if (GetSquadHealthPercent(owner) < CommitHealthThreshold(owner, 80))
 				return;
 
-			// Don't launch if low on ammo — unless the rearm-ready gate is bypassed. An all-
-			// auto-reload heli squad (every pool covered by a Rearmable) makes SquadHasAmmo
-			// return false even at FULL ammo, so without the bypass the squad never launches
-			// and the helicopters park forever (WW3MOD has no hpad to rearm at).
-			if (!RearmReadyCheckBypassed(owner) && !SquadHasAmmo(owner))
+			// Don't launch if the squad cannot shoot.
+			if (!SquadHasAmmo(owner))
 				return;
 
 			// Phase-4 strategic-target pinning: if this squad is already committed to a strategic objective
@@ -740,7 +753,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 					continue;
 
 				var ammoPools = u.TraitsImplementing<AmmoPool>();
-				if (!ReloadsAutomatically(ammoPools, u.TraitOrDefault<Rearmable>()) && !HasAmmo(ammoPools))
+				if (!ReloadsAutomatically(u, ammoPools, u.TraitOrDefault<Rearmable>()) && !HasAmmo(ammoPools))
 				{
 					owner.Bot.QueueOrder(new Order("ReturnToBase", u, false));
 					continue;
@@ -787,7 +800,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			SendLowAmmoUnitsHome(owner);
 
 			// Check if squad is too damaged to re-engage — full return
-			if (GetSquadHealthPercent(owner) < 50 || (!RearmReadyCheckBypassed(owner) && !SquadHasAmmo(owner)))
+			if (GetSquadHealthPercent(owner) < CommitHealthThreshold(owner, 50) || !SquadHasAmmo(owner))
 			{
 				owner.FuzzyStateMachine.ChangeState(owner, new HelicopterReturnState());
 				return;
@@ -856,8 +869,8 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				return;
 			}
 
-			// After withdrawal period: re-engage if still healthy
-			if (GetSquadHealthPercent(owner) >= 70 && (RearmReadyCheckBypassed(owner) || SquadHasAmmo(owner)))
+			// After withdrawal period: re-engage if still worth committing
+			if (GetSquadHealthPercent(owner) >= CommitHealthThreshold(owner, 70) && SquadHasAmmo(owner))
 			{
 				// Find a new target
 				var leader = owner.Units.FirstOrDefault();

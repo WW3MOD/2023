@@ -126,7 +126,17 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			return true;
 		}
 
-		protected static bool ReloadsAutomatically(IEnumerable<AmmoPool> ammoPools, Rearmable rearmable)
+		/// <summary>
+		/// True when the squad layer can leave this actor's ammo to the resupply system and stop
+		/// reasoning about it.
+		///
+		/// The host term is the correction. Stock OpenRA reads "every pool is covered by Rearmable"
+		/// as "a pad will handle it", so it returns true and the squad skips the unit. That premise
+		/// is a property of the WORLD, not of the actor's rules: with no host present nothing
+		/// handles it, and returning true made every ammo gate read a full-ammo attack helicopter as
+		/// if it carried no ammo at all.
+		/// </summary>
+		protected static bool ReloadsAutomatically(Actor self, IEnumerable<AmmoPool> ammoPools, Rearmable rearmable)
 		{
 			if (rearmable == null)
 				return true;
@@ -135,7 +145,32 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				if (!rearmable.Info.AmmoPools.Contains(ap.Info.Name))
 					return false;
 
-			return true;
+			return AirframeReadiness.HasRearmHost(self);
+		}
+
+		/// <summary>
+		/// The ammunition bar an actor must clear to be worth COMMITTING to a mission.
+		/// Where a rearm host exists the classic every-pool-loaded expectation holds, because a dry
+		/// pool will be refilled before long. Where none does, ammunition is one-way: a pool spent
+		/// once is spent for the match, so demanding all of them stay loaded benches the airframe
+		/// permanently the first time any pool runs dry. There the question is whether it can still
+		/// shoot at all.
+		///
+		/// Deliberately NOT used for the send-home decisions, which ask a different question
+		/// ("should this leave the fight?") and are answered fine by the stricter test.
+		/// </summary>
+		protected static bool IsAmmoReady(Actor self, IEnumerable<AmmoPool> ammoPools)
+		{
+			var total = 0;
+			var loaded = 0;
+			foreach (var ap in ammoPools)
+			{
+				total++;
+				if (ap.HasAmmo)
+					loaded++;
+			}
+
+			return AirframeReadiness.AmmoReadyToFight(AirframeReadiness.HasRearmHost(self), total, loaded);
 		}
 
 		protected static void SetSquadEngagementStance(Squad squad, EngagementStance stance)

@@ -1453,7 +1453,6 @@ Player:
 		TransportInterval: 600
 		TransportMinInfantry: 4
 		MaxActiveSquads: 3
-		SkipRearmReadyCheck: true
 		StandoffEngagement: true
 		DangerFieldAvoidance: true
 		# SURFACED 2026-08-09, previously running on the C# default. The Stage-D withdraw-on-spike level,
@@ -1469,9 +1468,9 @@ Player:
 		ForwardStagingMaxDistanceCells: 8
 		MinFrontierDistanceCells: 4
 
-	# Experimental twin: identical config plus SkipRearmReadyCheck. WW3MOD attack helis only
-	# refill at an hpad (none built), so the full-ammo readiness gate permanently benches any
-	# heli below full ammo — no squad ever forms. The bypass lets experimental squads launch.
+	# Experimental twin. SkipRearmReadyCheck used to sit on both twins to route around a readiness
+	# gate that no heli could ever satisfy (attack helis refill only at an hpad, and none exists);
+	# the gate now asks whether a rearm host is actually present, so the bypass is gone from both.
 	HelicopterSquadBotModule@experimental:
 		RequiresCondition: enable-ai-experimental
 		AttackSquadSize: 2
@@ -1488,7 +1487,6 @@ Player:
 		TransportInterval: 600
 		TransportMinInfantry: 4
 		MaxActiveSquads: 3
-		SkipRearmReadyCheck: true
 		StandoffEngagement: true
 		# Influence stack Stage D: consume the per-player anti-air danger field so attack helis route
 		# AROUND believed AA, leash their standoff to the AA-safe envelope, and withdraw/re-route the

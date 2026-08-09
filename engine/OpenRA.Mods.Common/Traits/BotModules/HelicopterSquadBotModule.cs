@@ -121,8 +121,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("EXPERIMENTAL transport employment (default false = frozen): USE-OR-EVAC. A transport heli that has",
 			"been idle past TransportIdleEvacuateTicks with no lift it can fly — no load waiting, no free mission",
-			"slot, or not mission-READY (a chip-damaged transport can never be picked: ReEngageHealthPercent is 90",
-			"and there is no AI repair host) — is evacuated to reserves, banking",
+			"slot, or not mission-READY (below FleeHealthPercent 60, since with no reachable repair host the",
+			"readiness bar falls back to the flee bar and damage is one-way) — is evacuated to reserves, banking",
 			"its salvage refund and ending its upkeep drain, instead of parking at the Supply Route for the rest",
 			"of the match. Terminal by design — no hold-and-recheck. Independent of EvacuateWhenIdle, which covers",
 			"only the ATTACK roles (the idle evaluator's role filter admits AttackHeavy/AttackLight and skips",
@@ -177,13 +177,6 @@ namespace OpenRA.Mods.Common.Traits
 			"unscouted territory' rests on before first contact. 0 = no cap (danger gate only). Only used when",
 			"CarefulScoutEmployment is set.")]
 		public readonly int ScoutMaxDistanceCells = 0;
-
-		[Desc("Skip the full-ammo readiness gate when launching missions. WW3MOD attack helis only refill",
-			"at an hpad and the mod builds none, so a heli below full ammo can NEVER become mission-ready —",
-			"no squad ever forms and the helicopters idle forever. This is the squad-path twin of the",
-			"production-side SkipRearmBuildingCheck trap. OFF by default so legacy/normal/stable behaviour is",
-			"unchanged; only HelicopterSquadBotModule@experimental turns it on.")]
-		public readonly bool SkipRearmReadyCheck = false;
 
 		[Desc("Use standoff (attack-move) engagement for attack-heli squads. When on, the squad FSM issues",
 			"AttackMove toward the target cell instead of a bare Attack on a single (possibly distant) target,",
@@ -711,8 +704,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (r != HelicopterAIRole.AttackHeavy && r != HelicopterAIRole.AttackLight)
 					continue;
 
-				// Same readiness definition the squad launch uses (health gate always applies;
-				// ammo gate bypassed under SkipRearmReadyCheck exactly as for TryLaunchAttackMission).
+				// Same readiness definition the squad launch uses.
 				if (!IsReadyForMission(h))
 					continue;
 
@@ -1390,31 +1382,35 @@ namespace OpenRA.Mods.Common.Traits
 			if (evacuating.Contains(h))
 				return false;
 
-			// Check HP
+			// Check HP. ReEngageHealthPercent is documented as the HP a heli must reach AFTER REPAIR
+			// before being sent out again — a recovery bar, meaningful only where something can do
+			// the repairing. With no reachable repair host health is one-way, so the bar can only
+			// ever be crossed downward and the band between FleeHealthPercent and it (35..75 on the
+			// attack helis, 60..90 on the transports) is airframes too healthy to flee and too
+			// damaged to launch — benched for the match on one chip of damage. There the flee bar is
+			// the honest question: above it the heli stands and fights, so it is worth sending.
 			var health = h.TraitOrDefault<IHealth>();
 			if (health != null)
 			{
 				var role = h.TraitOrDefault<AIHelicopterRole>();
-				var reEngagePercent = role != null ? role.Info.ReEngageHealthPercent : 80;
-				if (health.HP * 100 / health.MaxHP < reEngagePercent)
+				var recoveryBar = role != null ? role.Info.ReEngageHealthPercent : 80;
+				var fleeBar = role != null ? role.Info.FleeHealthPercent : 40;
+				var healthBar = AirframeReadiness.CommitHealthBar(AirframeReadiness.HasRepairHost(h), recoveryBar, fleeBar);
+
+				if (health.HP * 100 / health.MaxHP < healthBar)
 					return false;
 			}
 
-			// Check ammo — unless the rearm-ready gate is bypassed. WW3MOD attack helis rearm only
-			// at an hpad (none built), so requiring full ammo permanently benches any heli that
-			// dipped below full and no squad ever forms. SkipRearmReadyCheck lets them launch anyway.
-			if (!Info.SkipRearmReadyCheck)
+			// Check ammo. Same shape: a full-ammo bar presupposes something can refill the pools.
+			// With no reachable rearm host ammunition is one-way — an Apache that has fired both its
+			// Hellfires can never be full again — so the question is whether it can still shoot.
+			var ammoPools = h.TraitsImplementing<AmmoPool>().ToArray();
+			if (ammoPools.Length > 0 && h.TraitOrDefault<Rearmable>() != null)
 			{
-				var ammoPools = h.TraitsImplementing<AmmoPool>().ToArray();
-				var rearmable = h.TraitOrDefault<Rearmable>();
-				if (ammoPools.Length > 0 && rearmable != null)
-				{
-					foreach (var ap in ammoPools)
-					{
-						if (!ap.HasFullAmmo)
-							return false;
-					}
-				}
+				var loaded = ammoPools.Count(ap => ap.HasAmmo);
+				var full = ammoPools.Count(ap => ap.HasFullAmmo);
+				if (!AirframeReadiness.AmmoReadyToLaunch(AirframeReadiness.HasRearmHost(h), ammoPools.Length, loaded, full))
+					return false;
 			}
 
 			// Check if currently rearming. DELIBERATELY still Actor.IsIdle, unlike every other airframe test in
@@ -1504,7 +1500,7 @@ namespace OpenRA.Mods.Common.Traits
 				idleTicks[h] = ticks;
 
 				var hasUsableAmmo = HasUsableAmmo(h);
-				var canRearm = CanRearm(h);
+				var canRearm = AirframeReadiness.HasRearmHost(h);
 				var nearHome = ownSR == null || (h.Location - ownSR.Location).LengthSquared <= homeRadiusSq;
 				var hasTarget = HasWorthwhileBelievedTarget(h, missionRangeSq);
 
@@ -1550,12 +1546,14 @@ namespace OpenRA.Mods.Common.Traits
 			// INVARIANT: Employ must imply ACTUALLY-LAUNCHABLE. This proxy has to apply every gate the executor
 			// (TryLaunchTransportMission) applies, or it can report Employ for a transport the launcher will
 			// never pick — and because Employ shadows Evacuate, that pins the airframe at the SR forever, which
-			// is the very symptom this behaviour exists to fix. The gate that bites in practice is
-			// IsReadyForMission's health check: TRAN/HALO ship ReEngageHealthPercent 90 and there is no AI
-			// repair host, so a chip-damaged transport is permanently unpickable. Folding it into the demand
-			// argument (rather than into TransportEmploymentMath, which stays pure and world-free) makes an
-			// unlaunchable transport fall through to the evac window — it retires, and the demand gate then
-			// authorises a healthy replacement.
+			// is the very symptom this behaviour exists to fix. The gate that used to bite hardest was
+			// IsReadyForMission's health check: TRAN/HALO ship ReEngageHealthPercent 90, and with no
+			// reachable repair host a chip-damaged transport was permanently unpickable. That check now
+			// falls back to FleeHealthPercent (60) where nothing can repair, so the band is far narrower —
+			// but it is not gone, and a transport under 60% is still unlaunchable and still needs to fall
+			// through to the evac window rather than pinning at the SR. Folding it into the demand argument
+			// (rather than into TransportEmploymentMath, which stays pure and world-free) is what makes that
+			// happen — it retires, and the demand gate then authorises a healthy replacement.
 			// ACCEPTED RESIDUAL: the launcher's dropZone.HasValue precondition is NOT folded in. It is
 			// transient in a live game (the drop-site picker recovers as the threat map fills), so treating it
 			// as unlaunchable would evac transports over a momentary gap. NOTE this residual is only safe
@@ -1705,19 +1703,6 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return !any;
-		}
-
-		// True if any friendly rearm host this heli could dock at exists in the world. WW3MOD builds no
-		// hpad, so this is normally false and a spent heli evacs; written generally so it self-heals if a
-		// rearm structure is ever added. Boolean Any ⇒ iteration-order-independent (deterministic).
-		bool CanRearm(Actor h)
-		{
-			var rearmable = h.TraitOrDefault<Rearmable>();
-			if (rearmable == null || rearmable.Info.RearmActors.Count == 0)
-				return false;
-
-			var hosts = rearmable.Info.RearmActors;
-			return world.Actors.Any(a => a.Owner == player && !a.IsDead && a.IsInWorld && hosts.Contains(a.Info.Name));
 		}
 
 		// Fog-legal worthwhile-target test: is any BELIEVED enemy contact within mission range of the heli?

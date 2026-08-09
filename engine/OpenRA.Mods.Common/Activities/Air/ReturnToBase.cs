@@ -50,6 +50,23 @@ namespace OpenRA.Mods.Common.Activities
 				.ClosestToWithPathFrom(self);
 		}
 
+		/// <summary>
+		/// Whether any resupplier this aircraft could actually fly to exists in the world right now.
+		/// Same filter as <see cref="ChooseResupplier"/> minus the pathfinding sort, so callers that
+		/// only need existence do not pay for a path query.
+		/// </summary>
+		public static bool AnyResupplierExists(Actor self)
+		{
+			var rearmInfo = self.Info.TraitInfoOrDefault<RearmableInfo>();
+			if (rearmInfo == null || rearmInfo.RearmActors.Count == 0)
+				return false;
+
+			return self.World.ActorsHavingTrait<Reservable>()
+				.Any(a => !a.IsDead
+					&& a.Owner == self.Owner
+					&& rearmInfo.RearmActors.Contains(a.Info.Name));
+		}
+
 		bool ShouldLandAtBuilding(Actor self, Actor dest)
 		{
 			if (alwaysLand)
