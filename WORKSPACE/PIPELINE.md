@@ -28,10 +28,58 @@ The user granted the full test ladder for the **next autoburn window**: "When th
 
 ## QUEUE
 
+---
+
+### SESSION STATE 2026-08-09 — read this first if you are picking the work back up
+
+Main is at **`af36e686`**, **81 ahead of `origin/main`, UNPUSHED** (the user pushes manually — never push). Working tree clean; the only worktree left is `ai-bench`. **No simulations were run all session** — the user asked for their CPU back and that request is still in force unless they lift it.
+
+**Merged this session** (both by fast-forward with tree-identity verification against the implementer's own tested worktree, so their green carries without rebuilding in the main checkout):
+
+| Branch | SHA | Tests | What |
+|---|---|---|---|
+| `auto/danger-scale` | `5642d931` | 1275/1275 | weapon fire-cycle model + danger unit + thresholds |
+| `auto/aircraft-rearm` | `af36e686` | 1289/1289 | airframe readiness asks the world, not the rules |
+
+Also landed: the six-document `DOCS/bots/` set (~4,500 lines) plus a reconciliation pass over it.
+
+#### The two things owed to the user, both cheap, both waiting on them
+
+1. **Read `[danger] reference` from the next ORDINARY play session.** Not an autotest — the instrumentation is unconditional and one normal game writes it. It reports the contributing-type count and min/max spread. **This is the largest live risk in the merged danger work and it cannot be closed by reading code:** the unit tests compute `ReferenceIntensity` from their own three fixtures and never from the ruleset, so if the real median lands near the carbine (**2,237**) rather than the automatic rifleman (**7,820**), `evacLevel` drops to ~1,118, a decayed tank at max range (2,795) trips evac again, **the supply-truck oscillation returns, and the whole suite stays green.** Trucks have been declared fixed to the user three times; this log is the evidence gate and no fourth claim should be made without it. Tell: if min/max straddle the median by more than ~2 orders, the *unit* wants revisiting, not the individual thresholds.
+2. **`@stable` benchmark re-baseline — owed by BOTH merges, take it ONCE and last.** The cadence fix alters the danger field unconditionally for both profiles on top of every threshold, so this is a **bigger delta than "re-take after a threshold retune"** implies. User-gated (no-autonomous-multi-test).
+
+#### Open user decisions — do not re-ask, do not act unilaterally
+
+- **Where aircraft rearm and repair.** Posted with four options. `HPAD`/`AFLD` carry `Buildable.Prerequisites: ~disabled` — an unsatisfiable *build* prerequisite (nothing provides `disabled`), not a disabled trait — and are pre-placed on zero of ten maps. But **the mod DOES have a working rearm system**: `logisticscenter` has `RepairsUnits` (`structures.yaml:377`) + `SupplyProvider` (`:387`), is pre-placed as a Neutral capturable on three maps, and is named by every infantry template and ground vehicle. **Aircraft alone name only the two impossible actors.** The agent's own highest-rated option is the one no worker proposed: put rearm on the **Supply Route** itself — fixed, indestructible, guaranteed to every player on every map, and on-model for the reinforcement economy, where `logisticscenter` makes the rules differ per map and only post-capture. **Load-bearing caveat for whoever implements the answer:** all three hosted arms of the new `AirframeReadiness` predicates are structurally unreachable today (aircraft `RepairActors` list only `afld`/`hpad`), so they are pinned by unit test and have **never executed**. Wiring any host makes them all go live in the same instant, first-run-in-anger together.
+- **One autotest run for the instrumented order log** (`Test.Mode=true Test.UnitLifecycleLog=<path>`) — posted ~16h ago, unanswered, agent proceeded. Still the cheapest way to rank churn sources empirically.
+
+#### Next work, in the order it should be taken
+
+1. **Durability weight may be RA-scaled — the danger field may be HP-dominated, not lethality-dominated.** Filed as `[med]` in `WORKSPACE/bugs/discovered.md`. The merged branch fixed the **throughput** term, NOT the **weight** term. This is the same class of defect that forced that branch's three-round reordering — a calibration input wrong underneath the thing being calibrated — one term over, and if true it shifts every intensity and therefore `ReferenceIntensity` itself. **Do NOT open it before item 1 above is read**, or you re-derive thresholds twice from two unverified inputs.
+2. **Per-unit peel-out guard for helicopter squads.** Deliberately NOT built; recorded in `DISCOVERIES.md` with reasoning. `SendDamagedUnitsHome` is now a complete no-op (its `ReturnToBase` orders are refused), so a squad at ~36% average relaunches indefinitely on a ~75-tick cycle with no individual airframe ever pulled out. The proposed fix — drop the unit from the squad rather than ordering it home, so it survives the no-host case as a membership change rather than an order — is probably right but is an untestable behaviour change. **Standing rule adopted: one un-run behavioural change per branch is a measurement; two is a guess.** Wants a live look first.
+3. `ScoreDrop` weight imbalance — sign fixed, weighting not. Danger still dwarfs control (≤ ~800) and reach (≤ ~500) by orders of magnitude at 1e5–1e7, so the "risk-weighted" drop site remains close to a danger-argmin. Needs a **measured doctrine call** on the relative importance of "how deep in enemy territory" vs "how dangerous" — deliberately not guessed.
+4. Three `StagingCell` callers still walk without the passability predicate. Recorded, unfixed.
+
+#### Method notes worth reusing (all earned the hard way this session)
+
+- **Prove the diff contains ONLY your intended change** — stronger than probing for each thing you hoped survived, because it also catches what you did not think to probe for. This is what made the `ai.yaml` silent-auto-merge safe.
+- **`ai.yaml` auto-merges SILENTLY** and blank lines between MiniYaml top-level entries are load-bearing. Verify semantically: `cat -A` the twin separator, diff the key histogram, and confirm the whole-file diff is only yours.
+- **Probing a rebase mid-flight tests a tree that does not exist yet.** A fix that lives in a later commit will correctly probe as absent.
+- **A reference doc gets CORRECTED; a dated snapshot gets SUPERSEDED.** `DOCS/reference/` is the former, `DOCS/bots/` the latter — do not rewrite a dated snapshot's body to pretend it always said the new thing.
+- **A curated doc that declares itself normative over the code cannot be "corrected" to match broken code** — that is a spec violation to file, not a doc error to fix. (`economy.md` says so in its own header.)
+- **Parallel doc writers produce good bodies and unreliable headlines.** Every one of eleven errors found across the `DOCS/bots/` set was a correct body with a summary rounded wrong. **Budget a reconciliation pass into any parallel doc batch from the start**, and after writing, re-derive every summary sentence *from the table it summarises*.
+- **When two sources disagree on a count, the answer is often a third number** — both counted something adjacent to the thing.
+- **Hand a refutation back to the party whose model it refutes.** They are best equipped to find its flaw, and a concession from them is worth far more than a fresh reviewer's agreement.
+- **When a check returns "no counterexamples", ask whether the shape makes counterexamples impossible.** One more pass buys an answer that never needs re-running.
+- **When removing a wrong dependency, prefer taking the input and visibly discarding it over deleting the parameter** — a plain absence reads as an oversight and gets re-added. That is how the aircraft-rearm defect was created in the first place.
+- **`~` in this codebase means an unsatisfiable prerequisite, not a disabled definition.** A reader assuming "disabled trait" reaches the right conclusion by the wrong route.
+
+---
+
 ### LIVE-PLAY BATCH 2026-08-08 — seven observations from the user, testing `e79ddd97`
 _Captured verbatim in substance so nothing is lost. Two are in flight; five are queued below as items 34–38. Binary confirmed current with the merge (`OpenRA.Mods.Common.dll` stamped at the merge minute), so all seven are observations of MERGED code._
-- **[IN FLIGHT]** _"Attack/capture the POI more — everything routes to the centre while the sides are unprotected and full of capturable POI; a flanking group is constantly ordered back, then forward, stuck in a loop; bots need to commit."_ → **Already root-caused 2026-08-03** and never implemented: `SectorPostureHold` vetoes any axis whose target sector reads `sectorOwn ≈ 0`, which is every deep or flanking axis on every map, and the hold orders to a receding `stagingAnchor ?? rallyCell` — i.e. it marches the flankers home. Three candidate fixes recorded in DISCOVERIES. Branch `auto/posture-veto`.
-- **[IN FLIGHT]** _"Supply truck still ordered forward then back, while out-of-ammo soldiers auto-return to it as nearest resupplier."_ → Diagnosing whether the merged fix left a limit cycle by construction (relief valve sends the truck at a hot cluster; evac entry on its own cell is undamped by design), and what `AutoSeekSupplies` does against a RECEDING provider. Recon doc `260808-truck-post-fix-behaviour.md`.
+- **[MERGED `bd3abacf`]** _"Attack/capture the POI more — everything routes to the centre while the sides are unprotected and full of capturable POI; a flanking group is constantly ordered back, then forward, stuck in a loop; bots need to commit."_ → **Already root-caused 2026-08-03**, now shipped: `SectorPostureHold` vetoes any axis whose target sector reads `sectorOwn ≈ 0`, which is every deep or flanking axis on every map, and the hold orders to a receding `stagingAnchor ?? rallyCell` — i.e. it marches the flankers home. Three candidate fixes recorded in DISCOVERIES. Branch `auto/posture-veto`.
+- **[ROOT-CAUSED + FIXED, AWAITING EVIDENCE]** _"Supply truck still ordered forward then back, while out-of-ammo soldiers auto-return to it as nearest resupplier."_ → Diagnosed from the user's live `debug.log` (`WORKSPACE/recon/260809-truck-loop-from-live-log.md`): `EvacDangerThreshold: 60` was an RA-era constant against a field returning ~66,834, so trucks parked at home read as "in danger" every other scan → ~48 s / 12.5-cell oscillation, exactly `EvacRetreatCells: 12`. Underneath it, two deeper arithmetic bugs (int overflow, then the `WeaponThroughput` formula) — all three fixed and merged at `5642d931`. **Do NOT declare this fixed to the user without the `[danger] reference` log** (see SESSION STATE above): it has been declared fixed three times already, and the failure mode this time round leaves the whole test suite green. Recon docs `260808-truck-post-fix-behaviour.md`, `260809-truck-loop-from-live-log.md`.
 
 ### 34. Transport pickup coordination — a tactical layer for humans AND bots
 **Perceived:** you order soldiers into a transport and it just works — the vehicle drives to them, waits, collects everyone nearby, then carries on with whatever it was doing. Today the vehicle drives off without waiting and the player has to micro it.
