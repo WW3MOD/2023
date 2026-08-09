@@ -45,8 +45,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool DangerFieldRouting = false;
 
 		[Desc("Stage-E: path ground-danger above which a truck's relocation is rerouted via safer depth.",
-			"Lower than the offensive threshold — a non-combatant should avoid even moderate exposure.")]
-		public readonly int GroundDangerSafeThreshold = 15;
+			"IN DANGER UNITS (100 = one reference contact at point-blank — DangerFieldLayer.ReferenceIntensity),",
+			"NOT raw field units. A quarter of the evac level: a non-combatant should route around exposure long",
+			"before the spot is hot enough to abandon.")]
+		public readonly int GroundDangerSafeUnits = 12;
 
 		[Desc("Stage-E: lateral offset magnitude (cells) for the truck's rear-lateral detour waypoint.")]
 		public readonly int GroundDangerDetourCells = 8;
@@ -77,21 +79,41 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int SmallSquadMinNearbyFriendlies = 2;
 
 		[Desc("Danger evac: when the believed ground danger at the truck (or its target cluster centroid)",
-			"reaches EvacDangerThreshold, retreat the truck toward its Supply Route instead of idling in the",
+			"reaches EvacDangerUnits, retreat the truck toward its Supply Route instead of idling in the",
 			"fire. Fog-legal — reads DangerFieldLayer only, never an omniscient enemy scan. OFF by default;",
 			"gated on InfluenceStack.Participates, which since the 2026-08-02 @stable parity promotion admits",
 			"@stable as well as @experimental — so this is NOT @experimental-only, and the damper below is",
 			"therefore load-bearing on both fog-respecting profiles.")]
 		public readonly bool DangerEvac = false;
 
-		[Desc("Danger-evac: believed ground-danger reading at/above which a truck pulls back. Set ABOVE the",
-			"Stage-E reroute threshold — a reroute avoids exposure, an evac abandons a spot already too hot.",
-			"Doubles as the SELECTION filter: a cluster whose centroid is at/above this never becomes a follow",
-			"target, so the module cannot pick a cluster it is about to refuse to approach.")]
-		public readonly int EvacDangerThreshold = 60;
+		[Desc("Danger-evac: believed ground-danger at/above which a truck pulls back. Set ABOVE the Stage-E",
+			"reroute threshold — a reroute avoids exposure, an evac abandons a spot already too hot. Doubles as",
+			"the SELECTION filter: a cluster whose centroid is at/above this never becomes a follow target, so",
+			"the module cannot pick a cluster it is about to refuse to approach.",
+			"IN DANGER UNITS: 100 = one reference contact at point-blank, so 50 = 'something at least half as",
+			"threatening as a typical enemy unit is effectively on top of us'.",
+			"DERIVATION, because the previous value was the bug. This was 60 RAW field units against a field",
+			"whose median reading at the moment of evac entry measured 66,834 in the user's 2026-08-09 play log",
+			"(peak 3,452,576) — an RA-scale constant under a field the total conversion rescaled by orders of",
+			"magnitude. It fired on the faintest believed contact anywhere in its envelope, including trucks",
+			"standing on their own beachhead: three separate trucks entered evac at exactly danger=68 within 4",
+			"cells of their own Supply Route, and truck 4855 entered at 66,834 and left at 0 WITHOUT MOVING.",
+			"The threshold sat inside the ambient flicker, so a truck at home was evac-eligible on roughly every",
+			"other scan, producing a ~48 s / ~12-cell rearward lurch (12 = EvacRetreatCells, which is what",
+			"identified the branch). 50 units sits above that tail by construction: the kernel taper is linear",
+			"over range/1024+2 cells, so a contact whose envelope merely REACHES a cell contributes ~1/(r+1) of",
+			"its core — a few units — and a decayed mobile contact at MinConfidence 15 contributes 15% of that.")]
+		public readonly int EvacDangerUnits = 50;
 
 		[Desc("Danger-evac: how far (cells) to pull the truck back toward its Supply Route when evacuating.")]
 		public readonly int EvacRetreatCells = 12;
+
+		[Desc("Danger-evac: emit an unconditional `[supply] evac-hold` roll-up every Nth scan a truck stays on",
+			"the evac branch WITHOUT issuing a new leg. Scans that do issue a leg are logged regardless (they",
+			"are real orders and are rare). 0 disables the roll-up. Exists so a truck LATCHED on the evac",
+			"branch reports its latch in an ordinary play log instead of going silent — the blind spot that",
+			"capped the 2026-08-09 diagnosis's confidence in its own headline finding.")]
+		public readonly int EvacHoldRollupScans = 4;
 
 		[Desc("Danger-evac damper: scans an evacuating truck holds the evac decision before the branch may be",
 			"re-decided. Sized so the branch is not flipped mid-leg: at TRUK's speed a 12-cell retreat is",
@@ -102,17 +124,20 @@ namespace OpenRA.Mods.Common.Traits
 			"delayed by this; only the return to following is. 0 disables the dwell.")]
 		public readonly int EvacDwellScans = 1;
 
-		[Desc("Danger-evac: how far below EvacDangerThreshold the danger must fall before an evacuating truck",
-			"follows again; also sets the level SELECTION is gated at, so both sides use one number. Clamped",
-			"so the release level is never below 1.",
-			"HONEST SCOPE — this is NOT what stabilises the loop, despite reading like a classic Schmitt",
-			"deadband. The danger field steps by tens to hundreds per cell near a contact (see GroundDangerAt),",
-			"so a 15-unit band is narrower than one cell: the truck crosses the whole 45..60 span in a single",
-			"step and the band is never dwelt in. What actually damps the oscillation is EvacDwellScans (the",
-			"branch cannot be re-decided mid-leg) and the leg model in StepEvac (the retreat is not re-issued",
-			"until it has been driven). Tuning this knob will not visibly change stability; it moves the",
-			"geometric contour the truck treats as the edge of the contact, which is a different lever.")]
-		public readonly int EvacReleaseHysteresis = 15;
+		[Desc("Danger-evac: how far below EvacDangerUnits the danger must fall before an evacuating truck",
+			"follows again; also sets the level SELECTION is gated at, so both sides use one number.",
+			"IN DANGER UNITS, like EvacDangerUnits — so the release level here is 50-20 = 30 units. Clamped so",
+			"the release level is never below 1 unit.",
+			"CORRECTED 2026-08-09 — the previous note here claimed this knob 'will not visibly change",
+			"stability' because 'the danger field steps by tens to hundreds per cell near a contact', making a",
+			"15-wide band narrower than one cell. The first half of that was right for the wrong reason and the",
+			"second half was wrong by orders of magnitude: the field steps by TENS OF THOUSANDS to MILLIONS per",
+			"cell near a contact, so the old 15-RAW band was not merely sub-cell, it was invisible. Expressed in",
+			"danger units the band is now genuinely multi-cell: one cell of approach changes a contact's",
+			"contribution by 1/(r+1) of its core (~9 units at r=10, ~3 at r=30), so a 20-unit band spans roughly",
+			"2-6 cells of travel and is actually dwelt in. EvacDwellScans and the StepEvac leg model remain the",
+			"primary dampers; this one is no longer inert alongside them.")]
+		public readonly int EvacReleaseHysteresisUnits = 20;
 
 		[Desc("Actor types that count as the player's own Supply Route. Read when DangerEvac is on (the safe",
 			"rear an evacuating truck pulls back toward) AND when DropAndLeave is on (the seed the forward",
@@ -175,10 +200,15 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int DropStandoffCells = 8;
 
 		[Desc("Drop-and-leave: believed ground danger above which the anchor descent refuses to step into a",
-			"cell. Matches PoiOffensiveBotModule's StagingDangerSafeThreshold on purpose: it is the same",
-			"primitive doing the same job, and the STANDOFF above — not this number — is the lever that keeps",
-			"the supply point further back than a staging area. A negative value disables the guard.")]
-		public readonly int DropDangerSafeThreshold = 40;
+			"cell. IN DANGER UNITS (100 = one reference contact at point-blank). Matches PoiOffensiveBotModule's",
+			"StagingDangerSafeUnits on purpose: it is the same primitive doing the same job, and the STANDOFF",
+			"above — not this number — is the lever that keeps the supply point further back than a staging",
+			"area. A negative value disables the guard.",
+			"Low on purpose but NOT zero: the descent walks through the quiet rear, so the guard only needs to",
+			"close off neighbours a believed weapon envelope genuinely covers. At the old 40 RAW it closed off",
+			"every neighbour with any stamp at all, which breaks the walk at step 0 and returns the SR — read by",
+			"ResolveDropAnchor as 'no anchor', silently disabling drop-and-leave.")]
+		public readonly int DropDangerSafeUnits = 10;
 
 		[Desc("Drop-and-leave: step budget for the anchor's steepest-descent walk down the frontier-distance",
 			"field. Frontier distance strictly decreases per accepted step, so this only bounds work.")]
@@ -535,7 +565,11 @@ namespace OpenRA.Mods.Common.Traits
 			// while releasing lower leaves the whole band between them as a latch — see the two-levels note in
 			// SupplyLogisticsMath's header. Same number on both sides, so the truck is only ever sent somewhere
 			// it would not immediately leave.
-			var releaseLevel = SupplyLogisticsMath.ReleaseLevel(Info.EvacDangerThreshold, Info.EvacReleaseHysteresis);
+			// Converted to raw field units FIRST, then differenced: the conversion is linear, so subtracting
+			// converted values and converting the difference agree, and doing it in this order keeps the
+			// floor-at-1 clamp meaning "a genuinely 0-danger cell always releases" in the units actually read.
+			var releaseLevel = SupplyLogisticsMath.ReleaseLevel(
+				GroundDangerLevel(Info.EvacDangerUnits), GroundDangerLevel(Info.EvacReleaseHysteresisUnits));
 
 			// DECORRELATE SELECTION FROM REJECTION. Cluster choice below is need-descending, and the neediest
 			// cluster is the one that has been fighting — i.e. the one deepest in believed danger, which is
@@ -724,7 +758,7 @@ namespace OpenRA.Mods.Common.Traits
 						var via = GroundDangerNav.DetourWaypoint(
 							truck.Location, followPos.Value,
 							Info.GroundDangerDetourCells, Info.GroundDangerDetourSteps,
-							Info.GroundDangerSafeThreshold, ground, passable);
+							GroundDangerLevel(Info.GroundDangerSafeUnits), ground, passable);
 
 						if (via.HasValue)
 						{
@@ -980,12 +1014,23 @@ namespace OpenRA.Mods.Common.Traits
 			if (controlField == null || srActor == null)
 				return null;
 
+			// Bound ONCE, outside the descent, and reused for the walk's neighbour filter and for both of the
+			// adoption tests below. One predicate over one representative cell is what makes the descent
+			// unable to hand back a cell these tests then refuse — the 24-scan stall it did exactly that in.
+			var passable = WaypointPassable(mover);
+			bool GridPassable(int gx, int gy)
+			{
+				var c = controlField.GridCellToMapCell(gx, gy);
+				return world.Map.Contains(c) && passable(c);
+			}
+
 			var (sgx, sgy) = controlField.MapCellToGridCell(srActor.Location);
 			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
-				Info.DropStandoffCells, Info.DropDangerSafeThreshold, Info.DropMaxDescentSteps,
+				Info.DropStandoffCells, GroundDangerLevel(Info.DropDangerSafeUnits), Info.DropMaxDescentSteps,
 				(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
 				(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
-				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight);
+				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight,
+				GridPassable);
 
 			if (agx == sgx && agy == sgy)
 			{
@@ -1000,10 +1045,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			var candidate = controlField.GridCellToMapCell(agx, agy);
 
-			// Same locomotor-bound predicate the Stage-E detour uses to reject a waypoint that reads "safe"
-			// only because unstamped impassable ground carries no danger. The failure mode here is worse than
-			// a bad detour, so the same guard is applied to the destination itself.
-			var passable = WaypointPassable(mover);
+			// RETAINED AS A BACKSTOP even though the descent now filters neighbours with the same predicate.
+			// The two are not redundant: the walk can still RETURN ITS START unfiltered (the start is where
+			// the mover already is, and the standoff early-out at the top returns it without a single step),
+			// and a caller downstream must be able to assume the property without re-deriving which path
+			// produced the cell. A rejection here should now be rare rather than permanent — if the
+			// anchor-impassable streak below still runs to double digits, the descent's filter is not seeing
+			// the same cells this test is, which is the first thing to check.
 			if (!world.Map.Contains(candidate) || !passable(candidate))
 			{
 				dropAnchor.Remove(srActor);
@@ -1420,6 +1468,26 @@ namespace OpenRA.Mods.Common.Traits
 			return c => map.Contains(c) ? dangerField.GroundDanger(player, c) : GroundDangerNav.Impassable;
 		}
 
+		/// <summary>A threshold in DANGER UNITS (100 = one reference contact at point-blank) converted to the
+		/// raw field units a GroundDanger read is measured in — the one place a configured constant is bound
+		/// to the field's actual scale. Converting here rather than inside the pure math keeps
+		/// GroundDangerNav / ForwardStagingMath / SupplyLogisticsMath scale-agnostic: they compare two numbers
+		/// in the same units and do not care which.
+		///
+		/// <para>Both sentinel conventions the callers rely on are preserved: a NEGATIVE threshold passes
+		/// through unchanged (the descent guards read it as "guard disabled"), and 0 converts losslessly to 0
+		/// (a literal "outside every believed envelope" test). With no danger field there is no scale to
+		/// calibrate against, so a positive threshold becomes unreachable — the same inert direction the
+		/// callers' own `dangerField != null ? ... : 0` samplers already take, and never the direction that
+		/// would read a fieldless profile as "everywhere is dangerous".</para></summary>
+		int GroundDangerLevel(int units)
+		{
+			if (units <= 0)
+				return units;
+
+			return dangerField != null ? dangerField.GroundDangerUnitsToField(units) : int.MaxValue;
+		}
+
 		// A terrain-passability predicate bound to the truck's locomotor: true when it can actually stand
 		// on the cell (not on-map water/cliff, not off-map). Rejects detour WAYPOINTS that read "safe"
 		// only because unstamped impassable ground carries no danger. All-passable fallback if no Mobile.
@@ -1527,6 +1595,10 @@ namespace OpenRA.Mods.Common.Traits
 			var wasEvacuating = evacState.TryGetValue(truck, out var state);
 			var heldBefore = wasEvacuating ? state.Hold : 0;
 
+			// Consecutive scans on the evac branch — the episode length, which is what bounds the hold
+			// rollup below and what makes a LATCH distinguishable from a normal two-scan evacuation.
+			var scans = wasEvacuating ? state.Scans + 1 : 1;
+
 			var dangerAtTruck = GroundDangerAt(truck.Location);
 
 			// The cell the truck is being SENT to — but read ONLY when that cell passed the danger gate this
@@ -1536,8 +1608,11 @@ namespace OpenRA.Mods.Common.Traits
 			// and why 0 is the valve's contract rather than a fudge, is on DestinationDanger.
 			var dangerAtDestination = SupplyLogisticsMath.DestinationDanger(cluster?.Gated ?? false, cluster?.Danger ?? 0);
 
+			var entryLevel = GroundDangerLevel(Info.EvacDangerUnits);
+			var hysteresisLevel = GroundDangerLevel(Info.EvacReleaseHysteresisUnits);
+
 			var evacNow = SupplyLogisticsMath.EvacuateWithDwell(wasEvacuating, heldBefore,
-				dangerAtTruck, dangerAtDestination, Info.EvacDangerThreshold, Info.EvacReleaseHysteresis);
+				dangerAtTruck, dangerAtDestination, entryLevel, hysteresisLevel);
 
 			if (!evacNow)
 			{
@@ -1546,7 +1621,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (wasEvacuating)
 					Log.Write("debug",
 						$"[supply] evac-exit truck={truck.ActorID}@{truck.Location} danger={dangerAtTruck} "
-						+ $"release-level={SupplyLogisticsMath.ReleaseLevel(Info.EvacDangerThreshold, Info.EvacReleaseHysteresis)} "
+						+ $"release-level={SupplyLogisticsMath.ReleaseLevel(entryLevel, hysteresisLevel)} "
 						+ $"held={heldBefore}");
 
 				evacState.Remove(truck);
@@ -1592,13 +1667,27 @@ namespace OpenRA.Mods.Common.Traits
 				Log.Write("debug",
 					$"[supply] evac-enter truck={truck.ActorID}@{truck.Location} danger={dangerAtTruck} "
 					+ $"dest-danger={dangerAtDestination} gated={cluster?.Gated ?? false} "
-					+ $"threshold={Info.EvacDangerThreshold} leg={retreatCell} sr={srActor.Location}");
-			else if (Info.DebugLogging)
+					+ $"threshold={entryLevel} ({Info.EvacDangerUnits}u) leg={retreatCell} sr={srActor.Location}");
+			// EVERY SCAN THAT ISSUES AN ORDER IS NOW VISIBLE WITHOUT DebugLogging, and that is the point.
+			// The 2026-08-09 diagnosis could only put its headline finding at ~35% for completeness because
+			// evac-hold and every follow-path decision sat behind DebugLogging: a SECOND, FASTER oscillator
+			// could have been running underneath each 48-second cycle and an ordinary play log would show
+			// nothing. An issued retreat is a real order and is rare (one per driven leg), so logging it
+			// unconditionally costs a line per leg and buys the ability to see a fast re-issue cycle at all.
+			// The genuinely per-scan case — held, no order issued — stays bounded by a rollup, the same
+			// first-then-every-Nth shape anchor-impassable-continuing uses, so a LATCHED truck reports its
+			// latch instead of going quiet.
+			else if (legDriven)
+				Log.Write("debug",
+					$"[supply] evac-leg truck={truck.ActorID}@{truck.Location} danger={dangerAtTruck} "
+					+ $"held={heldBefore}→{hold} scans={scans} leg={retreatCell}");
+			else if (Info.EvacHoldRollupScans > 0 && scans % Info.EvacHoldRollupScans == 0)
 				Log.Write("debug",
 					$"[supply] evac-hold truck={truck.ActorID}@{truck.Location} danger={dangerAtTruck} "
-					+ $"held={heldBefore}→{hold} leg-driven={legDriven} leg={retreatCell}");
+					+ $"held={heldBefore}→{hold} scans={scans} leg={retreatCell} "
+					+ $"release-level={SupplyLogisticsMath.ReleaseLevel(entryLevel, hysteresisLevel)}");
 
-			evacState[truck] = new EvacState(hold, retreatCell);
+			evacState[truck] = new EvacState(hold, retreatCell, scans);
 			Adopt(truck);
 			return true;
 		}
@@ -1674,10 +1763,16 @@ namespace OpenRA.Mods.Common.Traits
 			public readonly int Hold;
 			public readonly CPos Retreat;
 
-			public EvacState(int hold, CPos retreat)
+			// Scans this truck has been continuously on the evac branch. Carried here rather than in a second
+			// dictionary so it is freed with the rest of the episode's state on release — a parallel map keyed
+			// by Actor would outlive the truck and need its own pruning pass.
+			public readonly int Scans;
+
+			public EvacState(int hold, CPos retreat, int scans)
 			{
 				Hold = hold;
 				Retreat = retreat;
+				Scans = scans;
 			}
 		}
 

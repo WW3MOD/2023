@@ -182,8 +182,8 @@ Player:
 		# envelope. Mirrors PoiOffensiveBotModule's Stage-F believed-danger buckets on the danger-field scale:
 		# safe x100 / mild x60 / hostile x20. Default OFF on the @stable.tecn twin = byte-identical.
 		StrategicCaptureRepointEnabled: true
-		BelievedDangerMildThreshold: 40
-		BelievedDangerHostileThreshold: 120
+		BelievedDangerMildUnits: 30
+		BelievedDangerHostileUnits: 100
 		BelievedDangerSafeMultiplier: 100
 		BelievedDangerMildMultiplier: 60
 		BelievedDangerHostileMultiplier: 20
@@ -192,7 +192,7 @@ Player:
 		# only, no behaviour. Default false on the @stable.tecn twin = its code path is unchanged.
 		CaptureTelemetryEnabled: true
 		# Capture-contest lever (PIPELINE lever 1, Option A): make the HOLD contest-aware. A derrick whose
-		# neighbourhood reads contested (believed anti-ground danger over ContestedDangerThreshold, or the control-field
+		# neighbourhood reads contested (believed anti-ground danger over ContestedDangerUnits, or the control-field
 		# ring reads Enemy/Contested) gets a LARGER escort on dispatch (4 vs 2) and pre-summons defenders at a LOWER
 		# enemy-value gate ($100 vs $200) so a light re-capture probe is met before it flips the structure. Targets the
 		# measured ~1.9x contested-capture HOLD deficit (WORKSPACE/recon/260729-lever1-capture-contest-design.md §5).
@@ -200,7 +200,7 @@ Player:
 		ContestAwareSupportEnabled: true
 		ContestedEscortSize: 4
 		ContestedDefenseEnemyValueThreshold: 100
-		ContestedDangerThreshold: 40
+		ContestedDangerUnits: 30
 		# Escort right-sizing (income lever): scale the capture party DOWN by believed threat at the target. A derrick
 		# in our own verified-safe territory near our SR is captured with the TECN ALONE (no combat units reserved to
 		# babysit it while it works), a mildly-exposed one with a small escort, and a contested one keeps the full
@@ -211,7 +211,7 @@ Player:
 		# DangerFieldLayer); zero RNG. Default OFF on the @stable.tecn twin = byte-identical.
 		EscortTierSizingEnabled: true
 		SafeControlScoreThreshold: 300
-		SafeDangerThreshold: 40
+		SafeDangerUnits: 10
 		SafeMaxDistanceFromSRCells: 24
 		LightEscortSize: 2
 		# Phase 2 commit-on-order audit (§4): commit recruited escorts (capture-escort:<id>) and structure
@@ -289,7 +289,7 @@ Player:
 		# an outer backstop, not per-ledger churn. Engine default is 0 (inert); @stable omits it => byte-identical.
 		MissionCommitmentWindowTicks: 400
 		MissionDangerSpikePct: 50
-		MissionDangerSpikeFloor: 40
+		MissionDangerSpikeFloorUnits: 30
 		MissionBetterOppMarginPct: 50
 		MissionIneffectiveNumerator: 1
 		MissionIneffectiveDenominator: 2
@@ -366,7 +366,7 @@ Player:
 		# knob-50 baseline is unchanged and this is not a re-tuning of the neutral bot.
 		AdvanceMaxSectors: 3
 		AdvanceMaxSectorsSlopePct: 7
-		AdvanceDangerCeiling: 20
+		AdvanceDangerCeilingUnits: 6
 		AdvanceDangerCeilingSlopePct: 40
 		AdvanceMinUnits: 2
 		AdvanceForceCap: 5
@@ -443,8 +443,8 @@ Player:
 		StrategicRepointEnabled: true
 		BopBoostMultiplier: 150
 		BopDampMultiplier: 60
-		BelievedDangerMildThreshold: 40
-		BelievedDangerHostileThreshold: 120
+		BelievedDangerMildUnits: 30
+		BelievedDangerHostileUnits: 100
 		BelievedDangerSafeMultiplier: 100
 		BelievedDangerMildMultiplier: 60
 		BelievedDangerHostileMultiplier: 20
@@ -559,10 +559,11 @@ Player:
 		# on one cell; committed/retreating units are never staged. Default OFF on the shared engine class ⇒ the
 		# @stable twin (which omits these fields) idles the reserve at the SR byte-identical. Inert until the
 		# ControlField frontier BFS is populated. Standoff 6 coarse cells ≈ 12 map cells behind the line; the
-		# danger guard (40, the same scale as GroundDangerSafeThreshold) keeps the muster BEHIND defended fronts.
+		# danger guard (10 DANGER UNITS — 100 = one reference contact at point-blank, see DangerFieldLayer)
+		# keeps the muster BEHIND defended fronts.
 		ForwardStagingEnabled: true
 		StagingStandoffCells: 6
-		StagingDangerSafeThreshold: 40
+		StagingDangerSafeUnits: 10
 		StagingSpreadStepCells: 2
 		StagingHysteresisCells: 3
 		StagingMaxDescentSteps: 64
@@ -691,8 +692,8 @@ Player:
 		# The assaulted threshold (120) is where the garrison-size threat bump fires. Default OFF on the @stable
 		# twin = byte-identical.
 		DefendRepointEnabled: true
-		BelievedDangerMildThreshold: 40
-		BelievedDangerHostileThreshold: 120
+		BelievedDangerMildUnits: 30
+		BelievedDangerHostileUnits: 100
 		BelievedDangerCalmMultiplier: 100
 		BelievedDangerProbedMultiplier: 150
 		BelievedDangerAssaultedMultiplier: 250
@@ -827,26 +828,37 @@ Player:
 		SmallSquadCoverage: true
 		SmallSquadMinNearbyFriendlies: 2
 		DangerEvac: true
-		EvacDangerThreshold: 60
+		EvacDangerUnits: 50
 		EvacRetreatCells: 12
 		# Evac damper (2026-08-07). Without these the evac branch was a memoryless comparator sampled every
 		# scan and the truck oscillated forward/back to the SR without ever delivering: the danger reading at
 		# the destination does not fall when the truck retreats, and need-descending selection prefers exactly
 		# the hot cluster the evac rule then refuses. The engine now gates SELECTION on the believed danger at
-		# the cell the truck would actually be sent to, at the RELEASE level (60 - 15 = 45) — the same number
-		# the truck must fall below to resume following, so no gap is left between "will go here" and "will
-		# leave here". Gating at 60 while releasing at 45 would leave [45,59] as a latch, which is the
+		# the cell the truck would actually be sent to, at the RELEASE level (50 - 20 = 30 units) — the same
+		# number the truck must fall below to resume following, so no gap is left between "will go here" and
+		# "will leave here". Gating at 50 while releasing at 30 would leave [30,49] as a latch, which is the
 		# original bug one threshold lower. ENTERING an evac is never delayed by any of this.
-		# EvacReleaseHysteresis is NOT what stabilises this, despite looking like a Schmitt deadband: the
-		# danger field steps by tens-to-hundreds per cell near a contact, so 15 units is sub-cell and the
-		# truck crosses the whole 45..60 span in one step. The dwell and the leg model do all the damping.
-		# Turning this knob moves which contour of the enemy weapon envelope the truck treats as the edge
-		# (i.e. how close it gets before aborting) — a delivery-margin lever, not a stability one.
+		#
+		# THESE ARE DANGER UNITS, NOT RAW FIELD UNITS (2026-08-09). 100 units = one reference contact at
+		# point-blank, derived by DangerFieldLayer from the mod's own armament data. The previous values were
+		# 60 and 15 RAW, and that was the bug the user saw as a truck lurching backwards every ~48 s: the
+		# user's own play log measured the median raw reading at the moment of evac entry at 66,834, so a
+		# threshold of 60 fired on the faintest believed contact anywhere in its envelope — including on
+		# trucks standing on their own beachhead (three entered evac at exactly danger=68 within 4 cells of
+		# their SR; one entered at 66,834 and left at 0 without moving). The old note here claimed the field
+		# "steps by tens-to-hundreds per cell near a contact"; it steps by tens of thousands to millions, and
+		# that wrong sentence is why an RA-scale constant survived the total conversion unexamined.
+		# The deadband is consequently no longer inert: one cell of approach moves a contact's contribution by
+		# ~1/(r+1) of its core (~9 units at r=10), so a 20-unit band spans several cells of travel. The dwell
+		# and the leg model are still the primary dampers.
+		# VERIFY, don't trust: `[danger] dist` lines in debug.log report the field's min/median/max in BOTH
+		# raw and danger units every few recomputes, so an ordinary play session says whether 50 sits above
+		# the ambient median (it should) and below the peak near a real contact (it should).
 		# Dwell 1: a 12-cell leg is ~164 ticks + acceleration against a 150-tick scan, so one held scan puts
 		# the re-decision at the first boundary after the leg lands. Retreat DISTANCE is bounded separately
 		# (one leg issued at a time), so the dwell does not need to cover the drive. 0 disables the dwell.
 		EvacDwellScans: 1
-		EvacReleaseHysteresis: 15
+		EvacReleaseHysteresisUnits: 20
 		# TIER 2 idle-truck hunt: a truck the follow pass left unassigned (no cluster in range, or no
 		# cluster at all) drives to the neediest STARVING soldier within HuntLeashCells instead of parking
 		# until someone wanders into its aura. Tier 1 gave the soldier the legs (AutoSeekSupplies); this is
@@ -890,7 +902,7 @@ Player:
 		# never pick it. The danger threshold matches the offense module's on purpose: same primitive, same
 		# job, and the STANDOFF is what makes this point safer, not a different danger number.
 		DropStandoffCells: 8
-		DropDangerSafeThreshold: 40
+		DropDangerSafeUnits: 10
 		DropMaxDescentSteps: 64
 		# The anchor is re-derived every scan from a field rebuilt every 25 ticks. Without hysteresis a
 		# one-cell belief wobble would move the destination — and a destination that moves is the entire
@@ -1133,7 +1145,7 @@ Player:
 		UnloadOnArrival: true
 		PickupCorridorCells: 6
 		BelievedDangerStandoff: true
-		StandoffDangerThreshold: 0
+		StandoffDangerUnits: 10
 		StandoffMarginCells: 2
 		StandoffMaxBackoffCells: 20
 
@@ -1168,7 +1180,7 @@ Player:
 		# danger (DangerFieldLayer, from the BeliefStore — no enemy world scan) clears, plus a 2-cell buffer.
 		# Drops infantry just OUTSIDE believed enemy sight/danger instead of into a hot omniscient cell.
 		BelievedDangerStandoff: true
-		StandoffDangerThreshold: 0
+		StandoffDangerUnits: 10
 		StandoffMarginCells: 2
 		StandoffMaxBackoffCells: 20
 		# Phase 2 commit-on-order audit (§4): commit boarding passengers to the shared PoiGoalGuard ledger
@@ -1623,8 +1635,8 @@ Player:
 		UseTransportForDistantCaptures: true
 		TransportCaptureMinDistanceCells: 12
 		StrategicCaptureRepointEnabled: true
-		BelievedDangerMildThreshold: 40
-		BelievedDangerHostileThreshold: 120
+		BelievedDangerMildUnits: 30
+		BelievedDangerHostileUnits: 100
 		BelievedDangerSafeMultiplier: 100
 		BelievedDangerMildMultiplier: 60
 		BelievedDangerHostileMultiplier: 20
@@ -1632,10 +1644,10 @@ Player:
 		ContestAwareSupportEnabled: true
 		ContestedEscortSize: 4
 		ContestedDefenseEnemyValueThreshold: 100
-		ContestedDangerThreshold: 40
+		ContestedDangerUnits: 30
 		EscortTierSizingEnabled: true
 		SafeControlScoreThreshold: 300
-		SafeDangerThreshold: 40
+		SafeDangerUnits: 10
 		SafeMaxDistanceFromSRCells: 24
 		LightEscortSize: 2
 		# Retreat-when-done (orderless-at-hostile-location bug fix): send a done/target-gone TECN home to our SR
@@ -1677,8 +1689,8 @@ Player:
 		StrategicRepointEnabled: true
 		BopBoostMultiplier: 150
 		BopDampMultiplier: 60
-		BelievedDangerMildThreshold: 40
-		BelievedDangerHostileThreshold: 120
+		BelievedDangerMildUnits: 30
+		BelievedDangerHostileUnits: 100
 		BelievedDangerSafeMultiplier: 100
 		BelievedDangerMildMultiplier: 60
 		BelievedDangerHostileMultiplier: 20
@@ -1707,8 +1719,8 @@ Player:
 		# ordering + size bump) is LIVE, not inert.
 		UseUnitRoles: true
 		DefendRepointEnabled: true
-		BelievedDangerMildThreshold: 40
-		BelievedDangerHostileThreshold: 120
+		BelievedDangerMildUnits: 30
+		BelievedDangerHostileUnits: 100
 		BelievedDangerCalmMultiplier: 100
 		BelievedDangerProbedMultiplier: 150
 		BelievedDangerAssaultedMultiplier: 250

@@ -189,9 +189,15 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool DangerFieldRouting = false;
 
 		[Desc("Stage-E: path ground-danger above which an axis approach is rerouted around the strongpoint.",
-			"Must sit ABOVE the Stage-C territory baseline so the ambient 'deep enemy ground' danger does not",
-			"detour every axis — only genuine defended cores (dense believed-contact kernels) trigger a detour.")]
-		public readonly int GroundDangerSafeThreshold = 40;
+			"IN DANGER UNITS (100 = one reference contact at point-blank — DangerFieldLayer.ReferenceIntensity),",
+			"NOT raw field units. Must sit ABOVE the Stage-C territory baseline so the ambient 'deep enemy",
+			"ground' danger does not detour every axis — only genuine defended cores (dense believed-contact",
+			"kernels) trigger a detour. Higher than the supply trucks' GroundDangerSafeUnits: an assault axis",
+			"tolerates exposure a resupply convoy should route around.",
+			"NOTE this is only the cheap EARLY-OUT. The detour search itself compares two routes against each",
+			"other (GroundDangerNav's strict-improvement rule), which is scale-free and was never affected by",
+			"the unit bug — so getting this number wrong costs wasted detour searches, not wrong detours.")]
+		public readonly int GroundDangerSafeUnits = 30;
 
 		[Desc("Stage-E: lateral offset magnitude (cells) for the flow-around waypoint.")]
 		public readonly int GroundDangerDetourCells = 6;
@@ -222,16 +228,23 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int BopDampMultiplier = 100;
 
 		[Desc("Stage-F believed anti-ground danger (DangerFieldLayer.GroundDanger) at/below which a target",
-			"cell counts as SAFE — the fog-legal replacement for the omniscient safe-threat bucket. On the",
-			"danger-field intensity scale (throughput-derived), NOT the InfluenceMap scale. Sits above the",
-			"Stage-C territory baseline so ambient 'deep enemy ground' danger does not damp every axis.")]
-		public readonly int BelievedDangerMildThreshold = 40;
+			"cell counts as SAFE — the fog-legal replacement for the omniscient safe-threat bucket.",
+			"IN DANGER UNITS (100 = one reference contact at point-blank), NOT raw field units and NOT the",
+			"InfluenceMap scale. Sits above the Stage-C territory baseline so ambient 'deep enemy ground'",
+			"danger does not damp every axis: at 30 units a target must have roughly a third of a reference",
+			"contact's worth of believed weapon envelope over it before its axis is damped at all.")]
+		public readonly int BelievedDangerMildUnits = 30;
 
 		[Desc("Stage-F believed anti-ground danger at/below which a target cell counts as MILD (above it is",
-			"HOSTILE — a dense believed weapon envelope). Boundary between the mild and hostile damp buckets.")]
-		public readonly int BelievedDangerHostileThreshold = 120;
+			"HOSTILE — a dense believed weapon envelope). Boundary between the mild and hostile damp buckets.",
+			"IN DANGER UNITS. 100 = a full reference contact's worth of envelope over the target, which is the",
+			"honest meaning of 'this objective is defended'.",
+			"THE BUCKETS WERE ALL COLLAPSING INTO HOSTILE before 2026-08-09: at the old raw 40/120 against a",
+			"field reading tens of thousands, every axis on every map fell in the top bucket, so the multiplier",
+			"was a uniform constant and the whole lever ranked nothing.")]
+		public readonly int BelievedDangerHostileUnits = 100;
 
-		[Desc("Stage-F axis multiplier (x100) at SAFE believed ground danger (≤ BelievedDangerMildThreshold).",
+		[Desc("Stage-F axis multiplier (x100) at SAFE believed ground danger (≤ BelievedDangerMildUnits).",
 			"Default 100 = inert / neutral (safe ground is not damped).")]
 		public readonly int BelievedDangerSafeMultiplier = 100;
 
@@ -499,10 +512,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int StagingStandoffCells = 6;
 
 		[Desc("Forward staging: never route the muster descent into a cell whose believed anti-ground danger",
-			"exceeds this (danger-field intensity scale) — keeps the staging point BEHIND defended fronts, not on",
-			"them. Set at the same scale as GroundDangerSafeThreshold. Negative disables the danger guard. Only",
-			"read when ForwardStagingEnabled.")]
-		public readonly int StagingDangerSafeThreshold = 40;
+			"exceeds this — keeps the staging point BEHIND defended fronts, not on them.",
+			"IN DANGER UNITS (100 = one reference contact at point-blank). Negative disables the danger guard.",
+			"Only read when ForwardStagingEnabled.",
+			"Low on purpose: the descent walks through the quiet rear, so the guard only has to close off",
+			"neighbours a believed envelope genuinely covers. Too HIGH and the muster walks onto the line; too",
+			"low is self-limiting rather than dangerous — the walk simply halts further back.")]
+		public readonly int StagingDangerSafeUnits = 10;
 
 		[Desc("Forward staging: spacing (map cells) between staged units on the deterministic ring spread around",
 			"the muster anchor — the anti-clog spread. Only read when ForwardStagingEnabled.")]
@@ -553,12 +569,12 @@ namespace OpenRA.Mods.Common.Traits
 			"the sweep a slider that actually moves. Only read when OpportunisticAdvanceEnabled.")]
 		public readonly int AdvanceMaxSectorsSlopePct = 7;
 
-		[Desc("Opportunistic advance: believed anti-ground danger (danger-field intensity scale, same scale as",
-			"StagingDangerSafeThreshold) at/under which a sector still counts as clear, at neutral Aggressiveness.",
-			"Shifted by AdvanceDangerCeilingSlopePct. Deliberately BELOW the staging threshold at neutral: the",
-			"muster standoff only has to be survivable, whereas ground being walked into unescorted has to be",
-			"genuinely empty. Only read when OpportunisticAdvanceEnabled.")]
-		public readonly int AdvanceDangerCeiling = 20;
+		[Desc("Opportunistic advance: believed anti-ground danger at/under which a sector still counts as clear,",
+			"at neutral Aggressiveness. IN DANGER UNITS (100 = one reference contact at point-blank), the same",
+			"unit as StagingDangerSafeUnits. Shifted by AdvanceDangerCeilingSlopePct. Deliberately BELOW the",
+			"staging threshold at neutral: the muster standoff only has to be survivable, whereas ground being",
+			"walked into unescorted has to be genuinely empty. Only read when OpportunisticAdvanceEnabled.")]
+		public readonly int AdvanceDangerCeilingUnits = 6;
 
 		[Desc("Opportunistic advance: the range the Aggressiveness knob spans over AdvanceDangerCeiling — effective",
 			"ceiling = AdvanceDangerCeiling + (Aggressiveness - 50) · this / 100, floored at 0. Positive: a bolder",
@@ -781,11 +797,14 @@ namespace OpenRA.Mods.Common.Traits
 			"dangerous commit so ambient baseline jitter doesn't trip it. Only read when MissionCommitmentEnabled.")]
 		public readonly int MissionDangerSpikePct = 50;
 
-		[Desc("Mission commitment trigger 2: ABSOLUTE floor (danger-field intensity scale) on the spike margin, so",
-			"a fresh weapon envelope appearing over previously-quiet ground (commit danger ≈ 0) still trips the abort.",
-			"Set at the mild-danger threshold (a genuine believed weapon envelope, above baseline stacking). Only read",
-			"when MissionCommitmentEnabled.")]
-		public readonly int MissionDangerSpikeFloor = 40;
+		[Desc("Mission commitment trigger 2: ABSOLUTE floor on the spike margin, so a fresh weapon envelope",
+			"appearing over previously-quiet ground (commit danger ≈ 0) still trips the abort.",
+			"IN DANGER UNITS (100 = one reference contact at point-blank). Set at the mild-danger threshold — a",
+			"genuine believed weapon envelope, above baseline stacking. Only read when MissionCommitmentEnabled.",
+			"The percentage half of this trigger (MissionDangerSpikePct) compares the current danger against the",
+			"commit-time danger and is therefore SCALE-FREE — it was correct throughout. Only this floor, the one",
+			"term measured against a constant, needed the unit.")]
+		public readonly int MissionDangerSpikeFloorUnits = 30;
 
 		[Desc("Mission commitment trigger 3 (better opportunity): a rival objective must beat the committed axis's",
 			"score by strictly MORE than this percent to abandon the current mission. Set ABOVE ReassignScoreThresholdPct",
@@ -1555,7 +1574,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				var groundDanger = dangerField != null ? dangerField.GroundDanger(player, p.Location) : 0;
 				var dangerMul = PoiOffenseMath.BelievedDangerFactor(groundDanger,
-					Info.BelievedDangerMildThreshold, Info.BelievedDangerHostileThreshold,
+					GroundDangerLevel(Info.BelievedDangerMildUnits), GroundDangerLevel(Info.BelievedDangerHostileUnits),
 					Info.BelievedDangerSafeMultiplier, Info.BelievedDangerMildMultiplier,
 					Info.BelievedDangerHostileMultiplier);
 
@@ -1844,7 +1863,7 @@ namespace OpenRA.Mods.Common.Traits
 				var reassign = MissionCommitmentMath.ShouldReassign(
 					objectiveValid,
 					axis.CommitTick, tick, Info.MissionCommitmentWindowTicks,
-					axis.CommitDanger, currentDanger, Info.MissionDangerSpikePct, Info.MissionDangerSpikeFloor,
+					axis.CommitDanger, currentDanger, Info.MissionDangerSpikePct, GroundDangerLevel(Info.MissionDangerSpikeFloorUnits),
 					currentScore, bestAlt, betterOppMargin, Info.MissionScoreQuantizeBandPct,
 					axis.CommitStrength, currentStrength,
 					Info.MissionIneffectiveNumerator, Info.MissionIneffectiveDenominator);
@@ -1957,7 +1976,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var (sgx, sgy) = controlField.MapCellToGridCell(rallyCell.Value);
 			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
-				Info.StagingStandoffCells, Info.StagingDangerSafeThreshold, Info.StagingMaxDescentSteps,
+				Info.StagingStandoffCells, GroundDangerLevel(Info.StagingDangerSafeUnits), Info.StagingMaxDescentSteps,
 				(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
 				(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
 				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight);
@@ -2060,8 +2079,12 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var c in beliefStore.Contacts(player))
 				contactCells.Add(controlField.MapCellToGridCell(c.Cell));
 
-			var ceiling = OpportunisticAdvanceMath.DangerCeiling(
-				Info.AdvanceDangerCeiling, Info.Aggressiveness, Info.AdvanceDangerCeilingSlopePct);
+			// The Aggressiveness shift is applied IN DANGER UNITS and the result converted once, not the other
+			// way round: the slope is a signed offset in the same unit as the ceiling, so shifting first keeps
+			// the knob's documented endpoints ({20,35,50,65,80} → the parked ceiling grid) exact instead of
+			// scattering them through a second integer truncation.
+			var ceiling = GroundDangerLevel(OpportunisticAdvanceMath.DangerCeiling(
+				Info.AdvanceDangerCeilingUnits, Info.Aggressiveness, Info.AdvanceDangerCeilingSlopePct));
 
 			int FrontierAt(int gx, int gy) => controlField.FrontierDistanceAt(player, gx, gy);
 			bool OnGrid(int gx, int gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight;
@@ -2151,7 +2174,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var (sgx, sgy) = controlField.MapCellToGridCell(AxisCentroidCell(axis));
 			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
-				Info.StagingStandoffCells, Info.StagingDangerSafeThreshold, Info.StagingMaxDescentSteps,
+				Info.StagingStandoffCells, GroundDangerLevel(Info.StagingDangerSafeUnits), Info.StagingMaxDescentSteps,
 				(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
 				(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
 				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight);
@@ -3005,7 +3028,7 @@ namespace OpenRA.Mods.Common.Traits
 				detourVia = GroundDangerNav.DetourWaypoint(
 					new CPos(centroid.X, centroid.Y), axis.TargetCell,
 					Info.GroundDangerDetourCells, Info.GroundDangerDetourSteps,
-					Info.GroundDangerSafeThreshold, ground, passable);
+					GroundDangerLevel(Info.GroundDangerSafeUnits), ground, passable);
 			}
 
 			// Dispersion doctrine — spread to move, mass to assault. OFF for the frozen
@@ -3626,6 +3649,22 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var map = world.Map;
 			return c => map.Contains(c) ? field.GroundDanger(player, c) : GroundDangerNav.Impassable;
+		}
+
+		/// <summary>A threshold in DANGER UNITS (100 = one reference contact at point-blank) converted to the
+		/// raw field units a GroundDanger read is measured in — the single binding between a configured
+		/// constant and the field's actual scale, so the pure math (GroundDangerNav, ForwardStagingMath,
+		/// OpportunisticAdvanceMath, PoiOffenseMath) keeps comparing two numbers in whatever units it is given.
+		///
+		/// <para>Sentinels are preserved: a NEGATIVE threshold passes through (the descent guards read it as
+		/// "disabled") and 0 converts losslessly to 0. With no danger field a positive threshold becomes
+		/// unreachable, matching the inert direction every caller's own null-check already takes.</para></summary>
+		int GroundDangerLevel(int units)
+		{
+			if (units <= 0)
+				return units;
+
+			return dangerField != null ? dangerField.GroundDangerUnitsToField(units) : int.MaxValue;
 		}
 
 		// A terrain-passability predicate bound to a representative axis unit's locomotor: true when the

@@ -205,8 +205,15 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int AirDangerSafeThreshold = 0;
 
 		[Desc("Stage-D: air-danger at the squad's own position above which a newly-believed AA is taken to",
-			"cover the squad and it withdraws / re-routes. Above SafeThreshold so leash grazing does not flap.")]
-		public readonly int AirDangerSpikeThreshold = 30;
+			"cover the squad and it withdraws / re-routes. Above SafeThreshold so leash grazing does not flap.",
+			"IN DANGER UNITS against the AIR reference (100 = one reference AIR-threatening contact at",
+			"point-blank — DangerFieldLayer.ReferenceAirIntensity), NOT raw field units and NOT the ground",
+			"reference: the two channels are stamped from different weapon sets with very different throughputs.",
+			"Low on purpose — helicopters die fast, so withdrawing while only partway into a believed AA envelope",
+			"is the correct asymmetry. Note AirDangerSafeThreshold above stays a LITERAL 0 and is NOT in danger",
+			"units: the air channel carries no territory baseline, so 0 there genuinely means 'outside every",
+			"believed AA envelope' at any scale, and converting it would change nothing (0 units = 0 raw).")]
+		public readonly int AirDangerSpikeUnits = 25;
 
 		[Desc("Stage-D: how far from the target (cells) to search for an AA-safe standoff cell to leash to.")]
 		public readonly int AirDangerLeashCells = 6;

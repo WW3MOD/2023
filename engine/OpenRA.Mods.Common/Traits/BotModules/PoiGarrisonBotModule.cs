@@ -106,14 +106,16 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool DefendRepointEnabled = false;
 
 		[Desc("Garrison migration: believed anti-ground danger (DangerFieldLayer.GroundDanger) at/below which a",
-			"held POI counts as CALM. On the danger-field throughput scale (NOT the InfluenceMap scale); sits",
-			"above the Stage-C territory baseline so ambient 'deep enemy ground' danger doesn't raise every POI.")]
-		public readonly int BelievedDangerMildThreshold = 40;
+			"held POI counts as CALM. IN DANGER UNITS (100 = one reference contact at point-blank), NOT raw field",
+			"units and NOT the InfluenceMap scale; sits above the Stage-C territory baseline so ambient 'deep",
+			"enemy ground' danger doesn't raise every POI.")]
+		public readonly int BelievedDangerMildUnits = 30;
 
 		[Desc("Garrison migration: believed anti-ground danger above which a held POI is ASSAULTED (inside a dense",
 			"believed weapon envelope) — the level at which the garrison-size threat bump fires. Boundary between",
-			"the probed and assaulted buckets.")]
-		public readonly int BelievedDangerHostileThreshold = 120;
+			"the probed and assaulted buckets. IN DANGER UNITS: 100 = a full reference contact's worth of envelope",
+			"over the POI, which is the honest meaning of 'this position is under assault'.")]
+		public readonly int BelievedDangerHostileUnits = 100;
 
 		[Desc("Garrison migration: defend-ordering multiplier (x100) at CALM believed danger. Default 100 = inert.")]
 		public readonly int BelievedDangerCalmMultiplier = 100;
@@ -294,7 +296,13 @@ namespace OpenRA.Mods.Common.Traits
 			// is the InfluenceMap ThreatMildThreshold; under the fog migration TargetThreat carries BELIEVED
 			// ground danger (danger-field scale), so the bump must key on the ASSAULTED threshold instead —
 			// only a dense believed weapon envelope, not the ambient Stage-C baseline, reinforces the hold.
-			var sizeThreatThreshold = repoint ? Info.BelievedDangerHostileThreshold : poiMap.Info.ThreatMildThreshold;
+			// Still the correct pattern — the threshold SOURCE switches with the scale TargetThreat carries —
+			// and now the believed branch also converts its danger units to raw field units, so the two arms
+			// are genuinely in the same units as the value they are compared against rather than merely being
+			// different constants.
+			var sizeThreatThreshold = repoint
+				? dangerField.GroundDangerUnitsToField(Info.BelievedDangerHostileUnits)
+				: poiMap.Info.ThreatMildThreshold;
 			var desired = ordered
 				.Select(g => PoiGarrisonMath.GarrisonSize(g.Value,
 					TargetThreat(targets, g.PoiId), sizeThreatThreshold,
@@ -386,7 +394,8 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var groundDanger = dangerField.GroundDanger(player, p.Location);
 				var mul = PoiScoring.BelievedDefendFactor(groundDanger,
-					Info.BelievedDangerMildThreshold, Info.BelievedDangerHostileThreshold,
+					dangerField.GroundDangerUnitsToField(Info.BelievedDangerMildUnits),
+					dangerField.GroundDangerUnitsToField(Info.BelievedDangerHostileUnits),
 					Info.BelievedDangerCalmMultiplier, Info.BelievedDangerProbedMultiplier,
 					Info.BelievedDangerAssaultedMultiplier);
 

@@ -41,6 +41,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using OpenRA.Mods.Common.Warheads;
 using OpenRA.Primitives;
@@ -167,11 +168,20 @@ namespace OpenRA.Mods.Common.Traits
 			// Durability/cost weight: ~1.0x (DurabilityBase) for a fragile, cheap unit, rising
 			// with health and cost. A tank's aura is denser than a rifleman's at equal throughput.
 			var durabilityWeight = p.DurabilityBase + f.Health / p.HealthDivisor + f.Cost / p.CostDivisor;
-			var intensity = throughput * durabilityWeight / p.DurabilityBase * confidencePercent / 100;
-			if (intensity < 1)
-				intensity = 1;
 
-			return new DangerKernel(radius, intensity);
+			// COMPUTED IN long AND SATURATED — this product overflows int on real WW3MOD data, and the
+			// overflow inverted the field for exactly the units that matter most. A main battle tank reads
+			// throughput 23,000 x 100 = 2,300,000 (damage is 10^3-10^5 here, and ~90% of WW3MOD weapons leave
+			// ReloadDelay unset so the divisor is 1) against a durability weight of ~5,140: the first multiply
+			// is 1.18e10, which wraps negative in int, falls through `< 1`, and is clamped to the FLOOR OF 1.
+			// So every heavy vehicle — the densest real threat — stamped an aura of 1 while a rifleman stamped
+			// ~1,200, and the danger field ranked a rifle squad above an armoured company. Saturating instead
+			// keeps the ordering monotone; the cap is unreachable for any plausible single contact.
+			var weighted = (long)throughput * durabilityWeight / p.DurabilityBase * confidencePercent / 100;
+			if (weighted < 1)
+				weighted = 1;
+
+			return new DangerKernel(radius, weighted > int.MaxValue ? int.MaxValue : (int)weighted);
 		}
 
 		// Territory-baseline contribution is GROUND-ONLY. The envelope is derived from believed enemy
@@ -180,6 +190,77 @@ namespace OpenRA.Mods.Common.Traits
 		// envelope) would refuse safe ground. An air baseline, if ever wanted, must derive from
 		// believed ANTI-AIR envelopes instead — a Stage-D concern, not this ground projection.
 		public static (int Ground, int Air) BaselineChannels(int contribution) => (contribution, 0);
+
+		/// <summary>THE REFERENCE CONTACT: the median core intensity, at full confidence, over every actor
+		/// type in the ruleset that threatens <paramref name="channel"/>. This is the denominator that makes
+		/// a danger threshold expressible as a SCALE-FREE number — see <see cref="DangerUnitsToField"/>.
+		///
+		/// <para>WHY THIS EXISTS. Intensity is `damage/reload × durability × confidence`, so its magnitude is
+		/// whatever the MOD's damage numbers happen to be. WW3MOD's are 10^3–10^5 where Red Alert's were ~50,
+		/// and `ReloadDelay` is unset (⇒ divisor 1) on ~90% of WW3MOD weapons because the mod paces fire with
+		/// BurstWait instead — so a single believed tank stamps a core intensity around 10^8. Every hand-tuned
+		/// constant written against this field before 2026-08-09 was therefore an RA-scale number sitting under
+		/// a field rescaled by orders of magnitude, and every one of them fired unconditionally. Deriving the
+		/// unit from the same armament data the kernels are built from is what stops that recurring: rebalance
+		/// a tank's damage and the reference moves WITH it, so the thresholds keep meaning what they said.</para>
+		///
+		/// <para>MEDIAN, not mean: the damage table is bimodal (a legacy small-arms cluster at 10^2 and the
+		/// real body at 10^3–10^4, plus superweapon outliers at 2×10^5), and a mean would be dragged into the
+		/// outliers. Median over TYPES — not over live contacts — on purpose: a runtime distribution collapses
+		/// when the field is quiet, and a threshold relative to a collapsing distribution re-fires at ambient,
+		/// which is the very bug this replaces. Type facts are map-static, so the unit is stable all match.</para>
+		///
+		/// <para>Determinism: the intensities are SORTED before the median is taken, so the result does not
+		/// depend on the caller's iteration order over the ruleset. Zero RNG. Returns 0 when no type threatens
+		/// the channel, which callers must read as "no reference" — see <see cref="DangerUnitsToField"/>.</para></summary>
+		public static int ReferenceIntensity(IEnumerable<DangerKernelFacts> facts, DangerChannel channel,
+			in DangerKernelParams p)
+		{
+			var intensities = new List<int>();
+			foreach (var f in facts)
+			{
+				var kernel = Compute(f, channel, 100, p);
+				if (kernel.Contributes)
+					intensities.Add(kernel.Intensity);
+			}
+
+			if (intensities.Count == 0)
+				return 0;
+
+			intensities.Sort();
+			return intensities[intensities.Count / 2];
+		}
+
+		/// <summary>Convert a threshold expressed in DANGER UNITS to raw field units, where
+		/// <c>100 units = one reference contact at point-blank</c> (<see cref="ReferenceIntensity"/>).
+		/// So 50 means "half as dangerous as a typical enemy unit standing on this cell", and — because the
+		/// kernel taper is linear over `range/1024 + 2` cells — a contact whose envelope merely TOUCHES the
+		/// cell contributes only a few units, which is the ambient flicker a level test must sit above.
+		///
+		/// <para>0 units maps to exactly 0 field units, so a literal-zero test ("outside every believed
+		/// envelope") converts losslessly and keeps its meaning at any scale. A NEGATIVE threshold passes
+		/// through UNCHANGED, because several consumers use a negative value to mean "guard disabled" — the
+		/// sentinel is preserved here, in the one function every caller goes through, rather than re-guarded
+		/// at each call site where one of them would eventually forget.</para>
+		///
+		/// <para>A reference of 0 (no type threatens the channel — e.g. a test ruleset) yields
+		/// <see cref="int.MaxValue"/> for any positive threshold rather than 0: with no scale to calibrate
+		/// against, a level test must fail CLOSED (never "everywhere is dangerous"), matching the direction
+		/// every consumer's own fallback already takes when its field is absent. The product is computed in
+		/// long and clamped, because reference intensities reach 10^8 and a threshold of a few hundred units
+		/// would otherwise overflow int.</para>
+		/// Pure integer, zero RNG.</summary>
+		public static int DangerUnitsToField(int units, int referenceIntensity)
+		{
+			if (units <= 0)
+				return units;
+
+			if (referenceIntensity <= 0)
+				return int.MaxValue;
+
+			var scaled = (long)units * referenceIntensity / 100;
+			return scaled >= int.MaxValue ? int.MaxValue : (int)scaled;
+		}
 	}
 
 	[TraitLocation(SystemActors.World)]
@@ -226,6 +307,22 @@ namespace OpenRA.Mods.Common.Traits
 			"even when a very-long-range enemy weapon is believed.")]
 		public readonly int BaselineMaxProjectionCells = 24;
 
+		[Desc("How many recomputes per player emit a `[danger] dist` distribution line (min/median/max over",
+			"stamped cells, in raw field units AND in danger units). UNCONDITIONAL — not behind DebugLogging —",
+			"because nothing recorded what this field actually holds, which is exactly how an RA-scale constant",
+			"(EvacDangerThreshold: 60 against a field whose median read 66,834) survived the total conversion",
+			"unnoticed through three rounds of 'trucks are fixed'. A threshold set in danger units is only as",
+			"trustworthy as the distribution it was derived against, so the distribution has to be readable from",
+			"an ORDINARY play session, with no test harness and no batch run.",
+			"Bounded by episode, not by rate: the first N recomputes per player, then one every",
+			"DistributionLogEveryNth. 0 disables.")]
+		public readonly int DistributionLogEpisodes = 3;
+
+		[Desc("After the opening DistributionLogEpisodes, emit one distribution line every Nth recompute per",
+			"player — enough to see the field grow as contact is made, without per-scan spam. 0 = opening",
+			"episodes only.")]
+		public readonly int DistributionLogEveryNth = 40;
+
 		public override object Create(ActorInitializer init) { return new DangerFieldLayer(init.Self, this); }
 	}
 
@@ -264,6 +361,19 @@ namespace OpenRA.Mods.Common.Traits
 		int subCountdown;
 		int cursor = -1;
 
+		/// <summary>Core intensity of the median ground-threatening actor type at full confidence — the
+		/// denominator for every GROUND threshold expressed in danger units. Map-static (ruleset-derived),
+		/// so it is stable for the whole match. See <see cref="DangerKernelMath.ReferenceIntensity"/>.</summary>
+		public int ReferenceGroundIntensity { get; private set; }
+
+		/// <summary>The AIR-channel reference. Separate from the ground one and NOT interchangeable: the two
+		/// channels are stamped from different weapon sets with wildly different throughputs, so converting an
+		/// air threshold against the ground reference would be exactly the cross-scale mix this unit exists to
+		/// prevent.</summary>
+		public int ReferenceAirIntensity { get; private set; }
+
+		readonly Dictionary<Player, int> recomputeCount = new();
+
 		public DangerFieldLayer(Actor self, DangerFieldLayerInfo info)
 		{
 			Info = info;
@@ -286,6 +396,17 @@ namespace OpenRA.Mods.Common.Traits
 
 				factsByType[ai.Name] = ExtractKernelFacts(ai, Info.ThroughputWindow);
 			}
+
+			// The reference contact, from the SAME facts the kernels are stamped from, so a balance change to
+			// the mod's damage table moves the unit with it instead of silently re-scaling every threshold.
+			ReferenceGroundIntensity = DangerKernelMath.ReferenceIntensity(factsByType.Values, DangerChannel.Ground, kernelParams);
+			ReferenceAirIntensity = DangerKernelMath.ReferenceIntensity(factsByType.Values, DangerChannel.Air, kernelParams);
+
+			// UNCONDITIONAL, once per world: without it a reader has no way to convert the danger units in
+			// ai.yaml back into the raw numbers the [danger] dist lines and the evac log report.
+			Log.Write("debug",
+				$"[danger] reference ground={ReferenceGroundIntensity} air={ReferenceAirIntensity} "
+				+ $"(100 danger units = one reference contact at point-blank; types={factsByType.Count})");
 
 			// DETERMINISTIC stagger — NOT a SharedRandom draw (see BeliefStore for the byte-identity
 			// rationale). Distinct offset from the other two grids to keep them off the same tick.
@@ -321,6 +442,59 @@ namespace OpenRA.Mods.Common.Traits
 				StampContact(field, contact);
 
 			ProjectTerritoryBaseline(player, field);
+
+			LogDistribution(player, field);
+		}
+
+		/// <summary>Bounded, unconditional record of what this field ACTUALLY holds — the measurement whose
+		/// absence let an RA-scale threshold survive the total conversion. Reports both raw field units and
+		/// danger units, so the numbers in ai.yaml can be checked against the field they gate without a test
+		/// harness: a level threshold should sit above the median and below the peak, and a threshold the
+		/// median already exceeds is firing unconditionally.
+		///
+		/// <para>Bounded by EPISODE, not deduped: the opening recomputes (when the field is nearly empty and
+		/// a too-low threshold is most visible) plus a periodic sample as contact builds. The sort is O(n log n)
+		/// over stamped cells, which is why it runs only on the scans that log — never per recompute.</para></summary>
+		void LogDistribution(Player player, PlayerField field)
+		{
+			if (Info.DistributionLogEpisodes <= 0)
+				return;
+
+			recomputeCount.TryGetValue(player, out var n);
+			recomputeCount[player] = ++n;
+
+			var opening = n <= Info.DistributionLogEpisodes;
+			var periodic = Info.DistributionLogEveryNth > 0 && n % Info.DistributionLogEveryNth == 0;
+			if (!opening && !periodic)
+				return;
+
+			if (field.ActiveCells.Count == 0)
+			{
+				Log.Write("debug", $"[danger] dist player={player.PlayerName} n={n} cells=0 — no believed contact");
+				return;
+			}
+
+			var ground = new List<int>(field.ActiveCells.Count);
+			foreach (var cell in field.ActiveCells)
+				ground.Add(field.Cells[cell].Ground);
+
+			ground.Sort();
+			var min = ground[0];
+			var median = ground[ground.Count / 2];
+			var max = ground[ground.Count - 1];
+
+			Log.Write("debug",
+				$"[danger] dist player={player.PlayerName} n={n} cells={ground.Count} "
+				+ $"ground min={min} median={median} max={max} "
+				+ $"| in units median={ToDangerUnits(median, ReferenceGroundIntensity)} "
+				+ $"max={ToDangerUnits(max, ReferenceGroundIntensity)} ref={ReferenceGroundIntensity}");
+		}
+
+		// Raw field units back to danger units, for the log only (the consumer direction is
+		// DangerKernelMath.DangerUnitsToField). Guards the no-reference case rather than dividing by zero.
+		static int ToDangerUnits(int fieldValue, int referenceIntensity)
+		{
+			return referenceIntensity > 0 ? (int)((long)fieldValue * 100 / referenceIntensity) : -1;
 		}
 
 		void ClearField(PlayerField field)
@@ -363,15 +537,22 @@ namespace OpenRA.Mods.Common.Traits
 					if (!field.Cells.Contains(cell))
 						continue;
 
-					var contribution = kernel.Intensity * (r - d + 1) / (r + 1);
+					// long for the same reason Compute is: at a real core intensity (10^8) times a taper
+					// numerator of up to MaxRadiusCells+1, the product exceeds int well before the divide.
+					var contribution = (int)Math.Min(int.MaxValue,
+						(long)kernel.Intensity * (r - d + 1) / (r + 1));
 					if (contribution <= 0)
 						continue;
 
+					// SATURATING accumulation. Kernels are additive across contacts by design, so a dense
+					// sector genuinely sums several 10^8 auras; wrapping to negative there would make the
+					// hottest ground on the map read as the safest, which is the worst possible direction for
+					// a field every consumer uses as a safety gate.
 					var data = field.Cells[cell];
 					if (channel == DangerChannel.Air)
-						data.Air += contribution;
+						data.Air = (int)Math.Min(int.MaxValue, (long)data.Air + contribution);
 					else
-						data.Ground += contribution;
+						data.Ground = (int)Math.Min(int.MaxValue, (long)data.Ground + contribution);
 
 					field.Cells[cell] = data;
 					field.MarkActive(cell);
@@ -538,6 +719,35 @@ namespace OpenRA.Mods.Common.Traits
 		PlayerField FieldOrNull(Player player)
 		{
 			return player != null && fields.TryGetValue(player, out var f) ? f : null;
+		}
+
+		/// <summary>THE CONVERSION EVERY LEVEL THRESHOLD MUST GO THROUGH. Turns a threshold in danger units
+		/// (100 = one reference contact at point-blank) into the raw field units a <see cref="GroundDanger"/>
+		/// read is measured in.
+		///
+		/// <para>Consumers convert AT THE CALL SITE and pass the raw number down, so the pure math helpers
+		/// (GroundDangerNav, ForwardStagingMath, EscortSizingMath, the PoiOffense buckets) stay scale-agnostic
+		/// and keep their existing int signatures — they compare two numbers in the same units and do not care
+		/// which units those are. Only the binding between a configured constant and the field needs the
+		/// unit, and that binding is exactly here.</para>
+		///
+		/// <para>Do NOT use this for a PRESENCE test. `GroundDanger(...) >= 1` — "any believed weapon envelope
+		/// reaches this cell at all" — is already scale-free and correct at any magnitude; putting it through
+		/// the conversion would turn it into a level test at 1% of a reference contact and silently raise the
+		/// bar by orders of magnitude. GarrisonBotModule.MinBelievedDanger is that case, deliberately left on
+		/// the raw scale.</para></summary>
+		public int GroundDangerUnitsToField(int units)
+		{
+			return DangerKernelMath.DangerUnitsToField(units, ReferenceGroundIntensity);
+		}
+
+		/// <summary>The AIR-channel conversion. Uses the air reference — see <see cref="ReferenceAirIntensity"/>
+		/// for why the two are not interchangeable. Note the air channel carries NO territory baseline
+		/// (<see cref="DangerKernelMath.BaselineChannels"/>), so a literal 0 here really does mean "outside
+		/// every believed AA envelope" and converts losslessly.</summary>
+		public int AirDangerUnitsToField(int units)
+		{
+			return DangerKernelMath.DangerUnitsToField(units, ReferenceAirIntensity);
 		}
 
 		/// <summary>Anti-ground danger at a cell for a player (0 when none / no field).</summary>

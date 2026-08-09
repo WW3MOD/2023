@@ -96,15 +96,21 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Experimental (default false = frozen): make the drop-off fog-LEGAL and vision-aware. When set,",
 			"the chosen drop cell (frontline OR pre-contact staging) is backed off toward our SR until the",
 			"believed anti-ground danger (DangerFieldLayer.GroundDanger — derived from the BeliefStore, no",
-			"world scan of enemy actors) at the cell is at/below StandoffDangerThreshold, plus StandoffMarginCells",
+			"world scan of enemy actors) at the cell is at/below StandoffDangerUnits, plus StandoffMarginCells",
 			"more. Reads only the fog-legal believed field; zero RNG. Default off ⇒ the frozen @poi/@stable twin",
 			"keeps its omniscient thinnest-frontline drop byte-identically. Only set on the @experimental twin.")]
 		public readonly bool BelievedDangerStandoff = false;
 
 		[Desc("Believed anti-ground danger (DangerFieldLayer.GroundDanger) at/below which a cell counts as",
 			"\"outside believed enemy sight/danger\" — a safe drop. Only used when BelievedDangerStandoff is set.",
-			"Default 0 = drop only where the believed field reads completely clear.")]
-		public readonly int StandoffDangerThreshold = 0;
+			"IN DANGER UNITS (100 = one reference contact at point-blank), NOT raw field units.",
+			"NOT 0 any more, and the change is behavioural. At a literal 0 against the GROUND channel — which",
+			"unlike the air channel DOES carry the Stage-C territory baseline — no candidate along the approach",
+			"ever qualified, so ChooseStandoffIndex fell through its whole loop and returned the LAST index every",
+			"time: every drop was walked all the way back toward the SR regardless of where the danger actually",
+			"was. A small positive value restores the intended behaviour of stopping at the first candidate",
+			"genuinely outside a believed weapon envelope.")]
+		public readonly int StandoffDangerUnits = 10;
 
 		[Desc("Extra cells to back off toward our SR beyond the first believed-safe cell, for a standoff buffer.",
 			"Only used when BelievedDangerStandoff is set.")]
@@ -793,7 +799,7 @@ namespace OpenRA.Mods.Common.Traits
 				return target;
 
 			var idx = MountedTransportMath.ChooseStandoffIndex(dangers,
-				Info.StandoffDangerThreshold, Info.StandoffMarginCells);
+				dangerField.GroundDangerUnitsToField(Info.StandoffDangerUnits), Info.StandoffMarginCells);
 			return cells[idx];
 		}
 	}

@@ -184,13 +184,15 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool StrategicCaptureRepointEnabled = false;
 
 		[Desc("Capture migration: believed anti-ground danger (DangerFieldLayer.GroundDanger) at/below which a",
-			"target cell counts as SAFE. On the danger-field throughput scale (NOT the InfluenceMap scale); sits",
-			"above the Stage-C territory baseline so ambient 'deep enemy ground' danger doesn't damp every capture.")]
-		public readonly int BelievedDangerMildThreshold = 40;
+			"target cell counts as SAFE. IN DANGER UNITS (100 = one reference contact at point-blank), NOT raw",
+			"field units and NOT the InfluenceMap scale; sits above the Stage-C territory baseline so ambient",
+			"'deep enemy ground' danger doesn't damp every capture.")]
+		public readonly int BelievedDangerMildUnits = 30;
 
 		[Desc("Capture migration: believed anti-ground danger at/below which a target is MILD (above it is",
-			"HOSTILE — inside a dense believed weapon envelope). Boundary between the mild and hostile damp buckets.")]
-		public readonly int BelievedDangerHostileThreshold = 120;
+			"HOSTILE — inside a dense believed weapon envelope). Boundary between the mild and hostile damp",
+			"buckets. IN DANGER UNITS: 100 = a full reference contact's worth of envelope over the target.")]
+		public readonly int BelievedDangerHostileUnits = 100;
 
 		[Desc("Capture migration: ordering multiplier (x100) at SAFE believed danger. Default 100 = inert.")]
 		public readonly int BelievedDangerSafeMultiplier = 100;
@@ -212,7 +214,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool CaptureTelemetryEnabled = false;
 
 		[Desc("Contest-aware support (Option A, capture-contest lever): when a capture target's neighbourhood OR an",
-			"owned derrick's neighbourhood reads CONTESTED — believed anti-ground danger above ContestedDangerThreshold,",
+			"owned derrick's neighbourhood reads CONTESTED — believed anti-ground danger above ContestedDangerUnits,",
 			"or the control-field ring around it reads believed-ENEMY — dispatch ContestedEscortSize escorts instead of",
 			"EscortSize and pre-summon defenders at ContestedDefenseEnemyValueThreshold instead of DefenseEnemyValueThreshold.",
 			"Reads only fog-legal believed fields (DangerFieldLayer / ControlField); zero RNG. Default false on the engine",
@@ -230,9 +232,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int ContestedDefenseEnemyValueThreshold = 200;
 
 		[Desc("Believed anti-ground danger (DangerFieldLayer.GroundDanger) above which a target/derrick cell counts as",
-			"CONTESTED for support sizing. On the danger-field throughput scale (NOT the InfluenceMap scale); sits above",
-			"the Stage-C territory baseline so ambient 'deep enemy ground' danger doesn't flag every capture contested.")]
-		public readonly int ContestedDangerThreshold = 40;
+			"CONTESTED for support sizing. IN DANGER UNITS (100 = one reference contact at point-blank), NOT raw field",
+			"units and NOT the InfluenceMap scale; sits above the Stage-C territory baseline so ambient 'deep enemy",
+			"ground' danger doesn't flag every capture contested.")]
+		public readonly int ContestedDangerUnits = 30;
 
 		[Desc("Escort right-sizing lever (income lever): scale the capture escort DOWN by believed threat at the target.",
 			"A derrick in our own verified-safe territory near our SR is captured with the technician ALONE (no combat",
@@ -251,9 +254,15 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int SafeControlScoreThreshold = 300;
 
 		[Desc("Escort right-sizing: believed anti-ground danger (DangerFieldLayer.GroundDanger) at/below which a target",
-			"cell counts LOW-DANGER — the safety half of the NONE tier. On the danger-field throughput scale, above the",
-			"Stage-C territory baseline. Only consulted when EscortTierSizingEnabled.")]
-		public readonly int SafeDangerThreshold = 40;
+			"cell counts LOW-DANGER — the safety half of the NONE tier. IN DANGER UNITS (100 = one reference contact",
+			"at point-blank), above the Stage-C territory baseline. Only consulted when EscortTierSizingEnabled.",
+			"Set BELOW ContestedDangerUnits on purpose, which it was not before 2026-08-09. With the two equal, the",
+			"danger axis was binary — a cell was either contested (Full) or verified-quiet (eligible for None), with",
+			"nothing in between — so the LIGHT tier could only ever be reached via the control-ring or distance",
+			"conjuncts, never via 'mildly exposed', which is the case the tier's own Desc describes. The gap between",
+			"the two numbers IS the mild band. (This did not make LIGHT unreachable — the NONE tier also requires a",
+			"strongly-ours ring and proximity to our SR — so it was a missing band, not dead code.)")]
+		public readonly int SafeDangerUnits = 10;
 
 		[Desc("Escort right-sizing: a target within this many cells of our own SR counts NEAR for the NONE tier (an",
 			"oil derrick on our doorstep). Distance is measured fog-legally from our SR (PoiMap's DistanceCells).",
@@ -323,9 +332,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int ReserveStandoffCells = 10;
 
 		[Desc("Idle-capturer reserve: believed anti-ground danger above which a descent step is refused, so the",
-			"reserve never musters inside a believed weapon envelope. 0 = 'outside every believed envelope';",
-			"negative disables the danger guard. Only read when StageIdleCapturers is on.")]
-		public readonly int ReserveDangerSafeThreshold = 0;
+			"reserve never musters inside a believed weapon envelope. IN DANGER UNITS (100 = one reference contact",
+			"at point-blank). 0 = 'outside every believed envelope' and converts losslessly, since 0 units is 0 raw",
+			"field units at any scale; negative disables the danger guard. Only read when StageIdleCapturers is on.")]
+		public readonly int ReserveDangerSafeUnits = 0;
 
 		[Desc("Idle-capturer reserve: descent step budget, so the walk is never a free search.")]
 		public readonly int ReserveMaxDescentSteps = 64;
@@ -987,7 +997,8 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var groundDanger = dangerField.GroundDanger(player, p.Location);
 				var mul = PoiScoring.BelievedThreatFactor(groundDanger,
-					Info.BelievedDangerMildThreshold, Info.BelievedDangerHostileThreshold,
+					dangerField.GroundDangerUnitsToField(Info.BelievedDangerMildUnits),
+					dangerField.GroundDangerUnitsToField(Info.BelievedDangerHostileUnits),
 					Info.BelievedDangerSafeMultiplier, Info.BelievedDangerMildMultiplier,
 					Info.BelievedDangerHostileMultiplier);
 
@@ -1187,7 +1198,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			var (sgx, sgy) = reserveControlField.MapCellToGridCell(sr.Location);
 			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
-				Info.ReserveStandoffCells, Info.ReserveDangerSafeThreshold, Info.ReserveMaxDescentSteps,
+				Info.ReserveStandoffCells,
+				Info.ReserveDangerSafeUnits <= 0 || reserveDangerField == null
+					? Info.ReserveDangerSafeUnits
+					: reserveDangerField.GroundDangerUnitsToField(Info.ReserveDangerSafeUnits),
+				Info.ReserveMaxDescentSteps,
 				(gx, gy) => reserveControlField.FrontierDistanceAt(player, gx, gy),
 				(gx, gy) => reserveDangerField != null
 					? reserveDangerField.GroundDanger(player, reserveControlField.GridCellToMapCell(gx, gy)) : 0,
@@ -1438,7 +1453,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Contest-aware support (Option A): does the neighbourhood of `cell` read CONTESTED from the fog-legal
 		// believed fields? Two signals, either sufficient: (1) believed anti-ground danger over the cell exceeds
-		// ContestedDangerThreshold (a believed weapon envelope actively reaches it); (2) the control-field RING one
+		// ContestedDangerUnits (a believed weapon envelope actively reaches it); (2) the control-field RING one
 		// step past the anchor footprint reads believed-ENEMY (we think the enemy holds ground next to the derrick).
 		// The ring — not the target's own cell — is sampled because an owned/enemy site anchor floors its own grid
 		// cell (Stage-C), so the own cell is uninformative. ENEMY only (not gray/Contested) is deliberate: a derrick
@@ -1464,7 +1479,8 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			if (contestDangerField != null
-				&& contestDangerField.GroundDanger(player, cell) > Info.ContestedDangerThreshold)
+				&& contestDangerField.GroundDanger(player, cell)
+					> contestDangerField.GroundDangerUnitsToField(Info.ContestedDangerUnits))
 				return true;
 
 			if (contestControlField != null && contestControlField.HasField(player))
@@ -1559,8 +1575,9 @@ namespace OpenRA.Mods.Common.Traits
 			var groundDanger = tierDangerField.GroundDanger(player, cell);
 
 			return EscortSizingMath.Resolve(ringControl, groundDanger, distanceFromSRCells,
-				Info.SafeControlScoreThreshold, Info.SafeDangerThreshold, Info.SafeMaxDistanceFromSRCells,
-				tierControlField.Info.GrayBand, Info.ContestedDangerThreshold);
+				Info.SafeControlScoreThreshold, tierDangerField.GroundDangerUnitsToField(Info.SafeDangerUnits),
+				Info.SafeMaxDistanceFromSRCells,
+				tierControlField.Info.GrayBand, tierDangerField.GroundDangerUnitsToField(Info.ContestedDangerUnits));
 		}
 
 		// ============================================================

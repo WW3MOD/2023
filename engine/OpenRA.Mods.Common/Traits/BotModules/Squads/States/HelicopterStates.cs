@@ -549,7 +549,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				// Withdraw-on-spike: a newly-believed AA now reads over the squad's own position —
 				// stop pushing in, hand to the withdraw state (which re-routes to air-safe ground).
 				var info = GetHeliModuleInfo(owner);
-				if (SquadMaxAirDanger(owner, danger) > info.AirDangerSpikeThreshold)
+				if (SquadMaxAirDanger(owner, danger) > danger.AirDangerUnitsToField(info.AirDangerSpikeUnits))
 				{
 					owner.FuzzyStateMachine.ChangeState(owner, new HelicopterWithdrawState());
 					return;

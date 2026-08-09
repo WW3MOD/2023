@@ -82,9 +82,11 @@ namespace OpenRA.Mods.Common.Traits
 		/// into, shifted by the Aggressiveness knob (§2.7 base ± slope). Higher aggressiveness RAISES the bar it
 		/// will accept — a bold commander pushes through ground a cautious one calls covered — so the slope is
 		/// POSITIVE for that direction. Floored at 0, which reads "only totally clear ground qualifies" rather
-		/// than inverting into a negative ceiling no cell could ever satisfy. Scale is the danger field's
-		/// throughput scale (see influence-stack.md Stage B), so it is comparable to StagingDangerSafeThreshold
-		/// and BelievedDangerMildThreshold, NOT to InfluenceMap threat.</summary>
+		/// than inverting into a negative ceiling no cell could ever satisfy. Both the base and the shift are in
+		/// DANGER UNITS (100 = one reference contact at point-blank, DangerFieldLayer.ReferenceIntensity), so
+		/// this is comparable to StagingDangerSafeUnits and BelievedDangerMildUnits and NOT to InfluenceMap
+		/// threat. The CALLER converts the shifted result to raw field units once, so the knob arithmetic here
+		/// stays in the unit the knob is documented in.</summary>
 		public static int DangerCeiling(int baseCeiling, int aggressiveness, int slopePct)
 		{
 			return Math.Max(0, PoiOffenseMath.ShiftByKnob(baseCeiling, aggressiveness, slopePct));

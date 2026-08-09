@@ -90,6 +90,60 @@ namespace OpenRA.Test
 			Assert.That(cell, Is.EqualTo((7, 0)), "the descent is bounded by the step budget (10 - 3 = 7)");
 		}
 
+		// ---------- Passability (the 24-scan drop-anchor stall, 2026-08-09) ----------
+
+		[Test]
+		public void StagingCell_NeverTerminatesOnAnImpassableCell()
+		{
+			// THE REGRESSION PIN. The cell the unguarded descent lands on — (3,0), exactly at the standoff —
+			// is impassable. In the user's play log this is what happened for real: the west player's drop
+			// anchor descent returned the same unreachable cell for 24 CONSECUTIVE scans (~2.4 minutes) while
+			// the caller dutifully rejected it every time, so drop-and-leave went dark for the whole window
+			// and the supply-truck oscillation sits entirely inside it. A deterministic walk over a
+			// slow-moving field does not "miss once" — it re-derives the identical bad answer forever.
+			//
+			// Reverting the passability filter puts this back at (3,0) and turns the assertion red.
+			bool Passable(int gx, int gy) => !(gx == 3 && gy == 0);
+
+			var cell = ForwardStagingMath.StagingCell(10, 0, standoffCells: 3, dangerSafeThreshold: 40, maxSteps: 20,
+				FrontierByX, NoDanger, BigGrid, Passable);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(Passable(cell.X, cell.Y), Is.True, "the descent must not hand back a cell the mover cannot stand on");
+				Assert.That(cell.X, Is.EqualTo(3), "and it still reaches the standoff — routing around, not giving up");
+			});
+		}
+
+		[Test]
+		public void StagingCell_ImpassableGroundIsNotPreferredForReadingSafe()
+		{
+			// Impassable terrain carries NO danger stamp, so it reads 0 — maximally safe — and a danger-guarded
+			// descent is therefore actively ATTRACTED to water and cliffs. That is what makes this a systematic
+			// failure rather than a rare accident: here the whole forward column x<=4 is impassable but quiet,
+			// while the passable route is merely un-hot. The walk must hold on passable ground at x=5.
+			bool Passable(int gx, int gy) => gx > 4;
+
+			var cell = ForwardStagingMath.StagingCell(10, 0, standoffCells: 1, dangerSafeThreshold: 40, maxSteps: 20,
+				FrontierByX, NoDanger, BigGrid, Passable);
+
+			Assert.That(cell, Is.EqualTo((5, 0)), "the walk halts on passable ground instead of descending into it");
+		}
+
+		[Test]
+		public void StagingCell_NullPredicateKeepsTheLegacyWalk()
+		{
+			// Callers that cannot bind a locomotor pass no predicate, and must behave exactly as before —
+			// this is what keeps the three call sites this change did NOT touch byte-identical.
+			var guarded = ForwardStagingMath.StagingCell(10, 0, standoffCells: 3, dangerSafeThreshold: 40, maxSteps: 20,
+				FrontierByX, NoDanger, BigGrid, null);
+			var legacy = ForwardStagingMath.StagingCell(10, 0, standoffCells: 3, dangerSafeThreshold: 40, maxSteps: 20,
+				FrontierByX, NoDanger, BigGrid);
+
+			Assert.That(guarded, Is.EqualTo(legacy));
+			Assert.That(legacy, Is.EqualTo((3, 0)));
+		}
+
 		[Test]
 		public void StagingCell_Disabled_ReturnsStart()
 		{

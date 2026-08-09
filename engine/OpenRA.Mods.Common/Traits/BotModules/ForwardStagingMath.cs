@@ -84,11 +84,26 @@ namespace OpenRA.Mods.Common.Traits
 		/// staging is disabled (standoffCells/maxSteps &lt;= 0), the start already clears the standoff, or the
 		/// field is flat (unpopulated). Frontier distance STRICTLY decreases each accepted step, so the walk
 		/// always terminates. Integer only, zero RNG.
-		/// A negative <paramref name="dangerSafeThreshold"/> disables the danger guard (pure frontier descent).</summary>
+		/// A negative <paramref name="dangerSafeThreshold"/> disables the danger guard (pure frontier descent).
+		///
+		/// <para>THE DESCENT MUST NOT BE ABLE TO RETURN A CELL ITS CALLER IS OBLIGED TO REJECT — that is what
+		/// <paramref name="passable"/> is for, and leaving it null re-opens a real outage. Every caller already
+		/// re-tests the returned cell against its mover's locomotor and refuses an unreachable one, because
+		/// PathFinder bails to NoPath on an inaccessible target and Move treats an empty path as arrival. But
+		/// this walk is DETERMINISTIC over a field that changes slowly, so a rejected result is not a one-scan
+		/// miss: it re-derives the identical unreachable cell every scan, and the caller rejects it every scan,
+		/// for as long as the field holds still. In the user's 2026-08-09 play log the west player's drop
+		/// anchor descent returned cell 33,31 for 24 CONSECUTIVE scans (~2.4 minutes) and drop-and-leave was
+		/// dark for the whole outage — the supply truck oscillation sits entirely inside that window, at both
+		/// edges. Terrain is also actively ATTRACTIVE to a danger-guarded walk, which is what makes this more
+		/// than a rare accident: unstamped water and cliff read danger 0, i.e. maximally safe, so the guard
+		/// above steers TOWARD them. Filtering neighbours here — with the same predicate over the same
+		/// representative cell the caller will test — is what converts a permanent stall into a detour.</para></summary>
 		public static (int X, int Y) StagingCell(
 			int startX, int startY,
 			int standoffCells, int dangerSafeThreshold, int maxSteps,
-			Func<int, int, int> frontierAt, Func<int, int, int> dangerAt, Func<int, int, bool> onGrid)
+			Func<int, int, int> frontierAt, Func<int, int, int> dangerAt, Func<int, int, bool> onGrid,
+			Func<int, int, bool> passable = null)
 		{
 			var cx = startX;
 			var cy = startY;
@@ -114,6 +129,13 @@ namespace OpenRA.Mods.Common.Traits
 					// as the walk nears the front, danger rises and closes off the forward neighbours, so the
 					// unit holds BEHIND the defended line rather than on it.
 					if (dangerSafeThreshold >= 0 && dangerAt(nx, ny) > dangerSafeThreshold)
+						continue;
+
+					// Never step onto ground the mover cannot stand on. Checked BEFORE the improvement test so
+					// an unreachable cell cannot win the step and end the walk on itself — see the note on this
+					// method. The start cell is where the mover already is, so the walk only ever stands on
+					// cells this predicate admits, and therefore cannot terminate on one it does not.
+					if (passable != null && !passable(nx, ny))
 						continue;
 
 					var nf = frontierAt(nx, ny);

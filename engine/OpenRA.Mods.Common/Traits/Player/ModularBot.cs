@@ -264,20 +264,38 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		// One line per (issuing module, reason) per window into the same stream ModularBot already logs
-		// orders to, so a single Test.Mode run can measure how much churn the gate actually removed
-		// without one line per suppression per tick.
+		// One line per (issuing module, reason) per window — a roll-up by construction, never one line per
+		// suppression per tick.
+		//
+		// EMITTED TO debug.log UNCONDITIONALLY, and that is the whole point of this method's 2026-08-09
+		// rewrite. It previously wrote ONLY to UnitLifecycleLogger, which needs both Test.Mode and a separate
+		// JSONL path (UnitLifecycleLogger.cs:144-160) and never touches debug.log — so the order damper could
+		// not be observed in a real match, and an analysis of the user's ordinary play log could not tell
+		// "the gate suppressed nothing" from "the gate cannot report". Those are opposite conclusions and the
+		// log looked identical either way. The lifecycle stream is still written when it is on, because the
+		// A/B measurement path depends on it; this just stops it being the ONLY witness.
 		void ReportGateSuppressions()
 		{
-			if (info.OrderGateLogIntervalTicks <= 0 || lifecycleLogger == null || !lifecycleLogger.Enabled)
+			if (info.OrderGateLogIntervalTicks <= 0)
 				return;
 
 			if (world.WorldTick % info.OrderGateLogIntervalTicks != 0 || gate.Suppressions.Count == 0)
 				return;
 
+			var lifecycle = lifecycleLogger != null && lifecycleLogger.Enabled;
 			foreach (var s in gate.Suppressions)
-				lifecycleLogger.LogOrderGate(player, s.ModuleTag, s.Verdict.ToString(), s.Count, gate.StandingCount);
+			{
+				Log.Write("debug",
+					$"[ordgate] player={player.PlayerName} module={s.ModuleTag} reason={s.Verdict} "
+					+ $"suppressed={s.Count} standing={gate.StandingCount} window={info.OrderGateLogIntervalTicks}");
 
+				if (lifecycle)
+					lifecycleLogger.LogOrderGate(player, s.ModuleTag, s.Verdict.ToString(), s.Count, gate.StandingCount);
+			}
+
+			// Reset on EVERY reporting window now, not only when the lifecycle stream was on. Previously the
+			// early-out above skipped this, so with logging off the counters accumulated for the whole match
+			// and the first Test.Mode window would have reported a match-long total as if it were one window.
 			gate.ResetSuppressions();
 		}
 

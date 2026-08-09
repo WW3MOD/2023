@@ -10,6 +10,7 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
@@ -95,6 +96,120 @@ namespace OpenRA.Test
 			var humvee = DangerKernelMath.Compute(Humvee, DangerChannel.Ground, 100, Params);
 			Assert.That(tank.Intensity, Is.GreaterThanOrEqualTo(humvee.Intensity));
 			Assert.That(tank.RadiusCells, Is.GreaterThan(humvee.RadiusCells));
+		}
+
+		// ---- The danger UNIT: reference intensity + threshold conversion ----
+		//
+		// WW3MOD-SCALE facts, unlike the small illustrative ones above. Weapon damage in this mod is 10^3-10^5
+		// and ~90% of weapons leave ReloadDelay unset (paced by BurstWait instead), so WeaponThroughput's
+		// divisor is 1 and throughput is raw burst damage x 100. These numbers are what the field ACTUALLY
+		// holds in play, and every test below depends on that being represented honestly rather than scaled
+		// down for readability — the entire bug was reasoning about this field at the wrong magnitude.
+		static readonly DangerKernelFacts Mbt = new(groundRange: Cells(9), airRange: 0,
+			groundThroughput: 23000 * 100, airThroughput: 0, health: 50000, cost: 2000);
+		static readonly DangerKernelFacts Spg = new(groundRange: Cells(20), airRange: 0,
+			groundThroughput: 18000 * 100, airThroughput: 0, health: 25000, cost: 2000);
+		static readonly DangerKernelFacts AtgmTeam = new(groundRange: Cells(10), airRange: 0,
+			groundThroughput: 12000 * 100, airThroughput: 0, health: 800, cost: 200);
+		// The one class that DOES set ReloadDelay (60) and Burst (2): 200 dmg x 2 x 100 / 60.
+		static readonly DangerKernelFacts Rifleman = new(groundRange: Cells(6), airRange: 0,
+			groundThroughput: 200 * 2 * 100 / 60, airThroughput: 0, health: 800, cost: 100);
+
+		[Test]
+		public void ReferenceIntensityIsTheMedianContributingType()
+		{
+			// Five contributing types ⇒ the reference is the 3rd smallest core intensity. Sorted internally,
+			// so the answer cannot depend on ruleset iteration order (a determinism requirement of the stack).
+			var facts = new[] { Mbt, Spg, AtgmTeam, Rifleman, Humvee };
+			var expected = new List<int>();
+			foreach (var f in facts)
+				expected.Add(DangerKernelMath.Compute(f, DangerChannel.Ground, 100, Params).Intensity);
+
+			expected.Sort();
+
+			var reference = DangerKernelMath.ReferenceIntensity(facts, DangerChannel.Ground, Params);
+			Assert.That(reference, Is.EqualTo(expected[2]), "reference is the median contributing core intensity");
+
+			var shuffled = new[] { Rifleman, Mbt, Humvee, Spg, AtgmTeam };
+			Assert.That(DangerKernelMath.ReferenceIntensity(shuffled, DangerChannel.Ground, Params),
+				Is.EqualTo(reference), "reference is independent of enumeration order");
+		}
+
+		[Test]
+		public void ReferenceIntensitySkipsTypesThatDoNotThreatenTheChannel()
+		{
+			// An unarmed truck has no kernel; it must not drag the median down by counting as a 0.
+			var withTruck = DangerKernelMath.ReferenceIntensity(
+				new[] { Mbt, Spg, AtgmTeam, Truck }, DangerChannel.Ground, Params);
+			var withoutTruck = DangerKernelMath.ReferenceIntensity(
+				new[] { Mbt, Spg, AtgmTeam }, DangerChannel.Ground, Params);
+
+			Assert.That(withTruck, Is.EqualTo(withoutTruck), "non-contributing types are excluded, not counted as 0");
+			Assert.That(DangerKernelMath.ReferenceIntensity(new[] { Truck }, DangerChannel.Ground, Params),
+				Is.EqualTo(0), "no contributing type ⇒ no reference");
+		}
+
+		[Test]
+		public void DangerUnitConversionPreservesItsSentinels()
+		{
+			var reference = DangerKernelMath.ReferenceIntensity(
+				new[] { Mbt, Spg, AtgmTeam, Rifleman, Humvee }, DangerChannel.Ground, Params);
+
+			Assert.Multiple(() =>
+			{
+				// 0 units is 0 raw at any scale — this is what lets a literal "outside every believed
+				// envelope" test convert losslessly instead of needing to stay on the raw scale.
+				Assert.That(DangerKernelMath.DangerUnitsToField(0, reference), Is.EqualTo(0));
+
+				// Negative means "guard disabled" to several consumers and must survive the conversion.
+				Assert.That(DangerKernelMath.DangerUnitsToField(-1, reference), Is.EqualTo(-1));
+
+				// 100 units IS one reference contact at point-blank — the definition of the unit.
+				Assert.That(DangerKernelMath.DangerUnitsToField(100, reference), Is.EqualTo(reference));
+				Assert.That(DangerKernelMath.DangerUnitsToField(50, reference), Is.EqualTo(reference / 2));
+
+				// No reference (a ruleset with no ground-threatening type) must fail CLOSED: a level test
+				// becomes unreachable rather than reading "everywhere is dangerous".
+				Assert.That(DangerKernelMath.DangerUnitsToField(50, 0), Is.EqualTo(int.MaxValue));
+
+				// References reach 10^8, so the product must be computed wide and clamped, not overflowed.
+				Assert.That(DangerKernelMath.DangerUnitsToField(100000, 1000000000), Is.EqualTo(int.MaxValue));
+			});
+		}
+
+		[Test]
+		public void EvacThresholdInUnitsClearsTheAmbientDangerMeasuredInPlay()
+		{
+			// THE REGRESSION PIN FOR THE 2026-08-09 TRUCK LOOP, and it is stated in the numbers the user's own
+			// play log produced rather than in the abstract. In that log the MEDIAN believed ground danger at
+			// the moment a supply truck entered its danger-evac was 66,834 raw field units, and trucks
+			// standing within 4 cells of their own Supply Route entered evac at readings as low as 68. The
+			// shipped threshold was 60 RAW — below both — so the evac branch fired on ambient flicker and the
+			// truck lurched backwards ~12 cells every ~48 s for the whole match.
+			//
+			// Expressed in danger units the same knob has to clear that ambient band by construction. If
+			// anyone re-expresses these thresholds on the raw scale, or drops the reference denominator, this
+			// goes red: 50 raw is not greater than 66,834.
+			const int AmbientMedianAtEvacEntry = 66834;
+			const int AmbientNearOwnSupplyRoute = 68;
+
+			var reference = DangerKernelMath.ReferenceIntensity(
+				new[] { Mbt, Spg, AtgmTeam, Rifleman, Humvee }, DangerChannel.Ground, Params);
+			var evacLevel = DangerKernelMath.DangerUnitsToField(50, reference);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(evacLevel, Is.GreaterThan(AmbientMedianAtEvacEntry),
+					"EvacDangerUnits: 50 must sit above the ambient median measured at evac entry in play");
+				Assert.That(evacLevel, Is.GreaterThan(AmbientNearOwnSupplyRoute * 100),
+					"and far above the flicker seen on trucks parked at their own beachhead");
+
+				// It must remain a THRESHOLD, not a disable: a believed contact actually on the cell still
+				// trips it, so the fix cannot be mistaken for switching the evac off.
+				var mbtCore = DangerKernelMath.Compute(Mbt, DangerChannel.Ground, 100, Params).Intensity;
+				Assert.That(mbtCore, Is.GreaterThan(evacLevel),
+					"a believed MBT at point-blank must still evacuate the truck");
+			});
 		}
 
 		[Test]
