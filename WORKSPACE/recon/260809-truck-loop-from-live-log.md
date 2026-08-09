@@ -3,9 +3,9 @@
 **Repo state:** `main` @ `0eef99d6`, 0 commits behind `origin/main`. Read-only session — no build, no
 simulation, no autotest.
 
-**Primary evidence:** `%APPDATA%\OpenRA\Logs\debug.log`, 1.83 MB, **23,993 lines**, last written 02:38
-today. Single world, ticks monotonic 0 → ~27,136 (~18 min at 25 tps). Bot-vs-bot spectate on *River Zeta
-WW3*, scenario `none`:
+**Primary evidence:** `%APPDATA%\OpenRA\Logs\debug.log`, **3.14 MB, 25,318 lines**, final write 02:47
+today. Single world, ticks monotonic 0 → **28,628** (~19 min at 25 tps). Bot-vs-bot spectate on *River
+Zeta WW3*, scenario `none`:
 
 - **Stable AI 0802** — east, Supply Route at `79,34`
 - **Experimental AI** — west, Supply Route at `13,44`
@@ -17,12 +17,19 @@ reroute=True spread=True drop=True` for both; `hunt` only on `@experimental`.
 `worktrees/ww3mod/tank-trap-review` checkout, and contains only mod-load and sprite noise. The known
 `.1` harness trap did not fire here.
 
-> ### Method caveat that matters for anyone re-running this
-> **`grep` and `wc` under-scan this file.** `wc -l` reports 15,167 lines and `grep -c` finds 29
-> `evac-enter` where `awk` finds 23,993 lines and 36 `evac-enter`. Roughly 20% of the file is invisible
-> to grep, biased toward the tail — which is exactly where the late-game evidence lives. **Every number
-> below is from `awk`.** Prior grep-based passes over OpenRA debug logs on this project should be
-> treated as incomplete.
+> ### Method caveat — the log was still being written while it was being read
+> OpenRA was **still running and appending** during the first half of this analysis. The file went
+> 1.87 MB → 3.14 MB (15,167 → 25,318 lines) across the session, so early passes disagreed with later
+> ones purely because they read different amounts of file: an early `grep` found 29 `evac-enter`, a
+> later `awk` found 36, and both were correct at the time they ran.
+>
+> **An earlier revision of this document mis-diagnosed that as `grep`/`wc` under-scanning the file.
+> That was wrong and is retracted.** On the settled file `wc -l`, `grep -c ''` and `awk END{NR}` all
+> report 25,318 and `grep -c evac-enter` and `awk` both report 36 — the tools agree exactly. **Every
+> number below has been re-measured against the final 25,318-line file.**
+>
+> The real lesson generalises further than the false one did: when reading `debug.log` for a session
+> the user may still have open, check `wc -c` twice before trusting any count.
 
 ---
 
@@ -64,7 +71,7 @@ exactly. **My reading: this is a third, distinct oscillator that shares Loop A's
 the danger-evac branch, and the recon's Loop A figures were measured against the approach-abort path,
 which is a different thing.
 
-**Loop B is absent.** All **10** `release` lines carry `reason=low-supply` — none `dead`, none
+**Loop B is absent.** All **11** `release` lines carry `reason=low-supply` — none `dead`, none
 `out-of-world` — and every truck ran its load down to 0–62 before release. No adopted truck went to a
 map edge.
 
@@ -76,7 +83,7 @@ map edge.
 
 ### The whole-match shape
 
-36 `evac-enter` / 32 `evac-exit` over 11 trucks. **Enter→exit is 300 ticks in 18 of 32 cases** (297/301/303
+36 `evac-enter` / 32 `evac-exit` over 14 adopted trucks. **Enter→exit is 300 ticks in 18 of 32 cases** (297/301/303
 in 5 more) — 300 ticks is exactly `2 × ScanInterval(150)`, which is the *minimum the dwell permits*.
 So in ~70% of evacuations, **danger had already fallen below the release level by the first moment the
 truck was allowed to re-decide.**
@@ -93,7 +100,7 @@ truck was allowed to re-decide.**
 **No — it fires, but it went dark for the last quarter of the match on the west player, and that window
 is exactly when truck 5319 was oscillating.**
 
-- `[supply] drop` — **5** (ticks 6,900 / 7,336 / 8,536 / 11,539 / 15,136). All `new`, none
+- `[supply] drop` — **6** (ticks 6,900 / 7,336 / 8,536 / 11,539 / 15,136 / **28,036**). All `new`, none
   `drop-revoked` / `drop-declined` / `drop-inflight`.
 - `anchor-impassable` — **4**; `anchor-impassable-continuing` — **2**; `anchor-recovered` — **4**.
 
@@ -109,17 +116,30 @@ episode at the **west** SR did not:
 
 **24 consecutive scans = 3,600 ticks ≈ 2.4 minutes with no drop anchor**, and the descent landed on the
 **same cell `33,31` every time** — the deterministic frontier descent re-deriving an unreachable cell,
-which is precisely the open question that branch shipped with. The last drop in the whole match is at
-15,136; the impassable window is 19,201 → 26,236; truck 5319's oscillation is 21,749 → 24,300. **The
-oscillation sits entirely inside the window where drop-and-leave could not produce an errand.**
+which is precisely the open question that branch shipped with.
+
+**The timeline closes the loop, in both directions:**
+
+| tick | |
+|---|---|
+| 15,136 | last drop before the outage |
+| 19,201 | anchor goes impassable at `33,31` |
+| 21,749 – 24,300 | **truck 5319's oscillation — entirely inside the outage** |
+| 26,236 | `anchor-recovered → 41,41 after=24 scans` |
+| 28,036 | **first drop after recovery** (`truck=5569 anchor=45,41 load=365`) |
+
+Drops stop when the anchor dies and resume 1,800 ticks after it recovers, with a **3,000-tick hole in
+between containing the oscillation**. That is a matched pair of edges, not a coincidence of one.
 
 So the answer is two-part, and both halves matter:
 
-1. **The mode is not inert in general** — 5 drops, and the early impassable episodes self-cleared.
-2. **It was inert for the west player for 2.4 minutes**, and during that window the truck fell back to
-   the plain follow path, which is what fed it into the evac loop.
+1. **The mode is not inert in general** — 6 drops, the early impassable episodes self-cleared in 1–6
+   scans, and it resumed by itself once the anchor came back.
+2. **It was inert for the west player for 2.4 minutes**, and during exactly that window the truck fell
+   back to the plain follow path, which is what fed it into the evac loop.
 
-The frontier descent landing repeatedly on `33,31` is a real bug and the log names the cell.
+The frontier descent re-deriving the same unreachable cell `33,31` for 24 scans is a real bug, and the
+log names the cell.
 
 ---
 
@@ -220,12 +240,13 @@ capped at 32 (`:161-163`). A threshold of 60 is an RA-scale number sitting under
 | Claim | Confidence | What would raise it |
 |---|---|---|
 | User is seeing an SR-ward healthy-bar loop, **not** Loop B | **High (~90%)** | Already strong: 36 logged SR-ward legs, 0 map-edge legs while adopted, 10/10 releases `low-supply`. Residual risk is that the user was watching a *released* truck retiring to the edge (§1 caveat) — one question to them settles it. |
-| Drop-and-leave is **not inert in general**, but went dark 2.4 min on the west player | **High (~85%)** | Direct log counts. Would rise to certain by resolving what terrain `33,31` on River Zeta is. |
+| Drop-and-leave is **not inert in general**, but went dark 2.4 min on the west player | **High (~92%)** | Raised from ~85% by the final log: drops stop at the impassable edge and resume 1,800 ticks after `anchor-recovered`, so both edges of the outage are matched, not just its start. Would reach certain by resolving what terrain `33,31` on River Zeta actually is. |
 | Scale mismatch on `EvacDangerThreshold` is the primary driver | **Medium-high (~75%)** | The two evidence items above are strong, but the *fix* is not obvious from the log alone — I have not established what threshold value would leave the evac useful rather than merely disabled. That needs the field's distribution over a whole match, which nothing currently logs. |
 | The evac branch is the *whole* story | **Low (~35%)** | The approach-abort path is behind `DebugLogging=false` (`SupplyFollowerBotModule.cs:1596`, `:237`) — `evac-hold` and the follow-path decisions emit nothing. A second, faster oscillator could be running underneath every one of these 48 s cycles and this log would not show it. |
 
-**The honest bottom line for the user:** the trucks are not broken — 11 trucks were adopted at 750 supply
-and released at 0–62, and 5 caches were dropped, so supply *is* being delivered. What they are seeing on
+**The honest bottom line for the user:** the trucks are not broken — 14 trucks were adopted at 750 supply
+and all 11 releases were `low-supply` at 0–62, and 6 caches were dropped, so supply *is* being
+delivered. What they are seeing on
 top of that is a real 48-second, 12-cell rearward lurch, driven by a danger threshold that cannot tell a
 distant rumour of a contact from a tank in the truck's face. **Yesterday's two fixes addressed neither
 this nor Loop B-as-observed; they addressed the map-edge loop, which does not appear in this log at
