@@ -1813,11 +1813,17 @@ namespace OpenRA.Mods.Common.Traits
 			int enemyControlWeight, int dangerWeight, int reachWeight)
 		{
 			var enemyDepth = believedControl < 0 ? -believedControl : 0;
-			var danger = (groundDanger < 0 ? 0 : groundDanger) + (airDanger < 0 ? 0 : airDanger);
+
+			// Widened HERE, at the sum, not just at the multiply below: the two channels are independent
+			// readings and adding them in int would overflow before the weighting ever sees the value. It
+			// takes two ~1e9 auras to bite, which is far beyond the ~5e5 a single believed contact stamps —
+			// but the header below claims this whole function accumulates in long, and it should be true
+			// rather than nearly true.
+			var danger = (long)(groundDanger < 0 ? 0 : groundDanger) + (airDanger < 0 ? 0 : airDanger);
 			var reach = reachCells < 0 ? 0 : reachCells;
 
 			// ACCUMULATED IN long AND CLAMPED. `danger * dangerWeight` is a raw danger-field reading times a
-			// percentage — 10^7-10^8 times 100 — which overflows int and WRAPS NEGATIVE. Because every term
+			// percentage — 10^5-10^7 times 100 — which overflows int and WRAPS NEGATIVE. Because every term
 			// here is a penalty subtracted from 0, a wrapped danger term becomes a BONUS: the picker would
 			// actively prefer the most dangerous candidate it sampled, inverting the one lever this scorer
 			// exists to apply. Live under RiskWeightedDropSite.

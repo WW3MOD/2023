@@ -537,7 +537,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("ITEM 31 / design §2.6 — OPPORTUNISTIC ADVANCE. The reserve stops holding at the muster standoff",
 			"when the ground in front of it is GRANTED: a sector reading no believed enemy ownership, no believed",
-			"contact, believed danger at/under AdvanceDangerCeiling, and terrain the movers can occupy. A capped",
+			"contact, believed danger at/under AdvanceDangerCeilingUnits, and terrain the movers can occupy. A capped",
 			"screen is then walked INTO that ground, one granted sector after the next, up to the depth dial —",
 			"the 'exploit the opening instead of sitting on the capture' behaviour. That chaining happens WITHIN a",
 			"walk: each re-eval re-seeds from the staging anchor, so the screen holds a bounded offset ahead of the",
@@ -578,14 +578,17 @@ namespace OpenRA.Mods.Common.Traits
 			"walked into unescorted has to be genuinely empty. Only read when OpportunisticAdvanceEnabled.")]
 		public readonly int AdvanceDangerCeilingUnits = 6;
 
-		[Desc("Opportunistic advance: the range the Aggressiveness knob spans over AdvanceDangerCeiling — effective",
-			"ceiling = AdvanceDangerCeiling + (Aggressiveness - 50) · this / 100, floored at 0. Positive: a bolder",
-			"bot pushes through more marginal danger. At the shipped 20/40 pairing the parked grid {20,35,50,65,80}",
-			"gives ceilings {8,14,20,26,32}, and the absolute endpoints are knob 0 => 0 (advance only into TOTALLY",
-			"clear ground — §2.6's cautious extreme) and knob 100 => 40 (the staging/mild-danger threshold). This",
-			"is the one dial whose slope was already coarse enough to move at every grid point; the depth and force",
-			"slopes had to be widened to 7 for the same reason (integer truncation). Only read when",
-			"OpportunisticAdvanceEnabled.")]
+		[Desc("Opportunistic advance: the range the Aggressiveness knob spans over AdvanceDangerCeilingUnits — effective",
+			"ceiling = AdvanceDangerCeilingUnits + (Aggressiveness - 50) · this / 100, floored at 0. Positive: a bolder",
+			"bot pushes through more marginal danger. Endpoints: knob 0 => 0 (advance only into TOTALLY clear",
+			"ground — §2.6's cautious extreme) and knob 100 => 26.",
+			"THE WORKED GRID HERE IS STALE AND THE SLOPE NOW NEEDS RE-TUNING. It read '{20,35,50,65,80} gives",
+			"{8,14,20,26,32}' against the old ceiling of 20 RAW field units; against 6 DANGER UNITS the same grid",
+			"gives {0,0,6,12,18}, so the two cautious grid points collapse onto 0 and the dial loses resolution at",
+			"the low end — the exact integer-truncation problem this slope was widened to avoid. Left as-is rather",
+			"than guessed at: OpportunisticAdvanceEnabled is default-OFF and unset in ai.yaml, so nothing ships on",
+			"this path, and picking a new slope is a tuning decision that wants the aggressiveness sweep it was",
+			"originally measured with. Only read when OpportunisticAdvanceEnabled.")]
 		public readonly int AdvanceDangerCeilingSlopePct = 40;
 
 		[Desc("Opportunistic advance: the smallest screen worth sending. A reserve that cannot field this many idle",
@@ -2185,11 +2188,15 @@ namespace OpenRA.Mods.Common.Traits
 			//
 			// StagingCell hands its seed back in three distinct situations, and only ONE of them is a pathology:
 			//   (1) frontierAt(seed) <= standoffCells — the axis is ALREADY at the standoff short of the front
-			//       (ForwardStagingMath.cs:97-98, an immediate return);
+			//       (ForwardStagingMath.cs:112-113, an immediate return);
 			//   (2) every forward neighbour is danger-blocked or none is strictly closer, so the walk breaks at
-			//       step 0 (ForwardStagingMath.cs:116-117 + :128-129) — the axis is in contact, under a believed
+			//       step 0 (ForwardStagingMath.cs:131-132 + :150-151) — the axis is in contact, under a believed
 			//       anti-ground envelope at the front;
 			//   (3) the field is flat/unpopulated — no gradient to descend anywhere.
+			// (StagingCell grew an optional `passable` filter on 2026-08-09 which can also break the walk at
+			// step 0, but THIS call site passes none, so the three cases below remain exhaustive for it. If a
+			// predicate is ever threaded in here, that becomes a fourth case and this analysis needs redoing —
+			// it is the reason the parameter was left off this caller rather than wired everywhere.)
 			// (1) and (2) are the DESIGNED Phase-7 contract: hold in place at the line. (3) near the SR is the
 			// units-pooling pathology this wave exists to remove.
 			//

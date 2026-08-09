@@ -144,7 +144,7 @@ namespace OpenRA.Test
 				// Rifle: 10 bursts of (9 intra-burst gaps of 1 + 8 wait) = 170 ticks, plus the 150-tick
 				// magazine swap MINUS the final burst's 8-tick wait it overlaps = 312 ticks per 100 shots.
 				Assert.That(RifleThroughput, Is.EqualTo(100 * 200 * Window / 312));
-                Assert.That(RifleThroughput, Is.EqualTo(6410), "an automatic rifle is ~6.4k damage per 100 ticks");
+				Assert.That(RifleThroughput, Is.EqualTo(6410), "an automatic rifle is ~6.4k damage per 100 ticks");
 
 				// Carbine: 10 bursts of (5 + 12) = 170, plus (60 - 12) = 218 ticks per 20 shots.
 				Assert.That(CarbineThroughput, Is.EqualTo(20 * 200 * Window / 218));
@@ -251,6 +251,32 @@ namespace OpenRA.Test
 			});
 		}
 
+		[Test]
+		public void ComputeSaturatesInsteadOfWrappingOnAbsurdWeaponData()
+		{
+			// The clamp added on 2026-08-09 was previously exercised by NOTHING — the same shape as the bug
+			// that hid here before, since an untested saturation path is indistinguishable from a wrap until
+			// something reaches it. Real data no longer comes close (a believed Abrams is ~5.2e5, ~41x below
+			// the ceiling), so this drives it with data no ruleset should produce, which is exactly the case
+			// the clamp exists for: the guarantee is that intensity stays MONOTONE and POSITIVE however
+			// extreme the inputs, because a wrapped negative would read as the safest ground on the map.
+			var absurd = new DangerKernelFacts(groundRange: Cells(20), airRange: 0,
+				groundThroughput: int.MaxValue / 2, airThroughput: 0, health: 1000000, cost: 100000);
+			var merelyHuge = new DangerKernelFacts(groundRange: Cells(20), airRange: 0,
+				groundThroughput: int.MaxValue / 4, airThroughput: 0, health: 1000000, cost: 100000);
+
+			var a = DangerKernelMath.Compute(absurd, DangerChannel.Ground, 100, Params);
+			var h = DangerKernelMath.Compute(merelyHuge, DangerChannel.Ground, 100, Params);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(a.Intensity, Is.GreaterThan(0), "saturated intensity must stay positive, never wrap");
+				Assert.That(h.Intensity, Is.GreaterThan(0));
+				Assert.That(a.Intensity, Is.GreaterThanOrEqualTo(h.Intensity), "and must stay monotone in throughput");
+				Assert.That(a.Intensity, Is.EqualTo(int.MaxValue), "the ceiling is int.MaxValue, not a wrapped value");
+			});
+		}
+
 		// The kernel taper Stamp applies: full intensity at the contact, 1/(r+1) of it at the outer ring.
 		static int ContributionAt(in DangerKernelFacts f, int confidence, int distanceCells)
 		{
@@ -272,17 +298,29 @@ namespace OpenRA.Test
 			// NOT evacuate for a fading rumour at the edge of its envelope. The old raw 60 failed the second
 			// half — trucks entered evac at readings of 68 while parked at their own beachhead.
 			//
-			// Goes red if anyone re-expresses these thresholds on the raw scale or drops the reference
-			// denominator: the separation only exists because the threshold is a FRACTION of a real contact.
+			// BOUNDED FROM BOTH SIDES, which the first version of this test was not: it asserted only that a
+			// point-blank TANK (521,914) still fires, and a tank is so far above the threshold that doubling
+			// EvacDangerUnits 50 -> 100, or even 50 -> 500, left the test green. It could detect a threshold
+			// set too LOW (the shipped bug) but not one set high enough to disable the evac outright. The
+			// upper bound below is a fully-believed RIFLEMAN on the truck's own cell — an unarmoured supply
+			// truck with enemy infantry standing on it must pull back — which binds at roughly 2x.
+			//
+			// And it reads the SHIPPING value off the Info rather than a literal 50, so retuning the field
+			// moves this test instead of leaving it pinned to a number nothing uses.
+			var evacUnits = new SupplyFollowerBotModuleInfo().EvacDangerUnits;
 			var reference = DangerKernelMath.ReferenceIntensity(
 				new[] { Mbt, Rifleman, Carbine }, DangerChannel.Ground, Params);
-			var evacLevel = DangerKernelMath.DangerUnitsToField(50, reference);
+			var evacLevel = DangerKernelMath.DangerUnitsToField(evacUnits, reference);
 
 			Assert.Multiple(() =>
 			{
-				// MUST fire: a fully-believed tank on the truck's cell.
+				// MUST fire (lower bound): a fully-believed tank on the truck's cell.
 				Assert.That(ContributionAt(Mbt, 100, 0), Is.GreaterThan(evacLevel),
 					"a believed MBT at point-blank must still evacuate the truck — this is a threshold, not a disable");
+
+				// MUST fire (UPPER bound — the binding one): enemy infantry standing on the truck.
+				Assert.That(ContributionAt(Rifleman, 100, 0), Is.GreaterThan(evacLevel),
+					"a believed rifleman ON the truck's cell must evacuate it — a threshold above this disables the evac");
 
 				// MUST NOT fire: a mobile contact decayed to BeliefStore.MinConfidence (15) sitting at the
 				// outer ring of its own envelope. That is the "distant rumour" the old threshold could not

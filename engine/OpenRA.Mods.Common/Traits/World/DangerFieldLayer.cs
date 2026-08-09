@@ -172,7 +172,7 @@ namespace OpenRA.Mods.Common.Traits
 			// COMPUTED IN long, BUT THE OVERFLOW THIS ONCE GUARDED WAS A SYMPTOM, NOT THE DISEASE. With the
 			// old WeaponThroughput a real Abrams read 2,300,000 against a durability weight of 2,950 — a first
 			// multiply of 6.79e9, which wrapped negative, fell through the `< 1` guard and was clamped to the
-			// FLOOR OF 1, so every heavy vehicle stamped an aura of 1 while a rifleman stamped ~1,300 and the
+			// FLOOR OF 1, so every heavy vehicle stamped an aura of 1 while a rifleman stamped ~1,626 and the
 			// field ranked a rifle squad above an armoured company. But 2,300,000 was never a real throughput:
 			// it was a cycle-length error (see WeaponThroughput). With the cadence corrected the same tank
 			// reads 17,692, the product is 5.2e7, and this sits ~41x below int.MaxValue.
@@ -197,12 +197,12 @@ namespace OpenRA.Mods.Common.Traits
 		/// type in the ruleset that threatens <paramref name="channel"/>. This is the denominator that makes
 		/// a danger threshold expressible as a SCALE-FREE number — see <see cref="DangerUnitsToField"/>.
 		///
-		/// <para>WHY THIS EXISTS. Intensity is `damage/reload × durability × confidence`, so its magnitude is
-		/// whatever the MOD's damage numbers happen to be. WW3MOD's are 10^3–10^5 where Red Alert's were ~50,
-		/// and `ReloadDelay` is unset (⇒ divisor 1) on ~90% of WW3MOD weapons because the mod paces fire with
-		/// BurstWait instead — so a single believed tank stamps a core intensity around 10^8. Every hand-tuned
-		/// constant written against this field before 2026-08-09 was therefore an RA-scale number sitting under
-		/// a field rescaled by orders of magnitude, and every one of them fired unconditionally. Deriving the
+		/// <para>WHY THIS EXISTS. Intensity is `sustained damage × durability × confidence`, so its magnitude
+		/// is whatever the MOD's damage numbers happen to be. WW3MOD's are 10^3–10^5 where Red Alert's were
+		/// ~50, so a single believed tank stamps a core intensity around 5e5 — three to four orders above any
+		/// constant inherited from RA. Every hand-tuned constant written against this field before 2026-08-09
+		/// was therefore an RA-scale number sitting under a field rescaled by orders of magnitude, and every
+		/// one of them fired unconditionally. Deriving the
 		/// unit from the same armament data the kernels are built from is what stops that recurring: rebalance
 		/// a tank's damage and the reference moves WITH it, so the thresholds keep meaning what they said.</para>
 		///
@@ -249,8 +249,8 @@ namespace OpenRA.Mods.Common.Traits
 		/// <see cref="int.MaxValue"/> for any positive threshold rather than 0: with no scale to calibrate
 		/// against, a level test must fail CLOSED (never "everywhere is dangerous"), matching the direction
 		/// every consumer's own fallback already takes when its field is absent. The product is computed in
-		/// long and clamped, because reference intensities reach 10^8 and a threshold of a few hundred units
-		/// would otherwise overflow int.</para>
+		/// long and clamped: reference intensities are ~10^5–10^6 today, so a threshold of a few hundred units
+		/// has ample headroom, but both terms are data-driven and the clamp costs nothing.</para>
 		/// Pure integer, zero RNG.</summary>
 		public static int DangerUnitsToField(int units, int referenceIntensity)
 		{
@@ -312,10 +312,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("How many recomputes per player emit a `[danger] dist` distribution line (min/median/max over",
 			"stamped cells, in raw field units AND in danger units). UNCONDITIONAL — not behind DebugLogging —",
 			"because nothing recorded what this field actually holds, which is exactly how an RA-scale constant",
-			"(EvacDangerThreshold: 60 against a field whose median read 66,834) survived the total conversion",
-			"unnoticed through three rounds of 'trucks are fixed'. A threshold set in danger units is only as",
-			"trustworthy as the distribution it was derived against, so the distribution has to be readable from",
-			"an ORDINARY play session, with no test harness and no batch run.",
+			"(the old EvacDangerThreshold: 60) survived the total conversion unnoticed through three rounds of",
+			"'trucks are fixed'. The one distribution ever measured — median 66,834 at evac entry, from the",
+			"2026-08-09 play log — was itself recorded while the weapon-cadence bug was live, so it described a",
+			"field where every heavy contact stamped a clamped 1; treat it as evidence that SOMETHING was wrong,",
+			"not as a calibration. A threshold set in danger units is only as trustworthy as the distribution it",
+			"was derived against, so the distribution has to be readable from an ORDINARY play session, with no",
+			"test harness and no batch run.",
 			"Bounded by episode, not by rate: the first N recomputes per player, then one every",
 			"DistributionLogEveryNth. 0 disables.")]
 		public readonly int DistributionLogEpisodes = 3;
@@ -570,17 +573,23 @@ namespace OpenRA.Mods.Common.Traits
 					if (!field.Cells.Contains(cell))
 						continue;
 
-					// long for the same reason Compute is: at a real core intensity (10^8) times a taper
-					// numerator of up to MaxRadiusCells+1, the product exceeds int well before the divide.
+					// long for the same reason Compute is, and with the same honest headroom: a real core
+					// intensity is ~5.2e5 (a believed Abrams), and times a taper numerator of up to
+					// MaxRadiusCells+1 = 33 that is ~1.7e7 — about 125x below int.MaxValue. The width is a
+					// bound on data-driven inputs, NOT a fix for a number that is currently large.
 					var contribution = (int)Math.Min(int.MaxValue,
 						(long)kernel.Intensity * (r - d + 1) / (r + 1));
 					if (contribution <= 0)
 						continue;
 
-					// SATURATING accumulation. Kernels are additive across contacts by design, so a dense
-					// sector genuinely sums several 10^8 auras; wrapping to negative there would make the
-					// hottest ground on the map read as the safest, which is the worst possible direction for
-					// a field every consumer uses as a safety gate.
+					// SATURATING accumulation — the one place here with a real, if remote, path to overflow.
+					// Kernels are additive across contacts by design, and unlike the two products above the
+					// sum has no per-contact bound: at ~5.2e5 per believed armoured contact it would take
+					// roughly 4,000 co-located auras to saturate. That is not reachable in a normal match,
+					// but it is the term that scales with BELIEF COUNT rather than with the weapon table, so
+					// it is the one worth making unconditionally safe. Wrapping negative here would make the
+					// hottest ground on the map read as the safest — the worst possible direction for a field
+					// every consumer uses as a safety gate.
 					var data = field.Cells[cell];
 					if (channel == DangerChannel.Air)
 						data.Air = (int)Math.Min(int.MaxValue, (long)data.Air + contribution);
