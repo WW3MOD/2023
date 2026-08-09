@@ -3,6 +3,53 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-09: [med] Eight locomotors declare `Crushes: fence` (and `heavytracked` also `barbedwire`) without the matching `Passes:` entry, so the pathfinder treats 384 placed fence/wire actors as solid walls for every vehicle (found while: building `tools/nav-guard/`, static analysis only)
+
+`Locomotor.IsBlockedBy` decides enterability from `Info.PassableClasses` — the `Passes:` field — and never reads `Crushes:` (`engine/OpenRA.Mods.Common/Traits/World/Locomotor.cs:434-444`). `Crushes` is consumed only after entry, by `Passable`/`INotifyBeingPassed` (`Traits/Passable.cs`). So a crush class with no matching pass class can never fire: the unit is refused the cell, and therefore never crushes what is in it.
+
+Every ww3mod vehicle locomotor declares `Passes: field` and nothing else (`mods/ww3mod/rules/world.yaml:88-196`), while listing crush classes it does not pass:
+
+| locomotor | `Crushes` classes absent from `Passes`, that exist on maps |
+|---|---|
+| `heavytracked` | `barbedwire`, `fence` |
+| `wheeled`, `heavywheeled`, `lighttracked`, `lighttracked-amphibious`, `tracked`, `tracked-amphibious`, `walker` | `fence` |
+
+Placed on the ten shipped maps: **310 `fence`-class actors** (`fenc`, `wood` — 130 on x-lake, 67 on siberian-pass) and **74 `barbedwire`** (`barb` — 54 on river-zeta). All are immobile, so all are hard walls to every vehicle as far as pathing is concerned. `sandbag` is listed by four locomotors too but no sandbag actor is currently placed on any map.
+
+Whether this is a bug depends on intent, which is why it is here rather than fixed: "wire stops vehicles until it is shot" is a defensible design, but then `Crushes: fence`/`barbedwire` is dead configuration that reads as if the opposite were true — `heavytracked` in particular looks deliberately specified as the one thing that can drive through wire, and cannot. Two possible fixes: add the classes to `Passes` (vehicles drive through and crush, which is what the `Crushes` list implies), or delete them from `Crushes` (so the yaml stops claiming a behaviour that cannot occur).
+
+Third-order consequence, already load-bearing: this is *why* the shipped diagonal-squeeze rule (`be036370`) measures as connectivity-neutral. All 13 corner-to-corner tank-trap gaps on river-zeta are plugged with `barb`, so the rule denies steps between cells no vehicle could enter anyway. If `barbedwire` is ever added to a `Passes` list, re-run `./tools/nav-guard/nav_guard.py check` — the squeeze rule starts biting the same day.
+
+## 2026-08-09: [med] A tree becoming a husk both loses `Passable: tree` and, for six tree types, occupies MORE cells than the tree did — so burning woodland silently closes ground to infantry (found while: building `tools/nav-guard/`, static analysis only)
+
+Two independent changes happen at `SpawnActorOnDeath`, and neither is visible in any single yaml file:
+
+1. **`^Tree` carries `Passable: PassClasses: tree` (`rules/ingame/decoration.yaml:12-14`); `^TreeHusk` carries no `Passable` trait at all (`rules/husks/husks.yaml:91-108`).** Foot locomotors list `tree` under `Passes`, so infantry walk through live trees and are hard-blocked by husks. Every tree on every map is a cell infantry lose on death.
+2. **Six husks occupy a larger or differently-placed footprint than the tree they replace.** Verified in yaml, not inferred: `T14` `___ _x_` → `T14.Husk` `___ xx_` (1 → 2 blocking cells); same for `T15`. `TC02` `==_ x=_` → `_x_ xx_` (1 → 3, since `=` is `OccupiedPassable` and pathable). `TC03` 3 → 4, `TC05` 5 → 6, and `TC04` keeps 4 cells but moves one.
+
+Measured with `nav_guard.py --state dead` (every destructible map actor replaced by its husk), against the authored state: **154 of 190 map/locomotor pairs lose reachable ground**, worst cases
+
+| map / locomotor | largest region | pocketed cells |
+|---|---|---|
+| woodland-warfare / `foot-mountainer` | 9534 → 7042 (−2492, −26%) | 0 → 79 |
+| woodland-warfare / `foot` | 8557 → 6197 (−2360) | 69 → 118 |
+| river-zeta / `foot` | 7205 → 4929 (−2276) | **0 → 390** |
+
+River-zeta is the sharpest: infantry currently have a single fully-connected region, and once the treeline burns 390 cells are stranded in pockets. This is an all-or-nothing worst case (it assumes every map actor dies) so the real in-match figure is smaller, but the direction is one-way and the effect is invisible while playtesting a fresh map.
+
+Item 1 may well be intended — a burnt stump being solid where a leafy tree was passable is arguable. Item 2 is much harder to defend: a husk cannot plausibly be *wider* than the tree, and the 1→3 growth on `TC02` looks like footprint art copied without matching it to the source actor. `nav-guard`'s `check` reports the all-husks state as an advisory (exit 1) rather than a hard failure for exactly this reason — it is a real signal, but not one where every delta is a defect.
+
+## 2026-08-09: [low] Seven of ten `map.png` previews are stale: their pixel size predates a hand-edit of `Bounds:` in `map.yaml`, and they carry actors the map no longer places (found while: building `tools/nav-guard/`, static analysis only)
+
+`./tools/nav-guard/nav_guard.py validate` renders decoded terrain and diffs it against each checked-in preview. Terrain agreement is 100.00% on all ten maps, so the decode is sound; the disagreements are all in the preview.
+
+- **Six maps** (`nuclear-winter`, `polar-disorder`, `seventh-woods`, `siberian-pass`, `twin-rivers`, `x-lake`) ship a preview 2 cells smaller than `MapSize` in each axis, aligning at offset `1,1`. `shellmap-open-field` ships a full-`MapSize` preview against a current `Bounds: 1,1,90,60`. In both directions the image was generated under a different `Bounds` than `map.yaml` now declares, i.e. `Bounds:` was edited by hand without re-saving through the editor. `twin-rivers` is the worst: a 112×112 preview against `MapSize: 128,128`, so ~23% of the map has no preview coverage at all.
+- Consequently those previews also predate later actor edits — 42 to 593 pixels per map show an actor on one side and not the other.
+- **River-zeta's preview is bounds-current but still carries 6 dead pixels**: the seven `t14`/`t15` trees removed in `0fa152f1` (footprint offset `(1,1)`, so `(68,y)` paints `(69,y+1)`). That commit touched `map.png`, so the regeneration in it did not take.
+- All ten maps still carry RA-era ore in the `map.bin` resource plane (`twin-rivers` 38 cells, `x-lake` 24, `seventh-woods` 8, `siberian-pass` 1). ww3mod has no resource layer, so it is inert for gameplay, but the older previews were saved while a `ResourceRenderer` was still painting it.
+
+Cosmetic — the lobby map thumbnail is wrong, nothing else reads `map.png`. Fix is a `--refresh-map` pass per map (`RefreshMapCommand`), which would also normalise `Bounds`. Worth doing before anyone uses the previews as evidence for anything; `nav-guard validate`'s `align` column will read `bounds` for all ten once it is done.
+
 ## 2026-08-09: [med, doc-in-doc] `DOCS/bots/04-perception-and-fields.md` §3.2's danger table is unreachable for its heavy-weapon rows, and states the ranking inversion backwards (found while: consolidating the bot-doc set into `DOCS/bots/06-inherited-misfits.md`, static read only)
 
 Doc 04 §3.2 publishes `intensity = 67,850,000` and an outermost-ring value of `2,423,214` for a believed `abrams`, and rests its headline on the second number. That is the value the formula yields in **exact** arithmetic. `DangerKernelMath.Compute` evaluates `throughput * durabilityWeight / DurabilityBase * confidencePercent / 100` (`Traits/World/DangerFieldLayer.cs:170`) entirely in `int`, left to right, and `2,300,000 × 2,950 ≈ 6.8e9` exceeds `int.MaxValue`. It wraps negative, falls through the `if (intensity < 1)` guard at `:171-172`, and is clamped to the FLOOR OF 1. **A believed main battle tank paints exactly one cell, at value 1.** Verified at `main @ dcc2f7c5`: `DangerKernelFacts` (`:55-65`) and `DangerKernelParams` (`:82-96`) are all `int`.

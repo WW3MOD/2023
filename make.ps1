@@ -97,8 +97,40 @@ function Version-Command
 	}
 }
 
+# Static map-connectivity guard. Mirrors the Makefile's `nav-guard` target. Needs no
+# build and no engine, so it is also runnable on its own as `make.ps1 nav-guard`.
+function NavGuard-Command
+{
+	$python = (Get-Command 'python' -ErrorAction SilentlyContinue)
+	if ($python -eq $null)
+	{
+		$python = (Get-Command 'python3' -ErrorAction SilentlyContinue)
+	}
+
+	if ($python -eq $null)
+	{
+		Write-Host "nav-guard needs python on PATH; skipping." -ForegroundColor Yellow
+		return
+	}
+
+	Write-Host "Checking map connectivity (nav-guard)..." -ForegroundColor Cyan
+	& $python.Source "tools/nav-guard/selftest.py"
+	if ($lastexitcode -ne 0)
+	{
+		exit $lastexitcode
+	}
+
+	& $python.Source "tools/nav-guard/nav_guard.py" check
+	if ($lastexitcode -ne 0)
+	{
+		exit $lastexitcode
+	}
+}
+
 function Test-Command
 {
+	NavGuard-Command
+
 	if ((CheckForUtility) -eq 1)
 	{
 		return
@@ -267,7 +299,8 @@ if ($args.Length -eq 0)
 	Write-Host "                                       version for the current Git branch."
 	Write-Host "  clean (c)          - Removes all built and copied files from the mods and"
 	Write-Host "                                                    the engine directories."
-	Write-Host "  test (t)           - Tests the mod's MiniYAML for errors."
+	Write-Host "  test (t)           - Tests the mod's MiniYAML for errors, and map connectivity."
+	Write-Host "  nav-guard (n)      - Checks no map lost reachable ground. No build required."
 	Write-Host "  check (e)          - Checks .cs files for StyleCop violations."
 	Write-Host "  check-scripts(s)   - Checks .lua files for syntax errors."
 	Write-Host ""
@@ -399,6 +432,8 @@ switch ($execute)
 	"c" { Clean-Command }
 	"test" { Test-Command }
 	"t" { Test-Command }
+	"nav-guard" { NavGuard-Command }
+	"n" { NavGuard-Command }
 	"check" { Check-Command }
 	"e" { Check-Command }
 	"check-scripts" { Check-Scripts-Command }

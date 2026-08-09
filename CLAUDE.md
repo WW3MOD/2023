@@ -38,6 +38,7 @@ Pull only what your task needs. Indexes: [`DOCS/README.md`](DOCS/README.md), [`W
 | Staging something for the user to see | [`DOCS/recipes/DEMO.md`](DOCS/recipes/DEMO.md) — no verdict, never `Test.Pass`/`Fail` in a demo |
 | Balance / unit tuning | [`DOCS/recipes/BALANCE.md`](DOCS/recipes/BALANCE.md) — combat-sim (`tools/combat-sim/`) |
 | Economy / ammo / resupply | [`DOCS/reference/economy.md`](DOCS/reference/economy.md) |
+| Movement/blocking rules, locomotors, or map terrain & actor edits | [`tools/nav-guard/README.md`](tools/nav-guard/README.md) — run `make nav-guard` (static, no build). Fails if a map lost reachable ground; a blocking change can seal off a region nobody thinks to look at |
 | Current status, what's in flight | `WORKSPACE/RELEASE_V1.md` + `WORKSPACE/HOTBOARD.md` + `git log --oneline -20` |
 | What comes next, roadmap order | `WORKSPACE/PIPELINE.md` — living queue, top item = next to start |
 | A user-typed trigger word (`PLAN`, `TRIAGE`, `FINALIZE`, …) | [`DOCS/recipes/README.md`](DOCS/recipes/README.md) — these are docs to read, NOT harness Skills; never call the `Skill` tool for them |
