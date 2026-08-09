@@ -54,3 +54,7 @@ _ReSharper.*/
 CLAUDE/sessions/active_*
 garrison_debug.log
 /tools/autotest/tournament-loops/
+
+# Python bytecode from tools/ scripts
+__pycache__/
+*.pyc
