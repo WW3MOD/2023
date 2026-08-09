@@ -4,6 +4,13 @@
 clean apart from four known untracked scratch paths). Static read only — no build, no game run, no autotest.
 Every factual claim below carries a `file:line` that I opened and read at that commit.
 
+> **Reconciled 2026-08-09 against `main @ 25a8aebd`.** A cross-document pass re-derived every headline
+> claim, summary count and computed figure in this six-document set from the code, and corrected the
+> loser of every contradiction in place. Corrections made here are marked at the point they occur.
+> **Danger-field magnitudes are the one excluded class** — they are pending re-derivation on
+> `auto/danger-scale` and are flagged wherever they appear; see
+> [`04` §3.2](04-perception-and-fields.md).
+
 **What this document is.** The squad layer: what a squad is, how a unit gets into one, the state machines that
 command squads once formed, and — the part that matters most — **which of those state machines actually
 execute in a shipped match**. This is the most inherited region of the bot. Most of it is stock OpenRA
@@ -47,14 +54,21 @@ Disagree with those freely. The `file:line` claims are the part that should be c
 
 If you read one section, read this one.
 
-**There are 20 squad states in `Squads/States/`. Eight of them run. Twelve are unreachable on both shipped
-bot profiles.**
+**There are 20 squad states in `Squads/States/`. Seven of them run on shipped content. Thirteen are
+unreachable on both shipped bot profiles.**
 
 Everything the mod calls "the squad system" for ground combat — attack squads, rush squads, base-protection
 squads, naval squads, the fuzzy attack-or-flee evaluator, the regroup logic — **cannot execute**. Ground
 combat is commanded by `PoiOffensiveBotModule` instead. What survives in the squad layer is exactly two
-things: **one fixed-wing air squad per player** (3 states) and **helicopter squads** (5 states), the latter
-written for this mod.
+things: **one fixed-wing air squad per player** (3 states, all reachable) and **helicopter squads** (5 states,
+**4** of which are reachable), the latter written for this mod.
+
+> **On the count, because an earlier draft of this document got it wrong and it has been quoted.** The 13th
+> dead state is `HelicopterAttackRunState`. It is entered from exactly one place, inside `if (!standoff)`
+> (`HelicopterStates.cs:565-573`), and `StandoffEngagement: true` ships on **both** profiles
+> (`ai.yaml:1419`, `:1446`) — so it never runs, and neither does the hit-and-run mechanic it carries (§3.2,
+> §7.4). §3.2 and the §2.7 table have said so all along; the headline said "eight run, twelve are
+> unreachable" and contradicted its own body. The honest shipped figure is **7 / 13**.
 
 I verified this independently rather than taking it from a doc; the chain is in §2. The same conclusion is
 recorded in [`WORKSPACE/recon/260807-order-source-census.md`](../../WORKSPACE/recon/260807-order-source-census.md)
@@ -281,7 +295,7 @@ and the `@experimental` twin `:1290`; America `:1356` and its twin), and both se
 | `AirFleeState` | `AirStates.cs:200` | **LIVE** | |
 | `HelicopterIdleState` | `HelicopterStates.cs:359` | **LIVE** | |
 | `HelicopterApproachState` | `HelicopterStates.cs:455` | **LIVE** | |
-| `HelicopterAttackRunState` | `HelicopterStates.cs:671` | **LIVE**\* | \*only when `StandoffEngagement` is off; see §3.2 |
+| `HelicopterAttackRunState` | `HelicopterStates.cs:671` | **dead on shipped content** | entered only inside `if (!standoff)` (`:565-573`) and `StandoffEngagement: true` on both profiles (`ai.yaml:1419`, `:1446`). Reachable only on a profile that turns standoff off, and none ships. §3.2 |
 | `HelicopterWithdrawState` | `HelicopterStates.cs:762` | **LIVE** | |
 | `HelicopterReturnState` | `HelicopterStates.cs:900` | **LIVE** | |
 | `GroundUnitsIdleState` | `GroundStates.cs:31` | dead | no `Assault`/`Rush` squad (§2.1, §2.2) |
@@ -303,9 +317,12 @@ attack-or-flee evaluator) — its only callers are `GroundStateBase.ShouldFlee` 
 `NavyUnitsIdleState` (`:81`) and `TryToRushAttack` (`SquadManagerBotModule.cs:442`). Every one is
 unreachable. `StateBase.ExcludeTacticallyCommitted` (`:155-171`) likewise (§1.4).
 
-**Line count:** of the 5,464 lines in the squad layer, roughly 1,050 (`GroundStates` 382 + `NavyStates` 251 +
-`ProtectionStates` 79 + `AttackOrFleeFuzzy` 275, plus the dead members of `SquadManagerBotModule`) never
-execute.
+**Line count:** of the 5,464 lines in the squad layer (all file lengths re-counted at `25a8aebd`), **987**
+never execute as whole files — `GroundStates` 382 + `NavyStates` 251 + `ProtectionStates` 79 +
+`AttackOrFleeFuzzy` 275. Add the dead members of `SquadManagerBotModule` (§7.1 itemises them at ~130 lines:
+`TryToRushAttack` ~30, `CreateAttackForce` + the multi-axis split ~60, `ProtectOwn`/`RespondToAttack` ~40) and
+the total is **≈1,120**. Earlier drafts quoted "~1,050" for the state files alone and then added the manager
+lines again on top; 987 + ~130 is the arithmetic that actually reconciles.
 
 ### 2.8 Dead configuration in live YAML
 
@@ -345,7 +362,7 @@ code filed inside a folder of dead code. `HeliDangerNav.cs` in the same folder *
 
 Cadence matters for reading these, and the two differ by 15×.
 
-| Driver | Interval | Real time @ `Timestep: 60` (`mod.yaml:366-368`, `DefaultSpeed: default`) |
+| Driver | Interval | Real time @ `Timestep: 60` (`mod.yaml:369-371`, `DefaultSpeed: default` at `:347`) |
 |---|---|---|
 | Air squads — `SquadManagerBotModule.cs:274-279` | `AttackForceInterval` = 75 ticks (C# default `:72`, not overridden) | **4.5 s** per state tick |
 | Heli squads — `HelicopterSquadBotModule.cs:508-512` | `SquadUpdateInterval` = 5 ticks (`:146`) | **0.3 s** per state tick |
@@ -418,9 +435,9 @@ developed state machine in the repo, and the only one that consumes the influenc
    │  AA danger spike over own position (Stage D) ────────────► Withdraw  │  :554
    │  !StandoffEngagement && dist < 8 cells ──────────────────► AttackRun │  :571
    │  orders: AttackMove to leashed/detoured cell :639  OR  Attack :642   │
-   │  stuckTicks > 200 (≈60 s) ───────────────────────────────► Idle      │  :661
+   │  stuckTicks > 200 (≈60 s) ───────────────────────────────► Idle      │  :651
    └───────────────────────────────┬──────────────────────────────────────┘
-                        (standoff off only)
+              (standoff off only — NEITHER shipped profile takes this edge)
                                    ▼
    ┌──────────────────────────────────────────────────────────────────────┐
    │                   HelicopterAttackRunState  :671                     │
@@ -694,12 +711,17 @@ deliberate. Logged in [`WORKSPACE/bugs/discovered.md`](../../WORKSPACE/bugs/disc
 
 ### 6.7 Config fields that are never read at all
 
-`AIHelicopterRoleInfo` declares nine fields. **Three are read by no C# code anywhere in the repo** —
-`EngagementRange` (`:25`), `PreferSoftTargets` (`:37`), `AvoidAntiAirRange` (`:40`) — verified by grep across
-`engine/`. All three are nonetheless configured per airframe in the mod
+`AIHelicopterRoleInfo` declares nine fields. **Five are read by no C# code anywhere in the repo** —
+`EngagementRange` (`:25`), `PreferSoftTargets` (`:37`), `AvoidAntiAirRange` (`:40`), `AIBuildPriority`
+(`:43`) and `AIBuildLimit` (`:46`) — re-verified by grep across `engine/`, which returns zero hits outside
+`AIHelicopterRole.cs` for each. The first three are nonetheless configured per airframe in the mod
 (`aircraft-america.yaml:10, :111, :115-116, :274, :278-279`; `aircraft-russia.yaml:10, :103, :107` and
-neighbours). `AIBuildPriority` / `AIBuildLimit` (`:43, :46`) are likewise unread — unit call-in weight is
-driven by `UnitBuilderBotModule`'s own `UnitsToBuild`/`UnitLimits`.
+neighbours); the two `AIBuild*` fields are dead because unit call-in weight is driven by
+`UnitBuilderBotModule`'s own `UnitsToBuild`/`UnitLimits` instead. The four that *are* read are `Role`,
+`FleeHealthPercent`, `ReEngageHealthPercent` and `HitAndRunCooldown` — and the last of those is read only from
+`HelicopterStates.cs:704`, inside the state §3.2 shows is unreachable. (An earlier draft of this paragraph
+opened "Three are read by no C# code" and then named five in the same breath; §7.1 and §8 have always said
+five.)
 
 So: a maintainer tuning "how close does the Apache engage" or "does the Hind avoid AA" by editing
 `aircraft-america.yaml` changes **nothing**. Logged in `discovered.md`.
@@ -725,8 +747,8 @@ So: a maintainer tuning "how close does the Apache engage" or "does the Hind avo
 | `AIHelicopterRoleInfo.EngagementRange`, `PreferSoftTargets`, `AvoidAntiAirRange`, `AIBuildPriority`, `AIBuildLimit` | 5 fields | Read by nothing (§6.7). Delete the fields *and* their YAML, or implement them. Configured-but-inert is worse than absent because it invites tuning that cannot work. |
 | The four inert YAML tunables (§2.8) | — | With one caveat: removing `RushInterval` changes the `LocalRandom` draw at `:210` and breaks benchmark byte-identity, so it must be a deliberate, separately-measured removal. |
 
-That is roughly **1,050 lines of dead state machine plus ~150 lines of dead manager**, removable with no
-behavioural change — provable, because none of it is reachable.
+That is **987 lines of dead state machine plus ~130 lines of dead manager (≈1,120 total, §2.7)**, removable
+with no behavioural change — provable, because none of it is reachable.
 
 > The one honest argument against deleting: it is upstream code, and keeping it makes the next engine merge
 > mechanical. I think that trade is already lost — `SquadManagerBotModule` has diverged (`IgnoreGroundUnits`,

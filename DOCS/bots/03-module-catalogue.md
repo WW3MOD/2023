@@ -2,6 +2,13 @@
 
 **Researched against `main` @ `4d583f2e`.** `git status -sb`: `main...origin/main [ahead 68]`; `git rev-list --count HEAD..@{u}` = **0** ⇒ the tree is not behind upstream. Static analysis only — **no builds, no game runs, no autotests**. Every factual claim carries a `file:line` that was read at that SHA.
 
+> **Reconciled 2026-08-09 against `main @ 25a8aebd`.** A cross-document pass re-derived every headline
+> claim, summary count and computed figure in this six-document set from the code, and corrected the
+> loser of every contradiction in place. Corrections made here are marked at the point they occur.
+> **Danger-field magnitudes are the one excluded class** — they are pending re-derivation on
+> `auto/danger-scale` and are flagged wherever they appear; see
+> [`04` §3.2](04-perception-and-fields.md).
+
 **Who this is for.** You own the mod but do not live in the bot code. This document is the *inventory*: what modules exist, which ones are actually running, what each one grabs, and — separately marked — where an inherited Red Alert design is being asked to do a job it was never built for.
 
 **Timestep.** `mods/ww3mod/mod.yaml:369-371` — default speed `normal` = `Timestep: 60` ms ⇒ **16.667 ticks/s**. Throughout: `seconds = ticks × 0.06`.
@@ -18,7 +25,7 @@
 
 ## 0. The shape of the thing, in one paragraph
 
-There are **24 bot-module classes** in `engine/OpenRA.Mods.Common/Traits/BotModules/`. **19 are instantiated** by `mods/ww3mod/rules/ai/*.yaml` (41 instances) plus one world trait; **5 are never instantiated at all**. Of the 19, **8 were inherited from OpenRA** and **11 were built for WW3MOD**. Two bot profiles ship — `ModularBot@experimental` and `ModularBot@stable` (`ai.yaml:44`, `:49`) — and `@stable` is, without exception, `@experimental` with the newer levers deleted: I diffed every twinned block key-by-key and value-by-value and found **zero divergence on any shared key** (§3). `@stable` is not a different bot; it is the same bot with fewer switches on.
+There are **24 bot-module classes** in `engine/OpenRA.Mods.Common/Traits/BotModules/`. **19 are instantiated** by `mods/ww3mod/rules/ai/*.yaml` (41 instances) plus one world trait; **5 are never instantiated at all**. Of the 19, **4 were inherited from OpenRA** (`BaseBuilder`, `BuildingRepair`, `SquadManager`, `UnitBuilder` — all added `2023-03-20`) and **15 were built for WW3MOD**. Counting the never-instantiated five, the whole-tree split is 9 inherited / 15 WW3MOD. Two bot profiles ship — `ModularBot@experimental` and `ModularBot@stable` (`ai.yaml:44`, `:49`) — and `@stable` is, without exception, `@experimental` with the newer levers deleted: I diffed every twinned block key-by-key and value-by-value and found **zero divergence on any shared key** (§3). `@stable` is not a different bot; it is the same bot with fewer switches on — **with one exception that the key-diff cannot see: the two profiles tick their modules in a different relative order** (§2.3), which is itself configuration. Read the "same bot" summary as a statement about *key values*, not about arbitration.
 
 ---
 
@@ -43,7 +50,7 @@ Provenance is established from git, not from the copyright header (the headers a
 | 13 | `ScoutBotModule` | WW3MOD (2026-03-21) | yes ×2 | **shared** × faction | 200 t (12.0 s) |
 | 14 | `EngineerRouteOpenBotModule` | WW3MOD (2026-08-03) | yes ×1 | **exp only** | 100 t (6.0 s) |
 | 15 | `ThreatMapManager` (world trait) | WW3MOD (2026-03-21) | yes ×1 | world-level | 90 t (5.4 s) |
-| 16 | `SquadManagerBotModule` | **OpenRA**, modified | yes ×4 | both (twinned × faction) | 5 t squad / 600 t rush |
+| 16 | `SquadManagerBotModule` | **OpenRA**, modified | yes ×4 | both (twinned × faction) | 75 t squad FSM / 50 t role assign / 600 t rush |
 | 17 | `UnitBuilderBotModule` | **OpenRA**, heavily modified | yes ×10 | both, split by profile/faction | `FeedbackTime` 30 t (1.8 s), a `const` |
 | 18 | `BaseBuilderBotModule` | **OpenRA**, ~unmodified | yes ×1 | both | every tick + 25/125 t queue delay |
 | 19 | `BuildingRepairBotModule` | **OpenRA**, ~unmodified | yes ×1 | both | none — damage interrupt |
@@ -61,7 +68,7 @@ Instance count by file: `ai.yaml` 37, `ai-america.yaml` 2 (`:7`, `:54`), `ai-rus
 
 ### 2.1 Instantiated but inert — the most misleading category
 
-A module that appears in `ai.yaml` looks alive. Seven entries are not.
+A module that appears in `ai.yaml` looks alive. **Six such entries are not** — the first six rows below. The last row is carried here for convenience but is a *different* category and must not be added to the six: those five classes appear in `ai.yaml` nowhere at all. (Earlier drafts of this table, and of [`README` §3.2](README.md), summed all seven rows and reported "seven instantiated-but-inert entries".)
 
 | What | Why it does nothing | Evidence |
 |---|---|---|
@@ -71,7 +78,7 @@ A module that appears in `ai.yaml` looks alive. Seven entries are not.
 | **`SquadManagerBotModule` ×4 — ground branch** | All four instances set `IgnoreGroundUnits: true` (`ai.yaml:1250, 1341, 1800, 1813`), which makes `FindNewUnits` `continue` without claiming (`SquadManagerBotModule.cs:328-334`). The ground FSMs never receive a unit on either profile. | as cited |
 | **`SquadManagerBotModule` ×4 — naval branch** | `NavalUnitsTypes` is unset in all four blocks, so `Info.NavalUnitsTypes.Contains(...)` (`:319`) is always false. There is also a `global-disablenavy` condition wired at `ai.yaml:82-84`. | as cited |
 | **Four levers inside a live `PoiOffensiveBotModule@experimental`** | `OpportunisticAdvanceEnabled: false` (`ai.yaml:353`), `PreparatoryFires: false` (`:519`), `SuppressionCoordinatedAdvance: false` (`:531`), `FoldShortRangeAdIntoLine: false` (`:595`). ~60 lines of shipped, tested config below them that never executes. | as cited |
-| **Five module classes never instantiated at all** | `CaptureManagerBotModule`, `HarvesterBotModule`, `McvManagerBotModule`, `SupportPowerBotModule`, `MinelayerBotModule` — a repo-wide grep of `mods/` finds no trait declaration for any of them (one mention, in a comment at `ai.yaml:118`). | §4 |
+| *(not one of the six — different category)* **Five module classes never instantiated at all** | `CaptureManagerBotModule`, `HarvesterBotModule`, `McvManagerBotModule`, `SupportPowerBotModule`, `MinelayerBotModule` — a repo-wide grep of `mods/` finds no trait declaration for any of them (one mention, in a comment at `ai.yaml:118`). | §4 |
 
 ▶ **Assessment.** The `~disabled` prerequisite is doing the real design work here and the bot config has not caught up with it. `BaseBuilderBotModule@normal` is 30 lines of `BuildingFractions`, `BuildingLimits`, `MinBaseRadius`, `NewProductionCashThreshold: 5000` and `PlaceDefenseTowardsEnemyChance: 80` that read exactly like a tuning surface and are, every one of them, dead. Someone will tune them. `architecture.md:319` explicitly warns "keep the blocks, the `@normal` suffix is a misnomer" — which is correct about the *trait* (its rally-point half is live) but leaves the impression that the base-building config matters. It does not.
 
@@ -192,7 +199,7 @@ These five classes compile into the engine and are reachable from no mod YAML. A
 | **Purpose** | Originally OpenRA's whole combat brain: pool every combat unit, form squads, run attack/idle/fleet FSMs. In WW3MOD it retains **only** the air branch. |
 | **Provenance** | **Inherited, heavily modified** (16 commits: multi-axis split, the `IgnoreGroundUnits` carve-out for `PoiOffensiveBotModule`, the Phase-4b role migration, case-hardening). |
 | **Instances** | `@experimental.russia.fixedwing` (`:1239`), `@experimental.america.fixedwing` (`:1330`), `@stable.russia.fixedwing` (`:1787`), `@stable.america.fixedwing` (`:1805`) — **byte-identical per faction across profiles**. |
-| **Cadence** | Squad FSM update 5 t; `RushInterval: 600` (36 s) (`ai.yaml:1243`). |
+| **Cadence** | Squad FSM update **`AttackForceInterval` = 75 t (4.5 s)** — C# default (`SquadManagerBotModule.cs:72`), **not overridden anywhere in `mods/`**; the squads are updated at `:274-279`. Role assignment `AssignRolesInterval` = 50 t (`:66`, `:281-285`). `RushInterval: 600` (36 s) (`ai.yaml:1243`). **The 5-tick figure an earlier draft gave here was `HelicopterSquadBotModule`'s `SquadUpdateInterval`, a different module** — the fixed-wing FSM is 15× slower than that. |
 | **Claims** | `World.ActorsHavingTrait<IPositionable>()` owned, not in `ExcludeFromSquadsTypes` (`SquadManagerBotModule.cs:302-307`). Air membership is `resolver.GetRole(a) == UnitRole.AttackAir` and not a helicopter, under `UseUnitRoles: true` (`:356-358`); the fallback `AirUnitsTypes` name list (`mig, frog` / `a10, f16`) is only used with roles off. Ground candidates hit `IgnoreGroundUnits` and are skipped **without** being claimed (`:328-334`) so `PoiOffensiveBotModule` sees them. |
 | **Emits** | Nothing from this file directly — the squad FSMs under `Squads/States/` issue the orders. |
 
@@ -329,7 +336,7 @@ Two documented traps carried here: the **14-cell pickup bubble around the own SR
 | | |
 |---|---|
 | **Purpose** | Role-based helicopter management: attack squads with hit-and-run, scout sorties, and infantry lift. |
-| **Provenance** | **WW3MOD** (2026-03-25, 25 commits). |
+| **Provenance** | **WW3MOD** (2026-03-25, 24 commits). |
 | **Instances** | `@stable` `ai.yaml:1409`, `@experimental` `:1429`. |
 | **Cadence** | **Five per-call countdowns in one tick**, none staggered: `SquadUpdateInterval: 5` (0.3 s, `:146`), `ScanInterval: 100` (6.0 s, `:143`), `AttackCooldown: 900` (54 s), `ScoutInterval: 400` (24 s), `TransportInterval: 600` (36 s). Plus an unconditional per-tick idle evaluation. |
 | **Claims** | Any owned actor with the `AIHelicopterRole` trait (`:559`), claimed in the blackboard as `"helicopter"` (`:569`). Lift passengers: infantry with `WithInfantryBody`, role `MainBattle` (`RestrictLiftToLineInfantry` defaults **true**), not reserved by `MountedTransport`, not ledger-committed, **within 14 cells of the own SR**. |
@@ -380,7 +387,7 @@ Two documented traps carried here: the **14-cell pickup bubble around the own SR
 - **Provenance:** **WW3MOD** (2026-03-21, **1 commit** — written once and never revisited). **Instance:** one, shared (`enable-ai-any`).
 - **Config:** `TaskStaleTicks: 1500` (90 s), `CleanupInterval: 300` (18 s).
 - **What is actually used:** only `ClaimUnit` and the intel channels, and only by the older support modules — `HelicopterSquadBotModule`, `GarrisonBotModule`, `ScoutBotModule`, `SupplyFollowerBotModule`, `AdaptiveProductionBotModule` (`WORKSPACE/DISCOVERIES.md:2335`). **The `BotTask` half is written by nobody.**
-- ▶ **Assessment.** Two parallel claim registries — this one and `PoiGoalGuard` — honoured by disjoint sets of modules. The modern POI stack uses the ledger; the 2026-03 support modules use the blackboard. Neither reads the other. That is the single most confusing thing in the whole system for a new reader, and it is not a design, it is a seam between two generations of code. The unused `BotTask` scaffolding should probably go.
+- ▶ **Assessment.** Two parallel claim registries — this one and `PoiGoalGuard` — and **neither reads the other**. The honest statement of the asymmetry is one-directional, not symmetric: *the POI stack never touches the blackboard* (verified — zero `BotBlackboard` references across `PoiOffensiveBotModule`, `PoiGarrisonBotModule`, `LaneAmbushBotModule`, `LayeredDefenceBotModule`, `MountedTransportBotModule`, `CaptureCoordinatorBotModule`, `PoiGoalGuard`), while **several blackboard-era modules do read the ledger** — `HelicopterSquadBotModule.cs:496` and `CaptureCoordinatorBotModule.cs:518` resolve it *unconditionally*, on both profiles, and `GarrisonBotModule.cs:220` behind an opt-in flag. So the honouring sets **overlap**; what does not exist is any module treating the two registries as one source of truth. (An earlier draft of this bullet said "honoured by disjoint sets of modules"; that overstated it, and [`02` §4.2](02-lifecycle-and-arbitration.md) has always had it right.) That seam is still the single most confusing thing in the system for a new reader, and it is not a design — it is a join between two generations of code. The unused `BotTask` scaffolding should probably go.
 
 #### E3. `ThreatMapManager` — coarse omniscient influence grid
 - **Purpose:** per-cell friendly/enemy military value, economic value and exploration age. **World trait**, `world.yaml:283-286`, `CellSize: 8`, `UpdateInterval: 90` (5.4 s), `SpreadFactor: 0.3`.

@@ -4,6 +4,13 @@
 from four known untracked scratch paths). Static read only — no build, no game run, no autotest. Every factual
 claim below carries a `file:line` that I opened and read at that commit.
 
+> **Reconciled 2026-08-09 against `main @ 25a8aebd`.** A cross-document pass re-derived every headline
+> claim, summary count and computed figure in this six-document set from the code, and corrected the
+> loser of every contradiction in place. Corrections made here are marked at the point they occur.
+> **Danger-field magnitudes are the one excluded class** — they are pending re-derivation on
+> `auto/danger-scale` and are flagged wherever they appear; see
+> [`04` §3.2](04-perception-and-fields.md).
+
 **What this document is.** The plumbing: how a bot goes from the world advancing one tick to a specific unit
 being told to walk somewhere. It covers the tick path, module cadences, the two order layers, the four
 overlapping unit-ownership mechanisms, and the order gate merged 2026-08-08. It deliberately does **not**
@@ -149,7 +156,11 @@ runs at **16.667 ticks/s**, so one tick is 60 ms. A bot order therefore takes:
 | **Total floor** | **≥ 2 world ticks ≈ 120 ms**, and materially more for the tail of a burst |
 
 The burst case is the interesting one. If a module queues 40 orders in one tick (a large recruitment sweep),
-the drain is 8, 7, 6, 5, 4, 4, 3, … — the last order lands roughly **11 ticks (~0.7 s)** after it was decided.
+the drain is **8, 7, 5, 4, 4, 3, 2, 2, 1, 1, 1, 1, 1** — **13 passes**, so the last order leaves the queue
+**12 ticks (~0.72 s)** after the sweep was decided. (Re-derived at `25a8aebd` against
+`ordersToIssueThisTick = min(⌈N/5⌉, N)` at `ModularBot.cs:253`; earlier drafts of this paragraph and of
+[`README` step 6](README.md) wrote the sequence as "8, 7, 6, 5, …" and gave ~11 ticks — the ⌈32/5⌉ term is 7
+and the ⌈25/5⌉ term is 5, not 6.)
 
 **OPINION.** The ⌈N/5⌉ throttle is an [OpenRA] artefact that solved an OpenRA problem: a base-building bot that
 dumps a hundred production and rally orders on one tick, where a fifth of a second of smoothing is free. In
@@ -678,9 +689,15 @@ from Red Alert into a game whose numbers or goals are different, where nothing f
 `EvacDangerThreshold = 60` (`SupplyFollowerBotModule.cs:91`, shipped `ai.yaml:830`) is compared against a
 believed-danger field that reads a **median of 66,834** at the moment trucks enter evac
 (`WORKSPACE/recon/260809-truck-loop-from-live-log.md` §6). The field's magnitude comes from WW3MOD weapon damage
-values of 10³–10⁵ against RA's ~50 — a rescale of roughly 200×. A threshold of 60 sits *inside the ambient
+values of 10³–10⁵ against RA's ~50. A threshold of 60 sits *inside the ambient
 flicker* of that field at a player's own beachhead, so trucks evacuate from home on roughly every other scan.
-**Still open at `910507c1`.** Already recorded; not re-filed.
+**Still open at `25a8aebd`.** Already recorded; not re-filed.
+
+> ⚠️ **The 66,834 is a *measured* log value and stands; the "rescale of roughly 200×" was an *estimate* and is
+> superseded.** Every derived danger-field magnitude in this document set is **pending re-derivation** on
+> `auto/danger-scale`, which fixes `WeaponThroughput`'s arithmetic — see the standing warning at
+> [`04` §3.2](04-perception-and-fields.md). The *shape* of the finding (a mid-range constant against a field
+> orders of magnitude larger) does not depend on the exact factor.
 
 ### 6.2 New observations from this pass
 
@@ -688,7 +705,7 @@ None of these are being fixed here — this was a documentation task.
 
 | # | Observation | Provenance | Why I think it is a misfit |
 |---|---|---|---|
-| 1 | `MinOrderQuotientPerTick = 5` spreads a recruitment sweep over ~11 ticks | **[OpenRA]** | Sized for production/rally bursts in a base-building game. In WW3MOD the bursts are recruitment sweeps over the contested SR reserve, so an inherited smoothing constant is shaping arbitration outcomes. §1.4. |
+| 1 | `MinOrderQuotientPerTick = 5` spreads a 40-order recruitment sweep over 13 drain passes (~12 ticks) | **[OpenRA]** | Sized for production/rally bursts in a base-building game. In WW3MOD the bursts are recruitment sweeps over the contested SR reserve, so an inherited smoothing constant is shaping arbitration outcomes. §1.4. |
 | 2 | 24 module cadences are per-call `--countdown` decrements, not tick stamps | **[OpenRA pattern]** | Correct when nothing ever withholds a tick, which was true in OpenRA. It is the single structural blocker on the attention model this project is heading toward, and withholding silently leaks ledger claims. §2.3. |
 | 3 | `BotBlackboard`'s entire task-board API is dead code | **[WW3MOD]** | `PostTask` / `ClaimTask` / `GetOpenTasks` / `UpdateTaskStatus` / `HasTaskNear` have **zero callers** anywhere in `engine/` outside `BotBlackboard.cs`. It is a half-built second coordination system sitting next to a live one, and its presence invites a future author to build on it. |
 | 4 | `GoalGuardLedger.Release` is keyed on the actor, not on the objective (`PoiGoalGuard.cs:100`) | **[WW3MOD]** | A per-unit trait holding a short-TTL ambient `tacpos:` claim can delete a `capture-escort:` claim by releasing "its own". Silent, and rank cannot help because rank is checked at the gate, not at `Release`. |

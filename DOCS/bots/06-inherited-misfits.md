@@ -3,6 +3,13 @@
 **Researched against `main` @ `dcc2f7c5`** (`git status -sb`: `main...origin/main [ahead 71]`; tree clean apart
 from four known untracked scratch paths). Static read only — no build, no game run, no autotest.
 
+> **Reconciled 2026-08-09 against `main @ 25a8aebd`.** A cross-document pass re-derived every headline
+> claim, summary count and computed figure in this six-document set from the code, and corrected the
+> loser of every contradiction in place. Corrections made here are marked at the point they occur.
+> **Danger-field magnitudes are the one excluded class** — they are pending re-derivation on
+> `auto/danger-scale` and are flagged wherever they appear; see
+> [`04` §3.2](04-perception-and-fields.md).
+
 **What this document is.** The four preceding documents each mapped one region of the bot and each found more
 than expected. This one consolidates: **one ranked list of every misfit across all four plus the bug log**,
 **the failure patterns behind them with the tell for each**, an argued **fix-first** order, and — because this
@@ -54,6 +61,14 @@ find the next problem without a worker — not by how interesting the defect is.
 first. **Status key:** `LIVE` affects shipped matches now · `LATENT` real but currently masked · `INERT` cannot
 execute, costs attention rather than behaviour.
 
+> ⚠️ **Standing warning on every danger-field magnitude in this document** — rank 1, rank 22, P1, P2, §3.1 and
+> §5.1. All of them (`~6.8 × 10⁹`, `2,950`, `29.5×`, `751×`, `~22,000×`, `~900×`, `~130×`, the clamp to `1`)
+> are **pending re-derivation** on `auto/danger-scale`, which is fixing `WeaponThroughput`'s arithmetic and
+> **owns** the settled numbers. The *ranking* findings — that the field's ordering does not follow lethality,
+> and that the heavy rows do not compute as published — survive; the *factors* do not. Do not quote a figure
+> from this document to justify a threshold. See the warning at the head of
+> [`04` §3.2](04-perception-and-fields.md).
+
 | # | Misfit | Where | Pattern | Status | Already in flight? | Cost |
 |---|---|---|---|---|---|---|
 | **1** | **Danger-field core arithmetic is wrong twice.** `throughput × durabilityWeight` overflows `int` for any high-throughput, high-HP contact, wraps negative and is clamped to the floor of **1** — so a believed MBT paints one cell at value 1. Independently, `WeaponThroughput` divides by `ReloadDelay` and never reads `BurstWait`, which this mod made mandatory — so relative ranking follows YAML style, not lethality. | `DangerFieldLayer.cs:170` (overflow), `:521-533` (cadence field) | P2, P1 | **LIVE** | **Overflow + derived unit: YES**, `auto/danger-scale`. **Cadence field: NO** — untouched, see §3.1 | S (done) / M (rest) |
@@ -67,22 +82,27 @@ execute, costs attention rather than behaviour.
 | **9** | **`GoalGuardLedger.Release` is keyed on the actor, not the objective.** A per-unit ambient `tacpos:` trait releasing "its own" claim deletes whichever claim the actor holds — including a `capture-escort:`. The order gate's rank ladder cannot help: rank is consulted at the order funnel, never at `Release`. | `PoiGoalGuard.cs:100`; writer `StancePositioningExecutor.cs:643` releasing from `:229,261,272,300,320` | P6 | **LIVE** | no — filed `discovered.md` 2026-08-09 `[med]` | S (but moves both profiles) |
 | **10** | **Two generations of code share every player and neither reads the other.** 2026-03 support modules claim units in `BotBlackboard` and reason about space with the **omniscient, float-based** `ThreatMapManager`; the 2026-07 POI stack claims units in `PoiGoalGuard` and reasons with the fog-legal influence stack. `HelicopterSquadBotModule` writes the blackboard but never reads it. The older layer is where the shared `enable-ai-any` instances live — the modules with the weakest intel model are the ones with no twin protecting the benchmark. | `BotBlackboard.cs:196-218` vs `PoiGoalGuard.cs:39-117`; `world.yaml:283-286`; 0807 census §4.1 | **P7** | **LIVE** | no | L |
 | **11** | **A second decision layer moves units without producing an order.** Five activity-layer traits queue `Activity` objects directly; two use the *cancelling* two-argument form and genuinely destroy in-flight work; **two are default-ON for human-owned units**. Invisible to the order gate, the lifecycle log, and any future attention scheduler placed at the order layer. | `ModularBot.cs:129-136`; `StancePositioningExecutor` + `AutoSeekSupplies` human grants at `rules/defaults.yaml` (`^Combatant`, `GrantConditionOnHumanOwner@tacpos`) and `infantry.yaml:221-222`; cancelling form `Actor.cs:381-387` | P7 | **LIVE** | no | L |
-| **12** | **12 of 20 squad states, ~1,050 lines, cannot execute on either profile** — all five ground states, all four naval, all three protection, plus the 275-line fuzzy attack-or-flee evaluator. Ground combat is `PoiOffensiveBotModule`'s. Verified: `IgnoreGroundUnits: true` on all four instances, `NavalUnitsTypes`/`ProtectionTypes`/`ConstructionYardTypes` set on none. | `ai.yaml:1250,1341,1800,1813`; `SquadManagerBotModule.cs:328-336`; reachability table in [`05`](05-squads-and-combat-states.md) §2.7 | **P5** | **INERT** | no | S (delete/quarantine) |
+| **12** | **13 of 20 squad states, ~1,120 lines, cannot execute on either profile** — all five ground states, all four naval, all three protection, plus `HelicopterAttackRunState` (which is rank 14, counted once here), plus the 275-line fuzzy attack-or-flee evaluator. Ground combat is `PoiOffensiveBotModule`'s. Verified: `IgnoreGroundUnits: true` on all four instances, `NavalUnitsTypes`/`ProtectionTypes`/`ConstructionYardTypes` set on none. | `ai.yaml:1250,1341,1800,1813`; `SquadManagerBotModule.cs:328-336`; reachability table in [`05`](05-squads-and-combat-states.md) §2.7 | **P5** | **INERT** | no | S (delete/quarantine) |
 | **13** | **`GarrisonBotModule@defenses` garrisons civilian houses on both profiles, for 45 s at a time, competing for the same idle infantry as four other modules** — named after defences that cannot be built, with `GarrisonActorTypes` unset so eligibility falls through to "anything with `PassengerInfo`". | `GarrisonBotModule.cs:18-23`, `:483-492`; `ai.yaml:760-775`, `MinGarrisonDwellTicks: 750` | P4, P1 | **LIVE** | no (the frozen-truck claim leak inside it is FIXED, `discovered.md` entry 22) | M (design question first) |
 | **14** | **`HitAndRunCooldown` — the heli trait's signature doctrine knob — is unreachable on both shipped profiles, and counts squad updates rather than ticks (5× its stated duration).** Its consuming state is entered only under `if (!standoff)`, and `StandoffEngagement: true` ships on both. Configured on four airframes regardless. | `HelicopterStates.cs:565`, `:571`, `:685`, `:709`; `ai.yaml:1419`, `:1446`; `AIHelicopterRole.cs:33-34` | **P5**, P9 | **INERT** | no — filed `discovered.md` 2026-08-09 `[med]` | S |
 | **15** | **Inherited retreat doctrine is "flee home to the beachhead" and "never retreat while near a building".** `RandomBuildingLocation` is on the live path for both air flee and heli withdraw fallback; `StateBase.ShouldFlee` cancels the entire flee decision if any own building is inside `DangerScanRadius` — which, in a mod whose buildings are mostly the SR, encodes *never retreat near home*. | `StateBase.cs:29-38`, `:83-104`, `:93-95`; `AirStates.cs:224`; `HelicopterStates.cs:822` | P1 | **LIVE** | no | M |
 | **16** | **`EngineerRouteOpenBotModule` is enabled, fully implemented, and has no target on any shipped map.** It seeks `bridgehut` actors; **zero instances across all ten maps** (re-verified by grep over `mods/ww3mod/maps/`). | `ai.yaml:1084-1086`; `CrossingMap.cs:710-717`; `civilian.yaml:848,859` | **P5** | **INERT** | no | XS (say so in the config) |
 | **17** | **`BotBlackboard`'s entire task-board API has zero callers.** `PostTask` / `ClaimTask` / `GetOpenTasks` / `UpdateTaskStatus` / `HasTaskNear` — **re-verified: no reference anywhere in `engine/` outside the file itself.** A half-built second coordination system sitting next to a live one, inviting someone to build on it. | `BotBlackboard.cs:137,145,160,170,184` | **P5** | **INERT** | no | XS |
-| **18** | **An [OpenRA] smoothing constant silently shapes arbitration outcomes.** `MinOrderQuotientPerTick = 5` spreads a burst of 40 orders over ~11 ticks. In OpenRA those were production and rally orders; here they are recruitment sweeps over the contested SR reserve, at the exact moment two modules are competing for it. | `ModularBot.cs:34`, `:253` | P1 | **LIVE** | indirectly — the gate perturbs the drain schedule (`ModularBot.cs:247-252`) | S (but re-benchmark) |
+| **18** | **An [OpenRA] smoothing constant silently shapes arbitration outcomes.** `MinOrderQuotientPerTick = 5` spreads a burst of 40 orders over 13 drain passes (~12 ticks, re-derived at `25a8aebd`). In OpenRA those were production and rally orders; here they are recruitment sweeps over the contested SR reserve, at the exact moment two modules are competing for it. | `ModularBot.cs:34`, `:253` | P1 | **LIVE** | indirectly — the gate perturbs the drain schedule (`ModularBot.cs:247-252`) | S (but re-benchmark) |
 | **19** | **The order gate's objective-prefix → module rank table is hand-maintained and not re-read from the modules that emit those prefixes.** It fails open, so drift costs damping and not correctness — but drift is **silent** and nothing would tell you it had happened. | `OrderArbitrationMath.cs:206-226`, acknowledged at `:199-205` | P10 | **LATENT** | no | XS (a `make test` lint) |
 | **20** | **`SupportPowerBotModule` is not instantiated while `MSLO` ships.** If a support power ever becomes reachable, nothing on the bot side will use it and the gap will not announce itself. | `structures-defenses.yaml:1077`; no trait declaration anywhere in `mods/` | P5 | **LATENT** | no | M |
-| **21** | **Comments and curated docs assert facts owned by other files, and go stale when those files move.** `CaptureCoordinator`'s header still describes a legacy module gated to a condition granted to nobody; `LayeredDefence`'s header still says `SquadManagerBotModule` handles opening play; three `ai.yaml` comments claim byte-identity for gates `@stable` now sets; `influence-stack.md` carries six stale `ControlField.cs` line anchors. | `CaptureCoordinatorBotModule.cs:18-19`; `LayeredDefenceBotModule.cs:28-29`; `discovered.md` 2026-08-04; `discovered.md` 2026-08-09 `[low, doc-in-doc]` | **P10** | **LIVE** (as misinformation) | no | S |
+| **21** | **Comments and curated docs assert facts owned by other files, and go stale when those files move.** `CaptureCoordinator`'s header still describes a legacy module gated to a condition granted to nobody; `LayeredDefence`'s header still says `SquadManagerBotModule` handles opening play; three `ai.yaml` comments claim byte-identity for gates `@stable` now sets; `influence-stack.md` carried sixteen stale code anchors — **fixed 2026-08-09**, values all still correct. And `HelicopterSquadBotModule.cs:403-406` claims the commitment ledger is "Resolved ONLY when CommitTransportPassengers is on" while `:496` resolves it unconditionally (filed `discovered.md` 2026-08-09 `[low, doc-in-code]`). | `CaptureCoordinatorBotModule.cs:18-19`; `LayeredDefenceBotModule.cs:28-29`; `discovered.md` 2026-08-04; `discovered.md` 2026-08-09 `[low, doc-in-doc]` | **P10** | **LIVE** (as misinformation) | no | S |
 | **22** | **`ai.yaml:840-841` asserts the danger field "steps by tens-to-hundreds per cell", and `DOCS/bots/04` publishes a magnitude table that is unreachable for heavy contacts.** Both are the tree's most-quoted statements of this field's scale, and both are wrong — in *opposite* directions (§5.1). | `ai.yaml:840-841`; [`04`](04-perception-and-fields.md) §3.2 | P10 | **LIVE** (as misinformation) | partly — `auto/danger-scale` adds a `[danger] dist` log and a derived unit | XS (filed, §6) |
 
-**Composition of the list.** Of 22 rows, **13 are live**, **6 are inert-but-attention-costing**, 3 latent or
-informational. By provenance the split is not what "we inherited bad bots" would predict: rows 1, 4, 8, 9, 10,
-11, 13 are **[WW3MOD]** originals, rows 2, 5, 6, 12, 15, 17, 18 are inherited or inherited-shaped. **The
-inherited pieces are mostly fine in isolation and misfit at the seams; the mod's own pieces misfit at scale.**
+**Composition of the list.** Re-tallied from the Status column at `25a8aebd`: of 22 rows, **15 are LIVE**
+(1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 13, 15, 18, 21, 22), **5 are INERT-but-attention-costing** (6, 12, 14, 16,
+17), and **2 are LATENT** (19, 20). *(An earlier draft summarised this as "13 / 6 / 3", which does not match
+the table it summarises.)* By provenance the split is not what "we inherited bad bots" would predict: rows 1,
+4, 8, 9, 10, 11, 13, **17** are **[WW3MOD]** originals, rows 2, 5, 6, 12, 15, 18 are inherited or
+inherited-shaped. *(Row 17, `BotBlackboard`'s task board, was listed as inherited in an earlier draft; the file
+was added `2026-03-21` and has no OpenRA ancestor — [`02` §6.2](02-lifecycle-and-arbitration.md) marks it
+**[WW3MOD]** and is right.)* **The inherited pieces are mostly fine in isolation and misfit at the seams; the
+mod's own pieces misfit at scale.**
 
 ---
 
@@ -93,6 +113,16 @@ ask — so you can find the next instance without a worker.
 
 The brief named eight. I have kept them, moved one instance between them, and added three (**P9**, **P10**,
 **P11**) that the four documents demonstrate but did not name.
+
+> **Relationship to [`README` §5](README.md), settled by the 2026-08-09 reconciliation pass.** The two sections
+> overlap deliberately and both survive: §5 there is the *worked-example* teaching version (read once), this is
+> the *field guide* (keep open). **This numbering is canonical** and `README` §5's headings now carry it —
+> note the mapping is not the identity (its Pattern 4 is **P6** here, its Pattern 5 is **P4** here). Four
+> patterns here — **P5**, **P7**, **P8**, **P11** — have no worked example there because that document covers
+> them in narrative rather than as patterns; **P10** appears there as an operational habit in its §5.8. In the
+> other direction, `README` §5's Pattern 7 (*an availability check written as "has the data arrived yet?" is
+> false over exactly the warm-up window you care about*, from [`04` §8.3](04-perception-and-fields.md)) has
+> **no P-number here**. It is a real pattern; it is simply not in this list.
 
 ---
 
@@ -107,8 +137,8 @@ introduced to each other.
 [`260809-truck-loop-from-live-log.md`](../../WORKSPACE/recon/260809-truck-loop-from-live-log.md) §1) · the
 durability weight documented as "~1.0×" at `DangerFieldLayer.cs:167-168` delivering **29.5×** on a 28,000 HP
 tank and **751×** on a 75,000 HP structure · `EvacReleaseHysteresis: 15`, a Schmitt-trigger band narrower than
-one per-cell step of the field it damps · **14 of the 26 configured danger thresholds in the perception layer**
-([`04`](04-perception-and-fields.md) §5) · the transport's 14-cell pickup bubble, a base-radius number in a game
+one per-cell step of the field it damps · **13 of the 26 configured perception-field thresholds**
+([`04`](04-perception-and-fields.md) §5 — re-tallied; the earlier "14 of 26" did not match that table) · the transport's 14-cell pickup bubble, a base-radius number in a game
 with no base radius · `MinOrderQuotientPerTick = 5`.
 
 **The tell.** *A mid-range integer compared against a value derived from the ruleset.* Every surviving
@@ -127,9 +157,12 @@ Two things sorted by the formula come out in the wrong order.
 
 **Instances.** `DangerFieldLayer.WeaponThroughput` divides by `ReloadDelay` and never reads `BurstWait`
 (`:521-533`). WW3MOD made `BurstWait` mandatory — `Armament.cs:128-129` throws for a weapon that omits it —
-and demoted `ReloadDelay` to the post-magazine pause applied only when non-zero. **Re-counted at `dcc2f7c5`:
-14 `ReloadDelay` declarations against 92 `BurstWait` declarations** across `mods/ww3mod/rules/weapons/`, so most
-weapons take the `≤ 0 → 1` substitution and are modelled as firing their entire burst damage every tick.
+and demoted `ReloadDelay` to the post-magazine pause applied only when non-zero. **Re-counted at `25a8aebd`:
+14 `ReloadDelay` declarations against 87 *live* `BurstWait` declarations** across `mods/ww3mod/rules/weapons/`,
+so most weapons take the `≤ 0 → 1` substitution and are modelled as firing their entire burst damage every
+tick. *(This number has been quoted three ways. `BurstWait:` occurs as a key 90 times, 3 of them commented
+out ⇒ 87 live; 92 counts lines that merely mention it. The earlier "92" here and the "90" in
+[`04` §3.2](04-perception-and-fields.md) were both counting artefacts.)*
 
 The second instance is the same expression's arithmetic: `intensity = throughput * durabilityWeight /
 DurabilityBase * confidencePercent / 100` (`DangerFieldLayer.cs:170`) evaluates the first multiply in `int`.
@@ -191,7 +224,8 @@ bot config list, check its `Prerequisites` for `~disabled` and check whether any
 Whole subsystems that compile, read as live, and cannot run. Distinct from P4 in that it is *code* rather than
 config, and the reason is usually one unset name list or one flag on the far side of the file.
 
-**Instances.** 12 of 20 squad states, ~1,050 lines, plus the 275-line `AttackOrFleeFuzzy` — dead because
+**Instances.** 13 of 20 squad states — 987 lines of whole dead files plus ~130 lines of dead
+`SquadManagerBotModule` members — including the 275-line `AttackOrFleeFuzzy`; dead because
 `IgnoreGroundUnits: true` on all four managers and `NavalUnitsTypes`/`ProtectionTypes` set nowhere (all
 re-verified) · seven module entries that appear in `ai.yaml` and do nothing ([`03`](03-module-catalogue.md)
 §2.1) · five module classes never instantiated at all · `BotBlackboard`'s five-method task-board API with
@@ -237,7 +271,10 @@ gate's most valuable feature.
 Not a design; a seam. Each generation is internally coherent and neither is aware of the other.
 
 **Instances.** Two claim registries — `BotBlackboard` (4 modules, one of them write-only) and `PoiGoalGuard`
-(11 modules, several read-only or write-only) — honoured by disjoint sets, neither reading the other · two
+(11 modules, several read-only or write-only) — **neither reads the other**, though the honouring sets
+overlap rather than being disjoint (`HelicopterSquadBotModule.cs:496` and `CaptureCoordinatorBotModule.cs:518`
+resolve the ledger unconditionally on both profiles; the POI stack never touches the blackboard — see
+[`03` §E2](03-module-catalogue.md), corrected 2026-08-09) · two
 spatial models, the **omniscient float-based** `ThreatMapManager` and the fog-legal influence stack, with every
 consumer of the former being a 2026-03-generation module · `AdaptiveProductionBotModule` owning a correct
 fog-legal census and gating it behind a two-scout, never-decaying, non-fog-legal counter (rank 8) · live
@@ -512,7 +549,7 @@ nothing in the ruleset, and so nothing about them broke when the ruleset was res
 field a designed, bounded scale, or give its consumers only booleans and ratios.**
 
 **The recent censuses and this documentation set.** The order-source census, the churn census, the transport
-census, the unit-purpose census, the live-log recon and these five documents are the reason this audit could be
+census, the unit-purpose census, the live-log recon and this six-document set are the reason this audit could be
 written in a day. Three specific habits are worth protecting: **they cite `file:line` and say which commit they
 read**; **they retract** — the live-log recon publicly withdrew a wrong `grep`-under-scanning diagnosis and
 re-measured against the settled file, and a `discovered.md` entry publicly retracted a multiplayer-divergence
@@ -574,7 +611,7 @@ twin-diff finding zero divergence on any shared key — then doc 03 §2.3 shows 
 modules in a **different relative order**. Both are doc 03's, and they are in tension: identical key-values
 under a different arbitration order is not the same bot. **My reading: the key-set claim is sound and the
 "same bot" summary over-reaches**; treat declaration order as an unmirrored configuration difference between
-control and experiment.
+control and experiment. **Settled 2026-08-09: doc 03 §0 now carries that qualification explicitly.**
 
 **(c) Sequencing the throughput fix against the threshold retune.** The `[high]` bug-log entry says fix the
 formula first or the retune is fitted to a broken field. `auto/danger-scale` did it the other way. **I side
@@ -603,9 +640,12 @@ for this case.
   census asserts it and did not recount the 28.
 - **Doc 03's mechanical twin-diff** ("zero divergence on any shared key" across nine twinned pairs) I did not
   re-run. Its method is stated and reproducible.
-- **Doc 05's dead-line arithmetic (~1,050 lines)** I did not recount; I did independently re-verify the
+- **Doc 05's dead-line arithmetic** I did not recount at the time; I did independently re-verify the
   *reachability* claims it rests on (`IgnoreGroundUnits` on all four instances, `NavalUnitsTypes` /
-  `ProtectionTypes` / `ConstructionYardTypes` set on no `SquadManagerBotModule`).
+  `ProtectionTypes` / `ConstructionYardTypes` set on no `SquadManagerBotModule`). **Recounted 2026-08-09:**
+  the four dead state files total **987** lines (`GroundStates` 382 + `NavyStates` 251 + `ProtectionStates` 79
+  + `AttackOrFleeFuzzy` 275), plus ~130 lines of dead `SquadManagerBotModule` members ⇒ **≈1,120**, not the
+  "~1,050" both docs were quoting.
 - **Doc 02's "~57 `IsIdle`-gated recruitment filters"** — carried from the 0807 census, not recounted.
 - **Nothing here was run.** No build, no game, no autotest. Every behavioural statement is static reasoning
   over code plus the one live-log recon, which is the only observed data in the entire document set.
@@ -636,8 +676,8 @@ Everything else in §1 was already on the record — in `discovered.md`, in the 
 - [`03-module-catalogue.md`](03-module-catalogue.md) — every module, what it claims, what is inert.
 - [`04-perception-and-fields.md`](04-perception-and-fields.md) — the four fields and every threshold against
   them. **Read §3.2 with §5.1 above.**
-- [`05-squads-and-combat-states.md`](05-squads-and-combat-states.md) — the squad layer and which twelve of its
-  twenty states are dead.
+- [`05-squads-and-combat-states.md`](05-squads-and-combat-states.md) — the squad layer and which **thirteen**
+  of its twenty states are dead.
 - [`game-model.md`](../reference/game-model.md), [`supply-route.md`](../reference/supply-route.md) — the
   yardstick every row in §1 is measured against.
 - [`260809-truck-loop-from-live-log.md`](../../WORKSPACE/recon/260809-truck-loop-from-live-log.md) — the only

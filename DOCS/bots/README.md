@@ -6,6 +6,13 @@ build, no game run, no autotest. This is a synthesis of the technical documents 
 **not** a summary written on trust: every load-bearing claim below was re-opened in the code at this commit,
 and §7 reports the places where those documents disagree with each other or with the code.
 
+> **Reconciled 2026-08-09 against `main @ 25a8aebd`.** A cross-document pass re-derived every headline
+> claim, summary count and computed figure in this six-document set from the code, and corrected the
+> loser of every contradiction in place. Corrections made here are marked at the point they occur.
+> **Danger-field magnitudes are the one excluded class** — they are pending re-derivation on
+> `auto/danger-scale` and are flagged wherever they appear; see
+> [`04` §3.2](04-perception-and-fields.md) and §0 fact 4.
+
 > **Note on `06`.** [`06-inherited-misfits.md`](06-inherited-misfits.md) was written in parallel with this file
 > and landed while it was being drafted. It is the **ranked, prioritised** audit; this file is the **narrative
 > and the map**. They are meant to be read together, and the division of labour is spelled out at the end
@@ -58,7 +65,7 @@ Read these before anything else. Each is expanded later.
    fog of war. A newer attack layer (mid 2026) records claims somewhere else entirely and sees the map through
    fog-legal belief fields. Neither reads the other's claim registry. §1.1.
 
-2. **A large amount of this code never executes.** Thirteen of the twenty squad states, seven module entries
+2. **A large amount of this code never executes.** Thirteen of the twenty squad states, six module entries
    that look alive in the config file, an entire task-board API with zero callers, and a base-builder whose
    every construction knob is dead while still reading like a tuning surface. **Do not spend a week studying
    machinery that never runs.** §3.
@@ -72,6 +79,13 @@ Read these before anything else. Each is expanded later.
    — so most thresholds mean "is there any enemy at all", not "how dangerous is this". Underneath that, the
    calculation overflows for the heaviest units and silently collapses them to the minimum value. §5, Patterns
    1–3, and [`06` §1 rank 1](06-inherited-misfits.md).
+
+   > ⚠️ **Every specific danger-field magnitude in this document set is pending re-derivation.** The
+   > `auto/danger-scale` branch is fixing `WeaponThroughput`'s arithmetic and owns the corrected numbers; the
+   > published figures were computed from the wrong cadence input and, for the heaviest rows, in arithmetic
+   > that overflows. The *shape* of the finding above is what to carry; the *factors* are not yet settled and
+   > must not be quoted to justify a threshold. Full statement at
+   > [`04` §3.2](04-perception-and-fields.md).
 
 5. **The recurring defect is not a bad inherited component — it is a good inherited component wired to the
    wrong thing.** Nearly every finding across this whole document set has this shape: the OpenRA piece is fine, the
@@ -341,8 +355,8 @@ attention; it cannot see layer 2 at all; and only four call sites can actually b
 
 Queueing an order does not issue it. Orders accumulate in a private queue and are released at
 **⌈N/5⌉ per tick**, oldest first. So a single order takes at least two world ticks (~120 ms) to reach the
-unit, and if a module queued 40 orders in one sweep the last one lands about eleven ticks (~0.7 s) after it was
-decided.
+unit, and if a module queued 40 orders in one sweep the drain runs 8, 7, 5, 4, 4, 3, 2, 2, 1, 1, 1, 1, 1 —
+**thirteen passes**, so the last one leaves the queue about twelve ticks (~0.72 s) after it was decided.
 
 > **OPINION:** this smoothing constant is inherited and it solved an inherited problem — a base-building bot
 > dumping a hundred production orders at once, where a fifth of a second of smoothing is free. In WW3MOD the
@@ -436,9 +450,11 @@ Dead by consequence: the entire 275-line fuzzy attack-or-flee evaluator, and a g
 committed units from being yanked by a squad — which currently guards only unreachable call sites.
 
 **Everything the mod calls "the squad system" for ground combat cannot execute.** Ground combat is commanded
-by `PoiOffensiveBotModule`. Roughly 1,050 lines of state machine plus ~150 lines of manager never run.
+by `PoiOffensiveBotModule`. **987 lines** of state machine (four whole files) plus **~130 lines** of dead
+manager members never run — ≈1,120 in total. (`05` §2.7; earlier drafts said "~1,050 plus ~150", which
+double-counted the manager.)
 
-### 3.2 Seven entries in the live config file do nothing
+### 3.2 Six entries in the live config file do nothing
 
 These are the most misleading category, because appearing in `ai.yaml` makes a module look alive.
 [`03` §2.1](03-module-catalogue.md) traces each to its terminating condition. The headline case:
@@ -450,10 +466,14 @@ fraction is skipped, every cycle, forever. So `BuildingFractions`, `BuildingLimi
 about thirty lines that read exactly like a tuning surface and cannot move anything. Its one live behaviour is
 setting rally points (step 1 above), which has nothing to do with base building.
 
-The other six: an engineer bridge-repair module that is fully built and correct but targets an actor type with
+The other five: an engineer bridge-repair module that is fully built and correct but targets an actor type with
 **zero instances on any of the ten shipped maps**; the helicopter lift lane on `@stable`; the squad manager's
-ground and naval branches; and four levers inside a live attack module with about sixty lines of tested config
-below them that never execute.
+ground branch; its naval branch; and a block of four levers inside a live attack module with about sixty lines
+of tested config below them that never execute.
+
+*(An earlier draft said "seven", counting `03` §2.1's seventh table row — the five classes that are never
+instantiated at all. Those appear in `ai.yaml` nowhere, so they are a different category and are counted
+separately in §3.3 and §3.4.)*
 
 ### 3.3 Dead interfaces and unread configuration
 
@@ -481,9 +501,9 @@ below them that never execute.
 | Module classes in the engine | **24** (verified by enumeration) |
 | Module instances running | **42** (41 in the AI config files + 1 world trait) |
 | Classes never instantiated | **5** |
-| Instantiated entries that do nothing | **7** |
+| Instantiated entries that do nothing | **6** (§3.2) |
 | Squad states in the tree | **20** |
-| Squad states that execute on shipped profiles | **7** (see §7.2 — the set's own headline says 8) |
+| Squad states that execute on shipped profiles | **7** (13 dead; `05` §0 has been corrected to agree — see §7.2) |
 
 ---
 
@@ -501,7 +521,7 @@ WW3MOD-original files carry the inherited OpenRA notice at line 3, so the header
 | Component | State |
 |---|---|
 | The tick loop, order queue and ⌈N/5⌉ drain | unchanged, and fine — but see step 6 |
-| The `--countdown` cadence pattern used by all 24 scheduled modules | unchanged; this is the biggest structural debt in the bot (§4.3) |
+| The `--countdown` cadence pattern — **24 countdown sites** across the scheduled modules (`ModularBot.cs:215-224`; census `260807` §6.3) | unchanged; this is the biggest structural debt in the bot (§4.3). Note *24 sites*, not *24 modules*: several modules carry more than one countdown and three carry none at all. |
 | `BaseBuilderBotModule` | ~unmodified, construction half dead |
 | `BuildingRepairBotModule` | ~unmodified, scope now tiny |
 | `SquadManagerBotModule` | heavily modified, hollowed out to aircraft only |
@@ -560,7 +580,24 @@ This is the section to internalise. The codebase produces the same handful of bu
 pattern below has a **name**, a **worked example that is verified**, and a **question to ask** that would have
 caught it.
 
-### Pattern 1 — a constant that was never rescaled when the game was
+> **This section and [`06` §2](06-inherited-misfits.md) cover the same ground, on purpose, and the 2026-08-09
+> reconciliation pass tested whether that is defensible. Verdict: keep both, because they do different jobs —
+> but use `06`'s numbering.**
+>
+> They are a *textbook chapter* and a *checklist*. This section teaches each pattern from a verified worked
+> example and ends on a question to ask; `06` §2 gives each one a **tell** — the thing to grep — plus its full
+> instance list, cross-linked into the ranked table. Read this one once. Keep `06` §2 open while you work.
+>
+> The split failed on one thing and it has been fixed: **the two were numbering the same patterns
+> differently.** `06` §2 is now canonical, and every heading below carries its `06` identifier. The mapping is
+> not the identity — this section's Pattern 4 is `06`'s **P6**, and its Pattern 5 is `06`'s **P4**. Four of
+> `06`'s eleven have no worked example here because this document covers them elsewhere in narrative form
+> (**P5** machinery that never executes → §3; **P7** two generations sharing a player → §1.1; **P8** disabled
+> dependencies degrading a system → §2 step 9; **P11** ordering as undeclared semantics → §2 step 5 and §1.1).
+> `06`'s **P10** is the second operational habit in §5.8 below. Pattern 7 here is the one shape `06` §2 does
+> **not** carry.
+
+### Pattern 1 — a constant that was never rescaled when the game was  *(= `06` §2 **P1**)*
 
 **Shape.** Someone chooses a threshold against a quantity. Later, somebody rescales the quantity by two or
 three orders of magnitude for unrelated reasons. Nothing connects the two, so nothing complains. The threshold
@@ -574,7 +611,8 @@ on. And notice the shape: **nothing is wrong in either file.** The constant is p
 and the two were simply never introduced to each other after the field was rescaled.
 
 **How widespread.** [`04` §5](04-perception-and-fields.md) audits every configured threshold against the range
-of the field it reads: **8 justified, 4 structurally harmless, 14 that cannot be justified.** Every single
+of the field it reads: **9 justified, 4 structurally harmless, 13 that cannot be justified** (26 rows;
+re-tallied 2026-08-09 — the earlier "8 / 4 / 14" did not match `04`'s own table). Every single
 justified one on the danger field is a `0` or a `1` — a threshold used as a *yes/no* question, which is
 scale-independent and therefore survived the rescaling. Every unjustifiable one is a mid-range number chosen
 to mean "a moderate amount of danger". **The field cannot express "a moderate amount."**
@@ -586,7 +624,7 @@ to mean "a moderate amount of danger". **The field cannot express "a moderate am
   field's smallest meaningful step before trusting it.
 - Two thresholds "3× apart" — do they actually select different things, or the same contour?
 
-### Pattern 2 — a formula still reading the input the old game used
+### Pattern 2 — a formula still reading the input the old game used  *(= `06` §2 **P2**)*
 
 **Shape.** The mod makes a new input mandatory and demotes an old one. A consumer written against the old model
 keeps reading the old field, which is now usually absent — and silently substitutes a default.
@@ -595,13 +633,14 @@ keeps reading the old field, which is now usually absent — and silently substi
 per unit time" number by dividing by `ReloadDelay`, and **never reads `BurstWait` at all** — I confirmed the
 file contains zero occurrences of `BurstWait`. But WW3MOD changed the firing model: `BurstWait` is
 **mandatory** (the engine throws on a weapon that omits it) and is the real cadence; `ReloadDelay` is now only
-an extra pause and is usually absent. I counted the weapon files: **14 `ReloadDelay` declarations against 90
-`BurstWait` declarations.** So most weapons take the "absent → substitute 1" path and are modelled as firing
-their entire burst damage *every single tick*.
+an extra pause and is usually absent. Re-counted at `25a8aebd`: **14 `ReloadDelay` declarations against 87
+live `BurstWait` declarations.** So most weapons take the "absent → substitute 1" path and are modelled as
+firing their entire burst damage *every single tick*. (This count has circulated as 90 and as 92; see
+[`04` §3.2](04-perception-and-fields.md) for why. 87 is the live-declaration count.)
 
 **Why this one is worse than a tuning error.** It is a **ranking inversion**, not a scale offset. The field
-believes an anti-tank specialist is roughly 900× more dangerous than a light machine gunner, when in sustained
-output they are within a factor of one. So every module that sorts, buckets or compares threat is making
+believes an anti-tank specialist is roughly 900× more dangerous than a light machine gunner ⚠️ *(factor
+pending re-derivation — §0 fact 4)*, when in sustained output they are within a factor of one. So every module that sorts, buckets or compares threat is making
 decisions dominated by *which cadence field a weapon's YAML happens to declare*. **The strategic layer is not
 reading a threat map; it is reading a map of YAML style.** Filed `[high]`.
 
@@ -616,7 +655,7 @@ layer reasons about. [`06` §1 rank 1 and §5.1](06-inherited-misfits.md).
 and what happens when it is absent? A silent default substitution is where this hides. And: does the
 intermediate product of this expression fit in its type at *this mod's* magnitudes?
 
-### Pattern 3 — tests that cannot fail
+### Pattern 3 — tests that cannot fail  *(= `06` §2 **P3**)*
 
 **Shape.** A component is pinned by unit tests, so it reads as verified. But the tests feed it toy-scale inputs
 and assert only *orderings*, never magnitudes — so they stay green no matter how far the real scale drifts. The
@@ -625,6 +664,9 @@ tests are not wrong. They are simply incapable of detecting this class of defect
 **Worked example — this one is new, found while writing this overview, and it is the mechanism by which
 Pattern 1 and Pattern 2 both survived.** The danger kernel has a dedicated test file. Its "representative"
 inputs are:
+
+⚠️ *The `throughput` figures below are pending re-derivation (§0 fact 4). The finding does not depend on them:
+the fixtures are Red Alert magnitudes and the mod's are not, by any measure of throughput.*
 
 | Test fixture | throughput | health | cost |
 |---|---|---|---|
@@ -664,7 +706,7 @@ point, not at the extremes.*
 - Do they assert any absolute value, or only orderings and ratios?
 - Is the function that converts game data into this component's units tested at all?
 
-### Pattern 4 — memory purged by the same event that triggers the thing it prevents
+### Pattern 4 — memory purged by the same event that triggers the thing it prevents  *(= `06` §2 **P6**)*
 
 **Shape.** A module remembers "I already sent this unit somewhere" so it will not spam. It correctly clears
 that memory when the unit leaves its area of responsibility — otherwise a stale record would suppress a
@@ -685,7 +727,7 @@ any module.** That lifetime property is the whole fix.
 **Questions to ask.** Who can delete this memory, and does the thing that deletes it correlate with the thing
 it is supposed to suppress? Is the anti-flicker record owned by the flickering party?
 
-### Pattern 5 — configuration that looks tunable and is wired to nothing
+### Pattern 5 — configuration that looks tunable and is wired to nothing  *(= `06` §2 **P4**)*
 
 **Shape.** A knob exists, has a sensible name, has documentation, is set in the shipped config — and is read by
 nothing, or is read only by code that cannot execute. It invites tuning that cannot work, and a benchmark run
@@ -700,7 +742,7 @@ shipped value.
 **Question to ask.** Before tuning anything: grep for the field name in the engine. Then check whether its
 consumer can actually run. Both steps — a live consumer inside a dead branch is the common case.
 
-### Pattern 6 — counting the wrong clock
+### Pattern 6 — counting the wrong clock  *(= `06` §2 **P9**)*
 
 **Shape.** A counter is incremented once per *scan* but named, documented and reasoned about as though it
 counted *world ticks*. The error factor is the scan interval, which can be 5, 75 or more.
@@ -712,7 +754,7 @@ whole cadence seam in §4.3 is this pattern at architectural scale.
 **Question to ask.** What increments this, and how often is *that* called? A field named `...Ticks` is a claim
 that wants checking.
 
-### Pattern 7 — the gate that is false exactly when it matters
+### Pattern 7 — the gate that is false exactly when it matters  *(no `06` §2 equivalent)*
 
 **Shape.** An availability check is written as "has the data arrived yet?" rather than "is this player supposed
 to have data?". The first is false during warm-up — which is exactly when opening-play bugs live — so the gate
@@ -742,7 +784,7 @@ Two operational habits follow, and they are the most transferable things in the 
 
 ## 6. Reading guide
 
-**The technical documents are for consulting, not for reading front to back.** Each is 430–790 lines of
+**The technical documents are for consulting, not for reading front to back.** Each is 430–860 lines of
 dense, cited reference organised for lookup. Reading all four in sequence is not the intended use and would
 mostly cost you time. Read this overview end to end; then go to a document with a question.
 
@@ -810,6 +852,11 @@ that drift; the coordinates do not. Re-grep before acting on any citation more t
 Reporting these rather than smoothing them over, since an overview that quietly averages two disagreeing
 sources is worse than either. All three were checked against the code at `dcc2f7c5`.
 
+> **Status as of the 2026-08-09 reconciliation pass (`main @ 25a8aebd`).** All four contradictions below were
+> re-verified against the code and **the losing document has been corrected in place** — `03` §E2 for §7.1,
+> `05` §0 and its §2.7 table for §7.2, `03` §3-B3 for §7.3. §7.4 is left standing deliberately (see its own
+> note). This section is now a *record* of what was wrong and how it was settled, not an open list.
+
 ### 7.1 The two claim registries are *not* honoured by disjoint sets of modules
 
 [`03` §E2](03-module-catalogue.md) states that the blackboard and the ledger are "honoured by disjoint sets of
@@ -819,8 +866,17 @@ the other." [`02` §4.2](02-lifecycle-and-arbitration.md) says something differe
 read it on both profiles.
 
 **`02` is right.** `HelicopterSquadBotModule.cs:496` resolves the ledger with no flag and no profile condition,
-and its own comment states it is used as an availability gate "for every profile"; `GarrisonBotModule.cs:220`
-resolves it behind an opt-in flag. Both are wave-1 modules. `UnitBuilderBotModule.cs:276` resolves it too.
+and the comment immediately above it states it is used as an availability gate "for every profile";
+`GarrisonBotModule.cs:220` resolves it behind an opt-in flag. Both are wave-1 modules.
+`UnitBuilderBotModule.cs:276` and `CaptureCoordinatorBotModule.cs:518` resolve it unconditionally too.
+**Settled: `03` §E2's assessment has been rewritten to the narrower one-directional claim.**
+
+*Noticed while re-verifying, and worth a reader's attention because it is a live instance of the Pattern in
+§5 that this set keeps finding:* the field declaration at `HelicopterSquadBotModule.cs:403-406` still carries
+a comment saying the ledger is "Resolved ONLY when `CommitTransportPassengers` is on, so the frozen/`@stable`
+path never looks it up ⇒ byte-identical" — which the code ninety lines later contradicts. The *behaviour* is
+correct and deliberate (the read side is a real availability gate; only the writes are gated). The comment is
+the stale half, and it is exactly the "comment asserting a fact the definition outgrew" shape.
 
 So the sets **overlap in at least two modules**, and the correct statement is narrower: *the POI stack never
 reads the blackboard* (verified — zero references across all seven POI-stack files), and *nothing reads both
@@ -832,16 +888,19 @@ I have kept the narrower version in §1.1.
 [`05` §0](05-squads-and-combat-states.md) headlines "Eight of them run. Twelve are unreachable." But
 [`05` §3.2](05-squads-and-combat-states.md), thirty pages later, shows that the helicopter close-range attack
 state is entered from exactly one place, inside a branch that only executes when a flag is *off* — and that
-flag is **on for both shipped profiles**. Its own table marks that state `LIVE*` with the asterisk explaining
-this, and §7.4 lists making it reachable as the first thing to fix.
+flag is **on for both shipped profiles**. Its own §2.7 table marked that state `LIVE*` with an asterisk explaining
+exactly this, and its §7.4 lists making it reachable as the first thing to fix. (That table row now reads
+"dead on shipped content" outright.)
 
 **Verified:** `StandoffEngagement: true` at `ai.yaml:1419` and `:1446` (both profiles), and the only transition
 into that state sits inside `if (!standoff)` at `HelicopterStates.cs:565-573`.
 
-So on shipped content the honest count is **7 of 20 states execute, 13 do not.** `05` is internally
-inconsistent — its headline counts a state its own body proves cannot run. The distinction matters because that
-state carries the helicopter hit-and-run mechanic, which is the trait's most doctrine-flavoured behaviour. I
-have used 7/13 above and noted the discrepancy in §3.4.
+So on shipped content the honest count is **7 of 20 states execute, 13 do not.** `05` was internally
+inconsistent — its headline counted a state its own body proves cannot run. The distinction matters because that
+state carries the helicopter hit-and-run mechanic, which is the trait's most doctrine-flavoured behaviour.
+**Settled: `05` §0 and its §2.7 reachability table now read 7/13, and `06` rank 12 / P5 have been corrected
+from "12 of 20" to "13 of 20" for the same reason** — `06` had been carrying the same error while separately
+listing the 13th dead state as its own rank 14.
 
 ### 7.3 The fixed-wing squad cadence: 5 ticks or 75?
 
@@ -850,9 +909,10 @@ have used 7/13 above and noted the discrepancy in §3.4.
 
 **`05` is right, and `03` is wrong by 15×.** The squad state machines are updated inside
 `if (--attackForceTicks <= 0)` at `SquadManagerBotModule.cs:274-279`, reset from `AttackForceInterval`, whose
-default is **75** (`:72`) and which is **not overridden anywhere in `ai.yaml`** — I grepped. The 5-tick figure
-belongs to `HelicopterSquadBotModule`'s own `SquadUpdateInterval`, a different module. Anyone reading `03`
-would believe the fixed-wing air squad reacts fifteen times faster than it does.
+default is **75** (`:72`) and which is **not overridden anywhere in `mods/`** — re-grepped at `25a8aebd`. The
+5-tick figure belongs to `HelicopterSquadBotModule`'s own `SquadUpdateInterval`, a different module. Anyone
+reading `03` would have believed the fixed-wing air squad reacts fifteen times faster than it does.
+**Settled: `03`'s §1 cadence column and its §3-B3 entry now both read 75 t, with the mistake named.**
 
 ### 7.4 A new defect found while writing this — and how it connects to the overflow
 
@@ -919,16 +979,28 @@ By design. It is the map, not the territory.
 | Document | Lines | What it is for |
 |---|---|---|
 | **`README.md`** (this file) | — | The overview and the index. Read end to end, once. |
-| [`02-lifecycle-and-arbitration.md`](02-lifecycle-and-arbitration.md) | 724 | The plumbing: world tick → module → order gate → unit. The two order layers, the four ownership mechanisms, the order gate in full. |
-| [`03-module-catalogue.md`](03-module-catalogue.md) | 428 | The inventory: 24 module classes, 42 instances, 7 inert, provenance from git. A dictionary — look things up. |
-| [`04-perception-and-fields.md`](04-perception-and-fields.md) | 791 | What the bot believes: the belief/danger/control fields, their real scales, and a threshold-by-threshold audit. |
-| [`05-squads-and-combat-states.md`](05-squads-and-combat-states.md) | 791 | The inherited squad layer, and the verification that most of it cannot execute. |
-| [`06-inherited-misfits.md`](06-inherited-misfits.md) | 644 | The consolidated, **ranked** audit across all of the above plus the bug log, with a fix-first order and a "what is genuinely good" section. **This is the one to read when you want to decide what to do.** |
+| [`02-lifecycle-and-arbitration.md`](02-lifecycle-and-arbitration.md) | 741 | The plumbing: world tick → module → order gate → unit. The two order layers, the four ownership mechanisms, the order gate in full. |
+| [`03-module-catalogue.md`](03-module-catalogue.md) | 435 | The inventory: 24 module classes, 42 instances, 7 inert, provenance from git. A dictionary — look things up. |
+| [`04-perception-and-fields.md`](04-perception-and-fields.md) | 854 | What the bot believes: the belief/danger/control fields, their real scales, and a threshold-by-threshold audit. |
+| [`05-squads-and-combat-states.md`](05-squads-and-combat-states.md) | 813 | The inherited squad layer, and the verification that most of it cannot execute. |
+| [`06-inherited-misfits.md`](06-inherited-misfits.md) | 678 | The consolidated, **ranked** audit across all of the above plus the bug log, with a fix-first order and a "what is genuinely good" section. **This is the one to read when you want to decide what to do.** |
 
 There is no `01`. This file is it.
 
 **How this file and `06` divide the work.** They were written in parallel and overlap deliberately. Read *this*
 one to understand how the bot works — the narrative, the architecture, the vocabulary. Read *`06`* to decide
 what to change — it ranks 22 misfits by impact on your goals, estimates each one's cost, and says which are
-already in flight. Where they differ on a number, `06` is later and was written against this same commit with
-the arithmetic re-derived; §7.4 above is the one place I add to it rather than defer.
+already in flight.
+
+**That split was tested end-to-end on 2026-08-09 and holds, with one repair.** The place it strains is §5
+here against [`06` §2](06-inherited-misfits.md): both are "how to spot the next one", which is a *skill*
+rather than a map, so on the stated division it should live in one place. The verdict was to keep both
+because they do genuinely different jobs — §5 teaches each pattern from a worked example, `06` §2 gives each
+a greppable **tell** plus its full instance list — but the two were **numbering the same patterns
+differently**, which is a trap for anyone moving between them. `06` §2's numbering is now canonical and
+every §5 heading carries it; the full mapping is in the box at the head of §5.
+
+**Where they differ on a number**, `06` is later and was written with the arithmetic re-derived — but note
+that the 2026-08-09 pass found errors in `06` too (its 22-row status tally, its squad-state count, its
+`BurstWait` count, one provenance marker), so "`06` wins" is not a rule, it is a prior. §7.4 above is the
+one place I add to `06` rather than defer to it.

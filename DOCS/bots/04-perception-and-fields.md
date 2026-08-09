@@ -4,6 +4,13 @@
 clean apart from four known untracked scratch paths). Static read only — no build, no game run, no autotest.
 Every factual claim below carries a `file:line` that I opened and read at that commit.
 
+> **Reconciled 2026-08-09 against `main @ 25a8aebd`.** A cross-document pass re-derived every headline
+> claim, summary count and computed figure in this six-document set from the code, and corrected the
+> loser of every contradiction in place. Corrections made here are marked at the point they occur.
+> **Danger-field magnitudes are the one excluded class** — they are pending re-derivation on
+> `auto/danger-scale` and are flagged wherever they appear; see
+> [`04` §3.2](04-perception-and-fields.md).
+
 > **A worker is concurrently retuning some of these numbers on branch `auto/danger-scale`.** This document
 > describes **`main` as it stands at `910507c1`**. If a threshold quoted here does not match the code you are
 > reading, check whether that branch has merged before assuming this document is wrong — but also re-derive it,
@@ -64,8 +71,9 @@ The control field and the frontier distance are on **bounded, designed** scales:
 1000` and `GrayBand = 150` together, and a consumer comparing against `300` is making a statement you can
 reason about. **The danger fields are not.** Their scale is an emergent product of WW3MOD weapon damage
 (`1` … `200000`), a throughput formula that reads the wrong cadence field, and a durability weight tuned for
-units with 200 HP being fed units with 28,000 HP. The result is a field whose per-cell values span **seven
-orders of magnitude**, against which every consumer threshold in the codebase sits between `0` and `120`.
+units with 200 HP being fed units with 28,000 HP. The result is a field whose per-cell values span **many
+orders of magnitude** ⚠️ *(the exact span is pending re-derivation — §3.2)*, against which every consumer
+threshold in the codebase sits between `0` and `120`.
 
 That is not a tuning error in one knob. It means that for most consumers, the threshold selects **a contour in
 space** — roughly "the outer edge of a believed weapon envelope" — rather than a level of concern, and that
@@ -194,6 +202,28 @@ is about what happens when a threshold is smaller than it.
 
 ### 3.2 THE SCALES — worked from real ruleset data
 
+> # ⚠️ EVERY NUMBER IN THIS SECTION IS PENDING RE-DERIVATION — DO NOT QUOTE IT
+>
+> Two independent defects sit under this table and **both change every figure in it**:
+>
+> 1. **`WeaponThroughput` divides by `ReloadDelay` and never reads `BurstWait`** (§3.2(a) below), which this
+>    mod made mandatory. Every `throughput` row is therefore computed from the wrong cadence input.
+> 2. **`intensity = throughput * durabilityWeight / …` evaluates its first multiply in `int`**
+>    (`DangerFieldLayer.cs:170`), so for a high-throughput, high-HP contact the product wraps negative and is
+>    clamped to the floor of **1** by the `intensity < 1` guard at `:171-172`. The table's `intensity` and
+>    `per-cell step` rows are the values of the formula in **exact** arithmetic, which is *not* what the code
+>    produces for the heavy rows — and the ranking as executed points the **opposite way** from what this
+>    section concludes. See [`06` §5.1](06-inherited-misfits.md).
+>
+> The `auto/danger-scale` branch is fixing the arithmetic and **owns the re-derivation of this table**; the
+> implementer there holds the settled model of the firing cycle. The inputs are already in dispute across
+> three sources (the rifleman intensity has been quoted as 1,626 here, ~1,212 on that branch, and a third
+> value under revision; that branch also found its own commit's Abrams durability weight was 2,950 rather than
+> the 5,140 it claimed). **Until that lands, treat this whole table — and every other danger-field magnitude
+> in this document set — as an unverified draft.** What survives it, and is not in dispute: the *shape* of the
+> problem (a field whose values are orders of magnitude away from every threshold configured against it), the
+> §5 threshold verdicts, and §7's two quantisation traps.
+
 Four real weapons on their real carriers, at confidence 100. Every input cited; the arithmetic is mine.
 
 | | rifleman `AR` | IFV `bmp2` | AT specialist `AT` | MBT `abrams` |
@@ -228,9 +258,16 @@ error.]** `WeaponThroughput` divides by `ReloadDelay` (`:533`) and never reads `
 the firing model: `BurstWait` is **mandatory** — `Armament.cs:128-129` throws a `YamlException` if a weapon
 omits it — and is the delay between bursts (`Armament.UpdateBurst`, `:626-647`). `ReloadDelay` is now only the
 *extra* pause after a whole `Magazine` is spent, and is applied **only if non-zero** (`Armament.UpdateMagazine`,
-`:610`). Across `mods/ww3mod/rules/weapons/` there are **14 `ReloadDelay` declarations against 90 `BurstWait`
-declarations**, so most weapons take the `ReloadDelay ≤ 0 → 1` substitution and are read as *"fires its entire
-burst damage every single tick"*.
+`:610`). Across `mods/ww3mod/rules/weapons/` there are **14 live `ReloadDelay` declarations against 87 live
+`BurstWait` declarations**, so most weapons take the `ReloadDelay ≤ 0 → 1` substitution and are read as
+*"fires its entire burst damage every single tick"*.
+
+> **On that 87, because three different numbers are in circulation.** Re-counted at `25a8aebd`: `BurstWait:`
+> occurs as a key **90** times, of which **3 are commented out** (`weapons-ballistics.yaml:474`,
+> `weapons-other.yaml:329`, `weapons-superweapons.yaml:2`), leaving **87 live**. **92** is the count of *lines
+> mentioning* `BurstWait` — it adds two prose comments. `ReloadDelay` is **14** by every method. Earlier
+> drafts of this document and of [`README` §5](README.md) said 90; [`06` §P2](06-inherited-misfits.md) said
+> 92. **87 is the live-declaration count**, and the argument is unaffected either way.
 
 Comparing the formula's answer to the weapon's actual sustained output over a full magazine cycle:
 
@@ -381,6 +418,11 @@ Danger-field context, from §3.2: a single believed contact contributes an **int
 to `67,850,000` (Abrams) at its own cell, and a **per-cell step** of `95` to `2,423,214`. The territory
 baseline contributes `0` on three of every four map cells and can stack past `40` on the fourth.
 
+> ⚠️ **Those four figures are pending re-derivation — see the warning at the head of §3.2.** The verdicts in
+> the table below do **not** depend on them: every ❌ is a mid-range constant on a field whose values are
+> orders of magnitude away from it, and every ✅ is a `0`, a `1` or a ratio. The re-derivation moves the
+> magnitudes; it does not move any row from ❌ to ✅.
+
 | # | Consumer | Knob | Configured | Engine default | Field | Field's realistic range | Verdict |
 |---|---|---|---|---|---|---|---|
 | 1 | `SupplyFollowerBotModule` evac | `EvacDangerThreshold` | **60** (`ai.yaml:830`) | 60 (`:91`) | GroundDanger | 0 … 10⁸ | ❌ **inside the noise** |
@@ -414,7 +456,11 @@ Legend: ✅ the number is defensible from the field's own scale. ⚠️ the numb
 the consumer's structure makes it harmless (see §6.3). ❌ I cannot justify it; it is an RA-era constant on a
 WW3MOD field, and it selects a contour, not a level.
 
-**Count: 8 justified, 4 structurally harmless, 14 that I cannot justify.**
+**Count: 9 justified (✅), 4 structurally harmless (⚠️), 13 that I cannot justify (❌).** Re-tallied from the
+table above at `25a8aebd`: ✅ rows 9, 15, 16, 19, 20, 22, 23, 24, 26; ⚠️ rows 3, 4, 7, 25; ❌ rows 1, 2, 5, 6,
+8, 10, 11, 12, 13, 14, 17, 18, 21. (An earlier draft summarised this as "8 / 4 / 14", which does not match its
+own table; §6.2 discusses row 4 under an ❌ heading although the table marks it ⚠️, which is where the drift
+came from.)
 
 Note that every ✅ on the danger field is a **`0`** or a **`1`** — i.e. a threshold used as a *boolean*
 ("is there any believed threat at all?"), which is scale-independent and therefore survives the rescaling.
@@ -572,14 +618,25 @@ textbook Schmitt trigger. But 15 units is **less than one-sixth of one cell** of
 **less than one ten-thousandth of a cell** of a tank's. A moving truck crosses the entire band in a single
 step and never dwells inside it. The band is a comment, not a mechanism. The `ai.yaml` block at `:840-844`
 already says this — and *its* explanation ("the danger field steps by tens-to-hundreds per cell near a
-contact", `:840-841`) is right for the rifleman (step 95) and wrong by three orders of magnitude for a tank
-(step 2,423,214).
+contact", `:841`) is right for a rifle-scale kernel and wrong by orders of magnitude for a heavy one.
+⚠️ *(The specific step values quoted in earlier drafts of this paragraph — 95 and 2,423,214 — are pending
+re-derivation, §3.2. That the `ai.yaml` sentence is wrong for heavy contacts is not in dispute.)*
 
 **(b) For a small kernel, the step rounds to zero, so entire rings vanish.** The territory baseline runs at
-`BaselineIntensity = 5` over an `envGrid` of up to 12 coarse cells. `5 × (13 − d) / 13` gives
-`5,4,4,3,3,2,2,1,1,1,1,0,0` — **the outermost two rings contribute nothing at all**, and rings 7–10 all
-contribute exactly `1`. A minimum-intensity contact (`intensity` floored to 1 at `:171-172`) paints exactly
-**one** cell.
+`BaselineIntensity = 5` over an `envGrid` of up to 12 coarse cells. `StampBaseline` (`:434-462`) computes
+`contribution = BaselineIntensity × (envGrid − d + 1) / (envGrid + 1)`, i.e. `5 × (13 − d) / 13`, which in
+integer arithmetic gives, for `d = 0…12`:
+
+`5, 4, 4, 3, 3, 3, 2, 2, 1, 1, 1, 0, 0`
+
+**The outermost two rings contribute nothing at all** — and `if (contribution <= 0) continue` (`:449-450`)
+means they are not even written. Rings 8–10 all contribute exactly `1`. A minimum-intensity contact
+(`intensity` floored to 1 at `:171-172`) paints exactly **one** cell.
+
+> This sequence is independent of the `auto/danger-scale` re-derivation: `BaselineIntensity` is a fixed
+> constant (`:217`), not a ruleset-derived throughput. An earlier draft wrote it as
+> `5,4,4,3,3,2,2,1,1,1,1,0,0`, dropping the `d = 5` term (`40/13 = 3`) and carrying an extra `1`; corrected
+> here against the expression at `:448`.
 
 **And the two combine at the outer edge of any kernel.** Because `intensity` scales linearly with confidence,
 one step of mobile decay (×75 %) shifts every contribution by 25 %. Near a kernel's rim, where contributions
@@ -756,9 +813,12 @@ Stated plainly, because this document will be used to justify future numbers.
   measurement. Nothing in the tree currently logs the danger field's distribution. The cheapest thing that
   would settle every open question in this document is a single per-scan `Log.Write` of min/median/max over
   `DangerFieldLayer.ActiveCells` — the recon recommends the same instrument, independently.
-- **`influence-stack.md`'s `ControlField.cs` line references are stale** (it cites `CellSize` at `:177` and
-  `GrayBand` at `:205`; they are at `:389` and `:417` at `910507c1`). I did not edit that file — three other
-  doc workers share this checkout — and logged it instead.
+- **`influence-stack.md`'s `ControlField.cs` line references were stale** (it cited `CellSize` at `:177` and
+  `GrayBand` at `:205`; they are at `:389` and `:417`). I did not edit that file at the time — three other doc
+  workers shared this checkout — and logged it instead. **Corrected 2026-08-09** by the reconciliation pass,
+  together with two further stale anchors it carried (`PoiOffensiveBotModule.cs:188/:192` for the believed-danger
+  thresholds, actually `:228/:232`; `CaptureCoordinatorBotModule` `StrategicCaptureRepointEnabled` `:155`,
+  actually `:184`).
 
 ---
 
@@ -767,12 +827,15 @@ Stated plainly, because this document will be used to justify future numbers.
 Recorded in [`WORKSPACE/bugs/discovered.md`](../../WORKSPACE/bugs/discovered.md), 2026-08-09, not fixed here:
 
 1. **`[high]` `DangerFieldLayer.WeaponThroughput` reads `ReloadDelay`, not `BurstWait`** — the whole ranking
-   problem in §3.2(a). 14 `ReloadDelay` declarations against 90 `BurstWait` in the weapon files.
+   problem in §3.2(a). 14 `ReloadDelay` declarations against 87 live `BurstWait` in the weapon files.
 2. **`[med]` `DurabilityBase`/`HealthDivisor` are RA-scaled** — §3.2(b). The `[Desc]` promises ~1.2× for a
    fragile unit and delivers 29.5× for an MBT, 751× for a large structure.
-3. **`[low, doc-in-code]` `ai.yaml:841-842` states the danger field "steps by tens-to-hundreds per cell near a
-   contact"** — true for a rifle, wrong by 10²–10⁴ for the mod's heavy weapons.
-4. **`[low, doc-in-doc]` `influence-stack.md` carries stale `ControlField.cs` line references.**
+3. **`[low, doc-in-code]` `ai.yaml:841` states the danger field "steps by tens-to-hundreds per cell near a
+   contact"** — true for a rifle, wrong by orders of magnitude for the mod's heavy weapons. (The exact factor
+   is pending the §3.2 re-derivation; that the claim is wrong is not.)
+4. **`[low, doc-in-doc]` `influence-stack.md` carries stale `ControlField.cs` line references.** **Fixed
+   2026-08-09** by the doc-reconciliation pass, along with the stale `PoiOffensiveBotModule` and
+   `CaptureCoordinatorBotModule` anchors on the same lines.
 
 ---
 
