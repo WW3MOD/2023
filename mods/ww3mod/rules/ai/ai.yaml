@@ -430,6 +430,14 @@ Player:
 		# per-player anti-ground danger field) instead of grinding head-on through them. Emits a two-leg
 		# AttackMove (lateral lane, then the objective). Experimental-only; @stable twin leaves it off.
 		DangerFieldRouting: true
+		# SURFACED 2026-08-09, previously running on the C# default. This is the Stage-E detour EARLY-OUT,
+		# now in DANGER UNITS (100 = one reference contact at point-blank) rather than raw field units. It
+		# is written here rather than left implicit because the value moved, and a behavioural default that
+		# changes with nothing in the YAML to show it is exactly the silent drift CLAUDE.md forbids — the
+		# @stable twin below carries the same line for the same reason.
+		# Only the early-out: the detour search itself compares two routes against each other and is
+		# scale-free, so this number costs wasted searches when wrong, not wrong detours.
+		GroundDangerSafeUnits: 30
 		# Influence stack Stage F (strategic repoint): select offensive/expansion axes off the BELIEVED
 		# control + anti-ground danger fields instead of the omniscient InfluenceMap threat grid — the
 		# threat term is dropped from the base score and re-derived fog-legally here. Completes the
@@ -812,6 +820,13 @@ Player:
 		# of driving through the kill zone — the rear-lateral-re-enter path emerges from the danger
 		# cost. Shared enable-ai-any module, so the reroute is gated on InfluenceStack.Participates.
 		DangerFieldRouting: true
+		# SURFACED 2026-08-09, previously running on the C# default. Now in DANGER UNITS (100 = one
+		# reference contact at point-blank). Written here because the value moved and this module is
+		# enable-ai-any, so the change reaches BOTH fog-respecting profiles — a default-only change would
+		# have moved @stable with nothing in the YAML to show it.
+		# Deliberately a quarter of EvacDangerUnits: a resupply convoy should route around exposure long
+		# before the spot is hot enough to abandon.
+		GroundDangerSafeUnits: 12
 		# Supply logistics. NOTE ON SCOPE (corrected 2026-08-07): these are gated on
 		# InfluenceStack.Participates, and since the 2026-08-02 @stable parity promotion (b8d2e601) that
 		# predicate admits @stable as well as @experimental (InfluenceStack.cs:47-48). This block previously
@@ -851,9 +866,20 @@ Player:
 		# The deadband is consequently no longer inert: one cell of approach moves a contact's contribution by
 		# ~1/(r+1) of its core (~9 units at r=10), so a 20-unit band spans several cells of travel. The dwell
 		# and the leg model are still the primary dampers.
-		# VERIFY, don't trust: `[danger] dist` lines in debug.log report the field's min/median/max in BOTH
-		# raw and danger units every few recomputes, so an ordinary play session says whether 50 sits above
-		# the ambient median (it should) and below the peak near a real contact (it should).
+		# THESE VALUES ARE PROVISIONAL — DERIVED, NOT MEASURED, and they should be treated as a first
+		# estimate until one play session confirms them. The only distribution ever measured for this field
+		# (the 2026-08-09 log, median 66,834) was recorded BEFORE the weapon-cadence fix in the same branch,
+		# when every heavy contact was stamping a clamped floor of 1 — so that sample described a field that
+		# no longer exists and calibrating against it would have been fitting to corrupted data. What the 50
+		# is derived from instead is the kernel geometry: the taper is linear over range/1024+2 cells, so a
+		# contact whose envelope merely REACHES a cell contributes ~1/(r+1) of its core, and a decayed mobile
+		# at MinConfidence 15 contributes 15% of that — the ambient tail sits far below half a reference
+		# contact, while a real contact at close range sits far above it.
+		# VERIFY, don't trust: `[danger] reference` (once per world, with the contributing-type count and the
+		# min/max spread) and `[danger] dist` (min/median/max in BOTH raw and danger units) are unconditional,
+		# so an ordinary session says whether 50 sits above the ambient median and below the peak near a real
+		# contact. If the reference's min/max straddle it by more than ~2 orders, the median is a weak
+		# reference and the UNIT wants revisiting — not these individual numbers.
 		# Dwell 1: a 12-cell leg is ~164 ticks + acceleration against a 150-tick scan, so one held scan puts
 		# the re-decision at the first boundary after the leg lands. Retreat DISTANCE is bounded separately
 		# (one leg issued at a time), so the dwell does not need to cover the drive. 0 disables the dwell.
@@ -1430,6 +1456,14 @@ Player:
 		SkipRearmReadyCheck: true
 		StandoffEngagement: true
 		DangerFieldAvoidance: true
+		# SURFACED 2026-08-09, previously running on the C# default. The Stage-D withdraw-on-spike level,
+		# now in DANGER UNITS against the AIR reference (100 = one reference AIR-threatening contact at
+		# point-blank — NOT the ground reference; the two channels are stamped from different weapon sets).
+		# Written here because the value moved: a behavioural default that changes with nothing in the YAML
+		# to show it is the silent drift CLAUDE.md forbids, and this trait is declared on both twins.
+		# Low on purpose — helicopters die fast, so withdrawing while only partway into a believed AA
+		# envelope is the correct asymmetry. AirDangerSafeThreshold stays a literal 0 and is NOT in units.
+		AirDangerSpikeUnits: 25
 		ForwardStaging: true
 		ForwardStagingPct: 40
 		ForwardStagingMaxDistanceCells: 8
@@ -1460,6 +1494,9 @@ Player:
 		# AROUND believed AA, leash their standoff to the AA-safe envelope, and withdraw/re-route the
 		# moment a new AA lights up. Rides on StandoffEngagement above. Experimental-only.
 		DangerFieldAvoidance: true
+		# SURFACED 2026-08-09 — see the @stable twin above for why this is written out rather than left on
+		# the C# default. Kept identical to the twin: this is a bug-class correction, not a lever.
+		AirDangerSpikeUnits: 25
 		# Forward-staging (experimental-only, default-frozen in C#): push idle attack helis that are
 		# still loitering near the SR forward to ~40% of the SR->top-POI vector, so they stage toward
 		# the fight instead of hovering at the SR corner. Pct clamped short of contact per the recon's
@@ -1686,6 +1723,10 @@ Player:
 		AssaultCohesion: Tight
 		SrPressureScoreMultiplier: 260
 		DangerFieldRouting: true
+		# SURFACED 2026-08-09 — mirrors the @experimental block. Written out rather than left on the C#
+		# default because the value moved, and a behavioural default that changes with nothing in the
+		# YAML to show it is the silent drift CLAUDE.md forbids. In DANGER UNITS.
+		GroundDangerSafeUnits: 30
 		StrategicRepointEnabled: true
 		BopBoostMultiplier: 150
 		BopDampMultiplier: 60

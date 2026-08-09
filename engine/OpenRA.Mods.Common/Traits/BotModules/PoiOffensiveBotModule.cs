@@ -239,9 +239,11 @@ namespace OpenRA.Mods.Common.Traits
 			"HOSTILE — a dense believed weapon envelope). Boundary between the mild and hostile damp buckets.",
 			"IN DANGER UNITS. 100 = a full reference contact's worth of envelope over the target, which is the",
 			"honest meaning of 'this objective is defended'.",
-			"THE BUCKETS WERE ALL COLLAPSING INTO HOSTILE before 2026-08-09: at the old raw 40/120 against a",
-			"field reading tens of thousands, every axis on every map fell in the top bucket, so the multiplier",
-			"was a uniform constant and the whole lever ranked nothing.")]
+			"THE MILD BUCKET WAS UNREACHABLE before 2026-08-09: at the old raw 40/120 against a field whose",
+			"stamped cells read in the thousands and up, any target carrying a believed envelope at all cleared",
+			"120, so the three-way bucket degenerated to a BINARY one — hostile wherever the field was stamped,",
+			"safe wherever it was not — and the mild multiplier never applied. The buckets only mean anything if",
+			"a target can sit BETWEEN them, which is what expressing them as fractions of a reference restores.")]
 		public readonly int BelievedDangerHostileUnits = 100;
 
 		[Desc("Stage-F axis multiplier (x100) at SAFE believed ground danger (≤ BelievedDangerMildUnits).",

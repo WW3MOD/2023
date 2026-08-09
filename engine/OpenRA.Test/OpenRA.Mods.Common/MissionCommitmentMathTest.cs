@@ -94,6 +94,28 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void Trigger2_PercentageArmSurvivesRealFieldMagnitudes()
+		{
+			// The percentage arm is computed on a RAW danger-field reading, and WW3MOD's field reaches 10^7 in
+			// a contested sector. At int width `commitDanger * spikePct` wraps NEGATIVE, and a negative margin
+			// always loses to the floor — so the trigger silently degenerates to floor-only and abandons a
+			// mission over already-dangerous ground on a 2% jitter, the exact case the percentage was added to
+			// suppress. Reverting the widening flips the first assertion to True.
+			const int CommitDanger = 50_000_000;
+			const int Margin = CommitDanger / 2;   // SpikePct is 50.
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(MissionCommitmentMath.DangerSpiked(CommitDanger, CommitDanger + 1_000_000, SpikePct, SpikeFloor),
+					Is.False, "a 2% rise over an already-hot commit is not a spike");
+				Assert.That(MissionCommitmentMath.DangerSpiked(CommitDanger, CommitDanger + Margin, SpikePct, SpikeFloor),
+					Is.False, "exactly the percentage margin still holds");
+				Assert.That(MissionCommitmentMath.DangerSpiked(CommitDanger, CommitDanger + Margin + 1, SpikePct, SpikeFloor),
+					Is.True, "and one past it genuinely spikes");
+			});
+		}
+
+		[Test]
 		public void Trigger2_DangerDropOrEqual_NeverSpikes()
 		{
 			Assert.That(MissionCommitmentMath.DangerSpiked(100, 100, SpikePct, SpikeFloor), Is.False);

@@ -105,11 +105,13 @@ namespace OpenRA.Mods.Common.Traits
 			"\"outside believed enemy sight/danger\" — a safe drop. Only used when BelievedDangerStandoff is set.",
 			"IN DANGER UNITS (100 = one reference contact at point-blank), NOT raw field units.",
 			"NOT 0 any more, and the change is behavioural. At a literal 0 against the GROUND channel — which",
-			"unlike the air channel DOES carry the Stage-C territory baseline — no candidate along the approach",
-			"ever qualified, so ChooseStandoffIndex fell through its whole loop and returned the LAST index every",
-			"time: every drop was walked all the way back toward the SR regardless of where the danger actually",
-			"was. A small positive value restores the intended behaviour of stopping at the first candidate",
-			"genuinely outside a believed weapon envelope.")]
+			"unlike the air channel DOES carry the Stage-C territory baseline — no candidate whose cell carried",
+			"ANY stamp could qualify. For a FRONTLINE drop, where the whole approach lane sits inside a believed",
+			"envelope, that means ChooseStandoffIndex fell through its entire loop and returned the LAST index:",
+			"the drop was walked all the way back toward the SR regardless of where the danger actually was.",
+			"(A pre-contact staging drop into unstamped ground still qualified at index 0, so this was the",
+			"frontline case rather than literally every drop.) A small positive value restores the intended",
+			"behaviour of stopping at the first candidate genuinely outside a believed weapon envelope.")]
 		public readonly int StandoffDangerUnits = 10;
 
 		[Desc("Extra cells to back off toward our SR beyond the first believed-safe cell, for a standoff buffer.",

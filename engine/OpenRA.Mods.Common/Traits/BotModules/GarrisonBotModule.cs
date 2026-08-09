@@ -62,7 +62,16 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool RequireBelievedThreat = false;
 
 		[Desc("Believed anti-ground danger at a building's cell at/above which garrisoning it is worth a soldier.",
-			"Only read when RequireBelievedThreat is active. 1 = 'any believed weapon envelope reaches here'.")]
+			"Only read when RequireBelievedThreat is active. 1 = 'any believed weapon envelope reaches here'.",
+			"RAW FIELD UNITS, deliberately NOT the danger units every other threshold on this field uses.",
+			"At 1 this is a PRESENCE test — 'is any believed envelope over this cell at all' — which is",
+			"scale-free and stays correct however the mod's damage table is rebalanced. Putting it through",
+			"DangerFieldLayer.GroundDangerUnitsToField would turn it into a LEVEL test at 1% of a reference",
+			"contact and silently raise the bar by orders of magnitude.",
+			"BUT IT IS A PRESENCE TEST BY CONFIGURATION, NOT BY CONSTRUCTION: nothing stops a profile setting",
+			"this to 50, at which point it silently becomes an unconverted level test on the raw scale — the",
+			"exact bug class fixed across the rest of this field on 2026-08-09. If you ever want a real level",
+			"here, add a *DangerUnits field beside this one rather than raising this number.")]
 		public readonly int MinBelievedDanger = 1;
 
 		[Desc("Un-garrison once the believed threat that justified the garrison has passed, so cover is TEMPORARY",

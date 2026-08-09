@@ -94,6 +94,28 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void MoreDangerousNeverScoresBetter_AtRealFieldMagnitudes()
+		{
+			// Every term here is a PENALTY subtracted from zero, so an overflowed danger term does not merely
+			// mis-weight the score — it becomes a BONUS, and the picker actively prefers the most dangerous
+			// candidate it sampled. At int width `danger * dangerWeight` wraps for a raw reading above ~2.1e7
+			// (WW3MOD's field reaches 10^7 in a contested sector), and it wraps back into the POSITIVE range,
+			// so it never shows up as a negative score — only as an inverted ranking, which is why it survived
+			// review. This lever is live under RiskWeightedDropSite.
+			//
+			// Reverting the widening makes the 5e7 cell outrank the 2e7 one and turns this red.
+			var moderatelyDangerous = Score(0, 20_000_000, 0, 0);
+			var extremelyDangerous = Score(0, 50_000_000, 0, 0);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(extremelyDangerous, Is.LessThan(moderatelyDangerous),
+					"a more dangerous drop site must never score better than a less dangerous one");
+				Assert.That(extremelyDangerous, Is.LessThan(0), "and the score stays a penalty, never a bonus");
+			});
+		}
+
+		[Test]
 		public void Weights_ScaleLinearly()
 		{
 			// Control weight 50% halves the enemy-depth penalty; reach weight 0 removes the distance term.

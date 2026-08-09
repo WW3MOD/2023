@@ -1816,11 +1816,21 @@ namespace OpenRA.Mods.Common.Traits
 			var danger = (groundDanger < 0 ? 0 : groundDanger) + (airDanger < 0 ? 0 : airDanger);
 			var reach = reachCells < 0 ? 0 : reachCells;
 
-			var score = 0;
-			score -= enemyDepth * enemyControlWeight / 100;
-			score -= danger * dangerWeight / 100;
-			score -= reach * reachWeight;
-			return score;
+			// ACCUMULATED IN long AND CLAMPED. `danger * dangerWeight` is a raw danger-field reading times a
+			// percentage — 10^7-10^8 times 100 — which overflows int and WRAPS NEGATIVE. Because every term
+			// here is a penalty subtracted from 0, a wrapped danger term becomes a BONUS: the picker would
+			// actively prefer the most dangerous candidate it sampled, inverting the one lever this scorer
+			// exists to apply. Live under RiskWeightedDropSite.
+			//
+			// NOTE the weights themselves remain mis-scaled relative to each other — the danger term still
+			// dwarfs the control and reach terms by orders of magnitude, so this fix makes the score correct
+			// in SIGN without making it balanced. That is a separate, measured retune; see
+			// WORKSPACE/bugs/discovered.md 2026-08-09.
+			var score = 0L;
+			score -= (long)enemyDepth * enemyControlWeight / 100;
+			score -= (long)danger * dangerWeight / 100;
+			score -= (long)reach * reachWeight;
+			return score < int.MinValue ? int.MinValue : (int)score;
 		}
 	}
 

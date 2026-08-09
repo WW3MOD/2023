@@ -169,14 +169,16 @@ namespace OpenRA.Mods.Common.Traits
 			// with health and cost. A tank's aura is denser than a rifleman's at equal throughput.
 			var durabilityWeight = p.DurabilityBase + f.Health / p.HealthDivisor + f.Cost / p.CostDivisor;
 
-			// COMPUTED IN long AND SATURATED — this product overflows int on real WW3MOD data, and the
-			// overflow inverted the field for exactly the units that matter most. A main battle tank reads
-			// throughput 23,000 x 100 = 2,300,000 (damage is 10^3-10^5 here, and ~90% of WW3MOD weapons leave
-			// ReloadDelay unset so the divisor is 1) against a durability weight of ~5,140: the first multiply
-			// is 1.18e10, which wraps negative in int, falls through `< 1`, and is clamped to the FLOOR OF 1.
-			// So every heavy vehicle — the densest real threat — stamped an aura of 1 while a rifleman stamped
-			// ~1,200, and the danger field ranked a rifle squad above an armoured company. Saturating instead
-			// keeps the ordering monotone; the cap is unreachable for any plausible single contact.
+			// COMPUTED IN long, BUT THE OVERFLOW THIS ONCE GUARDED WAS A SYMPTOM, NOT THE DISEASE. With the
+			// old WeaponThroughput a real Abrams read 2,300,000 against a durability weight of 2,950 — a first
+			// multiply of 6.79e9, which wrapped negative, fell through the `< 1` guard and was clamped to the
+			// FLOOR OF 1, so every heavy vehicle stamped an aura of 1 while a rifleman stamped ~1,300 and the
+			// field ranked a rifle squad above an armoured company. But 2,300,000 was never a real throughput:
+			// it was a cycle-length error (see WeaponThroughput). With the cadence corrected the same tank
+			// reads 17,692, the product is 5.2e7, and this sits ~41x below int.MaxValue.
+			// The long is KEPT, and deliberately not sold as the fix: both inputs are data-driven, so a
+			// rebalance can enlarge them again, and this is the cheapest place to be certain. If it ever
+			// saturates, that is a signal the weapon data has drifted — not something to widen further.
 			var weighted = (long)throughput * durabilityWeight / p.DurabilityBase * confidencePercent / 100;
 			if (weighted < 1)
 				weighted = 1;
@@ -402,11 +404,20 @@ namespace OpenRA.Mods.Common.Traits
 			ReferenceGroundIntensity = DangerKernelMath.ReferenceIntensity(factsByType.Values, DangerChannel.Ground, kernelParams);
 			ReferenceAirIntensity = DangerKernelMath.ReferenceIntensity(factsByType.Values, DangerChannel.Air, kernelParams);
 
-			// UNCONDITIONAL, once per world: without it a reader has no way to convert the danger units in
-			// ai.yaml back into the raw numbers the [danger] dist lines and the evac log report.
+			// UNCONDITIONAL, once per world. Two jobs: without it a reader cannot convert the danger units in
+			// ai.yaml back into the raw numbers the [danger] dist and evac lines report — and, because every
+			// threshold on this branch is a FRACTION of the reference, the SPREAD is what says whether the
+			// median is representative or whether one weapon class dominates the ruleset. The thresholds were
+			// derived, not measured (the only play log predates the cadence fix, so its distribution no longer
+			// exists), and this line plus [danger] dist is what a single ordinary session needs to confirm or
+			// refute them. If min and max straddle the median by more than ~2 orders, the median is a weak
+			// reference and the unit wants revisiting — not the individual thresholds.
+			var groundSpread = ContributingIntensitySpread(DangerChannel.Ground);
 			Log.Write("debug",
 				$"[danger] reference ground={ReferenceGroundIntensity} air={ReferenceAirIntensity} "
-				+ $"(100 danger units = one reference contact at point-blank; types={factsByType.Count})");
+				+ $"(100 danger units = one reference contact at point-blank) "
+				+ $"ground-types={groundSpread.Count}/{factsByType.Count} "
+				+ $"min={groundSpread.Min} max={groundSpread.Max}");
 
 			// DETERMINISTIC stagger — NOT a SharedRandom draw (see BeliefStore for the byte-identity
 			// rationale). Distinct offset from the other two grids to keep them off the same tick.
@@ -488,6 +499,28 @@ namespace OpenRA.Mods.Common.Traits
 				+ $"ground min={min} median={median} max={max} "
 				+ $"| in units median={ToDangerUnits(median, ReferenceGroundIntensity)} "
 				+ $"max={ToDangerUnits(max, ReferenceGroundIntensity)} ref={ReferenceGroundIntensity}");
+		}
+
+		// How many ruleset types actually stamp this channel, and the range of their core intensities — the
+		// context that says whether ReferenceIntensity's median is a fair middle or an artefact of a lopsided
+		// population. Load-time only.
+		(int Count, int Min, int Max) ContributingIntensitySpread(DangerChannel channel)
+		{
+			int count = 0, min = int.MaxValue, max = 0;
+			foreach (var f in factsByType.Values)
+			{
+				var k = DangerKernelMath.Compute(f, channel, 100, kernelParams);
+				if (!k.Contributes)
+					continue;
+
+				count++;
+				if (k.Intensity < min)
+					min = k.Intensity;
+				if (k.Intensity > max)
+					max = k.Intensity;
+			}
+
+			return (count, count > 0 ? min : 0, max);
 		}
 
 		// Raw field units back to danger units, for the log only (the consumer direction is
@@ -674,7 +707,8 @@ namespace OpenRA.Mods.Common.Traits
 				if (range <= 0)
 					continue;
 
-				var throughput = WeaponThroughput(weapon.Warheads, weapon.Burst, weapon.ReloadDelay, throughputWindow);
+				var throughput = WeaponThroughput(weapon.Warheads, weapon.Burst, weapon.BurstDelays,
+					weapon.BurstWait, weapon.Magazine, weapon.ReloadDelay, throughputWindow);
 
 				if (DangerKernelMath.WeaponThreatensGround(weapon.ValidTargets))
 				{
@@ -698,20 +732,93 @@ namespace OpenRA.Mods.Common.Traits
 			return new DangerKernelFacts(groundRange, airRange, groundThroughput, airThroughput, health, cost);
 		}
 
-		// Summed absolute warhead damage per burst, scaled to damage per throughputWindow ticks.
-		static int WeaponThroughput(List<IWarhead> warheads, int burst, int reloadDelay, int throughputWindow)
+		/// <summary>SUSTAINED damage per <paramref name="throughputWindow"/> ticks, derived from the weapon's
+		/// REAL fire cycle. Public so the cadence model itself is NUnit-pinnable: it is the single input the
+		/// whole danger field is built from, so an error here mis-scales every consumer at once.
+		///
+		/// <para>THE CYCLE, read off Armament rather than assumed. `CanFire` refuses while
+		/// `IsReloading || IsWaitingBurst` (Armament.cs:327), and `ReloadDelay` and `BurstWait` are decremented
+		/// INDEPENDENTLY in the same tick handler (:283-287) — so when both are armed the weapon is blocked for
+		/// the LONGER of the two, never their sum. `UpdateBurst` (:624-648) sets `BurstWait` to the full
+		/// `Weapon.BurstWait` only when a burst is EXHAUSTED, and to `BurstDelays[k]` between shots inside a
+		/// burst. `UpdateMagazine` (:608-622) arms `ReloadDelay` only when the MAGAZINE empties — and it runs
+		/// once per SHOT (:380), so `Magazine` counts shots, not bursts.</para>
+		///
+		/// <para>THIS REPLACES `burstDamage x Burst x window / ReloadDelay`, which was wrong in BOTH directions
+		/// and by different factors per weapon class — which is exactly why it could not be corrected by
+		/// rescaling anything downstream:
+		/// <list type="bullet">
+		/// <item>It divided by `ReloadDelay`, which ~90% of WW3MOD weapons never set: the mod paces fire with
+		/// `BurstWait`, which `ArmamentInfo.RulesetLoaded` (:128-129) makes MANDATORY by throwing without it.
+		/// Those weapons hit the `reload = 1` fallback and were OVER-stated by their entire cycle length —
+		/// `TankRound.Abrams` (20,000+3,000 damage, `BurstWait: 130`) read 2,300,000 against a true 17,692.</item>
+		/// <item>For the ~14 weapons that DO set `ReloadDelay`, it divided by a magazine-swap delay as if it
+		/// were the shot interval and ignored `Magazine` entirely, UNDER-stating them. `5.56mm.AR`
+		/// (`Magazine: 100`, `ReloadDelay: 150`, `Burst: 10`, `BurstDelays: 1`, `BurstWait: 8`) read 1,333
+		/// against a true ~6,410 — ten 10-shot bursts of 17 ticks plus one 150-tick swap is ~312 ticks per
+		/// 20,000 damage.</item>
+		/// </list>
+		/// A UNIFORM error would have cancelled in the reference ratio thresholds are expressed against. A
+		/// ~130x over-statement on one weapon class against a ~5x under-statement on another does not: it
+		/// re-ranks the classes relative to each other, which is the one thing a threat field must get right.
+		/// This is also why the old formula's headline symptom was an int overflow — 2,300,000 was never a
+		/// throughput, it was a cycle-length error wearing one.</para>
+		///
+		/// <para>Approximation, stated: where `Magazine` is not a whole multiple of `Burst` the real weapon
+		/// empties mid-burst; this counts whole bursts so the damage and the time stay consistent with each
+		/// other. Computed in long because the inputs are data-driven, not because the result is large.</para></summary>
+		public static int WeaponThroughput(List<IWarhead> warheads, int burst, int[] burstDelays,
+			int burstWait, int magazine, int reloadDelay, int throughputWindow)
 		{
-			var burstDamage = 0;
+			var damagePerShot = 0;
 			foreach (var wh in warheads)
 				if (wh is DamageWarhead dw && dw.Damage > 0)
-					burstDamage += dw.Damage;
+					damagePerShot += dw.Damage;
 
-			if (burstDamage <= 0)
+			return SustainedThroughput(damagePerShot, burst, burstDelays, burstWait, magazine, reloadDelay, throughputWindow);
+		}
+
+		/// <summary>The cadence half of <see cref="WeaponThroughput"/>, split out so the fire-cycle model can
+		/// be pinned directly from real weapon numbers: `DamageWarhead.Damage` is a readonly YAML-loaded field
+		/// and a warhead list cannot be built in a unit test, which is precisely how the previous cadence went
+		/// unexamined. Everything above about the cycle applies here; this is the arithmetic.</summary>
+		public static int SustainedThroughput(int damagePerShot, int burst, int[] burstDelays,
+			int burstWait, int magazine, int reloadDelay, int throughputWindow)
+		{
+			if (damagePerShot <= 0)
 				return 0;
 
-			burstDamage *= burst > 0 ? burst : 1;
-			var reload = reloadDelay > 0 ? reloadDelay : 1;
-			return burstDamage * throughputWindow / reload;
+			var shotsPerBurst = burst > 0 ? burst : 1;
+
+			// Intra-burst spacing: the gap after shot k is BurstDelays[k-1] for k in 1..burst-1, and a
+			// single-entry array applies to every gap — UpdateBurst's :643-645 indexing, restated forwards.
+			var intraBurst = 0;
+			if (shotsPerBurst > 1 && burstDelays != null && burstDelays.Length > 0)
+				for (var i = 0; i < shotsPerBurst - 1; i++)
+					intraBurst += burstDelays[Math.Min(i, burstDelays.Length - 1)];
+
+			var wait = burstWait > 0 ? burstWait : 0;
+
+			var burstsPerMagazine = (magazine > 0 ? magazine : 1) / shotsPerBurst;
+			if (burstsPerMagazine < 1)
+				burstsPerMagazine = 1;
+
+			var ticks = (long)burstsPerMagazine * (intraBurst + wait);
+
+			// The magazine swap OVERLAPS the final burst's wait rather than following it, because both
+			// counters are armed on the same shot and tick down together.
+			if (reloadDelay > wait)
+				ticks += reloadDelay - wait;
+
+			// A weapon declaring neither a wait nor a reload has no modelled cycle: read it as fast rather
+			// than dividing by zero. Unreachable in WW3MOD (BurstWait is mandatory), but this class is shared
+			// with mods where it is not.
+			if (ticks < 1)
+				ticks = 1;
+
+			var damage = (long)burstsPerMagazine * shotsPerBurst * damagePerShot;
+			var throughput = damage * throughputWindow / ticks;
+			return throughput > int.MaxValue ? int.MaxValue : (int)throughput;
 		}
 
 		// ---------- Public query API (Stage-C overlay / consumer seam) ----------

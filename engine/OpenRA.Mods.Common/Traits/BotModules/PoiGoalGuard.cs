@@ -147,7 +147,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (currentDanger <= commitDanger)
 				return false;
 
-			var margin = commitDanger * Math.Max(0, spikePct) / 100;
+			// long: commitDanger is a RAW danger-field reading, which on WW3MOD's scale reaches 10^7 in a
+			// contested sector, and multiplying that by a percentage overflows int and wraps NEGATIVE — which
+			// silently deletes the percentage arm (a negative margin always loses to the floor) and degenerates
+			// this trigger to floor-only, i.e. abandoning missions on ambient jitter over already-dangerous
+			// ground, which is precisely what the percentage exists to prevent.
+			var margin = (long)commitDanger * Math.Max(0, spikePct) / 100;
 			if (margin < spikeFloor)
 				margin = spikeFloor;
 
