@@ -11,6 +11,14 @@ Every factual claim below carries a `file:line` that I opened and read at that c
 > `auto/danger-scale` and are flagged wherever they appear; see
 > [`04` §3.2](04-perception-and-fields.md).
 
+> **SUPERSEDED IN PART (`auto/aircraft-rearm`).** `SkipRearmReadyCheck` — referenced at `:272`, `:407`, `:467`
+> and `:628` below — **no longer exists**, and neither does the `SquadHasAmmo` skip it was bypassing. The
+> readiness gates now ask whether a rearm/repair host is actually present (`AirframeReadiness`), the commit
+> floor is `FleeHealthPercent` unconditionally, and the launch/re-engage/give-up health bars are no longer the
+> hard-coded 80/70/50. Read those four passages as an accurate record of `910507c1`, not as current behaviour;
+> `DOCS/reference/architecture.md` §"Readiness gates must ask the world" carries the live rules. Nothing else
+> in this document is affected.
+
 **What this document is.** The squad layer: what a squad is, how a unit gets into one, the state machines that
 command squads once formed, and — the part that matters most — **which of those state machines actually
 execute in a shipped match**. This is the most inherited region of the bot. Most of it is stock OpenRA

@@ -58,62 +58,53 @@ namespace OpenRA.Test
 			return hp * 100 / maxHp;
 		}
 
+		/// <summary>
+		/// The commit floor is the flee bar and does not move when a host appears. This is the
+		/// monotonicity rule: a captured host must add the option of repairing, never withdraw
+		/// permission to fly. If someone re-keys the commit bar off host existence, capturing a
+		/// logistics center snaps the Apache bar 35 -> 75 and the helicopters get more timid for
+		/// having taken ground.
+		/// </summary>
 		[TestCase(ApacheFlee, ApacheReEngage)]
 		[TestCase(ChinookFlee, ChinookReEngage)]
 		[TestCase(ScoutFlee, ScoutReEngage)]
-		public void WithARepairHostTheRecoveryBarIsUnchanged(int fleeBar, int recoveryBar)
+		public void TheRepairRoutingBarRisesWithAHostAndCollapsesToFleeWithout(int fleeBar, int recoveryBar)
 		{
-			Assert.That(AirframeReadiness.CommitHealthBar(true, recoveryBar, fleeBar), Is.EqualTo(recoveryBar));
-		}
+			Assert.That(AirframeReadiness.RepairRoutingBar(true, recoveryBar, fleeBar), Is.EqualTo(recoveryBar));
+			Assert.That(AirframeReadiness.RepairRoutingBar(false, recoveryBar, fleeBar), Is.EqualTo(fleeBar));
 
-		[TestCase(ApacheFlee, ApacheReEngage)]
-		[TestCase(ChinookFlee, ChinookReEngage)]
-		[TestCase(ScoutFlee, ScoutReEngage)]
-		public void WithNoRepairHostTheFleeBarApplies(int fleeBar, int recoveryBar)
-		{
-			Assert.That(AirframeReadiness.CommitHealthBar(false, recoveryBar, fleeBar), Is.EqualTo(fleeBar));
+			// Monotone: gaining a host may only pull an airframe out EARLIER to be repaired, never
+			// later — it is an added option, so the routing bar can only go up.
+			Assert.That(AirframeReadiness.RepairRoutingBar(true, recoveryBar, fleeBar),
+				Is.GreaterThanOrEqualTo(AirframeReadiness.RepairRoutingBar(false, recoveryBar, fleeBar)));
 		}
 
 		/// <summary>
 		/// The defect itself, at the real numbers. An Apache that has taken 300 of its 800 HP is at
-		/// 62% — below ReEngageHealthPercent 75, above FleeHealthPercent 35. Under the recovery bar
-		/// it is unlaunchable, and with nothing able to repair it, it stays that way for the match
-		/// while still being too healthy for any flee path to retire it.
+		/// 62% — below ReEngageHealthPercent 75, above FleeHealthPercent 35. Under the old recovery
+		/// bar it was unlaunchable, and with nothing able to repair it, it stayed that way for the
+		/// match while still being too healthy for any flee path to retire it.
 		/// </summary>
 		[Test]
 		public void TheDeadBandBetweenFleeAndRecoveryIsWhereAirframesUsedToStrand()
 		{
 			var hp = HealthPercent(ApacheMaxHp - 300, ApacheMaxHp);
 			Assert.That(hp, Is.EqualTo(62));
-
-			Assert.That(hp, Is.LessThan(AirframeReadiness.CommitHealthBar(true, ApacheReEngage, ApacheFlee)));
-			Assert.That(hp, Is.GreaterThanOrEqualTo(AirframeReadiness.CommitHealthBar(false, ApacheReEngage, ApacheFlee)));
+			Assert.That(hp, Is.LessThan(ApacheReEngage));
+			Assert.That(hp, Is.GreaterThanOrEqualTo(ApacheFlee));
 		}
 
 		/// <summary>
 		/// The transport band is wider still: Chinook flees at 60 and re-engages at 90, so a single
-		/// 100 HP hit out of 600 (83%) parks it permanently.
+		/// 100 HP hit out of 600 (83%) used to park it permanently.
 		/// </summary>
 		[Test]
 		public void OneChipOfDamageStrandsATransportUnderTheRecoveryBar()
 		{
 			var hp = HealthPercent(ChinookMaxHp - 100, ChinookMaxHp);
 			Assert.That(hp, Is.EqualTo(83));
-
-			Assert.That(hp, Is.LessThan(AirframeReadiness.CommitHealthBar(true, ChinookReEngage, ChinookFlee)));
-			Assert.That(hp, Is.GreaterThanOrEqualTo(AirframeReadiness.CommitHealthBar(false, ChinookReEngage, ChinookFlee)));
-		}
-
-		/// <summary>
-		/// Below the flee bar the airframe is not committed either way — the fix opens the dead band,
-		/// it does not remove the floor.
-		/// </summary>
-		[Test]
-		public void BelowTheFleeBarTheAirframeIsStillNotCommitted()
-		{
-			var hp = HealthPercent(240, ApacheMaxHp);
-			Assert.That(hp, Is.EqualTo(30));
-			Assert.That(hp, Is.LessThan(AirframeReadiness.CommitHealthBar(false, ApacheReEngage, ApacheFlee)));
+			Assert.That(hp, Is.LessThan(ChinookReEngage));
+			Assert.That(hp, Is.GreaterThanOrEqualTo(ChinookFlee));
 		}
 
 		[Test]
@@ -144,6 +135,50 @@ namespace OpenRA.Test
 		{
 			Assert.That(AirframeReadiness.AmmoReadyToLaunch(false, ApachePools, 0, 0), Is.False);
 			Assert.That(AirframeReadiness.AmmoReadyToLaunch(true, ApachePools, 0, 0), Is.False);
+		}
+
+		/// <summary>
+		/// REGRESSION, and the one that matters most here because it is unreachable in play today.
+		///
+		/// SquadHasAmmo asks "does ANY member still shoot?". The inherited loop answered it by
+		/// SKIPPING every member whose pools are all covered by a Rearmable, then reporting the squad
+		/// dry because nothing survived the skip. Apache's Rearmable covers both of its pools
+		/// (`aircraft-america.yaml:377`), so every attack-heli squad in this mod is all-covered and
+		/// reported dry at full ammo.
+		///
+		/// The trap: making that skip conditional on a rearm host being present LOOKS like the fix
+		/// and is a strict regression — it moves the never-launches bug from "always" to "whenever
+		/// someone places a pad", i.e. onto the maps nobody can test today. HPAD carries both
+		/// Reservable and RepairsUnits, so a single placed pad flips it. These two cases must give the
+		/// same answer as their allPoolsRearmable=false twins.
+		/// </summary>
+		[TestCase(true)]
+		[TestCase(false)]
+		public void SquadAmmoNeverDependsOnWhetherAHostWouldCoverThePools(bool hasRearmHost)
+		{
+			// A full-ammo Apache counts toward its squad's ammo whether or not its pools are
+			// host-covered, and whether or not a host exists.
+			Assert.That(AirframeReadiness.MemberStillShoots(hasRearmHost, true, ApachePools, 2), Is.True);
+			Assert.That(AirframeReadiness.MemberStillShoots(hasRearmHost, false, ApachePools, 2), Is.True);
+
+			// ...and a bone-dry one does not, on either branch.
+			Assert.That(AirframeReadiness.MemberStillShoots(hasRearmHost, true, ApachePools, 0), Is.False);
+			Assert.That(AirframeReadiness.MemberStillShoots(hasRearmHost, false, ApachePools, 0), Is.False);
+		}
+
+		/// <summary>
+		/// The coverage fact must not change the answer for ANY reachable combination — stated as a
+		/// sweep so that re-introducing the skip in any branch fails here rather than in a live match.
+		/// </summary>
+		[Test]
+		public void CoverageIsIgnoredAcrossEveryHostAndLoadCombination()
+		{
+			foreach (var hasHost in new[] { true, false })
+				for (var loaded = 0; loaded <= ApachePools; loaded++)
+					Assert.That(
+						AirframeReadiness.MemberStillShoots(hasHost, true, ApachePools, loaded),
+						Is.EqualTo(AirframeReadiness.MemberStillShoots(hasHost, false, ApachePools, loaded)),
+						$"coverage changed the answer at hasHost={hasHost}, loaded={loaded}");
 		}
 
 		[Test]

@@ -1382,22 +1382,25 @@ namespace OpenRA.Mods.Common.Traits
 			if (evacuating.Contains(h))
 				return false;
 
-			// Check HP. ReEngageHealthPercent is documented as the HP a heli must reach AFTER REPAIR
-			// before being sent out again — a recovery bar, meaningful only where something can do
-			// the repairing. With no reachable repair host health is one-way, so the bar can only
-			// ever be crossed downward and the band between FleeHealthPercent and it (35..75 on the
-			// attack helis, 60..90 on the transports) is airframes too healthy to flee and too
-			// damaged to launch — benched for the match on one chip of damage. There the flee bar is
-			// the honest question: above it the heli stands and fights, so it is worth sending.
+			// Check HP against the flee bar, unconditionally. ReEngageHealthPercent is documented as
+			// the HP a heli must reach AFTER REPAIR before being sent out again — a recovery bar,
+			// which only answers a question that has a repair host in it. Nothing in this mod can
+			// repair an airframe, so health is one-way and that bar is crossed exactly once,
+			// downward: the band between FleeHealthPercent and it (35..75 on the attack helis, 60..90
+			// on the transports) was airframes too healthy to flee and too damaged to launch, benched
+			// for the match on one chip of damage.
+			//
+			// The bar is NOT keyed on whether a repair host exists, even though that reads naturally.
+			// Doing so would make capturing a host RAISE the bar and make the helicopters more timid
+			// for having taken ground. Repair belongs in SendDamagedUnitsHome's routing decision;
+			// this one is only "is this airframe worth sending?", and the flee bar answers it.
 			var health = h.TraitOrDefault<IHealth>();
 			if (health != null)
 			{
 				var role = h.TraitOrDefault<AIHelicopterRole>();
-				var recoveryBar = role != null ? role.Info.ReEngageHealthPercent : 80;
 				var fleeBar = role != null ? role.Info.FleeHealthPercent : 40;
-				var healthBar = AirframeReadiness.CommitHealthBar(AirframeReadiness.HasRepairHost(h), recoveryBar, fleeBar);
 
-				if (health.HP * 100 / health.MaxHP < healthBar)
+				if (health.HP * 100 / health.MaxHP < fleeBar)
 					return false;
 			}
 

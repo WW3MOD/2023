@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Linq;
 using OpenRA.Mods.Common.Activities;
 
 namespace OpenRA.Mods.Common.Traits
@@ -23,9 +24,15 @@ namespace OpenRA.Mods.Common.Traits
 	/// Every gate phrased as "wait until healthy / wait until full" then becomes unsatisfiable rather
 	/// than merely pessimistic, and the unit is benched for the rest of the match.
 	///
-	/// These predicates let the readiness gates ask the world instead. They are self-correcting: put
-	/// a host on a map, or make one buildable, and the classic restore-to-full behaviour returns with
-	/// no further code change.
+	/// These predicates let the readiness gates ask the world instead.
+	///
+	/// One rule governs how they may be used: <b>a host appearing must never withdraw permission.</b>
+	/// Keying a COMMITMENT bar off host existence looks natural and is backwards — it turns capturing
+	/// a logistics center into a restriction, snapping the Apache bar from 35 to 75 so the
+	/// helicopters get more conservative for having taken ground, with a step function at the moment
+	/// of capture. So the commit floor is the flee bar unconditionally ("is this airframe worth
+	/// sending?"), and host existence only ever adds the option of repairing first ("is there
+	/// somewhere better for it to be?"). That split is monotone: every host is a gain.
 	/// </summary>
 	public static class AirframeReadiness
 	{
@@ -36,30 +43,45 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public static bool HasRearmHost(Actor self)
 		{
-			return AmmoPool.ChooseResupplier(self) != null || ReturnToBase.AnyResupplierExists(self);
+			// Reservable-pad term first: it is a plain Any() over a trait index that is empty in this
+			// mod, where ChooseResupplier walks two indices and sorts the result. These run per unit
+			// per squad tick, so the order matters more than it looks.
+			return ReturnToBase.AnyResupplierExists(self) || AmmoPool.ChooseResupplier(self) != null;
 		}
 
 		/// <summary>
 		/// Whether a repair host this actor could actually use is present. When false, health is a
 		/// one-way resource for this actor.
+		///
+		/// Same filter as <see cref="Repairable.FindRepairBuilding"/>, minus its OrderBy/ThenBy — this
+		/// is an existence test on a per-unit-per-tick path and has no use for the nearest one.
 		/// </summary>
 		public static bool HasRepairHost(Actor self)
 		{
-			var repairable = self.TraitOrDefault<Repairable>();
-			return repairable != null && repairable.FindRepairBuilding(self) != null;
+			var info = self.Info.TraitInfoOrDefault<RepairableInfo>();
+			if (info == null || info.RepairActors.Count == 0)
+				return false;
+
+			return self.World.ActorsHavingTrait<RepairsUnits>()
+				.Any(a => !a.IsDead
+					&& a.IsInWorld
+					&& a.Owner.IsAlliedWith(self.Owner)
+					&& info.RepairActors.Contains(a.Info.Name));
 		}
 
 		/// <summary>
-		/// The health percentage an airframe must hold to be worth committing.
+		/// The health below which a damaged airframe should be pulled out and ROUTED TO REPAIR
+		/// rather than kept in the fight.
 		///
-		/// <paramref name="recoveryBar"/> is a post-repair bar ("the HP it must reach again before
-		/// being sent out"). It is only answerable where repair exists. Where it does not, health
-		/// only ever decreases, so that bar can be crossed exactly once, downward, and everything
-		/// under it is benched for the match — including the whole band between the flee bar and it,
-		/// which is airframes too healthy to run away and too damaged to be sent anywhere. The flee
-		/// bar is the bar that still means something: above it the airframe fights.
+		/// <paramref name="recoveryBar"/> (<c>ReEngageHealthPercent</c>) is a post-repair bar — "the
+		/// HP it must reach again before being sent out" — so it only answers a question that has a
+		/// repair host in it. Where nothing can repair the airframe there is nowhere better for it to
+		/// be, so this collapses to the flee bar and the routing order is refused as a no-op.
+		///
+		/// This is the ONLY thing the recovery bar governs. It deliberately does not gate commitment:
+		/// see <see cref="AirframeReadiness"/> remarks on why the commit floor is unconditional.
 		/// </summary>
-		public static int CommitHealthBar(bool hasRepairHost, int recoveryBar, int fleeBar)
+		public static int RepairRoutingBar(bool hasRepairHost, int recoveryBar, int fleeBar)
 		{
 			return hasRepairHost ? recoveryBar : fleeBar;
 		}
@@ -90,6 +112,26 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 
 			return hasRearmHost ? loadedPools == totalPools : loadedPools > 0;
+		}
+
+		/// <summary>
+		/// Whether a squad member counts toward its squad still having ammunition.
+		///
+		/// The answer must NOT depend on <paramref name="allPoolsRearmable"/>, and that is the whole
+		/// reason this function exists rather than the call being inlined. Inherited, that fact was
+		/// used to SKIP a member — "a rearm host will handle this one" — inside a loop that then
+		/// reported the squad dry if every member had been skipped. Every attack-helicopter squad in
+		/// this mod is all-covered, so every one of them reported dry at full ammo and never launched.
+		///
+		/// Conditioning that skip on a host actually being present does not fix it; it relocates the
+		/// failure onto exactly the maps where someone placed a pad, which is the case no test can
+		/// reach today. So the fact is taken as a parameter and deliberately ignored, and the ignoring
+		/// is pinned by test, rather than being an absence that reads like an oversight.
+		/// </summary>
+		public static bool MemberStillShoots(bool hasRearmHost, bool allPoolsRearmable, int totalPools, int loadedPools)
+		{
+			// allPoolsRearmable is intentionally not consulted — see remarks.
+			return AmmoReadyToFight(hasRearmHost, totalPools, loadedPools);
 		}
 	}
 }

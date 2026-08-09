@@ -148,30 +148,6 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			return AirframeReadiness.HasRearmHost(self);
 		}
 
-		/// <summary>
-		/// The ammunition bar an actor must clear to be worth COMMITTING to a mission.
-		/// Where a rearm host exists the classic every-pool-loaded expectation holds, because a dry
-		/// pool will be refilled before long. Where none does, ammunition is one-way: a pool spent
-		/// once is spent for the match, so demanding all of them stay loaded benches the airframe
-		/// permanently the first time any pool runs dry. There the question is whether it can still
-		/// shoot at all.
-		///
-		/// Deliberately NOT used for the send-home decisions, which ask a different question
-		/// ("should this leave the fight?") and are answered fine by the stricter test.
-		/// </summary>
-		protected static bool IsAmmoReady(Actor self, IEnumerable<AmmoPool> ammoPools)
-		{
-			var total = 0;
-			var loaded = 0;
-			foreach (var ap in ammoPools)
-			{
-				total++;
-				if (ap.HasAmmo)
-					loaded++;
-			}
-
-			return AirframeReadiness.AmmoReadyToFight(AirframeReadiness.HasRearmHost(self), total, loaded);
-		}
 
 		protected static void SetSquadEngagementStance(Squad squad, EngagementStance stance)
 		{

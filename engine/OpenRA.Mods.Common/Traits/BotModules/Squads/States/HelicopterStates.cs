@@ -97,8 +97,14 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		{
 			foreach (var u in owner.Units.ToList())
 			{
+				// Where a repair host exists, pull out at the RECOVERY bar — the point of going home
+				// is to come back healthy, so the bar that decides it is the one that says how
+				// healthy. Where none exists this is the flee bar, and the order is refused as a
+				// no-op (Aircraft.CanReturnToBase) because there is nowhere better to send it.
 				var role = GetRole(u);
-				var threshold = role != null ? role.Info.FleeHealthPercent : 30;
+				var recoveryBar = role != null ? role.Info.ReEngageHealthPercent : 80;
+				var fleeBar = role != null ? role.Info.FleeHealthPercent : 30;
+				var threshold = AirframeReadiness.RepairRoutingBar(AirframeReadiness.HasRepairHost(u), recoveryBar, fleeBar);
 				if (GetUnitHealthPercent(u) < threshold)
 					owner.Bot.QueueOrder(new Order("ReturnToBase", u, false));
 			}
@@ -117,15 +123,37 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			}
 		}
 
+		/// <summary>
+		/// Whether any unit in this squad can still shoot.
+		///
+		/// There is deliberately no "this one reloads automatically, skip it" branch. Inherited, this
+		/// loop skipped every unit whose pools are all covered by a Rearmable and then returned false
+		/// if none survived the skip — so an all-attack-heli squad reported NO ammo at full ammo, and
+		/// the launch gates never opened. Making the skip conditional on a host existing does not fix
+		/// that; it only moves it from "always" to "whenever a pad exists", which is worse, because
+		/// the case it breaks is the one nobody can play today. MemberStillShoots already branches on
+		/// host presence, so asking it about every unit is right in both worlds — and it takes the
+		/// coverage fact purely so that ignoring it is pinned by test.
+		/// </summary>
 		protected static bool SquadHasAmmo(Squad owner)
 		{
 			foreach (var u in owner.Units)
 			{
-				var ammoPools = u.TraitsImplementing<AmmoPool>();
-				if (ReloadsAutomatically(u, ammoPools, u.TraitOrDefault<Rearmable>()))
-					continue;
+				var rearmable = u.TraitOrDefault<Rearmable>();
+				var total = 0;
+				var loaded = 0;
+				var allPoolsRearmable = rearmable != null;
+				foreach (var ap in u.TraitsImplementing<AmmoPool>())
+				{
+					total++;
+					if (ap.HasAmmo)
+						loaded++;
 
-				if (IsAmmoReady(u, ammoPools))
+					if (allPoolsRearmable && !rearmable.Info.AmmoPools.Contains(ap.Info.Name))
+						allPoolsRearmable = false;
+				}
+
+				if (AirframeReadiness.MemberStillShoots(AirframeReadiness.HasRearmHost(u), allPoolsRearmable, total, loaded))
 					return true;
 			}
 
@@ -133,31 +161,22 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		}
 
 		/// <summary>
-		/// Whether any unit in this squad has a repair host it could actually reach. When false the
-		/// squad's health only ever decreases, so a "recover to X% before re-committing" bar is not
-		/// pessimistic — it is unsatisfiable, and everything below it is benched for the match.
-		/// </summary>
-		protected static bool SquadHasRepairHost(Squad owner)
-		{
-			foreach (var u in owner.Units)
-				if (AirframeReadiness.HasRepairHost(u))
-					return true;
-
-			return false;
-		}
-
-		/// <summary>
-		/// The squad-average health a squad must hold to be worth committing.
+		/// The squad-average health a squad must hold to be worth committing — the flee bar, always.
 		///
 		/// The inherited bars (launch at 80, re-engage at 70, give up at 50) are RECOVERY bars: they
-		/// presuppose a damaged squad can be repaired back above them. Where nothing can repair
-		/// these units, the meaningful bar is instead the one the squad already acts on — the flee
-		/// bar. Above it the squad stands and fights rather than running, so it is worth sending;
-		/// below it, it would turn round on arrival anyway.
+		/// presuppose a damaged squad can be repaired back above them, which nothing in this mod can
+		/// do. The bar that still means something is the one the squad already acts on: above the
+		/// flee bar it stands and fights, so it is worth sending; below it, it would turn round on
+		/// arrival anyway.
+		///
+		/// Unconditional on purpose. Keying this off "does a repair host exist" would make capturing
+		/// one RAISE the bar, so a gain of territory would make the squad more timid — see the
+		/// monotonicity rule on AirframeReadiness. Repair, when it is possible at all, belongs in
+		/// SendDamagedUnitsHome's routing decision, not in permission to fly.
 		/// </summary>
-		protected static int CommitHealthThreshold(Squad owner, int recoveryBar)
+		protected static int CommitHealthThreshold(Squad owner)
 		{
-			return AirframeReadiness.CommitHealthBar(SquadHasRepairHost(owner), recoveryBar, GetFleeThreshold(owner));
+			return GetFleeThreshold(owner);
 		}
 
 		// True when this squad's HelicopterSquadBotModule uses standoff (attack-move) engagement
@@ -387,7 +406,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 
 			// Don't launch if the squad is too damaged to be worth committing. Where a repair host
 			// exists this is the inherited "wait for repair" bar; where none does it is the flee bar.
-			if (GetSquadHealthPercent(owner) < CommitHealthThreshold(owner, 80))
+			if (GetSquadHealthPercent(owner) < CommitHealthThreshold(owner))
 				return;
 
 			// Don't launch if the squad cannot shoot.
@@ -800,7 +819,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			SendLowAmmoUnitsHome(owner);
 
 			// Check if squad is too damaged to re-engage — full return
-			if (GetSquadHealthPercent(owner) < CommitHealthThreshold(owner, 50) || !SquadHasAmmo(owner))
+			if (GetSquadHealthPercent(owner) < CommitHealthThreshold(owner) || !SquadHasAmmo(owner))
 			{
 				owner.FuzzyStateMachine.ChangeState(owner, new HelicopterReturnState());
 				return;
@@ -870,7 +889,7 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			}
 
 			// After withdrawal period: re-engage if still worth committing
-			if (GetSquadHealthPercent(owner) >= CommitHealthThreshold(owner, 70) && SquadHasAmmo(owner))
+			if (GetSquadHealthPercent(owner) >= CommitHealthThreshold(owner) && SquadHasAmmo(owner))
 			{
 				// Find a new target
 				var leader = owner.Units.FirstOrDefault();
