@@ -5,9 +5,20 @@
 > **Reconciled 2026-08-09 against `main @ 25a8aebd`.** A cross-document pass re-derived every headline
 > claim, summary count and computed figure in this six-document set from the code, and corrected the
 > loser of every contradiction in place. Corrections made here are marked at the point they occur.
-> **Danger-field magnitudes are the one excluded class** — they are pending re-derivation on
-> `auto/danger-scale` and are flagged wherever they appear; see
-> [`04` §3.2](04-perception-and-fields.md).
+> **Danger-field magnitudes were the one excluded class; that quarantine is now NARROWED.**
+> `auto/danger-scale` merged into `main` (`6fc1cfff` → `1092573d` → `c69835eb`, reconciled `5642d931`). The
+> corrected formula, the per-type intensities and the weapon-class **ranking** are settled and re-derived —
+> [`04` §3.2](04-perception-and-fields.md) is current. What is still pending is narrower: **any conversion
+> between a configured threshold and a raw field value**, because thresholds are now expressed in *danger
+> units* whose denominator is a ruleset-wide median computed at world load.
+>
+> **Where this bites in this document: `SupplyFollowerBotModule` in §2** (its "Key knobs" row and the
+> assessment under it). Those danger knobs were renamed and re-valued by the merge —
+> `EvacDangerThreshold: 60` → `EvacDangerUnits: 50`, `EvacReleaseHysteresis: 15` →
+> `EvacReleaseHysteresisUnits: 20` — and the `66,834` median the assessment argues from was measured while
+> the cadence bug was live, so it describes a field in which every heavy contact stamped a clamped `1`. **The
+> *class* of defect described there is exactly right and is why the derived unit exists; the specific
+> constant-versus-field pairing is superseded.** See the box at [`04` §5](04-perception-and-fields.md).
 
 **Who this is for.** You own the mod but do not live in the bot code. This document is the *inventory*: what modules exist, which ones are actually running, what each one grabs, and — separately marked — where an inherited Red Alert design is being asked to do a job it was never built for.
 

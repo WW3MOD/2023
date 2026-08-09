@@ -9,9 +9,31 @@ and §7 reports the places where those documents disagree with each other or wit
 > **Reconciled 2026-08-09 against `main @ 25a8aebd`.** A cross-document pass re-derived every headline
 > claim, summary count and computed figure in this six-document set from the code, and corrected the
 > loser of every contradiction in place. Corrections made here are marked at the point they occur.
-> **Danger-field magnitudes are the one excluded class** — they are pending re-derivation on
-> `auto/danger-scale` and are flagged wherever they appear; see
-> [`04` §3.2](04-perception-and-fields.md) and §0 fact 4.
+> **Danger-field magnitudes were the one excluded class. That quarantine is now NARROWED — see below.**
+
+> ## The danger-field quarantine, as it stands at `main @ af36e686`
+>
+> `auto/danger-scale` **has merged** (`6fc1cfff` → `1092573d` → `c69835eb`, reconciled `5642d931`), so the
+> old blanket warning now points at work that is already in the code you are reading. The honest split:
+>
+> **LIFTED — settled, quote freely.** The corrected fire-cycle formula, the per-type core intensities and
+> per-cell steps derived from it, and **the ranking of weapon classes**. That last one matters most: the
+> field now ranks **armour above infantry**, which is the whole point, and it is statically checkable.
+> [`04` §3.2](04-perception-and-fields.md) has been re-derived and is current.
+>
+> **STILL PENDING — do not quote.** Anything that **converts between a configured threshold and a raw field
+> value**. Every level threshold is now expressed in *danger units* (`100` = the core intensity of the median
+> ground-threatening actor type at full confidence), and that denominator is a **median over the whole
+> ruleset** computed at world load — not something a reader can derive. The shipped threshold values are
+> explicitly **provisional**: derived from kernel geometry, never measured.
+>
+> **The line is simple:** claims about the field's own side are lifted; claims that cross from a configured
+> constant to the field are kept. §0 fact 4, §2, Patterns 1–3 and §7.5 are annotated at the point they occur.
+>
+> **What would settle the rest — one ordinary play session, no autotest.** `DangerFieldLayer` writes an
+> unconditional `[danger] reference` line at world load reporting both reference intensities, the
+> contributing-type count and the min/max spread, then `[danger] dist` lines carrying the live distribution
+> in both raw and danger units. None of it is behind a debug flag.
 
 > **Note on `06`.** [`06-inherited-misfits.md`](06-inherited-misfits.md) was written in parallel with this file
 > and landed while it was being drafted. It is the **ranked, prioritised** audit; this file is the **narrative
@@ -74,18 +96,24 @@ Read these before anything else. Each is expanded later.
    activity onto them directly. It produces no order, appears in no log, and the new order gate cannot see it.
    Two of its members are switched on for *human*-owned units too. §1.2.
 
-4. **The bot's sense of danger is on a scale nobody wrote down, and its core arithmetic is wrong twice.** The
-   numbers span several orders of magnitude while every threshold configured against them is between 0 and 120
-   — so most thresholds mean "is there any enemy at all", not "how dangerous is this". Underneath that, the
-   calculation overflows for the heaviest units and silently collapses them to the minimum value. §5, Patterns
-   1–3, and [`06` §1 rank 1](06-inherited-misfits.md).
+4. **The bot's sense of danger was on a scale nobody wrote down, and its core arithmetic was wrong twice.**
+   The numbers spanned several orders of magnitude while every threshold configured against them sat between
+   0 and 120 — so most thresholds meant "is there any enemy at all", not "how dangerous is this". Underneath
+   that, the calculation overflowed for the heaviest units and silently collapsed them to the minimum value.
+   §5, Patterns 1–3, and [`06` §1 rank 1](06-inherited-misfits.md).
 
-   > ⚠️ **Every specific danger-field magnitude in this document set is pending re-derivation.** The
-   > `auto/danger-scale` branch is fixing `WeaponThroughput`'s arithmetic and owns the corrected numbers; the
-   > published figures were computed from the wrong cadence input and, for the heaviest rows, in arithmetic
-   > that overflows. The *shape* of the finding above is what to carry; the *factors* are not yet settled and
-   > must not be quoted to justify a threshold. Full statement at
-   > [`04` §3.2](04-perception-and-fields.md).
+   > ✅ **Largely FIXED at `main @ af36e686`, and this is the one fact in §0 that has substantially changed.**
+   > `auto/danger-scale` merged. The overflow is gone (`long` + saturation, `6fc1cfff`) and the cadence input
+   > is corrected (`1092573d`), so the field now ranks **armour above infantry**: `abrams` 521,914 › `bmp2`
+   > 184,966 › `AR` 7,820 › `e3` 2,237. And thresholds are no longer raw constants — thirteen of them are now
+   > in *danger units* against a ruleset-derived reference, converted at each call site, so a rebalance moves
+   > the reference with them.
+   >
+   > **What remains true, in narrowed form:** nobody has yet *measured* the resulting field, so the new
+   > threshold values are provisional and any danger-unit-to-raw conversion is still un-established. One
+   > ordinary play session settles it — see the box at the top of this file and at
+   > [`04` §5](04-perception-and-fields.md). The re-derived scales are at
+   > [`04` §3.2](04-perception-and-fields.md) and are current.
 
 5. **The recurring defect is not a bad inherited component — it is a good inherited component wired to the
    wrong thing.** Nearly every finding across this whole document set has this shape: the OpenRA piece is fine, the
@@ -293,10 +321,12 @@ one consequence is that the magnitude table in [`04` §3.2](04-perception-and-fi
 its heaviest row is not what the code actually produces. Treat `04` §3.2's *heavy-vehicle* figures as the
 formula's intent, and `06` §5.1 as its behaviour.
 
-**Status, so you do not chase a fixed bug:** the overflow half is being fixed on a branch (`auto/danger-scale`,
-under review at the time of writing) with wider arithmetic and saturation. The *cadence-field* half — the wrong
-input in Pattern 2 — is **not** fixed there and no unit change can fix it, because it is an ordering error
-rather than a scale error. Check
+**Status, so you do not chase a fixed bug:** **both halves are now fixed on `main` (`af36e686`).** The
+overflow went first (`6fc1cfff`, wider arithmetic + saturation); the branch then went back and fixed the
+*cadence-field* half too (`1092573d`), which is what the paragraph above depends on — the executed field no
+longer inverts, and a believed Abrams now reads 521,914 against a BMP2's 184,966. Treat this passage and
+`06` §5.1 as the record of why, not as current behaviour;
+[`04` §3.2](04-perception-and-fields.md) carries the re-derived figures. Check
 [`WORKSPACE/bugs/discovered.md`](../../WORKSPACE/bugs/discovered.md) for current state before acting.
 
 The control field, by contrast, is on a **designed** scale: somebody chose the clamp, the seed strength and the
@@ -603,12 +633,19 @@ caught it.
 three orders of magnitude for unrelated reasons. Nothing connects the two, so nothing complains. The threshold
 now means something entirely different from what it says.
 
-**Worked example.** `EvacDangerThreshold = 60` decides when a supply truck should flee danger. It is compared
-against a danger field whose **measured median at the moment trucks actually flee is 66,834** — from the user's
-own play log. Three separate trucks fled at a reading of 68 while sitting within four cells of their own
-beachhead. The threshold sits *inside the ambient noise* of the field, so the "danger response" is permanently
-on. And notice the shape: **nothing is wrong in either file.** The constant is plausible, the field is correct,
-and the two were simply never introduced to each other after the field was rescaled.
+**Worked example.** `EvacDangerThreshold = 60` decided when a supply truck should flee danger. It was compared
+against a danger field whose **measured median at the moment trucks actually fled was 66,834** — from the
+user's own play log. Three separate trucks fled at a reading of 68 while sitting within four cells of their own
+beachhead. The threshold sat *inside the ambient noise* of the field, so the "danger response" was permanently
+on. And notice the shape: **nothing was wrong in either file.** The constant was plausible, the field was
+correct, and the two were simply never introduced to each other after the field was rescaled.
+
+> **The fix for this class landed (`6fc1cfff`), and it is the interesting part.** The answer was *not* a new
+> constant. It was to give the field a **unit**: thresholds are now written in *danger units* against a
+> reference derived from the same armament data the field is built from, so rebalancing the mod's damage
+> table moves the threshold's meaning with it. This knob is now `EvacDangerUnits: 50`. **What is still open
+> is calibration** — nobody has measured the post-fix distribution, and the 66,834 above was recorded while
+> the cadence bug was live, so it describes a field where every heavy contact stamped a clamped 1.
 
 **How widespread.** [`04` §5](04-perception-and-fields.md) audits every configured threshold against the range
 of the field it reads: **9 justified, 4 structurally harmless, 13 that cannot be justified** (26 rows;
@@ -616,6 +653,11 @@ re-tallied 2026-08-09 — the earlier "8 / 4 / 14" did not match `04`'s own tabl
 justified one on the danger field is a `0` or a `1` — a threshold used as a *yes/no* question, which is
 scale-independent and therefore survived the rescaling. Every unjustifiable one is a mid-range number chosen
 to mean "a moderate amount of danger". **The field cannot express "a moderate amount."**
+
+> **That count is now a pre-merge record.** The thirteen unjustifiable ones are exactly the thirteen that
+> were converted to danger units. Whether they now express "a moderate amount" is the open question, not a
+> settled improvement — see the box at [`04` §5](04-perception-and-fields.md). The nine ✅ are unaffected:
+> a `0` or a `1` is scale-free before and after.
 
 **Questions to ask.**
 - What is the actual range of the thing this number is compared against? Not the intended range — the range it
@@ -639,17 +681,26 @@ firing their entire burst damage *every single tick*. (This count has circulated
 [`04` §3.2](04-perception-and-fields.md) for why. 87 is the live-declaration count.)
 
 **Why this one is worse than a tuning error.** It is a **ranking inversion**, not a scale offset. The field
-believes an anti-tank specialist is roughly 900× more dangerous than a light machine gunner ⚠️ *(factor
-pending re-derivation — §0 fact 4)*, when in sustained output they are within a factor of one. So every module that sorts, buckets or compares threat is making
-decisions dominated by *which cadence field a weapon's YAML happens to declare*. **The strategic layer is not
-reading a threat map; it is reading a map of YAML style.** Filed `[high]`.
+believed an anti-tank specialist was roughly 930× more dangerous than an automatic rifleman, when in sustained
+output they are within a few per cent. So every module that sorts, buckets or compares threat was making
+decisions dominated by *which cadence field a weapon's YAML happens to declare*. **The strategic layer was not
+reading a threat map; it was reading a map of YAML style.** Filed `[high]`.
 
-**A second, independent defect sits on top of it, and the two do not cancel.** The inflated throughput is then
-multiplied by a durability weight that is itself mis-scaled (tuned for 200 hit points, fed 28,000), and for a
-main battle tank the product **overflows a 32-bit integer** — wrapping negative and being clamped to the
-minimum of 1. So the tank the formula over-ranks by 130× is, as executed, ranked *below a rifleman*. Two
+**A second, independent defect sat on top of it, and the two did not cancel.** The inflated throughput was
+then multiplied by a durability weight that is itself mis-scaled (tuned for 200 hit points, fed 28,000), and
+for a main battle tank the product **overflowed a 32-bit integer** — wrapping negative and being clamped to
+the minimum of 1. So the tank the formula over-ranked by 130× was, as executed, ranked *below a rifleman*. Two
 compounding errors in the same expression, pointing in opposite directions, in the number the whole strategic
 layer reasons about. [`06` §1 rank 1 and §5.1](06-inherited-misfits.md).
+
+> ✅ **FIXED at `main @ af36e686`, and the asymmetry is the lesson worth keeping.** `SustainedThroughput`
+> (`1092573d`) derives the real cycle: `CanFire` blocks on `IsReloading || IsWaitingBurst` and both counters
+> tick in parallel, so the cycle is the **MAX** of the two, and `Magazine` counts **shots**, making
+> `ReloadDelay` a per-magazine event rather than a per-burst one. The old formula was wrong in **both
+> directions at once** — ~130× *over* for the ~90% of weapons paced by `BurstWait`, ~4.8× *under* for the 14
+> paced by `ReloadDelay`+`Magazine`. **That asymmetry is why nothing downstream ever self-corrected:** a
+> uniform error cancels in a ratio; an asymmetric one re-ranks the classes. Post-fix the AT specialist and
+> the rifleman read 7,560 and 7,820. [`04` §3.2](04-perception-and-fields.md).
 
 **Questions to ask.** When a formula reads a ruleset field, is that field still the one the mod actually uses,
 and what happens when it is absent? A silent default substitution is where this hides. And: does the
@@ -665,14 +716,24 @@ tests are not wrong. They are simply incapable of detecting this class of defect
 Pattern 1 and Pattern 2 both survived.** The danger kernel has a dedicated test file. Its "representative"
 inputs are:
 
-⚠️ *The `throughput` figures below are pending re-derivation (§0 fact 4). The finding does not depend on them:
-the fixtures are Red Alert magnitudes and the mod's are not, by any measure of throughput.*
+*(The `2,300,000` below is the **old** formula's figure — the one the fixtures were being compared against at
+the time. The corrected throughput for the same weapon is `17,692`; the finding does not depend on which, since
+the fixtures are Red Alert magnitudes and the mod's are not by any measure.)*
 
 | Test fixture | throughput | health | cost |
 |---|---|---|---|
 | `Tank` | 400 | 1,000 | 1,500 |
 | `Humvee` | 300 | 300 | 600 |
-| Real `abrams` in the mod | **2,300,000** | **28,000** | 2,500 |
+| Real `abrams` in the mod | **2,300,000** *(old formula; now 17,692)* | **28,000** | 2,500 |
+
+> ✅ **This pattern's instance is FIXED, and the fix is the one worth copying.** `DangerFieldKernelTest` no
+> longer hard-codes magnitudes at all: it transcribes real weapon **parameters** out of
+> `mods/ww3mod/rules/weapons/*.yaml` and runs them through `DangerFieldLayer.SustainedThroughput` itself, so a
+> cadence regression moves every dependent assertion instead of being ratified by them. `SustainedThroughput`
+> was split out `public` precisely so the cycle model is pinnable — a warhead list cannot be constructed in
+> NUnit, **which is exactly how this went unexamined for the field's whole life**. The ruleset→field
+> conversion now has direct coverage too (`ReferenceIntensity` median/order-independence,
+> `DangerUnitsToField` sentinels and fail-closed, the saturating clamp). `1092573d`.
 
 The test's tank is about **5,750× less lethal** and **28× less durable** than the mod's actual tank — these are
 Red Alert magnitudes. And **every assertion on intensity is ordinal or relative**: "the humvee's core is denser
@@ -946,12 +1007,17 @@ it was wrong.
   `05`; `4d583f2e` for `03`) and this one against `dcc2f7c5`. I re-verified the claims I lean on, **not every
   claim they make**. Where I did not re-open something, I have linked rather than restated it.
 - `04` records that a worker was concurrently retuning danger thresholds on a branch called
-  `auto/danger-scale`. If a number quoted here does not match the code you are reading, check whether that
-  branch merged — but re-derive it either way, because the point of Pattern 1 is that these numbers were never
-  derived in the first place.
+  `auto/danger-scale`. **That branch merged** (`6fc1cfff` → `1092573d` → `c69835eb`, reconciled `5642d931`),
+  so danger figures in this file are annotated at the point they occur. Re-derive anyway before acting: the
+  point of Pattern 1 is that these numbers were never derived in the first place.
 - The three worst-case claims I am *relying on but did not independently re-measure* are the live-log danger
   median of 66,834, the sustained-output ratios behind Pattern 2 (which depend on a model of the firing cycle),
   and the "28 anti-churn dampers" count. Each is cited in its source document with its own honesty note.
+  > **Two of those three have moved.** The sustained-output ratios are no longer a model — they are the
+  > shipped `SustainedThroughput`, NUnit-pinned from transcribed YAML, and re-derive to 4.8× / 8.4× / 200× /
+  > 130×. The 66,834 is still a real measurement but now a **historical** one: it was recorded while the
+  > cadence bug was live, so it describes a field in which every heavy contact stamped a clamped 1. The
+  > damper count is untouched.
 
 ---
 

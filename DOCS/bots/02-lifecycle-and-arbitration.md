@@ -7,9 +7,13 @@ claim below carries a `file:line` that I opened and read at that commit.
 > **Reconciled 2026-08-09 against `main @ 25a8aebd`.** A cross-document pass re-derived every headline
 > claim, summary count and computed figure in this six-document set from the code, and corrected the
 > loser of every contradiction in place. Corrections made here are marked at the point they occur.
-> **Danger-field magnitudes are the one excluded class** — they are pending re-derivation on
-> `auto/danger-scale` and are flagged wherever they appear; see
-> [`04` §3.2](04-perception-and-fields.md).
+> **Danger-field magnitudes were the one excluded class; that quarantine is now NARROWED.**
+> `auto/danger-scale` merged into `main` (`6fc1cfff` → `1092573d` → `c69835eb`, reconciled `5642d931`). The
+> corrected formula, the per-type intensities and the weapon-class **ranking** are settled and re-derived —
+> [`04` §3.2](04-perception-and-fields.md) is current. What is still pending is narrower: **any conversion
+> between a configured threshold and a raw field value**, because thresholds are now expressed in *danger
+> units* whose denominator is a ruleset-wide median computed at world load. This document quotes one such
+> pairing, at §6.1, and it is flagged there.
 
 **What this document is.** The plumbing: how a bot goes from the world advancing one tick to a specific unit
 being told to walk somewhere. It covers the tick path, module cadences, the two order layers, the four
@@ -693,11 +697,16 @@ values of 10³–10⁵ against RA's ~50. A threshold of 60 sits *inside the ambi
 flicker* of that field at a player's own beachhead, so trucks evacuate from home on roughly every other scan.
 **Still open at `25a8aebd`.** Already recorded; not re-filed.
 
-> ⚠️ **The 66,834 is a *measured* log value and stands; the "rescale of roughly 200×" was an *estimate* and is
-> superseded.** Every derived danger-field magnitude in this document set is **pending re-derivation** on
-> `auto/danger-scale`, which fixes `WeaponThroughput`'s arithmetic — see the standing warning at
-> [`04` §3.2](04-perception-and-fields.md). The *shape* of the finding (a mid-range constant against a field
-> orders of magnitude larger) does not depend on the exact factor.
+> ⚠️ **Updated at `main @ af36e686`, and this row is the one place the remaining quarantine touches this
+> document.** The knob is now `EvacDangerUnits: 50` (`ai.yaml:846`), converted at the call site through
+> `DangerFieldLayer.GroundDangerUnitsToField` — so the *unit* defect described above is **fixed**
+> (`6fc1cfff`, merged). Two caveats survive. **The 66,834 was measured while the weapon-cadence bug was
+> live** (`1092573d` fixed it), so it describes a field in which every heavy contact stamped a clamped `1`;
+> it is evidence that something was badly wrong, not a calibration. And **whether `50` units clears the
+> ambient floor is still un-established** — that is a danger-unit-to-raw conversion and needs
+> `ReferenceIntensity`, which only a play session reports. The *shape* of the finding (a mid-range constant
+> against a field orders of magnitude larger) is what motivated the derived unit and does not depend on the
+> exact factor. See the box at [`04` §5](04-perception-and-fields.md).
 
 ### 6.2 New observations from this pass
 

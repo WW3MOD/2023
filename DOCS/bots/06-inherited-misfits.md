@@ -6,9 +6,14 @@ from four known untracked scratch paths). Static read only — no build, no game
 > **Reconciled 2026-08-09 against `main @ 25a8aebd`.** A cross-document pass re-derived every headline
 > claim, summary count and computed figure in this six-document set from the code, and corrected the
 > loser of every contradiction in place. Corrections made here are marked at the point they occur.
-> **Danger-field magnitudes are the one excluded class** — they are pending re-derivation on
-> `auto/danger-scale` and are flagged wherever they appear; see
-> [`04` §3.2](04-perception-and-fields.md).
+> **Danger-field magnitudes were the one excluded class; that quarantine is now NARROWED.**
+> `auto/danger-scale` merged into `main` (`6fc1cfff` → `1092573d` → `c69835eb`, reconciled `5642d931`;
+> `main @ af36e686` when this pass ran). The corrected formula, the per-type intensities and the weapon-class
+> **ranking** are settled — [`04` §3.2](04-perception-and-fields.md) is current. What is still pending is
+> narrower: **any conversion between a configured threshold and a raw field value**, because thresholds are
+> now in *danger units* whose denominator is a ruleset-wide median computed at world load. **This document is
+> the one most affected**, because several of its figures were the pre-fix ones — rank 1, rank 22, §3, §5.1
+> and §5.3 all carry updates at the point they occur.
 
 **What this document is.** The four preceding documents each mapped one region of the bot and each found more
 than expected. This one consolidates: **one ranked list of every misfit across all four plus the bug log**,
@@ -61,17 +66,23 @@ find the next problem without a worker — not by how interesting the defect is.
 first. **Status key:** `LIVE` affects shipped matches now · `LATENT` real but currently masked · `INERT` cannot
 execute, costs attention rather than behaviour.
 
-> ⚠️ **Standing warning on every danger-field magnitude in this document** — rank 1, rank 22, P1, P2, §3.1 and
-> §5.1. All of them (`~6.8 × 10⁹`, `2,950`, `29.5×`, `751×`, `~22,000×`, `~900×`, `~130×`, the clamp to `1`)
-> are **pending re-derivation** on `auto/danger-scale`, which is fixing `WeaponThroughput`'s arithmetic and
-> **owns** the settled numbers. The *ranking* findings — that the field's ordering does not follow lethality,
-> and that the heavy rows do not compute as published — survive; the *factors* do not. Do not quote a figure
-> from this document to justify a threshold. See the warning at the head of
-> [`04` §3.2](04-perception-and-fields.md).
+> ⚠️ **The danger-field figures in this document are the PRE-FIX ones, and they are now history.** Rank 1,
+> rank 22, P1, P2, §3.1 and §5.1 quote `~6.8 × 10⁹`, `2,950`, `29.5×`, `751×`, `~22,000×`, `~900×`, `~130×`
+> and the clamp to `1`. **Every one of them was an accurate description of `main` before `af36e686`, and all
+> but two are now fixed.** `auto/danger-scale` merged: the `int` overflow (`6fc1cfff`) and the cadence field
+> (`1092573d`) are both closed, so rank 1 is **DONE** and the executed ranking now runs armour-above-infantry
+> (`abrams` 521,914 › `bmp2` 184,966 › `AR` 7,820 › `e3` 2,237 — [`04` §3.2](04-perception-and-fields.md),
+> re-derived and partly test-pinned). **Still standing:** the durability weight's HP dominance (`2,950`,
+> `29.5×`, `751×` — §3.2(b) of `04`, untouched by the merge) and the intensity floor's role in
+> `MinBelievedDanger: 1`.
+>
+> **What is still quarantined is not in this list.** It is the *calibration* of the new danger-unit
+> thresholds — see the box at [`04` §5](04-perception-and-fields.md). This document's rankings and diagnoses
+> are safe to read as the record of why the fix was needed; **do not quote a magnitude from it as current.**
 
 | # | Misfit | Where | Pattern | Status | Already in flight? | Cost |
 |---|---|---|---|---|---|---|
-| **1** | **Danger-field core arithmetic is wrong twice.** `throughput × durabilityWeight` overflows `int` for any high-throughput, high-HP contact, wraps negative and is clamped to the floor of **1** — so a believed MBT paints one cell at value 1. Independently, `WeaponThroughput` divides by `ReloadDelay` and never reads `BurstWait`, which this mod made mandatory — so relative ranking follows YAML style, not lethality. | `DangerFieldLayer.cs:170` (overflow), `:521-533` (cadence field) | P2, P1 | **LIVE** | **Overflow + derived unit: YES**, `auto/danger-scale`. **Cadence field: NO** — untouched, see §3.1 | S (done) / M (rest) |
+| **1** ~~LIVE~~ **FIXED** | **Danger-field core arithmetic was wrong twice.** `throughput × durabilityWeight` overflowed `int` for any high-throughput, high-HP contact, wrapped negative and was clamped to the floor of **1** — so a believed MBT painted one cell at value 1. Independently, `WeaponThroughput` divided by `ReloadDelay` and never read `BurstWait`, which this mod made mandatory — so relative ranking followed YAML style, not lethality. **BOTH HALVES CLOSED on `main @ af36e686`:** the multiply is done in `long` and saturates (`6fc1cfff`), and the cadence is now derived from the real fire cycle — `MAX(BurstWait, ReloadDelay)` with `Magazine` counting shots, so a magazine swap is amortised rather than paid per burst (`1092573d`). Executed ranking is now armour-above-infantry. The row is kept because §3.1 below argued for exactly this sequencing and it is the set's worked example of P2. | `DangerFieldLayer.cs:182` (was the overflow), `:794-831` (the cadence model that replaced it) | P2, P1 | **FIXED** | **YES — merged**, `auto/danger-scale` | — (done) |
 | **2** | **Both aircraft rearm hosts are disabled, so `ReturnToBase` is a no-op and every "wait until healthy/full" gate is unsatisfiable.** A helicopter that takes one chip of damage is benched for the match on `@stable`. Each consequence was worked around with its own bypass flag rather than fixed. | `structures.yaml:432` (HPAD), `:500` (AFLD) both `~disabled`; `aircraft-america.yaml:219,376,498` still name them; `ReturnToBase.cs:106-108`; gates at `HelicopterStates.cs:374-375`, `HelicopterSquadBotModule.cs:1387-1394`; `ReEngageHealthPercent: 90` on both transports (`aircraft-america.yaml:9`, `aircraft-russia.yaml:9`) | **P8** | **LIVE** | no | M |
 | **3** | **24 module cadences are per-call `--countdown` decrements, and several duration counters are denominated in module updates rather than world ticks.** Withholding a module tick stretches its interval by the withhold factor and silently drops its units out of the commitment ledger while the module still lists them. This is the structural blocker on the human-attention scheduler. | `ModularBot.cs:215-224` (the in-code warning); pattern e.g. `BotBlackboard.cs:100-108`; POI `ReevaluateInterval 100` vs `AxisCommitmentTicks 250` | **P9**, P6 | **LIVE** (as a blocker) | no | L |
 | **4** | **Both transports are supply-driven in a game whose transport problem is demand-shaped, and the pickup bubble makes lift a one-shot.** A soldier more than 14 cells from its own SR can never be picked up again for the rest of the match, by either ferry. Neither ferry ever asks where a unit needs to go. | `MountedTransportBotModule.cs:58`, `ai.yaml:1124`, `:1154` (`ReserveZoneRadiusCells: 14`); same bubble on the heli lift | P1 | **LIVE** | no | L (missing layer, not a wiring job) |
@@ -92,11 +103,12 @@ execute, costs attention rather than behaviour.
 | **19** | **The order gate's objective-prefix → module rank table is hand-maintained and not re-read from the modules that emit those prefixes.** It fails open, so drift costs damping and not correctness — but drift is **silent** and nothing would tell you it had happened. | `OrderArbitrationMath.cs:206-226`, acknowledged at `:199-205` | P10 | **LATENT** | no | XS (a `make test` lint) |
 | **20** | **`SupportPowerBotModule` is not instantiated while `MSLO` ships.** If a support power ever becomes reachable, nothing on the bot side will use it and the gap will not announce itself. | `structures-defenses.yaml:1077`; no trait declaration anywhere in `mods/` | P5 | **LATENT** | no | M |
 | **21** | **Comments and curated docs assert facts owned by other files, and go stale when those files move.** `CaptureCoordinator`'s header still describes a legacy module gated to a condition granted to nobody; `LayeredDefence`'s header still says `SquadManagerBotModule` handles opening play; three `ai.yaml` comments claim byte-identity for gates `@stable` now sets; `influence-stack.md` carried sixteen stale code anchors — **fixed 2026-08-09**, values all still correct. And `HelicopterSquadBotModule.cs:403-406` claims the commitment ledger is "Resolved ONLY when CommitTransportPassengers is on" while `:496` resolves it unconditionally (filed `discovered.md` 2026-08-09 `[low, doc-in-code]`). | `CaptureCoordinatorBotModule.cs:18-19`; `LayeredDefenceBotModule.cs:28-29`; `discovered.md` 2026-08-04; `discovered.md` 2026-08-09 `[low, doc-in-doc]` | **P10** | **LIVE** (as misinformation) | no | S |
-| **22** | **`ai.yaml:840-841` asserts the danger field "steps by tens-to-hundreds per cell", and `DOCS/bots/04` publishes a magnitude table that is unreachable for heavy contacts.** Both are the tree's most-quoted statements of this field's scale, and both are wrong — in *opposite* directions (§5.1). | `ai.yaml:840-841`; [`04`](04-perception-and-fields.md) §3.2 | P10 | **LIVE** (as misinformation) | partly — `auto/danger-scale` adds a `[danger] dist` log and a derived unit | XS (filed, §6) |
+| **22** ~~LIVE~~ **FIXED** | **`ai.yaml:840-841` asserted the danger field "steps by tens-to-hundreds per cell", and `DOCS/bots/04` published a magnitude table that was unreachable for heavy contacts.** Both were the tree's most-quoted statements of this field's scale, and both were wrong — in *opposite* directions (§5.1). **Both corrected:** that `ai.yaml` comment block was rewritten on `6fc1cfff` and no longer makes the per-cell claim; `04` §3.2 was re-derived against `af36e686` and now publishes reachable figures plus the corrected ranking. | `ai.yaml` @supply evac block; [`04`](04-perception-and-fields.md) §3.2 | P10 | **FIXED** | **YES — merged**; `[danger] dist` + `[danger] reference` are unconditional | — (done) |
 
-**Composition of the list.** Re-tallied from the Status column at `25a8aebd`: of 22 rows, **15 are LIVE**
+**Composition of the list.** Re-tallied from the Status column at `25a8aebd`: of 22 rows, **15 were LIVE**
 (1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 13, 15, 18, 21, 22), **5 are INERT-but-attention-costing** (6, 12, 14, 16,
-17), and **2 are LATENT** (19, 20). *(An earlier draft summarised this as "13 / 6 / 3", which does not match
+17), and **2 are LATENT** (19, 20). **Re-tallied again at `af36e686`:** rows **1 and 22 are now FIXED** by the
+`auto/danger-scale` merge, leaving **13 LIVE / 2 FIXED / 5 INERT / 2 LATENT**. *(An earlier draft summarised this as "13 / 6 / 3", which does not match
 the table it summarises.)* By provenance the split is not what "we inherited bad bots" would predict: rows 1,
 4, 8, 9, 10, 11, 13, **17** are **[WW3MOD]** originals, rows 2, 5, 6, 12, 15, 18 are inherited or
 inherited-shaped. *(Row 17, `BotBlackboard`'s task board, was listed as inherited in an earlier draft; the file
@@ -184,8 +196,10 @@ catch lives underneath them the whole time — because the fixtures used values 
 below the real ones.
 
 **Instance.** The `int` overflow above survived the danger field's whole life. It was found only when a worker
-wrote a regression test **at real WW3MOD magnitudes** (`auto/danger-scale`, `DangerFieldKernelTest.cs`); the
-pre-existing kernel coverage never multiplied numbers large enough to wrap.
+wrote a regression test **at real WW3MOD magnitudes** (`auto/danger-scale`, since merged;
+`DangerFieldKernelTest.cs`); the pre-existing kernel coverage never multiplied numbers large enough to wrap.
+*(The fixtures went further before merging: they now transcribe real weapon **parameters** and run them
+through `SustainedThroughput` itself, so no magnitude is hard-coded to drift out of date — `1092573d`.)*
 
 **The tell.** *Open the fixtures and compare their magnitudes to the ruleset's.* If a test for damage,
 health, cost, throughput or danger uses values like `100` and `50` while the mod ships `23000` and `28000`,
@@ -406,14 +420,22 @@ by construction*: an inert lever, a suppressed order in a log you cannot enable,
 "a slightly different set of cells". So I am ranking by **user-visible benefit per unit of risk**, and I am
 explicitly demoting items whose payoff you would have to take on trust.
 
-**Already in flight — do not double-count.** `auto/danger-scale` (one commit, `3a7a10a3`, under review) fixes
-the `int` overflow at three sites, introduces a derived `ReferenceIntensity` unit with 13 renamed thresholds
-across 7 modules, fixes the stuck frontier descent that the live log caught at cell `33,31`, and adds three
-observability channels (`[danger] dist`, unconditional `[ordgate]`, `[supply] evac-leg`). It states plainly
-that it moves `@stable` and that the benchmark baseline must be re-taken. **Rank 1's overflow half and the
-whole of the threshold-scale problem are that branch's; do not re-plan them.**
+**Already in flight — do not double-count.** `auto/danger-scale` fixes the `int` overflow at three sites,
+introduces a derived `ReferenceIntensity` unit with 13 renamed thresholds across 7 modules, fixes the stuck
+frontier descent that the live log caught at cell `33,31`, and adds three observability channels
+(`[danger] dist`, unconditional `[ordgate]`, `[supply] evac-leg`). It states plainly that it moves `@stable`
+and that the benchmark baseline must be re-taken. **Rank 1's overflow half and the whole of the
+threshold-scale problem are that branch's; do not re-plan them.**
 
-### 3.1 First: finish rank 1 — the cadence field the branch did not touch
+> **LANDED — this whole subsection is now history, and §3.1 below was acted on.** The branch is on `main` as
+> `6fc1cfff` → `1092573d` → `c69835eb`, reconciled `5642d931` (`main @ af36e686` when this note was written).
+> It grew past the single commit described above: `1092573d` also fixed the cadence field that §3.1 argues
+> for, **in the order §3.1 recommends** — formula first, then the unit re-derived on top of it. So rank 1 is
+> closed in full, not half. The one thing that did *not* happen is measurement: the new thresholds were
+> derived from kernel geometry and are provisional until a play session emits `[danger] reference` — see the
+> box at [`04` §5](04-perception-and-fields.md). And the benchmark baseline does still need re-taking.
+
+### 3.1 First: finish rank 1 — the cadence field the branch did not touch **[DONE — see the note above]**
 
 **Why first.** Perception is upstream of every strategic decision in the bot. Attack-axis scoring, capture
 ordering, garrison sizing, heli target safety, truck evacuation, route detours — all read this field. Getting
@@ -433,9 +455,16 @@ itself when throughput changes — that is the branch's explicit design claim an
 matter for the thresholds. It matters for the **benchmark**: fixing throughput will move the field again and
 require a *second* baseline re-take. If you want one re-take rather than two, land them together.
 
-**Visible payoff.** High and specific. Today the field ranks a BMP2 above an Abrams by a factor of ~22,000
-(§5.1) and an AT specialist ~900× above a machine gunner. After both fixes the bot should visibly stop walking
-armour into armour and stop treating an infantry AT team as the most dangerous object on the map.
+**Visible payoff.** High and specific. Before the merge the field ranked a BMP2 above an Abrams by a factor of
+~22,000 (§5.1) and an AT specialist ~930× above an automatic rifleman. After both fixes the bot should visibly
+stop walking armour into armour and stop treating an infantry AT team as the most dangerous object on the map.
+
+> **Both fixes landed together, so the payoff is now testable rather than predicted.** At `af36e686` the
+> executed field reads `abrams` 521,914 › `bmp2` 184,966 › `AR` 7,820 › `AT` 7,560 › `e3` 2,237: armour above
+> infantry, an Abrams ≈2.8× a BMP2 rather than ~22,000× below one, and the AT specialist and the rifleman
+> within a few per cent of each other instead of ~930× apart ([`04` §3.2](04-perception-and-fields.md)).
+> **Whether the bot's *behaviour* changed accordingly is unmeasured** — that needs a play session or a
+> benchmark, and the baseline has to be re-taken anyway.
 
 **Cost/risk.** M. It changes every cell value in the field, hence every threshold-derived behaviour, on both
 profiles. Wants the branch's new `[danger] dist` log to validate against rather than reasoning.
@@ -572,6 +601,18 @@ including why the `^AutoTargetGround` family is auto-excluded. That is what a mo
 
 ### 5.1 The one source claim that did not survive verification
 
+> **RESOLVED at `main @ af36e686` — this section is the record of a defect that is now fixed, and its figures
+> are the pre-fix ones.** The finding below was correct and load-bearing: it is what stopped `04` §3.2's
+> inverted headline being used to justify a threshold. Both defects it names are closed (`6fc1cfff`,
+> `1092573d`), `04` §3.2 has been re-derived, and the executed ranking now runs
+> `abrams` 521,914 › `bmp2` 184,966 › `AR` 7,820 › `AT` 7,560 › `e3` 2,237 — armour above infantry.
+> **Read what follows as history. Do not quote its magnitudes as current.**
+>
+> One correction to its own last paragraph, which is the part that aged worst: it concludes *"doc 04's §5
+> threshold verdicts still stand"*. They stood for the reason it gives — the thresholds were unjustifiable
+> either way — but the merge renamed and re-valued thirteen of them into **danger units**, so `04` §5's
+> Configured column is now a pre-merge record. See the box at [`04` §5](04-perception-and-fields.md).
+
 **[`04-perception-and-fields.md`](04-perception-and-fields.md) §3.2 publishes a magnitude table that is
 unreachable for its heavy-weapon rows, and its headline sentence is false as executed.** This is the most-quoted
 table in the set and it will be used to justify future numbers, so it needs stating plainly.
@@ -583,7 +624,8 @@ it in `int`, left to right, and `throughput * durabilityWeight` = 2,300,000 × 2
 `int.MaxValue`. It wraps negative, falls through the `intensity < 1` guard at `:171-172`, and is clamped to the
 floor of **1**. A believed Abrams paints exactly one cell, at value 1. I verified the types (`DangerKernelFacts`
 and `DangerKernelParams` are all `int`) and the expression at `main @ dcc2f7c5`; `auto/danger-scale` found this
-independently by writing a regression test at real magnitudes and fixes it with `long` + saturation.
+independently by writing a regression test at real magnitudes and fixed it with `long` + saturation
+(`6fc1cfff`, merged).
 
 **Which of doc 04's four rows are affected:** rifleman (162,626), BMP2 (2,197,440) and ATGM (151,200,000) all
 compute below the wrap and their published intensities stand. **Only the Abrams row overflows** — and it is the
@@ -619,6 +661,11 @@ with the branch on the mechanism and with the bug log on the consequence** — s
 self-re-derives, so the thresholds survive, but the benchmark does not, and doing them separately costs two
 baseline re-takes instead of one.
 
+> **Settled by events, and the bug log won on ordering.** The branch went back and did it the other way round
+> before merging: `1092573d`'s message is *"fix the weapon fire-cycle model first, then re-derive the danger
+> unit on top of it"*. Both landed in one merge, so it cost one baseline re-take, not two — which is the
+> outcome this paragraph asked for.
+
 **(d) Whether the ledger-participation flag split is a mistake.** Doc 02 §6.2 calls the `@experimental`-only
 `goalGuard` resolution on three modules "leftovers" of a retired policy and a mistake, because the control ends
 up with different *arbitration semantics* from the experiment. Doc 04 §8.4 argues the general case the other
@@ -632,10 +679,18 @@ for this case.
 - **Doc 04's sustained-output ratios (4.5× / 7.8× / 200× / 130×)** depend on that author's model of the WW3MOD
   firing cycle from `Armament.UpdateBurst`/`UpdateMagazine`. **The fact** that `WeaponThroughput` never reads
   `BurstWait` needs no model and is direct at `:521-533` — I re-read it. The ratios I did not re-derive.
+  > **SETTLED.** The cycle model is no longer one author's reading: it is the shipped
+  > `DangerFieldLayer.SustainedThroughput` (`:794-831`), pinned in `DangerFieldKernelTest` from transcribed
+  > YAML parameters. The ratios re-derive to **4.8× / 8.4× / 200× / 130×** ([`04` §3.2](04-perception-and-fields.md)).
+  > The two small movements are the overlap term: a magazine swap costs only what it exceeds `BurstWait` by,
+  > which the earlier estimate charged in full.
 - **The `auto/danger-scale` commit reports the rifleman's clean intensity as "~1,212"; doc 04 computes 1,626**
   for `5.56mm.AR` on `AR`. I did not resolve the discrepancy — it is plausibly a different carrier or a
   `Burst` reading, and nothing in this document's ranking depends on it. Flagging it so nobody treats either
   number as settled.
+  > **MOOT, and the flag was right.** Both figures were computed under the old `damage × Burst / ReloadDelay`
+  > cadence, so neither was ever going to be settled. The corrected value is **7,820** — re-derived three
+  > times and pinned by `DangerFieldKernelTest`. Neither `1,626` nor `1,212` should be quoted.
 - **The "28 distinct anti-churn dampers" count** is carried from the 0808 churn census appendix; I confirmed the
   census asserts it and did not recount the 28.
 - **Doc 03's mechanical twin-diff** ("zero divergence on any shared key" across nine twinned pairs) I did not
@@ -664,8 +719,12 @@ Nothing was fixed; this was an audit. One new entry added to
 > `ReloadDelay`/`BurstWait` defect, so the `[high]` entry of the same date must not be closed when that branch
 > merges.
 
+**Closed 2026-08-09 at `main @ af36e686`.** The branch went on to fix the `ReloadDelay`/`BurstWait` defect too
+(`1092573d`), so the `[high]` entry *is* closed, and `04` §3.2 has been re-derived rather than merely warned.
+The caution above was right for the branch as it stood when this audit was written.
+
 Everything else in §1 was already on the record — in `discovered.md`, in the four sibling documents, or in the
-`auto/danger-scale` branch.
+`auto/danger-scale` branch (now merged).
 
 ---
 

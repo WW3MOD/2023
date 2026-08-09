@@ -11,6 +11,21 @@ Every factual claim below carries a `file:line` that I opened and read at that c
 > `auto/danger-scale` and are flagged wherever they appear; see
 > [`04` §3.2](04-perception-and-fields.md).
 
+> **SUPERSEDED (`auto/danger-scale`, merged) — the danger clause immediately above no longer applies.** That
+> branch is on `main` (`6fc1cfff` → `1092573d` → `c69835eb`, reconciled `5642d931`; `main @ af36e686` when
+> this note was written). This banner is a supersession, not a correction: the paragraph above is left intact
+> as an accurate record of what was true when this snapshot was taken.
+>
+> **Nothing in this document's body is affected.** `05` quotes no danger-field magnitude anywhere — its only
+> contact with the stack is structural (`GroundDangerNav.cs` is live code misfiled among dead state machines,
+> §2.9). The re-derived scales are in [`04` §3.2](04-perception-and-fields.md), which is current; what
+> remains quarantined is narrower and lives at [`04` §5](04-perception-and-fields.md) — any conversion
+> between a configured threshold and a raw field value, pending a `[danger] reference` reading from an
+> ordinary play session.
+>
+> **The banner below this one is about an entirely different change** (`auto/aircraft-rearm`) and *is*
+> current. The two are unrelated; do not read them as a pair.
+
 > **SUPERSEDED IN PART (`auto/aircraft-rearm`).** `SkipRearmReadyCheck` — referenced at `:272`, `:407`, `:467`
 > and `:628` below — **no longer exists**, and neither does the `SquadHasAmmo` skip it was bypassing. The
 > readiness gates now ask whether a rearm/repair host is actually present (`AirframeReadiness`), the commit
