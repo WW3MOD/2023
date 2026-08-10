@@ -1,20 +1,26 @@
--- AUTO TEST: realistic crew & pilot evacuation suite.
--- Five phases, each modelling a real-world combat outcome and asserting
--- per-unit-type survival counts.
+-- AUTO TEST: crew & pilot evacuation suite.
 --
--- The unit-class tuning lives in YAML (CrewDamageThresholdPercent +
--- EjectionSurvivalRate per actor). This test exists to lock those numbers
--- in: tighten / loosen YAML knobs, re-run, see if real-world behaviour
--- shifts as expected.
+-- Every phase asserts WHO GOT OUT of a stricken vehicle, and none asserts who is
+-- still alive afterwards. That is not a style choice — see "THE TWO RULES THIS
+-- SUITE HAS TO OBEY" below the helpers. Ejected crew burn to death on an
+-- unbounded timer by design, so a survivor count measures the clock, not the
+-- mechanic, and every phase that tried it eventually became a coin flip.
 --
--- Phase 1 — Catastrophic kill (overkill):     all crew die in the wreck.
--- Phase 2 — Staged ejection:                  all 12 crew slots empty out of a
---           wrecked-but-alive hull. Counts the getting out, NOT survival
---           afterwards — see the phase header for why that distinction is
---           the whole point.
--- Phase 3 — Slow attrition (staged ejection): crew bails over time, all live.
--- Phase 4 — Helicopter mid-air crash:         SuppressEjection, no pilots.
--- Phase 5 — Helicopter safe autorotate:       crew alive, airframe → Neutral.
+-- Phase 1 — Catastrophic kill (overkill):  nobody gets out. Expect 0 of 22.
+-- Phase 2 — Staged ejection:               every slot empties a wrecked-but-alive
+--                                          Abrams. Expect 12 of 12.
+-- Phase 3 — Two-step attrition:            damaged, then finished; the roster
+--                                          still empties. Expect 18 of 18.
+-- Phase 4 — Helicopter mid-air crash:      SuppressEjection holds. Expect 0.
+-- Phase 5 — Helicopter safe autorotate:    every airframe resolves — destroyed
+--                                          or handed to Neutral. Expect 0 left
+--                                          flying.
+--
+-- Per-class tuning (CrewDamageThresholdPercent) still lives in YAML, but note
+-- that no phase here can currently discriminate it: it only bites when
+-- crewDamage >= crewMaxHP, which none of these damage profiles reaches. Phase 1
+-- covers the total-loss end and the rest cover the pipeline. If you want the
+-- class curve pinned, that needs a new phase built for it.
 
 local TICKS_PER_SEC = TestHarness.TicksPerSecond  -- 25
 local function sec(s) return math.floor(s * TICKS_PER_SEC) end
@@ -46,6 +52,65 @@ end
 -- Snapshot all crew counts (US + RU) so a phase can compute its own delta.
 local function snapshot()
 	return totalCrew(USA, US_CREW) + totalCrew(RUSSIA, RU_CREW)
+end
+
+-- ---------------------------------------------------------------------------
+-- THE TWO RULES THIS SUITE HAS TO OBEY, AND WHY
+-- ---------------------------------------------------------------------------
+-- Ejected crew emerge on fire and have NO WAY TO PUT THEMSELVES OUT. That is
+-- deliberate game behaviour, ruled on 2026-08-10 and not up for change here:
+-- crew are supposed to burn and die when the hull was badly hurt. It means the
+-- crew population after an ejection only ever SHRINKS, and every man in it dies
+-- eventually — the only thing that varies is when.
+--
+-- Two consequences, and every phase below is built on them:
+--
+-- 1. NEVER ASSERT "N ARE STILL ALIVE AT TICK T". That measures how far along a
+--    death timer everyone is, with the boundary sitting inside the per-crew
+--    random damage band. It is why P2 went 3 pass / 4 fail across 7 runs on
+--    2026-08-10 and why its threshold was walked 12 -> 8 -> 6 in May by three
+--    people in turn. No threshold fixes that shape. Assert the getting OUT,
+--    which the engine does guarantee, via the PEAK count below.
+--
+-- 2. CLEAR THE FIELD FIRST. snapshot() is global across both factions, so crew
+--    left burning by an earlier phase die inside the next phase's window and
+--    move its numbers. P4 was the worst case: phases 2 and 3 leave up to 30
+--    doomed men on the ground and P4's window is exactly when they die, so a
+--    negative drift could absorb a dozen real pilot ejections and still pass.
+
+local POLL_INTERVAL = 25  -- 1s
+
+-- Poll snapshot() over a window and hand the PEAK to `done`. A man who ejects
+-- and then burns is still an ejection that happened, so the maximum ever seen is
+-- the honest count and it does not depend on when anyone dies.
+--
+-- POLL_INTERVAL must be shorter than the shortest possible crew lifetime, or
+-- someone could appear and die between two polls. The shortest in this suite is
+-- ~256 ticks (a Bradley crewman emerging at 36% MaxHP, burning 1% per 8 ticks);
+-- 25 ticks leaves an order of magnitude of margin.
+local function pollPeakCrew(samples, done)
+	local peak = 0
+	local function step(remaining)
+		local n = snapshot()
+		if n > peak then peak = n end
+		if remaining <= 0 then
+			done(peak)
+		else
+			Trigger.AfterDelay(POLL_INTERVAL, function() step(remaining - 1) end)
+		end
+	end
+	step(samples)
+end
+
+-- Remove every crew actor on the map, so a phase starts from a clean field.
+-- Destroy() removes them without a death sequence or a cookoff.
+local function clearAllCrew()
+	for _, t in ipairs(US_CREW) do
+		for _, c in ipairs(USA.GetActorsByType(t)) do c.Destroy() end
+	end
+	for _, t in ipairs(RU_CREW) do
+		for _, c in ipairs(RUSSIA.GetActorsByType(t)) do c.Destroy() end
+	end
 end
 
 local results = {}
@@ -123,14 +188,21 @@ phase1 = function()
 			if not v.IsDead then v.Health = -100000 end
 		end
 
-		Trigger.AfterDelay(sec(5), function()
-			local after = snapshot()
-			local newCrew = after - before
-			-- 10 vehicles × 2-3 crew = 22 expected without scaling. Real-world
-			-- catastrophic kill: all crew die. Allow 2 for variance.
-			local passed = newCrew <= 2
+		-- Overkill kills the hull outright: VehicleCrew.Killed clears `ejecting`
+		-- in the same InflictDamage call that armed it, and ITick bails on
+		-- self.IsDead, so no crew actor is ever created. The engine calls this
+		-- total loss and none of these hulls carries EjectOnDeath. So the
+		-- guarantee is ZERO, not "about zero" — the old "allow 2 for variance"
+		-- was slack over a deterministic outcome.
+		--
+		-- Peak, not endpoint: a crewman who spawned against that guarantee would
+		-- be burning from a 0%-HP wreck and could die before a single late
+		-- sample, hiding the very regression this phase exists to catch.
+		pollPeakCrew(5, function(peak)
+			local out = peak - before
+			local passed = out == 0
 			recordPhase("P1 catastrophic", passed,
-				newCrew .. " crew survived (<= 2)")
+				out .. " crew got out of a catastrophic kill (expected 0)")
 			Trigger.AfterDelay(sec(2), phase2)
 		end)
 	end)
@@ -139,32 +211,22 @@ end
 -- ---------------------------------------------------------------------------
 -- PHASE 2 — Staged ejection: every crew slot empties out of a wrecked hull.
 -- ---------------------------------------------------------------------------
--- WHAT THIS PHASE MEASURES, AND WHY IT IS NOT SURVIVAL.
+-- Measures THE GETTING OUT (see the two rules at the top of this file). It used
+-- to count crew still alive 15s after the hull was wrecked and went 3 pass /
+-- 4 fail across 7 runs on 2026-08-10.
 --
--- It used to count crew still ALIVE 15s after the hull was wrecked, and it was
--- a coin flip: 3 pass / 4 fail across 7 runs on 2026-08-10, and the threshold
--- had already been walked 12 → 8 → 6 in May chasing the same variance. The
--- cause is structural, not a bad number. Crew emerge burning (stack 3 from a
--- 20% HP wreck, -1% MaxHP per 8 ticks) and the burn is UNBOUNDED BY DESIGN —
--- an ejected crewman has no way to put himself out, so every one of them dies
--- eventually and only the timing varies. Sampling a population that is
--- monotonically dying, at a fixed tick, with the death boundary sitting inside
--- the per-crew random damage band, cannot be made reliable by moving the
--- threshold. Burning-to-death is intended behaviour and is deliberately left
--- alone; the measurement was what was wrong.
---
--- So this phase now measures THE GETTING OUT, sampled in the window where the
--- answer is deterministic. Two hard bounds, from VehicleCrew.cs + the Abrams
--- block in vehicles-america.yaml:
---   LAST possible ejection  ≈ tick 126. PostStopDelay 20 ±15 (no YAML override)
---                           then EjectionDelay 30 ±15 twice.
+-- The numbers behind the window, from VehicleCrew.cs + the Abrams block in
+-- vehicles-america.yaml:
+--   LAST possible ejection  ≈ tick 126. PostStopDelay 20 ±15 (no YAML override;
+--                           the old "40 ±10" here was wrong), then
+--                           EjectionDelay 30 ±15 twice.
 --   FIRST possible death    ≈ tick 310. Emerge HP is at worst 38% of crewMaxHP
 --                           (crewDamage = 42% + rand(0..20%), never lethal here),
 --                           and 38 × 8 ticks of burn must elapse to reach zero.
--- We sample at 8s = 200 ticks: 74 ticks after the last man is out, 110 before
--- the first can die. Nothing else can kill a crewman in that window — the
--- roster is single-faction so there is no crossfire, and the hull cookoff only
--- fires when we execute the wreck, which now happens AFTER the verdict.
+-- 200 ticks of polling covers the first with 74 ticks to spare; the peak makes
+-- the second a margin rather than a dependency. Nothing else can kill a crewman
+-- in there — the roster is single-faction so there is no crossfire, and the hull
+-- cookoff only fires when we execute the wreck, which happens AFTER the verdict.
 --
 -- NOT COVERED HERE: the class-dependent "died inside the hull" outcome the old
 -- comment described. That needs crewDamage >= crewMaxHP, and an Abrams tops out
@@ -180,17 +242,7 @@ phase2 = function()
 	local tanks = spawnRow({ "abrams", "abrams", "abrams", "abrams" }, PHASE2_Y, false)
 
 	Trigger.AfterDelay(sec(2), function()
-		-- Clear crew left over from Phase 1 before taking the baseline.
-		-- snapshot() is global across both factions, so a Phase 1 survivor
-		-- dying inside this phase's window would silently decrement our delta —
-		-- and Phase 1 explicitly tolerates up to 2 survivors, six cells north,
-		-- already burning. Destroy() removes them without a death sequence.
-		for _, t in ipairs(US_CREW) do
-			for _, c in ipairs(USA.GetActorsByType(t)) do c.Destroy() end
-		end
-		for _, t in ipairs(RU_CREW) do
-			for _, c in ipairs(RUSSIA.GetActorsByType(t)) do c.Destroy() end
-		end
+		clearAllCrew()
 
 		-- One tick for the removals to leave the world before the baseline.
 		Trigger.AfterDelay(1, function()
@@ -205,8 +257,9 @@ phase2 = function()
 				end
 			end
 
-			Trigger.AfterDelay(sec(8), function()
-				local out = snapshot() - before
+			-- 8 polls = 200 ticks, comfortably past the tick-126 worst case.
+			pollPeakCrew(8, function(peak)
+				local out = peak - before
 				-- 4 hulls × 3 slots. Not a tuned threshold — it is the whole
 				-- roster, so there is no number here to walk. Fewer than 12 means
 				-- a slot failed to empty: the eject never armed, the staged cycle
@@ -231,61 +284,82 @@ phase2 = function()
 end
 
 -- ---------------------------------------------------------------------------
--- PHASE 3 — Slow attrition (staged ejection).
+-- PHASE 3 — Two-step attrition: a hull damaged, then finished, still empties.
 -- ---------------------------------------------------------------------------
+-- Same measurement rules as P2, for the same reason — this phase asserted
+-- "crew >= 8 still alive" and was the next one to flake once P2 was fixed
+-- (P3 attrition: 7 crew survived, seed -1931316743).
+--
+-- What is different from P2 is the damage path: the eject arms on the FIRST
+-- drop (100% → 26% crosses into Heavy, finishingDamage = 74% MaxHP), and the
+-- second drop only deepens the burn. The old comment claimed the opposite —
+-- that the 5% finishing blow set finishingDamage and "clamps crewDamage to 0" —
+-- which is not what VehicleCrew.DamageStateChanged does; it latches on the
+-- transition and ignores later hits.
+--
+-- Nobody dies inside either, so the whole roster gets out:
+--   Abrams  threshold 38 → crewDamage (74-38)% + rand(0..20%) = 36-56%
+--   Bradley threshold 30 → crewDamage (74-30)% + rand(0..20%) = 44-64%
+-- Worst emerge HP is 36% (a Bradley crewman), and at 3 stacks that is
+-- 36 × 8 = 288 ticks of burn before the first death can land, against a last
+-- ejection at ≈ tick 126 (Bradley: PostStopDelay 20 ±10, EjectionDelay 25 ±10).
+--
+-- The old comment also described "mixed-faction crew engaging each other" as
+-- the reason for the loose bound. The roster is all-USA; there is no crossfire
+-- and there was none to tolerate.
 local PHASE3_Y = 18
 phase3 = function()
-	Media.DisplayMessage("PHASE 3: Slow attrition — most crew bails out alive",
+	Media.DisplayMessage("PHASE 3: Two-step attrition — all 18 crew get out",
 		"EVAC SUITE")
 	Camera.Position = cellPos(28, PHASE3_Y, 0)
 
-	-- All-USA in this phase so ejected crew doesn't immediately gun down its
-	-- counterpart on the ground (default ^AutoTargetLMG stance is FireAtWill,
-	-- and there's no clean way to force HoldFire on actors that don't exist
-	-- yet at test setup). Single-faction makes the survival count clean.
+	-- All-USA so ejected crew doesn't gun down its counterpart on the ground
+	-- (default ^AutoTargetLMG stance is FireAtWill, and there's no clean way to
+	-- force HoldFire on actors that don't exist yet at test setup).
 	local types = { "abrams", "abrams", "abrams", "bradley", "bradley", "bradley" }
 	local spawned = spawnRow(types, PHASE3_Y, false)
 
 	Trigger.AfterDelay(sec(2), function()
-		-- Step 1: drop to 26% (Heavy state, no eject yet).
-		for _, v in ipairs(spawned) do
-			if not v.IsDead and v.MaxHealth > 0 then
-				v.Health = math.floor(v.MaxHealth * 26 / 100)
-			end
-		end
+		clearAllCrew()
 
-		local beforeUS = totalCrew(USA, US_CREW)
-		local beforeRU = totalCrew(RUSSIA, RU_CREW)
+		Trigger.AfterDelay(1, function()
+			local before = snapshot()
 
-		-- Step 2: 5% finishing blow → Critical with tiny finishingDamage.
-		-- Below all class thresholds → crewDamage clamps to 0 → all spawn alive.
-		Trigger.AfterDelay(sec(1), function()
+			-- Step 1: drop to 26% (Heavy). This is the hit that arms the eject.
 			for _, v in ipairs(spawned) do
 				if not v.IsDead and v.MaxHealth > 0 then
-					v.Health = math.floor(v.MaxHealth * 21 / 100)
+					v.Health = math.floor(v.MaxHealth * 26 / 100)
 				end
 			end
 
-			-- Wait for staged ejection cycle.
-			Trigger.AfterDelay(sec(12), function()
-				-- Clean up any survivors still inside.
+			-- Step 2, 1s later: down to 21% (Critical). Deepens the inherited
+			-- burn from 2 stacks to 3; does not re-latch finishingDamage.
+			Trigger.AfterDelay(sec(1), function()
 				for _, v in ipairs(spawned) do
-					if not v.IsDead then v.Health = -10000 end
+					if not v.IsDead and v.MaxHealth > 0 then
+						v.Health = math.floor(v.MaxHealth * 21 / 100)
+					end
 				end
+			end)
 
-				Trigger.AfterDelay(sec(3), function()
-					local crew = (totalCrew(USA, US_CREW) - beforeUS)
-						+ (totalCrew(RUSSIA, RU_CREW) - beforeRU)
-					-- 6 vehicles × ~3 crew = 18 ejected. Mixed-faction crew
-					-- engages each other once on the ground (default stance is
-					-- FireAtWill on ^AutoTargetLMG), so the visible survivor
-					-- count is the eject rate × cross-fire attrition. ≥ 8
-					-- catches the staged-eject mechanic working without being
-					-- noisy from the small-arms exchange.
-					local passed = crew >= 8
-					recordPhase("P3 attrition", passed,
-						crew .. " crew survived (>= 8)")
-					Trigger.AfterDelay(sec(2), phase4)
+			-- 8 polls = 200 ticks from step 1: past the tick-126 worst-case
+			-- ejection, well short of the tick-313 earliest possible death.
+			pollPeakCrew(8, function(peak)
+				local out = peak - before
+				-- 3 Abrams × 3 slots + 3 Bradleys × 3 slots. The whole roster
+				-- again, so there is no threshold here to walk either.
+				local passed = out == 18
+				recordPhase("P3 two-step eject", passed,
+					out .. " of 18 crew got out")
+
+				-- Execute the hulls after the verdict, keeping this phase's
+				-- total length unchanged for everything downstream.
+				Trigger.AfterDelay(sec(4), function()
+					for _, v in ipairs(spawned) do
+						if not v.IsDead then v.Health = -10000 end
+					end
+
+					Trigger.AfterDelay(sec(5), phase4)
 				end)
 			end)
 		end)
@@ -305,20 +379,35 @@ phase4 = function()
 	local spawned = spawnRow(types, PHASE4_Y, true)
 
 	Trigger.AfterDelay(sec(3), function()
-		local before = snapshot()
-		-- Drop airborne helicopters to Critical → StartCrash → SuppressEjection.
-		for _, h in ipairs(spawned) do
-			if not h.IsDead and h.MaxHealth > 0 then
-				h.Health = math.floor(h.MaxHealth * 5 / 100)
-			end
-		end
+		clearAllCrew()
 
-		Trigger.AfterDelay(sec(15), function()
-			local newCrew = snapshot() - before
-			local passed = newCrew <= 1
-			recordPhase("P4 heli crash", passed,
-				newCrew .. " pilots survived (<= 1)")
-			Trigger.AfterDelay(sec(2), phase5)
+		Trigger.AfterDelay(1, function()
+			local before = snapshot()
+
+			-- Drop airborne helicopters to Critical → StartCrash, which sets
+			-- VehicleCrew.SuppressEjection and leaves it set through impact
+			-- (HeliEmergencyLanding.cs:242-258). Nobody gets out of a mid-air
+			-- crash, so the guarantee is zero — the old "<= 1" was slack.
+			for _, h in ipairs(spawned) do
+				if not h.IsDead and h.MaxHealth > 0 then
+					h.Health = math.floor(h.MaxHealth * 5 / 100)
+				end
+			end
+
+			-- Peak matters most here. A pilot ejected against the suppression
+			-- would come out of a 5%-HP airframe at 6-7 fire stacks and burn
+			-- down in well under this window, so a single late sample could
+			-- report zero for a fully broken suppression. Combined with the
+			-- clear above — phases 2 and 3 leave up to 30 doomed men whose
+			-- deaths used to push this delta negative — the old form could
+			-- absorb a dozen real ejections and still pass.
+			pollPeakCrew(15, function(peak)
+				local out = peak - before
+				local passed = out == 0
+				recordPhase("P4 heli crash", passed,
+					out .. " pilots got out of a mid-air crash (expected 0)")
+				Trigger.AfterDelay(sec(2), phase5)
+			end)
 		end)
 	end)
 end
@@ -326,9 +415,31 @@ end
 -- ---------------------------------------------------------------------------
 -- PHASE 5 — Helicopter safe autorotation.
 -- ---------------------------------------------------------------------------
--- Drop to ~30% (Heavy state, NOT Critical). HeliEmergencyLanding fires
--- StartAutorotation. After ~10s of descent on grass: OnSafeLanding ejects
--- all crew alive, ChangeOwner → Neutral.
+-- Drop to ~30% (Heavy, NOT Critical) → HeliEmergencyLanding.StartAutorotation.
+--
+-- THE OLD ASSERTION COULD NOT FAIL. It was
+--     crashDisabled >= 1 or destroyed == #spawned
+-- where crashDisabled counted helis alive-and-in-world and destroyed counted the
+-- rest — so the two always summed to #spawned and one disjunct was always true.
+-- Worse, it was a tautology that specifically hid its own regression: a heli
+-- whose autorotation never fired just hovers at 30% HP, alive and in-world, and
+-- was counted as "safe-landed (burning)".
+--
+-- What the engine actually guarantees for an airframe that entered emergency
+-- descent is that it RESOLVES — every heli ends up either destroyed, or on the
+-- ground handed to Neutral (OnSafeLanding → ChangeOwner, HeliEmergencyLanding.cs
+-- :352-356; TransferToNeutralOnSafeLanding defaults true and aircraft.yaml does
+-- not override it). Still airborne and still ours is the failure, and it is the
+-- one state the old form treated as success.
+--
+-- Crew survival is deliberately NOT asserted here: OnSafeLanding releases the
+-- ejection suppression, so crew come out burning like everywhere else and are
+-- on the same unbounded timer. Both terminal states pass, including a heli that
+-- safe-lands and then burns out, so nothing here depends on when anything dies.
+--
+-- Sampled at 10s. Descent is ~64 ticks (1280 altitude / AutorotationDescentRate
+-- 20), so this is roughly 4x the time needed — the old "~10s of descent" comment
+-- was another stale figure.
 local PHASE5_Y = 30  -- spawn near south edge, autorotate north into the map
 phase5 = function()
 	Media.DisplayMessage("PHASE 5: Heli safe autorotate — crew alive, husk → Neutral",
@@ -341,7 +452,6 @@ phase5 = function()
 	local spawned = spawnRow(types, PHASE5_Y, true, Angle.North)
 
 	Trigger.AfterDelay(sec(3), function()
-		local before = snapshot()
 		-- Drop to ~30% (Heavy) → HeliEmergencyLanding triggers autorotation.
 		for _, h in ipairs(spawned) do
 			if not h.IsDead and h.MaxHealth > 0 then
@@ -349,32 +459,25 @@ phase5 = function()
 			end
 		end
 
-		-- Sample at sec(6): early enough that helis that safe-landed are
-		-- still mid-burn-out (alive on ground, original team), late enough
-		-- that helis that unsafe-landed have already exploded. Anything in
-		-- between is the autorotation pipeline working as intended.
-		Trigger.AfterDelay(sec(6), function()
-			local newCrew = snapshot() - before
-			local crashDisabled = 0  -- alive on original team, damaged → safe-landed
-			local destroyed = 0      -- already gone → unsafe-land or burned out
+		Trigger.AfterDelay(sec(10), function()
+			local abandoned = 0   -- on the ground, handed to Neutral
+			local destroyed = 0   -- gone: crash-landed, burned out, or off-map
+			local stillFlying = 0 -- alive and still ours: the pipeline never ran
 
 			for _, h in ipairs(spawned) do
 				if h.IsDead or not h.IsInWorld then
 					destroyed = destroyed + 1
+				elseif h.Owner == NEUTRAL then
+					abandoned = abandoned + 1
 				else
-					crashDisabled = crashDisabled + 1
+					stillFlying = stillFlying + 1
 				end
 			end
 
-			-- Pipeline check: at least one heli reached the ground intact
-			-- (crashDisabled ≥ 1) OR every heli completed its descent and
-			-- detonated (destroyed == #spawned). Either way the autorotation/
-			-- crash flow ran end-to-end. Crew delta isn't reliable here for
-			-- the reasons documented below.
-			local pipelineOK = crashDisabled >= 1 or destroyed == #spawned
-			recordPhase("P5 heli autorotate", pipelineOK,
-				crashDisabled .. " safe-landed (burning), " .. destroyed ..
-				" destroyed, " .. newCrew .. " crew delta")
+			local passed = stillFlying == 0
+			recordPhase("P5 heli autorotate", passed,
+				abandoned .. " abandoned to Neutral, " .. destroyed ..
+				" destroyed, " .. stillFlying .. " never resolved (expected 0)")
 			Trigger.AfterDelay(sec(2), finalize)
 		end)
 	end)
@@ -384,8 +487,11 @@ end
 WorldLoaded = function()
 	USA = Player.GetPlayer("USA")
 	RUSSIA = Player.GetPlayer("Russia")
-	if USA == nil or RUSSIA == nil then
-		Test.Fail("Required players (USA, Russia) not found")
+	-- P5 needs Neutral by identity: a safe-landed airframe is handed to it, and
+	-- that transfer is what distinguishes "resolved" from "still flying".
+	NEUTRAL = Player.GetPlayer("Neutral")
+	if USA == nil or RUSSIA == nil or NEUTRAL == nil then
+		Test.Fail("Required players (USA, Russia, Neutral) not found")
 		return
 	end
 
