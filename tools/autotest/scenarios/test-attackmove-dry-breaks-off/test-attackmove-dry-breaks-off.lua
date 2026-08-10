@@ -32,6 +32,15 @@ local DrainAfterTicks = 25 -- 1s: order is running, still ~2 cells short of firi
 --             Attack.Tick is the only thing that can end it.
 -- The parent cancels its attack child before that child's guard ever runs, so
 -- Hunter on his own says nothing about Activities/Attack.cs.
+--
+-- EVIDENCE PROVENANCE, because the two halves are not equally proven. The Hunter
+-- assertion was verified RED against the pre-fix engine and then GREEN. Shooter was
+-- added afterwards, so his half has only ever been observed GREEN — his RED is an
+-- argument (pre-fix, Attack.Tick contains no ammo test at all and TickAttack reports
+-- Attacking forever), not a measurement. The turreted twin of that guard IS
+-- RED-verified, in test-attackfollow-dry-breaks-off, but that exercises
+-- AttackFollow.cs, a different file. If you are re-verifying this branch, observing
+-- Shooter fail on the pre-fix engine is the cheapest gap left to close.
 
 WorldLoaded = function()
 	TestHarness.FocusBetween(Hunter, Target)
