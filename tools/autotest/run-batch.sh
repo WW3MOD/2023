@@ -1,8 +1,20 @@
 #!/bin/sh
 # WW3MOD developer test harness — multi-test runner
 #
-# Usage:  ./tools/autotest/run-batch.sh [--hidden|--minimized] [--timeout N] [--seed N] <test1> <test2> ...
-#         ./tools/autotest/run-batch.sh [--hidden|--minimized] [--timeout N] [--seed N] --all
+# Usage:  ./tools/autotest/run-batch.sh [--hidden|--minimized] [--timeout N] [--seed N] [--speed N] <test1> <test2> ...
+#         ./tools/autotest/run-batch.sh [--hidden|--minimized] [--timeout N] [--seed N] [--speed N] --all
+#
+# --speed N (optional, leading): forwarded to every run-test.sh. DEFAULTS TO 8,
+# unlike run-test.sh which defaults to 1x. A batch is never watched by a human,
+# so there is no reason to pace it at wall-clock: Test.SpeedMultiplier only
+# divides world.Timestep and never enters a synced path, so the simulation stays
+# BYTE-IDENTICAL and only finishes sooner (engine/OpenRA.Mods.Common/Traits/
+# World/TestModeSpeedMultiplier.cs). The per-test --timeout is pure wall-clock
+# and is NOT scaled, so a faster batch also gets more watchdog headroom, not
+# less. Pass --speed 1 to restore the old wall-clock pacing (e.g. to watch a
+# batch run), or set BATCH_SPEED in the environment to change the default.
+# Range 1-16; the effective ceiling is whatever tick rate the machine sustains,
+# and falling short only makes a run slower, never wrong.
 #
 # Runs each named test sequentially via run-test.sh, prints a per-test
 # verdict line and a final summary. Exit code: 0 if all pass; otherwise
@@ -46,17 +58,35 @@ cd "${REPO_ROOT}"
 TIMEOUT_ARGS=""
 SEED=""
 WINDOW_ARGS=""
+SPEED="${BATCH_SPEED:-8}"
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--timeout=*) TIMEOUT_ARGS="--timeout ${1#*=}"; shift ;;
 		--timeout)   TIMEOUT_ARGS="--timeout ${2:-}"; shift 2 ;;
 		--seed=*)    SEED="${1#*=}"; shift ;;
 		--seed)      SEED="${2:-}"; shift 2 ;;
+		--speed=*)   SPEED="${1#*=}"; shift ;;
+		--speed)     SPEED="${2:-}"; shift 2 ;;
 		--hidden)    WINDOW_ARGS="--hidden"; shift ;;
 		--minimized) WINDOW_ARGS="--minimized"; shift ;;
 		*)           break ;;
 	esac
 done
+
+# Validate --speed (same 1-16 clamp run-test.sh enforces). Fail fast rather than
+# after launching a game.
+case "${SPEED}" in
+	''|*[!0-9]*)
+		echo "Error: --speed must be an integer 1-16 (got '${SPEED}')"
+		exit 3 ;;
+esac
+if [ "${SPEED}" -lt 1 ] || [ "${SPEED}" -gt 16 ]; then
+	echo "Error: --speed must be 1-16 (got '${SPEED}')"
+	exit 3
+fi
+
+SPEED_ARGS=""
+[ "${SPEED}" -gt 1 ] && SPEED_ARGS="--speed ${SPEED}"
 
 # Validate the BASE seed up front (same rules as run-test.sh: integer, may be
 # negative; 0 is the reserved unset sentinel). Fail fast rather than after
@@ -77,8 +107,9 @@ if [ -n "${SEED}" ]; then
 fi
 
 if [ $# -eq 0 ]; then
-	echo "Usage: $0 [--hidden|--minimized] [--timeout N] [--seed N] <test-folder> [<test-folder> ...]"
-	echo "       $0 [--hidden|--minimized] [--timeout N] [--seed N] --all"
+	echo "Usage: $0 [--hidden|--minimized] [--timeout N] [--seed N] [--speed N] <test-folder> [<test-folder> ...]"
+	echo "       $0 [--hidden|--minimized] [--timeout N] [--seed N] [--speed N] --all"
+	echo "       --speed defaults to 8 (sim is byte-identical; pass --speed 1 to watch)"
 	exit 3
 fi
 
@@ -122,7 +153,7 @@ for t in ${TESTS}; do
 		_seed_offset=$((_seed_offset + 1))
 	fi
 
-	./tools/autotest/run-test.sh ${WINDOW_ARGS} ${TIMEOUT_ARGS} ${SEED_ARGS} "${t}"
+	./tools/autotest/run-test.sh ${WINDOW_ARGS} ${TIMEOUT_ARGS} ${SPEED_ARGS} ${SEED_ARGS} "${t}"
 	rc=$?
 
 	case ${rc} in

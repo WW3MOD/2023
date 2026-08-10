@@ -298,13 +298,26 @@ stay focused on the AI.
 
 ### 5.1 Isolation
 
-- **All loop work happens in `C:\Users\fredr\worktrees\ww3mod\ai-bench`** on its
-  own branch (`wt/ai-bench` or similar), with its **own build** (separate
-  `engine/bin`). This keeps the user's `main` checkout playable and unbuilt-upon
-  while the loop churns. (Per the global worktree convention in
-  `~/.claude/CLAUDE.md`.)
-- The manager does **not** create the worktree in this spec's bootstrap — the
-  first cycle creates it if absent (`git worktree add C:\Users\fredr\worktrees\ww3mod\ai-bench wt/ai-bench`).
+- **Implementing a hypothesis** happens in a worktree under
+  `C:\Users\fredr\worktrees\ww3mod\<name>` on its own branch, with its **own
+  build** (separate `engine/bin`), per the global worktree convention in
+  `~/.claude/CLAUDE.md`. The manager does not pre-create it; the cycle creates
+  it if absent.
+- **MEASURING does NOT happen in a worktree.** `run-tournament.sh` derives
+  `REPO_ROOT` from its own script path and `cd`s there
+  (`tools/autotest/run-tournament.sh:45-46`), so a benchmark always measures
+  **whichever checkout invoked it** — nothing pins a SHA or a branch. Every
+  executed re-baseline has in fact run from the main checkout and stamped a
+  `main` SHA (`WORKSPACE/ai-bench/runs/260728_rebaseline_runplan.md:109`;
+  `WORKSPACE/benchmarks/260802-exp-vs-stable0730-combatweighted.md:46`).
+  **Corrected 2026-08-10:** an earlier version of this line said *all* loop work
+  happened in a long-lived `ai-bench` worktree. That worktree had drifted **638
+  commits behind main** and has been removed. A benchmark run from a stale
+  worktree measures stale code and still produces numbers that look valid —
+  which is exactly why this now says so explicitly.
+- **Recording convention moved.** `WORKSPACE/ai-bench/runs/` stops at
+  2026-07-29; results since 2026-07-31 are written to
+  `WORKSPACE/benchmarks/<YYMMDD>-<name>.md`.
 - **NEVER push to remote** (CLAUDE.md hard rule). The user pushes/pulls manually.
   "Merge to main" below means a **local** merge only.
 
