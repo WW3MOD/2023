@@ -392,6 +392,41 @@ namespace OpenRA.Mods.Common.Traits
 		// a truck that is not eligible this scan cannot have a live errand of ours.
 		readonly Dictionary<Actor, CPos> dropTarget = new Dictionary<Actor, CPos>();
 
+		// Diagnostics emitted so far, for the TestMode cap below. Instrumentation only — no decision reads it.
+		int diagnosticLines;
+
+		/// <summary>Should the per-SCAN diagnostic levels be written this call?
+		///
+		/// <para>The EDGE lines (init, adopt/release, evac enter/exit, drop issued/revoked, impassable anchor)
+		/// are unconditional and are not routed through here. This gate is for the LEVELS — the scan summary,
+		/// the per-cluster readings, the per-truck disposition, and the reason a drop or hunt declined — which
+		/// are the lines that answer "why did nothing happen?" and were previously reachable only by editing
+		/// ai.yaml and rebuilding. Under an autotest nobody is watching a live log, so a silent module is
+		/// indistinguishable from a broken one; TestMode turns them on so a single run is legible.</para>
+		///
+		/// <para>Two gates, and the asymmetry is deliberate. `DebugLogging` is the operator asking for an
+		/// observation run, so it is UNCAPPED — truncating a log someone deliberately turned on is worse than
+		/// a large file. `TestMode` switches the same lines on for a machine, so it is capped: a scenario that
+		/// hangs or a batch left running must not write until the disk fills. The counter is incremented for
+		/// both paths but consulted only for the second, so an operator run never has its output shaped by a
+		/// limit meant for the harness.</para></summary>
+		bool Diagnostic => Info.DebugLogging || (TestMode.IsActive && diagnosticLines < TestDiagnosticLineCap);
+
+		// ~4k lines is several hundred scans of a busy fleet — far past the point where a run is legible,
+		// and far short of a file anyone has to worry about.
+		const int TestDiagnosticLineCap = 4000;
+
+		void WriteDiagnostic(string line)
+		{
+			diagnosticLines++;
+			Log.Write("debug", line);
+
+			if (!Info.DebugLogging && TestMode.IsActive && diagnosticLines == TestDiagnosticLineCap)
+				Log.Write("debug",
+					$"[supply] diagnostics capped at {TestDiagnosticLineCap} lines for player={player.PlayerName} "
+					+ "— EDGE lines continue, per-scan levels stop here");
+		}
+
 		public SupplyFollowerBotModule(Actor self, SupplyFollowerBotModuleInfo info)
 			: base(info)
 		{
@@ -532,8 +567,26 @@ namespace OpenRA.Mods.Common.Traits
 					dropTarget.Remove(a);
 			}
 
+			// THESE TWO RETURNS ARE UPSTREAM OF THE SCAN SUMMARY, so without a line here an empty roster and a
+			// module that never ticked at all produce byte-identical silence. Each term is broken out because
+			// they point at different things: a truck excluded by the CLAIM is an arbitration problem, one
+			// excluded as LOW-ON-SUPPLY is an economy problem, and zero owned trucks is neither.
 			if (trucks.Count == 0)
+			{
+				if (Diagnostic)
+				{
+					var owned = world.ActorsHavingTrait<Mobile>()
+						.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld && Info.SupplyTruckTypes.Contains(a.Info.Name))
+						.ToList();
+
+					WriteDiagnostic(
+						$"[supply] scan player={player.PlayerName} trucks=0 — no eligible truck. "
+						+ $"owned={owned.Count} claimed-elsewhere={owned.Count(IsClaimedByOtherModule)} "
+						+ $"low-supply={owned.Count(IsLowOnSupply)}");
+				}
+
 				return;
+			}
 
 			// Find clusters of friendly combat units that might need supply
 			var friendlyUnits = world.ActorsHavingTrait<Mobile>()
@@ -541,7 +594,14 @@ namespace OpenRA.Mods.Common.Traits
 				.ToList();
 
 			if (friendlyUnits.Count == 0)
+			{
+				if (Diagnostic)
+					WriteDiagnostic(
+						$"[supply] scan player={player.PlayerName} trucks={trucks.Count} friendlies=0 "
+						+ "— nothing to supply");
+
 				return;
+			}
 
 			// @experimental small-squad coverage widens the servable-cluster floor so small squads (< the
 			// default 4) become visible once big clusters are covered. Capped at MinNearbyFriendlies so it only
@@ -579,6 +639,13 @@ namespace OpenRA.Mods.Common.Traits
 			// merely less correlated. Chosen over softening the merit (need weighted against danger) because a
 			// weighting always leaves inputs where a big enough need still selects a vetoed cluster, so the
 			// cycle survives at lower frequency; a gate leaves none.
+			// The candidate set as FOUND, kept so the diagnostics below can show what the danger gate
+			// REJECTED. Logging only the survivors answers "which clusters are servable" but not "why is
+			// nothing servable", which is the question a silent scan actually poses. SelectServableClusters
+			// returns a new list holding the same cluster objects, so this stays a cheap alias and reference
+			// equality identifies a survivor.
+			var clustersBeforeGate = clusters;
+
 			if (evac)
 			{
 				foreach (var c in clusters)
@@ -639,17 +706,22 @@ namespace OpenRA.Mods.Common.Traits
 					anchorRejectStreak.Remove(a);
 			}
 
-			if (Info.DebugLogging)
-				Log.Write("debug",
+			if (Diagnostic)
+				WriteDiagnostic(
 					$"[supply] scan player={player.PlayerName} trucks={trucks.Count} friendlies={friendlyUnits.Count} "
 					+ $"clusters-found={clustersFound} clusters-selected={clusters.Count} "
+					+ $"min-friendlies={minFriendlies} max-follow={Info.MaxFollowDistance} hunt-leash={Info.HuntLeashCells} "
 					+ $"evac={evac} drop={dropLive} release-level={releaseLevel} srs={supplyRoutes?.Count ?? 0}");
 
-			if (Info.DebugLogging && evac)
-				foreach (var c in clusters)
-					Log.Write("debug",
+			// Every cluster FOUND, survivor or not, so a scan that selected nothing says which gate ate them.
+			// `kept` separates "the danger gate rejected it" from "no cluster was ever found", which are the
+			// two silences that look identical from outside.
+			if (Diagnostic)
+				foreach (var c in clustersBeforeGate)
+					WriteDiagnostic(
 						$"[supply] cluster cell={c.CenterCell} follow={c.FollowCell} units={c.UnitCount} "
-						+ $"need={NeedScore(c.AmmoNeed)} danger={c.Danger} gated={c.Gated}");
+						+ $"need={NeedScore(c.AmmoNeed)} danger={c.Danger} gated={c.Gated} "
+						+ $"kept={clusters.Contains(c)}");
 
 			foreach (var truck in orderedTrucks)
 			{
@@ -670,6 +742,31 @@ namespace OpenRA.Mods.Common.Traits
 							.ThenBy(c => (c.Center - truck.CenterPosition).LengthSquared)
 							.FirstOrDefault();
 					}
+				}
+
+				// PER-TRUCK DISPOSITION. The line that says why a truck sat still, which nothing else reports:
+				// a truck with no target is silent everywhere else in this module, because the no-cluster path
+				// ends in a bare `continue` and the hunt it may try first declines without a word.
+				//
+				// `nearest-dist` is measured against every cluster FOUND (not just the servable ones) and is
+				// printed next to MaxFollowDistance on purpose — those two numbers together separate "the
+				// danger gate rejected the cluster" from "the cluster was simply out of follow range", and
+				// only the first of those is a danger problem.
+				if (Diagnostic)
+				{
+					var nearest = clustersBeforeGate.Count == 0
+						? null
+						: clustersBeforeGate.OrderBy(c => (c.Center - truck.CenterPosition).LengthSquared).First();
+
+					WriteDiagnostic(
+						$"[supply] truck={truck.ActorID}@{truck.Location} "
+						+ $"supply={truck.TraitOrDefault<SupplyProvider>()?.CurrentSupply.ToString() ?? "n/a"} "
+						+ $"target={(bestCluster != null ? bestCluster.CenterCell.ToString() : "<none>")} "
+						+ $"nearest-found={(nearest != null ? nearest.CenterCell.ToString() : "<none>")} "
+						+ $"nearest-dist={(nearest != null ? (nearest.Center - truck.CenterPosition).Length / 1024 : -1)}c"
+						+ $"/max-follow={Info.MaxFollowDistance}c "
+						+ $"spread={spread} spread-assigned={spreadTargets != null && spreadTargets.ContainsKey(truck)} "
+						+ $"hunt={hunt}");
 				}
 
 				// Danger evac, damped. Deliberately evaluated BEFORE the no-cluster bail and with a possibly
@@ -907,8 +1004,8 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Per-scan LEVEL — gated. The "why did it not drop?" line, carrying every term the decision
 				// read so the answer never needs a rebuild to obtain.
-				if (Info.DebugLogging)
-					Log.Write("debug",
+				if (Diagnostic)
+					WriteDiagnostic(
 						$"[supply] drop-declined truck={truck.ActorID}@{truck.Location} "
 						+ $"anchor={(anchor.HasValue ? anchor.Value.ToString() : "<none>")} "
 						+ $"supply={provider.CurrentSupply}/{Info.DropMinSupply} "
@@ -923,8 +1020,8 @@ namespace OpenRA.Mods.Common.Traits
 			// errand this record exists to protect.
 			if (!SupplyDropMath.ShouldIssueDrop(dispatched, sentTo.X, sentTo.Y, anchor.Value.X, anchor.Value.Y))
 			{
-				if (Info.DebugLogging)
-					Log.Write("debug",
+				if (Diagnostic)
+					WriteDiagnostic(
 						$"[supply] drop-inflight truck={truck.ActorID}@{truck.Location} anchor={anchor.Value} "
 						+ $"load={provider.CurrentSupply} activity={truck.CurrentActivity?.GetType().Name ?? "<none>"}");
 
@@ -1035,8 +1132,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (agx == sgx && agy == sgy)
 			{
 				dropAnchor.Remove(srActor);
-				if (Info.DebugLogging)
-					Log.Write("debug",
+				if (Diagnostic)
+					WriteDiagnostic(
 						$"[supply] anchor sr={srActor.Location} → <none> (descent stalled at the SR: flat field, or "
 						+ $"the front is on top of us) frontier-at-sr={controlField.FrontierDistanceAt(player, sgx, sgy)}");
 
@@ -1106,8 +1203,8 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			dropAnchor[srActor] = candidate;
-			if (Info.DebugLogging)
-				Log.Write("debug",
+			if (Diagnostic)
+				WriteDiagnostic(
 					$"[supply] anchor sr={srActor.Location} → {candidate} standoff={Info.DropStandoffCells} "
 					+ $"frontier={controlField.FrontierDistanceAt(player, agx, agy)} danger={GroundDangerAt(candidate)} "
 					+ $"shifted-from={(had ? prev.ToString() : "<new>")}");
@@ -1247,13 +1344,29 @@ namespace OpenRA.Mods.Common.Traits
 			// CanServeNow is the provider's own serving ladder — a truck that is paused, mid-restock or
 			// reserving its remainder for the drive home would arrive with nothing to give.
 			if (provider == null || provider.CountsAsEmpty || !provider.CanServeNow)
+			{
+				// Every refusal in this method returns SILENTLY, which is what makes an idle truck
+				// unexplainable: the follow path already handed it over, so this is the last branch that
+				// could have tasked it and there is no other record of what it decided.
+				if (Diagnostic)
+					WriteDiagnostic(
+						$"[supply] hunt-declined truck={truck.ActorID}@{truck.Location} reason=cannot-serve "
+						+ $"provider={provider != null} empty={provider?.CountsAsEmpty} serve-now={provider?.CanServeNow}");
+
 				return;
+			}
 
 			// No recipient-side condition means no way to tell infantry demand from vehicle demand, and a
 			// truck without one would push to anything — don't guess.
 			var rearmCondition = provider.Info.RearmCondition;
 			if (string.IsNullOrEmpty(rearmCondition))
+			{
+				if (Diagnostic)
+					WriteDiagnostic(
+						$"[supply] hunt-declined truck={truck.ActorID}@{truck.Location} reason=no-rearm-condition");
+
 				return;
+			}
 
 			var demands = new List<SupplyTruckHuntMath.Demand>();
 			var candidates = new List<Actor>();
@@ -1299,12 +1412,29 @@ namespace OpenRA.Mods.Common.Traits
 
 			var pick = SupplyTruckHuntMath.SelectDemand(demands, Info.HuntLeashCells, Info.HuntNeedBandPerMille);
 			if (pick == SupplyTruckHuntMath.NoDemand)
+			{
+				// `candidates` counts starving infantry the truck could afford to serve INSIDE the leash, so a
+				// zero here says the demand is out of reach rather than absent — the distinction that decides
+				// whether the leash or the customer test is what needs looking at.
+				if (Diagnostic)
+					WriteDiagnostic(
+						$"[supply] hunt-declined truck={truck.ActorID}@{truck.Location} reason=no-demand-in-leash "
+						+ $"leash={Info.HuntLeashCells}c candidates={demands.Count} supply={provider.CurrentSupply}");
+
 				return;
+			}
 
 			// Already covering him: the push is reaching him where the truck stands, so issue nothing rather
 			// than nudging a serving truck onto his cell every scan.
 			if (!SupplyTruckHuntMath.NeedsApproach(demands[pick].DistanceSquared, provider.Info.Range.LengthSquared))
+			{
+				if (Diagnostic)
+					WriteDiagnostic(
+						$"[supply] hunt-declined truck={truck.ActorID}@{truck.Location} reason=already-in-aura "
+						+ $"aura={provider.Info.Range.Length / 1024}c candidates={demands.Count}");
+
 				return;
+			}
 
 			// Stop as soon as he is inside the push aura (less a cell of margin), not on top of him — the
 			// last aura's worth of driving buys nothing and this sweep runs precisely where the line has
@@ -1316,8 +1446,8 @@ namespace OpenRA.Mods.Common.Traits
 			lastVia.Remove(truck);
 			lastFollow.Remove(truck);
 
-			if (Info.DebugLogging)
-				Log.Write("debug",
+			if (Diagnostic)
+				WriteDiagnostic(
 					$"[supply] hunt truck={truck.ActorID}@{truck.Location} → {world.Map.CellContaining(stopPosition)} "
 					+ $"target={target.ActorID}@{target.Location} shortfall={demands[pick].ShortfallPerMille} candidates={demands.Count}");
 
