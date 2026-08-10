@@ -253,8 +253,15 @@ littlebird:
 		Offset: 0,0,85
 		Sequence: still-rotor
 		RequiresCondition: rotor-stopped
-	# SmokeTrailWhenDamaged:
-	# 	Offset: -427,0,0
+	LeavesTrails@SmokeTrail:
+		Image: smokey
+		Offsets: -427,0,0
+		MovingInterval: 3
+		StationaryInterval: 3
+		SpawnAtLastPosition: false
+		TrailWhileStationary: true
+		Type: CenterPosition
+		RequiresCondition: critical-damage
 
 
 HELI:
@@ -402,8 +409,15 @@ HELI:
 	SpawnActorOnDeath@Ground:
 		Actor: HELI.Husk.ground
 		RequiresCondition: !airborne
-	# SmokeTrailWhenDamaged:
-	# 	Offset: -427,0,0
+	LeavesTrails@SmokeTrail:
+		Image: smokey
+		Offsets: -427,0,0
+		MovingInterval: 3
+		StationaryInterval: 3
+		SpawnAtLastPosition: false
+		TrailWhileStationary: true
+		Type: CenterPosition
+		RequiresCondition: critical-damage
 	RenderSprites:
 		Scale: 1.25
 
@@ -518,9 +532,15 @@ A10:
 		Condition: firing-gun
 	SpawnActorOnDeath:
 		Actor: A10.Husk
-	# SmokeTrailWhenDamaged:
-	# 	Offset: -853,0,171
-	# 	Interval: 2
+	LeavesTrails@SmokeTrail:
+		Image: smokey
+		Offsets: -853,0,171
+		MovingInterval: 2
+		StationaryInterval: 2
+		SpawnAtLastPosition: false
+		TrailWhileStationary: true
+		Type: CenterPosition
+		RequiresCondition: critical-damage
 	RenderSprites:
 		Scale: 1.2
 
@@ -613,9 +633,15 @@ F16:
 		Offset: -598,-683,0
 	Contrail@2:
 		Offset: -598,683,0
-	# SmokeTrailWhenDamaged:
-	# 	Offset: -853,0,171
-	# 	Interval: 2
+	LeavesTrails@SmokeTrail:
+		Image: smokey
+		Offsets: -853,0,171
+		MovingInterval: 2
+		StationaryInterval: 2
+		SpawnAtLastPosition: false
+		TrailWhileStationary: true
+		Type: CenterPosition
+		RequiresCondition: critical-damage
 	SpawnActorOnDeath:
 		Actor: F16.Husk
 		RequiresCondition: airborne

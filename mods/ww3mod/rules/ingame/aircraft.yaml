@@ -412,12 +412,24 @@ BADR:
 	SpawnActorOnDeath@EMP:
 		Actor: BADR.Husk.EMP
 		RequiresCondition: airborne && empdisable
-	# SmokeTrailWhenDamaged@0:
-	# 	Offset: -432,560,0
-	# 	Interval: 2
-	# SmokeTrailWhenDamaged@1:
-	# 	Offset: -432,-560,0
-	# 	Interval: 2
+	LeavesTrails@SmokeTrail0:
+		Image: smokey
+		Offsets: -432,560,0
+		MovingInterval: 2
+		StationaryInterval: 2
+		SpawnAtLastPosition: false
+		TrailWhileStationary: true
+		Type: CenterPosition
+		RequiresCondition: critical-damage
+	LeavesTrails@SmokeTrail1:
+		Image: smokey
+		Offsets: -432,-560,0
+		MovingInterval: 2
+		StationaryInterval: 2
+		SpawnAtLastPosition: false
+		TrailWhileStationary: true
+		Type: CenterPosition
+		RequiresCondition: critical-damage
 	RejectsOrders:
 	GivesExperience:
 		Experience: 1000

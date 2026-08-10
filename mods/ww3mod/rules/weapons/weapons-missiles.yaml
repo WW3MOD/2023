@@ -144,14 +144,22 @@ Ataka:
 	Warhead@Spread: SpreadDamage
 		Spread: 192
 		Damage: 2000
-		# Pen 20 matches the Heli Heavy Thickness — same heli→heli silent-vanish
-		# fix as Hellfire. Operator-guided Ataka can be aimed at helis too.
+		# Pen 20 matches the Heli Heavy Thickness, mirroring Hellfire's fix. Mind the
+		# scope: Ataka's weapon-level ValidTargets is Vehicle, Defense, so it cannot
+		# engage an AIRBORNE heli at all — that is Air + Helicopter. What this helps is
+		# a LANDED heli, which is Ground, Vehicle, Helicopter and so is valid for both
+		# the weapon and this warhead (whose own ValidTargets defaults to Ground, Water).
 		Penetration: 20
 		DamageTypes: ExplosionDeath
-	# ^MediumExplosionEffects is gated to Ground/Ship/Trees/Water, so a hit on an
-	# AIRBORNE target drew nothing. ValidTargets: Air (not Helicopter) — an airborne
-	# heli carries Air as well as Helicopter, while a LANDED one is Ground/Vehicle and
-	# is already covered by Warhead@Effect; listing Helicopter here would double up.
+	# Parity with Hellfire, but DORMANT on Ataka today — do not read it as a bug fix.
+	# Ataka cannot target anything airborne (ValidTargets above), and its CruiseAltitude
+	# of 100 sits below the 128 AirThreshold at which CreateEffectWarhead promotes a
+	# position to the Air target type, so even a range-limit self-destruct (Missile
+	# ExplodeWhenEmpty defaults true) reads as terrain rather than air. It goes live the
+	# day Ataka is given Air or a higher cruise. ValidTargets: Air and NOT Air,
+	# Helicopter — an airborne heli carries Air as well as Helicopter, while a LANDED
+	# one is Ground/Vehicle and is already covered by Warhead@Effect; listing Helicopter
+	# would draw two explosions on one impact.
 	Warhead@EffectAir: CreateEffect
 		ValidTargets: Air
 		ImpactActors: true
@@ -188,6 +196,10 @@ Hellfire:
 		RangeLimit: 27c0
 		ContrailLength: 10
 		Image: dragon
+		# Matches Ataka, its direct BRICS counterpart — same solid-rocket propulsion class,
+		# so the same smoke trail. The asymmetry had no design reason behind it.
+		TrailImage: smokey
+		TrailScalePercent: 75
 	Warhead@Target: TargetDamage
 		ValidTargets: Ground, Water, Air
 		Damage: 10000
@@ -210,10 +222,13 @@ Hellfire:
 		# (Thickness 280-700, still ~7% effective).
 		Penetration: 20
 		DamageTypes: ExplosionDeath
-	# Hellfire lists Air in ValidTargets but inherited only the ground-gated
-	# ^MediumExplosionEffects, so a kill on an airborne target drew no impact at all —
-	# the visual half of the silent-vanish bug documented above. See Ataka for why this
-	# is ValidTargets: Air rather than Air, Helicopter.
+	# THIS is the live one of the three (cf. Ataka, which is parity-only). Hellfire
+	# genuinely lists Air in its weapon-level ValidTargets, yet inherited only the
+	# ground-gated ^MediumExplosionEffects — so a kill on an airborne target drew no
+	# impact at all, the visual half of the silent-vanish bug documented above. It also
+	# takes the engine default CruiseAltitude of 512 (Missile.cs:126), well clear of the
+	# 128 AirThreshold, so a range-limit self-destruct registers as air and bursts too.
+	# See Ataka for why this is ValidTargets: Air rather than Air, Helicopter.
 	Warhead@EffectAir: CreateEffect
 		ValidTargets: Air
 		ImpactActors: true

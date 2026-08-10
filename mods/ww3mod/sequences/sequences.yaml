@@ -214,8 +214,9 @@ bradley:
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacings: True
-	muzzle: gunfire2
-		Length: 2
+	muzzle: minigun
+		Length: 6
+		Facings: 8
 	icon: bradleyicon
 
 strykershorad:
@@ -227,8 +228,11 @@ strykershorad:
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacings: True
-	muzzle: gunfire2
-		Length: 2
+	muzzle: minigun
+		Length: 6
+		Facings: 8
+	muzzle-missile: smokey
+		Length: 5
 	icon: strykershoradicon
 
 m270:
@@ -246,6 +250,8 @@ m270:
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacingFudge: True
+	muzzle-missile: smokey
+		Length: 5
 	icon: m270icon
 
 t72:
@@ -304,6 +310,8 @@ grad:
 		Scale: 0.9
 		ZOffset: 300
 		UseClassicFacingFudge: True
+	muzzle-missile: smokey
+		Length: 5
 	icon: gradicon
 
 giatsint:
@@ -332,6 +340,8 @@ tos:
 		Scale: 0.9
 		ZOffset: 300
 		UseClassicFacingFudge: True
+	muzzle-missile: smokey
+		Length: 5
 	icon: tosicon
 
 iskander:
@@ -381,6 +391,8 @@ tunguska:
 	muzzle: minigun
 		Length: 6
 		Facings: 8
+	muzzle-missile: smokey
+		Length: 5
 	icon: tunguskaicon
 
 himars:
@@ -398,6 +410,8 @@ himars:
 		Facings: 32
 		ZOffset: 300
 		UseClassicFacingFudge: True
+	muzzle-missile: smokey
+		Length: 5
 	icon: himarsicon
 
 msar:

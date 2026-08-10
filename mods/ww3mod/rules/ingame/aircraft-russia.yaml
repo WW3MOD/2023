@@ -232,8 +232,15 @@ HIND:
 	WithIdleOverlay@ROTORSTOPPED:
 		Sequence: still-rotor
 		RequiresCondition: rotor-stopped
-	# SmokeTrailWhenDamaged:
-	# 	Offset: -427,0,0
+	LeavesTrails@SmokeTrail:
+		Image: smokey
+		Offsets: -427,0,0
+		MovingInterval: 3
+		StationaryInterval: 3
+		SpawnAtLastPosition: false
+		TrailWhileStationary: true
+		Type: CenterPosition
+		RequiresCondition: critical-damage
 	SpawnActorOnDeath@Hovering:
 		Actor: HIND.Husk
 		RequiresCondition: airborne && !moving && !empdisable
@@ -418,8 +425,15 @@ MI28:
 	SpawnActorOnDeath@Ground:
 		Actor: MI28.Husk.ground
 		RequiresCondition: !airborne
-	# SmokeTrailWhenDamaged:
-	# 	Offset: -427,0,0
+	LeavesTrails@SmokeTrail:
+		Image: smokey
+		Offsets: -427,0,0
+		MovingInterval: 3
+		StationaryInterval: 3
+		SpawnAtLastPosition: false
+		TrailWhileStationary: true
+		Type: CenterPosition
+		RequiresCondition: critical-damage
 	RenderSprites:
 		Scale: 1.2
 
@@ -512,15 +526,22 @@ FROG:
 	# 	RequiresSelection: true
 	# 	AmmoPools: primary-ammo
 
-	Contrail@1:
-		Offset: -258,-723,0
-		TrailLength: 10
-	Contrail@2:
-		Offset: -258,723,0
-		TrailLength: 10
-	# SmokeTrailWhenDamaged:
-	# 	Offset: -853,0,0
-	# 	Interval: 2
+	# Contrails removed 2026-08-10: they form from engine exhaust at an altitude and humidity
+	# a low-level CAS aircraft never sees. The A-10 — same mission profile — has none, and
+	# that split is resolved by removing rather than by adding.
+	# SmokeTrailWhenDamaged was REMOVED FROM THE ENGINE in the 20210321 update
+	# (UpdateRules/Rules/20210321/RemoveSmokeTrailWhenDamaged.cs) in favour of LeavesTrails —
+	# uncommenting the old block verbatim would have failed the mod load. Field mapping below
+	# is that update rule's own: Offset -> Offsets, Interval -> Moving/StationaryInterval.
+	LeavesTrails@SmokeTrail:
+		Image: smokey
+		Offsets: -853,0,0
+		MovingInterval: 2
+		StationaryInterval: 2
+		SpawnAtLastPosition: false
+		TrailWhileStationary: true
+		Type: CenterPosition
+		RequiresCondition: critical-damage
 	SpawnActorOnDeath:
 		Actor: FROG.Husk
 		RequiresCondition: airborne && ammo-primary && !empdisable
@@ -632,9 +653,15 @@ MIG:
 	Contrail@2:
 		Offset: -598,683,0
 		TrailLength: 6
-	# SmokeTrailWhenDamaged:
-	# 	Offset: -853,0,171
-	# 	Interval: 2
+	LeavesTrails@SmokeTrail:
+		Image: smokey
+		Offsets: -853,0,171
+		MovingInterval: 2
+		StationaryInterval: 2
+		SpawnAtLastPosition: false
+		TrailWhileStationary: true
+		Type: CenterPosition
+		RequiresCondition: critical-damage
 	SpawnActorOnDeath:
 		Actor: MIG.Husk
 		RequiresCondition: airborne && ammo-primary && !empdisable
