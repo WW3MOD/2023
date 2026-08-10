@@ -21,6 +21,11 @@ Categories: Test
 # from its aura where it is safe, or dropping a crate short and leaving where it is not.
 # Danger may change HOW supply arrives; it must not change WHETHER it arrives.
 #
+# AND THE FRONT MUST STILL BE THE FRONT WHEN IT ARRIVES. Measured at 14499b0a, the ammo
+# half alone passed while the doctrine was violated: AutoSeekSupplies walked the whole
+# platoon nine cells west to meet the truck in open ground. Supply reaching the front and
+# the front reaching supply are opposite outcomes, so the Lua asserts position too.
+#
 # GEOMETRY (row 16 is the lane; distances are map cells)
 #   x=4    USA-bot Supply Route          — carries no supply aura; cannot rearm anyone
 #   x=7    Truck (truk, full 750)        — starts OUTSIDE the believed danger
@@ -106,16 +111,18 @@ Actors:
 	# a single cluster on every bot profile (MinNearbyFriendlies 4, or 2 under
 	# SmallSquadCoverage).
 	#
-	# x=38 SITS BETWEEN TWO LEASHES AND BOTH MATTER, so do not move it without redoing this sum.
-	#   * 31 cells from the truck at x=7, INSIDE MaxFollowDistance: 35 (ai.yaml:805). At x=44 the
-	#     cluster was 37 cells out, the follow filter dropped it, the hunt leash (20) could not
-	#     reach either, and the truck was never dispatched at all — the run at 87faad44 measured
-	#     that and nothing else.
-	#   * 22 cells from anywhere the truck can loiter short of the danger wall at x≈16, so it
-	#     stays OUTSIDE AutoSeekSupplies' 20-cell leash. Otherwise the soldiers walk out and meet
-	#     a truck that never committed, and the test credits a delivery the doctrine says did not
-	#     happen.
-	# The window between those two is narrow by construction; x=38 is near its middle.
+	# x=38 is 31 cells from the truck at x=7, INSIDE MaxFollowDistance: 35 (ai.yaml:805). At x=44
+	# the cluster was 37 cells out, the follow filter dropped it, HuntLeashCells: 20 could not
+	# reach either, and the truck was never dispatched at all — the run at 87faad44 measured that
+	# and nothing else. Do not move the platoon back out past 35 cells from the truck.
+	#
+	# AN EARLIER VERSION OF THIS COMMENT CLAIMED x=38 ALSO KEEPS THE PLATOON OUTSIDE
+	# AutoSeekSupplies' 20-CELL LEASH. That was wrong, and the run at 14499b0a disproved it: the
+	# truck did not stop at the danger wall, it drove to x=29, which put the platoon 9 cells
+	# inside the leash and pulled the whole front west to meet it. There is NO placement that
+	# keeps the platoon out of a leash measured from a truck that is free to drive; the leash
+	# follows the truck. So the scenario no longer tries to prevent that geometrically — the Lua
+	# measures peak drift from spawn and fails the run if the platoon ever leaves its position.
 	Rifle1: e3
 		Owner: USA-bot
 		Location: 38,14
