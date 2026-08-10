@@ -246,6 +246,19 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			passenger.World.IssueOrder(new Order("EnterTransport", passenger, Target.FromActor(transport), queued));
 		}
 
+		[Desc("Issue a real AttackMove order, going through AttackMove.ResolveOrder the way a player's " +
+			"attack-move click does. Use this rather than the activity-direct Lua `unit.AttackMove`, " +
+			"which constructs AttackMoveActivity itself and never consults the order layer at all — if " +
+			"what you are testing is whether the ORDER is accepted (queued vs immediate, ammo state at " +
+			"issue time), the activity-direct API cannot see it. Test mode only.")]
+		public void IssueAttackMove(Actor actor, CPos cell, bool queued = false)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return;
+
+			actor.World.IssueOrder(new Order("AttackMove", actor, Target.FromCell(actor.World, cell), queued));
+		}
+
 		[Desc("Return the CPos this actor was last assigned by CohesionMoveModifier (the slot the " +
 			"sticky-cover leash will try to walk back to). Returns CPos.Zero if no slot is set.")]
 		public CPos GetCohesionSlot(Actor actor)

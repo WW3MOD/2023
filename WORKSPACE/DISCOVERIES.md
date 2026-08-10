@@ -2984,7 +2984,7 @@ Reading `AutoSeekSupplies` (`AutoSeekSupplies.cs:224+`) it is easy to conclude t
 
 What it means is that outside the leash the unit keeps an attack order it can never discharge, which is not a neutral state: the attack activities park on it forever (below), so the unit is not merely un-helped, it is **frozen and never idle**, and therefore invisible to every idle-triggered mechanism including `AmmoPool`'s own unleashed dispatch. The trait's gap and the activity's stall compound into a unit deleted from the game in all but name.
 
-- **Two more populations get nothing from the trait at all**: anything without `Rearmable` (the ITick returns immediately on `rearmable == null`) and anything without `AutoSeekSupplies` in its template — which today is every vehicle. Most WW3MOD vehicles have their `AmmoPool` commented out and so are infinite-ammo, but that is a YAML accident, not a guarantee; the minelayer's `mines-ammo` pool is a live counterexample.
+- **Two more populations get nothing from the trait at all**: anything without `Rearmable` (the ITick returns immediately on `rearmable == null`) and anything without `AutoSeekSupplies` in its template. **The second of those is every vehicle in the game** — and vehicles are emphatically NOT infinite-ammo, see the file-layout entry below. So for a dry tank there is no seek trait at all, and the guards in the attack activities are the *only* thing that can release it from an order it can never discharge. (An earlier revision of this entry claimed vehicles were infinite-ammo. That was wrong, and the way it was got wrong is itself recorded below.)
 - **The reusable rule**: `AutoSeekSupplies.ReturnWhenEmpty` bounds *what it will interrupt an order for*. It is not, and was never claimed to be, a guarantee that a dry unit stops attacking. If you need the latter, it belongs in the attack activities, not in the seek trait.
 
 ## 2026-08-10 — THE ATTACK ACTIVITIES NEVER CONSULT AMMO, SO A DRY UNIT HOLDS ITS ATTACK ACTIVITY FOR THE REST OF THE MATCH
@@ -3005,3 +3005,29 @@ Fixed by testing `AmmoPool.CannotFight` at the top of both attack activities and
 `AttacksSupplyRoutes` reads like an attack trait and its order is literally named `AttackSupplyRoute`, so it invites being swept up in any "stop dry units from attacking" change. It must not be. `AttackSupplyRoute` (`Activities/AttackSupplyRoute.cs`) never fires a weapon — it moves into `SupplyRouteContestation.Info.Range` and stands there until the situation resolves — and `SupplyRouteContestation.RecalculateForces` (`SupplyRouteContestation.cs:184-206`) scores the zone purely on `ValuedInfo.Cost` of the actors present, with no reference to ammunition, armaments, or ability to fire.
 
 So an out-of-ammo unit parked on an enemy SR is **doing the whole job the order asked of it**, and the same holds for the allied-SR defensive case. Blocking the order on a dry check would remove one of the few things a dry unit can still usefully do, and it would not even be fixing a stall: the activity has no aim-forever branch, it just stands in the zone contributing value. The name is the trap.
+
+## 2026-08-10 — `vehicles.yaml` CONTAINS ALMOST NO VEHICLES, AND READING IT ALONE TELLS YOU THE OPPOSITE OF THE TRUTH ABOUT VEHICLE AMMUNITION
+
+Grepping `mods/ww3mod/rules/ingame/vehicles.yaml` for `AmmoPool` returns one live block (`MNLY`'s 10 mines) and nine commented-out ones, which reads exactly like "vehicles used to have ammo and it was disabled". **That conclusion is false, and I drew it and had to retract it.** Two independent traps stacked:
+
+1. **`vehicles.yaml` holds the shared `^Vehicle` / `^TrackedVehicle` / `^WheeledVehicle` templates plus a handful of unarmed support units** (`MSAR`, `MNLY`, `truk`, `LCCV`). Every actual combat vehicle lives in `vehicles-america.yaml`, `vehicles-russia.yaml` and `vehicles-ukraine.yaml`. The naming invites you to treat one file as the whole subsystem.
+2. **The commented-out `AmmoPool` blocks in `vehicles.yaml` are not disabled pools on live units — they are parts of two entirely commented-out ACTORS**, `SandBagLayer` (~`:634`) and `timberwolf` (~`:693`), units that are not in the game at all. Commented out in `296a529c` (2023-06-20, "Commented out some vehicles"). A commented `AmmoPool@1:` line looks identical whether it is a disabled trait or a fragment of a disabled actor.
+
+**The truth: every combat vehicle on both sides carries live, and deliberately small, ammunition.** `abrams` and `t90` 40 rounds, `m109` 39, `m270` 12, `iskander` 2, `grad` 24, `bradley`/`bmp2` 900 + 8, `tunguska` 180 + 8, `humvee` 300, `m113` 500. Every one of them is `AttackTurreted` with `PauseOnCondition: !ammo-primary || …` on the armament. A tank running dry mid-battle is not an edge case, it is ordinary.
+
+Two consequences that matter more than the file layout:
+
+- **Vehicles have `Rearmable` (`RearmActors: logisticscenter`) but NOT `AutoSeekSupplies`.** So none of that trait's machinery — neither the idle seek nor `ReturnWhenEmpty` — applies to a single vehicle. Whatever releases a dry tank from an attack order has to live in the attack activities.
+- **`AttackTurreted` derives from `AttackFollow` and does not override `GetAttackActivity`, so every vehicle in the game runs `AttackFollow.AttackActivity`.** That is the busiest attack path in the mod by unit count, not a rare one.
+
+**Reusable rule: before concluding anything about "all vehicles", run `for f in $(grep -rl X mods/ww3mod/rules/); do …` rather than grepping the file whose name matches the concept.** The per-faction split means the file named after a category is frequently the least representative member of it.
+
+## 2026-08-10 — ENDING A DRY UNIT'S ATTACK ACTIVITY HANDS IT STRAIGHT BACK TO `AutoTarget.TickIdle`, WHICH RE-ISSUES THE SAME ATTACK — the guard needs the unit to come to rest OUT of weapon range to settle
+
+`AutoTarget` is `INotifyIdle` with `ScanOnIdle` defaulting to true (`AutoTarget.cs:64`, `:606-622`), so the tick after an attack activity ends, an idle unit rescans and `ScanAndAttack` queues a fresh attack via `AttackTarget`. `ChooseTarget` still does not consult ammo (it calls the same unfiltered `ChooseArmamentsForTarget`), so a dry unit re-acquires perfectly well. **Ending the activity does not, on its own, mean the unit stays idle.**
+
+What actually stops the loop is a range coincidence: `ChooseTarget` filters armaments to those already in range whenever `allowMove` is false, and `allowMove` is false for every engagement stance below Hunt. A unit that halts *outside* its own weapon range therefore finds no candidate and rests. A dry unit sitting *inside* weapon range of a visible enemy will instead cycle every tick — queue attack, guard ends it, go idle, re-queue.
+
+That cycle is not inert, and mostly in a good way: each pass through idle fires `AmmoPool.INotifyBecomingIdle` → `AutoRearmIfAllEmpty`, so the moment any resupplier is reachable the unit is dispatched and the loop terminates on its own. With no resupplier anywhere it degenerates into per-tick churn — the unit is stationary and harmless, but `IsIdle` alternates rather than latching, which matters to anything gating on it (bot modules, `StarvingRecruitGate`, selection filters).
+
+**If this needs closing, the place is `AutoTarget` — teaching the scan itself not to acquire for a unit that cannot fire — not another guard in the activities.** That is the same `// FF TODO Check ammo?` at `AttackBase.cs:428` seen from the other end, and it would be a behavioural change to opportunity fire, so it wants its own branch and its own measurement rather than being smuggled in alongside the activity guards.

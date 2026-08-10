@@ -47,6 +47,16 @@ Actors:
 		Owner: USA
 		Location: 8,16
 		Facing: 768
+	# Second man on a DIRECT attack order rather than an attack-move. He covers a different guard:
+	# Hunter's attack-move is aborted by AttackMoveActivity (the parent), which cancels its attack
+	# child before that child's own guard is ever consulted — so Hunter alone proves nothing about
+	# Activities/Attack.cs. Shooter has no attack-move parent, so the guard in Attack.Tick is the
+	# only thing that can end his order. Placed 16.5 cells out so he too is acquired-but-out-of-range
+	# and cannot get a shot off before the drain.
+	Shooter: ar
+		Owner: USA
+		Location: 8,20
+		Facing: 768
 	Target: e1
 		Owner: Russia
 		Location: 24,16

@@ -467,7 +467,10 @@ namespace OpenRA.Mods.Common.Traits
 				// too: the player pressing Ctrl is asking to ignore target relationships, not to conjure
 				// ammunition. The running-order guards in the attack activities are the ones that fix the
 				// stuck unit; this only keeps a new dead order off the queue in the first place.
-				if (AmmoPool.CannotFight(self))
+				// Scoped to unqueued orders: ammo NOW only settles an order that executes now, and an
+				// attack queued behind a resupply is a plan rather than a mistake. The Attack activity's
+				// own guard rules on it at the moment it comes up.
+				if (!order.Queued && AmmoPool.CannotFight(self))
 					return;
 
 				AttackTarget(order.Target, AttackSource.Default, order.Queued, true, forceAttack, Info.TargetLineColor);

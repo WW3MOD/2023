@@ -100,10 +100,13 @@ namespace OpenRA.Mods.Common.Traits
 				if (!order.Target.IsValidFor(self))
 					return;
 
-				// A unit with nothing to fire has no business being sent to look for a fight. Refusing
-				// here leaves it idle, which is what routes it to AmmoPool's resupply handoff; a plain
-				// Move order is untouched and still obeyed, so the player can always reposition it.
-				if (AmmoPool.CannotFight(self))
+				// A unit with nothing to fire has no business being sent to look for a fight. Scoped to
+				// orders that execute NOW: asking about ammo at issue time only answers "can I do this"
+				// for an unqueued order. "Resupply, then attack-move" is the CORRECT play with a dry
+				// unit, and refusing the queued half would punish it — so let a queued order through and
+				// let AttackMoveActivity's own guard rule on it when it actually comes up (still dry ⇒
+				// it ends at once; rearmed ⇒ it runs). A plain Move is untouched either way.
+				if (!order.Queued && AmmoPool.CannotFight(self))
 					return;
 
 				var cell = self.World.Map.Clamp(self.World.Map.CellContaining(order.Target.CenterPosition));

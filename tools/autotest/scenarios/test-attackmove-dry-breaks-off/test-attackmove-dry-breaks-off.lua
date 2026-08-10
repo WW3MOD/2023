@@ -26,29 +26,42 @@
 local DeadlineSeconds = 15
 local DrainAfterTicks = 25 -- 1s: order is running, still ~2 cells short of firing range
 
+-- Two men, two different guards, because one does not imply the other:
+--   Hunter  — attack-move. Aborted by AttackMoveActivity, the PARENT activity.
+--   Shooter — direct attack order, no attack-move parent, so the guard inside
+--             Attack.Tick is the only thing that can end it.
+-- The parent cancels its attack child before that child's guard ever runs, so
+-- Hunter on his own says nothing about Activities/Attack.cs.
+
 WorldLoaded = function()
 	TestHarness.FocusBetween(Hunter, Target)
 	TestHarness.Select(Hunter)
 
-	-- The target is a prop, not an opponent: it must survive to keep the Hunter engaged.
+	-- The target is a prop, not an opponent: it must survive to keep both men engaged.
 	Target.Stance = "HoldFire"
 
 	Hunter.AttackMove(CPos.New(50, 16))
+	Shooter.Attack(Target)
 
 	Trigger.AfterDelay(DrainAfterTicks, function()
-		if not Hunter.IsDead then
-			Hunter.Reload("primary-ammo", -Hunter.MaximumAmmoCount("primary-ammo"))
+		for _, man in ipairs({ Hunter, Shooter }) do
+			if not man.IsDead then
+				man.Reload("primary-ammo", -man.MaximumAmmoCount("primary-ammo"))
+			end
 		end
 	end)
 
 	TestHarness.AssertWithin(DeadlineSeconds, function()
 		if Hunter.IsDead then return "fail: Hunter died first" end
+		if Shooter.IsDead then return "fail: Shooter died first" end
 
-		-- Ignore everything before the drain. The Hunter is legitimately idle for the tick
-		-- or two before the attack-move order resolves, and passing on that would be a
-		-- verdict about order latency rather than about ammo.
+		-- Ignore everything before the drain. Both men are legitimately idle for the tick
+		-- or two before their orders resolve, and passing on that would be a verdict about
+		-- order latency rather than about ammo.
 		if Hunter.AmmoCount("primary-ammo") > 0 then return false end
+		if Shooter.AmmoCount("primary-ammo") > 0 then return false end
 
-		return Hunter.IsIdle
-	end, "Dry Hunter never went idle: it kept the attack-move order it could not carry out")
+		return Hunter.IsIdle and Shooter.IsIdle
+	end, "A dry man never went idle: he kept an attack order he could not carry out "
+		.. "(Hunter = attack-move / AttackMoveActivity guard, Shooter = direct attack / Attack.Tick guard)")
 end
