@@ -7,6 +7,28 @@
 Player:
 	# Faction elimination would end the match before the Lua poller writes a verdict.
 	-ConquestVictoryConditions:
+	# SCOPE THE SCENARIO TO SUPPLY. These two modules, and only these two, recruited the platoon
+	# and tore it in half — measured at afa985ad from their own log lines:
+	#   [exp-offense] axis-new target=supplyroute#7 cell=62,16 action=Pressure ... units=3
+	#   [exp-ambush]  lane anchor=supplyroute#7 post=28,17 units=2
+	# Three men were streamed EAST at the enemy Supply Route and two were posted WEST to an ambush
+	# lane at 28,17, which is the entire spread from x=58 to x=28 that the drift assertion was
+	# reading. Neither is the system under test, and neither can be excluded by unit type: the
+	# @experimental blocks replaced ExcludeUnitTypes with a role-based free-pool filter and the old
+	# list is inert there (ai.yaml:204-205), so removing the two instances is the narrowest
+	# mechanism that actually works.
+	#
+	# THIS CANNOT MASK THE DOCTRINE. Neither module supplies anything or touches a truck (truk is
+	# outside both pools). SupplyFollowerBotModule finds its clusters by scanning world actors
+	# directly, so its input is unchanged. AutoSeekSupplies is a per-unit trait and is deliberately
+	# left LIVE — soldiers walking to a placed crate is the behaviour the doctrine asks for and the
+	# thing this scenario most needs to be able to observe. What is removed is only the competition
+	# for the platoon's position, which is the definition of "a platoon holding a front".
+	#
+	# That the bot scatters a starving platoon toward enemy artillery at all is a real defect, filed
+	# in WORKSPACE/bugs/discovered.md rather than fixed here.
+	-PoiOffensiveBotModule@experimental:
+	-LaneAmbushBotModule@experimental:
 	# Fog OFF and the map pre-explored. This is load-bearing, not cosmetic: the danger
 	# field is built from BELIEVED contacts, so if the bot never sees the grads no danger
 	# is stamped, the whole scenario goes inert, and the test would pass while measuring

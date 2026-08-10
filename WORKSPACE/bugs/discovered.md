@@ -3,6 +3,25 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-10: [high] Nothing weighs AMMO STATE against recruitment or dispersal — the bot tears a starving platoon apart and streams half of it at enemy artillery while it holds 10 rounds a man (found while: `test-supply-under-danger`, the supply-doctrine work)
+
+Five riflemen drained to 10/100 primary — every one below the `HuntStarvingThresholdPerMille: 250` bar the supply layer itself uses for "starving" — were recruited and split in half by two modules within ~100 ticks of spawn, while a supply truck was already en route to them. Their own log lines:
+
+```
+[exp-offense] axis-new player=USA-bot target=supplyroute#7 cell=62,16 action=Pressure tick=115
+[exp-offense] order player=USA-bot target=supplyroute@62,16 action=Pressure units=3 cohesion=Spread clumpRadius=3 distToTarget=26 tick=115
+[exp-ambush]  lane player=USA-bot anchor=supplyroute#7 post=28,17 units=2 tick=100
+[exp-poi]     disperse player=USA-bot pool=5 centroid=(38,15) clumpRadiusCells=8 tick=545
+[exp-poi]     disperse player=USA-bot pool=5 centroid=(40,13) clumpRadiusCells=9 tick=770
+```
+
+Three men were streamed EAST at the enemy Supply Route under `action=Pressure`, two were posted WEST to a `LaneAmbushBotModule` lane, and the clump radius went 1 → 9 — a platoon at 10% ammo pulled apart across ~30 cells, with the eastward half advancing toward believed artillery it had no ammunition to fight.
+
+- **The defect is a missing term, not any one module.** `PoiOffensiveBotModule` and `LaneAmbushBotModule` both build a free pool from idle eligible units and neither consults `AmmoPool` state — although the ruleset already carries an agreed definition of "too low to fight" (`SupplyTruckHuntMath.IsStarving` against `HuntStarvingThresholdPerMille`), which `SupplyFollowerBotModule` uses in three places. The offense module does have `SkipOutOfAmmoUnits`, but that is an EMPTY test (0 rounds) and does nothing at 10%.
+- **It fights the supply system directly.** The truck's drop point is derived from the platoon's own centroid; the platoon then scattered, so the centroid tracked the scatter rather than the front. That is the mechanism behind a drop anchor chasing a moving target, and it is a plausible contributor to the historical "supply-truck oscillation" reports.
+- **Doctrinally it is backwards.** A platoon that cannot shoot should consolidate and wait for resupply, not open an axis. The supply layer treats these same five men as an emergency worth sending a truck 30 cells through 300,000+ believed danger for.
+- Not fixed here — outside the supply mandate, and it touches two bot modules plus whatever should arbitrate "needs ammo" against "is available for tasking". Suggested shape: an ammo-state gate on free-pool eligibility reusing the existing `IsStarving` predicate, so a starving unit is not recruited until resupplied — the mirror of the `StarvingFollowMinUnits` lever now on the supply side.
+
 ## 2026-08-09: [med] Eight locomotors declare `Crushes: fence` (and `heavytracked` also `barbedwire`) without the matching `Passes:` entry, so the pathfinder treats 384 placed fence/wire actors as solid walls for every vehicle (found while: building `tools/nav-guard/`, static analysis only)
 
 `Locomotor.IsBlockedBy` decides enterability from `Info.PassableClasses` — the `Passes:` field — and never reads `Crushes:` (`engine/OpenRA.Mods.Common/Traits/World/Locomotor.cs:434-444`). `Crushes` is consumed only after entry, by `Passable`/`INotifyBeingPassed` (`Traits/Passable.cs`). So a crush class with no matching pass class can never fire: the unit is refused the cell, and therefore never crushes what is in it.

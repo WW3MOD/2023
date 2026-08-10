@@ -162,6 +162,38 @@ WorldLoaded = function()
 		return table.concat(parts, " ")
 	end
 
+	-- THE CRATE IS THE DOCTRINE'S CENTRAL ACT, so the verdict states it rather than leaving it to be
+	-- inferred from the truck's supply hitting zero. Neither the verdict nor the log named it before,
+	-- and a grep for "supplycache" in debug.log returned nothing because the log never prints the
+	-- word — which was read as "no crate was ever placed" when in fact one had been.
+	local function crateReport()
+		local bot = Player.GetPlayer("USA-bot")
+		if bot == nil then return "crate=<no USA-bot player>" end
+
+		local crates = bot.GetActorsByType("supplycache")
+		if #crates == 0 then return "crate=NONE placed" end
+
+		local parts = {}
+		for i, c in ipairs(crates) do
+			-- Standoff actually achieved, measured against the nearest living rifleman: the doctrine
+			-- asks for the crate a few cells SHORT of the platoon, so the distance is the thing to
+			-- report, not merely that a crate exists somewhere.
+			local best = -1
+			for _, r in ipairs(platoon) do
+				if not r.IsDead then
+					local dx = c.Location.X - r.Location.X
+					local dy = c.Location.Y - r.Location.Y
+					local d = math.max(math.abs(dx), math.abs(dy))
+					if best < 0 or d < best then best = d end
+				end
+			end
+
+			parts[i] = string.format("%d,%d (standoff %dc from nearest rifleman)", c.Location.X, c.Location.Y, best)
+		end
+
+		return "crate=" .. table.concat(parts, " + ")
+	end
+
 	local function ammoTrace()
 		local parts = {}
 		for i, r in ipairs(platoon) do
@@ -207,7 +239,9 @@ WorldLoaded = function()
 			-- already happened, and walking home does not undo it.
 			if back >= NEED_BACK and peakDrift() <= MAX_DRIFT then
 				done = true
-				Test.Pass()
+				Test.Pass(string.format(
+					"%d of 5 resupplied holding position (peak drift %d, allowed %d). %s",
+					back, peakDrift(), MAX_DRIFT, crateReport()))
 			end
 		end)
 	end
@@ -215,28 +249,24 @@ WorldLoaded = function()
 	Trigger.AfterDelay(sec(WINDOW), function()
 		if done then return end
 
-		-- Inconclusive shapes first, so a real doctrine failure is never confused with a
-		-- setup that fell apart.
-		if Truck.IsDead then
-			-- Say WHICH, because they are opposite stories: destroyed means the delivery was contested,
-			-- removed at full health means it finished (or wrote itself off) and drove to the map edge.
-			local how
-			if truckMinHealth < truckFullHealth then
-				how = string.format("DESTROYED — took damage (health fell %d/%d before it died)",
-					truckMinHealth, truckFullHealth)
-			else
-				how = string.format(
-					"REMOVED AT FULL HEALTH (%d/%d) — not destroyed. Disposed, which on this map means "
-					.. "DropsSupplyCache drove it to the map edge and sold it; nothing here can shoot it",
-					truckMinHealth, truckFullHealth)
-			end
-
+		-- ONLY A DESTROYED TRUCK IS INCONCLUSIVE. A truck that is simply GONE has almost certainly
+		-- finished: the all-or-nothing drop empties it, it leaves the roster, and DropsSupplyCache
+		-- drives it to the map edge and sells it — which disposes the actor and reads as IsDead
+		-- (Actor.cs:76). Treating that as a setup failure skipped a run in which the doctrine had
+		-- executed end to end, so the successful ending no longer aborts the verdict; the run is
+		-- judged on ammo and drift like any other, with the truck's fate reported alongside.
+		if Truck.IsDead and truckMinHealth < truckFullHealth then
 			Test.Skip(string.format(
-				"the supply truck is gone before the window closed: %s. last seen at x=%d, furthest x=%d. "
-				.. "platoon spawnX->nowX(peak drift): %s",
-				how, truckLastX, truckMaxX, driftTrace()))
+				"the supply truck was DESTROYED before the window closed (health fell to %d/%d) — "
+				.. "inconclusive. last seen at x=%d, furthest x=%d. %s. platoon spawnX->nowX(peak drift): %s",
+				truckMinHealth, truckFullHealth, truckLastX, truckMaxX, crateReport(), driftTrace()))
 			return
 		end
+
+		local truckFate = Truck.IsDead
+			and string.format("truck left at full health (%d/%d) after its errand, last seen x=%d",
+				truckMinHealth, truckFullHealth, truckLastX)
+			or string.format("truck still alive at x=%d", truckLastX)
 
 		if alive() < NEED_BACK then
 			Test.Skip(string.format(
@@ -249,7 +279,9 @@ WorldLoaded = function()
 		local fed = bestBack >= NEED_BACK
 
 		if fed and held then
-			Test.Pass()
+			Test.Pass(string.format(
+				"%d of 5 resupplied holding position (peak drift %d, allowed %d). %s. %s",
+				bestBack, drift, MAX_DRIFT, crateReport(), truckFate))
 			return
 		end
 
@@ -272,8 +304,9 @@ WorldLoaded = function()
 
 		Test.Fail(string.format(
 			"%s primary ammo now %s (drained to %d, starving at <=%d). "
-			.. "platoon spawnX->nowX(peak drift): %s. "
-			.. "truck went from x=%d to a furthest x=%d (aura 5c); danger wall starts at x=16",
-			why, ammoTrace(), DRAINED, STARVING, driftTrace(), truckStartX, truckMaxX))
+			.. "platoon spawnX->nowX(peak drift): %s. %s. "
+			.. "truck went from x=%d to a furthest x=%d (aura 5c), %s; danger wall starts at x=16",
+			why, ammoTrace(), DRAINED, STARVING, driftTrace(), crateReport(),
+			truckStartX, truckMaxX, truckFate))
 	end)
 end
