@@ -3,6 +3,17 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-10 — A FIX CAN BE CORRECT IN ISOLATION AND WRONG IN COMBINATION, twice in one day — and a MATCHED PAIR of opposite scenarios is what caught both
+
+Two defects on the supply path, each introduced by a fix that was right when it landed and became wrong once a *different* fix worked:
+
+1. **Evac was right until the anchor worked.** Danger-evac pre-empting a drop was harmless while `ResolveDropAnchor` always returned `<none>`: there was no errand to pre-empt. Fixing the anchor turned a dormant priority into the oscillation that stopped every delivery.
+2. **The relative danger test was right until the field saturated.** Comparing a cluster's danger to the player's own median is the correct answer to "one constant cannot fit two players whose medians differ 3.4x". It then classified a cell reading **462,272 raw — 13,548 danger units, about 135 reference contacts — as SAFE**, because two believed 40-cell artillery envelopes bathed the map and dragged the median up with the cluster. **When everything is dangerous, nothing is relatively dangerous.**
+
+- **The generalisable shape: a guard that reads a DERIVED quantity inherits every assumption of whatever derives it.** Evac read a danger threshold that assumed a drop could exist; the ratio read a median that assumed an unsaturated field. Neither assumption is visible at the call site, and both held on the day the code was written. **Ask what has to be true of the INPUT for the test to mean what it says, and then ask what else in the system could change that.**
+- **A ratio fails at BOTH ends and a floor only covers one.** The empty end (no believed contact, so "above the median of nothing" admits anything) was anticipated and floored. The saturated end was not, and is the exact mirror. Any relative test wants bounding from both sides — the fix was a second, absolute limb at 200 danger units, legitimate only because the unit is normalised (100 units = one reference contact at point-blank), so it keeps its meaning across rebalances in a way the pre-2026-08-09 raw thresholds could not.
+- **THIS IS WHY THE MATCHED PAIR EXISTS, and it is the reusable practice.** `test-supply-under-danger` and `test-supply-safe-front-keeps-cargo` assert **opposite** outcomes of the same decision — crate under fire, no crate and cargo retained on a quiet front. Every single-scenario green today was achievable by a change that broke the other one, and each of the two defects above was caught by the scenario that was *not* being worked on. **A behaviour selected by a condition needs a test on each side of that condition; one test can only ever pin the branch its author was thinking about.** The pair must go green together or neither result means anything.
+
 ## 2026-08-10 — MEASURED: the supply-truck oscillation, caught in the act — and a bug that CANNOT FIRE is indistinguishable from one that does not exist
 
 Fourth run of `test-supply-under-danger` (`0ed01e0e`, pinned seed `-1848572889`). The cluster anchor fix landed and worked on the first scan:
