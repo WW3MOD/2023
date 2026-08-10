@@ -194,6 +194,10 @@ namespace OpenRA.Mods.Common.Traits
 		// the following hits (including the ChangesHealth bleed) don't re-run it.
 		bool bailedOut;
 
+		// A scheduled-but-not-yet-fired bail (EmergencyBailDelay > 0). Tracked apart
+		// from bailedOut because a repair inside the delay window clears that one.
+		bool bailPending;
+
 		readonly CachedTransform<CPos, IEnumerable<CPos>> currentAdjacentCells;
 
 		public IEnumerable<CPos> CurrentAdjacentCells => currentAdjacentCells.Update(self.Location);
@@ -711,14 +715,35 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			// Latch immediately so the wait is not restarted by every bleed tick, and
-			// re-check on arrival: the hull may have died in the meantime, in which
-			// case Killed has already dealt with everyone aboard.
+			// One pending action at a time. `bailedOut` alone cannot carry this: a
+			// repair inside the window drops back below the threshold and clears it,
+			// so a later hit would queue a second countdown alongside the first.
+			if (bailPending)
+				return;
+
+			// Latch immediately so the wait is not restarted by every bleed tick.
+			bailPending = true;
 			bailedOut = true;
+
 			self.World.AddFrameEndTask(w => w.Add(new DelayedAction(Info.EmergencyBailDelay, () =>
 			{
+				bailPending = false;
+
+				// The hull may have died while we waited, in which case Killed has
+				// already dealt with everyone aboard.
 				if (self.IsDead || IsEmpty())
 					return;
+
+				// Re-check the condition we were scheduled on. A transport repaired
+				// back above the line during the window is not bailing out any more,
+				// and must not dump its squad on the ground because a countdown
+				// started under conditions that no longer hold. Re-open the latch so
+				// a later hit schedules a fresh one.
+				if (!ShouldEmergencyBail(self.Trait<Health>().DamageState, bailAt))
+				{
+					bailedOut = false;
+					return;
+				}
 
 				bailedOut = EmergencyBailOut(self);
 			})));
