@@ -137,7 +137,13 @@ if [ "$1" = "--all" ]; then
 	TESTS=""
 	SKIPPED_NOVERDICT=""
 	for _t in ${ALL}; do
-		if grep -rqE "Test\.(Pass|Fail|Skip)|Assert(Within|After)" "tools/autotest/scenarios/${_t}/" 2>/dev/null; then
+		# Strip Lua line comments before looking for an assertion. Without this, a
+		# comment reading "No Test.Pass -- the window stays open until you close it
+		# manually" counts AS a Test.Pass and keeps a verdict-less demo in the run,
+		# which then burns the full 300s timeout. That is not hypothetical: it is
+		# exactly how test-burn-arena and test-burn-compare survived the first cut.
+		if cat "tools/autotest/scenarios/${_t}"/*.lua 2>/dev/null | sed 's/--.*$//' \
+			| grep -qE "Test\.(Pass|Fail|Skip)|Assert(Within|After)"; then
 			TESTS="${TESTS} ${_t}"
 		else
 			SKIPPED_NOVERDICT="${SKIPPED_NOVERDICT} ${_t}"

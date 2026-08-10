@@ -1,0 +1,63 @@
+<!doctype html><html><head><meta charset="utf-8"><title>WW3MOD — supply trucks, what changed</title><style>
+ body{font-family:Segoe UI,system-ui,sans-serif;background:#12151a;color:#dde3ea;margin:0;padding:32px;max-width:1000px;margin:auto;line-height:1.55}
+ h1{font-size:23px;border-bottom:1px solid #2a3340;padding-bottom:10px;margin-bottom:6px}
+ .sub{color:#7d8b9a;font-size:13px;margin-bottom:26px}
+ h2{font-size:14px;color:#8fb4d8;margin-top:34px;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid #232b36;padding-bottom:6px}
+ code{background:#1b2029;padding:1px 5px;border-radius:3px;font-size:12.5px;color:#b9d4ee}
+ pre{background:#0d1015;border:1px solid #232b36;border-radius:5px;padding:11px 13px;overflow-x:auto;font-size:12px;color:#a8c8e8}
+ table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+ th{text-align:left;color:#8fb4d8;border-bottom:1px solid #2a3340;padding:7px 9px;font-weight:600}
+ td{border-bottom:1px solid #1c232c;padding:7px 9px;vertical-align:top}
+ .good{color:#7fd8a4;font-weight:600}.bad{color:#ff8f7a;font-weight:600}.warn{color:#ffcb6b;font-weight:600}.muted{color:#7d8b9a}
+ .lede{font-size:15px;color:#cfe0f0;background:#161b22;border-left:3px solid #8fb4d8;padding:12px 16px;border-radius:4px;margin:16px 0}
+ .card{background:#161b22;border:1px solid #242c38;border-radius:6px;padding:14px 16px;margin:12px 0}
+ .card.warn{border-left:3px solid #ffcb6b}
+ ul{margin:8px 0;padding-left:22px} li{margin:5px 0}
+</style></head><body>
+
+<h1>Supply trucks — what changed</h1>
+<div class="sub">2026-08-10 &middot; autoburn window &middot; every claim below verified by a simulation run, not by reading code</div>
+
+<div class="lede">
+Your doctrine turned out to be <b>already implemented and entirely unreachable</b>. The crate, the drop-and-leave mode, and the soldiers' ability to collect from a crate all shipped months ago and were switched on. Not one crate had ever been placed, because the code that chooses <i>where</i> to leave it returned &ldquo;nowhere&rdquo; on every scan of every game. Everything else followed from that one dead function.
+</div>
+
+<h2>What you will see in a game</h2>
+<table>
+<tr><th>Situation</th><th>Before</th><th>Now</th></tr>
+<tr><td><b>Platoon under fire needs ammo</b></td><td class="bad">Truck advances, panics, reverses, advances again &mdash; indefinitely. Never delivers.</td><td class="good">Drives straight in, stops ~5 cells short, dumps its whole load, drives out. Infantry walk to the crate.</td></tr>
+<tr><td><b>Platoon on a quiet front</b></td><td class="muted">Already worked &mdash; drives up, tops them off, keeps the rest.</td><td class="good">Unchanged, and now protected by a test so it cannot regress.</td></tr>
+<tr><td><b>Platoon further than 35 cells</b></td><td class="bad">Silently written off. No order, no log, no sign anything was wrong.</td><td class="good">Starvation lifts the leash. Verified at 41 cells.</td></tr>
+<tr><td><b>Platoon advances mid-delivery</b></td><td class="bad">Truck chased the moving position deeper into the guns.</td><td class="good">Destination freezes when the errand starts.</td></tr>
+</table>
+
+<h2>The five defects, in the order they were found</h2>
+<ol>
+<li><b>The drop point never resolved.</b> <code>anchor &rarr; &lt;none&gt;</code> on every scan ever run. Drop-and-leave was enabled and unreachable.</li>
+<li><b>Danger granted permission to abandon a delivery.</b> Evacuation out-ranked delivery, so the truck bailed mid-run &mdash; the oscillation you were told three times was fixed. <span class="muted">Only became <i>testable</i> after defect 1 was fixed: a bug that cannot fire is indistinguishable from a bug that does not exist.</span></li>
+<li><b>A 35-cell leash abandoned starving men.</b> A full truck refused five men at 100-per-mille ammo because they were 37 cells out.</li>
+<li><b>The destination chased a moving platoon.</b> A faithful 5-cell standoff, recomputed against an advancing cluster, walks the truck into the guns.</li>
+<li><b>Danger never selected the mode.</b> Once the drop worked it fired everywhere, dumping crates on undefended fronts and emptying trucks that had more customers.</li>
+</ol>
+
+<h2>How &ldquo;is it dangerous here?&rdquo; is decided</h2>
+<p>Two limbs, because <b>each one alone was tried and failed a scenario</b>:</p>
+<ul>
+<li><b>Relative</b> &mdash; does this cell stand out against that player's own live field. Fails alone: on a map soaked by artillery the median is enormous too, and a cell reading 462,272 was classified <i>safe</i>.</li>
+<li><b>Absolute</b> &mdash; does it exceed a figure derived from the danger unit's own definition (100 units = one believed contact at point-blank). Fails alone: this is exactly how the original thresholds broke, set for a scale that no longer existed.</li>
+<li><b>Plus a floor</b>, so a quiet opening reads as quiet and no crate is wasted on turn one.</li>
+</ul>
+<p class="muted">The relative limb matters because the two players' median danger differs <b>3.4&times; in the same match on the same map</b> &mdash; no single global constant can sit at the same percentile for both.</p>
+
+<h2>What is still wrong</h2>
+<div class="card warn">
+<b>The bot disperses and re-tasks a starving platoon toward enemy artillery.</b> Nothing weighs ammo state against dispersal or recruitment, so five men at 10 rounds get scattered to a 9-cell clump radius and pushed at the guns. This is the remaining failure in the far-front scenario. It is <b>not a supply defect</b> &mdash; the truck does its job &mdash; and it is filed separately rather than fixed, because you scoped this window to trucks.
+</div>
+<div class="card warn">
+<b>The <code>@stable</code> benchmark baseline is now owed by three separate change sets</b> &mdash; the danger merge, the aircraft-rearm merge, and this. The changes reach <code>@stable</code> deliberately (settled policy: it inherits improvements) and each commit says so, but any A/B run before a re-baseline is measuring against a control that has shifted twice underneath it.
+</div>
+
+<h2>How far to trust this</h2>
+<p>Everything above is verified on <b>one map, one seed, five riflemen and two artillery pieces that never fire</b>. The traces are unambiguous and the matched pair of scenarios caught two separate cases of a fix being correct alone and wrong in combination &mdash; but &ldquo;green on a test bed&rdquo; is not &ldquo;good in a match.&rdquo; The first real game you play is still the thing that decides it.</p>
+
+</body></html>
