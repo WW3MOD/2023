@@ -1,0 +1,41 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# Fog OFF and no trees: line of fire and detection are both held wide
+		# open so the overkill mark is the only thing that can suppress anyone.
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-aa-overkill-suppression.lua
+
+# Same two stance pins as the rest of the series.
+
+AA:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialEngagementStance: Defensive
+
+# NOTE THE DELIBERATE ABSENCE OF A HALO HEALTH OVERRIDE.
+#
+# Every earlier scenario in this series inflated Halo HP to 100000 so the target
+# would survive being shot. That is exactly what kept the overkill filter from
+# ever firing in those runs: the mark is EstimatePercentDamage =
+# totalDamage * 100 / MaxHP (AutoTarget.cs:1321), so a 3000-damage MANPAD
+# against a 100000-HP target marks it 3 -- far under the threshold of 100 --
+# whereas against the STOCK 600-HP Halo the same missile marks it 500.
+#
+# So this scenario must run the Halo at stock health to reproduce the effect at
+# all, and the cost is that the aircraft dies to the first missile that lands.
+# That is acceptable here because the measurement is the TIMING of the
+# observer's first shot, and the aircraft's death is simply the terminal event
+# that confirms the shot happened.

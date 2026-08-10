@@ -3,6 +3,50 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-10 — ONE AA COMMITTING TO AN AIRCRAFT BLINDS EVERY OTHER AA TO IT FOR ~10 SECONDS, the target is perfectly healthy, and a plain left-click fires at it the whole time
+
+`test-aa-overkill-suppression`. One marker AA, one observer AA and one stock-HP Halo per lane; a third lane with no marker at all as the latency baseline. Measured (seed 1829504673):
+
+| lane | first shot | moved | vs control |
+|---|---|---|---|
+| C control (unmarked) | t34 | no | — |
+| B marked, plain left-click at t20 | t38 | no | **168 ticks earlier** |
+| A marked, never ordered | **t206** | no | **172 ticks later** |
+
+- **The overkill mark is oversized against aircraft by a factor of five, from a single shooter.** `EstimatePercentDamage = totalDamage * 100 / MaxHP` (`AutoTarget.cs:1321`). MANPAD deals 3000 with Penetration 15 against the Halo's Light/Thickness 10 — penetration >= thickness so no reduction (`:1304-1309`), and the warhead carries no `Versus` table — so one AA committing to a stock 600-HP Halo marks it **500** against an `OverkillThreshold` of 100 (`:203`). Decay is a halving every 60 ticks (`Actor.cs:309-310`), so 500 → 250 → 125 → 62 needs three halvings to clear. Measured suppression: **172 ticks ≈ 10 real seconds** at the mod's 60 ms timestep.
+- **Killing the committing unit does NOT release the mark.** MarkerA was killed at t40; ObserverA still did not fire until t206. `AverageDamagePercent` is a plain accumulator on the TARGET with no owner and no release path — `MarkForDestruction` only ever adds (`Actor.cs:85-88`) — so an attacker dying, being retargeted, having its own target die, or entering a transport cannot strand it and cannot clear it either. **There is no leak to hunt: the value is self-clearing by construction, and equally self-clearing is the only way it clears.**
+- **A plain left-click fires at a suppressed target, which completes the discriminator table with both rows measured rather than half-read:**
+
+  | mechanism | auto | plain left-click | Ctrl+click |
+  |---|---|---|---|
+  | break-off (`critical-damage`) | skip | skip | fire |
+  | overkill (`AverageDamagePercent >= 100`) | skip | **fire** | fire |
+
+  **Overkill is the better fit for "it ignored a HEALTHY aircraft and my normal click killed it instantly".** It needs no damage on the target, no Ctrl, and no foliage — only one other friendly unit having committed first. Break-off requires the target under 25% HP *and* a Ctrl+click.
+- **The player-visible shape is a battery that stands down.** Point several AA at one aircraft: the first to commit marks it five times over, and every other AA in range treats it as already-dead for ten seconds. They sit there. The player clicks one and it fires immediately, which reads as "autotarget is broken" rather than "anti-overkill is working too hard". The mark is invisible — no cursor, no message, no target line.
+- **The reload interval is the tuning tension.** The 60-tick halving is deliberate (`Actor.cs:303-307`: the old 20-tick interval let other units re-target a tank mid-reload). But that PITFALL was written for a 130-tick tank reload against a same-order-of-magnitude HP pool; it does not anticipate a 500% mark, where three halvings must elapse before anyone else may engage.
+
+## 2026-08-10 — HARNESS TRAP: `Actor.Create` joins the world in a FRAME-END TASK, so anything you order against the new actor in the same `WorldLoaded` silently no-ops
+
+Cost a run. `ActorGlobal.Create` does `World.CreateActor(false, ...)` then `World.AddFrameEndTask(w => w.Add(a))` (`ActorGlobal.cs:113-116`), so a freshly created actor is **not in the world** for the remainder of the tick that created it. `AttackBase.AttackTarget` opens with `if (!target.IsValidFor(self)) return;` (`:633-634`) — which is *before* it queues the activity and before `MarkTargetForAttack` (`:644`) — so an attack order issued against a just-created actor is discarded in silence, with no exception and no log line.
+
+- The failure is invisible in the result: the scenario produced clean, plausible numbers that simply meant nothing, because the intended manipulation had never happened.
+- **The guard that should have caught it was vacuous — it set its own `markApplied = true` flag unconditionally, asserting a local variable rather than the world.** A setup guard that cannot fail is worse than no guard, because it reads as verification. Assert on an *observable consequence* instead: the redesign added an unmarked control lane, so "the mark took" became a measured difference between lanes rather than a claim.
+- Delay anything targeting a Lua-spawned actor by a tick or more. Earlier scenarios in this series were unaffected only by luck — they ordered attacks in a later phase, seconds after spawn.
+
+## 2026-08-10 — `AutoTarget.HasValidTargetPriority` IS INVERTED AND ALWAYS RETURNS FALSE, so every stance downgrade unconditionally drops the unit's targets
+
+```csharp
+if (!ati.OnlyTargets.Except(targetTypes).Any() || !ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
+    continue;                                    // AutoTarget.cs:984
+```
+
+`OnlyTargets` defaults to an empty `BitSet` (`AutoTargetPriority.cs:24`) and **no mod YAML sets it anywhere**. Empty `.Except(anything)` is empty, `.Any()` is false, `!false` is true — so the first clause fires for every priority, the loop `continue`s past all of them, and the method returns `false` unconditionally. The `!` belongs outside: the intent is plainly "skip when `OnlyTargets` is not satisfied by the target's types".
+
+- **Every caller is a stance-change handler** asking "should I drop this target now the stance got stricter": `Attack.cs:323`, `AttackFollow.cs:239` / `:245` / `:435`, `FlyAttack.cs:216`, plus `AttackTesla`/`AttackPrism`/`LeapAttack` in Mods.Cnc. All are of the form `if (!HasValidTargetPriority(...)) target = Target.Invalid;`, so **any stance downgrade currently invalidates the unit's current target and its opportunity target regardless of whether they are still legitimate**.
+- **The practical impact is masked, which is why it has survived:** a unit that drops its target this way is then idle, and `TickIdle` re-scans every 3-8 ticks (`AutoTarget.cs:195/198`) and usually re-acquires the same target. The visible symptom is a stutter in engagement on stance change, not a permanent refusal.
+- Found by reading while chasing a different bug; costs zero runs to confirm. **Not fixed here** — it is tracked as its own item, and a fix wants its own regression coverage since it changes behaviour for every unit in the mod on every stance change.
+
 ## 2026-08-10 — FOUND IT: `ChooseTarget`'s two WW3MOD-only filters (break-off and overkill) are the only ones that drop a target on the AUTO PATH ALONE, and a critically damaged aircraft reproduces "won't auto-engage, Ctrl+click kills it instantly" exactly
 
 Third scenario in the series (`test-aa-breakoff-critical`), after the first two refuted line-of-sight and detection by showing each fails closed on *both* paths. Measured (seed -2050768512):

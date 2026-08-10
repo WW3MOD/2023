@@ -1,0 +1,127 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: AA overkill suppression + mark decay (diagnostic)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# =====================================================================
+	# Fourth scenario. Stages the OVERKILL filter (AutoTarget.cs:1129) — the
+	# last ChooseTarget filter that drops a candidate on the auto path alone,
+	# and the one that matters if the user LEFT-clicked rather than Ctrl+clicked.
+	#
+	# WHAT THE MARK IS. AverageDamagePercent is not a claim held by the attacker
+	# that must be released. It is a decaying accumulator on the TARGET:
+	# AttackBase.AttackTarget calls MarkTargetForAttack (:644), which adds
+	# EstimatePercentDamage = totalDamage * 100 / MaxHP (:1321), and Actor.Tick
+	# halves it every 60 ticks (Actor.cs:309-310). There is no release path and
+	# no owner, so it CANNOT be stranded by an attacker dying, being retargeted,
+	# or entering a transport. The leak question is answered by reading; this
+	# scenario measures the consequence and puts the leak answer on the record
+	# by killing the marking unit mid-run.
+	#
+	# THE MARK IS WILDLY OVERSIZED AGAINST AIRCRAFT. MANPAD deals 3000 with
+	# Penetration 15 against the Halo's Light/Thickness 10 — penetration >=
+	# thickness so no reduction, and no Versus table — so one AA committing to a
+	# stock 600-HP Halo marks it 3000*100/600 = 500, five times the threshold.
+	#
+	# THREE LANES, because run 1 of this scenario produced a null result that
+	# looked like a real one. It marked the target inside WorldLoaded, but
+	# Actor.Create only adds to the world in a frame-end task
+	# (ActorGlobal.cs:113-116), so the aircraft was not yet in the world,
+	# AttackBase.AttackTarget bailed at its IsValidFor guard BEFORE reaching
+	# MarkTargetForAttack, and no mark was ever applied. The observer then
+	# engaged at its natural latency and the run read as "no suppression".
+	# The marking order is now delayed, and lane C exists so that natural
+	# latency is MEASURED rather than assumed — without it there is no way to
+	# tell a suppressed lane from a working one.
+	#
+	# Lanes 27 cells apart: cross-lane observer-to-aircraft is sqrt(27^2+20^2)
+	# = 33.6 cells, outside MANPAD's 23c0, so nobody can engage a neighbour's
+	# aircraft. Within a lane every unit sits 20 cells from its aircraft.
+	# NO TREES and fog OFF, so line of fire and detection are held wide open.
+	# =====================================================================
+
+	# --- lane A: marked, observer NEVER ordered. How long does it stand down? ---
+	# MarkerA is killed partway through. If the mark were owned by the attacker
+	# the observer would engage the moment it died; if it is a decaying counter
+	# on the target, the observer stays down until the arithmetic runs out.
+	MarkerA: aa
+		Owner: USA
+		Location: 2,28
+		Facing: 0
+	ObserverA: aa
+		Owner: USA
+		Location: 4,28
+		Facing: 0
+
+	# --- lane B: marked, observer given an ORDINARY left-click while suppressed ---
+	# Measures the second row of the discriminator table, which so far was read
+	# from the code rather than observed: overkill is checked only in
+	# ChooseTarget, with no AverageDamagePercent re-check anywhere in Attack.cs,
+	# AttackBase.cs or AttackFollow.cs.
+	MarkerB: aa
+		Owner: USA
+		Location: 29,28
+		Facing: 0
+	ObserverB: aa
+		Owner: USA
+		Location: 31,28
+		Facing: 0
+
+	# --- lane C: CONTROL. No marker at all, nothing ordered. ---
+	# Establishes the natural idle-scan-to-first-shot latency. Lane A minus
+	# lane C is the suppression, and without this number lane A is unreadable.
+	ObserverC: aa
+		Owner: USA
+		Location: 57,28
+		Facing: 0
+
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 15,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 45,2
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 30,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 30,8
+
+Rules: rules.yaml
