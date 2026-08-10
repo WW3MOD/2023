@@ -72,12 +72,6 @@ namespace OpenRA.Mods.Common.Traits
 			"offset -3 spawns crew at stack 5). Clamped to 0 minimum.")]
 		public readonly int CrewFireStackOffset = -3;
 
-		[Desc("Ticks the inherited burn lasts on the crew before it goes out. A man who bails out can beat " +
-			"the flames; the wreck he came from cannot, which is why this is bounded and the wreck's own " +
-			"GrantStackingConditionOnHealthFraction is not. 100 matches VehicleCookoff's Duration, the other " +
-			"way infantry catch fire from a vehicle. 0 or less burns until death — the pre-2026-08-10 behaviour.")]
-		public readonly int CrewFireDurationTicks = 100;
-
 		public override object Create(ActorInitializer init) { return new VehicleCrew(init.Self, this); }
 	}
 
@@ -361,20 +355,10 @@ namespace OpenRA.Mods.Common.Traits
 				// so granting N tokens here lights up the crew at the same fire
 				// stage the vehicle was emitting and starts them bleeding at the
 				// matching rate.
-				//
-				// Granted THROUGH the ExternalCondition trait with a duration, not via
-				// Actor.GrantCondition. The direct call takes out a permanent internal token: nothing
-				// revokes it, `onfire` has no ReduceTicks (unlike `suppressed`), and the per-stack
-				// ChangesHealth bleeds -1% MaxHP forever, so every ejected crewman was on an
-				// unconditional death timer. Routing through the trait also restores TotalCap, which
-				// the direct call bypassed.
-				if (fireStacks > 0 && fireCondition != null && info.CrewFireDurationTicks > 0)
+				if (fireStacks > 0 && fireCondition != null)
 				{
-					var burn = crew.TraitsImplementing<ExternalCondition>()
-						.FirstOrDefault(t => t.Info.Condition == fireCondition);
-					if (burn != null)
-						for (var i = 0; i < fireStacks; i++)
-							burn.GrantCondition(crew, self, info.CrewFireDurationTicks);
+					for (var i = 0; i < fireStacks; i++)
+						crew.GrantCondition(fireCondition);
 				}
 
 				// Apply finishing-shot damage BEFORE we queue movement so the
