@@ -6,7 +6,7 @@
 -- unbounded timer by design, so a survivor count measures the clock, not the
 -- mechanic, and every phase that tried it eventually became a coin flip.
 --
--- Phase 1 — Catastrophic kill (overkill):  nobody gets out. Expect 0 of 22.
+-- Phase 1 — Catastrophic kill (overkill):  nobody gets out. Expect 0.
 -- Phase 2 — Staged ejection:               every slot empties a wrecked-but-alive
 --                                          Abrams. Expect 12 of 12.
 -- Phase 3 — Two-step attrition:            damaged, then finished; the roster
@@ -103,14 +103,34 @@ local function pollPeakCrew(samples, done)
 end
 
 -- Remove every crew actor on the map, so a phase starts from a clean field.
--- Destroy() removes them without a death sequence or a cookoff.
+--
+-- Kill(), NOT Destroy(). Destroy() is QueueActivity(new RemoveSelf())
+-- (GeneralProperties.cs:135-138) — an activity that runs behind whatever the
+-- actor is already doing, so it is emphatically not immediate. That cost a whole
+-- round: leftover crew survived the "clear", got counted into the next phase's
+-- baseline, and were then removed part-way through its window, dragging the peak
+-- down by however many happened to go late. P3 reported 16, 17 or 18 of 18 with
+-- the difference being purely how many stale men the baseline had absorbed.
+--
+-- Kill() calls health.InflictDamage directly (HealthProperties.cs:50), so IsDead
+-- flips synchronously and GetActorsByType — which filters on !IsDead — stops
+-- counting them in the same tick. Infantry carry no Explodes, so nothing else
+-- fires. The death sequence is cosmetic and costs nothing in a test.
 local function clearAllCrew()
 	for _, t in ipairs(US_CREW) do
-		for _, c in ipairs(USA.GetActorsByType(t)) do c.Destroy() end
+		for _, c in ipairs(USA.GetActorsByType(t)) do c.Kill() end
 	end
 	for _, t in ipairs(RU_CREW) do
-		for _, c in ipairs(RUSSIA.GetActorsByType(t)) do c.Destroy() end
+		for _, c in ipairs(RUSSIA.GetActorsByType(t)) do c.Kill() end
 	end
+end
+
+-- A phase's baseline must be zero after clearAllCrew(). If it is not, the count
+-- that phase reports is untrustworthy in exactly the way described above, so say
+-- so in the verdict instead of quietly subtracting it.
+local function baselineNote(before)
+	if before == 0 then return "" end
+	return " [STALE BASELINE " .. before .. " — count unreliable]"
 end
 
 local results = {}
@@ -129,12 +149,21 @@ end
 
 finalize = function()
 	Media.DisplayMessage("=== Suite complete ===", "EVAC SUITE")
-	local fails = {}
+
+	-- EVERY phase reports its numbers, on success as well as failure. A passing
+	-- run used to print an empty note, so the only way to see a count was to make
+	-- the test fail — which is how this suite stayed fragile for months: nobody
+	-- could see a phase sitting one man from its boundary until it crossed it.
+	-- Failing phases are marked so the reason still leads.
+	local parts = {}
+	local failed = false
 	for _, r in ipairs(results) do
-		if not r.passed then table.insert(fails, r.name .. ": " .. r.detail) end
+		if not r.passed then failed = true end
+		table.insert(parts, (r.passed and "" or "FAIL ") .. r.name .. ": " .. r.detail)
 	end
-	if #fails == 0 then Test.Pass()
-	else Test.Fail(table.concat(fails, " | ")) end
+
+	local line = table.concat(parts, " | ")
+	if failed then Test.Fail(line) else Test.Pass(line) end
 end
 
 -- Pick a player object for an actor type by faction.
@@ -202,7 +231,7 @@ phase1 = function()
 			local out = peak - before
 			local passed = out == 0
 			recordPhase("P1 catastrophic", passed,
-				out .. " crew got out of a catastrophic kill (expected 0)")
+				out .. " got out, expected 0" .. baselineNote(before))
 			Trigger.AfterDelay(sec(2), phase2)
 		end)
 	end)
@@ -266,7 +295,7 @@ phase2 = function()
 				-- stalled, or crewDamage turned lethal on emerge.
 				local passed = out == 12
 				recordPhase("P2 staged eject", passed,
-					out .. " of 12 Abrams crew got out")
+					out .. "/12 got out" .. baselineNote(before))
 
 				-- Execute the wrecks only now — after the verdict. This keeps the
 				-- phase's total length, and everything downstream of it, at the
@@ -350,7 +379,7 @@ phase3 = function()
 				-- again, so there is no threshold here to walk either.
 				local passed = out == 18
 				recordPhase("P3 two-step eject", passed,
-					out .. " of 18 crew got out")
+					out .. "/18 got out" .. baselineNote(before))
 
 				-- Execute the hulls after the verdict, keeping this phase's
 				-- total length unchanged for everything downstream.
@@ -405,7 +434,7 @@ phase4 = function()
 				local out = peak - before
 				local passed = out == 0
 				recordPhase("P4 heli crash", passed,
-					out .. " pilots got out of a mid-air crash (expected 0)")
+					out .. " pilots got out, expected 0" .. baselineNote(before))
 				Trigger.AfterDelay(sec(2), phase5)
 			end)
 		end)
@@ -476,8 +505,8 @@ phase5 = function()
 
 			local passed = stillFlying == 0
 			recordPhase("P5 heli autorotate", passed,
-				abandoned .. " abandoned to Neutral, " .. destroyed ..
-				" destroyed, " .. stillFlying .. " never resolved (expected 0)")
+				stillFlying .. " still flying, expected 0 (" .. abandoned ..
+				" neutral, " .. destroyed .. " destroyed)")
 			Trigger.AfterDelay(sec(2), finalize)
 		end)
 	end)
