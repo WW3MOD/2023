@@ -489,6 +489,29 @@ namespace OpenRA.Mods.Common.Traits
 		// and far short of a file anyone has to worry about.
 		const int TestDiagnosticLineCap = 4000;
 
+		/// <summary>This module's ONLY way to read a truck's supply for a log line, and it exists because the
+		/// obvious spelling crashes the game.
+		///
+		/// <para>A TraitDictionary lookup on a DISPOSED actor throws — `CheckDestroyed` raises
+		/// InvalidOperationException("Attempted to get trait from destroyed object") on `actor.Disposed`
+		/// (TraitDictionary.cs:81-85) — and a supply truck reaches that state BY DESIGN: it unloads, falls
+		/// below the roster threshold, and DropsSupplyCache drives it to the map edge and SELLS it. So the
+		/// more reliably deliveries succeed, the more often this module holds a reference to a disposed actor
+		/// for one more scan, which is why the crash surfaced only once drop-and-leave began completing.</para>
+		///
+		/// <para>`Actor.IsDead` cannot be used as the guard: it is `Disposed || health.IsDead` (Actor.cs:76),
+		/// so it conflates the illegal state with a perfectly readable one. `Disposed` is the only honest
+		/// predicate, and keeping it in one function is what stops the next log line from rediscovering this —
+		/// a guard at the crash site would have fixed one line and left the next reader to find the next
+		/// crash.</para></summary>
+		static string SupplySnapshot(Actor a)
+		{
+			if (a == null || a.Disposed)
+				return "n/a";
+
+			return a.TraitOrDefault<SupplyProvider>()?.CurrentSupply.ToString() ?? "n/a";
+		}
+
 		void WriteDiagnostic(string line)
 		{
 			diagnosticLines++;
@@ -575,17 +598,29 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var a in dropped)
 			{
 				activeTrucks.Remove(a);
-				if (a != null && blackboard != null && blackboard.IsUnitClaimedBy(a, "supply-follow"))
+				if (a == null)
+					continue;
+
+				if (blackboard != null && blackboard.IsUnitClaimedBy(a, "supply-follow"))
 					blackboard.ReleaseUnit(a);
 
 				// Lifecycle EDGE — unconditional. "Where did the truck go?" is the question this subsystem
 				// could never answer, and a release is the moment it stops being ours: from here
 				// DropsSupplyCache owns it, and under TRUK's Evacuate default that means the map edge.
-				if (a != null)
-					Log.Write("debug",
-						$"[supply] release truck={a.ActorID}@{(a.IsInWorld ? a.Location.ToString() : "<out-of-world>")} "
-						+ $"reason={(a.IsDead ? "dead" : !a.IsInWorld ? "out-of-world" : "low-supply")} "
-						+ $"supply={a.TraitOrDefault<SupplyProvider>()?.CurrentSupply.ToString() ?? "n/a"}");
+				//
+				// THE REASON NOW SEPARATES SOLD FROM DESTROYED, which are different events reported through
+				// one boolean: `Actor.IsDead` is `Disposed || health.IsDead` (Actor.cs:76). A truck that
+				// unloaded, drove to the map edge and was sold has SUCCEEDED; a truck that was shot has not.
+				// Collapsing both to "dead" is what made a completed delivery read as a combat loss.
+				var disposed = a.Disposed;
+				var reason = disposed ? "removed(sold/disposed)"
+					: a.IsDead ? "destroyed"
+					: !a.IsInWorld ? "out-of-world"
+					: "low-supply";
+
+				Log.Write("debug",
+					$"[supply] release truck={a.ActorID}@{(!disposed && a.IsInWorld ? a.Location.ToString() : "<out-of-world>")} "
+					+ $"reason={reason} supply={SupplySnapshot(a)}");
 			}
 
 			// Keep the per-truck deadband / damper memory bounded to trucks still on active follow duty.
@@ -847,7 +882,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					WriteDiagnostic(
 						$"[supply] truck={truck.ActorID}@{truck.Location} "
-						+ $"supply={truck.TraitOrDefault<SupplyProvider>()?.CurrentSupply.ToString() ?? "n/a"} "
+						+ $"supply={SupplySnapshot(truck)} "
 						+ $"target={(bestCluster != null ? bestCluster.CenterCell.ToString() : "<none>")} "
 						+ $"nearest-found={(nearest != null ? nearest.CenterCell.ToString() : "<none>")} "
 						+ $"nearest-dist={(nearest != null ? (nearest.Center - truck.CenterPosition).Length / 1024 : -1)}c"
@@ -1597,7 +1632,7 @@ namespace OpenRA.Mods.Common.Traits
 			blackboard?.ClaimUnit(truck, "supply-follow");
 			Log.Write("debug",
 				$"[supply] adopt truck={truck.ActorID}@{truck.Location} "
-				+ $"supply={truck.TraitOrDefault<SupplyProvider>()?.CurrentSupply.ToString() ?? "n/a"}");
+				+ $"supply={SupplySnapshot(truck)}");
 		}
 
 		/// <summary>

@@ -519,6 +519,12 @@ LAUNCH_PID=$!
 # normal-completion path below is untouched (it waits for a clean self-exit).
 trap 'echo; echo "==> interrupted — killing the game."; kill_game "${LAUNCH_PID}"; exit 130' INT TERM
 
+# Marker for crash detection below: any exception log the engine writes AFTER this
+# point belongs to this run. A file mtime comparison is used rather than a clock
+# reading so it works the same wherever the support directory lives.
+RUN_MARKER="$(mktemp 2>/dev/null || echo "${RESULT_DIR}/.run-marker")"
+: > "${RUN_MARKER}"
+
 # ── Hard wall-clock watchdog ────────────────────────────────────────────────
 # The engine writes result.json only when Test.Pass/Fail/Skip runs. If a map's
 # rules fail to load (e.g. a duplicate MiniYaml key), the game logs "Failed to
@@ -595,9 +601,30 @@ fi
 echo
 
 if [ ! -f "${RESULT_FILE}" ]; then
-	echo "==> No result file written. Test was likely closed without verdict."
+	# A CRASH AND A HANG BOTH PRODUCE NO RESULT FILE, and until now both printed the same
+	# line — which is a genuinely expensive ambiguity: a hang means "wait or look at the
+	# window", a crash means "the build is broken, stop". The engine writes
+	# exception-<timestamp>.log next to debug.log when it dies, so a log newer than this
+	# run's marker is proof of a crash, and the first lines carry the exception type and
+	# the throwing frame.
+	CRASH_LOG=""
+	_log_dir="$(dirname "$(find_debug_log)")"
+	if [ -d "${_log_dir}" ]; then
+		CRASH_LOG="$(find "${_log_dir}" -maxdepth 1 -name 'exception-*.log' -newer "${RUN_MARKER}" 2>/dev/null | sort | tail -1)"
+	fi
+	rm -f "${RUN_MARKER}" 2>/dev/null || true
+
+	if [ -n "${CRASH_LOG}" ]; then
+		echo "==> CRASHED — the game threw and died, so no verdict could be written."
+		echo "==> ${CRASH_LOG}"
+		sed -n '1,12p' "${CRASH_LOG}" | sed 's/^/    /'
+		exit 3
+	fi
+
+	echo "==> No result file written, and no crash log — the test hung or was closed by hand."
 	exit 3
 fi
+rm -f "${RUN_MARKER}" 2>/dev/null || true
 
 echo "==> Result:"
 cat "${RESULT_FILE}"
