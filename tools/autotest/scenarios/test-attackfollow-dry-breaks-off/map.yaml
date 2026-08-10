@@ -1,0 +1,66 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Dry Abrams Breaks Off (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Shipped abrams, no rules override: 40 rounds of TankRound.Abrams, reach 25c0, AttackTurreted.
+	# 30 cells apart — inside the 40c scan set in rules.yaml, outside the gun's 25c reach. The gap is
+	# what lets the Lua empty the racks while the tank is still closing, so it is dry before it can
+	# fire a shot and the t90 survives to hold it in the engagement.
+	Gunner: abrams
+		Owner: USA
+		Location: 8,16
+		Facing: 768
+	Target: t90
+		Owner: Russia
+		Location: 38,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 38,16
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

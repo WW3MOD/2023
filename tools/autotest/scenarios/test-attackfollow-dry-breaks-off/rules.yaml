@@ -1,0 +1,29 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-attackfollow-dry-breaks-off.lua
+
+# ScanRadius 40 is deliberate and load-bearing. Unset (the shipped default of -1) the scan falls
+# back to AttackBase.GetMaximumRange, which SKIPS ammo-paused armaments — so a dry tank's scan
+# range collapses to zero and the setup stops being reproducible for reasons that have nothing to
+# do with what is under test. Pinning it keeps the target acquired at 30 cells, outside the 25c gun.
+^Combatant:
+	AutoTarget:
+		ScanRadius: 40
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32

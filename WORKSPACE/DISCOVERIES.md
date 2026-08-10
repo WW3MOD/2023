@@ -3013,12 +3013,39 @@ Grepping `mods/ww3mod/rules/ingame/vehicles.yaml` for `AmmoPool` returns one liv
 1. **`vehicles.yaml` holds the shared `^Vehicle` / `^TrackedVehicle` / `^WheeledVehicle` templates plus a handful of unarmed support units** (`MSAR`, `MNLY`, `truk`, `LCCV`). Every actual combat vehicle lives in `vehicles-america.yaml`, `vehicles-russia.yaml` and `vehicles-ukraine.yaml`. The naming invites you to treat one file as the whole subsystem.
 2. **The commented-out `AmmoPool` blocks in `vehicles.yaml` are not disabled pools on live units — they are parts of two entirely commented-out ACTORS**, `SandBagLayer` (~`:634`) and `timberwolf` (~`:693`), units that are not in the game at all. Commented out in `296a529c` (2023-06-20, "Commented out some vehicles"). A commented `AmmoPool@1:` line looks identical whether it is a disabled trait or a fragment of a disabled actor.
 
-**The truth: every combat vehicle on both sides carries live, and deliberately small, ammunition.** `abrams` and `t90` 40 rounds, `m109` 39, `m270` 12, `iskander` 2, `grad` 24, `bradley`/`bmp2` 900 + 8, `tunguska` 180 + 8, `humvee` 300, `m113` 500. Every one of them is `AttackTurreted` with `PauseOnCondition: !ammo-primary || …` on the armament. A tank running dry mid-battle is not an edge case, it is ordinary.
+**The truth: every ARMED vehicle in the game carries a live pool, and the capacities are deliberately small.** Full audit of all four vehicle files, so nobody has to re-derive it:
+
+| file | actor | live pools (capacity) |
+|---|---|---|
+| `vehicles-america.yaml` | `humvee` | 300 |
+| | `m113` | 500 |
+| | `bradley` | 900 + 8 |
+| | `abrams` | **40** |
+| | `m109` | **39** |
+| | `m270` | **12** |
+| | `strykershorad` | 400 + 8 + 4 |
+| | `HIMARS` | **2** |
+| `vehicles-russia.yaml` | `btr` | 500 |
+| | `bmp2` | 900 + 8 |
+| | `t90` | **40** |
+| | `giatsint` | **39** |
+| | `grad` | 40 |
+| | `tos` | **24** |
+| | `tunguska` | 180 + 8 |
+| | `iskander` | **2** |
+| `vehicles-ukraine.yaml` | `t72` | **40** |
+| `vehicles.yaml` | `MNLY` | 10 (`mines-ammo`, feeds `Minelayer`, not an armament) |
+
+**The only vehicles with NO pool are the ones with no gun**: `MSAR`, `TRUK`, `LCCV` (unarmed support, all in `vehicles.yaml`), the shared `^Vehicle` / `^WheeledVehicle` / `^TrackedVehicle` / `^Walker` templates, and the two projectile-carrier actors `HIMARSMissile` / `IskanderMissile`. There is no armed vehicle anywhere that shoots without drawing from a pool.
+
+Every armed one is `AttackTurreted` with `PauseOnCondition: !ammo-primary || …` on the armament. At 40 rounds for a main battle tank and 2 for `iskander`/`HIMARS`, a vehicle running dry mid-battle is not an edge case — it is the normal course of a fight.
 
 Two consequences that matter more than the file layout:
 
 - **Vehicles have `Rearmable` (`RearmActors: logisticscenter`) but NOT `AutoSeekSupplies`.** So none of that trait's machinery — neither the idle seek nor `ReturnWhenEmpty` — applies to a single vehicle. Whatever releases a dry tank from an attack order has to live in the attack activities.
-- **`AttackTurreted` derives from `AttackFollow` and does not override `GetAttackActivity`, so every vehicle in the game runs `AttackFollow.AttackActivity`.** That is the busiest attack path in the mod by unit count, not a rare one.
+- **`AttackTurreted` derives from `AttackFollow` and does not override `GetAttackActivity`, so every armed vehicle in the game runs `AttackFollow.AttackActivity`.** That is the busiest attack path in the mod by unit count, not a rare one.
+
+**MNLY is the one actor whose live pool is invisible to all of this**, and it is worth knowing why: it has no `Armament` and does not inherit `^AutoTarget`, so it has no `AttackBase`, no `AttackMove` and no `AttacksSupplyRoutes`. A minelayer that has laid all ten mines reads as `AllPoolsEmpty` — but it can never hold an attack order in the first place, so nothing that gates on emptiness can reach it. Check that before assuming a dry-unit rule "also affects the minelayer".
 
 **Reusable rule: before concluding anything about "all vehicles", run `for f in $(grep -rl X mods/ww3mod/rules/); do …` rather than grepping the file whose name matches the concept.** The per-faction split means the file named after a category is frequently the least representative member of it.
 
