@@ -511,6 +511,15 @@ namespace OpenRA.Mods.Common.Traits
 				if (!bot.QueueOrder(new Order("AttackMove", actor, Target.FromCell(world, targetCell), false), BotOrderDamping.Recurring))
 					continue;
 
+				// EDGE, TestMode only. This module MOVES combat units and logged only aggregate telemetry
+				// (`[exp-poi] disperse`), never which actor it sent where — so an autotest measuring a unit
+				// leaving its position could not tell a line assignment from an AutoSeekSupplies errand.
+				// One line per accepted order; normal play is unaffected.
+				if (TestMode.IsActive)
+					Log.Write("debug",
+						$"[defence] assign unit={actor.ActorID}@{actor.Location} → {targetCell} "
+						+ $"owner={player.PlayerName} reason=contested-line");
+
 				assignedAtTick[actor] = world.WorldTick;
 
 				// Phase 2 commit-on-order (§4): stake the line assignment in the shared ledger so offense's
@@ -649,6 +658,12 @@ namespace OpenRA.Mods.Common.Traits
 					// RECURRING, same beat as the contested path above.
 					if (!bot.QueueOrder(new Order("AttackMove", best, Target.FromCell(world, targetCell), false), BotOrderDamping.Recurring))
 						continue;
+
+					// EDGE, TestMode only — see the note on the contested path above.
+					if (TestMode.IsActive)
+						Log.Write("debug",
+							$"[defence] assign unit={best.ActorID}@{best.Location} → {targetCell} "
+							+ $"owner={player.PlayerName} reason=man-the-line");
 
 					assignedAtTick[best] = world.WorldTick;
 

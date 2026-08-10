@@ -109,6 +109,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (provider == null)
 				return;
 
+			// EDGE, TestMode only. This trait moves a combat unit OFF ITS POSITION and was, until now,
+			// completely silent — so when an autotest measured a platoon drifting rearward there was no way
+			// to tell whether this walked them or a bot module did, and two rounds of analysis attributed
+			// the drift by assumption. One line per errand, at the moment the unit decides to leave.
+			// Normal play is unaffected: nothing is logged outside a test.
+			if (TestMode.IsActive)
+				Log.Write("debug",
+					$"[seek] leave unit={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+					+ $"provider={provider.Info.Name}@{provider.Location} "
+					+ $"dist={(provider.CenterPosition - self.CenterPosition).HorizontalLength / 1024}c "
+					+ $"leash={info.SupplyHuntLeashCells}c");
+
 			self.QueueActivity(false, new SeekSuppliesAndReturn(self, provider));
 			self.ShowTargetLines();
 		}

@@ -97,6 +97,19 @@ WorldLoaded = function()
 	local bestBack = 0
 	local done = false
 
+	-- KILLED AND REMOVED ARE THE SAME BOOLEAN, so the test has to separate them itself.
+	-- Actor.IsDead is `Disposed || health.IsDead` (Actor.cs:76), and DropsSupplyCache evacuates a
+	-- spent truck to the map edge and SELLS it — which disposes the actor. So a truck that finished
+	-- its job and drove home reads exactly like a truck that was destroyed, and a run at d1134422 was
+	-- reported as "the truck died" on a map where the only enemies are held at HoldFire and provably
+	-- cannot fire (HoldFire gates the auto-target scan at AutoTarget.cs:969/:997 and retaliation at
+	-- :554-557). Tracking health lets the verdict say which happened: damage taken before death means
+	-- destroyed, full health at the last sample means removed.
+	local truckLastHealth = Truck.Health
+	local truckMinHealth = Truck.Health
+	local truckFullHealth = Truck.MaxHealth
+	local truckLastX = Truck.Location.X
+
 	local function alive()
 		local n = 0
 		for _, r in ipairs(platoon) do
@@ -176,8 +189,12 @@ WorldLoaded = function()
 		Trigger.AfterDelay(sec(s), function()
 			if done then return end
 
-			if not Truck.IsDead and Truck.Location.X > truckMaxX then
-				truckMaxX = Truck.Location.X
+			if not Truck.IsDead then
+				truckLastX = Truck.Location.X
+				if truckLastX > truckMaxX then truckMaxX = truckLastX end
+
+				truckLastHealth = Truck.Health
+				if truckLastHealth < truckMinHealth then truckMinHealth = truckLastHealth end
 			end
 
 			sample()
@@ -201,7 +218,23 @@ WorldLoaded = function()
 		-- Inconclusive shapes first, so a real doctrine failure is never confused with a
 		-- setup that fell apart.
 		if Truck.IsDead then
-			Test.Skip("the supply truck died before the window closed — inconclusive")
+			-- Say WHICH, because they are opposite stories: destroyed means the delivery was contested,
+			-- removed at full health means it finished (or wrote itself off) and drove to the map edge.
+			local how
+			if truckMinHealth < truckFullHealth then
+				how = string.format("DESTROYED — took damage (health fell %d/%d before it died)",
+					truckMinHealth, truckFullHealth)
+			else
+				how = string.format(
+					"REMOVED AT FULL HEALTH (%d/%d) — not destroyed. Disposed, which on this map means "
+					.. "DropsSupplyCache drove it to the map edge and sold it; nothing here can shoot it",
+					truckMinHealth, truckFullHealth)
+			end
+
+			Test.Skip(string.format(
+				"the supply truck is gone before the window closed: %s. last seen at x=%d, furthest x=%d. "
+				.. "platoon spawnX->nowX(peak drift): %s",
+				how, truckLastX, truckMaxX, driftTrace()))
 			return
 		end
 
