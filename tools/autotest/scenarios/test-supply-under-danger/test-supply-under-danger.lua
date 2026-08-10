@@ -145,7 +145,7 @@ WorldLoaded = function()
 		Test.Fail(string.format(
 			"supply never reached the front: %d of 5 riflemen climbed clear of starving (need %d). "
 			.. "primary ammo now %s (drained to %d, starving at <=%d). "
-			.. "truck went from x=%d to a furthest x=%d; platoon is at x=44, danger wall starts at x=16",
+			.. "truck went from x=%d to a furthest x=%d; platoon is at x=38, danger wall starts at x=16",
 			bestBack, NEED_BACK, ammoTrace(), DRAINED, STARVING, truckStartX, truckMaxX))
 	end)
 end
