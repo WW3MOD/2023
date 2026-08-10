@@ -114,10 +114,41 @@ if [ $# -eq 0 ]; then
 fi
 
 if [ "$1" = "--all" ]; then
-	TESTS=$(ls -d tools/autotest/scenarios/test-*/ 2>/dev/null | xargs -n1 basename)
-	if [ -z "${TESTS}" ]; then
+	ALL=$(ls -d tools/autotest/scenarios/test-*/ 2>/dev/null | xargs -n1 basename)
+	if [ -z "${ALL}" ]; then
 		echo "No test-* folders found under tools/autotest/scenarios/"
 		exit 3
+	fi
+
+	# Skip scenarios that can never produce a verdict. A scenario with no
+	# assertion call writes no result.json, so run-test.sh burns its FULL
+	# wall-clock timeout (300s by default, and the timeout is deliberately NOT
+	# scaled by --speed) and then synthesizes a FAIL. Nine such scenarios exist
+	# today -- test-artillery-turret is a "watch the turret rotate" demo filed
+	# under test-*, and the eight test-balance-* scenarios report numbers for a
+	# human to read rather than passing or failing. Left in, they cost ~45
+	# minutes per --all run and put nine permanent false FAILs in every
+	# regression tally, which is how a red batch stops meaning anything.
+	#
+	# Detected rather than hardcoded, so a future verdict-less scenario is
+	# excluded automatically -- and ANNOUNCED rather than silently dropped, so a
+	# real test that loses its assertion shows up here instead of vanishing.
+	# Named tests are never filtered: asking for one by name always runs it.
+	TESTS=""
+	SKIPPED_NOVERDICT=""
+	for _t in ${ALL}; do
+		if grep -rqE "Test\.(Pass|Fail|Skip)|Assert(Within|After)" "tools/autotest/scenarios/${_t}/" 2>/dev/null; then
+			TESTS="${TESTS} ${_t}"
+		else
+			SKIPPED_NOVERDICT="${SKIPPED_NOVERDICT} ${_t}"
+		fi
+	done
+
+	if [ -n "${SKIPPED_NOVERDICT}" ]; then
+		echo "==> Excluded from --all (no assertion, so no verdict is possible):"
+		for _t in ${SKIPPED_NOVERDICT}; do echo "      ${_t}"; done
+		echo "    Run any of these by name to execute it anyway."
+		echo
 	fi
 else
 	TESTS="$*"
