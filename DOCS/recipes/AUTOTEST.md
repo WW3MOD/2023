@@ -141,6 +141,17 @@ end
 | `Paladin.Stance = "HoldFire"` | Force a unit into HoldFire (or "Ambush"/"FireAtWill") |
 | `UserInterface.Select(actor)` | Replace local player's selection. WW3MOD addition. |
 
+## A behaviour selected by a condition needs a test on EACH SIDE of it
+
+If the thing you are fixing has two modes — danger vs quiet, empty vs full, first-run vs repeat — **one scenario cannot pin it.** Whichever branch you were thinking about will pass, and the other mode's mechanism will quietly satisfy your assertion.
+
+Worked example, 2026-08-10 (details in `WORKSPACE/DISCOVERIES.md`): supply trucks are supposed to dump their whole load and leave under fire, and to serve in place keeping their cargo on a quiet front. Every single-scenario green that day was reachable by a change that broke the other scenario, twice — and each defect was caught by the test that was *not* being worked on. The pair must go green **together** or neither result means anything.
+
+Two failure shapes that keep recurring and that a matched pair catches:
+
+- **A fix correct in isolation, wrong in combination.** Guard A was harmless only because bug B stopped it ever firing. Fix B and A becomes a live defect. So: after any fix, re-run the scenario you were *not* working on.
+- **A bug that cannot fire is indistinguishable from a bug that does not exist.** "We looked and it wasn't happening" is worthless whenever a gate upstream of it is known to be failing closed. Record such a hypothesis as UNTESTED, never as refuted — an accurate status keeps it in the queue where "dead" deletes it.
+
 ## Gotchas
 
 These bit during development. Documenting so they don't bite again.

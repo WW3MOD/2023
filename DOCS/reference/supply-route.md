@@ -93,6 +93,57 @@ The match-ending win/loss runs on **`SupplyRouteContestation`, not stock `Conque
 - **Awarding via `MissionObjectives`:** `MarkCompleted` fires `OnPlayerWon` only when **all** required objectives are Completed (`MissionObjectives.cs:136-137`). `AwardVictory` (`:491`) therefore no-ops unless the player has a `ConquestVictoryConditions` trait and completes only its `Type == "Primary"` objectives — never blanket-completing (which would auto-win a scripted campaign mission running `-ConquestVictoryConditions` + `MissionObjectives.EarlyGameOver`).
 - **`TestMode` symmetry:** `ResolveTeamElimination` early-returns on `TestMode.IsActive` (`:427`), matching `ConquestVictoryConditions.Tick` (`:63`) / `MissionObjectives.CheckIfGameIsOver` (`:171`), so an SR contest emits no stray victory lines mid-autotest. Consequence for test authors: the whole interactive win/loss *verdict* is suppressed under `TestMode`, so a regression test for win attribution cannot observe a game-over — it must read `Player.WinState` directly (Lua getter, `PlayerProperties.cs:72`). `AwardDecidedSurvivors` itself is NOT `TestMode`-gated (it fires from `OnPlayerLost` regardless), so the underlying Won/Lost state is set and observable even while the end-screen stays suppressed. The pure branches (`ResolveEliminationOutcome` / `ShouldAwardVictory`) are NUnit-pinned (`SupplyRouteEliminationTest.cs`); the full team-propagation ending is verified by unit test + reasoning (no single autotest map runs 2v2 team victory).
 
+## Forward delivery — how supply reaches the front
+
+**DELIVERY IS UNCONDITIONAL. Danger selects the MODE; it never grants permission to abandon a run.** This is the invariant everything below hangs off, and it is the one thing three separate rounds of work each got wrong: a danger reading was allowed to cancel a delivery, and the visible symptom every time was a truck shuttling back and forth while a platoon starved. If you are changing this subsystem and a danger term can make a delivery *not happen*, that is the bug.
+
+### The two modes
+
+| front reads | truck does | cargo |
+|---|---|---|
+| **dangerous** | drives in, stops `DropShortCells` short of the platoon, unloads its **whole** load as a SUPPLYCACHE, egresses | emptied — the drop is all-or-nothing (`DropsSupplyCache` calls `SetSupply(0)`) |
+| **quiet** | closes to aura range and serves in place | **retained** for the next customer |
+
+The anchor is relative to the **platoon that needs the supply**, not to the beachhead: `ClusterDropAnchor` (`SupplyFollowerBotModule.cs:1394`) places the crate `DropShortCells` back along the cluster→truck line. The older descent from the Supply Route survives only as a fallback for a truck with no cluster (`ResolveDropAnchor`, `:1442`); it fails *totally* whenever the believed frontier is already inside the standoff of the SR, which is the normal case for a player holding little ground.
+
+### What picks the mode — and why neither limb alone works
+
+`SupplyDropMath.DangerSelectsDrop` (`SupplyDropMath.cs:234`), evaluated only for a delivery that has not yet started:
+
+1. **floor** — below it, always safe. Checked first, and may *only* ever declare safe.
+2. **absolute** — at or above N danger units, dangerous regardless of the field's shape.
+3. **relative** — at or above the player's own median stamped cell (`DangerFieldLayer.GroundDangerMedian`, `DangerFieldLayer.cs:925`).
+
+**Both limbs are load-bearing, and this reasoning outlives the numbers:**
+
+- **Relative alone fails on a saturated field.** *When everything is dangerous, nothing is relatively dangerous.* Measured: a cell holding ~135 reference contacts' worth of danger classified **safe**, because believed long-range artillery bathed the whole map and pulled the median up with the cluster. A ratio answers "is this unusual for us", never "is this lethal".
+- **Absolute alone is what broke the original thresholds** — but only because their *values* were written for a scale that no longer existed. The danger unit is now normalised (100 units = one reference contact at point-blank), so a figure in these units survives a rebalance.
+- **A ratio fails at both ends and the floor covers only one.** The empty end — no believed contact, so "above the median of nothing" admits anything — is the floor's job; the saturated end is the absolute limb's. Removing either re-opens one end.
+
+Live values: `DropRequiresDanger`, `DropDangerFloorUnits`, `DropDangerMedianPercent`, `DropDangerAbsoluteUnits` (`ai.yaml:1003-1006`; C# defaults at `SupplyFollowerBotModule.cs:302/314/324/352`).
+
+### Commitment
+
+Once an errand is in flight, two things hold until the crate is on the ground:
+
+- **Evac is suppressed** (`DropCommitmentOverridesEvac`, `ai.yaml:976`). A truck can never reach a drop point lying *beyond* the cell where evac fires, so while evac outranks the errand the delivery is geometrically impossible rather than merely unreliable. Evac becomes the egress leg, not a rival branch. An **uncommitted** truck still evacuates normally.
+- **The destination is frozen** (`ResolveDropAnchor`, `:1442`). The anchor derives from a cluster centroid, and a platoon that advances or scatters drags that centroid with it — so a re-derived anchor follows the platoon into the guns. Commitment is to a *place*, not merely to not evacuating.
+
+Both read the same responsive `ErrandStillRunning` predicate, so a truck that goes idle still holding its load is no longer committed and re-derives normally. There is deliberately **no bail-out**: commitment costs trucks, and a lost truck releases its claim and dispatch record in the ordinary scan cleanup so another truck inherits the delivery.
+
+### Starvation lifts the follow leash
+
+A cluster holding `StarvingFollowMinUnits` starving men gets `StarvingMaxFollowDistance` instead of `MaxFollowDistance` (`ai.yaml:805/818-819`; `FollowLeashCellsFor`, `:1153`). Urgency-gated rather than a bigger single number on purpose: a dying platoon must not be abandoned for being two cells too far, while a topped-up one still gets the short leash or every truck chases every distant squad across the map.
+
+### Infantry walking to a placed crate is CORRECT behaviour
+
+This distinction cost several rounds of analysis, so state it plainly:
+
+- Walking a short distance to a **placed crate** is the doctrine working. The crate is a real, collectable actor (SUPPLYCACHE, 4-cell aura — see [`economy.md`](economy.md)), and `AutoSeekSupplies` (`infantry.yaml:221-222`, 20-cell selection leash) is what walks them to it. The standoff exists precisely so they make that walk.
+- Walking rearward to meet a **truck** is the front collapsing.
+
+Same trait, similar distance, opposite meaning. A test or metric that measures only "did the platoon get fed" cannot tell them apart, because the men end up fed either way — judge position as well as ammo, and judge position against whether a crate exists.
+
 ## Strategic implications
 
 For AI design and for any strategic-layer code:

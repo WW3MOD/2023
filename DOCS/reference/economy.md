@@ -110,7 +110,8 @@ Truck behavior:
 - Serves units whose `Rearmable.RearmActors` lists `truk` (infantry).
 - When low (`currentSupply < RestockThreshold`, 50) an **Auto**-stance truck drives back to nearest LC (`RestockActors: logisticscenter`) and refills. But TRUK's default resupply stance is **Evacuate** for both human and AI (`vehicles.yaml:514-515`), so a low truck normally rotates to the map edge to return its credit rather than shuttling — see the residue-evac rule below.
 - Refill drains the LC's `currentSupply` by the amount taken. A truck that needs 600 supply takes 600 from the LC, leaving the LC with 2400. If the LC has less than the truck wants, the truck takes what's there and leaves partially full.
-- Can drop its remaining supply as a SUPPLYCACHE box (deploy command) — see below.
+- Can drop its remaining supply as a SUPPLYCACHE box — by the player's deploy command, or, for a bot-owned truck, as the **dangerous-mode delivery**. The drop is all-or-nothing either way (`DropSupplyCacheHere` → `SetSupply(0)`): there is no partial unload.
+- **A bot truck's delivery MODE is chosen by believed danger; danger never decides whether to go.** Quiet front → close to aura range, serve in place, **keep** the remainder for the next customer. Under fire → stop short of the platoon, unload everything, egress. The classifier, the commitment invariants, and why infantry walking to a placed crate is correct behaviour are in [`supply-route.md`](supply-route.md) §"Forward delivery" — not restated here.
 
 **Unusable-residue trucks count-as-empty and evacuate** (gated by `SupplyProvider.EvacuateOnUnusableResidue`, true only on TRUK — `vehicles.yaml:549`). A near-empty truck holding a residue too small to give any nearby soldier a batch would otherwise park at the front forever:
 
