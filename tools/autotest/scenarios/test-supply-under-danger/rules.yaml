@@ -1,0 +1,37 @@
+# Supply-under-danger autotest overrides.
+#
+# DELIBERATELY MINIMAL. Nothing here touches SupplyFollowerBotModule, the danger field,
+# or any threshold that gates them — the point of the test is what the SHIPPING config
+# does, so tuning any of it here would make the verdict meaningless.
+
+Player:
+	# Faction elimination would end the match before the Lua poller writes a verdict.
+	-ConquestVictoryConditions:
+	# Fog OFF and the map pre-explored. This is load-bearing, not cosmetic: the danger
+	# field is built from BELIEVED contacts, so if the bot never sees the grads no danger
+	# is stamped, the whole scenario goes inert, and the test would pass while measuring
+	# nothing. Fog off is what guarantees the contacts are believed from tick 0.
+	MapLayers:
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+	# No cash -> no production, so the only actors are the pre-placed ones and the
+	# platoon cannot be reinforced into passing.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults (AutoTarget.cs).
+	# The crate-collect half of the doctrine runs through AutoSeekSupplies, which is stance
+	# gated (Resupply Hold / Evacuate, HoldPosition, Ambush all veto it), so a dev who once
+	# set riflemen to Ambush would otherwise fail this test for an unrelated reason.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-supply-under-danger.lua

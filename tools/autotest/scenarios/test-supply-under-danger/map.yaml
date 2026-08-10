@@ -1,0 +1,140 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: supply reaches a starving platoon under believed danger
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# DOCTRINE UNDER TEST: supplies have to reach the front one way or another. A platoon
+# low on ammo dies if it is not resupplied, so a truck is expected to push in — serving
+# from its aura where it is safe, or dropping a crate short and leaving where it is not.
+# Danger may change HOW supply arrives; it must not change WHETHER it arrives.
+#
+# GEOMETRY (row 16 is the lane; distances are map cells)
+#   x=4    USA-bot Supply Route          — carries no supply aura; cannot rearm anyone
+#   x=7    Truck (truk, full 750)        — starts OUTSIDE the believed danger
+#   x=44   Platoon: 5x e3, drained to 10/100 primary in Lua
+#   x=58   Two Russian grads             — the danger source, never fired (HoldFire)
+#
+# NOTHING ELSE CAN FEED THE PLATOON, which is what makes the verdict mean what it says.
+# ^E3's Rearmable lists only `truk, logisticscenter` (infantry.yaml:1251-1253); there is no
+# logistics centre on this map, and SUPPLYROUTE carries no SupplyProvider at all, so the
+# beachhead cannot rearm them. The truck under test — or a crate it drops — is the only
+# supply that exists.
+#
+# WHY grad: GradRockets is Range: 40c0 (rules/weapons/weapons-ballistics.yaml:702) and
+# the danger kernel tapers LINEARLY over range/1024 + 2 cells, so a believed grad stamps
+# out to ~42 cells. Core intensity for a believed armoured contact is ~5e5 against an
+# EvacDangerUnits: 50 threshold that converts to ~1,706 raw at the measured ground
+# reference of 3,412 — so essentially the ENTIRE envelope reads above the evac bar, not
+# just its core. That reproduces the measured live condition (median cell 818 / 2,755
+# danger units, i.e. above every threshold that gates on it) on a small deterministic
+# map, rather than hoping a couple of tanks happen to clear it.
+#
+# The danger wall therefore starts around x=16 and covers everything east of it. The
+# truck spawns clear of it at x=7; the platoon sits ~18 cells deep inside it. Reaching
+# the platoon means entering danger, which is exactly the decision under test.
+#
+# The grads are held at HoldFire in Lua. They must be BELIEVED (fog is off in rules.yaml)
+# so they paint the danger field, but they must not actually shell the platoon or the
+# verdict would measure survival instead of resupply.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA-bot
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 4,16
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,16
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 4,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 62,16
+
+	# The truck under test. Full 750 supply, clear route east along row 16, and it starts
+	# OUTSIDE the believed danger envelope so nothing is prejudged at tick 0.
+	Truck: truk
+		Owner: USA-bot
+		Location: 7,16
+
+	# The starving platoon. Five riflemen inside one 10-cell cluster radius, so they read as
+	# a single cluster on every bot profile (MinNearbyFriendlies 4, or 2 under
+	# SmallSquadCoverage).
+	#
+	# x=44 is chosen so the platoon stays outside AutoSeekSupplies' 20-cell leash even in the
+	# worst case where the truck creeps up to the danger wall at x=16 and parks there (28
+	# cells). Otherwise the soldiers could walk out and meet a truck that never actually
+	# committed, and the test would credit a delivery that the doctrine says did not happen.
+	Rifle1: e3
+		Owner: USA-bot
+		Location: 44,14
+		Facing: 256
+	Rifle2: e3
+		Owner: USA-bot
+		Location: 44,15
+		Facing: 256
+	Rifle3: e3
+		Owner: USA-bot
+		Location: 44,16
+		Facing: 256
+	Rifle4: e3
+		Owner: USA-bot
+		Location: 44,17
+		Facing: 256
+	Rifle5: e3
+		Owner: USA-bot
+		Location: 44,18
+		Facing: 256
+
+	# The believed threat that paints the danger field. Held at HoldFire in Lua — present
+	# and believed, but never firing.
+	Grad1: grad
+		Owner: Russia
+		Location: 58,12
+	Grad2: grad
+		Owner: Russia
+		Location: 58,20
+
+Rules: rules.yaml
