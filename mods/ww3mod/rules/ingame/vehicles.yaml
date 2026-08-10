@@ -239,12 +239,26 @@
 	SpeedMultiplier@CriticalDamage:
 		Modifier: 0
 		RequiresCondition: critical-damage
-	# Note: No BurstWaitMultiplier at critical — firing is prevented by
-	# TurretTurnSpeedMultiplier: 0 for turreted vehicles, and per-unit
-	# AttackFrontal PauseOnCondition for turretless vehicles (e.g. giatsint).
+	# Turret freeze fires a whole damage state EARLIER than the speed cut above,
+	# and that asymmetry is deliberate. A vehicle is doomed the moment it drops
+	# below 50% HP: ChangesHealth@CriticalDamage (StartIfBelow: 50) bleeds it out
+	# from there with no way back, the fire ramp ignites at StartFraction: 50, and
+	# VehicleCrew bails the crew at EjectionDamageState: Heavy. A burning hulk
+	# whose crew is climbing out must not still be traversing and shooting, so the
+	# weapon systems die at the same 50% line the doom does. Rolling to a stop is
+	# the one thing that stays on `critical-damage` (25%) — a hit vehicle coasting
+	# to a halt reads correctly, a turret tracking you from a fireball does not.
+	#
+	# Modifier: 0 is a hard lock, not a slow: Turreted.MoveTurret feeds the
+	# modified speed to Util.TickFacing, which returns the current facing
+	# unchanged when the step is zero, and Turreted.FaceTarget short-circuits on
+	# `turretTurnSpeedModifiers.Any(v => v == 0)` so the turret also refuses to
+	# acquire. That covers firing for turreted vehicles; turretless ones (giatsint,
+	# iskander) are covered by `heavy-damage-attained` in their Armament
+	# PauseOnCondition. No BurstWaitMultiplier is needed at either tier.
 	TurretTurnSpeedMultiplier@CriticalDamage:
 		Modifier: 0
-		RequiresCondition: critical-damage
+		RequiresCondition: heavy-damage-attained
 
 # Crew-condition-driven vehicle disability — used by vehicles with VehicleCrew trait
 # Replaces blanket SpeedMultiplier@CriticalDamage / TurretTurnSpeedMultiplier@CriticalDamage

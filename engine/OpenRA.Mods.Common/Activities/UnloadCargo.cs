@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
@@ -31,6 +32,9 @@ namespace OpenRA.Mods.Common.Activities
 
 		Target destination;
 		bool takeOffAfterUnload;
+
+		// Passengers unloaded so far by this activity — drives the group pacing.
+		int unloaded;
 
 		public UnloadCargo(Actor self, WDist unloadRange, bool unloadAll = true)
 			: this(self, Target.Invalid, unloadRange, unloadAll)
@@ -129,6 +133,7 @@ namespace OpenRA.Mods.Common.Activities
 				cargo.ClearEjectRally(actor.ActorID);
 
 				cargo.Unload(self, specificPassenger);
+				unloaded++;
 				self.World.AddFrameEndTask(w =>
 				{
 					if (actor.Disposed)
@@ -169,7 +174,32 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 			}
 
+			// Pace the rest of the stick. Without this the loop unloads one passenger
+			// per tick and a full transport empties in well under a second, which reads
+			// as the whole squad falling out at once.
+			// Interruptible: this is a cosmetic pause between passengers, and an
+			// order given mid-dismount should not have to sit out the rest of an
+			// inter-group gap (up to 12 ticks, ~0.7s) before it is noticed.
+			var delay = NextUnloadDelay();
+			if (delay > 0)
+				QueueChild(new Wait(delay));
+
 			return false;
+		}
+
+		/// <summary>Ticks to hold before the next passenger steps out. Passengers leave in groups of
+		/// UnloadGroupSize back-to-back, then the gap widens by InterGroupUnloadDelayMultiplier before
+		/// the next group starts — so a stick of four reads as two-pause-two, not as a single spill.</summary>
+		int NextUnloadDelay()
+		{
+			var groupSize = cargo.Info.UnloadGroupSize;
+			var intraDelay = cargo.Info.IntraGroupUnloadDelay;
+			if (groupSize <= 0 || intraDelay <= 0)
+				return 0;
+
+			return unloaded % groupSize == 0
+				? intraDelay * Math.Max(1, cargo.Info.InterGroupUnloadDelayMultiplier)
+				: intraDelay;
 		}
 	}
 }

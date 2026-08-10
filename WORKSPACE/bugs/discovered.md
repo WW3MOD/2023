@@ -3,6 +3,21 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-10: [low] `VehicleCrew` is edge-triggered and `Cargo` is level-triggered, so a transport already burning when it receives passengers evacuates them but never its crew (found while: the vehicle-occupant pass, branch `wt/vehicle-occupants`)
+
+Both occupant systems now bail on the same damage state (`Heavy`, HP <50%), but they decide *when to look* in incompatible ways:
+
+- `VehicleCrew` uses `INotifyDamageStateChanged` and requires a **transition** — `e.DamageState >= info.EjectionDamageState && e.PreviousDamageState < info.EjectionDamageState` (`VehicleCrew.cs:163`). No crossing, no ejection, ever.
+- `Cargo` uses `INotifyDamage` and tests the **level** on each hit, latched (`Cargo.cs`, `Cargo.ShouldEmergencyBail`).
+
+So wherever the threshold is not crossed while the crew trait is watching, the passengers leave and the crew rides the wreck down:
+
+- a transport placed into the world already below 50% (map-authored damaged actor, or a scripted spawn);
+- a transport **loaded while already burning** — `Cargo.Load` deliberately re-arms its latch so a new stick bails on the next hit, while `VehicleCrew` saw its crossing long ago and will not re-fire;
+- (a transport repaired above 50% and shot back down *does* re-cross, so that case is fine — this is specifically about never having crossed since the crew trait started watching).
+
+**Deferred deliberately, not overlooked.** The fix belongs in `VehicleCrew.cs`, which was out of scope for the branch that found this — the review scoped the bail-delay knob to `Cargo` only — and `main` churned that file twice during the work, including reverting `b3591ef5`. It wants to be its own change against current `main`. Fix shape: give `VehicleCrew` a latched level test alongside the edge one, so it asks "am I below the line and still crewed?" rather than "did I just cross it?".
+
 ## 2026-08-10: [high] Nothing weighs AMMO STATE against recruitment or dispersal — the bot tears a starving platoon apart and streams half of it at enemy artillery while it holds 10 rounds a man (found while: `test-supply-under-danger`, the supply-doctrine work)
 
 Five riflemen drained to 10/100 primary — every one below the `HuntStarvingThresholdPerMille: 250` bar the supply layer itself uses for "starving" — were recruited and split in half by two modules within ~100 ticks of spawn, while a supply truck was already en route to them. Their own log lines:

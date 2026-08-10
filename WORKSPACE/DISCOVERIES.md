@@ -3,6 +3,39 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-10 — "CRITICAL DAMAGE" NAMES TWO DIFFERENT THRESHOLDS 25 PERCENTAGE POINTS APART, and the `critical-damage` condition is the one the player never sees
+
+When the user says a vehicle "goes critical" they mean *it caught fire and is now doomed*. That is **`DamageState.Heavy`, HP <50%** — not the `critical-damage` condition, which `GrantConditionOnDamageState@CriticalDamage` (`defaults.yaml:194-196`) grants only at `DamageState.Critical`, **HP <25%** (`Health.cs:95-99`). Everything that produces the *visible* "this vehicle is finished" moment is keyed to 50%:
+
+| what the player sees | where | threshold |
+|---|---|---|
+| unrecoverable bleed-out to death | `ChangesHealth@CriticalDamage`, `StartIfBelow: 50` (`vehicles.yaml:153-156`) | 50% |
+| smoke/fire ramp ignites | `GrantStackingConditionOnHealthFraction`, `StartFraction: 50` | 50% |
+| crew bails out | `VehicleCrewInfo.EjectionDamageState = Heavy` (`VehicleCrew.cs:54`) | 50% |
+| **vehicle is disabled** | `critical-damage` gating | **25%** |
+
+- **The consequence was a 25-point band in which a burning, doomed, crew-shedding hull kept traversing and firing.** That is a *whole damage state* of gameplay that looks broken to a player and reads as correct in the YAML, because the condition is spelled `critical-damage` and the state it means is called Critical. Fixed in `28f8097a` by moving the firing/turret gate onto `heavy-damage-attained` (already granted for Heavy+Critical by `^DamageStates`), leaving movement on `critical-damage` deliberately.
+- **THE REUSABLE RULE: when a request says "on critical damage", ask which of the two it is before touching anything.** `heavy-damage-attained` is the condition that matches the player's mental model of "critically damaged"; `critical-damage` is a narrower, nearly-dead state. Prefer `heavy-damage-attained` for anything meant to line up with the fire/doom/bail moment.
+- **`TurretTurnSpeedMultiplier: 0` is a genuine hard lock, not a slow — and it also blocks firing, but only for turreted units.** Two independent mechanisms: `Util.TickFacing` returns the facing unchanged when the step is `WAngle.Zero` (`Util.cs:63-74`), and `Turreted.FaceTarget` short-circuits on `turretTurnSpeedModifiers.Any(v => v == 0)` (`Turreted.cs:299-300`) so `AttackTurreted` never becomes ready. **But `Turreted.Tick` checks only `IsTraitDisabled`, never `IsTraitPaused` (`Turreted.cs:205`)** — so a `PauseOnCondition` on `Turreted` does *not* freeze rotation, it only stops target tracking while `MoveTurret` still realigns to `InitialFacing`. Use the zero multiplier, not the pause. Turretless vehicles (`giatsint`, `iskander`) get nothing from either and need the condition in their `Armament` `PauseOnCondition`.
+
+## 2026-08-10 — CARGO HAS NO INTER-PASSENGER UNLOAD DELAY AT ALL, and `AfterUnloadDelay` is not one despite the name
+
+`UnloadCargo.Tick` unloads exactly one passenger per call and returns `false` to run again the next tick. The only `Wait` in the loop is `AfterUnloadDelay`, and it is queued in the `!unloadAll || !cargo.CanUnload()` branch — i.e. **after the last man, as an exit delay, never between passengers**. The mod then sets `AfterUnloadDelay: 0` on its transports anyway (`vehicles-america.yaml:144`, and the same on the other APCs). Net effect: a six-man BTR empties in six ticks, ~0.36s at the default 60ms timestep (`mod.yaml:369-372`).
+
+- **So "make dismounting slower" is not a matter of raising an existing number — the number does not exist.** Pacing had to be added to the loop (`eb87decc`).
+- **Timestep here is 60ms (≈16.7 ticks/s), not OpenRA's stock 40ms.** Any tick→seconds reasoning about this mod that assumes 25 ticks/s is off by 50%.
+
+## 2026-08-10 — DAMAGE TO PASSENGERS IS TWO SEPARATE CURVES IN TWO SEPARATE HANDLERS, AND BOTH FIRE ON A KILLING HIT
+
+`Health.InflictDamage` notifies `INotifyDamage.Damaged` first and *then* `INotifyKilled.Killed` if HP reached 0 (`Health.cs:199-225`). `Cargo` implements both, and each carries its own passenger-damage formula. A hit that destroys a loaded transport therefore runs **both** curves against the same passengers.
+
+- **The two curves answer different questions and must be tuned separately.** `Damaged` is "the hull was hit and survived" — thresholded, and now halved and configurable. `Killed` (the `EjectOnDeath` path) is "the hull was written off under them" — **not** thresholded, and it is where the "a one-shot kill still kills the passengers" invariant actually lives. Halving the first does not weaken that invariant; halving the second would.
+- **The reason `Killed` stays lethal for a one-shot is that `AttackInfo.Damage` carries the *unclamped* value.** `Health.InflictDamage` clamps `HP` but passes the original `Damage` into `AttackInfo` (`Health.cs:189-197`), so a 20000 tank round on a 14000 hull reports 20000, and `passengerMaxHP * 20000 / 14000` overshoots a 200 HP rifleman. Conversely, finishing off an already-crippled transport with a small hit reports that small hit and is survivable — the asymmetry is free, not designed.
+- **`INotifyDamage.Damaged` sees `DamageState.Dead` on the killing blow, and `Dead` is numerically ABOVE `Critical`.** `Health.InflictDamage` clamps `HP` to 0 at `Health.cs:189` and then evaluates `DamageState` at line 195 for the `AttackInfo` — so any `Damaged` handler that reads the live damage state reads **Dead** on the hit that kills. Combined with `[Flags]` ordering (`Undamaged=1 … Critical=16, Dead=32`), **every `if (state >= SomeThreshold)` in a `Damaged` handler silently fires on death too.** This cost a real bug: a bail-out gated on `>= Heavy` ran on the killing blow, emptied the hold synchronously, and left `INotifyKilled.Killed` iterating an empty list — so `EjectOnDeath` never executed and a one-shot kill on a loaded transport left the entire squad alive. **Any damage-state threshold test in a `Damaged` handler needs an explicit upper bound (`&& state < DamageState.Dead`) unless you positively want it to fire on death.** `INotifyDamageStateChanged` does not have this problem in the same way, since it also gives you `PreviousDamageState`.
+- **Both curves are now pure static functions** (`Cargo.PassengerDamageFromTransportHit` / `PassengerDamageFromTransportDeath`) taking a pre-rolled variance so the caller owns the RNG — testable without a World, see `CargoPassengerDamageTest`. **Test the guard as a named predicate too, not just the arithmetic:** the one-shot-kill assertion passed throughout the bug above, because it exercised the formula and the defect was in the wiring that decides whether the formula is ever reached.
+- **Analyzers do not run in Release.** `engine/Directory.Build.props:51` strips `@(Analyzer)` when `Configuration=Release`, and `make.ps1 check` (which builds Debug) currently dies at restore on a pre-existing `NU1901` NuGet-audit error — so **StyleCop/Roslynator effectively never run on new code**. `dotnet build -c Debug -p:NuGetAudit=false --no-incremental` gets them running again and is worth doing before any C# lands.
+- **Where a variance roll sits relative to a scaling factor changes the tuning, not just the spread.** Folding the roll in *before* a 50% cut halves the curve end to end; adding it *after* leaves the unlucky rolls — the ones that decide who lives — barely moved.
+
 ## 2026-08-10 — THERE ARE SIX INDEPENDENT PLACES A BOT MODULE DECIDES A UNIT IS AVAILABLE FOR TASKING, AND THEY SHARE NO CODE — so every cross-cutting "don't use unit X for Y" rule is a six-site change that will be forgotten in three of them
 
 **This is a structural finding about the bot layer, not a supply one.** The ammo case below is how it was discovered; the shape is what to carry forward.
