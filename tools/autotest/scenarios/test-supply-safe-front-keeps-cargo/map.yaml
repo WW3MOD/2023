@@ -1,0 +1,179 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: on a safe front the truck serves and keeps its cargo
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# DOCTRINE UNDER TEST — the SAFE half of the settled supply doctrine:
+#
+#   "If there is no danger the truck can go up to them and resupply them directly and
+#    not unload, if more resupplying is needed elsewhere."
+#
+# So on a quiet front there are THREE things to get right, and the second and third are
+# the ones nobody has tested yet:
+#   1. the platoon's ammo comes back up, and
+#   2. NO crate is left on the ground, and
+#   3. the truck still holds supply afterwards.
+# Dumping 750 in a field on an undefended front is a real failure, not a stylistic one:
+# it strands the stock and retires a truck that had more errands in it.
+#
+# THIS IS test-supply-under-danger WITH THE ENEMY REMOVED. Same size, same tileset, same
+# map.bin, same lane, same truck cell, same platoon cells, same drain, same window. The
+# ONLY difference is that the two grads and the opposing Supply Route are gone, so the
+# believed-danger field is empty everywhere. The pair is therefore a controlled
+# comparison: one variable (danger present / absent) against the same geometry, and the
+# two verdicts together say WHICH half of the doctrine is implemented.
+#
+# GEOMETRY (row 16 is the lane; distances are map cells)
+#   x=4    USA-bot Supply Route          — carries no supply aura; cannot rearm anyone
+#   x=14   Truck (truk, full 750)        — 30 cells short of the platoon
+#   x=44   Platoon: 5x e3, drained to 10/100 primary in Lua
+#   (no enemy actor anywhere on the map)
+#
+# 30 CELLS IS THE LOAD-BEARING DISTANCE, and it is squeezed from both sides:
+#   - UNDER MaxFollowDistance: 35 (ai.yaml:805 — the mod lowers the C# default of 40), so
+#     the follow pass can see the cluster and the truck has a reason to set off at all.
+#     This is why the truck sits at x=14 and not at x=7 like the danger scenario: that map
+#     leaves the cluster 37 cells out, and the 2026-08-10 instrumented run measured it
+#     being dropped by exactly this filter (`nearest-dist=37c/max-follow=35c`,
+#     WORKSPACE/DISCOVERIES.md). Reusing 37 here would have failed on that known range bug
+#     and said nothing whatsoever about safe-front doctrine.
+#   - OVER HuntLeashCells: 20, so it is the FOLLOW pass under test rather than the Tier-2
+#     idle-truck hunt; and over AutoSeekSupplies' 20-cell leash (infantry.yaml:221-222), so
+#     at t=0 there is no provider the soldiers could walk to on their own. If they could
+#     self-collect, the test would go green while the truck sat still — the exact way to
+#     author a scenario that silently measures nothing.
+# The truck therefore has to travel, and any ammo that arrives arrived because the truck
+# decided to close. Both the truck cell and the platoon cells are ones the danger scenario
+# already proved placeable on this same map.bin, so the shift buys the range fix without
+# putting an actor on unverified terrain.
+#
+# NOTHING ELSE CAN FEED THE PLATOON. ^E3's Rearmable lists only `truk, logisticscenter`
+# (infantry.yaml:1251-1253); there is no logistics centre here, and SUPPLYROUTE carries no
+# SupplyProvider, so the beachhead cannot rearm anyone. The truck, or a crate it drops, is
+# the only supply in the world.
+#
+# WHY THE PLATOON CANNOT DRAIN THE TRUCK. ^E3's primary pool is Ammo: 100, ReloadCount: 20,
+# SupplyValue: 1 (infantry.yaml:1188-1195) — one supply per 20-round batch. Refilling five
+# riflemen from 10 to 100 costs about 25 of 750. So the truck ends the window near 725, far
+# above RestockThreshold: 50, and honest service can NEVER empty it. Combined with the drop
+# path being all-or-nothing (DropsSupplyCache.cs:85-125 calls SetSupply(0)), a truck that
+# reaches zero has dropped, and clause 3 cannot fail for an innocent reason.
+#
+# HOME LOCATIONS ARE PINNED EXPLICITLY, and that is a correctness fix, not tidiness.
+# rules.yaml removes MapStartingLocations, so no spawn assigner runs and Player.HomeLocation
+# falls back to PlayerReference.HomeLocation (Player.cs:182,201; map players use it directly,
+# PlayerReference.cs:41-49), which DEFAULTS TO 0,0 — both players pinned on the same corner
+# cell. That is not cosmetic, because ControlField.ApplyAnchors stamps a permanent ENEMY
+# control anchor at every enemy player's HomeLocation whether or not that player owns a
+# single actor (ControlField.cs:719-731), and drop-and-leave places its anchor by steepest
+# descent down the frontier-distance field seeded from exactly those enemy-classified cells.
+#
+# THIS APPEARS TO BE THE UNEXPLAINED READING IN THE 2026-08-10 DANGER RUN. That log has
+# `frontier-at-sr=64` on the first scan and `4` on every scan after, with the nearest real
+# enemy 54 cells away, and DISCOVERIES.md leaves it open (guessing the field might measure
+# our own control edge). An enemy pin defaulted to 0,0 predicts 4 exactly: AnchorStrength 800
+# over AnchorRadiusCells 4 keeps the whole radius-4 coarse disc past GrayBand 150
+# (800*(4-d+1)/5 >= 160), CellSize 2 puts the SR at coarse 2,8, and coarse 2,4 is both inside
+# that disc and 4 BFS steps away. Since DropStandoffCells is 8, the descent's
+# `frontierAt <= standoff` early-out then fires forever — which is the "structurally
+# impossible" drop the danger run recorded. If so, that finding is an artefact of an unset
+# HomeLocation on that fixture rather than a property of the engine, and pinning the enemy
+# beachhead here is what makes THIS map exercise the drop path at all.
+#
+# NOTE WHAT THAT MEANS, because it is the sharp edge of this test: an enemy beachhead pin
+# is NOT a believed contact. No enemy unit or structure exists, nothing has ever been seen,
+# and the anti-ground danger field is zero on every cell. "No danger" therefore holds in
+# the exact sense the doctrine speaks about, while the CONTROL field still has a front. If
+# the truck unloads here, it unloads on a front where it is in no danger at all.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 4,16
+	# Declared, and deliberately owns NOTHING. An enemy player has to exist for USA-bot to
+	# have a front at all, but this one never puts an actor on the map, so no contact is ever
+	# believed and no danger is ever stamped. ConquestVictoryConditions is removed in
+	# rules.yaml, so an actorless player cannot end the match.
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA-bot
+		HomeLocation: 62,16
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 4,16
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 4,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 62,16
+
+	# The truck under test. Full 750 supply, clear route east along row 16, and no believed
+	# danger anywhere on that route — the safe case, by construction.
+	Truck: truk
+		Owner: USA-bot
+		Location: 14,16
+
+	# The starving platoon. Five riflemen inside one 10-cell cluster radius, so they read as a
+	# single cluster on every bot profile (MinNearbyFriendlies 4, or 2 under SmallSquadCoverage).
+	# Five also clears DropMinStarvingUnits: 3 — which is the point: every gate that would
+	# permit a crate drop is satisfied, so if the code drops one, it drops one here.
+	Rifle1: e3
+		Owner: USA-bot
+		Location: 44,14
+		Facing: 256
+	Rifle2: e3
+		Owner: USA-bot
+		Location: 44,15
+		Facing: 256
+	Rifle3: e3
+		Owner: USA-bot
+		Location: 44,16
+		Facing: 256
+	Rifle4: e3
+		Owner: USA-bot
+		Location: 44,17
+		Facing: 256
+	Rifle5: e3
+		Owner: USA-bot
+		Location: 44,18
+		Facing: 256
+
+Rules: rules.yaml

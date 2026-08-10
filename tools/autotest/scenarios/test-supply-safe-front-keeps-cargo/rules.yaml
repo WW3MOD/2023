@@ -1,0 +1,65 @@
+# Safe-front supply autotest overrides.
+#
+# DELIBERATELY MINIMAL, and identical to test-supply-under-danger's except for the one
+# instrumentation block at the bottom. Nothing here touches SupplyFollowerBotModule, the
+# danger field, or any threshold that gates them — the point of the test is what the
+# SHIPPING config does, so tuning any of it would make the verdict meaningless.
+
+Player:
+	# Faction elimination would end the match before the Lua poller writes a verdict — and
+	# here it would fire immediately, since Russia owns no actors at all.
+	-ConquestVictoryConditions:
+	# Fog OFF and the map pre-explored. Kept for parity with test-supply-under-danger so the
+	# two scenarios differ in exactly one thing (the presence of the enemy). It is inert here
+	# in the belief sense — there is nothing on the map to see — but leaving it identical means
+	# a difference in verdicts cannot be blamed on visibility.
+	MapLayers:
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+	# No cash -> no production, so the only actors are the pre-placed ones and the platoon
+	# cannot be reinforced into passing.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults (AutoTarget.cs).
+	# The crate-collect half of the doctrine runs through AutoSeekSupplies, which is stance
+	# gated (Resupply Hold / Evacuate, HoldPosition, Ambush all veto it), so a dev who once
+	# set riflemen to Ambush would otherwise change what this test measures.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-supply-safe-front-keeps-cargo.lua
+
+# INSTRUMENTATION — the only behavioural line in this file, and it is provably inert above
+# zero supply.
+#
+# WHY IT IS NEEDED. Clause 3 asserts the truck still HOLDS supply at verdict time, and there
+# is no Lua binding that reads SupplyProvider.CurrentSupply — the scripting API has no supply
+# property at all. RemoveBelowSupply turns the one value the test needs into the one thing Lua
+# can always see: whether the actor is still there.
+#
+# WHY IT CANNOT CHANGE THE DECISION UNDER TEST. RemoveBelowSupply is read at exactly two sites
+# (SupplyProvider.cs:221 and :947) and both compare `currentSupply < RemoveBelowSupply`. At 1
+# that is `currentSupply == 0`, and at zero supply the immediately adjacent `currentSupply <= 0`
+# branch already returns the same answer at both sites. So for every supply level the truck
+# actually makes decisions at — 750 down to 1 — this field is a no-op, and it cannot influence
+# whether the truck drives, serves, or drops.
+#
+# WHAT IT DOES CHANGE, stated plainly: an emptied truck self-Disposes at once instead of
+# reaching CountsAsEmpty and being driven to the map edge and sold (EvacuateOnUnusableResidue,
+# vehicles.yaml). Both paths remove the truck; this one removes it promptly and for exactly one
+# reason, which is what makes "truck gone" readable as "truck emptied itself". The Lua records
+# the truck's last cell anyway, so the remote residue-evac case stays distinguishable in the
+# failure text rather than being silently misread.
+
+TRUK:
+	SupplyProvider:
+		RemoveBelowSupply: 1
