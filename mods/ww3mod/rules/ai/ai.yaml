@@ -119,6 +119,10 @@ Player:
 		# with this module for TECN — see playtest 260513 O1).
 		CapturableActorTypes: oilb,bio,miss,fcom,hosp,logisticscenter
 		CheckCaptureTargetsForVisibility: false
+		# The ammo term in tasking — see PoiOffensiveBotModule@experimental for the full rationale. Escorts and
+		# summoned defenders are both an AttackMove across open ground; a dry escort protects the capturer from
+		# nothing. Default 0 (off) on the engine class => the frozen @stable.tecn twin is byte-identical.
+		StarvingRecruitThresholdPerMille: 250
 		ScanInterval: 75
 		MaximumCaptureTargetOptions: 12
 		# PITFALL: only list structures that actually have CashTrickler — a $0
@@ -397,6 +401,15 @@ Player:
 		# AttackMove would cancel their RotateToEdge evac and send an empty unit at the enemy.
 		# Default false on the frozen @stable twin (byte-identical); mirrors LayeredDefence.
 		SkipOutOfAmmoUnits: true
+		# THE AMMO TERM IN TASKING (experimental-only). SkipOutOfAmmoUnits above is an EMPTY test — 0 rounds —
+		# and does nothing at 10%. Measured 2026-08-10: five riflemen at 10/100 were recruited onto a Pressure
+		# axis and streamed at believed artillery while a supply truck was already driving to them. This is the
+		# same 250 the supply layer itself calls starving (SupplyFollowerBotModule.HuntStarvingThresholdPerMille),
+		# so the layer that RESCUES a starving platoon and the layer that TASKS it finally agree on the word.
+		# EXCLUSION, not a weight: a weight loses exactly when the bot wants bodies, which is when the army is
+		# under pressure and starving — the one case where being wrong is fatal. Rejoins the pool on resupply.
+		# Default 0 (off) on the engine class => the frozen @stable twin is byte-identical.
+		StarvingRecruitThresholdPerMille: 250
 		# Wave A, experimental-only: SkipOutOfAmmoUnits above only stops us RECRUITING a dry unit — it leaves
 		# it standing where it emptied, because the engine's own fallback is flag-only (AmmoPool.cs:313-320
 		# sets NeedsResupply and returns, and vehicles default to ResupplyBehavior.Auto). This sweeps our dry
@@ -691,6 +704,11 @@ Player:
 		# Phase 4: same role-based free-pool filter as PoiOffensiveBotModule@experimental. ExcludeUnitTypes
 		# above becomes inert (kept for the frozen @stable twin).
 		UseUnitRoles: true
+		# The ammo term in tasking — see PoiOffensiveBotModule@experimental for the full rationale. Garrisoning
+		# is a WALK to the POI, so without this a starving platoon is marched off its ground to hold something
+		# it has no ammunition to hold. Units already IN a garrison are left standing on the objective.
+		# Default 0 (off) on the engine class => the frozen @stable twin is byte-identical.
+		StarvingRecruitThresholdPerMille: 250
 		# Influence stack (garrison migration, PIPELINE item 24): score held-POI defend urgency off the BELIEVED
 		# anti-ground danger field instead of the omniscient InfluenceMap threat PoiMap bakes into the defend
 		# score. When on, GetDefendTargets is asked for a threat-NEUTRAL (calm) base score (no omniscient read)
@@ -733,6 +751,11 @@ Player:
 		# excluded structurally by CanHostAmbush regardless of these lists (OBS-1).
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
 		UseUnitRoles: true
+		# The ammo term in tasking — see PoiOffensiveBotModule@experimental for the full rationale. A post is a
+		# WALK: measured 2026-08-10, two men of a starving five-man platoon were sent ~28 cells west to a lane
+		# while the truck was driving to that platoon's centroid, which the walk then dragged with it. Units
+		# already AT a post are left alone. Default 0 (off) on the engine class => @stable twin byte-identical.
+		StarvingRecruitThresholdPerMille: 250
 
 	# NOTE: No engineer (^E6) capture module wired anywhere — engineers
 	# don't capture in WW3MOD by design. The Captures trait sits on
@@ -1220,6 +1243,12 @@ Player:
 		# by class, curing the :349 defect. ScreenUnitTypes still partitions screen vs main-line; the
 		# MainLineUnitTypes/ExcludedActorTypes lists become inert (kept for the frozen @stable twin).
 		UseUnitRoles: true
+		# The ammo term in tasking — see PoiOffensiveBotModule@experimental for the full rationale. This is the
+		# DISPERSAL half of the 2026-08-10 defect: SkipOutOfAmmoUnits above is an empty test, so a platoon at
+		# 10% was still being spread across contested cells and avenue crossings, going from a 1-cell clump to
+		# a 9-cell one while a truck was en route to its centroid. Default 0 (off) on the engine class => the
+		# frozen @stable twin is byte-identical.
+		StarvingRecruitThresholdPerMille: 250
 		# PHASE 5 (frontline-influence) — MAN-THE-LINE avenue allocation. Instead of clustering reserves only on the
 		# lowest-density contested InfluenceMap cells, spread them across the enumerated frontline AVENUES (the
 		# ControlField Phase-4 crossing→sector map): every avenue whose sector carries a meaningful believed threat
@@ -1255,6 +1284,9 @@ Player:
 		RetryCooldownTicks: 900
 		MaxAttemptsPerHut: 3
 		ScreenSize: 3
+		# The ammo term in tasking — see PoiOffensiveBotModule@experimental. The screen walks to a crossing and
+		# holds it under fire; a dry man does neither. Default 0 (off) on the engine class.
+		StarvingRecruitThresholdPerMille: 250
 		ScreenStandoffCells: 3
 		CommitTtlTicks: 400
 		ExcludedActorTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, humvee, btr, bradley, bmp2, m113

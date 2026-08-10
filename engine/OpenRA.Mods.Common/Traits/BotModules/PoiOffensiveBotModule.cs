@@ -107,6 +107,15 @@ namespace OpenRA.Mods.Common.Traits
 			"on. Mirrors LayeredDefenceBotModule.SkipOutOfAmmoUnits + the CohesionSwitchEnabled default-off pattern.")]
 		public readonly bool SkipOutOfAmmoUnits = false;
 
+		[Desc("Withhold a unit from offensive tasking while ANY of its ammo pools sits below this per-mille of",
+			"capacity. SkipOutOfAmmoUnits above is an EMPTY test (0 rounds) and does nothing at 10% — measured",
+			"2026-08-10, a five-man platoon at 10/100 rounds was recruited onto a Pressure axis while a supply",
+			"truck was driving to it. Matches SupplyFollowerBotModule.HuntStarvingThresholdPerMille so the layer",
+			"that RESCUES a starving platoon and the layer that TASKS it agree on the word. The unit rejoins the",
+			"pool the moment it is resupplied. 0 = OFF, the shipped default, so the frozen @stable twin (which",
+			"omits this field) keeps recruiting regardless of ammo state, byte-identical.")]
+		public readonly int StarvingRecruitThresholdPerMille = 0;
+
 		[Desc("WAVE A (@experimental) OUT-OF-AMMO DISPOSITION. SkipOutOfAmmoUnits above only stops the offense",
 			"RECRUITING a dry unit — it does not give that unit anything to do, so an empty vehicle just stands",
 			"where it emptied. The engine cannot fix this either: AmmoPool.AutoRearm's else branch, taken when no",
@@ -1021,6 +1030,10 @@ namespace OpenRA.Mods.Common.Traits
 		// pool. Mirrors HelicopterSquadBotModule's `evacuating` set. Empty unless EvacuateOutOfAmmoUnits ⇒
 		// byte-identical when off.
 		readonly HashSet<Actor> evacuatingOutOfAmmo = new();
+
+		// The ammo term (StarvingRecruitThresholdPerMille). Stateless as a decision — it re-reads the pools every
+		// scan — and holds only the withheld/released transition set that keeps the log to one line per event.
+		readonly StarvingRecruitGate ammoGate = new("offense");
 
 		// Cached (build cost, armed) per believed-contact TypeName, resolved from world rules on first use, so
 		// the believed-enemy force tally doesn't re-walk the actor rules every eval. Deterministic.
@@ -2361,6 +2374,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.SkipOutOfAmmoUnits && IsOutOfAmmo(a))
 				return false;
 
+			// The ammo term the offense never had. A platoon below the supply layer's own starving bar cannot
+			// fight for the ground an axis is asking it to take, and walking it forward also drags the drop
+			// anchor (derived from the cluster centroid) away from the front the truck was routed to. Excluded
+			// rather than de-prioritised: see StarvingRecruitGate.
+			if (ammoGate.Withhold(a, Info.StarvingRecruitThresholdPerMille))
+				return false;
+
 			// Wave A: a unit already flying a terminal evac is out of the bot's hands — recruiting it would cancel the
 			// RotateToEdge. Checked independently of the ammo predicate above because that one lives behind a
 			// different flag (SkipOutOfAmmoUnits): with the evac lever on and the skip lever off, this set is the only
@@ -2741,6 +2761,17 @@ namespace OpenRA.Mods.Common.Traits
 					// committed at the objective forever. Release its ledger claim inline (PruneAxes
 					// only trims the list; ReleaseAxis isn't called here). Default-off with the guard.
 					if (Info.SkipOutOfAmmoUnits && IsOutOfAmmo(u))
+					{
+						goalGuard?.Ledger.Release(u);
+						return true;
+					}
+
+					// Same for a unit that runs DRY mid-axis. Without this the recruit gate only ever protects a
+					// platoon that was already starving when the axis formed — one that empties on the advance
+					// stays committed and is re-issued an AttackMove deeper into the fight every eval, which is
+					// the far-front drift. Releasing it stops the re-tasking; it holds where the last order left
+					// it and is picked up again by nothing until resupplied. Inert while the threshold is 0.
+					if (ammoGate.Withhold(u, Info.StarvingRecruitThresholdPerMille))
 					{
 						goalGuard?.Ledger.Release(u);
 						return true;

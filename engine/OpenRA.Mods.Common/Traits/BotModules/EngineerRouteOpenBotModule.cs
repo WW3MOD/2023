@@ -117,6 +117,12 @@ namespace OpenRA.Mods.Common.Traits
 			"to what the free pool can spare; the mission still proceeds on the engineer alone if none are free.")]
 		public readonly int ScreenSize = 3;
 
+		[Desc("Withhold a unit from the screen while ANY of its ammo pools sits below this per-mille of capacity.",
+			"The screen walks to a crossing and holds it under fire; a dry man does neither. Matches",
+			"SupplyFollowerBotModule.HuntStarvingThresholdPerMille. 0 = OFF, the shipped default (this whole",
+			"module is @experimental-only via RouteOpenEnabled, so the field is belt-and-braces).")]
+		public readonly int StarvingRecruitThresholdPerMille = 0;
+
 		[Desc("How far (map cells) the screen holds BEHIND the crossing, toward our own Supply Route — a standoff",
 			"picket on the friendly-near-bank side so AutoTarget engages anyone approaching the repair.")]
 		public readonly int ScreenStandoffCells = 3;
@@ -160,6 +166,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		ControlField controlField;
 		PoiGoalGuard goalGuard;
+
+		// The ammo term (StarvingRecruitThresholdPerMille); see StarvingRecruitGate.
+		readonly StarvingRecruitGate ammoGate = new("route-screen");
 
 		// Per-hut failure memory (bounded retry + cooldown). Keyed on the hut's stable ActorID.
 		readonly Dictionary<uint, int> attemptsByHut = new();
@@ -479,6 +488,11 @@ namespace OpenRA.Mods.Common.Traits
 				if (!actor.Info.HasTraitInfo<IPositionableInfo>())
 					continue;
 				if (goalGuard != null && goalGuard.Ledger.IsCommitted(actor, world.WorldTick))
+					continue;
+
+				// A starving man cannot hold a crossing. Inert at 0. Last in the chain so the withhold log
+				// only fires for units that were otherwise recruitable.
+				if (ammoGate.Withhold(actor, Info.StarvingRecruitThresholdPerMille))
 					continue;
 
 				candidates.Add(actor);

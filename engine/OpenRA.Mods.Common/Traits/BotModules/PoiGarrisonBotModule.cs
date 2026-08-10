@@ -95,6 +95,14 @@ namespace OpenRA.Mods.Common.Traits
 			"the @stable twin stays byte-identical.")]
 		public readonly bool UseUnitRoles = false;
 
+		[Desc("Withhold a unit from a garrison while ANY of its ammo pools sits below this per-mille of capacity.",
+			"Garrisoning a POI is a WALK to it, so a starving platoon is marched off its ground to hold something",
+			"it has no ammunition to hold. Matches SupplyFollowerBotModule.HuntStarvingThresholdPerMille. Units",
+			"already IN a garrison are left alone — they are standing on the objective, which is what a dry unit",
+			"should be doing. 0 = OFF, the shipped default, so the @stable twin (which omits this field) is",
+			"byte-identical.")]
+		public readonly int StarvingRecruitThresholdPerMille = 0;
+
 		[Desc("Influence stack (garrison migration): score held-POI defend urgency off the BELIEVED anti-ground",
 			"danger field (DangerFieldLayer) instead of the OMNISCIENT InfluenceMap threat grid PoiMap bakes into",
 			"the defend score. When on, GetDefendTargets is asked for a threat-NEUTRAL (calm) base score (no",
@@ -174,6 +182,9 @@ namespace OpenRA.Mods.Common.Traits
 		bool resolverResolved;
 
 		readonly List<Garrison> garrisons = new();
+
+		// The ammo term (StarvingRecruitThresholdPerMille); see StarvingRecruitGate.
+		readonly StarvingRecruitGate ammoGate = new("garrison");
 		int reevalCountdown;
 
 		public PoiGarrisonBotModule(Actor self, PoiGarrisonBotModuleInfo info)
@@ -415,9 +426,11 @@ namespace OpenRA.Mods.Common.Traits
 			var claimed = new HashSet<Actor>(garrisons.SelectMany(g => g.Units));
 
 			return world.Actors
-				.Where(a => IsEligibleCombatUnit(a)
-					&& !claimed.Contains(a)
-					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, tick)))
+				// Claimed/committed FIRST: a unit already holding a POI is not being recruited, and the ammo
+				// gate inside IsEligibleCombatUnit logs a withhold on every candidate it refuses.
+				.Where(a => !claimed.Contains(a)
+					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, tick))
+					&& IsEligibleCombatUnit(a))
 				.ToList();
 		}
 
@@ -428,6 +441,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (!a.Info.HasTraitInfo<IPositionableInfo>() || !a.Info.HasTraitInfo<AttackBaseInfo>())
 				return false;
 			if (a.Info.HasTraitInfo<AircraftInfo>())
+				return false;
+
+			// A man too low on ammo to defend the POI should not be marched to it. Inert at 0.
+			if (ammoGate.Withhold(a, Info.StarvingRecruitThresholdPerMille))
 				return false;
 
 			// Role-model eligibility: MainBattle line units plus IndirectFire artillery (design §6).

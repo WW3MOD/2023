@@ -107,6 +107,15 @@ namespace OpenRA.Mods.Common.Traits
 			"of the ExcludeUnitTypes name list — same filter as PoiOffensiveBotModule. Default false.")]
 		public readonly bool UseUnitRoles = false;
 
+		[Desc("Withhold a unit from an ambush lane while ANY of its ammo pools sits below this per-mille of",
+			"capacity. A post is a WALK — measured 2026-08-10, two men of a starving five-man platoon were sent",
+			"~28 cells west to a lane while a supply truck was driving to the platoon's centroid, which the walk",
+			"then dragged with it. Matches SupplyFollowerBotModule.HuntStarvingThresholdPerMille. Units ALREADY",
+			"at a post are left alone (an ambusher is stationary and concealed by definition); this gates the",
+			"walk out. 0 = OFF, the shipped default, so the @stable twin (which omits this field) is",
+			"byte-identical.")]
+		public readonly int StarvingRecruitThresholdPerMille = 0;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -145,6 +154,9 @@ namespace OpenRA.Mods.Common.Traits
 		bool resolverResolved;
 
 		readonly List<Lane> lanes = new();
+
+		// The ammo term (StarvingRecruitThresholdPerMille); see StarvingRecruitGate.
+		readonly StarvingRecruitGate ammoGate = new("ambush");
 
 		// The enable-ambush-tactics grant we hold per posted unit, so it can be revoked precisely on release.
 		readonly Dictionary<Actor, (ExternalCondition Ec, int Token)> gateGrants = new();
@@ -523,9 +535,11 @@ namespace OpenRA.Mods.Common.Traits
 			var claimed = new HashSet<Actor>(lanes.SelectMany(l => l.Units));
 
 			return world.Actors
-				.Where(a => IsEligibleAmbusher(a)
-					&& !claimed.Contains(a)
-					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, tick)))
+				// Claimed/committed FIRST: a unit already at a post is not being recruited, and the ammo gate
+				// inside IsEligibleAmbusher logs a withhold on every candidate it refuses.
+				.Where(a => !claimed.Contains(a)
+					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, tick))
+					&& IsEligibleAmbusher(a))
 				.OrderBy(a => a.ActorID)
 				.ToList();
 		}
@@ -542,6 +556,10 @@ namespace OpenRA.Mods.Common.Traits
 			// The unit must be able to actually HOST the ambush machinery — this is the OBS-1 filter that
 			// drops the ^AutoTargetGround* family (AA IFVs + assault-move vehicles) that never halt/spring.
 			if (!CanHostAmbush(a))
+				return false;
+
+			// A man too low on ammo to spring the ambush should not walk to the post either. Inert at 0.
+			if (ammoGate.Withhold(a, Info.StarvingRecruitThresholdPerMille))
 				return false;
 
 			if (Info.UseUnitRoles && resolver != null)

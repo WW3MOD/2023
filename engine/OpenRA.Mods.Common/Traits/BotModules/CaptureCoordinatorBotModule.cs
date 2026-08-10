@@ -105,6 +105,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Max recruit radius (cells) when searching for idle escort/defender units around the capturer or threatened structure.")]
 		public readonly int SupportRecruitRadiusCells = 40;
 
+		[Desc("Withhold a unit from escort/defender duty while ANY of its ammo pools sits below this per-mille of",
+			"capacity. Both dispatches are an AttackMove across open ground — a dry escort protects the capturer",
+			"from nothing and dies on the way. Matches SupplyFollowerBotModule.HuntStarvingThresholdPerMille.",
+			"0 = OFF, the shipped default, so the frozen @stable.tecn twin (which omits this field) is",
+			"byte-identical.")]
+		public readonly int StarvingRecruitThresholdPerMille = 0;
+
 		[Desc("Radius (cells) inside which enemy army value is counted when evaluating threat to own structures.")]
 		public readonly int DefenseEnemyScanRadiusCells = 12;
 
@@ -438,6 +445,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Defender bookings — actor → tick they were summoned. Stale entries removed on tick.
 		readonly Dictionary<Actor, int> defenderBookings = new();
+
+		// The ammo term (StarvingRecruitThresholdPerMille); see StarvingRecruitGate.
+		readonly StarvingRecruitGate ammoGate = new("capture-support");
 
 		ActorIndex.OwnerAndNamesAndTrait<CapturesInfo> capturingActors;
 
@@ -1683,7 +1693,10 @@ namespace OpenRA.Mods.Common.Traits
 					// (or any module) has committed in the goal-guard ledger.
 					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, world.WorldTick))
 					&& a.Info.HasTraitInfo<IPositionableInfo>()
-					&& a.Info.HasTraitInfo<AttackBaseInfo>());
+					&& a.Info.HasTraitInfo<AttackBaseInfo>()
+					// A starving escort is an escort in name only. Inert at 0. Last in the chain so the
+					// withhold log only fires for units that were otherwise recruitable.
+					&& !ammoGate.Withhold(a, Info.StarvingRecruitThresholdPerMille));
 
 			if (Info.SupportingUnitTypes.Count > 0)
 				pool = pool.Where(a => Info.SupportingUnitTypes.Contains(a.Info.Name));

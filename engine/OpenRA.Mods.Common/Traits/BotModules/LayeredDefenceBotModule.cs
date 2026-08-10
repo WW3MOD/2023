@@ -101,6 +101,14 @@ namespace OpenRA.Mods.Common.Traits
 			"supply; for now we just don't pull them forward.")]
 		public readonly bool SkipOutOfAmmoUnits = true;
 
+		[Desc("Withhold a reserve from a line slot while ANY of its ammo pools sits below this per-mille of",
+			"capacity. SkipOutOfAmmoUnits above is an EMPTY test and does nothing at 10%, so a starving platoon",
+			"was still being spread across contested cells and avenue crossings — the dispersal half of the",
+			"2026-08-10 defect. Matches SupplyFollowerBotModule.HuntStarvingThresholdPerMille. The unit rejoins",
+			"the reserve the moment it is resupplied. 0 = OFF, the shipped default, so the frozen @stable twin",
+			"(which omits this field) keeps manning the line regardless of ammo state, byte-identical.")]
+		public readonly int StarvingRecruitThresholdPerMille = 0;
+
 		[Desc("Terrain types that count as COVER for screen units. Screen-eligible reserves",
 			"snap to the nearest cell of one of these types within CoverSearchRadiusCells of",
 			"their assigned slot, so infantry takes treeline/rough-ground cover rather than",
@@ -179,6 +187,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Per-unit last assignment tick. Stale entries cleaned in the cooldown gate.
 		readonly Dictionary<Actor, int> assignedAtTick = new();
+
+		// The ammo term (StarvingRecruitThresholdPerMille); see StarvingRecruitGate.
+		readonly StarvingRecruitGate ammoGate = new("defence-line");
 
 		int scanCountdown;
 
@@ -385,6 +396,12 @@ namespace OpenRA.Mods.Common.Traits
 				// Out-of-ammo guard: don't push empty units forward as cannon fodder.
 				// A future rearm/retreat module will actively route them; for now we just skip.
 				if (Info.SkipOutOfAmmoUnits && IsOutOfAmmo(actor))
+					continue;
+
+				// The ammo term the guard above cannot see: a man at 10% is not empty, and spreading him
+				// across the contested band is the dispersal that pulled a starving platoon from a 1-cell
+				// clump to a 9-cell one while a truck was en route. Inert while the threshold is 0.
+				if (ammoGate.Withhold(actor, Info.StarvingRecruitThresholdPerMille))
 					continue;
 
 				// Transport reservation: if MountedTransportBotModule has earmarked this
