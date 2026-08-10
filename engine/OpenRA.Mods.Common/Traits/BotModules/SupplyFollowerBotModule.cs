@@ -221,6 +221,22 @@ namespace OpenRA.Mods.Common.Traits
 			"the soldiers it exists for could never select it.")]
 		public readonly int DropStandoffCells = 8;
 
+		[Desc("TAKE THE STANDOFF YOU CAN HAVE INSTEAD OF NO ANCHOR AT ALL. When the believed frontier is",
+			"already at or inside DropStandoffCells of the Supply Route there is no room behind the front to",
+			"stand off into, and the descent returns its start — which ResolveDropAnchor reads as 'no anchor",
+			"established'. So the fallback fails TOTALLY for a player whose fighting is close to his own",
+			"beachhead, which is the situation where resupply matters most because the front is at the door.",
+			"",
+			"Measured 2026-08-10 in a real match: `anchor sr=6,16 → <none> (descent stalled at the SR)` with",
+			"frontier-at-sr=5 against a standoff of 8, twice, for the whole life of that bot's fallback, while",
+			"the other bot on the same map resolved `sr=58,16 → 23,17 standoff=8 frontier=8` normally.",
+			"",
+			"On, the descent is asked for the tightest ring strictly forward of the SR instead, so it takes one",
+			"step and halts on the beachhead's doorstep. Cannot disturb a descent that already resolves: the",
+			"clamp only bites on the exact input that returns the start today. Off ⇒ byte-identical.",
+			"See SupplyDropMath.AvailableStandoff for why a frontier of 1 or 0 still yields no anchor.")]
+		public readonly bool DropClampStandoff = false;
+
 		[Desc("Drop-and-leave: believed ground danger above which the anchor descent refuses to step into a",
 			"cell. IN DANGER UNITS (100 = one reference contact at point-blank). Matches PoiOffensiveBotModule's",
 			"StagingDangerSafeUnits on purpose: it is the same primitive doing the same job, and the STANDOFF",
@@ -1315,6 +1331,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			var anchor = ResolveDropAnchor(srActor, truck, cluster);
 
+			// EVERY DEMAND READING BELOW IS MEASURED AROUND THE ANCHOR, so with no anchor there is nothing to
+			// measure around and these are placeholders, not observations. That distinction is not pedantry: the
+			// decline line printed `starving=0/1` next to `reason=NoAnchor` in the user's 2026-08-10 match and it
+			// was read — reasonably — as "the fallback only ever fires when nobody needs anything", which is a
+			// conclusion about the fallback's worth drawn from a number that is hard-coded on this exact branch.
+			// The line below now says <not-counted> instead, so the same reading cannot be made twice.
 			var starving = anchor.HasValue ? CountStarvingNear(anchor.Value, provider) : 0;
 			var cacheSupply = anchor.HasValue ? CacheSupplyNear(anchor.Value, cacheActor) : 0;
 			var inFlight = anchor.HasValue ? InFlightSupplyTo(anchor.Value, truck) : 0;
@@ -1415,8 +1437,11 @@ namespace OpenRA.Mods.Common.Traits
 						$"[supply] drop-declined truck={truck.ActorID}@{truck.Location} reason={reason} "
 						+ $"scans={streak} anchor={(anchor.HasValue ? anchor.Value.ToString() : "<none>")} "
 						+ $"supply={provider.CurrentSupply}/{Info.DropMinSupply} "
-						+ $"starving={starving}/{Info.DropMinStarvingUnits} "
-						+ $"cache-near={cacheSupply}+in-flight={inFlight}/{Info.DropRedundantCacheSupply}"
+						+ (anchor.HasValue
+							? $"starving={starving}/{Info.DropMinStarvingUnits} "
+								+ $"cache-near={cacheSupply}+in-flight={inFlight}/{Info.DropRedundantCacheSupply}"
+							: "starving=<not-counted> cache-near=<not-counted> in-flight=<not-counted> "
+								+ "(no anchor to measure around — these are NOT a reading of demand)")
 						+ modeDetail);
 
 				declineState[truck] = new DeclineState(reason, streak);
@@ -1658,8 +1683,21 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var (sgx, sgy) = controlField.MapCellToGridCell(srActor.Location);
+			var frontierAtSr = controlField.FrontierDistanceAt(player, sgx, sgy);
+
+			// THE STANDOFF YOU CAN HAVE, NOT THE ONE YOU ASKED FOR. A standoff is a distance BEHIND the front,
+			// so a front that is already closer to the beachhead than the standoff leaves nowhere to stand off
+			// into — and the descent's answer to that was to return nothing rather than to return the best cell
+			// it could still reach. Clamping degrades the standoff instead of the delivery; the rest of this
+			// method is unchanged, so the clamped anchor inherits the same danger guard, passability filter,
+			// hysteresis and adoption tests every other anchor gets. See SupplyDropMath.AvailableStandoff for
+			// why this cannot disturb a descent that already resolves, and why the flat-field inert path lives.
+			var standoff = Info.DropClampStandoff
+				? SupplyDropMath.AvailableStandoff(Info.DropStandoffCells, frontierAtSr)
+				: Info.DropStandoffCells;
+
 			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
-				Info.DropStandoffCells, GroundDangerLevel(Info.DropDangerSafeUnits), Info.DropMaxDescentSteps,
+				standoff, GroundDangerLevel(Info.DropDangerSafeUnits), Info.DropMaxDescentSteps,
 				(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
 				(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
 				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight,
@@ -1670,8 +1708,10 @@ namespace OpenRA.Mods.Common.Traits
 				dropAnchor.Remove(srActor);
 				if (Diagnostic)
 					WriteDiagnostic(
-						$"[supply] anchor sr={srActor.Location} → <none> (descent stalled at the SR: flat field, or "
-						+ $"the front is on top of us) frontier-at-sr={controlField.FrontierDistanceAt(player, sgx, sgy)}");
+						$"[supply] anchor sr={srActor.Location} → <none> (descent stalled at the SR: flat field, no "
+						+ $"safe passable neighbour, or the front is standing on the beachhead) "
+						+ $"frontier-at-sr={frontierAtSr} standoff={standoff}/{Info.DropStandoffCells} "
+						+ $"clamp={Info.DropClampStandoff}");
 
 				return null;
 			}
@@ -1706,7 +1746,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (streak == 1)
 					Log.Write("debug",
 						$"[supply] anchor-impassable sr={srActor.Location} → {candidate} "
-						+ $"on-map={world.Map.Contains(candidate)} standoff={Info.DropStandoffCells} "
+						+ $"on-map={world.Map.Contains(candidate)} standoff={standoff}/{Info.DropStandoffCells} "
 						+ $"frontier={controlField.FrontierDistanceAt(player, agx, agy)} — no anchor this scan");
 				else if (Info.AnchorRejectRollupScans > 0 && streak % Info.AnchorRejectRollupScans == 0)
 					Log.Write("debug",
@@ -1741,8 +1781,9 @@ namespace OpenRA.Mods.Common.Traits
 			dropAnchor[srActor] = candidate;
 			if (Diagnostic)
 				WriteDiagnostic(
-					$"[supply] anchor sr={srActor.Location} → {candidate} standoff={Info.DropStandoffCells} "
-					+ $"frontier={controlField.FrontierDistanceAt(player, agx, agy)} danger={GroundDangerAt(candidate)} "
+					$"[supply] anchor sr={srActor.Location} → {candidate} standoff={standoff}/{Info.DropStandoffCells} "
+					+ $"frontier-at-sr={frontierAtSr} frontier={controlField.FrontierDistanceAt(player, agx, agy)} "
+					+ $"danger={GroundDangerAt(candidate)} "
 					+ $"shifted-from={(had ? prev.ToString() : "<new>")}");
 
 			return candidate;

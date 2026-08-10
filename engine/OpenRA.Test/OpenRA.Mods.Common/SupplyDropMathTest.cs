@@ -400,6 +400,31 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void AvailableStandoff_DegradesOnlyWhenTheFrontIsInsideTheStandoff()
+		{
+			// The whole safety argument for the clamp is that it bites ONLY on the input the descent already
+			// fails on. Room to stand off ⇒ the configured standoff is returned untouched, so every descent
+			// that resolves today resolves to the identical cell.
+			Assert.That(SupplyDropMath.AvailableStandoff(8, 20), Is.EqualTo(8));
+			Assert.That(SupplyDropMath.AvailableStandoff(8, 9), Is.EqualTo(8));
+
+			// The boundary IS the early-out: StagingCell returns its start (⇒ "no anchor") at
+			// frontier <= standoff, which is exactly where the clamp starts producing a tighter ring.
+			Assert.That(SupplyDropMath.AvailableStandoff(8, 8), Is.EqualTo(7));
+			Assert.That(SupplyDropMath.AvailableStandoff(8, 5), Is.EqualTo(4)); // The measured 2026-08-10 case.
+
+			// A FLAT field reads the far sentinel everywhere (ControlField.MaxFrontierDistanceCells 64), so the
+			// clamp is inert there and the mode still self-disables on a profile that never populates the field.
+			Assert.That(SupplyDropMath.AvailableStandoff(8, 64), Is.EqualTo(8));
+
+			// The front standing ON the beachhead yields a non-positive standoff, which StagingCell treats as
+			// "disabled" and returns its start for — so this still resolves to no anchor rather than putting a
+			// crate under the Supply Route's own footprint, where CanDropCache would refuse it every scan.
+			Assert.That(SupplyDropMath.AvailableStandoff(8, 1), Is.EqualTo(0));
+			Assert.That(SupplyDropMath.AvailableStandoff(8, 0), Is.LessThanOrEqualTo(0));
+		}
+
+		[Test]
 		public void ShouldIssueDrop_AnchorMoved_ReissuesWithoutAnyValidityFlag()
 		{
 			// The dedup key is the TARGET CELL, which is what keeps it from becoming a latch: a moved anchor

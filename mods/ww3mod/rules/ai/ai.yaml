@@ -965,11 +965,35 @@ Player:
 		# never pick it. The danger threshold matches the offense module's on purpose: same primitive, same
 		# job, and the STANDOFF is what makes this point safer, not a different danger number.
 		DropStandoffCells: 8
+		# ...and 8 is a REQUEST, not a guarantee. A standoff is a distance behind the front, so a front that is
+		# already closer to the beachhead than 8 leaves nowhere to stand off into, and the descent's answer to
+		# that was to return no anchor at all — the fallback failing totally in exactly the geometry where
+		# resupply matters most, because the fighting is at the door.
+		#
+		# Measured 2026-08-10, in the same match where the cluster anchor above was verified working:
+		#   anchor sr=6,16  → <none> (descent stalled at the SR ...) frontier-at-sr=5     [twice, one bot]
+		#   anchor sr=58,16 → 23,17 standoff=8 frontier=8                                 [the other bot]
+		# Same map, same scan, same standoff. The only difference is how much ground each player held.
+		#
+		# On, the descent asks for the tightest ring strictly forward of the SR instead, takes one step and
+		# stops on the beachhead's doorstep. This is a DEGRADATION of the standoff, not of the delivery. It
+		# cannot disturb a descent that already resolves — the clamp only bites on the exact input that returns
+		# the start today — and a flat field still yields no anchor, so the mode still self-disables where it
+		# should. @stable takes this too, deliberately: it is the same fallback with the same hole.
+		DropClampStandoff: true
 		DropDangerSafeUnits: 10
 		DropMaxDescentSteps: 64
-		# ANCHOR THE CRATE TO THE PLATOON, not to the beachhead. The three settings above describe the SR
-		# descent, which is now the FALLBACK — kept for a truck with no cluster, where there is no demand
-		# to anchor to and the frontier walk is still the better answer.
+		# ANCHOR THE CRATE TO THE PLATOON, not to the beachhead. The settings above describe the SR descent,
+		# which is now the FALLBACK — reached when this truck has no cluster selected.
+		#
+		# "NO CLUSTER" IS NOT "NO DEMAND", and the earlier note here said it was. Demand is counted around the
+		# ANCHOR (DropDemandRadiusCells, individual starving men, no grouping requirement); a CLUSTER needs
+		# SmallSquadMinNearbyFriendlies men inside 10 cells of each other, needs AmmoNeed > 0, and must sit
+		# inside this truck's follow leash and win a SectorSpread assignment. So the fallback's live cases are
+		# a surplus truck the spread left unassigned, a lone starving man below the cluster floor, and a needy
+		# cluster outside the leash — all real, none of them "nobody needs anything". What it is NOT for is a
+		# front too hot to approach: SelectServableClusters' relief valve always keeps the least-dangerous
+		# needy cluster selectable, so danger never empties the cluster list.
 		#
 		# Measured 2026-08-10: the descent produced `anchor sr=4,16 → <none> (descent stalled at the SR)`
 		# on every scan of every run, with frontier-at-sr reading 4 against DropStandoffCells: 8, so

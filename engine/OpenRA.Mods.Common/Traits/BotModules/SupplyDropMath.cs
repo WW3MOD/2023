@@ -38,6 +38,8 @@
  */
 #endregion
 
+using System;
+
 namespace OpenRA.Mods.Common.Traits
 {
 	/// <summary>What a supply truck is DOING this scan, as one named value rather than as an implication of
@@ -226,6 +228,41 @@ namespace OpenRA.Mods.Common.Traits
 				return SupplyDropVeto.Covered;
 
 			return SupplyDropVeto.None;
+		}
+
+		/// <summary>The standoff the SR descent can ACTUALLY have, given the believed frontier already sits
+		/// <paramref name="frontierAtStart"/> coarse cells from the start. Never more than
+		/// <paramref name="configuredStandoff"/>, and never so much that the start already satisfies it.
+		///
+		/// <para>THIS ANSWERS A TOTAL FAILURE, NOT A NUMBER THAT WAS SLIGHTLY WRONG.
+		/// <see cref="ForwardStagingMath.StagingCell"/> returns its start unchanged when
+		/// `frontierAt(start) &lt;= standoffCells`, and ResolveDropAnchor reads a returned start as "no anchor
+		/// established". So a player whose fighting is close to his own beachhead cannot resolve a fallback
+		/// anchor AT ALL — measured in the user's 2026-08-10 match, frontier 5 against a standoff of 8, on the
+		/// bot that was being pushed back onto its own Supply Route. That is exactly the situation where
+		/// resupply matters most, and it is the one the descent refuses. Asking instead for the tightest ring
+		/// strictly FORWARD of where we already stand makes the walk take one step and halt: the beachhead's
+		/// doorstep, which is the best cell available when there is no room behind the front to stand off
+		/// into. A crate one cell from the beachhead is useful; a crate that never exists is not.</para>
+		///
+		/// <para>CONFINED TO THAT CASE BY CONSTRUCTION, which is why it needs no second gate to stay out of the
+		/// working paths. The clamp can only bite when `frontierAtStart &lt;= configuredStandoff`, and that is
+		/// PRECISELY the early-out that returns the start today — so every input that resolves an anchor now
+		/// resolves the identical anchor. The two OTHER ways the walk returns its start are untouched and still
+		/// read as "no anchor": a FLAT field (no believed enemy ⇒ every cell reads the far sentinel, which
+		/// exceeds any sane standoff ⇒ the clamp is inert) keeps drop-and-leave self-disabling on profiles that
+		/// never populate the field, and a walk with no safe passable neighbour still stalls on its own.</para>
+		///
+		/// <para>A frontier of 1 or 0 — the front standing ON the beachhead — yields a NON-POSITIVE standoff,
+		/// which StagingCell already treats as "disabled" and returns the start for. That is deliberate rather
+		/// than a gap: the only cell left to offer would be the Supply Route's own block, whose 3x3 footprint
+		/// occupies the ActorMap, so `DropsSupplyCache.CanDropCache` would refuse the crate on arrival and the
+		/// truck would re-derive the same cell every scan. Failing here says so honestly instead of shipping a
+		/// stall one step further downstream.</para>
+		/// Pure integer, zero RNG.</summary>
+		public static int AvailableStandoff(int configuredStandoff, int frontierAtStart)
+		{
+			return Math.Min(configuredStandoff, frontierAtStart - 1);
 		}
 
 		/// <summary>Has the truck actually reached the cell it was sent to unload at? Chebyshev-free squared
