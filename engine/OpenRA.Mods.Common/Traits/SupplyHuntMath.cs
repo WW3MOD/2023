@@ -98,6 +98,23 @@ namespace OpenRA.Mods.Common.Traits
 			return distanceSquared <= LeashLengthSquared(leashCells);
 		}
 
+		/// <summary>
+		/// Whether a host sits inside a budget expressed in CHESSBOARD cells — max(|dx|, |dy|), the
+		/// "cells away" a player reads off the map, NOT CVec.Length's Euclidean rounding (conventions.md).
+		/// Used for the break-off-and-walk budget, where the number is a travel-cost cap rather than an
+		/// aura edge, so the metric that matches the grid is the honest one. Inclusive at the boundary;
+		/// a budget of 0 or less admits nothing.
+		/// </summary>
+		public static bool WithinCellBudget(int dx, int dy, int budgetCells)
+		{
+			if (budgetCells <= 0)
+				return false;
+
+			var ax = dx < 0 ? -dx : dx;
+			var ay = dy < 0 ? -dy : dy;
+			return (ax > ay ? ax : ay) <= budgetCells;
+		}
+
 		/// <summary>A provider under consideration, reduced to the two facts the pick depends on.</summary>
 		public readonly struct Candidate
 		{

@@ -73,15 +73,24 @@ namespace OpenRA.Mods.Common.Traits
 		/// The call-site form: the predicate plus a one-line log on each TRANSITION, so a platoon sitting still
 		/// reads as a decision rather than as the bot being passive. Logged on transition only — the eligibility
 		/// sites run every scan, and a line per scan per unit per module would bury the event it exists to show.
+		///
+		/// A unit already WALKING TO A REARM SOURCE is withheld unconditionally, threshold or no threshold.
+		/// That clause is not a tuning knob and must not become one: every tasking order in this codebase is
+		/// issued with QueueActivity(false, …), which cancels the current activity — so re-tasking a unit that
+		/// is mid-resupply does not merely reorder its priorities, it destroys the errand and sends an empty
+		/// gun back at the enemy. Making it depend on thresholdPerMille would mean the disposition works on
+		/// @experimental and silently self-cancels on @stable, where the threshold is 0.
 		/// </summary>
 		public bool Withhold(Actor a, int thresholdPerMille)
 		{
-			if (IsStarving(a, thresholdPerMille))
+			var seekingRearm = AmmoPool.IsSeekingRearm(a);
+			if (seekingRearm || IsStarving(a, thresholdPerMille))
 			{
 				if (held.Add(a.ActorID))
 					Log.Write("debug",
 						$"[exp-ammo] withhold module={module} player={a.Owner.PlayerName} unit={a.Info.Name}#{a.ActorID}" +
-						$" cell={a.Location} threshold={thresholdPerMille}pm tick={a.World.WorldTick}");
+						$" cell={a.Location} reason={(seekingRearm ? "resupplying" : "starving")}" +
+						$" threshold={thresholdPerMille}pm tick={a.World.WorldTick}");
 
 				return true;
 			}

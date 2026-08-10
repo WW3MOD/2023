@@ -99,8 +99,9 @@ namespace OpenRA.Mods.Common.Traits
 			"Garrisoning a POI is a WALK to it, so a starving platoon is marched off its ground to hold something",
 			"it has no ammunition to hold. Matches SupplyFollowerBotModule.HuntStarvingThresholdPerMille. Units",
 			"already IN a garrison are left alone — they are standing on the objective, which is what a dry unit",
-			"should be doing. 0 = OFF, the shipped default, so the @stable twin (which omits this field) is",
-			"byte-identical.")]
+			"should be doing. 0 = OFF, the shipped default, so the @stable twin (which omits this field)",
+			"garrisons regardless of ammo state. No longer byte-identical: StarvingRecruitGate additionally",
+			"withholds a unit that is mid-resupply, unconditionally and on both profiles — see the gate.")]
 		public readonly int StarvingRecruitThresholdPerMille = 0;
 
 		[Desc("Influence stack (garrison migration): score held-POI defend urgency off the BELIEVED anti-ground",

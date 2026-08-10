@@ -17,6 +17,21 @@ So wherever the threshold is not crossed while the crew trait is watching, the p
 - (a transport repaired above 50% and shot back down *does* re-cross, so that case is fine — this is specifically about never having crossed since the crew trait started watching).
 
 **Deferred deliberately, not overlooked.** The fix belongs in `VehicleCrew.cs`, which was out of scope for the branch that found this — the review scoped the bail-delay knob to `Cargo` only — and `main` churned that file twice during the work, including reverting `b3591ef5`. It wants to be its own change against current `main`. Fix shape: give `VehicleCrew` a latched level test alongside the edge one, so it asks "am I below the line and still crewed?" rather than "did I just cross it?".
+## 2026-08-10: [high] `Mobile.MoveResult` is declared and read but NEVER ASSIGNED, so "the move finished" and "the move gave up" are both unreachable engine-wide — a unit sent somewhere it cannot path to repaths forever and is effectively deleted from the game (found while: adding the infantry out-of-ammo return path)
+
+`Mobile.MoveResult` (`engine/OpenRA.Mods.Common/Traits/Mobile.cs:265`) is a plain `{ get; set; }` auto-property. Engine-wide it has **three readers and zero writers**:
+
+| site | branch that is dead |
+|---|---|
+| `Activities/Move/MoveCooldownHelper.cs:69` | `CompleteCanceled` / `CompleteDestinationReached` ⇒ stop retrying |
+| `Activities/Move/MoveCooldownHelper.cs:76` | `CompleteDestinationBlocked` ⇒ give up |
+| `Activities/Move/MoveAdjacentTo.cs:107` | `CompleteDestinationReached` |
+
+`InProgress` is the zero value of the enum (`engine/OpenRA.Mods.Common/TraitsInterfaces.cs:853-859`), so the field never changes and every one of those comparisons is permanently false. `MoveCooldownHelper.Tick` always falls through to `cooldownTicks = world.SharedRandom.Next(20, 31)`.
+
+**Symptom:** any activity that moves toward a destination with no route neither completes nor fails. The unit stands still, repathing every 20–31 ticks, indefinitely. It never goes idle, so every idle-triggered recovery is unreachable for it too. If anything gates on "is this unit busy" — `AmmoPool.IsSeekingRearm`, `StarvingRecruitGate` — the unit is also withheld from all tasking permanently.
+
+**Not fixed here.** Assigning the field correctly means auditing every `Move` completion path and deciding the right result per exit; getting that wrong changes pathing for every unit in the game, which is far beyond the branch that found it. Mitigation applied on the one path this branch newly routes infantry into: `AutoSeekSupplies.ReturnErrandStallTicks` cancels an errand that gains no ammo and changes no cell for 300 ticks, then cools down before retrying. `SeekSuppliesAndReturn` already had `MaxStalledTicks`; **`SeekSupplyProvider` and `Resupply` still have no guard**, so the bot's dry-vehicle sweep (`PoiOffensiveBotModule.SweepOutOfAmmoUnits`) remains exposed.
 
 ## 2026-08-10: [high] Nothing weighs AMMO STATE against recruitment or dispersal — the bot tears a starving platoon apart and streams half of it at enemy artillery while it holds 10 rounds a man (found while: `test-supply-under-danger`, the supply-doctrine work)
 

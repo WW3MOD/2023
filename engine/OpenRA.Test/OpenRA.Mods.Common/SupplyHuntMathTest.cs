@@ -196,6 +196,33 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void CellBudgetIsChessboardNotEuclidean()
+		{
+			// A host 30 cells out on BOTH axes is 30 cells away on the grid a player reads, and ~42 by
+			// Euclid. The break-off budget is a travel-cost cap rather than an aura edge, so it must use
+			// the former — CVec.Length here would reject a host the player considers plainly nearby.
+			Assert.That(SupplyHuntMath.WithinCellBudget(30, 30, 30), Is.True);
+			Assert.That(SupplyHuntMath.WithinCellBudget(31, 0, 30), Is.False);
+		}
+
+		[Test]
+		public void CellBudgetIsInclusiveAndSignAgnostic()
+		{
+			Assert.That(SupplyHuntMath.WithinCellBudget(-10, 4, 10), Is.True);
+			Assert.That(SupplyHuntMath.WithinCellBudget(4, -10, 10), Is.True);
+			Assert.That(SupplyHuntMath.WithinCellBudget(0, 0, 10), Is.True);
+		}
+
+		[Test]
+		public void NonPositiveCellBudgetAdmitsNothing()
+		{
+			// Not even the zero-distance case: a budget of 0 means the feature is off, and a host
+			// standing on top of the unit must not be the loophole that switches it back on.
+			Assert.That(SupplyHuntMath.WithinCellBudget(0, 0, 0), Is.False);
+			Assert.That(SupplyHuntMath.WithinCellBudget(1, 1, -5), Is.False);
+		}
+
+		[Test]
 		public void NearestSourceWins()
 		{
 			var candidates = new List<SupplyHuntMath.Candidate>

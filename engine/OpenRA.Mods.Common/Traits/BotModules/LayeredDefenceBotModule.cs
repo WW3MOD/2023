@@ -106,7 +106,9 @@ namespace OpenRA.Mods.Common.Traits
 			"was still being spread across contested cells and avenue crossings — the dispersal half of the",
 			"2026-08-10 defect. Matches SupplyFollowerBotModule.HuntStarvingThresholdPerMille. The unit rejoins",
 			"the reserve the moment it is resupplied. 0 = OFF, the shipped default, so the frozen @stable twin",
-			"(which omits this field) keeps manning the line regardless of ammo state, byte-identical.")]
+			"(which omits this field) keeps manning the line regardless of ammo state. No longer",
+			"byte-identical: StarvingRecruitGate additionally withholds a unit that is mid-resupply,",
+			"unconditionally and on both profiles — see the gate.")]
 		public readonly int StarvingRecruitThresholdPerMille = 0;
 
 		[Desc("Terrain types that count as COVER for screen units. Screen-eligible reserves",

@@ -112,8 +112,9 @@ namespace OpenRA.Mods.Common.Traits
 			"~28 cells west to a lane while a supply truck was driving to the platoon's centroid, which the walk",
 			"then dragged with it. Matches SupplyFollowerBotModule.HuntStarvingThresholdPerMille. Units ALREADY",
 			"at a post are left alone (an ambusher is stationary and concealed by definition); this gates the",
-			"walk out. 0 = OFF, the shipped default, so the @stable twin (which omits this field) is",
-			"byte-identical.")]
+			"walk out. 0 = OFF, the shipped default, so the @stable twin (which omits this field) posts",
+			"regardless of ammo state. No longer byte-identical: StarvingRecruitGate additionally withholds a",
+			"unit that is mid-resupply, unconditionally and on both profiles — see the gate.")]
 		public readonly int StarvingRecruitThresholdPerMille = 0;
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
