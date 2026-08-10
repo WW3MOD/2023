@@ -266,6 +266,27 @@ namespace OpenRA.Mods.Common.Traits
 			"before reaching the platoon rather than after passing it.")]
 		public readonly int DropShortCells = 5;
 
+		[Desc("FULL COMMITMENT: a truck with a drop errand IN FLIGHT does not evacuate. It drives in, drops,",
+			"and only then leaves — so the evac branch becomes the EGRESS LEG of a delivery instead of a",
+			"branch competing with it.",
+			"",
+			"WHY THIS IS A CORRECTNESS FIX AND NOT A TUNING PREFERENCE. A truck can never reach a drop point",
+			"that lies BEYOND the cell at which evac fires, so while evac outranks the errand the delivery is",
+			"geometrically impossible rather than merely unreliable — no anchor placement and no extra damping",
+			"can reach it from the drop side. Measured 2026-08-10: anchor at x=33, evac entering at x=29-30 on",
+			"danger 308,180 and 462,272 against a bar of 1,706, retreating to x=17-18, releasing at danger ~15,",
+			"and repeating. The crate was never placed and the platoon it was for walked ten cells rearward to",
+			"fetch supply from the oscillating truck instead.",
+			"",
+			"An UNCOMMITTED truck still evacuates exactly as before: pulling a truck with no delivery to make",
+			"out of a dangerous cell was never wrong, it was only wrong when it outranked a delivery.",
+			"",
+			"Commitment costs trucks, and that is the accepted price — the doctrine is 'full commitment', so",
+			"there is deliberately no bail-out. A truck lost mid-run releases its blackboard claim and its",
+			"dispatch record in the ordinary scan cleanup, so the next truck re-derives the same anchor and",
+			"picks the delivery up. Ships OFF so the benchmark control does not move on its own.")]
+		public readonly bool DropCommitmentOverridesEvac = false;
+
 		[Desc("Drop-and-leave: MAP-cell Chebyshev hysteresis on the forward supply point. The anchor is",
 			"re-derived every scan from a field that is rebuilt every 25 ticks, so without this a one-cell",
 			"belief wobble would move the destination — and a destination that moves is the entire defect this",
@@ -832,15 +853,60 @@ namespace OpenRA.Mods.Common.Traits
 						+ $"nearest-dist={(nearest != null ? (nearest.Center - truck.CenterPosition).Length / 1024 : -1)}c"
 						+ $"/leash={(nearest != null ? FollowLeashCellsFor(nearest) : Info.MaxFollowDistance)}c "
 						+ $"spread={spread} spread-assigned={spreadTargets != null && spreadTargets.ContainsKey(truck)} "
-						+ $"hunt={hunt}");
+						+ $"committed={Info.DropCommitmentOverridesEvac && SupplyDropMath.ErrandStillRunning(dropTarget.ContainsKey(truck), truck.IsIdle)} "
+						+ $"danger-at-truck={GroundDangerAt(truck.Location)} hunt={hunt}");
 				}
+
+				// FULL COMMITMENT. A truck whose drop errand is IN FLIGHT does not evacuate: it drives in, drops,
+				// and only then leaves. This is the doctrine sentence — "they drive in fast, drop the supplies,
+				// and drive back out, full commitment" — and it makes evac the EGRESS LEG of a delivery rather
+				// than a branch competing with it.
+				//
+				// WITHOUT IT THE DELIVERY IS NOT MERELY UNRELIABLE, IT IS GEOMETRICALLY IMPOSSIBLE. Measured
+				// 2026-08-10: the anchor sat at x=33, evac entered at x=29-30 (danger 308,180 then 462,272
+				// against a bar of 1,706 — 180x and 271x over), the truck retreated to x=17-18, released at
+				// danger ~15, drove east again and re-entered. A truck can never reach a drop point that lies
+				// BEYOND the cell where evac fires, so no anchor placement and no amount of damping can fix
+				// this from the drop side; the priority is the bug.
+				//
+				// THE COMMITMENT TERM IS RESPONSIVE, WHICH IS WHAT KEEPS IT FROM BECOMING A LATCH. It is not
+				// "a dispatch record exists" — that record can outlive its errand, and gating evac on it would
+				// pin a truck in fire forever, which is the exact defect species this module has been bitten by
+				// repeatedly. It is ErrandStillRunning: the record AND a non-idle truck. A truck that went idle
+				// still holding its load has finished without dropping, is no longer committed, and evacuates
+				// normally on this same scan — the identical predicate StepDrop uses one branch down to void
+				// that record, so the two cannot disagree about whether an errand is live.
+				//
+				// AN UNCOMMITTED TRUCK STILL EVACUATES. Pulling a truck with no delivery to make out of a
+				// dangerous cell was never the wrong behaviour; it was only wrong when it outranked a delivery.
+				var committed = Info.DropCommitmentOverridesEvac
+					&& SupplyDropMath.ErrandStillRunning(dropTarget.ContainsKey(truck), truck.IsIdle);
 
 				// Danger evac, damped. Deliberately evaluated BEFORE the no-cluster bail and with a possibly
 				// null cluster: the relief valve can still leave a truck with no target (nothing needs ammo),
 				// and a truck standing in fire must be able to pull back regardless. Pre-damper this case fell
 				// through unevacuated.
 				var srActor = evac ? NearestSupplyRoute(supplyRoutes, truck.CenterPosition) : null;
-				if (srActor != null)
+				if (committed)
+				{
+					// A committed truck is not evacuating, so any dwell it had accrued is void — otherwise it
+					// would resume mid-dwell the moment the errand ends and skip its own entry test.
+					evacState.Remove(truck);
+
+					// EDGE — unconditional, and deliberately gated on the danger actually being over the bar so
+					// it fires only when the commitment is DOING something. This is the line that says a truck
+					// is knowingly driving into fire to make a delivery, which is the single most consequential
+					// decision this module makes; it is bounded by the handful of scans a run through danger
+					// takes, and bracketed by the existing unconditional `drop` and `release` edges.
+					var dangerHere = GroundDangerAt(truck.Location);
+					if (dangerHere >= GroundDangerLevel(Info.EvacDangerUnits))
+						Log.Write("debug",
+							$"[supply] committed truck={truck.ActorID}@{truck.Location} danger={dangerHere} "
+							+ $"threshold={GroundDangerLevel(Info.EvacDangerUnits)} ({Info.EvacDangerUnits}u) "
+							+ $"anchor={dropTarget[truck]} load={truck.TraitOrDefault<SupplyProvider>()?.CurrentSupply ?? 0} "
+							+ "— evac suppressed, delivery in flight");
+				}
+				else if (srActor != null)
 				{
 					if (StepEvac(truck, srActor, bestCluster))
 						continue;

@@ -961,6 +961,19 @@ Player:
 		# AutoSeekSupplies' 20-cell selection leash so the men can actually select the crate.
 		DropAnchorAtCluster: true
 		DropShortCells: 5
+		# FULL COMMITMENT — "they drive in fast, drop the supplies, and drive back out." A truck with a
+		# drop in flight does not evacuate; evac becomes the egress leg instead of a rival branch.
+		#
+		# Measured 2026-08-10, with the cluster anchor above already working: anchor at x=33, evac
+		# entering at x=29-30 on danger 308,180 then 462,272 against a bar of 1,706, retreating to
+		# x=17-18, releasing at danger ~15, driving east and re-entering — the supply-truck oscillation,
+		# caught with numbers. The crate was never placed and the platoon walked ten cells rearward to
+		# fetch supply from the oscillating truck instead. A truck can never reach a drop point beyond
+		# the cell where evac fires, so this is a correctness fix, not a tuning preference.
+		#
+		# This costs trucks and is meant to. A truck lost mid-run releases its claim and its dispatch
+		# record in the ordinary scan cleanup, so the next truck re-derives the anchor and takes over.
+		DropCommitmentOverridesEvac: true
 		# The anchor is re-derived every scan from a field rebuilt every 25 ticks. Without hysteresis a
 		# one-cell belief wobble would move the destination — and a destination that moves is the entire
 		# defect this mode exists to remove.
