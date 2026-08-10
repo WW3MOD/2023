@@ -3,6 +3,34 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-10 — `EstimatePercentDamage` IGNORES WARHEAD `ValidTargets` WHILE THE REAL DAMAGE PATH ENFORCES IT, so a weapon's claim can count damage it could never deal
+
+Found by reading while building `test-aa-overkill-cadence`. `EstimatePercentDamage` sums `arm.Weapon.Warheads.OfType<DamageWarhead>()` and applies armour thickness and the `Versus` table (`AutoTarget.cs:1293-1321`) — but it never checks the warhead's `ValidTargets`. The live damage path does: `DamageWarhead.DoImpact` returns early on `!IsValidAgainst(victim, firedBy)` (`:74`), which chains to the base `Warhead` target-type check.
+
+- **Consequence: any weapon carrying damage warheads for more than one target class overstates its claim against every class.** A weapon with an anti-air warhead and an anti-ground warhead marks an aircraft with the sum of both, though only one can ever land. The mark is `totalDamage * 100 / MaxHP`, so the overstatement feeds straight into overkill suppression.
+- **MANPAD itself is NOT affected, and its 500 figure is exact rather than low — this settles a caveat flagged earlier in the series.** Its only `DamageWarhead` is `Warhead@Spread` (3000); the inherited `^MediumExplosionEffectsAir` adds only a `CreateEffect` warhead (`weapons-effects.yaml:702-709`), which is not a `DamageWarhead`. **But weapons inheriting `^LargeExplosionEffectsAir` / `^HugeExplosionEffectsAir` DO gain a second damage warhead** (`Warhead@Target: TargetDamage`, `:713` / `:723`) and are worth auditing.
+- It is also the only lever that can separate the mark from the damage, which is what makes a cadence measurement possible at all (see below).
+
+## 2026-08-10 — THE OVERKILL MARK AND THE DAMAGE ARE THE SAME NUMBER, which bounds the bug by itself: a group that suppresses also kills within one burst cycle
+
+**Reconstructed from code, NOT measured** — the run that would have measured it was consumed by the harness pitfall below.
+
+`EstimatePercentDamage` is the fraction of the target's health the committed shot will remove, and the weapon then removes it. For a homogeneous group, marking >= 100% of a target's health means dealing >= 100% of it within one burst cycle, so the target dies before a second cycle can begin. Formally: suppressing needs `K * 3000 >= MaxHP`, surviving `C` cycles needs `MaxHP > 3000 * K * C`, and together those require `C < 1`. **Sustained re-marking against a still-living target therefore cannot arise from a group that is landing its shots.**
+
+- **The route to sustained suppression is MISSES, not cadence.** If shots fail to land — a manoeuvring helicopter, `Inaccuracy: 256` — the target survives, the shooter re-acquires, and `AttackFollow.Tick` re-marks on re-acquisition (`:156-172`; `OpportunityFire` defaults true at `:26`, no infantry override). Each cycle re-applies the full 500 against a 600-HP helicopter and the neighbours stay down. That case is stochastic rather than deterministic and is the one worth measuring next.
+- **Honest severity bound as it stands: ~10s measured for a single commitment (`test-aa-overkill-suppression`), demonstrably unbounded when fed (`test-aa-overkill-pump`), and reconstructed-but-untested as to whether ordinary firing feeds it.** The arithmetic argues it does not while shots land, and says nothing about the miss case.
+
+## 2026-08-10 — HARNESS PITFALL: a weapon override placed in a map's `Rules:` file fails as "Cannot locate type: WarheadInfo" and hangs the runner to its 300s timeout
+
+Map weapon overrides belong in the file named by `Weapons:` in `map.yaml`, not `Rules:` (see `demo-ifv-brawl` and `test-wgm-target-dies-midflight` for the shape). Put a weapon block in the rules file and the loader reads the weapon name as an ACTOR and its `Warhead@...` children as traits, producing an error naming neither the file nor the weapon:
+
+```
+Failed to load rules for TEST: ... with error
+One or more errors occurred. (Cannot locate type: WarheadInfo)
+```
+
+The game then never reaches the Lua, no verdict is written, and `run-test.sh` reports a 300-second timeout rather than a rules error — the rules failure is visible only in `debug.log`. **Check `debug.log` for "Failed to load rules" before treating a hang as a hang.** When overriding an existing warhead, repeat its type (`Warhead@Spread: SpreadDamage`) rather than relying on MiniYaml to carry the parent node's value across.
+
 ## 2026-08-10 — ONE AA COMMITTING TO AN AIRCRAFT BLINDS EVERY OTHER AA TO IT FOR ~10 SECONDS, the target is perfectly healthy, and a plain left-click fires at it the whole time
 
 `test-aa-overkill-suppression`. One marker AA, one observer AA and one stock-HP Halo per lane; a third lane with no marker at all as the latency baseline. Measured (seed 1829504673):

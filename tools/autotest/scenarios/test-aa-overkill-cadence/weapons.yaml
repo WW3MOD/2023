@@ -1,0 +1,48 @@
+# =====================================================================
+# THE ONE MANIPULATION, AND WHY IT IS NECESSARY.
+#
+# The mark and the damage are the SAME NUMBER by construction --
+# EstimatePercentDamage sums the weapon's damage warheads
+# (AutoTarget.cs:1293-1321) and the weapon then deals that damage. So a group
+# marking >= 100% of a target's health also DEALS >= 100% of it within one
+# burst cycle, and the target dies before a second cycle can happen. Measuring
+# a re-mark CADENCE across several cycles is therefore arithmetically
+# impossible while the two stay coupled: any fight long enough to show cadence
+# has a mark too small to suppress, and any mark big enough to suppress kills
+# the target immediately.
+#
+# They can be decoupled, because the two paths disagree about warhead
+# ValidTargets. The real damage path gates each warhead on IsValidAgainst
+# (DamageWarhead.cs:74), but EstimatePercentDamage does NOT check ValidTargets
+# at all -- it sums every DamageWarhead on the weapon regardless of whether it
+# could ever apply to this target. That is a genuine defect in its own right,
+# and here it is also the lever:
+#
+#   Warhead@Spread       Damage 50,   valid vs Air    -> the damage actually dealt
+#   Warhead@EstimateOnly Damage 3000, valid vs Ground -> counted by the estimate,
+#                                                        never applied to an
+#                                                        airborne target
+#
+# Estimate = 50 + 3000 = 3050 against the Halo's 600 MaxHP => a mark of 508,
+# within 2% of the real 500 a stock MANPAD applies. Actual damage per hit is
+# 50, so the helicopter absorbs twelve hits and the fight lasts long enough for
+# several BurstWait cycles to be observed.
+#
+# Nothing about the TARGETING path is altered: no scripted marking, no orders,
+# stock scan cadence, stock BurstWait. Only the payload split changes.
+#
+# PITFALL: weapon overrides belong in the map's `Weapons:` file, NOT in
+# `Rules:`. Putting this block in rules.yaml makes the loader read MANPAD as an
+# ACTOR and its Warhead@ children as traits, which fails with the distinctly
+# unhelpful "Cannot locate type: WarheadInfo" and hangs the test until the
+# 300s runner timeout. The warhead TYPE is repeated on the override below
+# rather than relying on MiniYaml carrying the parent's node value across.
+# =====================================================================
+
+MANPAD:
+	Warhead@Spread: SpreadDamage
+		Damage: 50
+	Warhead@EstimateOnly: SpreadDamage
+		Damage: 3000
+		Spread: 192
+		ValidTargets: Ground
