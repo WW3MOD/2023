@@ -71,7 +71,7 @@ humvee:
 		Name: primary
 		Weapon: 7.62mm.MG
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable || critical-damage
+		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -229,7 +229,7 @@ m113:
 		Weapon: 12.7mm.MG
 		LocalOffset: 300,0,120
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable || critical-damage
+		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -360,7 +360,7 @@ bradley:
 		RecoilRecovery: 5
 		LocalOffset: 820,0,105
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable || critical-damage
+		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -384,7 +384,7 @@ bradley:
 		LocalOffset: 100,90,90
 		# LocalYaw: -100, 100
 		Recoil: 10
-		PauseOnCondition: !ammo-secondary || empdisable || critical-damage
+		PauseOnCondition: !ammo-secondary || empdisable || heavy-damage-attained
 	AmmoPool@2:
 		Name: secondary-ammo
 		Armaments: secondary
@@ -513,7 +513,7 @@ abrams:
 		RecoilRecovery: 30
 		LocalOffset: 1200,0,80
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable || critical-damage
+		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -629,7 +629,7 @@ m109:
 		RecoilRecovery: 70
 		MuzzleSequence: muzzle
 		LocalOffset: 950,0,380
-		PauseOnCondition: !ammo-primary || empdisable || critical-damage
+		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 		AimingDelay: 35
 	AmmoPool@1:
 		Name: primary-ammo
@@ -751,7 +751,7 @@ m270:
 		Weapon: M270Rockets
 		# FireDelay: 150
 		LocalOffset: 192,-64,176, 192,64,176
-		PauseOnCondition: !ammo-primary || empdisable || unit.docked || critical-damage
+		PauseOnCondition: !ammo-primary || empdisable || unit.docked || heavy-damage-attained
 		AimingDelay: 30
 	AmmoPool@1:
 		Name: primary-ammo
@@ -871,7 +871,7 @@ strykershorad:
 		RecoilRecovery: 25
 		LocalOffset: 768,0,90
 		MuzzleSequence: muzzle
-		PauseOnCondition: !ammo-primary || empdisable || critical-damage
+		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -898,7 +898,7 @@ strykershorad:
 		Weapon: Stinger.quad
 		LocalOffset: 100,90,90
 		LocalYaw: -100, 100
-		PauseOnCondition: !ammo-secondary || empdisable || critical-damage
+		PauseOnCondition: !ammo-secondary || empdisable || heavy-damage-attained
 	AmmoPool@2:
 		Name: secondary-ammo
 		Armaments: secondary
@@ -931,7 +931,7 @@ strykershorad:
 		# FireDelay: 25
 		LocalOffset: 100,-90,90
 		LocalYaw: -70, 100
-		PauseOnCondition: !ammo-tertiary || empdisable || critical-damage
+		PauseOnCondition: !ammo-tertiary || empdisable || heavy-damage-attained
 	AmmoPool@3:
 		Name: tertiary-ammo
 		Armaments: tertiary
@@ -1041,7 +1041,7 @@ HIMARS:
 	Armament@1:
 		Weapon: HIMARSTargeter
 		LocalOffset: 192,-64,176, 192,64,176 #BM - Where each rocket spawns when fired (per barrel, in turret-local coords). X=forward(+), Y=right(+)/left(-), Z=up. Two barrels alternate. Combined with the Turreted Offset (-300,0,150), the actual world spawn point is back+up of the vehicle center.
-		PauseOnCondition: !ammo-primary || empdisable || unit.docked || critical-damage
+		PauseOnCondition: !ammo-primary || empdisable || unit.docked || heavy-damage-attained
 		RequiresForceFire: True
 		AimingDelay: 40
 	AmmoPool@1:
