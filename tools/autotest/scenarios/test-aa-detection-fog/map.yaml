@@ -1,0 +1,137 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: AA detection vs fog + tree-degraded vision (diagnostic)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# =====================================================================
+	# Companion to test-aa-autotarget-thru-trees. That scenario ran fog OFF
+	# to isolate the LINE-OF-FIRE gate and proved a blocked shooter is silent
+	# on both paths. This one runs fog ON to test the surviving hypothesis:
+	# that foliage kills the engagement through VISION, not through line of
+	# fire — the aircraft goes undetected, ChooseTarget drops it at the
+	# CanBeViewedByPlayer filter (AutoTarget.cs:1066), yet it stays clickable
+	# (Detectable.ModifyRender :222-234 hides it, ModifyScreenBounds :247-250
+	# still returns bounds) so a manual order fires instantly from where the
+	# unit stands.
+	#
+	# THE TREES ARE PLACED TO AFFECT VISION AND *NOT* LINE OF FIRE. The two
+	# shadow channels read the same DensityLayer but integrate differently:
+	#   - airborne (line of fire) counts only cells with t > 0.75, the final
+	#     quarter at the ground end (Map.cs:1160-1170), which after FiringLOS'
+	#     swap is the stretch beside the shooter;
+	#   - ground (vision) counts EVERY cell between the two endpoints, with no
+	#     t filter at all (Map.cs:1150).
+	# So trees at d >= 5 cells from the AA on this 20-cell line sit outside the
+	# airborne band entirely (d=5 gives t=0.75, and the test is a strict
+	# 512 > 2048*(1-t), so it is excluded) while contributing full density to
+	# vision. Line of fire is therefore PROVABLY ZERO on every lane, and the
+	# manual phase re-proves it empirically: if the manual shot lands, the line
+	# was clear and only detection can have stopped the auto path.
+	#
+	# LANE ISOLATION. Vision reaches 32 cells (^StandardVision Vision@1,
+	# defaults.yaml:83-86), so lanes must be >32 apart or a neighbour's AA
+	# lights up this lane's aircraft. At 27 cells of lane spacing the nearest
+	# foreign AA-to-aircraft distance is sqrt(27^2+20^2) = 33.6 cells — outside
+	# every vision band. MANPAD range 23c0 is comfortably beaten too.
+	#
+	# PREDICTION. Vision strength falls with range (10 inside 4 cells ... 4 in
+	# the 19-22 band, defaults.yaml:47-86), so a 20-cell line starts at
+	# strength 4. MapLayers subtracts groundShadow and floors the result at 1
+	# (MapLayers.cs:371-374), and detection needs resolved visibility STRICTLY
+	# GREATER than Detectable.Vision = 2 (MapLayers.cs:579 — `> visibility`,
+	# not >=), i.e. >= 3. groundShadow = ForestGroundShadow(density):
+	# ceil(d/10) up to the knee at 20, then 2 + ceil((d-20)/5) (Map.cs:1102-1120).
+	#   0 trees -> density  0 -> gs 0 -> vis 4 -> 4 > 2  DETECTED   (control)
+	#   1 tree  -> density 10 -> gs 1 -> vis 3 -> 3 > 2  DETECTED
+	#   2 trees -> density 20 -> gs 2 -> vis 2 -> 2 > 2  UNDETECTED
+	# so the predicted blinding threshold is the SECOND tree cell — one cell
+	# earlier than the same trees would block line of fire.
+	#
+	# T01 footprint `__ x_` / Density `0,0, 10,0` puts density 10 at offset
+	# (0,1) from Location, so Location (X,Y-1) -> density 10 on cell (X,Y).
+	# =====================================================================
+
+	# --- lane 0: x=3, no trees. THE CONTROL. ---
+	# If this lane also fails to auto-engage, tree-degraded vision is NOT the
+	# mechanism and plain fog-vs-aircraft detection is — a more general bug.
+	A0: aa
+		Owner: USA
+		Location: 3,28
+		Facing: 0
+
+	# --- lane 1: x=30, 1 tree cell (density 10) -> still detected ---
+	A1: aa
+		Owner: USA
+		Location: 30,28
+		Facing: 0
+	L1t1: t01
+		Owner: Neutral
+		Location: 30,22
+
+	# --- lane 2: x=57, 2 tree cells (density 20) -> predicted BLIND ---
+	A2: aa
+		Owner: USA
+		Location: 57,28
+		Facing: 0
+	L2t1: t01
+		Owner: Neutral
+		Location: 57,22
+	L2t2: t01
+		Owner: Neutral
+		Location: 57,21
+
+	# One Supply Route per side so neither faction can be eliminated mid-test.
+	# SUPPLYROUTE inherits only ^ExistsInWorld / ^SpriteActor / ^SelectableBuilding
+	# and declares no Vision@ block, so it cannot illuminate a lane — which
+	# matters here in a way it did not in the fog-off companion. The measured
+	# per-lane visibility is the empirical check on that claim.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 30,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 30,8
+
+Rules: rules.yaml
