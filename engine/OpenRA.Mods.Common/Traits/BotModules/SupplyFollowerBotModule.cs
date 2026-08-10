@@ -287,6 +287,42 @@ namespace OpenRA.Mods.Common.Traits
 			"picks the delivery up. Ships OFF so the benchmark control does not move on its own.")]
 		public readonly bool DropCommitmentOverridesEvac = false;
 
+		[Desc("DANGER PICKS THE MODE. When true, drop-and-leave fires only where the customer cluster reads",
+			"dangerous; on a quiet front the truck closes to aura range, serves in place and KEEPS its",
+			"remainder for the next customer, which is the doctrine's own wording for the safe case.",
+			"",
+			"WHY THIS IS REQUIRED RATHER THAN A REFINEMENT. Danger never entered the drop decision at all —",
+			"harmless only while the anchor never resolved, because a drop that cannot fire cannot fire",
+			"wrongly. With the anchor fixed the drop fires EVERYWHERE, and a crate was measured landing on a",
+			"front with no believed enemy anywhere: 750 supply stranded in an empty field and a truck retired",
+			"with customers still waiting. This is the evac defect mirrored — there danger wrongly cancelled a",
+			"delivery, here its absence failed to select the cheaper one.",
+			"",
+			"Ships OFF so the benchmark control does not move on its own.")]
+		public readonly bool DropRequiresDanger = false;
+
+		[Desc("Danger-selects-mode: believed ground danger at or below which the cluster is treated as SAFE",
+			"regardless of the relative test, IN DANGER UNITS (100 = one reference contact at point-blank).",
+			"",
+			"THIS IS THE ANSWER TO THE RELATIVE TEST'S KNOWN HOLE, not a second threshold. A ratio is",
+			"meaningless when the denominator is noise: on a quiet opening the field is empty or nearly so and",
+			"'above the median of almost nothing' is satisfied by almost anything, so a purely relative rule",
+			"would drop a crate on turn one on an undefended front, every game. Checked FIRST, and it can only",
+			"ever declare something SAFE — so a miscalibrated floor costs a drop-and-leave that should have",
+			"happened, never a crate dumped on a quiet field. That asymmetry is deliberate: the second failure",
+			"wastes a truck and 750 supply, the first merely serves from the aura instead.")]
+		public readonly int DropDangerFloorUnits = 25;
+
+		[Desc("Danger-selects-mode: percentage of the PLAYER'S OWN median stamped danger cell that the customer",
+			"cluster must reach to count as dangerous. 100 = at or above the median cell.",
+			"",
+			"Relative rather than absolute because the alternative is measurably broken: the live median cell",
+			"differs 3.4x between the two players of the same match on the same map, and 17 of 18 configured",
+			"ground thresholds sit 8x-459x below it, so one constant cannot sit at the same percentile for",
+			"both sides. 0 or negative is read as 100 rather than as 'no requirement', so a config typo cannot",
+			"turn every cell above the floor into a drop.")]
+		public readonly int DropDangerMedianPercent = 100;
+
 		[Desc("Drop-and-leave: MAP-cell Chebyshev hysteresis on the forward supply point. The anchor is",
 			"re-derived every scan from a field that is rebuilt every 25 ticks, so without this a one-cell",
 			"belief wobble would move the destination — and a destination that moves is the entire defect this",
@@ -1166,6 +1202,36 @@ namespace OpenRA.Mods.Common.Traits
 				provider.CurrentSupply, Info.DropMinSupply,
 				starving, Info.DropMinStarvingUnits,
 				cacheSupply, inFlight, Info.DropRedundantCacheSupply);
+
+			// DANGER PICKS THE MODE — but only for a delivery that has not STARTED. A drop already in flight
+			// completes: the truck committed to a place and to arriving there, and a mode switch mid-run is
+			// the same shape as the evac interrupt this branch already refuses. So the gate reads the same
+			// responsive `dispatched` term the freeze and the commitment gate read, and a quiet reading can
+			// only ever stop a NEW drop, never abort one under way.
+			//
+			// Declining here is not "do nothing": the caller falls through to the follow and hunt paths, which
+			// drive the truck to just inside its own aura and serve the platoon in place with its cargo
+			// retained. That IS the doctrine's safe branch — "go up to them and resupply them directly and not
+			// unload, if more resupplying is needed elsewhere".
+			if (drop && Info.DropRequiresDanger && !dispatched && cluster != null)
+			{
+				var clusterDanger = GroundDangerAt(cluster.CenterCell);
+				var median = dangerField != null ? dangerField.GroundDangerMedian(player) : 0;
+				var floorField = GroundDangerLevel(Info.DropDangerFloorUnits);
+
+				if (!SupplyDropMath.DangerSelectsDrop(clusterDanger, median, floorField, Info.DropDangerMedianPercent))
+				{
+					drop = false;
+
+					// EDGE — unconditional, and it is the line that distinguishes the two modes in a log.
+					// "No crate appeared" is otherwise indistinguishable from a broken drop path, which is
+					// exactly the confusion that cost a day on the danger side of this same decision.
+					Log.Write("debug",
+						$"[supply] serve-in-place truck={truck.ActorID}@{truck.Location} cluster={cluster.CenterCell} "
+						+ $"danger={clusterDanger} median={median} floor={floorField} ({Info.DropDangerFloorUnits}u) "
+						+ $"pct={Info.DropDangerMedianPercent} — front reads safe, keeping {provider.CurrentSupply} cargo");
+				}
+			}
 
 			if (!drop)
 			{

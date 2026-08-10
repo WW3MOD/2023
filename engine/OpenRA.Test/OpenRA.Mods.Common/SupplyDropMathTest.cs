@@ -272,6 +272,50 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void DangerSelectsDrop_QuietField_IsSafeSoTheTruckKeepsItsCargo()
+		{
+			// The regression this exists to stop: with the anchor fixed, the drop fired on a front with no
+			// believed enemy at all and the truck emptied itself into an empty field. An unstamped field has
+			// median 0 — an UNDEFINED scale, not a small one — and must read safe whatever the percentage.
+			Assert.That(SupplyDropMath.DangerSelectsDrop(0, 0, 853, 100), Is.False);
+			Assert.That(SupplyDropMath.DangerSelectsDrop(0, 0, 853, 1), Is.False);
+		}
+
+		[Test]
+		public void DangerSelectsDrop_FloorBeatsTheRatio_SoAThinFieldCannotManufactureDanger()
+		{
+			// The relative test's known hole: on a nearly quiet field a tiny median makes almost anything
+			// "above median". The floor is checked FIRST precisely so that ratio can never be reached.
+			Assert.That(SupplyDropMath.DangerSelectsDrop(200, 10, 853, 100), Is.False);
+
+			// And the floor only ever declares SAFE — clearing it still requires the relative test to agree.
+			Assert.That(SupplyDropMath.DangerSelectsDrop(900, 100000, 853, 100), Is.False);
+		}
+
+		[Test]
+		public void DangerSelectsDrop_HotCluster_SelectsDropAndLeave()
+		{
+			// The measured danger case: cluster at 462,272 against a field whose median is far below it.
+			Assert.That(SupplyDropMath.DangerSelectsDrop(462272, 100000, 853, 100), Is.True);
+
+			// Exactly at the bar counts as dangerous — the boundary is inclusive, matching every other
+			// level test in this stack.
+			Assert.That(SupplyDropMath.DangerSelectsDrop(100000, 100000, 853, 100), Is.True);
+		}
+
+		[Test]
+		public void DangerSelectsDrop_PercentMovesTheBarAndZeroIsTreatedAsFullMedian()
+		{
+			// A percentage below 100 makes the mode switch earlier, above 100 later.
+			Assert.That(SupplyDropMath.DangerSelectsDrop(60000, 100000, 853, 50), Is.True);
+			Assert.That(SupplyDropMath.DangerSelectsDrop(60000, 100000, 853, 200), Is.False);
+
+			// 0 or negative is read as 100 rather than as "no requirement", so a config typo cannot turn
+			// every cell above the floor into a drop.
+			Assert.That(SupplyDropMath.DangerSelectsDrop(60000, 100000, 853, 0), Is.False);
+		}
+
+		[Test]
 		public void ShouldIssueDrop_AnchorMoved_ReissuesWithoutAnyValidityFlag()
 		{
 			// The dedup key is the TARGET CELL, which is what keeps it from becoming a latch: a moved anchor

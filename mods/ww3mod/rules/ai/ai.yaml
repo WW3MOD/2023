@@ -974,6 +974,24 @@ Player:
 		# This costs trucks and is meant to. A truck lost mid-run releases its claim and its dispatch
 		# record in the ordinary scan cleanup, so the next truck re-derives the anchor and takes over.
 		DropCommitmentOverridesEvac: true
+		# DANGER PICKS THE MODE, it never picks whether to go. Dangerous front => stop at the standoff,
+		# dump everything, egress. Quiet front => drive up, serve from the aura, KEEP the remainder for
+		# the next customer — the doctrine's own wording, "resupply them directly and not unload, if
+		# more resupplying is needed elsewhere".
+		#
+		# Required, not optional: danger never entered the drop decision, which was harmless only while
+		# the anchor never resolved. With the anchor fixed the drop fired everywhere, and a crate was
+		# measured landing at 39,16 on a front with no believed enemy at all — 750 supply stranded in an
+		# empty field and a truck retired with customers still waiting.
+		#
+		# The bar is RELATIVE to this player's own median stamped cell because the absolute alternative
+		# is measurably broken: the live median differs 3.4x between the two players of one match on one
+		# map, and 17 of 18 ground thresholds sit 8x-459x below it. The floor is what stops a relative
+		# rule reading a quiet opening as dangerous — with an empty field there is no scale to be
+		# relative to, and 25 units is "nothing meaningful is believed to cover this cell".
+		DropRequiresDanger: true
+		DropDangerFloorUnits: 25
+		DropDangerMedianPercent: 100
 		# The anchor is re-derived every scan from a field rebuilt every 25 ticks. Without hysteresis a
 		# one-cell belief wobble would move the destination — and a destination that moves is the entire
 		# defect this mode exists to remove.

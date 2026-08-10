@@ -186,5 +186,47 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			return dispatched && !idle;
 		}
+
+		/// <summary>DANGER PICKS THE MODE. True ⇒ drop the whole load at a standoff and leave; false ⇒ close to
+		/// aura range, serve in place, and KEEP the remainder for the next customer.
+		///
+		/// <para>Danger never decides WHETHER to go — that is the doctrine's first sentence and the evac fix
+		/// settled it. It decides only HOW the supply arrives. Getting this wrong is symmetrical and both
+		/// directions are real: calling a quiet front dangerous strands 750 supply in an empty field and
+		/// retires a truck that had more customers waiting (measured 2026-08-10, a crate dropped at 39,16 with
+		/// no believed enemy anywhere); calling a contested front safe parks a truck in the fire it should
+		/// have dumped and run from.</para>
+		///
+		/// <para>THE TEST IS RELATIVE, AND THAT IS FORCED BY MEASUREMENT RATHER THAN TASTE. The live median
+		/// cell differs 3.4x between the two players of one match on one map, and 17 of 18 configured ground
+		/// thresholds sit 8x-459x below it. A constant therefore cannot sit at the same percentile for both
+		/// sides — it is miscalibrated for at least one player by construction, which is the defect the whole
+		/// danger stack has been carrying.</para>
+		///
+		/// <para>THE FLOOR IS NOT A SECOND THRESHOLD, IT IS THE ANSWER TO THE RELATIVE TEST'S KNOWN HOLE. A
+		/// ratio has no meaning when the denominator is noise: on a quiet opening the field is empty or nearly
+		/// so, and "above the median of almost nothing" is satisfied by almost anything — so a purely relative
+		/// rule drops a crate on turn one, on an undefended front, forever. <paramref name="safeFloorField"/>
+		/// is a hard "below this, nothing meaningful is believed to cover the cell" gate that must be cleared
+		/// FIRST. It is expressed by the caller in danger units and converted through the field's own
+		/// reference, so it is scale-free in the one direction that matters: it can only ever declare
+		/// something SAFE, never dangerous, so a miscalibrated floor costs a drop-and-leave that should have
+		/// happened, never a crate dumped on a quiet field.</para>
+		///
+		/// <para><paramref name="fieldMedian"/> of 0 means "no believed contact anywhere" — an undefined
+		/// scale, not a small one — and returns safe regardless of the percentage, so the empty-field case
+		/// cannot be reached through arithmetic on a zero denominator.</para>
+		/// Pure integer, zero RNG.</summary>
+		public static bool DangerSelectsDrop(int dangerAtCluster, int fieldMedian, int safeFloorField, int medianPercent)
+		{
+			if (dangerAtCluster < safeFloorField)
+				return false;
+
+			if (fieldMedian <= 0)
+				return false;
+
+			var bar = (long)fieldMedian * (medianPercent > 0 ? medianPercent : 100) / 100;
+			return dangerAtCluster >= bar;
+		}
 	}
 }

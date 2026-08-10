@@ -345,6 +345,11 @@ namespace OpenRA.Mods.Common.Traits
 			public readonly List<CPos> ActiveCells = new();
 			public readonly HashSet<CPos> ActiveSet = new();
 
+			// Median of Ground over ActiveCells, or -1 when it has not been computed for the CURRENT
+			// field. Reset on every recompute, so a consumer can never read a median belonging to an
+			// older belief state. Instrumentation-free: it is a cache of a pure function of the field.
+			public int GroundMedianCache = -1;
+
 			public PlayerField(Map map) { Cells = new CellLayer<DangerCell>(map); }
 
 			public void MarkActive(CPos cell)
@@ -451,6 +456,7 @@ namespace OpenRA.Mods.Common.Traits
 				fields[player] = field = new PlayerField(world.Map);
 
 			ClearField(field);
+			field.GroundMedianCache = -1;
 
 			foreach (var contact in beliefStore.Contacts(player))
 				StampContact(field, contact);
@@ -898,6 +904,41 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>Cells carrying any danger for this player. Empty when no field yet —
 		/// avoids a full-map walk for the overlay / consumers.</summary>
+		/// <summary>The MEDIAN ground-danger reading over this player's stamped cells — the per-player scale a
+		/// RELATIVE danger test compares against. 0 when nothing is believed dangerous anywhere.
+		///
+		/// <para>WHY A CONSUMER NEEDS THIS RATHER THAN A CONSTANT. Measured 2026-08-10: the live median cell
+		/// differs between the two players of the SAME match on the SAME map by 3.4x (818 vs 2,755 danger
+		/// units), and 17 of 18 configured ground thresholds sit 8x-459x BELOW it. No global constant can sit
+		/// at the same percentile for both sides, so any absolute threshold is miscalibrated for at least one
+		/// player by construction. A statistic taken from the player's own field is the only comparison that
+		/// travels.</para>
+		///
+		/// <para>Cached per recompute and computed lazily, so the O(n log n) sort runs at most once per field
+		/// rebuild and only if somebody asks — the same reason LogDistribution does not sort every recompute.
+		/// Deterministic: an integer sort over a multiset, so the result does not depend on stamping order,
+		/// and zero RNG.</para>
+		///
+		/// <para>Returns 0 for "no believed contact anywhere", which callers must NOT read as "safe by a
+		/// small margin" — it means the scale is undefined, and a relative test has nothing to stand on. That
+		/// is exactly the case a floor exists to cover.</para></summary>
+		public int GroundDangerMedian(Player player)
+		{
+			if (!fields.TryGetValue(player, out var field) || field.ActiveCells.Count == 0)
+				return 0;
+
+			if (field.GroundMedianCache >= 0)
+				return field.GroundMedianCache;
+
+			var ground = new List<int>(field.ActiveCells.Count);
+			foreach (var cell in field.ActiveCells)
+				ground.Add(field.Cells[cell].Ground);
+
+			ground.Sort();
+			field.GroundMedianCache = ground[ground.Count / 2];
+			return field.GroundMedianCache;
+		}
+
 		public IReadOnlyList<CPos> ActiveCells(Player player)
 		{
 			var field = FieldOrNull(player);
