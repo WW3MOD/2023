@@ -2178,10 +2178,13 @@ SF:
 		ScanInterval: 8
 		ValidTargetTypes: Heal
 		# How far the medic NOTICES casualties. He still has to walk into the Heal weapon's 1c0 to
-		# treat one — this is his field of concern, not his reach. MaxPatientHealthPercent 100 means
-		# he responds to any wound; lower it (e.g. 90) to make him ignore scratches.
+		# treat one — this is his field of concern, not his reach.
 		SearchRange: 8c0
-		MaxPatientHealthPercent: 100
+		# Scratches are not worth a house call: he does not cross the field for a man above 90%.
+		# This gates ACQUISITION only — once he has taken a case he treats it to full, so there is
+		# no oscillation at the boundary and nobody is abandoned half-healed at 90%. Below
+		# StabilizeThreshold (50) the critical-first scoring still overrides distance.
+		MaxPatientHealthPercent: 90
 	# Clicking a friendly soldier orders the medic to go and stay with him. Without this the click
 	# produces nothing at all when that soldier is unhurt: the heal Armament can only target the
 	# `Heal` type, which the `damaged` condition grants, so ChooseArmamentsForTarget comes back
