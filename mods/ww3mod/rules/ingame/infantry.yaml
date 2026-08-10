@@ -2182,6 +2182,16 @@ SF:
 		# he responds to any wound; lower it (e.g. 90) to make him ignore scratches.
 		SearchRange: 8c0
 		MaxPatientHealthPercent: 100
+	# Clicking a friendly soldier orders the medic to go and stay with him. Without this the click
+	# produces nothing at all when that soldier is unhurt: the heal Armament can only target the
+	# `Heal` type, which the `damaged` condition grants, so ChooseArmamentsForTarget comes back
+	# empty and AttackBase declines to issue an order or even show a cursor.
+	# PITFALL: attend on ANY infantry, not on `Heal` — making unhurt allies Heal-targetable instead
+	# would let the heal warhead fire at full-health men and would change everything else that keys
+	# off the Heal target type.
+	AttendAlly:
+		ValidTargets: Infantry
+		Range: 1c0
 	AutoFollowAlly:
 		# A medic's only armament targets Heal, so on Hunt he has nothing to hunt — without this he
 		# just stands where he was left. Hold Position remains stay-put (he still treats whoever

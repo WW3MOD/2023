@@ -1,0 +1,64 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a medic ordered onto an unhurt soldier goes and attends him
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Both soldiers are at FULL health, so the heal weapon can target neither and the
+# medic's own autonomy has an answer it prefers: Nearby is 2 cells away, already
+# inside the follow distance, so left alone the medic never moves at all.
+# The order names Far, 12 cells the other side. Only the order can produce that.
+# PASS = the medic ends up within 1 cell of Far.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	Medic: medi
+		Owner: Me
+		Location: 18,16
+		Facing: 768
+
+	# The ally the medic's autonomy would pick: nearest, and already close enough
+	# that trailing him requires no movement whatsoever.
+	Nearby: e1
+		Owner: Me
+		Location: 20,16
+		Facing: 768
+
+	# The ally the player names in the order.
+	Far: e1
+		Owner: Me
+		Location: 30,16
+		Facing: 768
+
+Rules: rules.yaml
