@@ -92,6 +92,23 @@ namespace OpenRA.Mods.Common.Traits
 			target = Target.Invalid;
 			EnsureClaimLayer(self);
 
+			// This trait answers for the healer unconditionally — "nobody" is an answer, not an
+			// abstention. Returning false hands the decision to AutoTarget's own scan, which looks no
+			// further than the heal weapon's one cell and applies none of the rules below, so it would
+			// quietly overrule MaxPatientHealthPercent and re-issue attacks this trait just declined.
+			if (ArmamentsPaused())
+			{
+				// Suppressed, typically: he cannot treat anyone at all right now. Say so, and let go of
+				// the case rather than holding a claim another healer could be acting on.
+				if (currentTarget != null)
+				{
+					ReleaseClaim(self);
+					currentTarget = null;
+				}
+
+				return true;
+			}
+
 			var patient = SelectPatient(self);
 
 			// Only hand the attack layer a patient it can actually treat from where it stands. A patient
@@ -101,11 +118,35 @@ namespace OpenRA.Mods.Common.Traits
 			// "Engagement stance movement restrictions"). Worse, AttackMoveActivity re-scans mid-march and
 			// cancels its move child whenever a scan returns a target, so an unreachable patient would stall
 			// marching healers every 10 ticks.
-			if (patient == null || !IsInHealRange(self, patient))
-				return false;
+			if (patient != null && IsInHealRange(self, patient))
+				target = Target.FromActor(patient);
 
-			target = Target.FromActor(patient);
 			return true;
+		}
+
+		/// <summary>True when every enabled heal armament is paused — suppression, typically. The healer
+		/// can still acquire and aim; he simply cannot fire, and Armament.CanFire declines in silence.</summary>
+		bool ArmamentsPaused()
+		{
+			var found = false;
+			foreach (var ab in attackBases)
+			{
+				if (ab.IsTraitDisabled)
+					continue;
+
+				foreach (var armament in ab.Armaments)
+				{
+					if (armament.IsTraitDisabled)
+						continue;
+
+					if (!armament.IsTraitPaused)
+						return false;
+
+					found = true;
+				}
+			}
+
+			return found;
 		}
 
 		Actor SelectPatient(Actor self)

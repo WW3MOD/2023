@@ -233,6 +233,14 @@ namespace OpenRA.Mods.Common.Activities
 			if (armaments.Count == 0)
 				return AttackStatus.UnableToAttack;
 
+			// PITFALL: ChooseArmamentsForTarget filters IsTraitDisabled but NOT IsTraitPaused, so every
+			// armament reaching this line can still be paused and unable to fire a single shot.
+			// Armament.CanFire then declines silently every tick while this activity keeps reporting
+			// Attacking, so the unit aims at a target it cannot engage for as long as the pause lasts —
+			// and is never idle, which silences every idle-driven behaviour it owns. Opt-in per unit.
+			if (attack.Info.AbandonWhenArmamentsPaused && armaments.TrueForAll(a => a.IsTraitPaused))
+				return AttackStatus.UnableToAttack;
+
 			// Update ranges
 			minRange = armaments.Max(a => a.Weapon.MinRange);
 			maxRange = armaments.Min(a => a.MaxRange());

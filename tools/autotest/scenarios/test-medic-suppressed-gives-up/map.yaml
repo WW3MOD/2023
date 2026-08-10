@@ -1,0 +1,61 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a suppressed medic gives up instead of aiming at a man he cannot treat
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# The medic's heal Armament carries PauseOnCondition: suppressed >= 10, and a
+# wounded man is usually a man under fire — so is the medic standing next to him.
+# A paused armament still passes ChooseArmamentsForTarget, so the heal order is
+# accepted, the medic aims, and Armament.CanFire then declines every tick. The
+# Attack activity reports Attacking and never completes: the medic is stuck
+# non-idle forever, which silences every autonomous behaviour he has.
+# PASS = he is idle (available to do something else) while he cannot treat.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	Medic: medi
+		Owner: Me
+		Location: 18,16
+		Facing: 768
+
+	# Adjacent, so the medic is already in heal range: the stall is about firing,
+	# not about walking. Also inside the follow distance, so a medic who has
+	# correctly given up has no follow move to make and stays cleanly idle.
+	Wounded: e1
+		Owner: Me
+		Location: 19,16
+		Facing: 768
+
+Rules: rules.yaml
