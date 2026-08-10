@@ -39,10 +39,33 @@
 # rather than relying on MiniYaml carrying the parent's node value across.
 # =====================================================================
 
+# PITFALL, and it voided the first successful run of this scenario: overriding
+# a warhead REPLACES the node rather than merging into it, so every field the
+# override omits reverts to the ENGINE default -- not to the mod's value.
+# Dropping `Penetration: 15` silently reinstated the default of 1
+# (DamageWarhead.cs:24), and against the Halo's Thickness 10 the
+# `penetration < thickness` branch (AutoTarget.cs:1304-1309, mirrored in the
+# live damage path) then scaled BOTH the damage and the estimate by 1/10:
+#   real damage    50 -> 5   => 15 hits did 75 to a 600-HP target, so it lived
+#   estimate     3050 -> 305 => a mark of 50, i.e. BELOW the threshold of 100
+# The run came back a clean pass with all four AA firing, which looks exactly
+# like "suppression does not sustain" and actually meant "suppression was never
+# switched on". Both observables are explained by the 1/10 scaling and neither
+# is explained by the intended setup.
+#
+# Every warhead field the estimate reads must therefore be restated here:
+# Damage, Penetration, and any Versus table.
+#
+# Damage 20 rather than 50 so that even the worst case -- all four AA firing
+# four times each, 16 hits -- deals 320 against 600 HP and the target survives
+# the whole window. Estimate = 20 + 3000 = 3020 => a mark of 503, within 1% of
+# the 500 a stock MANPAD applies to a stock Halo.
 MANPAD:
 	Warhead@Spread: SpreadDamage
-		Damage: 50
+		Damage: 20
+		Penetration: 15
 	Warhead@EstimateOnly: SpreadDamage
 		Damage: 3000
+		Penetration: 15
 		Spread: 192
 		ValidTargets: Ground
