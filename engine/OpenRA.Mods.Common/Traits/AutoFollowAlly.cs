@@ -9,17 +9,21 @@
  */
 #endregion
 
-using System.Linq;
-using OpenRA.Mods.Common.Activities;
+using System.Collections.Generic;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Idle behavior: trail the nearest allied combat unit at a short distance.",
-		"Active only when the actor's AutoTarget EngagementStance is Defensive — gives medics/support",
-		"units a 'stay with the group' default while leaving HoldPosition (stay put) and Hunt (free roam) unchanged.")]
+		"Active on the engagement stances listed in FollowStances — gives medics/support units a",
+		"'stay with the group' default. HoldPosition means stay put and is never followed from.")]
 	public class AutoFollowAllyInfo : TraitInfo, Requires<IMoveInfo>
 	{
+		[Desc("Engagement stances on which to trail an ally. Defaults to Defensive alone, which is the",
+			"only stance this trait has ever acted on. HoldPosition is ignored even if listed: it means",
+			"stay put (the actor still treats or fires on anything that walks into range).")]
+		public readonly HashSet<EngagementStance> FollowStances = new HashSet<EngagementStance> { EngagementStance.Defensive };
+
 		[Desc("How close to trail the followed ally.")]
 		public readonly WDist FollowDistance = WDist.FromCells(3);
 
@@ -84,9 +88,9 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			EnsureRefs(self);
 
-			// Only Defensive stance triggers the follow behavior. HoldPosition stays put,
-			// Hunt does its own thing (handled by AutoTarget directly).
-			if (autoTarget == null || autoTarget.EngagementStanceValue != EngagementStance.Defensive)
+			// HoldPosition is stay-put and is never followed from, whatever the config says.
+			var stance = autoTarget?.EngagementStanceValue;
+			if (stance == null || stance == EngagementStance.HoldPosition || !info.FollowStances.Contains(stance.Value))
 				return;
 
 			if (--checkTick > 0)

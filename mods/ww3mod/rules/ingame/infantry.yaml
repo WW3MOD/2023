@@ -2183,6 +2183,10 @@ SF:
 		SearchRange: 8c0
 		MaxPatientHealthPercent: 100
 	AutoFollowAlly:
+		# A medic's only armament targets Heal, so on Hunt he has nothing to hunt — without this he
+		# just stands where he was left. Hold Position remains stay-put (he still treats whoever
+		# walks into reach).
+		FollowStances: Defensive, Hunt
 		FollowDistance: 3c0
 		SearchRange: 20c0
 		CheckInterval: 25
