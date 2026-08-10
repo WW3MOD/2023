@@ -220,8 +220,11 @@
 	# (SupplyHuntMath.StancesPermitHunt). Flip to false to take the whole layer back off.
 	# ReturnWhenEmpty is the other half and is NOT idle-triggered: a man marching under an attack-move
 	# order is never idle, so the seek above cannot see the very case that prompted this — soldiers
-	# walking onto the line with nothing to fire. Empty (not low) breaks off the order and walks to the
+	# walking onto the line with nothing to fire. It fires only when EVERY pool on the actor is empty
+	# (not the Rearmable-filtered subset the idle seek reads), breaks off the order and walks to the
 	# nearest rearm actor within the leash; beyond the leash he holds and is flagged for pickup.
+	# NOTE this reaches @stable and @experimental bots and human units alike — the trait has no
+	# owner-side split, so enabling it here is a deliberate change to the benchmark control too.
 	AutoSeekSupplies:
 		Enabled: true
 		ReturnWhenEmpty: true
@@ -231,8 +234,14 @@
 	# still above support (8) / economic (6) / defenses (4) / buildings (2), so a dry squad selected on
 	# its own still behaves normally. Hold Ctrl to take them along anyway — the same key
 	# ^SelectableCombatUnit already uses to raise priority.
-	# The condition is ^AmmoDecoration's own "no armed weapon has ammo" expression (defaults.yaml), so
-	# the blinking empty-ammo pip and the selection rule can never disagree about who is dry.
+	# This ALSO affects the "Select all units" hotkey, which runs through the same
+	# SubsetWithHighestSelectionPriority filter (SelectAllUnitsHotkeyLogic.cs) — so select-all skips dry
+	# soldiers unless Ctrl is held. Intended: the point of the rule is that a dry man is not part of the
+	# fighting force you are grabbing.
+	# The condition is ^AmmoDecoration's own "no armed weapon has ammo" expression (defaults.yaml). It is
+	# not identical to ReturnWhenEmpty's all-pools test, but it is IMPLIED by it (see AutoSeekSupplies'
+	# ITick doc), so a man who walks away is always pipped and always deprioritised. The looser direction
+	# only shows up on ^E6, whose C4 pool feeds no armament.
 	SelectionPriorityModifier@OutOfAmmo:
 		RequiresCondition: (weapon-primary || weapon-secondary) && !(weapon-primary && ammo-primary) && !(weapon-secondary && ammo-secondary) && !(weapon-tertiary && ammo-tertiary)
 		Modifier: -1
@@ -1932,6 +1941,13 @@ AA:
 	Rearmable:
 		RearmActors: truk, logisticscenter
 		AmmoPools: secondary-ammo
+	# The engineer's orders ARE his purpose and none of them need ammunition: capture, bridge repair,
+	# demolition and mine-laying are all walk-to-a-place errands, and breaking one off part-way wastes
+	# the whole trip. He keeps the idle seek above — finish the job, then go restock — but never
+	# interrupts himself for it. (The all-pools test already means he must have burned all 100 SMG
+	# rounds AND all 3 charges before this could fire; this makes it structural rather than unlikely.)
+	AutoSeekSupplies:
+		ReturnWhenEmpty: false
 	RepairsBridges:
 		# TODO: Add Delay
 		EnterBehaviour: Exit

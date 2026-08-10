@@ -47,13 +47,21 @@ namespace OpenRA.Mods.Common.Traits
 			"this throttles the provider scan; the phase is staggered per actor deterministically.")]
 		public readonly int ScanInterval = 40;
 
-		[Desc("Break off a LIVE order once every ammo pool is empty and walk to the nearest rearm actor.",
+		[Desc("Break off a LIVE order once the unit cannot shoot at all — EVERY AmmoPool empty, per",
+			"AmmoPool.AllPoolsEmpty — and walk to the nearest rearm actor.",
 			"The seek above is idle-triggered, and a soldier marching under an attack-move order is never",
 			"idle (Actor.IsIdle is CurrentActivity == null) — so a man who empties on the advance keeps",
 			"advancing with nothing to shoot. AmmoPool's own dispatcher has the same blind spot: it fires",
 			"from INotifyAttack on the shot that empties the pool and from INotifyBecomingIdle, and",
 			"AmmoPool is not ITick, so nobody ever asks again. This is the missing periodic ask.",
-			"Ships OFF so the trait's behaviour is unchanged until a mod opts in.")]
+			"NOTE this is a different pool set from the idle seek above, on purpose. That one asks \"is",
+			"there anything a host could top up for me\" and so reads Rearmable.AmmoPools; this one asks",
+			"\"can I still fight\" and so reads every pool. Reading the rearmable set here calls the combat",
+			"engineer empty when his three C4 charges are spent and his SMG magazine is full, and pulls",
+			"him off a capture walk to fetch ammunition he is not short of.",
+			"Ships OFF so the trait's behaviour is unchanged until a mod opts in. Turning it on in YAML",
+			"affects human- and bot-owned units alike, both bot profiles included — there is no",
+			"owner-side split in this trait.")]
 		public readonly bool ReturnWhenEmpty = false;
 
 		[Desc("Ticks between empty-state re-checks for ReturnWhenEmpty. Shorter than ScanInterval: this",
@@ -64,14 +72,35 @@ namespace OpenRA.Mods.Common.Traits
 			"AmmoPool.ChooseResupplier picks the closest host ignoring path and does not check that a",
 			"route exists (economy.md: \"a resupplier exists is the engine's whole reachability test\"), so",
 			"an unleashed order can march a soldier at a depot across an unfordable river for the rest of",
-			"the match. A budget is the same cheap proxy PoiOffensiveBotModule uses for dry vehicles",
-			"(OutOfAmmoRearmSeekRadiusCells); beyond it the unit holds and is flagged NeedsResupply so a",
-			"Hunt-stance truck can come to it instead.")]
+			"the match. This is a cheap travel-cost proxy, not a reachability test.",
+			"0 or less DISABLES the break-off entirely (SupplyHuntMath.WithinCellBudget admits nothing at",
+			"a non-positive budget). Do NOT read that off PoiOffensiveBotModule.OutOfAmmoRearmSeekRadiusCells,",
+			"whose 0 means UNLIMITED — the two fields solve the same problem with opposite zero-semantics.",
+			"Beyond the budget this tick declines to interrupt and flags NeedsResupply so a Hunt-stance",
+			"truck can come to us. That flag holds only until the unit next goes idle: AmmoPool's own",
+			"INotifyBecomingIdle path then clears it and dispatches unleashed (AmmoPool.cs:184-188). That",
+			"is pre-existing behaviour and is deliberately not changed here — the budget bounds what THIS",
+			"trait will interrupt a live order for, not what the unit does once it has run out of orders.")]
 		public readonly int ReturnWhenEmptyLeashCells = 30;
 
-		[GrantedConditionReference]
+		[Desc("Abandon a break-off errand that has made no progress for this many ticks: no ammo gained",
+			"AND no cell moved. Needed because a Resupply toward an unreachable host never terminates —",
+			"Mobile.MoveResult is declared and read but never ASSIGNED anywhere in the engine",
+			"(Mobile.cs:265), so it is permanently InProgress and both of MoveCooldownHelper's exits",
+			"(CompleteDestinationReached / CompleteCanceled) are unreachable; it just repaths every 20-31",
+			"ticks forever. Without a guard the unit stands still, combat-inert, IsSeekingRearm stays true",
+			"so this tick never retries, and every bot module withholds it permanently — a unit deleted",
+			"from the game in all but name. Mirrors SeekSuppliesAndReturn.MaxStalledTicks. 0 disables.")]
+		public readonly int ReturnErrandStallTicks = 300;
+
+		[Desc("After abandoning a stalled errand, wait this many ticks before this trait may dispatch",
+			"another. Without it the next scan re-issues the same doomed walk to the same host.")]
+		public readonly int ReturnErrandRetryTicks = 500;
+
+		[ConsumedConditionReference]
 		[Desc("Condition read to tell whether we are already evacuating (RotateToEdge grants it). Leave",
-			"empty to skip the check.")]
+			"empty to skip the check. Read, never granted, so this is a consumed reference — tagging it",
+			"granted misinforms the condition lint that runs in `make test`.")]
 		public readonly string EvacuatingCondition = "evacuating";
 
 		public override object Create(ActorInitializer init) { return new AutoSeekSupplies(init.Self, this); }
@@ -91,9 +120,22 @@ namespace OpenRA.Mods.Common.Traits
 		int scanTicks;
 		int emptyScanTicks;
 
+		// Stall tracking for the break-off errand. Progress is "ammo went up OR we changed cell"; the
+		// counter is in SCANS, not ticks, so it is compared against a tick budget scaled by the scan
+		// interval rather than incremented every tick for a check that only runs periodically.
+		int stalledTicks;
+		int retryCooldownTicks;
+		int lastAmmoCount;
+		CPos lastErrandCell;
+		bool onErrand;
+
 		// Per-actor constants, cached so the eligibility test is allocation-free in the steady
 		// state — SeekSuppliesAndReturn re-asks it every tick for the whole trip.
 		ExternalCondition[] externalConditions;
+
+		// Every pool, not Rearmable.RearmableAmmoPools — see ReturnWhenEmpty's Desc and
+		// AmmoPool.AllPoolsEmpty for why the two sets are different questions.
+		AmmoPool[] allPools;
 
 		public AutoSeekSupplies(Actor self, AutoSeekSuppliesInfo info)
 		{
@@ -115,14 +157,17 @@ namespace OpenRA.Mods.Common.Traits
 			move = self.TraitOrDefault<IMove>();
 			autoTarget = self.TraitOrDefault<AutoTarget>();
 			externalConditions = self.TraitsImplementing<ExternalCondition>().ToArray();
+			allPools = self.TraitsImplementing<AmmoPool>().ToArray();
 		}
 
 		void INotifyIdle.TickIdle(Actor _)
 		{
-			// No Rearmable means no provider can ever select us (SupplyProvider.IsValidTarget
-			// requires it), so the whole errand is futile — the combat engineer carries an AmmoPool
-			// and this trait via ^Soldier, but no Rearmable, and would otherwise walk to a truck,
-			// wait out the stall guard, walk home, and repeat on every idle cycle.
+			// No Rearmable means no provider can ever select us (SupplyProvider.IsValidTarget requires
+			// it), so the whole errand is futile: such a unit would walk to a truck, wait out the stall
+			// guard, walk home, and repeat on every idle cycle. The guard covers the unarmed classes
+			// that inherit this trait from ^Soldier without any ammunition of their own (medic,
+			// technician). It previously named the combat engineer as the example, which is wrong —
+			// ^E6 does declare Rearmable (infantry.yaml); every armed soldier class in ww3mod does.
 			if (!info.Enabled || move == null || rearmable == null)
 				return;
 
@@ -159,13 +204,24 @@ namespace OpenRA.Mods.Common.Traits
 		/// BUSY — walking an attack-move onto the line — with nothing left to fire. Unlike the idle seek
 		/// this one interrupts, because the order it interrupts is the problem.
 		///
-		/// Deliberately narrower than the idle seek in two ways. It requires EVERY pool empty, not merely
-		/// low, so a rifleman still holding his RPG round keeps fighting; and it hands off to
+		/// Deliberately narrower than the idle seek in two ways. It requires EVERY pool empty
+		/// (AmmoPool.AllPoolsEmpty — every pool on the actor, NOT the Rearmable-filtered subset the idle
+		/// seek reads), so a rifleman still holding his RPG round keeps fighting; and it hands off to
 		/// AmmoPool.AutoRearm rather than SeekSuppliesAndReturn, so a Logistics Centre counts as a
 		/// destination (the proximity errand skips docking-gated hosts, and when a man is dry the dock is
 		/// often the only source on the map).
+		///
+		/// INVARIANT worth preserving: "breaks off" IMPLIES "is deprioritised in selection". Every pool
+		/// empty revokes every AmmoCondition, and Armament.Created grants weapon-&lt;name&gt;
+		/// unconditionally (Armament.cs:260) with every armed soldier class carrying an armament named
+		/// primary — so the ^AmmoDecoration expression that drives the empty-ammo pip and the
+		/// SelectionPriorityModifier is necessarily true whenever this fires. A man who walks away is
+		/// therefore always visibly dry and always deprioritised; the reverse is deliberately NOT
+		/// guaranteed (the engineer with a dry SMG and C4 left is deprioritised but keeps his order),
+		/// and that is the harmless direction. If you widen this trigger, re-check the implication —
+		/// getting it backwards means soldiers leaving the line looking perfectly healthy.
 		/// </summary>
-		void ITick.Tick(Actor self)
+		void ITick.Tick(Actor _)
 		{
 			if (!info.Enabled || !info.ReturnWhenEmpty || move == null || rearmable == null)
 				return;
@@ -175,11 +231,33 @@ namespace OpenRA.Mods.Common.Traits
 
 			emptyScanTicks = info.EmptyScanInterval;
 
-			if (!self.IsInWorld || self.IsDead || !AllRearmablePoolsEmpty())
+			if (retryCooldownTicks > 0)
+				retryCooldownTicks -= info.EmptyScanInterval;
+
+			if (!self.IsInWorld || self.IsDead)
 				return;
 
-			// Already on the errand — re-issuing would cancel it and restart the walk from here, forever.
+			// The errand is watched before anything else, because the case that matters most is one where
+			// every other gate below reads "nothing to do": a unit standing still on an errand it can
+			// never finish still has empty pools, still has a host, and still passes the stances.
+			if (onErrand)
+			{
+				TickErrand();
+				return;
+			}
+
+			if (!AmmoPool.AllPoolsEmpty(allPools))
+				return;
+
+			// A resupply activity is already running or QUEUED — do not issue a second one. Note this
+			// asks about the whole queue, not the head: see AmmoPool.IsSeekingRearm.
+			// If it is not one WE dispatched (a player order, or AmmoPool's own idle dispatch) we also
+			// do not stall-guard it. Cancelling an order the player gave, however stuck it looks from
+			// here, is not this trait's call to make.
 			if (AmmoPool.IsSeekingRearm(self))
+				return;
+
+			if (retryCooldownTicks > 0)
 				return;
 
 			// Already leaving the map for a refund; that disposition outranks a local errand and cancelling
@@ -206,9 +284,7 @@ namespace OpenRA.Mods.Common.Traits
 				// Nothing worth walking to. Raise the flag the Hunt-stance provider scan reads
 				// (SupplyProvider.FindNeedsResupplyTarget) so the supply side can come to us instead, and
 				// leave the unit's current order alone — an unreachable errand is worse than none.
-				foreach (var pool in rearmable.RearmableAmmoPools)
-					pool.NeedsResupply = true;
-
+				FlagNeedsResupply();
 				return;
 			}
 
@@ -220,18 +296,77 @@ namespace OpenRA.Mods.Common.Traits
 			// QueueActivity(false, …) inside — the forward order is cancelled, which is the point.
 			AmmoPool.AutoRearm(self);
 			self.ShowTargetLines();
+			BeginWatching();
 		}
 
-		bool AllRearmablePoolsEmpty()
+		void BeginWatching()
 		{
-			if (rearmable.RearmableAmmoPools.Length == 0)
-				return false;
+			onErrand = true;
+			stalledTicks = 0;
+			lastAmmoCount = TotalAmmo();
+			lastErrandCell = self.Location;
+		}
 
+		/// <summary>
+		/// Watch a running errand and abandon it if it is going nowhere. The failure this exists for is
+		/// not slowness — it is a Resupply toward a host with no route, which repaths on a cooldown
+		/// forever and can never self-terminate (see ReturnErrandStallTicks). Progress is deliberately
+		/// generous: ammo arriving OR the unit changing cell either one resets the clock, so a long walk
+		/// round a lake is never mistaken for a stall.
+		/// </summary>
+		void TickErrand()
+		{
+			if (!AmmoPool.IsSeekingRearm(self))
+			{
+				// Finished, cancelled, or replaced by a player order. Either way it is no longer ours.
+				onErrand = false;
+				return;
+			}
+
+			var ammo = TotalAmmo();
+			var cell = self.Location;
+			if (ammo > lastAmmoCount || cell != lastErrandCell)
+			{
+				stalledTicks = 0;
+				lastAmmoCount = ammo;
+				lastErrandCell = cell;
+				return;
+			}
+
+			if (info.ReturnErrandStallTicks <= 0)
+				return;
+
+			stalledTicks += info.EmptyScanInterval;
+			if (stalledTicks < info.ReturnErrandStallTicks)
+				return;
+
+			// Give up and rejoin the pool. Cancelling is what releases the unit: StarvingRecruitGate
+			// withholds anything IsSeekingRearm reports, so a unit left wedged here is withheld forever —
+			// worse than one fighting with an empty gun, which can at least still take ground.
+			if (TestMode.IsActive)
+				Log.Write("debug",
+					$"[seek] stalled unit={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+					+ $"stalled={stalledTicks}t retry={info.ReturnErrandRetryTicks}t");
+
+			self.CancelActivity();
+			FlagNeedsResupply();
+			onErrand = false;
+			retryCooldownTicks = info.ReturnErrandRetryTicks;
+		}
+
+		int TotalAmmo()
+		{
+			var total = 0;
+			foreach (var pool in allPools)
+				total += pool.CurrentAmmoCount;
+
+			return total;
+		}
+
+		void FlagNeedsResupply()
+		{
 			foreach (var pool in rearmable.RearmableAmmoPools)
-				if (pool.CurrentAmmoCount > 0)
-					return false;
-
-			return true;
+				pool.NeedsResupply = true;
 		}
 
 		bool WithinReturnLeash(Actor host)

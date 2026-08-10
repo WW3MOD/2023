@@ -3,6 +3,22 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-10: [high] `Mobile.MoveResult` is declared and read but NEVER ASSIGNED, so "the move finished" and "the move gave up" are both unreachable engine-wide — a unit sent somewhere it cannot path to repaths forever and is effectively deleted from the game (found while: adding the infantry out-of-ammo return path)
+
+`Mobile.MoveResult` (`engine/OpenRA.Mods.Common/Traits/Mobile.cs:265`) is a plain `{ get; set; }` auto-property. Engine-wide it has **three readers and zero writers**:
+
+| site | branch that is dead |
+|---|---|
+| `Activities/Move/MoveCooldownHelper.cs:69` | `CompleteCanceled` / `CompleteDestinationReached` ⇒ stop retrying |
+| `Activities/Move/MoveCooldownHelper.cs:76` | `CompleteDestinationBlocked` ⇒ give up |
+| `Activities/Move/MoveAdjacentTo.cs:107` | `CompleteDestinationReached` |
+
+`InProgress` is the zero value of the enum (`engine/OpenRA.Mods.Common/TraitsInterfaces.cs:853-859`), so the field never changes and every one of those comparisons is permanently false. `MoveCooldownHelper.Tick` always falls through to `cooldownTicks = world.SharedRandom.Next(20, 31)`.
+
+**Symptom:** any activity that moves toward a destination with no route neither completes nor fails. The unit stands still, repathing every 20–31 ticks, indefinitely. It never goes idle, so every idle-triggered recovery is unreachable for it too. If anything gates on "is this unit busy" — `AmmoPool.IsSeekingRearm`, `StarvingRecruitGate` — the unit is also withheld from all tasking permanently.
+
+**Not fixed here.** Assigning the field correctly means auditing every `Move` completion path and deciding the right result per exit; getting that wrong changes pathing for every unit in the game, which is far beyond the branch that found it. Mitigation applied on the one path this branch newly routes infantry into: `AutoSeekSupplies.ReturnErrandStallTicks` cancels an errand that gains no ammo and changes no cell for 300 ticks, then cools down before retrying. `SeekSuppliesAndReturn` already had `MaxStalledTicks`; **`SeekSupplyProvider` and `Resupply` still have no guard**, so the bot's dry-vehicle sweep (`PoiOffensiveBotModule.SweepOutOfAmmoUnits`) remains exposed.
+
 ## 2026-08-10: [high] Nothing weighs AMMO STATE against recruitment or dispersal — the bot tears a starving platoon apart and streams half of it at enemy artillery while it holds 10 rounds a man (found while: `test-supply-under-danger`, the supply-doctrine work)
 
 Five riflemen drained to 10/100 primary — every one below the `HuntStarvingThresholdPerMille: 250` bar the supply layer itself uses for "starving" — were recruited and split in half by two modules within ~100 ticks of spawn, while a supply truck was already en route to them. Their own log lines:

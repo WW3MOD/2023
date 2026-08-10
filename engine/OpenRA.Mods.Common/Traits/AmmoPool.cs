@@ -167,10 +167,40 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
+		/// <summary>
+		/// "This actor cannot shoot anything" — it has at least one pool and every pool is empty.
+		///
+		/// EVERY pool, deliberately, and this is the one definition of the phrase in the codebase. The
+		/// tempting narrower set is <see cref="Rearmable.RearmableAmmoPools"/>, which is filtered to
+		/// Rearmable.AmmoPools — but that field answers a DIFFERENT question ("which pools can a host
+		/// refill for me"), and the two sets are not the same actor-for-actor. The combat engineer
+		/// declares only his C4 charges as rearmable while also carrying an SMG pool, so a
+		/// rearmable-only test calls him out of ammo with a full magazine (infantry.yaml, ^E6).
+		/// </summary>
+		public static bool AllPoolsEmpty(Actor self)
+		{
+			return AllPoolsEmpty(self.TraitsImplementing<AmmoPool>());
+		}
+
+		/// <summary>Array overload for the per-tick callers, which cache their pools in Created.</summary>
+		public static bool AllPoolsEmpty(IEnumerable<AmmoPool> pools)
+		{
+			var any = false;
+			foreach (var p in pools)
+			{
+				if (p.HasAmmo)
+					return false;
+
+				any = true;
+			}
+
+			return any;
+		}
+
 		public void AutoRearmIfAllEmpty(Actor self)
 		{
 			var ammoPools = self.TraitsImplementing<AmmoPool>();
-			if (!ammoPools.Any() || !ammoPools.All(a => !a.HasAmmo) || self.Info.HasTraitInfo<AircraftInfo>())
+			if (!AllPoolsEmpty(ammoPools) || self.Info.HasTraitInfo<AircraftInfo>())
 				return;
 
 			// Check resupply behavior stance
@@ -327,14 +357,22 @@ namespace OpenRA.Mods.Common.Traits
 		/// AutoRearm queues with QueueActivity(false, …), which CANCELS the current activity — so any
 		/// caller that re-dispatches on a cadence must ask this first, or a unit whose scan interval
 		/// beats its travel time tears down and re-plans the same run forever without ever arriving.
-		/// Head-of-queue is the right place to look precisely because that cancel makes the resupply
-		/// activity the head.
+		///
+		/// WALKS THE WHOLE QUEUE, not just the head, and that is load-bearing. CancelActivity only calls
+		/// Cancel on the current activity (Actor.cs:400-403), which raises IsCanceling — the cancelled
+		/// activity stays HEAD until it winds down, and the resupply we just queued sits BEHIND it. A
+		/// foot soldier takes ~41 ticks to finish the cell he is crossing, which is longer than the
+		/// scan intervals asking this question, so a head-only test answers "no" during exactly the
+		/// window it exists to cover: the errand is issued twice, and any bot module gating on this is
+		/// free to re-task the unit and destroy it.
 		/// </summary>
 		public static bool IsSeekingRearm(Actor self)
 		{
-			var current = self.CurrentActivity;
-			return current is SeekSupplyProvider || current is Resupply || current is RideTransport
-				|| current is SeekSuppliesAndReturn;
+			for (var a = self.CurrentActivity; a != null; a = a.NextActivity)
+				if (a is SeekSupplyProvider || a is Resupply || a is RideTransport || a is SeekSuppliesAndReturn)
+					return true;
+
+			return false;
 		}
 
 		public static Actor ChooseResupplier(Actor self)
