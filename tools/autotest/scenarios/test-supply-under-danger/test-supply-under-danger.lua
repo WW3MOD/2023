@@ -32,10 +32,14 @@
 -- and there is no logistics centre, and SUPPLYROUTE has no supply aura. Nothing but a real
 -- delivery can move this number.
 --
---   PASS = at least 2 of the 5 climb clear of starving AND no rifleman ever drifted more
---          than MAX_DRIFT cells from where it spawned.
---   FAIL = fed but displaced (the front collapsed backwards), or never fed at all, or both.
---   SKIP = the setup did not hold (drain failed, platoon or truck died) — inconclusive.
+--   PASS = a crate was placed, AND at least 2 of the 5 climbed clear of starving, AND no rifleman
+--          ever drifted further than the allowance -- which is 6 cells once a crate is on the
+--          ground to walk to, and 1 cell while there is not.
+--   FAIL = no crate placed (the safe mode executed in a dangerous place), or fed but displaced
+--          (the front collapsed backwards), or never fed at all.
+--   SKIP = the setup did not hold -- the drain failed, the platoon died, or the truck was
+--          DESTROYED. A truck that merely vanished at full health finished its errand and drove
+--          home to be sold; that is a success ending, not an inconclusive one.
 
 local TICKS_PER_SEC = TestHarness.TicksPerSecond
 local function sec(s) return math.floor(s * TICKS_PER_SEC) end
@@ -51,6 +55,23 @@ local NEED_BACK = 2       -- how many of the 5 must climb clear for the platoon 
 -- Walking 5 cells back to a crate is CORRECT behaviour and must pass; the 15-cell excursion measured at
 -- b632c36b is a front collapse and must not.
 local MAX_DRIFT = 6
+
+-- Cells a rifleman may stray when there is NO crate to walk to. The 6-cell allowance above exists
+-- for one specific correct behaviour -- walking to a crate dropped short -- and unconditional it
+-- also licensed the behaviour it was meant to catch: at 9861bcf4 all five men walked out to meet
+-- the TRUCK (`[seek] leave ... provider=truk@19,16 dist=19c leash=20c`) and the run passed at drift
+-- 5 with `crate=NONE placed`. A walk toward a crate is the doctrine; a walk toward a truck is the
+-- front collapsing. With no crate on the ground there is nothing legitimate to walk to, so the
+-- platoon must hold: one cell of slack for pathing and crowding, no more.
+local HOLD_DRIFT = 1
+
+-- THIS SCENARIO IS THE DANGEROUS MODE, so drop-and-leave is not optional here. The doctrine splits
+-- on danger: safe means serve from the aura and keep the cargo, dangerous means drive in, unload and
+-- leave. Feeding men from the aura while parked at the front is the SAFE behaviour, and under danger
+-- it is the thing the mode exists to prevent -- so however well fed anyone is, a run with no crate
+-- has not demonstrated the doctrine. The sibling scenario test-supply-safe-front-keeps-cargo asserts
+-- the opposite and must keep passing with no crate.
+local REQUIRE_CRATE = true
 local WINDOW = 90         -- harness-seconds of simulation before the window closes
 
 WorldLoaded = function()
@@ -166,6 +187,19 @@ WorldLoaded = function()
 	-- inferred from the truck's supply hitting zero. Neither the verdict nor the log named it before,
 	-- and a grep for "supplycache" in debug.log returned nothing because the log never prints the
 	-- word — which was read as "no crate was ever placed" when in fact one had been.
+	local function crateList()
+		local bot = Player.GetPlayer("USA-bot")
+		if bot == nil then return {} end
+		return bot.GetActorsByType("supplycache")
+	end
+
+	-- The allowance is CONDITIONAL ON A CRATE EXISTING. With one on the ground a short walk to it is
+	-- the doctrine; with none, any walk is a walk toward a truck, which is the collapse.
+	local function driftAllowance()
+		if #crateList() > 0 then return MAX_DRIFT end
+		return HOLD_DRIFT
+	end
+
 	local function crateReport()
 		local bot = Player.GetPlayer("USA-bot")
 		if bot == nil then return "crate=<no USA-bot player>" end
@@ -237,11 +271,13 @@ WorldLoaded = function()
 			-- BOTH halves, sampled together. Drift is cumulative, so a platoon that once left
 			-- its position can never satisfy this again — which is the intent: the abandonment
 			-- already happened, and walking home does not undo it.
-			if back >= NEED_BACK and peakDrift() <= MAX_DRIFT then
+			local allowance = driftAllowance()
+			local crateOk = not REQUIRE_CRATE or #crateList() > 0
+			if back >= NEED_BACK and peakDrift() <= allowance and crateOk then
 				done = true
 				Test.Pass(string.format(
 					"%d of 5 resupplied holding position (peak drift %d, allowed %d). %s",
-					back, peakDrift(), MAX_DRIFT, crateReport()))
+					back, peakDrift(), allowance, crateReport()))
 			end
 		end)
 	end
@@ -275,13 +311,29 @@ WorldLoaded = function()
 		end
 
 		local drift = peakDrift()
-		local held = drift <= MAX_DRIFT
+		local allowance = driftAllowance()
+		local held = drift <= allowance
 		local fed = bestBack >= NEED_BACK
+		local crateCount = #crateList()
+
+		-- THE DANGEROUS-MODE CLAUSE, checked before anything else can pass the run. Under danger the
+		-- doctrine's central act is the drop; a truck that fed the platoon from its aura and never
+		-- unloaded has executed the SAFE mode in a dangerous place, and the ammo bar cannot tell the
+		-- difference because the men end up fed either way.
+		if REQUIRE_CRATE and crateCount == 0 then
+			Test.Fail(string.format(
+				"NO CRATE PLACED — under danger the doctrine is drive in, drop, drive out, and nothing "
+				.. "was ever unloaded (%d of 5 fed from the truck aura instead, peak drift %d). "
+				.. "primary ammo now %s. platoon spawnX->nowX(peak drift): %s. "
+				.. "truck went from x=%d to a furthest x=%d, %s",
+				bestBack, drift, ammoTrace(), driftTrace(), truckStartX, truckMaxX, truckFate))
+			return
+		end
 
 		if fed and held then
 			Test.Pass(string.format(
 				"%d of 5 resupplied holding position (peak drift %d, allowed %d). %s. %s",
-				bestBack, drift, MAX_DRIFT, crateReport(), truckFate))
+				bestBack, drift, allowance, crateReport(), truckFate))
 			return
 		end
 
@@ -289,17 +341,18 @@ WorldLoaded = function()
 		if fed then
 			why = string.format(
 				"THE FRONT COLLAPSED BACKWARDS — %d of 5 were fed, but the platoon left its position "
-				.. "(peak drift %d cells, allowed %d). Supply did not reach the front; the front went to the supply.",
-				bestBack, drift, MAX_DRIFT)
+				.. "(peak drift %d cells, allowed %d with %d crate(s) down). Supply did not reach the "
+				.. "front; the front went to the supply.",
+				bestBack, drift, allowance, crateCount)
 		elseif held then
 			why = string.format(
 				"supply never reached the front — %d of 5 climbed clear of starving (need %d), platoon held position.",
 				bestBack, NEED_BACK)
 		else
 			why = string.format(
-				"worst case — the platoon left its position (peak drift %d cells, allowed %d) and STILL was not "
-				.. "resupplied (%d of 5, need %d).",
-				drift, MAX_DRIFT, bestBack, NEED_BACK)
+				"worst case — the platoon left its position (peak drift %d cells, allowed %d with %d "
+				.. "crate(s) down) and STILL was not resupplied (%d of 5, need %d).",
+				drift, allowance, crateCount, bestBack, NEED_BACK)
 		end
 
 		Test.Fail(string.format(
