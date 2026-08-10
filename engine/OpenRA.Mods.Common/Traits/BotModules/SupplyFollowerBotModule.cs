@@ -1190,6 +1190,7 @@ namespace OpenRA.Mods.Common.Traits
 			// EDGE — unconditional. The drop and its chosen cell are the two facts the whole mode turns on.
 			Log.Write("debug",
 				$"[supply] drop truck={truck.ActorID}@{truck.Location} anchor={anchor.Value} "
+				+ $"cluster={(cluster != null ? cluster.CenterCell.ToString() : "<none>")} "
 				+ $"load={provider.CurrentSupply} starving={starving} cache-near={cacheSupply} in-flight={inFlight} "
 				+ $"danger-at-anchor={GroundDangerAt(anchor.Value)} frontier={FrontierDistanceAt(anchor.Value)} "
 				+ $"{(dispatched ? $"retargeted-from={sentTo}" : "new")}");
@@ -1265,6 +1266,10 @@ namespace OpenRA.Mods.Common.Traits
 
 			var passable = WaypointPassable(mover);
 
+			// THE STANDOFF IS AN INVARIANT OF AN ANCHOR, NOT A STEP IN BUILDING ONE. This loop is the ONLY
+			// producer of a cluster anchor, and it cannot return the cluster's own cell: d is floored at 1, so
+			// even a misconfigured DropShortCells of 0 or negative still stands the crate off by a cell. Any
+			// future path that yields an anchor must come through here, or restate this guarantee itself.
 			for (var d = Math.Max(1, Info.DropShortCells); d >= 1; d--)
 			{
 				var offset = toTruck * (d * 1024) / toTruck.HorizontalLength;
@@ -1303,6 +1308,40 @@ namespace OpenRA.Mods.Common.Traits
 		/// assume the property without re-deriving which path produced the cell.</para></summary>
 		CPos? ResolveDropAnchor(Actor srActor, Actor mover, UnitCluster cluster)
 		{
+			// AN ERRAND IN FLIGHT HAS A FROZEN DESTINATION. While the drop is running, the anchor IS the cell
+			// the truck was dispatched to and is not re-derived at all: commitment is to a PLACE, not merely
+			// to "not evacuating", and a truck that re-plans mid-run is not committed to anything.
+			//
+			// THIS IS THE FIX FOR A TRUCK THAT DROVE INTO A KILL ZONE AND DIED WITHOUT DELIVERING. Measured
+			// 2026-08-10: the anchor was retargeted 33,16 → 38,16 mid-errand, the truck drove on to x=37 into
+			// a cell reading 1,078,638, and was lost with its whole load. Note WHAT moved — the standoff was
+			// applied on both computations; the CLUSTER slid east. Two men had been fed and three were being
+			// marched east by the offensive layer, so the centroid they are averaged into tracked the
+			// platoon's disintegration, and "5 cells back from the cluster" followed it toward the enemy. The
+			// Chebyshev band cannot prevent that: it bounds one step, and the centroid moved further than the
+			// band in a single recompute.
+			//
+			// So the defect is not the standoff arithmetic. It is that a destination which is supposed to be
+			// STATIC — the founding premise of drop-and-leave, the whole reason it dissolves the follow/evac
+			// limit cycle — was still being recomputed against a moving input. Freezing restores that premise
+			// over the one interval where it has to hold.
+			//
+			// Self-correcting rather than absolute, and deliberately the SAME responsive term the commitment
+			// gate reads: a truck that has gone idle while still holding its load finished without dropping,
+			// is no longer frozen, and re-derives a fresh anchor on this same scan. An anchor that became
+			// unreachable therefore recovers by itself instead of stranding the truck on it forever.
+			if (Info.DropAnchorAtCluster
+				&& SupplyDropMath.ErrandStillRunning(dropTarget.TryGetValue(mover, out var committedTo), mover.IsIdle))
+			{
+				if (Diagnostic)
+					WriteDiagnostic(
+						$"[supply] anchor frozen={committedTo} truck={mover.ActorID}@{mover.Location} "
+						+ $"cluster={(cluster != null ? cluster.CenterCell.ToString() : "<none>")} "
+						+ "— errand in flight, destination does not move");
+
+				return committedTo;
+			}
+
 			// PREFERRED: anchor to the platoon that needs the supply. Tried FIRST and independently of the
 			// control field, because the descent's total-failure mode (see DropAnchorAtCluster) is precisely
 			// a control-field reading, so a fallback ordered the other way round would never be reached in
