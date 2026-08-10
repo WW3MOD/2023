@@ -9,6 +9,7 @@
 
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Test
 {
@@ -93,16 +94,68 @@ namespace OpenRA.Mods.Common.Test
 		}
 
 		[Test]
-		public void TwoAtgmHitsAreNowSurvivable()
+		public void OneAtgmIsTheWholeExposureBecauseTheSameHitAlsoTriggersTheBail()
 		{
-			// The headline effect. Two ATGMs that the hull survives used to kill a
-			// passenger outright on an unlucky roll and leave him on a sliver on a
-			// lucky one; halved, both rolls are comfortably survivable.
-			Assert.That(2 * Hit(10000, Raw, MaxRoll), Is.GreaterThanOrEqualTo(Passenger));
-			Assert.That(2 * Hit(10000, Raw), Is.GreaterThan(Passenger * 9 / 10));
+			// An earlier version of this test asserted that two ATGMs are survivable.
+			// That situation cannot occur on this branch: a single 10000 hit takes a
+			// full-health bradley to 4000 (28.5%), which is Heavy, and Heavy is the
+			// bail threshold — so the squad is on the ground before a second missile
+			// arrives. The exposure from a hull hit is therefore ONE hit, not a
+			// sequence, and the two changes compound.
+			Assert.That(Cargo.ShouldEmergencyBail(DamageState.Heavy, DamageState.Heavy), Is.True);
 
-			Assert.That(2 * Hit(10000, Half, MaxRoll), Is.LessThan(Passenger));
-			Assert.That(2 * Hit(10000, Half), Is.LessThan(Passenger / 2));
+			// One hit, unluckiest roll, is what a passenger actually pays.
+			Assert.That(Hit(10000, Half, MaxRoll), Is.LessThan(Passenger / 2));
+
+			// The halving still does real work despite that, because it governs the
+			// band above the bail line — hits the hull takes while the squad is still
+			// aboard and NOT yet leaving. A 7000 hit leaves a bradley at 50%, which is
+			// Medium: nobody bails, and this is the damage they keep.
+			Assert.That(Cargo.ShouldEmergencyBail(DamageState.Medium, DamageState.Heavy), Is.False);
+			Assert.AreEqual(89, Hit(7000, Raw, MaxRoll));
+			Assert.AreEqual(44, Hit(7000, Half, MaxRoll));
+		}
+
+		[Test]
+		public void ADeadTransportNeverBailsSoEjectOnDeathStillRuns()
+		{
+			// REGRESSION PIN. Health clamps HP to 0 and evaluates DamageState before
+			// notifying Damaged, so the killing blow reaches Cargo.Damaged already
+			// reading Dead — and Dead (32) is numerically ABOVE Heavy (8), so a naive
+			// `>=` lets it through. When it did, the bail emptied the hold synchronously
+			// and INotifyKilled.Killed then iterated an empty list: EjectOnDeath never
+			// ran and a one-shot kill on a loaded transport left the whole squad alive.
+			Assert.That(Cargo.ShouldEmergencyBail(DamageState.Dead, DamageState.Heavy), Is.False);
+			Assert.That(Cargo.ShouldEmergencyBail(DamageState.Dead, DamageState.Critical), Is.False);
+		}
+
+		[Test]
+		public void BailFiresFromItsThresholdUpToButNotIncludingDeath()
+		{
+			Assert.That(Cargo.ShouldEmergencyBail(DamageState.Undamaged, DamageState.Heavy), Is.False);
+			Assert.That(Cargo.ShouldEmergencyBail(DamageState.Light, DamageState.Heavy), Is.False);
+			Assert.That(Cargo.ShouldEmergencyBail(DamageState.Medium, DamageState.Heavy), Is.False);
+			Assert.That(Cargo.ShouldEmergencyBail(DamageState.Heavy, DamageState.Heavy), Is.True);
+			Assert.That(Cargo.ShouldEmergencyBail(DamageState.Critical, DamageState.Heavy), Is.True);
+
+			// Airborne transports are held at the old Critical threshold, so a
+			// helicopter at 40% HP keeps flying with its troops aboard.
+			Assert.That(Cargo.ShouldEmergencyBail(DamageState.Heavy, DamageState.Critical), Is.False);
+			Assert.That(Cargo.ShouldEmergencyBail(DamageState.Critical, DamageState.Critical), Is.True);
+		}
+
+		[Test]
+		public void TheHoistedThresholdMatchesTheOneInsideTheCurve()
+		{
+			// The caller now tests the threshold before looping so the RNG is only
+			// consumed by hits that can produce damage. If these two ever disagree,
+			// either the roll comes back on every scratch or a band of real hits stops
+			// reaching the passengers entirely.
+			var threshold = Cargo.PassengerDamageThreshold(Transport, Threshold);
+			Assert.AreEqual(3500, threshold);
+
+			Assert.AreEqual(0, Hit(threshold, Raw, MaxRoll));
+			Assert.That(Hit(threshold + 1, Raw, MaxRoll), Is.GreaterThan(0));
 		}
 
 		[Test]

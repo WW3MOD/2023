@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Effects;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Widgets;
@@ -70,7 +71,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Ticks between two passengers inside the same group. Deliberately small — the pair is ",
 			"meant to look like it left together. 0 restores the pre-pacing behaviour of one ",
-			"passenger per tick.")]
+			"passenger per tick.",
+			"Note the two readings of 'the same spacing as before': literally, that is 1 tick, ",
+			"because the unload loop ran once per tick. At the 60ms timestep 1 and 3 ticks are ",
+			"0.06s and 0.18s, which is below what anyone can see, so the pairing would be invisible ",
+			"and the point of the change lost. 4 is chosen instead so the 3x gap between groups has ",
+			"something visible to be three times larger than. Set this to 1 for the literal reading.")]
 		public readonly int IntraGroupUnloadDelay = 4;
 
 		[Desc("The pause between groups, as a multiple of IntraGroupUnloadDelay. 3 = the gap between ",
@@ -82,8 +88,26 @@ namespace OpenRA.Mods.Common.Traits
 			"without waiting for the transport to stop. Heavy (HP <50%) is the point the hull starts ",
 			"burning down for good and VehicleCrew bails the crew, so the men in the back leave on the ",
 			"same cue rather than a damage state later. This bail ignores the group pacing above — an ",
-			"ordered dismount is a drill, this is a burning vehicle.")]
+			"ordered dismount is a drill, this is a burning vehicle.",
+			"Applies to ground transports only; airborne ones use ",
+			"AircraftEmergencyBailDamageState below.")]
 		public readonly DamageState EmergencyBailDamageState = DamageState.Heavy;
+
+		[Desc("As EmergencyBailDamageState, but for transports with an Aircraft trait. Held at ",
+			"Critical — the value in use before ground transports were moved to Heavy — because ",
+			"dumping troops out of an airborne transport a whole damage state earlier is a separate ",
+			"question from getting them out of a burning APC, and it has not been asked. Airborne ",
+			"transports also do not take the direct-placement path at all: they keep the ordered ",
+			"unload, which lands first.")]
+		public readonly DamageState AircraftEmergencyBailDamageState = DamageState.Critical;
+
+		[Desc("Ticks to wait after the transport reaches EmergencyBailDamageState before the ",
+			"passengers actually leave. 0 (default) means they leave on the same tick the threshold ",
+			"is crossed, which puts them on the ground BEFORE the crew — VehicleCrew waits for the ",
+			"hull to roll to a stop (StopTimeout) and then PostStopDelay again, roughly 45 ticks in ",
+			"total. Set this to 45 to have passengers and crew leave together instead. This is the ",
+			"knob for that judgement; it is deliberately not pre-decided here.")]
+		public readonly int EmergencyBailDelay = 0;
 
 		[Desc("Fraction of the transport's MaxHP that a single hit must exceed before any of it is ",
 			"felt by the passengers, as a percentage. Fire that merely grinds the hull down passes ",
@@ -135,6 +159,13 @@ namespace OpenRA.Mods.Common.Traits
 		INotifyOwnerChanged, INotifySold, INotifyActorDisposing, IIssueDeployOrder,
 		ITransformActorInitModifier
 	{
+		// Eight compass headings a bailing passenger can run in to clear the hull.
+		static readonly CVec[] BailScatterDirections =
+		{
+			new CVec(0, -1), new CVec(1, -1), new CVec(1, 0), new CVec(1, 1),
+			new CVec(0, 1), new CVec(-1, 1), new CVec(-1, 0), new CVec(-1, -1),
+		};
+
 		public readonly CargoInfo Info;
 		readonly Actor self;
 		readonly List<Actor> cargo = new List<Actor>();
@@ -537,6 +568,29 @@ namespace OpenRA.Mods.Common.Traits
 				loadedTokens.Push(cargoActor.GrantCondition(Info.LoadedCondition));
 		}
 
+		/// <summary>The single-hit size below which nothing reaches the passengers at all.
+		/// Exposed separately so the caller can test it BEFORE looping and rolling: the roll has to
+		/// stay inside the same branch it was in before, or the shared RNG stream advances on ticks
+		/// where main's does not and replay/benchmark byte-identity breaks for no reason anyone
+		/// asked for.</summary>
+		public static int PassengerDamageThreshold(int transportMaxHP, int thresholdPercent)
+		{
+			return (int)((long)transportMaxHP * thresholdPercent / 100);
+		}
+
+		/// <summary>Whether the transport's damage state calls for an unordered bail-out.
+		/// Dead is deliberately excluded, and that exclusion is the whole point of this being a
+		/// named predicate. Health clamps HP to 0 and evaluates DamageState BEFORE it notifies
+		/// Damaged (Health.cs:189-200), so the killing blow arrives here already reading Dead — and
+		/// Dead is numerically ABOVE Heavy, so a naive `>=` passes it. Bailing there would empty the
+		/// hold synchronously and leave INotifyKilled's EjectOnDeath iterating an empty list, so a
+		/// one-shot kill on a loaded transport would let the entire squad walk away unhurt. Once the
+		/// hull is dead the cargo belongs to Killed.</summary>
+		public static bool ShouldEmergencyBail(DamageState current, DamageState bailAt)
+		{
+			return current >= bailAt && current < DamageState.Dead;
+		}
+
 		/// <summary>How much of a hit on the transport is felt by one passenger.
 		/// Split out as a pure function so the curve can be tuned and tested without a World.
 		/// <paramref name="varianceRoll"/> is the pre-rolled random spread, so callers own the RNG.</summary>
@@ -549,7 +603,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Below the threshold nothing reaches the crew compartment at all. This
 			// is what keeps a long grind of small-arms fire from bleeding the men
 			// inside: only a single blow big enough to matter against the hull does.
-			var threshold = (int)((long)transportMaxHP * thresholdPercent / 100);
+			var threshold = PassengerDamageThreshold(transportMaxHP, thresholdPercent);
 			if (damage <= threshold)
 				return 0;
 
@@ -591,7 +645,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			var healthTrait = self.Trait<Health>();
 			var damageDealt = e.Damage.Value;
-			if (damageDealt > 0)
+
+			// Threshold tested here rather than inside the loop so the RNG is only
+			// touched by hits that can actually produce damage — see
+			// PassengerDamageThreshold. It also keeps the ToList allocation off the
+			// path taken by every scratch and every ChangesHealth bleed tick.
+			if (damageDealt > PassengerDamageThreshold(healthTrait.MaxHP, Info.PassengerDamageThresholdPercent))
 			{
 				// Copy first — InflictDamage below can kill a passenger and reenter.
 				foreach (var passenger in Passengers.ToList())
@@ -614,12 +673,19 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			// Bail-out latch. Repairs arrive through this same notification with a
-			// negative value, so a transport patched back above the line rearms and
-			// will bail again if it is shot back down.
-			if (healthTrait.DamageState < Info.EmergencyBailDamageState)
+			// Airborne transports bail on their own threshold and never take the
+			// direct-placement path below.
+			var bailAt = aircraft != null ? Info.AircraftEmergencyBailDamageState : Info.EmergencyBailDamageState;
+
+			if (!ShouldEmergencyBail(healthTrait.DamageState, bailAt))
 			{
-				bailedOut = false;
+				// Re-arm on the way back up. Repairs arrive through this same
+				// notification carrying a negative value. Note this is deliberately
+				// NOT reached when the hull is Dead: the latch is irrelevant then and
+				// Killed owns the cargo.
+				if (healthTrait.DamageState < bailAt)
+					bailedOut = false;
+
 				return;
 			}
 
@@ -639,16 +705,33 @@ namespace OpenRA.Mods.Common.Traits
 			if (bailedOut)
 				return;
 
-			bailedOut = EmergencyBailOut(self);
+			if (Info.EmergencyBailDelay <= 0)
+			{
+				bailedOut = EmergencyBailOut(self);
+				return;
+			}
+
+			// Latch immediately so the wait is not restarted by every bleed tick, and
+			// re-check on arrival: the hull may have died in the meantime, in which
+			// case Killed has already dealt with everyone aboard.
+			bailedOut = true;
+			self.World.AddFrameEndTask(w => w.Add(new DelayedAction(Info.EmergencyBailDelay, () =>
+			{
+				if (self.IsDead || IsEmpty())
+					return;
+
+				bailedOut = EmergencyBailOut(self);
+			})));
 		}
 
-		/// <summary>Put every passenger on the ground now: no unload order, no Move to a drop cell,
+		/// <summary>Put the passengers on the ground now: no unload order, no Move to a drop cell,
 		/// no waiting for the hull to roll to a stop, and none of the group pacing an ordered
-		/// dismount uses. This is the passenger equivalent of VehicleCrew's ejection and is
-		/// deliberately built the same way — a free adjacent cell if there is one, otherwise the
-		/// transport's own cell, since SetPosition bypasses the occupancy check that would
-		/// otherwise strand men inside a vehicle that is seconds from cooking off.
-		/// Returns false if the bail could not happen at all, so the caller leaves the latch open.</summary>
+		/// dismount uses. Each man takes a free adjacent cell, or the hull's own cell if none is
+		/// free — but every candidate is checked for passability first, so nobody is placed on
+		/// ground he cannot stand on and no two men are given the same subcell.
+		/// Returns whether the hold is now empty. Anything less leaves the caller's latch open so a
+		/// transport that was boxed in, or amphibious and still over water, retries on the next
+		/// hit instead of stranding the men it could not place.</summary>
 		bool EmergencyBailOut(Actor self)
 		{
 			if (checkTerrainType && !Info.UnloadTerrainTypes.Contains(self.World.Map.GetTerrainInfo(self.Location).Type))
@@ -673,21 +756,46 @@ namespace OpenRA.Mods.Common.Traits
 				if (positionable == null)
 					continue;
 
-				var exit = CurrentAdjacentCells
-					.Shuffle(self.World.SharedRandom)
-					.Select(c => (Cell: c, SubCell: positionable.GetAvailableSubCell(c)))
-					.Where(s => s.SubCell != SubCell.Invalid && !claimed.Contains(s))
-					.Cast<(CPos Cell, SubCell SubCell)?>()
-					.FirstOrDefault();
+				// Adjacent cells first, then the hull's own cell as the hatch-emerge
+				// fallback — but the fallback is CHECKED, never assumed. Passing self
+				// as ignoreActor lets the hull's cell qualify while the transport is
+				// still standing on it, while GetAvailableSubCell still rejects ground
+				// the passenger cannot stand on and subcells already taken. Placing
+				// blind here put the entire rifle squad of an amphibious m113 or btr
+				// onto open water when it was hit mid-river, then handed each man a
+				// move order out of a cell his locomotor cannot path from.
+				(CPos Cell, SubCell SubCell)? exit = null;
+				foreach (var candidate in CurrentAdjacentCells.Shuffle(self.World.SharedRandom).Append(husk))
+				{
+					var subCellHere = positionable.GetAvailableSubCell(candidate, SubCell.Any, self);
+					if (subCellHere == SubCell.Invalid || claimed.Contains((candidate, subCellHere)))
+						continue;
 
-				if (exit != null)
-					claimed.Add(exit.Value);
+					exit = (candidate, subCellHere);
+					break;
+				}
+
+				// Nowhere to put this man: he rides it out rather than being dropped
+				// somewhere he cannot stand. The latch below stays open while anyone
+				// is still aboard, so an amphibious transport that reaches land — or
+				// one that is simply boxed in for a moment — retries on the next hit,
+				// and if the hull dies first, Killed's EjectOnDeath decides his fate
+				// with the same passability check this one mirrors.
+				if (exit == null)
+					continue;
+
+				claimed.Add(exit.Value);
+
+				// Drop any pre-queued rally point, as the ordered unload does. Nobody
+				// walks to a rally point out of a burning vehicle, and leaving the
+				// entry behind leaks it for the rest of the transport's life.
+				ClearEjectRally(passenger.ActorID);
 
 				Unload(self, passenger);
 
 				var actor = passenger;
-				var cell = exit?.Cell ?? husk;
-				var subCell = exit?.SubCell ?? SubCell.Any;
+				var cell = exit.Value.Cell;
+				var subCell = exit.Value.SubCell;
 
 				self.World.AddFrameEndTask(w =>
 				{
@@ -706,11 +814,9 @@ namespace OpenRA.Mods.Common.Traits
 					var mobile = actor.TraitOrDefault<Mobile>();
 					if (mobile != null && !actor.IsDead)
 					{
-						var dir = w.SharedRandom.Next(8);
-						var dx = new[] { 0, 1, 1, 1, 0, -1, -1, -1 }[dir];
-						var dy = new[] { -1, -1, 0, 1, 1, 1, 0, -1 }[dir];
+						var dir = BailScatterDirections[w.SharedRandom.Next(BailScatterDirections.Length)];
 						var dist = 2 + w.SharedRandom.Next(2);
-						actor.QueueActivity(false, mobile.MoveTo(husk + new CVec(dx * dist, dy * dist), 0, null, true));
+						actor.QueueActivity(false, mobile.MoveTo(husk + new CVec(dir.X * dist, dir.Y * dist), 0, null, true));
 					}
 
 					foreach (var nbm in actor.TraitsImplementing<INotifyBlockingMove>())
@@ -718,7 +824,7 @@ namespace OpenRA.Mods.Common.Traits
 				});
 			}
 
-			return true;
+			return IsEmpty();
 		}
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)

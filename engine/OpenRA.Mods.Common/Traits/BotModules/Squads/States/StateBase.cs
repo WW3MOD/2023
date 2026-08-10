@@ -70,7 +70,14 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			var arms = a.TraitsImplementing<Armament>();
 			foreach (var arm in arms)
 			{
-				if (arm.IsTraitDisabled)
+				// Paused counts as unusable, not just disabled. Armament.CanFire
+				// refuses on IsTraitPaused, so an armament held by a PauseOnCondition
+				// cannot put a round downrange — and PauseOnCondition is how this mod
+				// expresses every "cannot shoot right now" rule it has: empdisable,
+				// out of ammo, docked, and now the burning sub-50% hull. Testing only
+				// IsTraitDisabled had squads picking those as shooters and driving
+				// them into contact to fire weapons that are held.
+				if (arm.IsTraitDisabled || arm.IsTraitPaused)
 					continue;
 
 				if (arm.Weapon.IsValidTarget(targetTypes))

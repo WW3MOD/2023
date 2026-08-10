@@ -177,9 +177,12 @@ namespace OpenRA.Mods.Common.Activities
 			// Pace the rest of the stick. Without this the loop unloads one passenger
 			// per tick and a full transport empties in well under a second, which reads
 			// as the whole squad falling out at once.
+			// Interruptible: this is a cosmetic pause between passengers, and an
+			// order given mid-dismount should not have to sit out the rest of an
+			// inter-group gap (up to 12 ticks, ~0.7s) before it is noticed.
 			var delay = NextUnloadDelay();
 			if (delay > 0)
-				QueueChild(new Wait(delay, false));
+				QueueChild(new Wait(delay));
 
 			return false;
 		}
