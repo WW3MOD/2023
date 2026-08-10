@@ -1,0 +1,59 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# Fog OFF and no trees on the map: both previously-suspected gates are
+		# held wide open so the only live variable is the target's damage state.
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-aa-breakoff-critical.lua
+
+# Same two stance pins as the companion scenarios. Ammo is raised well above
+# the stock 3 so that no phase can be starved of missiles by an earlier one --
+# the control lane fires in all three phases and would otherwise run dry before
+# the force-attack phase, turning a real shot into an unreadable blank.
+
+AA:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialEngagementStance: Defensive
+	AmmoPool@1:
+		Ammo: 12
+
+# Big HP pool for two reasons: a stock 600-HP Halo dies to the first 3000-damage
+# missile, and the test needs to hold the aircraft at a PRECISE fraction of max
+# health (15%, comfortably inside DamageState.Critical's <25% band, Health.cs:95)
+# for the whole run without a single hit tipping it over into death.
+
+HALO:
+	Health:
+		HP: 100000
+	# RUN 1 FAILED HERE, and the setup guard caught it rather than letting it
+	# read as a result: lane 1's Halo simply died. Driving a HELICOPTER under
+	# 25% is self-defeating, because HeliEmergencyLanding treats
+	# CrashDamageState = DamageState.Critical as "uncontrolled crash, always
+	# destroyed on impact" (HeliEmergencyLanding.cs:22,102) — the manipulation
+	# destroys the thing it is trying to hold in a state. Autorotation already
+	# starts at Heavy (<50%), so the window in which a live helicopter sits at
+	# critical damage is close to nil in real play.
+	#
+	# Removing the trait keeps the aircraft parked at 15% so the BREAK-OFF
+	# FILTER itself can be measured. That makes the Halo a stand-in carrier for
+	# the mechanism, not a claim about helicopters: the filter is generic to any
+	# actor holding critical-damage, and it is fixed-wing aircraft and ground
+	# vehicles — which have no crash-on-critical behaviour — where a target
+	# really does persist in this state long enough for it to matter.
+	-HeliEmergencyLanding:
+	# Granted only by HeliEmergencyLanding, but drop the drain explicitly so no
+	# residual bleed can move the health fraction mid-run.
+	-ChangesHealth@CrashBurn:

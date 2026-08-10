@@ -1,0 +1,105 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: AA break-off on a critically damaged aircraft (diagnostic)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# =====================================================================
+	# Third scenario in the series. The first two REFUTED both candidate
+	# gates by showing each fails closed on BOTH attack paths:
+	#   blocked line of fire -> silent auto AND silent manual
+	#   undetected           -> silent auto AND silent manual
+	# So the reported symptom (auto never engages, a manual order kills it
+	# instantly from a standstill) requires a filter that drops the target on
+	# the AUTO path ONLY, while leaving a detected, in-range, clear-LOS target
+	# perfectly attackable by hand.
+	#
+	# Reading ChooseTarget end to end, exactly two filters have that shape,
+	# and both were introduced by WW3MOD rather than inherited from OpenRA:
+	#   - the overkill filter (AutoTarget.cs:1129), and
+	#   - the BREAK-OFF filter (AutoTarget.cs:1135-1137), which skips any
+	#     target carrying Info.BreakOffCondition — defaulting to
+	#     "critical-damage" (AutoTarget.cs:218), granted at DamageState.Critical
+	#     i.e. HP < 25% (defaults.yaml:194-196, Health.cs:95).
+	# This scenario tests the second one, because it is the one that can be
+	# staged exactly.
+	#
+	# NO TREES ANYWHERE and fog OFF, deliberately: both previously-suspected
+	# gates are held wide open so neither can contribute. The only variable is
+	# the target's damage state.
+	#
+	# THE PREDICTION THAT MATTERS is a three-way split on the SAME target,
+	# which no other hypothesis in this series produces:
+	#   auto            -> skipped   (ChooseTarget break-off filter)
+	#   normal manual   -> skipped   (Attack.cs:201-207 re-checks break-off
+	#                                 for non-forced orders)
+	#   FORCE attack    -> FIRES     (both sites are gated on !forceAttack)
+	# If that lands, the user's "manual attack" was a force-attack (Ctrl+click),
+	# which is exactly what a player does when a unit refuses to engage — and
+	# the whole report is explained with no foliage and no fog involved.
+	#
+	# Lanes 54 cells apart so neither AA can reach the other's aircraft
+	# (MANPAD range 23c0).
+	# =====================================================================
+
+	# --- lane 0: CONTROL, healthy aircraft. Must auto-engage. ---
+	A0: aa
+		Owner: USA
+		Location: 3,28
+		Facing: 0
+
+	# --- lane 1: aircraft driven to 15% HP by the Lua -> critical-damage ---
+	A1: aa
+		Owner: USA
+		Location: 57,28
+		Facing: 0
+
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,2
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,2
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 30,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 30,8
+
+Rules: rules.yaml

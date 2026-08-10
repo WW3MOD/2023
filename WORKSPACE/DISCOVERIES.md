@@ -3,6 +3,29 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-10 — FOUND IT: `ChooseTarget`'s two WW3MOD-only filters (break-off and overkill) are the only ones that drop a target on the AUTO PATH ALONE, and a critically damaged aircraft reproduces "won't auto-engage, Ctrl+click kills it instantly" exactly
+
+Third scenario in the series (`test-aa-breakoff-critical`), after the first two refuted line-of-sight and detection by showing each fails closed on *both* paths. Measured (seed -2050768512):
+
+| lane | hp | auto | ordinary manual | force attack | cells moved |
+|---|---|---|---|---|---|
+| healthy (control) | 89% | fire | fire | fire | 0 |
+| **critical** | **10%** | **—** | **—** | **FIRE** | **0** |
+
+- **`BreakOffCondition` defaults to `critical-damage` and is enforced at TWO sites, both gated on `!forceAttack`.** `ChooseTarget` skips the candidate outright (`AutoTarget.cs:1135-1137`) and `Attack.TickAttack` re-checks it for non-forced orders (`Attack.cs:201-207`). So a target under 25% HP (`Health.cs:95`, granted by `GrantConditionOnDamageState@CriticalDamage`, `defaults.yaml:194-196`) is invisible to autotarget, refuses an ordinary attack order, and dies instantly to a Ctrl+click **from the same cell**. Nothing moves. No foliage, no fog.
+- **The overkill filter has the same shape but differs in exactly one cell, and that cell is the diagnostic.** `OverkillThreshold` (default 100, `AutoTarget.cs:203`) skips any candidate whose `AverageDamagePercent` is already lethal — but it is checked **only** in `ChooseTarget` (`:1129`). There is no `AverageDamagePercent` re-check anywhere in `Attack.cs`, `AttackBase.cs` or `AttackFollow.cs`, so an overkill-suppressed target still falls to an ORDINARY click:
+
+  | mechanism | auto | plain left-click | Ctrl+click |
+  |---|---|---|---|
+  | break-off (`critical-damage`) | skip | skip | fire |
+  | overkill (`AverageDamagePercent >= 100`) | skip | **fire** | fire |
+
+  **So the report "it wouldn't engage but my manual order killed it" is diagnostic on its own: a plain click means overkill, a Ctrl+click means break-off.** Ask which before fixing either.
+- **Both are WW3MOD additions and both are silent — the player gets no cursor, no message, no target line explaining why the unit is ignoring a live enemy.** Every other filter in `ChooseTarget` is either symmetric across both paths (LOS, detection, target types, range) or inert (`AllowTurning` defaults true so the firing-arc test is skipped, `AutoTarget.cs:61`).
+- **DO NOT stage this with a helicopter without disabling `HeliEmergencyLanding` — the manipulation destroys its own subject.** `CrashDamageState = DamageState.Critical` means "uncontrolled crash, always destroyed on impact" (`HeliEmergencyLanding.cs:22,102`), and autorotation already begins at Heavy (<50%). Run 1 failed exactly this way and the setup guard caught it. **The corollary is a real gameplay point: for helicopters the break-off window barely exists**, because a heli at critical damage is already crashing. It is fixed-wing aircraft and ground vehicles — which have no crash-on-critical behaviour — where a target persists in that state long enough for the filter to strand it.
+- **`AutoTarget.HasValidTargetPriority` is inverted and always returns false.** `if (!ati.OnlyTargets.Except(targetTypes).Any() || ...) continue;` (`AutoTarget.cs:984`): with the default empty `OnlyTargets` (`AutoTargetPriority.cs:24`, and no mod YAML sets it), `Except` yields nothing, `.Any()` is false, `!false` is true, so every priority is skipped and the method returns false unconditionally. Every caller is a stance-change handler asking "should I drop this target now the stance got stricter" (`Attack.cs:323`, `AttackFollow.cs:239/245/435`, `FlyAttack.cs:216`, plus the Cnc variants), so **any stance downgrade currently drops the unit's current and opportunity targets unconditionally**, valid or not. Not the bug above — a unit re-acquires on the next idle scan — but a genuine defect found by reading, costing zero runs.
+- **Target-type mismatch was the prime suspect and is impossible by construction for this weapon.** MANPAD's `ValidTargets: Air` and the AA's priorities (`{Air}` from both `^AutoTargetAir` blocks, `defaults.yaml:489-493` and `:637-640`, plus the inherited default `{Ground, Water, Air}`) key off the same `Air` bit, so any aircraft the weapon can hit necessarily overlaps a priority. Drones are additive, not substitutive — `^Drone` inherits `^Airborne` and *adds* `Targetable@Drone` (`aircraft.yaml:289-319`) without removing `Targetable@Airborne`, so an airborne drone is `{Air, AirDetonateAttack, Drone}`. The only `NoAutoTarget` flyers are aircraft husks (`husks-aircraft.yaml:6,24`), which lack `Air` so MANPAD cannot shoot them either.
+
 ## 2026-08-10 — DETECTION ALSO GATES BOTH ATTACK PATHS: an undetected actor stays clickable but a manual order on it does nothing, so "auto dead / manual fires instantly" is explained by NEITHER of the two candidate gates
 
 Follow-up to the LOS entry below, run with fog ON (`test-aa-detection-fog`). Three lanes at 0/1/2 tree cells, trees placed at d >= 5 from the shooter on a 20-cell line so they load the ground/vision channel while contributing **zero** to the airborne/line-of-fire channel. Measured (seed 1152069348):
