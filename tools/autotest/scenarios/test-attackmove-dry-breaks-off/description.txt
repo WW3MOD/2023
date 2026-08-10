@@ -1,0 +1,1 @@
+Auto: an AR that empties mid attack-move must break off and go idle, not stall aiming at an enemy it cannot shoot.

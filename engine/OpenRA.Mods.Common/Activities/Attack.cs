@@ -108,6 +108,15 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceling)
 				return true;
 
+			// PITFALL: without this a dry unit holds this activity forever. TickAttack does not consult
+			// ammo (ChooseArmamentsForTarget filters on IsTraitDisabled only), so it still reports
+			// Attacking, DoAttack's CheckFire silently declines because the armament is ammo-paused, and
+			// Tick returns false below for good. Actor.IsIdle is CurrentActivity == null, so the unit
+			// never goes idle and AmmoPool's INotifyBecomingIdle resupply handoff never fires. Ending
+			// here is what puts it back on that path.
+			if (AmmoPool.CannotFight(self))
+				return true;
+
 			if (!attackTraits.Any())
 			{
 				Cancel(self);

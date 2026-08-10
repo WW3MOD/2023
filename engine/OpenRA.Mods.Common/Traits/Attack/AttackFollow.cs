@@ -312,6 +312,12 @@ namespace OpenRA.Mods.Common.Traits
 				if (IsCanceling)
 					return true;
 
+				// PITFALL: the turreted twin of the guard in Activities/Attack.cs. A dry unit otherwise
+				// closes to range and then parks on the `return false` at the end of this method forever
+				// — never firing (the armament is ammo-paused), never idle, so never resupplying.
+				if (AmmoPool.CannotFight(self))
+					return true;
+
 				// Check that AttackFollow hasn't cancelled the target by modifying attack.Target
 				// Having both this and AttackFollow modify that field is a horrible hack.
 				if (hasTicked && attack.RequestedTarget.Type == TargetType.Invalid)

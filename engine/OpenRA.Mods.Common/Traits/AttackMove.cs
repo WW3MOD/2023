@@ -100,6 +100,12 @@ namespace OpenRA.Mods.Common.Traits
 				if (!order.Target.IsValidFor(self))
 					return;
 
+				// A unit with nothing to fire has no business being sent to look for a fight. Refusing
+				// here leaves it idle, which is what routes it to AmmoPool's resupply handoff; a plain
+				// Move order is untouched and still obeyed, so the player can always reposition it.
+				if (AmmoPool.CannotFight(self))
+					return;
+
 				var cell = self.World.Map.Clamp(self.World.Map.CellContaining(order.Target.CenterPosition));
 				if (!Info.MoveIntoShroud && !self.Owner.MapLayers.IsExplored(cell))
 					return;
