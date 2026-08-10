@@ -104,6 +104,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						{ "onSelect", (Action<string>)(uid => map = modData.MapCache[uid]) },
 						{ "filter", MapVisibility.Lobby },
 						{ "initialCategory", (string)null },
+						{ "closeOnExit", true },
 						{ "onStart", () => { } }
 					});
 				};

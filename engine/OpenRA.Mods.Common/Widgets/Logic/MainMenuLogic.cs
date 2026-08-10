@@ -468,6 +468,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					{ "onSelect", onSelect },
 					{ "filter", MapVisibility.Lobby | MapVisibility.Shellmap | MapVisibility.MissionSelector },
 					{ "initialCategory", (string)null },
+					{ "closeOnExit", true },
 				});
 			};
 
