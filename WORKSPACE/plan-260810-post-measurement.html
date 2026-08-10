@@ -1,0 +1,160 @@
+<!doctype html><html><head><meta charset="utf-8"><title>WW3MOD — post-measurement plan, 2026-08-10</title><style>
+ body{font-family:Segoe UI,system-ui,sans-serif;background:#12151a;color:#dde3ea;margin:0;padding:32px;max-width:1080px;margin:auto;line-height:1.55}
+ h1{font-size:23px;border-bottom:1px solid #2a3340;padding-bottom:10px;margin-bottom:6px}
+ .sub{color:#7d8b9a;font-size:13px;margin-bottom:28px}
+ h2{font-size:14px;color:#8fb4d8;margin-top:38px;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid #232b36;padding-bottom:6px}
+ h3{font-size:16px;color:#e8eef5;margin-top:26px;margin-bottom:6px}
+ code{background:#1b2029;padding:1px 5px;border-radius:3px;font-size:12.5px;color:#b9d4ee}
+ pre{background:#0d1015;border:1px solid #232b36;border-radius:5px;padding:12px 14px;overflow-x:auto;font-size:12px;color:#a8c8e8}
+ table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+ th{text-align:left;color:#8fb4d8;border-bottom:1px solid #2a3340;padding:7px 9px;font-weight:600}
+ td{border-bottom:1px solid #1c232c;padding:7px 9px;vertical-align:top}
+ .bad{color:#ff8f7a;font-weight:600}
+ .good{color:#7fd8a4;font-weight:600}
+ .warn{color:#ffcb6b;font-weight:600}
+ .muted{color:#7d8b9a}
+ .card{background:#161b22;border:1px solid #242c38;border-radius:6px;padding:16px 18px;margin:14px 0}
+ .card.decide{border-left:3px solid #ffcb6b}
+ .card.done{border-left:3px solid #7fd8a4}
+ .card.stop{border-left:3px solid #ff8f7a}
+ .tag{display:inline-block;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;padding:2px 7px;border-radius:3px;background:#232c38;color:#8fb4d8;margin-right:8px;vertical-align:2px}
+ .opt{margin:10px 0 10px 0;padding-left:14px;border-left:2px solid #2a3340}
+ .opt b{color:#e8eef5}
+ ul{margin:8px 0;padding-left:22px} li{margin:5px 0}
+ .lede{font-size:15px;color:#cfe0f0;background:#161b22;border-left:3px solid #8fb4d8;padding:12px 16px;border-radius:4px;margin:18px 0}
+</style></head><body>
+
+<h1>Post-measurement plan</h1>
+<div class="sub">2026-08-10 &middot; main <code>8492416d</code> &middot; 89 commits ahead of origin, unpushed &middot; written after the first simulation grant in several days</div>
+
+<div class="lede">
+The headline is that the measurement you unblocked <b>invalidated a fix that had already been reported to you as done</b> — three times. It also showed the problem is one level deeper than the threshold everyone has been arguing about. Nothing in this document is a guess about what to do next; the decisions below are genuinely yours because they are doctrine calls, not arithmetic.
+</div>
+
+<h2>1 &middot; What the simulations said</h2>
+
+<h3>The danger reference — measured for the first time</h3>
+<pre>[danger] reference ground=3412 air=3627 (100 danger units = one reference contact at point-blank)
+                   ground-types=92/424 min=164 max=1271250
+
+[danger] dist player=USA-bot    n=80 cells=4168 ground min=0 median=27919 max=156348 | in units median=818  max=4582
+[danger] dist player=Russia-bot n=80 cells=3793 ground min=1 median=94010 max=526457 | in units median=2755 max=15429</pre>
+<p class="muted">Reproducible — seven logged lines carry the same <code>ground=3412</code>. Run: <code>test-frontline-reachability</code> on River Zeta, which instantiates both fog-respecting bot profiles.</p>
+
+<p>The whole danger system is scaled off that one number: <b>100 danger units = the core intensity of the median ground-threatening actor type in the ruleset</b>. It had never been observed. Static derivation put the plausible range between a carbine (2,237) and an automatic rifleman (7,820). It landed at <b>3,412</b> — the carbine end, which was the feared direction.</p>
+
+<h3>Consequence: the supply-truck evac guard is below the field it gates</h3>
+<table>
+<tr><th>Quantity</th><th>Value</th><th>Source</th></tr>
+<tr><td>Evac threshold, as configured</td><td>50 danger units</td><td><code>SupplyFollowerBotModule.cs:106</code></td></tr>
+<tr><td>Evac threshold, in field units</td><td class="bad">1,706</td><td>50 &times; 3412 / 100 &mdash; <code>DangerFieldLayer.cs:255-265</code></td></tr>
+<tr><td>A <i>decayed rumour</i> of one tank at max range</td><td class="bad">2,795</td><td>already trips evac on its own</td></tr>
+<tr><td>Live median danger cell, USA bot</td><td class="bad">27,919</td><td>16&times; above the threshold</td></tr>
+<tr><td>Live median danger cell, Russia bot</td><td class="bad">94,010</td><td>55&times; above the threshold</td></tr>
+</table>
+
+<p>The engine states the test itself, at <code>DangerFieldLayer.cs:466-467</code>: <i>&ldquo;a threshold the median already exceeds is firing unconditionally.&rdquo;</i> By its own criterion, the evac guard fires unconditionally the moment contact exists. <b>The supply-truck oscillation fix cannot be claimed as fixed.</b></p>
+
+<h3>The deeper finding: the unit is the problem, not the threshold</h3>
+<p>The engine also states this test, at <code>DangerFieldLayer.cs:416-417</code>: <i>&ldquo;if min and max straddle the median by more than ~2 orders, the median is a weak reference and the unit wants revisiting — not the individual thresholds.&rdquo;</i></p>
+<ul>
+<li>Measured spread: min <b>164</b>, median <b>3,412</b>, max <b>1,271,250</b> — the max is <b class="bad">2.57 orders (372&times;)</b> above the median.</li>
+<li>Only <b>92 of 424</b> actor types contribute to the reference at all.</li>
+</ul>
+<p>So the ruleset is not a population with a meaningful middle. Retuning thirteen numbers on top of a weak reference reproduces the exact failure that has already cost three rounds: <b>a calibration input that is wrong underneath the thing being calibrated.</b></p>
+
+<h3>Why the original derivation failed — worth internalising</h3>
+<p>The reasoning at <code>SupplyFollowerBotModule.cs:103-105</code> derived &ldquo;50 units&rdquo; from kernel taper geometry: a contact whose envelope merely <i>reaches</i> a cell contributes ~1/(r+1) of its core, and a decayed contact contributes 15% of that. That arithmetic is correct and the conclusion is still wrong, because <b>taper geometry describes the shape of one contact's envelope and says nothing about how many envelopes overlap a cell in a real match.</b> The live medians are what overlapping produces. This is a general trap: a threshold derived from single-source geometry is not a prediction about a field fed by many sources.</p>
+
+<h3>All thirteen thresholds, not just the truck one</h3>
+<p>This is the audit that answers &ldquo;is one number wrong, or is the unit wrong?&rdquo; Every danger threshold in <code>ai.yaml</code>, converted at the measured reference, against the live field it gates. The field's own median in danger units is <b>818</b> (USA) and <b>2,755</b> (Russia).</p>
+<table>
+<tr><th>Threshold</th><th>Units</th><th>Field value @ ref 3412</th><th>vs USA median (818u)</th><th>vs Russia median (2,755u)</th></tr>
+<tr><td><code>AdvanceDangerCeilingUnits</code></td><td>6</td><td>205</td><td class="bad">136&times; below</td><td class="bad">459&times; below</td></tr>
+<tr><td><code>SafeDangerUnits</code>, <code>StagingDangerSafeUnits</code>, <code>DropDangerSafeUnits</code>, <code>StandoffDangerUnits</code></td><td>10</td><td>341</td><td class="bad">82&times; below</td><td class="bad">276&times; below</td></tr>
+<tr><td><code>GroundDangerSafeUnits</code> (supply convoy)</td><td>12</td><td>409</td><td class="bad">68&times; below</td><td class="bad">230&times; below</td></tr>
+<tr><td><code>EvacReleaseHysteresisUnits</code></td><td>20</td><td>682</td><td class="bad">41&times; below</td><td class="bad">138&times; below</td></tr>
+<tr><td><code>AirDangerSpikeUnits</code> <span class="muted">(air ref 3627)</span></td><td>25</td><td>907</td><td class="muted">air channel</td><td class="muted">air channel</td></tr>
+<tr><td><code>BelievedDangerMildUnits</code>, <code>ContestedDangerUnits</code>, <code>MissionDangerSpikeFloorUnits</code>, <code>GroundDangerSafeUnits</code> (offense)</td><td>30</td><td>1,024</td><td class="bad">27&times; below</td><td class="bad">92&times; below</td></tr>
+<tr><td><code>EvacDangerUnits</code></td><td>50</td><td>1,706</td><td class="bad">16&times; below</td><td class="bad">55&times; below</td></tr>
+<tr><td><code>BelievedDangerHostileUnits</code> <span class="muted">— the highest one there is</span></td><td>100</td><td>3,412</td><td class="bad">8&times; below</td><td class="bad">27&times; below</td></tr>
+</table>
+<p class="lede" style="border-left-color:#ff8f7a">
+Every single threshold sits below the median cell of the field it gates — the largest one by a factor of eight. The live field spans roughly <b>0 to 15,429</b> danger units; the thresholds occupy <b>6 to 100</b>. They are not slightly low, and they are not individually wrong. <b>The whole scale is off by two to three orders of magnitude, uniformly.</b> That settles decision A: this is not a retuning job.
+</p>
+
+<h3>Regression suite — 68 run, 60 pass, 8 fail, 0 error</h3>
+<p>First full pass since the two engine merges landed. Nine of the 77 scenarios were excluded as unable to produce a verdict; two more slipped through that filter and are in the fail column below.</p>
+<table>
+<tr><th>Failure</th><th>Reading</th></tr>
+<tr><td><code>test-burn-arena</code><br><code>test-burn-compare</code></td><td class="good">Not failures. Declared DEMO scenarios with no assertion — their own source comments say <i>&ldquo;No Test.Pass — the window stays open until you close it manually.&rdquo;</i> They time out at 300 s and are scored FAIL. My exclusion filter grepped raw text and matched that comment; stripping Lua comments catches them.</td></tr>
+<tr><td><code>test-offense-ammo-guard</code></td><td class="good">Known-stale test, already documented. <code>DISCOVERIES.md:112</code> records it RED at its own base commit with this identical note, and establishes <b>the guard it tests works</b> — what broke is the test's proxy for &ldquo;was recruited&rdquo; (moved &gt;4 cells east), invalidated when dry vehicles were given an evac disposition and stopped staying parked.</td></tr>
+<tr><td><code>test-stance-anchor-move</code><br><code>test-stance-positioning</code><br><code>test-stance-redirect-midadjust</code></td><td class="warn">The real signal. A tight cluster: all three are cover-seeking, and units end stuck at <b>13,19 / 13,19 / 13,21</b> — nearly the same cell. One cause, three symptoms. <b>Not fallout from the danger merge</b> — <code>StancePositioningExecutor.cs</code> and <code>CohesionMoveModifier.cs</code> contain no reference to the danger field at all, which I checked rather than assumed.</td></tr>
+<tr><td><code>test-spread-no-autotarget</code><br><code>test-wgm-tree-density-ladder</code></td><td class="warn">Two independent reds. The WGM one is informative rather than binary — its ladder reads <code>0t=F 1t=F 2t=F 3t=- 4t=- 5t=F 6t=F</code>, i.e. the 3- and 4-tree rungs stopped resolving at all rather than flipping verdict.</td></tr>
+</table>
+<p><b>The merges look clean.</b> Nothing in the fail column traces to the danger or aircraft-rearm work; the one cluster that looks like a genuine defect lives in a subsystem that never reads the danger field. What the suite cannot tell you is whether these five are new, because no full batch had been run in long enough that there is no prior tally to diff against — which is itself the argument for running it on a schedule.</p>
+
+<h2>2 &middot; Fixed already — no decision needed</h2>
+<div class="card done">
+<span class="tag">done</span>These were unambiguous, so they are committed rather than proposed.
+<ul>
+<li><b>Autotests were pacing at 1&times;.</b> <code>run-batch.sh</code> forwarded every other flag to <code>run-test.sh</code> but not <code>--speed</code>, so a 77-test run had no way to be anything but wall-clock. Batches now default to <b>8&times;</b>. The simulation is byte-identical — <code>Test.SpeedMultiplier</code> only divides <code>world.Timestep</code> and never enters a synced path — and <code>--timeout</code> is unscaled, so a faster batch gets <i>more</i> watchdog headroom. <span class="muted">(<code>8a193c41</code>)</span></li>
+<li><b>The harness could silently corrupt itself when run twice.</b> Every verdict goes to one shared <code>result.json</code>, so a second concurrent run satisfies the first run's watchdog poll — the first stops watching and its game is orphaned with nothing left to kill it. That is what you saw on screen. <code>run-test.sh</code> now takes an atomic single-instance lock and refuses, naming the holder; a dead holder's lock is reclaimed rather than wedging the harness.</li>
+<li><b>The benchmark spec pointed at a stale worktree.</b> <code>SPEC.md</code> §5.1 said all loop work happens in a long-lived <code>ai-bench</code> worktree. That worktree had drifted <b>638 commits</b> behind main, while <code>run-tournament.sh</code> measures whichever checkout invokes it — so following the spec would have produced valid-looking numbers for three-week-old code. Corrected; worktree removed; branch deleted.</li>
+<li><b>Git tidied.</b> Two fully-merged experiment branches deleted; 18 design records (14 decisions, a spec, a plan) that had been sitting untracked since July are now committed. <span class="muted">(<code>3b535f46</code>)</span></li>
+</ul>
+</div>
+
+<h2>3 &middot; Decisions for you</h2>
+
+<div class="card decide">
+<span class="tag">decision A</span><h3 style="margin-top:4px">What replaces the danger unit?</h3>
+<p>This is the load-bearing one; B and the threshold table both fall out of it.</p>
+<div class="opt"><b>A1 — Re-derive the thirteen thresholds from measured percentiles</b>, keeping the median-based unit. Cheapest, and it will visibly improve behaviour. But it re-tunes on top of a reference the engine's own criterion calls weak, and it needs re-doing if decision F moves.</div>
+<div class="opt"><b>A2 — Change the reference from the median to a percentile of the live field</b> (e.g. thresholds expressed as &ldquo;the 60th percentile of cells that currently carry any danger&rdquo;). Self-calibrating and immune to a lopsided ruleset. Costs a design pass and changes what a threshold means.</div>
+<div class="opt"><b>A3 — Drop the abstraction and set thresholds directly in field units</b> from measured distributions. Most honest, least portable across rulesets — every future weapon change silently moves every threshold.</div>
+<p class="muted">My read: A2 is right and A1 is the trap, because A1 is what we already did once and it is why we are here. The thirteen-threshold audit above hardens that — when <i>every</i> threshold is below the median, the common factor is the scale, not the individual choices. But this decides how the bot reads the battlefield, so it is yours.</p>
+</div>
+
+<div class="card decide">
+<span class="tag">decision B</span><h3 style="margin-top:4px">What should make a supply truck run away?</h3>
+<p>Arithmetic can clear the 2,795 floor. It cannot answer the actual question: <b>what fraction of the battlefield should a supply truck refuse to enter?</b> A truck that flees the median cell never delivers. A truck that only flees the peak dies. That is a doctrine call about how expendable logistics are, and it wants your answer before any number is written.</p>
+</div>
+
+<div class="card stop">
+<span class="tag">decision C</span><h3 style="margin-top:4px">The benchmark has no control any more</h3>
+<p>Commit <code>b8d2e601</code> (2026-08-02) promoted <code>@stable</code> to <b>full <code>@experimental</code> parity</b> and renamed it Stable AI 0730 &rarr; 0802. Every number in <code>WORKSPACE/benchmarks/</code> was measured against <b>Stable AI 0730, a bot that no longer exists</b>. Experimental-vs-Stable is now close to a mirror match, so &ldquo;re-take the baseline&rdquo; is the wrong frame — the yardstick changed, not just the thing being measured.</p>
+<div class="opt"><b>C1 — Pin an explicit frozen control.</b> Snapshot a named historical bot as the permanent benchmark opponent so the yardstick stops moving when a promotion happens.</div>
+<div class="opt"><b>C2 — Run it as a mirror anyway</b>, and read it as a side-fairness / noise calibration rather than an improvement measure. Cheap, honest, measures much less.</div>
+<div class="opt"><b>C3 — Defer the benchmark entirely</b> until decision A lands, since A moves the danger field for both profiles and would invalidate the run.</div>
+<p class="muted">Cost either way, measured not guessed: ~120 s/match at 8&times;, so a 10-match rung is ~20 min and three maps ~60 min. My read is C3 then C1 — running an hour of matches now measures a field we are about to change.</p>
+</div>
+
+<div class="card decide">
+<span class="tag">decision D</span><h3 style="margin-top:4px">The RA-scaled durability weight — and the ordering trap</h3>
+<p>Filed as <code>[med]</code> in <code>WORKSPACE/bugs/discovered.md</code>: the merged branch fixed the <i>throughput</i> term of a weapon's intensity but not the <i>durability weight</i> term, which may still be Red-Alert-scaled. If true, every per-type intensity shifts — <b>and therefore the reference itself shifts</b>, and with it all thirteen thresholds.</p>
+<p><b>This is the sequencing constraint that matters:</b> if thresholds are re-derived (decision A) before this is settled, they get derived twice from two different unverified inputs. That is precisely the loop that cost this work three review rounds already. It was correct to keep this shut until the reference was measured; the reference is now measured, so it is open — and it should be answered <i>before</i> A is executed, not after.</p>
+</div>
+
+<div class="card decide">
+<span class="tag">decision E</span><h3 style="margin-top:4px"><code>exp-terr-bias</code> — rebase or abandon</h3>
+<p>The one unmerged local branch: 3 commits, 588 behind main, territorial balance-of-power offense bias. Its own STOP note records that the verify batch completed 20/20 with the <b>S2 headline not lifted</b> — a failed bar — and that <code>Passenger.cs:187</code> wants rebasing before any future run. Left untouched pending your call. Note that its numbers were taken against the old control, so decision C applies to it too.</p>
+</div>
+
+<h2>4 &middot; Suggested order</h2>
+<ol>
+<li><b>D</b> — settle the durability weight, because it moves the reference everything else is derived from.</li>
+<li><b>A</b> — pick the unit model, then re-derive all thirteen thresholds once, against a reference that is no longer suspect.</li>
+<li><b>B</b> — set the truck doctrine, and only then write the evac number.</li>
+<li>Re-run the danger instrumentation and confirm the thresholds now sit between median and peak, which is the engine's own stated shape for a healthy threshold.</li>
+<li><b>C</b> — take the benchmark <i>after</i> the field has stopped moving, against whatever control you pin.</li>
+</ol>
+<p class="muted">The one thing I would not do is start at step 3. Setting the truck threshold first is what makes it look fixed while leaving the reference wrong underneath — which is the shape of all three previous claims.</p>
+
+<h2>5 &middot; Still open from before, not re-asked</h2>
+<ul>
+<li><b>Where aircraft rearm and repair.</b> Four options posted; the highest-rated is putting it on the Supply Route, which no worker proposed. Load-bearing caveat: all three hosted arms of the new <code>AirframeReadiness</code> predicates are currently unreachable and have never executed — wiring any host makes them all go live at once.</li>
+<li><b>Main is 89 commits ahead of origin and unpushed.</b> You push manually; this is a reminder only.</li>
+</ul>
+
+</body></html>
