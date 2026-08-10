@@ -974,6 +974,28 @@ Player:
 		# This costs trucks and is meant to. A truck lost mid-run releases its claim and its dispatch
 		# record in the ordinary scan cleanup, so the next truck re-derives the anchor and takes over.
 		DropCommitmentOverridesEvac: true
+		# DELIVERY INTENT OUTRANKS EVAC — the half commitment could not reach, and the gap was total.
+		# DropCommitmentOverridesEvac protects a drop ALREADY IN FLIGHT. A truck that has not been
+		# dispatched yet is still fair game for evac, so evac out-ranked STARTING a delivery while losing
+		# only to one under way — and a delivery that can never start never happens.
+		#
+		# Measured in the user's own 30-minute match, 2026-08-10, on the build that shipped commitment:
+		#   [supply] adopt      truck=4802@6,46 supply=750
+		#   [supply] evac-enter truck=4802@20,43 danger=17773 dest-danger=3 gated=True threshold=1706
+		#   [supply] evac-leg   truck=4802@15,46 danger=16 held=1→0 scans=2
+		#   [supply] evac-exit  truck=4802@13,46 danger=9
+		# A full truck drove out to x=20, hit 17,773 against a bar of 1,706, fell back to x=13, released,
+		# and repeated all game. No crate was ever placed. Both supply scenarios were green throughout:
+		# there the truck committed early enough that this window never opened, so the scenarios were
+		# right and insufficient.
+		#
+		# A truck on an errand now holds its course; a truck with NOTHING to deliver — empty, or with no
+		# reachable customer — still evacuates exactly as before. That was always evac's real job.
+		#
+		# This costs trucks, and more than commitment alone, because it commits them on the APPROACH
+		# rather than on the run-in. That is the accepted price of "full commitment"; walk it back here
+		# first if trucks are dying without delivering.
+		DeliveryIntentOverridesEvac: true
 		# DANGER PICKS THE MODE, it never picks whether to go. Dangerous front => stop at the standoff,
 		# dump everything, egress. Quiet front => drive up, serve from the aura, KEEP the remainder for
 		# the next customer — the doctrine's own wording, "resupply them directly and not unload, if
@@ -1003,7 +1025,15 @@ Player:
 		DropRequiresDanger: true
 		DropDangerFloorUnits: 25
 		DropDangerMedianPercent: 100
-		DropDangerAbsoluteUnits: 200
+		# 200 -> 100 (2026-08-10). 100 units is the definition of the unit itself: ONE reference contact at
+		# point-blank. So the limb now reads "at least one believed enemy meaningfully covers this cell"
+		# rather than "at least one credible truck-killer does". Deliberately over-eager per the standing
+		# instruction to overcompensate: on a contested front the drop mode should be the normal answer,
+		# not the extreme one. The safe branch is unaffected and that is checked, not assumed — the FLOOR
+		# is what protects it, is evaluated first, and can only ever declare SAFE, so a front with no
+		# believed enemy (danger 0 < 25 units) still serves in place and keeps its cargo. Ambient
+		# territory baseline is ~1 unit, so this still clears deep-rear noise by 100x.
+		DropDangerAbsoluteUnits: 100
 		# The anchor is re-derived every scan from a field rebuilt every 25 ticks. Without hysteresis a
 		# one-cell belief wobble would move the destination — and a destination that moves is the entire
 		# defect this mode exists to remove.
@@ -1015,8 +1045,23 @@ Player:
 		# the demand are searched for at the full 20 (strict about demand, generous about coverage).
 		DropDemandRadiusCells: 20
 		DropDemandMarginCells: 2
-		DropMinStarvingUnits: 3
-		DropMinSupply: 250
+		# THE TWO DEMAND GATES ARE DELIBERATELY LOOSE (2026-08-10). The user has never once seen a crate in
+		# a real match, so the standing instruction is to overcompensate and tune back, not to inch. The
+		# reading these now express is the minimum the doctrine actually needs: CARGO PRESENT, CUSTOMERS
+		# NEARBY. Anti-stacking is NOT relaxed with them — DropRedundantCacheSupply below still does that
+		# whole job, so loosening here cannot produce a pile of crates, only an earlier first one.
+		#
+		# 3 -> 1 starving men. Protected against spending 750 supply on a single soldier. Real clusters at
+		# the front are routinely two or three men after contact, and the crate is not consumed by one
+		# man — it sits with a 4-cell aura and serves whoever walks in, so "wasted on one" overstates it.
+		DropMinStarvingUnits: 1
+		# 250 -> 100 stock. Protected against littering dribble crates that self-remove at the cache's
+		# RemoveBelowSupply. Largely redundant already: IsLowOnSupply drops a truck below its own
+		# RestockThreshold from the roster before this is ever read, so this gate only ever bit trucks
+		# that had already served several platoons from the aura. Note this number ALSO defines "holds
+		# cargo" for DeliveryIntentOverridesEvac above — deliberately one number, since the load worth a
+		# drop is the load worth defending an approach for.
+		DropMinSupply: 100
 		# This gate does the ENTIRE anti-stacking job, and counts supply already committed by other trucks as
 		# well as supply on the ground. Both halves are load-bearing. SUPPLYCACHE is a Building with
 		# Footprint: x — a BLOCKED cell — so a truck can never stand on a cache and DropSupplyCacheHere's
@@ -1030,7 +1075,16 @@ Player:
 		# which is this mode's main open question. This flag adds the per-SCAN levels (scan summary, anchor
 		# descent, per-cluster readings, the reason a drop was declined) and is OFF: RELEASE mode runs on a
 		# player's machine and should not carry 1-2k lines per match per AI. Turn on for an observation run.
+		#
+		# WHAT IS NO LONGER BEHIND IT (2026-08-10): the reason a drop was DECLINED. The user played a full
+		# match, saw no crate, and the log could not say whether none was dropped or whether the drop path
+		# simply never logged — `[supply] drop` only fires on success, so both cases were the same silence.
+		# The evac lines were unconditional and were the only reason the real defect was diagnosable at
+		# all. `drop-declined` now logs on every reason CHANGE plus a roll-up, and DropsSupplyCache logs
+		# `crate-placed` / `crate-refused` so a normal match always states whether a crate reached the
+		# ground.
 		DebugLogging: false
+		DropDeclineRollupScans: 10
 		# Roll-up interval for the one unconditional line that can repeat: a frontier descent that keeps
 		# landing on unreachable ground. First rejection and recovery are always logged, so each episode is
 		# bounded exactly; this caps the middle at ~1 line/min/player instead of ~10 while still carrying the

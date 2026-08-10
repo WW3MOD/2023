@@ -89,7 +89,14 @@ namespace OpenRA.Mods.Common.Traits
 				.All(a => a == self || (!a.IsDead && a.Info.Name == Info.SupplyCacheActor));
 		}
 
-		/// <summary>Drop all current supply as a SUPPLYCACHE at the transport's cell.</summary>
+		/// <summary>Drop all current supply as a SUPPLYCACHE at the transport's cell.
+		///
+		/// <para>THE PLACEMENT IS LOGGED UNCONDITIONALLY, and it is the one fact the whole forward-delivery
+		/// subsystem had no record of. `[supply] drop` on the bot side says an errand was ISSUED, not that a
+		/// crate reached the ground — the two are separated by a drive, an arrival test and an occupancy test,
+		/// each of which can refuse silently. So a user reporting "I have never once seen a crate" could not be
+		/// distinguished from a user who had simply never looked in the right place. One line per drop, and a
+		/// drop empties the truck, so the volume is bounded by the number of loads a match delivers.</para></summary>
 		void DropSupplyCacheHere()
 		{
 			if (supply == null || supply.CurrentSupply <= 0)
@@ -108,6 +115,9 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					existingProvider.AddSupply(amount);
 					supply.SetSupply(0);
+					Log.Write("debug",
+						$"[supply] crate-merged truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+						+ $"amount={amount} into={existing.ActorID}");
 					return;
 				}
 			}
@@ -116,9 +126,19 @@ namespace OpenRA.Mods.Common.Traits
 			var cacheInfo = self.World.Map.Rules.Actors[Info.SupplyCacheActor]
 				.TraitInfoOrDefault<SupplyProviderInfo>();
 			if (cacheInfo == null)
+			{
+				Log.Write("debug",
+					$"[supply] crate-refused truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+					+ $"reason=no-{Info.SupplyCacheActor}-supplyprovider amount={amount}");
 				return;
+			}
 
 			supply.SetSupply(0);
+
+			// EDGE — unconditional. `[supply] drop` says the errand was issued; THIS says a crate exists.
+			Log.Write("debug",
+				$"[supply] crate-placed truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+				+ $"type={Info.SupplyCacheActor} amount={amount}");
 
 			self.World.AddFrameEndTask(w =>
 			{
@@ -170,14 +190,31 @@ namespace OpenRA.Mods.Common.Traits
 					// cell, never sees it. Refusing instead keeps the supply in the truck, which is always
 					// recoverable. (The issuer should also refuse to adopt an impassable cell; this is the
 					// second line, and it is the one that holds when the cell became unreachable after issue.)
+					// BOTH REFUSALS BELOW ARE LOGGED, unconditionally and one line each. They are the two ways
+					// an errand that was issued, driven and completed still puts no crate on the ground — and
+					// until now both were silent, so from outside they were indistinguishable from a drop that
+					// was never decided on at all. Each is bounded by one line per errand.
 					var delta = self.Location - dropCell;
 					if (!SupplyDropMath.ArrivedAtDropCell(delta.X, delta.Y, Info.DropAtToleranceCells))
+					{
+						Log.Write("debug",
+							$"[supply] crate-refused truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+							+ $"reason=never-arrived ordered={dropCell} tolerance={Info.DropAtToleranceCells}c "
+							+ $"amount={supply?.CurrentSupply ?? 0}");
 						return;
+					}
 
 					// Occupancy is only knowable on arrival. A blocked cell means no drop this errand — the
 					// truck keeps its load and its owner re-decides, which self-corrects as the blocker moves.
 					if (CanDropCache())
+					{
 						DropSupplyCacheHere();
+						return;
+					}
+
+					Log.Write("debug",
+						$"[supply] crate-refused truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+						+ $"reason=cell-blocked ordered={dropCell} amount={supply?.CurrentSupply ?? 0}");
 				}));
 
 				// POST-DROP DISPOSITION, decided here so it is a stated design rather than an emergent

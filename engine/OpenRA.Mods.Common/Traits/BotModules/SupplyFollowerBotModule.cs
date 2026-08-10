@@ -287,6 +287,28 @@ namespace OpenRA.Mods.Common.Traits
 			"picks the delivery up. Ships OFF so the benchmark control does not move on its own.")]
 		public readonly bool DropCommitmentOverridesEvac = false;
 
+		[Desc("DELIVERY INTENT OUTRANKS EVAC. A truck holding cargo WITH a customer cluster selected does not",
+			"evacuate — it is on an errand from the moment it has a target, not from the moment an order is",
+			"issued for it.",
+			"",
+			"THIS IS THE HALF DropCommitmentOverridesEvac COULD NOT COVER, and the gap was total rather than",
+			"partial. Commitment protects a drop ALREADY IN FLIGHT; a truck that has not been dispatched yet is",
+			"still fair game for evac, so evac out-ranked STARTING a delivery while losing only to one under",
+			"way. Measured in a real 30-minute match 2026-08-10: `adopt truck=4802 supply=750`, then",
+			"`evac-enter truck=4802@20,43 danger=17773 threshold=1706`, then `evac-exit @13,46`, repeating for",
+			"the whole game. The truck never started a delivery, so the commitment rule never applied to it and",
+			"no crate was ever placed. Our scenarios stayed green because there the truck happened to commit",
+			"early enough that the window never opened.",
+			"",
+			"WHAT STILL EVACUATES: a truck with nothing to deliver — empty, or with no reachable customer.",
+			"That was always evac's real job. Both terms are responsive (a drop empties the truck; the customer",
+			"is re-derived every scan), so this cannot latch a truck in fire after the errand stops existing.",
+			"",
+			"This costs trucks, deliberately and more than commitment alone does, because it commits them",
+			"EARLIER — on the approach rather than on the run-in. Ships OFF so the benchmark control does not",
+			"move on its own.")]
+		public readonly bool DeliveryIntentOverridesEvac = false;
+
 		[Desc("DANGER PICKS THE MODE. When true, drop-and-leave fires only where the customer cluster reads",
 			"dangerous; on a quiet front the truck closes to aura range, serves in place and KEEPS its",
 			"remainder for the next customer, which is the doctrine's own wording for the safe case.",
@@ -397,10 +419,25 @@ namespace OpenRA.Mods.Common.Traits
 			"rather than a config typo.")]
 		public readonly int DropRedundantCacheSupply = 100;
 
+		[Desc("Scans between roll-up lines while a truck keeps declining to drop FOR THE SAME REASON. The reason",
+			"CHANGING is always logged immediately, so every episode has a first line; this only bounds the",
+			"repeats in between, and the roll-up carries the streak length so a truck stuck on one gate reports",
+			"how long it has been stuck.",
+			"",
+			"WHY THIS IS UNCONDITIONAL RATHER THAN BEHIND DebugLogging. The user played a full match on the",
+			"2026-08-10 build, saw no crate, and the log could not say whether none was dropped or whether the",
+			"drop path had simply never logged — the decline line was gated and the drop line only fires on",
+			"success, so silence covered both. The evac lines were unconditional and are the only reason the",
+			"real defect was diagnosable at all. A subsystem whose central act is invisible in an ordinary match",
+			"gets tuned blind, which is what the last three rounds of work on it were. 0 disables the roll-up",
+			"(reason changes only); negative is read as 0.")]
+		public readonly int DropDeclineRollupScans = 10;
+
 		[Desc("Emit the per-scan [supply] diagnostic lines (scan summary, anchor descent, per-cluster",
-			"selection, and the reason a drop was declined). Default OFF so an ordinary match does not flood",
-			"debug.log. EDGES — truck adopted/released, evac entered/left, a drop issued — are logged",
-			"REGARDLESS, because they are rare and they are exactly what this subsystem had no record of.")]
+			"selection). Default OFF so an ordinary match does not flood debug.log. EDGES — truck",
+			"adopted/released, evac entered/left, errand state changed, a drop issued, a crate placed or",
+			"refused, and the rolled-up reason a drop keeps being declined — are logged REGARDLESS, because",
+			"they are rare and they are exactly what this subsystem had no record of.")]
 		public readonly bool DebugLogging = false;
 
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
@@ -528,6 +565,16 @@ namespace OpenRA.Mods.Common.Traits
 		// pruned each scan against the freshly-derived eligible-truck list rather than against activeTrucks —
 		// a truck that is not eligible this scan cannot have a live errand of ours.
 		readonly Dictionary<Actor, CPos> dropTarget = new Dictionary<Actor, CPos>();
+
+		// The errand state each truck was last SEEN in, so the unconditional edge line fires on the transition
+		// rather than every scan. Instrumentation only — SupplyDropMath.ClassifyErrand re-derives the state
+		// from scratch each scan and never reads this, so it cannot become a latch. Absent = never classified.
+		readonly Dictionary<Actor, SupplyErrand> lastErrand = new Dictionary<Actor, SupplyErrand>();
+
+		// Why each truck last declined to drop, and for how many consecutive scans. Instrumentation only,
+		// carrying exactly the two things a flat dedup would lose: the moment the reason CHANGES (a new
+		// episode, always logged) and how long an unchanging one has persisted (the roll-up's streak count).
+		readonly Dictionary<Actor, DeclineState> declineState = new Dictionary<Actor, DeclineState>();
 
 		// Diagnostics emitted so far, for the TestMode cap below. Instrumentation only — no decision reads it.
 		int diagnosticLines;
@@ -739,6 +786,23 @@ namespace OpenRA.Mods.Common.Traits
 					dropTarget.Remove(a);
 			}
 
+			// The two instrumentation maps follow the SAME eligibility list, not activeTrucks: a truck that
+			// dropped and emptied leaves this list, and its errand/decline history ends with it — so the next
+			// truck to be adopted starts from a clean slate rather than inheriting a dead one's streak.
+			if (lastErrand.Count > 0)
+			{
+				var staleErrands = lastErrand.Keys.Where(a => !trucks.Contains(a)).ToList();
+				foreach (var a in staleErrands)
+					lastErrand.Remove(a);
+			}
+
+			if (declineState.Count > 0)
+			{
+				var staleDeclines = declineState.Keys.Where(a => !trucks.Contains(a)).ToList();
+				foreach (var a in staleDeclines)
+					declineState.Remove(a);
+			}
+
 			// THESE TWO RETURNS ARE UPSTREAM OF THE SCAN SUMMARY, so without a line here an empty roster and a
 			// module that never ticked at all produce byte-identical silence. Each term is broken out because
 			// they point at different things: a truck excluded by the CLAIM is an arbitration problem, one
@@ -930,6 +994,16 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 
+				// WHAT IS THIS TRUCK DOING? Classified ONCE, before any branch reads it, so evac's priority is
+				// a stated rule instead of an artefact of which branch happens to run first. `hasCargo` reuses
+				// DropMinSupply rather than a second threshold: the load that is worth a drop is exactly the
+				// load that is worth defending an approach for, and two numbers here would drift apart.
+				var load = truck.TraitOrDefault<SupplyProvider>()?.CurrentSupply ?? 0;
+				var errand = SupplyDropMath.ClassifyErrand(
+					SupplyDropMath.ErrandStillRunning(dropTarget.ContainsKey(truck), truck.IsIdle),
+					load >= Math.Max(1, Info.DropMinSupply),
+					bestCluster != null);
+
 				// PER-TRUCK DISPOSITION. The line that says why a truck sat still, which nothing else reports:
 				// a truck with no target is silent everywhere else in this module, because the no-cluster path
 				// ends in a bare `continue` and the hunt it may try first declines without a word.
@@ -952,58 +1026,77 @@ namespace OpenRA.Mods.Common.Traits
 						+ $"nearest-dist={(nearest != null ? (nearest.Center - truck.CenterPosition).Length / 1024 : -1)}c"
 						+ $"/leash={(nearest != null ? FollowLeashCellsFor(nearest) : Info.MaxFollowDistance)}c "
 						+ $"spread={spread} spread-assigned={spreadTargets != null && spreadTargets.ContainsKey(truck)} "
-						+ $"committed={Info.DropCommitmentOverridesEvac && SupplyDropMath.ErrandStillRunning(dropTarget.ContainsKey(truck), truck.IsIdle)} "
+						+ $"errand={errand} "
 						+ $"danger-at-truck={GroundDangerAt(truck.Location)} hunt={hunt}");
 				}
 
-				// FULL COMMITMENT. A truck whose drop errand is IN FLIGHT does not evacuate: it drives in, drops,
-				// and only then leaves. This is the doctrine sentence — "they drive in fast, drop the supplies,
-				// and drive back out, full commitment" — and it makes evac the EGRESS LEG of a delivery rather
-				// than a branch competing with it.
+				// ERRAND EDGE — unconditional, on the TRANSITION only. This is the line that was missing: the
+				// state used to be implied by which branch ran, so a truck that never started a delivery and a
+				// truck with nothing to deliver produced identical silence, and the 2026-08-10 match log could
+				// only be read backwards from the evac lines. One line per change, and the changes are rare.
+				if (!lastErrand.TryGetValue(truck, out var seen) || seen != errand)
+				{
+					Log.Write("debug",
+						$"[supply] errand truck={truck.ActorID}@{truck.Location} "
+						+ $"{(lastErrand.ContainsKey(truck) ? seen.ToString() : "<new>")}→{errand} "
+						+ $"load={load}/{Info.DropMinSupply} "
+						+ $"cluster={(bestCluster != null ? bestCluster.CenterCell.ToString() : "<none>")} "
+						+ $"danger-at-truck={GroundDangerAt(truck.Location)}");
+
+					lastErrand[truck] = errand;
+				}
+
+				// DELIVERY OUTRANKS EVAC — at BOTH ends of the errand, which is the whole change here. Commitment
+				// alone (a drop already in flight) was shipped 2026-08-10 and was not enough: evac still
+				// out-ranked STARTING a delivery, so a loaded truck with a starving cluster selected never
+				// survived the approach long enough to be dispatched, and the rule that would then have
+				// protected it never applied. Measured in the user's own 30-minute match — `adopt truck=4802
+				// supply=750`, `evac-enter @20,43 danger=17773 threshold=1706`, `evac-exit @13,46`, repeating —
+				// no crate placed all game, while our scenarios stayed green because there the truck committed
+				// early enough that the window never opened.
 				//
-				// WITHOUT IT THE DELIVERY IS NOT MERELY UNRELIABLE, IT IS GEOMETRICALLY IMPOSSIBLE. Measured
-				// 2026-08-10: the anchor sat at x=33, evac entered at x=29-30 (danger 308,180 then 462,272
-				// against a bar of 1,706 — 180x and 271x over), the truck retreated to x=17-18, released at
-				// danger ~15, drove east again and re-entered. A truck can never reach a drop point that lies
-				// BEYOND the cell where evac fires, so no anchor placement and no amount of damping can fix
-				// this from the drop side; the priority is the bug.
+				// A truck can never reach a drop point that lies BEYOND the cell where evac fires. That was
+				// stated for the in-flight case and is just as true one scan earlier, which is why the fix is a
+				// PRIORITY rule over the errand state rather than more damping: no anchor placement and no
+				// amount of hysteresis reaches this from the drop side.
 				//
-				// THE COMMITMENT TERM IS RESPONSIVE, WHICH IS WHAT KEEPS IT FROM BECOMING A LATCH. It is not
-				// "a dispatch record exists" — that record can outlive its errand, and gating evac on it would
-				// pin a truck in fire forever, which is the exact defect species this module has been bitten by
-				// repeatedly. It is ErrandStillRunning: the record AND a non-idle truck. A truck that went idle
-				// still holding its load has finished without dropping, is no longer committed, and evacuates
-				// normally on this same scan — the identical predicate StepDrop uses one branch down to void
-				// that record, so the two cannot disagree about whether an errand is live.
+				// BOTH TERMS OF Intent ARE RESPONSIVE, which is what stops this pinning a truck in fire forever
+				// — the defect species this module has been bitten by repeatedly. A drop sets supply to 0 and
+				// the truck leaves the eligible roster; the customer is re-derived from cluster selection every
+				// scan, so a platoon that dies, gets fed, or walks out of the leash withdraws the intent by
+				// itself. There is deliberately no timer and no bail-out: full commitment costs trucks, and a
+				// truck lost mid-errand releases its claim and its dispatch record in the ordinary scan cleanup
+				// so another truck inherits the delivery.
 				//
-				// AN UNCOMMITTED TRUCK STILL EVACUATES. Pulling a truck with no delivery to make out of a
-				// dangerous cell was never the wrong behaviour; it was only wrong when it outranked a delivery.
-				var committed = Info.DropCommitmentOverridesEvac
-					&& SupplyDropMath.ErrandStillRunning(dropTarget.ContainsKey(truck), truck.IsIdle);
+				// WHAT STILL EVACUATES: SupplyErrand.None — empty, or no reachable customer. That was always
+				// evac's real job, and it is untouched.
+				var evacAllowed = SupplyDropMath.EvacAllowed(
+					errand, Info.DeliveryIntentOverridesEvac, Info.DropCommitmentOverridesEvac);
 
 				// Danger evac, damped. Deliberately evaluated BEFORE the no-cluster bail and with a possibly
 				// null cluster: the relief valve can still leave a truck with no target (nothing needs ammo),
 				// and a truck standing in fire must be able to pull back regardless. Pre-damper this case fell
 				// through unevacuated.
 				var srActor = evac ? NearestSupplyRoute(supplyRoutes, truck.CenterPosition) : null;
-				if (committed)
+				if (!evacAllowed)
 				{
-					// A committed truck is not evacuating, so any dwell it had accrued is void — otherwise it
+					// A truck on an errand is not evacuating, so any dwell it had accrued is void — otherwise it
 					// would resume mid-dwell the moment the errand ends and skip its own entry test.
 					evacState.Remove(truck);
 
 					// EDGE — unconditional, and deliberately gated on the danger actually being over the bar so
-					// it fires only when the commitment is DOING something. This is the line that says a truck
-					// is knowingly driving into fire to make a delivery, which is the single most consequential
+					// it fires only when the priority is DOING something. This is the line that says a truck is
+					// knowingly driving into fire to make a delivery, which is the single most consequential
 					// decision this module makes; it is bounded by the handful of scans a run through danger
 					// takes, and bracketed by the existing unconditional `drop` and `release` edges.
 					var dangerHere = GroundDangerAt(truck.Location);
 					if (dangerHere >= GroundDangerLevel(Info.EvacDangerUnits))
 						Log.Write("debug",
-							$"[supply] committed truck={truck.ActorID}@{truck.Location} danger={dangerHere} "
-							+ $"threshold={GroundDangerLevel(Info.EvacDangerUnits)} ({Info.EvacDangerUnits}u) "
-							+ $"anchor={dropTarget[truck]} load={truck.TraitOrDefault<SupplyProvider>()?.CurrentSupply ?? 0} "
-							+ "— evac suppressed, delivery in flight");
+							$"[supply] holds-on truck={truck.ActorID}@{truck.Location} errand={errand} "
+							+ $"danger={dangerHere} threshold={GroundDangerLevel(Info.EvacDangerUnits)} "
+							+ $"({Info.EvacDangerUnits}u) "
+							+ $"anchor={(dropTarget.TryGetValue(truck, out var heldAnchor) ? heldAnchor.ToString() : "<not-yet-dispatched>")} "
+							+ $"load={load} — evac suppressed, delivery outranks it");
 				}
 				else if (srActor != null)
 				{
@@ -1226,10 +1319,17 @@ namespace OpenRA.Mods.Common.Traits
 			var cacheSupply = anchor.HasValue ? CacheSupplyNear(anchor.Value, cacheActor) : 0;
 			var inFlight = anchor.HasValue ? InFlightSupplyTo(anchor.Value, truck) : 0;
 
-			var drop = SupplyDropMath.ShouldDrop(anchor.HasValue,
+			var veto = SupplyDropMath.DropVeto(anchor.HasValue,
 				provider.CurrentSupply, Info.DropMinSupply,
 				starving, Info.DropMinStarvingUnits,
 				cacheSupply, inFlight, Info.DropRedundantCacheSupply);
+
+			var drop = veto == SupplyDropVeto.None;
+
+			// The one-word reason, carried alongside the full reading so the roll-up below can tell one
+			// EPISODE of refusal from another. Reused verbatim as the dedup key — there is no second spelling
+			// of the reason that could disagree with the line that gets printed.
+			var reason = veto.ToString();
 
 			// DANGER PICKS THE MODE — but only for a delivery that has not STARTED. A drop already in flight
 			// completes: the truck committed to a place and to arriving there, and a mode switch mid-run is
@@ -1241,6 +1341,10 @@ namespace OpenRA.Mods.Common.Traits
 			// drive the truck to just inside its own aura and serve the platoon in place with its cargo
 			// retained. That IS the doctrine's safe branch — "go up to them and resupply them directly and not
 			// unload, if more resupplying is needed elsewhere".
+			//
+			// The mode-selection half of the "why no crate" answer is APPENDED to the decline line below rather
+			// than logged on its own, so a refusal is one line whichever gate produced it.
+			var modeDetail = string.Empty;
 			if (drop && Info.DropRequiresDanger && !dispatched && cluster != null)
 			{
 				var clusterDanger = GroundDangerAt(cluster.CenterCell);
@@ -1253,15 +1357,13 @@ namespace OpenRA.Mods.Common.Traits
 					Info.DropDangerMedianPercent, absoluteField))
 				{
 					drop = false;
-
-					// EDGE — unconditional, and it is the line that distinguishes the two modes in a log.
-					// "No crate appeared" is otherwise indistinguishable from a broken drop path, which is
-					// exactly the confusion that cost a day on the danger side of this same decision.
-					Log.Write("debug",
-						$"[supply] serve-in-place truck={truck.ActorID}@{truck.Location} cluster={cluster.CenterCell} "
-						+ $"danger={clusterDanger} median={median} floor={floorField} ({Info.DropDangerFloorUnits}u) "
+					reason = "SafeFront";
+					modeDetail =
+						$" cluster={cluster.CenterCell} danger={clusterDanger} median={median} "
+						+ $"floor={floorField} ({Info.DropDangerFloorUnits}u) "
 						+ $"absolute={absoluteField} ({Info.DropDangerAbsoluteUnits}u) "
-						+ $"pct={Info.DropDangerMedianPercent} — front reads safe, keeping {provider.CurrentSupply} cargo");
+						+ $"pct={Info.DropDangerMedianPercent} — front reads safe, serving in place and keeping "
+						+ $"{provider.CurrentSupply} cargo";
 				}
 			}
 
@@ -1294,18 +1396,37 @@ namespace OpenRA.Mods.Common.Traits
 						+ $"cache-near={cacheSupply} in-flight={inFlight}");
 				}
 
-				// Per-scan LEVEL — gated. The "why did it not drop?" line, carrying every term the decision
-				// read so the answer never needs a rebuild to obtain.
-				if (Diagnostic)
-					WriteDiagnostic(
-						$"[supply] drop-declined truck={truck.ActorID}@{truck.Location} "
-						+ $"anchor={(anchor.HasValue ? anchor.Value.ToString() : "<none>")} "
+				// THE "WHY DID NO CRATE APPEAR?" LINE, AND IT IS NOW UNCONDITIONAL. It used to sit behind
+				// DebugLogging, which meant an ordinary match produced no evidence at all: the drop line only
+				// fires on success, so "never dropped" and "never logged" were the same silence — and that is
+				// exactly the ambiguity the user's 2026-08-10 match landed in. The evac lines were unconditional
+				// and were the sole reason the real defect could be found.
+				//
+				// LOGGED ON REASON CHANGE PLUS A PERIODIC ROLL-UP, not deduped flat and not every scan. The
+				// change is the episode boundary — a truck that stops being blocked by "no demand" and starts
+				// being blocked by "already covered" has had something happen to it — and the roll-up carries
+				// the streak, so a truck wedged on one gate reports how long it has been wedged instead of
+				// going quiet. Same shape as the anchor-impassable roll-up one method over.
+				var hadDecline = declineState.TryGetValue(truck, out var lastDecline);
+				var streak = hadDecline && lastDecline.Reason == reason ? lastDecline.Scans + 1 : 1;
+				var rollup = Math.Max(0, Info.DropDeclineRollupScans);
+				if (streak == 1 || (rollup > 0 && streak % rollup == 0))
+					Log.Write("debug",
+						$"[supply] drop-declined truck={truck.ActorID}@{truck.Location} reason={reason} "
+						+ $"scans={streak} anchor={(anchor.HasValue ? anchor.Value.ToString() : "<none>")} "
 						+ $"supply={provider.CurrentSupply}/{Info.DropMinSupply} "
 						+ $"starving={starving}/{Info.DropMinStarvingUnits} "
-						+ $"cache-near={cacheSupply}+in-flight={inFlight}/{Info.DropRedundantCacheSupply}");
+						+ $"cache-near={cacheSupply}+in-flight={inFlight}/{Info.DropRedundantCacheSupply}"
+						+ modeDetail);
+
+				declineState[truck] = new DeclineState(reason, streak);
 
 				return false;
 			}
+
+			// The refusal episode is over — end the streak so the NEXT one is logged as a fresh first line
+			// rather than continuing a count that no longer describes anything.
+			declineState.Remove(truck);
 
 			// Already on our way to this exact cell: issue NOTHING, but still take the branch — returning
 			// false here would drop through to the follow path, whose non-queued Move would cancel the very
@@ -2312,6 +2433,22 @@ namespace OpenRA.Mods.Common.Traits
 			dropAnchor.Clear();
 			dropTarget.Clear();
 			anchorRejectStreak.Clear();
+			lastErrand.Clear();
+			declineState.Clear();
+		}
+
+		// Why one truck last declined to drop and how many consecutive scans it has given that same answer.
+		// Instrumentation only; nothing decides on it.
+		readonly struct DeclineState
+		{
+			public readonly string Reason;
+			public readonly int Scans;
+
+			public DeclineState(string reason, int scans)
+			{
+				Reason = reason;
+				Scans = scans;
+			}
 		}
 
 		// Danger-evac damper state for one truck on the evac branch: scans the branch is still committed for

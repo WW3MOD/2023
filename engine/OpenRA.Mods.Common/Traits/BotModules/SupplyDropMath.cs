@@ -40,8 +40,105 @@
 
 namespace OpenRA.Mods.Common.Traits
 {
+	/// <summary>What a supply truck is DOING this scan, as one named value rather than as an implication of
+	/// branch order.
+	///
+	/// <para>THE STATE EXISTS BECAUSE THE BRANCH ORDER LIED. Evac ran first and returned, so a truck that had
+	/// not yet been dispatched was indistinguishable — in the code and in the log — from a truck with nothing
+	/// to do. Measured 2026-08-10 in a real 30-minute match: a truck holding its full 750 with a starving
+	/// cluster selected drove to x=20, read danger 17,773 against a bar of 1,706, evacuated to x=13, released,
+	/// and repeated for the whole game. It never reached <see cref="Delivering"/>, so the commitment rule —
+	/// which only protects an errand ALREADY in flight — never applied to it. Evac outranked STARTING a
+	/// delivery while losing only to one under way, and a delivery that can never start is a delivery that
+	/// never happens.</para></summary>
+	public enum SupplyErrand
+	{
+		/// <summary>Nothing to deliver: empty (or holding less than a drop is worth), or no customer this
+		/// truck can reach. This is the truck evac was designed for.</summary>
+		None,
+
+		/// <summary>Holds cargo AND has a customer cluster selected. The truck is ON AN ERRAND from the moment
+		/// it has a target, before any order has been issued for it.</summary>
+		Intent,
+
+		/// <summary>A drop errand is recorded and still running — cargo, a customer, and a destination already
+		/// committed to.</summary>
+		Delivering,
+	}
+
+	/// <summary>Which gate refused the drop, or <see cref="None"/> if none did. Ordered exactly as the gates
+	/// are applied, so the first failure is the one named.</summary>
+	public enum SupplyDropVeto
+	{
+		/// <summary>Nothing refused — drop.</summary>
+		None,
+
+		/// <summary>No forward supply point could be established, so there is nowhere to leave a crate.</summary>
+		NoAnchor,
+
+		/// <summary>The truck holds less than a drop is worth; it should keep serving from its own aura.</summary>
+		LowLoad,
+
+		/// <summary>Too few starving soldiers within walking distance of the anchor to justify unloading.</summary>
+		NoDemand,
+
+		/// <summary>Crates on the ground plus loads already dispatched here already cover the demand.</summary>
+		Covered,
+	}
+
 	public static class SupplyDropMath
 	{
+		/// <summary>What is this truck doing? Pure classification over three observables the caller samples in
+		/// the same scan; no memory of its own.
+		///
+		/// <para>ORDER IS THE MEANING. <paramref name="errandRunning"/> wins outright because a committed
+		/// destination is a stronger fact than a re-derivable target. Below it, cargo AND a customer together
+		/// are what make an errand: either alone is not one — an empty truck near a starving platoon has
+		/// nothing to give, and a full truck with no reachable customer has nowhere to take it.</para>
+		///
+		/// <para>Both terms are RESPONSIVE, which is what keeps <see cref="SupplyErrand.Intent"/> from becoming
+		/// a latch that pins a truck in fire forever. Dropping sets supply to 0, so the truck leaves the
+		/// eligible roster entirely; and the customer term is re-derived every scan from the cluster selection,
+		/// so a platoon that dies, is fed, or walks out of the leash withdraws the intent by itself. There is
+		/// deliberately no timer and no "give up" counter: the state ends when the situation ends.</para>
+		/// Pure, zero RNG.</summary>
+		public static SupplyErrand ClassifyErrand(bool errandRunning, bool hasCargo, bool hasCustomer)
+		{
+			if (errandRunning)
+				return SupplyErrand.Delivering;
+
+			return hasCargo && hasCustomer ? SupplyErrand.Intent : SupplyErrand.None;
+		}
+
+		/// <summary>May the danger-evac branch run for a truck in this state?
+		///
+		/// <para>DELIVERY IS UNCONDITIONAL; DANGER SELECTS THE MODE. Both overrides express that one sentence at
+		/// different points on the same errand — <paramref name="commitmentOverridesEvac"/> protects a run
+		/// already under way, <paramref name="intentOverridesEvac"/> protects the run that has not started yet.
+		/// Shipping only the first is what left the gap: the front is dangerous BEFORE a truck is dispatched
+		/// just as surely as after, so an evac that fires on the approach forecloses every delivery that would
+		/// have been made past that cell, and no anchor placement or damping can recover it from the drop
+		/// side.</para>
+		///
+		/// <para>WHAT STILL EVACUATES, and it is the whole safety story: <see cref="SupplyErrand.None"/> — a
+		/// truck with nothing to deliver, or nobody to deliver it to. Pulling THAT truck out of a hot cell was
+		/// never the wrong behaviour; it was only ever wrong when it outranked a delivery. So this narrows
+		/// evac to its actual job rather than removing it.</para>
+		///
+		/// <para>Both flags default false at the caller, so an unconfigured profile evacuates in every state —
+		/// the pre-2026-08-10 behaviour exactly.</para>
+		/// Pure, zero RNG.</summary>
+		public static bool EvacAllowed(SupplyErrand errand, bool intentOverridesEvac, bool commitmentOverridesEvac)
+		{
+			if (errand == SupplyErrand.Delivering)
+				return !commitmentOverridesEvac;
+
+			if (errand == SupplyErrand.Intent)
+				return !intentOverridesEvac;
+
+			return true;
+		}
+
 		/// <summary>Should this truck unload its whole stock at the forward supply point this scan?
 		///
 		/// <para>Four gates, ALL of which must pass, and each of which the drop itself then switches off:</para>
@@ -96,19 +193,39 @@ namespace OpenRA.Mods.Common.Traits
 			int starvingNearAnchor, int minStarving,
 			int cacheSupplyNearAnchor, int inFlightSupplyToAnchor, int redundantCacheSupply)
 		{
+			return DropVeto(anchorEstablished, truckSupply, minSupply, starvingNearAnchor, minStarving,
+				cacheSupplyNearAnchor, inFlightSupplyToAnchor, redundantCacheSupply) == SupplyDropVeto.None;
+		}
+
+		/// <summary>WHICH gate refused, in the same order <see cref="ShouldDrop"/> applies them — and it IS
+		/// <see cref="ShouldDrop"/>, which is now a thin wrapper over this, so the answer a log gives can never
+		/// disagree with the decision that was actually taken.
+		///
+		/// <para>NAMING THE REFUSAL IS NOT DECORATION, IT IS THE MISSING EVIDENCE. The user's 2026-08-10 match
+		/// produced no crate and no explanation, because the only line carrying these terms sat behind
+		/// DebugLogging — so "never dropped" and "never logged" were indistinguishable from outside and the
+		/// diagnosis had to be reconstructed from the evac lines, which are unconditional and are the sole
+		/// reason it was possible at all. A refusal that cannot be read is a refusal that gets tuned blind.</para>
+		/// Pure integer, zero RNG.</summary>
+		public static SupplyDropVeto DropVeto(
+			bool anchorEstablished,
+			int truckSupply, int minSupply,
+			int starvingNearAnchor, int minStarving,
+			int cacheSupplyNearAnchor, int inFlightSupplyToAnchor, int redundantCacheSupply)
+		{
 			if (!anchorEstablished)
-				return false;
+				return SupplyDropVeto.NoAnchor;
 
 			if (truckSupply < (minSupply > 0 ? minSupply : 1))
-				return false;
+				return SupplyDropVeto.LowLoad;
 
 			if (starvingNearAnchor < (minStarving > 0 ? minStarving : 1))
-				return false;
+				return SupplyDropVeto.NoDemand;
 
 			if (redundantCacheSupply > 0 && cacheSupplyNearAnchor + inFlightSupplyToAnchor >= redundantCacheSupply)
-				return false;
+				return SupplyDropVeto.Covered;
 
-			return true;
+			return SupplyDropVeto.None;
 		}
 
 		/// <summary>Has the truck actually reached the cell it was sent to unload at? Chebyshev-free squared

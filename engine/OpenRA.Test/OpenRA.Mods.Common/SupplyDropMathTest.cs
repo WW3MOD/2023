@@ -343,6 +343,63 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void ClassifyErrand_CargoPlusCustomerIsAnErrandBeforeAnyOrderIsIssued()
+		{
+			// THE 2026-08-10 REGRESSION, PINNED. A truck holding its full load with a starving cluster
+			// selected but NOT yet dispatched was classified as having nothing to do, so evac out-ranked it
+			// and it never survived the approach long enough to start a delivery. Intent is the state that
+			// did not exist.
+			Assert.That(SupplyDropMath.ClassifyErrand(false, true, true), Is.EqualTo(SupplyErrand.Intent));
+
+			// A running errand outranks re-derivation: a committed destination is the stronger fact.
+			Assert.That(SupplyDropMath.ClassifyErrand(true, true, true), Is.EqualTo(SupplyErrand.Delivering));
+			Assert.That(SupplyDropMath.ClassifyErrand(true, false, false), Is.EqualTo(SupplyErrand.Delivering));
+
+			// Either term alone is not an errand — nothing to give, or nowhere to take it.
+			Assert.That(SupplyDropMath.ClassifyErrand(false, true, false), Is.EqualTo(SupplyErrand.None));
+			Assert.That(SupplyDropMath.ClassifyErrand(false, false, true), Is.EqualTo(SupplyErrand.None));
+		}
+
+		[Test]
+		public void EvacAllowed_ProtectsBothEndsOfAnErrandAndNothingElse()
+		{
+			// Commitment alone leaves the gap that produced the live defect: an intent-state truck still
+			// evacuates, so the delivery it was about to start is foreclosed on the approach.
+			Assert.That(SupplyDropMath.EvacAllowed(SupplyErrand.Intent, false, true), Is.True);
+			Assert.That(SupplyDropMath.EvacAllowed(SupplyErrand.Intent, true, true), Is.False);
+			Assert.That(SupplyDropMath.EvacAllowed(SupplyErrand.Delivering, true, true), Is.False);
+
+			// A truck with nothing to deliver ALWAYS evacuates — that is evac's real job and neither
+			// override touches it.
+			Assert.That(SupplyDropMath.EvacAllowed(SupplyErrand.None, true, true), Is.True);
+
+			// Both flags off = the pre-2026-08-10 behaviour in every state, which is what the engine
+			// defaults give a profile whose YAML does not turn them on.
+			Assert.That(SupplyDropMath.EvacAllowed(SupplyErrand.Intent, false, false), Is.True);
+			Assert.That(SupplyDropMath.EvacAllowed(SupplyErrand.Delivering, false, false), Is.True);
+		}
+
+		[Test]
+		public void DropVeto_NamesTheFirstFailingGateAndAgreesWithShouldDrop()
+		{
+			// One authority: ShouldDrop is a wrapper over DropVeto, so the reason a log prints can never
+			// disagree with the decision that was actually taken.
+			Assert.That(SupplyDropMath.DropVeto(false, 750, 100, 5, 1, 0, 0, 100),
+				Is.EqualTo(SupplyDropVeto.NoAnchor));
+			Assert.That(SupplyDropMath.DropVeto(true, 50, 100, 5, 1, 0, 0, 100),
+				Is.EqualTo(SupplyDropVeto.LowLoad));
+			Assert.That(SupplyDropMath.DropVeto(true, 750, 100, 0, 1, 0, 0, 100),
+				Is.EqualTo(SupplyDropVeto.NoDemand));
+			Assert.That(SupplyDropMath.DropVeto(true, 750, 100, 5, 1, 100, 0, 100),
+				Is.EqualTo(SupplyDropVeto.Covered));
+			Assert.That(SupplyDropMath.DropVeto(true, 750, 100, 5, 1, 0, 0, 100),
+				Is.EqualTo(SupplyDropVeto.None));
+
+			Assert.That(SupplyDropMath.ShouldDrop(true, 750, 100, 5, 1, 0, 0, 100), Is.True);
+			Assert.That(SupplyDropMath.ShouldDrop(true, 750, 100, 0, 1, 0, 0, 100), Is.False);
+		}
+
+		[Test]
 		public void ShouldIssueDrop_AnchorMoved_ReissuesWithoutAnyValidityFlag()
 		{
 			// The dedup key is the TARGET CELL, which is what keeps it from becoming a latch: a moved anchor

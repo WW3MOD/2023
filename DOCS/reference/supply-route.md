@@ -120,16 +120,41 @@ The anchor is relative to the **platoon that needs the supply**, not to the beac
 - **Absolute alone is what broke the original thresholds** — but only because their *values* were written for a scale that no longer existed. The danger unit is now normalised (100 units = one reference contact at point-blank), so a figure in these units survives a rebalance.
 - **A ratio fails at both ends and the floor covers only one.** The empty end — no believed contact, so "above the median of nothing" admits anything — is the floor's job; the saturated end is the absolute limb's. Removing either re-opens one end.
 
-Live values: `DropRequiresDanger`, `DropDangerFloorUnits`, `DropDangerMedianPercent`, `DropDangerAbsoluteUnits` (`ai.yaml:1003-1006`; C# defaults at `SupplyFollowerBotModule.cs:302/314/324/352`).
+Live values: `DropRequiresDanger`, `DropDangerFloorUnits`, `DropDangerMedianPercent`, `DropDangerAbsoluteUnits` (in `ai.yaml`, `SupplyFollowerBotModule@supply`; C# defaults on `SupplyFollowerBotModuleInfo`).
 
-### Commitment
+**The floor is what protects the quiet-front branch, not the absolute limb** — it is evaluated first and may only ever declare *safe*, so a map with no believed enemy serves in place regardless of where the absolute limb sits. Any retuning of the absolute limb is therefore a decision about *contested* fronts only.
 
-Once an errand is in flight, two things hold until the crate is on the ground:
+### Commitment — and it starts at INTENT, not at dispatch
 
-- **Evac is suppressed** (`DropCommitmentOverridesEvac`, `ai.yaml:976`). A truck can never reach a drop point lying *beyond* the cell where evac fires, so while evac outranks the errand the delivery is geometrically impossible rather than merely unreliable. Evac becomes the egress leg, not a rival branch. An **uncommitted** truck still evacuates normally.
+A truck is classified into one of three errand states every scan (`SupplyDropMath.ClassifyErrand`), and the state — not branch order — decides whether evac may run:
+
+| state | meaning | evacuates? |
+|---|---|---|
+| `Delivering` | a drop errand is recorded and still running | no (`DropCommitmentOverridesEvac`) |
+| `Intent` | holds cargo **and** has a customer cluster selected — on an errand from the moment it has a target | no (`DeliveryIntentOverridesEvac`) |
+| `None` | empty, or no reachable customer | **yes** — this is evac's actual job |
+
+**Shipping only the `Delivering` half left a total gap, not a partial one.** Commitment protects a drop *already in flight*; a truck that has not been dispatched yet was still fair game, so evac out-ranked **starting** a delivery while losing only to one under way — and a delivery that can never start never happens. Measured in a real 30-minute match, 2026-08-10, on the build that shipped commitment: `adopt truck=4802 supply=750`, `evac-enter @20,43 danger=17773 threshold=1706`, `evac-exit @13,46`, repeating for the whole game with no crate ever placed. Both supply scenarios were green throughout — there the truck committed early enough that the window never opened, so **the scenarios were right and insufficient**.
+
+A truck can never reach a drop point lying *beyond* the cell where evac fires. That was stated for the in-flight case and is equally true one scan earlier, which is why the answer is a priority rule over the errand state rather than more damping. Both `Intent` terms are responsive — a drop empties the truck, and the customer is re-derived every scan — so the state ends when the situation ends; there is no timer and no bail-out.
 - **The destination is frozen** (`ResolveDropAnchor`, `:1442`). The anchor derives from a cluster centroid, and a platoon that advances or scatters drags that centroid with it — so a re-derived anchor follows the platoon into the guns. Commitment is to a *place*, not merely to not evacuating.
 
 Both read the same responsive `ErrandStillRunning` predicate, so a truck that goes idle still holding its load is no longer committed and re-derives normally. There is deliberately **no bail-out**: commitment costs trucks, and a lost truck releases its claim and dispatch record in the ordinary scan cleanup so another truck inherits the delivery.
+
+### What a normal match logs — the subsystem must be diagnosable without a rebuild
+
+Everything below is unconditional (no `DebugLogging`), because three rounds of work on this subsystem were tuned blind: the only line that carried the drop terms sat behind the flag, `[supply] drop` fires only on success, and so "never dropped" and "never logged" were the same silence. The evac lines were unconditional and were the sole reason the 2026-08-10 defect could be found at all.
+
+| line | says |
+|---|---|
+| `[supply] errand … A→B` | the truck's errand state changed (`None` / `Intent` / `Delivering`) — logged on transition only |
+| `[supply] holds-on` | evac was suppressed because a delivery outranks it, with the danger it is driving into |
+| `[supply] drop-declined … reason=…` | which gate refused, from `SupplyDropMath.DropVeto` — `NoAnchor` / `LowLoad` / `NoDemand` / `Covered` / `SafeFront`. Logged whenever the reason CHANGES, plus a roll-up every `DropDeclineRollupScans` carrying the streak |
+| `[supply] drop` | an errand was **issued** — not that a crate exists |
+| `[supply] crate-placed` / `crate-merged` | a crate is **on the ground** (`DropsSupplyCache`) |
+| `[supply] crate-refused … reason=never-arrived\|cell-blocked` | the errand completed and still put no crate down |
+
+`drop` and `crate-placed` are separated by a drive, an arrival test and an occupancy test, each of which can refuse. Reading only `drop` will tell you a delivery happened when it did not.
 
 ### Starvation lifts the follow leash
 
