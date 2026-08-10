@@ -50,9 +50,9 @@ Your doctrine turned out to be <b>already implemented and entirely unreachable</
 <p class="muted">The relative limb matters because the two players' median danger differs <b>3.4&times; in the same match on the same map</b> &mdash; no single global constant can sit at the same percentile for both.</p>
 
 <h2>What is still wrong</h2>
-<div class="card warn">
-<b>The bot disperses and re-tasks a starving platoon toward enemy artillery.</b> Nothing weighs ammo state against dispersal or recruitment, so five men at 10 rounds get scattered to a 9-cell clump radius and pushed at the guns. This is the remaining failure in the far-front scenario. It is <b>not a supply defect</b> &mdash; the truck does its job &mdash; and it is filed separately rather than fixed, because you scoped this window to trucks.
-</div>
+<div class="card"><span class="tag">fixed since</span><b>The starving-platoon dispersal is closed.</b> Six ground-tasking paths could recruit a man too dry to fight &mdash; not the two the symptom suggested &mdash; and they share no base class or pool-builder, each re-implementing &ldquo;own, alive, armed, mobile, not committed&rdquo; from scratch. That is how a skip-out-of-ammo check came to exist on three of them and not the other three. A single shared gate now excludes a unit below the starving threshold from <i>combat</i> tasking while it is dry; withdrawal, capture and walking to a crate are untouched. <code>test-supply-far-front-reached</code> passes for the first time.</div>
+
+<div class="card"><span class="tag">verified in your game</span><b>Your own session log, not the test bed.</b> Three distinct trucks against the one you watched for thirty minutes, and two crates placed &mdash; <code>anchor=26,12 cluster=29,16</code> and <code>anchor=28,11 cluster=29,16</code>, both about five cells behind the platoon that needed them, one delivered into a danger reading of <b>8,252</b>. The remaining declines were honest: six for no demand, two for the fallback-anchor stall since fixed.</div>
 <div class="card warn">
 <b>The <code>@stable</code> benchmark baseline is now owed by three separate change sets</b> &mdash; the danger merge, the aircraft-rearm merge, and this. The changes reach <code>@stable</code> deliberately (settled policy: it inherits improvements) and each commit says so, but any A/B run before a re-baseline is measuring against a control that has shifted twice underneath it.
 </div>
