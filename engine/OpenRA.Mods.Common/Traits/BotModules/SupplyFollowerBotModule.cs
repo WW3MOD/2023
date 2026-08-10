@@ -30,6 +30,28 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Maximum distance in cells a truck will travel to follow a squad.")]
 		public readonly int MaxFollowDistance = 40;
 
+		[Desc("STARVATION OVERRIDES THE LEASH. Number of STARVING units (by HuntStarvingThresholdPerMille,",
+			"the same test the hunt and drop paths use) a cluster must contain before MaxFollowDistance is",
+			"replaced by StarvingMaxFollowDistance for that cluster.",
+			"",
+			"WHY THIS IS NOT JUST A BIGGER MaxFollowDistance. Measured 2026-08-10: a five-man platoon at 37",
+			"cells with a full truck 30 cells behind it was abandoned because the leash is 35, and the truck",
+			"sat at the beachhead for the whole match. The doctrine's first sentence is that supplies reach",
+			"the front ONE WAY OR ANOTHER, so a dying cluster must not be dropped for being two cells too far",
+			"— but a TOPPED-UP cluster still should be, or every truck chases every distant squad across the",
+			"map. Raising the single number gives the second behaviour to get the first; gating the lift on",
+			"urgency gives only the first.",
+			"",
+			"0 DISABLES the override, so every cluster keeps the plain MaxFollowDistance leash — the",
+			"behaviour before this field existed.")]
+		public readonly int StarvingFollowMinUnits = 0;
+
+		[Desc("Starvation override: the follow leash (cells) a cluster meeting StarvingFollowMinUnits gets",
+			"instead of MaxFollowDistance. Ignored when StarvingFollowMinUnits is 0, and ignored when it is",
+			"below MaxFollowDistance — the override may only ever EXTEND reach, never shorten it, so a",
+			"misconfiguration cannot quietly strand a cluster that the plain leash would have served.")]
+		public readonly int StarvingMaxFollowDistance = 0;
+
 		[Desc("Minimum number of friendly units near a location to consider it worth following.")]
 		public readonly int MinNearbyFriendlies = 3;
 
@@ -213,6 +235,36 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Drop-and-leave: step budget for the anchor's steepest-descent walk down the frontier-distance",
 			"field. Frontier distance strictly decreases per accepted step, so this only bounds work.")]
 		public readonly int DropMaxDescentSteps = 64;
+
+		[Desc("ANCHOR THE CRATE TO THE PLATOON THAT NEEDS IT, rather than descending outward from the Supply",
+			"Route to a fixed standoff behind the believed frontier.",
+			"",
+			"WHY. The SR descent has a failure mode that is total rather than occasional, and it was measured",
+			"2026-08-10: ForwardStagingMath.StagingCell early-outs at `frontierAt(start) <= standoffCells` and",
+			"returns its start unchanged, which ResolveDropAnchor reads as 'no anchor established' — so",
+			"whenever the believed frontier is already inside DropStandoffCells of the SR, drop-and-leave",
+			"declines on EVERY scan with anchor=<none>, no matter where the truck or the demand is. Observed",
+			"frontier-at-sr=4 against a standoff of 8 for an entire match, with the mode enabled the whole",
+			"time and never once reachable.",
+			"",
+			"It is also the wrong QUANTITY even when it resolves. The doctrine places the crate relative to",
+			"the units in need — 'about 5 cells behind the units in need, and the soldiers can go to the",
+			"crate' — whereas the descent places it relative to the beachhead and the believed frontier, two",
+			"things that say nothing about where the starving platoon actually is. Anchoring to the cluster",
+			"makes the standoff mean what the doctrine says it means.",
+			"",
+			"The SR descent remains the fallback for a truck with no cluster, so nothing regresses when there",
+			"is no demand to anchor to. Ships OFF so the benchmark control does not move on its own.")]
+		public readonly bool DropAnchorAtCluster = false;
+
+		[Desc("Drop-and-leave: how far back from the needy cluster, toward the approaching truck, the crate is",
+			"left. Read only when DropAnchorAtCluster is on. The soldiers walk the rest, which is why this",
+			"must stay well inside AutoSeekSupplies' 20-cell selection leash — a crate they cannot select is",
+			"a crate that never gets picked up.",
+			"Placed along the cluster->truck line specifically, so 'short' means short ON THE APPROACH: the",
+			"crate ends up between the truck and the platoon rather than off to a flank, and the truck stops",
+			"before reaching the platoon rather than after passing it.")]
+		public readonly int DropShortCells = 5;
 
 		[Desc("Drop-and-leave: MAP-cell Chebyshev hysteresis on the forward supply point. The anchor is",
 			"re-derived every scan from a field that is rebuilt every 25 ticks, so without this a one-cell",
@@ -658,7 +710,14 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var hunt = SupplyTruckHuntMath.ShouldHunt(Info.IdleTruckHunt, isExperimentalBot);
-			var maxFollowLength = WDist.FromCells(Info.MaxFollowDistance).Length;
+
+			// The sector assignment takes ONE cap for the whole scan, so it gets the most permissive leash any
+			// cluster is entitled to this scan; the per-pair check after it re-applies each cluster's own.
+			// Widening here alone would let a truck be assigned to a distant topped-up cluster, which is the
+			// behaviour the urgency gate exists to refuse — so the two halves are not separable.
+			var maxFollowLength = clusters.Count == 0
+				? WDist.FromCells(Info.MaxFollowDistance).Length
+				: WDist.FromCells(clusters.Max(FollowLeashCellsFor)).Length;
 
 			// @experimental sector spread: precompute distinct-cluster assignments over a STABLY sorted truck
 			// list (ActorID) so the greedy result is enumeration-order-independent and deterministic.
@@ -720,6 +779,7 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var c in clustersBeforeGate)
 					WriteDiagnostic(
 						$"[supply] cluster cell={c.CenterCell} follow={c.FollowCell} units={c.UnitCount} "
+						+ $"starving={c.StarvingUnits}/{Info.StarvingFollowMinUnits} leash={FollowLeashCellsFor(c)}c "
 						+ $"need={NeedScore(c.AmmoNeed)} danger={c.Danger} gated={c.Gated} "
 						+ $"kept={clusters.Contains(c)}");
 
@@ -733,11 +793,17 @@ namespace OpenRA.Mods.Common.Traits
 					if (spread)
 					{
 						spreadTargets?.TryGetValue(truck, out bestCluster);
+
+						// Re-apply THIS cluster's own leash to the assignment. AssignSectors was given the
+						// scan's most permissive cap, so without this a truck could be handed a distant
+						// cluster that is not starving — exactly what the urgency gate refuses.
+						if (bestCluster != null && !WithinFollowLeash(truck, bestCluster))
+							bestCluster = null;
 					}
 					else
 					{
 						bestCluster = clusters
-							.Where(c => (c.Center - truck.CenterPosition).Length < WDist.FromCells(Info.MaxFollowDistance).Length)
+							.Where(c => WithinFollowLeash(truck, c))
 							.OrderByDescending(c => c.AmmoNeed)
 							.ThenBy(c => (c.Center - truck.CenterPosition).LengthSquared)
 							.FirstOrDefault();
@@ -764,7 +830,7 @@ namespace OpenRA.Mods.Common.Traits
 						+ $"target={(bestCluster != null ? bestCluster.CenterCell.ToString() : "<none>")} "
 						+ $"nearest-found={(nearest != null ? nearest.CenterCell.ToString() : "<none>")} "
 						+ $"nearest-dist={(nearest != null ? (nearest.Center - truck.CenterPosition).Length / 1024 : -1)}c"
-						+ $"/max-follow={Info.MaxFollowDistance}c "
+						+ $"/leash={(nearest != null ? FollowLeashCellsFor(nearest) : Info.MaxFollowDistance)}c "
 						+ $"spread={spread} spread-assigned={spreadTargets != null && spreadTargets.ContainsKey(truck)} "
 						+ $"hunt={hunt}");
 				}
@@ -798,7 +864,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (dropLive)
 				{
 					var dropSr = srActor ?? NearestSupplyRoute(supplyRoutes, truck.CenterPosition);
-					if (StepDrop(truck, dropSr))
+					if (StepDrop(truck, dropSr, bestCluster))
 						continue;
 				}
 
@@ -908,6 +974,33 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>The follow leash, in cells, that applies to THIS cluster — <see cref="SupplyFollowerBotModuleInfo.MaxFollowDistance"/>
+		/// normally, extended when the cluster is starving.
+		///
+		/// <para>Per-cluster rather than per-scan, because the whole point is that the two cases coexist: a
+		/// dying platoon at 37 cells must be served in the same scan that a topped-up squad at 37 cells is
+		/// still ignored. A scan-wide leash cannot express that and would hand the second behaviour out to
+		/// get the first.</para>
+		///
+		/// <para>Fails toward TODAY'S BEHAVIOUR from both directions: the override is off unless
+		/// StarvingFollowMinUnits is positive, and a StarvingMaxFollowDistance below the plain leash is
+		/// ignored rather than applied, so the returned value is never smaller than MaxFollowDistance.</para></summary>
+		int FollowLeashCellsFor(UnitCluster cluster)
+		{
+			if (Info.StarvingFollowMinUnits <= 0 || cluster == null)
+				return Info.MaxFollowDistance;
+
+			if (cluster.StarvingUnits < Info.StarvingFollowMinUnits)
+				return Info.MaxFollowDistance;
+
+			return Math.Max(Info.MaxFollowDistance, Info.StarvingMaxFollowDistance);
+		}
+
+		bool WithinFollowLeash(Actor truck, UnitCluster cluster)
+		{
+			return (cluster.Center - truck.CenterPosition).Length < WDist.FromCells(FollowLeashCellsFor(cluster)).Length;
+		}
+
 		/// <summary>Is the follow Move worth re-issuing for this truck this scan? Thin engine-side wrapper that
 		/// samples the two observables and defers the rule to the pinned pure predicate.</summary>
 		bool ShouldReissueFollow(Actor truck, CPos followPos)
@@ -935,7 +1028,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// stranded crate drains normally (RemoveBelowSupply 1 disposes it) or is captured. Reclaiming a crate
 		/// back into a truck does not exist in this codebase (the census's missing crate → truck leg), and
 		/// inventing it here would be a second feature hiding inside this one.</para></summary>
-		bool StepDrop(Actor truck, Actor srActor)
+		bool StepDrop(Actor truck, Actor srActor, UnitCluster cluster)
 		{
 			var dispatched = dropTarget.TryGetValue(truck, out var sentTo);
 
@@ -962,7 +1055,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (provider == null || string.IsNullOrEmpty(cacheActor))
 				return false;
 
-			var anchor = ResolveDropAnchor(srActor, truck);
+			var anchor = ResolveDropAnchor(srActor, truck, cluster);
 
 			var starving = anchor.HasValue ? CountStarvingNear(anchor.Value, provider) : 0;
 			var cacheSupply = anchor.HasValue ? CacheSupplyNear(anchor.Value, cacheActor) : 0;
@@ -1081,6 +1174,42 @@ namespace OpenRA.Mods.Common.Traits
 			return total;
 		}
 
+		/// <summary>The drop point for a cluster: <see cref="SupplyFollowerBotModuleInfo.DropShortCells"/> back
+		/// from the cluster centre along the line toward the approaching truck. Null when no cell on that
+		/// segment is passable.
+		///
+		/// <para>WALKING IN FROM THE FULL STANDOFF, rather than testing one computed cell and giving up, is
+		/// what keeps this from inheriting the descent's failure shape: a single impassable cell would
+		/// otherwise disable the mode for that cluster entirely, and the crate has real tolerance about where
+		/// it lands. The walk PREFERS the full standoff and only closes the gap when it must, so the truck
+		/// stops as early as the terrain allows rather than as late.</para>
+		///
+		/// <para>The result still moves when the cluster does — the anchor hysteresis and the per-truck
+		/// dispatch dedup in StepDrop are what keep that from becoming the moving-destination defect that
+		/// drop-and-leave was built to remove. A centroid drifting inside its own hysteresis band re-derives
+		/// to the same cell and re-issues nothing.</para>
+		///
+		/// <para>Deterministic: integer cell stepping down a fixed range, no RNG, no iteration over a
+		/// collection whose order could vary.</para></summary>
+		CPos? ClusterDropAnchor(UnitCluster cluster, Actor mover)
+		{
+			var toTruck = mover.CenterPosition - cluster.Center;
+			if (toTruck.HorizontalLengthSquared == 0)
+				return null;
+
+			var passable = WaypointPassable(mover);
+
+			for (var d = Math.Max(1, Info.DropShortCells); d >= 1; d--)
+			{
+				var offset = toTruck * (d * 1024) / toTruck.HorizontalLength;
+				var candidate = world.Map.CellContaining(cluster.Center + offset);
+				if (world.Map.Contains(candidate) && passable(candidate))
+					return candidate;
+			}
+
+			return null;
+		}
+
 		/// <summary>The forward supply point for one Supply Route: walk DOWN ControlField's distance-to-enemy-
 		/// frontier field from the SR toward the nearest believed front, halting a standoff short of it and
 		/// never stepping into a believed weapon envelope. Null when no anchor could be established.
@@ -1106,8 +1235,56 @@ namespace OpenRA.Mods.Common.Traits
 		/// paths — a fresh candidate and a hysteresis-HELD one — for the same reason
 		/// PoiOffensiveBotModule.ResolveAdvanceAnchor grants on both of its: a caller downstream must be able to
 		/// assume the property without re-deriving which path produced the cell.</para></summary>
-		CPos? ResolveDropAnchor(Actor srActor, Actor mover)
+		CPos? ResolveDropAnchor(Actor srActor, Actor mover, UnitCluster cluster)
 		{
+			// PREFERRED: anchor to the platoon that needs the supply. Tried FIRST and independently of the
+			// control field, because the descent's total-failure mode (see DropAnchorAtCluster) is precisely
+			// a control-field reading, so a fallback ordered the other way round would never be reached in
+			// the case that motivated it. Falls through when there is no cluster to anchor to, or when every
+			// cell on the approach is impassable — in both of those the descent is still the better answer.
+			if (Info.DropAnchorAtCluster && cluster != null)
+			{
+				var atCluster = ClusterDropAnchor(cluster, mover);
+				if (atCluster.HasValue)
+				{
+					// HYSTERESIS, AND IT IS NOT OPTIONAL HERE. The SR descent carries its own further down
+					// this method; this path returns before reaching it, so without a band of its own the
+					// anchor would be re-derived from a MOVING centroid every scan, differ every scan, and
+					// re-issue a non-queued errand that cancels the drive and restarts the path — which is
+					// precisely the defect drop-and-leave was built to remove, reintroduced at the one place
+					// the mode's whole premise is a destination that does not move.
+					//
+					// The band is applied against the cell this truck is ALREADY driving to, so dropTarget
+					// serves as the memory: one piece of state, already pruned per scan and already cleared
+					// by the evac and revoke paths, rather than a second map that could drift out of
+					// agreement with it. Returning the HELD cell (not the fresh one) is what makes
+					// ShouldIssueDrop see no change and issue nothing.
+					if (dropTarget.TryGetValue(mover, out var held)
+						&& !ForwardStagingMath.AnchorShifted(held.X, held.Y, atCluster.Value.X, atCluster.Value.Y, Info.DropAnchorHysteresisCells))
+					{
+						if (Diagnostic)
+							WriteDiagnostic(
+								$"[supply] anchor cluster={cluster.CenterCell} → {held} (held; fresh={atCluster.Value} "
+								+ $"within {Info.DropAnchorHysteresisCells}c)");
+
+						return held;
+					}
+
+					if (Diagnostic)
+						WriteDiagnostic(
+							$"[supply] anchor cluster={cluster.CenterCell} → {atCluster.Value} "
+							+ $"short={Info.DropShortCells}c danger={GroundDangerAt(atCluster.Value)} "
+							+ $"starving-in-cluster={cluster.StarvingUnits}");
+
+					return atCluster;
+				}
+
+				if (Diagnostic)
+					WriteDiagnostic(
+						$"[supply] anchor cluster={cluster.CenterCell} → <none> (no passable cell within "
+						+ $"{Info.DropShortCells}c toward the truck) — falling back to the SR descent");
+			}
+
 			if (controlField == null || srActor == null)
 				return null;
 
@@ -1532,15 +1709,28 @@ namespace OpenRA.Mods.Common.Traits
 				// Calculate cluster center and ammo need
 				var center = nearby.Select(a => a.CenterPosition).Average();
 				var ammoNeed = 0f;
+				var starving = 0;
 
 				foreach (var a in nearby)
 				{
 					var ammoPools = a.TraitsImplementing<AmmoPool>().ToArray();
+					var isStarving = false;
 					foreach (var pool in ammoPools)
 					{
-						if (pool.Info.Ammo > 0)
-							ammoNeed += 1f - (float)pool.CurrentAmmoCount / pool.Info.Ammo;
+						if (pool.Info.Ammo <= 0)
+							continue;
+
+						ammoNeed += 1f - (float)pool.CurrentAmmoCount / pool.Info.Ammo;
+
+						// ANY pool below the bar makes the man starving — a rifleman out of rifle ammo is
+						// starving whether or not his RPG is full, and requiring every pool to be dry would
+						// mean a unit only counts once it is completely useless.
+						if (SupplyTruckHuntMath.IsStarving(pool.CurrentAmmoCount, pool.Info.Ammo, Info.HuntStarvingThresholdPerMille))
+							isStarving = true;
 					}
+
+					if (isStarving)
+						starving++;
 				}
 
 				clusters.Add(new UnitCluster
@@ -1548,7 +1738,8 @@ namespace OpenRA.Mods.Common.Traits
 					Center = center,
 					CenterCell = world.Map.CellContaining(center),
 					UnitCount = nearby.Count,
-					AmmoNeed = ammoNeed
+					AmmoNeed = ammoNeed,
+					StarvingUnits = starving
 				});
 
 				foreach (var a in nearby)
@@ -1912,6 +2103,15 @@ namespace OpenRA.Mods.Common.Traits
 			public CPos CenterCell;
 			public int UnitCount;
 			public float AmmoNeed;
+
+			// Units in this cluster with at least one pool below HuntStarvingThresholdPerMille — the URGENCY
+			// term, and deliberately the same "starving" test the hunt and drop paths already use rather than
+			// a second definition that could drift from them.
+			//
+			// Distinct from AmmoNeed on purpose: AmmoNeed is a SUM over units and pools, so a large squad
+			// that is merely topped-down outscores a small one that is dry, and it cannot answer "is anyone
+			// actually about to run out". A count of starving men can.
+			public int StarvingUnits;
 
 			// The cell a truck assigned here would actually be SENT to, and the believed ground danger there.
 			// Gating on the follow cell rather than the centroid matters: FindSafeFollowPosition scores a

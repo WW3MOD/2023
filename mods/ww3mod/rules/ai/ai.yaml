@@ -803,6 +803,20 @@ Player:
 		SupplyTruckTypes: truk
 		ScanInterval: 150
 		MaxFollowDistance: 35
+		# STARVATION LIFTS THE LEASH. Measured 2026-08-10 (test-supply-under-danger): a five-man platoon
+		# at 37 cells, every man below the starving bar, was abandoned by a full 750-supply truck parked
+		# 30 cells behind it — because 37 > 35. The truck considered nothing all match; the hunt leash
+		# (20) could not reach it either, so the scan ended in a bare continue. The doctrine's first
+		# sentence is that supplies reach the front ONE WAY OR ANOTHER, and a hard radius measured from
+		# the truck is its exact opposite.
+		#
+		# 2 starving men rather than 1: one man low on ammo in an otherwise healthy squad is not a front
+		# in trouble, and MinNearbyFriendlies is 4, so 2 is "half the squad is dry".
+		# 80 cells is a SANITY BOUND, not a tuned value — it is past the long axis of every current map,
+		# so in practice a starving cluster is always reachable; it exists so a future 200-cell map does
+		# not send a truck on a five-minute drive.
+		StarvingFollowMinUnits: 2
+		StarvingMaxFollowDistance: 80
 		MinNearbyFriendlies: 4
 		# Stated explicitly (matches the engine default) because as of 2026-08-08 it governs THREE
 		# deadbands, not one: the Stage-E detour waypoint, the evac leg-arrival test, and — new — the
@@ -930,6 +944,23 @@ Player:
 		DropStandoffCells: 8
 		DropDangerSafeUnits: 10
 		DropMaxDescentSteps: 64
+		# ANCHOR THE CRATE TO THE PLATOON, not to the beachhead. The three settings above describe the SR
+		# descent, which is now the FALLBACK — kept for a truck with no cluster, where there is no demand
+		# to anchor to and the frontier walk is still the better answer.
+		#
+		# Measured 2026-08-10: the descent produced `anchor sr=4,16 → <none> (descent stalled at the SR)`
+		# on every scan of every run, with frontier-at-sr reading 4 against DropStandoffCells: 8, so
+		# ForwardStagingMath.StagingCell's `frontierAt(start) <= standoff` early-out returned the start
+		# unchanged and ResolveDropAnchor read that as "no anchor". Drop-and-leave has been enabled since
+		# 2026-08-08 and had never once been reachable. That is a TOTAL failure whenever the believed
+		# frontier is inside the standoff of the SR — which is the normal case for a player who holds
+		# little ground, not a corner case.
+		#
+		# 5 cells matches the doctrine's own number ("stop a bit early... like 5 cells behind the units in
+		# need, and the soldiers can themselves go to the supply crate"), and sits far inside
+		# AutoSeekSupplies' 20-cell selection leash so the men can actually select the crate.
+		DropAnchorAtCluster: true
+		DropShortCells: 5
 		# The anchor is re-derived every scan from a field rebuilt every 25 ticks. Without hysteresis a
 		# one-cell belief wobble would move the destination — and a destination that moves is the entire
 		# defect this mode exists to remove.
