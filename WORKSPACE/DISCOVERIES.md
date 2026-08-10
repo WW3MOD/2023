@@ -3,6 +3,35 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-10 — A PER-VALUE BUDGET SHARE CANNOT SIZE A FLEET WHOSE WORKLOAD SCALES WITH CUSTOMER COUNT — the whole supply-truck fleet was one truck, and no explicit number said so
+
+The user played a 30-minute match and saw a single supply truck while much of the infantry sat out of ammo. **There is no "max 1" anywhere in the codebase, and there never was.** The fleet size was the quotient of two innocent-looking numbers in different files. Read this before chasing the next "the bot never builds enough X" — the shape generalises and it is invisible to grep.
+
+**How the @experimental bot buys a ground unit** (no OpenRA knowledge assumed). Every 30 ticks it picks ONE unit type per production queue and orders it. Which type is chosen by `ChooseByDeficit` (`UnitBuilderBotModule.cs:879`): it takes a census of what it already owns, compares that against a designer-authored target shape, and buys whichever type it is furthest *below* target. The target shape is `UnitTargetShares` in `ai-america.yaml:172` — a list of per-mille numbers summing to 1000.
+
+**The critical detail: those shares are per-mille of army VALUE, not of head count.** `ForceCompositionMath` says so in its own header (`ForceCompositionMath.cs:12-13`) — *"Ten riflemen are not 'ten times the army' of one tank, so both census and targets are per-mille of army VALUE."* That is the right call for combat types. It is what breaks logistics.
+
+**The arithmetic, in full.** The supply truck's share is `truk: 40` (`ai-america.yaml:183`) — 4% of army value. A truck costs 1000 (`vehicles.yaml:523`). So for an army worth `V`, the target admits:
+
+```
+trucks_allowed  =  (40 / 1000) × V  ÷  1000        # share × army value ÷ truck cost
+                =  V / 25000                        # ONE truck per 25,000 value of army
+
+V = 15,000  ->  0.6 trucks        V = 25,000  ->  1.0        V = 100,000  ->  4.0
+```
+
+A realistic mid-game army in this mod is roughly 15,000–22,000 (say 40 infantry at ~150, four Bradleys at 1500, two Abrams at 2500, an M109 at 1800). **The target therefore buys less than one truck**, and reaching even two would need a 25,000-value army — reaching the nominal `UnitLimits` of 4 would need 100,000, which no match produces.
+
+**And then the ceiling makes it permanent.** `CompositionEnforceTargetCeiling: true` (`ai-america.yaml:154`) runs `ApplyCeilingEligibility` (`ForceCompositionMath.cs:253`), which deletes from consideration any type whose census is *over* its target. The moment the first truck exists, `1000 / 15000 = 67‰ > 40‰`, so `truk` is struck from the candidate list and the second truck is never even evaluated. The fleet is pinned at one.
+
+- **Every cap that LOOKS like the cap is innocent, which is why this survived.** `UnitLimits: truk: 4` (`ai-america.yaml:101`, raised to 12 by the fix) was real but never reached. `UnitsToBuild: truk: 20` is a share *ceiling* that marks a type eligible, not a ration — the file says so at `ai-america.yaml:61`. `GateResupplyOnAmmoNeed` passes trivially when men *are* starving. Anyone auditing this reads all three, finds each harmless, and concludes there is no cap.
+- **THE GENERALISABLE SHAPE: check the UNIT a target is expressed in against the unit of the thing it controls.** A value share answers "what fraction of our spending is this worth" — correct for tanks, because a tank's contribution does scale with its cost. It is the wrong question for logistics, whose workload scales with the number of **customers**. Expressing a customer-driven requirement as a value fraction ties the fleet to army *price* instead of army *size*, and those diverge hard whenever the army is cheap infantry. Any support type — medics, engineers, repair vehicles, transports — is exposed to exactly this.
+- **A CAP WITH NO NUMBER IS INVISIBLE TO BOTH LOG-READING AND CODE-READING.** The measured symptom was 14 distinct truck actor-ids across the match — which reads like healthy churn until you plot their lifespans and find they only overlap *across the two AI players*. Every new id was a replacement for a dead truck, never fleet growth. **A standing-population cap and a high replacement rate produce the same id count; only the overlap distinguishes them.** When asked "how many X does the bot have", measure concurrency, never distinct identities.
+- **THE SECOND HALF, and it makes the first much worse: A SUPPLY TRUCK IS A CONSUMABLE, NOT A REUSABLE ASSET.** `TRUK` restocks only at `RestockActors: logisticscenter` (`vehicles.yaml:548`), and `LOGISTICSCENTER` is `Prerequisites: ~disabled` (`structures.yaml:367`) — **not buildable by anyone**, only capturable where a mapmaker placed one. A bot that captures none can never refill a truck. Confirmed in the user's log: 14 trucks, every one adopted at `supply=750` and later released `reason=low-supply`, and **zero restock events all match**. So each truck carries exactly one 750 load — about six infantry reloads — and is then dead weight. One standing truck therefore did not mean "one truck's worth of continuous service", it meant **750 supply for the entire match**.
+- **Consequence for any fleet-sizing code: count CAPABILITY, not actors.** `SupplyProvider.CountsAsEmpty` (`SupplyProvider.cs:162`) is the predicate that distinguishes a truck from a hull. A fleet target compared against a raw actor count is satisfied by drained hulls, which reproduces the starvation exactly while the census looks healthy. The corollary hazard is the mirror: a `UnitLimits`-style backstop *does* count hulls, so it needs headroom over the capability target or lingering wrecks silently freeze procurement.
+- **THE AUDIT TO RUN ON ANY SHARE-BASED ALLOCATOR, and it takes two minutes.** For every entry in the share table, compute `share × totalPool ÷ unitCost` at a realistic pool size and ask whether the answer is a plausible headcount. Anything that comes out below ~2 is capped at one by rounding, whatever the nominal limits say. The exposed entries are the ones whose unit cost is far from the roster average — a lone expensive support type among cheap line units. Here: `truk` at 1000 against line infantry at 100.
+- **The fix is not a bigger share.** Raising `truk` to 100‰ would buy 2–3 trucks at today's army value and 1 again if the army gets cheaper — the fleet would still be a function of army price. The repair is to size the fleet from the quantity that actually drives its workload (starving customers) and let the budget share only *bound* it: `SupplyDemandSizing` on `UnitBuilderBotModule`, with `SupplyFleetMath.DesiredTrucks` as the pure decision.
+
 ## 2026-08-10 — A FIX CAN BE CORRECT IN ISOLATION AND WRONG IN COMBINATION, twice in one day — and a MATCHED PAIR of opposite scenarios is what caught both
 
 Two defects on the supply path, each introduced by a fix that was right when it landed and became wrong once a *different* fix worked:

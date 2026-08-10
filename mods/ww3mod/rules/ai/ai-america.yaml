@@ -93,7 +93,12 @@ Player:
 			truk: 20
 
 		UnitLimits:
-			truk: 4
+			# 12, not 4: this is now only the absolute backstop above SupplyTruckCeiling (6) — see
+			# SupplyDemandSizing below. It must sit clear of the ceiling or it, not demand, sizes the fleet.
+			# The headroom over 6 is for SPENT HULLS: this limit counts every truk actor, while the fleet
+			# target counts only trucks that still hold supply, and a drained truck lingers until the
+			# follower's evac/sell path removes it. Too little headroom and a few hulls freeze procurement.
+			truk: 12
 			tecn.america: 3
 			e6.america: 2
 			m109: 3
@@ -102,6 +107,30 @@ Player:
 		# Early-econ behaviour 1: don't call in trucks while no fielded unit needs ammo.
 		GateResupplyOnAmmoNeed: true
 		ResupplyUnitTypes: truk
+		# ===== DEMAND-SIZED SUPPLY FLEET =====
+		# Measured 2026-08-10 (user's 30-minute match, debug.log): ONE standing truck per player for the whole
+		# game, with a large fraction of the infantry out of ammo. 14 truck actor-ids appear across the match,
+		# but their lifespans only overlap ACROSS the two AI players — every new id is a replacement for a dead
+		# one, never fleet growth.
+		#
+		# The cap was never UnitLimits (4, never reached). It was UnitTargetShares: truk: 40 below. Shares are
+		# per-mille of army VALUE, so a 1000-cost truck at 40 per-mille is one truck per 25,000 value of army —
+		# and a realistic mid-game army is ~15-22k. CompositionEnforceTargetCeiling then strikes the truk slot
+		# the instant the first truck puts the census over 40 per-mille, so the second is never bought. A
+		# budget SHARE is the wrong question for logistics: a truck's workload scales with the number of
+		# CUSTOMERS, not with how expensive the army defending them happens to be.
+		#
+		# Deliberately over-provisioned (200%) on the user's explicit instruction — trucks drive toward the
+		# fighting and get shot, so a fleet sized to the exact requirement is short the moment one dies.
+		# TO TUNE DOWN once several trucks are visibly moving at once: lower
+		# SupplyDemandOvercompensationPercent, NOT SupplyCustomersPerTruck (that one is a physical fact about
+		# the truck: TotalSupply 750 over a ~125-supply typical full reload).
+		SupplyDemandSizing: true
+		SupplyStarvingThresholdPerMille: 250
+		SupplyCustomersPerTruck: 6
+		SupplyDemandOvercompensationPercent: 200
+		SupplyTruckFloor: 2
+		SupplyTruckCeiling: 6
 		# Early-econ behaviour 2: vehicle AA proportionate to observed air (aa.america ungated picket).
 		ScaleAntiAirToThreat: true
 		AntiAirUnitTypes: strykershorad

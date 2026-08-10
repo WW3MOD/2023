@@ -90,7 +90,9 @@ Player:
 			truk: 20
 
 		UnitLimits:
-			truk: 4
+			# 12, not 4: only the absolute backstop above SupplyTruckCeiling (6) — see SupplyDemandSizing
+			# below. The headroom is for spent hulls, which this limit counts and the fleet target does not.
+			truk: 12
 			tecn.russia: 3
 			e6.russia: 2
 			giatsint: 3
@@ -100,6 +102,17 @@ Player:
 		# Early-econ behaviour 1: don't call in trucks while no fielded unit needs ammo.
 		GateResupplyOnAmmoNeed: true
 		ResupplyUnitTypes: truk
+		# ===== DEMAND-SIZED SUPPLY FLEET =====
+		# Mirror of the America block — see ai-america.yaml for the full rationale and the measurement. Short
+		# version: UnitTargetShares: truk: 40 is a share of army VALUE, which caps a 1000-cost truck at one per
+		# 25,000 value of army, so the bot ran a single truck all match while infantry starved. Logistics is
+		# sized by customers, not by budget share. Tune DOWN via SupplyDemandOvercompensationPercent.
+		SupplyDemandSizing: true
+		SupplyStarvingThresholdPerMille: 250
+		SupplyCustomersPerTruck: 6
+		SupplyDemandOvercompensationPercent: 200
+		SupplyTruckFloor: 2
+		SupplyTruckCeiling: 6
 		# Early-econ behaviour 2: vehicle AA proportionate to observed air (aa.russia ungated picket).
 		ScaleAntiAirToThreat: true
 		AntiAirUnitTypes: tunguska

@@ -57,6 +57,42 @@ namespace OpenRA.Mods.Common.Traits
 			"Mirrors SupplyProvider.MinNeedThreshold so a near-full unit (e.g. 499/500) does not trigger a truck.")]
 		public readonly float ResupplyNeedThreshold = 0.05f;
 
+		[Desc("EXPERIMENTAL: size the ResupplyUnitTypes fleet from the number of STARVING customers instead of",
+			"letting the composition target share decide it. The share cannot size logistics: shares are",
+			"per-mille of army VALUE, so a 1000-cost truck at a 40-per-mille target admits one truck per",
+			"25,000 value of army — measured at one standing truck for a whole match while infantry starved.",
+			"When this is on, a shortfall against SupplyFleetMath.DesiredTrucks pre-empts the deficit pick for",
+			"one cycle, and also satisfies GateResupplyOnAmmoNeed so the standing floor can be reached before",
+			"anyone is dry. NOTE the pre-emption rides the composition pick, so it needs CompositionDirected",
+			"as well — on a lottery profile this flag only relaxes the ammo gate and will NOT grow the fleet.",
+			"Default false ⇒ byte-identical for normal/rush/turtle/@stable.")]
+		public readonly bool SupplyDemandSizing = false;
+
+		[Desc("A truck-rearmable unit counts as a starving CUSTOMER when any of its truck-rearmable ammo pools",
+			"sits below this per-mille of capacity. Matches SupplyFollowerBotModule.HuntStarvingThresholdPerMille",
+			"(and defers to the same SupplyHuntMath rule) so procurement and delivery agree on 'starving'.",
+			"Inert unless SupplyDemandSizing is set.")]
+		public readonly int SupplyStarvingThresholdPerMille = 250;
+
+		[Desc("Starving customers one truck is assumed to service. Derive it from the truck's TotalSupply over",
+			"a typical full reload, NOT from how many trucks you want — the over-provision lever is",
+			"SupplyDemandOvercompensationPercent. Non-positive reads as 1.")]
+		public readonly int SupplyCustomersPerTruck = 6;
+
+		[Desc("Deliberate over-provision on the computed fleet size, in percent. 100 = the honest number,",
+			"200 = double it. Trucks are consumable and drive toward the fighting, so a fleet sized to the",
+			"exact requirement is short the moment one dies. This is the knob to walk DOWN once the fleet is",
+			"observably working — not customersPerTruck.")]
+		public readonly int SupplyDemandOvercompensationPercent = 100;
+
+		[Desc("Standing fleet size held even when nothing is starving. A fleet bought only after men are dry",
+			"arrives after the fight it was needed for.")]
+		public readonly int SupplyTruckFloor = 1;
+
+		[Desc("Hard upper bound on the demand-sized fleet, so supply can never eat the whole call-in budget",
+			"however bad the front gets. UnitLimits still applies on top as the absolute backstop.")]
+		public readonly int SupplyTruckCeiling = 4;
+
 		[Desc("EXPERIMENTAL (early-econ behaviour 2): cap gated AA call-ins (the expensive vehicle SHORAD/",
 			"Tunguska) to the OBSERVED enemy air threat. Cheap AA infantry stay ungated as a baseline picket.",
 			"observedAir is fog-legal — only enemy aircraft the player can currently see. Prevents fielding",
@@ -234,6 +270,14 @@ namespace OpenRA.Mods.Common.Traits
 		// the requester re-issues each scan, so a save/load simply re-derives it.
 		readonly List<string> priorityBuildRequests = new List<string>();
 
+		// Ordinal-sorted copy of ResupplyUnitTypes: the fleet pre-emption ITERATES it (the ammo gate only ever
+		// probes it with Contains), and a HashSet's enumeration order is not part of the config text.
+		string[] supplyFleetTypes = Array.Empty<string>();
+		int supplyFleetShortfallTick = -1;
+		int supplyFleetStarving;
+		int supplyFleetOwned;
+		int supplyFleetDesired;
+
 		IBotRequestPauseUnitProduction[] requestPause;
 		int idleUnitCount;
 
@@ -277,6 +321,9 @@ namespace OpenRA.Mods.Common.Traits
 			roleResolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
 
 			InitializeComposition();
+
+			if (Info.SupplyDemandSizing)
+				supplyFleetTypes = Info.ResupplyUnitTypes.OrderBy(t => t, StringComparer.Ordinal).ToArray();
 		}
 
 		// Flatten the composition config into ordinal-ordered arrays exactly once. Skipped entirely when the
@@ -469,7 +516,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			// EXPERIMENTAL early-econ gates (default-off; only the @experimental UnitBuilder twin enables them,
 			// so normal/rush/turtle/stable reach QueueOrder byte-identically). Both draw ZERO random.
-			if (Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name) && !AnyFieldedUnitNeedsResupply())
+			// SupplyFleetUnderDesired satisfies this gate on its own: the standing floor exists precisely to be
+			// held while nobody is dry, and this gate is the one thing that would forbid reaching it. False when
+			// SupplyDemandSizing is off ⇒ the frozen evaluation order is unchanged.
+			if (Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name)
+				&& !SupplyFleetUnderDesired(name) && !AnyFieldedUnitNeedsResupply())
 				return;
 
 			if (Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())
@@ -505,6 +556,120 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return false;
+		}
+
+		// ===== Demand-sized supply fleet (@experimental) =====
+		// Is the truck fleet short of what the measured starving-customer count wants? Cached per world tick:
+		// the eligibility loop asks once per composition type, and each miss walks every actor the player owns.
+		// world.WorldTick is deterministic and both counts are order-independent sums, so the cache cannot
+		// introduce divergence. Returns false immediately when the flag is off ⇒ the callers below keep their
+		// frozen short-circuit order.
+		bool SupplyFleetUnderDesired(string name)
+		{
+			if (!Info.SupplyDemandSizing || !Info.ResupplyUnitTypes.Contains(name))
+				return false;
+
+			if (supplyFleetShortfallTick != world.WorldTick)
+			{
+				supplyFleetShortfallTick = world.WorldTick;
+				supplyFleetStarving = CountStarvingCustomers();
+				supplyFleetOwned = SupplyTrucksOwnedOrPending();
+				supplyFleetDesired = SupplyFleetMath.DesiredTrucks(supplyFleetStarving, Info.SupplyCustomersPerTruck,
+					Info.SupplyDemandOvercompensationPercent, Info.SupplyTruckFloor, Info.SupplyTruckCeiling);
+			}
+
+			return supplyFleetOwned < supplyFleetDesired;
+		}
+
+		// Fielded units with at least one truck-rearmable pool below the starving bar. Deliberately counts
+		// UNITS, not pools: a soldier with two dry weapons is still one customer for one truck.
+		int CountStarvingCustomers()
+		{
+			var count = 0;
+			foreach (var a in world.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+
+				var rearmable = a.TraitOrDefault<Rearmable>();
+				if (rearmable == null || !rearmable.Info.RearmActors.Overlaps(Info.ResupplyUnitTypes))
+					continue;
+
+				var pools = rearmable.RearmableAmmoPools;
+				if (pools == null)
+					continue;
+
+				foreach (var p in pools)
+				{
+					if (SupplyHuntMath.BelowSeekThreshold(p.CurrentAmmoCount, p.Info.Ammo, Info.SupplyStarvingThresholdPerMille))
+					{
+						count++;
+						break;
+					}
+				}
+			}
+
+			return count;
+		}
+
+		// Pending call-ins count: a reinforcement walks in from the map edge long after the 30-tick purchase
+		// cycle that ordered it, so counting only live trucks would re-order the whole fleet every cycle until
+		// the first one arrived. Same argument CensusValues makes for its pending credit.
+		//
+		// SPENT TRUCKS DO NOT COUNT, and this is load-bearing rather than tidy. TRUK restocks only at a
+		// logisticscenter (vehicles.yaml:548), which is `Prerequisites: ~disabled` — capture-only, so a bot
+		// that captures none can NEVER refill a truck. Measured over the user's match: 14 trucks, every one
+		// adopted at supply=750 and released `reason=low-supply`, not one restock. A truck is therefore a
+		// CONSUMABLE carrying one 750 load, and counting drained hulls as fleet would let six dead-weight
+		// trucks satisfy the target while the front starved — the same failure in a new costume.
+		int SupplyTrucksOwnedOrPending()
+		{
+			var count = world.Actors.Count(a => a.Owner == player && !a.IsDead && a.IsInWorld
+				&& Info.ResupplyUnitTypes.Contains(a.Info.Name)
+				&& a.TraitOrDefault<SupplyProvider>()?.CountsAsEmpty != true);
+
+			var queues = AIUtils.FindQueuesByCategory(player);
+			foreach (var category in Info.UnitQueues)
+				foreach (var q in queues[category])
+					foreach (var item in q.AllQueued())
+						if (Info.ResupplyUnitTypes.Contains(item.Item))
+							count++;
+
+			count += priorityBuildRequests.Count(r => Info.ResupplyUnitTypes.Contains(r));
+			count += queuedBuildRequests.Count(r => Info.ResupplyUnitTypes.Contains(r));
+
+			return count;
+		}
+
+		// The pre-emption itself: the first buildable, affordable, under-limit resupply type the fleet is short
+		// of. Returning null falls through to the ordinary deficit pick, so a cycle where the truck is priced
+		// out or at its UnitLimit still buys something rather than being wasted.
+		ActorInfo ChooseSupplyFleetShortfall(HashSet<string> buildableNames, long budget)
+		{
+			foreach (var name in supplyFleetTypes)
+			{
+				if (!buildableNames.Contains(name) || !world.Map.Rules.Actors.TryGetValue(name, out var actorInfo))
+					continue;
+
+				if (Info.UnitLimits != null && Info.UnitLimits.TryGetValue(name, out var limit) &&
+					world.Actors.Count(a => a.Owner == player && a.Info.Name == name) >= limit)
+					continue;
+
+				if (!CompositionNeedMath.Affordable(budget, UnitCost(actorInfo), 100))
+					continue;
+
+				if (!SupplyFleetUnderDesired(name))
+					continue;
+
+				AIUtils.BotDebug("{0} supply fleet SHORT: {1} owned+pending {2} < desired {3} ({4} starving / {5} per truck at {6}%, floor {7}, ceiling {8})",
+					player, name, supplyFleetOwned, supplyFleetDesired, supplyFleetStarving,
+					Info.SupplyCustomersPerTruck, Info.SupplyDemandOvercompensationPercent,
+					Info.SupplyTruckFloor, Info.SupplyTruckCeiling);
+
+				return actorInfo;
+			}
+
+			return null;
 		}
 
 		// Behaviour 2: allow another gated AA unit only while owned count is under the observed-air cap.
@@ -728,6 +893,21 @@ namespace OpenRA.Mods.Common.Traits
 			var buildableNames = new HashSet<string>(buildableThings.Select(b => b.Name));
 
 			var budget = AvailableBudget();
+
+			// SUPPLY FLEET FLOOR — ahead of the deficit pick, because the deficit pick is exactly what cannot
+			// size this fleet. Target shares are per-mille of army VALUE, so at truk's 40 per-mille a 1000-cost
+			// truck is admitted once per 25,000 value of army; CompositionEnforceTargetCeiling then strikes the
+			// slot the moment the first truck pushes the census over that, and the second truck is never bought.
+			// Measured over a 30-minute match: one standing truck per player while infantry starved. Logistics
+			// is sized by CUSTOMERS, not by what fraction of the budget the trucks happen to represent — so
+			// demand pre-empts, bounded by SupplyTruckCeiling and by UnitLimits above it.
+			if (Info.SupplyDemandSizing)
+			{
+				var shortfall = ChooseSupplyFleetShortfall(buildableNames, budget);
+				if (shortfall != null)
+					return shortfall;
+			}
+
 			var eligible = new bool[compositionTypes.Length];
 			var anyComposedTypeInQueue = false;
 			for (var i = 0; i < compositionTypes.Length; i++)
@@ -998,7 +1178,8 @@ namespace OpenRA.Mods.Common.Traits
 				world.Actors.Count(a => a.Owner == player && a.Info.Name == name) >= limit)
 				return false;
 
-			if (Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name) && !AnyFieldedUnitNeedsResupply())
+			if (Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name)
+				&& !SupplyFleetUnderDesired(name) && !AnyFieldedUnitNeedsResupply())
 				return false;
 
 			if (Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())
