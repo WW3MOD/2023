@@ -3,6 +3,26 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-10 — MEASURED: three independent reasons supply cannot reach a front, and the pre-selection danger abort is NOT one of them
+
+First instrumented run of `test-supply-under-danger` (scenario `87faad44`, diagnostics `d42e9371`): a starving 5-rifleman platoon 34 cells from its Supply Route, with two believed `grad` painting the whole approach. One scan, verbatim:
+
+```
+[supply] scan trucks=1 friendlies=5 clusters-found=1 clusters-selected=1 max-follow=35 hunt-leash=20
+[supply] cluster cell=44,16 follow=41,13 units=5 need=4500 danger=0 gated=True kept=True
+[supply] truck=10@7,16 supply=750 target=<none> nearest-found=44,16 nearest-dist=37c/max-follow=35c
+[supply] anchor sr=4,16 → <none> (descent stalled at the SR: flat field, or the front is on top of us) frontier-at-sr=64
+[supply] drop-declined anchor=<none> supply=750/250 starving=0/3 cache-near=0+in-flight=0/100
+[supply] hunt-declined reason=no-demand-in-leash leash=20c candidates=0 supply=750
+```
+
+- **REFUTED — `SelectServableClusters` is not aborting deliveries.** The pre-selection danger gate (`SupplyFollowerBotModule.cs:1360`) was the leading hypothesis for "the truck never goes" and had been flagged in recon as the likely headline. Measured, `clusters-found=1 clusters-selected=1`, and `kept=True` persists on later scans **even at `danger=1348298`** — the relief valve hands the cluster back exactly as its comment claims, so the gate is not where deliveries die. Recorded because the refutation cost one instrumented run and the fix was about to be built on it: **a plausible bug that measurement kills is worth as much as one it confirms.**
+- **DOCTRINE VIOLATION — `MaxFollowDistance: 35` (`ai.yaml:805`) silently strands a starving platoon at 37 cells.** `nearest-dist=37c/max-follow=35c` with `target=<none>`: the follow filter (`:703`) drops the only cluster, `HuntLeashCells: 20` cannot reach it either, and the truck falls through to a bare `continue` having considered nothing. Two cells too far and a dying platoon is abandoned while a full 750-supply truck sits at the beachhead. The stated doctrine opens *"Supplies has to reach the front, one way or another"*; **a hard radius measured from the truck is that doctrine's exact opposite**, and a real front will routinely sit further from the Supply Route than 35 cells. Not fixed yet — recorded separately so the scenario's geometry correction does not bury it as a test artefact.
+- **The drop anchor NEVER resolves, on every scan, independently of the range problem** — a truck standing on top of the platoon would still decline with `anchor=<none>`. Mechanism is code-verified: `ForwardStagingMath.StagingCell` early-outs at `if (frontierAt(cx, cy) <= standoffCells) return (cx, cy)` (`:112-113`), the caller reads "did not move" as "no anchor established" (`SupplyFollowerBotModule.cs:1035-1044`), and `SupplyDropMath.ShouldDrop` then fails its first gate forever. With `DropStandoffCells: 8` against a measured `frontier-at-sr=4`, the early-out fires unconditionally. **Drop-and-leave is therefore structurally impossible whenever the believed frontier lies within the standoff of the Supply Route** — the log's own "the front is on top of us" branch, but permanent rather than transient, and it presents as a silent decline rather than an error.
+- **OPEN, and the more suspicious half of the above: why does `frontier-at-sr` read 4 when the enemy is 54 cells away?** It reads `64` on the first scan and `4` on every scan after. If the frontier-distance field measures distance to the edge of *our own believed control* rather than to believed *enemy* territory, a player holding little ground reads ~0 everywhere and no drop anchor can ever be established — which would make this general rather than a property of a sparse test map. Not verified; needs `ControlField`'s frontier derivation read against a normal match.
+- **The evac miscalibration is now visible in a live field rather than inferred from a distribution:** `danger=1348298` at the cluster against an evac bar of **1,706** — **~790×**. The entry below derived this from medians; this is one cell reading it directly.
+- **Method note that generalises:** the whole scan above was invisible before `d42e9371`. Every per-scan level in this module sat behind `DebugLogging`, which ships off, so a module that evaluated every gate and declined logged **byte-identically** to one that never ticked. **An "it did nothing" symptom carries no information about which gate fired unless the declines are instrumented** — this run was initially read as a danger abort and was actually a range filter.
+
 ## 2026-08-10 — MEASURED: `ReferenceIntensity` is a weak reference, and the supply-truck evac threshold is below the median cell it gates
 
 First live read of the `[danger] reference` / `[danger] dist` instrumentation, at `main @ 2754f341`, from `test-frontline-reachability` (instantiates `@experimental` + `@stable` on River Zeta). Verbatim:
