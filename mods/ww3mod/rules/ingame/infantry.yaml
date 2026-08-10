@@ -2177,7 +2177,11 @@ SF:
 		ClaimTargets: true
 		ScanInterval: 8
 		ValidTargetTypes: Heal
-		DefensiveRange: 5c0
+		# How far the medic NOTICES casualties. He still has to walk into the Heal weapon's 1c0 to
+		# treat one — this is his field of concern, not his reach. MaxPatientHealthPercent 100 means
+		# he responds to any wound; lower it (e.g. 90) to make him ignore scratches.
+		SearchRange: 8c0
+		MaxPatientHealthPercent: 100
 	AutoFollowAlly:
 		FollowDistance: 3c0
 		SearchRange: 20c0
