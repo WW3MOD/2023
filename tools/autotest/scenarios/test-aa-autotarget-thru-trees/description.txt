@@ -1,0 +1,1 @@
+Diagnostic: 5 AA specialists at 0/1/2/3/4 tree cells vs hovering Halos. Phase A autotarget (no orders), Phase B manual attack. Records whether the AA moved BEFORE firing — the discriminator between the LOS and detection diagnoses.

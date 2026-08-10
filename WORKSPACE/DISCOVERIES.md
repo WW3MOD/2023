@@ -3,6 +3,24 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-10 — A BLOCKED AIRBORNE LOS DEADLOCKS *BOTH* ATTACK PATHS, because `MoveWithinRange` has no LOS term — so "auto never engages but a manual order fires instantly" is the one symptom that EXONERATES line of sight
+
+Built `test-aa-autotarget-thru-trees` to settle a disputed diagnosis of "AA infantry among trees never auto-engaged an overflying aircraft; a manual attack order fired immediately". Five AA specialists at 0/1/2/3/4 density-10 tree cells, 20 cells from a hovering Halo, fog off so detection cannot confound. Phase A issues **no orders**; phase B issues a manual `Attack(allowMove: true)`. Measured (seed 772997303):
+
+| trees | density | `ceil(ΣD/5)` | auto-fired | manual-fired | cells moved |
+|---|---|---|---|---|---|
+| 0 | 0 | 0 | yes | yes | **0** |
+| 1 | 10 | 2 | yes | yes | **0** |
+| 2 | 20 | 4 | yes | yes | **0** |
+| 3 | 30 | 6 | **no** | **no** | **0** |
+| 4 | 40 | 8 | **no** | **no** | **0** |
+
+- **The gate's arithmetic is exactly as advertised, and the break lands precisely on it.** `airborneShadow = ceil(ΣD/5)` (`Map.cs:1177`) against MANPAD's *default* `ClearSightThreshold` 5 (`WeaponInfo.cs:146` — MANPAD declares none, `weapons/weapons-missiles.yaml:377-409`) blocks at ΣD ≥ 26, i.e. the 3rd density-10 cell. Fire at shadow 0/2/4, silence at 6/8. No tuning surprise here.
+- **THE FINDING: a manual attack order on an LOS-blocked target fires nothing and moves nowhere.** The widespread belief (and the prior recon's claim) is that the manual path "repositions via `MoveWithinRange` until LOS clears, then fires", because `Attack.cs:248-252` folds `losBlocked` into `needsToMove` and `:276` queues `MoveWithinRange`. **`MoveWithinRange` cannot clear LOS.** Its `ShouldStop` is `AtCorrectRange(...)`, a pure distance test — `Target.IsInRange(origin, maxRange) && !Target.IsInRange(origin, minRange)` (`MoveWithinRange.cs:38-43,73-76`) — with no LOS term anywhere in the activity. When the target is already inside weapon range but LOS-blocked, the queued move is satisfied on creation, completes without stepping a cell, and `Attack` re-derives `losBlocked` and queues it again. The unit stands still forever. Rungs 3-4 show it: never fired, never moved.
+- **Therefore "auto is dead but manual works" REFUTES line of sight rather than supporting it.** A genuinely blocked shooter fails on *both* paths. The asymmetry the LOS story predicts (hard reject on the auto path at `AutoTarget.cs:1112-1123`, walk-then-shoot on the manual path) does not exist, because the second half was never implemented. If a manual order produces an immediate shot **from the same cell**, the line was clear and the per-weapon gate at `Armament.cs:364` proves it — look at detection (`CanBeViewedByPlayer`, `AutoTarget.cs:1066` → `Detectable.cs:93-116`) instead. `MoveWithinRange` only *incidentally* clears LOS when the target was also out of range, so the approach happens to end somewhere with a different line.
+- **The shooter's own cell contributes ZERO density, so "standing in a forest" blocks nothing by itself.** `RecomputeShadowFrom` skips both endpoints (`if (tile == fromUV || tile == toUV) continue;`, `Map.cs:1153-1155`), and for a ground-shoots-air pair `FiringLOS` swaps the lookup (`FiringLOS.cs:84-96`) so the shooter's cell *is* the `to` endpoint. Foliage has to be on the cells beside it, along the line.
+- **The blocking band is only `0.25·D` wide, which makes the airborne gate arithmetically unable to block at short range.** Obstacles count only where `512 > 2048*(1-t)`, i.e. `t > 0.75` (`Map.cs:1160-1170`) — the final quarter at the ground end. Minus the excluded endpoint that leaves `ceil(0.25·D) − 1` usable cells: 1 at D=8, 2 at D=12, 3 at D=16, 4 at D=20. Reaching threshold 5 needs 3 density-10 cells, so **below roughly 16 cells of separation no amount of forest can block a default-threshold weapon.** A close overflight cannot be an LOS problem. (Derived from the code and *consistent with* the ladder — the run confirms the placement and the crossing point at D=20, it does not independently measure the law at other D.)
+
 ## 2026-08-10 — "CRITICAL DAMAGE" NAMES TWO DIFFERENT THRESHOLDS 25 PERCENTAGE POINTS APART, and the `critical-damage` condition is the one the player never sees
 
 When the user says a vehicle "goes critical" they mean *it caught fire and is now doomed*. That is **`DamageState.Heavy`, HP <50%** — not the `critical-damage` condition, which `GrantConditionOnDamageState@CriticalDamage` (`defaults.yaml:194-196`) grants only at `DamageState.Critical`, **HP <25%** (`Health.cs:95-99`). Everything that produces the *visible* "this vehicle is finished" moment is keyed to 50%:
