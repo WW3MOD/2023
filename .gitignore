@@ -58,3 +58,6 @@ garrison_debug.log
 # Python bytecode from tools/ scripts
 __pycache__/
 *.pyc
+
+# Maestro/Claude ephemeral session locks
+.claude/scheduled_tasks.lock
