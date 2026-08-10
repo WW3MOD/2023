@@ -186,7 +186,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		const string ModSwitchFailed = "notification-mod-switch-failed";
 
 		[ObjectCreator.UseCtor]
-		public ConnectionSwitchModLogic(Widget widget, OrderManager orderManager, NetworkConnection connection, Action onAbort, Action<string> onRetry)
+		public ConnectionSwitchModLogic(Widget widget, OrderManager orderManager, NetworkConnection connection,
+			string password, Action onAbort, Action onQuit, Action<string> onRetry)
 		{
 			var panel = widget;
 			var abortButton = panel.Get<ButtonWidget>("ABORT_BUTTON");
@@ -206,7 +207,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					Ui.OpenWindow("CONNECTIONFAILED_PANEL", new WidgetArgs()
 					{
 						{ "orderManager", orderManager },
+						{ "connection", connection },
+						{ "password", password },
 						{ "onAbort", onAbort },
+						{ "onQuit", onQuit },
 						{ "onRetry", onRetry }
 					});
 				});
