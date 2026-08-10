@@ -47,10 +47,37 @@ namespace OpenRA.Mods.Common.Traits
 			"this throttles the provider scan; the phase is staggered per actor deterministically.")]
 		public readonly int ScanInterval = 40;
 
+		[Desc("Break off a LIVE order once every ammo pool is empty and walk to the nearest rearm actor.",
+			"The seek above is idle-triggered, and a soldier marching under an attack-move order is never",
+			"idle (Actor.IsIdle is CurrentActivity == null) — so a man who empties on the advance keeps",
+			"advancing with nothing to shoot. AmmoPool's own dispatcher has the same blind spot: it fires",
+			"from INotifyAttack on the shot that empties the pool and from INotifyBecomingIdle, and",
+			"AmmoPool is not ITick, so nobody ever asks again. This is the missing periodic ask.",
+			"Ships OFF so the trait's behaviour is unchanged until a mod opts in.")]
+		public readonly bool ReturnWhenEmpty = false;
+
+		[Desc("Ticks between empty-state re-checks for ReturnWhenEmpty. Shorter than ScanInterval: this",
+			"one is racing a unit that is walking into a fight it cannot answer.")]
+		public readonly int EmptyScanInterval = 25;
+
+		[Desc("Furthest a rearm actor can be, in CHESSBOARD cells, and still be worth breaking off for.",
+			"AmmoPool.ChooseResupplier picks the closest host ignoring path and does not check that a",
+			"route exists (economy.md: \"a resupplier exists is the engine's whole reachability test\"), so",
+			"an unleashed order can march a soldier at a depot across an unfordable river for the rest of",
+			"the match. A budget is the same cheap proxy PoiOffensiveBotModule uses for dry vehicles",
+			"(OutOfAmmoRearmSeekRadiusCells); beyond it the unit holds and is flagged NeedsResupply so a",
+			"Hunt-stance truck can come to it instead.")]
+		public readonly int ReturnWhenEmptyLeashCells = 30;
+
+		[GrantedConditionReference]
+		[Desc("Condition read to tell whether we are already evacuating (RotateToEdge grants it). Leave",
+			"empty to skip the check.")]
+		public readonly string EvacuatingCondition = "evacuating";
+
 		public override object Create(ActorInitializer init) { return new AutoSeekSupplies(init.Self, this); }
 	}
 
-	public class AutoSeekSupplies : INotifyCreated, INotifyIdle
+	public class AutoSeekSupplies : INotifyCreated, INotifyIdle, ITick
 	{
 		readonly AutoSeekSuppliesInfo info;
 
@@ -62,6 +89,7 @@ namespace OpenRA.Mods.Common.Traits
 		IMove move;
 		AutoTarget autoTarget;
 		int scanTicks;
+		int emptyScanTicks;
 
 		// Per-actor constants, cached so the eligibility test is allocation-free in the steady
 		// state — SeekSuppliesAndReturn re-asks it every tick for the whole trip.
@@ -76,6 +104,7 @@ namespace OpenRA.Mods.Common.Traits
 			// same tick. Must NOT come from World.SharedRandom: this trait loads for every profile,
 			// so drawing from the synced stream would shift it for control games too (conventions.md).
 			scanTicks = info.ScanInterval > 0 ? (int)(self.ActorID % (uint)info.ScanInterval) : 0;
+			emptyScanTicks = info.EmptyScanInterval > 0 ? (int)(self.ActorID % (uint)info.EmptyScanInterval) : 0;
 		}
 
 		// The interface hands us the actor these run for, which is always the one cached in `self` — the
@@ -123,6 +152,94 @@ namespace OpenRA.Mods.Common.Traits
 
 			self.QueueActivity(false, new SeekSuppliesAndReturn(self, provider));
 			self.ShowTargetLines();
+		}
+
+		/// <summary>
+		/// The empty-pool half, which cannot be idle-triggered: the whole complaint is a soldier who is
+		/// BUSY — walking an attack-move onto the line — with nothing left to fire. Unlike the idle seek
+		/// this one interrupts, because the order it interrupts is the problem.
+		///
+		/// Deliberately narrower than the idle seek in two ways. It requires EVERY pool empty, not merely
+		/// low, so a rifleman still holding his RPG round keeps fighting; and it hands off to
+		/// AmmoPool.AutoRearm rather than SeekSuppliesAndReturn, so a Logistics Centre counts as a
+		/// destination (the proximity errand skips docking-gated hosts, and when a man is dry the dock is
+		/// often the only source on the map).
+		/// </summary>
+		void ITick.Tick(Actor self)
+		{
+			if (!info.Enabled || !info.ReturnWhenEmpty || move == null || rearmable == null)
+				return;
+
+			if (--emptyScanTicks > 0)
+				return;
+
+			emptyScanTicks = info.EmptyScanInterval;
+
+			if (!self.IsInWorld || self.IsDead || !AllRearmablePoolsEmpty())
+				return;
+
+			// Already on the errand — re-issuing would cancel it and restart the walk from here, forever.
+			if (AmmoPool.IsSeekingRearm(self))
+				return;
+
+			// Already leaving the map for a refund; that disposition outranks a local errand and cancelling
+			// it would strand the unit at the front with nothing banked. RotateToEdge grants the condition
+			// and is otherwise only declared as a bare ExternalCondition, so reading the condition is the
+			// honest test — inferring it from "all pools empty" would be the cause, not the state
+			// (conventions.md, Actor.GetConditionCount).
+			if (!string.IsNullOrEmpty(info.EvacuatingCondition) && self.GetConditionCount(info.EvacuatingCondition) > 0)
+				return;
+
+			// Same stance contract as the idle seek: Hold means "stay put, a truck will come to me",
+			// Ambush means "do not stand up", HoldPosition means "do not roam". Evacuate is not ours
+			// either — AmmoPool.AutoRearmIfAllEmpty owns that disposition and rotates the unit out.
+			if (!StancesPermit())
+				return;
+
+			// ChooseResupplier filters on ownership, RearmActors membership and remaining supply only — it
+			// checks neither IsInWorld nor a path (economy.md). The IsInWorld hole is real: a host loaded
+			// into a carryall is out of the world with a stale CenterPosition, so it would read as a
+			// perfectly good destination at wherever it was picked up.
+			var host = AmmoPool.ChooseResupplier(self);
+			if (host == null || !host.IsInWorld || !WithinReturnLeash(host))
+			{
+				// Nothing worth walking to. Raise the flag the Hunt-stance provider scan reads
+				// (SupplyProvider.FindNeedsResupplyTarget) so the supply side can come to us instead, and
+				// leave the unit's current order alone — an unreachable errand is worse than none.
+				foreach (var pool in rearmable.RearmableAmmoPools)
+					pool.NeedsResupply = true;
+
+				return;
+			}
+
+			if (TestMode.IsActive)
+				Log.Write("debug",
+					$"[seek] dry unit={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+					+ $"host={host.Info.Name}@{host.Location} leash={info.ReturnWhenEmptyLeashCells}c");
+
+			// QueueActivity(false, …) inside — the forward order is cancelled, which is the point.
+			AmmoPool.AutoRearm(self);
+			self.ShowTargetLines();
+		}
+
+		bool AllRearmablePoolsEmpty()
+		{
+			if (rearmable.RearmableAmmoPools.Length == 0)
+				return false;
+
+			foreach (var pool in rearmable.RearmableAmmoPools)
+				if (pool.CurrentAmmoCount > 0)
+					return false;
+
+			return true;
+		}
+
+		bool WithinReturnLeash(Actor host)
+		{
+			return SupplyHuntMath.WithinCellBudget(
+				host.Location.X - self.Location.X,
+				host.Location.Y - self.Location.Y,
+				info.ReturnWhenEmptyLeashCells);
 		}
 
 		bool StancesPermit()

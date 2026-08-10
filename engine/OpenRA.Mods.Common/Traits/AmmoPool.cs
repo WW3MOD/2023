@@ -320,6 +320,23 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>
+		/// Is this actor already on its way to (or sitting at) a rearm source? Covers every activity
+		/// AutoRearm can queue, plus the infantry-only proximity errand.
+		///
+		/// AutoRearm queues with QueueActivity(false, …), which CANCELS the current activity — so any
+		/// caller that re-dispatches on a cadence must ask this first, or a unit whose scan interval
+		/// beats its travel time tears down and re-plans the same run forever without ever arriving.
+		/// Head-of-queue is the right place to look precisely because that cancel makes the resupply
+		/// activity the head.
+		/// </summary>
+		public static bool IsSeekingRearm(Actor self)
+		{
+			var current = self.CurrentActivity;
+			return current is SeekSupplyProvider || current is Resupply || current is RideTransport
+				|| current is SeekSuppliesAndReturn;
+		}
+
 		public static Actor ChooseResupplier(Actor self)
 		{
 			var rearmInfo = self.Info.TraitInfoOrDefault<RearmableInfo>();

@@ -218,8 +218,25 @@
 	# covers every soldier — human- and bot-owned alike; there is no owner-side split. Disableable per
 	# unit via stance: Resupply Hold or Evacuate, engagement HoldPosition, or fire Ambush all veto it
 	# (SupplyHuntMath.StancesPermitHunt). Flip to false to take the whole layer back off.
+	# ReturnWhenEmpty is the other half and is NOT idle-triggered: a man marching under an attack-move
+	# order is never idle, so the seek above cannot see the very case that prompted this — soldiers
+	# walking onto the line with nothing to fire. Empty (not low) breaks off the order and walks to the
+	# nearest rearm actor within the leash; beyond the leash he holds and is flagged for pickup.
 	AutoSeekSupplies:
 		Enabled: true
+		ReturnWhenEmpty: true
+	# Deprioritise a soldier who cannot shoot so a box-select over a mixed group takes only the men who
+	# can fight. Box-select keeps the single highest priority GROUP, so -1 is enough and is deliberately
+	# minimal: it drops them to 9, an otherwise-unused tier directly below ^SelectableCombatUnit's 10 and
+	# still above support (8) / economic (6) / defenses (4) / buildings (2), so a dry squad selected on
+	# its own still behaves normally. Hold Ctrl to take them along anyway — the same key
+	# ^SelectableCombatUnit already uses to raise priority.
+	# The condition is ^AmmoDecoration's own "no armed weapon has ammo" expression (defaults.yaml), so
+	# the blinking empty-ammo pip and the selection rule can never disagree about who is dry.
+	SelectionPriorityModifier@OutOfAmmo:
+		RequiresCondition: (weapon-primary || weapon-secondary) && !(weapon-primary && ammo-primary) && !(weapon-secondary && ammo-secondary) && !(weapon-tertiary && ammo-tertiary)
+		Modifier: -1
+		SuppressedBy: Ctrl
 	GainsExperienceMultiplier@TLBoost:
 		RequiresCondition: morale-boost
 		Modifier: 150

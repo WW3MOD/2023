@@ -538,7 +538,11 @@ namespace OpenRA.Traits
 	[RequireExplicitImplementation]
 	public interface ISelectionPriorityModifier
 	{
-		int GetSelectionPriorityModifier();
+		// Takes the held modifier keys because this is applied AFTER the Ctrl/Alt boost in
+		// BaseSelectionPriority: a unit boosted to int.MaxValue and then decremented still sits in its own
+		// priority GROUP, and SubsetWithHighestSelectionPriority keeps only the top group — so without the
+		// implementer seeing the keys, no hotkey could ever re-include a deprioritised unit.
+		int GetSelectionPriorityModifier(Modifiers modifiers);
 	}
 
 	public interface ISelection

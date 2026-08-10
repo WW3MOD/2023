@@ -2513,9 +2513,9 @@ namespace OpenRA.Mods.Common.Traits
 						// A unit already driving to a host is left alone. AutoRearm queues with
 						// QueueActivity(false, …), which CANCELS the current activity — so re-dispatching every eval
 						// would tear down and re-plan an in-flight resupply run each time, and a unit whose eval
-						// cadence beats its travel time could shuffle indefinitely without ever docking. These are
-						// the three activities AutoRearm can queue (AmmoPool.cs:290/:302/:311).
-						if (IsAlreadySeekingRearm(unit))
+						// cadence beats its travel time could shuffle indefinitely without ever docking. The
+						// activity list lives on AmmoPool so the infantry trait and this sweep cannot drift.
+						if (AmmoPool.IsSeekingRearm(unit))
 							break;
 
 						// Delegate to the engine's own rearm dispatcher rather than re-deriving the activity: it
@@ -2536,15 +2536,6 @@ namespace OpenRA.Mods.Common.Traits
 				Log.Write("debug",
 					$"[exp-ooa] sweep player={player.PlayerName} rearm={sought} evac={evacuated} banked={banked} " +
 					$"evacuating={evacuatingOutOfAmmo.Count} tick={tick}");
-		}
-
-		// Is this unit already on its way to a rearm host? Covers every activity AmmoPool.AutoRearm can queue, so a
-		// re-dispatch is suppressed rather than cancelling an in-flight run. `Resupply` also covers the docked state
-		// (the activity runs until the pool is full).
-		static bool IsAlreadySeekingRearm(Actor unit)
-		{
-			var current = unit.CurrentActivity;
-			return current is SeekSupplyProvider || current is Resupply || current is RideTransport;
 		}
 
 		// Terminal disposition: rotate the dry unit off the map edge for a refund, and drop it from bot management so

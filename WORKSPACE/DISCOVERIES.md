@@ -3,6 +3,33 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-10 — EVERY "unit reacts to its own state" TRAIT IN THIS REPO IS IDLE-TRIGGERED, AND A COMBAT UNIT UNDER ORDERS IS NEVER IDLE — so the reaction is missing in exactly the situation it was written for
+
+The reported symptom was soldiers walking onto the line with no ammunition. Two separate mechanisms already existed to prevent it and neither could ever fire:
+
+- `AmmoPool.AutoRearmIfAllEmpty` (`AmmoPool.cs:170`) has exactly two triggers — `INotifyAttack.Attacking` (`:247`) and `INotifyBecomingIdle` (`:252`). `AmmoPool` does not implement `ITick` (`:111`), and the `TakeAmmo` trigger is commented out (`:162-165`).
+- `AutoSeekSupplies` (the infantry low-ammo walk) is `INotifyIdle` only.
+
+So the state is sampled on the tick the last round leaves the barrel, and then never again until the unit runs out of orders. `Actor.IsIdle` is `CurrentActivity == null` (`Actor.cs:75`), and a man on an attack-move is under an activity for the whole march — so the *only* sample point is a moment when the unit is, by construction, still doing something else. **`INotifyAttack` + `INotifyBecomingIdle` is not "on change, and periodically"; it is "once, at the wrong time".** Any trait of the form "when my state becomes X, do Y" needs an `ITick` (throttled, deterministic per-actor phase from `ActorID`) if X can persist across an order — event hooks alone leave a hole the size of the behaviour.
+
+The generalisation worth carrying: this repo already documents the *inverse* trap for aircraft (conventions.md — a hovering helicopter's `IsIdle` is false forever, so every `IsIdle` gate on an airframe is dead code). The ground half is the same defect wearing different clothes, and both come from treating `IsIdle` as "not busy" when it means "has no queued activity at this instant".
+
+**Second-order consequence, and the reason the fix is two changes not one.** Every bot tasking order in this codebase is issued with `QueueActivity(false, …)`, which *cancels* the current activity (`Actor.cs:381-387`). So the moment a unit trait starts issuing its own errand, any bot module that re-tasks that unit does not merely reprioritise it — it destroys the errand, and the unit is back where it started with a scan interval's worth of walking wasted. A self-directed unit behaviour is therefore only real once the tasking layer is taught to leave it alone; the two halves are one feature. `PoiOffensiveBotModule` had already learned this for vehicles (`IsAlreadySeekingRearm`, now shared as `AmmoPool.IsSeekingRearm`), which is the tell that it is a general rule and not an infantry quirk.
+
+**Reachability, again (cf. 2026-08-09 "a host is named is not a host exists").** The same trap applies to the destination, one step further along: `AmmoPool.ChooseResupplier` (`:323-345`) filters on ownership, `RearmActors` membership and `CurrentSupply > 0`, then `ClosestToIgnoringPath` — **no path check and no `IsInWorld` check**. Unleashed, that will march a dry soldier at a depot across an unfordable river for the rest of the match, and a host loaded into a carryall reads as a fine destination at whatever position it was picked up from. Anything that turns `ChooseResupplier`'s answer into an order needs its own budget; a chessboard cell cap is the cheap proxy the vehicle sweep already uses, and it must be *documented as a proxy*.
+
+**Unrelated but verified while here:** the Logistics Centre *is* a real rearm host for infantry, despite its `SupplyProvider.RearmCondition` being `replenish-vehicles`. It carries a separate `ProximityExternalCondition@ReplenishSoldiers` at 4c0 (`structures.yaml:381-385`), and `Resupply` gates the rearm branch on `Rearmable.RearmActors` membership rather than on the push condition (`Resupply.cs:85`). economy.md's "a truck can never rearm a vehicle" asymmetry does not have a mirror image — the LC serves both.
+
+## 2026-08-10 — SELECTION PRIORITY IS A GROUP FILTER, NOT A RANKING — so `Selectable.PriorityModifiers` cannot undo an `ISelectionPriorityModifier`, and every deprioritised unit was unselectable-with-peers by any key
+
+`SelectableExts.SubsetWithHighestSelectionPriority` (`:96-103`) groups actors by exact priority and returns **only the top group** — a box-select does not rank, it filters. That makes the arithmetic matter in a way a ranking would not:
+
+`BaseSelectionPriority` (`:54-65`) applies the Ctrl/Alt boost **first**, raising a matching actor to `int.MaxValue`; the dynamic `ISelectionPriorityModifier` contributions are added **after** (`:35-36`). So a deprioritised unit under a held Ctrl sits at `int.MaxValue - Modifier` — a *different group* from its healthy peers at `int.MaxValue`, and therefore still filtered out. The override key raises both tiers and closes none of the gap between them.
+
+This was latent before this work: `SelectionPriorityModifier@Evacuating` (`infantry.yaml`, `Modifier: -20`) has always been unconditional in practice — there was no key that would let a player box-select an evacuating soldier alongside a healthy one. Fixed structurally by giving `ISelectionPriorityModifier.GetSelectionPriorityModifier` the held `Modifiers` and adding a `SuppressedBy` field (default `None`, so the evacuating case is untouched until someone opts it in).
+
+Two facts worth keeping for anyone choosing a `Modifier` value: WW3MOD's whole priority ladder is `10 / 8 / 6 / 4 / 2 / 1 / 0` with **nothing at 9**, so `-1` buys a private tier that keeps the deprioritised unit above supply trucks and buildings (it still selects normally when boxed alone); and the override key is **Ctrl**, which already recolours the drag box to `ctrlSelectionColor` (`WorldInteractionControllerWidget.cs:66-67`) — the player gets a visual tell for free.
+
 ## 2026-08-10 — THERE ARE SIX INDEPENDENT PLACES A BOT MODULE DECIDES A UNIT IS AVAILABLE FOR TASKING, AND THEY SHARE NO CODE — so every cross-cutting "don't use unit X for Y" rule is a six-site change that will be forgotten in three of them
 
 **This is a structural finding about the bot layer, not a supply one.** The ammo case below is how it was discovered; the shape is what to carry forward.

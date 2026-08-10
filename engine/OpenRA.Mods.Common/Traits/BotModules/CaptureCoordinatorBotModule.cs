@@ -108,8 +108,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Withhold a unit from escort/defender duty while ANY of its ammo pools sits below this per-mille of",
 			"capacity. Both dispatches are an AttackMove across open ground — a dry escort protects the capturer",
 			"from nothing and dies on the way. Matches SupplyFollowerBotModule.HuntStarvingThresholdPerMille.",
-			"0 = OFF, the shipped default, so the frozen @stable.tecn twin (which omits this field) is",
-			"byte-identical.")]
+			"0 = OFF, the shipped default, so the frozen @stable.tecn twin (which omits this field) recruits",
+			"regardless of ammo state. No longer byte-identical: StarvingRecruitGate additionally withholds a",
+			"unit that is mid-resupply, unconditionally and on both profiles — see the gate.")]
 		public readonly int StarvingRecruitThresholdPerMille = 0;
 
 		[Desc("Radius (cells) inside which enemy army value is counted when evaluating threat to own structures.")]
