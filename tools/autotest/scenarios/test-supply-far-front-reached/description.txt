@@ -1,0 +1,1 @@
+ALWAYS RUN AT --seed -1848572889. A starving platoon 41 cells from the truck — beyond MaxFollowDistance: 35 — must still be resupplied without leaving its position (drift allowance 6 cells = the doctrine's 5-cell crate standoff plus one). No enemy on the map, so the follow leash is the only thing that can refuse the delivery; a truck that never sets off is the FAIL this guards.

@@ -1,0 +1,171 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: supply reaches a front beyond the follow leash
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# DOCTRINE UNDER TEST — the DISTANCE half of the settled supply doctrine:
+#
+#   "Supplies has to reach the front, one way or another. A platoon that is running low on
+#    ammo WILL DIE if they are not resupplied."
+#
+# One way or another admits no radius. A truck that declines because the platoon is two
+# cells past a number is refusing the doctrine outright, and it refuses SILENTLY: a truck
+# that never sets off logs nothing a player would ever see, so nothing but a test catches it.
+#
+# THE FAILURE THIS GUARDS WAS MEASURED LIVE, 2026-08-10, on test-supply-under-danger:
+#
+#   truck=10@7,16 supply=750 target=<none> nearest-found=44,16 nearest-dist=37c/max-follow=35c
+#
+# A full 750-supply truck, a five-man platoon with every man below the starving bar, and the
+# truck sat at the beachhead for the whole match because 37 > 35. `0ed01e0e` fixed it by
+# letting starvation lift the leash per cluster (StarvingFollowMinUnits / StarvingMaxFollowDistance
+# in ai.yaml). This map is that measurement turned into a guard: same truck cell, the platoon
+# pushed further out so a regression cannot squeak under the old cap.
+#
+# GEOMETRY (row 16 is the lane; distances are map cells)
+#   x=4    USA-bot Supply Route          — carries no supply aura; cannot rearm anyone
+#   x=7    Truck (truk, full 750)        — the exact cell the live failure was measured at
+#   x=48   Platoon: 5x e3, drained to 10/100 primary in Lua
+#   (no enemy actor anywhere on the map)
+#
+# 41 CELLS IS THE LOAD-BEARING DISTANCE, and every constant it sits against is deliberate:
+#   - OVER MaxFollowDistance: 35 (ai.yaml:805) BY SIX CELLS. This is the whole point. 37 —
+#     the live number — was rejected as too tight: it is the value the fix was written against,
+#     so a regression that re-derived the cap as, say, 38 would pass at 37 and the guard would
+#     be worthless. 41 clears the old cap by a margin no plausible off-by-one covers.
+#   - UNDER StarvingMaxFollowDistance: 80 (ai.yaml), the lifted leash, with 39 cells to spare.
+#     If this map ever grows, that is the bound to recheck.
+#   - OVER HuntLeashCells: 20, so the Tier-2 idle-truck hunt cannot reach the platoon and the
+#     FOLLOW pass is unambiguously what is under test.
+#   - OVER AutoSeekSupplies' SupplyHuntLeashCells: 20 (AutoSeekSupplies.cs:44) AT t=0, so no
+#     provider is selectable by the soldiers when the run starts. Without that the platoon
+#     could walk to the truck by itself and the test would go green while the truck sat still
+#     — the exact way to author a scenario that silently measures nothing. (The leash FOLLOWS
+#     the truck once it moves, so this only holds at t=0; the Lua measures drift precisely
+#     because no placement can prevent that later.)
+#
+# WHY THERE IS NO ENEMY — THIS IS THE QUIET CASE ON PURPOSE. test-supply-under-danger already
+# owns the dangerous route at 31 cells: danger routing (Stage-E detours), DangerEvac and the
+# drop-and-leave commitment override all bear on whether a truck reaches a front under fire,
+# and every one of them is a way for a run to go red for a reason that has nothing to do with
+# distance. Removing the enemy removes that entire family of confounds: with a zero danger
+# field, GroundDangerAt is 0 on every cell, the evac and detour branches are inert, and the
+# only reason left for this truck not to deliver is the follow-leash selection. A red here
+# therefore points at ONE thing. Pairing that against the near-quiet sibling
+# (test-supply-safe-front-keeps-cargo, 30 cells) makes distance the single variable.
+#
+# NOTHING ELSE CAN FEED THE PLATOON. ^E3's Rearmable lists only `truk, logisticscenter`
+# (infantry.yaml:1251-1253); there is no logistics centre here, and SUPPLYROUTE carries no
+# SupplyProvider, so the beachhead cannot rearm anyone. The truck, or a crate it drops, is the
+# only supply in the world — which is what makes an ammo climb mean a real delivery happened.
+#
+# HOW the ammo arrives is deliberately NOT constrained here. Aura service at the platoon or a
+# crate dropped short and walked to are both doctrine; the Lua asserts the outcome, so this
+# map stays valid if the delivery route is later changed.
+#
+# HOME LOCATIONS ARE PINNED EXPLICITLY, carried over from test-supply-safe-front-keeps-cargo
+# where the reasoning is set out at length. Short version: rules.yaml removes
+# MapStartingLocations, so Player.HomeLocation falls back to PlayerReference.HomeLocation,
+# which DEFAULTS TO 0,0 — and ControlField.ApplyAnchors stamps a permanent enemy control
+# anchor at every enemy HomeLocation whether or not that player owns an actor, which the
+# drop-and-leave anchor descent then reads. Leaving them unpinned puts both players' anchors
+# on the same corner cell and quietly changes what the frontier means.
+#
+# The platoon at x=48 sits 14 cells west of the enemy pin at 62,16, outside its anchor disc
+# (AnchorRadiusCells 4 coarse x CellSize 2 = 8 map cells) with 6 cells to spare. That is the
+# tightest geometric margin on this map after the drift allowance; if the platoon is ever
+# moved further east, recheck it before anything else.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 4,16
+	# Declared, and deliberately owns NOTHING. An enemy player has to exist for USA-bot to
+	# have a front at all, but this one never puts an actor on the map, so no contact is ever
+	# believed and no danger is ever stamped. ConquestVictoryConditions is removed in
+	# rules.yaml, so an actorless player cannot end the match.
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA-bot
+		HomeLocation: 62,16
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 4,16
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 4,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 62,16
+
+	# The truck under test. Full 750 supply, clear route east along row 16, and no believed
+	# danger anywhere on that route. x=7 is the cell the live abandonment was measured at, and
+	# it is 3 cells clear of the Supply Route's 3x3 footprint at 4,16.
+	Truck: truk
+		Owner: USA-bot
+		Location: 7,16
+
+	# The starving platoon, 41 cells out. Five riflemen inside one 10-cell cluster radius, so
+	# they read as a single cluster on every bot profile (MinNearbyFriendlies 4, or 2 under
+	# SmallSquadCoverage). Five also clears StarvingFollowMinUnits: 2 with room, and
+	# DropMinStarvingUnits: 3 — so every gate that could permit a delivery is satisfied and the
+	# leash is the only thing standing between the truck and the platoon.
+	Rifle1: e3
+		Owner: USA-bot
+		Location: 48,14
+		Facing: 256
+	Rifle2: e3
+		Owner: USA-bot
+		Location: 48,15
+		Facing: 256
+	Rifle3: e3
+		Owner: USA-bot
+		Location: 48,16
+		Facing: 256
+	Rifle4: e3
+		Owner: USA-bot
+		Location: 48,17
+		Facing: 256
+	Rifle5: e3
+		Owner: USA-bot
+		Location: 48,18
+		Facing: 256
+
+Rules: rules.yaml

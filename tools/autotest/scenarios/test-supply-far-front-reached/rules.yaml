@@ -1,0 +1,53 @@
+# Far-front supply autotest overrides.
+#
+# DELIBERATELY MINIMAL, and identical to test-supply-safe-front-keeps-cargo's except that the
+# TRUK instrumentation block is absent (see the bottom of this file for why). Nothing here
+# touches SupplyFollowerBotModule, the follow leash, or any threshold that gates them — the
+# point of the test is what the SHIPPING config does at 41 cells, so tuning any of it here
+# would make the verdict meaningless. In particular MaxFollowDistance and
+# StarvingMaxFollowDistance are NOT restated: this scenario exists to measure ai.yaml's
+# values, and a local copy of them would go stale the moment ai.yaml moved.
+
+Player:
+	# Faction elimination would end the match before the Lua poller writes a verdict — and
+	# here it would fire immediately, since Russia owns no actors at all.
+	-ConquestVictoryConditions:
+	# Fog OFF and the map pre-explored. Kept for parity with the two sibling supply scenarios
+	# so the three differ in only the things they are meant to differ in. It is inert here in
+	# the belief sense — there is nothing on the map to see — but leaving it identical means a
+	# difference in verdicts cannot be blamed on visibility.
+	MapLayers:
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+	# No cash -> no production, so the only actors are the pre-placed ones and the platoon
+	# cannot be reinforced into passing.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults (AutoTarget.cs).
+	# The crate-collect half of the doctrine runs through AutoSeekSupplies, which is stance
+	# gated (Resupply Hold / Evacuate, HoldPosition, Ambush all veto it), so a dev who once set
+	# riflemen to Ambush would otherwise change what this test measures — and here that would be
+	# invisible, because a platoon that never moves looks exactly like a platoon that correctly
+	# held its position.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-supply-far-front-reached.lua
+
+# NO `TRUK: SupplyProvider: RemoveBelowSupply: 1` HERE, and that is a decision rather than an
+# omission. The safe-front sibling needs it because it asserts the truck still HOLDS supply, and
+# there is no Lua binding for CurrentSupply, so it converts "has supply" into "still exists".
+# This scenario asserts nothing about the truck's remaining stock — only that the platoon was
+# fed at the front — so the field would buy nothing, and it would cost something: a truck that
+# correctly dropped its whole load would self-Dispose instead of driving off to be sold, and the
+# failure text would lose the truck's furthest-x reading at the moment it is most wanted. The Lua
+# therefore treats a missing truck as a diagnostic, never as a verdict.
