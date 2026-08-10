@@ -115,11 +115,19 @@ namespace OpenRA.Mods.Common.Traits
 
 			var range = patient != null ? healer.HealRange : info.FollowDistance;
 
-			if (TrackStall(self, target, patient != null))
-				return;
-
 			var distSq = (target.CenterPosition - self.CenterPosition).HorizontalLengthSquared;
 			if (distSq <= range.LengthSquared)
+			{
+				// Arrived. Standing still is the CORRECT state here, so it must not be read as a stall —
+				// keep the hysteresis state warm instead, or four quiet checks in a row would bench the
+				// very ally we are successfully escorting.
+				followTarget = target;
+				lastCell = self.Location;
+				stalledTicks = 0;
+				return;
+			}
+
+			if (TrackStall(self, target, patient != null))
 				return;
 
 			// PITFALL: queued=false means CancelActivity FIRST (Actor.cs) — this REPLACES the current

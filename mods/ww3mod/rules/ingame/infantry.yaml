@@ -2210,6 +2210,7 @@ SF:
 		# heal order on a genuinely wounded man, walks up, aims, and fires nothing for as long as he is
 		# suppressed — stuck non-idle, so none of his autonomy runs either. On screen that is
 		# indistinguishable from the order having been refused. Give up instead and stay available.
+		# Covers this trait's own PauseOnCondition (garrisoned-at-port) too, which wedges the same way.
 		AbandonWhenArmamentsPaused: true
 	Armament@1:
 		Name: primary

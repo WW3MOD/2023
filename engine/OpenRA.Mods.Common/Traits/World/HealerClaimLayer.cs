@@ -61,7 +61,13 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public void RemoveClaim(Actor healer)
 		{
-			if (claimByHealer.TryGetValue(healer, out var patient))
+			// PITFALL: only drop the forward entry if it still points BACK at this healer. A healer's
+			// reverse entry outlives his claim — once a second healer re-claims the same patient,
+			// claimByPatient names the new healer while claimByHealer still names the old one — so an
+			// unconditional Remove here deletes the LIVE claim of a healer already walking over, the
+			// patient reads unclaimed to everyone, and a third healer piles onto the same casualty.
+			if (claimByHealer.TryGetValue(healer, out var patient)
+				&& claimByPatient.TryGetValue(patient, out var claimant) && claimant == healer)
 				claimByPatient.Remove(patient);
 
 			claimByHealer.Remove(healer);

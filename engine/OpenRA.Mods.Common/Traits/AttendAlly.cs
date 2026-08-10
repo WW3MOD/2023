@@ -66,8 +66,47 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			get
 			{
-				yield return new TargetTypeOrderTargeter(info.ValidTargets, OrderName, info.OrderPriority,
-					info.Cursor, false, true);
+				yield return new AttendAllyOrderTargeter(info.ValidTargets, OrderName, info.OrderPriority, info.Cursor);
+			}
+		}
+
+		/// <summary>Allies only, and genuinely only allies.
+		/// PITFALL: <see cref="UnitOrderTargeter"/>'s own relationship checks are BOTH skipped when the
+		/// ForceAttack modifier is held, and neither of them tests Neutral in the first place. Passing
+		/// targetEnemyUnits: false is therefore not enough on its own — since this targeter outranks
+		/// AttackBase's, a Ctrl+Alt click would otherwise send an unarmed healer to stand one cell from
+		/// an enemy and hold him there. The relationship is re-checked here, where nothing can skip it.</summary>
+		sealed class AttendAllyOrderTargeter : TargetTypeOrderTargeter
+		{
+			public AttendAllyOrderTargeter(BitSet<TargetableType> targetTypes, string order, int priority, string cursor)
+				: base(targetTypes, order, priority, cursor, false, true)
+			{
+				// Refuse outright while ForceAttack is held, rather than relying on checks it bypasses.
+				ForceAttack = false;
+			}
+
+			public override bool CanTargetActor(Actor self, Actor target, TargetModifiers modifiers, ref string cursor)
+			{
+				if (target == self || !self.Owner.IsAlliedWith(target.Owner))
+					return false;
+
+				return base.CanTargetActor(self, target, modifiers, ref cursor);
+			}
+
+			public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
+			{
+				return false;
+			}
+
+			public override bool TargetOverridesSelection(Actor self, in Target target, List<Actor> actorsAt, CPos xy, TargetModifiers modifiers)
+			{
+				// Same rule Mobile uses: a plain click on a friendly who is not already selected should
+				// still SELECT him. Only override selection once he is selected (so the player is plainly
+				// giving an order about him) or when force-move is held.
+				if (target.Type == TargetType.Actor && self.World.Selection.Contains(target.Actor))
+					return true;
+
+				return modifiers.HasModifier(TargetModifiers.ForceMove);
 			}
 		}
 

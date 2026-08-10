@@ -93,9 +93,12 @@ namespace OpenRA.Mods.Common.Traits
 			EnsureClaimLayer(self);
 
 			// This trait answers for the healer unconditionally — "nobody" is an answer, not an
-			// abstention. Returning false hands the decision to AutoTarget's own scan, which looks no
-			// further than the heal weapon's one cell and applies none of the rules below, so it would
-			// quietly overrule MaxPatientHealthPercent and re-issue attacks this trait just declined.
+			// abstention. Returning false hands the decision to AutoTarget's own scan, which is NOT
+			// bounded by the heal weapon's one cell: it uses AutoTarget.ScanRadius, 25 cells on ^MEDI.
+			// That scan applies none of the rules below, so it would pick up anyone merely `damaged`
+			// clean across the field — overruling MaxPatientHealthPercent — and, because it re-issues an
+			// attack every scan interval, cancel the follow move that was walking us to the patient this
+			// trait actually chose.
 			if (ArmamentsPaused())
 			{
 				// Suppressed, typically: he cannot treat anyone at all right now. Say so, and let go of
@@ -133,6 +136,14 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (ab.IsTraitDisabled)
 					continue;
+
+				// A paused AttackBase fires nothing whatever the state of its armaments — Attack.DoAttack
+				// skips the whole trait. ^MEDI's is paused while garrisoned at a port.
+				if (ab.IsTraitPaused)
+				{
+					found = true;
+					continue;
+				}
 
 				foreach (var armament in ab.Armaments)
 				{

@@ -238,7 +238,10 @@ namespace OpenRA.Mods.Common.Activities
 			// Armament.CanFire then declines silently every tick while this activity keeps reporting
 			// Attacking, so the unit aims at a target it cannot engage for as long as the pause lasts —
 			// and is never idle, which silences every idle-driven behaviour it owns. Opt-in per unit.
-			if (attack.Info.AbandonWhenArmamentsPaused && armaments.TrueForAll(a => a.IsTraitPaused))
+			// The AttackBase's own pause has to be tested too: DoAttack below skips every armament
+			// wholesale on `!attack.IsTraitPaused`, so a paused base wedges identically with armaments
+			// that are all perfectly live.
+			if (attack.Info.AbandonWhenArmamentsPaused && (attack.IsTraitPaused || armaments.TrueForAll(a => a.IsTraitPaused)))
 				return AttackStatus.UnableToAttack;
 
 			// Update ranges
