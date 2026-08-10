@@ -576,6 +576,8 @@ grad:
 		LocalOffset: 0,0,100
 		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 		AimingDelay: 30
+		MuzzleSequence: muzzle-missile
+	WithMuzzleOverlay:
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -701,6 +703,8 @@ tos:
 		LocalOffset: 0,0,100
 		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 		AimingDelay: 30
+		MuzzleSequence: muzzle-missile
+	WithMuzzleOverlay:
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -860,6 +864,7 @@ tunguska:
 		Weapon: 9M311
 		LocalOffset: 500,240,120, 500,-240,120
 		PauseOnCondition: !ammo-secondary || firing-primary || empdisable || heavy-damage-attained
+		MuzzleSequence: muzzle-missile
 	GrantConditionOnPreparingAttack@2:
 		ArmamentNames: secondary
 		Condition: firing-secondary

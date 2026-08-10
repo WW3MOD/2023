@@ -398,6 +398,9 @@ AACannon:
 	Projectile: Bullet
 		Speed: 900
 		Inaccuracy: 0c312
+		# ^30mm defaults to grenade_small, which has no Facings and so does not orient
+		# to its flight path. An autocannon belt is ~1-in-4 tracer: a directional streak.
+		Image: tracer_small
 	Warhead@Target: TargetDamage
 		Damage: 500
 		Penetration: 60
@@ -421,6 +424,7 @@ AACannon:
 	Projectile: Bullet
 		Speed: 900
 		Inaccuracy: 0c392
+		Image: tracer_small
 	Warhead@Target: TargetDamage
 		Damage: 500
 		Penetration: 60
@@ -444,7 +448,8 @@ AACannon:
 		Image: tracer_small
 30mm.Tunguska.AG:
 	Inherits@Caliber: ^30mm.Tunguska
-	Inherits@HitEffects: ^PiffEffects
+	# PITFALL: piffs are the small-arms ricochet spark (.50cal and below). An autocannon
+	# impact is hit_small + shrapnel_small from ^MinimalExplosionEffects, not a spark.
 	ValidTargets: Infantry, Vehicle, Defense
 	MinRange: 1c512
 	Warhead@Target: TargetDamage
@@ -455,7 +460,6 @@ AACannon:
 	ValidTargets: Helicopter
 30mm.A10:
 	Inherits@Caliber: ^30mm
-	Inherits@HitEffects: ^PiffEffects
 	Range: 20c0
 	MinRange: 1c0
 	Burst: 15
@@ -489,9 +493,9 @@ AACannon:
 	Projectile: Bullet
 		Speed: 800
 		Inaccuracy: 512
+		Image: tracer_small
 30mm.TimerWolf:
 	Inherits@Caliber: ^30mm
-	Inherits@HitEffects: ^PiffEffects
 	Range: 20c0
 	MinRange: 1c0
 	Burst: 12

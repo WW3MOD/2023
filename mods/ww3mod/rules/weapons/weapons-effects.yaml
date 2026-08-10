@@ -456,7 +456,7 @@
 		DamageTypes: BulletDeath
 	Warhead@Effect: CreateEffect
 		ValidTargets: Ground, Ship, Trees
-		Explosions: hit_minimal
+		Explosions: hit_small
 		ImpactSounds: kaboom12.aud
 	Warhead@EffectShrapnel: CreateEffect
 		Explosions: shrapnel_small
@@ -587,9 +587,6 @@
 		Delay: 1
 		Explosions: shrapnel_large
 		ValidTargets: Ground, Ship, Trees, Mine
-	Warhead@Smudge: LeaveSmudge
-		SmudgeType: Crater
-		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
 	Warhead@EffectWater: CreateEffect
 		Explosions: splash_large
 		ImpactSounds: splash9.aud
@@ -618,9 +615,6 @@
 	Warhead@EffectShrapnel: CreateEffect
 		Explosions: shrapnel_large
 		ValidTargets: Ground, Ship, Trees, Mine
-	Warhead@Smudge: LeaveSmudge
-		SmudgeType: Crater
-		InvalidTargets: Vehicle, Structure, Wall, Husk, Trees
 	Warhead@EffectWater: CreateEffect
 		Explosions: splash_large
 		ImpactSounds: splashl1.aud, splashl2.aud
@@ -686,7 +680,11 @@
 	Warhead@Spread: SpreadDamage
 		ValidTargets: Air
 	Warhead@Effect: CreateEffect
-		ValidTargets: Air
+		# PITFALL: an in-flight ballistic missile (^ShootableMissile, defaults.yaml) is
+		# TargetTypes: ICBM ONLY — it is not Air. Omitting ICBM here makes the missile an
+		# invalid actor at impact, which suppresses the whole effect (CreateEffectWarhead
+		# .DoImpact early-returns on ImpactActorType.Invalid), so an intercept renders nothing.
+		ValidTargets: Air, ICBM
 		ImpactActors: true
 		Explosions: explosion_air_small
 		ImpactSounds: kaboom12.aud
@@ -703,7 +701,9 @@
 
 ^MediumExplosionEffectsAir:
 	Warhead@AirEffect: CreateEffect
-		ValidTargets: Air
+		# ICBM: see ^MinimalExplosionEffectsAir — a SAM intercept of a ballistic missile
+		# rendered nothing without it.
+		ValidTargets: Air, ICBM
 		ImpactActors: true
 		Explosions: explosion_air_medium
 		ImpactSounds: kaboom25.aud

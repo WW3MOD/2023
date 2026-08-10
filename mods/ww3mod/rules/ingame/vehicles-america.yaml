@@ -753,6 +753,9 @@ m270:
 		LocalOffset: 192,-64,176, 192,64,176
 		PauseOnCondition: !ammo-primary || empdisable || unit.docked || heavy-damage-attained
 		AimingDelay: 30
+		# The WithMuzzleOverlay below was a DEAD trait until this line existed — the trait
+		# only collects armaments whose MuzzleSequence is non-null (WithMuzzleOverlay.cs:45-47).
+		MuzzleSequence: muzzle-missile
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
@@ -899,6 +902,7 @@ strykershorad:
 		LocalOffset: 100,90,90
 		LocalYaw: -100, 100
 		PauseOnCondition: !ammo-secondary || empdisable || heavy-damage-attained
+		MuzzleSequence: muzzle-missile
 	AmmoPool@2:
 		Name: secondary-ammo
 		Armaments: secondary
@@ -932,6 +936,7 @@ strykershorad:
 		LocalOffset: 100,-90,90
 		LocalYaw: -70, 100
 		PauseOnCondition: !ammo-tertiary || empdisable || heavy-damage-attained
+		MuzzleSequence: muzzle-missile
 	AmmoPool@3:
 		Name: tertiary-ammo
 		Armaments: tertiary
@@ -1044,6 +1049,8 @@ HIMARS:
 		PauseOnCondition: !ammo-primary || empdisable || unit.docked || heavy-damage-attained
 		RequiresForceFire: True
 		AimingDelay: 40
+		# As M270 — the existing WithMuzzleOverlay had no armament to draw for.
+		MuzzleSequence: muzzle-missile
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
