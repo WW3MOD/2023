@@ -3,6 +3,26 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-10 — MEASURED: `ReferenceIntensity` is a weak reference, and the supply-truck evac threshold is below the median cell it gates
+
+First live read of the `[danger] reference` / `[danger] dist` instrumentation, at `main @ 2754f341`, from `test-frontline-reachability` (instantiates `@experimental` + `@stable` on River Zeta). Verbatim:
+
+```
+[danger] reference ground=3412 air=3627 (100 danger units = one reference contact at point-blank) ground-types=92/424 min=164 max=1271250
+[danger] dist player=USA-bot    n=80 cells=4168 ground min=0 median=27919 max=156348 | in units median=818  max=4582  ref=3412
+[danger] dist player=Russia-bot n=80 cells=3793 ground min=1 median=94010 max=526457 | in units median=2755 max=15429 ref=3412
+```
+
+Reproducible, not a one-off: six earlier `reference` lines in the pre-run log carry the same `ground=3412`.
+
+- **The median landed near the carbine end, which was the feared direction.** `3412` against a statically-derived carbine **2,237** and automatic rifleman **7,820** — 1.53× the carbine, 0.44× the rifleman.
+- **The evac guard is below the field it gates.** `EvacDangerUnits = 50` (`SupplyFollowerBotModule.cs:106`) and `DangerUnitsToField = units × reference / 100` (`DangerFieldLayer.cs:255-265`), so evacLevel = 50 × 3412 / 100 = **1,706**. A decayed mobile contact at max range is **2,795**, so the decayed rumour alone trips evac — the reference would have to exceed **5,590** to clear it. Worse, by the code's own criterion (`DangerFieldLayer.cs:466-467`: *"a threshold the median already exceeds is firing unconditionally"*), 1,706 sits **16× below** USA-bot's live median cell and **55× below** Russia-bot's.
+- **The `Desc` reasoning at `SupplyFollowerBotModule.cs:100-106` is now falsified by measurement.** It argues "50 units sits above that tail by construction" from kernel taper geometry. Measured, it sits far below the median. **Deriving a threshold from kernel geometry predicts the SHAPE of one contact's envelope and says nothing about how many envelopes overlap a cell in a real match** — that is the reasoning error, and it is the same class as the one this branch already fixed one term over.
+- **The unit itself is the problem, by the code's own stated tell** (`DangerFieldLayer.cs:416-417`: *"if min and max straddle the median by more than ~2 orders, the median is a weak reference and the unit wants revisiting — not the individual thresholds"*). Measured min=164, median=3412, max=1,271,250 — the max is **2.57 orders / 372×** above the median, and only **92 of 424** types contribute at all. So this is the revisit-the-unit case, not the retune-thirteen-thresholds case.
+- **Method note that generalises:** the instrumentation was written to be read by one ordinary session, and it worked — but only because it logs the SPREAD and a live DISTRIBUTION alongside the scalar. A bare `reference=3412` would have looked fine. **A calibration constant should never be logged without the spread of the population it summarises.**
+- The prior `66,834` live-log median (taken while the cadence bug was live) is superseded and should not be quoted; the current equivalents are 27,919 / 94,010 per side.
+- Log hygiene: `debug.log` is **rotated at game start** (observed 9,594,254 → 162,780 bytes), so a byte-offset tail captured before launch is invalid. Re-read the whole file after the run.
+
 ## 2026-08-09 — a documentation quarantine has two halves, and only one of them was liftable when the branch merged
 
 Lifting the danger-field quarantine over `DOCS/bots/` after `auto/danger-scale` landed (`6fc1cfff` → `1092573d` → `c69835eb`, reconciled `5642d931`; worked at `main @ af36e686`). Documentation-only pass — no code touched, nothing run.
