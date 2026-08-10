@@ -444,7 +444,8 @@ AACannon:
 		Image: tracer_small
 30mm.Tunguska.AG:
 	Inherits@Caliber: ^30mm.Tunguska
-	Inherits@HitEffects: ^PiffEffects
+	# PITFALL: piffs are the small-arms ricochet spark (.50cal and below). An autocannon
+	# impact is hit_small + shrapnel_small from ^MinimalExplosionEffects, not a spark.
 	ValidTargets: Infantry, Vehicle, Defense
 	MinRange: 1c512
 	Warhead@Target: TargetDamage
@@ -455,7 +456,6 @@ AACannon:
 	ValidTargets: Helicopter
 30mm.A10:
 	Inherits@Caliber: ^30mm
-	Inherits@HitEffects: ^PiffEffects
 	Range: 20c0
 	MinRange: 1c0
 	Burst: 15
@@ -491,7 +491,6 @@ AACannon:
 		Inaccuracy: 512
 30mm.TimerWolf:
 	Inherits@Caliber: ^30mm
-	Inherits@HitEffects: ^PiffEffects
 	Range: 20c0
 	MinRange: 1c0
 	Burst: 12

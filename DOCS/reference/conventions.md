@@ -67,9 +67,16 @@ A unit type is defined in three tiers: an abstract template `^E6` and a bare con
 
 This is also the reliable way to add a trait from **map/test `rules.yaml`**: override a `^Template` (e.g. `^Combatant`) or a bare hull key (`t90`, `bradley`), as `demo-wgm-suite/rules.yaml` does. Overriding a **faction-suffixed** concrete key (`ar.america`) from map rules has been observed to throw `LoadFromManifest<Rules>, duplicate values found for the following keys: ar.america: [ActorInfo,ActorInfo]` at load — prefer the template.
 
-### Weapon `ValidTargets`: `Air` ≠ `Helicopter`
+### Weapon `ValidTargets`: `Air` ⊃ `Helicopter` (the two are NOT disjoint)
 
-Helicopters are hit by the `Helicopter` target type, not `Air` — these are distinct. Ground autocannons and MGs list `Helicopter` and so *can* shoot helis without being air-defence: `^7.62mm` is `Infantry, Unarmored, Helicopter` (`weapons/weapons-ballistics.yaml:144`), `^12.7mm` adds `Light` (`:215`), and even Tunguska's dedicated `30mm.Tunguska.AA` autocannon is `ValidTargets: Helicopter` (`:455`). Only guided SAMs list `Air`: `MANPAD`/`Stinger`/`Stinger.quad`/`9M311` (`weapons/weapons-missiles.yaml:339,372`; `9M311 Inherits: Stinger`), which is how Tunguska gains true air-defence — via its `9M311` missile (`vehicles-russia.yaml:860`), not its gun. So any "is this an air-defence weapon?" test must key on the literal `Air` target type; keying on `Helicopter` sweeps in every MG-armed vehicle.
+**An airborne helicopter carries BOTH `Air` and `Helicopter`.** `^Helicopter` inherits `^Airborne` → `^NeutralAirborne`, whose `Targetable@Airborne` grants `Air, AirDetonateAttack` while the `airborne` condition holds (`rules/ingame/aircraft.yaml:35-38`), and `^Helicopter` adds its own *unconditional* `Targetable@Helicopter: Helicopter` (`:164-165`). Nothing in `rules/` removes `Targetable@Airborne`. A **landed** helicopter is `Ground, Vehicle` + `Helicopter` and is no longer `Air`; a fixed-wing aircraft is only ever `Air`. So:
+
+- `Helicopter` is the **heli-only** selector — it is how a weapon engages helicopters *without* being able to touch fixed-wing.
+- `Air` **sweeps both** helicopters and planes (while airborne).
+
+That asymmetry is the design: ground autocannons and MGs list `Helicopter` and so can shoot helis without becoming air-defence — `^7.62mm` is `Infantry, Unarmored, Helicopter` (`weapons/weapons-ballistics.yaml:144`), `^12.7mm` adds `Light` (`:215`), and even Tunguska's dedicated `30mm.Tunguska.AA` autocannon is `ValidTargets: Helicopter` (`:455`), so it cannot engage a jet. Guided SAMs list `Air`: `MANPAD`/`Stinger`/`Stinger.quad`/`9M311` (`weapons/weapons-missiles.yaml:339,372`; `9M311 Inherits: Stinger`), which is how Tunguska gains true air-defence — via its `9M311` missile (`vehicles-russia.yaml:860`), not its gun. An "is this an air-defence weapon?" test must therefore key on the literal `Air` target type; keying on `Helicopter` sweeps in every MG-armed vehicle.
+
+**Consequence for `CreateEffect` warheads:** an air-impact effect wants `ValidTargets: Air` alone. Writing `Air, Helicopter` also matches a *landed* helicopter, which the template's ordinary `Ground` warhead already covers — so the impact draws two explosions stacked on one hit. Note also that an in-flight ballistic missile (`^ShootableMissile`, `rules/defaults.yaml:838-843`) is `ICBM` and **not** `Air`, and that one unlisted target type on the victim suppresses the whole effect rather than degrading it (`CreateEffectWarhead.cs:113-117` early-returns on `ImpactActorType.Invalid`).
 
 ### Blank lines are significant
 

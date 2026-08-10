@@ -148,6 +148,15 @@ Ataka:
 		# fix as Hellfire. Operator-guided Ataka can be aimed at helis too.
 		Penetration: 20
 		DamageTypes: ExplosionDeath
+	# ^MediumExplosionEffects is gated to Ground/Ship/Trees/Water, so a hit on an
+	# AIRBORNE target drew nothing. ValidTargets: Air (not Helicopter) — an airborne
+	# heli carries Air as well as Helicopter, while a LANDED one is Ground/Vehicle and
+	# is already covered by Warhead@Effect; listing Helicopter here would double up.
+	Warhead@EffectAir: CreateEffect
+		ValidTargets: Air
+		ImpactActors: true
+		Explosions: explosion_air_medium
+		ImpactSounds: kaboom25.aud
 
 Hellfire:
 	Inherits@ExplosionEffects: ^MediumExplosionEffects
@@ -201,6 +210,15 @@ Hellfire:
 		# (Thickness 280-700, still ~7% effective).
 		Penetration: 20
 		DamageTypes: ExplosionDeath
+	# Hellfire lists Air in ValidTargets but inherited only the ground-gated
+	# ^MediumExplosionEffects, so a kill on an airborne target drew no impact at all —
+	# the visual half of the silent-vanish bug documented above. See Ataka for why this
+	# is ValidTargets: Air rather than Air, Helicopter.
+	Warhead@EffectAir: CreateEffect
+		ValidTargets: Air
+		ImpactActors: true
+		Explosions: explosion_air_medium
+		ImpactSounds: kaboom25.aud
 
 Hellfire.strykershorad:
 	Inherits: Hellfire
@@ -240,6 +258,13 @@ TimerWolf_Missiles:
 		Damage: 1500
 		ValidTargets: Ground, Water, Air
 		DamageTypes: ExplosionDeath
+	# Same air-impact hole as Hellfire. Timber Wolf's actor is commented out, but the
+	# weapon entry is live and would ship the bug the day it is re-enabled.
+	Warhead@EffectAir: CreateEffect
+		ValidTargets: Air
+		ImpactActors: true
+		Explosions: explosion_air_medium
+		ImpactSounds: kaboom25.aud
 
 IskanderTargeter:
 	ValidTargets: Ground, Water

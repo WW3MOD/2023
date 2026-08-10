@@ -439,7 +439,9 @@ A10:
 		Name: primary
 		Weapon: 30mm.A10
 		LocalOffset: 640,0,0
+		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
+	WithMuzzleOverlay:
 	AmmoPool@1:
 		Name: primary-ammo
 		Ammo: 100

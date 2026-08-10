@@ -461,6 +461,9 @@ FROG:
 		LocalOffset: 256,-213,0, 256,213,0
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
+	# PITFALL: MuzzleSequence alone draws nothing — WithMuzzleOverlay is the trait that
+	# renders it (WithMuzzleOverlay.cs:46, 86), and no lint catches the missing trait.
+	WithMuzzleOverlay:
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
