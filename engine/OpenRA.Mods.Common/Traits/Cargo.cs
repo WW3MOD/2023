@@ -78,6 +78,13 @@ namespace OpenRA.Mods.Common.Traits
 			"separation. Raise it to spread a dismount out further, set it to 1 for an even cadence.")]
 		public readonly int InterGroupUnloadDelayMultiplier = 3;
 
+		[Desc("Damage state at which passengers bail out on their own, without an unload order and ",
+			"without waiting for the transport to stop. Heavy (HP <50%) is the point the hull starts ",
+			"burning down for good and VehicleCrew bails the crew, so the men in the back leave on the ",
+			"same cue rather than a damage state later. This bail ignores the group pacing above — an ",
+			"ordered dismount is a drill, this is a burning vehicle.")]
+		public readonly DamageState EmergencyBailDamageState = DamageState.Heavy;
+
 		[Desc("Fraction of the transport's MaxHP that a single hit must exceed before any of it is ",
 			"felt by the passengers, as a percentage. Fire that merely grinds the hull down passes ",
 			"nothing through; only a hit big enough to matter does.")]
@@ -151,6 +158,10 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Stack<int> loadedTokens = new Stack<int>();
 		bool takeOffAfterLoad;
 		bool initialised;
+
+		// Latched once the passengers have bailed under EmergencyBailDamageState, so
+		// the following hits (including the ChangesHealth bleed) don't re-run it.
+		bool bailedOut;
 
 		readonly CachedTransform<CPos, IEnumerable<CPos>> currentAdjacentCells;
 
@@ -487,6 +498,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (cargoActor.Owner != passengerActor.Owner && !cargoActor.Info.HasTraitInfo<GarrisonManagerInfo>())
 				cargoActor.ChangeOwnerSync(passengerActor.Owner, false);
 
+			// Fresh passengers have not bailed out of anything. Without this a
+			// transport that emptied itself under EmergencyBailDamageState and was
+			// then reloaded would hold the latch shut and strand the new stick — and
+			// the damage-state reset below cannot cover it, since a transport that is
+			// still burning never climbs back above the line.
+			bailedOut = false;
+
 			cargo.Add(passengerActor);
 			var w = GetWeight(passengerActor);
 			totalWeight += w;
@@ -564,46 +582,143 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
-			if (!IsEmpty())
+			if (IsEmpty())
+				return;
+
+			// Skip legacy damage forwarding when GarrisonProtection handles it
+			if (self.Info.HasTraitInfo<GarrisonProtectionInfo>())
+				return;
+
+			var healthTrait = self.Trait<Health>();
+			var damageDealt = e.Damage.Value;
+			if (damageDealt > 0)
 			{
-				// Skip legacy damage forwarding when GarrisonProtection handles it
-				if (self.Info.HasTraitInfo<GarrisonProtectionInfo>())
-					return;
-
-				var healthTrait = self.Trait<Health>();
-				var damageDealt = e.Damage.Value;
-				if (damageDealt > 0)
+				// Copy first — InflictDamage below can kill a passenger and reenter.
+				foreach (var passenger in Passengers.ToList())
 				{
-					// Copy first — InflictDamage below can kill a passenger and reenter.
-					foreach (var passenger in Passengers.ToList())
-					{
-						if (passenger.IsDead)
-							continue;
+					if (passenger.IsDead)
+						continue;
 
-						var passengerMaxHP = passenger.Trait<Health>().MaxHP;
-						var varianceBand = Info.PassengerDamageVarianceDivisor > 0
-							? passengerMaxHP / Info.PassengerDamageVarianceDivisor
-							: 0;
-						var varianceRoll = varianceBand > 0 ? self.World.SharedRandom.Next(varianceBand) : 0;
+					var passengerMaxHP = passenger.Trait<Health>().MaxHP;
+					var varianceBand = Info.PassengerDamageVarianceDivisor > 0
+						? passengerMaxHP / Info.PassengerDamageVarianceDivisor
+						: 0;
+					var varianceRoll = varianceBand > 0 ? self.World.SharedRandom.Next(varianceBand) : 0;
 
-						var damageToDeal = PassengerDamageFromTransportHit(passengerMaxHP, healthTrait.MaxHP,
-							damageDealt, Info.PassengerDamageThresholdPercent, Info.PassengerDamageSharePercent,
-							varianceRoll);
+					var damageToDeal = PassengerDamageFromTransportHit(passengerMaxHP, healthTrait.MaxHP,
+						damageDealt, Info.PassengerDamageThresholdPercent, Info.PassengerDamageSharePercent,
+						varianceRoll);
 
-						if (damageToDeal > 0)
-							passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
-					}
-				}
-
-				// Unload when low health
-				if (healthTrait.DamageState == DamageState.Critical)
-				{
-					var currentActivityType = self.CurrentActivity?.GetType();
-
-					if (CanUnload() && (currentActivityType == null || currentActivityType.Name != "UnloadCargo"))
-						self.QueueActivity(false, new UnloadCargo(self, Info.LoadRange));
+					if (damageToDeal > 0)
+						passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
 				}
 			}
+
+			// Bail-out latch. Repairs arrive through this same notification with a
+			// negative value, so a transport patched back above the line rearms and
+			// will bail again if it is shot back down.
+			if (healthTrait.DamageState < Info.EmergencyBailDamageState)
+			{
+				bailedOut = false;
+				return;
+			}
+
+			// An airborne transport cannot simply open the doors — the passengers
+			// would be stepping out at altitude. Those stay on the ordered path,
+			// which lands first. This is retried per hit rather than latched
+			// because the landing can be interrupted.
+			if (aircraft != null)
+			{
+				var currentActivityType = self.CurrentActivity?.GetType();
+				if (CanUnload() && (currentActivityType == null || currentActivityType.Name != "UnloadCargo"))
+					self.QueueActivity(false, new UnloadCargo(self, Info.LoadRange));
+
+				return;
+			}
+
+			if (bailedOut)
+				return;
+
+			bailedOut = EmergencyBailOut(self);
+		}
+
+		/// <summary>Put every passenger on the ground now: no unload order, no Move to a drop cell,
+		/// no waiting for the hull to roll to a stop, and none of the group pacing an ordered
+		/// dismount uses. This is the passenger equivalent of VehicleCrew's ejection and is
+		/// deliberately built the same way — a free adjacent cell if there is one, otherwise the
+		/// transport's own cell, since SetPosition bypasses the occupancy check that would
+		/// otherwise strand men inside a vehicle that is seconds from cooking off.
+		/// Returns false if the bail could not happen at all, so the caller leaves the latch open.</summary>
+		bool EmergencyBailOut(Actor self)
+		{
+			if (checkTerrainType && !Info.UnloadTerrainTypes.Contains(self.World.Map.GetTerrainInfo(self.Location).Type))
+				return false;
+
+			// Centre position of the hull: everyone is placed on their exit cell but
+			// drawn at the hull for one frame, so they visually spill out of it.
+			var spawn = self.CenterPosition;
+			var husk = self.Location;
+
+			// The whole stick leaves in one go, so nobody is actually in the world
+			// yet when the next man picks his cell — GetAvailableSubCell would hand
+			// them all the same slot. Track what this bail has already handed out.
+			var claimed = new HashSet<(CPos Cell, SubCell SubCell)>();
+
+			foreach (var passenger in Passengers.ToList())
+			{
+				if (passenger.IsDead)
+					continue;
+
+				var positionable = passenger.TraitOrDefault<IPositionable>();
+				if (positionable == null)
+					continue;
+
+				var exit = CurrentAdjacentCells
+					.Shuffle(self.World.SharedRandom)
+					.Select(c => (Cell: c, SubCell: positionable.GetAvailableSubCell(c)))
+					.Where(s => s.SubCell != SubCell.Invalid && !claimed.Contains(s))
+					.Cast<(CPos Cell, SubCell SubCell)?>()
+					.FirstOrDefault();
+
+				if (exit != null)
+					claimed.Add(exit.Value);
+
+				Unload(self, passenger);
+
+				var actor = passenger;
+				var cell = exit?.Cell ?? husk;
+				var subCell = exit?.SubCell ?? SubCell.Any;
+
+				self.World.AddFrameEndTask(w =>
+				{
+					if (actor.Disposed)
+						return;
+
+					positionable.SetPosition(actor, cell, subCell);
+					positionable.SetCenterPosition(actor, spawn);
+
+					actor.CancelActivity();
+					w.Add(actor);
+
+					// Get clear of the cookoff. ^CrewedVehicle2/3 detonate a
+					// VehicleCookoff on death with a single-tile radius, so standing
+					// on the husk is what kills a man who otherwise got out in time.
+					var mobile = actor.TraitOrDefault<Mobile>();
+					if (mobile != null && !actor.IsDead)
+					{
+						var dir = w.SharedRandom.Next(8);
+						var dx = new[] { 0, 1, 1, 1, 0, -1, -1, -1 }[dir];
+						var dy = new[] { -1, -1, 0, 1, 1, 1, 0, -1 }[dir];
+						var dist = 2 + w.SharedRandom.Next(2);
+						actor.QueueActivity(false, mobile.MoveTo(husk + new CVec(dx * dist, dy * dist), 0, null, true));
+					}
+
+					foreach (var nbm in actor.TraitsImplementing<INotifyBlockingMove>())
+						nbm.OnNotifyBlockingMove(actor, actor);
+				});
+			}
+
+			return true;
 		}
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
