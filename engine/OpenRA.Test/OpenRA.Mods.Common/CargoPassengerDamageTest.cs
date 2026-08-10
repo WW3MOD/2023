@@ -21,7 +21,10 @@ namespace OpenRA.Mods.Common.Test
 		const int Transport = 14000;
 		const int Passenger = 200;
 		const int Threshold = 25;
-		const int MaxRoll = Passenger / 5;
+
+		// The caller rolls SharedRandom.Next(passengerMaxHP / VarianceDivisor),
+		// which is exclusive of its bound — so the worst roll is 39, not 40.
+		const int MaxRoll = (Passenger / 5) - 1;
 
 		// Shipped default, and the pre-change curve it replaced.
 		const int Half = 50;
@@ -80,10 +83,10 @@ namespace OpenRA.Mods.Common.Test
 		{
 			// The roll is added before the cut, so the curve is halved end-to-end.
 			// Applied afterwards instead, a 10000 hit at the top of the variance
-			// band would land at 46+40=86 rather than 66 and the "roughly half"
+			// band would land at 46+39=85 rather than 65 and the "roughly half"
 			// would not hold at the edges — which is where survival is decided.
-			Assert.AreEqual(132, Hit(10000, Raw, MaxRoll));
-			Assert.AreEqual(66, Hit(10000, Half, MaxRoll));
+			Assert.AreEqual(131, Hit(10000, Raw, MaxRoll));
+			Assert.AreEqual(65, Hit(10000, Half, MaxRoll));
 
 			// Unluckiest halved roll still beats the luckiest raw roll.
 			Assert.That(Hit(10000, Half, MaxRoll), Is.LessThan(Hit(10000, Raw)));
