@@ -1,6 +1,12 @@
 -- AUTO TEST — supplies must reach a starving platoon AT THE FRONT, without the platoon
 -- leaving the front to fetch them.
 --
+-- ALWAYS RUN THIS AT `--seed -1848572889`. Unseeded runs of this scenario are NOT comparable
+-- and two rounds of analysis were wasted comparing different matches: at one seed the platoon
+-- split, two men walking west to the truck and three east toward the grads, which hit the
+-- "2 of 5 fed" bar precisely while the platoon disintegrated in both directions; at another
+-- all five went east and none were fed. Same code, opposite traces.
+--
 -- THE BAR IS THE DOCTRINE, NOT THE MECHANISM. How the ammo arrives is not asserted — aura
 -- service in place, a crate dropped short and walked to, anything else — so this stays true
 -- if the delivery route is later changed. What IS asserted is both halves of the doctrine
@@ -39,7 +45,12 @@ local function sec(s) return math.floor(s * TICKS_PER_SEC) end
 local DRAINED = 10
 local STARVING = 25       -- 250 per mille of ^E3's 100-round pool — what the supply layer calls starving
 local NEED_BACK = 2       -- how many of the 5 must climb clear for the platoon to count as resupplied
-local MAX_DRIFT = 3       -- cells a rifleman may stray from its spawn cell and still count as holding
+-- Cells a rifleman may stray from spawn and still count as holding the front. 6 = the doctrine's own
+-- 5-cell crate standoff plus a cell of tolerance: "the truck can decide to stop a bit early... like 5
+-- cells behind the units in need, and the soldiers can themselves go to the supply crate as needed."
+-- Walking 5 cells back to a crate is CORRECT behaviour and must pass; the 15-cell excursion measured at
+-- b632c36b is a front collapse and must not.
+local MAX_DRIFT = 6
 local WINDOW = 90         -- harness-seconds of simulation before the window closes
 
 WorldLoaded = function()

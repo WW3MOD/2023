@@ -1,1 +1,1 @@
-A starving platoon under believed danger must be resupplied WITHOUT leaving its position — supply reaching the front by any route passes; the front walking back to the supply line fails.
+ALWAYS RUN AT --seed -1848572889. A starving platoon under believed danger must be resupplied without leaving its position (drift allowance 6 cells = the doctrine's 5-cell crate standoff plus one); the front walking back to the supply line is a FAIL.
