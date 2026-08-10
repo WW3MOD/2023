@@ -989,9 +989,21 @@ Player:
 		# map, and 17 of 18 ground thresholds sit 8x-459x below it. The floor is what stops a relative
 		# rule reading a quiet opening as dangerous — with an empty field there is no scale to be
 		# relative to, and 25 units is "nothing meaningful is believed to cover this cell".
+		# TWO LIMBS, because a ratio fails at BOTH ends and the floor only covers one of them. Measured
+		# 2026-08-10: a cluster cell at 462,272 raw (13,548 danger units, ~135 reference contacts) was
+		# classified SAFE by the relative test alone, because two believed 40-cell artillery envelopes
+		# bathed the map and dragged the player's own median above the cluster. When everything is
+		# dangerous, nothing is relatively dangerous.
+		#
+		# 200 units = twice one median enemy unit's core intensity on the cell = 6,824 raw at the
+		# measured reference, just under one believed ATGM infantryman at point-blank (222 units) — the
+		# cheapest reliable truck-killer in the ruleset. Every anchor around it is measured: 170x the
+		# ambient territory baseline (~1 unit), 8x the safe floor, and 4x BELOW the lower live median
+		# (818 vs 2,755 units), so it fires on a real contested front rather than only on an extreme.
 		DropRequiresDanger: true
 		DropDangerFloorUnits: 25
 		DropDangerMedianPercent: 100
+		DropDangerAbsoluteUnits: 200
 		# The anchor is re-derived every scan from a field rebuilt every 25 ticks. Without hysteresis a
 		# one-cell belief wobble would move the destination — and a destination that moves is the entire
 		# defect this mode exists to remove.

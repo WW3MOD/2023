@@ -216,12 +216,34 @@ namespace OpenRA.Mods.Common.Traits
 		/// <para><paramref name="fieldMedian"/> of 0 means "no believed contact anywhere" — an undefined
 		/// scale, not a small one — and returns safe regardless of the percentage, so the empty-field case
 		/// cannot be reached through arithmetic on a zero denominator.</para>
+		///
+		/// <para>WHY A RELATIVE TEST ALONE IS NOT ENOUGH: WHEN EVERYTHING IS DANGEROUS, NOTHING IS RELATIVELY
+		/// DANGEROUS. Measured 2026-08-10 — a cluster cell reading 462,272 (13,548 danger units, ~135 reference
+		/// contacts) was classified SAFE because two believed 40-cell artillery envelopes bathed the whole map
+		/// and dragged the player's own median up with it. A ratio cannot answer "is this lethal", only "is
+		/// this unusual for us", and on a saturated field those come apart completely. The floor covers the
+		/// empty end of that failure; <paramref name="absoluteField"/> is the missing limb at the saturated
+		/// end, and the two together bound the ratio from both sides.</para>
+		///
+		/// <para>THE ABSOLUTE LIMB IS ONLY MEANINGFUL BECAUSE THE UNIT IS NORMALISED. 100 danger units is
+		/// defined as the core intensity of the median ground-threatening actor type at point-blank, so a
+		/// figure in these units keeps its meaning when the mod is rebalanced — which is precisely what the
+		/// pre-2026-08-09 raw thresholds could not do. Those failed because their VALUES were written for a
+		/// scale that no longer existed, not because an absolute test is wrong in principle.</para>
 		/// Pure integer, zero RNG.</summary>
-		public static bool DangerSelectsDrop(int dangerAtCluster, int fieldMedian, int safeFloorField, int medianPercent)
+		public static bool DangerSelectsDrop(int dangerAtCluster, int fieldMedian, int safeFloorField,
+			int medianPercent, int absoluteField)
 		{
+			// The floor is checked FIRST and can only ever declare SAFE, so neither limb below can be
+			// reached on a cell nothing meaningful is believed to cover.
 			if (dangerAtCluster < safeFloorField)
 				return false;
 
+			// ABSOLUTE LIMB. Independent of the field's shape, which is exactly why it exists.
+			if (absoluteField > 0 && dangerAtCluster >= absoluteField)
+				return true;
+
+			// RELATIVE LIMB. A median of 0 is an undefined scale, not a small one.
 			if (fieldMedian <= 0)
 				return false;
 

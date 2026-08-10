@@ -323,6 +323,34 @@ namespace OpenRA.Mods.Common.Traits
 			"turn every cell above the floor into a drop.")]
 		public readonly int DropDangerMedianPercent = 100;
 
+		[Desc("Danger-selects-mode, ABSOLUTE limb: believed ground danger at or above which the cluster counts",
+			"as dangerous regardless of how the rest of the player's field reads. IN DANGER UNITS.",
+			"",
+			"WHEN EVERYTHING IS DANGEROUS, NOTHING IS RELATIVELY DANGEROUS — this limb exists because the",
+			"relative test has a failure at the saturated end exactly mirroring the empty end the floor covers.",
+			"Measured 2026-08-10: a cluster cell reading 462,272 (13,548 danger units, about 135 reference",
+			"contacts) was classified SAFE, because two believed 40-cell artillery envelopes bathed the whole",
+			"map and dragged the player's own median up with the cluster. A ratio can only answer 'is this",
+			"unusual for us', never 'is this lethal', and on a saturated field those come apart completely.",
+			"",
+			"WHAT 200 MEANS IN PLAIN LANGUAGE: twice the core intensity of one median enemy unit standing on",
+			"the cell. Against the measured reference of 3,412 that is 6,824 raw, which is just under one",
+			"believed ATGM infantryman at point-blank (7,560 raw / 222 units) — the cheapest thing in the",
+			"ruleset that reliably kills a supply truck. So the limb reads: 'at least one credible truck-killer",
+			"is believed to cover this cell.'",
+			"",
+			"The value is derived, not fitted, and every anchor around it is measured: the territory baseline",
+			"stacks to roughly 1 danger unit, so ambient deep-enemy ground cannot trip it (170x margin); it is",
+			"8x the safe floor, leaving the relative limb a real band to work in; and it sits 4x BELOW the",
+			"lower of the two measured live medians (818 and 2,755 units), so on a genuinely contested front",
+			"it fires reliably rather than waiting for an extreme.",
+			"",
+			"Absolute is only meaningful because the unit is NORMALISED — 100 units is defined as one",
+			"reference contact at point-blank, so this figure keeps its meaning when the mod is rebalanced.",
+			"The pre-2026-08-09 raw thresholds failed because their values were written for a scale that no",
+			"longer existed, not because an absolute test is wrong in principle. 0 disables this limb.")]
+		public readonly int DropDangerAbsoluteUnits = 200;
+
 		[Desc("Drop-and-leave: MAP-cell Chebyshev hysteresis on the forward supply point. The anchor is",
 			"re-derived every scan from a field that is rebuilt every 25 ticks, so without this a one-cell",
 			"belief wobble would move the destination — and a destination that moves is the entire defect this",
@@ -1219,7 +1247,10 @@ namespace OpenRA.Mods.Common.Traits
 				var median = dangerField != null ? dangerField.GroundDangerMedian(player) : 0;
 				var floorField = GroundDangerLevel(Info.DropDangerFloorUnits);
 
-				if (!SupplyDropMath.DangerSelectsDrop(clusterDanger, median, floorField, Info.DropDangerMedianPercent))
+				var absoluteField = GroundDangerLevel(Info.DropDangerAbsoluteUnits);
+
+				if (!SupplyDropMath.DangerSelectsDrop(clusterDanger, median, floorField,
+					Info.DropDangerMedianPercent, absoluteField))
 				{
 					drop = false;
 
@@ -1229,6 +1260,7 @@ namespace OpenRA.Mods.Common.Traits
 					Log.Write("debug",
 						$"[supply] serve-in-place truck={truck.ActorID}@{truck.Location} cluster={cluster.CenterCell} "
 						+ $"danger={clusterDanger} median={median} floor={floorField} ({Info.DropDangerFloorUnits}u) "
+						+ $"absolute={absoluteField} ({Info.DropDangerAbsoluteUnits}u) "
 						+ $"pct={Info.DropDangerMedianPercent} — front reads safe, keeping {provider.CurrentSupply} cargo");
 				}
 			}
