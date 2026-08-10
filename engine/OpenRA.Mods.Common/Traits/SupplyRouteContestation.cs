@@ -541,6 +541,8 @@ namespace OpenRA.Mods.Common.Traits
 		// express "same team" once win/loss is being resolved. The lobby alliance masks are fixed at
 		// world creation (CreateMapPlayers.SetupPlayerMasks, which unions a player's own mask for the
 		// p == q pair) and are never touched by win state, so they say what these tests actually mean.
+		// NOTE: unlike IsAlliedWith, which returns true for a null argument, this throws on a null a or
+		// b. No current call site can pass null; keep it that way if you reuse this.
 		static bool SameTeam(Player a, Player b)
 		{
 			return a == b || a.AlliedPlayersMask.Overlaps(b.PlayerMask);
