@@ -78,6 +78,24 @@ namespace OpenRA.Mods.Common.Traits
 			"separation. Raise it to spread a dismount out further, set it to 1 for an even cadence.")]
 		public readonly int InterGroupUnloadDelayMultiplier = 3;
 
+		[Desc("Fraction of the transport's MaxHP that a single hit must exceed before any of it is ",
+			"felt by the passengers, as a percentage. Fire that merely grinds the hull down passes ",
+			"nothing through; only a hit big enough to matter does.")]
+		public readonly int PassengerDamageThresholdPercent = 25;
+
+		[Desc("Percentage applied to the passenger's share of a hit once it clears the threshold. ",
+			"The raw share is the overkill above the threshold expressed against the transport's ",
+			"MaxHP and scaled by the passenger's own. 100 = raw, 50 = half. This only touches hits ",
+			"the transport SURVIVES — a hit that destroys it outright is handled by the separate ",
+			"EjectOnDeath path, which stays lethal, so lowering this makes mounted infantry ride out ",
+			"hull hits without making them immortal in a wreck.")]
+		public readonly int PassengerDamageSharePercent = 50;
+
+		[Desc("Random spread added to the passenger's share before PassengerDamageSharePercent is ",
+			"applied, as a fraction (1/N) of the passenger's MaxHP. 5 = up to a fifth of their ",
+			"health. 0 disables the roll and makes the share deterministic.")]
+		public readonly int PassengerDamageVarianceDivisor = 5;
+
 		[CursorReference]
 		[Desc("Cursor to display when able to unload the passengers.")]
 		public readonly string UnloadCursor = "deploy";
@@ -501,7 +519,50 @@ namespace OpenRA.Mods.Common.Traits
 				loadedTokens.Push(cargoActor.GrantCondition(Info.LoadedCondition));
 		}
 
-		void INotifyDamage.Damaged(OpenRA.Actor self, OpenRA.Traits.AttackInfo e)
+		/// <summary>How much of a hit on the transport is felt by one passenger.
+		/// Split out as a pure function so the curve can be tuned and tested without a World.
+		/// <paramref name="varianceRoll"/> is the pre-rolled random spread, so callers own the RNG.</summary>
+		public static int PassengerDamageFromTransportHit(int passengerMaxHP, int transportMaxHP,
+			int damage, int thresholdPercent, int sharePercent, int varianceRoll)
+		{
+			if (transportMaxHP <= 0 || damage <= 0)
+				return 0;
+
+			// Below the threshold nothing reaches the crew compartment at all. This
+			// is what keeps a long grind of small-arms fire from bleeding the men
+			// inside: only a single blow big enough to matter against the hull does.
+			var threshold = (int)((long)transportMaxHP * thresholdPercent / 100);
+			if (damage <= threshold)
+				return 0;
+
+			// Only the overkill above the threshold is shared, expressed as a
+			// fraction of the hull and scaled onto the passenger's own health bar.
+			var share = (int)((long)passengerMaxHP * (damage - threshold) / transportMaxHP);
+
+			// The roll is folded in BEFORE the cut so the curve is scaled end to
+			// end. Applied afterwards it would dominate the halved share and the
+			// unlucky rolls — the ones that actually decide who lives — would barely
+			// move.
+			return (share + varianceRoll) * sharePercent / 100;
+		}
+
+		/// <summary>How much of the killing blow is felt by a passenger when the transport is
+		/// destroyed under them. Deliberately NOT reduced by PassengerDamageSharePercent and
+		/// deliberately not thresholded: a blow that writes the hull off in one go is the case that
+		/// has to stay lethal, and it stays lethal because overkill is carried through here — a
+		/// 20000 tank round on a 14000 hull reports 20000, not 14000. Finishing off an
+		/// already-crippled transport with a small hit is correspondingly survivable, which is the
+		/// same asymmetry the crew get.</summary>
+		public static int PassengerDamageFromTransportDeath(int passengerMaxHP, int transportMaxHP,
+			int damage, int varianceRoll)
+		{
+			if (transportMaxHP <= 0 || damage <= 0)
+				return 0;
+
+			return (int)((long)passengerMaxHP * damage / transportMaxHP) + varianceRoll;
+		}
+
+		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
 			if (!IsEmpty())
 			{
@@ -511,18 +572,26 @@ namespace OpenRA.Mods.Common.Traits
 
 				var healthTrait = self.Trait<Health>();
 				var damageDealt = e.Damage.Value;
-				var damageThreshold = healthTrait.MaxHP * 25 / 100; // Critical damage threshold (25% HP)
-
-				// Heavy hits deal damage to passengers
-				if (damageDealt > damageThreshold)
+				if (damageDealt > 0)
 				{
-					// Create a copy of Passengers to avoid enumeration issues
-					var passengersCopy = Passengers.ToList();
-					foreach (var passenger in passengersCopy)
+					// Copy first — InflictDamage below can kill a passenger and reenter.
+					foreach (var passenger in Passengers.ToList())
 					{
-						var damageToDeal = passenger.Trait<Health>().MaxHP * (damageDealt - damageThreshold) / self.Trait<Health>().MaxHP;
-						damageToDeal += self.World.SharedRandom.Next(passenger.Trait<Health>().MaxHP / 5);
-						passenger.InflictDamage(e.Attacker, new Damage((int)damageToDeal));
+						if (passenger.IsDead)
+							continue;
+
+						var passengerMaxHP = passenger.Trait<Health>().MaxHP;
+						var varianceBand = Info.PassengerDamageVarianceDivisor > 0
+							? passengerMaxHP / Info.PassengerDamageVarianceDivisor
+							: 0;
+						var varianceRoll = varianceBand > 0 ? self.World.SharedRandom.Next(varianceBand) : 0;
+
+						var damageToDeal = PassengerDamageFromTransportHit(passengerMaxHP, healthTrait.MaxHP,
+							damageDealt, Info.PassengerDamageThresholdPercent, Info.PassengerDamageSharePercent,
+							varianceRoll);
+
+						if (damageToDeal > 0)
+							passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
 					}
 				}
 
@@ -544,15 +613,17 @@ namespace OpenRA.Mods.Common.Traits
 				while (!IsEmpty() && CanUnload(BlockedByActor.All))
 				{
 					var passenger = Unload(self);
-					var random = self.World.SharedRandom.Next(passenger.Trait<Health>().MaxHP / 5);
-					var damage = e.Damage.Value;
+					var passengerMaxHP = passenger.Trait<Health>().MaxHP;
+					var varianceBand = Info.PassengerDamageVarianceDivisor > 0
+						? passengerMaxHP / Info.PassengerDamageVarianceDivisor
+						: 0;
+					var random = varianceBand > 0 ? self.World.SharedRandom.Next(varianceBand) : 0;
 
-					if (damage > 0)
-					{
-						var damageToDeal = passenger.Trait<Health>().MaxHP * damage / self.Trait<Health>().MaxHP;
-						damageToDeal += random;
+					var damageToDeal = PassengerDamageFromTransportDeath(passengerMaxHP,
+						self.Trait<Health>().MaxHP, e.Damage.Value, random);
+
+					if (damageToDeal > 0)
 						passenger.InflictDamage(e.Attacker, new Damage(damageToDeal));
-					}
 
 					if (!passenger.IsDead)
 					{
