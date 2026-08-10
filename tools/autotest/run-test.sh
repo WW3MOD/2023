@@ -301,6 +301,39 @@ esac
 RESULT_DIR="${HOME}/.ww3mod-tests"
 mkdir -p "${RESULT_DIR}"
 RESULT_FILE="${RESULT_DIR}/result.json"
+
+# ── Single-instance lock ────────────────────────────────────────────────────
+# RESULT_FILE is a SINGLE shared path, so two concurrent runs silently corrupt
+# each other: run B's verdict satisfies run A's "has a verdict been written?"
+# watchdog poll, A stops watching, and A's game is left running forever while A
+# reports B's result. Observed 2026-08-10 — two overlapping `run-batch.sh --all`
+# invocations left orphaned dotnet.exe games stacking up on screen, one of them
+# outliving its own 300s watchdog by minutes.
+#
+# `mkdir` is atomic on every platform this runs on, so it is the lock primitive.
+# A lock whose recorded PID is gone is stale (a previous run was killed) and is
+# reclaimed rather than blocking forever.
+LOCK_DIR="${RESULT_DIR}/run.lock"
+if ! mkdir "${LOCK_DIR}" 2>/dev/null; then
+	_holder=$(cat "${LOCK_DIR}/pid" 2>/dev/null || true)
+	_holder_test=$(cat "${LOCK_DIR}/test" 2>/dev/null || echo "unknown test")
+	if [ -n "${_holder}" ] && kill -0 "${_holder}" 2>/dev/null; then
+		echo "Error: another autotest run is already in flight (pid ${_holder}, ${_holder_test})."
+		echo "       The harness is single-instance: results go to one shared ${RESULT_FILE}."
+		echo "       Wait for it, or kill it, then retry."
+		exit 3
+	fi
+	echo "==> Reclaiming stale lock from dead pid ${_holder:-?} (${_holder_test})."
+	rm -rf "${LOCK_DIR}"
+	if ! mkdir "${LOCK_DIR}" 2>/dev/null; then
+		echo "Error: could not acquire ${LOCK_DIR}"
+		exit 3
+	fi
+fi
+echo $$ > "${LOCK_DIR}/pid"
+echo "${TEST_NAME}" > "${LOCK_DIR}/test"
+trap 'rm -rf "${LOCK_DIR}"' EXIT
+
 rm -f "${RESULT_FILE}"
 
 # Per-run screenshot output dir. Tests can capture via Test.Screenshot(label)
