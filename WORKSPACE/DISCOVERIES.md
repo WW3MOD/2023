@@ -26,13 +26,27 @@
 - **The player-visible shape is a battery that stands down.** Point several AA at one aircraft: the first to commit marks it five times over, and every other AA in range treats it as already-dead for ten seconds. They sit there. The player clicks one and it fires immediately, which reads as "autotarget is broken" rather than "anti-overkill is working too hard". The mark is invisible — no cursor, no message, no target line.
 - **The reload interval is the tuning tension.** The 60-tick halving is deliberate (`Actor.cs:303-307`: the old 20-tick interval let other units re-target a tank mid-reload). But that PITFALL was written for a 130-tick tank reload against a same-order-of-magnitude HP pool; it does not anticipate a 500% mark, where three halvings must elapse before anyone else may engage.
 
-## 2026-08-10 — HARNESS TRAP: `Actor.Create` joins the world in a FRAME-END TASK, so anything you order against the new actor in the same `WorldLoaded` silently no-ops
+## 2026-08-10 — OVERKILL SUPPRESSION IS UNBOUNDED IF FED, BUT ORDINARY COMMITMENT IS SELF-LIMITING: the defect is granularity, not runaway — and there is a live in-engine re-marking path that has not been measured
 
-Cost a run. `ActorGlobal.Create` does `World.CreateActor(false, ...)` then `World.AddFrameEndTask(w => w.Add(a))` (`ActorGlobal.cs:113-116`), so a freshly created actor is **not in the world** for the remainder of the tick that created it. `AttackBase.AttackTarget` opens with `if (!target.IsValidFor(self)) return;` (`:633-634`) — which is *before* it queues the activity and before `MarkTargetForAttack` (`:644`) — so an attack order issued against a just-created actor is discarded in silence, with no exception and no log line.
+`test-aa-overkill-pump` (seed -2058490156), bounding the ~10s suppression measured in the previous entry.
 
-- The failure is invisible in the result: the scenario produced clean, plausible numbers that simply meant nothing, because the intended manipulation had never happened.
-- **The guard that should have caught it was vacuous — it set its own `markApplied = true` flag unconditionally, asserting a local variable rather than the world.** A setup guard that cannot fail is worse than no guard, because it reads as verification. Assert on an *observable consequence* instead: the redesign added an unmarked control lane, so "the mark took" became a measured difference between lanes rather than a claim.
-- Delay anything targeting a Lua-spawned actor by a tick or more. Earlier scenarios in this series were unaffected only by luck — they ordered attacks in a later phase, seconds after spawn.
+| lane | setup | result |
+|---|---|---|
+| R realistic battery | 4 AA, never ordered, one 30000-HP aircraft (mark 10 each, total 40 vs threshold 100) | **all 4 engaged**, ticks 41/46/39/49 |
+| S forced pump | Lua re-issues an attack order every tick for 595 ticks | observer **silent for the whole pump**, fired only at t818, 218 ticks after it stopped |
+
+- **Aggregate commitment is self-limiting and correct.** Because the mark is the fraction of the target's health a shot removes, attackers commit until the marked total covers the target's health and the rest then stand down. Four missiles really are only 40% of a 30000-HP aircraft, so all four correctly engaged. **The bug is GRANULARITY at the fragile end** — one MANPAD marking a 600-HP helicopter at 500 — not a runaway loop.
+- **But the accumulator is unbounded and sustained marking suppresses indefinitely.** `MarkForDestruction` only ever adds, with no cap (`Actor.cs:85-88`), so any source adding >= 100 per 60 ticks holds the counter over the threshold forever. It clears promptly when the feeding stops, so again: nothing is stuck, only fed.
+- **THE UNMEASURED RISK, and it is live: `AttackFollow.Tick` re-marks on re-acquisition.** `:156-172` re-scans whenever the unit is *not* currently aiming and calls `MarkTargetForAttack` when it becomes aiming again — and `OpportunityFire` defaults **true** (`AttackFollow.cs:26`) with no mod override for infantry. A real AA cycling MANPAD's 200-tick `BurstWait` drops out of aiming between shots, so it can re-apply 500 against a 600-HP helicopter every cycle and hold its neighbours down almost continuously. The forced pump proves the mechanism; **the opportunity-fire cadence is the frequency question and is still untested.**
+- **Suppression duration scales as `3000 * 100 / MaxHP`, so the worst case is exactly the case players care about.** A fragile rotary target is marked hardest and suppressed longest — helicopters are precisely what a player expects a battery of AA to shred. A durable aircraft is marked weakly and barely suppresses anyone.
+
+## 2026-08-10 — HARNESS LESSON: prove your setup took effect by MEASURING A CONTROL, never by setting your own flag — and `Actor.Create` joins the world in a frame-end task
+
+This cost a run, and the general rule is worth more than the specific trap.
+
+**The transferable rule: a setup guard must assert an observable consequence in the world, not a variable the test just assigned.** The scenario that failed carried `l.markApplied = true` written unconditionally next to the order it was supposed to verify, so the guard could not fail; it read as verification while verifying nothing, and the run produced clean, plausible numbers that meant nothing at all. The fix was structural, not a better flag: add an unmarked **control lane**, so "the manipulation took" becomes a measured difference between lanes that the test cannot fake. Any scenario that manipulates state — damage, stance, ammo, marks, conditions — wants a control arm for exactly this reason.
+
+**The specific trap: `ActorGlobal.Create` does `World.CreateActor(false, ...)` then `World.AddFrameEndTask(w => w.Add(a))` (`ActorGlobal.cs:113-116`), so a freshly created actor is NOT in the world for the rest of the tick that created it.** `AttackBase.AttackTarget` opens with `if (!target.IsValidFor(self)) return;` (`:633-634`) — before it queues the activity and before `MarkTargetForAttack` (`:644`) — so an attack order issued against a just-spawned actor is discarded in total silence: no exception, no log line, no verdict change. Delay anything targeting a Lua-spawned actor by a tick or more. Earlier scenarios in this series escaped only by accident, having ordered attacks in a later phase seconds after spawn.
 
 ## 2026-08-10 — `AutoTarget.HasValidTargetPriority` IS INVERTED AND ALWAYS RETURNS FALSE, so every stance downgrade unconditionally drops the unit's targets
 

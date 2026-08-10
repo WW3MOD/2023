@@ -1,0 +1,124 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: AA overkill sustained pump vs decay (diagnostic)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# =====================================================================
+	# Fifth scenario. Bounds the overkill bug: is the ~10s suppression a
+	# ceiling, or can repeated marking hold the counter above the threshold
+	# indefinitely? The mark halves every 60 ticks (Actor.cs:309-310), so a
+	# source adding A per 60 ticks settles at a steady state of A. Anything
+	# adding >= 100 per 60 ticks suppresses forever.
+	#
+	# THE ARITHMETIC PREDICTS THE ANSWER BEFORE THE RUN, and both lanes exist
+	# to check that prediction from opposite sides.
+	#
+	# EstimatePercentDamage = totalDamage * 100 / MaxHP (AutoTarget.cs:1321) —
+	# the mark is the fraction of the target's health a shot will remove. That
+	# makes AGGREGATE commitment self-limiting: attackers commit until the
+	# marked total reaches 100% of the target's health and then the rest stand
+	# down, which is exactly right. The pathology measured previously was
+	# GRANULARITY, not runaway: one MANPAD against a 600-HP Halo marks 500, so
+	# a single attacker claims five aircraft's worth of kill.
+	#
+	# LANE R — REALISTIC BATTERY, and the control on that claim. Four AA around
+	# one 30000-HP aircraft. Each commit marks 3000*100/30000 = 10, so four of
+	# them total 40, far below the threshold of 100 — because four missiles
+	# really are only 40% of this target. ALL FOUR should engage. If the
+	# suppression were runaway, they would not.
+	#
+	# LANE S — FORCED PUMP, a mechanism probe rather than a realistic
+	# situation, and labelled as such. The Lua re-issues an attack order every
+	# 5 ticks, and each order re-enters AttackBase.AttackTarget and so calls
+	# MarkTargetForAttack again (:644). That adds 10 per 5 ticks = 120 per 60
+	# ticks, whose fixed point is V = V/2 + 120 => V = 240, permanently above
+	# the threshold. The observer should stay suppressed for as long as the
+	# pump runs and engage only once it stops — which both proves marks CAN
+	# outrun the decay and proves nothing is stuck when they stop.
+	#
+	# Together: the mechanism admits unbounded suppression, but ordinary
+	# autotarget cannot drive it, because a committed unit is no longer idle
+	# and so never re-scans and re-marks. Lane S has to be driven from Lua to
+	# produce it at all.
+	#
+	# Lanes ~48 cells apart, far outside MANPAD's 23c0.
+	# =====================================================================
+
+	# --- lane R: four AA, never ordered, one durable aircraft at (5,8) ---
+	R1: aa
+		Owner: USA
+		Location: 2,28
+		Facing: 0
+	R2: aa
+		Owner: USA
+		Location: 4,28
+		Facing: 0
+	R3: aa
+		Owner: USA
+		Location: 6,28
+		Facing: 0
+	R4: aa
+		Owner: USA
+		Location: 8,28
+		Facing: 0
+
+	# --- lane S: one pumper driven by Lua, one never-ordered observer ---
+	Pumper: aa
+		Owner: USA
+		Location: 54,28
+		Facing: 0
+	ObserverS: aa
+		Owner: USA
+		Location: 58,28
+		Facing: 0
+
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 30,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 30,2
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 30,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 30,8
+
+Rules: rules.yaml
