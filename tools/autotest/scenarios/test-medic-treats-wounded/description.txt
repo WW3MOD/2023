@@ -1,0 +1,1 @@
+Auto: a medic 5 cells from a 40%-health soldier must walk over and heal him within 30s.

@@ -1,0 +1,23 @@
+# Medic Hunt-stance follow autotest. Pre-placed medic + one healthy rifleman, no economy.
+
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults to
+	# human-owned units in Created (AutoTarget.cs). This test is entirely about
+	# engagement stance, so a dev's saved default would otherwise decide the verdict.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-medic-follows-in-hunt.lua
+
+# The stance under test. Set in YAML rather than Lua because engagement stance has
+# no scripting binding, and because it must be in place before the first idle tick.
+MEDI:
+	AutoTarget:
+		InitialEngagementStance: Hunt
+		InitialEngagementStanceAI: Hunt

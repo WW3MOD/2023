@@ -246,6 +246,17 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			passenger.World.IssueOrder(new Order("EnterTransport", passenger, Target.FromActor(transport), queued));
 		}
 
+		[Desc("Issue a real AttendAlly order on `healer` targeting `ally` — the order a left-click on a " +
+			"friendly unit produces. There is no scripting binding for arbitrary orders, and the " +
+			"behaviour under test exists only on the order path. Test mode only.")]
+		public void IssueAttendAlly(Actor healer, Actor ally, bool queued = false)
+		{
+			if (!TestMode.IsActive || healer == null || ally == null)
+				return;
+
+			healer.World.IssueOrder(new Order("AttendAlly", healer, Target.FromActor(ally), queued));
+		}
+
 		[Desc("Return the CPos this actor was last assigned by CohesionMoveModifier (the slot the " +
 			"sticky-cover leash will try to walk back to). Returns CPos.Zero if no slot is set.")]
 		public CPos GetCohesionSlot(Actor actor)

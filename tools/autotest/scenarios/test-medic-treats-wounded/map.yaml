@@ -1,0 +1,59 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: medic walks to a wounded soldier and treats him
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# A medic stands 5 cells from a soldier the Lua drains to 40% health — well
+# outside the Heal weapon's 1c0 reach, well inside the medic's notice radius.
+# Nothing else on the map can move or heal anyone, so any health gain proves the
+# medic noticed a casualty he could not already touch and closed the distance.
+# PASS = the soldier's health climbs above the drained baseline.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	Medic: medi
+		Owner: Me
+		Location: 18,16
+		Facing: 768
+
+	# 5 cells east of the medic: outside the 1c0 heal range, inside the 8c0
+	# notice radius. Drained to 40% in Lua so he is also below the medic's
+	# critical threshold.
+	Wounded: e1
+		Owner: Me
+		Location: 23,16
+		Facing: 768
+
+Rules: rules.yaml

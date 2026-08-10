@@ -1,0 +1,57 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: medic on Hunt trails the squad instead of standing still
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# A medic on Hunt stance, 8 cells from a healthy rifleman. Nobody is wounded, so
+# there is nothing for a medic to hunt — his only armament targets Heal. If the
+# follow behaviour is gated to Defensive he is simply left behind.
+# PASS = the medic closes to within 4 cells of the rifleman.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	Medic: medi
+		Owner: Me
+		Location: 18,16
+		Facing: 768
+
+	# Healthy, unarmed-against-nothing, and 8 cells away — outside the 3-cell
+	# follow distance, inside the 20-cell follow search range.
+	Squad: e1
+		Owner: Me
+		Location: 26,16
+		Facing: 768
+
+Rules: rules.yaml

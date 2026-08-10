@@ -30,9 +30,19 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Target types to scan for (must match Targetable trait on patients).")]
 		public readonly BitSet<TargetableType> ValidTargetTypes = default;
 
-		[Desc("Max search range when on Defensive engagement stance. 0 = no defensive cap (use max weapon range).",
-			"Lets medics on Defensive only hunt nearby patients without chasing across the battlefield.")]
-		public readonly WDist DefensiveRange = WDist.Zero;
+		[Desc("How far to look for patients. This is the NOTICE radius, not the heal range —",
+			"the healer still has to walk into weapon range to treat anyone. 0 = fall back to the",
+			"max heal weapon range (the pre-SearchRange behaviour, i.e. only notice what is already",
+			"in range).")]
+		public readonly WDist SearchRange = WDist.Zero;
+
+		[Desc("Ignore patients above this health percentage — light scratches are not worth a house call.",
+			"100 = treat any damage at all. Gates ACQUISITION only: once a patient is picked up he is",
+			"treated to full, so tuning this down does not leave half-healed men lying around.")]
+		public readonly int MaxPatientHealthPercent = 100;
+
+		[Desc("Ticks a patient stays benched after the healer failed to reach him.")]
+		public readonly int AbandonCooldown = 250;
 
 		public override object Create(ActorInitializer init) { return new HealerAutoTarget(init.Self, this); }
 	}
@@ -44,7 +54,18 @@ namespace OpenRA.Mods.Common.Traits
 		HealerClaimLayer claimLayer;
 		AttackBase[] attackBases;
 		Actor currentTarget;
+		Actor abandoned;
+		int abandonedTicks;
 		int scanTick;
+
+		/// <summary>The patient this healer has claimed, whether or not it is close enough to treat yet.
+		/// <see cref="AutoFollowAlly"/> reads this to walk the healer over — the attack layer refuses to
+		/// approach an auto-target on any stance below Hunt (Attack.cs, engagement stance gate), so
+		/// closing the distance is the follow layer's job, not the attack layer's.</summary>
+		public Actor CurrentPatient => currentTarget;
+
+		/// <summary>How close the healer must get before it can actually treat <see cref="CurrentPatient"/>.</summary>
+		public WDist HealRange => GetMaxHealRange();
 
 		public HealerAutoTarget(Actor self, HealerAutoTargetInfo info)
 		{
@@ -71,6 +92,76 @@ namespace OpenRA.Mods.Common.Traits
 			target = Target.Invalid;
 			EnsureClaimLayer(self);
 
+			// This trait answers for the healer unconditionally — "nobody" is an answer, not an
+			// abstention. Returning false hands the decision to AutoTarget's own scan, which is NOT
+			// bounded by the heal weapon's one cell: it uses AutoTarget.ScanRadius, 25 cells on ^MEDI.
+			// That scan applies none of the rules below, so it would pick up anyone merely `damaged`
+			// clean across the field — overruling MaxPatientHealthPercent — and, because it re-issues an
+			// attack every scan interval, cancel the follow move that was walking us to the patient this
+			// trait actually chose.
+			if (ArmamentsPaused())
+			{
+				// Suppressed, typically: he cannot treat anyone at all right now. Say so, and let go of
+				// the case rather than holding a claim another healer could be acting on.
+				if (currentTarget != null)
+				{
+					ReleaseClaim(self);
+					currentTarget = null;
+				}
+
+				return true;
+			}
+
+			var patient = SelectPatient(self);
+
+			// Only hand the attack layer a patient it can actually treat from where it stands. A patient
+			// that has been noticed but not yet reached stays claimed and is walked to by AutoFollowAlly.
+			// PITFALL: returning an out-of-range patient here does NOT make the healer approach it — on any
+			// stance below Hunt the Attack activity reports UnableToAttack instead of closing (Attack.cs,
+			// "Engagement stance movement restrictions"). Worse, AttackMoveActivity re-scans mid-march and
+			// cancels its move child whenever a scan returns a target, so an unreachable patient would stall
+			// marching healers every 10 ticks.
+			if (patient != null && IsInHealRange(self, patient))
+				target = Target.FromActor(patient);
+
+			return true;
+		}
+
+		/// <summary>True when every enabled heal armament is paused — suppression, typically. The healer
+		/// can still acquire and aim; he simply cannot fire, and Armament.CanFire declines in silence.</summary>
+		bool ArmamentsPaused()
+		{
+			var found = false;
+			foreach (var ab in attackBases)
+			{
+				if (ab.IsTraitDisabled)
+					continue;
+
+				// A paused AttackBase fires nothing whatever the state of its armaments — Attack.DoAttack
+				// skips the whole trait. ^MEDI's is paused while garrisoned at a port.
+				if (ab.IsTraitPaused)
+				{
+					found = true;
+					continue;
+				}
+
+				foreach (var armament in ab.Armaments)
+				{
+					if (armament.IsTraitDisabled)
+						continue;
+
+					if (!armament.IsTraitPaused)
+						return false;
+
+					found = true;
+				}
+			}
+
+			return found;
+		}
+
+		Actor SelectPatient(Actor self)
+		{
 			if (scanTick > 0 && IsValidTarget(self, currentTarget))
 			{
 				// Check stabilize-and-switch: if current target is above threshold,
@@ -87,14 +178,12 @@ namespace OpenRA.Mods.Common.Traits
 							ReleaseClaim(self);
 							currentTarget = critical;
 							TryClaimTarget(self, critical);
-							target = Target.FromActor(critical);
-							return true;
+							return critical;
 						}
 					}
 				}
 
-				target = Target.FromActor(currentTarget);
-				return true;
+				return currentTarget;
 			}
 
 			// Full rescan
@@ -110,7 +199,7 @@ namespace OpenRA.Mods.Common.Traits
 					currentTarget = null;
 				}
 
-				return false;
+				return null;
 			}
 
 			if (best != currentTarget)
@@ -120,8 +209,14 @@ namespace OpenRA.Mods.Common.Traits
 				TryClaimTarget(self, best);
 			}
 
-			target = Target.FromActor(best);
-			return true;
+			return best;
+		}
+
+		bool IsInHealRange(Actor self, Actor patient)
+		{
+			var healRange = GetMaxHealRange();
+			return healRange > WDist.Zero
+				&& (patient.CenterPosition - self.CenterPosition).HorizontalLengthSquared <= healRange.LengthSquared;
 		}
 
 		WDist GetMaxHealRange()
@@ -139,24 +234,23 @@ namespace OpenRA.Mods.Common.Traits
 			return maxRange;
 		}
 
-		WDist GetEffectiveSearchRange(Actor self)
+		WDist GetEffectiveSearchRange()
 		{
-			var maxRange = GetMaxHealRange();
-			if (info.DefensiveRange.Length <= 0)
-				return maxRange;
+			// The notice radius is configured outright. It used to be derived from the heal weapon's
+			// range, which pinned it to a single cell and made every wider-radius feature here — the
+			// critical-first scoring, the claim de-confliction, stabilize-and-switch — unreachable.
+			return info.SearchRange > WDist.Zero ? info.SearchRange : GetMaxHealRange();
+		}
 
-			// Cap the search range when on Defensive engagement stance so the medic
-			// doesn't chase patients across the battlefield.
-			var autoTarget = self.TraitOrDefault<AutoTarget>();
-			if (autoTarget != null && autoTarget.EngagementStanceValue == EngagementStance.Defensive)
-				return maxRange < info.DefensiveRange ? maxRange : info.DefensiveRange;
-
-			return maxRange;
+		bool IsWorthTreating(Health health)
+		{
+			return health.HP < health.MaxHP
+				&& health.HP * 100 / health.MaxHP <= info.MaxPatientHealthPercent;
 		}
 
 		Actor FindBestTarget(Actor self)
 		{
-			var maxRange = GetEffectiveSearchRange(self);
+			var maxRange = GetEffectiveSearchRange();
 
 			if (maxRange == WDist.Zero)
 				return null;
@@ -166,7 +260,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, maxRange))
 			{
-				if (a == self || a.IsDead || !a.IsInWorld)
+				if (a == self || a == abandoned || a.IsDead || !a.IsInWorld)
 					continue;
 
 				if (!self.Owner.IsAlliedWith(a.Owner))
@@ -177,7 +271,7 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				var health = a.TraitOrDefault<Health>();
-				if (health == null || health.HP >= health.MaxHP)
+				if (health == null || !IsWorthTreating(health))
 					continue;
 
 				// Skip if claimed by another healer
@@ -207,7 +301,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		Actor FindCriticalUnclaimed(Actor self)
 		{
-			var maxRange = GetEffectiveSearchRange(self);
+			var maxRange = GetEffectiveSearchRange();
 			if (maxRange == WDist.Zero)
 				return null;
 
@@ -216,7 +310,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, maxRange))
 			{
-				if (a == self || a == currentTarget || a.IsDead || !a.IsInWorld)
+				if (a == self || a == currentTarget || a == abandoned || a.IsDead || !a.IsInWorld)
 					continue;
 
 				if (!self.Owner.IsAlliedWith(a.Owner))
@@ -227,7 +321,7 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				var health = a.TraitOrDefault<Health>();
-				if (health == null || health.HP >= health.MaxHP)
+				if (health == null || !IsWorthTreating(health))
 					continue;
 
 				var hpPct = health.HP * 100 / health.MaxHP;
@@ -274,10 +368,28 @@ namespace OpenRA.Mods.Common.Traits
 			claimLayer?.RemoveClaim(self);
 		}
 
+		/// <summary>Give up on the current patient — called by the follow layer when it cannot path to him.
+		/// Releases the claim so another healer can take the case, and benches this one for a while so the
+		/// very next scan doesn't just pick him again.</summary>
+		public void AbandonPatient(Actor self)
+		{
+			if (currentTarget == null)
+				return;
+
+			abandoned = currentTarget;
+			abandonedTicks = info.AbandonCooldown;
+			ReleaseClaim(self);
+			currentTarget = null;
+			scanTick = 0;
+		}
+
 		void ITick.Tick(Actor self)
 		{
 			if (scanTick > 0)
 				--scanTick;
+
+			if (abandonedTicks > 0 && --abandonedTicks == 0)
+				abandoned = null;
 
 			// Clean up stale target
 			if (currentTarget != null && !IsValidTarget(self, currentTarget))

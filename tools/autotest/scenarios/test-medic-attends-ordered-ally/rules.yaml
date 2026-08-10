@@ -1,0 +1,16 @@
+# Medic attend-order autotest. Pre-placed medic + two healthy riflemen, no economy.
+
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults to
+	# human-owned units in Created (AutoTarget.cs). Strip it so the medic's autonomy
+	# is the YAML one and the verdict does not depend on the dev's saved settings.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-medic-attends-ordered-ally.lua

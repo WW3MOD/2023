@@ -2177,12 +2177,41 @@ SF:
 		ClaimTargets: true
 		ScanInterval: 8
 		ValidTargetTypes: Heal
-		DefensiveRange: 5c0
+		# How far the medic NOTICES casualties. He still has to walk into the Heal weapon's 1c0 to
+		# treat one — this is his field of concern, not his reach.
+		SearchRange: 8c0
+		# Scratches are not worth a house call: he does not cross the field for a man above 90%.
+		# This gates ACQUISITION only — once he has taken a case he treats it to full, so there is
+		# no oscillation at the boundary and nobody is abandoned half-healed at 90%. Below
+		# StabilizeThreshold (50) the critical-first scoring still overrides distance.
+		MaxPatientHealthPercent: 90
+	# Clicking a friendly soldier orders the medic to go and stay with him. Without this the click
+	# produces nothing at all when that soldier is unhurt: the heal Armament can only target the
+	# `Heal` type, which the `damaged` condition grants, so ChooseArmamentsForTarget comes back
+	# empty and AttackBase declines to issue an order or even show a cursor.
+	# PITFALL: attend on ANY infantry, not on `Heal` — making unhurt allies Heal-targetable instead
+	# would let the heal warhead fire at full-health men and would change everything else that keys
+	# off the Heal target type.
+	AttendAlly:
+		ValidTargets: Infantry
+		Range: 1c0
 	AutoFollowAlly:
+		# A medic's only armament targets Heal, so on Hunt he has nothing to hunt — without this he
+		# just stands where he was left. Hold Position remains stay-put (he still treats whoever
+		# walks into reach).
+		FollowStances: Defensive, Hunt
 		FollowDistance: 3c0
 		SearchRange: 20c0
 		CheckInterval: 25
 		RequireAttackBase: true
+	AttackFrontal:
+		# PITFALL: the Armament below pauses under suppression, and a paused armament still passes
+		# ChooseArmamentsForTarget (it filters disabled, not paused). Without this the medic accepts a
+		# heal order on a genuinely wounded man, walks up, aims, and fires nothing for as long as he is
+		# suppressed — stuck non-idle, so none of his autonomy runs either. On screen that is
+		# indistinguishable from the order having been refused. Give up instead and stay available.
+		# Covers this trait's own PauseOnCondition (garrisoned-at-port) too, which wedges the same way.
+		AbandonWhenArmamentsPaused: true
 	Armament@1:
 		Name: primary
 		Weapon: Heal

@@ -62,6 +62,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Health percentage below which to retarget (e.g., 50 for 50%).")]
 		public readonly int CriticalHealthThreshold = 50;
 
+		[Desc("End the attack activity when every armament that could engage the target is PAUSED,",
+			"instead of aiming at it indefinitely. ChooseArmamentsForTarget filters disabled armaments",
+			"but not paused ones, so a paused unit accepts the order, closes, aims, and then declines to",
+			"fire every tick while the activity keeps reporting Attacking — it is stuck non-idle, which",
+			"silences every idle-driven behaviour it has. Defaults to false: for a normal weapon, holding",
+			"aim through a brief pause is the wanted behaviour. Turn it on for units whose pause can last",
+			"(suppression) and whose idle behaviour matters more than the aim, e.g. medics.")]
+		public readonly bool AbandonWhenArmamentsPaused = false;
+
 		[Desc("Hold fire while the unit is mid-cell (still rolling between cells). " +
 			"Enable on artillery / MLRS / units that should require a full stop before firing. " +
 			"Independent of Mobile.PauseOnCondition: firing — that gates STARTING new cell transitions, " +

@@ -1,0 +1,21 @@
+# Suppressed-medic autotest. Pre-placed medic + one wounded rifleman, no economy.
+#
+# No enemy is needed: ^Infantry already carries ExternalCondition@Suppression
+# (Condition: suppressed, TotalCap: 100, ReduceTicks: 5, ReduceAmount: 1), so the
+# Lua can put the medic under a deterministic amount of suppression directly. Real
+# incoming fire would be the same condition arrived at nondeterministically.
+
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults to
+	# human-owned units in Created (AutoTarget.cs). Strip it so the verdict does not
+	# depend on the dev's saved settings.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-medic-suppressed-gives-up.lua
