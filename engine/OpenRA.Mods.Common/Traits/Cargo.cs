@@ -63,6 +63,21 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Delay (in ticks) before continuing after unloading a passenger.")]
 		public readonly int AfterUnloadDelay = 25;
 
+		[Desc("How many passengers leave back-to-back before the longer inter-group pause. 2 = they ",
+			"come out in pairs, which is what reads as a squad dismounting rather than a clown car. ",
+			"1 puts the long pause between every passenger; 0 or less disables pacing entirely.")]
+		public readonly int UnloadGroupSize = 2;
+
+		[Desc("Ticks between two passengers inside the same group. Deliberately small — the pair is ",
+			"meant to look like it left together. 0 restores the pre-pacing behaviour of one ",
+			"passenger per tick.")]
+		public readonly int IntraGroupUnloadDelay = 4;
+
+		[Desc("The pause between groups, as a multiple of IntraGroupUnloadDelay. 3 = the gap between ",
+			"pairs is three times the gap inside a pair; that ratio is what gives the groups visible ",
+			"separation. Raise it to spread a dismount out further, set it to 1 for an even cadence.")]
+		public readonly int InterGroupUnloadDelayMultiplier = 3;
+
 		[CursorReference]
 		[Desc("Cursor to display when able to unload the passengers.")]
 		public readonly string UnloadCursor = "deploy";
