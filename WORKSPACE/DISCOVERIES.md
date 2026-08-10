@@ -3,6 +3,25 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-10 — MEASURED: the supply-truck oscillation, caught in the act — and a bug that CANNOT FIRE is indistinguishable from one that does not exist
+
+Fourth run of `test-supply-under-danger` (`0ed01e0e`, pinned seed `-1848572889`). The cluster anchor fix landed and worked on the first scan:
+
+```
+[supply] anchor cluster=38,16 → 33,16 short=5c danger=0 starving-in-cluster=5
+[supply] drop truck=10@7,16 anchor=33,16 load=750 starving=5 cache-near=0 in-flight=0 new
+truck x:  7 → 14 → 22 → 29   evac-enter danger=308180 threshold=1706
+             → 24 → 17        evac-exit  danger=16
+             → 23 → 30        evac-enter danger=462272 threshold=1706
+             → 26 → 18        evac-exit  danger=13
+```
+
+- **THE HYPOTHESIS WAS NOT REFUTED, IT WAS UNOBSERVABLE — and this is the entry's real content.** Two runs earlier "evac out-ranks the drop" was written off because the evidence pointed elsewhere. It was never testable: **the drop errand did not exist, so evac had nothing to pre-empt.** Fixing the anchor did not merely unblock a feature, it *promoted the defect behind it from refuted to confirmed*. Generalises directly: **a bug that cannot fire produces exactly the same evidence as a bug that is not there, so "we looked and it wasn't happening" is worthless whenever a gate upstream of it is known to be failing closed.** The discipline that saved it was refusing to write the hypothesis off as dead and recording it as UNTESTED instead — an accurate status kept it in the queue where "dead" would have deleted it.
+- **The oscillation the user has been told was fixed three times, with numbers.** Evac entered at **308,180** and **462,272** against a bar of **1,706** — 180× and 271× over — retreated ~12 cells, released at danger ~15, and re-entered. Period ~2 scans. The crate was never placed.
+- **A TRUCK CAN NEVER REACH A DROP POINT THAT LIES BEYOND THE CELL WHERE EVAC FIRES.** This is the structural form of the defect and it is worth stating separately from the tuning: while evac outranks the errand the delivery is **geometrically impossible**, not merely unreliable, so no anchor placement, no threshold retune and no additional damping can fix it from the drop side. Any "the truck dithers" report whose anchor sits deeper than the evac trigger is this bug, and the only repair is the priority.
+- **The consequent damage is not a stalled truck, it is a collapsed front.** With no crate, the platoon it was for walked ten cells rearward to fetch supply from the oscillating truck — so a truck-side priority bug presents as an infantry-side position loss, with nothing in the log connecting them.
+- **Method note on layered defects:** three separate blockers sat in series on one delivery path (leash → anchor → evac priority), and each one made the next invisible. Measuring "does supply reach the front" could only ever reveal the outermost. **When a symptom has survived several fixes, expect a stack rather than a wrong diagnosis, and expect each fix to change what the next run is even capable of showing.**
+
 ## 2026-08-10 — MEASURED: a starving platoon walks off the front to meet its own supply truck, and an outcome-only assertion scores that as success
 
 Second instrumented run of `test-supply-under-danger` (`14499b0a`). The test **PASSED** and the doctrine was violated. Truck x per second: `7 7 7 14 14 21 21 29 29`. The per-scan target column is the tell:
