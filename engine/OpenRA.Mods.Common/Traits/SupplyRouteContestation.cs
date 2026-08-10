@@ -386,7 +386,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (owner.NonCombatant || !owner.Playable)
 					continue;
 
-				if (!owner.IsAlliedWith(self.Owner))
+				if (!SameTeam(owner, self.Owner))
 					continue;
 
 				// An ally that has already won means the whole team has won — the team is not
@@ -431,17 +431,26 @@ namespace OpenRA.Mods.Common.Traits
 			// team that already has a victor. If a teammate has already Won (its enemies were
 			// resolved a tick earlier), the team has won; a still-Undefined member must be awarded
 			// in Phase 2, not defeated here. Otherwise the winning team ends with one member Lost.
-			foreach (var p in self.World.Players)
+			//
+			// Membership and win state are SNAPSHOTTED before the first MarkFailed. MarkFailed sets
+			// WinState synchronously; a Lost player is immediately Spectating, and RelationshipWith
+			// reports every Spectating player as an Ally. Deciding membership live inside the marking
+			// loop therefore dragged every player slotted AFTER the eliminated one onto the
+			// "eliminated team" and cascaded the defeat across the whole game.
+			// MissionObjectives.WorldLoaded caches its ally/enemy lists against the same hazard.
+			var candidates = self.World.Players.Where(p => !p.NonCombatant && p.Playable).ToArray();
+			var snapshot = candidates
+				.Select(p => (OnEliminatedTeam: SameTeam(p, self.Owner) && !TeamAlreadyWon(p), State: p.WinState))
+				.ToArray();
+
+			var targets = SelectEliminationTargets(snapshot);
+
+			for (var i = 0; i < candidates.Length; i++)
 			{
-				if (p.NonCombatant || !p.Playable || p.WinState != WinState.Undefined)
+				if (!targets[i])
 					continue;
 
-				if (p != self.Owner && !p.IsAlliedWith(self.Owner))
-					continue;
-
-				if (TeamAlreadyWon(p))
-					continue;
-
+				var p = candidates[i];
 				var mo = p.PlayerActor.TraitOrDefault<MissionObjectives>();
 				if (mo == null)
 					continue;
@@ -486,7 +495,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			return world.Players
 				.Where(o => o != survivor && !o.NonCombatant && o.Playable)
-				.Select(o => (survivor.IsAlliedWith(o), o.WinState));
+				.Select(o => (SameTeam(survivor, o), o.WinState));
 		}
 
 		// True when a teammate of this player (an ally, not the player itself) has already Won.
@@ -495,7 +504,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			return TeamHasVictor(self.World.Players
 				.Where(o => o != player && !o.NonCombatant && o.Playable)
-				.Select(o => (player.IsAlliedWith(o), o.WinState)));
+				.Select(o => (SameTeam(player, o), o.WinState)));
 		}
 
 		// Pure decision: has a teammate already won? Any allied combatant marked Won means the team
@@ -524,6 +533,32 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 
 			return true;
+		}
+
+		// Win-state-immune "are a and b on the same team?", from a's point of view.
+		// Deliberately NOT IsAlliedWith: RelationshipWith reports any Spectating player as an Ally, and
+		// a player becomes Spectating the instant it is marked Lost or Won, so IsAlliedWith cannot
+		// express "same team" once win/loss is being resolved. The lobby alliance masks are fixed at
+		// world creation (CreateMapPlayers.SetupPlayerMasks, which unions a player's own mask for the
+		// p == q pair) and are never touched by win state, so they say what these tests actually mean.
+		static bool SameTeam(Player a, Player b)
+		{
+			return a == b || a.AlliedPlayersMask.Overlaps(b.PlayerMask);
+		}
+
+		// Pure decision: which of these candidates a team-elimination event marks Lost, index-parallel
+		// to the input. The contract that matters is INDEPENDENCE — each verdict is a function of that
+		// candidate's own (membership, win state) pair alone, so applying one verdict can never
+		// reclassify another candidate. That is the invariant the caller relies on when it snapshots
+		// membership up front, and it is what stops one player's defeat cascading onto the survivors
+		// slotted after it.
+		public static bool[] SelectEliminationTargets(IReadOnlyList<(bool OnEliminatedTeam, WinState State)> candidates)
+		{
+			var targets = new bool[candidates.Count];
+			for (var i = 0; i < candidates.Count; i++)
+				targets[i] = ResolveEliminationOutcome(candidates[i].State, candidates[i].OnEliminatedTeam) == WinState.Lost;
+
+			return targets;
 		}
 
 		// Pure decision: what a team-elimination event implies for a member of the eliminated team.
