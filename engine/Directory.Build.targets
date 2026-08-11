@@ -55,4 +55,78 @@
     </ItemGroup>
     <Delete Files="@(_MmapSafetyOwn)" TreatErrorsAsWarnings="true" />
   </Target>
+
+  <!--
+    Stamp the git revision of the sources being compiled into OpenRA.Game as an
+    [AssemblyMetadata("BuildRevision", ...)] attribute, read back at runtime by
+    OpenRA.Network.BuildFingerprint and compared during the join handshake.
+
+    Why a build-time stamp and not a runtime hash of the .cs files: C# is compiled.
+    The running binary is whatever was on disk when it was last compiled, so a
+    working tree that has moved on since (checked out a new commit, edited a trait)
+    must NOT change the reported revision - it would claim a difference that the
+    running code does not have, and worse, would hide the reverse case.
+
+    Why not hash the built assemblies instead: C# compilation is not byte-
+    reproducible (each build gets a fresh MVID, and absolute source paths are
+    embedded), so two machines compiling identical sources would disagree forever
+    and nobody could ever join anybody.
+
+    Dirty trees are covered: uncommitted changes under engine/ and mods/ append a
+    hash of `git diff HEAD` (actual content, so two people editing the same file
+    differently do not collide) plus the porcelain status list (which catches
+    untracked new files that a diff cannot see). Paths outside engine/ and mods/
+    are ignored on purpose - WORKSPACE logs and .maestro scratch files cannot
+    change the build, and letting them mark the tree dirty would produce a
+    mismatch between two players running identical code.
+
+    Every git call is ContinueOnError: no git, or a source zip rather than a clone,
+    degrades to the literal "unknown" rather than failing the build.
+  -->
+  <Target Name="StampBuildRevision"
+          BeforeTargets="GetAssemblyAttributes"
+          Condition="'$(MSBuildProjectName)' == 'OpenRA.Game'">
+    <PropertyGroup>
+      <_RevisionRepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_RevisionRepoRoot>
+    </PropertyGroup>
+
+    <Exec Command="git -C &quot;$(_RevisionRepoRoot)&quot; rev-parse --short=10 HEAD"
+          ConsoleToMSBuild="true" ContinueOnError="true" IgnoreExitCode="true"
+          StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_RevisionCommit" />
+      <Output TaskParameter="ExitCode" PropertyName="_RevisionCommitExit" />
+    </Exec>
+
+    <Exec Command="git -C &quot;$(_RevisionRepoRoot)&quot; status --porcelain --untracked-files=all -- engine mods"
+          Condition="'$(_RevisionCommitExit)' == '0'"
+          ConsoleToMSBuild="true" ContinueOnError="true" IgnoreExitCode="true"
+          StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_RevisionStatus" />
+    </Exec>
+
+    <!-- Only pay for the diff when the status already says something changed. -->
+    <Exec Command="git -C &quot;$(_RevisionRepoRoot)&quot; diff HEAD --no-ext-diff --binary -- engine mods | git hash-object --stdin"
+          Condition="'$(_RevisionStatus)' != ''"
+          ConsoleToMSBuild="true" ContinueOnError="true" IgnoreExitCode="true"
+          StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_RevisionDiff" />
+    </Exec>
+
+    <Hash ItemsToHash="$(_RevisionStatus);$(_RevisionDiff)" Condition="'$(_RevisionStatus)' != ''">
+      <Output TaskParameter="HashResult" PropertyName="_RevisionDirtyHash" />
+    </Hash>
+
+    <PropertyGroup>
+      <_BuildRevision Condition="'$(_RevisionCommitExit)' != '0' or '$(_RevisionCommit)' == ''">unknown</_BuildRevision>
+      <_BuildRevision Condition="'$(_BuildRevision)' == '' and '$(_RevisionStatus)' == ''">$(_RevisionCommit)</_BuildRevision>
+      <_BuildRevision Condition="'$(_BuildRevision)' == ''">$(_RevisionCommit)+$(_RevisionDirtyHash.Substring(0, 8))</_BuildRevision>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>BuildRevision</_Parameter1>
+        <_Parameter2>$(_BuildRevision)</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
+  </Target>
 </Project>

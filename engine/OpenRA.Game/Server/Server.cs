@@ -74,6 +74,9 @@ namespace OpenRA.Server
 		[FluentReference]
 		const string IncompatibleProtocol = "notification-incompatible-protocol";
 
+		[FluentReference("player", "difference", "host", "guest")]
+		const string IncompatibleBuildWarning = "notification-build-mismatch-warning";
+
 		[FluentReference]
 		const string Banned = "notification-you-were-banned";
 
@@ -214,6 +217,7 @@ namespace OpenRA.Server
 				Mod = ModData.Manifest.Id,
 				Version = ModData.Manifest.Metadata.Version,
 				OrdersProtocol = ProtocolVersion.Orders,
+				BuildFingerprint = BuildFingerprint.ForMod(ModData),
 				Client = new Session.Client(),
 			};
 
@@ -524,6 +528,29 @@ namespace OpenRA.Server
 					return;
 				}
 
+				// Metadata.Version above is a hardcoded literal that never moves when engine C#
+				// or mod yaml changes, so it cannot tell a stale build from a current one. The
+				// build fingerprint can: compiled git revision + a hash of the simulation yaml +
+				// a digest of the mounted content packages.
+				//
+				// WARN, DO NOT REJECT. The brief for this guard argued for a hard reject, on the
+				// grounds that a silent desync is worse than a clear refusal. That was right when
+				// a stale build was the leading desync suspect. It is no longer: the players
+				// verified matching branches and fresh rebuilds and desynced anyway, so the bug
+				// is elsewhere and a reject buys nothing - while a fingerprint that differs for a
+				// legitimate reason would stop them playing at all. Legitimate reasons exist and
+				// are not exotic: this repo routinely carries uncommitted work, so a developer
+				// building from a dirty tree gets a different revision from a friend on a clean
+				// checkout of the same commit, and either player may hold optional content
+				// packages (the movies folder) that the other does not. Both are worth SAYING;
+				// neither is worth refusing a game over.
+				var serverFingerprint = BuildFingerprint.ForMod(ModData);
+				var buildMismatch = serverFingerprint != handshake.BuildFingerprint;
+				if (buildMismatch)
+					Log.Write("server",
+						$"Client {newConn.PlayerIndex}: build fingerprint mismatch " +
+						$"(host {serverFingerprint}, client {handshake.BuildFingerprint ?? "<none>"}).");
+
 				if (handshake.OrdersProtocol != ProtocolVersion.Orders)
 				{
 					Log.Write("server", $"Rejected connection from {newConn.EndPoint}; incompatible Orders protocol version {handshake.OrdersProtocol}.");
@@ -603,6 +630,17 @@ namespace OpenRA.Server
 							SendFluentMessageTo(newConn, TwoHumansRequired);
 						else if (Map.Players.Players.Where(p => p.Value.Playable).All(p => !p.Value.AllowBots))
 							SendFluentMessageTo(newConn, BotsDisabled);
+
+						// Broadcast rather than send only to the joiner: a build mismatch is a
+						// property of the pair, and the host is the one who can decide whether to
+						// go ahead anyway. Deliberately emitted here, after the client is
+						// validated, because chat is the only surface both players reliably see.
+						if (buildMismatch)
+							SendFluentMessage(IncompatibleBuildWarning,
+								"player", client.Name,
+								"difference", BuildFingerprint.DescribeDifference(serverFingerprint, handshake.BuildFingerprint),
+								"host", BuildFingerprint.Describe(serverFingerprint),
+								"guest", BuildFingerprint.Describe(handshake.BuildFingerprint));
 					}
 				}
 
