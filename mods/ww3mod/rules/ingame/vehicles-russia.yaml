@@ -788,7 +788,7 @@ tunguska:
 	Valued:
 		Cost: 1700
 	Health:
-		HP: 14000
+		HP: 8000
 	Armor:
 		Type: Medium
 		Thickness: 19
@@ -800,8 +800,6 @@ tunguska:
 			VerticalTopOffset: 550
 			TopLeft: -400, -550
 			BottomRight: 400, 550
-	Health:
-		HP: 8000
 	Mobile:
 		Locomotor: heavytracked
 		Speed: 100
