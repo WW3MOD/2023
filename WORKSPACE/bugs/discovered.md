@@ -3,6 +3,19 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-11: [medium] An idle unit re-issues its attack order roughly every tick, marking the target for overkill accounting ~30x per decay window, so healthy targets read as saturated and other units skip them (found while: target preemption, branch `wt/autotarget-preempt`)
+
+Pre-existing on `main`; the preemption branch neither introduced nor fixed it. Adjudicated out of scope in review.
+
+- `ScanForTarget`'s override loop returns the incumbent target **before** the `nextScanTime` re-arm (the `foreach (var oat in overrideAutoTarget)` block sits above the `SharedRandom.Next` assignment in `AutoTarget.cs`). So when the override answers — the normal case for an idle unit holding a persistent opportunity target — `nextScanTime` is never reset and stays `<= 0`.
+- `TickIdle` therefore calls `ScanAndAttack` again on the next tick, and every tick after, re-issuing an attack order on the same target.
+- Every `AttackBase.AttackTarget` call runs `AutoTarget.MarkTargetForAttack`, and that mark's decay is tuned to outlive a reload (60 ticks, `Actor.cs`). So a target engaged by a single idle unit accumulates marks roughly an order of magnitude faster than the tuning assumes.
+- Consequence: `AverageDamagePercent` reads far above the real incoming damage, so `ChooseTarget`'s hard `OverkillThreshold` skip and its soft-overkill penalty make *other* units avoid a target that is not actually saturated — the opposite of the intent, and it compounds with the number of engaged units.
+
+**Fix shape (not attempted):** either re-arm `nextScanTime` on the override path too, or make the mark idempotent per (attacker, target) within a decay window. The first is nearly a one-liner but changes scan cadence for every unit in the game, so it wants its own branch and its own benchmark; the second is more surgical but touches accounting that several systems read.
+
+**Note the shape.** Same class as the `HasValidTargetPriority` / `OnlyTargets` bug that branch surfaced: an accounting rule silently wrong for a long time because nothing asserts on it directly and the symptom is diffuse ("units sometimes ignore a good target") rather than a visible failure.
+
 ## 2026-08-10: [low] `VehicleCrew` is edge-triggered and `Cargo` is level-triggered, so a transport already burning when it receives passengers evacuates them but never its crew (found while: the vehicle-occupant pass, branch `wt/vehicle-occupants`)
 
 Both occupant systems now bail on the same damage state (`Heavy`, HP <50%), but they decide *when to look* in incompatible ways:
