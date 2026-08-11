@@ -3,6 +3,17 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-11: [low] `IskanderTargeter`/`HIMARSTargeter` deal their full 50 damage to infantry — their `Versus` tables zero a class that does not exist and omit three that do (found while: the danger-field durability rescale, branch `auto/danger-durability`)
+
+Both force-fire spotter weapons (`mods/ww3mod/rules/weapons/weapons-missiles.yaml:284-306`; HIMARS inherits Iskander) declare `Damage: 50` with `Versus:` zeroing `None, Wood, Concrete, Light, Medium, Heavy, Brick`. The evident intent is "marks a target, harms nothing". The data does not say that:
+
+- **`Brick` is not an armor class in WW3MOD.** The nine in the ruleset are `Concrete, Heavy, Indestructable, Kevlar, Light, Medium, None, Unarmored, Wood` (`OpenRA.Utility ww3mod --danger-reference` prints the set). The `Brick: 0` line modifies nothing.
+- **`Kevlar`, `Unarmored` and `Indestructable` are unlisted**, and an unlisted class takes the *unmodified 100%* — `DamageWarhead.DamageVersus` filters to the classes the table lists (`DamageWarhead.cs:105`), so omission is the opposite of a zero. `Kevlar` is `^Soldier`'s armor, i.e. every infantryman.
+
+So designating a target with either weapon does 50 damage to any soldier in the blast. Small in absolute terms against 200-HP infantry, but it is damage the design does not intend, it is attributable to the spotter rather than the missile, and it means the danger field is right to keep counting these weapons (which is how this surfaced — see `DISCOVERIES.md` 2026-08-11).
+
+**Not fixed here** — it is a balance/data change in a file this branch does not otherwise touch, and the branch is deliberately one measurable change. Fix shape: add `Kevlar: 0`, `Unarmored: 0`, `Indestructable: 0` and drop the dead `Brick: 0`; then `--danger-reference` should report `harmless=True` for both and the ground-contributing population should fall 92 → 90 with `min` rising off the targeters' 21.
+
 ## 2026-08-10: [low] `VehicleCrew` is edge-triggered and `Cargo` is level-triggered, so a transport already burning when it receives passengers evacuates them but never its crew (found while: the vehicle-occupant pass, branch `wt/vehicle-occupants`)
 
 Both occupant systems now bail on the same damage state (`Heavy`, HP <50%), but they decide *when to look* in incompatible ways:

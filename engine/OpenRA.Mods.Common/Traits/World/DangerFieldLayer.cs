@@ -165,8 +165,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (radius < 1)
 				radius = 1;
 
-			// Durability/cost weight: ~1.0x (DurabilityBase) for a fragile, cheap unit, rising
-			// with health and cost. A tank's aura is denser than a rifleman's at equal throughput.
+			// Durability/cost weight: 1.0x (DurabilityBase) for a fragile, cheap unit, rising with health
+			// and cost. A tank's aura is denser than a rifleman's at equal throughput. Over WW3MOD's 92
+			// ground-contributing types the band is 1.00x (a rifleman, and anything under 1,000 HP) to 1.28x
+			// (abrams, 28,000 HP / $2,500), median 1.00x — a TIE-BREAK between comparable threats, which is
+			// the whole design intent. It is deliberately NOT a second lethality term: ground throughput
+			// already spans 20 to 245,000 (four orders), so a weight with real dynamic range would be
+			// re-ranking the classes throughput just ranked. `--danger-reference` prints the live band.
+			// See HealthDivisor/CostDivisor for the RA-scale trap this replaces.
 			var durabilityWeight = p.DurabilityBase + f.Health / p.HealthDivisor + f.Cost / p.CostDivisor;
 
 			// COMPUTED IN long, BUT THE OVERFLOW THIS ONCE GUARDED WAS A SYMPTOM, NOT THE DISEASE. With the
@@ -174,8 +180,12 @@ namespace OpenRA.Mods.Common.Traits
 			// multiply of 6.79e9, which wrapped negative, fell through the `< 1` guard and was clamped to the
 			// FLOOR OF 1, so every heavy vehicle stamped an aura of 1 while a rifleman stamped ~1,626 and the
 			// field ranked a rifle squad above an armoured company. But 2,300,000 was never a real throughput:
-			// it was a cycle-length error (see WeaponThroughput). With the cadence corrected the same tank
-			// reads 17,692, the product is 5.2e7, and this sits ~41x below int.MaxValue.
+			// it was a cycle-length error (see WeaponThroughput). With the cadence corrected AND the weight
+			// rescaled to its documented band, that Abrams reads 17,846 x 128 = 2.28e6, and the worst first
+			// multiply across BOTH channels — the hind, 245,000 x 100 — is 2.45e7, 87x below int.MaxValue.
+			// That last figure is not an estimate: `OpenRA.Utility ww3mod --danger-reference` prints it as
+			// `worst-first-multiply`, so the headroom claim can be re-checked against the ruleset it is a
+			// claim about, which is the only form of it that survives a rebalance.
 			// The long is KEPT, and deliberately not sold as the fix: both inputs are data-driven, so a
 			// rebalance can enlarge them again, and this is the cheapest place to be certain. If it ever
 			// saturates, that is a signal the weapon data has drifted — not something to widen further.
@@ -288,11 +298,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Baseline durability weight (=100 ⇒ 1.0x). Health and cost add to it.")]
 		public readonly int DurabilityBase = 100;
 
-		[Desc("HP per +1 weight point above the baseline.")]
-		public readonly int HealthDivisor = 10;
+		[Desc("HP per +1 weight point above the baseline. WW3MOD hulls run 200–28,000 HP, so this is",
+			"1000x the RA-era 10 the field shipped with: at 10 an Abrams alone drew +2,800 points",
+			"(a 29x multiplier) and the weight stopped being a tie-break between comparable threats.")]
+		public readonly int HealthDivisor = 1000;
 
-		[Desc("Cost per +1 weight point above the baseline.")]
-		public readonly int CostDivisor = 50;
+		[Desc("Cost per +1 weight point above the baseline. Scaled with HealthDivisor for the same",
+			"reason — WW3MOD costs run 25–6,000 against RA's ~50–2,000.")]
+		public readonly int CostDivisor = 5000;
 
 		[Desc("Stage-C territory baseline: low intensity added to every cell within the believed",
 			"enemy weapon envelope of believed-enemy-held ground (the 'a drone could arrive' danger).",
@@ -397,6 +410,11 @@ namespace OpenRA.Mods.Common.Traits
 			beliefStore = w.WorldActor.TraitOrDefault<BeliefStore>();
 			controlField = w.WorldActor.TraitOrDefault<ControlField>();
 
+			// The armor population a Versus table must zero before its warhead counts as harmless. Derived
+			// from the SAME ruleset the kernels are, so a map that adds an armor class re-opens the test
+			// for that map rather than silently keeping a stale verdict.
+			var (armorTypes, anyUnprovableArmor) = RulesetArmorTypes(w.Map.Rules.Actors.Values);
+
 			// Cache kernel facts per actor type once — weapon references are resolved by now
 			// (ArmamentInfo.WeaponInfo populated at RulesetLoaded). Per-world (map overrides apply).
 			foreach (var ai in w.Map.Rules.Actors.Values)
@@ -404,7 +422,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (ai.Name.StartsWith("^", System.StringComparison.Ordinal))
 					continue;
 
-				factsByType[ai.Name] = ExtractKernelFacts(ai, Info.ThroughputWindow);
+				factsByType[ai.Name] = ExtractKernelFacts(ai, Info.ThroughputWindow, armorTypes, anyUnprovableArmor);
 			}
 
 			// The reference contact, from the SAME facts the kernels are stamped from, so a balance change to
@@ -495,8 +513,13 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var ground = new List<int>(field.ActiveCells.Count);
+			var air = new List<int>(field.ActiveCells.Count);
 			foreach (var cell in field.ActiveCells)
-				ground.Add(field.Cells[cell].Ground);
+			{
+				var data = field.Cells[cell];
+				ground.Add(data.Ground);
+				air.Add(data.Air);
+			}
 
 			ground.Sort();
 			var min = ground[0];
@@ -508,6 +531,73 @@ namespace OpenRA.Mods.Common.Traits
 				+ $"ground min={min} median={median} max={max} "
 				+ $"| in units median={ToDangerUnits(median, ReferenceGroundIntensity)} "
 				+ $"max={ToDangerUnits(max, ReferenceGroundIntensity)} ref={ReferenceGroundIntensity}");
+
+			air.Sort();
+			LogPercentiles(player, n, "ground", ground, ReferenceGroundIntensity);
+			LogPercentiles(player, n, "air", air, ReferenceAirIntensity);
+		}
+
+		/// <summary>The percentile CURVE of one channel over the same stamped-cell population
+		/// <see cref="LogDistribution"/> already reports min/median/max for — emitted as its OWN line, leaving
+		/// `[danger] dist` byte-identical. Nothing automated parses that line today (checked across tools/),
+		/// so that is for human greps and for comparing against already-captured logs, not a machine contract.
+		///
+		/// <para>WHY THIS EXISTS: min/median/max is three points, and no percentile can be honestly derived
+		/// from three points. A danger unit defined as a percentile of the LIVE field (the successor to the
+		/// median-of-types <see cref="DangerKernelMath.ReferenceIntensity"/>) has to be chosen against the
+		/// distribution's actual shape, and the 2026-08-10 measurement — two players 3.4x apart on the same
+		/// map in the same match — is exactly the evidence that the shape, not the tuning, is what the
+		/// current constant gets wrong. Deriving the successor unit from three points would reproduce that
+		/// error with a percentile's name on it.</para>
+		///
+		/// <para>DECILES PLUS p95/p99, and the tail is not decoration. Deciles fix the shape at 10% steps,
+		/// which is what distinguishes "the field is flat with a few peaks" from "the field is uniformly
+		/// hot" — the question a level threshold turns on. But the field is heavy-tailed (the load-time
+		/// spread already straddles the median by ~4 orders), and every threshold in the HOSTILE direction
+		/// is fitted to the top of that tail, where deciles have no resolution at all: p90 and max can sit
+		/// two orders apart with nothing between them. p95/p99 are the cheapest points that make the tail
+		/// legible.</para>
+		///
+		/// <para>Diagnostics ONLY. Reads the field, writes nothing, draws no random number, and is called
+		/// from the same already-bounded episode gate — the list is sorted for the median regardless, so a
+		/// percentile is an O(1) index off work that was already done. The AIR curve is taken over the SAME
+		/// cell population as the ground one (every cell either channel stamped), NOT over air-stamped cells
+		/// only: that keeps the two curves index-comparable, but it means a mostly-ground field reports air
+		/// deciles of 0 up to a high percentile. That is the honest reading — the air channel carries no
+		/// territory baseline by design — not a truncated sample.</para></summary>
+		void LogPercentiles(Player player, int n, string channel, List<int> sorted, int reference)
+		{
+			var raw = new System.Text.StringBuilder();
+			var units = new System.Text.StringBuilder();
+			foreach (var p in PercentilePoints)
+			{
+				var v = Percentile(sorted, p);
+				raw.Append($" p{p}={v}");
+				units.Append($" p{p}={ToDangerUnits(v, reference)}");
+			}
+
+			Log.Write("debug",
+				$"[danger] pct player={player.PlayerName} n={n} chan={channel} cells={sorted.Count} "
+				+ $"raw{raw} | units{units} ref={reference}");
+		}
+
+		static readonly int[] PercentilePoints = { 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 99 };
+
+		/// <summary>Nearest-rank percentile over an ASCENDING-sorted list. Integer, deterministic, no RNG.
+		/// Chosen over an interpolating definition because the field is integer-valued and a reader has to be
+		/// able to say "this exact cell reading is the p90" — an interpolated p90 names a value no cell holds.
+		/// At p=50 this reduces to `sorted[count / 2]`, the same element <see cref="LogDistribution"/> already
+		/// calls the median, for every count — so the two lines can never disagree about the middle.</summary>
+		static int Percentile(List<int> sorted, int percent)
+		{
+			if (sorted.Count == 0)
+				return 0;
+
+			var index = (int)((long)percent * sorted.Count / 100);
+			if (index >= sorted.Count)
+				index = sorted.Count - 1;
+
+			return sorted[index];
 		}
 
 		// How many ruleset types actually stamp this channel, and the range of their core intensities — the
@@ -706,9 +796,102 @@ namespace OpenRA.Mods.Common.Traits
 			return maxRange / 1024 + Info.RangeBufferCells;
 		}
 
+		/// <summary>Every armor type any DAMAGEABLE actor in the ruleset carries, plus a flag saying whether
+		/// "this warhead harms nothing" is provable from the ruleset at all. See
+		/// <see cref="WarheadIsHarmless"/> for why the whole population, and not just a warhead's own table,
+		/// is what the test needs.
+		///
+		/// <para>Three ruleset shapes make the proof impossible, and each one SETS THE FLAG rather than being
+		/// worked around, because all three end with <c>DamageVersus</c>'s armor filter matching nothing and
+		/// returning the unmodified 100% — a full-damage hit that no reading of the <c>Versus</c> table
+		/// predicts:
+		/// <list type="bullet">
+		/// <item>A null <see cref="ArmorInfo.Type"/>: the filter skips null-typed armor outright
+		/// (DamageWarhead.cs:105).</item>
+		/// <item>A CONDITIONAL armor — <see cref="ArmorInfo"/> derives from <c>ConditionalTraitInfo</c> and the
+		/// filter takes only `!a.IsTraitDisabled` (:105), so while the condition is unheld the actor carries no
+		/// armor class at all. Static ruleset inspection cannot know when that is.</item>
+		/// <item>A <see cref="HitShapeInfo.ArmorTypes"/> restriction: a non-empty set makes the match depend on
+		/// WHICH shape the projectile hit (:106), a runtime geometry fact.</item>
+		/// </list>
+		/// None of the three exists in WW3MOD today, so the flag reads false and every weapon is judged on its
+		/// own table. They are handled anyway because the guarantee this pair is claimed to have is "fails open
+		/// in every uncertain direction", and a guarantee that holds only because nobody has written that YAML
+		/// yet is not one.</para></summary>
+		public static (HashSet<string> Types, bool AnyUnprovableArmor) RulesetArmorTypes(IEnumerable<ActorInfo> actors)
+		{
+			var types = new HashSet<string>(StringComparer.Ordinal);
+			var unprovable = false;
+
+			foreach (var ai in actors)
+			{
+				if (ai.Name.StartsWith("^", StringComparison.Ordinal))
+					continue;
+
+				// Only a damageable actor can be a victim: DamageWarhead.IsValidAgainst rejects
+				// anything without IHealthInfo before Versus is ever consulted (:59-60).
+				if (ai.TraitInfoOrDefault<HealthInfo>() == null)
+					continue;
+
+				foreach (var shape in ai.TraitInfos<HitShapeInfo>())
+					if (!shape.ArmorTypes.IsEmpty)
+						unprovable = true;
+
+				foreach (var armor in ai.TraitInfos<ArmorInfo>())
+				{
+					if (armor.Type == null || armor.RequiresCondition != null)
+						unprovable = true;
+
+					if (armor.Type != null)
+						types.Add(armor.Type);
+				}
+			}
+
+			return (types, unprovable);
+		}
+
+		/// <summary>Can this warhead damage ANY armor class in the ruleset? A warhead that cannot is a
+		/// spotter/marker, not a threat, and must not enter the danger field — nor pad the population
+		/// <see cref="DangerKernelMath.ReferenceIntensity"/> takes its median over.
+		///
+		/// <para>THE ASYMMETRY THAT MAKES THIS SUBTLE, read off <c>DamageWarhead.DamageVersus</c>: an EMPTY
+		/// <c>Versus</c> means "full damage to everything" (:101-102, an early return), but a NON-empty one
+		/// only modifies the classes it LISTS — an unlisted armor type matches nothing in the
+		/// <c>ContainsKey</c> filter (:105), so <c>ApplyPercentageModifiers</c> runs over an empty sequence
+		/// and returns the unmodified 100%. Omission is therefore the OPPOSITE of a zero. A table that zeroes
+		/// six classes and omits a seventh is a full-damage weapon against the seventh, not a weak one.</para>
+		///
+		/// <para>Hence the test is against the ruleset's armor population, not against the table alone, and it
+		/// fails OPEN in every uncertain direction: an empty table, a missing class, any armor the ruleset
+		/// cannot prove will be matched (see <see cref="RulesetArmorTypes"/>), or any listed value above 0 all
+		/// read as "can harm". The only warhead this drops is one whose author explicitly wrote 0 against every
+		/// class that exists.</para>
+		///
+		/// <para>AS OF 2026-08-11 THAT IS NO WARHEAD AT ALL, and the near-miss is the reason to keep reading.
+		/// `IskanderTargeter`/`HIMARSTargeter` (weapons-missiles.yaml:284-306) are force-fire spotter weapons
+		/// that look harmless — `Damage: 50` with every listed class at 0 — and were reported as phantom
+		/// contributors to the field. They are not. Their table zeroes `None, Wood, Concrete, Light, Medium,
+		/// Heavy, Brick`, of which `Brick` is not an armor class in this ruleset at all, while `Kevlar` (every
+		/// soldier), `Unarmored` and `Indestructable` are and go UNLISTED — so by the omission rule above those
+		/// targeters deal their full 50 to infantry. `--danger-reference` prints the per-warhead verdict with
+		/// the unlisted classes named, which is how that was settled instead of assumed.</para></summary>
+		public static bool WarheadIsHarmless(DamageWarhead warhead, HashSet<string> rulesetArmorTypes,
+			bool anyUnprovableArmor)
+		{
+			if (anyUnprovableArmor || warhead.Versus.Count == 0 || rulesetArmorTypes == null || rulesetArmorTypes.Count == 0)
+				return false;
+
+			foreach (var armorType in rulesetArmorTypes)
+				if (!warhead.Versus.TryGetValue(armorType, out var percent) || percent > 0)
+					return false;
+
+			return true;
+		}
+
 		// Reads armament data for one actor type: per-domain max range + summed throughput,
 		// plus durability/value proxies. Pure ruleset inspection.
-		public static DangerKernelFacts ExtractKernelFacts(ActorInfo info, int throughputWindow)
+		public static DangerKernelFacts ExtractKernelFacts(ActorInfo info, int throughputWindow,
+			HashSet<string> rulesetArmorTypes = null, bool anyUnprovableArmor = false)
 		{
 			int groundRange = 0, airRange = 0, groundThroughput = 0, airThroughput = 0;
 
@@ -723,7 +906,8 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				var throughput = WeaponThroughput(weapon.Warheads, weapon.Burst, weapon.BurstDelays,
-					weapon.BurstWait, weapon.Magazine, weapon.ReloadDelay, throughputWindow);
+					weapon.BurstWait, weapon.Magazine, weapon.ReloadDelay, throughputWindow,
+					rulesetArmorTypes, anyUnprovableArmor);
 
 				if (DangerKernelMath.WeaponThreatensGround(weapon.ValidTargets))
 				{
@@ -783,11 +967,13 @@ namespace OpenRA.Mods.Common.Traits
 		/// empties mid-burst; this counts whole bursts so the damage and the time stay consistent with each
 		/// other. Computed in long because the inputs are data-driven, not because the result is large.</para></summary>
 		public static int WeaponThroughput(List<IWarhead> warheads, int burst, int[] burstDelays,
-			int burstWait, int magazine, int reloadDelay, int throughputWindow)
+			int burstWait, int magazine, int reloadDelay, int throughputWindow,
+			HashSet<string> rulesetArmorTypes = null, bool anyUnprovableArmor = false)
 		{
 			var damagePerShot = 0;
 			foreach (var wh in warheads)
-				if (wh is DamageWarhead dw && dw.Damage > 0)
+				if (wh is DamageWarhead dw && dw.Damage > 0
+					&& !WarheadIsHarmless(dw, rulesetArmorTypes, anyUnprovableArmor))
 					damagePerShot += dw.Damage;
 
 			return SustainedThroughput(damagePerShot, burst, burstDelays, burstWait, magazine, reloadDelay, throughputWindow);
