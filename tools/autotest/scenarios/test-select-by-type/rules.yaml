@@ -1,0 +1,26 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-select-by-type.lua
+
+# The gesture needs a build-menu icon to click, and the stock vehicle prerequisites
+# include a tech level this fixture has no way to guarantee. Drop the tech gate only —
+# the faction and Supply Route prerequisites still have to be met.
+bradley:
+	Buildable:
+		Prerequisites: ~player.america, ~vehicles.america
+
+m109:
+	Buildable:
+		Prerequisites: ~player.america, ~vehicles.america

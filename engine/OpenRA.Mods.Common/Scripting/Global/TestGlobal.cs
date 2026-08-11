@@ -11,9 +11,11 @@ using System;
 using System.Linq;
 using OpenRA.Mods.Common.Projectiles;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Mods.Common.Widgets;
 using OpenRA.Mods.Common.Widgets.Logic.Ingame;
 using OpenRA.Scripting;
 using OpenRA.Traits;
+using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Scripting.Global
 {
@@ -154,6 +156,46 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			}
 
 			return null;
+		}
+
+		[Desc("Click the build-menu icon for `actorType`, switching to the queue that offers it. " +
+			"`modifiers` is a space-separated list, any of 'Ctrl', 'Alt', 'Shift'; 'Ctrl Alt' is the " +
+			"select-all-units-of-this-type gesture. Drives the real ProductionPaletteWidget click " +
+			"handler. Returns false if no enabled queue offers the type. Test mode only.")]
+		public bool ClickProductionIcon(string actorType, string modifiers = "")
+		{
+			if (!TestMode.IsActive)
+				return false;
+
+			var palette = Ui.Root?.GetOrNull<ProductionPaletteWidget>("PRODUCTION_PALETTE");
+			if (palette == null)
+				return false;
+
+			var mods = Modifiers.None;
+			if (modifiers.Contains("Ctrl"))
+				mods |= Modifiers.Ctrl;
+			if (modifiers.Contains("Alt"))
+				mods |= Modifiers.Alt;
+			if (modifiers.Contains("Shift"))
+				mods |= Modifiers.Shift;
+
+			return palette.SimulateIconClick(actorType, MouseButton.Left, mods);
+		}
+
+		[Desc("Number of actors currently selected. Test mode only.")]
+		public int GetSelectedCount()
+		{
+			return TestMode.IsActive ? Context.World.Selection.Actors.Count : 0;
+		}
+
+		[Desc("Number of currently selected actors whose type is `actorType`. Lets a test assert that " +
+			"a selection contains every unit of a type and nothing else. Test mode only.")]
+		public int GetSelectedCountOfType(string actorType)
+		{
+			if (!TestMode.IsActive)
+				return 0;
+
+			return Context.World.Selection.Actors.Count(a => a.Info.Name == actorType);
 		}
 
 		[Desc("Resolve the right-click OrderID that `unit` would issue when targeting `target`. " +

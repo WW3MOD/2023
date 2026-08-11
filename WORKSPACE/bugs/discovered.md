@@ -3,6 +3,23 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-11: [high] Creating ANY veteran actor hard-crashes the game — all 13 `UpdatesPlayerStatistics.OverrideActor` values are capitalised, and the actor lookup is case-sensitive (found while: select-by-type from the build menu, branch `auto/select-by-type`)
+
+Placing a single `e3r1.america` on a test map killed the game on world load:
+
+```
+KeyNotFoundException: The given key 'E3.america' was not present in the dictionary.
+  at OpenRA.ActorInfoDictionary.get_Item(String key)      ActorInfoDictionary.cs:36
+  at PlayerStatistics.<>c__DisplayClass25_0.<.ctor>b__0   PlayerStatistics.cs:74
+  at UpdatesPlayerStatistics.Created                      PlayerStatistics.cs:346
+```
+
+`ActorInfoDictionary`'s string indexer is a raw `dict[key]` (`ActorInfoDictionary.cs:36`) over a dictionary keyed by **lowercased** actor names — note the sibling `SystemActors` indexer on the very next line explicitly calls `.ToLowerInvariant()`, so the omission is visible in place. Every veteran variant in the mod feeds it a capitalised name: `grep -c "OverrideActor: [A-Z]"` over `mods/ww3mod/rules/ingame/*.yaml` returns **13 of 13** — every single `OverrideActor` entry is affected (`E3.america`, `E1.america`, `E2.america`, …). `UpdatesPlayerStatistics.Created` runs on actor creation, so the crash fires for *any* veteran that ever enters the world, not just map-placed ones.
+
+Why it has stayed latent: the veteran variants all carry `-Buildable`, so nothing produces them through the normal queue, and no shipped map appears to place one. It is a loaded gun rather than a live failure — but anything that promotes a unit into a veteran variant, or any map that places one, dies instantly.
+
+**Fix shape** (deliberately NOT done here — out of scope for a UI branch, and it touches player statistics for 13 actors at once): lowercase the 13 YAML values, *or* make `ActorInfoDictionary`'s string indexer lowercase its key the way the `SystemActors` overload already does. The engine-side fix is one line and closes the whole class, but it changes a shared lookup used well beyond statistics, so it wants its own change with its own verification rather than being smuggled in. Either way this needs a test that actually creates a veteran — there is currently none.
+
 ## 2026-08-11: [med] `test-stance-optout` is a FALSE GREEN — it silences its own units with the very stance whose opt-out would mask the two opt-outs it claims to test (found while: fixing the three-scenario stance regression cluster, branch `auto/stance-reds`)
 
 `test-stance-optout` asserts that a `HoldPosition` unit and a `deployed` unit are never repositioned by `StancePositioningExecutor`. But its setup puts **both units on `HoldFire`** (`test-stance-optout.lua:23-25`) to silence combat — and since `174075e9` the executor relinquishes management of anything below `FireAtWill` (`StancePositioningExecutor.cs:318`) **before** it ever reaches the `HoldPosition` check (`:327`) or the `deployed` check (`:298`). The fire-stance opt-out alone holds both units still, so the scenario passes whether or not the two opt-outs under test work at all. It has been passing on the wrong mechanism since 2026-07-25, and its GREEN currently carries **no information** about `HoldPosition` or `deployed`.

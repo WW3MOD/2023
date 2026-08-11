@@ -52,6 +52,12 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly string TooltipContainer;
 		public readonly string TooltipTemplate = "PRODUCTION_TOOLTIP";
 
+		[FluentReference("units")]
+		const string SelectedUnitsAcrossScreen = "selected-units-across-screen";
+
+		[FluentReference("units")]
+		const string SelectedUnitsAcrossMap = "selected-units-across-map";
+
 		// Note: LinterHotkeyNames assumes that these are disabled by default
 		public readonly string HotkeyPrefix = null;
 		public readonly int HotkeyCount = 0;
@@ -432,8 +438,79 @@ namespace OpenRA.Mods.Common.Widgets
 			return true;
 		}
 
+		/// <summary>
+		/// Ctrl+Alt+LMB on an icon selects the player's units of that type instead of queueing one.
+		/// Escalates screen -> map on a repeat click, matching SelectUnitsByTypeHotkeyLogic.
+		/// </summary>
+		bool HandleSelectByType(ProductionIcon icon)
+		{
+			var eligiblePlayers = SelectionUtils.GetPlayersToIncludeInSelection(World);
+			var selectableInfo = World.Map.Rules.Actors[icon.Name].TraitInfoOrDefault<SelectableInfo>();
+			var selectionClasses = new HashSet<string>
+			{
+				SelectByTypeScopeMath.ResolveSelectionClass(icon.Name, selectableInfo?.Class)
+			};
+
+			var onScreen = SelectionUtils.SelectActorsOnScreen(World, worldRenderer, selectionClasses, eligiblePlayers).ToList();
+			var inWorld = SelectionUtils.SelectActorsInWorld(World, selectionClasses, eligiblePlayers).ToList();
+
+			var selected = World.Selection.Actors;
+			var selectionIsExactlyOnScreenSet = onScreen.Count > 0
+				&& selected.Count == onScreen.Count
+				&& onScreen.All(selected.Contains);
+
+			var scope = SelectByTypeScopeMath.Resolve(onScreen.Count, inWorld.Count, selectionIsExactlyOnScreenSet);
+			if (scope == SelectByTypeScope.None)
+			{
+				// Owns none of this type: deliberately leave the existing selection intact.
+				Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Sounds", ClickDisabledSound, null);
+				return true;
+			}
+
+			var newSelection = scope == SelectByTypeScope.World ? inWorld : onScreen;
+			World.Selection.Combine(World, newSelection, false, false);
+
+			TextNotificationsManager.AddFeedbackLine(
+				scope == SelectByTypeScope.World ? SelectedUnitsAcrossMap : SelectedUnitsAcrossScreen,
+				"units", newSelection.Count);
+
+			Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Sounds", ClickSound, null);
+
+			return true;
+		}
+
+		/// <summary>
+		/// Test hook: drives a sidebar click on the icon for <paramref name="name"/>, switching to the
+		/// queue that offers it first. Routes through the same HandleEvent path as a real click so the
+		/// modifier tiers are exercised; only SDL modifier decode and icon hit-testing are bypassed.
+		/// Returns false when no enabled queue offers the type.
+		/// </summary>
+		public bool SimulateIconClick(string name, MouseButton btn, Modifiers modifiers)
+		{
+			if (!icons.Values.Any(i => i.Name == name))
+			{
+				var queue = World.LocalPlayer?.PlayerActor.TraitsImplementing<ProductionQueue>()
+					.FirstOrDefault(q => q.Enabled && q.BuildableItems().Any(a => a.Name == name));
+
+				if (queue == null)
+					return false;
+
+				CurrentQueue = queue;
+			}
+
+			var icon = icons.Values.FirstOrDefault(i => i.Name == name);
+			return icon != null && HandleEvent(icon, btn, modifiers);
+		}
+
 		bool HandleEvent(ProductionIcon icon, MouseButton btn, Modifiers modifiers)
 		{
+			// Ctrl+Alt+LMB is a selection gesture, not a production one, so it has to be intercepted
+			// ahead of HandleLeftClick — which would otherwise pick up a completed building or queue.
+			// This displaces the old "priority-insert + auto-build" combination; both flags remain
+			// reachable on their own as Ctrl+click and Alt+click.
+			if (btn == MouseButton.Left && modifiers.HasModifier(Modifiers.Ctrl) && modifiers.HasModifier(Modifiers.Alt))
+				return HandleSelectByType(icon);
+
 			// Click = 1, Shift+click = 5. Alt is now the "auto-build" flag (Order.StartProductionAutoFlag),
 			// not a count multiplier — Alt+click queues 1 auto, Shift+Alt+click queues 5 auto.
 			var startCount = modifiers.HasModifier(Modifiers.Shift) ? 5 : 1;
