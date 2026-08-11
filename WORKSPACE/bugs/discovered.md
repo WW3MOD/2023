@@ -56,6 +56,29 @@ The result is worse than the bug that was just fixed: the man aims a weapon he c
 Move order, and he has **no recovery path at all** — he never goes idle, and `AutoRearmIfAllEmpty` needs all pools
 empty. **Expect the user to reproduce half of the original complaint by testing with a rifleman.**
 
+**FIXED on `auto/ooa-rifleman`.** The move interrupt now asks whether an armament is *usable* rather than whether the
+actor is *empty*: `SmartMoveActivity`'s `interruptingArmaments` filter gained `&& !a.IsTraitPaused` alongside the
+existing `NoSelfDefenseInterrupt` test. `ChooseArmamentsForTarget` already answers "valid against THIS target", so the
+two together are the per-armament, per-target, ammo-aware predicate this entry asked for. The `AmmoPool.CannotFight`
+gate above stays as a cheap early-out for the wholly dry unit — it also skips the scan, which keeps this branch's
+`SharedRandom` draw count identical to `main`'s.
+
+`IsTraitPaused` was chosen over an ammo-only test because it is exactly the condition `Armament.CanFire` refuses to
+fire on (`Armament.cs:327`), so it also covers the suppressed / EMP'd / heavily-damaged weapon — `^AT`'s
+`PauseOnCondition: !ammo-primary || suppressed >= 10` wedges a move by the identical route. The warning above against
+`IsTraitPaused` (`AmmoPool.cs:210-214`, `garrisoned-at-port`) applies to `CannotFight`'s question — "send this man to
+resupply?" — not to this one: a garrisoned man with a full magazine is still a man who cannot fire *now*, which is all
+the move interrupt is asking. The fix was deliberately NOT put in `ChooseArmamentsForTarget`: nine callers, and
+`AttackBase.AbandonWhenArmamentsPaused` exists precisely because "all armaments paused" must not end an attack by
+default, so filtering there would silently flip that opt-in on for every unit.
+
+Pinned by `test-partial-dry-move-order-obeyed` (RED before, GREEN after). Its Lua asserts primary=0 AND secondary>0 up
+front, so the scenario cannot silently decay into the already-fixed all-empty case and pass on the old guard.
+
+**Not fixed, same class, deliberately left:** `AutoTarget.ActiveAttackBases` filters `IsTraitDisabled` only, so a
+paused *AttackBase* (as distinct from paused armaments) still wedges a move the same way — the identical observation
+is already recorded at `Attack.cs:246-252`.
+
 ## 2026-08-11: [med] `SeekSupplyProvider` latches `moveQueued` and never clears it, so an errand whose move ends without arriving spins forever with no child (found while: fixing the out-of-ammo move wedge, branch `auto/ooa-wedge`)
 
 `SeekSupplyProvider.Tick` queues its move once and sets `moveQueued = true` (`SeekSupplyProvider.cs:121-126`). The flag is cleared in exactly two places, both of which are explicit cancels (`:91`, `:114`). If the child `MoveWithinRange` instead **ends on its own without the unit being inside `rearmRange`** — no path to the truck, or the path fails — then `ChildActivity` goes null, `moveQueued` stays `true`, the out-of-range branch at `:121` declines to re-queue, and `Tick` returns `false` unconditionally at `:129`.

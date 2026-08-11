@@ -1,0 +1,89 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Partly Dry Rifleman Obeys A Plain Move Order (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Two identical riflemen with a SPENT rifle and a LOADED RPG, same start distance from the same
+	# live enemy, given the same destination by two different orders. Mover gets a plain "Move",
+	# Forcer gets "ForceMove". Those two orders differ ONLY in that "Move" is wrapped by IWrapMove
+	# traits (SmartMove, on ^Infantry) and "ForceMove" bypasses them (Mobile.cs:1021 vs :1032), so
+	# if one arrives and the other does not, the wrapper is what pinned it and nothing else can be
+	# blamed for it.
+	#
+	# ^E3 is the subject on purpose, not as a convenient stand-in: it is the mod's standard
+	# infantryman, and "primary spent, secondary loaded" is where every infantry-vs-infantry
+	# firefight leaves him. His RPG declares InvalidTargets: Infantry, so it never had a legal
+	# target to spend itself on while the DMR emptied, and both his ReloadAmmoPools are gated on
+	# replenish-soldiers, so the state does not heal on its own.
+	Mover: e3
+		Owner: USA
+		Location: 10,14
+		Facing: 768
+	Forcer: e3
+		Owner: USA
+		Location: 10,18
+		Facing: 768
+	# The Bait must be INFANTRY, and that is the whole design of this scenario. 5.56mm.DMR is valid
+	# against Infantry and reaches 14c0 (weapons-ballistics.yaml:83,85); RPG is not (InvalidTargets:
+	# Infantry, :302). So the ONLY armament ChooseArmamentsForTarget can offer against this target
+	# is the one that is out of ammo, while the loaded one keeps AmmoPool.CannotFight false.
+	#
+	# Both men start ~6.3c from the Bait and their destinations are ~12.2c from it, so the enemy is
+	# inside DMR range for the ENTIRE trip. A unit cannot pass this test by walking out of the
+	# interrupt's reach — only by ignoring an interrupt it can no longer act on.
+	Bait: e1
+		Owner: Russia
+		Location: 16,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 16,16
+	# Deliberately NO truk and NO logisticscenter: with a resupplier in reach AutoSeekSupplies
+	# would dispatch its own errand and there would be two candidate explanations for a unit that
+	# did not go where it was told. Here the only thing that can touch a move order is SmartMove.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

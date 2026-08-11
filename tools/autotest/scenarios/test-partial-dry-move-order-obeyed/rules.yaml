@@ -1,0 +1,38 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-partial-dry-move-order-obeyed.lua
+
+# FireAtWill on the subjects is REQUIRED setup here, not convenience: SmartMoveActivity returns
+# a plain TickChild the moment Stance <= HoldFire (SmartMoveActivity.cs:65), so silencing the
+# men under test would switch off the very wrapper being tested. The Bait is silenced instead,
+# in Lua, which is the direction AUTOTEST.md gotcha 7 requires.
+^Combatant:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+
+# ONLY the primary pool is emptied. This is the difference from test-dry-move-order-obeyed, and
+# it is the entire scenario: the secondary RPG keeps its single round, so AmmoPool.CannotFight —
+# which requires EVERY pool empty — is false, and the all-pools-empty guard that fixed the fully
+# dry case (SmartMoveActivity.cs) never fires for this man. The Lua asserts both counts up front
+# so this file silently reverting to the already-fixed case cannot pass unnoticed.
+E3:
+	AmmoPool@1:
+		InitialAmmo: 0

@@ -85,6 +85,9 @@ namespace OpenRA.Mods.Common.Activities
 				// is then exactly the set this refuses to pin, so the two cannot drift into disagreeing
 				// about what "empty" means. Skipping the scan outright rather than filtering its result
 				// also stops a unit that cannot shoot from paying for a full target scan every interval.
+				// It is an early-out for the wholly dry unit, NOT the whole ammo story: CannotFight needs
+				// EVERY pool empty, so a man with one pool still loaded is not covered here at all. The
+				// per-armament filter below is what covers him — read the two as a pair.
 				//
 				// Scan for targets but don't allow moving toward them (allowMove = false)
 				var target = AmmoPool.CannotFight(self)
@@ -106,9 +109,34 @@ namespace OpenRA.Mods.Common.Activities
 				{
 					// Filter armaments: NoSelfDefenseInterrupt weapons (e.g. drone jammer) can fire
 					// opportunistically when stationary, but must NOT cancel a player Move.
+					//
+					// !IsTraitPaused is what stops a weapon the unit cannot actually fire from cancelling
+					// the move. ChooseArmamentsForTarget already answers "valid against THIS target"; it
+					// does not answer "and loaded", because it filters IsTraitDisabled only and an empty
+					// armament is PAUSED. The CannotFight gate above cannot cover this: it needs EVERY
+					// pool empty, and the standard rifleman ^E3 ends an infantry firefight with a spent
+					// DMR and a loaded RPG the RPG's InvalidTargets: Infantry never let him spend. Against
+					// infantry the DMR is then his only offered armament and it cannot fire, while
+					// CannotFight stays false — so he stopped, aimed, and never moved again, and
+					// Attack.cs:117's guard (also CannotFight) did not end the attack either.
+					//
+					// IsTraitPaused rather than an ammo-only test on purpose: it is exactly the condition
+					// Armament.CanFire itself refuses to fire on (Armament.cs:327), so it also covers the
+					// suppressed / EMP'd / heavily-damaged weapon, which wedges a move identically (see
+					// ^AT's "!ammo-primary || suppressed >= 10"). Stopping to aim a weapon that cannot
+					// shoot loses the move AND the shot; walking on costs only a shot that was never
+					// available. The scan repeats every ScanInterval, so a pause that lifts mid-journey
+					// gets the unit engaging again on a later tick.
+					//
+					// PITFALL: this belongs HERE, not in ChooseArmamentsForTarget. That method has nine
+					// callers, and AttackBase.AbandonWhenArmamentsPaused (AttackBase.cs:65-72) exists
+					// precisely because "all armaments paused" must NOT end an attack by default —
+					// "holding aim through a brief pause is the wanted behaviour". Filtering paused
+					// armaments at the shared method would flip that opt-in field on for every unit in
+					// the game and strip the attack cursor off any momentarily-paused unit.
 					var interruptingArmaments = autoTarget.ActiveAttackBases
 						.SelectMany(ab => ab.ChooseArmamentsForTarget(target, false))
-						.Where(a => !a.Info.NoSelfDefenseInterrupt);
+						.Where(a => !a.Info.NoSelfDefenseInterrupt && !a.IsTraitPaused);
 
 					var inRange = interruptingArmaments.Any(a => target.IsInRange(self.CenterPosition, a.MaxRange()));
 
