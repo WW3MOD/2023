@@ -21,6 +21,15 @@ loadscreen-loading =
     Spooling up rotary cannons...,
     Polishing the nuclear football...
 
+## MainMenuLogic
+# Overrides common|fluent/chrome.ftl, which defines this as "OpenRA".
+# The engine credits tab must keep reading "OpenRA", so ww3mod|chrome/credits.yaml
+# points that button at label-engine-credits below rather than reusing this key.
+label-openra = WW3MOD
+
+## CreditsLogic
+label-engine-credits = OpenRA
+
 ## MapOptions, MissionBrowserLogic
 strategical = Strategical, 50%
 tactical = Tactical, 60%
