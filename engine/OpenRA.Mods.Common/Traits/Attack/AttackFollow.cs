@@ -235,7 +235,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (RequestedTarget.Type != TargetType.Invalid)
 			{
 				target = RequestedTarget;
-				canYieldToHigherPriority = requestedTargetSource == AttackSource.AutoTarget && !requestedForceAttack;
+				canYieldToHigherPriority = AutoTarget.IsAutoAcquiredSource(requestedTargetSource) && !requestedForceAttack;
 				return true;
 			}
 
@@ -246,7 +246,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (opportunityTargetIsPersistentTarget && OpportunityTarget.IsValidFor(self))
 			{
 				target = OpportunityTarget;
-				canYieldToHigherPriority = opportunityTargetSource == AttackSource.AutoTarget && !opportunityForceAttack;
+				canYieldToHigherPriority = AutoTarget.IsAutoAcquiredSource(opportunityTargetSource) && !opportunityForceAttack;
 				return true;
 			}
 

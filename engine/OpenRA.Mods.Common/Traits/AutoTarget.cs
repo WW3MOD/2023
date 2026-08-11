@@ -957,34 +957,46 @@ namespace OpenRA.Mods.Common.Traits
 		/// existing scanners (that starvation mode is documented at AttackMoveActivity.cs:110-115).</summary>
 		void TickPreemption(Actor self)
 		{
-			// The idle case is handled by the yield inside ScanForTarget, which is where an idle unit's
-			// stale target is actually handed back. This covers the DISJOINT state: an attack activity
-			// that never ends. AttackFollow.AttackActivity.Tick returns false — keep running — for a
-			// target that stays in range with clear LOS (:393-401), so a unit winning a stationary duel
-			// is never idle, never reaches TickIdle, and therefore never calls ScanForTarget at all.
+			// This and the ScanForTarget yield are two PHASES of one cycle, not two disjoint states: a
+			// stationary engagement interleaves them every few ticks. AttackFollow.AttackActivity.Tick
+			// returns false — keep running — for a target that stays in range with clear LOS (:418-428),
+			// which is the window this pass covers; when that activity ends the unit is briefly idle with
+			// its target promoted to a persistent override, which is the window the yield covers. Neither
+			// path is redundant and neither alone is sufficient.
 			if (self.IsIdle || !PreemptionDue(self))
 				return;
 
-			// Only ever preempt an engagement THIS trait issued: a player order, a Lua order or a bot's
-			// deliberate AttackTarget must survive untouched.
+			// Only preempt an engagement the unit acquired by ITSELF: a player order, a Lua order or a
+			// bot's deliberate AttackTarget must survive untouched.
 			//
 			// PITFALL: this reads the TOP-LEVEL activity, deliberately NOT
 			// self.CurrentActivity.ActivitiesImplementing<IAttackActivity>(). That walk descends into
 			// ChildActivity and along NextActivity, so an autotarget attack nested under a player Move
-			// (SmartMoveActivity.cs:117) or under an attack-move would match — and preempting via
-			// queued:false calls Actor.CancelActivity on the WHOLE current activity, destroying the move
-			// order. Attacks that AutoTarget.Attack issued are top-level, because they were queued the
-			// same way. Units engaging from inside a move keep their pre-existing behaviour.
+			// (SmartMoveActivity.cs:117) would match — and preempting via queued:false calls
+			// Actor.CancelActivity on the WHOLE current activity, destroying the move order.
 			if (self.CurrentActivity is not IAttackActivity current
-				|| current.Source != AttackSource.AutoTarget
+				|| !IsAutoAcquiredSource(current.Source)
 				|| current.ForceAttack)
 				return;
 
 			if (!TryFindHigherBandTarget(self, current.Target, out var betterTarget))
 				return;
 
+			// Match TickIdle's movement policy rather than hard-coding false, which would silently
+			// downgrade a Hunt-stance pursuer to a stationary attack the moment it preempted.
+			var allowMove = allowMovement && engagementStance >= EngagementStance.Hunt;
+
 			foreach (var ab in ActiveAttackBases)
-				ab.AttackTarget(betterTarget, AttackSource.AutoTarget, false, false);
+				ab.AttackTarget(betterTarget, current.Source, false, allowMove);
+		}
+
+		/// <summary>Sources that represent an engagement the unit acquired BY ITSELF, and may therefore
+		/// have replaced by a higher-priority target. AttackMove counts: the player/bot ordered a move,
+		/// not that particular target, and it is the dominant bot engagement mode. Default (player, Lua,
+		/// deliberate bot AttackTarget) never counts.</summary>
+		public static bool IsAutoAcquiredSource(AttackSource source)
+		{
+			return source == AttackSource.AutoTarget || source == AttackSource.AttackMove;
 		}
 
 		/// <summary>Cadence gate shared by both re-evaluation paths. Tick-derived and staggered by
@@ -1031,6 +1043,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		public Target ScanForTarget(Actor self, bool allowMove, bool allowTurn, bool ignoreScanInterval = false)
 		{
+			return ScanForTarget(self, allowMove, allowTurn, ignoreScanInterval, out _);
+		}
+
+		/// <summary><paramref name="fromProtectedOverride"/> is true when the returned target came from an
+		/// override that refused to yield — i.e. it belongs to a player, Lua or bot order. Callers that
+		/// re-issue the result must NOT re-stamp such a target as <see cref="AttackSource.AutoTarget"/>.</summary>
+		public Target ScanForTarget(Actor self, bool allowMove, bool allowTurn, bool ignoreScanInterval, out bool fromProtectedOverride)
+		{
+			fromProtectedOverride = false;
+
 			if ((ignoreScanInterval || nextScanTime <= 0) && ActiveAttackBases.Any())
 			{
 				foreach (var oat in overrideAutoTarget)
@@ -1049,6 +1071,7 @@ namespace OpenRA.Mods.Common.Traits
 							&& TryFindHigherBandTarget(self, existingTarget, out var betterTarget))
 							return betterTarget;
 
+						fromProtectedOverride = !canYield;
 						return existingTarget;
 					}
 
@@ -1072,15 +1095,32 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void ScanAndAttack(Actor self, bool allowMove, bool allowTurn)
 		{
-			var target = ScanForTarget(self, allowMove, allowTurn);
-			if (target.Type != TargetType.Invalid)
-				Attack(target, allowMove);
+			var target = ScanForTarget(self, allowMove, allowTurn, false, out var fromProtectedOverride);
+			if (target.Type == TargetType.Invalid)
+				return;
+
+			// Don't cancel-and-requeue an identical engagement. AttackTarget marks the target for overkill
+			// accounting on EVERY call and that mark's decay is tuned to outlive a reload (60 ticks,
+			// Actor.cs), so re-issuing the same target on the scan cadence inflates AverageDamagePercent
+			// several times per window and makes other units skip a target that is not really saturated.
+			if (self.CurrentActivity is IAttackActivity currentAttack
+				&& currentAttack.Target.Type == TargetType.Actor
+				&& target.Type == TargetType.Actor
+				&& currentAttack.Target.Actor == target.Actor)
+				return;
+
+			// PITFALL: re-issuing unconditionally as AutoTarget LAUNDERS provenance. A player's target
+			// survives its attack activity ending (promoted to a persistent opportunity target), comes
+			// back through the override with canYield false, and would then be re-stamped AutoTarget
+			// here — making the player's own order preemptable on the next pass. A refusal to yield is
+			// exactly the signal that this target is not autotarget's to re-stamp.
+			Attack(target, allowMove, fromProtectedOverride ? AttackSource.Default : AttackSource.AutoTarget);
 		}
 
-		void Attack(in Target target, bool allowMove)
+		void Attack(in Target target, bool allowMove, AttackSource source = AttackSource.AutoTarget)
 		{
 			foreach (var ab in ActiveAttackBases)
-				ab.AttackTarget(target, AttackSource.AutoTarget, false, allowMove);
+				ab.AttackTarget(target, source, false, allowMove);
 		}
 
 		public bool HasValidTargetPriority(Actor self, Player owner, BitSet<TargetableType> targetTypes)
@@ -1103,24 +1143,56 @@ namespace OpenRA.Mods.Common.Traits
 			if (owner == null || Stance <= UnitStance.HoldFire)
 				return NoTargetPriorityBand;
 
+			var relationship = self.Owner.RelationshipWith(owner);
 			var best = NoTargetPriorityBand;
 			foreach (var atp in allTargetPriorities)
 			{
 				if (atp.IsTraitDisabled)
 					continue;
 
-				var ati = atp.Info;
+				var band = MatchTargetPriorityBand(atp.Info, relationship, targetTypes);
+				if (band > best)
+					best = band;
+			}
 
-				// Incompatible relationship
-				if (!ati.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(owner)))
-					continue;
+			return best;
+		}
 
-				// Incompatible target types
-				if (!ati.OnlyTargets.Except(targetTypes).Any() || !ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
-					continue;
+		/// <summary>The band one AutoTargetPriority entry assigns to a target, or
+		/// <see cref="NoTargetPriorityBand"/> if it does not match. Pure, so it can be pinned by unit
+		/// test — see AutoTargetPriorityBandTest.
+		///
+		/// PITFALL: this deliberately does NOT consult OnlyTargets. Until this branch the matcher led
+		/// with `!ati.OnlyTargets.Except(targetTypes).Any()`, but OnlyTargets defaults to an EMPTY
+		/// BitSet and nothing in mods/ ever sets it — and empty.Except(x) is empty, so that term was
+		/// `!false` for every candidate and skipped EVERY priority entry unconditionally. The predicate
+		/// must also stay identical to ChooseTarget's own per-target filter, or an incumbent and a
+		/// candidate get matched by different rules and any band comparison between them is
+		/// meaningless.</summary>
+		public static int MatchTargetPriorityBand(AutoTargetPriorityInfo ati, PlayerRelationship relationship,
+			BitSet<TargetableType> targetTypes)
+		{
+			// Incompatible relationship
+			if (!ati.ValidRelationships.HasRelationship(relationship))
+				return NoTargetPriorityBand;
 
-				if (ati.Priority > best)
-					best = ati.Priority;
+			// Incompatible target types
+			if (!ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
+				return NoTargetPriorityBand;
+
+			return ati.Priority;
+		}
+
+		/// <summary>Highest band a whole priority set assigns to a target. Test seam for the above.</summary>
+		public static int ResolveTargetPriorityBand(IEnumerable<AutoTargetPriorityInfo> priorities,
+			PlayerRelationship relationship, BitSet<TargetableType> targetTypes)
+		{
+			var best = NoTargetPriorityBand;
+			foreach (var ati in priorities)
+			{
+				var band = MatchTargetPriorityBand(ati, relationship, targetTypes);
+				if (band > best)
+					best = band;
 			}
 
 			return best;

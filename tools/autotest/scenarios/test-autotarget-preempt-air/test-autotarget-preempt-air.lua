@@ -15,13 +15,13 @@
 -- spawned airborne 10 cells NORTH once the SHORAD is committed, well inside
 -- Stinger range (28c0).
 --
---   Pass: the HIND takes damage within DeadlineSeconds OF ITS OWN ARRIVAL.
+--   Pass: the HIND takes damage within DeadlineTicks OF ITS OWN ARRIVAL.
 --   Fail: the deadline passes with the HIND untouched (the pre-fix behaviour).
 --
 -- WHY THE DEADLINE IS SHORT, AND WHY IT MUST STAY SHORT.
 -- The lock is not permanent. CanAttack returns false while an armament reloads
 -- (AttackBase.cs:274, reloadingIsInvalid: true), which drops IsAiming, and the
--- opportunity-fire branch (AttackFollow.cs:161) clears the persistent flag — so
+-- opportunity-fire branch (AttackFollow.cs:176) clears the persistent flag — so
 -- the SHORAD eventually rescans and finds the helicopter WITHOUT the fix. An
 -- earlier 22-second version of this test therefore passed with the fix disabled
 -- and proved nothing. That unaided break is a per-tick race against the idle
@@ -33,13 +33,22 @@
 --     up to ~26 ticks  turret slew, Turreted TurnSpeed 20 over at most a half turn
 --     up to ~40 ticks  Stinger launch ramp + flight (Speed 600, ~10 cells)
 --     ------------------
---          ~91 ticks  ≈ 3.6s worst case, so 5s carries headroom and no more.
+--          ~91 ticks  worst case; 110 is that plus headroom and no more.
 -- The RED control (PreemptScanInterval pinned to 0) at THIS SAME deadline is what
 -- proves the unaided break does not beat it. Widening this deadline destroys that
 -- discrimination and silently restores the meaningless version of the test.
+--
+-- PITFALL: this deadline is in TICKS on purpose — there are two different time
+-- bases in play and mixing them silently halves or doubles the budget.
+--   * DateTime.Seconds uses the ENGINE rate, 1000 / Timestep. mod.yaml's default
+--     speed is Timestep 60, so that is 16 ticks/s and DateTime.Seconds(5) is 80
+--     ticks — BELOW the 91-tick budget, i.e. a deadline that fails a working fix.
+--   * TestHarness.TicksPerSecond is 25 and applies only to AssertWithin's outer
+--     timeout, which is why that one is still expressed in seconds below.
+-- 110 ticks is ~6.9s of game time at the default speed.
 
 local SpawnHeliAfterSeconds = 4
-local DeadlineSeconds = 5
+local DeadlineTicks = 110
 
 local function cellPos(cx, cy, altitude)
 	return WPos.New(cx * 1024 + 512, cy * 1024 + 512, altitude or 0)
@@ -86,7 +95,9 @@ WorldLoaded = function()
 		heliStartHealth = Heli.Health
 	end)
 
-	TestHarness.AssertWithin(SpawnHeliAfterSeconds + DeadlineSeconds + 2, function()
+	-- Outer timeout is on TestHarness's 25 ticks/s base and must comfortably exceed the
+	-- spawn delay (4s = 64 engine ticks) plus DeadlineTicks: 10 * 25 = 250 > 174.
+	TestHarness.AssertWithin(10, function()
 		if Shorad.IsDead then
 			return "fail: SHORAD died first"
 		end
@@ -107,11 +118,11 @@ WorldLoaded = function()
 		end
 
 		ticksSinceSpawn = ticksSinceSpawn + 1
-		if ticksSinceSpawn >= DateTime.Seconds(DeadlineSeconds) then
+		if ticksSinceSpawn >= DeadlineTicks then
 			return string.format(
-				"fail: SHORAD did not engage the band-5 helicopter within %ds of its arrival — "
+				"fail: SHORAD did not engage the band-5 helicopter within %d ticks of its arrival — "
 				.. "it stayed on the band-3 t90 (heli HP %d/%d)",
-				DeadlineSeconds, Heli.Health, heliStartHealth)
+				DeadlineTicks, Heli.Health, heliStartHealth)
 		end
 
 		return false

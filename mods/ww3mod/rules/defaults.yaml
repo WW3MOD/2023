@@ -651,6 +651,10 @@
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
 ^AutoTargetAir:
 	AutoTarget:
+		# Set explicitly. ^AutoTargetAir is declared TWICE in this file (see the earlier entry, which
+		# carries `Inherits: ^AutoTarget`); the two merge, so this chain would otherwise inherit the
+		# field only as an accident of that duplicate key. See ^AutoTarget above for what it does.
+		PreemptScanInterval: 25
 	AutoTargetPriority@Default:
 		ValidTargets: Air
 ^AutoTargetAirICBM:
@@ -674,6 +678,8 @@
 		FireAtWillCondition: stance-fireatwill
 		AmbushCondition: stance-ambush
 		HoldFireCondition: stance-holdfire
+		# Separate base — inherits neither ^AutoTarget nor ^AutoTargetGround. See ^AutoTarget above.
+		PreemptScanInterval: 25
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Defense, Mine
@@ -742,6 +748,8 @@
 # 		InvalidTargets: NoAutoTarget
 ^AutoTargetDrone:
 	AutoTarget:
+		# Separate base — inherits neither ^AutoTarget nor ^AutoTargetGround. See ^AutoTarget above.
+		PreemptScanInterval: 25
 	AutoTargetPriority@Default:
 		ValidTargets: Drone
 
