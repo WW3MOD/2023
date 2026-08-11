@@ -121,11 +121,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyGameLoaded.GameLoaded(World world)
 		{
-			// HACK: Let the menu opening trigger the fade for game saves
-			// to avoid glitches resulting from trying to trigger both
-			// the standard and menu fades at the same time
-			if (world.IsReplay)
-				Fade(Info.Effect);
+			// Upstream defers the saved-game fade-in to the in-game menu opening, but
+			// IngameMenuLogic only ever resolves MenuPostProcessEffect — a mod using this
+			// trait instead would stay stuck on the initial Black and render an all-black
+			// world forever. There is no competing menu fade here, so fade in directly.
+			Fade(Info.Effect);
 		}
 	}
 }
