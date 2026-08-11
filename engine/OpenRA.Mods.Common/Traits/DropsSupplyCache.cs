@@ -36,6 +36,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string RestockCursor = "enter";
 
 		[CursorReference]
+		[Desc("Cursor for right-click on a friendly ground supply cache the transport can collect.")]
+		public readonly string PickupCacheCursor = "enter";
+
+		[CursorReference]
 		[Desc("Cursor for the deploy command when supply can be dropped as a SUPPLYCACHE.")]
 		public readonly string DropCacheCursor = "deploy";
 
@@ -47,11 +51,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Voice played when ordered to drop a SUPPLYCACHE.")]
 		public readonly string DropCacheVoice = "Action";
 
-		[Desc("DropSupplyCacheAt: how close (cells) the transport must get to the ordered cell, both as the",
-			"move's stop tolerance AND as the arrival check that gates the unload. ONE number for both on",
-			"purpose — the unload must not run at a cell the move never actually reached, and two constants",
-			"would drift. A bot sizing its demand search around the ordered cell should subtract this, since",
-			"the crate can land this far off it (SupplyFollowerBotModule.DropDemandMarginCells).")]
+		[Desc("DropSupplyCacheAt and PickupSupply: how close (cells) the transport must get to the ordered",
+			"cell, both as the move's stop tolerance AND as the arrival check that gates the unload/load.",
+			"ONE number for both on purpose — the transfer must not run at a cell the move never actually",
+			"reached, and two constants would drift. A bot sizing its demand search around the ordered cell",
+			"should subtract this, since the crate can land this far off it",
+			"(SupplyFollowerBotModule.DropDemandMarginCells).")]
 		public readonly int DropAtToleranceCells = 2;
 
 		public override object Create(ActorInitializer init) { return new DropsSupplyCache(init, this); }
@@ -234,6 +239,20 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
+			if (order.OrderString == "PickupSupply")
+			{
+				if (order.Target.Type != TargetType.Actor)
+					return;
+
+				var cache = order.Target.Actor;
+				if (cache == null || cache.IsDead || !cache.IsInWorld)
+					return;
+
+				QueueCollectFromCache(cache, order.Queued);
+				self.ShowTargetLines();
+				return;
+			}
+
 			if (order.OrderString == "Restock")
 			{
 				if (order.Target.Type != TargetType.Actor)
@@ -275,6 +294,70 @@ namespace OpenRA.Mods.Common.Traits
 				self.QueueActivity(true, new CallFunc(() => DropSupplyCacheHere()));
 				self.ShowTargetLines();
 			}
+		}
+
+		/// <summary>Drive to a ground cache and load whatever will fit — the inverse of
+		/// <see cref="DropSupplyCacheHere"/>, and the only way supply on the ground gets back into a
+		/// truck. Until now the sole recovery path was AbsorbsSupplyCache on a Logistics Centre, which is
+		/// Prerequisites: ~disabled and exists only as a Neutral capturable on three of the ten shipped
+		/// maps; on the other seven, supply put on the ground could not come back at all.
+		///
+		/// <para>Deliberately ORDER-DRIVEN rather than a passive aura like AbsorbsSupplyCache, and the
+		/// reason is not taste. A truck absorbing by proximity would re-swallow the crate it had just
+		/// dropped — DropSupplyCacheHere places it on the truck's OWN cell, well inside any plausible
+		/// absorb range — and would also eat forward dumps the player placed on purpose for infantry to
+		/// walk to. Both are silent, and both undo a deliberate act. So collection is something you ASK
+		/// for, exactly like the drop it mirrors.</para>
+		///
+		/// <para>The transfer is capped at the truck's own headroom, so a crate bigger than the truck can
+		/// hold is partially emptied and stays put with the remainder; a crate drained to 0 despawns
+		/// through its own SupplyProvider.RemoveBelowSupply (SupplyProvider.cs:221) rather than being
+		/// removed here.</para></summary>
+		void QueueCollectFromCache(Actor cache, bool queued)
+		{
+			var move = self.TraitOrDefault<IMove>();
+			if (move == null)
+				return;
+
+			var cacheCell = self.World.Map.CellContaining(cache.CenterPosition);
+			self.QueueActivity(queued, move.MoveTo(cacheCell, Info.DropAtToleranceCells));
+
+			self.QueueActivity(true, new CallFunc(() =>
+			{
+				if (supply == null || cache.IsDead || !cache.IsInWorld)
+					return;
+
+				// ARRIVAL CHECK — the same guard, and the same reason, as DropSupplyCacheAt above: a Move
+				// to a cell with no route does not FAIL. PathFinder bails to NoPath and Move.Tick treats an
+				// empty path as arrival, completing in ~2 ticks at the cell the truck was already standing
+				// on. Without this the transfer would then run from there, which on a player-issued order
+				// is a one-click siphon of any crate on the map — strictly worse than the drop's version of
+				// the same hole, because the player chooses the target.
+				var delta = self.Location - cacheCell;
+				if (!SupplyDropMath.ArrivedAtDropCell(delta.X, delta.Y, Info.DropAtToleranceCells))
+				{
+					Log.Write("debug",
+						$"[supply] crate-collect-refused truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+						+ $"reason=never-arrived ordered={cacheCell} tolerance={Info.DropAtToleranceCells}c");
+					return;
+				}
+
+				var cacheProvider = cache.TraitOrDefault<SupplyProvider>();
+				if (cacheProvider == null)
+					return;
+
+				var taken = System.Math.Min(supply.Info.TotalSupply - supply.CurrentSupply, cacheProvider.CurrentSupply);
+				if (taken <= 0 || !cacheProvider.DeductSupply(taken))
+					return;
+
+				supply.AddSupply(taken);
+
+				// EDGE — the mirror of crate-placed, and unconditional for the same reason: it is the one
+				// line that says supply came back OFF the ground, as distinct from an errand being issued.
+				Log.Write("debug",
+					$"[supply] crate-collected truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+					+ $"from={cache.ActorID} amount={taken} left={cacheProvider.CurrentSupply}");
+			}));
 		}
 
 		void QueueDriveAndRestock(Actor host, bool queued = false)
@@ -390,6 +473,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			get
 			{
+				yield return new PickupSupplyOrderTargeter(Info);
 				yield return new RestockOrderTargeter(Info);
 				yield return new DeliverSupplyOrderTargeter(Info);
 				yield return new DeployOrderTargeter("DropSupplyCache", 5,
@@ -399,7 +483,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, in Target target, bool queued)
 		{
-			if (order.OrderID == "Restock" || order.OrderID == "DeliverSupply")
+			if (order.OrderID == "Restock" || order.OrderID == "DeliverSupply" || order.OrderID == "PickupSupply")
 				return new Order(order.OrderID, self, target, queued);
 
 			if (order.OrderID == "DropSupplyCache")
@@ -423,6 +507,53 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString == "DropSupplyCache")
 				return Info.DropCacheVoice;
 			return null;
+		}
+
+		/// <summary>Right-click a friendly ground cache to collect it.
+		///
+		/// <para>Priority 8, above Restock's 7, so the ordering is decided rather than left to a tie —
+		/// though the two are in fact DISJOINT and could not both match: Restock demands a non-empty
+		/// DockedCondition (the Logistics Centre's unit.docked) and a crate has none, while this one
+		/// demands the SupplyCacheActor type and an LC is not that type. Stated because the disjointness
+		/// is what makes the priority uninteresting, not because the priority is doing work.</para>
+		///
+		/// <para>Matching on SupplyCacheActor rather than on "any SupplyProvider without a
+		/// DockedCondition" is deliberate: the looser test would also admit ANOTHER TRUCK, quietly
+		/// inventing truck-to-truck supply transfer as a side effect of a pickup order. This is the same
+		/// discriminator DropSupplyCacheHere merges into and AbsorbsSupplyCache drains, so the drop and
+		/// its inverse agree on what a ground cache is.</para></summary>
+		sealed class PickupSupplyOrderTargeter : UnitOrderTargeter
+		{
+			readonly DropsSupplyCacheInfo info;
+
+			public PickupSupplyOrderTargeter(DropsSupplyCacheInfo info)
+				: base("PickupSupply", 8, info.PickupCacheCursor, false, true)
+			{
+				this.info = info;
+			}
+
+			public override bool CanTargetActor(Actor self, Actor target, TargetModifiers modifiers, ref string cursor)
+			{
+				if (target.Info.Name != info.SupplyCacheActor)
+					return false;
+
+				if (!self.Owner.IsAlliedWith(target.Owner))
+					return false;
+
+				var cacheSupply = target.TraitOrDefault<SupplyProvider>();
+				if (cacheSupply == null || cacheSupply.CurrentSupply <= 0)
+					return false;
+
+				// No headroom, no point: the transfer would be a no-op and the truck would drive across
+				// the map to perform it.
+				var truckSupply = self.TraitOrDefault<SupplyProvider>();
+				return truckSupply != null && truckSupply.CurrentSupply < truckSupply.Info.TotalSupply;
+			}
+
+			public override bool CanTargetFrozenActor(Actor self, FrozenActor target, TargetModifiers modifiers, ref string cursor)
+			{
+				return false;
+			}
 		}
 
 		sealed class RestockOrderTargeter : UnitOrderTargeter

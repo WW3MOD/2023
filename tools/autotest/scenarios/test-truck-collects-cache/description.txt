@@ -1,0 +1,1 @@
+Auto: right-clicking a friendly ground supply cache must send the truck to it and load the supply.
