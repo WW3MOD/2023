@@ -16,6 +16,7 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using OpenRA.FileSystem;
 
 namespace OpenRA.Network
 {
@@ -130,6 +131,15 @@ namespace OpenRA.Network
 			return fingerprint;
 		}
 
+		/// <summary>
+		/// The packages the asset digest actually compares. Diagnostic only - these are absolute
+		/// local paths and must never be hashed.
+		/// </summary>
+		public static IEnumerable<string> ExternalContentPackages(ModData modData)
+		{
+			return modData.ModFiles.MountedPackages.Where(IsExternalContent).Select(p => p.Name);
+		}
+
 		static string ContentHashes(ModData modData)
 		{
 			var id = modData.Manifest.Id;
@@ -138,25 +148,27 @@ namespace OpenRA.Network
 				if (ContentHashCache.TryGetValue(id, out var cached))
 					return cached;
 
-				string hashes;
 				try
 				{
-					hashes = ComputeContentHash(modData) + Separator + ComputeAssetDigest(modData);
+					var hashes = ComputeContentHash(modData) + Separator + ComputeAssetDigest(modData);
+
+					// Only a successful result is cached. The failure below is usually
+					// transient - a locked archive during a virus scan, a content folder busy
+					// for a moment - and caching it would leave the fingerprint useless for the
+					// rest of the session over a hiccup that has already passed.
+					ContentHashCache[id] = hashes;
+					return hashes;
 				}
 				catch (Exception e)
 				{
 					// This runs inside Server.ValidateClient, whose catch-all drops the
 					// connection - so an exception here would make the game unjoinable rather
 					// than merely unfingerprinted. Reading the file system can fail for reasons
-					// that have nothing to do with the match (a content folder deleted while the
-					// game is running, a locked or truncated archive). A diagnostic must never
-					// be the reason nobody can play.
+					// that have nothing to do with the match. A diagnostic must never be the
+					// reason nobody can play.
 					Log.Write("debug", $"Could not compute the build fingerprint: {e}");
-					hashes = "error" + Separator + "error";
+					return "error" + Separator + "error";
 				}
-
-				ContentHashCache[id] = hashes;
-				return hashes;
 			}
 		}
 
@@ -257,8 +269,16 @@ namespace OpenRA.Network
 		/// <item>Package NAMES. Folder.Name is the absolute path on disk
 		/// (FileSystem/Folder.cs:25), which differs between two machines by construction - one
 		/// player's install lives somewhere the other player's does not. Hashing it would make
-		/// every pair of installs look different forever, which is worse than useless. Only the
-		/// leaf names INSIDE each package are hashed, and those are machine-independent.</item>
+		/// every pair of installs look different forever, which is worse than useless. The path
+		/// is used to FILTER only; only the leaf names INSIDE each package are hashed, and those
+		/// are machine-independent.</item>
+		/// <item>Anything inside the repository. Repo content is already covered by the engine
+		/// segment, and including it actively misleads: mod.yaml mounts ^EngineDir, whose top
+		/// level holds the gitignored IP2LOCATION-LITE-DB1.IPV6.BIN.ZIP (engine/.gitignore:20,
+		/// written by fetch-geoip.sh). That file is present on any machine that has run a build
+		/// and absent on a fresh checkout, so hashing it produced a guaranteed mismatch - and
+		/// DescribeDifference would have blamed the third segment, telling both players to
+		/// re-extract Red Alert because of a geoip database.</item>
 		/// </list>
 		/// </remarks>
 		static string ComputeAssetDigest(ModData modData)
@@ -267,10 +287,18 @@ namespace OpenRA.Network
 			{
 				var entries = new List<string>();
 				foreach (var package in modData.ModFiles.MountedPackages)
-					foreach (var file in package.Contents)
-						entries.Add(file);
+				{
+					if (!IsExternalContent(package))
+						continue;
 
-				// Mount order is not guaranteed to be stable across machines; the set of files is.
+					foreach (var file in package.Contents)
+						entries.Add(file.ToLowerInvariant());
+				}
+
+				// Mount order is not guaranteed to be stable across machines; the set of files
+				// is. Case is normalized first because two players may have extracted their
+				// content with different tools - MAIN.MIX and main.mix are the same file, and
+				// an ordinal sort would otherwise call them different installs.
 				entries.Sort(StringComparer.Ordinal);
 
 				hash.AppendData(Encoding.UTF8.GetBytes(entries.Count.ToStringInvariant() + "\n"));
@@ -280,6 +308,29 @@ namespace OpenRA.Network
 				return Convert.ToHexString(hash.GetHashAndReset())
 					.ToLowerInvariant()[..ContentHashChars];
 			}
+		}
+
+		/// <summary>
+		/// True for the packages that live outside the repository - the Red Alert installation
+		/// under ^SupportDir, which is the only mounted content the engine segment cannot see.
+		/// </summary>
+		/// <remarks>
+		/// Two shapes qualify, both verified against the live mount list:
+		/// the content FOLDERS carry a rooted path under Platform.SupportDir
+		/// ("...\AppData\Roaming\OpenRA\Content/ra/v2/"), while the .mix ARCHIVES mounted out of
+		/// them carry only their leaf name ("conquer.mix") because that is what they were
+		/// mounted by. Everything in the repo - ^EngineDir, engine/mods/*, mods/ww3mod/* - is a
+		/// rooted path that is not under SupportDir, and is excluded.
+		/// </remarks>
+		static bool IsExternalContent(IReadOnlyPackage package)
+		{
+			var name = package.Name;
+			if (!Path.IsPathRooted(name))
+				return true;
+
+			return Slashes(name).StartsWith(Slashes(Platform.SupportDir), StringComparison.OrdinalIgnoreCase);
+
+			static string Slashes(string path) => path.Replace('\\', '/');
 		}
 
 		static IEnumerable<(string Name, string[] Files)> SimulationSections(Manifest manifest)

@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 		bool IUtilityCommand.ValidateArguments(string[] args) { return true; }
 
-		[Desc("Print the build fingerprint used to reject mismatched clients at join time.")]
+		[Desc("Print the build fingerprint compared at join time, and the content it covers.")]
 		void IUtilityCommand.Run(Utility utility, string[] args)
 		{
 			var modData = Game.ModData = utility.ModData;
@@ -38,8 +38,10 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			Console.WriteLine(fingerprint);
 			Console.WriteLine($"  engine revision: {BuildFingerprint.EngineRevision}");
 			Console.WriteLine($"  mod rules:       {modData.Manifest.Id} rules/weapons/sequences/tilesets + mod.yaml");
-			Console.WriteLine($"  mounted content: {modData.ModFiles.MountedPackages.Count()} packages");
 			Console.WriteLine($"  computed in:     {stopwatch.ElapsedMilliseconds} ms (once per session, on first use)");
+			Console.WriteLine("  assets compared (external content only - in-repo packages are already covered by the engine segment):");
+			foreach (var package in BuildFingerprint.ExternalContentPackages(modData))
+				Console.WriteLine($"    {package}");
 		}
 	}
 }

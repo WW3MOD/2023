@@ -21,7 +21,13 @@ namespace OpenRA.Network
 {
 	sealed class SyncReport
 	{
-		const int NumSyncReports = 7;
+		// Upstream keeps 7. Raised because 7 net frames is roughly half a second: any stall
+		// longer than that between the desync and the dump - an alt-tab, a GC pause, a
+		// disk hiccup - rotates the offending frame out of the ring, and the report then reads
+		// "Recorded frames do not contain the frame N", which is indistinguishable from the
+		// empty-report failure this whole branch exists to remove. Cost is memory only, and
+		// only in games with two or more humans (see OrderManager.StartGame).
+		const int NumSyncReports = 32;
 		static readonly Cache<Type, TypeInfo> TypeInfoCache = new(t => new TypeInfo(t));
 
 		readonly OrderManager orderManager;

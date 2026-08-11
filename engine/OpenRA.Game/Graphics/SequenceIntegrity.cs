@@ -48,6 +48,24 @@ namespace OpenRA.Graphics
 			get { lock (SyncObject) return DegradedSequences.Count; }
 		}
 
+		/// <summary>
+		/// Drops everything recorded so far. Called when a map starts resolving its sprites.
+		/// </summary>
+		/// <remarks>
+		/// Without this the tally is a union over every map loaded since the process started,
+		/// because sprites are resolved per map (SequenceSet.LoadSprites, called from
+		/// ModData.PrepareMap). Two players with byte-identical content would then report
+		/// different digests purely because one of them had loaded more maps first - and one
+		/// player restarting between attempts while the other does not is the normal shape of a
+		/// repeat-desync session. That would put a false content difference in the single line
+		/// that exists to be diffed between two machines.
+		/// </remarks>
+		public static void Reset()
+		{
+			lock (SyncObject)
+				DegradedSequences.Clear();
+		}
+
 		public static void RecordDegraded(string image, string sequence, string detail)
 		{
 			lock (SyncObject)
