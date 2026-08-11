@@ -371,6 +371,25 @@ SUPPLYCACHE:
 	Inherits: ^SpriteActor
 	Selectable:
 		Bounds: 1024, 1024
+		# A dropped crate must not be handed back by a drag-select over a battle. Without this it
+		# takes SelectableInfo's default of 10 (Selectable.cs:19) — the SAME tier as
+		# ^SelectableCombatUnit — so a box drawn over infantry standing near a crate groups the crate
+		# with them.
+		#
+		# What this buys, precisely: box-select keeps only the single HIGHEST-priority group
+		# (SelectableExts.SubsetWithHighestSelectionPriority), so the crate is excluded outright from
+		# any box that also contains anything above tier 2, and is returned only when the box holds
+		# nothing else. The "Select all units" hotkey runs the same filter, so it skips crates too.
+		# Deliberate single-clicking is UNAFFECTED — that path ranks actors under the cursor by
+		# (priority - pixelDistance), and a crate is normally the only actor on its own pixel.
+		# Double-click select-same-type is also unaffected: it filters by Selectable.Class, not
+		# priority, so it never swept crates in alongside soldiers to begin with.
+		#
+		# 2 is ^SelectableBuilding's tier (defaults.yaml:831-834), which is what a dropped, stationary
+		# container is. Written as the value rather than inherited because ^SelectableBuilding pulls in
+		# ^Selectable's WithSpriteControlGroupDecoration and DrawLineToTarget, and a crate has neither
+		# a control group nor a target line; this block is already hand-rolled for the same reason.
+		Priority: 2
 	SelectionDecorations:
 	Tooltip:
 		Name: Supply Cache
