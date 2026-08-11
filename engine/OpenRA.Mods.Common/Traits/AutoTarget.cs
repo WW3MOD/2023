@@ -1118,7 +1118,8 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary><paramref name="source"/> is deliberately REQUIRED, not defaulted. A default of
 		/// AutoTarget fails open — it silently re-stamps whatever it is handed as an automatic
 		/// engagement — and that affordance is why the provenance-laundering bug had two separate
-		/// instances (ScanAndAttack and AmbushTickIdle). There are three call sites; each states it.</summary>
+		/// instances (ScanAndAttack and AmbushTickIdle). FOUR call sites across three methods —
+		/// retaliation, both AmbushTickIdle springs, and ScanAndAttack — and each states its source.</summary>
 		void Attack(in Target target, bool allowMove, AttackSource source)
 		{
 			foreach (var ab in ActiveAttackBases)

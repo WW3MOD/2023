@@ -69,8 +69,14 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (checkTick-- <= 0 && (ChildActivity == null || runningMoveActivity))
 			{
-				// Scan for targets but don't allow moving toward them (allowMove = false)
-				var target = autoTarget.ScanForTarget(self, false, true, !runningMoveActivity);
+				// Scan for targets but don't allow moving toward them (allowMove = false).
+				// fromProtectedOverride must be threaded into the stamp below: a SmartMoveActivity is
+				// NOT necessarily the product of a fresh move order that superseded an earlier attack.
+				// Every Mobile.MoveWithinRange / MoveFollow / MoveAdjacentTo goes through IWrapMove
+				// (Mobile.cs:671-790), so the move a player's OWN attack queues to close range is itself
+				// wrapped in one. Re-stamping there would launder the player's target into an
+				// autotarget-acquired one and make their order preemptable.
+				var target = autoTarget.ScanForTarget(self, false, true, !runningMoveActivity, out var fromProtectedOverride);
 
 				if (target.Type != TargetType.Invalid)
 				{
@@ -113,8 +119,9 @@ namespace OpenRA.Mods.Common.Activities
 							runningMoveActivity = false;
 							ChildActivity?.Cancel(self);
 
+							var engagementSource = fromProtectedOverride ? AttackSource.Default : AttackSource.AutoTarget;
 							foreach (var ab in autoTarget.ActiveAttackBases)
-								QueueChild(ab.GetAttackActivity(self, AttackSource.AutoTarget, target, false, false));
+								QueueChild(ab.GetAttackActivity(self, engagementSource, target, false, false));
 						}
 					}
 				}
