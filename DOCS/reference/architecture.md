@@ -129,6 +129,32 @@ Note the `../` — `utility.sh` cd's into `engine/` before running. Saving a map
 - **Indexed PNGs carry their OWN palette — no player-colour remap.** `PngSheetLoader` attaches an `EmbeddedSpritePalette` from the PNG's PLTE (`:87-88`), so an indexed PNG renders in its baked colours and ignores the actor's assigned palette / team-colour remap (indices 80–95). RGBA PNGs are pure truecolour (also no remap). For a team-coloured **unit**, use the SHP round-trip (pure indices, coloured by the runtime palette); loose PNGs suit decoration art.
 - **Auto-sliced frames anchor CENTERED — the source SHP offset is lost.** With no embedded metadata, `RegionsFromSlices` treats the whole image as one frame with `Offset = float2.Zero` = sprite centre on actor centre (`:112-160`, offset default at `:136-142`); embedded `FrameSize`/`FrameAmount` chunks control slicing. So a SHP→PNG→PngSheet conversion **loses** the original trunk/turret anchor (a symmetric sprite looks right centred; an asymmetric one sits wrong). Fix anchoring via the sequence `Offset:` field or embedded `Offset`/`FrameSize`/`FrameAmount` chunks; the SHP round-trip preserves offset.
 
+## Audio pipeline: sound formats & adding a music track
+
+**`SoundFormats` is a list of C# class-name prefixes, not file extensions.** `mod.yaml:325` reads `SoundFormats: Aud, Wav, Ogg`; `ModData.cs:80` hands that list to `ObjectCreator.GetLoaders<ISoundLoader>`, which resolves each entry as `FindType(format + "Loader")` (`ObjectCreator.cs:170`) and throws at load if the type is missing or does not implement `ISoundLoader`. `Ogg` therefore binds `OpenRA.Mods.Common.AudioLoaders.OggLoader`, backed by the `NVorbis` NuGet reference (`OpenRA.Mods.Common.csproj:11`). **Ogg Vorbis is WW3MOD's target format for new music** — no upstream OpenRA mod enables it, so this path is ours alone.
+
+**Export settings.** Ogg Vorbis, 44.1 kHz, q5–6 (~160–192 kbps VBR). **Mono or stereo only** — `OpenAlSoundEngine.MakeALFormat` branches on `channels == 1` and sends *everything else* as stereo (`OpenRA.Platforms.Default/OpenAlSoundEngine.cs:109-115`), so a 5.1 file is silently mis-interpreted rather than rejected. Sample rate is unconstrained; bit depth is forced to 16 by `OggFormat.SampleBits` (`AudioLoaders/OggLoader.cs:40`).
+
+### Adding a music track
+
+1. **Drop the file loose** in `mods/ww3mod/bits/sounds/music/<name>.ogg`. That folder is already mounted (`mod.yaml:83`) — **no `Packages:` edit, no `.mix` or zip**. `Folder` mounts are `TopDirectoryOnly` (`FileSystem/Folder.cs:35`), so this only works for files placed directly in a mounted dir; a new subfolder would need its own mount line.
+2. **Register it** in `mods/ww3mod/rules/sound/music.yaml` (note: `rules/sound/`, *not* `audio/`).
+
+```
+	# blank line above — top-level entries must be separated (see conventions.md)
+	deadhand: Dead Hand
+		Extension: ogg
+		VolumeModifier: 0.8
+```
+
+(Indentation is a **tab**. `deadhand` is the key *and* the default filename stem; `Dead Hand` is the jukebox title.)
+
+**`MusicInfo` reads exactly four keys** — `Hidden`, `VolumeModifier`, `Extension`, `Filename` (`GameRules/MusicInfo.cs:26-39`). **There is no `Length:` and no `Hash:`.** `Length` is decoded from the file at load (`:41-63`) and used only for the `M:SS` display label; playlist advance is driven by the audio backend's completion callback, so it cannot stall a playlist. `Extension: ogg` is **required** — the default when omitted is `aud` (`:37`), and `Filename` is built as `<key or Filename>.<ext>`.
+
+**The #1 debugging trap: a track whose file cannot be opened is dropped from the jukebox with no log message at all.** `MusicInfo.Load` returns early and leaves `Exists` false if `TryOpen` fails (`:43-44`), and `Ruleset.InstalledMusic` filters on `Exists` (`GameRules/Ruleset.cs:95`). So `music.yaml` is a *superset declaration*, not a manifest of what ships — a typo in the filename or a missing `Extension: ogg` makes the entry simply vanish. Distinguish the two failure shapes: **absent from the list** = file not found; **present but showing `0:00` and silent** = file found but no registered loader could parse it (`Exists` is set before the parse loop, `:48-57`) — check `SoundFormats`.
+
+**Loose files override `scores.mix`.** `FileSystem.TryOpen` resolves to the *last* mounted package containing the name (`FileSystem.cs:195, 246`), and `~scores.mix` mounts at `mod.yaml:33` while `bits/sounds/music` mounts at `:83`. Dropping `journey.ogg` beside a `journey` entry does not automatically replace the `.aud`, though — `Extension` decides the filename, so the migration path off the Westwood tracks is: add the `.ogg` file, then point the existing entry at it (or add a new key and delete the old entry).
+
 ## Key engine modifications
 
 These are the custom systems that set WW3MOD apart from base OpenRA. Understanding these is critical before modifying any engine code.
