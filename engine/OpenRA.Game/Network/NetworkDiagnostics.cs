@@ -25,21 +25,30 @@ namespace OpenRA.Network
 		static readonly IPEndPoint RouteProbe = new(IPAddress.Parse("192.0.2.1"), 65530);
 
 		/// <summary>
-		/// The LAN address a router's port-forward rule has to point at, or null when it cannot
-		/// be determined.
+		/// The LAN address a router's port-forward rule has to point at, or null when it cannot be
+		/// determined. Never returns an address that could not be the target of such a rule.
 		/// </summary>
 		public static IPAddress GetLocalAddress()
 		{
 			// The listen sockets bind Any/IPv6Any, so their LocalEndPoint reads 0.0.0.0 and names no
 			// interface. Connecting a UDP socket transmits nothing — it only asks the OS which
 			// interface it would route this destination through — and the resulting LocalEndPoint is
-			// then the address this machine presents to the router. That is precisely the value a
+			// then the address this machine presents to that route. That is precisely the value a
 			// stale port-forward rule has wrong, and the one fact that identifies the mismatch.
 			try
 			{
 				using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
 				socket.Connect(RouteProbe);
-				return (socket.LocalEndPoint as IPEndPoint)?.Address;
+				var routed = (socket.LocalEndPoint as IPEndPoint)?.Address;
+
+				// PITFALL: a VPN can win this route lookup — Tailscale's exit-node mode installs 0.0.0.0/1
+				// and 128.0.0.0/1, which beat the default route outright whatever the interface metrics
+				// are — leaving `routed` as the tunnel's address (169.254/16 while unconfigured). Naming
+				// that to the player is the same wrong-address error this method exists to end, and a
+				// public value here would be broadcast to the whole lobby. Only RFC 1918 can be the
+				// target of a LAN port-forward rule; anything else degrades to null, which callers
+				// already handle by naming no address at all.
+				return IsPrivate(routed) ? routed : null;
 			}
 			catch (SocketException)
 			{

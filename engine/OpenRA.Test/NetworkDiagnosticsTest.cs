@@ -57,18 +57,28 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void LocalAddressNamesAnInterface()
+		public void LocalAddressIsPrivateOrNothing()
 		{
-			// Null is a legitimate answer on a host with no route off the machine, but the wildcard
-			// never is: reporting 0.0.0.0 to a player is exactly the uselessness this replaces.
+			// The probe answers with whichever interface wins the route lookup, which a VPN or container
+			// bridge can be — Tailscale's exit-node routes outrank the default route entirely. Null is a
+			// legitimate answer; a tunnel address, a public address or the wildcard never is, because
+			// the value is handed to a player as the thing to aim a router rule at. Asserting the
+			// contract rather than a specific address keeps this meaningful on any machine.
 			var address = NetworkDiagnostics.GetLocalAddress();
 			TestContext.WriteLine($"GetLocalAddress() = {address?.ToString() ?? "null"}");
 
 			if (address == null)
-				Assert.Ignore("No route off this machine, so there is no local address to report.");
+				return;
 
 			Assert.That(address.AddressFamily, Is.EqualTo(AddressFamily.InterNetwork));
+			Assert.That(NetworkDiagnostics.IsPrivate(address), Is.True,
+				$"{address} is not RFC 1918, so no LAN port-forward rule could target it.");
 			Assert.That(address, Is.Not.EqualTo(IPAddress.Any));
+			Assert.That(IPAddress.IsLoopback(address), Is.False);
+
+			var b = address.GetAddressBytes();
+			Assert.That(b[0] == 169 && b[1] == 254, Is.False, "a link-local VPN adapter address leaked through");
+			Assert.That(NetworkDiagnostics.IsCarrierGradeNat(address), Is.False);
 		}
 	}
 }

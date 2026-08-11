@@ -162,38 +162,45 @@ namespace OpenRA.Mods.Common.Server
 
 		/// <summary>
 		/// Expands master server error code 1 ("could not reach your port") into the step that actually
-		/// failed. The caller must hold the <see cref="masterServerMessages"/> lock.
+		/// failed. Does socket work, so it is deliberately built OUTSIDE the
+		/// <see cref="masterServerMessages"/> lock that <see cref="Tick"/> takes every frame.
 		/// </summary>
-		void EnqueuePortForwardDiagnosis(S server)
+		static List<(string Key, object[] Args)> DiagnosePortForward(S server)
 		{
+			var messages = new List<(string, object[])>();
 			var localAddress = NetworkDiagnostics.GetLocalAddress();
 
 			// A second layer of NAT at the ISP outranks whatever the local router did, because no rule
 			// on that router can expose this port either way. Only knowable when a device was found.
-			if (NetworkDiagnostics.IsPrivate(localAddress) && NetworkDiagnostics.IsCarrierGradeNat(Nat.ExternalAddress))
+			// The address named here is inside 100.64.0.0/10 by construction, so it identifies nobody.
+			if (localAddress != null && NetworkDiagnostics.IsCarrierGradeNat(Nat.ExternalAddress))
 			{
-				masterServerMessages.Enqueue((NoPortForwardCarrierGradeNat,
-					new object[] { "address", Nat.ExternalAddress.ToString() }));
-
-				return;
+				messages.Add((NoPortForwardCarrierGradeNat, new object[] { "address", Nat.ExternalAddress.ToString() }));
+				return messages;
 			}
 
-			var cause = Nat.ForwardStatus switch
+			// ForwardStatus is a snapshot taken when the server started, and discovery is asynchronous:
+			// a device that answered after that moment leaves the snapshot reading NoDeviceFound while
+			// Nat.Status reports Enabled — with the create-server panel showing its green UPnP notice
+			// for the same session. Name no cause the rest of the UI already contradicts. The generic
+			// line plus the address below is still strictly more than the player had before.
+			var stale = Nat.ForwardStatus == NatForwardStatus.NoDeviceFound && Nat.Status == NatStatus.Enabled;
+
+			messages.Add((stale ? NoPortForward : Nat.ForwardStatus switch
 			{
 				NatForwardStatus.DiscoveryDisabled => NoPortForwardDiscoveryDisabled,
 				NatForwardStatus.NoDeviceFound => NoPortForwardNoDevice,
 				NatForwardStatus.DeviceRejected => NoPortForwardRejected,
 				NatForwardStatus.Forwarded => NoPortForwardUpstream,
 				_ => NoPortForward
-			};
-
-			masterServerMessages.Enqueue((cause, Array.Empty<object>()));
+			}, Array.Empty<object>()));
 
 			// The single most useful line: a port-forward rule aimed at an address this machine no
 			// longer holds fails in exactly the same way as having no rule at all.
 			if (localAddress != null)
-				masterServerMessages.Enqueue((NoPortForwardLocalAddress,
-					new object[] { "endpoint", $"{localAddress}:{server.Settings.ListenPort}" }));
+				messages.Add((NoPortForwardLocalAddress, new object[] { "endpoint", $"{localAddress}:{server.Settings.ListenPort}" }));
+
+			return messages;
 		}
 
 		void UpdateMasterServer(S server, string postData)
@@ -226,13 +233,21 @@ namespace OpenRA.Mods.Common.Server
 						}
 
 						isInitialPing = false;
+
+						// Built before the lock: Tick takes it on the server thread every frame, and
+						// diagnosing an unreachable port opens a socket.
+						var portForwardDiagnosis = errorCode == 1 ? DiagnosePortForward(server) : null;
+
 						lock (masterServerMessages)
 						{
 							masterServerMessages.Enqueue((Connected, Array.Empty<object>()));
 							if (errorCode != 0)
 							{
-								if (errorCode == 1)
-									EnqueuePortForwardDiagnosis(server);
+								if (portForwardDiagnosis != null)
+								{
+									foreach (var message in portForwardDiagnosis)
+										masterServerMessages.Enqueue(message);
+								}
 								else
 								{
 									// Hardcoded error messages take precedence over the server-provided messages

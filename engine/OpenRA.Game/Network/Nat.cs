@@ -73,7 +73,15 @@ namespace OpenRA.Network
 				try
 				{
 					ExternalAddress = await natDevice.GetExternalIPAsync();
-					Log.Write("nat", $"External address: {ExternalAddress}");
+
+					// PITFALL: nat.log gets pasted verbatim into bug reports, so record what the address
+					// MEANS rather than the host's public WAN address itself. Everything downstream needs
+					// only the classification. (The lobby's carrier-grade NAT line does print an address,
+					// but that one is inside 100.64.0.0/10 by construction and identifies nobody.)
+					Log.Write("nat", "External address is " +
+						(NetworkDiagnostics.IsCarrierGradeNat(ExternalAddress) ? "carrier-grade NAT (RFC 6598)." :
+						NetworkDiagnostics.IsPrivate(ExternalAddress) ? "private, i.e. this router is itself behind another NAT." :
+						"public."));
 				}
 				catch (Exception e)
 				{
