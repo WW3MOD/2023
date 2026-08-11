@@ -206,7 +206,7 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 
 			// Since aircraft don't share cells, we don't pass the subCell parameter
-			return !world.ActorMap.GetActorsAt(cell).Any(x => x != ignoreActor);
+			return !world.BlockingActorsAt(cell).Any(x => x != ignoreActor);
 		}
 
 		IEnumerable<EditorActorOption> IEditorActorOptions.ActorOptions(ActorInfo ai, World world)
@@ -833,7 +833,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (!self.World.Map.Contains(cell))
 				return false;
 
-			foreach (var otherActor in self.World.ActorMap.GetActorsAt(cell))
+			// PITFALL: Aircraft.IsBlockedBy tests Info.Crushes, and AircraftInfo has no `Passes` counterpart to
+			// LocomotorInfo's — so an aircraft can only be un-blocked by something it would CRUSH. Ground cover is
+			// passed, never crushed, so it has to be filtered out here rather than inside IsBlockedBy.
+			foreach (var otherActor in self.World.BlockingActorsAt(cell))
 				if (IsBlockedBy(self, otherActor, dockingActor, blockedByMobile))
 					return false;
 
@@ -1153,7 +1156,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// Lambdas can't use 'in' variables, so capture a copy for later
 			var targetActor = target;
-			if (target.Positions.Any(p => self.World.ActorMap.GetActorsAt(self.World.Map.CellContaining(p)).Any(a => a != self && a != targetActor.Actor)))
+			if (target.Positions.Any(p => self.World.BlockingActorsAt(self.World.Map.CellContaining(p)).Any(a => a != self && a != targetActor.Actor)))
 				return false;
 
 			MakeReservation(target.Actor);

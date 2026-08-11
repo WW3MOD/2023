@@ -179,7 +179,7 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				// Don't drop on any actors
-				if (self.World.ActorMap.GetActorsAt(p).Any())
+				if (self.World.BlockingActorsAt(p).Any())
 					continue;
 
 				return p;

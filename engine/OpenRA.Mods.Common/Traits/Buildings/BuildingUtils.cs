@@ -28,7 +28,7 @@ namespace OpenRA.Mods.Common.Traits
 				HashSet<string> acceptedReplacements = null;
 
 				var foundActors = false;
-				foreach (var a in world.ActorMap.GetActorsAt(cell))
+				foreach (var a in world.BlockingActorsAt(cell))
 				{
 					if (a == toIgnore)
 						continue;

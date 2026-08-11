@@ -25,6 +25,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Player Relationship to be able too pass over (Crush) this Passable.")]
 		public readonly PlayerRelationship PassedByRelationships = PlayerRelationship.None; // PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
 
+		[Desc("This actor is purely cosmetic ground cover (a crop field tiled across a region) and never occupies",
+			"its cell: placement, deployment, landing, husk and drop checks all see straight through it.",
+			"PassClasses/PassedByRelationships still govern movement; this governs everything else.")]
+		public readonly bool GroundCover = false;
+
 		[Desc("Relationships where the crush action kills this Passable.")]
 		public readonly PlayerRelationship CrushedByRelationships = PlayerRelationship.None;
 
