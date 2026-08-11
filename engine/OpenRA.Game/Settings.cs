@@ -84,7 +84,17 @@ namespace OpenRA
 		public bool QueryMapRepository = true;
 
 		[Desc("Enable client-side report generation to help debug desync errors.")]
-		public bool EnableSyncReports = false;
+		// WW3MOD diverges from the upstream default (false), which exists because generating a
+		// report walks every synced trait once per net frame. We keep it on because this mod
+		// desyncs in human-vs-human games, and an unreported desync costs a whole play session
+		// plus a blind guess afterwards - the first desyncs here produced "No sync report
+		// available" and no trait-level diagnostic at all. Hand-editing settings.yaml is not a
+		// workable substitute: the game rewrites that file on exit.
+		// The AI benchmark games do not pay for this. OrderManager.StartGame additionally
+		// requires two or more human clients before reporting actually runs, because a report
+		// is only meaningful when there is a peer to diff it against.
+		// PITFALL: do not "restore" this to the upstream default.
+		public bool EnableSyncReports = true;
 
 		[Desc("Sets the timestamp format. Defaults to the ISO 8601 standard.")]
 		public string TimestampFormat = "yyyy-MM-ddTHH:mm:ss";
