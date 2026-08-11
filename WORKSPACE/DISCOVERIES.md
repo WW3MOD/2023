@@ -3344,3 +3344,61 @@ those two must be serialised against each other, not just against themselves.
 **Tell.** Read the `Batch complete: N verdict / M no-verdict` line before reading any aggregate. If
 M > 0 the run is suspect; if M is most of the batch the aggregate is meaningless regardless of how
 plausible the surviving rows look.
+
+## 2026-08-11 — the danger field's absolute magnitude is scenario-dependent, so "17 of 18 thresholds are too low" is not a universal fact
+
+**Source.** Engine `debug.log` from a `tournament-s1-eco-river-zeta` match on merged main
+`63a81fe0`. The match itself was killed by the wall-clock watchdog under CPU contention (see the
+entry above) — but `[danger]` instrumentation is unconditional, so the diagnostic value survives
+the void run.
+
+**The reference reproduces exactly.** `[danger] reference ground=3412 air=3627 ... ground-types=92/424
+min=164 max=1271250` — identical in all six published figures to the 2026-08-10 live measurement and
+to the offline YAML reproduction in `f2a31035`. The reference is deterministic, ruleset-derived, and
+now confirmed from three independent routes. That part of the model is solid.
+
+**The FIELD is not.** Compare the believed-danger distribution measured on the two occasions:
+
+| Source | scenario | USA median | Russia median |
+|---|---|---|---|
+| 2026-08-10 | `test-frontline-reachability` | **818 units** | **2,755 units** |
+| 2026-08-11 | `tournament-s1-eco-river-zeta` (n=120→160) | **27–38 units** | **17–99 units** |
+
+That is a **20x–100x** difference in the same quantity on the same map. The thresholds under
+discussion span **6–100 danger units**. So on the frontline scenario every threshold sits far below
+the median cell — the finding that drove the 08-10 plan — while on this eco rung the same thresholds
+**straddle** the median instead.
+
+**Why this matters.** The 08-10 conclusion "17 of the 18 ground thresholds sit 8x–459x below the
+median cell they gate" was derived from a single scenario, and it does not generalise. A global
+constant cannot be correct for both readings; whatever value makes a gate sensible on a contested
+frontline makes it fire on essentially everything during an economic opening, and vice versa. This
+is the same argument the inter-player asymmetry already made (USA and Russia medians differing 3.4x
+in one match), now repeated along a second axis — **scenario and match phase** — and with a much
+larger spread.
+
+**Consequence for the threshold work.** It strengthens the percentile-of-live-field model over any
+re-tuned constant, because a percentile is invariant to the absolute scale that is moving here. It
+also means any future claim of the form "threshold X is too low" MUST name the scenario and the
+match phase it was measured in, or it is not a claim about the threshold at all.
+
+**Caveat, stated plainly.** This is one match, killed early (the highest scan index seen is n=160),
+on an economic rung where contact is expected to be sparse. Match phase alone could account for much
+of the gap. It is offered as a refutation of universality — one counterexample is sufficient for
+that — and NOT as a measurement of what the eco-rung distribution settles at.
+
+## 2026-08-11 — the derrick ferry DOES fire, refuting the cached-null-latch hypothesis
+
+Same log. `CaptureCoordinatorBotModule`'s unconditional per-capture log yielded **12 orders: 11
+`ferried=False`, 1 `ferried=True`** — and critically, the single `True` is the **6th** of the twelve,
+not the first.
+
+`WORKSPACE/plans/260811_transport_doctrine.md` named two candidate causes for the user's report that
+technicians walk while transports idle: no free carrier available, versus the one-shot
+`transportModuleResolved` latch (`CaptureCoordinatorBotModule.cs:1323-1328`) caching a `null`
+resolution permanently for the rest of the match. **The latch hypothesis is refuted**: a permanently
+cached null cannot produce a `True` at position 6. The remaining explanation is carrier availability.
+
+Two things worth keeping. First, this cost **zero code** — exactly as the plan predicted, the
+diagnostic was already shipped and enabled. Second, the ~8% ferry rate quantifies the user's
+complaint rather than merely confirming it: the feature is not broken-off, it is starved.
