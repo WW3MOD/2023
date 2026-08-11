@@ -2219,7 +2219,15 @@ SF:
 		ForceTargetRelationships: None
 		Cursor: heal
 		OutsideRangeCursor: heal
-		PauseOnCondition: suppressed >= 10
+		# PITFALL: do not put `PauseOnCondition: suppressed >= N` back on this armament. It used to
+		# carry `>= 10` — the lowest of the ten suppression tiers, below even the >30 at which the man
+		# goes prone — so any incoming fire at all stopped the medic treating anyone, and casualties
+		# only happen under fire. The failure was silent and lethal: the medic walked to his patient,
+		# went prone beside him and lay there while the man bled to death, which is indistinguishable
+		# on screen from the order having been refused. Suppression already degrades him through the
+		# ^Suppression* ladders every other infantryman gets (burst wait up to 200%, speed, vision,
+		# accuracy) — under heavy fire he now treats at roughly half cadence instead of not at all,
+		# which is the mod's stated suppression contract: degrade, don't disable.
 	#	Armament@AI:
 	#	Weapon: ai.targeting.helper.noattack
 	#	LocalOffset: 0,0,0

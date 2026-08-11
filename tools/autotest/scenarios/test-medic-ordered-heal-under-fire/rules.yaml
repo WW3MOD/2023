@@ -1,0 +1,23 @@
+# Ordered-heal autotest. Two medics, two wounded riflemen, no enemy and no economy.
+#
+# No enemy is needed to suppress: ^Infantry already carries
+# ExternalCondition@Suppression (Condition: suppressed, TotalCap: 100,
+# ReduceTicks: 5, ReduceAmount: 1), so the Lua tops the pinned medic up directly.
+# Real incoming fire is the same condition arrived at nondeterministically — and
+# having no enemy on the map also guarantees the CONTROL medic stays at zero
+# suppression, which is the whole point of having him.
+
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults to
+	# human-owned units in Created (AutoTarget.cs). Strip it so the verdict does not
+	# depend on the dev's saved settings.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-medic-ordered-heal-under-fire.lua
