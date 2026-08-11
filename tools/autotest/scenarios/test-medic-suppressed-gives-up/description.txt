@@ -1,1 +1,0 @@
-Auto: a suppressed medic ordered to heal must give up and stay idle, not aim forever.

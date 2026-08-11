@@ -299,6 +299,60 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			healer.World.IssueOrder(new Order("AttendAlly", healer, Target.FromActor(ally), queued));
 		}
 
+		[Desc("Issue the order a real right-click on `target` would produce, resolving the whole " +
+			"IIssueOrder targeter chain in descending OrderPriority exactly as UnitOrderGenerator does, " +
+			"and return the OrderString that won (nil if the click is refused). " +
+			"PITFALL: naming the order you expect — Actor.Attack, Test.IssueAttendAlly — skips the " +
+			"priority contest entirely, so a test written that way passes while the click a player " +
+			"actually makes is routed to a different trait and a different activity. Use this whenever " +
+			"the ROUTING is part of what is under test. `modifiers` is a space-separated list, any of " +
+			"'Ctrl' (force-move), 'Alt' (attack-move), 'Shift' (queue), 'CtrlAlt' (force-attack). " +
+			"Test mode only.")]
+		public string ClickOrder(Actor self, Actor target, string modifiers = "")
+		{
+			if (!TestMode.IsActive || self == null || target == null)
+				return null;
+
+			var mods = TargetModifiers.None;
+			if (modifiers.Contains("CtrlAlt"))
+				mods |= TargetModifiers.ForceAttack;
+			else
+			{
+				if (modifiers.Contains("Ctrl"))
+					mods |= TargetModifiers.ForceMove;
+				if (modifiers.Contains("Alt"))
+					mods |= TargetModifiers.AttackMove;
+			}
+
+			var queued = modifiers.Contains("Shift");
+			if (queued)
+				mods |= TargetModifiers.ForceQueue;
+
+			var t = Target.FromActor(target);
+			var xy = target.Location;
+			var actorsAt = self.World.ActorMap.GetActorsAt(xy).ToList();
+
+			var candidates = self.TraitsImplementing<IIssueOrder>()
+				.SelectMany(trait => trait.Orders.Select(o => (Trait: trait, Order: o)))
+				.OrderByDescending(x => x.Order.OrderPriority);
+
+			foreach (var c in candidates)
+			{
+				string cursor = null;
+				if (!c.Order.CanTarget(self, t, actorsAt, xy, mods, ref cursor))
+					continue;
+
+				var order = c.Trait.IssueOrder(self, c.Order, t, queued);
+				if (order == null)
+					continue;
+
+				self.World.IssueOrder(order);
+				return order.OrderString;
+			}
+
+			return null;
+		}
+
 		[Desc("Issue a real AttackMove order, going through AttackMove.ResolveOrder the way a player's " +
 			"attack-move click does. Use this rather than the activity-direct Lua `unit.AttackMove`, " +
 			"which constructs AttackMoveActivity itself and never consults the order layer at all — if " +

@@ -1,0 +1,70 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: an explicitly ordered medic heals his man, suppressed or not
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Two identical pairs, so the run says WHICH side of the suppression condition is
+# broken instead of just "no heal". Each medic stands adjacent to his own patient,
+# so neither has to walk and neither leg is measuring pathing.
+#
+# The pairs are 12 cells apart — wider than HealerAutoTarget's 8c0 SearchRange — so
+# no medic can notice, claim, or wander to the other pair's casualty and launder a
+# failing leg into a pass.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	# Under fire: the user's case. Kept suppressed for the whole run.
+	MedicPinned: medi
+		Owner: Me
+		Location: 18,16
+		Facing: 768
+	WoundedPinned: e1
+		Owner: Me
+		Location: 19,16
+		Facing: 768
+
+	# Control: same order, same geometry, no suppression. Proves the ordered path
+	# and the heal warhead work at all, so a failure on the pinned leg can only be
+	# the suppression gate.
+	MedicCalm: medi
+		Owner: Me
+		Location: 18,28
+		Facing: 768
+	WoundedCalm: e1
+		Owner: Me
+		Location: 19,28
+		Facing: 768
+
+Rules: rules.yaml

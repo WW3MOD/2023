@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TEST: a suppressed medic gives up instead of aiming at a man he cannot treat
+Title: TEST: a medic with a paused attack trait gives up instead of aiming forever
 
 Author: WW3MOD
 
@@ -16,12 +16,12 @@ Visibility: MissionSelector
 
 Categories: Test
 
-# The medic's heal Armament carries PauseOnCondition: suppressed >= 10, and a
-# wounded man is usually a man under fire — so is the medic standing next to him.
-# A paused armament still passes ChooseArmamentsForTarget, so the heal order is
-# accepted, the medic aims, and Armament.CanFire then declines every tick. The
-# Attack activity reports Attacking and never completes: the medic is stuck
-# non-idle forever, which silences every autonomous behaviour he has.
+# A PAUSED armament still passes ChooseArmamentsForTarget (which filters only
+# DISABLED ones), and a paused AttackBase makes DoAttack skip its armaments
+# wholesale. So the heal order is accepted, the medic aims, and Armament.CanFire
+# then declines every tick. The Attack activity reports Attacking and never
+# completes: the medic is stuck non-idle forever, which silences every autonomous
+# behaviour he has.
 # PASS = he is idle (available to do something else) while he cannot treat.
 Players:
 	PlayerReference@Neutral:

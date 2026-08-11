@@ -1,0 +1,21 @@
+# Wedged-armament autotest. Pre-placed medic + one wounded rifleman, no economy.
+#
+# No enemy is needed: ^Infantry already carries ExternalCondition@GarrisonPort
+# (Condition: garrisoned-at-port), so the Lua can pause the medic's AttackFrontal
+# directly and deterministically. Any long-lived PauseOnCondition wedges the same
+# way; this one is simply the pause that is easiest to stage.
+
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults to
+	# human-owned units in Created (AutoTarget.cs). Strip it so the verdict does not
+	# depend on the dev's saved settings.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-medic-wedged-armament-gives-up.lua

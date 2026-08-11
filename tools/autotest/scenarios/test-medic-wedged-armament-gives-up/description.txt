@@ -1,0 +1,1 @@
+Auto: a medic whose attack trait is paused must give up an ordered heal, not aim forever.
