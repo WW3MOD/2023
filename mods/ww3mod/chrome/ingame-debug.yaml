@@ -175,23 +175,16 @@ Container@DEBUG_PANEL:
 			Font: Regular
 			Text: Depth Buffer
 
-		Label@SECTION_PRESET:
-			X: 24
-			Y: 382
-			Font: TinyBold
-			Text: PRESETS
-			Width: 200
-
 		Button@SAVE_PRESET:
 			X: 20
-			Y: 396
+			Y: 382
 			Width: 250
 			Height: 28
 			Font: Regular
 			Text: Save Preset
 		Button@LOAD_PRESET:
 			X: 280
-			Y: 396
+			Y: 382
 			Width: 250
 			Height: 28
 			Font: Regular
