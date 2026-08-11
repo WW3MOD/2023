@@ -93,10 +93,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// this deadline instead of opening a modal. A second click before it expires
 		// commits. Replaces the old PanelType.ForceStart dialog, which rendered
 		// underneath the map/chat panels because it was parented to TOP_PANELS_ROOT
-		// while those are later siblings of it in lobby.yaml.
+		// while those are later siblings of it in lobby.yaml. Transitions live in
+		// ForceStartConfirm so they can be pinned without a live widget.
 		long forceStartArmedUntil;
 
-		bool ForceStartArmed => Game.RunTime < forceStartArmedUntil;
+		bool ForceStartArmed => ForceStartConfirm.IsArmed(forceStartArmedUntil, Game.RunTime);
 
 		// Test-mode pending tab switch: filled in by the constructor when
 		// Test.OpenLobbyTab is set, applied by Tick() once MapIsPlayable so the
@@ -680,14 +681,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					// so it can be one-click-restored from the preset dropdown next time.
 					LobbyPresetLogic.SnapshotLastGame?.Invoke();
 
-					if (!ForceStartArmed && AnyPlayerUnready())
-					{
-						forceStartArmedUntil = Game.RunTime + ForceStartConfirmMilliseconds;
-						return;
-					}
+					var result = ForceStartConfirm.Resolve(forceStartArmedUntil, Game.RunTime,
+						AnyPlayerUnready(), ForceStartConfirmMilliseconds, out forceStartArmedUntil);
 
-					forceStartArmedUntil = 0;
-					StartGame();
+					if (result == ForceStartClickResult.StartNow)
+						StartGame();
 				};
 			}
 

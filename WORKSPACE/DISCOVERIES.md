@@ -3432,3 +3432,16 @@ by temporarily adding a case to the existing `Test.OpenLobbyTab` switch in `Lobb
 before commit) — first to force `panel = PanelType.ForceStart`, then to pre-arm the inline confirm.
 This drives `screenshot-lobby.sh` into states no solo skirmish can otherwise produce. It proves what
 the widget *renders like*; it does not exercise the click path.
+
+**And the click path needs its own answer, because staging cannot give one.** The general lesson is
+about what replaces what: the rendering defect here was cosmetic — the dialog looked broken but
+force-start worked — while the replacement is a functional control path, so a wrong transition is a
+lobby that cannot be started, strictly worse than the bug being fixed. Whenever a cosmetic fix is
+implemented as a behavioural change, the new behaviour needs a pin even though the old defect never
+had one. The transitions were therefore extracted to `ForceStartConfirm` (a pure static over an
+armed-deadline, a clock and a bool) and pinned in `ForceStartConfirmTest` — the same
+extract-the-pure-part move as `StancePositioningExecutor.FireStanceAllowsRepositioning`. Both pins
+were verified to bite by mutation: dropping the `!IsArmed` guard fails
+`SecondClickInsideTheWindowCommits`, and flipping `<` to `<=` fails the two boundary tests. That
+second one is not academic — under `<=` the disarmed sentinel `0` reads as armed at clock 0, so the
+button would come up pre-armed on a fast lobby load.
