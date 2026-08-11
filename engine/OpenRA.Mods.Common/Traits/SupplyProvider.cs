@@ -95,6 +95,19 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Condition granted to self while any supply is available (currentSupply > 0).")]
 		public readonly string SupplyAnyCondition = null;
 
+		[GrantedConditionReference]
+		[Desc("Condition granted to self while this provider has somebody in its aura it could serve a",
+			"batch to right now — i.e. while it is doing its job. Intended for a MOBILE provider, whose",
+			"Mobile.PauseOnCondition should name it: the transport then HALTS for as long as there is",
+			"anyone left to serve and resumes the order it was already carrying out the moment there is",
+			"not, instead of driving past its customers. Pausing Mobile rather than cancelling the order",
+			"is what makes 'and then continue moving' free — Move.Tick returns false while paused",
+			"(Move.cs:168), leaving the activity intact rather than tearing it down.",
+			"Empty (the default) disables the whole mechanism, so Logistics Centers and ground caches —",
+			"which cannot move anyway — are unaffected.",
+			"The halt is switched off per-unit by EngagementStance.HoldPosition; see ShouldHaltToServe.")]
+		public readonly string ServingCondition = null;
+
 		public override object Create(ActorInitializer init) { return new SupplyProvider(init, this); }
 	}
 
@@ -143,6 +156,14 @@ namespace OpenRA.Mods.Common.Traits
 		// Consecutive unusable verdicts seen so far, stepped by StepResidueConfirmations.
 		int residueConfirmations;
 
+		// Result of the LAST greatest-need scan: was there a unit in the aura we could actually hand a
+		// batch to? Refreshed only in UpdateTarget, which is deliberate — it therefore survives the
+		// single tick between "delivered a batch, dropped the target" and the forced re-scan, so the
+		// halt does not blink off and let the transport inch forward between every batch.
+		bool servableTargetInAura;
+
+		int servingToken = Actor.InvalidConditionToken;
+
 		int supplyHighToken = Actor.InvalidConditionToken;
 		int supplyMediumToken = Actor.InvalidConditionToken;
 		int supplyLowToken = Actor.InvalidConditionToken;
@@ -183,6 +204,19 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		void ITick.Tick(Actor self)
+		{
+			TickServing(self);
+
+			// AFTER the body, never inside it, and that placement is the whole reason this is a separate
+			// method. TickServing is a ladder of early returns and EVERY ONE of them is a state in which
+			// this provider serves nobody — out of the world, paused, disabled, mid-restock, despawning,
+			// drained, or reserving its remainder for the drive home. CanServeNow is that same ladder
+			// written as a predicate, so asking it once here covers all of them; a revoke at each return
+			// would be seven chances to miss one, and a missed one latches a truck in place for good.
+			SyncServingCondition();
+		}
+
+		void TickServing(Actor self)
 		{
 			// Removed from the world but still ticking: ITick traits run off the trait container,
 			// which has no IsInWorld filter and is only cleaned when the actor is disposed
@@ -291,6 +325,12 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// Always re-evaluate — pick unit with greatest need
 			var bestTarget = FindGreatestNeedTarget(out var hasUnaffordableTargets);
+
+			// Recorded HERE, before the Hunt fallback below can overwrite bestTarget with something
+			// anywhere on the map. The halt means "somebody within reach still needs me", so it must read
+			// the aura scan and not the hunt: a Hunt-stance truck that stopped dead for a customer twenty
+			// cells away would never reach him.
+			servableTargetInAura = bestTarget != null;
 
 			// Residue-unusable latch, decided by the same pure predicate the tests pin.
 			// bestTarget != null means a reachable unit we can afford met MinNeedThreshold
@@ -923,6 +963,62 @@ namespace OpenRA.Mods.Common.Traits
 				return new SupplyServeDecision(deliver: true, holdCondition: true, keepTarget: true);
 
 			return new SupplyServeDecision(deliver: false, holdCondition: false, keepTarget: true);
+		}
+
+		/// <summary>
+		/// Should a MOBILE provider stand still right now because it has somebody to serve?
+		///
+		/// <para>THE STANCE AXIS, and why this one. The user asked for the halt to be switchable by
+		/// stance, so the axis had to be one no truck-side code already reads. ResupplyBehavior is fully
+		/// occupied — all three values are live on TRUK (Evacuate is its shipped default for human and
+		/// AI alike), so it was not available. UnitStance is entirely free but for the wrong reason: TRUK
+		/// declares no armament and ^Vehicle does not inherit ^Combatant, so a fire stance on a truck is
+		/// not merely unread, it is meaningless to a player. That leaves EngagementStance, where Hunt is
+		/// taken (the whole-map needs-resupply scan above), Defensive is the shipped default, and
+		/// <see cref="EngagementStance.HoldPosition"/> has no truck-side reader at all.</para>
+		///
+		/// <para>HoldPosition is also the right MEANING rather than merely a free slot: it is already the
+		/// engine's "this unit does what I told it and nothing else" marker — ControlAllUnitsManager
+		/// keeps HoldPosition units under player control instead of handing them to a bot
+		/// (ControlAllUnitsManager.cs:56-59). "Do not self-divert" reads the same way for a truck. So the
+		/// halt is ON at Defensive and at Hunt (a hunting truck that would not stop for the customer it
+		/// drove to would be absurd) and OFF at HoldPosition.</para>
+		///
+		/// <para>Terminates by construction: the halt holds only while a unit in the aura can be handed a
+		/// batch, and serving it is what removes it from that set — either it fills up, or it drops below
+		/// MinNeedThreshold, or the supply runs out and CanServeNow goes false. There is no state in
+		/// which the transport is stopped and also not making progress toward being able to move again.</para>
+		/// </summary>
+		public bool ShouldHaltToServe()
+		{
+			// Cheapest test first, and the one that is false almost always. Also means a provider that
+			// never opted in (no ServingCondition) costs nothing beyond a null check.
+			if (!servableTargetInAura || string.IsNullOrEmpty(Info.ServingCondition))
+				return false;
+
+			if (!self.IsInWorld || !CanServeNow)
+				return false;
+
+			var autoTarget = self.TraitOrDefault<AutoTarget>();
+			if (autoTarget != null && autoTarget.EngagementStanceValue == EngagementStance.HoldPosition)
+				return false;
+
+			return true;
+		}
+
+		void SyncServingCondition()
+		{
+			if (string.IsNullOrEmpty(Info.ServingCondition))
+				return;
+
+			var shouldHold = ShouldHaltToServe();
+			var held = servingToken != Actor.InvalidConditionToken;
+			if (shouldHold == held)
+				return;
+
+			servingToken = shouldHold
+				? self.GrantCondition(Info.ServingCondition)
+				: self.RevokeCondition(servingToken);
 		}
 
 		/// <summary>

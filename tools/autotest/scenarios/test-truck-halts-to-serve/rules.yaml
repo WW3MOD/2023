@@ -1,0 +1,39 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-truck-halts-to-serve.lua
+
+^Soldier:
+	AutoSeekSupplies:
+		# Pin the soldiers where they are placed. AutoSeekSupplies ships Enabled for every owner and
+		# its idle seek fires below 25% of capacity -- these four sit at 10% -- so without this they
+		# would walk to the truck and be topped up by a mechanism that has nothing to do with the
+		# truck stopping. That is the single most likely false GREEN here, because the outcome would
+		# look identical.
+		#
+		# 0 is a documented constant-false for SupplyHuntMath.BelowSeekThreshold (SupplyHuntMath.cs:52)
+		# and nothing else reads the field. ReturnWhenEmpty is untouched and simply never trips: it is
+		# keyed on EVERY pool being empty and these soldiers hold a batch each, which is also why
+		# AmmoPool's own INotifyBecomingIdle dispatcher (AutoRearmIfAllEmpty) stays quiet.
+		#
+		# Note what is deliberately NOT used to hold them still: fire stance. AUTOTEST.md gotcha 7 --
+		# silencing the unit under test by stance switches off traits that gate on it.
+		AutoSeekAmmoThresholdPerMille: 0
+
+AR:
+	AmmoPool@1:
+		# One batch of ten. Short enough to be well clear of MinNeedThreshold, and NOT zero: at zero
+		# every pool is empty, which wakes AmmoPool.AutoRearmIfAllEmpty and walks the man to the truck
+		# regardless of the AutoSeekSupplies setting above.
+		InitialAmmo: 50
