@@ -57,7 +57,7 @@ namespace OpenRA
 		public string Password = "";
 
 		[Desc("Allow users to search UPnP/NAT-PMP enabled devices for automatic port forwarding.")]
-		public bool DiscoverNatDevices = false;
+		public bool DiscoverNatDevices = true;
 
 		[Desc("Time in seconds for UPnP/NAT-PMP mappings to last.")]
 		public int NatPortMappingLifetime = 36000;

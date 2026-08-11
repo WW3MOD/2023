@@ -317,7 +317,17 @@ namespace OpenRA.Server
 				GeoIP.Initialize();
 
 			if (IsMultiplayer)
-				Nat.TryForwardPort(Settings.ListenPort, Settings.ListenPort);
+			{
+				var forwardStatus = Nat.TryForwardPort(Settings.ListenPort, Settings.ListenPort);
+
+				// The listeners bind Any/IPv6Any, so the endpoints logged above read 0.0.0.0 and name no
+				// interface. A router port-forward rule has to name one, and a rule pointing at an
+				// address this machine no longer holds (a DHCP lease that moved) is indistinguishable
+				// from every other cause of an unreachable port unless the real address is written down.
+				var localAddress = NetworkDiagnostics.GetLocalAddress();
+				Log.Write("server", $"NAT port forward: {forwardStatus}. Reachable on this LAN at " +
+					$"{(localAddress != null ? localAddress.ToString() : "an undetermined address")}:{Settings.ListenPort}");
+			}
 
 			foreach (var trait in modData.Manifest.ServerTraits)
 				serverTraits.Add(modData.ObjectCreator.CreateObject<ServerTrait>(trait));
