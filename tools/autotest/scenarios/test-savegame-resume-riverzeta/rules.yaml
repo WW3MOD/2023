@@ -1,0 +1,27 @@
+# Saved-game restore round trip on the canonical River Zeta map.
+#
+# Same probe as test-savegame-resume, but on a real 98x82 Conquest map with two
+# bots and production running, and the save taken 3000 ticks (~3 game-minutes) in.
+# The point is accumulated state: the small arena scenario cannot build up the
+# unit/squad/bot state a restore divergence would need, so a green there says
+# nothing about the open World.OutOfSync hypothesis (WORKSPACE/DISCOVERIES.md
+# 2026-08-12).
+#
+# Player layout is inherited from the tournament River Zeta scenario: the local
+# client occupies the spectating Observer slot and both combatants are map-player
+# bots. That is deliberately MORE demanding than the user's human-vs-bot session,
+# not less — two bots, one of them @experimental, means strictly more suppressed
+# bot-tick state accumulated across the recorded match.
+
+Player:
+	# Inherited from the tournament scenario: enough cash that the bots actually
+	# produce an army within the recorded window, so the save carries real state.
+	PlayerResources:
+		DefaultCash: 7500
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	GameSaveRoundTripProbe:
+		SaveAtTick: 3000

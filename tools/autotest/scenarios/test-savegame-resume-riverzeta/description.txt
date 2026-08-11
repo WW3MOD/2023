@@ -1,0 +1,1 @@
+Auto: River Zeta, two bots, save 3000 ticks in, reload in-process — the restored world must resume (and must not latch IsGameOver).

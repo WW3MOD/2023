@@ -158,6 +158,27 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
+			if (stage != Stage.Restoring && stage != Stage.Observing)
+				return;
+
+			// Name the latch the instant it appears rather than inferring it from a dead world at the
+			// end of the observe window. IsGameOver here means EndGame() ran (World.cs:74-87), and on
+			// the restore path the caller that matters is World.OutOfSync (World.cs:681-686) — the
+			// restore is validated by one sync-hash comparison (GameSave.cs:262-263 vs
+			// OrderManager.cs:174-181). Once latched, SetPauseState early-returns (World.cs:455) and
+			// UnitOrders drops unpause orders (UnitOrders.cs:230-231): a game that can never resume.
+			if (world.IsGameOver)
+			{
+				stage = Stage.Done;
+				TestMode.WriteResult("fail",
+					"restore latched IsGameOver — EndGame() ran, so the world is permanently paused and " +
+					"unresumable; on this path the caller is World.OutOfSync (restore failed its sync-hash " +
+					"check). " + Describe(world));
+				Log.Write("debug", "[saveprobe] IsGameOver latched after restore — " + Describe(world));
+				Game.Exit();
+				return;
+			}
+
 			if (stage != Stage.Observing)
 				return;
 
