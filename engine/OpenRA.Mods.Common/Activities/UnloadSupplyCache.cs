@@ -9,8 +9,11 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
+using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Activities
 {
@@ -24,10 +27,14 @@ namespace OpenRA.Mods.Common.Activities
 	public class UnloadSupplyCache : Activity
 	{
 		readonly DropsSupplyCache transport;
+		readonly IMoveInfo moveInfo;
+		readonly CPos dropCell;
 
-		public UnloadSupplyCache(DropsSupplyCache transport)
+		public UnloadSupplyCache(Actor self, DropsSupplyCache transport, CPos dropCell)
 		{
 			this.transport = transport;
+			this.dropCell = dropCell;
+			moveInfo = self.Info.TraitInfoOrDefault<IMoveInfo>();
 		}
 
 		public override bool Tick(Actor self)
@@ -38,6 +45,26 @@ namespace OpenRA.Mods.Common.Activities
 				transport.DropSupplyCacheHere();
 
 			return true;
+		}
+
+		public override IEnumerable<TargetLineNode> TargetLineNodes(Actor self)
+		{
+			if (transport.DropMarker == null)
+				yield break;
+
+			// A TILE node only — deliberately no line node. The leg out to this cell is already drawn by
+			// the move that precedes us, and emitting a second node for the same cell would stack a
+			// zero-length leg and a duplicate end marker on top of it. What is missing from the picture
+			// without this is not the line, it is WHAT happens at the end of it.
+			//
+			// The cache sprite is an actor sprite, so it needs the owner's palette; the terrain palette
+			// that cell-overlay tiles use would render it in scrambled colours.
+			yield return new TargetLineNode(
+				Target.FromCell(self.World, dropCell),
+				moveInfo?.GetTargetLineColor() ?? Color.White,
+				transport.DropMarker,
+				"player" + self.Owner.InternalName,
+				transport.Info.DropMarkerAlpha);
 		}
 	}
 }

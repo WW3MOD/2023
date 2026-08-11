@@ -27,6 +27,10 @@ local StartCell = { X = 8, Y = 16 }
 -- seventeen-cell gap to the immediate-drop answer.
 local ToleranceCells = 3
 
+-- ~6s: far enough in that the truck has visibly left its start cell, early enough that it is
+-- still short of the FIRST waypoint, so both markers and the deploy icon are ahead of it in frame.
+local ScreenshotTicks = 100
+
 local function FindCache()
 	local found = nil
 	Utils.Do(Map.ActorsInWorld, function(a)
@@ -44,13 +48,43 @@ local function Abs(v)
 end
 
 WorldLoaded = function()
-	TestHarness.FocusBetween(Truck, OwnSR)
+	-- Frame the whole lane rather than the truck: the picture that matters is the truck, both
+	-- waypoint markers and the deploy marker on the far one, all in one shot.
+	Camera.Position = WPos.New(19 * 1024, 16 * 1024, 0)
+
+	-- Target lines default to Manual, i.e. only while a modifier key is physically held. A player
+	-- queueing orders is holding Shift and so always sees them; a script cannot hold anything.
+	Test.ShowTargetLinesAlways()
 	TestHarness.Select(Truck)
 
 	-- Exactly what the player does: click a waypoint, shift-click a second, shift-press deploy.
 	Test.IssueMove(Truck, CPos.New(FirstWaypoint.X, FirstWaypoint.Y), false, false)
 	Test.IssueMove(Truck, CPos.New(DropWaypoint.X, DropWaypoint.Y), false, true)
 	Test.IssueDeploy(Truck, true)
+
+	UserInterface.SetMissionText(
+		"QUEUED DEPLOY: truck -> waypoint 18,16 -> waypoint 28,16, then unload. "
+		.. "The crate marker should sit on 28,16 (the far waypoint).")
+
+	-- Mid-drive, with both waypoints still ahead of the truck. Re-select first: target lines fade
+	-- 2.4s after the last ShowTargetLines, and the orders were issued at tick one.
+	Trigger.AfterDelay(ScreenshotTicks, function()
+		if Truck.IsDead then
+			return
+		end
+
+		-- At min zoom the whole 66-cell map fits the window and a one-cell marker is a few pixels
+		-- across — legible to the engine, useless in a screenshot. 2.5x still frames the truck and
+		-- both waypoints with room to spare.
+		Test.SetZoom(2.5)
+		Camera.Position = WPos.New(21 * 1024, 16 * 1024, 0)
+
+		TestHarness.Select(Truck)
+		TestHarness.Screenshot("deploy-queue-AFTER-icon-shown-on-waypoint",
+			"expects: truck mid-lane with a target line running through the waypoint marker at 18,16 "
+			.. "to the one at 28,16, and a ghosted supply-crate icon drawn on the 28,16 marker. "
+			.. "The crate icon must not sit on the truck and must not hide the line.")
+	end)
 
 	TestHarness.AssertWithin(DeadlineSeconds, function()
 		local cache = FindCache()

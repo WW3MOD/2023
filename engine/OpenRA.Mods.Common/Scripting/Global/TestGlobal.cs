@@ -325,6 +325,19 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			actor.World.IssueOrder(new Order(force ? "ForceMove" : "Move", actor, Target.FromCell(actor.World, cell), queued));
 		}
 
+		[Desc("Force the target-line display setting to Automatic for this run, so order lines and their " +
+			"waypoint markers render without a human holding Shift. The engine default is Manual " +
+			"(Settings.cs), under which DrawLineToTarget draws nothing at all unless a modifier key is " +
+			"physically down — which no scripted test can arrange, so a screenshot of a queued order " +
+			"would otherwise always come back empty. Test mode only.")]
+		public void ShowTargetLinesAlways()
+		{
+			if (!TestMode.IsActive)
+				return;
+
+			Game.Settings.Game.TargetLines = TargetLinesType.Automatic;
+		}
+
 		[Desc("Issue the deploy order that the command bar's Deploy button — and its hotkey — produce, " +
 			"through IIssueDeployOrder exactly as CommandBarLogic.PerformDeployOrderOnSelection does. " +
 			"`queued` is the Shift modifier. There is no activity-direct equivalent worth using here: " +
