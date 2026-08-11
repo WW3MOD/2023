@@ -11,6 +11,7 @@ Living state for the project. Mutable. Frequently edited. The agent reads and up
 | [`HOTBOARD.md`](HOTBOARD.md) | What's actively in motion right now. Capped at ~40 lines; oldest items rotate out. |
 | [`BACKLOG.md`](BACKLOG.md) | Deferred ideas (`[ ]`/`[x]`/`[dropped]`). |
 | [`DISCOVERIES.md`](DISCOVERIES.md) | Dated gotchas and insights from past sessions. |
+| [`ASSET-LICENSING.md`](ASSET-LICENSING.md) | **Redistributed-asset inventory** — what third-party art/audio this repo ships, inferred origin + confidence, reachability, what breaks if removed, and an ordered mitigation plan. Informational; shipping as-is is a settled decision. |
 | `bugs/discovered.md` | Bugs found incidentally during other work. |
 
 ## Folders

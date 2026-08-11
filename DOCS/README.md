@@ -32,5 +32,6 @@ Static project documentation. Four kinds:
 | What is RELEASE mode vs EXPERIMENTAL mode? | `modes/README.md` |
 | Balance dashboard + combat-sim workflow | `recipes/BALANCE.md` |
 | How a game-mechanic is intended to play | `gameplay/<topic>.md` |
+| Which assets the repo redistributes, where they came from, what breaks if removed | `WORKSPACE/ASSET-LICENSING.md` |
 | Live tracker / current focus / backlog | `WORKSPACE/` (separate top-level folder) |
 | Agent instructions | `CLAUDE.md` (root) |
