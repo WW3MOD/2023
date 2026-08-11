@@ -1,0 +1,1 @@
+Auto: a dry rifleman with an enemy in weapon range must still walk to his supply truck and rearm.

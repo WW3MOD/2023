@@ -69,8 +69,27 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (checkTick-- <= 0 && (ChildActivity == null || runningMoveActivity))
 			{
+				// A unit with nothing left to fire must not be interrupted, or it never travels at all.
+				// ChooseArmamentsForTarget filters on IsTraitDisabled only (AttackBase.cs:437, literal
+				// "FF TODO Check ammo?") and an empty armament is PAUSED, not disabled — so a dry unit
+				// still reports a weapon in range below, cancels its own move child, and queues an attack
+				// that AmmoPool.CannotFight ends on its first tick (Attack.cs:117). runningMoveActivity
+				// stays false, so the move child is never re-queued and the next tick re-scans and repeats
+				// it: the unit is pinned on its cell, and because this activity never completes it never
+				// goes idle either, so none of the idle-triggered resupply paths can reach it. Only
+				// Force-Move moved such a unit, because "ForceMove" bypasses IWrapMove entirely
+				// (Mobile.cs:1032) and so never enters this activity.
+				//
+				// Deliberately the SAME predicate the resupply dispatch uses (AutoSeekSupplies'
+				// ReturnWhenEmpty and AmmoPool.AutoRearmIfAllEmpty): the set of units sent away to rearm
+				// is then exactly the set this refuses to pin, so the two cannot drift into disagreeing
+				// about what "empty" means. Skipping the scan outright rather than filtering its result
+				// also stops a unit that cannot shoot from paying for a full target scan every interval.
+				//
 				// Scan for targets but don't allow moving toward them (allowMove = false)
-				var target = autoTarget.ScanForTarget(self, false, true, !runningMoveActivity);
+				var target = AmmoPool.CannotFight(self)
+					? Target.Invalid
+					: autoTarget.ScanForTarget(self, false, true, !runningMoveActivity);
 
 				if (target.Type != TargetType.Invalid)
 				{

@@ -435,6 +435,11 @@ namespace OpenRA.Mods.Common.Traits
 				owner = target.Actor.Owner;
 
 			// FF TODO Check ammo?
+			// PITFALL: it does not, and it must not be read as if it did. An empty armament is PAUSED
+			// (PauseOnCondition: !ammo-primary), never disabled, so this happily returns weapons a dry
+			// unit cannot fire. Any caller acting on "some weapon reaches this target" has to ask
+			// AmmoPool.CannotFight for itself — SmartMoveActivity did not, and pinned dry infantry on
+			// their cells for the rest of the match.
 			return Armaments.Where(a =>
 				!a.IsTraitDisabled
 				&& !(a.Info.RequiresForceFire && !forceAttack)

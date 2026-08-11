@@ -1,0 +1,79 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Dry Unit Obeys A Plain Move Order (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Two identical dry riflemen, same start distance from the same live enemy, given the SAME
+	# destination by two different orders. Mover gets a plain "Move", Forcer gets "ForceMove".
+	# The pair is the whole point: those two orders differ ONLY in that "Move" is wrapped by
+	# IWrapMove traits (SmartMove, on ^Infantry) and "ForceMove" bypasses them (Mobile.cs:1021
+	# vs :1032). If one arrives and the other does not, the wrapper is what pinned it, and no
+	# amount of "the unit is stuck" hand-waving can point anywhere else.
+	Mover: ar
+		Owner: USA
+		Location: 10,14
+		Facing: 768
+	Forcer: ar
+		Owner: USA
+		Location: 10,18
+		Facing: 768
+	# 5.56mm.AR reaches 14c0 (weapons-ballistics.yaml:85). Both men start ~6.3c from the Bait and
+	# their destinations are ~12.2c from it, so the enemy is inside weapon range for the ENTIRE
+	# trip. A unit cannot pass this test by walking out of the interrupt's reach — only by
+	# ignoring the interrupt it can no longer act on.
+	Bait: e1
+		Owner: Russia
+		Location: 16,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 16,16
+	# Deliberately NO truk and NO logisticscenter: with a resupplier in reach AutoSeekSupplies
+	# would dispatch its own errand and there would be two candidate explanations for a unit that
+	# did not go where it was told. Here the only thing that can touch a move order is SmartMove.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

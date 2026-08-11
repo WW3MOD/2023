@@ -270,6 +270,19 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			actor.World.IssueOrder(new Order("AttackMove", actor, Target.FromCell(actor.World, cell), queued));
 		}
 
+		[Desc("Issue a real Move order (force = true for the Ctrl+click ForceMove variant), going through " +
+			"Mobile.ResolveOrder the way a player's click does. The two are NOT the same activity graph: " +
+			"\"Move\" is wrapped by every IWrapMove trait — SmartMove on ^Infantry — while \"ForceMove\" " +
+			"deliberately bypasses the wrappers (Mobile.cs:1021 vs :1032). The activity-direct Lua " +
+			"`unit.Move` always takes the wrapped path, so it cannot tell the two apart. Test mode only.")]
+		public void IssueMove(Actor actor, CPos cell, bool force = false, bool queued = false)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return;
+
+			actor.World.IssueOrder(new Order(force ? "ForceMove" : "Move", actor, Target.FromCell(actor.World, cell), queued));
+		}
+
 		[Desc("Return the CPos this actor was last assigned by CohesionMoveModifier (the slot the " +
 			"sticky-cover leash will try to walk back to). Returns CPos.Zero if no slot is set.")]
 		public CPos GetCohesionSlot(Actor actor)

@@ -3,6 +3,40 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-11: [med] The same move-interrupt still stalls a PARTIALLY dry unit, and there the attack guard does not catch it (found while: fixing the out-of-ammo move wedge, branch `auto/ooa-wedge`)
+
+The fix on that branch gates `SmartMoveActivity`'s opportunistic-fire interrupt on `AmmoPool.CannotFight`, which requires **every** pool empty. One pool short of that, the old shape survives: a rifleman with a spent rifle and a loaded RPG, facing infantry, still gets the paused rifle back from `ChooseArmamentsForTarget` (`AttackBase.cs:438-442` — filters `IsTraitDisabled`, and an empty armament is *paused*), still reports a weapon in range (`SmartMoveActivity.cs:94`), still cancels his own move child and queues an attack.
+
+What differs is the ending, and it is not obviously better. `CannotFight` is **false** for this unit, so the guard at `Attack.cs:117` does not fire — the attack activity persists rather than ending, and the man stops mid-move and aims a weapon he cannot fire until the target dies or leaves range. That is the original `68c2527a` symptom ("keeps closing to range, aiming, and never firing") reproduced through a different door.
+
+**Why it was not fixed with the main bug:** the honest fix is probably to filter `interruptingArmaments` on something ammo-aware per-armament rather than per-actor, and `AmmoPool.cs:210-214` explicitly warns off the obvious candidate (`IsTraitPaused` also carries `garrisoned-at-port`, which would call a garrisoned man with a full magazine dry). That needs its own predicate, its own scenario pair and its own measurement — riding it along would have made the primary fix harder to review and to revert.
+
+**Reproduction shape:** clone `test-dry-move-order-obeyed` and set `InitialAmmo: 0` on only ONE of a two-pool class (`^E3`, `^TL`, `^SF` all carry two), with a Bait the empty weapon is valid against.
+
+## 2026-08-11: [med] `SeekSupplyProvider` latches `moveQueued` and never clears it, so an errand whose move ends without arriving spins forever with no child (found while: fixing the out-of-ammo move wedge, branch `auto/ooa-wedge`)
+
+`SeekSupplyProvider.Tick` queues its move once and sets `moveQueued = true` (`SeekSupplyProvider.cs:121-126`). The flag is cleared in exactly two places, both of which are explicit cancels (`:91`, `:114`). If the child `MoveWithinRange` instead **ends on its own without the unit being inside `rearmRange`** — no path to the truck, or the path fails — then `ChildActivity` goes null, `moveQueued` stays `true`, the out-of-range branch at `:121` declines to re-queue, and `Tick` returns `false` unconditionally at `:129`.
+
+The result is an activity that is never finished and has nothing to run: the unit stands still, is never idle (so no `INotifyBecomingIdle` retry), and `AmmoPool.IsSeekingRearm` keeps reporting true — which means `StarvingRecruitGate` and the bot censuses withhold it permanently. Precisely the "unit deleted from the game in all but name" that `AutoSeekSuppliesInfo.ReturnErrandStallTicks` was written to prevent.
+
+**And the stall guard does not cover this path** — see the next entry. Not fixed here because it is a second, independent behavioural change and this branch was scoped to one.
+
+**Fix shape:** clear `moveQueued` when `TickChild` reports the child finished, or drop the latch and let `QueueChild` be idempotent on a null child.
+
+## 2026-08-11: [low] `AutoSeekSupplies`' errand stall guard watches only the errands it dispatched itself — which is the LESS common half in real play (found while: fixing the out-of-ammo move wedge, branch `auto/ooa-wedge`)
+
+`TickErrand` (`AutoSeekSupplies.cs:317-355`) is the abandon-a-doomed-walk guard, and it runs only when `onErrand` is set — set exclusively by `BeginWatching()` at `:299`, i.e. only for errands dispatched by this trait's own `ITick`. The in-code rationale (`:255-256`) is that cancelling *a player's* order is not this trait's call, which is right.
+
+But the same exemption silently covers `AmmoPool`'s own dispatches, which are not player orders: `INotifyAttack.Attacking` → `AutoRearmIfAllEmpty` on the shot that empties the pool (`AmmoPool.cs:298-299`), and `INotifyBecomingIdle` (`:303-306`). **The shot that empties the pool is how most units in a real match enter resupply**, so the common path is the unwatched one, and the guard covers mainly the periodic re-check that fires when that first dispatch did not happen.
+
+Low rather than medium only because a wedged errand of this kind needs the previous entry's latch (or an unreachable host) to actually stick. The two should be fixed together and measured with one scenario: dry unit, host with no route, assert the unit is released within `ReturnErrandStallTicks` regardless of which dispatcher sent it.
+
+## 2026-08-11: [low] `Mobile.ResolveOrder`'s `ForceMove` branch skips the target-validity check that `Move` performs (found while: fixing the out-of-ammo move wedge, branch `auto/ooa-wedge`)
+
+The `"Move"` branch opens with `if (!order.Target.IsValidFor(self)) return;` (`Mobile.cs:1014-1015`). The `"ForceMove"` branch immediately below (`:1024-1033`) has no equivalent — it goes straight to clamping the cell. Both then apply the same shroud check, so the exposure is narrow, but the asymmetry is unintentional-looking rather than commented, and `ForceMove` is the fork's own addition (stock OpenRA emits one order string for both).
+
+Worth noting because this branch pair is now load-bearing for a diagnostic: "reproduces on Move but not Force-Move" localises a defect to the `IWrapMove` wrappers, and that inference is only as good as the two branches being otherwise identical.
+
 ## 2026-08-11: [med] `test-stance-optout` is a FALSE GREEN — it silences its own units with the very stance whose opt-out would mask the two opt-outs it claims to test (found while: fixing the three-scenario stance regression cluster, branch `auto/stance-reds`)
 
 `test-stance-optout` asserts that a `HoldPosition` unit and a `deployed` unit are never repositioned by `StancePositioningExecutor`. But its setup puts **both units on `HoldFire`** (`test-stance-optout.lua:23-25`) to silence combat — and since `174075e9` the executor relinquishes management of anything below `FireAtWill` (`StancePositioningExecutor.cs:318`) **before** it ever reaches the `HoldPosition` check (`:327`) or the `deployed` check (`:298`). The fire-stance opt-out alone holds both units still, so the scenario passes whether or not the two opt-outs under test work at all. It has been passing on the wrong mechanism since 2026-07-25, and its GREEN currently carries **no information** about `HoldPosition` or `deployed`.
