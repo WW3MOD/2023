@@ -89,6 +89,10 @@ The result is an activity that is never finished and has nothing to run: the uni
 
 **Fix shape:** clear `moveQueued` when `TickChild` reports the child finished, or drop the latch and let `QueueChild` be idempotent on a null child.
 
+**Still open — and explicitly NOT the mechanism behind the "errand outlives its reason" report of the same day** (branch `auto/supply-errands`). Worth recording because it was the leading hypothesis going in: this latch wedges a unit standing **still**, and that report was a unit that kept **walking**. The mechanism there turned out to be a different defect in the same file — `SeekSupplyProvider` never set `ChildHasPriority = false`, so `Activity.TickOuter` (`Activity.cs:112`) skipped the parent's `Tick` for as long as the move child was alive, and *none* of the activity's per-tick re-evaluation had ever run mid-route. That is now fixed; this latch is untouched and its symptom stands.
+
+The two do interact, slightly in the latch's favour: with `Tick` now running every tick the periodic retarget is live for the first time, so a latched errand gets an escape hatch whenever `FindBest` returns a different provider (it clears `moveQueued` and re-queues). That is not a fix — a latched errand whose closest provider is stable still spins forever.
+
 ## 2026-08-11: [low] `AutoSeekSupplies`' errand stall guard watches only the errands it dispatched itself — which is the LESS common half in real play (found while: fixing the out-of-ammo move wedge, branch `auto/ooa-wedge`)
 
 `TickErrand` (`AutoSeekSupplies.cs:317-355`) is the abandon-a-doomed-walk guard, and it runs only when `onErrand` is set — set exclusively by `BeginWatching()` at `:299`, i.e. only for errands dispatched by this trait's own `ITick`. The in-code rationale (`:255-256`) is that cancelling *a player's* order is not this trait's call, which is right.
@@ -461,3 +465,51 @@ The field declaration at `engine/OpenRA.Mods.Common/Traits/BotModules/Helicopter
 The resolution at `:496` is **unconditional** — `goalGuard = player.PlayerActor.TraitOrDefault<PoiGoalGuard>();` — with its own (correct, later) comment at `:490-495` explaining that the READ side is deliberately "a real availability gate for every profile" while only the WRITES stay behind `CommitTransportPassengers`.
 
 **The behaviour is correct and deliberate; the comment is the stale half.** No code change is wanted — delete or rewrite the `:403-406` sentence. Filed because it is a live instance of the exact pattern this document set names (`DOCS/bots/06` §2 **P10**, `DOCS/bots/README` §5.8): a comment asserting a gate whose definition was later widened out from under it. It also cost real reviewer time — `DOCS/bots/03` §E2 asserted the two claim registries are "honoured by disjoint sets of modules", and this module is one of the two counter-examples that makes that false.
+
+## 2026-08-11: [med] `Resupply` freezes `activeResupplyTypes` in its CONSTRUCTOR, so a unit topped up on the way to a Logistics Centre walks the whole distance anyway (found while: ending pointless resupply errands, branch `auto/supply-errands`)
+
+`Resupply.cs:85` decides `cannotRearmAtHost` once, at construction — `rearmable.RearmableAmmoPools.All(p => p.HasFullAmmo)` — and sets `ResupplyType.Rearm` from it. Nothing re-asks. `Tick`'s approach branch is gated on `activeResupplyTypes != 0` (`:139`), and the Rearm flag is only ever cleared by `rearmable.RearmTick(self)` (`:174`), which cannot run until the unit has already **arrived**. So a soldier dispatched dry toward an LC who is rearmed to FULL by a passing truck en route keeps walking the whole way, docks, does nothing, and walks back off.
+
+This is the LC half of the user's report *"even with full ammo he kept moving towards the supply actor it was heading for before"* — and it is the half that matches the words most literally, because on the truck path `SeekSupplyProvider` at least *tries* to bail on a full pool. Infantry name both hosts (`RearmActors: truk, logisticscenter`, `infantry.yaml:1160` etc.) and `AmmoPool.ChooseResupplier` picks whichever is closer ignoring path, so a real match reaches this branch whenever the LC is the nearer of the two.
+
+**Deliberately NOT fixed on that branch**: one behavioural change per commit, and this is a second, independent one with a much wider blast radius. `Resupply` is stock OpenRA shared by aircraft, vehicles and the repair path — `activeResupplyTypes` also carries `ResupplyType.Repair`, so a naive re-evaluation would have to answer what happens to a unit that no longer needs ammo but still needs repair. The fix wants its own scenario.
+
+**Plumbing is already in place**: `AmmoPool.AutoRearm` now takes `dispatchedBecauseDry`, which is exactly the flag this needs, and it is currently read only by `SeekSupplyProvider`.
+
+## 2026-08-11: [med] `SeekSuppliesAndReturn` has the same never-ticks defect that was just fixed in `SeekSupplyProvider` — its whole state machine only runs between legs (found while: ending pointless resupply errands, branch `auto/supply-errands`)
+
+`Activity.TickOuter` runs `lastRun = TickChild(self) && (finishing || Tick(self))` (`Activity.cs:112`) when `ChildHasPriority` is true, which is the default — so the parent's `Tick` is **skipped entirely for as long as a child activity is alive**. `SeekSuppliesAndReturn` never sets it false, yet its body is written as if it ran every tick: it calls `TickChild` itself, it carries an explicit "let a cancelled child from the previous leg unwind before planning this one" guard (`:127-131`), and its entire reason for existing is `SupplyHuntMath.NextState` re-asked continuously.
+
+What actually happens today is that the state machine only advances at the boundaries between legs. The consequences are exactly the ones its own doc comments promise are handled and are not:
+
+- *"Being refilled by someone else while still walking also sends us straight home"* (`SupplyHuntMath.cs:161`) — cannot fire during the approach.
+- `ProviderUsable()` re-asked every tick, the symmetry that `AutoSeekSupplies.CanServe` was extracted to guarantee (`SeekSuppliesAndReturn.cs:80-89`) — cannot fire during the approach, so a truck that drains, pauses or drives home mid-approach does NOT release the unit "immediately"; it releases it when the approach ends.
+- The `MaxApproachAttempts` re-plan bound (`:150-155`) only counts approaches that *completed*.
+
+Not fixed with `SeekSupplyProvider` because it is a second behavioural change on a second errand system (the idle seek), and the idle seek is the path that already walks home — so it is a correctness/latency defect rather than the reported symptom. **Fix shape:** `ChildHasPriority = false` in the constructor; the body already assumes it. Wants its own scenario, and note that turning per-tick evaluation on also brings that activity's re-planning alive for the first time.
+
+## 2026-08-11: [med] A SUPPLYCACHE below 50 supply serves nobody AND never despawns — `RestockThreshold` gates serving on a crate that has no restock trip, contradicting `economy.md` (found while: ending pointless resupply errands, branch `auto/supply-errands`)
+
+`SupplyProvider.Tick` returns early — no target, no delivery — whenever `currentSupply < Info.RestockThreshold && currentTarget == null && !KeepServingBelowThreshold()` (`:254`, mirrored in `CanServeNow` at `:957`). `RestockThreshold` defaults to **50** (`:38`) and `KeepServingBelowThreshold()` is `Info.EvacuateOnUnusableResidue && !ShouldSelfRestock()` (`:385-388`), and `EvacuateOnUnusableResidue` is true **only on TRUK** (`vehicles.yaml:549`). SUPPLYCACHE (`misc.yaml:408-421`) sets neither, so it inherits the truck-shaped 50-supply reserve while having nothing to reserve it for.
+
+The result is a crate that stops serving at 49 supply and then cannot reach its own `RemoveBelowSupply: 1` despawn either (that check needs `currentSupply < 1`, and supply only falls in `ResupplyTarget`, which is no longer reached). It sits on the map inert and permanent, holding ~49 supply that only an `AbsorbsSupplyCache` LC or an enemy capture can recover.
+
+`economy.md` states the opposite twice and is the authority per its own header: *"Serves down to empty — `RemoveBelowSupply: 1` … A stationary cache has no drive-home trip to reserve supply for (unlike TRUK's `RestockThreshold`), so the threshold is 1"*, and *"serves down to the last usable batch, then despawns or is captured"*. So the doc describes the intent and the code is what needs to change.
+
+Found because a scenario staging a low-supply crate silently measured nothing: the crate served zero rounds and the test failed with a setup diagnostic rather than the behaviour under test.
+
+**Fix shape:** `RestockThreshold: 0` on SUPPLYCACHE (one YAML line, matches what the crate already means), or widen `KeepServingBelowThreshold` to admit any provider with no `RestockActors`. The second is the more general statement — "a provider with nowhere to restock has no trip to reserve for" — and would also cover a future stationary provider. Needs a scenario asserting a sub-50 crate still hands over a batch; `test-errand-ends-when-rearmed-en-route` already overrides the field in its own rules and would be the natural place to stop doing so once fixed.
+
+## 2026-08-11: [high] Cancelling a truck's restock drive latches `SupplyProvider.restocking` TRUE forever, and a latched truck serves nobody for the rest of the match (found while: ending pointless resupply errands, branch `auto/supply-errands`)
+
+`SupplyProvider.TryRestock` sets `restocking = true` (`:774`) and then queues a four-part chain: `QueueActivity(false, move.MoveTo(host))`, `Wait(25)`, a `CallFunc` that transfers supply **and clears the flag** (`:798`), and optional rally-point moves. `restocking = false` appears at exactly one line in the file, inside that `CallFunc`. There is no `INotifyBecomingIdle` reset, no cancel hook, no `ITick` re-check.
+
+`Activity.Cancel(self, keepQueue: false)` nulls `NextActivity` (`Activity.cs:198`), and `Actor.QueueActivity(false, …)` cancels the current activity — so **any** order that pre-empts the drive (a player Move, `DropsSupplyCache`'s `RotateToEdge` evac, a bot re-task) drops the `Wait`/`CallFunc` tail and the flag is never cleared.
+
+The consequence is not cosmetic. `CanServeNow` returns false while `restocking` (`:943-945`), and `CanServeNow` is the provider's whole serving ladder — it is asked by `SupplyProvider.Tick`'s own early-outs and by `AutoSeekSupplies.CanServe`, which is the ONE eligibility predicate both the soldier's provider scan and `SeekSuppliesAndReturn`'s per-tick re-check share. So a truck that was interrupted once on the way to an LC stops serving infantry, stops being selected as a destination, and never recovers — while looking perfectly healthy (it still has supply, its bar is amber not red, and `CountsAsEmpty` is false so the evac path does not dispose of it either).
+
+Same latch shape as the `moveQueued` entry above: state set alongside a queued activity, cleared only on that activity's success path. Worth stating as a class — **a flag that records "an activity is in flight" must be cleared on the activity ENDING, not on it SUCCEEDING**, because cancellation is the common case in an RTS.
+
+**Directly load-bearing for the queued "truck runs dry mid-move → cancel the move so auto-return fires" work.** That item needs to tell "this move is invalidated by being empty" from "this move exists to stop being empty", and `restocking` is the only place a truck's restock intent is recorded today — the drive itself is a **bare `Move`**, with no distinct activity type, so it is indistinguishable by type from a player order. Note what the ammo side does instead: `AmmoPool.IsSeekingRearm` (`AmmoPool.cs:390-397`) answers the same question by walking the whole activity queue for `SeekSupplyProvider | Resupply | RideTransport | SeekSuppliesAndReturn` — TYPE-based, so it cannot latch and cannot survive cancellation. Any cancel-the-move design that gates on `restocking` as it stands will both mis-fire and permanently disable trucks.
+
+**Fix shape:** clear the flag from an activity-end hook rather than the success `CallFunc` (or give the restock drive its own activity type and derive the state from the queue, as the ammo side does). Not fixed here — out of scope for this branch, and it wants a scenario that cancels a restock drive and asserts the truck still serves.

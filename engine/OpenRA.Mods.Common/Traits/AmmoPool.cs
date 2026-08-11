@@ -235,7 +235,9 @@ namespace OpenRA.Mods.Common.Traits
 					foreach (var ap in ammoPools)
 						ap.NeedsResupply = false;
 
-					AutoRearm(self);
+					// Self-assigned because the unit cannot fight at all: the errand is bounded by
+					// that reason and ends the moment it lapses. See SeekSupplyProvider.
+					AutoRearm(self, true);
 					break;
 
 				case ResupplyBehavior.Hold:
@@ -261,7 +263,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var ammoPools = self.TraitsImplementing<AmmoPool>();
 			if (ammoPools.Any() && ammoPools.Any(a => !a.HasFullAmmo) && !self.Info.HasTraitInfo<AircraftInfo>())
-				AutoRearm(self);
+				AutoRearm(self, false);
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -325,7 +327,16 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		public static void AutoRearm(Actor self)
+		/// <summary>
+		/// Send this actor to the nearest rearm source.
+		///
+		/// <paramref name="dispatchedBecauseDry"/> records WHY, and has no default on purpose: every
+		/// caller must say whether this errand is the unit's own answer to being unable to fight
+		/// (<see cref="AllPoolsEmpty(Actor)"/>) or a destination the player asked for. Only
+		/// <see cref="Activities.SeekSupplyProvider"/> reads it today — the docking Resupply path
+		/// still runs to its host either way, which is a separate defect (WORKSPACE/bugs/discovered.md).
+		/// </summary>
+		public static void AutoRearm(Actor self, bool dispatchedBecauseDry)
 		{
 			var nearestResupplier = ChooseResupplier(self);
 
@@ -338,7 +349,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (supplyProvider != null && string.IsNullOrEmpty(supplyProvider.Info.DockedCondition))
 				{
 					if (self.TraitOrDefault<IMove>() != null)
-						self.QueueActivity(false, new SeekSupplyProvider(self, nearestResupplier));
+						self.QueueActivity(false, new SeekSupplyProvider(self, nearestResupplier, dispatchedBecauseDry));
 
 					return;
 				}
