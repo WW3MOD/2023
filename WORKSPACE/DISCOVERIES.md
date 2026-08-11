@@ -3311,3 +3311,36 @@ Read-only survey of the audio stack ahead of sourcing replacement music for rele
 **Loader constraints worth knowing before exporting anything.** Both `OggFormat` and `Mp3Format` hard-code `SampleBits => 16` (`OggLoader.cs:40`, `Mp3Loader.cs:66`) and pass channels/rate straight through to OpenAL, which only distinguishes mono/stereo × 8/16-bit (`OpenAlSoundEngine.cs:109-114`) — so ≥3 channels is silently mis-sent and must be avoided; sample rate is unconstrained. `WavReader` accepts PCM, MS-ADPCM and IMA-ADPCM only, and throws `NotSupportedException` on anything else (`WavReader.cs:21, 61-62`); its `lengthInSeconds` divides the **whole stream length** including headers (`:69`), so WAV durations read slightly long. `Mp3Loader`'s sniffer is narrow: it accepts an `ID3` tag or a frame sync of exactly `0xfbff` (`Mp3Loader.cs:29-40`), so an MP3 with no ID3 tag that starts `FF F3`/`FF FA` will be rejected as "not an MP3" — another reason to prefer Ogg.
 
 **Licensing exposure (the reason this survey exists).** Two distinct problems, and the second is the worse one. *(a) Inherited at runtime:* ~69% of referenced audio has no file in the repo and resolves out of the player's own RA install via the `~*.mix` mounts (`mod.yaml:21-37`) — all 88 music entries bar `journey`, and ~121 of 124 notification sounds (`rules/sound/notifications.yaml` is stock EVA throughout: `baseatk1`, `nofunds1`, `misnwon1`, …). That is at least conditioned on the player owning the game. *(b) Redistributed in-repo:* 270 audio files under `mods/ww3mod/bits/sounds/`, and the directory names give the origin away — `commando/` is Tiberian Dawn's Commando (`ramyell1`, `rrokroll1`, `rtuffguy1`), `glabike/` is Generals' GLA Combat Cycle (`vcyc*`), `v3/` `seal/` `chem/` `terroist/` are Red Alert 2, `robot/` is TS-era (`vsen*`). **RA1 assets can at least gesture at the 2008 freeware release; RA2 and Generals have no such release.** Separately, `bits/sounds/arabs/` (32 files, stock RA lines re-encoded as `.a0X`) is **not mounted in `mod.yaml` and not referenced by any YAML** — verified: no `.a0X` appears in `voices.yaml`, whose variant sets are `.v00-.v03`/`.r00-.r03` (`voices.yaml:3-5, 16-18`). It is unreachable at runtime, so deleting it costs nothing and removes 32 redistributed files.
+
+## 2026-08-11 — a tournament run silently degrades to no-verdict under CPU contention
+
+**Finding.** `run-tournament.sh` was run on merged main (`63a81fe0`) for 10 seeds of
+`tournament-s1-eco-river-zeta` while a worker concurrently ran `dotnet build WW3MOD.sln -c Release`
+and `make test` in a separate worktree. Load average reached **16.75**. Matches 1–2 completed
+normally (7500 ticks, `time_limit`); matches 3–10 were all killed by the 150 s wall-clock watchdog
+with **no verdict file**. Final tally: **2 verdict / 8 no-verdict**.
+
+**Why it matters more than "it was slow".** The failure is not graceful. The wall-clock watchdog
+kills the game and the run continues, so the batch still produces a `summary.csv`, a
+`summary.json` and a cheerful "Quick view" — containing only the surviving rows. A summary with two
+rows in it looks exactly like a summary with ten rows in it unless someone reads the
+verdict/no-verdict tally on the line above. **A contaminated benchmark is therefore
+indistinguishable from a small one at the point where the numbers get used**, which is precisely how
+a bad number enters a decision.
+
+**The watchdog is wall-clock, not work-based.** `--max-wall-secs` defaults to 4x the config's
+`TimeLimitSeconds`. At `Test.SpeedMultiplier=8` a 5-minute eco rung should finish in well under a
+minute of wall time, so the 4x default looks generous — but it budgets against *elapsed time*, and
+elapsed time is a function of how much CPU the rest of the machine is using. The margin evaporates
+under a parallel MSBuild (7 nodes observed) plus two `--check-yaml` processes.
+
+**Operational rule this establishes.** Serialising the *harness lock* is not sufficient. The
+single-instance lock added on 2026-08-10 prevents two harness runs from corrupting each other, but
+it says nothing about builds, test suites or YAML lints running beside a match. Any benchmark or
+tournament intended to produce trustworthy numbers must run on a **quiet machine**: no concurrent
+build, no `dotnet test`, no `make test`. When a manager owns simulations and workers own builds,
+those two must be serialised against each other, not just against themselves.
+
+**Tell.** Read the `Batch complete: N verdict / M no-verdict` line before reading any aggregate. If
+M > 0 the run is suspect; if M is most of the batch the aggregate is meaningless regardless of how
+plausible the surviving rows look.
