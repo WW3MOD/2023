@@ -12,6 +12,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
+using OpenRA.Graphics;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Primitives;
@@ -54,6 +55,19 @@ namespace OpenRA.Mods.Common.Traits
 			"the crate can land this far off it (SupplyFollowerBotModule.DropDemandMarginCells).")]
 		public readonly int DropAtToleranceCells = 2;
 
+		[Desc("Image whose sprite marks the waypoint a QUEUED deploy will unload on. Defaults to the",
+			"cache actor's own artwork, so the marker is a picture of the thing that will be dropped",
+			"rather than a glyph the player has to learn. Leave empty to draw no marker.")]
+		public readonly string DropMarkerImage = "supplycache";
+
+		[SequenceReference(nameof(DropMarkerImage), allowNullImage: true)]
+		[Desc("Sequence within DropMarkerImage to draw.")]
+		public readonly string DropMarkerSequence = "idle";
+
+		[Desc("Alpha of that marker. Held below 1 so a queued drop reads as a PLAN — a crate ghosted",
+			"over the waypoint — and can never be mistaken for a crate already sitting on the ground.")]
+		public readonly float DropMarkerAlpha = 0.6f;
+
 		public override object Create(ActorInitializer init) { return new DropsSupplyCache(init, this); }
 	}
 
@@ -61,6 +75,11 @@ namespace OpenRA.Mods.Common.Traits
 		IIssueOrder, IIssueDeployOrder, IOrderVoice
 	{
 		public readonly DropsSupplyCacheInfo Info;
+
+		/// <summary>Sprite drawn on the waypoint a queued deploy will unload on. Null if the mod cleared
+		/// DropMarkerImage or named a sequence this tileset has no artwork for.</summary>
+		public readonly Sprite DropMarker;
+
 		readonly Actor self;
 		SupplyProvider supply;
 
@@ -72,6 +91,10 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			Info = info;
 			self = init.Self;
+
+			var sequences = self.World.Map.Sequences;
+			if (!string.IsNullOrEmpty(info.DropMarkerImage) && sequences.HasSequence(info.DropMarkerImage, info.DropMarkerSequence))
+				DropMarker = sequences.GetSequence(info.DropMarkerImage, info.DropMarkerSequence).GetSprite(0);
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -97,7 +120,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// each of which can refuse silently. So a user reporting "I have never once seen a crate" could not be
 		/// distinguished from a user who had simply never looked in the right place. One line per drop, and a
 		/// drop empties the truck, so the volume is bounded by the number of loads a match delivers.</para></summary>
-		void DropSupplyCacheHere()
+		public void DropSupplyCacheHere()
 		{
 			if (supply == null || supply.CurrentSupply <= 0)
 				return;
@@ -153,9 +176,18 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
 		{
+			// QUEUE THE DROP; DO NOT PERFORM IT HERE. This used to call DropSupplyCacheHere() inline,
+			// which threw `order.Queued` away at the last layer that could still honour it — the
+			// targeter, the order constructor and the wire all carry the Shift modifier faithfully,
+			// and then the unload happened at resolution time regardless. A shift-queued deploy is the
+			// ordinary way to say "drive there, THEN unload", and it dumped the whole load under the
+			// truck's wheels at the beachhead instead, which is the one place it is worth nothing.
+			// PITFALL: an order handler that does its work inline is invisible to the queued flag no
+			// matter how carefully every layer above it passed the flag down.
 			if (order.OrderString == "DropSupplyCache")
 			{
-				DropSupplyCacheHere();
+				self.QueueActivity(order.Queued, new UnloadSupplyCache(self, this, PredictedDropCell(order.Queued)));
+				self.ShowTargetLines();
 				return;
 			}
 
@@ -275,6 +307,32 @@ namespace OpenRA.Mods.Common.Traits
 				self.QueueActivity(true, new CallFunc(() => DropSupplyCacheHere()));
 				self.ShowTargetLines();
 			}
+		}
+
+		/// <summary>Where a deploy queued RIGHT NOW is going to unload — i.e. which waypoint to draw the
+		/// marker on. The drop itself happens wherever the truck is standing when the activity comes up,
+		/// so this is a prediction; it is read off the last waypoint of the queue as it exists at ISSUE
+		/// time, which is exactly the set of orders that will run before ours.
+		///
+		/// <para>Captured now rather than recomputed at render time ON PURPOSE. Anything the player
+		/// appends AFTER the deploy runs after it and must not drag the marker along — recomputing would
+		/// walk the icon onto a waypoint the truck will only reach once the crate is already on the
+		/// ground. The walk mirrors DrawLineToTarget's own, so the marker lands on the last waypoint the
+		/// player can actually see rather than on some cell only the activity graph knows about.</para></summary>
+		CPos PredictedDropCell(bool queued)
+		{
+			// An unqueued deploy cancels whatever is running, so there are no preceding waypoints left.
+			if (!queued)
+				return self.Location;
+
+			var cell = self.Location;
+			for (var a = self.CurrentActivity; a != null; a = a.NextActivity)
+				if (!a.IsCanceling)
+					foreach (var n in a.TargetLineNodes(self))
+						if (n.Tile == null && n.Target.Type != TargetType.Invalid)
+							cell = self.World.Map.CellContaining(n.Target.CenterPosition);
+
+			return cell;
 		}
 
 		void QueueDriveAndRestock(Actor host, bool queued = false)
@@ -415,6 +473,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IIssueDeployOrder.CanIssueDeployOrder(Actor self, bool queued)
 		{
+			// A QUEUED deploy is judged on the supply we hold, not on the cell we happen to be standing
+			// on right now: it fires at the END of the queue, at a cell the truck has not reached yet,
+			// so testing THIS cell's occupancy would swallow the order — silently, since the command bar
+			// simply filters out actors that answer false — for a reason that will not be true when it
+			// runs. Occupancy is knowable only on arrival, and DropSupplyCacheHere re-tests it there by
+			// merging into whatever cache already holds the cell. Same shape as
+			// GrantChargedConditionOnToggle, which likewise relaxes its now-gate for queued orders.
+			if (queued)
+				return supply != null && supply.CurrentSupply > 0;
+
 			return CanDropCache();
 		}
 

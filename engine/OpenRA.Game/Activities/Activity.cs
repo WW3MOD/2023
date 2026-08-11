@@ -26,13 +26,24 @@ namespace OpenRA.Activities
 		public readonly Color Color;
 		public readonly Sprite Tile;
 
-		public TargetLineNode(in Target target, Color color, Sprite tile = null)
+		/// <summary>Palette to draw <see cref="Tile"/> in. Null means the terrain palette, which is what
+		/// every cell-overlay tile (build-valid and friends) wants. A node whose tile is a real actor
+		/// sprite has to name its own palette or it renders with scrambled colours.</summary>
+		public readonly string TilePalette;
+
+		/// <summary>Alpha for <see cref="Tile"/>. Below 1 marks the tile as a PREVIEW of something that
+		/// has not happened yet, so a ghosted actor sprite cannot be mistaken for the actor itself.</summary>
+		public readonly float TileAlpha;
+
+		public TargetLineNode(in Target target, Color color, Sprite tile = null, string tilePalette = null, float tileAlpha = 1f)
 		{
 			// Note: Not all activities are drawable. In that case, pass Target.Invalid as target,
 			// if "yield break" in TargetLineNode(Actor self) is not feasible.
 			Target = target;
 			Color = color;
 			Tile = tile;
+			TilePalette = tilePalette;
+			TileAlpha = tileAlpha;
 		}
 	}
 

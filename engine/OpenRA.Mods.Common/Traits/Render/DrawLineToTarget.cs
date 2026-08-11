@@ -98,13 +98,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		static IEnumerable<IRenderable> RenderAboveShroud(Actor self, WorldRenderer wr)
 		{
-			var pal = wr.Palette(TileSet.TerrainPaletteInternalName);
+			var terrainPal = wr.Palette(TileSet.TerrainPaletteInternalName);
 			var a = self.CurrentActivity;
 			for (; a != null; a = a.NextActivity)
 				if (!a.IsCanceling)
 					foreach (var n in a.TargetLineNodes(self))
 						if (n.Tile != null && n.Target.Type != TargetType.Invalid)
-							yield return new SpriteRenderable(n.Tile, n.Target.CenterPosition, WVec.Zero, -511, pal, 1f, 1f, float3.Ones, TintModifiers.IgnoreWorldTint, true);
+						{
+							var pal = n.TilePalette != null ? wr.Palette(n.TilePalette) : terrainPal;
+							yield return new SpriteRenderable(n.Tile, n.Target.CenterPosition, WVec.Zero, -511, pal, 1f, n.TileAlpha, float3.Ones, TintModifiers.IgnoreWorldTint, true);
+						}
 		}
 
 		bool IRenderAboveShroud.SpatiallyPartitionable => false;
