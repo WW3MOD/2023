@@ -20,10 +20,14 @@ WorldLoaded = function()
 	-- Phase 3: the executor auto-enables on human-owned units via GrantConditionOnHumanOwner (USA is
 	-- human), so no explicit grant is needed — the AR should relocate to the cover edge on its own.
 
-	-- Silence both sides: no shots ⇒ no suppression (S4 would otherwise gate the executor) and no
-	-- AutoTarget chase. Fire-discipline is orthogonal to the Defensive engagement stance under test,
-	-- and the executor is meant to position HoldFire units too (red-team N1).
-	if not unit.IsDead then unit.Stance = "HoldFire" end
+	-- Silence both sides WITHOUT touching the AR's fire stance. The executor deliberately declines to
+	-- reposition any unit below FireAtWill (the Ambush/HoldFire "un-ambush" opt-out,
+	-- StancePositioningExecutor.cs:318), so putting the unit-under-test on HoldFire — as this test used
+	-- to — disables the very trait under test. The AR therefore stays FireAtWill; the enemy is silenced
+	-- by HoldFire (no incoming fire ⇒ no suppression, so the S4 gate stays open) and is made
+	-- non-auto-targetable in rules.yaml so the AR never acquires it. That matters twice: an attack
+	-- activity would also make the AR non-idle, and the executor evaluates in TickIdle only (S5).
+	if not unit.IsDead then unit.Stance = "FireAtWill" end
 	if not foe.IsDead then foe.Stance = "HoldFire" end
 
 	local ARRIVE_DEADLINE = 25 * 15   -- 15s to relocate to the cover edge
