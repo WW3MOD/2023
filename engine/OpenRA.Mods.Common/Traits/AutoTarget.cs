@@ -201,11 +201,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks to wait until next AutoTarget: attempt.")]
 		public readonly int MaximumScanTimeInterval = 8;
 
-		[Desc("Ticks between target-preemption rescans while ALREADY engaging an auto-picked target.",
-			"The ordinary priority scan hangs off INotifyIdle and an engaged unit is never idle, so without",
-			"this a unit shooting infantry keeps shooting it while an enemy tank sits in range unengaged.",
-			"A rescan switches only to a STRICTLY higher AutoTargetPriority band, and only to something",
-			"shootable from where the unit stands. 0 = disabled (behaviour is byte-identical to no scan).")]
+		[Desc("Ticks between re-evaluations of an ALREADY auto-picked target. Without this a unit shooting",
+			"infantry keeps shooting it while an enemy tank sits in range unengaged, because the priority",
+			"table is consulted once and then bypassed by two different routes: an idle unit's stale target",
+			"is handed straight back by IOverrideAutoTarget, and a unit with a running attack activity never",
+			"scans at all. This one interval governs both. A re-evaluation switches only to a STRICTLY higher",
+			"AutoTargetPriority band, and only to something shootable from where the unit stands. Targets a",
+			"player, Lua or a bot ordered are never re-evaluated.",
+			"0 = disabled (behaviour is byte-identical to no re-evaluation).")]
 		public readonly int PreemptScanInterval = 0;
 
 		[Desc("Skip targets whose AverageDamagePercent exceeds this threshold.",
@@ -578,7 +581,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Don't change targets when there is a target overriding auto-targeting
 			foreach (var oat in overrideAutoTarget)
-				if (oat.TryGetAutoTargetOverride(self, out _))
+				if (oat.TryGetAutoTargetOverride(self, out _, out _))
 					return;
 
 			if (!attacker.IsInWorld)
@@ -954,12 +957,12 @@ namespace OpenRA.Mods.Common.Traits
 		/// existing scanners (that starvation mode is documented at AttackMoveActivity.cs:110-115).</summary>
 		void TickPreemption(Actor self)
 		{
-			var interval = Info.PreemptScanInterval;
-			if (interval <= 0 || stance < UnitStance.FireAtWill || self.IsIdle)
-				return;
-
-			// Stagger by ActorID so units don't all rescan on the same tick. Tick-derived, no RNG.
-			if ((self.World.WorldTick + (int)(self.ActorID % (uint)interval)) % interval != 0)
+			// The idle case is handled by the yield inside ScanForTarget, which is where an idle unit's
+			// stale target is actually handed back. This covers the DISJOINT state: an attack activity
+			// that never ends. AttackFollow.AttackActivity.Tick returns false — keep running — for a
+			// target that stays in range with clear LOS (:393-401), so a unit winning a stationary duel
+			// is never idle, never reaches TickIdle, and therefore never calls ScanForTarget at all.
+			if (self.IsIdle || !PreemptionDue(self))
 				return;
 
 			// Only ever preempt an engagement THIS trait issued: a player order, a Lua order or a bot's
@@ -977,7 +980,35 @@ namespace OpenRA.Mods.Common.Traits
 				|| current.ForceAttack)
 				return;
 
-			var incumbentBand = GetTargetPriorityBand(self, current.Target);
+			if (!TryFindHigherBandTarget(self, current.Target, out var betterTarget))
+				return;
+
+			foreach (var ab in ActiveAttackBases)
+				ab.AttackTarget(betterTarget, AttackSource.AutoTarget, false, false);
+		}
+
+		/// <summary>Cadence gate shared by both re-evaluation paths. Tick-derived and staggered by
+		/// ActorID — zero RNG, so it cannot perturb the shared random stream.</summary>
+		bool PreemptionDue(Actor self)
+		{
+			var interval = Info.PreemptScanInterval;
+			if (interval <= 0 || stance < UnitStance.FireAtWill)
+				return false;
+
+			return (self.World.WorldTick + (int)(self.ActorID % (uint)interval)) % interval == 0;
+		}
+
+		/// <summary>Re-runs the ordinary priority scan and reports a target whose band is STRICTLY higher
+		/// than the incumbent's. Strictness IS the hysteresis: the range, cluster and soft-overkill terms
+		/// are bounded by construction to stay inside one priority bucket, so they cannot move this
+		/// comparison and two comparable targets can never trade places. No cooldown is needed.
+		/// allowMove:false so only something shootable from where the unit stands can win — that is what
+		/// stops a SHORAD abandoning a tank to chase an unreachable helicopter.</summary>
+		bool TryFindHigherBandTarget(Actor self, in Target incumbent, out Target betterTarget)
+		{
+			betterTarget = Target.Invalid;
+
+			var incumbentBand = GetTargetPriorityBand(self, incumbent);
 			var allowTurn = Info.AllowTurning && stance > UnitStance.HoldFire;
 
 			foreach (var ab in ActiveAttackBases)
@@ -987,23 +1018,15 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				var range = Info.ScanRadius > 0 ? WDist.FromCells(Info.ScanRadius) : ab.GetMaximumRange();
-
-				// allowMove:false so the armament range / LOS filters only yield something shootable from
-				// where we stand — this is what stops a SHORAD abandoning a tank to chase an unreachable
-				// helicopter.
 				var candidate = ChooseTarget(self, ab, attackStances, range, false, allowTurn, out var candidateBand);
-
-				// STRICTLY higher band only. The band comparison IS the hysteresis: the range, cluster and
-				// soft-overkill terms are bounded by construction to stay inside one bucket, so they are
-				// invisible here and two comparable targets can never oscillate. No cooldown is needed.
 				if (candidate.Type == TargetType.Invalid || candidateBand <= incumbentBand)
 					continue;
 
-				foreach (var b in ActiveAttackBases)
-					b.AttackTarget(candidate, AttackSource.AutoTarget, false, false);
-
-				return;
+				betterTarget = candidate;
+				return true;
 			}
+
+			return false;
 		}
 
 		public Target ScanForTarget(Actor self, bool allowMove, bool allowTurn, bool ignoreScanInterval = false)
@@ -1011,8 +1034,23 @@ namespace OpenRA.Mods.Common.Traits
 			if ((ignoreScanInterval || nextScanTime <= 0) && ActiveAttackBases.Any())
 			{
 				foreach (var oat in overrideAutoTarget)
-					if (oat.TryGetAutoTargetOverride(self, out var existingTarget))
+					if (oat.TryGetAutoTargetOverride(self, out var existingTarget, out var canYield))
+					{
+						// The override is consulted BEFORE the scan, so whatever it returns is the
+						// target — ChooseTarget never runs and the AutoTargetPriority table is never
+						// consulted. For an automatic engagement that is the whole bug: a unit stays on
+						// a band-3 tank while a band-5 helicopter sits in range. Re-evaluate, but keep
+						// the incumbent unless something is STRICTLY higher-banded.
+						//
+						// Deliberately NOT re-arming nextScanTime on this path (the re-arm below is
+						// still reached only by the ordinary scan), so the SharedRandom draw pattern is
+						// exactly what it was before this branch existed.
+						if (canYield && PreemptionDue(self)
+							&& TryFindHigherBandTarget(self, existingTarget, out var betterTarget))
+							return betterTarget;
+
 						return existingTarget;
+					}
 
 				if (!ignoreScanInterval)
 					nextScanTime = self.World.SharedRandom.Next(Info.MinimumScanTimeInterval, Info.MaximumScanTimeInterval);

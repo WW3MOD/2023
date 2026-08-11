@@ -461,7 +461,11 @@ namespace OpenRA.Mods.Common.Traits
 	[RequireExplicitImplementation]
 	public interface IOverrideAutoTarget
 	{
-		bool TryGetAutoTargetOverride(Actor self, out Target target);
+		/// <param name="canYieldToHigherPriority">True only when this override is an engagement the
+		/// trait picked automatically, so AutoTarget may replace it with a STRICTLY higher-priority
+		/// target. Must be false for anything a player, Lua or a bot ordered, and for any force-attack
+		/// — overriding those would be a worse regression than the stickiness this exists to fix.</param>
+		bool TryGetAutoTargetOverride(Actor self, out Target target, out bool canYieldToHigherPriority);
 	}
 
 	[RequireExplicitImplementation]

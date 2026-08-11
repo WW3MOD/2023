@@ -1,30 +1,45 @@
--- AUTO TEST: AutoTarget preempts a low-priority target for a higher-priority one.
+-- AUTO TEST: AutoTarget re-evaluates a low-priority target when a higher-priority one appears.
 --
 -- The user-reported bug: a Stryker SHORAD keeps shooting ground units while an
 -- enemy helicopter sits in range unengaged. The YAML is already correct —
 -- ^AutoTargetAAIFV declares Helicopter 5 / Aircraft 4 / Vehicle 3 / Infantry 2 —
--- and ChooseTarget's priority math is already categorical. The bug was that the
--- scan never RUNS again once the unit is engaged: ChooseTarget is reachable only
--- from INotifyIdle.TickIdle, and an engaged actor is never idle. Fixed by
--- AutoTargetInfo.PreemptScanInterval (defaults.yaml), which rescans on a cadence
--- while engaged and switches only on a strictly higher priority band.
+-- and ChooseTarget's priority math is already categorical. The bug is that the
+-- priority table is consulted once and then BYPASSED: when an attack activity
+-- ends, AttackFollow.ClearRequestedTarget does not clear but PROMOTES the target
+-- to a persistent OpportunityTarget, and TryGetAutoTargetOverride hands that back
+-- to every later AutoTarget scan ahead of ChooseTarget. The unit sits idle,
+-- firing at the tank, structurally unable to see the helicopter.
 --
--- Geometry (row y=17): SHORAD col 20, t90 col 28 (8 cells east, band 3).
--- The HIND (band 5) is spawned airborne 10 cells NORTH after the SHORAD is
--- already committed to the t90, well inside Stinger range (28c0).
+-- Geometry (row y=17): SHORAD col 20, t90 col 28 (8 cells east, band 3 — inside
+-- both ground weapons: 25mm 20c0, Hellfire 25c0/min 5c0). The HIND (band 5) is
+-- spawned airborne 10 cells NORTH once the SHORAD is committed, well inside
+-- Stinger range (28c0).
 --
---   Pass: the HIND takes damage before the deadline.
---   Fail: deadline with the HIND untouched (the pre-fix behaviour), or either
---         invalidating condition below trips.
+--   Pass: the HIND takes damage within DeadlineSeconds OF ITS OWN ARRIVAL.
+--   Fail: the deadline passes with the HIND untouched (the pre-fix behaviour).
 --
--- Two guards keep a green from being reachable the wrong way — both would let
--- the ORDINARY idle scan find the heli and mask the preemption path entirely:
---   * the t90 must stay alive (its death would idle the SHORAD). It is Heavy
---     armour under a 25mm autocannon, so it comfortably outlives the deadline.
---   * the SHORAD must actually be engaged at the moment the HIND appears.
+-- WHY THE DEADLINE IS SHORT, AND WHY IT MUST STAY SHORT.
+-- The lock is not permanent. CanAttack returns false while an armament reloads
+-- (AttackBase.cs:274, reloadingIsInvalid: true), which drops IsAiming, and the
+-- opportunity-fire branch (AttackFollow.cs:161) clears the persistent flag — so
+-- the SHORAD eventually rescans and finds the helicopter WITHOUT the fix. An
+-- earlier 22-second version of this test therefore passed with the fix disabled
+-- and proved nothing. That unaided break is a per-tick race against the idle
+-- rescan re-establishing the stale target, so it has no clean closed form and
+-- must NOT be "derived" into a comfortable-looking number.
+--
+-- The deadline is instead budgeted from what the FIX costs to respond:
+--     up to  25 ticks  PreemptScanInterval cadence (defaults.yaml)
+--     up to ~26 ticks  turret slew, Turreted TurnSpeed 20 over at most a half turn
+--     up to ~40 ticks  Stinger launch ramp + flight (Speed 600, ~10 cells)
+--     ------------------
+--          ~91 ticks  ≈ 3.6s worst case, so 5s carries headroom and no more.
+-- The RED control (PreemptScanInterval pinned to 0) at THIS SAME deadline is what
+-- proves the unaided break does not beat it. Widening this deadline destroys that
+-- discrimination and silently restores the meaningless version of the test.
 
 local SpawnHeliAfterSeconds = 4
-local DeadlineSeconds = 22
+local DeadlineSeconds = 5
 
 local function cellPos(cx, cy, altitude)
 	return WPos.New(cx * 1024 + 512, cy * 1024 + 512, altitude or 0)
@@ -40,23 +55,19 @@ WorldLoaded = function()
 	TestHarness.FocusBetween(Shorad, GroundTarget)
 	TestHarness.Select(Shorad)
 
-	-- Both enemies hold fire: nothing may kill the SHORAD or confound the test
-	-- by making the heli manoeuvre.
+	-- The tank holds fire: nothing may kill the SHORAD or confound the geometry.
 	GroundTarget.Stance = "HoldFire"
 
 	local Heli = nil
 	local heliStartHealth = nil
+	local ticksSinceSpawn = 0
 
+	-- NOTE: deliberately NO "the SHORAD must not be idle" guard. An earlier revision
+	-- had one, under the wrong theory that the bug needed a non-idle unit. It is the
+	-- opposite: idle-while-firing-at-a-persistent-target IS the locked state, so such
+	-- a guard would fail the very path being tested.
 	Trigger.AfterDelay(DateTime.Seconds(SpawnHeliAfterSeconds), function()
 		if Shorad.IsDead then
-			return
-		end
-
-		-- The whole point of the test is preemption of an IN-PROGRESS engagement.
-		-- If the SHORAD were idle here, the ordinary idle scan would acquire the
-		-- heli and the test would pass without exercising the fix at all.
-		if Shorad.IsIdle then
-			Test.Fail("SHORAD was idle when the helicopter spawned — the idle scan would mask the preemption path")
 			return
 		end
 
@@ -75,69 +86,34 @@ WorldLoaded = function()
 		heliStartHealth = Heli.Health
 	end)
 
-	-- Continuous idle guard. A ONE-SHOT check at spawn is not enough: if the SHORAD
-	-- drops its engagement at any point while the heli is up, the ORDINARY idle scan
-	-- acquires the heli and the test greens without preemption ever running (observed
-	-- 2026-08-11 — a PreemptScanInterval:0 control still passed against the one-shot
-	-- form). Preemption itself cancels and requeues, which can leave CurrentActivity
-	-- null for a tick or two, so only a SUSTAINED idle gap counts as a mask.
-	local MaxIdleTicks = 5
-	local idleRun = 0
-	local worstIdleRun = 0
-	local elapsed = 0
-
-	-- Self-fail one tick BEFORE AssertWithin's own timeout so the verdict can carry live
-	-- diagnostics. AssertWithin's failReason is a plain string built at setup time, so any
-	-- counter interpolated into it would be frozen at its initial value.
-	local DeadlineTicks = DateTime.Seconds(DeadlineSeconds) - 1
-
-	TestHarness.AssertWithin(DeadlineSeconds, function()
-		elapsed = elapsed + 1
+	TestHarness.AssertWithin(SpawnHeliAfterSeconds + DeadlineSeconds + 2, function()
 		if Shorad.IsDead then
 			return "fail: SHORAD died first"
 		end
 
-		-- A dead ground target would idle the SHORAD, so a pass after this point
-		-- would prove nothing about preemption.
+		-- The t90 must outlive the test: its death would end the engagement and let a
+		-- plain idle rescan find the helicopter, which is not what this measures. It is
+		-- Heavy armour under a 25mm autocannon, so it comfortably survives.
 		if GroundTarget.IsDead then
-			return "fail: t90 died — SHORAD would go idle and rescan, so the test can no longer isolate preemption"
+			return "fail: t90 died — the engagement would end on its own, so this no longer isolates the fix"
 		end
 
 		if Heli == nil then
 			return false
 		end
 
-		if Shorad.IsIdle then
-			idleRun = idleRun + 1
-			if idleRun > worstIdleRun then
-				worstIdleRun = idleRun
-			end
-
-			if idleRun > MaxIdleTicks then
-				return string.format(
-					"fail: SHORAD sat idle for %d consecutive ticks while the helicopter was up — "
-					.. "the idle scan, not preemption, would acquire it, so this scenario cannot isolate the fix",
-					idleRun)
-			end
-		else
-			idleRun = 0
-		end
-
-		if Heli.IsDead then
+		if Heli.IsDead or Heli.Health < heliStartHealth then
 			return true
 		end
 
-		if Heli.Health < heliStartHealth then
-			return true
-		end
-
-		if elapsed >= DeadlineTicks then
+		ticksSinceSpawn = ticksSinceSpawn + 1
+		if ticksSinceSpawn >= DateTime.Seconds(DeadlineSeconds) then
 			return string.format(
-				"fail: SHORAD never damaged the helicopter in %ds — it stayed on the band-3 t90 "
-				.. "(heli HP %d/%d, longest idle gap %d ticks)",
-				DeadlineSeconds, Heli.Health, heliStartHealth, worstIdleRun)
+				"fail: SHORAD did not engage the band-5 helicopter within %ds of its arrival — "
+				.. "it stayed on the band-3 t90 (heli HP %d/%d)",
+				DeadlineSeconds, Heli.Health, heliStartHealth)
 		end
 
 		return false
-	end, "SHORAD never damaged the helicopter within " .. DeadlineSeconds .. "s")
+	end, "helicopter was never engaged")
 end

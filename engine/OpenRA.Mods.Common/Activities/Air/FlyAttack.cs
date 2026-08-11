@@ -105,7 +105,7 @@ namespace OpenRA.Mods.Common.Activities
 				return false;
 
 			target = target.Recalculate(self.Owner, out var targetIsHiddenActor);
-			attackAircraft.SetRequestedTarget(target, forceAttack);
+			attackAircraft.SetRequestedTarget(target, forceAttack, null, source);
 			hasTicked = true;
 
 			if (!targetIsHiddenActor && target.Type == TargetType.Actor)

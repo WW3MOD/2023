@@ -1,1 +1,1 @@
-Auto: a Stryker SHORAD already shooting a t90 (priority band 3) must switch to a helicopter (band 5) that appears in range, and damage it within 22s.
+Auto: a Stryker SHORAD already shooting a t90 (priority band 3) must switch to a helicopter (band 5) that appears in range, and damage it within 5s of its arrival.
