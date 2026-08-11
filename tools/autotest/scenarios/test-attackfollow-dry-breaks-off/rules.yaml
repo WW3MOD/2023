@@ -1,0 +1,33 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-attackfollow-dry-breaks-off.lua
+
+# ScanRadius 40 is a strictness measure, NOT load-bearing for this test's outcome. The Gunner is
+# given a DIRECT attack order, so its target never comes from an autotarget scan and removing this
+# pin would not change the verdict. It is here to keep the scenario honest if anyone later edits it
+# to rely on acquisition: unset (the shipped default of -1) the scan falls back to
+# AttackBase.GetMaximumRange, which skips ammo-PAUSED armaments as well as disabled ones, so a dry
+# tank's scan range collapses to zero — see WORKSPACE/DISCOVERIES.md 2026-08-11. Pinning it is also
+# not an unshipped configuration: arena-tank-duel, river-zeta-ww3 and shellmap-open-field all pin
+# ScanRadius map-locally for the same reason.
+^Combatant:
+	AutoTarget:
+		ScanRadius: 40
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32

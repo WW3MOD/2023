@@ -197,6 +197,27 @@ namespace OpenRA.Mods.Common.Traits
 			return any;
 		}
 
+		/// <summary>
+		/// "This actor must not be holding an attack order" — every pool empty
+		/// (<see cref="AllPoolsEmpty(Actor)"/>) on an actor that is not an aircraft.
+		///
+		/// Aircraft are carved out deliberately, matching <see cref="AutoRearmIfAllEmpty"/> and
+		/// <see cref="AutoRearmIfAnyNotFull"/> directly below. A dry aircraft rearms through its own
+		/// idle ReturnToBase flow (Aircraft.cs), which is reached by the attack activity ending on the
+		/// aircraft's terms; tearing that activity down from the outside fights that flow instead of
+		/// helping it. Ground units have no such self-recovery, which is why they need this.
+		///
+		/// Note what this is NOT keyed on, because each alternative has already been wrong once:
+		/// not <see cref="Rearmable.RearmableAmmoPools"/> (answers a different question — see
+		/// AllPoolsEmpty), not "every armament paused" (PauseOnCondition also carries
+		/// garrisoned-at-port, which would call a garrisoned man with a full magazine dry), and not
+		/// the red-ammo-pip YAML condition (implied by this, but not equal to it).
+		/// </summary>
+		public static bool CannotFight(Actor self)
+		{
+			return AllPoolsEmpty(self) && !self.Info.HasTraitInfo<AircraftInfo>();
+		}
+
 		public void AutoRearmIfAllEmpty(Actor self)
 		{
 			var ammoPools = self.TraitsImplementing<AmmoPool>();

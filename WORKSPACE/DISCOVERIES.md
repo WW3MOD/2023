@@ -3086,3 +3086,131 @@ Caught in review of the medic branch, and worth keeping for the shape rather tha
 The guard ran before the in-range early-out, so the second case fell into it. A medic parked correctly beside his squadmate logged four consecutive "no cell change" checks, benched that squadmate for ~100 ticks, and then lagged the squad by up to four seconds — on a repeating cycle. **The branch existed to stop medics being left behind, and it shipped a guard that dropped the escorted man every four seconds precisely because the escort was working.** It passed the branch's own autotest, because that test asserts the patient gets healed and healing happens well inside the first bench cycle.
 
 The general rule: **whenever a failure detector keys on the absence of something (no movement, no ammo gained, no progress, no response), enumerate the success states that also produce that absence and exit on them FIRST.** A detector placed before the success check does not measure failure, it measures stillness — and arrival, completion, and being-already-correct are all still. Mechanically: put the "we're done / we're fine" early-out ahead of the guard, and have that path *refresh* the guard's state rather than merely skipping it, or the counters stay warm and the guard fires the moment anything else briefly stalls.
+## 2026-08-10 — `AutoSeekSupplies.ReturnWhenEmpty` DELIBERATELY DECLINES TO INTERRUPT WHEN NO HOST IS IN LEASH, AND THAT DECLINE BRANCH IS WHERE THE STUCK-DRY-UNIT BUG ACTUALLY LIVES
+
+Reading `AutoSeekSupplies` (`AutoSeekSupplies.cs:224+`) it is easy to conclude the "dry unit keeps its attack order" complaint is already solved — the trait is an `ITick` that explicitly exists to interrupt a live order on `AmmoPool.AllPoolsEmpty`. It is not solved, and the gap is stated in the trait's own code: when `ChooseResupplier` returns null, the host is out of the world, or it fails `WithinReturnLeash` (`ReturnWhenEmptyLeashCells`, default 30), the trait **flags `NeedsResupply` and leaves the unit's current order alone** — "an unreachable errand is worse than none". That decision is correct on its own terms and should stay.
+
+What it means is that outside the leash the unit keeps an attack order it can never discharge, which is not a neutral state: the attack activities park on it forever (below), so the unit is not merely un-helped, it is **frozen and never idle**, and therefore invisible to every idle-triggered mechanism including `AmmoPool`'s own unleashed dispatch. The trait's gap and the activity's stall compound into a unit deleted from the game in all but name.
+
+- **Two more populations get nothing from the trait at all**: anything without `Rearmable` (the ITick returns immediately on `rearmable == null`) and anything without `AutoSeekSupplies` in its template. **The second of those is every vehicle in the game** — and vehicles are emphatically NOT infinite-ammo, see the file-layout entry below. So for a dry tank there is no seek trait at all, and the guards in the attack activities are the *only* thing that can release it from an order it can never discharge. (An earlier revision of this entry claimed vehicles were infinite-ammo. That was wrong, and the way it was got wrong is itself recorded below.)
+- **The reusable rule**: `AutoSeekSupplies.ReturnWhenEmpty` bounds *what it will interrupt an order for*. It is not, and was never claimed to be, a guarantee that a dry unit stops attacking. If you need the latter, it belongs in the attack activities, not in the seek trait.
+
+## 2026-08-10 — THE ATTACK ACTIVITIES NEVER CONSULT AMMO, SO A DRY UNIT HOLDS ITS ATTACK ACTIVITY FOR THE REST OF THE MATCH
+
+`AttackBase.ChooseArmamentsForTarget` (`AttackBase.cs:409-434`) filters on `IsTraitDisabled` only — there is a literal `// FF TODO Check ammo?` at the top of the `Where`. `IsTraitPaused`, which is what `PauseOnCondition: !ammo-primary` actually sets, is never consulted. The consequences run all the way down:
+
+- `AutoTarget.ChooseTarget` uses that same unfiltered call (`AutoTarget.cs:1099`), so **a unit with zero ammo still acquires targets normally.** It is not passively ignored by the targeting layer; it actively signs up for fights.
+- `Activities/Attack.cs` `TickAttack` therefore reports `AttackStatus.Attacking`, `DoAttack` calls `CheckFire`, and `Armament.CanFire` silently declines because the armament is ammo-paused. `Tick` returns `false` (`Attack.cs:186-187`) — every tick, forever. The turreted twin is `AttackFollow.cs`'s `AttackActivity.Tick`, which parks on its final `return false`.
+- `GetMaximumRangeVersusTarget` (`AttackBase.cs:593-625`) is what makes the stall *stationary* rather than self-correcting: it has an explicit `maxFallback` that returns the paused armament's range "when ALL weapons are out of ammo". So a dry unit computes a perfectly good engagement range, walks to it, and stops. Had it returned `WDist.Zero` the activity would have terminated on its own.
+- Because `Actor.IsIdle` is `CurrentActivity == null`, none of this is ever observable to `INotifyBecomingIdle`. **The unit is busy, and what it is busy with is nothing.**
+
+Fixed by testing `AmmoPool.CannotFight` at the top of both attack activities and of `AttackMoveActivity.Tick`. Note the third one is not optional: aborting only the attack children un-sticks the engagement but leaves the attack-move to resume marching, so the unit reaches idle only at the far end of its original order.
+
+**PITFALL for anyone adding a new "can this unit fight" test**: there are four plausible predicates here and three of them are wrong. Not `Rearmable.RearmableAmmoPools` (different question — see the 13-of-14 entry above), not "every armament `IsTraitPaused`" (`PauseOnCondition` also carries `garrisoned-at-port`, `infantry.yaml:52`, so a garrisoned man with a full magazine reads as dry), not the `^AmmoDecoration` red-pip condition (implied by, not equal to). `AmmoPool.CannotFight` / `AllPoolsEmpty` is the one.
+
+## 2026-08-10 — SUPPLY-ROUTE "ATTACK" ORDERS ARE PRESENCE ORDERS, AND A DRY UNIT IS A PERFECTLY GOOD CONTESTER
+
+`AttacksSupplyRoutes` reads like an attack trait and its order is literally named `AttackSupplyRoute`, so it invites being swept up in any "stop dry units from attacking" change. It must not be. `AttackSupplyRoute` (`Activities/AttackSupplyRoute.cs`) never fires a weapon — it moves into `SupplyRouteContestation.Info.Range` and stands there until the situation resolves — and `SupplyRouteContestation.RecalculateForces` (`SupplyRouteContestation.cs:184-206`) scores the zone purely on `ValuedInfo.Cost` of the actors present, with no reference to ammunition, armaments, or ability to fire.
+
+So an out-of-ammo unit parked on an enemy SR is **doing the whole job the order asked of it**, and the same holds for the allied-SR defensive case. Blocking the order on a dry check would remove one of the few things a dry unit can still usefully do, and it would not even be fixing a stall: the activity has no aim-forever branch, it just stands in the zone contributing value. The name is the trap.
+
+## 2026-08-10 — `vehicles.yaml` CONTAINS ALMOST NO VEHICLES, AND READING IT ALONE TELLS YOU THE OPPOSITE OF THE TRUTH ABOUT VEHICLE AMMUNITION
+
+Grepping `mods/ww3mod/rules/ingame/vehicles.yaml` for `AmmoPool` returns one live block (`MNLY`'s 10 mines) and nine commented-out ones, which reads exactly like "vehicles used to have ammo and it was disabled". **That conclusion is false, and I drew it and had to retract it.** Two independent traps stacked:
+
+1. **`vehicles.yaml` holds the shared `^Vehicle` / `^TrackedVehicle` / `^WheeledVehicle` templates plus a handful of unarmed support units** (`MSAR`, `MNLY`, `truk`, `LCCV`). Every actual combat vehicle lives in `vehicles-america.yaml`, `vehicles-russia.yaml` and `vehicles-ukraine.yaml`. The naming invites you to treat one file as the whole subsystem.
+2. **The commented-out `AmmoPool` blocks in `vehicles.yaml` are not disabled pools on live units — they are parts of two entirely commented-out ACTORS**, `SandBagLayer` (~`:634`) and `timberwolf` (~`:693`), units that are not in the game at all. Commented out in `296a529c` (2023-06-20, "Commented out some vehicles"). A commented `AmmoPool@1:` line looks identical whether it is a disabled trait or a fragment of a disabled actor.
+
+**The truth: every ARMED vehicle in the game carries a live pool, and the capacities are deliberately small.** Full audit of all four vehicle files, so nobody has to re-derive it:
+
+| file | actor | live pools (capacity) |
+|---|---|---|
+| `vehicles-america.yaml` | `humvee` | 300 |
+| | `m113` | 500 |
+| | `bradley` | 900 + 8 |
+| | `abrams` | **40** |
+| | `m109` | **39** |
+| | `m270` | **12** |
+| | `strykershorad` | 400 + 8 + 4 |
+| | `HIMARS` | **2** |
+| `vehicles-russia.yaml` | `btr` | 500 |
+| | `bmp2` | 900 + 8 |
+| | `t90` | **40** |
+| | `giatsint` | **39** |
+| | `grad` | 40 |
+| | `tos` | **24** |
+| | `tunguska` | 180 + 8 |
+| | `iskander` | **2** |
+| `vehicles-ukraine.yaml` | `t72` | **40** |
+| `vehicles.yaml` | `MNLY` | 10 (`mines-ammo`, feeds `Minelayer`, not an armament) |
+
+**The only vehicles with NO pool are the ones with no gun**: `MSAR`, `TRUK`, `LCCV` (unarmed support, all in `vehicles.yaml`), the shared `^Vehicle` / `^WheeledVehicle` / `^TrackedVehicle` / `^Walker` templates, and the two projectile-carrier actors `HIMARSMissile` / `IskanderMissile`. There is no armed vehicle anywhere that shoots without drawing from a pool.
+
+Every armed one carries `PauseOnCondition: !ammo-primary || …` on the armament. At 40 rounds for a main battle tank and 2 for `iskander`/`HIMARS`, a vehicle running dry mid-battle is not an edge case — it is the normal course of a fight.
+
+**Two structural splits inside that roster, both of which I first got wrong by generalising from the tanks:**
+
+- **Attack trait is NOT uniformly `AttackTurreted`.** `giatsint` (`vehicles-russia.yaml:489`) and `iskander` (`:987`) are `AttackFrontal`; the other fifteen are `AttackTurreted`. Since `AttackFrontal.GetAttackActivity` returns `Activities.Attack` and `AttackTurreted` inherits `AttackFollow.AttackActivity`, **the vehicle roster is split across BOTH guarded attack activities.** `Activities/Attack.cs` is therefore not the infantry-only path it looks like — it also carries those two vehicles.
+- **Three armed vehicles have no `Rearmable` at all**: `m270`, `grad`, `tos`. Not a filtered pool list — the trait is absent, so `ChooseResupplier` can never find them a host, and the LC push cannot reach them either (it is gated on the recipient declaring `replenish-vehicles`, which only `himars` and `iskander` do). **Once spent they can never rearm by any mechanism in the game.** That is deliberate: they are exactly the rocket artillery that overrides `ResupplyBehavior: Evacuate`, so the design answer for a spent Grad is "drive off the map for a refund", not "go and reload". Do not read "vehicles rearm at the Logistics Centre" as covering all of them.
+
+Two consequences that matter more than the file layout:
+
+- **No vehicle has `AutoSeekSupplies`.** None of that trait's machinery — neither the idle seek nor `ReturnWhenEmpty` — applies to a single one of them, whatever their `Rearmable` status. So whatever releases a dry tank from an attack order has to live in the attack activities; there is no seek trait to fall back on.
+- **`AttackTurreted` derives from `AttackFollow` and does not override `GetAttackActivity`, so the fifteen turreted vehicles run `AttackFollow.AttackActivity`** — the busiest attack path in the mod by unit count, not a rare one. The remaining two (`giatsint`, `iskander`) run `Activities.Attack` alongside the infantry, per the split above.
+
+**MNLY is the one actor whose live pool is invisible to all of this**, and it is worth knowing why: it has no `Armament` and does not inherit `^AutoTarget`, so it has no `AttackBase`, no `AttackMove` and no `AttacksSupplyRoutes`. A minelayer that has laid all ten mines reads as `AllPoolsEmpty` — but it can never hold an attack order in the first place, so nothing that gates on emptiness can reach it. Check that before assuming a dry-unit rule "also affects the minelayer".
+
+**Reusable rule: before concluding anything about "all vehicles", run `for f in $(grep -rl X mods/ww3mod/rules/); do …` rather than grepping the file whose name matches the concept.** The per-faction split means the file named after a category is frequently the least representative member of it.
+
+## 2026-08-10 — ENDING A DRY UNIT'S ATTACK ACTIVITY HANDS IT STRAIGHT BACK TO `AutoTarget.TickIdle`, WHICH RE-ISSUES THE SAME ATTACK — the guard needs the unit to come to rest OUT of weapon range to settle
+
+`AutoTarget` is `INotifyIdle` with `ScanOnIdle` defaulting to true (`AutoTarget.cs:64`, `:606-622`), so the tick after an attack activity ends, an idle unit rescans and `ScanAndAttack` queues a fresh attack via `AttackTarget`. `ChooseTarget` still does not consult ammo (it calls the same unfiltered `ChooseArmamentsForTarget`), so a dry unit re-acquires perfectly well. **Ending the activity does not, on its own, mean the unit stays idle.**
+
+What actually stops the loop is a range coincidence: `ChooseTarget` filters armaments to those already in range whenever `allowMove` is false, and `allowMove` is false for every engagement stance below Hunt. A unit that halts *outside* its own weapon range therefore finds no candidate and rests. A dry unit sitting *inside* weapon range of a visible enemy will instead cycle — queue attack, guard ends it, go idle, re-queue.
+
+**Two bounds on that cycle, both of which I originally got wrong by describing it as per-tick:**
+
+- **It is throttled to one pass per scan interval, not one per tick.** `ScanForTarget` returns immediately unless `nextScanTime <= 0`, and re-arms it to `SharedRandom.Next(MinimumScanTimeInterval, MaximumScanTimeInterval)` on every scan (`AutoTarget.cs:934-937`) — 16–32 ticks for WW3MOD infantry. So the unit is idle for the whole interval and non-idle for roughly the single tick the re-issued attack survives, not flickering at tick resolution.
+- **It cannot happen to a vehicle at all**, for a reason that is a defect in its own right (see the scan-radius entry below): no vehicle pins `AutoTarget.ScanRadius`, so a dry one's scan range collapses to zero and it acquires nothing to re-attack. Only infantry — which pin `ScanRadius: 25` at `infantry.yaml:288` — can enter this cycle.
+
+That cycle is not inert, and mostly in a good way: each pass through idle fires `AmmoPool.INotifyBecomingIdle` → `AutoRearmIfAllEmpty`, so the moment any resupplier is reachable the unit is dispatched and the loop terminates on its own. It is a bounded retry, and strictly better than the permanent freeze it replaces — which asked for resupply exactly once and then never again. With no resupplier anywhere the unit is stationary and harmless, but `IsIdle` alternates rather than latching, which matters to anything gating on it (bot modules, `StarvingRecruitGate`, selection filters).
+
+**It cannot race the resupply it dispatches.** `Actor.Tick` (`:286-301`) is `if (!wasIdle && IsIdle) { OnBecomingIdle…; RunActivity again } else if (wasIdle) { TickIdle… }` — the two arms are mutually exclusive, so the tick that dispatches a resupply is never the tick that re-issues an attack, and a re-acquired attack cannot stomp a queued errand.
+
+**MEASURED, not predicted** (`test-dry-inrange-idle-oscillation`: a dry rifleman 8 cells from a live target, no resupplier anywhere, sampling `IsIdle` every tick for 250 ticks): **idle 246/250 ticks (98%), busy 4, 8 transitions.** The cycle is real — 4 complete idle→busy→idle rounds in 10 s — and it is cheap: one busy tick per round, idle 98% of the time. Nothing pathological, nothing resembling per-tick churn.
+
+The cadence came out **slower than the scan interval alone predicts**: ~62 ticks per round against `nextScanTime`'s 16–32. I did not instrument why (a scan that finds no candidate still re-arms the timer, so not every scan yields a re-issue), so treat 62 as "this setup", not as a constant.
+
+**What it DOES cost is shared-RNG stream position** — see the `SharedRandom` entry below. At 4 rounds per 10 s, one dry in-range soldier consumes on the order of a dozen extra synced draws per 10 s that the pre-fix frozen unit consumed none of. That is the part worth disclosing on a benchmark branch, not the CPU.
+
+**If this needs closing, the place is `AutoTarget` — teaching the scan itself not to acquire for a unit that cannot fire — not another guard in the activities.** That is the same `// FF TODO Check ammo?` at `AttackBase.cs:428` seen from the other end, and it would be a behavioural change to opportunity fire, so it wants its own branch and its own measurement rather than being smuggled in alongside the activity guards.
+
+## 2026-08-11 — A PAUSED ARMAMENT SHRINKS THE UNIT'S AUTOTARGET SCAN RADIUS TO ZERO, so an EMP'd / suppressed / badly damaged / dry vehicle stops SEEING as well as stops shooting
+
+`AutoTarget.ScanForTarget` picks its scan range as `Info.ScanRadius > 0 ? WDist.FromCells(Info.ScanRadius) : ab.GetMaximumRange()` (`AutoTarget.cs:945`). The fallback is the trap: `AttackBase.GetMaximumRange` (`:545-566`) skips every armament that is `IsTraitDisabled` **or `IsTraitPaused`**. So when all armaments are paused it returns `WDist.Zero`, the scan circle is a point, and the unit auto-acquires nothing at all.
+
+**`ScanRadius` is pinned on exactly two lines of shipped unit rules, both infantry** (`infantry.yaml:288` and `:2280`, `ScanRadius: 25`). **No vehicle pins it**, so every vehicle in the game runs the engine default `-1` and takes the fallback. Three shipped maps pin it map-locally (`arena-tank-duel`, `river-zeta-ww3/scenarios.yaml`, `shellmap-open-field`), which is also why a bug here can hide in exactly the scenarios people test with.
+
+**This is not an ammo story — ammo is just the case I arrived through.** Any `PauseOnCondition` on the armament does it, and the shipped set is broad: `empdisable` (46 uses), `unit.docked` (14+), `disabled` (13), `heavy-damage-attained`, `garrisoned-at-port`, `suppressed >= 10`, `inwater`, `firing`, `build-incomplete`. Concretely, on current rules:
+
+- An **EMP'd** vehicle does not merely hold fire, it goes blind and forgets to look.
+- A vehicle below 50% HP has `heavy-damage-attained` on its armament (15 vehicles), so a damaged tank's autotarget radius collapses at the same instant its gun locks.
+- A **suppressed** unit (`suppressed >= 10`) stops scanning — directly relevant to the suppression work, since "suppressed units don't return fire" and "suppressed units cannot see targets to return fire at" are different mechanisms with different recovery behaviour.
+- A unit **`inwater`** or garrisoned likewise.
+
+**Consequence for anyone reasoning about, or testing, autotarget behaviour under a pause condition: the unit is not just weapons-tight, it is sensor-dead, and it will not re-acquire the instant the condition lifts either** — it re-acquires on its next scan tick. Pre-existing, not introduced by the ammo-guard branch and deliberately not fixed there; the branch only made it *visible*, because a dry vehicle is the first case where somebody asked "why didn't it re-acquire?". If it is ever fixed, the honest fix is for the fallback to use unpaused-if-any-else-all range (the same `maxFallback` shape `GetMaximumRangeVersusTarget` already uses at `AttackBase.cs:593-625`), not to sprinkle `ScanRadius` onto every vehicle.
+
+## 2026-08-11 — A UNIT THAT BECOMES IDLE CONSUMES `SharedRandom`, so "it now goes idle instead of freezing" is a DETERMINISM change, not only a behaviour change
+
+Idle is not a quiet state in this engine. Three shipped consumers draw from the synced RNG on the idle path:
+
+- **`WithInfantryBody.TickIdle` draws TWICE** per `Waiting → Idle` transition — `IdleSequences.Random(self.World.SharedRandom)` and `SharedRandom.Next(MinIdleDelay, MaxIdleDelay)` (`:206-207`, delays 30–110). Gated on `IdleSequences.Length > 0`, which 12 soldier classes in `infantry.yaml` declare.
+- **That state re-arms itself.** `WithInfantryBody.Tick` (`:190-192`) calls `PlayStandAnimation` — which sets `state = Waiting` (`:128`) — whenever a unit in `Idle`/`IdleAnimating` becomes non-idle. So every idle→busy→idle cycle buys a fresh pair of draws, and a permanently idle soldier also keeps drawing forever via the `Idle → IdleAnimating → PlayStandAnimation → Waiting` animation loop.
+- **`AutoTarget.ScanForTarget` draws once per scan** to re-arm `nextScanTime` (`:937`).
+- `TurnOnIdle` draws too (`:55-56`) but **is not used anywhere in WW3MOD rules** — noted so nobody re-checks it.
+
+**Why this matters more than it looks.** Before the ammo guard, a dry unit under orders was never idle, so it consumed none of these draws for the rest of the match. Now it goes idle and starts consuming them — and `SharedRandom` is a single synced stream, so every draw shifts stream position for **every** later consumer in the match, not just for that unit. The behavioural change is local; the RNG consequence is global.
+
+**So the benchmark-relevant statement is not "bots issue the same orders and therefore see the guard".** It is: *dry units now become idle, which feeds every idle-triggered trait and every `IsIdle`-gated bot census that previously never saw them, and moves the shared RNG stream.* Any @stable baseline taken before this cannot be compared tick-for-tick with one taken after, even where the tactical outcome is identical. Re-take the baseline; do not diff replays across it.
+
+This is a property of the engine's idle path, not of the guard — but the guard is what makes units reach it, so it is the guard's disclosure to carry.

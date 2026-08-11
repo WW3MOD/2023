@@ -472,6 +472,16 @@ namespace OpenRA.Mods.Common.Traits
 				if (!order.Target.IsValidFor(self))
 					return;
 
+				// Don't accept an attack order the unit cannot carry out at all. Force-attack is refused
+				// too: the player pressing Ctrl is asking to ignore target relationships, not to conjure
+				// ammunition. The running-order guards in the attack activities are the ones that fix the
+				// stuck unit; this only keeps a new dead order off the queue in the first place.
+				// Scoped to unqueued orders: ammo NOW only settles an order that executes now, and an
+				// attack queued behind a resupply is a plan rather than a mistake. The Attack activity's
+				// own guard rules on it at the moment it comes up.
+				if (!order.Queued && AmmoPool.CannotFight(self))
+					return;
+
 				AttackTarget(order.Target, AttackSource.Default, order.Queued, true, forceAttack, Info.TargetLineColor);
 				self.ShowTargetLines();
 			}
@@ -742,6 +752,11 @@ namespace OpenRA.Mods.Common.Traits
 				var target = Target.FromCell(self.World, location);
 				var armaments = ab.ChooseArmamentsForTarget(target, true);
 				if (!armaments.Any())
+					return false;
+
+				// Force-attack-ground had no dry check at all, so a unit with nothing left still showed the
+				// attack cursor on terrain. CanTargetActor above refuses actor targets on the same grounds.
+				if (AmmoPool.CannotFight(self))
 					return false;
 
 				armaments = armaments.OrderByDescending(x => x.MaxRange());

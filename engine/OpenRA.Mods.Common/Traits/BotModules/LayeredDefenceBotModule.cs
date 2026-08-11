@@ -804,10 +804,7 @@ namespace OpenRA.Mods.Common.Traits
 		// Partial-ammo units (one pool empty, another full) return false — still useful.
 		static bool IsOutOfAmmo(Actor actor)
 		{
-			var pools = actor.TraitsImplementing<AmmoPool>().ToList();
-			if (pools.Count == 0)
-				return false;
-			return pools.All(p => p.CurrentAmmoCount == 0);
+			return AmmoPool.AllPoolsEmpty(actor);
 		}
 
 		// Shift `from` toward `toward` by `cells` map cells. If the points are

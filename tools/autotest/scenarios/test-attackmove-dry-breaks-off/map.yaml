@@ -1,0 +1,79 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Dry AttackMove Breaks Off (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# The AR's 5.56mm reaches 14c0 and its AutoTarget scans 30c (rules.yaml), so the target starts
+	# ACQUIRED but OUT OF RANGE at 16 cells. That gap is load-bearing: it lets the Lua drain the
+	# magazine while the man is still marching, so he is dry before he ever gets a shot off — the
+	# target survives the whole run and keeps him engaged.
+	Hunter: ar
+		Owner: USA
+		Location: 8,16
+		Facing: 768
+	# Second man on a DIRECT attack order rather than an attack-move. He covers a different guard:
+	# Hunter's attack-move is aborted by AttackMoveActivity (the parent), which cancels its attack
+	# child before that child's own guard is ever consulted — so Hunter alone proves nothing about
+	# Activities/Attack.cs. Shooter has no attack-move parent, so the guard in Attack.Tick is the
+	# only thing that can end his order. Placed 16.5 cells out so he too is acquired-but-out-of-range
+	# and cannot get a shot off before the drain.
+	Shooter: ar
+		Owner: USA
+		Location: 8,20
+		Facing: 768
+	Target: e1
+		Owner: Russia
+		Location: 24,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 24,16
+	# One SR per faction (AUTOTEST.md): keeps a side alive when its actors die so the verdict gets
+	# written. Neither is a rearm host — Rearmable.RearmActors is truk/logisticscenter — so their
+	# presence cannot resupply the Hunter and quietly undo the dry state this test depends on.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

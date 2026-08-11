@@ -35,6 +35,11 @@ namespace OpenRA.Mods.Common.Activities
 		// completes and the unit drops to idle (AmbushTickIdle owns the ambush from there).
 		bool haltedForAmbush = false;
 
+		// Latched once the unit has run itself completely dry. Same drain-then-finish shape as
+		// haltedForAmbush: stop scanning and advancing, let the cancelled move child wind down, then
+		// end the attack-move so the unit drops to idle.
+		bool haltedForEmptyAmmo = false;
+
 		/// <summary>The original destination cell, cached at construction time for reliable group scatter extraction.</summary>
 		public readonly CPos? OriginalDestination;
 
@@ -78,6 +83,24 @@ namespace OpenRA.Mods.Common.Activities
 			// true and the attack-move completes, dropping the unit to idle.
 			if (haltedForAmbush)
 				return TickChild(self);
+
+			// Completely out of ammo: END the march rather than un-sticking the engagement and walking
+			// on to the destination with nothing to fire. The attack children abort themselves (see
+			// Activities/Attack.cs), but without this the unit would just resume advancing and only
+			// reach idle at the far end of the order. Ending here hands the unit to
+			// AmmoPool.INotifyBecomingIdle -> AutoRearmIfAllEmpty, which is what picks the right
+			// disposition per resupply stance (Auto: rearm, Hold: stay put and flag, Evacuate: rotate out).
+			if (haltedForEmptyAmmo || AmmoPool.CannotFight(self))
+			{
+				if (!haltedForEmptyAmmo)
+				{
+					haltedForEmptyAmmo = true;
+					runningMoveActivity = false;
+					ChildActivity?.Cancel(self);
+				}
+
+				return TickChild(self);
+			}
 
 			var engStance = autoTarget.EngagementStanceValue;
 

@@ -2739,13 +2739,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		// "Out of ammo" = the unit has AmmoPool traits AND every pool is empty. Units with no
 		// AmmoPool always return false; partial-ammo units (one pool empty, another full) too.
-		// Copied verbatim from LayeredDefenceBotModule so both modules share the same predicate.
 		static bool IsOutOfAmmo(Actor actor)
 		{
-			var pools = actor.TraitsImplementing<AmmoPool>().ToList();
-			if (pools.Count == 0)
-				return false;
-			return pools.All(p => p.CurrentAmmoCount == 0);
+			return AmmoPool.AllPoolsEmpty(actor);
 		}
 
 		// Remove units that died / changed owner / lost their axis commitment.

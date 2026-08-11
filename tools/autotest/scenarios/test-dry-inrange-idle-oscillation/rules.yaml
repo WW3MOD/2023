@@ -1,0 +1,30 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-dry-inrange-idle-oscillation.lua
+
+# Stances only. ScanRadius is deliberately NOT pinned here: ^CamoSoldier already ships
+# ScanRadius: 25 for infantry (infantry.yaml:288), and leaving it alone keeps this measurement on
+# the shipped configuration. Pinning it would also mask the very interaction being measured.
+^Combatant:
+	AutoTarget:
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
+
+# Start the man dry so he never fires and the target survives to hold his attention.
+AR:
+	AmmoPool@1:
+		InitialAmmo: 0

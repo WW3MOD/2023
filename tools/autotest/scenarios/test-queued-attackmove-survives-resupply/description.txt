@@ -1,0 +1,1 @@
+Auto: an attack-move QUEUED behind a resupply on a dry unit must survive to be carried out once it rearms.
