@@ -1,0 +1,1 @@
+Auto: the HoldPosition stance switches the halt OFF -- the truck obeys its move order and drives past.

@@ -1,0 +1,67 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: An Empty Truck Under Orders Breaks Off And Evacuates (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Empty, and placed hard against the west side. The truck's shipped ResupplyBehavior is Evacuate,
+	# so breaking off means RotateToEdge to the NEAREST edge: from x=10 that is west, ten cells away,
+	# whereas from the ordered destination at x=58 it would be east. The two dispositions therefore
+	# leave the truck at opposite ends of the map, which is what makes the x-line below a clean
+	# discriminator rather than a stopwatch.
+	#
+	# There is deliberately NO Logistics Centre on this map. With one, EvacuateOrRestock could take
+	# the restock arm and the verdict would depend on which arm ran.
+	Truck: truk
+		Owner: USA
+		Location: 10,16
+		Supply: 0
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

@@ -1,0 +1,1 @@
+Auto: an empty truck driving to a Logistics Centre to refill must NOT have that drive cancelled.

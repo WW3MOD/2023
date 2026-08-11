@@ -1,0 +1,67 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: The Dry Break-Off Spares A Restock Drive (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Empty and on the Auto resupply stance (rules.yaml), which is the combination that produces a
+	# restock drive rather than an evacuation: DropsSupplyCache.OnBecomingIdle fires on the first
+	# idle tick, takes the Auto arm, and sends the truck to the depot. Nothing here issues an order
+	# -- the shipped traits do it, which is the point. The truck is empty for the whole drive, so
+	# the dry break-off is asked about it on every single scan.
+	Truck: truk
+		Owner: USA
+		Location: 10,16
+		Supply: 0
+	Depot: logisticscenter
+		Owner: USA
+		Location: 50,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

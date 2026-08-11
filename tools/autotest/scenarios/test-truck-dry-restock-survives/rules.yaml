@@ -1,0 +1,23 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-truck-dry-restock-survives.lua
+
+TRUK:
+	AutoTarget:
+		# TRUK ships Evacuate, under which an empty truck rotates to the map edge and sells itself.
+		# Auto is the stance that produces a restock drive at all, so it is the stance this control
+		# has to run -- the drive is the thing being protected.
+		InitialResupplyBehavior: Auto
+		InitialResupplyBehaviorAI: Auto
