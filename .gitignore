@@ -61,3 +61,6 @@ __pycache__/
 
 # Maestro/Claude ephemeral session locks
 .claude/scheduled_tasks.lock
+
+# Cameo conversion staging (tools/cameo)
+/tools/cameo/work/
