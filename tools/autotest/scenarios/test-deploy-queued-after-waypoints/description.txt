@@ -1,0 +1,1 @@
+A supply truck is given two shift-queued move waypoints and then a shift-queued deploy. The crate must land at the LAST waypoint (28,16), not at the cell the truck was standing on when the order was issued (8,16). Twenty cells separate the two answers, so the verdict cannot be misread.

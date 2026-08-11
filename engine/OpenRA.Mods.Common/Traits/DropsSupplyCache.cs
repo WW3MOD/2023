@@ -97,7 +97,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// each of which can refuse silently. So a user reporting "I have never once seen a crate" could not be
 		/// distinguished from a user who had simply never looked in the right place. One line per drop, and a
 		/// drop empties the truck, so the volume is bounded by the number of loads a match delivers.</para></summary>
-		void DropSupplyCacheHere()
+		public void DropSupplyCacheHere()
 		{
 			if (supply == null || supply.CurrentSupply <= 0)
 				return;
@@ -153,9 +153,18 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
 		{
+			// QUEUE THE DROP; DO NOT PERFORM IT HERE. This used to call DropSupplyCacheHere() inline,
+			// which threw `order.Queued` away at the last layer that could still honour it — the
+			// targeter, the order constructor and the wire all carry the Shift modifier faithfully,
+			// and then the unload happened at resolution time regardless. A shift-queued deploy is the
+			// ordinary way to say "drive there, THEN unload", and it dumped the whole load under the
+			// truck's wheels at the beachhead instead, which is the one place it is worth nothing.
+			// PITFALL: an order handler that does its work inline is invisible to the queued flag no
+			// matter how carefully every layer above it passed the flag down.
 			if (order.OrderString == "DropSupplyCache")
 			{
-				DropSupplyCacheHere();
+				self.QueueActivity(order.Queued, new UnloadSupplyCache(this));
+				self.ShowTargetLines();
 				return;
 			}
 
@@ -415,6 +424,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IIssueDeployOrder.CanIssueDeployOrder(Actor self, bool queued)
 		{
+			// A QUEUED deploy is judged on the supply we hold, not on the cell we happen to be standing
+			// on right now: it fires at the END of the queue, at a cell the truck has not reached yet,
+			// so testing THIS cell's occupancy would swallow the order — silently, since the command bar
+			// simply filters out actors that answer false — for a reason that will not be true when it
+			// runs. Occupancy is knowable only on arrival, and DropSupplyCacheHere re-tests it there by
+			// merging into whatever cache already holds the cell. Same shape as
+			// GrantChargedConditionOnToggle, which likewise relaxes its now-gate for queued orders.
+			if (queued)
+				return supply != null && supply.CurrentSupply > 0;
+
 			return CanDropCache();
 		}
 
