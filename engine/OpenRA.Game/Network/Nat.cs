@@ -10,6 +10,7 @@
 #endregion
 
 using System;
+using System.Net;
 using System.Threading;
 using Mono.Nat;
 
@@ -17,9 +18,24 @@ namespace OpenRA.Network
 {
 	public enum NatStatus { Enabled, Disabled, NotSupported }
 
+	/// <summary>
+	/// How the last port forward attempt ended. A bare success/failure cannot tell a host whether
+	/// discovery was switched off, whether the router was never found, or whether it was found and
+	/// refused the mapping — three different problems with three different fixes.
+	/// </summary>
+	public enum NatForwardStatus { NotAttempted, DiscoveryDisabled, NoDeviceFound, DeviceRejected, Forwarded }
+
 	public static class Nat
 	{
 		public static NatStatus Status => NatUtility.IsSearching ? natDevice != null ? NatStatus.Enabled : NatStatus.NotSupported : NatStatus.Disabled;
+
+		public static NatForwardStatus ForwardStatus { get; private set; } = NatForwardStatus.NotAttempted;
+
+		/// <summary>
+		/// The WAN address of the discovered router, or null when no device was found — in which case
+		/// it is genuinely unknowable from here and must not be guessed at.
+		/// </summary>
+		public static IPAddress ExternalAddress { get; private set; }
 
 		static Mapping mapping;
 		static INatDevice natDevice;
@@ -51,6 +67,19 @@ namespace OpenRA.Network
 
 				Log.Write("nat", $"Device found: {natDevice.DeviceEndpoint}");
 				Log.Write("nat", $"Type: {natDevice.NatProtocol}");
+
+				// Needed to tell "the router cannot open this port" apart from "the ISP has put us
+				// behind carrier-grade NAT, so no router can ever open it".
+				try
+				{
+					ExternalAddress = await natDevice.GetExternalIPAsync();
+					Log.Write("nat", $"External address: {ExternalAddress}");
+				}
+				catch (Exception e)
+				{
+					Log.Write("nat", "Failed to query the external address.");
+					Log.Write("nat", e);
+				}
 			}
 			finally
 			{
@@ -58,10 +87,19 @@ namespace OpenRA.Network
 			}
 		}
 
-		public static bool TryForwardPort(int listen, int external)
+		public static NatForwardStatus TryForwardPort(int listen, int external)
 		{
 			if (natDevice == null)
-				return false;
+			{
+				// Status distinguishes "never started searching" (the setting is off) from "searching
+				// but nothing answered" (the router does not speak UPnP/NAT-PMP, or has it disabled).
+				ForwardStatus = Status == NatStatus.Disabled ? NatForwardStatus.DiscoveryDisabled : NatForwardStatus.NoDeviceFound;
+				Log.Write("nat", ForwardStatus == NatForwardStatus.DiscoveryDisabled
+					? "Not forwarding: UPnP/NAT-PMP discovery is disabled in the settings."
+					: "Not forwarding: discovery is running but no UPnP/NAT-PMP device was found.");
+
+				return ForwardStatus;
+			}
 
 			var lifetime = Game.Settings.Server.NatPortMappingLifetime;
 			mapping = new Mapping(Protocol.Tcp, listen, external, lifetime, "OpenRA");
@@ -71,12 +109,13 @@ namespace OpenRA.Network
 			}
 			catch (Exception e)
 			{
-				Log.Write("nat", "Port forwarding failed.");
+				Log.Write("nat", $"Port forwarding failed: the device refused a TCP {external} -> {listen} mapping.");
 				Log.Write("nat", e);
-				return false;
+				return ForwardStatus = NatForwardStatus.DeviceRejected;
 			}
 
-			return true;
+			Log.Write("nat", $"Forwarded TCP {external} -> {listen} for {lifetime} seconds.");
+			return ForwardStatus = NatForwardStatus.Forwarded;
 		}
 
 		public static bool TryRemovePortForward()
