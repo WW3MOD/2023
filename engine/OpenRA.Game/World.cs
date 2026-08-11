@@ -623,6 +623,11 @@ namespace OpenRA
 			}
 		}
 
+		// PITFALL: calling this directly does NOT reproduce a real save. Saving is only reachable from
+		// the in-game menu, which first issues SetPauseState(true) (MenuButtonsChromeLogic.cs:116-117) —
+		// a non-immediate order, so it is recorded and every genuine save's order stream ends with a
+		// Pause. A test that saves without pausing restores to an UNPAUSED world and silently skips the
+		// whole pause round-trip. See GameSaveRoundTripProbe.
 		public void RequestGameSave(string filename)
 		{
 			// Allow traits to save arbitrary data that will be passed back via IGameSaveTraitData.ResolveTraitData
@@ -678,6 +683,12 @@ namespace OpenRA
 			Game.FinishBenchmark();
 		}
 
+		// PITFALL: this is the SECOND caller of EndGame(), and it is not replay-only. A saved-game
+		// restore is validated by one sync-hash comparison (GameSave.cs:262-263, OrderManager.cs:174-181),
+		// so a restore that diverges lands here and latches IsGameOver — after which SetPauseState
+		// early-returns (:455) and UnitOrders drops unpause orders (UnitOrders.cs:230-231), i.e. a live
+		// game the player can never resume. Do not conclude "IsGameOver is impossible" from
+		// MissionObjectives alone.
 		public void OutOfSync()
 		{
 			EndGame();
