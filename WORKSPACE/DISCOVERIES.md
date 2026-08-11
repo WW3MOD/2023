@@ -3,6 +3,46 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-11 — "Can this unit shoot?" has three different answers in this codebase, and picking the wrong grain is how the out-of-ammo move wedge survived its own fix
+
+Found finishing the out-of-ammo stall (`auto/ooa-rifleman`, second half of `auto/ooa-wedge`). The first fix gated the
+move interrupt on `AmmoPool.CannotFight` and was correct — but it answered a *coarser* question than the one being
+asked, and the bug survived intact for the mod's most common unit. The three grains, and when each is right:
+
+- **Per-ACTOR — `AmmoPool.CannotFight(self)`.** "Nothing left to shoot with, anywhere." Requires EVERY pool empty.
+  Right for the resupply dispatch (send this man to a truck?) and for cheap early-outs. **Wrong whenever the question
+  is about a specific target**, because a unit can be unable to engage what is in front of it while a pool it cannot
+  use here is still loaded.
+- **Per-ARMAMENT, per-TARGET — `ChooseArmamentsForTarget(t, force)` plus `!a.IsTraitPaused`.** "Is there a weapon that
+  is both legal against THIS target and able to fire?" `ChooseArmamentsForTarget` supplies the first half and
+  deliberately not the second (it filters `IsTraitDisabled`, and an empty armament is *paused*).
+- **Per-ARMAMENT firing gate — `Armament.CanFire` (`Armament.cs:327`).** Adds `IsReloading || IsWaitingBurst ||
+  IsAiming`. Those are transient per-shot states; a decision about whether to stop moving must NOT read them, or a
+  unit declines to engage purely because it is between bursts.
+
+**The case that makes this concrete, and it is not exotic.** `^E3`, the standard rifleman, carries a DMR
+(`primary-ammo`) and an RPG (`secondary-ammo`) whose weapon declares `InvalidTargets: Infantry`. After any
+infantry-vs-infantry firefight the DMR is spent and the RPG is still loaded — there was never a legal target for it.
+So against infantry his only offered armament is one he cannot fire, while `CannotFight` is false because a pool is
+loaded. Both his `ReloadAmmoPool`s are gated `RequiresCondition: replenish-soldiers`, so it does not heal.
+**Generalisation worth keeping: a multi-pool unit whose weapons have disjoint `ValidTargets` will routinely sit at
+"empty for the enemy in front of me, loaded overall".** Any per-actor ammo predicate is blind to exactly that state.
+
+**`IsTraitPaused` is the honest per-armament test, and its recorded caveat does not apply to every question.**
+`AmmoPool.cs:210-214` warns against it as a `CannotFight` substitute because `PauseOnCondition` also carries things
+like `garrisoned-at-port` — a garrisoned man with a full magazine must not be sent to resupply. But for "should I
+stop walking to aim this?", pause-for-any-reason is exactly right, and it also picks up `suppressed >= 10`,
+`empdisable` and `heavy-damage-attained` (all real `PauseOnCondition` terms in this mod's YAML), each of which wedges
+a move by the identical route. **The caveat attaches to the QUESTION, not to the predicate** — a warning recorded
+against one call site should not be read as a global prohibition.
+
+**Where NOT to fix it: the shared method.** `ChooseArmamentsForTarget` has nine callers and its `// FF TODO Check
+ammo?` comment reads like an invitation, but `AttackBase.AbandonWhenArmamentsPaused` was added *specifically* because
+"every armament paused" must not end an attack by default ("holding aim through a brief pause is the wanted
+behaviour"). Filtering paused armaments inside the shared method would silently flip that opt-in field on for every
+unit in the game and strip the attack cursor off any momentarily-paused unit. **A standing TODO is not evidence that
+the change is safe where it sits** — check whether a later opt-in was built precisely to avoid making it there.
+
 ## 2026-08-11 — `Game.RunAfterTick` runs INSIDE synced code, so the "click this button for the screenshot driver" idiom CTDs on any UI action that touches the order generator
 
 Hit while adding `Test.OpenIngameInfoPanel` (the debug-panel twin of `Test.OpenSkirmishLobby`). The new hook copied the established idiom verbatim — `if (TestMode.IsActive && …) Game.RunAfterTick(<do the thing the button does>)` (`MainMenuLogic.cs:542-543`) — and crashed to desktop the moment the match loaded.

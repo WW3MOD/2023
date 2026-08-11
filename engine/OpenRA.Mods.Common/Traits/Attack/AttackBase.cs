@@ -437,9 +437,14 @@ namespace OpenRA.Mods.Common.Traits
 			// FF TODO Check ammo?
 			// PITFALL: it does not, and it must not be read as if it did. An empty armament is PAUSED
 			// (PauseOnCondition: !ammo-primary), never disabled, so this happily returns weapons a dry
-			// unit cannot fire. Any caller acting on "some weapon reaches this target" has to ask
-			// AmmoPool.CannotFight for itself — SmartMoveActivity did not, and pinned dry infantry on
-			// their cells for the rest of the match.
+			// unit cannot fire. Any caller acting on "some weapon reaches this target" has to test that
+			// for itself — SmartMoveActivity did not, and pinned dry infantry on their cells for the rest
+			// of the match. AmmoPool.CannotFight is NOT sufficient on its own: it needs EVERY pool empty,
+			// so it says nothing about the standard rifleman with a spent rifle and a loaded RPG. The
+			// level that answers this is per-ARMAMENT, and the test is !a.IsTraitPaused — what
+			// Armament.CanFire itself gates on (Armament.cs:327). Deliberately not applied here:
+			// AttackBase.AbandonWhenArmamentsPaused exists because holding aim through a brief pause is
+			// the wanted default, and filtering in this method would override that for every caller.
 			return Armaments.Where(a =>
 				!a.IsTraitDisabled
 				&& !(a.Info.RequiresForceFire && !forceAttack)

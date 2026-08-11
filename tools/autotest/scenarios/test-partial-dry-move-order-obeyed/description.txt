@@ -1,0 +1,1 @@
+Auto: a rifleman with a spent rifle and a loaded RPG must obey a plain Move order; Force-Move is the control.
