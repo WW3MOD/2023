@@ -9,7 +9,24 @@ Found by reading while building `test-aa-overkill-cadence`. `EstimatePercentDama
 
 - **Consequence: any weapon carrying damage warheads for more than one target class overstates its claim against every class.** A weapon with an anti-air warhead and an anti-ground warhead marks an aircraft with the sum of both, though only one can ever land. The mark is `totalDamage * 100 / MaxHP`, so the overstatement feeds straight into overkill suppression.
 - **MANPAD itself is NOT affected, and its 500 figure is exact rather than low — this settles a caveat flagged earlier in the series.** Its only `DamageWarhead` is `Warhead@Spread` (3000); the inherited `^MediumExplosionEffectsAir` adds only a `CreateEffect` warhead (`weapons-effects.yaml:702-709`), which is not a `DamageWarhead`. **But weapons inheriting `^LargeExplosionEffectsAir` / `^HugeExplosionEffectsAir` DO gain a second damage warhead** (`Warhead@Target: TargetDamage`, `:713` / `:723`) and are worth auditing.
+- **Roster audit — the defect is LATENT, not currently active, but the shape that would trigger it is one weapon away.** 23 weapon families carry two or more damage warheads (`^30mm`, `^TankRound`, `^ArtilleryRound`, `ATGM`, `WGM`, `Hellfire`, `Ataka`, `RPG`, `GrenadeLauncher`, the rocket-artillery family, the nuke family, …), but the ones sampled do not partition by target class in a way that over-counts: `^30mm`'s `Warhead@Target` + `Warhead@Spread` carry no `ValidTargets` restriction at all, so both legitimately apply on a direct hit, and `^MinimalExplosionEffectsAir` restricts **both** damage warheads to `Air` (`weapons-effects.yaml:677-681`), so both apply to an air target and neither to a ground one. `^LargeExplosionEffectsAir` / `^HugeExplosionEffectsAir` *do* add an `Air`-only `TargetDamage` (`:713`, `:723`) but **no weapon inherits them**. This is a sample, not an exhaustive check of all 23 — the audit worth doing is "does any weapon carry one damage warhead restricted to a class it can also engage by another".
 - It is also the only lever that can separate the mark from the damage, which is what makes a cadence measurement possible at all (see below).
+
+## 2026-08-11 — ORDINARY FIRING DOES NOT RE-MARK, so overkill suppression is bounded per commitment — but a BATTERY SERIALISES, engaging one unit every ~11 seconds instead of together
+
+`test-aa-overkill-cadence` (seed -484693258). Four AA, one hostile helicopter, nobody ordered and no scripted marking anywhere. Measured:
+
+| unit | first shot | gap from previous | shots |
+|---|---|---|---|
+| AA3 | t37 | — | 8 |
+| AA1 | t200 | 163 | 7 |
+| AA2 | t386 | 186 | 6 |
+| AA4 | t571 | 185 | 5 |
+
+- **The pump does not occur through opportunity fire.** AA3 fired eight times at a strict 200-tick cadence (`= BurstWait`) and the other three still joined on schedule; had each shot re-applied its 503-point claim, none of them could ever have engaged. **The mark is applied once per COMMITMENT, not once per shot**, so the `AttackFollow.Tick` re-mark path (`:156-172`) does not fire on the reload cycle. The frequency risk flagged earlier is answered NO.
+- **But each new joiner re-loads the mark, so the battery engages SERIALLY.** The ~185-tick spacing is three halvings of a fresh ~503 mark. Four AA took **571 ticks — about 34 real seconds — to all engage one helicopter**, trickling in one at a time. That is a worse player-facing shape than the single-commitment 10 s figure suggests, and it is the mechanism behind "my AA battery isn't shooting".
+- **Read the tell before the result.** A valid run shows the target surviving AND exactly one unit firing early. The previous run of this scenario was void and showed two units firing simultaneously at t34 with a third at t79 — the signature of a mark that was never applied.
+- **What this run is NOT.** A fight this long only exists because the scenario deliberately breaks the coupling between mark and damage (see `weapons.yaml`). With a stock MANPAD the first missile kills a 600-HP helicopter and no second unit is needed. So the serialisation is what happens specifically **when the claim exceeds the damage actually dealt** — the miss case, and the `ValidTargets` over-count defect. It is not a claim about a fight where every shot lands.
 
 ## 2026-08-10 — THE OVERKILL MARK AND THE DAMAGE ARE THE SAME NUMBER, which bounds the bug by itself: a group that suppresses also kills within one burst cycle
 
@@ -17,8 +34,16 @@ Found by reading while building `test-aa-overkill-cadence`. `EstimatePercentDama
 
 `EstimatePercentDamage` is the fraction of the target's health the committed shot will remove, and the weapon then removes it. For a homogeneous group, marking >= 100% of a target's health means dealing >= 100% of it within one burst cycle, so the target dies before a second cycle can begin. Formally: suppressing needs `K * 3000 >= MaxHP`, surviving `C` cycles needs `MaxHP > 3000 * K * C`, and together those require `C < 1`. **Sustained re-marking against a still-living target therefore cannot arise from a group that is landing its shots.**
 
-- **The route to sustained suppression is MISSES, not cadence.** If shots fail to land — a manoeuvring helicopter, `Inaccuracy: 256` — the target survives, the shooter re-acquires, and `AttackFollow.Tick` re-marks on re-acquisition (`:156-172`; `OpportunityFire` defaults true at `:26`, no infantry override). Each cycle re-applies the full 500 against a 600-HP helicopter and the neighbours stay down. That case is stochastic rather than deterministic and is the one worth measuring next.
-- **Honest severity bound as it stands: ~10s measured for a single commitment (`test-aa-overkill-suppression`), demonstrably unbounded when fed (`test-aa-overkill-pump`), and reconstructed-but-untested as to whether ordinary firing feeds it.** The arithmetic argues it does not while shots land, and says nothing about the miss case.
+**STATE THE ASSUMPTIONS, because this is exactly the shape of argument the knowledge-bank audit keeps finding false versions of.** The conclusion holds only where all four are true:
+
+1. **Homogeneous group** — every attacker's claim equals its own damage. A mixed group breaks it: one high-damage unit can mark 500 while the units actually shooting contribute little damage.
+2. **Shots land.** `Inaccuracy: 256` against a manoeuvring target voids it directly.
+3. **Claim == damage dealt.** Violated by the `ValidTargets` over-count defect above, and by any armour/`Versus` asymmetry between the estimate and the live path.
+4. **`MaxHP` constant** — no healing, repair or regeneration on the target.
+
+**What would falsify it:** any observation of a group that suppresses each other while the target survives past one burst cycle. Note that `test-aa-overkill-cadence` is itself such an observation — it deliberately violates assumption 3 to make a multi-cycle fight possible at all, and then measures exactly the serialisation the argument says cannot happen when the assumption holds. So the argument is not refuted by that run, but neither is it independently confirmed by it; the run tests the violated-assumption regime, which is precisely the miss case and the over-count case.
+
+- **Severity bound as it now stands, with each part labelled:** ~10 s **measured** for a single commitment (`test-aa-overkill-suppression`); ~34 s **measured** for a four-unit battery to fully engage once the claim exceeds the damage (`test-aa-overkill-cadence`); demonstrably unbounded **measured** when externally fed (`test-aa-overkill-pump`); and **reconstructed** that a group landing its shots cannot feed it, because the target dies first.
 
 ## 2026-08-10 — HARNESS PITFALL: overriding a warhead REPLACES the node, so every omitted field reverts to the ENGINE default — and the resulting run passes cleanly while measuring nothing
 

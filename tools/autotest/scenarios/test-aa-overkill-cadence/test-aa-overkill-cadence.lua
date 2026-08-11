@@ -31,6 +31,42 @@
 -- so that trap does not apply -- but the observation window starts at tick 1
 -- regardless, and the AA acquire it on their own once it exists.
 
+-- MEASURED 2026-08-11 (seed -484693258), and the answer is NEGATIVE — ordinary
+-- firing does not re-mark, so the pump does not occur through opportunity fire:
+--
+--   unit   first shot   gap from previous   total shots
+--   AA3       t37             --                 8
+--   AA1      t200            163                 7
+--   AA2      t386            186                 6
+--   AA4      t571            185                 5
+--   shooter gaps all exactly 200 (= MANPAD BurstWait); target survived to t1500
+--
+-- THE TELL PASSED FIRST: the helicopter survived and exactly ONE unit fired
+-- early. The previous run of this scenario was void and showed two firing
+-- simultaneously at t34 with a third at t79 — that is what an un-applied mark
+-- looks like, and it is why the tell is checked before the result is read.
+--
+-- ORDINARY FIRING DOES NOT RE-MARK. AA3 fired eight times across the window at
+-- a strict 200-tick cadence, and the other three still joined on schedule. Had
+-- each shot re-applied the 503-point claim, no one else could ever have
+-- engaged. The mark is applied once per COMMITMENT, not once per shot, so the
+-- AttackFollow re-mark path (:156-172) does not fire on the reload cycle.
+--
+-- BUT THE BATTERY SERIALISES, which is the finding worth carrying. Each new
+-- unit that commits re-loads the mark to ~503, and the next one must wait out
+-- roughly three halvings before it clears the threshold — hence the near
+-- constant ~185-tick spacing. Four AA took 571 ticks, about 34 real seconds, to
+-- all engage a single helicopter. They trickle in one at a time instead of
+-- firing together.
+--
+-- HONEST CAVEAT ABOUT WHAT THIS RUN IS. A fight this long only exists because
+-- the weapons.yaml split deliberately breaks the normal coupling between the
+-- mark and the damage. With a stock MANPAD the first missile kills a 600-HP
+-- helicopter and no second unit is ever needed. So the serialisation above is
+-- what happens specifically WHEN the claim exceeds the damage actually dealt —
+-- which is exactly the miss case, and exactly the ValidTargets over-count
+-- defect. It is not a claim about a fight where every shot lands.
+
 local AirRow = 8
 local AirCol = 31
 local AirAltitude = 1280
