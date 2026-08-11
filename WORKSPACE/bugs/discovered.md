@@ -3,7 +3,7 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
-## 2026-08-11: [med] The same move-interrupt still stalls a PARTIALLY dry unit, and there the attack guard does not catch it (found while: fixing the out-of-ammo move wedge, branch `auto/ooa-wedge`)
+## 2026-08-11: [HIGH] The same move-interrupt still stalls a PARTIALLY dry unit, and there the attack guard does not catch it — THIS IS THE STANDARD RIFLEMAN, NOT AN EDGE CASE (found while: fixing the out-of-ammo move wedge, branch `auto/ooa-wedge`; severity raised from med by adversarial review)
 
 The fix on that branch gates `SmartMoveActivity`'s opportunistic-fire interrupt on `AmmoPool.CannotFight`, which requires **every** pool empty. One pool short of that, the old shape survives: a rifleman with a spent rifle and a loaded RPG, facing infantry, still gets the paused rifle back from `ChooseArmamentsForTarget` (`AttackBase.cs:438-442` — filters `IsTraitDisabled`, and an empty armament is *paused*), still reports a weapon in range (`SmartMoveActivity.cs:94`), still cancels his own move child and queues an attack.
 
@@ -12,6 +12,18 @@ What differs is the ending, and it is not obviously better. `CannotFight` is **f
 **Why it was not fixed with the main bug:** the honest fix is probably to filter `interruptingArmaments` on something ammo-aware per-armament rather than per-actor, and `AmmoPool.cs:210-214` explicitly warns off the obvious candidate (`IsTraitPaused` also carries `garrisoned-at-port`, which would call a garrisoned man with a full magazine dry). That needs its own predicate, its own scenario pair and its own measurement — riding it along would have made the primary fix harder to review and to revert.
 
 **Reproduction shape:** clone `test-dry-move-order-obeyed` and set `InitialAmmo: 0` on only ONE of a two-pool class (`^E3`, `^TL`, `^SF` all carry two), with a Bait the empty weapon is valid against.
+
+**Severity raised to HIGH by adversarial review (2026-08-11), with the reasoning that matters:** this is not a rare
+combination, it is `^E3` — the Rifleman, the mod's standard infantryman — in a routine post-firefight state. `^E3`
+carries a primary DMR (`Ammo: 100`) and a secondary RPG (`Ammo: 1`), and the RPG declares `InvalidTargets: Infantry`.
+So after any infantry-vs-infantry engagement the DMR is spent while the RPG is still loaded because there was never a
+valid target for it. `CannotFight` requires EVERY pool empty, so it returns false, the new guard does not fire, the
+move interrupt still cancels the move, and `Attack.cs`'s guard does not end the attack either. Both `ReloadAmmoPool`s
+are gated `RequiresCondition: replenish-soldiers`, so the state does not self-heal in the field.
+
+The result is worse than the bug that was just fixed: the man aims a weapon he cannot fire, indefinitely, ignoring his
+Move order, and he has **no recovery path at all** — he never goes idle, and `AutoRearmIfAllEmpty` needs all pools
+empty. **Expect the user to reproduce half of the original complaint by testing with a rifleman.**
 
 ## 2026-08-11: [med] `SeekSupplyProvider` latches `moveQueued` and never clears it, so an errand whose move ends without arriving spins forever with no child (found while: fixing the out-of-ammo move wedge, branch `auto/ooa-wedge`)
 
