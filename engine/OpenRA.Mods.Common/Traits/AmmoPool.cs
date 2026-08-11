@@ -332,9 +332,11 @@ namespace OpenRA.Mods.Common.Traits
 		///
 		/// <paramref name="dispatchedBecauseDry"/> records WHY, and has no default on purpose: every
 		/// caller must say whether this errand is the unit's own answer to being unable to fight
-		/// (<see cref="AllPoolsEmpty(Actor)"/>) or a destination the player asked for. Only
-		/// <see cref="Activities.SeekSupplyProvider"/> reads it today — the docking Resupply path
-		/// still runs to its host either way, which is a separate defect (WORKSPACE/bugs/discovered.md).
+		/// (<see cref="AllPoolsEmpty(Actor)"/>) or a destination the player asked for. Both walking
+		/// branches now honour it — <see cref="Activities.SeekSupplyProvider"/> for a provider with
+		/// no docking gate, <see cref="Activities.Resupply"/> for one that has (the Logistics
+		/// Centre). The <see cref="Activities.RideTransport"/> branch does not, and no shipped rearm
+		/// host is boardable, so it is unreachable rather than merely unhandled.
 		/// </summary>
 		public static void AutoRearm(Actor self, bool dispatchedBecauseDry)
 		{
@@ -370,7 +372,7 @@ namespace OpenRA.Mods.Common.Traits
 				// Trait<RearmsUnits>() would crash; use the trait's CloseEnough if present, else dock-tight WDist.Zero.
 				var rearmsUnits = nearestResupplier.TraitOrDefault<RearmsUnits>();
 				var closeEnough = rearmsUnits != null ? rearmsUnits.Info.CloseEnough : WDist.Zero;
-				self.QueueActivity(false, new Resupply(self, nearestResupplier, closeEnough));
+				self.QueueActivity(false, new Resupply(self, nearestResupplier, closeEnough, dispatchedBecauseDry: dispatchedBecauseDry));
 			}
 			else
 			{

@@ -1,0 +1,93 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: LC Resupply Errand Ends When Someone Else Rearms Him (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# The OTHER half of the user's report, staged the same way as its sibling
+	# (test-errand-ends-when-rearmed-en-route) so the two resupply paths are measured against
+	# identical geometry and only the errand TARGET differs.
+	#
+	# Hunter starts dry (AR: InitialAmmo 0 below), so nothing here issues an order -- the shipped
+	# traits pick the destination and queue the errand.
+	Hunter: ar
+		Owner: USA
+		Location: 34,16
+		Facing: 768
+	# The ERRAND TARGET, and the whole point of this scenario: a LOGISTICS CENTRE rather than a
+	# truck, which sends AmmoPool.AutoRearm down its OTHER branch. The LC declares
+	# SupplyProvider.DockedCondition (unit.docked, structures.yaml:395), so the
+	# `string.IsNullOrEmpty(DockedCondition)` test in AutoRearm is false and the unit gets a stock
+	# Resupply activity instead of SeekSupplyProvider (AmmoPool.cs:349/373). Resupply freezes
+	# activeResupplyTypes in its constructor, which is the defect under test.
+	#
+	# It is the only actor on the map that Rearmable.RearmActors names (infantry name
+	# `truk, logisticscenter`; there is deliberately no truck here), so ChooseResupplier cannot pick
+	# anything else. 28 cells west, inside AutoSeekSupplies' 30-cell ReturnWhenEmptyLeashCells
+	# (Chebyshev), so the break-off is dispatched.
+	Depot: logisticscenter
+		Owner: USA
+		Location: 6,16
+	# The PASSING PROVIDER -- "a supply truck drove by to rearm him".
+	#
+	# A cache rather than a second truck, and that choice is load-bearing: no RearmActors list
+	# anywhere names supplycache (economy.md), so AmmoPool.ChooseResupplier CANNOT pick it as the
+	# errand target even though it is much nearer than the Depot. It is push-only, which is exactly
+	# the "somebody topped me up without my asking" the report is about. A truck here would simply
+	# have been chosen as the destination and the scenario would measure the sibling's path instead.
+	#
+	# One cell off the walking line so it does not block the path (Building, Footprint x). Its 4c0
+	# aura therefore covers the line for x in [23,29]: the Hunter is served at about x=29, five
+	# cells into a walk that would otherwise run to the Depot at x~9.
+	Cache: supplycache
+		Owner: USA
+		Location: 26,17
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 34,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml
