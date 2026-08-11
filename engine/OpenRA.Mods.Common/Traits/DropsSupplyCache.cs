@@ -175,52 +175,15 @@ namespace OpenRA.Mods.Common.Traits
 			// ticks. Chaining them means the truck is never idle between the drop and its disposition.
 			if (order.OrderString == "DropSupplyCacheAt")
 			{
-				var dropMove = self.TraitOrDefault<IMove>();
-				if (dropMove == null)
+				if (self.TraitOrDefault<IMove>() == null)
 					return;
 
-				// Stop WITHIN DropAtToleranceCells rather than on the exact cell: the ordered cell is a
-				// belief-field cell, not a reserved parking space, and an exact-cell MoveTo gives up outright
-				// when something is standing there. The crate lands on whatever cell the truck stopped on.
+				// ONE named activity for the whole errand. Being a recognisable TYPE is what keeps the
+				// serving halt off it: a truck otherwise stops for anyone in its aura who needs a batch,
+				// which would leave it standing next to the platoon it was sent to unload NEAR, with the
+				// crate still aboard and the danger it was told to leave still around it.
 				var dropCell = self.World.Map.CellContaining(order.Target.CenterPosition);
-				self.QueueActivity(order.Queued, dropMove.MoveTo(dropCell, Info.DropAtToleranceCells));
-
-				self.QueueActivity(true, new CallFunc(() =>
-				{
-					// ARRIVAL CHECK — the load-bearing guard, not a formality. A Move to a TERRAIN-impassable
-					// cell does not fail: PathFinder bails to NoPath, and Move.Tick treats an empty path as
-					// arrival, completing in ~2 ticks at the cell the truck was already on. Without this test
-					// the unload would then run THERE — typically the beachhead — dumping the whole load at an
-					// arbitrary place while the issuer's redundancy accounting, measured around the ORDERED
-					// cell, never sees it. Refusing instead keeps the supply in the truck, which is always
-					// recoverable. (The issuer should also refuse to adopt an impassable cell; this is the
-					// second line, and it is the one that holds when the cell became unreachable after issue.)
-					// BOTH REFUSALS BELOW ARE LOGGED, unconditionally and one line each. They are the two ways
-					// an errand that was issued, driven and completed still puts no crate on the ground — and
-					// until now both were silent, so from outside they were indistinguishable from a drop that
-					// was never decided on at all. Each is bounded by one line per errand.
-					var delta = self.Location - dropCell;
-					if (!SupplyDropMath.ArrivedAtDropCell(delta.X, delta.Y, Info.DropAtToleranceCells))
-					{
-						Log.Write("debug",
-							$"[supply] crate-refused truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
-							+ $"reason=never-arrived ordered={dropCell} tolerance={Info.DropAtToleranceCells}c "
-							+ $"amount={supply?.CurrentSupply ?? 0}");
-						return;
-					}
-
-					// Occupancy is only knowable on arrival. A blocked cell means no drop this errand — the
-					// truck keeps its load and its owner re-decides, which self-corrects as the blocker moves.
-					if (CanDropCache())
-					{
-						DropSupplyCacheHere();
-						return;
-					}
-
-					Log.Write("debug",
-						$"[supply] crate-refused truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
-						+ $"reason=cell-blocked ordered={dropCell} amount={supply?.CurrentSupply ?? 0}");
-				}));
+				self.QueueActivity(order.Queued, new PlaceSupplyCache(self, this, dropCell, Info.DropAtToleranceCells));
 
 				// POST-DROP DISPOSITION, decided here so it is a stated design rather than an emergent
 				// consequence of the idle path above. If we hold a docking-aware host (a Logistics Centre) the
@@ -294,6 +257,47 @@ namespace OpenRA.Mods.Common.Traits
 				self.QueueActivity(true, new CallFunc(() => DropSupplyCacheHere()));
 				self.ShowTargetLines();
 			}
+		}
+
+		/// <summary>Unload the whole load as a ground cache at the errand's ordered cell, if we actually
+		/// got there and the cell is free. Called by <see cref="PlaceSupplyCache"/> once its drive has
+		/// finished; lives here rather than in the activity because the drop itself, the merge rule and
+		/// the occupancy test are this trait's business.</summary>
+		public void TryPlaceCacheAt(CPos dropCell, int toleranceCells)
+		{
+			// ARRIVAL CHECK — the load-bearing guard, not a formality. A Move to a TERRAIN-impassable
+			// cell does not fail: PathFinder bails to NoPath, and Move.Tick treats an empty path as
+			// arrival, completing in ~2 ticks at the cell the truck was already on. Without this test
+			// the unload would then run THERE — typically the beachhead — dumping the whole load at an
+			// arbitrary place while the issuer's redundancy accounting, measured around the ORDERED
+			// cell, never sees it. Refusing instead keeps the supply in the truck, which is always
+			// recoverable. (The issuer should also refuse to adopt an impassable cell; this is the
+			// second line, and it is the one that holds when the cell became unreachable after issue.)
+			// BOTH REFUSALS BELOW ARE LOGGED, unconditionally and one line each. They are the two ways
+			// an errand that was issued, driven and completed still puts no crate on the ground — and
+			// until now both were silent, so from outside they were indistinguishable from a drop that
+			// was never decided on at all. Each is bounded by one line per errand.
+			var delta = self.Location - dropCell;
+			if (!SupplyDropMath.ArrivedAtDropCell(delta.X, delta.Y, toleranceCells))
+			{
+				Log.Write("debug",
+					$"[supply] crate-refused truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+					+ $"reason=never-arrived ordered={dropCell} tolerance={toleranceCells}c "
+					+ $"amount={supply?.CurrentSupply ?? 0}");
+				return;
+			}
+
+			// Occupancy is only knowable on arrival. A blocked cell means no drop this errand — the
+			// truck keeps its load and its owner re-decides, which self-corrects as the blocker moves.
+			if (CanDropCache())
+			{
+				DropSupplyCacheHere();
+				return;
+			}
+
+			Log.Write("debug",
+				$"[supply] crate-refused truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
+				+ $"reason=cell-blocked ordered={dropCell} amount={supply?.CurrentSupply ?? 0}");
 		}
 
 		/// <summary>Drive to a ground cache and load whatever will fit — the inverse of

@@ -178,6 +178,39 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>
+		/// Is this provider's transport carrying out a COMMITTED SUPPLY ERRAND — a move whose whole point
+		/// is where the supply ends up? Today: driving to a host to refill, or driving to an ordered cell
+		/// to unload as a ground cache.
+		///
+		/// <para>Such an errand is not interrupted by the serving halt. A truck normally stops for anyone
+		/// in its aura who needs a batch, which is right for an ordinary move and exactly wrong here: a
+		/// truck sent to unload NEAR a platoon would stop to serve that platoon from its aura, never
+		/// reach the drop cell, never place a crate, and stay parked in the danger the drop-and-leave
+		/// doctrine exists to get it out of. Serving from the aura is not a cheap substitute for the
+		/// drop — the doctrine picks between them on believed danger, and the halt must not silently
+		/// overrule that choice.</para>
+		///
+		/// <para>Type-based and queue-derived, like <see cref="AmmoPool.IsSeekingRearm"/>, so it cannot
+		/// latch and cannot outlive a cancellation; walks <c>NextActivity</c> as well as the head for the
+		/// same reason <see cref="Restocking"/> does.</para>
+		///
+		/// <para>Deliberately WIDER than <see cref="Restocking"/>, which answers a different question
+		/// ("am I mid-refill and therefore serving nobody?"). A truck driving out to unload still has a
+		/// full load and would happily serve — the point is that it must not stop to.</para>
+		/// </summary>
+		public bool OnSupplyErrand
+		{
+			get
+			{
+				for (var a = self.CurrentActivity; a != null; a = a.NextActivity)
+					if (a is RestockSupply || a is PlaceSupplyCache)
+						return true;
+
+				return false;
+			}
+		}
+
 		// Latched true when EvacuateOnUnusableResidue and the remaining supply is a
 		// residue no reachable unit can utilize. Cleared on replenish or full drain.
 		bool residueUnusable;
@@ -1008,6 +1041,12 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			if (!self.IsInWorld || !CanServeNow)
+				return false;
+
+			// A committed supply errand outranks a passer-by. See OnSupplyErrand: halting on the way to
+			// a drop cell means the crate is never placed and the truck stays in the danger the errand
+			// was routing it out of.
+			if (OnSupplyErrand)
 				return false;
 
 			var autoTarget = self.TraitOrDefault<AutoTarget>();
