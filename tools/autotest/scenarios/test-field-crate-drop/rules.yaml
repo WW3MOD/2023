@@ -1,0 +1,18 @@
+# Field crate-drop autotest overrides. Deliberately minimal — the point is what the
+# SHIPPING occupancy rules do on a field cell, so nothing here touches DropsSupplyCache,
+# Passable, or any locomotor.
+
+Player:
+	# No cash -> no production; the only actors are the pre-placed truck and the field.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-field-crate-drop.lua

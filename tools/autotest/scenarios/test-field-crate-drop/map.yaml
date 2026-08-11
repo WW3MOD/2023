@@ -1,0 +1,314 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a supply truck can drop its cache on a field cell
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# THE BUG: ww3mod tiles crop fields as one 1x1 Building actor PER CELL (3187 of them on
+# river-zeta). Movement over them works, because Passable/PassClasses is honoured by
+# Locomotor. But DropsSupplyCache.CanDropCache asks "is this cell clear?" with a raw
+# ActorMap.GetActorsAt query that knows nothing about Passable — so the truck drives onto
+# the field it is allowed to drive onto, arrives, and then silently refuses to drop
+# (logging reason=cell-blocked). The crate never reaches the front.
+#
+# GEOMETRY (row 16 is the lane)
+#   x=4          Supply Route + spawn
+#   x=12         Truck (truk, full 750) — starts on BARE GROUND, outside the field
+#   x=18..26     A 9x9 patch of v14 field actors, y=12..20 — the field
+#   x=22,y=16    The ordered drop cell, dead centre of the field patch
+#
+# The truck starting outside the patch and driving in is load-bearing: it proves movement
+# over the field is fine and isolates the failure to the occupancy test on arrival. If the
+# truck could not even reach x=22 this test would be measuring pathing, not the drop.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	# The truck under test. Full supply, starts on bare ground west of the field.
+	Truck: truk
+		Owner: Me
+		Location: 12,16
+		Facing: 768
+
+	# The field: one actor per cell, exactly how the map editor lays them down.
+	Fld0: v14
+		Owner: Neutral
+		Location: 18,12
+	Fld1: v14
+		Owner: Neutral
+		Location: 19,12
+	Fld2: v14
+		Owner: Neutral
+		Location: 20,12
+	Fld3: v14
+		Owner: Neutral
+		Location: 21,12
+	Fld4: v14
+		Owner: Neutral
+		Location: 22,12
+	Fld5: v14
+		Owner: Neutral
+		Location: 23,12
+	Fld6: v14
+		Owner: Neutral
+		Location: 24,12
+	Fld7: v14
+		Owner: Neutral
+		Location: 25,12
+	Fld8: v14
+		Owner: Neutral
+		Location: 26,12
+	Fld9: v14
+		Owner: Neutral
+		Location: 18,13
+	Fld10: v14
+		Owner: Neutral
+		Location: 19,13
+	Fld11: v14
+		Owner: Neutral
+		Location: 20,13
+	Fld12: v14
+		Owner: Neutral
+		Location: 21,13
+	Fld13: v14
+		Owner: Neutral
+		Location: 22,13
+	Fld14: v14
+		Owner: Neutral
+		Location: 23,13
+	Fld15: v14
+		Owner: Neutral
+		Location: 24,13
+	Fld16: v14
+		Owner: Neutral
+		Location: 25,13
+	Fld17: v14
+		Owner: Neutral
+		Location: 26,13
+	Fld18: v14
+		Owner: Neutral
+		Location: 18,14
+	Fld19: v14
+		Owner: Neutral
+		Location: 19,14
+	Fld20: v14
+		Owner: Neutral
+		Location: 20,14
+	Fld21: v14
+		Owner: Neutral
+		Location: 21,14
+	Fld22: v14
+		Owner: Neutral
+		Location: 22,14
+	Fld23: v14
+		Owner: Neutral
+		Location: 23,14
+	Fld24: v14
+		Owner: Neutral
+		Location: 24,14
+	Fld25: v14
+		Owner: Neutral
+		Location: 25,14
+	Fld26: v14
+		Owner: Neutral
+		Location: 26,14
+	Fld27: v14
+		Owner: Neutral
+		Location: 18,15
+	Fld28: v14
+		Owner: Neutral
+		Location: 19,15
+	Fld29: v14
+		Owner: Neutral
+		Location: 20,15
+	Fld30: v14
+		Owner: Neutral
+		Location: 21,15
+	Fld31: v14
+		Owner: Neutral
+		Location: 22,15
+	Fld32: v14
+		Owner: Neutral
+		Location: 23,15
+	Fld33: v14
+		Owner: Neutral
+		Location: 24,15
+	Fld34: v14
+		Owner: Neutral
+		Location: 25,15
+	Fld35: v14
+		Owner: Neutral
+		Location: 26,15
+	Fld36: v14
+		Owner: Neutral
+		Location: 18,16
+	Fld37: v14
+		Owner: Neutral
+		Location: 19,16
+	Fld38: v14
+		Owner: Neutral
+		Location: 20,16
+	Fld39: v14
+		Owner: Neutral
+		Location: 21,16
+	Fld40: v14
+		Owner: Neutral
+		Location: 22,16
+	Fld41: v14
+		Owner: Neutral
+		Location: 23,16
+	Fld42: v14
+		Owner: Neutral
+		Location: 24,16
+	Fld43: v14
+		Owner: Neutral
+		Location: 25,16
+	Fld44: v14
+		Owner: Neutral
+		Location: 26,16
+	Fld45: v14
+		Owner: Neutral
+		Location: 18,17
+	Fld46: v14
+		Owner: Neutral
+		Location: 19,17
+	Fld47: v14
+		Owner: Neutral
+		Location: 20,17
+	Fld48: v14
+		Owner: Neutral
+		Location: 21,17
+	Fld49: v14
+		Owner: Neutral
+		Location: 22,17
+	Fld50: v14
+		Owner: Neutral
+		Location: 23,17
+	Fld51: v14
+		Owner: Neutral
+		Location: 24,17
+	Fld52: v14
+		Owner: Neutral
+		Location: 25,17
+	Fld53: v14
+		Owner: Neutral
+		Location: 26,17
+	Fld54: v14
+		Owner: Neutral
+		Location: 18,18
+	Fld55: v14
+		Owner: Neutral
+		Location: 19,18
+	Fld56: v14
+		Owner: Neutral
+		Location: 20,18
+	Fld57: v14
+		Owner: Neutral
+		Location: 21,18
+	Fld58: v14
+		Owner: Neutral
+		Location: 22,18
+	Fld59: v14
+		Owner: Neutral
+		Location: 23,18
+	Fld60: v14
+		Owner: Neutral
+		Location: 24,18
+	Fld61: v14
+		Owner: Neutral
+		Location: 25,18
+	Fld62: v14
+		Owner: Neutral
+		Location: 26,18
+	Fld63: v14
+		Owner: Neutral
+		Location: 18,19
+	Fld64: v14
+		Owner: Neutral
+		Location: 19,19
+	Fld65: v14
+		Owner: Neutral
+		Location: 20,19
+	Fld66: v14
+		Owner: Neutral
+		Location: 21,19
+	Fld67: v14
+		Owner: Neutral
+		Location: 22,19
+	Fld68: v14
+		Owner: Neutral
+		Location: 23,19
+	Fld69: v14
+		Owner: Neutral
+		Location: 24,19
+	Fld70: v14
+		Owner: Neutral
+		Location: 25,19
+	Fld71: v14
+		Owner: Neutral
+		Location: 26,19
+	Fld72: v14
+		Owner: Neutral
+		Location: 18,20
+	Fld73: v14
+		Owner: Neutral
+		Location: 19,20
+	Fld74: v14
+		Owner: Neutral
+		Location: 20,20
+	Fld75: v14
+		Owner: Neutral
+		Location: 21,20
+	Fld76: v14
+		Owner: Neutral
+		Location: 22,20
+	Fld77: v14
+		Owner: Neutral
+		Location: 23,20
+	Fld78: v14
+		Owner: Neutral
+		Location: 24,20
+	Fld79: v14
+		Owner: Neutral
+		Location: 25,20
+	Fld80: v14
+		Owner: Neutral
+		Location: 26,20
+
+Rules: rules.yaml

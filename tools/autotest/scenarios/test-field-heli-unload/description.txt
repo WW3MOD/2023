@@ -1,0 +1,1 @@
+A loaded transport helicopter hovers over a 9x9 patch of tiled crop-field actors and is ordered to unload. PASS requires it to touch down and put both riflemen on the ground, rather than hovering indefinitely because the landing check counts the field as a blocker.
