@@ -360,32 +360,21 @@ namespace OpenRA.Mods.Common.Traits
 			}));
 		}
 
+		/// <summary>Send the transport to a docking-aware host to refill.
+		///
+		/// <para>ONE named activity, the same <see cref="RestockSupply"/> SupplyProvider's own low-supply
+		/// drive uses, rather than the move/wait/CallFunc chain this used to build itself. Sharing the
+		/// TYPE is the point, not sharing the code: it is what makes "this truck is refilling" a fact
+		/// readable off the activity queue from anywhere. A caller asking whether a truck's current move
+		/// is invalidated by the truck being empty would otherwise have to answer "no" for one of these
+		/// two restock drives and "yes" for the other, purely because they were built in different
+		/// files.</para></summary>
 		void QueueDriveAndRestock(Actor host, bool queued = false)
 		{
-			var move = self.TraitOrDefault<IMove>();
-			if (move == null)
+			if (supply == null || self.TraitOrDefault<IMove>() == null)
 				return;
 
-			var targetCell = self.World.Map.CellContaining(host.CenterPosition);
-			self.QueueActivity(queued, move.MoveTo(targetCell, ignoreActor: host));
-			self.QueueActivity(new Wait(25));
-			self.QueueActivity(new CallFunc(() =>
-			{
-				// The host is captured at ISSUE time but the transfer happens after a drive, so re-validate:
-				// an LC destroyed or captured mid-drive would otherwise be deducted from as a dead actor. The
-				// truck simply arrives at a stale cell and takes nothing, which its owner re-decides from.
-				if (host.IsDead || !host.IsInWorld)
-					return;
-
-				var hostProvider = host.TraitOrDefault<SupplyProvider>();
-				if (hostProvider == null || supply == null)
-					return;
-
-				var needed = supply.Info.TotalSupply - supply.CurrentSupply;
-				var taken = System.Math.Min(needed, hostProvider.CurrentSupply);
-				if (taken > 0 && hostProvider.DeductSupply(taken))
-					supply.AddSupply(taken);
-			}));
+			self.QueueActivity(queued, new RestockSupply(self, host, supply.Info.RestockWaitTicks));
 		}
 
 		void INotifyBecomingIdle.OnBecomingIdle(Actor self)

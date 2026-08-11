@@ -1,0 +1,24 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-truck-restock-survives-cancel.lua
+
+TRUK:
+	AutoTarget:
+		# TRUK ships Evacuate, and an Evacuate truck never self-restocks by design
+		# (SupplyProvider.ShouldSelfRestock) -- it rotates to the map edge to return its credit
+		# instead. Auto is the stance under which the restock drive exists at all, so it is the
+		# stance this scenario has to run.
+		InitialResupplyBehavior: Auto
+		InitialResupplyBehaviorAI: Auto

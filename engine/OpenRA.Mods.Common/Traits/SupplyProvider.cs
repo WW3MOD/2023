@@ -61,6 +61,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Actor types where the supply provider can restock.")]
 		public readonly HashSet<string> RestockActors = new HashSet<string>();
 
+		[Desc("Ticks a transport settles at a restock host before the supply transfers. Read by both",
+			"paths that send a truck to an LC (this trait's own low-supply drive and DropsSupplyCache's",
+			"idle/ordered one), which is the point — the two used to carry the same literal 25 in two",
+			"places and could drift apart silently.")]
+		public readonly int RestockWaitTicks = 25;
+
 		[Desc("Condition to grant to the unit currently being rearmed.")]
 		public readonly string RearmCondition = "replenish-soldiers";
 
@@ -147,7 +153,30 @@ namespace OpenRA.Mods.Common.Traits
 		Actor currentTarget;
 		ExternalCondition targetConditionTrait;
 		int conditionToken = Actor.InvalidConditionToken;
-		bool restocking;
+
+		/// <summary>
+		/// Is this provider on its way to (or settling at) a restock host? Read off the ACTIVITY QUEUE,
+		/// never latched in a field — see <see cref="RestockSupply"/> for the bug that shape caused, and
+		/// <see cref="AmmoPool.IsSeekingRearm"/> for the same technique answering the same kind of
+		/// question on the ammunition side.
+		///
+		/// <para>Walks the whole queue rather than just the head, and that is load-bearing:
+		/// <c>QueueActivity(false, …)</c> CANCELS the current activity rather than removing it, so the
+		/// dying activity stays HEAD while the restock we just queued sits behind it in
+		/// <c>NextActivity</c>. A head-only test would answer "no" during exactly the window that
+		/// matters and let the caller queue a second drive on top of the first.</para>
+		/// </summary>
+		public bool Restocking
+		{
+			get
+			{
+				for (var a = self.CurrentActivity; a != null; a = a.NextActivity)
+					if (a is RestockSupply)
+						return true;
+
+				return false;
+			}
+		}
 
 		// Latched true when EvacuateOnUnusableResidue and the remaining supply is a
 		// residue no reachable unit can utilize. Cleared on replenish or full drain.
@@ -239,7 +268,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			if (restocking)
+			if (Restocking)
 			{
 				// Defensive, and a no-op today: every path that sets restocking already revoked and
 				// nulled the target first, so conditionToken is already invalid here. Stating it
@@ -409,7 +438,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		bool ShouldSelfRestock()
 		{
-			if (Info.RestockActors.Count == 0 || restocking)
+			if (Info.RestockActors.Count == 0 || Restocking)
 				return false;
 
 			var behavior = self.TraitOrDefault<AutoTarget>()?.ResupplyBehaviorValue ?? ResupplyBehavior.Auto;
@@ -809,41 +838,23 @@ namespace OpenRA.Mods.Common.Traits
 					&& Info.RestockActors.Contains(a.Info.Name))
 				.ClosestToIgnoringPath(self);
 
-			if (restockTarget != null)
-			{
-				restocking = true;
-				var move = self.Trait<IMove>();
+			if (restockTarget == null)
+				return;
 
-				// Drive to the host (e.g., logistics center).
-				var targetCell = self.World.Map.CellContaining(restockTarget.CenterPosition);
-				self.QueueActivity(false, move.MoveTo(targetCell, ignoreActor: restockTarget));
+			var move = self.TraitOrDefault<IMove>();
+			if (move == null)
+				return;
 
-				// Wait briefly to simulate restocking.
-				self.QueueActivity(new Wait(25));
+			// The whole errand — drive, settle, transfer — as ONE named activity, so the truck's intent
+			// lives in the activity queue rather than in a bool alongside it. See RestockSupply for what
+			// the bool cost.
+			self.QueueActivity(false, new RestockSupply(self, restockTarget, Info.RestockWaitTicks));
 
-				// Drain supply from the host into self. No free refills — the
-				// host's pool drops by exactly the amount transferred, capped at
-				// what the host has on hand.
-				self.QueueActivity(new CallFunc(() =>
-				{
-					var hostProvider = restockTarget.TraitOrDefault<SupplyProvider>();
-					if (hostProvider != null)
-					{
-						var needed = Info.TotalSupply - currentSupply;
-						var taken = System.Math.Min(needed, hostProvider.CurrentSupply);
-						if (taken > 0 && hostProvider.DeductSupply(taken))
-							AddSupply(taken);   // clears the residue-unusable latch on genuine refill
-					}
-
-					restocking = false;
-				}));
-
-				// Follow rally point if the restock target has one.
-				var rp = restockTarget.TraitOrDefault<RallyPoint>();
-				if (rp != null && rp.Path.Count > 0)
-					foreach (var cell in rp.Cells)
-						self.QueueActivity(move.MoveTo(cell, 1));
-			}
+			// Follow rally point if the restock target has one.
+			var rp = restockTarget.TraitOrDefault<RallyPoint>();
+			if (rp != null && rp.Path.Count > 0)
+				foreach (var cell in rp.Cells)
+					self.QueueActivity(move.MoveTo(cell, 1));
 		}
 
 		/// <summary>Deducts supply when ammo is given directly (e.g., by QuickRearm).</summary>
@@ -1023,9 +1034,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>
 		/// Whether this provider is in a state where it serves anyone at all this tick — the exact
-		/// early-return ladder <see cref="ITick.Tick"/> walks before it ever looks for a target.
-		/// Exposed so a unit deciding whether to walk here can ask instead of reproducing the rule
-		/// (and reading `restocking`, which is private for good reason).
+		/// early-return ladder <see cref="TickServing"/> walks before it ever looks for a target.
+		/// Exposed so a unit deciding whether to walk here can ask instead of reproducing the rule.
 		/// </summary>
 		public bool CanServeNow
 		{
@@ -1036,7 +1046,7 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 
 				// Tick: mid-restock drive — serves nobody until it arrives.
-				if (restocking)
+				if (Restocking)
 					return false;
 
 				// Tick: about to remove itself from the world.
