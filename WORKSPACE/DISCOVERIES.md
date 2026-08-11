@@ -3402,3 +3402,33 @@ cached null cannot produce a `True` at position 6. The remaining explanation is 
 Two things worth keeping. First, this cost **zero code** — exactly as the plan predicted, the
 diagnostic was already shipped and enabled. Second, the ~8% ferry rate quantifies the user's
 complaint rather than merely confirming it: the feature is not broken-off, it is starved.
+
+## 2026-08-11 — a widget parented to TOP_PANELS_ROOT renders under half the lobby
+
+The force-start confirmation drew *behind* the map preview and the chat panel, leaving only
+fragments of each line readable. The cause is not a z-order bug in the widget system — it is the
+parent choice. `LobbyLogic` loaded the dialog with
+`Ui.LoadWidget("FORCE_START_DIALOG", lobby.Get("TOP_PANELS_ROOT"), ...)`, and in the WW3MOD lobby
+redesign `TOP_PANELS_ROOT` is no longer the last thing declared: `lobby.yaml` puts it at line 255,
+then declares `MAP_PREVIEW_ROOT` (265), `MAP_BROWSE_ROOT` (273), `MUSIC_PANEL_ROOT` (282),
+`LOBBYCHAT` (339) and the whole bottom CTA banner (400+) *after* it as siblings. OpenRA paints
+children in declaration order, so every one of those later siblings paints over anything parented
+into `TOP_PANELS_ROOT` — including a dialog that declares `Width: PARENT_WIDTH`.
+
+**The general rule this establishes.** In the redesigned lobby, `TOP_PANELS_ROOT` is a *mid-stack*
+container, not an overlay root. Any widget that needs to sit above the lobby must be parented to
+something declared after `LOBBYCHAT`, or the layout must be reordered. This is a live trap for
+anything else in the engine that assumes the stock RA lobby's structure, where the panel bin
+happened to be near the end.
+
+**Why it went unnoticed.** The force-start path cannot be reached solo: the trigger requires a
+client with `Slot != null && !IsAdmin && Bot == null && !IsReady`, and in a skirmish lobby the host
+is admin and bots are excluded. Only a real multiplayer lobby with a second human surfaces it, which
+is why it survived the redesign. The same fact is what makes the path hard to regression-test — see
+the staging note below.
+
+**Staging technique for unreachable lobby states.** Both the before and after screenshots were taken
+by temporarily adding a case to the existing `Test.OpenLobbyTab` switch in `LobbyLogic` (reverted
+before commit) — first to force `panel = PanelType.ForceStart`, then to pre-arm the inline confirm.
+This drives `screenshot-lobby.sh` into states no solo skirmish can otherwise produce. It proves what
+the widget *renders like*; it does not exercise the click path.

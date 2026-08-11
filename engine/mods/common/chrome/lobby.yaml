@@ -435,6 +435,19 @@ Background@SERVER_LOBBY:
 			Height: 72
 			Font: TinyBold
 			TextColor: 686868
+		# === WW3MOD — inline force-start confirm reminder. LobbyLogic shows this
+		# only while the Start button is armed, and hides the stats strip above
+		# for as long as it shows — so it owns the whole quiet left side of the
+		# banner and cannot clip at narrow window widths. ink-2 (969696) rather
+		# than the stats' ink-3 so it reads as the live message without needing
+		# a colour outside the grayscale palette.
+		Label@FORCE_START_HINT:
+			X: 24
+			Y: PARENT_HEIGHT - 72
+			Width: PARENT_WIDTH - 472
+			Height: 72
+			Font: TinyBold
+			TextColor: 969696
 		# === WW3MOD — Start Game compact + right-aligned (was full-width).
 		# 400px wide button hugging the right edge (24px margin), so the
 		# CTA banner's left side reads as a quiet bar rather than a giant

@@ -59,7 +59,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[FluentReference]
 		const string ChatDisabled = "label-chat-disabled";
 
+		[FluentReference]
+		const string StartGameLabel = "button-server-lobby-start-game";
+
+		[FluentReference]
+		const string ForceStartLabel = "button-server-lobby-force-start";
+
+		[FluentReference]
+		const string ForceStartNotReady = "label-lobby-force-start-not-ready";
+
+		[FluentReference]
+		const string ForceStartMissingMap = "label-lobby-force-start-missing-map";
+
 		static readonly Action DoNothing = () => { };
+
+		// How long the inline force-start confirm stays armed after the first click.
+		const int ForceStartConfirmMilliseconds = 6000;
 
 		readonly ModData modData;
 		readonly Action onStart;
@@ -70,9 +85,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Ruleset modRules;
 		readonly WebServices services;
 
-		enum PanelType { Players, Options, Music, Servers, Kick, ForceStart }
+		enum PanelType { Players, Options, Music, Servers, Kick }
 
 		PanelType panel = PanelType.Players;
+
+		// Inline force-start confirm: clicking Start while someone is unready arms
+		// this deadline instead of opening a modal. A second click before it expires
+		// commits. Replaces the old PanelType.ForceStart dialog, which rendered
+		// underneath the map/chat panels because it was parented to TOP_PANELS_ROOT
+		// while those are later siblings of it in lobby.yaml.
+		long forceStartArmedUntil;
+
+		bool ForceStartArmed => Game.RunTime < forceStartArmedUntil;
 
 		// Test-mode pending tab switch: filled in by the constructor when
 		// Test.OpenLobbyTab is set, applied by Tick() once MapIsPlayable so the
@@ -310,7 +334,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var gameStarting = false;
 			Func<bool> configurationDisabled = () => !Game.IsHost || gameStarting ||
-				panel == PanelType.Kick || panel == PanelType.ForceStart || !MapIsPlayable ||
+				panel == PanelType.Kick || !MapIsPlayable ||
 				orderManager.LocalClient == null || orderManager.LocalClient.IsReady;
 			configurationDisabledRef = configurationDisabled;
 
@@ -318,7 +342,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (mapButton != null)
 			{
 				mapButton.IsVisible = () => panel != PanelType.Servers;
-				mapButton.IsDisabled = () => gameStarting || panel == PanelType.Kick || panel == PanelType.ForceStart ||
+				mapButton.IsDisabled = () => gameStarting || panel == PanelType.Kick ||
 					orderManager.LocalClient == null || orderManager.LocalClient.IsReady;
 				// Legacy widget parked off-screen in the YAML; keep its action in sync
 				// with the Change Map tab (inline browser) rather than the old modal.
@@ -338,7 +362,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				};
 
 				scenarioDropdown.IsDisabled = () => configurationDisabled() || gameStarting ||
-					panel == PanelType.Kick || panel == PanelType.ForceStart;
+					panel == PanelType.Kick;
 
 				scenarioDropdown.GetText = () =>
 				{
@@ -554,7 +578,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (changeMapButton != null)
 				{
 					changeMapButton.IsHighlighted = () => showChangeMap;
-					changeMapButton.IsDisabled = () => gameStarting || panel == PanelType.Kick || panel == PanelType.ForceStart ||
+					changeMapButton.IsDisabled = () => gameStarting || panel == PanelType.Kick ||
 						orderManager.LocalClient == null || orderManager.LocalClient.IsReady;
 					changeMapButton.OnClick = OpenMapBrowser;
 				}
@@ -637,10 +661,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// with the button itself (including the host-only configurationDisabled part).
 			bool LobbyReady() => !configurationDisabled() && !StartDisabled();
 
+			// Bots and admins don't count towards readiness.
+			bool AnyPlayerUnready() =>
+				orderManager.LobbyInfo.Clients.Any(c => c.Slot != null && !c.IsAdmin && c.Bot == null && !c.IsReady);
+
 			var startGameButton = lobby.GetOrNull<ButtonWidget>("START_GAME_BUTTON");
 			if (startGameButton != null)
 			{
 				startGameButton.IsDisabled = () => !LobbyReady();
+
+				var startText = FluentProvider.GetMessage(StartGameLabel);
+				var forceStartText = FluentProvider.GetMessage(ForceStartLabel);
+				startGameButton.GetText = () => ForceStartArmed ? forceStartText : startText;
 
 				startGameButton.OnClick = () =>
 				{
@@ -648,12 +680,28 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					// so it can be one-click-restored from the preset dropdown next time.
 					LobbyPresetLogic.SnapshotLastGame?.Invoke();
 
-					// Bots and admins don't count
-					if (orderManager.LobbyInfo.Clients.Any(c => c.Slot != null && !c.IsAdmin && c.Bot == null && !c.IsReady))
-						panel = PanelType.ForceStart;
-					else
-						StartGame();
+					if (!ForceStartArmed && AnyPlayerUnready())
+					{
+						forceStartArmedUntil = Game.RunTime + ForceStartConfirmMilliseconds;
+						return;
+					}
+
+					forceStartArmedUntil = 0;
+					StartGame();
 				};
+			}
+
+			// Quiet in-place reminder next to the button while the confirm is armed;
+			// takes over the stats strip's slot in the CTA banner so it has room to
+			// render at any window width.
+			var forceStartHint = lobby.GetOrNull<LabelWidget>("FORCE_START_HINT");
+			if (forceStartHint != null)
+			{
+				var notReadyText = FluentProvider.GetMessage(ForceStartNotReady);
+				var missingMapText = FluentProvider.GetMessage(ForceStartMissingMap);
+				forceStartHint.IsVisible = () => ForceStartArmed;
+				forceStartHint.GetText = () =>
+					orderManager.LobbyInfo.Clients.Any(c => c.IsInvalid) ? missingMapText : notReadyText;
 			}
 
 			// Top-bar status indicator: go-green dot + "LOBBY READY" only when Start
@@ -670,6 +718,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// of the bottom banner (label geometry in lobby.yaml). Formulas mirror
 			// StartDisabled (slot fill), the Remove Bots dropdown (bot count), and the
 			// UpdatePlayerList spectator loop (non-bot clients without a slot).
+			// The hint replaces this strip while the confirm is armed.
+			foreach (var id in new[] { "STATS_SLOTS", "STATS_BOTS", "STATS_SPECTATORS" })
+			{
+				var stat = lobby.GetOrNull<LabelWidget>(id);
+				if (stat != null)
+					stat.IsVisible = () => !ForceStartArmed;
+			}
+
 			var statsSlots = lobby.GetOrNull<LabelWidget>("STATS_SLOTS");
 			if (statsSlots != null)
 			{
@@ -705,19 +761,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (block != null)
 					block.GetColor = () => LobbyReady() ? enabledColor : disabledColor;
 			}
-
-			var forceStartBin = Ui.LoadWidget("FORCE_START_DIALOG", lobby.Get("TOP_PANELS_ROOT"), new WidgetArgs());
-			forceStartBin.IsVisible = () => panel == PanelType.ForceStart;
-			forceStartBin.Get("KICK_WARNING").IsVisible = () => orderManager.LobbyInfo.Clients.Any(c => c.IsInvalid);
-			var forceStartButton = forceStartBin.Get<ButtonWidget>("OK_BUTTON");
-			forceStartButton.OnClick = () =>
-			{
-				LobbyPresetLogic.SnapshotLastGame?.Invoke();
-				StartGame();
-			};
-			forceStartButton.IsDisabled = StartDisabled;
-
-			forceStartBin.Get<ButtonWidget>("CANCEL_BUTTON").OnClick = () => panel = PanelType.Players;
 
 			var disconnectButton = lobby.Get<ButtonWidget>("DISCONNECT_BUTTON");
 			disconnectButton.OnClick = () =>
@@ -840,7 +883,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		bool OptionsTabDisabled()
 		{
-			return !MapIsPlayable || panel == PanelType.Kick || panel == PanelType.ForceStart;
+			return !MapIsPlayable || panel == PanelType.Kick;
 		}
 
 		public override void Tick()
