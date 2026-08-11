@@ -1,0 +1,31 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-dry-resupply-reaches-truck.lua
+
+^Combatant:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+
+# Dry on arrival, so the resupply errand is dispatched by the shipped traits rather than staged
+# by the test -- the chain under test starts at "unit runs out", not "test issues an order".
+AR:
+	AmmoPool@1:
+		InitialAmmo: 0

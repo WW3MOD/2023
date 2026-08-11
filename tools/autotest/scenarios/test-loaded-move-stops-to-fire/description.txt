@@ -1,0 +1,1 @@
+Auto: a LOADED rifleman under a plain Move order must still stop and fire at an enemy in range.

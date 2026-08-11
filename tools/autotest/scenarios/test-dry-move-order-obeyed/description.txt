@@ -1,0 +1,1 @@
+Auto: a dry rifleman must obey a plain Move order with an enemy in weapon range; Force-Move is the control.
