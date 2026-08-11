@@ -618,6 +618,7 @@ namespace OpenRA.Mods.Common.Graphics
 			if (index.Count == 0)
 			{
 				Log.Write("debug", $"Sequence {image}.{Name} does not define any frames.");
+				SequenceIntegrity.RecordDegraded(image, Name, "no frames");
 				sprites = Array.Empty<Sprite>();
 				bounds = Rectangle.Empty;
 				return;
@@ -628,6 +629,17 @@ namespace OpenRA.Mods.Common.Graphics
 			if (minIndex < 0 || maxIndex >= allSprites.Length)
 			{
 				Log.Write("debug", $"Sequence {image}.{Name} uses frames between {minIndex}..{maxIndex}, but only 0..{allSprites.Length - 1} exist.");
+
+				// PITFALL: clamping here is WW3MOD-specific - upstream throws. It keeps an
+				// incomplete Red Alert install bootable, at the price of turning a missing
+				// sprite into a silently SHORTER animation rather than a load error. Two
+				// players can therefore be on the same commit, both freshly built, and still
+				// be animating different lengths. Tally it so the divergence is visible
+				// (SequenceIntegrity is reported in the sync report header); do not assume
+				// the one debug-log line above will be noticed.
+				SequenceIntegrity.RecordDegraded(image, Name,
+					$"wants {minIndex}..{maxIndex}, has 0..{allSprites.Length - 1}");
+
 				// Clamp indices to available range
 				index = index.Where(i => i >= 0 && i < allSprites.Length).ToList();
 				if (index.Count == 0 && allSprites.Length > 0)

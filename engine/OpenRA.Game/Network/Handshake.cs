@@ -44,6 +44,15 @@ namespace OpenRA.Network
 		// (which define OrdersProtocol > 7) can detect older clients
 		public int OrdersProtocol = 7;
 
+		// Identifies the build the client is actually running: the git revision compiled into
+		// the engine plus a hash of the simulation-defining mod yaml. Metadata.Version cannot
+		// do this job - it is a hardcoded literal that never moves when engine C# or mod yaml
+		// changes, so a client running completely different code used to join silently and
+		// desync a few frames in. See OpenRA.Network.BuildFingerprint.
+		// Left empty by clients built before this check existed; the server treats that as a
+		// mismatch, which it is.
+		public string BuildFingerprint;
+
 		// For player authentication
 		public string Fingerprint;
 		public string AuthSignature;
@@ -80,7 +89,7 @@ namespace OpenRA.Network
 			var data = new List<MiniYamlNode>
 			{
 				new("Handshake", null,
-					new[] { "Mod", "Version", "Password", "Fingerprint", "AuthSignature", "OrdersProtocol" }.Select(p => FieldSaver.SaveField(this, p)).ToList()),
+					new[] { "Mod", "Version", "Password", "Fingerprint", "AuthSignature", "OrdersProtocol", "BuildFingerprint" }.Select(p => FieldSaver.SaveField(this, p)).ToList()),
 				new("Client", FieldSaver.Save(Client))
 			};
 

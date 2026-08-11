@@ -106,6 +106,12 @@ namespace OpenRA.Graphics
 
 		public void LoadSprites()
 		{
+			// Sprites are resolved per map, so the degraded-sequence tally must describe THIS
+			// map. Left cumulative it becomes a union over every map loaded since the process
+			// started, and two players with identical content report different digests purely
+			// because one of them loaded more maps first.
+			SequenceIntegrity.Reset();
+
 			SpriteCache.LoadReservations(modData);
 			foreach (var sequences in images.Values)
 				foreach (var sequence in sequences)

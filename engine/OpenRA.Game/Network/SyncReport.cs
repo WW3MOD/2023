@@ -21,7 +21,13 @@ namespace OpenRA.Network
 {
 	sealed class SyncReport
 	{
-		const int NumSyncReports = 7;
+		// Upstream keeps 7. Raised because 7 net frames is roughly half a second: any stall
+		// longer than that between the desync and the dump - an alt-tab, a GC pause, a
+		// disk hiccup - rotates the offending frame out of the ring, and the report then reads
+		// "Recorded frames do not contain the frame N", which is indistinguishable from the
+		// empty-report failure this whole branch exists to remove. Cost is memory only, and
+		// only in games with two or more humans (see OrderManager.StartGame).
+		const int NumSyncReports = 32;
 		static readonly Cache<Type, TypeInfo> TypeInfoCache = new(t => new TypeInfo(t));
 
 		readonly OrderManager orderManager;
@@ -108,7 +114,15 @@ namespace OpenRA.Network
 
 			var reportName = $"syncreport-{timestamp}-{orderManager.LocalClient?.Index}.log";
 
-			Log.AddChannel("sync", reportName);
+			// PITFALL: Log.AddChannel returns early when the channel already exists
+			// (Support/Log.cs:147-148) - it does NOT repoint an existing channel at a new file.
+			// A fixed "sync" channel therefore made every desync after the first append to the
+			// FIRST game's report, so the filename's timestamp lied and two reports sat
+			// interleaved in one file. That is not hypothetical: desyncing twice without
+			// restarting the game is the normal way this gets hit. The channel name has to be
+			// unique per dump for the file name to mean anything.
+			var channel = $"sync-{timestamp}-{frame}";
+			Log.AddChannel(channel, reportName);
 
 			var recordedFrames = new List<int>();
 			var desyncFrameFound = false;
@@ -119,46 +133,54 @@ namespace OpenRA.Network
 				{
 					desyncFrameFound = true;
 					var mod = Game.ModData.Manifest.Metadata;
-					Log.Write("sync", $"Player: {Game.Settings.Player.Name} ({Platform.CurrentPlatform} {Environment.OSVersion} {Platform.RuntimeVersion})");
+					Log.Write(channel, $"Player: {Game.Settings.Player.Name} ({Platform.CurrentPlatform} {Environment.OSVersion} {Platform.RuntimeVersion})");
 					if (Game.IsHost)
-						Log.Write("sync", "Player is host.");
-					Log.Write("sync", $"Game ID: {orderManager.LobbyInfo.GlobalSettings.GameUid} (Mod: {mod.TitleTranslated} at Version {mod.Version})");
-					Log.Write("sync", $"Sync for net frame {r.Frame} -------------");
-					Log.Write("sync", $"SharedRandom: {r.SyncedRandom} (#{r.TotalCount})");
-					Log.Write("sync", "Synced Traits:");
+						Log.Write(channel, "Player is host.");
+					Log.Write(channel, $"Game ID: {orderManager.LobbyInfo.GlobalSettings.GameUid} (Mod: {mod.TitleTranslated} at Version {mod.Version})");
+
+					// The first thing to check when diffing two players' reports is whether they
+					// were even running the same thing. mod.Version above cannot answer that -
+					// it is a hardcoded literal. These can: the fingerprint covers engine build,
+					// mod rules and installed content, and the sequence line catches an
+					// incomplete Red Alert install, which no repo-state check can see.
+					Log.Write(channel, $"Build: {BuildFingerprint.ForMod(Game.ModData)}");
+					Log.Write(channel, Graphics.SequenceIntegrity.Summary());
+					Log.Write(channel, $"Sync for net frame {r.Frame} -------------");
+					Log.Write(channel, $"SharedRandom: {r.SyncedRandom} (#{r.TotalCount})");
+					Log.Write(channel, "Synced Traits:");
 					foreach (var a in r.Traits)
 					{
-						Log.Write("sync", $"\t {a.ActorID} {a.Type} {a.Owner} {a.Trait} ({a.Hash})");
+						Log.Write(channel, $"\t {a.ActorID} {a.Type} {a.Owner} {a.Trait} ({a.Hash})");
 
 						var nvp = a.NamesValues;
 						for (var i = 0; i < nvp.Names.Length; i++)
 							if (nvp.Values[i] != null)
-								Log.Write("sync", $"\t\t {nvp.Names[i]}: {nvp.Values[i]}");
+								Log.Write(channel, $"\t\t {nvp.Names[i]}: {nvp.Values[i]}");
 					}
 
-					Log.Write("sync", "Synced Effects:");
+					Log.Write(channel, "Synced Effects:");
 					foreach (var e in r.Effects)
 					{
-						Log.Write("sync", $"\t {e.Name} ({e.Hash})");
+						Log.Write(channel, $"\t {e.Name} ({e.Hash})");
 
 						var nvp = e.NamesValues;
 						for (var i = 0; i < nvp.Names.Length; i++)
 							if (nvp.Values[i] != null)
-								Log.Write("sync", $"\t\t {nvp.Names[i]}: {nvp.Values[i]}");
+								Log.Write(channel, $"\t\t {nvp.Names[i]}: {nvp.Values[i]}");
 					}
 
-					Log.Write("sync", "Orders Issued:");
+					Log.Write(channel, "Orders Issued:");
 					foreach (var o in r.Orders)
-						Log.Write("sync", $"\t {o}");
+						Log.Write(channel, $"\t {o}");
 				}
 			}
 
-			Log.Write("sync", "Sync Report System Info:");
-			Log.Write("sync", $"Out of sync frame: {frame}");
-			Log.Write("sync", "Recorded frames: " + string.Join(",", recordedFrames));
+			Log.Write(channel, "Sync Report System Info:");
+			Log.Write(channel, $"Out of sync frame: {frame}");
+			Log.Write(channel, "Recorded frames: " + string.Join(",", recordedFrames));
 
 			if (!desyncFrameFound)
-				Log.Write("sync", $"Recorded frames do not contain the frame {frame}. No sync report available!");
+				Log.Write(channel, $"Recorded frames do not contain the frame {frame}. No sync report available!");
 		}
 
 		sealed class Report
