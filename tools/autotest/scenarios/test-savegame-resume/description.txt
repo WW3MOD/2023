@@ -1,0 +1,1 @@
+Auto: save the game, reload it in-process, close the auto-opened menu — the world must resume ticking.
