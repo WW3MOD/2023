@@ -1,0 +1,56 @@
+WW3MOD
+A total conversion into a modern World War 3 real-time
+strategy game: NATO and America against BRICS and Russia.
+
+
+DEVELOPMENT
+
+    * FreadyFish
+    * CmdrBambi
+
+
+GAME ENGINE
+
+WW3MOD is built on the OpenRA engine.
+Copyright (c) The OpenRA Developers and Contributors.
+
+OpenRA is free software, licensed under the GNU General
+Public License version 3 or later. WW3MOD's changes to the
+engine are released under the same licence. The full list of
+OpenRA contributors is on the OpenRA tab of this screen.
+
+    * Website - https://www.openra.net
+    * Source - https://github.com/OpenRA/OpenRA
+    * Licence - https://www.gnu.org/licenses/gpl-3.0.html
+
+
+MAPS
+
+Several maps are adapted from OpenRA's Red Alert mod and keep
+their original authors. Each one credits its author in the
+map browser listing.
+
+
+GAME CONTENT
+
+WW3MOD loads artwork and audio from the Command & Conquer:
+Red Alert data files. Those files are supplied by the player
+from the 2008 freeware release or from an original copy of
+the game, and are not distributed with WW3MOD. Command &
+Conquer and Red Alert are trademarks of their respective
+owners, who are not affiliated with this project.
+
+
+MUSIC
+
+    (nothing here yet)
+
+
+ART
+
+    (nothing here yet)
+
+
+SOUND
+
+    (nothing here yet)

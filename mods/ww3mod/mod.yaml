@@ -1,7 +1,9 @@
 Metadata:
 	Title: WW3MOD
 	Version: release-20230225
+	# TODO(release): still points at openra.net — replace with the WW3MOD homepage once the user picks one.
 	Website: https://www.openra.net
+	# TODO(release): still the stock Red Alert icon on openra.net — replace with a WW3MOD-hosted 32x32.
 	WebIcon32: https://www.openra.net/images/icons/ra_32x32.png
 	WindowTitle: WW3MOD
 	FirstTimeShellmap: River Zeta WW3
@@ -186,7 +188,7 @@ ChromeLayout:
 	common|chrome/settings-input.yaml
 	common|chrome/settings-hotkeys.yaml
 	common|chrome/settings-advanced.yaml
-	common|chrome/credits.yaml
+	ww3mod|chrome/credits.yaml
 	ww3mod|chrome/info-panel.yaml
 	common|chrome/lobby.yaml
 	common|chrome/lobby-mappreview.yaml
@@ -393,9 +395,9 @@ GameSpeeds:
 
 ModContent:
 	Mod: ww3mod
-	InstallPromptMessage: Red Alert requires artwork and audio from the original game.\n\nQuick Install will automatically download this content (without music\nor videos) from a mirror of the 2008 Red Alert freeware release.\n\nAdvanced Install includes options for copying the music, videos, and\nother content from an original game disc or digital installation.
+	InstallPromptMessage: WW3MOD is a total conversion of Command & Conquer: Red Alert and\nstill loads artwork and audio from that game's data files.\n\nQuick Install downloads the required files (without music or videos)\nfrom a mirror of the 2008 Red Alert freeware release.\n\nAdvanced Install can instead copy the music, videos, and other content\nfrom an original game disc or digital installation.
 	QuickDownload: quickinstall
-	HeaderMessage: Game content may be extracted from the original game discs or an\nexisting digital install. OpenRA can also download the base game\nfiles from an online mirror of the 2008 freeware release of RA.
+	HeaderMessage: Required content can be extracted from an original Red Alert disc or\nan existing digital install. WW3MOD can also download the base game\nfiles from an online mirror of the 2008 freeware release.
 	Packages:
 		base: Base Game Files
 			TestFiles: ^SupportDir|Content/ra/v2/allies.mix, ^SupportDir|Content/ra/v2/conquer.mix, ^SupportDir|Content/ra/v2/interior.mix, ^SupportDir|Content/ra/v2/hires.mix, ^SupportDir|Content/ra/v2/lores.mix, ^SupportDir|Content/ra/v2/local.mix, ^SupportDir|Content/ra/v2/speech.mix, ^SupportDir|Content/ra/v2/russian.mix, ^SupportDir|Content/ra/v2/snow.mix, ^SupportDir|Content/ra/v2/sounds.mix, ^SupportDir|Content/ra/v2/temperat.mix
@@ -444,6 +446,6 @@ ModContent:
 DiscordService:
 	ApplicationId: 699222659766026240
 
-# ModCredits:
-# 	ModCreditsFile: ww3mod|credits.txt
-# 	ModTabTitle: WW3MOD
+ModCredits:
+	ModCreditsFile: ww3mod|credits.txt
+	ModTabTitle: WW3MOD
