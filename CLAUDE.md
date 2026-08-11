@@ -32,7 +32,7 @@ Pull only what your task needs. Indexes: [`DOCS/README.md`](DOCS/README.md), [`W
 | Editing YAML or engine C# | [`DOCS/reference/conventions.md`](DOCS/reference/conventions.md) — WDist, WAngle (counterclockwise!), YAML idioms, PITFALL comments, engine code rules |
 | AI / strategic layer | [`DOCS/reference/supply-route.md`](DOCS/reference/supply-route.md) + [`DOCS/reference/game-model.md`](DOCS/reference/game-model.md) — the recurring trap |
 | Belief / danger / territory fields, @experimental fog-respecting AI (Stages 0, A–F) | [`DOCS/reference/influence-stack.md`](DOCS/reference/influence-stack.md) — invariants (zero RNG, byte-identity) + consumer map |
-| A specific engine system (aircraft, suppression, stances, scenarios, AI config, shadows) | [`DOCS/reference/architecture.md`](DOCS/reference/architecture.md) — that section only |
+| A specific engine system (aircraft, suppression, stances, scenarios, AI config, shadows, audio/music) | [`DOCS/reference/architecture.md`](DOCS/reference/architecture.md) — that section only |
 | Behavioral bug fix or feature | [`DOCS/recipes/AUTOTEST.md`](DOCS/recipes/AUTOTEST.md) — test-driven loop, **applies by default** |
 | Visual work (UI, palette, lobby, sprites, formations) | [`DOCS/recipes/SCREENSHOT.md`](DOCS/recipes/SCREENSHOT.md) — capture + multimodal eval, **applies by default** |
 | Staging something for the user to see | [`DOCS/recipes/DEMO.md`](DOCS/recipes/DEMO.md) — no verdict, never `Test.Pass`/`Fail` in a demo |
