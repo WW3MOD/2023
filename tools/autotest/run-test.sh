@@ -317,7 +317,17 @@ LOCK_DIR="${RESULT_DIR}/run.lock"
 if ! mkdir "${LOCK_DIR}" 2>/dev/null; then
 	_holder=$(cat "${LOCK_DIR}/pid" 2>/dev/null || true)
 	_holder_test=$(cat "${LOCK_DIR}/test" 2>/dev/null || echo "unknown test")
-	if [ -n "${_holder}" ] && kill -0 "${_holder}" 2>/dev/null; then
+	# An EMPTY pid means the holder is mid-acquisition (mkdir at :317 is atomic, but
+	# the pid is only written at :333) — that is the opposite of stale. Treating it as
+	# dead reclaims a LIVE run's lock, and the rm -f below then destroys that run's
+	# verdict, which is unrecoverable. Observed 2026-08-12: a concurrent worker took
+	# this path and wiped a completed saved-game-restore verdict between the game
+	# writing it and the runner archiving it. Bail when we cannot prove the holder dead.
+	if [ -z "${_holder}" ]; then
+		echo "Error: another autotest run is acquiring the lock (${_holder_test}). Retry in a moment."
+		exit 3
+	fi
+	if kill -0 "${_holder}" 2>/dev/null; then
 		echo "Error: another autotest run is already in flight (pid ${_holder}, ${_holder_test})."
 		echo "       The harness is single-instance: results go to one shared ${RESULT_FILE}."
 		echo "       Wait for it, or kill it, then retry."
