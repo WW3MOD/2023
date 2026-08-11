@@ -180,12 +180,6 @@ checkbox-kick-client-dialog-prevent-rejoining = Temporarily Ban
 button-kick-client-dialog = Kick
 label-kick-spectators-dialog-title = Kick Spectators
 button-kick-spectators-dialog-ok = Ok
-label-force-start-dialog-title = Start Game?
-label-force-start-dialog-text-a = One or more players are not yet ready.
-label-force-start-dialog-text-b = Are you sure that you want to force start the game?
-label-kick-warning-a = One or more clients are missing the selected
-label-kick-warning-b = map, and will be kicked from the server.
-button-force-start-dialog-start = Start
 
 ## lobby-mappreview.yaml
 label-map-incompatible-status-a = This map is not compatible
@@ -262,6 +256,9 @@ button-lobbychat-chat-mode =
     .tooltip = Toggle chat mode
 
 button-server-lobby-start-game = Start Game
+button-server-lobby-force-start = Confirm force start
+label-lobby-force-start-not-ready = Not all players are ready. Click Start again to force start.
+label-lobby-force-start-missing-map = Some players are missing this map and will be kicked. Click Start again to force start.
 button-server-lobby-disconnect = Leave Game
 
 ## mainmenu-prompts.yaml
