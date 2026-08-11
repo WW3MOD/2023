@@ -4,16 +4,36 @@ Container@GAMESAVE_LOADING_SCREEN:
 	Height: WINDOW_HEIGHT
 	Children:
 		LogicKeyListener@CANCEL_HANDLER:
-		Background@STRIPE:
-			Y: (WINDOW_HEIGHT - HEIGHT) / 2
+		ColorBlock@BACKDROP:
 			Width: WINDOW_WIDTH
-			Height: 256
-			Background: loadscreen-stripe
-		Image@LOGO:
-			X: (WINDOW_WIDTH - 256) / 2
-			Y: (WINDOW_HEIGHT - 256) / 2
-			ImageCollection: logos
-			ImageName: logo
+			Height: WINDOW_HEIGHT
+			Color: 000000
+		# Mirrors LogoStripeLoadScreen's CustomBar: a 160px dark grey band
+		# centred vertically, hairline borders, "WW3MOD" centred inside it.
+		ColorBlock@BAR:
+			Y: WINDOW_HEIGHT / 2 - 80
+			Width: WINDOW_WIDTH
+			Height: 160
+			Color: 232323
+		ColorBlock@BAR_TOP:
+			Y: WINDOW_HEIGHT / 2 - 80
+			Width: WINDOW_WIDTH
+			Height: 1
+			Color: 3C3C3C
+		ColorBlock@BAR_BOTTOM:
+			Y: WINDOW_HEIGHT / 2 + 79
+			Width: WINDOW_WIDTH
+			Height: 1
+			Color: 3C3C3C
+		Label@BRAND:
+			Width: WINDOW_WIDTH
+			Y: WINDOW_HEIGHT / 2 - 80
+			Height: 160
+			Font: TitleLarge
+			Align: Center
+			VAlign: Middle
+			Contrast: true
+			Text: WW3MOD
 		Label@TITLE:
 			Width: WINDOW_WIDTH
 			Y: 3 * WINDOW_HEIGHT / 4 - 29
