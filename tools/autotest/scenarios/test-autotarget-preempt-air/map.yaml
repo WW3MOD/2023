@@ -1,0 +1,70 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: AutoTarget Preempts to Higher Priority (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Stryker SHORAD. ^AutoTargetAAIFV bands: Helicopter 5, Aircraft 4,
+	# Vehicle 3, Infantry 2 — so the t90 below is band 3 and the HIND the Lua
+	# spawns later is band 5.
+	Shorad: strykershorad
+		Owner: USA
+		Location: 20,17
+	# Band-3 ground incumbent, 8 cells east — inside 25mm range so the SHORAD
+	# picks it up on its idle scan and stays engaged. Heavy armour, so 25mm
+	# cannot kill it inside the deadline: it must survive, or the SHORAD would
+	# go idle and the ordinary idle scan (not preemption) would find the heli.
+	GroundTarget: t90
+		Owner: Russia
+		Location: 28,17
+	# One Supply Route per side so neither faction can be eliminated mid-test
+	# (a mission-end overlay short-circuits the Lua verdict poller).
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 20,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 28,17
+
+Rules: rules.yaml

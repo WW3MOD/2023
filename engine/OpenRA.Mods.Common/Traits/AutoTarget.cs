@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Warheads;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -199,6 +200,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Ticks to wait until next AutoTarget: attempt.")]
 		public readonly int MaximumScanTimeInterval = 8;
+
+		[Desc("Ticks between target-preemption rescans while ALREADY engaging an auto-picked target.",
+			"The ordinary priority scan hangs off INotifyIdle and an engaged unit is never idle, so without",
+			"this a unit shooting infantry keeps shooting it while an enemy tank sits in range unengaged.",
+			"A rescan switches only to a STRICTLY higher AutoTargetPriority band, and only to something",
+			"shootable from where the unit stands. 0 = disabled (behaviour is byte-identical to no scan).")]
+		public readonly int PreemptScanInterval = 0;
 
 		[Desc("Skip targets whose AverageDamagePercent exceeds this threshold.",
 			"Prevents overkill — idle units won't fire at targets that already have enough incoming damage to destroy them.",
@@ -928,6 +936,74 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (nextScanTime > 0)
 				--nextScanTime;
+
+			TickPreemption(self);
+		}
+
+		/// <summary>Target preemption: switch off a low-priority target when a strictly higher-priority one
+		/// becomes attackable (the SHORAD that keeps shooting infantry while a helicopter hovers in range).
+		///
+		/// The ordinary priority scan is IDLE-ONLY — ChooseTarget is reachable only via ScanForTarget from
+		/// INotifyIdle.TickIdle, and Actor.IsIdle is CurrentActivity == null, so an engaged unit never rescans.
+		/// Even a forced rescan returns the incumbent, because AttackFollow.TryGetAutoTargetOverride hands
+		/// RequestedTarget straight back ahead of the scan. See WORKSPACE/DISCOVERIES.md (2026-08-11).
+		///
+		/// Determinism: cadence is WorldTick + ActorID, zero RNG, and ChooseTarget is called DIRECTLY rather
+		/// than through ScanForTarget — the latter re-arms nextScanTime off SharedRandom, which would shift the
+		/// shared RNG stream (breaking byte-identity, see DOCS/reference/influence-stack.md) and starve the
+		/// existing scanners (that starvation mode is documented at AttackMoveActivity.cs:110-115).</summary>
+		void TickPreemption(Actor self)
+		{
+			var interval = Info.PreemptScanInterval;
+			if (interval <= 0 || stance < UnitStance.FireAtWill || self.IsIdle)
+				return;
+
+			// Stagger by ActorID so units don't all rescan on the same tick. Tick-derived, no RNG.
+			if ((self.World.WorldTick + (int)(self.ActorID % (uint)interval)) % interval != 0)
+				return;
+
+			// Only ever preempt an engagement THIS trait issued: a player order, a Lua order or a bot's
+			// deliberate AttackTarget must survive untouched.
+			//
+			// PITFALL: this reads the TOP-LEVEL activity, deliberately NOT
+			// self.CurrentActivity.ActivitiesImplementing<IAttackActivity>(). That walk descends into
+			// ChildActivity and along NextActivity, so an autotarget attack nested under a player Move
+			// (SmartMoveActivity.cs:117) or under an attack-move would match — and preempting via
+			// queued:false calls Actor.CancelActivity on the WHOLE current activity, destroying the move
+			// order. Attacks that AutoTarget.Attack issued are top-level, because they were queued the
+			// same way. Units engaging from inside a move keep their pre-existing behaviour.
+			if (self.CurrentActivity is not IAttackActivity current
+				|| current.Source != AttackSource.AutoTarget
+				|| current.ForceAttack)
+				return;
+
+			var incumbentBand = GetTargetPriorityBand(self, current.Target);
+			var allowTurn = Info.AllowTurning && stance > UnitStance.HoldFire;
+
+			foreach (var ab in ActiveAttackBases)
+			{
+				var attackStances = ab.UnforcedAttackTargetStances();
+				if (attackStances == PlayerRelationship.None)
+					continue;
+
+				var range = Info.ScanRadius > 0 ? WDist.FromCells(Info.ScanRadius) : ab.GetMaximumRange();
+
+				// allowMove:false so the armament range / LOS filters only yield something shootable from
+				// where we stand — this is what stops a SHORAD abandoning a tank to chase an unreachable
+				// helicopter.
+				var candidate = ChooseTarget(self, ab, attackStances, range, false, allowTurn, out var candidateBand);
+
+				// STRICTLY higher band only. The band comparison IS the hysteresis: the range, cluster and
+				// soft-overkill terms are bounded by construction to stay inside one bucket, so they are
+				// invisible here and two comparable targets can never oscillate. No cooldown is needed.
+				if (candidate.Type == TargetType.Invalid || candidateBand <= incumbentBand)
+					continue;
+
+				foreach (var b in ActiveAttackBases)
+					b.AttackTarget(candidate, AttackSource.AutoTarget, false, false);
+
+				return;
+			}
 		}
 
 		public Target ScanForTarget(Actor self, bool allowMove, bool allowTurn, bool ignoreScanInterval = false)
@@ -971,9 +1047,25 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool HasValidTargetPriority(Actor self, Player owner, BitSet<TargetableType> targetTypes)
 		{
-			if (owner == null || Stance <= UnitStance.HoldFire)
-				return false;
+			return GetTargetPriorityBand(self, owner, targetTypes) > NoTargetPriorityBand;
+		}
 
+		/// <summary>Returned when no enabled AutoTargetPriority matches — lower than any real Priority,
+		/// so an unmatched incumbent always loses the preemption comparison.</summary>
+		public const int NoTargetPriorityBand = int.MinValue;
+
+		/// <summary>The highest AutoTargetPriority band this unit assigns to the given target, or
+		/// <see cref="NoTargetPriorityBand"/> if none matches. Same relationship / ValidTargets / InvalidTargets
+		/// matching HasValidTargetPriority has always done; it just reports the winning Priority instead of a bool.
+		/// Deliberately reads the RAW ati.Priority, exactly like ChooseTarget's chosenTargetPriority — the
+		/// ConditionalPriority suppression promote is excluded from BOTH sides of the preemption comparison,
+		/// so a decaying suppression condition can never make two targets trade places across a band edge.</summary>
+		public int GetTargetPriorityBand(Actor self, Player owner, BitSet<TargetableType> targetTypes)
+		{
+			if (owner == null || Stance <= UnitStance.HoldFire)
+				return NoTargetPriorityBand;
+
+			var best = NoTargetPriorityBand;
 			foreach (var atp in allTargetPriorities)
 			{
 				if (atp.IsTraitDisabled)
@@ -989,15 +1081,36 @@ namespace OpenRA.Mods.Common.Traits
 				if (!ati.OnlyTargets.Except(targetTypes).Any() || !ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
 					continue;
 
-				return true;
+				if (ati.Priority > best)
+					best = ati.Priority;
 			}
 
-			return false;
+			return best;
+		}
+
+		/// <summary>Band of a Target, resolving actor vs frozen-actor owner/type lookup.</summary>
+		int GetTargetPriorityBand(Actor self, in Target target)
+		{
+			if (target.Type == TargetType.Actor)
+				return GetTargetPriorityBand(self, target.Actor.Owner, target.Actor.GetEnabledTargetTypes());
+
+			if (target.Type == TargetType.FrozenActor)
+				return GetTargetPriorityBand(self, target.FrozenActor.Owner, target.FrozenActor.TargetTypes);
+
+			return NoTargetPriorityBand;
 		}
 
 		Target ChooseTarget(Actor self, AttackBase ab, PlayerRelationship attackStances, WDist scanRange, bool allowMove, bool allowTurn)
 		{
+			return ChooseTarget(self, ab, attackStances, scanRange, allowMove, allowTurn, out _);
+		}
+
+		/// <summary><paramref name="chosenBand"/> reports the winning target's raw AutoTargetPriority
+		/// (<see cref="NoTargetPriorityBand"/> when nothing was chosen), for target preemption.</summary>
+		Target ChooseTarget(Actor self, AttackBase ab, PlayerRelationship attackStances, WDist scanRange, bool allowMove, bool allowTurn, out int chosenBand)
+		{
 			var chosenTarget = Target.Invalid;
+			chosenBand = NoTargetPriorityBand;
 
 			if (stance <= UnitStance.HoldFire)
 				return chosenTarget;
@@ -1046,7 +1159,6 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			var chosenTargetPriority = 0;
 			var chosenTargetRange = 0;
 			var chosenTargetAverageDamagePercent = 0;
 			var chosenTargetSuppression = 0;
@@ -1222,7 +1334,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					chosenTarget = target;
 					chosenTargetValue = priorityValue;
-					chosenTargetPriority = ati.Priority;
+					chosenBand = ati.Priority;
 					chosenTargetRange = targetRange;
 					chosenTargetSuppression = priorityCondition ?? 0;
 					chosenTargetAverageDamagePercent = target.Actor.AverageDamagePercent;

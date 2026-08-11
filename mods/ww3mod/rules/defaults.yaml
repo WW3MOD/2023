@@ -321,6 +321,11 @@
 		InitialCohesionAI: Loose
 		InitialResupplyBehavior: Auto
 		InitialResupplyBehaviorAI: Auto
+		# Target preemption: rescan every 25 ticks while ALREADY engaging an auto-picked target and
+		# switch on a STRICTLY higher AutoTargetPriority band. Without it the priority scan is idle-only,
+		# so a unit shooting infantry keeps shooting while an enemy tank sits in range unengaged.
+		# Must be repeated on ^AutoTargetGround below — that chain does NOT inherit ^AutoTarget.
+		PreemptScanInterval: 25
 	AutoTargetPriority@FireAtWill:
 		Priority: 1
 	AttacksSupplyRoutes:
@@ -562,6 +567,9 @@
 		FireAtWillCondition: stance-fireatwill
 		AmbushCondition: stance-ambush
 		HoldFireCondition: stance-holdfire
+		# See ^AutoTarget above. Repeated deliberately: the ^AutoTargetGround* chain (the Stryker SHORAD
+		# among them) is a separate base and does not inherit ^AutoTarget.
+		PreemptScanInterval: 25
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-fireatwill
 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
