@@ -156,6 +156,14 @@ namespace OpenRA
 			InitializeLoaders(map);
 			map.Sequences.LoadSprites();
 
+			// Stated once per map load, on every machine, because the join handshake
+			// structurally cannot see this: sprites are not resolved until after the lobby, so
+			// two players whose identically-named .shp files hold different frame counts look
+			// identical at join time and diverge only here. Logging it now lets two players
+			// compare one line BEFORE they play, instead of needing a desync to produce the
+			// evidence.
+			Log.Write("debug", Graphics.SequenceIntegrity.Summary());
+
 			// Load music with map assets mounted
 			using (new Support.PerfTimer("Map.Music"))
 				foreach (var entry in map.Rules.Music)

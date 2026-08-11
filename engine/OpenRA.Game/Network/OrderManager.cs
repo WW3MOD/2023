@@ -104,8 +104,22 @@ namespace OpenRA.Network
 					pendingOrders.Add(client.Index, new Queue<(int, OrderPacket)>());
 
 			// Generating sync reports is expensive, so only do it if we have
-			// other players to compare against if a desync did occur
-			generateSyncReport = Connection is not ReplayConnection && LobbyInfo.GlobalSettings.EnableSyncReports;
+			// other players to compare against if a desync did occur.
+			// The human-client count is what makes ServerSettings.EnableSyncReports safe to
+			// default on: a desync is a disagreement between two peers, so a report is worthless
+			// without a second human to diff against. This keeps the whole cost off the bot-vs-bot
+			// benchmark and autotest runs, which are timed and run in batches.
+			var humanClients = LobbyInfo.Clients.Count(c => !c.IsBot);
+			generateSyncReport = Connection is not ReplayConnection
+				&& LobbyInfo.GlobalSettings.EnableSyncReports
+				&& humanClients > 1;
+
+			// Stated out loud so a missing report is diagnosable BEFORE the next desync rather
+			// than after it. If a game ever ends in "No sync report available", this line says
+			// whether reporting was ever armed.
+			Log.Write("debug", $"Sync reports {(generateSyncReport ? "enabled" : "disabled")} " +
+				$"(setting {LobbyInfo.GlobalSettings.EnableSyncReports}, human clients {humanClients}, " +
+				$"replay {Connection is ReplayConnection}).");
 
 			NetFrameNumber = 1;
 			LocalFrameNumber = 0;

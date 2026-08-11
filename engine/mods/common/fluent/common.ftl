@@ -53,6 +53,7 @@ notification-incorrect-password = Incorrect password.
 notification-incompatible-mod = Server is running an incompatible mod.
 notification-incompatible-version = Server is running an incompatible version.
 notification-incompatible-protocol = Server is running an incompatible protocol.
+notification-build-mismatch-warning = WARNING: { $player } is not running the same { $difference } as the host. Host { $host }, joining player { $guest }. Mismatched installs desync. Pull, rebuild, and check your Content/ra/v2 files match before playing.
 notification-you-were-banned = You have been banned from the server.
 notification-you-were-temp-banned = You have been temporarily banned from the server.
 notification-game-full = The game is full.

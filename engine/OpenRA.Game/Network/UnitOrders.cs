@@ -279,7 +279,8 @@ namespace OpenRA.Network
 						Version = mod.Metadata.Version,
 						Password = CurrentServerSettings.Password,
 						Fingerprint = localProfile.Fingerprint,
-						OrdersProtocol = ProtocolVersion.Orders
+						OrdersProtocol = ProtocolVersion.Orders,
+						BuildFingerprint = BuildFingerprint.ForMod(Game.ModData)
 					};
 
 					if (request.AuthToken != null && response.Fingerprint != null)
