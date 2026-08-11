@@ -1,0 +1,61 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-errand-ends-when-rearmed-en-route.lua
+
+^Combatant:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+
+^Soldier:
+	AutoSeekSupplies:
+		# Isolate the errand under test. AutoSeekSupplies has TWO dispatchers: the idle seek
+		# (SeekSuppliesAndReturn, which already walks home) and ReturnWhenEmpty (SeekSupplyProvider,
+		# which is the one this scenario measures). The idle seek is NOT RearmActors-filtered, so it
+		# would pick the Cache, queue the already-correct activity, and the run would go green on
+		# the wrong mechanism.
+		#
+		# 0 is a documented constant-false for BelowSeekThreshold (SupplyHuntMath.cs:52), so
+		# NeedsSupplies() never trips and TickIdle never dispatches. Nothing else reads this field.
+		# ReturnWhenEmpty is untouched and still fires -- it is keyed on AllPoolsEmpty, not on this.
+		AutoSeekAmmoThresholdPerMille: 0
+
+# Dry on arrival, so the errand is dispatched by the shipped traits rather than staged by the
+# test -- the chain under test starts at "unit has nothing to fire", not "test issues an order".
+AR:
+	AmmoPool@1:
+		InitialAmmo: 0
+
+SUPPLYCACHE:
+	SupplyProvider:
+		# A PARTIAL top-up, deliberately, and it is what makes this scenario need BOTH halves of the
+		# fix. ResupplyTarget delivers ONE batch per RearmDelay (SupplyProvider.cs:735), so 1 supply
+		# buys exactly one batch = 50 of AR's 500 rounds. The pre-existing bail asks for EVERY pool
+		# FULL, so it stays false; the errand can only end on the dispatch-reason predicate
+		# (AllPoolsEmpty negated), and that predicate can only be reached once ChildHasPriority lets
+		# the activity tick during its move. Neither change alone turns this green.
+		TotalSupply: 1
+		# Required, and NOT scenario convenience: SupplyProvider stops serving outright below
+		# RestockThreshold (default 50, SupplyProvider.cs:254) unless KeepServingBelowThreshold, which
+		# needs EvacuateOnUnusableResidue -- true only on TRUK. So a shipped cache below 50 supply
+		# serves nobody and never reaches its own RemoveBelowSupply: 1 despawn either. That is a real
+		# defect, filed in WORKSPACE/bugs/discovered.md; zeroing it here is how the crate behaves once
+		# it is fixed, not a fudge to make the test pass.
+		RestockThreshold: 0

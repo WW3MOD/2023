@@ -2533,7 +2533,8 @@ namespace OpenRA.Mods.Common.Traits
 						// Delegate to the engine's own rearm dispatcher rather than re-deriving the activity: it
 						// picks SeekSupplyProvider / RideTransport / Resupply per host kind (AmmoPool.cs:277-312).
 						// Its flag-only else-branch is unreachable here — we only call it with a live host.
-						AmmoPool.AutoRearm(unit);
+						// dispatchedBecauseDry: the sweep's own candidate filter IS AllPoolsEmpty (IsOutOfAmmo).
+						AmmoPool.AutoRearm(unit, true);
 						sought++;
 						break;
 

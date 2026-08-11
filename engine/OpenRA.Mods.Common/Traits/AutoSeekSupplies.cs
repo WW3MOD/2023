@@ -294,7 +294,7 @@ namespace OpenRA.Mods.Common.Traits
 					+ $"host={host.Info.Name}@{host.Location} leash={info.ReturnWhenEmptyLeashCells}c");
 
 			// QueueActivity(false, …) inside — the forward order is cancelled, which is the point.
-			AmmoPool.AutoRearm(self);
+			AmmoPool.AutoRearm(self, true);
 			self.ShowTargetLines();
 			BeginWatching();
 		}
