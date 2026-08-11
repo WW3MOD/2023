@@ -132,6 +132,20 @@ chat-temp-disabled =
        *[other] Chat is disabled. Please try again in { $remaining } seconds.
     }
 
+## ProductionPaletteWidget
+# Ctrl+Alt+LMB on a build-menu icon selects the player's units of that type.
+# The screen variant is the first click; the map variant is the escalation.
+selected-units-across-screen =
+    { $units ->
+        [one] Selected { $units } unit on screen
+       *[other] Selected { $units } units on screen
+    }
+selected-units-across-map =
+    { $units ->
+        [one] Selected { $units } unit across the map
+       *[other] Selected { $units } units across the map
+    }
+
 ## ActorEditLogic
 duplicate-actor-id = Duplicate Actor ID
 enter-actor-id = Enter an Actor ID

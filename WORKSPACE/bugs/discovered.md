@@ -18,6 +18,22 @@ What remains: the documented round-trip is self-consistent on paper — `LoadWid
 `IngameMenuLogic.cs:187` does `world.WorldActor.TraitOrDefault<MenuPostProcessEffect>()`, and `:188` / `:291` / `:316` / `:378` / `:572` all drive fades through that one handle. The two traits are parallel implementations of the same feature (`MenuPaletteEffect` for palettised rendering, `MenuPostProcessEffect` for the shader path) and neither shares an interface, so a mod registering only the palette variant — WW3MOD does, `mods/ww3mod/rules/palettes.yaml:144` — silently gets no menu darkening at all.
 
 That is cosmetic on its own, but it is what made the saved-game path render an all-black world: `MenuPaletteEffect.GameLoaded` deliberately delegated its fade-in to "the menu opening", which for this trait never happens. That delegation is removed on this branch; the missing *menu* fade is left as-is because WW3MOD's `MenuEffect` is `None` anyway, so nothing is currently lost. **Fix shape if it ever matters:** give both traits a shared interface (`IMenuFadeEffect { void Fade(EffectType) }`) and have `IngameMenuLogic` resolve that instead.
+## 2026-08-11: [high] Creating ANY veteran actor hard-crashes the game — all 13 `UpdatesPlayerStatistics.OverrideActor` values are capitalised, and the actor lookup is case-sensitive (found while: select-by-type from the build menu, branch `auto/select-by-type`)
+
+Placing a single `e3r1.america` on a test map killed the game on world load:
+
+```
+KeyNotFoundException: The given key 'E3.america' was not present in the dictionary.
+  at OpenRA.ActorInfoDictionary.get_Item(String key)      ActorInfoDictionary.cs:36
+  at PlayerStatistics.<>c__DisplayClass25_0.<.ctor>b__0   PlayerStatistics.cs:74
+  at UpdatesPlayerStatistics.Created                      PlayerStatistics.cs:346
+```
+
+`ActorInfoDictionary`'s string indexer is a raw `dict[key]` (`ActorInfoDictionary.cs:36`) over a dictionary keyed by **lowercased** actor names — note the sibling `SystemActors` indexer on the very next line explicitly calls `.ToLowerInvariant()`, so the omission is visible in place. Every veteran variant in the mod feeds it a capitalised name: `grep -c "OverrideActor: [A-Z]"` over `mods/ww3mod/rules/ingame/*.yaml` returns **13 of 13** — every single `OverrideActor` entry is affected (`E3.america`, `E1.america`, `E2.america`, …). `UpdatesPlayerStatistics.Created` runs on actor creation, so the crash fires for *any* veteran that ever enters the world, not just map-placed ones.
+
+Why it has stayed latent: the veteran variants all carry `-Buildable`, so nothing produces them through the normal queue, and no shipped map appears to place one. It is a loaded gun rather than a live failure — but anything that promotes a unit into a veteran variant, or any map that places one, dies instantly.
+
+**Fix shape** (deliberately NOT done here — out of scope for a UI branch, and it touches player statistics for 13 actors at once): lowercase the 13 YAML values, *or* make `ActorInfoDictionary`'s string indexer lowercase its key the way the `SystemActors` overload already does. The engine-side fix is one line and closes the whole class, but it changes a shared lookup used well beyond statistics, so it wants its own change with its own verification rather than being smuggled in. Either way this needs a test that actually creates a veteran — there is currently none.
 
 ## 2026-08-11: [med] `test-stance-optout` is a FALSE GREEN — it silences its own units with the very stance whose opt-out would mask the two opt-outs it claims to test (found while: fixing the three-scenario stance regression cluster, branch `auto/stance-reds`)
 

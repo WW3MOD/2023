@@ -1,0 +1,87 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Select by type from the build menu (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 12,16
+	# Bradleys, not infantry: ^Infantry sets SelectionDecorations ShowNever so infantry
+	# never draw a selection box. Vehicles do not help much either — own units carry
+	# always-on brackets, so selection is not visible on any unit (see the .lua header).
+	# Four inside the camera view.
+	WestA: bradley
+		Owner: USA
+		Location: 15,15
+	WestB: bradley
+		Owner: USA
+		Location: 17,15
+	WestC: bradley
+		Owner: USA
+		Location: 15,17
+	WestD: bradley
+		Owner: USA
+		Location: 17,17
+	# Three more at the far east edge, deliberately outside the camera view, so the
+	# escalation step has something to find.
+	EastA: bradley
+		Owner: USA
+		Location: 57,14
+	EastB: bradley
+		Owner: USA
+		Location: 59,14
+	EastC: bradley
+		Owner: USA
+		Location: 57,16
+	# A different type next to the west group. These must never end up selected —
+	# the Abrams carries selection class MBT, the Bradley its own.
+	DecoyA: abrams
+		Owner: USA
+		Location: 15,20
+	DecoyB: abrams
+		Owner: USA
+		Location: 18,20
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 12,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 36,16
+
+Rules: rules.yaml
