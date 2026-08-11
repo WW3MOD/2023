@@ -59,6 +59,21 @@ namespace OpenRA.Mods.Common.Traits
 			"(SupplyFollowerBotModule.DropDemandMarginCells).")]
 		public readonly int DropAtToleranceCells = 2;
 
+		[Desc("Ticks between empty-state re-checks for a transport that is UNDER ORDERS. The existing",
+			"empty-truck return is INotifyBecomingIdle plus an idle ITick re-check, and a truck driving",
+			"somewhere is never idle — so a truck that ran dry mid-move just kept driving. This is the",
+			"missing periodic ask: the same blind spot, and the same shape of fix, as",
+			"AutoSeekSuppliesInfo.EmptyScanInterval on the infantry side.",
+			"0 disables the break-off entirely and restores the idle-only behaviour.")]
+		public readonly int DryMoveScanInterval = 25;
+
+		[ConsumedConditionReference]
+		[Desc("Condition read to tell whether this transport is already evacuating (RotateToEdge grants",
+			"it). Cancelling THAT move would strand the truck at the front with nothing banked, so it is",
+			"exempt from the dry break-off. Leave empty to skip the check. Read, never granted, so this",
+			"is a consumed reference — tagging it granted misinforms the condition lint in `make test`.")]
+		public readonly string EvacuatingCondition = "evacuating";
+
 		public override object Create(ActorInitializer init) { return new DropsSupplyCache(init, this); }
 	}
 
@@ -73,10 +88,17 @@ namespace OpenRA.Mods.Common.Traits
 		// idle-transition frame (which would double-queue RotateToEdge).
 		int lastEvacuateTick = -1;
 
+		int dryMoveTicks;
+
 		public DropsSupplyCache(ActorInitializer init, DropsSupplyCacheInfo info)
 		{
 			Info = info;
 			self = init.Self;
+
+			// Deterministic per-actor phase so trucks called in together do not all scan on the same
+			// tick. Must NOT come from World.SharedRandom: this trait loads for every profile, so
+			// drawing from the synced stream would shift it for control games too (conventions.md).
+			dryMoveTicks = info.DryMoveScanInterval > 0 ? (int)(self.ActorID % (uint)info.DryMoveScanInterval) : 0;
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -300,68 +322,18 @@ namespace OpenRA.Mods.Common.Traits
 				+ $"reason=cell-blocked ordered={dropCell} amount={supply?.CurrentSupply ?? 0}");
 		}
 
-		/// <summary>Drive to a ground cache and load whatever will fit — the inverse of
-		/// <see cref="DropSupplyCacheHere"/>, and the only way supply on the ground gets back into a
-		/// truck. Until now the sole recovery path was AbsorbsSupplyCache on a Logistics Centre, which is
-		/// Prerequisites: ~disabled and exists only as a Neutral capturable on three of the ten shipped
-		/// maps; on the other seven, supply put on the ground could not come back at all.
-		///
-		/// <para>Deliberately ORDER-DRIVEN rather than a passive aura like AbsorbsSupplyCache, and the
-		/// reason is not taste. A truck absorbing by proximity would re-swallow the crate it had just
-		/// dropped — DropSupplyCacheHere places it on the truck's OWN cell, well inside any plausible
-		/// absorb range — and would also eat forward dumps the player placed on purpose for infantry to
-		/// walk to. Both are silent, and both undo a deliberate act. So collection is something you ASK
-		/// for, exactly like the drop it mirrors.</para>
-		///
-		/// <para>The transfer is capped at the truck's own headroom, so a crate bigger than the truck can
-		/// hold is partially emptied and stays put with the remainder; a crate drained to 0 despawns
-		/// through its own SupplyProvider.RemoveBelowSupply (SupplyProvider.cs:221) rather than being
-		/// removed here.</para></summary>
+		/// <summary>Send the transport to collect a ground cache. The errand itself lives in
+		/// <see cref="CollectSupplyCache"/> — a named activity rather than a move with a transfer queued
+		/// behind it, so that "this truck is going to fetch supply" is a fact readable off the activity
+		/// queue. That matters here specifically: an EMPTY truck sent to collect a crate is the natural
+		/// use of this order, and the dry break-off must be able to tell it apart from an empty truck
+		/// merely being repositioned.</summary>
 		void QueueCollectFromCache(Actor cache, bool queued)
 		{
-			var move = self.TraitOrDefault<IMove>();
-			if (move == null)
+			if (supply == null || self.TraitOrDefault<IMove>() == null)
 				return;
 
-			var cacheCell = self.World.Map.CellContaining(cache.CenterPosition);
-			self.QueueActivity(queued, move.MoveTo(cacheCell, Info.DropAtToleranceCells));
-
-			self.QueueActivity(true, new CallFunc(() =>
-			{
-				if (supply == null || cache.IsDead || !cache.IsInWorld)
-					return;
-
-				// ARRIVAL CHECK — the same guard, and the same reason, as DropSupplyCacheAt above: a Move
-				// to a cell with no route does not FAIL. PathFinder bails to NoPath and Move.Tick treats an
-				// empty path as arrival, completing in ~2 ticks at the cell the truck was already standing
-				// on. Without this the transfer would then run from there, which on a player-issued order
-				// is a one-click siphon of any crate on the map — strictly worse than the drop's version of
-				// the same hole, because the player chooses the target.
-				var delta = self.Location - cacheCell;
-				if (!SupplyDropMath.ArrivedAtDropCell(delta.X, delta.Y, Info.DropAtToleranceCells))
-				{
-					Log.Write("debug",
-						$"[supply] crate-collect-refused truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
-						+ $"reason=never-arrived ordered={cacheCell} tolerance={Info.DropAtToleranceCells}c");
-					return;
-				}
-
-				var cacheProvider = cache.TraitOrDefault<SupplyProvider>();
-				if (cacheProvider == null)
-					return;
-
-				var taken = System.Math.Min(supply.Info.TotalSupply - supply.CurrentSupply, cacheProvider.CurrentSupply);
-				if (taken <= 0 || !cacheProvider.DeductSupply(taken))
-					return;
-
-				supply.AddSupply(taken);
-
-				// EDGE — the mirror of crate-placed, and unconditional for the same reason: it is the one
-				// line that says supply came back OFF the ground, as distinct from an errand being issued.
-				Log.Write("debug",
-					$"[supply] crate-collected truck={self.ActorID}@{self.Location} owner={self.Owner.PlayerName} "
-					+ $"from={cache.ActorID} amount={taken} left={cacheProvider.CurrentSupply}");
-			}));
+			self.QueueActivity(queued, new CollectSupplyCache(self, cache, Info.DropAtToleranceCells));
 		}
 
 		/// <summary>Send the transport to a docking-aware host to refill.
@@ -393,14 +365,79 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
+			if (supply == null || !supply.CountsAsEmpty || self.IsDead || !self.IsInWorld)
+				return;
+
 			// A residue only becomes unusable after the truck has already gone idle at the
 			// front, so OnBecomingIdle (which fires on the idle transition) has come and gone.
 			// Re-check here: if we're idle and now count as empty, run the same evac/restock
-			// flow. RotateToEdge / the restock MoveTo make us non-idle, so this self-limits.
-			if (supply == null || !supply.CountsAsEmpty || !self.IsIdle)
+			// flow. RotateToEdge / the restock drive make us non-idle, so this self-limits.
+			if (self.IsIdle)
+			{
+				EvacuateOrRestock(self);
+				return;
+			}
+
+			TickDryMove(self);
+		}
+
+		/// <summary>
+		/// A transport that runs dry while UNDER ORDERS breaks off, so the automatic return or
+		/// evacuation can happen.
+		///
+		/// <para>WHY IT HAS TO BE PERIODIC. The empty-truck return is INotifyBecomingIdle plus the idle
+		/// re-check above, and a truck driving somewhere is never idle (Actor.IsIdle is
+		/// CurrentActivity == null) — so a truck that emptied mid-move simply kept driving, and only
+		/// remembered it was empty once it arrived. Exactly the blind spot
+		/// AutoSeekSupplies.ReturnWhenEmpty was written to close on the infantry side, and this is the
+		/// same shape of fix.</para>
+		///
+		/// <para>THE RULE, stated once because the exceptions are a consequence of it rather than a list:
+		/// <b>cancel a move that is invalidated by being empty; never cancel a move that exists to stop
+		/// being empty.</b> The three exemptions below are the only ways a move can be of the second kind
+		/// or can already BE the right disposition:</para>
+		///
+		/// <list type="number">
+		/// <item>ON A COMMITTED SUPPLY ERRAND — driving to a host to refill, to a cell to unload, or to a
+		/// ground crate to collect it. All three are named activity types for exactly this reason; while
+		/// the restock drive was a bare MoveTo the distinction had no way to be made. The crate case is
+		/// not hypothetical: sending an EMPTY truck to fetch a crate is the natural use of that order,
+		/// and cancelling it would make the order useless precisely when it is most wanted.</item>
+		/// <item>ALREADY EVACUATING — RotateToEdge is the disposition this break-off exists to reach, so
+		/// cancelling it would strand the truck at the front with nothing banked. Read as a condition
+		/// rather than inferred from "is empty", which would be the cause and not the state.</item>
+		/// <item>ResupplyBehavior.Hold — "stay put, do not dispose of me". EvacuateOrRestock returns
+		/// immediately on Hold, so a cancel here would destroy the standing order and put NOTHING in its
+		/// place. That is pure loss, and Hold is the axis that already means this.</item>
+		/// </list>
+		///
+		/// <para>Cancelling is ALL this does: the truck falls idle and the shipped INotifyBecomingIdle
+		/// path decides the disposition, so there is no second definition of what an empty truck should
+		/// do. It cannot livelock either — every disposition that path can queue is either exempt
+		/// (restock, evacuate) or leaves the truck idle (Hold), and re-cancelling an already-cancelling
+		/// activity is a no-op.</para>
+		/// </summary>
+		void TickDryMove(Actor self)
+		{
+			if (Info.DryMoveScanInterval <= 0)
 				return;
 
-			EvacuateOrRestock(self);
+			if (--dryMoveTicks > 0)
+				return;
+
+			dryMoveTicks = Info.DryMoveScanInterval;
+
+			if (supply.OnSupplyErrand)
+				return;
+
+			if (!string.IsNullOrEmpty(Info.EvacuatingCondition) && self.GetConditionCount(Info.EvacuatingCondition) > 0)
+				return;
+
+			var behavior = self.TraitOrDefault<AutoTarget>()?.ResupplyBehaviorValue ?? ResupplyBehavior.Auto;
+			if (behavior == ResupplyBehavior.Hold)
+				return;
+
+			self.CancelActivity();
 		}
 
 		void EvacuateOrRestock(Actor self)

@@ -180,8 +180,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>
 		/// Is this provider's transport carrying out a COMMITTED SUPPLY ERRAND — a move whose whole point
-		/// is where the supply ends up? Today: driving to a host to refill, or driving to an ordered cell
-		/// to unload as a ground cache.
+		/// is where the supply ends up? Today: driving to a host to refill, driving to an ordered cell to
+		/// unload as a ground cache, or driving to a ground cache to collect it.
 		///
 		/// <para>Such an errand is not interrupted by the serving halt. A truck normally stops for anyone
 		/// in its aura who needs a batch, which is right for an ordinary move and exactly wrong here: a
@@ -195,6 +195,14 @@ namespace OpenRA.Mods.Common.Traits
 		/// latch and cannot outlive a cancellation; walks <c>NextActivity</c> as well as the head for the
 		/// same reason <see cref="Restocking"/> does.</para>
 		///
+		/// <para>It is also the exemption half of the DRY BREAK-OFF rule: <b>cancel a move that is
+		/// invalidated by being empty; never cancel a move that exists to stop being empty.</b> Both
+		/// questions have the same answer for the same reason — an errand that decides where the supply
+		/// ends up must be allowed to finish — so they read one predicate rather than two that could
+		/// drift. Collecting a crate is the case that makes this concrete: sending an EMPTY truck to
+		/// fetch a crate is the natural use of that order, and cancelling it would make the order useless
+		/// in exactly the situation it exists for.</para>
+		///
 		/// <para>Deliberately WIDER than <see cref="Restocking"/>, which answers a different question
 		/// ("am I mid-refill and therefore serving nobody?"). A truck driving out to unload still has a
 		/// full load and would happily serve — the point is that it must not stop to.</para>
@@ -204,7 +212,7 @@ namespace OpenRA.Mods.Common.Traits
 			get
 			{
 				for (var a = self.CurrentActivity; a != null; a = a.NextActivity)
-					if (a is RestockSupply || a is PlaceSupplyCache)
+					if (a is RestockSupply || a is PlaceSupplyCache || a is CollectSupplyCache)
 						return true;
 
 				return false;
