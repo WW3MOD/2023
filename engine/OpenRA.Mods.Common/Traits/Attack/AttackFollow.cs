@@ -239,7 +239,11 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 			}
 
-			if (opportunityTargetIsPersistentTarget && OpportunityTarget.Type != TargetType.Invalid)
+			// IsValidFor, not Type != Invalid. Type already rejects a dead, removed or regenerated
+			// actor (Target.cs:91-108), but not one that has become untargetable — cloaked, say. Such
+			// a target would be handed back ahead of the scan and then rejected by AttackTarget's own
+			// IsValidFor, leaving the unit stuck holding a target it cannot act on.
+			if (opportunityTargetIsPersistentTarget && OpportunityTarget.IsValidFor(self))
 			{
 				target = OpportunityTarget;
 				canYieldToHigherPriority = opportunityTargetSource == AttackSource.AutoTarget && !opportunityForceAttack;
