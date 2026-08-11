@@ -830,7 +830,12 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Only a damageable actor can be a victim: DamageWarhead.IsValidAgainst rejects
 				// anything without IHealthInfo before Versus is ever consulted (:59-60).
-				if (ai.TraitInfoOrDefault<HealthInfo>() == null)
+				// IHealthInfo, not the concrete HealthInfo: IsValidAgainst tests the INTERFACE, so a future
+				// non-HealthInfo implementer would otherwise hide its actors' armor classes from this
+				// population — and a weapon damaging only such a class would then be judged harmless and
+				// silently dropped from the danger field. That is the one direction this method must never
+				// fail in, and filtering on the concrete type was the one path here that failed CLOSED.
+				if (ai.TraitInfoOrDefault<IHealthInfo>() == null)
 					continue;
 
 				foreach (var shape in ai.TraitInfos<HitShapeInfo>())
