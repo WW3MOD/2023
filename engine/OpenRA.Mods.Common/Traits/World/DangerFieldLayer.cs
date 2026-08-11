@@ -871,10 +871,11 @@ namespace OpenRA.Mods.Common.Traits
 		/// `IskanderTargeter`/`HIMARSTargeter` (weapons-missiles.yaml:284-306) are force-fire spotter weapons
 		/// that look harmless — `Damage: 50` with every listed class at 0 — and were reported as phantom
 		/// contributors to the field. They are not. Their table zeroes `None, Wood, Concrete, Light, Medium,
-		/// Heavy, Brick`, of which `Brick` is not an armor class in this ruleset at all, while `Kevlar` (every
-		/// soldier), `Unarmored` and `Indestructable` are and go UNLISTED — so by the omission rule above those
-		/// targeters deal their full 50 to infantry. `--danger-reference` prints the per-warhead verdict with
-		/// the unlisted classes named, which is how that was settled instead of assumed.</para></summary>
+		/// Heavy, Brick`, of which `Brick` is not an armor class in this ruleset at all, while `Kevlar` (the 14
+		/// combat-infantry types inheriting `^Soldier`), `Unarmored` and `Indestructable` are and go UNLISTED —
+		/// so by the omission rule above those targeters deal their full 50 to those infantry.
+		/// `--danger-reference` prints the per-warhead verdict with the unlisted classes named, which is how
+		/// that was settled instead of assumed.</para></summary>
 		public static bool WarheadIsHarmless(DamageWarhead warhead, HashSet<string> rulesetArmorTypes,
 			bool anyUnprovableArmor)
 		{
