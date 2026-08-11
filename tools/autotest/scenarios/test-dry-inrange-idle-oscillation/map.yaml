@@ -1,0 +1,70 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Dry In-Range Idle Oscillation (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Hunter starts empty (rules.yaml) and only 8 cells from the target — INSIDE the AR's 14c0 reach,
+	# which is the whole point. Every other scenario on this branch halts its dry unit OUTSIDE weapon
+	# range, where AutoTarget's in-range armament filter finds no candidate and the unit simply rests.
+	# This is the case none of them cover: a dry man who can still SEE a target he could shoot if he
+	# had rounds, so AutoTarget keeps re-issuing the attack the guard keeps ending.
+	Hunter: ar
+		Owner: USA
+		Location: 8,16
+		Facing: 768
+	Target: e1
+		Owner: Russia
+		Location: 16,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 16,16
+	# Deliberately NO truk and NO logisticscenter anywhere: with a resupplier in reach the very first
+	# pass through idle dispatches the man and the cycle ends, which is the case that already works.
+	# The unbounded-churn worry only exists when there is nowhere to go.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

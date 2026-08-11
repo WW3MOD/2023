@@ -3069,7 +3069,11 @@ That cycle is not inert, and mostly in a good way: each pass through idle fires 
 
 **It cannot race the resupply it dispatches.** `Actor.Tick` (`:286-301`) is `if (!wasIdle && IsIdle) { OnBecomingIdle…; RunActivity again } else if (wasIdle) { TickIdle… }` — the two arms are mutually exclusive, so the tick that dispatches a resupply is never the tick that re-issues an attack, and a re-acquired attack cannot stomp a queued errand.
 
-**What it DOES cost is shared-RNG stream position** — see the `SharedRandom` entry below. That is the part worth disclosing on a benchmark branch, not the CPU.
+**MEASURED, not predicted** (`test-dry-inrange-idle-oscillation`: a dry rifleman 8 cells from a live target, no resupplier anywhere, sampling `IsIdle` every tick for 250 ticks): **idle 246/250 ticks (98%), busy 4, 8 transitions.** The cycle is real — 4 complete idle→busy→idle rounds in 10 s — and it is cheap: one busy tick per round, idle 98% of the time. Nothing pathological, nothing resembling per-tick churn.
+
+The cadence came out **slower than the scan interval alone predicts**: ~62 ticks per round against `nextScanTime`'s 16–32. I did not instrument why (a scan that finds no candidate still re-arms the timer, so not every scan yields a re-issue), so treat 62 as "this setup", not as a constant.
+
+**What it DOES cost is shared-RNG stream position** — see the `SharedRandom` entry below. At 4 rounds per 10 s, one dry in-range soldier consumes on the order of a dozen extra synced draws per 10 s that the pre-fix frozen unit consumed none of. That is the part worth disclosing on a benchmark branch, not the CPU.
 
 **If this needs closing, the place is `AutoTarget` — teaching the scan itself not to acquire for a unit that cannot fire — not another guard in the activities.** That is the same `// FF TODO Check ammo?` at `AttackBase.cs:428` seen from the other end, and it would be a behavioural change to opportunity fire, so it wants its own branch and its own measurement rather than being smuggled in alongside the activity guards.
 

@@ -1,0 +1,1 @@
+Auto: a dry rifleman standing INSIDE weapon range with no resupply must settle into a bounded idle cycle, not thrash.
