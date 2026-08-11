@@ -14,10 +14,12 @@
  * per-player state, no tick input — so it is identical on every client by
  * construction and cannot desync.
  *
- * INERT IN THIS PHASE: nothing reads the resolver yet (Phase-4 consumers gate
- * behind their own per-module UseUnitRoles flag, default-off). Registering this
- * trait and annotating units with AIUnitRole is behaviour-inert for every
- * profile — @stable stays byte-identical.
+ * NO LONGER INERT. The former note here — "nothing reads the resolver yet, so
+ * registering it is behaviour-inert for every profile and @stable stays
+ * byte-identical" — is false on both halves. Consumers exist and are live; each
+ * still gates behind its own per-module UseUnitRoles flag, but since b8d2e601
+ * (2026-08-02) @stable sets that flag on every module carrying it (every
+ * `@stable*` block in ai.yaml that carries the field), so @stable resolves roles too.
  *
  * Design + audit: WORKSPACE/plans/260722_unit_role_resolver_DESIGN.md,
  * WORKSPACE/plans/260722_phase3_redteam.md (finding B3 — the cascade order below

@@ -112,7 +112,9 @@ Player:
 		RequiresCondition: enable-ai-experimental
 		CapturingActorTypes: tecn,tecn.russia,tecn.america
 		# Phase 4b: derive the capturer pool from UnitRoleResolver (role CaptureSpecialist) instead of
-		# CapturingActorTypes above. Same TECN set today; CapturingActorTypes stays for the frozen @stable twin.
+		# CapturingActorTypes above. Same TECN set today. NOTE (b8d2e601, 2026-08-02): @stable.tecn sets
+		# UseUnitRoles too (:1860), so it draws by role as well — CapturingActorTypes (:1859) is a
+		# now-inert fallback on BOTH twins, not a list kept for a frozen one.
 		UseUnitRoles: true
 		# logisticscenter included so experimental doesn't need the legacy
 		# CaptureManagerBotModule@captureenemystructures (which competes
@@ -156,12 +158,14 @@ Player:
 		DefenseEnemyValueThreshold: 200
 		# cycle 2: keep >=1 capturer alive-or-pending by pulling production when a
 		# derrick is uncaptured and no TECN is free. Default 0 (disabled) on the shared
-		# engine class; set ONLY here, so @stable.tecn stays byte-identical.
+		# engine class. NOTE (b8d2e601, 2026-08-02): no longer set ONLY here — @stable.tecn sets it
+		# too (:1848), so the "@stable.tecn stays byte-identical" claim is dead.
 		TecnFloor: 1
 		# Capture-supply guarantee (S2-loss fix, WORKSPACE/recon/260731): the S2 rung seeds ~14 neutral oilb
 		# income POIs (~33k each held to clock); the capture race decides the game, yet Experimental fielded ZERO
-		# TECN in 6/10 games. Four coupled opt-ins below, ALL default-off on the shared engine class so @stable.tecn
-		# (which omits them) is byte-identical:
+		# TECN in 6/10 games. Four coupled opt-ins below, ALL default-off on the shared engine class.
+		# NOTE (b8d2e601, 2026-08-02): @stable.tecn no longer omits them — it sets all four at :1848-1851,
+		# so it is NOT byte-identical and both profiles now run the opt-in path:
 		#  (a) re-issue an UNDELIVERED floor request after ~200 ticks so a starved queue slot can't deadlock the
 		#      floor (the alive+pending>=floor gate otherwise sits forever on one pending request).
 		TecnRequestStaleTicks: 200
@@ -174,9 +178,11 @@ Player:
 		#  (d) in the PoiMap capture pass, exclude oilbs already being captured by an in-flight capturer so N free
 		#      TECN fan out to N DISTINCT derricks instead of clustering (the measured 2-TECN->1-oilb waste).
 		CaptureFanoutEnabled: true
-		# TECN-first ferrying: for a DISTANT derrick, request a ride from the experimental
+		# TECN-first ferrying: for a DISTANT derrick, request a ride from the enabled
 		# MountedTransportBotModule twin instead of walking the TECN there on foot. Falls back to
-		# on-foot when no carrier is free. Default false on the engine class → @stable.tecn frozen.
+		# on-foot when no carrier is free. Default false on the engine class. NOTE (b8d2e601,
+		# 2026-08-02): @stable.tecn sets it too (:1893), so it is not experimental-only — both twins
+		# ferry, @stable.tecn against the @poi transport instance.
 		UseTransportForDistantCaptures: true
 		TransportCaptureMinDistanceCells: 12
 		# Influence stack (capture migration, PIPELINE item 24): order capture targets off the BELIEVED
@@ -184,7 +190,8 @@ Player:
 		# score. When on, GetCaptureTargets is asked for a threat-NEUTRAL base score (no omniscient read) and
 		# the believed-danger damp re-orders it fog-legally — a capturer is not sent first into a believed weapon
 		# envelope. Mirrors PoiOffensiveBotModule's Stage-F believed-danger buckets on the danger-field scale:
-		# safe x100 / mild x60 / hostile x20. Default OFF on the @stable.tecn twin = byte-identical.
+		# safe x100 / mild x60 / hostile x20. Default OFF on the engine class. NOTE (b8d2e601,
+		# 2026-08-02): @stable.tecn sets this too (:1895), so it is not experimental-only.
 		StrategicCaptureRepointEnabled: true
 		BelievedDangerMildUnits: 30
 		BelievedDangerHostileUnits: 100
@@ -193,14 +200,16 @@ Player:
 		BelievedDangerHostileMultiplier: 20
 		# Lever-4 diagnostics (PIPELINE lever 1, §4.D): two-sided derrick-ownership snapshot each capture scan so
 		# the capture race is legible on BOTH bots (the commit markers only track this player's capturers). Logging
-		# only, no behaviour. Default false on the @stable.tecn twin = its code path is unchanged.
+		# only, no behaviour. Default false on the engine class. NOTE (b8d2e601, 2026-08-02):
+		# @stable.tecn sets this too (:1901), so both live twins emit the snapshot.
 		CaptureTelemetryEnabled: true
 		# Capture-contest lever (PIPELINE lever 1, Option A): make the HOLD contest-aware. A derrick whose
 		# neighbourhood reads contested (believed anti-ground danger over ContestedDangerUnits, or the control-field
 		# ring reads Enemy/Contested) gets a LARGER escort on dispatch (4 vs 2) and pre-summons defenders at a LOWER
 		# enemy-value gate ($100 vs $200) so a light re-capture probe is met before it flips the structure. Targets the
 		# measured ~1.9x contested-capture HOLD deficit (WORKSPACE/recon/260729-lever1-capture-contest-design.md §5).
-		# Reads only fog-legal believed fields; zero RNG. Default OFF on the @stable.tecn twin = byte-identical.
+		# Reads only fog-legal believed fields; zero RNG. Default OFF on the engine class. NOTE
+		# (b8d2e601, 2026-08-02): @stable.tecn sets this too (:1902), so it is not experimental-only.
 		ContestAwareSupportEnabled: true
 		ContestedEscortSize: 4
 		ContestedDefenseEnemyValueThreshold: 100
@@ -212,7 +221,8 @@ Player:
 		# flagged contested, so the two levers compose. Frees combat units from safe-POI babysitting for the offense /
 		# other captures (the highest-impact income lever spotted from spectator games — the bot was sending a full
 		# escort to zero-threat derricks next to its own SR). Reads only fog-legal believed fields (ControlField /
-		# DangerFieldLayer); zero RNG. Default OFF on the @stable.tecn twin = byte-identical.
+		# DangerFieldLayer); zero RNG. Default OFF on the engine class. NOTE (b8d2e601, 2026-08-02):
+		# @stable.tecn sets this too (:1906), so it is not experimental-only.
 		EscortTierSizingEnabled: true
 		SafeControlScoreThreshold: 300
 		SafeDangerUnits: 10
@@ -270,8 +280,8 @@ Player:
 		# Early-econ behaviour 3 (PIPELINE 12): for the first ~3 min (4500 ticks) disperse in smaller
 		# packets — axes form at 3 units (min 2) instead of 8 (min 3) — so the few early units spread
 		# from the beachhead and grab ground/POIs quickly rather than massing one armada at the SR.
-		# Default-off in C#; only this @experimental block enables it, so PoiOffensiveBotModule@stable
-		# (which lacks these fields) keeps its axis sizing byte-identical.
+		# Default-off in C#. NOTE (b8d2e601, 2026-08-02): PoiOffensiveBotModule@stable sets these too
+		# (:1931-1934), so it is not experimental-only — both profiles use the early-spread sizing.
 		EarlyGameSpread: true
 		EarlyGameDurationTicks: 4500
 		EarlyUnitsPerAxis: 3
@@ -395,11 +405,13 @@ Player:
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
 		# Phase 4: classify free-pool eligibility by UnitRoleResolver (role MainBattle or IndirectFire,
 		# minus cargo carriers) instead of ExcludeUnitTypes above. Drops SHORAD/MANPADS off offensive
-		# axes by class; ExcludeUnitTypes becomes inert (kept for the frozen @stable twin).
+		# axes by class; ExcludeUnitTypes becomes inert. NOTE (b8d2e601, 2026-08-02): @stable sets
+		# UseUnitRoles too (:1939), so the list (:1938) is an inert fallback on BOTH twins.
 		UseUnitRoles: true
-		# Experimental-only: don't recruit evacuating (out-of-ammo) units onto an axis — the
-		# AttackMove would cancel their RotateToEdge evac and send an empty unit at the enemy.
-		# Default false on the frozen @stable twin (byte-identical); mirrors LayeredDefence.
+		# Don't recruit evacuating (out-of-ammo) units onto an axis — the AttackMove would cancel
+		# their RotateToEdge evac and send an empty unit at the enemy. Default false on the engine
+		# class; mirrors LayeredDefence. NOTE (b8d2e601, 2026-08-02): @stable sets this too (:1940),
+		# so it is not experimental-only.
 		SkipOutOfAmmoUnits: true
 		# THE AMMO TERM IN TASKING (experimental-only). SkipOutOfAmmoUnits above is an EMPTY test — 0 rounds —
 		# and does nothing at 10%. Measured 2026-08-10: five riflemen at 10/100 were recruited onto a Pressure
@@ -425,23 +437,26 @@ Player:
 		# is a bug rather than a doctrine choice. What this buys is the disposition; what it gives up is
 		# walking them back to re-man a vehicle via EnterAsCrewMember. Default false on the @stable twin.
 		EvacuateEjectedCrew: true
-		# Dispersion doctrine — spread to move, mass to assault. Experimental-only: the switch
-		# defaults OFF so Stable/Normal controls are untouched. Axes fan out (Spread) while their
+		# Dispersion doctrine — spread to move, mass to assault. The switch defaults OFF on the engine
+		# class, so Normal controls are untouched. NOTE (b8d2e601, 2026-08-02): @stable sets it too
+		# (:1941), so it is not experimental-only. Axes fan out (Spread) while their
 		# centroid is farther than AssaultRadiusCells from the target, then mass (Tight) for the
 		# final push. Set CohesionSwitchEnabled: false (or ApproachCohesion: Tight) to A/B the baseline.
 		CohesionSwitchEnabled: true
 		AssaultRadiusCells: 15
 		ApproachCohesion: Spread
 		AssaultCohesion: Tight
-		# Experimental-only SR contestation: multiply the enemy Supply Route Pressure-axis score
-		# so it competes for an offensive axis (frozen it scores last and never gets one). 260
+		# SR contestation: multiply the enemy Supply Route Pressure-axis score
+		# so it competes for an offensive axis (at the default 100 it scores last and never gets one). 260
 		# reproduces the design plan's value=250/bias=100 uplift over the frozen value=120/bias=80
 		# (260 = (250*100)/(120*80)): mild ~17.0M, safe ~42.5M, hostile ~4.25M — the hostile threat
-		# gate still keeps the AI off a well-garrisoned SR. Default (100) on @stable = inert.
+		# gate still keeps the AI off a well-garrisoned SR. Engine default (100) = inert.
+		# NOTE (b8d2e601, 2026-08-02): @stable sets 260 too (:1945), so it is not experimental-only.
 		SrPressureScoreMultiplier: 260
 		# Influence stack Stage E: route attack axes AROUND defended strongpoints / chokes (reads the
 		# per-player anti-ground danger field) instead of grinding head-on through them. Emits a two-leg
-		# AttackMove (lateral lane, then the objective). Experimental-only; @stable twin leaves it off.
+		# AttackMove (lateral lane, then the objective). Default OFF on the engine class. NOTE
+		# (b8d2e601, 2026-08-02): @stable sets this too (:1946), so it is not experimental-only.
 		DangerFieldRouting: true
 		# SURFACED 2026-08-09, previously running on the C# default. This is the Stage-E detour EARLY-OUT,
 		# now in DANGER UNITS (100 = one reference contact at point-blank) rather than raw field units. It
@@ -460,7 +475,8 @@ Player:
 		# structure ENCIRCLED by ground we believe we hold is pressed (x150), one deep in believed-enemy
 		# ground is damped (x60), a contested front is left neutral. Believed-danger damp mirrors the old omniscient
 		# threat buckets on the danger-field scale: safe x100 / mild x60 / hostile x20. Default OFF on the
-		# @stable twin = byte-identical. DECLARED benchmark re-baseline (WORKSPACE/ai-bench/), no run yet.
+		# engine class. NOTE (b8d2e601, 2026-08-02): @stable sets this too (:1951), so it is not
+		# experimental-only. DECLARED benchmark re-baseline (WORKSPACE/ai-bench/), no run yet.
 		StrategicRepointEnabled: true
 		BopBoostMultiplier: 150
 		BopDampMultiplier: 60
@@ -486,14 +502,16 @@ Player:
 		# range and backs off if the target closes, while the line units press. Peels artillery off the grouped
 		# AttackMove and issues a per-piece standoff AttackMove (max weapon range - FiresStandoffMargin from the
 		# axis target). Gated on the UnitRoleResolver world trait (identifies the artillery role), not on
-		# UseUnitRoles. Experimental-only; @stable twin off.
+		# UseUnitRoles. Default OFF on the engine class. NOTE (b8d2e601, 2026-08-02): @stable sets this
+		# too (:1959), so it is not experimental-only.
 		FiresStandoff: true
 		# Fires economics (PIPELINE item 19): ammo expected-value gate on the fires employment above. A ROCKET
 		# artillery piece (UnitRoleResolver IndirectFireKind.Rocket — Grad/TOS/M270, derived from salvo Burst)
 		# holds fire while the best clump of spotted enemies in weapon range would not repay the salvo's ammo
 		# cost, and returns to FireAtWill once a worthy clump is in range; TUBE pieces (Giatsint/Paladin) are
 		# exempt and may engage singles. Rides the FiresStandoff loop, so it needs FiresStandoff on (above).
-		# Experimental-only; @stable twin leaves it off (byte-identical).
+		# Default OFF on the engine class. NOTE (b8d2e601, 2026-08-02): @stable sets this too (:1960),
+		# so it is not experimental-only.
 		FiresEvGate: true
 		# Defence-in-depth echelon (builds on FiresStandoff): position each IndirectFire piece BEHIND the axis's
 		# MainBattle screen (tanks/infantry) rather than at a ring around the target, so artillery stops driving
@@ -501,7 +519,8 @@ Player:
 		# range - the screen's longest weapon reach) + EchelonBuffer); the anchor is that far behind the screen,
 		# offset away from the target. Override: a piece with NO screen on its axis (pure-artillery axis / solo
 		# fire tasking) falls back to the target-relative FiresStandoff anchor. Needs FiresStandoff on (above).
-		# Experimental-only; @stable twin (which lacks these fields) stays byte-identical.
+		# Default OFF on the engine class. NOTE (b8d2e601, 2026-08-02): @stable sets these too
+		# (:1961-1965), so they are not experimental-only.
 		EchelonPositioning: true
 		EchelonBuffer: 1c0
 		EchelonMinDepth: 3c0
@@ -511,8 +530,8 @@ Player:
 		# artillery piece at least this many COARSE control-field cells behind the believed enemy frontier
 		# (ControlField distance-to-enemy-region). If the echelon anchor lands closer, it is walked rearward
 		# along the anchor axis (bounded) so the piece stands off BEHIND the front, not on it. 4 coarse cells
-		# ≈ 8 map cells. Needs EchelonPositioning + a ControlField (present via the influence stack). @stable
-		# twin (which lacks this field) stays byte-identical.
+		# ≈ 8 map cells. Needs EchelonPositioning + a ControlField (present via the influence stack).
+		# NOTE (b8d2e601, 2026-08-02): @stable sets this too (:1966), so it is not experimental-only.
 		MinFrontierDistanceCells: 4
 		# Fires doctrine Phase 1 (gap G1): CONTINUOUS BOMBARDMENT of believed-static positions. Idle artillery with
 		# ammo and a believed-static enemy position (BeliefStore IsStatic contact — defence/garrison/structure) in
@@ -702,7 +721,8 @@ Player:
 		# MountedTransport). A name the faction lacks is simply never matched.
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
 		# Phase 4: same role-based free-pool filter as PoiOffensiveBotModule@experimental. ExcludeUnitTypes
-		# above becomes inert (kept for the frozen @stable twin).
+		# above becomes inert. NOTE (b8d2e601, 2026-08-02): @stable sets UseUnitRoles too (:1982), so
+		# the list (:1978) is an inert fallback on BOTH twins.
 		UseUnitRoles: true
 		# The ammo term in tasking — see PoiOffensiveBotModule@experimental for the full rationale. Garrisoning
 		# is a WALK to the POI, so without this a starving platoon is marched off its ground to hold something
@@ -715,8 +735,9 @@ Player:
 		# and the believed-danger RAISE re-orders + resizes garrisons fog-legally — the MIRROR of the capture
 		# damp: believed danger at a POI we hold RAISES its defend score and garrison size. Buckets mirror the
 		# omniscient defend multipliers on the danger-field scale: calm x100 / probed x150 / assaulted x250.
-		# The assaulted threshold (120) is where the garrison-size threat bump fires. Default OFF on the @stable
-		# twin = byte-identical.
+		# The assaulted threshold (120) is where the garrison-size threat bump fires. Default OFF on the
+		# engine class. NOTE (b8d2e601, 2026-08-02): @stable sets this too (:1983), so it is not
+		# experimental-only.
 		DefendRepointEnabled: true
 		BelievedDangerMildUnits: 30
 		BelievedDangerHostileUnits: 100
@@ -1141,7 +1162,8 @@ Player:
 	# Adaptive production — counter enemy composition.
 	# Experimental halves EvaluationInterval to 300 (counter-build twice as fast against
 	# scouted enemy comp). First Experimental-AI experiment (260512), measured via the
-	# tournament harness mirror-paired batch. Stable's frozen twin lives in the Stable block below.
+	# tournament harness mirror-paired batch. NOTE (b8d2e601, 2026-08-02): the twin in the Stable block
+	# below is no longer frozen — it carries the same EvaluationInterval 300 (:2009, :2028).
 	AdaptiveProductionBotModule@experimental.america:
 		RequiresCondition: enable-ai-experimental && player.nato
 		EvaluationInterval: 300
@@ -1152,14 +1174,16 @@ Player:
 		MinEnemySightings: 3
 		# Phase 4b: filter each counter pool by UnitRoleResolver class (anti-air->ShortRangeAD,
 		# anti-vehicle->MainBattle/IndirectFire, anti-infantry->+Recon) before drawing. No new RNG draws;
-		# every unit above already classifies into its pool today. Off on the frozen @stable twin.
+		# every unit above already classifies into its pool today.
+		# NOTE (b8d2e601, 2026-08-02): @stable sets this too (:1979, :1998) — not experimental-only.
 		UseUnitRoles: true
 		# SR-DEFENSE: classify believed enemy contacts near our own Supply Route(s) by attacker class and
 		# call in the MATCHED counter, BYPASSING MinEnemySightings. Armor -> AntiVehicleUnits (cheapest
 		# first: at.america -> bradley -> abrams), air -> AntiAirUnits (aa.america/strykershorad), infantry
 		# -> AntiInfantryUnits. Reads the fog-legal belief store (actor identity, not a scalar danger read),
 		# so a helicopter draws AA not AT, and a lone scout never draws a counter. Per-class thresholds are
-		# on the unit-cost scale. Deterministic; reserves <=1 request/cycle. Off on the frozen @stable twin.
+		# on the unit-cost scale. Deterministic; reserves <=1 request/cycle.
+		# NOTE (b8d2e601, 2026-08-02): @stable sets this too (:1980, :1999) — not experimental-only.
 		SupplyRouteDefenseEnabled: true
 		SupplyRouteScanRadius: 10
 		SupplyRouteArmorValueThreshold: 1200
@@ -1168,8 +1192,9 @@ Player:
 		# Routing fix: deliver counter-buys to the first ENABLED UnitBuilder twin. On @experimental NATO
 		# unitProducers[0] is @russia.fixedwing (disabled: player.brics false) whose BotTick never runs, so
 		# every counter-buy was silently lost and the alreadyRequested>=2 gate wedged re-issue. Default false
-		# on the engine class => @stable.america (which omits this) keeps the frozen unitProducers[0]
-		# routing = byte-identical. Same seam McvManager/Harvester already use (Exts.FirstEnabledTraitOrDefault).
+		# on the engine class. NOTE (b8d2e601, 2026-08-02): @stable.america no longer omits this — it sets
+		# it at :1985, so no live profile keeps the unitProducers[0] routing and the byte-identity claim is
+		# dead. Same seam McvManager/Harvester already use (Exts.FirstEnabledTraitOrDefault).
 		RouteToEnabledProducer: true
 		# COMPOSITION-NEED: buy what the BELIEVED battlefield needs most (fog-legal belief store). Heavy believed
 		# armor/infantry/air raise the matching counter; a WEAK believed enemy AA posture opens an air-strike
@@ -1196,7 +1221,8 @@ Player:
 		MinEnemySightings: 3
 		# Phase 4b: filter each counter pool by UnitRoleResolver class (anti-air->ShortRangeAD,
 		# anti-vehicle->MainBattle/IndirectFire, anti-infantry->+Recon) before drawing. No new RNG draws;
-		# every unit above already classifies into its pool today. Off on the frozen @stable twin.
+		# every unit above already classifies into its pool today.
+		# NOTE (b8d2e601, 2026-08-02): @stable sets this too (:1979, :1998) — not experimental-only.
 		UseUnitRoles: true
 		# SR-DEFENSE: classify believed enemy contacts near our own Supply Route(s) by attacker class and
 		# call in the MATCHED counter, BYPASSING MinEnemySightings. Armor -> AntiVehicleUnits (cheapest
@@ -1204,7 +1230,7 @@ Player:
 		# AntiInfantryUnits. Reads the fog-legal belief store (actor identity, not a scalar danger read),
 		# so a helicopter draws AA (tunguska, correctly) not AT, and a lone scout never draws a counter.
 		# Per-class thresholds are on the unit-cost scale. Deterministic; reserves <=1 request/cycle.
-		# Off on the frozen @stable twin.
+		# NOTE (b8d2e601, 2026-08-02): @stable sets this too (:1999) — not experimental-only.
 		SupplyRouteDefenseEnabled: true
 		SupplyRouteScanRadius: 10
 		SupplyRouteArmorValueThreshold: 1200
@@ -1213,8 +1239,9 @@ Player:
 		# Routing fix: deliver counter-buys to the first ENABLED UnitBuilder twin. On @experimental NATO
 		# unitProducers[0] is @russia.fixedwing (disabled: player.brics false) whose BotTick never runs, so
 		# every counter-buy was silently lost and the alreadyRequested>=2 gate wedged re-issue. Default false
-		# on the engine class => @stable.russia (which omits this) keeps the frozen unitProducers[0]
-		# routing = byte-identical. Same seam McvManager/Harvester already use (Exts.FirstEnabledTraitOrDefault).
+		# on the engine class. NOTE (b8d2e601, 2026-08-02): @stable.russia no longer omits this — it sets
+		# it at :2004, so no live profile keeps the unitProducers[0] routing and the byte-identity claim is
+		# dead. Same seam McvManager/Harvester already use (Exts.FirstEnabledTraitOrDefault).
 		RouteToEnabledProducer: true
 		# COMPOSITION-NEED (mirror of the NATO block above): weak believed enemy AA opens an air-strike window
 		# for the MI-28 attack heli / Su-25 (frog). Off on the frozen @stable twin (byte-identical). Tunable.
@@ -1265,7 +1292,8 @@ Player:
 		# Phase 4: classify line eligibility by UnitRoleResolver instead of the lists below. Only
 		# role==MainBattle (minus cargo carriers) holds the line — artillery/SHORAD/MANPADS drop out
 		# by class, curing the :349 defect. ScreenUnitTypes still partitions screen vs main-line; the
-		# MainLineUnitTypes/ExcludedActorTypes lists become inert (kept for the frozen @stable twin).
+		# MainLineUnitTypes/ExcludedActorTypes lists become inert. NOTE (b8d2e601, 2026-08-02): @stable
+		# sets UseUnitRoles too (:2056), so those lists (:2058-2059) are inert on BOTH twins.
 		UseUnitRoles: true
 		# The ammo term in tasking — see PoiOffensiveBotModule@experimental for the full rationale. This is the
 		# DISPERSAL half of the 2026-08-10 defect: SkipOutOfAmmoUnits above is an empty test, so a platoon at
@@ -1325,9 +1353,11 @@ Player:
 	#
 	# Spec: WORKSPACE/ai/stage_b4_mounted_transport.md.
 	#
-	# NOW SPLIT into @poi (stable-frozen) + @experimental twins (was a shared singleton).
-	# The split lets TECN-first ferrying + pre-contact delivery land experimental-only while
-	# @stable stays byte-identical. Consumers (LayeredDefenceBotModule, CaptureCoordinatorBotModule)
+	# NOW SPLIT into @poi (enable-ai-stable) + @experimental twins (was a shared singleton).
+	# The split originally let TECN-first ferrying + pre-contact delivery land experimental-only.
+	# NOTE (b8d2e601, 2026-08-02): the @poi twin is no longer frozen — it sets DeliverBeforeContact /
+	# UnloadOnArrival / PickupCorridorCells / BelievedDangerStandoff below, so @stable is NOT
+	# byte-identical here. Consumers (LayeredDefenceBotModule, CaptureCoordinatorBotModule)
 	# resolve the ENABLED instance via TraitsImplementing<>().FirstOrDefault(m => !m.IsTraitDisabled)
 	# — TraitOrDefault would throw now that two instances exist on the player actor. The
 	# `enable-ai-stable` / `enable-ai-experimental` guards keep exactly one enabled per player
@@ -1359,13 +1389,16 @@ Player:
 		StandoffMarginCells: 2
 		StandoffMaxBackoffCells: 20
 
-	# Experimental twin — identical config plus two experimental-only behaviours (both
-	# default-frozen in C#, opted-in here):
+	# Experimental twin. NOTE (b8d2e601, 2026-08-02): neither behaviour below is experimental-only any
+	# more — the @poi (stable) twin above was promoted to the same config. Both are default-frozen on
+	# the C# class; both live twins now opt in:
 	#   * DeliverBeforeContact: deliver toward a forward staging cell (top PoiMap offensive
-	#     target) when no frontline exists yet, instead of piling carriers at the SR.
-	#   * TECN-first capture ferrying is triggered by CaptureCoordinatorBotModule@experimental.tecn
-	#     calling TryReserveCaptureFerry on THIS instance (no YAML field needed — it's a directed
-	#     call path, inert unless the experimental capture module requests a ride).
+	#     target) when no frontline exists yet, instead of piling carriers at the SR. @poi sets it
+	#     too (:1383).
+	#   * TECN-first capture ferrying is triggered by a CaptureCoordinatorBotModule .tecn twin
+	#     calling TryReserveCaptureFerry on the ENABLED transport instance (no YAML field needed —
+	#     it's a directed call path). @stable.tecn opts in via UseTransportForDistantCaptures
+	#     (:1893), so the @poi twin receives ferry requests too.
 	MountedTransportBotModule@experimental:
 		RequiresCondition: enable-ai-experimental
 		ScanInterval: 50
@@ -1380,11 +1413,13 @@ Player:
 		DeliverBeforeContact: true
 		PreContactStagingPct: 50
 		# Issue the engine-correct "Unload" order so carriers actually disembark passengers
-		# (the shared C# default keeps the broken "UnloadCargo" no-op for @stable byte-identity).
+		# (the shared C# default keeps the broken "UnloadCargo" no-op). NOTE (b8d2e601, 2026-08-02):
+		# the @poi (stable) twin sets it too (:1385), so both live twins issue the correct order.
 		UnloadOnArrival: true
 		# Pickup corridor: also grab PassengerTypes infantry walking the SR→drop lane (within 6 cells of
 		# it), not just the 14-cell reserve bubble — fresh infantry that transits the bubble between 50-tick
-		# scans would otherwise walk the whole map. Experimental-only; frozen twin keeps reserve-bubble-only.
+		# scans would otherwise walk the whole map. Default 0 (off) on the engine class. NOTE (b8d2e601,
+		# 2026-08-02): the @poi (stable) twin sets 6 too (:1386), so it is not experimental-only.
 		PickupCorridorCells: 6
 		# Fog-legal vision-aware drop: back the drop cell off toward our SR until the BELIEVED anti-ground
 		# danger (DangerFieldLayer, from the BeliefStore — no enemy world scan) clears, plus a 2-cell buffer.
@@ -1674,22 +1709,26 @@ Player:
 		StandoffEngagement: true
 		# Influence stack Stage D: consume the per-player anti-air danger field so attack helis route
 		# AROUND believed AA, leash their standoff to the AA-safe envelope, and withdraw/re-route the
-		# moment a new AA lights up. Rides on StandoffEngagement above. Experimental-only.
+		# moment a new AA lights up. Rides on StandoffEngagement above. Default OFF on the engine class.
+		# NOTE (b8d2e601, 2026-08-02): the @stable twin sets it too (:1676), so it is not
+		# experimental-only.
 		DangerFieldAvoidance: true
 		# SURFACED 2026-08-09 — see the @stable twin above for why this is written out rather than left on
 		# the C# default. Kept identical to the twin: this is a bug-class correction, not a lever.
 		AirDangerSpikeUnits: 25
-		# Forward-staging (experimental-only, default-frozen in C#): push idle attack helis that are
+		# Forward-staging (default-frozen in C#): push idle attack helis that are
 		# still loitering near the SR forward to ~40% of the SR->top-POI vector, so they stage toward
 		# the fight instead of hovering at the SR corner. Pct clamped short of contact per the recon's
-		# AA-attrition caveat. OFF for every non-experimental profile (shared base block sets nothing).
+		# AA-attrition caveat. NOTE (b8d2e601, 2026-08-02): the @stable twin sets these too
+		# (:1685-1687), so they are not experimental-only; Normal / Rush / Turtle / legacy set nothing.
 		ForwardStaging: true
 		ForwardStagingPct: 40
 		ForwardStagingMaxDistanceCells: 8
 		# Frontier standoff: hold the attack-heli standoff at least this many COARSE control-field cells behind
 		# the believed enemy frontier (ControlField distance-to-enemy-region), walking the leashed engage cell
 		# rearward toward the squad when it lands closer. Rides on StandoffEngagement above. 4 coarse cells ≈
-		# 8 map cells. Experimental-only; every other profile leaves it 0 (byte-identical).
+		# 8 map cells. NOTE (b8d2e601, 2026-08-02): the @stable twin sets it too (:1688), so it is not
+		# experimental-only; Normal / Rush / Turtle / legacy still leave it 0.
 		MinFrontierDistanceCells: 4
 		# Mission-employment exit strategy (experimental-only, default-frozen in C#): evacuate an idle attack
 		# heli to reserves when it is spent (out of ammo, no hpad to rearm at) or has loitered near home with no

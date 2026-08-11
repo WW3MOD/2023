@@ -69,9 +69,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Actor types of the bot's home Supply Route — used to anchor the reserve zone.")]
 		public readonly HashSet<string> SupplyRouteTypes = new() { "supplyroute" };
 
-		[Desc("Experimental (default false = frozen): when no frontline contact exists yet, still deliver",
-			"toward a forward staging cell (the top PoiMap offensive target) instead of sitting idle until",
-			"contact. Only set on the @experimental twin; @stable/controls keep the frozen idle-until-contact.")]
+		[Desc("Default false = frozen: when no frontline contact exists yet, still deliver toward a forward",
+			"staging cell (the top PoiMap offensive target) instead of sitting idle until contact.",
+			"NOTE (b8d2e601, 2026-08-02): the @poi twin IS the @stable one (RequiresCondition:",
+			"enable-ai-stable) and it now sets this true (ai.yaml, block MountedTransportBotModule@poi), so",
+			"@stable no longer takes the default path here — this is not experimental-only any more and the",
+			"'@stable keeps the frozen idle-until-contact' claim is dead.")]
 		public readonly bool DeliverBeforeContact = false;
 
 		[Desc("Fraction (percent) of the SR→staging-target distance used as the pre-contact drop-off cell.",
@@ -82,7 +85,10 @@ namespace OpenRA.Mods.Common.Traits
 			"so carriers actually disembark their passengers. The frozen default issues \"UnloadCargo\" —",
 			"which is the UnloadCargo ACTIVITY class name, not an order string, so Cargo.ResolveOrder",
 			"silently drops it and passengers never dismount (carrier idles at the drop-off loaded forever).",
-			"Kept default-off so @stable/controls stay byte-identical; only set on the @experimental twin.")]
+			"NOTE (b8d2e601, 2026-08-02): the @poi twin is the @stable one (enable-ai-stable) and now sets",
+			"this true (ai.yaml, block MountedTransportBotModule@poi), so BOTH shipped twins issue the correct",
+			"order; nothing runs the broken default any more and the '@stable stays byte-identical' claim",
+			"is dead.")]
 		public readonly bool UnloadOnArrival = false;
 
 		[Desc("Experimental (default 0 = off): half-width, in map cells, of a pickup CORRIDOR along the",
@@ -90,15 +96,20 @@ namespace OpenRA.Mods.Common.Traits
 			"the ReserveZoneRadiusCells bubble between scans and never getting caught — so it walks the whole",
 			"map. When > 0, PassengerTypes infantry within this perpendicular distance of the SR→drop lane (and",
 			"within the lane's span) are ALSO eligible for loading, catching mid-walk units. 0 keeps the frozen",
-			"reserve-bubble-only gate; only set on the @experimental twin.")]
+			"reserve-bubble-only gate. NOTE (b8d2e601, 2026-08-02): the @poi twin is the @stable one",
+			"(enable-ai-stable) and now sets this to 6 (ai.yaml, block MountedTransportBotModule@poi), so no",
+			"shipped twin is left on 0 and the 'only set on the @experimental twin' claim is dead.")]
 		public readonly int PickupCorridorCells = 0;
 
 		[Desc("Experimental (default false = frozen): make the drop-off fog-LEGAL and vision-aware. When set,",
 			"the chosen drop cell (frontline OR pre-contact staging) is backed off toward our SR until the",
 			"believed anti-ground danger (DangerFieldLayer.GroundDanger — derived from the BeliefStore, no",
 			"world scan of enemy actors) at the cell is at/below StandoffDangerUnits, plus StandoffMarginCells",
-			"more. Reads only the fog-legal believed field; zero RNG. Default off ⇒ the frozen @poi/@stable twin",
-			"keeps its omniscient thinnest-frontline drop byte-identically. Only set on the @experimental twin.")]
+			"more. Reads only the fog-legal believed field; zero RNG. Default off ⇒ the frozen omniscient",
+			"thinnest-frontline drop. NOTE (b8d2e601, 2026-08-02): the @poi twin is the @stable one",
+			"(enable-ai-stable) and now sets this true (ai.yaml, block MountedTransportBotModule@poi), so",
+			"@stable reads the danger field too — its drop is fog-legal now and the omniscient-drop",
+			"byte-identity claim is dead.")]
 		public readonly bool BelievedDangerStandoff = false;
 
 		[Desc("Believed anti-ground danger (DangerFieldLayer.GroundDanger) at/below which a cell counts as",
@@ -180,8 +191,11 @@ namespace OpenRA.Mods.Common.Traits
 		PoiGoalGuard goalGuard;
 
 		// Fog-legal believed anti-ground danger field (Stage B). Resolved ONLY when BelievedDangerStandoff
-		// is set (the @experimental twin) — the frozen @poi/@stable twin leaves this null and never touches
-		// the layer, so its omniscient drop path stays byte-identical. See DOCS/reference/influence-stack.md.
+		// is set. NOTE (b8d2e601, 2026-08-02): BOTH shipped twins set it — MountedTransportBotModule
+		// @experimental AND @poi, which IS the @stable twin (RequiresCondition: enable-ai-stable) — so this
+		// field is resolved and the standoff path is LIVE on both; the "@poi/@stable leaves this null and
+		// keeps its omniscient drop byte-identically" claim is dead.
+		// See DOCS/reference/influence-stack.md.
 		DangerFieldLayer dangerField;
 
 		/// <summary>True if `actor` is currently reserved by any of this module's carrier tasks
@@ -320,8 +334,9 @@ namespace OpenRA.Mods.Common.Traits
 			influenceMap = world.WorldActor.TraitOrDefault<InfluenceMap>();
 			poiMap = world.WorldActor.TraitOrDefault<PoiMap>();
 
-			// Only the @experimental twin (BelievedDangerStandoff set) reads the danger field; the frozen
-			// twin keeps dangerField null so ApplyStandoff is an identity pass-through for it.
+			// A twin that leaves BelievedDangerStandoff off keeps dangerField null, so ApplyStandoff is an
+			// identity pass-through for it. NOTE (b8d2e601, 2026-08-02): no shipped twin is in that state —
+			// @poi (which IS @stable) and @experimental both set the flag in ai.yaml.
 			dangerField = Info.BelievedDangerStandoff
 				? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
 
@@ -419,8 +434,10 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						// "UnloadCargo" is the UnloadCargo ACTIVITY name, not an order string — Cargo
 						// only resolves "Unload"/"UnloadCargoPassenger", so the legacy string is a no-op
-						// and passengers never dismount. UnloadOnArrival (experimental) issues the correct
-						// order; the frozen default keeps the broken string so @stable stays byte-identical.
+						// and passengers never dismount. UnloadOnArrival issues the correct order; the default
+						// keeps the broken string. NOTE (b8d2e601, 2026-08-02): @stable (the @poi twin) sets
+						// UnloadOnArrival true (ai.yaml, MountedTransportBotModule@poi), so the broken
+						// branch is dead config for it too — no shipped profile issues "UnloadCargo".
 						bot.QueueOrder(new Order(Info.UnloadOnArrival ? "Unload" : "UnloadCargo", carrier, Target.Invalid, false));
 
 						// WW3MOD retreat-on-unload: QUEUE the return move right behind the Unload so the carrier
@@ -577,10 +594,11 @@ namespace OpenRA.Mods.Common.Traits
 				.FirstOrDefault(m => !m.IsTraitDisabled);
 
 			// Drop-off cell (thinnest frontline / pre-contact staging, fog-legal standoff when enabled).
-			// Experimental-only: when a pickup corridor is configured we need the drop cell FIRST to define
-			// the SR→drop lane. The frozen twin (PickupCorridorCells 0) keeps the original ordering — the
-			// passenger scan below runs on the reserve bubble only, then PickDropOffCell is called once,
-			// exactly as before (byte-identical).
+			// When a pickup corridor is configured we need the drop cell FIRST to define the SR→drop lane.
+			// At PickupCorridorCells 0 the original ordering holds — the passenger scan below runs on the
+			// reserve bubble only, then PickDropOffCell is called once. NOTE (b8d2e601, 2026-08-02): no
+			// shipped twin is on 0 any more; @stable (the @poi twin) sets 6, so the corridor ordering is
+			// what actually runs on both profiles.
 			var corridorOn = Info.PickupCorridorCells > 0;
 			CPos? dropOff = null;
 			if (corridorOn)
@@ -735,9 +753,11 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			// Fog-legal standoff (experimental): back the thinnest-frontline cell off toward our SR until it
-			// leaves the believed enemy ground-danger envelope. Identity pass-through when dangerField is null
-			// (frozen twin) — so @poi/@stable keep the raw omniscient cell byte-identically.
+			// Fog-legal standoff: back the thinnest-frontline cell off toward our SR until it leaves the
+			// believed enemy ground-danger envelope. Identity pass-through when dangerField is null.
+			// NOTE (b8d2e601, 2026-08-02): @stable (the @poi twin) sets BelievedDangerStandoff true
+			// (ai.yaml, MountedTransportBotModule@poi), so it no longer keeps the raw omniscient cell —
+			// the standoff runs for it too and the byte-identity claim is dead.
 			return best.HasValue ? ApplyStandoff(best.Value, srCell) : best;
 		}
 
@@ -767,9 +787,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Fog-legal standoff: walk the drop cell back toward our SR (deterministic 1-cell steps, zero RNG)
 		// sampling the believed anti-ground danger field, and pick the first cell at/below the threshold
-		// plus StandoffMarginCells more. When dangerField is null (frozen twin / no field) this is an
-		// identity pass-through, preserving @poi/@stable byte-identity. Reads ONLY DangerFieldLayer
-		// (derived from the BeliefStore) — never a world scan of enemy actors.
+		// plus StandoffMarginCells more. When dangerField is null (flag off / no field) this is an identity
+		// pass-through. NOTE (b8d2e601, 2026-08-02): that no longer describes @poi/@stable — it sets
+		// BelievedDangerStandoff true (ai.yaml, MountedTransportBotModule@poi), so the walk-back runs for
+		// it and the byte-identity claim is dead. Reads ONLY DangerFieldLayer (from the BeliefStore) —
+		// never a world scan of enemy actors.
 		CPos ApplyStandoff(CPos target, CPos srCell)
 		{
 			if (dangerField == null || target == srCell)

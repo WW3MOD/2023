@@ -89,14 +89,17 @@ namespace OpenRA.Mods.Common.Traits
 			"the Ambush fire-stance, attack-move / auto-move contact HALTS the march into an idle ambush",
 			"(hold fire until spotted) instead of firing on contact — see AttackMoveActivity + AmbushTactics.",
 			"Empty (default) = OFF and byte-identical to stock attack-move engage. Point it at a default-off",
-			"token (e.g. enable-ambush-tactics) that a human opt-in / @experimental bot / test map grants;",
-			"@stable and control bots never grant it, so they stay byte-identical.")]
+			"token (e.g. enable-ambush-tactics) that a human opt-in / bot ledger commit / test map grants.",
+			"NOTE (b8d2e601, 2026-08-02): @stable grants it too — LaneAmbushBotModule@stable (in ai.yaml)",
+			"posts ambushers and grants this token to them, so @stable's ambushers DO take the gated path.",
+			"The gate stays per-UNIT: a unit no ambush module posted never sees it, on any profile.")]
 		public readonly string AmbushTacticsCondition = null;
 
 		// ── Stage 3 (PIPELINE item 8): stationary literal-ambush state machine. ALL of the following are
 		// read ONLY on the gated path (AmbushTacticsCondition granted AND stance == Ambush). They never
-		// touch the ungated path, so their values are irrelevant to @stable / control bots — those cohorts
-		// short-circuit before any of this is read and stay byte-identical. Defaults are tuned for a
+		// touch the ungated path, so their values are irrelevant to any unit without the gate — it
+		// short-circuits before any of this is read. NOTE (b8d2e601, 2026-08-02): "ungated" no longer means
+		// "@stable" — its LaneAmbush twin posts ambushers that DO read these. Defaults are tuned for a
 		// sensible opt-in / test grant; the worthwhile weights/thresholds are meant to be tuned in autotest.
 		[Desc("Stage-3 ambush: radius (cells) of the kill-zone actor-scan that feeds the worthwhile score.")]
 		public readonly int AmbushKillZoneRadius = 8;
@@ -348,7 +351,8 @@ namespace OpenRA.Mods.Common.Traits
 		// ambushPreAimTarget / PredictedStance above): these evolve by pure integer math over already-synced
 		// world state (ranges, ActorIDs, WorldTick) with zero RNG, so they are deterministic across clients
 		// without needing to be in the sync hash. They are read/written ONLY on the gated path, so they stay
-		// at their defaults (all 0 / int.MinValue) forever for @stable / control bots.
+		// at their defaults (all 0 / int.MinValue) forever on any ungated unit. NOTE (b8d2e601, 2026-08-02):
+		// @stable's LaneAmbush-posted ambushers ARE gated, so these do evolve there.
 		int ambushLastScore;
 		int ambushLastScoreTick = int.MinValue;
 		uint ambushBestTargetId;          // ActorID of the best target at the last sample (0 = none)
@@ -624,9 +628,9 @@ namespace OpenRA.Mods.Common.Traits
 		void AmbushTickIdle(Actor self)
 		{
 			// Stage 3 gate (PIPELINE item 8). Read FIRST, exactly like the Stage-2 halt: when the gate is
-			// not granted (the default for @stable / control bots and every un-opted-in unit) NOTHING below
-			// touches the Stage-3 state, and the else-branch is character-for-character the stock ambush idle
-			// behaviour — that is the byte-identity guarantee.
+			// not granted (every un-opted-in unit — but since b8d2e601, 2026-08-02, NOT @stable's ambushers,
+			// which LaneAmbushBotModule@stable posts and grants) NOTHING below touches the Stage-3 state, and
+			// the else-branch is character-for-character the stock ambush idle behaviour.
 			var stage3 = AmbushTacticsGranted(self);
 
 			// Scan at full range — ambush doesn't reduce scan radius. PITFALL: ScanForTarget returns Invalid
@@ -709,7 +713,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>Is the Stage-3 widened-ambush gate granted on this unit right now? Same cheap
 		/// short-circuit as the Stage-2 halt: empty condition name or zero grant ⇒ false, so the whole
-		/// Stage-3 state machine is dead for @stable / control bots and any un-opted-in unit.</summary>
+		/// Stage-3 state machine is dead on any un-opted-in unit. NOTE (b8d2e601, 2026-08-02): it is NOT dead
+		/// for @stable — LaneAmbushBotModule@stable grants the gate to the ambushers it posts.</summary>
 		bool AmbushTacticsGranted(Actor self)
 		{
 			var gate = Info.AmbushTacticsCondition;

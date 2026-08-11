@@ -115,9 +115,12 @@ namespace OpenRA.Mods.Common.Activities
 					// coordinated spring via TriggerNearbyAmbushAllies + damage retaliation) takes over —
 					// instead of firing on contact. Reusing the idle path adds no new fire/spring code.
 					//
-					// Byte-identity: only reached for an Ambush-stance unit WITH the gate granted. Every
-					// @stable / control bot is FireAtWill, and nothing grants the gate by default, so the
-					// short-circuit below is false everywhere and the original engage path runs unchanged.
+					// Reach: only an Ambush-stance unit WITH the gate granted gets here; for every other
+					// unit the short-circuit below is false and the original engage path runs unchanged.
+					// NOTE (b8d2e601, 2026-08-02): the old "every @stable / control bot is FireAtWill and
+					// nothing grants the gate by default" claim is dead — LaneAmbushBotModule@stable
+					// (in ai.yaml) posts @stable ambushers, sets Ambush stance AND grants the gate, so
+					// this halt branch is live for @stable too.
 					// Plain player Move never enters this activity (it is a bare Move), so — per resolved
 					// fork B — a plain Move is always obeyed; only attack-move / bot auto-move can halt.
 					var ambushGate = autoTarget.Info.AmbushTacticsCondition;

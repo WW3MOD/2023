@@ -42,8 +42,10 @@ namespace OpenRA.Mods.Common.Traits
 			"so odd mixes are dropped — anti-air keeps only ShortRangeAD, anti-vehicle keeps MainBattle/",
 			"IndirectFire, anti-infantry keeps MainBattle/IndirectFire/Recon. For the current roster every",
 			"configured unit already classifies into its pool's class, so this is a class-purity sanity",
-			"filter (robust to roster edits) that adds NO random draws. Default false = frozen name-list",
-			"behaviour, so the @stable/legacy twins stay byte-identical.")]
+			"filter (robust to roster edits) that adds NO random draws. Default false = name-list behaviour.",
+			"NOTE (b8d2e601, 2026-08-02): all four live profiles set this true — @experimental AND @stable,",
+			"both factions (ai.yaml AdaptiveProductionBotModule@stable.america/.russia) — so no shipped profile takes the default path. The former",
+			"'@stable stays byte-identical' claim expired with that promotion.")]
 		public readonly bool UseUnitRoles = false;
 
 		[Desc("SR-DEFENSE (experimental) master gate. When on, believed enemy contacts near our own Supply",
@@ -52,7 +54,10 @@ namespace OpenRA.Mods.Common.Traits
 			"(a 2-tank rush = 2 sightings never trips MinEnemySightings=3). Reads the fog-legal belief store",
 			"(same source the danger field stamps from), so it carries actor identity — classification, not a",
 			"scalar danger read, so an anti-air threat buys AA (not AT) and light infantry never draws AT.",
-			"Default false: the @stable/frozen twin never enters this path -> byte-identical, zero new RNG.")]
+			"Default false skips the block entirely. NOTE (b8d2e601, 2026-08-02): @stable now sets this true on",
+			"both factions (ai.yaml AdaptiveProductionBotModule@stable.*), so @stable DOES enter this path and DOES read the belief store.",
+			"It is no longer byte-identical with pre-SR-defense behaviour. Zero random draws on any path, so the",
+			"determinism invariant is unaffected.")]
 		public readonly bool SupplyRouteDefenseEnabled = false;
 
 		[Desc("SR-DEFENSE: Chebyshev cell radius around each owned Supply Route within which a believed enemy",
@@ -88,8 +93,10 @@ namespace OpenRA.Mods.Common.Traits
 			"modules), so a request handed to it is silently lost — and RequestedProductionCount sums that stuck",
 			"queue, so the alreadyRequested>=2 gate then wedges re-issue. On @experimental NATO unitProducers[0]",
 			"is @russia.fixedwing (disabled: player.brics is false), so every counter-buy is lost. Default false =",
-			"frozen legacy behaviour (route to unitProducers[0]); the @stable twin omits this field and stays",
-			"byte-identical. Deterministic (fixed construction-order scan, no RNG).")]
+			"pre-fix behaviour (route to unitProducers[0]). NOTE (b8d2e601, 2026-08-02): @stable no longer omits",
+			"this field — it sets it true on both factions (ai.yaml AdaptiveProductionBotModule@stable.america/.russia), so @stable also routes to the",
+			"first ENABLED twin and no live profile takes the index-0 default. Deterministic (fixed",
+			"construction-order scan, no RNG).")]
 		public readonly bool RouteToEnabledProducer = false;
 
 		[Desc("COMPOSITION-NEED (experimental) master gate. When on, a believed-composition need-scoring pass runs",
@@ -99,9 +106,12 @@ namespace OpenRA.Mods.Common.Traits
 			"heavy infantry raises anti-infantry, heavy air raises anti-air, and — the new lever — a WEAK believed",
 			"enemy anti-air posture opens an AIR-STRIKE window (raises the AirStrikeUnits score). The single",
 			"highest-scoring AFFORDABLE class is called in (reserves <=1 request/cycle). BYPASSES MinEnemySightings",
-			"(belief persists through fog, so it works with nothing currently visible). Default false: the",
-			"@stable/frozen twin never enters this path (belief store + resolver stay null) -> byte-identical, zero",
-			"new RNG. All *NeedWeight below also default 0, so even a stray enable is inert until weights are set.")]
+			"(belief persists through fog, so it works with nothing currently visible). Default false, and @stable",
+			"still omits it (checked 2026-08-11 against ai.yaml — set only at :1180 and :1221, both @experimental),",
+			"so @stable does NOT enter this path. But do not reuse the old rationale for that: since b8d2e601",
+			"(2026-08-02) @stable sets SupplyRouteDefenseEnabled and UseUnitRoles, so the belief store and resolver",
+			"are BOTH resolved on @stable — this path is gated by this flag alone, not by them being null. Zero new",
+			"RNG. All *NeedWeight below also default 0, so even a stray enable is inert until weights are set.")]
 		public readonly bool CompositionNeedEnabled = false;
 
 		[Desc("COMPOSITION-NEED: the offensive AIR-STRIKE pool (attack helis / strike aircraft, e.g. heli, a10)",
@@ -204,8 +214,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.UseUnitRoles || Info.CompositionNeedEnabled)
 				resolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
 
-			// SR-defense and composition-need both read the fog-legal belief store. Left null on the frozen
-			// path (both flags off), so @stable never touches the store or its trait lookup.
+			// SR-defense and composition-need both read the fog-legal belief store. Left null only when BOTH
+			// flags are off. Since b8d2e601 (2026-08-02) @stable sets SupplyRouteDefenseEnabled, so @stable
+			// does resolve the store here — the old "@stable never touches the store" claim is dead.
 			if (Info.SupplyRouteDefenseEnabled || Info.CompositionNeedEnabled)
 				beliefStore = world.WorldActor.TraitOrDefault<BeliefStore>();
 
@@ -234,9 +245,9 @@ namespace OpenRA.Mods.Common.Traits
 			// and call in the MATCHED counter (armor->AntiVehicle, air->AntiAir, infantry->AntiInfantry)
 			// AHEAD of the static composition — BYPASSING the MinEnemySightings gate below (2 rushing
 			// tanks = 2 sightings never trips it). Reserves AT MOST ONE request/cycle so the scouted-
-			// composition path below is never starved. Frozen when SupplyRouteDefenseEnabled is false,
-			// so the @stable twin skips the whole block (beliefStore is null there) and stays
-			// byte-identical — zero new RNG on any path.
+			// composition path below is never starved. Skipped when SupplyRouteDefenseEnabled is false —
+			// but since b8d2e601 (2026-08-02) @stable sets it true too (ai.yaml AdaptiveProductionBotModule@stable.*), so BOTH
+			// profiles run this block. Zero new RNG on any path.
 			var requestsMade = 0;
 			if (Info.SupplyRouteDefenseEnabled)
 				requestsMade = TrySupplyRouteDefense();
@@ -245,7 +256,8 @@ namespace OpenRA.Mods.Common.Traits
 			// armor/infantry/air raise the matching counter, and a weak believed enemy AA posture opens an
 			// air-strike window. Affordability-gated so expensive airframes stay rare. Shares this cycle's
 			// request budget with SR-defense and (below) the scouted-composition path; reserves <=1 request.
-			// Frozen when CompositionNeedEnabled is false (beliefStore/resolver null) -> @stable byte-identical.
+			// Skipped when CompositionNeedEnabled is false; @stable still omits the flag, so @stable does not
+			// run this block. (Not because beliefStore/resolver are null there — SR-defense resolves both.)
 			if (Info.CompositionNeedEnabled && requestsMade < Info.MaxRequestsPerCycle)
 				requestsMade += TryCompositionNeed();
 

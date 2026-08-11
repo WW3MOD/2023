@@ -35,8 +35,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("WW3MOD experimental AI: when true, this manager NEVER recruits ground (non-air, non-naval) units —",
 			"they are left for the POI-scored PoiOffensiveBotModule to own. Air/naval squads are",
-			"unaffected. Default false keeps legacy behaviour byte-identical; only the experimental fixed-wing",
-			"variants set it true so the fixed-wing manager stops forming the ground death-ball.")]
+			"unaffected. Default false keeps the pre-feature recruit path. NOTE: all FOUR shipped fixed-wing",
+			"blocks set it true — SquadManagerBotModule@experimental.{russia,america}.fixedwing AND",
+			"@stable.{russia,america}.fixedwing — so the 'only the experimental variants set it true' claim",
+			"is dead; no shipped profile is left on the default.")]
 		public readonly bool IgnoreGroundUnits = false;
 
 		[Desc("EXPERIMENTAL: select air-squad airframes from UnitRoleResolver (a Buildable AttackAir",
@@ -44,7 +46,10 @@ namespace OpenRA.Mods.Common.Traits
 			"(AIHelicopterRole) stay owned by HelicopterSquadBotModule and the transient -Buildable airstrike-",
 			"power variants (a10.airstrike/frog.airstrike) are excluded, so for the current roster this",
 			"reproduces {A10,F16}/{MIG,FROG} exactly while becoming robust to roster edits. Default false =",
-			"frozen list behaviour, so the @stable/legacy twins stay byte-identical.")]
+			"frozen list behaviour. NOTE (b8d2e601, 2026-08-02): both @stable fixed-wing blocks",
+			"(SquadManagerBotModule@stable.russia.fixedwing / @stable.america.fixedwing) now set this true,",
+			"so they no longer take the default path here — the '@stable/legacy twins stay byte-identical'",
+			"claim is dead; every shipped fixed-wing manager picks airframes by role.")]
 		public readonly bool UseUnitRoles = false;
 
 		[Desc("Actor types that are considered construction yards (base builders).")]
@@ -346,7 +351,10 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Air-squad membership: role-model when UseUnitRoles is on, otherwise the AirUnitsTypes name
-		// list (byte-identical to the frozen @stable/legacy twins). The role gate is a Buildable
+		// list. NOTE (b8d2e601, 2026-08-02): the name-list branch is no longer what @stable runs — both
+		// @stable fixed-wing blocks set UseUnitRoles true, so the role path is live on every shipped
+		// profile and the "byte-identical to the frozen @stable/legacy twins" claim is dead. The role gate
+		// is a Buildable
 		// AttackAir airframe that is NOT a helicopter — attack helis (AIHelicopterRole) stay owned by
 		// HelicopterSquadBotModule, and the -Buildable airstrike-power spawns (a10.airstrike/frog.airstrike,
 		// which also classify AttackAir) are excluded so a support-power plane is never squad-managed.

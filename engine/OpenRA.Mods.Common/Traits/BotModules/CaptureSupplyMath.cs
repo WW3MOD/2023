@@ -21,9 +21,13 @@
  * over caller-supplied values. No wall-clock — the staleness test is tick-based. Two clients over the same
  * synced state decide identically.
  *
- * BYTE-IDENTITY: every function has a caller-supplied switch/threshold whose default (scaleEnabled=false,
- * staleTicks<=0, an empty in-flight set) reproduces the frozen path, so the @stable twin — which sets none
- * of the new Info fields — is unchanged.
+ * OFF-SWITCH CONTRACT: every function has a caller-supplied switch/threshold whose default
+ * (scaleEnabled=false, staleTicks<=0, an empty in-flight set) reproduces the pre-feature answer verbatim.
+ * That contract still holds and is NUnit-pinned in CaptureSupplyMathTest.
+ * NOTE (b8d2e601, 2026-08-02): the old "@stable sets none of the new Info fields, so it is unchanged" claim
+ * is DEAD. @stable.tecn now sets TecnFloor / TecnRequestStaleTicks / ScaleTecnFloorToPois / TecnFloorMax
+ * (ai.yaml CaptureCoordinatorBotModule@stable.tecn) at full @experimental parity, so no live profile selects the default path any more —
+ * it survives only as the off-switch contract above, not as shipped behaviour.
  *
  * v3-portable: engine-free static math (NUnit-pinned in CaptureSupplyMathTest / CaptureFanoutMathTest);
  * only the tasking plumbing that consumes it is engine-specific.

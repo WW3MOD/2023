@@ -35,7 +35,9 @@ namespace OpenRA.Mods.Common.Traits
 		/// Precedence — any earlier gate failing returns false, i.e. "take the original engage path"
 		/// (which keeps the ungated path byte-identical to stock):
 		///   <paramref name="tacticsEnabled"/> — the default-off gate (AmbushTacticsCondition granted).
-		///       Off ⇒ never halt. This is the clause that makes @stable / control bots byte-identical.
+		///       Off ⇒ never halt. This is the clause that keeps every ungated unit on the stock path.
+		///       NOTE (b8d2e601, 2026-08-02): it no longer makes @stable byte-identical — @stable's
+		///       LaneAmbush twin grants the gate to its posted ambushers, so those reach the halt.
 		///   <paramref name="stance"/> == Ambush — only Ambush units halt; FireAtWill / HoldFire engage
 		///       (or hold) exactly as before.
 		///   <paramref name="hasValidTarget"/> — nothing scanned ⇒ nothing to halt for.

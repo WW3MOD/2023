@@ -308,10 +308,14 @@
 		AmbushCondition: stance-ambush
 		HoldFireCondition: stance-holdfire
 		# PIPELINE item 8 (widened Ambush): default-OFF gate for Stage-2 halt-before-contact.
-		# Nothing GRANTS enable-ambush-tactics in shipped rules — the ExternalCondition below is only
-		# a lint/seam that makes the token grantable (via a future human opt-in, an @experimental bot
-		# ledger commit, or a test map), never a live grant. So GetConditionCount is 0 on every unit
-		# and AttackMoveActivity's halt branch is dead ⇒ @stable / control bots stay byte-identical.
+		# NOTE (b8d2e601, 2026-08-02): enable-ambush-tactics IS granted in shipped rules now.
+		# LaneAmbushBotModule grants it through the ExternalCondition seam below
+		# (LaneAmbushBotModule.cs:466-472), and since the promotion a @stable twin of that module ships
+		# alongside the @experimental one (ai/ai.yaml), so AttackMoveActivity's halt branch is LIVE
+		# for BOTH profiles' posted ambushers. The grant is PER-UNIT: only a unit an ambush module
+		# actually posted carries the token, so GetConditionCount is still 0 — and the halt branch still
+		# dead — on every unit no ambush module posted, and on humans / Normal / Rush / Turtle / legacy,
+		# which never instantiate the module at all.
 		AmbushTacticsCondition: enable-ambush-tactics
 		InitialCohesion: Loose
 		InitialCohesionAI: Loose
@@ -324,10 +328,13 @@
 	# without it, an attack-move order falls back to a plain Move (only opportunity
 	# fire compensates, and it's too slow to engage units passing through range).
 	AttackMove:
-	# Default-off grantor SEAM for the widened-ambush gate (co-located with the AutoTarget that
-	# consumes it so CheckConditions is satisfied). ExternalCondition grants only on an explicit
-	# external order / Lua / warhead — never fires from static rules — and carries no [Sync] state
-	# (its ungranted Tick is a no-op), so its mere presence is byte-identical for @stable / control.
+	# Grantor SEAM for the widened-ambush gate (co-located with the AutoTarget that consumes it so
+	# CheckConditions is satisfied). ExternalCondition never fires from static rules — it grants only
+	# on an explicit external order / Lua / warhead / bot request — and carries no [Sync] state (its
+	# ungranted Tick is a no-op). NOTE (b8d2e601, 2026-08-02): this seam is no longer merely latent —
+	# it is the channel LaneAmbushBotModule uses to grant the token to the units it posts, on
+	# @experimental AND on @stable (ai/ai.yaml). Its presence stays byte-identical for humans /
+	# Normal / Rush / Turtle / legacy, which never instantiate an ambush module.
 	ExternalCondition@ambushtactics:
 		Condition: enable-ambush-tactics
 

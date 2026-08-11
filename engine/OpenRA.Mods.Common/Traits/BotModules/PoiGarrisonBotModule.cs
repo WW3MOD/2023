@@ -91,8 +91,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("EXPERIMENTAL: derive free-pool eligibility from UnitRoleResolver (role is MainBattle or",
 			"IndirectFire) instead of the ExcludeUnitTypes name list. Same filter as",
 			"PoiOffensiveBotModule — SHORAD/MANPADS/capturers/logistics/scouts drop out by class; cargo",
-			"carriers stay owned by MountedTransportBotModule. Default false = frozen list behaviour, so",
-			"the @stable twin stays byte-identical.")]
+			"carriers stay owned by MountedTransportBotModule. Default false = frozen list behaviour.",
+			"NOTE (b8d2e601, 2026-08-02): @stable now sets this true too (ai.yaml, block",
+			"PoiGarrisonBotModule@stable, ~line 1947), so it no longer takes the default path here. The old",
+			"'@stable twin stays byte-identical' claim is dead — both twins recruit by role.")]
 		public readonly bool UseUnitRoles = false;
 
 		[Desc("Withhold a unit from a garrison while ANY of its ammo pools sits below this per-mille of capacity.",
@@ -109,9 +111,11 @@ namespace OpenRA.Mods.Common.Traits
 			"the defend score. When on, GetDefendTargets is asked for a threat-NEUTRAL (calm) base score (no",
 			"omniscient read) and this module re-applies a fog-legal believed-danger RAISE — the MIRROR of the",
 			"capture damp: believed danger at a POI we hold RAISES its defend score and garrison size (something",
-			"is pressing it). Completes the @experimental fog migration for garrison ordering. OFF by default so",
-			"legacy/normal and the frozen @stable twin stay byte-identical; only PoiGarrisonBotModule@experimental",
-			"turns it on. Inert (falls back to the omniscient path) if no DangerFieldLayer exists.")]
+			"is pressing it). Completes the @experimental fog migration for garrison ordering. OFF by default =",
+			"the frozen omniscient path. NOTE (b8d2e601, 2026-08-02): @stable now sets this true as well",
+			"(ai.yaml, block PoiGarrisonBotModule@stable, ~line 1948), so it no longer takes the default path",
+			"here — this is not experimental-only any more and the '@stable stays byte-identical' claim is",
+			"dead. Still inert (omniscient path) if no DangerFieldLayer exists.")]
 		public readonly bool DefendRepointEnabled = false;
 
 		[Desc("Garrison migration: believed anti-ground danger (DangerFieldLayer.GroundDanger) at/below which a",
@@ -172,8 +176,10 @@ namespace OpenRA.Mods.Common.Traits
 		bool poiMapResolved;
 
 		// Influence stack (garrison migration): the believed anti-ground danger field, resolved ONLY when
-		// DefendRepointEnabled so the off/@stable path never touches it. When present it replaces the
-		// omniscient InfluenceMap threat baked into the defend score/size with a fog-legal RAISE.
+		// DefendRepointEnabled, so a profile that leaves the flag off never touches it. NOTE (b8d2e601,
+		// 2026-08-02): @stable sets DefendRepointEnabled true (ai.yaml, block PoiGarrisonBotModule@stable),
+		// so it DOES resolve this field — the fog-legal path is live for both twins now. When present it
+		// replaces the omniscient InfluenceMap threat baked into the defend score/size with a fog-legal RAISE.
 		DangerFieldLayer dangerField;
 		bool dangerFieldResolved;
 
@@ -253,8 +259,10 @@ namespace OpenRA.Mods.Common.Traits
 			// 2. Score our held money POIs (value x distance x defence-urgency). Cap to
 			//    MaxGarrisons highest-urgency POIs. Garrison migration: when DefendRepointEnabled (and a
 			//    DangerFieldLayer exists) ask PoiMap for a threat-NEUTRAL (calm) base score — no omniscient
-			//    read — and re-apply a fog-legal believed-danger RAISE. Off ⇒ the frozen omniscient path, so
-			//    the @stable twin (flag unset) stays byte-identical.
+			//    read — and re-apply a fog-legal believed-danger RAISE. Off ⇒ the frozen omniscient path.
+			//    NOTE (b8d2e601, 2026-08-02): @stable sets DefendRepointEnabled true (ai.yaml, block
+			//    PoiGarrisonBotModule@stable), so the repoint branch is LIVE for it too — it is no longer
+			//    byte-identical to the pre-feature omniscient path.
 			var repoint = Info.DefendRepointEnabled && dangerField != null;
 			var targets = repoint
 				? RescaleDefendByBelievedDanger(poiMap.GetDefendTargets(player, suppressOmniscientThreat: true))

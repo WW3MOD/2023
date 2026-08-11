@@ -69,8 +69,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("EXPERIMENTAL (early-econ behaviour 3): while the match is young use EarlyUnitsPerAxis /",
 			"EarlyMinAxisSize instead of UnitsPerAxis / MinAxisSize, so the few early units DISPERSE into",
 			"several small packets from the beachhead rather than massing one armada at the Supply Route.",
-			"OFF by default so the frozen @stable twin and every legacy profile keep their axis sizing",
-			"byte-identical; only PoiOffensiveBotModule@experimental turns it on. Pure gate on the synced tick.")]
+			"OFF by default so a profile omitting the flag keeps its axis sizing byte-identical. NOTE (b8d2e601,",
+			"2026-08-02): the @stable twin sets this true (ai.yaml PoiOffensiveBotModule@stable) too, so @stable",
+			"early-spreads too and is no longer byte-identical here. Pure gate on the synced tick.")]
 		public readonly bool EarlyGameSpread = false;
 
 		[Desc("Duration (sim ticks from game start) of the early-spread window. After it, normal axis sizing resumes.")]
@@ -102,9 +103,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Skip units whose AmmoPool(s) are ALL empty (evacuating / out-of-ammo). An empty unit",
 			"re-tasked onto an axis has its RotateToEdge evac cancelled by the AttackMove and is sent",
-			"at the enemy with nothing to shoot. OFF by default so the frozen Stable/Normal controls stay",
-			"byte-identical (they keep pulling every unit); only PoiOffensiveBotModule@experimental turns it",
-			"on. Mirrors LayeredDefenceBotModule.SkipOutOfAmmoUnits + the CohesionSwitchEnabled default-off pattern.")]
+			"at the enemy with nothing to shoot. OFF by default, so a profile omitting the flag keeps pulling every",
+			"unit. NOTE (b8d2e601, 2026-08-02): the @stable twin now sets this true (ai.yaml PoiOffensiveBotModule@stable) alongside",
+			"@experimental — @stable skips empty units too and is no longer a byte-identical control here.",
+			"Mirrors LayeredDefenceBotModule.SkipOutOfAmmoUnits + the CohesionSwitchEnabled default-off pattern.")]
 		public readonly bool SkipOutOfAmmoUnits = false;
 
 		[Desc("Withhold a unit from offensive tasking while ANY of its ammo pools sits below this per-mille of",
@@ -156,8 +158,9 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly bool FoldShortRangeAdIntoLine = false;
 
 		[Desc("Master switch for the dispersion doctrine (spread to move, mass to assault). OFF by",
-			"default so the frozen Stable/Normal controls keep the pre-dispersion behaviour untouched;",
-			"only PoiOffensiveBotModule@experimental turns it on. When off, no SetCohesion is issued.")]
+			"default so a profile omitting the flag keeps the pre-dispersion behaviour untouched.",
+			"NOTE (b8d2e601, 2026-08-02): the @stable twin now sets this true (ai.yaml PoiOffensiveBotModule@stable) as well as",
+			"@experimental, so @stable issues SetCohesion too. When off, no SetCohesion is issued.")]
 		public readonly bool CohesionSwitchEnabled = false;
 
 		[Desc("Dispersion doctrine — spread to move, mass to assault. While an axis centroid is farther",
@@ -175,10 +178,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("EXPERIMENTAL SR-contestation knob (x100): multiplier applied to the enemy Supply",
 			"Route PRESSURE axis score so the enemy SR can compete for an offensive axis. 100 =",
 			"inert (byte-identical to the frozen baseline — the enemy SR keeps its raw",
-			"GetOffensiveTargets score); above 100 raises it. Only PoiOffensiveBotModule@experimental",
-			"sets this above 100. Deny-only: the SUPPLYROUTE has no CaptureManager, so a Pressure",
-			"axis emits AttackMove (contest the circle), never a capture. Mirrors the",
-			"CohesionSwitchEnabled default-off pattern so the Stable/Normal controls are untouched.")]
+			"GetOffensiveTargets score); above 100 raises it. NOTE (b8d2e601, 2026-08-02): @stable now",
+			"sets this to 260 (ai.yaml PoiOffensiveBotModule@stable) as well as @experimental, so it is no longer inert there and",
+			"the 'only @experimental raises it' claim is dead. Deny-only: the SUPPLYROUTE has no",
+			"CaptureManager, so a Pressure axis emits AttackMove (contest the circle), never a capture.")]
 		public readonly int SrPressureScoreMultiplier = 100;
 
 		[Desc("EXPERIMENTAL: derive free-pool eligibility from UnitRoleResolver (role is MainBattle or",
@@ -186,15 +189,17 @@ namespace OpenRA.Mods.Common.Traits
 			"capturers, logistics and scouts off offensive axes by class — the ai.yaml:349 defect cure —",
 			"while artillery (IndirectFire) stays eligible until a dedicated fires executor exists. Cargo",
 			"carriers (bradley/bmp2/m113) are still excluded so MountedTransportBotModule keeps them. Default",
-			"false = frozen list behaviour, so the @stable twin stays byte-identical.")]
+			"false = frozen list behaviour. NOTE (b8d2e601, 2026-08-02): the @stable twin now sets this true",
+			"(ai.yaml PoiOffensiveBotModule@stable), so it resolves roles too and is no longer byte-identical with the old list path.")]
 		public readonly bool UseUnitRoles = false;
 
 		[Desc("Influence stack Stage E: consume the per-player ANTI-GROUND danger field (DangerFieldLayer)",
 			"so an attack axis whose straight approach crosses a defended strongpoint / choke is steered",
 			"onto a lateral lane PAST it, then in — attacks flow AROUND known kill zones instead of grinding",
-			"head-on. Emits a two-leg AttackMove (lateral waypoint, then the objective). OFF by default so",
-			"legacy/normal/stable and the frozen @stable twin stay byte-identical; only",
-			"PoiOffensiveBotModule@experimental turns it on. Inert if no DangerFieldLayer / no field yet.")]
+			"head-on. Emits a two-leg AttackMove (lateral waypoint, then the objective). OFF by default so a",
+			"profile omitting the flag stays byte-identical. NOTE (b8d2e601, 2026-08-02): the @stable twin now",
+			"sets this true (ai.yaml PoiOffensiveBotModule@stable) as well as @experimental — @stable reroutes around kill zones too.",
+			"Inert if no DangerFieldLayer / no field yet.")]
 		public readonly bool DangerFieldRouting = false;
 
 		[Desc("Stage-E: path ground-danger above which an axis approach is rerouted around the strongpoint.",
@@ -220,9 +225,10 @@ namespace OpenRA.Mods.Common.Traits
 			"this module re-shapes it with (a) the territorial balance-of-power bias read from the control",
 			"field — press cells we believe we hold / the enemy holds weakly, damp lunging into believed",
 			"strength — and (b) a fog-legal believed-danger damp from the anti-ground danger field. Completes",
-			"the @experimental fog migration for attack-axis selection. OFF by default so legacy/normal and the",
-			"frozen @stable twin stay byte-identical; only PoiOffensiveBotModule@experimental turns it on.",
-			"Inert (falls back to the omniscient path) if no ControlField exists.")]
+			"the @experimental fog migration for attack-axis selection. OFF by default so a profile omitting the",
+			"flag keeps the omniscient path. NOTE (b8d2e601, 2026-08-02): the @stable twin now sets this true",
+			"(ai.yaml PoiOffensiveBotModule@stable) alongside @experimental, so @stable scores axes fog-legally and is no longer",
+			"byte-identical here. Inert (falls back to the omniscient path) if no ControlField exists.")]
 		public readonly bool StrategicRepointEnabled = false;
 
 		[Desc("Stage-F balance-of-power multiplier (x100) for a target on a cell we BELIEVE WE HOLD",
@@ -302,8 +308,9 @@ namespace OpenRA.Mods.Common.Traits
 			"it rains fire from range, follows the assault forward to stay in range, and backs a leg off if the",
 			"target closes inside its band; the line units press exactly as before. The runtime gate is the presence",
 			"of the UnitRoleResolver world trait (which derives the artillery role), NOT the UseUnitRoles flag;",
-			"the feature is inert when the resolver is absent. OFF by default so the frozen @stable twin",
-			"and every legacy profile stay byte-identical; only PoiOffensiveBotModule@experimental turns it on.")]
+			"the feature is inert when the resolver is absent. OFF by default so a profile omitting the flag stays",
+			"byte-identical. NOTE (b8d2e601, 2026-08-02): the @stable twin now sets this true (ai.yaml PoiOffensiveBotModule@stable) as",
+			"well as @experimental — @stable holds its artillery at standoff too.")]
 		public readonly bool FiresStandoff = false;
 
 		[Desc("Fires doctrine: pull the standoff anchor this far (WDist) inside the piece's own max weapon",
@@ -323,7 +330,9 @@ namespace OpenRA.Mods.Common.Traits
 			"FiresStandoff is on — the gate rides the standoff loop), a ROCKET-artillery piece (UnitRoleResolver",
 			"IndirectFireKind.Rocket) holds fire while the best clump of spotted enemies within weapon range would",
 			"not repay the salvo's ammo cost, and returns to FireAtWill once a worthy clump is in range. TUBE pieces",
-			"are exempt (they may engage singles). OFF by default so the @stable twin stays byte-identical.")]
+			"are exempt (they may engage singles). OFF by default, so a profile omitting the flag is unchanged.",
+			"NOTE (b8d2e601, 2026-08-02): the @stable twin now sets this true (ai.yaml PoiOffensiveBotModule@stable), so @stable runs the",
+			"EV gate too and is no longer byte-identical here.")]
 		public readonly bool FiresEvGate = false;
 
 		[Desc("Fires EV gate: the projected $ damage of the best aim must be at least this percent of the salvo's",
@@ -433,8 +442,9 @@ namespace OpenRA.Mods.Common.Traits
 			"among the axis's non-fires (screen) units; the anchor is that depth behind the screen, offset directly",
 			"away from the target. OVERRIDE: a piece with NO screen on its axis (pure-artillery axis / deliberately",
 			"solo fire tasking) falls back to the target-relative FiresStandoff anchor and goes where the mission",
-			"needs. Rides the FiresStandoff peel-off loop, so it needs FiresStandoff on. OFF by default so the frozen",
-			"@stable twin stays byte-identical; only PoiOffensiveBotModule@experimental turns it on.")]
+			"needs. Rides the FiresStandoff peel-off loop, so it needs FiresStandoff on. OFF by default, so a profile",
+			"omitting the flag is unchanged. NOTE (b8d2e601, 2026-08-02): the @stable twin now sets this true",
+			"(ai.yaml PoiOffensiveBotModule@stable) alongside @experimental — @stable echelons its artillery too.")]
 		public readonly bool EchelonPositioning = false;
 
 		[Desc("Echelon: additive cushion (WDist) on the range surplus, so a piece sits a touch further back than",
@@ -458,7 +468,9 @@ namespace OpenRA.Mods.Common.Traits
 			"least this many COARSE control-field cells behind the believed enemy frontier (ControlField's",
 			"distance-to-enemy-region). When the echelon anchor lands closer than this to the front, it is walked",
 			"rearward along the anchor axis (bounded — never a free search) so artillery stands off BEHIND the",
-			"front line, not on it. 0 = OFF (default; @stable/frozen byte-identical). Suggested ~4 (≈8 map cells).",
+			"front line, not on it. 0 = OFF (default), so a profile omitting the knob is byte-identical. NOTE",
+			"(b8d2e601, 2026-08-02): @stable now sets this to 4 (ai.yaml PoiOffensiveBotModule@stable), so the frontier standoff is LIVE",
+			"on @stable — the default-off path is not what @stable runs. Suggested ~4 (≈8 map cells).",
 			"Needs EchelonPositioning on + a ControlField present; inert until the field is populated for this player.")]
 		public readonly int MinFrontierDistanceCells = 0;
 

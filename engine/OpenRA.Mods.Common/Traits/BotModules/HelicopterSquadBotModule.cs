@@ -182,15 +182,20 @@ namespace OpenRA.Mods.Common.Traits
 			"AttackMove toward the target cell instead of a bare Attack on a single (possibly distant) target,",
 			"so AutoTarget engages the nearest in-range threat at weapon standoff and the squad only advances",
 			"when clear — helis stop and fire at missile range instead of overflying nearer enemies to reach a",
-			"distant target. OFF by default so legacy/normal/stable behaviour is byte-identical; only",
-			"HelicopterSquadBotModule@experimental turns it on.")]
+			"distant target. OFF by default = the bare-Attack path. NOTE (b8d2e601, 2026-08-02): that commit",
+			"created HelicopterSquadBotModule@stable (which did not exist before) and it sets this true, so",
+			"@stable no longer takes the default path — the 'stable behaviour is byte-identical / only",
+			"@experimental turns it on' claim is dead. Both shipped twins engage at standoff.")]
 		public readonly bool StandoffEngagement = false;
 
 		[Desc("Influence stack Stage D: consume the per-player ANTI-AIR danger field (DangerFieldLayer) so",
 			"attack-heli squads route AROUND believed AA, leash their standoff to the AA-safe envelope, and",
 			"withdraw/re-route when a NEW AA threat lights up on the field mid-flight. Rides on top of",
-			"StandoffEngagement (only takes effect while that is on). OFF by default so legacy/normal/stable",
-			"behaviour is byte-identical; only HelicopterSquadBotModule@experimental turns it on.")]
+			"StandoffEngagement (only takes effect while that is on). OFF by default = no danger-field read.",
+			"NOTE (b8d2e601, 2026-08-02): HelicopterSquadBotModule@stable sets this true (and sets",
+			"StandoffEngagement, so it genuinely takes effect), meaning @stable now consumes the anti-air",
+			"danger field — the 'stable behaviour is byte-identical / only @experimental turns it on' claim",
+			"is dead.")]
 		public readonly bool DangerFieldAvoidance = false;
 
 		[Desc("Stage-D: cell air-danger at or below which a cell is treated as AA-safe (leash target /",
@@ -228,8 +233,9 @@ namespace OpenRA.Mods.Common.Traits
 			"within ForwardStagingMaxDistanceCells of its own Supply Route and no squad has formed,",
 			"push it forward to a pre-contact staging cell (a fraction of the way from the SR toward",
 			"the top PoiMap offensive target) instead of leaving it hovering at the SR corner. Mirrors",
-			"MountedTransportBotModule.DeliverBeforeContact. OFF by default so normal/rush/turtle/stable",
-			"stay byte-identical; only HelicopterSquadBotModule@experimental turns it on.")]
+			"MountedTransportBotModule.DeliverBeforeContact. OFF by default = helis hold at the SR.",
+			"NOTE (b8d2e601, 2026-08-02): HelicopterSquadBotModule@stable sets this true, so it stages",
+			"forward too — the 'stable stays byte-identical / only @experimental turns it on' claim is dead.")]
 		public readonly bool ForwardStaging = false;
 
 		[Desc("Fraction (percent) of the SR->top-offensive-POI distance used as the staging cell.",
@@ -667,7 +673,9 @@ namespace OpenRA.Mods.Common.Traits
 				&& Info.SupplyRouteTypes.Contains(a.Info.Name));
 		}
 
-		// Pre-contact forward staging (experimental, ForwardStaging). Push idle attack helis that
+		// Pre-contact forward staging (ForwardStaging). NOTE (b8d2e601, 2026-08-02): no longer
+		// experimental-only — HelicopterSquadBotModule@stable sets the flag too, so this runs on both
+		// shipped twins. Push idle attack helis that
 		// are still loitering near the SR forward to a fraction of the SR->top-POI vector, so they
 		// stage toward the fight instead of hovering at the SR corner. Deterministic: PoiMap query
 		// + integer vector math, ZERO random draws. Fully skipped (byte-identical) when the flag is off.
@@ -876,7 +884,10 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Believed POIs to keep intel fresh on (fog-legal: map-fact structures + enemy SR).
 			// suppressOmniscientThreat keeps the picker off the omniscient InfluenceMap threat grid —
-			// we only read the POI LOCATIONS, so this is fog-legal for @experimental and inert for @stable.
+			// we only read the POI LOCATIONS, so this is fog-legal. NOTE (b8d2e601, 2026-08-02): the old
+			// "inert for @stable" half is dead — it held only because there was no HelicopterSquadBotModule
+			// @stable twin; b8d2e601 created one, and PickReconTarget reads poiScratchCells ungated, so
+			// @stable fills and consumes this too.
 			poiScratchCells.Clear();
 			if (poiMap != null)
 				foreach (var p in poiMap.GetOffensiveTargets(player, suppressOmniscientThreat: true))

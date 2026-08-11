@@ -3,7 +3,9 @@
  * WW3MOD capture-supply guarantee (@experimental) — TECN floor + re-request tests.
  *
  * Pins the two decisions CaptureCoordinatorBotModule.MaintainTecnFloor turns into a production request, so the
- * S2 capture-supply fix (WORKSPACE/recon/260731) can't silently regress AND @stable byte-identity is proven:
+ * S2 capture-supply fix (WORKSPACE/recon/260731) can't silently regress. NOTE (b8d2e601, 2026-08-02): these no
+ * longer prove "@stable byte-identity" — see the reach note above the first test; the OFF cases now pin the
+ * switch contract only, not any shipped profile:
  *   (1) EffectiveFloor — scaling OFF reproduces the static floor exactly (the frozen path); scaling ON is
  *       ~one capturer per neutral money POI, clamped to [staticFloor, cap].
  *   (2) ShouldRequestTecn — with the staleness knob OFF the predicate is EXACTLY the frozen
@@ -21,6 +23,19 @@ namespace OpenRA.Test
 	[TestFixture]
 	public class CaptureSupplyMathTest
 	{
+		// REACH NOTE (b8d2e601, 2026-08-02) — READ BEFORE TRUSTING A GREEN RUN HERE.
+		// Every "frozen path" case below — EffectiveFloor with scaleEnabled=false, and ShouldRequestTecn with
+		// staleTicks<=0 — pins a configuration that NO live profile selects any more. @stable.tecn was promoted
+		// to full @experimental parity, so both twins now set ScaleTecnFloorToPois: true and
+		// TecnRequestStaleTicks: 200 (ai.yaml CaptureCoordinatorBotModule@experimental.tecn and @stable.tecn).
+		// These cases are kept deliberately, as a contract on the SWITCH SEMANTICS (off ⇒ the pre-feature answer
+		// verbatim) — they are NOT coverage of shipped behaviour and can stay green while live capture supply is
+		// broken. The ON cases (scaling, staleness, in-flight cap) are what production actually executes.
+		// Same caveat for ClampFloorToArmyShare at the bottom of this file, only harder: its only caller is
+		// gated on TecnFloorArmyShareCapPct < 100 (CaptureCoordinatorBotModule.cs:824) and both profiles leave
+		// it at 100 (ai.yaml @experimental.tecn; omitted on @stable ⇒ default 100), so that function has NO production caller
+		// at all today. Do not delete these — they are the regression net if a switch is ever turned back off.
+
 		// ---- EffectiveFloor ----
 
 		[Test]

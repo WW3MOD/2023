@@ -141,12 +141,14 @@ namespace OpenRA.Mods.Common.Traits
 			"outstanding request has gone UNDELIVERED for this many ticks (the shared build FIFO can sit on a",
 			"lone pending request while combat buys churn the queue, so alive+pending>=floor suppresses all",
 			"re-requests forever). Tick-based, no wall-clock. 0 = DISABLED = frozen behaviour (request only",
-			"while alive+pending < floor), so @stable and any non-opting config stay byte-identical.")]
+			"while alive+pending < floor). NOTE (b8d2e601, 2026-08-02): @stable now sets this to 200",
+			"(ai.yaml CaptureCoordinatorBotModule@stable.tecn), so it no longer takes the default path — only a config omitting the knob is frozen.")]
 		public readonly int TecnRequestStaleTicks = 0;
 
 		[Desc("Capture-supply scaling (@experimental): scale TecnFloor to the number of reachable NEUTRAL money",
 			"POIs (~one capturer per free oil derrick), clamped to [TecnFloor, TecnFloorMax]. Off = the static",
-			"TecnFloor above (frozen). Default false so @stable / any non-opting config is byte-identical.")]
+			"TecnFloor above (frozen). NOTE (b8d2e601, 2026-08-02): @stable now sets this true (ai.yaml CaptureCoordinatorBotModule@stable.tecn),",
+			"so it no longer takes the default path — only a config omitting the flag is byte-identical.")]
 		public readonly bool ScaleTecnFloorToPois = false;
 
 		[Desc("Capture-supply scaling cap (@experimental): upper bound on the POI-scaled floor (see",
@@ -156,13 +158,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Capture-supply priority (@experimental): route the floor production request through the",
 			"IBotRequestPriorityUnitProduction path so it OUT-PRIORITISES combat-unit buys for the queue slot",
 			"(the floor cannot be starved by combat production). Off = the ordinary request path (frozen).",
-			"Default false so @stable / any non-opting config is byte-identical.")]
+			"NOTE (b8d2e601, 2026-08-02): @stable now sets this true (ai.yaml CaptureCoordinatorBotModule@stable.tecn), so it no longer takes the",
+			"default path — only a config omitting the flag is byte-identical.")]
 		public readonly bool TecnRequestPriority = false;
 
 		[Desc("Capture fan-out (@experimental): in the PoiMap-ordered capture pass, EXCLUDE targets already",
 			"being captured by an in-flight committed capturer so N free capturers fan out to N DISTINCT neutral",
 			"oilbs instead of clustering onto one already claimed. Requires the goal-guard ledger. Off = frozen",
-			"(no exclusion). Default false so @stable / any non-opting config is byte-identical.")]
+			"(no exclusion). NOTE (b8d2e601, 2026-08-02): @stable now sets this true (ai.yaml CaptureCoordinatorBotModule@stable.tecn), so it no",
+			"longer takes the default path — only a config omitting the flag is byte-identical.")]
 		public readonly bool CaptureFanoutEnabled = false;
 
 		[Desc("Experimental (default false = frozen): for captures farther than TransportCaptureMinDistanceCells,",
@@ -178,7 +182,8 @@ namespace OpenRA.Mods.Common.Traits
 			"instead of the CapturingActorTypes name list — cures 'wrong unit sent to capture' by class,",
 			"since only neutral-tech capturers (Captures targeting the neutral capture type) are dispatched.",
 			"Same TECN set for the current roster; robust to roster edits. Default false = frozen list",
-			"behaviour, so the @stable twin stays byte-identical.")]
+			"behaviour. NOTE (b8d2e601, 2026-08-02): the @stable twin now sets this true (ai.yaml CaptureCoordinatorBotModule@stable.tecn), so it",
+			"resolves roles too — only a config omitting the flag keeps the frozen list path.")]
 		public readonly bool UseUnitRoles = false;
 
 		[Desc("Influence stack (capture migration): order capture targets off the BELIEVED anti-ground danger",
@@ -186,9 +191,10 @@ namespace OpenRA.Mods.Common.Traits
 			"capture score. When on, GetCaptureTargets is asked for a threat-NEUTRAL base score (no omniscient",
 			"read) and this module re-applies a fog-legal believed-danger damp — threat LOWERS a target's",
 			"capture-ordering score, so a capturer is not sent first into a believed weapon envelope. Completes",
-			"the @experimental fog migration for capture ordering. OFF by default so legacy/normal and the frozen",
-			"@stable twin stay byte-identical; only CaptureCoordinatorBotModule@experimental turns it on. Inert",
-			"(falls back to the omniscient path) if no DangerFieldLayer exists.")]
+			"the @experimental fog migration for capture ordering. OFF by default so a config omitting the flag",
+			"keeps the omniscient ordering. NOTE (b8d2e601, 2026-08-02): the @stable twin now sets this true",
+			"(ai.yaml CaptureCoordinatorBotModule@stable.tecn) as well as @experimental, so @stable is no longer byte-identical here — both twins",
+			"run the fog-legal repoint. Inert (falls back to the omniscient path) if no DangerFieldLayer exists.")]
 		public readonly bool StrategicCaptureRepointEnabled = false;
 
 		[Desc("Capture migration: believed anti-ground danger (DangerFieldLayer.GroundDanger) at/below which a",
@@ -218,7 +224,9 @@ namespace OpenRA.Mods.Common.Traits
 			"Integrated over ticks this is the capture-income timeseries proxy that separates 'captured later' from",
 			"'held shorter' and makes the capture race legible on BOTH bots (the [exp-capture] commit markers only",
 			"track this player's own capturers). Diagnostics only — no decision reads it, zero RNG, zero sim effect.",
-			"Default false on the engine class so the @stable twin's code path is unchanged; set only on @experimental.")]
+			"Default false on the engine class, so a config omitting the flag emits nothing. NOTE (b8d2e601,",
+			"2026-08-02): the @stable twin now sets this true too (ai.yaml CaptureCoordinatorBotModule@stable.tecn) — telemetry is emitted on BOTH",
+			"bots, not just @experimental. Diagnostics only, so no sim divergence follows from it.")]
 		public readonly bool CaptureTelemetryEnabled = false;
 
 		[Desc("Contest-aware support (Option A, capture-contest lever): when a capture target's neighbourhood OR an",
@@ -226,7 +234,8 @@ namespace OpenRA.Mods.Common.Traits
 			"or the control-field ring around it reads believed-ENEMY — dispatch ContestedEscortSize escorts instead of",
 			"EscortSize and pre-summon defenders at ContestedDefenseEnemyValueThreshold instead of DefenseEnemyValueThreshold.",
 			"Reads only fog-legal believed fields (DangerFieldLayer / ControlField); zero RNG. Default false on the engine",
-			"class = byte-identical to today; set ONLY on CaptureCoordinatorBotModule@experimental so @stable/normal are frozen.")]
+			"class, so a config omitting the flag is frozen. NOTE (b8d2e601, 2026-08-02): the @stable twin now sets this",
+			"true (ai.yaml CaptureCoordinatorBotModule@stable.tecn) alongside @experimental — @stable is no longer frozen or byte-identical on this lever.")]
 		public readonly bool ContestAwareSupportEnabled = false;
 
 		[Desc("Escort size for a CONTESTED capture target (see ContestAwareSupportEnabled). Uncontested targets keep",
@@ -251,8 +260,9 @@ namespace OpenRA.Mods.Common.Traits
 			"the full escort (ContestedEscortSize/EscortSize). Reduction ONLY — it never raises an escort, and never",
 			"shrinks a target IsContestedNeighbourhood already flags, so it composes with ContestAwareSupportEnabled",
 			"rather than fighting it. Reads only fog-legal believed fields (ControlField + DangerFieldLayer); if either",
-			"is absent the lever is inert (no reduction). Zero RNG. Default OFF on the engine class = byte-identical to",
-			"today; set ONLY on CaptureCoordinatorBotModule@experimental so @stable/normal are frozen.")]
+			"is absent the lever is inert (no reduction). Zero RNG. Default OFF on the engine class, so a config omitting",
+			"the flag is frozen. NOTE (b8d2e601, 2026-08-02): the @stable twin now sets this true (ai.yaml CaptureCoordinatorBotModule@stable.tecn) as well",
+			"as @experimental — @stable right-sizes escorts too and is no longer frozen or byte-identical here.")]
 		public readonly bool EscortTierSizingEnabled = false;
 
 		[Desc("Escort right-sizing: ring-averaged believed control score (ControlField, positive = ours) at/above which a",
@@ -401,21 +411,27 @@ namespace OpenRA.Mods.Common.Traits
 		bool poiMapResolved;
 
 		// Influence stack (capture migration): the believed anti-ground danger field, resolved ONLY when
-		// StrategicCaptureRepointEnabled so the off/@stable path never touches it. When present it replaces
-		// the omniscient InfluenceMap threat baked into the capture score with a fog-legal damp.
+		// StrategicCaptureRepointEnabled, so a config leaving the flag off never touches it. NOTE (b8d2e601,
+		// 2026-08-02): @stable now sets the flag true (ai.yaml CaptureCoordinatorBotModule@stable.tecn), so @stable DOES resolve and read this
+		// field — it is not an experimental-only path. When present it replaces the omniscient InfluenceMap
+		// threat baked into the capture score with a fog-legal damp.
 		DangerFieldLayer dangerField;
 		bool dangerFieldResolved;
 
 		// Contest-aware support (Option A): the believed control + anti-ground danger fields, resolved ONLY when
-		// ContestAwareSupportEnabled so the off/@stable path never touches them. Kept separate from `dangerField`
-		// above (which is tied to StrategicCaptureRepointEnabled) so the two levers are independently gated.
+		// ContestAwareSupportEnabled, so a config leaving the flag off never touches them. NOTE (b8d2e601,
+		// 2026-08-02): @stable now sets the flag true (ai.yaml CaptureCoordinatorBotModule@stable.tecn), so @stable resolves these too. Kept
+		// separate from `dangerField` above (tied to StrategicCaptureRepointEnabled) so the two levers stay
+		// independently gated.
 		ControlField contestControlField;
 		DangerFieldLayer contestDangerField;
 		bool contestFieldsResolved;
 
 		// Escort right-sizing (EscortTierSizingEnabled): the believed control + anti-ground danger fields, resolved
-		// ONLY when the lever is on so the off/@stable path never touches them. Kept separate from the two references
-		// above so this reduction lever is independently gated from StrategicCaptureRepoint and ContestAwareSupport.
+		// ONLY when the lever is on, so a config leaving it off never touches them. NOTE (b8d2e601, 2026-08-02):
+		// @stable now sets the lever true (ai.yaml CaptureCoordinatorBotModule@stable.tecn), so @stable resolves these as well. Kept separate from the
+		// two references above so this reduction lever is independently gated from StrategicCaptureRepoint and
+		// ContestAwareSupport.
 		ControlField tierControlField;
 		DangerFieldLayer tierDangerField;
 		bool tierFieldsResolved;
@@ -477,9 +493,11 @@ namespace OpenRA.Mods.Common.Traits
 		string tecnBuildType;
 
 		// Capture-supply priority (TecnRequestPriority): the priority-request sinks, resolved lazily ONLY when the
-		// flag is on so the off/@stable path never touches them. The tick of the last floor request feeds the
-		// tick-based staleness re-issue (TecnRequestStaleTicks); written unconditionally but only READ when the
-		// staleness knob is on, so it is inert on the frozen path.
+		// flag is on, so a config leaving it off never touches them. NOTE (b8d2e601, 2026-08-02): @stable now sets
+		// TecnRequestPriority (ai.yaml CaptureCoordinatorBotModule@stable.tecn) and TecnRequestStaleTicks=200 (ai.yaml CaptureCoordinatorBotModule@stable.tecn), so on @stable these sinks
+		// ARE resolved and the staleness read below is LIVE, not inert. The tick of the last floor request feeds the
+		// tick-based staleness re-issue; written unconditionally but only READ when the staleness knob is on, so it
+		// stays inert only for a config that omits both knobs.
 		IBotRequestPriorityUnitProduction[] priorityProducers;
 		bool priorityProducersResolved;
 		int lastFloorRequestTick = int.MinValue;
@@ -814,7 +832,9 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			// (b) Floor scaling: the static TecnFloor, or one capturer per reachable NEUTRAL money POI clamped
-			// to [TecnFloor, TecnFloorMax]. Off (@stable / non-opting) ⇒ EffectiveFloor returns Info.TecnFloor.
+			// to [TecnFloor, TecnFloorMax]. Off (a config omitting the flag) ⇒ EffectiveFloor returns Info.TecnFloor.
+			// NOTE (b8d2e601, 2026-08-02): @stable sets ScaleTecnFloorToPois true (ai.yaml CaptureCoordinatorBotModule@stable.tecn), so @stable takes
+			// the scaled branch — the POI count IS computed there.
 			var floor = CaptureSupplyMath.EffectiveFloor(Info.ScaleTecnFloorToPois, Info.TecnFloor,
 				Info.ScaleTecnFloorToPois ? CountReachableNeutralMoneyPois() : 0, Info.TecnFloorMax);
 
@@ -975,8 +995,10 @@ namespace OpenRA.Mods.Common.Traits
 			return false;
 		}
 
-		// Capture-target ordering honouring the fog-migration gate. Default path (flag off / @stable) returns
-		// PoiMap's frozen omniscient GetCaptureTargets ordering VERBATIM — byte-identical. When
+		// Capture-target ordering honouring the fog-migration gate. Default path (flag off) returns PoiMap's
+		// frozen omniscient GetCaptureTargets ordering VERBATIM — byte-identical. NOTE (b8d2e601, 2026-08-02):
+		// @stable sets StrategicCaptureRepointEnabled true (ai.yaml CaptureCoordinatorBotModule@stable.tecn), so @stable does NOT take that default
+		// path — it orders fog-legally like @experimental. When
 		// StrategicCaptureRepointEnabled AND a DangerFieldLayer exists, PoiMap is asked for a threat-NEUTRAL
 		// base score (no omniscient read at all) and the believed anti-ground danger field re-orders it
 		// fog-legally below. Assumes poiMap != null (every caller resolves it first).
@@ -1471,8 +1493,10 @@ namespace OpenRA.Mods.Common.Traits
 		// in unheld no-man's-land is NOT flagged contested, so the larger escort / earlier defense stay SURGICAL to
 		// genuinely disputed derricks (the measured deficit is on the both-capture seeds) rather than inflating
 		// support on every open-ground capture and thinning the offense (the design's combat-net-swing guardrail).
-		// Returns false immediately when the lever is off, so the @stable path never resolves a field and stays
-		// byte-identical. Pure reads, zero RNG.
+		// Returns false immediately when the lever is off, so a config omitting it never resolves a field. NOTE
+		// (b8d2e601, 2026-08-02): @stable now sets ContestAwareSupportEnabled (ai.yaml CaptureCoordinatorBotModule@stable.tecn), so this early-out
+		// does NOT fire on @stable — it resolves the fields and is byte-divergent from the old frozen behaviour.
+		// Pure reads, zero RNG.
 		// ACCEPTED GAP: an unescorted WEAPONLESS enemy probe (a lone engineer) trips neither channel — it stamps no
 		// danger kernel and doesn't paint control presence (that needs an armed unit) — so a derrick can be re-taken
 		// by a light probe without the larger escort / earlier defense engaging. Accepted; the 4.D ownership
@@ -1563,7 +1587,9 @@ namespace OpenRA.Mods.Common.Traits
 		// own cell is anchor-floored — Stage-C — so it is uninformative; same reason the Stage-F balance-of-power read
 		// samples the ring). Requires BOTH fields: a missing ControlField/DangerFieldLayer (or no control field for this
 		// player yet) returns Full so the capture keeps its full escort rather than gambling a lone technician on an
-		// unverifiable read. Resolved lazily and only when the lever is on, so the off/@stable path never touches them.
+		// unverifiable read. Resolved lazily and only when the lever is on, so a config leaving it off never touches
+		// them. NOTE (b8d2e601, 2026-08-02): @stable now sets EscortTierSizingEnabled (ai.yaml CaptureCoordinatorBotModule@stable.tecn), so @stable
+		// resolves these fields and tiers its escorts here too.
 		EscortSizingMath.EscortTier ResolveEscortTier(CPos cell, int distanceFromSRCells)
 		{
 			if (!tierFieldsResolved)

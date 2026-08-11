@@ -39,11 +39,15 @@
  * the Stage-3 latch, which evolves by pure integer/bool math over synced world state (deterministic
  * across clients). Lane geometry is integer WPos interpolation in the pure AmbushLaneMath helper.
  *
- * BYTE-IDENTITY: gated `enable-ai-experimental` with NO @stable twin — @stable / Normal / Rush / Turtle /
- * humans never instantiate it, so they never commit to a ledger, grant a condition, or issue an order
- * from here. The `enable-ambush-tactics` gate is granted ONLY by this module, so on every non-experimental
- * profile GetConditionCount stays 0 and the Stage-2/3 machinery is the same dead code it was at ship.
- * Gated enable-ai-experimental in ai.yaml — Normal / Rush / Turtle / Stable never see it.
+ * PROFILE REACH — NOTE (b8d2e601, 2026-08-02): this module now HAS a @stable twin. `LaneAmbushBotModule@stable`
+ * (ai.yaml, `RequiresCondition: enable-ai-stable`) runs at full @experimental parity, so @stable DOES
+ * instantiate it, commit to the PoiGoalGuard ledger, grant the condition, and issue orders from here.
+ * The former header claim — "NO @stable twin", "Stable never sees it", and above all "the Stage-2/3 machinery
+ * is the same dead code it was at ship" — is FALSE on all three counts. Do not treat the Stage-2/3 halt-
+ * before-contact path as dead code: it is LIVE for both profiles' ambushers.
+ * Still true: humans / Normal / Rush / Turtle never instantiate it, and `enable-ambush-tactics` is granted
+ * ONLY by this module and only to its own posted units (:418/:439), so GetConditionCount stays 0 on any unit
+ * no ambush module posted.
  */
 #endregion
 

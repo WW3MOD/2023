@@ -146,7 +146,10 @@ namespace OpenRA.Mods.Common.Traits
 			"class. Cargo carriers (bradley/bmp2/m113) are still excluded so MountedTransportBotModule keeps",
 			"them (the IFVs classify MainBattle by override, but this partial migration leaves the transport",
 			"module on its name list). The screen/main-line partition still reads ScreenUnitTypes. Default",
-			"false = frozen list behaviour, so @stable/legacy twins stay byte-identical.")]
+			"false = frozen list behaviour. NOTE (b8d2e601, 2026-08-02): @stable now sets this true as well",
+			"(ai.yaml, block LayeredDefenceBotModule@stable, ~line 2021), so it no longer takes the default",
+			"path here — the '@stable/legacy twins stay byte-identical' claim is dead; both shipped twins",
+			"pick line units by role.")]
 		public readonly bool UseUnitRoles = false;
 
 		[Desc("PHASE 5 (@experimental) MAN-THE-LINE avenue allocation. Instead of clustering reserves only on the",
@@ -223,8 +226,10 @@ namespace OpenRA.Mods.Common.Traits
 			resolver = world.WorldActor.TraitOrDefault<UnitRoleResolver>();
 
 			// Shared commitment ledger (experimental interop): only consulted when RespectCommitmentLedger
-			// is on, so @stable/legacy never look it up ⇒ byte-identical. Null when the player has no
-			// PoiGoalGuard (every non-@experimental profile) ⇒ the check below is inert.
+			// is on. LayeredDefenceBotModule@stable sets NEITHER flag, so it still never looks the ledger up
+			// here ⇒ this seam is genuinely inert for it. NOTE: the reason is the flags, NOT trait absence —
+			// PoiGoalGuard@poi is gated `enable-ai-experimental || enable-ai-stable`, so @stable DOES carry a
+			// ledger; the old "no PoiGoalGuard on every non-@experimental profile" parenthetical was wrong.
 			goalGuard = Info.RespectCommitmentLedger || Info.CommitLineAssignments
 				? player.PlayerActor.TraitOrDefault<PoiGoalGuard>() : null;
 
