@@ -44,6 +44,13 @@ namespace OpenRA
 		// drift). Set via Test.LaunchLobbyMap=<map-id> for deterministic captures.
 		public static string LaunchLobbyMap { get; private set; }
 
+		// Ingame info panel to open automatically once a match is running, so
+		// screenshot drivers can capture the ingame menu's tabs without simulating
+		// input. "Debug" opens the debug/cheats panel (needs the cheats lobby
+		// option); anything else non-empty opens the default Options view. Set via
+		// Test.OpenIngameInfoPanel=Debug launch arg.
+		public static string OpenIngameInfoPanel { get; private set; }
+
 		// Path to a marker file LobbyLogic touches once MapIsPlayable. External
 		// drivers (tools/autotest/screenshot-lobby.sh) poll this to know when
 		// it's safe to fire a "screenshot" command — without this signal they
@@ -125,6 +132,7 @@ namespace OpenRA
 			OpenLobbyTab = args.GetValue("Test.OpenLobbyTab", null);
 			LaunchLobbyMap = args.GetValue("Test.LaunchLobbyMap", null);
 			LobbyReadyFile = args.GetValue("Test.LobbyReadyFile", null);
+			OpenIngameInfoPanel = args.GetValue("Test.OpenIngameInfoPanel", null);
 
 			// UnitLifecycleLogger gate. "true"/"1" derives a sibling of the verdict
 			// file; anything else is an explicit output path. Left null (inert) when

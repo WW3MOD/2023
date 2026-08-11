@@ -246,6 +246,8 @@ Container@PLAYER_WIDGETS:
 					Height: 26
 					VisualHeight: 0
 					Background: command-button
+					AnchorTooltipDirection: Above
+					Key: AutoEnter
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Auto-Enter

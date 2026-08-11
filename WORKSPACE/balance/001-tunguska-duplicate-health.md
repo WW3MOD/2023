@@ -1,6 +1,6 @@
 # 001 — Tunguska duplicate `Health:` key
 
-Status: PROPOSED
+Status: APPLIED (2026-08-11, behaviour-neutral variant — see "Outcome")
 Source: `260802-parity-audit.md` §2 (strykershorad ↔ tunguska)
 
 ## Evidence
@@ -59,3 +59,33 @@ strykershorad counterpart. If the user's intent was actually 8000, delete the
   — watch the mirror/cross parity runs before and after.
 - Regression detection: `test-heli-vs-heli-missile` and the parity tournament
   set; any Tunguska TTK change shows up in cross-run army-value curves.
+
+## Outcome (2026-08-11)
+
+**The open question in this doc is now answered: the LATER block wins, so the
+effective Tunguska HP was — and remains — 8000.** The proposal's uncertainty
+("static analysis cannot determine the engine's duplicate-key resolution") is
+resolved both by code and by measurement:
+
+- Mechanism: duplicate child keys within one actor node are merged by
+  `MiniYaml.MergeIntoResolved` (`engine/OpenRA.Game/MiniYaml.cs:427-447`),
+  which merges the later node **over** the earlier one *in place* — the
+  surviving node keeps the FIRST block's position but the LAST block's values.
+- Measurement: `./utility.sh --resolved-rules tunguska` printed `Health: HP:
+  8000` against the unmodified tree.
+
+Applied as the **behaviour-neutral** dedup the user asked for, not the
+14000-preserving variant this doc originally proposed: the surviving block sits
+in the first block's slot (after `Valued`, before `Armor`) carrying `HP: 8000`,
+and the trailing duplicate is deleted. `--resolved-rules tunguska` is
+**byte-identical** before and after the edit.
+
+### Still open — the parity question this does NOT settle
+
+De-duplicating behaviour-neutrally makes the audit's finding *explicit* rather
+than accidental, but does not fix it. Tunguska now unambiguously reads
+**1700 cost / 8000 HP** against strykershorad's **2500 / 14000** — the 43% HP
+deficit on the RU mobile-AA platform is real and still unaddressed. That is a
+genuine balance decision (does RU mobile AA want more HP, or is the lower price
+the intended trade?) and needs its own proposal plus a parity tournament to
+judge. It was deliberately NOT bundled into this dedup.

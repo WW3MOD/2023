@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Widgets;
@@ -78,6 +79,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{
 					{ "initialPanel", IngameInfoPanel.Debug }
 				});
+			}
+
+			// WW3MOD: when launched with Test.OpenIngameInfoPanel=<panel>, open that
+			// panel straight away. Lets external screenshot drivers capture the ingame
+			// menu tabs without simulating mouse input.
+			if (TestMode.IsActive && !string.IsNullOrEmpty(TestMode.OpenIngameInfoPanel))
+			{
+				var wantsDebug = string.Equals(TestMode.OpenIngameInfoPanel, "Debug", StringComparison.OrdinalIgnoreCase);
+				var button = wantsDebug ? debug : options;
+				// PITFALL: OpenMenuPanel calls World.CancelInputMode, which sets
+				// World.OrderGenerator and so asserts unsynced (Sync.cs:208). The real
+				// OnClick reaches it from input handling, which is already unsynced, but
+				// RunAfterTick fires inside LogicTick's synced frame — hence RunUnsynced.
+				if (button != null)
+					Game.RunAfterTick(() => Sync.RunUnsynced(world, () => OpenMenuPanel(button, new WidgetArgs()
+					{
+						{ "initialPanel", wantsDebug ? IngameInfoPanel.Debug : IngameInfoPanel.AutoSelect }
+					})));
 			}
 		}
 

@@ -164,6 +164,11 @@ Patrol: P
 	Types: Unit
 	Contexts: Player
 
+AutoEnter: L
+	Description: Auto-Enter
+	Types: Unit
+	Contexts: Player
+
 
 StopMusic: AUDIOSTOP
 	Description: Stop

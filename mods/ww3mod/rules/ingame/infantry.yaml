@@ -1985,7 +1985,7 @@ E6:
 		Prerequisites: ~disabled
 		Description: Close-range area denial. Devastating against infantry clusters.\n\n - Flamethrower\n - Causes panic and fire damage\n - Volatile — explodes on death\n - No armor
 	Valued:
-		Cost: 100
+		Cost: 150
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Mobile:
@@ -2004,7 +2004,7 @@ E6:
 		Ammo: 90
 		ReloadCount: 30
 		AmmoCondition: ammo-primary
-		# Flame fuel: 3 batches × 30 ticks × 1 supply = 3 (~3% of cost 100). E4.
+		# Flame fuel: 3 batches × 30 ticks × 1 supply = 3 (~2% of cost 150). E4.
 		SupplyValue: 1
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
