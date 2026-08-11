@@ -315,7 +315,7 @@ namespace OpenRA.Mods.Common.Traits
 			// then requires to be GRANTED on the same actor — a co-location with ^AutoTarget that is not
 			// structurally guaranteed for every combat actor. Reading autoTarget.Stance here needs no
 			// such guarantee and mirrors the existing engagement-stance HoldPosition opt-out.
-			if (autoTarget.Stance < UnitStance.FireAtWill)
+			if (!FireStanceAllowsRepositioning(autoTarget.Stance))
 			{
 				ReleaseManagement();
 				State = AdjustmentState.None;
@@ -577,6 +577,16 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return haveBest ? bestTarget : (CPos?)null;
+		}
+
+		// Stage-1 (PIPELINE item 8) FIRE-stance opt-out predicate. Extracted static so the contract is
+		// pinned without a live actor (StancePositioningFireStanceTest) — this gate is what decides
+		// whether the executor manages a unit at all, so a silent reversal would un-fix the un-ambush
+		// bug, and a silent widening would strand the trait off. Ambush and HoldFire express a hold /
+		// first-strike intent STRONGER than a reposition; FireAtWill is the only stance that permits it.
+		public static bool FireStanceAllowsRepositioning(UnitStance stance)
+		{
+			return stance >= UnitStance.FireAtWill;
 		}
 
 		// Pure Manhattan leash predicate. Extracted static (anchor + radius as parameters) so the

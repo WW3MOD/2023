@@ -3,6 +3,16 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-11: [med] `test-stance-optout` is a FALSE GREEN — it silences its own units with the very stance whose opt-out would mask the two opt-outs it claims to test (found while: fixing the three-scenario stance regression cluster, branch `auto/stance-reds`)
+
+`test-stance-optout` asserts that a `HoldPosition` unit and a `deployed` unit are never repositioned by `StancePositioningExecutor`. But its setup puts **both units on `HoldFire`** (`test-stance-optout.lua:23-25`) to silence combat — and since `174075e9` the executor relinquishes management of anything below `FireAtWill` (`StancePositioningExecutor.cs:318`) **before** it ever reaches the `HoldPosition` check (`:327`) or the `deployed` check (`:298`). The fire-stance opt-out alone holds both units still, so the scenario passes whether or not the two opt-outs under test work at all. It has been passing on the wrong mechanism since 2026-07-25, and its GREEN currently carries **no information** about `HoldPosition` or `deployed`.
+
+Exactly the same setup convenience — "silence the unit by fire stance" — is what turned the three sibling scenarios RED (see `WORKSPACE/DISCOVERIES.md`, 2026-08-11). The siblings failed loudly because they assert movement; this one fails *silently* because it asserts stillness, which is the more dangerous half of the same defect: a positive scenario that stops testing goes red, a negative scenario that stops testing stays green.
+
+**Fix shape** (deliberately NOT done on `auto/stance-reds`): put both units on `FireAtWill` and silence combat from the enemy side instead — `EnemyA`/`EnemyB` stay `HoldFire`, and give the `t90` `Targetable: TargetTypes: NoAutoTarget` in `rules.yaml`, which is exactly the repair applied to the three siblings there. Then `HoldPosition` and `deployed` become the only things holding the units, which is what the scenario is for. **This needs its own autotest run to land** — it is a behavioural measurement (the scenario could legitimately go RED, which would mean one of the two opt-outs is actually broken and has been masked for weeks), and `auto/stance-reds` was scoped to three named scenarios. Do not fix it blind.
+
+The corpus guard added on that branch (`StancePositioningFireStanceTest.ExecutorScenariosDoNotSilenceTheUnitUnderTestByFireStance`) carries `test-stance-optout` in its `ExcludedScenarios` list, with a comment pointing here. **Delete that exclusion as part of the fix** — once the scenario silences from the enemy side, it belongs under the guard like its siblings.
+
 ## 2026-08-10: [low] `VehicleCrew` is edge-triggered and `Cargo` is level-triggered, so a transport already burning when it receives passengers evacuates them but never its crew (found while: the vehicle-occupant pass, branch `wt/vehicle-occupants`)
 
 Both occupant systems now bail on the same damage state (`Heavy`, HP <50%), but they decide *when to look* in incompatible ways:

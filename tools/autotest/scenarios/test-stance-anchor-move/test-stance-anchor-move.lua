@@ -15,7 +15,9 @@
 --
 -- Enablement is the real Phase-3 path: USA is human, so GrantConditionOnHumanOwner grants
 -- enable-tactical-positioning at spawn. We also grant it explicitly (idempotent) so the test is robust
--- to grant-timing. All combatants are HoldFire so no shots ⇒ no suppression gate, no AutoTarget chase.
+-- to grant-timing. The units-under-test stay FireAtWill — the executor declines anything below it
+-- (StancePositioningExecutor.cs:318) — and combat is silenced from the ENEMY side instead: the t90s are
+-- HoldFire and are made non-auto-targetable in rules.yaml.
 
 local A = { X = 13, Y = 19 }   -- zone-A anchor (Rifle spawn)
 local B = { X = 40, Y = 19 }   -- zone-B relocation target
@@ -27,10 +29,12 @@ WorldLoaded = function()
 	TestHarness.Select(Rifle)
 
 	-- Executor auto-enables on human-owned units via GrantConditionOnHumanOwner (Phase 3), so no
-	-- explicit grant is needed. HoldFire silences shots (no suppression gate, no AutoTarget chase).
+	-- explicit grant is needed. The ARs must be FireAtWill: the executor relinquishes management of any
+	-- unit below FireAtWill (the deliberate Ambush/HoldFire opt-out), so silencing them by fire stance —
+	-- as this test used to — switches the trait under test off entirely.
 	local combatants = { Rifle, PairL, PairR }
 	for _, u in ipairs(combatants) do
-		if not u.IsDead then u.Stance = "HoldFire" end
+		if not u.IsDead then u.Stance = "FireAtWill" end
 	end
 	for _, e in ipairs({ EnemyA, EnemyB, EnemyS }) do
 		if not e.IsDead then e.Stance = "HoldFire" end

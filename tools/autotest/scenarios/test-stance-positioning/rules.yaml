@@ -9,3 +9,13 @@ World:
 	-UnitDefaultsManager:
 	LuaScript:
 		Scripts: test-helpers.lua, test-stance-positioning.lua
+
+# The sighted enemy exists only to give the threat layer a bearing; the AR must never shoot at or
+# chase it, because the executor evaluates in TickIdle only (S5). Dropping the auto-targetable types
+# (leaving the inert NoAutoTarget marker) means no AutoTargetPriority ValidTargets list matches it,
+# so no attack activity is ever queued — the supplyroute idiom from DOCS/recipes/AUTOTEST.md. The t90
+# keeps its AttackBase/AutoTarget traits, so SightingThreatLayer still counts it as an armed contact
+# (SightingThreatLayer.cs:201) and the threat bearing is unchanged.
+t90:
+	Targetable:
+		TargetTypes: NoAutoTarget

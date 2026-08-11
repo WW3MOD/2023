@@ -24,8 +24,10 @@
 --     back; the executor re-anchors at B (no threat there ⇒ it simply holds). PASS.
 --
 -- Enablement is the real Phase-3 path: USA is human, so GrantConditionOnHumanOwner grants
--- enable-tactical-positioning at spawn. All combatants are HoldFire so no shots ⇒ no suppression gate,
--- no AutoTarget chase to confound the movement assertions.
+-- enable-tactical-positioning at spawn. The Rifle stays FireAtWill — the executor declines anything
+-- below it (StancePositioningExecutor.cs:318) — and combat is silenced from the ENEMY side instead: the
+-- t90 is HoldFire and is made non-auto-targetable in rules.yaml, so there are no shots (⇒ no suppression
+-- gate) and no AutoTarget chase to confound the movement assertions.
 
 local SPAWN = { X = 13, Y = 21 }   -- Rifle spawn == zone-A anchor
 local COVER = { X = 13, Y = 17 }   -- the zone-A south cover edge the executor adjusts toward
@@ -37,9 +39,10 @@ WorldLoaded = function()
 	TestHarness.FocusBetween(Rifle, EnemyA)
 	TestHarness.Select(Rifle)
 
-	-- HoldFire silences shots (no suppression gate, no AutoTarget chase). The executor still runs — it
-	-- is gated on the enable-tactical-positioning condition (granted to the human USA), not on firing.
-	if not Rifle.IsDead then Rifle.Stance = "HoldFire" end
+	-- The Rifle must be FireAtWill: the executor relinquishes management of any unit below FireAtWill
+	-- (the deliberate Ambush/HoldFire opt-out), so silencing the Rifle by fire stance — as this test used
+	-- to — switches off the very trait whose redirect handling is under test. Silence the enemy instead.
+	if not Rifle.IsDead then Rifle.Stance = "FireAtWill" end
 	if not EnemyA.IsDead then EnemyA.Stance = "HoldFire" end
 
 	-- Deadlines (25 ticks/sec). Infantry Speed 25 ≈ 41 ticks/cell.
