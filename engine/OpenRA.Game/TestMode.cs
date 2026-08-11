@@ -94,6 +94,14 @@ namespace OpenRA
 		// at 2× and applied via a lobby setup order that races state-Ready.
 		public static int SpeedMultiplier { get; private set; } = 1;
 
+		// Arms sync reporting even with a single human client, and makes the GameSaved
+		// acknowledgement dump the recording side's sync state. Diagnostic scaffolding for
+		// saved-game restore desyncs, which are single-client by construction and therefore
+		// invisible to the normal humanClients > 1 gate. Expensive (per-net-frame reflection
+		// over every synced trait), so it stays OFF unless explicitly asked for.
+		// Set via Test.ForceSyncReports=true.
+		public static bool ForceSyncReports { get; private set; }
+
 		// Resolved output path for the UnitLifecycleLogger world trait's JSONL
 		// event stream. Null/empty = the logger is inert (no file, no per-tick
 		// work). Set via the Test.UnitLifecycleLog launch arg:
@@ -133,6 +141,7 @@ namespace OpenRA
 			LaunchLobbyMap = args.GetValue("Test.LaunchLobbyMap", null);
 			LobbyReadyFile = args.GetValue("Test.LobbyReadyFile", null);
 			OpenIngameInfoPanel = args.GetValue("Test.OpenIngameInfoPanel", null);
+			ForceSyncReports = args.GetValue("Test.ForceSyncReports", "").ToLowerInvariant() == "true";
 
 			// UnitLifecycleLogger gate. "true"/"1" derives a sibling of the verdict
 			// file; anything else is an explicit output path. Left null (inert) when
