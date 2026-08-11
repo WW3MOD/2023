@@ -36,9 +36,14 @@ GAME CONTENT
 WW3MOD loads artwork and audio from the Command & Conquer:
 Red Alert data files. Those files are supplied by the player
 from the 2008 freeware release or from an original copy of
-the game, and are not distributed with WW3MOD. Command &
-Conquer and Red Alert are trademarks of their respective
-owners, who are not affiliated with this project.
+the game.
+
+This distribution also includes art and audio assets derived
+from Command & Conquer games. No ownership of that material
+is claimed; it remains the property of its owners.
+
+Command & Conquer and Red Alert are trademarks of their
+respective owners, who are not affiliated with this project.
 
 
 MUSIC
