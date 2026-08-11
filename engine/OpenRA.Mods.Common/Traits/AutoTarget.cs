@@ -615,7 +615,8 @@ namespace OpenRA.Mods.Common.Traits
 				TriggerNearbyAmbushAllies(self, Target.FromActor(attacker));
 			}
 
-			Attack(Target.FromActor(Aggressor), allowMove);
+			// Retaliation the trait decided on by itself, so genuinely AutoTarget-sourced.
+			Attack(Target.FromActor(Aggressor), allowMove, AttackSource.AutoTarget);
 		}
 
 		void INotifyIdle.TickIdle(Actor self)
@@ -649,7 +650,14 @@ namespace OpenRA.Mods.Common.Traits
 			// scan that does run re-arms nextScanTime, so whether THIS tick actually scanned must be captured
 			// BEFORE the call.
 			var scannedThisTick = nextScanTime <= 0;
-			var target = ScanForTarget(self, false, true);
+
+			// fromProtectedOverride must be threaded here too, not discarded: this path re-issues the
+			// scanned target below, and re-stamping a player/Lua/bot target as AutoTarget would make it
+			// preemptable. The re-stamp is inert while the unit is in Ambush (PreemptionDue requires
+			// >= FireAtWill) but nothing clears it — StanceChanged returns early on a stance INCREASE —
+			// so raising the unit to Fire At Will would activate it retroactively.
+			var target = ScanForTarget(self, false, true, false, out var fromProtectedOverride);
+			var scanSource = fromProtectedOverride ? AttackSource.Default : AttackSource.AutoTarget;
 
 			// Gated Stage-3 only: an off-interval Invalid means "no scan happened this tick", NOT "target
 			// lost". Reuse the cached pre-aim target (if it is still alive and legally visible) so the cadence
@@ -697,7 +705,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (isSpotted)
 						TriggerNearbyAmbushAllies(self, target);
 
-					Attack(target, false);
+					Attack(target, false, scanSource);
 				}
 
 				return;
@@ -718,7 +726,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (trigger != AmbushSpringTrigger.None)
 					TriggerNearbyAmbushAllies(self, target);
 
-				Attack(target, false);
+				Attack(target, false, scanSource);
 			}
 		}
 
@@ -1099,16 +1107,6 @@ namespace OpenRA.Mods.Common.Traits
 			if (target.Type == TargetType.Invalid)
 				return;
 
-			// Don't cancel-and-requeue an identical engagement. AttackTarget marks the target for overkill
-			// accounting on EVERY call and that mark's decay is tuned to outlive a reload (60 ticks,
-			// Actor.cs), so re-issuing the same target on the scan cadence inflates AverageDamagePercent
-			// several times per window and makes other units skip a target that is not really saturated.
-			if (self.CurrentActivity is IAttackActivity currentAttack
-				&& currentAttack.Target.Type == TargetType.Actor
-				&& target.Type == TargetType.Actor
-				&& currentAttack.Target.Actor == target.Actor)
-				return;
-
 			// PITFALL: re-issuing unconditionally as AutoTarget LAUNDERS provenance. A player's target
 			// survives its attack activity ending (promoted to a persistent opportunity target), comes
 			// back through the override with canYield false, and would then be re-stamped AutoTarget
@@ -1117,7 +1115,11 @@ namespace OpenRA.Mods.Common.Traits
 			Attack(target, allowMove, fromProtectedOverride ? AttackSource.Default : AttackSource.AutoTarget);
 		}
 
-		void Attack(in Target target, bool allowMove, AttackSource source = AttackSource.AutoTarget)
+		/// <summary><paramref name="source"/> is deliberately REQUIRED, not defaulted. A default of
+		/// AutoTarget fails open — it silently re-stamps whatever it is handed as an automatic
+		/// engagement — and that affordance is why the provenance-laundering bug had two separate
+		/// instances (ScanAndAttack and AmbushTickIdle). There are three call sites; each states it.</summary>
+		void Attack(in Target target, bool allowMove, AttackSource source)
 		{
 			foreach (var ab in ActiveAttackBases)
 				ab.AttackTarget(target, source, false, allowMove);
@@ -1172,15 +1174,25 @@ namespace OpenRA.Mods.Common.Traits
 		public static int MatchTargetPriorityBand(AutoTargetPriorityInfo ati, PlayerRelationship relationship,
 			BitSet<TargetableType> targetTypes)
 		{
+			return MatchesTargetPriority(ati, relationship, targetTypes) ? ati.Priority : NoTargetPriorityBand;
+		}
+
+		/// <summary>THE single per-entry match predicate. Both sides of the preemption band comparison run
+		/// through here — the incumbent via MatchTargetPriorityBand and the candidate via ChooseTarget —
+		/// because they must agree by construction, not by two hand-maintained copies happening to agree.
+		/// A duplicated copy of this test is exactly what shipped the OnlyTargets bug described above.</summary>
+		public static bool MatchesTargetPriority(AutoTargetPriorityInfo ati, PlayerRelationship relationship,
+			BitSet<TargetableType> targetTypes)
+		{
 			// Incompatible relationship
 			if (!ati.ValidRelationships.HasRelationship(relationship))
-				return NoTargetPriorityBand;
+				return false;
 
 			// Incompatible target types
 			if (!ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
-				return NoTargetPriorityBand;
+				return false;
 
-			return ati.Priority;
+			return true;
 		}
 
 		/// <summary>Highest band a whole priority set assigns to a target. Test seam for the above.</summary>
@@ -1306,19 +1318,15 @@ namespace OpenRA.Mods.Common.Traits
 				else
 					continue;
 
+				// Shared with the incumbent's band lookup — see MatchesTargetPriority. The relationship is
+				// hoisted out of the loop: it is a pure function of two owners, neither of which changes
+				// across iterations, so this is the same value computed once instead of once per entry.
+				var targetRelationship = self.Owner.RelationshipWith(owner);
+
 				reusableValidPriorities.Clear();
 				foreach (var ati in reusableActivePriorities)
-				{
-					// Incompatible relationship
-					if (!ati.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(owner)))
-						continue;
-
-					// Incompatible target types
-					if (!ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
-						continue;
-
-					reusableValidPriorities.Add(ati);
-				}
+					if (MatchesTargetPriority(ati, targetRelationship, targetTypes))
+						reusableValidPriorities.Add(ati);
 
 				if (reusableValidPriorities.Count == 0)
 					continue;

@@ -35,8 +35,12 @@
 --     ------------------
 --          ~91 ticks  worst case; 110 is that plus headroom and no more.
 -- The RED control (PreemptScanInterval pinned to 0) at THIS SAME deadline is what
--- proves the unaided break does not beat it. Widening this deadline destroys that
--- discrimination and silently restores the meaningless version of the test.
+-- WILL prove the unaided break does not beat it. NOT YET ESTABLISHED at 110 ticks:
+-- the only control run so far was against the earlier 80-tick deadline, and it
+-- failed on a scenario guard that has since been removed, so it says nothing about
+-- this deadline. Re-establish it before trusting a green here. Widening the deadline
+-- destroys that discrimination and silently restores the meaningless version of the
+-- test, so re-run the control rather than relaxing the bound.
 --
 -- PITFALL: this deadline is in TICKS on purpose — there are two different time
 -- bases in play and mixing them silently halves or doubles the budget.
