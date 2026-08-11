@@ -122,6 +122,24 @@ namespace OpenRA.Network
 			// restarting the game is the normal way this gets hit. The channel name has to be
 			// unique per dump for the file name to mean anything.
 			var channel = $"sync-{timestamp}-{frame}";
+			WriteReport(channel, reportName, frame);
+		}
+
+		// DIAGNOSTIC ONLY (Test.ForceSyncReports) — never reached in normal play.
+		// A saved-game restore is validated by a single sync-hash comparison, so the dump that
+		// OutOfSync produces on the RESTORED side names a frame and a pile of hashes with nothing
+		// to compare them against. This writes the RECORDING side's report for the same frames,
+		// one file per frame, so the two sides can be diffed and the diverging trait/field named.
+		// One file per frame deliberately: the desync path's filename is timestamped only to the
+		// second, so a burst of dumps would otherwise collide into one interleaved file.
+		internal void DumpDiagnosticReport(int frame, string tag)
+		{
+			var reportName = $"syncdiag-{tag}-frame{frame:D6}-{orderManager.LocalClient?.Index}.log";
+			WriteReport($"syncdiag-{tag}-{frame}", reportName, frame);
+		}
+
+		void WriteReport(string channel, string reportName, int frame)
+		{
 			Log.AddChannel(channel, reportName);
 
 			var recordedFrames = new List<int>();

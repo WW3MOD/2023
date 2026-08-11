@@ -109,10 +109,14 @@ namespace OpenRA.Network
 			// default on: a desync is a disagreement between two peers, so a report is worthless
 			// without a second human to diff against. This keeps the whole cost off the bot-vs-bot
 			// benchmark and autotest runs, which are timed and run in batches.
+			// Test.ForceSyncReports overrides that floor. The floor is right for normal play, but a
+			// saved-game restore DOES have a second side to diff against — the recorded match — and
+			// it is single-client by construction, so without the override a restore desync reports
+			// a frame number and "No sync report available!", which cannot name what diverged.
 			var humanClients = LobbyInfo.Clients.Count(c => !c.IsBot);
 			generateSyncReport = Connection is not ReplayConnection
 				&& LobbyInfo.GlobalSettings.EnableSyncReports
-				&& humanClients > 1;
+				&& (humanClients > 1 || (TestMode.IsActive && TestMode.ForceSyncReports));
 
 			// Stated out loud so a missing report is diagnosable BEFORE the next desync rather
 			// than after it. If a game ever ends in "No sync report available", this line says
@@ -295,6 +299,27 @@ namespace OpenRA.Network
 			processClientsToRemove.Clear();
 
 			++NetFrameNumber;
+		}
+
+		// DIAGNOSTIC ONLY (Test.ForceSyncReports). Called when the server acknowledges a game save,
+		// to capture the RECORDING side of the sync state for the frames the restore will later
+		// validate against. Dumps a window rather than a single frame because the client's frame at
+		// acknowledgement is only approximately the save's LastSyncFrame, and the restore fails on
+		// whichever frame the save recorded. The ring holds 32, so a window of 12 is safely inside it.
+		internal void DumpRecordingSideSyncReports()
+		{
+			if (!generateSyncReport)
+			{
+				Log.Write("debug", "[syncdiag] recording-side dump skipped: sync reports are not armed.");
+				return;
+			}
+
+			var last = NetFrameNumber;
+			var first = Math.Max(1, last - 12);
+			for (var f = first; f <= last; f++)
+				syncReport.DumpDiagnosticReport(f, "recorded");
+
+			Log.Write("debug", $"[syncdiag] recording-side sync reports dumped for frames {first}-{last}.");
 		}
 
 		public void Dispose()
