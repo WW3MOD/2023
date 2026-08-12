@@ -83,6 +83,8 @@ GTWR:
 	-Capturable@occupied:
 	-CapturableProgressBar:
 	-CapturableProgressBlink:
+	Sellable:
+		RequiresCondition: !build-incomplete && !being-demolished
 	RenderSprites:
 		PlayerPalette: playertd
 	Buildable:
@@ -178,6 +180,8 @@ PBOX:
 	-GrantCondition@EMP:
 	-QuantizeFacingsFromSequence:
 	-SpawnActorsOnSell:
+	Sellable:
+		RequiresCondition: !build-incomplete && !being-demolished
 	BodyOrientation:
 		QuantizedFacings: 8
 	Building:
@@ -263,6 +267,8 @@ HBOX:
 	-SpawnActorsOnSell:
 	-MustBeDestroyed:
 	-QuantizeFacingsFromSequence:
+	Sellable:
+		RequiresCondition: !build-incomplete && !being-demolished
 	BodyOrientation:
 		QuantizedFacings: 8
 	Building:
