@@ -19,7 +19,6 @@ btr:
 		EjectionDelayVariance: 8
 		# Wheeled APC — thinner armor than M113, lower crew survival.
 		CrewDamageThresholdPercent: 22
-		EjectionSurvivalRate: 70
 	# Light wheeled APC — small fuel cookoff.
 	Explodes@CrewCookoff:
 		Weapon: VehicleCookoffTiny
@@ -141,7 +140,6 @@ bmp2:
 		EjectionDelayVariance: 10
 		# IFV with autoloader and stowed ammo — frequent total loss.
 		CrewDamageThresholdPercent: 12
-		EjectionSurvivalRate: 45
 	Tooltip:
 		Name: BMP-2
 		GenericName: IFV Troop Carrier
@@ -295,7 +293,6 @@ t90:
 		# Soviet autoloader carousel at crew level — catastrophic kill near-universal.
 		# Ukraine-war footage: T-72/90 hulls routinely jack-in-the-box, total crew loss.
 		CrewDamageThresholdPercent: 8
-		EjectionSurvivalRate: 30
 	Tooltip:
 		Name: T-90
 		GenericName: MBT
@@ -402,7 +399,6 @@ giatsint:
 		EjectionDelayVariance: 10
 		# Open-top howitzer — exposed crew, on-board ammo.
 		CrewDamageThresholdPercent: 20
-		EjectionSurvivalRate: 65
 	RenderSprites:
 		Image: giatsint
 		Scale: 1.25
@@ -517,7 +513,6 @@ grad:
 		EjectionDelayVariance: 10
 		# Truck-mounted MLRS — soft skin + 40 rocket pod = catastrophic kill.
 		CrewDamageThresholdPercent: 14
-		EjectionSurvivalRate: 50
 	# Catastrophic rocket-pod cookoff.
 	Explodes@CrewCookoff:
 		Weapon: VehicleCookoffLarge
@@ -642,7 +637,6 @@ tos:
 		EjectionDelayVariance: 10
 		# Thermobaric rocket pod — extreme catastrophic kill, fire engulfs everything.
 		CrewDamageThresholdPercent: 12
-		EjectionSurvivalRate: 40
 	# Thermobaric MLRS — biggest cookoff.
 	Explodes@CrewCookoff:
 		Weapon: VehicleCookoffLarge
@@ -769,7 +763,6 @@ tunguska:
 		EjectionDelayVariance: 10
 		# Mobile AA — armored crew compartment, missiles + autocannons exposed.
 		CrewDamageThresholdPercent: 22
-		EjectionSurvivalRate: 70
 	Tooltip:
 		Name: 2K22 Tunguska
 		GenericName: Mobile AA

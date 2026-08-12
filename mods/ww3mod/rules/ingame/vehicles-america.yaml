@@ -19,7 +19,6 @@ humvee:
 		EjectionDelayVariance: 5
 		# Light unarmored — penetrating hits kill crew often.
 		CrewDamageThresholdPercent: 20
-		EjectionSurvivalRate: 70
 	# Humvee = unarmored fuel fire on death, not a catastrophic ammo cookoff.
 	Explodes@CrewCookoff:
 		Weapon: VehicleCookoffTiny
@@ -179,7 +178,6 @@ m113:
 		EjectionDelayVariance: 8
 		# APC — moderate armor, decent crew survival on penetrating hits.
 		CrewDamageThresholdPercent: 26
-		EjectionSurvivalRate: 80
 	# Light APC — small fuel cookoff, not catastrophic.
 	Explodes@CrewCookoff:
 		Weapon: VehicleCookoffTiny
@@ -303,7 +301,6 @@ bradley:
 		EjectionDelayVariance: 10
 		# IFV with ammo separation — better than BMP-2 but still vulnerable.
 		CrewDamageThresholdPercent: 30
-		EjectionSurvivalRate: 85
 	Tooltip:
 		Name: Bradley
 		GenericName: IFV Troop Carrier
@@ -460,7 +457,6 @@ abrams:
 		EjectionDelayVariance: 15
 		# Modern Western MBT — blow-out panels, ammo separation, best crew survivability.
 		CrewDamageThresholdPercent: 38
-		EjectionSurvivalRate: 95
 	Tooltip:
 		Name: Abrams M1A2
 		GenericName: Abrams
@@ -569,7 +565,6 @@ m109:
 		EjectionDelayVariance: 10
 		# Closed-top SPG — armored crew compartment but ammo on board.
 		CrewDamageThresholdPercent: 24
-		EjectionSurvivalRate: 75
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 6
@@ -692,7 +687,6 @@ m270:
 		EjectionDelayVariance: 10
 		# MLRS rocket pod — catastrophic when hit, low crew survival.
 		CrewDamageThresholdPercent: 14
-		EjectionSurvivalRate: 50
 	# MLRS rocket pod cookoff — catastrophic ammo detonation, biggest cookoff tier.
 	Explodes@CrewCookoff:
 		Weapon: VehicleCookoffLarge
@@ -820,7 +814,6 @@ strykershorad:
 		EjectionDelayVariance: 10
 		# Stryker family — wheeled IFV, decent crew protection.
 		CrewDamageThresholdPercent: 24
-		EjectionSurvivalRate: 78
 	Tooltip:
 		Name: Stryker SHORAD
 		GenericName: Stryker Short Range Air Defense

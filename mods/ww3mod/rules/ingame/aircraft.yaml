@@ -186,7 +186,6 @@
 		TransferToNeutralOnSafeLanding: false
 	VehicleCrew:
 		EjectionDamageState: Dead
-		EjectionSurvivalRate: 100
 	# Burn after safe-autorotation: bleed -2% MaxHP every 5 ticks once the
 	# heli is sitting crash-disabled. ~12-13 seconds from full HP to 0.
 	# Cookoff fires via Explodes: !airborne when the bleed kills it.
