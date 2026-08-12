@@ -181,6 +181,11 @@ drillmine:
 		Length: 32
 		Tick: 160
 
+# PITFALL: an entry here with NO filename after the colon (groups, medic, tag-fake,
+# tag-primary, tag-hold) falls back to the set name — pips.shp — which this mod does not
+# ship; it exists only under engine/mods/cnc. Those five draw NOTHING, silently, with no
+# load error. Referencing one from a WithDecoration costs a test run to discover. Entries
+# that name a file (pips2, pip-ammo, pip-cover, ...) are fine.
 pips:
 	pip-ammo-secondary-none: pip-ammo
 	pip-ammo-primary-none: pip-ammo

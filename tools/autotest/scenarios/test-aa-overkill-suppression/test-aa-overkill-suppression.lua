@@ -76,6 +76,21 @@
 -- aircraft and then my normal click killed it instantly" -- it needs no
 -- damage on the target, no Ctrl, and no foliage, only one other friendly
 -- unit having committed first.
+--
+-- =====================================================================
+-- 2026-08-12: THIS STOPPED BEING A PURE DIAGNOSTIC AND NOW ASSERTS.
+-- The measurement above is the RED evidence for the per-shooter clamp on
+-- EstimatePercentDamage. With the clamp, one MANPAD's claim against a
+-- 600-HP Halo is 100 (one kill's worth) rather than 500, so the counter
+-- crosses back under the threshold after ONE halving instead of three and
+-- lane A joins roughly 120 ticks earlier. MaxSuppressionTicks below sits
+-- between the two regimes: ~172 measured before, ~50 expected after.
+-- =====================================================================
+
+-- Lane A may legitimately lag the control by one decay period plus its own
+-- acquire latency; it must not lag by the three decay periods the 5x
+-- overshoot used to buy.
+local MaxSuppressionTicks = 90
 
 local AirRow = 8
 local AirAltitude = 1280
@@ -86,6 +101,31 @@ local MarkTick = 5
 local LaneBClickTick = 20
 local MarkerKillTick = 40
 local ObserveSeconds = 24
+
+-- Two shots of the SAME unit from the SAME camera, one inside lane A's stand-down
+-- and one after the aircraft is gone. A single shot cannot establish that the
+-- hold-fire tag rendered — at this sprite scale everything on an infantryman is a
+-- few blue pixels and the tag is not identifiable in isolation. The PAIR is the
+-- evidence: whatever differs between them is the marker appearing and clearing.
+--
+-- WHAT IS AND IS NOT ESTABLISHED ABOUT THE MARKER (2026-08-12).
+-- ESTABLISHED, by a temporary trace in WithHoldingFireDecoration.ShouldRender:
+-- `aa holdingFire render=True lastHeld=32 tick=32` — the trait constructs, the sim
+-- flag sets, and the render gate passes, on the declining unit ONLY. MarkerA (HoldFire,
+-- so ChooseTarget early-returns) and lane C (nothing to decline) never traced, which is
+-- the scoping the marker is supposed to have.
+-- NOT ESTABLISHED: that the 4x4 amber pip is legible on screen. Every screenshot pair
+-- taken so far fired at tick 31, one tick before the marker went live, so the pixels
+-- have never been photographed. The shot tick is corrected below but has not been rerun.
+--
+-- PITFALL: the ON shot must land INSIDE the marker's live window, and tick 30 is one
+-- tick TOO EARLY. The mark is applied at tick 5, but the declining scan that sets
+-- AutoTarget.LastHeldFireTick only lands at WorldTick 32 (scans run every 3-8 ticks),
+-- and a capture at 31 photographs an empty frame. Two runs were spent reading that
+-- empty frame as "the decoration is broken" before a trace showed ShouldRender
+-- returning True one tick after the shutter. 45 sits well inside the t32..t85 window.
+local MarkerOnShotTick = 45
+local MarkerOffShotTick = 175
 
 local Lanes = {
 	{ id = "A", x = 3,  marked = true,  mode = "auto" },
@@ -141,6 +181,25 @@ local function pollTick()
 			b.observer.Attack(b.halo, true, false)
 			b.clickIssued = true
 		end
+	end
+
+	if tick == MarkerOnShotTick then
+		local a = Lanes[1]
+		-- Camera and zoom are render-only. Pinned identically for both shots so the
+		-- pair differs by nothing except the marker.
+		Test.SetZoom(6)
+		TestHarness.FocusBetween(a.observer)
+		TestHarness.Screenshot("01-marker-on",
+			"expects: ObserverA declining a live Halo — hold-fire tag drawn at its top-right")
+	end
+
+	if tick == MarkerOffShotTick then
+		local a = Lanes[1]
+		Test.SetZoom(6)
+		TestHarness.FocusBetween(a.observer)
+		TestHarness.Screenshot("02-marker-off",
+			"expects: same unit, same camera, aircraft gone so nothing is being declined —"
+			.. " the tag from shot 01 must be absent")
 	end
 
 	if tick == MarkerKillTick then
@@ -210,6 +269,13 @@ local function finish()
 
 	if #setupFaults > 0 then
 		Test.Fail("SETUP INVALID: " .. table.concat(setupFaults, "; ") .. " || " .. summary)
+		return
+	end
+
+	if suppressionTicks > MaxSuppressionTicks then
+		Test.Fail("one AA's commitment blinded a second AA to a healthy aircraft for "
+			.. suppressionTicks .. " ticks past the unmarked control (max " .. MaxSuppressionTicks
+			.. ") || " .. summary)
 		return
 	end
 
