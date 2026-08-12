@@ -137,7 +137,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (check == BlockedByActor.None)
 				return SubCell.FullCell;
 
-			return self.World.ActorMap.GetActorsAt(cell)
+			return self.World.BlockingActorsAt(cell)
 				.All(x => x == ignoreActor) ? SubCell.FullCell : SubCell.Invalid;
 		}
 

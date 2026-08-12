@@ -1,0 +1,18 @@
+# Field heli-unload autotest overrides. Deliberately minimal — the point is what the
+# SHIPPING landing rules do on a field cell, so nothing here touches Aircraft, Cargo,
+# Passable, or any locomotor.
+
+Player:
+	# No cash -> no production; the only actors are the pre-placed ones and the field.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-field-heli-unload.lua

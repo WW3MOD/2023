@@ -85,7 +85,7 @@ namespace OpenRA.Mods.Common.Traits
 				return false;
 
 			// Cell must be clear or already hold a SUPPLYCACHE to merge into.
-			return self.World.ActorMap.GetActorsAt(self.Location)
+			return self.World.BlockingActorsAt(self.Location)
 				.All(a => a == self || (!a.IsDead && a.Info.Name == Info.SupplyCacheActor));
 		}
 

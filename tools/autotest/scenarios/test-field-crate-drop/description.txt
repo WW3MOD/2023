@@ -1,0 +1,1 @@
+A supply truck drives onto a 9x9 patch of tiled crop-field actors and drops its cache there. Fields are passable, so the drive succeeds; PASS requires the drop to succeed too, rather than being refused by an occupancy test that counts the field as a blocker.

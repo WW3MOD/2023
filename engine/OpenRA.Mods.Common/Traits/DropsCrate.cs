@@ -59,7 +59,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (supply == null || supply.CurrentSupply <= 0)
 				return false;
 
-			return self.World.ActorMap.GetActorsAt(self.Location).All(a => a == self);
+			return self.World.BlockingActorsAt(self.Location).All(a => a == self);
 		}
 
 		Order IIssueDeployOrder.IssueDeployOrder(Actor self, bool queued)

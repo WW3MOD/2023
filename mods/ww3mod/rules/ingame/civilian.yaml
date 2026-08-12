@@ -134,6 +134,10 @@
 	Passable:
 		PassClasses: field
 		PassedByRelationships: Ally, Neutral, Enemy
+		# Fields are tiled as actors, one per cell, over whole map regions (3187 of river-zeta's 4544 actors).
+		# PassClasses above only buys MOVEMENT — it is read by Locomotor alone. GroundCover is what makes every
+		# other "is this cell free" test (crate drop, heli touchdown, husk, placement) see through them as well.
+		GroundCover: true
 	Interactable:
 	Tooltip:
 		Name: Field
