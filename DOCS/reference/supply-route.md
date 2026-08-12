@@ -193,6 +193,7 @@ For AI design and for any strategic-layer code:
 - "I should place my SR closer to the front line." → You don't place your SR; it spawns where the map says.
 - "I can destroy the enemy SR with enough firepower." → Indestructible; only capture and contestation work.
 - "The SR works like a Red Alert Construction Yard." → It doesn't. See the comparison table above.
+- "`AttacksSupplyRoutes` is an attack trait, so a unit that cannot shoot should be excluded from it." → **It is a presence order, and the name is the trap.** `Activities/AttackSupplyRoute.cs` never fires a weapon — grep the file for `Armament`/`CheckFire`/`AttackBase`/`Ammo` and it returns nothing; the activity moves into `SupplyRouteContestation.Info.Range` (`:84`) and then stands there (`:100`). `SupplyRouteContestation.RecalculateForces` (`:184-206`) scores the zone purely on the `Valued.Cost` of the actors present, **with no reference to ammunition, armaments, or the ability to fire.** So an out-of-ammo unit parked on an enemy SR is doing the entire job the order asked of it, and the same holds for the allied-SR defensive case. Gating the order on a dry check would delete one of the few things a dry unit can still usefully do — and it would not even be fixing a stall, since the activity has no aim-forever branch. Any sweeping "stop dry units from attacking" change must exclude this order explicitly.
 
 ## Engine integration points
 
