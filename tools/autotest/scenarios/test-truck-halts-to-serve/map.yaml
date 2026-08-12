@@ -1,0 +1,81 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Supply Truck Halts To Serve Instead Of Driving Past (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Full load (750) so supply is never the limiting factor -- topping the four soldiers up costs
+	# 36 batches x SupplyValue 1 = 36. What is scarce here is TIME IN THE AURA, not supply.
+	Truck: truk
+		Owner: USA
+		Location: 10,16
+	# Four short riflemen a short drive east, arranged in a column either side of the truck's route
+	# along y=16 so they cannot block a wheeled vehicle's path. From x=18 the whole column is inside
+	# the 5c0 aura (dx=4, dy<=2 => 20 <= 25), which is where a halting truck stops.
+	#
+	# FOUR of them, and that is the load-bearing number. The truck serves ONE target per RearmDelay
+	# (6 ticks) and re-picks greatest-need after each batch, so the demand here is 4 x 9 = 36 batches
+	# ~= 250 ticks of standing still. Driving through at speed 75 puts the column in aura for only
+	# about 9 cells ~= 130 ticks ~= 19 batches. One or two soldiers WOULD be topped up on the move and
+	# the scenario would measure nothing; four cannot be.
+	NeedyA: ar
+		Owner: USA
+		Location: 22,14
+	NeedyB: ar
+		Owner: USA
+		Location: 22,15
+	NeedyC: ar
+		Owner: USA
+		Location: 22,17
+	NeedyD: ar
+		Owner: USA
+		Location: 22,18
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

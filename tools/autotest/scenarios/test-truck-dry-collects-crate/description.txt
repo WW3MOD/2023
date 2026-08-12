@@ -1,0 +1,1 @@
+Auto: an EMPTY truck ordered to collect a ground crate must keep that errand, not evacuate instead.

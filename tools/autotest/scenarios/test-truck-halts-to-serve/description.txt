@@ -1,0 +1,1 @@
+Auto: a truck under a move order must stop and finish resupplying nearby units instead of driving past.

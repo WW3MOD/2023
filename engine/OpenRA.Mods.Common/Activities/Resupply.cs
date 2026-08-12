@@ -39,13 +39,40 @@ namespace OpenRA.Mods.Common.Activities
 		readonly PlayerResources playerResources;
 		readonly int unitCost;
 		readonly MoveCooldownHelper moveCooldownHelper;
+		readonly AmmoPool[] pools;
+
+		/// <summary>
+		/// <para>
+		/// True when this visit was the unit's OWN idea, taken because every pool was empty — the
+		/// ammo branch of <see cref="AmmoPool.AutoRearm"/>. False everywhere else, and the five other
+		/// construction sites (aircraft at a pad, the two repair orders, the minelayer, the Lua
+		/// binding) leave it so: none of them is an ammunition errand, so none of them has a reason
+		/// that can lapse. With it false this activity is stock, down to
+		/// <see cref="Activity.ChildHasPriority"/>.
+		/// </para>
+		/// <para>
+		/// It buys exactly one thing: permission to re-ask the question the constructor froze. The
+		/// answer is <see cref="AmmoPool.AllPoolsEmpty(IEnumerable{AmmoPool})"/> negated — the
+		/// dispatch condition, not a second definition of "enough ammo" — matching
+		/// <see cref="SeekSupplyProvider"/>, which runs the truck/cache half of the same errand.
+		/// </para>
+		/// </summary>
+		readonly bool dispatchedBecauseDry;
 
 		int remainingTicks;
 		bool played;
 		bool actualResupplyStarted;
 		ResupplyType activeResupplyTypes = ResupplyType.None;
 
-		public Resupply(Actor self, Actor host, WDist closeEnough, bool stayOnResupplier = false)
+		CPos origin;
+		bool returningHome;
+		bool homeMoveQueued;
+
+		// Cells. The origin can be occupied by the time we get back, so settle for close by.
+		// Matches SeekSupplyProvider and SeekSuppliesAndReturn, which run the same leg.
+		const int HomeNearEnough = 2;
+
+		public Resupply(Actor self, Actor host, WDist closeEnough, bool stayOnResupplier = false, bool dispatchedBecauseDry = false)
 		{
 			this.host = Target.FromActor(host);
 			this.closeEnough = closeEnough;
@@ -64,6 +91,20 @@ namespace OpenRA.Mods.Common.Activities
 			moveInfo = self.Info.TraitInfo<IMoveInfo>();
 			playerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
 			moveCooldownHelper = new MoveCooldownHelper(self.World, move as Mobile) { RetryIfDestinationBlocked = true };
+
+			this.dispatchedBecauseDry = dispatchedBecauseDry;
+
+			// EVERY pool, not Rearmable.RearmableAmmoPools — the two sets answer different questions
+			// and are not the same actor-for-actor (AmmoPool.AllPoolsEmpty).
+			pools = self.TraitsImplementing<AmmoPool>().ToArray();
+
+			// PITFALL: an activity that re-evaluates its own reason inside Tick MUST clear this.
+			// With the default, Activity.TickOuter runs `TickChild(self) && (finishing ||
+			// Tick(self))` (Activity.cs:112), so Tick is skipped entirely for as long as a child is
+			// alive — and the approach to the host IS one long child. That is why the constructor's
+			// frozen activeResupplyTypes was never revisited before arrival. Clearing it also makes
+			// the parent responsible for ticking the child, which is handled in Tick below.
+			ChildHasPriority = !dispatchedBecauseDry;
 
 			var valued = self.Info.TraitInfoOrDefault<ValuedInfo>();
 			unitCost = valued != null ? valued.Cost : 0;
@@ -85,6 +126,17 @@ namespace OpenRA.Mods.Common.Activities
 			var cannotRearmAtHost = rearmable == null || !rearmable.Info.RearmActors.Contains(host.Info.Name) || rearmable.RearmableAmmoPools.All(p => p.HasFullAmmo);
 			if (!cannotRearmAtHost)
 				activeResupplyTypes |= ResupplyType.Rearm;
+		}
+
+		protected override void OnFirstRun(Actor self)
+		{
+			// The cell to come back to. Read here rather than in the constructor because AutoRearm
+			// queues us with QueueActivity(false, …), which CANCELS the pre-empted order and leaves
+			// us sitting BEHIND it — the unit is still finishing that cell when we are constructed.
+			// The cancelled order is gone rather than paused (Activity.Cancel nulls NextActivity,
+			// Activity.cs:198), so the origin cell is all that survives of "where he came from".
+			if (dispatchedBecauseDry)
+				origin = self.Location;
 		}
 
 		public override bool Tick(Actor self)
@@ -132,12 +184,53 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 			}
 
+			// Everything in this block is unreachable unless dispatchedBecauseDry — with the flag
+			// false ChildHasPriority keeps its default and Tick is not even called while the
+			// approach is running.
+			if (dispatchedBecauseDry)
+			{
+				if (returningHome)
+					return TickReturnHome(self);
+
+				// The one bit of the frozen set that can go stale mid-walk, re-asked once per tick.
+				//
+				// Only while still EN ROUTE: once actualResupplyStarted the unit is standing at the
+				// host with the dock notifications sent, and the right thing then is to fill up and
+				// leave properly, not to turn round on the first batch.
+				//
+				// Repair is deliberately untouched. It was decided from a damage state that no
+				// passer-by can mend (nothing pushes health in the field), and a unit that also came
+				// to be repaired still has a reason to arrive — so the errand only ends when the
+				// WHOLE frozen set has emptied, which is this activity's existing exit condition
+				// rather than a new one.
+				if (!actualResupplyStarted
+					&& activeResupplyTypes.HasFlag(ResupplyType.Rearm)
+					&& !AmmoPool.AllPoolsEmpty(pools))
+				{
+					activeResupplyTypes &= ~ResupplyType.Rearm;
+
+					if (activeResupplyTypes == 0)
+						return BeginReturnHome(self);
+				}
+
+				// ChildHasPriority is clear, so the parent owns the child's ticking.
+				if (ChildActivity != null)
+					TickChild(self);
+			}
+
 			var result = moveCooldownHelper.Tick(false);
 			if (result != null)
 				return result.Value;
 
 			if (activeResupplyTypes != 0 && aircraft == null && !isCloseEnough)
 			{
+				// Only reachable on the dry errand, where the parent ticks alongside a live
+				// approach: QueueChild APPENDS (Activity.cs:220-226), so planning a second approach
+				// here would walk the route twice. Inert for every other caller — when they reach
+				// Tick at all, TickChild has already emptied the child chain.
+				if (ChildActivity != null)
+					return false;
+
 				var targetCell = self.World.Map.CellContaining(host.Actor.CenterPosition);
 
 				// HACK: Repairable needs the actor to move to host center.
@@ -180,10 +273,59 @@ namespace OpenRA.Mods.Common.Activities
 			if (activeResupplyTypes == 0)
 			{
 				OnResupplyEnding(self);
+
+				// A self-assigned errand ends where it began: the man who left the line to fetch
+				// ammunition walks back to it rather than loitering at the depot. Same rule as
+				// SeekSupplyProvider, which runs the truck/cache half of this errand — the two
+				// halves of one user report should not behave differently.
+				//
+				// After OnResupplyEnding, not instead of it, so the host still gets its Undocked
+				// notifications; BeginReturnHome cancels the leave-host child it may have queued.
+				if (dispatchedBecauseDry)
+					return BeginReturnHome(self);
+
 				return true;
 			}
 
 			return false;
+		}
+
+		/// <summary>Switch to the walk home. Returns what Tick should return.</summary>
+		bool BeginReturnHome(Actor self)
+		{
+			returningHome = true;
+
+			if (ChildActivity != null)
+				ChildActivity.Cancel(self);
+
+			// TickReturnHome plans the return leg once the cancelled approach has finished the cell
+			// it was crossing.
+			homeMoveQueued = false;
+			return false;
+		}
+
+		bool TickReturnHome(Actor self)
+		{
+			// A child cancelled by the approach has to unwind before the return leg is planned:
+			// QueueChild APPENDS, so queuing now would run the stale move first and carry us the
+			// rest of the way to the host we just gave up on.
+			if (!homeMoveQueued && ChildActivity != null)
+			{
+				TickChild(self);
+				return false;
+			}
+
+			if (!homeMoveQueued)
+			{
+				QueueChild(move.MoveTo(origin, HomeNearEnough, targetLineColor: moveInfo.GetTargetLineColor()));
+				homeMoveQueued = true;
+			}
+
+			TickChild(self);
+
+			// Done when the walk home finishes — including the case where the origin cell was taken
+			// while we were away and MoveTo settled for a nearby one.
+			return ChildActivity == null;
 		}
 
 		public override void Cancel(Actor self, bool keepQueue = false)
@@ -202,6 +344,12 @@ namespace OpenRA.Mods.Common.Activities
 
 		public override IEnumerable<TargetLineNode> TargetLineNodes(Actor self)
 		{
+			if (returningHome)
+			{
+				yield return new TargetLineNode(Target.FromCell(self.World, origin), moveInfo.GetTargetLineColor());
+				yield break;
+			}
+
 			if (ChildActivity == null)
 				yield return new TargetLineNode(host, moveInfo.GetTargetLineColor());
 			else

@@ -215,6 +215,12 @@ namespace OpenRA.Network
 					if (!orderManager.World.IsReplay)
 						TextNotificationsManager.AddSystemLine(GameSaved);
 
+					// Diagnostic scaffolding, off unless Test.ForceSyncReports. Capture the recording
+					// side's sync state now, while the ring still holds the frames the save ends on —
+					// a restore desync is otherwise unnameable (see OrderManager.StartGame).
+					if (TestMode.IsActive && TestMode.ForceSyncReports)
+						orderManager.DumpRecordingSideSyncReports();
+
 					foreach (var nsr in orderManager.World.WorldActor.TraitsImplementing<INotifyGameSaved>())
 						nsr.GameSaved(orderManager.World);
 					break;

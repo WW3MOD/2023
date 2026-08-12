@@ -1,0 +1,37 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-truck-holdposition-drives-past.lua
+
+^Soldier:
+	AutoSeekSupplies:
+		AutoSeekAmmoThresholdPerMille: 0
+
+AR:
+	AmmoPool@1:
+		InitialAmmo: 50
+
+TRUK:
+	AutoTarget:
+		# THE ONLY DIFFERENCE from test-truck-halts-to-serve. HoldPosition is the value
+		# SupplyProvider.ShouldHaltToServe reads as "this truck does what I told it and nothing
+		# else", so the serving halt is off and the move order runs to completion.
+		#
+		# Safe as scenario setup, checked rather than assumed (AUTOTEST.md gotcha 7): the only other
+		# readers of HoldPosition that a truck could reach are ControlAllUnitsManager, which is
+		# inert with no bot in this match, and SupplyProvider's own Hunt branch, which requires
+		# >= Hunt and so is equally off at Defensive. Nothing else on TRUK reads an engagement
+		# stance -- SmartMove, AutoFollowAlly and StancePositioningExecutor are all infantry-side.
+		InitialEngagementStance: HoldPosition
+		InitialEngagementStanceAI: HoldPosition

@@ -1,0 +1,1 @@
+Auto: a truck whose restock drive is pre-empted must still be able to restock (and serve) afterwards.

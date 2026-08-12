@@ -60,6 +60,16 @@
 #                          pass/fail verdict. The .lifecycle.jsonl is archived
 #                          alongside result.json in the per-run screenshot dir.
 #
+# Saved-game diagnostics:
+#   --sync-reports         Arm sync reporting even with a single human client, and
+#                          dump the RECORDING side of the sync state when a game save
+#                          is acknowledged. Only meaningful for saved-game restore
+#                          desyncs, which are single-client by construction and so
+#                          produce "No sync report available!" without this. Writes
+#                          syncdiag-recorded-frame*.log next to the desync report;
+#                          diff the two to name the diverging trait/field. Expensive
+#                          per net frame — off by default.
+#
 # Misc:
 #   --position=<centered|left|right|full>  Long form of L/R/F.
 #   --fullscreen           Same as F + Mode=PseudoFullscreen.
@@ -96,6 +106,7 @@ SPEED_MULT=""
 SEED=""
 TIMEOUT_SECS=300
 LIFECYCLE=0
+SYNC_REPORTS=0
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -123,8 +134,9 @@ while [ $# -gt 0 ]; do
 		--timeout=*)            TIMEOUT_SECS="${1#*=}"; shift ;;
 		--timeout)              TIMEOUT_SECS="$2"; shift 2 ;;
 		--lifecycle)            LIFECYCLE=1; shift ;;
+		--sync-reports)         SYNC_REPORTS=1; shift ;;
 		--help|-h)
-			sed -n '2,87p' "$0" | sed 's/^# \?//'
+			sed -n '2,97p' "$0" | sed 's/^# \?//'
 			exit 0 ;;
 		--*)
 			echo "Unknown flag: $1"
@@ -317,7 +329,17 @@ LOCK_DIR="${RESULT_DIR}/run.lock"
 if ! mkdir "${LOCK_DIR}" 2>/dev/null; then
 	_holder=$(cat "${LOCK_DIR}/pid" 2>/dev/null || true)
 	_holder_test=$(cat "${LOCK_DIR}/test" 2>/dev/null || echo "unknown test")
-	if [ -n "${_holder}" ] && kill -0 "${_holder}" 2>/dev/null; then
+	# An EMPTY pid means the holder is mid-acquisition (mkdir at :317 is atomic, but
+	# the pid is only written at :333) — that is the opposite of stale. Treating it as
+	# dead reclaims a LIVE run's lock, and the rm -f below then destroys that run's
+	# verdict, which is unrecoverable. Observed 2026-08-12: a concurrent worker took
+	# this path and wiped a completed saved-game-restore verdict between the game
+	# writing it and the runner archiving it. Bail when we cannot prove the holder dead.
+	if [ -z "${_holder}" ]; then
+		echo "Error: another autotest run is acquiring the lock (${_holder_test}). Retry in a moment."
+		exit 3
+	fi
+	if kill -0 "${_holder}" 2>/dev/null; then
 		echo "Error: another autotest run is already in flight (pid ${_holder}, ${_holder_test})."
 		echo "       The harness is single-instance: results go to one shared ${RESULT_FILE}."
 		echo "       Wait for it, or kill it, then retry."
@@ -488,6 +510,14 @@ SCREENSHOT_DIR_GAME=$(to_game_path "${SCREENSHOT_DIR}")
 # Behavior-lint (opt-in --lifecycle): the UnitLifecycleLogger writes a per-unit
 # JSONL event stream to this sibling of the verdict file. Advisory only — the
 # analyzer runs after the match and never changes the pass/fail verdict.
+# Diagnostic (opt-in --sync-reports): arm sync reporting even with one human client,
+# and dump the recording side on GameSaved. Only useful for saved-game restore
+# desyncs; expensive per net frame, so it is off by default.
+SYNC_REPORT_ARGS=""
+if [ "${SYNC_REPORTS}" = "1" ]; then
+	SYNC_REPORT_ARGS="Test.ForceSyncReports=true"
+fi
+
 LIFECYCLE_ARGS=""
 LIFECYCLE_FILE="${RESULT_FILE%.json}.lifecycle.jsonl"
 if [ "${LIFECYCLE}" = "1" ]; then
@@ -508,6 +538,7 @@ fi
 	${SPEED_ARGS} \
 	${SEED_ARGS} \
 	${LIFECYCLE_ARGS} \
+	${SYNC_REPORT_ARGS} \
 	${SUSPEND_ARGS} \
 	&
 LAUNCH_PID=$!

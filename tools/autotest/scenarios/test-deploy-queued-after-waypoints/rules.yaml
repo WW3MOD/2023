@@ -1,0 +1,18 @@
+Player:
+	# Russia owns no actors, so conquest would end the match on tick one.
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	# A world crate is not a supplycache, but removing the spawner keeps the actor census on
+	# this map exactly as authored — the verdict is "which cell did the ONE crate land on".
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-deploy-queued-after-waypoints.lua

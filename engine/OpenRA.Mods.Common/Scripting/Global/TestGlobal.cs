@@ -392,6 +392,40 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			actor.World.IssueOrder(new Order(force ? "ForceMove" : "Move", actor, Target.FromCell(actor.World, cell), queued));
 		}
 
+		[Desc("Force the target-line display setting to Automatic for this run, so order lines and their " +
+			"waypoint markers render without a human holding Shift. The engine default is Manual " +
+			"(Settings.cs), under which DrawLineToTarget draws nothing at all unless a modifier key is " +
+			"physically down — which no scripted test can arrange, so a screenshot of a queued order " +
+			"would otherwise always come back empty. Test mode only.")]
+		public void ShowTargetLinesAlways()
+		{
+			if (!TestMode.IsActive)
+				return;
+
+			Game.Settings.Game.TargetLines = TargetLinesType.Automatic;
+		}
+
+		[Desc("Issue the deploy order that the command bar's Deploy button — and its hotkey — produce, " +
+			"through IIssueDeployOrder exactly as CommandBarLogic.PerformDeployOrderOnSelection does. " +
+			"`queued` is the Shift modifier. There is no activity-direct equivalent worth using here: " +
+			"a deploy's whole contract is what its trait's ResolveOrder does with the queued flag, and " +
+			"queueing the resulting activity by hand would bypass that. Test mode only.")]
+		public void IssueDeploy(Actor actor, bool queued = false)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return;
+
+			foreach (var deploy in actor.TraitsImplementing<IIssueDeployOrder>())
+			{
+				if (!deploy.CanIssueDeployOrder(actor, queued))
+					continue;
+
+				var order = deploy.IssueDeployOrder(actor, queued);
+				if (order != null)
+					actor.World.IssueOrder(order);
+			}
+		}
+
 		[Desc("Return the CPos this actor was last assigned by CohesionMoveModifier (the slot the " +
 			"sticky-cover leash will try to walk back to). Returns CPos.Zero if no slot is set.")]
 		public CPos GetCohesionSlot(Actor actor)

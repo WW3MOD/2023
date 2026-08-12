@@ -1,0 +1,70 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: The Dry Break-Off Spares A Crate-Collection Errand (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# EMPTY, on TRUK's shipped Evacuate stance. This is the combination the exemption exists for and
+	# it is the ordinary case, not a corner: "my truck is empty, go and pick up that crate" is the
+	# natural use of the collection order. An empty Evacuate truck is also one tick away from
+	# rotating to the map edge to sell itself, so the errand has to hold against the strongest
+	# competing disposition there is.
+	Truck: truk
+		Owner: USA
+		Location: 10,16
+		Supply: 0
+	# 20 cells east: far enough that the errand spans many dry scans, and no Logistics Centre exists
+	# on this map so a restock drive can never be what saves it.
+	Cache: supplycache
+		Owner: USA
+		Location: 30,16
+		Supply: 200
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

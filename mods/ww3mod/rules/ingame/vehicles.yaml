@@ -551,6 +551,17 @@ TRUK:
 		Locomotor: wheeled
 		Speed: 75
 		Acceleration: 7, 6, 5, 4, 3, 2, 1
+		# HALT-TO-SERVE. supply-serving is granted by SupplyProvider whenever somebody in the aura
+		# could be handed a batch right now, so the truck stops for its customers instead of driving
+		# past them, and resumes the order it already had the moment the last of them is topped up.
+		# Pausing Mobile is what makes "and then continue moving" free: Move.Tick returns false while
+		# paused (Move.cs:168) and leaves the activity standing, so nothing has to be re-issued.
+		#
+		# The empdisable/being-captured terms are NOT decoration -- they are ^Vehicle's own value
+		# (vehicles.yaml:38) restated. PauseOnCondition is a single field, so naming it here REPLACES
+		# the inherited expression rather than adding to it, and dropping the two terms would let an
+		# EMP'd or mid-capture truck drive away.
+		PauseOnCondition: !(!empdisable && !being-captured) || supply-serving
 	Carryable:
 		LocalOffset: 0,0,100
 	SupplyProvider:
@@ -559,6 +570,11 @@ TRUK:
 		RearmDelay: 6
 		RearmCondition: replenish-soldiers
 		SupplyCreditValue: 750
+		# Switched off per-truck with the HoldPosition engagement stance, the one value on a live
+		# stance axis that no truck-side code reads. See SupplyProvider.ShouldHaltToServe for why
+		# neither ResupplyBehavior (all three values already live on TRUK) nor UnitStance (present
+		# but meaningless on an unarmed actor) could carry this.
+		ServingCondition: supply-serving
 		RestockActors: logisticscenter
 		RestockThreshold: 50
 		EvacuateOnUnusableResidue: true

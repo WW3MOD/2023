@@ -61,6 +61,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Actor types where the supply provider can restock.")]
 		public readonly HashSet<string> RestockActors = new HashSet<string>();
 
+		[Desc("Ticks a transport settles at a restock host before the supply transfers. Read by both",
+			"paths that send a truck to an LC (this trait's own low-supply drive and DropsSupplyCache's",
+			"idle/ordered one), which is the point — the two used to carry the same literal 25 in two",
+			"places and could drift apart silently.")]
+		public readonly int RestockWaitTicks = 25;
+
 		[Desc("Condition to grant to the unit currently being rearmed.")]
 		public readonly string RearmCondition = "replenish-soldiers";
 
@@ -94,6 +100,19 @@ namespace OpenRA.Mods.Common.Traits
 		[GrantedConditionReference]
 		[Desc("Condition granted to self while any supply is available (currentSupply > 0).")]
 		public readonly string SupplyAnyCondition = null;
+
+		[GrantedConditionReference]
+		[Desc("Condition granted to self while this provider has somebody in its aura it could serve a",
+			"batch to right now — i.e. while it is doing its job. Intended for a MOBILE provider, whose",
+			"Mobile.PauseOnCondition should name it: the transport then HALTS for as long as there is",
+			"anyone left to serve and resumes the order it was already carrying out the moment there is",
+			"not, instead of driving past its customers. Pausing Mobile rather than cancelling the order",
+			"is what makes 'and then continue moving' free — Move.Tick returns false while paused",
+			"(Move.cs:168), leaving the activity intact rather than tearing it down.",
+			"Empty (the default) disables the whole mechanism, so Logistics Centers and ground caches —",
+			"which cannot move anyway — are unaffected.",
+			"The halt is switched off per-unit by EngagementStance.HoldPosition; see ShouldHaltToServe.")]
+		public readonly string ServingCondition = null;
 
 		public override object Create(ActorInitializer init) { return new SupplyProvider(init, this); }
 	}
@@ -134,7 +153,71 @@ namespace OpenRA.Mods.Common.Traits
 		Actor currentTarget;
 		ExternalCondition targetConditionTrait;
 		int conditionToken = Actor.InvalidConditionToken;
-		bool restocking;
+
+		/// <summary>
+		/// Is this provider on its way to (or settling at) a restock host? Read off the ACTIVITY QUEUE,
+		/// never latched in a field — see <see cref="RestockSupply"/> for the bug that shape caused, and
+		/// <see cref="AmmoPool.IsSeekingRearm"/> for the same technique answering the same kind of
+		/// question on the ammunition side.
+		///
+		/// <para>Walks the whole queue rather than just the head, and that is load-bearing:
+		/// <c>QueueActivity(false, …)</c> CANCELS the current activity rather than removing it, so the
+		/// dying activity stays HEAD while the restock we just queued sits behind it in
+		/// <c>NextActivity</c>. A head-only test would answer "no" during exactly the window that
+		/// matters and let the caller queue a second drive on top of the first.</para>
+		/// </summary>
+		public bool Restocking
+		{
+			get
+			{
+				for (var a = self.CurrentActivity; a != null; a = a.NextActivity)
+					if (a is RestockSupply)
+						return true;
+
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Is this provider's transport carrying out a COMMITTED SUPPLY ERRAND — a move whose whole point
+		/// is where the supply ends up? Today: driving to a host to refill, driving to an ordered cell to
+		/// unload as a ground cache, or driving to a ground cache to collect it.
+		///
+		/// <para>Such an errand is not interrupted by the serving halt. A truck normally stops for anyone
+		/// in its aura who needs a batch, which is right for an ordinary move and exactly wrong here: a
+		/// truck sent to unload NEAR a platoon would stop to serve that platoon from its aura, never
+		/// reach the drop cell, never place a crate, and stay parked in the danger the drop-and-leave
+		/// doctrine exists to get it out of. Serving from the aura is not a cheap substitute for the
+		/// drop — the doctrine picks between them on believed danger, and the halt must not silently
+		/// overrule that choice.</para>
+		///
+		/// <para>Type-based and queue-derived, like <see cref="AmmoPool.IsSeekingRearm"/>, so it cannot
+		/// latch and cannot outlive a cancellation; walks <c>NextActivity</c> as well as the head for the
+		/// same reason <see cref="Restocking"/> does.</para>
+		///
+		/// <para>It is also the exemption half of the DRY BREAK-OFF rule: <b>cancel a move that is
+		/// invalidated by being empty; never cancel a move that exists to stop being empty.</b> Both
+		/// questions have the same answer for the same reason — an errand that decides where the supply
+		/// ends up must be allowed to finish — so they read one predicate rather than two that could
+		/// drift. Collecting a crate is the case that makes this concrete: sending an EMPTY truck to
+		/// fetch a crate is the natural use of that order, and cancelling it would make the order useless
+		/// in exactly the situation it exists for.</para>
+		///
+		/// <para>Deliberately WIDER than <see cref="Restocking"/>, which answers a different question
+		/// ("am I mid-refill and therefore serving nobody?"). A truck driving out to unload still has a
+		/// full load and would happily serve — the point is that it must not stop to.</para>
+		/// </summary>
+		public bool OnSupplyErrand
+		{
+			get
+			{
+				for (var a = self.CurrentActivity; a != null; a = a.NextActivity)
+					if (a is RestockSupply || a is PlaceSupplyCache || a is CollectSupplyCache)
+						return true;
+
+				return false;
+			}
+		}
 
 		// Latched true when EvacuateOnUnusableResidue and the remaining supply is a
 		// residue no reachable unit can utilize. Cleared on replenish or full drain.
@@ -142,6 +225,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Consecutive unusable verdicts seen so far, stepped by StepResidueConfirmations.
 		int residueConfirmations;
+
+		// Result of the LAST greatest-need scan: was there a unit in the aura we could actually hand a
+		// batch to? Refreshed only in UpdateTarget, which is deliberate — it therefore survives the
+		// single tick between "delivered a batch, dropped the target" and the forced re-scan, so the
+		// halt does not blink off and let the transport inch forward between every batch.
+		bool servableTargetInAura;
+
+		int servingToken = Actor.InvalidConditionToken;
 
 		int supplyHighToken = Actor.InvalidConditionToken;
 		int supplyMediumToken = Actor.InvalidConditionToken;
@@ -184,6 +275,19 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ITick.Tick(Actor self)
 		{
+			TickServing(self);
+
+			// AFTER the body, never inside it, and that placement is the whole reason this is a separate
+			// method. TickServing is a ladder of early returns and EVERY ONE of them is a state in which
+			// this provider serves nobody — out of the world, paused, disabled, mid-restock, despawning,
+			// drained, or reserving its remainder for the drive home. CanServeNow is that same ladder
+			// written as a predicate, so asking it once here covers all of them; a revoke at each return
+			// would be seven chances to miss one, and a missed one latches a truck in place for good.
+			SyncServingCondition();
+		}
+
+		void TickServing(Actor self)
+		{
 			// Removed from the world but still ticking: ITick traits run off the trait container,
 			// which has no IsInWorld filter and is only cleaned when the actor is disposed
 			// (TraitDictionary.cs:305-316, Actor.cs:468). A truck picked up by a Carryall is removed
@@ -205,7 +309,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			if (restocking)
+			if (Restocking)
 			{
 				// Defensive, and a no-op today: every path that sets restocking already revoked and
 				// nulled the target first, so conditionToken is already invalid here. Stating it
@@ -292,6 +396,12 @@ namespace OpenRA.Mods.Common.Traits
 			// Always re-evaluate — pick unit with greatest need
 			var bestTarget = FindGreatestNeedTarget(out var hasUnaffordableTargets);
 
+			// Recorded HERE, before the Hunt fallback below can overwrite bestTarget with something
+			// anywhere on the map. The halt means "somebody within reach still needs me", so it must read
+			// the aura scan and not the hunt: a Hunt-stance truck that stopped dead for a customer twenty
+			// cells away would never reach him.
+			servableTargetInAura = bestTarget != null;
+
 			// Residue-unusable latch, decided by the same pure predicate the tests pin.
 			// bestTarget != null means a reachable unit we can afford met MinNeedThreshold
 			// (serviceable); hasUnaffordableTargets means a reachable needy unit exists that
@@ -369,7 +479,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		bool ShouldSelfRestock()
 		{
-			if (Info.RestockActors.Count == 0 || restocking)
+			if (Info.RestockActors.Count == 0 || Restocking)
 				return false;
 
 			var behavior = self.TraitOrDefault<AutoTarget>()?.ResupplyBehaviorValue ?? ResupplyBehavior.Auto;
@@ -769,41 +879,23 @@ namespace OpenRA.Mods.Common.Traits
 					&& Info.RestockActors.Contains(a.Info.Name))
 				.ClosestToIgnoringPath(self);
 
-			if (restockTarget != null)
-			{
-				restocking = true;
-				var move = self.Trait<IMove>();
+			if (restockTarget == null)
+				return;
 
-				// Drive to the host (e.g., logistics center).
-				var targetCell = self.World.Map.CellContaining(restockTarget.CenterPosition);
-				self.QueueActivity(false, move.MoveTo(targetCell, ignoreActor: restockTarget));
+			var move = self.TraitOrDefault<IMove>();
+			if (move == null)
+				return;
 
-				// Wait briefly to simulate restocking.
-				self.QueueActivity(new Wait(25));
+			// The whole errand — drive, settle, transfer — as ONE named activity, so the truck's intent
+			// lives in the activity queue rather than in a bool alongside it. See RestockSupply for what
+			// the bool cost.
+			self.QueueActivity(false, new RestockSupply(self, restockTarget, Info.RestockWaitTicks));
 
-				// Drain supply from the host into self. No free refills — the
-				// host's pool drops by exactly the amount transferred, capped at
-				// what the host has on hand.
-				self.QueueActivity(new CallFunc(() =>
-				{
-					var hostProvider = restockTarget.TraitOrDefault<SupplyProvider>();
-					if (hostProvider != null)
-					{
-						var needed = Info.TotalSupply - currentSupply;
-						var taken = System.Math.Min(needed, hostProvider.CurrentSupply);
-						if (taken > 0 && hostProvider.DeductSupply(taken))
-							AddSupply(taken);   // clears the residue-unusable latch on genuine refill
-					}
-
-					restocking = false;
-				}));
-
-				// Follow rally point if the restock target has one.
-				var rp = restockTarget.TraitOrDefault<RallyPoint>();
-				if (rp != null && rp.Path.Count > 0)
-					foreach (var cell in rp.Cells)
-						self.QueueActivity(move.MoveTo(cell, 1));
-			}
+			// Follow rally point if the restock target has one.
+			var rp = restockTarget.TraitOrDefault<RallyPoint>();
+			if (rp != null && rp.Path.Count > 0)
+				foreach (var cell in rp.Cells)
+					self.QueueActivity(move.MoveTo(cell, 1));
 		}
 
 		/// <summary>Deducts supply when ammo is given directly (e.g., by QuickRearm).</summary>
@@ -926,10 +1018,71 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// Should a MOBILE provider stand still right now because it has somebody to serve?
+		///
+		/// <para>THE STANCE AXIS, and why this one. The user asked for the halt to be switchable by
+		/// stance, so the axis had to be one no truck-side code already reads. ResupplyBehavior is fully
+		/// occupied — all three values are live on TRUK (Evacuate is its shipped default for human and
+		/// AI alike), so it was not available. UnitStance is entirely free but for the wrong reason: TRUK
+		/// declares no armament and ^Vehicle does not inherit ^Combatant, so a fire stance on a truck is
+		/// not merely unread, it is meaningless to a player. That leaves EngagementStance, where Hunt is
+		/// taken (the whole-map needs-resupply scan above), Defensive is the shipped default, and
+		/// <see cref="EngagementStance.HoldPosition"/> has no truck-side reader at all.</para>
+		///
+		/// <para>HoldPosition is also the right MEANING rather than merely a free slot: it is already the
+		/// engine's "this unit does what I told it and nothing else" marker — ControlAllUnitsManager
+		/// keeps HoldPosition units under player control instead of handing them to a bot
+		/// (ControlAllUnitsManager.cs:56-59). "Do not self-divert" reads the same way for a truck. So the
+		/// halt is ON at Defensive and at Hunt (a hunting truck that would not stop for the customer it
+		/// drove to would be absurd) and OFF at HoldPosition.</para>
+		///
+		/// <para>Terminates by construction: the halt holds only while a unit in the aura can be handed a
+		/// batch, and serving it is what removes it from that set — either it fills up, or it drops below
+		/// MinNeedThreshold, or the supply runs out and CanServeNow goes false. There is no state in
+		/// which the transport is stopped and also not making progress toward being able to move again.</para>
+		/// </summary>
+		public bool ShouldHaltToServe()
+		{
+			// Cheapest test first, and the one that is false almost always. Also means a provider that
+			// never opted in (no ServingCondition) costs nothing beyond a null check.
+			if (!servableTargetInAura || string.IsNullOrEmpty(Info.ServingCondition))
+				return false;
+
+			if (!self.IsInWorld || !CanServeNow)
+				return false;
+
+			// A committed supply errand outranks a passer-by. See OnSupplyErrand: halting on the way to
+			// a drop cell means the crate is never placed and the truck stays in the danger the errand
+			// was routing it out of.
+			if (OnSupplyErrand)
+				return false;
+
+			var autoTarget = self.TraitOrDefault<AutoTarget>();
+			if (autoTarget != null && autoTarget.EngagementStanceValue == EngagementStance.HoldPosition)
+				return false;
+
+			return true;
+		}
+
+		void SyncServingCondition()
+		{
+			if (string.IsNullOrEmpty(Info.ServingCondition))
+				return;
+
+			var shouldHold = ShouldHaltToServe();
+			var held = servingToken != Actor.InvalidConditionToken;
+			if (shouldHold == held)
+				return;
+
+			servingToken = shouldHold
+				? self.GrantCondition(Info.ServingCondition)
+				: self.RevokeCondition(servingToken);
+		}
+
+		/// <summary>
 		/// Whether this provider is in a state where it serves anyone at all this tick — the exact
-		/// early-return ladder <see cref="ITick.Tick"/> walks before it ever looks for a target.
-		/// Exposed so a unit deciding whether to walk here can ask instead of reproducing the rule
-		/// (and reading `restocking`, which is private for good reason).
+		/// early-return ladder <see cref="TickServing"/> walks before it ever looks for a target.
+		/// Exposed so a unit deciding whether to walk here can ask instead of reproducing the rule.
 		/// </summary>
 		public bool CanServeNow
 		{
@@ -940,7 +1093,7 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 
 				// Tick: mid-restock drive — serves nobody until it arrives.
-				if (restocking)
+				if (Restocking)
 					return false;
 
 				// Tick: about to remove itself from the world.

@@ -1,0 +1,81 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Supply Truck Collects a Ground Cache (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# The truck must start with HEADROOM or the pickup is arithmetically a no-op: SupplyProvider
+	# seeds currentSupply from TotalSupply (SupplyProvider.cs:168), so a truck placed the ordinary
+	# way spawns FULL at 750 and `TotalSupply - currentSupply` is zero. `Supply` is the SupplyInit
+	# that same line reads; it is the only way to stage a part-loaded truck.
+	#
+	# 100 rather than 0, deliberately: at 0 the truck CountsAsEmpty and DropsSupplyCache's idle
+	# path drives it off the map to be sold (TRUK ships ResupplyBehavior: Evacuate), which would
+	# race the errand under test. 100 is also above RestockThreshold 50, so the "reserve my
+	# remainder for the drive home" early-return in Tick does not fire either. The truck is
+	# therefore quietly idle at its start cell with 650 of headroom, and nothing but the order
+	# under test moves it.
+	Truck: truk
+		Owner: USA
+		Location: 10,16
+		Supply: 100
+	# 200 fits inside the truck's 650 of headroom with room to spare, so a correct pickup drains
+	# the crate to exactly 0 — which is what makes "the crate is gone" a sound proxy for "the
+	# truck loaded it". At 0 the crate despawns through its own RemoveBelowSupply: 1
+	# (SupplyProvider.cs:221); no code in the pickup path removes it.
+	#
+	# 20 cells east, so the truck has to actually drive: a pickup that transferred without
+	# arriving would be visible as a crate that vanishes while the truck is still at x=10.
+	Cache: supplycache
+		Owner: USA
+		Location: 30,16
+		Supply: 200
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml
