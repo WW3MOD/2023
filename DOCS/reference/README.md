@@ -9,7 +9,7 @@ Curated engineering reference. The value of this folder is that its claims can b
 | [`game-model.md`](game-model.md) | How WW3MOD's gameplay differs from Red Alert — reinforcements, no factories, no tech tree |
 | [`supply-route.md`](supply-route.md) | Canonical Supply Route mental model (the recurring AI-design trap) |
 | [`economy.md`](economy.md) | Supply/ammo economy |
-| [`architecture.md`](architecture.md) | Engine layout, scenario system, custom traits, aircraft movement, suppression/stances, AI config, shadows.bin, audio/music pipeline |
+| [`architecture.md`](architecture.md) | Engine layout, scenario system, custom traits, aircraft movement, suppression/stances, AI config, shadows.bin, asset & audio/music pipeline, networking/NAT, widget gotchas |
 | [`influence-stack.md`](influence-stack.md) | The @experimental influence stack (Stages 0 + A–F): belief store, danger fields, control field, heli/ground danger nav, strategic repoint |
 | [`conventions.md`](conventions.md) | WDist, WAngle, YAML idioms, PITFALL comments, engine code rules |
 | [`pitfalls.md`](pitfalls.md) | Full PITFALL comment-system spec |

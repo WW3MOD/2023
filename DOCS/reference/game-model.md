@@ -34,6 +34,14 @@ Many engine files still contain classic RA assumptions (e.g., `HasAdequateAirUni
 
 Neutral income/tech buildings (derricks, etc.) are taken by technicians (TECN) via the `^CapturesNeutralBuildings` template (`infantry.yaml:897`), which sets **`ConsumedByCapture: true`** (`infantry.yaml:903`). A *successful* capture removes the TECN from the game — so the technician pool is a **consumable**, not a persistent squad: it shrinks by one on every capture success, on top of every combat loss. With a unit limit like `tecn: 3`, capturing two or three buildings can exhaust the live pool until production replaces it, at which point no further captures are possible. For any capture-focused AI, availability of technicians — not coordinator logic — is the binding constraint. (Soldiers use `^CapturesOccupiedBuildings`, which is *not* consumed and only takes buildings from enemy owners.)
 
+## Ejected vehicle crew burn to death — intended, not a defect
+
+**User ruling, 2026-08-10:** *"The crew is supposed to burn sometimes, when the vehicle is heavily damaged… sometimes it just looks cool (in a dark way) to see your enemies crawling out of the vehicle only to burn and die."* A fix was built and deliberately **reverted at `36ad9865`**, with the `CrewFireDurationTicks` knob removed rather than left dormant — the symbol exists nowhere in code or YAML today.
+
+The mechanism, for anyone who rediscovers it and assumes it is a bug: `VehicleCrew.cs:359-362` grants `onfire` to each ejected crewman with **no duration**, unlike the `VehicleCookoff*` warheads (`weapons/weapons-explosions.yaml`), which set one — note these are *weapons*, not a trait, and the variants vehicles actually reference are `VehicleCookoffTiny` (`Duration: 25`, `:46`) and `VehicleCookoffLarge` (`Duration: 150`, `:68`). Against `ChangesHealth@BurnDamage_3` (`infantry.yaml:964-968`, −1% MaxHP every 8 ticks while `onfire == 3`), an undurated grant means **every ejected crewman dies eventually; the randomness is only in *when***. Noted without reopening: the ruling says "burn *sometimes*" while the mechanism is "always, eventually" — if that gap matters it will surface as a gameplay observation, not a test failure.
+
+**Binding consequence for tests:** an evacuation phase must assert **who got out**, never **who is still alive**. Post-ejection survival is not a property the game guarantees, so a survivor-count assertion is a coin flip that no threshold can stabilise (the 12 → 8 → 6 walk of 2026-05-09 was three attempts at exactly that). `test-evac-suite` is built this way — it counts a **peak** crew delta (`out = peak - before`), so later burn deaths cannot move the number.
+
 ## Related reference
 
 - [`supply-route.md`](supply-route.md) — canonical Supply Route mental model
