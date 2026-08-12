@@ -58,7 +58,10 @@ namespace OpenRA.Mods.Common.Traits
 		protected readonly DetectableInfo DetectableInfo;
 		IEnumerable<int> detectableModifiers;
 		public int PreviousVisibility { get; set; }
+
+		[Sync]
 		public int CurrentVisibility { get; set; }
+
 		public Detectable(ActorInitializer _, DetectableInfo info)
 			: base(info)
 			{
@@ -146,7 +149,9 @@ namespace OpenRA.Mods.Common.Traits
 				yield return new VariableObserver(CounterBatteryRadarConditionsChanged, DetectableInfo.CounterBatteryRadarDetectableCondition.Variables);
 		}
 
-		[Sync]
+		// PITFALL: never [Sync] a condition token — its value is an allocation handle counting how many
+		// conditions the actor has been granted, so a grant-count skew desyncs clients whose gameplay state
+		// agrees. The gameplay state here is the visibility level, synced on CurrentVisibility above.
 		int visionDetectableConditionToken = Actor.InvalidConditionToken;
 
 		protected void DetectableVisionChanged(Actor self)
