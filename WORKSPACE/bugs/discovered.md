@@ -620,3 +620,15 @@ The defect: `Sellable` on `^Building` consumes `!being-captured` (`mods/ww3mod/r
 A related trap that cost a full investigation cycle: the autotest scenario folder is registered as a map source from `tools/`, not `mods/` (`mods/ww3mod/mod.yaml:96`). An isolation experiment that swaps the `mods/` directory to test "is this YAML or C#?" therefore CANNOT remove a scenario map, and will exonerate the map no matter what — a clean result from an experiment with no power to produce a dirty one.
 
 **Fix shape:** override `Sellable.RequiresCondition` on GTWR/PBOX/HBOX to drop the `!being-captured` term (they cannot be captured). Takes the total from 496 to 94. One line per actor.
+
+## 2026-08-12: [low] Five `pips` sequences point at `pips.shp`, which this mod does not ship — one of them is live, and the primary-building tag has never rendered (found while: adding the holding-fire marker, PIPELINE 44a)
+
+In `mods/ww3mod/sequences/sequences-misc.yaml` the `pips:` set contains five entries with **no filename after the colon** — `groups`, `medic`, `tag-fake`, `tag-primary`, `tag-hold`. A filename-less entry falls back to the set name, i.e. `pips.shp`. That file exists **only** at `engine/mods/cnc/bits/pips.shp`; WW3MOD's package list mounts `ww3mod|bits/units/pips` (`mod.yaml:54`), which contains `pips2.shp`, `pip-ammo.shp`, `pip-cover.shp` … but **no `pips.shp`**. Entries that name a file are fine — the blue ammo pips (`pip-blue` → `pips2`) render correctly.
+
+**Live consequence:** `WithDecoration@primary` on `^PrimaryBuilding` (`rules/ingame/structures.yaml:141-147`) uses `Image: pips` / `Sequence: tag-primary`. The "this is your primary building" tag therefore draws nothing and, as far as this branch can tell, never has. Not verified in play — found by asset inspection.
+
+**The trap:** a missing sprite file here produces **no load error and no crash**. The decoration is simply invisible, which is indistinguishable from the trait not being attached, the condition never being true, or the fix not working.
+
+**Scope correction, so this entry does not overclaim its own origin.** The holding-fire marker was written against `tag-hold` and its screenshots came back empty, which is what sent me looking at the assets — but the missing file was **not** what blanked those screenshots. A trace later showed the shots were firing one tick before the marker went live, and two builds with *different* sequence names had produced byte-identical frames, which is only possible if neither was drawing yet. So the `pips.shp` gap is real and `tag-primary` is genuinely broken by it, but that rests on **asset inspection, not on the blank screenshots**. Two true findings, only one of them causal — worth separating, because "the sprite was missing" is the tidier story and it is the wrong one.
+
+**Fix shape:** either ship a `pips.shp` in `bits/units/pips/`, or repoint `tag-primary` at a sequence backed by an existing file. A PITFALL anchor now sits at the top of the `pips:` block so the next person picking a sequence name sees it before choosing.

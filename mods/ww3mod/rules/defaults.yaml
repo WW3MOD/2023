@@ -303,6 +303,7 @@
 		RequiresCondition: rank-veteran == 4
 
 ^AutoTarget:
+	Inherits@HoldFireMarker: ^HoldingFireMarker
 	AutoTarget:
 		FireAtWillCondition: stance-fireatwill
 		AmbushCondition: stance-ambush
@@ -563,6 +564,7 @@
 		Priority: 2
 
 ^AutoTargetGround:
+	Inherits@HoldFireMarker: ^HoldingFireMarker
 	AutoTarget:
 		FireAtWillCondition: stance-fireatwill
 		AmbushCondition: stance-ambush
@@ -674,6 +676,7 @@
 	AttackMove:
 		AssaultMoveCondition: assault-move
 ^AutoTargetAll:
+	Inherits@HoldFireMarker: ^HoldingFireMarker
 	AutoTarget:
 		FireAtWillCondition: stance-fireatwill
 		AmbushCondition: stance-ambush
@@ -747,11 +750,33 @@
 # 		ValidTargets: Infantry, Vehicle, Water, Underwater, Defense, Mine
 # 		InvalidTargets: NoAutoTarget
 ^AutoTargetDrone:
+	Inherits@HoldFireMarker: ^HoldingFireMarker
 	AutoTarget:
 		# Separate base — inherits neither ^AutoTarget nor ^AutoTargetGround. See ^AutoTarget above.
 		PreemptScanInterval: 25
 	AutoTargetPriority@Default:
 		ValidTargets: Drone
+
+# A unit that deliberately declines a target it could shoot — anti-overkill (someone
+# else's claim already covers the kill) or break-off (the target is critically damaged
+# and bleeding out) — used to look identical to a broken unit. An evening was lost to
+# exactly that reading, with foliage blamed for it. This tag says "that was a decision".
+# Render-only: WithHoldingFireDecoration reads AutoTarget.LastHeldFireTick and writes
+# nothing, so attaching it cannot change what any unit does.
+#
+# PITFALL: pick a sequence whose FILE this mod actually ships. `tag-hold` looks like the
+# obvious choice and renders nothing — sequences in the `pips` set that name no file fall
+# back to pips.shp, which lives only in engine/mods/cnc. pips2 (the colour ramp) is loaded.
+^HoldingFireMarker:
+	WithHoldingFireDecoration:
+		RequiresSelection: false
+		Image: pips
+		# Amber, not white: TopRight lands on the selection box's own white corner bracket,
+		# where a white pip is camouflaged. Distinct from the yellow rank chevron, which
+		# anchors at Top with a 16px margin rather than TopRight.
+		Sequence: pip-orange
+		Position: TopRight
+		Margin: 0,0
 
 ^AmmoDecoration:
 	ExternalCondition@WeaponPrimary:
