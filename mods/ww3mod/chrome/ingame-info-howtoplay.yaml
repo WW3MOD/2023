@@ -1,0 +1,144 @@
+Container@HOWTOPLAY_PANEL:
+	Width: PARENT_WIDTH
+	Height: PARENT_HEIGHT
+	Children:
+		Label@TITLE:
+			X: 20
+			Y: 0
+			Width: PARENT_WIDTH - 40
+			Height: 26
+			Font: MediumBold
+			Text: There is no Construction Yard.
+		Label@SUBTITLE:
+			X: 20
+			Y: 28
+			Width: PARENT_WIDTH - 40
+			Height: 18
+			Font: Regular
+			Text: Nothing in WW3MOD is built. The whole model is four points.
+		Label@B1_HEAD:
+			X: 20
+			Y: 54
+			Width: PARENT_WIDTH - 40
+			Height: 18
+			Font: Bold
+			Text: No factories. No tech tree.
+		Label@B1_L1:
+			X: 20
+			Y: 72
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: You never construct a base. Anything your tech level allows can be
+		Label@B1_L2:
+			X: 20
+			Y: 89
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: ordered right now, from the same list. What you spend is budget
+		Label@B1_L3:
+			X: 20
+			Y: 106
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: allocation, not materials.
+		Label@B2_HEAD:
+			X: 20
+			Y: 131
+			Width: PARENT_WIDTH - 40
+			Height: 18
+			Font: Bold
+			Text: Units are called in from off-map reserves.
+		Label@B2_L1:
+			X: 20
+			Y: 149
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: What you order enters at the map edge nearest your Supply Route and
+		Label@B2_L2:
+			X: 20
+			Y: 166
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: moves to its rally point. That march is real time, and the enemy can
+		Label@B2_L3:
+			X: 20
+			Y: 183
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: ambush it on the way.
+		Label@B3_HEAD:
+			X: 20
+			Y: 208
+			Width: PARENT_WIDTH - 40
+			Height: 18
+			Font: Bold
+			Text: The Supply Route is your beachhead, not a factory.
+		Label@B3_L1:
+			X: 20
+			Y: 226
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: You start with exactly one, fixed near your spawn. You cannot build it,
+		Label@B3_L2:
+			X: 20
+			Y: 243
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: move it, or destroy anyone's. Supply Routes are indestructible. Its
+		Label@B3_L3:
+			X: 20
+			Y: 260
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: rally point is the only part of it you set.
+		Label@B4_HEAD:
+			X: 20
+			Y: 285
+			Width: PARENT_WIDTH - 40
+			Height: 18
+			Font: Bold
+			Text: You win by cutting their link, not by levelling their base.
+		Label@B4_L1:
+			X: 20
+			Y: 303
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: Park units inside the enemy Supply Route ring to contest it. Their
+		Label@B4_L2:
+			X: 20
+			Y: 320
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: reinforcements slow, and holding it long enough puts them out of the
+		Label@B4_L3:
+			X: 20
+			Y: 337
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: match. Yours works the same way, so react to Supply Route contested!
+		Label@FOOT_L1:
+			X: 20
+			Y: 362
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: Spent units can Evacuate, leaving via your Supply Route to recover
+		Label@FOOT_L2:
+			X: 20
+			Y: 379
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: what is left of their cost. A unit that dies takes its budget with it.

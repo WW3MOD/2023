@@ -343,6 +343,11 @@ namespace OpenRA
 		public bool EngagementBarVisible = true;
 		public bool CohesionBarVisible = true;
 		public bool ResupplyBarVisible = true;
+
+		// WW3MOD: How-to-play briefing
+		[Desc("Version of the how-to-play briefing the player last saw. Bump",
+			"MenuButtonsChromeLogic.HowToPlayVersion to re-show it after a material copy change.")]
+		public int HowToPlayVersion = 0;
 	}
 
 	public class Settings
