@@ -34,13 +34,30 @@
 --     up to ~40 ticks  Stinger launch ramp + flight (Speed 600, ~10 cells)
 --     ------------------
 --          ~91 ticks  worst case; 110 is that plus headroom and no more.
--- The RED control (PreemptScanInterval pinned to 0) at THIS SAME deadline is what
--- WILL prove the unaided break does not beat it. NOT YET ESTABLISHED at 110 ticks:
--- the only control run so far was against the earlier 80-tick deadline, and it
--- failed on a scenario guard that has since been removed, so it says nothing about
--- this deadline. Re-establish it before trusting a green here. Widening the deadline
--- destroys that discrimination and silently restores the meaningless version of the
--- test, so re-run the control rather than relaxing the bound.
+-- CONTROL ESTABLISHED 2026-08-12, AND IT DID NOT GO RED. THIS TEST DOES NOT CURRENTLY
+-- DISCRIMINATE THE FIX. Both runs PASSED at this deadline:
+--   * PreemptScanInterval pinned to 0 on the ACTOR (seed 1298325022) -> pass
+--   * shipped default, 25                        (seed -1641486964) -> pass
+-- The pin was verified to have resolved, not assumed: a temporary trace in
+-- AutoTarget.Created printed `strykershorad PreemptScanInterval=0` on the control run
+-- and `=25` on the confirm run, with t90 reading 25 in both.
+--
+-- So the unaided break described above BEATS 110 ticks, which is exactly what the
+-- budget below was supposed to rule out. Read together with the merge that shipped the
+-- fix (68b627ce), this says the green here is not evidence for preemption.
+--
+-- TWO THINGS THIS DOES *NOT* ESTABLISH, both of which matter before anyone acts on it:
+--   1. It does not show the preempt scan is inert in play. PreemptScanInterval: 0 is NOT
+--      a clean revert of 68b627ce — that merge also repaired an inverted OnlyTargets
+--      clause in HasValidTargetPriority which does NOT sit behind this flag, so the
+--      control still carries half the merge. The unaided rescan finding the helicopter
+--      may itself be that repair working.
+--   2. It does not say by how much either configuration beat the deadline. Both runs
+--      predate the margin reporting added below, so there is no with/without number to
+--      compare. That instrumentation is IN but UNEXERCISED — the first person to run
+--      this gets the figure for free, and should take it for BOTH configurations.
+-- Widening the deadline would destroy what discrimination remains; tighten it against
+-- measured margins instead, once there are some.
 --
 -- PITFALL: this deadline is in TICKS on purpose — there are two different time
 -- bases in play and mixing them silently halves or doubles the budget.
@@ -75,6 +92,14 @@ WorldLoaded = function()
 	local heliStartHealth = nil
 	local ticksSinceSpawn = 0
 
+	-- PITFALL: Test.Pass is NOT idempotent — TestGlobal.ExitWhenCapturesFlushed writes the
+	-- verdict on every call, last one wins. Returning `true` from an AssertWithin predicate
+	-- makes the helper call Test.Pass() with an EMPTY note, silently erasing a note the
+	-- predicate just wrote (this ate the margin figure once, 2026-08-12). So report the note
+	-- and return false; `reported` then keeps every later poll inert so the deadline branch
+	-- cannot overwrite a pass with a fail while the deferred exit is in flight.
+	local reported = false
+
 	-- NOTE: deliberately NO "the SHORAD must not be idle" guard. An earlier revision
 	-- had one, under the wrong theory that the bug needed a non-idle unit. It is the
 	-- opposite: idle-while-firing-at-a-persistent-target IS the locked state, so such
@@ -102,6 +127,10 @@ WorldLoaded = function()
 	-- Outer timeout is on TestHarness's 25 ticks/s base and must comfortably exceed the
 	-- spawn delay (4s = 64 engine ticks) plus DeadlineTicks: 10 * 25 = 250 > 174.
 	TestHarness.AssertWithin(10, function()
+		if reported then
+			return false
+		end
+
 		if Shorad.IsDead then
 			return "fail: SHORAD died first"
 		end
@@ -118,7 +147,14 @@ WorldLoaded = function()
 		end
 
 		if Heli.IsDead or Heli.Health < heliStartHealth then
-			return true
+			-- Report the MARGIN, not just the boolean. A bare pass cannot be compared
+			-- against the PreemptScanInterval: 0 control, so a control that also passes
+			-- leaves nothing to reason about — which is exactly what happened on
+			-- 2026-08-12 (see the header note below).
+			reported = true
+			Test.Pass(string.format("engaged the band-5 helicopter %d ticks after its arrival (deadline %d)",
+				ticksSinceSpawn, DeadlineTicks))
+			return false
 		end
 
 		ticksSinceSpawn = ticksSinceSpawn + 1
