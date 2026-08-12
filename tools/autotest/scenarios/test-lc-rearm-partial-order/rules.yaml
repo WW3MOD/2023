@@ -1,0 +1,59 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-lc-rearm-partial-order.lua
+
+^Soldier:
+	AutoSeekSupplies:
+		# The order under test is the PLAYER's, so no shipped trait may be allowed to issue a
+		# competing one. AutoSeekSupplies' idle seek dispatches on a fraction-of-pool threshold and
+		# would fire on exactly the partially-full state this scenario stages, queueing
+		# SeekSuppliesAndReturn — a different activity, already known to work — and the run would go
+		# green without ever entering Resupply.
+		#
+		# 0 is a documented constant-false for BelowSeekThreshold (SupplyHuntMath.cs:52), so
+		# NeedsSupplies() never trips. ReturnWhenEmpty is keyed on AllPoolsEmpty and is untouched;
+		# neither subject here is empty, so it cannot fire either.
+		AutoSeekAmmoThresholdPerMille: 0
+
+# PARTIALLY full, not dry, and that is the whole point: AmmoPool.AutoRearmIfAllEmpty (every other
+# dispatcher in the game) refuses a unit with any ammo left, so the partial state is reachable ONLY
+# through the player's Resupply order -> AutoRearmIfAnyNotFull (AmmoPool.cs:262-267).
+#
+# Two batches short in each case, so a completed dock rearm is two RearmTick cycles (~100 ticks)
+# while the infantryman's ReloadAmmoPool trickle — 1 round per 50 ticks, enabled by the LC's own
+# replenish-soldiers aura — would take 600. The two mechanisms are told apart by the SIZE of the
+# first ammo increase, recorded in the Lua.
+AR:
+	AmmoPool@1:
+		# ^AR is Ammo 500, ReloadCount 50, ReloadDelay 50 (the engine default).
+		#
+		# TWO batches short, and the margin is the measurement. A dock rearm closes it in two
+		# RearmTick cycles, ~100 ticks. The LC's own replenish-soldiers aura drives ReloadAmmoPool at
+		# 1 round per 50 ticks, so in the whole 40s deadline the trickle can contribute about 20 —
+		# it CANNOT reach 500 from here by itself. So "ended full" means a dock rearm happened,
+		# whatever else was also topping him up.
+		#
+		# The first run of this scenario started 482 short instead, which the trickle could not close
+		# either but which took the dock path ~10 cycles to close — long enough that the deadline
+		# landed mid-rearm and "errand still running" meant nothing.
+		InitialAmmo: 400
+
+# Lower-case, matching vehicles-america.yaml exactly: MiniYaml merges nodes by raw string key
+# (MiniYaml.cs:410, default comparer), so `BRADLEY:` here would NOT merge into `bradley:` there.
+bradley:
+	AmmoPool@1:
+		# Ammo 900, ReloadCount 100. secondary-ammo is left full so the completion test turns on
+		# this pool alone.
+		InitialAmmo: 700
