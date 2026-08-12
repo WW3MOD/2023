@@ -313,6 +313,18 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			healer.World.IssueOrder(new Order("AttendAlly", healer, Target.FromActor(ally), queued));
 		}
 
+		[Desc("Issue the Resupply order the RESUPPLY command-bar button produces (CommandBarLogic.cs:187). " +
+			"This is the only route into AmmoPool.AutoRearmIfAnyNotFull, which — unlike the dry " +
+			"AutoRearmIfAllEmpty path everything else uses — dispatches a unit that is merely " +
+			"PARTIALLY empty. Test mode only.")]
+		public void IssueResupply(Actor self, bool queued = false)
+		{
+			if (!TestMode.IsActive || self == null)
+				return;
+
+			self.World.IssueOrder(new Order("Resupply", self, queued));
+		}
+
 		[Desc("Issue the order a real right-click on `target` would produce, resolving the whole " +
 			"IIssueOrder targeter chain in descending OrderPriority exactly as UnitOrderGenerator does, " +
 			"and return the OrderString that won (nil if the click is refused). " +
