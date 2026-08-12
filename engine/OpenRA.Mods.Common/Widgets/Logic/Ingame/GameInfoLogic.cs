@@ -18,7 +18,7 @@ using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
-	public enum IngameInfoPanel { AutoSelect, Map, Objectives, Debug, Chat, LobbbyOptions }
+	public enum IngameInfoPanel { AutoSelect, Map, Objectives, Debug, Chat, LobbbyOptions, HowToPlay }
 
 	sealed class GameInfoLogic : ChromeLogic
 	{
@@ -37,6 +37,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[FluentReference]
 		const string Chat = "menu-game-info.chat";
 
+		[FluentReference]
+		const string HowToPlay = "menu-game-info.how-to-play";
+
 		readonly World world;
 		readonly ModData modData;
 		readonly Action<bool> hideMenu;
@@ -54,7 +57,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{ IngameInfoPanel.Map, ("MAP_PANEL", Briefing, SetupMapPanel) },
 				{ IngameInfoPanel.LobbbyOptions, ("LOBBY_OPTIONS_PANEL", Options, SetupLobbyOptionsPanel) },
 				{ IngameInfoPanel.Debug, ("DEBUG_PANEL", Debug, SetupDebugPanel) },
-				{ IngameInfoPanel.Chat, ("CHAT_PANEL", Chat, SetupChatPanel) }
+				{ IngameInfoPanel.Chat, ("CHAT_PANEL", Chat, SetupChatPanel) },
+				{ IngameInfoPanel.HowToPlay, ("HOWTOPLAY_PANEL", HowToPlay, SetupHowToPlayPanel) }
 			};
 
 			this.world = world;
@@ -92,6 +96,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			if (world.LobbyInfo.NonBotClients.Count() > 1)
 				visiblePanels.Add(IngameInfoPanel.Chat);
+
+			// WW3MOD: "How to Play" explains the reinforcement economy, which has no Red Alert
+			// equivalent. Added last so AutoSelect still resolves to Objectives as before.
+			// Gated on the container existing because other in-repo mods ship their own
+			// ingame-info.yaml without it.
+			if (widget.GetOrNull<ContainerWidget>("HOWTOPLAY_PANEL") != null)
+				visiblePanels.Add(IngameInfoPanel.HowToPlay);
 
 			var numTabs = visiblePanels.Count;
 			var tabContainer = !hasError ? widget.GetOrNull($"TAB_CONTAINER_{numTabs}") : null;
@@ -171,6 +182,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			if (activePanel == IngameInfoPanel.AutoSelect)
 				activePanel = IngameInfoPanel.Debug;
+		}
+
+		void SetupHowToPlayPanel(ButtonWidget howToPlayTabButton, Widget howToPlayPanelContainer)
+		{
+			Game.LoadWidget(world, "HOWTOPLAY_PANEL", howToPlayPanelContainer, new WidgetArgs());
 		}
 
 		void SetupChatPanel(ButtonWidget chatTabButton, Widget chatPanelContainer)
