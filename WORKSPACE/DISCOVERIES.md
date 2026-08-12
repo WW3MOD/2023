@@ -191,6 +191,8 @@ Static read at `main @ d6d7244b`, prompted by the first user test of load-game (
 - **Every save necessarily records a trailing `Pause` order, which is why the restore deliberately re-opens the options menu.** Saving is only reachable from the in-game menu, and `MenuButtonsChromeLogic.OpenMenuPanel` issues `SetPauseState(true)` on the way in (`:97-98`) — a non-immediate order, so `GameSave.DispatchOrders` records it (`GameSave.cs:209-211` only skips `0xFE` immediates). The restore therefore always ends paused, and `LoadWidgetAtGameStart.GameLoaded` compensates by issuing `SetPauseState(false)` and re-clicking the options button (`:83-88`) to reproduce the player's saved context. `OpenMenuPanel` captures `cachedPause = world.PredictedPaused` (`:87`) and restores it on exit (`:113-114`). **This round-trip is self-consistent on paper** — which is exactly why the observed stuck pause is not yet explained, and why it should be re-tested after the black-viewport fix before being treated as a separate defect.
 ## 2026-08-11 — There is NO free modifier on a build-menu icon: every LMB gesture queues production, ww3mod infantry render no selection box at all, and selection classes are shared across factions
 
+> **[promoted (partial): → architecture.md §Widget / chrome authoring gotchas — the selection-invisibility half, which is the durable and expensive one. Re-verified: `^Infantry` `SelectionDecorations: ShowNever: true` (`infantry.yaml:55`, the only one in the mod) against `SelectionDecorationsBase.cs:109` `if (selected && !Info.ShowNever)`; and the vehicle surprise at `:129`, `renderDecorations = selected ? selectedDecorations : decorations` — the UNSELECTED path draws the brackets, so the bracket is not a selection indicator. `Test.GetSelectedCount`/`GetSelectedCountOfType` confirmed at `TestGlobal.cs:187`/`:194`. **Rejected: the sidebar-gesture half** (Ctrl/Alt orthogonality, which combination is cheapest to displace) is a design rationale for one shipped gesture, not a system fact — it belongs with `auto/select-by-type`. The selection-class note (match on selection class, not actor name, or veterans are silently missed) is genuinely useful but is a property of the YAML anyone can grep; not banked.]** (curation 2026-08-12, verified against main @ dc8e0abf).
+
 Found at `main @ d6d7244b` building Ctrl+Alt+LMB select-by-type (branch `auto/select-by-type`). Four findings, each of which changes what a future UI change on the sidebar can assume.
 
 - **Ctrl+Alt+LMB on a build-menu icon was NOT free, and neither is any other modifier combination.** `ProductionPaletteWidget.HandleLeftClick` reads Ctrl and Alt as two *independent orthogonal flags*, not as a combined tier: `queued = !Ctrl` (`:378`, priority-insert at the head of the queue) and `auto = Alt` (`:379`, `Infinite`/auto-rebuild). So Ctrl+Alt+LMB already meant "insert at the front AND repeat forever". Because the flags are orthogonal, **there is no free *combination* — only a free *modifier*** (`Meta`), and even a bare unmodified LMB queues a unit, so *every* gesture on an icon already does something. Any new sidebar gesture must therefore *displace* an existing one; the question is only which loss is cheapest, not which slot is empty. The one taken here (Ctrl+Alt) is the cheapest because both flags stay individually reachable as Ctrl+click and Alt+click, and `queued=false` is a no-op whenever the queue is empty — the common case.
@@ -624,6 +626,8 @@ When the user says a vehicle "goes critical" they mean *it caught fire and is no
 - **Where a variance roll sits relative to a scaling factor changes the tuning, not just the spread.** Folding the roll in *before* a 50% cut halves the curve end to end; adding it *after* leaves the unlucky rolls — the ones that decide who lives — barely moved.
 ## 2026-08-10 — `Mobile.MoveResult` IS NEVER ASSIGNED, SO A MOVE TOWARD AN UNREACHABLE DESTINATION CAN NEVER TERMINATE — two exit conditions are silently dead engine-wide
 
+> **[promoted: → conventions.md §Engine behaviors that surprise — **already banked earlier today** from the 2026-08-11 stall-guard entry, which cites the same defect. This entry is the fuller primary source and the promoted bullet matches it: the property is declared (`Mobile.cs:265`), read (`MoveAdjacentTo.cs:107`, `MoveCooldownHelper.cs:69,76`), never assigned anywhere, and `InProgress` is enum value 0 — so a move toward an unreachable destination can never report failure and two exit conditions are unreachable. No doc change needed; tagged so the duplicate is not re-promoted.]** (curation 2026-08-12, verified against main @ dc8e0abf).
+
 `Mobile.MoveResult` is declared `public MoveResult MoveResult { get; set; }` (`Mobile.cs:265`) and **has three readers and zero writers in the entire engine**:
 
 - `MoveCooldownHelper.cs:69` — `CompleteCanceled` / `CompleteDestinationReached` ⇒ "the move ended, stop retrying"
@@ -693,6 +697,8 @@ Three findings from the visual hit-feedback pass. All are the same symptom — *
 
 ## 2026-08-10 — THE MIDDLE OF THE EXPLOSION LADDER IS UNDER-SERVED, and the user has seen it and deferred it
 
+> **[rejected: tracker material — the entry itself records that the user has seen this and deferred it, so it is an open work item, not a system fact. (The underlying observation — ten `^…ExplosionEffects` templates render only eight distinct pictures — is checkable from YAML whenever someone picks the work up.)]** (curation 2026-08-12, verified against main @ dc8e0abf).
+
 Ten `^…ExplosionEffects` templates render only **eight** distinct pictures: `^MinimalExplosionEffects` and `^SmallerExplosionEffects` are both `hit_*`+`shrapnel_small`; `^SmallMediumExplosionEffects` and `^MediumExplosionEffects` are both `explosion_medium`, differing only in shrapnel damage (25/50 and 150/200). The compression sits exactly where most of the game's weapons live — a 73 mm low-pressure gun, a 120 mm APFSDS, an ATGM, a Hellfire and an 80 mm rocket pod all draw the same `explosion_medium`.
 
 **This is known and deliberately deferred, not undiscovered.** The user's ruling (2026-08-10) on re-pointing the duplicate rungs at other existing sequences: *"We need more effects, but I dont think it is worth it now, so leave that."* The reading is that the fix is **new art**, not re-shuffling sequences already in the tree — spreading eight pictures across ten rungs just moves the duplication. Don't re-propose the re-point; propose art, or leave it.
@@ -754,6 +760,8 @@ A realistic mid-game army in this mod is roughly 15,000–22,000 (say 40 infantr
 
 ## 2026-08-10 — MEASURED: the Ataka "overfly" bug does not exist as diagnosed — a spurious branch entry that SELF-CORRECTS, and a test whose spawn altitude is a third of the real one
 
+> **[rejected: narrow — a self-correction closing one hypothesis about one weapon, and the branch it names self-corrects. **Its general lesson is real and is already banked in a better home:** a 489-line static diagnosis asserting "a hard, unconditional bug — not a probabilistic one" was refuted by one measurement, which is precisely the knowledge-bank audit's root cause (a claim written at maximum context, silently universal beyond the path traced) — now promoted to DOCS/reference/README.md §Four shapes. Nothing further to add; the weapon-specific findings belong with the branch.]** (curation 2026-08-12, verified against main @ dc8e0abf).
+
 A 489-line static diagnosis concluded that every `TerrainHeightAware: true` missile "flies straight over the top of every ground target and detonates several cells past it", calling it "a hard, unconditional bug — not a probabilistic one". It recorded a falsifiable prediction: `test-mi28-fires-ataka` would show the t90 taking **0** damage. Run on unmodified `main @ 948b6e71` (worktree byte-identical, seed `-943069492`): **PASS — t90 took 10447 damage**, a clean direct hit against a `need >= 2000` bar. The prediction was refuted by an order of magnitude in the wrong direction.
 
 - **The trigger analysis was right and the consequence analysis was wrong, and it is worth being precise about which half survived.** `allowPassBy` *does* latch spuriously on every ground shot exactly as diagnosed: `Missile.cs:660` tests `info.TerrainHeightAware && lastHt >= targetPosition.Z`, `lastHt` is initialised 0 at `Missile.cs:538` and only written when `InclineLookahead` crosses a height transition (`:571-572`), `mods/ww3mod/mod.yaml:317-319` declares `MapGrid` with no `MaximumTerrainHeight` (default 0), and `targetPosition.Z` is 0 for a ground actor — so `0 >= 0` is true. All of that holds. What does not hold is "the missile therefore never pitches down onto the target."
@@ -764,6 +772,8 @@ A 489-line static diagnosis concluded that every `TerrainHeightAware: true` miss
 - **Process note that cost nothing and saved a four-part change.** The prediction was written down *before* the run and the run was ordered *before* the edits. Had the fixes gone in first, all four would have been "confirmed" by a test that was already passing, and a rewritten `allowPassBy` gate plus a fleet-wide `VerticalRateOfTurn` bump would have shipped as a fix for a bug nobody had ever measured.
 
 ## 2026-08-10 — A FIX CAN BE CORRECT IN ISOLATION AND WRONG IN COMBINATION, twice in one day — and a MATCHED PAIR of opposite scenarios is what caught both
+
+> **[rejected: narrow — the two fixes and the day they collided are branch history. The durable half, **a matched pair of opposite scenarios is what catches an in-combination regression**, is test-methodology and belongs in DOCS/recipes/AUTOTEST.md rather than in a reference doc; flagged for whoever owns that file. (A near-identical lesson from the same week — "a matched pair green on both sides still did not protect a third doctrine" — sits in the 2026-08-12 truck-doctrine entry, so the recipe should take them together.)]** (curation 2026-08-12, verified against main @ dc8e0abf).
 
 Two defects on the supply path, each introduced by a fix that was right when it landed and became wrong once a *different* fix worked:
 
@@ -776,6 +786,8 @@ Two defects on the supply path, each introduced by a fix that was right when it 
 - **THIS IS WHY THE MATCHED PAIR EXISTS, and it is the reusable practice.** `test-supply-under-danger` and `test-supply-safe-front-keeps-cargo` assert **opposite** outcomes of the same decision — crate under fire, no crate and cargo retained on a quiet front. Every single-scenario green today was achievable by a change that broke the other one, and each of the two defects above was caught by the scenario that was *not* being worked on. **A behaviour selected by a condition needs a test on each side of that condition; one test can only ever pin the branch its author was thinking about.** The pair must go green together or neither result means anything.
 
 ## 2026-08-10 — MEASURED: the supply-truck oscillation, caught in the act — and a bug that CANNOT FIRE is indistinguishable from one that does not exist
+
+> **[rejected: narrow — fourth run of one scenario on one pinned seed. Run forensics decay; the fix it validates is in the code and its rationale is in the branch.]** (curation 2026-08-12, verified against main @ dc8e0abf).
 
 Fourth run of `test-supply-under-danger` (`0ed01e0e`, pinned seed `-1848572889`). The cluster anchor fix landed and worked on the first scan:
 
@@ -796,6 +808,8 @@ truck x:  7 → 14 → 22 → 29   evac-enter danger=308180 threshold=1706
 
 ## 2026-08-10 — MEASURED: a starving platoon walks off the front to meet its own supply truck, and an outcome-only assertion scores that as success
 
+> **[rejected: narrow — second instrumented run of `test-supply-under-danger`. **One durable half is already promoted elsewhere:** "the test PASSED and the doctrine was violated" is the outcome-only-assertion trap, which economy.md and the AUTOTEST recipe already cover from stronger sources.]** (curation 2026-08-12, verified against main @ dc8e0abf).
+
 Second instrumented run of `test-supply-under-danger` (`14499b0a`). The test **PASSED** and the doctrine was violated. Truck x per second: `7 7 7 14 14 21 21 29 29`. The per-scan target column is the tell:
 
 ```
@@ -814,6 +828,8 @@ Second instrumented run of `test-supply-under-danger` (`14499b0a`). The test **P
 - **Status of the evac hypothesis: not confirmed, not dead — untested.** `evac-enter` did fire, at `danger=308180` against `threshold=1706`, but only once the truck was at x=29 and the platoon had already walked to it, so evac was not what stopped the delivery in this run. Whether evac would block a truck approaching a platoon that HOLDS position is still unobserved; the position assertion is what will finally isolate it. Note `gated=False dest-danger=0`, confirming the relief-valve path leaves the cluster ungated exactly as `SelectServableClusters` documents (`:1505`).
 
 ## 2026-08-10 — MEASURED: three independent reasons supply cannot reach a front, and the pre-selection danger abort is NOT one of them
+
+> **[rejected: narrow — first instrumented run of one scenario, superseded by the two later runs of the same scenario below/above it. Its negative result (the pre-selection danger abort is NOT a cause) is a fact about that run's configuration, not about the system.]** (curation 2026-08-12, verified against main @ dc8e0abf).
 
 First instrumented run of `test-supply-under-danger` (scenario `87faad44`, diagnostics `d42e9371`): a starving 5-rifleman platoon 34 cells from its Supply Route, with two believed `grad` painting the whole approach. One scan, verbatim:
 
@@ -834,6 +850,8 @@ First instrumented run of `test-supply-under-danger` (scenario `87faad44`, diagn
 - **Method note that generalises:** the whole scan above was invisible before `d42e9371`. Every per-scan level in this module sat behind `DebugLogging`, which ships off, so a module that evaluated every gate and declined logged **byte-identically** to one that never ticked. **An "it did nothing" symptom carries no information about which gate fired unless the declines are instrumented** — this run was initially read as a danger abort and was actually a range filter.
 
 ## 2026-08-10 — MEASURED: `ReferenceIntensity` is a weak reference, and the supply-truck evac threshold is below the median cell it gates
+
+> **[rejected: narrow as a run report — **but its durable content is already in the bank by two independent routes**: the reference figures and the scenario-dependence rule are in influence-stack.md §Stage B (promoted 2026-08-12 from the ground/air and danger-magnitude entries), and the threshold-vs-median finding is recorded there as OPEN with `GroundDangerMedian`'s single consumer named. Nothing here is lost by rejecting it.]** (curation 2026-08-12, verified against main @ dc8e0abf).
 
 First live read of the `[danger] reference` / `[danger] dist` instrumentation, at `main @ 2754f341`, from `test-frontline-reachability` (instantiates `@experimental` + `@stable` on River Zeta). Verbatim:
 
