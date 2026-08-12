@@ -113,7 +113,13 @@ namespace OpenRA.Mods.Common.Activities
 				// during a move (the symptom: attack-move never engages, opportunity-fire fires
 				// only at the moment the unit happens to be still). The 10-tick checkTick
 				// cadence below provides our own rate limit.
-				target = autoTarget.ScanForTarget(self, false, true, ignoreScanInterval: true);
+				// fromProtectedOverride must be threaded into the stamp below. An AttackMoveActivity is
+				// NOT necessarily a fresh attack-move order that superseded an earlier attack: Resupply
+				// (:231, :258), the Mobile nudge (Mobile.cs:1096), aircraft repositioning
+				// (Aircraft.cs:1496), AttackWander, Hunt, Patrol and Reservable all queue one INTERNALLY,
+				// with no order issued at all. Re-stamping there would launder a player's target into an
+				// autotarget-acquired one and make their order preemptable.
+				target = autoTarget.ScanForTarget(self, false, true, true, out var fromProtectedOverride);
 
 				// Cancel the current move activity and queue attack activities if we find a new target.
 				if (target.Type != TargetType.Invalid)
@@ -169,8 +175,9 @@ namespace OpenRA.Mods.Common.Activities
 					runningMoveActivity = false;
 					ChildActivity?.Cancel(self);
 
+					var engagementSource = fromProtectedOverride ? AttackSource.Default : AttackSource.AttackMove;
 					foreach (var ab in autoTarget.ActiveAttackBases)
-						QueueChild(ab.GetAttackActivity(self, AttackSource.AttackMove, target, false, false));
+						QueueChild(ab.GetAttackActivity(self, engagementSource, target, false, false));
 				}
 
 				// Continue with the move activity (or queue a new one) when there are no targets.

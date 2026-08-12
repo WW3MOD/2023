@@ -89,10 +89,21 @@ namespace OpenRA.Mods.Common.Activities
 				// EVERY pool empty, so a man with one pool still loaded is not covered here at all. The
 				// per-armament filter below is what covers him — read the two as a pair.
 				//
-				// Scan for targets but don't allow moving toward them (allowMove = false)
+				// Scan for targets but don't allow moving toward them (allowMove = false).
+				// fromProtectedOverride must be threaded into the stamp below: a SmartMoveActivity is
+				// NOT necessarily the product of a fresh move order that superseded an earlier attack.
+				// Every Mobile.MoveWithinRange / MoveFollow / MoveAdjacentTo goes through IWrapMove
+				// (Mobile.cs:671-790), so the move a player's OWN attack queues to close range is itself
+				// wrapped in one. Re-stamping there would launder the player's target into an
+				// autotarget-acquired one and make their order preemptable.
+				//
+				// Declared before the scan rather than as an `out var` inside it: the dry-unit early-out
+				// above skips the call entirely, and a variable assigned on only one arm of the ternary
+				// would not be definitely assigned at its use below.
+				var fromProtectedOverride = false;
 				var target = AmmoPool.CannotFight(self)
 					? Target.Invalid
-					: autoTarget.ScanForTarget(self, false, true, !runningMoveActivity);
+					: autoTarget.ScanForTarget(self, false, true, !runningMoveActivity, out fromProtectedOverride);
 
 				if (target.Type != TargetType.Invalid)
 				{
@@ -160,8 +171,9 @@ namespace OpenRA.Mods.Common.Activities
 							runningMoveActivity = false;
 							ChildActivity?.Cancel(self);
 
+							var engagementSource = fromProtectedOverride ? AttackSource.Default : AttackSource.AutoTarget;
 							foreach (var ab in autoTarget.ActiveAttackBases)
-								QueueChild(ab.GetAttackActivity(self, AttackSource.AutoTarget, target, false, false));
+								QueueChild(ab.GetAttackActivity(self, engagementSource, target, false, false));
 						}
 					}
 				}

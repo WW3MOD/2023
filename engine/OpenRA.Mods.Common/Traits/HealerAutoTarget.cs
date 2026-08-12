@@ -87,8 +87,11 @@ namespace OpenRA.Mods.Common.Traits
 				claimLayer = self.World.WorldActor.TraitOrDefault<HealerClaimLayer>();
 		}
 
-		bool IOverrideAutoTarget.TryGetAutoTargetOverride(Actor self, out Target target)
+		bool IOverrideAutoTarget.TryGetAutoTargetOverride(Actor self, out Target target, out bool canYieldToHigherPriority)
 		{
+			// Never yieldable: this trait's patient choice IS the answer for a healer, and the comment
+			// below spells out why handing the decision back to AutoTarget's own scan misbehaves.
+			canYieldToHigherPriority = false;
 			target = Target.Invalid;
 			EnsureClaimLayer(self);
 

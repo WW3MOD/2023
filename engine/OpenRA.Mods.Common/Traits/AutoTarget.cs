@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Warheads;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -199,6 +200,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Ticks to wait until next AutoTarget: attempt.")]
 		public readonly int MaximumScanTimeInterval = 8;
+
+		[Desc("Ticks between re-evaluations of an ALREADY auto-picked target. Without this a unit shooting",
+			"infantry keeps shooting it while an enemy tank sits in range unengaged, because the priority",
+			"table is consulted once and then bypassed by two different routes: an idle unit's stale target",
+			"is handed straight back by IOverrideAutoTarget, and a unit with a running attack activity never",
+			"scans at all. This one interval governs both. A re-evaluation switches only to a STRICTLY higher",
+			"AutoTargetPriority band, and only to something shootable from where the unit stands. Targets a",
+			"player, Lua or a bot ordered are never re-evaluated.",
+			"0 = disabled (behaviour is byte-identical to no re-evaluation).")]
+		public readonly int PreemptScanInterval = 0;
 
 		[Desc("Skip targets whose AverageDamagePercent exceeds this threshold.",
 			"Prevents overkill — idle units won't fire at targets that already have enough incoming damage to destroy them.",
@@ -570,7 +581,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Don't change targets when there is a target overriding auto-targeting
 			foreach (var oat in overrideAutoTarget)
-				if (oat.TryGetAutoTargetOverride(self, out _))
+				if (oat.TryGetAutoTargetOverride(self, out _, out _))
 					return;
 
 			if (!attacker.IsInWorld)
@@ -604,7 +615,8 @@ namespace OpenRA.Mods.Common.Traits
 				TriggerNearbyAmbushAllies(self, Target.FromActor(attacker));
 			}
 
-			Attack(Target.FromActor(Aggressor), allowMove);
+			// Retaliation the trait decided on by itself, so genuinely AutoTarget-sourced.
+			Attack(Target.FromActor(Aggressor), allowMove, AttackSource.AutoTarget);
 		}
 
 		void INotifyIdle.TickIdle(Actor self)
@@ -638,7 +650,14 @@ namespace OpenRA.Mods.Common.Traits
 			// scan that does run re-arms nextScanTime, so whether THIS tick actually scanned must be captured
 			// BEFORE the call.
 			var scannedThisTick = nextScanTime <= 0;
-			var target = ScanForTarget(self, false, true);
+
+			// fromProtectedOverride must be threaded here too, not discarded: this path re-issues the
+			// scanned target below, and re-stamping a player/Lua/bot target as AutoTarget would make it
+			// preemptable. The re-stamp is inert while the unit is in Ambush (PreemptionDue requires
+			// >= FireAtWill) but nothing clears it — StanceChanged returns early on a stance INCREASE —
+			// so raising the unit to Fire At Will would activate it retroactively.
+			var target = ScanForTarget(self, false, true, false, out var fromProtectedOverride);
+			var scanSource = fromProtectedOverride ? AttackSource.Default : AttackSource.AutoTarget;
 
 			// Gated Stage-3 only: an off-interval Invalid means "no scan happened this tick", NOT "target
 			// lost". Reuse the cached pre-aim target (if it is still alive and legally visible) so the cadence
@@ -686,7 +705,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (isSpotted)
 						TriggerNearbyAmbushAllies(self, target);
 
-					Attack(target, false);
+					Attack(target, false, scanSource);
 				}
 
 				return;
@@ -707,7 +726,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (trigger != AmbushSpringTrigger.None)
 					TriggerNearbyAmbushAllies(self, target);
 
-				Attack(target, false);
+				Attack(target, false, scanSource);
 			}
 		}
 
@@ -928,15 +947,141 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (nextScanTime > 0)
 				--nextScanTime;
+
+			TickPreemption(self);
+		}
+
+		/// <summary>Target preemption: switch off a low-priority target when a strictly higher-priority one
+		/// becomes attackable (the SHORAD that keeps shooting infantry while a helicopter hovers in range).
+		///
+		/// The ordinary priority scan is IDLE-ONLY — ChooseTarget is reachable only via ScanForTarget from
+		/// INotifyIdle.TickIdle, and Actor.IsIdle is CurrentActivity == null, so an engaged unit never rescans.
+		/// Even a forced rescan returns the incumbent, because AttackFollow.TryGetAutoTargetOverride hands
+		/// RequestedTarget straight back ahead of the scan. See WORKSPACE/DISCOVERIES.md (2026-08-11).
+		///
+		/// Determinism: cadence is WorldTick + ActorID, zero RNG, and ChooseTarget is called DIRECTLY rather
+		/// than through ScanForTarget — the latter re-arms nextScanTime off SharedRandom, which would shift the
+		/// shared RNG stream (breaking byte-identity, see DOCS/reference/influence-stack.md) and starve the
+		/// existing scanners (that starvation mode is documented at AttackMoveActivity.cs:110-115).</summary>
+		void TickPreemption(Actor self)
+		{
+			// This and the ScanForTarget yield are two PHASES of one cycle, not two disjoint states: a
+			// stationary engagement interleaves them every few ticks. AttackFollow.AttackActivity.Tick
+			// returns false — keep running — for a target that stays in range with clear LOS (:418-428),
+			// which is the window this pass covers; when that activity ends the unit is briefly idle with
+			// its target promoted to a persistent override, which is the window the yield covers. Neither
+			// path is redundant and neither alone is sufficient.
+			if (self.IsIdle || !PreemptionDue(self))
+				return;
+
+			// Only preempt an engagement the unit acquired by ITSELF: a player order, a Lua order or a
+			// bot's deliberate AttackTarget must survive untouched.
+			//
+			// PITFALL: this reads the TOP-LEVEL activity, deliberately NOT
+			// self.CurrentActivity.ActivitiesImplementing<IAttackActivity>(). That walk descends into
+			// ChildActivity and along NextActivity, so an autotarget attack nested under a player Move
+			// (SmartMoveActivity.cs:117) would match — and preempting via queued:false calls
+			// Actor.CancelActivity on the WHOLE current activity, destroying the move order.
+			if (self.CurrentActivity is not IAttackActivity current
+				|| !IsAutoAcquiredSource(current.Source)
+				|| current.ForceAttack)
+				return;
+
+			if (!TryFindHigherBandTarget(self, current.Target, out var betterTarget))
+				return;
+
+			// Match TickIdle's movement policy rather than hard-coding false, which would silently
+			// downgrade a Hunt-stance pursuer to a stationary attack the moment it preempted.
+			var allowMove = allowMovement && engagementStance >= EngagementStance.Hunt;
+
+			foreach (var ab in ActiveAttackBases)
+				ab.AttackTarget(betterTarget, current.Source, false, allowMove);
+		}
+
+		/// <summary>Sources that represent an engagement the unit acquired BY ITSELF, and may therefore
+		/// have replaced by a higher-priority target. AttackMove counts: the player/bot ordered a move,
+		/// not that particular target, and it is the dominant bot engagement mode. Default (player, Lua,
+		/// deliberate bot AttackTarget) never counts.</summary>
+		public static bool IsAutoAcquiredSource(AttackSource source)
+		{
+			return source == AttackSource.AutoTarget || source == AttackSource.AttackMove;
+		}
+
+		/// <summary>Cadence gate shared by both re-evaluation paths. Tick-derived and staggered by
+		/// ActorID — zero RNG, so it cannot perturb the shared random stream.</summary>
+		bool PreemptionDue(Actor self)
+		{
+			var interval = Info.PreemptScanInterval;
+			if (interval <= 0 || stance < UnitStance.FireAtWill)
+				return false;
+
+			return (self.World.WorldTick + (int)(self.ActorID % (uint)interval)) % interval == 0;
+		}
+
+		/// <summary>Re-runs the ordinary priority scan and reports a target whose band is STRICTLY higher
+		/// than the incumbent's. Strictness IS the hysteresis: the range, cluster and soft-overkill terms
+		/// are bounded by construction to stay inside one priority bucket, so they cannot move this
+		/// comparison and two comparable targets can never trade places. No cooldown is needed.
+		/// allowMove:false so only something shootable from where the unit stands can win — that is what
+		/// stops a SHORAD abandoning a tank to chase an unreachable helicopter.</summary>
+		bool TryFindHigherBandTarget(Actor self, in Target incumbent, out Target betterTarget)
+		{
+			betterTarget = Target.Invalid;
+
+			var incumbentBand = GetTargetPriorityBand(self, incumbent);
+			var allowTurn = Info.AllowTurning && stance > UnitStance.HoldFire;
+
+			foreach (var ab in ActiveAttackBases)
+			{
+				var attackStances = ab.UnforcedAttackTargetStances();
+				if (attackStances == PlayerRelationship.None)
+					continue;
+
+				var range = Info.ScanRadius > 0 ? WDist.FromCells(Info.ScanRadius) : ab.GetMaximumRange();
+				var candidate = ChooseTarget(self, ab, attackStances, range, false, allowTurn, out var candidateBand);
+				if (candidate.Type == TargetType.Invalid || candidateBand <= incumbentBand)
+					continue;
+
+				betterTarget = candidate;
+				return true;
+			}
+
+			return false;
 		}
 
 		public Target ScanForTarget(Actor self, bool allowMove, bool allowTurn, bool ignoreScanInterval = false)
 		{
+			return ScanForTarget(self, allowMove, allowTurn, ignoreScanInterval, out _);
+		}
+
+		/// <summary><paramref name="fromProtectedOverride"/> is true when the returned target came from an
+		/// override that refused to yield — i.e. it belongs to a player, Lua or bot order. Callers that
+		/// re-issue the result must NOT re-stamp such a target as <see cref="AttackSource.AutoTarget"/>.</summary>
+		public Target ScanForTarget(Actor self, bool allowMove, bool allowTurn, bool ignoreScanInterval, out bool fromProtectedOverride)
+		{
+			fromProtectedOverride = false;
+
 			if ((ignoreScanInterval || nextScanTime <= 0) && ActiveAttackBases.Any())
 			{
 				foreach (var oat in overrideAutoTarget)
-					if (oat.TryGetAutoTargetOverride(self, out var existingTarget))
+					if (oat.TryGetAutoTargetOverride(self, out var existingTarget, out var canYield))
+					{
+						// The override is consulted BEFORE the scan, so whatever it returns is the
+						// target — ChooseTarget never runs and the AutoTargetPriority table is never
+						// consulted. For an automatic engagement that is the whole bug: a unit stays on
+						// a band-3 tank while a band-5 helicopter sits in range. Re-evaluate, but keep
+						// the incumbent unless something is STRICTLY higher-banded.
+						//
+						// Deliberately NOT re-arming nextScanTime on this path (the re-arm below is
+						// still reached only by the ordinary scan), so the SharedRandom draw pattern is
+						// exactly what it was before this branch existed.
+						if (canYield && PreemptionDue(self)
+							&& TryFindHigherBandTarget(self, existingTarget, out var betterTarget))
+							return betterTarget;
+
+						fromProtectedOverride = !canYield;
 						return existingTarget;
+					}
 
 				if (!ignoreScanInterval)
 					nextScanTime = self.World.SharedRandom.Next(Info.MinimumScanTimeInterval, Info.MaximumScanTimeInterval);
@@ -958,46 +1103,137 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void ScanAndAttack(Actor self, bool allowMove, bool allowTurn)
 		{
-			var target = ScanForTarget(self, allowMove, allowTurn);
-			if (target.Type != TargetType.Invalid)
-				Attack(target, allowMove);
+			var target = ScanForTarget(self, allowMove, allowTurn, false, out var fromProtectedOverride);
+			if (target.Type == TargetType.Invalid)
+				return;
+
+			// PITFALL: re-issuing unconditionally as AutoTarget LAUNDERS provenance. A player's target
+			// survives its attack activity ending (promoted to a persistent opportunity target), comes
+			// back through the override with canYield false, and would then be re-stamped AutoTarget
+			// here — making the player's own order preemptable on the next pass. A refusal to yield is
+			// exactly the signal that this target is not autotarget's to re-stamp.
+			Attack(target, allowMove, fromProtectedOverride ? AttackSource.Default : AttackSource.AutoTarget);
 		}
 
-		void Attack(in Target target, bool allowMove)
+		/// <summary><paramref name="source"/> is deliberately REQUIRED, not defaulted. A default of
+		/// AutoTarget fails open — it silently re-stamps whatever it is handed as an automatic
+		/// engagement — and that affordance is why the provenance-laundering bug had two separate
+		/// instances (ScanAndAttack and AmbushTickIdle). FOUR call sites across three methods —
+		/// retaliation, both AmbushTickIdle springs, and ScanAndAttack — and each states its source.</summary>
+		void Attack(in Target target, bool allowMove, AttackSource source)
 		{
 			foreach (var ab in ActiveAttackBases)
-				ab.AttackTarget(target, AttackSource.AutoTarget, false, allowMove);
+				ab.AttackTarget(target, source, false, allowMove);
 		}
 
 		public bool HasValidTargetPriority(Actor self, Player owner, BitSet<TargetableType> targetTypes)
 		{
-			if (owner == null || Stance <= UnitStance.HoldFire)
-				return false;
+			return GetTargetPriorityBand(self, owner, targetTypes) > NoTargetPriorityBand;
+		}
 
+		/// <summary>Returned when no enabled AutoTargetPriority matches — lower than any real Priority,
+		/// so an unmatched incumbent always loses the preemption comparison.</summary>
+		public const int NoTargetPriorityBand = int.MinValue;
+
+		/// <summary>The highest AutoTargetPriority band this unit assigns to the given target, or
+		/// <see cref="NoTargetPriorityBand"/> if none matches. Same relationship / ValidTargets / InvalidTargets
+		/// matching HasValidTargetPriority has always done; it just reports the winning Priority instead of a bool.
+		/// Deliberately reads the RAW ati.Priority, exactly like ChooseTarget's chosenTargetPriority — the
+		/// ConditionalPriority suppression promote is excluded from BOTH sides of the preemption comparison,
+		/// so a decaying suppression condition can never make two targets trade places across a band edge.</summary>
+		public int GetTargetPriorityBand(Actor self, Player owner, BitSet<TargetableType> targetTypes)
+		{
+			if (owner == null || Stance <= UnitStance.HoldFire)
+				return NoTargetPriorityBand;
+
+			var relationship = self.Owner.RelationshipWith(owner);
+			var best = NoTargetPriorityBand;
 			foreach (var atp in allTargetPriorities)
 			{
 				if (atp.IsTraitDisabled)
 					continue;
 
-				var ati = atp.Info;
-
-				// Incompatible relationship
-				if (!ati.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(owner)))
-					continue;
-
-				// Incompatible target types
-				if (!ati.OnlyTargets.Except(targetTypes).Any() || !ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
-					continue;
-
-				return true;
+				var band = MatchTargetPriorityBand(atp.Info, relationship, targetTypes);
+				if (band > best)
+					best = band;
 			}
 
-			return false;
+			return best;
+		}
+
+		/// <summary>The band one AutoTargetPriority entry assigns to a target, or
+		/// <see cref="NoTargetPriorityBand"/> if it does not match. Pure, so it can be pinned by unit
+		/// test — see AutoTargetPriorityBandTest.
+		///
+		/// PITFALL: this deliberately does NOT consult OnlyTargets. Until this branch the matcher led
+		/// with `!ati.OnlyTargets.Except(targetTypes).Any()`, but OnlyTargets defaults to an EMPTY
+		/// BitSet and nothing in mods/ ever sets it — and empty.Except(x) is empty, so that term was
+		/// `!false` for every candidate and skipped EVERY priority entry unconditionally. The predicate
+		/// must also stay identical to ChooseTarget's own per-target filter, or an incumbent and a
+		/// candidate get matched by different rules and any band comparison between them is
+		/// meaningless.</summary>
+		public static int MatchTargetPriorityBand(AutoTargetPriorityInfo ati, PlayerRelationship relationship,
+			BitSet<TargetableType> targetTypes)
+		{
+			return MatchesTargetPriority(ati, relationship, targetTypes) ? ati.Priority : NoTargetPriorityBand;
+		}
+
+		/// <summary>THE single per-entry match predicate. Both sides of the preemption band comparison run
+		/// through here — the incumbent via MatchTargetPriorityBand and the candidate via ChooseTarget —
+		/// because they must agree by construction, not by two hand-maintained copies happening to agree.
+		/// A duplicated copy of this test is exactly what shipped the OnlyTargets bug described above.</summary>
+		public static bool MatchesTargetPriority(AutoTargetPriorityInfo ati, PlayerRelationship relationship,
+			BitSet<TargetableType> targetTypes)
+		{
+			// Incompatible relationship
+			if (!ati.ValidRelationships.HasRelationship(relationship))
+				return false;
+
+			// Incompatible target types
+			if (!ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
+				return false;
+
+			return true;
+		}
+
+		/// <summary>Highest band a whole priority set assigns to a target. Test seam for the above.</summary>
+		public static int ResolveTargetPriorityBand(IEnumerable<AutoTargetPriorityInfo> priorities,
+			PlayerRelationship relationship, BitSet<TargetableType> targetTypes)
+		{
+			var best = NoTargetPriorityBand;
+			foreach (var ati in priorities)
+			{
+				var band = MatchTargetPriorityBand(ati, relationship, targetTypes);
+				if (band > best)
+					best = band;
+			}
+
+			return best;
+		}
+
+		/// <summary>Band of a Target, resolving actor vs frozen-actor owner/type lookup.</summary>
+		int GetTargetPriorityBand(Actor self, in Target target)
+		{
+			if (target.Type == TargetType.Actor)
+				return GetTargetPriorityBand(self, target.Actor.Owner, target.Actor.GetEnabledTargetTypes());
+
+			if (target.Type == TargetType.FrozenActor)
+				return GetTargetPriorityBand(self, target.FrozenActor.Owner, target.FrozenActor.TargetTypes);
+
+			return NoTargetPriorityBand;
 		}
 
 		Target ChooseTarget(Actor self, AttackBase ab, PlayerRelationship attackStances, WDist scanRange, bool allowMove, bool allowTurn)
 		{
+			return ChooseTarget(self, ab, attackStances, scanRange, allowMove, allowTurn, out _);
+		}
+
+		/// <summary><paramref name="chosenBand"/> reports the winning target's raw AutoTargetPriority
+		/// (<see cref="NoTargetPriorityBand"/> when nothing was chosen), for target preemption.</summary>
+		Target ChooseTarget(Actor self, AttackBase ab, PlayerRelationship attackStances, WDist scanRange, bool allowMove, bool allowTurn, out int chosenBand)
+		{
 			var chosenTarget = Target.Invalid;
+			chosenBand = NoTargetPriorityBand;
 
 			if (stance <= UnitStance.HoldFire)
 				return chosenTarget;
@@ -1046,7 +1282,6 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			var chosenTargetPriority = 0;
 			var chosenTargetRange = 0;
 			var chosenTargetAverageDamagePercent = 0;
 			var chosenTargetSuppression = 0;
@@ -1084,19 +1319,15 @@ namespace OpenRA.Mods.Common.Traits
 				else
 					continue;
 
+				// Shared with the incumbent's band lookup — see MatchesTargetPriority. The relationship is
+				// hoisted out of the loop: it is a pure function of two owners, neither of which changes
+				// across iterations, so this is the same value computed once instead of once per entry.
+				var targetRelationship = self.Owner.RelationshipWith(owner);
+
 				reusableValidPriorities.Clear();
 				foreach (var ati in reusableActivePriorities)
-				{
-					// Incompatible relationship
-					if (!ati.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(owner)))
-						continue;
-
-					// Incompatible target types
-					if (!ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
-						continue;
-
-					reusableValidPriorities.Add(ati);
-				}
+					if (MatchesTargetPriority(ati, targetRelationship, targetTypes))
+						reusableValidPriorities.Add(ati);
 
 				if (reusableValidPriorities.Count == 0)
 					continue;
@@ -1222,7 +1453,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					chosenTarget = target;
 					chosenTargetValue = priorityValue;
-					chosenTargetPriority = ati.Priority;
+					chosenBand = ati.Priority;
 					chosenTargetRange = targetRange;
 					chosenTargetSuppression = priorityCondition ?? 0;
 					chosenTargetAverageDamagePercent = target.Actor.AverageDamagePercent;

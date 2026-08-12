@@ -47,24 +47,40 @@ namespace OpenRA.Mods.Common.Traits
 		bool opportunityForceAttack;
 		bool opportunityTargetIsPersistentTarget;
 
-		public void SetRequestedTarget(in Target target, bool isForceAttack = false, Activity requestedTargetPreset = null)
+		// Which code path committed us to the current targets. Needed because these targets are handed
+		// back to AutoTarget.ScanForTarget ahead of its own scan (IOverrideAutoTarget), and an
+		// automatic engagement may be replaced by a higher-priority one while a player/Lua/bot order
+		// may NOT. Defaults to Default (= never yield) so any caller that does not say otherwise is
+		// treated as deliberate.
+		AttackSource requestedTargetSource = AttackSource.Default;
+		AttackSource opportunityTargetSource = AttackSource.Default;
+
+		public void SetRequestedTarget(in Target target, bool isForceAttack = false, Activity requestedTargetPreset = null,
+			AttackSource source = AttackSource.Default)
 		{
 			RequestedTarget = target;
 			requestedForceAttack = isForceAttack;
 			requestedTargetPresetForActivity = requestedTargetPreset;
+			requestedTargetSource = source;
 		}
 
 		public void ClearRequestedTarget()
 		{
 			if (Info.PersistentTargeting)
 			{
+				// PITFALL: this does not clear — it PROMOTES. The target the attack activity just
+				// finished with becomes a persistent opportunity target, which TryGetAutoTargetOverride
+				// then hands back to every subsequent AutoTarget scan. Carry the source across or the
+				// promoted target looks deliberate and can never be re-evaluated.
 				OpportunityTarget = RequestedTarget;
 				opportunityForceAttack = requestedForceAttack;
 				opportunityTargetIsPersistentTarget = true;
+				opportunityTargetSource = requestedTargetSource;
 			}
 
 			RequestedTarget = Target.Invalid;
 			requestedTargetPresetForActivity = null;
+			requestedTargetSource = AttackSource.Default;
 		}
 
 		public AttackFollow(Actor self, AttackFollowInfo info)
@@ -105,6 +121,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				RequestedTarget = OpportunityTarget = Target.Invalid;
 				opportunityTargetIsPersistentTarget = false;
+				requestedTargetSource = opportunityTargetSource = AttackSource.Default;
 			}
 
 			if (requestedTargetPresetForActivity != null)
@@ -159,6 +176,7 @@ namespace OpenRA.Mods.Common.Traits
 					OpportunityTarget = autoTarget.ScanForTarget(self, false, false);
 					opportunityForceAttack = false;
 					opportunityTargetIsPersistentTarget = false;
+					opportunityTargetSource = AttackSource.AutoTarget;
 
 					if (OpportunityTarget.IsValidFor(self))
 					{
@@ -193,13 +211,15 @@ namespace OpenRA.Mods.Common.Traits
 			// We can improve responsiveness for turreted actors by preempting
 			// the last order (usually a move) and setting the target immediately
 			if (!queued)
-				SetRequestedTarget(target, forceAttack, activity);
+				SetRequestedTarget(target, forceAttack, activity,
+					(activity as IAttackActivity)?.Source ?? AttackSource.Default);
 		}
 
 		public override void OnStopOrder(Actor self)
 		{
 			RequestedTarget = OpportunityTarget = Target.Invalid;
 			opportunityTargetIsPersistentTarget = false;
+			requestedTargetSource = opportunityTargetSource = AttackSource.Default;
 			base.OnStopOrder(self);
 		}
 
@@ -207,23 +227,31 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			RequestedTarget = OpportunityTarget = Target.Invalid;
 			opportunityTargetIsPersistentTarget = false;
+			requestedTargetSource = opportunityTargetSource = AttackSource.Default;
 		}
 
-		bool IOverrideAutoTarget.TryGetAutoTargetOverride(Actor self, out Target target)
+		bool IOverrideAutoTarget.TryGetAutoTargetOverride(Actor self, out Target target, out bool canYieldToHigherPriority)
 		{
 			if (RequestedTarget.Type != TargetType.Invalid)
 			{
 				target = RequestedTarget;
+				canYieldToHigherPriority = AutoTarget.IsAutoAcquiredSource(requestedTargetSource) && !requestedForceAttack;
 				return true;
 			}
 
-			if (opportunityTargetIsPersistentTarget && OpportunityTarget.Type != TargetType.Invalid)
+			// IsValidFor, not Type != Invalid. Type already rejects a dead, removed or regenerated
+			// actor (Target.cs:91-108), but not one that has become untargetable — cloaked, say. Such
+			// a target would be handed back ahead of the scan and then rejected by AttackTarget's own
+			// IsValidFor, leaving the unit stuck holding a target it cannot act on.
+			if (opportunityTargetIsPersistentTarget && OpportunityTarget.IsValidFor(self))
 			{
 				target = OpportunityTarget;
+				canYieldToHigherPriority = AutoTarget.IsAutoAcquiredSource(opportunityTargetSource) && !opportunityForceAttack;
 				return true;
 			}
 
 			target = Target.Invalid;
+			canYieldToHigherPriority = false;
 			return false;
 		}
 
@@ -327,7 +355,7 @@ namespace OpenRA.Mods.Common.Traits
 					return false;
 
 				target = target.Recalculate(self.Owner, out var targetIsHiddenActor);
-				attack.SetRequestedTarget(target, forceAttack);
+				attack.SetRequestedTarget(target, forceAttack, null, source);
 				hasTicked = true;
 
 				if (!targetIsHiddenActor && target.Type == TargetType.Actor)
