@@ -68,6 +68,11 @@
 
 local DeadlineSeconds = 40
 
+-- ReloadAmmoPool's shipped defaults: Count 1 every Delay 50 ticks. The LC's replenish-soldiers aura
+-- drives it for free, with no docking involved, so it is the mechanism that can forge a green here.
+local TrickleRoundsPerDelay = 1
+local TrickleDelayTicks = 50
+
 local elapsed = 0
 local subjects = {}
 
@@ -96,6 +101,32 @@ local function track(name, actor, depot, pool, batch)
 
 	subjects[#subjects + 1] = s
 	return s
+end
+
+-- THE GUARD THAT MAKES "ended full" MEAN "a dock rearm happened".
+--
+-- Every subject must start far enough short that the proximity trickle CANNOT close the gap inside
+-- the deadline. Raise a subject's InitialAmmo in rules.yaml past that line and this scenario keeps
+-- passing while measuring nothing — the trickle alone would fill the pool and the dock rearm could
+-- be completely broken. That is not left to a comment for someone to notice: this returns a SETUP
+-- failure naming the subject and the numbers, so the run goes red at once rather than green for the
+-- wrong reason.
+local function checkTrickleCannotForgeAPass()
+	local deadlineTicks = math.floor(DeadlineSeconds * TestHarness.TicksPerSecond)
+	local trickleCeiling = math.floor(deadlineTicks / TrickleDelayTicks) * TrickleRoundsPerDelay
+
+	for _, s in ipairs(subjects) do
+		local missing = s.Full - s.Start
+		if missing <= trickleCeiling then
+			return "fail: SETUP -- " .. s.Name .. " starts only " .. missing
+				.. " rounds short, but the free ReloadAmmoPool trickle can deliver " .. trickleCeiling
+				.. " within the " .. DeadlineSeconds .. "s deadline. It could reach full without ever "
+				.. "docking, so this run could not tell a working dock rearm from a broken one. "
+				.. "Lower InitialAmmo in rules.yaml (two batches short is the intent)."
+		end
+	end
+
+	return nil
 end
 
 local function poll(s, tick)
@@ -131,16 +162,20 @@ end
 local function report(s)
 	local ammo = s.Actor.AmmoCount(s.Pool)
 
+	-- Describes WHERE the unit stood, never whether that ought to work. Saying "the gate can never
+	-- pass" here was true of the code this scenario was written against and became a lie the moment
+	-- the offset subcell started docking — a verdict line that argues with its own result is worse
+	-- than one that just reports.
 	local where
 	if s.ClosestCells > 0 then
 		where = "NEVER reached the depot centre cell (closest " .. s.ClosestCells
 			.. " cells) -- an APPROACH failure, not an arrival-gate failure"
 	elseif s.ClosestDx == 0 and s.ClosestDy == 0 then
-		where = "stood on the depot centre cell at offset (0,0) from the building centre, so the "
-			.. "WDist.Zero gate WAS satisfiable"
+		where = "stood on the depot centre cell holding the ZERO-offset subcell"
 	else
-		where = "stood on the depot centre cell but at offset (" .. s.ClosestDx .. ","
-			.. s.ClosestDy .. ") from the building centre, so the WDist.Zero gate can NEVER pass"
+		where = "stood on the depot centre cell holding a NON-CENTRE subcell, offset ("
+			.. s.ClosestDx .. "," .. s.ClosestDy .. ") from the building centre -- the case that "
+			.. "could not dock at all before the subcell-offset fix"
 	end
 
 	local how
@@ -198,7 +233,11 @@ WorldLoaded = function()
 	Test.IssueResupply(PairA)
 	Test.IssueResupply(PairB)
 
+	local staging = checkTrickleCannotForgeAPass()
+
 	TestHarness.AssertWithin(DeadlineSeconds, function()
+		if staging ~= nil then return staging end
+
 		if Bradley.IsDead or Rifleman.IsDead or PairA.IsDead or PairB.IsDead then
 			return "fail: SETUP -- a subject died"
 		end

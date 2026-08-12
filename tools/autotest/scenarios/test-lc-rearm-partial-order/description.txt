@@ -1,1 +1,1 @@
-Auto, EXPECTED RED: two soldiers sent to one Logistics Centre — the second one can never dock, because Resupply's arrival gate is WDist.Zero and he is standing on a different subcell. Bradley and the lone rifleman pass. Unfixed on purpose; see WORKSPACE/bugs/discovered.md 2026-08-12.
+Auto: four units given the player's explicit RESUPPLY order at a Logistics Centre must all dock, fill in batches, and finish. PairA holds a non-centre subcell — the case that could not dock before the subcell-offset fix in Resupply.

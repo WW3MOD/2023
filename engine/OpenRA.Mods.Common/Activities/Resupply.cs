@@ -33,6 +33,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly ICallForTransport[] transportCallers;
 		readonly IMove move;
 		readonly Aircraft aircraft;
+		readonly Mobile mobile;
 		readonly IMoveInfo moveInfo;
 		readonly bool stayOnResupplier;
 		readonly bool wasRepaired;
@@ -88,6 +89,7 @@ namespace OpenRA.Mods.Common.Activities
 			transportCallers = self.TraitsImplementing<ICallForTransport>().ToArray();
 			move = self.Trait<IMove>();
 			aircraft = move as Aircraft;
+			mobile = move as Mobile;
 			moveInfo = self.Info.TraitInfo<IMoveInfo>();
 			playerResources = self.Owner.PlayerActor.Trait<PlayerResources>();
 			moveCooldownHelper = new MoveCooldownHelper(self.World, move as Mobile) { RetryIfDestinationBlocked = true };
@@ -161,7 +163,36 @@ namespace OpenRA.Mods.Common.Activities
 				else if (repairableNear != null)
 					isCloseEnough = host.IsInRange(self.CenterPosition, closeEnough);
 				else
-					isCloseEnough = (host.CenterPosition - self.CenterPosition).HorizontalLengthSquared <= closeEnough.LengthSquared;
+				{
+					// PITFALL: measure a ground unit's arrival from its CELL, not from its body. A
+					// cell-sharing unit's CenterPosition carries a MapGrid.SubCellOffsets entry it
+					// neither chose nor can shed — up to ~393 units — while closeEnough is
+					// WDist.Zero for any host that has no RearmsUnits trait to read a CloseEnough
+					// off (AmmoPool.cs:374), which is every ground rearm host in this mod. Only the
+					// holder of the zero-offset subcell could ever satisfy that, and two soldiers
+					// cannot both hold it on one cell: whichever reached the depot second used to
+					// stand there forever, re-queueing a no-op approach every tick while the pool
+					// he came for filled from the host's proximity aura instead.
+					//
+					// Subtracting the offset is a NO-OP for full-cell units (SubCellOffsets[0] is
+					// zero, so every vehicle is unchanged) and for any caller whose tolerance
+					// already exceeds the subcell reach (Repairable and LayMines both pass 512). It
+					// changes behaviour only where the tolerance is smaller than a subcell offset.
+					// Aircraft are untouched twice over: they are not Mobile, and the approach test
+					// below excludes them anyway.
+					//
+					// Deliberately NOT widened to the host's footprint. That would also paper over
+					// an EVEN-dimensioned host, whose CenterPosition is a cell CORNER
+					// (BuildingInfo.CenterOffset) that no unit can stand on — so a zero tolerance is
+					// unsatisfiable there for vehicles too. No ground rearm host is even-sized
+					// today; if one is ever added, that is a separate defect and wants its own fix
+					// rather than being hidden by a loose arrival test here.
+					var selfPos = self.CenterPosition;
+					if (mobile != null)
+						selfPos -= self.World.Map.Grid.OffsetOfSubCell(mobile.ToSubCell);
+
+					isCloseEnough = (host.CenterPosition - selfPos).HorizontalLengthSquared <= closeEnough.LengthSquared;
+				}
 			}
 
 			// This ensures transports are also cancelled when the host becomes invalid
