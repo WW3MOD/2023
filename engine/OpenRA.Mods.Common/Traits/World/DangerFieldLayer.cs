@@ -31,8 +31,8 @@
  * ProjectTerritoryBaseline is present and called but intentionally empty here.
  *
  * DETERMINISM / FOG: contacts already come fog-legal and synced from the belief store;
- * kernel math is pure integer; stamping is additive so order does not matter. No
- * LocalRandom, never reads RenderPlayer. SharedRandom only staggers the first tick.
+ * kernel math is pure integer; stamping is additive so order does not matter. No LocalRandom,
+ * never reads RenderPlayer, and ZERO RNG — the first-tick stagger is a fixed UpdateInterval/3.
  *
  * INERT IN STAGE B: pure data. NOTHING consumes these fields for behaviour — the
  * @experimental strategy layer and the human overlay (Stages C+) will. Control bots

@@ -25,8 +25,8 @@
  * their FrozenActorLayer (fog-correct last-seen snapshots). A human and a bot with
  * the same vision get identical beliefs; no cheating, by construction.
  *
- * DETERMINISM: pure integer confidence math, keyed by synced ActorID; no LocalRandom,
- * never reads RenderPlayer/LocalPlayer. SharedRandom only staggers the first tick.
+ * DETERMINISM: pure integer confidence math, keyed by synced ActorID; no LocalRandom, never
+ * reads RenderPlayer/LocalPlayer, and ZERO RNG — the first-tick stagger is a fixed offset of 0.
  * Upserts are last-write-same-value and removals are set-based, so iteration order
  * over actors / frozen actors does not affect the stored result.
  *
