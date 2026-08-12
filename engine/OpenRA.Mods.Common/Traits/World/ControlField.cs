@@ -28,7 +28,7 @@
  *
  * DETERMINISM / FOG: pure integer math; enemy evidence comes only from the fog-legal belief store;
  * own units are always legally known; home/anchor positions are public map facts. Never reads
- * LocalRandom or RenderPlayer — SharedRandom only staggers the first tick.
+ * LocalRandom or RenderPlayer, and ZERO RNG — the first-tick stagger is a fixed UpdateInterval/2 + 1.
  *
  * PERF (§6): coarse grid (InfluenceMap granularity) + round-robin per-player recompute via
  * InfluenceStack — one participant per sub-slot, never the whole map on one tick.
