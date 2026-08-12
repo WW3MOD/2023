@@ -35,7 +35,25 @@ The game can be launched into a small, deterministic scenario; the verdict (pass
 
 **Window placement & focus.** Default: **centered, ~90% × ~85%, background, muted**. "Background" means the window is visible at full size but immediately defocused so your terminal/editor keeps focus. Cmd+Tab to OpenRA brings the window forward when you want to look at it. After the game exits, focus is restored to whatever app was frontmost at launch — no random focus shuffle. If the user includes `L`, `R`, or `F` in the trigger ("AUTOTEST L", "AUTOTEST <bug> R"), pass that letter through as the first positional arg to `run-test.sh`. `L`=left half, `R`=right half, `F`=fullscreen. Pass `--minimized` to opt back into the old SDL miniaturize behavior.
 
-Exit codes: `0` pass, `1` fail, `2` skip, `3` error/no-result.
+Exit codes: `0` pass, `1` fail, `2` skip, `3` error/crash/no-result.
+
+**Read the verdict from the banner, not just the exit code.** Every run ends with a line
+
+```
+AUTOTEST_VERDICT outcome=<OUTCOME> exit=<n> test=<name> run=<run-id>
+```
+
+where OUTCOME is one of `PASS`, `FAIL`, `SKIP`, `TIMEOUT-FAIL`, `CRASH`, `NO-RESULT`, `BAD-VERDICT`, `INTERRUPTED`, `HARNESS-ERROR`. It distinguishes what the exit code collapses: `CRASH` (the game threw — the exception log is named, and a crash is sometimes the *finding*, as when a sync guard fires) vs `NO-RESULT` (hung or closed by hand) vs `HARNESS-ERROR`; and `TIMEOUT-FAIL` (never answered) vs `FAIL` (answered no).
+
+**PITFALL: `run-test.sh <test> | tail` reports `tail`'s exit status, so a FAIL arrives as exit 0.** This has inverted a result twice. The harness defends what it can — the verdict line is last, so a tail-truncating filter still shows it, and non-PASS is also written to stderr whenever stdout is redirected — but the exit code itself is the **caller's** to preserve:
+
+```bash
+./tools/autotest/run-test.sh <test>; rc=$?      # capture first, filter after
+```
+
+**Results are per-run.** Each invocation writes to `~/.ww3mod-tests/screenshots/<timestamp>_p<pid>_<test>/result.json` — printed as `Run dir:` at the top of the run — alongside that run's screenshots and lifecycle log. Two runners cannot share a destination.
+
+`./tools/autotest/selftest.sh` proves all of the above without launching a game (~1 min). Run it after touching `run-test.sh`.
 
 ## The loop (what I run when you trigger AUTOTEST)
 
@@ -161,7 +179,7 @@ These bit during development. Documenting so they don't bite again.
 3. **`Activity.IsCanceling` is false in `OnLastRun`**. The framework sets `State = Done` *before* calling OnLastRun, so the cancel flag is already cleared. To detect "ended because something replaced me", check `NextActivity is X` instead.
 4. **Window placement**: default is centered + background (visible but defocused) + muted. Use the L/R/F shorthand for side-docked layouts (`./tools/autotest/run-test.sh L <test>`). `--visible` keeps it foreground; `--audio` keeps sound on; `--minimized` opts back into the old SDL miniaturize behavior (which on macOS can only be restored via the dock icon next to Trash, not Cmd+Tab).
 5. **Lua force-attack vs UI force-attack** are *not* always equivalent paths. `Paladin.Attack(t90, ..., forceAttack=false)` hard-codes `queued: true` (existing OpenRA API quirk); `Paladin.AttackGround(...)` defaults `queued: false` to mimic Ctrl+click replace.
-6. **`Result.json` is sticky**. Always `rm -f $HOME/.ww3mod-tests/result.json` before a run, or wait for the runner to do it. Otherwise an old verdict can be misread.
+6. **Never read `$HOME/.ww3mod-tests/result.json`** — and never `rm -f` it, which the old advice here told you to do. It was a single shared path, and that destroyed or misreported a verdict three times in two days: one run's `rm -f` deleted a verdict another run had already earned, and a run that read it got a stranger's result. It is now overwritten with a `"status":"moved"` stub that cannot be mistaken for a verdict. Read the per-run `result.json` the runner prints as `Run dir:` instead.
 7. **PITFALL: do not silence the unit-under-test with `Stance = "HoldFire"`** — silence the ENEMY instead (enemy on `HoldFire`, plus `Targetable: TargetTypes: NoAutoTarget` on the enemy in the scenario's `rules.yaml`, so your unit never acquires it and never leaves idle). Fire stance is not inert setup: `StancePositioningExecutor` opts out entirely below `FireAtWill` (`StancePositioningExecutor.cs:318`), so the convenient "no shots ⇒ no suppression, no chase" trick can switch off the very trait you are testing. This silently killed three stance scenarios for six weeks (2026-08-11 in `WORKSPACE/DISCOVERIES.md`); `StancePositioningFireStanceTest` now fails the build if a `test-stance-*` scenario does it. **Generally: before using a unit property as setup convenience, check that no gate reads it.**
 
 ## Engine integration points
@@ -180,6 +198,7 @@ For when you need to extend the harness (not just use it):
 | `mods/ww3mod/chrome/ingame-testmode.yaml` | Panel layout |
 | `mods/ww3mod/scripts/test-helpers.lua` | Reusable Lua helpers |
 | `tools/autotest/run-test.sh` | Single-test runner |
+| `tools/autotest/selftest.sh` | Self-test of run-test.sh's result reporting (no game launched) |
 | `tools/autotest/run-batch.sh` | Batch runner |
 | `tools/autotest/list-tests.sh` | Discovery |
 

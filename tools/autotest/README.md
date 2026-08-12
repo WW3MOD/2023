@@ -36,3 +36,7 @@ The conventional contract: `test-*` folders emit a JSON verdict via `Test.Pass`/
 ## Result files
 
 Runtime JSON verdicts land in `~/.ww3mod-tests/` — HOME-rooted because the engine needs a writable path regardless of where this repo lives. Not part of this folder.
+
+Each run gets its OWN directory, `~/.ww3mod-tests/screenshots/<timestamp>_p<pid>_<test>/`, holding that run's `result.json`, screenshots and lifecycle log. `run-test.sh` prints it as `Run dir:`. The old shared `~/.ww3mod-tests/result.json` is no longer a verdict — it is stubbed with `"status":"moved"` so anything still reading it fails loudly rather than silently reporting another run's result.
+
+`./selftest.sh` checks that every way a run can end (pass, fail, crash, hang, no result, unparseable verdict, harness error) is reported as a distinct named outcome with the right exit code. It stubs the launcher and sandboxes `HOME`, so it starts no game and cannot disturb a run in flight.

@@ -3,6 +3,18 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-12: [medium] OPEN — the autotest single-instance lock covers `run-test.sh` only; `run-tournament.sh` and `loop-tournament.sh` ignore it entirely (found while: making `run-test.sh` incapable of losing a verdict, branch `wt/harness`)
+
+`run-test.sh` acquires `~/.ww3mod-tests/run.lock` before launching. Neither tournament script contains any reference to it — grepping `run.lock` under `tools/` returns hits in `run-test.sh` and `selftest.sh` and nowhere else. So a tournament and a single test can run **two games at once**, and the lock's other job — serialising access to the one engine support directory — is not done for them.
+
+**Verdicts themselves are no longer at risk from this.** `run-tournament.sh` already writes per-match files under `tools/autotest/tournament-results/<ts>_<scenario>/match_N.json` (`run-tournament.sh:262`), and `run-test.sh` is per-run as of this branch, so there is no shared verdict destination left for them to fight over. What is still shared and unprotected:
+
+- **`debug.log` / `exception-*.log` / `syncreport-*.log`.** One support dir, both games writing into it. `run-test.sh` attributes a crash log to a run purely by its mtime being newer than that run's marker, so a concurrent tournament match that crashes would be reported as the single test's crash. A misattribution, not a lost verdict — but it points the reader at the wrong build.
+- **`settings.yaml`.** The two scripts back it up to different paths, so they do not clobber each other's backup, but they both restore onto the same live file; interleaved runs can restore a stale copy.
+- **The machine.** Two OpenRA instances competing for screen, focus and GPU.
+
+**Not fixed here** — out of scope for the verdict-integrity work, and the right fix is not obvious: a 30-minute tournament holding a lock that blocks every single test is not clearly the behaviour anyone wants. Filed so the choice is made deliberately rather than by omission.
+
 ## 2026-08-12: [medium] UNTRIAGED — `halo` consumes four crash/autorotation conditions the lint says nothing grants, and `rotor-stopped` genuinely has no grantor anywhere in the mod (found while: establishing the post-`2fedd71b` `make test` baseline, branch `wt/lint-clear`, off `4d3c8f90`)
 
 `make test` reports, three times in one run: ``Error: Actor type `halo` consumes conditions that are not granted: crash-disabled, autorotation, crash-landing, rotor-stopped.``
