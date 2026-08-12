@@ -1738,7 +1738,13 @@ namespace OpenRA.Mods.Common.Traits
 		// the evac (the recruit-cancels-evac hazard PoiOffensive guards against for out-of-ammo ground units).
 		void Evacuate(Actor h)
 		{
-			h.QueueActivity(false, new RotateToEdge(h, true, h.GetSellValue()));
+			// Order, not a direct activity write. Bot logic runs on the HOST ONLY (Player.cs:224-232), so
+			// touching the activity queue here mutates synced state on one client and no other. This site is
+			// reachable on BOTH profiles — HeliEmploymentMath.Decide's spent-and-cannot-rearm branch is
+			// ungated — so unlike the PoiOffensive sweeps it exposed @stable too. "Evacuate" is resolved by
+			// DeliversCash@Rotation (aircraft.yaml) into the same activity with the same GetSellValue()
+			// refund; unqueued, so it still cancels whatever the heli was doing.
+			bot.QueueOrder(new Order("Evacuate", h, false));
 
 			// Mark evacuating BEFORE dropping from management: FindNewHelicopters / IsReadyForMission both
 			// exclude this set, so the heli can never be re-adopted or recruited while flying its evac (the

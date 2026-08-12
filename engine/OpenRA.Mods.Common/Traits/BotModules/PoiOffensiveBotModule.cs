@@ -1215,12 +1215,12 @@ namespace OpenRA.Mods.Common.Traits
 			// 1a. Wave A: give every DRY vehicle of ours a disposition (rearm host, or terminal evac). Runs after
 			//     PruneAxes released them from their axes and BEFORE BuildFreePool, so a unit sent to evac this eval
 			//     is excluded from the free pool rather than being recruited straight back out of its evac.
-			SweepOutOfAmmoUnits(tick);
+			SweepOutOfAmmoUnits(bot, tick);
 
 			// 1b. Item 36: same slot, same reason — dispose of ejected crew before the free pool is built. Ordered
 			//     after the ammo sweep only for readability; the two candidate sets are disjoint (crew are infantry,
 			//     that sweep takes vehicles only) so neither can see the other's work.
-			SweepEjectedCrew(tick);
+			SweepEjectedCrew(bot, tick);
 
 			// Bound the cohesion-tracking map to living units so it can't leak across a game.
 			if (lastCohesion.Count > 0)
@@ -2493,7 +2493,7 @@ namespace OpenRA.Mods.Common.Traits
 		// Per-unit dispositions are independent of one another, so world.Actors' enumeration order cannot change any
 		// outcome (the determinism invariant); the decision itself is the pure AmmoEvacMath.Decide, zero RNG.
 		// Skipped wholesale when the flag is off ⇒ byte-identical for @stable / normal / human.
-		void SweepOutOfAmmoUnits(int tick)
+		void SweepOutOfAmmoUnits(IBot bot, int tick)
 		{
 			if (!Info.EvacuateOutOfAmmoUnits)
 				return;
@@ -2539,7 +2539,7 @@ namespace OpenRA.Mods.Common.Traits
 						break;
 
 					case AmmoEvacAction.Evacuate:
-						banked += EvacuateOutOfAmmoUnit(unit);
+						banked += EvacuateOutOfAmmoUnit(bot, unit);
 						evacuated++;
 						break;
 				}
@@ -2557,14 +2557,14 @@ namespace OpenRA.Mods.Common.Traits
 		// leaving, so holding an offense commitment would strand the objective.
 		// Returns the cash this evac is expected to bank (for the sweep's log line) — the activity pays the refund
 		// itself; AmmoEvacMath.EvacRefund just reproduces its arithmetic so the decision is observable in the log.
-		int EvacuateOutOfAmmoUnit(Actor unit)
+		int EvacuateOutOfAmmoUnit(IBot bot, Actor unit)
 		{
 			var sellValue = unit.GetSellValue();
 			var health = unit.TraitOrDefault<IHealth>();
 			var refund = AmmoEvacMath.EvacRefund(sellValue, health?.HP ?? 0, health?.MaxHP ?? 0);
 
-			unit.QueueActivity(false, new RotateToEdge(unit, true, sellValue));
-			unit.ShowTargetLines();
+			// Order, not a direct activity write — same host-only-mutation defect as the crew sweep below.
+			bot.QueueOrder(new Order("Evacuate", unit, false));
 
 			// Marked BEFORE the management drop: IsEligibleCombatUnit excludes this set, so the unit can never be
 			// re-recruited or re-staged while flying its evac.
@@ -2635,7 +2635,7 @@ namespace OpenRA.Mods.Common.Traits
 		//
 		// Runs from the same place and under the same rules as SweepOutOfAmmoUnits: BEFORE the free pool is built,
 		// with per-unit independent dispositions, so world.Actors' enumeration order cannot change any outcome.
-		void SweepEjectedCrew(int tick)
+		void SweepEjectedCrew(IBot bot, int tick)
 		{
 			if (!Info.EvacuateEjectedCrew)
 				return;
@@ -2649,8 +2649,14 @@ namespace OpenRA.Mods.Common.Traits
 				var health = crew.TraitOrDefault<IHealth>();
 				banked += AmmoEvacMath.EvacRefund(sellValue, health?.HP ?? 0, health?.MaxHP ?? 0);
 
-				crew.QueueActivity(false, new RotateToEdge(crew, true, sellValue));
-				crew.ShowTargetLines();
+				// ISSUE AN ORDER, NEVER TOUCH THE ACTIVITY QUEUE DIRECTLY. Bot logic runs on the HOST ONLY
+				// (Player.cs:224-232), so a direct QueueActivity here mutates synced state on one client and
+				// no other — a desync in any game with a bot, and the cause of the saved-game restore failure
+				// (the mutation is not an order, so GameSave never records it and the replay never performs
+				// it). "Evacuate" is resolved by DeliversCash@Rotation, which every ^Infantry carries, into
+				// exactly this activity with the same GetSellValue() refund; unqueued, so it still cancels
+				// the crew's in-flight ejection move as before. ShowTargetLines is done by the resolver.
+				bot.QueueOrder(new Order("Evacuate", crew, false));
 
 				// Same management drop as the out-of-ammo path: a crew member should never have held an axis slot or
 				// a ledger claim (IsEligibleCombatUnit excludes them), but releasing is cheap and this is what stops
