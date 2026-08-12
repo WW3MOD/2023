@@ -265,6 +265,190 @@ Reported: a 3-bot skirmish where the user destroyed one bot's Supply Route and w
   - **Contesting a NEUTRAL-owned Supply Route.** `OnDefeatBarFull` guards on `WinState` (`:356-357`) but **not** on `NonCombatant`, so contesting a neutral SR to zero appears to reach `ResolveTeamElimination` → `AwardDecidedSurvivors` with a `NonCombatant` owner. Old and new code behave identically here (the `SameTeam` conversion changes nothing on this path), so it is strictly pre-existing — but neutral SR capture is a live mechanic (a defeated player donates their SR via `OwnerLostAction: ChangeOwner`), and whether this can award a premature victory is **unverified**. Worth a dedicated look.
   - **A new sharp edge the mask conversion introduces.** A map author writing `Spectating: true` on a player that is `Playable` and not `NonCombatant` would now report `(Allied=false, State=Undefined)` from `OtherCombatants` and thereby **block every victory award forever**, where the old `IsAlliedWith` waved such a player through via the Spectating short-circuit. Zero such players exist in `mods/ww3mod/` today (grep: no `Spectating` in the mod at all), so this is latent, not live — but it is a real trap for future map/scenario authors and the failure mode (game never ends) is silent.
 
+## 2026-08-10 — `EstimatePercentDamage` IGNORES WARHEAD `ValidTargets` WHILE THE REAL DAMAGE PATH ENFORCES IT, so a weapon's claim can count damage it could never deal
+
+Found by reading while building `test-aa-overkill-cadence`. `EstimatePercentDamage` sums `arm.Weapon.Warheads.OfType<DamageWarhead>()` and applies armour thickness and the `Versus` table (`AutoTarget.cs:1293-1321`) — but it never checks the warhead's `ValidTargets`. The live damage path does: `DamageWarhead.DoImpact` returns early on `!IsValidAgainst(victim, firedBy)` (`:74`), which chains to the base `Warhead` target-type check.
+
+- **Consequence: any weapon carrying damage warheads for more than one target class overstates its claim against every class.** A weapon with an anti-air warhead and an anti-ground warhead marks an aircraft with the sum of both, though only one can ever land. The mark is `totalDamage * 100 / MaxHP`, so the overstatement feeds straight into overkill suppression.
+- **MANPAD itself is NOT affected, and its 500 figure is exact rather than low — this settles a caveat flagged earlier in the series.** Its only `DamageWarhead` is `Warhead@Spread` (3000); the inherited `^MediumExplosionEffectsAir` adds only a `CreateEffect` warhead (`weapons-effects.yaml:702-709`), which is not a `DamageWarhead`. **But weapons inheriting `^LargeExplosionEffectsAir` / `^HugeExplosionEffectsAir` DO gain a second damage warhead** (`Warhead@Target: TargetDamage`, `:713` / `:723`) and are worth auditing.
+- **Roster audit — the defect is LATENT, not currently active, but the shape that would trigger it is one weapon away.** 23 weapon families carry two or more damage warheads (`^30mm`, `^TankRound`, `^ArtilleryRound`, `ATGM`, `WGM`, `Hellfire`, `Ataka`, `RPG`, `GrenadeLauncher`, the rocket-artillery family, the nuke family, …), but the ones sampled do not partition by target class in a way that over-counts: `^30mm`'s `Warhead@Target` + `Warhead@Spread` carry no `ValidTargets` restriction at all, so both legitimately apply on a direct hit, and `^MinimalExplosionEffectsAir` restricts **both** damage warheads to `Air` (`weapons-effects.yaml:677-681`), so both apply to an air target and neither to a ground one. `^LargeExplosionEffectsAir` / `^HugeExplosionEffectsAir` *do* add an `Air`-only `TargetDamage` (`:713`, `:723`) but **no weapon inherits them**. This is a sample, not an exhaustive check of all 23 — the audit worth doing is "does any weapon carry one damage warhead restricted to a class it can also engage by another".
+- It is also the only lever that can separate the mark from the damage, which is what makes a cadence measurement possible at all (see below).
+
+## 2026-08-11 — ORDINARY FIRING DOES NOT RE-MARK, so overkill suppression is bounded per commitment — but a BATTERY SERIALISES, engaging one unit every ~11 seconds instead of together
+
+`test-aa-overkill-cadence` (seed -484693258). Four AA, one hostile helicopter, nobody ordered and no scripted marking anywhere. Measured:
+
+| unit | first shot | gap from previous | shots |
+|---|---|---|---|
+| AA3 | t37 | — | 8 |
+| AA1 | t200 | 163 | 7 |
+| AA2 | t386 | 186 | 6 |
+| AA4 | t571 | 185 | 5 |
+
+- **The pump does not occur through opportunity fire.** AA3 fired eight times at a strict 200-tick cadence (`= BurstWait`) and the other three still joined on schedule; had each shot re-applied its 503-point claim, none of them could ever have engaged. **The mark is applied once per COMMITMENT, not once per shot**, so the `AttackFollow.Tick` re-mark path (`:156-172`) does not fire on the reload cycle. The frequency risk flagged earlier is answered NO.
+- **But each new joiner re-loads the mark, so the battery engages SERIALLY.** The ~185-tick spacing is three halvings of a fresh ~503 mark. Four AA took **571 ticks — about 34 real seconds — to all engage one helicopter**, trickling in one at a time. That is a worse player-facing shape than the single-commitment 10 s figure suggests, and it is the mechanism behind "my AA battery isn't shooting".
+- **Read the tell before the result.** A valid run shows the target surviving AND exactly one unit firing early. The previous run of this scenario was void and showed two units firing simultaneously at t34 with a third at t79 — the signature of a mark that was never applied.
+- **What this run is NOT.** A fight this long only exists because the scenario deliberately breaks the coupling between mark and damage (see `weapons.yaml`). With a stock MANPAD the first missile kills a 600-HP helicopter and no second unit is needed. So the serialisation is what happens specifically **when the claim exceeds the damage actually dealt** — the miss case, and the `ValidTargets` over-count defect. It is not a claim about a fight where every shot lands.
+
+## 2026-08-10 — THE OVERKILL MARK AND THE DAMAGE ARE THE SAME NUMBER, which bounds the bug by itself: a group that suppresses also kills within one burst cycle
+
+**Reconstructed from code, NOT measured** — the run that would have measured it was consumed by the harness pitfall below.
+
+`EstimatePercentDamage` is the fraction of the target's health the committed shot will remove, and the weapon then removes it. For a homogeneous group, marking >= 100% of a target's health means dealing >= 100% of it within one burst cycle, so the target dies before a second cycle can begin. Formally: suppressing needs `K * 3000 >= MaxHP`, surviving `C` cycles needs `MaxHP > 3000 * K * C`, and together those require `C < 1`. **Sustained re-marking against a still-living target therefore cannot arise from a group that is landing its shots.**
+
+**STATE THE ASSUMPTIONS, because this is exactly the shape of argument the knowledge-bank audit keeps finding false versions of.** The conclusion holds only where all four are true:
+
+1. **Homogeneous group** — every attacker's claim equals its own damage. A mixed group breaks it: one high-damage unit can mark 500 while the units actually shooting contribute little damage.
+2. **Shots land.** `Inaccuracy: 256` against a manoeuvring target voids it directly.
+3. **Claim == damage dealt.** Violated by the `ValidTargets` over-count defect above, and by any armour/`Versus` asymmetry between the estimate and the live path.
+4. **`MaxHP` constant** — no healing, repair or regeneration on the target.
+
+**What would falsify it:** any observation of a group that suppresses each other while the target survives past one burst cycle. Note that `test-aa-overkill-cadence` is itself such an observation — it deliberately violates assumption 3 to make a multi-cycle fight possible at all, and then measures exactly the serialisation the argument says cannot happen when the assumption holds. So the argument is not refuted by that run, but neither is it independently confirmed by it; the run tests the violated-assumption regime, which is precisely the miss case and the over-count case.
+
+- **Severity bound as it now stands, with each part labelled:** ~10 s **measured** for a single commitment (`test-aa-overkill-suppression`); ~34 s **measured** for a four-unit battery to fully engage once the claim exceeds the damage (`test-aa-overkill-cadence`); demonstrably unbounded **measured** when externally fed (`test-aa-overkill-pump`); and **reconstructed** that a group landing its shots cannot feed it, because the target dies first.
+
+## 2026-08-10 — HARNESS PITFALL: overriding a warhead REPLACES the node, so every omitted field reverts to the ENGINE default — and the resulting run passes cleanly while measuring nothing
+
+Voided a run that completed and reported `pass`. `test-aa-overkill-cadence` overrode MANPAD's `Warhead@Spread` to lower its damage, restating only `Damage` and leaving `Penetration: 15` off. The override did not merge with the mod's warhead: `Penetration` fell back to the engine default of **1** (`DamageWarhead.cs:24`), and against the Halo's `Thickness: 10` the `penetration < thickness` branch — present identically in `EstimatePercentDamage` (`AutoTarget.cs:1304-1309`) and in the live damage path — scaled *both* by 1/10.
+
+- **The failure is silent and the result is plausible.** The intended mark of 508 became 50, below the `OverkillThreshold` of 100, so suppression never switched on; all four AA fired and the run read exactly like "re-marking does not sustain suppression". It actually meant "nothing was ever suppressed".
+- **Two observables identified it, and neither is explained by the intended setup:** the helicopter survived 15 hits (5 damage each = 75 against 600 HP, where the intended 50 each would have killed it at 750), and the third AA joined at t79 when a mark of ~1000 would have needed roughly 240 ticks to decay under the threshold.
+- **Rule: when overriding a warhead, restate every field the consumer reads — `Damage`, `Penetration`, and any `Versus` table.** More generally, an override that silently inherits engine defaults rather than mod values is the same class of trap as the vacuous setup guard recorded above: the scenario keeps running and returns a confident number about a world that was never built. Prefer a control arm whose behaviour differs only if the manipulation took.
+
+## 2026-08-10 — HARNESS PITFALL: a weapon override placed in a map's `Rules:` file fails as "Cannot locate type: WarheadInfo" and hangs the runner to its 300s timeout
+
+Map weapon overrides belong in the file named by `Weapons:` in `map.yaml`, not `Rules:` (see `demo-ifv-brawl` and `test-wgm-target-dies-midflight` for the shape). Put a weapon block in the rules file and the loader reads the weapon name as an ACTOR and its `Warhead@...` children as traits, producing an error naming neither the file nor the weapon:
+
+```
+Failed to load rules for TEST: ... with error
+One or more errors occurred. (Cannot locate type: WarheadInfo)
+```
+
+The game then never reaches the Lua, no verdict is written, and `run-test.sh` reports a 300-second timeout rather than a rules error — the rules failure is visible only in `debug.log`. **Check `debug.log` for "Failed to load rules" before treating a hang as a hang.** When overriding an existing warhead, repeat its type (`Warhead@Spread: SpreadDamage`) rather than relying on MiniYaml to carry the parent node's value across.
+
+## 2026-08-10 — ONE AA COMMITTING TO AN AIRCRAFT BLINDS EVERY OTHER AA TO IT FOR ~10 SECONDS, the target is perfectly healthy, and a plain left-click fires at it the whole time
+
+`test-aa-overkill-suppression`. One marker AA, one observer AA and one stock-HP Halo per lane; a third lane with no marker at all as the latency baseline. Measured (seed 1829504673):
+
+| lane | first shot | moved | vs control |
+|---|---|---|---|
+| C control (unmarked) | t34 | no | — |
+| B marked, plain left-click at t20 | t38 | no | **168 ticks earlier** |
+| A marked, never ordered | **t206** | no | **172 ticks later** |
+
+- **The overkill mark is oversized against aircraft by a factor of five, from a single shooter.** `EstimatePercentDamage = totalDamage * 100 / MaxHP` (`AutoTarget.cs:1321`). MANPAD deals 3000 with Penetration 15 against the Halo's Light/Thickness 10 — penetration >= thickness so no reduction (`:1304-1309`), and the warhead carries no `Versus` table — so one AA committing to a stock 600-HP Halo marks it **500** against an `OverkillThreshold` of 100 (`:203`). Decay is a halving every 60 ticks (`Actor.cs:309-310`), so 500 → 250 → 125 → 62 needs three halvings to clear. Measured suppression: **172 ticks ≈ 10 real seconds** at the mod's 60 ms timestep.
+- **Killing the committing unit does NOT release the mark.** MarkerA was killed at t40; ObserverA still did not fire until t206. `AverageDamagePercent` is a plain accumulator on the TARGET with no owner and no release path — `MarkForDestruction` only ever adds (`Actor.cs:85-88`) — so an attacker dying, being retargeted, having its own target die, or entering a transport cannot strand it and cannot clear it either. **There is no leak to hunt: the value is self-clearing by construction, and equally self-clearing is the only way it clears.**
+- **A plain left-click fires at a suppressed target, which completes the discriminator table with both rows measured rather than half-read:**
+
+  | mechanism | auto | plain left-click | Ctrl+click |
+  |---|---|---|---|
+  | break-off (`critical-damage`) | skip | skip | fire |
+  | overkill (`AverageDamagePercent >= 100`) | skip | **fire** | fire |
+
+  **Overkill is the better fit for "it ignored a HEALTHY aircraft and my normal click killed it instantly".** It needs no damage on the target, no Ctrl, and no foliage — only one other friendly unit having committed first. Break-off requires the target under 25% HP *and* a Ctrl+click.
+- **The player-visible shape is a battery that stands down.** Point several AA at one aircraft: the first to commit marks it five times over, and every other AA in range treats it as already-dead for ten seconds. They sit there. The player clicks one and it fires immediately, which reads as "autotarget is broken" rather than "anti-overkill is working too hard". The mark is invisible — no cursor, no message, no target line.
+- **The reload interval is the tuning tension.** The 60-tick halving is deliberate (`Actor.cs:303-307`: the old 20-tick interval let other units re-target a tank mid-reload). But that PITFALL was written for a 130-tick tank reload against a same-order-of-magnitude HP pool; it does not anticipate a 500% mark, where three halvings must elapse before anyone else may engage.
+
+## 2026-08-10 — OVERKILL SUPPRESSION IS UNBOUNDED IF FED, BUT ORDINARY COMMITMENT IS SELF-LIMITING: the defect is granularity, not runaway — and there is a live in-engine re-marking path that has not been measured
+
+`test-aa-overkill-pump` (seed -2058490156), bounding the ~10s suppression measured in the previous entry.
+
+| lane | setup | result |
+|---|---|---|
+| R realistic battery | 4 AA, never ordered, one 30000-HP aircraft (mark 10 each, total 40 vs threshold 100) | **all 4 engaged**, ticks 41/46/39/49 |
+| S forced pump | Lua re-issues an attack order every tick for 595 ticks | observer **silent for the whole pump**, fired only at t818, 218 ticks after it stopped |
+
+- **Aggregate commitment is self-limiting and correct.** Because the mark is the fraction of the target's health a shot removes, attackers commit until the marked total covers the target's health and the rest then stand down. Four missiles really are only 40% of a 30000-HP aircraft, so all four correctly engaged. **The bug is GRANULARITY at the fragile end** — one MANPAD marking a 600-HP helicopter at 500 — not a runaway loop.
+- **But the accumulator is unbounded and sustained marking suppresses indefinitely.** `MarkForDestruction` only ever adds, with no cap (`Actor.cs:85-88`), so any source adding >= 100 per 60 ticks holds the counter over the threshold forever. It clears promptly when the feeding stops, so again: nothing is stuck, only fed.
+- **THE UNMEASURED RISK, and it is live: `AttackFollow.Tick` re-marks on re-acquisition.** `:156-172` re-scans whenever the unit is *not* currently aiming and calls `MarkTargetForAttack` when it becomes aiming again — and `OpportunityFire` defaults **true** (`AttackFollow.cs:26`) with no mod override for infantry. A real AA cycling MANPAD's 200-tick `BurstWait` drops out of aiming between shots, so it can re-apply 500 against a 600-HP helicopter every cycle and hold its neighbours down almost continuously. The forced pump proves the mechanism; **the opportunity-fire cadence is the frequency question and is still untested.**
+- **Suppression duration scales as `3000 * 100 / MaxHP`, so the worst case is exactly the case players care about.** A fragile rotary target is marked hardest and suppressed longest — helicopters are precisely what a player expects a battery of AA to shred. A durable aircraft is marked weakly and barely suppresses anyone.
+
+## 2026-08-10 — HARNESS LESSON: prove your setup took effect by MEASURING A CONTROL, never by setting your own flag — and `Actor.Create` joins the world in a frame-end task
+
+This cost a run, and the general rule is worth more than the specific trap.
+
+**The transferable rule: a setup guard must assert an observable consequence in the world, not a variable the test just assigned.** The scenario that failed carried `l.markApplied = true` written unconditionally next to the order it was supposed to verify, so the guard could not fail; it read as verification while verifying nothing, and the run produced clean, plausible numbers that meant nothing at all. The fix was structural, not a better flag: add an unmarked **control lane**, so "the manipulation took" becomes a measured difference between lanes that the test cannot fake. Any scenario that manipulates state — damage, stance, ammo, marks, conditions — wants a control arm for exactly this reason.
+
+**The specific trap: `ActorGlobal.Create` does `World.CreateActor(false, ...)` then `World.AddFrameEndTask(w => w.Add(a))` (`ActorGlobal.cs:113-116`), so a freshly created actor is NOT in the world for the rest of the tick that created it.** `AttackBase.AttackTarget` opens with `if (!target.IsValidFor(self)) return;` (`:633-634`) — before it queues the activity and before `MarkTargetForAttack` (`:644`) — so an attack order issued against a just-spawned actor is discarded in total silence: no exception, no log line, no verdict change. Delay anything targeting a Lua-spawned actor by a tick or more. Earlier scenarios in this series escaped only by accident, having ordered attacks in a later phase seconds after spawn.
+
+## 2026-08-10 — `AutoTarget.HasValidTargetPriority` IS INVERTED AND ALWAYS RETURNS FALSE, so every stance downgrade unconditionally drops the unit's targets
+
+```csharp
+if (!ati.OnlyTargets.Except(targetTypes).Any() || !ati.ValidTargets.Overlaps(targetTypes) || ati.InvalidTargets.Overlaps(targetTypes))
+    continue;                                    // AutoTarget.cs:984
+```
+
+`OnlyTargets` defaults to an empty `BitSet` (`AutoTargetPriority.cs:24`) and **no mod YAML sets it anywhere**. Empty `.Except(anything)` is empty, `.Any()` is false, `!false` is true — so the first clause fires for every priority, the loop `continue`s past all of them, and the method returns `false` unconditionally. The `!` belongs outside: the intent is plainly "skip when `OnlyTargets` is not satisfied by the target's types".
+
+- **Every caller is a stance-change handler** asking "should I drop this target now the stance got stricter": `Attack.cs:323`, `AttackFollow.cs:239` / `:245` / `:435`, `FlyAttack.cs:216`, plus `AttackTesla`/`AttackPrism`/`LeapAttack` in Mods.Cnc. All are of the form `if (!HasValidTargetPriority(...)) target = Target.Invalid;`, so **any stance downgrade currently invalidates the unit's current target and its opportunity target regardless of whether they are still legitimate**.
+- **The practical impact is masked, which is why it has survived:** a unit that drops its target this way is then idle, and `TickIdle` re-scans every 3-8 ticks (`AutoTarget.cs:195/198`) and usually re-acquires the same target. The visible symptom is a stutter in engagement on stance change, not a permanent refusal.
+- Found by reading while chasing a different bug; costs zero runs to confirm. **Not fixed here** — it is tracked as its own item, and a fix wants its own regression coverage since it changes behaviour for every unit in the mod on every stance change.
+
+## 2026-08-10 — FOUND IT: `ChooseTarget`'s two WW3MOD-only filters (break-off and overkill) are the only ones that drop a target on the AUTO PATH ALONE, and a critically damaged aircraft reproduces "won't auto-engage, Ctrl+click kills it instantly" exactly
+
+Third scenario in the series (`test-aa-breakoff-critical`), after the first two refuted line-of-sight and detection by showing each fails closed on *both* paths. Measured (seed -2050768512):
+
+| lane | hp | auto | ordinary manual | force attack | cells moved |
+|---|---|---|---|---|---|
+| healthy (control) | 89% | fire | fire | fire | 0 |
+| **critical** | **10%** | **—** | **—** | **FIRE** | **0** |
+
+- **`BreakOffCondition` defaults to `critical-damage` and is enforced at TWO sites, both gated on `!forceAttack`.** `ChooseTarget` skips the candidate outright (`AutoTarget.cs:1135-1137`) and `Attack.TickAttack` re-checks it for non-forced orders (`Attack.cs:201-207`). So a target under 25% HP (`Health.cs:95`, granted by `GrantConditionOnDamageState@CriticalDamage`, `defaults.yaml:194-196`) is invisible to autotarget, refuses an ordinary attack order, and dies instantly to a Ctrl+click **from the same cell**. Nothing moves. No foliage, no fog.
+- **The overkill filter has the same shape but differs in exactly one cell, and that cell is the diagnostic.** `OverkillThreshold` (default 100, `AutoTarget.cs:203`) skips any candidate whose `AverageDamagePercent` is already lethal — but it is checked **only** in `ChooseTarget` (`:1129`). There is no `AverageDamagePercent` re-check anywhere in `Attack.cs`, `AttackBase.cs` or `AttackFollow.cs`, so an overkill-suppressed target still falls to an ORDINARY click:
+
+  | mechanism | auto | plain left-click | Ctrl+click |
+  |---|---|---|---|
+  | break-off (`critical-damage`) | skip | skip | fire |
+  | overkill (`AverageDamagePercent >= 100`) | skip | **fire** | fire |
+
+  **So the report "it wouldn't engage but my manual order killed it" is diagnostic on its own: a plain click means overkill, a Ctrl+click means break-off.** Ask which before fixing either.
+- **Both are WW3MOD additions and both are silent — the player gets no cursor, no message, no target line explaining why the unit is ignoring a live enemy.** Every other filter in `ChooseTarget` is either symmetric across both paths (LOS, detection, target types, range) or inert (`AllowTurning` defaults true so the firing-arc test is skipped, `AutoTarget.cs:61`).
+- **DO NOT stage this with a helicopter without disabling `HeliEmergencyLanding` — the manipulation destroys its own subject.** `CrashDamageState = DamageState.Critical` means "uncontrolled crash, always destroyed on impact" (`HeliEmergencyLanding.cs:22,102`), and autorotation already begins at Heavy (<50%). Run 1 failed exactly this way and the setup guard caught it. **The corollary is a real gameplay point: for helicopters the break-off window barely exists**, because a heli at critical damage is already crashing. It is fixed-wing aircraft and ground vehicles — which have no crash-on-critical behaviour — where a target persists in that state long enough for the filter to strand it.
+- **`AutoTarget.HasValidTargetPriority` is inverted and always returns false.** `if (!ati.OnlyTargets.Except(targetTypes).Any() || ...) continue;` (`AutoTarget.cs:984`): with the default empty `OnlyTargets` (`AutoTargetPriority.cs:24`, and no mod YAML sets it), `Except` yields nothing, `.Any()` is false, `!false` is true, so every priority is skipped and the method returns false unconditionally. Every caller is a stance-change handler asking "should I drop this target now the stance got stricter" (`Attack.cs:323`, `AttackFollow.cs:239/245/435`, `FlyAttack.cs:216`, plus the Cnc variants), so **any stance downgrade currently drops the unit's current and opportunity targets unconditionally**, valid or not. Not the bug above — a unit re-acquires on the next idle scan — but a genuine defect found by reading, costing zero runs.
+- **Target-type mismatch was the prime suspect and is impossible by construction for this weapon.** MANPAD's `ValidTargets: Air` and the AA's priorities (`{Air}` from both `^AutoTargetAir` blocks, `defaults.yaml:489-493` and `:637-640`, plus the inherited default `{Ground, Water, Air}`) key off the same `Air` bit, so any aircraft the weapon can hit necessarily overlaps a priority. Drones are additive, not substitutive — `^Drone` inherits `^Airborne` and *adds* `Targetable@Drone` (`aircraft.yaml:289-319`) without removing `Targetable@Airborne`, so an airborne drone is `{Air, AirDetonateAttack, Drone}`. The only `NoAutoTarget` flyers are aircraft husks (`husks-aircraft.yaml:6,24`), which lack `Air` so MANPAD cannot shoot them either.
+
+## 2026-08-10 — DETECTION ALSO GATES BOTH ATTACK PATHS: an undetected actor stays clickable but a manual order on it does nothing, so "auto dead / manual fires instantly" is explained by NEITHER of the two candidate gates
+
+Follow-up to the LOS entry below, run with fog ON (`test-aa-detection-fog`). Three lanes at 0/1/2 tree cells, trees placed at d >= 5 from the shooter on a 20-cell line so they load the ground/vision channel while contributing **zero** to the airborne/line-of-fire channel. Measured (seed 1152069348):
+
+| lane | trees | density | groundShadow | resolved vision | detected | auto | manual | cells moved |
+|---|---|---|---|---|---|---|---|---|
+| 0 (control) | 0 | 0 | 0 | 4 | yes | fire | fire | 0 |
+| 1 | 1 | 10 | 1 | 3 | yes | fire | fire | 0 |
+| 2 | 2 | 20 | 2 | 2 | **no** | **—** | **—** | 0 |
+
+- **The zero-tree control auto-engaged, so plain fog is not the problem — foliage really does blind through VISION.** Vision strength decays by range band (`defaults.yaml:47-86`; a 20-cell line starts at 4), `MapLayers` subtracts `groundShadow` and floors at 1 (`MapLayers.cs:371-374`), and the measured 4/3/2 matches `ForestGroundShadow(0/10/20)` = 0/1/2 exactly (`Map.cs:1102-1120`).
+- **Detection needs resolved visibility STRICTLY GREATER than `Detectable.Vision`, so an airborne actor needs >= 3, not >= 2.** `MapLayers.cs:579` is `ResolvedVisibility[puv] > visibility`. The lane that read exactly 2 went undetected. Any reasoning that uses `>=` puts the threshold a whole tree cell too late.
+- **THE FINDING: the manual order on the undetected aircraft did nothing at all — no shot, no step.** `Attack.Tick` recalculates the target each tick and sets `useLastVisibleTarget = targetIsHiddenActor || !target.IsValidFor(self)`; when the actor was never seen, `lastVisibleTarget` was never populated, so `if (useLastVisibleTarget && !lastVisibleTarget.IsValidFor(self)) return true;` (`Attack.cs:154-155`) ends the activity on its first tick. `forceAttack` does not appear anywhere in that path, so Ctrl+click cannot rescue it either. `AttackBase.AttackTarget` (`:628-645`) has no visibility gate, so the order really is issued — it just dies inside the activity.
+- **So both candidate gates fail CLOSED ON BOTH PATHS, and neither can produce the reported asymmetry.** Blocked line of fire: silent both ways (entry below). Undetected: silent both ways (here). **A user who reports "it never auto-engaged but my manual order killed it instantly, from where it stood" is therefore describing a unit whose target was BOTH detected and in clear line of fire** — so the cause lies elsewhere in `ChooseTarget`. Untested candidates, in rough order of promise: the `allowMove == false` armament filter (`AutoTarget.cs:1101-1104`, which silently drops any target outside current weapon range for a Defensive/HoldPosition unit while a manual order would close the distance), `PreventsAutoTarget` (`:1066`), and the `AutoTargetPriority` valid/invalid target-type match (`:1090`). The firing-arc filter (`:1109`) is NOT a candidate — `AllowTurning` defaults true (`AutoTarget.cs:61`) so the check is skipped whenever the stance is above HoldFire.
+- **Trees blind before they block, and the threshold is a function of RANGE, not a tree count.** Ground shadow counts every cell between the endpoints while the airborne channel counts only the final quarter, so the same foliage costs vision roughly 4x sooner than it costs line of fire: 2 tree cells blinded the shooter here, while the companion test measured 2 cells as comfortably non-blocking for firing. But "2 cells blinds" is only true at that range — undetected iff `strengthBand(range) - groundShadow <= 2`, so the same trees stop mattering as the target closes.
+- **A moving target is engaged, just late — the overflight acquired at 19 cells and was fired on at 14.** Flying the blind lane's aircraft in from its hover, detection flipped the instant it crossed from the 19-22 band (strength 4, vision 2) into the 16-19 band (strength 5, vision 3). So the blind hover was **one cell** outside detection: this is a knife-edge, not a wide dead zone, and a player watching an overflight sees a late engagement rather than no engagement.
+
+## 2026-08-10 — `test-helpers.lua` ASSUMES 25 TICKS/SEC AND THE MOD RUNS AT 16.67, so every `AssertWithin(n)` window is 50% longer than it reads
+
+`TestHarness.TicksPerSecond = 25` (`mods/ww3mod/scripts/test-helpers.lua:9`) but the mod's default game speed is `Timestep: 60` ms (`mods/ww3mod/mod.yaml:369-372`), i.e. 16.67 ticks/s. `AssertWithin` converts with `math.floor(seconds * TicksPerSecond)`, so `AssertWithin(10, ...)` schedules 250 ticks and those 250 ticks take **15 real seconds**, not 10.
+
+- **Every existing timeout is therefore 1.5x more generous than its author intended.** That direction is safe — nothing has been truncated — which is exactly why it has gone unnoticed. The hazard is the opposite direction: anyone who *tightens* a deadline to a value that looks adequate in seconds is really setting 1.5x that, and anyone reasoning "the bot re-evaluates every 100 ticks, so my 8s window covers two evaluations" is doing the arithmetic on the wrong constant.
+- The 60 ms figure was already recorded in the `AfterUnloadDelay` entry below ("Timestep here is 60ms (≈16.7 ticks/s), not OpenRA's stock 40ms"); what is new is that the **test harness disagrees with it in code**. Left unfixed deliberately: correcting `TicksPerSecond` to 16.67 would shorten every committed test's window by a third at once, which is a change to ~120 scenarios' pass/fail margins and wants its own reviewed pass, not a drive-by edit in a diagnostic branch.
+
+## 2026-08-10 — A BLOCKED AIRBORNE LOS DEADLOCKS *BOTH* ATTACK PATHS, because `MoveWithinRange` has no LOS term — so "auto never engages but a manual order fires instantly" is the one symptom that EXONERATES line of sight
+
+Built `test-aa-autotarget-thru-trees` to settle a disputed diagnosis of "AA infantry among trees never auto-engaged an overflying aircraft; a manual attack order fired immediately". Five AA specialists at 0/1/2/3/4 density-10 tree cells, 20 cells from a hovering Halo, fog off so detection cannot confound. Phase A issues **no orders**; phase B issues a manual `Attack(allowMove: true)`. Measured (seed 772997303):
+
+| trees | density | `ceil(ΣD/5)` | auto-fired | manual-fired | cells moved |
+|---|---|---|---|---|---|
+| 0 | 0 | 0 | yes | yes | **0** |
+| 1 | 10 | 2 | yes | yes | **0** |
+| 2 | 20 | 4 | yes | yes | **0** |
+| 3 | 30 | 6 | **no** | **no** | **0** |
+| 4 | 40 | 8 | **no** | **no** | **0** |
+
+- **The gate's arithmetic is exactly as advertised, and the break lands precisely on it.** `airborneShadow = ceil(ΣD/5)` (`Map.cs:1177`) against MANPAD's *default* `ClearSightThreshold` 5 (`WeaponInfo.cs:146` — MANPAD declares none, `weapons/weapons-missiles.yaml:377-409`) blocks at ΣD ≥ 26, i.e. the 3rd density-10 cell. Fire at shadow 0/2/4, silence at 6/8. No tuning surprise here.
+- **THE FINDING: a manual attack order on an LOS-blocked target fires nothing and moves nowhere.** The widespread belief (and the prior recon's claim) is that the manual path "repositions via `MoveWithinRange` until LOS clears, then fires", because `Attack.cs:248-252` folds `losBlocked` into `needsToMove` and `:276` queues `MoveWithinRange`. **`MoveWithinRange` cannot clear LOS.** Its `ShouldStop` is `AtCorrectRange(...)`, a pure distance test — `Target.IsInRange(origin, maxRange) && !Target.IsInRange(origin, minRange)` (`MoveWithinRange.cs:38-43,73-76`) — with no LOS term anywhere in the activity. When the target is already inside weapon range but LOS-blocked, the queued move is satisfied on creation, completes without stepping a cell, and `Attack` re-derives `losBlocked` and queues it again. The unit stands still forever. Rungs 3-4 show it: never fired, never moved.
+- **Therefore "auto is dead but manual works" REFUTES line of sight rather than supporting it.** A genuinely blocked shooter fails on *both* paths. The asymmetry the LOS story predicts (hard reject on the auto path at `AutoTarget.cs:1112-1123`, walk-then-shoot on the manual path) does not exist, because the second half was never implemented. If a manual order produces an immediate shot **from the same cell**, the line was clear and the per-weapon gate at `Armament.cs:364` proves it — look at detection (`CanBeViewedByPlayer`, `AutoTarget.cs:1066` → `Detectable.cs:93-116`) instead. `MoveWithinRange` only *incidentally* clears LOS when the target was also out of range, so the approach happens to end somewhere with a different line.
+- **The shooter's own cell contributes ZERO density, so "standing in a forest" blocks nothing by itself.** `RecomputeShadowFrom` skips both endpoints (`if (tile == fromUV || tile == toUV) continue;`, `Map.cs:1153-1155`), and for a ground-shoots-air pair `FiringLOS` swaps the lookup (`FiringLOS.cs:84-96`) so the shooter's cell *is* the `to` endpoint. Foliage has to be on the cells beside it, along the line.
+- **The blocking band is only `0.25·D` wide, which makes the airborne gate arithmetically unable to block at short range.** Obstacles count only where `512 > 2048*(1-t)`, i.e. `t > 0.75` (`Map.cs:1160-1170`) — the final quarter at the ground end. Minus the excluded endpoint that leaves `ceil(0.25·D) − 1` usable cells: 1 at D=8, 2 at D=12, 3 at D=16, 4 at D=20. Reaching threshold 5 needs 3 density-10 cells, so **below roughly 16 cells of separation no amount of forest can block a default-threshold weapon.** A close overflight cannot be an LOS problem. (Derived from the code and *consistent with* the ladder — the run confirms the placement and the crossing point at D=20, it does not independently measure the law at other D.)
+
 ## 2026-08-10 — "CRITICAL DAMAGE" NAMES TWO DIFFERENT THRESHOLDS 25 PERCENTAGE POINTS APART, and the `critical-damage` condition is the one the player never sees
 
 When the user says a vehicle "goes critical" they mean *it caught fire and is now doomed*. That is **`DamageState.Heavy`, HP <50%** — not the `critical-damage` condition, which `GrantConditionOnDamageState@CriticalDamage` (`defaults.yaml:194-196`) grants only at `DamageState.Critical`, **HP <25%** (`Health.cs:95-99`). Everything that produces the *visible* "this vehicle is finished" moment is keyed to 50%:

@@ -1,0 +1,1 @@
+Diagnostic: four AA, one hostile helicopter, nobody ordered and no scripted marking. Measures whether a firing AA's opportunity-fire re-marking holds its three neighbours down continuously, or whether they join after the single-mark decay.

@@ -1,0 +1,42 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-aa-overkill-pump.lua
+
+AA:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialEngagementStance: Defensive
+	AmmoPool@1:
+		Ammo: 30
+
+# HP 30000 is chosen, not arbitrary. The mark is 3000*100/MaxHP, so this puts
+# ONE attacker's contribution at exactly 10 — small enough that lane R's four
+# attackers total 40 and correctly do NOT suppress each other, and granular
+# enough that lane S's Lua pump (one order every 5 ticks = 120 per 60 ticks)
+# sits comfortably above the threshold of 100. It also lets the aircraft absorb
+# ten missiles, so neither lane loses its target mid-measurement.
+#
+# HeliEmergencyLanding is removed for the same reason as in
+# test-aa-breakoff-critical: autorotation begins at Heavy (<50% = 15000 here),
+# which lane S would reach late in the window, and a descending or crashing
+# aircraft would change the geometry underneath the measurement.
+
+HALO:
+	Health:
+		HP: 30000
+	-HeliEmergencyLanding:
+	-ChangesHealth@CrashBurn:

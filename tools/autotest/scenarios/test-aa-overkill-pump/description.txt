@@ -1,0 +1,1 @@
+Diagnostic: can repeated marking outrun the 60-tick halving decay? Lane R is a realistic 4-AA battery vs a durable aircraft (all should engage). Lane S force-pumps the mark from Lua every 5 ticks and checks whether a second AA stays suppressed for the whole pump.

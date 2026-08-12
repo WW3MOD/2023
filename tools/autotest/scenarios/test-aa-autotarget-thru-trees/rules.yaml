@@ -1,0 +1,58 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-aa-autotarget-thru-trees.lua
+
+# Fog is OFF on purpose, and that is a deliberate narrowing of what this test
+# can settle. Two hypotheses explain "AA never auto-engaged, manual worked":
+#   (1) the FiringLOS gate in AutoTarget.ChooseTarget (AutoTarget.cs:1112-1123)
+#       discards the candidate, and
+#   (2) the aircraft is simply not DETECTED — CanBeViewedByPlayer at
+#       AutoTarget.cs:1066 -> Detectable.IsVisibleInner (Detectable.cs:93-116),
+#       which for an airborne actor needs vision >= 2 at its ground-projected
+#       cell, or radar cover.
+# Disabling fog makes (2) unable to fire, so the ladder measures (1) ALONE and
+# a no-fire result cannot be blamed on detection. Per AUTOTEST.md's own rule,
+# that leaves (2) UNTESTED here, not refuted — the Lua still records the
+# visibility/radar inputs so the report can say what they actually were.
+
+# Deliberately minimal: the scan CADENCE is left stock (3-8 ticks,
+# AutoTarget.cs:195/198) because this test is trying to reproduce stock
+# behaviour, not a tuned variant. Only the two things the scenario depends on
+# are pinned:
+#   InitialStance FireAtWill      - TickIdle returns early below Ambush
+#                                   (AutoTarget.cs:608), so a quieter stance
+#                                   would mean "no scan" rather than "scan
+#                                   rejected", and the ladder would measure
+#                                   nothing.
+#   InitialEngagementStance Defensive - keeps allowMove FALSE on the auto path
+#                                   (AutoTarget.cs:619 needs >= Hunt), so ANY
+#                                   movement seen in phase B is attributable to
+#                                   the manual order and nothing else. That is
+#                                   what makes the discriminator clean.
+AA:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialEngagementStance: Defensive
+
+# The Halo is scaffolding, not a combatant: it is unarmed (aircraft-russia.yaml:28
+# "Unarmed") so it cannot damage the shooters, but stock HP 600 against MANPAD's
+# 3000-damage warhead means the FIRST hit deletes it. A dead target silently
+# changes the geometry for the rest of the run and destroys the second (manual)
+# phase, so give it enough HP to absorb every missile on the map.
+
+HALO:
+	Health:
+		HP: 100000

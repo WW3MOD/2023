@@ -1,0 +1,99 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: AA overkill re-mark cadence, no scripting (diagnostic)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# =====================================================================
+	# Sixth and last scenario. Answers the frequency question left open by
+	# test-aa-overkill-pump: a forced Lua pump proved the counter CAN be held
+	# above the threshold indefinitely, but not that anything in the game
+	# actually does it.
+	#
+	# The candidate is real. AttackFollow.Tick re-scans and calls
+	# MarkTargetForAttack whenever a unit is NOT currently aiming (:156-172),
+	# and OpportunityFire defaults true (AttackFollow.cs:26) with no infantry
+	# override in the mod. MANPAD's BurstWait is 200 ticks, so a firing AA
+	# drops out of "aiming" between shots and may re-acquire and re-apply its
+	# whole 500-point claim every cycle.
+	#
+	# STAGED AS THE REAL THING: four identical AA, one hostile helicopter,
+	# NOBODY ORDERED and no scripted marking anywhere in the Lua. Whichever AA
+	# commits first becomes the shooter by itself; the other three are the
+	# measurement. If re-marking sustains the suppression, only ONE of the four
+	# ever fires. If a mark is applied once per commit, the other three should
+	# join about 172 ticks later, which is what the single-mark decay measured
+	# in test-aa-overkill-suppression.
+	#
+	# Lanes: all four sit 20 cells from the aircraft, inside MANPAD's 23c0.
+	# No trees, fog off, so line of fire and detection are held wide open.
+	# =====================================================================
+
+	AA1: aa
+		Owner: USA
+		Location: 28,28
+		Facing: 0
+	AA2: aa
+		Owner: USA
+		Location: 30,28
+		Facing: 0
+	AA3: aa
+		Owner: USA
+		Location: 32,28
+		Facing: 0
+	AA4: aa
+		Owner: USA
+		Location: 34,28
+		Facing: 0
+
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,2
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 31,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 31,8
+
+Rules: rules.yaml
+
+Weapons: weapons.yaml

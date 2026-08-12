@@ -1,0 +1,44 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# FOG ON, and LOCKED so no lobby state or local settings.yaml can flip
+		# it. This is the whole point of the scenario: the companion test ran
+		# fog off, which sends GetVisibility down the "return 10 on explored
+		# cells" branch (MapLayers.cs:611-618) and makes the detection gate
+		# unable to fire. Explored stays on so terrain is known and the only
+		# live variable is per-cell VISIBILITY.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-aa-detection-fog.lua
+
+# Same two pins as the companion scenario, same reasons: FireAtWill because
+# TickIdle returns early below Ambush (AutoTarget.cs:608) so a quieter stance
+# would mean "never scanned" rather than "scanned and rejected"; Defensive
+# because it keeps allowMove FALSE on the auto path (AutoTarget.cs:619 needs
+# >= Hunt), making any movement in the manual phase attributable to the manual
+# order alone. Scan cadence deliberately left stock (3-8 ticks).
+
+AA:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialEngagementStance: Defensive
+
+# The Halo is unarmed scaffolding (aircraft-russia.yaml:28) but stock HP 600
+# dies to one 3000-damage MANPAD hit, and a dead target would change the
+# geometry for every later phase. Give it enough to absorb the whole map.
+
+HALO:
+	Health:
+		HP: 100000

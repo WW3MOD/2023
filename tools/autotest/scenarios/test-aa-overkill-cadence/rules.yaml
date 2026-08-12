@@ -1,0 +1,39 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-aa-overkill-cadence.lua
+
+AA:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialEngagementStance: Defensive
+	# Ample ammo: a shooter that runs dry stops engaging and its neighbours are
+	# freed for a reason that has nothing to do with the mark, which would look
+	# exactly like the result this test is trying to measure.
+	AmmoPool@1:
+		Ammo: 30
+
+# The MANPAD payload split that makes a multi-cycle fight possible lives in
+# weapons.yaml, where weapon overrides belong. It is explained in full there.
+
+# Stock 600 HP is required -- it is what makes the mark 500. Autorotation
+# begins at Heavy (<50% = 300), which twelve 50-damage hits would cross
+# partway through, and a descending or crashing aircraft would move the
+# geometry underneath the measurement.
+
+HALO:
+	-HeliEmergencyLanding:
+	-ChangesHealth@CrashBurn:

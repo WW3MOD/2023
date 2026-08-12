@@ -1,0 +1,71 @@
+# =====================================================================
+# THE ONE MANIPULATION, AND WHY IT IS NECESSARY.
+#
+# The mark and the damage are the SAME NUMBER by construction --
+# EstimatePercentDamage sums the weapon's damage warheads
+# (AutoTarget.cs:1293-1321) and the weapon then deals that damage. So a group
+# marking >= 100% of a target's health also DEALS >= 100% of it within one
+# burst cycle, and the target dies before a second cycle can happen. Measuring
+# a re-mark CADENCE across several cycles is therefore arithmetically
+# impossible while the two stay coupled: any fight long enough to show cadence
+# has a mark too small to suppress, and any mark big enough to suppress kills
+# the target immediately.
+#
+# They can be decoupled, because the two paths disagree about warhead
+# ValidTargets. The real damage path gates each warhead on IsValidAgainst
+# (DamageWarhead.cs:74), but EstimatePercentDamage does NOT check ValidTargets
+# at all -- it sums every DamageWarhead on the weapon regardless of whether it
+# could ever apply to this target. That is a genuine defect in its own right,
+# and here it is also the lever:
+#
+#   Warhead@Spread       Damage 50,   valid vs Air    -> the damage actually dealt
+#   Warhead@EstimateOnly Damage 3000, valid vs Ground -> counted by the estimate,
+#                                                        never applied to an
+#                                                        airborne target
+#
+# Estimate = 50 + 3000 = 3050 against the Halo's 600 MaxHP => a mark of 508,
+# within 2% of the real 500 a stock MANPAD applies. Actual damage per hit is
+# 50, so the helicopter absorbs twelve hits and the fight lasts long enough for
+# several BurstWait cycles to be observed.
+#
+# Nothing about the TARGETING path is altered: no scripted marking, no orders,
+# stock scan cadence, stock BurstWait. Only the payload split changes.
+#
+# PITFALL: weapon overrides belong in the map's `Weapons:` file, NOT in
+# `Rules:`. Putting this block in rules.yaml makes the loader read MANPAD as an
+# ACTOR and its Warhead@ children as traits, which fails with the distinctly
+# unhelpful "Cannot locate type: WarheadInfo" and hangs the test until the
+# 300s runner timeout. The warhead TYPE is repeated on the override below
+# rather than relying on MiniYaml carrying the parent's node value across.
+# =====================================================================
+
+# PITFALL, and it voided the first successful run of this scenario: overriding
+# a warhead REPLACES the node rather than merging into it, so every field the
+# override omits reverts to the ENGINE default -- not to the mod's value.
+# Dropping `Penetration: 15` silently reinstated the default of 1
+# (DamageWarhead.cs:24), and against the Halo's Thickness 10 the
+# `penetration < thickness` branch (AutoTarget.cs:1304-1309, mirrored in the
+# live damage path) then scaled BOTH the damage and the estimate by 1/10:
+#   real damage    50 -> 5   => 15 hits did 75 to a 600-HP target, so it lived
+#   estimate     3050 -> 305 => a mark of 50, i.e. BELOW the threshold of 100
+# The run came back a clean pass with all four AA firing, which looks exactly
+# like "suppression does not sustain" and actually meant "suppression was never
+# switched on". Both observables are explained by the 1/10 scaling and neither
+# is explained by the intended setup.
+#
+# Every warhead field the estimate reads must therefore be restated here:
+# Damage, Penetration, and any Versus table.
+#
+# Damage 20 rather than 50 so that even the worst case -- all four AA firing
+# four times each, 16 hits -- deals 320 against 600 HP and the target survives
+# the whole window. Estimate = 20 + 3000 = 3020 => a mark of 503, within 1% of
+# the 500 a stock MANPAD applies to a stock Halo.
+MANPAD:
+	Warhead@Spread: SpreadDamage
+		Damage: 20
+		Penetration: 15
+	Warhead@EstimateOnly: SpreadDamage
+		Damage: 3000
+		Penetration: 15
+		Spread: 192
+		ValidTargets: Ground

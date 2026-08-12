@@ -1,0 +1,1 @@
+Diagnostic: does AutoTarget's break-off filter drop a critically damaged (HP<25%) aircraft on the auto path only? Two lanes, healthy vs critical, each tested with autotarget, an ordinary manual attack, and a force attack. No trees, no fog.

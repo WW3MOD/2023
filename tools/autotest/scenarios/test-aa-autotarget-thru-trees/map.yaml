@@ -1,0 +1,154 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: AA autotarget through trees (diagnostic)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# ---------------------------------------------------------------------
+	# Five rungs, laid out as COLUMNS (the shooting axis is vertical) so that
+	# each rung's aircraft is out of MANPAD range (23c0) of every foreign AA.
+	#   partner  distance  = 20 cells            -> in range
+	#   nearest cross-rung = sqrt(14^2+20^2)     = 24.4 cells -> out of range
+	# That isolation matters because the auto phase issues NO orders: an AA
+	# that could reach a neighbour's Halo would drop ammo for the wrong reason.
+	#
+	# Per rung: AA specialist at (x,28), Halo hovering at (x,8) — spawned
+	# airborne by the Lua, not here, because map.yaml cannot set altitude.
+	#
+	# TREE PLACEMENT IS NOT ARBITRARY. The airborne shadow channel only counts
+	# obstacles where 512 > 2048*(1-t), i.e. t > 0.75 — the final QUARTER of
+	# the traced line at the ground end (Map.cs:1160-1170). FiringLOS swaps the
+	# lookup for a ground-shoots-air pair (FiringLOS.cs:84-96), so that quarter
+	# is the stretch beside the SHOOTER. With a 20-cell line the contributing
+	# band is d < 5 cells from the AA, and the AA's own cell is skipped
+	# (Map.cs:1153-1155) — leaving exactly four usable slots at y=27,26,25,24.
+	# Trees spread mid-line (the natural but wrong layout) would contribute
+	# NOTHING and every rung would read as clear.
+	#
+	# T01 footprint `__ x_` / Density `0,0, 10,0` puts density 10 at offset
+	# (0,1) from Location, so Location (X,Y-1) -> density 10 on cell (X,Y).
+	# Stacking Locations 1 apart vertically is safe: SetDensityLayer (Map.cs:977)
+	# sums per-offset with += and never checks footprint overlap, and only the
+	# single `x` cell is occupied.
+	#
+	# Predicted airborneShadow = ceil(sum(density)/5) against MANPAD's default
+	# ClearSightThreshold 5 (WeaponInfo.cs:146 — MANPAD declares none):
+	#   0 trees ->  0/5 = 0  clear      3 trees -> 30/5 = 6  BLOCKED
+	#   1 tree  -> 10/5 = 2  clear      4 trees -> 40/5 = 8  BLOCKED
+	#   2 trees -> 20/5 = 4  clear
+	# so the predicted break sits between rung 2 and rung 3.
+	# ---------------------------------------------------------------------
+
+	# --- rung 0: x=3, no trees (control) ---
+	A0: aa
+		Owner: USA
+		Location: 3,28
+		Facing: 0
+
+	# --- rung 1: x=17, 1 tree cell -> density 10 ---
+	A1: aa
+		Owner: USA
+		Location: 17,28
+		Facing: 0
+	R1t1: t01
+		Owner: Neutral
+		Location: 17,26
+
+	# --- rung 2: x=31, 2 tree cells -> density 20 ---
+	A2: aa
+		Owner: USA
+		Location: 31,28
+		Facing: 0
+	R2t1: t01
+		Owner: Neutral
+		Location: 31,26
+	R2t2: t01
+		Owner: Neutral
+		Location: 31,25
+
+	# --- rung 3: x=45, 3 tree cells -> density 30 (predicted first block) ---
+	A3: aa
+		Owner: USA
+		Location: 45,28
+		Facing: 0
+	R3t1: t01
+		Owner: Neutral
+		Location: 45,26
+	R3t2: t01
+		Owner: Neutral
+		Location: 45,25
+	R3t3: t01
+		Owner: Neutral
+		Location: 45,24
+
+	# --- rung 4: x=59, 4 tree cells -> density 40 ---
+	A4: aa
+		Owner: USA
+		Location: 59,28
+		Facing: 0
+	R4t1: t01
+		Owner: Neutral
+		Location: 59,26
+	R4t2: t01
+		Owner: Neutral
+		Location: 59,25
+	R4t3: t01
+		Owner: Neutral
+		Location: 59,24
+	R4t4: t01
+		Owner: Neutral
+		Location: 59,23
+
+	# One Supply Route per side so neither faction can be eliminated mid-test
+	# (a mission-end overlay short-circuits the Lua verdict poller). Parked in
+	# the far north corners: SUPPLYROUTE declares no Density (structures.yaml:241)
+	# so it cannot perturb the ladder, and it carries NoAutoTarget.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,2
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,2
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 31,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 31,8
+
+Rules: rules.yaml

@@ -1,0 +1,1 @@
+Diagnostic (fog ON): 3 AA lanes at 0/1/2 tree cells placed to degrade VISION but not line of fire. Tests whether an undetected aircraft is dropped by autotarget yet still killable by a manual order from the same cell. Lane 0 is the zero-tree control; ends with an overflight pass.

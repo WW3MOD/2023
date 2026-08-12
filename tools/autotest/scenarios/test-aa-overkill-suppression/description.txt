@@ -1,0 +1,1 @@
+Diagnostic: one AA committing to a stock-HP aircraft marks it 500 (5x the overkill threshold). Lane A measures how long an unordered second AA stands down, and whether killing the marker clears it. Lane B checks a plain left-click fires at the suppressed target anyway.
