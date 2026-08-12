@@ -437,6 +437,8 @@ Found by reading while building `test-aa-overkill-cadence`. `EstimatePercentDama
 
 ## 2026-08-11 — ORDINARY FIRING DOES NOT RE-MARK, so overkill suppression is bounded per commitment — but a BATTERY SERIALISES, engaging one unit every ~11 seconds instead of together
 
+> **[promoted (partial): → conventions.md §Engine behaviors that surprise — **the mark is applied once per COMMITMENT, not once per shot**, which is the durable half and is the measured answer to the re-mark frequency question the entry below raised. The `AttackFollow` opportunity-fire re-mark path still exists (`:173`, `:189`, `OpportunityFire` default `true` at `:26`), so the fact that it does NOT fire on the reload cycle is worth banking rather than re-deriving. **Rejected: the serialisation measurement** (~185-tick spacing, four AA taking 571 ticks to engage) — the entry itself says that run only exists because the scenario deliberately breaks the coupling between mark and damage, and **`16eca8e8` has since closed exactly that gap** (per-shooter cap at `AutoTarget.cs:1591`, plus the warhead `ValidTargets` gate), so the regime it measures is largely gone.]** (curation 2026-08-12, verified against main @ be7ab717).
+
 `test-aa-overkill-cadence` (seed -484693258). Four AA, one hostile helicopter, nobody ordered and no scripted marking anywhere. Measured:
 
 | unit | first shot | gap from previous | shots |
@@ -452,6 +454,8 @@ Found by reading while building `test-aa-overkill-cadence`. `EstimatePercentDama
 - **What this run is NOT.** A fight this long only exists because the scenario deliberately breaks the coupling between mark and damage (see `weapons.yaml`). With a stock MANPAD the first missile kills a 600-HP helicopter and no second unit is needed. So the serialisation is what happens specifically **when the claim exceeds the damage actually dealt** — the miss case, and the `ValidTargets` over-count defect. It is not a claim about a fight where every shot lands.
 
 ## 2026-08-10 — THE OVERKILL MARK AND THE DAMAGE ARE THE SAME NUMBER, which bounds the bug by itself: a group that suppresses also kills within one burst cycle
+
+> **[promoted (partial): → conventions.md — the aggregate self-limiting argument, restated with the cap that now ENFORCES its assumption 3. The entry's real contribution is methodological and it is exemplary: it labels itself *"Reconstructed from code, NOT measured"*, enumerates the four assumptions its conclusion rests on, and states what would falsify it. That is the discipline the knowledge-bank audit asks for, applied pre-emptively. **Superseded in the good direction:** assumption 3 (claim == damage dealt) was the one the entry flagged as violated, and `16eca8e8` fixed both violations it named — the per-shooter cap (`Math.Min(…, 100)`, `AutoTarget.cs:1591`) and the `ValidTargets` over-count — so the bound is now stronger than when written. Its severity table is a snapshot of the pre-fix world and is not banked.]** (curation 2026-08-12, verified against main @ be7ab717).
 
 **Reconstructed from code, NOT measured** — the run that would have measured it was consumed by the harness pitfall below.
 
@@ -470,6 +474,8 @@ Found by reading while building `test-aa-overkill-cadence`. `EstimatePercentDama
 
 ## 2026-08-10 — HARNESS PITFALL: overriding a warhead REPLACES the node, so every omitted field reverts to the ENGINE default — and the resulting run passes cleanly while measuring nothing
 
+> **[promoted: → conventions.md §Weapons live under `Weapons:`, and a warhead override REPLACES rather than merges — a genuinely durable YAML-authoring fact, not a harness quirk, and it is the exact COMPLEMENT of the duplicate-trait-key rule promoted earlier today (traits merge per field; warheads are constructed fresh, so omitted fields take ENGINE defaults). Mechanism re-verified at source: `WeaponInfo.LoadWarheads` (`GameRules/WeaponInfo.cs:200-206`) builds each warhead via `Game.CreateObject<IWarhead>(node.Value.Value + "Warhead")` and `FieldLoader` fills only the fields present; `DamageWarhead.Penetration` really does default to **1** (`Warheads/DamageWarhead.cs:24`). The failure shape is the load-bearing part: **the scenario completed and reported `pass`** while measuring a world that was never built.]** (curation 2026-08-12, verified against main @ be7ab717).
+
 Voided a run that completed and reported `pass`. `test-aa-overkill-cadence` overrode MANPAD's `Warhead@Spread` to lower its damage, restating only `Damage` and leaving `Penetration: 15` off. The override did not merge with the mod's warhead: `Penetration` fell back to the engine default of **1** (`DamageWarhead.cs:24`), and against the Halo's `Thickness: 10` the `penetration < thickness` branch — present identically in `EstimatePercentDamage` (`AutoTarget.cs:1304-1309`) and in the live damage path — scaled *both* by 1/10.
 
 - **The failure is silent and the result is plausible.** The intended mark of 508 became 50, below the `OverkillThreshold` of 100, so suppression never switched on; all four AA fired and the run read exactly like "re-marking does not sustain suppression". It actually meant "nothing was ever suppressed".
@@ -477,6 +483,8 @@ Voided a run that completed and reported `pass`. `test-aa-overkill-cadence` over
 - **Rule: when overriding a warhead, restate every field the consumer reads — `Damage`, `Penetration`, and any `Versus` table.** More generally, an override that silently inherits engine defaults rather than mod values is the same class of trap as the vacuous setup guard recorded above: the scenario keeps running and returns a confident number about a world that was never built. Prefer a control arm whose behaviour differs only if the manipulation took.
 
 ## 2026-08-10 — HARNESS PITFALL: a weapon override placed in a map's `Rules:` file fails as "Cannot locate type: WarheadInfo" and hangs the runner to its 300s timeout
+
+> **[promoted: → conventions.md, same new section. Re-verified that `Weapons:` and `Rules:` are separate manifest keys (`Map.cs:180` binds `Weapons` to `WeaponDefinitions`), and the `Cannot locate type: WarheadInfo` message is explained exactly by `LoadWarheads` reading the node's **value** as the type name — which is also why the type must be repeated on an override (`Warhead@Spread: SpreadDamage`, not a bare `Warhead@Spread:`). Banked with the diagnostic that costs the most time: a rules failure surfaces as a **runner timeout**, not as an error, so check `debug.log` for "Failed to load rules" before treating a hang as a hang.]** (curation 2026-08-12, verified against main @ be7ab717).
 
 Map weapon overrides belong in the file named by `Weapons:` in `map.yaml`, not `Rules:` (see `demo-ifv-brawl` and `test-wgm-target-dies-midflight` for the shape). Put a weapon block in the rules file and the loader reads the weapon name as an ACTOR and its `Warhead@...` children as traits, producing an error naming neither the file nor the weapon:
 
@@ -488,6 +496,8 @@ One or more errors occurred. (Cannot locate type: WarheadInfo)
 The game then never reaches the Lua, no verdict is written, and `run-test.sh` reports a 300-second timeout rather than a rules error — the rules failure is visible only in `debug.log`. **Check `debug.log` for "Failed to load rules" before treating a hang as a hang.** When overriding an existing warhead, repeat its type (`Warhead@Spread: SpreadDamage`) rather than relying on MiniYaml to carry the parent node's value across.
 
 ## 2026-08-10 — ONE AA COMMITTING TO AN AIRCRAFT BLINDS EVERY OTHER AA TO IT FOR ~10 SECONDS, the target is perfectly healthy, and a plain left-click fires at it the whole time
+
+> **[promoted (partial): → conventions.md — **the ownerless-accumulator half, which survives the fix intact**: `Actor.AverageDamagePercent` is a plain public int (`Actor.cs:83`), `MarkForDestruction` only adds (`:85-88`), and the only clearing is a halving every 60 ticks (`:309-310`, with the PITFALL recording the 20 → 60 change). So killing the committing unit does not release the mark, and neither does retargeting or the attacker's own target dying — *there is no leak to hunt.* The measured auto/plain-click/Ctrl+click discriminator table corroborates the overkill-vs-break-off asymmetry already promoted from the `ChooseTarget` entry, now with both rows measured rather than half-read. **Superseded: the headline arithmetic.** `16eca8e8` caps a single attacker's claim at 100 (`AutoTarget.cs:1591`), so the factor-of-five over-mark and the ~172-tick blackout are gone (~55 ticks per the merge). The entry's closing complaint that the mark is invisible is also answered: `WithHoldingFireDecoration` now surfaces it, render-only off `LastHeldFireTick`.]** (curation 2026-08-12, verified against main @ be7ab717).
 
 `test-aa-overkill-suppression`. One marker AA, one observer AA and one stock-HP Halo per lane; a third lane with no marker at all as the latency baseline. Measured (seed 1829504673):
 
@@ -512,6 +522,8 @@ The game then never reaches the Lua, no verdict is written, and `run-test.sh` re
 
 ## 2026-08-10 — OVERKILL SUPPRESSION IS UNBOUNDED IF FED, BUT ORDINARY COMMITMENT IS SELF-LIMITING: the defect is granularity, not runaway — and there is a live in-engine re-marking path that has not been measured
 
+> **[promoted (partial): → conventions.md — the unbounded-upward property and the scaling shape (`damage × 100 / MaxHP`, so the most fragile target is marked hardest and suppressed longest, which is exactly the case players care about). Its central diagnosis — **the defect is granularity at the fragile end, not a runaway loop** — was correct and is what `16eca8e8` fixed. **Its named UNMEASURED RISK is now answered NO:** the `AttackFollow.Tick` opportunity-fire re-mark does not re-apply on the reload cycle, measured by the cadence entry above; the path still exists (`:173`, `:189`, `OpportunityFire` default `true`) so the negative result is worth keeping. The realistic-battery lane (4 AA vs a 30000-HP aircraft, all four engaged) is a run-specific confirmation and is not banked.]** (curation 2026-08-12, verified against main @ be7ab717).
+
 `test-aa-overkill-pump` (seed -2058490156), bounding the ~10s suppression measured in the previous entry.
 
 | lane | setup | result |
@@ -525,6 +537,8 @@ The game then never reaches the Lua, no verdict is written, and `run-test.sh` re
 - **Suppression duration scales as `3000 * 100 / MaxHP`, so the worst case is exactly the case players care about.** A fragile rotary target is marked hardest and suppressed longest — helicopters are precisely what a player expects a battery of AA to shred. A durable aircraft is marked weakly and barely suppresses anyone.
 
 ## 2026-08-10 — HARNESS LESSON: prove your setup took effect by MEASURING A CONTROL, never by setting your own flag — and `Actor.Create` joins the world in a frame-end task
+
+> **[rejected: test methodology, not a system fact — it belongs in DOCS/recipes/AUTOTEST.md, alongside the matched-pair lesson rejected earlier today for the same reason. **The rule itself is sound and was vindicated twice within this very cluster** (the warhead-override run that reported `pass` against a world that was never built, and the void run whose tell was two units firing simultaneously), so whoever owns that recipe should take it — the durable form is *prove the setup took effect by measuring a control, never by asserting the flag you yourself set*. Its one engine-level claim (`Actor.Create` joins the world) is ordinary OpenRA behaviour and needs no banking.]** (curation 2026-08-12, verified against main @ be7ab717).
 
 This cost a run, and the general rule is worth more than the specific trap.
 
