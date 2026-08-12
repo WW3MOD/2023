@@ -8,6 +8,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Projectiles;
 using OpenRA.Mods.Common.Traits;
@@ -403,6 +404,30 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				return;
 
 			Game.Settings.Game.TargetLines = TargetLinesType.Automatic;
+		}
+
+		[Desc("Cells of the target-line nodes `actor`'s activity queue would draw right now, in draw " +
+			"order. `withTile` picks which half: false (default) returns the LINE nodes — the waypoint " +
+			"chain a player sees — and true returns the TILE nodes, the sprite overlays stamped onto a " +
+			"cell (a queued deploy's ghosted crate, LayMines' minefield stamp). " +
+			"The walk is DrawLineToTarget's own, down to skipping cancelling activities and Invalid " +
+			"targets, and `withTile` is the exact test it splits on, so an answer here cannot disagree " +
+			"with what is on screen. That is the point of the binding: a marker's CELL is otherwise " +
+			"checkable only by looking at a screenshot, which no assertion can do, so a regression that " +
+			"moved it to a different waypoint would render wrongly and pass every test. Test mode only.")]
+		public CPos[] GetTargetLineCells(Actor actor, bool withTile = false)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return Array.Empty<CPos>();
+
+			var cells = new List<CPos>();
+			for (var a = actor.CurrentActivity; a != null; a = a.NextActivity)
+				if (!a.IsCanceling)
+					foreach (var n in a.TargetLineNodes(actor))
+						if (n.Target.Type != TargetType.Invalid && (n.Tile != null) == withTile)
+							cells.Add(actor.World.Map.CellContaining(n.Target.CenterPosition));
+
+			return cells.ToArray();
 		}
 
 		[Desc("Issue the deploy order that the command bar's Deploy button — and its hotkey — produce, " +
