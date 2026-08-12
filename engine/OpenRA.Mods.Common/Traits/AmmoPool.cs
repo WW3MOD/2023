@@ -209,9 +209,16 @@ namespace OpenRA.Mods.Common.Traits
 		///
 		/// Note what this is NOT keyed on, because each alternative has already been wrong once:
 		/// not <see cref="Rearmable.RearmableAmmoPools"/> (answers a different question — see
-		/// AllPoolsEmpty), not "every armament paused" (PauseOnCondition also carries
-		/// garrisoned-at-port, which would call a garrisoned man with a full magazine dry), and not
-		/// the red-ammo-pip YAML condition (implied by this, but not equal to it).
+		/// AllPoolsEmpty), not "every armament paused" (armament PauseOnCondition also carries
+		/// suppressed >= 10, empdisable, heavy-damage-attained and inwater, any of which would call a
+		/// suppressed or EMP'd man with a full magazine dry), and not the red-ammo-pip YAML condition
+		/// (implied by this, but not equal to it).
+		///
+		/// PITFALL corrected 2026-08-12: this note previously cited garrisoned-at-port as the example.
+		/// That is wrong — no Armament in this mod carries it; it appears on Mobile and AttackFrontal
+		/// only. The caveat stands on the terms above. Note also that it attaches to the QUESTION, not
+		/// to the predicate: pause-for-any-reason is the RIGHT test for "should I stop moving to aim at
+		/// THIS target?", and is wrong only as a stand-in for "send this man to resupply".
 		/// </summary>
 		public static bool CannotFight(Actor self)
 		{
