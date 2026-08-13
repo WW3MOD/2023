@@ -27,6 +27,7 @@ namespace OpenRA.Mods.Common.Widgets
 		bool patrolDisabled = true;
 		bool autoEnterDisabled = true;
 		bool takeCoverDisabled = true;
+		bool evacuateDisabled = true;
 
 
 		int deployHighlighted;
@@ -35,6 +36,7 @@ namespace OpenRA.Mods.Common.Widgets
 		int stopHighlighted;
 		int patrolHighlighted;
 		int autoEnterHighlighted;
+		int evacuateHighlighted;
 
 
 		TraitPair<IIssueDeployOrder>[] selectedDeploys = Array.Empty<TraitPair<IIssueDeployOrder>>();
@@ -239,6 +241,24 @@ namespace OpenRA.Mods.Common.Widgets
 				autoEnterButton.OnKeyPress = ki => { autoEnterHighlighted = 2; autoEnterButton.OnClick(); };
 			}
 
+			var evacuateButton = widget.GetOrNull<ButtonWidget>("EVACUATE");
+			if (evacuateButton != null)
+			{
+				WidgetUtils.BindButtonIcon(evacuateButton);
+
+				evacuateButton.IsDisabled = () => { UpdateStateIfNecessary(); return evacuateDisabled; };
+				evacuateButton.IsHighlighted = () => evacuateHighlighted > 0;
+				evacuateButton.OnClick = () =>
+				{
+					if (highlightOnButtonPress)
+						evacuateHighlighted = 2;
+
+					PerformKeyboardOrderOnSelection(a => new Order("Evacuate", a, false));
+				};
+
+				evacuateButton.OnKeyPress = ki => { evacuateHighlighted = 2; evacuateButton.OnClick(); };
+			}
+
 			var takeCoverButton = widget.GetOrNull<ButtonWidget>("TAKE_COVER");
 			if (takeCoverButton != null)
 			{
@@ -386,6 +406,9 @@ namespace OpenRA.Mods.Common.Widgets
 			if (autoEnterHighlighted > 0)
 				autoEnterHighlighted--;
 
+			if (evacuateHighlighted > 0)
+				evacuateHighlighted--;
+
 			base.Tick();
 		}
 
@@ -419,6 +442,9 @@ namespace OpenRA.Mods.Common.Widgets
 			patrolDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<IMoveInfo>());
 			autoEnterDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<PassengerInfo>() || a.Info.HasTraitInfo<CargoInfo>());
 			takeCoverDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<InfantryStatesInfo>());
+
+			// Only DeliversCash@Rotation resolves the "Evacuate" order (DeliversCash.ResolveOrder).
+			evacuateDisabled = !selectedActors.Any(a => a.Info.TraitInfos<DeliversCashInfo>().Any(di => di.Type == "Rotation"));
 
 			selectedDeploys = selectedActors
 				.SelectMany(a => a.TraitsImplementing<IIssueDeployOrder>()
