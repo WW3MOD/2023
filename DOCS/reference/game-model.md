@@ -32,7 +32,16 @@ Many engine files still contain classic RA assumptions (e.g., `HasAdequateAirUni
 
 ## Capturing neutral buildings consumes the technician
 
-Neutral income/tech buildings (derricks, etc.) are taken by technicians (TECN) via the `^CapturesNeutralBuildings` template (`infantry.yaml:897`), which sets **`ConsumedByCapture: true`** (`infantry.yaml:903`). A *successful* capture removes the TECN from the game — so the technician pool is a **consumable**, not a persistent squad: it shrinks by one on every capture success, on top of every combat loss. With a unit limit like `tecn: 3`, capturing two or three buildings can exhaust the live pool until production replaces it, at which point no further captures are possible. For any capture-focused AI, availability of technicians — not coordinator logic — is the binding constraint. (Soldiers use `^CapturesOccupiedBuildings`, which is *not* consumed and only takes buildings from enemy owners.)
+Neutral income/tech buildings (derricks, etc.) are taken by technicians (TECN) via the `^CapturesNeutralBuildings` template (`infantry.yaml:952`), which sets **`ConsumedByCapture: true`** (`infantry.yaml:958`). A *successful* capture removes the TECN from the game — so the technician pool is a **consumable**, not a persistent squad: it shrinks by one on every capture success, on top of every combat loss. With a unit limit like `tecn: 3`, capturing two or three buildings can exhaust the live pool until production replaces it, at which point no further captures are possible. For any capture-focused AI, availability of technicians — not coordinator logic — is the binding constraint.
+
+**Soldiers evict tech buildings; they still capture military ones.** Line infantry use `^CapturesOccupiedBuildings` (`infantry.yaml:927`), which targets enemy-owned buildings only (`ValidRelationships: Enemy`) and since 2026-08-13 carries **two** `Captures` traits split by capture type:
+
+- `Captures@OCCUPIED` → `building-occupied`, the classic rule (soldier takes ownership and is consumed). This is what the 12 military structures use: `AFLD`, `AGUN`, `CRAM`, `FTUR`, `GUN`, `HGATE`, `HPAD`, `HSAM`, `LOGISTICSCENTER`, `MSLO`, `SAM`, `VGATE`.
+- `Captures@OCCUPIEDTECH` (`:938`) → `building-occupied-tech`, with `CaptureToNeutral: true` + `EnterBehaviour: Exit` (`:950-951`). A soldier walking into one of these drops it to **Neutral** instead of claiming it, then walks back out alive. `^TechBuilding` overrides its capturable type to match (`structures.yaml:126-127`), covering `OILB`, `FCOM`, `BIO`, `MISS`, `HOSP`, `AMMOBOX1-3`, `BARL`, `BRL3`, `CTFLAG`.
+
+The split is load-bearing, not tidiness: eviction leaves the soldier alive, so it has no unit cost and is repeatable. Extending it to defences and production would let a single surviving rifleman disable an entire enemy base — the bot has no logic to reclaim its own neutralised defences and is TECN-capped at 3. Owning a tech structure still requires your own TECN, so the technician remains the only unit that can gain one and the only one consumed doing it. Both flags live on `CapturesInfo` (`Captures.cs`) and default to stock capture behaviour, so nothing that does not opt in is affected.
+
+> Correcting an earlier claim: this section used to state that soldiers were "*not* consumed". That was never true — `Captures.cs:41` defaults `ConsumedByCapture` to `true` and no override existed, so a soldier **was** removed from the game on a successful capture until the change above.
 
 ## Ejected vehicle crew burn to death — intended, not a defect
 

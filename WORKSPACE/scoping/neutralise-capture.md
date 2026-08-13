@@ -118,6 +118,13 @@ The other capture scenarios (`test-experimental-poi-capture`, `demo-experimental
 
 **Actors affected.** Capturable today: `OILB` (`CashTrickler: 50`), `FCOM` (100), `BIO` (150) — the money structures — plus `MISS` and `HOSP` (no income), all via `^TechBuilding` → `^BasicBuilding`. Explicit removals exist on `^CivBuilding` (`civilian.yaml:6-10`), three defence structures (`structures-defenses.yaml:81-85,171-175,257-261`) and two aircraft husks. **`SUPPLYROUTE` is confirmed outside this entirely** — it does not inherit `^BasicBuilding` and carries no `CaptureManager`/`Capturable`, matching `CLAUDE.md` and `supply-route.md:68`.
 
+> **CORRECTION (2026-08-13, found during implementation review).** The five actors named above are **not** the blast radius, and taking them as such would have shipped a serious balance change. `^NeutralOrOccupiedCapturable` sits on `^BasicBuilding` (`structures.yaml:10`); `^Building` inherits `^BasicBuilding` (`:69-70`); `^Defense` inherits `^Building` (`structures-defenses.yaml:2-3`). Resolving the inheritance graph gives **23 actors** carrying `Capturable@occupied`:
+>
+> - **`^TechBuilding` descendants (11):** `OILB`, `FCOM`, `BIO`, `MISS`, `HOSP`, `AMMOBOX1`, `AMMOBOX2`, `AMMOBOX3`, `BARL`, `BRL3`, `CTFLAG`.
+> - **Non-tech (12):** `AFLD`, `AGUN`, `CRAM`, `FTUR`, `GUN`, `HGATE`, `HPAD`, `HSAM`, `LOGISTICSCENTER`, `MSLO`, `SAM`, `VGATE`.
+>
+> Only `BIO`/`FCOM`/`OILB` carry `CashTrickler`. Applying `CaptureToNeutral` to the whole `building-occupied` type — as Shape A originally described — would have let one surviving rifleman walk an enemy base turning every AA gun, SAM, silo, airfield and logistics centre Neutral at **no unit cost**, against a bot with no logic to reclaim its own neutralised defences. The shipped change therefore splits the occupied type: `^TechBuilding` gets `building-occupied-tech` (evict to Neutral, soldier survives), everything else keeps `building-occupied` and the classic capture-and-be-consumed rule.
+
 **Supply Route design: same primitive, and building it here unblocks item 17.** `supply-route.md:72` and `DISCOVERIES.md:3118` both record that the intended "capturer can never keep it, it just goes Neutral" SR behaviour cannot be built from stock capture traits. That is *the same missing (b)*. A flag on `CapturesInfo` would serve both; a soldier-specific `Infiltrates` trait would not.
 
 ---

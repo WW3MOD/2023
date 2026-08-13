@@ -3,6 +3,23 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-13 — resolving the Neutral player by `InternalName` is a silent-failure pattern; the world owner is guaranteed structurally
+
+Found while implementing evict-to-Neutral (`wt/neutralise-capture`). Three call sites look up the neutral player by matching `InternalName == "Neutral"`: `GarrisonManager.cs:227` (`DynamicOwnership`), `HeliEmergencyLanding.cs:354`, and `CaptureActor.cs` — the last **fixed** on that branch, the other two deliberately left alone.
+
+**The name is not guaranteed; the role is.** `CreateMapPlayers.cs:105-106` throws at world creation unless some `PlayerReference` carries `OwnsWorld: True`, and `World.SetWorldOwner` (`World.cs:366`) parks that player on `WorldActor.Owner`. So **`world.WorldActor.Owner` is non-null on every map that loads at all**, whatever the author named the player. All ten shipped WW3MOD maps happen to name it `Neutral`, which is precisely why the weakness is invisible in testing — it only bites on a hand-authored or third-party map.
+
+Both failure modes are bad, in different ways: `FirstOrDefault` returns null and the feature quietly does nothing (in the capture case, 1000 ticks of progress bar and then no ownership change, once per attempt, forever), while `First` — as used in `OwnerLostAction.cs:52`, with `Owner` defaulting to `"Neutral"` — throws an unhandled `InvalidOperationException` mid-match. **Prefer `WorldActor.Owner` to either.** The garrison and heli sites are not urgent (both degrade to a no-op) but should switch if touched for other reasons.
+
+## 2026-08-13 — `Capturable@occupied` reaches 23 actors, not the 5 tech buildings everyone assumes
+
+Also from `wt/neutralise-capture`, where reading it as five would have shipped a serious balance change. The chain is `^NeutralOrOccupiedCapturable` on `^BasicBuilding` (`structures.yaml:10`) → `^Building` inherits `^BasicBuilding` (`:69-70`) → `^Defense` inherits `^Building` (`structures-defenses.yaml:2-3`). Only `GTWR`/`PBOX`/`HBOX`, `^CivBuilding` and two aircraft husks strip it.
+
+- **`^TechBuilding` (11):** `OILB`, `FCOM`, `BIO`, `MISS`, `HOSP`, `AMMOBOX1-3`, `BARL`, `BRL3`, `CTFLAG`.
+- **Non-tech (12):** `AFLD`, `AGUN`, `CRAM`, `FTUR`, `GUN`, `HGATE`, `HPAD`, `HSAM`, `LOGISTICSCENTER`, `MSLO`, `SAM`, `VGATE`.
+
+Only `OILB`/`FCOM`/`BIO` carry `CashTrickler`, so "money structure" and "capturable" are wildly different sets. **Anything scoped as "affects capturable buildings" must be checked against the resolved inheritance graph, not against the five tech buildings named in the docs** — `DOCS/gameplay/capturing.md` said "five capturable tech buildings" and the original scoping note repeated it. Hand-tracing MiniYaml inheritance is what produced the wrong number both times; resolving it mechanically is a 40-line script and worth it whenever a template on `^BasicBuilding` is in play.
+
 ## 2026-08-13 — `IHitShape.PercentFromEdge` measured from the CENTRE, not the edge, and only two of its four implementations returned a percentage at all
 
 Found while renaming the method to `CenterProximityPercent` (branch `wt/hitshape-rename`, off `12a0d194`). **No arithmetic was changed** — the rename is identifier-and-comment only. Full working, worked numbers and balance analysis: [`WORKSPACE/audit/hitshape-percent-semantics.md`](audit/hitshape-percent-semantics.md).

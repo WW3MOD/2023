@@ -111,31 +111,54 @@ namespace OpenRA.Mods.Common.Activities
 						var damage = (int)((long)health.MaxHP * captures.Info.SabotageHPRemoval / 100);
 						enterActor.InflictDamage(self, new Damage(damage, captures.Info.SabotageDamageTypes));
 
-						if (captures.Info.ConsumedByCapture)
-							self.Dispose();
+						ApplyEnterBehaviour(self, captures);
 
 						return;
 					}
 				}
+
+				// The world owner is the map's OwnsWorld player — conventionally Neutral, but
+				// resolved structurally rather than by name: CreateMapPlayers.cs:105-106 throws at
+				// world creation unless some player claims the world, so this is guaranteed
+				// non-null on every loadable map, whereas matching InternalName == "Neutral"
+				// would fail silently on a map that names its world owner anything else.
+				var newOwner = captures.Info.CaptureToNeutral ? w.WorldActor.Owner : self.Owner;
 
 				// Do the capture.
 				// Buildings are stationary — use the in-place path so we don't
 				// trigger World.Remove/Add and the expensive shroud/vision recalc
 				// cascade on every player (causes a ~0.5s freeze on capture).
 				if (enterActor.Info.HasTraitInfo<BuildingInfo>())
-					enterActor.ChangeOwnerInPlaceSync(self.Owner);
+					enterActor.ChangeOwnerInPlaceSync(newOwner);
 				else
-					enterActor.ChangeOwnerSync(self.Owner);
+					enterActor.ChangeOwnerSync(newOwner);
 
 				foreach (var t in enterActor.TraitsImplementing<INotifyCapture>())
-					t.OnCapture(enterActor, self, oldOwner, self.Owner, captures.Info.CaptureTypes);
+					t.OnCapture(enterActor, self, oldOwner, newOwner, captures.Info.CaptureTypes);
 
 				if (self.Owner.RelationshipWith(oldOwner).HasRelationship(captures.Info.PlayerExperienceRelationships))
 					self.Owner.PlayerActor.TraitOrDefault<PlayerExperience>()?.GiveExperience(captures.Info.PlayerExperience);
 
-				if (captures.Info.ConsumedByCapture)
-					self.Dispose();
+				ApplyEnterBehaviour(self, captures);
 			});
+		}
+
+		// ConsumedByCapture still means "enters the target" (CaptureManager.cs keys its progress-bar
+		// duration estimate off it); EnterBehaviour decides what happens to the actor once inside.
+		static void ApplyEnterBehaviour(Actor self, Captures captures)
+		{
+			if (!captures.Info.ConsumedByCapture)
+				return;
+
+			switch (captures.Info.EnterBehaviour)
+			{
+				case EnterBehaviour.Dispose:
+					self.Dispose();
+					break;
+				case EnterBehaviour.Suicide:
+					self.Kill(self);
+					break;
+			}
 		}
 
 		protected override void OnLastRun(Actor self)

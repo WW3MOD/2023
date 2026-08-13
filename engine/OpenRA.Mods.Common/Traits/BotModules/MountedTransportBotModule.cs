@@ -466,6 +466,13 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						// Capture ferry: hand the disembarked TECN back its CaptureActor so it
 						// finishes on foot the last few cells to the target it was ferried to.
+						// INVARIANT: this loop must stay single-TECN. A capture ferry is built with
+						// exactly one reserved passenger (the capturer, see CarrierTask creation), and
+						// the multi-passenger troop ferry is excluded by the CaptureTarget != null
+						// guard — that is the whole reason "bots never order a soldier to capture"
+						// holds. A mixed capture ferry would hand riflemen CaptureActor orders, and
+						// since soldiers now evict tech buildings to Neutral rather than taking them,
+						// the bot would neutralise the building it meant to capture.
 						if (task.CaptureTarget != null && !task.CaptureTarget.IsDead && task.CaptureTarget.IsInWorld)
 						{
 							foreach (var pax in task.ReservedPassengers)
