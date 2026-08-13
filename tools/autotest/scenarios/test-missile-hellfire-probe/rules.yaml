@@ -1,0 +1,63 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-missile-hellfire-probe.lua
+
+# Lane isolation, same reasoning as test-missile-latch-probe: ScanRadius bounds
+# only the AutoTarget SEARCH, so an explicit force-attack order still reaches
+# full armament range while a launcher cannot wander onto a neighbouring lane's
+# target. Deliberately NOT done with HoldFire (AUTOTEST.md gotcha 7).
+#
+# `Armaments:` is narrowed to the Hellfire mount on both launchers. This rig
+# exists to measure ONE weapon; leaving the 30mm and the Stinger live would put
+# non-missile fire and a SECOND missile type into the same trace, and
+# Stinger.quad is a different projectile whose latches would be indistinguishable
+# from Hellfire's in the per-lane totals. Narrowing the attack trait's armament
+# list is preferred over removing the Armament traits, because the pip and
+# range-circle traits reference them by name and removing them adds new
+# `make test` error identities.
+HELI:
+	AutoTarget:
+		ScanRadius: 4
+	AttackAircraft:
+		Armaments: secondary
+	AmmoPool@2:
+		Ammo: 40
+
+# ReloadAmmoPool on both launchers requires `unit.docked && !airborne`, so
+# neither rearms during the run. The ammo counts above are the whole budget:
+# 40 x 3 launchers x 4 air lanes, and 40 x 3 x 3 ground lanes.
+strykershorad:
+	AutoTarget:
+		ScanRadius: 4
+	AttackTurreted:
+		Armaments: tertiary
+	AmmoPool@3:
+		Ammo: 40
+
+# Targets must survive the whole volley — a target that dies mid-run stops the
+# lane at an unknown sample count and retires the remaining missiles through the
+# target-lost path instead of the one under measurement. Health merges per-field,
+# so this changes HP and nothing else. See test-missile-latch-probe/rules.yaml
+# for why the crash/landing traits are deliberately left in place.
+littlebird:
+	Health:
+		HP: 900000
+# PITFALL: actor key casing must match the source EXACTLY (`t90`, not `T90`) —
+# the ruleset merge is done on the raw key, so a case variant loads as a SECOND
+# actor and the mod fails with "duplicate values found for the following keys".
+t90:
+	Health:
+		HP: 900000
