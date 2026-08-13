@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
@@ -187,19 +186,12 @@ namespace OpenRA.Mods.Common.Activities
 			return false;
 		}
 
-		/// <summary>Ticks to hold before the next passenger steps out. Passengers leave in groups of
-		/// UnloadGroupSize back-to-back, then the gap widens by InterGroupUnloadDelayMultiplier before
-		/// the next group starts — so a stick of four reads as two-pause-two, not as a single spill.</summary>
+		/// <summary>Ticks to hold before the next passenger steps out. The rhythm itself lives in
+		/// Cargo.NextUnloadDelay, shared with the emergency bail so both dismounts pace alike.</summary>
 		int NextUnloadDelay()
 		{
-			var groupSize = cargo.Info.UnloadGroupSize;
-			var intraDelay = cargo.Info.IntraGroupUnloadDelay;
-			if (groupSize <= 0 || intraDelay <= 0)
-				return 0;
-
-			return unloaded % groupSize == 0
-				? intraDelay * Math.Max(1, cargo.Info.InterGroupUnloadDelayMultiplier)
-				: intraDelay;
+			return Cargo.NextUnloadDelay(unloaded, cargo.Info.UnloadGroupSize,
+				cargo.Info.IntraGroupUnloadDelay, cargo.Info.InterGroupUnloadDelayMultiplier);
 		}
 	}
 }
