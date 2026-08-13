@@ -64,7 +64,7 @@ namespace OpenRA.Mods.Common.Warheads
 				if (closestDistance > Spread.Length)
 					continue;
 
-				var damage = closestActiveShape.PercentFromEdge(victim, args.ImpactPosition);
+				var damage = closestActiveShape.CenterProximityPercent(victim, args.ImpactPosition);
 
 				if (DamageAtMaxRange != 100)
 					damage = damage * RangeDamageMultiplier(victim, firedBy, args) / 100;
