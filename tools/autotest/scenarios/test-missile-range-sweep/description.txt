@@ -1,0 +1,1 @@
+Measurement rig: sweeps MANPAD (2-22 cells) and ATGM (4-18 cells) engagement range against stationary targets to test the I1 distance-invariance invariant. Run with --missile-trace-summary.

@@ -1,0 +1,1 @@
+Measurement rig: 7 missile lanes (MANPAD vs littlebird, ATGM vs t90) across flee/approach/reverse/hover target motion, to measure what trips the FlyStraightIfMiss latch. Run with --missile-trace.
