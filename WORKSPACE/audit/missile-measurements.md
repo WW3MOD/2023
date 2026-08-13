@@ -29,9 +29,9 @@ or the brief, the data wins and it is called out explicitly.
 
 | | Prediction | Result |
 |---|---|---|
-| **H1 flight audit** | `flystraight_min_dist == flystraight_hor_dist` at the latch | **0 / 42. Falsified.** |
-| **H2 trace worker** | `flystraight_min_dist + close_enough < flystraight_hor_dist` always | **42 / 42. True — but it is a tautology, see below.** |
-| **H3 adversarial review** | a lead-inflated distance is compared against a physical constant, so measured range can jump with no physical change | **CONFIRMED. 25 of the 30 latches with tick data fired while the missile was physically CLOSING on its target.** |
+| **H1 flight audit** | `flystraight_min_dist == flystraight_hor_dist` at the latch | **0 / 56. Falsified.** |
+| **H2 trace worker** | `flystraight_min_dist + close_enough < flystraight_hor_dist` always | **56 / 56. True — but it is a tautology, see below.** |
+| **H3 adversarial review** | a lead-inflated distance is compared against a physical constant, so measured range can jump with no physical change | **CONFIRMED. 38 of the 44 latches with tick data fired while the missile was physically CLOSING on its target.** |
 
 **H2 is true but carries no information.** `minDistanceToTarget` is updated on the two
 lines immediately *above* the latch test (`Missile.cs:847-849`, then the test at `:852`), so after the
@@ -63,10 +63,10 @@ missile→target horizontal separation. `dPhys` negative means the missile was g
 
 **All eleven closed on the target during the tick they declared a miss.**
 
-Across the whole corpus the split is **25 closing / 5 opening** out of the 30 latches that
+Across the whole corpus the split is **38 closing / 6 opening** out of the 44 latches that
 have tick data (the remaining 12 come from the summary-only sweep run, which logs no
-positions). The 5 opening cases are the detector working as designed — a genuine
-overflight, correctly declared. The 25 closing cases are the defect, and they are 83% of
+positions). The 6 opening cases are the detector working as designed — a genuine
+overflight, correctly declared. The 38 closing cases are the defect, and they are 86% of
 every latch this session could examine.
 
 ### The worked example — missile 24, the whole flight
@@ -130,14 +130,14 @@ straight for the remaining 13 cells to fuel-out, doing zero damage.
   so **ATGM does latch under target reversal**, just rarely — my run-6-only statement that it
   never does was an artefact of a single sample.
 - **It scales with target speed relative to missile speed, so anti-air is worst — but it is
-  NOT AA-only.** Corpus latch rate: **MANPAD 32/474 = 6.8%**, **ATGM 9/203 = 4.4%**,
+  NOT AA-only.** Corpus latch rate: **MANPAD 44/534 = 8.2%**, **ATGM 11/242 = 4.5%**,
   **Ataka 1/65 = 1.5%**. In run 6 the ATGM lanes produced 0 latches in 39 shots even with the
   target oscillating, because a t90 moves at ~85 wdist/tick against a missile doing 300 and
   the lead term stays small. The ATGM latches in the corpus come from the sweep's stationary
   lanes, where zero lead makes `rthd` equal the physical distance and a latch is an honest
   overflight. MANPAD faces a Littlebird at 265 against a missile accelerating to 450, and
   that ratio is what breaks it.
-- **A latch is usually fatal.** 28 of 42 latched missiles across all runs did **zero** damage
+- **A latch is usually fatal.** 41 of 56 latched missiles across all runs did **zero** damage
   to their target; the rest did reduced damage.
 - **M1 is live and visible.** Tick 1 of every missile reads `lastTargetPosition` uninitialised:
   missile 24 records `rthd = 2.97e15`, missile 2 records `2 031 496`. Confirmed empirically,
@@ -231,16 +231,16 @@ Measurement 1 shows it is a function of target motion.
 
 | weapon | AirThreshold | n | ground | subterrain | **air** | air share |
 |---|---|---|---|---|---|---|
-| atgm (Javelin) | 128 | 203 | 177 | 15 | **11** | **5.4%** |
+| atgm (Javelin) | 128 | 242 | 211 | 16 | **15** | **6.2%** |
 | ataka (Mi-28) | 128 | 65 | 17 | **41** | 7 | **10.8%** |
-| manpad | 128 | 474 | 0 | 0 | 474 | 100% |
+| manpad | 128 | 534 | 0 | 0 | 534 | 100% |
 
 **This settles what the audit could not resolve statically.** ATGM detonates above the
-render threshold **5.4% of the time — not "every airborne detonation"**. W2's §F.1 called
+render threshold **6.2% of the time — not "every airborne detonation"**. W2's §F.1 called
 this "the single most important unknown"; the answer is that the overwhelming majority of
-Javelin detonations happen at the target near ground level, and only about 1 in 18 sits in
-the silent bucket. The `Warhead@EffectAir` added at `e7504a9f` was still the right fix — 11
-detonations in 203 that previously drew and played nothing is a real defect — but its scope
+Javelin detonations happen at the target near ground level, and only about 1 in 16 sits in
+the silent bucket. The `Warhead@EffectAir` added at `e7504a9f` was still the right fix — 15
+detonations in 242 that previously drew and played nothing is a real defect — but its scope
 is an order of magnitude smaller than the audit implied.
 
 **Ataka's distribution is the interesting one and nobody predicted it: 63% of Ataka
@@ -248,20 +248,20 @@ detonations end BELOW terrain** (41 of 65 `subterrain`), and 10.8% are in the `a
 twice ATGM's rate. MANPAD is at 100% `air` by construction (it only shoots aircraft) and
 correctly inherits `^MediumExplosionEffectsAir`.
 
-Also measured: **15 ATGM detonations ended below terrain** (`reason: ground`, `end_dat` −8 to
+Also measured: **16 ATGM detonations ended below terrain** (`reason: ground`, `end_dat` −8 to
 −80). Most still did full damage — they buried into the ground inside the tank's hitshape.
 
 ### `dud_prearm` and `unterminated`
 
 | outcome | count | share |
 |---|---|---|
-| detonated | 720 | 97.0% |
+| detonated | 819 | 97.4% |
 | **dud_prearm** | **0** | **0%** |
-| unterminated | 22 | 3.0% |
+| unterminated | 22 | 2.6% |
 
-**The trace worker's reachability analysis is confirmed.** `dud_prearm` is zero in 742
+**The trace worker's reachability analysis is confirmed.** `dud_prearm` is zero in 841
 missiles — the pre-arm removal path is not reached in normal play. `explode_calls > 1` is
-also **zero**, confirming the jammed-APS double-detonation is dormant (the review's M4
+also **zero** across all 841, confirming the jammed-APS double-detonation is dormant (the review's M4
 reached the same conclusion statically). The 22 `unterminated` are all from one run and are
 purely run-end truncation: missiles still in flight when the fixed 60-second clock stopped.
 That is the code path doing exactly its job, not a failure to terminate.
@@ -318,7 +318,7 @@ clean nose-on sample to quote, so I am not claiming to have measured it.
    anything.
 4. **The review understates the latch severity by an order of magnitude.** Predicted worst
    inflation 1.544×/0.456×; measured 0.06×.
-5. **W2's invisible-explosion scope is 5.4% of ATGM detonations, not all airborne ones.**
+5. **W2's invisible-explosion scope is 6.2% of ATGM detonations, not all airborne ones.**
    Real, but an order of magnitude smaller than presented. Ataka's rate is 10.8%.
 6. **The ~3300× damage step does not exist** (already retired by the manager's correction;
    the data confirms the retirement and locates the real, smaller, hull-boundary step).
@@ -326,12 +326,12 @@ clean nose-on sample to quote, so I am not claiming to have measured it.
 
 ## What I could not measure, and where I may be wrong
 
-- **The closing/opening split rests on 30 of the 42 latches.** The other 12 are from the
+- **The closing/opening split rests on 44 of the 56 latches.** The other 12 are from the
   summary-only sweep run, which logs no positions, so I cannot say which kind they were. If
-  all 12 were honest overflights the defect share drops from 83% to 60% — still the majority,
-  but I did not measure it.
+  all 12 were honest overflights the defect share drops from 86% to 68% — still the large
+  majority, but I did not measure it.
 - **I never found the ATGM threshold.** ATGM latches rarely against a slow ground target
-  (0/18 in run 6, 2/18 on replication), so "slow ground targets rarely trigger it" is
+  (0/18 in run 6, 2/18 on replication; 11/242 corpus-wide), so "slow ground targets rarely trigger it" is
   supported, but I did not sweep target speed to find where the rate climbs. A faster ground
   target, or a Hellfire-armed aircraft engaging a moving vehicle, could latch and I did not
   test it.
