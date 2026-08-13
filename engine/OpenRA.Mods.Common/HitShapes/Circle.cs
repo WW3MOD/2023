@@ -48,7 +48,10 @@ namespace OpenRA.Mods.Common.HitShapes
 			return new WDist(Math.Max(0, v.Length - Radius.Length));
 		}
 
-		public int PercentFromEdge(in WVec v)
+		// Normalises against Radius, which for a circle is the distance to the boundary in every
+		// direction. This is the one shape where "percent in from the centre" and "percent in from
+		// the edge" coincide: the result really does reach 0 on the boundary.
+		public int CenterProximityPercent(in WVec v)
 		{
 			return 100 * (Radius.Length - v.HorizontalLength) / Radius.Length;
 		}
@@ -64,15 +67,15 @@ namespace OpenRA.Mods.Common.HitShapes
 			return DistanceFromEdge(pos - new WPos(origin.X, origin.Y, pos.Z));
 		}
 
-		public int PercentFromEdge(WPos pos, WPos origin, WRot orientation)
+		public int CenterProximityPercent(WPos pos, WPos origin, WRot orientation)
 		{
 			if (pos.Z > origin.Z + VerticalTopOffset)
-				return PercentFromEdge(pos - (origin + new WVec(0, 0, VerticalTopOffset)));
+				return CenterProximityPercent(pos - (origin + new WVec(0, 0, VerticalTopOffset)));
 
 			if (pos.Z < origin.Z + VerticalBottomOffset)
-				return PercentFromEdge(pos - (origin + new WVec(0, 0, VerticalBottomOffset)));
+				return CenterProximityPercent(pos - (origin + new WVec(0, 0, VerticalBottomOffset)));
 
-			return PercentFromEdge(pos - new WPos(origin.X, origin.Y, pos.Z));
+			return CenterProximityPercent(pos - new WPos(origin.X, origin.Y, pos.Z));
 		}
 
 		IEnumerable<IRenderable> IHitShape.RenderDebugOverlay(HitShape hs, WorldRenderer wr, WPos origin, WRot orientation)

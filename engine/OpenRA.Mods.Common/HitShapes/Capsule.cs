@@ -84,7 +84,12 @@ namespace OpenRA.Mods.Common.HitShapes
 			return new WDist(Math.Max(0, distance - Radius.Length));
 		}
 
-		public int PercentFromEdge(in WVec v)
+		// Normalises against nothing: this is a verbatim copy of DistanceFromEdge with the WDist
+		// wrapper stripped, so it returns a raw world-unit distance OUTSIDE the capsule rather than
+		// a percentage. It is 0 everywhere inside the shape and grows without bound outside it,
+		// which is the opposite sense to Circle and Rectangle. Left as-is deliberately: correcting
+		// it is a balance change, not a rename. See WORKSPACE/audit/hitshape-percent-semantics.md.
+		public int CenterProximityPercent(in WVec v)
 		{
 			var p = new int2(v.X, v.Y);
 
@@ -115,15 +120,15 @@ namespace OpenRA.Mods.Common.HitShapes
 			return DistanceFromEdge((pos - new WPos(origin.X, origin.Y, pos.Z)).Rotate(-orientation));
 		}
 
-		public int PercentFromEdge(WPos pos, WPos origin, WRot orientation)
+		public int CenterProximityPercent(WPos pos, WPos origin, WRot orientation)
 		{
 			if (pos.Z > origin.Z + VerticalTopOffset)
-				return PercentFromEdge((pos - (origin + new WVec(0, 0, VerticalTopOffset))).Rotate(-orientation));
+				return CenterProximityPercent((pos - (origin + new WVec(0, 0, VerticalTopOffset))).Rotate(-orientation));
 
 			if (pos.Z < origin.Z + VerticalBottomOffset)
-				return PercentFromEdge((pos - (origin + new WVec(0, 0, VerticalBottomOffset))).Rotate(-orientation));
+				return CenterProximityPercent((pos - (origin + new WVec(0, 0, VerticalBottomOffset))).Rotate(-orientation));
 
-			return PercentFromEdge((pos - new WPos(origin.X, origin.Y, pos.Z)).Rotate(-orientation));
+			return CenterProximityPercent((pos - new WPos(origin.X, origin.Y, pos.Z)).Rotate(-orientation));
 		}
 
 		IEnumerable<IRenderable> IHitShape.RenderDebugOverlay(HitShape hs, WorldRenderer wr, WPos origin, WRot orientation)

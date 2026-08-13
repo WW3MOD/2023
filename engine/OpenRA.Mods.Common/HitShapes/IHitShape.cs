@@ -23,7 +23,14 @@ namespace OpenRA.Mods.Common.HitShapes
 
 		WDist DistanceFromEdge(in WVec v);
 		WDist DistanceFromEdge(WPos pos, WPos origin, WRot orientation);
-		int PercentFromEdge(WPos pos, WPos origin, WRot orientation);
+
+		/// <summary>
+		/// A damage-scaling percentage that is 100 at the shape's centre and falls to 0 at its outer
+		/// extent. This is NOT a distance in from the nearest edge: each shape normalises the offset
+		/// from its own centre against its own notion of "outer extent", and those notions differ
+		/// between implementations. See WORKSPACE/audit/hitshape-percent-semantics.md.
+		/// </summary>
+		int CenterProximityPercent(WPos pos, WPos origin, WRot orientation);
 
 		void Initialize();
 		IEnumerable<IRenderable> RenderDebugOverlay(HitShape hs, WorldRenderer wr, WPos origin, WRot orientation);
