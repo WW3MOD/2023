@@ -917,13 +917,27 @@ Player:
 		# cells off its target every scan by a field that changes continuously. That is the shape of the
 		# previous "fixed" reports. The engine switch makes a partial application inexpressible.
 		#
-		# THE MECHANISM THIS REMOVES, in one sentence: the cluster danger gate ran at the RELEASE level (50-20
-		# = 30 danger units) against live median cells measured in the THOUSANDS of units, so on a contested
-		# front every needy cluster was rejected and only the relief valve's least-dangerous tie group
-		# survived — and SectorSpread, which assigns DISTINCT clusters, then left every truck but one with no
-		# target at all. A truck with no target classifies as errand=None, and None is exactly the state the
-		# evac branch exists to collect. The back-and-forth was never one truck dithering; it was the danger
-		# gate collapsing the roster and evac carrying off the remainder.
+		# THE MECHANISM THIS REMOVES — and read the correction below before quoting any earlier version of it.
+		# The cluster danger gate ran at the RELEASE level (50-20 = 30 danger units) against live median cells
+		# measured in the THOUSANDS of units, so on a contested front every needy cluster failed the gate and
+		# selection fell through to the relief valve, which keeps only the LEAST-DANGEROUS needy cluster. That
+		# is a real narrowing: the truck's target stops being "the platoon that needs supply most" and becomes
+		# "the quietest platoon that needs any", which on a hot front is routinely a rear one — and a rear
+		# cluster is both further away and not starving, so FollowLeashCellsFor gives it the SHORT leash
+		# (MaxFollowDistance 35, not the starving 80) and WithinFollowLeash nulls it per truck. A truck with a
+		# null cluster classifies errand=None, and None is exactly the state the evac branch collects.
+		# So the path runs through the LEASH, and the danger gate is what forces selection onto the distant
+		# quiet cluster in the first place.
+		#
+		# CORRECTION, recorded because this item has now produced four confident wrong diagnoses and the wrong
+		# ones keep getting quoted forward: an earlier draft of this comment blamed SectorSpread for leaving
+		# every truck but one unassigned once the valve collapsed the list to one cluster. THAT IS FALSE, and
+		# the code says so — SupplyLogisticsMath.AssignSectors seeds `better` with `pick == NoSector`, so a
+		# sector already claimed by an earlier truck is still selectable and trucks simply DOUBLE UP. NoSector
+		# means "no sector within maxFollowLength", a DISTANCE condition, not a distinctness one. Nor can
+		# SelectServableClusters ever hand back an empty needy set — the relief valve guarantees it, exactly as
+		# DOCS/reference/supply-route.md states: "danger never empties the cluster list". Do not re-derive the
+		# distinct-assignment story; it has been checked and it is wrong.
 		#
 		# WHAT THE TRUCK DOES NOW: drives to the drop anchor 5 cells short of the platoon, unloads its whole
 		# 750 as a SUPPLYCACHE, and — now empty — is taken off the field by TRUK's own shipped
@@ -939,6 +953,15 @@ Player:
 		# permission above buys, and a delivered crate the enemy has to shoot is worth more than a full truck
 		# that shuttles all match. If trucks are dying WITHOUT delivering, this flag is the first thing to
 		# walk back — not DeliveryIntentOverridesEvac, which is a narrower version of the same idea.
+		#
+		# AND HERE IS THE SPECIFIC WAY THAT COST ARRIVES, named rather than left to be discovered. NoDemand is
+		# easy to hit: cluster selection needs only NeedScore > 0, which is ammoNeed x 1000, so four men at 95%
+		# ammo score 200 with ZERO starving men — while the drop needs DropMinStarvingUnits (1) actually
+		# starving within DropDemandRadiusCells of the anchor. A truck vetoed NoDemand falls through to the
+		# follow path, and with the detour off that path now drives it in a straight line at the platoon
+		# centroid. So the flag creates a route to dying WITHOUT delivering, which is exactly the walk-back
+		# signal above. Watch for `drop-declined reason=NoDemand` immediately followed by truck losses; if that
+		# is what a real match shows, the demand gate and the follow leash are the levers, not this flag.
 		# ===================================================================================================
 		IgnoreDangerForDelivery: true
 		# The four keys below are now overridden by the flag above and are kept, unchanged, as the record of

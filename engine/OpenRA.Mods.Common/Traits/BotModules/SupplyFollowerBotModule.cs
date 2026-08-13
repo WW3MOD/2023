@@ -935,13 +935,22 @@ namespace OpenRA.Mods.Common.Traits
 				// full-ammo rear cluster (FindUnitClusters applies no need gate of its own), so the need half is
 				// re-applied here on its own.
 				//
-				// This is also the site the whole item turns on. The old gate ran at the RELEASE level (30 danger
-				// units) against live median cells measured in the thousands of units, so on a contested front
-				// EVERY needy cluster was rejected and only the relief valve's least-dangerous tie group
-				// survived. With SectorSpread assigning distinct clusters, a one-cluster list leaves every truck
-				// but one unassigned — errand None — which is precisely the state that evacuates. That is the
-				// back-and-forth: not one truck dithering, but the danger gate collapsing the roster and the
-				// evac branch collecting the remainder.
+				// WHAT THE GATE ACTUALLY COST, stated carefully because this item has produced four confident
+				// wrong diagnoses. The gate ran at the RELEASE level (30 danger units) against live median cells
+				// measured in the thousands, so on a contested front every needy cluster failed it and selection
+				// fell through to the relief valve — which keeps only the LEAST-DANGEROUS needy cluster. The
+				// truck's target therefore stops being "the platoon that needs supply most" and becomes "the
+				// quietest platoon that needs any", which on a hot front is usually a rear one. A rear cluster is
+				// further away AND not starving, so FollowLeashCellsFor hands it the short leash
+				// (MaxFollowDistance, not StarvingMaxFollowDistance) and WithinFollowLeash nulls it per truck —
+				// errand None, which is the state the evac branch collects.
+				//
+				// NOT the mechanism, checked and refuted: SectorSpread does NOT strand trucks when the valve
+				// collapses the list. SupplyLogisticsMath.AssignSectors seeds `better` with `pick == NoSector`,
+				// so an already-claimed sector stays selectable and trucks double up; NoSector means "nothing
+				// within maxFollowLength", a distance condition. And SelectServableClusters cannot return an
+				// empty needy set at all — the relief valve is what guarantees "danger never empties the cluster
+				// list" (DOCS/reference/supply-route.md). Do not reinstate the distinct-assignment story.
 				foreach (var c in clusters)
 				{
 					c.FollowCell = c.CenterCell;
@@ -1411,6 +1420,40 @@ namespace OpenRA.Mods.Common.Traits
 			// of the reason that could disagree with the line that gets printed.
 			var reason = veto.ToString();
 
+			// THE DEMAND-SIDE VETOES ARE DISPATCH GATES, NOT ABORT CONDITIONS — and letting them abort is a
+			// SECOND route to "back and forth, never commits" with no danger term in it anywhere. The anchor is
+			// frozen once dispatched (ResolveDropAnchor), but `starving` and `cacheSupply` above are re-measured
+			// LIVE around that frozen cell every scan, so a running errand is re-judged on inputs that move
+			// while the truck drives:
+			//   * NoDemand — CountStarvingNear falls under DropMinStarvingUnits because the platoon advanced or
+			//     was fed en route. Revoking here is precisely the "commitment is to a PLACE" invariant being
+			//     broken from the demand side instead of the danger side.
+			//   * Covered — CacheSupplyNear sweeps DropDemandRadiusCells (20) against DropRedundantCacheSupply
+			//     (100), and a landed crate holds 750. So the instant ONE truck succeeds, EVERY other truck
+			//     anchored within 20 cells is Stopped mid-run. That gate's whole job is anti-stacking at
+			//     DISPATCH time — which is why InFlightSupplyTo exists, to settle same-scan convergence before
+			//     anyone is sent — and it does that job correctly one scan earlier.
+			// The revoke then clears lastFollow, the follow branch re-issues a Move, demand returns, and the
+			// truck re-dispatches: approach → Stop → approach, which is the reported symptom exactly.
+			//
+			// LowLoad and NoAnchor are deliberately still allowed to revoke. LowLoad is monotone (a truck only
+			// loses supply) so it cannot oscillate, and it means there is genuinely nothing left worth dropping;
+			// NoAnchor cannot fire while dispatched at all, because the frozen anchor always HasValue.
+			//
+			// Same reasoning, same responsive `dispatched` term, as the mode gate immediately below — see its
+			// note on why a reading may only ever stop a NEW drop and never abort one under way.
+			if (!drop && dispatched && (veto == SupplyDropVeto.NoDemand || veto == SupplyDropVeto.Covered))
+			{
+				if (Diagnostic)
+					WriteDiagnostic(
+						$"[supply] drop-holds truck={truck.ActorID}@{truck.Location} anchor={sentTo} "
+						+ $"would-veto={reason} starving={starving}/{Info.DropMinStarvingUnits} "
+						+ $"cache-near={cacheSupply}+in-flight={inFlight}/{Info.DropRedundantCacheSupply} "
+						+ "— errand in flight, a dispatch gate does not abort a run");
+
+				return true;
+			}
+
 			// DANGER PICKS THE MODE — but only for a delivery that has not STARTED. A drop already in flight
 			// completes: the truck committed to a place and to arriving there, and a mode switch mid-run is
 			// the same shape as the evac interrupt this branch already refuses. So the gate reads the same
@@ -1424,15 +1467,21 @@ namespace OpenRA.Mods.Common.Traits
 			//
 			// The mode-selection half of the "why no crate" answer is APPENDED to the decline line below rather
 			// than logged on its own, so a refusal is one line whichever gate produced it.
-			// SITE 4 of the danger bypass, and the LEADING SUSPECT for the specific symptom "the truck drives up
-			// and then nothing happens". The quiet-front branch below is not a refusal to deliver — it is the
-			// serve-in-place mode, which keeps the cargo and hands out batches from the aura. But a truck that
-			// serves in place stays parked at the front holding a load, follows its cluster's centroid as the
-			// platoon moves, and is the thing the user is watching when they say the truck never commits. With
-			// the bypass on, danger no longer selects the mode: the drop mode is always chosen, so the truck
-			// drives to the anchor, unloads its whole 750 as a crate, and — empty — takes TRUK's shipped
-			// InitialResupplyBehaviorAI: Evacuate off the field. That is the wanted behaviour verbatim: drive
-			// near, DROP, evacuate.
+			// SITE 4 of the danger bypass. The quiet-front branch below is not a refusal to deliver — it is the
+			// serve-in-place mode, which keeps the cargo and hands out batches from the aura. Bypassing it makes
+			// the drop mode unconditional, so the truck unloads its whole 750 as a crate and TRUK's shipped
+			// InitialResupplyBehaviorAI: Evacuate then takes the empty hull off the field: drive near, DROP,
+			// evacuate, which is the wanted behaviour verbatim.
+			//
+			// AN EARLIER DRAFT CALLED THIS THE LEADING SUSPECT FOR "drives up and then nothing happens". THAT
+			// CLAIM IS WITHDRAWN — it contradicts the saturation argument used everywhere else in this change.
+			// DangerSelectsDrop takes the absolute limb at DropDangerAbsoluteUnits (100), so on a front reading
+			// in the thousands of units it returns TRUE and the drop mode was already selected; SafeFront can
+			// only fire on a genuinely quiet cluster, where serving in place and keeping the cargo is the
+			// documented correct answer. This site cannot be both firing on a saturated front and the reason a
+			// saturated front saw no crate. It is bypassed here for consistency with the other six — one switch,
+			// no partial application — and because the user asked for a DROP rather than serve-in-place, not
+			// because it is the diagnosed cause.
 			var modeDetail = string.Empty;
 			if (drop && Info.DropRequiresDanger && !Info.IgnoreDangerForDelivery && !dispatched && cluster != null)
 			{
