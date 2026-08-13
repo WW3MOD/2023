@@ -188,6 +188,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			HP = (HP - damage.Value).Clamp(0, MaxHP);
 
+			// Phase-0 missile audit: attribute this hit to the traced missile whose
+			// warheads are running right now. Off by default — one static bool read.
+			if (Projectiles.MissileTrace.CapturingImpact)
+				Projectiles.MissileTrace.NoteDamage(self, damage.Value);
+
 			var ai = new AttackInfo
 			{
 				Attacker = attacker,

@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Eluant;
 using OpenRA.Mods.Common.Projectiles;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Widgets;
@@ -554,6 +555,152 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				return 0;
 
 			return Context.World.Effects.OfType<Missile>().Count();
+		}
+
+		[Desc("Switch the Phase-0 missile trace on for this run. Call from WorldLoaded, before " +
+			"anything fires — missiles already in flight are not retro-tracked. `path` is optional: " +
+			"pass one to also write the JSONL stream to disk, omit it to keep the summary records in " +
+			"memory for Test.GetMissileRecord assertions only. `tickRecords=false` suppresses the " +
+			"per-tick lines and keeps only one summary record per missile. Also switchable without " +
+			"touching the scenario via the Test.MissileTraceLog=<true|path> launch arg " +
+			"(tools/autotest/run-test.sh --missile-trace). Test mode only.")]
+		public void EnableMissileTrace(string path = "", bool tickRecords = true)
+		{
+			if (!TestMode.IsActive)
+				return;
+
+			MissileTrace.Enable(path, tickRecords);
+		}
+
+		[Desc("Number of completed missile summary records so far. A missile gets its record when it " +
+			"ends (detonates, is removed pre-Arm, or the match ends with it still aloft), so poll " +
+			"Test.GetActiveMissileCount() == 0 before asserting. Test mode only.")]
+		public int GetMissileRecordCount()
+		{
+			if (!TestMode.IsActive)
+				return 0;
+
+			return MissileTrace.Records.Count;
+		}
+
+		[Desc("Fetch missile summary record `index` (1-based, launch order) as a table. Keys: id, " +
+			"launcher, launcher_id, owner, weapon, target, target_id, launch_x/y/z, launch_alt, " +
+			"launch_range, launch_hor_range, homing_tick, arm_tick, range_limit, max_speed, " +
+			"close_enough, min_dist, min_dist_tick, min_aim_dist, min_aim_dist_tick, " +
+			"flystraight_tick, flystraight_hor_dist, flystraight_min_dist, flystraight_state, " +
+			"flystraight_latches, end_tick, end_x/y/z, end_dat, end_dat_bucket, air_threshold, " +
+			"reason, outcome, armed, explode_calls, distance_covered, damage, " +
+			"damage_to_target, damage_unattributed, victim_count. " +
+			"`end_dat` is DistanceAboveTerrain at the detonation and `end_dat_bucket` is " +
+			"subterrain/ground/air against the weapon's own AirThreshold — an `air` impact on a " +
+			"weapon with no air-valid CreateEffect warhead renders no sprite and no sound. " +
+			"`flystraight_*` capture the FlyStraightIfMiss latch edge and the two distances its " +
+			"predicate compared. " +
+			"`damage_to_target` counts only the actor the missile was launched at, so splash " +
+			"onto a neighbour does not read as a hit. `reason` names the exact code path that ended the missile " +
+			"(ground / close_enough / segment_closest / fuel_out / off_map / terrain_bound / " +
+			"airburst / blocked / jammed_aps / unterminated); `outcome` separates a real detonation " +
+			"from dud_prearm (removed before Arm, no warhead) and unterminated (never ended). " +
+			"Returns an empty table for an out-of-range index. Test mode only.")]
+		public LuaTable GetMissileRecord(int index)
+		{
+			var t = Context.CreateTable();
+			if (!TestMode.IsActive)
+				return t;
+
+			var records = MissileTrace.Records;
+			if (index < 1 || index > records.Count)
+				return t;
+
+			var r = records[index - 1];
+			Put(t, "id", r.Id);
+			Put(t, "launcher", r.LauncherType);
+			Put(t, "launcher_id", (int)r.LauncherId);
+			Put(t, "owner", r.OwnerClientIndex);
+			Put(t, "weapon", r.Weapon);
+			Put(t, "target", r.TargetType);
+			Put(t, "target_id", (int)r.TargetId);
+			Put(t, "launch_x", r.LaunchPos.X);
+			Put(t, "launch_y", r.LaunchPos.Y);
+			Put(t, "launch_z", r.LaunchPos.Z);
+			Put(t, "launch_alt", r.LaunchAltitude);
+			Put(t, "launch_range", r.LaunchRange);
+			Put(t, "launch_hor_range", r.LaunchHorRange);
+			Put(t, "homing_tick", r.HomingTick);
+			Put(t, "arm_tick", r.ArmTick);
+			Put(t, "range_limit", r.RangeLimit);
+			Put(t, "max_speed", r.MaxSpeed);
+			Put(t, "close_enough", r.CloseEnough);
+			Put(t, "min_dist", r.MinDist == int.MaxValue ? -1 : r.MinDist);
+			Put(t, "min_dist_tick", r.MinDistTick);
+			Put(t, "min_aim_dist", r.MinAimDist == int.MaxValue ? -1 : r.MinAimDist);
+			Put(t, "min_aim_dist_tick", r.MinAimDistTick);
+			Put(t, "flystraight_tick", r.FlyStraightTick);
+			Put(t, "flystraight_hor_dist", r.FlyStraightHorDist);
+			Put(t, "flystraight_min_dist", r.FlyStraightMinDist);
+			Put(t, "flystraight_state", r.FlyStraightState);
+			Put(t, "flystraight_latches", r.FlyStraightLatches);
+			Put(t, "end_tick", r.EndTick);
+			Put(t, "end_x", r.EndPos.X);
+			Put(t, "end_y", r.EndPos.Y);
+			Put(t, "end_z", r.EndPos.Z);
+			Put(t, "end_dat", r.EndDistanceAboveTerrain);
+			Put(t, "end_dat_bucket", MissileTrace.DatBucket(r.EndDistanceAboveTerrain, r.AirThreshold));
+			Put(t, "air_threshold", r.AirThreshold);
+			Put(t, "reason", MissileTrace.ReasonName(r.EndReason));
+			Put(t, "outcome", MissileTrace.OutcomeName(r.Outcome));
+			Put(t, "armed", r.Outcome == MissileOutcome.Detonated ? 1 : 0);
+			Put(t, "explode_calls", r.ExplodeCalls);
+			Put(t, "distance_covered", r.DistanceCovered);
+			Put(t, "damage", r.DamageTotal);
+			Put(t, "damage_to_target", r.DamageToTarget);
+			Put(t, "damage_unattributed", r.DamageUnattributed ? 1 : 0);
+			Put(t, "victim_count", r.Victims.Count);
+			return t;
+		}
+
+		[Desc("Actor type name of victim `victimIndex` (1-based) of missile record `index` (1-based), " +
+			"or an empty string if either index is out of range. Test mode only.")]
+		public string GetMissileVictimType(int index, int victimIndex)
+		{
+			var v = Victim(index, victimIndex);
+			return v?.Type ?? "";
+		}
+
+		[Desc("Damage attributed to victim `victimIndex` (1-based) of missile record `index` (1-based), " +
+			"or -1 if either index is out of range. Test mode only.")]
+		public int GetMissileVictimDamage(int index, int victimIndex)
+		{
+			var v = Victim(index, victimIndex);
+			return v?.Damage ?? -1;
+		}
+
+		static MissileVictim Victim(int index, int victimIndex)
+		{
+			if (!TestMode.IsActive)
+				return null;
+
+			var records = MissileTrace.Records;
+			if (index < 1 || index > records.Count)
+				return null;
+
+			var victims = records[index - 1].Victims;
+			if (victimIndex < 1 || victimIndex > victims.Count)
+				return null;
+
+			return victims[victimIndex - 1];
+		}
+
+		static void Put(LuaTable t, string key, int value)
+		{
+			using (LuaValue k = key, v = value)
+				t.Add(k, v);
+		}
+
+		static void Put(LuaTable t, string key, string value)
+		{
+			using (LuaValue k = key, v = value ?? "")
+				t.Add(k, v);
 		}
 
 		[Desc("Returns the RemainingTime (in ticks) of the first queued item of `actorType` on " +
