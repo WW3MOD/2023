@@ -100,12 +100,37 @@ namespace OpenRA.Mods.Common.Traits
 			"participating (fog-respecting bot / human) profiles; capped at MinNearbyFriendlies so it only widens.")]
 		public readonly int SmallSquadMinNearbyFriendlies = 2;
 
+		[Desc("DELIVERY BEATS SURVIVAL, UNCONDITIONALLY. Supply trucks ignore every believed-danger and threat",
+			"reading in this module: they do not evacuate, they do not refuse a cluster for being hot, they do",
+			"not detour, they do not sidestep, and danger no longer selects the delivery mode — so a loaded",
+			"truck with a customer always drives to the drop anchor and unloads. Authorised by the user on",
+			"2026-08-13, verbatim: \"Even if we need to completely disable their danger awareness then that is",
+			"better than once again having them not work.\"",
+			"",
+			"THIS IS ONE SWITCH BECAUSE 'DISABLE DANGER AWARENESS' IS SEVEN SITES, AND THAT IS WHY THE",
+			"PREVIOUS ATTEMPTS FAILED. Three separate rounds flipped the documented danger flags, believed",
+			"themselves done, and the user's own match behaved identically — because the flags do not cover",
+			"the set. In particular FindSafeFollowPosition reads ThreatMapManager, a DIFFERENT field from",
+			"DangerFieldLayer, and NO config flag reaches it. Every site is switched from this one field so a",
+			"partial application is not expressible:",
+			"  1. SelectServableClusters   — the danger gate is skipped; the NEED filter is kept.",
+			"  2. StepEvac                 — unreachable (no Supply Route is resolved for evac).",
+			"  3. EvacAllowed              — moot; it can only ever SUPPRESS an evac that no longer exists.",
+			"  4. DangerSelectsDrop        — skipped, so the drop mode is always chosen.",
+			"  5. the SR-descent guard     — passed a negative threshold, which disables it.",
+			"  6. GroundDangerNav detour   — the reroute is off, so the drive is a straight line.",
+			"  7. FindSafeFollowPosition   — returns the cluster centroid; ThreatMapManager is never read.",
+			"",
+			"Ships OFF so the C# default keeps today's behaviour; the @supply instance opts in via YAML.")]
+		public readonly bool IgnoreDangerForDelivery = false;
+
 		[Desc("Danger evac: when the believed ground danger at the truck (or its target cluster centroid)",
 			"reaches EvacDangerUnits, retreat the truck toward its Supply Route instead of idling in the",
 			"fire. Fog-legal — reads DangerFieldLayer only, never an omniscient enemy scan. OFF by default;",
 			"gated on InfluenceStack.Participates, which since the 2026-08-02 @stable parity promotion admits",
 			"@stable as well as @experimental — so this is NOT @experimental-only, and the damper below is",
-			"therefore load-bearing on both fog-respecting profiles.")]
+			"therefore load-bearing on both fog-respecting profiles.",
+			"Overridden by IgnoreDangerForDelivery, which switches the whole evac branch off.")]
 		public readonly bool DangerEvac = false;
 
 		[Desc("Danger-evac: believed ground-danger at/above which a truck pulls back. Set ABOVE the Stage-E",
@@ -690,7 +715,10 @@ namespace OpenRA.Mods.Common.Traits
 
 			// The Stage-E two-leg reroute stays the old condition (DangerFieldRouting + a live field), so
 			// enabling DangerEvac alone never flips a truck onto the reroute path.
-			routeViaDanger = Info.DangerFieldRouting && dangerField != null;
+			// SITE 6 of the danger bypass: no detour waypoint, so the drive to the follow cell is a straight
+			// line. The reroute never cancelled a delivery, but it re-plans a two-leg maneuver against a field
+			// rebuilt every 25 ticks, which is visible as exactly the wandering this item is about.
+			routeViaDanger = Info.DangerFieldRouting && dangerField != null && !Info.IgnoreDangerForDelivery;
 
 			initialized = true;
 
@@ -700,7 +728,8 @@ namespace OpenRA.Mods.Common.Traits
 			Log.Write("debug",
 				$"[supply] init player={player.PlayerName} bot={player.BotType} participates={participates} "
 				+ $"exp={isExperimentalBot} dangerField={dangerField != null} controlField={controlField != null} "
-				+ $"evac={Info.DangerEvac && dangerField != null} reroute={routeViaDanger} "
+				+ $"ignore-danger={Info.IgnoreDangerForDelivery} "
+				+ $"evac={Info.DangerEvac && dangerField != null && !Info.IgnoreDangerForDelivery} reroute={routeViaDanger} "
 				+ $"spread={Info.SectorSpread && participates} hunt={SupplyTruckHuntMath.ShouldHunt(Info.IdleTruckHunt, isExperimentalBot)} "
 				+ $"drop={Info.DropAndLeave && controlField != null}");
 		}
@@ -867,7 +896,7 @@ namespace OpenRA.Mods.Common.Traits
 			var clustersFound = clusters.Count;
 
 			var spread = Info.SectorSpread && participates;
-			var evac = Info.DangerEvac && dangerField != null;
+			var evac = Info.DangerEvac && dangerField != null && !Info.IgnoreDangerForDelivery;
 
 			// Drop-and-leave needs the frontier-distance field to place its anchor, so controlField being
 			// non-null carries the Participates gate with it (Initialize only resolves it for participants).
@@ -898,7 +927,30 @@ namespace OpenRA.Mods.Common.Traits
 			// equality identifies a survivor.
 			var clustersBeforeGate = clusters;
 
-			if (evac)
+			if (Info.IgnoreDangerForDelivery)
+			{
+				// SITE 1 of the danger bypass, and the NEED FILTER IS KEPT DELIBERATELY. SelectServableClusters
+				// does two unrelated jobs — it drops clusters that need nothing, and it drops clusters that read
+				// hot — and only the second is danger. Skipping the whole method would send a truck to a
+				// full-ammo rear cluster (FindUnitClusters applies no need gate of its own), so the need half is
+				// re-applied here on its own.
+				//
+				// This is also the site the whole item turns on. The old gate ran at the RELEASE level (30 danger
+				// units) against live median cells measured in the thousands of units, so on a contested front
+				// EVERY needy cluster was rejected and only the relief valve's least-dangerous tie group
+				// survived. With SectorSpread assigning distinct clusters, a one-cluster list leaves every truck
+				// but one unassigned — errand None — which is precisely the state that evacuates. That is the
+				// back-and-forth: not one truck dithering, but the danger gate collapsing the roster and the
+				// evac branch collecting the remainder.
+				foreach (var c in clusters)
+				{
+					c.FollowCell = c.CenterCell;
+					c.Danger = 0;
+				}
+
+				clusters = clusters.Where(c => NeedScore(c.AmmoNeed) > 0).ToList();
+			}
+			else if (evac)
 			{
 				foreach (var c in clusters)
 				{
@@ -1093,6 +1145,12 @@ namespace OpenRA.Mods.Common.Traits
 				// null cluster: the relief valve can still leave a truck with no target (nothing needs ammo),
 				// and a truck standing in fire must be able to pull back regardless. Pre-damper this case fell
 				// through unevacuated.
+				// SITES 2 AND 3 of the danger bypass are closed HERE, by `evac` being false: no Supply Route is
+				// resolved, so StepEvac is never called and the truck has no danger-driven retreat at all.
+				// EvacAllowed above is then moot by construction — it can only ever SUPPRESS an evac, and there
+				// is none left to suppress — which is why it needs no bypass term of its own. Stated rather than
+				// left to be re-derived, because "which of the seven did this actually cover" is the question
+				// three previous attempts got wrong.
 				var srActor = evac ? NearestSupplyRoute(supplyRoutes, truck.CenterPosition) : null;
 				if (!evacAllowed)
 				{
@@ -1366,8 +1424,17 @@ namespace OpenRA.Mods.Common.Traits
 			//
 			// The mode-selection half of the "why no crate" answer is APPENDED to the decline line below rather
 			// than logged on its own, so a refusal is one line whichever gate produced it.
+			// SITE 4 of the danger bypass, and the LEADING SUSPECT for the specific symptom "the truck drives up
+			// and then nothing happens". The quiet-front branch below is not a refusal to deliver — it is the
+			// serve-in-place mode, which keeps the cargo and hands out batches from the aura. But a truck that
+			// serves in place stays parked at the front holding a load, follows its cluster's centroid as the
+			// platoon moves, and is the thing the user is watching when they say the truck never commits. With
+			// the bypass on, danger no longer selects the mode: the drop mode is always chosen, so the truck
+			// drives to the anchor, unloads its whole 750 as a crate, and — empty — takes TRUK's shipped
+			// InitialResupplyBehaviorAI: Evacuate off the field. That is the wanted behaviour verbatim: drive
+			// near, DROP, evacuate.
 			var modeDetail = string.Empty;
-			if (drop && Info.DropRequiresDanger && !dispatched && cluster != null)
+			if (drop && Info.DropRequiresDanger && !Info.IgnoreDangerForDelivery && !dispatched && cluster != null)
 			{
 				var clusterDanger = GroundDangerAt(cluster.CenterCell);
 				var median = dangerField != null ? dangerField.GroundDangerMedian(player) : 0;
@@ -1696,8 +1763,17 @@ namespace OpenRA.Mods.Common.Traits
 				? SupplyDropMath.AvailableStandoff(Info.DropStandoffCells, frontierAtSr)
 				: Info.DropStandoffCells;
 
+			// SITE 5 of the danger bypass. A negative threshold is StagingCell's own "guard disabled" sentinel
+			// (ForwardStagingMath.cs:87, `dangerSafeThreshold >= 0 &&` on the neighbour filter), so the descent
+			// becomes a pure frontier walk. This is the ONE danger path that could still turn a RUNNING delivery
+			// around: a descent that finds no safe neighbour yields NoAnchor, and NoAnchor revokes an already
+			// dispatched errand in the !drop branch above. It applies only to the FALLBACK anchor (no cluster
+			// selected), which is exactly the surplus-truck case, so leaving it live would have kept a live
+			// abort path open under a switch that claims there is none.
+			var descentDangerGuard = Info.IgnoreDangerForDelivery ? -1 : GroundDangerLevel(Info.DropDangerSafeUnits);
+
 			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
-				standoff, GroundDangerLevel(Info.DropDangerSafeUnits), Info.DropMaxDescentSteps,
+				standoff, descentDangerGuard, Info.DropMaxDescentSteps,
 				(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
 				(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
 				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight,
@@ -2149,9 +2225,19 @@ namespace OpenRA.Mods.Common.Traits
 			return clusters;
 		}
 
+		/// <summary>The cell a truck assigned to this cluster is actually sent to.
+		///
+		/// <para>SITE 7 OF THE DANGER BYPASS, AND THE ONE NO CONFIG FLAG REACHES. This reads
+		/// <see cref="ThreatMapManager"/>, NOT <see cref="DangerFieldLayer"/> — so every previous "disable
+		/// danger awareness" that flipped DangerEvac / DropRequiresDanger / DropDangerSafeUnits /
+		/// DangerFieldRouting left this live, and it is the leading explanation for why the symptom survived
+		/// each of those attempts unchanged. It scores a ±3 box by <c>enemyValue - friendlyValue</c> and takes
+		/// the argmax of the negation, which moves the destination up to ~4 cells off the centroid on a field
+		/// that is rebuilt continuously; against RepathThresholdCells: 3 a re-derived cell can shift far enough
+		/// to re-issue the follow Move, cancel the drive and restart the path, forever.</para></summary>
 		CPos? FindSafeFollowPosition(UnitCluster cluster)
 		{
-			if (threatMap == null)
+			if (Info.IgnoreDangerForDelivery || threatMap == null)
 				return cluster.CenterCell;
 
 			// Find the safest cell near the cluster (behind the front line)
