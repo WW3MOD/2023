@@ -40,6 +40,16 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Enter the target actor and be consumed by the capture.")]
 		public readonly bool ConsumedByCapture = true;
 
+		[Desc("What happens to this actor after a successful capture. Only applies when",
+			"ConsumedByCapture is true (an actor that never enters the target is never consumed).",
+			"Exit walks it back out of the target instead of removing it.")]
+		public readonly EnterBehaviour EnterBehaviour = EnterBehaviour.Dispose;
+
+		[Desc("Transfer the target to the Neutral player instead of to the capturing player.",
+			"The previous owner loses the structure but the captor does not gain it, so a",
+			"dedicated capture unit is still needed to actually take it.")]
+		public readonly bool CaptureToNeutral = false;
+
 		[Desc("Experience granted to the capturing player.")]
 		public readonly int PlayerExperience = 0;
 

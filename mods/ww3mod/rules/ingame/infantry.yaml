@@ -930,12 +930,15 @@
 		CaptureTypes: building-occupied
 		PlayerExperience: 0
 		CaptureDelay: 1000
-		# Soldiers (conscripts, riflemen, TL, AT, snipers) take buildings by
-		# force only from enemy owners — they're not technicians; the design
-		# fiction is the captured building keeps its existing technician
-		# "inside" after the takeover. Neutral tech buildings need an actual
-		# Technician (^CapturesNeutralBuildings) to install one.
+		# Soldiers (conscripts, riflemen, TL, AT, snipers) can only EVICT an
+		# enemy owner, never take ownership — they're not technicians. The
+		# building drops to Neutral and your own Technician
+		# (^CapturesNeutralBuildings) still has to walk in to install one.
+		# The soldier survives the eviction and walks back out; only a
+		# Technician is ever consumed by a capture.
 		ValidRelationships: Enemy
+		CaptureToNeutral: true
+		EnterBehaviour: Exit
 ^CapturesNeutralBuildings:
 	CaptureManager:
 	Captures@CAPTURESNEUTRAL:

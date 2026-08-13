@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -111,9 +112,22 @@ namespace OpenRA.Mods.Common.Activities
 						var damage = (int)((long)health.MaxHP * captures.Info.SabotageHPRemoval / 100);
 						enterActor.InflictDamage(self, new Damage(damage, captures.Info.SabotageDamageTypes));
 
-						if (captures.Info.ConsumedByCapture)
-							self.Dispose();
+						ApplyEnterBehaviour(self, captures);
 
+						return;
+					}
+				}
+
+				var newOwner = self.Owner;
+				if (captures.Info.CaptureToNeutral)
+				{
+					// Maps are not required to define a Neutral player. Abort rather than falling
+					// back to self.Owner: the point of CaptureToNeutral is that this actor must
+					// not end up owning the target, so handing it over would invert the rule.
+					newOwner = w.Players.FirstOrDefault(p => p.InternalName == "Neutral");
+					if (newOwner == null)
+					{
+						Log.Write("debug", $"CaptureToNeutral: {self.Info.Name} cannot neutralise {enterActor.Info.Name} - this map defines no Neutral player. Capture aborted.");
 						return;
 					}
 				}
@@ -123,19 +137,36 @@ namespace OpenRA.Mods.Common.Activities
 				// trigger World.Remove/Add and the expensive shroud/vision recalc
 				// cascade on every player (causes a ~0.5s freeze on capture).
 				if (enterActor.Info.HasTraitInfo<BuildingInfo>())
-					enterActor.ChangeOwnerInPlaceSync(self.Owner);
+					enterActor.ChangeOwnerInPlaceSync(newOwner);
 				else
-					enterActor.ChangeOwnerSync(self.Owner);
+					enterActor.ChangeOwnerSync(newOwner);
 
 				foreach (var t in enterActor.TraitsImplementing<INotifyCapture>())
-					t.OnCapture(enterActor, self, oldOwner, self.Owner, captures.Info.CaptureTypes);
+					t.OnCapture(enterActor, self, oldOwner, newOwner, captures.Info.CaptureTypes);
 
 				if (self.Owner.RelationshipWith(oldOwner).HasRelationship(captures.Info.PlayerExperienceRelationships))
 					self.Owner.PlayerActor.TraitOrDefault<PlayerExperience>()?.GiveExperience(captures.Info.PlayerExperience);
 
-				if (captures.Info.ConsumedByCapture)
-					self.Dispose();
+				ApplyEnterBehaviour(self, captures);
 			});
+		}
+
+		// ConsumedByCapture still means "enters the target" (CaptureManager.cs keys its progress-bar
+		// duration estimate off it); EnterBehaviour decides what happens to the actor once inside.
+		static void ApplyEnterBehaviour(Actor self, Captures captures)
+		{
+			if (!captures.Info.ConsumedByCapture)
+				return;
+
+			switch (captures.Info.EnterBehaviour)
+			{
+				case EnterBehaviour.Dispose:
+					self.Dispose();
+					break;
+				case EnterBehaviour.Suicide:
+					self.Kill(self);
+					break;
+			}
 		}
 
 		protected override void OnLastRun(Actor self)

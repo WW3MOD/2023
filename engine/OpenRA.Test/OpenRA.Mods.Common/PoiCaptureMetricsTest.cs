@@ -175,5 +175,58 @@ namespace OpenRA.Test
 			Assert.That(r0.Captures, Is.EqualTo(1));
 			Assert.That(r0.Losses, Is.EqualTo(1));
 		}
+
+		[Test]
+		public void EvictionToNeutralChargesTheHolderALossAndCreditsNobody()
+		{
+			// Soldiers evict a POI's owner without taking it (CaptureToNeutral): the structure
+			// drops to Neutral, so the watcher records OldOwner = holder, NewOwner = -1
+			// (OwnerIndex maps every NonCombatant to -1). The classifier only sees
+			// (oldWasNeutral: false, newPreviouslyOwned: false, oldWasTrackedBot: true) and so
+			// labels it `steal` — misleading in the raw event stream, but it cannot move a
+			// tally, because no side has ClientIndex -1 and the gain branch never fires.
+			Assert.That(PoiEventClassifier.Classify(false, false, true), Is.EqualTo(PoiEventClassifier.Steal));
+
+			var events = new List<PoiCaptureEvent>
+			{
+				Ev(100, -1, 0, PoiEventClassifier.Capture),
+				Ev(300, 0, -1, PoiEventClassifier.Steal),
+			};
+
+			var r0 = PoiRollup.Compute(events, 0);
+			Assert.That(r0.Captures, Is.EqualTo(1));
+			Assert.That(r0.Losses, Is.EqualTo(1));
+			Assert.That(r0.Steals, Is.EqualTo(0));
+
+			var r1 = PoiRollup.Compute(events, 1);
+			Assert.That(r1.Steals, Is.EqualTo(0));
+			Assert.That(r1.Losses, Is.EqualTo(0));
+			Assert.That(r1.FirstCaptureTick, Is.EqualTo(-1));
+		}
+
+		[Test]
+		public void RetakingAnEvictedPoiClassifiesFromNeutral()
+		{
+			// After an eviction the POI is Neutral, so whoever's technician walks in next is
+			// classified against a neutral predecessor: a fresh owner captures, the evicted
+			// owner recaptures. Neutral is never a tracked bot, so it is never charged a loss.
+			Assert.That(PoiEventClassifier.Classify(true, false, false), Is.EqualTo(PoiEventClassifier.Capture));
+			Assert.That(PoiEventClassifier.Classify(true, true, false), Is.EqualTo(PoiEventClassifier.Recapture));
+
+			var events = new List<PoiCaptureEvent>
+			{
+				Ev(100, -1, 0, PoiEventClassifier.Capture),
+				Ev(300, 0, -1, PoiEventClassifier.Steal),
+				Ev(500, -1, 1, PoiEventClassifier.Capture),
+			};
+
+			var r1 = PoiRollup.Compute(events, 1);
+			Assert.That(r1.Captures, Is.EqualTo(1));
+			Assert.That(r1.Losses, Is.EqualTo(0));
+			Assert.That(r1.FirstCaptureTick, Is.EqualTo(500));
+
+			var r0 = PoiRollup.Compute(events, 0);
+			Assert.That(r0.Losses, Is.EqualTo(1));
+		}
 	}
 }
