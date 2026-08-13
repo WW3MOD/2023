@@ -822,6 +822,24 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
+			// Re-check the condition the chain was scheduled on, for the same reason
+			// the EmergencyBailDelay path re-checks its countdown: a transport repaired
+			// back above the line mid-stagger is not bailing out any more, and must not
+			// keep dumping the rest of the squad because a chain started under
+			// conditions that no longer hold. Abort rather than run to completion —
+			// otherwise an engineer healing a burning APC leaves it calmly ejecting men
+			// one at a time while no longer on fire.
+			// Ordering matters: the dead guard above comes first. On a killing blow
+			// DamageState is Dead and this predicate is false too, but that case belongs
+			// to Killed, not here.
+			// bailedOut is deliberately left false so a later hit starts a fresh chain.
+			var bailAt = aircraft != null ? Info.AircraftEmergencyBailDamageState : Info.EmergencyBailDamageState;
+			if (!ShouldEmergencyBail(self.Trait<Health>().DamageState, bailAt))
+			{
+				bailStaggerRunning = false;
+				return;
+			}
+
 			var placed = EmergencyBailOut(self);
 			if (!placed || IsEmpty())
 			{
@@ -951,6 +969,16 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (Info.EjectOnDeath)
 			{
+				// KNOWN HAZARD, introduced by the staggered bail and not yet addressed.
+				// This loop stops the moment no exit is free, and men the stagger
+				// already dropped are standing in the adjacent cells with queued
+				// scatter orders. That intermediate state was impossible while the bail
+				// was atomic: earlier bailers can now block the exits this loop needs,
+				// and whoever is left falls out still in cargo, to be Dispose()d by
+				// Disposing with no corpse and no kill credit. It takes a genuine choke
+				// — a bridge, a treeline gap — to bite, so it is recorded rather than
+				// papered over; fixing it means giving these men the same passability
+				// search EmergencyBailOut uses instead of a single CanUnload gate.
 				while (!IsEmpty() && CanUnload(BlockedByActor.All))
 				{
 					var passenger = Unload(self);

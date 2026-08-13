@@ -5,6 +5,15 @@
  * transport drive off it, so this is what keeps the two cadences identical.
  * Pure-math test; no Actor / World.
  *
+ * SCOPE, stated because the gap matters more than the coverage: this fixture
+ * exercises the pure static ONLY. The wiring that consumes it — the bail chain,
+ * the bailStaggerRunning re-entry latch, the bailUnloaded counter, the dead
+ * guard and the repair-abort — needs an Actor and a World and is NOT covered
+ * here or anywhere else. That is the exact pattern closeout/6361c2be.md §4
+ * blames for two review blockers shipping green, so do not read a passing run
+ * as feature coverage. (The predicate the repair-abort delegates to,
+ * Cargo.ShouldEmergencyBail, is covered in CargoPassengerDamageTest.)
+ *
  * Note what is NOT this function's job: the delay before the FIRST man. Both
  * callers unload a passenger and only then ask for a delay, so the first man
  * always leaves immediately — which is what "no delay, even while the vehicle
@@ -20,14 +29,29 @@ namespace OpenRA.Mods.Common.Test
 	[TestFixture]
 	public class CargoUnloadCadenceTest
 	{
-		// Shipped CargoInfo defaults: pairs leave 4 ticks apart, 12 ticks between pairs.
-		const int GroupSize = 2;
-		const int IntraDelay = 4;
-		const int InterMultiplier = 3;
+		// Read the real shipped defaults rather than restating them from memory, so a
+		// designer retuning CargoInfo cannot leave this fixture green on a stale premise.
+		static readonly CargoInfo Defaults = new CargoInfo();
+		static readonly int GroupSize = Defaults.UnloadGroupSize;
+		static readonly int IntraDelay = Defaults.IntraGroupUnloadDelay;
+		static readonly int InterMultiplier = Defaults.InterGroupUnloadDelayMultiplier;
 
-		static int Delay(int unloaded, int groupSize = GroupSize, int intraDelay = IntraDelay,
-			int interMultiplier = InterMultiplier) =>
-			Cargo.NextUnloadDelay(unloaded, groupSize, intraDelay, interMultiplier);
+		static int Delay(int unloaded, int? groupSize = null, int? intraDelay = null,
+			int? interMultiplier = null) =>
+			Cargo.NextUnloadDelay(unloaded, groupSize ?? GroupSize, intraDelay ?? IntraDelay,
+				interMultiplier ?? InterMultiplier);
+
+		[Test]
+		public void TheShippedDefaultsAreTheOnesThisFixtureReasonsAbout()
+		{
+			// Pins the premise instead of assuming it in a comment. Every expectation
+			// below is written for pairs 4 ticks apart and 12 ticks between pairs; if
+			// those move, the retune was deliberate and this is the line that says so
+			// rather than a confusing failure three tests down.
+			Assert.AreEqual(2, GroupSize, "CargoInfo.UnloadGroupSize");
+			Assert.AreEqual(4, IntraDelay, "CargoInfo.IntraGroupUnloadDelay");
+			Assert.AreEqual(3, InterMultiplier, "CargoInfo.InterGroupUnloadDelayMultiplier");
+		}
 
 		[Test]
 		public void ShippedDefaultsComeOutInPairs()
@@ -92,17 +116,17 @@ namespace OpenRA.Mods.Common.Test
 		}
 
 		[Test]
-		public void ABailIsNeverSlowerThanTheHullSurvives()
+		public void AFullStickIsClearOfTheHullInThirtyTwoTicks()
 		{
-			// Sanity bound on the emergency path: the cadence must empty a full stick
-			// in a time a burning vehicle plausibly still exists for. Five men at the
-			// shipped defaults is 4+12+4+12 = 32 ticks, under two seconds at 40ms.
+			// Five men at the shipped defaults: 4 + 12 + 4 + 12. This is the number
+			// that decides how long the last man is still riding a burning hull, and
+			// therefore how much of the squad is still aboard if it explodes — so it
+			// is pinned exactly rather than bounded by a guessed-at hull-fire lifetime.
 			var total = 0;
 			for (var unloaded = 1; unloaded < 5; unloaded++)
 				total += Delay(unloaded);
 
 			Assert.AreEqual(32, total);
-			Assert.Less(total, 60, "a stick should be clear of the hull in well under a hull-fire lifetime");
 		}
 	}
 }

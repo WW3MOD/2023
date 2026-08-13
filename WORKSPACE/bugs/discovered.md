@@ -3,6 +3,20 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-13: [low] OPEN, AND SELF-INFLICTED — men the staggered bail already dropped can block the exits `Cargo.Killed` needs, leaving the rest of the squad `Dispose()`d with no corpse and no kill credit (found while: pacing the emergency bail, branch `wt/bail-pacing`)
+
+**Introduced by the change that files it**, so this is a cost of the staggered bail rather than a pre-existing defect. Recorded rather than fixed because it is out of scope for a pacing change and the fix is a real one, not a one-liner.
+
+`INotifyKilled.Killed`'s eject loop is gated on `while (!IsEmpty() && CanUnload(BlockedByActor.All))` (`Cargo.cs`, `EjectOnDeath` branch). It stops the moment no exit is free, and passengers still in cargo at that point are never placed — `INotifyActorDisposing.Disposing` then calls `Dispose()` on each, which removes them with **no death, no corpse, and no kill credit to the attacker**.
+
+**Why the stagger creates the exposure.** While the bail was atomic, a transport at Heavy emptied inside one tick: by the time it died the hold was already empty and the men were clear. The paced bail leaves an intermediate state that could not previously exist — some men out and *standing in the adjacent cells* with queued scatter orders, the rest still aboard. Those earlier bailers are exactly the actors `CanUnload(BlockedByActor.All)` now trips over. The window is the length of the stagger, ~32 ticks for a stick of five at shipped defaults.
+
+**Needs a genuine choke to bite** — a bridge, a treeline gap, a transport wedged against a building — because the bail searches eight adjacent cells plus the hull's own, and on open ground the scatter orders clear those cells quickly. So: real, new, and low.
+
+**Not established:** never reproduced in game. This is static reading of the two code paths; no autotest was run and nobody has confirmed the timing actually overlaps in play.
+
+**Shape of the fix, when someone takes it:** give `Killed`'s loop the same per-passenger passability search `EmergencyBailOut` uses (adjacent cells shuffled, then the hull's own cell, each checked with `GetAvailableSubCell`) instead of the single `CanUnload` gate, so one blocked man does not end the loop for everyone behind him. That mirrors what the bail path already does, and would close the pre-existing version of this hole too.
+
 ## 2026-08-12: [medium] OPEN — the autotest single-instance lock covers `run-test.sh` only; `run-tournament.sh` and `loop-tournament.sh` ignore it entirely (found while: making `run-test.sh` incapable of losing a verdict, branch `wt/harness`)
 
 `run-test.sh` acquires `~/.ww3mod-tests/run.lock` before launching. Neither tournament script contains any reference to it — grepping `run.lock` under `tools/` returns hits in `run-test.sh` and `selftest.sh` and nowhere else. So a tournament and a single test can run **two games at once**, and the lock's other job — serialising access to the one engine support directory — is not done for them.
