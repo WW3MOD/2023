@@ -60,6 +60,16 @@
 #                          pass/fail verdict. The .lifecycle.jsonl is archived
 #                          alongside result.json in the per-run screenshot dir.
 #
+# Missile audit:
+#   --missile-trace        Enable the off-by-default MissileTrace, which writes a
+#                          JSONL stream to <result>.missiles.jsonl: one line per
+#                          missile per tick, plus one summary line per missile
+#                          naming the exact code path that ended it. Observation
+#                          only — changes neither the verdict nor the simulation.
+#   --missile-trace-summary
+#                          Same, but suppress the per-tick lines and keep only the
+#                          one summary line per missile. Use for range sweeps.
+#
 # Saved-game diagnostics:
 #   --sync-reports         Arm sync reporting even with a single human client, and
 #                          dump the RECORDING side of the sync state when a game save
@@ -139,6 +149,8 @@ SPEED_MULT=""
 SEED=""
 TIMEOUT_SECS=300
 LIFECYCLE=0
+MISSILE_TRACE=0
+MISSILE_TRACE_MODE=full
 SYNC_REPORTS=0
 
 while [ $# -gt 0 ]; do
@@ -167,6 +179,8 @@ while [ $# -gt 0 ]; do
 		--timeout=*)            TIMEOUT_SECS="${1#*=}"; shift ;;
 		--timeout)              TIMEOUT_SECS="$2"; shift 2 ;;
 		--lifecycle)            LIFECYCLE=1; shift ;;
+		--missile-trace)        MISSILE_TRACE=1; shift ;;
+		--missile-trace-summary) MISSILE_TRACE=1; MISSILE_TRACE_MODE=summary; shift ;;
 		--sync-reports)         SYNC_REPORTS=1; shift ;;
 		--help|-h)
 			sed -n '2,130p' "$0" | sed 's/^# \?//'
@@ -181,7 +195,7 @@ done
 
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 [L|R|F] [--background|--hidden|--minimized|--visible] [--audio] [--speed N] [--seed N] [--timeout N] [--lifecycle] <test-folder-name>"
+	echo "Usage: $0 [L|R|F] [--background|--hidden|--minimized|--visible] [--audio] [--speed N] [--seed N] [--timeout N] [--lifecycle] [--missile-trace] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
 fi
@@ -651,6 +665,17 @@ if [ "${LIFECYCLE}" = "1" ]; then
 	LIFECYCLE_ARGS="Test.UnitLifecycleLog=$(to_game_path "${LIFECYCLE_FILE}")"
 fi
 
+# Missile audit (opt-in --missile-trace): MissileTrace writes a per-missile JSONL
+# stream to this sibling of the verdict file. Pure observation — the flag changes
+# neither the simulation nor the verdict, so a traced run and an untraced run of
+# the same seed play out identically.
+MISSILE_TRACE_ARGS=""
+MISSILE_TRACE_FILE="${RESULT_FILE%.json}.missiles.jsonl"
+if [ "${MISSILE_TRACE}" = "1" ]; then
+	rm -f "${MISSILE_TRACE_FILE}"
+	MISSILE_TRACE_ARGS="Test.MissileTraceLog=$(to_game_path "${MISSILE_TRACE_FILE}") Test.MissileTraceMode=${MISSILE_TRACE_MODE}"
+fi
+
 # Launcher indirection. Defaults to the real launcher, byte-for-byte the previous
 # behaviour. It exists so tools/autotest/selftest.sh can drive the crash /
 # no-result / timeout branches with a stub launcher — those branches are exactly
@@ -671,6 +696,7 @@ LAUNCHER="${AUTOTEST_LAUNCHER:-./launch-game.sh}"
 	${SPEED_ARGS} \
 	${SEED_ARGS} \
 	${LIFECYCLE_ARGS} \
+	${MISSILE_TRACE_ARGS} \
 	${SYNC_REPORT_ARGS} \
 	${SUSPEND_ARGS} \
 	&
