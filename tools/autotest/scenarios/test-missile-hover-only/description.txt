@@ -1,0 +1,1 @@
+Measurement rig: the air_hover lane alone (MANPAD vs stationary littlebird), so a per-missile between-build comparison is not contaminated by the other six lanes sharing one RNG stream. Run with --missile-trace.

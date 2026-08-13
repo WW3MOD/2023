@@ -226,3 +226,236 @@ which is the steering error being removed.
   missile is behaving correctly. No such case appeared in the Ataka lanes, but
   none of those lanes has terrain rising between launcher and target. This is
   the most likely place for a 3D false positive to hide.
+
+---
+
+# Independent verification of the three left-open gaps
+
+Second session, working from `1ec6f17c` detached at
+`C:/Users/fredr/worktrees/ww3mod/missile-latch-verify`, pre-fix base
+`3f18551a`. Nothing above this line was edited — it is the author's
+pre-registered evidence.
+
+Predictions for this run were recorded before the first run, in
+`missile-latch-verify-predictions.md`. Two of them (V2, V8) were falsified and
+both falsifications are load-bearing; they are called out below.
+
+**Verdict: MERGE.** No regression in any lane of any rig, on either build. The
+one genuinely alarming possibility — Gap 2's terrain-aware false positive — is
+structurally unreachable in this mod today, and the reason it is unreachable is
+itself worth the manager's attention.
+
+## Gates
+
+| gate | result |
+|---|---|
+| `./make.ps1 all` at `1ec6f17c` | clean, 0 errors |
+| `dotnet test` | **1402 / 1402**, 0 failed |
+| `./make.ps1 test` | **85 lines / 14 unique identities**, diffed by identity against the pre-change baseline: **zero identities added, zero removed** |
+
+Both new scenario maps are scanned by the lint (`Testing map: TEST: Hellfire
+latch probe`, `Testing map: TEST: air_hover lane in isolation`) and neither
+contributes an error, so the expected +3-per-map shift did not occur.
+
+## Gap 1 — Hellfire, the priority. No regression; a large improvement.
+
+New rig `test-missile-hellfire-probe`. `HELI` (Apache) fires `Hellfire` at a
+`littlebird` across the same four motion regimes as the MANPAD lanes, using the
+latch-probe's target cells and motion scripts verbatim; `strykershorad` fires
+`Hellfire.strykershorad` at a `t90` on the three ground lanes. Both builds, seed
+20260813, `--hidden --mute --speed 4 --missile-trace`.
+
+| lane | weapon | n | pre hits | pre latch | post hits | post latch |
+|---|---|---|---|---|---|---|
+| air_approach | Hellfire | 72 | 72 (100%) | 0 | 72 (100%) | **0** |
+| air_flee | Hellfire | 72 | 70 (97%) | 0 | 70 (97%) | **0** |
+| air_reverse | Hellfire | 72 | **44 (61%)** | **33** | **69 (95%)** | **0** |
+| air_hover | Hellfire | 72 | 72 (100%) | 0 | 72 (100%) | **0** |
+| gnd_static | Hellfire.strykershorad | 24 | 24 (100%) | 0 | 24 (100%) | **0** |
+| gnd_flee | Hellfire.strykershorad | 24 | 24 (100%) | 0 | 24 (100%) | **0** |
+| gnd_reverse | Hellfire.strykershorad | 24 | **22 (91%)** | **6** | **24 (100%)** | **0** |
+| **TOTAL** | | **360** | **328 (91%)** | **39** | **355 (98%)** | **0** |
+
+**All 39 pre-fix latches fired on a physically closing tick — 39/39, not one
+opening.** Post-fix there are no latches at all in 360 missiles.
+
+**V2 is falsified, and this is the finding.** I predicted Hellfire would be
+*less* exposed than MANPAD, because its `HorizontalRateOfTurn` is 60 against
+MANPAD's 20 and its `CloseEnough` is 298 against 192 — both make the predicate
+harder to trip. The opposite is true. Hellfire's reversal lane latched on 33 of
+72 missiles (46%) against MANPAD's 7 of 18 (39%), and its hit rate fell further
+(61% against 66%). **Hellfire was the worst-affected weapon measured in this
+programme, and it is the one the fix was signed off without ever firing.** The
+worst individual cases latched at tick 7 with the target still 15 000+ wdist
+away and never recovered: ids 148/149/150 latched at `minDist` 15051 / 13858 /
+14957, flew straight into the ground, and did zero damage.
+
+`Hellfire.strykershorad` also reproduced the defect (6 latches, 91%), which
+falsifies the softer half of V5 — I expected it to look like the quiet ATGM
+ground lanes. It did not; the ground variant carries the same bug.
+
+Rig caveat, stated because it bounds what these numbers mean: the air launchers
+are aircraft and reposition during the run, so launch geometry is not constant
+within a lane the way it is in the MANPAD rig. The pre/post comparison is
+paired on one seed and is sound; an absolute Hellfire hit rate should not be
+read against an absolute MANPAD one.
+
+## Gap 2 — the terrain-aware false positive cannot happen, for a reason worth knowing
+
+**The lane the brief asks for cannot be built, and the risk is structurally
+unreachable.** `InclineLookahead` (`Missile.cs:553-596`) reads
+`world.Map.Height[cell] * 512`. `Map.Height` is only ever populated when
+`Grid.MaximumTerrainHeight > 0` (`Map.cs:443-449`), and `Grid` comes from the
+**mod manifest** (`Map.cs:400`, `modData.Manifest.Get<MapGrid>()`), not from map
+rules — so no scenario-local override can turn it on. ww3mod's `MapGrid`
+(`mod.yaml:320-322`) sets `TileSize` and `Type` and nothing else, so
+`MaximumTerrainHeight` takes the engine default of **0**. I decoded the binary
+header of **all 171 `map.bin` files** in the repo: every one carries
+`heightsOffset == 0`.
+
+So `predClfHgt`, `predClfDist` and `lastHt` are identically zero on every map in
+the game, and the climb branch `TerrainHeightAware && diffClfMslHgt >= 0 &&
+!allowPassBy` reduces to `pos.Z <= 0`. **It cannot be entered in response to
+rising ground, because there is no rising ground.** That also disposes of V7:
+building the lane would require editing `mods/ww3mod/mod.yaml`, which is a
+mod-wide change to every map's binary format and well outside this brief.
+
+**V6 was falsified in its detail and it matters.** I predicted no terrain-aware
+missile would ever reach `Z <= 0`. On the post-fix build 27 ticks do — all of
+them `hellfire.strykershorad` in its terminal dive, reaching `Z = -20`. But
+every one of those 27 ticks logs `apb = 1`: `allowPassBy` is already true, so
+the `!allowPassBy` guard closes the branch anyway. Across 13 059 terrain-aware
+ticks on the post-fix build the climb branch is entered **zero** times.
+
+The feared shape was then searched for directly. Post-fix, 1 201 ticks have a
+terrain-aware missile climbing (`dz > 0`) while in the `Hitting` state — that is
+ordinary terminal geometry, not the incline branch — and of those, exactly
+**one** also opened the 3D range:
+
+| missile | tick | Z | dz | phys3 prev → now | dPhys | minDist | CloseEnough | latched? | outcome |
+|---|---|---|---|---|---|---|---|---|---|
+| 32 (Hellfire) | 53 | 1341 | +68 | 304 → 357 | **+53** | 304 | **298** | **no** | hit, 440 dmg |
+
+It opened by 53 wdist against a tolerance of 298 — **5.6x headroom** — and the
+missile went on to detonate `close_enough` for 440 damage. The predicate needs
+`currentDistance > minDistanceToTarget + CloseEnough`, i.e. 357 > 602, which is
+nowhere close.
+
+> **For the manager, and this is the part nobody asked for.** This clean result
+> is contingent on `MaximumTerrainHeight` staying 0. The `TerrainHeightAware:
+> true` flags on `WGM`, `Ataka` and `Hellfire` are not doing what their comments
+> claim — the WGM/Hellfire comment "prevents the descent-into-ground fall-short
+> bug" describes a climb mechanism that never runs. What `TerrainHeightAware`
+> *does* still do on these weapons is reach the `lastHt >= targetPosition.Z`
+> test at `Missile.cs:680`, which with `lastHt` identically 0 sets
+> `allowPassBy = true` for every ground target at Z=0 — a live behavioural
+> difference, and the very thing that closed the branch above. **If terrain
+> height is ever enabled in this mod, Gap 2 becomes a real and completely
+> untested risk, and this fix is the code that would carry it.** That is a note
+> for whoever turns heights on, not a reason to hold this merge.
+
+## Gap 3 — the hover shift isolates to NEITHER change. The author's conclusion holds; the attribution does not.
+
+First, the author's runs reproduce exactly on this machine at seed 20260813:
+pre-fix 99 missiles / 90 hits / 10 latches with `air_reverse` at 7 latches and
+66%; post-fix 95 hits / 3 latches, the three being ids 28/43/59 at `minDist`
+227 / 231 / 197. Identical to runs 1 and 3.
+
+The isolation build the brief asked for — `3f18551a` carrying **only** the
+`lastTargetPosition` constructor seed, detector left on `relTarHorDist`,
+verified by diff before building — gives:
+
+| build (7-lane latch-probe) | air_hover latches | air_hover hit% | total hits | total latches |
+|---|---|---|---|---|
+| pre-fix `3f18551a` | 0 | 100% | 90/99 (90%) | 10 |
+| **isolation (seed only)** | **0** | **100%** | 89/99 (89%) | 12 |
+| post-fix `1ec6f17c` | 3 | 83% | 95/99 (95%) | 3 |
+
+**V8 is falsified: the seed-only build does not reproduce the hover shift.** By
+the brief's stated rule that is the DO-NOT-MERGE trigger. It should not be,
+and here is why.
+
+### The seven-lane rig cannot isolate anything
+
+All seven lanes advance in one tick loop against one shared RNG stream — every
+missile draws at creation (`Inaccuracy`) and again on each `RetargetTicks`
+re-roll of `offset`. The fix stops `air_reverse` latching (7 to 0), so those
+missiles live for different durations, re-roll on different ticks and detonate
+elsewhere. From the first such divergence every later draw in the stream belongs
+to a different missile than it did on the other build — **including the draws
+that belong to `air_hover`**. Pairing hover missiles by id across two builds
+compares two different worlds.
+
+This is not hypothetical: in the seven-lane rig, **17 of 18** hover missiles
+have a different closest approach between the isolation and post-fix builds,
+including missiles that never latch on either. The detector provably cannot
+cause that — `minDistanceToTarget` feeds nothing but the `flyStraight`
+predicate and its recovery (`Missile.cs:874-883`); no steering, no speed, no RNG
+draw — so a missile that never latches cannot be moved by the detector at all.
+The movement is the shared stream, not the code under test.
+
+**That invalidates the author's third argument.** The paired per-missile
+comparison ("three that got worse 71 to 227, 28 to 231, 17 to 197 and three that
+got much better 232 to 144, 184 to 74, 222 to 115") reproduces exactly on my
+runs, but it is not a controlled comparison, and the isolation build produces a
+third, different set of values for the same six ids.
+
+### The single-lane rig settles it
+
+`test-missile-hover-only` runs the `air_hover` engagement and nothing else, so
+the coupling is gone. Same 18 missiles, same seed, all three builds:
+
+| build | n | hits | latches | ISO-vs-POST closest approach |
+|---|---|---|---|---|
+| pre-fix | 18 | **18 (100%)** | **0** | — |
+| isolation (seed only) | 18 | **18 (100%)** | **0** | **identical on 18/18** |
+| post-fix | 18 | **18 (100%)** | **0** | **identical on 18/18** |
+
+The isolation and post-fix builds are **identical in outcome across all 18
+missiles** — exactly what the code predicts once no latch fires. And pre-fix vs
+isolation, where pairing by id *is* valid because there is one lane and one
+creation order, the tick-1 seed moves closest approach by at most **6 wdist**
+(e.g. 61 to 57, 104 to 110, 233 to 231) and **never turns a hit into a miss**.
+
+So the honest conclusion, which differs from the author's:
+
+- The hover lane, measured in isolation, is **18/18 with zero latches on every
+  one of the three builds**. It has no defect and the fix does nothing to it.
+- The tick-1 seed cannot plausibly be what turned `minDist` 71 into 227 — in a
+  clean rig its whole effect is plus or minus 6 wdist.
+- The 0 to 3 shift in the seven-lane rig is **whole-run divergence**, dominated
+  by `air_reverse` ceasing to latch, and is attributable to neither change
+  acting on the hover lane.
+- The author's **conclusion** — P4's intent holds, the fix creates no
+  false-positive class — is correct, and is now supported by a controlled
+  experiment rather than by a paired comparison that does not survive scrutiny.
+- The three post-fix hover latches remain legitimate under §3 of `missiles.md`:
+  verified here as firing on opening ticks (dPhys +417 / +413 / +422) after
+  closest approach, on missiles whose closest approach (227 / 231 / 197) had
+  already exceeded `CloseEnough` 192.
+
+## What neither the author nor the brief anticipated
+
+1. **Hellfire is the most defect-exposed weapon measured, not the least** — 33
+   latches in 72 missiles and a 61% hit rate pre-fix, worse on both counts than
+   the MANPAD lane the whole investigation was built on. The fix takes it to 0
+   and 95%.
+2. **The incline branch is dead code on every map that ships**, and the
+   `TerrainHeightAware` comments on WGM/Ataka/Hellfire describe a mechanism that
+   does not run. Enabling terrain height would silently arm an untested path.
+3. **Multi-lane autotest rigs cannot support between-build per-missile
+   comparison.** One shared RNG stream couples every lane to every other. This
+   is a rig-design lesson that applies to `test-missile-latch-probe`,
+   `test-missile-range-sweep` and the user-reports rig equally, and it is the
+   reason `test-missile-hover-only` now exists.
+
+## Artifacts
+
+- `tools/autotest/scenarios/test-missile-hellfire-probe/` — the Gap 1 rig.
+- `tools/autotest/scenarios/test-missile-hover-only/` — the single-lane control
+  that settles Gap 3.
+- `tools/autotest/analyze-hellfire.py` — per-lane latch/hit report keyed on the
+  target rather than the launcher, closing/opening classification on 3D
+  separation, and the incline-branch reachability check.
+- The isolation build was a throwaway; it was reverted with `git checkout --`
+  and is not committed anywhere.
