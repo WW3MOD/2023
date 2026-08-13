@@ -243,6 +243,11 @@ namespace OpenRA.Mods.Common.Projectiles
 		// >=0 = countdown ticks until the operator picks up a new target.
 		int retargetCountdown = -1;
 
+		// Actors this missile has already guided on and abandoned. Excluded from
+		// FindRetargetCandidate so an abandoned target can never be re-acquired (I2b).
+		// Null until the first retarget, which most missiles never reach.
+		List<Actor> abandonedTargets;
+
 		WPos targetPosition;
 		WVec offset;
 		WVec tarVel;
@@ -878,9 +883,23 @@ namespace OpenRA.Mods.Common.Projectiles
 			if (info.FlyStraightIfMiss && !flyStraight && state == States.Hitting && currentDistance > minDistanceToTarget + info.CloseEnough && currentDistance > info.CloseEnough)
 				flyStraight = true;
 
-			// Resume homing if target comes close again
-			if (flyStraight && currentDistance < info.CloseEnough)
-				flyStraight = false;
+			// Upstream OpenRA followed the latch with a recovery clause:
+			//     if (flyStraight && currentDistance < info.CloseEnough)
+			//         flyStraight = false;
+			// It is deleted, and must not be restored. A missile that has declared a miss
+			// re-homing on the target it missed is forbidden fleet-wide -- invariant I2b in
+			// DOCS/reference/missiles.md, a user ruling: "After a missile misses it's target
+			// they should never try to reaquire", scoped explicitly to "any missile".
+			//
+			// It was also unsound on its own terms. The clause and the detonation test at
+			// the end of Tick both compare against CloseEnough but no longer measure the
+			// same thing: detonation uses relTarDist, the distance to the AIM point
+			// (targetPosition + leadTarget + offset - pos), while this compared the physical
+			// separation. Nothing bounds `offset` by CloseEnough -- ATGM rolls Inaccuracy 512
+			// against a CloseEnough of 298 -- so a missile could sit physically inside
+			// CloseEnough, un-latch and turn back, while its aim point stayed too far out to
+			// fuse. Retargeting onto a DIFFERENT enemy is unaffected and still intended
+			// (missiles.md section 5); that path lives in Tick and is guarded separately.
 
 			var velVec = tarDistVec + predVel;
 			var desiredHFacing = flyStraight ? hFacing : (velVec.HorizontalLengthSquared != 0 ? velVec.Yaw.Facing : hFacing);
@@ -1014,6 +1033,27 @@ namespace OpenRA.Mods.Common.Projectiles
 
 				if (!targetValid && retargetCountdown == 0)
 				{
+					// Bank the target being abandoned before searching. `IsValidFor` resolves
+					// through Actor.IsTargetableBy -> Targetable.TargetableBy, which honours
+					// BOTH trait-disabled state and cloak (Targetable.cs:46-55);
+					// FindRetargetCandidate's filter resolves through
+					// WeaponInfo.IsValidAgainst -> Actor.GetEnabledTargetTypes, which honours
+					// trait-disabled too (Actor.cs:610-617 filters on IsTraitEnabled) but NOT
+					// cloak. Cloak is the sole divergence. A target that merely cloaked is
+					// therefore invalid here yet still a candidate there -- and being the
+					// nearest enemy to a missile sitting right on top of it, the one the search
+					// would pick. That would re-home the missile on the target it just missed,
+					// which I2b forbids. Reachable today: the SAM Site carries Cloak
+					// (structures-defenses.yaml) and is a valid Defense target for all three
+					// weapons that set OperatorRetargetTicks (WGM, Ataka, Hellfire).
+					var abandoned = args.GuidedTarget.Actor;
+					if (abandoned != null)
+					{
+						abandonedTargets ??= new List<Actor>();
+						if (!abandonedTargets.Contains(abandoned))
+							abandonedTargets.Add(abandoned);
+					}
+
 					var newGuided = FindRetargetCandidate();
 					if (newGuided != null)
 					{
@@ -1306,6 +1346,10 @@ namespace OpenRA.Mods.Common.Projectiles
 			foreach (var a in world.FindActorsInCircle(pos, remainingRange))
 			{
 				if (a == args.SourceActor || a.IsDead || !a.IsInWorld)
+					continue;
+
+				// Never re-acquire a target this missile already guided on and gave up (I2b).
+				if (abandonedTargets != null && abandonedTargets.Contains(a))
 					continue;
 
 				if (a.Owner.RelationshipWith(ownerPlayer) != PlayerRelationship.Enemy)
