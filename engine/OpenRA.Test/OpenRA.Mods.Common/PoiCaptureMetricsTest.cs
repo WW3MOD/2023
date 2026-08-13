@@ -179,6 +179,8 @@ namespace OpenRA.Test
 		[Test]
 		public void EvictionToNeutralChargesTheHolderALossAndCreditsNobody()
 		{
+			// Mirrors BotVsBotMatchWatcher.cs:367-370 and :436 — the classifier inputs and the
+			// OwnerIndex mapping are reproduced here, not exercised through the watcher.
 			// Soldiers evict a POI's owner without taking it (CaptureToNeutral): the structure
 			// drops to Neutral, so the watcher records OldOwner = holder, NewOwner = -1
 			// (OwnerIndex maps every NonCombatant to -1). The classifier only sees
@@ -207,6 +209,7 @@ namespace OpenRA.Test
 		[Test]
 		public void RetakingAnEvictedPoiClassifiesFromNeutral()
 		{
+			// Mirrors BotVsBotMatchWatcher.cs:367-370 and :436.
 			// After an eviction the POI is Neutral, so whoever's technician walks in next is
 			// classified against a neutral predecessor: a fresh owner captures, the evicted
 			// owner recaptures. Neutral is never a tracked bot, so it is never charged a loss.

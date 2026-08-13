@@ -930,12 +930,22 @@
 		CaptureTypes: building-occupied
 		PlayerExperience: 0
 		CaptureDelay: 1000
-		# Soldiers (conscripts, riflemen, TL, AT, snipers) can only EVICT an
-		# enemy owner, never take ownership — they're not technicians. The
-		# building drops to Neutral and your own Technician
-		# (^CapturesNeutralBuildings) still has to walk in to install one.
-		# The soldier survives the eviction and walks back out; only a
-		# Technician is ever consumed by a capture.
+		# Military structures (defences, airfields, helipads, silos, logistics,
+		# gates): unchanged classic capture — the soldier takes ownership and is
+		# consumed doing it. The design fiction is the building keeps its
+		# existing technician "inside" after the takeover.
+		ValidRelationships: Enemy
+	Captures@OCCUPIEDTECH:
+		CaptureTypes: building-occupied-tech
+		PlayerExperience: 0
+		CaptureDelay: 1000
+		# Tech/civilian structures (derricks and the rest of ^TechBuilding):
+		# soldiers can only EVICT the enemy owner, never take ownership —
+		# they're not technicians. The building drops to Neutral and your own
+		# Technician (^CapturesNeutralBuildings) still has to walk in to install
+		# one. The soldier survives the eviction and walks back out, so keep
+		# this split narrow: making eviction free on military buildings too
+		# would let one surviving rifleman disable a whole base at no cost.
 		ValidRelationships: Enemy
 		CaptureToNeutral: true
 		EnterBehaviour: Exit

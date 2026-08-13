@@ -45,9 +45,9 @@ namespace OpenRA.Mods.Common.Traits
 			"Exit walks it back out of the target instead of removing it.")]
 		public readonly EnterBehaviour EnterBehaviour = EnterBehaviour.Dispose;
 
-		[Desc("Transfer the target to the Neutral player instead of to the capturing player.",
-			"The previous owner loses the structure but the captor does not gain it, so a",
-			"dedicated capture unit is still needed to actually take it.")]
+		[Desc("Transfer the target to the world owner (the map's OwnsWorld player, conventionally",
+			"Neutral) instead of to the capturing player. The previous owner loses the structure",
+			"but the captor does not gain it, so a dedicated capture unit is still needed to take it.")]
 		public readonly bool CaptureToNeutral = false;
 
 		[Desc("Experience granted to the capturing player.")]

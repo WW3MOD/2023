@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -118,19 +117,12 @@ namespace OpenRA.Mods.Common.Activities
 					}
 				}
 
-				var newOwner = self.Owner;
-				if (captures.Info.CaptureToNeutral)
-				{
-					// Maps are not required to define a Neutral player. Abort rather than falling
-					// back to self.Owner: the point of CaptureToNeutral is that this actor must
-					// not end up owning the target, so handing it over would invert the rule.
-					newOwner = w.Players.FirstOrDefault(p => p.InternalName == "Neutral");
-					if (newOwner == null)
-					{
-						Log.Write("debug", $"CaptureToNeutral: {self.Info.Name} cannot neutralise {enterActor.Info.Name} - this map defines no Neutral player. Capture aborted.");
-						return;
-					}
-				}
+				// The world owner is the map's OwnsWorld player — conventionally Neutral, but
+				// resolved structurally rather than by name: CreateMapPlayers.cs:105-106 throws at
+				// world creation unless some player claims the world, so this is guaranteed
+				// non-null on every loadable map, whereas matching InternalName == "Neutral"
+				// would fail silently on a map that names its world owner anything else.
+				var newOwner = captures.Info.CaptureToNeutral ? w.WorldActor.Owner : self.Owner;
 
 				// Do the capture.
 				// Buildings are stationary — use the in-place path so we don't
