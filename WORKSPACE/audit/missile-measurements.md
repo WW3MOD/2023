@@ -6,6 +6,11 @@ or weapon-YAML change** — only new autotest scenarios and two analysis scripts
 number below comes from `MissileTrace` JSONL produced by
 `tools/autotest/run-test.sh --missile-trace`.
 
+`origin/main` has since advanced to `26d9ae19`, which renames `PercentFromEdge` to
+`CenterProximityPercent` (`3aa5d901`). I checked the diff: it is a pure rename plus
+documentation, with no change to the arithmetic, so **every number here remains valid at
+`26d9ae19`.** The new name is used below.
+
 **841 missiles across 9 runs**, including an independent-seed replication of the decisive one. Where this disagrees with the audit reports, the review,
 or the brief, the data wins and it is called out explicitly.
 
@@ -269,7 +274,7 @@ That is the code path doing exactly its job, not a failure to terminate.
 ### Damage vs impact position — **the corrected model is confirmed to within ~1 point; the audit's step model is refuted**
 
 The manager's correction arrived mid-session and is **exactly right**. Measured, per ATGM
-missile, against `100 × (halfDiagonal − distFromCentre) / halfDiagonal` with the t90's own
+missile, against `CenterProximityPercent` = `100 × (halfDiagonal − distFromCentre) / halfDiagonal` with the t90's own
 hitshape (`Rectangle TopLeft -400,-950 / BottomRight 400,950` → half-diagonal
 `isqrt(400² + 950²) = 1030`), and with the flat 47 from `SpreadDamage` subtracted:
 
@@ -292,7 +297,8 @@ Samples at comparable `min_dist` split cleanly into two populations:
 | damage | 6147 | **17** | 6047 | 6047 | **44** | **45** | 5747 | **17** | 5347 | 5247 | **13** |
 
 Inside the hull, ~6000; one wdist outside it, ~17 — because `TargetDamage` gates on
-`closestDistance > Spread` measured from the hull **edge**, and ATGM's `TargetDamage.Spread`
+`closestDistance > Spread` measured from the hull **edge** (the gate is a true edge distance;
+`CenterProximityPercent` next to it is not, which is exactly the confusion the rename fixes), and ATGM's `TargetDamage.Spread`
 is the default `WDist(1)`. So a shot leaving across the **long** face has already decayed to
 ~8% and the step is trivial; a shot leaving across the **short** face still had ~61%
 remaining and loses ~6000 damage in one wdist. **The audit's error was conflating "512 from
