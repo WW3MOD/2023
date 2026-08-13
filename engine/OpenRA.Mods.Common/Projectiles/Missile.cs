@@ -290,6 +290,13 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			gravity = new WVec(0, 0, -info.Gravity);
 			targetPosition = args.PassiveTarget;
+
+			// Tick 1 reads lastTargetPosition for its lead vector before Tick() first
+			// writes it. Left at the WPos default, vectorDiffPerTick became the target's
+			// absolute map coordinates treated as a per-tick velocity: the trace recorded
+			// tick-1 distances up to 2.9e15. Seeding it here makes tick 1's implied target
+			// velocity zero instead of enormous.
+			lastTargetPosition = args.PassiveTarget;
 			var limit = info.RangeLimit != WDist.Zero ? info.RangeLimit : args.Weapon.Range;
 			rangeLimit = new WDist(Util.ApplyPercentageModifiers(limit.Length, args.RangeModifiers));
 			minLaunchSpeed = info.MinimumLaunchSpeed.Length > -1 ? info.MinimumLaunchSpeed.Length : info.Speed.Length;
@@ -843,8 +850,27 @@ namespace OpenRA.Mods.Common.Projectiles
 			var diffClfMslHgt = predClfHgt - pos.Z;
 			var relTarHgt = tarDistVec.Z;
 
-			// Update minimum distance to target
-			var currentDistance = new WDist(relTarHorDist);
+			// Miss detection runs on the PHYSICAL missile->target separation, never on
+			// tarDistVec. tarDistVec is the vector to the LEAD point, while CloseEnough is
+			// a physical constant, so comparing the two is a unit error: a target
+			// accelerating toward the missile collapses the lead point onto the missile
+			// itself, and the traced worst case read 904 at a true range of 15845 (0.06x).
+			// minDistanceToTarget was seeded from that collapsed value and the next tick's
+			// ratio shift then tripped the miss test while the missile was still closing --
+			// 38 of 44 traced latches fired on a tick the missile was getting CLOSER.
+			// Steering below still uses the lead-corrected tarDistVec; only the miss test
+			// and its recovery moved.
+			//
+			// 3D rather than horizontal, for two reasons: CloseEnough is a 3D proximity
+			// radius everywhere else in this file (the detonation tests at the end of
+			// Tick), so this is the measure it is commensurable with; and a horizontal
+			// measure cannot see a missile that misses purely in Z, over the top of an
+			// aircraft or short beneath it.
+			//
+			// `offset` is deliberately excluded: it is re-rolled mid-flight (Tick, the
+			// RetargetTicks block), so folding it in would make the measured distance jump
+			// with no missile movement -- the same class of defect being fixed here.
+			var currentDistance = new WDist((targetPosition - pos).Length);
 			if (currentDistance < minDistanceToTarget)
 				minDistanceToTarget = currentDistance;
 
@@ -1187,8 +1213,12 @@ namespace OpenRA.Mods.Common.Projectiles
 			var stateName = state == States.Freefall ? "freefall" : state == States.Homing ? "homing" : "hitting";
 
 			// FlyStraightIfMiss latch edge. trace.FlyStraight still holds LAST tick's
-			// value here, so this catches the false → true transition and freezes the
-			// two distances the predicate at Missile.cs:851 actually compared.
+			// value here, so this catches the false → true transition.
+			// Note the two recorded distances are no longer the same quantity: since the
+			// miss test moved onto physical separation, FlyStraightMinDist is the physical
+			// 3D minimum the predicate compared, while FlyStraightHorDist is the
+			// lead-inflated horizontal distance the predicate used to test and is kept
+			// only so a trace can still show the two side by side.
 			if (flyStraight && !trace.FlyStraight)
 			{
 				trace.FlyStraightLatches++;
