@@ -1,0 +1,1 @@
+Measurement rig: Mi-28 vs ground at real 3840 altitude (vs 1280 control), AA vs Littlebird at 2/3/4 cells, plus an ATGM firing probe. Run with --missile-trace.
