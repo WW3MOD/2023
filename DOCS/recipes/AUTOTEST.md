@@ -188,6 +188,16 @@ What to do about it, in order of cheapness:
 
 Related: a corpus-scanning guard should assert it **measured something** before it asserts it found no violations, or a rename silently converts it into a test that passes by scanning nothing. `StancePositioningFireStanceTest` does this — it asserts it resolved more than zero stance assignments first.
 
+### The converse: an UNCHANGED verdict is not evidence of safety unless you can show the change was live in that run
+
+The rule above is about a green that proves nothing. This is its mirror, and it bites when you run a regression sweep to show a change is harmless: **a test that fails to move is indistinguishable from a test the change never reached.** "Ran 13 scenarios before and after, zero flips" sounds like evidence of safety and is compatible with the change having been completely inert in all 13 — wrong scenario set, a flag that did not apply, a build that did not get picked up. The verdict column looks identical in both worlds, exactly as it does for the false green.
+
+So a no-flip sweep needs its own falsification control: **name the observable that proves the change was ACTIVE inside at least one of those runs.** It does not need to be the thing under test, and smaller is better — you want something the change could touch but the assertion does not read.
+
+Worked example, 2026-08-14 (the `PlayerResources` economy gate, `DISCOVERIES.md` same date). Thirteen graded scenarios were run with and without the gate change at identical seeds; all thirteen returned identical verdicts, and the two failures failed identically on both sides. What made that a safety result rather than a blind one was a single number: in `test-supply-safe-front-keeps-cargo`, same seed and same scenario with only the gate differing, one unit's ammo read `71/100/100/71/70` before and `71/100/100/70/70` after. **One round.** That is worthless as a behavioural finding and decisive as a control — it proves the simulation diverged, so the change was live in that scenario, so the unchanged verdict is a real statement about the assertion rather than an artefact of the change never arriving.
+
+Cheapest sources of such a control, in order: a per-tick telemetry line that already logs a quantity the change touches (`[composition] census` logs `earned`/`spent`); any incidental numeric in a failure note; or a one-line temporary trace. **If every observable in the sweep is byte-identical across the two arms, you have not shown the change is safe — you have shown it did not run.**
+
 ## The setup you wrote is not always the setup that ran — check the subject, not the config
 
 Same family as the above, and it landed again on 2026-08-14. A tournament config's `Matchup:` block

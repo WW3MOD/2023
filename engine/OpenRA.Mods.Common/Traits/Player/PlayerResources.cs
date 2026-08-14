@@ -198,12 +198,14 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (--PassiveIncomeTicks <= 0)
 			{
-				// PITFALL: this gate silently zeroes BOTH income and upkeep for any non-playable
-				// player. PlayerReference.Playable defaults to FALSE (PlayerReference.cs:24), so a
-				// bot declared as a map player — which is how every tournament-*/ scenario declares
-				// its bots — never earns a credit and never pays upkeep. Cash still reads ~0 in a
-				// healthy match, so `Earned`, not `Cash`, is the diagnostic that tells them apart.
-				if (self.Owner.Playable)
+				// PITFALL: `Playable` means "occupies a lobby slot", NOT "is a real participant" —
+				// CreateMapPlayers.cs:93 partitions on exactly that. A bot declared as a MAP player,
+				// which is how every tournament-* scenario declares its bots, is therefore not
+				// Playable, and used to earn nothing and pay no upkeep for a whole match. NonCombatant
+				// is what actually excludes Neutral/Creeps/Everyone. The gate zeroes BOTH directions
+				// and Cash reads ~0 either way, so `Earned` is the diagnostic that separates them.
+				// Same shape as InfluenceStack.Participates, which tests IsBot before Playable.
+				if (self.Owner.Playable || (self.Owner.IsBot && !self.Owner.NonCombatant))
 					ChangeCash(PassiveIncomeAmount + (int)TotalBuildingIncome - (int)Upkeep);
 
 				PassiveIncomeTicks = Info.PassiveIncomeInterval;

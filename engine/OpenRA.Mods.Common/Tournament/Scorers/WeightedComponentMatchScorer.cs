@@ -16,13 +16,19 @@
  *                  value the watcher emits as stats.capture_income_gross, read
  *                  from MatchTrackingState.GrossCaptureIncomeFor.
  *                  This REPLACES the former net PlayerResources.Earned source
- *                  (LADDER S1 follow-up 1a). Net Earned only rises on a
- *                  net-positive periodic economy tick, so in the SR-budget economy
- *                  it is structurally blind to a captured derrick whose gross
- *                  income doesn't overcome standing upkeep — it read 0 even when a
- *                  bot genuinely captured and held a derrick. Reading the gross
- *                  integral instead makes the economy axis actually count held
- *                  capture income in match outcomes (this scorer feeds the WinRule).
+ *                  (LADDER S1 follow-up 1a). CORRECTED 2026-08-14 — the original
+ *                  rationale here was WRONG about the mechanism, though the change
+ *                  itself was right. It claimed net Earned "is structurally blind to
+ *                  a captured derrick whose gross income doesn't overcome standing
+ *                  upkeep". The real reason Earned read 0 is that it was never
+ *                  incremented at all: PlayerResources.Tick gated the whole economy
+ *                  line on Playable, which bot map-players are not, so the periodic
+ *                  tick never ran for a tournament bot in either direction (see
+ *                  WORKSPACE/DISCOVERIES.md 2026-08-14). The net-vs-gross argument
+ *                  is still a real and sufficient reason to prefer the integrator,
+ *                  so this component does not change; only the explanation does.
+ *                  The gross integrator was never affected by that gate — it is
+ *                  driven by CashTrickler registration, outside Tick.
  *                  Component is still named "capture_income" to preserve the
  *                  tournament.yaml weight key.
  * kills_value    = cumulative Valued.Cost of enemies killed, from
