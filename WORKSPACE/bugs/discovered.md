@@ -3,6 +3,14 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-14: [low] OPEN, DEFERRED BY DECISION — a dispatched reclaim capturer never aborts, however hot the target turns while it walks (found while: bot reclaim review, branch `wt/bot-reclaim`)
+
+Recorded so it is not rediscovered as a defect. `ReconcileGuardCommitments` releases a capturer's commitment only when the target is captured or gone, so nothing re-evaluates between dispatch and arrival — including the moment the technician's OWN vision finally reveals whatever is standing in the base. The believed fields that gated the dispatch are, for a reclaim target specifically, anti-correlated with the threat (the evicted building was the vision source), so the arrival is the first honest read anyone gets.
+
+**Why it is LOW and not medium, which is the part worth carrying.** Its value is inversely proportional to how good the dispatch-time guard is. With the escort pre-check landed (`13a37573`) a reclaim is not dispatched at all unless an escort is recruitable and the tier is floored at Light, so the technician that walks in is accompanied and the abort would be saving a smaller loss. Had the dispatch-time gap been closed by *dispatching anyway* — the tempting shape, since it keeps recovery moving — this item would jump to medium immediately, because the lone technician would then be the normal case rather than the excluded one. Treat its severity as a reading of the dispatch guard, not a fixed property.
+
+**Shape of the fix, when someone takes it:** add a third release condition to `ReconcileGuardCommitments` — believed danger at the committed target now above `ReclaimMaxDangerUnits` — as a pure predicate alongside the existing captured/gone tests, ~15 lines. What makes it a design change rather than a mechanical one, and why it was deferred twice: a released capturer needs a disposition (the reserve muster at `StageIdleCapturersReserve` is the obvious home) and a hysteresis story, or it oscillates between dispatch and abort as belief flickers across the threshold. Both of those are decisions, not plumbing.
+
 ## 2026-08-14: [med] OPEN — the bot never captures a Logistics Centre: the whole `CaptureSupplyDepots` tier sits below an early return that WW3MOD always takes (found while: verifying the capture path for bot reclaim, branch `wt/bot-reclaim`)
 
 **Four config lines, a bool, an Info field and a scoring tier, all inert in the shipped mod.** `CaptureSupplyDepots: true`, `SupplyDepotActorTypes: logisticscenter` and `SupplyDepotIncomeWeight: 25` are set on `CaptureCoordinatorBotModule@experimental.tecn` (`ai/ai.yaml:143-146`), and `logisticscenter` is in `CapturableActorTypes` on both twins (`:122`, `:1928`). None of it can run.
