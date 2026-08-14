@@ -3,6 +3,19 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-14: [high] OPEN — a bot cannot recover from having its base cleared: `CaptureCoordinatorBotModule` never reclaims its own neutralised structures, and technicians are capped at 3 (found while: widening soldier-clears-to-Neutral to all buildings, branch `wt/clear-all-buildings`)
+
+**Not a defect in the change that files it — a gameplay gap the change exposes, and the reason the previous, narrower version of this rule existed.** Under the uniform clear rule one enemy rifleman can walk a bot's base turning every AA gun, SAM, airfield, silo, Logistics Centre and derrick Neutral, surviving each time and paying only the 1000-tick (~40 s) delay per building. The bot has no answer, for two independent reasons:
+
+1. **No reclaim logic anywhere.** `CaptureCoordinatorBotModule` scores *acquisition* targets, and its candidate pass is income-shaped — `CountReachableNeutralMoneyPois` (`:919-943`) explicitly restricts to "Neutral income structures only … IncomeStructure kind". Nothing watches for an own-structure→Neutral transition, and a cleared SAM or airfield is not an income structure, so it does not enter the target list on that path at all. A cleared derrick does, but competes on equal footing with any untouched neutral derrick — there is no "this was mine" bonus.
+2. **Three technicians, hard cap, consumed on use.** `UnitLimits` sets `tecn.america: 3` / `tecn.russia: 3` (`ai-america.yaml:41,102`, `ai-russia.yaml:40`) — the `tecn.america: 8` at `ai-america.yaml:200` is a production weight and is explicitly "additionally bounded by UnitLimits above". A successful capture **consumes** the technician (`^CapturesNeutralBuildings`, `ConsumedByCapture: true`), so reclaim rate is one building per technician built. Reclaiming a dozen cleared structures is arithmetically out of reach in any relevant window.
+
+**Why high rather than medium.** A Neutral defence never fires but keeps its footprint, so the bot can neither use the building nor rebuild on the ground it occupies. The attacker converts an entire defensive network into permanent dead terrain at zero unit cost. Against a human it is a fair trade — they can clear yours back. Against a bot it is closer to a one-sided disable, and it scales with base size: the better the bot has built up, the more it loses.
+
+**Not established:** never observed in play — game launches are user-gated and no match was run for this. This is static reading of the coordinator's candidate selection plus the unit cap. The *magnitude* in a real match is unmeasured; what is certain is that no code path exists to reclaim.
+
+**Shape of the fix, when someone takes it:** the cheap half is a recency-weighted bonus in the coordinator's target score for a Neutral structure whose previous owner was the bot — which needs an owner-transition record the module does not keep, and needs the candidate pass widened beyond income structures. That does not touch the cap. A serious fix probably also needs the technician limit raised or a cheaper reclaim path for a structure nobody else took ownership of. Worth deciding first whether the intended answer is "the bot reclaims" or "the bot defends so this never happens" — they lead to different code.
+
 ## 2026-08-13: [low] OPEN, AND SELF-INFLICTED — men the staggered bail already dropped can block the exits `Cargo.Killed` needs, leaving the rest of the squad `Dispose()`d with no corpse and no kill credit (found while: pacing the emergency bail, branch `wt/bail-pacing`)
 
 **Introduced by the change that files it**, so this is a cost of the staggered bail rather than a pre-existing defect. Recorded rather than fixed because it is out of scope for a pacing change and the fix is a real one, not a one-liner.

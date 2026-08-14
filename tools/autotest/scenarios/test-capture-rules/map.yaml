@@ -16,12 +16,14 @@ Visibility: MissionSelector
 
 Categories: Test
 
-# Verifies the capture rule fixes (260512):
+# Verifies the capture rule fixes (260512; wording updated 2026-08-14):
 #   1. TECN CAN capture neutral OILB
 #   2. TECN CAN capture enemy-owned OILB
-#   3. Rifleman (ar) CANNOT capture neutral OILB     ← post-fix rule
-#   4. Rifleman (ar) CAN capture enemy-owned OILB
+#   3. Rifleman (ar) CANNOT target neutral OILB      ← post-fix rule
+#   4. Rifleman (ar) CAN target enemy-owned OILB — to CLEAR it to Neutral, not to own it
 #   5. Engineer (e6) CANNOT capture anything (no Captures trait)
+# These are targeting assertions only (CanCapture reads capture types x relationships,
+# never the effect). The clear EFFECT is not asserted anywhere.
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral

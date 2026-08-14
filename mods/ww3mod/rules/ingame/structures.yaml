@@ -119,12 +119,6 @@
 
 ^TechBuilding:
 	Inherits: ^BasicBuilding
-	# Tech/civilian structures use their OWN occupied-capture type so soldiers can be
-	# given eviction-to-Neutral here WITHOUT it reaching military buildings (defences,
-	# airfields, silos), which inherit the plain `building-occupied` type from
-	# ^NeutralOrOccupiedCapturable and keep the classic capture-and-be-consumed rule.
-	Capturable@occupied:
-		Types: building-occupied-tech
 	Targetable:
 		TargetTypes: NoAutoTarget, C4, DetonateAttack
 	Huntable:

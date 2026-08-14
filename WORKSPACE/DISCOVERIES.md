@@ -3,6 +3,21 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-14 — don't hand-roll a MiniYaml inheritance resolver: `OpenRA.Utility --resolved-rules` already does it, and the hand-rolled version gets `-Trait:` removals wrong
+
+The 2026-08-13 entry below recommends resolving inheritance "mechanically — a 40-line script". **Prefer the shipped tool.** `OutputResolvedRulesCommand` (`--resolved-rules ACTOR [MAP]`) prints the fully merged rules for an actor using the engine's own loader, so it cannot disagree with the game. On Windows it needs the environment the launcher scripts set up, which is why it looks broken if invoked directly:
+
+```
+$env:MOD_SEARCH_PATHS="<repo>\mods,./mods"; $env:ENGINE_DIR=".."; cd <repo>\engine
+.\bin\OpenRA.Utility.exe ww3mod --resolved-rules OILB
+```
+
+Without `MOD_SEARCH_PATHS` it reports "The available mods are:" and an empty list — it is not a build problem.
+
+**The trap in the hand-rolled version, found by writing one and having it disagree with reality.** A script that resolves inheritance in two stages — merge each top-level actor's definition across all rule files, then apply `Inherits:` — must **preserve `-Trait:` nodes through the first stage**. The natural implementation applies a removal as it merges, and since the definition table starts empty the `-Trait:` node matches nothing, is applied to nothing, and is then not carried into the merged definition. The removal silently vanishes, and every descendant reports the trait as present. Concretely: this made `^CivBuilding`'s five `-Capturable*` / `-CaptureManager` lines (`civilian.yaml:6-10`) disappear, reporting **64** soldier-clearable actors instead of the true **23** — every civilian V-building plus `GTWR`/`PBOX`/`HBOX` wrongly included. The failure is silent and in the direction of over-reporting, which is the direction that looks alarming and invites a wrong fix.
+
+So: use `--resolved-rules`. If a bulk sweep really needs a script, cross-check its output against the utility on a spread of actors that includes at least one with an explicit removal — the removal cases are the only ones where the two can disagree.
+
 ## 2026-08-13 — resolving the Neutral player by `InternalName` is a silent-failure pattern; the world owner is guaranteed structurally
 
 Found while implementing evict-to-Neutral (`wt/neutralise-capture`). Three call sites look up the neutral player by matching `InternalName == "Neutral"`: `GarrisonManager.cs:227` (`DynamicOwnership`), `HeliEmergencyLanding.cs:354`, and `CaptureActor.cs` — the last **fixed** on that branch, the other two deliberately left alone.
