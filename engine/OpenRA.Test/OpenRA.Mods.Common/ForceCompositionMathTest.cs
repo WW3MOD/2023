@@ -484,5 +484,40 @@ namespace OpenRA.Test
 			Assert.That(ForceCompositionMath.DeficitAt(targets, census, 0), Is.LessThan(0),
 				"The mortar deficit is strongly negative — it is the over-accumulated type.");
 		}
+
+		[Test]
+		public void SmallShareSlotIsUnreachableBelowItsFitValue_WhichIsWhyUnitFloorsExists()
+		{
+			// WHY THIS TEST EXISTS: it pins the ARITHMETIC MOTIVATION for UnitBuilderBotModuleInfo.UnitFloors,
+			// so the justification cannot quietly stop being true while the config depending on it stays put.
+			// A target is a share of army VALUE, so one unit of a type only fits under its target once the army
+			// is worth 1000*cost/target — call it V_fit. BELOW V_fit a SINGLE unit is already strictly over
+			// target, ApplyCeilingEligibility strikes the slot, and no second one is ever bought however badly
+			// it is wanted. Live case: medi at 9 per-mille and cost 100 has V_fit = 11,111 while the starting
+			// platoon is worth 2,900 — so the medic the bot STARTS with already puts its own slot over.
+			// Slot 0 = the small type, slot 1 = the whole rest of the army.
+			const int MedicCost = 100;
+			const int OpeningArmyValue = 2900;
+			var targets = ForceCompositionMath.SharesPerMille(new[] { 9, 991 });
+
+			var openingCensus = ForceCompositionMath.SharesPerMille(
+				new[] { MedicCost, OpeningArmyValue - MedicCost });
+			var openingEligible = ForceCompositionMath.ApplyCeilingEligibility(targets, openingCensus, AllEligible(2));
+
+			Assert.That(ForceCompositionMath.DeficitAt(targets, openingCensus, 0), Is.LessThan(0),
+				"One medic in a 2,900-value army is already OVER a 9-per-mille target.");
+			Assert.That(openingEligible[0], Is.False,
+				"So the ceiling strikes the medic slot from t=0 — the deficit pick can never choose it.");
+
+			// The same slot becomes reachable at V_fit, which is what makes this a VALUE THRESHOLD rather than
+			// a permanent ban — and therefore why a floor, not a bigger share, is the right mechanism for the
+			// span below it.
+			const int FitValue = MedicCost * ForceCompositionMath.Total / 9;
+			var fitCensus = ForceCompositionMath.SharesPerMille(new[] { MedicCost, FitValue - MedicCost });
+			var fitEligible = ForceCompositionMath.ApplyCeilingEligibility(targets, fitCensus, AllEligible(2));
+
+			Assert.That(fitEligible[0], Is.True,
+				"At V_fit = 1000*cost/target the slot is eligible again — a threshold, not a ban.");
+		}
 	}
 }

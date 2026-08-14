@@ -99,6 +99,29 @@ Player:
 			grad: 2
 			tunguska: 2
 			sn.russia: 3
+		# ===== STANDING-POPULATION FLOORS (experimental-only; C# default is unset) =====
+		# Mirror of the America block — see ai-america.yaml for the full measurement. Short version: a
+		# per-mille-of-VALUE target cannot hold a small type on the map (one medic is already 34 per-mille of
+		# the 2,900-value starting platoon against a 9 per-mille target), and under losses the argmax never
+		# descends to a specialist slot at all — measured ZERO medics bought in 200 cycles at a 1-in-40 loss
+		# rate. aa.russia is the AA SOLDIER, ungated, and fails the same way; tunguska is the AA VEHICLE and is
+		# capped (not floored) by ScaleAntiAirToThreat. Counts owned + in-cargo + pending.
+		# NOT LISTED, DELIBERATELY: tecn.russia — a technician floor already exists in
+		# CaptureCoordinatorBotModule.MaintainTecnFloor, demand-gated on CaptureTargetExists(). See
+		# ai-america.yaml for why a second floor on the same population would be a drift hazard.
+		UnitFloors:
+			medi.russia: 2
+			aa.russia: 2
+		# Unconditional [composition] census into debug.log every 40 bot ticks. C# default is 0; this is
+		# the opt-in. Observability only — reads state, changes no decision.
+		CensusLogInterval: 40
+		# Mirror of the America block. `^AA` is air-only (single MANPAD armament, `ValidTargets: Air`), so an
+		# AA soldier at t=0 cannot shoot anything — the delay holds the floor until 2000, and 2000 is derived
+		# from the attack-heli gate both factions already carry (`UnitDelays: hind/mi28/heli: 2500`), i.e. the
+		# earliest tick an enemy airframe can even be ordered. The medic floor is undelayed (useful from first
+		# contact).
+		UnitDelays:
+			aa.russia: 2000
 		# Early-econ behaviour 1: don't call in trucks while no fielded unit needs ammo.
 		GateResupplyOnAmmoNeed: true
 		ResupplyUnitTypes: truk
@@ -111,7 +134,11 @@ Player:
 		SupplyStarvingThresholdPerMille: 250
 		SupplyCustomersPerTruck: 6
 		SupplyDemandOvercompensationPercent: 200
-		SupplyTruckFloor: 2
+		# 0, was 2 — mirror of the America block; see ai-america.yaml for the measurement and the cost of
+		# deleting the floor. Short version: USER RULING 2026-08-14 "no supply truck until at least one unit is
+		# below full ammo", and the live census read `truk=0+0/909v40` at tick 40 because the floor's two
+		# trucks were the first two call-ins of the match. @stable unaffected (no SupplyDemandSizing).
+		SupplyTruckFloor: 0
 		SupplyTruckCeiling: 6
 		# Early-econ behaviour 2: vehicle AA proportionate to observed air (aa.russia ungated picket).
 		ScaleAntiAirToThreat: true
@@ -160,7 +187,10 @@ Player:
 			aa.russia: 28
 			# Specialists and logistics (each additionally bounded by UnitLimits above).
 			sn.russia: 12
-			medi.russia: 9
+			# 17, was 9 — mirror of America. USER RULING 2026-08-14: one medic per ~20-soldier platoon. That is
+			# a ratio, so it belongs in the share; 9 per-mille worked out at one medic per ~85 soldiers. See
+			# ai-america.yaml for the derivation. The vector sums to 1008 and SharesPerMille renormalises it.
+			medi.russia: 17
 			e6.russia: 8
 			tecn.russia: 8
 		# Role tokens — the row/column keys for CounterMatrixPct below. Armour line and foot line are

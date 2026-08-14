@@ -3,6 +3,56 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-14: [high] OPEN — the `@experimental` bot runs at cash=0 for the entire match after its opening, so any demand-gated purchase is unaffordable exactly when it is finally justified (found while: PIPELINE 57 bot composition, branch `wt/composition`)
+
+Surfaced by the new unconditional `[composition] census` line, which now carries `cash`, `starving`,
+`trucks-desired` and `ammo-need`. Live `@experimental` vs `@experimental`, 6 sim-minutes, arena map:
+
+- The supply gate works exactly as designed. At tick 40: `starving=0 trucks-desired=0
+  ammo-need=False` — no truck, correctly. From tick 1240 onward: `starving` climbs to 6,
+  `ammo-need=True` on **383 of 450** snapshots, `trucks-desired=2`. The demand path IS asking.
+- **No truck is ever bought.** Across the 195 USA snapshots where `trucks-desired>0`, `cash=0` on
+  **194** of them; the single exception reads `cash=40`. Peak cash after tick 600 is **40**, against
+  a truck cost of 1000.
+
+So the bot spends to zero continuously and never re-accumulates a four-figure sum. Consequences that
+reach past supply: **every affordability-gated mechanism silently becomes opening-only.** That
+includes the new `UnitFloors` (the AA floor at 300/head did not fire live for this reason) and any
+future demand-driven purchase. The opening was the only moment the bot could afford anything
+expensive — which is also the honest cost of setting `SupplyTruckFloor: 0`: the old floor bought its
+two trucks at t=0 while 7,460 cash was on hand, and nothing later in the match can.
+
+**Not a defect in the composition work and deliberately not fixed there** — it is an income /
+spend-rate property of the profile, and it wants its own measurement (income per tick vs call-in
+rate) rather than a knob nudged from here. Worth ruling on early because it silently caps the
+usefulness of every gate that reads a budget.
+
+## 2026-08-14: [medium] OPEN — nothing ever REQUESTS a combat engineer, so `e6` is procured only by an argmax that measurably never reaches it (found while: PIPELINE 57 bot composition, branch `wt/composition`)
+
+`EngineerRouteOpenBotModule` (`:160`) and `LayeredDefenceBotModule` (`:188`) both list
+`e6`/`e6.america`/`e6.russia` and both CONSUME engineers — but each implements
+`ConditionalTrait<…>, IBotTick` **only**. Neither implements `IBotRequestUnitProduction`, so neither
+can ever ask for one. Sweeping the modules that DO implement a production-request interface
+(`AdaptiveProductionBotModule`, `CaptureCoordinatorBotModule`, `UnitBuilderBotModule`,
+`HarvesterBotModule`, `McvManagerBotModule`) finds **no reference to `e6` in any of them** — every
+apparent textual hit is a substring of the commit SHA `b8d2e601`.
+
+So the engineer's ONLY procurement path is `UnitBuilderBotModule`'s composition argmax at an 8
+per-mille target share. Measured on `--composition-plan` (200 cycles, `@experimental` America):
+`e6.america` is bought **ZERO** times at 1-in-40 attrition and zero at 1-in-15 — the same
+never-replaced shape as the medic, but without the medic's remedy, because the two modules that want
+engineers cannot pull production the way `CaptureCoordinatorBotModule.MaintainTecnFloor` does for
+technicians.
+
+**Deliberately NOT fixed on `wt/composition`.** A `UnitFloors: e6: N` entry would produce engineers
+and mask this — a standing floor is the wrong shape for a consumable a specific module wants on
+demand, exactly as it is for the technician. The right fix is one of: (a) implement
+`IBotRequestUnitProduction` on whichever module owns the need and request against demand (the
+`MaintainTecnFloor` pattern), or (b) decide the engineer has no live role on either profile and drop
+it from the two type lists so dead configuration stops looking load-bearing. Needs a ruling before
+code. **Medium, not high, because it is unclear anything currently depends on engineers existing** —
+both consumers degrade to doing nothing rather than failing.
+
 ## 2026-08-14: [medium] OPEN — `humvee` declares `RenderSprites` twice, so no map can override anything on it (found while: building the Javelin §6 measurement rig, branch `wt/javelin-probe`)
 
 `vehicles-america.yaml:28` (`RenderSprites: Scale: 0.9`) and `vehicles-america.yaml:156`

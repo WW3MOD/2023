@@ -34,8 +34,37 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("What units should the AI have a maximum limit to train.")]
 		public readonly Dictionary<string, int> UnitLimits = null;
 
+		[Desc("EXPERIMENTAL: minimum STANDING population per type, held regardless of composition share.",
+			"The mirror of UnitLimits, and the answer to a measured hole: a per-mille-of-army-VALUE target",
+			"cannot hold a small type on the map at all. One unit of a 9-per-mille type is already over its",
+			"target in any army below 1000*cost/target of value, so the ceiling strikes the slot; and under",
+			"losses the large slots stay permanently in deficit, so the argmax never descends far enough to",
+			"replace a lost specialist. Offline replay (--composition-plan) of the shipped argmax: with no",
+			"losses medics ARE bought (4 in 200 cycles), but at a 1-in-40-per-cycle loss rate medic, sniper",
+			"and engineer are bought ZERO times in 200 cycles. Supply trucks were exempt from this only",
+			"because SupplyTruckFloor gave them a floor nothing else had.",
+			"The engineer (e6) shows the same zero and is deliberately NOT floored: nothing anywhere buys one",
+			"today — EngineerRouteOpenBotModule does not implement IBotRequestUnitProduction — so a floor",
+			"would be papering over a separate defect rather than fixing it. Filed in bugs/discovered.md.",
+			"A type under its floor PRE-EMPTS the deficit pick, so the floor deliberately outranks the target",
+			"ceiling and the ScaleAntiAirToThreat gate — a floor a threat gate can refuse is not a floor, and",
+			"holding AA before enemy air is seen is the entire point of an AA floor. UnitLimits still applies",
+			"on top as the absolute backstop, and the count includes pending call-ins so the floor cannot",
+			"order the same unit every cycle while the first walks in from the map edge.",
+			"Rides the composition pick, so it needs CompositionDirected. Empty default ⇒ byte-identical for",
+			"normal/rush/turtle/@stable.")]
+		public readonly Dictionary<string, int> UnitFloors = null;
+
 		[Desc("When should the AI start train specific units.")]
 		public readonly Dictionary<string, int> UnitDelays = null;
+
+		[Desc("Bot-tick interval between unconditional [composition] census lines in debug.log. 0 disables.",
+			"Defaults to 0 and is opted into per-profile by the two @experimental blocks. It is ALREADY inert",
+			"without CompositionDirected (no composition slots exist to report), so a non-zero default would",
+			"also have been harmless — but this trait is shared with @stable, and the standing rule for a",
+			"shared trait is that a new field defaults to the baseline and is turned on in YAML. Costs nothing",
+			"to obey literally, and leaves no judgement call for the next reader to re-derive.")]
+		public readonly int CensusLogInterval = 0;
 
 		[Desc("If true, skip the rearm building capacity check for aircraft.",
 			"Use this when aircraft are produced from a generic production building (e.g. Supply Route)",
@@ -238,6 +267,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Type tokens (Vehicle/Infantry/Aircraft), NOT actor names, so it stays ordinal.
 			ActorNameCase.NormalizeKeysInPlace(UnitsToBuild);
 			ActorNameCase.NormalizeKeysInPlace(UnitLimits);
+			ActorNameCase.NormalizeKeysInPlace(UnitFloors);
 			ActorNameCase.NormalizeKeysInPlace(UnitDelays);
 			ActorNameCase.NormalizeInPlace(ResupplyUnitTypes);
 			ActorNameCase.NormalizeInPlace(AntiAirUnitTypes);
@@ -273,6 +303,7 @@ namespace OpenRA.Mods.Common.Traits
 		// Ordinal-sorted copy of ResupplyUnitTypes: the fleet pre-emption ITERATES it (the ammo gate only ever
 		// probes it with Contains), and a HashSet's enumeration order is not part of the config text.
 		string[] supplyFleetTypes = Array.Empty<string>();
+		string[] floorTypes = Array.Empty<string>();
 		int supplyFleetShortfallTick = -1;
 		int supplyFleetStarving;
 		int supplyFleetOwned;
@@ -324,6 +355,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (Info.SupplyDemandSizing)
 				supplyFleetTypes = Info.ResupplyUnitTypes.OrderBy(t => t, StringComparer.Ordinal).ToArray();
+
+			// Ordinal, like every other flattened config array here: a Dictionary's enumeration order must
+			// never reach a decision (influence-stack determinism invariant).
+			if (Info.UnitFloors != null && Info.UnitFloors.Count > 0)
+				floorTypes = Info.UnitFloors.Keys.OrderBy(t => t, StringComparer.Ordinal).ToArray();
 		}
 
 		// Flatten the composition config into ordinal-ordered arrays exactly once. Skipped entirely when the
@@ -453,6 +489,87 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var q in Info.UnitQueues)
 					BuildUnit(bot, q, idleUnitCount < Info.IdleBaseUnitsMaximum);
 			}
+
+			LogCensusSnapshot();
+		}
+
+		// UNCONDITIONAL, like the [danger] and [supply] lines and for the same reason: this lane's only other
+		// instrumentation is AIUtils.BotDebug, which is default-OFF *and* routes to game chat rather than a log
+		// file — so "the bot never bought a medic" and "nobody was recording" were the same silence, and the
+		// standing composition could not be measured after a match at all.
+		//
+		// Reports CONCURRENTLY-ALIVE counts, never distinct identities: a standing cap and a high replacement
+		// rate produce the same id count and only concurrency separates them (DISCOVERIES.md 2026-08-12). The
+		// world/cargo split is the load-bearing part — a transported or garrisoned soldier is ABSENT from
+		// world.Actors (RideTransport removes it) while still alive on the map, so a world-only count reads a
+		// full transport as a dead platoon and cannot distinguish "never bought" from "bought and swallowed".
+		void LogCensusSnapshot()
+		{
+			if (compositionTypes == null || Info.CensusLogInterval <= 0 || ticks % Info.CensusLogInterval != 0)
+				return;
+
+			var inWorld = new int[compositionTypes.Length];
+			foreach (var a in world.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+
+				var slot = Array.IndexOf(compositionTypes, a.Info.Name);
+				if (slot >= 0)
+					inWorld[slot]++;
+			}
+
+			var inCargo = new int[compositionTypes.Length];
+			foreach (var pair in world.ActorsWithTrait<Cargo>())
+			{
+				var transport = pair.Actor;
+				if (transport.IsDead || !transport.IsInWorld)
+					continue;
+
+				if (transport.Owner != player && player.RelationshipWith(transport.Owner) != PlayerRelationship.Ally)
+					continue;
+
+				foreach (var p in pair.Trait.Passengers)
+				{
+					if (p.Owner != player)
+						continue;
+
+					var slot = Array.IndexOf(compositionTypes, p.Info.Name);
+					if (slot >= 0)
+						inCargo[slot]++;
+				}
+			}
+
+			var census = ForceCompositionMath.SharesPerMille(CensusValues());
+			var parts = new List<string>();
+			for (var i = 0; i < compositionTypes.Length; i++)
+				if (inWorld[i] > 0 || inCargo[i] > 0 || census[i] > 0)
+					parts.Add($"{compositionTypes[i]}={inWorld[i]}+{inCargo[i]}/{census[i]}v{compositionTargets[i]}");
+
+			// The two truck terms are on this line ON PURPOSE, and they are the difference between a claim and
+			// a guess. With SupplyTruckFloor at 0 these predicates are the ONLY thing that orders a truck, so
+			// "no trucks all match" has two completely different readings — "correct, nobody ever went dry"
+			// and "the gate never opened" — and without them printed the two are indistinguishable after the
+			// fact. That is precisely the mistake this branch banked in DISCOVERIES.md (confirm X was
+			// OBSERVABLE before concluding the bot never did X), one layer up; deleting the floor while
+			// leaving its replacement unobservable would repeat it. Both values already exist here.
+			// Read through SupplyFleetUnderDesired so the tick cache is populated by the SAME path the decision
+			// uses — the fields are only refreshed when that runs, so reading them raw would print whatever
+			// tick last happened to ask, which is a stale number that looks live. -1 means "not applicable"
+			// (demand sizing off), never "zero starving".
+			var starving = -1;
+			var desired = -1;
+			if (Info.SupplyDemandSizing && supplyFleetTypes.Length > 0)
+			{
+				SupplyFleetUnderDesired(supplyFleetTypes[0]);
+				starving = supplyFleetStarving;
+				desired = supplyFleetDesired;
+			}
+
+			Log.Write("debug", $"[composition] census tick={world.WorldTick} player={player.InternalName} "
+				+ $"cash={AvailableBudget()} starving={starving} trucks-desired={desired} "
+				+ $"ammo-need={AnyFieldedUnitNeedsResupply()} "
+				+ $"(type=inWorld+inCargo/census‰vtarget‰) {string.Join(" ", parts)}");
 		}
 
 		void IBotRequestUnitProduction.RequestUnitProduction(IBot bot, string requestedActor)
@@ -519,17 +636,63 @@ namespace OpenRA.Mods.Common.Traits
 			// SupplyFleetUnderDesired satisfies this gate on its own: the standing floor exists precisely to be
 			// held while nobody is dry, and this gate is the one thing that would forbid reaching it. False when
 			// SupplyDemandSizing is off ⇒ the frozen evaluation order is unchanged.
-			if (Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name)
+			// A type under its standing floor is exempt from the demand gates below — otherwise the AA gate
+			// would refuse the very AA floor whose purpose is to hold AA BEFORE enemy air is observed, and the
+			// floor could never be reached. False whenever UnitFloors is unset (the default), so the frozen
+			// evaluation order is unchanged for normal/rush/turtle/@stable.
+			var belowFloor = Info.UnitFloors != null && Info.UnitFloors.TryGetValue(name, out var floor)
+				&& OwnedOrPending(name) < floor;
+
+			if (!belowFloor && Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name)
 				&& !SupplyFleetUnderDesired(name) && !AnyFieldedUnitNeedsResupply())
 				return;
 
-			if (Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())
+			if (!belowFloor && Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())
 				return;
 
-			if (Info.GateTransportOnDemand && Info.TransportUnitTypes.Contains(name) && !ShouldBuyTransport(unit))
+			if (!belowFloor && Info.GateTransportOnDemand && Info.TransportUnitTypes.Contains(name) && !ShouldBuyTransport(unit))
 				return;
 
 			bot.QueueOrder(Order.StartProduction(queue.Actor, name, 1));
+		}
+
+		// Every unit this player owns that a truck could serve — INCLUDING units currently loaded in a transport
+		// or sheltering in a garrison, which are ABSENT from world.Actors entirely (boarding calls
+		// `w.Remove(self)`, it does not merely clear IsInWorld).
+		//
+		// This is not defensive tidying; the two truck predicates below are wrong without it, and the bug is
+		// worst exactly when it matters most. SupplyProvider SERVES loaded/sheltered men — it walks
+		// GarrisonManager.ShelterPassengers specifically because they are out of the world
+		// (SupplyProvider.cs:547-570) — while a world-only purchase gate cannot see them. Every line and
+		// support infantry type is a PassengerType on MountedTransportBotModule (ai.yaml:1483), so the failure
+		// is ordinary play: infantry fight, run dry, board a Bradley or duck into a shelter, and demand reads
+		// ZERO while they sit there empty. `SupplyTruckFloor: 2` used to paper over this by buying trucks
+		// regardless; with the floor at 0 these predicates are the ONLY thing that orders a truck, so the blind
+		// spot becomes load-bearing.
+		//
+		// Cargo is the single authoritative container for both cases — a garrison's shelter soldiers live in
+		// the building's own Cargo and ShelterPassengers mirrors it — so one walk covers transports and
+		// garrisons, and a soldier deployed to a firing port is re-added to the world and counted by the first
+		// loop instead. The two sources are therefore disjoint: no double-count.
+		IEnumerable<Actor> OwnedUnitsIncludingCarried()
+		{
+			foreach (var a in world.Actors)
+				if (a.Owner == player && !a.IsDead && a.IsInWorld)
+					yield return a;
+
+			foreach (var pair in world.ActorsWithTrait<Cargo>())
+			{
+				var transport = pair.Actor;
+				if (transport.IsDead || !transport.IsInWorld)
+					continue;
+
+				if (transport.Owner != player && player.RelationshipWith(transport.Owner) != PlayerRelationship.Ally)
+					continue;
+
+				foreach (var p in pair.Trait.Passengers)
+					if (p.Owner == player && !p.IsDead)
+						yield return p;
+			}
 		}
 
 		// Behaviour 1: is there meaningful ammo need among fielded units a gated truck can rearm? Mirrors
@@ -537,11 +700,8 @@ namespace OpenRA.Mods.Common.Traits
 		// short-circuiting on the first needy unit. Pure decision in ResupplyDemand; this only reads trait state.
 		bool AnyFieldedUnitNeedsResupply()
 		{
-			foreach (var a in world.Actors)
+			foreach (var a in OwnedUnitsIncludingCarried())
 			{
-				if (a.Owner != player || a.IsDead || !a.IsInWorld)
-					continue;
-
 				var rearmable = a.TraitOrDefault<Rearmable>();
 				if (rearmable == null || !rearmable.Info.RearmActors.Overlaps(Info.ResupplyUnitTypes))
 					continue;
@@ -586,11 +746,8 @@ namespace OpenRA.Mods.Common.Traits
 		int CountStarvingCustomers()
 		{
 			var count = 0;
-			foreach (var a in world.Actors)
+			foreach (var a in OwnedUnitsIncludingCarried())
 			{
-				if (a.Owner != player || a.IsDead || !a.IsInWorld)
-					continue;
-
 				var rearmable = a.TraitOrDefault<Rearmable>();
 				if (rearmable == null || !rearmable.Info.RearmActors.Overlaps(Info.ResupplyUnitTypes))
 					continue;
@@ -670,6 +827,93 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return null;
+		}
+
+		// The floor pre-empt: the first type (ordinal) whose standing population is under its UnitFloors entry
+		// and which we can actually call in. Returning null falls through to the ordinary deficit pick.
+		//
+		// This deliberately does NOT consult IsCompositionCandidateEligible. The target ceiling and the
+		// ScaleAntiAirToThreat gate are precisely what a floor has to outrank — a floor a threat gate can
+		// refuse is not a floor, and an AA floor whose whole purpose is to hold AA BEFORE enemy air is seen
+		// would never fire. UnitLimits, buildability, UnitsToBuild membership, UnitDelays and affordability
+		// are all still honoured: a floor is a priority, not a licence to buy what does not exist or to
+		// overdraw. A floor above its own UnitLimit is bounded by the limit, not an error.
+		ActorInfo ChooseBelowFloor(HashSet<string> buildableNames, long budget)
+		{
+			foreach (var name in floorTypes)
+			{
+				if (!buildableNames.Contains(name) || !world.Map.Rules.Actors.TryGetValue(name, out var actorInfo))
+					continue;
+
+				if (Info.UnitsToBuild != null && !Info.UnitsToBuild.ContainsKey(name))
+					continue;
+
+				if (Info.UnitDelays != null && Info.UnitDelays.TryGetValue(name, out var delay) && delay > world.WorldTick)
+					continue;
+
+				if (Info.UnitLimits != null && Info.UnitLimits.TryGetValue(name, out var limit)
+					&& OwnedOrPending(name) >= limit)
+					continue;
+
+				if (!CompositionNeedMath.Affordable(budget, UnitCost(actorInfo), 100))
+					continue;
+
+				// Counting PENDING call-ins is load-bearing, not defensive: a reinforcement walks in from the
+				// map edge over many purchase cycles, so an owned-only count would re-order the same unit every
+				// cycle until the first one arrives and blow straight past the floor.
+				if (OwnedOrPending(name) >= Info.UnitFloors[name])
+					continue;
+
+				AIUtils.BotDebug("{0} standing floor SHORT: {1} owned+pending {2} < floor {3}",
+					player, name, OwnedOrPending(name), Info.UnitFloors[name]);
+
+				return actorInfo;
+			}
+
+			return null;
+		}
+
+		// Live actors — INCLUDING transported and garrisoned ones — plus everything already ordered for this
+		// type across both request lanes and every queue this module drives. Order-independent sums only.
+		//
+		// The cargo term is not defensive bookkeeping, it is what stops the floor becoming the disease it was
+		// meant to cure. Both floored types (aa.*, medi.*) are listed as PassengerTypes on
+		// MountedTransportBotModule and are recruited by the garrison modules, and boarding REMOVES the
+		// passenger from world.Actors outright (RideTransport `w.Remove(self)`) rather than clearing
+		// IsInWorld. A world-only count would therefore read every loaded AA soldier as dead and buy
+		// replacements without bound for as long as the transports kept swallowing them — an unbounded spend
+		// driven by units that are alive and well. CensusValues already credits cargo for exactly this reason
+		// (CreditTransportedUnits); the floor has to agree with it or the two lanes fight.
+		int OwnedOrPending(string name)
+		{
+			var count = world.Actors.Count(a => a.Owner == player && !a.IsDead && a.IsInWorld
+				&& a.Info.Name == name);
+
+			foreach (var pair in world.ActorsWithTrait<Cargo>())
+			{
+				var transport = pair.Actor;
+				if (transport.IsDead || !transport.IsInWorld)
+					continue;
+
+				if (transport.Owner != player && player.RelationshipWith(transport.Owner) != PlayerRelationship.Ally)
+					continue;
+
+				foreach (var p in pair.Trait.Passengers)
+					if (p.Owner == player && p.Info.Name == name)
+						count++;
+			}
+
+			var queues = AIUtils.FindQueuesByCategory(player);
+			foreach (var category in Info.UnitQueues)
+				foreach (var q in queues[category])
+					foreach (var item in q.AllQueued())
+						if (item.Item == name)
+							count++;
+
+			count += priorityBuildRequests.Count(r => r == name);
+			count += queuedBuildRequests.Count(r => r == name);
+
+			return count;
 		}
 
 		// Behaviour 2: allow another gated AA unit only while owned count is under the observed-air cap.
@@ -907,6 +1151,15 @@ namespace OpenRA.Mods.Common.Traits
 				if (shortfall != null)
 					return shortfall;
 			}
+
+			// STANDING-POPULATION FLOOR — same reason the supply fleet pre-empts, generalised. A per-mille-of-
+			// VALUE target cannot hold a small type on the map: one unit of a 9-per-mille type is over target in
+			// any army below 1000*cost/target, and under losses the big slots stay in deficit so the argmax never
+			// descends to a specialist slot at all. Second, so an explicit fleet size still wins a tie with a
+			// floor on the same type.
+			var belowFloor = ChooseBelowFloor(buildableNames, budget);
+			if (belowFloor != null)
+				return belowFloor;
 
 			var eligible = new bool[compositionTypes.Length];
 			var anyComposedTypeInQueue = false;
