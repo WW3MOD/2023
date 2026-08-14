@@ -1,0 +1,30 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, javelin-probe-lib.lua, test-javelin-loop-probe.lua
+
+# Identical rig to test-javelin-reversal-sweep; see that file for why ScanRadius is clamped and why
+# the ammo pool holds a single timer-refilled round. Only the perturbation differs: this scenario
+# stops the Humvee instead of reversing it, which is what section 5.2 of the audit needs — an orbit
+# is destroyed by target motion, so the aim point has to be stationary at the moment of arrival.
+AT:
+	AutoTarget:
+		ScanRadius: 4
+	AmmoPool@1:
+		Ammo: 1
+	-ReloadAmmoPool@1:
+	ReloadAmmoPool@probe:
+		AmmoPool: primary-ammo
+		Delay: 30
