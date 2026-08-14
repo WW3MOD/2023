@@ -27,8 +27,18 @@
  *     counter bias can only move a target by +/-CounterBiasMaxPct, which cannot rescue a slot whose
  *     problem is that one unit of it costs more share than the target allows.
  *   * ScaleAntiAirToThreat is evaluated at zero observed enemy air (the opening state).
+ *   * THE AMMO GATE IS NOT MODELLED AT ALL, and it skews the truck numbers in BOTH directions — state it
+ *     that way, because "the replay understates trucks" is the intuitive reading and it is half wrong.
+ *     GateResupplyOnAmmoNeed / AnyFieldedUnitNeedsResupply are absent, so on the DEFICIT path `truk` is
+ *     unconditionally eligible for the argmax and the replay OVERSTATES it: at --attrition 40 this reports
+ *     `truk bought 5, first-buy cycle 7` on a path the live game gates behind somebody actually being dry.
+ *     Meanwhile the supply PRE-EMPT is pinned at zero starving customers, so it only ever reflects
+ *     SupplyTruckFloor and never fires on demand — there the replay UNDERSTATES. Net: this tool cannot
+ *     answer "how many trucks will the bot field". Read the [composition] census line from a real match for
+ *     that; it now carries starving / trucks-desired / ammo-need for exactly this reason.
  * Everything else — ordinal slot order, target apportionment, ceiling eligibility, the argmax and its
- * tie-break, UnitLimits, the supply-fleet pre-empt — is the shipped code path, called directly.
+ * tie-break, UnitLimits, UnitDelays, UnitFloors, the supply-fleet pre-empt — is the shipped code path,
+ * called directly.
  */
 #endregion
 

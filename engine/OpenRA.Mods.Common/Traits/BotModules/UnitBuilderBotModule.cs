@@ -43,6 +43,9 @@ namespace OpenRA.Mods.Common.Traits
 			"losses medics ARE bought (4 in 200 cycles), but at a 1-in-40-per-cycle loss rate medic, sniper",
 			"and engineer are bought ZERO times in 200 cycles. Supply trucks were exempt from this only",
 			"because SupplyTruckFloor gave them a floor nothing else had.",
+			"The engineer (e6) shows the same zero and is deliberately NOT floored: nothing anywhere buys one",
+			"today — EngineerRouteOpenBotModule does not implement IBotRequestUnitProduction — so a floor",
+			"would be papering over a separate defect rather than fixing it. Filed in bugs/discovered.md.",
 			"A type under its floor PRE-EMPTS the deficit pick, so the floor deliberately outranks the target",
 			"ceiling and the ScaleAntiAirToThreat gate — a floor a threat gate can refuse is not a floor, and",
 			"holding AA before enemy air is seen is the entire point of an AA floor. UnitLimits still applies",
@@ -56,9 +59,12 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly Dictionary<string, int> UnitDelays = null;
 
 		[Desc("Bot-tick interval between unconditional [composition] census lines in debug.log. 0 disables.",
-			"Inert unless CompositionDirected is on (there are no composition slots to report otherwise), so",
-			"the non-zero default costs normal/rush/turtle/@stable nothing and changes no decision.")]
-		public readonly int CensusLogInterval = 40;
+			"Defaults to 0 and is opted into per-profile by the two @experimental blocks. It is ALREADY inert",
+			"without CompositionDirected (no composition slots exist to report), so a non-zero default would",
+			"also have been harmless — but this trait is shared with @stable, and the standing rule for a",
+			"shared trait is that a new field defaults to the baseline and is turned on in YAML. Costs nothing",
+			"to obey literally, and leaves no judgement call for the next reader to re-derive.")]
+		public readonly int CensusLogInterval = 0;
 
 		[Desc("If true, skip the rearm building capacity check for aircraft.",
 			"Use this when aircraft are produced from a generic production building (e.g. Supply Route)",
@@ -540,8 +546,30 @@ namespace OpenRA.Mods.Common.Traits
 				if (inWorld[i] > 0 || inCargo[i] > 0 || census[i] > 0)
 					parts.Add($"{compositionTypes[i]}={inWorld[i]}+{inCargo[i]}/{census[i]}v{compositionTargets[i]}");
 
+			// The two truck terms are on this line ON PURPOSE, and they are the difference between a claim and
+			// a guess. With SupplyTruckFloor at 0 these predicates are the ONLY thing that orders a truck, so
+			// "no trucks all match" has two completely different readings — "correct, nobody ever went dry"
+			// and "the gate never opened" — and without them printed the two are indistinguishable after the
+			// fact. That is precisely the mistake this branch banked in DISCOVERIES.md (confirm X was
+			// OBSERVABLE before concluding the bot never did X), one layer up; deleting the floor while
+			// leaving its replacement unobservable would repeat it. Both values already exist here.
+			// Read through SupplyFleetUnderDesired so the tick cache is populated by the SAME path the decision
+			// uses — the fields are only refreshed when that runs, so reading them raw would print whatever
+			// tick last happened to ask, which is a stale number that looks live. -1 means "not applicable"
+			// (demand sizing off), never "zero starving".
+			var starving = -1;
+			var desired = -1;
+			if (Info.SupplyDemandSizing && supplyFleetTypes.Length > 0)
+			{
+				SupplyFleetUnderDesired(supplyFleetTypes[0]);
+				starving = supplyFleetStarving;
+				desired = supplyFleetDesired;
+			}
+
 			Log.Write("debug", $"[composition] census tick={world.WorldTick} player={player.InternalName} "
-				+ $"cash={AvailableBudget()} (type=inWorld+inCargo/census‰vtarget‰) {string.Join(" ", parts)}");
+				+ $"cash={AvailableBudget()} starving={starving} trucks-desired={desired} "
+				+ $"ammo-need={AnyFieldedUnitNeedsResupply()} "
+				+ $"(type=inWorld+inCargo/census‰vtarget‰) {string.Join(" ", parts)}");
 		}
 
 		void IBotRequestUnitProduction.RequestUnitProduction(IBot bot, string requestedActor)
@@ -628,16 +656,52 @@ namespace OpenRA.Mods.Common.Traits
 			bot.QueueOrder(Order.StartProduction(queue.Actor, name, 1));
 		}
 
+		// Every unit this player owns that a truck could serve — INCLUDING units currently loaded in a transport
+		// or sheltering in a garrison, which are ABSENT from world.Actors entirely (boarding calls
+		// `w.Remove(self)`, it does not merely clear IsInWorld).
+		//
+		// This is not defensive tidying; the two truck predicates below are wrong without it, and the bug is
+		// worst exactly when it matters most. SupplyProvider SERVES loaded/sheltered men — it walks
+		// GarrisonManager.ShelterPassengers specifically because they are out of the world
+		// (SupplyProvider.cs:547-570) — while a world-only purchase gate cannot see them. Every line and
+		// support infantry type is a PassengerType on MountedTransportBotModule (ai.yaml:1483), so the failure
+		// is ordinary play: infantry fight, run dry, board a Bradley or duck into a shelter, and demand reads
+		// ZERO while they sit there empty. `SupplyTruckFloor: 2` used to paper over this by buying trucks
+		// regardless; with the floor at 0 these predicates are the ONLY thing that orders a truck, so the blind
+		// spot becomes load-bearing.
+		//
+		// Cargo is the single authoritative container for both cases — a garrison's shelter soldiers live in
+		// the building's own Cargo and ShelterPassengers mirrors it — so one walk covers transports and
+		// garrisons, and a soldier deployed to a firing port is re-added to the world and counted by the first
+		// loop instead. The two sources are therefore disjoint: no double-count.
+		IEnumerable<Actor> OwnedUnitsIncludingCarried()
+		{
+			foreach (var a in world.Actors)
+				if (a.Owner == player && !a.IsDead && a.IsInWorld)
+					yield return a;
+
+			foreach (var pair in world.ActorsWithTrait<Cargo>())
+			{
+				var transport = pair.Actor;
+				if (transport.IsDead || !transport.IsInWorld)
+					continue;
+
+				if (transport.Owner != player && player.RelationshipWith(transport.Owner) != PlayerRelationship.Ally)
+					continue;
+
+				foreach (var p in pair.Trait.Passengers)
+					if (p.Owner == player && !p.IsDead)
+						yield return p;
+			}
+		}
+
 		// Behaviour 1: is there meaningful ammo need among fielded units a gated truck can rearm? Mirrors
 		// SupplyProvider's own metric (ResupplyDemand.UnitNeed) over each such unit's truck-rearmable pools,
 		// short-circuiting on the first needy unit. Pure decision in ResupplyDemand; this only reads trait state.
 		bool AnyFieldedUnitNeedsResupply()
 		{
-			foreach (var a in world.Actors)
+			foreach (var a in OwnedUnitsIncludingCarried())
 			{
-				if (a.Owner != player || a.IsDead || !a.IsInWorld)
-					continue;
-
 				var rearmable = a.TraitOrDefault<Rearmable>();
 				if (rearmable == null || !rearmable.Info.RearmActors.Overlaps(Info.ResupplyUnitTypes))
 					continue;
@@ -682,11 +746,8 @@ namespace OpenRA.Mods.Common.Traits
 		int CountStarvingCustomers()
 		{
 			var count = 0;
-			foreach (var a in world.Actors)
+			foreach (var a in OwnedUnitsIncludingCarried())
 			{
-				if (a.Owner != player || a.IsDead || !a.IsInWorld)
-					continue;
-
 				var rearmable = a.TraitOrDefault<Rearmable>();
 				if (rearmable == null || !rearmable.Info.RearmActors.Overlaps(Info.ResupplyUnitTypes))
 					continue;

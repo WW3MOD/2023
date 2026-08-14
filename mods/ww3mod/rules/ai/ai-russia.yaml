@@ -112,9 +112,9 @@ Player:
 		UnitFloors:
 			medi.russia: 2
 			aa.russia: 2
-			# Starting platoon ships 1; floor 2 replaces plus one, UnitLimits 3 leaves headroom for the
-			# ordinary deficit pick. See ai-america.yaml.
-			sn.russia: 2
+		# Unconditional [composition] census into debug.log every 40 bot ticks. C# default is 0; this is
+		# the opt-in. Observability only — reads state, changes no decision.
+		CensusLogInterval: 40
 		# Mirror of the America block. `^AA` is air-only (single MANPAD armament, `ValidTargets: Air`), so an
 		# AA soldier at t=0 cannot shoot anything — the delay holds the floor until 2000, and 2000 is derived
 		# from the attack-heli gate both factions already carry (`UnitDelays: hind/mi28/heli: 2500`), i.e. the
@@ -122,8 +122,6 @@ Player:
 		# contact).
 		UnitDelays:
 			aa.russia: 2000
-			# Judgement call, not derived — see ai-america.yaml. First thing to tune.
-			sn.russia: 1500
 		# Early-econ behaviour 1: don't call in trucks while no fielded unit needs ammo.
 		GateResupplyOnAmmoNeed: true
 		ResupplyUnitTypes: truk

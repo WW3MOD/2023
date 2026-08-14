@@ -132,34 +132,43 @@ Player:
 		# SECOND floor on the same population, and which one won would depend on module ordering nobody wrote
 		# down. (The offline --composition-plan replay reports tecn NEVER BOUGHT under attrition; that is an
 		# artefact of the replay modelling only this module's lane, not a defect.)
+		# CROWDING-OUT, MEASURED — a floor pre-empts the deficit pick, so it necessarily spends budget the
+		# target vector wanted elsewhere, and that cost belongs here next to the knob rather than in a report.
+		# At 1-in-40 attrition (--composition-plan, 200 cycles) the two floored types settle at medi 14 + aa 42
+		# = 56 per-mille against a combined target of 17 + 28 = 45, i.e. the specialist allocation runs ~1.24x
+		# its share. An earlier cut of this branch also floored the sniper at 2 and measured ~1.9x (109 against
+		# 57) — the sniper was dropped precisely because it was the expensive third of that, 800 of pinned
+		# budget driving its slot to 4.5x target on the strength of an unanchored delay constant. At 1-in-15
+		# the ratio rises to ~2.3x, but that is an army collapsing to 7,700 value where two floored men are
+		# unavoidably a large share; the floor is doing its job there, not misbehaving.
+		# The overshoot is ALL in aa (42 vs 28); medi actually lands UNDER its target at 14 vs 17, so the floor
+		# and the share are complementary rather than additive there — the floor binds below ~11.8k army value
+		# and the share takes over above it.
 		UnitFloors:
 			medi.america: 2
 			aa.america: 2
-			# Starting platoon ships 1. Floor 2 guarantees the replacement plus one, and UnitLimits keeps 3 as
-			# headroom so the ordinary deficit pick can still add the third once the army is large enough to
-			# warrant it — deliberately NOT floor==limit, which would pin 1200 budget permanently and remove
-			# all adaptivity from the slot.
-			sn.america: 2
-		# WHY THE AA FLOOR IS DELAYED AND THE MEDIC FLOOR IS NOT: `^AA` carries exactly ONE armament (MANPAD,
-		# `ValidTargets: Air`) and inherits ^AutoTargetAir, so an AA soldier CANNOT engage ground at all. Two of
-		# them at t=0 is 600 budget of units that cannot shoot anything yet — the same shape of mistake as the
-		# opening supply trucks, just cheaper. A medic is useful from first contact, so its floor starts at 0.
-		# 2000 is derived, not guessed: BOTH factions gate every attack helicopter behind `UnitDelays: 2500`
-		# (`ai.yaml` heli/littlebird/hind/mi28), so tick 2500 is the earliest an enemy attack heli can even be
-		# ORDERED, before call-in and the flight across the map. Holding the AA floor until 2000 therefore puts
-		# the AA soldier on the field ~500 ticks before the earliest possible airframe exists, with the
-		# call-in walk on top of that.
-		# SCOPE: this bounds a BOT opponent. A human can rush a helicopter earlier, and this delay does not
-		# protect against that — it is tuned for the bot-vs-bot benchmark. The follow-up the user asked for is
-		# a COMPUTED time-to-threat (enemy income vs airframe cost, plus flight time from their SR to ours)
-		# rather than a static tick; filed with the build-order design.
+		# Unconditional [composition] census into debug.log every 40 bot ticks. C# default is 0; this is
+		# the opt-in. Observability only — reads state, changes no decision.
+		CensusLogInterval: 40
+		# READ THIS AS A HARD BAN, NOT AS FLOOR SCHEDULING. UnitDelays is consulted at all THREE call-in sites —
+		# BuildUnit, IsCompositionCandidateEligible and ChooseBelowFloor — so before tick 2000 no AA soldier can
+		# be called in by ANY lane: not the floor, not the deficit pick, not an external request. It is a
+		# capability ban on the type for the first ~80 seconds, not merely a delayed floor.
+		# WHY THAT IS THE RIGHT CALL: `^AA` carries exactly ONE armament (MANPAD, `ValidTargets: Air`) and
+		# inherits ^AutoTargetAir, so an AA soldier CANNOT engage ground at all, and BOTH factions gate every
+		# attack helicopter behind `UnitDelays: 2500` (`ai.yaml` heli/littlebird/hind/mi28). Tick 2500 is
+		# therefore the earliest an enemy airframe can even be ORDERED, before call-in and the flight over —
+		# so an AA soldier bought before 2000 is strictly wasted budget with nothing it could legally shoot.
+		# 2000 is derived from that gate, not guessed. A medic is useful from first contact, so it has no delay.
+		# THE COST, STATED: the starting platoon ships ZERO AA soldiers, so the shipped behaviour against the
+		# user's "there is always an AA soldier or two on the field" is honestly "NONE for the first ~80
+		# seconds, then two". That is a deliberate trade of early coverage for early tempo, not an oversight.
+		# SCOPE: this bounds a BOT opponent. A human can rush a helicopter earlier and this does not protect
+		# against that. The follow-up the user asked for is a COMPUTED time-to-threat (enemy income vs airframe
+		# cost, plus flight time from their SR to ours) rather than a static tick; filed with the build-order
+		# design.
 		UnitDelays:
 			aa.america: 2000
-			# UNLIKE the AA delay above, this number is NOT derived from anything — it is a judgement call and
-			# the first thing to tune. The sniper is not dead weight early (it shoots ground, unlike the AA
-			# soldier), so the argument for holding it back is only that 400/head is a poor early trade against
-			# line infantry at 100. 1500 ticks is roughly a minute in.
-			sn.america: 1500
 		# Early-econ behaviour 1: don't call in trucks while no fielded unit needs ammo.
 		GateResupplyOnAmmoNeed: true
 		ResupplyUnitTypes: truk
@@ -268,11 +277,18 @@ Player:
 			# 17, was 9. USER RULING 2026-08-14: "in a platoon sized group of infantry (20 or so soldiers),
 			# there should be one medic". That is a RATIO, which is exactly what a target share is — so it
 			# belongs here rather than in a flat floor, and the old 9 was simply too low to express it.
-			# Derivation: infantry holds 450 per-mille of army value, and line infantry averages ~130 cost, so
-			# an army of value V fields 0.45V/130 soldiers. One medic per 20 of them is 0.45V/2600 medics, and
-			# at cost 100 that is 100*0.45V/2600 = 0.0173V => ~17 per-mille. The old 9 per-mille worked out at
-			# one medic per ~11,111 of army value, i.e. one per ~85 soldiers — about a quarter of the asked-for
-			# density.
+			#
+			# DERIVATION (corrected 2026-08-14 — the first version of this comment divided the WHOLE infantry
+			# share by the LINE infantry cost, which is a category error: support infantry costs 2.5-4x line,
+			# so that inflates the head count and the answer it produced was right only by luck).
+			# Head count has to be summed per type, not averaged: soldiers = V/1000 * SUM(share_i / cost_i)
+			# over the infantry block. With e3 95/100, ar 78/100, tl 62/200, e2 47/100, at 66/300, mt 37/300,
+			# aa 28/300, sn 12/400, e6 8/250, tecn 8/250 that sum is 3.031 (medics excluded — they are what we
+			# are sizing), i.e. 0.00303*V non-medic soldiers. One per 20 wants 0.0001515*V medics, and at cost
+			# 100 that is 15.2 per-mille. So the honest figure is ~15; 17 is kept because it lands at one medic
+			# per ~17.8 soldiers, comfortably inside "20 or so", and a slightly rich medic is cheap at 100.
+			# For scale, the old 9 per-mille worked out at one medic per ~34 soldiers.
+			# NOT redundant with the UnitFloors entry: the floor binds below ~11.8k army value, this binds above.
 			# The vector now sums to 1008 rather than 1000. That is deliberate and harmless: InitializeComposition
 			# runs SharesPerMille over these targets, which renormalises to exactly 1000, so the extra 8 is taken
 			# proportionally from every other slot (<1% each) instead of being carved out of one arbitrary donor.

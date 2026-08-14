@@ -25,10 +25,13 @@ it silently does nothing. To actually change the bots you must fork the scenario
    my first run's CSV read `stable` while my config said `experimental`, which is how it was caught.
    The trap is quiet, not silent.
 2. **All 31 committed tournament scenarios agree.** Every `tournament*.yaml` `Matchup` block was
-   diffed against its scenario's `map.yaml` `Bot:` lines. Every non-mirror scenario matches exactly.
-   The `*-mirror` scenarios carry `P1Bot: experimental / P2Bot: stable` against a `map.yaml` of
-   `stable, experimental` — the side swap the mirror exists to perform, so the informational field
-   looks stale but the real assignment is the intended one.
+   diffed against its scenario's `map.yaml` `Bot:` lines. 25 match exactly; the 6 that differ are all
+   in the **S1/S2 `*-mirror` family** (`tournament-s1-eco-*-mirror`, `tournament-s2-combat-*-mirror`),
+   which carry `P1Bot: experimental / P2Bot: stable` against a `map.yaml` of `stable, experimental` —
+   the *bot* side-swap those exist to perform, so the informational field looks stale while the real
+   assignment is the intended one. **Not every `*-mirror` is a bot swap:**
+   `tournament-capture-arena-mirror-2p` and `tournament-experimental-vs-normal-mirror-2p` mirror the
+   **faction**, not the bots, and their two files agree. Do not generalise "mirror ⇒ swapped".
 
 **So the standing benchmark debt is "stale", not "never valid".** No committed scenario was ever
 measuring a profile nobody intended. The risk is forward-looking: anyone writing a new matchup as a
