@@ -22,6 +22,11 @@ Categories: Test
 #   3. Rifleman (ar) CANNOT target neutral OILB      ← post-fix rule
 #   4. Rifleman (ar) CAN target enemy-owned OILB — to CLEAR it to Neutral, not to own it
 #   5. Engineer (e6) CANNOT capture anything (no Captures trait)
+#   6. TECN CAN capture a NEUTRALISED AFLD   ← the reclaim itself (added 2026-08-14)
+#   7. Rifleman CANNOT target a neutralised AFLD
+#   8. Rifleman CAN target an ENEMY AFLD     ← the eviction that CREATES a reclaim target
+# 6-8 carry the same rules off the money structures onto a non-income building, which is the
+# precondition the bot's reclaim pass depends on and was asserted nowhere before.
 # These are targeting assertions only (CanCapture reads capture types x relationships,
 # never the effect). The clear EFFECT is not asserted anywhere.
 Players:
@@ -65,6 +70,23 @@ Actors:
 	EnemyOilb: oilb
 		Owner: Russia
 		Location: 50,16
+
+	# A NEUTRALISED non-income structure — the state every building in a cleared base is
+	# left in once a soldier has walked through it. An airfield specifically, because it is
+	# the case the eviction commit calls out by name and because nothing outside the money
+	# structures was ever asserted technician-capturable.
+	NeutralAfld: afld
+		Owner: Neutral
+		Location: 30,24
+
+	# The OTHER end of the same rule, and the event that manufactures every reclaim target: a soldier must be
+	# able to clear an ENEMY airfield to Neutral. Asserted only for an oil derrick until 2026-08-14, so a
+	# ^Defense-style `-Capturable@occupied` landing on ^Building would have left the reclaim feature with an
+	# input that never arrives -- silent in play, because "the bot never reclaims" looks identical to "the bot
+	# has no reclaim logic".
+	EnemyAfld: afld
+		Owner: Russia
+		Location: 50,24
 
 	# SRs so the engine doesn't eliminate either side at map load
 	OwnSR: supplyroute

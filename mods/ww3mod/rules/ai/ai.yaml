@@ -247,8 +247,21 @@ Player:
 		#      (the clamp never binds and the combat-army count is not even computed — byte-identical to today).
 		#      Lower it (e.g. 50 = capturers may not exceed half the combat army) to move budget toward combat.
 		# The production SHARE weights themselves (tecn vs combat unit types) live in UnitsToBuild / UnitLimits in
-		# ai-america.yaml / ai-russia.yaml — see the budget-split note there. Default 100 on @stable.tecn = inert.
-		TecnFloorArmyShareCapPct: 100
+		# ai-america.yaml / ai-russia.yaml — see the budget-split note there.
+		# 50 since 2026-08-14 (was 100 = inert, on both twins). Reclaim is what forced the issue: a backlog of our
+		# own cleared buildings does not shrink until technicians reach them, so the floor pins at TecnFloorMax
+		# and TecnRequestPriority routes those 250-cost buys AHEAD of combat production — exactly while the base
+		# is down and the army needs rebuilding. This was the only lever guarding that spiral and it was switched
+		# off. At 50 the capturer pool may not exceed half the combat army, so reclaim demand yields while the
+		# army is thin and relaxes as it recovers.
+		# SCOPED, not global: the cap is raised back to the PRE-RECLAIM floor in code
+		# (CaptureReclaimMath.ScopedFloorWithArmyShare), so it restrains the reclaim increment and nothing else.
+		# With no reclaim candidates the two floors are equal and the ordinary capture race is byte-identical to
+		# leaving this at 100 — which is the point: a global 50 would have mutated the benchmark control in the
+		# exact opening race TecnFloor was built to win (the S2 loss, zero capturers fielded in 6/10 games) and
+		# corrupted the next baseline. Scoping also removes the wiped-army zero-trap by construction: the result
+		# can never land below the pre-reclaim floor, so cap-0 can never refuse capturers forever.
+		TecnFloorArmyShareCapPct: 50
 		# Retreat-when-done (orderless-at-hostile-location bug fix): when a capture completes or its target is
 		# gone, send the surviving TECN back to our SR instead of leaving it idle at the front (a free kill no
 		# combat free pool re-collects). Enabled on both live .tecn twins — it's a bug-class fix, not a tuning
@@ -262,6 +275,36 @@ Player:
 		# (flat field / opening => the descent returns its seed, so it holds at the beachhead).
 		StageIdleCapturers: true
 		ReserveStandoffCells: 10
+		# Reclaim our own cleared base. Since c513f358 a soldier entering ANY enemy building evicts the owner to
+		# Neutral and walks out alive, so a raided base is a row of NEUTRAL AA defences, airfields and production
+		# — and the capture layer could not see one of them, because PoiMap.Discover only admits the actor names
+		# in its own IncomeWeights (oilb/fcom/bio/miss/hosp) plus the SR. A human clearing a bot base left it
+		# sitting next to its own corpse permanently. ON: structures we previously OWNED that are now Neutral are
+		# dispatched BEFORE the PoiMap ranking and folded into the capturer floor, so recovery is funded even
+		# after every free derrick on the map is gone. Enabled on both live .tecn twins — this is a regression
+		# fix, not a tuning lever, so it goes wherever the module actually runs; the engine default stays false so
+		# any profile omitting it is byte-identical. @stable behaviour DOES move here.
+		# NOTE pbox/hbox/gtwr are NOT in scope: they strip -CaptureManager/-Capturable in structures-defenses.yaml
+		# so they can be neither evicted nor reclaimed. AA defences (agun/sam/hsam) inherit ^Defense -> ^Building
+		# and DO keep theirs.
+		# A reclaim is not dispatched at all unless at least one escort is recruitable: the tier is floored at
+		# Light AND the support pool is checked before the capture order is queued, since DispatchEscort runs
+		# after that order and returns silently on an empty pool. Skipped candidates are retried every scan, so
+		# a bot with no spare army defers instead of feeding technicians to the raiders still in its base.
+		ReclaimNeutralisedStructures: true
+		# 8, deliberately BELOW SafeDangerUnits (10) — not at ContestedDangerUnits (30), which is where this
+		# started and was wrong. At 30 the gate sat three times looser than the escort lever's own low-danger
+		# threshold, so any target quiet enough to reach escort tier None had already cleared it: the gate could
+		# never be the thing that forced an escort. It is a BACKSTOP anyway — the real protection is the Light
+		# escort floor, because a building is a vision source, so the eviction that creates a reclaim target is
+		# also what blinds us to the raiders who made it. A skipped target is retried every scan, so recovery
+		# starts by itself once they leave.
+		ReclaimMaxDangerUnits: 8
+		# Our BASE, not everything we ever touched. Without a cutoff the lever reads "ever ours, ANYWHERE", and
+		# three formerly-ours derricks deep in enemy ground would preempt the ranked pass and consume every free
+		# technician — including the one that should have walked to the free derrick beside our own beachhead.
+		# Matches SafeMaxDistanceFromSRCells (24) since both mean "on our doorstep".
+		ReclaimMaxDistanceFromSRCells: 24
 
 	# experimental AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
 	# ground army across the top enemy objectives ranked by PoiMap
@@ -1956,6 +1999,13 @@ Player:
 		ScaleTecnFloorToPois: true
 		TecnFloorMax: 5
 		TecnRequestPriority: true
+		# 2026-08-14: newly SET here (this twin previously omitted it, taking the inert engine default of 100).
+		# @stable gets the reclaim lever, so it can enter the same spiral — a backlog that does not shrink pins
+		# the floor at TecnFloorMax while TecnRequestPriority routes those buys ahead of combat production, with
+		# the base already down. Adding the brake alongside the feature that needs it. SCOPED to the reclaim
+		# increment in code, so with no reclaim candidates @stable's ordinary capture race is byte-identical to
+		# leaving this unset — the benchmark control is not disturbed. See @experimental.tecn.
+		TecnFloorArmyShareCapPct: 50
 		CaptureFanoutEnabled: true
 		UseTransportForDistantCaptures: true
 		TransportCaptureMinDistanceCells: 12
@@ -1985,6 +2035,15 @@ Player:
 		# so the reserve muster's ControlField descent works here identically. See @experimental.tecn.
 		StageIdleCapturers: true
 		ReserveStandoffCells: 10
+		# Reclaim our own cleared base — enabled on BOTH twins for the same reason RetreatCapturerWhenDone is: it
+		# is a regression fix, not a tuning lever. Without it a raided @stable bot sits next to its own neutralised
+		# AA defences, airfields and production forever, because PoiMap never discovers a non-income structure as
+		# a POI. @stable behaviour DOES move here; the next benchmark baseline must be re-taken knowingly. See
+		# @experimental.tecn for the full rationale, including why the danger gate is a backstop rather than the
+		# primary protection and why 8 (below SafeDangerUnits) rather than 30.
+		ReclaimNeutralisedStructures: true
+		ReclaimMaxDangerUnits: 8
+		ReclaimMaxDistanceFromSRCells: 24
 
 	PoiOffensiveBotModule@stable:
 		RequiresCondition: enable-ai-stable
