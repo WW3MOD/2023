@@ -566,9 +566,18 @@ namespace OpenRA.Mods.Common.Traits
 				desired = supplyFleetDesired;
 			}
 
+			// `earned`, not `cash`, is what distinguishes a bot spending a live income from one
+			// living off a frozen opening allocation — both sit at cash~0. Logging cash alone hid a
+			// dead-economy harness for a year (WORKSPACE/DISCOVERIES.md, 2026-08-14).
+			var econRes = player.PlayerActor.TraitOrDefault<PlayerResources>();
+			var econ = econRes == null ? "econ=none" :
+				$"playable={player.Playable} passive={econRes.PassiveIncomeAmount} "
+				+ $"bldincome={(int)econRes.TotalBuildingIncome} upkeep={(int)econRes.Upkeep} "
+				+ $"net={econRes.NetChange} earned={econRes.Earned} spent={econRes.Spent}";
+
 			Log.Write("debug", $"[composition] census tick={world.WorldTick} player={player.InternalName} "
 				+ $"cash={AvailableBudget()} starving={starving} trucks-desired={desired} "
-				+ $"ammo-need={AnyFieldedUnitNeedsResupply()} "
+				+ $"ammo-need={AnyFieldedUnitNeedsResupply()} {econ} "
 				+ $"(type=inWorld+inCargo/census‰vtarget‰) {string.Join(" ", parts)}");
 		}
 
