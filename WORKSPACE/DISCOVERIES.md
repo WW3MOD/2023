@@ -3,6 +3,66 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-14 — `Matchup.P1Bot` in a tournament config is INFORMATIONAL; the bot is assigned in the scenario's `map.yaml`, and `--config` cannot override it
+
+Found on `wt/composition` while trying to measure `@experimental` procurement. I wrote a new config
+file with `P1Bot: experimental` / `P2Bot: experimental`, passed it with `--config`, and got a clean
+match with a plausible verdict. It measured **`@stable`**. `TournamentConfig.cs:8` says so in a
+comment — *"informational; bot assignment is in map.yaml"* — and the real assignment is the `Bot:`
+field on each `PlayerReference` in the scenario's `map.yaml`.
+
+**The hazard is specific to `--config`.** A tournament config is the natural place to express "who
+plays whom", it is the file the runner asks you for, and it is the one thing in the pair that
+`--config` *can* change — so constructing a new matchup by writing a config is the obvious move, and
+it silently does nothing. To actually change the bots you must fork the scenario directory and edit
+`map.yaml`.
+
+**Blast radius — checked, and it is NOT what it first looks like. Prior measurements stand.**
+
+1. **The verdict reports ground truth, not the config.** `BotVsBotMatchWatcher.cs:536` emits
+   `bot_type` from `player.BotType`, the live runtime value, and `aggregate-tournament.sh:89/93`
+   copies it into the CSV's `p1_bot`/`p2_bot`. A mismatched run therefore *does* announce itself —
+   my first run's CSV read `stable` while my config said `experimental`, which is how it was caught.
+   The trap is quiet, not silent.
+2. **All 31 committed tournament scenarios agree.** Every `tournament*.yaml` `Matchup` block was
+   diffed against its scenario's `map.yaml` `Bot:` lines. Every non-mirror scenario matches exactly.
+   The `*-mirror` scenarios carry `P1Bot: experimental / P2Bot: stable` against a `map.yaml` of
+   `stable, experimental` — the side swap the mirror exists to perform, so the informational field
+   looks stale but the real assignment is the intended one.
+
+**So the standing benchmark debt is "stale", not "never valid".** No committed scenario was ever
+measuring a profile nobody intended. The risk is forward-looking: anyone writing a new matchup as a
+config file gets the scenario's bots regardless — and `tools/autotest/tournament-combat-12min-combatweighted.yaml`
+is a loose top-level config of exactly that shape, sitting outside any scenario dir. **Read
+`p1_bot`/`p2_bot` out of the CSV before believing any tournament result**; the harness already tells
+you, and it is the only thing that does.
+
+## 2026-08-14 — `AIUtils.BotDebug` is default-OFF *and* chat-only, so whole bot lanes are structurally unmeasurable — one hypothesis sat unmeasured behind this for a year
+
+`AIUtils.BotDebug` (`AIUtils.cs:92-96`) gates on `Game.Settings.Debug.BotDebug` (default **`false`**,
+`Settings.cs:171`) and routes to `TextNotificationsManager.Debug` → `AddSystemLine` → the in-game
+**chat pool**. It never reaches `debug.log`. A lane whose only instrumentation is `BotDebug` therefore
+has **no post-hoc observability at all**: "the bot never bought a medic" and "nobody was recording"
+are the same silence, and they are not distinguishable after the match.
+
+Concretely, `UnitBuilderBotModule.LogCompositionChoice` carries the comment *"Observability channel:
+one line per composition-directed selection, so autotest log-mining can chart the standing
+composition against its targets without a benchmark run."* **That claim was false as shipped** —
+there was nothing to mine. Which is exactly why PIPELINE item 57(b) could only record the
+9-per-mille argmax as a *"leading hypothesis, unmeasured"* with *"no match data showing the medic
+deficit losing the argmax"*: the data could not exist.
+
+**The fix pattern is the one the supply and danger subsystems already use** — `Log.Write("debug", …)`
+unconditionally. `supply-route.md` records the same lesson from the other side: three rounds of work
+on supply delivery were *"tuned blind"* because the only line carrying the drop terms sat behind a
+flag, and the unconditional evac lines were the sole reason the 2026-08-10 defect was findable.
+
+**Still dark for the same reason, noted while wiring this up** — each a `BotDebug` call on a spending
+decision with no `Log.Write` counterpart: the composition-directed **buy** and **DECLINE** lines, the
+composition **ceiling refusal** of an external request, the **supply-fleet shortfall** line, and the
+new **standing-floor** line. The new unconditional `[composition] census` line covers the *outcome*
+of all of them; the *reasons* remain unobservable.
+
 ## 2026-08-14 — the Javelin's fuse is THREE spheres, not two, and the third one is what catches every miss
 
 Found while executing the §6 measurement run in `WORKSPACE/audit/javelin-terminal-geometry.md`

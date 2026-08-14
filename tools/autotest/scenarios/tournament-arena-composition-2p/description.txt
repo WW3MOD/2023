@@ -1,0 +1,1 @@
+TOURNAMENT: Arena composition probe, @experimental vs @experimental. Not a winrate config — this exists to drive the unconditional [composition] census lines into debug.log so the standing force can be counted after the match. 6 sim-minutes so attrition actually bites; a 60s match settles nothing because nothing has died yet.

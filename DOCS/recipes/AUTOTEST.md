@@ -188,6 +188,29 @@ What to do about it, in order of cheapness:
 
 Related: a corpus-scanning guard should assert it **measured something** before it asserts it found no violations, or a rename silently converts it into a test that passes by scanning nothing. `StancePositioningFireStanceTest` does this — it asserts it resolved more than zero stance assignments first.
 
+## The setup you wrote is not always the setup that ran — check the subject, not the config
+
+Same family as the above, and it landed again on 2026-08-14. A tournament config's `Matchup:` block
+(`P1Bot` / `P2Bot`) is **informational only** — `TournamentConfig.cs:8` says so — and the bot that
+actually plays is the `Bot:` field on each `PlayerReference` in the scenario's **`map.yaml`**.
+Passing `--config` with a new `Matchup` block changes nothing, because `--config` cannot reach
+`map.yaml`. A run set up that way completes, writes a verdict, and reports a plausible number **for
+the wrong bot**. To change the matchup you must fork the scenario directory and edit `map.yaml`.
+
+The general rule, which outlives this particular field: **when a harness lets you declare the
+subject of a measurement in one file and select it in another, assume you edited the wrong one until
+the output proves otherwise.** Here the output does prove it — the verdict JSON's `bot_type` comes
+from `player.BotType` at runtime, so the summary CSV's `p1_bot`/`p2_bot` columns are ground truth
+and will disagree with your config when you have made this mistake. **Read them on every tournament
+run before believing the result.** Full blast-radius check (prior committed scenarios are fine) in
+`WORKSPACE/DISCOVERIES.md`, 2026-08-14.
+
+Corollary for anything bot-related: **before concluding "the bot never did X", confirm X was
+observable.** `AIUtils.BotDebug` is default-off *and* routes to game chat, never to `debug.log`, so
+several procurement decisions leave no post-hoc trace whatsoever — a lane can be measured only after
+someone adds an unconditional `Log.Write("debug", …)`. "We looked and it wasn't happening" is
+worthless when the looking was impossible.
+
 ## Gotchas
 
 These bit during development. Documenting so they don't bite again.

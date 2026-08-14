@@ -104,6 +104,62 @@ Player:
 			m109: 3
 			strykershorad: 2
 			sn.america: 3
+		# ===== STANDING-POPULATION FLOORS (experimental-only; C# default is unset) =====
+		# USER RULING 2026-08-14: "build medics", and "there is always an AA soldier or two on the field".
+		# A UnitTargetShares entry CANNOT deliver either, and the reason is arithmetic, not tuning. Shares are
+		# per-mille of army VALUE, so one unit of a type only fits under its target once the army is worth
+		# 1000*cost/target: medi.america at 9 per-mille needs a 11,111-value army before a SINGLE medic is
+		# under target, and the starting platoon is worth 2,900 — so the one medic you start with is already
+		# 34 per-mille, the ceiling strikes the slot, and it stays struck. Worse under losses: MEASURED offline
+		# (--composition-plan, 200 cycles) medics are bought 4x with no losses and ZERO times at a
+		# 1-in-40-per-cycle loss rate, because the big slots (abrams 190, e3 95) stay permanently in deficit
+		# and the argmax never descends to a 9-per-mille slot. Live @experimental match, 6 sim-minutes: the
+		# surviving bot ended with medi.america=0+0 — dead and never replaced.
+		# aa.america is the AA SOLDIER and is ungated; it rides the same argmax and fails the same way. It is
+		# NOT what ScaleAntiAirToThreat covers — that gate names strykershorad, the AA VEHICLE, and it is a CAP
+		# not a floor (see AntiAirBaseline below).
+		# The floor pre-empts the deficit pick, so it outranks the target ceiling and the demand gates. It
+		# counts owned + IN-CARGO + pending: aa/medi are both PassengerTypes on MountedTransportBotModule and
+		# boarding REMOVES a passenger from world.Actors, so a world-only count would buy replacements forever
+		# to feed transports.
+		# NOT LISTED HERE, DELIBERATELY: tecn.america. A technician floor ALREADY EXISTS, in another module —
+		# CaptureCoordinatorBotModule.MaintainTecnFloor (TecnFloor / TecnFloorMax / ScaleTecnFloorToPois),
+		# which requests through IBotRequestUnitProduction and so is invisible from this trait's vantage. It is
+		# a capture-DEMAND floor, not a standing-population one: it is reached only from the
+		# `idleCapturers.Length == 0` branch and returns early on `!CaptureTargetExists()` — "we never spend
+		# budget on a TECN with nothing to capture." That is the correct mechanism for a consumable capture
+		# tool, and both live matches ended with tecn=1 alive, so it works. A UnitFloors entry here would be a
+		# SECOND floor on the same population, and which one won would depend on module ordering nobody wrote
+		# down. (The offline --composition-plan replay reports tecn NEVER BOUGHT under attrition; that is an
+		# artefact of the replay modelling only this module's lane, not a defect.)
+		UnitFloors:
+			medi.america: 2
+			aa.america: 2
+			# Starting platoon ships 1. Floor 2 guarantees the replacement plus one, and UnitLimits keeps 3 as
+			# headroom so the ordinary deficit pick can still add the third once the army is large enough to
+			# warrant it — deliberately NOT floor==limit, which would pin 1200 budget permanently and remove
+			# all adaptivity from the slot.
+			sn.america: 2
+		# WHY THE AA FLOOR IS DELAYED AND THE MEDIC FLOOR IS NOT: `^AA` carries exactly ONE armament (MANPAD,
+		# `ValidTargets: Air`) and inherits ^AutoTargetAir, so an AA soldier CANNOT engage ground at all. Two of
+		# them at t=0 is 600 budget of units that cannot shoot anything yet — the same shape of mistake as the
+		# opening supply trucks, just cheaper. A medic is useful from first contact, so its floor starts at 0.
+		# 2000 is derived, not guessed: BOTH factions gate every attack helicopter behind `UnitDelays: 2500`
+		# (`ai.yaml` heli/littlebird/hind/mi28), so tick 2500 is the earliest an enemy attack heli can even be
+		# ORDERED, before call-in and the flight across the map. Holding the AA floor until 2000 therefore puts
+		# the AA soldier on the field ~500 ticks before the earliest possible airframe exists, with the
+		# call-in walk on top of that.
+		# SCOPE: this bounds a BOT opponent. A human can rush a helicopter earlier, and this delay does not
+		# protect against that — it is tuned for the bot-vs-bot benchmark. The follow-up the user asked for is
+		# a COMPUTED time-to-threat (enemy income vs airframe cost, plus flight time from their SR to ours)
+		# rather than a static tick; filed with the build-order design.
+		UnitDelays:
+			aa.america: 2000
+			# UNLIKE the AA delay above, this number is NOT derived from anything — it is a judgement call and
+			# the first thing to tune. The sniper is not dead weight early (it shoots ground, unlike the AA
+			# soldier), so the argument for holding it back is only that 400/head is a poor early trade against
+			# line infantry at 100. 1500 ticks is roughly a minute in.
+			sn.america: 1500
 		# Early-econ behaviour 1: don't call in trucks while no fielded unit needs ammo.
 		GateResupplyOnAmmoNeed: true
 		ResupplyUnitTypes: truk
@@ -129,7 +185,21 @@ Player:
 		SupplyStarvingThresholdPerMille: 250
 		SupplyCustomersPerTruck: 6
 		SupplyDemandOvercompensationPercent: 200
-		SupplyTruckFloor: 2
+		# 0, was 2. USER RULING 2026-08-14: "no supply truck until at least one unit is below full ammo."
+		# MEASURED live, @experimental vs @experimental, tick 40 of the match: the census read
+		# `truk=0+0/909v40` — 90.9% of everything the bot had committed was supply trucks, against a 40
+		# per-mille target, because the floor's two trucks are the FIRST two call-ins of the match, ahead of
+		# every combat unit. Offline (--composition-plan): 2000 budget against a 2900-value starting platoon.
+		# This DELETES a deliberate design decision and the cost is real, so state it rather than bury it: the
+		# floor existed so the first unit to run dry does not wait a full procurement cycle for a truck to be
+		# ordered, called in and driven out. That latency is now paid on first ammo demand instead of pre-paid
+		# at t=0. The bet is that this is the better trade, because at t=0 nobody has fired a shot — every unit
+		# spawns full — so the pre-payment buys idle trucks during the one window where tempo (POI capture, map
+		# control) compounds. GateResupplyOnAmmoNeed + AnyFieldedUnitNeedsResupply now do the work they were
+		# written for, and demand sizing still grows the fleet once anyone is actually dry.
+		# @stable is UNAFFECTED: it sets neither SupplyDemandSizing nor SupplyTruckFloor, and
+		# SupplyFleetUnderDesired returns false outright when the flag is off — @stable never had a truck floor.
+		SupplyTruckFloor: 0
 		SupplyTruckCeiling: 6
 		# Early-econ behaviour 2: vehicle AA proportionate to observed air (aa.america ungated picket).
 		ScaleAntiAirToThreat: true
@@ -195,7 +265,18 @@ Player:
 			aa.america: 28
 			# Specialists and logistics (each additionally bounded by UnitLimits above).
 			sn.america: 12
-			medi.america: 9
+			# 17, was 9. USER RULING 2026-08-14: "in a platoon sized group of infantry (20 or so soldiers),
+			# there should be one medic". That is a RATIO, which is exactly what a target share is — so it
+			# belongs here rather than in a flat floor, and the old 9 was simply too low to express it.
+			# Derivation: infantry holds 450 per-mille of army value, and line infantry averages ~130 cost, so
+			# an army of value V fields 0.45V/130 soldiers. One medic per 20 of them is 0.45V/2600 medics, and
+			# at cost 100 that is 100*0.45V/2600 = 0.0173V => ~17 per-mille. The old 9 per-mille worked out at
+			# one medic per ~11,111 of army value, i.e. one per ~85 soldiers — about a quarter of the asked-for
+			# density.
+			# The vector now sums to 1008 rather than 1000. That is deliberate and harmless: InitializeComposition
+			# runs SharesPerMille over these targets, which renormalises to exactly 1000, so the extra 8 is taken
+			# proportionally from every other slot (<1% each) instead of being carved out of one arbitrary donor.
+			medi.america: 17
 			e6.america: 8
 			tecn.america: 8
 		# Role tokens — the row/column keys for CounterMatrixPct below. A type with no role simply
