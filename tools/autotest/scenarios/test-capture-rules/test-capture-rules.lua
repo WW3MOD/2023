@@ -1,7 +1,16 @@
--- AUTO TEST: Capture rule fixes (260512).
---   TECN     captures neutrals + enemy-owned
---   Soldier  captures enemy-owned ONLY (was: also neutrals — fixed)
+-- AUTO TEST: Capture rule fixes (260512; intent updated 2026-08-14).
+--   TECN     captures neutrals + enemy-owned — the only unit that ever GAINS a building
+--   Soldier  can target enemy-owned ONLY (was: also neutrals — fixed)
 --   Engineer captures nothing (no Captures trait by design)
+--
+-- NOTE ON WHAT THIS FILE DOES AND DOESN'T COVER. Since 2026-08-14 a soldier entering
+-- an enemy building CLEARS it — the building goes Neutral and the soldier walks out
+-- alive — rather than taking ownership. `CanCapture` resolves to CaptureManager.CanTarget,
+-- which reads capture TYPES x relationships and never inspects the effect, so every
+-- assertion below is unchanged by that rule and case 4 still means what it says:
+-- a soldier may target an enemy building. It does NOT mean the soldier gains it.
+-- Nothing here asserts the clear EFFECT (owner becomes Neutral, soldier survives);
+-- that would need a live capture and an owner check, and is not covered anywhere yet.
 
 WorldLoaded = function()
 	TestHarness.FocusBetween(Tecn, Soldier, Engineer, NeutralOilb, EnemyOilb)
@@ -18,15 +27,15 @@ WorldLoaded = function()
 		return
 	end
 
-	-- 3. Soldier (rifleman) must NOT be able to capture neutral OILB.
+	-- 3. Soldier (rifleman) must NOT be able to target neutral OILB.
 	if Soldier.CanCapture(NeutralOilb) then
-		Test.Fail("Soldier.CanCapture(NeutralOilb) was true — expected false (soldiers can't take neutrals)")
+		Test.Fail("Soldier.CanCapture(NeutralOilb) was true — expected false (soldiers can't touch neutrals)")
 		return
 	end
 
-	-- 4. Soldier must be able to capture enemy-owned OILB.
+	-- 4. Soldier must be able to target enemy-owned OILB (to clear it, not to own it).
 	if not Soldier.CanCapture(EnemyOilb) then
-		Test.Fail("Soldier.CanCapture(EnemyOilb) was false — expected true (soldier takes by force from enemy)")
+		Test.Fail("Soldier.CanCapture(EnemyOilb) was false — expected true (soldier can clear an enemy building)")
 		return
 	end
 
