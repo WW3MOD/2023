@@ -198,6 +198,11 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (--PassiveIncomeTicks <= 0)
 			{
+				// PITFALL: this gate silently zeroes BOTH income and upkeep for any non-playable
+				// player. PlayerReference.Playable defaults to FALSE (PlayerReference.cs:24), so a
+				// bot declared as a map player — which is how every tournament-*/ scenario declares
+				// its bots — never earns a credit and never pays upkeep. Cash still reads ~0 in a
+				// healthy match, so `Earned`, not `Cash`, is the diagnostic that tells them apart.
 				if (self.Owner.Playable)
 					ChangeCash(PassiveIncomeAmount + (int)TotalBuildingIncome - (int)Upkeep);
 
