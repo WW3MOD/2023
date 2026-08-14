@@ -84,6 +84,22 @@ namespace OpenRA.Mods.Common.Traits
 			return EscortTier.Light;
 		}
 
+		/// <summary>The more protective of two tiers — an escort FLOOR. For a caller that knows something the
+		/// believed fields cannot tell it and must refuse to shrink below a minimum.
+		///
+		/// The reclaim pass is that caller, because its inputs are ANTI-CORRELATED with the threat. In WW3MOD a
+		/// building is itself a vision source (^BasicBuilding carries Vision@3/2/1 out to 3 cells), so the flip
+		/// to Neutral that CREATES a reclaim target is the same event that blinds us to the raiders who made it.
+		/// Believed mobile danger then decays out from under us in ~175 ticks while ControlField persists several
+		/// times longer, so the cell can read "strongly ours, zero danger" — tier None, technician alone — while
+		/// the raid is still standing on it. No threshold retune fixes that shape, so the reclaim caller floors
+		/// at Light rather than trusting the read.
+		///
+		/// Relies on the enum being ordered by protection (None &lt; Light &lt; Full), which the declaration above
+		/// fixes deliberately. Pure, total, zero RNG.</summary>
+		public static EscortTier AtLeast(EscortTier tier, EscortTier minimum)
+			=> tier > minimum ? tier : minimum;
+
 		/// <summary>Map a resolved escort <paramref name="tier"/> to a final escort COUNT, given the pre-lever
 		/// desired count and the LIGHT-tier size. REDUCTION-ONLY by construction — the lever can only ever SHRINK
 		/// an escort, never raise it: None ⇒ 0, Full ⇒ the pre-lever want unchanged, Light ⇒ min(want, lightSize).

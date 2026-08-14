@@ -8,8 +8,11 @@
  *       money-POI count VERBATIM when the lever is off — the off-switch contract;
  *   (2) IsSafeToReclaim refuses to walk an unarmed consumable into a base still under believed fire, with a
  *       negative ceiling as the disable escape hatch and an INCLUSIVE boundary;
- *   (3) UnmetReclaimDemand reports the shortfall that should pull production on a scan that already
- *       dispatched, and never goes negative so the caller can treat it as a plain "> 0" gate.
+ *   (3) ReclaimBudget stops the preempting reclaim pass draining the capturer pool to empty, so the ranked
+ *       PoiMap pass is never starved to zero;
+ *   (4) UnmetReclaimDemand reports the shortfall that should pull production on a scan that already
+ *       dispatched — measured against candidates COVERED (dispatched + in flight), not against leftover free
+ *       capturers, which makes the gate fire unconditionally — and never goes negative.
  * Pure integer comparisons, zero RNG — two clients over the same synced state decide identically.
  */
 #endregion
@@ -91,21 +94,59 @@ namespace OpenRA.Test
 			Assert.That(CaptureReclaimMath.IsSafeToReclaim(1, 0), Is.False);
 		}
 
+		// ---------- ReclaimBudget ----------
+
+		[Test]
+		public void BudgetLeavesOneCapturerForTheRankedPass()
+		{
+			// THE STARVATION CASE. Reclaim runs first and used to drain the pool: three technicians, three
+			// formerly-ours structures, and a free derrick next door got nobody. Reclaim keeps priority — it
+			// still takes every body but one — but the ranked pass is never starved to zero.
+			Assert.That(CaptureReclaimMath.ReclaimBudget(3, 2), Is.EqualTo(2));
+			Assert.That(CaptureReclaimMath.ReclaimBudget(5, 1), Is.EqualTo(4));
+		}
+
+		[Test]
+		public void BudgetIsTheWholePoolWhenTheRankedPassHasNothingToDo()
+		{
+			// Reserving against an empty ranked list would just idle a capturer.
+			Assert.That(CaptureReclaimMath.ReclaimBudget(4, 0), Is.EqualTo(4));
+		}
+
+		[Test]
+		public void SingleCapturerGoesToReclaim()
+		{
+			// Reclaim is the priority; one body cannot be split, so it wins the tie rather than being reserved
+			// away and leaving the backlog untouched.
+			Assert.That(CaptureReclaimMath.ReclaimBudget(1, 9), Is.EqualTo(1));
+			Assert.That(CaptureReclaimMath.ReclaimBudget(0, 9), Is.EqualTo(0));
+		}
+
 		// ---------- UnmetReclaimDemand ----------
 
 		[Test]
-		public void ShortfallIsBacklogMinusFreeCapturers()
+		public void ShortfallIsBacklogMinusCovered()
 		{
 			Assert.That(CaptureReclaimMath.UnmetReclaimDemand(8, 3), Is.EqualTo(5));
 		}
 
 		[Test]
-		public void CoveredBacklogReportsNoShortfall()
+		public void FullyCoveredBacklogReportsNoShortfall()
 		{
-			// Enough bodies for the work ⇒ nothing to fund, so the caller's "> 0" gate stays shut.
-			Assert.That(CaptureReclaimMath.UnmetReclaimDemand(2, 2), Is.EqualTo(0));
+			// THE REGRESSION THIS SIGNATURE EXISTS TO PREVENT. Three candidates dispatched with three capturers
+			// is fully covered — shortfall 0. Passing "free capturers left over" here instead would give 3,
+			// because dispatching consumes the very capturers being counted, making the gate fire on every scan
+			// that did any work at all.
+			Assert.That(CaptureReclaimMath.UnmetReclaimDemand(3, 3), Is.EqualTo(0));
 			Assert.That(CaptureReclaimMath.UnmetReclaimDemand(2, 5), Is.EqualTo(0),
-				"more free capturers than targets must not report negative demand");
+				"more covered than candidates must not report negative demand");
+		}
+
+		[Test]
+		public void InFlightCandidatesCountAsCovered()
+		{
+			// Five candidates, two already being walked to and one dispatched now ⇒ two still need a body.
+			Assert.That(CaptureReclaimMath.UnmetReclaimDemand(5, 3), Is.EqualTo(2));
 		}
 
 		[Test]

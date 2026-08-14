@@ -6,9 +6,11 @@
  * forever. Since c513f358 a soldier entering ANY enemy building evicts the owner to Neutral and walks out,
  * so a cleared base is a row of Neutral buildings that only a technician can re-own. The capture layer could
  * not see them at all: PoiMap.Discover admits only the actor names in its IncomeWeights (oilb/fcom/bio/
- * miss/hosp) plus the Supply Route, so a neutralised pbox/afld/powr is not a POI and never enters
- * GetCaptureTargets. This turns three coupled decisions into integers so the coordinator stays a thin
- * consumer and the logic is NUnit-pinned without a game run:
+ * miss/hosp) plus the Supply Route, so a neutralised afld/sam is not a POI and never enters
+ * GetCaptureTargets. (NOT pbox/hbox/gtwr — those strip -CaptureManager/-Capturable outright in
+ * structures-defenses.yaml, so they can be neither evicted nor reclaimed and are the wrong example to reach
+ * for. AA defences inherit ^Defense → ^Building and ARE capturable.) This turns four coupled decisions into
+ * integers so the coordinator stays a thin consumer and the logic is NUnit-pinned without a game run:
  *
  *   1. CombinedCaptureDemand — how much capturer demand to signal. The neutral-money-POI count the supply
  *      floor already scales to, PLUS the reclaim backlog, so a bot whose only remaining targets are its own
@@ -16,9 +18,13 @@
  *      free derricks are gone and recovery is unfundable.
  *   2. IsSafeToReclaim — the danger gate. A technician is a 250-cost consumable with no weapon; walking one
  *      into a base the raid has not left yet is a free kill. Compares BELIEVED anti-ground danger against a
- *      caller-supplied ceiling (both already in raw field units — the caller converts).
- *   3. UnmetReclaimDemand — backlog minus the capturers actually free this scan, the "we need more bodies"
- *      signal that lets the coordinator pull the floor on a scan where it DID dispatch someone.
+ *      caller-supplied ceiling (both already in raw field units — the caller converts). NOTE this gate is a
+ *      backstop, NOT the primary protection: its input is anti-correlated with the threat (see
+ *      EscortSizingMath.AtLeast), which is why the caller also floors the reclaim escort at Light.
+ *   3. ReclaimBudget — how many of the free capturers the reclaim pass may consume, so a preempting pass
+ *      cannot starve the ranked pass to zero.
+ *   4. UnmetReclaimDemand — backlog minus the candidates that actually have a body on them, the "we need
+ *      more bodies" signal that lets the coordinator pull the floor on a scan where it DID dispatch someone.
  *
  * DETERMINISM (influence-stack invariant): ZERO random draws, pure integer comparisons over caller-supplied
  * values. No wall-clock, no collection enumeration. Two clients over the same synced state decide identically.
@@ -74,13 +80,38 @@ namespace OpenRA.Mods.Common.Traits
 			return groundDangerField <= maxDangerField;
 		}
 
-		/// <summary>Reclaim targets we have no free capturer for this scan — the shortfall that should pull
-		/// production even though this scan DID dispatch somebody. Zero when the free capturers cover the
-		/// backlog (nothing to fund) and never negative, so the caller can treat it as a plain "> 0" gate.
+		/// <summary>How many of the free capturers the reclaim pass may consume this scan.
+		///
+		/// Reclaim runs BEFORE the ranked PoiMap pass and would otherwise drain the pool to empty, so a bot
+		/// with three formerly-ours structures and one free derrick next door sends everybody to the former and
+		/// nobody to the latter. Leaving exactly ONE capturer keeps reclaim's priority intact — it still gets
+		/// every body but one — while guaranteeing the ranked pass is never starved to zero.
+		///
+		/// Two cases hand back the whole pool, both deliberate: <paramref name="rankedTargetCount"/> of 0 (the
+		/// ranked pass has nothing to do, so reserving for it would just idle a capturer) and a single free
+		/// capturer (reclaim is the priority; splitting one body is not possible and reclaim wins the tie).
 		/// Pure integer, zero RNG.</summary>
-		public static int UnmetReclaimDemand(int reclaimCandidateCount, int freeCapturerCount)
+		public static int ReclaimBudget(int freeCapturerCount, int rankedTargetCount)
 		{
-			var shortfall = reclaimCandidateCount - freeCapturerCount;
+			if (freeCapturerCount <= 1 || rankedTargetCount <= 0)
+				return freeCapturerCount;
+
+			return freeCapturerCount - 1;
+		}
+
+		/// <summary>Reclaim targets that have no body on them — the shortfall that should pull production even
+		/// though this scan DID dispatch somebody.
+		///
+		/// <paramref name="coveredCount"/> is candidates the caller has actually accounted for: dispatched this
+		/// scan, PLUS those an in-flight capturer is already walking to. It is deliberately NOT "free capturers
+		/// left over", which is the reading that makes this test fire unconditionally — dispatching 3 candidates
+		/// with 3 capturers leaves 0 free and would report a shortfall of 3 when the true answer is 0.
+		///
+		/// Zero when every candidate is covered, and never negative, so the caller can treat it as a plain
+		/// "> 0" gate. Pure integer, zero RNG.</summary>
+		public static int UnmetReclaimDemand(int reclaimCandidateCount, int coveredCount)
+		{
+			var shortfall = reclaimCandidateCount - coveredCount;
 			return shortfall > 0 ? shortfall : 0;
 		}
 	}
