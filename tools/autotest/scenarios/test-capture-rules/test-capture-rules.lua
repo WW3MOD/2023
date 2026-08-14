@@ -11,9 +11,14 @@
 -- a soldier may target an enemy building. It does NOT mean the soldier gains it.
 -- Nothing here asserts the clear EFFECT (owner becomes Neutral, soldier survives);
 -- that would need a live capture and an owner check, and is not covered anywhere yet.
+--
+-- Cases 6-7 (added with the bot reclaim work) extend the same targeting assertions off
+-- the money structures onto a NEUTRALISED AIRFIELD — the state a cleared base is left in.
+-- That a technician can take such a building back was assumed everywhere and asserted
+-- nowhere, and it is the precondition the bot's reclaim pass depends on.
 
 WorldLoaded = function()
-	TestHarness.FocusBetween(Tecn, Soldier, Engineer, NeutralOilb, EnemyOilb)
+	TestHarness.FocusBetween(Tecn, Soldier, Engineer, NeutralOilb, EnemyOilb, NeutralAfld)
 
 	-- 1. TECN must be able to capture neutral OILB.
 	if not Tecn.CanCapture(NeutralOilb) then
@@ -46,6 +51,24 @@ WorldLoaded = function()
 	end
 	if Engineer.CanCapture(EnemyOilb) then
 		Test.Fail("Engineer.CanCapture(EnemyOilb) was true — engineers don't capture in WW3MOD")
+		return
+	end
+
+	-- 6. TECN must be able to capture a NEUTRALISED NON-INCOME structure. Every assertion
+	--    above uses an oil derrick, so "a technician can take a cleared airfield back" was
+	--    assumed rather than tested — and it is the precondition the bot's whole reclaim
+	--    pass rests on. If ^BasicBuilding ever loses ^NeutralOrOccupiedCapturable, the bot
+	--    would go on dispatching technicians at targets none of them can act on, which
+	--    fails silently in play and loudly here.
+	if not Tecn.CanCapture(NeutralAfld) then
+		Test.Fail("Tecn.CanCapture(NeutralAfld) was false — a cleared airfield must be reclaimable by a technician")
+		return
+	end
+
+	-- 7. Soldier must NOT be able to target it. Soldiers only ever CLEAR enemy buildings;
+	--    an already-cleared one is Neutral and there is nothing left for them to do to it.
+	if Soldier.CanCapture(NeutralAfld) then
+		Test.Fail("Soldier.CanCapture(NeutralAfld) was true — expected false (soldiers can't touch neutrals)")
 		return
 	end
 

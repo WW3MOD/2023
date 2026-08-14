@@ -66,6 +66,14 @@ Actors:
 		Owner: Russia
 		Location: 50,16
 
+	# A NEUTRALISED non-income structure — the state every building in a cleared base is
+	# left in once a soldier has walked through it. An airfield specifically, because it is
+	# the case the eviction commit calls out by name and because nothing outside the money
+	# structures was ever asserted technician-capturable.
+	NeutralAfld: afld
+		Owner: Neutral
+		Location: 30,24
+
 	# SRs so the engine doesn't eliminate either side at map load
 	OwnSR: supplyroute
 		Owner: USA

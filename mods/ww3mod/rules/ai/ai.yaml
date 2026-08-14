@@ -262,6 +262,20 @@ Player:
 		# (flat field / opening => the descent returns its seed, so it holds at the beachhead).
 		StageIdleCapturers: true
 		ReserveStandoffCells: 10
+		# Reclaim our own cleared base. Since c513f358 a soldier entering ANY enemy building evicts the owner to
+		# Neutral and walks out alive, so a raided base is a row of NEUTRAL defences, airfields and production —
+		# and the capture layer could not see one of them, because PoiMap.Discover only admits the actor names in
+		# its own IncomeWeights (oilb/fcom/bio/miss/hosp) plus the SR. A human clearing a bot base left it sitting
+		# next to its own corpse permanently. ON: structures we previously OWNED that are now Neutral are
+		# dispatched BEFORE the PoiMap ranking and folded into the capturer floor, so recovery is funded even
+		# after every free derrick on the map is gone. Enabled on both live .tecn twins — this is a regression
+		# fix, not a tuning lever, so it goes wherever the module actually runs; the engine default stays false so
+		# any profile omitting it is byte-identical. @stable behaviour DOES move here.
+		ReclaimNeutralisedStructures: true
+		# Matches ContestedDangerUnits above on purpose: "contested" and "too hot to walk an unarmed 250-cost
+		# consumable into" are the same judgement. A skipped target is retried every scan, so recovery starts by
+		# itself once the raiders leave.
+		ReclaimMaxDangerUnits: 30
 
 	# experimental AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
 	# ground army across the top enemy objectives ranked by PoiMap
@@ -1985,6 +1999,13 @@ Player:
 		# so the reserve muster's ControlField descent works here identically. See @experimental.tecn.
 		StageIdleCapturers: true
 		ReserveStandoffCells: 10
+		# Reclaim our own cleared base — enabled on BOTH twins for the same reason RetreatCapturerWhenDone is: it
+		# is a regression fix, not a tuning lever. Without it a raided @stable bot sits next to its own neutralised
+		# defences, airfields and production forever, because PoiMap never discovers a non-income structure as a
+		# POI. @stable behaviour DOES move here; the next benchmark baseline must be re-taken knowingly. See
+		# @experimental.tecn for the full rationale.
+		ReclaimNeutralisedStructures: true
+		ReclaimMaxDangerUnits: 30
 
 	PoiOffensiveBotModule@stable:
 		RequiresCondition: enable-ai-stable
