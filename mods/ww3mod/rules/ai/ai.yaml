@@ -252,13 +252,15 @@ Player:
 		# own cleared buildings does not shrink until technicians reach them, so the floor pins at TecnFloorMax
 		# and TecnRequestPriority routes those 250-cost buys AHEAD of combat production — exactly while the base
 		# is down and the army needs rebuilding. This was the only lever guarding that spiral and it was switched
-		# off. At 50 the capturer pool may not exceed half the combat army, so capture demand yields while the
+		# off. At 50 the capturer pool may not exceed half the combat army, so reclaim demand yields while the
 		# army is thin and relaxes as it recovers.
-		# The clamp is floored at TecnFloor in code (MaintainTecnFloor): scaling to the army has no lower bound,
-		# so a WIPED army would otherwise yield cap 0 and buy no capturer ever again — which is the reclaim case
-		# itself. Net effect is a ramp, never a cutoff: 1 capturer at army 0-3, 2 at army 4, up to 5 at army 10+.
-		# NOTE this touches the ordinary capture race too, not just reclaim, on BOTH twins — the opening now
-		# fields fewer simultaneous technicians while the army is small. Unmeasured; re-take the benchmark.
+		# SCOPED, not global: the cap is raised back to the PRE-RECLAIM floor in code
+		# (CaptureReclaimMath.ScopedFloorWithArmyShare), so it restrains the reclaim increment and nothing else.
+		# With no reclaim candidates the two floors are equal and the ordinary capture race is byte-identical to
+		# leaving this at 100 — which is the point: a global 50 would have mutated the benchmark control in the
+		# exact opening race TecnFloor was built to win (the S2 loss, zero capturers fielded in 6/10 games) and
+		# corrupted the next baseline. Scoping also removes the wiped-army zero-trap by construction: the result
+		# can never land below the pre-reclaim floor, so cap-0 can never refuse capturers forever.
 		TecnFloorArmyShareCapPct: 50
 		# Retreat-when-done (orderless-at-hostile-location bug fix): when a capture completes or its target is
 		# gone, send the surviving TECN back to our SR instead of leaving it idle at the front (a free kill no
@@ -285,6 +287,10 @@ Player:
 		# NOTE pbox/hbox/gtwr are NOT in scope: they strip -CaptureManager/-Capturable in structures-defenses.yaml
 		# so they can be neither evicted nor reclaimed. AA defences (agun/sam/hsam) inherit ^Defense -> ^Building
 		# and DO keep theirs.
+		# A reclaim is not dispatched at all unless at least one escort is recruitable: the tier is floored at
+		# Light AND the support pool is checked before the capture order is queued, since DispatchEscort runs
+		# after that order and returns silently on an empty pool. Skipped candidates are retried every scan, so
+		# a bot with no spare army defers instead of feeding technicians to the raiders still in its base.
 		ReclaimNeutralisedStructures: true
 		# 8, deliberately BELOW SafeDangerUnits (10) — not at ContestedDangerUnits (30), which is where this
 		# started and was wrong. At 30 the gate sat three times looser than the escort lever's own low-danger
@@ -1996,9 +2002,9 @@ Player:
 		# 2026-08-14: newly SET here (this twin previously omitted it, taking the inert engine default of 100).
 		# @stable gets the reclaim lever, so it can enter the same spiral — a backlog that does not shrink pins
 		# the floor at TecnFloorMax while TecnRequestPriority routes those buys ahead of combat production, with
-		# the base already down. Adding the brake alongside the feature that needs it. Floored at TecnFloor in
-		# code so a wiped army cannot zero the capturer pool. See @experimental.tecn for the full rationale.
-		# @stable behaviour moves: fewer simultaneous technicians while the army is thin, on every map.
+		# the base already down. Adding the brake alongside the feature that needs it. SCOPED to the reclaim
+		# increment in code, so with no reclaim candidates @stable's ordinary capture race is byte-identical to
+		# leaving this unset — the benchmark control is not disturbed. See @experimental.tecn.
 		TecnFloorArmyShareCapPct: 50
 		CaptureFanoutEnabled: true
 		UseTransportForDistantCaptures: true

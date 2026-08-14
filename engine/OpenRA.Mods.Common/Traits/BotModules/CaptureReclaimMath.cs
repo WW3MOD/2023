@@ -80,6 +80,40 @@ namespace OpenRA.Mods.Common.Traits
 			return groundDangerField <= maxDangerField;
 		}
 
+		/// <summary>Apply the combat-army share cap to the capturer floor WITHOUT letting it touch the
+		/// pre-reclaim floor — so the cap restrains the reclaim increment and nothing else.
+		///
+		/// <paramref name="moneyFloor"/> is the floor this scan would have had before the reclaim lever
+		/// existed (money POIs only); <paramref name="combinedFloor"/> is the floor including the reclaim
+		/// backlog. The capped result is raised back to <paramref name="moneyFloor"/>, which gives the property
+		/// that decides whether this is mergeable: WITH NO RECLAIM CANDIDATES the two floors are equal, so the
+		/// result is <paramref name="moneyFloor"/> exactly and the ordinary capture race is BYTE-IDENTICAL to a
+		/// config that never enabled the cap. Not "tuned and hoped" — provable, and pinned in
+		/// CaptureReclaimMathTest.
+		///
+		/// That matters because a GLOBAL share cap mutates the benchmark control in precisely the opening race
+		/// TecnFloor was built to win (the measured S2 loss: zero capturers fielded in 6/10 games), and would
+		/// corrupt the next baseline in a way that is awkward to unpick. The property deliberately given up is
+		/// the cap restraining a genuinely high money-POI demand on a thin army — which IS the S2 behaviour, so
+		/// giving it up is the point rather than a regression.
+		///
+		/// It also subsumes the zero-trap by construction: ClampFloorToArmyShare scales to the army with no
+		/// lower bound, so a wiped army yields cap 0 and the floor would refuse capturers forever
+		/// (ShouldRequestTecn returns false at alive >= floor with both 0) — the exact state a cleared base is
+		/// in. Raising to <paramref name="moneyFloor"/> cannot land below the pre-reclaim floor, so that state
+		/// is unreachable without a separate patch.
+		///
+		/// <paramref name="sharePct"/> &gt;= 100 returns <paramref name="combinedFloor"/> verbatim (the cap is
+		/// inert), so this is total and the caller may still skip counting the army. Pure integer, zero RNG.</summary>
+		public static int ScopedFloorWithArmyShare(int moneyFloor, int combinedFloor, int totalCombatArmy, int sharePct)
+		{
+			if (sharePct >= 100)
+				return combinedFloor;
+
+			var capped = CaptureSupplyMath.ClampFloorToArmyShare(combinedFloor, totalCombatArmy, sharePct);
+			return capped > moneyFloor ? capped : moneyFloor;
+		}
+
 		/// <summary>How many of the free capturers the reclaim pass may consume this scan.
 		///
 		/// Reclaim runs BEFORE the ranked PoiMap pass and would otherwise drain the pool to empty, so a bot
