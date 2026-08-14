@@ -1,0 +1,1 @@
+Audit 6.2: stationary t90 at 6-8 cells, high shot count, hunting a single record with min_aim_dist > 298 in the inaccuracy-offset tail.

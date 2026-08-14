@@ -179,6 +179,13 @@ namespace OpenRA.Mods.Common.Projectiles
 
 		public static IReadOnlyList<MissileTraceRecord> Records => Completed;
 
+		// Missiles still in flight, carrying last tick's sample. Read-only view for
+		// scenarios that must act at a measured remaining range rather than at a
+		// guessed tick offset — the Javelin terminal-geometry probes perturb the target when
+		// the missile crosses a chosen distance, which cannot be timed from launch
+		// because the speed ramp and the climb make ticks-to-intercept range-dependent.
+		public static IReadOnlyList<MissileTraceRecord> LiveRecords => Live;
+
 		// Called from the Missile constructor. Resolves the launch-arg gate exactly
 		// once per process; a scenario that called Enable() first wins.
 		public static void EnsureInitialized()

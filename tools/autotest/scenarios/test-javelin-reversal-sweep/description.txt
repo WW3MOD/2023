@@ -1,0 +1,1 @@
+Audit 6.1: shallow Javelin vs reversing Humvee at 4-6 cells; 8 lanes sweep the reversal range 800-2000 wdist (lane 1 is an unperturbed control). Answer is in the .missiles.jsonl, not the verdict.

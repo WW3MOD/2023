@@ -1,0 +1,59 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Javelin 6.3 orbit/loop probe (measurement rig)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Every launcher and every target is spawned by the Lua so altitudes and
+	# ranges are exact. The map carries only the two Supply Routes (a faction
+	# with no actors is eliminated, which ends the match before the poller can
+	# write a verdict) and the spawn anchors.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,2
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,31
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 4,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,16
+
+Rules: rules.yaml

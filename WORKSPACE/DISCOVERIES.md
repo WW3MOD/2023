@@ -3,6 +3,52 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-14 — the Javelin's fuse is THREE spheres, not two, and the third one is what catches every miss
+
+Found while executing the §6 measurement run in `WORKSPACE/audit/javelin-terminal-geometry.md`
+(branch `wt/javelin-probe`, 556 shipped-configuration ATGM flights).
+
+The audit frames "miss and survive" as clearing two 298-radius spheres: clause 4 tests the **offset
+aim point** (`Missile.cs:1163`) and clause 9 tests the closest approach of the swept segment
+(`Missile.cs:1188-1214`). But those two clauses are centred on *different* points, and clause 9's
+centre is `targetPosition + leadTarget` (`:1194`) — a **third** location, distinct from both the
+tank and the aim point, sitting between them and moving with the target's velocity.
+
+Measured consequence: **nine flights cleared both of the audit's spheres — `min_dist > 298` AND
+`min_aim_dist > 298`, i.e. they missed the tank by more than a fuse radius and also missed the point
+they were steering at — and all nine still detonated, every one on `segment_closest`**, several for
+four-figure damage. So "the missile failed to arrive where it was aiming" is necessary for a
+surviving miss and nowhere near sufficient, and any future reasoning about ATGM misses has to carry
+all three centres.
+
+This is also why the `Inaccuracy` offset cannot buy survival on its own: pushing the trajectory
+clear of the lead point pushes it toward the aim point and vice versa. In 152 shots at a
+**stationary** `t90` (where the lead term is zero, so clause 9 collapses onto the tank), 35 records
+had `min_aim_dist > 298` — against a shipped-corpus maximum of 6 — and every single one of the 35
+hit the tank anyway.
+
+Practical corollary for anyone reading old traces: `min_aim_dist` scales with how little range the
+missile had to null its offset, so it is mostly a proxy for **engagement range**, not for miss
+distance. The corpus maxes out at 6 because it was fired from 10-12 cells; the same weapon fired
+from 6-8 cells reaches 655 while still hitting every time.
+
+## 2026-08-14 — a Humvee's real top speed is 105 wdist/tick, not the 150 its `Mobile.Speed` reads
+
+Measured from 2486 per-tick target-position deltas in a `--missile-trace` JSONL (same run as above):
+maximum 105, median 49 over a short patrol leg, 8% of ticks at a standstill. `Speed: 150`
+(`vehicles-america.yaml`) is therefore not wdist/tick at the point of use — something between the
+locomotor's terrain speed and the trait's own modifiers takes 30% off before it reaches the ground.
+
+This matters because lead-target arithmetic is written in wdist/tick. Any calculation of the form
+"a reversing Humvee swings the aim point by `2 * Speed * D / missileSpeed`" is **30% optimistic** if
+it takes 150 from the YAML — and the audit's §3.2 correction-budget table does exactly that.
+
+Second-order and worth knowing before designing a scenario around a velocity change: a vehicle
+cannot reverse or stop instantly, so the *instantaneous* swing those formulas assume is not
+available either. A measured `Stop`/reverse order collapses the Humvee from 103 to 63 wdist/tick
+over the following **eight** ticks. At a missile speed of 300 that is 2400 wdist of missile travel —
+longer than the entire terminal phase the swing is supposed to act on.
+
 ## 2026-08-14 — don't hand-roll a MiniYaml inheritance resolver: `OpenRA.Utility --resolved-rules` already does it, and the hand-rolled version gets `-Trait:` removals wrong
 
 The 2026-08-13 entry below recommends resolving inheritance "mechanically — a 40-line script". **Prefer the shipped tool.** `OutputResolvedRulesCommand` (`--resolved-rules ACTOR [MAP]`) prints the fully merged rules for an actor using the engine's own loader, so it cannot disagree with the game. On Windows it needs the environment the launcher scripts set up, which is why it looks broken if invoked directly:

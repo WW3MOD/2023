@@ -3,6 +3,36 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-14: [medium] OPEN — `humvee` declares `RenderSprites` twice, so no map can override anything on it (found while: building the Javelin §6 measurement rig, branch `wt/javelin-probe`)
+
+`vehicles-america.yaml:28` (`RenderSprites: Scale: 0.9`) and `vehicles-america.yaml:156`
+(`RenderSprites: Image: humvee`) are two sibling nodes with the same key under the same actor.
+
+The mod loads today because nothing forces that node through a merge. **The moment a second rules
+source mentions `humvee` — which is what any map's `Rules:` section does — `MiniYaml.Merge` rejects
+the duplicate and the map fails to load** with
+
+```
+MiniYaml.Merge, duplicate values found for the following keys: RenderSprites:
+  [RenderSprites (at ww3mod|rules/ingame/vehicles-america.yaml:28),
+   RenderSprites (at ww3mod|rules/ingame/vehicles-america.yaml:156)]
+```
+
+The behaviour is the engine's own, covered by `MiniYamlTest.TestMergeConflictsNoMerge` and friends
+(`engine/OpenRA.Test/OpenRA.Game/MiniYamlTest.cs:531-578`). The symptom is a rules-load failure with
+no verdict, so a scenario that touches the Humvee looks like a hung game rather than a YAML error.
+
+**Not fixed here, deliberately.** `ActorInfo` builds traits by `traits.Add` per node
+(`ActorInfo.cs:44-58`) into a `TypeDictionary`, which accepts duplicates — so the shipped Humvee
+currently carries **two** RenderSprites traits. Collapsing the two blocks into one would take it to
+one, which is a live rendering change to a shipped unit, and that is a call for whoever owns the
+unit's appearance rather than for a measurement rig. Whoever takes it should check in game whether
+the sprite is currently double-drawn and whether `Scale: 0.9` is in force, because those two
+questions decide what the merged node should say.
+
+Worked around in `mods/ww3mod/scripts/javelin-probe-lib.lua` by leaving the Humvee at its stock
+8000 HP and respawning it after each kill instead of overriding `Health`.
+
 ## 2026-08-14: [high] OPEN — a bot cannot recover from having its base cleared: `CaptureCoordinatorBotModule` never reclaims its own neutralised structures, and technicians are capped at 3 (found while: widening soldier-clears-to-Neutral to all buildings, branch `wt/clear-all-buildings`)
 
 **Not a defect in the change that files it — a gameplay gap the change exposes, and the reason the previous, narrower version of this rule existed.** Under the uniform clear rule one enemy rifleman can walk a bot's base turning every AA gun, SAM, airfield, silo, Logistics Centre and derrick Neutral, surviving each time and paying only the 1000-tick (~40 s) delay per building. The bot has no answer, for two independent reasons:

@@ -572,6 +572,68 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			MissileTrace.Enable(path, tickRecords);
 		}
 
+		[Desc("True when the MissileTrace sink is actually recording. A scenario that steers off " +
+			"live missile state must check this first: with the trace off Test.GetLiveMissileRange " +
+			"returns -1 forever, which is indistinguishable from 'nothing is flying' — so the " +
+			"scenario would run to completion having perturbed nothing and still report a verdict. " +
+			"Test mode only.")]
+		public bool IsMissileTraceEnabled()
+		{
+			if (!TestMode.IsActive)
+				return false;
+
+			// The Test.MissileTraceLog launch arg is resolved lazily, from the Missile constructor.
+			// A scenario asks this from WorldLoaded — before anything has fired — so without forcing
+			// the gate here the answer is always false and the check reads as "you forgot the flag".
+			MissileTrace.EnsureInitialized();
+			return MissileTrace.Enabled;
+		}
+
+		[Desc("Smallest true 3D separation between `target` and any missile currently in flight at " +
+			"it, or -1 when none is airborne. This is `currentDistance` as Missile.cs computes it " +
+			"for the FlyStraightIfMiss predicate — no lead term, no inaccuracy offset — so a " +
+			"scenario can act at a chosen remaining range instead of a guessed tick offset. The " +
+			"sample is the traced missile's most recent tick and so may lag the simulation by one " +
+			"tick (up to one missile-speed of travel). Requires the MissileTrace sink: check " +
+			"Test.IsMissileTraceEnabled() first. Test mode only.")]
+		public int GetLiveMissileRange(Actor target)
+		{
+			return Nearest(target, out _);
+		}
+
+		[Desc("Trace id of the missile Test.GetLiveMissileRange just measured, or -1 when none is " +
+			"airborne. Ids are unique for the run, so a scenario can perturb each individual missile " +
+			"exactly once — which range alone cannot express, because a missile that misses and " +
+			"survives loiters downrange while the next shot is already inbound. Test mode only.")]
+		public int GetLiveMissileNearestId(Actor target)
+		{
+			Nearest(target, out var id);
+			return id;
+		}
+
+		static int Nearest(Actor target, out int id)
+		{
+			id = -1;
+			if (!TestMode.IsActive || target == null)
+				return -1;
+
+			var best = -1;
+			foreach (var rec in MissileTrace.LiveRecords)
+			{
+				if (rec.TargetId != target.ActorID)
+					continue;
+
+				var d = (rec.TargetPos - rec.Pos).Length;
+				if (best >= 0 && d >= best)
+					continue;
+
+				best = d;
+				id = rec.Id;
+			}
+
+			return best;
+		}
+
 		[Desc("Number of completed missile summary records so far. A missile gets its record when it " +
 			"ends (detonates, is removed pre-Arm, or the match ends with it still aloft), so poll " +
 			"Test.GetActiveMissileCount() == 0 before asserting. Test mode only.")]

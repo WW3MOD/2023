@@ -1,0 +1,1 @@
+Audit 6.3: Humvee driven at speed then STOPPED just before intercept, to probe the turn-radius-limited orbit — the only code path that can make a Javelin turn back. Looking for flystraight_latches==0 with >180 deg of hf rotation.
