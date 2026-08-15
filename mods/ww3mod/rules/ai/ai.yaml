@@ -1498,6 +1498,19 @@ Player:
 		StandoffDangerUnits: 10
 		StandoffMarginCells: 2
 		StandoffMaxBackoffCells: 20
+		# 2026-08-15 transport loading. BEHAVIOURAL CHANGE TO @stable — deliberate, not drift; re-take the
+		# benchmark baseline. Carriers stopped driving off at MinPassengersPerLoad (2) while the other three
+		# soldiers they had just ordered aboard were still walking; they now wait for the seats they actually
+		# ordered, bounded by BoardingStallTicks and LoadingTimeoutTicks so they can never hang. The capture
+		# ferry now also carries escort in the technician's four spare seats instead of driving it out alone.
+		FillBeforeDeparture: true
+		BoardingStallTicks: 250
+		CaptureFerryEscortSeats: 3
+		# Required for the above to actually hold on this profile. Without it this module leaves goalGuard
+		# null, so offense's BuildFreePool — which honours the ledger but NOT the bespoke IsPassengerReserved
+		# seam — treats a soldier walking up the ramp as free and re-tasks it away. Waiting for a fuller load
+		# against a module that keeps removing the passengers is just a slower half-empty departure.
+		CommitPassengers: true
 
 	# Experimental twin. NOTE (b8d2e601, 2026-08-02): neither behaviour below is experimental-only any
 	# more — the @poi (stable) twin above was promoted to the same config. Both are default-frozen on
@@ -1541,8 +1554,16 @@ Player:
 		# Phase 2 commit-on-order audit (§4): commit boarding passengers to the shared PoiGoalGuard ledger
 		# (transport:<carrierId>), released on unload. Replaces the bespoke IsPassengerReserved seam as the
 		# cross-module lock — offense's BuildFreePool already excludes ledger-committed units, so it no longer
-		# yanks infantry mid-board. Default OFF on the @poi (stable) twin = byte-identical.
+		# yanks infantry mid-board. NOTE (2026-08-15): the @poi (stable) twin sets this too now — the
+		# fill-before-departure lever below is unworkable without it, so the "default OFF on @poi =
+		# byte-identical" claim is dead.
 		CommitPassengers: true
+		# 2026-08-15 transport loading — see the @poi twin for the rationale. Wait for the seats actually
+		# ordered rather than the bare minimum, with two independent time bounds so a carrier can never hang
+		# on a passenger that is not coming; and spend the capture ferry's otherwise-empty seats on escort.
+		FillBeforeDeparture: true
+		BoardingStallTicks: 250
+		CaptureFerryEscortSeats: 3
 
 	# ===== Base Builder — shared baseline (enable-ai-player) =====
 	BaseBuilderBotModule@normal:

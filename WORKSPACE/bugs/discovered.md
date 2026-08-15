@@ -912,3 +912,25 @@ The two doctrinal modes (`DOCS/reference/economy.md`; PIPELINE item 56 "The two 
 ### [info] First positive live report on delivery conduct (PIPELINE item 56) — 2026-08-15
 
 Same user report, and it should not get lost inside the procurement complaint: *"When I saw it being built it seems like it **correctly went to resupply them**."* Item 56 (truck delivery) is the highest-priority queue item and has previously been described by the user as long-broken. This is the first live statement that the truck's **conduct** is right. It isolates the remaining problem cleanly: **procurement, not delivery.** Not a verdict on item 56 — one observation, no trace of an individual delivery — but it is evidence pointing the encouraging way, consistent with the 5-alive/3-eligible reading already banked in `DISCOVERIES.md` for `b91b5a88`.
+
+### [bug] Transport helicopters have the same half-empty departure asymmetry the ground carriers just had fixed — 2026-08-15
+
+Found on `wt/transport-loading` while fixing the ground module; **not fixed there**, because the test-run
+budget covered the ground path and the two share no code beyond the pattern.
+
+`TransportLoadMath.Decide` (`HelicopterSquadBotModule.cs:1862-1871`) dispatches a lift as soon as
+`passengersAboard >= minPassengers` (`TransportMinPassengers: 4`, `ai.yaml:1676`/`:1765`). The number
+of soldiers actually ordered aboard is `TransportEmploymentMath.LoadCap`
+(`TransportEmploymentMath.cs:138-154`) = `min(maxInfantry, cargoMaxWeight)` floored at the minimum —
+so whenever the doctrine cap exceeds 4 the heli lifts off with 4 while the rest are still walking,
+exactly as `MountedTransportBotModule` did before `FillBeforeDeparture`.
+
+The heli path is **less exposed than the ground one was**, because it already stands its stragglers
+down on both task exits (`StandDownStragglers`, `:1229`), so they release their cargo reservations
+rather than pinning the airframe's pickup lock. The cost is therefore a thin load, not a stuck
+transport.
+
+Fix shape, if picked up: `MountedTransportMath.DecideDeparture` is a pure function and already carries
+the seat-target / still-coming / stall / timeout logic with its no-hang invariant NUnit-pinned. The
+heli would need the same `SeatTarget` and `LastBoardingTick` bookkeeping on its task record, then a
+call swap. Behavioural, so it needs a default-false field per the `@stable` policy.
