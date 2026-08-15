@@ -3,6 +3,87 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-15 — bot transports leave half empty because the DEPARTURE test reads the MINIMUM while the BOARDING loop orders up to CAPACITY; and the stragglers then pin the carrier's lock
+
+Found on `wt/transport-loading` while making the capture ferry carry soldiers.
+
+**The asymmetry.** `MountedTransportBotModule.TryAssignNewTasks` orders up to
+`Math.Min(MaxPassengersPerLoad, Cargo.MaxWeight)` passengers aboard
+(`MountedTransportBotModule.cs:674-692`) — five, on both shipped profiles. But the Loading state
+released the carrier at `cargo.PassengerCount >= Info.MinPassengersPerLoad`, i.e. **two**
+(`:425` pre-fix). So a carrier that had just told five soldiers to board drove away the instant the
+second one climbed in. The other three were left walking toward a departing vehicle. This is the
+whole of the "transports go half empty" complaint: it is not a recruitment shortfall — the infantry
+were found and ordered — the departure bar simply sat three seats below the order.
+
+**THE STRAGGLER CONSEQUENCE IS A LATENT MATCH-LONG UNIT LOSS, AND IT PRE-DATES THIS FIX.** This is
+the part to carry away: the half-empty load was the visible symptom, but the same asymmetry could
+take the carrier out of the game permanently.
+
+`Cargo.ReserveSpace` (`Cargo.cs:387-412`) is called by `RideTransport.TryStartEnter` when a passenger
+reaches the carrier, and it calls `LockForPickup`, which does **`self.CancelActivity()` on the
+CARRIER** (`Cargo.cs:428-445`) and queues a non-interruptible `WaitFor`. So a straggler that catches
+up to a carrier that has already left **kills that carrier's delivery Move outright** — the passenger
+does not merely fail to board, it cancels the vehicle's orders. `ReleaseLock` only fires at
+`reservedWeight == 0` (`:447-459`). And neither the Delivering nor the Returning state has any
+timeout — the code says so itself at `MountedTransportBotModule.cs:509-511`. The carrier is therefore
+left **parked at the pickup point, loaded, with no order and nothing that will ever re-issue one, for
+the rest of the match.** A vehicle plus its passengers, silently removed from the game, with no death
+and no log line to attribute it to.
+
+Note the causal chain runs the wrong way round from intuition: it is not that the carrier leaves and
+the straggler is stranded — it is that the straggler's *arrival* strands the **carrier**. Departing
+early is what creates the straggler, so the two defects are the same defect.
+
+The identical shape is already documented for the helicopter path in
+`TransportEmploymentMath.cs:129-137`, which is why `HelicopterSquadBotModule` grew
+`StandDownStragglers` (`:1229`); the ground module never got the equivalent. `FillBeforeDeparture`
+removes the cause (no stragglers left walking toward a departed carrier), and the Delivering
+re-issue guard added alongside it is the belt to that braces — but on any profile that leaves the
+lever off, the latent loss is still there.
+
+**The heli path still has the same departure asymmetry.** `TransportLoadMath.Decide`
+(`HelicopterSquadBotModule.cs:1862-1871`) dispatches on `passengersAboard >= minPassengers` with the
+same structure, fed by a `LoadCap` that can order well past that minimum. Not fixed here — noted so
+it is not rediscovered as a fresh bug.
+
+**A carrier that waits for a fuller load needs THREE releases, not one.** Waiting on "everyone
+aboard" hangs on a passenger that no longer exists. A count of reserved passengers still alive and
+in-world covers death and boarding for free (a boarded passenger is removed from the world by
+`RideTransport.OnEnterComplete`), but it cannot see a passenger that is **alive and was re-tasked
+away** — that one needs a no-progress bound, and the hard timeout stays as the unconditional
+backstop. Only the latter two are functions of elapsed time alone, which is what makes "cannot hang"
+provable rather than argued;
+`MountedTransportMathTest.WaitIsUnreachableOncePatienceElapsed_NoHangInvariant` sweeps it.
+
+## 2026-08-15 — `BotOrderDamping.Recurring` silently zeroed a one-shot fill: 3 candidates found, 0 orders admitted, and the run still went GREEN
+
+Same branch. The capture ferry's new spare-seat boarding was first marked `Recurring`, copied from
+the frontline pool's call site. Measured result: `ferry-escort … candidates=3 boarded=0`, and the
+ferry departed `aboard=1` — the technician alone, exactly the behaviour the change existed to remove.
+
+**Why.** `BotOrderQueue.Admit` (`OrderArbitrationMath.cs:561-572`) applies a dwell rule to
+`Recurring` orders only: a single-target order to an actor holding a standing record inside the dwell
+window, for a different destination, is dropped. Fresh infantry near the SR has always just received
+something from another module, so every candidate was blocked. `Recurring` is right for the frontline
+pool, which re-offers every 50-tick scan and can afford a drop; it is wrong for
+`TryReserveCaptureFerry`, which is called **once per capture dispatch and never re-offers**, so a
+dropped order is a seat lost for the run. The capturer's own `EnterTransport` in the same method is
+deliberately unmarked/Protected for exactly this reason (`MountedTransportBotModule.cs:310-313`) —
+the escorts now match it.
+
+**Rule of thumb:** the damping class must follow the CALL SITE's retry behaviour, not the order
+string. Ask "if this is dropped, does anything re-issue it?" — if no, `Recurring` is a silent
+data-loss bug whose only symptom is a counter in `debug.log`.
+
+**And the test passed anyway, which is the more important half.** The verdict asserted a peak
+passenger count >= 2 on the named carrier, reasoning that only the ferry could load that carrier.
+True *while the ferry owns it* — but once the ferry task is torn down the bradley returns to the
+general pool and the ordinary frontline path loads riflemen into it, satisfying the peak minutes
+later. The predicate had to be **frozen at dismount** to confine it to the ferry leg. A per-actor
+observable is not automatically an attributable one: the ownership window has to be part of the
+predicate.
+
 ## 2026-08-15 — an actor with a HitShape but no `Targetable` SUPPRESSES the explosion and sound of any shell landing on it; only the effect warhead is gated, damage never was
 
 Found on `wt/field-impact` from a live-play report that artillery shells landing on a field "vanish".

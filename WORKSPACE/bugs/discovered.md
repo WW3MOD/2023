@@ -912,3 +912,107 @@ The two doctrinal modes (`DOCS/reference/economy.md`; PIPELINE item 56 "The two 
 ### [info] First positive live report on delivery conduct (PIPELINE item 56) — 2026-08-15
 
 Same user report, and it should not get lost inside the procurement complaint: *"When I saw it being built it seems like it **correctly went to resupply them**."* Item 56 (truck delivery) is the highest-priority queue item and has previously been described by the user as long-broken. This is the first live statement that the truck's **conduct** is right. It isolates the remaining problem cleanly: **procurement, not delivery.** Not a verdict on item 56 — one observation, no trace of an individual delivery — but it is evidence pointing the encouraging way, consistent with the 5-alive/3-eligible reading already banked in `DISCOVERIES.md` for `b91b5a88`.
+
+### [bug] Transport helicopters have the same half-empty departure asymmetry the ground carriers just had fixed — 2026-08-15
+
+Found on `wt/transport-loading` while fixing the ground module; **not fixed there**, because the test-run
+budget covered the ground path and the two share no code beyond the pattern.
+
+`TransportLoadMath.Decide` (`HelicopterSquadBotModule.cs:1862-1871`) dispatches a lift as soon as
+`passengersAboard >= minPassengers` (`TransportMinPassengers: 4`, `ai.yaml:1676`/`:1765`). The number
+of soldiers actually ordered aboard is `TransportEmploymentMath.LoadCap`
+(`TransportEmploymentMath.cs:138-154`) = `min(maxInfantry, cargoMaxWeight)` floored at the minimum —
+so whenever the doctrine cap exceeds 4 the heli lifts off with 4 while the rest are still walking,
+exactly as `MountedTransportBotModule` did before `FillBeforeDeparture`.
+
+The heli path is **less exposed than the ground one was**, because it already stands its stragglers
+down on both task exits (`StandDownStragglers`, `:1229`), so they release their cargo reservations
+rather than pinning the airframe's pickup lock. The cost is therefore a thin load, not a stuck
+transport.
+
+Fix shape, if picked up: `MountedTransportMath.DecideDeparture` is a pure function and already carries
+the seat-target / still-coming / stall / timeout logic with its no-hang invariant NUnit-pinned. The
+heli would need the same `SeatTarget` and `LastBoardingTick` bookkeeping on its task record, then a
+call swap. Behavioural, so it needs a default-false field per the `@stable` policy.
+
+### [bug] The capture ferry's drop site bypasses the danger standoff entirely — and now carries three more soldiers into it — 2026-08-15
+
+Pre-existing; **stakes raised** by `wt/transport-loading`, which is why it is being recorded rather
+than left implicit. Not fixed there.
+
+A frontline delivery runs its drop cell through `ApplyStandoff`
+(`MountedTransportBotModule.cs:866-899`), which walks the cell back toward our SR until the believed
+anti-ground danger clears, plus a margin. A **capture ferry does not**: `TryReserveCaptureFerry` sets
+`DropOff = target.Location` directly and never calls `ApplyStandoff`. The carrier therefore drives to
+the capture target's own cell whatever the believed danger there, and the standing user constraint
+that transports be **route AND drop-site danger-aware** (2026-08-11) is unmet on this path.
+
+Until now the exposure was one technician. With `CaptureFerryEscortSeats: 3` on both twins it is a
+technician plus three riflemen plus the carrier — one AA/AT hit now costs five units instead of two.
+The change did not create the gap and does not widen the danger; it widens what is standing in it.
+
+Shape of a fix, if picked up: the ferry cannot simply reuse `ApplyStandoff`, because backing the drop
+off toward the SR would defeat the ferry's whole purpose (the capturer must reach the target). More
+likely the standoff belongs on the **approach**, not the destination — or the ferry should decline the
+ride and let the technician walk when believed danger at the target exceeds a bar. That is a design
+call, not a tuning one. Note the danger field is currently mis-scaled (pipeline item 40), so prefer a
+formulation robust to its scale being wrong.
+
+### [bug] Ferry escorts and walking escorts are recruited independently, so infantry committed per capture rose by roughly the seat count — unmeasured against starving the offense — 2026-08-15
+
+Pre-existing structure; **new magnitude** from `wt/transport-loading`. Not fixed there.
+
+`IssueCaptureOrder` (`CaptureCoordinatorBotModule.cs:1667-1695`) calls `TryFerryCapture` first and
+`DispatchEscort` second, as alternatives for the *capturer*'s movement only — nothing couples the two
+for support units. So a capture that takes a ferry now commits **both** the ferry's escort seats
+(`CaptureFerryEscortSeats: 3`) **and** a separately recruited walking escort (`EscortSize: 2`, or
+`ContestedEscortSize: 4`), where before this change it committed only the walking escort.
+
+There is no double-booking of individual units — `FindIdleSupportersNear` (`:2100-2130`) requires
+`IsIdle` and excludes ledger-committed actors, and the ferry's escorts are both non-idle (they hold an
+`EnterTransport`) and committed under `transport:<carrierId>` — so the two sets are disjoint. The
+concern is not correctness but **total spend**: up to ~5 infantry diverted onto one capture instead of
+~2, against an offense that draws from the same free pool.
+
+Unmeasured, and deliberately so: quantifying it needs a full-length match with captures actually
+firing, which the branch's run budget did not cover. If the offense looks thin in a benchmark after
+this lands, this is the first thing to suspect. The cheap lever is `CaptureFerryEscortSeats`, which is
+per-profile and defaults to 0.
+
+### [bug] `test-combined-arms-rendezvous` still fails on the tank-death abort — the two-t90 reduction committed at 7f8c2d41 was unverified, and it did not work — 2026-08-15
+
+Run granted specifically to check whether `FillBeforeDeparture` (`wt/transport-loading`) pushed this
+scenario past its 200 s deadline. **It did not, and the failure is unrelated to that branch.**
+
+Verdict: `fail: the bot's tank died before the rendezvous could be judged` (seed 1017, run
+`260815_115851_p60033`). That is the scenario's own early-abort at
+`test-combined-arms-rendezvous.lua:69`, not a deadline overrun.
+
+**This is the exact failure `7f8c2d41` tried to tune out and shipped without exercising.** Its commit
+body records: *"Four t90s placed to populate the control field killed the lead abrams before the
+assertion could be judged … Reduced to two at the far corner … This last change is UNVERIFIED tuning;
+the run budget was exhausted before it could be exercised."* The map file carries the same note inline
+(`map.yaml:127-133`) and asks whoever runs it next to confirm the abrams survives. **It does not.** Two
+t90s at the far corner still kill it. The belief source still wins the fight it was only supposed to
+populate a field for.
+
+**Why the transport branch is excluded as a cause, on evidence rather than argument.** The whole run
+logged `tasks-active=0` — every scan, both players — with zero `[exp-transport] depart`, zero
+`ferry-escort` and zero `mounted-transport` lines. No `CarrierTask` was ever created, so the Loading
+state that `FillBeforeDeparture` governs was never entered and the lever had no opportunity to delay
+anything. The mechanism by which the branch could plausibly have broken this scenario provably did
+not occur.
+
+**A second, separate observation from the same log, worth its own look.** The transport reached
+`carriers-candidate=1` with `passengers-eligible=4` then `5` — a carrier and enough infantry — and
+still created no task. Eligibility then collapsed to `0` for several scans before climbing again as
+fresh units spawned, which is the signature of the offensive layer walking those same soldiers out of
+the reserve bubble. The likely mechanism is the one `wt/transport-loading` hit and fixed on the ferry
+path: the frontline boarding order is `BotOrderDamping.Recurring`, and `BotOrderQueue.Admit`'s dwell
+rule (`OrderArbitrationMath.cs:561-572`) drops a Recurring order to any actor holding a recent standing
+record — which fresh infantry near the SR always has. `CommitPassengers` cannot help here, because the
+commit happens at task creation and no task is created. **If that is right, the ground transport rarely
+runs at all, which would explain why the rendezvous has never once been exercised in four runs across
+two branches.** Stated as a hypothesis: the refusal path has no log line, so this run cannot prove it.
+Cheapest next step is a one-line counter at the `boarding.Count == 0` continue in `TryAssignNewTasks`
+— then a single run says yes or no.

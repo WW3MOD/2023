@@ -1,0 +1,11 @@
+# No cash so nothing is produced; the only actors are the pre-placed TECN, carrier,
+# derrick and the two Supply Routes. The USA bot must ferry its existing TECN.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-ferry-fills-seats.lua
