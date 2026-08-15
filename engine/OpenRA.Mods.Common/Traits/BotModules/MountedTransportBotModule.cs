@@ -193,6 +193,32 @@ namespace OpenRA.Mods.Common.Traits
 			"clear, only technicians own).")]
 		public readonly int CaptureFerryEscortSeats = 0;
 
+		[Desc("Default false = baseline: a carrier's load is fixed at the instant its task is created, at",
+			"however many boarding orders the arbitration gate happened to admit on that ONE tick. Every",
+			"refused passenger is a seat that stays empty for the whole trip, because the Loading state",
+			"never re-offers to anybody — measured 2026-08-15, tasks created at boarding=1 of 5, 1 of 2,",
+			"1 of 5, each departing reason=Full with a hold that was 'full' only relative to a bar set by",
+			"one unlucky tick. That is the half-empty departure.",
+			"When set, a loading carrier re-offers EnterTransport to the free pool each scan and fills the",
+			"seats that were going to travel empty.",
+			"IT CANNOT EXTEND THE WAIT, and that is a structural property rather than a tuning choice:",
+			"  * the departure math's stillComing and approach-progress inputs count the ORIGINAL cohort",
+			"    only, so the release that fires at the baseline departure tick (every committed passenger",
+			"    aboard or gone) is unchanged, and no top-up can delay it or reset the stall clock. A",
+			"    top-up still walking when that release fires is simply left behind;",
+			"  * top-ups are offered only while at least one committed passenger is still walking, i.e.",
+			"    only while the carrier is already waiting for something. Once it is not, nothing is added.",
+			"There is deliberately NO proximity bar on a recruit. That was the first cut, on the reasoning",
+			"that a nearer recruit cannot be the one delaying things, and the baseline census refuted it:",
+			"TryAssignNewTasks takes the CLOSEST infantry available, so every later candidate is further off",
+			"than the passenger being waited for, and the bar rejected 30 of 32 scans' candidates outright.",
+			"SeatTarget IS raised per admitted top-up, purely so the aboard >= SeatTarget test cannot fire",
+			"EARLY and depart while committed passengers are still walking up — which would re-create the",
+			"straggler case FillBeforeDeparture exists to remove. Departure therefore lands on exactly the",
+			"tick it would have without this flag, carrying every seat that was filled in the meantime.",
+			"Capture ferries are excluded: their spare seats are CaptureFerryEscortSeats' business.")]
+		public readonly bool TopUpDuringLoading = false;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -221,6 +247,16 @@ namespace OpenRA.Mods.Common.Traits
 			public int StateChangedAtTick;
 			public HashSet<Actor> ReservedPassengers = new();
 
+			// Passengers recruited AFTER task creation, by the top-up pass, to fill seats the arbitration
+			// gate left empty at creation. Held apart from ReservedPassengers for one reason: the departure
+			// math must not see them. `stillComing` and the approach-progress clock are computed over the
+			// ORIGINAL cohort alone, so a top-up can neither postpone the "everyone committed is aboard or
+			// gone" release nor reset the stall bound — which is what makes topping up unable to extend the
+			// wait. Everywhere else (the reservation seam other modules read, the shared ledger, teardown)
+			// they are ordinary passengers and MUST be treated as such, or offense poaches a soldier that is
+			// already walking up the ramp.
+			public HashSet<Actor> TopUpPassengers = new();
+
 			// How many passengers were actually ORDERED aboard. The load can never beat this, so it is
 			// what "full" means for the departure decision — the carrier's physical capacity would be the
 			// wrong bar whenever there was not enough infantry to fill it.
@@ -243,6 +279,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Passenger count at the previous scan — the edge a boarding is detected on.
 			public int LastSeenAboard;
+
+			// Passengers actually in the hold when the carrier reached its drop, captured at the
+			// Delivering -> Unloading edge because by the Unloading -> Returning edge the hold is empty
+			// by definition. This is what the completed-delivery marker reports.
+			public int PaxAtArrival;
 
 			// Non-null => a DIRECTED capture ferry requested by CaptureCoordinator, not a
 			// frontline delivery. On unload the carrier hands the capturer its CaptureActor so it
@@ -283,7 +324,7 @@ namespace OpenRA.Mods.Common.Traits
 		public bool IsPassengerReserved(Actor actor)
 		{
 			foreach (var task in carrierTasks.Values)
-				if (task.ReservedPassengers.Contains(actor))
+				if (task.ReservedPassengers.Contains(actor) || task.TopUpPassengers.Contains(actor))
 					return true;
 			return false;
 		}
@@ -311,6 +352,18 @@ namespace OpenRA.Mods.Common.Traits
 					goalGuard.Ledger.Commit(pax, key, world.WorldTick, goalGuard.DefaultCommitmentTicks);
 		}
 
+		// A single top-up recruit, staked the instant its boarding order is admitted. Same key and same
+		// skip-the-capturer rule as the bulk commit above; separate only because top-ups arrive one at a
+		// time, mid-load, rather than as the cohort a task is born with.
+		void CommitTopUpPassenger(CarrierTask task, Actor pax)
+		{
+			if (!CommitOnOrderMath.ShouldCommit(Info.CommitPassengers, goalGuard != null && !goalGuard.IsTraitDisabled))
+				return;
+
+			if (pax != task.Capturer)
+				goalGuard.Ledger.Commit(pax, TransportObjectiveKey(task.Carrier), world.WorldTick, goalGuard.DefaultCommitmentTicks);
+		}
+
 		// Release a task's passengers from the ledger (on unload / task teardown) so a delivered unit re-enters
 		// the free pool for offense immediately rather than idling until the TTL lapses. Idempotent — a second
 		// release for an already-freed unit is a no-op, so calling it at both unload and teardown is safe.
@@ -322,6 +375,12 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			foreach (var pax in task.ReservedPassengers)
+				if (pax != task.Capturer)
+					goalGuard.Ledger.Release(pax);
+
+			// Top-ups are released on every path the original cohort is, or a recruit that never boarded
+			// stays ledger-locked out of offense's free pool until the TTL lapses.
+			foreach (var pax in task.TopUpPassengers)
 				if (pax != task.Capturer)
 					goalGuard.Ledger.Release(pax);
 		}
@@ -440,7 +499,7 @@ namespace OpenRA.Mods.Common.Traits
 				return boarded;
 
 			var reservedByOthers = new HashSet<Actor>(
-				carrierTasks.Values.SelectMany(t => t.ReservedPassengers));
+				carrierTasks.Values.SelectMany(t => t.ReservedPassengers.Concat(t.TopUpPassengers)));
 
 			var heliTransport = player.PlayerActor.TraitsImplementing<HelicopterSquadBotModule>()
 				.FirstOrDefault(m => !m.IsTraitDisabled);
@@ -597,6 +656,11 @@ namespace OpenRA.Mods.Common.Traits
 					// resets the clock, so the bound now means "nobody boarded AND nobody got closer".
 					var stillComing = 0;
 					var closest = int.MaxValue;
+
+					// The furthest still-walking member of the ORIGINAL cohort is what the carrier is
+					// actually waiting for, so it is the admission bar for a top-up: a recruit no further
+					// away than this one cannot be the reason the carrier is still standing here.
+					var farthestComing = 0;
 					foreach (var pax in task.ReservedPassengers)
 					{
 						if (pax.IsDead || !pax.IsInWorld || pax.Owner != player)
@@ -606,6 +670,8 @@ namespace OpenRA.Mods.Common.Traits
 						var cells = (pax.Location - carrier.Location).Length;
 						if (cells < closest)
 							closest = cells;
+						if (cells > farthestComing)
+							farthestComing = cells;
 					}
 
 					if (closest < task.BestApproachCells)
@@ -613,6 +679,12 @@ namespace OpenRA.Mods.Common.Traits
 						task.BestApproachCells = closest;
 						task.LastProgressTick = world.WorldTick;
 					}
+
+					// Fill the seats the arbitration gate left empty when this task was born. The diagnostic
+					// inside is UNCONDITIONAL and the order-issuing is behind the flag, so a baseline run and a
+					// fixed run are the same binary at the same seed with one bool differing — and the baseline
+					// still reports whether the seats were winnable at all.
+					TopUpLoad(bot, task, aboard, stillComing, farthestComing);
 
 					var departure = MountedTransportMath.DecideDeparture(
 						Info.FillBeforeDeparture,
@@ -709,6 +781,10 @@ namespace OpenRA.Mods.Common.Traits
 						if (Info.UnloadOnArrival && cargo.CanUnload())
 							bot.QueueOrder(new Order("Move", carrier, Target.FromCell(world, task.Return), true));
 
+						// Read the hold NOW. This is the last moment it is non-empty, and it is the only
+						// honest source for "how many soldiers did this trip actually deliver".
+						task.PaxAtArrival = cargo.PassengerCount;
+
 						task.State = CarrierState.Unloading;
 						task.StateChangedAtTick = world.WorldTick;
 						AIUtils.BotDebug("AI ({0}): mounted-transport — {1} unloading at {2}",
@@ -762,9 +838,16 @@ namespace OpenRA.Mods.Common.Traits
 						// about arrival, which is exactly where the 2026-08-15 runs stopped. Logged here,
 						// at the Unloading -> Returning edge, because that edge fires only once the hold is
 						// actually empty.
+						//
+						// `pax` is PaxAtArrival — what was IN THE HOLD at the drop. It used to print
+						// SeatTarget, which is a TARGET and not a count: it is the number of seats the
+						// carrier set out to fill, and a trip that departed with fewer reported the
+						// higher number anyway. That misread the three deliveries banked on 2026-08-15
+						// ("pax=1, pax=3, pax=3" were targets, not passengers), and TopUpDuringLoading
+						// raises SeatTarget, which would have inflated it further.
 						Log.Write("debug",
 							$"[exp-transport] delivered player={player.PlayerName} carrier={carrier.Info.Name} " +
-							$"at={carrier.Location} drop={task.DropOff} pax={task.SeatTarget} " +
+							$"at={carrier.Location} drop={task.DropOff} pax={task.PaxAtArrival} target={task.SeatTarget} " +
 							$"ferry={task.CaptureTarget != null} tick={world.WorldTick}");
 					}
 					else if (Info.UnloadOnArrival && carrier.IsIdle && cargo.CanUnload())
@@ -791,6 +874,119 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>Re-offer boarding to the free pool while a carrier is loading, so seats the arbitration
+		/// gate refused at task creation do not travel empty. See TopUpDuringLoading for why this cannot
+		/// extend the wait; the guarantee is enforced here (offer only while the carrier is already waiting on
+		/// a committed passenger) and in the Loading state above (stillComing and the progress clock read the
+		/// original cohort only, so the release that ends the load is the one that ended it before).
+		///
+		/// The candidate census runs whether or not the flag is set: it is the measurement that says whether
+		/// the seats were winnable from this side at all, and a baseline that cannot answer that is a baseline
+		/// that only tells you the number is bad.</summary>
+		void TopUpLoad(IBot bot, CarrierTask task, int aboard, int stillComing, int farthestComing)
+		{
+			// A capture ferry's spare seats belong to CaptureFerryEscortSeats, which fills them at dispatch
+			// against a capacity that deliberately reserves one seat for the technician. Topping up here as
+			// well would spend that seat and hand the capture layer an escort count it did not ask for.
+			if (task.CaptureTarget != null)
+				return;
+
+			var carrier = task.Carrier;
+			var cargoInfo = carrier.Info.TraitInfo<CargoInfo>();
+			var capacity = System.Math.Min(Info.MaxPassengersPerLoad, cargoInfo.MaxWeight);
+
+			// Seats that will still be empty when everyone already claimed has arrived. Both outstanding
+			// groups count: a soldier walking to the ramp owns its seat as surely as one sitting in it, and
+			// double-booking would hand Cargo more passengers than it can take.
+			var topUpComing = 0;
+			foreach (var pax in task.TopUpPassengers)
+				if (!pax.IsDead && pax.IsInWorld && pax.Owner == player)
+					topUpComing++;
+
+			var seatsFree = capacity - aboard - stillComing - topUpComing;
+
+			// Gather candidates through the same gate TryAssignNewTasks uses, nearest first, and keep only
+			// those inside the admission bar.
+			var reservedByOthers = new HashSet<Actor>(
+				carrierTasks.Values.SelectMany(t => t.ReservedPassengers.Concat(t.TopUpPassengers)));
+			var heliTransport = ResolveHeliTransport();
+			var reserveRadiusSq = (long)Info.ReserveZoneRadiusCells * Info.ReserveZoneRadiusCells;
+			var srCell = task.Return;
+
+			var candidates = world.Actors
+				.Where(a => IsEligiblePassenger(a, reservedByOthers, heliTransport, srCell, reserveRadiusSq, task.DropOff))
+				.Select(a => (Actor: a, Cells: (a.Location - carrier.Location).Length))
+				.OrderBy(c => c.Cells)
+				.ToList();
+
+			var nearerThanWaited = candidates.Count(c => c.Cells <= farthestComing);
+
+			// THE censuses that decide whether this lever can work at all: how many bodies are in reach, how
+			// many are inside the bar, and — per candidate — whether it is busy, which is the single input the
+			// dwell rule reads (OrderArbitrationMath.DwellBlocks returns false outright for a non-busy target,
+			// so an idle candidate is winnable and a busy one under a fresh standing order from another module
+			// is not). If this line reports candidates that are all busy, re-offering cannot close the gap and
+			// the fix belongs on whatever is holding them.
+			Log.Write("debug",
+				$"[exp-transport] topup-census player={player.PlayerName} carrier={carrier.Info.Name} " +
+				$"enabled={Info.TopUpDuringLoading} aboard={aboard} target={task.SeatTarget} capacity={capacity} " +
+				$"seats-free={seatsFree} still-coming={stillComing} topup-coming={topUpComing} " +
+				$"farthest-coming={farthestComing} candidates={candidates.Count} nearer-than-waited={nearerThanWaited} tick={world.WorldTick}");
+
+			foreach (var c in candidates.Take(6))
+				Log.Write("debug",
+					$"[exp-transport] topup-candidate player={player.PlayerName} carrier={carrier.Info.Name} " +
+					$"pax={c.Actor.Info.Name}#{c.Actor.ActorID} cells={c.Cells} idle={c.Actor.IsIdle} " +
+					$"activity={c.Actor.CurrentActivity?.GetType().Name ?? "<none>"} " +
+					$"nearer-than-waited={c.Cells <= farthestComing} tick={world.WorldTick}");
+
+			if (!Info.TopUpDuringLoading || seatsFree <= 0)
+				return;
+
+			// Nobody committed is still walking ⇒ the departure release fires on this very scan. Recruiting
+			// now could only add a passenger the carrier would have to wait for, which is the one thing this
+			// pass is not allowed to do.
+			if (stillComing <= 0)
+				return;
+
+			// Nearest first, and NOT filtered on distance. A proximity bar was the first cut of this and
+			// the baseline census killed it: TryAssignNewTasks takes the CLOSEST infantry it can get, so
+			// every later candidate is by construction further from the carrier than the passenger the
+			// carrier is waiting for. Admitting only candidates inside that shrinking radius rejected 30 of
+			// 32 scans' worth (run 260815_191433; the census still counts them as `nearer-than-waited`,
+			// now purely as diagnosis) and would have filled no seat at all.
+			// The bar was never what made this safe anyway — the departure math not seeing top-ups is.
+			foreach (var c in candidates)
+			{
+				if (seatsFree <= 0)
+					break;
+
+				if (!bot.QueueOrder(new Order("EnterTransport", c.Actor, Target.FromActor(carrier), false), BotOrderDamping.Recurring))
+				{
+					Log.Write("debug",
+						$"[exp-transport] topup-refused player={player.PlayerName} carrier={carrier.Info.Name} " +
+						$"pax={c.Actor.Info.Name}#{c.Actor.ActorID} cells={c.Cells} idle={c.Actor.IsIdle} " +
+						$"activity={c.Actor.CurrentActivity?.GetType().Name ?? "<none>"} tick={world.WorldTick}");
+					continue;
+				}
+
+				task.TopUpPassengers.Add(c.Actor);
+				CommitTopUpPassenger(task, c.Actor);
+				seatsFree--;
+
+				// Raise the bar in step, so `aboard >= SeatTarget` cannot fire EARLY and drive off while a
+				// committed passenger is still walking up — which would re-create exactly the straggler case
+				// FillBeforeDeparture was built to remove. The release that ends this load stays the one that
+				// ended it before: every committed passenger aboard or gone.
+				task.SeatTarget++;
+
+				Log.Write("debug",
+					$"[exp-transport] topup-added player={player.PlayerName} carrier={carrier.Info.Name} " +
+					$"pax={c.Actor.Info.Name}#{c.Actor.ActorID} cells={c.Cells} new-target={task.SeatTarget} " +
+					$"tick={world.WorldTick}");
+			}
+		}
+
 		void LaunchDelivery(IBot bot, CarrierTask task)
 		{
 			// Same rule, and this is the worse case: the carrier is LOADED. Staying in Loading means the
@@ -804,6 +1000,31 @@ namespace OpenRA.Mods.Common.Traits
 			AIUtils.BotDebug("AI ({0}): mounted-transport — {1} delivering {2} pax to {3}",
 				player.ClientIndex, task.Carrier.Info.Name, task.Carrier.Trait<Cargo>().PassengerCount, task.DropOff);
 		}
+
+		/// <summary>The passenger-pool gate, lifted out of TryAssignNewTasks so the mid-load top-up recruits
+		/// through the IDENTICAL filter rather than a second, drifting copy of it. Every clause here is a
+		/// claim somebody else holds — another carrier's reservation, the heli twin's, the shared ledger's —
+		/// and a top-up that skipped one would poach a soldier that is already walking up someone's ramp.</summary>
+		bool IsEligiblePassenger(Actor a, HashSet<Actor> reservedByOthers, HelicopterSquadBotModule heliTransport,
+			CPos srCell, long reserveRadiusSq, CPos? dropOff)
+		{
+			return a.Owner == player && !a.IsDead && a.IsInWorld
+				&& Info.PassengerTypes.Contains(a.Info.Name.ToLowerInvariant())
+				&& !reservedByOthers.Contains(a)
+				&& (heliTransport == null || !heliTransport.IsPassengerReserved(a))
+				// Commit-on-order (§4): never ferry a unit another POI-stack writer already committed —
+				// otherwise Commit() below would overwrite its objective. Inert when the flag is off
+				// (goalGuard null) ⇒ byte-identical. Mirrors GarrisonBotModule's free-pool gate.
+				&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, world.WorldTick))
+				&& a.Info.HasTraitInfo<PassengerInfo>()
+				&& ((a.Location - srCell).LengthSquared <= reserveRadiusSq
+					|| (dropOff.HasValue
+						&& MountedTransportMath.InCorridor(srCell, dropOff.Value, a.Location, Info.PickupCorridorCells)));
+		}
+
+		// See the per-pass note in TryAssignNewTasks: twinned module, resolved live rather than cached.
+		HelicopterSquadBotModule ResolveHeliTransport()
+			=> player.PlayerActor.TraitsImplementing<HelicopterSquadBotModule>().FirstOrDefault(m => !m.IsTraitDisabled);
 
 		void TryAssignNewTasks(IBot bot, CPos srCell)
 		{
@@ -855,7 +1076,7 @@ namespace OpenRA.Mods.Common.Traits
 			// The reserve-zone radius is the gate: passengers ALREADY on the line
 			// (far from the SR) are excluded. They keep their forward orders.
 			var reservedByOthers = new HashSet<Actor>(
-				carrierTasks.Values.SelectMany(t => t.ReservedPassengers));
+				carrierTasks.Values.SelectMany(t => t.ReservedPassengers.Concat(t.TopUpPassengers)));
 
 			// The HELICOPTER transport module draws from the same reserve bubble and its passenger filter is a
 			// superset of PassengerTypes, so without this we yank soldiers that are already walking to a heli
@@ -864,8 +1085,7 @@ namespace OpenRA.Mods.Common.Traits
 			// goalGuard null and never touch it. Resolved per-pass rather than cached because this module is
 			// constructed before the heli twin on some profiles; TraitsImplementing + first-enabled because the
 			// module is twinned and TraitOrDefault would throw on "multiple traits".
-			var heliTransport = player.PlayerActor.TraitsImplementing<HelicopterSquadBotModule>()
-				.FirstOrDefault(m => !m.IsTraitDisabled);
+			var heliTransport = ResolveHeliTransport();
 
 			// Drop-off cell (thinnest frontline / pre-contact staging, fog-legal standoff when enabled).
 			// When a pickup corridor is configured we need the drop cell FIRST to define the SR→drop lane.
@@ -881,18 +1101,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var reserveRadiusSq = (long)Info.ReserveZoneRadiusCells * Info.ReserveZoneRadiusCells;
 			var availablePassengers = world.Actors
-				.Where(a => a.Owner == player && !a.IsDead && a.IsInWorld
-					&& Info.PassengerTypes.Contains(a.Info.Name.ToLowerInvariant())
-					&& !reservedByOthers.Contains(a)
-					&& (heliTransport == null || !heliTransport.IsPassengerReserved(a))
-					// Commit-on-order (§4): never ferry a unit another POI-stack writer already committed —
-					// otherwise Commit() below would overwrite its objective. Inert when the flag is off
-					// (goalGuard null) ⇒ byte-identical. Mirrors GarrisonBotModule's free-pool gate.
-					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, world.WorldTick))
-					&& a.Info.HasTraitInfo<PassengerInfo>()
-					&& ((a.Location - srCell).LengthSquared <= reserveRadiusSq
-						|| (dropOff.HasValue
-							&& MountedTransportMath.InCorridor(srCell, dropOff.Value, a.Location, Info.PickupCorridorCells))))
+				.Where(a => IsEligiblePassenger(a, reservedByOthers, heliTransport, srCell, reserveRadiusSq, dropOff))
 				.ToList();
 
 			Log.Write("debug",

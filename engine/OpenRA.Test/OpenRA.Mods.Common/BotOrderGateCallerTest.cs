@@ -48,7 +48,14 @@ namespace OpenRA.Test
 		// OrderArbitrationMath's header. Was 6 until SupplyFollower's two follow Moves were handed to
 		// auto/truck-churn's caller-side distance deadband — the gate provably could not suppress them
 		// (ScanInterval 150 t > ReorderDwellTicks 120 t, and trucks are never ledger-committed).
-		const int ExpectedRecurringSites = 4;
+		//
+		// 5 since 2026-08-15: MountedTransport's mid-load TOP-UP re-offers boarding to the free pool while a
+		// carrier waits (TopUpDuringLoading). Recurring for the same reason as its sibling at task creation —
+		// it re-offers every scan, and must lose to a fresher standing order rather than yank a unit another
+		// module is mid-way through moving. Measured on the day it landed: 6 of 11 of its offers were refused
+		// by exactly that rule. It checks its result; a refusal is logged as `topup-refused` and the
+		// passenger is neither reserved nor committed.
+		const int ExpectedRecurringSites = 5;
 
 		static long Cell(int x, int y) => OrderArbitrationMath.DestinationKey(false, 0, x, y, true);
 		static List<BotOrderTarget> One(uint id, string objective = null, bool busy = true)
@@ -407,8 +414,9 @@ namespace OpenRA.Test
 			// what happened. Adding or removing a suppressible site must be a deliberate edit here.
 			Assert.That(recurringSites, Is.EqualTo(ExpectedRecurringSites),
 				$"expected exactly {ExpectedRecurringSites} BotOrderDamping.Recurring call sites — "
-				+ "MountedTransport passenger boarding, LayeredDefence line assignment x2, and PoiOffensive "
-				+ "StageFreePool. If you added or removed one deliberately, update ExpectedRecurringSites "
+				+ "MountedTransport passenger boarding, MountedTransport mid-load top-up, LayeredDefence line "
+				+ "assignment x2, and PoiOffensive StageFreePool. If you added or removed one deliberately, "
+				+ "update ExpectedRecurringSites "
 				+ "and say why in the commit message; if you did not, the scan has lost sight of a site it "
 				+ "is supposed to be policing.");
 			Assert.That(offenders, Is.Empty,

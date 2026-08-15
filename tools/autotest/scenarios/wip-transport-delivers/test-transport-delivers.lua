@@ -112,12 +112,35 @@ WorldLoaded = function()
 				if Squad[i] ~= nil and not Squad[i].IsDead and Squad[i].IsInWorld then live = live + 1 end
 			end
 
+			-- PER-MEMBER state, which the aggregate above cannot give. The open question this settles:
+			-- the module logged three completed deliveries on 2026-08-15, yet no rifleman satisfied
+			-- RETURNED + MOVED >= 10 cells, and the two candidate explanations need different fixes —
+			-- the delivered riflemen died shortly after being set down (contact arrives ~tick 1300), or
+			-- the moved clause is mis-measuring. `w` (in world) with a live `d` (cells from its start)
+			-- says delivered-and-alive-but-short; `w=n` after a latch says it died; `d` never rising
+			-- says it was never taken anywhere.
+			--
+			-- Location is read ONLY when in world. A carried passenger is out of world AND reports dead
+			-- (the latch below depends on that), and reading position off an actor in that state is the
+			-- class of Lua error that aborts a run with no measurement at all.
+			local per = ""
+			for i = 1, #Squad do
+				local r = Squad[i]
+				local inWorld = r ~= nil and r.IsInWorld
+				local d = "-"
+				if inWorld then d = tostring(CellDistance(r.Location, start[i])) end
+				per = per .. " r" .. i .. "=" .. (inWorld and "w" or "n")
+					.. "/c" .. (carried[i] and "1" or "0") .. "/d" .. d
+			end
+
 			print("[deliv] tick~" .. ticks
 				.. " carrierDead=" .. tostring(BotCarrier.IsDead)
 				.. " pax=" .. tostring(BotCarrier.IsDead and -1 or BotCarrier.PassengerCount)
 				.. " peakPax=" .. peakPax
 				.. " squadInWorld=" .. live .. "/" .. #Squad
-				.. " everCarried=" .. everCarried)
+				.. " everCarried=" .. everCarried
+				.. " bestMoved=" .. bestMoved
+				.. " |" .. per)
 		end
 
 		-- (a) CARRIED — monotonic latch on NOT-IN-WORLD ALONE.
@@ -206,3 +229,4 @@ WorldLoaded = function()
 		.. "2026-08-15 this line reported everCarried=0 peakPax=0 while the trace from inside the same "
 		.. "closure, in the same run, read everCarried=3 peakPax=2. The zeros were an artefact of when "
 		.. "the string was built, and they cost a run and a wrong diagnosis before that was spotted.")
+end

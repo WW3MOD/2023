@@ -1310,3 +1310,57 @@ that line should settle it in one run.
 **Do not merge this scenario until it goes green** — `run-batch.sh` globs `test-*/`, so a
 knowingly-broken scenario auto-joins every future batch and becomes a permanent false signal, which
 is the debt `test-combined-arms-rendezvous` already represents.
+
+### [bug, FIXED] `wip-transport-delivers` shipped uncompilable — a missing `end` — so no run of it ever measured anything — 2026-08-15
+
+At `fe692f17` the scenario's Lua is **missing the single `end` that closes `WorldLoaded = function()`**
+(opened line 52). Introduced by the previous session's "make the failure message static" edit, which
+was committed flagged **NOT VERIFIED — no run left**; that is exactly what went wrong. The engine
+reports it only at load, as
+`Fatal Lua Error: ... 'end' expected (to close 'function' at line 52) near '<eof>'`, and the harness
+records an ordinary `FAIL` — indistinguishable at a glance from a predicate that did not go true.
+**It cost a full run to discover.**
+
+Fixed here, plus `tools/autotest/lua-balance.py` — a block-balance check (single left-to-right scan;
+a naive regex pass that strips comments before strings corrupts any string containing `--`, which
+produced twelve false positives on the first cut). Run it before spending a run on any scenario whose
+Lua you touched:
+
+```
+python3 tools/autotest/lua-balance.py tools/autotest/scenarios/*/[a-z]*.lua mods/ww3mod/scripts/*.lua
+```
+
+144 files balanced at time of writing. It refuses an empty file list rather than passing by scanning
+nothing.
+
+### [measured] The offensive layer wins ~55% of the transport's boarding contests — the boundary of the top-up lever — 2026-08-15
+
+Run `260815_192247_p79585`. `TopUpDuringLoading` made **11** boarding offers to the free pool while
+carriers loaded: **5 admitted, 6 refused**. Every refusal logged `idle=False
+activity=AttackMoveActivity` — the dwell rule (`ReorderDwellTicks: 120`) protecting a standing order
+from `PoiOffensiveBotModule.StageFreePool`, which recruits armed infantry from tick 3.
+
+Two separate things, and only one of them is the offensive layer's doing:
+
+* **Contest losses (6 of 11)** — offense holds the unit, the transport cannot have it. Fixing this is
+  on the offense side, and is queued as separate work.
+* **Contest WINS that still filled no seat (5 of 5, on the clean paired departure)** — the soldiers
+  were won, held for 450 ticks without being poached back (`topup-coming=4` at departure), and simply
+  did not walk far enough in time. This half **cannot be fixed by re-offering harder**, and is bounded
+  by the no-extension constraint; see `DISCOVERIES.md` same date for the argument.
+
+So re-offering mid-load is not the lever that closes the user's complaint. The seats are decided at
+task creation, by who is near the carrier and unclaimed at that instant.
+
+### [bug, OPEN] `wip-transport-delivers` still cannot go green: `DefaultCash: 0` does not pin the force — 2026-08-15
+
+Stays `wip-*` (out of `run-batch.sh`'s `test-*/` glob) and is NOT renamed back. Its predicate names
+five `e3.america` riflemen; the module was measured boarding eight distinct infantry types, the other
+seven being Supply Route reinforcements that zero cash does not prevent. Per-member tracing at tick
+4150 reads `r1=w/c0/d40 r2=n/c1/d- r3=n/c1/d- r4=w/c0/d22 r5=w/c0/d31` — the three that moved far were
+never carried (they walked, under the offensive layer), and the two that left the world never came
+back. The RETURNED+MOVED clause therefore cannot fire, and **neither** of the two explanations offered
+in the previous handover (delivered-then-died / clause mis-measuring) was correct.
+
+Rebuilding it wants an observable read from the module rather than from named actors — the
+`depart aboard=N` line is already exactly that, and is what the before/after in `DISCOVERIES.md` uses.
