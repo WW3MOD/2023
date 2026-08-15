@@ -16,16 +16,31 @@ second one climbed in. The other three were left walking toward a departing vehi
 whole of the "transports go half empty" complaint: it is not a recruitment shortfall — the infantry
 were found and ordered — the departure bar simply sat three seats below the order.
 
-**Why the stragglers are worse than wasted.** `Cargo.ReserveSpace` (`Cargo.cs:387-412`) is called by
-`RideTransport.TryStartEnter` when a passenger reaches the carrier, and it calls `LockForPickup`,
-which does **`self.CancelActivity()` on the CARRIER** (`Cargo.cs:428-445`) and queues a
-non-interruptible `WaitFor`. A straggler that catches up to a departed carrier therefore **kills the
-delivery Move**. `ReleaseLock` only fires at `reservedWeight == 0` (`:447-459`). Neither the
-Delivering nor the Returning state has a timeout — the code says so at
-`MountedTransportBotModule.cs:509-511` — so the carrier can sit at the pickup point, loaded, for the
-rest of the match. The identical shape is already documented for the helicopter path in
+**THE STRAGGLER CONSEQUENCE IS A LATENT MATCH-LONG UNIT LOSS, AND IT PRE-DATES THIS FIX.** This is
+the part to carry away: the half-empty load was the visible symptom, but the same asymmetry could
+take the carrier out of the game permanently.
+
+`Cargo.ReserveSpace` (`Cargo.cs:387-412`) is called by `RideTransport.TryStartEnter` when a passenger
+reaches the carrier, and it calls `LockForPickup`, which does **`self.CancelActivity()` on the
+CARRIER** (`Cargo.cs:428-445`) and queues a non-interruptible `WaitFor`. So a straggler that catches
+up to a carrier that has already left **kills that carrier's delivery Move outright** — the passenger
+does not merely fail to board, it cancels the vehicle's orders. `ReleaseLock` only fires at
+`reservedWeight == 0` (`:447-459`). And neither the Delivering nor the Returning state has any
+timeout — the code says so itself at `MountedTransportBotModule.cs:509-511`. The carrier is therefore
+left **parked at the pickup point, loaded, with no order and nothing that will ever re-issue one, for
+the rest of the match.** A vehicle plus its passengers, silently removed from the game, with no death
+and no log line to attribute it to.
+
+Note the causal chain runs the wrong way round from intuition: it is not that the carrier leaves and
+the straggler is stranded — it is that the straggler's *arrival* strands the **carrier**. Departing
+early is what creates the straggler, so the two defects are the same defect.
+
+The identical shape is already documented for the helicopter path in
 `TransportEmploymentMath.cs:129-137`, which is why `HelicopterSquadBotModule` grew
-`StandDownStragglers` (`:1229`); the ground module never got the equivalent.
+`StandDownStragglers` (`:1229`); the ground module never got the equivalent. `FillBeforeDeparture`
+removes the cause (no stragglers left walking toward a departed carrier), and the Delivering
+re-issue guard added alongside it is the belt to that braces — but on any profile that leaves the
+lever off, the latent loss is still there.
 
 **The heli path still has the same departure asymmetry.** `TransportLoadMath.Decide`
 (`HelicopterSquadBotModule.cs:1862-1871`) dispatches on `passengersAboard >= minPassengers` with the
