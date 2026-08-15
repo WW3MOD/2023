@@ -587,7 +587,17 @@ namespace OpenRA.Mods.Common.Traits
 						world.WorldTick - task.StateChangedAtTick, Info.LoadingTimeoutTicks,
 						world.WorldTick - task.LastBoardingTick, Info.BoardingStallTicks);
 
-					if (departure == CarrierDeparture.AbortEmpty)
+					// One line per loading task per scan. A task that sits in Loading is the state that was
+				// previously unreachable, so its progress (or lack of it) needs to be visible rather than
+				// inferred from a departure that never comes.
+				if (departure == CarrierDeparture.Wait)
+					Log.Write("debug",
+						$"[exp-transport] loading player={player.PlayerName} carrier={carrier.Info.Name} " +
+						$"aboard={aboard} target={task.SeatTarget} still-coming={stillComing} " +
+						$"loading-for={world.WorldTick - task.StateChangedAtTick} " +
+						$"since-board={world.WorldTick - task.LastBoardingTick} tick={world.WorldTick}");
+
+				if (departure == CarrierDeparture.AbortEmpty)
 					{
 						// No one boarded — abandon task; carrier returns to idle pool. Stragglers still
 						// walking are released so they stop chasing a carrier that has no task.
@@ -803,8 +813,9 @@ namespace OpenRA.Mods.Common.Traits
 			// what actually runs on both profiles.
 			var corridorOn = Info.PickupCorridorCells > 0;
 			CPos? dropOff = null;
+			var dropWhy = (string)null;
 			if (corridorOn)
-				dropOff = PickDropOffCell(srCell);
+				dropOff = PickDropOffCell(srCell, out dropWhy);
 
 			var reserveRadiusSq = (long)Info.ReserveZoneRadiusCells * Info.ReserveZoneRadiusCells;
 			var availablePassengers = world.Actors
@@ -832,15 +843,18 @@ namespace OpenRA.Mods.Common.Traits
 			// All carriers in this pass deliver to it; next pass picks a fresh one. Already computed
 			// above when a corridor is active; otherwise compute it now (frozen call-site preserved).
 			if (!corridorOn)
-				dropOff = PickDropOffCell(srCell);
+				dropOff = PickDropOffCell(srCell, out dropWhy);
 			if (!dropOff.HasValue)
 			{
 				// One of three silent exits between "we have a carrier and passengers" and "a task exists".
 				// Until these were named, a pass that produced nothing was indistinguishable from a pass that
-				// never ran, and `tasks-active=0` could not be attributed to anything.
+				// never ran, and `tasks-active=0` could not be attributed to anything. `cause` distinguishes
+				// the four ways a drop cell can fail to resolve — which the first cut of this line did NOT,
+				// leaving "trait absent" and "frontline empty" indistinguishable in the log.
 				Log.Write("debug",
 					$"[exp-transport] no-task player={player.PlayerName} reason=no-drop-cell " +
-					$"carriers={candidates.Count} eligible={availablePassengers.Count} tick={world.WorldTick}");
+					$"cause={dropWhy ?? "unknown"} carriers={candidates.Count} " +
+					$"eligible={availablePassengers.Count} tick={world.WorldTick}");
 				return;
 			}
 
@@ -938,6 +952,14 @@ namespace OpenRA.Mods.Common.Traits
 				AIUtils.BotDebug("AI ({0}): mounted-transport — {1} reserved {2} of {3} pax (cap {4}), drop-off {5}",
 					player.ClientIndex, carrier.Info.Name, boarding.Count, toLoad.Count, capacity, dropOff.Value);
 
+				// AIUtils.BotDebug does not reach debug.log unless bot debug is switched on, so the task's
+				// creation was invisible to a log-only reading. `via` names the branch that produced the drop
+				// cell, which is what makes "the transport now runs" attributable to the fallback.
+				Log.Write("debug",
+					$"[exp-transport] task-created player={player.PlayerName} carrier={carrier.Info.Name} " +
+					$"boarding={boarding.Count} of {toLoad.Count} drop={dropOff.Value} via={dropWhy ?? "?"} " +
+					$"tick={world.WorldTick}");
+
 				if (availablePassengers.Count < Info.MinPassengersPerLoad)
 					break;
 			}
@@ -956,16 +978,28 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Drop-off cell selection. Picks a contested cell where our line is thinnest, so the
-		// delivered infantry plugs the most useful gap. If no frontline yet (no contact),
-		// returns null — the module sits idle, waiting for contact.
-		CPos? PickDropOffCell(CPos srCell)
+		// delivered infantry plugs the most useful gap. Before contact there is no such cell, and
+		// DeliverBeforeContact decides whether we stage forward anyway or do nothing.
+		//
+		// `why` names the exact reason on a null return. Without it, "no drop cell" covered four
+		// distinct causes and a run could not tell which fired — the gap that left this module's
+		// total inactivity unexplained across four runs and two branches.
+		CPos? PickDropOffCell(CPos srCell, out string why)
 		{
-			if (influenceMap == null)
-				return Info.DeliverBeforeContact ? PreContactStagingCell(srCell) : (CPos?)null;
+			why = null;
 
+			if (influenceMap == null)
+				return StageForwardOrGiveUp(srCell, "no-influence-map", out why);
+
+
+			// PITFALL: this null check cannot fire, and reading it as the "no contact yet" case is the
+			// bug that made DeliverBeforeContact dead config. InfluenceMap.GetFrontline always returns
+			// InfluenceMapMath.DeriveFrontline, which unconditionally allocates a bool[w,h] and has no
+			// null return path. BEFORE CONTACT THE ARRAY IS ALL-FALSE, NOT NULL — so the real
+			// pre-contact case is the empty scan below, not this branch. Kept only as a defensive guard.
 			var frontline = influenceMap.GetFrontline(player);
 			if (frontline == null)
-				return Info.DeliverBeforeContact ? PreContactStagingCell(srCell) : (CPos?)null;
+				return StageForwardOrGiveUp(srCell, "no-frontline", out why);
 
 			var friendly = influenceMap.GetFriendlyInfluence(player);
 			var cellSize = influenceMap.Info.CellSize;
@@ -1004,27 +1038,70 @@ namespace OpenRA.Mods.Common.Traits
 			// NOTE (b8d2e601, 2026-08-02): @stable (the @poi twin) sets BelievedDangerStandoff true
 			// (ai.yaml, MountedTransportBotModule@poi), so it no longer keeps the raw omniscient cell —
 			// the standoff runs for it too and the byte-identity claim is dead.
-			return best.HasValue ? ApplyStandoff(best.Value, srCell) : best;
+			if (best.HasValue)
+			{
+				// `why` doubles as the SOURCE on success, so a created task can name which branch produced
+				// its drop cell. Without that, "tasks now exist" cannot be attributed to the fallback rather
+				// than to contact having simply started.
+				why = "frontline";
+				return ApplyStandoff(best.Value, srCell);
+			}
+
+			// THE PRE-CONTACT CASE, and until 2026-08-15 the module simply returned null here. An
+			// all-false frontline is what "no contact yet" actually looks like (see the PITFALL above),
+			// so this — not the null check — is where DeliverBeforeContact has to be consulted. Because
+			// it was wired only to the null branch, the flag could never fire in the one situation it
+			// exists for, and the ground transport did nothing at all before first contact however many
+			// carriers and passengers it had. Measured: 15 no-drop-cell passes, both players, one of
+			// them at carriers=2 eligible=7 (run 260815_121127_p61315).
+			return StageForwardOrGiveUp(srCell, "empty-frontline", out why);
+		}
+
+		// Shared tail for every "no frontline cell to aim at" path: stage forward if the profile opted
+		// in, otherwise give up and say so. Composes the caller's context into `why` so a null return
+		// reports both WHERE we gave up and WHY the fallback did not save it.
+		CPos? StageForwardOrGiveUp(CPos srCell, string context, out string why)
+		{
+			if (!Info.DeliverBeforeContact)
+			{
+				why = context + "+fallback-disabled";
+				return null;
+			}
+
+			var staged = PreContactStagingCell(srCell, out var stagingWhy);
+			why = staged.HasValue ? "staged-" + context : context + "+" + stagingWhy;
+			return staged;
 		}
 
 		// Pre-contact fallback (experimental, DeliverBeforeContact). No frontline exists yet, so
 		// stage delivered infantry a fraction of the way from our SR toward the highest-ranked
 		// PoiMap offensive target — pushing the reserve forward instead of piling it at the SR.
-		CPos? PreContactStagingCell(CPos srCell)
+		CPos? PreContactStagingCell(CPos srCell, out string why)
 		{
+			why = null;
+
 			if (poiMap == null)
+			{
+				why = "no-poi-map";
 				return null;
+			}
 
 			var targets = poiMap.GetOffensiveTargets(player);
 			if (targets.Count == 0)
+			{
+				why = "no-offensive-targets";
 				return null;
+			}
 
 			var srPos = world.Map.CenterOfCell(srCell);
 			var tgtPos = world.Map.CenterOfCell(targets[0].Location);
 			var stagePos = srPos + (tgtPos - srPos) * Info.PreContactStagingPct / 100;
 			var cell = world.Map.CellContaining(stagePos);
 			if (!world.Map.Contains(cell))
+			{
+				why = "staging-cell-off-map";
 				return null;
+			}
 
 			// Pre-contact the 50% lerp is blind; apply the same fog-legal standoff so we never stage the
 			// reserve inside a believed enemy ground-danger envelope. Identity pass-through when disabled.

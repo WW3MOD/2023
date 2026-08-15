@@ -1106,3 +1106,60 @@ Two independent reasons:
 Rebuild it around an observable that can attribute — arrival **mode**, or the armour-vs-infantry
 arrival **timing gap**, both already written down in `DISCOVERIES.md` — as combined-arms work, not as
 a tuning pass.
+
+### [measured] The pre-contact fallback fix WORKS and is attributed — but delivery is blocked one layer further on — 2026-08-15
+
+Two runs on the fixed `PickDropOffCell` (`test-combined-arms-rendezvous`, seed 1017, runs
+`260815_121924_p62185` and `260815_122231_p62791`).
+
+**The fix does what it claims, and the log attributes it rather than implying it.** Every task creation
+in the second run reads `via=staged-empty-frontline` — the pre-contact staging branch that was
+previously unreachable, not the frontline branch. Before/after on the same scenario and seed:
+
+| | tasks created | `no-drop-cell` passes |
+|---|---|---|
+| before | 0 (`tasks-active=0` all run) | 15 |
+| after  | 3 (`tasks-active` peaks at 2) | 1 |
+
+The one survivor is `cause=empty-frontline+no-offensive-targets` at tick 15 — transient, PoiMap simply
+had not been populated yet, and it resolves by the next scan. That is the `cause` field earning its
+place: the four ways a drop cell can fail to resolve are now distinguishable in the log, which closes
+the "reasoning rather than measurement" gap flagged on the previous report.
+
+**DELIVERY WAS NOT ACHIEVED, and that is the honest limit of this result.** No `depart` line in either
+run. Two independent blockers sit behind the one that was fixed:
+
+1. **Only one boarding order per task is admitted.** All three tasks logged `boarding=1 of 5`,
+   `1 of 2`, `1 of 5`. So the arbitration gate's dwell rule IS refusing frontline boarding orders —
+   four of five — exactly the mechanism hypothesised and falsified as the *primary* blocker. It was
+   never why no task existed; it is why the loads are tiny. Both facts are true; only the ordering was
+   wrong.
+2. **The single admitted passenger never arrives.** `aboard=0`, `still-coming=1`, `since-board`
+   climbing to 450+ ticks. The soldier is alive and in the world and simply does not board — most
+   likely re-tasked mid-walk, which is the case `still-coming` cannot see by construction.
+
+**A weakness in the departure rule shipped earlier today, found by its own diagnostics.** With
+`aboard=0` and `minPassengers=2`, the stall release cannot fire, because it is gated on
+`aboard >= minPassengers` (`MountedTransportMath.DecideDeparture`). A load that is stalled AND empty
+therefore waits the full `LoadingTimeoutTicks` (1500 t ≈ 60 s) before `AbortEmpty`. It is bounded —
+the no-hang invariant holds and is unaffected — but the gate was written for "a partial load is not
+worth delivering yet", and it does not describe a load of nothing, where waiting achieves nothing at
+all. The stall should be able to abandon an empty load at the stall bound rather than the hard bound.
+Not fixed: it is a behavioural change to a rule merged today and belongs in its own commit.
+
+### [config] `DeliverBeforeContact` is HELD at false on @stable pending a knowing promotion — 2026-08-15
+
+**User instruction, 2026-08-15:** one un-run behavioural change per branch on the benchmark control.
+
+Both twins set `DeliverBeforeContact: true` before today — `@poi` (`enable-ai-stable`) and
+`@experimental`. Since the flag was dead config, that true set had never once changed `@stable`'s
+behaviour. Fixing the fallback would have made it live on both twins at the same instant, on top of
+the `CommitPassengers` change `@stable` already took today.
+
+`@poi` is therefore set to `false` (`ai.yaml:1505`), pinning `@stable` at exactly the behaviour it has
+always had. **This is a hold, not a gate**: it withholds nothing that ever ran, and promotion is one
+word in its own commit, so the benchmark baseline is re-taken for one change rather than two.
+
+**Not verified by a run.** `test-combined-arms-rendezvous` runs `Bot: experimental` for BOTH players
+(`map.yaml:64`, `:71`), so no scenario exercised the `@poi` twin. The hold rests on config inspection
+alone. Anyone promoting it should confirm on a scenario that actually fields a stable bot.
