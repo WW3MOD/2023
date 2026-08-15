@@ -754,6 +754,18 @@ namespace OpenRA.Mods.Common.Traits
 						task.StateChangedAtTick = world.WorldTick;
 						AIUtils.BotDebug("AI ({0}): mounted-transport — {1} returning to {2}",
 							player.ClientIndex, carrier.Info.Name, task.Return);
+
+						// THE COMPLETED-DELIVERY MARKER. Everything up to `depart` was already visible in
+						// debug.log, but the unload — the event that makes it a delivery rather than a
+						// drive — was only ever an AIUtils.BotDebug line, which does not reach debug.log
+						// unless bot debug is switched on. So a run could prove departure and prove nothing
+						// about arrival, which is exactly where the 2026-08-15 runs stopped. Logged here,
+						// at the Unloading -> Returning edge, because that edge fires only once the hold is
+						// actually empty.
+						Log.Write("debug",
+							$"[exp-transport] delivered player={player.PlayerName} carrier={carrier.Info.Name} " +
+							$"at={carrier.Location} drop={task.DropOff} pax={task.SeatTarget} " +
+							$"ferry={task.CaptureTarget != null} tick={world.WorldTick}");
 					}
 					else if (Info.UnloadOnArrival && carrier.IsIdle && cargo.CanUnload())
 					{

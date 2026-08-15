@@ -1210,3 +1210,55 @@ and a load needs perhaps another 50-100 ticks. Verifying delivery needs a scenar
 long enough, (b) has no early-abort guard, and (c) ideally fields one `Bot: stable` and one
 `Bot: experimental` player so the `@poi` hold gets a real control at the same time. Deliberately NOT
 built here: an unrun scenario is exactly what `7f8c2d41` shipped and what today's notes criticise.
+
+### [measured] The ground transport LOADS AND DEPARTS — first ever observed — and the @poi hold is verified by measurement — 2026-08-15
+
+Three runs on the new `test-transport-delivers` scenario (seed 1017). Two results are solid and one
+piece of scaffolding is not.
+
+**DEPARTURES ARE PROVEN.** With production on (`DefaultCash: 7500`, run `260815_124529_p66286`) the
+module logged **six** departures, every one `reason=Full`:
+
+```
+depart carrier=bradley aboard=3 target=3 reason=Full tick=915
+depart carrier=m113    aboard=2 target=2 reason=Full tick=1165
+depart carrier=bmp2    aboard=3 target=3 reason=Full tick=1536   (Russia, after contact)
+depart carrier=m113    aboard=2 target=2 reason=Full tick=2065
+depart carrier=bmp2    aboard=3 target=3 reason=Full tick=2436
+depart carrier=m113    aboard=3 target=3 reason=Full tick=2565
+```
+
+Loads of two and three, departing because they were FULL rather than timing out. Every `task-created`
+read `via=staged-empty-frontline`, so all of it is attributed to the pre-contact branch fixed earlier
+today — the branch that could not execute at all before. This is the first time this project has
+observed the ground transport load and drive.
+
+**THE @poi HOLD IS VERIFIED BY MEASUREMENT, not config inspection.** The stable side logged
+`no-task ... cause=empty-frontline+fallback-disabled` **21 times** and created exactly one task, at
+tick 1286, `via=frontline` — i.e. only after contact, through the ordinary path, never through the
+held pre-contact branch. That closes the gap flagged twice as "verified by config inspection only".
+
+**A COMPLETED DELIVERY IS STILL NOT PROVEN.** The unload — the event that makes it a delivery rather
+than a drive — was only ever an `AIUtils.BotDebug` line, which does not reach `debug.log` unless bot
+debug is on. So every run so far could prove departure and nothing about arrival. Fixed here: the
+module now emits `[exp-transport] delivered ... pax=N` at the Unloading -> Returning edge, which fires
+only once the hold is empty. One run will now settle it.
+
+**THE NEW SCENARIO'S LUA PREDICATE IS NOT YET VALID, and is committed marked as such.** With
+`DefaultCash: 0` and `carriers-total=1` — so the placed bradley at 8,18 is provably the only carrier
+and provably the `BotCarrier` global — the module logged `depart aboard=1` and later `aboard=2` while
+the predicate reported `peakPax=0` and `everCarried=0` for the entire run. Both cannot be true. The
+closure demonstrably ran (it produced the failure string), the carrier was neither dead nor
+duplicated, and both sides read the same `Cargo` trait. Leading suspect is the file-scope
+`local Squad = { BotRifle1, ... }` capture — map-actor globals may not be bound when the chunk first
+executes, giving `#Squad == 0`, which explains `everCarried=0` exactly but NOT `peakPax=0`, so there
+is at least one more fault. Not chased further: the run budget was spent, and guessing at it without
+a run is the failure mode this file exists to record.
+
+**Scenario-design lesson worth keeping.** The first version ran at `DefaultCash: 7500` and the
+inherited rules comment claimed "the measurement only ever looks at NAMED actors, so incidental units
+the bot buys or spawns do not affect it." That is backwards. The bot bought its own carriers and
+produced its own infantry and used those, leaving the named actors idle beside the measurement —
+six departures in the log, zero in the predicate. **A named-actor predicate is valid only if the named
+actors are the ones the system under test actually chooses to use, and production removes that
+guarantee.**
