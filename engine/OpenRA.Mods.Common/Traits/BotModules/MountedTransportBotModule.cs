@@ -1278,10 +1278,24 @@ namespace OpenRA.Mods.Common.Traits
 			if (stillComing <= 0)
 				return aboard > 0 ? CarrierDeparture.NobodyElseComing : CarrierDeparture.AbortEmpty;
 
-			// Only releases a load that is already worth delivering; a stalled load still under the minimum
-			// keeps waiting for the hard bound below, which will take it at whatever it has.
-			if (boardingStallTicks > 0 && ticksSinceLastBoarding >= boardingStallTicks && aboard >= minPassengers)
-				return CarrierDeparture.Stalled;
+			// Boarding has stopped progressing. What that means depends on what is aboard:
+			//   * at or above the minimum — deliver it, the load is worth the trip;
+			//   * NOTHING aboard — give the carrier back. This case used to fall through to the hard bound
+			//     because the release was gated on `aboard >= minPassengers`, which was written to mean "a
+			//     partial load is not worth delivering yet" and is simply not a description of a load of
+			//     nothing. Waiting out 1500 ticks for a passenger that has not moved in 250 achieves nothing,
+			//     holds the carrier, and holds the reservations; abandoning frees all three and lets the next
+			//     scan issue fresh boarding orders, which is the only re-offer the module has;
+			//   * between the two — keep waiting for the hard bound, which will take whatever boarded. A
+			//     partial load can still grow, so this is the one case where patience is worth something.
+			if (boardingStallTicks > 0 && ticksSinceLastBoarding >= boardingStallTicks)
+			{
+				if (aboard >= minPassengers)
+					return CarrierDeparture.Stalled;
+
+				if (aboard == 0)
+					return CarrierDeparture.AbortEmpty;
+			}
 
 			if (ticksLoading > loadTimeoutTicks)
 				return aboard > 0 ? CarrierDeparture.Timeout : CarrierDeparture.AbortEmpty;
