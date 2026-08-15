@@ -853,3 +853,34 @@ The two doctrinal modes (`DOCS/reference/economy.md`; PIPELINE item 56 "The two 
 - **Next step:** trace which site set the mode on this exact scenario+seed, logging the `DangerFieldLayer` and `ThreatMapManager` values that fed it. The scenario is cheap, deterministic at `seed 5002`, and currently RED — an unusually good instrument for this. Nobody has done it.
 
 **Status change for the test itself (see PIPELINE item 51).** `test-supply-safe-front-keeps-cargo` was filed there as a suspect oracle — "it passes for the right reason but does not assert it". It is now **failing for what looks like a real reason**, which promotes it from suspect-oracle to useful-signal. Item 51's hardening work is still worth doing, but the test should no longer be treated as untrustworthy by default.
+
+---
+
+### [high] Supply trucks are never procured: the fleet is sized by `starving`, but `starving` reads 0 while `ammo-need` reads True — 2026-08-15
+
+**User report (live):** *"There are a lot of soldiers now that are out of ammo but still I see almost no supply trucks being built... when units are out of ammo it should prioritize supply trucks... soldiers out of ammo are useless. That should be the first priority to solve at all times."* **Treat that last sentence as a precedence ruling, not a weight.**
+
+**MEASURED**, `tournament-arena-composition-2p`, @experimental mirror, full 6-minute match, `[composition]` census + the new `[composition] pick lane=` line:
+
+- **ZERO trucks ordered by any lane, all match.** `type=truk` appears in no pick line at all.
+- `ammo-need=True` **continuously from tick 1240 to the end of the match** — the demand signal is live and correct.
+- `starving=0` and `trucks-desired=0` at **every single snapshot**, including all of the above.
+- cash collapses to ~0 by tick 760 and stays there (43 / 121 / 95 / 64 / 40 / 9 / 3).
+
+**Mechanism.** Two predicates that are supposed to describe the same fact use different thresholds:
+- `AnyFieldedUnitNeedsResupply()` (`UnitBuilderBotModule.cs:710`) mirrors `SupplyProvider`'s `MinNeedThreshold` — a weighted missing/capacity ratio. This is what sets `ammo-need`, and it is **True**.
+- `CountStarvingCustomers()` (`:798`) uses `SupplyHuntMath.BelowSeekThreshold(..., SupplyStarvingThresholdPerMille)` with **`SupplyStarvingThresholdPerMille: 250`** (`ai-america.yaml:223`) — a unit counts only below **25%** ammo.
+
+`SupplyFleetMath.DesiredTrucks` is fed **`starving`**, not `ammo-need`. With `starving = 0` and **`SupplyTruckFloor: 0`** (set at `56bf7355`, correctly, to kill the t=0 truck), `desired = 0`, so the supply pre-empt **never fires**. The truck's only remaining route is the deficit argmax — and `truk` is 40‰ of army VALUE at cost 1000, so V_fit is **25,000**: `ApplyCeilingEligibility` strikes the slot until the army is worth that much, which it never is. **Both routes are closed simultaneously, for unrelated reasons.**
+
+**Reconciling the prior conclusion, which does NOT survive.** `56bf7355` concluded *"the gate is fine; the bot is broke"* from `cash=0` on 194/195 snapshots. That was measured **before** `b91b5a88` gave bot map-players an economy. Post-fix the bot **does earn** (`earned` accrues from tick 80 in this run), yet still buys no truck — so **affordability was never the whole story**, and low cash is now a *consequence* of spending on the argmax's picks rather than the cause. Note also that `b91b5a88` states the shipped game was never affected (skirmish bots occupy lobby slots and are `Playable`), so **the user's own live games always had an economy** — the "bot is broke" finding never explained the user's experience at all.
+
+**Why this is the same defect as the medics, inverted.** The system has a notion of HOW MANY (a fleet size, a share) and no notion of WHEN or of PRECEDENCE. The medic had a floor with no denominator and so arrived first; the truck has a denominator that never becomes non-zero and so never arrives. The user's ruling supplies the missing axis: **dry units are the top procurement priority whenever the need exists.** That wants a pre-empt keyed to `ammo-need` (the same signal `SupplyProvider` acts on), ordering ahead of the composition argmax and exempt from the value-share ceiling — not a larger constant, and explicitly **not** a restored `SupplyTruckFloor`, which is the t=0 bug the user reported first.
+
+**Suggested acceptance bar (the user asked for responsiveness, not a count):** ticks from *first unit below the resupply threshold* to *first truck ordered*, plus dry-unit count over time. A match in which nothing goes dry is instrument failure, not a negative result.
+
+**Not attempted here** — this is a second, separable mechanism from the support-floor scaling on `wt/build-order`, and the test-run budget for that branch was spent. Filed with the measurement so the next branch starts from data.
+
+### [info] First positive live report on delivery conduct (PIPELINE item 56) — 2026-08-15
+
+Same user report, and it should not get lost inside the procurement complaint: *"When I saw it being built it seems like it **correctly went to resupply them**."* Item 56 (truck delivery) is the highest-priority queue item and has previously been described by the user as long-broken. This is the first live statement that the truck's **conduct** is right. It isolates the remaining problem cleanly: **procurement, not delivery.** Not a verdict on item 56 — one observation, no trace of an individual delivery — but it is evidence pointing the encouraging way, consistent with the 5-alive/3-eligible reading already banked in `DISCOVERIES.md` for `b91b5a88`.

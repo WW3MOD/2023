@@ -112,6 +112,21 @@ Player:
 		UnitFloors:
 			medi.russia: 2
 			aa.russia: 2
+		# ===== THE FLOOR NEEDS A DENOMINATOR (user report 2026-08-15) — mirror of the America block =====
+		# See ai-america.yaml for the full argument and the measurement. Short version: a flat floor is
+		# maximally unmet at t=0 and the pre-empt outranks the ceiling and every demand gate, so a cheap
+		# floored support type is GUARANTEED to be the opening call-in, not merely allowed to be. Measured on
+		# the shipped default start class: cycles 0 and 1 both buy medi.russia. This is the second instance of
+		# the defect that first showed up as two supply trucks (PIPELINE 57(a)).
+		# 20 is the user's own ratio ("1 medic per 20 man squad"); the floor is min(2, supported/20), so there
+		# are 0 medics below 20 soldiers and the opening call-ins go to line infantry instead.
+		UnitFloorPer:
+			medi.russia: 20
+		# Denominator: every non-medic infantry type, matching the medi share derivation in ai-america.yaml so
+		# the floor and the 17-per-mille share express ONE ratio rather than two. aa.russia deliberately has
+		# no ratio — its denominator is enemy AIR, not own army size, and UnitDelays 2000 below is the
+		# instrument for that.
+		UnitFloorSupportedTypes: e3.russia, ar.russia, tl.russia, e2.russia, at.russia, mt.russia, aa.russia, sn.russia, e6.russia, tecn.russia
 		# Unconditional [composition] census into debug.log every 40 bot ticks. C# default is 0; this is
 		# the opt-in. Observability only — reads state, changes no decision.
 		CensusLogInterval: 40

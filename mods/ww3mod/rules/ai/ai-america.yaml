@@ -147,6 +147,35 @@ Player:
 		UnitFloors:
 			medi.america: 2
 			aa.america: 2
+		# ===== THE FLOOR NEEDS A DENOMINATOR (user report 2026-08-15) =====
+		# A flat floor is maximally unmet at t=0, because at t=0 every census is zero. The pre-empt outranks
+		# the ceiling and every demand gate, and floored support types are cheap, so a flat floor does not
+		# merely allow an opening support buy — it GUARANTEES one. Measured on the shipped default
+		# (--composition-plan --start none, which is what StartingUnitsClass actually defaults to,
+		# SpawnStartingUnits.cs:25): cycles 0 and 1 both buy medi.america, on both factions. That is the
+		# user's report verbatim ("all experimental bots start by building two medics"), and it is the SECOND
+		# instance of one defect — two supply trucks at t=0 was the first (PIPELINE 57(a)).
+		# The user's objection is about ORDER, not quantity: "at the start we need lots of soldiers to be able
+		# to defend ourselves ... but the medics can come a bit later when they are actually needed". A medic
+		# bought before there is a squad has nobody to treat; the same medic bought later is correct.
+		# 20 is the user's own ratio ("I usually have around 1 medic per 20 man squad"). The floor is now
+		# min(2, supported/20): 0 medics below 20 soldiers, 1 at 20, 2 at 40 and never more — so the opening
+		# call-ins go to line infantry and the medic phases in with the platoon it serves.
+		# WHY THIS IS NOT REDUNDANT WITH THE 17-per-mille SHARE: they are the same ratio in different regimes,
+		# and that is deliberate. The share cannot hold a specialist under losses (the argmax never descends
+		# to a small slot — the whole finding of 47e4ede5), so the floor is the guarantee; scaling it only
+		# stops the guarantee firing before the thing it guarantees is needed.
+		UnitFloorPer:
+			medi.america: 20
+		# The denominator: every non-medic infantry type. Chosen to match the medi share derivation below
+		# EXACTLY (the same per-type sum, medics excluded) so the floor and the share express ONE ratio rather
+		# than two that have to be reconciled. Vehicles are deliberately absent — the user said "20 man
+		# squad", and a medic does not treat an Abrams.
+		# aa.america is NOT given a ratio: its denominator is enemy AIR, not own army size, and it already has
+		# the right instrument for that (UnitDelays 2000 below, plus ScaleAntiAirToThreat for the vehicle).
+		# A floored type needs a ratio here OR a threat gate OR a delay; with none of the three it is an
+		# opening buy by construction, not by accident.
+		UnitFloorSupportedTypes: e3.america, ar.america, tl.america, e2.america, at.america, mt.america, aa.america, sn.america, e6.america, tecn.america
 		# Unconditional [composition] census into debug.log every 40 bot ticks. C# default is 0; this is
 		# the opt-in. Observability only — reads state, changes no decision.
 		CensusLogInterval: 40
