@@ -1377,3 +1377,39 @@ Not fixed here — giving the Mi-28 anti-air is a balance decision beyond the fo
 ### [info] Six weapons set `InaccuracyPerProjectile`, which cannot execute — 2026-08-15
 
 `Bullet.cs:213` gates the field on `lastPosIsSet`, a `readonly bool` initialised `false` at `:170` and never assigned. Still set by `weapons-ballistics.yaml:541,565,601,617,760` and `weapons-other.yaml:88`. Removed from `7.62mm.Minigun` on `wt/heli-weapons`; the other six left alone, but anyone tuning burst spread on those weapons is turning a dial connected to nothing. Full detail in `DISCOVERIES.md` (2026-08-15, helicopter guns).
+
+### [high] `make test` (YAML validation) has been RED on main, and nobody noticed — 2026-08-15
+
+Found incidentally while validating an unrelated merge. `make test` fails:
+
+```
+Testing map: Siberian Pass WW3
+OpenRA.Utility(1,1): Error: This map does not define a valid cordon.
+A one cell (or greater) border is required on all four sides between the
+playable bounds and the map edges.
+make: *** [test] Error 143
+```
+
+**Not caused by that merge** — verified: the merge touches no map under `mods/ww3mod/maps/`, and the responsible commit is an ancestor of pre-merge main.
+
+**The cause is deliberate and repo-wide.** `aa0620ea` ("Expand map bounds to full MapSize across all maps (0,0 origin)") set `Bounds` equal to `MapSize` on essentially every shipping map, which by definition leaves no cordon:
+
+| map | MapSize | Bounds |
+|---|---|---|
+| arena-tank-duel | 66,34 | 0,0,66,34 |
+| nuclear-winter-ww3 | 102,72 | 0,0,102,72 |
+| polar-disorder-ww3 | 98,98 | 0,0,98,98 |
+| river-zeta-ww3 | 98,82 | 0,0,98,82 |
+| seventh-woods-ww3 | 123,114 | 0,0,123,114 |
+| siberian-pass-ww3 | 97,67 | 0,0,97,67 |
+| twin-rivers-ww3 | 128,128 | 0,0,128,128 |
+| woodland-warfare-ww3 | 98,98 | 0,0,98,98 |
+| x-lake-ww3 | 130,130 | 0,0,130,130 |
+
+`shellmap-open-field` is the only exception (`Bounds: 1,1,90,60`) and is presumably why this was never total.
+
+**Two things need deciding, and this entry does not decide either.** Whether the bounds expansion was right and the lint is simply wrong for this project (in which case the check should be waived deliberately, with a reason), or whether the maps genuinely lost a border they need. The maps do load and play, so this is not visibly broken in-game — which is exactly why it went unnoticed.
+
+**The real damage is the guard rail.** `CLAUDE.md` tells every worker `make test` is the YAML validation step. A check that is already red teaches everyone who runs it to ignore it, and hides the next genuine YAML break — including the blank-line-merge trap that the same file warns about. Whoever picks this up: the goal is getting `make test` green again, not fixing one map.
+
+**Process note attached to the discovery.** The failure was nearly missed because the command was chained through `tail`, so the harness reported exit code 0 while `make` had returned 143. That is the third recorded instance of a verdict being inverted by `tail` — see the standing rule in `DOCS/recipes/AUTOTEST.md`. It applies to `make`, not only to `run-test.sh`.
