@@ -33,6 +33,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Map of slot name to condition granted while that slot is occupied.")]
 		public readonly Dictionary<string, string> SlotConditions = new Dictionary<string, string>();
 
+		[GrantedConditionReference]
+		[Desc("Map of slot name to a condition granted for the actor's whole life if — and only if — that " +
+			"slot is DECLARED in CrewSlots. Never revoked, including after the occupant ejects. Lets a " +
+			"consumer tell 'this crew member has been lost' apart from 'this actor never had one', which " +
+			"the absence of a SlotConditions condition cannot express on its own. Optional; unset grants nothing.")]
+		public readonly Dictionary<string, string> SlotPresentConditions = new Dictionary<string, string>();
+
 		[Desc("Order in which crew eject. First entry ejects first.")]
 		public readonly string[] EjectionOrder = null;
 
@@ -149,6 +156,15 @@ namespace OpenRA.Mods.Common.Traits
 				var slotName = info.CrewSlots[i];
 				if (info.SlotConditions.TryGetValue(slotName, out var condition))
 					conditionTokens[i] = self.GrantCondition(condition);
+
+				// Deliberately not tracked or revoked: this marks that the SEAT exists,
+				// not that anyone is in it, so it must outlive the occupant's ejection.
+				if (info.SlotPresentConditions.TryGetValue(slotName, out var presentCondition))
+					self.GrantCondition(presentCondition);
+
+				if (GunTrace.Enabled)
+					GunTrace.Write($"VehicleCrew.Created actor={self.Info.Name} slot={slotName} " +
+						$"occupiedCondition={(condition ?? "-")} presentCondition={(presentCondition ?? "-")}");
 			}
 		}
 

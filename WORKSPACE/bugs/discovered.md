@@ -3,6 +3,131 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-15: [critical] FIXED (wt/heli-gun) — the littlebird's weapons all deal exactly 0 damage: no Gunner crew slot, and `^Airborne` pins `FirepowerMultiplier@NoGunner` to 0 forever (found while: diagnosing "littlebird strafing kills nothing", branch `wt/heli-gun`)
+
+Measured on `main @ 4c4d8a49`, scenario `test-littlebird-strafe`, trace `WW3_GUNTRACE=1`. The gun fires,
+the rounds land dead on target, both warheads find the victim and report a full-strength hit, and
+`InflictDamage` computes `FINAL=0` because the shooter contributes a `0` firepower modifier:
+
+```
+firepowerModifiers=[100, 100, 100, 100, 100, 0, 100]      <- index 5 is @NoGunner
+InflictDamage victim=e1 rawDamage=250 ... versus=100 FINAL=0 hpBefore=200
+```
+
+`FirepowerMultiplier@NoGunner` (`rules/ingame/aircraft.yaml:278-280`, `Modifier: 0`,
+`RequiresCondition: !has-gunner`) is meant to punish a helicopter whose gunner has bailed out at <50% HP.
+`VehicleCrew` only grants a slot condition for a slot the actor declares (`VehicleCrew.cs:140-153`), and
+the littlebird declares `CrewSlots: Pilot` only (`rules/ingame/aircraft-america.yaml:103-108`). So the
+condition is never granted, `!has-gunner` is true from `Created`, and the modifier never lifts.
+
+**Affects both armaments** — the minigun AND the Hellfire rack, since the modifier is on the shooter, not
+the weapon. Any measurement of littlebird missile damage taken before this is void.
+
+**Only actor affected**: a sweep of armed actors with a `VehicleCrew` block found no other `CrewSlots`
+missing `Gunner`.
+
+**Fixed** on `wt/heli-gun` by the general route: `VehicleCrew.SlotPresentConditions` grants
+`has-gunner-seat` for a DECLARED slot only, and the gate became `has-gunner-seat && !has-gunner`. The
+alternative — giving the littlebird a Gunner slot — was rejected because it invents a crew member who
+could then bail at `DamageState.Heavy` and re-zero the guns, smuggling a new gameplay behaviour in as a
+bug fix. Whether a Little Bird should have a two-man crew stays a separate, deliberate content decision.
+
+## 2026-08-15: [medium] OPEN — Restart drops out of any harness scenario instead of restarting it, and the run ends (found while: user mid-session in demo-heli-lanes, branch `wt/heli-gun`)
+
+Reported from live use: "I clicked restart from the menu and it closed? It seemed better but I wasnt
+done testing." The scenario did not restart; the process ended and the testing session was lost.
+
+Both restart paths go through the same call — the in-game menu
+(`IngameMenuLogic.cs:382`, `Game.RunAfterDelay(exitDelay, Game.RestartGame)`) and the harness's own
+button (`TestModeLogic.cs:43`, `restart.OnClick = Game.RestartGame`). So the "press End to restart" line
+in the demo headers is describing a path with the same defect, not a safe alternative.
+
+`Game.RestartGame` (`Game.cs:237-255`) re-resolves the map before restarting:
+
+```csharp
+lobbyInfo.GlobalSettings.Map = ModData.MapCache.GetUpdatedMap(lobbyInfo.GlobalSettings.Map);
+if (lobbyInfo.GlobalSettings.Map == null)
+{
+    Disconnect();
+    Ui.ResetAll();
+    LoadShellMap();
+    return;
+}
+```
+
+**NOT VERIFIED, and this is the part to check first:** the likely cause is that a harness scenario is a
+staged map (`Visibility: MissionSelector`, loaded from `tools/autotest/scenarios/<name>` rather than the
+mod's map list), so `GetUpdatedMap` cannot find it by UID, returns null, and the branch above disconnects
+to the shell map — after which the run has no game and ends. I read the code but did not instrument the
+lookup, so the null could equally be coming from a UID change caused by the harness rewriting the
+scenario between runs.
+
+Impact is worst for demos specifically, because a demo is a long human viewing session: losing it costs
+the user everything they were part-way through observing, and the header actively invites the click.
+
+Workaround until fixed: do not use Restart in a harness scenario; relaunch the demo instead.
+
+## 2026-08-15: [medium] OPEN — every demo is killed after exactly 300s by a watchdog that waits for a verdict demos are designed never to write (found while: showing the user demo-heli-weapons, branch `wt/heli-gun`)
+
+`run-demo.sh` delegates to `run-test.sh --visible --audio "$@"` (`run-demo.sh:50`) and inherits its
+`TIMEOUT_SECS=300` default (`run-test.sh:150`). That watchdog kills the game and synthesizes a FAIL when
+no verdict has been written in time (`run-test.sh:729-764`). But `run-demo.sh`'s own header states demos
+"do NOT write a result file — the user closes the window when done", so the verdict the watchdog waits
+for can never arrive. **Every demo therefore dies at the five-minute mark, mid-viewing**, and prints
+`TIMEOUT-FAIL` for a scenario that has no pass/fail concept:
+
+```
+==> TIMEOUT: no verdict after 300s — killing the game.
+==> VERDICT: TIMEOUT-FAIL   (exit 1)     # for demo-heli-weapons
+```
+
+`run-demo.sh` maps run-test.sh's exit 3 ("no result") to 0 precisely because verdict-less is the point —
+but it does not neutralise the timeout that fires first, so the exit code it translates is 1, not 3.
+
+Workaround: pass a large `--timeout` (`./tools/autotest/run-demo.sh --timeout 7200 demo-heli-weapons`);
+the flag forwards through. Real fix is for `run-demo.sh` to default the watchdog off, or to a value that
+reflects a human viewing session, rather than reusing the unattended-test default.
+
+Note this also makes the timeout FAIL misleading in the other direction: the message tells the reader to
+go looking in `debug.log` for a hang or a rules-load failure, when nothing is wrong at all.
+
+**SECOND, INDEPENDENT DEFECT IN THE SAME FILE — `set -e` makes the success mapping unreachable.**
+`run-demo.sh` ends with:
+
+```sh
+set -e                                              # line 17
+...
+./tools/autotest/run-test.sh --visible --audio "$@" # line 50
+rc=$?
+if [ ${rc} -eq 3 ]; then exit 0; fi                 # "verdict-less is the demo's whole point"
+exit ${rc}
+```
+
+Under `set -e` the script dies on line 50 the moment run-test.sh returns non-zero, so `rc=$?` and the
+mapping below it **never execute**. Verified with a minimal repro: the same shape prints nothing and exits
+3 with `set -e`, and prints the mapping line and exits 0 without it. So closing a demo window by hand —
+the documented, intended way to end a demo — always reports `NO-RESULT (exit 3)` and surfaces as a failed
+command. Both halves of this file's error handling are therefore dead: the timeout fires before the
+mapping could help, and the mapping could not run anyway.
+
+Fix is to capture the status without tripping the errexit, e.g. `if ./tools/autotest/run-test.sh ... ;
+then rc=0; else rc=$?; fi`, plus a demo-appropriate timeout default.
+
+## 2026-08-15: [medium] OPEN, UNMEASURED — a ground vehicle whose crew ejected may stay permanently crippled after being repaired to full HP (found while: fixing the littlebird's zero damage, branch `wt/heli-gun`)
+
+**Inferred from code, NOT tested — do not treat the behaviour as confirmed.** `VehicleCrew` revokes a
+slot's occupied condition when that crew member ejects, and nothing observed re-grants it: the crew are
+spawned as separate infantry actors and there is no re-boarding path (`VehicleCrew.cs:56` records
+"EjectionSurvivalRate removed — vehicle death is now total loss"). The `^CrewedVehicle2` / `^CrewedVehicle3`
+degradation ladder (`vehicles.yaml:266-310`) keys off those conditions: no driver -> `SpeedMultiplier` 0,
+no gunner -> `TurretTurnSpeedMultiplier` 0.
+
+So repairing such a hull back to full HP should yield a vehicle at 100% health that still cannot move or
+traverse its turret, permanently. That may well be intended — the crew are gone and the design says the
+wreck is a total loss — but if so, being repairable at all is the odd part, which is what prompted the
+question. Worth an autotest before anyone acts on it: damage a Bradley past `EjectionDamageState`, let the
+crew bail, repair it, and check whether it moves.
+
 ## 2026-08-15: [high] OPEN — `RendezvousMath.AnchorAcceptable` has NO LOWER BOUND, so the combined-arms rendezvous drags the drop-off BACKWARDS to the Supply Route and the carrier shuttles in place (found while: offensive transport standoff, branch `wt/offense-standoff`)
 
 **Measured, not reasoned.** Run `260815_202509`, seed 1017, `wip-transport-delivers`, with

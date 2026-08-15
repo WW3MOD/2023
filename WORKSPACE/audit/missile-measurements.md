@@ -355,6 +355,13 @@ clean nose-on sample to quote, so I am not claiming to have measured it.
 - **Ataka records carry the same flag and it matters there too** — the Mi-28 comparison is
   based on relative damage between lanes, which the flag does not bias, but the absolute
   Ataka figures are lower bounds.
+- **VOID FOR ANY LANE WHERE THE LITTLEBIRD WAS THE SHOOTER (added 260815).** The littlebird
+  dealt exactly zero damage with every weapon it carried until `wt/heli-gun`:
+  `FirepowerMultiplier@NoGunner` sat at 0 for its whole life because the actor declares no
+  Gunner crew slot. The modifier is on the SHOOTER, not the weapon, so it zeroed the Hellfire
+  rack as well as the guns. Any figure here measuring littlebird *output* measured a
+  structural zero; lanes where the littlebird was only a TARGET are unaffected. See
+  `DISCOVERIES.md` 2026-08-15 and the PITFALL in `rules/ingame/aircraft.yaml`.
 - **`littlebird` and `t90` were given 900 000 HP** so a lane could not run out of target
   mid-volley. That keeps every target permanently `Undamaged`, which suppresses the
   "abandon a target that reaches Critical" behaviour. Anything that behaviour would have

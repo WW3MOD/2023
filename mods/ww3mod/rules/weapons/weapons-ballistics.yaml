@@ -201,10 +201,54 @@ MP5:
 	BurstWait: 5
 	Projectile: Bullet
 		Speed: 1c0
-		# 0c64 is already sub-1/16-cell scatter at max range; tightened once more
-		# for visible tracer convergence. NOTE: raw scatter was never the reason
-		# this gun felt inaccurate — see DamageAtMaxRange below, which is.
-		Inaccuracy: 0c48
+		# 0c320 as of 260815, up from 0c64. The bespoke tightening this gun was
+		# carrying is gone; this sits just above the ^7.62mm family baseline of
+		# 256, on the user's read after watching 0c256 in demo-heli-lanes.
+		#
+		# History: 4ba14a7d cut it to 0c48 to cure a gun that "felt inaccurate".
+		# It was not inaccurate; it was dealing zero damage
+		# (FirepowerMultiplier@NoGunner — see the PITFALL in
+		# rules/ingame/aircraft.yaml). Once the zero was fixed the gun turned out
+		# to be brutally good at strafing, which is what the tightening had been
+		# hiding all along.
+		#
+		# WHY THE FIRST REVERT DID NOTHING, and the arithmetic to reason with.
+		# InaccuracyType defaults to Maximum (Bullet.cs:40), so scatter scales
+		# with range:
+		#   effective = Inaccuracy * distanceToTarget / weaponMaxRange
+		# Range is 8c0, so at 2 cells the effective scatter is a QUARTER of the
+		# value written here, against a standing-infantry hitshape of radius 30
+		# (infantry.yaml:146-149):
+		#   0c48  -> 12 units at 2 cells   (cannot miss)
+		#   0c64  -> 16 units at 2 cells   (cannot miss — measured: still cleared
+		#                                   10/10 while a Hind managed 2)
+		#   0c256 -> 64 units at 2 cells   (still cleared 10/10 - see Warhead@Spread)
+		#   0c320 -> 80 units at 2 cells   (current), 320 at 8 cells
+		# Going 0c48 -> 0c64 was imperceptible for exactly this reason. Anything
+		# below ~0c128 is invisible at the ranges a littlebird actually strafes
+		# from, because a quarter of it still fits inside the target.
+		#
+		# For scale, the Hind's 12.7mm is Inaccuracy 256 over Range 16c0, i.e.
+		# half this weapon's scatter at the same absolute distance.
+		#
+		# SCATTER ALONE WAS NEVER GOING TO DO IT, and that is why Warhead@Spread
+		# below was cut from 200 to 60 in the same pass. Scatter caps the
+		# TargetDamage warhead only; the splash kept paying out on rounds that
+		# missed, so widening this number moved almost nothing on its own. The
+		# two changes are a pair — read them together before altering either.
+		#
+		# MEASURED 260815 — do not "fix" this gun by tightening scatter again.
+		# Instrumenting the full fire->warhead->health chain at this exact value
+		# (test-littlebird-strafe, littlebird vs e1 at 2 cells) recorded 160 of
+		# 160 rounds landing INSIDE the infantry hitshape: closestDistance=0 on
+		# every TargetDamage hit, proximity percent min 40 / median 70 / max 100,
+		# and SpreadDamage falloffPct=100 throughout. There were no near misses
+		# to convert and nothing was falling off. Scatter has never been this
+		# gun's constraint, and the tempting theory that 0c48 scatter overshot
+		# the 32-unit Warhead@Spread radius and so turned grazes into nothing is
+		# wrong in both halves. The gun's zero damage was FirepowerMultiplier@NoGunner
+		# on the littlebird itself; see the PITFALL in rules/ingame/aircraft.yaml.
+		Inaccuracy: 0c320
 		# InaccuracyPerProjectile removed 260815: Bullet.cs gates it behind
 		# `lastPosIsSet`, a readonly field initialised false and never assigned
 		# (Bullet.cs:170,213), so the whole branch is unreachable. It was inert.
@@ -213,11 +257,34 @@ MP5:
 		# AttackType: Hover parks the littlebird at exactly max range, which is
 		# precisely where DamageAtMaxRange 50 halved every round — the gun was
 		# weakest at the only range it ever fought from. 75 softens that cliff.
+		#
+		# That standoff claim is UNTESTED either way as of 260815 and is kept
+		# because it is a real observation, not because it has been confirmed.
+		# What IS measured is that it was never the reason this gun killed
+		# nothing: the damage was being zeroed by a firepower modifier on the
+		# shooter long before falloff could scale it, so raising this value
+		# changed no observable outcome. If the standoff claim matters, measure
+		# the range the littlebird actually settles at before tuning against it.
 		DamageAtMaxRange: 75
 		ValidTargets: Infantry, Unarmored
 	Warhead@Spread: SpreadDamage
+		# Damage 200 -> 60 on 260815, and this is THE anti-infantry nerf — the
+		# scatter changes above were not.
+		#
+		# Measured: at 0c256 scatter the littlebird still cleared a 10-man squad
+		# in ~20s while a Hind on an identical squad managed 2, because this
+		# warhead kept paying out on the rounds that missed. Falloff is
+		# 100/37/14/5/0 over 0/32/64/96/128 units, so at 200 damage a round
+		# landing 64 units off-centre still delivered 28 — and at Burst 20 /
+		# BurstWait 5 that chip damage alone killed 200hp infantry. Scatter was
+		# irrelevant while a miss still paid this well.
+		#
+		# At 60 the same off-centre round delivers 8. Direct hits are untouched:
+		# Warhead@Target still lands its full 250, so the gun stays lethal when
+		# it is genuinely on target and the accuracy above finally decides
+		# something.
 		Spread: 32
-		Damage: 200
+		Damage: 60
 		ValidTargets: Infantry, Unarmored
 		DamageTypes: BulletDeath
 
@@ -237,6 +304,14 @@ MP5:
 	# is the opposite of the intent, so the AA mount trades that away:
 	#   Inaccuracy 0c512 (8x looser) — a light minigun hosing at a jinking heli.
 	#   Damage 150 / Penetration 4  — vs Heavy heli Thickness 20 that is 20%.
+	# WARNING 260815: every time-to-kill figure in this block is MODELLED, and it
+	# was modelled for an airframe that could not deal damage at all —
+	# FirepowerMultiplier@NoGunner pinned the littlebird's whole output to 0 (see
+	# the PITFALL in rules/ingame/aircraft.yaml). Now that the zero is gone these
+	# numbers describe live behaviour for the first time and have never been
+	# checked in game. Re-measure before trusting the ceiling; do NOT tune
+	# against them as if they were observations.
+	#
 	# Net vs an 800hp Apache: ~9.6s at 4 cells, ~48s at 8. The littlebird carries
 	# 160 rounds = 7.7s of continuous fire and cannot reload outside a helipad,
 	# so it physically CANNOT finish an attack heli on one load. The ceiling is
@@ -298,6 +373,19 @@ MP5:
 	Burst: 8
 	BurstDelays: 2
 	BurstWait: 10
+	Projectile: Bullet
+		# 260815: tightened a little from the ^12.7mm baseline of 256, on the
+		# user's read that the Hind felt too loose next to the littlebird.
+		# OVERRIDDEN HERE, NOT ON ^12.7mm, deliberately — that template also
+		# feeds 12.7mm.MG (:344) and 12.7mm.Hind.AA (:364), so editing it would
+		# have silently retuned a ground MG and an anti-air mount alongside this.
+		#
+		# Scale, remembering effective = Inaccuracy * distance / weaponMaxRange
+		# and that this weapon's Range is 16c0, double the littlebird's 8c0:
+		#   256 -> 32 units at 2 cells;  192 -> 24 units at 2 cells
+		# against a 30-unit standing-infantry hitshape (infantry.yaml:146-149).
+		# It goes from scattering about the width of a man to a little inside him.
+		Inaccuracy: 192
 	Warhead@Target: TargetDamage
 		ValidTargets: Infantry, Unarmored, Light
 

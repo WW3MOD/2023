@@ -1,0 +1,35 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, demo-heli-lanes.lua
+
+# HoldPosition engagement, deliberately. Nothing walks or flies toward anything
+# on its own, so the two enemy Apaches sit on the right until YOU go and get
+# them, and the infantry hold their block instead of scattering across the map.
+# Everything still shoots back at whatever comes into range — this stops units
+# initiating a move, not returning fire.
+^Combatant:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: HoldPosition
+		InitialEngagementStanceAI: HoldPosition
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+
+# Ammo pools LEFT AT STOCK, same reasoning as demo-heli-weapons: the
+# littlebird's 160 rounds (~7.7s of fire, helipad-only reload) is half of what
+# holds its air-to-air ceiling down. If it runs dry on the Apache, that is the
+# mechanic showing you its shape, not the demo breaking.
