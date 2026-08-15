@@ -73,8 +73,17 @@ one were indistinguishable from Lua. Added `TestMode.ImpactEffectCount` +
 `Test.GetImpactEffectCount()` (`TestMode.cs`, `TestGlobal.cs`). **It counts impacts that passed the
 validity gates, NOT sprites drawn or sounds played** — the increment sits upstream of both the
 `Image != null && explosion != null` check and `ImpactSoundChance`, so a test asserting "the sound
-played" off this counter would be wrong. Scenario `test-field-swallows-shell` went RED ("shell fired
-(ammo 39 -> 34) but 0 impact effects in 30s") then GREEN on the fix.
+played" off this counter would be wrong.
+
+**Both arms of `test-field-swallows-shell` were observed at the same pinned seed (20260815), on the
+final version of the scenario, differing only in the engine change** — RED with the
+`IsGroundCover()` skip reverted ("shell fired (ammo 39 -> 34) over 13 field actors covering the
+impact area, but 0 impact effects in 30s"), GREEN with it restored. That re-run mattered: an earlier
+RED had been produced by a *previous* revision of the scenario, and the restructure moved when the
+shot is ordered, so the file in the corpus had never itself been seen to fail. A guard nobody has
+watched fail is worth what the thing it replaced was worth — and this one auto-joins every
+`run-batch.sh --all` sweep for months, where a permanently-green non-test consumes the attention that
+would otherwise notice the gap.
 
 **What made the scenario trustworthy, since firing is not the control it looks like.** An ammo-drop
 check proves a shell *flew*; it does not prove a *field was under it*. If the patch ever stops

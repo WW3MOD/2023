@@ -20,8 +20,10 @@ local DeadlineTicks = DeadlineSeconds * TestHarness.TicksPerSecond
 local AimCell = CPos.New(33, 26)
 
 -- A shell can land up to 2 cells off the aim point, so every cell in that disc must be
--- field. 21 cells satisfy dx^2+dy^2 <= 4; the floor is set well under that so the check
--- survives circle-inclusion rounding while still catching a patch that stopped spawning.
+-- field. ActorsInCircle keeps actors whose CENTRE is within r (WorldUtils.cs:83-84), so a
+-- 2-cell radius admits the 13 cells with dx^2+dy^2 <= 4 — (2,1) is sqrt(5) and misses.
+-- Observed 13 in the RED control run. The floor sits under that for margin, while still
+-- catching a patch that stopped spawning.
 local ImpactRadius = WDist.FromCells(2)
 local MinFieldsUnderImpact = 9
 
