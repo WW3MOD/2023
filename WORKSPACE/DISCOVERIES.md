@@ -4629,3 +4629,42 @@ Offline (`--composition-plan`, real ruleset): with the **shipped default start c
 **And the reason it took a run to settle: the purchase LANE was unobservable.** The census answers *what does the bot own*; it cannot answer *why did it buy that*, and those differ once several lanes can order the same type (`UnitBuilderBotModule`'s own argmax, its floor pre-empt, its supply pre-empt, and any module requesting through `IBotRequestUnitProduction`). Every existing pick log was `AIUtils.BotDebug` — default-off **and** chat-only, never reaching debug.log. Now `[composition] pick ... lane=` (`UnitBuilderBotModule.LogPick`), gated on `CensusLogInterval` so @stable stays silent. It answered the question in one run: 73 `lane=deficit`, 2 `lane=floor`, and the medic tagged `lane=floor supported=20 floor=1`.
 
 **@stable does not move.** `UnitFloors` / `UnitFloorPer` / `UnitFloorSupportedTypes` appear **only** in the two `@experimental` faction twins (`ai-america.yaml:147/168/178`, `ai-russia.yaml:112/123/129`); no `@stable`/`normal`/`rush`/`turtle`/`heli`/`fixedwing` block sets any of them. `EffectiveFloor` returns the flat floor verbatim when no ratio is configured, so the scaling is unreachable without opting in.
+
+---
+
+## 2026-08-15 — Procurement had no precedence axis, and a confirming run is where the real bug was found
+
+**User ruling:** *"Soldiers out of ammo are useless. That should be the first priority to solve at all times."* Six merges aimed at truck behaviour never moved it, because **two routes to a truck were closed at once, for unrelated reasons** — fixing either alone changes nothing, which is exactly the shape that survives repeated attention.
+
+**Route 1 — the fleet was sized by a predicate that could not see the demand.** `SupplyFleetMath.DesiredTrucks` is fed `CountStarvingCustomers` (below `SupplyStarvingThresholdPerMille`, 250 ⇒ under 25% ammo). The boolean that reports "somebody needs resupply" is `AnyFieldedUnitNeedsResupply`, mirroring `SupplyProvider`'s own `MinNeedThreshold` — **the bar at which a customer is actually served.** Measured: `starving` read 0 at every snapshot of a match where `ammo-need` read True continuously from tick 1240. One fact, two predicates, and the blind one held the purse. Fixed by sizing from the serving bar (`SupplySizeFromNeed`), taking the max so the switch can only ever raise the fleet. **Deliberately NOT by lowering `SupplyStarvingThresholdPerMille`** — that value is also the truck's own seek threshold (`SupplyHuntMath`, shared with `SupplyFollowerBotModule`), so moving it would retarget *delivery* while trying to fix *procurement*.
+
+**Route 2 — a pre-empt that skips when broke is not a priority.** The cycle then falls through and spends the truck's money on a rifleman. This is the missing axis: the system had a share (per-mille of army VALUE) and a fleet SIZE, and **neither can express "this one comes first."** `SupplyPrecedenceBankCycles` lets the path buy *nothing* and bank.
+
+### Measured, paired, seed 4242, YAML-only flip, log cleared before every run
+
+| | baseline (flags off) | final |
+|---|---|---|
+| trucks ordered, whole match | **0** (both players) | **USA 1 @ tick 1980**, Russia 0 |
+| demand state | `trucks-desired=2`, `ammo-need=True`, **110 consecutive snapshots** | same demand, answered |
+| cash behaviour | sawtooth 92/158/124/190/256/166/72, peak 319 vs a 1000 truck | monotonic climb 92 → 1000+ |
+| truck in world | never | tick 2160 (≈180 ticks call-in travel), alive to ≥2920 |
+
+**Responsiveness — the acceptance measure, since a count is exactly what the user has now shown both failure modes of:** ticks from first `trucks-desired>0` to first truck ordered. Baseline **∞** (never, across the whole match). Final **810 ticks** (demand opens 1170, ordered 1980).
+
+### The confirming run found a real defect, which is the transferable part
+
+A first cut banked **per queue**. `ChooseByDeficit` runs once per queue and `truk` is buildable only from Vehicle, so it banked Vehicle while **Infantry went on spending the same shared treasury** — and reset the counter every cycle. Measured: 208 bank decisions, `banked` never above **1/20**, cash still sawtoothing. **Banking one queue is not banking.** The rule: **a decision about a SHARED resource must be taken at the scope of that resource, not at the scope of the loop that happens to notice it.** The budget is global, so the decision is now queue-independent and cached per world tick.
+
+This is worth stating as process, not just mechanism: **the confirming run was not a formality — it is where the bug was.** A run booked to say "yes" said "no" for a reason no amount of re-reading the diff would have produced, because the defect was in the *interaction between two invocations*, not in either one.
+
+### And the bound was derived from the wrong number — twice measured, once wrong
+
+`SupplyPrecedenceBankCycles` was first set to 20 from a **~1.65 cash/tick rise read off the baseline's sawtooth**. That rate is contaminated by the very spending the bank exists to prevent, so it **overstates** what banking accrues. The instrumented run then measured the real thing: an uninterrupted spell climbing **92 → 819 over ticks 1170–1740 = ~1.21/tick**. At 20 the cap fired at **cash 819 — 181 short of the truck** — and the fall-through immediately spent the whole balance on a humvee (819 → 203). **A cap set below the price does not merely delay the purchase, it periodically DESTROYS the savings.** Re-derived at the measured rate: 30 cycles. Final run reached `banked=27/30` and bought at the moment cash crossed 1000 — under the cap, as designed.
+
+**Prediction stated in advance, and its error recorded.** Before the final run: first truck ~tick 1900–1950 at `banked` 25–26. Actual: **tick 1980 at `banked=27`** — about 8% late on the responsiveness figure. The mechanism is confirmed (monotonic banking, purchase the instant cash crosses the price, cap never reached); the *rate* is very slightly below the one derived from a single spell. Recorded rather than smoothed over, because the number now in YAML depends on that rate.
+
+### What is measured and what is inferred
+
+**Measured:** every number above, from `[composition] census` and `[composition] pick lane=` lines in paired same-seed runs. **Inferred, not measured:** that this generalises to the user's own live games. The runs are tournament map-players on a 6-minute arena, both ended `TIMEOUT-FAIL` on the 300s watchdog, and `BotVsBotMatchWatcher` is not armed by `run-test.sh` — so these are per-tick telemetry, **not match outcomes**, and nothing here says who would win. **Also not verified:** whether the truck then *delivers*. That is PIPELINE item 56, deliberately untouched.
+
+**Honest negative in the same run: Russia never bought a truck at all.** It banked to the full 30, fell through, and re-banked, at cash 3–8 throughout — genuinely too poor rather than mis-gated. The bound behaved exactly as designed there (no production deadlock), but **the fix is confirmed on one of two players**, and a bot this poor cannot be helped by a precedence rule. USA's truck also vanishes from the census after tick 2920 and is not replaced, for the same reason.

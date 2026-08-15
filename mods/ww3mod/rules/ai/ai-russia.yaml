@@ -166,7 +166,7 @@ Player:
 		# NOT a restored SupplyTruckFloor — gated on live demand, inert against a full-ammo army at t=0.
 		# @stable unaffected: both read only under SupplyDemandSizing, and both default to baseline in C#.
 		SupplySizeFromNeed: true
-		SupplyPrecedenceBankCycles: 20
+		SupplyPrecedenceBankCycles: 30
 		# Early-econ behaviour 2: vehicle AA proportionate to observed air (aa.russia ungated picket).
 		ScaleAntiAirToThreat: true
 		AntiAirUnitTypes: tunguska

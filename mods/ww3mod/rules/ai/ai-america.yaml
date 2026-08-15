@@ -256,12 +256,20 @@ Player:
 		#      before it could accumulate. A pre-empt that merely SKIPS when broke is not a priority — the
 		#      cycle falls through and spends the truck's money on a rifleman. SupplyPrecedenceBankCycles
 		#      lets the path buy NOTHING and bank instead, which is the only move that expresses precedence.
-		# 20 cycles = 600 ticks at FeedbackTime 30, DERIVED from the paired baseline arm rather than guessed.
-		# That run (seed 4242, flags off) held trucks-desired=2 and ammo-need=True for 110 consecutive
-		# snapshots and still bought zero trucks, with cash sawtoothing 92/158/124/190/256/166/72 — a rise of
-		# ~66 per 40-tick interval (~1.65/tick) repeatedly knocked back down by a cheap buy, never once
-		# reaching 1000. Banking 600 ticks accrues ~990, which closes a 1000-cost truck from the ~100-300 the
-		# bot actually idles at, in a SINGLE spell.
+		# 30 cycles = 900 ticks at FeedbackTime 30, derived from a MEASURED banking spell — and the first
+		# derivation was wrong in a way worth recording, because it is an easy mistake to repeat.
+		# The paired baseline arm (seed 4242, flags off) held trucks-desired=2 and ammo-need=True for 110
+		# consecutive snapshots and bought zero trucks, cash sawtoothing 92/158/124/190/256/166/72. Reading a
+		# ~1.65/tick rise off that sawtooth gave a bound of 20 — but that rate is contaminated by the very
+		# spending the bank exists to prevent, so it OVERSTATES what banking actually accrues.
+		# The instrumented run then measured the real thing: an uninterrupted spell climbing 92 -> 819 over
+		# ticks 1170-1740, i.e. 727 cash in 570 ticks = ~1.21/tick. Closing 1000 from the ~92 the bot idles at
+		# needs ~750 ticks = 25 cycles; 30 carries margin for a poorer income.
+		# THE MEASURED FAILURE AT 20, since it is the reason this number moved: the cap fired at cash=819 —
+		# 181 short — and the fall-through then spent the whole banked balance on a humvee (cash 819 -> 203).
+		# A cap set below the price does not merely delay the truck, it periodically DESTROYS the savings.
+		# Any future edit to this number must clear the truck cost at the observed banking rate, or it will
+		# reproduce that.
 		# THE BOUND IS THE SAFETY ARGUMENT: unbounded precedence is a production deadlock for any army whose
 		# income never reaches the price. It caps CONSECUTIVE silent cycles — after it the path lets one
 		# ordinary buy through and starts banking again, so it converges over successive spells rather than
@@ -274,7 +282,7 @@ Player:
 		# @stable is UNAFFECTED: both are read only under SupplyDemandSizing, which @stable does not set, and
 		# both default to baseline (false / 0) in C# regardless.
 		SupplySizeFromNeed: true
-		SupplyPrecedenceBankCycles: 20
+		SupplyPrecedenceBankCycles: 30
 		# Early-econ behaviour 2: vehicle AA proportionate to observed air (aa.america ungated picket).
 		ScaleAntiAirToThreat: true
 		AntiAirUnitTypes: strykershorad
