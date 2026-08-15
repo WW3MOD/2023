@@ -3,6 +3,78 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-15: [high] OPEN — `RendezvousMath.AnchorAcceptable` has NO LOWER BOUND, so the combined-arms rendezvous drags the drop-off BACKWARDS to the Supply Route and the carrier shuttles in place (found while: offensive transport standoff, branch `wt/offense-standoff`)
+
+**Measured, not reasoned.** Run `260815_202509`, seed 1017, `wip-transport-delivers`, with
+`RendezvousWithOffensiveStaging: true` on `MountedTransportBotModule@experimental`:
+
+```
+[exp-transport] rendezvous player=USA-bot anchor=7,17 lerp=32,10 → drop=7,17 tick=65
+[exp-transport] task-created boarding=5 of 5 drop=7,17 tick=65      (own SR is at 6,16)
+[exp-transport] delivered   at=6,16 drop=7,17 pax=5 tick=515
+... and again at 565/965, 1015/1365, 1415
+```
+
+The transport abandoned a **26-cell** forward delivery (`lerp=32,10`) for a **one-cell** one
+(`anchor=7,17`, adjacent to its own SR at 6,16), then looped: load five, drive one cell, unload, reload —
+four task creations and three departures inside 1400 ticks.
+
+**Cause.** `AnchorAcceptable` (`RendezvousMath.cs:78`) tests only
+
+```csharp
+return anchorReach <= fallbackReach + margin;
+```
+
+so it rejects an anchor too far **forward** and accepts without limit one that is **behind** the cell the
+transport would have picked for itself. Not an edge case: before contact the frontier descent has nothing
+to descend toward, so `ForwardStagingAnchor` sits on the SR (measured `7,17` for the whole match) and is
+*always* behind the lerp. **The rendezvous is backwards-biased in exactly the pre-contact opening that
+`DeliverBeforeContact` exists to serve.**
+
+The file header argues for a one-sided bound ("the anchor ADVANCES as the believed front moves, so a
+transport that chased it unconditionally could be walked steadily deeper") — right about the danger it
+names, and it left the opposite direction unguarded.
+
+**Not fixed here, deliberately: no run budget remained to verify a fix, and shipping an unmeasured
+behavioural change is what this project's discipline forbids.** `RendezvousWithOffensiveStaging` is left
+`false` on both twins (`ai.yaml:1599`), so nothing regressed. The fix is a second comparison in the same
+function — reject an anchor materially nearer our own SR than the fallback — plus a scenario in which the
+armour actually musters forward, which `wip-transport-delivers` cannot provide because it contains no
+combat units at all.
+
+## 2026-08-15: [medium] OPEN — `wip-transport-delivers` can go GREEN on a one-cell carry: its "moved ≥ 10 cells" clause is satisfiable by the passenger WALKING after it is set down (found while: offensive transport standoff, branch `wt/offense-standoff`)
+
+The scenario defines a delivery as carried + returned + at least `DeliveredCells` (10) from where the
+passenger started. Clause (c) is evaluated **whenever** the returned passenger is far enough away — not at
+the moment of unload — so distance covered *after* the drop counts toward it.
+
+Run `260815_202509` passed on exactly that. With the rendezvous bug above active, the carrier set its
+passengers down at `7,17`, ~3 cells from their start; the verdict fired at tick ~1481 with the delivered
+rifleman at `17,19`, which it reached **on foot** after `StageFreePool` re-recruited it post-unload. The
+carry was real — `everCarried=5` is honest, five riflemen were genuinely out of world in a `Cargo` — but
+the *distance* was walked.
+
+This is the AUTOTEST.md §"who ELSE could satisfy your predicate" shape one level down: the mechanism under
+test produced the carry, a different mechanism produced the displacement the assertion actually measured.
+**The scenario therefore stays `wip-*` despite its first-ever PASS.** Fix: latch each passenger's position
+at the tick it re-enters the world and measure clause (c) against *that*, so the distance credited is the
+distance the carrier moved it.
+
+## 2026-08-15: [low] OPEN — a transport's top-up passengers are ledger-committed and still fail to arrive: `still-coming=0 reason=NobodyElseComing` with four of five seats unfilled (found while: offensive transport standoff, branch `wt/offense-standoff`)
+
+Baseline run `260815_201640`, seed 1017. The USA carrier's task reached `target=5` through three
+`topup-added` lines, each of which calls `CommitTopUpPassenger` (`MountedTransportBotModule.cs:1094`), so
+all of them held a `transport:<carrierId>` claim that `BuildFreePool` honours. It nevertheless departed
+`aboard=1 still-coming=0 reason=NobodyElseComing` at tick 1015: the four committed top-ups neither boarded
+nor remained outstanding.
+
+Poaching by another bot module is **ruled out** by that commit. Candidates not distinguished here: the
+ledger TTL (`DefaultCommitmentTicks`) lapsing mid-walk, or one of the traits that call `Actor.QueueActivity`
+directly and emit no `Order` at all — `ModularBot.cs:137-145` names `StancePositioningExecutor`,
+`AutoSeekSupplies`, `CohesionSlotMemory` and `DropsSupplyCache` as invisible to the gate, so any of them can
+cancel a `RideTransport` with nothing in the order stream to show for it. Telling those apart needs a
+per-passenger trace on `RideTransport` cancellation.
+
 ## 2026-08-15: [medium] OPEN — UNVERIFIED: `^ArtilleryRound`'s damage radii are smaller than its own inaccuracy, so a shell aimed at infantry may routinely do nothing at all (found while: field shell-swallowing bug, branch `wt/field-impact`)
 
 Noticed while ruling out a damage cause for the field bug (which turned out to be effect-only — see

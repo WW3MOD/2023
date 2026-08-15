@@ -206,6 +206,43 @@ WorldLoaded = function()
 
 			if delivered >= 1 then
 				frozen = true
+
+				-- ARRIVE-TOGETHER — the user's actual complaint, measured at the one instant it is
+				-- meaningful. A rifleman that RODE is set down at the drop cell with the carrier; one that
+				-- WALKED is still however many cells short of it, and at ~43 ticks/cell that distance IS the
+				-- "the infantry turn up minutes later" being reported. Printed PER MEMBER because the two
+				-- populations ARE the finding — an average over them describes neither.
+				--
+				-- NOT attributable on its own, and it is not asked to be: five riflemen that all walked to
+				-- the same anchor would read as clustered too. What makes the number mean something is that
+				-- it is printed next to the per-member carried flag, and the latch above already required one
+				-- of them to have been out of world. Read the two together, never the spread alone.
+				local drop = nil
+				for i = 1, #Squad do
+					local r = Squad[i]
+					if r ~= nil and carried[i] and r.IsInWorld and CellDistance(r.Location, start[i]) >= DeliveredCells then
+						drop = r.Location
+						break
+					end
+				end
+
+				local spread = ""
+				for i = 1, #Squad do
+					local r = Squad[i]
+					if r == nil or not r.IsInWorld then
+						spread = spread .. " r" .. i .. "=aboard/dead"
+					elseif drop ~= nil then
+						spread = spread .. " r" .. i .. "=" .. CellDistance(r.Location, drop) .. "cells"
+					end
+				end
+
+				print("[deliv] DELIVERED tick~" .. ticks
+					.. " everCarried=" .. everCarried
+					.. " peakPax=" .. peakPax
+					.. " deliveredNow=" .. delivered
+					.. " drop=" .. (drop and (drop.X .. "," .. drop.Y) or "?")
+					.. " from-drop:" .. spread)
+
 				return true
 			end
 		end

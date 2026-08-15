@@ -451,6 +451,20 @@ Player:
 		# axes by class; ExcludeUnitTypes becomes inert. NOTE (b8d2e601, 2026-08-02): @stable sets
 		# UseUnitRoles too (:1939), so the list (:1938) is an inert fallback on BOTH twins.
 		UseUnitRoles: true
+		# COMBINED ARMS — the user complaint "the tank attacks alone while the infantry walk behind it".
+		# Line infantry classify MainBattle (UnitRoleResolver.cs:42), so the role gate above ADMITS them and
+		# StageFreePool walks them to the same attack anchor the armour drives to, on foot, from tick 3. The
+		# mounted transport's first scan is 50 ticks later and its ledger only protects a passenger once the
+		# EnterTransport is ADMITTED — by which time the soldier is busy under an AttackMove and BotOrderGate's
+		# dwell rule (ReorderDwellTicks 120 above) suppresses the boarding order. This module's own 100-tick
+		# re-eval then refreshes that standing order inside the 120-tick window, so the suppression re-arms
+		# indefinitely and the seats are never sold. Holding back only what a carrier can take THIS TICK is the
+		# offense's side of that race. Default false on the engine class; @stable omits it => byte-identical.
+		TransportStandoffEnabled: true
+		# Mirrors the transport's own LoadingTimeoutTicks (1500). Also has to clear the observed ~1015-tick
+		# latency before the first pre-contact drop cell resolves, or the valve fires before the carrier ever
+		# gets its chance and the hold buys nothing.
+		TransportStandoffMaxHoldTicks: 1500
 		# Don't recruit evacuating (out-of-ammo) units onto an axis — the AttackMove would cancel
 		# their RotateToEdge evac and send an empty unit at the enemy. Default false on the engine
 		# class; mirrors LayeredDefence. NOTE (b8d2e601, 2026-08-02): @stable sets this too (:1940),
@@ -1582,6 +1596,19 @@ Player:
 		# scan while loading. Cannot postpone departure: the departure math counts the original cohort only.
 		# Default false on the engine class and NOT set on the @poi twin ⇒ @stable is unchanged.
 		TopUpDuringLoading: true
+		# COMBINED ARMS, the other half of PoiOffensiveBotModule.TransportStandoffEnabled — and it STAYS OFF,
+		# on a measurement rather than on caution. Enabled once (run 260815_202509, seed 1017,
+		# wip-transport-delivers) it moved the drop cell from lerp=32,10 to anchor=7,17 — ONE CELL from the
+		# Supply Route at 6,16 — and the carrier then looped: load 5, drive one cell, unload, reload, four
+		# times. It replaced a 26-cell forward delivery with a shuttle in place.
+		#
+		# The cause is a MISSING LOWER BOUND, not a tuning value. RendezvousMath.AnchorAcceptable tests only
+		# `anchorReach <= fallbackReach + margin`, so it rejects an anchor that is too far FORWARD and accepts
+		# without limit one that is BEHIND the cell the transport would have chosen. Whenever the reserve is
+		# mustering near the SR — which is every pre-contact opening, since the frontier descent has nothing to
+		# descend toward — the anchor is behind the lerp and the rendezvous drags the delivery backwards.
+		# Flip this on only together with a lower bound; see WORKSPACE/bugs/discovered.md 2026-08-15.
+		RendezvousWithOffensiveStaging: false
 
 	# ===== Base Builder — shared baseline (enable-ai-player) =====
 	BaseBuilderBotModule@normal:
