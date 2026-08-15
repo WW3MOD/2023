@@ -3,7 +3,7 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
-## 2026-08-15: [critical] OPEN — the littlebird's weapons all deal exactly 0 damage: no Gunner crew slot, and `^Airborne` pins `FirepowerMultiplier@NoGunner` to 0 forever (found while: diagnosing "littlebird strafing kills nothing", branch `wt/heli-gun`)
+## 2026-08-15: [critical] FIXED (wt/heli-gun) — the littlebird's weapons all deal exactly 0 damage: no Gunner crew slot, and `^Airborne` pins `FirepowerMultiplier@NoGunner` to 0 forever (found while: diagnosing "littlebird strafing kills nothing", branch `wt/heli-gun`)
 
 Measured on `main @ 4c4d8a49`, scenario `test-littlebird-strafe`, trace `WW3_GUNTRACE=1`. The gun fires,
 the rounds land dead on target, both warheads find the victim and report a full-strength hit, and
@@ -26,10 +26,26 @@ the weapon. Any measurement of littlebird missile damage taken before this is vo
 **Only actor affected**: a sweep of armed actors with a `VehicleCrew` block found no other `CrewSlots`
 missing `Gunner`.
 
-**Not fixed here** — this branch is diagnosis only, per the task. Two candidate fix shapes, both outside
-"tune a weapon number": give the littlebird a Gunner slot (scratch-probed, went RED -> PASS), or change
-`@NoGunner` so a never-declared slot is not treated as a lost crew member. The second is the more
-general fix and would also stop the trap recurring for the next single-seat actor.
+**Fixed** on `wt/heli-gun` by the general route: `VehicleCrew.SlotPresentConditions` grants
+`has-gunner-seat` for a DECLARED slot only, and the gate became `has-gunner-seat && !has-gunner`. The
+alternative — giving the littlebird a Gunner slot — was rejected because it invents a crew member who
+could then bail at `DamageState.Heavy` and re-zero the guns, smuggling a new gameplay behaviour in as a
+bug fix. Whether a Little Bird should have a two-man crew stays a separate, deliberate content decision.
+
+## 2026-08-15: [medium] OPEN, UNMEASURED — a ground vehicle whose crew ejected may stay permanently crippled after being repaired to full HP (found while: fixing the littlebird's zero damage, branch `wt/heli-gun`)
+
+**Inferred from code, NOT tested — do not treat the behaviour as confirmed.** `VehicleCrew` revokes a
+slot's occupied condition when that crew member ejects, and nothing observed re-grants it: the crew are
+spawned as separate infantry actors and there is no re-boarding path (`VehicleCrew.cs:56` records
+"EjectionSurvivalRate removed — vehicle death is now total loss"). The `^CrewedVehicle2` / `^CrewedVehicle3`
+degradation ladder (`vehicles.yaml:266-310`) keys off those conditions: no driver -> `SpeedMultiplier` 0,
+no gunner -> `TurretTurnSpeedMultiplier` 0.
+
+So repairing such a hull back to full HP should yield a vehicle at 100% health that still cannot move or
+traverse its turret, permanently. That may well be intended — the crew are gone and the design says the
+wreck is a total loss — but if so, being repairable at all is the odd part, which is what prompted the
+question. Worth an autotest before anyone acts on it: damage a Bradley past `EjectionDamageState`, let the
+crew bail, repair it, and check whether it moves.
 
 ## 2026-08-15: [high] OPEN — `RendezvousMath.AnchorAcceptable` has NO LOWER BOUND, so the combined-arms rendezvous drags the drop-off BACKWARDS to the Supply Route and the carrier shuttles in place (found while: offensive transport standoff, branch `wt/offense-standoff`)
 

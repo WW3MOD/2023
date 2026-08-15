@@ -55,6 +55,48 @@ killing its target in about two seconds, while the littlebird's target sits at e
 full 20 s. Adding a Gunner slot to the littlebird as a scratch probe (reverted, not committed) flipped
 the scenario RED → PASS with no weapon number touched.
 
+**FIXED 260815 (same branch).** `VehicleCrew` gained `SlotPresentConditions`, a map of slot name to a
+condition granted once at `Created` and never revoked, only for slots the actor DECLARES. The three
+gunner-equipped helicopters grant `has-gunner-seat` through it, and the gate became
+`has-gunner-seat && !has-gunner` — "there is a gunner's seat and it is empty" rather than "no gunner
+condition is present". Verified by trace: `heli` logs `slot=Gunner presentCondition=has-gunner-seat`,
+`littlebird` logs only `slot=Pilot presentCondition=-`. RED -> PASS on `test-littlebird-strafe` with the
+gate as the only difference, re-confirmed by reverting the gate alone and watching it go RED again.
+
+**A wrong intermediate sweep, and what caught it.** A static pass keyed on "inherits `^Airborne`"
+reported SIX affected actors — the littlebird plus A10, F16, MIG and FROG. That was wrong. The crew
+`FirepowerMultiplier`s live on **`^Helicopter`** (`aircraft.yaml:136-297`), not `^Airborne`; fixed-wing
+actors inherit `^Aircraft` -> `^Airborne` and carry only the four veterancy multipliers. Measured: an A10
+logs `firepowerModifiers=[4 entries]` where the littlebird logs 7. The A10 lane in the scenario killed its
+target *with the fix reverted*, which is what exposed the error. **Blast radius is one actor, the
+littlebird.** The general lesson is that `^Airborne` and `^Helicopter` are different trait sets and a sweep
+keyed on the wrong one silently over-reports the whole plane roster.
+
+**`@NoGunner` appears unreachable for helicopters by any route other than this bug.** Damaging a heli past
+`EjectionDamageState` sends it into autorotation or crash-land, and both set
+`VehicleCrew.SuppressEjection` (`HeliEmergencyLanding.cs:217,254`) so the crew never leaves and
+`has-gunner` is never revoked; the same states grant `@EmergencyDescent`, and a safe landing grants
+`@CrashDisabled` — each of which zeroes firepower on its own. `test-evac-suite` already documents this as
+"Phase 4 — Helicopter mid-air crash: SuppressEjection holds."
+
+The decisive line is stronger still: `^Helicopter` overrides the trait with `VehicleCrew:
+EjectionDamageState: Dead` (`aircraft.yaml:187-188`), where the ground `^CrewedVehicle*` actors use the
+`Heavy` default. **A helicopter's crew therefore only leave when the helicopter is already dead**, and a
+dead actor's firepower modifier is moot. So there is no state in which a helicopter is alive, shooting,
+and gunnerless, and `FirepowerMultiplier@NoGunner`'s only observed effect in the shipped game was the
+littlebird bug it caused. Stated as measured-and-inferred, not proven: the safe-landing branch revokes
+SuppressEjection and was not explored, and nothing was tested that removes a crew member by a route other
+than damage.
+
+**Every prior measurement of littlebird weapon damage is void**, missiles included, because the modifier
+sits on the shooter rather than the weapon. That specifically includes the 260815 missile work at
+`07e801d2` ("heli weapons: littlebird missiles fixed, and an anti-air ceiling built downward"): the
+littlebird's Hellfire numbers there were taken against an airframe whose damage output was structurally
+zero, so "missiles fixed" was verified against something that could not have dealt damage either way. The
+anti-air ceiling reasoning in `7.62mm.Minigun.AA` — the 2.7s-to-kill-an-Apache figure and the ~9.6s/~48s
+budget derived from it — was modelled, not measured in game, and now needs re-taking: those numbers become
+real for the first time.
+
 **Why it stayed hidden.** Every previous investigation of this gun reasoned about the weapon — scatter,
 falloff, penetration, warhead geometry — and each premise measured out wrong in turn. The zero is not in
 the weapon at all; it is on the shooter, contributed by a trait the actor inherits and never mentions.

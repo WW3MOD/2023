@@ -202,8 +202,19 @@ MP5:
 	Projectile: Bullet
 		Speed: 1c0
 		# 0c64 is already sub-1/16-cell scatter at max range; tightened once more
-		# for visible tracer convergence. NOTE: raw scatter was never the reason
-		# this gun felt inaccurate — see DamageAtMaxRange below, which is.
+		# for visible tracer convergence.
+		#
+		# MEASURED 260815 — do not "fix" this gun by tightening scatter again.
+		# Instrumenting the full fire->warhead->health chain at this exact value
+		# (test-littlebird-strafe, littlebird vs e1 at 2 cells) recorded 160 of
+		# 160 rounds landing INSIDE the infantry hitshape: closestDistance=0 on
+		# every TargetDamage hit, proximity percent min 40 / median 70 / max 100,
+		# and SpreadDamage falloffPct=100 throughout. There were no near misses
+		# to convert and nothing was falling off. Scatter has never been this
+		# gun's constraint, and the tempting theory that 0c48 scatter overshot
+		# the 32-unit Warhead@Spread radius and so turned grazes into nothing is
+		# wrong in both halves. The gun's zero damage was FirepowerMultiplier@NoGunner
+		# on the littlebird itself; see the PITFALL in rules/ingame/aircraft.yaml.
 		Inaccuracy: 0c48
 		# InaccuracyPerProjectile removed 260815: Bullet.cs gates it behind
 		# `lastPosIsSet`, a readonly field initialised false and never assigned
@@ -213,6 +224,14 @@ MP5:
 		# AttackType: Hover parks the littlebird at exactly max range, which is
 		# precisely where DamageAtMaxRange 50 halved every round — the gun was
 		# weakest at the only range it ever fought from. 75 softens that cliff.
+		#
+		# That standoff claim is UNTESTED either way as of 260815 and is kept
+		# because it is a real observation, not because it has been confirmed.
+		# What IS measured is that it was never the reason this gun killed
+		# nothing: the damage was being zeroed by a firepower modifier on the
+		# shooter long before falloff could scale it, so raising this value
+		# changed no observable outcome. If the standoff claim matters, measure
+		# the range the littlebird actually settles at before tuning against it.
 		DamageAtMaxRange: 75
 		ValidTargets: Infantry, Unarmored
 	Warhead@Spread: SpreadDamage
@@ -237,6 +256,14 @@ MP5:
 	# is the opposite of the intent, so the AA mount trades that away:
 	#   Inaccuracy 0c512 (8x looser) — a light minigun hosing at a jinking heli.
 	#   Damage 150 / Penetration 4  — vs Heavy heli Thickness 20 that is 20%.
+	# WARNING 260815: every time-to-kill figure in this block is MODELLED, and it
+	# was modelled for an airframe that could not deal damage at all —
+	# FirepowerMultiplier@NoGunner pinned the littlebird's whole output to 0 (see
+	# the PITFALL in rules/ingame/aircraft.yaml). Now that the zero is gone these
+	# numbers describe live behaviour for the first time and have never been
+	# checked in game. Re-measure before trusting the ceiling; do NOT tune
+	# against them as if they were observations.
+	#
 	# Net vs an 800hp Apache: ~9.6s at 4 cells, ~48s at 8. The littlebird carries
 	# 160 rounds = 7.7s of continuous fire and cannot reload outside a helipad,
 	# so it physically CANNOT finish an attack heli on one load. The ceiling is

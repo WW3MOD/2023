@@ -275,9 +275,25 @@
 	FirepowerMultiplier@CrashDisabled:
 		Modifier: 0
 		RequiresCondition: crash-disabled
+	# PITFALL: `!has-gunner` on its own ALSO matches an actor that never had a
+	# gunner's seat, because VehicleCrew grants a slot condition only for a slot
+	# the actor DECLARES (VehicleCrew.cs:147-167). That made this modifier read as
+	# "gunner lost" from Created and pinned EVERY weapon on such an actor to zero
+	# damage for life — invisibly, because a 0 firepower modifier still draws
+	# tracers, muzzle flash, impact effects and sound. Measured 260815: it cost
+	# the littlebird, the one armed helicopter without a Gunner seat, its entire
+	# damage output, guns and Hellfires alike, since this actor first shipped.
+	# `has-gunner-seat` is granted once for the actor's lifetime, and only by
+	# actors that declare a Gunner slot, so the gate now means what it says:
+	# "there is a gunner's seat and it is empty".
+	#
+	# Scope note: these crew FirepowerMultipliers live on ^Helicopter, NOT on
+	# ^Airborne. Fixed-wing (A10/F16/MIG/FROG) inherit ^Aircraft -> ^Airborne and
+	# carry only the four veterancy multipliers — measured, 4 entries not 7. A
+	# sweep that keys on ^Airborne will wrongly flag every plane in the game.
 	FirepowerMultiplier@NoGunner:
 		Modifier: 0
-		RequiresCondition: !has-gunner
+		RequiresCondition: has-gunner-seat && !has-gunner
 	FirepowerMultiplier@EmergencyDescent:
 		Modifier: 0
 		RequiresCondition: autorotation || crash-landing
