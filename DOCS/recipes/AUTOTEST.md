@@ -251,6 +251,37 @@ a query, assert the query RETURNED something before acting on its result. An emp
 be allowed to mean "nothing to do".** Mechanism and full write-up in `WORKSPACE/DISCOVERIES.md`,
 2026-08-15.
 
+### Clear `debug.log` before the run, or you may be reading the previous run's world
+
+Fourth instance of this family, 2026-08-15, and it is the cheapest to avoid and the most expensive to
+suffer. The three above are all about a run that measured the wrong thing. **This one is about not
+measuring your run at all.** The scenario was right, the build was right, the code was right, and the
+conclusion was still wrong — because the file being read was written by an *earlier* game.
+
+The instance: a composition fix was verified offline, then run live. The `[composition]` census in
+`debug.log` showed the pre-fix symptom unchanged, so the fix was judged not to work in the live
+game, and three rounds went into re-analysing code that was correct. It was not. The engine writes to
+a **single fixed path** (`~/Library/Application Support/OpenRA/Logs/debug.log` on macOS; the harness
+also references `${REPO_ROOT}/engine/Support/Logs/debug.log`), and that file already held output from
+a previous session. `rm -f` on the log and an otherwise identical rerun inverted the finding
+completely: the opening had in fact changed from two medics to line infantry.
+
+**Every cue pointed the wrong way, which is why it survived scrutiny.** The file's mtime was later
+than the run's start, so it looked current. It contained the right scenario's player names and the
+right per-tick format, so it looked like the right match. Nothing in it is stamped with a run id — so
+there is no field you can check to tell whose log you are holding. The harness's own run directory
+(`~/.ww3mod-tests/screenshots/<run>/`) contains `result.json` and **not** the engine log, so the two
+artefacts you need are in different places with different lifetimes, and only one of them is
+per-run.
+
+So: **`rm -f` the engine `debug.log` immediately before launching, as part of the run command, not as
+a separate step you might skip.** And the general rule, which is the one worth carrying: **an
+artefact at a fixed path with no run identity is not evidence about a particular run unless you
+personally emptied it first.** A timeout or crash makes this worse, not better — the harness gives up
+on its watchdog while the game keeps writing, so the log can be simultaneously stale at the top and
+still growing at the bottom. When a live result contradicts a solid offline result, **suspect the log
+before the code.** Full write-up in `WORKSPACE/DISCOVERIES.md`, 2026-08-15.
+
 ## Gotchas
 
 These bit during development. Documenting so they don't bite again.
