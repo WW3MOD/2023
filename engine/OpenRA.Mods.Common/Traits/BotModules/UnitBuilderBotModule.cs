@@ -411,6 +411,10 @@ namespace OpenRA.Mods.Common.Traits
 		int supplyBankDecisionTick = -1;
 		bool supplyBankDecision;
 
+		// Per-instance cache of the treasury-wide hold (see AnySiblingWantsSupplyBank).
+		int bankHoldTick = -1;
+		bool bankHold;
+
 		IBotRequestPauseUnitProduction[] requestPause;
 		int idleUnitCount;
 
@@ -725,6 +729,34 @@ namespace OpenRA.Mods.Common.Traits
 
 		void BuildUnit(IBot bot, string category, bool buildRandom)
 		{
+			// TREASURY-SCOPE BANK HOLD. Checked here rather than inside ChooseByDeficit because the sibling
+			// instances this has to silence do NOT set CompositionDirected — the .heli and .fixedwing twins
+			// ride the legacy lottery path and never enter ChooseByDeficit at all, so a hold placed there
+			// would miss exactly the instances that were draining the savings.
+			//
+			// Ordering is preserved for the owning instance: ShouldBankForSupply returns false whenever the
+			// truck is affordable, so an affordable truck falls through to ChooseByDeficit and is bought by
+			// the shortfall pre-empt as before. This only suppresses cycles that would otherwise SPEND the
+			// price on something else.
+			if (AnySiblingWantsSupplyBank())
+			{
+				// One line per TICK, not per queue per instance: the hold is a treasury-wide fact, and
+				// logging it three times a cycle (ground x2 queues + heli) would triple the volume while
+				// saying the same thing. The owning instance carries the counters, so it does the logging.
+				if (Info.SupplyDemandSizing && supplyBankedTick != world.WorldTick)
+				{
+					supplyBankedTick = world.WorldTick;
+					supplyBankedCycles++;
+
+					LogPick("supply-bank", "(none)", $"cash={AvailableBudget()} "
+						+ $"needy={supplyFleetNeedy} desired={supplyFleetDesired} owned={supplyFleetOwned} "
+						+ $"best={supplyBankBestCash} stalled={supplyBankStalled}/{Info.SupplyPrecedenceStallCycles} "
+						+ $"spell={supplyBankedCycles}");
+				}
+
+				return;
+			}
+
 			// Pick a free queue
 			var queue = AIUtils.FindQueuesByCategory(player)[category].FirstOrDefault(q => !q.AllQueued().Any());
 			if (queue == null)
@@ -995,6 +1027,60 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return null;
+		}
+
+		// Does ANY UnitBuilder instance on this player want to bank right now?
+		//
+		// THE SCOPE ARGUMENT, which is this branch's own rule applied where it had not yet been applied: a
+		// decision about a shared resource must be taken at the scope of that resource. The resource is the
+		// TREASURY. One trait instance is not its scope, and neither is one queue — that was the first
+		// version of this bug, fixed a layer down. Under @experimental a player runs THREE live
+		// UnitBuilderBotModule instances (the ground twin, .fixedwing, and the experimental .heli twin), all
+		// spending one balance, and only the ground twin carries the supply flags. Measured consequence: a
+		// player banked 29 consecutive cycles, reached cash 935 against a 1000 truck, and was drained back to
+		// 477 by its siblings — 1,340 spent during the silence.
+		//
+		// DELIBERATELY NARROW: siblings of THIS TRAIT only. It is not extended to other module types even
+		// though they also spend, because CaptureCoordinatorBotModule's capturer floor and
+		// AdaptiveProductionBotModule's counter-buys are those modules' own correctness contracts, and
+		// suppressing them from here would trade a scope bug for a cross-module dependency. Silencing a
+		// sibling instance of the SAME trait overrides nobody's invariant — it makes one mechanism behave
+		// consistently with itself.
+		//
+		// Cached per world tick. The cache is per-instance but cannot disagree across instances, because the
+		// ANSWER is computed by the owning instance's own per-tick-cached ShouldBankForSupply — so the stall
+		// bookkeeping runs exactly once per tick no matter which sibling asks first. That is genuinely shared
+		// state derived from one owner, not N caches that happen to agree.
+		bool AnySiblingWantsSupplyBank()
+		{
+			if (bankHoldTick == world.WorldTick)
+				return bankHold;
+
+			bankHoldTick = world.WorldTick;
+			bankHold = false;
+
+			foreach (var sibling in player.PlayerActor.TraitsImplementing<UnitBuilderBotModule>())
+			{
+				if (sibling.WantsSupplyBank())
+				{
+					bankHold = true;
+					break;
+				}
+			}
+
+			return bankHold;
+		}
+
+		// This instance's own banking decision, with no sibling consultation — that separation is what stops
+		// AnySiblingWantsSupplyBank recursing. Only an ENABLED instance that actually owns the supply flags
+		// can want to bank; a condition-disabled twin never ticks, so letting it vote would let a dormant
+		// config silence a live one.
+		internal bool WantsSupplyBank()
+		{
+			if (IsTraitDisabled || !Info.SupplyDemandSizing || Info.SupplyPrecedenceStallCycles <= 0)
+				return false;
+
+			return ShouldBankForSupply(AvailableBudget());
 		}
 
 		// Clear the banking-spell trail. Called both when a truck is bought and when a spell is abandoned, so
@@ -1468,34 +1554,12 @@ namespace OpenRA.Mods.Common.Traits
 					return shortfall;
 				}
 
-				// PRECEDENCE. The pre-empt above declined, and if the ONLY reason was price then falling
-				// through would spend that price on something cheaper — which is precisely how a bot with
-				// ~100 cash and a trickle of income never accumulates 1000 for a truck while its soldiers sit
-				// dry. Buying nothing is the only move that expresses "this comes first".
-				//
-				// Bounded by PROGRESS, not by a tick count: banking persists only while the balance keeps
-				// setting new highs, so it terminates by construction. See SupplyPrecedenceMath for why a
-				// cycle count was the wrong shape — it could not terminate, and its fall-through was priced
-				// by the very savings it had accumulated.
-				if (ShouldBankForSupply(budget))
-				{
-					if (supplyBankedTick != world.WorldTick)
-					{
-						supplyBankedTick = world.WorldTick;
-						supplyBankedCycles++;
-					}
-
-					LogPick("supply-bank", "(none)", $"queue={queue.Info.Type} cash={budget} "
-						+ $"needy={supplyFleetNeedy} desired={supplyFleetDesired} owned={supplyFleetOwned} "
-						+ $"best={supplyBankBestCash} stalled={supplyBankStalled}/{Info.SupplyPrecedenceStallCycles} "
-						+ $"spell={supplyBankedCycles}");
-
-					return null;
-				}
-
-				// Not banking this cycle — demand met, truck affordable, or the balance stopped advancing.
-				// Ending the spell clears the progress trail so the NEXT spell is judged on its own merits
-				// rather than against a high-water mark from a richer moment.
+				// The bank HOLD itself now lives at the top of BuildUnit, at treasury scope, so that it also
+				// silences the sibling .heli/.fixedwing instances that never enter this method. Reaching here
+				// therefore means we are NOT banking this cycle — demand met, truck affordable, or the
+				// balance stopped advancing — so the spell ends and its progress trail is cleared, leaving
+				// the next spell to be judged on its own merits rather than against a high-water mark from a
+				// richer moment.
 				EndBankingSpell();
 			}
 
