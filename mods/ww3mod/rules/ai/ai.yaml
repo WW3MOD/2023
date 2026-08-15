@@ -1576,6 +1576,12 @@ Player:
 		FillBeforeDeparture: true
 		BoardingStallTicks: 250
 		CaptureFerryEscortSeats: 3
+		# 2026-08-15 half-empty departures — the user's original complaint. A load is fixed at whatever the
+		# arbitration gate admitted on the ONE tick the task was born; measured baseline on this scenario
+		# (run 260815_191433, seed 1017) departed with 1, 2 and 2 of 5 seats. Re-offer to the free pool each
+		# scan while loading. Cannot postpone departure: the departure math counts the original cohort only.
+		# Default false on the engine class and NOT set on the @poi twin ⇒ @stable is unchanged.
+		TopUpDuringLoading: true
 
 	# ===== Base Builder — shared baseline (enable-ai-player) =====
 	BaseBuilderBotModule@normal:

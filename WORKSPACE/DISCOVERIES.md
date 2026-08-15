@@ -4886,3 +4886,71 @@ Russia's spell ran **27 cycles** to the purchase; USA's **27** (unchanged). Late
 **Now verified on BOTH economies** (see the two-arm section above): USA tick 1980, Russia tick 3030, both trucks reaching the field. **Still unverified:** whether a bought truck then DELIVERS (PIPELINE item 56, untouched), and whether any of this reproduces in the user's own lobby games rather than tournament map-players on a 6-minute arena. **Still unattributed:** the residual ~100-250 spends during banking, which are not UnitBuilder siblings. What it does have is offline replay of the two real traces as NUnit cases — the predicate rides out USA's measured healthy climb (longest non-new-high run: 2, against a tolerance of 4) and abandons Russia's measured pinned spell — which is evidence about the predicate, not about a match.
 
 **Also unverified, unchanged:** whether a bought truck then *delivers* (PIPELINE item 56, untouched), and whether any of this reproduces in the user's own lobby games rather than tournament map-players on a 6-minute arena.
+
+## 2026-08-15 — Topping up a loading transport: the lever works, and the constraint bounds it to almost nothing
+
+Paired runs on `wip-transport-delivers`, **seed 1017**, same binary, one bool differing
+(`TopUpDuringLoading`): baseline `260815_191433_p77467`, after `260815_192247_p79585`.
+
+### The number, and it is a near-null result on the only clean comparison
+
+| departure | baseline `aboard` | after `aboard` | tick (base → after) |
+|---|---|---|---|
+| 1 — identical prefix, **the only clean pair** | **1** of 5 | **1** of 5 | 1015 → **1015** |
+| 2 — sim already diverged | 2 | 4 | 2515 → 2415 |
+| 3 — sim already diverged | 2 | 2 | 3415 → 3415 |
+
+**No departure ever got later**, which was the governing constraint, and departure 1 landed on exactly
+the same tick. But on the one departure where before and after are the same event, **the seat count did
+not move.** Departures 2 and 3 differ, and are not evidence: the first extra order diverges the
+simulation, so they are different events that merely share an index.
+
+### Why it cannot do much better, which is the transferable part
+
+The top-up itself worked mechanically: 11 offers, **5 admitted, 6 refused** — every refusal
+`idle=False activity=AttackMoveActivity`, i.e. the offensive layer's standing order inside the
+`ReorderDwellTicks: 120` window. The 5 that were won stayed won: `topup-coming=4` held for 450 ticks
+at departure, so **nobody was poached back**. They simply had not walked far enough.
+
+That is structural, not a tuning miss:
+
+1. `TryAssignNewTasks` recruits the **nearest** infantry it can get. So every later candidate is, by
+   construction, **further from the carrier than the passenger the carrier is waiting for**.
+2. The wait ends when that nearest passenger boards. So the time a top-up has to cover a longer
+   distance is *less* than the time the committed passenger needs to cover a shorter one.
+3. Therefore a top-up recruited mid-load can essentially never arrive in time, **and any design that
+   made it arrive in time would be extending the wait** — the one thing forbidden.
+
+**The seats can only be filled by units that are already close when the task is created.** Which puts
+the fix at task creation — i.e. on whatever is holding those units at that moment — and not mid-load.
+A first cut of this work also added a proximity bar on recruits (`cells <= farthestComing`); the
+baseline census showed it rejecting **30 of 32 scans' candidates** for exactly reason (1), and it was
+removed. It was never what made the change safe: that is the departure math not seeing top-ups at all.
+
+### The measurement that would have made this report a lie
+
+`[exp-transport] delivered ... pax=N` printed **`task.SeatTarget`**, a target, not a count of
+passengers. `TopUpDuringLoading` raises `SeatTarget`, so the after-run read `pax=5` against a baseline
+`pax=1` — a fivefold "improvement" that is purely the renaming of a variable this work itself inflated.
+It also means the three deliveries banked earlier on 2026-08-15 (`pax=1`, `pax=3`, `pax=3`) were
+**targets, and the passenger counts of those trips are unknown**. Now reports `PaxAtArrival`, captured
+at the Delivering → Unloading edge because the Unloading → Returning edge fires only once the hold is
+empty by definition. **Unverified — no run left.**
+
+General form, and it is the sharpest instance of the false-green family yet: **an observable named
+after the thing you want is not a measurement of it.** Both readings were internally consistent, the
+log line was pre-existing and trusted, and the number moved in the direction the hypothesis predicted.
+Nothing but reading the emit site would have caught it — `git grep` the format string, do not trust
+the field name.
+
+### `DefaultCash: 0` does not make the placed force the whole force
+
+The scenario sets it precisely so the named actors are the ones under test (the named-actor trap,
+banked the same day). It stops **production** and not **Supply Route reinforcements**: the map places
+one infantry type (`e3.america`) and the transport was measured boarding **eight**
+(`aa/ar/at/e2/e3/medi/mt/tl.america`). So the placed squad is not the squad the module uses, and the
+scenario's predicate is still measuring beside the mechanism. Per-member tracing settled the inherited
+open question — neither candidate explanation was right: the far-moved riflemen (`d40`, `d31`, `d22`)
+were **never carried**, they walked to the front under the offensive layer, while the two that left the
+world never returned. In WW3MOD, zero cash is not zero units — that is the whole point of the model
+(`game-model.md`), and any scenario relying on cash to pin its force is relying on the wrong lever.
