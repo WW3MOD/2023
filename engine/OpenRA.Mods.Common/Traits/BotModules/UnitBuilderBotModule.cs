@@ -55,6 +55,39 @@ namespace OpenRA.Mods.Common.Traits
 			"normal/rush/turtle/@stable.")]
 		public readonly Dictionary<string, int> UnitFloors = null;
 
+		[Desc("EXPERIMENTAL: scale a UnitFloors entry to the force it supports — 'one of these per N units of",
+			"UnitFloorSupportedTypes'. The floor becomes min(UnitFloors[type], supported / N) and the UnitFloors",
+			"value is reinterpreted as the CAP on it.",
+			"THIS FIXES A GENERAL DEFECT, NOT A UNIT. A bare UnitFloors entry is a standing minimum with no",
+			"denominator, and ChooseBelowFloor pre-empts the deficit argmax, the target ceiling AND the demand",
+			"gates to satisfy it. At t=0 every census is zero, so every floor is maximally unmet at exactly the",
+			"moment its need is lowest, and floored support types are cheap — so they clear first and become the",
+			"opening call-in. Measured on the shipped default (--composition-plan --start none): cycles 0 and 1",
+			"both buy medi, on BOTH factions; with --start platoon the medic is still the very first buy. The",
+			"user has reported this same shape twice, first as two supply trucks and then as two medics.",
+			"WITH A ZERO DENOMINATOR THE FLOOR IS ZERO — a support unit with nothing to support has no floor and",
+			"is left to the ordinary argmax. That is the whole fix; see SupportFloorMath.",
+			"Only meaningful for types whose value is PROPORTIONAL to the force they serve. A type keyed to",
+			"something else (an AA soldier is keyed to enemy AIR, not to own army size) does not belong here —",
+			"that is what ScaleAntiAirToThreat and UnitDelays are for. A floored type with NEITHER a ratio here",
+			"nor a threat gate nor a delay WILL be an opening buy; that is a property of the pre-empt, not an",
+			"accident.",
+			"Empty default ⇒ every floor keeps its flat behaviour, so @stable and the frozen profiles are",
+			"unchanged.")]
+		public readonly Dictionary<string, int> UnitFloorPer = null;
+
+		[Desc("EXPERIMENTAL: the denominator population for UnitFloorPer — the units a support type exists to",
+			"serve. Counted as owned + IN-CARGO, matching OwnedOrPending's cargo credit, because boarding",
+			"REMOVES a passenger from world.Actors outright and a world-only count would collapse the",
+			"denominator every time a transport picked the squad up.",
+			"PENDING call-ins are deliberately EXCLUDED here, which is an asymmetry with the numerator and is",
+			"the point rather than an oversight: the numerator counts pending so the floor cannot re-order the",
+			"same medic every cycle while the first walks in, but a unit still crossing the map from the edge is",
+			"not yet a squad that needs supporting. The floor should follow the force that EXISTS.",
+			"Unset ⇒ the denominator is zero, which makes every UnitFloorPer ratio hold its floor at 0. Set the",
+			"ratio and this together or neither.")]
+		public readonly HashSet<string> UnitFloorSupportedTypes = new();
+
 		[Desc("When should the AI start train specific units.")]
 		public readonly Dictionary<string, int> UnitDelays = null;
 
@@ -268,7 +301,9 @@ namespace OpenRA.Mods.Common.Traits
 			ActorNameCase.NormalizeKeysInPlace(UnitsToBuild);
 			ActorNameCase.NormalizeKeysInPlace(UnitLimits);
 			ActorNameCase.NormalizeKeysInPlace(UnitFloors);
+			ActorNameCase.NormalizeKeysInPlace(UnitFloorPer);
 			ActorNameCase.NormalizeKeysInPlace(UnitDelays);
+			ActorNameCase.NormalizeInPlace(UnitFloorSupportedTypes);
 			ActorNameCase.NormalizeInPlace(ResupplyUnitTypes);
 			ActorNameCase.NormalizeInPlace(AntiAirUnitTypes);
 			ActorNameCase.NormalizeInPlace(TransportUnitTypes);
@@ -584,6 +619,11 @@ namespace OpenRA.Mods.Common.Traits
 		void IBotRequestUnitProduction.RequestUnitProduction(IBot bot, string requestedActor)
 		{
 			queuedBuildRequests.Add(requestedActor);
+
+			// The lane the offline replay CANNOT see: another module ordering through this trait bypasses the
+			// composition pick entirely. Tagged so a log can distinguish "the argmax chose this" from "something
+			// else asked for it" — the distinction that decides whether a composition-side fix can work at all.
+			LogPick("request", requestedActor, $"queued={queuedBuildRequests.Count}");
 		}
 
 		bool IBotRequestPriorityUnitProduction.RequestPriorityUnitProduction(IBot bot, string requestedActor)
@@ -649,8 +689,11 @@ namespace OpenRA.Mods.Common.Traits
 			// would refuse the very AA floor whose purpose is to hold AA BEFORE enemy air is observed, and the
 			// floor could never be reached. False whenever UnitFloors is unset (the default), so the frozen
 			// evaluation order is unchanged for normal/rush/turtle/@stable.
-			var belowFloor = Info.UnitFloors != null && Info.UnitFloors.TryGetValue(name, out var floor)
-				&& OwnedOrPending(name) < floor;
+			// EffectiveFloorFor returns 0 for an unfloored type, so this short-circuits before OwnedOrPending on
+			// every profile that sets no UnitFloors — the frozen path does no extra work and reaches QueueOrder
+			// byte-identically.
+			var floor = EffectiveFloorFor(name);
+			var belowFloor = floor > 0 && OwnedOrPending(name) < floor;
 
 			if (!belowFloor && Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name)
 				&& !SupplyFleetUnderDesired(name) && !AnyFieldedUnitNeedsResupply())
@@ -870,16 +913,66 @@ namespace OpenRA.Mods.Common.Traits
 				// Counting PENDING call-ins is load-bearing, not defensive: a reinforcement walks in from the
 				// map edge over many purchase cycles, so an owned-only count would re-order the same unit every
 				// cycle until the first one arrives and blow straight past the floor.
-				if (OwnedOrPending(name) >= Info.UnitFloors[name])
+				//
+				// The floor is the EFFECTIVE one, which for a support type is scaled to the force it serves and
+				// is therefore ZERO before that force exists. That is what stops this pre-empt — which outranks
+				// the ceiling and every demand gate — from spending the opening call-ins on support units.
+				var effectiveFloor = EffectiveFloorFor(name);
+				if (OwnedOrPending(name) >= effectiveFloor)
 					continue;
 
-				AIUtils.BotDebug("{0} standing floor SHORT: {1} owned+pending {2} < floor {3}",
-					player, name, OwnedOrPending(name), Info.UnitFloors[name]);
+				AIUtils.BotDebug("{0} standing floor SHORT: {1} owned+pending {2} < floor {3} (flat {4})",
+					player, name, OwnedOrPending(name), effectiveFloor, Info.UnitFloors[name]);
 
 				return actorInfo;
 			}
 
 			return null;
+		}
+
+		// The floor actually in force for a type right now — the ONE place both decision sites read, so the
+		// pre-empt (ChooseBelowFloor) and the demand-gate exemption (BuildUnit) can never disagree about what
+		// the floor is. They did not disagree before because both inlined the same raw lookup; a scaled floor
+		// makes that duplication a real hazard, hence the shared accessor.
+		//
+		// Returns 0 for any type with no UnitFloors entry, which is every type on every profile that does not
+		// opt in — so this reduces to the frozen answer without touching the frozen path.
+		int EffectiveFloorFor(string name)
+		{
+			if (Info.UnitFloors == null || !Info.UnitFloors.TryGetValue(name, out var flatFloor))
+				return 0;
+
+			var per = 0;
+			if (Info.UnitFloorPer != null)
+				Info.UnitFloorPer.TryGetValue(name, out per);
+
+			// Only pay for the denominator walk when a ratio is actually configured for this type.
+			return SupportFloorMath.EffectiveFloor(flatFloor, per, per > 0 ? CountSupportedForce() : 0);
+		}
+
+		// The denominator for UnitFloorPer: how much of the force that support types serve actually EXISTS.
+		//
+		// Owned + in-cargo, matching OwnedOrPending's cargo credit — boarding REMOVES a passenger from
+		// world.Actors outright, so a world-only walk would collapse this count to near zero every time the
+		// squad boarded a transport and hand the floor straight back to zero mid-match.
+		//
+		// Pending is EXCLUDED, unlike the numerator. A unit still walking in from the map edge is not yet a
+		// squad that needs a medic, and counting it would let a queue full of infantry pull the support buy
+		// forward to exactly the t=0 moment this scaling exists to prevent.
+		//
+		// Order-independent sum over a membership filter, so world iteration order cannot leak into the
+		// decision (the determinism invariant).
+		int CountSupportedForce()
+		{
+			if (Info.UnitFloorSupportedTypes.Count == 0)
+				return 0;
+
+			var count = 0;
+			foreach (var a in OwnedUnitsIncludingCarried())
+				if (Info.UnitFloorSupportedTypes.Contains(a.Info.Name))
+					count++;
+
+			return count;
 		}
 
 		// Live actors — INCLUDING transported and garrisoned ones — plus everything already ordered for this
@@ -1158,7 +1251,10 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var shortfall = ChooseSupplyFleetShortfall(buildableNames, budget);
 				if (shortfall != null)
+				{
+					LogPick("supply-fleet", shortfall.Name, $"queue={queue.Info.Type}");
 					return shortfall;
+				}
 			}
 
 			// STANDING-POPULATION FLOOR — same reason the supply fleet pre-empts, generalised. A per-mille-of-
@@ -1168,7 +1264,11 @@ namespace OpenRA.Mods.Common.Traits
 			// floor on the same type.
 			var belowFloor = ChooseBelowFloor(buildableNames, budget);
 			if (belowFloor != null)
+			{
+				LogPick("floor", belowFloor.Name, $"queue={queue.Info.Type} owned+pending={OwnedOrPending(belowFloor.Name)} "
+					+ $"floor={EffectiveFloorFor(belowFloor.Name)} supported={CountSupportedForce()}");
 				return belowFloor;
+			}
 
 			var eligible = new bool[compositionTypes.Length];
 			var anyComposedTypeInQueue = false;
@@ -1209,6 +1309,8 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			LogCompositionChoice(compositionTypes[idx], ForceCompositionMath.DeficitAt(targets, census, idx), census, targets);
+			LogPick("deficit", compositionTypes[idx], $"queue={queue.Info.Type} "
+				+ $"deficit={ForceCompositionMath.DeficitAt(targets, census, idx)}");
 
 			return world.Map.Rules.Actors[compositionTypes[idx]];
 		}
@@ -1469,6 +1571,26 @@ namespace OpenRA.Mods.Common.Traits
 
 			AIUtils.BotDebug("{0} composition-directed buy: {1} (deficit {2}) [top {3}]",
 				player, chosen, deficit, string.Join(", ", top));
+		}
+
+		// WHICH LANE ORDERED THIS, on the same unconditional channel as the census.
+		//
+		// The census answers "what does the bot own"; it CANNOT answer "why did it buy that", and the two
+		// questions have different answers when several lanes can order the same type. Every existing pick log
+		// is AIUtils.BotDebug, which is default-off AND routes to game chat rather than debug.log — so the
+		// selection itself has never been observable in a log at all. That gap cost this branch a wrong
+		// conclusion: the offline replay showed the medic opening fixed while a live match still opened with
+		// medics, and with no lane tag there was no way to tell which of the procurement lanes disagreed with
+		// the replay.
+		//
+		// Gated on CensusLogInterval so it shares the census's opt-in and stays silent for @stable.
+		void LogPick(string lane, string type, string detail)
+		{
+			if (Info.CensusLogInterval <= 0)
+				return;
+
+			Log.Write("debug", $"[composition] pick tick={world.WorldTick} player={player.InternalName} "
+				+ $"lane={lane} type={type} {detail}");
 		}
 
 		long AvailableBudget()

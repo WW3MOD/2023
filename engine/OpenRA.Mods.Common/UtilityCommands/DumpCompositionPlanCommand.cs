@@ -37,7 +37,8 @@
  *     answer "how many trucks will the bot field". Read the [composition] census line from a real match for
  *     that; it now carries starving / trucks-desired / ammo-need for exactly this reason.
  * Everything else — ordinal slot order, target apportionment, ceiling eligibility, the argmax and its
- * tie-break, UnitLimits, UnitDelays, UnitFloors, the supply-fleet pre-empt — is the shipped code path,
+ * tie-break, UnitLimits, UnitDelays, UnitFloors and their UnitFloorPer scaling, the supply-fleet pre-empt —
+ * is the shipped code path,
  * called directly.
  */
 #endregion
@@ -91,9 +92,21 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			for (var i = 0; i < types.Length; i++)
 				limit[i] = info.UnitLimits != null && info.UnitLimits.TryGetValue(types[i], out var l) ? l : int.MaxValue;
 
-			var floor = new int[types.Length];
+			var flatFloor = new int[types.Length];
 			for (var i = 0; i < types.Length; i++)
-				floor[i] = info.UnitFloors != null && info.UnitFloors.TryGetValue(types[i], out var f) ? f : 0;
+				flatFloor[i] = info.UnitFloors != null && info.UnitFloors.TryGetValue(types[i], out var f) ? f : 0;
+
+			// UnitFloorPer turns a flat floor into one that phases in with the force it supports, so the floor
+			// is no longer a constant and has to be recomputed every cycle inside the loop. Modelled for the
+			// same reason the AA delay is: an instrument that ignored it would report the opening medic buy
+			// that this scaling exists to remove.
+			var floorPer = new int[types.Length];
+			for (var i = 0; i < types.Length; i++)
+				floorPer[i] = info.UnitFloorPer != null && info.UnitFloorPer.TryGetValue(types[i], out var p) ? p : 0;
+
+			var isSupported = new bool[types.Length];
+			for (var i = 0; i < types.Length; i++)
+				isSupported[i] = info.UnitFloorSupportedTypes.Contains(types[i]);
 
 			// UnitDelays are in TICKS; the buy block runs once per UnitBuilderBotModule.FeedbackTime ticks, so
 			// cycle c is tick 30*(c+1). Modelled because an AA floor is deliberately delayed and an instrument
@@ -135,7 +148,8 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				var t = baseTargets[i];
 				var vfit = t > 0 ? (long)cost[i] * ForceCompositionMath.Total / t : 0;
 				var at20k = t > 0 && cost[i] > 0 ? 20000L * t / (ForceCompositionMath.Total * (long)cost[i]) : 0;
-				var note = floor[i] > 0 ? $"FLOOR {floor[i]}"
+				var note = flatFloor[i] > 0 && floorPer[i] > 0 ? $"FLOOR {flatFloor[i]} @ 1 per {floorPer[i]} supported"
+					: flatFloor[i] > 0 ? $"FLOOR {flatFloor[i]} (flat)"
 					: aaGated[i] && openingAaAllowed == 0 ? "GATED OFF until enemy air observed"
 					: limit[i] != int.MaxValue ? $"UnitLimit {limit[i]}"
 					: "";
@@ -201,13 +215,25 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				// Standing-population floor pre-empt, second (after the supply fleet), ordinal order — the
 				// same order ChooseBelowFloor walks. Exempt from the ceiling and the AA threat gate by
 				// construction, exactly as the module's early return is.
+				//
+				// The denominator is the STANDING count of supported types, matching CountSupportedForce
+				// (alive units, pending excluded). At cycle 0 with no starting units it is 0, so every scaled
+				// floor is 0 and nothing is pre-empted — which is the behaviour under test.
+				var supported = 0;
+				for (var i = 0; i < types.Length; i++)
+					if (isSupported[i])
+						supported += counts[i];
+
 				if (preempt < 0)
 					for (var i = 0; i < types.Length; i++)
-						if (counts[i] < floor[i] && counts[i] < limit[i] && cycle >= delayCycle[i])
+					{
+						var eff = SupportFloorMath.EffectiveFloor(flatFloor[i], floorPer[i], supported);
+						if (counts[i] < eff && counts[i] < limit[i] && cycle >= delayCycle[i])
 						{
 							preempt = i;
 							break;
 						}
+					}
 
 				int idx;
 				if (preempt >= 0)
