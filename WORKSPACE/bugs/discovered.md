@@ -56,6 +56,28 @@ reflects a human viewing session, rather than reusing the unattended-test defaul
 Note this also makes the timeout FAIL misleading in the other direction: the message tells the reader to
 go looking in `debug.log` for a hang or a rules-load failure, when nothing is wrong at all.
 
+**SECOND, INDEPENDENT DEFECT IN THE SAME FILE — `set -e` makes the success mapping unreachable.**
+`run-demo.sh` ends with:
+
+```sh
+set -e                                              # line 17
+...
+./tools/autotest/run-test.sh --visible --audio "$@" # line 50
+rc=$?
+if [ ${rc} -eq 3 ]; then exit 0; fi                 # "verdict-less is the demo's whole point"
+exit ${rc}
+```
+
+Under `set -e` the script dies on line 50 the moment run-test.sh returns non-zero, so `rc=$?` and the
+mapping below it **never execute**. Verified with a minimal repro: the same shape prints nothing and exits
+3 with `set -e`, and prints the mapping line and exits 0 without it. So closing a demo window by hand —
+the documented, intended way to end a demo — always reports `NO-RESULT (exit 3)` and surfaces as a failed
+command. Both halves of this file's error handling are therefore dead: the timeout fires before the
+mapping could help, and the mapping could not run anyway.
+
+Fix is to capture the status without tripping the errexit, e.g. `if ./tools/autotest/run-test.sh ... ;
+then rc=0; else rc=$?; fi`, plus a demo-appropriate timeout default.
+
 ## 2026-08-15: [medium] OPEN, UNMEASURED — a ground vehicle whose crew ejected may stay permanently crippled after being repaired to full HP (found while: fixing the littlebird's zero damage, branch `wt/heli-gun`)
 
 **Inferred from code, NOT tested — do not treat the behaviour as confirmed.** `VehicleCrew` revokes a
