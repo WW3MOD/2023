@@ -834,7 +834,22 @@ namespace OpenRA.Mods.Common.Traits
 			if (!corridorOn)
 				dropOff = PickDropOffCell(srCell);
 			if (!dropOff.HasValue)
+			{
+				// One of three silent exits between "we have a carrier and passengers" and "a task exists".
+				// Until these were named, a pass that produced nothing was indistinguishable from a pass that
+				// never ran, and `tasks-active=0` could not be attributed to anything.
+				Log.Write("debug",
+					$"[exp-transport] no-task player={player.PlayerName} reason=no-drop-cell " +
+					$"carriers={candidates.Count} eligible={availablePassengers.Count} tick={world.WorldTick}");
 				return;
+			}
+
+			// Why no task got created this pass, when none did. Counted rather than logged per carrier so a
+			// 50-tick scan cannot flood the log.
+			var blockedTooFew = 0;
+			var blockedRefused = 0;
+			var ordered = 0;
+			var admitted = 0;
 
 			foreach (var carrier in candidates)
 			{
@@ -854,7 +869,10 @@ namespace OpenRA.Mods.Common.Traits
 					.Take(capacity)
 					.ToList();
 				if (toLoad.Count < Info.MinPassengersPerLoad)
+				{
+					blockedTooFew++;
 					continue;
+				}
 
 				// Issue EnterTransport order to each. They walk to the carrier and board.
 				// RECURRING — census §2 rank 1 and the other half of the §4.1 beat: 50 t (3.0 s), no dedup on
@@ -866,11 +884,20 @@ namespace OpenRA.Mods.Common.Traits
 				// while it never walks over — bounded, but a carrier idling a minute and a half for nobody.
 				var boarding = new List<Actor>();
 				foreach (var pax in toLoad)
+				{
+					ordered++;
 					if (bot.QueueOrder(new Order("EnterTransport", pax, Target.FromActor(carrier), false), BotOrderDamping.Recurring))
+					{
+						admitted++;
 						boarding.Add(pax);
+					}
+				}
 
 				if (boarding.Count == 0)
+				{
+					blockedRefused++;
 					continue;
+				}
 
 				// Park the carrier so passengers can board, but only now that at least one of them was
 				// actually told to come. Without this, AutoTarget can hold the carrier in an Attack
@@ -914,6 +941,18 @@ namespace OpenRA.Mods.Common.Traits
 				if (availablePassengers.Count < Info.MinPassengersPerLoad)
 					break;
 			}
+
+			// A pass that had a carrier and passengers but produced no task at all. `ordered` vs `admitted`
+			// is the discriminator: equal-and-zero-admitted means the arbitration gate refused every boarding
+			// order (the Recurring dwell rule), which no existing line reported — a pass blocked that way was
+			// indistinguishable from one that never ran.
+			if ((blockedTooFew > 0 || blockedRefused > 0) && carrierTasks.Count == 0)
+				Log.Write("debug",
+					$"[exp-transport] no-task player={player.PlayerName} " +
+					$"reason={(blockedRefused > 0 ? "orders-refused" : "too-few-pax")} " +
+					$"carriers={candidates.Count} eligible={availablePassengers.Count} " +
+					$"too-few={blockedTooFew} refused-carriers={blockedRefused} " +
+					$"ordered={ordered} admitted={admitted} tick={world.WorldTick}");
 		}
 
 		// Drop-off cell selection. Picks a contested cell where our line is thinnest, so the
