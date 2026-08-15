@@ -32,6 +32,41 @@ alternative — giving the littlebird a Gunner slot — was rejected because it 
 could then bail at `DamageState.Heavy` and re-zero the guns, smuggling a new gameplay behaviour in as a
 bug fix. Whether a Little Bird should have a two-man crew stays a separate, deliberate content decision.
 
+## 2026-08-15: [medium] OPEN — Restart drops out of any harness scenario instead of restarting it, and the run ends (found while: user mid-session in demo-heli-lanes, branch `wt/heli-gun`)
+
+Reported from live use: "I clicked restart from the menu and it closed? It seemed better but I wasnt
+done testing." The scenario did not restart; the process ended and the testing session was lost.
+
+Both restart paths go through the same call — the in-game menu
+(`IngameMenuLogic.cs:382`, `Game.RunAfterDelay(exitDelay, Game.RestartGame)`) and the harness's own
+button (`TestModeLogic.cs:43`, `restart.OnClick = Game.RestartGame`). So the "press End to restart" line
+in the demo headers is describing a path with the same defect, not a safe alternative.
+
+`Game.RestartGame` (`Game.cs:237-255`) re-resolves the map before restarting:
+
+```csharp
+lobbyInfo.GlobalSettings.Map = ModData.MapCache.GetUpdatedMap(lobbyInfo.GlobalSettings.Map);
+if (lobbyInfo.GlobalSettings.Map == null)
+{
+    Disconnect();
+    Ui.ResetAll();
+    LoadShellMap();
+    return;
+}
+```
+
+**NOT VERIFIED, and this is the part to check first:** the likely cause is that a harness scenario is a
+staged map (`Visibility: MissionSelector`, loaded from `tools/autotest/scenarios/<name>` rather than the
+mod's map list), so `GetUpdatedMap` cannot find it by UID, returns null, and the branch above disconnects
+to the shell map — after which the run has no game and ends. I read the code but did not instrument the
+lookup, so the null could equally be coming from a UID change caused by the harness rewriting the
+scenario between runs.
+
+Impact is worst for demos specifically, because a demo is a long human viewing session: losing it costs
+the user everything they were part-way through observing, and the header actively invites the click.
+
+Workaround until fixed: do not use Restart in a harness scenario; relaunch the demo instead.
+
 ## 2026-08-15: [medium] OPEN — every demo is killed after exactly 300s by a watchdog that waits for a verdict demos are designed never to write (found while: showing the user demo-heli-weapons, branch `wt/heli-gun`)
 
 `run-demo.sh` delegates to `run-test.sh --visible --audio "$@"` (`run-demo.sh:50`) and inherits its
