@@ -279,7 +279,19 @@ per-run.
 So: **`rm -f` the engine `debug.log` immediately before launching, as part of the run command, not as
 a separate step you might skip.** And the general rule, which is the one worth carrying: **an
 artefact at a fixed path with no run identity is not evidence about a particular run unless you
-personally emptied it first.** A timeout or crash makes this worse, not better — the harness gives up
+personally emptied it first.**
+
+**Under concurrent workers that clearing rule becomes a destructive race, so COPY the log out, do not
+just read it in place.** The path is global and unlocked, and `run-test.sh`'s single-instance guard
+protects the *game*, not the *log* — so the moment your run ends, the next worker's `rm -f` is free
+to fire. Observed 2026-08-15: a run finished at 11:47:55, another worker's run cleared the log at
+11:48:07, and a copy issued in the same shell line as the runner still lost the race by seconds. The
+run had executed correctly and produced a full log; the evidence simply no longer existed, and the
+run had to be spent again. **When other workers may be active, poll-copy the log to a private path
+while the run is in flight** (e.g. a background `while` loop copying every few seconds) rather than
+copying once after it exits — that captures the file while it is still being written and makes your
+evidence independent of anyone else's cleanup. A stale log gives you a wrong answer; a deleted one
+gives you none, and both cost a run. A timeout or crash makes this worse, not better — the harness gives up
 on its watchdog while the game keeps writing, so the log can be simultaneously stale at the top and
 still growing at the bottom. When a live result contradicts a solid offline result, **suspect the log
 before the code.** Full write-up in `WORKSPACE/DISCOVERIES.md`, 2026-08-15.
