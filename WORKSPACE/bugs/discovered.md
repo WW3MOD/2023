@@ -912,3 +912,17 @@ The two doctrinal modes (`DOCS/reference/economy.md`; PIPELINE item 56 "The two 
 ### [info] First positive live report on delivery conduct (PIPELINE item 56) — 2026-08-15
 
 Same user report, and it should not get lost inside the procurement complaint: *"When I saw it being built it seems like it **correctly went to resupply them**."* Item 56 (truck delivery) is the highest-priority queue item and has previously been described by the user as long-broken. This is the first live statement that the truck's **conduct** is right. It isolates the remaining problem cleanly: **procurement, not delivery.** Not a verdict on item 56 — one observation, no trace of an individual delivery — but it is evidence pointing the encouraging way, consistent with the 5-alive/3-eligible reading already banked in `DISCOVERIES.md` for `b91b5a88`.
+
+### [bug] The Mi-28 has no anti-air weapon at all, and its `secondary-air` armament does not exist — 2026-08-15
+
+Found while establishing an anti-air power ceiling for the Hind. `MI28` lists `Armaments: primary, secondary, secondary-air` (`mods/ww3mod/rules/ingame/aircraft-russia.yaml:319`) and references `secondary-air` again from its ammo pool and a `GrantConditionOnPreparingAttack` (`:329`, `:374`) — but **no `Armament@` named `secondary-air` exists anywhere in the repo**. `AmmoPool.cs:303` matches armaments by name and simply finds nothing, so the reference fails silently.
+
+The consequence is not cosmetic. The Mi-28's two real weapons are `30mm.Heli` (`ValidTargets: Ground`, `weapons-ballistics.yaml:487`) and `Ataka` (`ValidTargets: Vehicle, Defense`, `weapons-missiles.yaml:126`). **Neither can engage an aircraft**, so Russia's 6000-credit attack helicopter currently cannot shoot at helicopters at all, while its American counterpart can (Apache's Hellfire lists `Air`).
+
+**This directly undercuts the design intent recorded on `wt/heli-weapons`.** The user's constraint for the Hind's new last-resort AA gun was that it be *"not nearly as good as an attack helicopter"* — but on the Russian side there is no attack-helicopter benchmark to sit below, so the Hind's gun becomes the only Russian helicopter able to touch aircraft. The ceiling is correctly placed against the *American* Apache and against dedicated AA (Stinger/MANPAD/Tunguska), and is comfortably below both; it is the Russian internal ordering that is inverted, and that inversion predates this branch.
+
+Not fixed here — giving the Mi-28 anti-air is a balance decision beyond the four asks on this branch, and it needs a call on whether the intended weapon was an air-to-air variant of Ataka or a second gun mount. The littlebird carried the identical defect (`AmmoPool@1: Armaments: primary, primary-air` with no such armament, since the actor's first commit `98a4dc09`); that one **is** fixed on this branch, because the missing armament turned out to be exactly the feature being requested.
+
+### [info] Six weapons set `InaccuracyPerProjectile`, which cannot execute — 2026-08-15
+
+`Bullet.cs:213` gates the field on `lastPosIsSet`, a `readonly bool` initialised `false` at `:170` and never assigned. Still set by `weapons-ballistics.yaml:541,565,601,617,760` and `weapons-other.yaml:88`. Removed from `7.62mm.Minigun` on `wt/heli-weapons`; the other six left alone, but anyone tuning burst spread on those weapons is turning a dial connected to nothing. Full detail in `DISCOVERIES.md` (2026-08-15, helicopter guns).
