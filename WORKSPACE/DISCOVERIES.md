@@ -4474,3 +4474,49 @@ Follow-on from the recon entry directly above. Fixed on `wt/econ-gate` off `main
 **The control that makes "zero flips" mean something, and the rule now banked from it** (`DOCS/recipes/AUTOTEST.md`, new subsection). A no-flip sweep is worthless on its own: **a test that fails to move is indistinguishable from a test the change never reached.** The proof the change was live here is one number — in `test-supply-safe-front-keeps-cargo`, same seed and scenario with only the gate differing, one unit's ammo read `71/100/100/71/70` before and `71/100/100/70/70` after. **One round**, worthless as a behavioural finding and decisive as a control: the simulation diverged, so the change was active in that run, so the unchanged verdicts are a statement about the assertions rather than an artefact of the change never arriving. **This is the converse of the standing "a green run is not evidence unless something could have made it RED" rule, and it needed saying separately.**
 
 **The transferable rule.** A predicate named for a *lobby* concept (`Playable`) had become load-bearing for a *simulation* concept ("has an economy"), and survived because on shipped content the two sets coincide exactly. **When a gate's name and its job come from different domains it is correct only while that correlation holds, and nothing tests the correlation.** Before reusing a flag as a proxy, find where the engine *partitions* on it — `CreateMapPlayers` was one grep away and settles the question outright.
+
+## 2026-08-15 — a scenario missing `Rules: rules.yaml` runs its whole match with NO scenario rules and reports an ordinary timeout: the third "measured nothing" shape
+
+`tools/autotest/scenarios/<test>/map.yaml` must carry a top-level `Rules: rules.yaml` line or the sibling `rules.yaml` is **never read**. Working example: `tools/autotest/scenarios/test-experimental-poi-observe/map.yaml:96` (last line, preceded by a blank line — adjacent MiniYaml top-level entries merge).
+
+**Why this is worth banking rather than just fixing.** The failure is completely silent and mimics a legitimate result. With the line absent:
+- `rules.yaml` is skipped, so the `LuaScript` trait is never attached;
+- no assertion, no `Test.Pass`/`Test.Fail`, and `Logs/lua.log` stays **0 bytes**;
+- the game runs happily to the 300 s wall-clock watchdog and the runner reports `TIMEOUT-FAIL` with "game hung or rules failed to load";
+- `run-test.sh` explicitly checks the debug log and prints **"No 'Failed to load rules' … — hang is elsewhere"**, because nothing failed to load. The rules were never *requested*.
+
+Two full runs were spent chasing a non-existent hang before the missing line was found — the tell that would have shortcut it is **`lua.log` being zero-length**, which discriminates "the script ran and my predicate never went true" from "the script never ran at all". Check that first when a scenario times out with no verdict.
+
+**This is the same family as the two 2026-08-14 incidents already written into `DOCS/recipes/AUTOTEST.md`** (a control that passed when it was required to fail; a warhead override that silently inherited engine defaults so the scenario tested a world that was never built). The common shape is a scenario whose *setup* silently did not happen while the run still produced a verdict-shaped result. Here the whole `rules.yaml` — Lua, trait overrides, cash, everything — was absent, so the match ran on stock mod rules. **A timeout was the lucky outcome**: an assertion written to confirm an ABSENCE (nothing exploded, no unit strayed) would have passed on a world that was never built, and looked green.
+
+Discovered while building `test-combined-arms-rendezvous` (PIPELINE 34/35 neighbourhood).
+
+## 2026-08-15 — the `transportModuleResolved` latch is BENIGN on `@experimental`, which removes one of item 35's two candidate causes; and armed transports are recruited as gun platforms
+
+Both findings come from the combined-arms recon and belong to **PIPELINE item 35** ("find out why the shipped, enabled derrick ferry does not visibly fire"), not to the rendezvous work they were found during.
+
+**1. The one-shot latch cannot be the cause, so stop suspecting it.** `CaptureCoordinatorBotModule.cs:1705-1710` resolves `MountedTransportBotModule` once and caches the result — including a `null` — for the rest of the match. The worry was that it latches before the module's condition is granted, permanently disabling every transport-coupled behaviour. **It does not.** `enable-ai-experimental` is granted by `GrantConditionOnBotOwner` in `INotifyCreated.Created` (`engine/OpenRA.Mods.Common/Traits/Conditions/GrantConditionOnBotOwner.cs:44`) — at actor construction, **before any tick**, hence before any capture order can be issued. So `IsTraitDisabled` is already false at first resolve, and on `@experimental` the module is attached (`mods/ww3mod/rules/ai/ai.yaml:1513`), so the cache stores a live reference.
+
+That leaves item 35's **other** named candidate — no free carrier available at the moment of the capture scan — as the surviving hypothesis, and `ferried=True|False` at `CaptureCoordinatorBotModule.cs:1691` still distinguishes them with zero code.
+
+The latch is still poor shape (a trait disabled *later* by a condition change would be cached stale, and it asserts a decision instead of observing the world) but it is not today's bug. The rendezvous work deliberately did **not** copy the pattern: `MountedTransportBotModule.ResolveRendezvous` re-resolves per pass, like the existing `heliTransport` lookup.
+
+**2. An armed transport is recruited as a combat unit, so IFVs get staged forward empty.** `PoiOffensiveBotModule.IsEligibleCombatUnit` (`:2374`) admits anything with `IPositionableInfo` + `AttackBaseInfo` and **has no transport/`Cargo` exclusion**. `bradley` and `bmp2` are armed, so they are staged forward by `StageFreePool` as gun platforms whenever they are not mid-task — which is most of the time early, because `MinPassengersPerLoad: 2` (`ai.yaml:1484`/`:1517`) holds a carrier back until two eligible passengers sit inside the 14-cell reserve bubble, and opening infantry trickle in one at a time.
+
+This is a plausible mechanism behind the user's "most technicians walk while some transports do nothing of use". **Note the non-obvious part:** it is *not* a lock conflict. Carrier selection deliberately does **not** require `IsIdle` (`MountedTransportBotModule.cs:544-553`, with a `PITFALL (2026-05)` comment warning against re-adding it), so staging does not prevent the transport module from claiming a carrier. The two modules genuinely share the vehicle; the question is only which one gets to it first.
+
+Left unfixed on purpose: excluding armed transports from the offensive free pool edges onto unit-role/composition ground owned by `wt/build-order`, and it trades combat power for lift. Item 35's call, not this branch's.
+
+## 2026-08-15 — bot infantry walk to the front because the OFFENSIVE recruits them, not because the ferry failed: `StageFreePool` marches armed infantry to the same anchor as the armour
+
+Found while trying to build a control for the combined-arms rendezvous, and it reframes the user-facing complaint ("most technicians are still just walking all the way there").
+
+`PoiOffensiveBotModule.IsEligibleCombatUnit` (`:2374`) admits **anything** with `IPositionableInfo` + `AttackBaseInfo`. Rifle infantry qualify, so they enter the free pool and `StageFreePool` (`:2261`) issues each of them an individual `AttackMove` to the staging anchor — **on foot, one order per unit** (`:2356-2358`, `groupedActors: new[] { u }`). There is no minimum count and no composition term anywhere in that path.
+
+**So infantry reach the front on foot as the DESIGNED behaviour of the offensive layer, entirely independently of whether any transport module works.** Fixing the ferry cannot by itself stop infantry walking: the offensive layer is already walking them, and it starts at tick 3.
+
+**This has a sharp methodological consequence for anyone testing transport behaviour**, and it cost a run here. "Are the infantry near the armour?" is **not** a valid observable for any ferry change — infantry get near the armour by walking to the same anchor, so such a test passes with the ferry disabled entirely. A control built that way is a control that passes when it is required to fail. The observable has to distinguish units that were **carried** (e.g. latch that a unit went out of world into a `Cargo`, then measure where it reappears) from units that merely arrived.
+
+Two smaller traps in the same neighbourhood, both of which produce `passengers-eligible=0` with no other symptom:
+- **`e1.*` is not a configured passenger type.** `MountedTransportBotModule.PassengerTypes` (`mods/ww3mod/rules/ai/ai.yaml:1483`/`:1516`) lists `e3/ar/at/sn/tl/medi/e2/mt/aa/e4` — **`e1` is absent from both twins**, so a scenario that places `e1` infantry next to a carrier gets a ferry that never loads and logs only `passengers-eligible=0`.
+- `StageFreePool` does **not** commit to the goal-guard ledger (only axis assignment at `:1921`/`:2818` and bombard at `:3568` do), so staged-but-unassigned infantry DO remain eligible passengers. Staging and ferrying genuinely compete for the same bodies rather than one locking the other out.

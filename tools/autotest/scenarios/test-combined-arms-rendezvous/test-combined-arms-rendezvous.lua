@@ -1,38 +1,44 @@
--- AUTO TEST: the bot's infantry must reach the front WITH its armour, not be
--- delivered to a cell the armour was never going to.
+-- AUTO TEST: infantry that RIDE to the front must be set down with the armour,
+-- not at a cell the armour was never going to.
 --
--- WHAT THIS MEASURES: a positional relationship, checked only once the armour
--- has actually left the Supply Route.
+-- WHAT THIS MEASURES, and why it is phrased the way it is.
 --
---   (a) the tank has advanced at least AdvanceCells from the SR   -- "we are at
---       the front, not still on the start line"; and
---   (b) at least MinTogether riflemen are within TogetherCells of the tank.
+-- The obvious observable -- "are the riflemen near the tank" -- DOES NOT WORK, and
+-- a previous revision of this file proved it by passing with the fix disabled.
+-- Infantry are armed, so PoiOffensiveBotModule.StageFreePool recruits them into
+-- the free pool and AttackMoves them to the SAME staging anchor it sends the tank
+-- to. They arrive next to the armour under their own feet, the predicate goes
+-- true, and the rendezvous under test is never exercised. That is a control that
+-- passed when it was required to fail.
 --
--- BOTH clauses are load-bearing and (a) is the one that makes the test honest.
--- Without it the predicate is TRUE on tick 0 — everything starts stacked around
--- the SR — so it would pass before the behaviour under test had a chance to run
--- and would keep passing if the fix were reverted. That is precisely the
--- "control that passed when it had to fail" failure this project has hit before,
--- so the guard is not defensive dressing; it is the test.
+-- So the assertion is narrowed to units that were actually CARRIED:
 --
--- EXPECTED RED (RendezvousWithOffensiveStaging off): the tank stages forward down
--- the control-field gradient toward the massed enemy armour (bottom-right) while
--- the ferry drops its passengers on the SR->enemy-SR lerp (top-right). Clause (a)
--- goes true, clause (b) does not.
+--   (a) the tank has advanced >= AdvanceCells from the SR   -- we are judging at
+--       the front, not on the start line; and
+--   (b) >= MinTogether riflemen have been observed OUT OF WORLD (i.e. loaded into
+--       the carrier) and, having returned to the world, are within TogetherCells
+--       of the tank.
 --
--- EXPECTED GREEN (rendezvous on): the drop-off IS the armour's staging anchor, so
--- the riflemen dismount on top of the tank and (b) goes true shortly after (a).
+-- Clause (b) is the discriminator. A rifleman that walks the whole way is never
+-- out of world, so it can never satisfy it no matter where it ends up. Only a
+-- passenger that was set down counts, and where it is set down is exactly what
+-- the rendezvous changes: the legacy path drops it on the SR->enemy-SR lerp
+-- (top-right bearing), the rendezvous drops it on the armour's control-field
+-- staging anchor (bottom-right bearing, where the tank is).
 
-local DeadlineSeconds = 120
+local DeadlineSeconds = 200
 
 -- Own SR cell, mirrored from map.yaml. Used only for the "has left home" guard.
 local SrX, SrY = 6, 16
 
 local AdvanceCells = 8   -- tank must be this far from the SR before we judge
-local TogetherCells = 7  -- riflemen this close to the tank count as "with" it
+local TogetherCells = 7  -- a dismounted rifleman this close to the tank is "with" it
 local MinTogether = 2    -- ...and this many must be, so one straggler is not a pass
 
 local Riflemen = { BotRifle1, BotRifle2, BotRifle3, BotRifle4 }
+
+-- Per-rifleman record of "this one was inside the carrier at some point".
+local WasCarried = {}
 
 -- Chebyshev (king-move) distance, matching RendezvousMath.CellDistance so the
 -- test measures in the same metric the code reasons in.
@@ -43,13 +49,14 @@ local function CellDistance(a, b)
 	return dy
 end
 
--- Diagnostics carried to the failure message. A bare timeout cannot distinguish
--- "the ferry delivered them somewhere else" (the defect) from "nothing moved at
--- all" (a scenario that measured nothing) -- and those demand opposite responses,
--- so the reason string has to say which one happened.
+-- Diagnostics carried into the failure message. A bare timeout cannot tell
+-- "the ferry ran and set them down in the wrong place" (the defect) from "the
+-- ferry never ran at all" (a scenario that measured nothing), and those demand
+-- opposite responses -- so the reason string has to say which happened.
 local BestTankAdvance = 0
+local EverCarried = 0
 local BestTogether = 0
-local BestInfantryGap = 9999
+local BestCarriedGap = 9999
 
 WorldLoaded = function()
 	TestHarness.FocusBetween(BotTank, BotCarrier)
@@ -61,34 +68,42 @@ WorldLoaded = function()
 			return "fail: the bot's tank died before the rendezvous could be judged"
 		end
 
+		-- Latch "was carried" every tick, independently of the clauses below, so a
+		-- rifleman that boards and dismounts before the tank has advanced is still
+		-- counted. The flag is monotonic: boarding is evidence, not a state.
+		for i = 1, #Riflemen do
+			local r = Riflemen[i]
+			if r ~= nil and not r.IsDead and not r.IsInWorld and not WasCarried[i] then
+				WasCarried[i] = true
+				EverCarried = EverCarried + 1
+			end
+		end
+
 		local tankAdvance = CellDistance(BotTank.Location, sr)
 		if tankAdvance > BestTankAdvance then BestTankAdvance = tankAdvance end
 
-		-- Clause (a): do not judge anything until the armour has left the SR.
+		-- Clause (a).
 		if tankAdvance < AdvanceCells then
 			return false
 		end
 
-		-- Clause (b): count riflemen standing with the armour. Mounted passengers
-		-- are out of world and simply do not count -- which is correct: the claim
-		-- is about where they ARRIVE, not where they are carried.
+		-- Clause (b): only riflemen that RODE count.
 		local together = 0
-		local nearestGap = 9999
 		for i = 1, #Riflemen do
 			local r = Riflemen[i]
-			if r ~= nil and not r.IsDead and r.IsInWorld then
+			if r ~= nil and WasCarried[i] and not r.IsDead and r.IsInWorld then
 				local gap = CellDistance(r.Location, BotTank.Location)
-				if gap < nearestGap then nearestGap = gap end
+				if gap < BestCarriedGap then BestCarriedGap = gap end
 				if gap <= TogetherCells then together = together + 1 end
 			end
 		end
 
 		if together > BestTogether then BestTogether = together end
-		if nearestGap < BestInfantryGap then BestInfantryGap = nearestGap end
 
 		return together >= MinTogether
-	end, "infantry never reached the armour: best tank advance from SR = " .. BestTankAdvance ..
-		" cells (needed " .. AdvanceCells .. "), best riflemen within " .. TogetherCells ..
-		" cells of the tank = " .. BestTogether .. " (needed " .. MinTogether ..
-		"), closest any rifleman ever got = " .. BestInfantryGap .. " cells")
+	end, "carried infantry never joined the armour: tank advanced " .. BestTankAdvance ..
+		"/" .. AdvanceCells .. " cells from SR; riflemen ever carried = " .. EverCarried ..
+		" (0 here means the FERRY NEVER RAN and this run measured nothing about the " ..
+		"rendezvous); best carried-and-with-armour = " .. BestTogether .. "/" .. MinTogether ..
+		"; closest a carried rifleman got to the tank = " .. BestCarriedGap .. " cells")
 end

@@ -18,6 +18,21 @@ Categories: Test
 
 # Combined-arms rendezvous (PIPELINE 34/35 neighbourhood).
 #
+# STATUS: NOT YET A PASSING PROOF. This scenario has never produced a valid
+# RED. Three runs, three different scaffolding failures, each fixed here:
+#   1. `Rules: rules.yaml` was missing entirely, so rules.yaml (and with it the
+#      LuaScript trait) never loaded — the match ran on stock mod rules and hit
+#      the watchdog with an empty lua.log. See the line at the bottom of this file.
+#   2. the infantry were `e1.america`, which is NOT in MountedTransportBotModule's
+#      PassengerTypes, so the ferry had nobody to carry (`passengers-eligible=0`)
+#      — AND the original assertion ("riflemen near the tank") PASSED anyway with
+#      the fix disabled, because armed infantry are recruited by StageFreePool and
+#      walk to the same anchor. A control that passed when it had to fail.
+#   3. four t90s placed to populate belief killed the lead abrams before the
+#      assertion could be judged — inconclusive, not a control.
+# The assertion now only counts riflemen observed OUT OF WORLD (i.e. carried), so
+# walking cannot satisfy it. Fix 3 above is untested tuning.
+#
 # MEASURES A POSITIONAL RELATIONSHIP, not "it looked better": how far the bot's
 # INFANTRY end up from the bot's ARMOUR once both have left the Supply Route.
 #
@@ -90,16 +105,16 @@ Actors:
 	BotCarrier: bradley
 		Owner: USA-bot
 		Location: 8,18
-	BotRifle1: e1.america
+	BotRifle1: e3.america
 		Owner: USA-bot
 		Location: 7,14
-	BotRifle2: e1.america
+	BotRifle2: e3.america
 		Owner: USA-bot
 		Location: 7,15
-	BotRifle3: e1.america
+	BotRifle3: e3.america
 		Owner: USA-bot
 		Location: 7,17
-	BotRifle4: e1.america
+	BotRifle4: e3.america
 		Owner: USA-bot
 		Location: 7,18
 	# The enemy armour exists to populate BELIEF, and is massed in the bottom-right
@@ -109,21 +124,29 @@ Actors:
 	# believed enemy or ResolveStagingAnchor returns null — in which case the
 	# armour never stages forward either, which is the very pre-condition of the
 	# symptom under test (StageFreePool early-returns on a null anchor).
+	# UNVERIFIED TUNING — see the header note. Reduced from four t90s at x=50-52 to
+	# two at the far corner because the four-tank version KILLED the lead abrams
+	# before the assertion could be judged ("the bot's tank died before the
+	# rendezvous could be judged"), which is an inconclusive run, not a control.
+	# The belief source only has to populate the control field; it does not have to
+	# be able to win a fight. Whoever runs this next should confirm the abrams
+	# survives to the anchor, and push these further right / drop to one if not.
 	EnemyTank1: t90
 		Owner: Russia-bot
-		Location: 50,29
+		Location: 60,30
 	EnemyTank2: t90
 		Owner: Russia-bot
-		Location: 52,30
-	EnemyTank3: t90
-		Owner: Russia-bot
-		Location: 50,31
-	EnemyTank4: t90
-		Owner: Russia-bot
-		Location: 52,28
+		Location: 62,31
 	SpawnUSA: mpspawn
 		Owner: Neutral
 		Location: 6,16
 	SpawnRussia: mpspawn
 		Owner: Neutral
 		Location: 58,4
+
+# LOAD-BEARING, and its absence is SILENT. Without this line rules.yaml is never
+# read, so LuaScript is never attached, no assertion ever runs and the scenario
+# burns the full watchdog with an empty lua.log — a scenario that measures
+# nothing while looking like an ordinary timeout. Blank line above is significant
+# (adjacent MiniYaml top-level entries merge).
+Rules: rules.yaml
