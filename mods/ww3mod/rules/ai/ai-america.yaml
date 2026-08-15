@@ -239,6 +239,42 @@ Player:
 		# SupplyFleetUnderDesired returns false outright when the flag is off — @stable never had a truck floor.
 		SupplyTruckFloor: 0
 		SupplyTruckCeiling: 6
+		# ===== RESUPPLY PRECEDENCE (user ruling 2026-08-15) =====
+		# "There are a lot of soldiers now that are out of ammo but still I see almost no supply trucks being
+		# built... soldiers out of ammo are useless. That should be the first priority to solve at all times."
+		# MEASURED on tournament-arena-composition-2p before this change: ZERO trucks ordered by any lane for
+		# a whole match, while ammo-need=True held continuously from tick 1240. Two routes were closed at
+		# once, which is why six merges aimed at truck behaviour never touched it:
+		#  (1) SIZING. DesiredTrucks was fed CountStarvingCustomers (below 25% ammo), which read 0 at EVERY
+		#      snapshot, while the ammo-need boolean reads SupplyProvider's own service bar and read True.
+		#      One fact, two predicates, and the blind one held the purse. SupplySizeFromNeed switches the
+		#      sizing input to the serving bar. NOT done by lowering SupplyStarvingThresholdPerMille: that
+		#      value is also the truck's SEEK threshold (shared with SupplyFollowerBotModule), so moving it
+		#      would retarget delivery while trying to fix procurement.
+		#  (2) AFFORDABILITY. Measured cash after tick 760: 43/121/95/64/40/9/3 against a 1000-cost truck,
+		#      income ~79 per interval. The money existed in aggregate and was spent piecemeal on cheap types
+		#      before it could accumulate. A pre-empt that merely SKIPS when broke is not a priority — the
+		#      cycle falls through and spends the truck's money on a rifleman. SupplyPrecedenceBankCycles
+		#      lets the path buy NOTHING and bank instead, which is the only move that expresses precedence.
+		# 20 cycles = 600 ticks at FeedbackTime 30, DERIVED from the paired baseline arm rather than guessed.
+		# That run (seed 4242, flags off) held trucks-desired=2 and ammo-need=True for 110 consecutive
+		# snapshots and still bought zero trucks, with cash sawtoothing 92/158/124/190/256/166/72 — a rise of
+		# ~66 per 40-tick interval (~1.65/tick) repeatedly knocked back down by a cheap buy, never once
+		# reaching 1000. Banking 600 ticks accrues ~990, which closes a 1000-cost truck from the ~100-300 the
+		# bot actually idles at, in a SINGLE spell.
+		# THE BOUND IS THE SAFETY ARGUMENT: unbounded precedence is a production deadlock for any army whose
+		# income never reaches the price. It caps CONSECUTIVE silent cycles — after it the path lets one
+		# ordinary buy through and starts banking again, so it converges over successive spells rather than
+		# giving up, and production can never stall longer than 600 ticks at a stretch.
+		# The cost, stated: while logistics is owed the army grows more slowly. That is the trade the ruling
+		# asks for ("soldiers out of ammo are useless"), and it is bounded and visible in the banked= census
+		# field rather than silent.
+		# NOT a restored SupplyTruckFloor: gated on live measured demand, so with a full-ammo army at t=0 —
+		# the two-trucks-at-the-start bug the user reported FIRST — both knobs are inert.
+		# @stable is UNAFFECTED: both are read only under SupplyDemandSizing, which @stable does not set, and
+		# both default to baseline (false / 0) in C# regardless.
+		SupplySizeFromNeed: true
+		SupplyPrecedenceBankCycles: 20
 		# Early-econ behaviour 2: vehicle AA proportionate to observed air (aa.america ungated picket).
 		ScaleAntiAirToThreat: true
 		AntiAirUnitTypes: strykershorad
