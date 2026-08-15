@@ -155,6 +155,55 @@ namespace OpenRA.Mods.Common.Traits
 			"however bad the front gets. UnitLimits still applies on top as the absolute backstop.")]
 		public readonly int SupplyTruckCeiling = 4;
 
+		[Desc("EXPERIMENTAL: size the fleet from customers at SupplyProvider's OWN service bar",
+			"(ResupplyNeedThreshold) rather than from SupplyStarvingThresholdPerMille.",
+			"MEASURED DEFECT this closes: `starving` read 0 at EVERY snapshot of a full match while",
+			"`ammo-need` read True continuously from tick 1240 — two predicates for one fact with different",
+			"bars, and the stricter one was sizing the fleet, so DesiredTrucks returned 0 all match and the",
+			"pre-empt never fired. AnyFieldedUnitNeedsResupply (which sets ammo-need) mirrors",
+			"SupplyProvider.MinNeedThreshold, i.e. the bar at which a customer is actually SERVED; sizing the",
+			"fleet from anything stricter asks for trucks later than the supply system admits it needs them.",
+			"WHY NOT JUST LOWER SupplyStarvingThresholdPerMille — corrected 2026-08-15, the earlier answer here",
+			"was FALSE and would have stopped the next reader trying the simpler thing. It claimed that value",
+			"is also the truck's seek threshold. It is not: SupplyStarvingThresholdPerMille is declared on THIS",
+			"trait and read at exactly one site (CountStarvingCustomers), while the truck's seek threshold is",
+			"SupplyFollowerBotModuleInfo.HuntStarvingThresholdPerMille — a different field on a different trait,",
+			"set independently in ai.yaml. They merely share the value 250 and a helper family. Lowering the",
+			"procurement one would NOT have retargeted delivery.",
+			"The real reason to size from the service bar is that it is the bar at which a customer is SERVED,",
+			"so it cannot drift out of agreement with the supply system the way a second, independently-tuned",
+			"number can — which is exactly how the two came to disagree in the first place.",
+			"Taking the max of the two counts keeps the switch one-directional — it can only raise the fleet.",
+			"Default false ⇒ the starving count keeps sizing the fleet, unchanged.")]
+		public readonly bool SupplySizeFromNeed = false;
+
+		[Desc("EXPERIMENTAL: how many CONSECUTIVE build cycles the banked balance may fail to set a new high",
+			"before the bot gives up saving for a supply truck and resumes ordinary buying.",
+			"USER RULING 2026-08-15: 'soldiers out of ammo are useless. That should be the first priority to",
+			"solve at all times.' That is a PRECEDENCE, and nothing in this path could express one: a pre-empt",
+			"that merely SKIPS when it cannot afford the item is not a priority, because the cycle then falls",
+			"through and buys a rifleman with the very cash the truck was waiting for.",
+			"THE BOUND IS ON PROGRESS, NOT ON TIME, and that is a correction from review rather than a tuning",
+			"choice. A cycle-count bound was tried and is the WRONG SHAPE three ways: it does not terminate",
+			"(the counter resets on fall-through, so the steady state for a poor player is N silent cycles,",
+			"one buy, N silent cycles, forever, and the truck is never bought); its fall-through purchase is",
+			"PRICED BY the savings, because composition eligibility is affordability-filtered and a fat balance",
+			"promotes expensive slots — measured, a spell banked to 819 against a 1000 truck and immediately",
+			"bought a 450 humvee; and a cycle count cannot encode a per-map, per-player economy rate.",
+			"Banking on progress terminates by construction: it continues only while cash sets new highs, and a",
+			"balance that keeps setting new highs reaches any fixed price in finite time.",
+			"It also ABSORBS a defect it does not fix: this bank silences only the composition lane, while the",
+			"request drains (CaptureCoordinator, AdaptiveProduction) and the separate .heli UnitBuilder",
+			"instances keep spending the same treasury. Rather than override other modules' guarantees, the",
+			"progress test NOTICES the drain — no new high, stall climbs, spell ends — instead of holding",
+			"production silent against a treasury it does not control.",
+			"Tolerance rather than 1 because income arrives in lumps: a measured healthy spell ran",
+			"92/92/158/224/224/290/.../554/521/521/587, with two flat cycles and a dip while climbing overall.",
+			"This is NOT a restored SupplyTruckFloor: it is gated on live measured demand, so with a full-ammo",
+			"army — the t=0 case the user complained about first — it is inert.",
+			"0 (default) ⇒ off, the cycle falls through exactly as before.")]
+		public readonly int SupplyPrecedenceStallCycles = 0;
+
 		[Desc("EXPERIMENTAL (early-econ behaviour 2): cap gated AA call-ins (the expensive vehicle SHORAD/",
 			"Tunguska) to the OBSERVED enemy air threat. Cheap AA infantry stay ungated as a baseline picket.",
 			"observedAir is fog-legal — only enemy aircraft the player can currently see. Prevents fielding",
@@ -341,8 +390,30 @@ namespace OpenRA.Mods.Common.Traits
 		string[] floorTypes = Array.Empty<string>();
 		int supplyFleetShortfallTick = -1;
 		int supplyFleetStarving;
+		int supplyFleetNeedy;
 		int supplyFleetOwned;
 		int supplyFleetDesired;
+
+		// Consecutive cycles spent banking toward a truck, and the tick the last one was counted on. The tick
+		// guard is load-bearing: ChooseByDeficit runs once PER QUEUE, so an ungated counter would burn two or
+		// three of the allowance on a single bot tick and the bound would mean whatever the queue count
+		// happened to be. One tick, one banked cycle.
+		// Banking-spell state: the best balance seen so far in the current spell, and how many consecutive
+		// cycles have failed to beat it. Banking continues only while the balance keeps setting new highs,
+		// which is what makes the spell terminate rather than run to a fixed tick count.
+		long supplyBankBestCash;
+		int supplyBankStalled;
+		int supplyBankedCycles;
+		int supplyBankedTick = -1;
+
+		// The bank decision is taken once per world tick and reused by every queue in that tick, so the
+		// Vehicle and Infantry passes can never reach opposite conclusions about one shared treasury.
+		int supplyBankDecisionTick = -1;
+		bool supplyBankDecision;
+
+		// Per-instance cache of the treasury-wide hold (see AnySiblingWantsSupplyBank).
+		int bankHoldTick = -1;
+		bool bankHold;
 
 		IBotRequestPauseUnitProduction[] requestPause;
 		int idleUnitCount;
@@ -592,12 +663,20 @@ namespace OpenRA.Mods.Common.Traits
 			// uses — the fields are only refreshed when that runs, so reading them raw would print whatever
 			// tick last happened to ask, which is a stale number that looks live. -1 means "not applicable"
 			// (demand sizing off), never "zero starving".
+			// `needy` joins them for the same reason, and it is the number that settles the 2026-08-15
+			// diagnosis: `starving` and `ammo-need` disagreed all match because they measure at different
+			// bars, and printing only the stricter one made "desired=0 while men are dry" look like a
+			// contradiction rather than the arithmetic it is. With both counts on the line the sizing input
+			// is visible, so a future desired=0 can be read off as "genuinely no demand" or "sized from the
+			// wrong bar" without another instrumented run.
 			var starving = -1;
+			var needy = -1;
 			var desired = -1;
 			if (Info.SupplyDemandSizing && supplyFleetTypes.Length > 0)
 			{
 				SupplyFleetUnderDesired(supplyFleetTypes[0]);
 				starving = supplyFleetStarving;
+				needy = Info.SupplySizeFromNeed ? supplyFleetNeedy : -1;
 				desired = supplyFleetDesired;
 			}
 
@@ -611,7 +690,8 @@ namespace OpenRA.Mods.Common.Traits
 				+ $"net={econRes.NetChange} earned={econRes.Earned} spent={econRes.Spent}";
 
 			Log.Write("debug", $"[composition] census tick={world.WorldTick} player={player.InternalName} "
-				+ $"cash={AvailableBudget()} starving={starving} trucks-desired={desired} "
+				+ $"cash={AvailableBudget()} starving={starving} needy={needy} trucks-desired={desired} "
+				+ $"bank-spell={supplyBankedCycles} bank-best={supplyBankBestCash} bank-stalled={supplyBankStalled} "
 				+ $"ammo-need={AnyFieldedUnitNeedsResupply()} {econ} "
 				+ $"(type=inWorld+inCargo/census‰vtarget‰) {string.Join(" ", parts)}");
 		}
@@ -649,6 +729,34 @@ namespace OpenRA.Mods.Common.Traits
 
 		void BuildUnit(IBot bot, string category, bool buildRandom)
 		{
+			// TREASURY-SCOPE BANK HOLD. Checked here rather than inside ChooseByDeficit because the sibling
+			// instances this has to silence do NOT set CompositionDirected — the .heli and .fixedwing twins
+			// ride the legacy lottery path and never enter ChooseByDeficit at all, so a hold placed there
+			// would miss exactly the instances that were draining the savings.
+			//
+			// Ordering is preserved for the owning instance: ShouldBankForSupply returns false whenever the
+			// truck is affordable, so an affordable truck falls through to ChooseByDeficit and is bought by
+			// the shortfall pre-empt as before. This only suppresses cycles that would otherwise SPEND the
+			// price on something else.
+			if (AnySiblingWantsSupplyBank())
+			{
+				// One line per TICK, not per queue per instance: the hold is a treasury-wide fact, and
+				// logging it three times a cycle (ground x2 queues + heli) would triple the volume while
+				// saying the same thing. The owning instance carries the counters, so it does the logging.
+				if (Info.SupplyDemandSizing && supplyBankedTick != world.WorldTick)
+				{
+					supplyBankedTick = world.WorldTick;
+					supplyBankedCycles++;
+
+					LogPick("supply-bank", "(none)", $"cash={AvailableBudget()} "
+						+ $"needy={supplyFleetNeedy} desired={supplyFleetDesired} owned={supplyFleetOwned} "
+						+ $"best={supplyBankBestCash} stalled={supplyBankStalled}/{Info.SupplyPrecedenceStallCycles} "
+						+ $"spell={supplyBankedCycles}");
+				}
+
+				return;
+			}
+
 			// Pick a free queue
 			var queue = AIUtils.FindQueuesByCategory(player)[category].FirstOrDefault(q => !q.AllQueued().Any());
 			if (queue == null)
@@ -785,12 +893,52 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				supplyFleetShortfallTick = world.WorldTick;
 				supplyFleetStarving = CountStarvingCustomers();
+
+				// Only walk the actor list a second time when the need bar is actually in use.
+				supplyFleetNeedy = Info.SupplySizeFromNeed ? CountResupplyCustomers() : 0;
+
 				supplyFleetOwned = SupplyTrucksOwnedOrPending();
-				supplyFleetDesired = SupplyFleetMath.DesiredTrucks(supplyFleetStarving, Info.SupplyCustomersPerTruck,
+				supplyFleetDesired = SupplyFleetMath.DesiredTrucks(
+					SupplyPrecedenceMath.SizingCustomers(Info.SupplySizeFromNeed, supplyFleetStarving, supplyFleetNeedy),
+					Info.SupplyCustomersPerTruck,
 					Info.SupplyDemandOvercompensationPercent, Info.SupplyTruckFloor, Info.SupplyTruckCeiling);
 			}
 
 			return supplyFleetOwned < supplyFleetDesired;
+		}
+
+		// Fielded units that a truck would actually SERVE right now — the counting twin of
+		// AnyFieldedUnitNeedsResupply, at the identical bar (ResupplyNeedThreshold, mirroring
+		// SupplyProvider.MinNeedThreshold).
+		//
+		// This exists because the boolean and the count were measuring different things: the boolean said
+		// "somebody needs resupply" (True from tick 1240 to the end of the match) while the fleet was sized
+		// from CountStarvingCustomers, a strictly tighter bar that read 0 at every snapshot. One fact, two
+		// predicates, and the one that could not see the demand was the one holding the purse. Sharing
+		// OwnedUnitsIncludingCarried and the same Rearmable filter is what keeps them from drifting again.
+		//
+		// Counts UNITS, not pools, exactly as the starving count does: a soldier with two dry weapons is one
+		// customer for one truck.
+		int CountResupplyCustomers()
+		{
+			var count = 0;
+			foreach (var a in OwnedUnitsIncludingCarried())
+			{
+				var rearmable = a.TraitOrDefault<Rearmable>();
+				if (rearmable == null || !rearmable.Info.RearmActors.Overlaps(Info.ResupplyUnitTypes))
+					continue;
+
+				var pools = rearmable.RearmableAmmoPools;
+				if (pools == null || pools.Length == 0)
+					continue;
+
+				if (ResupplyDemand.MeetsThreshold(
+					ResupplyDemand.UnitNeed(pools.Select(p => (p.Info.Ammo, p.CurrentAmmoCount, p.Info.SupplyValue))),
+					Info.ResupplyNeedThreshold))
+					count++;
+			}
+
+			return count;
 		}
 
 		// Fielded units with at least one truck-rearmable pool below the starving bar. Deliberately counts
@@ -879,6 +1027,153 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return null;
+		}
+
+		// Does ANY UnitBuilder instance on this player want to bank right now?
+		//
+		// THE SCOPE ARGUMENT, which is this branch's own rule applied where it had not yet been applied: a
+		// decision about a shared resource must be taken at the scope of that resource. The resource is the
+		// TREASURY. One trait instance is not its scope, and neither is one queue — that was the first
+		// version of this bug, fixed a layer down. Under @experimental a player runs THREE live
+		// UnitBuilderBotModule instances (the ground twin, .fixedwing, and the experimental .heli twin), all
+		// spending one balance, and only the ground twin carries the supply flags. Measured consequence: a
+		// player banked 29 consecutive cycles, reached cash 935 against a 1000 truck, and was drained back to
+		// 477 by its siblings — 1,340 spent during the silence.
+		//
+		// DELIBERATELY NARROW: siblings of THIS TRAIT only. It is not extended to other module types even
+		// though they also spend, because CaptureCoordinatorBotModule's capturer floor and
+		// AdaptiveProductionBotModule's counter-buys are those modules' own correctness contracts, and
+		// suppressing them from here would trade a scope bug for a cross-module dependency. Silencing a
+		// sibling instance of the SAME trait overrides nobody's invariant — it makes one mechanism behave
+		// consistently with itself.
+		//
+		// Cached per world tick. The cache is per-instance but cannot disagree across instances, because the
+		// ANSWER is computed by the owning instance's own per-tick-cached ShouldBankForSupply — so the stall
+		// bookkeeping runs exactly once per tick no matter which sibling asks first. That is genuinely shared
+		// state derived from one owner, not N caches that happen to agree.
+		bool AnySiblingWantsSupplyBank()
+		{
+			if (bankHoldTick == world.WorldTick)
+				return bankHold;
+
+			bankHoldTick = world.WorldTick;
+			bankHold = false;
+
+			foreach (var sibling in player.PlayerActor.TraitsImplementing<UnitBuilderBotModule>())
+			{
+				if (sibling.WantsSupplyBank())
+				{
+					bankHold = true;
+					break;
+				}
+			}
+
+			return bankHold;
+		}
+
+		// This instance's own banking decision, with no sibling consultation — that separation is what stops
+		// AnySiblingWantsSupplyBank recursing. Only an ENABLED instance that actually owns the supply flags
+		// can want to bank; a condition-disabled twin never ticks, so letting it vote would let a dormant
+		// config silence a live one.
+		internal bool WantsSupplyBank()
+		{
+			if (IsTraitDisabled || !Info.SupplyDemandSizing || Info.SupplyPrecedenceStallCycles <= 0)
+				return false;
+
+			return ShouldBankForSupply(AvailableBudget());
+		}
+
+		// Clear the banking-spell trail. Called both when a truck is bought and when a spell is abandoned, so
+		// the high-water mark can never leak across spells: a stale `best` from a richer moment would make
+		// every later cycle look stalled and suppress banking that was in fact making progress.
+		void EndBankingSpell()
+		{
+			supplyBankBestCash = 0;
+			supplyBankStalled = 0;
+			supplyBankedCycles = 0;
+		}
+
+		// Should this cycle buy NOTHING and bank toward a truck? True only when the fleet is short and the
+		// truck is genuinely unaffordable — if we could afford it, ChooseSupplyFleetShortfall would already
+		// have bought it and we would never be asked.
+		//
+		// DELIBERATELY QUEUE-INDEPENDENT, and this is the whole correctness argument rather than a detail.
+		// ChooseByDeficit runs once PER QUEUE, and `truk` is buildable only from the Vehicle queue. A version
+		// of this that tested the CALLING queue's buildable set banked the Vehicle queue while the Infantry
+		// queue happily went on spending — on the same shared treasury the truck was saving from. Measured
+		// exactly that way: 208 bank decisions, `banked` never rising above 1 because the Infantry queue
+		// reset it every cycle, and cash still sawtoothing 92/158/124/190/256/166 without ever reaching
+		// 1000. Banking one queue is not banking. The budget is global, so the decision must be too: this
+		// asks whether ANY queue this module drives could produce a needed truck, and when the answer is yes
+		// EVERY queue declines.
+		//
+		// Cached per world tick so the two queue calls in one bot tick cannot disagree (and so the buildable
+		// scan runs once). world.WorldTick is deterministic and every input is an order-independent sum.
+		//
+		// The decision itself is in SupplyPrecedenceMath.ShouldBankCycle (pure, NUnit-pinned); this only
+		// samples the world state it needs.
+		bool ShouldBankForSupply(long budget)
+		{
+			if (Info.SupplyPrecedenceStallCycles <= 0)
+				return false;
+
+			if (supplyBankDecisionTick == world.WorldTick)
+				return supplyBankDecision;
+
+			supplyBankDecisionTick = world.WorldTick;
+			supplyBankDecision = false;
+
+			// Progress bookkeeping, once per tick and BEFORE the decision, so a spell that has stopped
+			// advancing is caught on the same cycle it stalls.
+			supplyBankStalled = SupplyPrecedenceMath.UpdateStall(budget, supplyBankBestCash, supplyBankStalled);
+			if (budget > supplyBankBestCash)
+				supplyBankBestCash = budget;
+
+			var fleetShort = false;
+			var affordable = false;
+			foreach (var name in supplyFleetTypes)
+			{
+				if (!world.Map.Rules.Actors.TryGetValue(name, out var actorInfo))
+					continue;
+
+				if (Info.UnitLimits != null && Info.UnitLimits.TryGetValue(name, out var limit) &&
+					world.Actors.Count(a => a.Owner == player && a.Info.Name == name) >= limit)
+					continue;
+
+				// Never stall production saving for something no queue can actually deliver.
+				if (!BuildableFromAnyQueue(name))
+					continue;
+
+				if (!SupplyFleetUnderDesired(name))
+					continue;
+
+				fleetShort = true;
+				if (CompositionNeedMath.Affordable(budget, UnitCost(actorInfo), 100))
+				{
+					affordable = true;
+					break;
+				}
+			}
+
+			supplyBankDecision = SupplyPrecedenceMath.ShouldBankCycle(fleetShort, affordable,
+				supplyBankStalled, Info.SupplyPrecedenceStallCycles);
+
+			return supplyBankDecision;
+		}
+
+		// Can any queue this module drives currently produce this type? The per-queue buildable set is what
+		// ChooseByDeficit works from, but the treasury is shared across queues, so a decision about MONEY has
+		// to be asked across all of them.
+		bool BuildableFromAnyQueue(string name)
+		{
+			var queues = AIUtils.FindQueuesByCategory(player);
+			foreach (var category in Info.UnitQueues)
+				foreach (var q in queues[category])
+					foreach (var item in q.BuildableItems())
+						if (item.Name == name)
+							return true;
+
+			return false;
 		}
 
 		// The floor pre-empt: the first type (ordinal) whose standing population is under its UnitFloors entry
@@ -1252,9 +1547,20 @@ namespace OpenRA.Mods.Common.Traits
 				var shortfall = ChooseSupplyFleetShortfall(buildableNames, budget);
 				if (shortfall != null)
 				{
-					LogPick("supply-fleet", shortfall.Name, $"queue={queue.Info.Type}");
+					// Bought one: this spell did its job, so the progress trail starts fresh.
+					EndBankingSpell();
+					LogPick("supply-fleet", shortfall.Name, $"queue={queue.Info.Type} "
+						+ $"starving={supplyFleetStarving} needy={supplyFleetNeedy} desired={supplyFleetDesired}");
 					return shortfall;
 				}
+
+				// The bank HOLD itself now lives at the top of BuildUnit, at treasury scope, so that it also
+				// silences the sibling .heli/.fixedwing instances that never enter this method. Reaching here
+				// therefore means we are NOT banking this cycle — demand met, truck affordable, or the
+				// balance stopped advancing — so the spell ends and its progress trail is cleared, leaving
+				// the next spell to be judged on its own merits rather than against a high-water mark from a
+				// richer moment.
+				EndBankingSpell();
 			}
 
 			// STANDING-POPULATION FLOOR — same reason the supply fleet pre-empts, generalised. A per-mille-of-

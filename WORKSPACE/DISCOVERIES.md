@@ -4629,6 +4629,7 @@ Offline (`--composition-plan`, real ruleset): with the **shipped default start c
 **And the reason it took a run to settle: the purchase LANE was unobservable.** The census answers *what does the bot own*; it cannot answer *why did it buy that*, and those differ once several lanes can order the same type (`UnitBuilderBotModule`'s own argmax, its floor pre-empt, its supply pre-empt, and any module requesting through `IBotRequestUnitProduction`). Every existing pick log was `AIUtils.BotDebug` — default-off **and** chat-only, never reaching debug.log. Now `[composition] pick ... lane=` (`UnitBuilderBotModule.LogPick`), gated on `CensusLogInterval` so @stable stays silent. It answered the question in one run: 73 `lane=deficit`, 2 `lane=floor`, and the medic tagged `lane=floor supported=20 floor=1`.
 
 **@stable does not move.** `UnitFloors` / `UnitFloorPer` / `UnitFloorSupportedTypes` appear **only** in the two `@experimental` faction twins (`ai-america.yaml:147/168/178`, `ai-russia.yaml:112/123/129`); no `@stable`/`normal`/`rush`/`turtle`/`heli`/`fixedwing` block sets any of them. `EffectiveFloor` returns the flat floor verbatim when no ratio is configured, so the scaling is unreachable without opting in.
+
 ---
 
 ## 2026-08-15 — a scenario missing `Rules: rules.yaml` runs its whole match with NO scenario rules and reports an ordinary timeout: the third "measured nothing" shape
@@ -4706,3 +4707,75 @@ Recording this explicitly so "merged" is never later read as "working".
 - **arrival timing**: the tick gap between the armour reaching the anchor and the infantry reaching it. This is the one that speaks to the *user's* complaint rather than to the code change, because it measures the outrunning directly and would show whether the rendezvous alone closes it.
 
 **One inherited value is untested tuning, not a measurement.** The belief-source enemy armour in `test-combined-arms-rendezvous/map.yaml` was reduced from four t90s at x=50-52 to two at the far corner, because the four-tank version killed the lead abrams before the assertion could be judged. That reduction was **never run**. Treat it as a starting guess: confirm the abrams survives to the anchor, and expect to move them further out or drop to one.
+
+---
+
+## 2026-08-15 — Procurement had no precedence axis; and three claims from the first cut of this work are RETRACTED here
+
+**User ruling:** *"Soldiers out of ammo are useless. That should be the first priority to solve at all times."* The system had two axes — a per-mille share of army VALUE, and a fleet SIZE — and **neither can say "this one comes first."** That missing axis is real and is what this work adds. Three of the surrounding claims, however, were wrong, and adversarial review caught all three. They are corrected here rather than quietly edited, because two of them were already written into YAML comments where they would have misdirected the next reader.
+
+### RETRACTION 1 — "two routes were closed at once" is FALSE for the measured experiment
+
+The original entry said the fleet-sizing predicate (`starving`, below 25% ammo) and affordability were *both* blocking. **On the paired seed they were not.** The baseline arm's own log settles it, with no run needed: `needy=-1` confirms the flags were genuinely off, and the **first** snapshot with `ammo-need=True` (tick 1200) is the **same** snapshot showing `trucks-desired=2`. The demand gate was open and correctly sized from the very first moment demand existed; `owned=0 < desired=2`, so the pre-empt was reached and **skipped purely on price** for 110 consecutive snapshots.
+
+**So the entire measured 0 → 1 truck result is attributable to the banking half alone.** `SupplySizeFromNeed` is a real robustness fix — the two bars genuinely diverge, measured `needy=13` against `starving=1` in one snapshot, and a separate earlier run did show `starving=0`/`desired=0` while `ammo-need=True` — but **it is not the root-cause fix it was billed as, and it did not unblock this purchase.** The general lesson is the sharper half: *when two defects are proposed, check whether the experiment actually exercised both, or the narrative will outrun the evidence.*
+
+### RETRACTION 2 — the stated reason for not lowering `SupplyStarvingThresholdPerMille` was FALSE
+
+The claim was that it doubles as the truck's seek threshold, so lowering it would retarget delivery. **It does not.** `SupplyStarvingThresholdPerMille` is declared on `UnitBuilderBotModuleInfo` (`:137`) and read at **exactly one site** (`CountStarvingCustomers`, `:907`). The seek threshold is `SupplyFollowerBotModuleInfo.HuntStarvingThresholdPerMille` (`:211`), a **different field on a different trait**, set independently in `ai.yaml` and read by the follower's own hunt logic. They share only the value 250 and a helper family. Lowering the procurement one would **not** have touched delivery.
+
+Sizing from the service bar is still the better fix, but for a different reason: it is the bar at which a customer is actually *served*, so it cannot drift out of agreement with the supply system the way a second independently-tuned number can — which is precisely how these two came to disagree. **A confident wrong rationale in a comment is worse than no comment**: it stops the next person trying the simpler thing. This one had been asserted in four places.
+
+### RETRACTION 3 — a cycle-count bound was the wrong SHAPE, not a badly chosen number
+
+Bounding the bank by a fixed cycle count fails three ways, and raising 20 → 30 only moved a richer player over the line on one seed:
+
+1. **It does not terminate.** The counter resets on *any* non-banking cycle, including when patience is spent — so hitting the cap inserts one purchase and restarts the bank. For any player whose income over the cap's span is under the truck price, the steady state is *N silent cycles → one buy → N silent cycles*, forever, and the truck is never bought. The comment claiming it "converges over successive spells" was false: the balance is bounded by the fall-through spend.
+2. **The fall-through buy is priced BY the savings.** Composition eligibility is affordability-filtered, so a fat balance *promotes* expensive slots into the argmax. Measured: banked to 819 (181 short of a 1000 truck), cap fired, next cycle bought a 450 humvee — 819 → 203. **A cap below the price does not delay the purchase, it periodically destroys the savings.**
+3. **A cycle count cannot encode a per-map, per-player economy rate.** The same constant is a safety limit for a rich player and the engine of loop (1) for a poor one.
+
+**Replaced with a cash-progress predicate:** bank only while the balance sets NEW HIGHS, abandon after N consecutive cycles without one. This **terminates by construction** — a balance that keeps setting new highs reaches a fixed price in finite time — and is self-calibrating across economies.
+
+### The finding that overturned the "Russia was just poor" reading
+
+The first cut reported Russia as *genuinely too poor, and the bound did its job*. **That is not what the trace shows.** Russia banked 30 consecutive cycles — 900 ticks of composition-lane silence — with cash oscillating **3, 3, 5, 9, 9, 3, 3, 8, 3, 3, 8**: pinned flat, never climbing. **A merely poor player's cash still creeps upward during silence** (USA's climbed monotonically 92 → 819 under identical conditions). Flat across a long silent spell means **another spender was draining it.**
+
+And there is one: **the bank silences only one of four spenders.** `BotTick` drains `priorityBuildRequests` and `queuedBuildRequests` through the single-name `BuildUnit` overload **before** the queue loop, and that path never consults the bank decision — so `CaptureCoordinatorBotModule` and `AdaptiveProductionBotModule` keep buying; separately the `.heli` UnitBuilder twins are **distinct trait instances** that never set `SupplyDemandSizing` and keep buying too, all from one treasury.
+
+**This is the same shape as the per-queue banking bug found one iteration earlier** — a decision about a shared resource taken at a scope that sees only part of it. It was fixed at *queue* scope and survived at *module* scope. The rule banked from the first instance predicted the second and was not applied. **When you find a scope bug, enumerate every scope the resource spans, not just the one that bit.**
+
+The chosen response is deliberately **not** to silence the other lanes from here — the capture-supply floor is a correctness contract in its own right, and overriding another module's guarantee from this one would be a worse coupling than the bug. Instead the progress predicate **absorbs** it: if another spender takes the income, no new high is set, the stall counter climbs, and banking abandons within a few cycles rather than holding production silent against a treasury it does not control.
+
+### VERIFIED LIVE (2026-08-15, seed 4242) — and the drain is now ATTRIBUTED, correcting my own guess
+
+The progress predicate was run on the GREEN arm against the already-measured baseline of zero trucks. **Prediction was pre-registered and hit exactly on the working economy:** first truck ordered **tick 1980**, banking spell **27** cycles at purchase, longest non-new-high run **2** against a tolerance of 4. Identical to the tick the replaced cycle-count mechanism produced, which is the expected result — USA's climb never trips the stall, so every banking decision matches.
+
+**The second economy failed, and the reason is now measured rather than inferred.** Russia banked **29 consecutive cycles** (870 ticks of silence), climbed to **cash 935 — 65 short of the 1000 truck** — and then *fell* to 811 and 477 while still banking, ending the spell with no truck and an `e2` purchase instead. My prediction that it would abandon at `stalled=4` within 4–8 cycles was **wrong**: stall never exceeded 3, because a balance that is being drained *intermittently* keeps setting new highs and keeps resetting the counter. **A progress predicate does not protect against a slow drain, only against a hard stall.**
+
+**What drained it, established rather than assumed.** Not upkeep: `net=66` positive and `upkeep=34` flat throughout. Not the request lanes: **zero `lane=request` picks fired for either player all match**, which retracts the earlier suggestion that `CaptureCoordinatorBotModule` / `AdaptiveProductionBotModule` were the spenders here — they were candidates, not culprits. The `spent` counter moved 10650 → 10940 → 11440 → 11780, **1,130 spent across 120 ticks while the composition lane was silent.** The spender is `UnitBuilderBotModule@experimental.russia.heli` — a **separate trait instance of the same trait**, `UnitQueues: Aircraft`, which sets neither `SupplyDemandSizing` (so it never banks) nor `CensusLogInterval` (so `LogPick` is silent for it). Its `UnitDelays: hind 2500` matches the timing exactly: the drain begins after tick 2500, which is precisely when Russia's saving became futile.
+
+**This sharpens the scope rule rather than just repeating it.** The earlier decision not to silence the other lanes was correct *for other modules* — the capture-supply floor is someone else's correctness contract. **A sibling instance of the same trait is a different case**: silencing it overrides no one's invariant, because it is the same mechanism spending the same treasury under a different queue. That distinction was not drawn before and is the live question this branch leaves open.
+
+### TWO-ARM RESULT (2026-08-15, seed 4242) — the sibling hold, and a pre-registered test that FAILED usefully
+
+**Both economies now buy a truck.** USA at tick 1980, **Russia at tick 3030 — an economy that previously bought none at all.** Both trucks reach the field (`truk=1+0` in census for both players). That converts the "confirmed on one of two economies" caveat into a real two-arm result.
+
+**The mechanism:** the bank is now a property of the TREASURY rather than of one trait instance. Under `@experimental` a player runs **three** live `UnitBuilderBotModule` instances — the ground twin (which alone carries the supply flags), `.fixedwing`, and `experimental.*.heli` — all spending one balance. The hold is checked at the top of `BuildUnit`, **not** inside `ChooseByDeficit`, because the sibling twins do not set `CompositionDirected` and never enter that method at all; a hold placed there would have missed exactly the instances doing the draining.
+
+**BOTH TICK PREDICTIONS WERE WRONG, for one identifiable reason.** Pre-registered: Russia ~2550–2650, USA earlier than 1980. Actual: Russia **3030**, USA **1980 unchanged**. I had assumed the whole 1,340 drain was UnitBuilder-sourced. It was not — only the late **790** was.
+
+**The pre-registered internal test failed, and that is the useful part.** I predicted `spent` would be FLAT across banked cycles. It is not: Russia still spent 550 and USA 200 while banking, in a pattern **identical to the pre-fix run**. What *did* change is the 790 heli spend at ~tick 3030, which is gone. So the fix did precisely and only what it was scoped to do — and the residual spends are **eliminated as UnitBuilder siblings** (the hold covers all three instances) and are therefore another module type, which this branch was explicitly scoped not to touch. Not attributed further; `BaseBuilderBotModule` is the obvious candidate and remains a candidate, not a finding. **Naming a suspect is not attributing a cause** — that error was made once on this branch already with the request lanes.
+
+**Why the narrow fix was still decisive.** Russia's climb to 935 is essentially unchanged, because the early residual spends still happen. The difference is at the moment of crossing: pre-fix, the heli lane took 790 exactly as the balance approached the price and knocked it to 477; post-fix it cannot, so cash crosses 1000 and the truck is bought. **The drain did not have to be eliminated, only kept away from the crossing.**
+
+Russia's spell ran **27 cycles** to the purchase; USA's **27** (unchanged). Late-game Russia, genuinely broke at cash 2–9, now runs short 8–9 cycle spells that abandon at `stalled` 3–4 — the progress predicate behaving as designed on a drained economy rather than dragging to 29.
+
+**The limit of the progress predicate stands and is not fixed by this.** A balance drained *intermittently* keeps setting new highs and keeps resetting the stall counter, so the predicate protects against a hard stall, not a slow drain. The tolerance cannot fix it either: 3 abandons Russia one cycle earlier, 2 breaks USA (whose longest non-new-high run is 2). What made Russia work here was removing a drain, not tuning a threshold.
+
+### What is measured, what is inferred, and what is now UNVERIFIED
+
+**Measured and still standing:** the baseline RED (zero trucks either player, `trucks-desired=2` and `ammo-need=True` for 110 consecutive snapshots, cash sawtooth peaking at 319 against a 1000 truck); the per-queue banking defect (208 bank decisions, `banked` never above 1/20); the destroy-the-savings event at bound 20 (819 → 203 humvee); Russia's pinned-cash trace.
+
+**Now verified on BOTH economies** (see the two-arm section above): USA tick 1980, Russia tick 3030, both trucks reaching the field. **Still unverified:** whether a bought truck then DELIVERS (PIPELINE item 56, untouched), and whether any of this reproduces in the user's own lobby games rather than tournament map-players on a 6-minute arena. **Still unattributed:** the residual ~100-250 spends during banking, which are not UnitBuilder siblings. What it does have is offline replay of the two real traces as NUnit cases — the predicate rides out USA's measured healthy climb (longest non-new-high run: 2, against a tolerance of 4) and abandons Russia's measured pinned spell — which is evidence about the predicate, not about a match.
+
+**Also unverified, unchanged:** whether a bought truck then *delivers* (PIPELINE item 56, untouched), and whether any of this reproduces in the user's own lobby games rather than tournament map-players on a 6-minute arena.

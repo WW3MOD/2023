@@ -239,6 +239,70 @@ Player:
 		# SupplyFleetUnderDesired returns false outright when the flag is off — @stable never had a truck floor.
 		SupplyTruckFloor: 0
 		SupplyTruckCeiling: 6
+		# ===== RESUPPLY PRECEDENCE (user ruling 2026-08-15) =====
+		# "There are a lot of soldiers now that are out of ammo but still I see almost no supply trucks being
+		# built... soldiers out of ammo are useless. That should be the first priority to solve at all times."
+		# MEASURED on tournament-arena-composition-2p before this change: ZERO trucks ordered by any lane for
+		# a whole match, while ammo-need=True held continuously from tick 1240. Two routes were closed at
+		# once, which is why six merges aimed at truck behaviour never touched it:
+		#  (1) SIZING. DesiredTrucks was fed CountStarvingCustomers (below 25% ammo), which read 0 at EVERY
+		#      snapshot, while the ammo-need boolean reads SupplyProvider's own service bar and read True.
+		#      One fact, two predicates, and the blind one held the purse. SupplySizeFromNeed switches the
+		#      sizing input to the serving bar.
+		#      WHY NOT JUST LOWER SupplyStarvingThresholdPerMille — the earlier answer here was FALSE and is
+		#      corrected: it claimed that value is also the truck's SEEK threshold. It is not.
+		#      SupplyStarvingThresholdPerMille lives on UnitBuilderBotModule and is read at exactly ONE site;
+		#      the seek threshold is SupplyFollowerBotModuleInfo.HuntStarvingThresholdPerMille, a different
+		#      field on a different trait, set independently at ai.yaml. They only share the value 250 and a
+		#      helper family, so lowering the procurement one would NOT have retargeted delivery. The real
+		#      reason to size from the service bar is that it cannot drift out of agreement with the supply
+		#      system, which is precisely how these two came to disagree.
+		#      SCOPE HONESTY: on the paired seed below this route was NOT what blocked the truck (see the
+		#      baseline note under (2)). It is a real divergence — measured needy=13 against starving=1 in the
+		#      same snapshot — but it is a robustness fix, not the thing that unblocked the purchase.
+		#  (2) AFFORDABILITY, and on the measured seed this was the ONLY binding constraint. The paired
+		#      baseline arm (flags off, needy=-1 in the census confirming it) already showed trucks-desired=2
+		#      from the very first ammo-need=True snapshot at tick 1200 — so the demand gate was open and
+		#      correctly sized, owned=0 < desired=2, and the pre-empt was reached and skipped PURELY on price
+		#      for 110 consecutive snapshots while cash sawtoothed 92/158/124/190/256/166/72 against a
+		#      1000-cost truck. A pre-empt that merely SKIPS when broke is not a priority — the cycle falls
+		#      through and spends the truck's money on a rifleman. SupplyPrecedenceStallCycles lets the path
+		#      buy NOTHING and bank instead, which is the only move that expresses precedence.
+		# THE BOUND IS ON PROGRESS, NOT ON TIME — a correction from adversarial review, and the reasoning is
+		# worth keeping because a cycle count is the intuitive choice and it is wrong three ways.
+		# A cycle-count bound was built and measured first, at 20 and then 30. It fails because:
+		#   (a) IT DOES NOT TERMINATE. The counter resets on any non-banking cycle, INCLUDING when patience is
+		#       spent — so hitting the cap inserts one purchase and restarts the bank. For any player whose
+		#       income over the cap's span is under the truck price the steady state is: N silent cycles, one
+		#       buy, N silent cycles, forever. The truck is never bought.
+		#   (b) THE FALL-THROUGH BUY IS PRICED BY THE SAVINGS. Composition eligibility is affordability-
+		#       filtered, so a fat balance PROMOTES expensive slots into the argmax. Measured at bound 20: the
+		#       cap fired at cash=819 (181 short of the truck) and the very next cycle bought a 450 humvee,
+		#       819 -> 203. A cap below the price does not delay the purchase, it DESTROYS the savings.
+		#   (c) A CYCLE COUNT CANNOT ENCODE A PER-MAP, PER-PLAYER ECONOMY RATE. The same constant is a safety
+		#       limit for a rich player and the engine of loop (a) for a poor one.
+		# So the bank now continues only while the balance SETS NEW HIGHS, and abandons after this many
+		# consecutive cycles without one. That terminates by construction — a balance that keeps setting new
+		# highs reaches a fixed price in finite time — and it is self-calibrating across economies.
+		# 4, not 1, because income arrives in lumps and upkeep nibbles between them: the measured healthy
+		# spell ran 92/92/158/224/224/290/.../554/521/521/587, i.e. two flat cycles and a dip while climbing
+		# overall, with a longest non-new-high run of 2. 4 clears that with margin.
+		# IT ALSO ABSORBS A DEFECT IT DOES NOT FIX. This bank silences only the composition lane; the request
+		# drains (CaptureCoordinator, AdaptiveProduction) go through the single-name BuildUnit overload before
+		# the queue loop and never consult it, and the .heli UnitBuilder twins are separate trait instances
+		# that never set SupplyDemandSizing — all spending the same treasury. Silencing those from here would
+		# override other modules' own guarantees (the capture-supply floor is a correctness contract), so
+		# instead this NOTICES the drain: no new high, stall climbs, spell ends. Measured shape of exactly
+		# that — a player banked 30 consecutive cycles with cash pinned at 3-9, flat and never climbing, which
+		# is a drain rather than poverty (a merely poor player's cash still creeps up during silence).
+		# The cost, stated: while logistics is owed the army grows more slowly. That is the trade the ruling
+		# asks for, and it is visible in the census best=/stalled= fields rather than silent.
+		# NOT a restored SupplyTruckFloor: gated on live measured demand, so with a full-ammo army at t=0 —
+		# the two-trucks-at-the-start bug the user reported FIRST — both knobs are inert.
+		# @stable is UNAFFECTED: both are read only under SupplyDemandSizing, which @stable does not set, and
+		# both default to baseline (false / 0) in C# regardless.
+		SupplySizeFromNeed: true
+		SupplyPrecedenceStallCycles: 4
 		# Early-econ behaviour 2: vehicle AA proportionate to observed air (aa.america ungated picket).
 		ScaleAntiAirToThreat: true
 		AntiAirUnitTypes: strykershorad
