@@ -1163,3 +1163,50 @@ word in its own commit, so the benchmark baseline is re-taken for one change rat
 **Not verified by a run.** `test-combined-arms-rendezvous` runs `Bot: experimental` for BOTH players
 (`map.yaml:64`, `:71`), so no scenario exercised the `@poi` twin. The hold rests on config inspection
 alone. Anyone promoting it should confirm on a scenario that actually fields a stable bot.
+
+### [measured] Both loading blockers diagnosed: blocker 1 CONFIRMED (dwell), blocker 2 FALSIFIED (the passenger is coming, just slowly) — 2026-08-15
+
+Diagnostic run `260815_123045_p63812`, verification run `260815_123440_p64386`
+(test-combined-arms-rendezvous, seed 1017; BOTH players are `Bot: experimental`, verified by reading
+`map.yaml:64`/`:71`).
+
+**BLOCKER 1 — CONFIRMED. The dwell rule refuses four boarding orders in five.** Every refused
+passenger logged `idle=False` with `activity=AttackMoveActivity` (one `SmartMoveActivity`) — i.e. it
+was mid-order from another module when the transport asked, which is exactly the dwell rule's trigger
+(`OrderArbitrationMath.cs:561-572`, `ReorderDwellTicks: 120`). The single admitted passenger is the
+one that was not already claimed. So `boarding=1 of 5` is the arbitration gate, as hypothesised — this
+IS the direct cause of tiny loads, one layer under the departure bar. **Not fixed.**
+
+Fix shape, for a decision rather than a build: `AdvanceTask` never re-issues `EnterTransport` to a
+passenger it has already reserved (zero occurrences in the Loading state), while offense re-offers
+every eval. The transport asserts its claim ONCE; offense asserts continuously. A top-up pass — while
+Loading and under capacity, re-offer to the free pool each scan — would let the load grow as units
+become idle. That is a design change to a module that has only just started running at all, so it
+wants review before code.
+
+**BLOCKER 2 — FALSIFIED, and the falsification mattered.** The reserved passenger was NOT poached. It
+sat on `activity=RideTransport` for the entire task and closed steadily: 7 → 5 → 4 → 3 → 2 → 1 cells.
+It is simply walking, at roughly 43 ticks per cell. The hypothesis (re-tasked away, never returning)
+was wrong, and the evidence for it — `aboard=0` for 450 ticks — was equally consistent with a
+passenger that is coming and has not arrived.
+
+**That falsification exposed a regression in the empty-stall fix committed an hour earlier
+(`cad27464`), and it is worth stating as the general trap.** `aboard` is a STEP FUNCTION: it stays at
+0 for the whole of a passenger's walk. So "no boarding for 250 ticks" is automatically true early in
+every load and carries no information about whether anyone is coming. A 7-cell walk (~300 ticks)
+outlasts the 250-tick bound, so the empty-abort tore down a task whose passenger was 3 cells away and
+closing — and the carrier looped abort/recreate every 250 ticks, measured as repeated `task-created`
+for the same carrier at ticks 65, 315, 415. **A metric that cannot move until the outcome has already
+happened is useless as a progress signal for that outcome.**
+
+Fixed by making APPROACH count as progress: a new closest-approach by any still-coming passenger
+resets the stall clock, so the bound now means "nobody boarded AND nobody got closer". Verified — one
+`task-created` per carrier, no loop, `since-progress` returning to 0 as `closest` ticks 7→1.
+
+**STILL NOT OBSERVED: a completed delivery.** No `depart` line in any run. At the end of the last run
+the passenger was 1 cell from the carrier and had not finished boarding. The blocker is now the
+SCENARIO, not the code: `test-combined-arms-rendezvous` aborts on its tank-death guard at ~tick 550,
+and a load needs perhaps another 50-100 ticks. Verifying delivery needs a scenario that (a) lives
+long enough, (b) has no early-abort guard, and (c) ideally fields one `Bot: stable` and one
+`Bot: experimental` player so the `@poi` hold gets a real control at the same time. Deliberately NOT
+built here: an unrun scenario is exactly what `7f8c2d41` shipped and what today's notes criticise.
