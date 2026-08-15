@@ -48,105 +48,92 @@ Actors:
 		Owner: Russia
 		Location: 94,55
 
-	# ---- LANE 1 (y 15-17): the littlebird ----
-	L1HELI: littlebird
-		Owner: USA
-		Location: 8,16
-		Facing: 192
+	# ---- LANE 1 (y 15-17) infantry. The four helicopters are NOT here: see
+	# demo-heli-lanes.lua. Aircraft placed in map.yaml spawn LANDED, because
+	# ^Airborne sets Aircraft: TakeOffOnCreation: False, and a parked Apache
+	# cannot fight back. They are created in Lua at altitude instead.
 	L1I01: e1
 		Owner: Russia
 		Location: 38,15
-		Facing: 704
+		Facing: 256
 	L1I02: e1
 		Owner: Russia
 		Location: 39,15
-		Facing: 704
+		Facing: 256
 	L1I03: e1
 		Owner: Russia
 		Location: 40,15
-		Facing: 704
+		Facing: 256
 	L1I04: e1
 		Owner: Russia
 		Location: 41,15
-		Facing: 704
+		Facing: 256
 	L1I05: e1
 		Owner: Russia
 		Location: 38,16
-		Facing: 704
+		Facing: 256
 	L1I06: e1
 		Owner: Russia
 		Location: 39,16
-		Facing: 704
+		Facing: 256
 	L1I07: e1
 		Owner: Russia
 		Location: 40,16
-		Facing: 704
+		Facing: 256
 	L1I08: e1
 		Owner: Russia
 		Location: 41,16
-		Facing: 704
+		Facing: 256
 	L1I09: e1
 		Owner: Russia
 		Location: 39,17
-		Facing: 704
+		Facing: 256
 	L1I10: e1
 		Owner: Russia
 		Location: 40,17
-		Facing: 704
-	L1APACHE: heli
-		Owner: Russia
-		Location: 80,16
-		Facing: 704
+		Facing: 256
 
 	# ---- LANE 2 (y 39-41): the Hind ----
-	L2HELI: hind
-		Owner: USA
-		Location: 8,40
-		Facing: 192
 	L2I01: e1
 		Owner: Russia
 		Location: 38,39
-		Facing: 704
+		Facing: 256
 	L2I02: e1
 		Owner: Russia
 		Location: 39,39
-		Facing: 704
+		Facing: 256
 	L2I03: e1
 		Owner: Russia
 		Location: 40,39
-		Facing: 704
+		Facing: 256
 	L2I04: e1
 		Owner: Russia
 		Location: 41,39
-		Facing: 704
+		Facing: 256
 	L2I05: e1
 		Owner: Russia
 		Location: 38,40
-		Facing: 704
+		Facing: 256
 	L2I06: e1
 		Owner: Russia
 		Location: 39,40
-		Facing: 704
+		Facing: 256
 	L2I07: e1
 		Owner: Russia
 		Location: 40,40
-		Facing: 704
+		Facing: 256
 	L2I08: e1
 		Owner: Russia
 		Location: 41,40
-		Facing: 704
+		Facing: 256
 	L2I09: e1
 		Owner: Russia
 		Location: 39,41
-		Facing: 704
+		Facing: 256
 	L2I10: e1
 		Owner: Russia
 		Location: 40,41
-		Facing: 704
-	L2APACHE: heli
-		Owner: Russia
-		Location: 80,40
-		Facing: 704
+		Facing: 256
 
 	SpawnUSA: mpspawn
 		Owner: Neutral

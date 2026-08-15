@@ -201,8 +201,41 @@ MP5:
 	BurstWait: 5
 	Projectile: Bullet
 		Speed: 1c0
-		# 0c64 is already sub-1/16-cell scatter at max range; tightened once more
-		# for visible tracer convergence.
+		# 0c256 as of 260815, up from 0c64 — the bespoke tightening this gun had
+		# been carrying is gone, and it now sits at the ^7.62mm family baseline.
+		#
+		# History: 4ba14a7d cut it to 0c48 to cure a gun that "felt inaccurate".
+		# It was not inaccurate; it was dealing zero damage
+		# (FirepowerMultiplier@NoGunner — see the PITFALL in
+		# rules/ingame/aircraft.yaml). Once the zero was fixed the gun turned out
+		# to be brutally good at strafing, which is what the tightening had been
+		# hiding all along.
+		#
+		# WHY THE FIRST REVERT DID NOTHING, and the arithmetic to reason with.
+		# InaccuracyType defaults to Maximum (Bullet.cs:40), so scatter scales
+		# with range:
+		#   effective = Inaccuracy * distanceToTarget / weaponMaxRange
+		# Range is 8c0, so at 2 cells the effective scatter is a QUARTER of the
+		# value written here, against a standing-infantry hitshape of radius 30
+		# (infantry.yaml:146-149):
+		#   0c48  -> 12 units at 2 cells   (cannot miss)
+		#   0c64  -> 16 units at 2 cells   (cannot miss — measured: still cleared
+		#                                   10/10 while a Hind managed 2)
+		#   0c256 -> 64 units at 2 cells   (about 2x the hitshape), 256 at 8 cells
+		# Going 0c48 -> 0c64 was imperceptible for exactly this reason. Anything
+		# below ~0c128 is invisible at the ranges a littlebird actually strafes
+		# from, because a quarter of it still fits inside the target.
+		#
+		# For scale, the Hind's 12.7mm is Inaccuracy 256 over Range 16c0, i.e.
+		# half this weapon's scatter at the same absolute distance.
+		#
+		# STILL NOT THE WHOLE STORY. Scatter caps the TargetDamage warhead only.
+		# Warhead@Spread below (Spread 32, Damage 200) keeps paying out on rounds
+		# that miss — falloff 100/37/14/5/0 over 0/32/64/96/128 units — so a round
+		# landing 64 units off-centre still lands 14% of 200. Combined with
+		# Burst 20 / BurstWait 5, volume and splash do a lot of the killing that
+		# looks like accuracy. If this still reads as too deadly, those are the
+		# next levers, not this number.
 		#
 		# MEASURED 260815 — do not "fix" this gun by tightening scatter again.
 		# Instrumenting the full fire->warhead->health chain at this exact value
@@ -215,7 +248,7 @@ MP5:
 		# the 32-unit Warhead@Spread radius and so turned grazes into nothing is
 		# wrong in both halves. The gun's zero damage was FirepowerMultiplier@NoGunner
 		# on the littlebird itself; see the PITFALL in rules/ingame/aircraft.yaml.
-		Inaccuracy: 0c48
+		Inaccuracy: 0c256
 		# InaccuracyPerProjectile removed 260815: Bullet.cs gates it behind
 		# `lastPosIsSet`, a readonly field initialised false and never assigned
 		# (Bullet.cs:170,213), so the whole branch is unreachable. It was inert.

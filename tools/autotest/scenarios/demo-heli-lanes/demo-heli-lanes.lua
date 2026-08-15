@@ -25,15 +25,46 @@
 --     damage, so lane 1 versus the Apache has never actually been observed.
 --     If it feels too strong, that is the thing to say.
 --   - Nothing chases: engagement stance is HoldPosition map-wide. The Apaches
---     will sit at x 80 until you come to them, and shoot back when you do.
+--     hover at x 80 until you come to them, and shoot back when you do. They
+--     are spawned AIRBORNE from Lua for that reason — see the comment below.
 --   - The Hind carries a gunner; the littlebird does not. That is exactly the
 --     difference that was zeroing the littlebird's damage before this build.
 
 local TicksPerSecond = TestHarness.TicksPerSecond
 
+local function cellPos(cx, cy, altitude)
+	return WPos.New(cx * 1024 + 512, cy * 1024 + 512, altitude or 0)
+end
+
 WorldLoaded = function()
 	local USA = Player.GetPlayer("USA")
 	local Russia = Player.GetPlayer("Russia")
+
+	-- ALL FOUR HELICOPTERS ARE SPAWNED HERE, AIRBORNE, AND THAT IS DELIBERATE.
+	-- ^Airborne sets `Aircraft: TakeOffOnCreation: False`, so a helicopter
+	-- placed in map.yaml with a Location starts PARKED ON THE GROUND. Your own
+	-- helis hide this — they take off the moment you order them to move — but
+	-- the enemy Apaches are on HoldPosition and never get that order, so the
+	-- first version of this demo had you shooting at two landed aircraft that
+	-- could not manoeuvre or fight back. Spawning with an explicit CenterPosition
+	-- altitude is what test-littlebird-strafe does, and it is the only reason
+	-- the Apache in that test ever shot back.
+	-- Named constants, not raw numbers. WAngle runs COUNTERCLOCKWISE here
+	-- (conventions.md): East is 768 and West is 256, so the plausible-looking
+	-- 192/704 pair points north-west and south-east — everyone facing outward,
+	-- away from the fight, which is exactly how this demo first shipped.
+	local function heli(actorType, owner, cx, cy, facing)
+		return Actor.Create(actorType, true, {
+			Owner = owner,
+			CenterPosition = cellPos(cx, cy, 1280),
+			Facing = facing,
+		})
+	end
+
+	local L1HELI   = heli("littlebird", USA,    8, 16, Angle.East)
+	local L1APACHE = heli("heli",       Russia, 80, 16, Angle.West)
+	local L2HELI   = heli("hind",       USA,    8, 40, Angle.East)
+	local L2APACHE = heli("heli",       Russia, 80, 40, Angle.West)
 
 	-- Frame both lanes, then drop the camera on the littlebird and pre-select
 	-- it so the first thing you can do is give it an order.
@@ -61,11 +92,21 @@ WorldLoaded = function()
 		return a.Health
 	end
 
+	-- Altitude is in the readout on purpose. The first cut of this demo had all
+	-- four helicopters spawned from map.yaml and therefore PARKED, and nothing
+	-- in a hp/count line would have shown it — the Apaches simply sat there
+	-- being shot. `alt` is the check that the fix is actually holding: a flying
+	-- helicopter reports a non-zero Z.
+	local function altOf(a)
+		if a == nil or a.IsDead or not a.IsInWorld then return -1 end
+		return a.CenterPosition.Z
+	end
+
 	local function report()
 		print(string.format(
-			"[lanes] L1 littlebird hp=%d infantry=%d/10 apache=%d | L2 hind hp=%d infantry=%d/10 apache=%d",
-			hpOf(L1HELI), alive(lane1), hpOf(L1APACHE),
-			hpOf(L2HELI), alive(lane2), hpOf(L2APACHE)))
+			"[lanes] L1 littlebird hp=%d alt=%d infantry=%d/10 apache=%d alt=%d | L2 hind hp=%d alt=%d infantry=%d/10 apache=%d alt=%d",
+			hpOf(L1HELI), altOf(L1HELI), alive(lane1), hpOf(L1APACHE), altOf(L1APACHE),
+			hpOf(L2HELI), altOf(L2HELI), alive(lane2), hpOf(L2APACHE), altOf(L2APACHE)))
 		Trigger.AfterDelay(5 * TicksPerSecond, report)
 	end
 	Trigger.AfterDelay(5 * TicksPerSecond, report)
