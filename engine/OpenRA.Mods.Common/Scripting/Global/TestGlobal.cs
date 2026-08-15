@@ -546,10 +546,13 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			GroupScatterHotkeyLogic.PerformGroupScatter(alive[0].World, alive);
 		}
 
-		[Desc("Running count of CreateEffectWarhead impacts that produced their explosion sprite / " +
-			"impact sound this run. An explosion has no other scriptable observable, so this is the " +
-			"only way a scenario can tell a shell that detonated from one that was silently swallowed " +
-			"at impact. Snapshot it before ordering the shot and compare deltas. Test mode only.")]
+		[Desc("Running count of CreateEffectWarhead impacts that PASSED THE IMPACT VALIDITY GATES this " +
+			"run — impacts NOT discarded for landing on an invalid actor or invalid terrain. This is " +
+			"the only way a scenario can tell a shell that detonated from one silently swallowed at " +
+			"impact. It counts the gate decision, which is upstream of the sprite (skipped when the " +
+			"warhead defines no Image/Explosions) and of the sound (skipped by ImpactSoundChance), so " +
+			"do NOT assert on it as 'a sprite was drawn' or 'a sound played'. Snapshot it before " +
+			"ordering the shot and compare deltas. Test mode only.")]
 		public int GetImpactEffectCount()
 		{
 			return TestMode.IsActive ? TestMode.ImpactEffectCount : 0;

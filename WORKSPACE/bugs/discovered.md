@@ -20,13 +20,16 @@ so rounds scatter up to ~2 cells from the aim point. Its three damage warheads r
   (`SpreadDamageWarhead.cs:28`) over steps of 64, so damage is **zero at 256 WDist (1/4 cell)**.
 - `Warhead@Shrapnel: SpreadDamage` (inherited from `^LargeExplosionEffects`,
   `weapons-effects.yaml:570-578`), `Spread: 256`, `Damage: 200` — zero at **1024 (1 cell)**, and only
-  200 damage at best.
+  200 damage at best. **But it is `ValidTargets: Infantry, Unarmored`**, so it is the only warhead
+  reaching a full cell *and it does not apply to vehicles at all*.
 
-So past ~1 cell from where the shell actually lands an artillery round does **nothing**, while its own
-inaccuracy places it up to 2 cells off. Against spread-out infantry the expected damage per shell may
-be near zero *independently of fields*, which is the most likely explanation for the "and no damage"
-half of the original live-play report — the field bug only ever removed the explosion and the sound.
-Worth a combat-sim check before treating artillery-vs-infantry as working as intended.
+So the effective radius past which an artillery round does **nothing** is **1 cell against infantry
+and ¼ cell against a vehicle**, while its own inaccuracy places the shell up to 2 cells off the aim
+point. Against spread-out infantry the expected damage per shell may be near zero *independently of
+fields*, and against vehicles the window is four times tighter still. That is the most likely
+explanation for the "and no damage" half of the original live-play report — the field bug only ever
+removed the explosion and the sound. Worth a combat-sim check before treating artillery-vs-anything
+as working as intended.
 
 ## 2026-08-14: [high] OPEN — the `@experimental` bot runs at cash=0 for the entire match after its opening, so any demand-gated purchase is unaffordable exactly when it is finally justified (found while: PIPELINE 57 bot composition, branch `wt/composition`)
 

@@ -129,8 +129,7 @@ namespace OpenRA.Mods.Common.Warheads
 			if (actorAtImpact == ImpactActorType.None && !IsValidAgainstTerrain(world, pos))
 				return;
 
-			if (TestMode.IsActive)
-				TestMode.ImpactEffectCount++;
+			TestMode.CountImpactEffect();
 
 			var explosion = Explosions.RandomOrDefault(world.LocalRandom);
 			if (Image != null && explosion != null)

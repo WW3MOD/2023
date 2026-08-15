@@ -124,12 +124,19 @@ namespace OpenRA
 		// sweep produces thousands of missiles and only needs the summaries.
 		public static bool MissileTraceTicks { get; private set; } = true;
 
-		// Number of CreateEffectWarhead impacts that passed their validity gates and produced
-		// their explosion sprite / impact sound. Incremented only while IsActive, so normal play
-		// is untouched. Exposed as Test.GetImpactEffectCount() because an explosion is otherwise
-		// invisible to Lua — a shell that is silently swallowed at impact and one that detonates
-		// normally are indistinguishable from any scriptable observable.
-		public static int ImpactEffectCount;
+		// Number of CreateEffectWarhead impacts that PASSED THE IMPACT VALIDITY GATES — i.e. were not
+		// discarded as landing on an invalid actor or invalid terrain. Counted at that decision, which
+		// is upstream of both the sprite (skipped when the warhead defines no Image/Explosions) and the
+		// sound (skipped by ImpactSoundChance), so this is NOT a count of sprites drawn or sounds
+		// played and must not be asserted on as one. Exposed as Test.GetImpactEffectCount() because a
+		// swallowed impact and a normal one are otherwise indistinguishable from Lua.
+		public static int ImpactEffectCount { get; private set; }
+
+		public static void CountImpactEffect()
+		{
+			if (IsActive)
+				ImpactEffectCount++;
+		}
 
 		public static void Initialize(Arguments args)
 		{
@@ -138,6 +145,7 @@ namespace OpenRA
 				return;
 
 			IsActive = true;
+			ImpactEffectCount = 0;
 			Name = args.GetValue("Test.Name", "unnamed");
 			Description = args.GetValue("Test.Description", "");
 			ResultPath = args.GetValue("Test.ResultPath",
