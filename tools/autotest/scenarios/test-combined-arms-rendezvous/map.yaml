@@ -1,0 +1,129 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Combined-arms rendezvous
+
+Author: WW3MOD autotest
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Combined-arms rendezvous (PIPELINE 34/35 neighbourhood).
+#
+# MEASURES A POSITIONAL RELATIONSHIP, not "it looked better": how far the bot's
+# INFANTRY end up from the bot's ARMOUR once both have left the Supply Route.
+#
+# The defect under test: MountedTransportBotModule computed its pre-contact
+# drop-off as a 50% lerp from the SR toward the top offensive POI, while
+# PoiOffensiveBotModule walked the armour to a control-field staging anchor.
+# Two different maths, no shared channel — so the ferry delivered infantry away
+# from the armour that was meant to cover them.
+#
+# Player layout follows tournament-arena-skirmish-2p: non-playable map players
+# with Bot: assigned directly, and the local client in a spectator slot, so no
+# lobby slot assignment is needed. Exactly ONE Playable: True (the Observer).
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: experimental
+		Color: FF4444
+		Enemies: USA-bot
+
+# One supplyroute per active faction (WW3MOD canon, and it keeps a faction alive
+# so no Mission-Accomplished overlay ends the run before the poller writes).
+#
+# The USA-bot force is placed deliberately, not produced: a tank (the lead
+# element the user watched drive off alone), an EMPTY bradley (a CarrierTypes
+# member, so MountedTransportBotModule can claim it), and four riflemen well
+# inside the 14-cell ReserveZoneRadiusCells bubble around the SR so they are
+# eligible passengers. Four, not two, so the scan clears MinPassengersPerLoad: 2
+# even if one is claimed by another module first.
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	# DELIBERATELY OFF-AXIS FROM THE ENEMY ARMOUR BELOW, and that geometry is the
+	# whole reason this test can discriminate. The two destinations under test are
+	# computed from DIFFERENT inputs:
+	#   - the transport's legacy lerp aims at the top-ranked PoiMap OFFENSIVE
+	#     TARGET, and PoiMap ranks structures / income / the enemy SR — never
+	#     enemy units (PoiMap.cs:154-158). So it aims HERE, at the top-right.
+	#   - the armour's staging anchor descends the ControlField frontier-distance
+	#     gradient, which is shaped by believed enemy PRESENCE. So it aims at the
+	#     enemy armour, at the BOTTOM-right.
+	# On a symmetric corridor both land near mid-map and a green run would prove
+	# nothing. Splitting the bearings forces roughly 14 cells between them.
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,4
+	BotTank: abrams
+		Owner: USA-bot
+		Location: 8,16
+	BotCarrier: bradley
+		Owner: USA-bot
+		Location: 8,18
+	BotRifle1: e1.america
+		Owner: USA-bot
+		Location: 7,14
+	BotRifle2: e1.america
+		Owner: USA-bot
+		Location: 7,15
+	BotRifle3: e1.america
+		Owner: USA-bot
+		Location: 7,17
+	BotRifle4: e1.america
+		Owner: USA-bot
+		Location: 7,18
+	# The enemy armour exists to populate BELIEF, and is massed in the bottom-right
+	# so the control field has an unambiguous nearest front on a bearing the POI
+	# lerp does not share. Both halves are load-bearing: PoiMap needs an offensive
+	# target or the lerp does not resolve at all, and the control field needs a
+	# believed enemy or ResolveStagingAnchor returns null — in which case the
+	# armour never stages forward either, which is the very pre-condition of the
+	# symptom under test (StageFreePool early-returns on a null anchor).
+	EnemyTank1: t90
+		Owner: Russia-bot
+		Location: 50,29
+	EnemyTank2: t90
+		Owner: Russia-bot
+		Location: 52,30
+	EnemyTank3: t90
+		Owner: Russia-bot
+		Location: 50,31
+	EnemyTank4: t90
+		Owner: Russia-bot
+		Location: 52,28
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,4

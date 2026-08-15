@@ -1,0 +1,19 @@
+# Deliberately kept as close to test-experimental-poi-observe as possible — that
+# is the known-good shape for a Lua-verdict scenario driving the @experimental
+# bot from a spectator slot. An earlier revision of this file also removed
+# SpawnStartingUnits / CrateSpawner / ConquestVictoryConditions and forced
+# DefaultCash to 0 to freeze the force under test; that run never produced a
+# verdict at all, so the extra overrides are not worth the risk. The measurement
+# only ever looks at NAMED actors, so incidental units the bot buys or spawns do
+# not affect it.
+
+Player:
+	PlayerResources:
+		DefaultCash: 7500
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-combined-arms-rendezvous.lua
