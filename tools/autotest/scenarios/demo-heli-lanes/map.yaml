@@ -1,0 +1,158 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: heli lanes — littlebird vs Hind, infantry then Apache
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 100,60
+
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+ShellmapScenario:
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,55
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 94,55
+
+	# ---- LANE 1 (y 15-17): the littlebird ----
+	L1HELI: littlebird
+		Owner: USA
+		Location: 8,16
+		Facing: 192
+	L1I01: e1
+		Owner: Russia
+		Location: 38,15
+		Facing: 704
+	L1I02: e1
+		Owner: Russia
+		Location: 39,15
+		Facing: 704
+	L1I03: e1
+		Owner: Russia
+		Location: 40,15
+		Facing: 704
+	L1I04: e1
+		Owner: Russia
+		Location: 41,15
+		Facing: 704
+	L1I05: e1
+		Owner: Russia
+		Location: 38,16
+		Facing: 704
+	L1I06: e1
+		Owner: Russia
+		Location: 39,16
+		Facing: 704
+	L1I07: e1
+		Owner: Russia
+		Location: 40,16
+		Facing: 704
+	L1I08: e1
+		Owner: Russia
+		Location: 41,16
+		Facing: 704
+	L1I09: e1
+		Owner: Russia
+		Location: 39,17
+		Facing: 704
+	L1I10: e1
+		Owner: Russia
+		Location: 40,17
+		Facing: 704
+	L1APACHE: heli
+		Owner: Russia
+		Location: 80,16
+		Facing: 704
+
+	# ---- LANE 2 (y 39-41): the Hind ----
+	L2HELI: hind
+		Owner: USA
+		Location: 8,40
+		Facing: 192
+	L2I01: e1
+		Owner: Russia
+		Location: 38,39
+		Facing: 704
+	L2I02: e1
+		Owner: Russia
+		Location: 39,39
+		Facing: 704
+	L2I03: e1
+		Owner: Russia
+		Location: 40,39
+		Facing: 704
+	L2I04: e1
+		Owner: Russia
+		Location: 41,39
+		Facing: 704
+	L2I05: e1
+		Owner: Russia
+		Location: 38,40
+		Facing: 704
+	L2I06: e1
+		Owner: Russia
+		Location: 39,40
+		Facing: 704
+	L2I07: e1
+		Owner: Russia
+		Location: 40,40
+		Facing: 704
+	L2I08: e1
+		Owner: Russia
+		Location: 41,40
+		Facing: 704
+	L2I09: e1
+		Owner: Russia
+		Location: 39,41
+		Facing: 704
+	L2I10: e1
+		Owner: Russia
+		Location: 40,41
+		Facing: 704
+	L2APACHE: heli
+		Owner: Russia
+		Location: 80,40
+		Facing: 704
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 80,28
+
+Rules: rules.yaml
