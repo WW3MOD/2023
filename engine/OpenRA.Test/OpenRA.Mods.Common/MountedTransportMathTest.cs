@@ -213,9 +213,15 @@ namespace OpenRA.Test
 			Assert.That(Fill(3, 5, 2, 400, Stall), Is.EqualTo(CarrierDeparture.Stalled));
 			Assert.That(Fill(3, 5, 2, 400, Stall - 1), Is.EqualTo(CarrierDeparture.Wait));
 
-			// A stalled load still under the minimum is not worth delivering yet; it waits for the hard
-			// bound, which will take it at whatever it has.
+			// A PARTIAL load under the minimum keeps waiting for the hard bound — it can still grow.
 			Assert.That(Fill(1, 5, 2, 400, Stall), Is.EqualTo(CarrierDeparture.Wait));
+
+			// But a stalled EMPTY load is abandoned at the stall bound, not held to the hard one. Measured
+			// on 2026-08-15: a carrier sat at aboard=0/still-coming=1 for 450+ ticks because the release was
+			// gated on `aboard >= minPassengers`, so it would have held the carrier and the reservations for
+			// the full 1500. Waiting achieves nothing when nothing is aboard and nothing has moved.
+			Assert.That(Fill(0, 5, 2, 400, Stall), Is.EqualTo(CarrierDeparture.AbortEmpty));
+			Assert.That(Fill(0, 5, 2, 400, Stall - 1), Is.EqualTo(CarrierDeparture.Wait));
 
 			// Stall release is opt-out: at 0 only the hard timeout remains.
 			Assert.That(MountedTransportMath.DecideDeparture(true, 3, 5, 2, Min, 400, Timeout, 9999, 0),

@@ -226,12 +226,22 @@ namespace OpenRA.Mods.Common.Traits
 			// wrong bar whenever there was not enough infantry to fill it.
 			public int SeatTarget;
 
-			// Tick of the last observed boarding, for the stall release. Seeded at task creation so a
-			// carrier nobody ever walks to still stalls out rather than waiting on a first boarding
-			// that never happens.
-			public int LastBoardingTick;
+			// Tick of the last observed PROGRESS — a passenger boarding, or any still-coming passenger
+			// getting closer to the carrier than any of them has been before. Seeded at task creation.
+			//
+			// Boarding alone is the wrong signal and measuring it cost a regression: `aboard` is a step
+			// function that stays at 0 for the whole of a passenger's walk, so "no boarding for N ticks"
+			// is automatically true early in every load and carries no information about whether anyone
+			// is coming. A 7-cell walk at roughly 43 t/cell outlasts a 250-tick stall bound, so an
+			// empty-load abort keyed on boarding tore down tasks whose passenger was closing normally,
+			// and the carrier looped abort/recreate every 250 ticks forever (measured 2026-08-15).
+			public int LastProgressTick;
 
-			// Passenger count at the previous scan — the edge the stall timer is reset on.
+			// Closest any still-coming passenger has been to the carrier, in cells. Monotonically
+			// decreasing; a new low is what counts as approach progress.
+			public int BestApproachCells;
+
+			// Passenger count at the previous scan — the edge a boarding is detected on.
 			public int LastSeenAboard;
 
 			// Non-null => a DIRECTED capture ferry requested by CaptureCoordinator, not a
@@ -383,7 +393,8 @@ namespace OpenRA.Mods.Common.Traits
 				CaptureTarget = target,
 				Capturer = capturer,
 				StateChangedAtTick = world.WorldTick,
-				LastBoardingTick = world.WorldTick,
+				LastProgressTick = world.WorldTick,
+				BestApproachCells = int.MaxValue,
 				SeatTarget = 1,
 				ReservedPassengers = new HashSet<Actor> { capturer },
 			};
@@ -564,38 +575,77 @@ namespace OpenRA.Mods.Common.Traits
 					var minPax = task.CaptureTarget != null ? 1 : Info.MinPassengersPerLoad;
 					var aboard = cargo.PassengerCount;
 
-					// Reset the stall timer on the edge where the load actually grew. A boarded passenger is
-					// removed from the world, so this also drives the still-coming count below.
+					// A boarding is progress.
 					if (aboard != task.LastSeenAboard)
 					{
 						if (aboard > task.LastSeenAboard)
-							task.LastBoardingTick = world.WorldTick;
+							task.LastProgressTick = world.WorldTick;
 						task.LastSeenAboard = aboard;
 					}
 
 					// Still walking = reserved, alive, in the world. Boarding removes a passenger from the
 					// world and death removes it outright, so this counts down without any bookkeeping and
 					// can never stay positive for a passenger that no longer exists.
+					//
+					// APPROACH is progress too, and while nothing has boarded it is the ONLY signal that
+					// carries information. `aboard` is a step function that sits at 0 for the whole of a
+					// passenger's walk, so "no boarding for N ticks" is automatically true early in every
+					// load and says nothing about whether anyone is coming. Measured 2026-08-15: a 7-cell
+					// walk at ~43 t/cell outlasts the 250-tick bound, so an empty-load abort keyed on
+					// boarding tore down a task whose passenger was closing normally, and the carrier
+					// looped abort/recreate every 250 ticks — never delivering. A new closest-approach
+					// resets the clock, so the bound now means "nobody boarded AND nobody got closer".
 					var stillComing = 0;
+					var closest = int.MaxValue;
 					foreach (var pax in task.ReservedPassengers)
-						if (!pax.IsDead && pax.IsInWorld && pax.Owner == player)
-							stillComing++;
+					{
+						if (pax.IsDead || !pax.IsInWorld || pax.Owner != player)
+							continue;
+
+						stillComing++;
+						var cells = (pax.Location - carrier.Location).Length;
+						if (cells < closest)
+							closest = cells;
+					}
+
+					if (closest < task.BestApproachCells)
+					{
+						task.BestApproachCells = closest;
+						task.LastProgressTick = world.WorldTick;
+					}
 
 					var departure = MountedTransportMath.DecideDeparture(
 						Info.FillBeforeDeparture,
 						aboard, task.SeatTarget, stillComing, minPax,
 						world.WorldTick - task.StateChangedAtTick, Info.LoadingTimeoutTicks,
-						world.WorldTick - task.LastBoardingTick, Info.BoardingStallTicks);
+						world.WorldTick - task.LastProgressTick, Info.BoardingStallTicks);
 
 					// One line per loading task per scan. A task that sits in Loading is the state that was
 				// previously unreachable, so its progress (or lack of it) needs to be visible rather than
 				// inferred from a departure that never comes.
 				if (departure == CarrierDeparture.Wait)
+				{
 					Log.Write("debug",
 						$"[exp-transport] loading player={player.PlayerName} carrier={carrier.Info.Name} " +
 						$"aboard={aboard} target={task.SeatTarget} still-coming={stillComing} " +
 						$"loading-for={world.WorldTick - task.StateChangedAtTick} " +
-						$"since-board={world.WorldTick - task.LastBoardingTick} tick={world.WorldTick}");
+						$"since-progress={world.WorldTick - task.LastProgressTick} closest={task.BestApproachCells} tick={world.WorldTick}");
+
+					// What each passenger that has NOT boarded is actually doing. `still-coming` only knows
+					// the unit is alive and in the world; it cannot distinguish "walking to the carrier" from
+					// "walking away under someone else's order", and that distinction is the whole question.
+					// RideTransport means our claim still holds; anything else means it was taken.
+					foreach (var pax in task.ReservedPassengers)
+					{
+						if (pax.IsDead || !pax.IsInWorld || pax.Owner != player)
+							continue;
+
+						Log.Write("debug",
+							$"[exp-transport] pax-waiting player={player.PlayerName} pax={pax.Info.Name}#{pax.ActorID} " +
+							$"activity={pax.CurrentActivity?.GetType().Name ?? "<none>"} idle={pax.IsIdle} " +
+							$"cells-to-carrier={(pax.Location - carrier.Location).Length} tick={world.WorldTick}");
+					}
+				}
 
 				if (departure == CarrierDeparture.AbortEmpty)
 					{
@@ -900,10 +950,22 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var pax in toLoad)
 				{
 					ordered++;
+					var wasIdle = pax.IsIdle;
+					var priorActivity = pax.CurrentActivity?.GetType().Name ?? "<none>";
 					if (bot.QueueOrder(new Order("EnterTransport", pax, Target.FromActor(carrier), false), BotOrderDamping.Recurring))
 					{
 						admitted++;
 						boarding.Add(pax);
+					}
+					else
+					{
+						// Which passengers the arbitration gate refuses, and what they were doing when it did.
+						// The gate reports only a bool, so the passenger's PRIOR activity is the closest
+						// available proxy for "another module ordered this one recently" — the dwell rule's
+						// trigger. Logged per refusal because the pattern (which 4 of 5) is the finding.
+						Log.Write("debug",
+							$"[exp-transport] board-refused player={player.PlayerName} pax={pax.Info.Name}#{pax.ActorID} " +
+							$"idle={wasIdle} activity={priorActivity} carrier={carrier.Info.Name} tick={world.WorldTick}");
 					}
 				}
 
@@ -929,7 +991,8 @@ namespace OpenRA.Mods.Common.Traits
 					DropOff = dropOff.Value,
 					Return = srCell,
 					StateChangedAtTick = world.WorldTick,
-					LastBoardingTick = world.WorldTick,
+					LastProgressTick = world.WorldTick,
+					BestApproachCells = int.MaxValue,
 
 					// The seats we actually ordered filled — not `capacity`, which we may not have had the
 					// infantry to reach. Waiting on capacity we never recruited would be a guaranteed stall.
@@ -1240,7 +1303,11 @@ namespace OpenRA.Mods.Common.Traits
 		///     physical capacity, which we may never have had the infantry to fill.
 		///   <paramref name="stillComing"/>         — reserved passengers still alive, in the world and
 		///     therefore still walking. A boarded passenger leaves the world, so it counts down on its own.
-		///   <paramref name="ticksSinceLastBoarding"/>/<paramref name="boardingStallTicks"/> — progress bound.
+		///   <paramref name="ticksSinceProgress"/>/<paramref name="boardingStallTicks"/> — progress bound.
+		///     PROGRESS is the caller's concept and must mean "a passenger boarded OR any still-coming
+		///     passenger reached a new closest approach". Boarding ALONE is not progress: it sits at zero
+		///     for the whole of a walk, so a bound keyed on it calls every young load stalled and tears
+		///     down tasks whose passengers are closing normally.
 		///   <paramref name="ticksLoading"/>/<paramref name="loadTimeoutTicks"/> — hard patience bound.
 		///
 		/// WHY A WAITING CARRIER CAN NEVER HANG. Waiting for a fuller load is only safe if something ends
@@ -1248,7 +1315,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// two do not consult passenger state at all:
 		///   (a) stillComing hits 0 — every reserved passenger has boarded or died. Covers the case the
 		///       user called out: the last seat can never be filled because that soldier no longer exists.
-		///   (b) ticksSinceLastBoarding passes the stall bound — covers a passenger that is alive but was
+		///   (b) ticksSinceProgress passes the stall bound — covers a passenger that is alive but was
 		///       re-tasked away by another module and will never arrive, which (a) cannot see.
 		///   (c) ticksLoading passes the hard timeout — the unconditional backstop.
 		/// (b) and (c) are monotonic functions of elapsed time alone, so Wait is unreachable once either
@@ -1257,7 +1324,7 @@ namespace OpenRA.Mods.Common.Traits
 			bool fillBeforeDeparture,
 			int aboard, int seatTarget, int stillComing, int minPassengers,
 			int ticksLoading, int loadTimeoutTicks,
-			int ticksSinceLastBoarding, int boardingStallTicks)
+			int ticksSinceProgress, int boardingStallTicks)
 		{
 			if (!fillBeforeDeparture)
 			{
@@ -1278,10 +1345,24 @@ namespace OpenRA.Mods.Common.Traits
 			if (stillComing <= 0)
 				return aboard > 0 ? CarrierDeparture.NobodyElseComing : CarrierDeparture.AbortEmpty;
 
-			// Only releases a load that is already worth delivering; a stalled load still under the minimum
-			// keeps waiting for the hard bound below, which will take it at whatever it has.
-			if (boardingStallTicks > 0 && ticksSinceLastBoarding >= boardingStallTicks && aboard >= minPassengers)
-				return CarrierDeparture.Stalled;
+			// Boarding has stopped progressing. What that means depends on what is aboard:
+			//   * at or above the minimum — deliver it, the load is worth the trip;
+			//   * NOTHING aboard — give the carrier back. This case used to fall through to the hard bound
+			//     because the release was gated on `aboard >= minPassengers`, which was written to mean "a
+			//     partial load is not worth delivering yet" and is simply not a description of a load of
+			//     nothing. Waiting out 1500 ticks for a passenger that has not moved in 250 achieves nothing,
+			//     holds the carrier, and holds the reservations; abandoning frees all three and lets the next
+			//     scan issue fresh boarding orders, which is the only re-offer the module has;
+			//   * between the two — keep waiting for the hard bound, which will take whatever boarded. A
+			//     partial load can still grow, so this is the one case where patience is worth something.
+			if (boardingStallTicks > 0 && ticksSinceProgress >= boardingStallTicks)
+			{
+				if (aboard >= minPassengers)
+					return CarrierDeparture.Stalled;
+
+				if (aboard == 0)
+					return CarrierDeparture.AbortEmpty;
+			}
 
 			if (ticksLoading > loadTimeoutTicks)
 				return aboard > 0 ? CarrierDeparture.Timeout : CarrierDeparture.AbortEmpty;
