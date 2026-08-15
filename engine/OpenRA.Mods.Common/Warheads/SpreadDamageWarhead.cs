@@ -100,7 +100,14 @@ namespace OpenRA.Mods.Common.Warheads
 
 				// The range to target is more than the range the warhead covers, so GetDamageFalloff() is going to give us 0 and we're going to do 0 damage anyway, so bail early.
 				if (falloffDistance > effectiveRange[^1].Length)
+				{
+					if (GunTrace.Enabled)
+						GunTrace.Write($"  SpreadDamage SKIP outsideFalloff victim={victim.Info.Name} falloffDistance={falloffDistance} maxRange={effectiveRange[^1].Length} victimPos={victim.CenterPosition} impact={pos}");
 					continue;
+				}
+
+				if (GunTrace.Enabled)
+					GunTrace.Write($"  SpreadDamage HIT victim={victim.Info.Name} falloffDistance={falloffDistance} falloffPct={GetDamageFalloff(falloffDistance)} impact={pos} victimPos={victim.CenterPosition}");
 
 				var localModifiers = args.DamageModifiers.Append(GetDamageFalloff(falloffDistance));
 				var impactOrientation = args.ImpactOrientation;

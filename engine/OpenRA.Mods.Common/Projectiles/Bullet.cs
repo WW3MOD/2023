@@ -398,6 +398,9 @@ namespace OpenRA.Mods.Common.Projectiles
 				ImpactPosition = pos,
 			};
 
+			if (GunTrace.Enabled)
+				GunTrace.Write($"explode impact={pos} aimedAt={target} src={args.Source} ticks={ticks} length={length}");
+
 			args.Weapon.Impact(Target.FromPos(pos), warheadArgs);
 		}
 

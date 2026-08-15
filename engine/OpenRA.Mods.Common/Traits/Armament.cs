@@ -389,6 +389,13 @@ namespace OpenRA.Mods.Common.Traits
 			var previousLastFiredTick = lastFiredTick;
 			lastFiredTick = self.World.WorldTick;
 
+			if (GunTrace.Enabled)
+			{
+				var mods = string.Join(", ", self.TraitsImplementing<IFirepowerModifier>()
+					.Select(m => $"{m.GetType().Name}={m.GetFirepowerModifier()}"));
+				GunTrace.Write($"FireBarrel shooter={self.Info.Name} armament={Info.Name} weapon={Info.Weapon} shooterPos={self.CenterPosition} targetType={target.Type} firepowerModifiers=[{mods}]");
+			}
+
 			if (target.Type != TargetType.Invalid)
 			{
 				AimInitialTargetPosition.Add(target.CenterPosition);

@@ -34,10 +34,22 @@ namespace OpenRA.Mods.Common.Warheads
 			if (debugVis != null && debugVis.CombatGeometry)
 				firedBy.World.WorldActor.Trait<WarheadDebugOverlay>().AddImpact(pos, new[] { WDist.Zero, Spread }, DebugOverlayColor);
 
+			if (GunTrace.Enabled)
+			{
+				var found = 0;
+				foreach (var v in firedBy.World.FindActorsOnCircle(pos, Spread))
+					found++;
+				GunTrace.Write($"TargetDamage.DoImpact pos={pos} Spread={Spread.Length} actorsOnCircle={found}");
+			}
+
 			foreach (var victim in firedBy.World.FindActorsOnCircle(pos, Spread))
 			{
 				if (!IsValidAgainst(victim, firedBy))
+				{
+					if (GunTrace.Enabled)
+						GunTrace.Write($"  TargetDamage SKIP invalid victim={victim.Info.Name}");
 					continue;
+				}
 
 				HitShape closestActiveShape = null;
 				var closestDistance = int.MaxValue;
@@ -62,9 +74,16 @@ namespace OpenRA.Mods.Common.Warheads
 
 				// Cannot be damaged if HitShape is outside Spread.
 				if (closestDistance > Spread.Length)
+				{
+					if (GunTrace.Enabled)
+						GunTrace.Write($"  TargetDamage SKIP outsideSpread victim={victim.Info.Name} closestDistance={closestDistance} Spread={Spread.Length} victimPos={victim.CenterPosition}");
 					continue;
+				}
 
 				var damage = closestActiveShape.CenterProximityPercent(victim, args.ImpactPosition);
+
+				if (GunTrace.Enabled)
+					GunTrace.Write($"  TargetDamage HIT victim={victim.Info.Name} closestDistance={closestDistance} proximityPct={damage} impact={args.ImpactPosition} victimPos={victim.CenterPosition}");
 
 				if (DamageAtMaxRange != 100)
 					damage = damage * RangeDamageMultiplier(victim, firedBy, args) / 100;

@@ -3,6 +3,34 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-15: [critical] OPEN — the littlebird's weapons all deal exactly 0 damage: no Gunner crew slot, and `^Airborne` pins `FirepowerMultiplier@NoGunner` to 0 forever (found while: diagnosing "littlebird strafing kills nothing", branch `wt/heli-gun`)
+
+Measured on `main @ 4c4d8a49`, scenario `test-littlebird-strafe`, trace `WW3_GUNTRACE=1`. The gun fires,
+the rounds land dead on target, both warheads find the victim and report a full-strength hit, and
+`InflictDamage` computes `FINAL=0` because the shooter contributes a `0` firepower modifier:
+
+```
+firepowerModifiers=[100, 100, 100, 100, 100, 0, 100]      <- index 5 is @NoGunner
+InflictDamage victim=e1 rawDamage=250 ... versus=100 FINAL=0 hpBefore=200
+```
+
+`FirepowerMultiplier@NoGunner` (`rules/ingame/aircraft.yaml:278-280`, `Modifier: 0`,
+`RequiresCondition: !has-gunner`) is meant to punish a helicopter whose gunner has bailed out at <50% HP.
+`VehicleCrew` only grants a slot condition for a slot the actor declares (`VehicleCrew.cs:140-153`), and
+the littlebird declares `CrewSlots: Pilot` only (`rules/ingame/aircraft-america.yaml:103-108`). So the
+condition is never granted, `!has-gunner` is true from `Created`, and the modifier never lifts.
+
+**Affects both armaments** — the minigun AND the Hellfire rack, since the modifier is on the shooter, not
+the weapon. Any measurement of littlebird missile damage taken before this is void.
+
+**Only actor affected**: a sweep of armed actors with a `VehicleCrew` block found no other `CrewSlots`
+missing `Gunner`.
+
+**Not fixed here** — this branch is diagnosis only, per the task. Two candidate fix shapes, both outside
+"tune a weapon number": give the littlebird a Gunner slot (scratch-probed, went RED -> PASS), or change
+`@NoGunner` so a never-declared slot is not treated as a lost crew member. The second is the more
+general fix and would also stop the trap recurring for the next single-seat actor.
+
 ## 2026-08-15: [high] OPEN — `RendezvousMath.AnchorAcceptable` has NO LOWER BOUND, so the combined-arms rendezvous drags the drop-off BACKWARDS to the Supply Route and the carrier shuttles in place (found while: offensive transport standoff, branch `wt/offense-standoff`)
 
 **Measured, not reasoned.** Run `260815_202509`, seed 1017, `wip-transport-delivers`, with

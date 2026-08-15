@@ -3,6 +3,64 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-15 — the littlebird deals ZERO damage with every weapon it carries, because it declares no Gunner crew slot and `^Airborne` reads a missing slot as `FirepowerMultiplier: 0`
+
+Measured on `main @ 4c4d8a49` in `wt/heli-gun`, scenario `test-littlebird-strafe` (one littlebird, one
+`e1`, 2 cells, flat clear terrain), engine trace `WW3_GUNTRACE=1`.
+
+The user's report was "the littlebirds shoot and shoot and kill nothing". They do shoot; the rounds
+arrive; every warhead runs and finds the victim. The damage is annihilated at the last multiplication:
+
+```
+FireBarrel shooter=littlebird armament=primary weapon=7.62mm.Minigun
+  firepowerModifiers=[100, 100, 100, 100, 100, 0, 100]
+explode impact=14848,17920,0 aimedAt=14848,17920,0
+  TargetDamage HIT victim=e1 closestDistance=0 proximityPct=100
+    InflictDamage rawDamage=250 thickness=0 modifiers=[100,100,100,100,100,0,100,94] versus=100 FINAL=0
+  SpreadDamage  HIT victim=e1 falloffDistance=0 falloffPct=100
+    InflictDamage rawDamage=200 thickness=0 modifiers=[100,100,100,100,100,0,100,100] versus=100 FINAL=0
+```
+
+`Util.ApplyPercentageModifiers` multiplies the chain, so the single `0` at index 5 zeroes everything
+downstream. That entry is `FirepowerMultiplier@NoGunner` (`rules/ingame/aircraft.yaml:278-280`):
+
+```
+FirepowerMultiplier@NoGunner:
+    Modifier: 0
+    RequiresCondition: !has-gunner
+```
+
+`has-gunner` is granted by `VehicleCrew` (`VehicleCrew.cs:140-153`), which grants a slot condition
+**only for slots the actor declares**. The littlebird declares `CrewSlots: Pilot`
+(`rules/ingame/aircraft-america.yaml:103-108`) — no Gunner. So `!has-gunner` is not "the gunner bailed
+out", it is permanently true from `Created`, and the modifier is pinned at 0 for the actor's whole life.
+
+**Blast radius is exactly one actor.** A sweep of every armed actor with a `VehicleCrew` block found
+`littlebird` as the only one whose `CrewSlots` omits `Gunner`; the armed transports (`TRAN`, `HALO`)
+carry Pilot+Copilot but no armament, and every armed helicopter and vehicle declares Gunner.
+
+**The two things this refutes.**
+
+1. *Accuracy was never involved.* Of 160 rounds fired at the original `Inaccuracy: 0c48`, **160 landed
+   inside the infantry hitshape** (`closestDistance=0` on every single `TargetDamage HIT`; proximity
+   percent min 40 / median 70 / max 100). The premise that scatter (48) exceeded the lethal radius
+   (`Spread: 32`) and so near misses dealt nothing is false in both halves: the rounds were not near
+   misses, and `SpreadDamage` reported `falloffPct=100` throughout.
+2. *This is not a demo artifact.* The condition is structural, not a spawn-path difference — the slot
+   does not exist, so `Actor.Create` and normal production behave identically.
+
+**Control and sufficiency, both measured in the same run.** An Apache (`heli`, declares Pilot+Gunner)
+on the same map against an identical `e1` shows `firepowerModifiers=[100 ×7]` and `FINAL=81/84/12`,
+killing its target in about two seconds, while the littlebird's target sits at exactly 200/200 for the
+full 20 s. Adding a Gunner slot to the littlebird as a scratch probe (reverted, not committed) flipped
+the scenario RED → PASS with no weapon number touched.
+
+**Why it stayed hidden.** Every previous investigation of this gun reasoned about the weapon — scatter,
+falloff, penetration, warhead geometry — and each premise measured out wrong in turn. The zero is not in
+the weapon at all; it is on the shooter, contributed by a trait the actor inherits and never mentions.
+`FirepowerMultiplier` also renders no differently at 0 than at 100: tracers, muzzle flash, impact piffs
+and sound all play normally, so the gun looks like it is working right up to the health bar.
+
 ## 2026-08-15 — the transport's seats were lost to the ORDER GATE, not to the recruiter: the offensive's 100-tick beat re-arms a 120-tick dwell suppression forever, and standing infantry off closes it 1 → 5
 
 The user complaint is "the tank attacks alone while the infantry walk behind it". The established
