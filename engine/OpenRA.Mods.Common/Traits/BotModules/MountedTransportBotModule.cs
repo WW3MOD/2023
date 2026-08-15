@@ -318,6 +318,10 @@ namespace OpenRA.Mods.Common.Traits
 		// See DOCS/reference/influence-stack.md.
 		DangerFieldLayer dangerField;
 
+		// The offensive-standoff query's per-tick cache. See IsPassengerWanted.
+		readonly HashSet<Actor> wantedPassengers = new();
+		int wantedTick = int.MinValue;
+
 		/// <summary>True if `actor` is currently reserved by any of this module's carrier tasks
 		/// (loading, delivering, unloading, returning). Used by LayeredDefenceBotModule to
 		/// avoid issuing AttackMove orders that would override the EnterTransport.</summary>
@@ -327,6 +331,122 @@ namespace OpenRA.Mods.Common.Traits
 				if (task.ReservedPassengers.Contains(actor) || task.TopUpPassengers.Contains(actor))
 					return true;
 			return false;
+		}
+
+		/// <summary>True if `actor` is one this module would order aboard on its NEXT scan — it passes the
+		/// ordinary passenger filter and an empty carrier with a free seat exists for it right now.
+		///
+		/// IsPassengerReserved above answers "have I already claimed this one"; this answers "would I claim
+		/// it if it were still free". The gap between those two questions is the whole defect: the ledger
+		/// (CommitPassengers) protects a passenger only from the moment its EnterTransport is ADMITTED, and
+		/// the offensive reserve recruits from tick 3 — long before this module's first scan at
+		/// ScanInterval. The soldier is therefore already walking under an AttackMove when the offer
+		/// arrives, and BotOrderGate's dwell rule (ReorderDwellTicks 120, refreshed by the offensive's
+		/// 100-tick re-eval beat) suppresses the EnterTransport for as long as that stays true. Nobody is
+		/// misconfigured; the two modules simply race and the offensive always wins.
+		///
+		/// PURE QUERY. It reserves nothing, orders nothing and keeps no claim — the caller decides what to
+		/// do with the answer, and the only caller today is PoiOffensiveBotModule.BuildFreePool behind its
+		/// own default-off flag. Nothing here runs unless somebody asks.</summary>
+		public bool IsPassengerWanted(Actor actor)
+		{
+			if (IsTraitDisabled || actor == null || actor.IsDead || !actor.IsInWorld)
+				return false;
+
+			if (wantedTick != world.WorldTick)
+				RefreshWantedPassengers();
+
+			return wantedPassengers.Contains(actor);
+		}
+
+		// Rebuilt at most once per world tick (the offensive asks once per re-eval, so in practice once per
+		// 100 ticks) — BuildFreePool tests every actor in the world against it, so a per-actor rebuild would
+		// be quadratic.
+		void RefreshWantedPassengers()
+		{
+			wantedTick = world.WorldTick;
+			wantedPassengers.Clear();
+
+			var ownSR = FindOwnSupplyRoute();
+			if (ownSR == null)
+				return;
+
+			var srCell = ownSR.Location;
+
+			// SEATS THAT EXIST RIGHT NOW, on the same carrier filter TryAssignNewTasks uses: owned, alive,
+			// a configured type, Cargo present and EMPTY, not already in a task. This is the anti-starvation
+			// term and it is the important one — with no empty carrier the set is empty, so the offensive
+			// loses nothing at all. A carrier already in a task is excluded because its passengers are held
+			// by the ledger instead; counting it would hold a second cohort against seats already sold.
+			var seats = 0;
+			var carriers = new List<Actor>();
+			foreach (var a in world.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+
+				if (!Info.CarrierTypes.Contains(a.Info.Name.ToLowerInvariant()))
+					continue;
+
+				var cargo = a.TraitOrDefault<Cargo>();
+				if (cargo == null || !cargo.IsEmpty() || carrierTasks.ContainsKey(a))
+					continue;
+
+				var capacity = System.Math.Min(Info.MaxPassengersPerLoad, a.Info.TraitInfo<CargoInfo>().MaxWeight);
+				if (capacity <= 0)
+					continue;
+
+				carriers.Add(a);
+				seats += capacity;
+			}
+
+			if (seats <= 0)
+				return;
+
+			// Reserve bubble only — the corridor clause is deliberately dropped (dropOff null). A soldier out
+			// in the corridor is already walking the lane under someone's orders; standing it still would
+			// strand it in the open for a carrier that may never reach it. The bubble is the set that can be
+			// held at no positional cost, because holding it means "stay where you already are".
+			var reservedByOthers = new HashSet<Actor>(
+				carrierTasks.Values.SelectMany(t => t.ReservedPassengers.Concat(t.TopUpPassengers)));
+			var heliTransport = ResolveHeliTransport();
+			var reserveRadiusSq = (long)Info.ReserveZoneRadiusCells * Info.ReserveZoneRadiusCells;
+
+			var pool = world.Actors
+				.Where(a => IsEligiblePassenger(a, reservedByOthers, heliTransport, srCell, reserveRadiusSq, null))
+				.ToList();
+
+			// Below MinPassengersPerLoad this module creates no task at all, so a hold would buy nothing and
+			// still cost the offensive every soldier it held. Fail towards the offensive.
+			if (pool.Count < Info.MinPassengersPerLoad)
+				return;
+
+			// Nearest-carrier-first with ActorID as the tie-break, which is the ordering TryAssignNewTasks
+			// itself loads by — so the cohort held back is the cohort that actually boards, rather than a
+			// different five that merely happen to be nearby. Deterministic on both counts (influence-stack
+			// invariant: no RNG, no iteration-order dependence).
+			pool.Sort((x, y) =>
+			{
+				var dx = NearestCarrierDistanceSq(carriers, x);
+				var dy = NearestCarrierDistanceSq(carriers, y);
+				return dx != dy ? dx.CompareTo(dy) : x.ActorID.CompareTo(y.ActorID);
+			});
+
+			for (var i = 0; i < pool.Count && i < seats; i++)
+				wantedPassengers.Add(pool[i]);
+		}
+
+		static long NearestCarrierDistanceSq(List<Actor> carriers, Actor pax)
+		{
+			var best = long.MaxValue;
+			foreach (var c in carriers)
+			{
+				long d = (c.Location - pax.Location).LengthSquared;
+				if (d < best)
+					best = d;
+			}
+
+			return best;
 		}
 
 		// Phase 2 commit-on-order (§4). Objective key namespaces the carrier so the grammar is disjoint from

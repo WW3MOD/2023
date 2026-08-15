@@ -3,6 +3,87 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-15 — the transport's seats were lost to the ORDER GATE, not to the recruiter: the offensive's 100-tick beat re-arms a 120-tick dwell suppression forever, and standing infantry off closes it 1 → 5
+
+The user complaint is "the tank attacks alone while the infantry walk behind it". The established
+diagnosis was that `PoiOffensiveBotModule.StageFreePool` recruits armed infantry from tick 3 and walks
+them to the same anchor the armour drives to. That is true, it is not the whole mechanism, and the
+missing half is what makes the defect *permanent* rather than a race the transport sometimes wins.
+
+**Measured at both ends**, run `260815_201640` (baseline) vs `260815_202509` (after), seed 1017, same
+binary, one YAML bool differing. Baseline, in order, from `debug.log`:
+
+```
+[exp-staging]   player=USA-bot anchor=7,17 idle=5 staged=5 tick=7
+[exp-transport] board-refused pax=e3.america#11..#15 idle=False activity=AttackMoveActivity tick=65  (x5)
+[exp-transport] no-task reason=orders-refused carriers=1 eligible=5 ordered=5 admitted=0 tick=65
+[exp-transport] no-task reason=too-few-pax eligible=1 tick=415
+[exp-transport] depart aboard=1 target=5 reason=NobodyElseComing tick=1015
+```
+
+At tick 65 the module had a carrier, a resolved drop cell and five eligible passengers, and got **zero
+of them**. Nothing was misconfigured; all five orders were dropped by `BotOrderGate`.
+
+**The gate, exactly.** `MountedTransportBotModule`'s `EnterTransport` is single-target and marked
+`BotOrderDamping.Recurring`, so it reaches `OrderArbitrationMath.DwellBlocks`
+(`OrderArbitrationMath.cs:340-347`), which blocks when the standing order is *young*, *aimed elsewhere*
+and the unit is *busy*. `StageFreePool`'s `AttackMove` (`PoiOffensiveBotModule.cs:2356-2358`) established
+exactly such a record at tick 7, and an infantryman walking under it reports `!IsIdle` ⇒ `Busy`
+(`ModularBot.cs:181`). Age 58 < `ReorderDwellTicks` 120 ⇒ `SuppressedDwell`.
+
+**Why it never recovers, which is the part worth carrying.** `ReevaluateInterval` is **100** and
+`ReorderDwellTicks` is **120**. The offensive re-offers its staging order every 100 ticks and each
+admitted re-issue calls `Record(...)`, refreshing the standing tick *inside* the 120-tick window. The
+suppression is re-armed before it can lapse, for as long as the unit stays in the free pool. **A damping
+window shorter than the period of the module that keeps refreshing it is not a damping window, it is a
+permanent lock** — and nothing makes that relationship visible, because the two numbers live in
+different YAML blocks (`ai.yaml:44-48` vs `:319`).
+
+Second-order effect, costing as many seats as the first: the five walk out of the 14-cell
+`ReserveZoneRadiusCells` bubble, so by tick 415 `eligible` has fallen 5 → 1 and the task that finally
+forms is born small. The ledger (`CommitPassengers`) cannot help — it protects a passenger only from the
+moment its `EnterTransport` is **admitted**, and admission is the thing being refused.
+
+**The fix is on the offensive side and it is one predicate.** `BuildFreePool` now skips a unit the
+transport could load *this tick*, asking `MountedTransportBotModule.IsPassengerWanted` — a pure query
+bounded by seats that actually exist (empty carrier, not already in a task). After:
+
+```
+[exp-standoff]  player=USA-bot held=5 free=0 tick=7
+[exp-transport] task-created boarding=5 of 5 tick=65        (zero board-refused)
+[exp-transport] depart aboard=5 target=5 reason=Full tick=365
+```
+
+Seats at the first departure **1 → 5**, and the departure is **earlier** (365 vs 1015), so the standing
+"never delay a departure" constraint is not merely respected, it improves. All three after-run departures
+are `Full`; the baseline's were 1, 4, 2. Of the five named riflemen **5 were carried** against **1** in
+the baseline, where the other four walked 22–41 cells.
+
+**The hold is far smaller than it looks, and this is the anti-starvation evidence.** There is exactly
+**one** `[exp-standoff]` line in the whole match. Once the `EnterTransport` is admitted the passengers
+become ledger-committed, `IsEligiblePassenger` stops returning them, they stop being "wanted", and
+`BuildFreePool` excludes them through the pre-existing ledger clause instead. The standoff only has to
+cover the **pre-claim window** — here ticks 7→65, about 58 ticks — then hands over to the ledger. It is a
+handshake, not a reservation.
+
+## 2026-08-15 — the engine TRUNCATES `debug.log` at startup, so a "only copy if it grew" log guard preserves the PREVIOUS run's file for the whole run
+
+Sibling to the stale-log entry of the same date, and it defeats the defence that entry recommends.
+`AUTOTEST.md` says to poll-copy the log rather than `rm -f` it, because a concurrent worker's cleanup can
+delete evidence mid-flight. The natural way to make that copy safe against a competing `rm` is to copy
+only when the source is at least as large as the copy — a deleted or restarted file is smaller, so the
+guard refuses and your good capture survives.
+
+**It inverts.** OpenRA opens `debug.log` fresh each launch, so at the start of a run the live file is
+*smaller* than the previous run left it, and the grow-only guard refuses to copy for the entire run —
+preserving precisely the stale file it was written to protect you from. Measured here: the guard held a
+283,160-byte file from an earlier session while the run under measurement wrote 238,451 bytes, and the
+first baseline attempt produced a copy containing **zero** lines from its own run.
+
+The tell is cheap and worth checking every time: **the copy is byte-identical in size to what you
+recorded before launching.** Copy unconditionally and stop the poller the moment the runner returns
+(`tools/autotest/poll-copy-logs.sh`).
+
 ## 2026-08-15 — a real signature can carry a wrong inference: the *available* explanation is not the *demonstrated* one
 
 Worth keeping as stated, because the reasoning failed in a way that looked like good reasoning.
