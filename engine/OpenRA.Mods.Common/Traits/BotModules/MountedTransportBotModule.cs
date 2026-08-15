@@ -81,6 +81,23 @@ namespace OpenRA.Mods.Common.Traits
 			"50 = halfway between our SR and the top offensive POI. Only used when DeliverBeforeContact is set.")]
 		public readonly int PreContactStagingPct = 50;
 
+		[Desc("Default false = baseline: deliver pre-contact infantry to the cell the OFFENSIVE RESERVE is",
+			"mustering on (PoiOffensiveBotModule.ForwardStagingAnchor) rather than to this module's own",
+			"SR→POI lerp. Combined arms: the lerp and the offensive's control-field staging anchor are",
+			"computed by different maths from different inputs, so before this the ferry delivered its",
+			"passengers away from the armour that was supposed to protect them. Falls back to the lerp",
+			"whenever no anchor is published or the anchor fails the reach bound below, so nothing ever",
+			"waits on anything — see RendezvousMath.")]
+		public readonly bool RendezvousWithOffensiveStaging = false;
+
+		[Desc("Cells the offensive staging anchor may sit BEYOND this module's own drop-off cell (measured",
+			"from our SR) and still be accepted as a rendezvous. The anchor advances with the believed",
+			"front; without this bound a loaded carrier would follow it into enemy ground, and one AA/AT",
+			"hit takes the carrier, its passengers and the tempo together. Deliberately a distance",
+			"comparison rather than a danger threshold, so it does not need re-tuning when the danger",
+			"field is rescaled. Only used when RendezvousWithOffensiveStaging is set.")]
+		public readonly int RendezvousMaxAdvanceCells = 6;
+
 		[Desc("Experimental (default false = frozen): issue the engine-correct \"Unload\" order on arrival",
 			"so carriers actually disembark their passengers. The frozen default issues \"UnloadCargo\" —",
 			"which is the UnloadCargo ACTIVITY class name, not an order string, so Cargo.ResolveOrder",
@@ -789,7 +806,54 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Pre-contact the 50% lerp is blind; apply the same fog-legal standoff so we never stage the
 			// reserve inside a believed enemy ground-danger envelope. Identity pass-through when disabled.
-			return ApplyStandoff(cell, srCell);
+			var lerp = ApplyStandoff(cell, srCell);
+
+			// COMBINED ARMS: prefer the cell the offensive reserve is actually mustering on, so infantry
+			// arrive mounted AT the armour rather than at a cell only this module ever knew about. Applied
+			// AFTER the standoff so the fallback we hand RendezvousMath is the cell we would really have
+			// used — comparing against the pre-standoff cell would measure a reach we never intended to take.
+			return ResolveRendezvous(lerp, srCell);
+		}
+
+		// Fold the offensive reserve's published staging anchor into a pre-contact drop-off decision.
+		// Returns `fallback` untouched whenever the rendezvous is off, no offensive module is enabled, no
+		// anchor has been published yet, or the anchor fails RendezvousMath's reach bound — so every failure
+		// path degrades to the legacy behaviour rather than stalling. Nothing here waits on anything.
+		CPos? ResolveRendezvous(CPos? fallback, CPos srCell)
+		{
+			if (!Info.RendezvousWithOffensiveStaging || !fallback.HasValue)
+				return fallback;
+
+			// Resolved PER PASS, deliberately NOT cached behind a one-shot latch. CaptureCoordinatorBotModule
+			// caches its transport-module lookup that way (`transportModuleResolved`), and a lookup that
+			// happened to resolve null would stay null for the rest of the match with nothing to show for it.
+			// Same twinning reason as the heliTransport lookup above: TraitOrDefault would throw on the twin.
+			var offensive = player.PlayerActor.TraitsImplementing<PoiOffensiveBotModule>()
+				.FirstOrDefault(m => !m.IsTraitDisabled);
+
+			var anchor = offensive?.ForwardStagingAnchor;
+
+			RendezvousMath.ResolveDropOff(
+				Info.RendezvousWithOffensiveStaging, anchor.HasValue,
+				srCell.X, srCell.Y,
+				anchor?.X ?? 0, anchor?.Y ?? 0,
+				fallback.Value.X, fallback.Value.Y,
+				Info.RendezvousMaxAdvanceCells,
+				out var x, out var y);
+
+			var rendezvous = new CPos(x, y);
+
+			// The anchor is a control-field cell the offensive walked to, so it is on-map by construction —
+			// but this module owns the order that follows, so it verifies rather than assuming.
+			if (!world.Map.Contains(rendezvous))
+				return fallback;
+
+			if (rendezvous != fallback.Value)
+				Log.Write("debug",
+					$"[exp-transport] rendezvous player={player.PlayerName} anchor={anchor} " +
+					$"lerp={fallback.Value} → drop={rendezvous} tick={world.WorldTick}");
+
+			return rendezvous;
 		}
 
 		// Fog-legal standoff: walk the drop cell back toward our SR (deterministic 1-cell steps, zero RNG)

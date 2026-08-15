@@ -4629,3 +4629,80 @@ Offline (`--composition-plan`, real ruleset): with the **shipped default start c
 **And the reason it took a run to settle: the purchase LANE was unobservable.** The census answers *what does the bot own*; it cannot answer *why did it buy that*, and those differ once several lanes can order the same type (`UnitBuilderBotModule`'s own argmax, its floor pre-empt, its supply pre-empt, and any module requesting through `IBotRequestUnitProduction`). Every existing pick log was `AIUtils.BotDebug` — default-off **and** chat-only, never reaching debug.log. Now `[composition] pick ... lane=` (`UnitBuilderBotModule.LogPick`), gated on `CensusLogInterval` so @stable stays silent. It answered the question in one run: 73 `lane=deficit`, 2 `lane=floor`, and the medic tagged `lane=floor supported=20 floor=1`.
 
 **@stable does not move.** `UnitFloors` / `UnitFloorPer` / `UnitFloorSupportedTypes` appear **only** in the two `@experimental` faction twins (`ai-america.yaml:147/168/178`, `ai-russia.yaml:112/123/129`); no `@stable`/`normal`/`rush`/`turtle`/`heli`/`fixedwing` block sets any of them. `EffectiveFloor` returns the flat floor verbatim when no ratio is configured, so the scaling is unreachable without opting in.
+---
+
+## 2026-08-15 — a scenario missing `Rules: rules.yaml` runs its whole match with NO scenario rules and reports an ordinary timeout: the third "measured nothing" shape
+
+`tools/autotest/scenarios/<test>/map.yaml` must carry a top-level `Rules: rules.yaml` line or the sibling `rules.yaml` is **never read**. Working example: `tools/autotest/scenarios/test-experimental-poi-observe/map.yaml:96` (last line, preceded by a blank line — adjacent MiniYaml top-level entries merge).
+
+**Why this is worth banking rather than just fixing.** The failure is completely silent and mimics a legitimate result. With the line absent:
+- `rules.yaml` is skipped, so the `LuaScript` trait is never attached;
+- no assertion, no `Test.Pass`/`Test.Fail`, and `Logs/lua.log` stays **0 bytes**;
+- the game runs happily to the 300 s wall-clock watchdog and the runner reports `TIMEOUT-FAIL` with "game hung or rules failed to load";
+- `run-test.sh` explicitly checks the debug log and prints **"No 'Failed to load rules' … — hang is elsewhere"**, because nothing failed to load. The rules were never *requested*.
+
+Two full runs were spent chasing a non-existent hang before the missing line was found — the tell that would have shortcut it is **`lua.log` being zero-length**, which discriminates "the script ran and my predicate never went true" from "the script never ran at all". Check that first when a scenario times out with no verdict.
+
+**This is the same family as the two 2026-08-14 incidents already written into `DOCS/recipes/AUTOTEST.md`** (a control that passed when it was required to fail; a warhead override that silently inherited engine defaults so the scenario tested a world that was never built). The common shape is a scenario whose *setup* silently did not happen while the run still produced a verdict-shaped result. Here the whole `rules.yaml` — Lua, trait overrides, cash, everything — was absent, so the match ran on stock mod rules. **A timeout was the lucky outcome**: an assertion written to confirm an ABSENCE (nothing exploded, no unit strayed) would have passed on a world that was never built, and looked green.
+
+Discovered while building `test-combined-arms-rendezvous` (PIPELINE 34/35 neighbourhood).
+
+## 2026-08-15 — the `transportModuleResolved` latch is BENIGN on `@experimental`, which removes one of item 35's two candidate causes; and armed transports are recruited as gun platforms
+
+Both findings come from the combined-arms recon and belong to **PIPELINE item 35** ("find out why the shipped, enabled derrick ferry does not visibly fire"), not to the rendezvous work they were found during.
+
+**1. The one-shot latch cannot be the cause, so stop suspecting it.** `CaptureCoordinatorBotModule.cs:1705-1710` resolves `MountedTransportBotModule` once and caches the result — including a `null` — for the rest of the match. The worry was that it latches before the module's condition is granted, permanently disabling every transport-coupled behaviour. **It does not.** `enable-ai-experimental` is granted by `GrantConditionOnBotOwner` in `INotifyCreated.Created` (`engine/OpenRA.Mods.Common/Traits/Conditions/GrantConditionOnBotOwner.cs:44`) — at actor construction, **before any tick**, hence before any capture order can be issued. So `IsTraitDisabled` is already false at first resolve, and on `@experimental` the module is attached (`mods/ww3mod/rules/ai/ai.yaml:1513`), so the cache stores a live reference.
+
+That leaves item 35's **other** named candidate — no free carrier available at the moment of the capture scan — as the surviving hypothesis, and `ferried=True|False` at `CaptureCoordinatorBotModule.cs:1691` still distinguishes them with zero code.
+
+The latch is still poor shape (a trait disabled *later* by a condition change would be cached stale, and it asserts a decision instead of observing the world) but it is not today's bug. The rendezvous work deliberately did **not** copy the pattern: `MountedTransportBotModule.ResolveRendezvous` re-resolves per pass, like the existing `heliTransport` lookup.
+
+**2. An armed transport is recruited as a combat unit, so IFVs get staged forward empty.** `PoiOffensiveBotModule.IsEligibleCombatUnit` (`:2374`) admits anything with `IPositionableInfo` + `AttackBaseInfo` and **has no transport/`Cargo` exclusion**. `bradley` and `bmp2` are armed, so they are staged forward by `StageFreePool` as gun platforms whenever they are not mid-task — which is most of the time early, because `MinPassengersPerLoad: 2` (`ai.yaml:1484`/`:1517`) holds a carrier back until two eligible passengers sit inside the 14-cell reserve bubble, and opening infantry trickle in one at a time.
+
+This is a plausible mechanism behind the user's "most technicians walk while some transports do nothing of use". **Note the non-obvious part:** it is *not* a lock conflict. Carrier selection deliberately does **not** require `IsIdle` (`MountedTransportBotModule.cs:544-553`, with a `PITFALL (2026-05)` comment warning against re-adding it), so staging does not prevent the transport module from claiming a carrier. The two modules genuinely share the vehicle; the question is only which one gets to it first.
+
+Left unfixed on purpose: excluding armed transports from the offensive free pool edges onto unit-role/composition ground owned by `wt/build-order`, and it trades combat power for lift. Item 35's call, not this branch's.
+
+## 2026-08-15 — bot infantry walk to the front because the OFFENSIVE recruits them, not because the ferry failed: `StageFreePool` marches armed infantry to the same anchor as the armour
+
+Found while trying to build a control for the combined-arms rendezvous, and it reframes the user-facing complaint ("most technicians are still just walking all the way there").
+
+`PoiOffensiveBotModule.IsEligibleCombatUnit` (`:2374`) admits **anything** with `IPositionableInfo` + `AttackBaseInfo`. Rifle infantry qualify, so they enter the free pool and `StageFreePool` (`:2261`) issues each of them an individual `AttackMove` to the staging anchor — **on foot, one order per unit** (`:2356-2358`, `groupedActors: new[] { u }`). There is no minimum count and no composition term anywhere in that path.
+
+**So infantry reach the front on foot as the DESIGNED behaviour of the offensive layer, entirely independently of whether any transport module works.** Fixing the ferry cannot by itself stop infantry walking: the offensive layer is already walking them, and it starts at tick 3.
+
+**This has a sharp methodological consequence for anyone testing transport behaviour**, and it cost a run here. "Are the infantry near the armour?" is **not** a valid observable for any ferry change — infantry get near the armour by walking to the same anchor, so such a test passes with the ferry disabled entirely. A control built that way is a control that passes when it is required to fail. The observable has to distinguish units that were **carried** (e.g. latch that a unit went out of world into a `Cargo`, then measure where it reappears) from units that merely arrived.
+
+Two smaller traps in the same neighbourhood, both of which produce `passengers-eligible=0` with no other symptom:
+- **`e1.*` is not a configured passenger type.** `MountedTransportBotModule.PassengerTypes` (`mods/ww3mod/rules/ai/ai.yaml:1483`/`:1516`) lists `e3/ar/at/sn/tl/medi/e2/mt/aa/e4` — **`e1` is absent from both twins**, so a scenario that places `e1` infantry next to a carrier gets a ferry that never loads and logs only `passengers-eligible=0`.
+- `StageFreePool` does **not** commit to the goal-guard ledger (only axis assignment at `:1921`/`:2818` and bombard at `:3568` do), so staged-but-unassigned infantry DO remain eligible passengers. Staging and ferrying genuinely compete for the same bodies rather than one locking the other out.
+
+## 2026-08-15 — `e1.*` is absent from `PassengerTypes` because **E1 does not exist in WW3MOD**; the real gap is that a mixed infantry+technician load is not expressible
+
+Investigated as a candidate user-visible lever after `e1.america` infantry were found to be un-ferriable. **The lever does not exist**, and that is the finding.
+
+`^E1` (Conscript) carries `Prerequisites: ~disabled` **on the base itself** (`mods/ww3mod/rules/ingame/infantry.yaml:1136`), and both faction variants restate `~disabled` (`infantry-america.yaml:5`, `infantry-russia.yaml:5`). It is a legacy Red Alert unit retained for artwork — `crew.yaml` reuses the `e1.america` image for ejected crew — and **nothing can build it**. It appears in a match only if a map hand-places it, which is exactly what the test scenario did. So its absence from `MountedTransportBotModule.PassengerTypes` is correct by consistency, not an oversight, and adding it would add a phantom: no behavioural change, and no collision with procurement work, because the unit never spawns.
+
+**The useful version of the question is which BUILDABLE infantry are missing.** Roster (identical both factions): `E3 AR E2 MT TL AT AA MEDI SN E6 SF TECN DR E4`. `PassengerTypes` (`ai.yaml:1483`/`:1516`) covers `e3 ar at sn tl medi e2 mt aa e4`. Absent **and buildable**: **`E6`, `SF`, `TECN`, `DR`.**
+
+**`TECN`'s exclusion is deliberate and load-bearing — do not "fix" it.** The evidence is direct: `dd441876`, the commit whose entire purpose was *"technicians ride carriers to distant captures"*, added the `PassengerTypes` line **without** `tecn` and instead built a directed reservation path. `ai.yaml:1507-1509` states the design: *"TECN-first capture ferrying is triggered by a CaptureCoordinatorBotModule .tecn twin calling TryReserveCaptureFerry on the ENABLED transport instance (no YAML field needed — it's a directed call path)."* Making TECN a general passenger would return it to the generic frontline-delivery pool, letting the transport scoop technicians up and dump them at the front in competition with the capture layer for the same unit — the class of bug `09877fd5` closed when `GarrisonBotModule` was grabbing TECN and making it unrecoverable. Intent for `E6`/`SF`/`DR` is **not** established here; flagged, not concluded.
+
+**What this means for the user's actual picture** ("an IFV with soldiers AND a technician"). Soldiers: already supported — `e3` and friends are passengers. Technician: **only via the capture ferry**, which fires only for a capture target at least `TransportCaptureMinDistanceCells: 12` away and reserves the carrier for the capturer, so the technician rides **alone**. A mixed squad-plus-technician load is therefore **not expressible today** by any path. That is a genuine gap against the request, and it sits on PIPELINE item 35's ground rather than this branch's.
+
+Incidentally cleared while checking the procurement-collision risk: the `[composition]` census is **not** carried-blind — it counts `inWorld+inCargo` and says so in its own format string (`UnitBuilderBotModule.cs:581`), and `OwnedUnitsIncludingCarried()` (`:686-705`) walks `Cargo` for the resupply predicates, covering transports and garrison shelters in one pass without double-counting. So passenger-list changes in general do not distort what the procurement layer sees.
+
+## 2026-08-15 — the combined-arms rendezvous is PLUMBING, not a shipped fix: merged, inert, and behaviourally unproven
+
+Recording this explicitly so "merged" is never later read as "working".
+
+`ef608a62` publishes `PoiOffensiveBotModule.ForwardStagingAnchor` and has `MountedTransportBotModule` deliver pre-contact infantry there instead of to its own SR→POI lerp. **It is switched OFF.** `RendezvousWithOffensiveStaging` defaults `false` and **no shipped twin sets it**, so both profiles are byte-identical on this path and `@stable` has not moved. It was merged on the strength of unit-level proof (`RendezvousMath`, 9 NUnit cases, suite 1444/1444) plus the fact that it cannot change behaviour while disabled — **not** on evidence that it improves anything.
+
+**The behavioural claim is unproven.** Three runs produced no valid RED (see the scaffolding entry above). Nobody has observed a ferried squad being set down with the armour.
+
+**It is also necessary-but-not-sufficient by construction**, and this is the part that most changes the picture. The user's report — *"that initial tank pushes forward on its own"* with infantry arriving unprotected — was read by everyone as "the infantry are being sent somewhere else". The evidence says **they are sent to the same place and simply walk**: `StageFreePool` gives infantry an individual `AttackMove` to the same anchor as the armour from tick 3, and the tank drives while they march. **A tank that outruns its infantry looks identical, from the spectator's seat, to a tank that was sent somewhere they were not.** The rendezvous fixes the destination; it does nothing about the speed differential, so enabling it alone may not produce the user-visible outcome.
+
+**What the next attempt needs from its observable.** Proximity cannot work — see `AUTOTEST.md` §5, added with this entry. Two observables that can:
+- **arrival mode**: latch that a unit left the world into a `Cargo` and measure where it re-enters. Walking units never satisfy it, so it isolates the ferry.
+- **arrival timing**: the tick gap between the armour reaching the anchor and the infantry reaching it. This is the one that speaks to the *user's* complaint rather than to the code change, because it measures the outrunning directly and would show whether the rendezvous alone closes it.
+
+**One inherited value is untested tuning, not a measurement.** The belief-source enemy armour in `test-combined-arms-rendezvous/map.yaml` was reduced from four t90s at x=50-52 to two at the far corner, because the four-tank version killed the lead abrams before the assertion could be judged. That reduction was **never run**. Treat it as a starting guess: confirm the abrams survives to the anchor, and expect to move them further out or drop to one.

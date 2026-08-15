@@ -1018,6 +1018,17 @@ namespace OpenRA.Mods.Common.Traits
 		// staging is off, no control field / SR, or the field is unpopulated (⇒ reserve idles at the SR, legacy).
 		CPos? stagingAnchor;
 
+		/// <summary>
+		/// The cell the free pool is mustering on this eval, published so the MOUNTED TRANSPORT can deliver its
+		/// infantry to the armour instead of to a destination it computes for itself (RendezvousMath). Read-only:
+		/// this is a rendezvous channel, not a control surface — no consumer may steer the offensive's staging.
+		///
+		/// Null carries real information and must not be papered over by the consumer: it means staging has not
+		/// resolved (off, no control field / SR, or a flat field with no believed enemy anywhere), so there is no
+		/// force to rendezvous WITH and a transport should keep its own destination.
+		/// </summary>
+		public CPos? ForwardStagingAnchor => stagingAnchor;
+
 		// The last ADOPTED staging anchor (Chebyshev hysteresis, so a 1-cell field wobble doesn't re-lay the
 		// formation every eval), and the last staging cell each idle unit was AttackMoved to (re-issue dedup so a
 		// unit already walking up keeps its order). Both empty/null unless ForwardStagingEnabled.
