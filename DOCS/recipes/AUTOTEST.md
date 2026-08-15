@@ -221,6 +221,36 @@ several procurement decisions leave no post-hoc trace whatsoever — a lane can 
 someone adds an unconditional `Log.Write("debug", …)`. "We looked and it wasn't happening" is
 worthless when the looking was impossible.
 
+### A query that drives setup must be asserted non-empty — an API can answer a different question depending on WHEN you call it
+
+Third instance of this family, 2026-08-15, and neither rule above catches it. The first two were a
+value silently falling back to an engine default and a control that could not go red. This one is
+neither: **nothing fell back and nothing was mis-specified.** You could restate every field the
+consumer reads, and run both arms, and still get it — because the API answered a different question
+on account of *when* it was asked.
+
+The instance: `Map.ActorsInCircle` / `Map.ActorsInBox` **return nothing when called from
+`WorldLoaded`.** They resolve through `World.FindActorsInCircle` (`WorldUtils.cs:79-85`) to
+`ActorMap.ActorsInBox` (`ActorMap.cs:649`), which reads ActorMap's **position bins**; map-placed
+actors only enter those bins via `ActorMap.TickFunction` (`ActorMap.cs:478`), invoked from `ITick` —
+the first world tick, *after* `WorldLoaded` returns. Correct code, correct arguments, no error, wrong
+answer. **Cell-keyed `ActorMap.GetActorsAt` is immune** (it is updated on add); only the position-bin
+queries are affected. Query from inside the polling predicate or behind a grace window — which is
+what `test-field-crate-drop` does, and now `test-field-swallows-shell`.
+
+**It was caught only by luck, and that is what the rule is for.** The query happened to feed a guard
+whose failure *is* the alarm, so it surfaced as a loud FAIL. The identical mistake in ordinary setup
+code — "find the units near X at load and put them on `HoldFire`" — returns an empty list, sets
+nothing, throws nothing, and the scenario runs to a confident verdict against a world that was never
+built. That is the silent, false-green shape of the same defect, and nothing in the harness would
+report it.
+
+So, generalising the practice `StancePositioningFireStanceTest` already follows (it asserts it
+resolved more than zero stance assignments before asserting no violations): **when setup is driven by
+a query, assert the query RETURNED something before acting on its result. An empty lookup must never
+be allowed to mean "nothing to do".** Mechanism and full write-up in `WORKSPACE/DISCOVERIES.md`,
+2026-08-15.
+
 ## Gotchas
 
 These bit during development. Documenting so they don't bite again.
