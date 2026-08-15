@@ -32,6 +32,30 @@ alternative — giving the littlebird a Gunner slot — was rejected because it 
 could then bail at `DamageState.Heavy` and re-zero the guns, smuggling a new gameplay behaviour in as a
 bug fix. Whether a Little Bird should have a two-man crew stays a separate, deliberate content decision.
 
+## 2026-08-15: [medium] OPEN — every demo is killed after exactly 300s by a watchdog that waits for a verdict demos are designed never to write (found while: showing the user demo-heli-weapons, branch `wt/heli-gun`)
+
+`run-demo.sh` delegates to `run-test.sh --visible --audio "$@"` (`run-demo.sh:50`) and inherits its
+`TIMEOUT_SECS=300` default (`run-test.sh:150`). That watchdog kills the game and synthesizes a FAIL when
+no verdict has been written in time (`run-test.sh:729-764`). But `run-demo.sh`'s own header states demos
+"do NOT write a result file — the user closes the window when done", so the verdict the watchdog waits
+for can never arrive. **Every demo therefore dies at the five-minute mark, mid-viewing**, and prints
+`TIMEOUT-FAIL` for a scenario that has no pass/fail concept:
+
+```
+==> TIMEOUT: no verdict after 300s — killing the game.
+==> VERDICT: TIMEOUT-FAIL   (exit 1)     # for demo-heli-weapons
+```
+
+`run-demo.sh` maps run-test.sh's exit 3 ("no result") to 0 precisely because verdict-less is the point —
+but it does not neutralise the timeout that fires first, so the exit code it translates is 1, not 3.
+
+Workaround: pass a large `--timeout` (`./tools/autotest/run-demo.sh --timeout 7200 demo-heli-weapons`);
+the flag forwards through. Real fix is for `run-demo.sh` to default the watchdog off, or to a value that
+reflects a human viewing session, rather than reusing the unattended-test default.
+
+Note this also makes the timeout FAIL misleading in the other direction: the message tells the reader to
+go looking in `debug.log` for a hang or a rules-load failure, when nothing is wrong at all.
+
 ## 2026-08-15: [medium] OPEN, UNMEASURED — a ground vehicle whose crew ejected may stay permanently crippled after being repaired to full HP (found while: fixing the littlebird's zero damage, branch `wt/heli-gun`)
 
 **Inferred from code, NOT tested — do not treat the behaviour as confirmed.** `VehicleCrew` revokes a
