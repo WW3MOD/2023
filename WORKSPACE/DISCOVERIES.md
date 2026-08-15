@@ -4954,3 +4954,27 @@ open question — neither candidate explanation was right: the far-moved rifleme
 were **never carried**, they walked to the front under the offensive layer, while the two that left the
 world never returned. In WW3MOD, zero cash is not zero units — that is the whole point of the model
 (`game-model.md`), and any scenario relying on cash to pin its force is relying on the wrong lever.
+## 2026-08-15 — helicopter guns: accuracy is the dominant term against aircraft, and three weapon-mounting fields are inert
+
+Diagnosing "the littlebird's missiles never do damage" and "its miniguns are very inaccurate". Both premises turned out to be about something other than what they name, and the investigation turned up three fields that look load-bearing and do nothing.
+
+**Against aircraft, accuracy dominates everything else.** Every helicopter uses `HitShape: Type: Circle, Radius: 32` (`mods/ww3mod/rules/ingame/aircraft.yaml:65-67`). That is tiny next to typical gun scatter, so a weapon's `Inaccuracy` — not its damage or penetration — decides most of its anti-air output. Modelling the real pipeline (`Bullet.cs:201-222` → `Util.cs:401-416` → `Circle.CenterProximityPercent` → `DamageWarhead.cs:216-231`) against an 800 hp Apache gives:
+
+| gun | Inaccuracy | TTK @4 cells | TTK @8 cells |
+|---|---|---|---|
+| `7.62mm.Minigun` (littlebird scout, 3000cr) | 64 | **1.2 s** | **2.7 s** |
+| `30mm.Tunguska.AA` (**dedicated AA**, 1700cr) | 1024 | 3.3 s | 13.6 s |
+
+So before this branch the scout helicopter's minigun was **five times better than purpose-built anti-air** at killing helicopters, purely on scatter. Any future "let unit X shoot at aircraft" work should price `Inaccuracy` first and treat damage as the second-order term; the intuition that damage sets anti-air strength is wrong at this hitshape size.
+
+**`TargetDamage` barely ever applies to an aircraft.** `TargetDamageWarhead.Spread` defaults to `WDist(1)` (`TargetDamageWarhead.cs:23`) and the victim is rejected when `DistanceFromEdge > Spread` (`:64-65`). Against a radius-32 circle with any real scatter the big warhead is skipped and the weapon silently falls through to whatever `SpreadDamage` it also carries. This is why Hellfire needed its `Pen 20` spread fallback (already documented in-weapon) — but the general rule is worth stating: **a `TargetDamage`-only weapon has almost no effect on aircraft**, whatever its damage number says.
+
+**Three inert fields.** All three read as deliberate tuning and are not:
+
+1. **`LocalYaw` does nothing for missiles.** `Missile.cs:286-294` recomputes launch facing from source→target and consults `args.Facing` (the only consumer of `Barrel.Yaw`, `Armament.cs:412`) *only* when that vector is zero-length. The littlebird's unmirrored `LocalYaw: -40, 24` was the obvious suspect for its dead missiles and is purely decorative. **12 occurrences remain across `mods/`.**
+2. **`InaccuracyPerProjectile` is globally unreachable.** `Bullet.cs:213` gates it on `lastPosIsSet`, declared `readonly bool lastPosIsSet = false` at `:170` and never assigned anywhere. The branch — which would have walked a burst off the target by re-aiming at `lastPos` — cannot execute. **6 weapons still set it** (`weapons-ballistics.yaml:541,565,601,617,760`, `weapons-other.yaml:88`); all are no-ops.
+3. **`MovementInaccuracy` never applies to aircraft.** `Armament.cs:507` looks up `TraitOrDefault<Mobile>()` on the target; aircraft use `Aircraft`, not `Mobile`, so the lead-error term is skipped entirely. Helicopters are hit as though stationary no matter how fast they fly.
+
+**A `MinRange` can be silently nullified by a *different* armament on the same actor.** `AttackBase.GetMinimumRangeVersusTarget` (`AttackBase.cs:597-620`) returns the **minimum** across armaments *valid against that target*, and `Fly.cs` uses that to decide when to back off. The littlebird's minigun was `Helicopter`-valid with `MinRange 0`, so versus a helicopter the pair's minimum was 0 — nothing ever pushed it out of its own Hellfire's `MinRange: 5c0`, and `Armament.CanFire` (`Armament.cs:333-335`) then refused every missile shot silently and indefinitely. **The general trap: adding a short-minimum weapon to an actor disables the standoff behaviour of its long-minimum weapon against every target both can engage.** Narrowing one weapon's `ValidTargets` is enough to restore it.
+
+**Instrument warning — `tools/combat-sim/data/stats.json` is committed and goes stale.** The checked-in dump was generated `2026-05-11`; `ab64b15a` retuned the littlebird minigun (`range 15→8c0, inaccuracy 0c256→0c64`) afterwards. Reading the committed file gave range `15360` and inaccuracy `256` — both wrong, and both wrong in the direction that would have justified a bogus "the gun is inaccurate" conclusion. `BALANCE.md` says to re-run `dump-stats.sh`; treat that as mandatory rather than advisory, because the stale file is plausible rather than obviously broken.

@@ -250,6 +250,34 @@ Hellfire:
 		Explosions: explosion_air_medium
 		ImpactSounds: kaboom25.aud
 
+Hellfire.Littlebird:
+	Inherits: Hellfire
+	# Littlebird's rack. Two deliberate departures from the Apache's mounting.
+	#
+	# 1. No Air (260815). The scout must not kill helicopters with missiles.
+	#    Dropping Air also repairs two silent failures that made this rack read
+	#    as "never does damage":
+	#      - AttackBase.GetMinimumRangeVersusTarget (AttackBase.cs:597-620) takes
+	#        the MIN across armaments VALID against the target. While the minigun
+	#        was Helicopter-valid with MinRange 0, the pair's minimum versus a
+	#        heli was 0, so Fly.cs never pushed the littlebird back out of this
+	#        weapon's own 5c0 MinRange — and Armament.CanFire (Armament.cs:333-335)
+	#        then refused the shot silently, indefinitely. Ground-only targeting
+	#        restores the 5c0 standoff, because the minigun is not valid against
+	#        Vehicle and so no longer drags the pair's minimum to zero.
+	#      - Against a heli the 10000-damage TargetDamage warhead needs its impact
+	#        within Spread (default WDist(1), TargetDamageWarhead.cs:23,64-65) of a
+	#        Circle Radius 32 hitshape (aircraft.yaml:65-67), against 0c256 of
+	#        scatter — so it nearly always fell through to the 2000/Pen-20 spread
+	#        warhead and looked like a missile that hit for nothing.
+	# 2. Range 20c0, five cells inside the Apache's 25c0 — the scout spots and
+	#    plinks, the Apache is the standoff platform. RangeLimit tracks it down so
+	#    a missile cannot outlive its own envelope by seven cells.
+	ValidTargets: Vehicle, Defense
+	Range: 20c0
+	Projectile: Missile
+		RangeLimit: 22c0
+
 Hellfire.strykershorad:
 	Inherits: Hellfire
 	Inherits@ExplosionEffects: ^MediumExplosionEffects

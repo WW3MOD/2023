@@ -191,19 +191,72 @@ MP5:
 7.62mm.Minigun:
 	Inherits@Caliber: ^7.62mm
 	Inherits@HitEffects: ^PiffsEffects
+	# GROUND ONLY as of 260815. Helicopter moved to 7.62mm.Minigun.AA so the
+	# anti-air ceiling can be tuned without touching strafing performance. See
+	# that weapon for why the split was necessary rather than tidy.
+	ValidTargets: Infantry, Unarmored
 	Range: 8c0
 	Burst: 20
 	BurstDelays: 1
 	BurstWait: 5
 	Projectile: Bullet
 		Speed: 1c0
-		Inaccuracy: 0c64
-		InaccuracyPerProjectile: 32,32,0
+		# 0c64 is already sub-1/16-cell scatter at max range; tightened once more
+		# for visible tracer convergence. NOTE: raw scatter was never the reason
+		# this gun felt inaccurate — see DamageAtMaxRange below, which is.
+		Inaccuracy: 0c48
+		# InaccuracyPerProjectile removed 260815: Bullet.cs gates it behind
+		# `lastPosIsSet`, a readonly field initialised false and never assigned
+		# (Bullet.cs:170,213), so the whole branch is unreachable. It was inert.
 		Image: tracer_large
+	Warhead@Target: TargetDamage
+		# AttackType: Hover parks the littlebird at exactly max range, which is
+		# precisely where DamageAtMaxRange 50 halved every round — the gun was
+		# weakest at the only range it ever fought from. 75 softens that cliff.
+		DamageAtMaxRange: 75
+		ValidTargets: Infantry, Unarmored
 	Warhead@Spread: SpreadDamage
 		Spread: 32
 		Damage: 200
-		ValidTargets: Infantry, Unarmored, Helicopter
+		ValidTargets: Infantry, Unarmored
+		DamageTypes: BulletDeath
+
+7.62mm.Minigun.AA:
+	Inherits@Caliber: ^7.62mm
+	Inherits@HitEffects: ^PiffsEffects
+	# Littlebird's last-resort air-to-air mount (260815). Follows the Tunguska
+	# 30mm.Tunguska.AG / .AA split (see :449-460) — and finally gives the
+	# littlebird's AmmoPool@1 the `primary-air` armament it has referenced, and
+	# silently failed to match, since the actor's first commit.
+	#
+	# THIS WEAPON IS A NERF, NOT A BUFF. The base minigun could already target
+	# Helicopter, and modelling the real pipeline showed it killing an Apache in
+	# 2.7s at max range — faster than the DEDICATED Tunguska AA gun (13.6s),
+	# because a heli hitshape is Circle Radius 32 and accuracy dominates
+	# everything at that scale. A 3000-credit scout outshooting purpose-built AA
+	# is the opposite of the intent, so the AA mount trades that away:
+	#   Inaccuracy 0c512 (8x looser) — a light minigun hosing at a jinking heli.
+	#   Damage 150 / Penetration 4  — vs Heavy heli Thickness 20 that is 20%.
+	# Net vs an 800hp Apache: ~9.6s at 4 cells, ~48s at 8. The littlebird carries
+	# 160 rounds = 7.7s of continuous fire and cannot reload outside a helipad,
+	# so it physically CANNOT finish an attack heli on one load. The ceiling is
+	# structural, not a number someone has to remember to keep low.
+	ValidTargets: Helicopter
+	Range: 8c0
+	Burst: 20
+	BurstDelays: 1
+	BurstWait: 5
+	Projectile: Bullet
+		Speed: 1c0
+		Inaccuracy: 0c512
+		Image: tracer_large
+	-Warhead@Target:
+	Warhead@Air: SpreadDamage
+		Spread: 32
+		Damage: 150
+		Penetration: 4
+		DamageAtMaxRange: 50
+		ValidTargets: Helicopter
 		DamageTypes: BulletDeath
 	Warhead@AirEffect: CreateEffect
 		ValidTargets: Helicopter
@@ -238,9 +291,50 @@ MP5:
 	BurstWait: 12
 12.7mm.Hind:
 	Inherits@Caliber: ^12.7mm
+	# GROUND ONLY as of 260815 — Helicopter moved to 12.7mm.Hind.AA. Ground
+	# performance (Damage 600 / Pen 15 vs Infantry, Unarmored, Light) is
+	# untouched; only the air half is re-gated.
+	ValidTargets: Infantry, Unarmored, Light
 	Burst: 8
 	BurstDelays: 2
 	BurstWait: 10
+	Warhead@Target: TargetDamage
+		ValidTargets: Infantry, Unarmored, Light
+
+12.7mm.Hind.AA:
+	Inherits@Caliber: ^12.7mm
+	# Hind's last-resort air-to-air mount (260815). The user's constraint was
+	# explicit: usable, but "not nearly as good as an attack helicopter".
+	#
+	# Deliberately seated ABOVE the littlebird's minigun (heavier round, and the
+	# Hind is a 4000-credit gunship rather than a 3000-credit scout) and far
+	# BELOW anything built for the job. Versus an 800hp Apache:
+	#   Stryker SHORAD Stinger  ~1 hit          (5000 dmg, Pen 20)
+	#   AA Specialist MANPAD    ~1 hit          (3000 dmg, Pen 15)
+	#   Apache's own Hellfire   sub-second      (~2000 via the spread fallback)
+	#   Hind 12.7mm.Hind.AA     ~4s at 2 cells, ~14s at 8, ~73s at 12
+	# The Hind carries 150 rounds — 18s of continuous fire, helipad-only reload —
+	# so downing one attack heli costs it its entire magazine at knife range,
+	# having done nothing else that sortie. That is the "last resort" shape.
+	ValidTargets: Helicopter
+	Burst: 8
+	BurstDelays: 2
+	BurstWait: 10
+	Projectile: Bullet
+		Speed: 1c0
+		Inaccuracy: 0c640
+		LaunchAngle: 0,15
+	-Warhead@Target:
+	Warhead@Air: SpreadDamage
+		Spread: 32
+		Damage: 300
+		Penetration: 5
+		DamageAtMaxRange: 50
+		ValidTargets: Helicopter
+		DamageTypes: BulletDeath
+	Warhead@AirEffect: CreateEffect
+		ValidTargets: Helicopter
+		ImpactActors: false
 
 HandGrenade:
 	Inherits@HitEffects: ^MinimalExplosionEffects
