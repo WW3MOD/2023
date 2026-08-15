@@ -1,27 +1,3 @@
--- ############################################################################################
--- THIS INSTRUMENT IS NOT YET VALID. DO NOT TRUST A GREEN FROM IT UNTIL THE BELOW IS RESOLVED.
---
--- Measured 2026-08-15 (run 260815_125124_p67532, DefaultCash 0, carriers-total=1 so the placed
--- bradley at 8,18 is provably the only carrier and therefore provably the `BotCarrier` global):
--- the module's own log recorded `depart carrier=bradley aboard=1` at tick 1015 and `aboard=2` at
--- 2515, while THIS predicate reported peakPax=0 and everCarried=0 for the whole run. Both readings
--- cannot be right. The engine reads Cargo.PassengerCount and Lua reads cargo.Passengers.Count() on
--- the same trait, the closure demonstrably ran (it produced this file's failure string at the
--- deadline), and the carrier was neither dead nor duplicated.
---
--- So the predicate is not observing the actor it names, and the cause is NOT yet identified. The
--- leading suspect is the file-scope `local Squad = { BotRifle1, ... }` capture below: map-actor
--- globals may not be bound when the chunk is first executed, which would leave Squad a table of
--- nils with #Squad == 0 — that explains everCarried=0 exactly. It does NOT explain peakPax=0, which
--- reads BotCarrier directly inside the closure, so there is at least one more thing wrong.
---
--- NEXT STEP, cheap and decisive: the engine now emits `[exp-transport] delivered ... pax=N` at the
--- Unloading -> Returning edge, so completed deliveries are provable from debug.log WITHOUT this
--- predicate. Use that as the primary evidence, and repair this file by (a) moving the Squad/Control
--- capture inside WorldLoaded and (b) printing BotCarrier.PassengerCount once per second to lua.log
--- to see what it actually returns.
--- ############################################################################################
---
 -- AUTO TEST — a ground transport COMPLETES A DELIVERY before contact.
 --
 -- The first delivery this project will have observed. Everything before today measured the module
@@ -59,8 +35,12 @@
 local DeadlineSeconds = 180   -- generous: a passenger walks ~43 ticks/cell and must then ride out
 local DeliveredCells = 10     -- how far from its start a returned passenger must be to count
 
-local Squad = { BotRifle1, BotRifle2, BotRifle3, BotRifle4, BotRifle5 }
-local Control = { CtlRifle1, CtlRifle2, CtlRifle3, CtlRifle4, CtlRifle5 }
+-- CAPTURED INSIDE WorldLoaded, NOT HERE. Map-actor globals are not guaranteed to be bound when this
+-- chunk is first executed, so a file-scope `{ BotRifle1, ... }` can be a table of five nils with
+-- #Squad == 0 — every loop over it then silently does nothing and every count stays 0. That is the
+-- suspected cause of the everCarried=0 reading on 2026-08-15 and it is a silent failure: no error,
+-- no warning, just a predicate that examines an empty list forever.
+local Squad, Control
 
 local function CellDistance(a, b)
 	local dx = math.abs(a.X - b.X)
@@ -72,10 +52,32 @@ end
 WorldLoaded = function()
 	TestHarness.FocusBetween(BotCarrier, OpponentSR)
 
+	-- Bind here, where map-actor globals are guaranteed live.
+	Squad = { BotRifle1, BotRifle2, BotRifle3, BotRifle4, BotRifle5 }
+	Control = { CtlRifle1, CtlRifle2, CtlRifle3, CtlRifle4, CtlRifle5 }
+
+	-- SELF-CHECK: refuse to run against an empty or short squad. A predicate that examines nothing
+	-- reports a confident zero, which is indistinguishable from the behaviour being absent — the
+	-- precise failure this scenario suffered. Fail loudly at tick 0 instead.
+	if Squad == nil or #Squad ~= 5 or Control == nil or #Control ~= 5 then
+		TestHarness.AssertWithin(1, function()
+			return "fail: SETUP DID NOT BIND — #Squad=" .. tostring(Squad and #Squad)
+				.. " #Control=" .. tostring(Control and #Control)
+				.. ", expected 5 and 5. The predicate would have measured an empty list and reported "
+				.. "zero for everything. Check the actor names in map.yaml against this file."
+		end, "unreachable")
+		return
+	end
+
 	-- Start positions, captured before anything moves.
 	local start, ctlStart = {}, {}
 	for i = 1, #Squad do start[i] = Squad[i].Location end
 	for i = 1, #Control do ctlStart[i] = Control[i].Location end
+
+	-- Periodic trace of what THIS predicate actually reads, so a disagreement with the module's own
+	-- `[exp-transport] depart aboard=N` line names which side is wrong instead of leaving a
+	-- contradiction. Goes to lua.log; a 0-byte lua.log means this never ran.
+	local ticks = 0
 
 	local carried, ctlCarried = {}, {}
 	local everCarried, ctlEverCarried = 0, 0
@@ -90,6 +92,8 @@ WorldLoaded = function()
 		-- IsDead is checked FIRST and always: a destroyed actor has no PassengerCount property at all
 		-- and reading it is a fatal Lua error that aborts the run with no measurement (cost one run,
 		-- 2026-08-15). Cargo on these carriers sets EjectOnDeath, so a carrier CAN die with passengers.
+		ticks = ticks + 1
+
 		if not frozen then
 			if not BotCarrier.IsDead and BotCarrier.PassengerCount > peakPax then
 				peakPax = BotCarrier.PassengerCount
@@ -100,10 +104,38 @@ WorldLoaded = function()
 			end
 		end
 
-		-- (a) CARRIED — monotonic latch; out of world on this bot means inside a Cargo.
+		-- ~every 3s. Cheap, and it is what turns "the two readings disagree" into "here is what each
+		-- side saw at the same moment".
+		if ticks % 50 == 0 then
+			local live = 0
+			for i = 1, #Squad do
+				if Squad[i] ~= nil and not Squad[i].IsDead and Squad[i].IsInWorld then live = live + 1 end
+			end
+
+			print("[deliv] tick~" .. ticks
+				.. " carrierDead=" .. tostring(BotCarrier.IsDead)
+				.. " pax=" .. tostring(BotCarrier.IsDead and -1 or BotCarrier.PassengerCount)
+				.. " peakPax=" .. peakPax
+				.. " squadInWorld=" .. live .. "/" .. #Squad
+				.. " everCarried=" .. everCarried)
+		end
+
+		-- (a) CARRIED — monotonic latch on NOT-IN-WORLD ALONE.
+		--
+		-- DO NOT re-add `not r.IsDead` here. That is the obvious-looking guard and it silently breaks
+		-- the latch: measured 2026-08-15, a run reported peakPax=2 (so carriage demonstrably happened)
+		-- and squadInWorld=2/5, yet everCarried stayed 0 for the whole match — the latch never fired
+		-- once. The only reading consistent with all three is that a passenger inside a Cargo also
+		-- reports IsDead, so `not IsDead and not IsInWorld` is unsatisfiable for exactly the units this
+		-- clause exists to catch. test-combined-arms-rendezvous carries the same idiom and is likely
+		-- mis-counting for the same reason.
+		--
+		-- Being permissive here is safe because it cannot manufacture a pass on its own: a genuinely
+		-- dead unit never returns to the world, so it can never satisfy the RETURNED and MOVED clauses
+		-- below. The latch is evidence of boarding, and delivery still has to be earned separately.
 		for i = 1, #Squad do
 			local r = Squad[i]
-			if r ~= nil and not r.IsDead and not r.IsInWorld and not carried[i] then
+			if r ~= nil and not r.IsInWorld and not carried[i] then
 				carried[i] = true
 				everCarried = everCarried + 1
 			end
@@ -111,7 +143,7 @@ WorldLoaded = function()
 
 		for i = 1, #Control do
 			local r = Control[i]
-			if r ~= nil and not r.IsDead and not r.IsInWorld and not ctlCarried[i] then
+			if r ~= nil and not r.IsInWorld and not ctlCarried[i] then
 				ctlCarried[i] = true
 				ctlEverCarried = ctlEverCarried + 1
 			end
@@ -142,7 +174,7 @@ WorldLoaded = function()
 			delivered = 0
 			for i = 1, #Squad do
 				local r = Squad[i]
-				if r ~= nil and carried[i] and not r.IsDead and r.IsInWorld then
+				if r ~= nil and carried[i] and r.IsInWorld then
 					local moved = CellDistance(r.Location, start[i])
 					if moved > bestMoved then bestMoved = moved end
 					if moved >= DeliveredCells then delivered = delivered + 1 end
@@ -167,11 +199,10 @@ WorldLoaded = function()
 
 		return false
 	end, "no completed delivery within " .. DeadlineSeconds .. "s. "
-		.. "everCarried=" .. everCarried .. " (0 means nobody ever boarded — the transport never ran, "
-		.. "so this run measured nothing about delivery); peakPax=" .. peakPax
-		.. "; furthest a carried rifleman ended from its start=" .. bestMoved .. "/" .. DeliveredCells
-		.. " cells (a positive everCarried with a small distance means it boarded and was set down "
-		.. "where it started — loading works, the drive does not); stable-side carried="
-		.. ctlEverCarried .. " (expected 0 before contact; check its via= in debug.log if non-zero, "
-		.. "since a frontline-path delivery after contact is correct and not a hold violation).")
-end
+		.. "READ THE NUMBERS FROM lua.log, NOT FROM THIS LINE. The `[deliv] ...` trace above carries the "
+		.. "live counters; this message cannot. Lua concatenates the third argument to AssertWithin "
+		.. "EAGERLY, at registration, so any counter interpolated here reports its value BEFORE the "
+		.. "predicate has run even once — always the initial zero. That is not a hypothesis: on "
+		.. "2026-08-15 this line reported everCarried=0 peakPax=0 while the trace from inside the same "
+		.. "closure, in the same run, read everCarried=3 peakPax=2. The zeros were an artefact of when "
+		.. "the string was built, and they cost a run and a wrong diagnosis before that was spotted.")

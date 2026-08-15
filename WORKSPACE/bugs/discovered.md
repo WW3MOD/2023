@@ -1262,3 +1262,51 @@ produced its own infantry and used those, leaving the named actors idle beside t
 six departures in the log, zero in the predicate. **A named-actor predicate is valid only if the named
 actors are the ones the system under test actually chooses to use, and production removes that
 guarantee.**
+
+### [measured] THE GROUND TRANSPORT COMPLETES DELIVERIES — proven — and the scenario's Lua had three separate faults — 2026-08-15
+
+**THE RESULT, from the module's own log and independent of any Lua predicate.** Run
+`260815_130128_p68980`, seed 1017, `test-transport-delivers`. The `delivered` marker added at the
+Unloading -> Returning edge (which fires only once the hold is empty) recorded **three completed
+deliveries**:
+
+```
+delivered carrier=bradley at=29,10 drop=32,10 pax=1 tick=1465
+delivered carrier=bradley at=20,14 drop=21,13 pax=3 tick=2815
+delivered carrier=bradley at=24,12 drop=24,12 pax=3 tick=3765
+```
+
+Arriving AT the drop cell (24,12 exactly; 20,14 against 21,13; 29,10 against 32,10) and unloading.
+Combined with the six `reason=Full` departures already banked, the chain the user asked about —
+load, fill, drive, set down — is now observed end to end. This is the first time.
+
+**THE SCENARIO'S PREDICATE STILL DOES NOT GO GREEN, and three distinct Lua faults were found.** Two
+are fixed and verified, the third is fixed but unverified (no runs left):
+
+1. **File-scope actor capture.** `local Squad = { BotRifle1, ... }` at chunk scope binds before
+   map-actor globals exist, giving `#Squad == 0` and a predicate that loops over nothing while
+   reporting confident zeros. Fixed by binding inside `WorldLoaded`, plus a setup self-check that
+   fails loudly if the squad is not exactly 5. VERIFIED.
+2. **`IsDead` is true for a passenger inside a `Cargo`.** The idiom `not r.IsDead and not r.IsInWorld`
+   for "was carried" is unsatisfiable for exactly the units it targets. Measured: `peakPax=2` with
+   `everCarried` stuck at 0 all match; latching on `not r.IsInWorld` alone made it read 3 immediately.
+   VERIFIED. **`test-combined-arms-rendezvous` carries the same unfixed idiom** and is likely
+   mis-counting `EverCarried` for the same reason — worth checking when that scenario is rebuilt.
+3. **The failure message is evaluated EAGERLY at registration.** `AssertWithin`'s third argument is an
+   ordinary Lua expression, concatenated before the predicate runs once, so interpolated counters
+   report their initial zeros forever. This is what produced `everCarried=0 peakPax=0` in the verdict
+   while the in-closure trace of the SAME RUN read `everCarried=3 peakPax=2` — and it caused a wrong
+   diagnosis ("the predicate is not observing the actor it names") that cost a run. Fixed by making
+   the message static and directing the reader to the `lua.log` trace. NOT VERIFIED — no run left.
+
+**Remaining unknown for whoever picks this up.** At the end of run `260815_130726_p70843`:
+`everCarried=3`, `squadInWorld=2/5`, `peakPax=2`, yet no rifleman satisfied RETURNED + MOVED >= 10
+cells. The module logged deliveries at ticks 2815 and 3765, so passengers were set down; the open
+question is whether the delivered riflemen died shortly after being dropped (this scenario does reach
+contact by ~tick 1300) or whether the returned-and-moved clause is mis-measuring. The `[deliv]` trace
+already prints `squadInWorld`; adding each squad member's in-world flag and distance-from-start to
+that line should settle it in one run.
+
+**Do not merge this scenario until it goes green** — `run-batch.sh` globs `test-*/`, so a
+knowingly-broken scenario auto-joins every future batch and becomes a permanent false signal, which
+is the debt `test-combined-arms-rendezvous` already represents.
