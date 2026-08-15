@@ -1210,3 +1210,103 @@ and a load needs perhaps another 50-100 ticks. Verifying delivery needs a scenar
 long enough, (b) has no early-abort guard, and (c) ideally fields one `Bot: stable` and one
 `Bot: experimental` player so the `@poi` hold gets a real control at the same time. Deliberately NOT
 built here: an unrun scenario is exactly what `7f8c2d41` shipped and what today's notes criticise.
+
+### [measured] The ground transport LOADS AND DEPARTS — first ever observed — and the @poi hold is verified by measurement — 2026-08-15
+
+Three runs on the new `test-transport-delivers` scenario (seed 1017). Two results are solid and one
+piece of scaffolding is not.
+
+**DEPARTURES ARE PROVEN.** With production on (`DefaultCash: 7500`, run `260815_124529_p66286`) the
+module logged **six** departures, every one `reason=Full`:
+
+```
+depart carrier=bradley aboard=3 target=3 reason=Full tick=915
+depart carrier=m113    aboard=2 target=2 reason=Full tick=1165
+depart carrier=bmp2    aboard=3 target=3 reason=Full tick=1536   (Russia, after contact)
+depart carrier=m113    aboard=2 target=2 reason=Full tick=2065
+depart carrier=bmp2    aboard=3 target=3 reason=Full tick=2436
+depart carrier=m113    aboard=3 target=3 reason=Full tick=2565
+```
+
+Loads of two and three, departing because they were FULL rather than timing out. Every `task-created`
+read `via=staged-empty-frontline`, so all of it is attributed to the pre-contact branch fixed earlier
+today — the branch that could not execute at all before. This is the first time this project has
+observed the ground transport load and drive.
+
+**THE @poi HOLD IS VERIFIED BY MEASUREMENT, not config inspection.** The stable side logged
+`no-task ... cause=empty-frontline+fallback-disabled` **21 times** and created exactly one task, at
+tick 1286, `via=frontline` — i.e. only after contact, through the ordinary path, never through the
+held pre-contact branch. That closes the gap flagged twice as "verified by config inspection only".
+
+**A COMPLETED DELIVERY IS STILL NOT PROVEN.** The unload — the event that makes it a delivery rather
+than a drive — was only ever an `AIUtils.BotDebug` line, which does not reach `debug.log` unless bot
+debug is on. So every run so far could prove departure and nothing about arrival. Fixed here: the
+module now emits `[exp-transport] delivered ... pax=N` at the Unloading -> Returning edge, which fires
+only once the hold is empty. One run will now settle it.
+
+**THE NEW SCENARIO'S LUA PREDICATE IS NOT YET VALID, and is committed marked as such.** With
+`DefaultCash: 0` and `carriers-total=1` — so the placed bradley at 8,18 is provably the only carrier
+and provably the `BotCarrier` global — the module logged `depart aboard=1` and later `aboard=2` while
+the predicate reported `peakPax=0` and `everCarried=0` for the entire run. Both cannot be true. The
+closure demonstrably ran (it produced the failure string), the carrier was neither dead nor
+duplicated, and both sides read the same `Cargo` trait. Leading suspect is the file-scope
+`local Squad = { BotRifle1, ... }` capture — map-actor globals may not be bound when the chunk first
+executes, giving `#Squad == 0`, which explains `everCarried=0` exactly but NOT `peakPax=0`, so there
+is at least one more fault. Not chased further: the run budget was spent, and guessing at it without
+a run is the failure mode this file exists to record.
+
+**Scenario-design lesson worth keeping.** The first version ran at `DefaultCash: 7500` and the
+inherited rules comment claimed "the measurement only ever looks at NAMED actors, so incidental units
+the bot buys or spawns do not affect it." That is backwards. The bot bought its own carriers and
+produced its own infantry and used those, leaving the named actors idle beside the measurement —
+six departures in the log, zero in the predicate. **A named-actor predicate is valid only if the named
+actors are the ones the system under test actually chooses to use, and production removes that
+guarantee.**
+
+### [measured] THE GROUND TRANSPORT COMPLETES DELIVERIES — proven — and the scenario's Lua had three separate faults — 2026-08-15
+
+**THE RESULT, from the module's own log and independent of any Lua predicate.** Run
+`260815_130128_p68980`, seed 1017, `test-transport-delivers`. The `delivered` marker added at the
+Unloading -> Returning edge (which fires only once the hold is empty) recorded **three completed
+deliveries**:
+
+```
+delivered carrier=bradley at=29,10 drop=32,10 pax=1 tick=1465
+delivered carrier=bradley at=20,14 drop=21,13 pax=3 tick=2815
+delivered carrier=bradley at=24,12 drop=24,12 pax=3 tick=3765
+```
+
+Arriving AT the drop cell (24,12 exactly; 20,14 against 21,13; 29,10 against 32,10) and unloading.
+Combined with the six `reason=Full` departures already banked, the chain the user asked about —
+load, fill, drive, set down — is now observed end to end. This is the first time.
+
+**THE SCENARIO'S PREDICATE STILL DOES NOT GO GREEN, and three distinct Lua faults were found.** Two
+are fixed and verified, the third is fixed but unverified (no runs left):
+
+1. **File-scope actor capture.** `local Squad = { BotRifle1, ... }` at chunk scope binds before
+   map-actor globals exist, giving `#Squad == 0` and a predicate that loops over nothing while
+   reporting confident zeros. Fixed by binding inside `WorldLoaded`, plus a setup self-check that
+   fails loudly if the squad is not exactly 5. VERIFIED.
+2. **`IsDead` is true for a passenger inside a `Cargo`.** The idiom `not r.IsDead and not r.IsInWorld`
+   for "was carried" is unsatisfiable for exactly the units it targets. Measured: `peakPax=2` with
+   `everCarried` stuck at 0 all match; latching on `not r.IsInWorld` alone made it read 3 immediately.
+   VERIFIED. **`test-combined-arms-rendezvous` carries the same unfixed idiom** and is likely
+   mis-counting `EverCarried` for the same reason — worth checking when that scenario is rebuilt.
+3. **The failure message is evaluated EAGERLY at registration.** `AssertWithin`'s third argument is an
+   ordinary Lua expression, concatenated before the predicate runs once, so interpolated counters
+   report their initial zeros forever. This is what produced `everCarried=0 peakPax=0` in the verdict
+   while the in-closure trace of the SAME RUN read `everCarried=3 peakPax=2` — and it caused a wrong
+   diagnosis ("the predicate is not observing the actor it names") that cost a run. Fixed by making
+   the message static and directing the reader to the `lua.log` trace. NOT VERIFIED — no run left.
+
+**Remaining unknown for whoever picks this up.** At the end of run `260815_130726_p70843`:
+`everCarried=3`, `squadInWorld=2/5`, `peakPax=2`, yet no rifleman satisfied RETURNED + MOVED >= 10
+cells. The module logged deliveries at ticks 2815 and 3765, so passengers were set down; the open
+question is whether the delivered riflemen died shortly after being dropped (this scenario does reach
+contact by ~tick 1300) or whether the returned-and-moved clause is mis-measuring. The `[deliv]` trace
+already prints `squadInWorld`; adding each squad member's in-world flag and distance-from-start to
+that line should settle it in one run.
+
+**Do not merge this scenario until it goes green** — `run-batch.sh` globs `test-*/`, so a
+knowingly-broken scenario auto-joins every future batch and becomes a permanent false signal, which
+is the debt `test-combined-arms-rendezvous` already represents.

@@ -1,0 +1,129 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a ground transport completes a delivery before contact
+
+Author: WW3MOD autotest
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHY THIS SCENARIO EXISTS. As of 2026-08-15 no run on this project has ever observed the ground
+# MountedTransportBotModule complete a delivery. It could not: PickDropOffCell consulted
+# DeliverBeforeContact only where the frontline was NULL, and InfluenceMapMath.DeriveFrontline never
+# returns null, so before contact the module returned no drop cell and did nothing at all. That is
+# fixed; this scenario is where the fix is proved end to end.
+#
+# WHY NOT REUSE test-combined-arms-rendezvous. It aborts on a tank-death guard at ~tick 550, and a
+# load needs longer than that to walk in and board — so every run there died before a delivery could
+# happen, which is measurement failure rather than a result. That scenario is also known-failing with
+# a non-discriminating control (user ruling 2026-08-15: do not re-tune it). This one therefore has:
+#   * NO early-abort guard of any kind. The only exit is the deadline or the verdict.
+#   * NO combat units. Nothing can die, so nothing can end the run early. The two Supply Routes are
+#     the only structures, and they are enough: PoiMap ranks the enemy SR as an offensive target,
+#     which is all PreContactStagingCell needs to resolve its lerp.
+#   * A long deadline with real headroom rather than a tight fit — a passenger walks ~43 ticks/cell.
+#
+# THE PROFILE CONTROL, which is the second thing this scenario is for. `DeliverBeforeContact` is
+# currently HELD at false on the @poi (enable-ai-stable) twin and true on @experimental, and until now
+# that hold rested on config inspection alone because no scenario fielded a stable bot. Here:
+#   USA-bot    = Bot: experimental  -> fix LIVE  -> must deliver
+#   Russia-bot = Bot: stable        -> fix HELD  -> must NOT deliver
+# Both sides are given an identical carrier + five passengers inside the reserve bubble, so the ONLY
+# difference between them is the profile. That makes the stable side a real control rather than an
+# assumption, and it fails loudly if the hold is not doing what the config claims.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: stable
+		Color: FF4444
+		Enemies: USA-bot
+
+# Deliberately symmetric. Each bot gets one empty carrier (a CarrierTypes member, so
+# MountedTransportBotModule can claim it) and five PassengerTypes riflemen well inside the 14-cell
+# ReserveZoneRadiusCells bubble around its own SR. Five, not two, so a load can visibly grow past
+# MinPassengersPerLoad: 2 — the seat count per departure is the number the user actually asked about,
+# and it is read from the `[exp-transport] depart aboard=N` line rather than from this file.
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,4
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,4
+
+	# --- experimental side: the fix is live, this side must deliver ---
+	BotCarrier: bradley
+		Owner: USA-bot
+		Location: 8,18
+	BotRifle1: e3.america
+		Owner: USA-bot
+		Location: 7,14
+	BotRifle2: e3.america
+		Owner: USA-bot
+		Location: 7,15
+	BotRifle3: e3.america
+		Owner: USA-bot
+		Location: 7,17
+	BotRifle4: e3.america
+		Owner: USA-bot
+		Location: 7,18
+	BotRifle5: e3.america
+		Owner: USA-bot
+		Location: 8,15
+
+	# --- stable side: the fix is held, this side must NOT deliver ---
+	CtlCarrier: bmp2
+		Owner: Russia-bot
+		Location: 56,6
+	CtlRifle1: e3.russia
+		Owner: Russia-bot
+		Location: 57,5
+	CtlRifle2: e3.russia
+		Owner: Russia-bot
+		Location: 57,6
+	CtlRifle3: e3.russia
+		Owner: Russia-bot
+		Location: 57,7
+	CtlRifle4: e3.russia
+		Owner: Russia-bot
+		Location: 56,5
+	CtlRifle5: e3.russia
+		Owner: Russia-bot
+		Location: 56,7
+
+Rules: rules.yaml
