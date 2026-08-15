@@ -24,15 +24,14 @@ namespace OpenRA.Test
 	[TestFixture]
 	public class SupplyPrecedenceMathTest
 	{
-		// ---- ShouldBankCycle ----
+		// ---- ShouldBankCycle: the bound is on PROGRESS, not on time ----
 
 		[Test]
-		public void BanksWhileShortUnaffordableAndWithinBudget()
+		public void BanksWhileShortUnaffordableAndProgressing()
 		{
-			// The measured case: fleet short, ~100 cash against a 1000 truck. Falling through here is what
-			// spends the truck's money on a rifleman and guarantees the truck is never bought.
-			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(true, false, 0, 12), Is.True);
-			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(true, false, 11, 12), Is.True);
+			// The measured case: fleet short, ~100 cash against a 1000 truck, balance still climbing.
+			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(true, false, 0, 4), Is.True);
+			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(true, false, 3, 4), Is.True);
 		}
 
 		[Test]
@@ -41,37 +40,98 @@ namespace OpenRA.Test
 			// THE GUARD THAT KEEPS THIS FROM BECOMING SupplyTruckFloor. With nobody dry the fleet is not
 			// short, so banking must be impossible no matter how poor we are — otherwise this reproduces the
 			// t=0 opening-buy bug the user reported first as two trucks and again as two medics.
-			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(false, false, 0, 12), Is.False);
-			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(false, true, 0, 12), Is.False);
+			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(false, false, 0, 4), Is.False);
+			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(false, true, 0, 4), Is.False);
 		}
 
 		[Test]
 		public void NeverBanksWhatItCouldSimplyBuy()
 		{
-			// If the truck is affordable the caller buys it outright; banking would delay the very thing the
-			// ruling prioritises.
-			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(true, true, 0, 12), Is.False);
+			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(true, true, 0, 4), Is.False);
 		}
 
-		[TestCase(12)]
-		[TestCase(13)]
-		[TestCase(1000)]
-		public void BankingIsBounded(int alreadyBanked)
+		[TestCase(4)]
+		[TestCase(5)]
+		[TestCase(99)]
+		public void AbandonsOnceTheBalanceStopsAdvancing(int stalled)
 		{
-			// Unbounded precedence is a deadlock: an army whose income never reaches the truck price would
-			// buy nothing at all, forever. Past the bound the cycle falls through and ordinary buying resumes.
-			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(true, false, alreadyBanked, 12), Is.False);
+			// The anti-deadlock property. A drained treasury sets no new high, so the spell ends and ordinary
+			// production resumes instead of holding silent against money this module does not control.
+			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(true, false, stalled, 4), Is.False);
 		}
 
 		[TestCase(0)]
 		[TestCase(-1)]
-		public void BankCyclesOffReproducesTheFallThrough(int maxBank)
+		public void StallCyclesOffReproducesTheFallThrough(int maxStalled)
 		{
-			// The off-switch contract: the default (0) must return false for every input combination, so the
-			// pre-feature answer comes back verbatim.
-			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(true, false, 0, maxBank), Is.False);
-			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(true, true, 5, maxBank), Is.False);
-			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(false, false, 0, maxBank), Is.False);
+			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(true, false, 0, maxStalled), Is.False);
+			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(true, true, 5, maxStalled), Is.False);
+			Assert.That(SupplyPrecedenceMath.ShouldBankCycle(false, false, 0, maxStalled), Is.False);
+		}
+
+		// ---- UpdateStall ----
+
+		[Test]
+		public void ANewHighResetsTheStall()
+		{
+			Assert.That(SupplyPrecedenceMath.UpdateStall(500, 400, 3), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void FlatOrFallingBalanceAccumulatesStall()
+		{
+			// Equal is NOT progress — a balance pinned by another spender must eventually end the spell.
+			Assert.That(SupplyPrecedenceMath.UpdateStall(400, 400, 0), Is.EqualTo(1));
+			Assert.That(SupplyPrecedenceMath.UpdateStall(380, 400, 1), Is.EqualTo(2));
+		}
+
+		[Test]
+		public void AMeasuredHealthySpellNeverAbandons()
+		{
+			// The real USA trace: two flat cycles and a dip (554 -> 521) while climbing overall. Tolerance 4
+			// must ride that out, or the fix stops working on the very economy it was measured against.
+			var trace = new long[] { 92, 92, 158, 224, 224, 290, 290, 356, 422, 422, 488, 488, 554, 521, 521, 587, 587, 753, 819 };
+			long best = 0;
+			var stalled = 0;
+			var worst = 0;
+			foreach (var cash in trace)
+			{
+				stalled = SupplyPrecedenceMath.UpdateStall(cash, best, stalled);
+				if (cash > best)
+					best = cash;
+
+				if (stalled > worst)
+					worst = stalled;
+
+				Assert.That(SupplyPrecedenceMath.ShouldBankCycle(true, false, stalled, 4), Is.True,
+					$"abandoned a healthy climbing spell at cash={cash}");
+			}
+
+			Assert.That(worst, Is.EqualTo(2), "longest non-new-high run in the measured spell");
+		}
+
+		[Test]
+		public void APinnedBalanceAbandonsQuickly()
+		{
+			// The real Russia trace: cash pinned 3-9 across a long silent spell because another spender was
+			// draining the shared treasury. The old cycle-count bound held production silent for 30 cycles
+			// against this; the progress bound must give up within its tolerance.
+			var trace = new long[] { 3, 3, 5, 9, 9, 3, 3, 8, 3, 3, 8 };
+			long best = 0;
+			var stalled = 0;
+			var banked = 0;
+			foreach (var cash in trace)
+			{
+				stalled = SupplyPrecedenceMath.UpdateStall(cash, best, stalled);
+				if (cash > best)
+					best = cash;
+
+				if (SupplyPrecedenceMath.ShouldBankCycle(true, false, stalled, 4))
+					banked++;
+			}
+
+			Assert.That(banked, Is.LessThan(11), "must not bank the whole pinned spell");
+			Assert.That(banked, Is.LessThanOrEqualTo(8));
 		}
 
 		// ---- SizingCustomers ----

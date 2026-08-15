@@ -156,17 +156,25 @@ Player:
 		SupplyTruckFloor: 0
 		SupplyTruckCeiling: 6
 		# ===== RESUPPLY PRECEDENCE (user ruling 2026-08-15) — mirror of the America block =====
-		# See ai-america.yaml for the full measurement and the derivation of 12. Short version: zero trucks
-		# were ordered for a whole match while ammo-need=True from tick 1240, because two routes were closed
-		# at once — the fleet was sized from `starving` (below 25% ammo, which read 0 at every snapshot)
-		# rather than from SupplyProvider's own service bar, and even sized correctly the truck was never
-		# affordable because the bot spends to ~0 on cheap types every cycle. SupplySizeFromNeed fixes the
-		# sizing input; SupplyPrecedenceBankCycles lets the path buy nothing and bank, which is the only way
-		# to express "this comes first". Bounded so it cannot deadlock production.
+		# See ai-america.yaml for the full measurement and the derivation of the stall tolerance.
+		# Short version: zero trucks were ordered for a whole match while men were demonstrably dry. On the
+		# measured seed the binding constraint was AFFORDABILITY alone — the demand gate was already open and
+		# correctly sized (trucks-desired=2 from the first ammo-need snapshot), and the pre-empt was reached
+		# and skipped purely on price for 110 consecutive snapshots. SupplyPrecedenceStallCycles lets the path
+		# buy NOTHING and bank, which is the only move that expresses "this comes first".
+		# SupplySizeFromNeed is a robustness fix rather than the unblocker: the two bars genuinely diverge
+		# (measured needy=13 against starving=1 in one snapshot), but on this seed the starving bar had
+		# already opened the gate. Do not cite it as the root cause.
+		# THE BOUND IS ON PROGRESS, NOT ON TIME: a cycle count cannot terminate (its reset on fall-through
+		# makes "N silent cycles, one buy, forever" the steady state for a poor player) and its fall-through
+		# purchase is priced BY the savings, so it destroys them. Banking now continues only while cash sets
+		# new highs and abandons after 4 consecutive cycles without one — which also means it gives up
+		# quickly when another spender is draining the shared treasury, rather than holding production silent
+		# against money it does not control.
 		# NOT a restored SupplyTruckFloor — gated on live demand, inert against a full-ammo army at t=0.
 		# @stable unaffected: both read only under SupplyDemandSizing, and both default to baseline in C#.
 		SupplySizeFromNeed: true
-		SupplyPrecedenceBankCycles: 30
+		SupplyPrecedenceStallCycles: 4
 		# Early-econ behaviour 2: vehicle AA proportionate to observed air (aa.russia ungated picket).
 		ScaleAntiAirToThreat: true
 		AntiAirUnitTypes: tunguska

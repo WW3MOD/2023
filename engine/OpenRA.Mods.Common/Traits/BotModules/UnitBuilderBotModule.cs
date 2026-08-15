@@ -163,29 +163,46 @@ namespace OpenRA.Mods.Common.Traits
 			"pre-empt never fired. AnyFieldedUnitNeedsResupply (which sets ammo-need) mirrors",
 			"SupplyProvider.MinNeedThreshold, i.e. the bar at which a customer is actually SERVED; sizing the",
 			"fleet from anything stricter asks for trucks later than the supply system admits it needs them.",
-			"NOT fixed by lowering SupplyStarvingThresholdPerMille: that value is ALSO the truck's own seek",
-			"threshold (SupplyHuntMath.BelowSeekThreshold, shared with SupplyFollowerBotModule) and moving it",
-			"would silently retarget delivery behaviour while trying to fix procurement.",
+			"WHY NOT JUST LOWER SupplyStarvingThresholdPerMille — corrected 2026-08-15, the earlier answer here",
+			"was FALSE and would have stopped the next reader trying the simpler thing. It claimed that value",
+			"is also the truck's seek threshold. It is not: SupplyStarvingThresholdPerMille is declared on THIS",
+			"trait and read at exactly one site (CountStarvingCustomers), while the truck's seek threshold is",
+			"SupplyFollowerBotModuleInfo.HuntStarvingThresholdPerMille — a different field on a different trait,",
+			"set independently in ai.yaml. They merely share the value 250 and a helper family. Lowering the",
+			"procurement one would NOT have retargeted delivery.",
+			"The real reason to size from the service bar is that it is the bar at which a customer is SERVED,",
+			"so it cannot drift out of agreement with the supply system the way a second, independently-tuned",
+			"number can — which is exactly how the two came to disagree in the first place.",
 			"Taking the max of the two counts keeps the switch one-directional — it can only raise the fleet.",
 			"Default false ⇒ the starving count keeps sizing the fleet, unchanged.")]
 		public readonly bool SupplySizeFromNeed = false;
 
-		[Desc("EXPERIMENTAL: max CONSECUTIVE build cycles that may buy nothing at all while the supply fleet is",
-			"short and the truck is not yet affordable — i.e. bank the cash instead of spending it.",
+		[Desc("EXPERIMENTAL: how many CONSECUTIVE build cycles the banked balance may fail to set a new high",
+			"before the bot gives up saving for a supply truck and resumes ordinary buying.",
 			"USER RULING 2026-08-15: 'soldiers out of ammo are useless. That should be the first priority to",
 			"solve at all times.' That is a PRECEDENCE, and nothing in this path could express one: a pre-empt",
 			"that merely SKIPS when it cannot afford the item is not a priority, because the cycle then falls",
-			"through and buys a rifleman with the very cash the truck was waiting for. Measured: cash after",
-			"tick 760 was 43/121/95/64/40/9/3 against a 1000-cost truck while income ran ~79 per interval —",
-			"the money existed in aggregate and was spent piecemeal before it could ever accumulate.",
-			"THE BOUND IS THE SAFETY ARGUMENT: unbounded precedence is a deadlock, since an army whose income",
-			"never reaches the truck price would buy nothing forever. After this many cycles the path falls",
-			"through and ordinary buying resumes. The counter resets on a truck purchase or when demand goes",
-			"away, so each spell of demand gets fresh patience rather than an exhausted budget.",
+			"through and buys a rifleman with the very cash the truck was waiting for.",
+			"THE BOUND IS ON PROGRESS, NOT ON TIME, and that is a correction from review rather than a tuning",
+			"choice. A cycle-count bound was tried and is the WRONG SHAPE three ways: it does not terminate",
+			"(the counter resets on fall-through, so the steady state for a poor player is N silent cycles,",
+			"one buy, N silent cycles, forever, and the truck is never bought); its fall-through purchase is",
+			"PRICED BY the savings, because composition eligibility is affordability-filtered and a fat balance",
+			"promotes expensive slots — measured, a spell banked to 819 against a 1000 truck and immediately",
+			"bought a 450 humvee; and a cycle count cannot encode a per-map, per-player economy rate.",
+			"Banking on progress terminates by construction: it continues only while cash sets new highs, and a",
+			"balance that keeps setting new highs reaches any fixed price in finite time.",
+			"It also ABSORBS a defect it does not fix: this bank silences only the composition lane, while the",
+			"request drains (CaptureCoordinator, AdaptiveProduction) and the separate .heli UnitBuilder",
+			"instances keep spending the same treasury. Rather than override other modules' guarantees, the",
+			"progress test NOTICES the drain — no new high, stall climbs, spell ends — instead of holding",
+			"production silent against a treasury it does not control.",
+			"Tolerance rather than 1 because income arrives in lumps: a measured healthy spell ran",
+			"92/92/158/224/224/290/.../554/521/521/587, with two flat cycles and a dip while climbing overall.",
 			"This is NOT a restored SupplyTruckFloor: it is gated on live measured demand, so with a full-ammo",
 			"army — the t=0 case the user complained about first — it is inert.",
 			"0 (default) ⇒ off, the cycle falls through exactly as before.")]
-		public readonly int SupplyPrecedenceBankCycles = 0;
+		public readonly int SupplyPrecedenceStallCycles = 0;
 
 		[Desc("EXPERIMENTAL (early-econ behaviour 2): cap gated AA call-ins (the expensive vehicle SHORAD/",
 			"Tunguska) to the OBSERVED enemy air threat. Cheap AA infantry stay ungated as a baseline picket.",
@@ -381,6 +398,11 @@ namespace OpenRA.Mods.Common.Traits
 		// guard is load-bearing: ChooseByDeficit runs once PER QUEUE, so an ungated counter would burn two or
 		// three of the allowance on a single bot tick and the bound would mean whatever the queue count
 		// happened to be. One tick, one banked cycle.
+		// Banking-spell state: the best balance seen so far in the current spell, and how many consecutive
+		// cycles have failed to beat it. Banking continues only while the balance keeps setting new highs,
+		// which is what makes the spell terminate rather than run to a fixed tick count.
+		long supplyBankBestCash;
+		int supplyBankStalled;
 		int supplyBankedCycles;
 		int supplyBankedTick = -1;
 
@@ -665,7 +687,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			Log.Write("debug", $"[composition] census tick={world.WorldTick} player={player.InternalName} "
 				+ $"cash={AvailableBudget()} starving={starving} needy={needy} trucks-desired={desired} "
-				+ $"banked={supplyBankedCycles} "
+				+ $"bank-spell={supplyBankedCycles} bank-best={supplyBankBestCash} bank-stalled={supplyBankStalled} "
 				+ $"ammo-need={AnyFieldedUnitNeedsResupply()} {econ} "
 				+ $"(type=inWorld+inCargo/census‰vtarget‰) {string.Join(" ", parts)}");
 		}
@@ -975,6 +997,16 @@ namespace OpenRA.Mods.Common.Traits
 			return null;
 		}
 
+		// Clear the banking-spell trail. Called both when a truck is bought and when a spell is abandoned, so
+		// the high-water mark can never leak across spells: a stale `best` from a richer moment would make
+		// every later cycle look stalled and suppress banking that was in fact making progress.
+		void EndBankingSpell()
+		{
+			supplyBankBestCash = 0;
+			supplyBankStalled = 0;
+			supplyBankedCycles = 0;
+		}
+
 		// Should this cycle buy NOTHING and bank toward a truck? True only when the fleet is short and the
 		// truck is genuinely unaffordable — if we could afford it, ChooseSupplyFleetShortfall would already
 		// have bought it and we would never be asked.
@@ -996,7 +1028,7 @@ namespace OpenRA.Mods.Common.Traits
 		// samples the world state it needs.
 		bool ShouldBankForSupply(long budget)
 		{
-			if (Info.SupplyPrecedenceBankCycles <= 0)
+			if (Info.SupplyPrecedenceStallCycles <= 0)
 				return false;
 
 			if (supplyBankDecisionTick == world.WorldTick)
@@ -1004,6 +1036,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			supplyBankDecisionTick = world.WorldTick;
 			supplyBankDecision = false;
+
+			// Progress bookkeeping, once per tick and BEFORE the decision, so a spell that has stopped
+			// advancing is caught on the same cycle it stalls.
+			supplyBankStalled = SupplyPrecedenceMath.UpdateStall(budget, supplyBankBestCash, supplyBankStalled);
+			if (budget > supplyBankBestCash)
+				supplyBankBestCash = budget;
 
 			var fleetShort = false;
 			var affordable = false;
@@ -1032,7 +1070,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			supplyBankDecision = SupplyPrecedenceMath.ShouldBankCycle(fleetShort, affordable,
-				supplyBankedCycles, Info.SupplyPrecedenceBankCycles);
+				supplyBankStalled, Info.SupplyPrecedenceStallCycles);
 
 			return supplyBankDecision;
 		}
@@ -1423,8 +1461,8 @@ namespace OpenRA.Mods.Common.Traits
 				var shortfall = ChooseSupplyFleetShortfall(buildableNames, budget);
 				if (shortfall != null)
 				{
-					// Bought one: demand is being answered, so the patience budget starts over.
-					supplyBankedCycles = 0;
+					// Bought one: this spell did its job, so the progress trail starts fresh.
+					EndBankingSpell();
 					LogPick("supply-fleet", shortfall.Name, $"queue={queue.Info.Type} "
 						+ $"starving={supplyFleetStarving} needy={supplyFleetNeedy} desired={supplyFleetDesired}");
 					return shortfall;
@@ -1432,9 +1470,13 @@ namespace OpenRA.Mods.Common.Traits
 
 				// PRECEDENCE. The pre-empt above declined, and if the ONLY reason was price then falling
 				// through would spend that price on something cheaper — which is precisely how a bot with
-				// ~100 cash and ~79 income per interval never accumulates 1000 for a truck while its
-				// soldiers sit dry. Buying nothing is the only move that expresses "this comes first".
-				// Bounded by SupplyPrecedenceBankCycles so it can never deadlock production.
+				// ~100 cash and a trickle of income never accumulates 1000 for a truck while its soldiers sit
+				// dry. Buying nothing is the only move that expresses "this comes first".
+				//
+				// Bounded by PROGRESS, not by a tick count: banking persists only while the balance keeps
+				// setting new highs, so it terminates by construction. See SupplyPrecedenceMath for why a
+				// cycle count was the wrong shape — it could not terminate, and its fall-through was priced
+				// by the very savings it had accumulated.
 				if (ShouldBankForSupply(budget))
 				{
 					if (supplyBankedTick != world.WorldTick)
@@ -1445,23 +1487,16 @@ namespace OpenRA.Mods.Common.Traits
 
 					LogPick("supply-bank", "(none)", $"queue={queue.Info.Type} cash={budget} "
 						+ $"needy={supplyFleetNeedy} desired={supplyFleetDesired} owned={supplyFleetOwned} "
-						+ $"banked={supplyBankedCycles}/{Info.SupplyPrecedenceBankCycles}");
+						+ $"best={supplyBankBestCash} stalled={supplyBankStalled}/{Info.SupplyPrecedenceStallCycles} "
+						+ $"spell={supplyBankedCycles}");
 
 					return null;
 				}
 
-				// Not banking this cycle, for any reason — demand met, truck affordable, or patience spent.
-				// Reset unconditionally, which makes the bound mean "max CONSECUTIVE silent cycles" rather
-				// than "one banking spell per match".
-				//
-				// That distinction is the difference between working and not. Resetting only when demand
-				// GOES AWAY would let the allowance be spent once and never refilled while men stayed dry —
-				// the counter would sit at its cap forever and the truck would never be bought, which is the
-				// exact failure being fixed, reintroduced one level up. With this reset the path banks up to
-				// the cap, lets a single ordinary buy through, and banks again, so it converges on the price
-				// over successive spells instead of giving up. Production can never stall longer than the
-				// cap, and the army still grows, just slower while logistics is owed.
-				supplyBankedCycles = 0;
+				// Not banking this cycle — demand met, truck affordable, or the balance stopped advancing.
+				// Ending the spell clears the progress trail so the NEXT spell is judged on its own merits
+				// rather than against a high-water mark from a richer moment.
+				EndBankingSpell();
 			}
 
 			// STANDING-POPULATION FLOOR — same reason the supply fleet pre-empts, generalised. A per-mille-of-
