@@ -124,6 +124,13 @@ namespace OpenRA
 		// sweep produces thousands of missiles and only needs the summaries.
 		public static bool MissileTraceTicks { get; private set; } = true;
 
+		// Number of CreateEffectWarhead impacts that passed their validity gates and produced
+		// their explosion sprite / impact sound. Incremented only while IsActive, so normal play
+		// is untouched. Exposed as Test.GetImpactEffectCount() because an explosion is otherwise
+		// invisible to Lua — a shell that is silently swallowed at impact and one that detonates
+		// normally are indistinguishable from any scriptable observable.
+		public static int ImpactEffectCount;
+
 		public static void Initialize(Arguments args)
 		{
 			var modeArg = args.GetValue("Test.Mode", null);

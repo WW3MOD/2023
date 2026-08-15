@@ -3,6 +3,50 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-15 — an actor with a HitShape but no `Targetable` SUPPRESSES the explosion and sound of any shell landing on it; only the effect warhead is gated, damage never was
+
+Found on `wt/field-impact` from a live-play report that artillery shells landing on a field "vanish".
+
+**Mechanism.** `CreateEffectWarhead.ActorTypeAtImpact` (`CreateEffectWarhead.cs:67-88`) walks
+`FindActorsOnCircle(pos, WDist.Zero)` and asks `IsValidAgainst` of every actor whose hitshape
+contains the impact point. `^CivField` inherits `^1x1Shape` (`defaults.yaml:1007-1013`) — a rectangle
+spanning the **whole cell** (±512) with `VerticalTopOffset: 1024` — but its `Targetable` is
+commented out (`civilian.yaml:163-171`), so `GetEnabledTargetTypes()` is empty, `IsValidTarget` is
+false, and the field is recorded as `anyInvalidActor`. The method returns `ImpactActorType.Invalid`
+and `DoImpact` early-returns at `CreateEffectWarhead.cs:116-117` **before** the sprite and the
+`Game.Sound.Play` below it. Because the hitshape is a full cell, this is not occasional — every shell
+landing in a field cell with no valid actor under it is silenced.
+
+**The non-obvious half: damage was never affected.** The gate exists only in `CreateEffectWarhead`
+and in `WarheadAS.IsValidImpact` (`WarheadAS.cs:70-81`, reached only by
+`AttachDelayedWeaponWarhead`/`DetachDelayedWeaponWarhead`). `DamageWarhead` and both subclasses used
+by `^ArtilleryRound` — `SpreadDamageWarhead.DoImpact` (`SpreadDamageWarhead.cs:55`) and
+`TargetDamageWarhead.DoImpact` (`TargetDamageWarhead.cs:28`) — have **no** invalid-actor early-out;
+they iterate victims and `continue` past invalid ones. So a shell on a field always dealt its damage
+and only ever lost its feedback. **A user report of "no damage" against an invisible explosion is
+therefore not evidence of a damage bug** — check which warhead class actually gates before believing
+the damage half of any such report.
+
+**Fix, and why not the obvious one.** Extending the existing `GroundCover` pattern: impact
+classification now skips `IsGroundCover()` actors, in both copies of `ActorTypeAtImpact`. The
+tempting YAML cure — uncomment `Targetable:` on `^CivField` — is wrong in the opposite direction: it
+makes the field a *valid* target that soaks the shot and can be auto-acquired, when the design wants
+a field to be indistinguishable from the tile beneath it. A PITFALL at those commented lines says so.
+
+**This is the third subsystem to need the same blindness**, after movement (`Passable.PassClasses`,
+Locomotor-only) and cell occupancy (`GroundCover` + `World.BlockingActorsAt`, commit `73996d96`).
+The generalisation worth carrying: **`GroundCover` is not a cell-occupancy flag, it is "this actor is
+scenery" — any new subsystem that discovers actors by position needs to honour it**, and the ones
+that scan a WPos (warheads) need `IsGroundCover()` directly rather than `BlockingActorsAt`, which is
+cell-keyed. Fields are the majority of actors on a real map (3187 of river-zeta's 4544), so a
+subsystem that forgets is not a rare edge case — it is broken across most of the playfield.
+
+**Harness note.** An explosion had no scriptable observable at all, so a swallowed shell and a normal
+one were indistinguishable from Lua. Added `TestMode.ImpactEffectCount` +
+`Test.GetImpactEffectCount()` (`TestMode.cs`, `TestGlobal.cs`), incremented where
+`CreateEffectWarhead` commits to its effect. Scenario `test-field-swallows-shell` went RED
+("shell fired (ammo 39 -> 34) but 0 impact effects in 30s") then GREEN on the fix.
+
 ## 2026-08-14 — `Matchup.P1Bot` in a tournament config is INFORMATIONAL; the bot is assigned in the scenario's `map.yaml`, and `--config` cannot override it
 
 Found on `wt/composition` while trying to measure `@experimental` procurement. I wrote a new config

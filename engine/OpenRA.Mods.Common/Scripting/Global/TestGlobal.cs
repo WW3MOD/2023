@@ -546,6 +546,15 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			GroupScatterHotkeyLogic.PerformGroupScatter(alive[0].World, alive);
 		}
 
+		[Desc("Running count of CreateEffectWarhead impacts that produced their explosion sprite / " +
+			"impact sound this run. An explosion has no other scriptable observable, so this is the " +
+			"only way a scenario can tell a shell that detonated from one that was silently swallowed " +
+			"at impact. Snapshot it before ordering the shot and compare deltas. Test mode only.")]
+		public int GetImpactEffectCount()
+		{
+			return TestMode.IsActive ? TestMode.ImpactEffectCount : 0;
+		}
+
 		[Desc("Returns the number of in-flight Missile projectiles currently in the world. " +
 			"Useful for asserting that a missile reached its target / fuel-out and detonated " +
 			"within a deadline. Test mode only.")]

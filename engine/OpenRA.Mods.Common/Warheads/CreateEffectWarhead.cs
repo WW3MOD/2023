@@ -74,6 +74,14 @@ namespace OpenRA.Mods.Common.Warheads
 				if (!AffectsParent && victim == firedBy)
 					continue;
 
+				// Cosmetic ground cover is not present as far as a weapon is concerned — a field cell
+				// must read exactly like the bare ground it is painted on. Without this a field, which
+				// has a full-cell HitShape (^1x1Shape) but no Targetable, is an *invalid* actor at the
+				// impact position, and the early-out below discards the explosion and the sound.
+				// Checked before the hitshape lookup: cheaper, and fields are most actors on a map.
+				if (victim.IsGroundCover())
+					continue;
+
 				var activeShapes = victim.TraitsImplementing<HitShape>().Where(t => !t.IsTraitDisabled);
 				if (!activeShapes.Any(s => s.DistanceFromEdge(victim, pos).Length <= 0))
 					continue;
@@ -120,6 +128,9 @@ namespace OpenRA.Mods.Common.Warheads
 			// (impacts are allowed on valid actors sitting on invalid terrain!)
 			if (actorAtImpact == ImpactActorType.None && !IsValidAgainstTerrain(world, pos))
 				return;
+
+			if (TestMode.IsActive)
+				TestMode.ImpactEffectCount++;
 
 			var explosion = Explosions.RandomOrDefault(world.LocalRandom);
 			if (Image != null && explosion != null)

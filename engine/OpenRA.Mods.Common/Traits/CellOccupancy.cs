@@ -26,7 +26,13 @@ namespace OpenRA.Mods.Common.Traits
 	/// <para>Use <see cref="BlockingActorsAt"/> in place of <c>ActorMap.GetActorsAt</c> for any test that asks
 	/// whether a cell is free to *do something in*, as opposed to move through. Leave the movement path
 	/// (<see cref="Locomotor"/>) alone — it has its own richer per-locomotor pass-class rules, and routing it
-	/// through here would change pathfinding.</para></summary>
+	/// through here would change pathfinding.</para>
+	///
+	/// <para>The same blindness is needed by anything that scans actors at a WPos rather than a cell.
+	/// Warhead impact classification is one: a field has a full-cell HitShape but no <c>Targetable</c>, so
+	/// it counted as an *invalid* actor under the shell and suppressed the explosion and the impact sound
+	/// entirely. Those call sites use <see cref="IsGroundCover"/> directly, since they iterate
+	/// <c>FindActorsOnCircle</c> rather than a cell.</para></summary>
 	public static class CellOccupancy
 	{
 		/// <summary>Whether this actor is purely cosmetic ground cover and so never occupies its cell.</summary>

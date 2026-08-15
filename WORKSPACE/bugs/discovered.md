@@ -3,6 +3,31 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-15: [medium] OPEN — UNVERIFIED: `^ArtilleryRound`'s damage radii are smaller than its own inaccuracy, so a shell aimed at infantry may routinely do nothing at all (found while: field shell-swallowing bug, branch `wt/field-impact`)
+
+Noticed while ruling out a damage cause for the field bug (which turned out to be effect-only — see
+`DISCOVERIES.md` same date). **This is arithmetic off the YAML plus the warhead sources; it has NOT
+been measured in play, and it is balance rather than a defect, so it wants a combat-sim run
+(`DOCS/recipes/BALANCE.md`) before anyone acts on it.**
+
+`^ArtilleryRound` (`weapons-ballistics.yaml:613-640`) has `Inaccuracy: 2c0` (`InaccuracyType: Absolute`),
+so rounds scatter up to ~2 cells from the aim point. Its three damage warheads reach:
+
+- `Warhead@Target: TargetDamage`, `Damage: 15000` — `Spread` is not restated, so it takes the engine
+  default `new WDist(1)` (`TargetDamageWarhead.cs:24`) ≈ 1/1024 of a cell, and
+  `TargetDamageWarhead.cs:64-65` skips any victim further than that. Effectively **direct hit only**.
+- `Warhead@Spread: SpreadDamage`, `Spread: 64`, `Damage: 3000` — default falloff `{100,37,14,5,0}`
+  (`SpreadDamageWarhead.cs:28`) over steps of 64, so damage is **zero at 256 WDist (1/4 cell)**.
+- `Warhead@Shrapnel: SpreadDamage` (inherited from `^LargeExplosionEffects`,
+  `weapons-effects.yaml:570-578`), `Spread: 256`, `Damage: 200` — zero at **1024 (1 cell)**, and only
+  200 damage at best.
+
+So past ~1 cell from where the shell actually lands an artillery round does **nothing**, while its own
+inaccuracy places it up to 2 cells off. Against spread-out infantry the expected damage per shell may
+be near zero *independently of fields*, which is the most likely explanation for the "and no damage"
+half of the original live-play report — the field bug only ever removed the explosion and the sound.
+Worth a combat-sim check before treating artillery-vs-infantry as working as intended.
+
 ## 2026-08-14: [high] OPEN — the `@experimental` bot runs at cash=0 for the entire match after its opening, so any demand-gated purchase is unaffordable exactly when it is finally justified (found while: PIPELINE 57 bot composition, branch `wt/composition`)
 
 Surfaced by the new unconditional `[composition] census` line, which now carries `cash`, `starving`,
