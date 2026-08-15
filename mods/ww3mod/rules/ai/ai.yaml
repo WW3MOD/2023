@@ -1490,7 +1490,19 @@ Player:
 		# 2026-08-02 promotion — full @experimental transport parity. DeliverBeforeContact/PickupCorridor/
 		# UnloadOnArrival are engine-independent; BelievedDangerStandoff reads the danger field, now LIVE
 		# for @stable (influence-stack participation). See the @experimental twin for per-flag rationale.
-		DeliverBeforeContact: true
+		#
+		# 2026-08-15 — HELD AT false ON PURPOSE, and this is a hold, not a gate. Until today this field was
+		# DEAD CONFIG: PickDropOffCell consulted DeliverBeforeContact only where the frontline was null, and
+		# InfluenceMapMath.DeriveFrontline never returns null — so the true set here has never once changed
+		# @stable's behaviour. The fallback is fixed this commit, which would make it live on both twins
+		# simultaneously; false pins @stable at EXACTLY the behaviour it has always had (no pre-contact
+		# delivery) while the never-executed path is proven on @experimental first.
+		#
+		# This does NOT withhold a fix from @stable on principle — that would be against policy. It sequences
+		# ONE un-run behavioural change at a time, on a profile that is the benchmark control and already took
+		# a knowing change today (CommitPassengers). Flip this back to true to promote, in its own commit, so
+		# the baseline is re-taken for one change rather than two.
+		DeliverBeforeContact: false
 		PreContactStagingPct: 50
 		UnloadOnArrival: true
 		PickupCorridorCells: 6

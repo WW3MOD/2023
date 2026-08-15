@@ -3,6 +3,32 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-15 — a real signature can carry a wrong inference: the *available* explanation is not the *demonstrated* one
+
+Worth keeping as stated, because the reasoning failed in a way that looked like good reasoning.
+
+Observing that the ground transport created no task while `carriers-candidate=1` and
+`passengers-eligible=4` then `5`, and that eligibility then collapsed to `0`, the conclusion drawn was
+"offense is walking these soldiers away and the boarding orders are being refused by the arbitration
+gate's dwell rule". Instrumenting all three of the module's silent exits falsified it outright:
+`no-drop-cell 15`, `orders-refused 0`, `too-few-pax 0`. Not one boarding order was ever issued.
+
+Three things to take from it:
+
+1. **The signature was real and correctly noticed.** The eligibility collapse genuinely happens, and
+   offense genuinely is recruiting those soldiers. Every observed fact in the hypothesis was true.
+2. **The inference was the AVAILABLE explanation, not the DEMONSTRATED one.** It was reached by
+   pattern-matching to a mechanism found an hour earlier on the capture-ferry path — a bias toward the
+   most recently understood cause, which is the failure mode to watch for right after a good find.
+3. **The collapse is real but happens AFTER the module has already given up, for an unrelated
+   reason.** Two true facts in one log, ordered so the salient one looks causal. Sequence was the
+   missing check, and nothing could establish it because the abandonment was not logged at all.
+
+Practical rule, and it paid for itself the same day: **when instrumenting to test a hypothesis, count
+every exit on the path, not just the one you suspect.** A counter on the suspected gate alone returns
+zero and leaves a falsified prediction with no answer — same run cost, none of the information.
+Counting all three turned a wrong guess into the finding of the day.
+
 ## 2026-08-15 — bot transports leave half empty because the DEPARTURE test reads the MINIMUM while the BOARDING loop orders up to CAPACITY; and the stragglers then pin the carrier's lock
 
 Found on `wt/transport-loading` while making the capture ferry carry soldiers.

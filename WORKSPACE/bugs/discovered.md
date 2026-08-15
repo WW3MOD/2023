@@ -1003,6 +1003,14 @@ state that `FillBeforeDeparture` governs was never entered and the lever had no 
 anything. The mechanism by which the branch could plausibly have broken this scenario provably did
 not occur.
 
+**FALSIFIED the same day — see the next entry.** The hypothesis below was instrumented and tested and
+is **wrong**. No boarding order was ever refused; the module never reaches the boarding loop at all,
+because it cannot compute a drop-off cell. Kept rather than deleted so the reasoning stays visible:
+the signature was real and correctly noticed, but the inference drawn from it was the *available*
+explanation rather than the demonstrated one — the eligibility collapse to `0` is offense recruiting
+those soldiers, which is true and irrelevant, because it happens after the transport has already
+given up for an unrelated reason.
+
 **A second, separate observation from the same log, worth its own look.** The transport reached
 `carriers-candidate=1` with `passengers-eligible=4` then `5` — a carrier and enough infantry — and
 still created no task. Eligibility then collapsed to `0` for several scans before climbing again as
@@ -1016,3 +1024,142 @@ runs at all, which would explain why the rendezvous has never once been exercise
 two branches.** Stated as a hypothesis: the refusal path has no log line, so this run cannot prove it.
 Cheapest next step is a one-line counter at the `boarding.Count == 0` continue in `TryAssignNewTasks`
 — then a single run says yes or no.
+
+### [bug] The ground mounted transport cannot pick a drop-off cell before first contact, so it never runs — and `DeliverBeforeContact` / the combined-arms rendezvous are unreachable dead config — 2026-08-15
+
+**Measured, and it falsifies the dwell-suppression hypothesis in the entry above.** Instrumented run
+`260815_121127_p61315` (test-combined-arms-rendezvous, seed 1017) named which of the three silent
+exits in `TryAssignNewTasks` fires. Across the whole match, both players:
+
+```
+reason=no-drop-cell   15
+reason=orders-refused  0
+reason=too-few-pax     0
+```
+
+Every pass died at `if (!dropOff.HasValue) return;`. Not one boarding order was ever issued, so the
+arbitration gate cannot be the blocker — the module gives up two gates earlier than suspected. Sample:
+`no-task player=USA-bot reason=no-drop-cell carriers=1 eligible=4 tick=15`, then `eligible=5 tick=65`,
+and later `carriers=2 eligible=7 tick=465`. A carrier and seven eligible passengers, and still no task.
+
+**Mechanism, provable statically — no further run needed.** `PickDropOffCell`
+(`MountedTransportBotModule.cs:961-1007`) reaches its pre-contact fallback only on two conditions:
+
+1. `influenceMap == null` — the `InfluenceMap` trait is absent from the world entirely; or
+2. `frontline == null`.
+
+**Condition 2 can never hold.** `InfluenceMap.GetFrontline` (`InfluenceMap.cs:170-175`) returns
+`InfluenceMapMath.DeriveFrontline`, which unconditionally allocates `new bool[w, h]` and returns it
+(`:248-262`). It has no null return. So with the trait present — i.e. in every real game — the
+frontline is always a non-null array, and **before contact it is simply all-false**. The scoring loop
+then never assigns `best`, and the method ends at `return best.HasValue ? ApplyStandoff(...) : best`
+— returning **null** rather than falling back. The fallback is only wired to the frontline being
+*absent*, never to it being *empty*, which is precisely the pre-contact state it was written for.
+
+**Consequences, in order of how much they cost:**
+
+- **The ground transport does nothing at all until first contact**, no matter how many carriers and
+  passengers are available. That is the whole of the observed `tasks-active=0`.
+- **`DeliverBeforeContact` is dead config on both twins.** Its `[Desc]` says it exists so that "when
+  no frontline contact exists yet, still deliver toward a forward staging cell instead of sitting idle
+  until contact" — the exact behaviour it cannot produce. Both twins set it true (`ai.yaml`), and it
+  has no effect.
+- **`PreContactStagingPct` is likewise dead**, as is everything downstream of it.
+- **The combined-arms rendezvous is wired exclusively into the unreachable path.**
+  `ResolveRendezvous` is called from exactly one site — `PreContactStagingCell:1037` — and from
+  nowhere else. The frontline branch returns `ApplyStandoff(best.Value, srCell)` with no rendezvous at
+  all. So `RendezvousWithOffensiveStaging` and `RendezvousMaxAdvanceCells` cannot take effect in a
+  normal game **even when switched on**. This is a better explanation of `wt/combined-arms`'s
+  difficulties than anything that branch concluded about itself: it published an anchor for a consumer
+  that cannot run, and its scenario could never have exercised the feature regardless of tuning.
+
+**NOT FIXED — reported first by instruction.** The obvious repair (fall back to
+`PreContactStagingCell` when `best` is null, not only when `frontline` is null) is one line, but it
+switches on a transport behaviour that has never actually run on either profile, and it would make
+`DeliverBeforeContact`, the pre-contact lerp, the standoff and the rendezvous all live at once on
+`@stable`. That is a design decision, not a repair. Note also the second-order effect: the frontline
+branch would still have no rendezvous, so a fix should decide whether the rendezvous belongs on both
+branches or only pre-contact.
+
+**The instrumentation that produced this is kept** (`[exp-transport] no-task … reason=…`). It is three
+counters and one line per blocked pass, and its absence is exactly why this went unexplained across
+four runs and two branches.
+
+### [info] `test-combined-arms-rendezvous` is a KNOWN-FAILING committed scenario with a non-discriminating control — do not re-tune it — 2026-08-15
+
+**User ruling, 2026-08-15**, recorded so the next person meets it instead of rediscovering it: the
+scenario stays as it is, failing, and its t90 placement must **not** be adjusted again.
+
+Two independent reasons:
+
+1. **The placement was already tuned once, blind.** `7f8c2d41` cut four t90s to two specifically
+   because the four-tank version killed the lead abrams before the assertion could be judged, and
+   shipped that change unverified (`map.yaml:127-133` asks whoever runs it next to confirm the abrams
+   survives). Two runs on 2026-08-15 confirm it still dies. Adjusting the number again without a
+   mechanism would be the same guess a second time.
+2. **The control cannot discriminate, so surviving longer would not make it useful.** Its earlier
+   revision passed with the fix disabled, because `PoiOffensiveBotModule.StageFreePool` walks infantry
+   to the same staging anchor whatever the transport does. And per the entry above, the rendezvous it
+   is meant to exercise is reachable only through a code path that never executes — so no amount of
+   tuning could have made this scenario measure the feature.
+
+Rebuild it around an observable that can attribute — arrival **mode**, or the armour-vs-infantry
+arrival **timing gap**, both already written down in `DISCOVERIES.md` — as combined-arms work, not as
+a tuning pass.
+
+### [measured] The pre-contact fallback fix WORKS and is attributed — but delivery is blocked one layer further on — 2026-08-15
+
+Two runs on the fixed `PickDropOffCell` (`test-combined-arms-rendezvous`, seed 1017, runs
+`260815_121924_p62185` and `260815_122231_p62791`).
+
+**The fix does what it claims, and the log attributes it rather than implying it.** Every task creation
+in the second run reads `via=staged-empty-frontline` — the pre-contact staging branch that was
+previously unreachable, not the frontline branch. Before/after on the same scenario and seed:
+
+| | tasks created | `no-drop-cell` passes |
+|---|---|---|
+| before | 0 (`tasks-active=0` all run) | 15 |
+| after  | 3 (`tasks-active` peaks at 2) | 1 |
+
+The one survivor is `cause=empty-frontline+no-offensive-targets` at tick 15 — transient, PoiMap simply
+had not been populated yet, and it resolves by the next scan. That is the `cause` field earning its
+place: the four ways a drop cell can fail to resolve are now distinguishable in the log, which closes
+the "reasoning rather than measurement" gap flagged on the previous report.
+
+**DELIVERY WAS NOT ACHIEVED, and that is the honest limit of this result.** No `depart` line in either
+run. Two independent blockers sit behind the one that was fixed:
+
+1. **Only one boarding order per task is admitted.** All three tasks logged `boarding=1 of 5`,
+   `1 of 2`, `1 of 5`. So the arbitration gate's dwell rule IS refusing frontline boarding orders —
+   four of five — exactly the mechanism hypothesised and falsified as the *primary* blocker. It was
+   never why no task existed; it is why the loads are tiny. Both facts are true; only the ordering was
+   wrong.
+2. **The single admitted passenger never arrives.** `aboard=0`, `still-coming=1`, `since-board`
+   climbing to 450+ ticks. The soldier is alive and in the world and simply does not board — most
+   likely re-tasked mid-walk, which is the case `still-coming` cannot see by construction.
+
+**A weakness in the departure rule shipped earlier today, found by its own diagnostics.** With
+`aboard=0` and `minPassengers=2`, the stall release cannot fire, because it is gated on
+`aboard >= minPassengers` (`MountedTransportMath.DecideDeparture`). A load that is stalled AND empty
+therefore waits the full `LoadingTimeoutTicks` (1500 t ≈ 60 s) before `AbortEmpty`. It is bounded —
+the no-hang invariant holds and is unaffected — but the gate was written for "a partial load is not
+worth delivering yet", and it does not describe a load of nothing, where waiting achieves nothing at
+all. The stall should be able to abandon an empty load at the stall bound rather than the hard bound.
+Not fixed: it is a behavioural change to a rule merged today and belongs in its own commit.
+
+### [config] `DeliverBeforeContact` is HELD at false on @stable pending a knowing promotion — 2026-08-15
+
+**User instruction, 2026-08-15:** one un-run behavioural change per branch on the benchmark control.
+
+Both twins set `DeliverBeforeContact: true` before today — `@poi` (`enable-ai-stable`) and
+`@experimental`. Since the flag was dead config, that true set had never once changed `@stable`'s
+behaviour. Fixing the fallback would have made it live on both twins at the same instant, on top of
+the `CommitPassengers` change `@stable` already took today.
+
+`@poi` is therefore set to `false` (`ai.yaml:1505`), pinning `@stable` at exactly the behaviour it has
+always had. **This is a hold, not a gate**: it withholds nothing that ever ran, and promotion is one
+word in its own commit, so the benchmark baseline is re-taken for one change rather than two.
+
+**Not verified by a run.** `test-combined-arms-rendezvous` runs `Bot: experimental` for BOTH players
+(`map.yaml:64`, `:71`), so no scenario exercised the `@poi` twin. The hold rests on config inspection
+alone. Anyone promoting it should confirm on a scenario that actually fields a stable bot.
