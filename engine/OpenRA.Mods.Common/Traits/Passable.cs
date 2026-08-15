@@ -26,7 +26,9 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly PlayerRelationship PassedByRelationships = PlayerRelationship.None; // PlayerRelationship.Ally | PlayerRelationship.Neutral | PlayerRelationship.Enemy;
 
 		[Desc("This actor is purely cosmetic ground cover (a crop field tiled across a region) and never occupies",
-			"its cell: placement, deployment, landing, husk and drop checks all see straight through it.",
+			"its cell: placement, deployment, landing, husk and drop checks all see straight through it, and so",
+			"does warhead impact classification — a shell landing on this actor detonates as if on bare ground",
+			"rather than being swallowed, so setting this also makes the actor transparent to explosions.",
 			"PassClasses/PassedByRelationships still govern movement; this governs everything else.")]
 		public readonly bool GroundCover = false;
 

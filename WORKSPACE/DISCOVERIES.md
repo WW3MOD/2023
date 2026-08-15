@@ -3,6 +3,131 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-15 — an actor with a HitShape but no `Targetable` SUPPRESSES the explosion and sound of any shell landing on it; only the effect warhead is gated, damage never was
+
+Found on `wt/field-impact` from a live-play report that artillery shells landing on a field "vanish".
+
+*(All line refs below are POST-fix, i.e. against commit `db01b0ae`+ of this branch.)*
+
+**Mechanism.** `CreateEffectWarhead.ActorTypeAtImpact` (`CreateEffectWarhead.cs:67-96`) walks
+`FindActorsOnCircle(pos, WDist.Zero)` and asks `IsValidAgainst` of every actor whose hitshape
+contains the impact point. `^CivField` inherits `^1x1Shape` (`defaults.yaml:1007-1013`) — a rectangle
+spanning the **whole cell** (±512) with `VerticalTopOffset: 1024` — but its `Targetable` is
+commented out (`civilian.yaml:168-171`), so `GetEnabledTargetTypes()` is empty, `IsValidTarget` is
+false, and the field is recorded as `anyInvalidActor`. The method returns `ImpactActorType.Invalid`
+and `DoImpact` early-returns at `CreateEffectWarhead.cs:124-125` **before** the sprite and the
+`Game.Sound.Play` below it. Because the hitshape is a full cell, this is not occasional — every shell
+landing in a field cell with no valid actor under it is silenced.
+
+**The non-obvious half: damage was never affected.** Verified at four layers, because the reported
+symptom ("no damage") pointed at a defect that does not exist:
+
+1. `CreateEffectWarhead` and `WarheadAS.IsValidImpact` (`WarheadAS.cs:75-86`) are the **only** two
+   sites carrying the invalid-actor early-out. `ShockwaveEffect.cs:70`, `ThermalRadiationEffect.cs:69`
+   and `LeaveSmudgeWarhead.DoImpact` all scan positions too and none of them gates this way.
+2. `DamageWarhead.DoImpact` (`DamageWarhead.cs:66-92`) has no position-level gate, and neither do the
+   two subclasses `^ArtilleryRound` actually uses — `SpreadDamageWarhead.DoImpact`
+   (`SpreadDamageWarhead.cs:55`) and `TargetDamageWarhead.DoImpact` (`TargetDamageWarhead.cs:28`)
+   iterate victims and `continue` past invalid ones.
+3. `WeaponInfo.Impact` (`WeaponInfo.cs:274-288`) dispatches every warhead unconditionally.
+4. **The projectile layer too**: `Bullet.cs:309` gates only on `BlocksProjectiles`, which `^CivField`
+   does not have, and the bounce paths are inert (`BounceCount` defaults to 0 and `^ArtilleryRound`
+   never sets it). The shell flies and detonates normally.
+
+So a shell on a field always dealt its damage and only ever lost its feedback. **A user report of
+"no damage" against an invisible explosion is not evidence of a damage bug** — the missing feedback
+is sufficient to produce that impression. Check which warhead class actually gates before believing
+the damage half of any such report.
+
+**`WarheadAS`'s copy is dead today but one line from live — fix both.** `AttachDelayedWeaponWarhead`
+*is* referenced by shipped weapon definitions (`PlaceC4`, `PlaceC4Seal` — `weapons-other.yaml:576`,
+`:595`); what is absent is any actor arming them. So the path is unreachable now and becomes
+reachable the moment someone adds that armament. Symmetric edits to both copies of a duplicated gate
+are correct here rather than gratuitous.
+
+**Fix, and why not the obvious one.** Extending the existing `GroundCover` pattern: impact
+classification now skips `IsGroundCover()` actors, in both copies of `ActorTypeAtImpact`. The
+tempting YAML cure — uncomment `Targetable:` on `^CivField` — is wrong in the opposite direction: it
+makes the field a *valid* target that soaks the shot and can be auto-acquired, when the design wants
+a field to be indistinguishable from the tile beneath it. A PITFALL at those commented lines says so.
+
+**The fall-through the fix relies on is total, so there is no tile where this still renders nothing.**
+Once the field is skipped, `actorAtImpact` is `None` and the effect is decided by
+`IsValidAgainstTerrain` instead — which sounds like it just moves the failure to the terrain layer.
+It does not: **every land terrain type in every tileset is `TargetTypes: Ground`, the only non-Ground
+type anywhere is `Water: Water`, and every `^*ExplosionEffects` template ships both a ground effect
+and a water splash.** So there is no terrain a field can sit on where the shell renders nothing —
+worth knowing generally, because it means a `ValidTargets: Ground` effect warhead is effectively
+unconditional on land.
+
+**This is the third subsystem to need the same blindness**, after movement (`Passable.PassClasses`,
+Locomotor-only) and cell occupancy (`GroundCover` + `World.BlockingActorsAt`, commit `73996d96`).
+The generalisation worth carrying: **`GroundCover` is not a cell-occupancy flag, it is "this actor is
+scenery" — any new subsystem that discovers actors by position needs to honour it**, and the ones
+that scan a WPos (warheads) need `IsGroundCover()` directly rather than `BlockingActorsAt`, which is
+cell-keyed. Fields are the majority of actors on a real map (3187 of river-zeta's 4544), so a
+subsystem that forgets is not a rare edge case — it is broken across most of the playfield.
+
+**Harness note.** An explosion had no scriptable observable at all, so a swallowed shell and a normal
+one were indistinguishable from Lua. Added `TestMode.ImpactEffectCount` +
+`Test.GetImpactEffectCount()` (`TestMode.cs`, `TestGlobal.cs`). **It counts impacts that passed the
+validity gates, NOT sprites drawn or sounds played** — the increment sits upstream of both the
+`Image != null && explosion != null` check and `ImpactSoundChance`, so a test asserting "the sound
+played" off this counter would be wrong.
+
+**Both arms of `test-field-swallows-shell` were observed at the same pinned seed (20260815), on the
+final version of the scenario, differing only in the engine change** — RED with the
+`IsGroundCover()` skip reverted ("shell fired (ammo 39 -> 34) over 13 field actors covering the
+impact area, but 0 impact effects in 30s"), GREEN with it restored. That re-run mattered: an earlier
+RED had been produced by a *previous* revision of the scenario, and the restructure moved when the
+shot is ordered, so the file in the corpus had never itself been seen to fail. A guard nobody has
+watched fail is worth what the thing it replaced was worth — and this one auto-joins every
+`run-batch.sh --all` sweep for months, where a permanently-green non-test consumes the attention that
+would otherwise notice the gap.
+
+**What made the scenario trustworthy, since firing is not the control it looks like.** An ammo-drop
+check proves a shell *flew*; it does not prove a *field was under it*. If the patch ever stops
+spawning (actor rename, owner change — `RequiresSpecificOwners` is Neutral-only — or a stray map
+edit) the shell lands on bare ground, detonates, and the test passes having measured nothing. The
+scenario therefore asserts field actors are present at and around the aim cell **before** ordering
+the shot. This matters unattended: `run-batch.sh:117` globs `test-*/`, so every new scenario
+auto-joins every future `--all` sweep.
+
+**The guard found a real defect on its first run, which is the evidence that it earns its keep.**
+The review demanded this assertion on the argument that the test *could* go green while measuring
+nothing. Its first execution came back FAIL — not because fields were missing, but because the check
+could not see them. A prediction confirmed on first contact; the guard paid for itself immediately.
+
+## 2026-08-15 — a Lua API can be PHASE-DEPENDENT: `Map.ActorsInCircle` returns nothing when called from `WorldLoaded`, and the same mistake in setup code fails silently
+
+Found on `wt/field-impact` when a brand-new setup assertion failed against a world that was fine.
+
+**Mechanism.** `Map.ActorsInCircle` / `Map.ActorsInBox` resolve through `World.FindActorsInCircle`
+(`WorldUtils.cs:79-85`) to `ActorMap.ActorsInBox` (`ActorMap.cs:649`), which reads ActorMap's
+**position bins**. Map-placed actors are only pushed into those bins by `ActorMap.TickFunction`
+(`ActorMap.cs:478`), invoked from `ITick` — the first world tick, *after* `WorldLoaded` has returned.
+So a load-time query reports an **empty world**: correct code, correct arguments, no error, wrong
+answer. Query from inside the polling predicate, or behind a short grace window — which is exactly
+what `test-field-crate-drop` does and why. **`ActorMap.GetActorsAt` is cell-keyed and updated on add,
+so it does NOT share this** — only the position-bin queries do.
+
+**This is a third instance of "the setup you wrote is not the setup that ran" (AUTOTEST.md), by a new
+mechanism.** The prior two were a value silently falling back to an engine default (a warhead
+override constructed fresh rather than merged) and a control that could not go red. This one is
+neither: nothing fell back and nothing was mis-specified — **the API answered a different question
+because of *when* it was asked.** Worth separating because the existing rules do not catch it: you
+can restate every field the consumer reads, run both arms, and still get an empty answer from a
+correct call sited two lines too early.
+
+**And it is only loud by luck.** Here the query fed a guard whose failure IS the alarm, so it
+surfaced as a FAIL. The identical error in ordinary setup code — "find the units near X at load and
+put them on HoldFire" — returns an empty list, sets nothing, throws nothing, and the scenario runs to
+a confident verdict against a world that was never built. That is the silent, false-green shape of
+the same bug. The defence is the rule AUTOTEST.md already states for corpus guards
+(`StancePositioningFireStanceTest` asserts it resolved more than zero assignments before asserting no
+violations), generalised: **when setup is driven by a query, assert the query RETURNED something
+before acting on it.** An empty result from a lookup should never be allowed to mean "nothing to do".
+
 ## 2026-08-14 — `Matchup.P1Bot` in a tournament config is INFORMATIONAL; the bot is assigned in the scenario's `map.yaml`, and `--config` cannot override it
 
 Found on `wt/composition` while trying to measure `@experimental` procurement. I wrote a new config
