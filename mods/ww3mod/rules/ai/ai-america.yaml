@@ -237,7 +237,38 @@ Player:
 		# written for, and demand sizing still grows the fleet once anyone is actually dry.
 		# @stable is UNAFFECTED: it sets neither SupplyDemandSizing nor SupplyTruckFloor, and
 		# SupplyFleetUnderDesired returns false outright when the flag is off — @stable never had a truck floor.
-		SupplyTruckFloor: 0
+		# ===== THE FLOOR NEEDS A DENOMINATOR — same defect as the medic, opposite symptom (2026-08-17) =====
+		# Everything above this line is why the floor went to 0. It is kept because the reasoning was right
+		# about t=0 and wrong about the rest of the match, and the distinction is the whole fix.
+		# WHAT SETTING IT TO 0 ACTUALLY DID, measured offline (--composition-plan --start none): it deleted the
+		# truck's only ceiling-EXEMPT route. V_fit for a 1000-cost truck at a 40 per-mille target is
+		# 1000*1000/40 = 25,000 army VALUE — below that, owning ONE truck already puts the slot over target and
+		# ApplyCeilingEligibility strikes it, so the deficit route can hold at most one. Standing trucks:
+		# 3 with no losses (army 57,750), 1 at --attrition 40 (army 14,350), 0 at --attrition 15 (army 7,800).
+		# The middle figure reproduces the verbatim 2026-08-10 LIVE reading, "one standing truck per player for
+		# the whole game" — the symptom is derivable from the composition arithmetic alone.
+		# A CONSTANT CAN ONLY PICK ONE OF THE TWO FAILURES: 2 buys trucks at t=0 (57(a)), 0 starves the fleet
+		# for the rest of the match (66). The floor is now min(cap, customers/per), so it is ZERO while there
+		# is no infantry — 57(a) cannot return — and non-zero once there is an army to feed, so 66 cannot
+		# either. Exactly the medic fix (UnitFloorPer), reusing the same SupportFloorMath.EffectiveFloor.
+		# THE DENOMINATOR IS INFANTRY AS A FACT ABOUT THE RULESET, not a modelling choice: `RearmActors` naming
+		# `truk` appears only on infantry (rules/ingame/infantry.yaml) — vehicles rearm from logisticscenter,
+		# aircraft from hpad/afld — so no vehicle or aircraft can ever be a truck customer.
+		# 12, NOT 6: SupplyCustomersPerTruck (6) sizes the SURGE from men who are already dry; this sizes the
+		# STANDING RESERVE from men who might become dry. A reserve as dense as the surge rate never shrinks.
+		# 12 holds one truck per platoon-and-a-half of riflemen and leaves the ceiling (6) free for demand.
+		# CAP 3, not 6: the cap binds the reserve only; demand sizing can still climb to the ceiling when men
+		# are actually starving. At attrition 0 the deficit route already reaches 3, so the rich end is
+		# deliberately unchanged — this fix is aimed at the collapsed-army regime and must not inflate the
+		# healthy one.
+		# NO CASH TERM, and that is required rather than incidental (user ruling 2026-08-17: "the bot should of
+		# course be able to adapt to any settings"). V_fit is a share of army VALUE, so the ceiling closes the
+		# deficit route identically at 1,000 and at 20,000 starting cash; the floor that reopens it must be
+		# cash-free too or it would only work at one end of the range.
+		# @stable is STILL UNAFFECTED: both fields are read only under SupplyDemandSizing, which no frozen
+		# profile sets, and SupplyTruckFloorPer defaults to 0 (= flat floor verbatim) in C# regardless.
+		SupplyTruckFloor: 3
+		SupplyTruckFloorPer: 8
 		SupplyTruckCeiling: 6
 		# ===== RESUPPLY PRECEDENCE (user ruling 2026-08-15) =====
 		# "There are a lot of soldiers now that are out of ammo but still I see almost no supply trucks being

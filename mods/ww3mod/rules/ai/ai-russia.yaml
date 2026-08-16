@@ -149,11 +149,28 @@ Player:
 		SupplyStarvingThresholdPerMille: 250
 		SupplyCustomersPerTruck: 6
 		SupplyDemandOvercompensationPercent: 200
-		# 0, was 2 — mirror of the America block; see ai-america.yaml for the measurement and the cost of
-		# deleting the floor. Short version: USER RULING 2026-08-14 "no supply truck until at least one unit is
-		# below full ammo", and the live census read `truk=0+0/909v40` at tick 40 because the floor's two
-		# trucks were the first two call-ins of the match. @stable unaffected (no SupplyDemandSizing).
-		SupplyTruckFloor: 0
+		# HISTORY, kept because the reasoning was right about t=0 and wrong about the rest of the match: this
+		# was 2, then 0. USER RULING 2026-08-14 "no supply truck until at least one unit is below full ammo",
+		# and the live census read `truk=0+0/909v40` at tick 40 because the floor's two trucks were the first
+		# two call-ins of the match. Setting it to 0 fixed that opening and created the opposite defect.
+		# ===== THE FLOOR NEEDS A DENOMINATOR (2026-08-17) — mirror of the America block =====
+		# See ai-america.yaml for the full derivation. Short version: setting the floor to 0 deleted the
+		# truck's only ceiling-EXEMPT route. V_fit for a 1000-cost truck at a 40 per-mille target is 25,000
+		# army VALUE; below that, one truck already puts the slot over target and ApplyCeilingEligibility
+		# strikes it, so the deficit route holds at most one. Measured offline (--composition-plan --start
+		# none, russia): standing trucks 3 with no losses, 1 at --attrition 40, 0 at --attrition 15.
+		# A constant can only pick one of the two failures (2 = trucks at t=0, 0 = no fleet all match). The
+		# floor is now min(3, customers/12) via SupportFloorMath.EffectiveFloor — the same function the medic
+		# floor uses — so it is ZERO with no infantry and non-zero once there is an army to feed.
+		# Denominator is infantry as a fact about the ruleset: `RearmActors: truk, logisticscenter` appears
+		# only on infantry; vehicles rearm from logisticscenter, aircraft from hpad/afld.
+		# 12 rather than SupplyCustomersPerTruck's 6 because that one sizes the SURGE from men already dry and
+		# this sizes the STANDING RESERVE. No cash term, per the 2026-08-17 user ruling that the bot must
+		# adapt to any settings — V_fit is a share of army value, so the fix has to be cash-free to work at
+		# both ends of the starting-cash range.
+		# @stable unaffected: both read only under SupplyDemandSizing, and the Per field defaults to 0 in C#.
+		SupplyTruckFloor: 3
+		SupplyTruckFloorPer: 8
 		SupplyTruckCeiling: 6
 		# ===== RESUPPLY PRECEDENCE (user ruling 2026-08-15) — mirror of the America block =====
 		# See ai-america.yaml for the full measurement and the derivation of the stall tolerance.

@@ -157,5 +157,60 @@ namespace OpenRA.Test
 		{
 			Assert.That(SupplyFleetMath.DesiredTrucks(1000000, 1, int.MaxValue, 0, 6), Is.EqualTo(6));
 		}
+
+		// ===== The standing floor with a denominator (SupplyTruckFloorPer) =====
+		// These pin the COMPOSITION SupplyFleetUnderDesired performs — SupportFloorMath.EffectiveFloor feeding
+		// DesiredTrucks' floor argument — rather than either function alone, because the defect being fixed
+		// lives in the join: a floor correct in isolation was being passed in as a constant.
+		// Shipped @experimental config: cap 3, per 8, customersPerTruck 6, overcompensation 200, ceiling 6.
+		static int DesiredWithScaledFloor(int starving, int customers, int cap, int per)
+		{
+			return SupplyFleetMath.DesiredTrucks(starving, 6, 200,
+				SupportFloorMath.EffectiveFloor(cap, per, customers), 6);
+		}
+
+		[Test]
+		public void ScaledFloor_ZeroCustomersHoldsNoStandingFleet()
+		{
+			// The t=0 case the user reported first (PIPELINE 57(a)): no infantry, so no floor, so no truck is
+			// called in before anyone has fired a shot. A constant floor cannot have this property.
+			Assert.That(DesiredWithScaledFloor(0, 0, 3, 8), Is.EqualTo(0));
+
+			// And it stays zero until the ratio is actually met, rather than rounding one up early.
+			Assert.That(DesiredWithScaledFloor(0, 7, 3, 8), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void ScaledFloor_PhasesInWithTheInfantryItResupplies()
+		{
+			Assert.That(DesiredWithScaledFloor(0, 8, 3, 8), Is.EqualTo(1));
+			Assert.That(DesiredWithScaledFloor(0, 16, 3, 8), Is.EqualTo(2));
+			Assert.That(DesiredWithScaledFloor(0, 24, 3, 8), Is.EqualTo(3));
+		}
+
+		[Test]
+		public void ScaledFloor_IsCappedByTheFlatFloorNotByTheCeiling()
+		{
+			// A large army must not turn the standing reserve into the whole fleet: the cap binds well below
+			// the ceiling, leaving the remaining headroom for actual measured starvation.
+			Assert.That(DesiredWithScaledFloor(0, 800, 3, 8), Is.EqualTo(3));
+		}
+
+		[Test]
+		public void ScaledFloor_DemandStillOutranksTheReserve()
+		{
+			// The floor is a MINIMUM, never a maximum: measured starvation must still size the fleet above the
+			// reserve, up to the ceiling. 18 starving at 6 per truck x 200% = 6.
+			Assert.That(DesiredWithScaledFloor(18, 8, 3, 8), Is.EqualTo(6));
+		}
+
+		[Test]
+		public void ScaledFloor_UnconfiguredRatioKeepsTheFlatFloorVerbatim()
+		{
+			// The byte-identity contract: per <= 0 is the default, so every profile that does not opt in keeps
+			// its existing answer. (@stable never reaches this path at all — SupplyDemandSizing gates it.)
+			Assert.That(DesiredWithScaledFloor(0, 0, 2, 0), Is.EqualTo(2));
+			Assert.That(DesiredWithScaledFloor(0, 100, 2, 0), Is.EqualTo(2));
+		}
 	}
 }

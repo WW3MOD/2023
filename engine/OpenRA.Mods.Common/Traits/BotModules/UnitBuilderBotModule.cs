@@ -148,8 +148,42 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int SupplyDemandOvercompensationPercent = 100;
 
 		[Desc("Standing fleet size held even when nothing is starving. A fleet bought only after men are dry",
-			"arrives after the fight it was needed for.")]
+			"arrives after the fight it was needed for.",
+			"REINTERPRETED AS THE CAP when SupplyTruckFloorPer is set, exactly as UnitFloors is by",
+			"UnitFloorPer — see that field for why a bare standing floor is an opening buy order.")]
 		public readonly int SupplyTruckFloor = 1;
+
+		[Desc("EXPERIMENTAL: give SupplyTruckFloor a DENOMINATOR — 'one standing truck per N units the truck",
+			"can actually rearm'. The floor becomes min(SupplyTruckFloor, customers / N) via",
+			"SupportFloorMath.EffectiveFloor, the same function UnitFloorPer uses for the medic; this adds no",
+			"second floor mechanism, it supplies the missing denominator to the one that already exists.",
+			"THE MEASURED DEFECT THIS CLOSES — the composition CEILING, not timing and not affordability.",
+			"A type's V_fit (the smallest army VALUE at which one unit sits at or under its target share) is",
+			"cost*1000/target; for a 1000-cost truck at 40 per-mille that is 25,000. ApplyCeilingEligibility",
+			"strikes any slot strictly OVER target, so below 25,000 army value owning ONE truck already puts",
+			"the slot over and the deficit route is closed — the bot can hold at most one, re-bought each time",
+			"the last dies. Offline replay (--composition-plan --start none): standing trucks 3 with no losses",
+			"(army 57,750), 1 at --attrition 40 (army 14,350), 0 at --attrition 15 (army 7,800). The middle",
+			"figure reproduces the verbatim 2026-08-10 LIVE reading of 'one standing truck per player for the",
+			"whole game'.",
+			"WHY A DENOMINATOR RATHER THAN A RESTORED CONSTANT: there are exactly two ceiling-EXEMPT routes onto",
+			"the field, UnitFloors and this fleet pre-empt. SupplyTruckFloor: 2 gave the t=0 trucks the user",
+			"complained about first (PIPELINE 57(a)); setting it to 0 deleted the truck's only ceiling-exempt",
+			"route below V_fit and produced the opposite complaint (66). A constant can only be one of those two",
+			"failures. A ratio is zero at t=0 — no infantry, no floor, so 57(a) cannot return — and non-zero as",
+			"soon as there is an army to feed, so 66 cannot return either.",
+			"THE DENOMINATOR IS INFANTRY, and that is a fact about the ruleset rather than a modelling choice:",
+			"`RearmActors: truk, logisticscenter` appears ONLY on infantry (mods/ww3mod/rules/ingame/",
+			"infantry.yaml); vehicles rearm from logisticscenter and aircraft from hpad/afld, so no vehicle or",
+			"aircraft is ever a truck customer. It is therefore the same population medics scale against.",
+			"Counted from the LIVE Rearmable filter (CountResupplyCapableUnits), not from a hand-maintained YAML",
+			"type list, so it cannot drift out of agreement with the ruleset the way UnitFloorSupportedTypes can.",
+			"SPARSER THAN THE DEMAND RATE ON PURPOSE. SupplyCustomersPerTruck (6) sizes the SURGE from men who",
+			"are actually dry; this sizes the STANDING RESERVE from men who might become dry. A reserve as dense",
+			"as the surge rate would be a fleet that never shrinks. Set this well above 6.",
+			"0 (default) ⇒ the flat floor verbatim, so every existing profile — including @stable, which sets no",
+			"supply flags at all — keeps its current answer exactly.")]
+		public readonly int SupplyTruckFloorPer = 0;
 
 		[Desc("Hard upper bound on the demand-sized fleet, so supply can never eat the whole call-in budget",
 			"however bad the front gets. UnitLimits still applies on top as the absolute backstop.")]
@@ -393,6 +427,12 @@ namespace OpenRA.Mods.Common.Traits
 		int supplyFleetNeedy;
 		int supplyFleetOwned;
 		int supplyFleetDesired;
+
+		// The standing floor actually in force this tick, after SupplyTruckFloorPer scaling. Held as state
+		// rather than recomputed for logging: the diagnosis this subsystem needed for six merges was "which
+		// number was the floor at the moment it decided", and a log line that recomputes can disagree with
+		// the decision it claims to explain.
+		int supplyFleetFloor;
 
 		// Consecutive cycles spent banking toward a truck, and the tick the last one was counted on. The tick
 		// guard is load-bearing: ChooseByDeficit runs once PER QUEUE, so an ungated counter would burn two or
@@ -898,10 +938,19 @@ namespace OpenRA.Mods.Common.Traits
 				supplyFleetNeedy = Info.SupplySizeFromNeed ? CountResupplyCustomers() : 0;
 
 				supplyFleetOwned = SupplyTrucksOwnedOrPending();
+
+				// The standing floor, scaled to the force it resupplies. Only walk the actor list for the
+				// denominator when a ratio is actually configured: with SupplyTruckFloorPer at its 0 default
+				// EffectiveFloor returns the flat floor verbatim and the count is not needed at all, so an
+				// unconfigured profile pays nothing for this.
+				supplyFleetFloor = Info.SupplyTruckFloorPer > 0
+					? SupportFloorMath.EffectiveFloor(Info.SupplyTruckFloor, Info.SupplyTruckFloorPer, CountResupplyCapableUnits())
+					: Info.SupplyTruckFloor;
+
 				supplyFleetDesired = SupplyFleetMath.DesiredTrucks(
 					SupplyPrecedenceMath.SizingCustomers(Info.SupplySizeFromNeed, supplyFleetStarving, supplyFleetNeedy),
 					Info.SupplyCustomersPerTruck,
-					Info.SupplyDemandOvercompensationPercent, Info.SupplyTruckFloor, Info.SupplyTruckCeiling);
+					Info.SupplyDemandOvercompensationPercent, supplyFleetFloor, Info.SupplyTruckCeiling);
 			}
 
 			return supplyFleetOwned < supplyFleetDesired;
@@ -936,6 +985,37 @@ namespace OpenRA.Mods.Common.Traits
 					ResupplyDemand.UnitNeed(pools.Select(p => (p.Info.Ammo, p.CurrentAmmoCount, p.Info.SupplyValue))),
 					Info.ResupplyNeedThreshold))
 					count++;
+			}
+
+			return count;
+		}
+
+		// Every fielded unit a truck COULD rearm, regardless of how full it currently is — the denominator for
+		// the standing floor (SupplyTruckFloorPer).
+		//
+		// This is deliberately the only one of the three customer counts with NO ammo test. The other two ask
+		// "who needs a truck right now" and size the surge; this asks "how big is the force a truck exists to
+		// serve", which is what a STANDING reserve must be proportional to. Sizing the reserve from current
+		// need would reproduce the defect it exists to fix — a full-ammo army would carry no reserve, and the
+		// fleet would once again only be bought after the men were already dry.
+		//
+		// Shares OwnedUnitsIncludingCarried and the same Rearmable filter as the other two so all three agree
+		// on who a customer is; on this ruleset that resolves to infantry only, since `RearmActors` naming
+		// `truk` appears nowhere else.
+		int CountResupplyCapableUnits()
+		{
+			var count = 0;
+			foreach (var a in OwnedUnitsIncludingCarried())
+			{
+				var rearmable = a.TraitOrDefault<Rearmable>();
+				if (rearmable == null || !rearmable.Info.RearmActors.Overlaps(Info.ResupplyUnitTypes))
+					continue;
+
+				var pools = rearmable.RearmableAmmoPools;
+				if (pools == null || pools.Length == 0)
+					continue;
+
+				count++;
 			}
 
 			return count;
@@ -1018,10 +1098,10 @@ namespace OpenRA.Mods.Common.Traits
 				if (!SupplyFleetUnderDesired(name))
 					continue;
 
-				AIUtils.BotDebug("{0} supply fleet SHORT: {1} owned+pending {2} < desired {3} ({4} starving / {5} per truck at {6}%, floor {7}, ceiling {8})",
+				AIUtils.BotDebug("{0} supply fleet SHORT: {1} owned+pending {2} < desired {3} ({4} starving / {5} per truck at {6}%, floor {7} (cap {8} per {9}), ceiling {10})",
 					player, name, supplyFleetOwned, supplyFleetDesired, supplyFleetStarving,
 					Info.SupplyCustomersPerTruck, Info.SupplyDemandOvercompensationPercent,
-					Info.SupplyTruckFloor, Info.SupplyTruckCeiling);
+					supplyFleetFloor, Info.SupplyTruckFloor, Info.SupplyTruckFloorPer, Info.SupplyTruckCeiling);
 
 				return actorInfo;
 			}
@@ -1550,7 +1630,8 @@ namespace OpenRA.Mods.Common.Traits
 					// Bought one: this spell did its job, so the progress trail starts fresh.
 					EndBankingSpell();
 					LogPick("supply-fleet", shortfall.Name, $"queue={queue.Info.Type} "
-						+ $"starving={supplyFleetStarving} needy={supplyFleetNeedy} desired={supplyFleetDesired}");
+						+ $"starving={supplyFleetStarving} needy={supplyFleetNeedy} desired={supplyFleetDesired} "
+						+ $"floor={supplyFleetFloor}");
 					return shortfall;
 				}
 
