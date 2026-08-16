@@ -1,0 +1,28 @@
+Background@HOWTOPLAY_BRIEFING:
+	Logic: HowToPlayBriefingLogic
+	X: (WINDOW_WIDTH - WIDTH) / 2
+	Y: (WINDOW_HEIGHT - HEIGHT) / 2
+	Width: 620
+	Height: 530
+	Children:
+		Label@BRIEFING_TITLE:
+			X: 0
+			Y: 14
+			Width: PARENT_WIDTH
+			Height: 25
+			Text: How to Play
+			Align: Center
+			Font: Bold
+		Container@BRIEFING_CONTENT:
+			X: 20
+			Y: 50
+			Width: 580
+			Height: 420
+		Button@BACK_BUTTON:
+			X: (PARENT_WIDTH - WIDTH) / 2
+			Y: 485
+			Width: 140
+			Height: 25
+			Text: Back
+			Font: Bold
+			Key: escape

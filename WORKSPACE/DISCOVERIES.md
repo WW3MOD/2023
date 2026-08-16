@@ -208,6 +208,50 @@ Same shape as this crash (a lookup asserting a key is unique or present, with no
 Checked and **cleared**: `ModData.MapCache[uid]` (`Game.cs:566,640`) looks like a throwing dictionary
 indexer but `previews` is a `Cache<string, MapPreview>` (`MapCache.cs:34,75`) that materialises on miss.
 It cannot throw `KeyNotFoundException`.
+## 2026-08-16 — `run-test.sh` restores `settings.yaml` after every autotest, so anything the engine persists during a run is silently reverted
+
+`tools/autotest/run-test.sh:632-634` copies the live `settings.yaml` to a backup before launching,
+and `:773-774` `mv`s it back unconditionally after. `tools/autotest/screenshot-lobby.sh:108-111`
+does the same. The stated purpose is narrow — stop a test's `Sound.Mute=true` / `Graphics.Mode`
+leaking into normal launches — but the mechanism is a whole-file snapshot/restore, so it reverts
+*every* key, including ones the engine wrote for legitimate reasons during the same window.
+
+Consequence for any "show this once" feature keyed on a settings value: the flag can be written,
+saved, and then thrown away, and the feature re-fires forever with no bug in its own gate. The
+how-to-play briefing hit exactly this. As of this date `~/Library/Application Support/OpenRA/settings.yaml`
+on the dev machine contains no `HowToPlayVersion` key at all, despite the briefing having fired
+repeatedly since `dd6171cd` (2026-08-12) — and its contents (`MaxFramerate: 5`, `Mute: True`,
+`SoundVolume: 0`) are the autotest shape, not a human player's, i.e. the file is currently governed
+by that restore rather than by play sessions.
+
+Note the near-miss in reading it: the file *does* contain `IntroductionPromptVersion: 1`, which is
+stock OpenRA's `IntroductionPromptLogic` gate and looks like a how-to-play flag at a glance. It is
+not related.
+
+Not fixed here — the harness is shared with every worker and the change belongs to whoever owns
+`run-test.sh`. Two options when someone does: exclude specific keys from the restore, or have
+`TestMode` suppress `Settings.Save()` outright so the backup is unnecessary.
+
+## 2026-08-16 — losing the Supply Route link IS elimination, not just a passive state
+
+`SupplyRouteContestation.OnDefeatBarFull` (`engine/OpenRA.Mods.Common/Traits/SupplyRouteContestation.cs:354-376`)
+sets `isPassive = true` and freezes production — and then, at `:374-375`, calls
+`ResolveTeamElimination()` whenever `HasActiveTeamSupplyRoute()` is false. In a 1v1 there are no
+teammates, so that branch always taken: the defeat bar filling marks the player `Lost` in the same
+tick it makes them passive. "Passive" is only a survivable state in a team game where an ally still
+holds an uncontested SR.
+
+Reading only through `:373` — the comment line immediately above the call — gives the opposite
+impression, that the mechanic is purely economic and reversible. Reversibility is real but sits
+*earlier*: `:270-289` drains the defeat bar and calls `OnReinstated()` if the contesting force is
+cleared **before** the bar fills.
+
+Related, and worth someone confirming: the public `IsPassive` accessor (`:131`) has **zero call
+sites in the whole repo** — grep finds only its own declaration and a mention in
+`DOCS/archive/RELEASE_V1_TODO.md`. The trait's only behavioural hook is `IProductionSpeedModifier`
+(`:622-633`). So the system line "Production and income frozen" (`:362`) looks like it overstates:
+production is genuinely halted, but nothing in this trait touches income. Not chased further here —
+I did not trace the income path itself, only this trait's outputs.
 
 ## 2026-08-15 — the littlebird deals ZERO damage with every weapon it carries, because it declares no Gunner crew slot and `^Airborne` reads a missing slot as `FirepowerMultiplier: 0`
 

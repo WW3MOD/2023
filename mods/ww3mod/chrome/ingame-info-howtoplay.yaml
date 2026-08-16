@@ -120,24 +120,31 @@ Container@HOWTOPLAY_PANEL:
 			Width: PARENT_WIDTH - 40
 			Height: 17
 			Font: Regular
-			Text: reinforcements slow, and holding it long enough puts them out of the
+			Text: reinforcements slow, then halt, and a red bar starts filling. If it
 		Label@B4_L3:
 			X: 20
 			Y: 337
 			Width: PARENT_WIDTH - 40
 			Height: 17
 			Font: Regular
-			Text: match. Yours works the same way, so react to Supply Route contested!
+			Text: fills, that side is out of the match. Yours works the same way, so
+		Label@B4_L4:
+			X: 20
+			Y: 354
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: clear your own ring before it fills — push them off and it recovers.
 		Label@FOOT_L1:
 			X: 20
-			Y: 362
+			Y: 379
 			Width: PARENT_WIDTH - 40
 			Height: 17
 			Font: Regular
 			Text: Spent units can Evacuate, leaving via your Supply Route to recover
 		Label@FOOT_L2:
 			X: 20
-			Y: 379
+			Y: 396
 			Width: PARENT_WIDTH - 40
 			Height: 17
 			Font: Regular

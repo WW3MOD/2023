@@ -1,0 +1,388 @@
+Container@MAINMENU:
+	Logic: MainMenuLogic
+	Children:
+		WorldInteractionController@SHELLMAP_INTERACTION:
+			Width: WINDOW_WIDTH
+			Height: WINDOW_HEIGHT
+		ShellmapViewportController@SHELLMAP_VIEWPORT:
+			Width: WINDOW_WIDTH
+			Height: WINDOW_HEIGHT
+		LogicKeyListener@GLOBAL_KEYHANDLER:
+			Logic: MusicHotkeyLogic, ScreenshotHotkeyLogic, MuteHotkeyLogic
+				StopMusicKey: StopMusic
+				PauseMusicKey: PauseMusic
+				PrevMusicKey: PrevMusic
+				NextMusicKey: NextMusic
+				TakeScreenshotKey: TakeScreenshot
+				MuteAudioKey: ToggleMute
+		# Background@BORDER:
+		# 	Background: mainmenu-border
+		# 	X: 0 - 15
+		# 	Y: 0 - 15
+		# 	Width: WINDOW_WIDTH + 30
+		# 	Height: WINDOW_HEIGHT + 30
+		# Image@LOGO:
+		# 	X: WINDOW_WIDTH - 296
+		# 	Y: 30
+		# 	ImageCollection: logos
+		# 	ImageName: logo
+		ShellmapNukeOverlay@NUKE_OVERLAY:
+			Width: WINDOW_WIDTH
+			Height: WINDOW_HEIGHT
+		DropDownButton@SHELLMAP_DROPDOWN:
+			X: WINDOW_WIDTH - 420
+			Y: 15
+			Width: 220
+			Height: 25
+			Font: Bold
+			Background:
+			Separators:
+		Button@REPLAY_BUTTON:
+			X: WINDOW_WIDTH - 190
+			Y: 15
+			Width: 25
+			Height: 25
+			Font: Bold
+			Children:
+				Image@ICON:
+					X: 5
+					Y: 5
+					Width: 16
+					Height: 16
+					ImageCollection: reload-icon
+					ImageName: enabled
+		Button@NUKE_BUTTON:
+			X: WINDOW_WIDTH - 160
+			Y: 15
+			Width: 25
+			Height: 25
+			Font: Bold
+			Children:
+				Image@ICON:
+					X: 6
+					Y: 6
+					Width: 14
+					Height: 14
+					ImageCollection: order-icons
+					ImageName: nuke
+		Button@RANDOM_BUTTON:
+			X: WINDOW_WIDTH - 130
+			Y: 15
+			Width: 25
+			Height: 25
+			Font: Bold
+			Text: ?
+		Button@SHELLMAP_PAUSE_BUTTON:
+			X: WINDOW_WIDTH - 100
+			Y: 15
+			Width: 25
+			Height: 25
+			Font: Bold
+			Children:
+				Image@ICON:
+					X: 5
+					Y: 5
+					ImageCollection: music
+					ImageName: pause
+		Button@INFO_BUTTON:
+			X: WINDOW_WIDTH - 70
+			Y: 15
+			Width: 25
+			Height: 25
+			Text: v
+			Font: Bold
+		Button@HOWTOPLAY_BUTTON:
+			X: WINDOW_WIDTH - 40
+			Y: 15
+			Width: 25
+			Height: 25
+			Text: i
+			Font: Bold
+		Background@INFO_DROPDOWN:
+			X: WINDOW_WIDTH - 430
+			Y: 45
+			Width: 355
+			Height: 95
+			Background: dialog4
+			Visible: false
+			Children:
+				Label@INFO_MOD_VERSION:
+					X: 10
+					Y: 8
+					Width: 275
+					Height: 18
+					Font: Bold
+					Contrast: true
+				Label@INFO_ENGINE_VERSION:
+					X: 10
+					Y: 28
+					Width: 275
+					Height: 18
+					Font: Small
+					Contrast: true
+				Label@INFO_BUILD_DATE:
+					X: 10
+					Y: 48
+					Width: 275
+					Height: 18
+					Font: Small
+					Contrast: true
+				Label@INFO_AUTHORS:
+					X: 10
+					Y: 68
+					Width: 275
+					Height: 18
+					Font: Small
+					Contrast: true
+		Container@MENUS:
+			X: 10
+			Y: WINDOW_HEIGHT / 2 - HEIGHT / 2
+			Width: 200
+			Height: 320
+			Children:
+				Background@MAIN_MENU:
+					Background:
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
+					Children:
+						Label@MAINMENU_LABEL_TITLE:
+							X: 0
+							Y: 22
+							Width: 200
+							Height: 30
+							Text: label-openra
+							Align: Center
+							Font: Bold
+						Button@SINGLEPLAYER_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 60
+							Width: 140
+							Height: 30
+							Text: label-singleplayer-title
+							Font: Bold
+						Button@MULTIPLAYER_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 100
+							Width: 140
+							Height: 30
+							Text: label-multiplayer-title
+							Font: Bold
+						Button@SETTINGS_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 140
+							Width: 140
+							Height: 30
+							Text: button-settings-title
+							Font: Bold
+						Button@EXTRAS_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 180
+							Width: 140
+							Height: 30
+							Text: button-extras-title
+							Font: Bold
+						Button@CONTENT_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 220
+							Width: 140
+							Height: 30
+							Text: button-main-menu-content
+							Font: Bold
+						Button@QUIT_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 260
+							Width: 140
+							Height: 30
+							Text: button-quit
+							Font: Bold
+				Background@SINGLEPLAYER_MENU:
+					Background:
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
+					Children:
+						Label@SINGLEPLAYER_MENU_TITLE:
+							X: 0
+							Y: 20
+							Width: 200
+							Height: 30
+							Text: label-singleplayer-title
+							Align: Center
+							Font: Bold
+						Button@SKIRMISH_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 60
+							Width: 140
+							Height: 30
+							Text: button-singleplayer-menu-skirmish
+							Font: Bold
+						Button@MISSIONS_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 100
+							Width: 140
+							Height: 30
+							Text: label-missions-title
+							Font: Bold
+						Button@LOAD_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 140
+							Width: 140
+							Height: 30
+							Text: button-singleplayer-menu-load
+							Font: Bold
+						Button@BACK_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Key: escape
+							Y: 260
+							Width: 140
+							Height: 30
+							Text: button-back
+							Font: Bold
+				Background@EXTRAS_MENU:
+					Background:
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
+					Children:
+						Label@EXTRAS_MENU_TITLE:
+							X: 0
+							Y: 20
+							Width: 200
+							Height: 30
+							Text: button-extras-title
+							Align: Center
+							Font: Bold
+						Button@REPLAYS_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 60
+							Width: 140
+							Height: 30
+							Text: button-extras-menu-replays
+							Font: Bold
+						Button@MUSIC_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 100
+							Width: 140
+							Height: 30
+							Text: label-music-title
+							Font: Bold
+						Button@MAP_EDITOR_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 140
+							Width: 140
+							Height: 30
+							Text: label-map-editor-title
+							Font: Bold
+						Button@ASSETBROWSER_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 180
+							Width: 140
+							Height: 30
+							Text: button-extras-menu-assetbrowser
+							Font: Bold
+						Button@CREDITS_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 220
+							Width: 140
+							Height: 30
+							Text: label-credits-title
+							Font: Bold
+						Button@BACK_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Key: escape
+							Y: 260
+							Width: 140
+							Height: 30
+							Text: button-back
+							Font: Bold
+				Background@MAP_EDITOR_MENU:
+					Background:
+					Width: PARENT_WIDTH
+					Height: PARENT_HEIGHT
+					Children:
+						Label@MAP_EDITOR_MENU_TITLE:
+							X: 0
+							Y: 20
+							Width: 200
+							Height: 30
+							Text: label-map-editor-title
+							Align: Center
+							Font: Bold
+						Button@NEW_MAP_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 60
+							Width: 140
+							Height: 30
+							Text: button-map-editor-new-map
+							Font: Bold
+						Button@LOAD_MAP_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Y: 100
+							Width: 140
+							Height: 30
+							Text: button-map-editor-load-map
+							Font: Bold
+						Button@BACK_BUTTON:
+							X: PARENT_WIDTH / 2 - WIDTH / 2
+							Key: escape
+							Y: 260
+							Width: 140
+							Height: 30
+							Text: button-back
+							Font: Bold
+		Container@PERFORMANCE_INFO:
+			Logic: PerfDebugLogic
+			Children:
+				Label@PERF_TEXT:
+					X: 30
+					Y: WINDOW_HEIGHT - 70
+					Width: 170
+					Height: 40
+					Contrast: true
+				Background@GRAPH_BG:
+					ClickThrough: true
+					Background: dialog4
+					X: WINDOW_WIDTH - 240
+					Y: WINDOW_HEIGHT - 240
+					Width: 210
+					Height: 210
+					Children:
+						PerfGraph@GRAPH:
+							X: 5
+							Y: 5
+							Width: 200
+							Height: 200
+		Background@NEWS_BG:
+			X: (WINDOW_WIDTH - WIDTH) / 2
+			Y: 35
+			Width: 430
+			Height: 55
+			Children:
+				DropDownButton@NEWS_BUTTON:
+					Background: newsbutton
+					X: 15
+					Y: 15
+					Width: 400
+					Height: 25
+					Text: dropdownbutton-news-bg-button
+					Font: Bold
+		Container@UPDATE_NOTICE:
+			X: (WINDOW_WIDTH - WIDTH) / 2
+			Y: 95
+			Width: 128
+			Children:
+				Label@A:
+					Width: PARENT_WIDTH
+					Height: 25
+					Align: Center
+					Shadow: true
+					Text: label-update-notice-a
+				Label@B:
+					Y: 20
+					Width: PARENT_WIDTH
+					Height: 25
+					Align: Center
+					Shadow: true
+					Text: label-update-notice-b
+		# Container@PLAYER_PROFILE_CONTAINER:
+		# 	Logic: LoadLocalPlayerProfileLogic
+		# 	X: 25
+		# 	Y: 25

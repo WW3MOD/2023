@@ -36,6 +36,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[FluentReference("author", "datetime")]
 		const string AuthorDateTime = "label-author-datetime";
 
+		// WW3MOD: bump to re-show the how-to-play briefing to players who have already seen it.
+		public const int HowToPlayVersion = 1;
+
 		protected enum MenuType { Main, Singleplayer, Extras, MapEditor, StartupPrompts, None }
 
 		protected enum MenuPanel { None, Missions, Skirmish, Multiplayer, MapEditor, Replays, GameSaves }
@@ -286,6 +289,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					infoDropdown.Visible = !infoDropdown.Visible;
 			};
 
+			// WW3MOD: permanent way back into the how-to-play briefing. GetOrNull because only
+			// ww3mod's own mainmenu.yaml carries the button — a mod on the shared common copy
+			// must not get an "i" with nothing behind it.
+			var howToPlayButton = rootMenu.GetOrNull<ButtonWidget>("HOWTOPLAY_BUTTON");
+			if (howToPlayButton != null)
+				howToPlayButton.OnClick = OpenHowToPlayBriefing;
+
 			// Shellmap selector — prev/next/dropdown with alt-click reordering
 			SetupShellmapSelector(widget, world);
 
@@ -513,6 +523,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{
 					LoadAndDisplayNews(webServices, newsBG);
 					SwitchMenu(MenuType.Main);
+
+					// WW3MOD: last link in the startup-prompt chain. The briefing used to auto-open
+					// on the first match instead, which interrupted the one moment a new player is
+					// least willing to be interrupted.
+					if (ShouldShowHowToPlay())
+						OpenHowToPlayBriefing();
 				}
 
 				if (SystemInfoPromptLogic.ShouldShowPrompt())
@@ -799,6 +815,31 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{ "onStart", () => { RemoveShellmapUI(); lastGameState = MenuPanel.Multiplayer; } },
 				{ "onExit", () => SwitchMenu(MenuType.Main) },
 				{ "directConnectEndPoint", null },
+			});
+		}
+
+		// WW3MOD: first launch only. TestMode is excluded because a screenshot or lobby driver
+		// reaching the main menu would otherwise get a modal window over the shot it came for —
+		// and would burn the "seen" flag on a machine whose owner never saw it.
+		static bool ShouldShowHowToPlay()
+		{
+			return !TestMode.IsActive && Game.Settings.Game.HowToPlayVersion < HowToPlayVersion;
+		}
+
+		void OpenHowToPlayBriefing()
+		{
+			// Recorded on open rather than on dismiss: a player who alt-F4s out of the briefing
+			// has still seen it, and should not meet it again every launch.
+			if (Game.Settings.Game.HowToPlayVersion < HowToPlayVersion)
+			{
+				Game.Settings.Game.HowToPlayVersion = HowToPlayVersion;
+				Game.Settings.Save();
+			}
+
+			SwitchMenu(MenuType.None);
+			Ui.OpenWindow("HOWTOPLAY_BRIEFING", new WidgetArgs
+			{
+				{ "onExit", () => SwitchMenu(MenuType.Main) },
 			});
 		}
 
