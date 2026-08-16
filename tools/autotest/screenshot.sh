@@ -57,8 +57,18 @@ if [ -n "${CMD_FILE_OVERRIDE}" ]; then
 else
 	# Find the most recent manual_* directory. If none, the user hasn't started
 	# screenshot mode — bail.
-	MANUAL_DIR=$(find "${SCREENSHOT_BASE}" -maxdepth 1 -name 'manual_*' -type d 2>/dev/null \
-		| sort | tail -1)
+	#
+	# PITFALL: this used to pick the directory by lexicographic `sort | tail -1`,
+	# which is NOT the newest one. Run-ids are only sometimes timestamps —
+	# start-screenshot-mode.sh accepts a name, producing dirs like
+	# `manual_smallfixes_210545` alongside `manual_260816_223042`. Any letter
+	# sorts after any digit, so a single named run permanently shadows every
+	# later timestamped run, and this script then writes its command into a dead
+	# directory whose engine exited long ago. The failure surfaces as `--wait`
+	# timing out, which reads as "the game ignored me" rather than "you wrote to
+	# the wrong file" — it cost a full launch to diagnose. Sort by mtime.
+	MANUAL_DIR=$(find "${SCREENSHOT_BASE}" -maxdepth 1 -name 'manual_*' -type d \
+		-exec ls -dt {} + 2>/dev/null | head -1)
 	if [ -z "${MANUAL_DIR}" ]; then
 		echo "Error: no manual_* screenshot dir under ${SCREENSHOT_BASE}." >&2
 		echo "Run ./tools/autotest/start-screenshot-mode.sh first to launch the game in screenshot mode." >&2
