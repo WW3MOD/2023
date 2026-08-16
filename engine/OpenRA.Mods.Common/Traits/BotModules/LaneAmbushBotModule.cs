@@ -164,7 +164,10 @@ namespace OpenRA.Mods.Common.Traits
 		readonly StarvingRecruitGate ammoGate = new("ambush");
 
 		// The enable-ambush-tactics grant we hold per posted unit, so it can be revoked precisely on release.
-		readonly Dictionary<Actor, (ExternalCondition Ec, int Token)> gateGrants = new();
+		// Bot-local INTENT only: which units this module has already ordered the ambush gate onto, so the
+		// order is not re-offered every eval. The condition token itself is owned by the unit
+		// (AutoTarget.SetAmbushGate) because the grant must travel as an order to survive a saved-game restore.
+		readonly HashSet<Actor> gatedUnits = new();
 
 		// Cached each BotTick so TraitDisabled can drive the same order-based release path (it has no bot of
 		// its own). Null until the first tick — which is fine, since nothing is posted before then.
@@ -212,13 +215,18 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Belt-and-suspenders: sweep any stray grant not tied to a live lane unit (the RetireAll invariant
 			// should already have cleared these, but a disabled module must leave zero granted tokens behind).
-			if (gateGrants.Count > 0)
+			// Ordered like the other two sites. lastBot is the same reference RetireAll above is already
+			// driven from, and ModularBot drains its order queue independently of any one module's enabled
+			// state, so a revoke issued here still lands. If there is no bot at all there is no order path
+			// and nothing to leak either — the module never ran, so it never granted.
+			if (gatedUnits.Count > 0)
 			{
-				foreach (var kv in gateGrants)
-					if (!kv.Key.IsDead && kv.Key.IsInWorld)
-						kv.Value.Ec.TryRevokeCondition(kv.Key, this, kv.Value.Token);
+				if (lastBot != null)
+					foreach (var u in gatedUnits)
+						if (!u.IsDead && u.IsInWorld)
+							lastBot.QueueOrder(new Order("SetAmbushGate", u, false) { ExtraData = 0 });
 
-				gateGrants.Clear();
+				gatedUnits.Clear();
 			}
 		}
 
@@ -466,21 +474,20 @@ namespace OpenRA.Mods.Common.Traits
 		// Grant the enable-ambush-tactics gate to a posted unit (idempotent) and set it to Ambush stance.
 		void EnsureGatedAmbusher(IBot bot, Actor u)
 		{
-			if (!gateGrants.ContainsKey(u))
+			// ORDER THE GRANT, NEVER GRANT IT HERE. A condition granted directly from a bot tick is not in the
+			// order stream, so GameSave never records it and a restored game — where bot ticks early-return on
+			// IsLoadingGameSave (ModularBot.cs:206) — never gates the unit. The gate is read by SYNCED code
+			// (AttackMoveActivity's halt-before-contact), so the restored world takes the other branch and
+			// fails the restore's validating sync-hash check. Measured at the first diverging tick: recording
+			// gatecount=1, replay gatecount=0, every other input identical.
+			// gatedUnits is bot-local INTENT only — it stops the order being re-offered every eval. The
+			// authoritative token now lives on the unit, in AutoTarget.SetAmbushGate.
+			if (!gatedUnits.Contains(u))
 			{
 				var at = u.Info.TraitInfoOrDefault<AutoTargetInfo>();
-				var gate = at?.AmbushTacticsCondition;
-				if (!string.IsNullOrEmpty(gate))
-				{
-					var ec = u.TraitsImplementing<ExternalCondition>()
-						.FirstOrDefault(e => e.Info.Condition == gate && e.CanGrantCondition(this));
-					if (ec != null)
-					{
-						var token = ec.GrantCondition(u, this);
-						if (token != Actor.InvalidConditionToken)
-							gateGrants[u] = (ec, token);
-					}
-				}
+				if (!string.IsNullOrEmpty(at?.AmbushTacticsCondition)
+					&& bot.QueueOrder(new Order("SetAmbushGate", u, false) { ExtraData = 1 }))
+					gatedUnits.Add(u);
 			}
 
 			// Put it in Ambush so the (now-gated) Stage-2 halt + Stage-3 machine run. SetUnitStance is applied
@@ -495,12 +502,12 @@ namespace OpenRA.Mods.Common.Traits
 		// normal offense pool clean.
 		void ReleaseUnit(IBot bot, Actor u, bool resetStance)
 		{
-			if (gateGrants.TryGetValue(u, out var g))
-			{
-				if (!u.IsDead && u.IsInWorld)
-					g.Ec.TryRevokeCondition(u, this, g.Token);
-				gateGrants.Remove(u);
-			}
+			// Order the revoke too. It must move WITH the grant above: ordering only the grant would leave the
+			// restored world holding a gate the recording had already revoked, i.e. the same divergence in the
+			// opposite direction. Dropped from gatedUnits regardless of whether the order was accepted, so a
+			// released unit can be re-gated later.
+			if (gatedUnits.Remove(u) && !u.IsDead && u.IsInWorld)
+				bot.QueueOrder(new Order("SetAmbushGate", u, false) { ExtraData = 0 });
 
 			goalGuard?.Ledger.Release(u);
 
@@ -588,6 +595,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (string.IsNullOrEmpty(gate))
 				return false;
 
+			// Eligibility only — this asks whether the seam EXISTS, not who will grant through it. The actual
+			// grant is made by the unit's own AutoTarget when it resolves SetAmbushGate, so the source here
+			// differs from the source there; that is immaterial because `source` only feeds ExternalCondition's
+			// cap checks and enable-ambush-tactics declares no SourceCap/TotalCap (defaults.yaml).
 			foreach (var ec in a.TraitsImplementing<ExternalCondition>())
 				if (ec.Info.Condition == gate && ec.CanGrantCondition(this))
 					return true;
