@@ -267,6 +267,61 @@ off.
 
 ---
 
+## 5b. MEASURED — run `260817_012446`, seed 1017, `wt/staging-guard` @ `20b970c8`
+
+Verdict read from `result.json`: `{"status":"pass","seed":1017}`. Log attributed by content — the copy
+names `worktrees/ww3mod/staging-guard`, which no other worker's log can carry — and copied into the run
+dir before any analysis.
+
+| # | Pre-registered bar | Measured | Verdict |
+|---|---|---|---|
+| 1 | first departure ≥ 4 of 5 seats at tick ≤ 500 | `depart aboard=5 target=5 reason=Full tick=365` | **PASS** |
+| 2 | zero `[exp-staging]` lines before tick 100 | 0 (and 0 in the whole match) | **PASS, but confounded — see below** |
+| 3 | SR-proximity census | `near2=0` on 8/8 evals, `pool=0` on six, `pool=1` on two | **UNEXERCISED** |
+
+**Number 1 reproduces `4c4d8a49`'s post-standoff figures exactly** — 5 of 5 at tick 365, boarding
+`5 of 5` at tick 65, one `[exp-standoff] held=5 free=0 tick=7`, drop at `32,10` (the legacy lerp; the
+rendezvous is off). Same seed, same numbers, so the guard fix is behaviourally neutral on the transport
+path and **the attribution in `4c4d8a49` is confirmed rather than refuted.**
+
+**Number 2 does not isolate the fix, and I am reporting it against myself.** `StageFreePool` early-returns
+on `!stagingAnchor.HasValue` **OR** `idle.Count == 0`. The standoff holds all five at tick 7
+(`held=5 free=0`), so the free pool is empty and the `[exp-staging]` count would be zero *whatever the
+anchor did*. This is the fourth instance of the "who else could satisfy your predicate" family, and I
+authored the predicate knowing about the first three.
+
+**The unconfounded evidence is the `anchor=` field**, which `[exp-clog]` prints *before* the early return
+and which reads the variable the fix controls directly: `anchor=none` on **8 of 8** evals, including
+tick 7 — the exact tick the pre-fix baseline logged `staged=5`. Pre-fix that field would have read `7,17`.
+That, plus the NUnit parity pin, is what the fix rests on; number 2 is corroboration, not proof.
+
+**Number 3 stays UNEXERCISED.** The free pool never exceeds one unit, so there is nothing to congest and
+nothing `SpreadCell` would have dispersed. `near2=0` is not reassurance — this scenario does not exercise
+the risk, and the risk is unchanged.
+
+### The run found a THIRD resolver with the same defect, and it is live on BOTH profiles
+
+`[exp-capture] reserve unit=tecn.america#23 from=6,16 to=1,23 anchor=7,17 ... tick=504` (and #24 at 654).
+**`anchor=7,17` is the phantom cell**, still being published — by `CaptureCoordinatorBotModule.ResolveReserveAnchor`
+(`:1592`), which runs the same grid descent, converts with the same `GridCellToMapCell`, and has **no
+degenerate-descent guard at all** — not a map-space one, none. Its only filter is `AnchorShifted`
+hysteresis, and its own comment correctly notes the parity trap does not apply to a *distance* comparison.
+So on a flat pre-contact field it returns the quantisation artifact unconditionally, and the reserve fans
+technicians into `SpreadCell` slots around a cell that means nothing.
+
+**This one is not `@experimental`-only.** `CaptureCoordinatorBotModule@experimental.tecn` (`ai.yaml:111`)
+and `@stable.tecn` (`:2033`) both set `ReserveStandoffCells: 10`. `ForwardStagingEnabled` is experimental-only,
+so the fix in §3.2 could not reach `@stable`; **this path does**, which means the phantom-anchor class is
+live on the benchmark control.
+
+**Not fixed here, deliberately.** It is a second behavioural change and I have no run budget left; one
+un-run behavioural change per branch is a measurement and two is a guess. It wants its own brief, and its
+acceptance is the same shape: with an SR at all four parities and a flat field, the reserve anchor must
+resolve to "none" 4 times out of 4.
+
+**Scoreboard for `d91e10f7`'s lesson: three resolvers, one correct.** `ResolveMusterAnchor` had it right
+since 2026-08-04. `ResolveStagingAnchor` is fixed here. `ResolveReserveAnchor` is still wrong.
+
 ## 6. What I could not verify
 
 > **Four of these were closed on `wt/staging-guard` (2026-08-17).** Struck through below, with what
