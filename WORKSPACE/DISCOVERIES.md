@@ -63,6 +63,17 @@ condition is present". Verified by trace: `heli` logs `slot=Gunner presentCondit
 `littlebird` logs only `slot=Pilot presentCondition=-`. RED -> PASS on `test-littlebird-strafe` with the
 gate as the only difference, re-confirmed by reverting the gate alone and watching it go RED again.
 
+**SUPERSEDED 260816 — mechanism deleted, not repaired.** `has-gunner-seat` was consumed by every
+`^Helicopter` but granted only by the three that declare a Gunner slot, so `littlebird`, `tran` and
+`halo` tripped "consumes conditions that are not granted" and `make test` went red. Rather than granting
+it more widely, the user ruled the whole gate dead weight: crew never re-board, and a helicopter whose
+crew has left is already burning and doomed, so there is nothing for a "was the gunner lost?" test to
+decide. `FirepowerMultiplier@NoGunner`, `VehicleCrew.SlotPresentConditions` and the three
+`has-gunner-seat` grants are removed. The littlebird stays unzeroed — the gate that zeroed it no longer
+exists at all. `@EmergencyDescent` and `@CrashDisabled` still cover the damaged-helicopter cases, which
+is what the paragraph below already established. `has-gunner` itself is untouched and remains live on
+the ground `^CrewedVehicle2`/`^CrewedVehicle3` actors.
+
 **A wrong intermediate sweep, and what caught it.** A static pass keyed on "inherits `^Airborne`"
 reported SIX affected actors — the littlebird plus A10, F16, MIG and FROG. That was wrong. The crew
 `FirepowerMultiplier`s live on **`^Helicopter`** (`aircraft.yaml:136-297`), not `^Airborne`; fixed-wing

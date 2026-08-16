@@ -32,6 +32,13 @@ alternative — giving the littlebird a Gunner slot — was rejected because it 
 could then bail at `DamageState.Heavy` and re-zero the guns, smuggling a new gameplay behaviour in as a
 bug fix. Whether a Little Bird should have a two-man crew stays a separate, deliberate content decision.
 
+**Superseded 260816 — the gate is gone entirely.** `has-gunner-seat` was consumed by all `^Helicopter`
+actors but granted only by the three declaring a Gunner slot, so `littlebird`/`tran`/`halo` failed lint.
+User ruling: the mechanism is dead weight, because crew never re-board and a helicopter whose crew has
+ejected is burning and about to be destroyed. `FirepowerMultiplier@NoGunner`,
+`VehicleCrew.SlotPresentConditions` and the three grants are deleted. The littlebird's damage is
+unaffected — it stays unzeroed, now because no zeroing gate exists rather than because it passes one.
+
 ## 2026-08-15: [medium] OPEN — Restart drops out of any harness scenario instead of restarting it, and the run ends (found while: user mid-session in demo-heli-lanes, branch `wt/heli-gun`)
 
 Reported from live use: "I clicked restart from the menu and it closed? It seemed better but I wasnt
