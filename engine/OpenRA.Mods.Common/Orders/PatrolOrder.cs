@@ -76,9 +76,7 @@ namespace OpenRA.Mods.Common.Orders
 			if (waypoints == null || waypoints.Length < 2)
 				return;
 
-			if (self.TraitOrDefault<IMove>() == null)
-				return;
-
+			// The route arrives from another client, so bound it before it reaches the pathfinder.
 			var map = self.World.Map;
 			for (var i = 0; i < waypoints.Length; i++)
 				waypoints[i] = map.Clamp(waypoints[i]);
