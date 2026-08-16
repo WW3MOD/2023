@@ -606,9 +606,7 @@ namespace OpenRA.Mods.Common.Traits
 			var perpX = -moveDirY;
 			var perpY = moveDirX;
 
-			var cols = (int)Math.Ceiling(Math.Sqrt(n * 2.0));
-			cols = Math.Min(cols, n);
-			cols = Math.Max(cols, 2);
+			var cols = CohesionLayoutMath.BoxColumns(n);
 
 			var rows = (n + cols - 1) / cols;
 
@@ -791,31 +789,27 @@ namespace OpenRA.Mods.Common.Traits
 			// click on/near a treeline yields a line strung down the treeline rather than a scatter.
 			if (lineAlongX != 0 || lineAlongY != 0)
 			{
-				var alongLen = Math.Sqrt((double)lineAlongX * lineAlongX + (double)lineAlongY * lineAlongY);
-				var alongUX = lineAlongX / alongLen;
-				var alongUY = lineAlongY / alongLen;
+				var fwd = CohesionLayoutMath.TreelineForward(lineAlongX, lineAlongY);
 				var anchor = map.Clamp(new CPos(clickCell.X + centroidDxCells, clickCell.Y + centroidDyCells));
 
 				// LayCoverAwareLine strings slots along the axis perpendicular to its `forward` arg.
 				// To lay ALONG (alongUX,alongUY) we pass forward = its perpendicular (alongUY,-alongUX);
 				// that perpendicular also points across the treeline, a sane "into cover" nudge dir.
-				return LayCoverAwareLine(map, anchor, alongUY, -alongUX, n, colSpacing, subjectMobile, coverRadius, coverFirst);
+				return LayCoverAwareLine(map, anchor, fwd.ForwardX, fwd.ForwardY, n, colSpacing, subjectMobile, coverRadius, coverFirst);
 			}
 
 			var gradLenSq = gradXCells * gradXCells + gradYCells * gradYCells;
 			if (gradLenSq == 0)
 				return ComputeOpenLine(map, clickCell, n, colSpacing);
 
-			var gradLen = Math.Sqrt(gradLenSq);
-			var unitX = gradXCells / gradLen;
-			var unitY = gradYCells / gradLen;
-
 			// Advance scales with gradient magnitude so the line lands AT the cover, not just one
 			// cell toward it. A click 3 cells from cover with 100% advance puts the anchor 3
 			// cells along the gradient — right at the centroid of nearby density.
-			var advance = gradLen * info.EdgeAdvancePercent / 100.0;
-			var anchorX = clickCell.X + (int)Math.Round(unitX * advance);
-			var anchorY = clickCell.Y + (int)Math.Round(unitY * advance);
+			var edge = CohesionLayoutMath.EdgeAnchorOffset(gradXCells, gradYCells, info.EdgeAdvancePercent);
+			var unitX = edge.UnitX;
+			var unitY = edge.UnitY;
+			var anchorX = clickCell.X + edge.AnchorDx;
+			var anchorY = clickCell.Y + edge.AnchorDy;
 
 			return LayCoverAwareLine(map, new CPos(anchorX, anchorY), unitX, unitY, n, colSpacing, subjectMobile, coverRadius, coverFirst);
 		}
@@ -833,7 +827,6 @@ namespace OpenRA.Mods.Common.Traits
 			var perpUX = -forwardY;
 			var perpUY = forwardX;
 
-			var spacingCells = colSpacing / 1024.0;
 			var minSpacing = Math.Max(1, colSpacing / 1024);
 
 			var slots = new CPos[n];
@@ -841,10 +834,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			for (var i = 0; i < n; i++)
 			{
-				var t = (2.0 * i - (n - 1)) * 0.5 * spacingCells;
-				var idealX = anchor.X + (int)Math.Round(perpUX * t);
-				var idealY = anchor.Y + (int)Math.Round(perpUY * t);
-				var ideal = map.Clamp(new CPos(idealX, idealY));
+				var off = CohesionLayoutMath.LineSlotOffset(forwardX, forwardY, i, n, colSpacing);
+				var ideal = map.Clamp(new CPos(anchor.X + off.Dx, anchor.Y + off.Dy));
 
 				slots[i] = PickCoverSlotNear(map, ideal, subjectMobile, taken, minSpacing,
 					-forwardX, -forwardY, coverRadius, coverFirst);
@@ -950,9 +941,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			for (var step = 1; step <= 3; step++)
 			{
-				var cand = map.Clamp(new CPos(
-					start.X + (int)Math.Round(dx * step),
-					start.Y + (int)Math.Round(dy * step)));
+				var nudge = CohesionLayoutMath.NudgeOffset(dx, dy, step);
+				var cand = map.Clamp(new CPos(start.X + nudge.Dx, start.Y + nudge.Dy));
 				if (subjectMobile.CanStayInCell(cand))
 					return cand;
 			}
@@ -975,25 +965,23 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var dxCells = clickCell.X - groupCentroid.X;
 			var dyCells = clickCell.Y - groupCentroid.Y;
-			var distCells = Math.Sqrt(dxCells * dxCells + dyCells * dyCells);
+			var walk = CohesionLayoutMath.ApproachWalk(dxCells, dyCells);
 
-			if (distCells < 1)
+			if (walk.DistCells < 1)
 				return ComputeOpenLine(map, clickCell, n, colSpacing);
 
-			var unitX = dxCells / distCells;
-			var unitY = dyCells / distCells;
+			var unitX = walk.UnitX;
+			var unitY = walk.UnitY;
 
 			// Walk back from click toward group. Start at the click itself (step=0) so a click
 			// already in cover anchors at the click. If nothing along the path has cover, the
 			// boundary stays at the click — Approach degenerates to an open line at destination,
 			// which is the right behavior for a long march into open ground.
 			CPos boundary = clickCell;
-			var maxSteps = (int)Math.Ceiling(distCells);
-			for (var step = 0; step <= maxSteps; step++)
+			for (var step = 0; step <= walk.MaxSteps; step++)
 			{
-				var sx = clickCell.X - (int)Math.Round(unitX * step);
-				var sy = clickCell.Y - (int)Math.Round(unitY * step);
-				var cand = map.Clamp(new CPos(sx, sy));
+				var ao = CohesionLayoutMath.ApproachStepOffset(unitX, unitY, step);
+				var cand = map.Clamp(new CPos(clickCell.X - ao.Dx, clickCell.Y - ao.Dy));
 				if (CoverScore(map, cand) > 0)
 				{
 					boundary = cand;
@@ -1007,12 +995,10 @@ namespace OpenRA.Mods.Common.Traits
 		// Fallback when EdgeLine has no gradient: place a horizontal line through the click.
 		static CPos[] ComputeOpenLine(Map map, CPos clickCell, int n, int colSpacing)
 		{
-			var spacingCells = colSpacing / 1024.0;
 			var slots = new CPos[n];
 			for (var i = 0; i < n; i++)
 			{
-				var t = (2.0 * i - (n - 1)) * 0.5 * spacingCells;
-				var x = clickCell.X + (int)Math.Round(t);
+				var x = clickCell.X + CohesionLayoutMath.OpenLineOffset(i, n, colSpacing).Dx;
 				slots[i] = map.Clamp(new CPos(x, clickCell.Y));
 			}
 
