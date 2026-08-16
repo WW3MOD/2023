@@ -82,3 +82,68 @@ about to change was worth more than any amount of further static analysis.**
 |---|---|
 | P13 | **CORRECT.** Folded the later block's `Image` into the earlier block's slot and deleted the later block. |
 | P14 | **CORRECT.** `--resolved-rules humvee` before/after: 694 lines, byte-identical. The engine's own resolver also agreed with the Python mirror field-for-field (`XRayOverlayAlpha: 0.5, Scale: 0.9, Image: humvee`). |
+
+---
+
+# The granted autotest run — and why its verdict does not mean what I said it would
+
+One run of `test-balance-heli-1v1`, granted explicitly. Verdict, read from `result.json` and not from a
+pipe:
+
+```json
+{"name":"test-balance-heli-1v1","status":"pass",
+ "notes":"WINNER=Apache | ttk=2.9s | survivors=1/1 | hp=800/800 (100%)",
+ "seed":673102346}
+```
+
+**`hp=800/800` is the exact signature I named beforehand as "the fix looks right in YAML and does
+nothing".** It is not, and the discriminator I proposed was unsound. I am recording it as a wrong call
+because the reasoning error is the reusable part.
+
+**Why the test cannot answer the question, by arithmetic I should have done before proposing it.** The
+scenario spawns both helicopters **22 cells apart** — `Ataka`'s exact maximum range — and the duel is
+decided by time of flight, not by whether either weapon works:
+
+| | launch speed | accel | top speed | ≈ ticks to cross 22c0 | ≈ seconds @ 16.67 t/s |
+|---|--:|--:|--:|--:|--:|
+| `Hellfire` (Apache) | 100 | 30 | 500 | ~51 | **~3.1 s** |
+| `Ataka.AA` (Mi-28) | 80 | 30 | 400 | ~61 | **~3.7 s** |
+
+The Apache's kill landed at **2.9 s**. A Mi-28 missile fired on the very first tick could not have
+arrived before ~3.7 s. So `hp=800/800` is produced identically by all three of:
+
+1. the Mi-28 never acquired a target (fix broken),
+2. it fired and its missile was still in the air when it died (fix fine, scenario too short),
+3. it acquired late on an `AutoTarget` scan tick and never fired (fix fine, scenario too short).
+
+Nothing in the artifacts separates them. `lua.log` carries
+`heli 9 (not in world) is an invalid target for mi28 10 (not in world)` **in both directions** — including
+the direction that demonstrably worked — so both `ForceEngage` orders failed on a spawn-timing artifact
+and the duel was resolved by `AutoTarget`. That message is therefore not evidence of a targeting failure
+either.
+
+**What I should have proposed instead**, and what would settle it in one run:
+
+- The same duel at **8-10 cells** rather than 22, so both missiles land well inside the deadline; or
+- better and independent of balance entirely: assert on the **Mi-28's `secondary-ammo` count** at the end
+  of the duel. Ammo consumed proves the armament was selected and fired, which is the whole question,
+  and it is immune to flight time, to who wins, and to the first-mover artifact.
+
+Either is a **scenario change**, not a re-run of this one. Not spending a second run on the existing
+scenario: it would return the same 2.9 s verdict for the same structural reason.
+
+**One observation held back deliberately.** The flight-time gap above is a *hypothesis about balance*
+(the slower Russian missile loses the opening exchange at maximum range), generated from one
+harness-deterministic duel whose own source comment warns that the first attacker wins 100 %-0 %. It is
+not a finding and I have drawn no conclusion from it.
+
+## Net verification status of the Mi-28 fix
+
+| claim | status |
+|---|---|
+| `Ataka.AA` parses, inherits, and loads | **verified** — full ruleset load via `--resolved-rules`, plus `make all` clean |
+| All three `secondary-air` references now resolve to a real armament | **verified** — engine's own `--resolved-rules MI28` prints `Armament@2_Air: Name: secondary-air, Weapon: Ataka.AA` |
+| `Ataka.AA` is valid against airborne targets and `Ataka` still is not | **verified statically** — `ValidTargets: Air` on the weapon and `Ground, Water, Air` on both damage warheads; `Ataka` byte-unchanged |
+| `Ataka` ground behaviour cannot have regressed | **verified** — not one line of it changed; the fix is purely additive |
+| No engine regression | **verified** — NUnit 1511/1511, baseline held |
+| **The Mi-28 actually fires at and hits an airborne target in game** | **NOT VERIFIED.** The granted run could not discriminate. This is the open item. |
