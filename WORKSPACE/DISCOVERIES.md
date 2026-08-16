@@ -3,6 +3,78 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-16 — the RA content installer DOES fire on a clean machine; it reaches the player through a WW3MOD-only fallback in `BlankLoadScreen`, not through `IFileSystemExternalContent`
+
+Found in `wt/packaging` against `main @ 43d55ace`. Corrects finding B of
+`WORKSPACE/audit/260816-install-packaging.md`, and confirmed independently by a manager launch
+with `~/Library/Application Support/OpenRA/Content` renamed aside (log showed `Loading mod: ww3mod`
+followed by `Loading mod: modcontent`).
+
+The audit read `engine/OpenRA.Mods.Common/LoadScreens/BlankLoadScreen.cs:131-132` — the
+`IFileSystemExternalContent` gate — and concluded that because `mods/ww3mod/mod.yaml:13` declares
+`DefaultFileSystem` (whose loader does not implement that interface), the installer can never run.
+The gate reading is correct. The conclusion is not, because the method does not end at line 132.
+`BlankLoadScreen.cs:133-148` is a second, WW3MOD-authored route added by commit `0132c749`
+("Fix content installer not triggering on fresh installs", 2026-04-04):
+
+```csharp
+// Fallback: if the FileSystemLoader doesn't handle content installation,
+// check the ModContent manifest section for required content files.
+if (!ModData.Manifest.Contains<ModContent>())
+    return true;
+
+var modContent = ModData.Manifest.Get<ModContent>();
+var contentInstalled = modContent.Packages
+    .Where(p => p.Value.Required)
+    .All(p => p.Value.TestFiles.All(f => File.Exists(Platform.ResolvePath(f))));
+
+if (contentInstalled)
+    return true;
+
+Game.InitializeMod(modContent.ContentInstallerMod, new Arguments(new[] { "Content.Mod=" + ModData.Manifest.Id }));
+```
+
+Why the whole chain works without any `mod.yaml` change:
+
+- `ModContent.ContentInstallerMod` defaults to `"modcontent"` (`engine/OpenRA.Mods.Common/ModContent.cs:101`),
+  so the absence of an explicit `ContentInstallerMod:` in the ww3mod manifest is harmless.
+- `LogoStripeLoadScreen` (`mods/ww3mod/mod.yaml:270`) inherits `BeforeLoad` unchanged — it derives
+  from `SheetLoadScreen : BlankLoadScreen` and overrides only `DisplayInner`. So the fallback is live.
+- Its load-screen art is `ww3mod|uibits/loadscreen*.png`, all in-repo, so the screen renders with no
+  RA data present.
+- `ModContentLoadScreen.StartGame` reads exactly the `Content.Mod` argument the fallback passes
+  (`ModContentLoadScreen.cs:49-51`).
+- `ww3mod|installer/downloads.yaml` and the seven `Sources:` files resolve even though the
+  `modcontent` mod mounts no `ww3mod` package: `ModContentPromptLogic.LoadYamlFromModPackage`
+  (`ModContentPromptLogic.cs:70-82`) strips the `ww3mod|` prefix and reads from `mod.Package`
+  directly, bypassing the mounted filesystem.
+
+**Consequence for packaging.** Because the route is `Game.InitializeMod("modcontent", …)`, the
+packaged build must contain `mods/modcontent` or the fix is inert — and `mods/ww3mod/mod.yaml:20`
+separately hard-mounts `$ra: ra`. Neither ships by default: `install_data`
+(`engine/packaging/functions.sh:118-131`) copies extra mods only from trailing arguments that all
+three `buildpackage.sh` callers never pass, and the SDK escape hatch `PACKAGING_COPY_ENGINE_FILES`
+was empty at `mod.config:103`. Packaged mod discovery scans `{EngineDir}/mods` and
+`{EngineDir}/../mods` (`engine/OpenRA.Game/Game.cs:392-395`), i.e. `<install>/mods` — which is where
+that variable's copy loop lands them.
+
+**Do not** restructure `mod.yaml` into `SystemPackages:`/`ContentPackages:` with
+`ContentInstallerFileSystemLoader`, as the audit's "shortest path" item 2 recommends. It is
+unnecessary, and it would move a working path onto an untested one.
+
+## 2026-08-16 — RA content is loaded lazily at runtime, so missing content is a crash-on-first-shot, not a degraded-visuals story
+
+Observed by the manager on macOS while a game was running with the content directory renamed away:
+`DirectoryNotFoundException` on `sounds.mix` inside `Sound.LoadSound`, called from
+`Armament.FireBarrel`. Nothing validates the RA `.mix` set at startup.
+
+This matters for how the content gate must be treated: there is no "partial content" mode worth
+shipping. The `Required: true` set in `mods/ww3mod/mod.yaml` (`base`, `aftermathbase`, `cncdesert`)
+is the only thing standing between a stranger and a crash the first time any weapon fires, and
+`base`'s TestFiles do include `^SupportDir|Content/ra/v2/sounds.mix`. Weakening `Required:` to get
+past the installer faster would trade a clear install prompt for an unexplained mid-match crash.
+
+
 ## 2026-08-15 — the littlebird deals ZERO damage with every weapon it carries, because it declares no Gunner crew slot and `^Airborne` reads a missing slot as `FirepowerMultiplier: 0`
 
 Measured on `main @ 4c4d8a49` in `wt/heli-gun`, scenario `test-littlebird-strafe` (one littlebird, one

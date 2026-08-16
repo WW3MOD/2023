@@ -103,6 +103,7 @@ Section "Game" GAME
 	File "${SRCDIR}\VERSION"
 	File "${SRCDIR}\AUTHORS"
 	File "${SRCDIR}\COPYING"
+	File "${SRCDIR}\SOURCE-OFFER.txt"
 	File /r "${SRCDIR}\mods"
 
 	!insertmacro MUI_STARTMENU_WRITE_BEGIN Application
@@ -172,6 +173,7 @@ Function ${UN}Clean
 	Delete $INSTDIR\VERSION
 	Delete $INSTDIR\AUTHORS
 	Delete $INSTDIR\COPYING
+	Delete $INSTDIR\SOURCE-OFFER.txt
 	Delete "$INSTDIR\global mix database.dat"
 	Delete $INSTDIR\IP2LOCATION-LITE-DB1.IPV6.BIN.ZIP
 

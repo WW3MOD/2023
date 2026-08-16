@@ -1,0 +1,33 @@
+WW3MOD -- Licensing and source code
+===================================
+
+WW3MOD is free software. It is made available to you under the terms of the
+GNU General Public License, version 3 or (at your option) any later version.
+The complete text of that license is in the file COPYING, next to this one.
+
+
+WHERE TO GET THE SOURCE CODE
+----------------------------
+
+The complete Corresponding Source for this build, including the engine and all
+build and packaging scripts used to produce it, is published at:
+
+    https://github.com/WW3MOD/2023
+
+The exact revision this build was made from is recorded in the file VERSION,
+next to this one. On the releases page of that repository, each release carries
+a source archive of the same revision.
+
+
+WHAT IS NOT COVERED BY THAT LICENSE
+-----------------------------------
+
+WW3MOD is a total conversion of Command & Conquer: Red Alert and loads artwork
+and audio from that game's data files. Those data files are NOT part of WW3MOD,
+are NOT distributed with it, and are NOT covered by the GNU GPL. They remain the
+property of their respective owners. WW3MOD offers, on first launch, to download
+them from a mirror of the 2008 Red Alert freeware release, or to copy them from
+an original disc or digital installation you already own.
+
+The game engine is derived from OpenRA (https://www.openra.net), also licensed
+under the GNU GPL version 3. See AUTHORS for the engine's contributors.
