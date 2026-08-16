@@ -90,9 +90,18 @@ MapFolders:
 	ww3mod|maps: System
 	~^SupportDir|maps/ww3mod: User
 	# ~^SupportDir|maps/ra/release-20230225: User
-	# Autotest/demo scenarios. Class=Unknown hides them from every UI tab
+	# Autotest/demo scenarios. Class=Unknown keeps them out of every UI tab
 	# (lobby, missions, main-menu chooser) while still letting the engine
-	# resolve them by folder name via Launch.Map=test-foo / demo-foo.
+	# resolve them by folder name via Launch.Map=test-foo / demo-foo --
+	# Game.LoadMap matches on Uid or package folder name and never reads
+	# Class or Visibility, so those flags are not load-bearing for launching.
+	# PITFALL: Class=Unknown is only honoured where the UI actually filters on
+	# it. The mission browser did NOT until MissionBrowserLogic/MainMenuLogic
+	# were given the Class check; the scenarios still declare
+	# "Visibility: MissionSelector" and are hidden by Class alone. Do not
+	# "clean up" that Visibility line: deleting it defaults to Lobby
+	# (MapPreview.cs:337), and zeroing it flips Player.inMissionMap, which
+	# feeds UnlockedRenderPlayer into the sync hash (World.cs:566).
 	# Note: ^EngineDir resolves to the engine/ subdir (BinDir + ".."),
 	# so we need one more "../" to reach the WW3MOD repo root.
 	^EngineDir|../tools/autotest/scenarios: Unknown
@@ -313,9 +322,6 @@ Fonts:
 		Font: ww3mod|ZoodRangmah.ttf
 		Size: 96
 		Ascender: 52
-
-Missions:
-	ww3mod|missions.yaml
 
 MapGrid:
 	TileSize: 24,24
