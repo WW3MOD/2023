@@ -131,8 +131,7 @@ namespace OpenRA.Mods.Common.Activities
 				// Apply penalty for turns > 90° (angleDiff > 256). Scales linearly from 100% to RedirectSpeedPenalty%.
 				if (angleDiff > 256)
 				{
-					var turnFraction = (angleDiff - 256) / 256f; // 0.0 at 90°, 1.0 at 180°
-					var speedRetained = 100 - (int)(turnFraction * (100 - mobile.Info.RedirectSpeedPenalty));
+					var speedRetained = MoveAccelerationMath.RedirectSpeedRetained(angleDiff, mobile.Info.RedirectSpeedPenalty);
 					mobile.CurrentSpeed = mobile.CurrentSpeed * speedRetained / 100;
 				}
 			}
@@ -563,9 +562,8 @@ namespace OpenRA.Mods.Common.Activities
 					// Accelerate
 					else if (mobile.CurrentSpeed != movementSpeedForCell)
 					{
-						var currentAcceleration = ((float)mobile.CurrentSpeed / (float)movementSpeedForCell * (float)mobile.AccelerationSteps.Length) - 1f;
-						var flooredValue = (int)Math.Ceiling((double)currentAcceleration);
-						mobile.CurrentSpeed += mobile.AccelerationSteps[flooredValue >= 0 ? flooredValue : 0];
+						var step = MoveAccelerationMath.AccelerationStepIndex(mobile.CurrentSpeed, movementSpeedForCell, mobile.AccelerationSteps.Length);
+						mobile.CurrentSpeed += mobile.AccelerationSteps[step];
 					}
 
 					progress += mobile.CurrentSpeed;

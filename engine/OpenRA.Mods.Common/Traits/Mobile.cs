@@ -296,6 +296,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		public CPos TopLeft => ToCell;
 
+		// Synced as a DETECTOR, not as a fix. This is load-bearing simulation state — it accumulates into
+		// MovePart.progress, which decides the tick a unit crosses into the next cell — but it went unannotated, so a
+		// divergence here stayed invisible until it flipped a cell transition and the report blamed FromCell/ToCell
+		// instead. Every writer is inside the Move activity or Mobile.TransformToHusk; none reads LocalPlayer,
+		// RenderPlayer, the viewport, settings, fog or shroud, so it can never legitimately differ per client.
+		// Note this only narrows the hole: MovePart.progress and Distance live on an activity, and activities are
+		// not dumped by SyncReport at all.
+		[Sync]
 		public int CurrentSpeed { get; set; }
 
 		public (CPos, SubCell)[] OccupiedCells()
