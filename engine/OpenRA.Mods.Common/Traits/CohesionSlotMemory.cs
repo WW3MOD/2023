@@ -34,7 +34,11 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new CohesionSlotMemory(init.Self, this); }
 	}
 
-	public class CohesionSlotMemory : INotifyBlockingMove, INotifyIdle
+	// ISync is load-bearing here, not decoration: Actor.cs:206 hashes a trait only when
+	// `trait is ISync`, so without it the [Sync] attributes below were inert and this trait's state —
+	// which decides whether TryReturnToSlot queues a real Move — was absent from every sync report.
+	// An unhashed trait that moves units turns a divergence into an effect with no visible cause.
+	public class CohesionSlotMemory : INotifyBlockingMove, INotifyIdle, ISync
 	{
 		readonly CohesionSlotMemoryInfo info;
 		readonly Mobile mobile;
@@ -74,7 +78,14 @@ namespace OpenRA.Mods.Common.Traits
 		// Upper bound on retained batch entries (see Assign). A human queued chain is well under this.
 		const int MaxBatchEntries = 16;
 
+		// Both gate whether TryReturnToSlot queues a Move — lastAssignTick through the ForgetAfterTicks
+		// expiry (which also clears hasSlot), lastReturnTick through the cooldown. They are as
+		// load-bearing as assignedSlot and carried no annotation at all, so nobody had even flagged
+		// them as missing from the hash.
+		[Sync]
 		int lastAssignTick;
+
+		[Sync]
 		int lastReturnTick;
 
 		public CohesionSlotMemory(Actor self, CohesionSlotMemoryInfo info)

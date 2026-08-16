@@ -337,6 +337,28 @@ namespace OpenRA.Mods.Common.Traits
 
 		public ResupplyBehavior ResupplyBehaviorValue => resupplyBehavior;
 
+		// These four gate real simulation branches — CohesionMoveModifier.ModifyGroupOrder reads
+		// CohesionValue and Stance to choose a formation and to rewrite each actor's move target
+		// (Tight even clears CohesionSlotMemory and passes the order through untouched), and
+		// ResupplyBehaviorValue is read by AmmoPool, AutoSeekSupplies, SupplyProvider and
+		// DropsSupplyCache. Until now none of them were in the sync hash, so two clients could
+		// disagree about a unit's stance indefinitely and every sync report would still show
+		// AutoTarget matching. A matching trait only ever cleared its HASHED fields.
+		//
+		// OpenRA's Sync hasher rejects enum types (Sync.cs:71 — only int/bool/registered structs),
+		// so sync the int projection rather than the enum, matching StancePositioningExecutor.
+		[Sync]
+		int SyncStance => (int)stance;
+
+		[Sync]
+		int SyncEngagementStance => (int)engagementStance;
+
+		[Sync]
+		int SyncCohesion => (int)cohesion;
+
+		[Sync]
+		int SyncResupplyBehavior => (int)resupplyBehavior;
+
 		/// <summary>True once this unit has SPRUNG its ambush (any Stage-3 trigger, a spot on the stock path,
 		/// or a retaliation) — read-only view of the internal <c>ambushTriggered</c> latch. SPRUNG is terminal
 		/// until the stance is reset away from Ambush (see <see cref="ResetAmbushState"/>), so a bot consumer
@@ -489,38 +511,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void Created(Actor self)
 		{
-			// Apply per-type defaults from UnitDefaultsManager (player-set overrides that persist across games)
-			if (self.Owner.Playable && !self.Owner.IsBot)
-			{
-				var mgr = self.World.WorldActor.TraitOrDefault<UnitDefaultsManager>();
-				var defaults = mgr?.GetDefaults(self.Info.Name);
-				if (defaults != null)
-				{
-					if (defaults.FireStance.HasValue)
-					{
-						stance = defaults.FireStance.Value;
-						PredictedStance = stance;
-					}
-
-					if (defaults.Engagement.HasValue)
-					{
-						engagementStance = defaults.Engagement.Value;
-						PredictedEngagementStance = engagementStance;
-					}
-
-					if (defaults.Cohesion.HasValue)
-					{
-						cohesion = defaults.Cohesion.Value;
-						PredictedCohesion = cohesion;
-					}
-
-					if (defaults.Resupply.HasValue)
-					{
-						resupplyBehavior = defaults.Resupply.Value;
-						PredictedResupplyBehavior = resupplyBehavior;
-					}
-				}
-			}
+			// PITFALL: per-type stance defaults are NOT applied here. UnitDefaultsManager is backed by a
+			// per-machine file, and this runs on every client for every actor — so reading it here made
+			// each client apply ITS OWN preferences to everyone's units, diverging synced state with no
+			// input from anybody. UnitDefaultsManager now applies them client-locally by issuing the
+			// normal SetUnitStance/SetCohesion/... orders, which every client then resolves identically.
 
 			// Snapshot AttackBase traits now that all traits have been constructed. The .Where filter
 			// stays deferred so IsTraitDisabled is re-evaluated at each enumeration.

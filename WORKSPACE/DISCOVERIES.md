@@ -3,6 +3,44 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — A MATCHING SYNC REPORT ONLY CLEARS A TRAIT'S **HASHED** FIELDS. CHECK WHICH ONES THOSE ARE BEFORE CALLING IT EXCULPATORY
+
+Sibling of the "null result is not evidence" rule below, and it invalidated real conclusions rather than
+just wasting time: during the 2026-08-16 two-human desync investigation, `AutoTarget (4)` appearing
+identical in both sync reports was used — by more than one person, and repeated upward as settled fact —
+to rule out a stance/cohesion divergence. **It could not rule out anything of the sort.** The only
+`AutoTarget` members in the hash were `nextScanTime` and `IsTraitDisabled`. The four fields that actually
+gate simulation branches were outside it.
+
+**The rule.** A sync report is not a statement about a trait. It is a statement about the members of that
+trait carrying `[Sync]` **on a type implementing `ISync`**. Before treating "trait X matched" as evidence
+that X's behaviour matched, open X and list which members are hashed. If the field you care about is not
+among them, the report is silent about it — not reassuring.
+
+**Two ways a field ends up invisible, both present in this codebase:**
+
+1. **No annotation.** `AutoTarget.stance` / `engagementStance` / `cohesion` / `resupplyBehavior` had none,
+   yet `CohesionMoveModifier.ModifyGroupOrder` branches on `CohesionValue` and `Stance` to pick a
+   formation and rewrite each actor's move target (Tight even clears `CohesionSlotMemory` and passes the
+   order through untouched), and `ResupplyBehaviorValue` is read by `AmmoPool`, `AutoSeekSupplies`,
+   `SupplyProvider` and `DropsSupplyCache`. Fixed 2026-08-17.
+2. **Annotation present but inert.** `Actor.cs:206` hashes a trait only when `trait is ISync`, so `[Sync]`
+   on a class that does not implement the marker does nothing. `CohesionSlotMemory` carried two such
+   attributes while deciding whether to queue a real `Move` — and its `lastAssignTick` / `lastReturnTick`,
+   which gate that same `Move`, carried no annotation at all, so nobody had even flagged them as missing.
+   Fixed 2026-08-17. `VehicleCrew` and `SupplyRouteContestation` remain, pending a separate decision.
+
+**This is the failure mode that hides a bug for months.** An unhashed field that gates a simulation branch
+produces divergence with *no upstream trait named anywhere in the report* — an effect with no visible
+cause. If you are staring at a diff where something moved and nothing explains why, suspect unhashed
+state before you suspect exotic causes like floating point or runtime versions.
+
+**Guard:** `engine/OpenRA.Test/OpenRA.Mods.Common/SyncAnnotationTest.cs` now fails the build if any type
+gains inert `[Sync]` annotations, and separately proves every `ISync` type can actually generate its hash
+function — worth having because hash functions are IL-emitted at runtime, so `[Sync]` on an enum or a
+double compiles fine and throws only in a live game. (`Sync.cs:71` accepts `int`, `bool` and a fixed
+struct table; for an enum, sync an `int` projection — `int SyncStance => (int)stance;`.)
+
 ## 2026-08-16 — A NULL RESULT IS NOT EVIDENCE UNTIL THE INSTRUMENT HAS BEEN SHOWN CAPABLE OF A NON-NULL ONE
 
 Earned twice in one day, by two different workers, from the same root cause. Read this before you
