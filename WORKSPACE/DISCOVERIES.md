@@ -3,6 +3,44 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — `debug.log` IS GLOBAL AND SHARED. A CONCURRENT AGENT'S RUN DESTROYS YOUR EVIDENCE, AND THE EMPTY GREP LOOKS LIKE A FINDING
+
+The harness writes `result.json` **per run** (`~/.ww3mod-tests/screenshots/<run-id>/`), which is why the
+docs say results are per-run. **The game's `debug.log` is not.** Every launch on this machine writes
+`~/Library/Application Support/OpenRA/Logs/debug.log`, from *any* worktree, and truncates it. With many
+worktrees active this is a live race.
+
+**What it cost, 2026-08-17.** Run `260817_011818` (`wip-transport-delivers`, `wt/staging-guard`) finished
+at 01:19:41 and its log was read successfully — 7 `[exp-clog]` lines, `sr=6,16`, `anchor=none`. Two tool
+calls later a run out of `/Users/fredrik/worktrees/ww3mod/passenger-row` launched at 01:20 and truncated
+the same file to 12 lines of that mod's load errors. The greps for the departure numbers ran **after** the
+truncation and returned nothing.
+
+**That is the dangerous part.** "No `departing aboard=` line" reads exactly like "the transport never
+departed" — a finding. It was not a finding, it was an erased file, and `result.json` still said PASS so
+nothing looked wrong. Same family as the "measured nothing" entries in `DOCS/recipes/AUTOTEST.md`: an
+absence manufactured by the instrument rather than by the system.
+
+**The rule.** Copy the log into the run dir the moment `run-test.sh` returns, before any analysis
+(`tools/autotest/poll-copy-logs.sh` exists for this; the destination is printed as `Run dir:`). Grep the
+copy, never the live file. Before treating any empty grep as evidence, `stat` the log and confirm its
+mtime still matches your run.
+
+## 2026-08-17 — A PITFALL FIXED IN ONE ANCHOR RESOLVER AND NOT IN THE ONE TWENTY LINES AWAY
+
+`PoiOffensiveBotModule` has two functions that run a gradient descent on the coarse control grid and then
+ask "did it move?". `ResolveMusterAnchor` (`:2317`) compares in **grid** space and carries a comment naming
+the hazard exactly — *"a map-space round-trip only reproduces the seed for odd coordinates and would miss
+the no-move case on even ones"* — added by `d91e10f7` (2026-08-04), whose subject is *"stop the offense
+parking units at the Supply Route"*. `ResolveStagingAnchor` (`:2114`) compared in **map** space and shipped
+that way for another thirteen days, producing the phantom staging anchor behind the combined-arms
+rendezvous incident (`WORKSPACE/recon/260817-combined-arms-rendezvous-postmortem.md`).
+
+**The lesson is not "grid vs map".** It is that the fix, and a comment explaining precisely why, were
+already in the file — and being in the file did not carry them across. When fixing a coordinate-space or
+unit-conversion bug, grep the same file for every other call site of that conversion pair before closing
+it. `InfluenceGridMath` now exists so there is one place to hang the warning.
+
 ## 2026-08-17 — A MATCHING SYNC REPORT ONLY CLEARS A TRAIT'S **HASHED** FIELDS. CHECK WHICH ONES THOSE ARE BEFORE CALLING IT EXCULPATORY
 
 Sibling of the "null result is not evidence" rule below, and it invalidated real conclusions rather than
