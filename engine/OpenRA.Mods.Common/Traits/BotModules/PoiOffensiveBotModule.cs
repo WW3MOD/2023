@@ -2119,22 +2119,24 @@ namespace OpenRA.Mods.Common.Traits
 				return null;
 			}
 
-			var (sgx, sgy) = controlField.MapCellToGridCell(rallyCell.Value);
-			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
-				Info.StagingStandoffCells, GroundDangerLevel(Info.StagingDangerSafeUnits), Info.StagingMaxDescentSteps,
-				(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
-				(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
-				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight);
-
-			var candidate = controlField.GridCellToMapCell(agx, agy);
-
-			// Descent stayed at the SR ⇒ no forward gradient (field unpopulated, or the front is on top of us):
-			// no staging this eval, reset the hysteresis memory so a later populated field re-adopts cleanly.
-			if (candidate == rallyCell.Value)
+			// Descent stayed at the SR's GRID cell ⇒ no forward gradient (field unpopulated, or the front is on
+			// top of us): no staging this eval, reset the hysteresis memory so a later populated field re-adopts
+			// cleanly. The stall test lives inside TryResolveAnchorCell because it MUST be made in grid space —
+			// this method used to convert first and compare map cells, which silently inverted the test for 3 of
+			// 4 Supply Route placements (see InfluenceGridMath, and ForwardStagingMathTest).
+			if (!ForwardStagingMath.TryResolveAnchorCell(
+					controlField.Info.CellSize, rallyCell.Value.X, rallyCell.Value.Y,
+					Info.StagingStandoffCells, GroundDangerLevel(Info.StagingDangerSafeUnits), Info.StagingMaxDescentSteps,
+					(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
+					(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
+					(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight,
+					out var anchorX, out var anchorY))
 			{
 				lastStagingAnchor = null;
 				return null;
 			}
+
+			var candidate = new CPos(anchorX, anchorY);
 
 			// Hysteresis: keep the previously-adopted anchor unless the new one advanced past the threshold.
 			if (lastStagingAnchor.HasValue
@@ -2392,6 +2394,30 @@ namespace OpenRA.Mods.Common.Traits
 				if (stale != null)
 					foreach (var a in stale)
 						stagedCells.Remove(a);
+			}
+
+			// DIAGNOSTIC ONLY — nothing reads this. Emitted BEFORE the early return precisely because the
+			// interesting case is the one that returns: with no anchor the reserve is never dispersed, so it sits
+			// where it mustered in. That is the designed "inert until the field is populated" path, but the
+			// phantom anchor this module used to publish was accidentally fanning the pool out via SpreadCell,
+			// so suppressing it trades a bogus destination for real Supply Route congestion. This line is the
+			// only way to see that trade. Counts the FREE POOL, already computed — no extra world scan.
+			if (rallyCell.HasValue)
+			{
+				var near2 = 0;
+				var near4 = 0;
+				foreach (var u in idle)
+				{
+					var d = PoiOffenseMath.Chebyshev(u.Location.X, u.Location.Y, rallyCell.Value.X, rallyCell.Value.Y);
+					if (d <= 2)
+						near2++;
+					if (d <= 4)
+						near4++;
+				}
+
+				Log.Write("debug",
+					$"[exp-clog] player={player.PlayerName} sr={rallyCell.Value} pool={idle.Count}" +
+					$" near2={near2} near4={near4} anchor={stagingAnchor?.ToString() ?? "none"} tick={tick}");
 			}
 
 			if (!stagingAnchor.HasValue || idle.Count == 0)

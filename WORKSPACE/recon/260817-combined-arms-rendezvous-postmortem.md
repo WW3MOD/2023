@@ -85,16 +85,23 @@ if (candidate == rallyCell.Value)      // <-- compared in MAP space
 If that guard fired, `hasAnchor` would be false and `ResolveDropOff` would return the fallback
 unchanged. The rendezvous would have been a **no-op** before contact, not harmful.
 
-**It does not fire, because the round-trip is lossy.** From `InfluenceMap.cs:126-137`:
+**It does not fire, because the round-trip is lossy.** From `ControlField.cs:862-866`:
 
 ```csharp
 public (int X, int Y) MapCellToGridCell(CPos c) => (c.X / Info.CellSize, c.Y / Info.CellSize);   // floor
 public CPos GridCellToMapCell(int gx, int gy)
-    => new CPos(gx * Info.CellSize + Info.CellSize / 2, gy * Info.CellSize + Info.CellSize / 2);  // CENTRE
+    => new(gx * Info.CellSize + Info.CellSize / 2, gy * Info.CellSize + Info.CellSize / 2);       // CENTRE
 ```
 
+> **Correction, 2026-08-17 (`wt/staging-guard`).** The first version of this document cited
+> `InfluenceMap.cs:126-137`. **The staging path uses `ControlField`**, which carried its own
+> **duplicate copy** of these two conversions, with its own `CellSize = 2` default
+> (`ControlField.cs:389`). The formulas were character-for-character identical, so every number in
+> this document is unaffected — but the class name was wrong, found only when the fix failed to
+> compile against `ControlField`. Both copies now delegate to one `InfluenceGridMath`.
+
 `GridCellToMapCell(MapCellToGridCell(c))` returns the **centre of c's grid cell**, which equals `c`
-only by coincidence. With `CellSize: 2` (`world.yaml:290-291`) the round trip is
+only by coincidence. With `CellSize: 2` the round trip is
 `X -> 2*(X/2)+1`, so it is the identity **only when the coordinate is odd**. Both coordinates must be
 odd for the guard to fire: **it is reachable for 1 Supply Route placement in 4, by parity.**
 
@@ -260,25 +267,90 @@ off.
 
 ---
 
+## 5b. MEASURED — run `260817_012446`, seed 1017, `wt/staging-guard` @ `20b970c8`
+
+Verdict read from `result.json`: `{"status":"pass","seed":1017}`. Log attributed by content — the copy
+names `worktrees/ww3mod/staging-guard`, which no other worker's log can carry — and copied into the run
+dir before any analysis.
+
+| # | Pre-registered bar | Measured | Verdict |
+|---|---|---|---|
+| 1 | first departure ≥ 4 of 5 seats at tick ≤ 500 | `depart aboard=5 target=5 reason=Full tick=365` | **PASS** |
+| 2 | zero `[exp-staging]` lines before tick 100 | 0 (and 0 in the whole match) | **PASS, but confounded — see below** |
+| 3 | SR-proximity census | `near2=0` on 8/8 evals, `pool=0` on six, `pool=1` on two | **UNEXERCISED** |
+
+**Number 1 reproduces `4c4d8a49`'s post-standoff figures exactly** — 5 of 5 at tick 365, boarding
+`5 of 5` at tick 65, one `[exp-standoff] held=5 free=0 tick=7`, drop at `32,10` (the legacy lerp; the
+rendezvous is off). Same seed, same numbers, so the guard fix is behaviourally neutral on the transport
+path and **the attribution in `4c4d8a49` is confirmed rather than refuted.**
+
+**Number 2 does not isolate the fix, and I am reporting it against myself.** `StageFreePool` early-returns
+on `!stagingAnchor.HasValue` **OR** `idle.Count == 0`. The standoff holds all five at tick 7
+(`held=5 free=0`), so the free pool is empty and the `[exp-staging]` count would be zero *whatever the
+anchor did*. This is the fourth instance of the "who else could satisfy your predicate" family, and I
+authored the predicate knowing about the first three.
+
+**The unconfounded evidence is the `anchor=` field**, which `[exp-clog]` prints *before* the early return
+and which reads the variable the fix controls directly: `anchor=none` on **8 of 8** evals, including
+tick 7 — the exact tick the pre-fix baseline logged `staged=5`. Pre-fix that field would have read `7,17`.
+That, plus the NUnit parity pin, is what the fix rests on; number 2 is corroboration, not proof.
+
+**Number 3 stays UNEXERCISED.** The free pool never exceeds one unit, so there is nothing to congest and
+nothing `SpreadCell` would have dispersed. `near2=0` is not reassurance — this scenario does not exercise
+the risk, and the risk is unchanged.
+
+### The run found a THIRD resolver with the same defect, and it is live on BOTH profiles
+
+`[exp-capture] reserve unit=tecn.america#23 from=6,16 to=1,23 anchor=7,17 ... tick=504` (and #24 at 654).
+**`anchor=7,17` is the phantom cell**, still being published — by `CaptureCoordinatorBotModule.ResolveReserveAnchor`
+(`:1592`), which runs the same grid descent, converts with the same `GridCellToMapCell`, and has **no
+degenerate-descent guard at all** — not a map-space one, none. Its only filter is `AnchorShifted`
+hysteresis, and its own comment correctly notes the parity trap does not apply to a *distance* comparison.
+So on a flat pre-contact field it returns the quantisation artifact unconditionally, and the reserve fans
+technicians into `SpreadCell` slots around a cell that means nothing.
+
+**This one is not `@experimental`-only.** `CaptureCoordinatorBotModule@experimental.tecn` (`ai.yaml:111`)
+and `@stable.tecn` (`:2033`) both set `ReserveStandoffCells: 10`. `ForwardStagingEnabled` is experimental-only,
+so the fix in §3.2 could not reach `@stable`; **this path does**, which means the phantom-anchor class is
+live on the benchmark control.
+
+**Not fixed here, deliberately.** It is a second behavioural change and I have no run budget left; one
+un-run behavioural change per branch is a measurement and two is a guess. It wants its own brief, and its
+acceptance is the same shape: with an SR at all four parities and a flat field, the reserve anchor must
+resolve to "none" 4 times out of 4.
+
+**Scoreboard for `d91e10f7`'s lesson: three resolvers, one correct.** `ResolveMusterAnchor` had it right
+since 2026-08-04. `ResolveStagingAnchor` is fixed here. `ResolveReserveAnchor` is still wrong.
+
 ## 6. What I could not verify
+
+> **Four of these were closed on `wt/staging-guard` (2026-08-17).** Struck through below, with what
+> closed them. The rest stand.
 
 - **Nothing was run.** No game, no autotest, no batch, no tournament — per the brief's hard rule. Every
   runtime claim here is either quoted from a prior commit's logged measurement or derived from code.
-- **The `(7,17)` reproduction is arithmetic, not observation.** It matches the logged anchor exactly
-  and I consider it strong, but I did not observe `ResolveStagingAnchor` return that value. The chain
-  assumes the SR/`rallyCell` in run `260815_202509` was `(6,16)` — which is what `ai.yaml:1601-1602`
-  records, so I am trusting that comment for the input while using it to explain the output.
-- **`rallyCell == the Supply Route cell`** is assumed from naming and from the ai.yaml comment, not
-  traced to its assignment.
-- **The 1-in-4 parity figure assumes `CellSize: 2`** (`world.yaml:291`) and no per-map override. I
-  grepped `mods/` and found only that one `InfluenceMap` value (the other, `CellSize: 8`, is
-  `ThreatMapManager`, a different trait), but I did not check map-level YAML overrides.
+  **Still true of every in-match claim.** The static arithmetic below is now executed under NUnit, but
+  no game session has been run.
+- ~~**The `(7,17)` reproduction is arithmetic, not observation.**~~ **CLOSED — now observed.**
+  `ForwardStagingMathTest.TryResolveAnchorCell_FlatField_DoesNotRepublishTheSupplyRoute` drives the
+  real production path with a flat field and SR `(6,16)`; before the fix it failed with
+  `published (7,17)`, printed by the code itself. The parity test failed on exactly 3 of 4 SR
+  placements and passed on the odd/odd one — the predicted 1-in-4, observed.
+- ~~**`rallyCell == the Supply Route cell` is assumed from naming.**~~ **CLOSED — traced.**
+  `PoiOffensiveBotModule.cs:1233` assigns `rallyCell = RallyCell()`, and `RallyCell()` (`:3864-3868`)
+  returns `poiMap.OwnSupplyRoute(player).Location`. It is literally the SR actor's cell.
+- ~~**The 1-in-4 parity figure assumes `CellSize: 2` (`world.yaml:291`).**~~ **CLOSED, and the citation
+  was wrong.** The staging path reads `ControlField`, not `InfluenceMap`. `ControlField:` is a **bare
+  key** at `world.yaml:375` with no `CellSize` override anywhere in `mods/`, so it takes the engine
+  default `ControlFieldInfo.CellSize = 2` (`ControlField.cs:389`). Same value, different trait — the
+  figure holds.
+- ~~**The `PreContactStagingCell` lerp is second-hand.**~~ **CLOSED — read directly.**
+  `MountedTransportBotModule.cs:1500-1502`:
+  `stagePos = srPos + (tgtPos - srPos) * Info.PreContactStagingPct / 100`, with
+  `PreContactStagingPct: 50`. A 50% linear lerp in `WPos` space, then `CellContaining`.
 - **§4's conclusion is code-derived, not observed.** I have not seen an arrival-spread measurement,
   so "contributes directly to the strung-out arrival" is mechanism, not evidence. The `n <= 1` early
   return itself is certain.
-- **I did not audit `MountedTransportBotModule.PreContactStagingCell`'s lerp myself** — it is reported
-  as a 50% lerp at `PreContactStagingPct: 50` by a subagent read and is consistent with the logged
-  `lerp=32,10`, but that specific arithmetic is second-hand.
 - **The `CaptureCoordinatorBotModule` `transportModuleResolved` one-shot latch** flagged in PIPELINE
   item 64 (`:1323-1328`) was **not checked**. It remains an open diagnostic that costs zero code —
   `:1308-1309` already logs `ferried=True|False`.

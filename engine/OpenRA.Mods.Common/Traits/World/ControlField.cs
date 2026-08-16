@@ -859,11 +859,16 @@ namespace OpenRA.Mods.Common.Traits
 		long Key(int gx, int gy) => ((long)gx << 32) | (uint)gy;
 
 		/// <summary>Grid cell containing the given map cell.</summary>
-		public (int X, int Y) MapCellToGridCell(CPos mapCell) => (mapCell.X / Info.CellSize, mapCell.Y / Info.CellSize);
+		public (int X, int Y) MapCellToGridCell(CPos mapCell)
+			=> (InfluenceGridMath.MapToGrid(Info.CellSize, mapCell.X), InfluenceGridMath.MapToGrid(Info.CellSize, mapCell.Y));
 
-		/// <summary>Map cell at the centre of the given grid cell.</summary>
+		/// <summary>
+		/// Map cell at the CENTRE of the given grid cell. Deliberately NOT an inverse of
+		/// <see cref="MapCellToGridCell"/> — read the note on <see cref="InfluenceGridMath"/> before
+		/// composing the two.
+		/// </summary>
 		public CPos GridCellToMapCell(int gx, int gy)
-			=> new(gx * Info.CellSize + Info.CellSize / 2, gy * Info.CellSize + Info.CellSize / 2);
+			=> new(InfluenceGridMath.GridToMapCentre(Info.CellSize, gx), InfluenceGridMath.GridToMapCentre(Info.CellSize, gy));
 
 		public int GridWidth => gridWidth;
 		public int GridHeight => gridHeight;

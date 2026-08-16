@@ -304,5 +304,94 @@ namespace OpenRA.Test
 					"a zero standoff admits no ring at all");
 			});
 		}
+
+		// ---------- TryResolveAnchorCell: the map<->grid handoff ----------
+		//
+		// StagingCell_FlatField_ReturnsStart above already pins the "inert until populated" property IN GRID
+		// SPACE, and it has always passed. The shipped bug was one layer out: the caller checked that property
+		// by round-tripping the result to MAP space and comparing against the SR cell. GridToMapCentre returns
+		// the block CENTRE, so a zero-step descent compares UNEQUAL to its own seed unless the SR happens to sit
+		// on the centre — at CellSize 2 that needs BOTH coordinates odd, i.e. one placement in four.
+		//
+		// So a green test on the math meant nothing about shipped behaviour. These pin the handoff itself.
+
+		// The flat/unpopulated field: every cell reads the same 'far' sentinel, so no neighbour ever improves.
+		static int FlatFar(int gx, int gy) => 64;
+
+		[Test]
+		public void TryResolveAnchorCell_FlatField_PublishesNoAnchorAtEveryParity()
+		{
+			// The regression, stated as the number that failed: 4 of 4 parities must publish NO anchor.
+			// Before the fix this was 1 of 4 — only the odd/odd SR, which round-trips to itself by coincidence.
+			var parities = new[] { (6, 16), (7, 16), (6, 17), (7, 17) };
+
+			Assert.Multiple(() =>
+			{
+				foreach (var (srX, srY) in parities)
+				{
+					var published = ForwardStagingMath.TryResolveAnchorCell(
+						cellSize: 2, srMapX: srX, srMapY: srY,
+						standoffCells: 6, dangerSafeThreshold: 40, maxSteps: 64,
+						FlatFar, NoDanger, BigGrid,
+						out var ax, out var ay);
+
+					Assert.That(published, Is.False,
+						$"SR ({srX},{srY}): a flat field must publish no anchor, but published ({ax},{ay})");
+				}
+			});
+		}
+
+		[Test]
+		public void TryResolveAnchorCell_FlatField_DoesNotRepublishTheSupplyRoute()
+		{
+			// The exact shipped incident, pinned to the digit. Run 260815_202509 had the SR at (6,16) and the
+			// rendezvous consumed an "anchor" of (7,17) — which is not a staging cell at all, it is (6,16)
+			// re-projected through the lossy grid round trip: 6/2=3, 16/2=8, then (3*2+1, 8*2+1) = (7,17).
+			// The transport then delivered ONE cell from its own Supply Route and shuttled four times.
+			var published = ForwardStagingMath.TryResolveAnchorCell(
+				cellSize: 2, srMapX: 6, srMapY: 16,
+				standoffCells: 6, dangerSafeThreshold: 40, maxSteps: 64,
+				FlatFar, NoDanger, BigGrid,
+				out var ax, out var ay);
+
+			Assert.That(published, Is.False,
+				$"the (6,16) -> (7,17) quantisation artifact must not be published as an anchor (got {ax},{ay})");
+		}
+
+		[Test]
+		public void TryResolveAnchorCell_PopulatedField_StillPublishesAForwardAnchor()
+		{
+			// The fix must not make staging inert altogether: a real gradient still resolves, and forward.
+			// FrontierByX puts the front at x=0, so descending from map x=20 (grid 10) to the standoff of 3
+			// lands on grid x=3 => map centre 3*2+1 = 7, strictly nearer the front than the SR.
+			var published = ForwardStagingMath.TryResolveAnchorCell(
+				cellSize: 2, srMapX: 20, srMapY: 0,
+				standoffCells: 3, dangerSafeThreshold: 40, maxSteps: 64,
+				FrontierByX, NoDanger, BigGrid,
+				out var ax, out var ay);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(published, Is.True, "a populated field must still publish an anchor");
+				Assert.That(ax, Is.EqualTo(7), "descends to the standoff and converts to that block's centre");
+				Assert.That(ax, Is.LessThan(20), "the anchor must be FORWARD of the SR, never behind it");
+				Assert.That(ay, Is.EqualTo(1), "the y block centre is unchanged by a pure-x descent");
+			});
+		}
+
+		[Test]
+		public void TryResolveAnchorCell_FrontAlreadyInsideTheStandoff_PublishesNoAnchor()
+		{
+			// The other zero-step case: the front is on top of us, so there is nothing to walk toward. Same
+			// requirement, and it has the same parity exposure — SR (6,16) is even/even.
+			var published = ForwardStagingMath.TryResolveAnchorCell(
+				cellSize: 2, srMapX: 6, srMapY: 16,
+				standoffCells: 100, dangerSafeThreshold: 40, maxSteps: 64,
+				FrontierByX, NoDanger, BigGrid,
+				out var ax, out var ay);
+
+			Assert.That(published, Is.False,
+				$"a front already inside the standoff must publish no anchor (got {ax},{ay})");
+		}
 	}
 }
