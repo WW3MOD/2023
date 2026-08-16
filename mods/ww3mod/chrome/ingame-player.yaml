@@ -49,29 +49,34 @@ Container@PLAYER_WIDGETS:
 		Background@CMD_BG_B:
 			X: 295
 			Y: WINDOW_HEIGHT - HEIGHT - 5
-			Width: 154
+			# PITFALL: these panels are NOT parented to the button containers above
+			# them -- each carries its own absolute X. Adding a button means widening
+			# this panel and shifting every panel after it by the same 34px pitch.
+			# Convention (set by CMD_BG_A, and by commandbar-background's 9px
+			# PanelRegion corner) is that a panel spans 9 + content + 9.
+			Width: 188
 			Height: 44
 			Background: commandbar-background
 		Background@FIRE_BG:
-			X: 449
+			X: 483
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@ENGAGE_BG:
-			X: 569
+			X: 603
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@COHESION_BG:
-			X: 689
+			X: 723
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@RESUPPLY_BG:
-			X: 809
+			X: 843
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
@@ -1410,42 +1415,10 @@ Container@PLAYER_WIDGETS:
 						# 			X: 6
 						# 			Y: 6
 						# 			ImageCollection: production-icons
-						ProductionTypeButton@BUILDING:
-							Logic: AddFactionSuffixLogic
-							Y: 93
-							Width: 28
-							Height: 28
-							VisualHeight: 0
-							Background: sidebar-button
-							TooltipText: Buildings
-							TooltipDesc: Alt+click: Toggle auto-build for category\nRight-click: Pause/Resume all queued\nMiddle-click: Cancel all queued
-							TooltipContainer: TOOLTIP_CONTAINER
-							TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
-							ProductionGroup: Building
-							Key: ProductionTypeBuilding
-							Children:
-								Image@ICON:
-									X: 6
-									Y: 6
-									ImageCollection: production-icons
-						ProductionTypeButton@DEFENSE:
-							Logic: AddFactionSuffixLogic
-							Y: 124
-							Width: 28
-							Height: 28
-							VisualHeight: 0
-							Background: sidebar-button
-							TooltipText: Defense
-							TooltipDesc: Alt+click: Toggle auto-build for category\nRight-click: Pause/Resume all queued\nMiddle-click: Cancel all queued
-							TooltipContainer: TOOLTIP_CONTAINER
-							TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
-							ProductionGroup: Defense
-							Key: ProductionTypeDefense
-							Children:
-								Image@ICON:
-									X: 6
-									Y: 6
-									ImageCollection: production-icons
+						# No Building or Defense tab: this mod has no base building, and every
+						# actor on those two queues is gated behind the prerequisite ~disabled,
+						# which nothing provides. The queues themselves stay defined in
+						# rules/player.yaml because rules/ai/ai.yaml names them.
 
 
 						# Button@SCROLL_UP_BUTTON:
