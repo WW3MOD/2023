@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — Release implementation plan (for review, 2026-08-16)</title>
+<style>
+  :root { --bg:#14161a; --fg:#e8eaed; --dim:#9aa3ad; --line:#2a2f37; --blk:#ff6b5e; --sf:#ffb454; --pol:#6fd3a0; --acc:#7aa7ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:32px 40px 80px; background:var(--bg); color:var(--fg);
+         font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; max-width:1100px; }
+  h1 { font-size:26px; margin:0 0 4px; letter-spacing:-.3px; }
+  h2 { font-size:19px; margin:38px 0 6px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  h3 { font-size:15px; margin:22px 0 6px; color:var(--acc); }
+  .sub { color:var(--dim); margin:0 0 24px; font-size:13px; }
+  .lede { background:#1b1f26; border-left:3px solid var(--acc); padding:14px 18px; margin:18px 0 26px; border-radius:0 6px 6px 0; }
+  table { border-collapse:collapse; width:100%; margin:10px 0 18px; font-size:13.5px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--dim); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.4px; }
+  td.id { font-family:ui-monospace,Menlo,monospace; color:var(--dim); white-space:nowrap; }
+  td.sz { white-space:nowrap; color:var(--dim); }
+  .tag { display:inline-block; padding:1px 7px; border-radius:3px; font-size:11px; font-weight:700; letter-spacing:.3px; }
+  .blk { background:rgba(255,107,94,.15); color:var(--blk); }
+  .sf  { background:rgba(255,180,84,.15); color:var(--sf); }
+  .pol { background:rgba(111,211,160,.15); color:var(--pol); }
+  .why { color:var(--dim); font-size:13px; margin:2px 0 14px; }
+  .phase { background:#1a1e25; border:1px solid var(--line); border-radius:8px; padding:2px 20px 14px; margin:16px 0; }
+  .gate { color:var(--sf); font-weight:600; }
+  ul { margin:6px 0 14px; padding-left:20px; }
+  li { margin:4px 0; }
+  code { background:#20252d; padding:1px 5px; border-radius:3px; font-size:12.5px; font-family:ui-monospace,Menlo,monospace; }
+  .q { background:#241f1a; border-left:3px solid var(--sf); padding:12px 16px; margin:10px 0; border-radius:0 6px 6px 0; }
+  .foot { color:var(--dim); font-size:12.5px; margin-top:36px; border-top:1px solid var(--line); padding-top:14px; }
+</style>
+</head>
+<body>
+
+<h1>Release implementation plan</h1>
+<p class="sub">Drafted 2026-08-16 for review · main @ <code>81e5a440</code> · audit reports in <code>WORKSPACE/audit/</code> · nothing implemented yet</p>
+
+<div class="lede">
+<strong>The headline the plan is built around:</strong> a stranger cannot install or play WW3MOD today, and there is nothing for them to download. That is not a polish problem — it is the release itself. Everything else in this plan is ordered underneath it, except the things that are cheaper than the meeting it would take to discuss them.
+<br><br>
+<strong>Ranking rule used throughout</strong> (from your four answers): what a stranger hits, how early, how visibly — cost only as a tiebreak. Public-to-strangers audience; bot judged on “would a player screenshot this”; already-disabled content gets zero effort.
+</div>
+
+<h2>Phase 1 — Stop crashing and desyncing</h2>
+<p class="why">First because these are catastrophic, cheap, and three of the four were found today. A crash-to-desktop and a multiplayer desync are the two things a stranger cannot work around or forgive.</p>
+
+<div class="phase">
+<table>
+<tr><th>Item</th><th>What</th><th>Size</th></tr>
+<tr><td class="id">R17</td><td><span class="tag blk">BLOCKER</span> <strong>Any veteran actor hard-crashes the game.</strong> 13 <code>OverrideActor</code> values are capitalised (<code>E1</code>, <code>PILOT</code>, <code>E1.america</code>…) against a case-sensitive dictionary at <code>PlayerStatistics.cs:74</code>. Both halves verified.</td><td class="sz">1 line</td></tr>
+<tr><td class="id">U7</td><td><span class="tag blk">BLOCKER</span> <strong>Crash to desktop from the main menu.</strong> <code>SetupShellmapBots</code> appends bot clients non-idempotently (<code>Game.cs:614</code>); a second injection puts two clients in one slot and <code>ClientInSlot</code>’s <code>SingleOrDefault</code> throws. <em>Not</em> desync-related — that hypothesis was tested and killed. WW3MOD-authored, not upstream.</td><td class="sz">hours</td></tr>
+<tr><td class="id">R10</td><td><span class="tag blk">BLOCKER</span> <strong>Cargo eject rally desyncs multiplayer.</strong> <code>EjectRallyOrderGenerator.cs:62</code> mutates simulation state and yields no <code>Order</code>. Fix is to issue an order — <em>not</em> to add <code>[Sync]</code>.</td><td class="sz">~30 lines</td></tr>
+<tr><td class="id">U2</td><td><span class="tag blk">BLOCKER</span> <strong>The live 2-human desync.</strong> Forensics still running on the captured 77k-line report. Leading lead: the report’s own header says <code>game content is incomplete</code> (6 degraded sequences, digest <code>cfd39710</code>) — which would tie it to Phase 2.</td><td class="sz">unknown</td></tr>
+<tr><td class="id">R3</td><td><span class="tag sf">SHOULD-FIX</span> <strong><code>make test</code> is red on main</strong> (<code>siberian-pass-ww3/map.yaml:13</code>), which teaches everyone to ignore the guard rail. Fix it so it can gate the rest of this plan.</td><td class="sz">minutes</td></tr>
+</table>
+<p class="gate">Gate out of Phase 1: build clean, NUnit green, <code>make test</code> green, and one clean multiplayer session.</p>
+</div>
+
+<h2>Phase 2 — Make it installable</h2>
+<p class="why">This is the actual release gate. Until it is done, every other improvement is invisible to the audience you chose. It is also the phase most likely to surprise us, so it goes early rather than last.</p>
+
+<div class="phase">
+<ul>
+<li><span class="tag blk">BLOCKER</span> <strong>The packaged game would be missing the <code>ra</code> mod it hard-depends on.</strong> <code>mod.yaml:20</code> mounts <code>$ra: ra</code> non-optionally plus eight further paths through it; the packaging scripts never copy <code>mods/ra</code> because <code>PACKAGING_COPY_ENGINE_FILES</code> is empty at <code>mod.config:104</code>. Result: <code>Could not load mod 'ra'</code> before the menu ever appears.</li>
+<li><span class="tag blk">BLOCKER</span> <strong>The Red Alert content installer is dead configuration.</strong> <code>mod.yaml:13</code> declares <code>DefaultFileSystem</code>, which does not implement the interface the installer gates on — so the hand-written install prompt can never display, while every <code>.mix</code> mount fails silently.</li>
+<li><span class="tag blk">BLOCKER</span> <strong>No artifact has ever been built.</strong> CI targets <code>macos-11</code> and <code>windows-2019</code>, both retired runner images.</li>
+<li><span class="tag sf">SHOULD-FIX</span> Identity through the install chain: install dir, registry key, Start Menu folder, the crash dialog pointing at <code>wiki.openra.net</code>, and the mod hotlinking OpenRA’s stock Red Alert logo as its web icon.</li>
+</ul>
+<p class="gate">Gate out of Phase 2 — the one run that matters: launch once with <code>%APPDATA%/OpenRA/Content</code> renamed aside. Nothing here is proven until that happens, because this machine has always had the prerequisite already satisfied. That is why the bug survived.</p>
+</div>
+
+<h2>Phase 3 — Unblock <em>your</em> parallel work</h2>
+<p class="why">Deliberately early, and this is the one ordering choice I would most like you to sanity-check. Art and audio are yours, they are the longest-lead items in the whole release, and you cannot start until you know what is missing. Handing you the lists early buys weeks of parallelism; handing them over at the end serialises the release behind them.</p>
+
+<div class="phase">
+<ul>
+<li><strong>U9 — art + audio TODO lists.</strong> The content-completeness audit is producing the per-actor matrix now: cameos, descriptions, voice sets, firing sounds, death FX, with counts and a “wire an existing asset” vs “needs new art” split. It arrives as a work list, not a report.</li>
+<li><strong>U4 — command bar icons.</strong> Already costed: <strong>19 of 25 buttons share art; 11 distinct sprites; you need 14 new icons.</strong> Worst offender is <code>stance-icons/defend</code> at five uses, and <code>resupply</code> is a literal alias of <code>deploy</code> with a <code>TODO</code> already attached. Format is friendly — <code>glyphs.png</code> is 256×256 RGBA, no palette, no SHP step.</li>
+</ul>
+<div class="q"><strong>Your call, and I have a recommendation.</strong> On placeholder icons: I <em>can</em> generate 24×24 distinct geometric glyphs plus disabled variants and wire them. I would rather not. They will sit next to hand-drawn glyphs and look generated — and on a first-impression surface, duplicate icons read as a design choice while mismatched placeholders read as unfinished. My pick: ship duplicates, use the table as your work list. Middle path available: placeholders for only the five worst offenders.</div>
+</div>
+
+<h2>Phase 4 — The first ten minutes</h2>
+<p class="why">All cheap, all hit by every single player, all currently broken. This is the phase with the best ratio in the entire plan.</p>
+
+<div class="phase">
+<table>
+<tr><th>Item</th><th>What</th><th>Size</th></tr>
+<tr><td class="id">R1</td><td><span class="tag blk">BLOCKER</span> Missions opens a list of <strong>175 internal test scenarios</strong> above two empty Red Alert campaign groups. The <code>Class=Unknown</code> comment claiming these are hidden is false for the mission browser.</td><td class="sz">minutes</td></tr>
+<tr><td class="id">R2</td><td><span class="tag blk">BLOCKER</span> The second screen a new player sees asks them to “help us optimize <strong>OpenRA</strong>”.</td><td class="sz">minutes</td></tr>
+<tr><td class="id">R3b</td><td><span class="tag blk">BLOCKER</span> Two dev maps ship as playable Conquest maps with the Supply Route spawn stripped — unwinnable.</td><td class="sz">minutes</td></tr>
+<tr><td class="id">R4</td><td><span class="tag blk">BLOCKER</span> Lobby AI opponents are named “Experimental AI” and “<strong>Stable AI 0802</strong>”, with no descriptions.</td><td class="sz">minutes</td></tr>
+<tr><td class="id">R11</td><td><span class="tag blk">BLOCKER</span> Production tooltip ammo total wrong by up to 100× — a Bradley reads “Total ammo cost: 5100” against its own lines saying 45 and 600.</td><td class="sz">1 line</td></tr>
+<tr><td class="id">U10</td><td><span class="tag blk">BLOCKER</span> <strong>The How-to-Play panel hijacking game start.</strong> Revert the auto-open, re-home it: first-launch-only in the main menu, plus a permanent “i” in the top-right. See the note below.</td><td class="sz">hours</td></tr>
+<tr><td class="id">U3</td><td><span class="tag sf">SHOULD-FIX</span> Command bar overflow — <strong>exactly 34 px, one button pitch.</strong> <code>CMD_BG_B</code> is <code>Width: 154</code> (sized for four buttons) and needs 188 for five. The button containers were shifted when Evacuate landed; the six background panels never were. <strong>Five single-number edits, no button moves.</strong></td><td class="sz">minutes</td></tr>
+<tr><td class="id">U1</td><td><span class="tag sf">SHOULD-FIX</span> Remove Buildings + Defences from the build menu. <strong>Verified safe:</strong> all 4 Building and 17 Defense entries are gated on <code>~disabled</code> and nothing provides it. Chrome widgets only — leave <code>rules/player.yaml</code> alone, because <code>ai.yaml:1623</code> names both queues.</td><td class="sz">minutes</td></tr>
+<tr><td class="id">R8</td><td><span class="tag sf">SHOULD-FIX</span> Faction descriptions are blank, and Random Side offers “a random <em>vanilla</em> side”.</td><td class="sz">minutes</td></tr>
+<tr><td class="id">R5/R6</td><td><span class="tag sf">SHOULD-FIX</span> Sidebar tab hotkeys all unbound; <code>SupportPower01–06</code> unbound so support powers are mouse-only; ~50 garrison/cargo buttons with no tooltip, several labelled just <code>X</code>.</td><td class="sz">hours</td></tr>
+</table>
+<div class="q"><strong>On U10, one honest correction.</strong> You said it opens every game. The gate code reads correct — singleplayer-only, version-gated, saves on open — and <strong>your <code>settings.yaml</code> already says <code>HowToPlayVersion: 1</code></strong>, so by that code it should already have stopped. I cannot yet explain the repeat; the launcher does not reset settings or redirect the support dir. One hypothesis worth noting: you crashed today, and a crash around save time can lose the write. <strong>None of this changes the plan</strong> — you want it out of that location regardless, and that is what I will do. I just will not tell you it is fixed when I do not yet know why it fired.</div>
+</div>
+
+<h2>Phase 5 — Design work you asked to be involved in</h2>
+<p class="why">These are the two you explicitly said you might want hands on. Deliverable is a proposal plus mockups you sign off, not code landed behind your back.</p>
+
+<div class="phase">
+<ul>
+<li><strong>U6 — selective passenger unload.</strong> Design + mockups. Wants designing together with R10, since both touch how cargo unload orders are issued, and R10 is already changing that code.</li>
+<li><strong>U5 — garrison usability.</strong> Research + ideas. One concrete defect already found: the graduated suppression “duck” is computed every tick at <code>GarrisonManager.cs:641</code> and <strong>read by nothing</strong> — repo-wide grep finds only writes. So suppression currently reads as binary, which may be a large part of why garrison feels unintuitive.</li>
+<li><strong>Lexicon / guide tab</strong> (your idea from the U10 message) — folded in here as a design item rather than a quick fix.</li>
+</ul>
+</div>
+
+<h2>Phase 6 — Bot: stop the screenshot-worthy stupidity</h2>
+<p class="why">Scoped by your “somewhere in between” answer. These are the visible symptoms you reported from live play. The deep architecture — danger-scale rework, benchmark re-baseline — is explicitly <em>not</em> in the release path.</p>
+
+<div class="phase">
+<ul>
+<li><strong>66</strong> — soldiers sit dry while almost no supply trucks are bought. Your ruling stands: resupply is the top procurement precedence at all times.</li>
+<li><strong>63</strong> — the opening builds two medics before any line infantry.</li>
+<li><strong>64</strong> — the first tank pushes out alone.</li>
+</ul>
+<p class="why">These three are one disease: the system has a notion of <em>how many</em> and no notion of <em>when</em>. Fixing quantities buys a third report with a different unit, so the work is the missing ordering axis — which also makes it a single change rather than three.</p>
+</div>
+
+<h2>Phase 7 — Launch</h2>
+<div class="phase">
+<ul>
+<li><strong>U8</strong> — ModDB page and copy, GitHub landing page, screenshots, trailer/gif shortlist, release notes. Sequenced last on purpose: announcement copy is worthless until the download works, and screenshots are worthless until Phases 3–4 land.</li>
+</ul>
+</div>
+
+<h2>What I am NOT proposing to do</h2>
+<div class="phase">
+<ul>
+<li><strong>Danger-scale rework (item 40) and the <code>@stable</code> benchmark re-baseline (item 43).</strong> Long-standing top-of-queue items, dropped out of the release path by your bot answer. They stay in the pipeline as the principled versions of real problems.</li>
+<li><strong>Anything already disabled</strong> — hidden units, shelved airstrike powers, the two dead build queues’ actors. Zero effort, per your instruction.</li>
+<li><strong>Stances, Supply Route contestation, three-mode move.</strong> The tracker lists them open; the audit found all three <strong>complete</strong>. No work, just a tracker correction.</li>
+<li><strong>The 49 backlog entries that were fixed and never struck off</strong>, and the 9 that were never bugs. Reconciliation only.</li>
+</ul>
+</div>
+
+<h2>How I would run it</h2>
+<div class="phase">
+<ul>
+<li><strong>Batching:</strong> one worker per subsystem, not per item — Phase 4’s chrome items are one branch, not eight. Isolated worktrees under <code>C:\Users\fredr\worktrees\ww3mod\</code>, adversarial reviewer for behavioural changes, manager merges on green and pushes <code>main</code>.</li>
+<li><strong>Simulation:</strong> centralised with me, per your instruction. The seven-day budget resets shortly; measurement-heavy work is scheduled after that reset, and no worker starts a run on its own.</li>
+<li><strong>Verification:</strong> Phase 2’s gate (launch with the content dir renamed aside) is the single highest-value run in this plan and I would spend the first launch on it.</li>
+<li><strong>Tracks:</strong> one per item, as you asked — U1–U10 plus the audit slices are already live in Maestro.</li>
+</ul>
+</div>
+
+<div class="q">
+<strong>The three things I would most like your view on:</strong>
+<ol style="margin:6px 0 0;">
+<li><strong>Is Phase 3 in the right place?</strong> Giving you the art/audio lists before fixing the first-ten-minutes bugs is a deliberate bet on parallelism. If you would rather see the game clean up first, it moves down and nothing else changes.</li>
+<li><strong>Placeholder icons — generate or not?</strong> My recommendation is not to, and to hand you the duplicate table instead.</li>
+<li><strong>Phase 6 sizing.</strong> The three bot items are one root cause; fixing it properly is a real change, not a tweak. If that feels too big for the release, the alternative is three narrow symptom fixes that I expect will regress.</li>
+</ol>
+</div>
+
+<p class="foot">Sources: <code>WORKSPACE/audit/260816-first-run-chrome.md</code> · <code>260816-systems-completeness.md</code> · <code>260816-bug-reconciliation.md</code> · <code>260816-install-packaging.md</code> · <code>260816-crash-clientinslot.md</code> · <code>260816-command-bar-research.md</code> · desync forensics, build/test health and content completeness still running.</p>
+
+</body>
+</html>

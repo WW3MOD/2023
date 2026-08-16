@@ -1,0 +1,184 @@
+Load mod 'C:\Users\fredr\Desktop\WW3MOD\engine\mods\all': System.IO.InvalidDataException: `FileSystem` section is not defined.
+   at OpenRA.Manifest..ctor(String modId, IReadOnlyPackage package) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Manifest.cs:line 141
+   at OpenRA.InstalledMods.LoadMod(String id, String path) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\InstalledMods.cs:line 70
+Load mod 'C:\Users\fredr\Desktop\WW3MOD\engine\mods\cnc': System.IO.InvalidDataException: `FileSystem` section is not defined.
+   at OpenRA.Manifest..ctor(String modId, IReadOnlyPackage package) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Manifest.cs:line 141
+   at OpenRA.InstalledMods.LoadMod(String id, String path) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\InstalledMods.cs:line 70
+Load mod 'C:\Users\fredr\Desktop\WW3MOD\engine\mods\d2k': System.IO.InvalidDataException: `FileSystem` section is not defined.
+   at OpenRA.Manifest..ctor(String modId, IReadOnlyPackage package) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Manifest.cs:line 141
+   at OpenRA.InstalledMods.LoadMod(String id, String path) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\InstalledMods.cs:line 70
+Load mod 'C:\Users\fredr\Desktop\WW3MOD\engine\mods\ts': System.IO.InvalidDataException: `FileSystem` section is not defined.
+   at OpenRA.Manifest..ctor(String modId, IReadOnlyPackage package) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Manifest.cs:line 141
+   at OpenRA.InstalledMods.LoadMod(String id, String path) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\InstalledMods.cs:line 70
+SetupShellmapBots: Injected 6 bots for map 'River Zeta WW3'
+InjectShellmapScenario: Set scenario 'Shellmap' for shellmap 'River Zeta WW3'
+Missing sprite file: :0: b2bomb.shp not found
+Sequence b2bomb.idle does not define any frames.
+Missing sprite file: :0: pip-cloak.shp not found
+Sequence pips.pip-cloak-medium uses frames between 0..0, but only 0..-1 exist.
+Missing sprite file: :0: pip-cloak.shp not found
+Sequence pips.pip-cloak-hidden uses frames between 1..1, but only 0..-1 exist.
+Missing sprite file: :0: pip-cloak.shp not found
+Sequence pips.pip-cloak-stealthy uses frames between 2..2, but only 0..-1 exist.
+Missing sprite file: :0: pip-cover.shp not found
+Sequence pips.pip-cover uses frames between 0..0, but only 0..-1 exist.
+Missing sprite file: :0: pip-cover.shp not found
+Sequence pips.pip-dugin uses frames between 1..1, but only 0..-1 exist.
+Degraded sequences: 6 (digest cfd39710) - game content is incomplete, e.g. b2bomb.idle: no frames; pips.pip-cloak-hidden: wants 1..1, has 0..-1; pips.pip-cloak-medium: wants 0..0, has 0..-1
+Scenario selection: 'Shellmap', available scenarios: [Frontline, Shellmap]
+ApplyScenario: applying 'Shellmap' with 82 actors, 2 players
+  Scenario actor: NatoAbrams1 = abrams @ 26,29
+  Scenario actor: NatoAbrams2 = abrams @ 24,43
+  Scenario actor: NatoBradley1 = bradley @ 22,24
+  Scenario actor: NatoBradley2 = bradley @ 27,37
+  Scenario actor: NatoHumvee1 = humvee @ 20,18
+  Scenario actor: NatoHumvee2 = humvee @ 29,52
+  Scenario actor: NatoM113 = m113 @ 25,48
+  Scenario actor: NatoShorad = strykershorad @ 20,46
+  Scenario actor: NatoM109 = m109 @ 12,26
+  Scenario actor: NatoM270 = m270 @ 14,38
+  Scenario actor: NatoHimars = himars @ 12,48
+  Scenario actor: NatoTruk = truk @ 16,42
+  Scenario actor: NatoTran = tran @ 8,34
+  Scenario actor: NatoLittlebird = littlebird @ 10,26
+  Scenario actor: NatoHeli = heli @ 10,42
+  Scenario actor: NatoE3_1 = e3.america @ 22,23
+  Scenario actor: NatoE3_2 = e3.america @ 29,31
+  Scenario actor: NatoE3_3 = e3.america @ 31,38
+  Scenario actor: NatoE3_4 = e3.america @ 28,46
+  Scenario actor: NatoAR_1 = ar.america @ 23,26
+  Scenario actor: NatoAR_2 = ar.america @ 30,34
+  Scenario actor: NatoAR_3 = ar.america @ 29,44
+  Scenario actor: NatoAT_1 = at.america @ 27,28
+  Scenario actor: NatoAT_2 = at.america @ 26,45
+  Scenario actor: NatoTL_1 = tl.america @ 21,21
+  Scenario actor: NatoTL_2 = tl.america @ 28,40
+  Scenario actor: NatoE2_1 = e2.america @ 24,30
+  Scenario actor: NatoE2_2 = e2.america @ 31,47
+  Scenario actor: NatoE1_1 = e1.america @ 21,19
+  Scenario actor: NatoE1_2 = e1.america @ 32,35
+  Scenario actor: NatoE1_3 = e1.america @ 30,50
+  Scenario actor: NatoMT = mt.america @ 24,33
+  Scenario actor: NatoAA = aa.america @ 22,50
+  Scenario actor: NatoSN = sn.america @ 22,27
+  Scenario actor: NatoSF = sf.america @ 35,42
+  Scenario actor: NatoE4 = e4.america @ 31,53
+  Scenario actor: NatoE6 = e6.america @ 22,36
+  Scenario actor: NatoTecn = tecn.america @ 20,31
+  Scenario actor: NatoDR = dr.america @ 26,20
+  Scenario actor: NatoMedi1 = medi.america @ 23,30
+  Scenario actor: NatoMedi2 = medi.america @ 23,44
+  Scenario actor: RussiaT90_1 = t90 @ 72,30
+  Scenario actor: RussiaT90_2 = t90 @ 74,41
+  Scenario actor: RussiaBMP_1 = bmp2 @ 70,25
+  Scenario actor: RussiaBMP_2 = bmp2 @ 71,36
+  Scenario actor: RussiaBTR_1 = btr @ 69,17
+  Scenario actor: RussiaBTR_2 = btr @ 70,51
+  Scenario actor: RussiaTunguska = tunguska @ 76,47
+  Scenario actor: RussiaGiatsint = giatsint @ 86,27
+  Scenario actor: RussiaGrad = grad @ 84,38
+  Scenario actor: RussiaTos = tos @ 86,47
+  Scenario actor: RussiaIskander = iskander @ 82,53
+  Scenario actor: RussiaTruk = truk @ 82,42
+  Scenario actor: RussiaHalo = halo @ 90,34
+  Scenario actor: RussiaHind = hind @ 88,27
+  Scenario actor: RussiaMi28 = mi28 @ 88,42
+  Scenario actor: RussiaE3_1 = e3.russia @ 68,23
+  Scenario actor: RussiaE3_2 = e3.russia @ 69,32
+  Scenario actor: RussiaE3_3 = e3.russia @ 67,39
+  Scenario actor: RussiaE3_4 = e3.russia @ 70,47
+  Scenario actor: RussiaAR_1 = ar.russia @ 67,25
+  Scenario actor: RussiaAR_2 = ar.russia @ 68,34
+  Scenario actor: RussiaAR_3 = ar.russia @ 69,43
+  Scenario actor: RussiaAT_1 = at.russia @ 71,28
+  Scenario actor: RussiaAT_2 = at.russia @ 72,45
+  Scenario actor: RussiaTL_1 = tl.russia @ 69,21
+  Scenario actor: RussiaTL_2 = tl.russia @ 70,40
+  Scenario actor: RussiaE2_1 = e2.russia @ 66,29
+  Scenario actor: RussiaE2_2 = e2.russia @ 67,48
+  Scenario actor: RussiaE1_1 = e1.russia @ 65,19
+  Scenario actor: RussiaE1_2 = e1.russia @ 66,36
+  Scenario actor: RussiaE1_3 = e1.russia @ 76,50
+  Scenario actor: RussiaMT = mt.russia @ 74,34
+  Scenario actor: RussiaAA = aa.russia @ 76,52
+  Scenario actor: RussiaSN = sn.russia @ 64,27
+  Scenario actor: RussiaSF = sf.russia @ 76,44
+  Scenario actor: RussiaE4 = e4.russia @ 76,53
+  Scenario actor: RussiaE6 = e6.russia @ 76,35
+  Scenario actor: RussiaTecn = tecn.russia @ 78,31
+  Scenario actor: RussiaDR = dr.russia @ 72,21
+  Scenario actor: RussiaMedi1 = medi.russia @ 75,30
+  Scenario actor: RussiaMedi2 = medi.russia @ 75,44
+[exp-layered-defence] TraitEnabled — player=Experimental AI 1 screen-types=12 mainline-types=17 excluded-types=12
+[exp-route-open] TraitEnabled — player=Experimental AI 1 screenSize=3 timeout=1500 cooldown=900 maxAttempts=3
+[exp-transport] TraitEnabled — player=Experimental AI 1 carriers=bradley,bmp2,m113 passengers=20 types
+[exp-layered-defence] TraitEnabled — player=Experimental AI 2 screen-types=12 mainline-types=17 excluded-types=12
+[exp-route-open] TraitEnabled — player=Experimental AI 2 screenSize=3 timeout=1500 cooldown=900 maxAttempts=3
+[exp-transport] TraitEnabled — player=Experimental AI 2 carriers=bradley,bmp2,m113 passengers=20 types
+[exp-layered-defence] TraitEnabled — player=Experimental AI 3 screen-types=12 mainline-types=17 excluded-types=12
+[exp-route-open] TraitEnabled — player=Experimental AI 3 screenSize=3 timeout=1500 cooldown=900 maxAttempts=3
+[exp-transport] TraitEnabled — player=Experimental AI 3 carriers=bradley,bmp2,m113 passengers=20 types
+[exp-layered-defence] TraitEnabled — player=Experimental AI 4 screen-types=12 mainline-types=17 excluded-types=12
+[exp-route-open] TraitEnabled — player=Experimental AI 4 screenSize=3 timeout=1500 cooldown=900 maxAttempts=3
+[exp-transport] TraitEnabled — player=Experimental AI 4 carriers=bradley,bmp2,m113 passengers=20 types
+[exp-layered-defence] TraitEnabled — player=Experimental AI 5 screen-types=12 mainline-types=17 excluded-types=12
+[exp-route-open] TraitEnabled — player=Experimental AI 5 screenSize=3 timeout=1500 cooldown=900 maxAttempts=3
+[exp-transport] TraitEnabled — player=Experimental AI 5 carriers=bradley,bmp2,m113 passengers=20 types
+[exp-layered-defence] TraitEnabled — player=Experimental AI 6 screen-types=12 mainline-types=17 excluded-types=12
+[exp-route-open] TraitEnabled — player=Experimental AI 6 screenSize=3 timeout=1500 cooldown=900 maxAttempts=3
+[exp-transport] TraitEnabled — player=Experimental AI 6 carriers=bradley,bmp2,m113 passengers=20 types
+[danger] reference ground=2748 air=2034 (100 danger units = one reference contact at point-blank) ground-types=92/424 min=21 max=245000
+Sync reports disabled (setting False, human clients 1, replay False).
+[danger] dist player=Experimental AI 1 n=1 cells=0 — no believed contact
+[danger] dist player=Experimental AI 2 n=1 cells=0 — no believed contact
+[crossingmap] built ground=3 infantry=1 amphibious=1 amphibPairs=3 crossingCells=10 repairableCrossings=2 map=98x82
+[danger] dist player=Experimental AI 3 n=1 cells=0 — no believed contact
+[danger] dist player=Experimental AI 4 n=1 cells=0 — no believed contact
+[danger] dist player=Experimental AI 5 n=1 cells=0 — no believed contact
+[danger] dist player=Experimental AI 6 n=1 cells=0 — no believed contact
+[danger] dist player=Experimental AI 1 n=2 cells=0 — no believed contact
+[danger] dist player=Experimental AI 2 n=2 cells=0 — no believed contact
+[danger] dist player=Experimental AI 3 n=2 cells=0 — no believed contact
+[danger] dist player=Experimental AI 4 n=2 cells=0 — no believed contact
+[danger] dist player=Experimental AI 5 n=2 cells=0 — no believed contact
+[danger] dist player=Experimental AI 6 n=2 cells=0 — no believed contact
+[danger] dist player=Experimental AI 1 n=3 cells=0 — no believed contact
+[danger] dist player=Experimental AI 2 n=3 cells=0 — no believed contact
+[danger] dist player=Experimental AI 3 n=3 cells=0 — no believed contact
+[danger] dist player=Experimental AI 4 n=3 cells=0 — no believed contact
+[danger] dist player=Experimental AI 5 n=3 cells=0 — no believed contact
+[danger] dist player=Experimental AI 6 n=3 cells=0 — no believed contact
+[danger] dist player=Experimental AI 1 n=40 cells=0 — no believed contact
+[danger] dist player=Experimental AI 2 n=40 cells=0 — no believed contact
+[danger] dist player=Experimental AI 3 n=40 cells=0 — no believed contact
+[danger] dist player=Experimental AI 4 n=40 cells=0 — no believed contact
+[danger] dist player=Experimental AI 5 n=40 cells=0 — no believed contact
+[danger] dist player=Experimental AI 6 n=40 cells=0 — no believed contact
+[danger] dist player=Experimental AI 1 n=80 cells=0 — no believed contact
+[danger] dist player=Experimental AI 2 n=80 cells=0 — no believed contact
+[danger] dist player=Experimental AI 3 n=80 cells=0 — no believed contact
+[danger] dist player=Experimental AI 4 n=80 cells=0 — no believed contact
+[danger] dist player=Experimental AI 5 n=80 cells=0 — no believed contact
+[danger] dist player=Experimental AI 6 n=80 cells=0 — no believed contact
+[danger] dist player=Experimental AI 1 n=120 cells=0 — no believed contact
+[danger] dist player=Experimental AI 2 n=120 cells=0 — no believed contact
+[danger] dist player=Experimental AI 3 n=120 cells=0 — no believed contact
+[danger] dist player=Experimental AI 4 n=120 cells=0 — no believed contact
+[danger] dist player=Experimental AI 5 n=120 cells=0 — no believed contact
+[danger] dist player=Experimental AI 6 n=120 cells=0 — no believed contact
+SetupShellmapBots: Injected 2 bots for map 'Nuclear Winter WW3'
+Missing sprite file: :0: b2bomb.shp not found
+Sequence b2bomb.idle does not define any frames.
+Missing sprite file: :0: pip-cloak.shp not found
+Sequence pips.pip-cloak-medium uses frames between 0..0, but only 0..-1 exist.
+Missing sprite file: :0: pip-cloak.shp not found
+Sequence pips.pip-cloak-hidden uses frames between 1..1, but only 0..-1 exist.
+Missing sprite file: :0: pip-cloak.shp not found
+Sequence pips.pip-cloak-stealthy uses frames between 2..2, but only 0..-1 exist.
+Missing sprite file: :0: pip-cover.shp not found
+Sequence pips.pip-cover uses frames between 0..0, but only 0..-1 exist.
+Missing sprite file: :0: pip-cover.shp not found
+Sequence pips.pip-dugin uses frames between 1..1, but only 0..-1 exist.
+Degraded sequences: 6 (digest cfd39710) - game content is incomplete, e.g. b2bomb.idle: no frames; pips.pip-cloak-hidden: wants 1..1, has 0..-1; pips.pip-cloak-medium: wants 0..0, has 0..-1
+Scenario selection: 'Shellmap', available scenarios: []
+No scenario applied (selection is 'none' or not found)

@@ -26,6 +26,157 @@ The user granted the full test ladder for the **next autoburn window**: "When th
 
 ---
 
+## RELEASE AUDIT 2026-08-16 — framing, ranking function, and operating rules **[BINDING — user-answered, do not re-ask]**
+
+> **What this block is.** On 2026-08-16 the user opened a release push: *"audit the whole project and find whatever is not working or polished enough… put everything in the pipeline and keep the priority updated as you go."* Explicitly a **discussion phase first** — nothing is implemented until the user gives a goahead, after which the manager works autonomously. Audit started at **main @ `55459146`**, clean and in sync with origin.
+>
+> Four framing questions were put to the user and answered. **The answers below are the ranking function for every item in this file from here on**, and they reorder the queue substantially.
+
+### 1. Audience: **PUBLIC RELEASE TO STRANGERS** (itch / ModDB / Discord-wide)
+
+First impression decides everything; a stranger who bounces in the first ten minutes never comes back. **This promotes a whole class of items from polish to blocker:** missing audio, placeholder or RA-era art, any surviving Red Alert identity string, and a first match a new player cannot make sense of. **It also makes the unresolved 2-human multiplayer desync (item 42) a hard blocker** — it was only tolerable under the friends-and-testers reading, which the user rejected.
+
+### 2. Bot quality: **between "credible" and "not embarrassing"**
+
+The user picked both middle options, noting *"Somewhere in between, I hope we can make it a bit better."* The rule this yields:
+
+- **HIGH:** visibly-stupid bot behaviour a player would screenshot — the lone tank pushing alone, soldiers standing around out of ammo, supply trucks never bought. These are the live-play reports already in the queue (items 63/64/66) and they stay near the top.
+- **NOT RELEASE-GATING:** the deep architecture — danger-scale rework stage (c) (item 40), the `@stable` benchmark re-baseline (item 43), coordination architecture beyond the visible symptom. Wanted, not blocking. **Cheap incremental improvement is in scope; open-ended rework is not.**
+
+### 3. Compute and simulation authority: **THE MANAGER OWNS IT**
+
+User verbatim: *"Running simulations takes a lot of computing power… you will have to keep track of the budget and see if you are on pace to finish, and if so you can allocate some time/compute to simulations when necessary, but if every worker/submanager starts running simulations then it will be chaos. So it is entirely up to you to decide how to manage it. You will be in charge (after I give you the goahead on implementing, for now during the audit dont launch any simulations)."*
+
+Binding sub-rules:
+- **No simulations, autotests, batches or game launches during the audit phase.** Full stop.
+- After the goahead, **simulation authority is centralised in the manager. A worker never self-authorises a run** — it asks, or it is dispatched with the run already sanctioned in its brief. This supersedes nothing in the no-autonomous-multi-test rule; it adds a second gate on top of it.
+- The manager tracks budget pace and spends surplus compute on measurement **only when on pace to finish** the committed work.
+
+### 4. Scope: **"Everything now in game should be made to work"**
+
+The user's own framing: *"Some things are already disabled, some units etc, those can just be left as they are, players won't notice them."*
+
+**The axis is VISIBILITY, not completeness.** If a player can see it or touch it, it must work. Already-disabled content (hidden units, the shelved airstrike support powers) **stays disabled and gets zero effort** — do not re-enable, do not polish, do not audit further. **Hiding a currently-VISIBLE broken thing to dodge the work is not the assumed move** — that is a decision to put to the user, not a shortcut to take.
+
+### Severity ladder used by every audit finding filed under this push
+
+| Level | Test |
+|---|---|
+| **BLOCKER** | A stranger's first session hits it: crash, softlock, desync, unplayable match, or an immediately-visible "this is unfinished" signal (silent weapons, missing cameo, Red Alert text) |
+| **SHOULD-FIX** | Noticed within the first few matches; makes the game feel rough but not broken |
+| **POLISH** | Noticed by an engaged player; absence reads as missing depth, not as a defect |
+| **COSMETIC** | Noticed only if looked for |
+
+### Budget note (2026-08-16, audit start)
+
+Seven-day window at **82% used, resetting in ~3.6h**; five-hour window at 17%. **Practical consequence: the audit phase is read-heavy and cheap, so it fits inside the tail of the current window; any simulation-heavy measurement should be scheduled AFTER the seven-day reset**, not before it.
+
+---
+
+## RELEASE AUDIT — RANKED FINDINGS **[LIVE LIST — grows as audit reports land]**
+
+> **This is the release list.** It is ranked by the function in the block above: what a stranger encounters, how early, and how visibly — cost only as a tiebreak. Items are numbered `R#` and **the numbers are stable**; priority is the ORDER, so items move up and down and their numbers do not change.
+>
+> **Nothing here is being implemented.** The user's instruction is explicit: audit and discuss first, implement on an explicit goahead.
+>
+> **Audit status:** wave 1 = build/test health, first-run chrome ✅, content completeness, bug reconciliation, systems completeness. Wave 2 = install/packaging (running), netcode, crash sweep, maps, performance. Full reports under [`WORKSPACE/audit/`](audit/).
+
+### DEFERRED TO FINAL PRE-RELEASE POLISH **[user ruling 2026-08-16 — do NOT do these now]**
+
+> **The user's correction to the plan, verbatim:** *"it doesn't need to be fully releasable after you are done in this session… don't be too eager to do it all now, there is still a lot of work… at a later point we will do the final polish to make it fully releasable, and that is the time to do that kind of thing."*
+>
+> **This is a real ordering principle, not a delay.** A polish item done now gets re-done later anyway, because the thing it polishes is still moving. Anything below is correct work at the wrong time.
+
+| Item | Why it waits |
+|---|---|
+| **R4 — lobby AI opponent names** ("Experimental AI" / "Stable AI 0802") | **The bots are still under development, and the stable-vs-experimental split is actively useful while that is true.** Renaming now would remove a working development affordance to buy presentation the release does not need yet. Revisit when bot work stops. |
+| **U9 — art + audio TODO lists** | User owns this work and it needs a lot of their attention: *"you can skip it fully now… just document it as a standing todo pre-release."* The content-completeness audit's report **is** that standing document — write it, then stop. |
+| **U4 — command bar icon placeholders** | Same ruling. The duplicate-map table (19 of 25 buttons share art across 11 sprites; **14 new icons needed**) is the deliverable; generating placeholder glyphs is not wanted. |
+
+**Standing rule extracted from this ruling, for whoever picks the queue up:** before doing any item whose value is *presentational*, ask whether the thing it presents is still changing. If it is, the item belongs here, not in the active queue.
+
+### SCOPE RELIEF — three headline systems are DONE and the tracker says otherwise
+
+The systems audit expected to find the `ForwardStaging` failure mode repeating (a feature that ships structurally unreachable and stays inert). **It does not repeat anywhere in this slice** — every system traced to a reachable path on actors that exist in shipped rules. `RELEASE_V1.md` errs in the *opposite* direction and understates three systems:
+
+| System | Tracker says | Actually |
+|---|---|---|
+| **Stance rework (4 phases)** | `[ ]` open | **LIVE AND COMPLETE** — all four modifier axes plus patrol are wired |
+| **Supply Route contestation** | `[ ]` open | **LIVE AND COMPLETE** — control bar, production slowdown and notifications all ship |
+| **Three-mode move system** | `[ ]` open | **LIVE AND COMPLETE** |
+
+`RELEASE_V1.md` should be corrected. Under the "everything visible must work" rule these three are **not release work at all** — which removes a large, intimidating block from the middle of the tracker and is the single biggest piece of good news in the audit so far.
+
+### BLOCKERS — a stranger hits these in the first session
+
+**R10. A NEW multiplayer desync: cargo eject rally points are set client-locally and never ordered.** *(source: `audit/260816-systems-completeness.md`; **independently re-verified by the manager**)*
+**Perceived:** two people play, one of them right-clicks a rally point for a passenger, and from that moment the two machines are playing different games. Nobody can attribute it — the reports will read "multiplayer is broken".
+**This is a second, entirely separate desync from item 42, and it was not on any list.** `EjectRallyOrderGenerator.cs:62` calls `cargo.SetEjectRally(passengerActorId, target)` **directly and then `yield break`s without yielding an `Order`** — manager-verified: the generator's `OrderInner` sets simulation state and returns no order at all. The value lands in a plain, non-`[Sync]` dictionary (`Cargo.cs:190`), which the simulation later reads at `UnloadCargo.cs:131` and turns into a real `Move` at `:157-160`. The passenger walks on the ordering client and stands still everywhere else. **Replays never fire it**, which is why no test caught it.
+**FIX SHAPE IS LOAD-BEARING — do not get this wrong:** the fix is to **issue a proper `Order`** so the intent travels to every client. It is **NOT** to add `[Sync]` to the dictionary — that would hash a field that is legitimately absent on other clients and convert a silent divergence into a loud one without fixing the cause. (This is exactly the trap recorded in the user's standing feedback: prove a field is never client-local before adding `[Sync]`.)
+**Size:** ~30 lines. **Ranked first because it is the only finding that damages other players rather than the one who triggers it, it is silent and unattributable, and it is cheap.**
+
+**R1. The Missions button opens a list of 175 internal test scenarios.** *(source: `audit/260816-first-run-chrome.md`)*
+**Perceived:** a new player clicks Missions expecting a campaign and gets `test-supply-far-front-reached`, `demo-heli-lanes` and 173 more internal artefacts, above two empty campaign groups labelled Allied and Soviet.
+The mechanism is verified: `MissionBrowserLogic.cs:183-187` builds its "loose missions" group filtering **only** on `Status == Available` and `Visibility.HasFlag(MissionSelector)` — **there is no class filter on that path.** So the comment at `mod.yaml:93` — *"Class=Unknown hides them from every UI tab (lobby, missions, main-menu chooser)"* — **is false for the mission browser**, and has been believed by every session since it was written. Compounded by `missions.yaml` still holding the stock Red Alert campaign list (`allies-01`…`soviet-11b`), which is also what keeps the Missions button enabled at all (`MainMenuLogic.cs:371`).
+_Correction to note: the false claim lives in `mod.yaml`'s comment, **not** in `CLAUDE.md` — the audit report's headline says both; the grep says one._
+**Size:** minutes.
+
+**R2. The second screen a new player ever sees asks them to "help us optimize OpenRA".** *(chrome)*
+**Perceived:** the first-run consent dialog names a different product than the one they just installed.
+`chrome.ftl:269`, not overridden in the mod's `en.ftl`. Its sibling title *was* re-themed to "Establishing Battlefield Control" — the branding pass stopped one line short, which is the tell that there are more like it. **Size:** minutes.
+
+**R3. Two developer maps ship as playable Conquest maps and cannot be won.** *(chrome)*
+**Perceived:** a player picks a map from the lobby list, starts, and has no Supply Route and no victory condition — an unwinnable, unexplainable match.
+`arena-tank-duel` (`Author: Combat Sim`) and `shellmap-open-field` are both `Visibility: Lobby, Shellmap`, and their `rules.yaml` strips `-ConquestVictoryConditions` and `-SpawnStartingUnits` — the latter is what places the Supply Route. **Size:** minutes.
+
+**R4. The lobby's only AI opponents are "Experimental AI" and "Stable AI 0802".** *(chrome)*
+**Perceived:** in the one menu every single-player passes through, the opponent picker offers a lab name and an internal build date, with no difficulty ladder and no descriptions.
+`ai.yaml:44-51`. **Note this collides with the bot ranking rule:** it is chrome, not bot intelligence, so it is cheap and it is a blocker — the bot can stay exactly as good as it is today and this still needs fixing. **Size:** minutes for naming/descriptions; a real difficulty ladder is larger and is a separate decision.
+
+### SHOULD-FIX — noticed within the first few matches
+
+**R5. Sidebar tab hotkeys are all unbound, and ~35 dead Red Alert bindings remain.** *(chrome)*
+**Perceived:** the keyboard barely works. All six `ProductionType*` defaults are empty at `hotkeys.yaml:1-29` with the intended keys sitting in comments (`# E`, `# R`…), likely collateral from adding `ShowTerritory: T`. Meanwhile `Production01..24` consumes all of F1–F12, and **`SupportPower01..06` are unbound — support powers are mouse-only.** **Size:** hours. Supersedes and widens PIPELINE item 61.
+
+**R6. ~50 garrison and cargo buttons have no tooltip and no hotkey; several are labelled just `X`.** *(chrome)*
+**Perceived:** an unexplained wall of buttons, some with a single letter on them. `ingame-player.yaml:623-1135`. **Size:** hours. Widens PIPELINE item 60.
+
+**R7. The install chain identifies the product as OpenRA.** *(chrome; wave-2 install audit is going deeper)*
+**Perceived:** install dir `OpenRA WW3MOD`, registry key `OpenRAWW3MOD`, Start Menu folder `OpenRA`, `<Product>OpenRA</Product>`, and the crash dialog's FAQ button opens `wiki.openra.net`. **Size:** hours. Discord rich presence needs a WW3MOD app id and is not fixable in-repo.
+
+**R8. Faction descriptions are blank, and Random Side offers "a random vanilla side".** *(chrome)*
+`world.yaml:242-253` — `Description: America` with nothing after it. **Perceived:** the faction picker teaches a new player nothing about the two sides the whole game is built on. **Size:** minutes to fill, longer to write well.
+
+**R11. The production tooltip's ammo total is wrong by up to 100×.** *(systems)*
+**Perceived:** the first number a player ever reads about this mod's economy is nonsense — a Bradley costing 1500 shows **"Total ammo cost: 5100"**, while its own two per-pool lines directly above say 45 and 600. The true total is 645.
+`ProductionTooltipLogic.cs:213` computes `Ammo * SupplyValue` and **omits `ReloadCount`**, which the per-pool lines immediately above it *do* apply (`AmmoPool.cs:90-96`). 645 is exactly the ~43% of unit cost that `economy.md:167` targets, so the spec is right and the display is wrong. This is verify-point 4 of the economy overhaul's never-confirmed checklist. **Size:** one line.
+_Filed as SHOULD-FIX by the auditor; **promoted to blocker** because under a public release the economy tooltip is a first-session, first-impression surface and the error is visible without any special play._
+
+**R12. A supply truck cannot replenish a dropped supply cache — the loop is a dead end.** *(systems)*
+**Perceived:** the player drops a cache, tries to top it up with another truck, and gets no cursor and no order — nothing happens and nothing explains why. On the seven maps with no Logistics Centre, a truck is the *only* route by which ground supply returns, so the economy has a hole in it.
+`DropsSupplyCache.cs:705` requires the target to carry `AbsorbsSupplyCache`, which **only `logisticscenter` has**. This is the item already flagged urgent at `RELEASE_V1.md:52`. **Size:** hours.
+
+### SHOULD-FIX — noticed within the first few matches
+
+**R13. Garrison suppression is silently binary — the graduated "duck" response is computed and read by nothing.** *(systems)*
+**Perceived:** soldiers under moderate fire (suppression 30–59) keep firing at full rate, so suppression reads as an on/off switch rather than the graduated system it was built as. `GarrisonManager.cs:641` writes `ps.IsDucking`; a repo-wide grep finds **only writes, zero reads**. **Size:** small.
+
+**R14. Capturing a helicopter by pilot entry yields a burning wreck that explodes in ~12 seconds.** *(systems)*
+**Perceived:** the player pulls off the capture — a genuinely cool mechanic — and the prize is speed-zero, firepower-zero and on fire. The recovery gate at `HeliEmergencyLanding.cs:411-416` **can never be satisfied**, because the repair traits it depends on were deleted in the 260509 design reversal. Either the reward works or the mechanic should not be presented. **Size:** hours; needs a design call first.
+
+**R15. Vehicle commander substitution was never built.** *(systems)*
+**Perceived:** a tank that loses its commander is permanently degraded with no way to recover, and nothing tells the player that. Ejection and re-entry both work; there is no promotion path in `VehicleCrew.cs`. **Size:** unknown — this is a feature, not a fix.
+
+**R16. Cargo Phase 2D is sync-unsafe beyond R10, and Phase 3 was never built.** *(systems)*
+Tracked separately from R10 so the desync fix is not confused with the phase's remaining scope. **Size:** unknown.
+
+### POLISH
+
+**R9. The onboarding panel overstates Supply Route contestation.** *(chrome)*
+It says losing the Route "puts them out of the match"; the shipped mechanic makes a player **passive and reversible** (`SupplyRouteContestation.cs:354-373`). Verified accurate otherwise — its Supply Route claims check out against `structures.yaml:202-273`. **Size:** minutes.
+
+---
+
 ## QUEUE
 
 ---

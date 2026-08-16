@@ -1,0 +1,24 @@
+OpenRA engine version release-20230225
+ww3mod mod version release-20230225
+on map 1c66c7a320a34f012fd9c6829e3a7f237c03dc89 (TEST: Javelin 6.1 reversal sweep (measurement rig) by WW3MOD test harness).
+Date: 2026-08-14 14:36:31Z
+Operating System: Windows (X64, Microsoft Windows NT 10.0.26200.0)
+Runtime Version: .NET CLR 8.0.27
+Installed Language: en (Installed) en (Current) en (Current UI)
+Exception of type `System.InvalidOperationException`: Attempted to get trait from destroyed object (player 2 (not in world))
+   at OpenRA.TraitDictionary.CheckDestroyed(Actor actor) in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Game\TraitDictionary.cs:line 84
+   at OpenRA.TraitDictionary.WithInterface[T](Actor actor) in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Game\TraitDictionary.cs:line 101
+   at OpenRA.Mods.Common.Traits.Health.InflictDamage(Actor self, Actor attacker, Damage damage, Boolean ignoreModifiers) in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Mods.Common\Traits\Health.cs:line 217
+   at OpenRA.Actor.InflictDamage(Actor attacker, Damage damage) in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Game\Actor.cs:line 572
+   at OpenRA.Mods.Common.Traits.ChangesHealth.OpenRA.Traits.ITick.Tick(Actor self) in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Mods.Common\Traits\ChangesHealth.cs:line 86
+   at OpenRA.TraitDictionary.TraitContainer`1.ApplyToAllTimed(Action`2 action, String text) in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Game\TraitDictionary.cs:line 312
+   at OpenRA.TraitDictionary.ApplyToActorsWithTraitTimed[T](Action`2 action, String text) in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Game\TraitDictionary.cs:line 133
+   at OpenRA.World.ApplyToActorsWithTraitTimed[T](Action`2 action, String text) in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Game\World.cs:line 582
+   at OpenRA.World.Tick() in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Game\World.cs:line 502
+   at OpenRA.Game.InnerLogicTick(OrderManager orderManager) in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Game\Game.cs:line 808
+   at OpenRA.Game.LogicTick() in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Game\Game.cs:line 836
+   at OpenRA.Game.Loop() in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Game\Game.cs:line 1023
+   at OpenRA.Game.Run() in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Game\Game.cs:line 1081
+   at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Game\Game.cs:line 315
+   at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\worktrees\ww3mod\javelin-probe\engine\OpenRA.Launcher\Program.cs:line 32
+

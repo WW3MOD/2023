@@ -1,0 +1,31 @@
+OpenRA engine version release-20230225
+ww3mod mod version release-20230225
+Date: 2026-08-10 11:58:10Z
+Operating System: Windows (X64, Microsoft Windows NT 10.0.26200.0)
+Runtime Version: .NET CLR 8.0.27
+Installed Language: en (Installed) en (Current) en (Current UI)
+Exception of type `System.InvalidOperationException`: ObjectCreator: key `closeOnExit' not found
+   at OpenRA.ObjectCreator.CreateUsingArgs(ConstructorInfo ctor, Dictionary`2 args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\ObjectCreator.cs:line 149
+   at OpenRA.ObjectCreator.CreateObject[T](String className, Dictionary`2 args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\ObjectCreator.cs:line 118
+   at System.Linq.Enumerable.SelectArrayIterator`2.Fill(ReadOnlySpan`1 source, Span`1 destination, Func`2 func)
+   at System.Linq.Enumerable.SelectArrayIterator`2.ToArray()
+   at OpenRA.Widgets.Widget.PostInit(WidgetArgs args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Widgets\Widget.cs:line 318
+   at OpenRA.WidgetLoader.LoadWidget(WidgetArgs args, Widget parent, MiniYamlNode node) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Widgets\WidgetLoader.cs:line 75
+   at OpenRA.WidgetLoader.LoadWidget(WidgetArgs args, Widget parent, String w) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Widgets\WidgetLoader.cs:line 45
+   at OpenRA.Widgets.Ui.OpenWindow(String id, WidgetArgs args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Widgets\Widget.cs:line 69
+   at OpenRA.Game.OpenWindow(String widget, WidgetArgs args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 158
+   at OpenRA.Mods.Common.Widgets.Logic.MainMenuLogic.<>c__DisplayClass19_1.<.ctor>b__21() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Widgets\Logic\MainMenuLogic.cs:line 462
+   at OpenRA.Mods.Common.Widgets.ButtonWidget.<.ctor>b__43_8(MouseInput _) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Widgets\ButtonWidget.cs:line 96
+   at OpenRA.Mods.Common.Widgets.ButtonWidget.HandleMouseInput(MouseInput mi) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Widgets\ButtonWidget.cs:line 204
+   at OpenRA.Widgets.Widget.HandleMouseInputOuter(MouseInput mi) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Widgets\Widget.cs:line 445
+   at OpenRA.Sync.RunUnsynced[T](Boolean checkSyncHash, World world, Func`1 fn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Sync.cs:line 192
+   at OpenRA.DefaultInputHandler.OnMouseInput(MouseInput input) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Input\InputHandler.cs:line 68
+   at OpenRA.Platforms.Default.Sdl2Input.PumpInput(Sdl2PlatformWindow device, IInputHandler inputHandler, Nullable`1 lockedMousePosition) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Platforms.Default\Sdl2Input.cs:line 170
+   at OpenRA.Platforms.Default.Sdl2PlatformWindow.PumpInput(IInputHandler inputHandler) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Platforms.Default\Sdl2PlatformWindow.cs:line 535
+   at OpenRA.Renderer.EndFrame(IInputHandler inputHandler) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Renderer.cs:line 337
+   at OpenRA.Game.RenderTick() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 921
+   at OpenRA.Game.Loop() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 1049
+   at OpenRA.Game.Run() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 1081
+   at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 315
+   at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Launcher\Program.cs:line 32
+

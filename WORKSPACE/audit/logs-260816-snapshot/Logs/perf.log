@@ -1,0 +1,318 @@
+          SpriteFonts
+     2 ms |   Precache common|FreeSans.ttf 10px
+     1 ms |   Precache common|FreeSansBold.ttf 10px
+     1 ms |   Precache common|FreeSans.ttf 12px
+     1 ms |   Precache common|FreeSans.ttf 14px
+     1 ms |   Precache common|FreeSansBold.ttf 14px
+     1 ms |   Precache common|FreeSansBold.ttf 18px
+     1 ms |   Precache common|FreeSansBold.ttf 24px
+   121 ms --------------------------------------------------
+          LoadMaps
+   125 ms |   arena-tank-duel
+    70 ms |   nuclear-winter-ww3
+     2 ms |   polar-disorder-ww3
+   115 ms |   river-zeta-ww3
+     3 ms |   seventh-woods-ww3
+    89 ms |   shellmap-open-field
+     3 ms |   siberian-pass-ww3
+     4 ms |   twin-rivers-ww3
+   146 ms |   woodland-warfare-ww3
+     2 ms |   x-lake-ww3
+   111 ms |   demo-arty-turret-stowed
+   110 ms |   demo-danger-overlay
+   124 ms |   demo-experimental-capture-coordinator
+   122 ms |   demo-frontline-overlay
+   209 ms |   demo-heli-lanes
+   114 ms |   demo-heli-weapons
+   102 ms |   demo-ifv-brawl
+   103 ms |   demo-intel-overlay
+    96 ms |   demo-layered-defence
+    82 ms |   demo-sr-rally-modifiers
+    73 ms |   demo-tactical-positioning
+    91 ms |   demo-territory-overlay
+    79 ms |   demo-vehicle-turns
+    75 ms |   demo-wgm-suite
+    65 ms |   test-aa-autotarget-thru-trees
+    69 ms |   test-aa-breakoff-critical
+    86 ms |   test-aa-detection-fog
+    90 ms |   test-aa-overkill-cadence
+    72 ms |   test-aa-overkill-pump
+    80 ms |   test-aa-overkill-suppression
+    77 ms |   test-ambush-convoy
+    78 ms |   test-ambush-detection
+    68 ms |   test-ambush-enemy-stops
+    71 ms |   test-ambush-fast-convoy
+    61 ms |   test-artillery-turret
+    76 ms |   test-arty-force-attack-during-setup
+    61 ms |   test-arty-no-fire-at-critical
+    69 ms |   test-arty-turret-locked-while-moving
+    68 ms |   test-arty-turret-locked-while-turning
+    76 ms |   test-attackfollow-dry-breaks-off
+    73 ms |   test-attackmove-dry-breaks-off
+    61 ms |   test-attackmove-engages
+    61 ms |   test-attackmove-paladin
+    69 ms |   test-autotarget-preempt-air
+    73 ms |   test-balance-arty-1v1
+    74 ms |   test-balance-at-vs-abrams
+    85 ms |   test-balance-at-vs-t90
+    63 ms |   test-balance-heli-1v1
+    59 ms |   test-balance-ifv-1v1
+    87 ms |   test-balance-mbt-vs-2ifv
+    77 ms |   test-balance-rifle-mirror
+    72 ms |   test-balance-tank-1v1
+    72 ms |   test-balance-tank-mass
+    73 ms |   test-burn-arena
+    70 ms |   test-burn-compare
+    69 ms |   test-burn-demo
+    70 ms |   test-capture-rules
+    70 ms |   test-case01-forest-ambush
+    70 ms |   test-case01b-detect
+    65 ms |   test-cohesion-cover-bid
+    67 ms |   test-cohesion-cover-redirect
+    58 ms |   test-cohesion-extent-cap
+    62 ms |   test-cohesion-real-cluster
+   183 ms |   test-cohesion-river-zeta-actual
+    76 ms |   test-cohesion-slot-leash
+    74 ms |   test-combined-arms-rendezvous
+    74 ms |   test-counterbattery-radar-removed
+    77 ms |   test-crate-rearm
+    79 ms |   test-crate-targetable
+    74 ms |   test-crew-instakill
+    74 ms |   test-decisive-win-attribution
+    70 ms |   test-deploy-queued-after-waypoints
+    70 ms |   test-dry-inrange-idle-oscillation
+    66 ms |   test-dry-move-order-obeyed
+    63 ms |   test-dry-resupply-reaches-truck
+   104 ms |   test-edge-spawn-shadow
+    88 ms |   test-errand-ends-when-rearmed-en-route
+    88 ms |   test-evac-suite
+    77 ms |   test-experimental-poi-capture
+    74 ms |   test-experimental-poi-harness
+    58 ms |   test-experimental-poi-observe
+    77 ms |   test-ferry-fills-seats
+    72 ms |   test-field-crate-drop
+    72 ms |   test-field-heli-unload
+    69 ms |   test-field-swallows-shell
+   196 ms |   test-frontline-reachability
+   100 ms |   test-game-clock
+    73 ms |   test-heli-squad-forms
+    67 ms |   test-heli-standoff
+    73 ms |   test-heli-vs-heli-missile
+    75 ms |   test-infantry-seek-supplies
+    63 ms |   test-javelin-latch-control
+    77 ms |   test-javelin-loop-probe
+    74 ms |   test-javelin-reversal-sweep
+    76 ms |   test-javelin-stationary-tail
+    84 ms |   test-lc-errand-ends-when-rearmed-en-route
+    79 ms |   test-lc-rearm-partial-order
+    73 ms |   test-littlebird-strafe
+    59 ms |   test-loaded-move-stops-to-fire
+    67 ms |   test-medic-attends-ordered-ally
+    86 ms |   test-medic-follows-in-hunt
+    70 ms |   test-medic-ordered-heal-under-fire
+    76 ms |   test-medic-treats-wounded
+    77 ms |   test-medic-wedged-armament-gives-up
+    72 ms |   test-mi28-fires-ataka
+    68 ms |   test-missile-hellfire-probe
+    68 ms |   test-missile-hover-only
+    66 ms |   test-missile-latch-probe
+   109 ms |   test-missile-range-sweep
+    67 ms |   test-missile-user-reports
+    57 ms |   test-offense-ammo-guard
+    75 ms |   test-paladin-fires
+    67 ms |   test-parallel-queue-pause
+    73 ms |   test-partial-dry-move-order-obeyed
+    75 ms |   test-pathfinder-tree-pass
+    60 ms |   test-pips-zoom
+    84 ms |   test-production-bad-rally
+    73 ms |   test-queued-attackmove-survives-resupply
+    72 ms |   test-savegame-resume
+    86 ms |   test-savegame-resume-riverzeta
+    79 ms |   test-screenshot-smoke
+    73 ms |   test-select-by-type
+    75 ms |   test-spread-cargo-no-enter
+    93 ms |   test-spread-no-autotarget
+    65 ms |   test-spread-preserves-prefix
+    69 ms |   test-sr-attackmove-rally-engages
+    74 ms |   test-sr-evacuate-cursor
+    65 ms |   test-sr-rally-modifiers
+    80 ms |   test-stance-anchor-move
+    68 ms |   test-stance-optout
+    78 ms |   test-stance-positioning
+    92 ms |   test-stance-redirect-midadjust
+    79 ms |   test-supply-far-front-reached
+    78 ms |   test-supply-safe-front-keeps-cargo
+    83 ms |   test-supply-under-danger
+    78 ms |   test-tanktrap-diagonal
+    80 ms |   test-tecn-purpose
+    66 ms |   test-tecn-ride
+    74 ms |   test-truck-collects-cache
+    63 ms |   test-truck-dry-collects-crate
+    73 ms |   test-truck-dry-move-cancelled
+    70 ms |   test-truck-dry-restock-survives
+    73 ms |   test-truck-halts-to-serve
+    66 ms |   test-truck-holdposition-drives-past
+    73 ms |   test-truck-restock-survives-cancel
+    71 ms |   test-wgm-accuracy
+    71 ms |   test-wgm-accuracy-moving
+    60 ms |   test-wgm-deny-thru-5-trees
+    69 ms |   test-wgm-fires-clean
+    71 ms |   test-wgm-fires-thru-1-tree
+    78 ms |   test-wgm-no-fall-short
+    80 ms |   test-wgm-target-dies-midflight
+    83 ms |   test-wgm-tree-density-ladder
+    39 ms |   tournament-arena-composition-2p
+    33 ms |   tournament-arena-diagonal-2p
+    38 ms |   tournament-arena-mirror-2p
+    40 ms |   tournament-arena-skirmish-2p
+    38 ms |   tournament-capture-arena-2p
+    39 ms |   tournament-capture-arena-mirror-2p
+    41 ms |   tournament-experimental-vs-normal-2p
+    36 ms |   tournament-experimental-vs-normal-mirror-2p
+    36 ms |   tournament-parity-cross-usru
+    33 ms |   tournament-parity-cross-usru-swapped
+    30 ms |   tournament-parity-mirror-ru
+    33 ms |   tournament-parity-mirror-us
+   165 ms |   tournament-s1-eco-cal-nn
+   153 ms |   tournament-s1-eco-floor-vs-normal
+    38 ms |   tournament-s1-eco-polar-disorder
+    31 ms |   tournament-s1-eco-polar-disorder-cal-nn
+    66 ms |   tournament-s1-eco-polar-disorder-mirror
+   202 ms |   tournament-s1-eco-river-zeta
+   195 ms |   tournament-s1-eco-river-zeta-mirror
+   243 ms |   tournament-s1-eco-woodland-warfare
+   242 ms |   tournament-s1-eco-woodland-warfare-cal-nn
+   194 ms |   tournament-s1-eco-woodland-warfare-mirror
+    61 ms |   tournament-s2-combat-polar-disorder
+    72 ms |   tournament-s2-combat-polar-disorder-cal-nn
+    63 ms |   tournament-s2-combat-polar-disorder-mirror
+   200 ms |   tournament-s2-combat-river-zeta
+   190 ms |   tournament-s2-combat-river-zeta-cal-nn
+   197 ms |   tournament-s2-combat-river-zeta-mirror
+   216 ms |   tournament-s2-combat-woodland-warfare
+   239 ms |   tournament-s2-combat-woodland-warfare-cal-nn
+   224 ms |   tournament-s2-combat-woodland-warfare-mirror
+    88 ms |   wip-transport-delivers
+ 15298 ms --------------------------------------------------
+          StartGame
+          |   NewWorld
+          |   |   PrepareMap
+          |   |   |   Map
+    47 ms |   |   |   |   LoadSequences
+  1191 ms |   |   |   --------------------------------------
+    99 ms |   |   |   Map.Music
+  2817 ms |   |   ------------------------------------------
+  3474 ms |   ----------------------------------------------
+          |   LoadComplete
+     0 ms |   |   ScreenMap.WorldLoaded
+     0 ms |   |   MenuPaletteEffect.WorldLoaded
+     0 ms |   |   TerrainGeometryOverlay.WorldLoaded
+     6 ms |   |   TerrainRenderer.WorldLoaded
+    20 ms |   |   ShroudRenderer.WorldLoaded
+     1 ms |   |   BotVsBotMatchWatcher.WorldLoaded
+     0 ms |   |   UnitLifecycleLogger.WorldLoaded
+     0 ms |   |   TestModeSpeedMultiplier.WorldLoaded
+    13 ms |   |   UnitDefaultsManager.WorldLoaded
+     0 ms |   |   ThreatMapManager.WorldLoaded
+     0 ms |   |   InfluenceMap.WorldLoaded
+     0 ms |   |   FrontlineOverlay.WorldLoaded
+     0 ms |   |   PoiMap.WorldLoaded
+     0 ms |   |   SightingThreatLayer.WorldLoaded
+     6 ms |   |   TerrainAffordanceLayer.WorldLoaded
+     0 ms |   |   SightingIntelOverlay.WorldLoaded
+     7 ms |   |   UnitRoleResolver.WorldLoaded
+     0 ms |   |   BeliefStore.WorldLoaded
+     9 ms |   |   DangerFieldLayer.WorldLoaded
+     1 ms |   |   ControlField.WorldLoaded
+     0 ms |   |   CrossingMap.WorldLoaded
+     0 ms |   |   DangerOverlay.WorldLoaded
+     0 ms |   |   TerritoryOverlay.WorldLoaded
+     0 ms |   |   DevCommands.WorldLoaded
+     1 ms |   |   DebugVisualizationCommands.WorldLoaded
+     0 ms |   |   PlayerCommands.WorldLoaded
+     0 ms |   |   HelpCommand.WorldLoaded
+     0 ms |   |   ScreenShaker.WorldLoaded
+    19 ms |   |   LegacyBridgeLayer.WorldLoaded
+     0 ms |   |   CustomTerrainDebugOverlay.WorldLoaded
+     2 ms |   |   SmudgeLayer.WorldLoaded
+     1 ms |   |   SmudgeLayer.WorldLoaded
+  1238 ms |   |   SpawnMapActors.WorldLoaded
+    37 ms |   |   LoadWidgetAtGameStart.WorldLoaded
+     0 ms |   |   CellTriggerOverlay.WorldLoaded
+     0 ms |   |   TimeLimitManager.WorldLoaded
+     9 ms |   |   Locomotor.WorldLoaded
+    11 ms |   |   Locomotor.WorldLoaded
+     7 ms |   |   Locomotor.WorldLoaded
+     7 ms |   |   Locomotor.WorldLoaded
+    11 ms |   |   Locomotor.WorldLoaded
+     6 ms |   |   Locomotor.WorldLoaded
+     6 ms |   |   Locomotor.WorldLoaded
+     7 ms |   |   Locomotor.WorldLoaded
+     6 ms |   |   Locomotor.WorldLoaded
+     7 ms |   |   Locomotor.WorldLoaded
+     9 ms |   |   Locomotor.WorldLoaded
+    20 ms |   |   Locomotor.WorldLoaded
+     7 ms |   |   Locomotor.WorldLoaded
+     6 ms |   |   Locomotor.WorldLoaded
+     9 ms |   |   Locomotor.WorldLoaded
+     7 ms |   |   Locomotor.WorldLoaded
+     9 ms |   |   Locomotor.WorldLoaded
+     8 ms |   |   Locomotor.WorldLoaded
+     8 ms |   |   Locomotor.WorldLoaded
+   151 ms |   |   LuaScript.WorldLoaded
+   580 ms |   |   PathFinder.WorldLoaded
+     0 ms |   |   PathFinderOverlay.WorldLoaded
+     0 ms |   |   HierarchicalPathFinderOverlay.WorldLoaded
+     0 ms |   |   MissionObjectives.WorldLoaded
+     0 ms |   |   PlayerStatistics.WorldLoaded
+     0 ms |   |   GameSaveViewportManager.WorldLoaded
+     0 ms |   |   PlayerMiniMapTerrain.WorldLoaded
+     0 ms |   |   MissionObjectives.WorldLoaded
+     0 ms |   |   PlayerStatistics.WorldLoaded
+     0 ms |   |   GameSaveViewportManager.WorldLoaded
+     0 ms |   |   PlayerMiniMapTerrain.WorldLoaded
+     0 ms |   |   MissionObjectives.WorldLoaded
+     0 ms |   |   PlayerStatistics.WorldLoaded
+     0 ms |   |   GameSaveViewportManager.WorldLoaded
+     0 ms |   |   PlayerMiniMapTerrain.WorldLoaded
+     0 ms |   |   MissionObjectives.WorldLoaded
+     0 ms |   |   PlayerStatistics.WorldLoaded
+     0 ms |   |   GameSaveViewportManager.WorldLoaded
+     0 ms |   |   PlayerMiniMapTerrain.WorldLoaded
+     0 ms |   |   MissionObjectives.WorldLoaded
+     0 ms |   |   PlayerStatistics.WorldLoaded
+     0 ms |   |   PlayerMiniMapTerrain.WorldLoaded
+     0 ms |   |   MissionObjectives.WorldLoaded
+     0 ms |   |   PlayerStatistics.WorldLoaded
+     0 ms |   |   PlayerMiniMapTerrain.WorldLoaded
+     0 ms |   |   MissionObjectives.WorldLoaded
+     0 ms |   |   PlayerStatistics.WorldLoaded
+     0 ms |   |   GameSaveViewportManager.WorldLoaded
+     0 ms |   |   PlayerMiniMapTerrain.WorldLoaded
+     0 ms |   |   MissionObjectives.WorldLoaded
+     0 ms |   |   PlayerStatistics.WorldLoaded
+     0 ms |   |   GameSaveViewportManager.WorldLoaded
+     0 ms |   |   PlayerMiniMapTerrain.WorldLoaded
+     0 ms |   |   MissionObjectives.WorldLoaded
+     0 ms |   |   PlayerStatistics.WorldLoaded
+     0 ms |   |   GameSaveViewportManager.WorldLoaded
+     0 ms |   |   PlayerMiniMapTerrain.WorldLoaded
+     0 ms |   |   MissionObjectives.WorldLoaded
+     0 ms |   |   PlayerStatistics.WorldLoaded
+     0 ms |   |   PlayerMiniMapTerrain.WorldLoaded
+     0 ms |   |   MissionObjectives.WorldLoaded
+     0 ms |   |   PlayerStatistics.WorldLoaded
+     0 ms |   |   PlayerMiniMapTerrain.WorldLoaded
+  2256 ms |   ----------------------------------------------
+     5 ms |   MusicPlaylist.PostWorldLoaded
+  6033 ms --------------------------------------------------
+          StartGame
+          |   NewWorld
+          |   |   PrepareMap
+          |   |   |   Map
+    33 ms |   |   |   |   LoadSequences
+  6239 ms |   |   |   --------------------------------------
+    58 ms |   |   |   Map.Music
+  6765 ms |   |   ------------------------------------------
+  6814 ms |   ----------------------------------------------
+  7080 ms --------------------------------------------------

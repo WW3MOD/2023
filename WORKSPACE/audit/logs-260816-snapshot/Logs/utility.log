@@ -1,0 +1,11 @@
+Received args: --resize-map tools/autotest/scenarios/demo-heli-lanes 100 60
+Could not find a part of the path 'C:\Users\fredr\worktrees\ww3mod\heli-gun\engine\tools\autotest\scenarios\demo-heli-lanes'.
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.CreateFile(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options)
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.OSFileStreamStrategy..ctor(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.FileStreamHelpers.ChooseStrategyCore(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.File.OpenRead(String path)
+   at OpenRA.FileSystem.ZipFileLoader.TryParseReadWritePackage(String filename, IReadWritePackage& package) in C:\Users\fredr\worktrees\ww3mod\heli-gun\engine\OpenRA.Game\FileSystem\ZipFile.cs:line 226
+   at OpenRA.FileSystem.Folder.OpenPackage(String filename, FileSystem context) in C:\Users\fredr\worktrees\ww3mod\heli-gun\engine\OpenRA.Game\FileSystem\Folder.cs:line 65
+   at OpenRA.Mods.Common.UtilityCommands.ResizeMapCommand.OpenRA.IUtilityCommand.Run(Utility utility, String[] args) in C:\Users\fredr\worktrees\ww3mod\heli-gun\engine\OpenRA.Mods.Common\UtilityCommands\ResizeMapCommand.cs:line 52
+   at OpenRA.Program.Run(String[] args) in C:\Users\fredr\worktrees\ww3mod\heli-gun\engine\OpenRA.Utility\Program.cs:line 125
