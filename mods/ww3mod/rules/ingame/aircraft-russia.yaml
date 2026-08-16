@@ -98,12 +98,6 @@ HIND:
 		SlotConditions:
 			Pilot: has-pilot
 			Gunner: has-gunner
-		# Marks that the seat EXISTS, for the actor's whole life. Paired with
-		# !has-gunner by FirepowerMultiplier@NoGunner (aircraft.yaml) so the
-		# zero-firepower penalty fires for a LOST gunner and not for an actor
-		# that never had one. See the PITFALL there.
-		SlotPresentConditions:
-			Gunner: has-gunner-seat
 	AIHelicopterRole:
 		Role: AttackHeavy
 		EngagementRange: 6
@@ -292,12 +286,6 @@ MI28:
 		SlotConditions:
 			Pilot: has-pilot
 			Gunner: has-gunner
-		# Marks that the seat EXISTS, for the actor's whole life. Paired with
-		# !has-gunner by FirepowerMultiplier@NoGunner (aircraft.yaml) so the
-		# zero-firepower penalty fires for a LOST gunner and not for an actor
-		# that never had one. See the PITFALL there.
-		SlotPresentConditions:
-			Gunner: has-gunner-seat
 	AIHelicopterRole:
 		Role: AttackHeavy
 		EngagementRange: 7

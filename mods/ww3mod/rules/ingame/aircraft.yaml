@@ -275,25 +275,14 @@
 	FirepowerMultiplier@CrashDisabled:
 		Modifier: 0
 		RequiresCondition: crash-disabled
-	# PITFALL: `!has-gunner` on its own ALSO matches an actor that never had a
-	# gunner's seat, because VehicleCrew grants a slot condition only for a slot
-	# the actor DECLARES (VehicleCrew.cs:147-167). That made this modifier read as
-	# "gunner lost" from Created and pinned EVERY weapon on such an actor to zero
-	# damage for life — invisibly, because a 0 firepower modifier still draws
-	# tracers, muzzle flash, impact effects and sound. Measured 260815: it cost
-	# the littlebird, the one armed helicopter without a Gunner seat, its entire
-	# damage output, guns and Hellfires alike, since this actor first shipped.
-	# `has-gunner-seat` is granted once for the actor's lifetime, and only by
-	# actors that declare a Gunner slot, so the gate now means what it says:
-	# "there is a gunner's seat and it is empty".
-	#
-	# Scope note: these crew FirepowerMultipliers live on ^Helicopter, NOT on
-	# ^Airborne. Fixed-wing (A10/F16/MIG/FROG) inherit ^Aircraft -> ^Airborne and
-	# carry only the four veterancy multipliers — measured, 4 entries not 7. A
-	# sweep that keys on ^Airborne will wrongly flag every plane in the game.
-	FirepowerMultiplier@NoGunner:
-		Modifier: 0
-		RequiresCondition: has-gunner-seat && !has-gunner
+	# FirepowerMultiplier@NoGunner removed 260816: a helicopter that loses its
+	# gunner is already burning and doomed, and crew never re-board, so there was
+	# nothing left for the gate to decide. It was also unreachable — ^Helicopter
+	# sets EjectionDamageState to Dead, and HeliEmergencyLanding suppresses
+	# ejection during autorotation/crash-landing, so has-gunner was never revoked
+	# on a live heli. @EmergencyDescent below already zeroes firepower in exactly
+	# those states. Its only observed effect in the shipped game was zeroing the
+	# littlebird, which declares no Gunner slot.
 	FirepowerMultiplier@EmergencyDescent:
 		Modifier: 0
 		RequiresCondition: autorotation || crash-landing

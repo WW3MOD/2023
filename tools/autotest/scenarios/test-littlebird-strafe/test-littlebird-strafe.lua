@@ -76,8 +76,9 @@ WorldLoaded = function()
 	TestHarness.Select(A.shooter)
 
 	-- Lane C: drive the Apache under EjectionDamageState (Heavy, HP <50% of 800)
-	-- so VehicleCrew ejects its crew and revokes has-gunner. has-gunner-seat is
-	-- granted for life, so @NoGunner must now engage and pin its firepower to 0.
+	-- so VehicleCrew ejects its crew and revokes has-gunner. @NoGunner was deleted
+	-- 260816 (crew never re-board, so the gate had nothing left to decide), so this
+	-- lane now exercises only the emergency-descent path. It still asserts nothing.
 	Trigger.AfterDelay(math.floor(0.5 * TicksPerSecond), function()
 		if not C.shooter.IsDead then
 			C.shooter.Health = 300
