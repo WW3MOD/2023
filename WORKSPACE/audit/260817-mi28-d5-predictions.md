@@ -194,3 +194,40 @@ A 0-byte `lua.log` is likewise not a failure signal on its own: this passing run
 scenario prints nothing and `CombatProperties.Attack` logs only when `Target.IsValidFor` fails, which it
 does not here since the order is delayed one tick. **Read the run directory first; use `lua.log` only
 once you know it is yours.**
+
+### Re-checked under the concurrent-truncation hazard — and it happened to these very artefacts
+
+Raised 2026-08-17: `debug.log` is a single global path and a concurrent launch **truncates** it, so an
+empty grep reads as "the event never happened" rather than "the file was erased". Re-verifying this
+run's evidence by mtime rather than assuming:
+
+| artefact | mtime | size | verdict |
+|---|---|--:|---|
+| `…/260817_012116_p26456_test-mi28-engages-air/result.json` | 01:21:44 | 186 B | **mine** — per-run path, pid in the name, mtime equals the timestamp inside the JSON |
+| `Logs/lua.log` (secured copy) | 01:21:42 | 0 B | **mine** — inside my run window (launch ~01:21:16, verdict 01:21:44) and untouched since |
+| `Logs/debug.log` (secured copy) | 01:21:44 | 2887 B | **mine** — and it opens with mod-load lines naming `worktrees/ww3mod/heli-assert/engine/…` |
+
+**The truncation then demonstrably occurred.** A second worker launched
+`wip-transport-delivers` at **01:24:46**. Checked immediately afterwards, the **live** `debug.log` read
+**1807 B @ 01:24:52** — my run's 2887-byte log no longer exists on disk. It survives only because it had
+been copied out minutes earlier. Had it been analysed in place, it would have been another worker's run.
+
+**Consequences for the taxonomy, which now fails in BOTH directions under contention:**
+
+- *Empty* is only evidence if the file is provably yours — the hazard as raised.
+- *Populated* is only evidence if the file is provably yours — which the `HARNESS-ERROR` attempt above
+  had already proved, with 2422 bytes of someone else's transport test sitting in `lua.log` while my
+  game had not started.
+- Unifying rule: **the global `Logs/` directory carries no run identity in either direction; only the
+  per-run directory does.** Take the verdict from the per-run `result.json`, always.
+
+**Cheapest positive fingerprint, specific to this project:** workers run from *different worktrees*, and
+the engine's mod-load failure lines at the top of `debug.log` name the absolute engine path — here
+`/Users/fredrik/worktrees/ww3mod/heli-assert/engine/…`. That is a free per-run signature no other
+worker's log can carry. **Content attribution beats mtime attribution**, because mtime is circumstantial
+while a worktree path is direct. Copy first, then attribute by path, then fall back to mtime.
+
+**Nothing above needed retracting.** The PASS rests on a per-run `result.json`, and the two earlier
+negatives rested on positive statements from the runner (`Required engine files not found`;
+`run: (not started)`) plus filesystem facts (`engine/bin` missing; no run directory created) rather than
+on an empty log.
