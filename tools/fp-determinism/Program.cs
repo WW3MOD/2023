@@ -230,7 +230,147 @@ namespace FpDeterminism
 			Console.WriteLine($"sweep cases: {Sweeps}");
 			Console.WriteLine($"intent histogram: Open={intents[0]} SpreadInside={intents[1]} EdgeLine={intents[2]} Approach={intents[3]}");
 			Console.WriteLine($"SWEEP DIGEST: {digest:X16}");
+			Console.WriteLine();
+
+			LayoutProbe(args);
 			return 0;
+		}
+
+		/// <summary>
+		/// Second probe: CohesionLayoutMath — the kernels that emit the actual destination CELLS.
+		/// Nearer the observed symptom (a differing Mobile.ToCell) than the classifier is, because
+		/// these are what a cell coordinate is finally rounded out of.
+		/// </summary>
+		static void LayoutProbe(string[] args)
+		{
+			var perturb = -1;
+			for (var i = 0; i < args.Length; i++)
+				if (args[i] == "--perturb-layout" && i + 1 < args.Length)
+					perturb = int.Parse(args[i + 1], CultureInfo.InvariantCulture);
+
+			Console.WriteLine("=== LAYOUT KERNELS ===");
+			Console.WriteLine($"perturbLayout: {perturb}");
+
+			// Detail cases, raw bits of every intermediate double.
+			for (var n = 1; n <= 6; n++)
+				Console.WriteLine($"  boxColumns n={n} -> {CohesionLayoutMath.BoxColumns(n)}");
+
+			foreach (var (ax, ay) in new[] { (4, 0), (0, 4), (3, 3), (-4, 1), (1, -4), (2, -3) })
+			{
+				var f = CohesionLayoutMath.TreelineForward(ax, ay);
+				Console.WriteLine($"  treelineForward({ax},{ay}) fx={Bits(f.ForwardX)} fy={Bits(f.ForwardY)} len={Bits(f.AlongLen)}");
+			}
+
+			foreach (var (gx, gy, pct) in new[] { (3, 0, 100), (2, 2, 100), (5, -3, 75), (-1, 4, 120), (7, 7, 50) })
+			{
+				var e = CohesionLayoutMath.EdgeAnchorOffset(gx, gy, pct);
+				Console.WriteLine($"  edgeAnchor({gx},{gy},{pct}) dx={e.AnchorDx} dy={e.AnchorDy} ux={Bits(e.UnitX)} uy={Bits(e.UnitY)} len={Bits(e.GradLen)} adv={Bits(e.Advance)}");
+			}
+
+			foreach (var (fx, fy, i2, n2, sp) in new[] { (1.0, 0.0, 3, 8, 1024), (0.0, 1.0, 0, 5, 1536), (0.7071067811865476, 0.7071067811865476, 4, 9, 2048) })
+			{
+				var o = CohesionLayoutMath.LineSlotOffset(fx, fy, i2, n2, sp);
+				Console.WriteLine($"  lineSlot(f=({fx},{fy}),i={i2},n={n2},sp={sp}) dx={o.Dx} dy={o.Dy} t={Bits(o.T)}");
+			}
+
+			foreach (var (dx, dy) in new[] { (10, 0), (7, 7), (-13, 5), (1, 1) })
+			{
+				var w = CohesionLayoutMath.ApproachWalk(dx, dy);
+				Console.WriteLine($"  approachWalk({dx},{dy}) dist={Bits(w.DistCells)} steps={w.MaxSteps} ux={Bits(w.UnitX)} uy={Bits(w.UnitY)}");
+			}
+
+			Console.WriteLine();
+
+			// Boundary hunt: (int)Math.Round flips when the product lands on a half-integer. Those
+			// are the inputs where a one-ULP disagreement becomes a different CELL, which is the
+			// whole failure mode. Report how close each candidate gets.
+			var nearHalf = 0;
+			for (var gx = -8; gx <= 8; gx++)
+			{
+				for (var gy = -8; gy <= 8; gy++)
+				{
+					if (gx == 0 && gy == 0)
+						continue;
+
+					for (var pct = 25; pct <= 200; pct += 25)
+					{
+						var e = CohesionLayoutMath.EdgeAnchorOffset(gx, gy, pct);
+						var px = e.UnitX * e.Advance;
+						var py = e.UnitY * e.Advance;
+						var fx2 = Math.Abs(px - Math.Floor(px) - 0.5);
+						var fy2 = Math.Abs(py - Math.Floor(py) - 0.5);
+						if (fx2 < 1e-9 || fy2 < 1e-9)
+						{
+							nearHalf++;
+							Console.WriteLine($"  HALF-INT edgeAnchor({gx},{gy},{pct}) px={Bits(px)} py={Bits(py)} -> dx={e.AnchorDx} dy={e.AnchorDy}");
+						}
+					}
+				}
+			}
+
+			Console.WriteLine($"  half-integer boundary hits: {nearHalf}");
+
+			// Randomised sweep over every kernel, folded into one digest.
+			var rng = new Rng(0x5EEDF00DBAADF00DUL);
+			ulong d2 = 1469598103934665603UL;
+			void Fold2(ulong v) { d2 ^= v; d2 *= 1099511628211UL; }
+
+			const int LayoutSweeps = 200000;
+			for (var k = 0; k < LayoutSweeps; k++)
+			{
+				var gx = rng.Next(33) - 16;
+				var gy = rng.Next(33) - 16;
+				var pct = 10 + rng.Next(200);
+				var n2 = 1 + rng.Next(40);
+				var i2 = rng.Next(n2);
+				var sp = 256 + rng.Next(4096);
+
+				Fold2((ulong)CohesionLayoutMath.BoxColumns(n2));
+
+				var f = CohesionLayoutMath.TreelineForward(gx == 0 && gy == 0 ? 1 : gx, gy);
+				Fold2((ulong)BitConverter.DoubleToInt64Bits(f.ForwardX));
+				Fold2((ulong)BitConverter.DoubleToInt64Bits(f.ForwardY));
+				Fold2((ulong)BitConverter.DoubleToInt64Bits(f.AlongLen));
+
+				if (gx != 0 || gy != 0)
+				{
+					var e = CohesionLayoutMath.EdgeAnchorOffset(gx, gy, pct);
+					Fold2((ulong)e.AnchorDx);
+					Fold2((ulong)e.AnchorDy);
+					Fold2((ulong)BitConverter.DoubleToInt64Bits(k == perturb ? Math.BitIncrement(e.UnitX) : e.UnitX));
+					Fold2((ulong)BitConverter.DoubleToInt64Bits(e.UnitY));
+					Fold2((ulong)BitConverter.DoubleToInt64Bits(e.GradLen));
+					Fold2((ulong)BitConverter.DoubleToInt64Bits(e.Advance));
+
+					var w = CohesionLayoutMath.ApproachWalk(gx, gy);
+					Fold2((ulong)w.MaxSteps);
+					Fold2((ulong)BitConverter.DoubleToInt64Bits(w.DistCells));
+					Fold2((ulong)BitConverter.DoubleToInt64Bits(w.UnitX));
+					Fold2((ulong)BitConverter.DoubleToInt64Bits(w.UnitY));
+
+					for (var step = 0; step <= 3; step++)
+					{
+						var a = CohesionLayoutMath.ApproachStepOffset(w.UnitX, w.UnitY, step);
+						Fold2((ulong)a.Dx);
+						Fold2((ulong)a.Dy);
+						var nu = CohesionLayoutMath.NudgeOffset(f.ForwardX, f.ForwardY, step);
+						Fold2((ulong)nu.Dx);
+						Fold2((ulong)nu.Dy);
+					}
+				}
+
+				var o = CohesionLayoutMath.LineSlotOffset(f.ForwardX, f.ForwardY, i2, n2, sp);
+				Fold2((ulong)o.Dx);
+				Fold2((ulong)o.Dy);
+				Fold2((ulong)BitConverter.DoubleToInt64Bits(o.T));
+
+				var ol = CohesionLayoutMath.OpenLineOffset(i2, n2, sp);
+				Fold2((ulong)ol.Dx);
+				Fold2((ulong)BitConverter.DoubleToInt64Bits(ol.T));
+			}
+
+			Console.WriteLine($"  layout sweep cases: {LayoutSweeps}");
+			Console.WriteLine($"LAYOUT DIGEST: {d2:X16}");
 		}
 	}
 }

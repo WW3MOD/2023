@@ -3,6 +3,37 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-16 — A NULL RESULT IS NOT EVIDENCE UNTIL THE INSTRUMENT HAS BEEN SHOWN CAPABLE OF A NON-NULL ONE
+
+Earned twice in one day, by two different workers, from the same root cause. Read this before you
+report "no difference", "no change", "nothing found" or a passing comparison.
+
+**The rule.** Before believing a negative, make the instrument produce a POSITIVE on demand. Inject the
+exact difference you are hunting and confirm the instrument reports it. If you cannot make it go red,
+you have not measured anything — you have only failed to observe, and those are not the same result.
+
+**Case 1 (determinism harness).** A cross-runtime probe compared a 200,000-case digest on .NET 8 vs 10
+and reported IDENTICAL. It also reported IDENTICAL when deliberately perturbed by one ULP — i.e. the
+self-test that was supposed to validate it *also* silently passed. Only printing `argv` revealed why.
+
+**Case 2 (packaging).** A copy-loop simulation "succeeded" while actually producing a directory literally
+named `ra .`; only the bash re-run was valid.
+
+**The shared root cause: `zsh` does NOT word-split an unquoted `$var`.**
+
+```zsh
+for p in "--perturb 0"; do prog $p; done   # passes ONE argument: "--perturb 0"
+```
+
+bash splits this into two arguments; zsh passes one glued string, so the flag never parses and the
+feature under test never activates. Both failures above are this. **Mitigations:** have the program echo
+`argc`/`argv` and read it; or use an explicit array (`args=(--perturb 0); prog $args`); or `${=p}` to
+force splitting; or write the arguments literally rather than through a loop variable.
+
+**Second-order lesson: suspect your invocation before your toolchain.** On case 1 the worker theorised a
+stale binary and burned two clean rebuilds on it. The build was always fine. When a flag appears to have
+no effect, prove the flag ARRIVED before blaming compilation, caching or the runtime.
+
 ## 2026-08-16 — BREADTH: the saved-game fix holds across FOUR seeds, but the human-vs-bot configuration is STILL untested — and that is the configuration players actually use
 
 Follow-up to the GREEN entry below. Four runs granted, serialised.

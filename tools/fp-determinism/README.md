@@ -49,9 +49,28 @@ so this is visible — check it.
 sweep digest (`868A37ABE86A82CD`). Sensitivity verified: perturbing case 0, 87421 or 199999 by one ULP
 each changed the digest.
 
-**Scope — what this does NOT clear.** Only the *classifier* was tested. The slot-layout functions that
-actually emit destination cells still use doubles and were not covered, because they need a `Map`:
-`ComputeBoxSlots` (`(int)Math.Ceiling(Math.Sqrt(n * 2.0))`), `LayCoverAwareLine` (`double forwardX/Y`),
-the `alongLen`/`gradLen`/`distCells` square roots, and `NudgeToPassable`. Those are nearer the observed
-symptom (a differing `ToCell`) than the classifier is. Platform caveat: this ran on macOS x64 while the
-players were on Windows x64 — same ISA family, different OS and JIT host.
+## Result 2, 2026-08-16 — the layout kernels (`CohesionLayoutMath`)
+
+The functions that emit the actual destination **cells** — nearer the observed symptom (a differing
+`Mobile.ToCell`) than the classifier is: `BoxColumns`, `TreelineForward`, `EdgeAnchorOffset`,
+`LineSlotOffset`, `OpenLineOffset`, `ApproachWalk`, `ApproachStepOffset`, `NudgeOffset`.
+
+`.NET 8.0.30` vs `.NET 10.0.11`: **byte-identical**. Detail cases with raw bits of every intermediate,
+**896 half-integer boundary hits** — inputs where `(int)Math.Round` sits exactly on its flip point, so a
+one-ULP disagreement there *would* become a different cell — and a 200,000-case sweep digest
+`679639AA9896FA55`. Sensitivity verified: one ULP on `UnitX` of case 0, 123456 or 199999 each moved it.
+
+Together the two results cover **the entire floating-point surface of `CohesionMoveModifier`**:
+`grep -E "Math\.(Sqrt|Ceiling)|/ 1024\.0|Math\.Round"` on that file now returns nothing, because it all
+lives in `CohesionIntentMath` and `CohesionLayoutMath`.
+
+## What this still does NOT prove
+
+Platform: this ran on macOS x64 while the players were on Windows x64 — same ISA family, different OS
+and JIT host. Evidence, not proof, about their machines.
+
+And a null result here does not make the code safe. 896 inputs sit exactly on a rounding boundary; on
+those, the correct behaviour depends on two machines agreeing to the last bit of a `double`. They agree
+today, on these two runtimes, on this hardware. That is luck holding, not a guarantee — which is why
+this math wants replacing with fixed-point regardless. `Exts.ISqrt` (Floor/Nearest/Ceiling, int through
+ulong) is the substrate, and `WVec.Length` already uses it.
