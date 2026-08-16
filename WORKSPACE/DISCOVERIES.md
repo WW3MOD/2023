@@ -3,6 +3,37 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — A WORKER'S `make test` RED IS USUALLY ITS OWN STALE BASE. CHECK `git merge-base --is-ancestor` BEFORE ANYONE SPENDS TIME ON IT
+
+Hit **twice in one hour** by two unrelated workers, and in both cases the worker correctly declined to chase it
+but could not prove it was not theirs — which cost report space and left the manager holding an unresolved
+caveat.
+
+Both branches forked before `67888986` (re-cordon the nine shipped maps). Each ran `make test`, saw ~95–96
+`This map does not define a valid cordon` errors, and reasoned from a **manager decision doc** stating that
+`make test` "has been red on `main` since the bounds expansion". That statement was true when written and is
+now false: on current `main` the shipped maps emit **zero** cordon errors and only the 61 scenario maps remain
+red.
+
+**The check is one command and it is definitive:**
+
+```
+git merge-base --is-ancestor <fixing-commit> <branch>   # false ⇒ the branch predates the fix
+```
+
+Neither worker could run it usefully, because knowing to look for `67888986` requires knowing what landed on
+`main` after the fork — which is manager knowledge, not worker knowledge. So the rule is asymmetric:
+
+- **Worker**: state the red, state your diff touches none of it, and stop. Do NOT spend a run or a worktree
+  proving a baseline. Do NOT cite a dated status doc as evidence about *current* `main` — status docs go stale
+  by construction, and both of these were quoting one that had been overtaken.
+- **Manager**: when a worker reports a suite red it says isn't its own, resolve it with `merge-base` before
+  the next dispatch, and tell the worker the answer. It is free from the manager's seat.
+
+The general form is broader than `make test`: **any baseline claim a worker inherits is a claim about the
+branch point, not about `main`.** The same shape produced a stale-`[IN FLIGHT]`-tag misdispatch on 2026-08-16,
+where work that had shipped two days earlier was briefed as open.
+
 ## 2026-08-17 — `Class=Unknown` DOES NOT HIDE A MAP FOLDER FROM THE LINTER: `HasFlag(0)` IS ALWAYS TRUE
 
 Found while re-cordoning the nine shipped maps. `mods/ww3mod/mod.yaml:105` registers
