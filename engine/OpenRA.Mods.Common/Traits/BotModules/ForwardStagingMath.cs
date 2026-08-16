@@ -159,6 +159,45 @@ namespace OpenRA.Mods.Common.Traits
 			return (cx, cy);
 		}
 
+		/// <summary>
+		/// Resolve one eval's forward staging anchor as a MAP cell, or report that the descent never left the
+		/// Supply Route's grid cell.
+		///
+		/// This owns the whole coordinate handoff — map in, grid descent, map out — because splitting it across
+		/// the caller is exactly what produced the bug it exists to prevent. The caller supplies the samplers and
+		/// keeps its hysteresis; every decision about WHEN there is no anchor lives here, under NUnit.
+		///
+		/// Returns false when the descent stalled at its seed: a flat/unpopulated field (no believed enemy
+		/// anywhere) or a front already inside the standoff. The caller must then publish NO anchor, so the
+		/// reserve idles at the SR exactly as the legacy path did.
+		/// </summary>
+		public static bool TryResolveAnchorCell(
+			int cellSize, int srMapX, int srMapY,
+			int standoffCells, int dangerSafeThreshold, int maxSteps,
+			Func<int, int, int> frontierAt, Func<int, int, int> dangerAt, Func<int, int, bool> onGrid,
+			out int anchorMapX, out int anchorMapY)
+		{
+			var sgx = InfluenceGridMath.MapToGrid(cellSize, srMapX);
+			var sgy = InfluenceGridMath.MapToGrid(cellSize, srMapY);
+
+			var (agx, agy) = StagingCell(sgx, sgy, standoffCells, dangerSafeThreshold, maxSteps,
+				frontierAt, dangerAt, onGrid);
+
+			anchorMapX = 0;
+			anchorMapY = 0;
+
+			// COMPARED IN GRID SPACE — the space the descent actually ran in, and the whole point of this
+			// method. The obvious-looking alternative (convert to map cells, compare against the SR) is the
+			// shipped bug: GridToMapCentre returns the block CENTRE, so a zero-step descent compares unequal
+			// to its own seed unless the SR sits on that centre — at CellSize 2, one placement in four.
+			if (agx == sgx && agy == sgy)
+				return false;
+
+			anchorMapX = InfluenceGridMath.GridToMapCentre(cellSize, agx);
+			anchorMapY = InfluenceGridMath.GridToMapCentre(cellSize, agy);
+			return true;
+		}
+
 		/// <summary>The spread cell for a staged unit's <paramref name="index"/> (its <see cref="StableSlot"/>)
 		/// around the anchor (<paramref name="anchorX"/>,<paramref name="anchorY"/>) in MAP cells. Index 0 sits on
 		/// the anchor; each subsequent index takes the next octant on the current ring, incrementing the ring every

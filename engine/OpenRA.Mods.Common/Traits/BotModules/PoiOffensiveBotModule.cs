@@ -2119,22 +2119,24 @@ namespace OpenRA.Mods.Common.Traits
 				return null;
 			}
 
-			var (sgx, sgy) = controlField.MapCellToGridCell(rallyCell.Value);
-			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
-				Info.StagingStandoffCells, GroundDangerLevel(Info.StagingDangerSafeUnits), Info.StagingMaxDescentSteps,
-				(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
-				(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
-				(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight);
-
-			var candidate = controlField.GridCellToMapCell(agx, agy);
-
-			// Descent stayed at the SR ⇒ no forward gradient (field unpopulated, or the front is on top of us):
-			// no staging this eval, reset the hysteresis memory so a later populated field re-adopts cleanly.
-			if (candidate == rallyCell.Value)
+			// Descent stayed at the SR's GRID cell ⇒ no forward gradient (field unpopulated, or the front is on
+			// top of us): no staging this eval, reset the hysteresis memory so a later populated field re-adopts
+			// cleanly. The stall test lives inside TryResolveAnchorCell because it MUST be made in grid space —
+			// this method used to convert first and compare map cells, which silently inverted the test for 3 of
+			// 4 Supply Route placements (see InfluenceGridMath, and ForwardStagingMathTest).
+			if (!ForwardStagingMath.TryResolveAnchorCell(
+					controlField.Info.CellSize, rallyCell.Value.X, rallyCell.Value.Y,
+					Info.StagingStandoffCells, GroundDangerLevel(Info.StagingDangerSafeUnits), Info.StagingMaxDescentSteps,
+					(gx, gy) => controlField.FrontierDistanceAt(player, gx, gy),
+					(gx, gy) => dangerField != null ? dangerField.GroundDanger(player, controlField.GridCellToMapCell(gx, gy)) : 0,
+					(gx, gy) => gx >= 0 && gx < controlField.GridWidth && gy >= 0 && gy < controlField.GridHeight,
+					out var anchorX, out var anchorY))
 			{
 				lastStagingAnchor = null;
 				return null;
 			}
+
+			var candidate = new CPos(anchorX, anchorY);
 
 			// Hysteresis: keep the previously-adopted anchor unless the new one advanced past the threshold.
 			if (lastStagingAnchor.HasValue

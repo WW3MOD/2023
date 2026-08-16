@@ -125,15 +125,21 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Grid cell containing the given map cell.</summary>
 		public (int X, int Y) MapCellToGridCell(CPos mapCell)
 		{
-			var gx = mapCell.X / Info.CellSize;
-			var gy = mapCell.Y / Info.CellSize;
+			var gx = InfluenceGridMath.MapToGrid(Info.CellSize, mapCell.X);
+			var gy = InfluenceGridMath.MapToGrid(Info.CellSize, mapCell.Y);
 			return (gx, gy);
 		}
 
-		/// <summary>Map cell at the centre of the given grid cell.</summary>
+		/// <summary>
+		/// Map cell at the CENTRE of the given grid cell. Deliberately NOT an inverse of
+		/// <see cref="MapCellToGridCell"/> — read the note on <see cref="InfluenceGridMath"/> before
+		/// composing the two.
+		/// </summary>
 		public CPos GridCellToMapCell(int gx, int gy)
 		{
-			return new CPos(gx * Info.CellSize + Info.CellSize / 2, gy * Info.CellSize + Info.CellSize / 2);
+			return new CPos(
+				InfluenceGridMath.GridToMapCentre(Info.CellSize, gx),
+				InfluenceGridMath.GridToMapCentre(Info.CellSize, gy));
 		}
 
 		public int GridWidth => gridWidth;
