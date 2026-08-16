@@ -256,3 +256,123 @@ the shipped argmax offline (it is how `UnitFloorPer` was verified), and a run of
 starting balance would show whether the truck is ever selected when affordability is removed as a
 blocker. That costs no game session and no serial-queue slot. If a live match is still wanted afterwards,
 the harness hook in §A should be built first so the lobby arm is actually reachable.
+
+---
+
+# ADDENDUM 2 — the offline plan answers it: selection is NOT blocked, the CEILING is, and it reproduces "one truck all match"
+
+Built clean at `main @ 73971ce0` and ran `--composition-plan` (offline utility, no game session).
+
+## F. The manager's question, answered: the truck IS selected
+
+With affordability removed (the replay's budget is unlimited) the argmax buys trucks readily — **3
+standing, first buy at cycle 15 (USA) / 12 (Russia)**, landing at 52‰ against a 40‰ target, on both
+factions at the lobby-default `--start none`. **Selection is not the blocker.** Item 63 also verifies
+clean here: opening buys are `abrams`/`t90` (cycle 0), `bradley`/`bmp2` (1), `e3` (2), `ar` (3), with
+the first medic not until cycle 26/25.
+
+## G. But that is the NO-LOSS case. Add losses and the fleet collapses to one
+
+| regime | army value | truk bought | lost | **standing** |
+|---|---|---|---|---|
+| no losses | 57 750 | 3 | 0 | **3** |
+| `--attrition 40` | 14 350 | 5 | 4 | **1** |
+| `--attrition 15` | 7 800 | 2 | 2 | **0** |
+
+**"ONE standing truck per player for the whole game"** is the exact phrase from the 2026-08-10 live
+measurement quoted in `ai-america.yaml:205-208`. The offline replay reproduces it — which means the
+symptom is derivable from the composition arithmetic alone, with no reference to affordability, timing,
+or the ammo gate.
+
+## H. The mechanism is `V_fit`, and it is a general law rather than a truck fact
+
+The tool prints `V_fit` — the smallest total army **value** at which ONE unit of a type sits at or under
+its target share. For `truk`: `cost 1000 × 1000‰ ÷ 40‰ = **25 000**`.
+
+`ApplyCeilingEligibility` strikes any slot strictly over target. So while army value is below `V_fit`,
+owning a single truck already puts the slot over target and the slot is struck — **the bot can hold at
+most ONE, and only by buying it back each time the last one dies.** That is the oscillation the table
+above shows, and it is why `units@20k` reads **0** for `truk`.
+
+The law predicts the whole column. At `--attrition 40` (army value 14 350) the types NEVER bought are
+exactly those with `V_fit` above it: `e6` (31 250), `tecn` (31 250), `sn` (33 333), `strykershorad`
+(50 000). Nothing with a low `V_fit` starves.
+
+**So the disease is not "no notion of WHEN" — it is that a type whose `V_fit` exceeds the army value the
+bot actually sustains is structurally unbuyable except through a ceiling-EXEMPT route.**
+
+## I. This finally explains the pendulum, including why each fix inverted the last
+
+There are exactly two ceiling-exempt routes onto the field: `UnitFloors` (`ChooseBelowFloor`) and the
+supply demand pre-empt (`ChooseSupplyFleetShortfall`).
+
+1. `SupplyTruckFloor: 2` — floor is ceiling-exempt AND has no denominator, so **2 trucks at t=0**. User
+   complains (57(a)).
+2. `SupplyTruckFloor: 0` (`56bf7355`) — **deletes the truck's only ceiling-exempt route below 25 000
+   army value.** The deficit route is struck at one truck. User now sees almost none (66).
+
+The floor was removed as a quantity fix without anyone noticing it was the *only* thing holding a
+25 000-`V_fit` type on a 14 000-value army. Medics got the principled version of this — `UnitFloorPer`
+gives the floor a denominator so it survives without firing at t=0 — and **the truck never got the
+equivalent.** `SupplyTruckFloor` is still a bare constant with no denominator, which is why it could only
+be 2 (too early) or 0 (never).
+
+## J. What is now the ONE live question
+
+Below `V_fit` the truck's only route is the demand pre-empt, sized by `DesiredTrucks(needy customers…)`
+with the floor at 0. So: **in lobby play, does `CountNeedyCustomers` return > 0 when the user is looking
+at dry soldiers?** If yes, trucks appear and item 66 is about fleet SIZE (`SupplyTruckCeiling: 4`), not
+about procurement at all. If no, that predicate is the defect — and it is precisely the one
+`SupplySizeFromNeed: true` was added to fix and which has never been verified outside the tournament path.
+
+That is a single `[composition] census` read (`needy=`, `desired=`, `owned=`, `truk=`) from one lobby
+match — the run that is still blocked on §A.
+
+**The shape of the eventual fix, stated so it is not re-derived as a quantity:** give
+`SupplyTruckFloor` a denominator, exactly as `UnitFloorPer` did for the medic — a floor scaled to the
+force it resupplies is 0 at t=0 (so 57(a) does not return) and non-zero once there is an army to feed
+(so 66 does not return). **Do not simply restore a constant floor; that is the pendulum.**
+
+## K. Conditional on starting cash, as instructed
+
+Everything above is derived at the **default `DefaultCash = 20000`**.
+
+- **At 20 000 (default):** the truck is always affordable, `SupplyPrecedenceStallCycles: 4` never fires,
+  and the ceiling in §H is the whole story.
+- **At 1 000–2 000 (if the user plays there):** banking becomes reachable and **my §C claim that the
+  merged precedence fix is inert collapses** — it would fire, and it would be doing useful work.
+  **But §H gets STRONGER, not weaker:** a poorer bot sustains a smaller army, so army value sits even
+  further below the 25 000 `V_fit`, and the ceiling closes the deficit route harder. **The ceiling
+  diagnosis is robust across the whole cash range; only the "precedence is inert" claim is
+  cash-dependent.** So the §J question and the §I fix shape stand either way.
+
+## L. Harness hook — two options, costed, NOT built
+
+Both make the lobby arm permanently reachable. Shared prerequisite either way: **the controlling client
+must be able to spectate**, or every measurement includes a passive third combatant the bots will farm.
+
+**Option 1 — skirmish-type server from the launch path.** `Game.LoadMap` calls
+`CreateAndStartLocalServer` → `CreateLocalServer(mapUID)` with `isSkirmish` defaulted false
+(`Game.cs:1140,287`). Gate a `true` on `TestMode`, and `SkirmishLogic.ClientJoined` then restores
+`skirmish.ww3mod.yaml`, which **already** carries Map, Options, faction, team and `SpawnPoint` per slot.
+*Cost:* smallest diff; reuses a tested format; native spawn pinning. *Risk:* changes server-type
+semantics on a shared path — must be `TestMode`-gated so ordinary `launch-game.sh` is untouched; and
+`SkirmishLogic` force-seeds a `stable` bot when the file has none, which the harness must pre-empt by
+writing both bots.
+
+**Option 2 — a `Test.LobbySetup=<file>` hook.** Issue `slot_bot` + faction/team/spawn orders after the
+server is up and before the existing `state Ready`. *Cost:* entirely inside `Test.*`, zero effect on
+normal launches. *Risk:* re-implements the bot-client-index race that `LobbyPresetLogic` already solves
+with a 90-tick TTL queue (`pendingBotApplies`) — new plumbing duplicating existing plumbing.
+
+**Recommendation: Option 1, `TestMode`-gated.** It is the smaller change and the file format it reuses
+already supports every field the measurement needs, including the spawn pinning the parity table
+depends on.
+
+## M. Scope limit on the parity table in §4
+
+**§4 applies to LOBBY maps only.** Those maps place no `supplyroute` actor, so the SR derives from
+`HomeLocation + BaseActorOffset` and the `spawn−1` rule holds. **Tournament scenario maps place Supply
+Routes as explicit actors** (`tournament-s1-eco-river-zeta/map.yaml` describes "2 Supply Routes + 2 bot
+spawn markers"), so the offset does not apply and their SR cells must be read from the actor list
+directly. Do not carry the table across.
