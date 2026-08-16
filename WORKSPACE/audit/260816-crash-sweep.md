@@ -29,6 +29,18 @@ invariant was "this name exists in `Rules.Actors`", established in YAML. For `Cl
 "at most one client per slot", established in `SetupShellmapBots`. Both lookup sites assumed a
 guarantee made by code they do not reference.
 
+**A third premise correction, on the sound specimen.** The brief describes the `Sound.LoadSound`
+incident as showing that "a missing or corrupt asset is not a load-time error, it is a crash the
+first time a weapon fires". Half of that is no longer true: `Sound.cs:59-66` checks
+`fileSystem.Exists` **first** and returns `default`, and the result is memoised in a `Cache<>`
+(`:97`), with `OpenAlSoundEngine.Play2D` null-checking. **A missing sound is a permanent, cached,
+silent no-op — one log line, ever.** The only residual throw is `InvalidDataException` at `:81` for
+a file that exists but no loader parses (all 24 shipped `.wav` are PCM or IMA ADPCM, both
+supported — clean). The original `DirectoryNotFoundException` therefore came from a mix whose
+backing *file* was removed under a live process — a torn install, not a bad name in YAML.
+**The lazy-asset-crash premise is right, but it belongs to SPRITES, not sounds — and there it is
+worse than the brief assumed. See §5a.**
+
 That reframing predicts a different third class than the brief does — not more `.First()` calls,
 but **more non-idempotent setup routines that can run twice**. `SetupShellmapBots`
 (`engine/OpenRA.Game/Game.cs:592-628`) shows the tell precisely, and it is visible *within a single
@@ -140,6 +152,47 @@ Recorded so nobody re-derives them. Each was checked against code, not assumed.
 
 ---
 
+## 5a. The one systemic finding: WW3MOD moved a load crash to a render crash, and did not harden the read
+
+**This is the most important thing in the sweep, and it is a mechanism rather than a bug instance.**
+
+Upstream OpenRA **throws at map load** when a sequence references sprite frames that do not exist.
+WW3MOD deliberately replaced that with a clamp — `DefaultSpriteSequence.cs:629-648`, carrying an
+explicit `// PITFALL: clamping here is WW3MOD-specific - upstream throws.` The stated purpose is to
+keep an incomplete Red Alert install bootable. A missing file yields
+`sprites = Array.Empty<Sprite>()` (`:621`) and, for `Length: *`, `length = 0`.
+
+**The consumer was never hardened to match.** `DefaultSpriteSequence.cs:697-698`:
+
+```csharp
+var index = GetFacingFrameOffset(facing) * length.Value + frame % length.Value;
+var sprite = sprites[index];
+```
+
+`frame % length.Value` throws `DivideByZeroException` when `length == 0`; `sprites[index]` throws
+`IndexOutOfRangeException` on the empty array. The `if (sprite == null)` guard on the next line is
+unreachable in that case. `Animation.Render` (`engine/OpenRA.Game/Graphics/Animation.cs:62`) has no
+zero-length check either.
+
+Net effect: **a missing sprite file for any sequence that something actually draws is a crash on the
+first frame it is drawn, and it throws again every frame after.** Verified both halves personally.
+
+Why this is worth acting on even though nothing triggers it today:
+
+- **It is invisible to developers.** The failure moved off the loading screen — where a developer
+  with a complete install would never see it anyway — to first render on a machine that lacks the
+  file. That is precisely the stranger's-clean-install asymmetry this sweep exists to catch.
+- **It is invisible to lint.** **No lint pass checks that any asset file exists** — not
+  `CheckSequences`, and there is no sound lint at all. `SpriteCache.MissingFiles` is exposed but
+  unconsumed. `make test` does not reproduce the cross-reference that found this.
+- **It is armed but unloaded.** Only four sequence filenames in the mod resolve to nothing
+  (`pip-cloak`, `pip-cover` in `sequences-misc.yaml:199-238`; `b2bomb` in `sequences-ingame.yaml:378`;
+  `emp_fx01` in `sequences.yaml:2`, which sits under an abstract `^VehicleOverlays` node nothing
+  inherits). **None is drawn by any trait**, so there is no live crash. The next dangling reference
+  that *is* drawn becomes one.
+
+Cheapest durable fix: guard the zero-length case at `GetSprite` rather than removing the clamp.
+
 ## 5b. Ranked live findings
 
 Ranked by *probability a real player triggers it × severity*. **Nothing in this sweep is a live
@@ -148,12 +201,44 @@ population of siblings — see §7.
 
 | # | Finding | `file:line` | Bucket | In tick? | Trigger a player would recognise | Status |
 |---|---|---|---|---|---|---|
+| 0 | **Zero-length sprite sequence → `DivideByZeroException` / `IndexOutOfRangeException` on first render, every frame after.** See §5a — a mechanism, not an instance | `DefaultSpriteSequence.cs:697-698` (armed by the clamp at `:629-648`) | **WW3MOD** | yes (render) | The first time the game tries to draw a unit/effect whose sprite file is missing from *that player's* install | **ARMED, no live instance** — the 4 dangling refs are never drawn. Highest-value fix in the sweep |
 | 1 | `.ToDictionary(o => o.Id, o => o)` over every `ILobbyOptions` throws `ArgumentException` if two lobby options share an ID. Duplicate-key shape — same family as the `ClientInSlot` specimen | `LobbyPresetLogic.cs:312` | **WW3MOD** | no | Opening the lobby on a custom map that adds a colliding lobby option; the lobby fails to open. Reached on lobby OPEN, not only on a button click (`:132` `ApplyPreset(LastGamePresetName)`) | **LATENT** — shipped config has one dropdown (`player.yaml:187`), no collision |
 | 2 | `Values.ToDictionary(v => v, …)` throws on a duplicated dropdown value | `LobbyPrerequisiteDropdown.cs:67` | **WW3MOD** | no | Same, via a map that duplicates a value | **LATENT** — shipped `Values:` are 21 distinct integers |
 | 3 | `CreatesShroud` has no `Type` override; base throws `NotImplementedException` | `AffectsMapLayer.cs:201` | **WW3MOD** | yes (world entry) | Any actor with `CreatesShroud` hard-crashes on entering the world | **LATENT** — trait in no mod YAML; fires the instant a jammer/smoke/stealth actor or a map rule adds it. One-line fix |
 | 4 | `self.TraitsImplementing<AmmoPool>().First(ap => ap.Info.Name == useAmmo)` throws on zero matches | `Demolish.cs:56,78` | **WW3MOD** | activity | Ordering a demolition with an actor whose `UseAmmo` names a pool it lacks | **LATENT ×2** — both users (`^E6`, `^SF`) declare the matching pool *and* are `Prerequisites: ~disabled` |
 | 5 | `task.Carrier.Trait<Cargo>().PassengerCount` is an unconditionally-evaluated argument to `AIUtils.BotDebug` — the one place the resolve-once-then-gate idiom is abandoned | `MountedTransportBotModule.cs:1121`, `HelicopterSquadBotModule.cs:1290` | **WW3MOD** | yes (bot tick) | None today — safe only via pruning earlier in the same tick | **SOFT** — a refactor moving this line out from under its guard reopens it |
 | 6 | `owner.Units.First()` with no internal guard | `GroundStates.cs:27` | **UPSTREAM** (see §6 — blame misattributes this) | yes | An AI squad's last member dies while the squad still ticks | **NOT LIVE** — all 8 callers sit behind `if (!owner.IsValid) return;` |
+
+## 5c. Not crashes, but found on the way — missing sound files (all silent no-ops)
+
+Filed here because the cross-reference that found them is not reproduced by any lint, so they will
+not surface again on their own. Each was confirmed absent from `mods/ww3mod/`, from
+`engine/mods/{ra,common}`, and from the contents of all 15 RA `.mix` archives.
+
+- **`A10.wav` ×2 and `A10.aud` — `rules/weapons/weapons-ballistics.yaml:650,686,701`. The A-10's
+  gun run is completely silent.** `a10gun.wav` *is* shipped, so this looks like a rename that missed
+  three references. Most player-visible item in this list — a marquee support aircraft with no
+  weapon audio.
+- `ptnkfire.aud` (`weapons-other.yaml:515`), `pcanfire.aud` (`:541`), `icolseta.aud` (`:573`),
+  `icolexpa.aud` (`:611`)
+- `splashl1.aud` / `splashl2.aud` — `weapons-effects.yaml:620`, `weapons-explosions.yaml:454,476`
+  (missiles splashing into water)
+- `place2.aud` (`structures-defenses.yaml:526`), `clicky1.aud` (`vehicles.yaml:432`)
+- Counterstrike/Aftermath music in `rules/sound/music.yaml` — those packages are genuinely optional
+  and `Sound.PlayMusic` null-guards at `Sound.cs:259-263`. Not a defect.
+
+## 5d. What to do, cheapest first
+
+1. **Guard the zero-length read** at `DefaultSpriteSequence.cs:697-698` (§5a). Two lines, and it
+   disarms the one mechanism in this sweep that converts a future asset slip into a hard CTD.
+   Prefer this over removing the clamp — the clamp is deliberate and load-bearing for partial installs.
+2. **Add an asset-existence lint.** The real gap is that *no* pass checks whether a referenced
+   sprite or sound file exists; `SpriteCache.MissingFiles` is already exposed and unconsumed. This is
+   what would have caught both §5a's dangling refs and §5c's silent sounds.
+3. **`CreatesShroud` `Type` override** — one line, closes a guaranteed world-entry crash the moment
+   anyone adds the trait (§5).
+4. **Fix the three `A10` sound references** (§5c) — player-visible, trivial.
+5. **Do NOT spend effort on the 101 capitalised actor names** (§3). They cannot crash.
 
 ## 6. Method, and where it is weak
 
