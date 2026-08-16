@@ -238,11 +238,11 @@
 		InternalName: Random
 		RandomFactionMembers: america, russia
 		Side: Random
-		Description: Random Side\nA random vanilla side will be chosen when the game starts.
+		Description: Random Side\nOne of the playable factions is chosen at random when the game starts.
 	Faction@0:
 		Name: America
 		InternalName: america
-		Description: America\n
+		Description: America\nNATO's lead power. Precision airpower, networked armour and air cavalry: fewer units, costlier, striking first and at range.
 	# Faction@1:
 	# 	Name: Ukraine
 	# 	InternalName: ukraine
@@ -251,7 +251,7 @@
 	Faction@1:
 		Name: Russia
 		InternalName: russia
-		Description: Russia\n
+		Description: Russia\nThe BRICS bloc's spearhead. Massed armour, layered air defence and rocket artillery: weight of fire and staying power over finesse.
 	# JumpjetActorLayer:
 	# 	HeightOffset: 1c460
 
