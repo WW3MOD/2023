@@ -23,7 +23,12 @@ jobs:
         dotnet-version: '6.0.x'
 
     - name: Prepare Environment
-      run: echo "GIT_TAG=${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
+      run: |
+        if [ "${GITHUB_REF#refs/tags/}" != "${GITHUB_REF}" ]; then
+          echo "GIT_TAG=${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
+        else
+          echo "GIT_TAG=dryrun-${GITHUB_SHA:0:8}" >> ${GITHUB_ENV}
+        fi
 
     - name: Package AppImage
       run: |
@@ -32,7 +37,16 @@ jobs:
         sudo apt install libfuse2
         ./packaging/linux/buildpackage.sh "${GIT_TAG}" "${PWD}/build/linux"
 
+    # Always retained, so a workflow_dispatch run proves packaging works
+    # without publishing a public release.
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-appimage
+        path: build/linux/*
+
     - name: Upload Packages
+      if: startsWith(github.ref, 'refs/tags/')
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -54,7 +68,12 @@ jobs:
         dotnet-version: '6.0.x'
 
     - name: Prepare Environment
-      run: echo "GIT_TAG=${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
+      run: |
+        if [ "${GITHUB_REF#refs/tags/}" != "${GITHUB_REF}" ]; then
+          echo "GIT_TAG=${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
+        else
+          echo "GIT_TAG=dryrun-${GITHUB_SHA:0:8}" >> ${GITHUB_ENV}
+        fi
 
     - name: Package Disk Image
       env:
@@ -68,7 +87,14 @@ jobs:
         mkdir -p build/macos
         ./packaging/macos/buildpackage.sh "${GIT_TAG}" "${PWD}/build/macos"
 
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-dmg
+        path: build/macos/*
+
     - name: Upload Package
+      if: startsWith(github.ref, 'refs/tags/')
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -91,7 +117,11 @@ jobs:
 
     - name: Prepare Environment
       run: |
-        echo "GIT_TAG=${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
+        if [ "${GITHUB_REF#refs/tags/}" != "${GITHUB_REF}" ]; then
+          echo "GIT_TAG=${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
+        else
+          echo "GIT_TAG=dryrun-${GITHUB_SHA:0:8}" >> ${GITHUB_ENV}
+        fi
         sudo apt-get update
         sudo apt-get install nsis wine64
 
@@ -101,7 +131,14 @@ jobs:
         mkdir -p build/windows
         ./packaging/windows/buildpackage.sh "${GIT_TAG}" "${PWD}/build/windows"
 
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-installers
+        path: build/windows/*
+
     - name: Upload Packages
+      if: startsWith(github.ref, 'refs/tags/')
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
