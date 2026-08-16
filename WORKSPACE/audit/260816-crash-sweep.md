@@ -140,6 +140,21 @@ Recorded so nobody re-derives them. Each was checked against code, not assumed.
 
 ---
 
+## 5b. Ranked live findings
+
+Ranked by *probability a real player triggers it × severity*. **Nothing in this sweep is a live
+crash on shipped content.** The honest headline is that the two 2026-08-16 crashes do not have a
+population of siblings — see §7.
+
+| # | Finding | `file:line` | Bucket | In tick? | Trigger a player would recognise | Status |
+|---|---|---|---|---|---|---|
+| 1 | `.ToDictionary(o => o.Id, o => o)` over every `ILobbyOptions` throws `ArgumentException` if two lobby options share an ID. Duplicate-key shape — same family as the `ClientInSlot` specimen | `LobbyPresetLogic.cs:312` | **WW3MOD** | no | Opening the lobby on a custom map that adds a colliding lobby option; the lobby fails to open. Reached on lobby OPEN, not only on a button click (`:132` `ApplyPreset(LastGamePresetName)`) | **LATENT** — shipped config has one dropdown (`player.yaml:187`), no collision |
+| 2 | `Values.ToDictionary(v => v, …)` throws on a duplicated dropdown value | `LobbyPrerequisiteDropdown.cs:67` | **WW3MOD** | no | Same, via a map that duplicates a value | **LATENT** — shipped `Values:` are 21 distinct integers |
+| 3 | `CreatesShroud` has no `Type` override; base throws `NotImplementedException` | `AffectsMapLayer.cs:201` | **WW3MOD** | yes (world entry) | Any actor with `CreatesShroud` hard-crashes on entering the world | **LATENT** — trait in no mod YAML; fires the instant a jammer/smoke/stealth actor or a map rule adds it. One-line fix |
+| 4 | `self.TraitsImplementing<AmmoPool>().First(ap => ap.Info.Name == useAmmo)` throws on zero matches | `Demolish.cs:56,78` | **WW3MOD** | activity | Ordering a demolition with an actor whose `UseAmmo` names a pool it lacks | **LATENT ×2** — both users (`^E6`, `^SF`) declare the matching pool *and* are `Prerequisites: ~disabled` |
+| 5 | `task.Carrier.Trait<Cargo>().PassengerCount` is an unconditionally-evaluated argument to `AIUtils.BotDebug` — the one place the resolve-once-then-gate idiom is abandoned | `MountedTransportBotModule.cs:1121`, `HelicopterSquadBotModule.cs:1290` | **WW3MOD** | yes (bot tick) | None today — safe only via pruning earlier in the same tick | **SOFT** — a refactor moving this line out from under its guard reopens it |
+| 6 | `owner.Units.First()` with no internal guard | `GroundStates.cs:27` | **UPSTREAM** (see §6 — blame misattributes this) | yes | An AI squad's last member dies while the squad still ticks | **NOT LIVE** — all 8 callers sit behind `if (!owner.IsValid) return;` |
+
 ## 6. Method, and where it is weak
 
 **Authorship filter.** `git ls-tree` at the vendoring squash `7362fbc6` vs `HEAD` gives 523 engine
@@ -151,6 +166,22 @@ list at `/tmp/ww3_authored.txt` during the sweep; regenerate rather than trust i
 **The trap this avoids:** filtering by file is useless here — WW3MOD has touched ~1,840 engine `.cs`
 files — and filtering by "file is new since `7362fbc6`" is *actively misleading*, because 60% of the
 new files came from the upstream re-merge, not from WW3MOD. Both filters must be applied.
+
+**`git blame` systematically OVER-attributes to WW3MOD — do not trust it alone.** Merge and
+restore commits re-touch upstream lines without changing their text, and the resulting blame SHA is
+post-vendoring, so the line reads as WW3MOD-authored when it is vanilla OpenRA.
+
+Worked example, caught in this sweep. `GroundStates.cs:27`
+(`owner.SquadManager.FindClosestEnemy(owner.Units.First().CenterPosition)`) blames to `6f9dd239`,
+which is post-`7362fbc6`, so the mechanical filter buckets it WW3MOD. But `6f9dd239` is
+*"Upstream merge: restore WW3MOD files from main, fix 10 compilation errors"* — a merge, not
+authored logic. `git show 7362fbc6:…/GroundStates.cs` has the line **verbatim** at line 26; only
+`protected` → `protected static` ever changed. The `.First()` is vanilla upstream.
+
+**The reliable test is comparing the line TEXT against `git show 7362fbc6:<path>`, not blaming the
+SHA.** The reconciliation audit knew this class ("109 were false survivors") but attributed it only
+to the re-merge `c5bb5ece`; `6f9dd239` is a second, separate false-survivor source, so the real
+false-survivor set is larger than that method accounted for.
 
 **Where this sweep is weak:**
 - Static only. Nothing here was reproduced in a running game; no run was permitted.
