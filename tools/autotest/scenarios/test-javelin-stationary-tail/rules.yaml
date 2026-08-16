@@ -1,0 +1,33 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-javelin-stationary-tail.lua
+
+# Nothing is timed here, so unlike the two sweep scenarios the pool is left deep and the launchers
+# are simply allowed to empty it: this scenario is hunting a tail event in the inaccuracy-offset
+# distribution and wants volume, not one-missile-at-a-time control. ScanRadius still bounds the
+# AutoTarget search so no launcher wanders onto a neighbouring lane's tank.
+AT:
+	AutoTarget:
+		ScanRadius: 4
+	AmmoPool@1:
+		Ammo: 24
+
+# PITFALL: the actor key must match the source casing EXACTLY (`t90`, not `T90`). The engine
+# lowercases actor names internally but the ruleset merge is done on the raw key, so a case variant
+# loads as a SECOND actor and the mod fails with "duplicate values found for the following keys".
+t90:
+	Health:
+		HP: 900000

@@ -150,7 +150,7 @@ littlebird:
 		Speed: 265
 		LandableTerrainTypes: Clear,Rough,Road,Beach
 	AttackAircraft:
-		Armaments: primary, secondary
+		Armaments: primary, primary-air, secondary
 		FacingTolerance: 60
 		PersistentTargeting: false
 		AttackType: Hover
@@ -158,6 +158,17 @@ littlebird:
 	Armament@1:
 		Name: primary
 		Weapon: 7.62mm.Minigun
+		LocalOffset: 150,150,-85, 150,-150,-85
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary
+	# Air-to-air mount (260815): same barrels, same magazine, separate armament
+	# purely so the anti-helicopter weapon can be tuned independently of
+	# strafing. AmmoPool@1 below has listed `primary-air` since this actor's
+	# first commit with no armament to bind to (AmmoPool.cs:303 matches by name
+	# and silently finds nothing); this is that missing armament.
+	Armament@1_Air:
+		Name: primary-air
+		Weapon: 7.62mm.Minigun.AA
 		LocalOffset: 150,150,-85, 150,-150,-85
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
@@ -187,9 +198,14 @@ littlebird:
 		Width: 2
 	Armament@2:
 		Name: secondary
-		Weapon: Hellfire
+		Weapon: Hellfire.Littlebird
 		LocalOffset: 0,-640,0, 0,640,0
-		LocalYaw: -40, 24
+		# LocalYaw removed 260815. It was `-40, 24` — an unmirrored ~3.5°/~2.1°
+		# pair, and the obvious suspect for "the missiles never hit". It is not:
+		# Missile.cs:286-294 recomputes launch facing from source→target and uses
+		# args.Facing (the only thing Barrel.Yaw feeds, Armament.cs:412) solely
+		# when that vector is zero-length. The field was decorative and
+		# actively misleading. Still present on other actors in this file.
 		PauseOnCondition: !ammo-secondary
 	AmmoPool@2:
 		Name: secondary-ammo

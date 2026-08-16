@@ -1,0 +1,39 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, javelin-probe-lib.lua, test-javelin-reversal-sweep.lua
+
+# Eight engagements share one map and each holds a different reversal range, so a launcher that
+# re-acquired a neighbouring lane's Humvee would silently blend two trigger distances into one
+# lane. ScanRadius bounds only the AutoTarget SEARCH — an explicit force-attack order still reaches
+# full armament range — so shrinking it below the 5-cell engagement leaves every launcher able to
+# shoot the target the Lua hands it and nothing else.
+#
+# One round in the pool, refilled on a timer, is what keeps exactly one missile per lane in the
+# air. With ATGM's ReloadDelay of 0 an AT holding several rounds empties the pool in consecutive
+# ticks, and a second missile trailing the first by one tick would be perturbed at the leading
+# missile's trigger range plus 300 — blurring the 200-wdist sweep steps this rig exists to resolve.
+# The stock ReloadAmmoPool is gated on `replenish-soldiers`, which nothing grants here, so it is
+# replaced outright rather than edited: an override that failed to clear the condition would leave
+# the pool dry after one shot and the run would report a handful of records instead of hundreds.
+AT:
+	AutoTarget:
+		ScanRadius: 4
+	AmmoPool@1:
+		Ammo: 1
+	-ReloadAmmoPool@1:
+	ReloadAmmoPool@probe:
+		AmmoPool: primary-ammo
+		Delay: 30

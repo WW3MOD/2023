@@ -79,7 +79,7 @@ Stop: S
 	Types: Unit
 	Contexts: Player
 
-Scatter: S
+Scatter: X
 	Description: Scatter
 	Types: Unit
 	Contexts: Player
@@ -167,6 +167,26 @@ Patrol: P
 AutoEnter: L
 	Description: Auto-Enter
 	Types: Unit
+	Contexts: Player
+
+Evacuate: E
+	Description: Evacuate (leave via map edge, refund value)
+	Types: Unit
+	Contexts: Player
+
+ForceMove: V
+	Description: Force Move mode
+	Types: OrderGenerator
+	Contexts: Player
+
+ForceAttack: G
+	Description: Force Attack mode
+	Types: OrderGenerator
+	Contexts: Player
+
+WaypointMode: O
+	Description: Waypoint (queue orders) mode
+	Types: OrderGenerator
 	Contexts: Player
 
 

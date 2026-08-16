@@ -1,0 +1,1 @@
+A ground transport must COMPLETE a delivery before contact: a rifleman observed out of world (carried), returned to the world, at least 10 cells from where it started. The stable-profile side is an in-run control and must NOT deliver, since DeliverBeforeContact is held false on @poi.

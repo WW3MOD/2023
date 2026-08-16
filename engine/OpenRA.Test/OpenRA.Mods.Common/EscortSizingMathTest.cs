@@ -132,5 +132,53 @@ namespace OpenRA.Test
 			Assert.That(tier, Is.EqualTo(EscortSizingMath.EscortTier.None),
 				"with the distance gate off, a strongly-ours calm target is NONE at any distance");
 		}
+
+		// ---------- AtLeast (the reclaim escort floor) ----------
+
+		[Test]
+		public void AtLeast_RaisesNoneToTheFloor()
+		{
+			// THE RECLAIM CASE. A just-evicted structure reads verified-safe precisely BECAUSE it was evicted —
+			// the building was our vision source, so losing it blinds us, and believed danger decays away long
+			// before the believed control anchoring the cell does. Resolve honestly returns None on that read;
+			// the reclaim caller must refuse it rather than walk a lone technician into the raid.
+			Assert.That(
+				EscortSizingMath.AtLeast(EscortSizingMath.EscortTier.None, EscortSizingMath.EscortTier.Light),
+				Is.EqualTo(EscortSizingMath.EscortTier.Light));
+		}
+
+		[Test]
+		public void AtLeast_NeverLowersAnAlreadyHigherTier()
+		{
+			// A genuinely contested reclaim target keeps its FULL escort — the floor raises, it never caps.
+			Assert.That(
+				EscortSizingMath.AtLeast(EscortSizingMath.EscortTier.Full, EscortSizingMath.EscortTier.Light),
+				Is.EqualTo(EscortSizingMath.EscortTier.Full));
+			Assert.That(
+				EscortSizingMath.AtLeast(EscortSizingMath.EscortTier.Light, EscortSizingMath.EscortTier.Light),
+				Is.EqualTo(EscortSizingMath.EscortTier.Light));
+		}
+
+		[Test]
+		public void AtLeast_ResultIsNeverLessProtectiveThanEitherInput()
+		{
+			// Exhaustive over every pair. AtLeast leans on the enum being ordered by protection
+			// (None < Light < Full); this is the assertion that goes red if someone reorders it.
+			var tiers = new[]
+			{
+				EscortSizingMath.EscortTier.None, EscortSizingMath.EscortTier.Light, EscortSizingMath.EscortTier.Full
+			};
+
+			Assert.Multiple(() =>
+			{
+				foreach (var tier in tiers)
+					foreach (var floor in tiers)
+					{
+						var result = EscortSizingMath.AtLeast(tier, floor);
+						Assert.That(result, Is.GreaterThanOrEqualTo(tier), $"tier={tier} floor={floor}");
+						Assert.That(result, Is.GreaterThanOrEqualTo(floor), $"tier={tier} floor={floor}");
+					}
+			});
+		}
 	}
 }

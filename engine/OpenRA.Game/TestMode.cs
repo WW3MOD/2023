@@ -112,6 +112,32 @@ namespace OpenRA
 		// Absent when the arg is not passed, so the trait no-ops in normal play.
 		public static string UnitLifecycleLogPath { get; private set; }
 
+		// Resolved output path for the Phase-0 missile trace (MissileTrace.cs).
+		// Null/empty = the trace is inert (no file, no per-tick work, no records).
+		// Set via the Test.MissileTraceLog launch arg, same shape as
+		// Test.UnitLifecycleLog: `true` derives a `.missiles.jsonl` sibling of the
+		// verdict, anything else is an explicit path.
+		public static string MissileTraceLogPath { get; private set; }
+
+		// false suppresses the per-tick lines and keeps only the per-missile summary
+		// records. Set via Test.MissileTraceMode=summary. The engagement-distance
+		// sweep produces thousands of missiles and only needs the summaries.
+		public static bool MissileTraceTicks { get; private set; } = true;
+
+		// Number of CreateEffectWarhead impacts that PASSED THE IMPACT VALIDITY GATES — i.e. were not
+		// discarded as landing on an invalid actor or invalid terrain. Counted at that decision, which
+		// is upstream of both the sprite (skipped when the warhead defines no Image/Explosions) and the
+		// sound (skipped by ImpactSoundChance), so this is NOT a count of sprites drawn or sounds
+		// played and must not be asserted on as one. Exposed as Test.GetImpactEffectCount() because a
+		// swallowed impact and a normal one are otherwise indistinguishable from Lua.
+		public static int ImpactEffectCount { get; private set; }
+
+		public static void CountImpactEffect()
+		{
+			if (IsActive)
+				ImpactEffectCount++;
+		}
+
 		public static void Initialize(Arguments args)
 		{
 			var modeArg = args.GetValue("Test.Mode", null);
@@ -119,6 +145,7 @@ namespace OpenRA
 				return;
 
 			IsActive = true;
+			ImpactEffectCount = 0;
 			Name = args.GetValue("Test.Name", "unnamed");
 			Description = args.GetValue("Test.Description", "");
 			ResultPath = args.GetValue("Test.ResultPath",
@@ -158,6 +185,20 @@ namespace OpenRA
 					UnitLifecycleLogPath = lifecycleArg;
 			}
 
+			var missileArg = args.GetValue("Test.MissileTraceLog", null);
+			if (!string.IsNullOrEmpty(missileArg))
+			{
+				var lower = missileArg.ToLowerInvariant();
+				if (lower == "true" || lower == "1")
+					MissileTraceLogPath = string.IsNullOrEmpty(ResultPath)
+						? null
+						: Path.ChangeExtension(ResultPath, ".missiles.jsonl");
+				else
+					MissileTraceLogPath = missileArg;
+			}
+
+			MissileTraceTicks = args.GetValue("Test.MissileTraceMode", "full").ToLowerInvariant() != "summary";
+
 			TestModeScreenshots.Initialize(ScreenshotDir);
 
 			Console.WriteLine($"[TestMode] active — name={Name} result={ResultPath}");
@@ -171,6 +212,8 @@ namespace OpenRA
 				Log.Write("debug", $"[TestMode] speed multiplier: {SpeedMultiplier}x");
 			if (!string.IsNullOrEmpty(UnitLifecycleLogPath))
 				Log.Write("debug", $"[TestMode] unit lifecycle log: {UnitLifecycleLogPath}");
+			if (!string.IsNullOrEmpty(MissileTraceLogPath))
+				Log.Write("debug", $"[TestMode] missile trace log: {MissileTraceLogPath} (ticks={MissileTraceTicks})");
 		}
 
 		public static void WriteResult(string status, string notes)

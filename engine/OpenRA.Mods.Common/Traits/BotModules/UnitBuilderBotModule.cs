@@ -34,8 +34,70 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("What units should the AI have a maximum limit to train.")]
 		public readonly Dictionary<string, int> UnitLimits = null;
 
+		[Desc("EXPERIMENTAL: minimum STANDING population per type, held regardless of composition share.",
+			"The mirror of UnitLimits, and the answer to a measured hole: a per-mille-of-army-VALUE target",
+			"cannot hold a small type on the map at all. One unit of a 9-per-mille type is already over its",
+			"target in any army below 1000*cost/target of value, so the ceiling strikes the slot; and under",
+			"losses the large slots stay permanently in deficit, so the argmax never descends far enough to",
+			"replace a lost specialist. Offline replay (--composition-plan) of the shipped argmax: with no",
+			"losses medics ARE bought (4 in 200 cycles), but at a 1-in-40-per-cycle loss rate medic, sniper",
+			"and engineer are bought ZERO times in 200 cycles. Supply trucks were exempt from this only",
+			"because SupplyTruckFloor gave them a floor nothing else had.",
+			"The engineer (e6) shows the same zero and is deliberately NOT floored: nothing anywhere buys one",
+			"today — EngineerRouteOpenBotModule does not implement IBotRequestUnitProduction — so a floor",
+			"would be papering over a separate defect rather than fixing it. Filed in bugs/discovered.md.",
+			"A type under its floor PRE-EMPTS the deficit pick, so the floor deliberately outranks the target",
+			"ceiling and the ScaleAntiAirToThreat gate — a floor a threat gate can refuse is not a floor, and",
+			"holding AA before enemy air is seen is the entire point of an AA floor. UnitLimits still applies",
+			"on top as the absolute backstop, and the count includes pending call-ins so the floor cannot",
+			"order the same unit every cycle while the first walks in from the map edge.",
+			"Rides the composition pick, so it needs CompositionDirected. Empty default ⇒ byte-identical for",
+			"normal/rush/turtle/@stable.")]
+		public readonly Dictionary<string, int> UnitFloors = null;
+
+		[Desc("EXPERIMENTAL: scale a UnitFloors entry to the force it supports — 'one of these per N units of",
+			"UnitFloorSupportedTypes'. The floor becomes min(UnitFloors[type], supported / N) and the UnitFloors",
+			"value is reinterpreted as the CAP on it.",
+			"THIS FIXES A GENERAL DEFECT, NOT A UNIT. A bare UnitFloors entry is a standing minimum with no",
+			"denominator, and ChooseBelowFloor pre-empts the deficit argmax, the target ceiling AND the demand",
+			"gates to satisfy it. At t=0 every census is zero, so every floor is maximally unmet at exactly the",
+			"moment its need is lowest, and floored support types are cheap — so they clear first and become the",
+			"opening call-in. Measured on the shipped default (--composition-plan --start none): cycles 0 and 1",
+			"both buy medi, on BOTH factions; with --start platoon the medic is still the very first buy. The",
+			"user has reported this same shape twice, first as two supply trucks and then as two medics.",
+			"WITH A ZERO DENOMINATOR THE FLOOR IS ZERO — a support unit with nothing to support has no floor and",
+			"is left to the ordinary argmax. That is the whole fix; see SupportFloorMath.",
+			"Only meaningful for types whose value is PROPORTIONAL to the force they serve. A type keyed to",
+			"something else (an AA soldier is keyed to enemy AIR, not to own army size) does not belong here —",
+			"that is what ScaleAntiAirToThreat and UnitDelays are for. A floored type with NEITHER a ratio here",
+			"nor a threat gate nor a delay WILL be an opening buy; that is a property of the pre-empt, not an",
+			"accident.",
+			"Empty default ⇒ every floor keeps its flat behaviour, so @stable and the frozen profiles are",
+			"unchanged.")]
+		public readonly Dictionary<string, int> UnitFloorPer = null;
+
+		[Desc("EXPERIMENTAL: the denominator population for UnitFloorPer — the units a support type exists to",
+			"serve. Counted as owned + IN-CARGO, matching OwnedOrPending's cargo credit, because boarding",
+			"REMOVES a passenger from world.Actors outright and a world-only count would collapse the",
+			"denominator every time a transport picked the squad up.",
+			"PENDING call-ins are deliberately EXCLUDED here, which is an asymmetry with the numerator and is",
+			"the point rather than an oversight: the numerator counts pending so the floor cannot re-order the",
+			"same medic every cycle while the first walks in, but a unit still crossing the map from the edge is",
+			"not yet a squad that needs supporting. The floor should follow the force that EXISTS.",
+			"Unset ⇒ the denominator is zero, which makes every UnitFloorPer ratio hold its floor at 0. Set the",
+			"ratio and this together or neither.")]
+		public readonly HashSet<string> UnitFloorSupportedTypes = new();
+
 		[Desc("When should the AI start train specific units.")]
 		public readonly Dictionary<string, int> UnitDelays = null;
+
+		[Desc("Bot-tick interval between unconditional [composition] census lines in debug.log. 0 disables.",
+			"Defaults to 0 and is opted into per-profile by the two @experimental blocks. It is ALREADY inert",
+			"without CompositionDirected (no composition slots exist to report), so a non-zero default would",
+			"also have been harmless — but this trait is shared with @stable, and the standing rule for a",
+			"shared trait is that a new field defaults to the baseline and is turned on in YAML. Costs nothing",
+			"to obey literally, and leaves no judgement call for the next reader to re-derive.")]
+		public readonly int CensusLogInterval = 0;
 
 		[Desc("If true, skip the rearm building capacity check for aircraft.",
 			"Use this when aircraft are produced from a generic production building (e.g. Supply Route)",
@@ -92,6 +154,55 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Hard upper bound on the demand-sized fleet, so supply can never eat the whole call-in budget",
 			"however bad the front gets. UnitLimits still applies on top as the absolute backstop.")]
 		public readonly int SupplyTruckCeiling = 4;
+
+		[Desc("EXPERIMENTAL: size the fleet from customers at SupplyProvider's OWN service bar",
+			"(ResupplyNeedThreshold) rather than from SupplyStarvingThresholdPerMille.",
+			"MEASURED DEFECT this closes: `starving` read 0 at EVERY snapshot of a full match while",
+			"`ammo-need` read True continuously from tick 1240 — two predicates for one fact with different",
+			"bars, and the stricter one was sizing the fleet, so DesiredTrucks returned 0 all match and the",
+			"pre-empt never fired. AnyFieldedUnitNeedsResupply (which sets ammo-need) mirrors",
+			"SupplyProvider.MinNeedThreshold, i.e. the bar at which a customer is actually SERVED; sizing the",
+			"fleet from anything stricter asks for trucks later than the supply system admits it needs them.",
+			"WHY NOT JUST LOWER SupplyStarvingThresholdPerMille — corrected 2026-08-15, the earlier answer here",
+			"was FALSE and would have stopped the next reader trying the simpler thing. It claimed that value",
+			"is also the truck's seek threshold. It is not: SupplyStarvingThresholdPerMille is declared on THIS",
+			"trait and read at exactly one site (CountStarvingCustomers), while the truck's seek threshold is",
+			"SupplyFollowerBotModuleInfo.HuntStarvingThresholdPerMille — a different field on a different trait,",
+			"set independently in ai.yaml. They merely share the value 250 and a helper family. Lowering the",
+			"procurement one would NOT have retargeted delivery.",
+			"The real reason to size from the service bar is that it is the bar at which a customer is SERVED,",
+			"so it cannot drift out of agreement with the supply system the way a second, independently-tuned",
+			"number can — which is exactly how the two came to disagree in the first place.",
+			"Taking the max of the two counts keeps the switch one-directional — it can only raise the fleet.",
+			"Default false ⇒ the starving count keeps sizing the fleet, unchanged.")]
+		public readonly bool SupplySizeFromNeed = false;
+
+		[Desc("EXPERIMENTAL: how many CONSECUTIVE build cycles the banked balance may fail to set a new high",
+			"before the bot gives up saving for a supply truck and resumes ordinary buying.",
+			"USER RULING 2026-08-15: 'soldiers out of ammo are useless. That should be the first priority to",
+			"solve at all times.' That is a PRECEDENCE, and nothing in this path could express one: a pre-empt",
+			"that merely SKIPS when it cannot afford the item is not a priority, because the cycle then falls",
+			"through and buys a rifleman with the very cash the truck was waiting for.",
+			"THE BOUND IS ON PROGRESS, NOT ON TIME, and that is a correction from review rather than a tuning",
+			"choice. A cycle-count bound was tried and is the WRONG SHAPE three ways: it does not terminate",
+			"(the counter resets on fall-through, so the steady state for a poor player is N silent cycles,",
+			"one buy, N silent cycles, forever, and the truck is never bought); its fall-through purchase is",
+			"PRICED BY the savings, because composition eligibility is affordability-filtered and a fat balance",
+			"promotes expensive slots — measured, a spell banked to 819 against a 1000 truck and immediately",
+			"bought a 450 humvee; and a cycle count cannot encode a per-map, per-player economy rate.",
+			"Banking on progress terminates by construction: it continues only while cash sets new highs, and a",
+			"balance that keeps setting new highs reaches any fixed price in finite time.",
+			"It also ABSORBS a defect it does not fix: this bank silences only the composition lane, while the",
+			"request drains (CaptureCoordinator, AdaptiveProduction) and the separate .heli UnitBuilder",
+			"instances keep spending the same treasury. Rather than override other modules' guarantees, the",
+			"progress test NOTICES the drain — no new high, stall climbs, spell ends — instead of holding",
+			"production silent against a treasury it does not control.",
+			"Tolerance rather than 1 because income arrives in lumps: a measured healthy spell ran",
+			"92/92/158/224/224/290/.../554/521/521/587, with two flat cycles and a dip while climbing overall.",
+			"This is NOT a restored SupplyTruckFloor: it is gated on live measured demand, so with a full-ammo",
+			"army — the t=0 case the user complained about first — it is inert.",
+			"0 (default) ⇒ off, the cycle falls through exactly as before.")]
+		public readonly int SupplyPrecedenceStallCycles = 0;
 
 		[Desc("EXPERIMENTAL (early-econ behaviour 2): cap gated AA call-ins (the expensive vehicle SHORAD/",
 			"Tunguska) to the OBSERVED enemy air threat. Cheap AA infantry stay ungated as a baseline picket.",
@@ -238,7 +349,10 @@ namespace OpenRA.Mods.Common.Traits
 			// Type tokens (Vehicle/Infantry/Aircraft), NOT actor names, so it stays ordinal.
 			ActorNameCase.NormalizeKeysInPlace(UnitsToBuild);
 			ActorNameCase.NormalizeKeysInPlace(UnitLimits);
+			ActorNameCase.NormalizeKeysInPlace(UnitFloors);
+			ActorNameCase.NormalizeKeysInPlace(UnitFloorPer);
 			ActorNameCase.NormalizeKeysInPlace(UnitDelays);
+			ActorNameCase.NormalizeInPlace(UnitFloorSupportedTypes);
 			ActorNameCase.NormalizeInPlace(ResupplyUnitTypes);
 			ActorNameCase.NormalizeInPlace(AntiAirUnitTypes);
 			ActorNameCase.NormalizeInPlace(TransportUnitTypes);
@@ -273,10 +387,33 @@ namespace OpenRA.Mods.Common.Traits
 		// Ordinal-sorted copy of ResupplyUnitTypes: the fleet pre-emption ITERATES it (the ammo gate only ever
 		// probes it with Contains), and a HashSet's enumeration order is not part of the config text.
 		string[] supplyFleetTypes = Array.Empty<string>();
+		string[] floorTypes = Array.Empty<string>();
 		int supplyFleetShortfallTick = -1;
 		int supplyFleetStarving;
+		int supplyFleetNeedy;
 		int supplyFleetOwned;
 		int supplyFleetDesired;
+
+		// Consecutive cycles spent banking toward a truck, and the tick the last one was counted on. The tick
+		// guard is load-bearing: ChooseByDeficit runs once PER QUEUE, so an ungated counter would burn two or
+		// three of the allowance on a single bot tick and the bound would mean whatever the queue count
+		// happened to be. One tick, one banked cycle.
+		// Banking-spell state: the best balance seen so far in the current spell, and how many consecutive
+		// cycles have failed to beat it. Banking continues only while the balance keeps setting new highs,
+		// which is what makes the spell terminate rather than run to a fixed tick count.
+		long supplyBankBestCash;
+		int supplyBankStalled;
+		int supplyBankedCycles;
+		int supplyBankedTick = -1;
+
+		// The bank decision is taken once per world tick and reused by every queue in that tick, so the
+		// Vehicle and Infantry passes can never reach opposite conclusions about one shared treasury.
+		int supplyBankDecisionTick = -1;
+		bool supplyBankDecision;
+
+		// Per-instance cache of the treasury-wide hold (see AnySiblingWantsSupplyBank).
+		int bankHoldTick = -1;
+		bool bankHold;
 
 		IBotRequestPauseUnitProduction[] requestPause;
 		int idleUnitCount;
@@ -324,6 +461,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (Info.SupplyDemandSizing)
 				supplyFleetTypes = Info.ResupplyUnitTypes.OrderBy(t => t, StringComparer.Ordinal).ToArray();
+
+			// Ordinal, like every other flattened config array here: a Dictionary's enumeration order must
+			// never reach a decision (influence-stack determinism invariant).
+			if (Info.UnitFloors != null && Info.UnitFloors.Count > 0)
+				floorTypes = Info.UnitFloors.Keys.OrderBy(t => t, StringComparer.Ordinal).ToArray();
 		}
 
 		// Flatten the composition config into ordinal-ordered arrays exactly once. Skipped entirely when the
@@ -453,11 +595,115 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var q in Info.UnitQueues)
 					BuildUnit(bot, q, idleUnitCount < Info.IdleBaseUnitsMaximum);
 			}
+
+			LogCensusSnapshot();
+		}
+
+		// UNCONDITIONAL, like the [danger] and [supply] lines and for the same reason: this lane's only other
+		// instrumentation is AIUtils.BotDebug, which is default-OFF *and* routes to game chat rather than a log
+		// file — so "the bot never bought a medic" and "nobody was recording" were the same silence, and the
+		// standing composition could not be measured after a match at all.
+		//
+		// Reports CONCURRENTLY-ALIVE counts, never distinct identities: a standing cap and a high replacement
+		// rate produce the same id count and only concurrency separates them (DISCOVERIES.md 2026-08-12). The
+		// world/cargo split is the load-bearing part — a transported or garrisoned soldier is ABSENT from
+		// world.Actors (RideTransport removes it) while still alive on the map, so a world-only count reads a
+		// full transport as a dead platoon and cannot distinguish "never bought" from "bought and swallowed".
+		void LogCensusSnapshot()
+		{
+			if (compositionTypes == null || Info.CensusLogInterval <= 0 || ticks % Info.CensusLogInterval != 0)
+				return;
+
+			var inWorld = new int[compositionTypes.Length];
+			foreach (var a in world.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+
+				var slot = Array.IndexOf(compositionTypes, a.Info.Name);
+				if (slot >= 0)
+					inWorld[slot]++;
+			}
+
+			var inCargo = new int[compositionTypes.Length];
+			foreach (var pair in world.ActorsWithTrait<Cargo>())
+			{
+				var transport = pair.Actor;
+				if (transport.IsDead || !transport.IsInWorld)
+					continue;
+
+				if (transport.Owner != player && player.RelationshipWith(transport.Owner) != PlayerRelationship.Ally)
+					continue;
+
+				foreach (var p in pair.Trait.Passengers)
+				{
+					if (p.Owner != player)
+						continue;
+
+					var slot = Array.IndexOf(compositionTypes, p.Info.Name);
+					if (slot >= 0)
+						inCargo[slot]++;
+				}
+			}
+
+			var census = ForceCompositionMath.SharesPerMille(CensusValues());
+			var parts = new List<string>();
+			for (var i = 0; i < compositionTypes.Length; i++)
+				if (inWorld[i] > 0 || inCargo[i] > 0 || census[i] > 0)
+					parts.Add($"{compositionTypes[i]}={inWorld[i]}+{inCargo[i]}/{census[i]}v{compositionTargets[i]}");
+
+			// The two truck terms are on this line ON PURPOSE, and they are the difference between a claim and
+			// a guess. With SupplyTruckFloor at 0 these predicates are the ONLY thing that orders a truck, so
+			// "no trucks all match" has two completely different readings — "correct, nobody ever went dry"
+			// and "the gate never opened" — and without them printed the two are indistinguishable after the
+			// fact. That is precisely the mistake this branch banked in DISCOVERIES.md (confirm X was
+			// OBSERVABLE before concluding the bot never did X), one layer up; deleting the floor while
+			// leaving its replacement unobservable would repeat it. Both values already exist here.
+			// Read through SupplyFleetUnderDesired so the tick cache is populated by the SAME path the decision
+			// uses — the fields are only refreshed when that runs, so reading them raw would print whatever
+			// tick last happened to ask, which is a stale number that looks live. -1 means "not applicable"
+			// (demand sizing off), never "zero starving".
+			// `needy` joins them for the same reason, and it is the number that settles the 2026-08-15
+			// diagnosis: `starving` and `ammo-need` disagreed all match because they measure at different
+			// bars, and printing only the stricter one made "desired=0 while men are dry" look like a
+			// contradiction rather than the arithmetic it is. With both counts on the line the sizing input
+			// is visible, so a future desired=0 can be read off as "genuinely no demand" or "sized from the
+			// wrong bar" without another instrumented run.
+			var starving = -1;
+			var needy = -1;
+			var desired = -1;
+			if (Info.SupplyDemandSizing && supplyFleetTypes.Length > 0)
+			{
+				SupplyFleetUnderDesired(supplyFleetTypes[0]);
+				starving = supplyFleetStarving;
+				needy = Info.SupplySizeFromNeed ? supplyFleetNeedy : -1;
+				desired = supplyFleetDesired;
+			}
+
+			// `earned`, not `cash`, is what distinguishes a bot spending a live income from one
+			// living off a frozen opening allocation — both sit at cash~0. Logging cash alone hid a
+			// dead-economy harness for a year (WORKSPACE/DISCOVERIES.md, 2026-08-14).
+			var econRes = player.PlayerActor.TraitOrDefault<PlayerResources>();
+			var econ = econRes == null ? "econ=none" :
+				$"playable={player.Playable} passive={econRes.PassiveIncomeAmount} "
+				+ $"bldincome={(int)econRes.TotalBuildingIncome} upkeep={(int)econRes.Upkeep} "
+				+ $"net={econRes.NetChange} earned={econRes.Earned} spent={econRes.Spent}";
+
+			Log.Write("debug", $"[composition] census tick={world.WorldTick} player={player.InternalName} "
+				+ $"cash={AvailableBudget()} starving={starving} needy={needy} trucks-desired={desired} "
+				+ $"bank-spell={supplyBankedCycles} bank-best={supplyBankBestCash} bank-stalled={supplyBankStalled} "
+				+ $"ammo-need={AnyFieldedUnitNeedsResupply()} {econ} "
+				+ $"(type=inWorld+inCargo/census‰vtarget‰) {string.Join(" ", parts)}");
 		}
 
 		void IBotRequestUnitProduction.RequestUnitProduction(IBot bot, string requestedActor)
 		{
 			queuedBuildRequests.Add(requestedActor);
+
+			// The lane the offline replay CANNOT see: another module ordering through this trait bypasses the
+			// composition pick entirely. Tagged so a log can distinguish "the argmax chose this" from "something
+			// else asked for it" — the distinction that decides whether a composition-side fix can work at all.
+			LogPick("request", requestedActor, $"queued={queuedBuildRequests.Count}");
 		}
 
 		bool IBotRequestPriorityUnitProduction.RequestPriorityUnitProduction(IBot bot, string requestedActor)
@@ -483,6 +729,34 @@ namespace OpenRA.Mods.Common.Traits
 
 		void BuildUnit(IBot bot, string category, bool buildRandom)
 		{
+			// TREASURY-SCOPE BANK HOLD. Checked here rather than inside ChooseByDeficit because the sibling
+			// instances this has to silence do NOT set CompositionDirected — the .heli and .fixedwing twins
+			// ride the legacy lottery path and never enter ChooseByDeficit at all, so a hold placed there
+			// would miss exactly the instances that were draining the savings.
+			//
+			// Ordering is preserved for the owning instance: ShouldBankForSupply returns false whenever the
+			// truck is affordable, so an affordable truck falls through to ChooseByDeficit and is bought by
+			// the shortfall pre-empt as before. This only suppresses cycles that would otherwise SPEND the
+			// price on something else.
+			if (AnySiblingWantsSupplyBank())
+			{
+				// One line per TICK, not per queue per instance: the hold is a treasury-wide fact, and
+				// logging it three times a cycle (ground x2 queues + heli) would triple the volume while
+				// saying the same thing. The owning instance carries the counters, so it does the logging.
+				if (Info.SupplyDemandSizing && supplyBankedTick != world.WorldTick)
+				{
+					supplyBankedTick = world.WorldTick;
+					supplyBankedCycles++;
+
+					LogPick("supply-bank", "(none)", $"cash={AvailableBudget()} "
+						+ $"needy={supplyFleetNeedy} desired={supplyFleetDesired} owned={supplyFleetOwned} "
+						+ $"best={supplyBankBestCash} stalled={supplyBankStalled}/{Info.SupplyPrecedenceStallCycles} "
+						+ $"spell={supplyBankedCycles}");
+				}
+
+				return;
+			}
+
 			// Pick a free queue
 			var queue = AIUtils.FindQueuesByCategory(player)[category].FirstOrDefault(q => !q.AllQueued().Any());
 			if (queue == null)
@@ -519,17 +793,66 @@ namespace OpenRA.Mods.Common.Traits
 			// SupplyFleetUnderDesired satisfies this gate on its own: the standing floor exists precisely to be
 			// held while nobody is dry, and this gate is the one thing that would forbid reaching it. False when
 			// SupplyDemandSizing is off ⇒ the frozen evaluation order is unchanged.
-			if (Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name)
+			// A type under its standing floor is exempt from the demand gates below — otherwise the AA gate
+			// would refuse the very AA floor whose purpose is to hold AA BEFORE enemy air is observed, and the
+			// floor could never be reached. False whenever UnitFloors is unset (the default), so the frozen
+			// evaluation order is unchanged for normal/rush/turtle/@stable.
+			// EffectiveFloorFor returns 0 for an unfloored type, so this short-circuits before OwnedOrPending on
+			// every profile that sets no UnitFloors — the frozen path does no extra work and reaches QueueOrder
+			// byte-identically.
+			var floor = EffectiveFloorFor(name);
+			var belowFloor = floor > 0 && OwnedOrPending(name) < floor;
+
+			if (!belowFloor && Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name)
 				&& !SupplyFleetUnderDesired(name) && !AnyFieldedUnitNeedsResupply())
 				return;
 
-			if (Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())
+			if (!belowFloor && Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())
 				return;
 
-			if (Info.GateTransportOnDemand && Info.TransportUnitTypes.Contains(name) && !ShouldBuyTransport(unit))
+			if (!belowFloor && Info.GateTransportOnDemand && Info.TransportUnitTypes.Contains(name) && !ShouldBuyTransport(unit))
 				return;
 
 			bot.QueueOrder(Order.StartProduction(queue.Actor, name, 1));
+		}
+
+		// Every unit this player owns that a truck could serve — INCLUDING units currently loaded in a transport
+		// or sheltering in a garrison, which are ABSENT from world.Actors entirely (boarding calls
+		// `w.Remove(self)`, it does not merely clear IsInWorld).
+		//
+		// This is not defensive tidying; the two truck predicates below are wrong without it, and the bug is
+		// worst exactly when it matters most. SupplyProvider SERVES loaded/sheltered men — it walks
+		// GarrisonManager.ShelterPassengers specifically because they are out of the world
+		// (SupplyProvider.cs:547-570) — while a world-only purchase gate cannot see them. Every line and
+		// support infantry type is a PassengerType on MountedTransportBotModule (ai.yaml:1483), so the failure
+		// is ordinary play: infantry fight, run dry, board a Bradley or duck into a shelter, and demand reads
+		// ZERO while they sit there empty. `SupplyTruckFloor: 2` used to paper over this by buying trucks
+		// regardless; with the floor at 0 these predicates are the ONLY thing that orders a truck, so the blind
+		// spot becomes load-bearing.
+		//
+		// Cargo is the single authoritative container for both cases — a garrison's shelter soldiers live in
+		// the building's own Cargo and ShelterPassengers mirrors it — so one walk covers transports and
+		// garrisons, and a soldier deployed to a firing port is re-added to the world and counted by the first
+		// loop instead. The two sources are therefore disjoint: no double-count.
+		IEnumerable<Actor> OwnedUnitsIncludingCarried()
+		{
+			foreach (var a in world.Actors)
+				if (a.Owner == player && !a.IsDead && a.IsInWorld)
+					yield return a;
+
+			foreach (var pair in world.ActorsWithTrait<Cargo>())
+			{
+				var transport = pair.Actor;
+				if (transport.IsDead || !transport.IsInWorld)
+					continue;
+
+				if (transport.Owner != player && player.RelationshipWith(transport.Owner) != PlayerRelationship.Ally)
+					continue;
+
+				foreach (var p in pair.Trait.Passengers)
+					if (p.Owner == player && !p.IsDead)
+						yield return p;
+			}
 		}
 
 		// Behaviour 1: is there meaningful ammo need among fielded units a gated truck can rearm? Mirrors
@@ -537,11 +860,8 @@ namespace OpenRA.Mods.Common.Traits
 		// short-circuiting on the first needy unit. Pure decision in ResupplyDemand; this only reads trait state.
 		bool AnyFieldedUnitNeedsResupply()
 		{
-			foreach (var a in world.Actors)
+			foreach (var a in OwnedUnitsIncludingCarried())
 			{
-				if (a.Owner != player || a.IsDead || !a.IsInWorld)
-					continue;
-
 				var rearmable = a.TraitOrDefault<Rearmable>();
 				if (rearmable == null || !rearmable.Info.RearmActors.Overlaps(Info.ResupplyUnitTypes))
 					continue;
@@ -573,12 +893,52 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				supplyFleetShortfallTick = world.WorldTick;
 				supplyFleetStarving = CountStarvingCustomers();
+
+				// Only walk the actor list a second time when the need bar is actually in use.
+				supplyFleetNeedy = Info.SupplySizeFromNeed ? CountResupplyCustomers() : 0;
+
 				supplyFleetOwned = SupplyTrucksOwnedOrPending();
-				supplyFleetDesired = SupplyFleetMath.DesiredTrucks(supplyFleetStarving, Info.SupplyCustomersPerTruck,
+				supplyFleetDesired = SupplyFleetMath.DesiredTrucks(
+					SupplyPrecedenceMath.SizingCustomers(Info.SupplySizeFromNeed, supplyFleetStarving, supplyFleetNeedy),
+					Info.SupplyCustomersPerTruck,
 					Info.SupplyDemandOvercompensationPercent, Info.SupplyTruckFloor, Info.SupplyTruckCeiling);
 			}
 
 			return supplyFleetOwned < supplyFleetDesired;
+		}
+
+		// Fielded units that a truck would actually SERVE right now — the counting twin of
+		// AnyFieldedUnitNeedsResupply, at the identical bar (ResupplyNeedThreshold, mirroring
+		// SupplyProvider.MinNeedThreshold).
+		//
+		// This exists because the boolean and the count were measuring different things: the boolean said
+		// "somebody needs resupply" (True from tick 1240 to the end of the match) while the fleet was sized
+		// from CountStarvingCustomers, a strictly tighter bar that read 0 at every snapshot. One fact, two
+		// predicates, and the one that could not see the demand was the one holding the purse. Sharing
+		// OwnedUnitsIncludingCarried and the same Rearmable filter is what keeps them from drifting again.
+		//
+		// Counts UNITS, not pools, exactly as the starving count does: a soldier with two dry weapons is one
+		// customer for one truck.
+		int CountResupplyCustomers()
+		{
+			var count = 0;
+			foreach (var a in OwnedUnitsIncludingCarried())
+			{
+				var rearmable = a.TraitOrDefault<Rearmable>();
+				if (rearmable == null || !rearmable.Info.RearmActors.Overlaps(Info.ResupplyUnitTypes))
+					continue;
+
+				var pools = rearmable.RearmableAmmoPools;
+				if (pools == null || pools.Length == 0)
+					continue;
+
+				if (ResupplyDemand.MeetsThreshold(
+					ResupplyDemand.UnitNeed(pools.Select(p => (p.Info.Ammo, p.CurrentAmmoCount, p.Info.SupplyValue))),
+					Info.ResupplyNeedThreshold))
+					count++;
+			}
+
+			return count;
 		}
 
 		// Fielded units with at least one truck-rearmable pool below the starving bar. Deliberately counts
@@ -586,11 +946,8 @@ namespace OpenRA.Mods.Common.Traits
 		int CountStarvingCustomers()
 		{
 			var count = 0;
-			foreach (var a in world.Actors)
+			foreach (var a in OwnedUnitsIncludingCarried())
 			{
-				if (a.Owner != player || a.IsDead || !a.IsInWorld)
-					continue;
-
 				var rearmable = a.TraitOrDefault<Rearmable>();
 				if (rearmable == null || !rearmable.Info.RearmActors.Overlaps(Info.ResupplyUnitTypes))
 					continue;
@@ -670,6 +1027,290 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return null;
+		}
+
+		// Does ANY UnitBuilder instance on this player want to bank right now?
+		//
+		// THE SCOPE ARGUMENT, which is this branch's own rule applied where it had not yet been applied: a
+		// decision about a shared resource must be taken at the scope of that resource. The resource is the
+		// TREASURY. One trait instance is not its scope, and neither is one queue — that was the first
+		// version of this bug, fixed a layer down. Under @experimental a player runs THREE live
+		// UnitBuilderBotModule instances (the ground twin, .fixedwing, and the experimental .heli twin), all
+		// spending one balance, and only the ground twin carries the supply flags. Measured consequence: a
+		// player banked 29 consecutive cycles, reached cash 935 against a 1000 truck, and was drained back to
+		// 477 by its siblings — 1,340 spent during the silence.
+		//
+		// DELIBERATELY NARROW: siblings of THIS TRAIT only. It is not extended to other module types even
+		// though they also spend, because CaptureCoordinatorBotModule's capturer floor and
+		// AdaptiveProductionBotModule's counter-buys are those modules' own correctness contracts, and
+		// suppressing them from here would trade a scope bug for a cross-module dependency. Silencing a
+		// sibling instance of the SAME trait overrides nobody's invariant — it makes one mechanism behave
+		// consistently with itself.
+		//
+		// Cached per world tick. The cache is per-instance but cannot disagree across instances, because the
+		// ANSWER is computed by the owning instance's own per-tick-cached ShouldBankForSupply — so the stall
+		// bookkeeping runs exactly once per tick no matter which sibling asks first. That is genuinely shared
+		// state derived from one owner, not N caches that happen to agree.
+		bool AnySiblingWantsSupplyBank()
+		{
+			if (bankHoldTick == world.WorldTick)
+				return bankHold;
+
+			bankHoldTick = world.WorldTick;
+			bankHold = false;
+
+			foreach (var sibling in player.PlayerActor.TraitsImplementing<UnitBuilderBotModule>())
+			{
+				if (sibling.WantsSupplyBank())
+				{
+					bankHold = true;
+					break;
+				}
+			}
+
+			return bankHold;
+		}
+
+		// This instance's own banking decision, with no sibling consultation — that separation is what stops
+		// AnySiblingWantsSupplyBank recursing. Only an ENABLED instance that actually owns the supply flags
+		// can want to bank; a condition-disabled twin never ticks, so letting it vote would let a dormant
+		// config silence a live one.
+		internal bool WantsSupplyBank()
+		{
+			if (IsTraitDisabled || !Info.SupplyDemandSizing || Info.SupplyPrecedenceStallCycles <= 0)
+				return false;
+
+			return ShouldBankForSupply(AvailableBudget());
+		}
+
+		// Clear the banking-spell trail. Called both when a truck is bought and when a spell is abandoned, so
+		// the high-water mark can never leak across spells: a stale `best` from a richer moment would make
+		// every later cycle look stalled and suppress banking that was in fact making progress.
+		void EndBankingSpell()
+		{
+			supplyBankBestCash = 0;
+			supplyBankStalled = 0;
+			supplyBankedCycles = 0;
+		}
+
+		// Should this cycle buy NOTHING and bank toward a truck? True only when the fleet is short and the
+		// truck is genuinely unaffordable — if we could afford it, ChooseSupplyFleetShortfall would already
+		// have bought it and we would never be asked.
+		//
+		// DELIBERATELY QUEUE-INDEPENDENT, and this is the whole correctness argument rather than a detail.
+		// ChooseByDeficit runs once PER QUEUE, and `truk` is buildable only from the Vehicle queue. A version
+		// of this that tested the CALLING queue's buildable set banked the Vehicle queue while the Infantry
+		// queue happily went on spending — on the same shared treasury the truck was saving from. Measured
+		// exactly that way: 208 bank decisions, `banked` never rising above 1 because the Infantry queue
+		// reset it every cycle, and cash still sawtoothing 92/158/124/190/256/166 without ever reaching
+		// 1000. Banking one queue is not banking. The budget is global, so the decision must be too: this
+		// asks whether ANY queue this module drives could produce a needed truck, and when the answer is yes
+		// EVERY queue declines.
+		//
+		// Cached per world tick so the two queue calls in one bot tick cannot disagree (and so the buildable
+		// scan runs once). world.WorldTick is deterministic and every input is an order-independent sum.
+		//
+		// The decision itself is in SupplyPrecedenceMath.ShouldBankCycle (pure, NUnit-pinned); this only
+		// samples the world state it needs.
+		bool ShouldBankForSupply(long budget)
+		{
+			if (Info.SupplyPrecedenceStallCycles <= 0)
+				return false;
+
+			if (supplyBankDecisionTick == world.WorldTick)
+				return supplyBankDecision;
+
+			supplyBankDecisionTick = world.WorldTick;
+			supplyBankDecision = false;
+
+			// Progress bookkeeping, once per tick and BEFORE the decision, so a spell that has stopped
+			// advancing is caught on the same cycle it stalls.
+			supplyBankStalled = SupplyPrecedenceMath.UpdateStall(budget, supplyBankBestCash, supplyBankStalled);
+			if (budget > supplyBankBestCash)
+				supplyBankBestCash = budget;
+
+			var fleetShort = false;
+			var affordable = false;
+			foreach (var name in supplyFleetTypes)
+			{
+				if (!world.Map.Rules.Actors.TryGetValue(name, out var actorInfo))
+					continue;
+
+				if (Info.UnitLimits != null && Info.UnitLimits.TryGetValue(name, out var limit) &&
+					world.Actors.Count(a => a.Owner == player && a.Info.Name == name) >= limit)
+					continue;
+
+				// Never stall production saving for something no queue can actually deliver.
+				if (!BuildableFromAnyQueue(name))
+					continue;
+
+				if (!SupplyFleetUnderDesired(name))
+					continue;
+
+				fleetShort = true;
+				if (CompositionNeedMath.Affordable(budget, UnitCost(actorInfo), 100))
+				{
+					affordable = true;
+					break;
+				}
+			}
+
+			supplyBankDecision = SupplyPrecedenceMath.ShouldBankCycle(fleetShort, affordable,
+				supplyBankStalled, Info.SupplyPrecedenceStallCycles);
+
+			return supplyBankDecision;
+		}
+
+		// Can any queue this module drives currently produce this type? The per-queue buildable set is what
+		// ChooseByDeficit works from, but the treasury is shared across queues, so a decision about MONEY has
+		// to be asked across all of them.
+		bool BuildableFromAnyQueue(string name)
+		{
+			var queues = AIUtils.FindQueuesByCategory(player);
+			foreach (var category in Info.UnitQueues)
+				foreach (var q in queues[category])
+					foreach (var item in q.BuildableItems())
+						if (item.Name == name)
+							return true;
+
+			return false;
+		}
+
+		// The floor pre-empt: the first type (ordinal) whose standing population is under its UnitFloors entry
+		// and which we can actually call in. Returning null falls through to the ordinary deficit pick.
+		//
+		// This deliberately does NOT consult IsCompositionCandidateEligible. The target ceiling and the
+		// ScaleAntiAirToThreat gate are precisely what a floor has to outrank — a floor a threat gate can
+		// refuse is not a floor, and an AA floor whose whole purpose is to hold AA BEFORE enemy air is seen
+		// would never fire. UnitLimits, buildability, UnitsToBuild membership, UnitDelays and affordability
+		// are all still honoured: a floor is a priority, not a licence to buy what does not exist or to
+		// overdraw. A floor above its own UnitLimit is bounded by the limit, not an error.
+		ActorInfo ChooseBelowFloor(HashSet<string> buildableNames, long budget)
+		{
+			foreach (var name in floorTypes)
+			{
+				if (!buildableNames.Contains(name) || !world.Map.Rules.Actors.TryGetValue(name, out var actorInfo))
+					continue;
+
+				if (Info.UnitsToBuild != null && !Info.UnitsToBuild.ContainsKey(name))
+					continue;
+
+				if (Info.UnitDelays != null && Info.UnitDelays.TryGetValue(name, out var delay) && delay > world.WorldTick)
+					continue;
+
+				if (Info.UnitLimits != null && Info.UnitLimits.TryGetValue(name, out var limit)
+					&& OwnedOrPending(name) >= limit)
+					continue;
+
+				if (!CompositionNeedMath.Affordable(budget, UnitCost(actorInfo), 100))
+					continue;
+
+				// Counting PENDING call-ins is load-bearing, not defensive: a reinforcement walks in from the
+				// map edge over many purchase cycles, so an owned-only count would re-order the same unit every
+				// cycle until the first one arrives and blow straight past the floor.
+				//
+				// The floor is the EFFECTIVE one, which for a support type is scaled to the force it serves and
+				// is therefore ZERO before that force exists. That is what stops this pre-empt — which outranks
+				// the ceiling and every demand gate — from spending the opening call-ins on support units.
+				var effectiveFloor = EffectiveFloorFor(name);
+				if (OwnedOrPending(name) >= effectiveFloor)
+					continue;
+
+				AIUtils.BotDebug("{0} standing floor SHORT: {1} owned+pending {2} < floor {3} (flat {4})",
+					player, name, OwnedOrPending(name), effectiveFloor, Info.UnitFloors[name]);
+
+				return actorInfo;
+			}
+
+			return null;
+		}
+
+		// The floor actually in force for a type right now — the ONE place both decision sites read, so the
+		// pre-empt (ChooseBelowFloor) and the demand-gate exemption (BuildUnit) can never disagree about what
+		// the floor is. They did not disagree before because both inlined the same raw lookup; a scaled floor
+		// makes that duplication a real hazard, hence the shared accessor.
+		//
+		// Returns 0 for any type with no UnitFloors entry, which is every type on every profile that does not
+		// opt in — so this reduces to the frozen answer without touching the frozen path.
+		int EffectiveFloorFor(string name)
+		{
+			if (Info.UnitFloors == null || !Info.UnitFloors.TryGetValue(name, out var flatFloor))
+				return 0;
+
+			var per = 0;
+			if (Info.UnitFloorPer != null)
+				Info.UnitFloorPer.TryGetValue(name, out per);
+
+			// Only pay for the denominator walk when a ratio is actually configured for this type.
+			return SupportFloorMath.EffectiveFloor(flatFloor, per, per > 0 ? CountSupportedForce() : 0);
+		}
+
+		// The denominator for UnitFloorPer: how much of the force that support types serve actually EXISTS.
+		//
+		// Owned + in-cargo, matching OwnedOrPending's cargo credit — boarding REMOVES a passenger from
+		// world.Actors outright, so a world-only walk would collapse this count to near zero every time the
+		// squad boarded a transport and hand the floor straight back to zero mid-match.
+		//
+		// Pending is EXCLUDED, unlike the numerator. A unit still walking in from the map edge is not yet a
+		// squad that needs a medic, and counting it would let a queue full of infantry pull the support buy
+		// forward to exactly the t=0 moment this scaling exists to prevent.
+		//
+		// Order-independent sum over a membership filter, so world iteration order cannot leak into the
+		// decision (the determinism invariant).
+		int CountSupportedForce()
+		{
+			if (Info.UnitFloorSupportedTypes.Count == 0)
+				return 0;
+
+			var count = 0;
+			foreach (var a in OwnedUnitsIncludingCarried())
+				if (Info.UnitFloorSupportedTypes.Contains(a.Info.Name))
+					count++;
+
+			return count;
+		}
+
+		// Live actors — INCLUDING transported and garrisoned ones — plus everything already ordered for this
+		// type across both request lanes and every queue this module drives. Order-independent sums only.
+		//
+		// The cargo term is not defensive bookkeeping, it is what stops the floor becoming the disease it was
+		// meant to cure. Both floored types (aa.*, medi.*) are listed as PassengerTypes on
+		// MountedTransportBotModule and are recruited by the garrison modules, and boarding REMOVES the
+		// passenger from world.Actors outright (RideTransport `w.Remove(self)`) rather than clearing
+		// IsInWorld. A world-only count would therefore read every loaded AA soldier as dead and buy
+		// replacements without bound for as long as the transports kept swallowing them — an unbounded spend
+		// driven by units that are alive and well. CensusValues already credits cargo for exactly this reason
+		// (CreditTransportedUnits); the floor has to agree with it or the two lanes fight.
+		int OwnedOrPending(string name)
+		{
+			var count = world.Actors.Count(a => a.Owner == player && !a.IsDead && a.IsInWorld
+				&& a.Info.Name == name);
+
+			foreach (var pair in world.ActorsWithTrait<Cargo>())
+			{
+				var transport = pair.Actor;
+				if (transport.IsDead || !transport.IsInWorld)
+					continue;
+
+				if (transport.Owner != player && player.RelationshipWith(transport.Owner) != PlayerRelationship.Ally)
+					continue;
+
+				foreach (var p in pair.Trait.Passengers)
+					if (p.Owner == player && p.Info.Name == name)
+						count++;
+			}
+
+			var queues = AIUtils.FindQueuesByCategory(player);
+			foreach (var category in Info.UnitQueues)
+				foreach (var q in queues[category])
+					foreach (var item in q.AllQueued())
+						if (item.Item == name)
+							count++;
+
+			count += priorityBuildRequests.Count(r => r == name);
+			count += queuedBuildRequests.Count(r => r == name);
+
+			return count;
 		}
 
 		// Behaviour 2: allow another gated AA unit only while owned count is under the observed-air cap.
@@ -905,7 +1546,34 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var shortfall = ChooseSupplyFleetShortfall(buildableNames, budget);
 				if (shortfall != null)
+				{
+					// Bought one: this spell did its job, so the progress trail starts fresh.
+					EndBankingSpell();
+					LogPick("supply-fleet", shortfall.Name, $"queue={queue.Info.Type} "
+						+ $"starving={supplyFleetStarving} needy={supplyFleetNeedy} desired={supplyFleetDesired}");
 					return shortfall;
+				}
+
+				// The bank HOLD itself now lives at the top of BuildUnit, at treasury scope, so that it also
+				// silences the sibling .heli/.fixedwing instances that never enter this method. Reaching here
+				// therefore means we are NOT banking this cycle — demand met, truck affordable, or the
+				// balance stopped advancing — so the spell ends and its progress trail is cleared, leaving
+				// the next spell to be judged on its own merits rather than against a high-water mark from a
+				// richer moment.
+				EndBankingSpell();
+			}
+
+			// STANDING-POPULATION FLOOR — same reason the supply fleet pre-empts, generalised. A per-mille-of-
+			// VALUE target cannot hold a small type on the map: one unit of a 9-per-mille type is over target in
+			// any army below 1000*cost/target, and under losses the big slots stay in deficit so the argmax never
+			// descends to a specialist slot at all. Second, so an explicit fleet size still wins a tie with a
+			// floor on the same type.
+			var belowFloor = ChooseBelowFloor(buildableNames, budget);
+			if (belowFloor != null)
+			{
+				LogPick("floor", belowFloor.Name, $"queue={queue.Info.Type} owned+pending={OwnedOrPending(belowFloor.Name)} "
+					+ $"floor={EffectiveFloorFor(belowFloor.Name)} supported={CountSupportedForce()}");
+				return belowFloor;
 			}
 
 			var eligible = new bool[compositionTypes.Length];
@@ -947,6 +1615,8 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			LogCompositionChoice(compositionTypes[idx], ForceCompositionMath.DeficitAt(targets, census, idx), census, targets);
+			LogPick("deficit", compositionTypes[idx], $"queue={queue.Info.Type} "
+				+ $"deficit={ForceCompositionMath.DeficitAt(targets, census, idx)}");
 
 			return world.Map.Rules.Actors[compositionTypes[idx]];
 		}
@@ -1207,6 +1877,26 @@ namespace OpenRA.Mods.Common.Traits
 
 			AIUtils.BotDebug("{0} composition-directed buy: {1} (deficit {2}) [top {3}]",
 				player, chosen, deficit, string.Join(", ", top));
+		}
+
+		// WHICH LANE ORDERED THIS, on the same unconditional channel as the census.
+		//
+		// The census answers "what does the bot own"; it CANNOT answer "why did it buy that", and the two
+		// questions have different answers when several lanes can order the same type. Every existing pick log
+		// is AIUtils.BotDebug, which is default-off AND routes to game chat rather than debug.log — so the
+		// selection itself has never been observable in a log at all. That gap cost this branch a wrong
+		// conclusion: the offline replay showed the medic opening fixed while a live match still opened with
+		// medics, and with no lane tag there was no way to tell which of the procurement lanes disagreed with
+		// the replay.
+		//
+		// Gated on CensusLogInterval so it shares the census's opt-in and stays silent for @stable.
+		void LogPick(string lane, string type, string detail)
+		{
+			if (Info.CensusLogInterval <= 0)
+				return;
+
+			Log.Write("debug", $"[composition] pick tick={world.WorldTick} player={player.InternalName} "
+				+ $"lane={lane} type={type} {detail}");
 		}
 
 		long AvailableBudget()

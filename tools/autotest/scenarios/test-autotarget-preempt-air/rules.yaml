@@ -17,6 +17,17 @@ World:
 # NOTE: PreemptScanInterval is deliberately NOT set here — the test must exercise
 # the value that ships in rules/defaults.yaml. Setting it to 0 here is the way to
 # reproduce the original RED.
+#
+# PITFALL, learned while running that control on 2026-08-12: pin it on the ACTOR, not
+# on ^Combatant. strykershorad lists Inherits@AutoTarget: ^AutoTargetAAIFV AFTER
+# Inherits@Combatant, and that chain reaches ^AutoTargetGround's PreemptScanInterval: 25,
+# so a ^Combatant override loses the merge and the "control" quietly runs the shipped
+# value instead. A control that never applied is indistinguishable from a fix that does
+# nothing — which is how this test has produced false greens before. Uncomment:
+#
+# strykershorad:
+# 	AutoTarget:
+# 		PreemptScanInterval: 0
 ^Combatant:
 	AutoTarget:
 		ScanRadius: 30

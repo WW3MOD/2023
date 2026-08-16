@@ -101,6 +101,34 @@ namespace OpenRA.Mods.Common.Traits
 			"automatically by trait.")]
 		public readonly HashSet<string> ExcludeUnitTypes = new HashSet<string>();
 
+		[Desc("COMBINED ARMS (@experimental). Do not recruit infantry the MOUNTED TRANSPORT could load right now —",
+			"leave them standing where they are so a carrier can pick them up, instead of walking them to the attack",
+			"anchor on foot. This is the user-visible complaint 'the tank attacks alone while the infantry walk behind",
+			"it', and the cause is a race this side always wins: StageFreePool recruits armed infantry from tick 3,",
+			"MountedTransportBotModule's first scan is at ScanInterval, and its passenger ledger (CommitPassengers)",
+			"protects a soldier only from the moment its EnterTransport is ADMITTED. By then the soldier is busy under",
+			"an AttackMove, so BotOrderGate's dwell rule suppresses the boarding order — and this module's own",
+			"100-tick re-eval refreshes that standing order inside the 120-tick dwell window, so the suppression",
+			"re-arms indefinitely. Measured: of six refused boarding offers, six were idle=False",
+			"activity=AttackMoveActivity.",
+			"THE HOLD IS BOUNDED BY REAL SEATS, not by a quota: IsPassengerWanted returns nothing unless an EMPTY",
+			"carrier with free capacity exists this tick, so with no carrier the offensive loses exactly nothing.",
+			"OFF by default => the @stable twin (which omits this field) is byte-identical.")]
+		public readonly bool TransportStandoffEnabled = false;
+
+		[Desc("Safety valve for TransportStandoffEnabled: release a unit back to the offensive after this many ticks",
+			"of being held for a carrier that never collected it. Without it a transport that can never resolve a drop",
+			"cell would hold a cohort at the SR for the whole match — not hypothetical, it is what the pre-2026-08-15",
+			"no-drop-cell defect did. Once released a unit is not re-held while it stays wanted, so this is a one-way",
+			"valve rather than a duty cycle. 0 = no valve.",
+			"MIRRORS MountedTransportBotModule.LoadingTimeoutTicks (1500) deliberately: that is the transport's own",
+			"bound on how long it will wait for a passenger, so releasing sooner would take the soldier back while the",
+			"carrier was still legitimately expecting it. It must also clear the observed latency of the pre-contact",
+			"drop cell — the measured baseline's first departure is at tick ~1015, because the drop cell cannot",
+			"resolve until the influence fields populate. A valve under that would fire before the transport ever got",
+			"the chance to load. Only used when TransportStandoffEnabled is set.")]
+		public readonly int TransportStandoffMaxHoldTicks = 1500;
+
 		[Desc("Skip units whose AmmoPool(s) are ALL empty (evacuating / out-of-ammo). An empty unit",
 			"re-tasked onto an axis has its RotateToEdge evac cancelled by the AttackMove and is sent",
 			"at the enemy with nothing to shoot. OFF by default, so a profile omitting the flag keeps pulling every",
@@ -1018,11 +1046,27 @@ namespace OpenRA.Mods.Common.Traits
 		// staging is off, no control field / SR, or the field is unpopulated (⇒ reserve idles at the SR, legacy).
 		CPos? stagingAnchor;
 
+		/// <summary>
+		/// The cell the free pool is mustering on this eval, published so the MOUNTED TRANSPORT can deliver its
+		/// infantry to the armour instead of to a destination it computes for itself (RendezvousMath). Read-only:
+		/// this is a rendezvous channel, not a control surface — no consumer may steer the offensive's staging.
+		///
+		/// Null carries real information and must not be papered over by the consumer: it means staging has not
+		/// resolved (off, no control field / SR, or a flat field with no believed enemy anywhere), so there is no
+		/// force to rendezvous WITH and a transport should keep its own destination.
+		/// </summary>
+		public CPos? ForwardStagingAnchor => stagingAnchor;
+
 		// The last ADOPTED staging anchor (Chebyshev hysteresis, so a 1-cell field wobble doesn't re-lay the
 		// formation every eval), and the last staging cell each idle unit was AttackMoved to (re-issue dedup so a
 		// unit already walking up keeps its order). Both empty/null unless ForwardStagingEnabled.
 		CPos? lastStagingAnchor;
 		readonly Dictionary<Actor, CPos> stagedCells = new();
+
+		// Combined-arms transport standoff: when each held unit was first withheld, so the safety valve can
+		// release one the transport never actually collected. Empty unless TransportStandoffEnabled.
+		readonly Dictionary<Actor, int> standoffSince = new();
+		int lastStandoffLogTick = int.MinValue;
 
 		// Item 31 opportunistic advance: the last ADOPTED advance anchor. This IS retained cross-eval state — the
 		// advance is not stateless. Its hysteresis is ONE-WAY (see AdoptAdvanceAnchor): a held anchor that no
@@ -1983,11 +2027,82 @@ namespace OpenRA.Mods.Common.Traits
 			var tick = world.WorldTick;
 			var claimedByAxis = new HashSet<Actor>(axes.SelectMany(a => a.Units));
 
-			return world.Actors
+			PruneStandoffMemory();
+			var stoodOff = 0;
+
+			var pool = world.Actors
 				.Where(a => IsEligibleCombatUnit(a)
 					&& !claimedByAxis.Contains(a)
-					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, tick)))
+					&& (goalGuard == null || !goalGuard.Ledger.IsCommitted(a, tick))
+					&& !StoodOffForTransport(a, tick, ref stoodOff))
 				.ToList();
+
+			// Once per tick, not once per BuildFreePool call — three call sites run inside one Reevaluate and
+			// would otherwise print the same line three times.
+			if (stoodOff > 0 && lastStandoffLogTick != tick)
+			{
+				lastStandoffLogTick = tick;
+				Log.Write("debug",
+					$"[exp-standoff] player={player.PlayerName} held={stoodOff} free={pool.Count} tick={tick}");
+			}
+
+			return pool;
+		}
+
+		// Withhold a unit the mounted transport could load right now, so it is still standing where a carrier
+		// can reach it when that module's next scan comes round. See TransportStandoffEnabled for the race
+		// this closes.
+		//
+		// The transport module is resolved live rather than cached, for the reason its own twin lookups give:
+		// the trait is twinned per profile and TraitOrDefault throws on "multiple traits", while a one-shot
+		// latch that happened to resolve null would stay null for the rest of the match.
+		bool StoodOffForTransport(Actor a, int tick, ref int stoodOff)
+		{
+			if (!Info.TransportStandoffEnabled)
+				return false;
+
+			var transport = player.PlayerActor.TraitsImplementing<MountedTransportBotModule>()
+				.FirstOrDefault(m => !m.IsTraitDisabled);
+
+			if (transport == null || !transport.IsPassengerWanted(a))
+			{
+				// No longer wanted — most often because it BOARDED, which is the success path. Clearing here
+				// is what lets the valve's clock restart if this unit is ever wanted again.
+				standoffSince.Remove(a);
+				return false;
+			}
+
+			if (!standoffSince.TryGetValue(a, out var since))
+			{
+				standoffSince[a] = tick;
+				stoodOff++;
+				return true;
+			}
+
+			// Valve expired: release, but KEEP the record. Removing it here would re-hold the unit on the very
+			// next eval and turn a one-way release into a duty cycle.
+			if (Info.TransportStandoffMaxHoldTicks > 0 && tick - since >= Info.TransportStandoffMaxHoldTicks)
+				return false;
+
+			stoodOff++;
+			return true;
+		}
+
+		// Entries are only ever revisited for units that pass IsEligibleCombatUnit (alive, in-world, ours), so
+		// a unit that dies while held would otherwise leak its record for the rest of the match.
+		void PruneStandoffMemory()
+		{
+			if (standoffSince.Count == 0)
+				return;
+
+			List<Actor> stale = null;
+			foreach (var a in standoffSince.Keys)
+				if (a.IsDead || !a.IsInWorld || a.Owner != player)
+					(stale ??= new List<Actor>()).Add(a);
+
+			if (stale != null)
+				foreach (var a in stale)
+					standoffSince.Remove(a);
 		}
 
 		// Phase 2: resolve this eval's forward staging anchor — a safe standoff BEHIND the believed friendly

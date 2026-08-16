@@ -160,6 +160,11 @@
 		Terrain: Field
 	AppearsOnMapPreview:
 		Terrain: Field
+	# PITFALL (2026-08-15): leave these commented out. Giving a field TargetTypes so that weapons
+	# "notice" it is the wrong cure — it makes the field a VALID target that soaks the shot and can be
+	# auto-acquired, when the design wants a field to be indistinguishable from the tile beneath it.
+	# The shell-swallowing bug this looks like the fix for lives in the engine: warhead impact
+	# classification skips GroundCover actors (CreateEffectWarhead.ActorTypeAtImpact).
 	# Health:
 	# 	HP: 2500
 	# Targetable:

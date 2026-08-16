@@ -95,20 +95,13 @@ namespace OpenRA.Mods.Common.Traits
 			var lookupFrom = swap ? toMPos : fromMPos;
 			var lookupTo = swap ? fromMPos : toMPos;
 
-			// PITFALL: off-map actors are routine here (map-edge reinforcements) — CellLayer's
+			// PITFALL: off-map actors are routine here (map-edge reinforcements) — the shadow
 			// indexer does NOT bounds-check, so an out-of-map MPos throws IndexOutOfRange.
-			if (!map.ShadowLayer.Contains(lookupFrom))
-				return true;
-
-			var shadowFromCell = map.ShadowLayer[lookupFrom];
-			if (shadowFromCell == null)
-				return true;
-
-			if (!shadowFromCell.Contains(lookupTo))
+			if (!map.ShadowLayer.Contains(lookupFrom) || !map.ShadowLayer.Contains(lookupTo))
 				return true;
 
 			// Look up pre-computed shadow value
-			var (groundShadow, airborneShadow) = shadowFromCell[lookupTo];
+			var (groundShadow, airborneShadow) = map.ShadowLayer[lookupFrom, lookupTo];
 
 			// Aircraft use airborne shadow channel (accounts for altitude, much lower values).
 			// Either end being airborne means the LOS is the slanted high-low line.
@@ -152,15 +145,11 @@ namespace OpenRA.Mods.Common.Traits
 			var lookupFrom = swap ? toMPos : fromMPos;
 			var lookupTo = swap ? fromMPos : toMPos;
 
-			// PITFALL: same off-map guard as HasClearLOS — CellLayer indexer does not bounds-check.
-			if (!map.ShadowLayer.Contains(lookupFrom))
+			// PITFALL: same off-map guard as HasClearLOS — the shadow indexer does not bounds-check.
+			if (!map.ShadowLayer.Contains(lookupFrom) || !map.ShadowLayer.Contains(lookupTo))
 				return 0;
 
-			var shadowFromCell = map.ShadowLayer[lookupFrom];
-			if (shadowFromCell == null || !shadowFromCell.Contains(lookupTo))
-				return 0;
-
-			var (groundShadow, airborneShadow) = shadowFromCell[lookupTo];
+			var (groundShadow, airborneShadow) = map.ShadowLayer[lookupFrom, lookupTo];
 			return (firerAirborne || targetAirborne) ? airborneShadow : groundShadow;
 		}
 

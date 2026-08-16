@@ -1,0 +1,1 @@
+Measurement rig: 7 Hellfire lanes (HELI/Hellfire vs littlebird across flee/approach/reverse/hover, strykershorad/Hellfire.strykershorad vs t90) to measure the FlyStraightIfMiss latch on the one ATGM the latch-probe never fired. Run with --missile-trace.

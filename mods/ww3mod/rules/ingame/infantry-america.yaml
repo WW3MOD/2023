@@ -13,7 +13,7 @@ E1R1.america:
 	ProducibleWithLevel:
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
-		OverrideActor: E1.america
+		OverrideActor: e1.america
 # Rifleman
 E3.america:
 	Inherits: ^E3
@@ -26,7 +26,7 @@ E3R1.america:
 	ProducibleWithLevel:
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
-		OverrideActor: E3.america
+		OverrideActor: e3.america
 	-Buildable:
 # LMG
 AR.america:
@@ -47,7 +47,7 @@ E2R1.america:
 	ProducibleWithLevel:
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
-		OverrideActor: E2.america
+		OverrideActor: e2.america
 	-Buildable:
 # Mortar
 MT.america:

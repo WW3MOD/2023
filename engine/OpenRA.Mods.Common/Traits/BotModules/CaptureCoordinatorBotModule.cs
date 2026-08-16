@@ -371,6 +371,64 @@ namespace OpenRA.Mods.Common.Traits
 			"strictly inside the standoff. 0 disables the fan-out (all capturers muster on the anchor cell).")]
 		public readonly int ReserveSpreadStepCells = 2;
 
+		[Desc("RECLAIM our own cleared base. Since c513f358 a soldier entering ANY enemy building evicts the",
+			"owner to Neutral and walks out alive; only a technician ever re-owns one. So a raided base is a row",
+			"of NEUTRAL structures — AA defences, airfields, production — and the capture layer could not see a",
+			"single one of them: PoiMap.Discover admits only the actor names in its own IncomeWeights",
+			"(oilb/fcom/bio/miss/hosp) plus the Supply Route, so a neutralised afld/sam is not a POI at all and",
+			"never reaches GetCaptureTargets. The bot therefore sat next to its own dead base forever.",
+			"(PBOX/HBOX/GTWR are NOT in scope and never were: they strip -CaptureManager/-Capturable outright in",
+			"structures-defenses.yaml, so they can be neither evicted nor reclaimed. AA defences inherit",
+			"^Defense → ^Building and keep theirs, which is why 'defences' above is qualified.)",
+			"",
+			"When ON, structures we PREVIOUSLY OWNED that are now Neutral become capture targets in their own",
+			"right, dispatched BEFORE the PoiMap ranking (getting our own airfield back beats a speculative walk",
+			"to a far derrick) and funded by folding the backlog into the capturer floor. 'Previously owned' is",
+			"remembered from the module's own scans (see the reclaim memory), not guessed from position, so a",
+			"forward derrick we captured and later lost is reclaimable too while a civilian house we never held",
+			"is not — this lever adds no appetite for buildings that were never ours.",
+			"",
+			"A reclaim is NOT DISPATCHED AT ALL unless at least one escort is recruitable for it: the escort tier",
+			"is floored at Light, and DispatchReclaimTargets checks the support pool BEFORE ordering, because",
+			"DispatchEscort runs after the capture order is already queued and returns silently when the pool is",
+			"empty. (That guarantees an escort is REQUESTED and one unit was available when asked — not that two",
+			"arrive; the recruit Take() may still deliver one.) Candidates skipped this way are retried every",
+			"scan, so a bot with nothing to escort with defers rather than feeding technicians to the raiders.",
+			"",
+			"Default false ⇒ no memory is kept, no candidate is scanned and the floor input is the money-POI",
+			"count verbatim, so a config omitting the flag is byte-identical.")]
+		public readonly bool ReclaimNeutralisedStructures = false;
+
+		[Desc("Reclaim safety gate: believed anti-ground danger (DangerFieldLayer.GroundDanger) above which a",
+			"reclaim target is SKIPPED this scan — do not walk an unarmed 250-cost consumable into a base the",
+			"raid has not left yet. IN DANGER UNITS (100 = one reference contact at point-blank), NOT raw field",
+			"units and NOT the InfluenceMap scale.",
+			"",
+			"SET THIS BELOW SafeDangerUnits (10), NOT at ContestedDangerUnits (30) as it was until 2026-08-14.",
+			"At 30 the gate sat THREE TIMES looser than the escort lever's own low-danger threshold, so it could",
+			"never be the thing that forced an escort: any target quiet enough to reach escort tier None had",
+			"cleared this gate with room to spare, and the gate was decorative on precisely the targets where it",
+			"mattered. Below SafeDangerUnits it binds first.",
+			"",
+			"This is a BACKSTOP, not the primary protection — the primary ones are the Light escort floor and the",
+			"escort pre-check in DispatchReclaimTargets, because this gate's input is anti-correlated with the",
+			"threat it is supposed to detect (a building is a vision source, so losing it is what blinds us; see",
+			"EscortSizingMath.AtLeast). NEGATIVE disables the gate. A skipped target is not forgotten — it is",
+			"retried every scan, so recovery starts by itself once the attackers leave. Only read when",
+			"ReclaimNeutralisedStructures.")]
+		public readonly int ReclaimMaxDangerUnits = 8;
+
+		[Desc("Reclaim scope: a formerly-ours structure farther than this many cells from our own Supply Route",
+			"is NOT a reclaim candidate. Without it the lever means 'ever ours, ANYWHERE' rather than 'our",
+			"base' — three formerly-ours derricks 60 cells deep in enemy ground would preempt the ranked pass",
+			"and consume every free capturer, including the one that should have walked to the free derrick next",
+			"to our own beachhead. Distance is measured fog-legally from our SR.",
+			"",
+			"Fails CLOSED: with no SR of our own the distance is unknown and NOTHING is a reclaim candidate",
+			"(a player with no beachhead has lost the game the lever is trying to win). <= 0 disables the cutoff",
+			"and restores the unbounded 'ever ours' behaviour. Only read when ReclaimNeutralisedStructures.")]
+		public readonly int ReclaimMaxDistanceFromSRCells = 24;
+
 		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			base.RulesetLoaded(rules, ai);
@@ -508,6 +566,46 @@ namespace OpenRA.Mods.Common.Traits
 		MountedTransportBotModule transportModule;
 		bool transportModuleResolved;
 
+		// RECLAIM (ReclaimNeutralisedStructures): actor IDs of capturable STRUCTURES this player has been seen
+		// owning, so an evicted one can be recognised later as ours.
+		//
+		// NO [Sync], and the reason is not the obvious one. An earlier version of this comment argued "every
+		// client computes the identical set" — that is FALSE and worth correcting explicitly, because this repo
+		// has lost time to desyncs before (91056894 direct QueueActivity world-writes, 476ddf33 a per-observer
+		// visibility predicate) and a wrong justification here is how the next reader concludes those were fine.
+		// Bot modules are HOST-ONLY: Player.cs:225 gates bot ticking on Game.IsHost, and ModularBot.cs:210 wraps
+		// the loop in Sync.RunUnsynced, which THROWS on sync-changing code. No other client populates this set at
+		// all, so marking it [Sync] would assert agreement that cannot exist. The bot influences the world only
+		// through issued orders, which are replicated.
+		//
+		// Determinism on the host is nonetheless intact and does not rest on this: World.Actors is a
+		// SortedDictionary keyed by a monotonic, never-reused ActorID, the set is only Add/Contains, and the
+		// ordering tiebreak is that same total order — no hash enumeration reaches a decision.
+		//
+		// IDs, not Actor references, on purpose: the eviction we are recovering from does not destroy the actor,
+		// but a later shell might, and an ID cannot resurrect a disposed actor the way a stale reference would.
+		// Never touched when the lever is off, so an omitting config allocates nothing.
+		readonly HashSet<uint> everOwnedStructures = new();
+
+		// Reclaim candidates found by the scan currently in flight (built once per scan by RefreshReclaimState,
+		// read by the dispatch pass, the demand gate and the floor). Rebuilt each scan rather than maintained
+		// incrementally so a structure recaptured by anyone between scans cannot linger as a phantom target.
+		readonly List<Actor> reclaimCandidates = new();
+
+		// Reclaim candidates with NO body on them, for this scan — what the production floor should actually
+		// fund. Seeded to the full backlog by RefreshReclaimState (nothing accounted for yet) and narrowed to
+		// the exact figure by DispatchReclaimTargets once it has counted dispatched + in-flight coverage. The
+		// two floor call sites see whichever is current: the no-idle-capturer branch runs before any dispatch
+		// and reads the seed, the post-dispatch pull reads the exact one. Using the raw backlog there instead
+		// asks production for bodies that are already walking.
+		int reclaimUnmetThisScan;
+
+		// Reclaim safety gate: the believed anti-ground danger field, resolved ONLY when the lever is on, so a
+		// config leaving it off never touches it. Kept separate from the four references above so this lever is
+		// gated independently of StrategicCaptureRepoint / ContestAwareSupport / EscortTierSizing / the reserve.
+		DangerFieldLayer reclaimDangerField;
+		bool reclaimDangerResolved;
+
 		int captureScanCountdown;
 		int defenseScanCountdown;
 
@@ -608,6 +706,11 @@ namespace OpenRA.Mods.Common.Traits
 			// capture on every path that falls back to it, so keep it non-empty in ai.yaml.
 			if (CapturerNames.Count == 0)
 				return;
+
+			// Reclaim state for THIS scan, refreshed before the capturer-pool early-out so the floor branch below
+			// can see the backlog even on a scan where no capturer is free — which is exactly the state a bot
+			// whose base was just cleared is in. No-op when the lever is off.
+			RefreshReclaimState();
 
 			// Per-TECN diagnostic: each scan, log every owned capturer's state.
 			// User reports "orders gets overwritten" — this log lets us see the
@@ -835,14 +938,40 @@ namespace OpenRA.Mods.Common.Traits
 			// to [TecnFloor, TecnFloorMax]. Off (a config omitting the flag) ⇒ EffectiveFloor returns Info.TecnFloor.
 			// NOTE (b8d2e601, 2026-08-02): @stable sets ScaleTecnFloorToPois true (ai.yaml CaptureCoordinatorBotModule@stable.tecn), so @stable takes
 			// the scaled branch — the POI count IS computed there.
+			// RECLAIM: fold the backlog of our own cleared structures into the same demand count, so a bot with
+			// no free derricks left but a raided base still funds capturers. COUPLING worth knowing: EffectiveFloor
+			// only READS this count when ScaleTecnFloorToPois is set, so reclaim raises the floor only on a config
+			// that also scales — which both live twins do. With scaling off the reclaim lever still dispatches, it
+			// just cannot pull extra production beyond the static TecnFloor. Off ⇒ the money-POI count verbatim.
+			var moneyPois = Info.ScaleTecnFloorToPois ? CountReachableNeutralMoneyPois() : 0;
+
+			// The PRE-RECLAIM floor — what this scan would have asked for before the lever existed. Kept as the
+			// lower bound for the army-share cap below, so the cap can only ever restrain the reclaim increment.
+			var moneyFloor = CaptureSupplyMath.EffectiveFloor(Info.ScaleTecnFloorToPois, Info.TecnFloor,
+				moneyPois, Info.TecnFloorMax);
+
+			// Demand is the UNMET backlog, not the raw candidate count: a structure an in-flight capturer is
+			// already walking to has its body, and asking production for another buys a technician nobody needs.
+			var demand = CaptureReclaimMath.CombinedCaptureDemand(moneyPois,
+				reclaimUnmetThisScan, Info.ReclaimNeutralisedStructures);
+
 			var floor = CaptureSupplyMath.EffectiveFloor(Info.ScaleTecnFloorToPois, Info.TecnFloor,
-				Info.ScaleTecnFloorToPois ? CountReachableNeutralMoneyPois() : 0, Info.TecnFloorMax);
+				demand, Info.TecnFloorMax);
 
 			// Combat-quality budget split: optionally clamp the floor to a share of the combat army so capture
 			// demand can't crowd out combat production. Inert at 100 (the default) — the army count is skipped
 			// entirely, so @stable / any non-opting config is byte-identical.
+			// SCOPED to the reclaim increment — the cap is raised back to the pre-reclaim floor, so with NO
+			// reclaim candidates (moneyFloor == floor) the result is moneyFloor exactly and the ordinary capture
+			// race is PROVABLY unchanged rather than tuned-and-hoped. A global cap would have mutated the
+			// benchmark control in the very opening race TecnFloor was built to win. This also subsumes the
+			// wiped-army zero-trap by construction — the result can never land below the pre-reclaim floor — so
+			// the earlier explicit Math.Max against TecnFloor is gone rather than kept as a second guard: it
+			// would have deviated from the pre-reclaim answer in the mis-set TecnFloorMax < TecnFloor case,
+			// where moneyFloor is the honest bound. Army is still only counted when the cap is live.
 			if (Info.TecnFloorArmyShareCapPct < 100)
-				floor = CaptureSupplyMath.ClampFloorToArmyShare(floor, CountOwnCombatArmy(), Info.TecnFloorArmyShareCapPct);
+				floor = CaptureReclaimMath.ScopedFloorWithArmyShare(moneyFloor, floor,
+					CountOwnCombatArmy(), Info.TecnFloorArmyShareCapPct);
 
 			var alive = capturingActors.Actors.Count;
 			var pending = unitProducers.Sum(u => u.RequestedProductionCount(bot, tecnBuildType));
@@ -947,6 +1076,229 @@ namespace OpenRA.Mods.Common.Traits
 			return count;
 		}
 
+		// ============================================================
+		// RECLAIM OUR OWN CLEARED BASE (ReclaimNeutralisedStructures)
+		// ============================================================
+
+		// Rebuild the reclaim state for the scan about to run: refresh the "we have owned this" memory from the
+		// world, then collect the structures that memory says were ours and are now sitting NEUTRAL.
+		//
+		// One pass over world.Actors serves both halves, so the lever costs a single scan-cadence walk rather
+		// than one per consumer. Ordering is the shared PoiMap comparator with a FLAT score, which degrades it to
+		// "nearest our Supply Route first, then lowest ActorID" — recover the base from the beachhead outward,
+		// deterministically. No value term: these are defences, airfields and production buildings that trickle
+		// no cash, so there is no IncomeWeights entry to rank them by and inventing one would be fiction.
+		//
+		// Deterministic: an ordered walk of the synced actor list plus an integer sort; zero RNG. Candidates are
+		// rebuilt (not maintained) each scan so a structure someone else took between scans cannot linger.
+		void RefreshReclaimState()
+		{
+			reclaimCandidates.Clear();
+			reclaimUnmetThisScan = 0;
+			if (!Info.ReclaimNeutralisedStructures)
+				return;
+
+			if (!reclaimDangerResolved)
+			{
+				reclaimDangerField = world.WorldActor.TraitOrDefault<DangerFieldLayer>();
+				reclaimDangerResolved = true;
+			}
+
+			// FAIL CLOSED on a missing field, matching the two neighbours that make the same kind of call:
+			// ResolveEscortTier returns Full when a field is absent, and DangerKernelMath.DangerUnitsToField
+			// returns int.MaxValue explicitly "because a level test must fail CLOSED". An earlier version failed
+			// OPEN here (no field ⇒ every candidate admitted), which is the one direction that dispatches
+			// technicians on an unverifiable read. WW3MOD always has the layer (world.yaml:368), so this is the
+			// convention holding, not a live path.
+			if (reclaimDangerField == null)
+				return;
+
+			// Converted once per scan, not per candidate — the yaml knob is in DANGER UNITS, the field compares
+			// in raw units.
+			var maxDangerField = reclaimDangerField.GroundDangerUnitsToField(Info.ReclaimMaxDangerUnits);
+
+			// Scope cutoff. Resolved once: no SR of our own ⇒ unknown distance ⇒ nothing qualifies (fail closed).
+			var sr = FindOwnSupplyRoute();
+			if (Info.ReclaimMaxDistanceFromSRCells > 0 && sr == null)
+				return;
+
+			foreach (var a in world.Actors)
+			{
+				if (a.IsDead || !a.IsInWorld || a.Owner == null)
+					continue;
+
+				// STRUCTURES only. CaptureManager alone is NOT a structure test — soldiers, technicians,
+				// vehicles and husks all carry it, so filtering on it alone accumulated the whole army into the
+				// memory below. Same idiom as ControlField.IsSiteAnchor: rule out the mobile classes first.
+				if (a.Info.HasTraitInfo<MobileInfo>() || a.Info.HasTraitInfo<AircraftInfo>())
+					continue;
+
+				if (!a.Info.HasTraitInfo<CaptureManagerInfo>())
+					continue;
+
+				// Ours right now: remember it, so that if it is evicted later we know it was our building. An
+				// ActorID is never reused (World.NextAID only increments), so an entry left behind by a
+				// destroyed structure can never be mistaken for a different actor — hence no pruning pass.
+				if (a.Owner == player)
+				{
+					everOwnedStructures.Add(a.ActorID);
+					continue;
+				}
+
+				if (!everOwnedStructures.Contains(a.ActorID))
+					continue;
+
+				// Cleared, not conquered. An ENEMY-owned former structure of ours is a job for the army (and for
+				// a soldier's eviction), not for an unarmed technician walking into a held building.
+				if (player.RelationshipWith(a.Owner) != PlayerRelationship.Neutral)
+					continue;
+
+				// Our BASE, not everything we ever touched — see ReclaimMaxDistanceFromSRCells.
+				if (Info.ReclaimMaxDistanceFromSRCells > 0
+					&& DistanceFromSupplyRouteCells(sr, a) > Info.ReclaimMaxDistanceFromSRCells)
+					continue;
+
+				// Backstop only; the Light escort floor is the real protection. Skipping is not forgetting — the
+				// candidate is re-tested every scan, so recovery begins by itself once the attackers move on.
+				if (!CaptureReclaimMath.IsSafeToReclaim(
+						reclaimDangerField.GroundDanger(player, a.Location), maxDangerField))
+					continue;
+
+				reclaimCandidates.Add(a);
+			}
+
+			// Nothing is accounted for until the dispatch pass counts coverage; the no-idle-capturer floor
+			// branch runs before that and reads this seed.
+			reclaimUnmetThisScan = reclaimCandidates.Count;
+
+			if (reclaimCandidates.Count < 2)
+				return;
+
+			reclaimCandidates.Sort((x, y) => PoiScoring.CompareForOrder(
+				0, DistanceFromSupplyRouteCells(sr, x), x.ActorID,
+				0, DistanceFromSupplyRouteCells(sr, y), y.ActorID));
+		}
+
+		// Cells from our Supply Route to an actor, or -1 when we have no SR left. -1 is the same "unknown
+		// distance" sentinel IssueCaptureOrder's escort right-sizing already understands (it fails the near-SR
+		// gate, so a lone capturer is never sent on an unknown distance).
+		static int DistanceFromSupplyRouteCells(Actor supplyRoute, Actor target)
+			=> supplyRoute == null ? -1 : (target.CenterPosition - supplyRoute.CenterPosition).Length / 1024;
+
+		// Dispatch capturers to our own neutralised structures BEFORE the PoiMap ranking gets a look in. This is
+		// the priority claim the brief asks for: taking our own airfield back outranks a speculative walk to a
+		// derrick we do not hold, and expressing it as ordering (reclaim first, then the ranked list with
+		// whatever capturers are left) rather than as a score bonus keeps PoiMap's tuning untouched.
+		//
+		// Removes the capturers it uses from `available`, so the PoiMap pass below sees only what is left — but
+		// only up to `budget`, so it can no longer drain the pool to empty and starve the ranked pass (see
+		// CaptureReclaimMath.ReclaimBudget). Target IDs claimed by this pass are added to `claimedThisScan` so
+		// the ranked pass cannot send a SECOND capturer to the same structure. That overlap is real, not
+		// theoretical: an oil derrick we captured and later lost to eviction is BOTH a reclaim candidate and a
+		// PoiMap capture target, so without this the two passes would cluster two technicians onto it — the same
+		// waste CaptureFanoutMath exists to prevent, but reachable here even with fan-out off, and fan-out's
+		// ledger-derived in-flight set is too indirect to rely on for a claim we made ourselves three lines
+		// earlier.
+		//
+		// RETURNS the number of candidates left with NO body on them — dispatched-this-scan and already-in-flight
+		// both count as covered. That is the honest shortfall for the production pull; comparing the backlog
+		// against leftover free capturers instead (the earlier version) reports a shortfall whenever the pass
+		// dispatched anything at all, because dispatching consumes the very capturers it counts.
+		int DispatchReclaimTargets(IBot bot, List<TraitPair<CaptureManager>> available, bool useGuard,
+			HashSet<Actor> escortsRecruitedThisTick, HashSet<uint> claimedThisScan, int budget)
+		{
+			if (!Info.ReclaimNeutralisedStructures || reclaimCandidates.Count == 0)
+				return 0;
+
+			// Same fan-out rule the PoiMap pass uses: never send a second capturer to a structure an in-flight
+			// one is already walking to. Off / no guard ⇒ no exclusion, exactly as there.
+			HashSet<uint> inFlight = null;
+			if (Info.CaptureFanoutEnabled && useGuard)
+				inFlight = BuildInFlightCaptureTargetIds();
+
+			var sr = FindOwnSupplyRoute();
+			var dispatched = 0;
+			var covered = 0;
+			var unescortable = 0;
+
+			// Deliberately does NOT break when the pool empties: every candidate is still examined so the
+			// in-flight ones are counted as covered. Breaking early would report them as unmet demand and pull
+			// production for bodies that are already walking. The list is a base's worth of buildings, so the
+			// full walk is cheap.
+			foreach (var target in reclaimCandidates)
+			{
+				if (inFlight != null && inFlight.Contains(target.ActorID))
+				{
+					covered++;
+					continue;
+				}
+
+				var cm = target.TraitOrDefault<CaptureManager>();
+				if (cm == null)
+					continue;
+
+				if (dispatched >= budget || available.Count == 0)
+					continue;
+
+				var bestIndex = -1;
+				var bestDistSq = long.MaxValue;
+				for (var i = 0; i < available.Count; i++)
+				{
+					if (!available[i].Trait.CanTarget(cm))
+						continue;
+
+					var distSq = (available[i].Actor.CenterPosition - target.CenterPosition).LengthSquared;
+					if (distSq < bestDistSq)
+					{
+						bestDistSq = distSq;
+						bestIndex = i;
+					}
+				}
+
+				if (bestIndex < 0)
+					continue;
+
+				// ESCORT PRE-CHECK — the Light floor is otherwise only a REQUEST. IssueCaptureOrder queues
+				// CaptureActor FIRST and calls DispatchEscort after, and DispatchEscort returns early when
+				// FindIdleSupportersNear comes back empty: the technician is already walking. That empties out
+				// in exactly our situation — base just cleared, army thinned, survivors committed elsewhere or
+				// outside SupportRecruitRadiusCells — so the lone-technician dispatch the floor exists to
+				// prevent came back through the back door, in the same band the feature operates in.
+				//
+				// So ask BEFORE ordering, and skip the candidate when nothing can escort it. Unlike the
+				// army-share zero-trap this is SELF-CLEARING, which is why it is safe: it releases the moment
+				// one idle armed unit exists within recruit radius of the capturer, and since reclaim targets
+				// are already scoped to ReclaimMaxDistanceFromSRCells of our SR, arriving reinforcements land
+				// in that radius by construction. Retried every scan, the same contract the danger gate
+				// documents. A bot with no army should not be walking an unarmed consumable into the men who
+				// just cleared its base — deferring a scan is the correct answer, not a failure to recover.
+				//
+				// Pure query, no side effect, so asking here does not consume the escort DispatchEscort then
+				// recruits for real. NOT counted as covered when it fails: the candidate still needs a body.
+				if (FindIdleSupportersNear(available[bestIndex].Actor.CenterPosition, 1, escortsRecruitedThisTick).Length == 0)
+				{
+					unescortable++;
+					continue;
+				}
+
+				IssueCaptureOrder(bot, available[bestIndex].Actor, target, useGuard, escortsRecruitedThisTick,
+					0, DistanceFromSupplyRouteCells(sr, target), isReclaim: true);
+				available.RemoveAt(bestIndex);
+				claimedThisScan.Add(target.ActorID);
+				dispatched++;
+				covered++;
+			}
+
+			var unmet = CaptureReclaimMath.UnmetReclaimDemand(reclaimCandidates.Count, covered);
+			reclaimUnmetThisScan = unmet;
+			Log.Write("debug",
+				$"[exp-capture] reclaim-scan player={player.PlayerName} candidates={reclaimCandidates.Count} " +
+				$"dispatched={dispatched} budget={budget} covered={covered} unescortable={unescortable} " +
+				$"unmet={unmet} remaining-capturers={available.Count} tick={world.WorldTick}");
+
+			return unmet;
+		}
+
 		// The player's faction can build exactly one of the capturer types (e.g.
 		// nato → tecn.america). Intersect CapturingActorTypes with what the player's
 		// Infantry queue can actually build; the generic ~disabled `tecn` is filtered
@@ -966,6 +1318,13 @@ namespace OpenRA.Mods.Common.Traits
 		// excludes our own POIs), else a direct scan honouring the module's filters.
 		bool CaptureTargetExists()
 		{
+			// Our own cleared structures count as something to capture. Without this the demand gate below
+			// SILENTLY BLOCKS recovery in the exact case the reclaim lever exists for: once the map's free
+			// derricks are taken, OrderedCaptureTargets is empty, so the floor request returns here and the bot
+			// never buys the technician that would take its own base back. Off ⇒ the list is empty ⇒ unchanged.
+			if (reclaimCandidates.Count > 0)
+				return true;
+
 			if (!poiMapResolved)
 			{
 				poiMap = world.WorldActor.TraitOrDefault<PoiMap>();
@@ -1083,6 +1442,14 @@ namespace OpenRA.Mods.Common.Traits
 			Log.Write("debug",
 				$"[exp-capture] poimap-scan player={player.PlayerName} idleCapturers={idleCapturers.Length} targets={targets.Count} top={topDesc} tick={world.WorldTick}");
 
+			// Our own cleared structures first — see DispatchReclaimTargets. Runs AFTER the ranked list is built
+			// (it needs to know whether the ranked pass has any work) but BEFORE the ranked pass consumes anyone,
+			// so reclaim keeps its priority while the budget guarantees the ranked pass is not starved to zero.
+			// Consumes capturers out of `available`. No-op when the lever is off.
+			var reclaimedThisScan = new HashSet<uint>();
+			var unmetReclaim = DispatchReclaimTargets(bot, available, useGuard, escortsRecruitedThisTick,
+				reclaimedThisScan, CaptureReclaimMath.ReclaimBudget(available.Count, targets.Count));
+
 			foreach (var poi in targets)
 			{
 				if (available.Count == 0)
@@ -1090,6 +1457,11 @@ namespace OpenRA.Mods.Common.Traits
 
 				var target = poi.Actor;
 				if (target == null || target.IsDead || !target.IsInWorld)
+					continue;
+
+				// Already claimed by the reclaim pass a few lines above — do not send a second capturer.
+				// Empty set when the lever is off, so this is a no-op there.
+				if (reclaimedThisScan.Contains(target.ActorID))
 					continue;
 
 				// Respect the module's own targeting relationships (PoiMap already
@@ -1123,6 +1495,16 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Whatever is left got no order above — the state that had no owner. Give it one.
 			StageIdleCapturersReserve(bot, available, targets.Count);
+
+			// RECLAIM production pull. The floor is otherwise only ever consulted on a scan where NO capturer was
+			// free, which paces recovery at one structure per scan no matter how much of the base is lying
+			// neutral: dispatch the one technician, come back 75 ticks later, then ask for another. A technician
+			// is CONSUMED by each capture, so a backlog really does need one body per structure. Asking here as
+			// well lets the request queue fill while the first capturer is still walking. Gated on the lever AND
+			// on a genuine shortfall — candidates with a body already on them (dispatched this scan or in flight)
+			// are excluded by DispatchReclaimTargets, so a fully-covered backlog requests nothing.
+			if (Info.ReclaimNeutralisedStructures && Info.TecnFloor > 0 && unmetReclaim > 0)
+				MaintainTecnFloor(bot);
 		}
 
 		/// <summary>Muster the capturers this scan could not dispatch at a reserve anchor behind the believed
@@ -1282,7 +1664,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Issue a capture order + record the commitment so the TECN is not
 		// re-ordered while it walks in (the anti-thrash gate), then recruit escort.
-		void IssueCaptureOrder(IBot bot, Actor capturer, Actor target, bool useGuard, HashSet<Actor> escortsRecruitedThisTick, long score, int distanceFromSRCells)
+		void IssueCaptureOrder(IBot bot, Actor capturer, Actor target, bool useGuard, HashSet<Actor> escortsRecruitedThisTick, long score, int distanceFromSRCells, bool isReclaim = false)
 		{
 			// TECN-first ferrying: for a DISTANT target, try to hand the capturer a mounted ride.
 			// When it succeeds the transport module owns the movement AND re-issues CaptureActor on
@@ -1303,7 +1685,7 @@ namespace OpenRA.Mods.Common.Traits
 				activeCapturers.Add(capturer);
 
 			// Recruit escort — fire-and-forget; if no escort available, capture proceeds alone.
-			DispatchEscort(bot, capturer, target, escortsRecruitedThisTick, distanceFromSRCells);
+			DispatchEscort(bot, capturer, target, escortsRecruitedThisTick, distanceFromSRCells, isReclaim);
 
 			Log.Write("debug",
 				$"[exp-capture] issue player={player.PlayerName} actor={capturer.Info.Name}@{capturer.Location} → {target.Info.Name}@{target.Location} score={score} ferried={ferried} tick={world.WorldTick}");
@@ -1530,7 +1912,7 @@ namespace OpenRA.Mods.Common.Traits
 			return false;
 		}
 
-		void DispatchEscort(IBot bot, Actor capturer, Actor target, HashSet<Actor> alreadyRecruited, int distanceFromSRCells)
+		void DispatchEscort(IBot bot, Actor capturer, Actor target, HashSet<Actor> alreadyRecruited, int distanceFromSRCells, bool isReclaim = false)
 		{
 			// Contest-aware sizing (Option A): a contested target gets ContestedEscortSize (larger) instead of the
 			// flat EscortSize, so a derrick under believed enemy pressure is not walked in with the same two guards
@@ -1552,6 +1934,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.EscortTierSizingEnabled && !contested)
 			{
 				tier = ResolveEscortTier(target.Location, distanceFromSRCells);
+
+				// RECLAIM FLOOR: never let the lever shrink a reclaim dispatch to a lone technician. The tier is
+				// resolved from believed control + believed danger, and on a reclaim target BOTH are systematically
+				// wrong in the same direction. A building is a vision source (^BasicBuilding, Vision@3/2/1), so the
+				// eviction that creates the target is the event that blinds us to the raiders; believed mobile
+				// danger then decays to nothing in ~175 ticks while ControlField persists several times longer and
+				// is still anchored by whatever buildings the raid has not reached yet. The cell therefore reads
+				// "strongly ours, zero danger" — tier None — with the raid standing on it, and nothing
+				// re-evaluates after dispatch (ReconcileGuardCommitments releases only on captured/gone). Flooring
+				// at Light is the fix, not a threshold retune: the inputs are anti-correlated with the threat.
+				if (isReclaim)
+					tier = EscortSizingMath.AtLeast(tier, EscortSizingMath.EscortTier.Light);
+
 				wantEscort = EscortSizingMath.ResolveEscortCount(wantEscort, tier, Info.LightEscortSize);
 			}
 

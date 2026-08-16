@@ -60,6 +60,16 @@
 #                          pass/fail verdict. The .lifecycle.jsonl is archived
 #                          alongside result.json in the per-run screenshot dir.
 #
+# Missile audit:
+#   --missile-trace        Enable the off-by-default MissileTrace, which writes a
+#                          JSONL stream to <result>.missiles.jsonl: one line per
+#                          missile per tick, plus one summary line per missile
+#                          naming the exact code path that ended it. Observation
+#                          only — changes neither the verdict nor the simulation.
+#   --missile-trace-summary
+#                          Same, but suppress the per-tick lines and keep only the
+#                          one summary line per missile. Use for range sweeps.
+#
 # Saved-game diagnostics:
 #   --sync-reports         Arm sync reporting even with a single human client, and
 #                          dump the RECORDING side of the sync state when a game save
@@ -94,7 +104,40 @@
 #   ./tools/autotest/run-test.sh --seed 1017 test-foo         # fixed seed (reproducible)
 #   ./tools/autotest/run-test.sh --lifecycle test-foo         # + behavior-lint report
 #
-# Exit code: 0=pass, 1=fail, 2=skip, 3=error.
+# Exit code: 0=pass, 1=fail, 2=skip, 3=error (crash, hang, or harness error).
+#
+# Reading the verdict — READ THIS BEFORE SCRIPTING AGAINST THIS RUNNER.
+#
+#   Every run ends with a banner whose LAST line is machine-readable:
+#
+#       AUTOTEST_VERDICT outcome=<OUTCOME> exit=<n> test=<name> run=<run-id>
+#
+#   OUTCOME is one of: PASS, FAIL, SKIP, TIMEOUT-FAIL, CRASH, NO-RESULT,
+#   BAD-VERDICT, INTERRUPTED, HARNESS-ERROR. It is strictly more informative
+#   than the exit code, which collapses the last five onto 3.
+#
+#   The banner is emitted from an EXIT trap, so there is NO exit path that
+#   prints nothing — not a crash, not Ctrl-C, not an internal `set -e` abort.
+#   Because it is the LAST thing written, a truncating filter that keeps the
+#   END of the stream (`| tail`) cannot hide it. When the outcome is not PASS
+#   the same line is ALSO written to stderr, which a stdout-only pipe does not
+#   capture at all.
+#
+#   THE EXIT CODE IS STILL LOSABLE BY THE CALLER and this runner cannot stop
+#   that: `run-test.sh foo | tail` reports tail's status, so a FAIL reads as
+#   exit 0. If you pipe, you MUST do one of:
+#       run-test.sh foo; rc=$?            # capture first, filter after
+#       set -o pipefail; run-test.sh foo | tail
+#       run-test.sh foo | tail; rc=${PIPESTATUS[0]}   # bash/zsh only
+#   or read the AUTOTEST_VERDICT line instead of the exit code.
+#
+# Result files are PER-RUN, never shared. Each invocation gets its own
+# directory (timestamp + pid + test name) under ~/.ww3mod-tests/screenshots/,
+# holding that run's result.json, screenshots and lifecycle log. Concurrent
+# runners therefore cannot overwrite or misread each other's verdict. The
+# legacy shared ~/.ww3mod-tests/result.json is no longer a verdict: it is
+# overwritten with a "moved" stub pointing at the per-run path, so anything
+# still reading it fails loudly instead of silently reporting a stranger's run.
 
 set -e
 
@@ -106,6 +149,8 @@ SPEED_MULT=""
 SEED=""
 TIMEOUT_SECS=300
 LIFECYCLE=0
+MISSILE_TRACE=0
+MISSILE_TRACE_MODE=full
 SYNC_REPORTS=0
 
 while [ $# -gt 0 ]; do
@@ -134,9 +179,11 @@ while [ $# -gt 0 ]; do
 		--timeout=*)            TIMEOUT_SECS="${1#*=}"; shift ;;
 		--timeout)              TIMEOUT_SECS="$2"; shift 2 ;;
 		--lifecycle)            LIFECYCLE=1; shift ;;
+		--missile-trace)        MISSILE_TRACE=1; shift ;;
+		--missile-trace-summary) MISSILE_TRACE=1; MISSILE_TRACE_MODE=summary; shift ;;
 		--sync-reports)         SYNC_REPORTS=1; shift ;;
 		--help|-h)
-			sed -n '2,97p' "$0" | sed 's/^# \?//'
+			sed -n '2,130p' "$0" | sed 's/^# \?//'
 			exit 0 ;;
 		--*)
 			echo "Unknown flag: $1"
@@ -148,10 +195,60 @@ done
 
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 [L|R|F] [--background|--hidden|--minimized|--visible] [--audio] [--speed N] [--seed N] [--timeout N] [--lifecycle] <test-folder-name>"
+	echo "Usage: $0 [L|R|F] [--background|--hidden|--minimized|--visible] [--audio] [--speed N] [--seed N] [--timeout N] [--lifecycle] [--missile-trace] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
 fi
+
+# ── Outcome reporting ───────────────────────────────────────────────────────
+# THE PROBLEM THIS SOLVES: exit 3 used to mean six different things (crash,
+# hang, bad flag, missing map, lock contention, unparseable verdict) and two of
+# them printed nothing distinguishing, so "exit 3" left the reader to GUESS
+# whether the build was broken or the harness was. Worse, a caller piping into
+# `tail` sees tail's exit status, so a FAIL arrives as exit 0.
+#
+# Every exit from here on runs emit_verdict via the EXIT trap — including
+# `set -e` aborts, Ctrl-C and crashes — so no path is silent. OUTCOME defaults
+# to HARNESS-ERROR and is narrowed only at points that actually determined
+# something, which means an unforeseen abort reports as a harness error rather
+# than inheriting a stale PASS.
+#
+# The last line is deliberately the machine-readable one: `| tail` keeps the
+# END of a stream, so a truncating filter cannot make a failure look clean.
+# Non-PASS outcomes also go to stderr, which a stdout-only pipe never sees.
+# What this CANNOT fix is the caller's own `$?` — see the header.
+OUTCOME="HARNESS-ERROR"
+RUN_ID="(not started)"
+RESULT_FILE=""
+LOCK_DIR=""
+LOCK_HELD=0
+
+emit_verdict() {
+	_code=$?
+	if [ "${LOCK_HELD}" = "1" ] && [ -n "${LOCK_DIR}" ]; then
+		rm -rf "${LOCK_DIR}" 2>/dev/null || true
+	fi
+	printf '\n============================================================\n'
+	printf '==> VERDICT: %s   (exit %s)\n' "${OUTCOME}" "${_code}"
+	printf '==>   test:   %s\n' "${TEST_NAME}"
+	printf '==>   run:    %s\n' "${RUN_ID}"
+	if [ -n "${RESULT_FILE}" ]; then
+		printf '==>   result: %s\n' "${RESULT_FILE}"
+	fi
+	printf '============================================================\n'
+	printf 'AUTOTEST_VERDICT outcome=%s exit=%s test=%s run=%s\n' \
+		"${OUTCOME}" "${_code}" "${TEST_NAME}" "${RUN_ID}"
+	# Non-PASS also goes to stderr, but ONLY when stdout is not a terminal —
+	# i.e. exactly when stdout might be piped into a filter or redirected to a
+	# log and the verdict could be lost. On a tty the human already sees it, and
+	# a duplicated line there just reads like a bug.
+	if [ "${_code}" != "0" ] && [ ! -t 1 ]; then
+		printf 'AUTOTEST_VERDICT outcome=%s exit=%s test=%s run=%s\n' \
+			"${OUTCOME}" "${_code}" "${TEST_NAME}" "${RUN_ID}" >&2
+	fi
+	exit "${_code}"
+}
+trap emit_verdict EXIT
 
 # Validate --speed if supplied: integer 1-16 (matches TestMode arg clamp).
 if [ -n "${SPEED_MULT}" ]; then
@@ -312,15 +409,25 @@ esac
 # regardless of where Platform.SupportDir lands.
 RESULT_DIR="${HOME}/.ww3mod-tests"
 mkdir -p "${RESULT_DIR}"
-RESULT_FILE="${RESULT_DIR}/result.json"
+
+# The pre-2026-08-12 shared verdict path. Nothing writes a VERDICT here any
+# more (see the per-run directory below); it is only stubbed out, so a reader
+# that still points at it gets a loud redirect instead of a stranger's result.
+LEGACY_RESULT_FILE="${RESULT_DIR}/result.json"
 
 # ── Single-instance lock ────────────────────────────────────────────────────
-# RESULT_FILE is a SINGLE shared path, so two concurrent runs silently corrupt
-# each other: run B's verdict satisfies run A's "has a verdict been written?"
-# watchdog poll, A stops watching, and A's game is left running forever while A
-# reports B's result. Observed 2026-08-10 — two overlapping `run-batch.sh --all`
-# invocations left orphaned dotnet.exe games stacking up on screen, one of them
-# outliving its own 300s watchdog by minutes.
+# Verdicts are per-run now, so this lock is no longer what stops two runs
+# corrupting each other's RESULT — but it is still load-bearing and must not be
+# weakened. It serialises the things that are STILL shared: the settings.yaml
+# backup/restore around the launch, the engine's single support directory
+# (debug.log, exception-*.log, syncreport-*.log — all of which the crash
+# detection below attributes by mtime), and the machine's one screen and focus.
+# Two games at once also cost more than the machine has. Original defect it was
+# written for, still worth reading: run B's verdict satisfied run A's "has a
+# verdict been written?" watchdog poll, so A stopped watching and left its game
+# running forever while reporting B's result. Observed 2026-08-10 — two
+# overlapping `run-batch.sh --all` invocations left orphaned dotnet.exe games
+# stacking up on screen, one outliving its own 300s watchdog by minutes.
 #
 # `mkdir` is atomic on every platform this runs on, so it is the lock primitive.
 # A lock whose recorded PID is gone is stale (a previous run was killed) and is
@@ -341,7 +448,7 @@ if ! mkdir "${LOCK_DIR}" 2>/dev/null; then
 	fi
 	if kill -0 "${_holder}" 2>/dev/null; then
 		echo "Error: another autotest run is already in flight (pid ${_holder}, ${_holder_test})."
-		echo "       The harness is single-instance: results go to one shared ${RESULT_FILE}."
+		echo "       The harness is single-instance: one game, one screen, one engine log dir."
 		echo "       Wait for it, or kill it, then retry."
 		exit 3
 	fi
@@ -354,17 +461,40 @@ if ! mkdir "${LOCK_DIR}" 2>/dev/null; then
 fi
 echo $$ > "${LOCK_DIR}/pid"
 echo "${TEST_NAME}" > "${LOCK_DIR}/test"
-trap 'rm -rf "${LOCK_DIR}"' EXIT
+# Hand lock ownership to the EXIT trap installed above (which also prints the
+# verdict banner). Set only AFTER the pid file exists, so the trap never removes
+# a lock this run does not yet own.
+LOCK_HELD=1
 
-rm -f "${RESULT_FILE}"
+# ── Per-run output directory ────────────────────────────────────────────────
+# EVERY artifact of this run lives in here: result.json, screenshots, lifecycle
+# log. The directory name carries the pid as well as the timestamp, so it cannot
+# collide with a concurrent runner even at the same second — and the leaf is
+# created with a bare `mkdir` (not `mkdir -p`) so a collision would FAIL rather
+# than silently share a destination.
+#
+# This replaces a single shared ${RESULT_DIR}/result.json, which destroyed or
+# misreported a verdict three times in two days: run B's result read as run A's,
+# and A's `rm -f` at start-of-run deleted a verdict B had already produced. A
+# shared destination fails silently — the file is there, it is just not yours —
+# which is the worst possible shape for a result you are about to act on.
+RUN_ID="$(date +%y%m%d_%H%M%S)_p$$_${TEST_NAME}"
+RUN_DIR="${RESULT_DIR}/screenshots/${RUN_ID}"
+mkdir -p "${RESULT_DIR}/screenshots"
+if ! mkdir "${RUN_DIR}" 2>/dev/null; then
+	echo "Error: per-run directory already exists, refusing to share it: ${RUN_DIR}"
+	exit 3
+fi
+SCREENSHOT_DIR="${RUN_DIR}"
+RESULT_FILE="${RUN_DIR}/result.json"
 
-# Per-run screenshot output dir. Tests can capture via Test.Screenshot(label)
-# in Lua; the PNGs land here with predictable filenames (NNN_<label>.png) and
-# paths are echoed into the verdict JSON's screenshots[] array. Each run gets
-# its own folder so successive runs of the same test don't clobber each other.
-RUN_ID="$(date +%y%m%d_%H%M%S)_${TEST_NAME}"
-SCREENSHOT_DIR="${RESULT_DIR}/screenshots/${RUN_ID}"
-mkdir -p "${SCREENSHOT_DIR}"
+# Neutralise the legacy shared path. Anything still reading it (an old script, a
+# stale note, a habit) would otherwise pick up whichever run last wrote there and
+# report it as its own. A stub is not a verdict: it has no "status":"pass" for a
+# grep to match, and it names the per-run path to look in instead. Written under
+# the lock, so it cannot race a concurrent run-test.sh.
+printf '{"note":"MOVED - this shared path is no longer a verdict. Per-run result: %s","status":"moved","run":"%s"}\n' \
+	"${RESULT_FILE}" "${RUN_ID}" > "${LEGACY_RESULT_FILE}" 2>/dev/null || true
 
 # Cleanup: drop screenshot runs older than 7 days so /.ww3mod-tests/screenshots
 # doesn't grow unboundedly. Best-effort — failures (e.g. permissions) ignored.
@@ -393,8 +523,9 @@ else
 fi
 [ -n "${WINDOW_POS_ENV}" ] && echo "==> Position: ${WINDOW_POS_ENV} on ${SCREEN_W}x${SCREEN_H}"
 [ -n "${TEST_DESCRIPTION}" ] && echo "==> Description: ${TEST_DESCRIPTION}"
+echo "==> Run id:      ${RUN_ID}"
+echo "==> Run dir:     ${RUN_DIR}   (result.json + screenshots + lifecycle log)"
 echo "==> Result file: ${RESULT_FILE}"
-echo "==> Screenshots: ${SCREENSHOT_DIR}"
 echo
 
 # OpenRA's SDL platform reads OPENRA_WINDOW_X/Y at window creation (engine
@@ -503,6 +634,15 @@ if [ -n "${SETTINGS_FILE}" ] && [ -f "${SETTINGS_FILE}" ]; then
 	cp "${SETTINGS_FILE}" "${SETTINGS_BACKUP}"
 fi
 
+# Marker for crash detection after the run: any engine log written AFTER this
+# point belongs to this run. A file mtime comparison is used rather than a clock
+# reading so it works the same wherever the support directory lives. It lives in
+# the per-run dir (self-cleaning, no shared name) and is created BEFORE the
+# launch — a game that dies in the first second would otherwise write its
+# exception log ahead of the marker and read as a hang rather than a crash.
+RUN_MARKER="${RUN_DIR}/.run-marker"
+: > "${RUN_MARKER}"
+
 # Game-side args need Windows-form paths under Git-Bash; identity elsewhere.
 RESULT_FILE_GAME=$(to_game_path "${RESULT_FILE}")
 SCREENSHOT_DIR_GAME=$(to_game_path "${SCREENSHOT_DIR}")
@@ -525,7 +665,25 @@ if [ "${LIFECYCLE}" = "1" ]; then
 	LIFECYCLE_ARGS="Test.UnitLifecycleLog=$(to_game_path "${LIFECYCLE_FILE}")"
 fi
 
-./launch-game.sh \
+# Missile audit (opt-in --missile-trace): MissileTrace writes a per-missile JSONL
+# stream to this sibling of the verdict file. Pure observation — the flag changes
+# neither the simulation nor the verdict, so a traced run and an untraced run of
+# the same seed play out identically.
+MISSILE_TRACE_ARGS=""
+MISSILE_TRACE_FILE="${RESULT_FILE%.json}.missiles.jsonl"
+if [ "${MISSILE_TRACE}" = "1" ]; then
+	rm -f "${MISSILE_TRACE_FILE}"
+	MISSILE_TRACE_ARGS="Test.MissileTraceLog=$(to_game_path "${MISSILE_TRACE_FILE}") Test.MissileTraceMode=${MISSILE_TRACE_MODE}"
+fi
+
+# Launcher indirection. Defaults to the real launcher, byte-for-byte the previous
+# behaviour. It exists so tools/autotest/selftest.sh can drive the crash /
+# no-result / timeout branches with a stub launcher — those branches are exactly
+# the ones that have misreported verdicts, and they are unreachable in a test if
+# proving them requires crashing a real game.
+LAUNCHER="${AUTOTEST_LAUNCHER:-./launch-game.sh}"
+
+"${LAUNCHER}" \
 	"Launch.Map=${TEST_NAME}" \
 	"Test.Mode=true" \
 	"Test.Name=${TEST_NAME}" \
@@ -538,6 +696,7 @@ fi
 	${SPEED_ARGS} \
 	${SEED_ARGS} \
 	${LIFECYCLE_ARGS} \
+	${MISSILE_TRACE_ARGS} \
 	${SYNC_REPORT_ARGS} \
 	${SUSPEND_ARGS} \
 	&
@@ -548,13 +707,7 @@ LAUNCH_PID=$!
 # orphaned and survive — they accumulate across sessions as stray dotnet.exe.
 # Reap the whole tree on INT/TERM (kill_game uses taskkill //T on Windows). The
 # normal-completion path below is untouched (it waits for a clean self-exit).
-trap 'echo; echo "==> interrupted — killing the game."; kill_game "${LAUNCH_PID}"; exit 130' INT TERM
-
-# Marker for crash detection below: any exception log the engine writes AFTER this
-# point belongs to this run. A file mtime comparison is used rather than a clock
-# reading so it works the same wherever the support directory lives.
-RUN_MARKER="$(mktemp 2>/dev/null || echo "${RESULT_DIR}/.run-marker")"
-: > "${RUN_MARKER}"
+trap 'echo; echo "==> interrupted — killing the game."; OUTCOME="INTERRUPTED"; kill_game "${LAUNCH_PID}"; exit 130' INT TERM
 
 # ── Hard wall-clock watchdog ────────────────────────────────────────────────
 # The engine writes result.json only when Test.Pass/Fail/Skip runs. If a map's
@@ -602,6 +755,10 @@ if [ "${TIMED_OUT}" = "1" ]; then
 
 	# Synthetic verdict in the engine's schema (name/status/notes/timestamp) so
 	# the STATUS grep below and run-batch's exit-code read both see a FAIL.
+	# The OUTCOME name stays distinct from a real assertion FAIL: same exit code,
+	# but "the game never answered" and "the game answered no" are different
+	# findings and the banner must not conflate them (see the TIMED_OUT branch in
+	# the outcome mapping at the end of this script).
 	if [ ! -f "${RESULT_FILE}" ]; then
 		NOW_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 		NOTES="timeout: no verdict after ${TIMEOUT_SECS}s - game hung or rules failed to load; check "'%APPDATA%\\OpenRA\\Logs\\debug.log'
@@ -632,27 +789,55 @@ fi
 echo
 
 if [ ! -f "${RESULT_FILE}" ]; then
-	# A CRASH AND A HANG BOTH PRODUCE NO RESULT FILE, and until now both printed the same
-	# line — which is a genuinely expensive ambiguity: a hang means "wait or look at the
-	# window", a crash means "the build is broken, stop". The engine writes
-	# exception-<timestamp>.log next to debug.log when it dies, so a log newer than this
-	# run's marker is proof of a crash, and the first lines carry the exception type and
-	# the throwing frame.
+	# A MISSING RESULT IS A NAMED OUTCOME, NEVER SILENCE AND NEVER A PASS. Both a
+	# crash and a hang produce no result file, and treating them as one thing is
+	# expensive in both directions: a hang means "wait or look at the window", a
+	# crash means "stop, the build is broken" — and a crash is sometimes the
+	# POSITIVE finding, as when a bot-module sync guard throws from a finally and
+	# firing IS the result you were looking for. So: name it, name the log, and
+	# never swallow it.
+	#
+	# The engine writes exception-<timestamp>.log next to debug.log when it dies
+	# (engine/OpenRA.Game/Support/ExceptionHandler.cs), so a log newer than this
+	# run's marker is proof of a crash, and its first lines carry the exception
+	# type and the throwing frame.
 	CRASH_LOG=""
-	_log_dir="$(dirname "$(find_debug_log)")"
-	if [ -d "${_log_dir}" ]; then
-		CRASH_LOG="$(find "${_log_dir}" -maxdepth 1 -name 'exception-*.log' -newer "${RUN_MARKER}" 2>/dev/null | sort | tail -1)"
+	_dbg="$(find_debug_log)"
+	# Guard the empty case: dirname "" is ".", which would hunt the repo root for
+	# exception logs and could attribute an unrelated file to this run.
+	if [ -n "${_dbg}" ]; then
+		_log_dir="$(dirname "${_dbg}")"
+		if [ -d "${_log_dir}" ]; then
+			CRASH_LOG="$(find "${_log_dir}" -maxdepth 1 -name 'exception-*.log' -newer "${RUN_MARKER}" 2>/dev/null | sort | tail -1)"
+			# Sync-guard crashes also drop a syncreport-*.log, and that artifact is
+			# ONLY written on the failure path — it is the thing that has twice told a
+			# reader what actually happened. Name it too.
+			SYNC_LOGS="$(find "${_log_dir}" -maxdepth 1 -name 'syncreport-*.log' -newer "${RUN_MARKER}" 2>/dev/null | sort | tail -3)"
+		fi
 	fi
 	rm -f "${RUN_MARKER}" 2>/dev/null || true
 
 	if [ -n "${CRASH_LOG}" ]; then
+		OUTCOME="CRASH"
 		echo "==> CRASHED — the game threw and died, so no verdict could be written."
+		echo "==> A crash is a real finding, not a broken harness. Read the log before rerunning:"
 		echo "==> ${CRASH_LOG}"
 		sed -n '1,12p' "${CRASH_LOG}" | sed 's/^/    /'
+		if [ -n "${SYNC_LOGS:-}" ]; then
+			echo "==> Sync report(s) written by this run (failure path only):"
+			printf '%s\n' "${SYNC_LOGS}" | sed 's/^/    /'
+		fi
 		exit 3
 	fi
 
-	echo "==> No result file written, and no crash log — the test hung or was closed by hand."
+	OUTCOME="NO-RESULT"
+	echo "==> NO RESULT FILE, and no crash log newer than this run's marker."
+	echo "==> The game hung, was closed by hand, or never reached an assertion."
+	echo "==> Expected verdict at: ${RESULT_FILE}"
+	if [ -n "${SYNC_LOGS:-}" ]; then
+		echo "==> Sync report(s) written by this run (failure path only):"
+		printf '%s\n' "${SYNC_LOGS}" | sed 's/^/    /'
+	fi
 	exit 3
 fi
 rm -f "${RUN_MARKER}" 2>/dev/null || true
@@ -661,25 +846,15 @@ echo "==> Result:"
 cat "${RESULT_FILE}"
 echo
 
-# Archive the verdict into the per-run dir so batch runs don't lose it. run-batch.sh
-# calls this script once per seed and the single ${RESULT_FILE} (result.json) is rm -f'd
-# at the top of every run, so only the LAST seed's verdict survives there. RUN_ID is
-# unique per invocation (timestamp + scenario), so this copy keeps every seed's verdict,
-# alongside that run's screenshots. The 7-day screenshot-dir prune (find -mtime +7 above)
-# also reaps these, so no unbounded growth. cp is POSIX-portable (macOS bash).
-if [ -d "${SCREENSHOT_DIR}" ]; then
-	cp "${RESULT_FILE}" "${SCREENSHOT_DIR}/result.json" 2>/dev/null || true
-	echo "==> Verdict archived: ${SCREENSHOT_DIR}/result.json"
-	echo
-fi
+# The verdict is written directly into the per-run dir by the engine now, so the
+# old "archive a copy out of the shared result.json" step is gone — there is
+# nothing left to rescue it from.
 
-# Behavior lint (advisory). If --lifecycle produced a log, archive it beside the
-# verdict and run the analyzer. This is purely informational: its output is
-# echoed for the operator but the pass/fail exit below is untouched by it.
+# Behavior lint (advisory). The lifecycle log is already a sibling of the verdict
+# inside the per-run dir, so there is nothing to archive either. This is purely
+# informational: its output is echoed for the operator but the pass/fail exit
+# below is untouched by it.
 if [ "${LIFECYCLE}" = "1" ] && [ -f "${LIFECYCLE_FILE}" ]; then
-	if [ -d "${SCREENSHOT_DIR}" ]; then
-		cp "${LIFECYCLE_FILE}" "${SCREENSHOT_DIR}/result.lifecycle.jsonl" 2>/dev/null || true
-	fi
 	LINT_PY="$(dirname "$0")/../behavior-lint/behavior_lint.py"
 	if [ -f "${LINT_PY}" ]; then
 		echo "==> Behavior lint:"
@@ -706,18 +881,27 @@ if [ -d "${SCREENSHOT_DIR}" ]; then
 		find "${SCREENSHOT_DIR}" -maxdepth 1 -name "*.png" -type f 2>/dev/null \
 			| sort | sed 's|^|    |'
 		echo
-	else
-		# Empty per-run dir is just clutter; drop it so the screenshots/ folder
-		# only carries dirs that actually contain captures.
-		rmdir "${SCREENSHOT_DIR}" 2>/dev/null || true
 	fi
+	# NOTE: the old "rmdir the dir if it holds no PNGs" cleanup is deliberately
+	# gone. This directory now holds the authoritative result.json, so deleting it
+	# for being screenshot-less would destroy the verdict. The 7-day prune above
+	# is what bounds growth.
 fi
 
 STATUS=$(grep -o '"status":"[^"]*"' "${RESULT_FILE}" | head -1 | sed 's/"status":"\(.*\)"/\1/')
 
 case "${STATUS}" in
-	pass) exit 0 ;;
-	fail) exit 1 ;;
-	skip) exit 2 ;;
-	*)    exit 3 ;;
+	pass) OUTCOME="PASS"; exit 0 ;;
+	fail)
+		# A watchdog kill and a real assertion failure both write status=fail. Same
+		# exit code (run-batch and CI depend on that), different name.
+		if [ "${TIMED_OUT}" = "1" ]; then OUTCOME="TIMEOUT-FAIL"; else OUTCOME="FAIL"; fi
+		exit 1 ;;
+	skip) OUTCOME="SKIP"; exit 2 ;;
+	*)
+		# The file exists but carries no status this runner understands: truncated
+		# write, schema drift, or something else wrote there. Not a pass.
+		OUTCOME="BAD-VERDICT"
+		echo "==> Unrecognised status '${STATUS}' in ${RESULT_FILE}"
+		exit 3 ;;
 esac

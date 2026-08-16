@@ -141,6 +141,9 @@ install_assemblies "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}" "${LAUNCHER_ASSEMBLY_D
 install_assemblies "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}" "${LAUNCHER_ASSEMBLY_DIR}/mono" "osx-x64" "mono" "True" "${PACKAGING_COPY_CNC_DLL}" "${PACKAGING_COPY_D2K_DLL}"
 install_data "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}" "${LAUNCHER_RESOURCES_DIR}"
 
+# GPLv3 section 6: ships next to COPYING so the binary states where its source lives.
+install -m644 "${TEMPLATE_ROOT}/SOURCE-OFFER.txt" "${LAUNCHER_RESOURCES_DIR}"
+
 for f in ${PACKAGING_COPY_ENGINE_FILES}; do
 	mkdir -p "${LAUNCHER_RESOURCES_DIR}/$(dirname "${f}")"
 	cp -r "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}/${f}" "${LAUNCHER_RESOURCES_DIR}/${f}"

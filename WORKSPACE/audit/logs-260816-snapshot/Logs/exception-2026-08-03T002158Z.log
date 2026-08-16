@@ -1,0 +1,23 @@
+OpenRA engine version release-20230225
+ww3mod mod version release-20230225
+Date: 2026-08-03 00:21:58Z
+Operating System: Windows (X64, Microsoft Windows NT 10.0.26200.0)
+Runtime Version: .NET CLR 8.0.27
+Installed Language: en (Installed) en (Current) en (Current UI)
+Exception of type `System.IO.IOException`: There is not enough space on the disk. : 'C:\Users\fredr\AppData\Roaming\OpenRA\skirmish.ww3mod.yaml'
+   at System.IO.Strategies.OSFileStreamStrategy.Write(ReadOnlySpan`1 buffer)
+   at System.IO.Strategies.BufferedFileStreamStrategy.FlushWrite()
+   at System.IO.StreamWriter.Flush(Boolean flushStream, Boolean flushEncoder)
+   at System.IO.StreamWriter.Dispose(Boolean disposing)
+   at System.IO.TextWriter.Dispose()
+   at System.IO.File.InternalWriteAllLines(StreamWriter writer, IEnumerable`1 contents)
+   at OpenRA.MiniYamlExts.WriteToFile(IEnumerable`1 y, String filename) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\MiniYaml.cs:line 25
+   at OpenRA.Mods.Common.Server.SkirmishLogic.OpenRA.Server.INotifySyncLobbyInfo.LobbyInfoSynced(Server server) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\ServerTraits\SkirmishLogic.cs:line 154
+   at OpenRA.Server.Server.SyncLobbyClients() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Server\Server.cs:line 1263
+   at OpenRA.Mods.Common.Server.LobbyCommands.Spawn(Server server, Connection conn, Client client, String s) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\ServerTraits\LobbyCommands.cs:line 1221
+   at OpenRA.Mods.Common.Server.LobbyCommands.InterpretCommand(Server server, Connection conn, Client client, String cmd) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\ServerTraits\LobbyCommands.cs:line 248
+   at OpenRA.Server.Server.InterpretCommand(String command, Connection conn) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Server\Server.cs:line 1421
+   at OpenRA.Server.Server.InterpretServerOrder(Connection conn, Order o) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Server\Server.cs:line 1001
+   at OpenRA.Server.Server.InterpretServerOrders(Connection conn, Byte[] data) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Server\Server.cs:line 938
+   at OpenRA.Server.Server.<.ctor>b__58_2(Object _) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Server\Server.cs:line 364
+

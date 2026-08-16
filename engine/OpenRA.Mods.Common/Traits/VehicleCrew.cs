@@ -149,6 +149,10 @@ namespace OpenRA.Mods.Common.Traits
 				var slotName = info.CrewSlots[i];
 				if (info.SlotConditions.TryGetValue(slotName, out var condition))
 					conditionTokens[i] = self.GrantCondition(condition);
+
+				if (GunTrace.Enabled)
+					GunTrace.Write($"VehicleCrew.Created actor={self.Info.Name} slot={slotName} " +
+						$"occupiedCondition={(condition ?? "-")}");
 			}
 		}
 

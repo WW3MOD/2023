@@ -61,6 +61,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("The condition to grant to self for each ammo point in this pool.")]
 		public readonly string AmmoCondition = null;
 
+		// Ammo is dispensed in chunks of ReloadCount rounds, each chunk costing SupplyValue.
+		// Shared rather than inlined so the per-pool tooltip line and the cross-pool grand
+		// total in ProductionTooltipLogic cannot drift apart — they did, by up to 100x.
+		public int BatchSize => System.Math.Max(1, ReloadCount);
+		public int BatchCount => (Ammo + BatchSize - 1) / BatchSize;
+		public int PoolBudget => BatchCount * SupplyValue;
+
 		public override object Create(ActorInitializer init) { return new AmmoPool(this); }
 
 		string IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
@@ -86,14 +93,9 @@ namespace OpenRA.Mods.Common.Traits
 					.Select(arm => FormatWeaponLabel(arm.Weapon))
 					.Distinct());
 
-			// Batch math: ammo is dispensed in chunks of ReloadCount rounds, each
-			// chunk costs SupplyValue. Total pool budget = batches × SupplyValue.
-			var batchSize = System.Math.Max(1, ReloadCount);
-			var batches = (Ammo + batchSize - 1) / batchSize;
-			var totalCost = batches * SupplyValue;
-			return batchSize == 1
-				? $"{label}\n  Ammo: {Ammo} × {SupplyValue} supply = {totalCost}"
-				: $"{label}\n  Ammo: {Ammo} ({batches} batches × {batchSize} rounds × {SupplyValue} supply = {totalCost})";
+			return BatchSize == 1
+				? $"{label}\n  Ammo: {Ammo} × {SupplyValue} supply = {PoolBudget}"
+				: $"{label}\n  Ammo: {Ammo} ({BatchCount} batches × {BatchSize} rounds × {SupplyValue} supply = {PoolBudget})";
 		}
 
 		static string FormatWeaponLabel(string raw)
@@ -209,9 +211,16 @@ namespace OpenRA.Mods.Common.Traits
 		///
 		/// Note what this is NOT keyed on, because each alternative has already been wrong once:
 		/// not <see cref="Rearmable.RearmableAmmoPools"/> (answers a different question — see
-		/// AllPoolsEmpty), not "every armament paused" (PauseOnCondition also carries
-		/// garrisoned-at-port, which would call a garrisoned man with a full magazine dry), and not
-		/// the red-ammo-pip YAML condition (implied by this, but not equal to it).
+		/// AllPoolsEmpty), not "every armament paused" (armament PauseOnCondition also carries
+		/// suppressed >= 10, empdisable, heavy-damage-attained and inwater, any of which would call a
+		/// suppressed or EMP'd man with a full magazine dry), and not the red-ammo-pip YAML condition
+		/// (implied by this, but not equal to it).
+		///
+		/// PITFALL corrected 2026-08-12: this note previously cited garrisoned-at-port as the example.
+		/// That is wrong — no Armament in this mod carries it; it appears on Mobile and AttackFrontal
+		/// only. The caveat stands on the terms above. Note also that it attaches to the QUESTION, not
+		/// to the predicate: pause-for-any-reason is the RIGHT test for "should I stop moving to aim at
+		/// THIS target?", and is wrong only as a stand-in for "send this man to resupply".
 		/// </summary>
 		public static bool CannotFight(Actor self)
 		{

@@ -1,0 +1,1 @@
+Auto: four units given the player's explicit RESUPPLY order at a Logistics Centre must all dock, fill in batches, and finish. PairA holds a non-centre subcell — the case that could not dock before the subcell-offset fix in Resupply.

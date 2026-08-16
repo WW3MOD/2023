@@ -30,6 +30,21 @@ ATGM:
 		Spread: 64
 		Damage: 2000
 		DamageTypes: ExplosionDeath
+	# 260813: ATGM had no air-valid effect warhead at all. CreateEffectWarhead promotes
+	# any impact with DistanceAboveTerrain > AirThreshold (128) to the Air target type
+	# (CreateEffectWarhead.cs:155-156), and the inherited ^MediumExplosionEffects
+	# Warhead@Effect is ValidTargets: Ground, Ship, Trees, Mine (weapons-effects.yaml:554)
+	# -- so with CruiseAltitude 10c0 = 10240 every airborne detonation drew NO sprite and
+	# played NO sound. That is the visual half of "the Javelin misses and never explodes".
+	# Same pattern as Hellfire/Ataka/TimerWolf below. Air ONLY, not Air + Ground: an impact
+	# inside a ground actor's hitshape makes this warhead return ImpactActorType.Invalid
+	# and suppress itself (CreateEffectWarhead.cs:81-87, :116-117), so exactly one of the
+	# two effects ever fires.
+	Warhead@EffectAir: CreateEffect
+		ValidTargets: Air
+		ImpactActors: true
+		Explosions: explosion_air_medium
+		ImpactSounds: kaboom25.aud
 
 WGM:
 	Inherits@ExplosionEffects: ^MediumExplosionEffects
@@ -235,6 +250,34 @@ Hellfire:
 		Explosions: explosion_air_medium
 		ImpactSounds: kaboom25.aud
 
+Hellfire.Littlebird:
+	Inherits: Hellfire
+	# Littlebird's rack. Two deliberate departures from the Apache's mounting.
+	#
+	# 1. No Air (260815). The scout must not kill helicopters with missiles.
+	#    Dropping Air also repairs two silent failures that made this rack read
+	#    as "never does damage":
+	#      - AttackBase.GetMinimumRangeVersusTarget (AttackBase.cs:597-620) takes
+	#        the MIN across armaments VALID against the target. While the minigun
+	#        was Helicopter-valid with MinRange 0, the pair's minimum versus a
+	#        heli was 0, so Fly.cs never pushed the littlebird back out of this
+	#        weapon's own 5c0 MinRange — and Armament.CanFire (Armament.cs:333-335)
+	#        then refused the shot silently, indefinitely. Ground-only targeting
+	#        restores the 5c0 standoff, because the minigun is not valid against
+	#        Vehicle and so no longer drags the pair's minimum to zero.
+	#      - Against a heli the 10000-damage TargetDamage warhead needs its impact
+	#        within Spread (default WDist(1), TargetDamageWarhead.cs:23,64-65) of a
+	#        Circle Radius 32 hitshape (aircraft.yaml:65-67), against 0c256 of
+	#        scatter — so it nearly always fell through to the 2000/Pen-20 spread
+	#        warhead and looked like a missile that hit for nothing.
+	# 2. Range 20c0, five cells inside the Apache's 25c0 — the scout spots and
+	#    plinks, the Apache is the standoff platform. RangeLimit tracks it down so
+	#    a missile cannot outlive its own envelope by seven cells.
+	ValidTargets: Vehicle, Defense
+	Range: 20c0
+	Projectile: Missile
+		RangeLimit: 22c0
+
 Hellfire.strykershorad:
 	Inherits: Hellfire
 	Inherits@ExplosionEffects: ^MediumExplosionEffects
@@ -382,7 +425,22 @@ MANPAD:
 	Report: missile1.aud
 	Projectile: Missile
 		MaximumLaunchSpeed: 20
-		MaximumLaunchAngle: 1000
+		# 260813: was 1000, which is BELOW the horizon -- not "steeply up". WAngle loads raw
+		# from YAML (1024 = 360 deg), and the launch clamp reads (sbyte)(Angle >> 2)
+		# (Missile.cs:433-434): 1000 >> 2 = 250, and (sbyte)250 = -6. Against the default
+		# MinimumLaunchAngle of WAngle(-64) -> -16 that clamped launch pitch to
+		# [-16, -6] facing = [-22.5 deg, -8.44 deg], on a weapon that only shoots upward.
+		# 252 >> 2 = 63 = +88.6 deg, i.e. as near vertical as this field can express.
+		# 252 and not 256: the launch pitch is derived as vDist.Yaw.Facing (Missile.cs:425)
+		# and tops out at +64 for a target directly overhead, so +64 would be an exact
+		# no-op ceiling -- but CheckAngle.cs:56-58 rejects any raw angle in (255, 769), so
+		# 256 fails `make test` and 255 is the highest legal raw value. 252 is the clean
+		# encoding of facing 63 (63*4). The residual clamp is 1 facing unit (1.4 deg) on a
+		# target directly overhead, which is noise.
+		# Do NOT "tidy" this into degrees, and note that the lint PASSES the old 1000: it
+		# reads (255, 769) as invalid, so 1000 is a legal *downward* angle as far as the
+		# linter is concerned. It can catch a malformed angle, not a wrong-signed one.
+		MaximumLaunchAngle: 252
 		Acceleration: 25
 		Speed: 450
 		Inaccuracy: 256
@@ -420,7 +478,10 @@ Stinger:
 		Speed: 600
 		Acceleration: 35
 		MaximumLaunchSpeed: 50
-		MaximumLaunchAngle: 1000
+		# 260813: was 1000, which wraps to (sbyte)(1000 >> 2) = -6 facing = -8.44 deg, below
+		# the horizon. 252 >> 2 = 63 = +88.6 deg. See MANPAD above for the full arithmetic
+		# and for why 252 rather than 256.
+		MaximumLaunchAngle: 252
 		HorizontalRateOfTurn: 20
 		Arm: 5
 		Blockable: false

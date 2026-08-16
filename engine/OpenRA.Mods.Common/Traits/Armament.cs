@@ -389,6 +389,17 @@ namespace OpenRA.Mods.Common.Traits
 			var previousLastFiredTick = lastFiredTick;
 			lastFiredTick = self.World.WorldTick;
 
+			if (GunTrace.Enabled)
+			{
+				// Indexed: every entry is a FirepowerMultiplier, so the position in
+				// declaration order is the only thing that names which YAML instance
+				// (@Rank_1..@Rank_4, @CrashDisabled, @NoGunner, @EmergencyDescent) is
+				// responsible for a zero.
+				var mods = string.Join(", ", self.TraitsImplementing<IFirepowerModifier>()
+					.Select((m, i) => $"{i}:{m.GetType().Name}={m.GetFirepowerModifier()}"));
+				GunTrace.Write($"FireBarrel shooter={self.Info.Name} armament={Info.Name} weapon={Info.Weapon} shooterPos={self.CenterPosition} targetType={target.Type} firepowerModifiers=[{mods}]");
+			}
+
 			if (target.Type != TargetType.Invalid)
 			{
 				AimInitialTargetPosition.Add(target.CenterPosition);

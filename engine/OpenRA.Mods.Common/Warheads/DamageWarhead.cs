@@ -235,6 +235,9 @@ namespace OpenRA.Mods.Common.Warheads
 
 			var modifiedDamage = Util.ApplyPercentageModifiers(damage, args.DamageModifiers.Append(DamageVersus(victim, shape, args)));
 
+			if (GunTrace.Enabled)
+				GunTrace.Write($"    InflictDamage victim={victim.Info.Name} rawDamage={Damage} afterThickness={damage} thickness={victim.Trait<Armor>().Info.Thickness} pen={Penetration} modifiers=[{string.Join(",", args.DamageModifiers)}] versus={DamageVersus(victim, shape, args)} FINAL={modifiedDamage} hpBefore={victim.TraitOrDefault<Health>()?.HP}");
+
 			if (Duration > 0)
 			{
 				victim.InflictDamage(firedBy, new Actor.DamageOverTime(Duration, Modulus, new Damage(modifiedDamage, DamageTypes)));

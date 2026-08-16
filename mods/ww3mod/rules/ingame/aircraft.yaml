@@ -186,7 +186,6 @@
 		TransferToNeutralOnSafeLanding: false
 	VehicleCrew:
 		EjectionDamageState: Dead
-		EjectionSurvivalRate: 100
 	# Burn after safe-autorotation: bleed -2% MaxHP every 5 ticks once the
 	# heli is sitting crash-disabled. ~12-13 seconds from full HP to 0.
 	# Cookoff fires via Explodes: !airborne when the bleed kills it.
@@ -276,9 +275,14 @@
 	FirepowerMultiplier@CrashDisabled:
 		Modifier: 0
 		RequiresCondition: crash-disabled
-	FirepowerMultiplier@NoGunner:
-		Modifier: 0
-		RequiresCondition: !has-gunner
+	# FirepowerMultiplier@NoGunner removed 260816: a helicopter that loses its
+	# gunner is already burning and doomed, and crew never re-board, so there was
+	# nothing left for the gate to decide. It was also unreachable — ^Helicopter
+	# sets EjectionDamageState to Dead, and HeliEmergencyLanding suppresses
+	# ejection during autorotation/crash-landing, so has-gunner was never revoked
+	# on a live heli. @EmergencyDescent below already zeroes firepower in exactly
+	# those states. Its only observed effect in the shipped game was zeroing the
+	# littlebird, which declares no Gunner slot.
 	FirepowerMultiplier@EmergencyDescent:
 		Modifier: 0
 		RequiresCondition: autorotation || crash-landing

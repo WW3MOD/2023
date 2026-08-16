@@ -157,11 +157,17 @@ namespace OpenRA.Mods.Common.Traits
 			return Info.Type.DistanceFromEdge(pos, origin, orientation);
 		}
 
-		public int PercentFromEdge(Actor self, WPos pos)
+		/// <summary>
+		/// A damage-scaling percentage that is 100 at the shape's centre and falls to 0 at its outer
+		/// extent. Despite the old name this was not a distance in from the nearest edge, and the
+		/// four shape types do not agree on what "outer extent" means — see
+		/// WORKSPACE/audit/hitshape-percent-semantics.md before relying on the value.
+		/// </summary>
+		public int CenterProximityPercent(Actor self, WPos pos)
 		{
 			var origin = turret != null ? self.CenterPosition + turret.Position(self) : self.CenterPosition;
 			var orientation = turret != null ? turret.WorldOrientation : self.Orientation;
-			return Info.Type.PercentFromEdge(pos, origin, orientation);
+			return Info.Type.CenterProximityPercent(pos, origin, orientation);
 		}
 
 		public IEnumerable<IRenderable> RenderDebugAnnotations(Actor self)

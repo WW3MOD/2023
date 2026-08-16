@@ -247,8 +247,21 @@ Player:
 		#      (the clamp never binds and the combat-army count is not even computed — byte-identical to today).
 		#      Lower it (e.g. 50 = capturers may not exceed half the combat army) to move budget toward combat.
 		# The production SHARE weights themselves (tecn vs combat unit types) live in UnitsToBuild / UnitLimits in
-		# ai-america.yaml / ai-russia.yaml — see the budget-split note there. Default 100 on @stable.tecn = inert.
-		TecnFloorArmyShareCapPct: 100
+		# ai-america.yaml / ai-russia.yaml — see the budget-split note there.
+		# 50 since 2026-08-14 (was 100 = inert, on both twins). Reclaim is what forced the issue: a backlog of our
+		# own cleared buildings does not shrink until technicians reach them, so the floor pins at TecnFloorMax
+		# and TecnRequestPriority routes those 250-cost buys AHEAD of combat production — exactly while the base
+		# is down and the army needs rebuilding. This was the only lever guarding that spiral and it was switched
+		# off. At 50 the capturer pool may not exceed half the combat army, so reclaim demand yields while the
+		# army is thin and relaxes as it recovers.
+		# SCOPED, not global: the cap is raised back to the PRE-RECLAIM floor in code
+		# (CaptureReclaimMath.ScopedFloorWithArmyShare), so it restrains the reclaim increment and nothing else.
+		# With no reclaim candidates the two floors are equal and the ordinary capture race is byte-identical to
+		# leaving this at 100 — which is the point: a global 50 would have mutated the benchmark control in the
+		# exact opening race TecnFloor was built to win (the S2 loss, zero capturers fielded in 6/10 games) and
+		# corrupted the next baseline. Scoping also removes the wiped-army zero-trap by construction: the result
+		# can never land below the pre-reclaim floor, so cap-0 can never refuse capturers forever.
+		TecnFloorArmyShareCapPct: 50
 		# Retreat-when-done (orderless-at-hostile-location bug fix): when a capture completes or its target is
 		# gone, send the surviving TECN back to our SR instead of leaving it idle at the front (a free kill no
 		# combat free pool re-collects). Enabled on both live .tecn twins — it's a bug-class fix, not a tuning
@@ -262,6 +275,36 @@ Player:
 		# (flat field / opening => the descent returns its seed, so it holds at the beachhead).
 		StageIdleCapturers: true
 		ReserveStandoffCells: 10
+		# Reclaim our own cleared base. Since c513f358 a soldier entering ANY enemy building evicts the owner to
+		# Neutral and walks out alive, so a raided base is a row of NEUTRAL AA defences, airfields and production
+		# — and the capture layer could not see one of them, because PoiMap.Discover only admits the actor names
+		# in its own IncomeWeights (oilb/fcom/bio/miss/hosp) plus the SR. A human clearing a bot base left it
+		# sitting next to its own corpse permanently. ON: structures we previously OWNED that are now Neutral are
+		# dispatched BEFORE the PoiMap ranking and folded into the capturer floor, so recovery is funded even
+		# after every free derrick on the map is gone. Enabled on both live .tecn twins — this is a regression
+		# fix, not a tuning lever, so it goes wherever the module actually runs; the engine default stays false so
+		# any profile omitting it is byte-identical. @stable behaviour DOES move here.
+		# NOTE pbox/hbox/gtwr are NOT in scope: they strip -CaptureManager/-Capturable in structures-defenses.yaml
+		# so they can be neither evicted nor reclaimed. AA defences (agun/sam/hsam) inherit ^Defense -> ^Building
+		# and DO keep theirs.
+		# A reclaim is not dispatched at all unless at least one escort is recruitable: the tier is floored at
+		# Light AND the support pool is checked before the capture order is queued, since DispatchEscort runs
+		# after that order and returns silently on an empty pool. Skipped candidates are retried every scan, so
+		# a bot with no spare army defers instead of feeding technicians to the raiders still in its base.
+		ReclaimNeutralisedStructures: true
+		# 8, deliberately BELOW SafeDangerUnits (10) — not at ContestedDangerUnits (30), which is where this
+		# started and was wrong. At 30 the gate sat three times looser than the escort lever's own low-danger
+		# threshold, so any target quiet enough to reach escort tier None had already cleared it: the gate could
+		# never be the thing that forced an escort. It is a BACKSTOP anyway — the real protection is the Light
+		# escort floor, because a building is a vision source, so the eviction that creates a reclaim target is
+		# also what blinds us to the raiders who made it. A skipped target is retried every scan, so recovery
+		# starts by itself once they leave.
+		ReclaimMaxDangerUnits: 8
+		# Our BASE, not everything we ever touched. Without a cutoff the lever reads "ever ours, ANYWHERE", and
+		# three formerly-ours derricks deep in enemy ground would preempt the ranked pass and consume every free
+		# technician — including the one that should have walked to the free derrick beside our own beachhead.
+		# Matches SafeMaxDistanceFromSRCells (24) since both mean "on our doorstep".
+		ReclaimMaxDistanceFromSRCells: 24
 
 	# experimental AI: POI-scored SPREAD OFFENSE (POI-strategy Phase 3). Splits the general
 	# ground army across the top enemy objectives ranked by PoiMap
@@ -408,6 +451,20 @@ Player:
 		# axes by class; ExcludeUnitTypes becomes inert. NOTE (b8d2e601, 2026-08-02): @stable sets
 		# UseUnitRoles too (:1939), so the list (:1938) is an inert fallback on BOTH twins.
 		UseUnitRoles: true
+		# COMBINED ARMS — the user complaint "the tank attacks alone while the infantry walk behind it".
+		# Line infantry classify MainBattle (UnitRoleResolver.cs:42), so the role gate above ADMITS them and
+		# StageFreePool walks them to the same attack anchor the armour drives to, on foot, from tick 3. The
+		# mounted transport's first scan is 50 ticks later and its ledger only protects a passenger once the
+		# EnterTransport is ADMITTED — by which time the soldier is busy under an AttackMove and BotOrderGate's
+		# dwell rule (ReorderDwellTicks 120 above) suppresses the boarding order. This module's own 100-tick
+		# re-eval then refreshes that standing order inside the 120-tick window, so the suppression re-arms
+		# indefinitely and the seats are never sold. Holding back only what a carrier can take THIS TICK is the
+		# offense's side of that race. Default false on the engine class; @stable omits it => byte-identical.
+		TransportStandoffEnabled: true
+		# Mirrors the transport's own LoadingTimeoutTicks (1500). Also has to clear the observed ~1015-tick
+		# latency before the first pre-contact drop cell resolves, or the valve fires before the carrier ever
+		# gets its chance and the hold buys nothing.
+		TransportStandoffMaxHoldTicks: 1500
 		# Don't recruit evacuating (out-of-ammo) units onto an axis — the AttackMove would cancel
 		# their RotateToEdge evac and send an empty unit at the enemy. Default false on the engine
 		# class; mirrors LayeredDefence. NOTE (b8d2e601, 2026-08-02): @stable sets this too (:1940),
@@ -900,6 +957,73 @@ Player:
 		SectorSpread: true
 		SmallSquadCoverage: true
 		SmallSquadMinNearbyFriendlies: 2
+		# ===================================================================================================
+		# DELIVERY BEATS SURVIVAL. Supply trucks ignore danger entirely (2026-08-13).
+		#
+		# USER-AUTHORISED, verbatim: "Even if we need to completely disable their danger awareness then that
+		# is better than once again having them not work." The preceding sentence is the reason it was
+		# offered: "I have told you now a hundred times that we need to solve this but every time you tell me
+		# it is fixed and the results are more or less the same." So this is not a tuning preference and it is
+		# not to be quietly walked back — the instinct to protect danger awareness for trucks is the thing
+		# that has now sunk three attempts, and the permission above exists specifically to remove it.
+		#
+		# WHY ONE FLAG INSTEAD OF FLIPPING THE FOUR BELOW. "Disable danger awareness" is SEVEN sites in this
+		# module and only six of them are reachable from YAML. FindSafeFollowPosition reads ThreatMapManager,
+		# a DIFFERENT field from DangerFieldLayer, and no key here touches it — so a config-only attempt sets
+		# the four danger flags, believes itself complete, and leaves the truck still being walked up to ~4
+		# cells off its target every scan by a field that changes continuously. That is the shape of the
+		# previous "fixed" reports. The engine switch makes a partial application inexpressible.
+		#
+		# THE MECHANISM THIS REMOVES — and read the correction below before quoting any earlier version of it.
+		# The cluster danger gate ran at the RELEASE level (50-20 = 30 danger units) against live median cells
+		# measured in the THOUSANDS of units, so on a contested front every needy cluster failed the gate and
+		# selection fell through to the relief valve, which keeps only the LEAST-DANGEROUS needy cluster. That
+		# is a real narrowing: the truck's target stops being "the platoon that needs supply most" and becomes
+		# "the quietest platoon that needs any", which on a hot front is routinely a rear one — and a rear
+		# cluster is both further away and not starving, so FollowLeashCellsFor gives it the SHORT leash
+		# (MaxFollowDistance 35, not the starving 80) and WithinFollowLeash nulls it per truck. A truck with a
+		# null cluster classifies errand=None, and None is exactly the state the evac branch collects.
+		# So the path runs through the LEASH, and the danger gate is what forces selection onto the distant
+		# quiet cluster in the first place.
+		#
+		# CORRECTION, recorded because this item has now produced four confident wrong diagnoses and the wrong
+		# ones keep getting quoted forward: an earlier draft of this comment blamed SectorSpread for leaving
+		# every truck but one unassigned once the valve collapsed the list to one cluster. THAT IS FALSE, and
+		# the code says so — SupplyLogisticsMath.AssignSectors seeds `better` with `pick == NoSector`, so a
+		# sector already claimed by an earlier truck is still selectable and trucks simply DOUBLE UP. NoSector
+		# means "no sector within maxFollowLength", a DISTANCE condition, not a distinctness one. Nor can
+		# SelectServableClusters ever hand back an empty needy set — the relief valve guarantees it, exactly as
+		# DOCS/reference/supply-route.md states: "danger never empties the cluster list". Do not re-derive the
+		# distinct-assignment story; it has been checked and it is wrong.
+		#
+		# WHAT THE TRUCK DOES NOW: drives to the drop anchor 5 cells short of the platoon, unloads its whole
+		# 750 as a SUPPLYCACHE, and — now empty — is taken off the field by TRUK's own shipped
+		# InitialResupplyBehaviorAI: Evacuate. Drive near, DROP, evacuate. That is the wanted behaviour
+		# verbatim, and the evacuation half needed no work.
+		#
+		# SCOPE — DECLARED, NOT SILENT. This is a SHARED enable-ai-any instance with no @stable twin, so it
+		# reaches @stable as well as @experimental. That is intended per CLAUDE.md (@stable inherits
+		# improvements), and it means the next benchmark baseline must be re-taken knowingly. The C# default
+		# is false, so nothing moves for a profile that does not set this key.
+		#
+		# THE COST, stated so it is not discovered later: trucks will die on hot fronts. That is the trade the
+		# permission above buys, and a delivered crate the enemy has to shoot is worth more than a full truck
+		# that shuttles all match. If trucks are dying WITHOUT delivering, this flag is the first thing to
+		# walk back — not DeliveryIntentOverridesEvac, which is a narrower version of the same idea.
+		#
+		# AND HERE IS THE SPECIFIC WAY THAT COST ARRIVES, named rather than left to be discovered. NoDemand is
+		# easy to hit: cluster selection needs only NeedScore > 0, which is ammoNeed x 1000, so four men at 95%
+		# ammo score 200 with ZERO starving men — while the drop needs DropMinStarvingUnits (1) actually
+		# starving within DropDemandRadiusCells of the anchor. A truck vetoed NoDemand falls through to the
+		# follow path, and with the detour off that path now drives it in a straight line at the platoon
+		# centroid. So the flag creates a route to dying WITHOUT delivering, which is exactly the walk-back
+		# signal above. Watch for `drop-declined reason=NoDemand` immediately followed by truck losses; if that
+		# is what a real match shows, the demand gate and the follow leash are the levers, not this flag.
+		# ===================================================================================================
+		IgnoreDangerForDelivery: true
+		# The four keys below are now overridden by the flag above and are kept, unchanged, as the record of
+		# what the principled version was. Item 40 (danger-scale rework) is the work that would let them mean
+		# something again; until the danger UNIT is right, they gate on a scale that fires unconditionally.
 		DangerEvac: true
 		EvacDangerUnits: 50
 		EvacRetreatCells: 12
@@ -1380,7 +1504,19 @@ Player:
 		# 2026-08-02 promotion — full @experimental transport parity. DeliverBeforeContact/PickupCorridor/
 		# UnloadOnArrival are engine-independent; BelievedDangerStandoff reads the danger field, now LIVE
 		# for @stable (influence-stack participation). See the @experimental twin for per-flag rationale.
-		DeliverBeforeContact: true
+		#
+		# 2026-08-15 — HELD AT false ON PURPOSE, and this is a hold, not a gate. Until today this field was
+		# DEAD CONFIG: PickDropOffCell consulted DeliverBeforeContact only where the frontline was null, and
+		# InfluenceMapMath.DeriveFrontline never returns null — so the true set here has never once changed
+		# @stable's behaviour. The fallback is fixed this commit, which would make it live on both twins
+		# simultaneously; false pins @stable at EXACTLY the behaviour it has always had (no pre-contact
+		# delivery) while the never-executed path is proven on @experimental first.
+		#
+		# This does NOT withhold a fix from @stable on principle — that would be against policy. It sequences
+		# ONE un-run behavioural change at a time, on a profile that is the benchmark control and already took
+		# a knowing change today (CommitPassengers). Flip this back to true to promote, in its own commit, so
+		# the baseline is re-taken for one change rather than two.
+		DeliverBeforeContact: false
 		PreContactStagingPct: 50
 		UnloadOnArrival: true
 		PickupCorridorCells: 6
@@ -1388,6 +1524,19 @@ Player:
 		StandoffDangerUnits: 10
 		StandoffMarginCells: 2
 		StandoffMaxBackoffCells: 20
+		# 2026-08-15 transport loading. BEHAVIOURAL CHANGE TO @stable — deliberate, not drift; re-take the
+		# benchmark baseline. Carriers stopped driving off at MinPassengersPerLoad (2) while the other three
+		# soldiers they had just ordered aboard were still walking; they now wait for the seats they actually
+		# ordered, bounded by BoardingStallTicks and LoadingTimeoutTicks so they can never hang. The capture
+		# ferry now also carries escort in the technician's four spare seats instead of driving it out alone.
+		FillBeforeDeparture: true
+		BoardingStallTicks: 250
+		CaptureFerryEscortSeats: 3
+		# Required for the above to actually hold on this profile. Without it this module leaves goalGuard
+		# null, so offense's BuildFreePool — which honours the ledger but NOT the bespoke IsPassengerReserved
+		# seam — treats a soldier walking up the ramp as free and re-tasks it away. Waiting for a fuller load
+		# against a module that keeps removing the passengers is just a slower half-empty departure.
+		CommitPassengers: true
 
 	# Experimental twin. NOTE (b8d2e601, 2026-08-02): neither behaviour below is experimental-only any
 	# more — the @poi (stable) twin above was promoted to the same config. Both are default-frozen on
@@ -1431,8 +1580,35 @@ Player:
 		# Phase 2 commit-on-order audit (§4): commit boarding passengers to the shared PoiGoalGuard ledger
 		# (transport:<carrierId>), released on unload. Replaces the bespoke IsPassengerReserved seam as the
 		# cross-module lock — offense's BuildFreePool already excludes ledger-committed units, so it no longer
-		# yanks infantry mid-board. Default OFF on the @poi (stable) twin = byte-identical.
+		# yanks infantry mid-board. NOTE (2026-08-15): the @poi (stable) twin sets this too now — the
+		# fill-before-departure lever below is unworkable without it, so the "default OFF on @poi =
+		# byte-identical" claim is dead.
 		CommitPassengers: true
+		# 2026-08-15 transport loading — see the @poi twin for the rationale. Wait for the seats actually
+		# ordered rather than the bare minimum, with two independent time bounds so a carrier can never hang
+		# on a passenger that is not coming; and spend the capture ferry's otherwise-empty seats on escort.
+		FillBeforeDeparture: true
+		BoardingStallTicks: 250
+		CaptureFerryEscortSeats: 3
+		# 2026-08-15 half-empty departures — the user's original complaint. A load is fixed at whatever the
+		# arbitration gate admitted on the ONE tick the task was born; measured baseline on this scenario
+		# (run 260815_191433, seed 1017) departed with 1, 2 and 2 of 5 seats. Re-offer to the free pool each
+		# scan while loading. Cannot postpone departure: the departure math counts the original cohort only.
+		# Default false on the engine class and NOT set on the @poi twin ⇒ @stable is unchanged.
+		TopUpDuringLoading: true
+		# COMBINED ARMS, the other half of PoiOffensiveBotModule.TransportStandoffEnabled — and it STAYS OFF,
+		# on a measurement rather than on caution. Enabled once (run 260815_202509, seed 1017,
+		# wip-transport-delivers) it moved the drop cell from lerp=32,10 to anchor=7,17 — ONE CELL from the
+		# Supply Route at 6,16 — and the carrier then looped: load 5, drive one cell, unload, reload, four
+		# times. It replaced a 26-cell forward delivery with a shuttle in place.
+		#
+		# The cause is a MISSING LOWER BOUND, not a tuning value. RendezvousMath.AnchorAcceptable tests only
+		# `anchorReach <= fallbackReach + margin`, so it rejects an anchor that is too far FORWARD and accepts
+		# without limit one that is BEHIND the cell the transport would have chosen. Whenever the reserve is
+		# mustering near the SR — which is every pre-contact opening, since the frontier descent has nothing to
+		# descend toward — the anchor is behind the lerp and the rendezvous drags the delivery backwards.
+		# Flip this on only together with a lower bound; see WORKSPACE/bugs/discovered.md 2026-08-15.
+		RendezvousWithOffensiveStaging: false
 
 	# ===== Base Builder — shared baseline (enable-ai-player) =====
 	BaseBuilderBotModule@normal:
@@ -1889,6 +2065,13 @@ Player:
 		ScaleTecnFloorToPois: true
 		TecnFloorMax: 5
 		TecnRequestPriority: true
+		# 2026-08-14: newly SET here (this twin previously omitted it, taking the inert engine default of 100).
+		# @stable gets the reclaim lever, so it can enter the same spiral — a backlog that does not shrink pins
+		# the floor at TecnFloorMax while TecnRequestPriority routes those buys ahead of combat production, with
+		# the base already down. Adding the brake alongside the feature that needs it. SCOPED to the reclaim
+		# increment in code, so with no reclaim candidates @stable's ordinary capture race is byte-identical to
+		# leaving this unset — the benchmark control is not disturbed. See @experimental.tecn.
+		TecnFloorArmyShareCapPct: 50
 		CaptureFanoutEnabled: true
 		UseTransportForDistantCaptures: true
 		TransportCaptureMinDistanceCells: 12
@@ -1918,6 +2101,15 @@ Player:
 		# so the reserve muster's ControlField descent works here identically. See @experimental.tecn.
 		StageIdleCapturers: true
 		ReserveStandoffCells: 10
+		# Reclaim our own cleared base — enabled on BOTH twins for the same reason RetreatCapturerWhenDone is: it
+		# is a regression fix, not a tuning lever. Without it a raided @stable bot sits next to its own neutralised
+		# AA defences, airfields and production forever, because PoiMap never discovers a non-income structure as
+		# a POI. @stable behaviour DOES move here; the next benchmark baseline must be re-taken knowingly. See
+		# @experimental.tecn for the full rationale, including why the danger gate is a backstop rather than the
+		# primary protection and why 8 (below SafeDangerUnits) rather than 30.
+		ReclaimNeutralisedStructures: true
+		ReclaimMaxDangerUnits: 8
+		ReclaimMaxDistanceFromSRCells: 24
 
 	PoiOffensiveBotModule@stable:
 		RequiresCondition: enable-ai-stable

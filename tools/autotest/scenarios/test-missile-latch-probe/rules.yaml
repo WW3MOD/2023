@@ -1,0 +1,57 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-missile-latch-probe.lua
+
+# Lane isolation without touching fire stance. Seven engagements share one map,
+# and a launcher that re-acquired a neighbouring lane's target would silently
+# mix the motion regimes this rig exists to separate. ScanRadius bounds only the
+# AutoTarget SEARCH — an explicit force-attack order still reaches full armament
+# range — so shrinking it below the inter-lane spacing leaves every launcher able
+# to shoot the target the Lua hands it and nothing else.
+#
+# Deliberately NOT done by putting the launchers on HoldFire: AUTOTEST.md gotcha 7
+# (StancePositioningExecutor opts out below FireAtWill) makes stance an unsafe
+# setup lever.
+AA:
+	AutoTarget:
+		ScanRadius: 4
+	AmmoPool@1:
+		Ammo: 6
+AT:
+	AutoTarget:
+		ScanRadius: 4
+	AmmoPool@1:
+		Ammo: 6
+
+# Targets must survive the whole volley: a target that dies mid-run stops the
+# lane at an unknown sample count and, worse, retires the remaining missiles
+# through the target-lost path instead of the one under measurement. Health is
+# merged per-field, so this changes HP and nothing else.
+# NOT paired with -HeliEmergencyLanding:/-ChangesHealth@CrashBurn:. Removing those
+# traits strips conditions that other littlebird traits consume, which adds a real
+# new `make test` error identity (`consumes conditions that are not granted`). They
+# are unnecessary anyway: at 900k HP the Littlebird never leaves DamageState.Undamaged,
+# so neither trait can fire.
+littlebird:
+	Health:
+		HP: 900000
+# PITFALL: the actor key must match the source casing EXACTLY (`t90`, not `T90`).
+# The engine lowercases actor names internally but the ruleset merge is done on
+# the raw key, so a case variant is loaded as a SECOND actor and the mod fails
+# with "duplicate values found for the following keys: t90".
+t90:
+	Health:
+		HP: 900000

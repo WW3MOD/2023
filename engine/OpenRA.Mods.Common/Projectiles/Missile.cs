@@ -243,6 +243,11 @@ namespace OpenRA.Mods.Common.Projectiles
 		// >=0 = countdown ticks until the operator picks up a new target.
 		int retargetCountdown = -1;
 
+		// Actors this missile has already guided on and abandoned. Excluded from
+		// FindRetargetCandidate so an abandoned target can never be re-acquired (I2b).
+		// Null until the first retarget, which most missiles never reach.
+		List<Actor> abandonedTargets;
+
 		WPos targetPosition;
 		WVec offset;
 		WVec tarVel;
@@ -265,6 +270,11 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Sync]
 		int vFacing;
 
+		// Phase-0 missile audit. Null unless MissileTrace is switched on (launch
+		// arg or Test.EnableMissileTrace); everything below guarded on it is pure
+		// observation — see MissileTrace.cs.
+		readonly MissileTraceRecord trace;
+
 		public Missile(MissileInfo info, ProjectileArgs args)
 		{
 			this.info = info;
@@ -285,6 +295,13 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			gravity = new WVec(0, 0, -info.Gravity);
 			targetPosition = args.PassiveTarget;
+
+			// Tick 1 reads lastTargetPosition for its lead vector before Tick() first
+			// writes it. Left at the WPos default, vectorDiffPerTick became the target's
+			// absolute map coordinates treated as a per-tick velocity: the trace recorded
+			// tick-1 distances up to 2.9e15. Seeding it here makes tick 1's implied target
+			// velocity zero instead of enormous.
+			lastTargetPosition = args.PassiveTarget;
 			var limit = info.RangeLimit != WDist.Zero ? info.RangeLimit : args.Weapon.Range;
 			rangeLimit = new WDist(Util.ApplyPercentageModifiers(limit.Length, args.RangeModifiers));
 			minLaunchSpeed = info.MinimumLaunchSpeed.Length > -1 ? info.MinimumLaunchSpeed.Length : info.Speed.Length;
@@ -338,6 +355,14 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			shadowColor = new float3(info.ShadowColor.R, info.ShadowColor.G, info.ShadowColor.B) / 255f;
 			shadowAlpha = info.ShadowColor.A / 255f;
+
+			MissileTrace.EnsureInitialized();
+			if (MissileTrace.Enabled)
+			{
+				// Explode() applies no warhead while `ticks <= info.Arm`, so the first
+				// armed tick is Arm + 1.
+				trace = MissileTrace.Begin(world, args, info.Arm + 1, rangeLimit.Length, maxSpeed, info.CloseEnough.Length);
+			}
 		}
 
 		static int LoopRadius(int speed, int rot)
@@ -830,8 +855,27 @@ namespace OpenRA.Mods.Common.Projectiles
 			var diffClfMslHgt = predClfHgt - pos.Z;
 			var relTarHgt = tarDistVec.Z;
 
-			// Update minimum distance to target
-			var currentDistance = new WDist(relTarHorDist);
+			// Miss detection runs on the PHYSICAL missile->target separation, never on
+			// tarDistVec. tarDistVec is the vector to the LEAD point, while CloseEnough is
+			// a physical constant, so comparing the two is a unit error: a target
+			// accelerating toward the missile collapses the lead point onto the missile
+			// itself, and the traced worst case read 904 at a true range of 15845 (0.06x).
+			// minDistanceToTarget was seeded from that collapsed value and the next tick's
+			// ratio shift then tripped the miss test while the missile was still closing --
+			// 38 of 44 traced latches fired on a tick the missile was getting CLOSER.
+			// Steering below still uses the lead-corrected tarDistVec; only the miss test
+			// and its recovery moved.
+			//
+			// 3D rather than horizontal, for two reasons: CloseEnough is a 3D proximity
+			// radius everywhere else in this file (the detonation tests at the end of
+			// Tick), so this is the measure it is commensurable with; and a horizontal
+			// measure cannot see a missile that misses purely in Z, over the top of an
+			// aircraft or short beneath it.
+			//
+			// `offset` is deliberately excluded: it is re-rolled mid-flight (Tick, the
+			// RetargetTicks block), so folding it in would make the measured distance jump
+			// with no missile movement -- the same class of defect being fixed here.
+			var currentDistance = new WDist((targetPosition - pos).Length);
 			if (currentDistance < minDistanceToTarget)
 				minDistanceToTarget = currentDistance;
 
@@ -839,9 +883,23 @@ namespace OpenRA.Mods.Common.Projectiles
 			if (info.FlyStraightIfMiss && !flyStraight && state == States.Hitting && currentDistance > minDistanceToTarget + info.CloseEnough && currentDistance > info.CloseEnough)
 				flyStraight = true;
 
-			// Resume homing if target comes close again
-			if (flyStraight && currentDistance < info.CloseEnough)
-				flyStraight = false;
+			// Upstream OpenRA followed the latch with a recovery clause:
+			//     if (flyStraight && currentDistance < info.CloseEnough)
+			//         flyStraight = false;
+			// It is deleted, and must not be restored. A missile that has declared a miss
+			// re-homing on the target it missed is forbidden fleet-wide -- invariant I2b in
+			// DOCS/reference/missiles.md, a user ruling: "After a missile misses it's target
+			// they should never try to reaquire", scoped explicitly to "any missile".
+			//
+			// It was also unsound on its own terms. The clause and the detonation test at
+			// the end of Tick both compare against CloseEnough but no longer measure the
+			// same thing: detonation uses relTarDist, the distance to the AIM point
+			// (targetPosition + leadTarget + offset - pos), while this compared the physical
+			// separation. Nothing bounds `offset` by CloseEnough -- ATGM rolls Inaccuracy 512
+			// against a CloseEnough of 298 -- so a missile could sit physically inside
+			// CloseEnough, un-latch and turn back, while its aim point stayed too far out to
+			// fuse. Retargeting onto a DIFFERENT enemy is unaffected and still intended
+			// (missiles.md section 5); that path lives in Tick and is guarded separately.
 
 			var velVec = tarDistVec + predVel;
 			var desiredHFacing = flyStraight ? hFacing : (velVec.HorizontalLengthSquared != 0 ? velVec.Yaw.Facing : hFacing);
@@ -863,7 +921,12 @@ namespace OpenRA.Mods.Common.Projectiles
 			if (jammed)
 			{
 				if (jammingActor.Trait.Info.ActiveProtection)
+				{
+					if (trace != null)
+						trace.PendingReason = MissileEndReason.JammedAps;
+
 					Explode(world);
+				}
 				else
 				{
 					desiredHFacing = hFacing + world.SharedRandom.Next(-info.JammedDiversionRange, info.JammedDiversionRange + 1);
@@ -893,6 +956,17 @@ namespace OpenRA.Mods.Common.Projectiles
 				vRot = System.Math.Min(vRot * boost, 20);
 			}
 
+			if (trace != null)
+			{
+				trace.DesiredHFacing = desiredHFacing;
+				trace.DesiredVFacing = desiredVFacing;
+
+				// HomingInnerTick is called with targetPassedBy hardcoded `false` a few
+				// lines above, so this samples a constant today. Recorded from the call
+				// site anyway so the trace tracks the code if that literal ever changes.
+				trace.TargetPassedBy = false;
+			}
+
 			hFacing = Util.TickFacing(hFacing, desiredHFacing, hRot);
 			vFacing = Util.TickFacing(vFacing, desiredVFacing, vRot);
 
@@ -915,6 +989,9 @@ namespace OpenRA.Mods.Common.Projectiles
 
 				// Compute the vertical loop radius
 				loopRadius = LoopRadius(speed, info.VerticalRateOfTurn.Facing);
+
+				if (trace != null)
+					trace.HomingTick = ticks;
 			}
 
 			// Switch from homing mode to freefall mode
@@ -956,6 +1033,27 @@ namespace OpenRA.Mods.Common.Projectiles
 
 				if (!targetValid && retargetCountdown == 0)
 				{
+					// Bank the target being abandoned before searching. `IsValidFor` resolves
+					// through Actor.IsTargetableBy -> Targetable.TargetableBy, which honours
+					// BOTH trait-disabled state and cloak (Targetable.cs:46-55);
+					// FindRetargetCandidate's filter resolves through
+					// WeaponInfo.IsValidAgainst -> Actor.GetEnabledTargetTypes, which honours
+					// trait-disabled too (Actor.cs:610-617 filters on IsTraitEnabled) but NOT
+					// cloak. Cloak is the sole divergence. A target that merely cloaked is
+					// therefore invalid here yet still a candidate there -- and being the
+					// nearest enemy to a missile sitting right on top of it, the one the search
+					// would pick. That would re-home the missile on the target it just missed,
+					// which I2b forbids. Reachable today: the SAM Site carries Cloak
+					// (structures-defenses.yaml) and is a valid Defense target for all three
+					// weapons that set OperatorRetargetTicks (WGM, Ataka, Hellfire).
+					var abandoned = args.GuidedTarget.Actor;
+					if (abandoned != null)
+					{
+						abandonedTargets ??= new List<Actor>();
+						if (!abandonedTargets.Contains(abandoned))
+							abandonedTargets.Add(abandoned);
+					}
+
 					var newGuided = FindRetargetCandidate();
 					if (newGuided != null)
 					{
@@ -1011,7 +1109,18 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			WVec move;
 			if (state == States.Freefall || (info.ManualGuidance && args.SourceActor.IsDead))
+			{
 				move = FreefallTick();
+
+				// No guidance ran this tick, so there is no desired facing — report the
+				// current one rather than leaving the previous tick's value stale.
+				if (trace != null)
+				{
+					trace.DesiredHFacing = hFacing;
+					trace.DesiredVFacing = vFacing;
+					trace.TargetPassedBy = false;
+				}
+			}
 			else
 				move = HomingTick(world, tarDistVec, relTarHorDist);
 
@@ -1030,6 +1139,9 @@ namespace OpenRA.Mods.Common.Projectiles
 			{
 				pos = blockedPos;
 				shouldExplode = true;
+
+				if (trace != null)
+					trace.PendingReason = MissileEndReason.Blocked;
 			}
 
 			// Create the sprite trail effect
@@ -1057,6 +1169,12 @@ namespace OpenRA.Mods.Common.Projectiles
 				// (especially an airborne one) has likely moved away, and a horizontal-only
 				// proximity match below the target wastes the warhead at empty space / ground.
 				|| (!flyStraight && height.Length < info.AirburstAltitude.Length && relTarHorDist < info.CloseEnough.Length);
+
+			// Trace-only: the expression above short-circuits, so the surviving
+			// `shouldExplode` bool cannot say WHICH clause fired. Re-evaluate the same
+			// predicates in the same order (all pure reads) to name the one that did.
+			if (trace != null && shouldExplode && trace.PendingReason == MissileEndReason.None)
+				trace.PendingReason = ClassifyExplosion(world, height, relTarDist, relTarHorDist, cell);
 
 			// PITFALL: when missile Speed > CloseEnough, the per-tick relTarDist sample can
 			// straddle the proximity sphere — missile is at 400 wdist away, then 600 wdist past,
@@ -1088,12 +1206,131 @@ namespace OpenRA.Mods.Common.Projectiles
 					{
 						pos = closestPos;
 						shouldExplode = true;
+
+						if (trace != null)
+							trace.PendingReason = MissileEndReason.SegmentClosest;
 					}
 				}
 			}
 
+			if (trace != null)
+				SampleTrace(world, targetPosition + leadTarget + offset, relTarDist, relTarHorDist);
+
 			if (shouldExplode)
 				Explode(world);
+		}
+
+		// Names the individual `shouldExplode` clause that fired, in the same order
+		// the real expression evaluates them. Observation only — every term here is
+		// a pure read of state the expression above already looked at.
+		// PITFALL: Map.GetTerrainInfo is unguarded and throws on an off-map cell, so
+		// the Contains test must stay ahead of it — same ordering as the original.
+		MissileEndReason ClassifyExplosion(World world, WDist height, int relTarDist, int relTarHorDist, CPos cell)
+		{
+			if (height.Length < 0)
+				return MissileEndReason.Ground;
+
+			if (relTarDist < info.CloseEnough.Length)
+				return MissileEndReason.CloseEnough;
+
+			if (info.ExplodeWhenEmpty && rangeLimit >= WDist.Zero && distanceCovered > rangeLimit)
+				return MissileEndReason.FuelOut;
+
+			if (!world.Map.Contains(cell))
+				return MissileEndReason.OffMap;
+
+			if (!string.IsNullOrEmpty(info.BoundToTerrainType) && world.Map.GetTerrainInfo(cell).Type != info.BoundToTerrainType)
+				return MissileEndReason.TerrainBound;
+
+			if (!flyStraight && height.Length < info.AirburstAltitude.Length && relTarHorDist < info.CloseEnough.Length)
+				return MissileEndReason.Airburst;
+
+			return MissileEndReason.None;
+		}
+
+		void SampleTrace(World world, WPos aimPos, int relTarDist, int relTarHorDist)
+		{
+			var stateName = state == States.Freefall ? "freefall" : state == States.Homing ? "homing" : "hitting";
+
+			// FlyStraightIfMiss latch edge. trace.FlyStraight still holds LAST tick's
+			// value here, so this catches the false → true transition.
+			// Note the two recorded distances are no longer the same quantity: since the
+			// miss test moved onto physical separation, FlyStraightMinDist is the physical
+			// 3D minimum the predicate compared, while FlyStraightHorDist is the
+			// lead-inflated horizontal distance the predicate used to test and is kept
+			// only so a trace can still show the two side by side.
+			if (flyStraight && !trace.FlyStraight)
+			{
+				trace.FlyStraightLatches++;
+				if (trace.FlyStraightTick < 0)
+				{
+					trace.FlyStraightTick = ticks;
+					trace.FlyStraightHorDist = relTarHorDist;
+					trace.FlyStraightMinDist = minDistanceToTarget.Length;
+					trace.FlyStraightState = stateName;
+				}
+			}
+
+			trace.Tick = ticks;
+			trace.Pos = pos;
+			trace.TargetPos = targetPosition;
+			trace.AimPos = aimPos;
+			trace.State = stateName;
+			trace.HFacing = hFacing;
+			trace.VFacing = vFacing;
+			trace.AllowPassBy = allowPassBy;
+			trace.FlyStraight = flyStraight;
+			trace.LockOn = lockOn;
+			trace.RelTarDist = relTarDist;
+			trace.RelTarHorDist = relTarHorDist;
+			trace.MinDistanceToTargetField = minDistanceToTarget.Length;
+			trace.Speed = speed;
+			trace.LoopRadius = loopRadius;
+			trace.DistanceCovered = distanceCovered.Length;
+
+			// Recomputed from the FINAL pos rather than reusing the `height` the
+			// explosion test used: the blocking check and the segment closest-approach
+			// check both move `pos` after that value was sampled, so reusing it would
+			// report the altitude of a position the missile never ended the tick at.
+			trace.DistanceAboveTerrain = world.Map.DistanceAboveTerrain(pos).Length;
+
+			// Closest approach on the SEGMENT travelled this tick, not at the tick
+			// sample. A missile whose Speed exceeds CloseEnough can straddle the
+			// target between two samples, so a per-tick point distance would report a
+			// near miss for what was geometrically a pass through the target.
+			var segMin = ClosestApproachThisTick(targetPosition);
+			if (segMin < trace.MinDist)
+			{
+				trace.MinDist = segMin;
+				trace.MinDistTick = ticks;
+			}
+
+			var segAimMin = ClosestApproachThisTick(aimPos);
+			if (segAimMin < trace.MinAimDist)
+			{
+				trace.MinAimDist = segAimMin;
+				trace.MinAimDistTick = ticks;
+			}
+
+			MissileTrace.EmitTick(trace);
+		}
+
+		int ClosestApproachThisTick(WPos to)
+		{
+			var segVec = pos - lastPos;
+			var segLenSq = (long)segVec.X * segVec.X + (long)segVec.Y * segVec.Y + (long)segVec.Z * segVec.Z;
+			if (segLenSq <= 0)
+				return (to - pos).Length;
+
+			var toTar = to - lastPos;
+			var dot = (long)toTar.X * segVec.X + (long)toTar.Y * segVec.Y + (long)toTar.Z * segVec.Z;
+			var t = System.Math.Max(0L, System.Math.Min(1024L, dot * 1024 / segLenSq));
+			var closestPos = lastPos + new WVec(
+				(int)((long)segVec.X * t / 1024),
+				(int)((long)segVec.Y * t / 1024),
+				(int)((long)segVec.Z * t / 1024));
+
+			return (to - closestPos).Length;
 		}
 
 		Actor FindRetargetCandidate()
@@ -1109,6 +1346,10 @@ namespace OpenRA.Mods.Common.Projectiles
 			foreach (var a in world.FindActorsInCircle(pos, remainingRange))
 			{
 				if (a == args.SourceActor || a.IsDead || !a.IsInWorld)
+					continue;
+
+				// Never re-acquire a target this missile already guided on and gave up (I2b).
+				if (abandonedTargets != null && abandonedTargets.Contains(a))
 					continue;
 
 				if (a.Owner.RelationshipWith(ownerPlayer) != PlayerRelationship.Enemy)
@@ -1143,9 +1384,25 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			world.AddFrameEndTask(w => w.Remove(this));
 
+			// Impact altitude, sampled at the position the warhead will actually fire
+			// at. CreateEffectWarhead resolves anything above its AirThreshold to the
+			// Air target type, so a weapon with no air-valid effect warhead detonates
+			// with no sprite and no sound — invisible from outside without this.
+			var endDat = trace != null ? world.Map.DistanceAboveTerrain(pos).Length : 0;
+
+			if (trace != null)
+				trace.ExplodeCalls++;
+
 			// Don't blow up in our launcher's face!
 			if (ticks <= info.Arm)
+			{
+				// Removed with no warhead applied. Indistinguishable from a dud from
+				// outside the class, which is exactly why the trace separates it.
+				if (trace != null)
+					MissileTrace.Finish(trace, ticks, pos, endDat, armed: false);
+
 				return;
+			}
 
 			var warheadArgs = new WarheadArgs(args)
 			{
@@ -1153,7 +1410,26 @@ namespace OpenRA.Mods.Common.Projectiles
 				ImpactPosition = pos,
 			};
 
-			args.Weapon.Impact(Target.FromPos(pos), warheadArgs);
+			if (trace == null)
+			{
+				args.Weapon.Impact(Target.FromPos(pos), warheadArgs);
+				return;
+			}
+
+			// Attribute whatever damage the warheads apply synchronously to this
+			// missile. Warheads with Delay > 0 defer past this window — flagged as
+			// damage_unattributed on the record rather than reported as zero.
+			MissileTrace.BeginImpact(trace);
+			try
+			{
+				args.Weapon.Impact(Target.FromPos(pos), warheadArgs);
+			}
+			finally
+			{
+				MissileTrace.EndImpact();
+			}
+
+			MissileTrace.Finish(trace, ticks, pos, endDat, armed: true);
 		}
 
 		public IEnumerable<IRenderable> Render(WorldRenderer wr)

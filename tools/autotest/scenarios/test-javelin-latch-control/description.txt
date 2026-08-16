@@ -1,0 +1,1 @@
+RED-control arm: same reversing-Humvee rig at ~11.5 cells instead of 4-6, the range band where the retained corpus actually shows flyStraight latches. Exists to prove the sweep CAN produce a latch.

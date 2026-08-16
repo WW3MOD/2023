@@ -2,7 +2,7 @@
   "_meta": {
     "mod": "ww3mod",
     "version": "release-20230225",
-    "generated_at": "2026-05-11T06:07:16.5299080Z",
+    "generated_at": "2026-08-15T09:28:25.1053420Z",
     "note": "Generated from live YAML by --dump-balance-json. Do not edit by hand; re-run the dump after rules changes."
   },
   "actors": {
@@ -1636,8 +1636,15 @@
           "ammo_usage": 1
         },
         {
+          "name": "primary-air",
+          "weapon": "7.62mm.Minigun.AA",
+          "aiming_delay": 15,
+          "fire_delay": 3,
+          "ammo_usage": 1
+        },
+        {
           "name": "secondary",
-          "weapon": "Hellfire",
+          "weapon": "Hellfire.Littlebird",
           "aiming_delay": 15,
           "fire_delay": 3,
           "ammo_usage": 1
@@ -1823,6 +1830,13 @@
           "ammo_usage": 1
         },
         {
+          "name": "primary-air",
+          "weapon": "12.7mm.Hind.AA",
+          "aiming_delay": 15,
+          "fire_delay": 3,
+          "ammo_usage": 1
+        },
+        {
           "name": "secondary",
           "weapon": "RocketPods",
           "aiming_delay": 15,
@@ -1859,7 +1873,7 @@
         },
         {
           "name": "secondary",
-          "weapon": "Hellfire",
+          "weapon": "Ataka",
           "aiming_delay": 15,
           "fire_delay": 3,
           "ammo_usage": 1
@@ -4308,7 +4322,7 @@
     },
     "e4": {
       "name": "Flamethrower",
-      "cost": 100,
+      "cost": 150,
       "hp": 200,
       "armor": {
         "type": "Kevlar",
@@ -5310,7 +5324,7 @@
     },
     "e4.america": {
       "name": "Flamethrower",
-      "cost": 100,
+      "cost": 150,
       "hp": 200,
       "armor": {
         "type": "Kevlar",
@@ -5842,7 +5856,7 @@
     },
     "e4.russia": {
       "name": "Flamethrower",
-      "cost": 100,
+      "cost": 150,
       "hp": 200,
       "armor": {
         "type": "Kevlar",
@@ -7076,7 +7090,7 @@
       ]
     },
     "bmp2": {
-      "name": "BPM-2",
+      "name": "BMP-2",
       "cost": 1300,
       "hp": 14000,
       "armor": {
@@ -10825,7 +10839,7 @@
       ]
     },
     "7.62mm.minigun": {
-      "range": 15360,
+      "range": 8192,
       "min_range": 0,
       "burst": 20,
       "burst_delays": [
@@ -10841,20 +10855,19 @@
       "miss_chance_per_density": 0,
       "valid_targets": [
         "Infantry",
-        "Helicopter",
         "Unarmored"
       ],
       "invalid_targets": [],
       "projectile_kind": "Bullet",
       "projectile_speed": 1024,
-      "inaccuracy": 256,
+      "inaccuracy": 48,
       "inaccuracy_type": "Maximum",
       "warheads": [
         {
           "type": "TargetDamageWarhead",
           "damage": 250,
           "penetration": 5,
-          "damage_at_max_range": 50,
+          "damage_at_max_range": 75,
           "damage_percent": 0,
           "random_damage_addition": 0,
           "random_damage_subtraction": 0,
@@ -10863,7 +10876,6 @@
           "versus": {},
           "valid_targets": [
             "Infantry",
-            "Helicopter",
             "Unarmored"
           ],
           "invalid_targets": []
@@ -10887,8 +10899,55 @@
           "versus": {},
           "valid_targets": [
             "Infantry",
-            "Helicopter",
             "Unarmored"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
+    "7.62mm.minigun.aa": {
+      "range": 8192,
+      "min_range": 0,
+      "burst": 20,
+      "burst_delays": [
+        1
+      ],
+      "burst_wait": 5,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 6,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Helicopter"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": "Bullet",
+      "projectile_speed": 1024,
+      "inaccuracy": 512,
+      "inaccuracy_type": "Maximum",
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 150,
+          "penetration": 4,
+          "damage_at_max_range": 50,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 32,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Helicopter"
           ],
           "invalid_targets": []
         }
@@ -11007,7 +11066,6 @@
       "miss_chance_per_density": 0,
       "valid_targets": [
         "Infantry",
-        "Helicopter",
         "Light",
         "Unarmored"
       ],
@@ -11030,9 +11088,56 @@
           "versus": {},
           "valid_targets": [
             "Infantry",
-            "Helicopter",
             "Light",
             "Unarmored"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
+    "12.7mm.hind.aa": {
+      "range": 16384,
+      "min_range": 0,
+      "burst": 8,
+      "burst_delays": [
+        2
+      ],
+      "burst_wait": 10,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 7,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Helicopter"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": "Bullet",
+      "projectile_speed": 1024,
+      "inaccuracy": 640,
+      "inaccuracy_type": "Maximum",
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 300,
+          "penetration": 5,
+          "damage_at_max_range": 50,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 32,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Helicopter"
           ],
           "invalid_targets": []
         }
@@ -12659,7 +12764,7 @@
       "invalid_targets": [],
       "projectile_kind": "Bullet",
       "projectile_speed": 1200,
-      "inaccuracy": 768,
+      "inaccuracy": 512,
       "inaccuracy_type": "Maximum",
       "warheads": [
         {
@@ -12748,7 +12853,7 @@
       "invalid_targets": [],
       "projectile_kind": "Bullet",
       "projectile_speed": 1200,
-      "inaccuracy": 768,
+      "inaccuracy": 512,
       "inaccuracy_type": "Maximum",
       "warheads": [
         {
@@ -12837,7 +12942,7 @@
       "invalid_targets": [],
       "projectile_kind": "Bullet",
       "projectile_speed": 1200,
-      "inaccuracy": 768,
+      "inaccuracy": 512,
       "inaccuracy_type": "Maximum",
       "warheads": [
         {
@@ -12926,7 +13031,7 @@
       "invalid_targets": [],
       "projectile_kind": "Bullet",
       "projectile_speed": 1200,
-      "inaccuracy": 768,
+      "inaccuracy": 512,
       "inaccuracy_type": "Maximum",
       "warheads": [
         {
@@ -13804,7 +13909,7 @@
       "invalid_targets": [],
       "projectile_kind": "Missile",
       "projectile_speed": 300,
-      "inaccuracy": 16,
+      "inaccuracy": 20,
       "inaccuracy_type": "PerCellIncrement",
       "warheads": [
         {
@@ -13894,7 +13999,7 @@
       "invalid_targets": [],
       "projectile_kind": "Missile",
       "projectile_speed": 300,
-      "inaccuracy": 16,
+      "inaccuracy": 20,
       "inaccuracy_type": "PerCellIncrement",
       "warheads": [
         {
@@ -13962,6 +14067,96 @@
         }
       ]
     },
+    "ataka": {
+      "range": 22528,
+      "min_range": 3072,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 60,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 3,
+      "free_line_density": 1,
+      "miss_chance_per_density": 15,
+      "valid_targets": [
+        "Vehicle",
+        "Defense"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": "Missile",
+      "projectile_speed": 400,
+      "inaccuracy": 22,
+      "inaccuracy_type": "PerCellIncrement",
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 200,
+          "penetration": 1,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Infantry",
+            "Unarmored"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "TargetDamageWarhead",
+          "damage": 10000,
+          "penetration": 900,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 2000,
+          "penetration": 20,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 192,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
     "hellfire": {
       "range": 25600,
       "min_range": 5120,
@@ -13985,8 +14180,100 @@
       "invalid_targets": [],
       "projectile_kind": "Missile",
       "projectile_speed": 500,
-      "inaccuracy": 16,
-      "inaccuracy_type": "PerCellIncrement",
+      "inaccuracy": 256,
+      "inaccuracy_type": "Absolute",
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 200,
+          "penetration": 1,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Infantry",
+            "Unarmored"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "TargetDamageWarhead",
+          "damage": 10000,
+          "penetration": 800,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 2000,
+          "penetration": 20,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 192,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
+    "hellfire.littlebird": {
+      "range": 20480,
+      "min_range": 5120,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 60,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 3,
+      "free_line_density": 1,
+      "miss_chance_per_density": 15,
+      "valid_targets": [
+        "Vehicle",
+        "Defense"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": "Missile",
+      "projectile_speed": 500,
+      "inaccuracy": 256,
+      "inaccuracy_type": "Absolute",
       "warheads": [
         {
           "type": "SpreadDamageWarhead",
@@ -14077,8 +14364,8 @@
       "invalid_targets": [],
       "projectile_kind": "Missile",
       "projectile_speed": 400,
-      "inaccuracy": 16,
-      "inaccuracy_type": "PerCellIncrement",
+      "inaccuracy": 256,
+      "inaccuracy_type": "Absolute",
       "warheads": [
         {
           "type": "SpreadDamageWarhead",

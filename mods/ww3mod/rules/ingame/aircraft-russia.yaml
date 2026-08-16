@@ -150,7 +150,7 @@ HIND:
 		Speed: 195
 		InitialFacing: 192
 	AttackAircraft:
-		Armaments: primary, secondary #, secondary-air
+		Armaments: primary, primary-air, secondary
 		FacingTolerance: 60
 		AttackType: Hover
 		ForceFireIgnoresActors: True
@@ -162,10 +162,19 @@ HIND:
 		LocalOffset: 85,0,-85
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo-primary
+	# Last-resort air-to-air mount (260815). Same chin gun, same magazine — a
+	# separate armament so the anti-helicopter numbers can sit well below a real
+	# attack helicopter's without touching the Hind's ground strafing.
+	Armament@1_Air:
+		Name: primary-air
+		Weapon: 12.7mm.Hind.AA
+		LocalOffset: 85,0,-85
+		MuzzleSequence: muzzle
+		PauseOnCondition: !ammo-primary
 	WithMuzzleOverlay:
 	AmmoPool@1:
 		Name: primary-ammo
-		Armaments: primary
+		Armaments: primary, primary-air
 		Ammo: 150
 		ReloadCount: 30
 		ReloadDelay: 6

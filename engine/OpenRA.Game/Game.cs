@@ -524,14 +524,7 @@ namespace OpenRA
 
 		public static void LoadShellMap()
 		{
-			var shellmap = ChooseShellmap();
-			SetupShellmapBots(shellmap);
-			InjectShellmapScenario(shellmap);
-			using (new PerfTimer("StartGame"))
-			{
-				StartGame(shellmap, WorldType.Shellmap);
-				OnShellmapLoaded();
-			}
+			LoadShellMapInner(ChooseShellmap());
 		}
 
 		public static void LoadShellMap(string uid)
@@ -543,10 +536,18 @@ namespace OpenRA
 				return;
 			}
 
+			LoadShellMapInner(uid);
+		}
+
+		// Both overloads must reset the session identically. When only the (uid) one did, re-entering
+		// the parameterless one from a live shellmap injected a second set of bot clients into the
+		// session that already held the first — see WORKSPACE/audit/260816-crash-clientinslot.md.
+		static void LoadShellMapInner(string uid)
+		{
 			// Reset lobby state so stale slots from the previous shellmap
 			// don't cause KeyNotFoundException in CreateMapPlayers.
+			// Disconnect() ends in JoinLocal(), which is what supplies the fresh Session.
 			Disconnect();
-			JoinLocal();
 
 			SetupShellmapBots(uid);
 			InjectShellmapScenario(uid);
@@ -590,9 +591,8 @@ namespace OpenRA
 			}
 
 			var lobbyInfo = OrderManager.LobbyInfo;
-			var nextClientIndex = lobbyInfo.Clients.Count > 0
-				? lobbyInfo.Clients.Max(c => c.Index) + 1
-				: 1;
+			var botControllerClientIndex = OrderManager.Connection.LocalClientId;
+			var bots = new List<Session.Client>();
 
 			foreach (var kv in playablePlayers)
 			{
@@ -611,11 +611,10 @@ namespace OpenRA
 				};
 
 				// Create a bot client for this slot
-				lobbyInfo.Clients.Add(new Session.Client
+				bots.Add(new Session.Client
 				{
-					Index = nextClientIndex++,
 					Bot = botType,
-					BotControllerClientIndex = OrderManager.Connection.LocalClientId,
+					BotControllerClientIndex = botControllerClientIndex,
 					Name = playerRef.Name,
 					Faction = playerRef.Faction,
 					Color = playerRef.Color,
@@ -624,6 +623,10 @@ namespace OpenRA
 					State = Session.ClientState.Ready,
 				});
 			}
+
+			// Replaces any bots already seated in this session: appending is what crashed
+			// ClientInSlot when this ran twice without a session reset.
+			ShellmapBots.SeatBots(lobbyInfo, bots, botControllerClientIndex);
 
 			Log.Write("debug", $"SetupShellmapBots: Injected {playablePlayers.Count} bots for map '{map.Title}'");
 		}

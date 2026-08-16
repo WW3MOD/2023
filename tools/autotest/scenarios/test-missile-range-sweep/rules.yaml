@@ -1,0 +1,52 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-missile-range-sweep.lua
+
+# Lane isolation. ScanRadius bounds the AutoTarget SEARCH only; an explicit
+# force-attack order still reaches full armament range, so every launcher can
+# shoot the target the Lua hands it and nothing else. Not done with HoldFire —
+# AUTOTEST.md gotcha 7 makes fire stance an unsafe setup lever.
+AA:
+	AutoTarget:
+		ScanRadius: 4
+	AmmoPool@1:
+		Ammo: 8
+AT:
+	AutoTarget:
+		ScanRadius: 4
+	AmmoPool@1:
+		Ammo: 8
+MI28:
+	AutoTarget:
+		ScanRadius: 4
+
+# Targets must outlive the volley, or the lane stops at an unknown sample count
+# and the remaining missiles retire through the target-lost path instead of the
+# one being measured. Health merges per-field: this changes HP and nothing else.
+# PITFALL: actor keys must match source casing exactly (`t90`, not `T90`) —
+# a case variant loads as a SECOND actor and the mod fails to start with
+# "duplicate values found for the following keys: t90".
+# NOT paired with -HeliEmergencyLanding:/-ChangesHealth@CrashBurn:. Removing those
+# traits strips conditions that other littlebird traits consume, which adds a real
+# new `make test` error identity (`consumes conditions that are not granted`). They
+# are unnecessary anyway: at 900k HP the Littlebird never leaves DamageState.Undamaged,
+# so neither trait can fire.
+littlebird:
+	Health:
+		HP: 900000
+t90:
+	Health:
+		HP: 900000

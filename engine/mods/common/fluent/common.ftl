@@ -165,6 +165,7 @@ menu-game-info =
     .options = Options
     .debug = Debug
     .chat = Chat
+    .how-to-play = How to Play
 
 ## GameInfoObjectivesLogic, GameInfoStatsLogic
 label-mission-in-progress = In progress

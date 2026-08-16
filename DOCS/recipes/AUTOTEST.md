@@ -35,7 +35,25 @@ The game can be launched into a small, deterministic scenario; the verdict (pass
 
 **Window placement & focus.** Default: **centered, ~90% × ~85%, background, muted**. "Background" means the window is visible at full size but immediately defocused so your terminal/editor keeps focus. Cmd+Tab to OpenRA brings the window forward when you want to look at it. After the game exits, focus is restored to whatever app was frontmost at launch — no random focus shuffle. If the user includes `L`, `R`, or `F` in the trigger ("AUTOTEST L", "AUTOTEST <bug> R"), pass that letter through as the first positional arg to `run-test.sh`. `L`=left half, `R`=right half, `F`=fullscreen. Pass `--minimized` to opt back into the old SDL miniaturize behavior.
 
-Exit codes: `0` pass, `1` fail, `2` skip, `3` error/no-result.
+Exit codes: `0` pass, `1` fail, `2` skip, `3` error/crash/no-result.
+
+**Read the verdict from the banner, not just the exit code.** Every run ends with a line
+
+```
+AUTOTEST_VERDICT outcome=<OUTCOME> exit=<n> test=<name> run=<run-id>
+```
+
+where OUTCOME is one of `PASS`, `FAIL`, `SKIP`, `TIMEOUT-FAIL`, `CRASH`, `NO-RESULT`, `BAD-VERDICT`, `INTERRUPTED`, `HARNESS-ERROR`. It distinguishes what the exit code collapses: `CRASH` (the game threw — the exception log is named, and a crash is sometimes the *finding*, as when a sync guard fires) vs `NO-RESULT` (hung or closed by hand) vs `HARNESS-ERROR`; and `TIMEOUT-FAIL` (never answered) vs `FAIL` (answered no).
+
+**PITFALL: `run-test.sh <test> | tail` reports `tail`'s exit status, so a FAIL arrives as exit 0.** This has inverted a result twice. The harness defends what it can — the verdict line is last, so a tail-truncating filter still shows it, and non-PASS is also written to stderr whenever stdout is redirected — but the exit code itself is the **caller's** to preserve:
+
+```bash
+./tools/autotest/run-test.sh <test>; rc=$?      # capture first, filter after
+```
+
+**Results are per-run.** Each invocation writes to `~/.ww3mod-tests/screenshots/<timestamp>_p<pid>_<test>/result.json` — printed as `Run dir:` at the top of the run — alongside that run's screenshots and lifecycle log. Two runners cannot share a destination.
+
+`./tools/autotest/selftest.sh` proves all of the above without launching a game (~1 min). Run it after touching `run-test.sh`.
 
 ## The loop (what I run when you trigger AUTOTEST)
 
@@ -152,6 +170,144 @@ Two failure shapes that keep recurring and that a matched pair catches:
 - **A fix correct in isolation, wrong in combination.** Guard A was harmless only because bug B stopped it ever firing. Fix B and A becomes a live defect. So: after any fix, re-run the scenario you were *not* working on.
 - **A bug that cannot fire is indistinguishable from a bug that does not exist.** "We looked and it wasn't happening" is worthless whenever a gate upstream of it is known to be failing closed. Record such a hypothesis as UNTESTED, never as refuted — an accurate status keeps it in the queue where "dead" deletes it.
 
+## A green run is not evidence unless something could have made it RED
+
+**Prove your setup took effect by measuring a control — never by asserting the flag you yourself set.** A scenario that never built the world it describes still runs to completion and still writes `pass`. Nothing in the harness can tell you that happened; the verdict looks identical either way. So the question to ask of every green is not "did it pass?" but **"what would have made this fail?"** — and if you cannot name it, you have measured nothing.
+
+Five instances have now landed, by completely different mechanisms (the first two on 2026-08-12 alone):
+
+- **The control that refused to go red.** `test-autotarget-preempt-air` was written to prove air-target preemption works, with a RED control pinning `PreemptScanInterval: 0` so the fix is switched off. Both arms were finally run — **and both passed** (`f910ac7d`). The unaided behaviour beat the 110-tick deadline on its own, so the tick budget never isolated the mechanism under test and the green arm was never evidence of anything. The fix had shipped on the strength of it.
+- **The setup that silently reverted to engine defaults.** A scenario overrode a warhead to lower its damage, restating `Damage` and omitting `Penetration: 15`. Warhead overrides are constructed fresh rather than merged per-field, so `Penetration` fell back to the **engine** default of 1, took the armour-reduction branch, and the intended effect was cut by an order of magnitude. The run **completed and reported `pass`**, and the number it produced was plausible. (Mechanism: [`conventions.md`](../reference/conventions.md) §Weapons live under `Weapons:`.)
+- **The observable the rest of the system could satisfy on its own** (2026-08-15, `DISCOVERIES.md` same date). `test-combined-arms-rendezvous` was written to prove a transport change — that ferried infantry are set down with the armour rather than at a cell the armour was never going to — and asserted the obvious thing: *are the riflemen near the tank?* It **passed with the fix disabled**. Infantry are armed, so `PoiOffensiveBotModule.StageFreePool` recruits them into the free pool and `AttackMove`s them to the **same staging anchor as the armour**, on foot, from tick 3. They arrive next to the tank under their own feet and the predicate goes true without a transport being involved at all. Nothing was misconfigured and no default silently reverted; the assertion was simply satisfiable by a second, unrelated mechanism. (The same scenario also spent two earlier runs on a `map.yaml` missing its `Rules: rules.yaml` line, so `rules.yaml` — Lua and all — was never loaded and the match ran on stock mod rules with a 0-byte `lua.log`. When a scenario times out with no verdict, **check `lua.log` is non-empty first**: that one fact separates "my predicate never went true" from "my script never ran".)
+- **The observable that was attributable, but not for the whole run** (2026-08-15, `DISCOVERIES.md` same date). `test-ferry-fills-seats` was written to prove the capture ferry fills the technician's spare seats, and deliberately avoided the positional trap above: the observable was **peak passenger count on one named carrier** — a loading fact only the ferry could produce, since `TryAssignNewTasks` skips any carrier already in `carrierTasks` and any carrier that is not empty. That reasoning was correct and still **passed while the ferry carried one technician and nothing else** (`ferry-escort … boarded=0`, `depart aboard=1`). It was true only *while the ferry owned the carrier*. Once the task is torn down the carrier returns to the general pool, the ordinary frontline delivery path loads riflemen into it, and the peak reaches 2 minutes later and a mission away. **A per-actor observable is not automatically an attributable one — the ownership window has to be in the predicate.** Fixed by freezing the peak at dismount. Worth saying plainly: nothing in the verdict betrayed this, and it was caught **only by reading the debug log instead of trusting the green**, which is the habit that separates a measured run from a confident one.
+
+- **The named actors were not the ones the system chose to use** (2026-08-15, `bugs/discovered.md` same date). `test-transport-delivers` names a carrier and five riflemen and measures those. Its inherited `rules.yaml` comment asserted the opposite of the truth: *"the measurement only ever looks at NAMED actors, so incidental units the bot buys or spawns do not affect it."* At `DefaultCash: 7500` the bot **bought its own carriers and produced its own infantry and used those**, leaving the placed actors idle beside the measurement — `debug.log` recorded **six** departures carrying 2–3 passengers each while the predicate reported `everCarried=0, peakPax=0`. Both readings were correct about different actors. **A named-actor predicate is valid only if the named actors are the ones the system under test actually chooses to use, and production removes that guarantee.** The concrete remedy is `DefaultCash: 0`, which makes the placed force the entire force (the constraint `test-tecn-ride` already uses); the general one is to assert the named actor is the one that did the work, not merely that work happened.
+
+What to do about it, in order of cheapness:
+
+1. **Run the control arm, and require it to FAIL.** A control that passes has falsified your test, not your hypothesis. Stop and rebuild the scenario before reading the green arm.
+2. **Verify the pin was applied, do not assume it.** The preempt-air run did this correctly: a temporary trace in `AutoTarget.Created` printed the effective `PreemptScanInterval` per arm, so "the control really was switched off" was observed rather than inferred. A one-line trace is cheaper than a wasted run.
+3. **Give the assertion a second, independent observable.** The warhead run was caught by arithmetic that did not fit its own story — the target survived 15 hits it should not have, and a third unit joined far earlier than the intended mark allowed. Neither was the thing under test; both were incompatible with the setup having worked.
+4. **When you override anything, restate every field the consumer reads.** See the same `conventions.md` section — this is where "the scenario keeps running and returns a confident number" comes from.
+5. **Ask who ELSE could satisfy your predicate.** Steps 1–4 all assume the failure is that your setup did not happen. The third instance above is the other shape: the setup was fine and the assertion was *reachable by another mechanism entirely*. Before running, name every path in the sim that could make the predicate true, and confirm the one under test is the only one. On the bot this bites hardest with **position**: a great many modules move units toward the same believed front, so "unit A ended up near unit B" is almost never attributable. Prefer an observable that only the mechanism under test can produce — for a transport change, that a unit was **carried** (latch that it left the world into a `Cargo`, then measure where it reappears), or the **timing gap** between armour and infantry arrival, rather than the distance between them once both are there.
+6. **Then ask WHEN it could satisfy it.** The fourth instance is step 5 done right and still wrong: the observable genuinely was exclusive to the mechanism under test, but only during the window in which that mechanism **owned the actor**. Shared resources on this bot — carriers, squads, the free pool — are claimed, released and reclaimed by different modules across a match, so exclusivity is a property of an interval, not of an actor. Latch your measurement inside the interval and **stop it at the release** (here: freeze the peak at dismount), or you are reading someone else's later use of the same unit. Cheapest guard: emit the quantity you are asserting on from the code under test and read it back from `debug.log`, so the verdict and the mechanism are two independent observations rather than one.
+
+Related: a corpus-scanning guard should assert it **measured something** before it asserts it found no violations, or a rename silently converts it into a test that passes by scanning nothing. `StancePositioningFireStanceTest` does this — it asserts it resolved more than zero stance assignments first.
+
+### Two Lua traps that make a scenario lie about its own numbers
+
+Both found on 2026-08-15, both cost a run, both look completely normal on the page.
+
+**The failure message is evaluated EAGERLY, at registration.** `TestHarness.AssertWithin(deadline, fn, msg)` takes `msg` as an ordinary third argument, so Lua concatenates it **before the predicate runs even once**. Any counter interpolated into it therefore reports its **initial** value forever — usually zero. Measured: a verdict read `everCarried=0 peakPax=0` while a trace printed from inside the same closure, in the same run, read `everCarried=3 peakPax=2`. The message was not describing the run; it was describing the moment the test was registered. **Put live counters in a periodic `print` to `lua.log`, and keep the failure string static** — or you will diagnose from numbers that were never true.
+
+**`IsDead` is true for a passenger inside a `Cargo`.** The natural idiom for "this unit was carried" is `not r.IsDead and not r.IsInWorld`, and it is **unsatisfiable for exactly the units it is meant to catch**: a boarded passenger is out of world AND reports dead, so the latch never fires. Measured: `peakPax=2` (carriage demonstrably happened) with `everCarried` stuck at 0 all match; dropping the `IsDead` term made it read 3 immediately. Latch on `not r.IsInWorld` alone — being permissive is safe when a separate clause requires the unit to **return** to the world, which a genuinely dead one never does. `test-combined-arms-rendezvous` carries the unfixed idiom and is likely mis-counting for the same reason.
+
+### The converse: an UNCHANGED verdict is not evidence of safety unless you can show the change was live in that run
+
+The rule above is about a green that proves nothing. This is its mirror, and it bites when you run a regression sweep to show a change is harmless: **a test that fails to move is indistinguishable from a test the change never reached.** "Ran 13 scenarios before and after, zero flips" sounds like evidence of safety and is compatible with the change having been completely inert in all 13 — wrong scenario set, a flag that did not apply, a build that did not get picked up. The verdict column looks identical in both worlds, exactly as it does for the false green.
+
+So a no-flip sweep needs its own falsification control: **name the observable that proves the change was ACTIVE inside at least one of those runs.** It does not need to be the thing under test, and smaller is better — you want something the change could touch but the assertion does not read.
+
+Worked example, 2026-08-14 (the `PlayerResources` economy gate, `DISCOVERIES.md` same date). Thirteen graded scenarios were run with and without the gate change at identical seeds; all thirteen returned identical verdicts, and the two failures failed identically on both sides. What made that a safety result rather than a blind one was a single number: in `test-supply-safe-front-keeps-cargo`, same seed and same scenario with only the gate differing, one unit's ammo read `71/100/100/71/70` before and `71/100/100/70/70` after. **One round.** That is worthless as a behavioural finding and decisive as a control — it proves the simulation diverged, so the change was live in that scenario, so the unchanged verdict is a real statement about the assertion rather than an artefact of the change never arriving.
+
+Cheapest sources of such a control, in order: a per-tick telemetry line that already logs a quantity the change touches (`[composition] census` logs `earned`/`spent`); any incidental numeric in a failure note; or a one-line temporary trace. **If every observable in the sweep is byte-identical across the two arms, you have not shown the change is safe — you have shown it did not run.**
+
+## The setup you wrote is not always the setup that ran — check the subject, not the config
+
+Same family as the above, and it landed again on 2026-08-14. A tournament config's `Matchup:` block
+(`P1Bot` / `P2Bot`) is **informational only** — `TournamentConfig.cs:8` says so — and the bot that
+actually plays is the `Bot:` field on each `PlayerReference` in the scenario's **`map.yaml`**.
+Passing `--config` with a new `Matchup` block changes nothing, because `--config` cannot reach
+`map.yaml`. A run set up that way completes, writes a verdict, and reports a plausible number **for
+the wrong bot**. To change the matchup you must fork the scenario directory and edit `map.yaml`.
+
+The general rule, which outlives this particular field: **when a harness lets you declare the
+subject of a measurement in one file and select it in another, assume you edited the wrong one until
+the output proves otherwise.** Here the output does prove it — the verdict JSON's `bot_type` comes
+from `player.BotType` at runtime, so the summary CSV's `p1_bot`/`p2_bot` columns are ground truth
+and will disagree with your config when you have made this mistake. **Read them on every tournament
+run before believing the result.** Full blast-radius check (prior committed scenarios are fine) in
+`WORKSPACE/DISCOVERIES.md`, 2026-08-14.
+
+Corollary for anything bot-related: **before concluding "the bot never did X", confirm X was
+observable.** `AIUtils.BotDebug` is default-off *and* routes to game chat, never to `debug.log`, so
+several procurement decisions leave no post-hoc trace whatsoever — a lane can be measured only after
+someone adds an unconditional `Log.Write("debug", …)`. "We looked and it wasn't happening" is
+worthless when the looking was impossible.
+
+### A query that drives setup must be asserted non-empty — an API can answer a different question depending on WHEN you call it
+
+Third instance of this family, 2026-08-15, and neither rule above catches it. The first two were a
+value silently falling back to an engine default and a control that could not go red. This one is
+neither: **nothing fell back and nothing was mis-specified.** You could restate every field the
+consumer reads, and run both arms, and still get it — because the API answered a different question
+on account of *when* it was asked.
+
+The instance: `Map.ActorsInCircle` / `Map.ActorsInBox` **return nothing when called from
+`WorldLoaded`.** They resolve through `World.FindActorsInCircle` (`WorldUtils.cs:79-85`) to
+`ActorMap.ActorsInBox` (`ActorMap.cs:649`), which reads ActorMap's **position bins**; map-placed
+actors only enter those bins via `ActorMap.TickFunction` (`ActorMap.cs:478`), invoked from `ITick` —
+the first world tick, *after* `WorldLoaded` returns. Correct code, correct arguments, no error, wrong
+answer. **Cell-keyed `ActorMap.GetActorsAt` is immune** (it is updated on add); only the position-bin
+queries are affected. Query from inside the polling predicate or behind a grace window — which is
+what `test-field-crate-drop` does, and now `test-field-swallows-shell`.
+
+**It was caught only by luck, and that is what the rule is for.** The query happened to feed a guard
+whose failure *is* the alarm, so it surfaced as a loud FAIL. The identical mistake in ordinary setup
+code — "find the units near X at load and put them on `HoldFire`" — returns an empty list, sets
+nothing, throws nothing, and the scenario runs to a confident verdict against a world that was never
+built. That is the silent, false-green shape of the same defect, and nothing in the harness would
+report it.
+
+So, generalising the practice `StancePositioningFireStanceTest` already follows (it asserts it
+resolved more than zero stance assignments before asserting no violations): **when setup is driven by
+a query, assert the query RETURNED something before acting on its result. An empty lookup must never
+be allowed to mean "nothing to do".** Mechanism and full write-up in `WORKSPACE/DISCOVERIES.md`,
+2026-08-15.
+
+### Clear `debug.log` before the run, or you may be reading the previous run's world
+
+Fourth instance of this family, 2026-08-15, and it is the cheapest to avoid and the most expensive to
+suffer. The three above are all about a run that measured the wrong thing. **This one is about not
+measuring your run at all.** The scenario was right, the build was right, the code was right, and the
+conclusion was still wrong — because the file being read was written by an *earlier* game.
+
+The instance: a composition fix was verified offline, then run live. The `[composition]` census in
+`debug.log` showed the pre-fix symptom unchanged, so the fix was judged not to work in the live
+game, and three rounds went into re-analysing code that was correct. It was not. The engine writes to
+a **single fixed path** (`~/Library/Application Support/OpenRA/Logs/debug.log` on macOS; the harness
+also references `${REPO_ROOT}/engine/Support/Logs/debug.log`), and that file already held output from
+a previous session. `rm -f` on the log and an otherwise identical rerun inverted the finding
+completely: the opening had in fact changed from two medics to line infantry.
+
+**Every cue pointed the wrong way, which is why it survived scrutiny.** The file's mtime was later
+than the run's start, so it looked current. It contained the right scenario's player names and the
+right per-tick format, so it looked like the right match. Nothing in it is stamped with a run id — so
+there is no field you can check to tell whose log you are holding. The harness's own run directory
+(`~/.ww3mod-tests/screenshots/<run>/`) contains `result.json` and **not** the engine log, so the two
+artefacts you need are in different places with different lifetimes, and only one of them is
+per-run.
+
+So: **`rm -f` the engine `debug.log` immediately before launching, as part of the run command, not as
+a separate step you might skip.** And the general rule, which is the one worth carrying: **an
+artefact at a fixed path with no run identity is not evidence about a particular run unless you
+personally emptied it first.**
+
+**Under concurrent workers that clearing rule becomes a destructive race, so COPY the log out, do not
+just read it in place.** The path is global and unlocked, and `run-test.sh`'s single-instance guard
+protects the *game*, not the *log* — so the moment your run ends, the next worker's `rm -f` is free
+to fire. Observed 2026-08-15: a run finished at 11:47:55, another worker's run cleared the log at
+11:48:07, and a copy issued in the same shell line as the runner still lost the race by seconds. The
+run had executed correctly and produced a full log; the evidence simply no longer existed, and the
+run had to be spent again. **When other workers may be active, poll-copy the log to a private path
+while the run is in flight** (e.g. a background `while` loop copying every few seconds) rather than
+copying once after it exits — that captures the file while it is still being written and makes your
+evidence independent of anyone else's cleanup. A stale log gives you a wrong answer; a deleted one
+gives you none, and both cost a run. A timeout or crash makes this worse, not better — the harness gives up
+on its watchdog while the game keeps writing, so the log can be simultaneously stale at the top and
+still growing at the bottom. When a live result contradicts a solid offline result, **suspect the log
+before the code.** Full write-up in `WORKSPACE/DISCOVERIES.md`, 2026-08-15.
+
 ## Gotchas
 
 These bit during development. Documenting so they don't bite again.
@@ -161,7 +317,7 @@ These bit during development. Documenting so they don't bite again.
 3. **`Activity.IsCanceling` is false in `OnLastRun`**. The framework sets `State = Done` *before* calling OnLastRun, so the cancel flag is already cleared. To detect "ended because something replaced me", check `NextActivity is X` instead.
 4. **Window placement**: default is centered + background (visible but defocused) + muted. Use the L/R/F shorthand for side-docked layouts (`./tools/autotest/run-test.sh L <test>`). `--visible` keeps it foreground; `--audio` keeps sound on; `--minimized` opts back into the old SDL miniaturize behavior (which on macOS can only be restored via the dock icon next to Trash, not Cmd+Tab).
 5. **Lua force-attack vs UI force-attack** are *not* always equivalent paths. `Paladin.Attack(t90, ..., forceAttack=false)` hard-codes `queued: true` (existing OpenRA API quirk); `Paladin.AttackGround(...)` defaults `queued: false` to mimic Ctrl+click replace.
-6. **`Result.json` is sticky**. Always `rm -f $HOME/.ww3mod-tests/result.json` before a run, or wait for the runner to do it. Otherwise an old verdict can be misread.
+6. **Never read `$HOME/.ww3mod-tests/result.json`** — and never `rm -f` it, which the old advice here told you to do. It was a single shared path, and that destroyed or misreported a verdict three times in two days: one run's `rm -f` deleted a verdict another run had already earned, and a run that read it got a stranger's result. It is now overwritten with a `"status":"moved"` stub that cannot be mistaken for a verdict. Read the per-run `result.json` the runner prints as `Run dir:` instead.
 7. **PITFALL: do not silence the unit-under-test with `Stance = "HoldFire"`** — silence the ENEMY instead (enemy on `HoldFire`, plus `Targetable: TargetTypes: NoAutoTarget` on the enemy in the scenario's `rules.yaml`, so your unit never acquires it and never leaves idle). Fire stance is not inert setup: `StancePositioningExecutor` opts out entirely below `FireAtWill` (`StancePositioningExecutor.cs:318`), so the convenient "no shots ⇒ no suppression, no chase" trick can switch off the very trait you are testing. This silently killed three stance scenarios for six weeks (2026-08-11 in `WORKSPACE/DISCOVERIES.md`); `StancePositioningFireStanceTest` now fails the build if a `test-stance-*` scenario does it. **Generally: before using a unit property as setup convenience, check that no gate reads it.**
 
 ## Engine integration points
@@ -180,6 +336,7 @@ For when you need to extend the harness (not just use it):
 | `mods/ww3mod/chrome/ingame-testmode.yaml` | Panel layout |
 | `mods/ww3mod/scripts/test-helpers.lua` | Reusable Lua helpers |
 | `tools/autotest/run-test.sh` | Single-test runner |
+| `tools/autotest/selftest.sh` | Self-test of run-test.sh's result reporting (no game launched) |
 | `tools/autotest/run-batch.sh` | Batch runner |
 | `tools/autotest/list-tests.sh` | Discovery |
 

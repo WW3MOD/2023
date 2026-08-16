@@ -49,29 +49,34 @@ Container@PLAYER_WIDGETS:
 		Background@CMD_BG_B:
 			X: 295
 			Y: WINDOW_HEIGHT - HEIGHT - 5
-			Width: 154
+			# PITFALL: these panels are NOT parented to the button containers above
+			# them -- each carries its own absolute X. Adding a button means widening
+			# this panel and shifting every panel after it by the same 34px pitch.
+			# Convention (set by CMD_BG_A, and by commandbar-background's 9px
+			# PanelRegion corner) is that a panel spans 9 + content + 9.
+			Width: 188
 			Height: 44
 			Background: commandbar-background
 		Background@FIRE_BG:
-			X: 449
+			X: 483
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@ENGAGE_BG:
-			X: 569
+			X: 603
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@COHESION_BG:
-			X: 689
+			X: 723
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@RESUPPLY_BG:
-			X: 809
+			X: 843
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
@@ -80,7 +85,7 @@ Container@PLAYER_WIDGETS:
 			Logic: CommandBarLogic
 			X: 14
 			Y: WINDOW_HEIGHT - HEIGHT - 14
-			Width: 454
+			Width: 460
 			Height: 26
 			Children:
 				LogicKeyListener@MODIFIER_OVERRIDES:
@@ -111,9 +116,11 @@ Container@PLAYER_WIDGETS:
 					VisualHeight: 0
 					Background: command-button
 					AnchorTooltipDirection: Above
+					Key: ForceMove
+					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Force Move
-					TooltipDesc: Selected units will move to the desired location\n - Default activity for the target is suppressed\n - Vehicles will attempt to crush enemies at the target location\n - Helicopters will land at the target location\n - Chrono Tanks will teleport towards the target location\n\nLeft-click icon then right-click on target.\nHold {(Alt)} to activate temporarily while commanding units.
+					TooltipDesc: Selected units will move to the desired location\n - Default activity for the target is suppressed\n - Vehicles will attempt to crush enemies at the target location\n - Helicopters will land at the target location\n - Chrono Tanks will teleport towards the target location\n\nLeft-click icon then right-click on target.\nHold {(Ctrl)} to activate temporarily while commanding units.
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
@@ -130,9 +137,11 @@ Container@PLAYER_WIDGETS:
 					VisualHeight: 0
 					Background: command-button
 					AnchorTooltipDirection: Above
+					Key: ForceAttack
+					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Force Attack
-					TooltipDesc: Selected units will attack the targeted unit or location\n - Default activity for the target is suppressed\n - Allows targeting of own or ally forces\n - Long-range artillery units will always target the\n   location, ignoring units and buildings\n\nLeft-click icon then right-click on target.\nHold {(Ctrl)} to activate temporarily while commanding units.
+					TooltipDesc: Selected units will attack the targeted unit or location\n - Default activity for the target is suppressed\n - Allows targeting of own or ally forces\n - Long-range artillery units will always target the\n   location, ignoring units and buildings\n\nLeft-click icon then right-click on target.\nHold {(Ctrl+Alt)} to activate temporarily while commanding units.
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
@@ -307,6 +316,8 @@ Container@PLAYER_WIDGETS:
 					VisualHeight: 0
 					Background: command-button
 					AnchorTooltipDirection: Above
+					Key: WaypointMode
+					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Waypoint Mode
 					TooltipDesc: Use Waypoint Mode to give multiple linking commands\nto the selected units. Units will execute the commands\nimmediately upon receiving them.\n\nLeft-click icon then give commands in the game world.\nHold {(Shift)} to activate temporarily while commanding units.
@@ -318,9 +329,29 @@ Container@PLAYER_WIDGETS:
 							Y: 1
 							ImageCollection: command-icons
 							ImageName: queue-orders
+				Button@EVACUATE:
+					Logic: AddFactionSuffixLogic
+					X: 426
+					Width: 34
+					Height: 26
+					VisualHeight: 0
+					Background: command-button
+					AnchorTooltipDirection: Above
+					Key: Evacuate
+					DisableKeyRepeat: true
+					DisableKeySound: true
+					TooltipText: Evacuate
+					TooltipDesc: Selected units leave the battlefield via the map edge,\nrefunding their value to your budget.\n\nActs immediately on selected units.
+					TooltipContainer: TOOLTIP_CONTAINER
+					Children:
+						Image@ICON:
+							X: 9
+							Y: 5
+							ImageCollection: stance-icons
+							ImageName: defend
 		Container@STANCE_BAR:
 			Logic: StanceSelectorLogic
-			X: 458
+			X: 492
 			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -389,7 +420,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@ENGAGEMENT_STANCE_BAR:
 			Logic: EngagementStanceSelectorLogic
-			X: 578
+			X: 612
 			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -458,7 +489,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@COHESION_BAR:
 			Logic: CohesionSelectorLogic
-			X: 698
+			X: 732
 			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -527,7 +558,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@RESUPPLY_BEHAVIOR_BAR:
 			Logic: ResupplyBehaviorSelectorLogic
-			X: 818
+			X: 852
 			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -1384,42 +1415,10 @@ Container@PLAYER_WIDGETS:
 						# 			X: 6
 						# 			Y: 6
 						# 			ImageCollection: production-icons
-						ProductionTypeButton@BUILDING:
-							Logic: AddFactionSuffixLogic
-							Y: 93
-							Width: 28
-							Height: 28
-							VisualHeight: 0
-							Background: sidebar-button
-							TooltipText: Buildings
-							TooltipDesc: Alt+click: Toggle auto-build for category\nRight-click: Pause/Resume all queued\nMiddle-click: Cancel all queued
-							TooltipContainer: TOOLTIP_CONTAINER
-							TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
-							ProductionGroup: Building
-							Key: ProductionTypeBuilding
-							Children:
-								Image@ICON:
-									X: 6
-									Y: 6
-									ImageCollection: production-icons
-						ProductionTypeButton@DEFENSE:
-							Logic: AddFactionSuffixLogic
-							Y: 124
-							Width: 28
-							Height: 28
-							VisualHeight: 0
-							Background: sidebar-button
-							TooltipText: Defense
-							TooltipDesc: Alt+click: Toggle auto-build for category\nRight-click: Pause/Resume all queued\nMiddle-click: Cancel all queued
-							TooltipContainer: TOOLTIP_CONTAINER
-							TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
-							ProductionGroup: Defense
-							Key: ProductionTypeDefense
-							Children:
-								Image@ICON:
-									X: 6
-									Y: 6
-									ImageCollection: production-icons
+						# No Building or Defense tab: this mod has no base building, and every
+						# actor on those two queues is gated behind the prerequisite ~disabled,
+						# which nothing provides. The queues themselves stay defined in
+						# rules/player.yaml because rules/ai/ai.yaml names them.
 
 
 						# Button@SCROLL_UP_BUTTON:

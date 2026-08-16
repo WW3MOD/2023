@@ -191,19 +191,147 @@ MP5:
 7.62mm.Minigun:
 	Inherits@Caliber: ^7.62mm
 	Inherits@HitEffects: ^PiffsEffects
+	# GROUND ONLY as of 260815. Helicopter moved to 7.62mm.Minigun.AA so the
+	# anti-air ceiling can be tuned without touching strafing performance. See
+	# that weapon for why the split was necessary rather than tidy.
+	ValidTargets: Infantry, Unarmored
 	Range: 8c0
 	Burst: 20
 	BurstDelays: 1
 	BurstWait: 5
 	Projectile: Bullet
 		Speed: 1c0
-		Inaccuracy: 0c64
-		InaccuracyPerProjectile: 32,32,0
+		# 0c320 as of 260815, up from 0c64. The bespoke tightening this gun was
+		# carrying is gone; this sits just above the ^7.62mm family baseline of
+		# 256, on the user's read after watching 0c256 in demo-heli-lanes.
+		#
+		# History: 4ba14a7d cut it to 0c48 to cure a gun that "felt inaccurate".
+		# It was not inaccurate; it was dealing zero damage
+		# (FirepowerMultiplier@NoGunner — see the PITFALL in
+		# rules/ingame/aircraft.yaml). Once the zero was fixed the gun turned out
+		# to be brutally good at strafing, which is what the tightening had been
+		# hiding all along.
+		#
+		# WHY THE FIRST REVERT DID NOTHING, and the arithmetic to reason with.
+		# InaccuracyType defaults to Maximum (Bullet.cs:40), so scatter scales
+		# with range:
+		#   effective = Inaccuracy * distanceToTarget / weaponMaxRange
+		# Range is 8c0, so at 2 cells the effective scatter is a QUARTER of the
+		# value written here, against a standing-infantry hitshape of radius 30
+		# (infantry.yaml:146-149):
+		#   0c48  -> 12 units at 2 cells   (cannot miss)
+		#   0c64  -> 16 units at 2 cells   (cannot miss — measured: still cleared
+		#                                   10/10 while a Hind managed 2)
+		#   0c256 -> 64 units at 2 cells   (still cleared 10/10 - see Warhead@Spread)
+		#   0c320 -> 80 units at 2 cells   (current), 320 at 8 cells
+		# Going 0c48 -> 0c64 was imperceptible for exactly this reason. Anything
+		# below ~0c128 is invisible at the ranges a littlebird actually strafes
+		# from, because a quarter of it still fits inside the target.
+		#
+		# For scale, the Hind's 12.7mm is Inaccuracy 256 over Range 16c0, i.e.
+		# half this weapon's scatter at the same absolute distance.
+		#
+		# SCATTER ALONE WAS NEVER GOING TO DO IT, and that is why Warhead@Spread
+		# below was cut from 200 to 60 in the same pass. Scatter caps the
+		# TargetDamage warhead only; the splash kept paying out on rounds that
+		# missed, so widening this number moved almost nothing on its own. The
+		# two changes are a pair — read them together before altering either.
+		#
+		# MEASURED 260815 — do not "fix" this gun by tightening scatter again.
+		# Instrumenting the full fire->warhead->health chain at this exact value
+		# (test-littlebird-strafe, littlebird vs e1 at 2 cells) recorded 160 of
+		# 160 rounds landing INSIDE the infantry hitshape: closestDistance=0 on
+		# every TargetDamage hit, proximity percent min 40 / median 70 / max 100,
+		# and SpreadDamage falloffPct=100 throughout. There were no near misses
+		# to convert and nothing was falling off. Scatter has never been this
+		# gun's constraint, and the tempting theory that 0c48 scatter overshot
+		# the 32-unit Warhead@Spread radius and so turned grazes into nothing is
+		# wrong in both halves. The gun's zero damage was FirepowerMultiplier@NoGunner
+		# on the littlebird itself; see the PITFALL in rules/ingame/aircraft.yaml.
+		Inaccuracy: 0c320
+		# InaccuracyPerProjectile removed 260815: Bullet.cs gates it behind
+		# `lastPosIsSet`, a readonly field initialised false and never assigned
+		# (Bullet.cs:170,213), so the whole branch is unreachable. It was inert.
 		Image: tracer_large
+	Warhead@Target: TargetDamage
+		# AttackType: Hover parks the littlebird at exactly max range, which is
+		# precisely where DamageAtMaxRange 50 halved every round — the gun was
+		# weakest at the only range it ever fought from. 75 softens that cliff.
+		#
+		# That standoff claim is UNTESTED either way as of 260815 and is kept
+		# because it is a real observation, not because it has been confirmed.
+		# What IS measured is that it was never the reason this gun killed
+		# nothing: the damage was being zeroed by a firepower modifier on the
+		# shooter long before falloff could scale it, so raising this value
+		# changed no observable outcome. If the standoff claim matters, measure
+		# the range the littlebird actually settles at before tuning against it.
+		DamageAtMaxRange: 75
+		ValidTargets: Infantry, Unarmored
 	Warhead@Spread: SpreadDamage
+		# Damage 200 -> 60 on 260815, and this is THE anti-infantry nerf — the
+		# scatter changes above were not.
+		#
+		# Measured: at 0c256 scatter the littlebird still cleared a 10-man squad
+		# in ~20s while a Hind on an identical squad managed 2, because this
+		# warhead kept paying out on the rounds that missed. Falloff is
+		# 100/37/14/5/0 over 0/32/64/96/128 units, so at 200 damage a round
+		# landing 64 units off-centre still delivered 28 — and at Burst 20 /
+		# BurstWait 5 that chip damage alone killed 200hp infantry. Scatter was
+		# irrelevant while a miss still paid this well.
+		#
+		# At 60 the same off-centre round delivers 8. Direct hits are untouched:
+		# Warhead@Target still lands its full 250, so the gun stays lethal when
+		# it is genuinely on target and the accuracy above finally decides
+		# something.
 		Spread: 32
-		Damage: 200
-		ValidTargets: Infantry, Unarmored, Helicopter
+		Damage: 60
+		ValidTargets: Infantry, Unarmored
+		DamageTypes: BulletDeath
+
+7.62mm.Minigun.AA:
+	Inherits@Caliber: ^7.62mm
+	Inherits@HitEffects: ^PiffsEffects
+	# Littlebird's last-resort air-to-air mount (260815). Follows the Tunguska
+	# 30mm.Tunguska.AG / .AA split (see :449-460) — and finally gives the
+	# littlebird's AmmoPool@1 the `primary-air` armament it has referenced, and
+	# silently failed to match, since the actor's first commit.
+	#
+	# THIS WEAPON IS A NERF, NOT A BUFF. The base minigun could already target
+	# Helicopter, and modelling the real pipeline showed it killing an Apache in
+	# 2.7s at max range — faster than the DEDICATED Tunguska AA gun (13.6s),
+	# because a heli hitshape is Circle Radius 32 and accuracy dominates
+	# everything at that scale. A 3000-credit scout outshooting purpose-built AA
+	# is the opposite of the intent, so the AA mount trades that away:
+	#   Inaccuracy 0c512 (8x looser) — a light minigun hosing at a jinking heli.
+	#   Damage 150 / Penetration 4  — vs Heavy heli Thickness 20 that is 20%.
+	# WARNING 260815: every time-to-kill figure in this block is MODELLED, and it
+	# was modelled for an airframe that could not deal damage at all —
+	# FirepowerMultiplier@NoGunner pinned the littlebird's whole output to 0 (see
+	# the PITFALL in rules/ingame/aircraft.yaml). Now that the zero is gone these
+	# numbers describe live behaviour for the first time and have never been
+	# checked in game. Re-measure before trusting the ceiling; do NOT tune
+	# against them as if they were observations.
+	#
+	# Net vs an 800hp Apache: ~9.6s at 4 cells, ~48s at 8. The littlebird carries
+	# 160 rounds = 7.7s of continuous fire and cannot reload outside a helipad,
+	# so it physically CANNOT finish an attack heli on one load. The ceiling is
+	# structural, not a number someone has to remember to keep low.
+	ValidTargets: Helicopter
+	Range: 8c0
+	Burst: 20
+	BurstDelays: 1
+	BurstWait: 5
+	Projectile: Bullet
+		Speed: 1c0
+		Inaccuracy: 0c512
+		Image: tracer_large
+	-Warhead@Target:
+	Warhead@Air: SpreadDamage
+		Spread: 32
+		Damage: 150
+		Penetration: 4
+		DamageAtMaxRange: 50
+		ValidTargets: Helicopter
 		DamageTypes: BulletDeath
 	Warhead@AirEffect: CreateEffect
 		ValidTargets: Helicopter
@@ -238,9 +366,63 @@ MP5:
 	BurstWait: 12
 12.7mm.Hind:
 	Inherits@Caliber: ^12.7mm
+	# GROUND ONLY as of 260815 — Helicopter moved to 12.7mm.Hind.AA. Ground
+	# performance (Damage 600 / Pen 15 vs Infantry, Unarmored, Light) is
+	# untouched; only the air half is re-gated.
+	ValidTargets: Infantry, Unarmored, Light
 	Burst: 8
 	BurstDelays: 2
 	BurstWait: 10
+	Projectile: Bullet
+		# 260815: tightened a little from the ^12.7mm baseline of 256, on the
+		# user's read that the Hind felt too loose next to the littlebird.
+		# OVERRIDDEN HERE, NOT ON ^12.7mm, deliberately — that template also
+		# feeds 12.7mm.MG (:344) and 12.7mm.Hind.AA (:364), so editing it would
+		# have silently retuned a ground MG and an anti-air mount alongside this.
+		#
+		# Scale, remembering effective = Inaccuracy * distance / weaponMaxRange
+		# and that this weapon's Range is 16c0, double the littlebird's 8c0:
+		#   256 -> 32 units at 2 cells;  192 -> 24 units at 2 cells
+		# against a 30-unit standing-infantry hitshape (infantry.yaml:146-149).
+		# It goes from scattering about the width of a man to a little inside him.
+		Inaccuracy: 192
+	Warhead@Target: TargetDamage
+		ValidTargets: Infantry, Unarmored, Light
+
+12.7mm.Hind.AA:
+	Inherits@Caliber: ^12.7mm
+	# Hind's last-resort air-to-air mount (260815). The user's constraint was
+	# explicit: usable, but "not nearly as good as an attack helicopter".
+	#
+	# Deliberately seated ABOVE the littlebird's minigun (heavier round, and the
+	# Hind is a 4000-credit gunship rather than a 3000-credit scout) and far
+	# BELOW anything built for the job. Versus an 800hp Apache:
+	#   Stryker SHORAD Stinger  ~1 hit          (5000 dmg, Pen 20)
+	#   AA Specialist MANPAD    ~1 hit          (3000 dmg, Pen 15)
+	#   Apache's own Hellfire   sub-second      (~2000 via the spread fallback)
+	#   Hind 12.7mm.Hind.AA     ~4s at 2 cells, ~14s at 8, ~73s at 12
+	# The Hind carries 150 rounds — 18s of continuous fire, helipad-only reload —
+	# so downing one attack heli costs it its entire magazine at knife range,
+	# having done nothing else that sortie. That is the "last resort" shape.
+	ValidTargets: Helicopter
+	Burst: 8
+	BurstDelays: 2
+	BurstWait: 10
+	Projectile: Bullet
+		Speed: 1c0
+		Inaccuracy: 0c640
+		LaunchAngle: 0,15
+	-Warhead@Target:
+	Warhead@Air: SpreadDamage
+		Spread: 32
+		Damage: 300
+		Penetration: 5
+		DamageAtMaxRange: 50
+		ValidTargets: Helicopter
+		DamageTypes: BulletDeath
+	Warhead@AirEffect: CreateEffect
+		ValidTargets: Helicopter
+		ImpactActors: false
 
 HandGrenade:
 	Inherits@HitEffects: ^MinimalExplosionEffects

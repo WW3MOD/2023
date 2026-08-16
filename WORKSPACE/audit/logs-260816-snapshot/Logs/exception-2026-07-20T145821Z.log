@@ -1,0 +1,25 @@
+OpenRA engine version release-20230225
+ww3mod mod version release-20230225
+on map 743d3bc2439deacc3018d7a0c772a403d7f3aacf (TEST: helicopter squad forms without an hpad (below-full ammo) by WW3MOD).
+Date: 2026-07-20 14:58:21Z
+Operating System: Windows (X64, Microsoft Windows NT 10.0.26200.0)
+Runtime Version: .NET CLR 8.0.27
+Installed Language: en (Installed) en (Current) en (Current UI)
+Exception of type `System.InvalidOperationException`: Attempted to get trait from destroyed object (heli 11 (not in world))
+   at OpenRA.Mods.Common.Traits.BotModules.Squads.HelicopterStateBase.GetSquadHealthPercent(Squad owner) in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Mods.Common\Traits\BotModules\Squads\States\HelicopterStates.cs:line 58
+   at OpenRA.Mods.Common.Traits.BotModules.Squads.HelicopterApproachState.Tick(Squad owner)
+   at OpenRA.Mods.Common.Traits.HelicopterSquadBotModule.UpdateSquads() in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Mods.Common\Traits\BotModules\HelicopterSquadBotModule.cs:line 214
+   at OpenRA.Mods.Common.Traits.HelicopterSquadBotModule.OpenRA.Mods.Common.Traits.IBotTick.BotTick(IBot bot) in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Mods.Common\Traits\BotModules\HelicopterSquadBotModule.cs:line 118
+   at OpenRA.Mods.Common.Traits.ModularBot.<OpenRA.Traits.ITick.Tick>b__14_0() in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Mods.Common\Traits\Player\ModularBot.cs:line 97
+   at OpenRA.Sync.<>c__DisplayClass14_0.<RunUnsynced>b__0() in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Game\Sync.cs:line 172
+   at OpenRA.Sync.RunUnsynced[T](Boolean checkSyncHash, World world, Func`1 fn) in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Game\Sync.cs:line 192
+   at OpenRA.Sync.RunUnsynced(Boolean checkSyncHash, World world, Action fn) in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Game\Sync.cs:line 172
+   at OpenRA.Mods.Common.Traits.ModularBot.OpenRA.Traits.ITick.Tick(Actor self) in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Mods.Common\Traits\Player\ModularBot.cs:line 93
+   at OpenRA.World.Tick() in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Game\World.cs:line 444
+   at OpenRA.Game.InnerLogicTick(OrderManager orderManager) in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Game\Game.cs:line 808
+   at OpenRA.Game.LogicTick() in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Game\Game.cs:line 836
+   at OpenRA.Game.Loop() in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Game\Game.cs:line 1023
+   at OpenRA.Game.Run() in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Game\Game.cs:line 1076
+   at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Game\Game.cs:line 315
+   at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\worktrees\ww3mod\evac-heli-fixes\engine\OpenRA.Launcher\Program.cs:line 32
+

@@ -18,10 +18,16 @@ Verified against current main rather than assumed:
 | `mods/ww3mod/rules/weapons/weapons-missiles.yaml` | `f2468743` | predates this session — unchanged |
 | `DOCS/reference/missiles.md` | — | does not exist |
 
-**Next concrete step:** get answers to the three design questions in §3, then
-dispatch Phase 0 (per-tick missile trace instrumentation) *plus* the four
-read-only audit workers in parallel. Neither needs an autotest run, so both can
-start the moment the questions are answered.
+**Next concrete step: dispatch immediately — nothing is waiting on the user.**
+The three design questions in §3 have now all been answered, so Phase 0
+(per-tick missile trace instrumentation) and the four read-only audit workers
+can go out in parallel right away. Neither needs an autotest run.
+
+Two of the answers change the work before it starts: the audit is **full-fleet**
+(every `Projectile: Missile` weapon, not just ATGM and AA), and the user has
+issued a **distance-invariance invariant** — see §3.3 — which is both an
+acceptance criterion for the audit and a constraint on the Phase 0 trace's
+fields.
 
 Plan shape, for whoever picks it up:
 
@@ -59,24 +65,49 @@ action.
 - Untracked files under `WORKSPACE/` (`batch-*.log`, `tourney-real.log`,
   `user-session-*.log`) are **not** this manager's.
 
-## 3. Questions asked of the user, never answered
+## 3. Questions asked of the user — ANSWERED
 
-Three, all still open. Manager's recommendation in brackets.
+All three were answered after this report was first written. **No open
+questions remain.** The rulings:
 
-1. **Audit scope** — every `Projectile: Missile` weapon [conf 85] / just ATGM
-   and AA [45] / everything that flies and guides [38].
-2. **Where should a missing missile detonate?** — at the point of closest
-   approach [72] / fly on and detonate on terrain or at fuel-out, but never be
-   silently removed [66] / a rule per weapon class [58].
-   *(The user has already ruled that AA missiles are exempt and may fly on
-   until fuel-out; this question is only about ground missiles.)*
-3. **Close-range AA (2–4 cells)** — the missiles should hit, treat as a bug
-   [80] / both: arm faster AND make launchers refuse hopeless shots [68] / the
-   launcher should hold fire below a floor [47].
+1. **Audit scope → every guided missile in the game.** Everything on the
+   `Projectile: Missile` path — ATGMs, AA, top-attack, ship-launched, cruise.
+   Phase 1's data sweep is full-fleet; ranking (not exclusion) keeps the effort
+   proportionate, since the likeliest defects still cluster in ATGM and AA.
+
+2. **Miss-detonation rule → the agent proposes a rule per weapon class.** The
+   user deliberately did *not* pick a single global rule, so this is a **Phase 2
+   deliverable that is still to be proposed and agreed**, not a settled
+   decision. The class taxonomy (SACLOS wire-guided / fire-and-forget /
+   top-attack / AA / cruise) has to be defined before the rule can be written
+   against it. Already settled from an earlier turn: AA missiles are exempt and
+   may fly on until fuel-out.
+
+3. **Close-range AA → the missiles should hit; treat it as a bug.** The user's
+   accompanying note matters more than the option label:
+
+   > "Should have the same hit chance regardless of distance. If we want to
+   > limit firing to a min distance, we can set that on the weapon, but as long
+   > as the weapon can fire the missile should be able to hit."
+
+   Read this as a **general design invariant, not a fix for the AA case**: hit
+   probability must be distance-invariant across a weapon's whole permitted
+   envelope, and range limiting is the job of the weapon's declared
+   `MinRange`/`Range` — never an emergent consequence of projectile physics.
+   Anything the audit finds where geometry, arming delay, homing-activation
+   delay or turn radius makes near or far shots systematically worse is a
+   **defect by this rule, even where it is physically realistic**. It also rules
+   out "make the launcher refuse the shot" as a fix: if the weapon is allowed to
+   fire, the missile must be able to hit.
+
+   *Consequence for Phase 0:* the trace must record launch range,
+   homing-activation tick, arming tick and termination reason per missile, so a
+   scenario sweeping engagement distance can plot hit rate against range and
+   test this invariant directly.
 
 A fourth, earlier question asking a goahead for an autotest run at the real
-3840 helicopter altitude is also unanswered but is now **moot** — superseded
-when the user rescoped the work.
+3840 helicopter altitude is unanswered but **moot** — superseded when the user
+rescoped the work.
 
 ## 4. Knowledge that lived only in the session transcript
 

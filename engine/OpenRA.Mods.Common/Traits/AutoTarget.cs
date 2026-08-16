@@ -322,6 +322,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		int nextScanTime = 0;
 
+		/// <summary>WorldTick of the last scan that found something it could have shot and
+		/// declined it anyway — overkill or break-off — leaving the unit with no target at all.
+		/// Deliberately NOT [Sync] and read by nothing in the simulation: it exists so
+		/// WithHoldingFireDecoration can tell the player why a unit is standing still next to a
+		/// live enemy. -1 until the first such scan.</summary>
+		public int LastHeldFireTick { get; private set; } = -1;
+
 		public UnitStance Stance => stance;
 
 		public EngagementStance EngagementStanceValue => engagementStance;
@@ -1282,6 +1289,7 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
+			var declinedShootableTarget = false;
 			var chosenTargetRange = 0;
 			var chosenTargetAverageDamagePercent = 0;
 			var chosenTargetSuppression = 0;
@@ -1363,14 +1371,20 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Don't overkill — skip targets that already have enough incoming damage to destroy them
 				if (Info.OverkillThreshold >= 0 && target.Actor.AverageDamagePercent >= Info.OverkillThreshold)
+				{
+					declinedShootableTarget = true;
 					continue;
+				}
 
 				// Skip targets that are already "good as dead" — critical damage in WW3MOD means
 				// the unit can't fight and will bleed out to 0. Force-attacks bypass this filter
 				// because they go through AttackBase.AttackTarget without consulting ChooseTarget.
 				if (!string.IsNullOrEmpty(Info.BreakOffCondition)
 					&& target.Actor.GetConditionCount(Info.BreakOffCondition) > 0)
+				{
+					declinedShootableTarget = true;
 					continue;
+				}
 
 				var targetRange = (target.CenterPosition - self.CenterPosition).Length;
 
@@ -1466,6 +1480,9 @@ namespace OpenRA.Mods.Common.Traits
 			// double-counted (mark, then AttackTarget would re-evaluate) and missed every
 			// non-autotarget code path. See MarkTargetForAttack below.
 
+			if (declinedShootableTarget && chosenTarget.Type == TargetType.Invalid)
+				LastHeldFireTick = self.World.WorldTick;
+
 			return chosenTarget;
 		}
 
@@ -1497,11 +1514,12 @@ namespace OpenRA.Mods.Common.Traits
 			return bestSpread >= minSpread && falloff != null;
 		}
 
-		/// <summary>Estimate of one full burst's damage as a % of the target's max HP.
-		/// Uses the warhead's Versus table, penetration vs front-armor thickness, and
-		/// the warhead's Damage value. Front armor only — directional is overkill for
-		/// an intent estimate. Returns 0 if the target has no Health/Armor or no
-		/// matching armament.</summary>
+		/// <summary>Estimate of one full burst's damage as a % of the target's max HP,
+		/// capped at 100 — one attacker can only claim one kill's worth, however far its
+		/// burst overshoots. Uses the warhead's Versus table, penetration vs front-armor
+		/// thickness, and the warhead's Damage value. Front armor only — directional is
+		/// overkill for an intent estimate. Returns 0 if the target has no Health/Armor or
+		/// no matching armament.</summary>
 		public static int EstimatePercentDamage(Actor attacker, in Target target)
 		{
 			if (target.Actor == null)
@@ -1535,6 +1553,13 @@ namespace OpenRA.Mods.Common.Traits
 					if (damage <= 0)
 						continue;
 
+					// A warhead only lands on what its own ValidTargets/InvalidTargets admit —
+					// DamageWarhead.DoImpact bails on exactly this check before applying anything.
+					// Counting a warhead that cannot hit inflates the claim by damage that will
+					// never arrive, which is the same defect as the missing cap below.
+					if (!warhead.IsValidAgainst(target.Actor, attacker))
+						continue;
+
 					// Penetration vs thickness — capped at 1.0, same shape as the live
 					// damage path in DamageWarhead.InflictDamage.
 					if (thickness > 0)
@@ -1554,7 +1579,16 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			return totalDamage * 100 / health.MaxHP;
+			// PITFALL: cap PER SHOOTER, never on the shared accumulator. A MANPAD's 3000-damage
+			// missile against a 600-HP Halo used to claim 500% — five kills for one missile —
+			// so one AA committing took three 60-tick halvings to decay back under
+			// OverkillThreshold and blinded every other AA to a healthy aircraft for ~172 ticks.
+			// Capping the target's total instead would be wrong: ordinary firing does not
+			// re-apply the tally (measured 2026-08-10, a lead shooter fired eight times at a
+			// 200-tick BurstWait and its neighbours still joined on schedule), so the runaway
+			// needs a feeder that does not arise naturally. What does arise naturally is a
+			// single claim larger than any damage that can land.
+			return Math.Min(totalDamage * 100 / health.MaxHP, 100);
 		}
 
 		/// <summary>Register intent to attack — bumps the target's AverageDamagePercent

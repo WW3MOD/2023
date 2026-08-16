@@ -1,0 +1,165 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: helicopter weapons — littlebird missiles, minigun accuracy, air-to-air ceiling
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Hidden SRs so neither side is eliminated by attrition (see AUTOTEST.md).
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,2
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 63,2
+
+	# ================================================================
+	# SECTION 1 (rows 3 + 7) — MISSILES: do they fire, and how far?
+	# littlebird lane is 17 cells (inside its new 20c0).
+	# Apache lane is 23 cells — inside 25c0 but BEYOND the littlebird's reach.
+	# ================================================================
+	S1LB: littlebird
+		Owner: USA
+		Location: 4,3
+		Facing: 192
+	S1LBTarget: t90
+		Owner: Russia
+		Location: 21,3
+		Facing: 704
+	S1AP: heli
+		Owner: USA
+		Location: 4,7
+		Facing: 192
+	S1APTarget: t90
+		Owner: Russia
+		Location: 27,7
+		Facing: 704
+
+	# ================================================================
+	# SECTION 2 (rows 12/15/18/21) — MINIGUN vs infantry at 2/4/6/8 cells.
+	# ================================================================
+	S2A: littlebird
+		Owner: USA
+		Location: 4,11
+		Facing: 192
+	S2ATgt1: e1
+		Owner: Russia
+		Location: 6,11
+	S2ATgt2: e1
+		Owner: Russia
+		Location: 6,12
+
+	S2B: littlebird
+		Owner: USA
+		Location: 4,14
+		Facing: 192
+	S2BTgt1: e1
+		Owner: Russia
+		Location: 8,14
+	S2BTgt2: e1
+		Owner: Russia
+		Location: 8,15
+
+	S2C: littlebird
+		Owner: USA
+		Location: 4,17
+		Facing: 192
+	S2CTgt1: e1
+		Owner: Russia
+		Location: 10,17
+	S2CTgt2: e1
+		Owner: Russia
+		Location: 10,18
+
+	S2D: littlebird
+		Owner: USA
+		Location: 4,20
+		Facing: 192
+	S2DTgt1: e1
+		Owner: Russia
+		Location: 12,20
+	S2DTgt2: e1
+		Owner: Russia
+		Location: 12,21
+
+	# ================================================================
+	# SECTION 3 (rows 25/28/31) — AIR-TO-AIR CEILING, three lanes.
+	# Lane 1: two littlebirds vs an Mi-28 (Mi-28 cannot shoot back — it has
+	#         no anti-air weapon at all; see the report).
+	# Lane 2: Hind vs Apache — two-way. The Apache should win decisively.
+	# Lane 3: Stryker SHORAD vs Mi-28 — the REFERENCE for "what a dedicated
+	#         anti-air unit does". Should be over almost instantly.
+	# ================================================================
+	S3LB1: littlebird
+		Owner: USA
+		Location: 34,24
+		Facing: 192
+	S3LB2: littlebird
+		Owner: USA
+		Location: 34,26
+		Facing: 192
+	S3MI28: mi28
+		Owner: Russia
+		Location: 46,25
+		Facing: 704
+
+	S3HIND: hind
+		Owner: Russia
+		Location: 34,28
+		Facing: 192
+	S3APACHE: heli
+		Owner: USA
+		Location: 46,28
+		Facing: 704
+
+	S3SHORAD: strykershorad
+		Owner: USA
+		Location: 34,31
+		Facing: 192
+	S3MI28B: mi28
+		Owner: Russia
+		Location: 46,31
+		Facing: 704
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 20,15
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 44,15
+
+Rules: rules.yaml

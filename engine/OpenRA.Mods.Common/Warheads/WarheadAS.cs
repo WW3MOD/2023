@@ -43,6 +43,11 @@ namespace OpenRA.Mods.Common.Warheads
 				if (!AffectsParent && victim == firedBy)
 					continue;
 
+				// See CreateEffectWarhead.ActorTypeAtImpact — cosmetic ground cover (fields) must be
+				// invisible to impact classification, or it swallows the impact it happens to sit under.
+				if (victim.IsGroundCover())
+					continue;
+
 				var activeShapes = victim.TraitsImplementing<HitShape>().Where(Exts.IsTraitEnabled);
 				if (!activeShapes.Any(s => s.DistanceFromEdge(victim, pos).Length <= 0))
 					continue;

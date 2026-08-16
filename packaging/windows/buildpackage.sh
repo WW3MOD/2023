@@ -90,6 +90,9 @@ function build_platform()
 	install_assemblies "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}" "${BUILTDIR}" "win-${PLATFORM}" "net6" "False" "${PACKAGING_COPY_CNC_DLL}" "${PACKAGING_COPY_D2K_DLL}"
 	install_data "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}" "${BUILTDIR}"
 
+	# GPLv3 section 6: ships next to COPYING so the binary states where its source lives.
+	install -m644 "${TEMPLATE_ROOT}/SOURCE-OFFER.txt" "${BUILTDIR}"
+
 	for f in ${PACKAGING_COPY_ENGINE_FILES}; do
 		mkdir -p "${BUILTDIR}/$(dirname "${f}")"
 		cp -r "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}/${f}" "${BUILTDIR}/${f}"

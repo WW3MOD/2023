@@ -139,18 +139,22 @@ namespace OpenRA.Mods.Common.Traits
 				var actorRules = w.Map.Rules.Actors[s.ToLowerInvariant()];
 				var ip = actorRules.TraitInfo<IPositionableInfo>();
 				var candidates = supportSpawnCells.Shuffle(w.SharedRandom).ToList();
-				var validCell = candidates.FirstOrDefault(c => ip.CanEnterCell(w, null, c) && HasUsableEscapeRegion(ip, c));
+
+				// PITFALL: (0,0) is a legal cell — most ww3mod maps set Bounds at the origin — so
+				// FirstOrDefault's default(CPos) cannot be told apart from a real hit. Search by index.
+				var validIndex = candidates.FindIndex(c => ip.CanEnterCell(w, null, c) && HasUsableEscapeRegion(ip, c));
 
 				// Fallback for very tight maps: accept any enterable cell rather than dropping the unit.
-				if (validCell == CPos.Zero)
-					validCell = candidates.FirstOrDefault(c => ip.CanEnterCell(w, null, c));
+				if (validIndex < 0)
+					validIndex = candidates.FindIndex(c => ip.CanEnterCell(w, null, c));
 
-				if (validCell == CPos.Zero)
+				if (validIndex < 0)
 				{
 					Log.Write("debug", $"No cells available to spawn starting unit {s} for player {p}");
 					continue;
 				}
 
+				var validCell = candidates[validIndex];
 				var subCell = ip.SharesCell ? w.ActorMap.FreeSubCell(validCell) : 0;
 				var facing = unitGroup.SupportActorsFacing.HasValue ? unitGroup.SupportActorsFacing.Value : new WAngle(w.SharedRandom.Next(1024));
 

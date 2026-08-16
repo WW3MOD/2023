@@ -1,0 +1,25 @@
+# DefaultCash 0, and this is a MEASUREMENT-VALIDITY constraint rather than a tuning choice.
+#
+# The inherited comment on this file claimed "the measurement only ever looks at NAMED actors, so
+# incidental units the bot buys or spawns do not affect it." That is exactly backwards, and the run
+# of 2026-08-15 (260815_124529_p66286) is the counterexample: debug.log recorded SIX departures, all
+# reason=Full carrying 2-3 passengers, while the Lua reported everCarried=0 and peakPax=0. Both
+# readings are correct. The named BotCarrier and BotRifle1-5 were simply not the actors the bot chose
+# to use — purchased carriers and freshly produced infantry did all the work, off to one side of the
+# measurement. A named-actor predicate is valid ONLY IF the named actors are the ones under test, and
+# production removes that guarantee entirely.
+#
+# At 0 the placed force is the whole force, so the carrier that loads IS BotCarrier and the passengers
+# ARE the named squad. Mirrors test-tecn-ride, which uses the same constraint for the same reason. It
+# also removes the combat that destroyed the carrier mid-drive in the run before that, which is a
+# second way this scenario was losing its own measurement.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-transport-delivers.lua

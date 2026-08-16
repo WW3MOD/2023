@@ -3,6 +3,424 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-15: [critical] FIXED (wt/heli-gun) — the littlebird's weapons all deal exactly 0 damage: no Gunner crew slot, and `^Airborne` pins `FirepowerMultiplier@NoGunner` to 0 forever (found while: diagnosing "littlebird strafing kills nothing", branch `wt/heli-gun`)
+
+Measured on `main @ 4c4d8a49`, scenario `test-littlebird-strafe`, trace `WW3_GUNTRACE=1`. The gun fires,
+the rounds land dead on target, both warheads find the victim and report a full-strength hit, and
+`InflictDamage` computes `FINAL=0` because the shooter contributes a `0` firepower modifier:
+
+```
+firepowerModifiers=[100, 100, 100, 100, 100, 0, 100]      <- index 5 is @NoGunner
+InflictDamage victim=e1 rawDamage=250 ... versus=100 FINAL=0 hpBefore=200
+```
+
+`FirepowerMultiplier@NoGunner` (`rules/ingame/aircraft.yaml:278-280`, `Modifier: 0`,
+`RequiresCondition: !has-gunner`) is meant to punish a helicopter whose gunner has bailed out at <50% HP.
+`VehicleCrew` only grants a slot condition for a slot the actor declares (`VehicleCrew.cs:140-153`), and
+the littlebird declares `CrewSlots: Pilot` only (`rules/ingame/aircraft-america.yaml:103-108`). So the
+condition is never granted, `!has-gunner` is true from `Created`, and the modifier never lifts.
+
+**Affects both armaments** — the minigun AND the Hellfire rack, since the modifier is on the shooter, not
+the weapon. Any measurement of littlebird missile damage taken before this is void.
+
+**Only actor affected**: a sweep of armed actors with a `VehicleCrew` block found no other `CrewSlots`
+missing `Gunner`.
+
+**Fixed** on `wt/heli-gun` by the general route: `VehicleCrew.SlotPresentConditions` grants
+`has-gunner-seat` for a DECLARED slot only, and the gate became `has-gunner-seat && !has-gunner`. The
+alternative — giving the littlebird a Gunner slot — was rejected because it invents a crew member who
+could then bail at `DamageState.Heavy` and re-zero the guns, smuggling a new gameplay behaviour in as a
+bug fix. Whether a Little Bird should have a two-man crew stays a separate, deliberate content decision.
+
+**Superseded 260816 — the gate is gone entirely.** `has-gunner-seat` was consumed by all `^Helicopter`
+actors but granted only by the three declaring a Gunner slot, so `littlebird`/`tran`/`halo` failed lint.
+User ruling: the mechanism is dead weight, because crew never re-board and a helicopter whose crew has
+ejected is burning and about to be destroyed. `FirepowerMultiplier@NoGunner`,
+`VehicleCrew.SlotPresentConditions` and the three grants are deleted. The littlebird's damage is
+unaffected — it stays unzeroed, now because no zeroing gate exists rather than because it passes one.
+
+## 2026-08-15: [medium] OPEN — Restart drops out of any harness scenario instead of restarting it, and the run ends (found while: user mid-session in demo-heli-lanes, branch `wt/heli-gun`)
+
+Reported from live use: "I clicked restart from the menu and it closed? It seemed better but I wasnt
+done testing." The scenario did not restart; the process ended and the testing session was lost.
+
+Both restart paths go through the same call — the in-game menu
+(`IngameMenuLogic.cs:382`, `Game.RunAfterDelay(exitDelay, Game.RestartGame)`) and the harness's own
+button (`TestModeLogic.cs:43`, `restart.OnClick = Game.RestartGame`). So the "press End to restart" line
+in the demo headers is describing a path with the same defect, not a safe alternative.
+
+`Game.RestartGame` (`Game.cs:237-255`) re-resolves the map before restarting:
+
+```csharp
+lobbyInfo.GlobalSettings.Map = ModData.MapCache.GetUpdatedMap(lobbyInfo.GlobalSettings.Map);
+if (lobbyInfo.GlobalSettings.Map == null)
+{
+    Disconnect();
+    Ui.ResetAll();
+    LoadShellMap();
+    return;
+}
+```
+
+**NOT VERIFIED, and this is the part to check first:** the likely cause is that a harness scenario is a
+staged map (`Visibility: MissionSelector`, loaded from `tools/autotest/scenarios/<name>` rather than the
+mod's map list), so `GetUpdatedMap` cannot find it by UID, returns null, and the branch above disconnects
+to the shell map — after which the run has no game and ends. I read the code but did not instrument the
+lookup, so the null could equally be coming from a UID change caused by the harness rewriting the
+scenario between runs.
+
+Impact is worst for demos specifically, because a demo is a long human viewing session: losing it costs
+the user everything they were part-way through observing, and the header actively invites the click.
+
+Workaround until fixed: do not use Restart in a harness scenario; relaunch the demo instead.
+
+## 2026-08-15: [medium] OPEN — every demo is killed after exactly 300s by a watchdog that waits for a verdict demos are designed never to write (found while: showing the user demo-heli-weapons, branch `wt/heli-gun`)
+
+`run-demo.sh` delegates to `run-test.sh --visible --audio "$@"` (`run-demo.sh:50`) and inherits its
+`TIMEOUT_SECS=300` default (`run-test.sh:150`). That watchdog kills the game and synthesizes a FAIL when
+no verdict has been written in time (`run-test.sh:729-764`). But `run-demo.sh`'s own header states demos
+"do NOT write a result file — the user closes the window when done", so the verdict the watchdog waits
+for can never arrive. **Every demo therefore dies at the five-minute mark, mid-viewing**, and prints
+`TIMEOUT-FAIL` for a scenario that has no pass/fail concept:
+
+```
+==> TIMEOUT: no verdict after 300s — killing the game.
+==> VERDICT: TIMEOUT-FAIL   (exit 1)     # for demo-heli-weapons
+```
+
+`run-demo.sh` maps run-test.sh's exit 3 ("no result") to 0 precisely because verdict-less is the point —
+but it does not neutralise the timeout that fires first, so the exit code it translates is 1, not 3.
+
+Workaround: pass a large `--timeout` (`./tools/autotest/run-demo.sh --timeout 7200 demo-heli-weapons`);
+the flag forwards through. Real fix is for `run-demo.sh` to default the watchdog off, or to a value that
+reflects a human viewing session, rather than reusing the unattended-test default.
+
+Note this also makes the timeout FAIL misleading in the other direction: the message tells the reader to
+go looking in `debug.log` for a hang or a rules-load failure, when nothing is wrong at all.
+
+**SECOND, INDEPENDENT DEFECT IN THE SAME FILE — `set -e` makes the success mapping unreachable.**
+`run-demo.sh` ends with:
+
+```sh
+set -e                                              # line 17
+...
+./tools/autotest/run-test.sh --visible --audio "$@" # line 50
+rc=$?
+if [ ${rc} -eq 3 ]; then exit 0; fi                 # "verdict-less is the demo's whole point"
+exit ${rc}
+```
+
+Under `set -e` the script dies on line 50 the moment run-test.sh returns non-zero, so `rc=$?` and the
+mapping below it **never execute**. Verified with a minimal repro: the same shape prints nothing and exits
+3 with `set -e`, and prints the mapping line and exits 0 without it. So closing a demo window by hand —
+the documented, intended way to end a demo — always reports `NO-RESULT (exit 3)` and surfaces as a failed
+command. Both halves of this file's error handling are therefore dead: the timeout fires before the
+mapping could help, and the mapping could not run anyway.
+
+Fix is to capture the status without tripping the errexit, e.g. `if ./tools/autotest/run-test.sh ... ;
+then rc=0; else rc=$?; fi`, plus a demo-appropriate timeout default.
+
+## 2026-08-15: [medium] OPEN, UNMEASURED — a ground vehicle whose crew ejected may stay permanently crippled after being repaired to full HP (found while: fixing the littlebird's zero damage, branch `wt/heli-gun`)
+
+**Inferred from code, NOT tested — do not treat the behaviour as confirmed.** `VehicleCrew` revokes a
+slot's occupied condition when that crew member ejects, and nothing observed re-grants it: the crew are
+spawned as separate infantry actors and there is no re-boarding path (`VehicleCrew.cs:56` records
+"EjectionSurvivalRate removed — vehicle death is now total loss"). The `^CrewedVehicle2` / `^CrewedVehicle3`
+degradation ladder (`vehicles.yaml:266-310`) keys off those conditions: no driver -> `SpeedMultiplier` 0,
+no gunner -> `TurretTurnSpeedMultiplier` 0.
+
+So repairing such a hull back to full HP should yield a vehicle at 100% health that still cannot move or
+traverse its turret, permanently. That may well be intended — the crew are gone and the design says the
+wreck is a total loss — but if so, being repairable at all is the odd part, which is what prompted the
+question. Worth an autotest before anyone acts on it: damage a Bradley past `EjectionDamageState`, let the
+crew bail, repair it, and check whether it moves.
+
+## 2026-08-15: [high] OPEN — `RendezvousMath.AnchorAcceptable` has NO LOWER BOUND, so the combined-arms rendezvous drags the drop-off BACKWARDS to the Supply Route and the carrier shuttles in place (found while: offensive transport standoff, branch `wt/offense-standoff`)
+
+**Measured, not reasoned.** Run `260815_202509`, seed 1017, `wip-transport-delivers`, with
+`RendezvousWithOffensiveStaging: true` on `MountedTransportBotModule@experimental`:
+
+```
+[exp-transport] rendezvous player=USA-bot anchor=7,17 lerp=32,10 → drop=7,17 tick=65
+[exp-transport] task-created boarding=5 of 5 drop=7,17 tick=65      (own SR is at 6,16)
+[exp-transport] delivered   at=6,16 drop=7,17 pax=5 tick=515
+... and again at 565/965, 1015/1365, 1415
+```
+
+The transport abandoned a **26-cell** forward delivery (`lerp=32,10`) for a **one-cell** one
+(`anchor=7,17`, adjacent to its own SR at 6,16), then looped: load five, drive one cell, unload, reload —
+four task creations and three departures inside 1400 ticks.
+
+**Cause.** `AnchorAcceptable` (`RendezvousMath.cs:78`) tests only
+
+```csharp
+return anchorReach <= fallbackReach + margin;
+```
+
+so it rejects an anchor too far **forward** and accepts without limit one that is **behind** the cell the
+transport would have picked for itself. Not an edge case: before contact the frontier descent has nothing
+to descend toward, so `ForwardStagingAnchor` sits on the SR (measured `7,17` for the whole match) and is
+*always* behind the lerp. **The rendezvous is backwards-biased in exactly the pre-contact opening that
+`DeliverBeforeContact` exists to serve.**
+
+The file header argues for a one-sided bound ("the anchor ADVANCES as the believed front moves, so a
+transport that chased it unconditionally could be walked steadily deeper") — right about the danger it
+names, and it left the opposite direction unguarded.
+
+**Not fixed here, deliberately: no run budget remained to verify a fix, and shipping an unmeasured
+behavioural change is what this project's discipline forbids.** `RendezvousWithOffensiveStaging` is left
+`false` on both twins (`ai.yaml:1599`), so nothing regressed. The fix is a second comparison in the same
+function — reject an anchor materially nearer our own SR than the fallback — plus a scenario in which the
+armour actually musters forward, which `wip-transport-delivers` cannot provide because it contains no
+combat units at all.
+
+## 2026-08-15: [medium] OPEN — `wip-transport-delivers` can go GREEN on a one-cell carry: its "moved ≥ 10 cells" clause is satisfiable by the passenger WALKING after it is set down (found while: offensive transport standoff, branch `wt/offense-standoff`)
+
+The scenario defines a delivery as carried + returned + at least `DeliveredCells` (10) from where the
+passenger started. Clause (c) is evaluated **whenever** the returned passenger is far enough away — not at
+the moment of unload — so distance covered *after* the drop counts toward it.
+
+Run `260815_202509` passed on exactly that. With the rendezvous bug above active, the carrier set its
+passengers down at `7,17`, ~3 cells from their start; the verdict fired at tick ~1481 with the delivered
+rifleman at `17,19`, which it reached **on foot** after `StageFreePool` re-recruited it post-unload. The
+carry was real — `everCarried=5` is honest, five riflemen were genuinely out of world in a `Cargo` — but
+the *distance* was walked.
+
+This is the AUTOTEST.md §"who ELSE could satisfy your predicate" shape one level down: the mechanism under
+test produced the carry, a different mechanism produced the displacement the assertion actually measured.
+**The scenario therefore stays `wip-*` despite its first-ever PASS.** Fix: latch each passenger's position
+at the tick it re-enters the world and measure clause (c) against *that*, so the distance credited is the
+distance the carrier moved it.
+
+## 2026-08-15: [low] OPEN — a transport's top-up passengers are ledger-committed and still fail to arrive: `still-coming=0 reason=NobodyElseComing` with four of five seats unfilled (found while: offensive transport standoff, branch `wt/offense-standoff`)
+
+Baseline run `260815_201640`, seed 1017. The USA carrier's task reached `target=5` through three
+`topup-added` lines, each of which calls `CommitTopUpPassenger` (`MountedTransportBotModule.cs:1094`), so
+all of them held a `transport:<carrierId>` claim that `BuildFreePool` honours. It nevertheless departed
+`aboard=1 still-coming=0 reason=NobodyElseComing` at tick 1015: the four committed top-ups neither boarded
+nor remained outstanding.
+
+Poaching by another bot module is **ruled out** by that commit. Candidates not distinguished here: the
+ledger TTL (`DefaultCommitmentTicks`) lapsing mid-walk, or one of the traits that call `Actor.QueueActivity`
+directly and emit no `Order` at all — `ModularBot.cs:137-145` names `StancePositioningExecutor`,
+`AutoSeekSupplies`, `CohesionSlotMemory` and `DropsSupplyCache` as invisible to the gate, so any of them can
+cancel a `RideTransport` with nothing in the order stream to show for it. Telling those apart needs a
+per-passenger trace on `RideTransport` cancellation.
+
+## 2026-08-15: [medium] OPEN — UNVERIFIED: `^ArtilleryRound`'s damage radii are smaller than its own inaccuracy, so a shell aimed at infantry may routinely do nothing at all (found while: field shell-swallowing bug, branch `wt/field-impact`)
+
+Noticed while ruling out a damage cause for the field bug (which turned out to be effect-only — see
+`DISCOVERIES.md` same date). **This is arithmetic off the YAML plus the warhead sources; it has NOT
+been measured in play, and it is balance rather than a defect, so it wants a combat-sim run
+(`DOCS/recipes/BALANCE.md`) before anyone acts on it.**
+
+`^ArtilleryRound` (`weapons-ballistics.yaml:613-640`) has `Inaccuracy: 2c0` (`InaccuracyType: Absolute`),
+so rounds scatter up to ~2 cells from the aim point. Its three damage warheads reach:
+
+- `Warhead@Target: TargetDamage`, `Damage: 15000` — `Spread` is not restated, so it takes the engine
+  default `new WDist(1)` (`TargetDamageWarhead.cs:24`) ≈ 1/1024 of a cell, and
+  `TargetDamageWarhead.cs:64-65` skips any victim further than that. Effectively **direct hit only**.
+- `Warhead@Spread: SpreadDamage`, `Spread: 64`, `Damage: 3000` — default falloff `{100,37,14,5,0}`
+  (`SpreadDamageWarhead.cs:28`) over steps of 64, so damage is **zero at 256 WDist (1/4 cell)**.
+- `Warhead@Shrapnel: SpreadDamage` (inherited from `^LargeExplosionEffects`,
+  `weapons-effects.yaml:570-578`), `Spread: 256`, `Damage: 200` — zero at **1024 (1 cell)**, and only
+  200 damage at best. **But it is `ValidTargets: Infantry, Unarmored`**, so it is the only warhead
+  reaching a full cell *and it does not apply to vehicles at all*.
+
+So the effective radius past which an artillery round does **nothing** is **1 cell against infantry
+and ¼ cell against a vehicle**, while its own inaccuracy places the shell up to 2 cells off the aim
+point. Against spread-out infantry the expected damage per shell may be near zero *independently of
+fields*, and against vehicles the window is four times tighter still. That is the most likely
+explanation for the "and no damage" half of the original live-play report — the field bug only ever
+removed the explosion and the sound. Worth a combat-sim check before treating artillery-vs-anything
+as working as intended.
+
+## 2026-08-14: [high] OPEN — the `@experimental` bot runs at cash=0 for the entire match after its opening, so any demand-gated purchase is unaffordable exactly when it is finally justified (found while: PIPELINE 57 bot composition, branch `wt/composition`)
+
+Surfaced by the new unconditional `[composition] census` line, which now carries `cash`, `starving`,
+`trucks-desired` and `ammo-need`. Live `@experimental` vs `@experimental`, 6 sim-minutes, arena map:
+
+- The supply gate works exactly as designed. At tick 40: `starving=0 trucks-desired=0
+  ammo-need=False` — no truck, correctly. From tick 1240 onward: `starving` climbs to 6,
+  `ammo-need=True` on **383 of 450** snapshots, `trucks-desired=2`. The demand path IS asking.
+- **No truck is ever bought.** Across the 195 USA snapshots where `trucks-desired>0`, `cash=0` on
+  **194** of them; the single exception reads `cash=40`. Peak cash after tick 600 is **40**, against
+  a truck cost of 1000.
+
+So the bot spends to zero continuously and never re-accumulates a four-figure sum. Consequences that
+reach past supply: **every affordability-gated mechanism silently becomes opening-only.** That
+includes the new `UnitFloors` (the AA floor at 300/head did not fire live for this reason) and any
+future demand-driven purchase. The opening was the only moment the bot could afford anything
+expensive — which is also the honest cost of setting `SupplyTruckFloor: 0`: the old floor bought its
+two trucks at t=0 while 7,460 cash was on hand, and nothing later in the match can.
+
+**Not a defect in the composition work and deliberately not fixed there** — it is an income /
+spend-rate property of the profile, and it wants its own measurement (income per tick vs call-in
+rate) rather than a knob nudged from here. Worth ruling on early because it silently caps the
+usefulness of every gate that reads a budget.
+
+## 2026-08-14: [medium] OPEN — nothing ever REQUESTS a combat engineer, so `e6` is procured only by an argmax that measurably never reaches it (found while: PIPELINE 57 bot composition, branch `wt/composition`)
+
+`EngineerRouteOpenBotModule` (`:160`) and `LayeredDefenceBotModule` (`:188`) both list
+`e6`/`e6.america`/`e6.russia` and both CONSUME engineers — but each implements
+`ConditionalTrait<…>, IBotTick` **only**. Neither implements `IBotRequestUnitProduction`, so neither
+can ever ask for one. Sweeping the modules that DO implement a production-request interface
+(`AdaptiveProductionBotModule`, `CaptureCoordinatorBotModule`, `UnitBuilderBotModule`,
+`HarvesterBotModule`, `McvManagerBotModule`) finds **no reference to `e6` in any of them** — every
+apparent textual hit is a substring of the commit SHA `b8d2e601`.
+
+So the engineer's ONLY procurement path is `UnitBuilderBotModule`'s composition argmax at an 8
+per-mille target share. Measured on `--composition-plan` (200 cycles, `@experimental` America):
+`e6.america` is bought **ZERO** times at 1-in-40 attrition and zero at 1-in-15 — the same
+never-replaced shape as the medic, but without the medic's remedy, because the two modules that want
+engineers cannot pull production the way `CaptureCoordinatorBotModule.MaintainTecnFloor` does for
+technicians.
+
+**Deliberately NOT fixed on `wt/composition`.** A `UnitFloors: e6: N` entry would produce engineers
+and mask this — a standing floor is the wrong shape for a consumable a specific module wants on
+demand, exactly as it is for the technician. The right fix is one of: (a) implement
+`IBotRequestUnitProduction` on whichever module owns the need and request against demand (the
+`MaintainTecnFloor` pattern), or (b) decide the engineer has no live role on either profile and drop
+it from the two type lists so dead configuration stops looking load-bearing. Needs a ruling before
+code. **Medium, not high, because it is unclear anything currently depends on engineers existing** —
+both consumers degrade to doing nothing rather than failing.
+
+## 2026-08-14: [medium] OPEN — `humvee` declares `RenderSprites` twice, so no map can override anything on it (found while: building the Javelin §6 measurement rig, branch `wt/javelin-probe`)
+
+`vehicles-america.yaml:28` (`RenderSprites: Scale: 0.9`) and `vehicles-america.yaml:156`
+(`RenderSprites: Image: humvee`) are two sibling nodes with the same key under the same actor.
+
+The mod loads today because nothing forces that node through a merge. **The moment a second rules
+source mentions `humvee` — which is what any map's `Rules:` section does — `MiniYaml.Merge` rejects
+the duplicate and the map fails to load** with
+
+```
+MiniYaml.Merge, duplicate values found for the following keys: RenderSprites:
+  [RenderSprites (at ww3mod|rules/ingame/vehicles-america.yaml:28),
+   RenderSprites (at ww3mod|rules/ingame/vehicles-america.yaml:156)]
+```
+
+The behaviour is the engine's own, covered by `MiniYamlTest.TestMergeConflictsNoMerge` and friends
+(`engine/OpenRA.Test/OpenRA.Game/MiniYamlTest.cs:531-578`). The symptom is a rules-load failure with
+no verdict, so a scenario that touches the Humvee looks like a hung game rather than a YAML error.
+
+**Not fixed here, deliberately.** `ActorInfo` builds traits by `traits.Add` per node
+(`ActorInfo.cs:44-58`) into a `TypeDictionary`, which accepts duplicates — so the shipped Humvee
+currently carries **two** RenderSprites traits. Collapsing the two blocks into one would take it to
+one, which is a live rendering change to a shipped unit, and that is a call for whoever owns the
+unit's appearance rather than for a measurement rig. Whoever takes it should check in game whether
+the sprite is currently double-drawn and whether `Scale: 0.9` is in force, because those two
+questions decide what the merged node should say.
+
+Worked around in `mods/ww3mod/scripts/javelin-probe-lib.lua` by leaving the Humvee at its stock
+8000 HP and respawning it after each kill instead of overriding `Health`.
+
+## 2026-08-14: [high] OPEN — a bot cannot recover from having its base cleared: `CaptureCoordinatorBotModule` never reclaims its own neutralised structures, and technicians are capped at 3 (found while: widening soldier-clears-to-Neutral to all buildings, branch `wt/clear-all-buildings`)
+## 2026-08-14: [low] OPEN, DEFERRED BY DECISION — a dispatched reclaim capturer never aborts, however hot the target turns while it walks (found while: bot reclaim review, branch `wt/bot-reclaim`)
+
+Recorded so it is not rediscovered as a defect. `ReconcileGuardCommitments` releases a capturer's commitment only when the target is captured or gone, so nothing re-evaluates between dispatch and arrival — including the moment the technician's OWN vision finally reveals whatever is standing in the base. The believed fields that gated the dispatch are, for a reclaim target specifically, anti-correlated with the threat (the evicted building was the vision source), so the arrival is the first honest read anyone gets.
+
+**Why it is LOW and not medium, which is the part worth carrying.** Its value is inversely proportional to how good the dispatch-time guard is. With the escort pre-check landed (`13a37573`) a reclaim is not dispatched at all unless an escort is recruitable and the tier is floored at Light, so the technician that walks in is accompanied and the abort would be saving a smaller loss. Had the dispatch-time gap been closed by *dispatching anyway* — the tempting shape, since it keeps recovery moving — this item would jump to medium immediately, because the lone technician would then be the normal case rather than the excluded one. Treat its severity as a reading of the dispatch guard, not a fixed property.
+
+**Shape of the fix, when someone takes it:** add a third release condition to `ReconcileGuardCommitments` — believed danger at the committed target now above `ReclaimMaxDangerUnits` — as a pure predicate alongside the existing captured/gone tests, ~15 lines. What makes it a design change rather than a mechanical one, and why it was deferred twice: a released capturer needs a disposition (the reserve muster at `StageIdleCapturersReserve` is the obvious home) and a hysteresis story, or it oscillates between dispatch and abort as belief flickers across the threshold. Both of those are decisions, not plumbing.
+
+## 2026-08-14: [med] OPEN — the bot never captures a Logistics Centre: the whole `CaptureSupplyDepots` tier sits below an early return that WW3MOD always takes (found while: verifying the capture path for bot reclaim, branch `wt/bot-reclaim`)
+
+**Four config lines, a bool, an Info field and a scoring tier, all inert in the shipped mod.** `CaptureSupplyDepots: true`, `SupplyDepotActorTypes: logisticscenter` and `SupplyDepotIncomeWeight: 25` are set on `CaptureCoordinatorBotModule@experimental.tecn` (`ai/ai.yaml:143-146`), and `logisticscenter` is in `CapturableActorTypes` on both twins (`:122`, `:1928`). None of it can run.
+
+Two independent reasons, either sufficient:
+
+1. **The tier's only consumer is on a dead path.** `SupplyDepotIncomeWeight` is applied in `GetIncomeWeight` (`CaptureCoordinatorBotModule.cs:1709`), which has exactly two callers: `:795` and `ScoreTarget` at `:1682`, itself called only from `:800`. Both sit in the legacy per-target scan, *below* `if (poiMap != null) { QueueCaptureOrdersFromPoiMap(…); return; }` at `:743`. `world.yaml:311` declares the `PoiMap:` world trait, so `poiMap` is never null and that branch is unreachable in WW3MOD.
+2. **`logisticscenter` is not a POI in the first place.** The live path's targets come from `PoiMap.GetCaptureTargets`, and `PoiMap.Discover` (`PoiMap.cs:212-215`) only admits names present in `PoiMapInfo.IncomeWeights` — `world.yaml:314-319`, which lists `oilb, fcom, bio, miss, hosp` and **not** `logisticscenter`. So even if (1) were fixed the actor would never enter the candidate set. `CapturableActorTypes` cannot rescue it either: that field is not consulted on the PoiMap path at all.
+
+**Why this matters more than a dead config line.** `DOCS/reference/economy.md` has the Logistics Centre as the only thing a ground vehicle can rearm at, and the yaml comment at `ai/ai.yaml:143-146` explains at length that the tier exists precisely so a dry armoured force can take one and keep fighting. The bot has never been able to do it. Any read of "@experimental doesn't seem to resupply its armour" that assumed the depot-capture tier was contributing was reasoning about code that does not execute.
+
+**Fix shape:** add `logisticscenter` to `PoiMapInfo.IncomeWeights` with a low weight so it is discovered, and move the supply-depot tier out of `GetIncomeWeight` into the PoiMap-path scoring (or into `PoiMap.TryScore`). Note the PITFALL at `world.yaml:312-313` — that dictionary is a *value* in a shared score and a $0 building listed there outbids real income POIs, which is the trap `SupplyDepotIncomeWeight` was invented to dodge in the first place. Not a one-liner; it needs the tier expressed where the live scorer can see it.
+
+**Not established:** static reading only. No game was run, and I have not confirmed by observation that a bot never takes a Logistics Centre — only that no code path exists by which it could.
+
+## 2026-08-14: [high] ADDRESSED on branch `wt/bot-reclaim` (unmerged) — a bot cannot recover from having its base cleared: `CaptureCoordinatorBotModule` never reclaims its own neutralised structures, and technicians are capped at 3 (found while: widening soldier-clears-to-Neutral to all buildings, branch `wt/clear-all-buildings`)
+
+> **2026-08-14 follow-up, branch `wt/bot-reclaim` off `68e7c09f`.** The premise was checked against the code before anything was built. Reason (1) is real and **understated** — the mechanism is one level lower than described. Reason (2) is **wrong as written**. Both corrections are inline below, marked CORRECTION. The reclaim half is fixed by the `ReclaimNeutralisedStructures` lever on that branch; this entry stays open in spirit until someone watches a bot actually take its base back in play, which no run has yet done.
+
+**Not a defect in the change that files it — a gameplay gap the change exposes, and the reason the previous, narrower version of this rule existed.** Under the uniform clear rule one enemy rifleman can walk a bot's base turning every AA gun, SAM, airfield, silo, Logistics Centre and derrick Neutral, surviving each time and paying only the 1000-tick (~40 s) delay per building. The bot has no answer, for two independent reasons:
+
+1. **No reclaim logic anywhere.** `CaptureCoordinatorBotModule` scores *acquisition* targets, and its candidate pass is income-shaped — `CountReachableNeutralMoneyPois` (`:919-943`) explicitly restricts to "Neutral income structures only … IncomeStructure kind". Nothing watches for an own-structure→Neutral transition, and a cleared SAM or airfield is not an income structure, so it does not enter the target list on that path at all. A cleared derrick does, but competes on equal footing with any untouched neutral derrick — there is no "this was mine" bonus.
+
+   **CORRECTION (2026-08-14, `wt/bot-reclaim`): true, and the cause is one level below the coordinator.** `CountReachableNeutralMoneyPois` is a *floor input*, not the target filter — the live target list is `PoiMap.GetCaptureTargets`. `PoiMap.Discover` (`PoiMap.cs:212-215`) only admits an actor as a POI candidate at all if its name is a key in `PoiMapInfo.IncomeWeights` (`world.yaml:314-319`: `oilb, fcom, bio, miss, hosp`) or is the Supply Route, and `TryScore` gates again on the same dictionary (`PoiMap.cs:491-493`). So a neutralised `afld`/`sam` is **not a low-priority target, it is not a target** — and the same blindness applies to the offense and garrison layers, which walk the same candidate list. (Not `pbox`/`hbox`/`gtwr`: those strip `-CaptureManager`/`-Capturable` outright at `structures-defenses.yaml:81-83`, `:171-173`, `:257-259`, so they cannot be evicted OR reclaimed and are out of scope for a different reason. AA defences inherit `^Defense` → `^Building` and keep theirs.) Widening the coordinator alone could never have fixed this. Note also that `CaptureCoordinatorBotModuleInfo.CapturableActorTypes` — which looks like the target whitelist and is the obvious place to add a name — is **never consulted on the live PoiMap path**; it only applies in the legacy no-PoiMap branch. See `WORKSPACE/DISCOVERIES.md`, same date.
+
+2. **Three technicians, hard cap, consumed on use.** `UnitLimits` sets `tecn.america: 3` / `tecn.russia: 3` (`ai-america.yaml:41,102`, `ai-russia.yaml:40`) — the `tecn.america: 8` at `ai-america.yaml:200` is a production weight and is explicitly "additionally bounded by UnitLimits above". A successful capture **consumes** the technician (`^CapturesNeutralBuildings`, `ConsumedByCapture: true`), so reclaim rate is one building per technician built. Reclaiming a dozen cleared structures is arithmetically out of reach in any relevant window.
+
+   **CORRECTION (2026-08-14, `wt/bot-reclaim`): there is no hard cap of 3 on the path that actually buys capturers.** `UnitLimits` is enforced in the *lottery* filter (`UnitBuilderBotModule.cs:1177-1179`), which governs blind production. The capture floor does not go through it: `MaintainTecnFloor` calls `RequestUnitProduction` / `RequestPriorityUnitProduction`, both of which land on the single-name overload `BuildUnit(IBot, string)` (`:816-842`) — thirty lines that check `BuildableInfo` and an empty queue and **nothing else**. No `UnitsToBuild`, no `UnitDelays`, no `UnitLimits`. The module's own comment at `:439-441` says so explicitly. The real bound on capturers is therefore `CaptureSupplyMath.EffectiveFloor` clamped to `TecnFloorMax` — **5**, not 3 (`ai/ai.yaml:172-174`) — with `ShouldRequestTecn` refusing to request once `alive >= floor`. The lottery may add up to 3 more on top. The consumed-on-capture half of the claim is correct and is the part that matters: a backlog of N buildings genuinely costs N technicians. **Consequence for anyone tuning this:** lowering `UnitLimits.tecn.*` to move budget toward combat will not do what `ai-america.yaml:60-63` says it does — that comment claims UnitLimits is "the REAL cap on simultaneous capturers", and for the floor path it is not. `TecnFloorMax` is the dial.
+
+**Why high rather than medium.** A Neutral defence never fires but keeps its footprint, so the bot can neither use the building nor rebuild on the ground it occupies. The attacker converts an entire defensive network into permanent dead terrain at zero unit cost. Against a human it is a fair trade — they can clear yours back. Against a bot it is closer to a one-sided disable, and it scales with base size: the better the bot has built up, the more it loses.
+
+**Not established:** never observed in play — game launches are user-gated and no match was run for this. This is static reading of the coordinator's candidate selection plus the unit cap. The *magnitude* in a real match is unmeasured; what is certain is that no code path exists to reclaim.
+
+**Shape of the fix, when someone takes it:** the cheap half is a recency-weighted bonus in the coordinator's target score for a Neutral structure whose previous owner was the bot — which needs an owner-transition record the module does not keep, and needs the candidate pass widened beyond income structures. That does not touch the cap. A serious fix probably also needs the technician limit raised or a cheaper reclaim path for a structure nobody else took ownership of. Worth deciding first whether the intended answer is "the bot reclaims" or "the bot defends so this never happens" — they lead to different code.
+
+## 2026-08-13: [low] OPEN, AND SELF-INFLICTED — men the staggered bail already dropped can block the exits `Cargo.Killed` needs, leaving the rest of the squad `Dispose()`d with no corpse and no kill credit (found while: pacing the emergency bail, branch `wt/bail-pacing`)
+
+**Introduced by the change that files it**, so this is a cost of the staggered bail rather than a pre-existing defect. Recorded rather than fixed because it is out of scope for a pacing change and the fix is a real one, not a one-liner.
+
+`INotifyKilled.Killed`'s eject loop is gated on `while (!IsEmpty() && CanUnload(BlockedByActor.All))` (`Cargo.cs`, `EjectOnDeath` branch). It stops the moment no exit is free, and passengers still in cargo at that point are never placed — `INotifyActorDisposing.Disposing` then calls `Dispose()` on each, which removes them with **no death, no corpse, and no kill credit to the attacker**.
+
+**Why the stagger creates the exposure.** While the bail was atomic, a transport at Heavy emptied inside one tick: by the time it died the hold was already empty and the men were clear. The paced bail leaves an intermediate state that could not previously exist — some men out and *standing in the adjacent cells* with queued scatter orders, the rest still aboard. Those earlier bailers are exactly the actors `CanUnload(BlockedByActor.All)` now trips over. The window is the length of the stagger, ~32 ticks for a stick of five at shipped defaults.
+
+**Needs a genuine choke to bite** — a bridge, a treeline gap, a transport wedged against a building — because the bail searches eight adjacent cells plus the hull's own, and on open ground the scatter orders clear those cells quickly. So: real, new, and low.
+
+**Not established:** never reproduced in game. This is static reading of the two code paths; no autotest was run and nobody has confirmed the timing actually overlaps in play.
+
+**Shape of the fix, when someone takes it:** give `Killed`'s loop the same per-passenger passability search `EmergencyBailOut` uses (adjacent cells shuffled, then the hull's own cell, each checked with `GetAvailableSubCell`) instead of the single `CanUnload` gate, so one blocked man does not end the loop for everyone behind him. That mirrors what the bail path already does, and would close the pre-existing version of this hole too.
+
+## 2026-08-12: [medium] OPEN — the autotest single-instance lock covers `run-test.sh` only; `run-tournament.sh` and `loop-tournament.sh` ignore it entirely (found while: making `run-test.sh` incapable of losing a verdict, branch `wt/harness`)
+
+`run-test.sh` acquires `~/.ww3mod-tests/run.lock` before launching. Neither tournament script contains any reference to it — grepping `run.lock` under `tools/` returns hits in `run-test.sh` and `selftest.sh` and nowhere else. So a tournament and a single test can run **two games at once**, and the lock's other job — serialising access to the one engine support directory — is not done for them.
+
+**Verdicts themselves are no longer at risk from this.** `run-tournament.sh` already writes per-match files under `tools/autotest/tournament-results/<ts>_<scenario>/match_N.json` (`run-tournament.sh:262`), and `run-test.sh` is per-run as of this branch, so there is no shared verdict destination left for them to fight over. What is still shared and unprotected:
+
+- **`debug.log` / `exception-*.log` / `syncreport-*.log`.** One support dir, both games writing into it. `run-test.sh` attributes a crash log to a run purely by its mtime being newer than that run's marker, so a concurrent tournament match that crashes would be reported as the single test's crash. A misattribution, not a lost verdict — but it points the reader at the wrong build.
+- **`settings.yaml`.** The two scripts back it up to different paths, so they do not clobber each other's backup, but they both restore onto the same live file; interleaved runs can restore a stale copy.
+- **The machine.** Two OpenRA instances competing for screen, focus and GPU.
+
+**Not fixed here** — out of scope for the verdict-integrity work, and the right fix is not obvious: a 30-minute tournament holding a lock that blocks every single test is not clearly the behaviour anyone wants. Filed so the choice is made deliberately rather than by omission.
+
+## 2026-08-12: [medium] UNTRIAGED — `halo` consumes four crash/autorotation conditions the lint says nothing grants, and `rotor-stopped` genuinely has no grantor anywhere in the mod (found while: establishing the post-`2fedd71b` `make test` baseline, branch `wt/lint-clear`, off `4d3c8f90`)
+
+`make test` reports, three times in one run: ``Error: Actor type `halo` consumes conditions that are not granted: crash-disabled, autorotation, crash-landing, rotor-stopped.``
+
+**This is the exact inverse of the class `2fedd71b` just fixed**, and the inverse is the dangerous direction. Granted-but-unconsumed (GTWR/PBOX/HBOX, `being-captured`) is cosmetic — a condition nobody reads. Consumed-but-ungranted means a `RequiresCondition` that can never become true, so the trait it guards is permanently off — or, in the `!condition` form, permanently *on*. Prior art in this repo: that is how the medic's suppression gate silently disabled him.
+
+**NOT ESTABLISHED: whether any of this is behaviourally live.** I did not launch the game, did not run an autotest, and did not trace whether the guarded traits matter in play. Everything below is static reading of the YAML, filed so the next person starts from evidence rather than from the error string.
+
+- **The three crash conditions ARE granted on the template**, which is what makes the error puzzling rather than obvious. `HeliEmergencyLanding` on `^Helicopter` sets `AutorotationCondition: autorotation`, `CrashLandingCondition: crash-landing`, `DisabledCondition: crash-disabled` (`rules/ingame/aircraft.yaml:175-177`). `HALO` does inherit it (`Inherits@Type: ^Helicopter`, `rules/ingame/aircraft-russia.yaml:4`) and overrides `HeliEmergencyLanding:` with only `SpinsOnCrash: false` (`:13-14`) — and a MiniYaml trait override *merges*, it does not replace. So why the lint treats them as ungranted for this one actor is unexplained.
+- **`rotor-stopped`, by contrast, is really ungranted.** Every occurrence of that string under `mods/ww3mod/rules/` is a `RequiresCondition`; nothing assigns it. It is consumed by **six** helicopters in paired `!airborne && !rotor-stopped` / `rotor-stopped` guards — the shape of a spinning-rotor vs stopped-rotor idle overlay pair: `TRAN` (`aircraft-america.yaml:55,67`), `littlebird` (`:251`), `HELI` (`:392`), `HALO` (`aircraft-russia.yaml:64`), `HIND` (`:231`), `MI28` (`:408`). If it is never granted, the stopped-rotor half of each pair can never display and the spinning half never turns off.
+- **The lint flags only `halo`, and that is the part that should worry us most.** The other five consume the same ungranted `rotor-stopped` and produce no error *and no warning* anywhere in the run — grepping the full 40k-line output for these four condition names returns exactly the three `halo` errors and nothing else. Either the check does not reach the other five, or something distinguishes HALO that I did not find. **If `make test` is ever promoted to a merge gate this coverage question matters more than the bug itself**: a condition lint that reports one of six apparently identical offenders is not yet trustworthy as a gate.
+
+**Repro:** `make test` at `4d3c8f90` or `4d19a8e4`, then grep the output for `consumes conditions`. No build state or map is needed beyond the standard lint run.
+
+## 2026-08-12: [low] LATENT — an unsatisfiable `Resupply` arrival test does not time out; it spins on no-op approaches forever (found while: fixing the subcell dock bug directly below, branch `wt/lc-rearm`)
+
+Not a live defect after that fix, but the shape that made it so damaging is untouched and worth knowing before anyone adds a rearm host. When `isCloseEnough` is false and the unit is *already standing in* the cell the approach aims at, `MoveOnto.CalculatePathToTarget` returns `AlreadyAtDestination`, the child move completes instantly, `Resupply.Tick` re-queues another `MoveOntoTarget`, and that repeats every tick with **no attempt counter and no deadline**. The unit is never idle, so nothing upstream notices; it simply stops being a unit until the player gives it another order. That is why the subcell bug presented as "he just stands at the depot" rather than as an error.
+
+The one configuration that can still reach it is an **even-dimensioned rearm host**. `BuildingInfo.CenterOffset` puts an even footprint's `CenterPosition` on a cell CORNER, which no unit can stand on, so a `WDist.Zero` tolerance is unsatisfiable there for vehicles as well as infantry — and the subcell fix deliberately does not paper over that (see the comment at `Resupply.cs`). Every ground rearm host today is `logisticscenter`, which is 3×3, so nothing reaches it. **If a rearm host with an even footprint is ever added, expect this bug back with vehicles included**, and fix the geometry rather than widening the tolerance.
+
+## 2026-08-12: [high] FIXED — when two soldiers rearmed at the same Logistics Centre, the second one could never dock: `Resupply`'s arrival gate is `WDist.Zero`, and he was standing on a different SUBCELL of the same cell (found while: settling the `closeEnough = WDist.Zero` claim filed against `3e139294`, branch `wt/lc-rearm`, off `4d3c8f90`)
+
+**Fixed on that branch** by measuring a ground unit's arrival from its CELL rather than its body: `Resupply` now subtracts `MapGrid.OffsetOfSubCell(mobile.ToSubCell)` from `self.CenterPosition` before the `closeEnough` comparison. `test-lc-rearm-partial-order` is green with `PairA` still holding a non-centre subcell and now taking a 50-round dock batch. The mechanism and the reasoning behind the scope are kept below because the trap generalises.
+
+**Not the claim that was filed, and the difference matters.** The filed claim was that the dock-and-rearm pull "can never complete for anyone" because the unit is asked to reach the building's own centre cell, which the building occupies. That premise is **false**: the LC footprint is `=+= +++ =+=` (`structures.yaml:361`), which is `OccupiedPassable` and `OccupiedPassableTransitOnly` throughout with **no `Occupied` cell at all** (`FootprintCellType`, `Building.cs:20-27`), so its centre cell is walk-on-able. For an odd 3×3 the building's `CenterPosition` *is* that cell's centre (`BuildingInfo.CenterOffset`, `:207-211`), so a visitor standing there coincides with it exactly and the gate passes. Measured, not argued: a Bradley and a lone rifleman both reported offset `(0,0)`, took real batch-sized deliveries (100 and 50 rounds in a single tick, i.e. `Rearmable.RearmTick`, not the 1-round trickle), filled, and ended their errands.
+
+**What survives is the ZERO tolerance**, and it bites the moment two infantrymen want the same depot. `AmmoPool.cs:374` reads `CloseEnough` off a `RearmsUnits` trait; the LC has `RepairsUnits` but **no `RearmsUnits`**, so `closeEnough` falls to the `WDist.Zero` default and `Resupply.cs:164` demands exact horizontal coincidence. A lone soldier survives that only by luck of allocation: this mod's `MapGrid.DefaultSubCell` resolves to `SubCellOffsets` index 3, whose offset is `(0,0,0)` (`MapGrid.cs:117-124,140-142`), and `Move` carries a unit's subcell along unchanged (`Move.cs:341/352/362` pass `FromSubCell` as the preference; `ActorMap.FreeSubCell` honours a free preference before anything else, `:323-324`). Two soldiers cannot both hold index 3 on one cell — so whichever arrives second is pushed to another offset and **his gate can never pass, however long he stands there**.
+
+**Reproduction, `test-lc-rearm-partial-order` (currently RED on purpose):** `PairA` and `PairB` walk to one LC from equal distances. `PairB` lands on `(0,0)`, takes 50-round batches, fills at tick 666, errand finished. `PairA` lands on a non-centre subcell (`(10,-256)` at closest approach), takes **1 round at a time and never a whole batch**, ends 412/500, and the errand is **still running** at the 40 s deadline. The 1-at-a-time drip is the LC's own `replenish-soldiers` aura driving `ReloadAmmoPool` — free, no docking involved — which is why this degrades rather than denies: he does eventually fill, roughly 100× slower, and meanwhile never returns and never reports done.
+
+**Why the fix went where it did.** `closeEnough` is a **shared** parameter — the same constructor serves aircraft at a pad, both repair orders, the minelayer and the Lua binding — so changing the *number* was never right. The asymmetry is that a cell-sharing unit's `CenterPosition` carries an offset it neither chose nor can shed, which is a property of the ground/subcell model and not of any caller's tolerance. Removing that offset is a no-op for full-cell units (`SubCellOffsets[0]` is zero, so every vehicle is unchanged), a no-op for `Repairable`/`LayMines` (their 512 already exceeds the ~393 subcell reach), and a no-op for aircraft twice over — they are not `Mobile`, and the approach test excludes them anyway, so on that path `isCloseEnough` only ever reaches the cancel branch. Giving the LC a `RearmsUnits` trait was rejected: it would have made the range lookup succeed while asserting something about the building that is not true.
+
+**The other half of the damage is recorded separately** as the latent no-timeout spin, directly above.
+
+**Staging note for whoever picks this up:** spawning a soldier directly onto the depot's centre cell does *not* reproduce it. At world init the building's influence is not yet registered when a map actor picks its subcell, so he still gets `DefaultSubCell` and comes out at `(0,0)`. Genuine arrival-order contention is what forces the offset.
+
 ## 2026-08-11: [high] REPRODUCED, mechanism confirmed — a saved game restored at real-match scale fails its sync-hash check, which latches `IsGameOver` and leaves the world permanently paused (found while: fixing the saved-game loadscreen + black viewport, branch `auto/saved-game-load`; reproduced on `auto/saved-game-pause`)
 
 **2026-08-12 — STILL UNFIXED after the `Detectable` sync fix (`e1bbf244`) merged. Re-verified RED at `main @ 4d3c8f90`, 3 runs out of 3 lifetime.** Same command as the RED baseline (`--speed 8 --timeout 900 --sync-reports`), same failure (`paused=True predictedpaused=True gameover=True worldtick=3003 netframe=1007`). The fix took effect but was insufficient: `visionDetectableConditionToken` is now hashed **0** times on both sides and `CurrentVisibility` 21-22 times, yet the restore still fails its single validating comparison (`Out of sync frame: 1003`). **The remaining divergence is a different animal** — ~821 differing lines across ~30 trait types, and `SharedRandom` now differs (restored `#8202` vs recorded `#8695`, ~493 fewer draws), where the pre-fix run had exactly 3 differing traits and byte-identical RNG. So the paragraph below's "RNG drift is ruled out by evidence" **no longer holds on current main**. Not a frame-alignment artifact (no recorded frame in the 994-1005 window matches) and not a confound (`git diff --stat e1bbf244 4d3c8f90 -- engine/` is empty). **The divergence is DETERMINISTIC — confirmed by a seed-pinned pair at `main @ c440906e` (5 riverzeta runs lifetime, all RED).** Two runs at `--seed -324877760` produce restored states that are **byte-identical to each other** (0 differing lines, same `SharedRandom #8202`, same 821-line divergence), and the recording side is byte-identical too apart from the per-run `Game ID` and the ring's frame-membership list. So the RNG finding is real, not seed noise, and the earlier "`SharedRandom` identical, RNG drift ruled out" measurement was characterising a different fault. The only thing that floats is **which** frame the desync is detected on (1003/1004/1003), because the probe counts `PauseSettleFrames` in wall-clock-dependent render frames, shifting `LastSyncFrame` — do not misread that as nondeterminism. **2026-08-16 (SECOND LEAK — CAUSE NAMED; visibility REFUTED). Same defect class as the first: a bot module grants a condition directly instead of issuing an order.** At tick 2128 both lives agree on every visibility input (same target `4717`, `selfvisible=False` both, `groupdetected=False` both, `allies=[]` both) — **visibility is not the cause**. The only differing field is the ambush gate: recording `gatecount=1 tactics=True` (halts), replay `gatecount=0 tactics=False` (engages). Cause: `LaneAmbushBotModule.EnsureGatedAmbusher` (`:465-489`) calls `ec.GrantCondition(u, this)` directly from a bot tick — no order, so `GameSave` never records it and the replay never grants it. **The same method sets the stance correctly via `bot.QueueOrder(new Order("SetUnitStance", …))` four lines later, and that one survives the restore** — one method, two mutations, only the unordered one desyncs. **`@stable` is affected** (module header `:40-51`: the `@stable` twin runs at full parity and grants the condition). **Also invalidates my earlier "class closed" claim a second way:** the whole-match `SyncHash` sweep cannot see a condition grant any more than an activity write, so its zero result was never evidence of absence. Bound this class by STATIC audit of bot modules for direct mutation (`GrantCondition`/`RevokeCondition`, `QueueActivity`/`CancelActivity`, direct trait writes), not by the dynamic sweep. Full write-up: `WORKSPACE/DISCOVERIES.md` 2026-08-16.
@@ -608,3 +1026,596 @@ The defect: `Sellable` on `^Building` consumes `!being-captured` (`mods/ww3mod/r
 A related trap that cost a full investigation cycle: the autotest scenario folder is registered as a map source from `tools/`, not `mods/` (`mods/ww3mod/mod.yaml:96`). An isolation experiment that swaps the `mods/` directory to test "is this YAML or C#?" therefore CANNOT remove a scenario map, and will exonerate the map no matter what — a clean result from an experiment with no power to produce a dirty one.
 
 **Fix shape:** override `Sellable.RequiresCondition` on GTWR/PBOX/HBOX to drop the `!being-captured` term (they cannot be captured). Takes the total from 496 to 94. One line per actor.
+
+## 2026-08-12: [low] Five `pips` sequences point at `pips.shp`, which this mod does not ship — one of them is live, and the primary-building tag has never rendered (found while: adding the holding-fire marker, PIPELINE 44a)
+
+In `mods/ww3mod/sequences/sequences-misc.yaml` the `pips:` set contains five entries with **no filename after the colon** — `groups`, `medic`, `tag-fake`, `tag-primary`, `tag-hold`. A filename-less entry falls back to the set name, i.e. `pips.shp`. That file exists **only** at `engine/mods/cnc/bits/pips.shp`; WW3MOD's package list mounts `ww3mod|bits/units/pips` (`mod.yaml:54`), which contains `pips2.shp`, `pip-ammo.shp`, `pip-cover.shp` … but **no `pips.shp`**. Entries that name a file are fine — the blue ammo pips (`pip-blue` → `pips2`) render correctly.
+
+**Live consequence:** `WithDecoration@primary` on `^PrimaryBuilding` (`rules/ingame/structures.yaml:141-147`) uses `Image: pips` / `Sequence: tag-primary`. The "this is your primary building" tag therefore draws nothing and, as far as this branch can tell, never has. Not verified in play — found by asset inspection.
+
+**The trap:** a missing sprite file here produces **no load error and no crash**. The decoration is simply invisible, which is indistinguishable from the trait not being attached, the condition never being true, or the fix not working.
+
+**Scope correction, so this entry does not overclaim its own origin.** The holding-fire marker was written against `tag-hold` and its screenshots came back empty, which is what sent me looking at the assets — but the missing file was **not** what blanked those screenshots. A trace later showed the shots were firing one tick before the marker went live, and two builds with *different* sequence names had produced byte-identical frames, which is only possible if neither was drawing yet. So the `pips.shp` gap is real and `tag-primary` is genuinely broken by it, but that rests on **asset inspection, not on the blank screenshots**. Two true findings, only one of them causal — worth separating, because "the sprite was missing" is the tidier story and it is the wrong one.
+
+**Fix shape:** either ship a `pips.shp` in `bits/units/pips/`, or repoint `tag-primary` at a sequence backed by an existing file. A PITFALL anchor now sits at the top of the `pips:` block so the next person picking a sequence name sees it before choosing.
+
+## 2026-08-14: [high] Bot map-players have no economy at all — the tournament harness has been benchmarking broke bots since it was written (found while: recon into "@experimental has no money after its opening")
+
+Full measurement and falsification in `WORKSPACE/DISCOVERIES.md`, 2026-08-14. Summary and fix options here.
+
+`PlayerResources.Tick` gates passive income, building income and upkeep on a single `if (self.Owner.Playable)` (`engine/OpenRA.Mods.Common/Traits/Player/PlayerResources.cs:201-202`). `PlayerReference.Playable` defaults to **false** (`engine/OpenRA.Game/Map/PlayerReference.cs:24`) and map players copy it verbatim (`engine/OpenRA.Game/Player.cs:196`), while lobby-slot players keep the `true` field initialiser (`Player.cs:63`). Every one of the 31 `tournament-*` scenarios declares its bots as map players, so **both bots in every tournament match earn nothing all match** and spend only their `DefaultCash: 7500` opening allocation. Measured: `spent` freezes at 7500 by tick 640 and never moves through tick 4800; `earned=0` at every snapshot; the Observer, being `Playable`, banks 8700 in the same match.
+
+**Severity is high because of what it silently invalidates**, not because the shipped game is broken — it is not: no shipped map declares a `Bot:` map player, and skirmish bots sit in lobby slots and do have an economy. What is affected is the measurement apparatus, including all nine `tournament-s1-eco-*` scenarios.
+
+**Fix options, in increasing order of blast radius — none applied here, this was a recon item.**
+
+1. **Scenario-side, narrowest.** Nothing available: setting `Playable: True` on the bot map players is what the harness is deliberately avoiding, and it does not work — tried it, and the local client is immediately assigned into the bot's slot (the run logs `player=FreadyFish` in place of the bot). The scenario header already warns about exactly this. Dead end, recorded so it is not re-tried.
+2. **Engine-side, narrow and probably correct.** Change the gate to `self.Owner.Playable || self.Owner.IsBot` (or, more precisely, `!self.Owner.NonCombatant && !self.Owner.Spectating`). Measured effect on `tournament-arena-composition-2p`: `earned` 0 → 6074, `spent` 7500 → 13570 by tick 4800. **Cost:** it also starts charging upkeep to bots that have never paid it, so every tuning constant in the composition layer that was fitted against a no-upkeep, no-income economy is re-opened at once — this is a re-baseline, not a drop-in. Note it would additionally stop paying the `Observer`, which is arguably a separate latent bug (a spectator currently accrues cash).
+3. **Decide the intent first.** Worth settling whether a map-player bot *should* have an economy before picking 2 — the gate may have been written to keep Neutral/`Everyone` pseudo-players out of the economy, in which case the right predicate excludes those explicitly rather than testing `Playable`.
+
+**Do not re-baseline any bot benchmark against pre-2026-08-14 tournament numbers.** They were taken in a different economy from the one a real match runs.
+
+**Blast radius, re-derived on review — it is wider than "the 31 tournament scenarios" above.** **88 bot map-player entries across 46 files**, every one `Playable: False` and `NonCombatant: False`. 31 files are `tournament-*`; **15 are ordinary scenarios** (13 graded behavioural tests + 2 non-graded demos). Counting method and its cross-checks are in `DISCOVERIES.md` 2026-08-14.
+
+**FIXED 2026-08-14 on `wt/econ-gate` off `main` @ `2c274589`.** Gate is now `self.Owner.Playable || (self.Owner.IsBot && !self.Owner.NonCombatant)`. Option 3 was taken first and it changed the answer to option 2: `Playable` is **not** a participation flag, it is the flag `CreateMapPlayers` partitions lobby-slot players from map players on (`CreateMapPlayers.cs:93-117`), and on shipped content it is exactly coextensive with `!NonCombatant`. So the recon's `!NonCombatant && !Spectating` alternative was **rejected** — `Player.Spectating` is dynamic (`Player.cs:86`: true once `WinState != Undefined`, and suppressed entirely on `MissionSelector` maps), so it would have stopped paying a human the moment they won or lost, a live behaviour change for a shipped human. The shipped predicate keeps `Playable` as the first disjunct and is therefore **monotone**: it can only open the gate where it was closed, and for any lobby-slot player it short-circuits before the new term is reached. Full before/after measurement in `DISCOVERIES.md` 2026-08-14 (second entry). **@stable gains an economy too — that is intended, and the benchmark control has changed.**
+
+## 2026-08-14: [low] Bot map-players get no starting units either — `SpawnStartingUnits` gates on `Playable`, and `StartingUnitsClass` on a bot map-player is dead config (found while: reviewing the blast radius of the economy gate above)
+
+**Deliberately NOT fixed** — recorded because it is the *same defect in the same blast radius* as the economy gate directly above, and the next person to trip over it should find it here rather than re-derive it.
+
+`SpawnStartingUnits.WorldLoaded` iterates `world.Players` and calls `SpawnUnitsForPlayer` only `if (p.Playable)` (`engine/OpenRA.Mods.Common/Traits/World/SpawnStartingUnits.cs:69-71`). Bot map-players are not `Playable` (see the entry above for why), so **they receive no starting units at all** — and **19 `tournament-*` scenario files declare `StartingUnitsClass: motorized` on exactly those players, which does nothing.**
+
+**Severity is low and the reasoning matters:** under the WW3MOD Supply Route model there is no build-up phase to seed — bots call in everything from their `DefaultCash` allocation — so no bot is missing units it would otherwise have had, and no measurement is invalidated by this the way the economy gate invalidated the benchmark corpus. The cost is purely that a scenario author who writes `StartingUnitsClass` on a bot and expects units will lose an afternoon, and that the config reads as live when it is inert.
+
+**Fix shape if ever wanted:** identical to the economy gate — `p.Playable || (p.IsBot && !p.NonCombatant)`. **Do not apply it casually:** unlike the economy change this one is *not* inert for existing scenarios. It would hand every bot map-player across all 46 files a free opening force it has never had, which moves the opening of every tournament scenario at once and would invalidate any baseline taken between the economy fix and it. If it is done, it should be done deliberately and before a re-baseline, not after.
+
+## 2026-08-14: [high] CANDIDATE — the supply-truck mode selector fires DANGEROUS-front doctrine on a front with zero believed danger, which is PIPELINE item 56's suspect seen from the opposite side (found while: before/after regression sweep for the economy gate)
+
+**This is an OBSERVATION, not a diagnosis. Nobody has traced which code site fired.** Filed at high severity because it bears directly on PIPELINE item 56 — the highest-priority item in the queue, which has had four merges thrown at it without a confirmed mechanism.
+
+`test-supply-safe-front-keeps-cargo` fails, and it fails **identically with and without the economy fix** (paired same-seed runs, `seed 5002`), so this is **pre-existing and unrelated to the economy change**. The scenario's own failure note states the conditions precisely:
+
+> a supplycache was dropped on a front with no believed enemy: first seen at 39,16 after 21s … the truck emptied itself … instead of keeping its remainder for the next platoon. truck went from x=14 to a furthest x=39 and is gone; platoon is at x=44, **no enemy actor exists and believed danger is 0 everywhere**.
+
+The two doctrinal modes (`DOCS/reference/economy.md`; PIPELINE item 56 "The two modes, so nobody re-derives them") are: **dangerous front** → stop `DropShortCells` short, unload the whole 750 as a SUPPLYCACHE, egress. **Quiet front** → close to the aura, serve in place, **keep cargo**. What the run shows — drove nearly onto the platoon, unloaded a cache, emptied itself, left — is the **dangerous-front** branch executing on a front where **no enemy actor exists and the believed-danger field reads 0 everywhere**. There is no input under which the dangerous branch is the correct selection here.
+
+**Why this is worth more than one more red test.** Item 56 is chasing the same selector from the *opposite* direction: its reported symptom is "the truck drives up and does not drop", and its stated leading suspect is site 4, `SupplyDropMath.DangerSelectsDrop` (`SupplyDropMath.cs:388`), whose quiet-front branch is "close to the aura, serve in place, keep cargo". **This run is the same selector producing the inverse error — dropping when it must not.** A selector that can fail in both directions is a much stronger signal than either symptom alone, and it argues the defect is in the *selection*, not in the drop or the follow logic.
+
+**What has NOT been established, and it is the whole next step:**
+- **Which of the seven danger sites fired is untraced.** Site 4 is the natural suspect because it owns mode selection, but that is inference from the symptom, not evidence.
+- **Site 7 is the trap and no flag reaches it.** `:2152 FindSafeFollowPosition` reads **`ThreatMapManager`, not `DangerFieldLayer`** (item 56's own verified finding). So "believed danger is 0 everywhere" — which is a statement about `DangerFieldLayer` — **does not rule out a non-zero threat reading at site 7**, and anyone who disables "danger awareness" via the documented flags will not touch it. A trace must record *both* fields, or it will produce a confident wrong answer.
+- **Next step:** trace which site set the mode on this exact scenario+seed, logging the `DangerFieldLayer` and `ThreatMapManager` values that fed it. The scenario is cheap, deterministic at `seed 5002`, and currently RED — an unusually good instrument for this. Nobody has done it.
+
+**Status change for the test itself (see PIPELINE item 51).** `test-supply-safe-front-keeps-cargo` was filed there as a suspect oracle — "it passes for the right reason but does not assert it". It is now **failing for what looks like a real reason**, which promotes it from suspect-oracle to useful-signal. Item 51's hardening work is still worth doing, but the test should no longer be treated as untrustworthy by default.
+
+---
+
+### [high] Supply trucks are never procured: the fleet is sized by `starving`, but `starving` reads 0 while `ammo-need` reads True — 2026-08-15
+
+**User report (live):** *"There are a lot of soldiers now that are out of ammo but still I see almost no supply trucks being built... when units are out of ammo it should prioritize supply trucks... soldiers out of ammo are useless. That should be the first priority to solve at all times."* **Treat that last sentence as a precedence ruling, not a weight.**
+
+**MEASURED**, `tournament-arena-composition-2p`, @experimental mirror, full 6-minute match, `[composition]` census + the new `[composition] pick lane=` line:
+
+- **ZERO trucks ordered by any lane, all match.** `type=truk` appears in no pick line at all.
+- `ammo-need=True` **continuously from tick 1240 to the end of the match** — the demand signal is live and correct.
+- `starving=0` and `trucks-desired=0` at **every single snapshot**, including all of the above.
+- cash collapses to ~0 by tick 760 and stays there (43 / 121 / 95 / 64 / 40 / 9 / 3).
+
+**Mechanism.** Two predicates that are supposed to describe the same fact use different thresholds:
+- `AnyFieldedUnitNeedsResupply()` (`UnitBuilderBotModule.cs:710`) mirrors `SupplyProvider`'s `MinNeedThreshold` — a weighted missing/capacity ratio. This is what sets `ammo-need`, and it is **True**.
+- `CountStarvingCustomers()` (`:798`) uses `SupplyHuntMath.BelowSeekThreshold(..., SupplyStarvingThresholdPerMille)` with **`SupplyStarvingThresholdPerMille: 250`** (`ai-america.yaml:223`) — a unit counts only below **25%** ammo.
+
+`SupplyFleetMath.DesiredTrucks` is fed **`starving`**, not `ammo-need`. With `starving = 0` and **`SupplyTruckFloor: 0`** (set at `56bf7355`, correctly, to kill the t=0 truck), `desired = 0`, so the supply pre-empt **never fires**. The truck's only remaining route is the deficit argmax — and `truk` is 40‰ of army VALUE at cost 1000, so V_fit is **25,000**: `ApplyCeilingEligibility` strikes the slot until the army is worth that much, which it never is. **Both routes are closed simultaneously, for unrelated reasons.**
+
+**Reconciling the prior conclusion, which does NOT survive.** `56bf7355` concluded *"the gate is fine; the bot is broke"* from `cash=0` on 194/195 snapshots. That was measured **before** `b91b5a88` gave bot map-players an economy. Post-fix the bot **does earn** (`earned` accrues from tick 80 in this run), yet still buys no truck — so **affordability was never the whole story**, and low cash is now a *consequence* of spending on the argmax's picks rather than the cause. Note also that `b91b5a88` states the shipped game was never affected (skirmish bots occupy lobby slots and are `Playable`), so **the user's own live games always had an economy** — the "bot is broke" finding never explained the user's experience at all.
+
+**Why this is the same defect as the medics, inverted.** The system has a notion of HOW MANY (a fleet size, a share) and no notion of WHEN or of PRECEDENCE. The medic had a floor with no denominator and so arrived first; the truck has a denominator that never becomes non-zero and so never arrives. The user's ruling supplies the missing axis: **dry units are the top procurement priority whenever the need exists.** That wants a pre-empt keyed to `ammo-need` (the same signal `SupplyProvider` acts on), ordering ahead of the composition argmax and exempt from the value-share ceiling — not a larger constant, and explicitly **not** a restored `SupplyTruckFloor`, which is the t=0 bug the user reported first.
+
+**Suggested acceptance bar (the user asked for responsiveness, not a count):** ticks from *first unit below the resupply threshold* to *first truck ordered*, plus dry-unit count over time. A match in which nothing goes dry is instrument failure, not a negative result.
+
+**Not attempted here** — this is a second, separable mechanism from the support-floor scaling on `wt/build-order`, and the test-run budget for that branch was spent. Filed with the measurement so the next branch starts from data.
+
+### [info] First positive live report on delivery conduct (PIPELINE item 56) — 2026-08-15
+
+Same user report, and it should not get lost inside the procurement complaint: *"When I saw it being built it seems like it **correctly went to resupply them**."* Item 56 (truck delivery) is the highest-priority queue item and has previously been described by the user as long-broken. This is the first live statement that the truck's **conduct** is right. It isolates the remaining problem cleanly: **procurement, not delivery.** Not a verdict on item 56 — one observation, no trace of an individual delivery — but it is evidence pointing the encouraging way, consistent with the 5-alive/3-eligible reading already banked in `DISCOVERIES.md` for `b91b5a88`.
+
+### [bug] Transport helicopters have the same half-empty departure asymmetry the ground carriers just had fixed — 2026-08-15
+
+Found on `wt/transport-loading` while fixing the ground module; **not fixed there**, because the test-run
+budget covered the ground path and the two share no code beyond the pattern.
+
+`TransportLoadMath.Decide` (`HelicopterSquadBotModule.cs:1862-1871`) dispatches a lift as soon as
+`passengersAboard >= minPassengers` (`TransportMinPassengers: 4`, `ai.yaml:1676`/`:1765`). The number
+of soldiers actually ordered aboard is `TransportEmploymentMath.LoadCap`
+(`TransportEmploymentMath.cs:138-154`) = `min(maxInfantry, cargoMaxWeight)` floored at the minimum —
+so whenever the doctrine cap exceeds 4 the heli lifts off with 4 while the rest are still walking,
+exactly as `MountedTransportBotModule` did before `FillBeforeDeparture`.
+
+The heli path is **less exposed than the ground one was**, because it already stands its stragglers
+down on both task exits (`StandDownStragglers`, `:1229`), so they release their cargo reservations
+rather than pinning the airframe's pickup lock. The cost is therefore a thin load, not a stuck
+transport.
+
+Fix shape, if picked up: `MountedTransportMath.DecideDeparture` is a pure function and already carries
+the seat-target / still-coming / stall / timeout logic with its no-hang invariant NUnit-pinned. The
+heli would need the same `SeatTarget` and `LastBoardingTick` bookkeeping on its task record, then a
+call swap. Behavioural, so it needs a default-false field per the `@stable` policy.
+
+### [bug] The capture ferry's drop site bypasses the danger standoff entirely — and now carries three more soldiers into it — 2026-08-15
+
+Pre-existing; **stakes raised** by `wt/transport-loading`, which is why it is being recorded rather
+than left implicit. Not fixed there.
+
+A frontline delivery runs its drop cell through `ApplyStandoff`
+(`MountedTransportBotModule.cs:866-899`), which walks the cell back toward our SR until the believed
+anti-ground danger clears, plus a margin. A **capture ferry does not**: `TryReserveCaptureFerry` sets
+`DropOff = target.Location` directly and never calls `ApplyStandoff`. The carrier therefore drives to
+the capture target's own cell whatever the believed danger there, and the standing user constraint
+that transports be **route AND drop-site danger-aware** (2026-08-11) is unmet on this path.
+
+Until now the exposure was one technician. With `CaptureFerryEscortSeats: 3` on both twins it is a
+technician plus three riflemen plus the carrier — one AA/AT hit now costs five units instead of two.
+The change did not create the gap and does not widen the danger; it widens what is standing in it.
+
+Shape of a fix, if picked up: the ferry cannot simply reuse `ApplyStandoff`, because backing the drop
+off toward the SR would defeat the ferry's whole purpose (the capturer must reach the target). More
+likely the standoff belongs on the **approach**, not the destination — or the ferry should decline the
+ride and let the technician walk when believed danger at the target exceeds a bar. That is a design
+call, not a tuning one. Note the danger field is currently mis-scaled (pipeline item 40), so prefer a
+formulation robust to its scale being wrong.
+
+### [bug] Ferry escorts and walking escorts are recruited independently, so infantry committed per capture rose by roughly the seat count — unmeasured against starving the offense — 2026-08-15
+
+Pre-existing structure; **new magnitude** from `wt/transport-loading`. Not fixed there.
+
+`IssueCaptureOrder` (`CaptureCoordinatorBotModule.cs:1667-1695`) calls `TryFerryCapture` first and
+`DispatchEscort` second, as alternatives for the *capturer*'s movement only — nothing couples the two
+for support units. So a capture that takes a ferry now commits **both** the ferry's escort seats
+(`CaptureFerryEscortSeats: 3`) **and** a separately recruited walking escort (`EscortSize: 2`, or
+`ContestedEscortSize: 4`), where before this change it committed only the walking escort.
+
+There is no double-booking of individual units — `FindIdleSupportersNear` (`:2100-2130`) requires
+`IsIdle` and excludes ledger-committed actors, and the ferry's escorts are both non-idle (they hold an
+`EnterTransport`) and committed under `transport:<carrierId>` — so the two sets are disjoint. The
+concern is not correctness but **total spend**: up to ~5 infantry diverted onto one capture instead of
+~2, against an offense that draws from the same free pool.
+
+Unmeasured, and deliberately so: quantifying it needs a full-length match with captures actually
+firing, which the branch's run budget did not cover. If the offense looks thin in a benchmark after
+this lands, this is the first thing to suspect. The cheap lever is `CaptureFerryEscortSeats`, which is
+per-profile and defaults to 0.
+
+### [bug] `test-combined-arms-rendezvous` still fails on the tank-death abort — the two-t90 reduction committed at 7f8c2d41 was unverified, and it did not work — 2026-08-15
+
+Run granted specifically to check whether `FillBeforeDeparture` (`wt/transport-loading`) pushed this
+scenario past its 200 s deadline. **It did not, and the failure is unrelated to that branch.**
+
+Verdict: `fail: the bot's tank died before the rendezvous could be judged` (seed 1017, run
+`260815_115851_p60033`). That is the scenario's own early-abort at
+`test-combined-arms-rendezvous.lua:69`, not a deadline overrun.
+
+**This is the exact failure `7f8c2d41` tried to tune out and shipped without exercising.** Its commit
+body records: *"Four t90s placed to populate the control field killed the lead abrams before the
+assertion could be judged … Reduced to two at the far corner … This last change is UNVERIFIED tuning;
+the run budget was exhausted before it could be exercised."* The map file carries the same note inline
+(`map.yaml:127-133`) and asks whoever runs it next to confirm the abrams survives. **It does not.** Two
+t90s at the far corner still kill it. The belief source still wins the fight it was only supposed to
+populate a field for.
+
+**Why the transport branch is excluded as a cause, on evidence rather than argument.** The whole run
+logged `tasks-active=0` — every scan, both players — with zero `[exp-transport] depart`, zero
+`ferry-escort` and zero `mounted-transport` lines. No `CarrierTask` was ever created, so the Loading
+state that `FillBeforeDeparture` governs was never entered and the lever had no opportunity to delay
+anything. The mechanism by which the branch could plausibly have broken this scenario provably did
+not occur.
+
+**FALSIFIED the same day — see the next entry.** The hypothesis below was instrumented and tested and
+is **wrong**. No boarding order was ever refused; the module never reaches the boarding loop at all,
+because it cannot compute a drop-off cell. Kept rather than deleted so the reasoning stays visible:
+the signature was real and correctly noticed, but the inference drawn from it was the *available*
+explanation rather than the demonstrated one — the eligibility collapse to `0` is offense recruiting
+those soldiers, which is true and irrelevant, because it happens after the transport has already
+given up for an unrelated reason.
+
+**A second, separate observation from the same log, worth its own look.** The transport reached
+`carriers-candidate=1` with `passengers-eligible=4` then `5` — a carrier and enough infantry — and
+still created no task. Eligibility then collapsed to `0` for several scans before climbing again as
+fresh units spawned, which is the signature of the offensive layer walking those same soldiers out of
+the reserve bubble. The likely mechanism is the one `wt/transport-loading` hit and fixed on the ferry
+path: the frontline boarding order is `BotOrderDamping.Recurring`, and `BotOrderQueue.Admit`'s dwell
+rule (`OrderArbitrationMath.cs:561-572`) drops a Recurring order to any actor holding a recent standing
+record — which fresh infantry near the SR always has. `CommitPassengers` cannot help here, because the
+commit happens at task creation and no task is created. **If that is right, the ground transport rarely
+runs at all, which would explain why the rendezvous has never once been exercised in four runs across
+two branches.** Stated as a hypothesis: the refusal path has no log line, so this run cannot prove it.
+Cheapest next step is a one-line counter at the `boarding.Count == 0` continue in `TryAssignNewTasks`
+— then a single run says yes or no.
+
+### [bug] The ground mounted transport cannot pick a drop-off cell before first contact, so it never runs — and `DeliverBeforeContact` / the combined-arms rendezvous are unreachable dead config — 2026-08-15
+
+**Measured, and it falsifies the dwell-suppression hypothesis in the entry above.** Instrumented run
+`260815_121127_p61315` (test-combined-arms-rendezvous, seed 1017) named which of the three silent
+exits in `TryAssignNewTasks` fires. Across the whole match, both players:
+
+```
+reason=no-drop-cell   15
+reason=orders-refused  0
+reason=too-few-pax     0
+```
+
+Every pass died at `if (!dropOff.HasValue) return;`. Not one boarding order was ever issued, so the
+arbitration gate cannot be the blocker — the module gives up two gates earlier than suspected. Sample:
+`no-task player=USA-bot reason=no-drop-cell carriers=1 eligible=4 tick=15`, then `eligible=5 tick=65`,
+and later `carriers=2 eligible=7 tick=465`. A carrier and seven eligible passengers, and still no task.
+
+**Mechanism, provable statically — no further run needed.** `PickDropOffCell`
+(`MountedTransportBotModule.cs:961-1007`) reaches its pre-contact fallback only on two conditions:
+
+1. `influenceMap == null` — the `InfluenceMap` trait is absent from the world entirely; or
+2. `frontline == null`.
+
+**Condition 2 can never hold.** `InfluenceMap.GetFrontline` (`InfluenceMap.cs:170-175`) returns
+`InfluenceMapMath.DeriveFrontline`, which unconditionally allocates `new bool[w, h]` and returns it
+(`:248-262`). It has no null return. So with the trait present — i.e. in every real game — the
+frontline is always a non-null array, and **before contact it is simply all-false**. The scoring loop
+then never assigns `best`, and the method ends at `return best.HasValue ? ApplyStandoff(...) : best`
+— returning **null** rather than falling back. The fallback is only wired to the frontline being
+*absent*, never to it being *empty*, which is precisely the pre-contact state it was written for.
+
+**Consequences, in order of how much they cost:**
+
+- **The ground transport does nothing at all until first contact**, no matter how many carriers and
+  passengers are available. That is the whole of the observed `tasks-active=0`.
+- **`DeliverBeforeContact` is dead config on both twins.** Its `[Desc]` says it exists so that "when
+  no frontline contact exists yet, still deliver toward a forward staging cell instead of sitting idle
+  until contact" — the exact behaviour it cannot produce. Both twins set it true (`ai.yaml`), and it
+  has no effect.
+- **`PreContactStagingPct` is likewise dead**, as is everything downstream of it.
+- **The combined-arms rendezvous is wired exclusively into the unreachable path.**
+  `ResolveRendezvous` is called from exactly one site — `PreContactStagingCell:1037` — and from
+  nowhere else. The frontline branch returns `ApplyStandoff(best.Value, srCell)` with no rendezvous at
+  all. So `RendezvousWithOffensiveStaging` and `RendezvousMaxAdvanceCells` cannot take effect in a
+  normal game **even when switched on**. This is a better explanation of `wt/combined-arms`'s
+  difficulties than anything that branch concluded about itself: it published an anchor for a consumer
+  that cannot run, and its scenario could never have exercised the feature regardless of tuning.
+
+**NOT FIXED — reported first by instruction.** The obvious repair (fall back to
+`PreContactStagingCell` when `best` is null, not only when `frontline` is null) is one line, but it
+switches on a transport behaviour that has never actually run on either profile, and it would make
+`DeliverBeforeContact`, the pre-contact lerp, the standoff and the rendezvous all live at once on
+`@stable`. That is a design decision, not a repair. Note also the second-order effect: the frontline
+branch would still have no rendezvous, so a fix should decide whether the rendezvous belongs on both
+branches or only pre-contact.
+
+**The instrumentation that produced this is kept** (`[exp-transport] no-task … reason=…`). It is three
+counters and one line per blocked pass, and its absence is exactly why this went unexplained across
+four runs and two branches.
+
+### [info] `test-combined-arms-rendezvous` is a KNOWN-FAILING committed scenario with a non-discriminating control — do not re-tune it — 2026-08-15
+
+**User ruling, 2026-08-15**, recorded so the next person meets it instead of rediscovering it: the
+scenario stays as it is, failing, and its t90 placement must **not** be adjusted again.
+
+Two independent reasons:
+
+1. **The placement was already tuned once, blind.** `7f8c2d41` cut four t90s to two specifically
+   because the four-tank version killed the lead abrams before the assertion could be judged, and
+   shipped that change unverified (`map.yaml:127-133` asks whoever runs it next to confirm the abrams
+   survives). Two runs on 2026-08-15 confirm it still dies. Adjusting the number again without a
+   mechanism would be the same guess a second time.
+2. **The control cannot discriminate, so surviving longer would not make it useful.** Its earlier
+   revision passed with the fix disabled, because `PoiOffensiveBotModule.StageFreePool` walks infantry
+   to the same staging anchor whatever the transport does. And per the entry above, the rendezvous it
+   is meant to exercise is reachable only through a code path that never executes — so no amount of
+   tuning could have made this scenario measure the feature.
+
+Rebuild it around an observable that can attribute — arrival **mode**, or the armour-vs-infantry
+arrival **timing gap**, both already written down in `DISCOVERIES.md` — as combined-arms work, not as
+a tuning pass.
+
+### [measured] The pre-contact fallback fix WORKS and is attributed — but delivery is blocked one layer further on — 2026-08-15
+
+Two runs on the fixed `PickDropOffCell` (`test-combined-arms-rendezvous`, seed 1017, runs
+`260815_121924_p62185` and `260815_122231_p62791`).
+
+**The fix does what it claims, and the log attributes it rather than implying it.** Every task creation
+in the second run reads `via=staged-empty-frontline` — the pre-contact staging branch that was
+previously unreachable, not the frontline branch. Before/after on the same scenario and seed:
+
+| | tasks created | `no-drop-cell` passes |
+|---|---|---|
+| before | 0 (`tasks-active=0` all run) | 15 |
+| after  | 3 (`tasks-active` peaks at 2) | 1 |
+
+The one survivor is `cause=empty-frontline+no-offensive-targets` at tick 15 — transient, PoiMap simply
+had not been populated yet, and it resolves by the next scan. That is the `cause` field earning its
+place: the four ways a drop cell can fail to resolve are now distinguishable in the log, which closes
+the "reasoning rather than measurement" gap flagged on the previous report.
+
+**DELIVERY WAS NOT ACHIEVED, and that is the honest limit of this result.** No `depart` line in either
+run. Two independent blockers sit behind the one that was fixed:
+
+1. **Only one boarding order per task is admitted.** All three tasks logged `boarding=1 of 5`,
+   `1 of 2`, `1 of 5`. So the arbitration gate's dwell rule IS refusing frontline boarding orders —
+   four of five — exactly the mechanism hypothesised and falsified as the *primary* blocker. It was
+   never why no task existed; it is why the loads are tiny. Both facts are true; only the ordering was
+   wrong.
+2. **The single admitted passenger never arrives.** `aboard=0`, `still-coming=1`, `since-board`
+   climbing to 450+ ticks. The soldier is alive and in the world and simply does not board — most
+   likely re-tasked mid-walk, which is the case `still-coming` cannot see by construction.
+
+**A weakness in the departure rule shipped earlier today, found by its own diagnostics.** With
+`aboard=0` and `minPassengers=2`, the stall release cannot fire, because it is gated on
+`aboard >= minPassengers` (`MountedTransportMath.DecideDeparture`). A load that is stalled AND empty
+therefore waits the full `LoadingTimeoutTicks` (1500 t ≈ 60 s) before `AbortEmpty`. It is bounded —
+the no-hang invariant holds and is unaffected — but the gate was written for "a partial load is not
+worth delivering yet", and it does not describe a load of nothing, where waiting achieves nothing at
+all. The stall should be able to abandon an empty load at the stall bound rather than the hard bound.
+Not fixed: it is a behavioural change to a rule merged today and belongs in its own commit.
+
+### [config] `DeliverBeforeContact` is HELD at false on @stable pending a knowing promotion — 2026-08-15
+
+**User instruction, 2026-08-15:** one un-run behavioural change per branch on the benchmark control.
+
+Both twins set `DeliverBeforeContact: true` before today — `@poi` (`enable-ai-stable`) and
+`@experimental`. Since the flag was dead config, that true set had never once changed `@stable`'s
+behaviour. Fixing the fallback would have made it live on both twins at the same instant, on top of
+the `CommitPassengers` change `@stable` already took today.
+
+`@poi` is therefore set to `false` (`ai.yaml:1505`), pinning `@stable` at exactly the behaviour it has
+always had. **This is a hold, not a gate**: it withholds nothing that ever ran, and promotion is one
+word in its own commit, so the benchmark baseline is re-taken for one change rather than two.
+
+**Not verified by a run.** `test-combined-arms-rendezvous` runs `Bot: experimental` for BOTH players
+(`map.yaml:64`, `:71`), so no scenario exercised the `@poi` twin. The hold rests on config inspection
+alone. Anyone promoting it should confirm on a scenario that actually fields a stable bot.
+
+### [measured] Both loading blockers diagnosed: blocker 1 CONFIRMED (dwell), blocker 2 FALSIFIED (the passenger is coming, just slowly) — 2026-08-15
+
+Diagnostic run `260815_123045_p63812`, verification run `260815_123440_p64386`
+(test-combined-arms-rendezvous, seed 1017; BOTH players are `Bot: experimental`, verified by reading
+`map.yaml:64`/`:71`).
+
+**BLOCKER 1 — CONFIRMED. The dwell rule refuses four boarding orders in five.** Every refused
+passenger logged `idle=False` with `activity=AttackMoveActivity` (one `SmartMoveActivity`) — i.e. it
+was mid-order from another module when the transport asked, which is exactly the dwell rule's trigger
+(`OrderArbitrationMath.cs:561-572`, `ReorderDwellTicks: 120`). The single admitted passenger is the
+one that was not already claimed. So `boarding=1 of 5` is the arbitration gate, as hypothesised — this
+IS the direct cause of tiny loads, one layer under the departure bar. **Not fixed.**
+
+Fix shape, for a decision rather than a build: `AdvanceTask` never re-issues `EnterTransport` to a
+passenger it has already reserved (zero occurrences in the Loading state), while offense re-offers
+every eval. The transport asserts its claim ONCE; offense asserts continuously. A top-up pass — while
+Loading and under capacity, re-offer to the free pool each scan — would let the load grow as units
+become idle. That is a design change to a module that has only just started running at all, so it
+wants review before code.
+
+**BLOCKER 2 — FALSIFIED, and the falsification mattered.** The reserved passenger was NOT poached. It
+sat on `activity=RideTransport` for the entire task and closed steadily: 7 → 5 → 4 → 3 → 2 → 1 cells.
+It is simply walking, at roughly 43 ticks per cell. The hypothesis (re-tasked away, never returning)
+was wrong, and the evidence for it — `aboard=0` for 450 ticks — was equally consistent with a
+passenger that is coming and has not arrived.
+
+**That falsification exposed a regression in the empty-stall fix committed an hour earlier
+(`cad27464`), and it is worth stating as the general trap.** `aboard` is a STEP FUNCTION: it stays at
+0 for the whole of a passenger's walk. So "no boarding for 250 ticks" is automatically true early in
+every load and carries no information about whether anyone is coming. A 7-cell walk (~300 ticks)
+outlasts the 250-tick bound, so the empty-abort tore down a task whose passenger was 3 cells away and
+closing — and the carrier looped abort/recreate every 250 ticks, measured as repeated `task-created`
+for the same carrier at ticks 65, 315, 415. **A metric that cannot move until the outcome has already
+happened is useless as a progress signal for that outcome.**
+
+Fixed by making APPROACH count as progress: a new closest-approach by any still-coming passenger
+resets the stall clock, so the bound now means "nobody boarded AND nobody got closer". Verified — one
+`task-created` per carrier, no loop, `since-progress` returning to 0 as `closest` ticks 7→1.
+
+**STILL NOT OBSERVED: a completed delivery.** No `depart` line in any run. At the end of the last run
+the passenger was 1 cell from the carrier and had not finished boarding. The blocker is now the
+SCENARIO, not the code: `test-combined-arms-rendezvous` aborts on its tank-death guard at ~tick 550,
+and a load needs perhaps another 50-100 ticks. Verifying delivery needs a scenario that (a) lives
+long enough, (b) has no early-abort guard, and (c) ideally fields one `Bot: stable` and one
+`Bot: experimental` player so the `@poi` hold gets a real control at the same time. Deliberately NOT
+built here: an unrun scenario is exactly what `7f8c2d41` shipped and what today's notes criticise.
+
+### [measured] The ground transport LOADS AND DEPARTS — first ever observed — and the @poi hold is verified by measurement — 2026-08-15
+
+Three runs on the new `test-transport-delivers` scenario (seed 1017). Two results are solid and one
+piece of scaffolding is not.
+
+**DEPARTURES ARE PROVEN.** With production on (`DefaultCash: 7500`, run `260815_124529_p66286`) the
+module logged **six** departures, every one `reason=Full`:
+
+```
+depart carrier=bradley aboard=3 target=3 reason=Full tick=915
+depart carrier=m113    aboard=2 target=2 reason=Full tick=1165
+depart carrier=bmp2    aboard=3 target=3 reason=Full tick=1536   (Russia, after contact)
+depart carrier=m113    aboard=2 target=2 reason=Full tick=2065
+depart carrier=bmp2    aboard=3 target=3 reason=Full tick=2436
+depart carrier=m113    aboard=3 target=3 reason=Full tick=2565
+```
+
+Loads of two and three, departing because they were FULL rather than timing out. Every `task-created`
+read `via=staged-empty-frontline`, so all of it is attributed to the pre-contact branch fixed earlier
+today — the branch that could not execute at all before. This is the first time this project has
+observed the ground transport load and drive.
+
+**THE @poi HOLD IS VERIFIED BY MEASUREMENT, not config inspection.** The stable side logged
+`no-task ... cause=empty-frontline+fallback-disabled` **21 times** and created exactly one task, at
+tick 1286, `via=frontline` — i.e. only after contact, through the ordinary path, never through the
+held pre-contact branch. That closes the gap flagged twice as "verified by config inspection only".
+
+**A COMPLETED DELIVERY IS STILL NOT PROVEN.** The unload — the event that makes it a delivery rather
+than a drive — was only ever an `AIUtils.BotDebug` line, which does not reach `debug.log` unless bot
+debug is on. So every run so far could prove departure and nothing about arrival. Fixed here: the
+module now emits `[exp-transport] delivered ... pax=N` at the Unloading -> Returning edge, which fires
+only once the hold is empty. One run will now settle it.
+
+**THE NEW SCENARIO'S LUA PREDICATE IS NOT YET VALID, and is committed marked as such.** With
+`DefaultCash: 0` and `carriers-total=1` — so the placed bradley at 8,18 is provably the only carrier
+and provably the `BotCarrier` global — the module logged `depart aboard=1` and later `aboard=2` while
+the predicate reported `peakPax=0` and `everCarried=0` for the entire run. Both cannot be true. The
+closure demonstrably ran (it produced the failure string), the carrier was neither dead nor
+duplicated, and both sides read the same `Cargo` trait. Leading suspect is the file-scope
+`local Squad = { BotRifle1, ... }` capture — map-actor globals may not be bound when the chunk first
+executes, giving `#Squad == 0`, which explains `everCarried=0` exactly but NOT `peakPax=0`, so there
+is at least one more fault. Not chased further: the run budget was spent, and guessing at it without
+a run is the failure mode this file exists to record.
+
+**Scenario-design lesson worth keeping.** The first version ran at `DefaultCash: 7500` and the
+inherited rules comment claimed "the measurement only ever looks at NAMED actors, so incidental units
+the bot buys or spawns do not affect it." That is backwards. The bot bought its own carriers and
+produced its own infantry and used those, leaving the named actors idle beside the measurement —
+six departures in the log, zero in the predicate. **A named-actor predicate is valid only if the named
+actors are the ones the system under test actually chooses to use, and production removes that
+guarantee.**
+
+### [measured] THE GROUND TRANSPORT COMPLETES DELIVERIES — proven — and the scenario's Lua had three separate faults — 2026-08-15
+
+**THE RESULT, from the module's own log and independent of any Lua predicate.** Run
+`260815_130128_p68980`, seed 1017, `test-transport-delivers`. The `delivered` marker added at the
+Unloading -> Returning edge (which fires only once the hold is empty) recorded **three completed
+deliveries**:
+
+```
+delivered carrier=bradley at=29,10 drop=32,10 pax=1 tick=1465
+delivered carrier=bradley at=20,14 drop=21,13 pax=3 tick=2815
+delivered carrier=bradley at=24,12 drop=24,12 pax=3 tick=3765
+```
+
+Arriving AT the drop cell (24,12 exactly; 20,14 against 21,13; 29,10 against 32,10) and unloading.
+Combined with the six `reason=Full` departures already banked, the chain the user asked about —
+load, fill, drive, set down — is now observed end to end. This is the first time.
+
+**THE SCENARIO'S PREDICATE STILL DOES NOT GO GREEN, and three distinct Lua faults were found.** Two
+are fixed and verified, the third is fixed but unverified (no runs left):
+
+1. **File-scope actor capture.** `local Squad = { BotRifle1, ... }` at chunk scope binds before
+   map-actor globals exist, giving `#Squad == 0` and a predicate that loops over nothing while
+   reporting confident zeros. Fixed by binding inside `WorldLoaded`, plus a setup self-check that
+   fails loudly if the squad is not exactly 5. VERIFIED.
+2. **`IsDead` is true for a passenger inside a `Cargo`.** The idiom `not r.IsDead and not r.IsInWorld`
+   for "was carried" is unsatisfiable for exactly the units it targets. Measured: `peakPax=2` with
+   `everCarried` stuck at 0 all match; latching on `not r.IsInWorld` alone made it read 3 immediately.
+   VERIFIED. **`test-combined-arms-rendezvous` carries the same unfixed idiom** and is likely
+   mis-counting `EverCarried` for the same reason — worth checking when that scenario is rebuilt.
+3. **The failure message is evaluated EAGERLY at registration.** `AssertWithin`'s third argument is an
+   ordinary Lua expression, concatenated before the predicate runs once, so interpolated counters
+   report their initial zeros forever. This is what produced `everCarried=0 peakPax=0` in the verdict
+   while the in-closure trace of the SAME RUN read `everCarried=3 peakPax=2` — and it caused a wrong
+   diagnosis ("the predicate is not observing the actor it names") that cost a run. Fixed by making
+   the message static and directing the reader to the `lua.log` trace. NOT VERIFIED — no run left.
+
+**Remaining unknown for whoever picks this up.** At the end of run `260815_130726_p70843`:
+`everCarried=3`, `squadInWorld=2/5`, `peakPax=2`, yet no rifleman satisfied RETURNED + MOVED >= 10
+cells. The module logged deliveries at ticks 2815 and 3765, so passengers were set down; the open
+question is whether the delivered riflemen died shortly after being dropped (this scenario does reach
+contact by ~tick 1300) or whether the returned-and-moved clause is mis-measuring. The `[deliv]` trace
+already prints `squadInWorld`; adding each squad member's in-world flag and distance-from-start to
+that line should settle it in one run.
+
+**Do not merge this scenario until it goes green** — `run-batch.sh` globs `test-*/`, so a
+knowingly-broken scenario auto-joins every future batch and becomes a permanent false signal, which
+is the debt `test-combined-arms-rendezvous` already represents.
+
+### [bug, FIXED] `wip-transport-delivers` shipped uncompilable — a missing `end` — so no run of it ever measured anything — 2026-08-15
+
+At `fe692f17` the scenario's Lua is **missing the single `end` that closes `WorldLoaded = function()`**
+(opened line 52). Introduced by the previous session's "make the failure message static" edit, which
+was committed flagged **NOT VERIFIED — no run left**; that is exactly what went wrong. The engine
+reports it only at load, as
+`Fatal Lua Error: ... 'end' expected (to close 'function' at line 52) near '<eof>'`, and the harness
+records an ordinary `FAIL` — indistinguishable at a glance from a predicate that did not go true.
+**It cost a full run to discover.**
+
+Fixed here, plus `tools/autotest/lua-balance.py` — a block-balance check (single left-to-right scan;
+a naive regex pass that strips comments before strings corrupts any string containing `--`, which
+produced twelve false positives on the first cut). Run it before spending a run on any scenario whose
+Lua you touched:
+
+```
+python3 tools/autotest/lua-balance.py tools/autotest/scenarios/*/[a-z]*.lua mods/ww3mod/scripts/*.lua
+```
+
+144 files balanced at time of writing. It refuses an empty file list rather than passing by scanning
+nothing.
+
+### [measured] The offensive layer wins ~55% of the transport's boarding contests — the boundary of the top-up lever — 2026-08-15
+
+Run `260815_192247_p79585`. `TopUpDuringLoading` made **11** boarding offers to the free pool while
+carriers loaded: **5 admitted, 6 refused**. Every refusal logged `idle=False
+activity=AttackMoveActivity` — the dwell rule (`ReorderDwellTicks: 120`) protecting a standing order
+from `PoiOffensiveBotModule.StageFreePool`, which recruits armed infantry from tick 3.
+
+Two separate things, and only one of them is the offensive layer's doing:
+
+* **Contest losses (6 of 11)** — offense holds the unit, the transport cannot have it. Fixing this is
+  on the offense side, and is queued as separate work.
+* **Contest WINS that still filled no seat (5 of 5, on the clean paired departure)** — the soldiers
+  were won, held for 450 ticks without being poached back (`topup-coming=4` at departure), and simply
+  did not walk far enough in time. This half **cannot be fixed by re-offering harder**, and is bounded
+  by the no-extension constraint; see `DISCOVERIES.md` same date for the argument.
+
+So re-offering mid-load is not the lever that closes the user's complaint. The seats are decided at
+task creation, by who is near the carrier and unclaimed at that instant.
+
+### [bug, OPEN] `wip-transport-delivers` still cannot go green: `DefaultCash: 0` does not pin the force — 2026-08-15
+
+Stays `wip-*` (out of `run-batch.sh`'s `test-*/` glob) and is NOT renamed back. Its predicate names
+five `e3.america` riflemen; the module was measured boarding eight distinct infantry types, the other
+seven being Supply Route reinforcements that zero cash does not prevent. Per-member tracing at tick
+4150 reads `r1=w/c0/d40 r2=n/c1/d- r3=n/c1/d- r4=w/c0/d22 r5=w/c0/d31` — the three that moved far were
+never carried (they walked, under the offensive layer), and the two that left the world never came
+back. The RETURNED+MOVED clause therefore cannot fire, and **neither** of the two explanations offered
+in the previous handover (delivered-then-died / clause mis-measuring) was correct.
+
+Rebuilding it wants an observable read from the module rather than from named actors — the
+`depart aboard=N` line is already exactly that, and is what the before/after in `DISCOVERIES.md` uses.
+### [bug] The Mi-28 has no anti-air weapon at all, and its `secondary-air` armament does not exist — 2026-08-15
+
+Found while establishing an anti-air power ceiling for the Hind. `MI28` lists `Armaments: primary, secondary, secondary-air` (`mods/ww3mod/rules/ingame/aircraft-russia.yaml:319`) and references `secondary-air` again from its ammo pool and a `GrantConditionOnPreparingAttack` (`:329`, `:374`) — but **no `Armament@` named `secondary-air` exists anywhere in the repo**. `AmmoPool.cs:303` matches armaments by name and simply finds nothing, so the reference fails silently.
+
+The consequence is not cosmetic. The Mi-28's two real weapons are `30mm.Heli` (`ValidTargets: Ground`, `weapons-ballistics.yaml:487`) and `Ataka` (`ValidTargets: Vehicle, Defense`, `weapons-missiles.yaml:126`). **Neither can engage an aircraft**, so Russia's 6000-credit attack helicopter currently cannot shoot at helicopters at all, while its American counterpart can (Apache's Hellfire lists `Air`).
+
+**This directly undercuts the design intent recorded on `wt/heli-weapons`.** The user's constraint for the Hind's new last-resort AA gun was that it be *"not nearly as good as an attack helicopter"* — but on the Russian side there is no attack-helicopter benchmark to sit below, so the Hind's gun becomes the only Russian helicopter able to touch aircraft. The ceiling is correctly placed against the *American* Apache and against dedicated AA (Stinger/MANPAD/Tunguska), and is comfortably below both; it is the Russian internal ordering that is inverted, and that inversion predates this branch.
+
+Not fixed here — giving the Mi-28 anti-air is a balance decision beyond the four asks on this branch, and it needs a call on whether the intended weapon was an air-to-air variant of Ataka or a second gun mount. The littlebird carried the identical defect (`AmmoPool@1: Armaments: primary, primary-air` with no such armament, since the actor's first commit `98a4dc09`); that one **is** fixed on this branch, because the missing armament turned out to be exactly the feature being requested.
+
+### [info] Six weapons set `InaccuracyPerProjectile`, which cannot execute — 2026-08-15
+
+`Bullet.cs:213` gates the field on `lastPosIsSet`, a `readonly bool` initialised `false` at `:170` and never assigned. Still set by `weapons-ballistics.yaml:541,565,601,617,760` and `weapons-other.yaml:88`. Removed from `7.62mm.Minigun` on `wt/heli-weapons`; the other six left alone, but anyone tuning burst spread on those weapons is turning a dial connected to nothing. Full detail in `DISCOVERIES.md` (2026-08-15, helicopter guns).
+
+### [high] `make test` (YAML validation) has been RED on main, and nobody noticed — 2026-08-15
+
+Found incidentally while validating an unrelated merge. `make test` fails:
+
+```
+Testing map: Siberian Pass WW3
+OpenRA.Utility(1,1): Error: This map does not define a valid cordon.
+A one cell (or greater) border is required on all four sides between the
+playable bounds and the map edges.
+make: *** [test] Error 143
+```
+
+**Not caused by that merge** — verified: the merge touches no map under `mods/ww3mod/maps/`, and the responsible commit is an ancestor of pre-merge main.
+
+**The cause is deliberate and repo-wide.** `aa0620ea` ("Expand map bounds to full MapSize across all maps (0,0 origin)") set `Bounds` equal to `MapSize` on essentially every shipping map, which by definition leaves no cordon:
+
+| map | MapSize | Bounds |
+|---|---|---|
+| arena-tank-duel | 66,34 | 0,0,66,34 |
+| nuclear-winter-ww3 | 102,72 | 0,0,102,72 |
+| polar-disorder-ww3 | 98,98 | 0,0,98,98 |
+| river-zeta-ww3 | 98,82 | 0,0,98,82 |
+| seventh-woods-ww3 | 123,114 | 0,0,123,114 |
+| siberian-pass-ww3 | 97,67 | 0,0,97,67 |
+| twin-rivers-ww3 | 128,128 | 0,0,128,128 |
+| woodland-warfare-ww3 | 98,98 | 0,0,98,98 |
+| x-lake-ww3 | 130,130 | 0,0,130,130 |
+
+`shellmap-open-field` is the only exception (`Bounds: 1,1,90,60`) and is presumably why this was never total.
+
+**Two things need deciding, and this entry does not decide either.** Whether the bounds expansion was right and the lint is simply wrong for this project (in which case the check should be waived deliberately, with a reason), or whether the maps genuinely lost a border they need. The maps do load and play, so this is not visibly broken in-game — which is exactly why it went unnoticed.
+
+**The real damage is the guard rail.** `CLAUDE.md` tells every worker `make test` is the YAML validation step. A check that is already red teaches everyone who runs it to ignore it, and hides the next genuine YAML break — including the blank-line-merge trap that the same file warns about. Whoever picks this up: the goal is getting `make test` green again, not fixing one map.
+
+**Process note attached to the discovery.** The failure was nearly missed because the command was chained through `tail`, so the harness reported exit code 0 while `make` had returned 143. That is the third recorded instance of a verdict being inverted by `tail` — see the standing rule in `DOCS/recipes/AUTOTEST.md`. It applies to `make`, not only to `run-test.sh`.

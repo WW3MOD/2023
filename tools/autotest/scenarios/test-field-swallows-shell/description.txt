@@ -1,0 +1,1 @@
+Auto: an artillery shell landing on a Field actor must still detonate (explosion + sound), not be swallowed.

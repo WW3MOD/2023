@@ -115,10 +115,15 @@ namespace OpenRA.Mods.Common.HitShapes
 			return new WDist(r.HorizontalLength);
 		}
 
-		public int PercentFromEdge(in WVec fromEdge)
+		// Normalises against the half-DIAGONAL (the centre-to-corner distance), regardless of which
+		// direction the offset points in. So only the four corners read 0: a point in the middle of
+		// a face is on the boundary but still reports a substantial percentage. Note also that,
+		// unlike DistanceFromEdge above, this does not subtract `center`, so an off-centre
+		// TopLeft/BottomRight pair measures from the actor origin rather than the shape's middle.
+		public int CenterProximityPercent(in WVec v)
 		{
 			var total = new WVec(quadrantSize.X, quadrantSize.Y, 0).HorizontalLength;
-			return 100 * (total - fromEdge.HorizontalLength) / total;
+			return 100 * (total - v.HorizontalLength) / total;
 		}
 
 		public WDist DistanceFromEdge(WPos pos, WPos origin, WRot orientation)
@@ -134,17 +139,17 @@ namespace OpenRA.Mods.Common.HitShapes
 			return DistanceFromEdge((pos - new WPos(origin.X, origin.Y, pos.Z)).Rotate(-orientation));
 		}
 
-		public int PercentFromEdge(WPos pos, WPos origin, WRot orientation)
+		public int CenterProximityPercent(WPos pos, WPos origin, WRot orientation)
 		{
 			orientation += WRot.FromYaw(LocalYaw);
 
 			if (pos.Z > origin.Z + VerticalTopOffset)
-				return PercentFromEdge((pos - (origin + new WVec(0, 0, VerticalTopOffset))).Rotate(-orientation));
+				return CenterProximityPercent((pos - (origin + new WVec(0, 0, VerticalTopOffset))).Rotate(-orientation));
 
 			if (pos.Z < origin.Z + VerticalBottomOffset)
-				return PercentFromEdge((pos - (origin + new WVec(0, 0, VerticalBottomOffset))).Rotate(-orientation));
+				return CenterProximityPercent((pos - (origin + new WVec(0, 0, VerticalBottomOffset))).Rotate(-orientation));
 
-			return PercentFromEdge((pos - new WPos(origin.X, origin.Y, pos.Z)).Rotate(-orientation));
+			return CenterProximityPercent((pos - new WPos(origin.X, origin.Y, pos.Z)).Rotate(-orientation));
 		}
 
 		IEnumerable<IRenderable> IHitShape.RenderDebugOverlay(HitShape hs, WorldRenderer wr, WPos origin, WRot orientation)

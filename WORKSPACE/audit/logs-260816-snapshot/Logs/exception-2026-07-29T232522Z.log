@@ -1,0 +1,20 @@
+OpenRA engine version release-20230225
+ww3mod mod version release-20230225
+on map b2ac2865eb86ab9c475c9968025861c63734fbb2 (River Zeta WW3 by Medium Tank, ZxGanon, XavierX).
+Date: 2026-07-29 23:25:22Z
+Operating System: Windows (X64, Microsoft Windows NT 10.0.26200.0)
+Runtime Version: .NET CLR 8.0.27
+Installed Language: en (Installed) en (Current) en (Current UI)
+Exception of type `System.IndexOutOfRangeException`: Index was outside the bounds of the array.
+   at OpenRA.Mods.Common.Traits.FiringLOS.HasClearLOS(Actor self, Target& target, Byte threshold) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\FiringLOS.cs:line 49
+   at OpenRA.Mods.Common.Traits.AttackFollow.AttackActivity.Tick(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Mods.Common\Traits\Attack\AttackFollow.cs:line 387
+   at OpenRA.Activities.Activity.TickOuter(Actor self) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Activities\Activity.cs:line 97
+   at OpenRA.Actor.Tick() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Actor.cs:line 288
+   at OpenRA.World.Tick() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\World.cs:line 497
+   at OpenRA.Game.InnerLogicTick(OrderManager orderManager) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 808
+   at OpenRA.Game.LogicTick() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 836
+   at OpenRA.Game.Loop() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 1023
+   at OpenRA.Game.Run() in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 1081
+   at OpenRA.Game.InitializeAndRun(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Game\Game.cs:line 315
+   at OpenRA.Launcher.Program.Main(String[] args) in C:\Users\fredr\Desktop\WW3MOD\engine\OpenRA.Launcher\Program.cs:line 32
+

@@ -250,7 +250,7 @@ namespace OpenRA
 		public CellLayer<byte> ModifyVisualLayer { get; private set; }
 		public CellLayer<byte> DefenseLayer { get; private set; }
 		public CellLayer<byte> DensityLayer { get; set; }
-		public CellLayer<CellLayer<(byte GroundShadow, byte AirborneShadow)>> ShadowLayer { get; set; }
+		public MapShadowLayer ShadowLayer { get; set; }
 
 		/// <summary>
 		/// Amortized shadow recomputation system. Dirty cells are expanded to affected
@@ -471,7 +471,7 @@ namespace OpenRA
 				if (s != null)
 				{
 					DensityLayer = new CellLayer<byte>(this);
-					ShadowLayer = new CellLayer<CellLayer<(byte GroundShadow, byte AirborneShadow)>>(this);
+					ShadowLayer = new MapShadowLayer(this);
 
 					// Read DensityLayer
 					foreach (var fromUV in AllCells.MapCoords)
@@ -482,13 +482,12 @@ namespace OpenRA
 					// Read ShadowLayer
 					foreach (var fromUV in AllCells.MapCoords)
 					{
-						ShadowLayer[fromUV] = new CellLayer<(byte GroundShadow, byte AirborneShadow)>(this);
 						foreach (var toUV in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
 						{
 							var combined = s.ReadUInt16();
 							var groundShadow = (byte)(combined >> 8); // Upper 8 bits for ground shadow
 							var airShadow = (byte)(combined & 0xFF); // Lower 8 bits for air shadow
-							ShadowLayer[fromUV][toUV] = (groundShadow, airShadow);
+							ShadowLayer[fromUV, toUV.ToMPos(this)] = (groundShadow, airShadow);
 						}
 					}
 				}
@@ -963,7 +962,7 @@ namespace OpenRA
 				{
 					foreach (var toUV in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
 					{
-						var (groundShadow, airborneShadow) = ShadowLayer[fromUV][toUV];
+						var (groundShadow, airborneShadow) = ShadowLayer[fromUV, toUV.ToMPos(this)];
 
 						var combined = (ushort)((groundShadow << 8) | airborneShadow);
 						writer.Write(combined);
@@ -1004,7 +1003,7 @@ namespace OpenRA
 
 		public void SetShadowLayer()
 		{
-			ShadowLayer = new CellLayer<CellLayer<(byte GroundShadow, byte AirborneShadow)>>(this);
+			ShadowLayer = new MapShadowLayer(this);
 
 			foreach (var fromUV in AllCells.MapCoords)
 				RecomputeShadowFrom(fromUV);
@@ -1125,13 +1124,13 @@ namespace OpenRA
 		/// </summary>
 		void RecomputeShadowFrom(MPos fromUV)
 		{
-			if (ShadowLayer[fromUV] == null)
-				ShadowLayer[fromUV] = new CellLayer<(byte GroundShadow, byte AirborneShadow)>(this);
-
 			foreach (var tilePos in FindTilesInAnnulus(fromUV.ToCPos(this), 2, 32, true))
 			{
 				var toUV = tilePos.ToMPos(this);
-				var tiles = ShadowLayer.TilesIntersectingLine(fromUV, toUV);
+
+				// DensityLayer stands in for the old nested shadow CellLayer purely as the source of
+				// the Bresenham walk — same Size and GridType, so the tile sequence is identical.
+				var tiles = DensityLayer.TilesIntersectingLine(fromUV, toUV);
 
 				var totalGroundDensity = 0;
 				var totalAirborne = 0f;
@@ -1176,7 +1175,7 @@ namespace OpenRA
 				var groundShadow = (byte)Math.Min(ForestGroundShadow(totalGroundDensity), (int)byte.MaxValue);
 				var airborneShadow = (byte)Math.Min(Math.Ceiling(totalAirborne), byte.MaxValue);
 
-				ShadowLayer[fromUV][toUV] = (groundShadow, airborneShadow);
+				ShadowLayer[fromUV, toUV] = (groundShadow, airborneShadow);
 			}
 		}
 

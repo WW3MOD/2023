@@ -1,0 +1,133 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: LC Rearm On An Explicit Resupply Order, Partially Full (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# TWO subjects and TWO depots, because the mechanism under test is selected by a property that
+	# splits the roster in half: MobileInfo.LocomotorInfo.SharesCell (economy.md). The arrival test in
+	# Resupply.Tick is `(host.CenterPosition - self.CenterPosition).HorizontalLengthSquared <=
+	# closeEnough.LengthSquared` with closeEnough = WDist.Zero (AmmoPool.cs:374 — the LC carries no
+	# RearmsUnits trait, so there is no CloseEnough to read), i.e. EXACT coincidence with the
+	# building's centre. A full-cell vehicle standing on the LC's middle cell coincides exactly; a
+	# sub-cell infantryman on the same cell sits at a SubCellOffsets entry away from it. One scenario
+	# per side, or whichever half was not being thought about passes on the other's mechanism.
+	#
+	# A depot each, far enough apart that ChooseResupplier's ClosestToIgnoringPath cannot cross them
+	# over (each subject is 13 cells from its own depot centre and ~22 from the other's).
+
+	# --- INFANTRY HALF ---------------------------------------------------------------------
+	# Location is the building TOP-LEFT and the footprint is 3x3 (`=+= +++ =+=`), so the centre cell
+	# — the one the arrival test is written against — is 11,9.
+	InfDepot: logisticscenter
+		Owner: USA
+		Location: 10,8
+	# 13 cells east of that centre: outside the LC's own 4c0 replenish-soldiers aura (which reaches
+	# x<=15), so nothing tops him up before he sets off.
+	Rifleman: ar
+		Owner: USA
+		Location: 24,9
+		Facing: 768
+
+	# --- VEHICLE HALF ----------------------------------------------------------------------
+	# Centre cell 11,27.
+	VehDepot: logisticscenter
+		Owner: USA
+		Location: 10,26
+	Bradley: bradley
+		Owner: USA
+		Location: 24,27
+		Facing: 768
+
+	# --- INFANTRY HALF, SECOND SUBJECT: the same man, holding a DIFFERENT SUBCELL ------------
+	# A lone soldier spawned on an EMPTY cell is handed MapGrid.DefaultSubCell, which in this mod is
+	# index 3 of SubCellOffsets — and index 3 is (0,0,0). He therefore sits at his cell's exact
+	# centre, and Move carries that subcell along unchanged (Move.cs:341/352/362 pass FromSubCell as
+	# the preferred; ActorMap.FreeSubCell honours a free preference before anything else). So the
+	# lone walker above is the LUCKY case and cannot, on its own, tell us what a zero-tolerance
+	# arrival gate does to a soldier who is anywhere else in his cell.
+	#
+	# This one is spawned ON the depot's centre cell (48+1, 8+1), which is NOT empty — the LC
+	# occupies its whole footprint at SubCell.FullCell (Building.cs:341, OccupiedTiles includes the
+	# transit-only cells). A non-null influence node makes FreeSubCell skip the DefaultSubCell
+	# return and fall into its scan from SubCell.First, so he deterministically takes index 1 =
+	# (-299,-256) instead of the centre. No ordering assumption, unlike the shared-spawn-cell staging
+	# the first run of this scenario used — that one silently produced (0,0) for both soldiers.
+	#
+	# Spawning him ON the depot centre cell was tried and did NOT produce a non-centre subcell — he
+	# came out at (0,0) like everyone else, because at world-init time the building's influence is
+	# not yet registered when the soldier picks his subcell, so FreeSubCell still returns
+	# DefaultSubCell. The only remaining way to force the offset is genuine CONTENTION: two soldiers
+	# on the same cell at the same time, where the second cannot have the subcell the first is
+	# standing in.
+	#
+	# So this pair walks to ONE depot together, from equal distances so their arrivals overlap. Both
+	# start on their own empty cell and therefore both hold DefaultSubCell (index 3, offset (0,0,0));
+	# whichever reaches the centre cell second is pushed to SubCell.First = (-299,-256) and, if the
+	# WDist.Zero arrival gate means what it reads as, can never dock however long he stands there.
+	#
+	# This is the ordinary shape of infantry resupply — a squad sent back together — not a contrived
+	# one. Self-verifying as before: each man reports his real offset, so a run where BOTH come out
+	# (0,0) means the arrivals did not actually overlap and the hazard is still unstaged, NOT that it
+	# is absent.
+	OffsetDepot: logisticscenter
+		Owner: USA
+		Location: 48,8
+	PairA: ar
+		Owner: USA
+		Location: 60,9
+		Facing: 768
+	PairB: ar
+		Owner: USA
+		Location: 60,10
+		Facing: 768
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 30,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

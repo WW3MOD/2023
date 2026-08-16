@@ -1,0 +1,31 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, demo-heli-weapons.lua
+
+^Combatant:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+
+# NOTE: ammo pools are deliberately LEFT AT STOCK. The littlebird's 160-round
+# magazine (7.7 s of continuous fire, helipad-only reload) is one of the two
+# things that enforces the anti-air ceiling, so hiding it behind a demo-only
+# ammo buff would misrepresent the change. Expect the littlebirds in Section 3
+# to run dry before the Mi-28 dies — that is the mechanic, not a bug.

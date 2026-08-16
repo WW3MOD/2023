@@ -19,7 +19,7 @@ If anything here disagrees with code, the doc is right and the code needs to cha
 | Unit class | Rearms at |
 |---|---|
 | Infantry | TRUK (supply truck), SUPPLYCACHE (dropped box), Logistics Center |
-| Ground vehicles | Logistics Center only — **except `m270`, `grad` and `tos`, which rearm nowhere.** Those three carry no `Rearmable` trait at all, so there is no host to pull from, and the LC push cannot reach them either (it is gated on the recipient declaring `replenish-vehicles`, which only `himars` and `iskander` do). Once spent they are finished as combatants; `ResupplyBehavior: Evacuate` is the whole plan for them — see "`ResupplyBehavior: Evacuate` is opt-in per actor" below. |
+| Ground vehicles | Logistics Center only — **except `m270`, `grad` and `tos`, which rearm nowhere.** Those three carry no `Rearmable` trait at all, so there is no host to pull from, and the LC push cannot reach them either (it is gated on the recipient declaring `replenish-vehicles`, which only `himars` and `iskander` do). Once spent they are finished as combatants; evacuating for a refund is the whole plan for them — see "Evacuate-when-dry is opt-in per actor" below. |
 | Aircraft | HPAD (helicopter pad), AFLD (airfield) — **specified, not yet true in play: neither host can exist. See "Aircraft ammunition…" below.** |
 | Static defenses (CRAM, AGUN) | Self-reload via `ReloadAmmoPool` (no external supply consumed) |
 
@@ -41,7 +41,7 @@ Consequences worth knowing before touching aircraft logic: `ReturnToBase` resolv
 
 **"A resupplier exists" is the engine's whole reachability test.** `AmmoPool.ChooseResupplier` ends in `ClosestToIgnoringPath` (`AmmoPool.cs:343-344`) and filters only on ownership, `RearmActors` membership and `CurrentSupply > 0` (`:331-341`) — no path check, and no `IsInWorld` check either. So a depot across an unfordable river reads as reachable, and any consumer that wants real reachability must supply its own proxy (and should document it as a proxy). When `ChooseResupplier` returns null, `AutoRearm` just sets `NeedsResupply = true` on every pool and returns (`:313-320`, with an in-code note that "Evacuation only happens when `ResupplyBehavior` is explicitly set to `Evacuate`") — the flag has only two readers, the Hunt-stance provider scan (`SupplyProvider.cs:361`) and `UnitBuilderBotModule.AnyFieldedUnitNeedsResupply` (`:487`, a production gate), neither of which disposes of the unit. So nothing at the unit level *removes* a dry unit with no reachable source — that judgement belongs at the *sector* level, not in a unit trait. What such a unit no longer does is keep fighting: the attack activities test `AmmoPool.CannotFight` and end, so it drops the attack order and falls idle rather than standing in range aiming a weapon it cannot fire, and going idle re-enters the `INotifyBecomingIdle` dispatch above — so it retries resupply once per cycle instead of asking exactly once and never again. Note also that `AutoRearmIfAllEmpty` requires **every** pool empty (`ammoPools.All(a => !a.HasAmmo)`, `:170-173`) — a unit dry on its main gun but holding a loaded secondary never enters the path at all.
 
-**`ResupplyBehavior: Evacuate` is opt-in per actor, and it is not just trucks.** The `^AutoTarget` default is `Auto` (`defaults.yaml:318-319`); exactly four actors override to `Evacuate` — TRUK (`vehicles.yaml:515`) plus the rocket artillery **m270** (`vehicles-america.yaml:704`), **grad** (`vehicles-russia.yaml:529`) and **tos** (`vehicles-russia.yaml:652`). A spent Grad rotating to the map edge is designed behaviour, not a bug.
+**Evacuate-when-dry is opt-in per actor, and it is not just trucks.** Mind the names: `ResupplyBehavior` is the **enum type** (`AutoTarget.cs:28`, values `Hold`/`Auto`/`Evacuate`) — there is no `ResupplyBehavior:` YAML key. The two settable fields are **`InitialResupplyBehavior`** (human-owned) and **`InitialResupplyBehaviorAI`** (bot- or non-playable-owned), chosen at `AutoTarget.cs:473`, and an actor that sets only one keeps the default on the other. The `^AutoTarget` default is `Auto` for both (`defaults.yaml:322-323`); exactly four actors override to `Evacuate`, all setting both keys — TRUK (`vehicles.yaml:529-530`) plus the rocket artillery **m270** (`vehicles-america.yaml:704-705`), **grad** (`vehicles-russia.yaml:529-530`) and **tos** (`vehicles-russia.yaml:654-655`). A spent Grad rotating to the map edge is designed behaviour, not a bug.
 
 **`MobileInfo.LocomotorInfo.SharesCell` is the name-free infantry/vehicle discriminator.** `MobileInfo.LocomotorInfo` is resolved in `RulesetLoaded` (`Mobile.cs:143-154`), so it is readable straight off an `ActorInfo` with no trait instance and no `TraitDictionary` lookup. In WW3MOD `SharesCell: true` appears on exactly the four `foot*` locomotors (`world.yaml:32/47/64/80`) and no vehicle locomotor — which cleanly separates "topped up in place by a truck/cache push" (infantry) from "must drive to a depot" (vehicles) without an actor-name list and its case-mismatch hazard. Caveat: the `Walker` locomotor (`world.yaml:193`) does not share cells, so an infantry-like actor using it would misclassify.
 
@@ -157,7 +157,7 @@ refund = max(0, Cost
 
 ## Per-platform ammo budget targets
 
-These are guideline ratios (`pool budget / unit Cost`). Specific values live in `DOCS/reference/ammo-values.md`.
+These are guideline ratios (`pool budget / unit Cost`). Specific per-pool values live in the YAML; the vehicle roster is tabulated below.
 
 | Class | Total pool budget | Reason |
 |---|---|---|
@@ -169,6 +169,62 @@ These are guideline ratios (`pool budget / unit Cost`). Specific values live in 
 | Mobile artillery (155mm / 152mm) | ~25% | Shell pool sized to artillery doctrine. |
 | MLRS one-shot magazine | ~45–50% | The rocket pod *is* the platform's value. |
 | Long-range missile platform (HIMARS, Iskander) | ~50% | Two missiles per launcher; the launcher is mostly the missiles. |
+
+### The vehicle ammo roster — every armed vehicle carries a live pool
+
+**There is no armed vehicle anywhere that shoots without drawing from a pool**, and the capacities are deliberately small. Audited across all four vehicle files (as of 2026-08):
+
+| File | Actor | Live pool capacities |
+|---|---|---|
+| `vehicles-america.yaml` | `humvee` | 300 |
+| | `m113` | 500 |
+| | `bradley` | 900 + 8 |
+| | `abrams` | **40** |
+| | `m109` | **39** |
+| | `m270` | **12** |
+| | `strykershorad` | 400 + 8 + 4 |
+| | `HIMARS` | **2** |
+| `vehicles-russia.yaml` | `btr` | 500 |
+| | `bmp2` | 900 + 8 |
+| | `t90` | **40** |
+| | `giatsint` | **39** |
+| | `grad` | 40 |
+| | `tos` | **24** |
+| | `tunguska` | 180 + 8 |
+| | `iskander` | **2** |
+| `vehicles-ukraine.yaml` | `t72` | **40** |
+| `vehicles.yaml` | `MNLY` | 10 (`mines-ammo`, feeds `Minelayer`, not an armament) |
+
+The only pool-less vehicles are the ones with **no gun**: `MSAR`, `TRUK`, `LCCV` (unarmed support), the shared `^Vehicle`/`^WheeledVehicle`/`^TrackedVehicle`/`^Walker` templates, and the two projectile-carrier actors `HIMARSMissile`/`IskanderMissile`. At 40 rounds for a main battle tank and 2 for `iskander`/`HIMARS`, **a vehicle running dry mid-battle is the normal course of a fight, not an edge case.**
+
+**`vehicles.yaml` is the least representative member of its own category — do not read it as "the vehicles".** It holds the shared templates plus a handful of unarmed support units; every actual combat vehicle lives in `vehicles-america.yaml`, `vehicles-russia.yaml` or `vehicles-ukraine.yaml`. Grepping `vehicles.yaml` alone for `AmmoPool` returns one live block and several commented-out ones, which reads as "vehicles used to have ammo and it was disabled" — the exact opposite of the truth. The commented blocks are not disabled pools on live units; they are fragments of two **entirely commented-out actors** (`SandBagLayer` ~`:650`, `timberwolf` ~`:709`, disabled in `296a529c`, 2023-06-20), and a commented `AmmoPool@1:` line looks identical either way. **General rule: before concluding anything about "all vehicles", grep every file under `mods/ww3mod/rules/` rather than the file whose name matches the concept.** The per-faction split means the category-named file is frequently the least representative one.
+
+**Two structural splits inside that roster**, both easy to get wrong by generalising from the tanks:
+
+- **The attack trait is not uniformly `AttackTurreted`.** `giatsint` (`vehicles-russia.yaml:489`) and `iskander` (`:985`) are `AttackFrontal`; the other fifteen are `AttackTurreted`. `AttackFrontal.GetAttackActivity` returns `Activities.Attack` while `AttackTurreted` inherits `AttackFollow.AttackActivity` — so **the vehicle roster is split across both attack activities**, and `Activities/Attack.cs` is not the infantry-only path it looks like.
+- **No vehicle has `AutoSeekSupplies` at all.** The trait appears on exactly two templates in the whole mod, both infantry: `^Soldier` (`infantry.yaml:228`, `ReturnWhenEmpty: true`) and `^E6` (`:1949`, `ReturnWhenEmpty: false`). So none of that trait's machinery — neither the idle seek nor `ReturnWhenEmpty` — applies to a single vehicle, whatever its `Rearmable` status.
+
+**`AutoSeekSupplies.ReturnWhenEmpty` bounds what it will interrupt an order FOR — it is not a guarantee that a dry unit stops attacking.** Its `ITick` returns immediately when the actor has no `Rearmable` (`AutoSeekSupplies.cs:226-227`), and when `ChooseResupplier` returns null, the host is out of the world, or the host fails `WithinReturnLeash` (`ReturnWhenEmptyLeashCells`, default 30, `:84`), it flags `NeedsResupply` and **deliberately leaves the unit's current order alone** (`:281-288`) — "an unreachable errand is worse than none". That decision is correct on its own terms. It does mean that anything which must release a dry unit from an undischargeable order has to live in the attack activities, not in the seek trait.
+
+**"Can this unit shoot?" has THREE different answers, and picking the wrong grain is a recurring bug.**
+
+| Grain | Predicate | Right for | Wrong for |
+|---|---|---|---|
+| Per-**actor** | `AmmoPool.CannotFight(self)` — `AllPoolsEmpty && !HasTraitInfo<AircraftInfo>()` (`AmmoPool.cs:216`) | "nothing left to shoot with, anywhere": resupply dispatch, cheap early-outs | **any question about a specific target** — a unit can be unable to engage what is in front of it while a pool it cannot use here is still loaded |
+| Per-**armament, per-target** | `ChooseArmamentsForTarget(t, force)` **plus** `!a.IsTraitPaused` | "is there a weapon both legal against THIS target and able to fire?" — e.g. should I stop moving to aim | — (`ChooseArmamentsForTarget` supplies only the legality half; it filters `IsTraitDisabled`, and an empty armament is *paused*, not disabled) |
+| Per-**armament firing gate** | `Armament.CanFire` (`Armament.cs:327`) | the shot itself | **any movement or engagement decision** — it also tests `IsReloading`/`IsWaitingBurst`/`IsAiming`, transient per-shot states, so reading it would make a unit decline to engage merely because it is between bursts |
+
+Aircraft are carved out of the per-actor grain deliberately: a dry airframe recovers through its own idle `ReturnToBase` flow, and tearing its activity down from outside fights that flow (see "What rearms what" — no aircraft host exists today anyway).
+
+**The concrete case, and it is not exotic.** `^E3`, the standard rifleman, carries a DMR (`primary`, 100 rounds) and an RPG (`secondary`, 1 round) whose weapon declares `InvalidTargets: Infantry` (`weapons-ballistics.yaml:302`). After any infantry-vs-infantry firefight the DMR is spent and the RPG is still loaded — there was never a legal target for it. So against infantry his only offered armament is one he cannot fire, while `CannotFight` reads **false** because a pool is loaded. Both his `ReloadAmmoPool`s are gated `RequiresCondition: replenish-soldiers`, so it does not heal on its own. **Generalisation: a multi-pool unit whose weapons have disjoint `ValidTargets` will routinely sit at "empty for the enemy in front of me, loaded overall", and any per-actor ammo predicate is blind to exactly that state.**
+
+Two alternatives that are simply wrong at every grain: `Rearmable.RearmableAmmoPools` (answers a different question) and the `^AmmoDecoration` red-pip condition (implied by emptiness, not equal to it).
+
+**`Rearmable.AmmoPools` and "every `AmmoPool` on the actor" are DIFFERENT SETS — and on 13 of 14 infantry classes they coincide, which is exactly what makes the wrong one look right.** `Rearmable` filters to its declared list (`Rearmable.cs:44`), so it answers "which pools does a *host* refill?", not "which pools does this unit have?". Of the 14 `infantry.yaml` classes carrying both traits (`^E1 ^E3 ^AR ^E2 ^TL ^MT ^SN ^AT ^AA ^E6 ^E4 ^SF ^DR ^PILOT`), the three two-pool combat classes (`^E3`, `^TL`, `^SF`) all list both pools — so a test on any of them passes either way. **`^E6` is the single divergence:** it lists only `secondary-ammo` (`infantry.yaml:1941-1943`) while also carrying a 100-round `primary-ammo` (`:1859-1863`). Scope the count to `infantry.yaml` — `^CrewMember` (`crew.yaml:5`) is a 15th armed man-class with a single, listed pool, so counting it gives 14 of 15 instead.
+
+**The caveat on `IsTraitPaused` attaches to the QUESTION, not to the predicate.** `AmmoPool.cs:210-214` warns against "every armament paused" as a `CannotFight` substitute, and that warning is right *for resupply dispatch* — but pause-for-any-reason is exactly correct for "should I stop walking to aim at this?", where it also picks up `suppressed >= 10`, `empdisable`, `heavy-damage-attained` and `inwater`, each of which wedges a move by the identical route. A warning recorded against one call site is not a global prohibition. *(That comment's stated example is itself inaccurate — see the note at the site; the caveat stands on the other terms.)*
+
+**Do NOT fix this inside `ChooseArmamentsForTarget`.** Its `// FF TODO Check ammo?` reads like an invitation, but `AttackBase.AbandonWhenArmamentsPaused` was added *specifically* because "every armament paused" must not end an attack by default — holding aim through a brief pause is the wanted behaviour. Filtering paused armaments in the shared method would silently flip that opt-in on for every unit in the game and strip the attack cursor off any momentarily-paused one. **A standing TODO is not evidence that the change is safe where it sits: check whether a later opt-in was built precisely to avoid making it there.**
 
 ### Munition consistency rule
 
