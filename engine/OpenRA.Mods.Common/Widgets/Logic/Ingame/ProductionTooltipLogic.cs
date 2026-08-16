@@ -207,7 +207,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				.ToArray();
 			if (pools.Length >= 2)
 			{
-				var total = pools.Sum(p => p.Ammo * p.SupplyValue);
+				var total = pools.Sum(p => p.PoolBudget);
 				lines.Add((110, $"Total ammo cost: {total}"));
 			}
 
