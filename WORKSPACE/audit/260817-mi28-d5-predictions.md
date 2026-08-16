@@ -146,4 +146,51 @@ not a finding and I have drawn no conclusion from it.
 | `Ataka.AA` is valid against airborne targets and `Ataka` still is not | **verified statically** — `ValidTargets: Air` on the weapon and `Ground, Water, Air` on both damage warheads; `Ataka` byte-unchanged |
 | `Ataka` ground behaviour cannot have regressed | **verified** — not one line of it changed; the fix is purely additive |
 | No engine regression | **verified** — NUnit 1511/1511, baseline held |
-| **The Mi-28 actually fires at and hits an airborne target in game** | **NOT VERIFIED.** The granted run could not discriminate. This is the open item. |
+| **The Mi-28 actually FIRES at an airborne target in game** | **VERIFIED 2026-08-17** — `test-mi28-engages-air` passes: `Mi-28 spent a secondary missile at tick 19 (8 -> 7); Apache 800/800`. |
+| **…and that missile HITS** | **still not verified** — deliberately outside this observable's scope, see below. |
+
+---
+
+# Closing run — `test-mi28-engages-air`
+
+```json
+{"name":"test-mi28-engages-air","status":"pass",
+ "notes":"Mi-28 spent a secondary missile at tick 19 (8 -> 7); Apache 800/800",
+ "seed":490865292}
+```
+
+**What this establishes.** `secondary-ammo` went 8 → 7 against a target that was airborne and nothing
+else. `Ataka` cannot target an airborne actor and `30mm.Heli` is ground-only, so the spend is
+attributable to `Ataka.AA` and to nothing else on the unit. The Mi-28 selects and fires its air mount.
+Tick 19 against a ~500-tick deadline is a comfortable margin rather than a squeaker — consistent with
+the force order at tick 1 plus AutoTarget's 3–8 tick scan.
+
+**What it does NOT establish, and the note says so on purpose.** `Apache 800/800` is the target at full
+health at the moment the assertion latched, and that is the expected reading rather than a problem: the
+predicate fires on the ammo spend, and at 12 cells the missile is still in the air then. The observable
+was chosen precisely to be independent of flight time, of who wins, and of the first-mover artifact —
+which necessarily also makes it silent about whether the missile connects and damages. The hit stays
+supported statically (inherited `Warhead@Target` 10000/Pen 900 and `Warhead@Spread` 2000/Pen 20, both
+restated with `ValidTargets: Ground, Water, Air`, against helicopter `Thickness` 3–20; plus
+`CruiseAltitude` and `HorizontalRateOfTurn` taken from Hellfire) and unmeasured. **Do not cite this pass
+as evidence that the Mi-28 kills aircraft.**
+
+## A correction to the reading order, earned the hard way by the run before this one
+
+That run returned `HARNESS-ERROR (exit 3)`: another worker's `test-cargo-panel-full` held the
+single-instance lock and my game never started — `run: (not started)`, and no run directory was created.
+At that moment my privately poll-copied `lua.log` held **2422 bytes**, every line of it the other
+worker's transport test (`[deliv] …`). So, correcting the rule I proposed and that was adopted:
+
+- "NO-RESULT with an **empty** `lua.log` ⇒ plumbing" — **still correct**.
+- "populated `lua.log` ⇒ my scenario ran" — **wrong, and dangerous.** `lua.log` is a fixed global path
+  with no run identity. The 2026-08-15 entry covers staleness; *contention* is the sharper version,
+  because the log can be someone else's while it is still being written. A populated log can belong to
+  anyone.
+- The trustworthy per-run artefacts are the **run directory and `result.json`**, which the runner prints
+  as `Run dir:` and which cannot be another run's.
+
+A 0-byte `lua.log` is likewise not a failure signal on its own: this passing run left one, because the
+scenario prints nothing and `CombatProperties.Attack` logs only when `Target.IsValidFor` fails, which it
+does not here since the order is delayed one tick. **Read the run directory first; use `lua.log` only
+once you know it is yours.**

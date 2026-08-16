@@ -34,6 +34,47 @@ The general form is broader than `make test`: **any baseline claim a worker inhe
 branch point, not about `main`.** The same shape produced a stale-`[IN FLIGHT]`-tag misdispatch on 2026-08-16,
 where work that had shipped two days earlier was briefed as open.
 
+## 2026-08-17 — A FRESH WORKTREE HAS NO `engine/bin`, SO THE FIRST `run-test.sh` IN IT BURNS A RUN ON `NO-RESULT`
+
+Cost a **granted** autotest run, which is the scarce kind. `run-test.sh` launches the game from the
+worktree's OWN `engine/bin`, and `launch-game.sh:42` gates on
+`[ ! -f "${ENGINE_DIRECTORY}/bin/OpenRA.dll" ] || [ "$(cat VERSION)" != "${ENGINE_VERSION}" ]`. In a
+worktree created by `git worktree add` that directory does not exist — build output is not shared
+between worktrees and is not in git. The game therefore never starts, and the runner reports
+**`VERDICT: NO-RESULT (exit 3)`**.
+
+**The trap is that the failure looks like a scenario failure.** Exit 3 is the same code you get for a
+hang or a scenario that never reaches an assertion, the run directory is created and left empty exactly
+as it would be for a genuine no-verdict, and no crash log is written because nothing crashed. The one
+line that names the real cause — `Required engine files not found.` — is in the middle of the runner's
+output, above the verdict banner, and is easy to skim past when you are looking for the verdict.
+
+**What separates it from a real failure, in the order worth checking:**
+
+1. `lua.log` is **0 bytes** ⇒ the script never ran. (This already distinguishes "predicate never went
+   true" from "my script never ran" — see the 2026-08-15 entry. Extend it: it also catches "the game
+   never launched at all".)
+2. The run directory exists but is **empty** — no `result.json`, no screenshots.
+3. No `exception-*.log` newer than the run.
+4. `ls <worktree>/engine/bin` — missing.
+
+**Prevention is one command.** Run `make all` in a new worktree *before* the first `run-test.sh`, even
+when the diff contains no compiled code. That last clause is where I went wrong: I reasoned "this change
+is scenario YAML and Lua, nothing compiled changed, so no build is needed", which is true about the
+correctness of the diff and irrelevant to whether the game can start from that directory. **Building is
+a property of the worktree, not of the change.**
+
+Corollary for anything that consumes a scarce grant: check the harness's own preconditions before
+spending it. Here the check is free and takes a second — `test -f engine/bin/OpenRA.dll`.
+
+**Also worth knowing, and it would have caught the scenario's YAML without any run:**
+`./utility.sh --check-yaml <MAPDIR>` lints a **single** map rather than the whole mod, launches no
+game, and needs only a build. The path argument is resolved **relative to `engine/`**, so a scenario is
+`../tools/autotest/scenarios/<name>`, not the repo-root path — passing the latter fails with a
+`DirectoryNotFoundException` naming an `engine/tools/...` path that does not exist. Use it on any new or
+edited scenario before spending a run on it. It validates `map.yaml` and `rules.yaml` only; Lua is not
+parsed, so a Lua syntax or API error still surfaces only on a real run.
+
 ## 2026-08-17 — `Class=Unknown` DOES NOT HIDE A MAP FOLDER FROM THE LINTER: `HasFlag(0)` IS ALWAYS TRUE
 
 Found while re-cordoning the nine shipped maps. `mods/ww3mod/mod.yaml:105` registers

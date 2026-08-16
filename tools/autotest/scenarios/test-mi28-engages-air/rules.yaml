@@ -1,0 +1,30 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-mi28-engages-air.lua
+
+# Deliberately NO ^Combatant AutoTarget block here, unlike test-balance-heli-1v1.
+# Neither `heli` nor `mi28` inherits ^Combatant (their chain is
+# ^Helicopter -> ^Airborne -> ^NeutralAirborne), so that block is dead config for
+# helicopters and copying it would only suggest a pin that is not in force. The
+# helicopters run on the engine AutoTarget defaults — MinimumScanTimeInterval 3,
+# MaximumScanTimeInterval 8 (AutoTarget.cs:199-202) — which is why acquisition here
+# is a matter of a few ticks rather than tens.
+#
+# ScanRadius is likewise left unpinned. Unset means AutoTarget falls back to
+# AttackBase.GetMaximumRange() (AutoTarget.cs:1040), which for the Mi-28 is 22c0
+# whether or not the air mount is present, so the 12-cell spacing sits inside the
+# scan circle in BOTH arms of this test. That matters: the regressed arm must fail
+# because no armament is VALID against the target, not because the target was never
+# seen. Those are different bugs and this scenario is only meant to detect one.
