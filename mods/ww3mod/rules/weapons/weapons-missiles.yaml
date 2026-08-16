@@ -181,6 +181,59 @@ Ataka:
 		Explosions: explosion_air_medium
 		ImpactSounds: kaboom25.aud
 
+Ataka.AA:
+	Inherits: Ataka
+	# Mi-28 air-to-air mount (260817). Closes the gap where MI28's AttackAircraft
+	# named a `secondary-air` armament that was never defined, leaving the only
+	# 6000-credit Russian attack helicopter unable to engage ANY airborne target
+	# (30mm.Heli is ValidTargets: Ground, Ataka is Vehicle, Defense; an airborne
+	# target is Air/AirDetonateAttack/Helicopter). Its own build tooltip promised
+	# "Can engage aircraft".
+	#
+	# WHY A SEPARATE WEAPON RATHER THAN ADDING `Air` TO Ataka. Not the reference
+	# count — the flight profile. Ataka cruises at 100 and turns at 20, both tuned
+	# for a SACLOS ground shot; helicopters cruise at 1560-2560 (aircraft.yaml:398,
+	# aircraft-russia.yaml:471). Reusing that profile against a target fifteen
+	# times its cruise altitude would have produced a weapon that fires, never
+	# connects, and reads as correct in the YAML. Splitting lets the air numbers
+	# move without touching Ataka's measured anti-tank behaviour, which is the same
+	# reason 12.7mm.Hind.AA and 7.62mm.Minigun.AA exist.
+	#
+	# WHERE IT SITS ON THE LADDER. 12.7mm.Hind.AA documents the mod's own tiering
+	# versus an 800hp attack helicopter: SHORAD Stinger and MANPAD ~1 hit, "a real
+	# attack helicopter's own Hellfire" sub-second, the Hind's last-resort chin gun
+	# 4-73s. MI28 is Russia's attack helicopter at HELI's exact price, so it belongs
+	# in HELI's tier — which is what the INHERITED warheads already deliver
+	# (Warhead@Target 10000/Pen 900 and Warhead@Spread 2000/Pen 20 against
+	# helicopter Thickness 3-20 is full damage either way). No damage number is
+	# invented here; only the two flight fields below are overridden, and both are
+	# taken from Hellfire, the one missile in this mod already proven against air.
+	#
+	# The inherited Warhead@EffectAir stops being dormant on this variant — that is
+	# the "goes live the day Ataka is given Air" case its comment above predicts.
+	ValidTargets: Air
+	Projectile: Missile
+		# 512 is Hellfire's (the engine default, Missile.cs:126). Ataka's 100 also
+		# sits below the 128 AirThreshold that promotes an impact position to Air.
+		CruiseAltitude: 512
+		# 60 is Hellfire's. 20 is a ground-attack turn rate and will not hold a lead
+		# on a moving helicopter.
+		HorizontalRateOfTurn: 60
+	# Both damage warheads default to ValidTargets: Ground, Water (Warhead.cs:30),
+	# so weapon-level Air alone would have let the missile fly and detonate for
+	# nothing. Mirrors Hellfire's two warheads exactly.
+	Warhead@Target: TargetDamage
+		ValidTargets: Ground, Water, Air
+		Damage: 10000
+		Penetration: 900
+		DamageTypes: ExplosionDeath
+	Warhead@Spread: SpreadDamage
+		ValidTargets: Ground, Water, Air
+		Spread: 192
+		Damage: 2000
+		Penetration: 20
+		DamageTypes: ExplosionDeath
+
 Hellfire:
 	Inherits@ExplosionEffects: ^MediumExplosionEffects
 	# Tree gating (260510): same numbers as WGM. See WGM for explanation.

@@ -165,6 +165,23 @@ A-10's weapons are entirely unreachable.
 
 ## D5 — Every dedicated anti-air platform omits `Penetration`. **LATENT (all five actors disabled)**
 
+> **2026-08-17 — settled, verdict unchanged.** This entry originally rested on a heuristic the report
+> itself flagged as the thing to distrust first. It has now been checked properly and **survives**:
+> `~disabled` is a *hidden prerequisite*, not a negation — `TechTree.HasPrerequisites` strips the `~`
+> and then requires the player to **own** a prerequisite literally named `disabled` (`TechTree.cs:65-69`),
+> and nothing in the mod provides one. Bots go through the same `TechTree`, so `mig: 30` in
+> `rules/ai/ai.yaml:1658` is dead config, not a consumer. No Lua spawns them and every airstrike /
+> paratrooper power in `player.yaml` is commented out.
+>
+> One real gap in the original method, which did not change the answer: reachability was computed over
+> `mods/ww3mod/maps/**` only, and that is **one of three `MapFolders`** (`mod.yaml:89-97`). The third,
+> `tools/autotest/scenarios` (176 scenarios), **does** place `hsam` — `Actor2259` / `Actor5167` in 11
+> river-zeta derivatives. They are `Owner: Neutral`, and `Neutral` is `NonCombatant: True`, so they
+> acquire nothing and never fire. All 10 shipped playable maps place zero of the five. Note the
+> mechanism was live even though the instance was not: **map placement bypasses
+> `Buildable.Prerequisites` entirely**, so a `~disabled` actor placed as a combatant's unit would work
+> normally. See `260817-mi28-d5-predictions.md`.
+
 This one looked like the headline until the reachability filter was applied. It is worth recording
 precisely because of that.
 
@@ -247,12 +264,12 @@ grantable.
 
 - **The player-facing surfacing of D3.** I proved the merge throws; I did not observe what a player
   sees. Calling it a hang is unsupported and I have not repeated it.
-- **The fieldability filter is the load-bearing judgement in this report and it is heuristic.** "Player
-  can meet this" = actor is `Buildable` without `~disabled`, **or** appears as an actor type in a
-  shipped `map.yaml`. The map half is a regex over `map.yaml` actor blocks; it will miss anything spawned
-  only from Lua, from a support power, or from a bot module's build list. If `SAM`/`AGUN` are in fact
-  reachable by some path I did not model, **D5 is live and belongs above D2.** That is the single
-  finding in this report most likely to be wrong.
+- ~~**The fieldability filter is the load-bearing judgement in this report and it is heuristic.**~~
+  **CLOSED 2026-08-17** — checked against `TechTree`, the bot production path, Lua, support powers and
+  all three `MapFolders`. The verdict holds; D5 stays latent and below D2. The method really was
+  narrower than described (one map folder of three), and the miss it hid — `hsam` in the autotest
+  scenarios — turned out to be Neutral, non-combatant scenery. Detail in the D5 banner above and in
+  `260817-mi28-d5-predictions.md`.
 - **`Warhead@Spread` with default penetration is assumed intentional.** I read the pattern off 23 of 30
   fieldable cases having a penetrating `Warhead@Target` sibling and concluded the splash/aimed split is
   deliberate. That is inference from consistency, not from a design document or a comment. If the split

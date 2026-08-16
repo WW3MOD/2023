@@ -378,6 +378,17 @@ MI28:
 		Weapon: Ataka
 		LocalOffset: 0,213,-85, 0,-213,-85
 		PauseOnCondition: !ammo-secondary
+	# Air-to-air mount (260817). AttackAircraft, GrantConditionOnPreparingAttack and
+	# AmmoPool@2 have all named `secondary-air` since the unit shipped; nothing ever
+	# declared it, and AttackBase filters armaments by name and drops an unmatched one
+	# silently — so the Mi-28 could not engage anything airborne despite its tooltip.
+	# Same pylons and same magazine as `secondary`: the SACLOS speed penalty and the
+	# 8-missile pool already list this name, so no other line on this actor changes.
+	Armament@2_Air:
+		Name: secondary-air
+		Weapon: Ataka.AA
+		LocalOffset: 0,213,-85, 0,-213,-85
+		PauseOnCondition: !ammo-secondary
 	AmmoPool@2:
 		Name: secondary-ammo
 		Armaments: secondary, secondary-air
