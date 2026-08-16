@@ -11,7 +11,6 @@
 
 using System;
 using System.Linq;
-using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Widgets;
 
@@ -127,13 +126,11 @@ namespace OpenRA.Mods.Common.Widgets
 					break;
 
 				case ResupplyBehavior.Evacuate:
-					// Evacuate NOW via Supply Route
+					// Evacuate NOW. PITFALL: this used to queue RotateToEdge directly, which desynced
+					// (widget callbacks run on one client) and also skipped the handicap adjustment and
+					// Payload override. DeliversCash@Rotation resolves "Evacuate" with both applied.
 					foreach (var at in actorStances)
-					{
-						var amount = at.Actor.GetSellValue();
-						at.Actor.QueueActivity(false, new RotateToEdge(at.Actor, true, amount));
-						at.Actor.ShowTargetLines();
-					}
+						world.IssueOrder(new Order("Evacuate", at.Actor, false));
 
 					break;
 			}

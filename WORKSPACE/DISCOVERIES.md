@@ -65,6 +65,37 @@ So `\n` works in `Buildable.Description` (production tooltip) and **silently doe
 `SplitOnFirstToken`, which searches for a real newline (`:206-215`), finds none, and returns the
 whole blob as the tooltip title with an empty body. **Before using `\n` in a new YAML description
 field, check whether that field's consumer is one of the six.**
+## 2026-08-16 — a per-machine settings file feeds simulation state; and the `Predicted*` idiom is WW3MOD's correct answer to optimistic UI
+
+From the `Widgets/**` determinism sweep in `wt/widget-sweep`, `main @ c9f6a6c0`. Full ranked list:
+[`WORKSPACE/audit/260816-widget-desync-sweep.md`](audit/260816-widget-desync-sweep.md).
+
+**A desync does not need an in-match action — a file on disk is enough.** `UnitDefaultsManager`
+(`world.yaml:274`) loads `Platform.SupportDir/ww3mod/unit-defaults.yaml` in `IWorldLoaded` and saves it
+on `IGameOver`. `AutoTarget.Created` (`AutoTarget.cs:495-524`) reads it and writes the **authoritative**
+`stance`/`cohesion`/`resupplyBehavior` fields that `CohesionMoveModifier:1117`, `AmmoPool:238`,
+`AutoSeekSupplies:386`, `SupplyProvider:485` and `DropsSupplyCache:494,511` consume in simulation.
+`Created` runs on every client for every actor, so **each client applies its own file to everyone's
+units** — two players with different files diverge the moment either receives a unit, no button pressed.
+The file is written at the end of any game, skirmish included, so single-player play seeds the
+divergence. **Generalisation: `Platform.SupportDir`, `Game.Settings` and anything else read from the
+local machine must never reach a synced field.** That is a distinct bug class from "widget mutates trait"
+and no amount of routing writes through orders fixes it — the *read* is the defect.
+
+**The correct optimistic-UI idiom is already in this codebase, and it is `Predicted*`.** The four stance
+selectors write `at.Trait.PredictedCohesion = mode` (client-local, for instant button highlight) *and*
+issue `SetCohesion` (authoritative). `AutoTarget.cs:352-362` marks each field `// NOT SYNCED: do not
+refer to this anywhere other than UI code`; the real values are private, exposed read-only as
+`CohesionValue`/`ResupplyBehaviorValue`. `World.SetPauseState` (`World.cs:453-460`) does the same with
+`PredictedPaused`. **Copy this when a UI control needs to feel instant** — the eject-rally code that
+started this whole thread was an outlier, not the house style, and `GarrisonPanelLogic:204` (the direct
+sibling of the file that had the bug) was clean all along.
+
+**Reading synced state from a widget is safe; writing is not.** A widget may freely read
+`CohesionSlotMemory` or `Cargo.HasSpace` to *decide* which order to issue — the decision is then
+replicated by that order, so only the issuing client's read matters. Sweeps should hunt writes, and
+should also hunt `world.SharedRandom` *reads*, which desync because drawing advances the synced RNG.
+(Checked: no `SharedRandom` use in `Widgets/**` today.)
 
 ## 2026-08-16 — a screenshot fired off a "world loaded" log line can precede the first rendered frame, and reads as a blank-screen regression
 
