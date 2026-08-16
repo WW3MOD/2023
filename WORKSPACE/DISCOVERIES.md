@@ -3,6 +3,41 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-16 — a screenshot fired off a "world loaded" log line can precede the first rendered frame, and reads as a blank-screen regression
+
+Sixth measured-nothing shape, and the first that produces a **false positive** rather than a false green.
+
+Verifying the shell-map crash fix, an external Mode-2 capture was fired as soon as
+`ApplyScenario: applying 'Shellmap' with 82 actors, 2 players` appeared in `debug.log`. The PNG came
+back with the menu widgets drawn over a **completely black** background — which looks exactly like a
+shellmap that failed to load, and was nearly reported as a regression from the `LoadShellMapInner`
+change merged minutes earlier.
+
+It was a timing artefact. A capture six seconds later showed the map rendering normally (river,
+bridges, 82 actors). **The tell is file size: 59 KB for the blank frame vs 1.6 MB for the real one** —
+an almost-flat PNG compresses to nothing, so a suspiciously small capture is evidence the frame had
+no content, available without looking at the image at all.
+
+Why that log line is not a safe trigger: the scenario-applied message is written during world
+*setup*, while the first render pass of that world happens later. `Test.Screenshot` being
+synchronous guarantees the PNG reaches disk before the next line runs — it says nothing about
+whether the world has been drawn yet.
+
+**Rules:** never fire an external capture directly off a load-completion log line — wait a beat, or
+capture twice and compare. When a capture comes back blank, check its byte size and re-shoot before
+believing it. The null result here would have sent someone reverting a correct fix.
+
+## 2026-08-16 — screenshot.sh picked its run directory lexicographically, so one named run shadowed every later one
+
+`tools/autotest/screenshot.sh` resolved the target run dir with `find … | sort | tail -1`. Run-ids are
+a mix of timestamps (`manual_260816_223042`) and caller-supplied names (`manual_smallfixes_210545`),
+and any letter sorts after any digit — so a single named run from an earlier session permanently
+shadowed every subsequent timestamped one. The script then wrote its command file into a directory
+whose engine had exited days before.
+
+The failure presents as `--wait` timing out, i.e. as *the game ignoring the request*, not as a
+wrong-file bug — which is why it survived. Fixed at `b3944d24` by selecting on mtime instead.
+
 ## 2026-08-16 — the RA content installer DOES fire on a clean machine; it reaches the player through a WW3MOD-only fallback in `BlankLoadScreen`, not through `IFileSystemExternalContent`
 
 Found in `wt/packaging` against `main @ 43d55ace`. Corrects finding B of
