@@ -1,0 +1,36 @@
+# Saved-game restore round trip on the canonical River Zeta map.
+#
+# Same probe as test-savegame-resume, but on a real 98x82 Conquest map with two
+# bots and production running, and the save taken 3000 ticks (~3 game-minutes) in.
+# The point is accumulated state: the small arena scenario cannot build up the
+# unit/squad/bot state a restore divergence would need, so a green there says
+# nothing about the open World.OutOfSync hypothesis (WORKSPACE/DISCOVERIES.md
+# 2026-08-12).
+#
+# HUMAN-vs-BOT variant of test-savegame-resume-riverzeta. Identical map, rules and
+# probe; the ONLY difference is the player layout, so the two scenarios isolate the
+# configuration variable.
+#
+# Here the local client occupies a COMBATANT slot (the USA-bot PlayerReference,
+# whose name is kept because every Actor in map.yaml references its owner by name)
+# and the single opponent is the @stable bot. The sibling scenario instead seats
+# the local client in the spectating Observer slot with two map-player bots.
+#
+# Why this exists: the saved-game investigation carried an unretired caveat that
+# every result came from spectator-plus-two-bots and might not hold for the user's
+# actual human-vs-bot session. This scenario tests that caveat rather than
+# restating it. Note the mechanism is still exercised — LaneAmbushBotModule runs on
+# @stable at full parity, so Russia-bot still posts gated ambushers.
+
+Player:
+	# Inherited from the tournament scenario: enough cash that the bots actually
+	# produce an army within the recorded window, so the save carries real state.
+	PlayerResources:
+		DefaultCash: 7500
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	GameSaveRoundTripProbe:
+		SaveAtTick: 3000
