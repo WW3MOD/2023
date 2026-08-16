@@ -33,6 +33,15 @@ force splitting; or write the arguments literally rather than through a loop var
 **Second-order lesson: suspect your invocation before your toolchain.** On case 1 the worker theorised a
 stale binary and burned two clean rebuilds on it. The build was always fine. When a flag appears to have
 no effect, prove the flag ARRIVED before blaming compilation, caching or the runtime.
+## 2026-08-16 — HUMAN-vs-BOT GREEN: the last caveat on the saved-game fix is retired. Five greens, four seeds, both configurations
+
+Replacement run for the one killed by a broken `dotnet` host (exit 137 / SIGKILL from a stale code-signature cache after an in-place runtime install — not a crash, not the scenario, not the product). Host repaired and verified (`dotnet --version` → `6.0.428`, exit 0) before spending the run; tree synced to `main @ cd60f3d0`, build clean, NUnit **1508/1508**.
+
+- **`test-savegame-resume-riverzeta-human` PASSES.** Runner exit 0 captured without a pipe, `status=pass`, `gameover=False`, `worldticks-since-resume=75`. Full probe path exercised: paused at tick 3000, `requesting save — paused=True` (so the order stream really ends with a Pause), restore returned `paused=True`, menu dismissed, then 75 world ticks of real progress. **No `syncreport-*` bearing this run's timestamp** — written only from `OutOfSync()` — so the restore passed its validating sync-hash comparison.
+- **THE CONFIGURATION DEMONSTRABLY DIFFERED, which is the thing that had never been checked.** Bot-module log lines this run: **704 `player=Russia-bot`, ZERO `player=USA-bot`.** In every prior run USA-bot was the `@experimental` bot and dominated the log. Here it produces no bot-module activity at all, because the local client occupies that combatant slot — positive proof the human-vs-bot layout actually took effect rather than the scenario quietly falling back to the old one.
+- **And the fixed mechanism was still exercised — on the other profile.** 85 `[exp-ambush]` lines, all `player=Russia-bot`, posting lanes with units from tick 100. So the gated-ambusher path this whole fix is about ran on `@stable` this time instead of `@experimental`, and the restore survived it. That incidentally re-confirms the `@stable` parity claim from the module header with runtime evidence.
+- **Caveat retired.** The "every result comes from spectator-plus-two-bots" caveat has been carried unretired since the first entry on this bug. It is now tested and it does not matter: the restore is clean in both layouts.
+- **Standing tally: 5 greens — 4 seeds in spectator-plus-two-bots (`-324877760`, `1017`, `-777333`, `20260816`) and 1 in human-vs-bot.** The only open item is the pre-existing, already-recorded one: the audit bounded *bot mutates → synced reads* and not the reverse, and no detector exists for that shape. Nothing in these runs suggests it is live.
 
 ## 2026-08-16 — BREADTH: the saved-game fix holds across FOUR seeds, but the human-vs-bot configuration is STILL untested — and that is the configuration players actually use
 
