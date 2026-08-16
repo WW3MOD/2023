@@ -25,6 +25,19 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class CreatesShroud : AffectsMapLayer
 	{
+		// AffectsMapLayer.Type is `virtual => throw new NotImplementedException()`, and MapLayers reads
+		// it on the first AddCellsToPlayerMapLayer call. Radar, CounterBatteryRadar and Vision each
+		// override it; CreatesShroud never did, so ANY actor carrying this trait hard-crashed on
+		// entering the world. It appears in no shipped YAML, which is the only reason that was never hit.
+		//
+		// PassiveVisibility is the honest value, but be clear about what it buys: MapLayers.AddSource
+		// branches on Vision / Radar / CounterBatteryRadar only, and the generated-shroud counter is
+		// commented out (MapLayers.cs:125), so shroud GENERATION is not implemented in this rewrite at
+		// all. This override makes the trait SAFE, not FUNCTIONAL - adding CreatesShroud to an actor
+		// will no longer crash, and will also not produce any shroud. Wiring that up is a feature, not
+		// a bug fix. Vision would be actively wrong: it would make a shroud generator REVEAL the map.
+		public override MapLayers.Type Type => MapLayers.Type.PassiveVisibility;
+
 		readonly CreatesShroudInfo info;
 		IEnumerable<int> rangeModifiers;
 

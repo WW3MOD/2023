@@ -620,7 +620,13 @@ namespace OpenRA.Mods.Common.Graphics
 				Log.Write("debug", $"Sequence {image}.{Name} does not define any frames.");
 				SequenceIntegrity.RecordDegraded(image, Name, "no frames");
 				sprites = Array.Empty<Sprite>();
-				bounds = Rectangle.Empty;
+
+				// Leave bounds null so the sequence stays UNRESOLVED. There is genuinely nothing to
+				// draw here and no frame to substitute (unlike a missing FILE, which SpriteCache now
+				// backs with one blank sprite), so any query has to fail - but it fails through
+				// ThrowIfUnresolved, naming the image and sequence. Setting bounds to Rectangle.Empty
+				// instead marked it resolved, and the reader then died on `frame % 0` with a bare
+				// DivideByZeroException that named nothing.
 				return;
 			}
 
@@ -645,13 +651,47 @@ namespace OpenRA.Mods.Common.Graphics
 				if (index.Count == 0 && allSprites.Length > 0)
 					index = new List<int> { 0 };
 				length = index.Count > 0 ? (int?)index.Count : length;
+
+				// Nothing survived the clamp, which means allSprites is empty - the file loaded but
+				// decoded to zero frames. `length` keeps its YAML value here, so leaving this to fall
+				// through would hand the readers a non-zero length over an empty array, i.e. the
+				// IndexOutOfRangeException half of the same crash. Stay unresolved, as above.
+				if (index.Count == 0)
+				{
+					SequenceIntegrity.RecordDegraded(image, Name, "no frames survived clamp");
+					sprites = Array.Empty<Sprite>();
+					return;
+				}
 			}
 
-			sprites = index.Select(f => allSprites[f]).ToArray();
+			sprites = PadToReadableLength(index.Select(f => allSprites[f]).ToArray());
 			if (shadowStart >= 0)
-				shadowSprites = index.Select(f => allSprites[f - start + shadowStart]).ToArray();
+				shadowSprites = PadToReadableLength(
+					index.Select(f => allSprites[Math.Clamp(f - start + shadowStart, 0, allSprites.Length - 1)]).ToArray());
 
 			bounds = sprites.Concat(shadowSprites ?? Enumerable.Empty<Sprite>()).Select(OffsetSpriteBounds).Union();
+		}
+
+		/// <summary>Restore the sizing invariant that every sprite reader assumes.</summary>
+		/// <remarks>
+		/// GetSprite and GetShadow both index `GetFacingFrameOffset(facing) * length + frame % length`,
+		/// so the array has to hold exactly facings * length entries. The clamp above can return fewer
+		/// - it shrinks `length` to the frames that survived, but never shrinks `facings` - and a file
+		/// missing entirely now arrives as a single blank frame from SpriteCache. Either way the last
+		/// facing indexes off the end.
+		///
+		/// Padding here rather than guarding the readers is deliberate: both readers are verbatim
+		/// upstream (identical to the vendored copy at c5bb5ece) and worth keeping that way, whereas the
+		/// clamp that breaks the invariant is WW3MOD's own. Fix the divergence at its source, not in
+		/// the code it lies to.
+		/// </remarks>
+		Sprite[] PadToReadableLength(Sprite[] resolved)
+		{
+			var required = Math.Abs(facings) * length.Value;
+			if (resolved.Length == 0 || resolved.Length >= required)
+				return resolved;
+
+			return Exts.MakeArray(required, i => resolved[i % resolved.Length]);
 		}
 
 		protected static Rectangle OffsetSpriteBounds(Sprite sprite)
