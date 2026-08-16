@@ -3,6 +3,50 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — "A DUPLICATE TRAIT KEY DOES NOT THROW" IS TRUE FOR ONE SOURCE AND FALSE FOR TWO. A SECOND SOURCE NAMING THE ACTOR TURNS IT INTO A LOAD ERROR
+
+Two existing entries say a duplicate child key inside one actor merges last-value-wins at the first key's
+position and **does not throw** (`conventions.md` §"A duplicate trait key inside ONE actor", and the
+2026-05 entry near the bottom of this file: *"the second copy is inert, and safe to delete"*). Both are
+correct **and both describe only the single-source path.** I relied on them to predict that the shipped
+`humvee` duplicate `RenderSprites` was harmless in all cases. That prediction was wrong, and the failure
+mode is a hard load error rather than a wrong number.
+
+**The mechanism.** `MergePartial(MiniYaml, MiniYaml)` opens by running `IntoDictionaryWithConflictLog`
+over **both** argument child lists (`MiniYaml.cs:522-529`). Despite the name, that helper is not a
+logger: it accumulates duplicates and then `throw`s `ArgumentException` (`Exts.cs:484-491`). The caller
+passes a scratch buffer and `Clear()`s it without reading, so the *only* observable effect of that block
+is the throw.
+
+**Why the base game still loads.** The throw needs an actor's child list to reach `MergePartial` as an
+argument, and that happens only when **two sources declare the same actor**. `MiniYaml.Load` keeps every
+rules file — and the map's `rules.yaml` — as a **separate source** (`:625-637`), folded with
+`.Aggregate(MergePartial)`. On the first source the actor is appended verbatim by `MergeNode`'s
+`plainKeys.Add` branch, duplicates intact and uninspected. On the second it is merged, the child list is
+inspected, and it throws. `MergeSelfPartial` (top-level dedup, per source) never reaches inside the
+actor, and `ResolveInherits` only ever passes *grandchildren* to `MergePartial` — which is why
+resolution succeeds and the duplicate looks inert right up until someone overrides the actor.
+
+**So the honest rule is two rules:**
+
+| who names the actor | what happens to a duplicate child key |
+|---|---|
+| one source | merged, last value at first position, no error — the existing rule |
+| two or more sources (mod file + map `rules.yaml`, or two mod files) | **`ArgumentException` at rules load** |
+
+**Blast radius when found (2026-08-16 weapons audit).** 18 actors carried duplicate child keys:
+`humvee`, `A10` (twice — `RenderSprites` and `ReloadAmmoPool@1`), `^CivField`, and 14 `*.Husk.EMP`
+actors with two `Inherits`. `humvee` is fixed. **`^CivField` is the dangerous one still standing**,
+because `conventions.md` recommends overriding a `^Template` from map rules as the *reliable* idiom —
+so the documented safe path is mined for any map that touches crop fields.
+
+**How to test this class of thing without loading a map:** mirror `MergeSelfPartial` / `MergePartial` /
+`ResolveInherits` over the real rule files and add one synthetic source naming the actor. That
+reproduces the throw, names the offending file:line, and needs no build. Deleting the duplicate is the
+fix; `--resolved-rules <actor>` before/after proves behaviour-neutrality (694 identical lines for
+`humvee`). Note `--resolved-rules` matches the **YAML key verbatim** — `humvee` works, `mi28` does not,
+`MI28` does.
+
 ## 2026-08-17 — A MATCHING SYNC REPORT ONLY CLEARS A TRAIT'S **HASHED** FIELDS. CHECK WHICH ONES THOSE ARE BEFORE CALLING IT EXCULPATORY
 
 Sibling of the "null result is not evidence" rule below, and it invalidated real conclusions rather than

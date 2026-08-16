@@ -25,8 +25,17 @@ humvee:
 		EmptyWeapon: VehicleCookoffTiny
 	AutoTargetPriority@Default:
 		RequiresCondition: !stance-fireatwill && !assault-move
+	# Scale and Image were two separate RenderSprites blocks 130 lines apart until
+	# 260817. Harmless while humvee was declared by one source (the fields are
+	# disjoint, so the merge produced this), but MergePartial runs
+	# IntoDictionaryWithConflictLog over an actor's child list the moment a SECOND
+	# source names that actor, and that helper THROWS on a duplicate key
+	# (Exts.cs:484-491) — so any map rules.yaml overriding humvee failed to load.
+	# Folded into the first block's slot carrying the later block's value, which is
+	# the one merge order that preserves behaviour exactly.
 	RenderSprites:
 		Scale: 0.9
+		Image: humvee
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 1
@@ -153,8 +162,6 @@ humvee:
 	# 	Pieces: 1, 1
 	# 	Range: 1c0, 1c0
 	# 	RequiresCondition: wgm_missile
-	RenderSprites:
-		Image: humvee
 	SpawnActorOnDeath:
 		Actor: humvee.husk
 
