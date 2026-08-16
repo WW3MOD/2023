@@ -57,9 +57,13 @@ namespace OpenRA.Mods.Common.Orders
 					yield break;
 				}
 
-				// Set rally point as cell target
-				var target = Target.FromCell(world, clampedCell);
-				cargo.SetEjectRally(passengerActorId, target);
+				// PITFALL: never call cargo.SetEjectRally here. The rally dictionary is read inside
+				// simulation (UnloadCargo.cs), so writing it client-locally desyncs the match — it
+				// has to travel as an order that every client resolves.
+				yield return new Order(Cargo.SetEjectRallyOrderString, transport, Target.FromCell(world, clampedCell), false)
+				{
+					ExtraData = passengerActorId
+				};
 
 				world.CancelInputMode();
 			}

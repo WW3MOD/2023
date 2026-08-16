@@ -355,6 +355,16 @@ namespace OpenRA.Mods.Common.Traits
 
 				self.QueueActivity(order.Queued, new UnloadCargo(self, Info.LoadRange, passenger));
 			}
+			else if (order.OrderString == SetEjectRallyOrderString)
+			{
+				var passenger = self.World.GetActorById(order.ExtraData);
+				if (passenger == null || !cargo.Contains(passenger))
+					return;
+
+				SetEjectRally(order.ExtraData, order.Target);
+			}
+			else if (order.OrderString == ClearEjectRallyOrderString)
+				ClearEjectRally(order.ExtraData);
 		}
 
 		public bool CanUnload(BlockedByActor check = BlockedByActor.None)
@@ -478,6 +488,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>Available cargo weight after passengers and reservations.</summary>
 		public int AvailableWeight => Info.MaxWeight - totalWeight - reservedWeight;
+
+		// The eject-rally dictionary is read inside simulation (UnloadCargo), so every write to it
+		// must arrive as a replicated order. UI and order generators issue these strings; only
+		// ResolveOrder and in-simulation cleanup may touch the dictionary directly.
+		public const string SetEjectRallyOrderString = "SetEjectRally";
+		public const string ClearEjectRallyOrderString = "ClearEjectRally";
 
 		/// <summary>Set a rally point for a passenger to execute on ejection.</summary>
 		public void SetEjectRally(uint passengerActorId, Target target)

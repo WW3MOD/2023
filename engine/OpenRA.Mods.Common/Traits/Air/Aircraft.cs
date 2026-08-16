@@ -1348,6 +1348,8 @@ namespace OpenRA.Mods.Common.Traits
 				self.QueueActivity(order.Queued, new Nudge(self));
 				self.ShowTargetLines();
 			}
+			else if (orderString == PatrolOrder.OrderString)
+				PatrolOrder.Resolve(self, order);
 		}
 
 		#endregion

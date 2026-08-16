@@ -48,6 +48,44 @@ One run, pinned seed `-324877760`, instrumenting all three inputs to the halt de
 - **`@stable` is affected.** The module's own header (`:40-51`) records that `LaneAmbushBotModule@stable` runs "at full @experimental parity, so @stable DOES instantiate it, commit to the PoiGoalGuard ledger, **grant the condition**, and issue orders from here." Humans / Normal / Rush / Turtle never instantiate it.
 - **SECOND CORRECTION to my "class is closed" claim, and it is now demonstrably wrong twice over.** The whole-match sweep compared `World.SyncHash()` around each bot tick. It cannot see an **activity-queue** write (flagged last time) and it cannot see a **condition grant** either — a granted condition changes no `[Sync]`-marked field at the moment of granting; the effect only surfaces later when a gate reads it. That sweep returning zero across a whole match is therefore **not** evidence that the class is closed. It was the strongest evidence I had and it was structurally incapable of finding this leak. *General lesson: an instrument that watches a hash can only see mutations that reach the hash. Before citing a clean sweep as proof of absence, ask what the mutation would have had to touch to be visible to it.*
 - **How to actually bound this class: a STATIC audit, not a dynamic sweep.** Grep bot modules for direct world-state mutation — `GrantCondition` / `RevokeCondition`, `QueueActivity` / `CancelActivity`, direct trait-field writes — and require each to be an issued order. That is enumerable by reading; the dynamic instrument provably is not.
+## 2026-08-16 — the eject-rally desync has a THIRD site, in plain UI code; and an `Order` can carry an N-element route only through `TargetString`
+
+Found in `wt/order-desync` while fixing the two generators, against `main @ 3bf234a6`.
+
+**The sweep's "two order generators" framing undercounts the eject-rally bug.** `CargoPanelLogic.cs:376`
+called `cargo.ClearEjectRally(passenger.ActorID)` directly from the passenger-slot click handler as the
+toggle-*off* half of the feature — not an `IOrderGenerator` at all, just a widget callback. It writes the
+same dictionary that `UnloadCargo.cs:131` reads inside simulation, so fixing only
+`EjectRallyOrderGenerator.cs:62` would have left half the feature desyncing. **Generalisation: auditing
+`IOrderGenerator` implementations is the wrong net for this bug class.** The invariant is "no client-local
+write to state that simulation reads", and UI logic classes (`Widgets/Logic/**`) mutate traits just as
+freely as generators do. `CargoPanelLogic`, `CommandBarLogic` and their siblings deserve the same sweep.
+
+**An `Order` has exactly one `Target` and one `ExtraLocation`, so a route of N cells has no native slot.**
+Patrol needs an arbitrary waypoint list. The three candidates and why only one works:
+`Target.FromSerializedTerrainPosition` *does* serialise a `WPos[]` (`Order.cs:161-171`) but that array is
+the target's own multi-position footprint, and the `Target` ctor derives `CenterPosition` from it —
+repurposing it hides the route inside a field other code reads as geometry. Issuing one order per waypoint
+re-introduces cross-order accumulated state. **`TargetString` is the only field that can carry a
+variable-length payload**, and it costs nothing in wire format: no new `OrderFields` bit, so
+`ProtocolVersion.Orders` (currently 21) does not move and `OrderTest.cs`'s round-trip byte-identity
+assertions are untouched. Adding a new *order string* is free; adding a new order *field* is not.
+
+**`FieldLoader.GetValue<CPos[]>` is not safe for order payloads.** `ParseCPosArray`
+(`FieldLoader.cs:288-307`) uses bare `int.TryParse` — current-culture, not invariant — and on a failed
+parse leaves `CPos.Zero` in the slot and returns the array anyway. For YAML that is merely lax; for an
+order decoded independently on each client it is a silent-divergence generator, since a client whose
+culture rejects a token would patrol to (0,0) while everyone else patrols correctly. Decode order payloads
+with `Exts.TryParseInt32Invariant` and reject the whole payload on any bad token.
+
+**`AcceptsOrder` is a deny-list, so new order strings need no registration — but they inherit
+`RejectsOrders` for free.** `RejectsOrdersExts.AcceptsOrder` (`RejectsOrders.cs:50`) returns true when no
+`RejectsOrders` trait is present, and an *empty* `Reject` set means "reject everything except `Except`"
+(`RejectsOrdersInfo:19`). Every `RejectsOrders:` in `mods/ww3mod/` is declared with empty lists, so those
+actors reject all orders. Consequence of routing Patrol through an order: a unit under
+`lost-connection || force-return` (`aircraft.yaml:386`) now correctly refuses a patrol, where the old
+client-local `QueueActivity` bypassed the check entirely. Bypassing the order system bypasses every
+guard built on it — `ValidateOrder`'s ownership check included.
 
 ## 2026-08-16 — the RA content installer DOES fire on a clean machine; it reaches the player through a WW3MOD-only fallback in `BlankLoadScreen`, not through `IFileSystemExternalContent`
 
