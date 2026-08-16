@@ -2396,6 +2396,30 @@ namespace OpenRA.Mods.Common.Traits
 						stagedCells.Remove(a);
 			}
 
+			// DIAGNOSTIC ONLY — nothing reads this. Emitted BEFORE the early return precisely because the
+			// interesting case is the one that returns: with no anchor the reserve is never dispersed, so it sits
+			// where it mustered in. That is the designed "inert until the field is populated" path, but the
+			// phantom anchor this module used to publish was accidentally fanning the pool out via SpreadCell,
+			// so suppressing it trades a bogus destination for real Supply Route congestion. This line is the
+			// only way to see that trade. Counts the FREE POOL, already computed — no extra world scan.
+			if (rallyCell.HasValue)
+			{
+				var near2 = 0;
+				var near4 = 0;
+				foreach (var u in idle)
+				{
+					var d = PoiOffenseMath.Chebyshev(u.Location.X, u.Location.Y, rallyCell.Value.X, rallyCell.Value.Y);
+					if (d <= 2)
+						near2++;
+					if (d <= 4)
+						near4++;
+				}
+
+				Log.Write("debug",
+					$"[exp-clog] player={player.PlayerName} sr={rallyCell.Value} pool={idle.Count}" +
+					$" near2={near2} near4={near4} anchor={stagingAnchor?.ToString() ?? "none"} tick={tick}");
+			}
+
 			if (!stagingAnchor.HasValue || idle.Count == 0)
 				return;
 
