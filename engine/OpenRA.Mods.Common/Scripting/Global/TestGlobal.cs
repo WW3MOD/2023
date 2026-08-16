@@ -491,6 +491,28 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				autoTarget.SetCohesion(actor, value);
 		}
 
+		[Desc("Set the per-TYPE FireStance default in UnitDefaultsManager, exactly as Ctrl+Alt on the " +
+			"stance bar does. This is a client-local preference: it must reach the world ONLY by the " +
+			"owning client issuing SetUnitStance orders on ActorAdded, never by simulation reading the " +
+			"store. Returns false if the manager is absent or the stance name is unknown, so a test can " +
+			"assert its own setup took effect rather than asserting against a silently-empty default.")]
+		public bool SetUnitTypeFireStance(string actorType, string stance)
+		{
+			if (!TestMode.IsActive || string.IsNullOrEmpty(actorType))
+				return false;
+
+			var mgr = Context.World.WorldActor.TraitOrDefault<UnitDefaultsManager>();
+			if (mgr == null)
+				return false;
+
+			if (!System.Enum.TryParse<UnitStance>(stance, true, out var value))
+				return false;
+
+			var key = actorType.ToLowerInvariant();
+			mgr.SetFireStance(key, value);
+			return mgr.GetDefaults(key)?.FireStance == value;
+		}
+
 		[Desc("Read Map.DensityLayer at a cell. Returns the byte value (0-255) summed from all " +
 			"density-bearing actors whose footprint covers this cell. Test mode only.")]
 		public int GetDensity(CPos cell)

@@ -1,0 +1,1 @@
+Per-type stance defaults must reach a newly-arrived unit via SetUnitStance orders (ActorAdded), with a no-default control that must NOT move.

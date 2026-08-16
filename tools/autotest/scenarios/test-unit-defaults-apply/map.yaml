@@ -1,0 +1,72 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: per-type stance defaults reach a newly-arrived unit as ORDERS
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# UnitDefaultsManager used to be read by AutoTarget.Created. That trait runs on EVERY client
+# for EVERY actor, and the manager is backed by a per-machine file — so each client applied its
+# own preferences to everyone's units and synced stance diverged with nobody pressing anything.
+# The read is gone; the preference now reaches the world the only way local state legitimately
+# can, by the OWNING client issuing SetUnitStance orders from World.ActorAdded.
+#
+# That replaced a working feature with an order path nothing covered. If the subscription is
+# ever dropped, per-type defaults silently stop applying: no crash, no failing test, no log.
+# This scenario is the coverage.
+#
+# The human slot must be a real PLAYING slot, not a spectator — the hook is gated on
+# `a.Owner == world.LocalPlayer`, and a spectator owns no actors, so an Observer-only scenario
+# would pass vacuously by never exercising the path at all.
+#
+# Both units are created by Lua AFTER WorldLoaded, because map-placed actors are added to the
+# world before the subscription exists and would (correctly) never be treated.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: russia
+	PlayerReference@Human:
+		Name: Human
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: 4488FF
+		Enemies: Enemy-bot
+	PlayerReference@Enemy-bot:
+		Name: Enemy-bot
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Bot: stable
+		Color: FF4444
+		Enemies: Human
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Human
+		Location: 8,17
+	SpawnHuman: mpspawn
+		Owner: Neutral
+		Location: 8,17
+	OpponentSR: supplyroute
+		Owner: Enemy-bot
+		Location: 58,17
+	SpawnEnemy: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+Rules: rules.yaml
