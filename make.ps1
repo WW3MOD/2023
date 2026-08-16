@@ -1,5 +1,12 @@
 ####### The starting point for the script is the bottom #######
 
+# The SDK keeps MSBuild worker nodes alive for ~15 minutes after every build. On a dev box that
+# builds often they are respawned faster than they retire: seven nodes at ~108 MB each were measured
+# idle, with no build running, alongside a 653 MB Roslyn compiler server (that one is separate — it
+# answers to -p:UseSharedCompilation, which we deliberately leave on because it is where the
+# incremental-build speed actually comes from). Reclaim on demand with `dotnet build-server shutdown`.
+$env:MSBUILDDISABLENODEREUSE = "1"
+
 ###############################################################
 ########################## FUNCTIONS ##########################
 ###############################################################

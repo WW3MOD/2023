@@ -16,6 +16,10 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+# See make.ps1 for why: stop `dotnet test` from leaving ~108 MB MSBuild worker nodes resident for
+# 15 minutes after every run. Set here as well because Do-Test invokes dotnet directly.
+$env:MSBUILDDISABLENODEREUSE = "1"
+
 function Check-GameRunning {
     $procs = Get-Process -Name "OpenRA" -ErrorAction SilentlyContinue
     if ($procs) {
