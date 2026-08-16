@@ -30,15 +30,61 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new UnitDefaultsManager(); }
 	}
 
+	// PITFALL: this is a PER-MACHINE preference store, backed by a file under Platform.SupportDir.
+	// Nothing in the simulation may read it. It used to be read by AutoTarget.Created, which runs on
+	// every client for every actor — so each client applied its own file to everyone's units and the
+	// synced stance/cohesion fields diverged with nobody pressing anything. Preferences now reach the
+	// world the only way local state legitimately can: the owning client issues an ORDER, which every
+	// client resolves identically.
 	public class UnitDefaultsManager : IWorldLoaded, IGameOver
 	{
 		readonly Dictionary<string, UnitTypeDefaults> typeDefaults = new Dictionary<string, UnitTypeDefaults>();
 		string filePath;
+		World world;
 
 		void IWorldLoaded.WorldLoaded(World w, WorldRenderer wr)
 		{
 			filePath = Path.Combine(Platform.SupportDir, "ww3mod", "unit-defaults.yaml");
 			Load();
+
+			world = w;
+			w.ActorAdded += ApplyDefaultsToLocalActor;
+		}
+
+		/// <summary>
+		/// Fires on every client, but only the OWNING client passes the LocalPlayer check and issues the
+		/// orders — exactly like a player clicking the stance buttons. Every client then resolves the
+		/// same replicated orders, so the stance a unit ends up with is identical everywhere even though
+		/// the preference behind it is local. Spectators and replay viewers have no LocalPlayer and
+		/// issue nothing.
+		/// </summary>
+		void ApplyDefaultsToLocalActor(Actor a)
+		{
+			var local = world?.LocalPlayer;
+			if (local == null || a.Owner != local || local.IsBot || !local.Playable)
+				return;
+
+			var defaults = GetDefaults(a.Info.Name);
+			if (defaults == null)
+				return;
+
+			// Only actors that actually accept these orders — AutoTarget.ResolveOrder gates every one
+			// of them on Info.EnableStances, so issuing to anything else would be pure order spam.
+			var autoTarget = a.Info.TraitInfoOrDefault<AutoTargetInfo>();
+			if (autoTarget == null || !autoTarget.EnableStances)
+				return;
+
+			if (defaults.FireStance.HasValue)
+				world.IssueOrder(new Order("SetUnitStance", a, false) { ExtraData = (uint)defaults.FireStance.Value });
+
+			if (defaults.Engagement.HasValue)
+				world.IssueOrder(new Order("SetEngagementStance", a, false) { ExtraData = (uint)defaults.Engagement.Value });
+
+			if (defaults.Cohesion.HasValue)
+				world.IssueOrder(new Order("SetCohesion", a, false) { ExtraData = (uint)defaults.Cohesion.Value });
+
+			if (defaults.Resupply.HasValue)
+				world.IssueOrder(new Order("SetResupplyBehavior", a, false) { ExtraData = (uint)defaults.Resupply.Value });
 		}
 
 		void IGameOver.GameOver(World world)
