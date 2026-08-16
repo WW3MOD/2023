@@ -459,11 +459,14 @@ giatsint:
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
-		Ammo: 39
+		# KEEP Ammo AN EXACT MULTIPLE OF ReloadCount — see the Paladin's pool for why
+		# (floor-vs-ceiling between the evac deduction and the tooltip; Ammo 39 refunded
+		# 4 shells free on every evac).
+		Ammo: 40
 		ReloadCount: 5
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 152mm: 7 batches × 5 shells × 60 supply = 420 (~23% of cost 1800).
+		# 152mm: 8 batches × 5 shells × 60 supply = 480 (~27% of cost 1800).
 		# Mirrors Paladin — artillery target band.
 		SupplyValue: 60
 	WithAmmoPipsDecoration@1:
