@@ -100,7 +100,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new UnitLifecycleLogger(this); }
 	}
 
-	public class UnitLifecycleLogger : IWorldLoaded, ITick
+	public class UnitLifecycleLogger : IWorldLoaded, ITick, INotifyActorDisposing
 	{
 		// Per-unit running state. Held entirely by this trait (no sim coupling) so
 		// the end-of-game census can be flushed from Game.OnQuit after the world
@@ -171,6 +171,13 @@ namespace OpenRA.Mods.Common.Traits
 			// Flush the end-of-game census when the process quits. Built purely from
 			// the tracked dictionary (no world reads), so it is safe even though
 			// Game.OnQuit fires after the world/renderer have been disposed.
+			//
+			// PITFALL: Game.OnQuit is static and this is an instance handler, so the delegate
+			// pins this trait -> World -> the whole actor graph. Flush() unsubscribes, but on its
+			// own it only runs at process quit, which meant every map loaded in one process
+			// retained its World forever (150-400 MB each). World teardown fires Disposing()
+			// below, which flushes and unsubscribes first — Game.OnQuit is now only the fallback
+			// for an exit path that never disposes the world.
 			Game.OnQuit += Flush;
 
 			Log.Write("debug", $"[UnitLifecycleLogger] active — writing {path}");
@@ -446,6 +453,22 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				Log.Write("debug", $"[UnitLifecycleLogger] flush failed: {e.Message}");
 			}
+		}
+
+		// World teardown. Emits the census and drops the Game.OnQuit subscription here rather than
+		// at process quit, so the trait stops pinning this World once the match it logged is over.
+		void INotifyActorDisposing.Disposing(Actor self)
+		{
+			// Flush() drops the Game.OnQuit subscription itself.
+			Flush();
+
+			// The census is written; nothing below is read again, and UnitTrack holds a strong Actor.
+			tracks.Clear();
+			world = null;
+			influence = null;
+			terrCacheOwner = null;
+			terrCacheEnemy = null;
+			terrCacheFriendly = null;
 		}
 
 		// Omniscient territory classifier (spec §1.5) — valid at log time because the

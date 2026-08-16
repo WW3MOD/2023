@@ -53,8 +53,16 @@ HAS_LUAC = $(shell command -v luac 2> /dev/null)
 LUA_FILES = $(shell find mods/*/maps/* -iname '*.lua' 2> /dev/null)
 MOD_SOLUTION_FILES = $(shell find . -maxdepth 1 -iname '*.sln' 2> /dev/null)
 
-MSBUILD = msbuild -verbosity:m -nologo
+MSBUILD = msbuild -verbosity:m -nologo -nodeReuse:false
 DOTNET = dotnet
+
+# The SDK keeps MSBuild worker nodes alive for ~15 minutes after every build. On a dev box that
+# builds often they are respawned faster than they retire: seven nodes at ~108 MB each were
+# measured idle, with no build running, alongside a 653 MB Roslyn compiler server (that one is
+# separate — it answers to -p:UseSharedCompilation, which we deliberately leave on because it is
+# where the incremental-build speed actually comes from). Reclaim on demand with
+# `dotnet build-server shutdown`.
+export MSBUILDDISABLENODEREUSE = 1
 
 RUNTIME ?= net6
 CONFIGURATION ?= Release
