@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using OpenRA.FileSystem;
+using OpenRA.Primitives;
 
 namespace OpenRA.Graphics
 {
@@ -33,6 +34,8 @@ namespace OpenRA.Graphics
 		readonly Dictionary<int, Sprite[]> resolvedSprites = new();
 
 		readonly Dictionary<int, (string Filename, MiniYamlNode.SourceLocation Location)> missingFiles = new();
+
+		Sprite blankSprite;
 
 		int nextReservationToken = 1;
 
@@ -168,13 +171,57 @@ namespace OpenRA.Graphics
 			if (missingFiles.TryGetValue(token, out var r))
 			{
 				Log.Write("debug", $"Missing sprite file: {r.Location}: {r.Filename} not found");
-				return Array.Empty<Sprite>();
+				return new[] { BlankSprite };
 			}
 
 			return resolved;
 		}
 
+		// PITFALL: returning instead of throwing is WW3MOD-specific - upstream throws
+		// FileNotFoundException here. That divergence keeps an incomplete install bootable, but it
+		// used to return an EMPTY array, and every consumer indexes sprites as
+		// facings * length + frame without checking. A missing file therefore did not fail at load;
+		// it crashed the process on the first frame anything tried to DRAW it, which is invisible to
+		// anyone whose own install has the file. One frame keeps the array non-empty so the
+		// arithmetic downstream stays in range and the unit simply renders as nothing.
+		//
+		// A zero Size deliberately takes SheetBuilder.Add's "don't bother allocating empty sprites"
+		// path: no sheet space, no buffer write, so this is safe to build lazily even after
+		// LoadReservations has released the sheet buffers.
+		Sprite BlankSprite => blankSprite ??=
+			SheetBuilders[SheetType.BGRA].Add(Array.Empty<byte>(), SpriteFrameType.Bgra32, new Size(0, 0));
+
 		public IEnumerable<(string Filename, MiniYamlNode.SourceLocation Location)> MissingFiles => missingFiles.Values.ToHashSet();
+
+		/// <summary>
+		/// Reserved sprite filenames that the file system cannot open, without decoding anything.
+		/// </summary>
+		/// <remarks>
+		/// <see cref="MissingFiles"/> only fills in during <see cref="LoadReservations"/>, which decodes
+		/// every sprite in the mod and packs it into sheets - far too slow to run from a lint pass, which
+		/// is invoked once per tileset and again per map. This reports the same "file not found" class by
+		/// asking the file system directly, so the check costs an Exists call per referenced filename.
+		///
+		/// Only valid BEFORE <see cref="LoadReservations"/>, which clears the reservation tables. That
+		/// suits lint, which never loads sprites, and is why this does not simply reuse missingFiles.
+		/// Unlike <see cref="MissingFiles"/> this does NOT catch a file that exists but no loader can
+		/// parse - that case still surfaces only at load time.
+		/// </remarks>
+		public IEnumerable<(string Filename, MiniYamlNode.SourceLocation Location)> UnreadableReservedFiles
+		{
+			get
+			{
+				foreach (var (filename, tokens) in reservationsByFilename)
+				{
+					if (fileSystem.Exists(filename))
+						continue;
+
+					foreach (var token in tokens)
+						if (spriteReservations.TryGetValue(token, out var rs))
+							yield return (filename, rs.Location);
+				}
+			}
+		}
 
 		public void Dispose()
 		{

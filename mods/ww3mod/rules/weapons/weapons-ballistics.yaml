@@ -647,7 +647,7 @@ AACannon:
 	Burst: 15
 	BurstDelays: 1
 	BurstWait: 3
-	Report: A10.wav
+	Report: a10gun.wav
 	Projectile: Bullet
 		Inaccuracy: 1c512
 		InaccuracyPerProjectile: 32,32,0
@@ -683,7 +683,7 @@ AACannon:
 	Burst: 12
 	BurstDelays: 1
 	BurstWait: 3
-	Report: A10.wav
+	Report: a10gun.wav
 	Projectile: Bullet
 		Inaccuracy: 1c512
 		InaccuracyPerProjectile: 32,32,0
@@ -698,7 +698,7 @@ AACannon:
 	Burst: 15
 	BurstDelays: 1
 	BurstWait: 20
-	Report: A10.aud
+	Report: a10gun.wav
 	Projectile: Bullet
 		Speed: 5c0
 		Inaccuracy: 0c768
