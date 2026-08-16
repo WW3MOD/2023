@@ -370,6 +370,27 @@ LOGISTICSCENTER:
 		Name: Logistics Center
 	Valued:
 		Cost: 3500
+	# SALVAGE IS CAPPED AT THE LCCV'S COST, because this is the only building a player
+	# can obtain. `Buildable.Prerequisites: ~disabled` above gates the BUILD SIDEBAR only —
+	# Transforms.CanDeploy (Transforms.cs:93-99) never consults prerequisites, so LCCV
+	# (vehicles.yaml, Cost 1200) deploys one regardless. Selling it at the full 3500 was a
+	# money pump: 1200 in, 3500 out, repeatable.
+	#
+	# 34% of 3500 = 1190, i.e. just under the 1200 it costs to field one. Deliberately
+	# RefundPercent and NOT CustomSellValue: CustomSellValue would also lower GetSellValue,
+	# which bots rank capture targets by (CaptureManagerBotModule.cs:147) — and this building
+	# IS capturable via ^BasicBuilding -> ^NeutralOrOccupiedCapturable (:10, :149-157). Its
+	# strategic worth is still 3500; only its scrap value changed.
+	# RECOMPUTE THIS if either Cost changes: RefundPercent <= 100 * LCCV.Cost / this Cost.
+	Sellable:
+		RefundPercent: 34
+	# The other half of the same payout. SpawnActorsOnSell hands out actors worth
+	# ValuePercent of the sell value (SpawnActorsOnSell.cs:64-69) — at 40% of 3500 that is
+	# five 250-credit technicians, 1250 credits of free infantry that can themselves be
+	# evacuated for cash. It reads Valued.Cost directly, so RefundPercent above does not
+	# reach it and it has to be zeroed separately.
+	SpawnActorsOnSell:
+		ValuePercent: 0
 	Health:
 		HP: 60000
 	Armor:

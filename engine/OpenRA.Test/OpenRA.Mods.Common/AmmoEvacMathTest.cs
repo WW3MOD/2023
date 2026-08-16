@@ -129,7 +129,7 @@ namespace OpenRA.Test
 		[Test]
 		public void EvacRefund_ScalesByHealthFraction()
 		{
-			// Mirrors RotateToEdge.cs:275-280 / DOCS/reference/economy.md: sellValue x HP/MaxHP, integer-truncating.
+			// Mirrors RotateToEdge.cs:377-380 / DOCS/reference/economy.md: sellValue x HP/MaxHP, integer-truncating.
 			Assert.Multiple(() =>
 			{
 				Assert.That(AmmoEvacMath.EvacRefund(1000, 1000, 1000), Is.EqualTo(1000), "undamaged ⇒ full value");

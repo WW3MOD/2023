@@ -52,5 +52,40 @@ namespace OpenRA.Mods.Common.Traits
 
 			return System.Math.Max(0, baseValue - missingAmmoValue);
 		}
+
+		/// <summary>
+		/// Scale an evacuation refund by the owner's handicap. A handicapped player pays
+		/// <c>100/(100-handicap)</c> times list price for everything
+		/// (<see cref="HandicapProductionMultiplierInfo"/>, attached on the player in
+		/// defaults.yaml), so the refund has to be inflated by the identical factor or
+		/// rotating a unit out returns less than it cost to call in.
+		/// </summary>
+		/// <remarks>
+		/// PITFALL: every path that pays cash for an actor leaving the map edge must go
+		/// through here. Three used to compute the refund locally and only one of them
+		/// applied the adjustment, so the same unit was worth different amounts depending
+		/// on whether the player pressed Evacuate or the unit evacuated itself.
+		/// The float form is preserved byte-for-byte from DeliversCash.GoDonateCash, where
+		/// this arithmetic originally lived — an integer rewrite would round differently
+		/// and silently move @stable refunds.
+		/// </remarks>
+		public static int ApplyHandicapRefundAdjustment(int amount, Player owner)
+		{
+			var handicap = owner.Handicap;
+			if (handicap <= 0)
+				return amount;
+
+			var div = 100F / (100 - handicap);
+			return (int)(amount * div);
+		}
+
+		/// <summary>
+		/// Cash an actor is worth when it rotates off the map edge: <see cref="GetSellValue"/>
+		/// with the owner's handicap applied.
+		/// </summary>
+		public static int GetEvacuationRefund(this Actor a)
+		{
+			return ApplyHandicapRefundAdjustment(a.GetSellValue(), a.Owner);
+		}
 	}
 }

@@ -1201,7 +1201,7 @@ E1R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 2
 		Prerequisites: ~disabled
-		Description: Standard infantry rifleman and backbone of the fire team.\n\n - 5.56mm rifle\n - Disposable anti-tank rocket (supply: 25)\n - No armor
+		Description: Standard infantry rifleman and backbone of the fire team.\n\n - 5.56mm rifle\n - Disposable anti-tank rocket (supply: 50)\n - No armor
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -1386,7 +1386,7 @@ AR:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 4
 		Prerequisites: ~disabled
-		Description: High-explosive specialist effective against infantry and light vehicles.\n\n - Grenade launcher (supply: 3/rnd)\n - 30 round magazine\n - No armor
+		Description: High-explosive specialist effective against infantry and light vehicles.\n\n - Grenade launcher (supply: 10 per 6-round batch)\n - 30 round magazine\n - No armor
 	Valued:
 		Cost: 100
 	UpdatesPlayerStatistics:
@@ -1458,7 +1458,7 @@ E2R1:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 5
 		Prerequisites: ~disabled
-		Description: Squad leader and designated marksman. Boosts morale of nearby soldiers.\n\n - 7.62mm DMR\n - 40mm grenade launcher (supply: 10/rnd)\n - Morale boost aura (4 cells)\n - No armor
+		Description: Squad leader and designated marksman. Boosts morale of nearby soldiers.\n\n - 7.62mm DMR\n - 40mm grenade launcher (supply: 8/rnd)\n - Morale boost aura (4 cells)\n - No armor
 	Valued:
 		Cost: 200
 	UpdatesPlayerStatistics:
@@ -1545,7 +1545,7 @@ TL:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 6
 		Prerequisites: ~disabled
-		Description: Indirect fire support unit with long range HE shells.\n\n - 60mm mortar (supply: 5/rnd)\n - 25 round capacity\n - Must stop to fire\n - No armor
+		Description: Indirect fire support unit with long range HE shells.\n\n - 60mm mortar (supply: 40 per 5-round batch)\n - 25 round capacity\n - Must stop to fire\n - No armor
 	Valued:
 		Cost: 300
 	UpdatesPlayerStatistics:
@@ -1617,7 +1617,7 @@ MT:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 7
 		Prerequisites: ~disabled
-		Description: Long-range precision shooter. Hard to detect, prioritizes high-value targets.\n\n - 7.62mm sniper rifle (supply: 2/rnd)\n - Low visibility (-2 detection)\n - No armor
+		Description: Long-range precision shooter. Hard to detect, prioritizes high-value targets.\n\n - 7.62mm sniper rifle (supply: 20 per 5-round batch)\n - Low visibility (-2 detection)\n - No armor
 	Valued:
 		Cost: 400
 	UpdatesPlayerStatistics:
@@ -1689,7 +1689,7 @@ SN:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 8
 		Prerequisites: ~disabled
-		Description: Heavy anti-armor specialist with guided missiles.\n\n - ATGM launcher (supply: 25/missile)\n - 3 missiles, top-attack mode\n - Suppressed when under fire\n - No armor
+		Description: Heavy anti-armor specialist with guided missiles.\n\n - ATGM launcher (supply: 65/missile)\n - 3 missiles, top-attack mode\n - Suppressed when under fire\n - No armor
 	Tooltip:
 		Name: AT Specialist
 	Valued:
@@ -1759,7 +1759,7 @@ AT:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 9
 		Prerequisites: ~disabled
-		Description: Short-range anti-air defense for infantry formations.\n\n - MANPAD launcher (supply: 25/missile)\n - 3 missiles\n - No armor
+		Description: Short-range anti-air defense for infantry formations.\n\n - MANPAD launcher (supply: 65/missile)\n - 3 missiles\n - No armor
 	Tooltip:
 		Name: AA Specialist
 	Valued:
@@ -1834,7 +1834,7 @@ AA:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 10
 		Prerequisites: ~disabled
-		Description: Repairs vehicles and structures. Lays mines and demolishes buildings.\n\n - 9mm SMG\n - 3 explosives (supply: 25 each)\n - Repairs structures, clears mines\n - No armor
+		Description: Repairs vehicles and structures. Lays mines and demolishes buildings.\n\n - 9mm SMG\n - 3 explosives (supply: 50 each)\n - Repairs structures, clears mines\n - No armor
 	Valued:
 		Cost: 250
 	UpdatesPlayerStatistics:
@@ -2064,7 +2064,7 @@ E4:
 		Prerequisites: ~disabled
 		Queue: Infantry
 		IconPalette: chrome
-		Description: Elite infiltration and demolition specialist.\n\n - 5.56mm suppressed rifle\n - 3 C4 charges (supply: 25 each)\n - Low visibility, all-terrain\n - No armor
+		Description: Elite infiltration and demolition specialist.\n\n - 5.56mm suppressed rifle\n - 3 C4 charges (supply: 33 each)\n - Low visibility, all-terrain\n - No armor
 	Mobile:
 		Speed: 32
 		Locomotor: foot-amphibious-mountainer
@@ -2312,7 +2312,7 @@ TECN:
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 70
 		Prerequisites: ~disabled
-		Description: Deploys recon drones and jams enemy drones.\n\n - Reconnaissance drone (supply: 50)\n - Drone jammer weapon\n - No armor
+		Description: Deploys recon drones and jams enemy drones.\n\n - Reconnaissance drone (supply: 25)\n - Drone jammer weapon\n - No armor
 	Valued:
 		Cost: 150
 	AutoTarget:

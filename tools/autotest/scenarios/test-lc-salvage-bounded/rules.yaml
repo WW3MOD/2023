@@ -1,0 +1,21 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+	# Zero passive income so the ONLY thing that can move USA's cash during the
+	# measurement window is the sale itself. Without this, +100 every 50 ticks
+	# lands inside the window and the delta stops being attributable.
+	PlayerResources:
+		PassiveIncome: 0
+		DefaultCash: 20000
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-lc-salvage-bounded.lua

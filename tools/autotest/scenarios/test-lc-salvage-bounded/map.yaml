@@ -1,0 +1,63 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: LC salvage is bounded by LCCV cost (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# The unit under test. Deploys into a logisticscenter, which is then sold.
+	Lccv: lccv
+		Owner: USA
+		Location: 33,16
+
+	# Hidden SRs (one per side) so neither faction is eliminated when the LC is
+	# sold and USA momentarily owns nothing else.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 24,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 40,16
+
+Rules: rules.yaml

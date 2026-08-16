@@ -629,12 +629,17 @@ m109:
 	AmmoPool@1:
 		Name: primary-ammo
 		Armaments: primary
-		Ammo: 39
+		# KEEP Ammo AN EXACT MULTIPLE OF ReloadCount. The evac deduction floors
+		# (CustomSellValue.cs:43) while the tooltip's batch count ceilings
+		# (AmmoPool.cs:68), so any remainder is advertised to the player and then
+		# refunded for free: at Ammo 39 a fully-spent Paladin was charged 7 batches
+		# rather than 7.8, handing back 4 shells' worth (48 credits) on every evac.
+		Ammo: 40
 		ReloadCount: 5
 		AmmoCondition: ammo-primary
 		RearmSound: minelay1.aud
-		# 155mm: 7 batches × 5 shells × 60 supply = 420 (~23% of cost 1800).
-		# Artillery target band; empty Paladin evacs ~77% of build cost.
+		# 155mm: 8 batches × 5 shells × 60 supply = 480 (~27% of cost 1800).
+		# Artillery target band; empty Paladin evacs ~73% of build cost.
 		SupplyValue: 60
 	WithAmmoPipsDecoration@1:
 		Position: Bottom

@@ -18,8 +18,8 @@
  * DECIDED DEFAULT — TERMINAL EVAC. When no source is available the disposition is final: evacuate and sell. There
  * is deliberately NO hold-and-recheck loop (park, wait, re-scan, maybe evacuate later). A parked empty vehicle is
  * exactly the pooling pathology this work removes, and the recheck loop is what turns a one-shot decision into an
- * oscillation. The unit's residual value is recovered instead: RotateToEdge refunds GetSellValue x HP/MaxHP
- * (RotateToEdge.cs:275-280), which is the DOCS/reference/economy.md evac formula — so an empty tank still returns
+ * oscillation. The unit's residual value is recovered instead: RotateToEdge refunds GetEvacuationRefund x HP/MaxHP
+ * (RotateToEdge.cs:373-386), which is the DOCS/reference/economy.md evac formula — so an empty tank still returns
  * most of its budget (ammo is a small share of a tank's cost) and the money buys a fresh, loaded one.
  *
  * WHAT IS AND IS NOT IN THIS CLASS: the decision only. Source DISCOVERY stays with the caller
@@ -85,7 +85,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>Cash an evacuating unit returns to the treasury: <paramref name="sellValue"/> scaled by the
 		/// surviving health fraction. This is the DOCS/reference/economy.md evac rule and mirrors the engine's own
-		/// arithmetic at RotateToEdge.cs:275-280 (integer-truncating, long-widened so a large sell value on a
+		/// arithmetic at RotateToEdge.cs:377-380 (integer-truncating, long-widened so a large sell value on a
 		/// high-MaxHP hull cannot overflow). Exposed so the sweep can LOG what a disposition is worth (the `banked=`
 		/// field of the `[exp-ooa] sweep` line) — the refund itself is paid by the activity, not by this class. A
 		/// non-positive <paramref name="maxHp"/> reads as full health (the engine's health == null fallback). Pure.</summary>
