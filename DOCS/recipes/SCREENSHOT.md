@@ -62,13 +62,24 @@ The agent reads the `path` entries and judges each against the `note`. Failures 
 
 | Call | Purpose |
 |---|---|
-| `Test.Screenshot(label, note?)` | Engine binding. Captures synchronously when `Test.Mode=true` (the PNG is on disk before the next Lua line runs). Returns the path. Returns nil if TestMode inactive. |
+| `Test.Screenshot(label, note?)` | Engine binding. **Arms** a capture — it does not sample pixels. Returns the planned path, or nil if TestMode inactive. |
 | `TestHarness.Screenshot(label, note?)` | Thin wrapper around `Test.Screenshot`. Same behavior. Prefer this for consistency with other `TestHarness.*` calls. |
 | `TestHarness.ScreenshotAfter(seconds, label, note?)` | Sugar: schedules a screenshot N game-seconds from now via `Trigger.AfterDelay`. |
 
 **Label sanitization.** Labels are lowercased; only `a-z 0-9 - _` survive; spaces become dashes; everything else is dropped. Filename pattern: `<NNN>_<sanitized-label>.png` where NNN is a zero-padded sequence number.
 
-**Why captures are sync in TestMode.** The default `Renderer.SaveScreenshot` dispatches PNG encoding to a `ThreadPool` worker. If `Game.Exit()` runs before the worker finishes — and `Test.Pass` calls `Exit` shortly after the last capture — the worker is killed mid-flush and the file is lost. Sync save guarantees the PNG lands before the next line runs. Costs ~100–300 ms per shot at 2k+ resolutions; acceptable for tests.
+**THE CAPTURE IS ONE FRAME LATE — PUT A DELAY BETWEEN A SHOT AND THE NEXT STATE CHANGE.** `Test.Screenshot` sets `Game.takeScreenshot` and returns. The pixels are read at the end of the **next** `RenderTick`, after `Ui.Draw()` has redrawn the HUD from whatever the state is *by then* (`Game.cs:926-930`); the binding's own `[Desc]` says "Capture is async". So this is a trap:
+
+```lua
+TestHarness.Screenshot("01-full", "expects: 10 passengers")
+for _ = 1, 7 do Transport.UnloadPassenger() end   -- BUG: lands before the pixels are read
+```
+
+The shot passes its `PassengerCount == 10` assertion and then photographs **3** passengers — the state you were about to move to, under the label of the state you asserted. This happened on 2026-08-17 in `test-cargo-panel-full`; the two shots differed by 166 pixels out of 302,768 and the mislabelled one was only caught by diffing them. Give every capture its own `Trigger.AfterDelay` before anything touches the world, including before `Test.Pass`.
+
+Two corollaries: a capture fired in `WorldLoaded` can land **blank**, because no frame has been rendered yet; and a run that exits promptly after a shot can lose it, which is why `Test.Pass` goes through `ExitWhenCapturesFlushed`.
+
+**What *is* synchronous is the PNG write.** `Renderer.SaveScreenshot` normally dispatches encoding to a `ThreadPool` worker, which `Game.Exit()` can kill mid-flush; under `TestMode.IsActive` it writes inline instead, so the file lands before teardown. Costs ~100–300 ms per shot at 2k+ resolutions. Sync *write*, deferred *sample* — do not read the first as the second.
 
 ---
 
