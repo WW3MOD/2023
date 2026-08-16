@@ -82,7 +82,9 @@ away before counting.
 | Voice clips naming a **missing file**, on a live set | **4** (all on `SealVoice` / `SF`) | High |
 | Buildable units **sharing just 2 voice sets** | **62 / 75 (83%)** | High |
 | Voice sets with **zero users** / orphaned sound dirs | **14 sets**, 7 of 10 dirs (124 files) | High |
-| Death sounds / death sprites / husk sharing | **NOT REACHED** | — |
+| Buildable infantry sharing **one identical death/corpse config** | **42 / 45** | High |
+| Non-infantry buildables with **no death explosion** | **9** | High |
+| Death **audio** | not separately auditable — routes through voice sets, see F10–F12 | High |
 
 ---
 
@@ -107,13 +109,18 @@ Read this before quoting any number.
 - **Orphans and dead weight** — all 424 actor defs cross-referenced against 10 maps,
   175 autotest/demo scenarios, `rules/ai/*.yaml`, all Lua, and `Buildable:`+`Prerequisites`.
 
-### NOT reached — genuinely open, no numbers exist yet
-- **Death sounds, death explosions, husk/corpse sharing (items 5 and 6 of the brief).** The
-  script covering `DeathSounds`, `Explodes`, `SpawnActorOnDeath` and infantry
-  `WithDeathAnimation@ROT` sharing was written and launched but had not returned when the
-  session was cut short. **The tracker's "per-unit rot/bleedout uses a generic `e1`" claim is
-  therefore neither confirmed nor quantified here.** This is now the single remaining hole.
-  The script is at `%LOCALAPPDATA%/Temp/wwaudit/full.py` and needs only to be re-run.
+- **Death explosions, husks, and infantry corpse sprites** — all 95 buildables resolved for
+  `Explodes` / `SpawnActorOnDeath` / `WithDeathAnimation`.
+
+### Partially reached
+- **Death *audio* is not separately auditable.** `DeathSounds` has no sound list of its own —
+  it carries `Voice = "Die"` (`engine/OpenRA.Mods.Common/Traits/Sound/DeathSounds.cs:22`) and
+  routes through the actor's **voice set**. So death audio coverage *is* the voice-set coverage
+  in F10–F12, and the specific gap is `^InfantryDeaths` (13 missing clips) and SealVoice's
+  `Burned`/`Zapped` misses in F11. **An earlier pass of this audit reported "95 buildable actors
+  have no death sound" — that was a false positive from looking for a `Sounds:` field that does
+  not exist, and it is retracted.** It is recorded here because it is exactly the shape of
+  mistake this document is meant to avoid.
 - **Structures, defenses, naval, civilian and neutral actors** were included in the census and
   in the cameo/name/voice/orphan sweeps, but were **not** separately examined for
   category-specific gaps.
@@ -409,6 +416,70 @@ confirm. **Verify this one before acting.**
 none of the 49. If the Missions browser is reachable, it is entirely empty. Confidence: high on
 the mismatch, low on player visibility (whether the Missions tab is exposed was not verified).
 
+### F19 — [POLISH] 42 of 45 buildable infantry share one identical corpse config — the tracker's "generic e1 rot" claim, quantified
+**Perceived:** every infantryman in the game leaves the same body.
+
+There are only **2 distinct death-animation configurations across all 45 buildable infantry**:
+
+- **42 actors** — `WithDeathAnimation` with no overrides at all, plus
+  `WithDeathAnimation@ROT` with `DeathSequence: rot` and **no `Image:` override**. This covers
+  every `AA`, `AR`, `AT`, `DR`, `E1`–`E4`, `E6`, `MEDI`, `MT`, `SF`, `SN`, `TL` and all their
+  `.america` / `.russia` variants — including `SF`, the elite unit.
+- **3 actors** — `TECN`, `TECN.america`, `TECN.russia`, which additionally set
+  `DeathSequence: rot` on the base `WithDeathAnimation`. A trivial difference.
+
+This is the substance behind `RELEASE_V1.md`'s "per-unit rot/bleedout sprites (currently uses
+generic e1)". **One caveat I did not close:** because `Image:` is null, the engine resolves the
+`rot` sequence against each actor's *own* `RenderSprites` image, so whether all 42 actually
+render `e1`'s corpse depends on how `rot` is defined per image in
+`sequences/sequences-infantry.yaml`. I did not resolve that last hop. **The 42/45 config-sharing
+count is solid; "they all look like `e1`" is the tracker's claim and remains unverified here.**
+
+**Fix: needs new art created** (per-unit corpse sprites), or accept as-is. Confidence: high on
+the count, medium on the visual consequence.
+
+### F20 — [COSMETIC] 9 non-infantry buildables have no death explosion
+No `Explodes` trait: `SUPPLYROUTE` (structure), `SBAG` / `FENC` / `BARB` / `BRIK` (defenses —
+walls, so arguably correct), and `MSAR` / `MNLY` / `TRUK` / `LCCV` (vehicles, all of which *do*
+spawn a husk). The four vehicles are the interesting ones: they leave a wreck but produce no
+explosion effect on death.
+
+**Fix: wire existing assets** (reuse an existing `UnitExplode*` weapon). Confidence: high.
+
+---
+
+## False positives caught during this audit — read this before re-running the analysis
+
+These are recorded because each one, left uncaught, would have put a large fabricated number in
+this table. The next person to run this analysis will hit the same traps.
+
+1. **"0 of 95 buildable actors have a death sound."** Wrong. `DeathSounds` has no sound list —
+   it carries `Voice = "Die"` (`engine/OpenRA.Mods.Common/Traits/Sound/DeathSounds.cs:22`) and
+   plays through the actor's **voice set**. I was grepping for a `Sounds:` field that does not
+   exist. **The tell was the shape of the result: a clean `0 of N` almost always means the field
+   name is wrong, not that the content is missing.** Treat any total-zero with suspicion.
+2. **A trait inherited from *two* parents was silently dropped.** My first resolver appended
+   each parent's children without merging by key, so a trait declared in two ancestors ended up
+   duplicated, and the empty copy won. Caught only by diffing field-by-field against
+   `OpenRA.Utility --resolved-rules`. **Always validate a hand-rolled resolver against the
+   engine's own before counting anything** — the failure is quiet and produces plausible-looking
+   "missing field" gaps.
+3. **Seven `.mix` archives have encrypted headers** (`hires`, `lores`, `local`, `speech`,
+   `expand2`, `hires1`, `lores1`). A naive MIX reader sees zero files in them and then reports
+   enormous false "missing art" counts — `local.mix` in particular holds RA's cameos. Use
+   `OpenRA.Utility --list-mix`, which decrypts.
+4. **Sound names are literal filenames, extension included.** This engine does *not* append
+   `.aud`/`.wav`/`.ogg` — `Sound.LoadSound` does `fileSystem.Exists(filename)` verbatim
+   (`engine/OpenRA.Game/Sound/Sound.cs:59-65`). My first pass appended extensions and produced 7
+   bogus "missing sound" hits. Check names **exactly**. The corollary is F1's real bug: a wrong
+   name fails **silently**, with one line to the `sound` log channel and no lint anywhere.
+5. **Cameo SHPs are ShpTS, not ShpTD.** Parsing them with the ShpTD header layout yields
+   `0 frames, 1x0 pixels` for every file. Both formats are in play; branch on whether the first
+   `uint16` is zero.
+6. **"95 buildable actors" overstates the player-facing surface by ~76%.** 41 of the 95 carry
+   `Prerequisites: ~disabled`. The real number the player can field is **54**. Any polish
+   estimate built on 95 is nearly double what is actually needed.
+
 ---
 
 ## Standing pre-release TODO, ordered
@@ -442,12 +513,18 @@ the mismatch, low on player visibility (whether the Missions tab is exposed was 
     per F14 these are all on fixed-wing aircraft that are currently `~disabled`, so they matter
     only when fixed-wing is re-enabled.
 
+Additional art item, sitting with the "needs new assets" group above:
+
+- **F19 — per-unit infantry corpse sprites.** 42 of 45 buildable infantry share one config.
+  Before commissioning art, close the one open hop: check how `rot` resolves per image in
+  `sequences/sequences-infantry.yaml` to confirm they really do all render `e1`'s body.
+- **F20 — 9 non-infantry buildables with no death explosion.** Four of them (`MSAR`, `MNLY`,
+  `TRUK`, `LCCV`) are wire-an-existing-asset; the walls are arguably correct as-is.
+
 **Still to investigate:**
 
-12. **Death sounds / death effects / husk-and-corpse sharing** — the one unfinished slice.
-    Re-run `%LOCALAPPDATA%/Temp/wwaudit/full.py`. Includes the unverified "generic `e1` rot
-    sprite" claim.
-13. **Finalise the orphan-weapon list** — the ~59 figure is not trustworthy as it stands.
+12. **Finalise the orphan-weapon list** — the ~59 figure is not trustworthy as it stands
+    (see false positive #2 territory: reachability seeding, not inheritance).
 
 ---
 
