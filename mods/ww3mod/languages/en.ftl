@@ -30,6 +30,14 @@ label-openra = WW3MOD
 ## CreditsLogic
 label-engine-credits = OpenRA
 
+## SystemInfoPromptLogic
+# Overrides common|fluent/chrome.ftl. Its sibling title was rethemed to
+# "Establishing Battlefield Control" while this line still read "help us
+# optimize OpenRA". Deliberately NOT reworded to "optimize WW3MOD": the payload
+# is sent to master.openra.net (WebServices.GameNews), so naming WW3MOD as the
+# recipient would be false on a consent dialog. Name the engine instead.
+label-mainmenu-system-info-prompt-text-a = We would like to collect some system details that will help us optimize the OpenRA engine that WW3MOD runs on.
+
 ## MapOptions, MissionBrowserLogic
 strategical = Strategical, 50%
 tactical = Tactical, 60%

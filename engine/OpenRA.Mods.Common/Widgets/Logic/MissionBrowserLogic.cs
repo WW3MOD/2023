@@ -181,9 +181,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				}
 			}
 
-			// Add an additional group for loose missions
+			// Add an additional group for loose missions.
+			// Unknown-class maps come from a MapFolders entry declared ": Unknown" (WW3MOD points one at
+			// tools/autotest/scenarios). The campaign query above and every map chooser already filter by
+			// Class; without the same filter here that folder was the one UI a player could reach it from.
 			var loosePreviews = modData.MapCache
 				.Where(p => p.Status == MapStatus.Available &&
+					p.Class != MapClassification.Unknown &&
 					p.Visibility.HasFlag(MapVisibility.MissionSelector) &&
 					!allPreviews.Any(a => a.Uid == p.Uid))
 				.ToList();
