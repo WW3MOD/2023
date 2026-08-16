@@ -10,7 +10,7 @@ Tileset: TEMPERAT
 
 MapSize: 98,82
 
-Bounds: 0,0,98,82
+Bounds: 1,1,96,80
 
 Visibility: Lobby, Shellmap
 
@@ -1713,7 +1713,7 @@ Actors:
 		Location: 83,4
 	Actor3831: spawnarea
 		Owner: Neutral
-		Location: 88,0
+		Location: 88,1
 	Actor3832: v17
 		Owner: Neutral
 		Location: 90,8
@@ -3936,7 +3936,7 @@ Actors:
 		Location: 77,77
 	Actor5683: spawnarea
 		Owner: Neutral
-		Location: 88,81
+		Location: 88,80
 	Actor5684: tc01
 		Owner: Neutral
 		Location: 90,77
@@ -7071,7 +7071,7 @@ Actors:
 		Location: 47,10
 	Actor4967: oilb
 		Owner: Neutral
-		Location: 45,0
+		Location: 45,1
 	Actor4968: t15
 		Owner: Neutral
 		Location: 26,20
@@ -9399,7 +9399,7 @@ Actors:
 		Location: 10,9
 	Actor3203: spawnarea
 		Owner: Neutral
-		Location: 9,0
+		Location: 9,1
 	Actor3204: tc04
 		Owner: Neutral
 		Location: 19,1
@@ -13353,7 +13353,7 @@ Actors:
 		Location: 11,76
 	Actor7622: spawnarea
 		Owner: Neutral
-		Location: 8,81
+		Location: 8,80
 	Actor7623: v17
 		Owner: Neutral
 		Location: 3,77
@@ -13539,7 +13539,7 @@ Actors:
 		Location: 0,33
 	Actor7683: spawnarea
 		Owner: Neutral
-		Location: 0,46
+		Location: 1,46
 	Actor7684: v17
 		Owner: Neutral
 		Location: 0,50
@@ -13692,4 +13692,4 @@ Actors:
 		Location: 8,5
 	Actor5759: spawnarea
 		Owner: Neutral
-		Location: 97,34
+		Location: 96,34
