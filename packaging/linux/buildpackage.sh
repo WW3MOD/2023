@@ -68,6 +68,9 @@ echo "Building core files"
 install_assemblies "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}" "${APPDIR}/usr/lib/openra" "linux-x64" "net6" "True" "${PACKAGING_COPY_CNC_DLL}" "${PACKAGING_COPY_D2K_DLL}"
 install_data "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}" "${APPDIR}/usr/lib/openra"
 
+# GPLv3 section 6: ships next to COPYING so the binary states where its source lives.
+install -m644 "${TEMPLATE_ROOT}/SOURCE-OFFER.txt" "${APPDIR}/usr/lib/openra"
+
 for f in ${PACKAGING_COPY_ENGINE_FILES}; do
 	mkdir -p "${APPDIR}/usr/lib/openra/$(dirname "${f}")"
 	cp -r "${TEMPLATE_ROOT}/${ENGINE_DIRECTORY}/${f}" "${APPDIR}/usr/lib/openra/${f}"
