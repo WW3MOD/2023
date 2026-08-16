@@ -5711,3 +5711,31 @@ Read-only determinism sweep, no production code changed. Repo state `main @ 43d5
 **The engine's 38-rule lint suite has never run in CI.** Every CI run fails at `Check Code` on `NU1901` (a NuGet advisory promoted to an error by `-warnaserror`, `Makefile:186`), so the later `Check Mod` step — `./utility.sh --check-yaml`, which hosts all 38 lint passes — never executes. No local path compensates (`ww3-dev.ps1 check` only greps for `Console.WriteLine`/`Cost: 1`). Separately, `CheckSyncAnnotations` reports at *warning* severity and `TREAT_WARNINGS_AS_ERRORS` is set nowhere, so the three dead-`[Sync]` findings would print and pass even if it did run. **A detector nobody runs is a bug list nobody reads.**
 
 **Correction to `WORKSPACE/audit/260816-desync-rootcause.md`:** its §5 one-third rounding argument is wrong (`18f/54f*3f` = 1.0000000298, under half a ULP in [1,2), rounds back to exactly 1.0f), and separately the "all `[Sync]` state matched" evidence **never covered `Mobile.CurrentSpeed`** — the sync reports were captured 2026-08-16T16:25Z and `[Sync]` was added to that field at `fe9f2cc0`, 21:16 local the same day. That evidence does not clear the accelerator.
+
+## 2026-08-17 — the procurement ordering axis was already shipped; and the SR parity rule inverts under the spawn offset
+
+Read-only status recon, no production code changed. Repo state `main @ 0475fb9a`. Full write-up:
+[`recon/260817-procurement-ordering-axis-status.md`](recon/260817-procurement-ordering-axis-status.md).
+
+**PIPELINE 63 and 66 were dispatched a second time against a premise that had already been fixed.** The
+diagnosis "procurement has a notion of HOW MANY and no notion of WHEN" is correct as history and false as
+of 2026-08-15: `SupplyPrecedenceStallCycles: 4` (precedence — bank cash and buy nothing until the truck is
+affordable) and `UnitFloorPer: medi.* 20` (the standing floor gets a denominator, so it is 0 below 20
+infantry) are both live in **both** `@experimental` faction blocks, merged at `d54671d6` and `1bbfdb7c`,
+and measured two-arm at seed 4242 with pre-registered predictions — USA truck at tick 1980, Russia at
+3030, against a paired baseline of **zero** trucks. **Both items still carry an `[IN FLIGHT]` tag in
+PIPELINE, and that stale tag is the most probable cause of the re-dispatch.** Before writing procurement
+code, check the flag is not already set in `ai-america.yaml` / `ai-russia.yaml`: eight ordering
+mechanisms are already opted in there, and every one of them defaults to baseline in C#, so a grep of the
+trait's defaults tells you nothing about what actually runs.
+
+**The Supply Route is NOT at the spawn cell, and this inverts any parity argument taken off `map.yaml`.**
+`SpawnStartingUnits.cs:91` places the base actor at `p.HomeLocation + unitGroup.BaseActorOffset`, and
+`MapStartingUnits.cs:37` defaults that offset to `CVec(-1,-1)`. Nothing overrides it — 0 occurrences of
+`BaseActorOffset` in `world.yaml`, and no map places a `supplyroute` actor explicitly. **So SR parity is
+the INVERSE of spawn parity on every map**, and the `ResolveStagingAnchor` degenerate-case guard (which
+fires only on odd/odd SRs, leaving 3 placements in 4 publishing a false anchor) needs an **even/even
+spawn** to be healthy. Worked trap: `siberian-pass-ww3` is the only 2-player map whose spawns are both
+odd/odd (`95,15`, `1,51`), which makes it look like the ideal clean measurement map — its SRs are `94,14`
+and `0,50`, both even/even, **both polluted**. The only map where two players can both sit on a healthy
+anchor is `twin-rivers-ww3` at spawn slots `112,92` and `112,28`.
