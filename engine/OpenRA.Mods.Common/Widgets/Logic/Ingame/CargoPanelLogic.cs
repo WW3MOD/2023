@@ -370,10 +370,15 @@ namespace OpenRA.Mods.Common.Widgets
 			var tooltip = passenger.TraitOrDefault<Tooltip>();
 			var name = tooltip?.Info.Name ?? passenger.Info.Name;
 
-			// If already has rally, clear it (toggle)
+			// If already has rally, clear it (toggle). PITFALL: this must go through an order —
+			// clearing the dictionary locally desyncs, because UnloadCargo reads it in simulation.
 			if (cargo.HasEjectRally(passenger.ActorID))
 			{
-				cargo.ClearEjectRally(passenger.ActorID);
+				world.IssueOrder(new Order(Cargo.ClearEjectRallyOrderString, selectedTransport, false)
+				{
+					ExtraData = passenger.ActorID
+				});
+
 				return;
 			}
 

@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Activities;
+using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Primitives;
 using OpenRA.Support;
@@ -1049,6 +1050,8 @@ namespace OpenRA.Mods.Common.Traits
 				self.QueueActivity(order.Queued, new Nudge(self));
 				self.ShowTargetLines();
 			}
+			else if (order.OrderString == PatrolOrder.OrderString)
+				PatrolOrder.Resolve(self, order);
 		}
 
 		string IOrderVoice.VoicePhraseForOrder(Actor self, Order order)

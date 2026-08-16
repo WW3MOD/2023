@@ -12,7 +12,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
-using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Orders;
 using OpenRA.Primitives;
@@ -50,15 +49,23 @@ namespace OpenRA.Mods.Common.Orders
 
 			confirmed = true;
 
-			var waypointArray = waypoints.ToArray();
-			foreach (var actor in subjects)
+			// PITFALL: an IOrderGenerator must never queue activities itself — orders are the only
+			// thing replicated between clients, so a client-local QueueActivity here desyncs the match.
+			// One grouped order (Subject null, GroupedActors set) mirrors AttackMoveOrderGenerator:
+			// UnitOrders splits it per-actor on every client, so the whole selection patrols the same
+			// route from one replicated payload instead of N copies of the waypoint string.
+			var actors = subjects.Where(a => !a.IsDead && a.IsInWorld).ToArray();
+			if (actors.Length > 0)
 			{
-				if (actor.IsDead || !actor.IsInWorld)
-					continue;
+				// The Target is the first waypoint, carried for target-line/visual feedback only —
+				// the authoritative route is TargetString, so a group-order modifier that rewrites
+				// Target cannot silently move one client's patrol.
+				var order = new Order(PatrolOrder.OrderString, null, Target.FromCell(world, waypoints[0]), false, null, actors)
+				{
+					TargetString = PatrolOrder.SerializeWaypoints(waypoints)
+				};
 
-				actor.CancelActivity();
-				actor.QueueActivity(false, new PatrolActivity(actor, waypointArray));
-				actor.ShowTargetLines();
+				world.IssueOrder(order);
 			}
 
 			world.CancelInputMode();
