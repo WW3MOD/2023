@@ -534,76 +534,24 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			centroidDxCells = 0;
-			centroidDyCells = 0;
-			lineAlongX = 0;
-			lineAlongY = 0;
+			// All floating-point in this path lives in CohesionIntentMath so it can be measured
+			// across runtimes and later replaced with fixed-point. See the hazard note there.
+			var r = CohesionIntentMath.Classify(
+				totalDensity, weightedX, weightedY, sumXX, sumYY, sumXY,
+				info.OpenDensityThreshold, info.TreelineMinSpreadSq, info.TreelineAnisotropyRatio, info.EdgeOffsetThresholdCellsSq);
 
-			if (totalDensity < info.OpenDensityThreshold)
-				return Intent.Open;
+			centroidDxCells = r.CentroidDxCells;
+			centroidDyCells = r.CentroidDyCells;
+			lineAlongX = r.LineAlongX;
+			lineAlongY = r.LineAlongY;
 
-			// Integer-round the centroid offset so the gradient is whole-cell stable.
-			centroidDxCells = RoundDiv(weightedX, totalDensity);
-			centroidDyCells = RoundDiv(weightedY, totalDensity);
-
-			// Covariance of the density about its centroid (parallel-axis theorem: Cov = E[XY] - E[X]E[Y]).
-			var mx = weightedX / (double)totalDensity;
-			var my = weightedY / (double)totalDensity;
-			var cxx = sumXX / (double)totalDensity - mx * mx;
-			var cyy = sumYY / (double)totalDensity - my * my;
-			var cxy = sumXY / (double)totalDensity - mx * my;
-
-			// Eigenvalues of the symmetric covariance [[cxx,cxy],[cxy,cyy]]: lambda = tr/2 ± sqrt(...).
-			// lambda1 is the spread along the major axis, lambda2 along the cross axis (both in cells²).
-			var tr = cxx + cyy;
-			var disc = Math.Sqrt(Math.Max(0.0, tr * tr / 4.0 - (cxx * cyy - cxy * cxy)));
-			var lambda1 = tr / 2.0 + disc;
-			var lambda2 = tr / 2.0 - disc;
-
-			// Treeline: the cover is elongated (major spread dominates the cross axis) AND has real
-			// length. Route it to EdgeLine even when the centroid offset is ~0 (a click centred ON a
-			// treeline has symmetric density → tiny offset → would otherwise fall to SpreadInside and
-			// scatter). Lay the line along the major eigenvector.
-			if (lambda1 >= info.TreelineMinSpreadSq && lambda1 >= info.TreelineAnisotropyRatio * Math.Max(lambda2, 0.0))
+			return r.Intent switch
 			{
-				// Major eigenvector of the covariance. For cxy≈0 the axes are aligned; pick the
-				// larger-variance axis. Otherwise (lambda1 - cyy, cxy) is the unnormalised major axis.
-				double vx, vy;
-				if (Math.Abs(cxy) > 1e-6)
-				{
-					vx = lambda1 - cyy;
-					vy = cxy;
-				}
-				else if (cxx >= cyy)
-				{
-					vx = 1.0;
-					vy = 0.0;
-				}
-				else
-				{
-					vx = 0.0;
-					vy = 1.0;
-				}
-
-				var vlen = Math.Sqrt(vx * vx + vy * vy);
-				if (vlen > 0)
-				{
-					// Scale to a small integer cell-space direction (×4 then round) — the layout code
-					// re-normalises, it just needs a stable non-zero direction.
-					lineAlongX = (int)Math.Round(vx / vlen * 4.0);
-					lineAlongY = (int)Math.Round(vy / vlen * 4.0);
-					if (lineAlongX == 0 && lineAlongY == 0)
-						lineAlongX = 1;
-
-					return Intent.EdgeLine;
-				}
-			}
-
-			var offsetMagSq = centroidDxCells * centroidDxCells + centroidDyCells * centroidDyCells;
-			if (offsetMagSq >= info.EdgeOffsetThresholdCellsSq)
-				return Intent.EdgeLine;
-
-			return Intent.SpreadInside;
+				CohesionIntent.Open => Intent.Open,
+				CohesionIntent.EdgeLine => Intent.EdgeLine,
+				CohesionIntent.Approach => Intent.Approach,
+				_ => Intent.SpreadInside,
+			};
 		}
 
 		static int RoundDiv(int numerator, int denominator)

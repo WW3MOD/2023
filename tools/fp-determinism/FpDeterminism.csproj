@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>FpDeterminism</AssemblyName>
+    <RootNamespace>FpDeterminism</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <!-- Roll forward so the same net6.0 assembly can be executed on the 8.x / 10.x runtimes. -->
+    <RollForward>LatestMajor</RollForward>
+    <OutputPath>bin/</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reference the SHIPPED production assembly, not a copy of the math. A harness that
+         reimplements the code under test measures the harness. -->
+    <Reference Include="OpenRA.Mods.Common">
+      <HintPath>../../engine/bin/OpenRA.Mods.Common.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="OpenRA.Game">
+      <HintPath>../../engine/bin/OpenRA.Game.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
