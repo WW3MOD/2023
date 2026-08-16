@@ -3,6 +3,32 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — `Class=Unknown` DOES NOT HIDE A MAP FOLDER FROM THE LINTER: `HasFlag(0)` IS ALWAYS TRUE
+
+Found while re-cordoning the nine shipped maps. `mods/ww3mod/mod.yaml:105` registers
+`^EngineDir|../tools/autotest/scenarios` as `Unknown`, and the comment above it explains that
+`Class=Unknown` keeps the scenarios out of every UI tab. **It does not keep them out of `--check-yaml`.**
+`CheckYaml.cs:92` calls `MapCache.EnumerateMapDirPackagesAndNames()` with the default
+`MapClassification.System`, and the filter at `MapCache.cs:194` is `classification.HasFlag(packageClassification)`.
+`MapClassification.Unknown = 0` (`MapPreview.cs:35`), and `HasFlag(0)` is `(x & 0) == 0` — **true for every
+value**. So the `Unknown` folder passes the filter unconditionally and all ~176 scenario maps are linted
+exactly like shipped content.
+
+Consequences, both of which have already bitten:
+
+- **A per-map lint defect in the scenario tree is indistinguishable from one in shipped content** unless you
+  attribute each error line back to its `Testing map:` header. The cordon check is the live example: 70 map
+  instances failed it, only **9** of them shipped maps; the other **61** are autotest/demo/tournament
+  scenarios. Fixing every shipped map therefore does *not* clear the error class from the run.
+- **Error counts multiply by map.** 186 maps are linted, so one rules-level defect can report up to 186
+  times. Compare error *classes*, never totals — a total can fall by hundreds without a single defect being
+  fixed, and can rise the same way when a map is added.
+
+The `Unknown = 0` sentinel makes this un-fixable by changing the classification alone: there is no flag
+value that excludes it. Scoping the lint to shipped maps would need an explicit predicate in `CheckYaml`,
+which is an upstream file — so the realistic options are to fix the scenario maps or to accept them as
+linted content.
+
 ## 2026-08-17 — A MATCHING SYNC REPORT ONLY CLEARS A TRAIT'S **HASHED** FIELDS. CHECK WHICH ONES THOSE ARE BEFORE CALLING IT EXCULPATORY
 
 Sibling of the "null result is not evidence" rule below, and it invalidated real conclusions rather than
