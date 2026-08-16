@@ -1,0 +1,14 @@
+# No cash anywhere: the only actors in the match are the two Supply Routes and the two units
+# Lua creates. A named-actor predicate is only valid if the named actors are the ones the
+# system under test actually uses, and production removes that guarantee.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-unit-defaults-apply.lua
