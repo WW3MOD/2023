@@ -10,7 +10,7 @@ If anything here disagrees with code, the doc is right and the code needs to cha
 
 1. **Every unit, every magazine, every supply box has a cost.** Cash spent buys ammo + body together. Selling or evacuating refunds what's left.
 2. **A unit of supply is worth a fixed amount of cash** wherever it sits — in an LC, a truck, a cache. When the player gets it back on evac, capture, or absorb, it returns at face value.
-3. **Supply is finite.** A Logistics Center spawns with a fixed pool. Trucks carry a fixed amount. Drained pools stay drained until the player calls in more trucks — LCs are **not** buildable (`Buildable.Prerequisites: ~disabled`, `structures.yaml:367`); the only ones in a match are the Neutral pre-placed ones you can capture, on the three maps that have any.
+3. **Supply is finite.** A Logistics Center spawns with a fixed pool. Trucks carry a fixed amount. Drained pools stay drained until the player brings in more supply. **An LC is obtained by deploying an `LCCV`** (`vehicles.yaml`, Cost 1200, `Prerequisites: ~techlevel.low`, `Transforms: IntoActor: logisticscenter`), or by capturing one of the Neutral pre-placed LCs on the three maps that have any. **It is NOT obtained from the build sidebar** — `logisticscenter` carries `Buildable.Prerequisites: ~disabled` (`structures.yaml:367`), so its icon never appears. *(**Corrected 2026-08-17.** This principle previously read "LCs are **not** buildable … the only ones in a match are the Neutral pre-placed ones you can capture", inferring unobtainability from `~disabled`. That inference is wrong: `Transforms.CanDeploy` (`Transforms.cs:93-99`) tests only trait-disabled state and cell placement and **never consults `Buildable.Prerequisites`**, so the deploy route is wide open. The error funded a money pump — sell value 3500 for a 1200 LCCV — fixed in the same commit. Downstream reasoning that cited the old claim: `WORKSPACE/audit/260816-bug-reconciliation.md:259`, `WORKSPACE/DISCOVERIES.md` 2026-08-16. **General lesson: `~disabled` gates the sidebar icon, not the actor's existence** — enumerate every route to an actor, not just the build queue.)*
 4. **Trucks, LCs, and dropped supply caches share one trait** (`SupplyProvider`). Players see the same UI (range circle, supply bar) everywhere.
 5. **`ReloadCount` is the canonical batch size for rearm.** Whether a Bradley docks at the LC or a soldier waits next to a truck, the per-pool `ReloadCount` decides how many rounds arrive per cycle and `SupplyValue` decides what one cycle costs. (Aircraft have no reachable host at all — see "What rearms what".)
 
@@ -95,11 +95,13 @@ So a lone $100 infantryman is worth a tube shell but not a Grad volley — the a
 
 ### Logistics Center (LC)
 
-Cost ~3500. Spawns with `SupplyProvider.TotalSupply: 3000`. The pool drains as:
+`Valued.Cost` 3500, but **fielded by deploying a 1200-cost `LCCV`** (see Core principle 3). Spawns with `SupplyProvider.TotalSupply: 3000`. The pool drains as:
 - Vehicles dock and rearm directly (`SupplyValue × batches given`).
 - Trucks drive in to restock (truck pulls supply from LC; LC drops by exactly the amount taken).
 
-When the LC's pool hits zero it stops servicing rearm requests. The player builds another LC, or relies on trucks that still have supply.
+When the LC's pool hits zero it stops servicing rearm requests. The player deploys another LCCV, or relies on trucks that still have supply.
+
+**Salvage is capped at the LCCV's cost, and that cap is load-bearing.** `Sellable.RefundPercent: 34` on `logisticscenter` puts the sell refund at 1190 — just under the 1200 it costs to field one — and `SpawnActorsOnSell.ValuePercent: 0` stops the sale additionally emitting technicians. Without both, deploy-and-sell paid 3500 in cash plus up to five 250-credit technicians for a 1200 outlay, repeatable. `RefundPercent` rather than `CustomSellValue` deliberately: the LC is capturable (via `^BasicBuilding` → `^NeutralOrOccupiedCapturable`) and bots rank capture targets by `GetSellValue` (`CaptureManagerBotModule.cs:147`), so its strategic valuation must stay at 3500 while only its scrap value moves. **If either Cost changes, recompute: `RefundPercent ≤ 100 × LCCV.Cost / logisticscenter.Cost`.**
 
 ### Supply Truck (TRUK)
 
@@ -132,7 +134,7 @@ Spawned when a truck unloads its supply on the ground. Functionally a stationary
 - Capturable by enemies (`ProximityCapturable`) — if the enemy reaches it first, the supply changes hands at full value.
 - **Auto-targetable like the truck — carries no `NoAutoTarget`.** Its `Targetable: TargetTypes: Ground, Structure` (`misc.yaml:387`) matches the base `AutoTargetPriority@FireAtWill`, so nearby enemies engage and destroy it unaided (HP 5000, Light armor). An earlier `NoAutoTarget` that made it inert to enemy fire was removed.
 - **Serves down to empty — `RemoveBelowSupply: 1` (`misc.yaml:418`).** `SupplyProvider.Tick` despawns a provider once `currentSupply < RemoveBelowSupply` (`SupplyProvider.cs:166`). A stationary cache has no drive-home trip to reserve supply for (unlike TRUK's `RestockThreshold`), so the threshold is 1 — a freshly dropped low-supply crate no longer self-vanishes on its first tick.
-- Sits in place until drained, captured, or destroyed. The player recovers a cache's remaining supply by absorbing it into a friendly LC (the LC's `AbsorbsSupplyCache` trait pulls in any nearby cache), by **right-clicking it with a supply truck** (the `PickupSupply` order — the truck drives over and loads whatever fits inside its own headroom), or by spending it through infantry rearming off it. The truck route carries most of the weight, because the LC route is mostly unavailable: `logisticscenter` is `Buildable.Prerequisites: ~disabled` and pre-placed only as a Neutral capturable on three of the ten shipped maps, so on the other seven a truck is the *only* way supply put on the ground ever comes back.
+- Sits in place until drained, captured, or destroyed. The player recovers a cache's remaining supply by absorbing it into a friendly LC (the LC's `AbsorbsSupplyCache` trait pulls in any nearby cache), by **right-clicking it with a supply truck** (the `PickupSupply` order — the truck drives over and loads whatever fits inside its own headroom), or by spending it through infantry rearming off it. Both routes are available on every map: the truck needs no host, and the LC route needs an LC, which any player can field by deploying an `LCCV` (Core principle 3) as well as by capturing one of the three pre-placed Neutral ones. *(**Corrected 2026-08-17.** This bullet previously claimed the LC route was "mostly unavailable … on the other seven a truck is the *only* way supply put on the ground ever comes back", reasoning from the same `~disabled` mistake corrected at Core principle 3.)*
 - **Truck collection is an ORDER, never an aura — and that asymmetry with the LC is deliberate.** `DropSupplyCacheHere` places the crate on the truck's *own* cell, so a proximity absorber on a truck would re-swallow the load it had just dropped; it would also eat forward dumps the player placed on purpose for infantry to walk to. Both failures are silent and both undo a deliberate act, so collection is asked for, exactly like the drop it mirrors. The transfer is capped at the truck's headroom: a crate holding more than the truck can take is partially emptied and stays put with the remainder.
 
 ### Cash flow recap
@@ -141,19 +143,29 @@ Spawned when a truck unloads its supply on the ground. Functionally a stationary
 |---|---|
 | Call in unit (any) | `−Cost` (cash drops by full unit cost; ammo is bundled in) |
 | Unit destroyed in combat | Permanent loss of `Cost` |
-| Unit rotated to map edge with full ammo | `+Cost` returned |
-| Unit rotated to map edge with empty ammo | `+(Cost − sum_pools(missing_batches × SupplyValue))` |
-| Sell building with supply (LC) | `+max(0, Cost − missing_supply_value)` — supply refunds at constant rate, body refunds in full |
+| Unit rotated to map edge with full ammo | `+Cost × HP/MaxHP` |
+| Unit rotated to map edge with empty ammo | `+(Cost − sum_pools(missing_batches × SupplyValue)) × HP/MaxHP` |
+| Sell building with supply (LC) | `+max(0, Cost − missing_supply_value) × RefundPercent/100 × HP/MaxHP` — supply refunds at constant rate; the LC sets `RefundPercent: 34` (see "Logistics Center") |
 | Truck drops cache, drains in field | Spent supply is gone; remaining supply still recoverable via absorb/capture |
 | Capture an enemy SUPPLYCACHE | Free supply at full value (war booty) |
 | LC absorbs nearby friendly SUPPLYCACHE | Supply transfers from cache to LC at full value |
 
-Sell formula (engine, single path through `CustomSellValue.GetSellValue`):
+Sell formula. `GetSellValue` is the single path for the **salvage value**; the **cash paid** then scales it by health and, on the evacuation paths, by the owner's handicap:
+
 ```
-refund = max(0, Cost
-              − sum_pools(floor(missing_rounds / ReloadCount) × SupplyValue)
-              − missing_supply_value)        // for actors with SupplyProvider/CargoSupply
+sellValue = max(0, Cost
+                 − sum_pools(floor(missing_rounds / ReloadCount) × SupplyValue)
+                 − missing_supply_value)     // for actors with a SupplyProvider
+                                             // (CustomSellValue.cs:36-51)
+
+refund    = sellValue × RefundPercent/100 × HP/MaxHP        // Sell.cs:41, RotateToEdge.cs:381
+evacRefund = handicapAdjust(sellValue) × HP/MaxHP           // RotateToEdge.cs:377
+             where handicapAdjust(v) = v × 100/(100−handicap)
 ```
+
+**The `HP/MaxHP` term is not optional and it is not decoration** — it is what stops a wrecked unit being worth a fresh one, and every code path applies it (`RotateToEdge.DoSell`, `Sell.cs`, and the `Sellable` tooltip). *(**Added 2026-08-17.** The formula in this file previously omitted it entirely, while three bot modules cited this file as the source for `GetSellValue × HP/MaxHP`. The code was right and the doc was incomplete; the doc is what changed.)*
+
+`handicapAdjust` mirrors `HandicapProductionMultiplier`, which inflates what a handicapped player *pays* by the identical factor — so the two must move together. All three evacuation paths (`DeliversCash` rotation, `AmmoPool`'s evacuate-when-dry, `DropsSupplyCache`'s empty-truck return) go through `CustomSellValueExts.GetEvacuationRefund`; **do not compute an evacuation refund any other way.**
 
 ## Per-platform ammo budget targets
 

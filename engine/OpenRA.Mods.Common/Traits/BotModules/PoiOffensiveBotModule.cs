@@ -153,7 +153,7 @@ namespace OpenRA.Mods.Common.Traits
 			"vehicles default to ResupplyBehavior.Auto, so an empty vehicle with no reachable Logistics Centre",
 			"keeps fighting with an empty gun. When ON, the bot sweeps its own dry combat vehicles each re-eval",
 			"and disposes of each one: drive to a rearm source if one is worth reaching, else TERMINAL evac (rotate",
-			"off the map edge, refunding GetSellValue x HP/MaxHP per economy.md). Decision is the pure",
+			"off the map edge, refunding GetEvacuationRefund x HP/MaxHP per economy.md). Decision is the pure",
 			"AmmoEvacMath.Decide (NUnit-pinned), zero RNG. Needs SkipOutOfAmmoUnits to be useful — without it the",
 			"recruit pass re-tasks the unit and cancels its evac. OFF by default = byte-identical; only",
 			"PoiOffensiveBotModule@experimental turns it on.")]
@@ -2602,7 +2602,7 @@ namespace OpenRA.Mods.Common.Traits
 		// leaves that unit standing wherever it emptied, because the engine's own fallback is flag-only (AmmoPool's
 		// AutoRearm else-branch just sets NeedsResupply, AmmoPool.cs:313-320, and ground vehicles default to
 		// ResupplyBehavior.Auto). This sweep closes that gap: every dry vehicle of ours gets an explicit disposition
-		// each re-eval — drive to a rearm host, or TERMINAL evac banking GetSellValue x HP/MaxHP.
+		// each re-eval — drive to a rearm host, or TERMINAL evac banking GetEvacuationRefund x HP/MaxHP.
 		//
 		// Runs BEFORE the free pool is built so a unit disposed of this eval is never also recruited onto an axis.
 		// Per-unit dispositions are independent of one another, so world.Actors' enumeration order cannot change any

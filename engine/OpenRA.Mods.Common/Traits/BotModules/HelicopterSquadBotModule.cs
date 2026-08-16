@@ -1447,7 +1447,7 @@ namespace OpenRA.Mods.Common.Traits
 		// (empty activity queue — so never one mid-mission, mid-withdraw, or already flying its evac) is
 		// evacuated to reserves when it has no further use: either it is spent with no rearm host, or it has
 		// loitered near home past the patience window with no believed worthwhile target. Evac reclaims the
-		// heli's salvage value (RotateToEdge → GetSellValue: full Cost with ammo, less spent-ammo value) and
+		// heli's salvage value (RotateToEdge → GetEvacuationRefund: full Cost with ammo, less spent-ammo value) and
 		// stops its upkeep drain — the "helicopters are perfect for short hit-and-run missions" model, and the
 		// fix for the SR/staging corner-idle park. Deterministic: belief-store + integer geometry, ActorID-
 		// ordered iteration, ZERO random draws. Fully skipped (byte-identical) when the flag is off.

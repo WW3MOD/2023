@@ -13,7 +13,7 @@
  *   b. TRANSPORTS-FIRST — an already-owned IDLE transport outranks buying another. Demand is satisfied by
  *      employing what we have; only unmet demand justifies spending.
  *   c. USE-OR-EVAC — a transport idle beyond the patience window is TERMINAL: it evacuates to reserves
- *      (RotateToEdge banks the salvage refund, economy.md: GetSellValue x HP/MaxHP) and stops its upkeep
+ *      (RotateToEdge banks the salvage refund, economy.md: GetEvacuationRefund x HP/MaxHP) and stops its upkeep
  *      drain. Deliberately no hold-and-recheck: a transport we could not employ for ~900 ticks is capital
  *      parked in a warzone, and the refund buys the thing we actually needed.
  *
