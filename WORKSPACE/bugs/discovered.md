@@ -3,6 +3,76 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-16: [high] UNTRIAGED — LIVE MONEY PUMP: buy an LCCV for 1200, deploy it, sell the Logistics Centre for 3500. +2300 per cycle, unlimited (found while: economy audit, `main @ d919c81a`)
+
+**The loop, entirely in shipped UI:** `LCCV` is buildable (`vehicles.yaml:612-617`,
+`Queue: Vehicle`, `Prerequisites: ~techlevel.low`, `Cost: 1200`) and the Supply Route produces the
+Vehicle queue (`structures.yaml:318-319`). Deploy it — `Transforms: IntoActor: logisticscenter`
+(`vehicles.yaml:630-631`). `LOGISTICSCENTER` is `Valued: Cost: 3500` (`structures.yaml:372-373`),
+inherits `^Building` and so carries `Sellable` at the default `RefundPercent: 100`
+(`structures.yaml:115`, `Sellable.cs:24`) with no `-Sellable` anywhere in the mod. The new LC
+spawns at full supply (`SupplyProvider.cs:259` defaults `currentSupply` to `TotalSupply`), so
+`MissingSupplyValue` is 0 and `GetSellValue()` returns the full 3500. Click the sell button
+(`ingame-player.yaml:1223` → `SellOrderGenerator`), click the LC. **Net +2300, plus a free `tecn`
+technician from `SpawnActorsOnSell` (`structures.yaml:107-108`).** Repeatable with no cooldown,
+no tech gate, no unit limit.
+
+**Why the `~disabled` guard doesn't catch it.** `LOGISTICSCENTER` does carry
+`Buildable.Prerequisites: ~disabled` (`structures.yaml:367`), which is what
+`DOCS/reference/economy.md:13` reasons from when it says LCs are "**not** buildable ... the only
+ones in a match are the Neutral pre-placed ones you can capture". That reasoning is sound for the
+build queue and wrong for the actor: `Transforms.CanDeploy()` (`Transforms.cs:93-99`) checks only
+`IsTraitPaused`/`IsTraitDisabled` and `World.CanPlaceBuilding` — **it never consults
+`Buildable.Prerequisites`.** `~disabled` gates the sidebar icon, not existence.
+
+**Tech level cannot save it either:** `MapOptions.TechLevel` defaults to `"unrestricted"`
+(`MapOptions.cs:52`) and WW3MOD hides the dropdown (`world.yaml:435`
+`TechLevelDropdownVisible: false`), so `ProvidesTechPrerequisite@unrestricted`
+(`player.yaml:222-224`) always grants `techlevel.low`. LCCV is available in every match.
+
+**NOT VERIFIED AT RUNTIME** — traced statically; no game launched (read-only brief). One playtest
+settles it: build LCCV, deploy, sell, watch the cash counter.
+
+**Candidate fixes** (design call, not made here): drop `LOGISTICSCENTER`'s `Cost` to ≈1200 so the
+round-trip is value-neutral; or set `Sellable.RefundPercent` on it to ~34%; or remove `Sellable`
+from the LC; or gate `Transforms` behind the same `disabled` condition. Note the third also
+removes the doc's `Sell building with supply (LC)` cash-flow row (`economy.md:146`).
+
+## 2026-08-16: [medium] UNTRIAGED — two automatic evacuation paths bypass the handicap refund adjustment that the Evacuate button applies (found while: economy audit)
+
+Same shape as the UI-path bug fixed earlier today, still live in two places. `DeliversCash`
+computes an evac refund as `info.Payload == -1 ? GetSellValue() : info.Payload` and then, for
+`Type: Rotation`, scales it by `100/(100 - handicap)` (`DeliversCash.cs:96-106`). That scaling is
+correct and load-bearing: `HandicapProductionMultiplier` is attached at `defaults.yaml:914` and
+inflates purchase cost by exactly the same factor, so refund and cost stay symmetric.
+
+**Two callers queue `RotateToEdge` with a raw `GetSellValue()` and skip it:**
+- `AmmoPool.cs:264-265` — the `ResupplyBehavior.Evacuate` branch, i.e. a unit that runs dry and
+  self-evacuates. Reaches `m270`, `grad`, `tos` (`vehicles-america.yaml:698-699`,
+  `vehicles-russia.yaml:524-525`, `:648-649`), whose whole design is evacuate-when-dry.
+- `DropsSupplyCache.cs:524-525` — the empty-truck evacuation, i.e. every TRUK
+  (`vehicles.yaml:529-530`).
+
+**Effect:** a handicapped player who presses the Evacuate button is paid correctly, but the same
+unit evacuating *automatically* pays the un-inflated amount — under-refunded by the handicap
+factor (at 50% handicap, half). Both paths also skip the `info.Payload` override, which is
+currently unset everywhere so that half is latent.
+
+Zero effect at handicap 0, which is the default and almost certainly every match played so far.
+
+## 2026-08-16: [low] UNTRIAGED — `m109` and `giatsint` refund 4 free shells at evacuation (`Ammo: 39` is not a multiple of `ReloadCount: 5`) (found while: economy audit)
+
+`CustomSellValue.cs:43` deducts `floor(missingRounds / ReloadCount)` batches, so a remainder is
+never charged. Both artillery pieces carry `Ammo: 39, ReloadCount: 5, SupplyValue: 60`
+(`vehicles-america.yaml:629`, `vehicles-russia.yaml:459`): fully empty deducts 7 batches, not 7.8
+— **48 credits of free shells per unit**. The tooltip disagrees with the deduction, because
+`AmmoPoolInfo.BatchCount` rounds *up* (`AmmoPool.cs:68`) and advertises a 480 budget the sell math
+caps at 432.
+
+`A10.Airstrike` has the same shape (`Ammo: 40` vs inherited `ReloadCount: 25`, 15 free rounds =
+5 credits). All other 60 live pools divide exactly. Cheapest fix is `Ammo: 40` on the two
+artillery pieces — a 1-shell buff, not a balance event.
+
 ## 2026-08-16: [medium] UNTRIAGED — faction tooltips render a literal `\n`; the descriptions written today use an escape the faction picker never unescapes (found while: netcode audit, `main @ 8b4ae9cd`)
 
 `75ac6941` (2026-08-16) wrote faction descriptions into `mods/ww3mod/rules/world.yaml:241,245,254`

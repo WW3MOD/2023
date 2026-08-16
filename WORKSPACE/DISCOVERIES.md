@@ -42,6 +42,96 @@ Replacement run for the one killed by a broken `dotnet` host (exit 137 / SIGKILL
 - **And the fixed mechanism was still exercised — on the other profile.** 85 `[exp-ambush]` lines, all `player=Russia-bot`, posting lanes with units from tick 100. So the gated-ambusher path this whole fix is about ran on `@stable` this time instead of `@experimental`, and the restore survived it. That incidentally re-confirms the `@stable` parity claim from the module header with runtime evidence.
 - **Caveat retired.** The "every result comes from spectator-plus-two-bots" caveat has been carried unretired since the first entry on this bug. It is now tested and it does not matter: the restore is clean in both layouts.
 - **Standing tally: 5 greens — 4 seeds in spectator-plus-two-bots (`-324877760`, `1017`, `-777333`, `20260816`) and 1 in human-vs-bot.** The only open item is the pre-existing, already-recorded one: the audit bounded *bot mutates → synced reads* and not the reverse, and no detector exists for that shape. Nothing in these runs suggests it is live.
+## 2026-08-16 — `Buildable.Prerequisites: ~disabled` does NOT make an actor unobtainable, and `DOCS/reference/economy.md` reasons from the assumption that it does
+
+The single highest-leverage thing found in the economy audit (`main @ d919c81a`, read-only).
+
+- **`~disabled` gates the production sidebar, not existence.** `Transforms.CanDeploy()`
+  (`Transforms.cs:93-99`) tests `IsTraitPaused`/`IsTraitDisabled` and `World.CanPlaceBuilding` and
+  nothing else — no prerequisite check, no `Buildable` lookup at all. So any actor reachable via
+  `Transforms` exists in play regardless of how thoroughly its `Buildable` block is disabled. The
+  same is true of map pre-placement and of `SpawnActorOnDeath`/`SpawnActorsOnSell`. **"Grep says
+  `~disabled`, therefore nobody can have one" is not a sound inference** and it is currently made
+  in at least three places in the curated docs.
+- **The concrete casualty: `logisticscenter`.** `economy.md:13` states LCs are "**not** buildable
+  (`Buildable.Prerequisites: ~disabled`, `structures.yaml:367`); the only ones in a match are the
+  Neutral pre-placed ones you can capture, on the three maps that have any." In fact `LCCV`
+  (`vehicles.yaml:605-646`, Cost 1200, `Prerequisites: ~techlevel.low`) is buildable in every match
+  and `Transforms: IntoActor: logisticscenter`. **Any player can have as many LCs as they can
+  afford, on any map.** `economy.md:135` builds on the same false premise ("on the other seven
+  [maps] a truck is the *only* way supply put on the ground ever comes back"), and `economy.md:102`
+  contradicts `:13` **inside the same document** — "The player builds another LC, or relies on
+  trucks that still have supply." Line 102 is the accurate one.
+- **It is also a money pump** — LCCV 1200 in, LC sells for 3500 out. Filed separately in
+  `WORKSPACE/bugs/discovered.md` (2026-08-16, [high]).
+- **Tech-level prerequisites are always fully satisfied in WW3MOD.** `MapOptions.TechLevel`
+  defaults to `"unrestricted"` (`MapOptions.cs:52`) and `world.yaml:435` sets
+  `TechLevelDropdownVisible: false`, so the option can never be lowered and
+  `ProvidesTechPrerequisite@unrestricted` (`player.yaml:222-224`) grants every tier. **A
+  `~techlevel.*` prerequisite is decorative — treat any actor carrying only one as unconditionally
+  available.** This is the opposite of `~disabled`, which nothing provides.
+- **Generalisation worth carrying:** when asking "can a player get X?", enumerate every *route* to
+  the actor (build queue, `Transforms`, map placement, husk/death spawn, sell spawn, capture), not
+  just the build queue. The routing table in CLAUDE.md sends economy work to `economy.md`, and
+  `economy.md` is normative — so a false premise there propagates into code and player-facing copy.
+
+## 2026-08-16 — the ammo economy has THREE competing cost models, and the stale one is still quoted in player-facing unit descriptions
+
+Found auditing ~63 `AmmoPool`s against the spec. The three:
+
+1. **The shipped model** — `economy.md:158-171` budget ratios: pick `SupplyValue` so that
+   `(Ammo/ReloadCount) x SupplyValue` lands at a target fraction of `Valued.Cost`. This is what the
+   YAML actually implements, and the per-pool comments (e.g. `vehicles-america.yaml:519` "8 batches
+   x 5 shells x 30 supply = 240 (9.6% of cost 2500)") are written in it.
+2. **The plan's tier table** — `WORKSPACE/archive/plans/260506_supply_ammo_economy.md:306-320`,
+   T0=1 → T9=1500, priced **per shot**. `RELEASE_V1.md:47` still claims P3 applied it. It survives
+   only at the top end: T8 Hellfire 200 and T9 HIMARS/Iskander 1500 match; T0–T5 are off by
+   8x–150x because the ratio model drove bulk per-shot costs toward zero (crew pistol 0.125/shot vs
+   a table value of 1; small-arms 0.05 vs 2; tank gun 6 vs 80). **The tier table is stale; do not
+   audit against it.** It also disagrees with `economy.md` on two munitions (ATGM 100 vs 65-75,
+   MANPAD 60 vs 65) — the YAML follows `economy.md` in both, so the doc is authoritative in
+   practice as well as by policy.
+3. **`CreditValue`** — the plan's "set `SupplyValue == CreditValue`" convention (`:56-59`, checklist
+   `:401`). **The field does not exist on `AmmoPoolInfo` and no YAML sets it.** `CustomSellValue`
+   deducts using `SupplyValue`. The convention was superseded, not implemented; the only surviving
+   near-name is `SupplyProviderInfo.SupplyCreditValue`, a different field on a different trait.
+   `RELEASE_V1.md:47`'s "explicit `SupplyValue`/`CreditValue`" is wrong on the second half.
+
+**The consequence that reaches players:** 10 infantry `Buildable.Description` strings quote
+per-shot supply numbers from model (2), and 9 of the 10 are wrong against the shipped YAML — AT and
+AA advertise "25/missile" while charging 65; `^E6` says "25 each" and charges 50; `^SF` "25 each"
+and charges 33; `^DR` "supply: 50" and charges 25. They cluster on 25 because that was T6/T11.
+**When a cost model is replaced, the descriptions are a consumer of it** — grep
+`Description:` for numerals before declaring a re-tune done.
+
+Two other spec misses in the same sweep, both real but lower value: the **bulk MG/autocannon class
+misses its stated 3-10% budget band by an order of magnitude** on 11 of 13 units (everything at
+`SupplyValue: 1` — F-16 secondary 0.08%, Apache primary 0.42%, humvee 1.3%; only `bradley` 3.0% and
+`bmp2` 3.5% land in band); and **`^E3` and `^E2` empty-evac to ~45-50 against a stated line-infantry
+baseline of 100** (`economy.md:246`) — note `infantry.yaml:1249` shows the YAML author working to a
+**50** baseline, so the doc and the in-file comment disagree and the doc wins.
+
+## 2026-08-16 — the evac refund formula in `economy.md` omits the HP scaling that every code path applies
+
+`economy.md:144-145` gives the cash-flow rows as `+Cost` (full ammo) and
+`+(Cost − sum_pools(missing_batches x SupplyValue))` (empty), and the `Sell formula` block at
+`:151-156` repeats it with no health term. **Every path scales by `HP/MaxHP`**:
+`RotateToEdge.DoSell` (`:373-386`, both the fixed-refund and the `Sellable` branch),
+`Sell.cs:41-43`, and the `Sellable` tooltip (`:120-124`). So a half-dead evacuating tank returns
+half of what the doc promises, and the doc is the normative document.
+
+Downstream code cites the doc for a formula the doc does not contain — `AmmoEvacMath.cs:21-22`,
+`PoiOffensiveBotModule.cs:156` and `HelicopterSquadBotModule.cs:1450` all describe
+`GetSellValue x HP/MaxHP` as "the `economy.md` evac formula". They implement the right thing and
+mis-cite it. **This is a doc gap rather than a code bug** — the HP term is clearly intended (it is
+what stops a wrecked unit being worth a fresh one) — but per the doc's own header the fix belongs
+in `economy.md`, and the citations should stop claiming a line that isn't there.
+
+Related, same area: `Sellable.RefundPercent` is applied on the `Sellable` path and **hardcoded to
+100 on the `DeliversCash` rotation path** (`RotateToEdge.cs:78`), while the handicap adjustment
+runs on the rotation path only (`DeliversCash.cs:99-106`). The two evacuation routes therefore
+disagree about two multipliers. Inert today because nothing sets `RefundPercent` and the default
+handicap is 0 — but it means "the evac refund" has no single definition in code.
 
 ## 2026-08-16 — BREADTH: the saved-game fix holds across FOUR seeds, but the human-vs-bot configuration is STILL untested — and that is the configuration players actually use
 
