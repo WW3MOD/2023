@@ -522,9 +522,22 @@ namespace OpenRA
 			StartGame(mapUid, WorldType.Editor);
 		}
 
+		/// <summary>
+		/// Both LoadShellMap overloads must start from a fresh session: SetupShellmapBots writes
+		/// bot clients straight into the live LobbyInfo, so re-entering with the previous
+		/// shellmap's clients still seated duplicates every slot key the two maps share, and
+		/// stale slots cause KeyNotFoundException in CreateMapPlayers.
+		/// Disconnect ends with JoinLocal, so the session is a fresh one spectator lobby.
+		/// </summary>
+		static void ResetShellmapSession()
+		{
+			Disconnect();
+		}
+
 		public static void LoadShellMap()
 		{
 			var shellmap = ChooseShellmap();
+			ResetShellmapSession();
 			SetupShellmapBots(shellmap);
 			InjectShellmapScenario(shellmap);
 			using (new PerfTimer("StartGame"))
@@ -543,10 +556,7 @@ namespace OpenRA
 				return;
 			}
 
-			// Reset lobby state so stale slots from the previous shellmap
-			// don't cause KeyNotFoundException in CreateMapPlayers.
-			Disconnect();
-			JoinLocal();
+			ResetShellmapSession();
 
 			SetupShellmapBots(uid);
 			InjectShellmapScenario(uid);
@@ -589,41 +599,11 @@ namespace OpenRA
 				return;
 			}
 
-			var lobbyInfo = OrderManager.LobbyInfo;
-			var nextClientIndex = lobbyInfo.Clients.Count > 0
-				? lobbyInfo.Clients.Max(c => c.Index) + 1
-				: 1;
-
-			foreach (var kv in playablePlayers)
-			{
-				var playerRef = kv.Value;
-				var slotKey = kv.Key;
-
-				// Create a lobby slot for this player reference
-				lobbyInfo.Slots[slotKey] = new Session.Slot
-				{
-					PlayerReference = slotKey,
-					AllowBots = true,
-					LockFaction = true,
-					LockColor = true,
-					LockTeam = true,
-					LockSpawn = true,
-				};
-
-				// Create a bot client for this slot
-				lobbyInfo.Clients.Add(new Session.Client
-				{
-					Index = nextClientIndex++,
-					Bot = botType,
-					BotControllerClientIndex = OrderManager.Connection.LocalClientId,
-					Name = playerRef.Name,
-					Faction = playerRef.Faction,
-					Color = playerRef.Color,
-					Team = playerRef.Team,
-					Slot = slotKey,
-					State = Session.ClientState.Ready,
-				});
-			}
+			ShellmapLobby.SeatBots(
+				OrderManager.LobbyInfo,
+				playablePlayers.Select(kv => (kv.Key, kv.Value.Name, kv.Value.Faction, kv.Value.Color, kv.Value.Team)),
+				botType,
+				OrderManager.Connection.LocalClientId);
 
 			Log.Write("debug", $"SetupShellmapBots: Injected {playablePlayers.Count} bots for map '{map.Title}'");
 		}
