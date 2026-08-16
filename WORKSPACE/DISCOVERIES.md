@@ -74,6 +74,56 @@ is the only thing standing between a stranger and a crash the first time any wea
 `base`'s TestFiles do include `^SupportDir|Content/ra/v2/sounds.mix`. Weakening `Required:` to get
 past the installer faster would trade a clear install prompt for an unexplained mid-match crash.
 
+## 2026-08-16 — an overload pair can disagree about SESSION LIFECYCLE, and the compiler will never tell you: `LoadShellMap()` reused the live session that `LoadShellMap(uid)` reset
+
+Found while fixing the `ClientInSlot` crash to desktop (`WORKSPACE/audit/260816-crash-clientinslot.md`),
+on `main @ 43d55ace` in `wt/shellmap`.
+
+The two `LoadShellMap` overloads read as the same operation with an optional argument. They were not.
+`LoadShellMap(string uid)` (`engine/OpenRA.Game/Game.cs:537` pre-fix) opened with `Disconnect(); JoinLocal();`;
+`LoadShellMap()` (`:525`) went straight to `SetupShellmapBots`. Everything downstream of them —
+`SetupShellmapBots` writing into `OrderManager.LobbyInfo`, `InjectShellmapScenario`, `StartGame` — was
+written against the *(uid)* contract, i.e. "the session I am handed is fresh". The parameterless
+overload silently violated it, and the violation only became visible one world-load later as
+`Sequence contains more than one matching element` inside upstream code that had done nothing wrong.
+
+The generalisable part: **when overloads differ in what they do to shared mutable state rather than in
+what they compute, call sites cannot tell them apart.** `MainMenuLogic.cs:155` and `:205` sit 50 lines
+apart, pass `Game.LoadShellMap(uid)` and `Game.RunAfterTick(Game.LoadShellMap)`, and look
+interchangeable at the call site. One was safe and one crashed the process. The fix routes both through
+a single `LoadShellMapInner(uid)` so the contract has exactly one implementation.
+
+Two smaller facts worth keeping:
+
+- **`Game.Disconnect()` (`engine/OpenRA.Game/Game.cs:1106-1113`) already ends in `JoinLocal()`.** So the
+  `Disconnect(); JoinLocal();` pair at the old `:548-549` was calling `JoinLocal()` twice — building an
+  `OrderManager`, then immediately disposing it and building another. Harmless (each `JoinLocal` seats
+  exactly one spectator into its *own* fresh `Session`), but it reads as though the `JoinLocal()` is
+  load-bearing when it is dead weight. Anywhere else in the tree that writes `Disconnect(); JoinLocal();`
+  is doing the same.
+- **`Session.Clients` has no invariant enforcement at all.** `ClientInSlot` and `ClientWithIndex`
+  (`engine/OpenRA.Game/Network/Session.cs:94,89`) are both `SingleOrDefault`, so *two* uniqueness
+  invariants are asserted by read and maintained only by convention. Upstream gets away with this
+  because the server is the sole mutator; any WW3MOD code that writes to the client-side `Clients`
+  list directly inherits responsibility for both.
+
+### Adjacent lookups in the same session-setup path — noted, NOT fixed
+
+Same shape as this crash (a lookup asserting a key is unique or present, with nothing enforcing it):
+
+- `engine/OpenRA.Mods.Common/Traits/World/MapStartingLocations.cs:83,104,143,159` —
+  `occupiedSpawnPoints.Add(client.SpawnPoint, client)`. `Dictionary.Add` throws `ArgumentException` on a
+  duplicate key, so **two clients sharing a non-zero `SpawnPoint` is a hard throw during world creation**,
+  the same window this crash landed in. Guarded only by the `client.SpawnPoint == 0` skip at `:141-142`,
+  which is why shellmap bots (all `SpawnPoint` 0) never tripped it.
+- `engine/OpenRA.Game/Network/Session.cs:67` — `session.Slots.Add(s.PlayerReference, s)` in `Deserialize`.
+  A session carrying two `Slot@` nodes with one `PlayerReference` throws. Server-authored, so lower risk.
+- `engine/OpenRA.Game/Network/Session.cs:89` — `ClientWithIndex`'s `SingleOrDefault`, the second unbacked
+  uniqueness assertion described above.
+
+Checked and **cleared**: `ModData.MapCache[uid]` (`Game.cs:566,640`) looks like a throwing dictionary
+indexer but `previews` is a `Cache<string, MapPreview>` (`MapCache.cs:34,75`) that materialises on miss.
+It cannot throw `KeyNotFoundException`.
 
 ## 2026-08-15 — the littlebird deals ZERO damage with every weapon it carries, because it declares no Gunner crew slot and `^Airborne` reads a missing slot as `FirepowerMultiplier: 0`
 
