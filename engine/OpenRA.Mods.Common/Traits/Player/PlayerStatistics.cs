@@ -287,7 +287,12 @@ namespace OpenRA.Mods.Common.Traits
 			var valuedInfo = self.Info.TraitInfoOrDefault<ValuedInfo>();
 			cost = valuedInfo != null ? valuedInfo.Cost : 0;
 			playerStats = self.Owner.PlayerActor.Trait<PlayerStatistics>();
-			actorName = info.OverrideActor ?? self.Info.Name;
+			// PITFALL: this is a Rules.Actors key, and that dictionary is case-sensitive with
+			// lowercased keys (Ruleset.cs:126). CheckActorReferences lowercases before validating
+			// (CheckActorReferences.cs:70), so lint passes an uppercased OverrideActor that would
+			// then throw KeyNotFoundException here on the first kill/production event. Normalise
+			// to match the validator; a genuinely missing actor still throws, and still lints.
+			actorName = (info.OverrideActor ?? self.Info.Name).ToLowerInvariant();
 		}
 
 		void INotifyKilled.Killed(Actor self, AttackInfo e)

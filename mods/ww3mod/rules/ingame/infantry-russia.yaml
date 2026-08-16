@@ -13,7 +13,7 @@ E1R1.russia:
 	ProducibleWithLevel:
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
-		OverrideActor: E1.russia
+		OverrideActor: e1.russia
 # Rifleman
 E3.russia:
 	Inherits@BaseUnit: ^E3
@@ -26,7 +26,7 @@ E3R1.russia:
 	ProducibleWithLevel:
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
-		OverrideActor: E3.russia
+		OverrideActor: e3.russia
 	-Buildable:
 # LMG
 AR.russia:
@@ -47,7 +47,7 @@ E2R1.russia:
 	ProducibleWithLevel:
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
-		OverrideActor: E2.russia
+		OverrideActor: e2.russia
 	-Buildable:
 # Mortar
 MT.russia:

@@ -248,6 +248,24 @@ namespace OpenRA.Test
 			Assert.That(batches * pool.Info.SupplyValue, Is.EqualTo(480));
 		}
 
+		[Test]
+		public void MultiPoolGrandTotalAppliesReloadCount()
+		{
+			// The ProductionTooltipLogic grand total must use the same batch math as the
+			// per-pool lines. Bradley (Cost 1500): 25mm 900/ReloadCount 100/SupplyValue 5
+			// = 45, plus TOW 8/ReloadCount 1/SupplyValue 75 = 600. Total 645, ~43% of cost,
+			// matching the ~40% IFV ATGM target in DOCS/reference/economy.md.
+			var autocannon = CreatePool(ammo: 900, reloadCount: 100, supplyValue: 5).Info;
+			var atgm = CreatePool(ammo: 8, reloadCount: 1, supplyValue: 75).Info;
+
+			Assert.That(autocannon.PoolBudget, Is.EqualTo(45));
+			Assert.That(atgm.PoolBudget, Is.EqualTo(600));
+			Assert.That(autocannon.PoolBudget + atgm.PoolBudget, Is.EqualTo(645));
+
+			// Omitting ReloadCount inflates the bulk pool 100x and the total to 5100.
+			Assert.That(autocannon.PoolBudget, Is.Not.EqualTo(autocannon.Ammo * autocannon.SupplyValue));
+		}
+
 		// --- FullReloadTicks math ---
 		// The reload formula: RemainingTicks = FullReloadTicks * ReloadCount / Ammo
 		// With FullReloadSteps: ReloadCount = Ceiling(Ammo / FullReloadSteps)

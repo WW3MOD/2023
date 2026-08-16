@@ -61,6 +61,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("The condition to grant to self for each ammo point in this pool.")]
 		public readonly string AmmoCondition = null;
 
+		// Ammo is dispensed in chunks of ReloadCount rounds, each chunk costing SupplyValue.
+		// Shared rather than inlined so the per-pool tooltip line and the cross-pool grand
+		// total in ProductionTooltipLogic cannot drift apart — they did, by up to 100x.
+		public int BatchSize => System.Math.Max(1, ReloadCount);
+		public int BatchCount => (Ammo + BatchSize - 1) / BatchSize;
+		public int PoolBudget => BatchCount * SupplyValue;
+
 		public override object Create(ActorInitializer init) { return new AmmoPool(this); }
 
 		string IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
@@ -86,14 +93,9 @@ namespace OpenRA.Mods.Common.Traits
 					.Select(arm => FormatWeaponLabel(arm.Weapon))
 					.Distinct());
 
-			// Batch math: ammo is dispensed in chunks of ReloadCount rounds, each
-			// chunk costs SupplyValue. Total pool budget = batches × SupplyValue.
-			var batchSize = System.Math.Max(1, ReloadCount);
-			var batches = (Ammo + batchSize - 1) / batchSize;
-			var totalCost = batches * SupplyValue;
-			return batchSize == 1
-				? $"{label}\n  Ammo: {Ammo} × {SupplyValue} supply = {totalCost}"
-				: $"{label}\n  Ammo: {Ammo} ({batches} batches × {batchSize} rounds × {SupplyValue} supply = {totalCost})";
+			return BatchSize == 1
+				? $"{label}\n  Ammo: {Ammo} × {SupplyValue} supply = {PoolBudget}"
+				: $"{label}\n  Ammo: {Ammo} ({BatchCount} batches × {BatchSize} rounds × {SupplyValue} supply = {PoolBudget})";
 		}
 
 		static string FormatWeaponLabel(string raw)

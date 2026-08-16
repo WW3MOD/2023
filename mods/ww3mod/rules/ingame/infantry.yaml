@@ -1185,7 +1185,7 @@ E1R1:
 	ProducibleWithLevel:
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
-		OverrideActor: E1
+		OverrideActor: e1
 	-Buildable:
 
 # Rifleman with RPG
@@ -1305,7 +1305,7 @@ E3R1:
 	ProducibleWithLevel:
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
-		OverrideActor: E3
+		OverrideActor: e3
 	-Buildable:
 
 # LMG
@@ -1442,7 +1442,7 @@ E2R1:
 	ProducibleWithLevel:
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
-		OverrideActor: E2
+		OverrideActor: e2
 	-Buildable:
 
 # Team Leader
@@ -2466,7 +2466,7 @@ PILOTR1:
 	ProducibleWithLevel:
 		InitialLevels: 1
 	UpdatesPlayerStatistics:
-		OverrideActor: PILOT
+		OverrideActor: pilot
 PILOTR2:
 	Inherits: ^PILOT
 	Tooltip:
@@ -2476,7 +2476,7 @@ PILOTR2:
 	ProducibleWithLevel:
 		InitialLevels: 2
 	UpdatesPlayerStatistics:
-		OverrideActor: PILOT
+		OverrideActor: pilot
 PILOTR3:
 	Inherits: ^PILOT
 	Tooltip:
@@ -2486,7 +2486,7 @@ PILOTR3:
 	ProducibleWithLevel:
 		InitialLevels: 3
 	UpdatesPlayerStatistics:
-		OverrideActor: PILOT
+		OverrideActor: pilot
 PILOTR4:
 	Inherits: ^PILOT
 	Tooltip:
@@ -2496,4 +2496,4 @@ PILOTR4:
 	ProducibleWithLevel:
 		InitialLevels: 4
 	UpdatesPlayerStatistics:
-		OverrideActor: PILOT
+		OverrideActor: pilot
