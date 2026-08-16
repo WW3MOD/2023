@@ -18,9 +18,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class MenuButtonsChromeLogic : ChromeLogic
 	{
-		// WW3MOD: bump to re-show the how-to-play briefing to players who have already seen it.
-		public const int HowToPlayVersion = 1;
-
 		readonly World world;
 		readonly Widget worldRoot;
 		readonly Widget menuRoot;
@@ -103,34 +100,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						{ "initialPanel", panel }
 					})));
 			}
-			else if (options != null && ShouldShowHowToPlay(world))
-			{
-				// Recorded on open rather than on dismiss: a player who alt-F4s out of the
-				// briefing has still seen it, and should not meet it again every match.
-				Game.Settings.Game.HowToPlayVersion = HowToPlayVersion;
-				Game.Settings.Save();
-
-				Game.RunAfterTick(() => Sync.RunUnsynced(world, () => OpenMenuPanel(options, new WidgetArgs()
-				{
-					{ "initialPanel", IngameInfoPanel.HowToPlay }
-				})));
-			}
-		}
-
-		// WW3MOD: singleplayer only, because that is the only case where OpenMenuPanel
-		// actually pauses — auto-opening a world-hiding panel over a live multiplayer
-		// match would be hostile. In multiplayer the tab is still there to be opened.
-		// The TestMode exclusion is load-bearing: an autotest is a one-client match on a
-		// machine whose settings may never have shown the briefing, so without it every
-		// scenario would open this panel, pause the world and hide the UI.
-		static bool ShouldShowHowToPlay(World world)
-		{
-			return !TestMode.IsActive
-				&& Game.Settings.Game.HowToPlayVersion < HowToPlayVersion
-				&& world.LocalPlayer != null
-				&& !world.IsReplay
-				&& !world.IsLoadingGameSave
-				&& world.LobbyInfo.NonBotClients.Count() == 1;
 		}
 
 		void OpenMenuPanel(MenuButtonWidget button, WidgetArgs widgetArgs = null)

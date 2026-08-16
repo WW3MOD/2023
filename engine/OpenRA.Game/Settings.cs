@@ -346,7 +346,7 @@ namespace OpenRA
 
 		// WW3MOD: How-to-play briefing
 		[Desc("Version of the how-to-play briefing the player last saw. Bump",
-			"MenuButtonsChromeLogic.HowToPlayVersion to re-show it after a material copy change.")]
+			"MainMenuLogic.HowToPlayVersion to re-show it after a material copy change.")]
 		public int HowToPlayVersion = 0;
 	}
 

@@ -190,8 +190,9 @@ ChromeLayout:
 	common|chrome/ingame-debug-hpf.yaml
 	common|chrome/ingame-debuginfo.yaml
 	common|chrome/ingame-infochat.yaml
-	common|chrome/mainmenu.yaml
+	ww3mod|chrome/mainmenu.yaml
 	common|chrome/mainmenu-prompts.yaml
+	ww3mod|chrome/mainmenu-howtoplay.yaml
 	common|chrome/settings.yaml
 	common|chrome/settings-display.yaml
 	common|chrome/settings-audio.yaml
