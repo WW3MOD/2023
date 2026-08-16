@@ -3,6 +3,48 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-16: [medium] UNTRIAGED — faction tooltips render a literal `\n`; the descriptions written today use an escape the faction picker never unescapes (found while: netcode audit, `main @ 8b4ae9cd`)
+
+`75ac6941` (2026-08-16) wrote faction descriptions into `mods/ww3mod/rules/world.yaml:241,245,254`
+in the form `Description: America\nNATO's lead power. ...`.
+
+That style is correct for `Buildable.Description`, because `ProductionTooltipLogic.cs:191` calls
+`.Replace("\\n", "\n")`. **The faction dropdown does not.** The engine has no central unescaping;
+six consumers each do it themselves, and `LobbyUtils.cs:235-238` is not among them — it passes the
+raw string to `SplitOnFirstToken`, which looks for a real newline (`:206-215`), finds none, and
+returns `first` = the entire blob, `second` = `null`.
+
+**Expected on screen:** the faction tooltip is one long line containing a visible `\n`, with an
+empty description body. Affects the faction picker every single-player and multiplayer match
+passes through.
+
+**Fix:** one `.Replace("\\n", "\n")` at `LobbyUtils.cs:235`, matching the six existing sites.
+**NOT VERIFIED AT RUNTIME** — traced statically only; one lobby screenshot settles it.
+
+## 2026-08-16: [medium] UNTRIAGED — the dedicated-server launch scripts disable sync reports, which will silently disarm desync diagnosis the moment an official server ships (found while: netcode audit)
+
+`Settings.cs:97` deliberately defaults `EnableSyncReports = true` (a WW3MOD divergence from
+upstream, with a `// PITFALL: do not "restore" this` comment), so a stranger hosting in-game
+records reports on both machines.
+
+But `launch-dedicated.sh:63`, `launch-dedicated.cmd:16` and the `engine/` copies all hard-default
+`EnableSyncReports=False`. Because the value is read from the **host's** lobby globals by every
+client (`Server.cs:349` → `OrderManager.cs:118`), standing up an official dedicated server — the
+top recommendation for fixing multiplayer discovery — would **turn sync reporting off for every
+game played on it**, reproducing exactly the host trap PIPELINE item 42 names.
+
+**Fix:** pass `Server.EnableSyncReports=True` when the server is stood up, or change the script
+defaults. Cross-reference: item 42(iv), item 53's dedicated-server bullet.
+
+## 2026-08-16: [low] UNTRIAGED — dead Fluent key block is larger than item 53 records (found while: netcode audit)
+
+Item 53 reports "~38 dead Fluent keys" at `mods/ww3mod/languages/en.ftl:84–129`. Verified still
+present, and the same defect extends at least to `:619-620` (`search-status-failed`,
+`search-status-no-games`), where the engine looks up `label-search-status-*`
+(`ServerListLogic.cs:30,33`). The block uses pre-`notification-` / pre-`label-` names the engine
+no longer resolves. Inert — engine strings win — but the count and range in item 53 understate it.
+Item 53's reason for deferring (a blind rename changes ~40 lobby strings at once) still holds.
+
 ## 2026-08-15: [critical] FIXED (wt/heli-gun) — the littlebird's weapons all deal exactly 0 damage: no Gunner crew slot, and `^Airborne` pins `FirepowerMultiplier@NoGunner` to 0 forever (found while: diagnosing "littlebird strafing kills nothing", branch `wt/heli-gun`)
 
 Measured on `main @ 4c4d8a49`, scenario `test-littlebird-strafe`, trace `WW3_GUNTRACE=1`. The gun fires,

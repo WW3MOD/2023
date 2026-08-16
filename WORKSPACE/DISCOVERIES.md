@@ -12,6 +12,59 @@
 - **Behavioural delta, stated rather than absorbed: the gate is now queued instead of instant.** It drains through `ModularBot`'s order queue at `MinOrderQuotientPerTick`, so it can land a few ticks later than a direct grant. **Live ambush behaviour is unchanged**, because the halt requires BOTH `Stance == Ambush` AND the gate, and the stance was *already* an order travelling the same queue — the gate order is issued first in `EnsureGatedAmbusher`, so FIFO puts it at or before the stance it was always waiting on. What changed is that the two now arrive together instead of the gate racing ahead.
 - **`@stable` is affected and the fix is deliberately NOT gated off** — the `@stable` twin runs at full parity and grants the same condition. Per project policy `@stable` inherits improvements, and a determinism fix is correctness rather than tuning. **Re-take the ai-bench baseline knowingly.**
 - **THE OPEN QUESTION, which a green must not paper over.** The static audit bounded *bot mutates → synced reads*, and that class is now closed. It does **not** bound the reverse: **synced code reading state that only bot ticks refresh**. No detector exists for that shape — the `SyncHash` sweep cannot see it any more than it could see a condition grant. This green says the two known leaks were the ones blocking this scenario at this seed; it does not say the reverse class is empty. **That is now the single most important open question about saved-game reliability.** Cheapest attacks: a different `--seed` (a different match exercises different bot-maintained state) and the human-vs-bot configuration this scenario has never used.
+## 2026-08-16 — `traitreport.log` counts trait interface QUERIES, not implementors
+
+Cost a wrong conclusion during the netcode audit and is a trap for anyone auditing whether a
+hook is wired up. `WORKSPACE/audit/logs-260816-snapshot/Logs/traitreport.log:149` reads
+`INotifyPlayerDisconnected: 5`, which looks like five implementing traits. **There are zero** —
+a repo-wide grep finds only the interface declaration (`TraitsInterfaces.cs:712`) and the two
+dispatch sites (`World.cs:256`, `Player.cs:240`). Five queries = one world actor + four players.
+
+The tell is in the same file's first line: `IAirborneVisibility: 723287`. No mod has 723k traits.
+**Never read that file as an implementor census** — grep the interface name instead.
+
+## 2026-08-16 — WW3MOD reads as "up to date" only because upstream's master returns an empty body for unknown mods
+
+`WebServices.CheckModVersion` (`WebServices.cs:50-56`) initialises `status = ModVersionStatus.Latest`
+and only moves it on the exact literals `outdated` / `unknown` / `playtest`. Measured live:
+
+```
+/versioncheck?protocol=1&engine=release-20230225&mod=ww3mod&version=release-20230225 -> HTTP 200, EMPTY body
+/versioncheck?protocol=1&engine=release-20230225&mod=ra&version=release-20230225     -> HTTP 200, "outdated"
+```
+
+The empty body matches no case, so the status silently stays `Latest`. **If it returned
+`"unknown"`, every WW3MOD player would see "You are running an unrecognized version of OpenRA.
+Download the latest version from www.openra.net" (`chrome.ftl:241`) in the server browser**, which
+is enabled by default (`Debug.CheckVersion = true`, `Settings.cs:156`) and not overridden by the mod.
+
+So a first-session blocker is currently suppressed by a third party's undocumented default that
+we neither control nor observe. Pinning `WebServices.VersionCheck` in `mod.yaml` is a MiniYaml
+block, not code.
+
+## 2026-08-16 — upstream's master server already hosts community total conversions, in numbers
+
+Settles the courtesy question parked in `AWAITING-USER.md` by PIPELINE item 53. A live GET of
+`master.openra.net/games` returned **334 games across 13 mods**, including community total
+conversions: `ca` (Combined Arms) **41**, `cameo` 9, `rv` 8, `hv` 8, `sp` 5, `e2140` 5, `swp` 2,
+`rab` 1, `lethalstrike` 1. Advertising carries **no credential of any kind**
+(`GameServer.cs:234-260`), and the master returns every mod's games to every client — filtering
+is entirely client-side (`ServerListLogic.cs:871`). Listing WW3MOD there needs no permission and
+no `WebServices` override.
+
+## 2026-08-16 — the engine unescapes `\n` at six specific call sites, and the faction picker is not one of them
+
+Explains a whole class of "why does my YAML description show a literal `\n`" bug. There is no
+central unescaping in `FieldLoader` or `MiniYaml`; instead six consumers each call
+`.Replace("\\n", "\n")` themselves — `MissionBrowserLogic.cs:306`, `GameInfoBriefingLogic.cs:32`,
+`LobbyCommands.cs:1444`, `MainMenuLogic.cs:697`, `ProductionTooltipLogic.cs:191`,
+`ModContentLogic.cs:51`.
+
+So `\n` works in `Buildable.Description` (production tooltip) and **silently does not** in
+`FactionInfo.Description`, where `LobbyUtils.cs:235-238` hands the raw string to
+`SplitOnFirstToken`, which searches for a real newline (`:206-215`), finds none, and returns the
+whole blob as the tooltip title with an empty body. **Before using `\n` in a new YAML description
+field, check whether that field's consumer is one of the six.**
 
 ## 2026-08-16 — a screenshot fired off a "world loaded" log line can precede the first rendered frame, and reads as a blank-screen regression
 
