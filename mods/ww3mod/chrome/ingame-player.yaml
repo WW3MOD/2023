@@ -784,8 +784,8 @@ Container@PLAYER_WIDGETS:
 					VisualHeight: 0
 		Container@CARGO_PANEL:
 			Logic: CargoPanelLogic
-			X: WINDOW_RIGHT - 240
-			Y: WINDOW_BOTTOM - 340
+			X: WINDOW_WIDTH - 240
+			Y: WINDOW_HEIGHT - 340
 			Width: 228
 			Height: 320
 			Children:

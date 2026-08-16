@@ -3,6 +3,41 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — AN UNKNOWN WIDGET SUBSTITUTION SILENTLY EVALUATES TO ZERO, AND IT HID A WHOLE PANEL OFF-SCREEN
+
+`CARGO_PANEL` was declared at `X: WINDOW_RIGHT - 240` / `Y: WINDOW_BOTTOM - 340`
+(`mods/ww3mod/chrome/ingame-player.yaml`, since `eb5e5de0`). **`WINDOW_RIGHT` and `WINDOW_BOTTOM` are not
+substitutions this engine defines.** `Widget.ApplyBounds` registers exactly four —
+`WINDOW_WIDTH`, `WINDOW_HEIGHT`, `PARENT_WIDTH`, `PARENT_HEIGHT` (`Widget.cs:294-297`) — and the names the
+panel used were renamed out of OpenRA upstream (there is a migration rule for it in-tree,
+`UpdateRules/Rules/20231010/RenameWidgetSubstitutions.cs`).
+
+**An unresolved symbol does not throw and does not warn.** `VariableExpression.ParseSymbol` is
+`symbols.TryGetValue(symbol, out var value); return value;` (`VariableExpression.cs:664-667`) — a missing key
+yields `default(int)`, i.e. **0**. So the panel resolved to `X = -240, Y = -340`: 228x320 with its
+bottom-right corner at `(-12, -20)`, entirely outside the window. Nothing is logged, no exception is thrown,
+and the widget ticks and handles input normally — it is simply painted where no one can see it.
+
+Three things worth carrying:
+
+- **The sibling proves it was a typo, not a design.** `GARRISON_PANEL`, immediately above it in the same
+  file, same author, same 228-wide shape, uses `WINDOW_WIDTH - 240` / `WINDOW_HEIGHT - 260` and renders. The
+  cargo panel was the only widget in the whole mod using the dead names — `grep -rn "WINDOW_RIGHT\|WINDOW_BOTTOM"
+  mods/` returned those two lines and nothing else.
+- **A design review of a widget's YAML cannot tell you the widget is visible.** A prior investigation costed
+  three redesign options for this panel by reading its geometry out of the same YAML — reasonable-looking work
+  that was moot, because the thing being redesigned had never appeared on a screen. Before reasoning about a
+  widget's layout, put it on screen once.
+- **The generalisation for chrome work:** a widget that is simply *absent* from the game, with no error
+  anywhere, is a normal outcome of one wrong identifier in a coordinate expression. When a panel "doesn't
+  show", check its resolved bounds before checking its visibility predicate — the predicate is the obvious
+  suspect and the bounds are the silent one.
+
+**Also stale, found while here:** `WORKSPACE/PIPELINE.md:114` records `EjectRallyOrderGenerator.cs:62` as a
+live desync that "calls `cargo.SetEjectRally` directly and yields no `Order`". That is **no longer true as of
+main @ 543c1b0c** — the file yields a real `Order(Cargo.SetEjectRallyOrderString, ...)` and carries a PITFALL
+comment saying why it must. Both rally paths (set and clear) travel as orders.
+
 ## 2026-08-17 — `Class=Unknown` DOES NOT HIDE A MAP FOLDER FROM THE LINTER: `HasFlag(0)` IS ALWAYS TRUE
 
 Found while re-cordoning the nine shipped maps. `mods/ww3mod/mod.yaml:105` registers
