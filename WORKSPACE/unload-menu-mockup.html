@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — Selective unload: class-grouped design options</title>
+<style>
+:root{
+  --bg:#0d0f11;
+  --ink:#d6dde3;
+  --dim:#8a949c;
+  --dimmer:#5d666e;
+  --panel:#232a30;
+  --panel-2:#1b2126;
+  --panel-edge:#39434b;
+  --bevel-light:#3a434b;
+  --bevel-dark:#050708;
+  --accent:#29c5f6;
+  --accent-bg:#17506b;
+  --warn:#f2a33c;
+  --good:#5fd07a;
+  --bad:#e2564a;
+  --us:#6f93b8;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;padding:28px 34px 90px;background:var(--bg);color:var(--ink);
+  font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+}
+h1{font-size:23px;margin:0 0 4px;letter-spacing:.4px}
+h2{font-size:17px;margin:44px 0 6px;padding-bottom:6px;border-bottom:1px solid #262c31;letter-spacing:.3px}
+h3{font-size:13px;margin:20px 0 8px;color:var(--dim);text-transform:uppercase;letter-spacing:1.1px;font-weight:700}
+p{margin:8px 0;max-width:96ch}
+code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12.5px;background:#191e22;padding:1px 5px;border:1px solid #262c31;color:#b8c4cc}
+.sub{color:var(--dim);font-size:13px;margin:0 0 22px}
+.note{border-left:3px solid var(--panel-edge);padding:8px 0 8px 14px;margin:14px 0;color:#b6c0c8;font-size:13.5px;max-width:96ch}
+.note.hot{border-left-color:var(--warn)}
+.note.bad{border-left-color:var(--bad)}
+.note b{color:#eaf1f6}
+
+/* ---- ground truth box ---- */
+.truth{border:1px solid #2b3238;background:#15191d;padding:16px 20px;margin:18px 0 10px}
+.truth table{border-collapse:collapse;font-size:13px;width:100%}
+.truth td,.truth th{padding:4px 12px 4px 0;text-align:left;vertical-align:top}
+.truth th{color:var(--dim);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid #262c31;padding-bottom:6px}
+.truth td:first-child{font-family:ui-monospace,Menlo,monospace;color:#9fb0bc;white-space:nowrap}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+
+/* ---- generic game panel ---- */
+.stage{display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start;margin:14px 0 8px}
+.case{}
+.case-h{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px;font-weight:700}
+.case-h em{font-style:normal;color:var(--warn)}
+.gpanel{
+  background:var(--panel);
+  border-top:1px solid var(--bevel-light);border-left:1px solid var(--bevel-light);
+  border-right:1px solid var(--bevel-dark);border-bottom:1px solid var(--bevel-dark);
+  outline:1px solid #11151800;
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color:#cfd8de;user-select:none;
+  box-shadow:0 6px 22px rgba(0,0,0,.55);
+}
+.gp-hdr{
+  height:26px;line-height:26px;text-align:center;font-size:12px;font-weight:700;
+  letter-spacing:1px;color:#eaf1f6;text-shadow:0 1px 2px #000;background:#1c2227;
+  border-bottom:1px solid var(--bevel-dark);text-transform:uppercase;
+}
+.gp-cap{font-size:11px;color:var(--dim);text-align:center;height:18px;line-height:18px;letter-spacing:.5px}
+.gp-body{padding:4px}
+.gbtn{
+  background:#2c353c;color:#cfd8de;text-align:center;cursor:pointer;
+  border-top:1px solid var(--bevel-light);border-left:1px solid var(--bevel-light);
+  border-right:1px solid var(--bevel-dark);border-bottom:1px solid var(--bevel-dark);
+  text-shadow:0 1px 1px #000;font-size:11px;letter-spacing:.8px;text-transform:uppercase;
+  font-family:inherit;
+}
+.gbtn:hover{background:#3a464f;color:#eaf6fb}
+.gbtn:active{background:#17506b;border-color:var(--accent)}
+.gbtn.dis{color:#4b545b;background:#1f252a;cursor:default;border-color:#2a3138}
+.gbtn.dis:hover{background:#1f252a;color:#4b545b}
+
+/* ---- class row ---- */
+.crow{
+  display:flex;align-items:center;gap:8px;height:26px;padding:0 6px 0 4px;margin-bottom:2px;
+  border:1px solid transparent;background:rgba(255,255,255,.022);cursor:pointer;position:relative;
+}
+.crow:hover{background:var(--accent-bg);border-color:var(--accent);color:#eaf6fb;box-shadow:inset 0 0 0 1px rgba(41,197,246,.35)}
+.crow.spent{opacity:.32;cursor:default;background:rgba(255,255,255,.01)}
+.crow.spent:hover{background:rgba(255,255,255,.01);border-color:transparent;box-shadow:none;color:#cfd8de}
+.crow.flash{background:#1f6b47;border-color:var(--good)}
+.cname{flex:1;font-size:12px;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ccount{
+  font-size:12px;font-weight:700;min-width:26px;text-align:right;color:#eaf1f6;
+  font-variant-numeric:tabular-nums;
+}
+.crow.spent .ccount{color:var(--dimmer)}
+.cbar{position:absolute;left:0;bottom:0;height:2px;background:var(--us);opacity:.55}
+.callbtn{
+  font-size:9px;padding:0 4px;height:15px;line-height:14px;letter-spacing:.5px;
+  background:#333d45;border:1px solid #4a565f;color:#a9b6bf;cursor:pointer;font-family:inherit;
+}
+.crow:hover .callbtn{border-color:var(--accent);color:#eaf6fb}
+.callbtn:hover{background:#17506b}
+
+/* class icon badge — stands in for the existing *_class sprites */
+.ico{
+  width:20px;height:20px;flex:0 0 20px;display:grid;place-items:center;
+  font-size:8.5px;font-weight:700;letter-spacing:.2px;
+  background:#11161a;border:1px solid #414d56;color:#c8d4dc;
+  text-shadow:0 1px 0 #000;
+}
+.ico.rk{border-color:var(--warn);color:var(--warn)}
+
+/* ---- context menu ---- */
+.mapwrap{position:relative;width:520px;height:340px;overflow:hidden;
+  border-top:1px solid var(--bevel-light);border-left:1px solid var(--bevel-light);
+  border-right:1px solid var(--bevel-dark);border-bottom:1px solid var(--bevel-dark);
+  background:
+    repeating-linear-gradient(0deg,rgba(255,255,255,.022) 0 1px,transparent 1px 26px),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.022) 0 1px,transparent 1px 26px),
+    radial-gradient(ellipse at 30% 30%,#39402f 0%,#2b3126 45%,#22271e 100%);
+  cursor:crosshair;
+}
+.heli{position:absolute;width:30px;height:30px;transform:translate(-50%,-50%);
+  background:#3b444c;border:1px solid #7b8892;border-radius:3px;display:grid;place-items:center;
+  font:700 8px/1 ui-monospace,Menlo,monospace;color:#dce6ec;box-shadow:0 0 0 3px rgba(41,197,246,.18)}
+.heli::after{content:"";position:absolute;width:54px;height:1px;background:#8d99a3;opacity:.8}
+.ctxmenu{
+  position:absolute;width:186px;z-index:20;
+  background:#1b2127;
+  border-top:1px solid var(--bevel-light);border-left:1px solid var(--bevel-light);
+  border-right:1px solid var(--bevel-dark);border-bottom:1px solid var(--bevel-dark);
+  box-shadow:0 8px 26px rgba(0,0,0,.7);font-family:ui-monospace,Menlo,monospace;
+}
+.ctxmenu .gp-hdr{height:20px;line-height:20px;font-size:10px}
+.ctxmenu .crow{height:22px}
+.ctxmenu .cname{font-size:11px}
+.pin{position:absolute;width:12px;height:12px;transform:translate(-50%,-50%);
+  border:1px solid var(--good);border-radius:50%;pointer-events:none}
+.pin::after{content:"";position:absolute;inset:4px;background:var(--good);border-radius:50%}
+.pinlbl{position:absolute;transform:translate(-50%,-16px);font:700 8px/1 ui-monospace,Menlo,monospace;
+  color:var(--good);text-shadow:0 1px 2px #000;pointer-events:none;white-space:nowrap}
+.trail{position:absolute;height:1px;background:var(--good);opacity:.35;transform-origin:0 50%;pointer-events:none}
+
+/* ---- radial ---- */
+.radial{position:relative;width:300px;height:300px;margin:0 auto}
+.radial svg{display:block}
+.wedge{fill:#242c33;stroke:#0a0d0f;stroke-width:1;cursor:pointer}
+.wedge:hover{fill:var(--accent-bg);stroke:var(--accent)}
+.wedge.tight{fill:#2b2320}
+.wlabel{font:700 9px ui-monospace,Menlo,monospace;fill:#cfd8de;text-anchor:middle;pointer-events:none;dominant-baseline:middle}
+.wlabel.tiny{font-size:6.5px;fill:#8f9aa2}
+.wcount{font:700 8px ui-monospace,Menlo,monospace;fill:var(--warn);text-anchor:middle;pointer-events:none;dominant-baseline:middle}
+.hub{fill:#14191d;stroke:#48545e;stroke-width:1}
+.hublbl{font:700 9px ui-monospace,Menlo,monospace;fill:#8a949c;text-anchor:middle;dominant-baseline:middle}
+.verdict{text-align:center;font-size:11px;letter-spacing:.6px;margin-top:6px;font-weight:700;text-transform:uppercase}
+.v-ok{color:var(--good)}.v-mid{color:var(--warn)}.v-bad{color:var(--bad)}
+
+/* ---- stamp strip ---- */
+.strip{
+  display:flex;gap:2px;padding:3px;background:#1b2127;
+  border-top:1px solid var(--bevel-light);border-left:1px solid var(--bevel-light);
+  border-right:1px solid var(--bevel-dark);border-bottom:1px solid var(--bevel-dark);
+  width:max-content;
+}
+.stamp{
+  width:42px;height:46px;background:#262e35;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px;cursor:pointer;position:relative;
+  border-top:1px solid var(--bevel-light);border-left:1px solid var(--bevel-light);
+  border-right:1px solid var(--bevel-dark);border-bottom:1px solid var(--bevel-dark);
+}
+.stamp:hover{background:#33404a}
+.stamp.armed{background:var(--accent-bg);box-shadow:inset 0 0 0 1px var(--accent)}
+.stamp.spent{opacity:.3;cursor:default}
+.stamp .sn{font:700 7.5px/1 ui-monospace,Menlo,monospace;color:#93a1ab;letter-spacing:.2px}
+.stamp .sc{font:700 12px/1 ui-monospace,Menlo,monospace;color:#eaf1f6;font-variant-numeric:tabular-nums}
+.stamp.armed .sc,.stamp.armed .sn{color:#eaf6fb}
+.ghost{position:absolute;pointer-events:none;z-index:30;transform:translate(8px,8px);
+  font:700 9px/1.4 ui-monospace,Menlo,monospace;color:#eaf6fb;background:rgba(23,80,107,.9);
+  border:1px solid var(--accent);padding:3px 6px;white-space:nowrap;text-shadow:0 1px 2px #000}
+
+.ctrl{margin:10px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ctrl .gbtn{height:22px;padding:0 12px;line-height:20px}
+.hint{font-size:12px;color:var(--dim);margin:8px 0 0;max-width:70ch}
+.hint b{color:#cfd8de}
+.kbd{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;background:#2b333a;border:1px solid #4a565f;
+  padding:1px 5px;color:#dbe4ea}
+
+/* ---- comparison table ---- */
+table.cmp{border-collapse:collapse;width:100%;margin:16px 0;font-size:13px}
+table.cmp th,table.cmp td{border:1px solid #2a3138;padding:9px 11px;vertical-align:top;text-align:left}
+table.cmp th{background:#1a1f24;color:#eaf1f6;font-size:11px;text-transform:uppercase;letter-spacing:.7px}
+table.cmp td:first-child{color:var(--dim);white-space:nowrap;font-weight:700;font-size:12px}
+.yes{color:var(--good);font-weight:700}
+.no{color:var(--bad);font-weight:700}
+.meh{color:var(--warn);font-weight:700}
+.tag{display:inline-block;font-size:10px;letter-spacing:.7px;text-transform:uppercase;
+  padding:2px 7px;border:1px solid;font-weight:700;vertical-align:middle;margin-left:8px}
+.tag.rec{border-color:var(--good);color:var(--good)}
+.tag.no{border-color:var(--bad);color:var(--bad)}
+.tag.ok{border-color:var(--warn);color:var(--warn)}
+</style>
+</head>
+<body>
+
+<h1>Selective unload — class-grouped design options</h1>
+<p class="sub mono">WW3MOD · mockup only, no game code changed · main @ be487dfe · 2026-08-17</p>
+
+<div class="truth">
+  <h3 style="margin-top:0">Ground truth — read from the mod, not assumed</h3>
+  <table>
+    <tr><th style="width:220px">Fact</th><th>Value</th></tr>
+    <tr><td>Soldier classes</td><td><b>16 combat classes</b> exist (+ Civilian, Pilot). Conscript, Rifleman, Automatic Rifleman, Grenadier, Team&nbsp;Leader, Mortar, Sniper, AT&nbsp;Specialist, AA&nbsp;Specialist, Combat&nbsp;Engineer, Flamethrower, Special&nbsp;Forces, Medic, Technician, Drone&nbsp;operator, Pilot. <span class="mono" style="color:#8a949c">infantry.yaml</span></td></tr>
+    <tr><td>Grouping key already exists</td><td><code>Selectable.Class</code> is already set per class (<code>Class: E1</code>, <code>E3</code>, <code>AT</code>&hellip;), and each class already has an icon sprite via <code>CustomPipType: e3_class</code> / <code>WithDecoration@Class</code>. <b>Class grouping needs no new data and no new art.</b></td></tr>
+    <tr><td>Largest transport</td><td><b>36</b> — <code>TRAN</code> Chinook and <code>HALO</code> Halo, <code>MaxWeight: 36</code>. The user's "30+" is correct.</td></tr>
+    <tr><td>Other capacities</td><td>Badger 16 · M113 12 · Stryker&nbsp;SHORAD 9 · Humvee / Hind / BTR 8 · BMP-2 7 · Bradley 6 · Little&nbsp;Bird 4</td></tr>
+    <tr><td>Order protocol</td><td><code>UnloadCargoPassenger</code> + <code>ExtraData = ActorID</code> drops <b>one named man</b>, and <code>ResolveOrder</code> revalidates <code>cargo.Contains(passenger)</code> before queueing — so a stale or dead pick <b>fails safe rather than desyncing</b>. A class row is a <code>GroupBy</code> over <code>Cargo.Passengers</code>; the click sends <code>group.First().ActorID</code>. Repeat-clicking works because each click re-reads the live list. <b>No new order, no protocol bump.</b> <code>Cargo.cs:341&ndash;368</code></td></tr>
+    <tr><td>Rally is keyed per <i>man</i></td><td><code>ejectRallyPoints</code> is keyed by passenger <code>ActorID</code> (<code>Cargo.cs:190</code>) and consumed per-man in <code>UnloadCargo.cs:131&ndash;132</code>. <b>A class has no ActorID to key on</b>, so "send Riflemen there" has no representation in the current data model. See the box below.</td></tr>
+    <tr><td>The panel is 228&times;240</td><td><code>garrison-panel.yaml:3&ndash;6</code>, rows at a <b>14&nbsp;px pitch</b>. So: <b>36 men = 504&nbsp;px</b>, more than double the panel. <b>16 classes = 224&nbsp;px, which fits with 16&nbsp;px to spare.</b> A realistic 9-class load is 126&nbsp;px. This is arithmetic, not taste — and it is the strongest argument for the user's idea.</td></tr>
+  </table>
+</div>
+
+<div class="note hot">
+  <b>Placement was cut from every option, on purpose.</b> One thing here is expensive and it is not the grouping — it is the
+  drop point. Because <code>ejectRallyPoints</code> is keyed per passenger, a per-class drop point has only two routes:
+  <b>(a)</b> a rally per man applied across the group — <i>n</i> orders with group membership resolved client-side, the exact
+  shape that caused an earlier desync in this project; or <b>(b)</b> a new class-keyed dictionary on the trait, which is new
+  <b>simulation state</b>, therefore a new order <i>and</i> a sync review. Neither is worth it for a feature no player has ever
+  been able to reach, because the panel carrying it has never been on screen. So <b>A, B and C below drop men to the default
+  eject cell and say nothing about placement.</b> Only Option D touches it, and only in the one shape that is already free —
+  clearly marked.
+</div>
+
+<div class="note bad">
+  <b>The finding that cuts against class grouping.</b> <code>E1R1</code>, <code>E3R1</code> and <code>E2R1</code> are veteran variants that
+  <code>Inherits: ^E1</code> / <code>E3</code> / <code>^E2</code> and <b>never override <code>Selectable.Class</code></b>
+  (<span class="mono">infantry.yaml:1181&ndash;1189, 1301&ndash;1309</span>). So a 2-star Rifleman and a green Rifleman collapse into
+  the same row and the same count. Class grouping silently removes the player's ability to choose <i>which</i> Rifleman gets out —
+  and it hides wounded men and men out of ammo too. That loss is real; whether it matters is the actual decision here.
+  Options A, B and D below all offer the same escape hatch: expand a class row to see the individuals, and only when you want to.
+</div>
+
+<h2>Option A — Class-grouped list <span class="tag rec">the user's own idea; recommended</span></h2>
+<p>One row per class with a live count. <b>Click the row</b> to drop one man. Click again to drop another.
+The count decrements in place; at zero the row greys out but <b>keeps its slot for ~2 s</b> so the list never jumps under a
+repeat-clicking finger, then collapses. <span class="kbd">ALL</span> drops the whole class in one go.</p>
+
+<div class="stage" id="optA"></div>
+
+<p class="hint"><b>Where they walk:</b> the default eject cell, same as the deploy hotkey today. No placement, by the decision
+above. <b>Cost: nothing.</b> One <code>GroupBy</code> in the panel logic and one existing order per click.
+&mdash; <b>Fits by arithmetic:</b> the 9-class Chinook load is 126&nbsp;px of rows in a 240&nbsp;px panel; the 15-class worst case
+is 210&nbsp;px and still fits. The same 36 men as individual rows would be 504&nbsp;px.</p>
+
+<h2>Option B — Context menu at the cursor <span class="tag ok">"context menu ish, but not radial"</span></h2>
+<p>Right-click the transport (or <span class="kbd">CTRL</span>+click) and the same class-grouped list appears
+<b>at the cursor</b> instead of in a fixed panel. It is <b>sticky</b> — it stays open as you click, so
+click&nbsp;·&nbsp;click&nbsp;·&nbsp;click drops three men. <span class="kbd">ESC</span> or right-click closes it.</p>
+
+<div class="stage" id="optB"></div>
+
+<h2>Option C — Radial <span class="tag no">breaks at the Chinook</span></h2>
+<p>Included so you can see the failure rather than take my word for it. Same class grouping, wedges instead of rows,
+count badge per wedge. Watch what the wedge angle does as the class count climbs.</p>
+
+<div class="stage" id="optC" style="gap:22px"></div>
+
+<p class="hint">A wedge stops being comfortably clickable below roughly 40&deg; of arc — that is <b>9 classes</b> at this radius,
+and the labels stop fitting well before that. <b>Class grouping does not rescue the radial</b>, because the thing it has to
+survive is not 36 passengers, it is <b>16 possible classes</b>. A Chinook carrying one of everything is legal.</p>
+
+<h2>Option D — Deploy stamp <span class="tag ok">the only one that keeps placement, and only the free half</span></h2>
+<p>A compact class strip docked above the command bar. <b>Click a class to arm it</b> — the cursor becomes that class
+with its remaining count. Then <b>every left-click on the map drops one man of that class and sends him to that cell.</b>
+Click four spots, four riflemen walk to four spots. Right-click disarms.</p>
+
+<div class="note">
+  <b>Why the single click is free.</b> One click picks <b>one</b> passenger and keys the rally to <b>his own</b>
+  <code>ActorID</code> — which is exactly what <code>ejectRallyPoints</code> already stores. There is no class key anywhere,
+  so no new state and no new order: it is <code>SetEjectRally</code> then <code>UnloadCargoPassenger</code>, both existing,
+  both already replicating since <code>409b0fd2</code>. This is the one place per-man placement survives class grouping
+  intact, because the grouping is only in the <i>strip</i>, never in the order.
+</div>
+<div class="note bad">
+  <b>The expensive variant, shown so you can reject it knowingly.</b> <span class="kbd">SHIFT</span>+click to send a
+  <i>whole class</i> to one cell is route (a) from the box at the top: <i>n</i> orders with group membership resolved
+  client-side. That is the shape that has burned this project before. <b>It is demonstrated below and should not ship in a
+  first cut.</b> The cheap substitute is a <span class="kbd">SHIFT</span>+click on the strip tile itself, which dumps the class
+  to default cells and touches no rally state at all.
+</div>
+
+<div class="stage" id="optD"></div>
+
+<p class="hint">This is the only option where <b>"which man" and "where he walks" are the same gesture</b>.
+It scales identically at 3 passengers and 36 because the strip is class-grouped and horizontal:
+16 classes is a 672&nbsp;px strip, which fits above a command bar. <b>But note what it costs you:</b> D only earns its keep
+if placement is in scope at all. If placement stays cut &mdash; the recommended default &mdash; then D collapses into
+Option A rotated 90&deg;, and A is the simpler thing to build.</p>
+
+<h2>Comparison</h2>
+<table class="cmp">
+<tr>
+  <th style="width:130px"></th>
+  <th>A · Class list</th>
+  <th>B · Context menu</th>
+  <th>C · Radial</th>
+  <th>D · Deploy stamp</th>
+</tr>
+<tr><td>Drop one man</td>
+  <td>Click the row</td>
+  <td>Click the row</td>
+  <td>Click the wedge</td>
+  <td>Arm class, click the map cell</td></tr>
+<tr><td>Drop several</td>
+  <td>Click, click, click — count ticks down in place</td>
+  <td>Same; menu is sticky so it survives repeat clicks</td>
+  <td>Click, click — but you must re-aim at a moving wedge as counts change</td>
+  <td>Click four map cells — <b>and they land where you clicked</b></td></tr>
+<tr><td>Drop a whole class</td>
+  <td><span class="kbd">ALL</span> chip on the row</td>
+  <td><span class="kbd">ALL</span> chip on the row</td>
+  <td>Hold the wedge ~400 ms</td>
+  <td><span class="kbd">SHIFT</span>+click the strip tile</td></tr>
+<tr><td>Set where they walk</td>
+  <td class="dim">Cut — default eject cell</td>
+  <td class="dim">Cut — default eject cell</td>
+  <td class="dim">Cut — default eject cell</td>
+  <td class="yes">Same gesture, per man</td></tr>
+<tr><td>New order needed</td>
+  <td class="yes">No</td><td class="yes">No</td><td class="yes">No</td>
+  <td class="yes">No — rally stays keyed to one ActorID</td></tr>
+<tr><td>Cost</td>
+  <td class="yes">A <code>GroupBy</code>. Nothing else.</td>
+  <td class="yes">Same, plus menu placement code</td>
+  <td class="yes">Same, plus radial hit-testing</td>
+  <td class="meh">Same, plus an order generator.<br><b>Whole-class-to-one-cell is the expensive shape — leave it out.</b></td></tr>
+<tr><td>Fits 228&times;240 panel</td>
+  <td class="yes">Yes — 126 px at 9 classes, 224 px at 16</td>
+  <td class="yes">Floats; not bound by the panel</td>
+  <td class="no">Needs ~300 px square</td>
+  <td class="yes">Horizontal; 672 px at 16 classes</td></tr>
+<tr><td>At 3 passengers</td>
+  <td class="yes">Fine — 2 rows</td>
+  <td class="yes">Very good — no panel, no travel</td>
+  <td class="yes">Genuinely lovely</td>
+  <td class="meh">Slightly heavy: arming a mode to move one man</td></tr>
+<tr><td>At 36 passengers</td>
+  <td class="yes">Fine — 9 rows</td>
+  <td class="meh">Tall menu, flips at screen edges</td>
+  <td class="no">Unusable at 9+ classes</td>
+  <td class="yes">Fine — strip is horizontal</td></tr>
+<tr><td>Worst case (16 classes)</td>
+  <td class="meh">16 rows, needs a scroll</td>
+  <td class="no">Menu taller than the viewport</td>
+  <td class="no">22&deg; wedges — dead</td>
+  <td class="meh">672 px strip — wide but survivable</td></tr>
+<tr><td><b>Where it fails</b></td>
+  <td class="mono" style="font-size:11.5px;color:#b6c0c8">Hides veterans, wounded men and empty magazines behind a single count. A fixed panel means your eyes leave the drop zone at the moment you most want them on it.</td>
+  <td class="mono" style="font-size:11.5px;color:#b6c0c8">Occludes exactly the ground you are about to drop onto. Edge-flipping makes muscle memory impossible. Right-click is already the move/attack verb and this would overload it.</td>
+  <td class="mono" style="font-size:11.5px;color:#b6c0c8">Dies at the only transport that motivated the feature. Beautiful for the Bradley, worthless for the Chinook — and the Chinook is the reason we are here.</td>
+  <td class="mono" style="font-size:11.5px;color:#b6c0c8">Modal — a stray click spends a soldier irreversibly. Poor discoverability. And it only justifies itself if placement is in scope; if it is not, this is Option A with extra steps.</td></tr>
+</table>
+
+<div class="note hot">
+  <b>Recommendation: Option A, now — and it is the user's own design.</b>
+  Collapse by <code>Selectable.Class</code>, one row per class with a count, click to drop one, click again to drop another.
+  The instinct was right, and the arithmetic is what proves it: <b>36 men as rows is 504&nbsp;px into a 240&nbsp;px panel and cannot
+  be done under any styling, while 16 classes is 224&nbsp;px and fits.</b> Class grouping is not a nicety here, it is the only
+  thing that makes the panel possible. It costs one <code>GroupBy</code> and reuses an order that already exists, already
+  carries an ActorID, and already fails safe on a stale pick.
+</div>
+<div class="note">
+  <b>And explicitly: do not ship placement in the first cut.</b> The per-man drop point is the only expensive thing in an
+  otherwise very cheap change, and it is a feature no player has ever reached. Cut it, ship the grouping, and see whether
+  anyone asks for it. <b>Option D is what you build if they do</b> — it is the one design where placement stays keyed to a
+  single man's ActorID and therefore stays free. Until then D is A rotated, and A is simpler.
+</div>
+
+<div class="note">
+  <b>Two things this mockup does not prove.</b> The class icons here are letter badges standing in for the real
+  <code>*_class</code> sprites, so icon legibility at 20&nbsp;px is untested — that is the thing most likely to sink D, since the
+  strip leans on icon recognition harder than a list with text labels does. And the panel geometry below follows the
+  <code>garrison-panel.yaml</code> idiom (<code>WINDOW_WIDTH&nbsp;-&nbsp;240</code>, <code>WINDOW_HEIGHT&nbsp;-&nbsp;260</code>) rather than
+  <code>WINDOW_RIGHT</code>, which the engine does not define — an undefined symbol evaluates to 0 and parks the panel off-screen.
+  That is the bug that cost three redesigns of a panel nobody had ever seen.
+</div>
+
+<script>
+/* ---- real classes, real display names, real Selectable.Class keys ---- */
+const CLASSES = {
+  E1:  {n:"Conscript",          k:"CON"},
+  E3:  {n:"Rifleman",           k:"RIF"},
+  AR:  {n:"Automatic Rifleman", k:"AR"},
+  E2:  {n:"Grenadier",          k:"GRN"},
+  TL:  {n:"Team Leader",        k:"TL"},
+  MT:  {n:"Mortar",             k:"MTR"},
+  SN:  {n:"Sniper",             k:"SNP"},
+  AT:  {n:"AT Specialist",      k:"AT"},
+  AA:  {n:"AA Specialist",      k:"AA"},
+  E6:  {n:"Combat Engineer",    k:"ENG"},
+  E4:  {n:"Flamethrower",       k:"FLM"},
+  SF:  {n:"Special Forces",     k:"SF"},
+  MEDI:{n:"Medic",              k:"MED"},
+  TECN:{n:"Technician",         k:"TEC"},
+  DR:  {n:"Drone operator",     k:"DRN"},
+  PILOT:{n:"Pilot",             k:"PIL"}
+};
+
+/* small load: Bradley, MaxWeight 6, carrying 3 across 2 classes */
+const SMALL = {name:"BRADLEY", cap:6, load:{E3:2, AT:1}};
+/* large load: Chinook, MaxWeight 36, full, 9 classes — a realistic air-assault package */
+const LARGE = {name:"CHINOOK", cap:36, load:{E3:10, AR:6, AT:5, E2:4, MEDI:3, TL:2, MT:2, E6:2, SN:2}};
+/* pathological: one of almost everything, legal on a 36-slot Chinook */
+const WIDE  = {name:"CHINOOK", cap:36, load:{E3:4,AR:3,AT:3,E2:3,MEDI:2,TL:2,MT:2,E6:2,SN:2,AA:2,E4:2,SF:2,TECN:2,DR:2,E1:3}};
+
+const clone = o => ({name:o.name, cap:o.cap, load:Object.assign({},o.load)});
+const total = L => Object.values(L.load).reduce((a,b)=>a+b,0);
+const el = (t,c,h) => { const e=document.createElement(t); if(c)e.className=c; if(h!==undefined)e.innerHTML=h; return e; };
+const icoFor = id => `<div class="ico">${CLASSES[id].k}</div>`;
+
+/* =================== OPTION A — class-grouped list =================== */
+function buildList(host, src, opts={}){
+  const st = clone(src);
+  const spentUntil = {};              // class -> timestamp it may collapse
+  const wrap = el('div','case');
+  wrap.appendChild(el('div','case-h', opts.title));
+  const p = el('div','gpanel'); p.style.width='228px';
+  wrap.appendChild(p);
+  const hdr = el('div','gp-hdr'); p.appendChild(hdr);
+  const cap = el('div','gp-cap'); p.appendChild(cap);
+  const body = el('div','gp-body'); p.appendChild(body);
+  const foot = el('button','gbtn'); foot.style.cssText='width:100%;height:20px;margin-top:4px';
+  foot.textContent='Unload all'; p.appendChild(el('div','gp-body')).appendChild(foot);
+  foot.onclick = () => { st.load = {}; render(); };
+
+  function drop(id, all){
+    if(!st.load[id]) return;
+    st.load[id] = all ? 0 : st.load[id]-1;
+    if(st.load[id] <= 0){ st.load[id] = 0; spentUntil[id] = Date.now()+2000; }
+    render(true, id);
+  }
+  function render(flash, flashId){
+    const n = total(st);
+    hdr.textContent = st.name;
+    cap.textContent = `${n} / ${st.cap} aboard`;
+    body.innerHTML = '';
+    const ids = Object.keys(st.load).filter(id => st.load[id]>0 || (spentUntil[id]||0) > Date.now());
+    if(!ids.length){ body.appendChild(el('div','cname','<span style="color:#5d666e;font-size:11px;padding:6px 4px;display:block">empty</span>')); }
+    ids.forEach(id=>{
+      const c = st.load[id];
+      const r = el('div','crow'+(c<=0?' spent':'')+(flash&&flashId===id&&c>0?' flash':''));
+      r.innerHTML = icoFor(id)
+        + `<span class="cname">${CLASSES[id].n}</span>`
+        + (c>0 ? `<button class="callbtn">ALL</button>` : '')
+        + `<span class="ccount">${c>0?'&times;'+c:'&mdash;'}</span>`;
+      const bar = el('div','cbar'); bar.style.width = (100*c/Math.max(...Object.values(src.load)))+'%';
+      r.appendChild(bar);
+      if(c>0){
+        r.onclick = e => { if(e.target.classList.contains('callbtn')) return; drop(id,false); };
+        r.querySelector('.callbtn').onclick = e => { e.stopPropagation(); drop(id,true); };
+      }
+      body.appendChild(r);
+    });
+    if(flash) setTimeout(()=>render(), 160);
+  }
+  render();
+  setInterval(()=>{ if(Object.keys(spentUntil).some(k=>spentUntil[k]&&spentUntil[k]<Date.now()&&st.load[k]===0)){ Object.keys(spentUntil).forEach(k=>{if(spentUntil[k]<Date.now())delete spentUntil[k];}); render(); } },500);
+
+  const ctrl = el('div','ctrl');
+  const rst = el('button','gbtn'); rst.textContent='Reset'; rst.style.cssText='height:22px;padding:0 12px';
+  rst.onclick=()=>{ st.load=Object.assign({},src.load); Object.keys(spentUntil).forEach(k=>delete spentUntil[k]); render(); };
+  ctrl.appendChild(rst); wrap.appendChild(ctrl);
+  host.appendChild(wrap);
+}
+
+buildList(document.getElementById('optA'), SMALL, {title:'Small load — Bradley, 3 aboard, 2 classes'});
+buildList(document.getElementById('optA'), LARGE, {title:'Large load — Chinook, 36 aboard, 9 classes'});
+buildList(document.getElementById('optA'), WIDE,  {title:'Worst case — <em>15 classes aboard</em> (legal)'});
+
+/* =================== OPTION B — context menu =================== */
+function buildCtx(host, src, title){
+  const st = clone(src);
+  const wrap = el('div','case');
+  wrap.appendChild(el('div','case-h', title));
+  const map = el('div','mapwrap'); wrap.appendChild(map);
+  const heli = el('div','heli','TRAN');
+  heli.style.left='150px'; heli.style.top='150px'; map.appendChild(heli);
+
+  const menu = el('div','ctxmenu');
+  menu.style.left='170px'; menu.style.top='150px';
+  map.appendChild(menu);
+
+  function drop(id, all){
+    if(!st.load[id]) return;
+    const k = all ? st.load[id] : 1;
+    st.load[id] -= k; if(st.load[id]<=0) delete st.load[id];
+    for(let i=0;i<k;i++) spawnPin(id, i);
+    render();
+  }
+  let ang = 0;
+  function spawnPin(id, i){
+    ang += 0.9 + Math.random()*0.5;
+    const d = 46 + Math.random()*40;
+    const x = 150 + Math.cos(ang)*d, y = 150 + Math.sin(ang)*d*0.72;
+    const t = el('div','trail');
+    const len = Math.hypot(x-150,y-150);
+    t.style.cssText=`left:150px;top:150px;width:${len}px;transform:rotate(${Math.atan2(y-150,x-150)}rad)`;
+    map.appendChild(t);
+    const pin = el('div','pin'); pin.style.left=x+'px'; pin.style.top=y+'px'; map.appendChild(pin);
+    const lbl = el('div','pinlbl',CLASSES[id].k); lbl.style.left=x+'px'; lbl.style.top=y+'px'; map.appendChild(lbl);
+  }
+  function render(){
+    const n = total(st);
+    menu.innerHTML='';
+    menu.appendChild(el('div','gp-hdr', `Unload &nbsp;${n}/${st.cap}`));
+    const b = el('div','gp-body');
+    const ids = Object.keys(st.load);
+    if(!ids.length) b.appendChild(el('div','',`<span style="color:#5d666e;font-size:10px;padding:4px;display:block">empty</span>`));
+    ids.forEach(id=>{
+      const r = el('div','crow');
+      r.innerHTML = icoFor(id)+`<span class="cname">${CLASSES[id].n}</span>`
+        +`<button class="callbtn">ALL</button><span class="ccount">&times;${st.load[id]}</span>`;
+      r.onclick = e => { if(e.target.classList.contains('callbtn')) return; drop(id,false); };
+      r.querySelector('.callbtn').onclick = e => { e.stopPropagation(); drop(id,true); };
+      b.appendChild(r);
+    });
+    menu.appendChild(b);
+  }
+  render();
+  const ctrl = el('div','ctrl');
+  const rst = el('button','gbtn'); rst.textContent='Reset'; rst.style.cssText='height:22px;padding:0 12px';
+  rst.onclick=()=>{ st.load=Object.assign({},src.load);
+    map.querySelectorAll('.pin,.pinlbl,.trail').forEach(n=>n.remove()); ang=0; render(); };
+  ctrl.appendChild(rst);
+  ctrl.appendChild(el('span','hint','Menu is sticky — click a row repeatedly to drop several.'));
+  wrap.appendChild(ctrl);
+  host.appendChild(wrap);
+}
+buildCtx(document.getElementById('optB'), SMALL, 'Small load — menu is barely there');
+buildCtx(document.getElementById('optB'), LARGE, 'Large load — <em>9 rows of menu over the drop zone</em>');
+
+/* =================== OPTION C — radial =================== */
+function buildRadial(host, ids, counts, title, verdict, vclass){
+  const wrap = el('div','case');
+  wrap.appendChild(el('div','case-h', title));
+  const R=140, r0=42, cx=150, cy=150;
+  const n = ids.length, step = 360/n;
+  let svg = `<svg width="300" height="300" viewBox="0 0 300 300">`;
+  ids.forEach((id,i)=>{
+    const a0=(i*step-90)*Math.PI/180, a1=((i+1)*step-90)*Math.PI/180;
+    const big = step>180?1:0;
+    const p = [
+      `M ${cx+Math.cos(a0)*r0} ${cy+Math.sin(a0)*r0}`,
+      `L ${cx+Math.cos(a0)*R} ${cy+Math.sin(a0)*R}`,
+      `A ${R} ${R} 0 ${big} 1 ${cx+Math.cos(a1)*R} ${cy+Math.sin(a1)*R}`,
+      `L ${cx+Math.cos(a1)*r0} ${cy+Math.sin(a1)*r0}`,
+      `A ${r0} ${r0} 0 ${big} 0 ${cx+Math.cos(a0)*r0} ${cy+Math.sin(a0)*r0} Z`
+    ].join(' ');
+    const am=(a0+a1)/2;
+    const lx=cx+Math.cos(am)*(r0+R)/2, ly=cy+Math.sin(am)*(r0+R)/2;
+    svg += `<path class="wedge${step<40?' tight':''}" d="${p}"><title>${CLASSES[id].n} ×${counts[id]}</title></path>`;
+    svg += `<text class="wlabel${step<30?' tiny':''}" x="${lx}" y="${ly-5}">${step<30?CLASSES[id].k:CLASSES[id].n.split(' ')[0]}</text>`;
+    svg += `<text class="wcount" x="${lx}" y="${ly+7}">×${counts[id]}</text>`;
+  });
+  svg += `<circle class="hub" cx="${cx}" cy="${cy}" r="${r0-2}"/>`;
+  svg += `<text class="hublbl" x="${cx}" y="${cy-6}">${n} CLASS</text>`;
+  svg += `<text class="hublbl" x="${cx}" y="${cy+7}" style="fill:#f2a33c">${step.toFixed(0)}&#176; each</text>`;
+  svg += `</svg>`;
+  const rad = el('div','radial', svg);
+  wrap.appendChild(rad);
+  wrap.appendChild(el('div','verdict '+vclass, verdict));
+  host.appendChild(wrap);
+}
+const k2 = Object.keys(SMALL.load), k9 = Object.keys(LARGE.load), k15 = Object.keys(WIDE.load);
+buildRadial(document.getElementById('optC'), k2,  SMALL.load, '2 classes — Bradley',        'workable', 'v-ok');
+buildRadial(document.getElementById('optC'), k9,  LARGE.load, '9 classes — full Chinook',   'marginal', 'v-mid');
+buildRadial(document.getElementById('optC'), k15, WIDE.load,  '15 classes — legal Chinook', 'dead',     'v-bad');
+
+/* =================== OPTION D — deploy stamp =================== */
+function buildStamp(host, src, title){
+  const st = clone(src);
+  let armed = null;
+  const wrap = el('div','case');
+  wrap.appendChild(el('div','case-h', title));
+  const map = el('div','mapwrap'); wrap.appendChild(map);
+  const heli = el('div','heli','TRAN');
+  heli.style.left='150px'; heli.style.top='140px'; map.appendChild(heli);
+  const ghost = el('div','ghost'); ghost.style.display='none'; map.appendChild(ghost);
+  const strip = el('div','strip'); strip.style.marginTop='6px'; wrap.appendChild(strip);
+
+  map.addEventListener('mousemove', e=>{
+    if(!armed) return;
+    const b = map.getBoundingClientRect();
+    ghost.style.left=(e.clientX-b.left)+'px'; ghost.style.top=(e.clientY-b.top)+'px';
+  });
+  map.addEventListener('contextmenu', e=>{ e.preventDefault(); armed=null; render(); });
+  map.addEventListener('click', e=>{
+    if(!armed || !st.load[armed]) return;
+    const b = map.getBoundingClientRect();
+    const x=e.clientX-b.left, y=e.clientY-b.top;
+    const k = e.shiftKey ? st.load[armed] : 1;
+    for(let i=0;i<k;i++){
+      const ox = x + (k>1 ? (i%5-2)*13 : 0), oy = y + (k>1 ? Math.floor(i/5)*11 : 0);
+      const t = el('div','trail');
+      const len=Math.hypot(ox-150,oy-140);
+      t.style.cssText=`left:150px;top:140px;width:${len}px;transform:rotate(${Math.atan2(oy-140,ox-150)}rad)`;
+      map.appendChild(t);
+      const pin=el('div','pin'); pin.style.left=ox+'px'; pin.style.top=oy+'px'; map.appendChild(pin);
+      if(i===0){ const l=el('div','pinlbl',CLASSES[armed].k+(k>1?' ×'+k:'')); l.style.left=ox+'px'; l.style.top=oy+'px'; map.appendChild(l); }
+    }
+    st.load[armed]-=k;
+    if(st.load[armed]<=0){ st.load[armed]=0; armed=null; ghost.style.display='none'; }
+    render();
+  });
+
+  function render(){
+    strip.innerHTML='';
+    Object.keys(src.load).forEach(id=>{
+      const c = st.load[id]||0;
+      const s = el('div','stamp'+(c<=0?' spent':'')+(armed===id?' armed':''));
+      s.innerHTML = icoFor(id)+`<span class="sn">${CLASSES[id].k}</span><span class="sc">${c}</span>`;
+      if(c>0) s.onclick=(e)=>{
+        if(e.shiftKey){ st.load[id]=0; if(armed===id) armed=null; render(); return; }  // cheap: dump class, no rally
+        armed = (armed===id?null:id); ghost.style.display = armed?'block':'none'; render();
+      };
+      strip.appendChild(s);
+    });
+    if(armed){ ghost.style.display='block'; ghost.textContent = `${CLASSES[armed].n}  ×${st.load[armed]} left  ▸ click a cell`; }
+    else ghost.style.display='none';
+  }
+  render();
+  const ctrl=el('div','ctrl');
+  const rst=el('button','gbtn'); rst.textContent='Reset'; rst.style.cssText='height:22px;padding:0 12px';
+  rst.onclick=()=>{ st.load=Object.assign({},src.load); armed=null;
+    map.querySelectorAll('.pin,.pinlbl,.trail').forEach(n=>n.remove()); render(); };
+  ctrl.appendChild(rst);
+  ctrl.appendChild(el('span','hint','Click a class, then click the map — <b>one man per click, walking to that cell</b> (free). '
+    +'<b>SHIFT</b>+click a <i>strip tile</i> dumps that class to default cells (free). '
+    +'<b>SHIFT</b>+click the <i>map</i> sends the whole class to one cell — <span style="color:#e2564a"><b>this is the expensive shape; do not ship it</b></span>.'));
+  wrap.appendChild(ctrl);
+  host.appendChild(wrap);
+}
+buildStamp(document.getElementById('optD'), SMALL, 'Small load — Bradley, 3 aboard');
+buildStamp(document.getElementById('optD'), LARGE, 'Large load — Chinook, 36 aboard, 9 classes');
+</script>
+</body>
+</html>
