@@ -3,12 +3,15 @@
 > Draft copy for a ModDB / itch.io style page. **Nothing here is published.** Publishing is the
 > user's alone. Copy blocks are written to be pasted as-is.
 >
-> Written against `main` @ `2a9eb77d` (2026-08-17). Every claim below was checked against the
-> tree; anything I could not verify without launching the game is marked **[unverified]**.
+> Written against `main` @ `2a9eb77d`, re-checked at `f882681a` (2026-08-17). Every claim below
+> was checked against the tree; anything I could not verify without launching the game is marked
+> **[unverified]**.
 >
-> **Read [`KNOWN-ISSUES.md`](KNOWN-ISSUES.md) before publishing any of this.** There is an open
-> blocker that makes the game unplayable on a clean machine. This copy describes the game that
-> exists in the repo, not a game a stranger can currently install.
+> **Read [`KNOWN-ISSUES.md`](KNOWN-ISSUES.md) before publishing any of this.** An earlier draft
+> claimed an open blocker made the game unplayable on a clean machine. **That was wrong and has
+> been retracted** — the content installer does fire, and has completed successfully on this
+> machine before. What remains is that nobody has yet watched it run to completion, unattended,
+> on a machine that has never had Red Alert on it.
 
 ---
 
@@ -127,9 +130,9 @@ every line of it is a refund, a bad review or a bounce that didn't happen.
 
 > **Requires the Command & Conquer: Red Alert data files.** WW3MOD is a total conversion and
 > loads artwork and audio from Red Alert's data files. Those files are not part of WW3MOD, are
-> not distributed with it, and remain the property of their owners. You can supply them from an
-> original disc or an existing digital install, or fetch them from a mirror of the 2008 Red Alert
-> freeware release.
+> not distributed with it, and remain the property of their owners. **WW3MOD offers to download
+> them for you on first launch** (about 30 MB, from a mirror of the 2008 Red Alert freeware
+> release), or you can point it at an original disc or an existing digital install.
 >
 > - **Windows:** installer or portable zip. Requires the .NET runtime (not bundled).
 > - **macOS:** 10.15 Catalina or newer. **The build is not signed** — macOS will refuse to open
@@ -187,3 +190,6 @@ Recorded so nobody reinvents it later. Each of these is either false at `2a9eb77
 - **"Build a second Supply Route"** or anything implying more than one per player.
 - **Anything describing an online community, matchmaking or a server list.** See
   `KNOWN-ISSUES.md` — the browser works and is empty.
+- **Any claim of helicopter air-to-air combat**, until the Mi-28 fix lands. The unit's own
+  in-game description currently promises "Can engage aircraft" and it cannot; do not repeat that
+  promise on a page where it would be the reason someone downloads.

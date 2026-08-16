@@ -1,54 +1,95 @@
 # WW3MOD — known issues for the first public release
 
-> Verified against `main` @ `2a9eb77d` (2026-08-17) by reading the tree. I did not launch the
-> game and did not run any autotest, so nothing here is a runtime observation; items that need a
-> run to characterise are marked **[needs a run]**.
+> Verified against `main` @ `2a9eb77d`, re-checked at `f882681a` (2026-08-17) by reading the
+> tree. I did not launch the game and did not run any autotest. Where a runtime observation
+> appears below it came from a manager launch and is attributed as such; everything else is
+> static. Items still needing a run are marked **[needs a run]**.
 >
 > This list is written to be published, lightly edited, alongside the download. For a first
 > public release a disclosed limitation costs a line of text; a discovered one costs the player.
 
 ---
 
-## Blocking — do not publish a download link until this is fixed
+## RETRACTED — "the content installer can never run"
 
-### The Red Alert content installer can never run
+An earlier version of this document opened with a blocker claiming the Red Alert content
+installer was unreachable configuration and that a stranger would never be asked to install the
+data files. **That was wrong.** It is recorded here rather than deleted, because the same wrong
+inference has now been drawn from the same code three times in one day, and a refuted claim with
+its refutation attached is what prevents a fourth.
 
-**What a stranger sees:** they install WW3MOD, launch it, and are **never asked to install the
-Red Alert data files**. The game needs those files for its terrain and base interface art. It
-does not prompt, and it does not explain.
+**The wrong reasoning:** `mods/ww3mod/mod.yaml:13` declares `FileSystem: DefaultFileSystem`; the
+installer appears to be gated on an `IFileSystemExternalContent` check at
+`BlankLoadScreen.cs:131-132`; only `ContentInstallerFileSystemLoader` implements that interface;
+a tree-wide grep shows no mod uses it. Every one of those facts is true.
 
-**Mechanism, confirmed at HEAD:**
+**Why the conclusion doesn't follow: the method does not end at line 132.**
+`BlankLoadScreen.cs:134-147` is a second, WW3MOD-authored route added by commit `0132c749`
+("Fix content installer not triggering on fresh installs", 2026-04-04). It checks the manifest
+for a `ModContent` section, tests whether the required packages' `TestFiles` exist, and when they
+don't calls `Game.InitializeMod(modContent.ContentInstallerMod, "Content.Mod=ww3mod")`. It never
+touches the interface gate. The chain downstream resolves with no `mod.yaml` change needed:
+`ContentInstallerMod` defaults to `"modcontent"` (`ModContent.cs:101`); `LogoStripeLoadScreen`
+inherits `BeforeLoad` unchanged, so the fallback is live; and
+`ModContentPromptLogic.LoadYamlFromModPackage` reads `mod.Package` directly rather than through
+the mounted filesystem, so `installer/downloads.yaml` resolves even though the `modcontent` mod
+mounts no `ww3mod` package.
 
-- `mods/ww3mod/mod.yaml:13` declares `FileSystem: DefaultFileSystem`.
-- The installer is gated on an interface check in
-  `engine/OpenRA.Mods.Common/LoadScreens/BlankLoadScreen.cs:131-132`, which only fires for
-  `IFileSystemExternalContent`. Only `ContentInstallerFileSystemLoader` implements it, and
-  `grep -rn ContentInstallerFileSystemLoader mods/ engine/mods/` returns **nothing**.
-- So the carefully hand-written `ModContent:` block at `mods/ww3mod/mod.yaml:404-412` — install
-  prompt text, quick-download, mirror list, per-package `TestFiles` — is unreachable
-  configuration. It has never been able to execute.
-- The data is genuinely required: `mods/ww3mod/tilesets/temperat.yaml:79` references
-  `clear1.tem`, the base ground tile, and `find . -name clear1.tem -not -path ./engine/*`
-  returns nothing. That tile lives inside `temperat.mix`, which is not redistributed.
-- Every RA mount in `mod.yaml:15,24-40` is prefixed `~` (optional), so the absence fails
-  **silently** rather than with an error a player could act on.
+**Three independent confirmations:**
 
-**Why this survived until now:** the development machine already has Red Alert content in
-`%APPDATA%/OpenRA/Content/ra/v2/`. WW3MOD has only ever been run where the prerequisite it never
-installs was already satisfied.
+1. The code, read past line 132.
+2. **Two launches** with `~/Library/Application Support/OpenRA/Content` renamed aside. Both logged
+   `Loading mod: ww3mod` followed by `Loading mod: modcontent` — the game does not die at mod
+   load; it hands off to the content-installer mod and stays there, running.
+3. **The installer has already completed successfully on this machine.**
+   `~/Library/Application Support/OpenRA/Logs/install.log` records the mirror fetch, a download
+   from `https://cdn.mailaender.name/openra/ra-quickinstall.zip`, a SHA1 matching the expected
+   value, and extraction of `allies.mix`, `conquer.mix`, `expand/jyes1.aud`, `cnc/desert.mix` and
+   the rest. Its mtime is **7 May 14:54**, matching `Content/ra/v2` exactly. That is how the Red
+   Alert content reached this machine: the installer ran, and it worked.
 
-**Note on the packaging fix:** the recent packaging work is real and did clear a separate
-blocker — `mod.config:108` now sets `PACKAGING_COPY_ENGINE_FILES="./mods/ra ./mods/modcontent"`,
-so the artifact contains the four mods a clean machine needs (`ww3mod`, `ra`, `modcontent`,
-`common`). That makes the game **launch**. It does not make it **playable**: the four mods are
-code and rules, not the Red Alert data files, which are a separate download the game never
-offers.
+**The process lesson:** this was already corrected in `WORKSPACE/DISCOVERIES.md` — an entry dated
+2026-08-16, explicitly headed as correcting finding B of
+`WORKSPACE/audit/260816-install-packaging.md` — before this document was written. The audit was
+read; `DISCOVERIES.md` was not. When an audit finding is load-bearing, check whether a later
+discovery has already superseded it.
 
-**[needs a run]** How bad it looks is not established. `ASSET-LICENSING.md` records ~1,250
-redistributed files and 661 `.shp` in `mods/ww3mod`, so units are largely self-supplied and
-terrain plus base UI are the confirmed casualties. The definitive check is one minute of
-someone's time: rename `%APPDATA%/OpenRA/Content` aside and launch. That is a game launch, so it
-is the manager's to schedule — and it should happen before anything is published.
+---
+
+## Open — the real state of first-run install
+
+These survive the retraction and belong on the page or in the checklist.
+
+### Nobody has watched the installer finish, unattended, on a clean machine
+
+Both verification launches were killed early and the installer screen itself was never observed.
+The `modcontent` mod carries no Test screenshot hooks and macOS denies screen recording on this
+machine, so the evidence is "it fires, and it has completed here before" — which is not "it runs
+to completion today, unattended, for a stranger on a machine that has never had Red Alert on
+it." **[needs a run]** This is the one remaining unknown in the install path, and the thing most
+worth doing before a download link goes anywhere.
+
+### The download depends on infrastructure this project does not control
+
+The mirror list is fetched over **plain HTTP** from `http://www.openra.net/packages/`, and on the
+one recorded run it resolved to `cdn.mailaender.name`, a third party's CDN. Payload *integrity*
+is protected — the manifest pins a SHA1 and the log shows it being checked — so this is an
+**availability** risk rather than a tampering one: if that host goes away or the mirror list
+moves, every first launch fails. Worth pinning or self-mirroring before a public release.
+
+### A failed download fails silently
+
+Every RA mount in `mod.yaml:15,24-40` carries the `~` optional prefix, so if the content is
+absent or the download fails the game does not error — it loads without terrain art. The data is
+genuinely required: `tilesets/temperat.yaml:79` references `clear1.tem`, the base ground tile,
+which is not in this repo (it lives inside `temperat.mix`). A player who hits a failed download
+gets a broken-looking game instead of a message telling them what went wrong.
+
+### Packaging, for the record
+
+`mod.config:108` sets `PACKAGING_COPY_ENGINE_FILES="./mods/ra ./mods/modcontent"`, so the
+artifact contains the four mods a clean machine needs (`ww3mod`, `ra`, `modcontent`, `common`).
+Confirmed by opening the Windows artifact.
 
 ---
 
@@ -172,12 +213,38 @@ Ranked by how likely someone is to hit them in the first half hour.
 
 ---
 
+## Being fixed right now — do NOT publish these as shipping defects
+
+Both were found on 2026-08-17 and both are under active repair. Neither fix is on `main` as of
+`f882681a` — I checked. **Re-check both before this section goes anywhere**; if the fixes have
+landed by release, delete these two entries rather than shipping them.
+
+- **The Mi-28 cannot engage aircraft at all, and its tooltip says it can.** The description on
+  `MI28` (`aircraft-russia.yaml:277`) reads *"Can engage aircraft"* as an explicit bullet, on a
+  unit costing **6000** — the most expensive thing a Russian player can order. A player buys it
+  for exactly the job it advertises and it cannot do that job.
+- **There is a live money pump.** The `LCCV` costs **1200** (`vehicles.yaml:618`) and deploys
+  into a `LOGISTICSCENTER` worth **3500** (`structures.yaml`), which sells at full value —
+  roughly **+2300 credits per cycle**, repeatable with no cooldown. In a game whose entire
+  economy is budget allocation, an unbounded credit loop is not a balance issue; it is the
+  economy not existing. It also bypasses the buildable gate: `Transforms` does not consult
+  `Buildable.Prerequisites` (audited in `b6335798`).
+
+---
+
 ## Things I checked that are NOT problems
 
-Recorded because a known-issues list that only accumulates makes the game look worse than it is,
-and two of these are stale entries in `WORKSPACE/RELEASE_V1.md` that would otherwise get
-published as faults.
+Recorded because a known-issues list that only accumulates makes the game look worse than it is.
+Four claims were checked and refuted before they reached a public page — two of them stale
+entries in `WORKSPACE/RELEASE_V1.md`, one a superseded audit finding, and one my own.
 
+- **The Red Alert content installer works.** See the retraction at the top of this document. This
+  was my error, and it was the most consequential of the four.
+- **The 2026-08-16 audit's one `[BLOCKER]`** — eject rally points as a client-local write read by
+  the simulation — **was fixed the same day** in `409b0fd2`. Do not publish it.
+- **Aircraft are not stranded without a helipad.** `HPAD`/`AFLD` are disabled and on no map, but
+  every airframe carries `ReloadAmmoPool` and self-reloads. A missing convenience, not a dead
+  unit.
 - **Unit icons are done.** 95 of 95 buildables have a working cameo, 94 of them
   WW3MOD-authored. The tracker's open "Unit icons" item is stale.
 - **Names and descriptions are complete.** Zero live buildables missing either; zero descriptions

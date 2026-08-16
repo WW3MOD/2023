@@ -1,7 +1,7 @@
 # WW3MOD — first public release checklist
 
 > Dependency order: each gate assumes the one above it is done. Verified against `main` @
-> `2a9eb77d` (2026-08-17).
+> `2a9eb77d`, re-checked at `f882681a` (2026-08-17).
 >
 > **[USER]** marks items that are the user's alone — decisions, accounts, secrets, and anything
 > that publishes. No agent should do these, and none has.
@@ -15,23 +15,32 @@
 Nothing below this line matters until these pass. A store page for a game that doesn't start is
 worse than no store page, because the download is the thing you only get one of.
 
-- [ ] **[TEAM] Make the Red Alert content installer reachable.** `mods/ww3mod/mod.yaml:13` is
-      still `FileSystem: DefaultFileSystem`, so the hand-written `ModContent:` block at
-      `mod.yaml:404-412` can never execute and the game never offers to download the data files
-      it requires. Fix is config, not code: switch to `ContentInstallerFileSystemLoader`, split
-      `Packages:` into `SystemPackages:` / `ContentPackages:`, set `ContentInstallerMod:
-      modcontent`. Full detail in [`KNOWN-ISSUES.md`](KNOWN-ISSUES.md).
-- [ ] **[LAUNCH] Establish how bad the missing content actually is.** Rename
-      `%APPDATA%/OpenRA/Content` aside and launch. One minute, and it converts a reasoned
-      argument into an observation. Do this *before* the fix as well as after — the "before" shot
-      tells you what a stranger sees today.
+> **Correction, 2026-08-17.** This gate previously led with "make the Red Alert content installer
+> reachable", reasoning that `mod.yaml:13`'s `DefaultFileSystem` left the `ModContent:` block
+> unreachable. **That was refuted.** `BlankLoadScreen.cs:134-147` is a WW3MOD-authored fallback
+> (commit `0132c749`) that bypasses the interface gate entirely; two launches with the content
+> directory renamed aside showed the handoff to `modcontent` happening; and `install.log` shows
+> the installer has already completed successfully on this machine. Full refutation in
+> [`KNOWN-ISSUES.md`](KNOWN-ISSUES.md). **No code or config change is needed here** — what
+> remains is verification and the third-party dependency.
+
+- [ ] **[LAUNCH] Watch the installer run to completion, unattended.** Both prior launches were
+      killed early and the installer screen was never observed, so what is established is that it
+      *fires* and that it has *succeeded here before* — not that it completes today, for someone
+      else, on a machine that has never had Red Alert on it. The single remaining unknown in the
+      install path.
 - [ ] **[LAUNCH] Clean-machine install test, end to end.** A machine that has never had OpenRA or
       Red Alert on it: install the artifact, launch, accept the content download, reach a match.
-      This is the single test that decides whether the release is real. Ideally on all three
-      platforms; at minimum on Windows.
-- [ ] **[TEAM] Pin or mirror the content download.** The installer points at
-      `http://www.openra.net/packages/ra-quickinstall-mirrors.txt` — third-party, unpinned, plain
-      HTTP. Every first launch depends on a URL this project does not control.
+      This is the test that decides whether the release is real. Ideally all three platforms; at
+      minimum Windows.
+- [ ] **[TEAM] Pin or self-mirror the content download.** The mirror list is fetched over plain
+      HTTP from `http://www.openra.net/packages/ra-quickinstall-mirrors.txt`, and on the recorded
+      run resolved to `cdn.mailaender.name`, a third party's CDN. The payload SHA1 *is* verified,
+      so this is an availability risk rather than a tampering one — but every first launch depends
+      on a host this project does not control.
+- [ ] **[TEAM] Consider making a failed content download say so.** The RA mounts are all
+      `~`-optional, so a failed or partial download yields a game with no terrain art and no
+      explanation.
 
 ## Gate 1 — Identity, before anything is public
 
@@ -110,11 +119,16 @@ If the goal is a first public release rather than a complete one, everything in
 including the wrong ammo tooltip, the debug garrison sidebar and the Red Alert leftover names.
 They are embarrassing, not blocking, and an early public release is allowed to be rough.
 
-Two things I would not cut, because they are the difference between a rough game and a broken
+Three things I would not cut, because they are the difference between a rough game and a broken
 one:
 
-1. **Gate 0.** A player who cannot start does not file a bug, they just leave.
-2. **The unsigned-build warnings on the page.** Free to write, and they convert the single most
+1. **Gate 0's remaining verification.** Not a fix any more — just someone watching the installer
+   finish once on a machine that has never had Red Alert on it. A player who cannot start does
+   not file a bug, they leave.
+2. **The money pump.** An unbounded credit loop in a game whose entire pitch is that cost is
+   budget allocation doesn't read as a bug to a stranger; it reads as the game not working. It is
+   being fixed — just don't ship ahead of it.
+3. **The unsigned-build warnings on the page.** Free to write, and they convert the single most
    common silent bounce into a two-second extra click.
 
 The master-server decision (Gate 1) is the one I would push the user to make consciously rather
