@@ -1,0 +1,1 @@
+Auto: Garrison three riflemen in a guard tower, capture the pip grid + garrison panel unsuppressed, grant 45 suppression, capture again. Stages the before/after for the suppression readout.

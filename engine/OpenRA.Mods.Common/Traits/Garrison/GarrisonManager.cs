@@ -91,9 +91,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Condition name to read suppression level from deployed soldiers.")]
 		public readonly string SuppressionCondition = "suppressed";
 
-		[Desc("Suppression level at which a port soldier starts ducking (reduced fire). 0 disables.")]
-		public readonly int SuppressionDuckThreshold = 30;
-
+		// PITFALL: do NOT add a garrison-side fire penalty keyed on suppression. The soldier's own
+		// ^SuppressionEffects ladder (infantry.yaml) already degrades burst, burst-wait and inaccuracy
+		// across ten tiers, and AttackGarrisoned fires the soldier's OWN Armament — which reads those
+		// modifiers off the soldier (Armament.cs:253-258). A second penalty here double-applies.
+		// A dead `SuppressionDuckThreshold`/`IsDucking` pair used to sit here inviting exactly that.
 		[Desc("Suppression level at which a port soldier is forced to recall to shelter. 0 disables.")]
 		public readonly int SuppressionRecallThreshold = 60;
 
@@ -148,9 +150,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Suppression lockout: ticks remaining before this port accepts redeployment after suppression recall
 		public int SuppressionLockoutRemaining;
-
-		// True if soldier is currently "ducking" due to medium suppression (still deployed but fire-impaired)
-		public bool IsDucking;
 
 		// Tick when this port's current soldier deployed; used to gate recall via MinDeployTicks.
 		public int DeployedAtTick;
@@ -633,16 +632,9 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						// Pinned: force recall and lock the port
 						ps.SuppressionLockoutRemaining = Info.SuppressionLockoutTicks;
-						ps.IsDucking = false;
 						RecallToShelter(i);
 						continue;
 					}
-
-					ps.IsDucking = Info.SuppressionDuckThreshold > 0 && suppressionLevel >= Info.SuppressionDuckThreshold;
-				}
-				else if (ps.DeployedSoldier != null)
-				{
-					ps.IsDucking = false;
 				}
 
 				// Stagger target scanning across ports

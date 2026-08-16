@@ -52,6 +52,18 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[SequenceReference(nameof(StatusImage))]
 		public readonly string DamageCriticalSequence = "pip-damage-infantry-critical";
 
+		[SequenceReference(nameof(StatusImage))]
+		[Desc("Suppression pip sequences, lowest tier first. The soldier's suppression level is bucketed",
+			"into these in tens, matching the ^SuppressionEffects ladder in infantry.yaml. No pip at level 0.",
+			"NOTE: all ten frames of pip-suppression are the same 6x3 chevron and differ only in colour",
+			"(pale yellow #FFD77D at tier 1 through dark red #9A2800 at tier 10), so this encodes severity",
+			"by hue alone. The exact level is in the garrison panel, not here.")]
+		public readonly string[] SuppressionSequences =
+		{
+			"pip-suppression-1", "pip-suppression-2", "pip-suppression-3", "pip-suppression-4", "pip-suppression-5",
+			"pip-suppression-6", "pip-suppression-7", "pip-suppression-8", "pip-suppression-9", "pip-suppression-10",
+		};
+
 		[PaletteReference]
 		public readonly string Palette = "chrome";
 
@@ -65,18 +77,22 @@ namespace OpenRA.Mods.Common.Traits.Render
 	public class WithGarrisonDecoration : WithDecorationBase<WithGarrisonDecorationInfo>
 	{
 		// Per-soldier vertical layout: damage pip on top (when damaged), class pip in the middle
-		// (preserves the original anchor Y), ammo row on bottom. Slot height stays 3 rows tall
-		// regardless of damage state so the grid stays aligned.
-		const int SlotRows = 3;
-		const int DamageRow = 0;  // top
-		const int ClassRow = 1;   // middle (was the original single-pip Y)
-		const int AmmoRow = 2;    // bottom
+		// (preserves the original anchor Y), ammo row below it, suppression pip at the bottom.
+		// Every row is positioned relative to ClassRow, so adding rows below never moves the ones
+		// above. Slot height stays SlotRows tall regardless of damage/suppression state so the grid
+		// doesn't jump vertically the moment fire lands.
+		const int SlotRows = 4;
+		const int DamageRow = 0;       // top
+		const int ClassRow = 1;        // middle (was the original single-pip Y)
+		const int AmmoRow = 2;
+		const int SuppressionRow = 3;  // bottom
 
 		readonly Animation classPips;
 		readonly Animation statusPips;
 		readonly Cargo cargo;
 
 		GarrisonManager garrisonManager;
+		string suppressionCondition;
 
 		public WithGarrisonDecoration(Actor self, WithGarrisonDecorationInfo info)
 			: base(self, info)
@@ -90,6 +106,10 @@ namespace OpenRA.Mods.Common.Traits.Render
 		{
 			base.Created(self);
 			garrisonManager = self.Trait<GarrisonManager>();
+
+			// Read the condition name off GarrisonManager rather than duplicating it here, so the
+			// grid can never disagree with the recall logic about what "suppressed" is called.
+			suppressionCondition = garrisonManager.Info.SuppressionCondition;
 		}
 
 		int TotalSoldierCount()
@@ -150,6 +170,23 @@ namespace OpenRA.Mods.Common.Traits.Render
 				case DamageState.Critical: return Info.DamageCriticalSequence;
 				default: return null;
 			}
+		}
+
+		// Render-only read of the same synced condition GarrisonManager.Tick uses to decide recalls.
+		// Never cache this into PortState and never issue an order from here — the grid observes
+		// simulation state, it does not participate in it.
+		string GetSuppressionSequence(Actor soldier)
+		{
+			var seqs = Info.SuppressionSequences;
+			if (seqs.Length == 0 || suppressionCondition == null)
+				return null;
+
+			var level = soldier.GetConditionCount(suppressionCondition);
+			if (level <= 0)
+				return null;
+
+			// Bucket in tens to match the YAML ladder: 1-10 → tier 0, 11-20 → tier 1, ...
+			return seqs[Math.Min((level - 1) / 10, seqs.Length - 1)];
 		}
 
 		struct AmmoRecipe
@@ -294,6 +331,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				var classCenterY = screenPos.Y + (ClassRow - ClassRow) * rowHeight + rowHeight / 2;
 				var damageCenterY = screenPos.Y + (DamageRow - ClassRow) * rowHeight + rowHeight / 2;
 				var ammoCenterY = screenPos.Y + (AmmoRow - ClassRow) * rowHeight + rowHeight / 2;
+				var suppressionCenterY = screenPos.Y + (SuppressionRow - ClassRow) * rowHeight + rowHeight / 2;
 
 				// Class pip — middle row.
 				classPips.PlayRepeating(soldier != null ? GetClassSequence(soldier) : Info.EmptySequence);
@@ -317,7 +355,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 							0, palette, scale, alpha);
 					}
 
-					// Ammo row — bottom row. Concatenate every recipe horizontally and center the whole row.
+					// Ammo row. Concatenate every recipe horizontally and center the whole row.
 					var recipes = soldierRecipes[i];
 					var totalAmmoPips = 0;
 					foreach (var r in recipes)
@@ -349,6 +387,21 @@ namespace OpenRA.Mods.Common.Traits.Render
 								pipIndex++;
 							}
 						}
+					}
+
+					// Suppression pip — bottom row, only while the soldier is actually suppressed.
+					// Drawn for shelter occupants too: suppression carried into shelter is what gates
+					// redeployment (SuppressionRedeployThreshold), so an empty port with idle soldiers
+					// is otherwise unexplained.
+					var suppressionSeq = GetSuppressionSequence(soldier);
+					if (suppressionSeq != null)
+					{
+						statusPips.PlayRepeating(suppressionSeq);
+						var suppressionSprite = statusPips.Image;
+						yield return new UISpriteRenderable(
+							suppressionSprite, self.CenterPosition,
+							CenteredScreenPos(suppressionSprite, slotCenterX, suppressionCenterY),
+							0, palette, scale, alpha);
 					}
 				}
 

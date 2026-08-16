@@ -175,8 +175,46 @@ namespace OpenRA.Mods.Common.Widgets
 			if (ammo != null)
 				ammoStr = $" [{ammo.CurrentAmmoCount}/{ammo.Info.Ammo}]";
 
-			// Port soldiers always have 80% damage reduction via garrisoned-at-port condition
-			return $"{portName}: {unitName}{ammoStr} (80% cover)";
+			// While suppressed, the live level replaces the (static) cover figure: it is the number
+			// that explains why this port has stopped shooting, and it keeps the row the same width.
+			var suppression = SuppressionText(ps.DeployedSoldier, garrisonManager.Info.SuppressionRecallThreshold);
+			if (suppression != null)
+				return $"{portName}: {unitName}{ammoStr} {suppression}";
+
+			return $"{portName}: {unitName}{ammoStr} {CoverPercent(ps.DeployedSoldier)}% cover";
+		}
+
+		/// <summary>
+		/// Damage reduction the soldier currently has, derived from its enabled DamageMultiplier
+		/// traits rather than assumed. For a port soldier that is DamageMultiplier@GarrisonCover
+		/// (infantry.yaml), gated on the garrisoned-at-port condition — so retuning the YAML retunes
+		/// this readout instead of silently making it a lie.
+		/// </summary>
+		static int CoverPercent(Actor soldier)
+		{
+			// DamageMultiplier.GetDamageModifier ignores both arguments, so this is safe to evaluate
+			// outside a real damage event. Do NOT widen this to IDamageModifier: TerrainModifiesDamage
+			// dereferences the attacker and would NRE on a null one.
+			var multiplier = 100;
+			foreach (var dm in soldier.TraitsImplementing<DamageMultiplier>())
+				if (!dm.IsTraitDisabled)
+					multiplier = multiplier * dm.Info.Modifier / 100;
+
+			return 100 - multiplier;
+		}
+
+		/// <summary>
+		/// "PINNED n" once suppression has reached the level that currently stops this soldier doing
+		/// its job (recall for a port soldier, redeployment for one in shelter), "SUPP n" below that,
+		/// null when unsuppressed.
+		/// </summary>
+		string SuppressionText(Actor soldier, int pinnedThreshold)
+		{
+			var level = soldier.GetConditionCount(garrisonManager.Info.SuppressionCondition);
+			if (level <= 0)
+				return null;
+
+			return pinnedThreshold > 0 && level >= pinnedThreshold ? $"PINNED {level}" : $"SUPP {level}";
 		}
 
 		bool IsPortVisible(int portIndex)
@@ -219,6 +257,13 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var tooltip = pax.TraitOrDefault<Tooltip>();
 			var name = tooltip?.Info.Name ?? pax.Info.Name;
+
+			// A soldier recalled under fire keeps its suppression in shelter and cannot man a port
+			// again until it decays below SuppressionRedeployThreshold — which is why a port can sit
+			// empty with soldiers available. Name that instead of the cover figure while it applies.
+			var suppression = SuppressionText(pax, garrisonManager.Info.SuppressionRedeployThreshold);
+			if (suppression != null)
+				return $"[S] {name} {suppression}";
 
 			// Show current shelter protection from GarrisonProtection trait
 			if (garrisonProtection != null)

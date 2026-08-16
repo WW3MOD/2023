@@ -3,6 +3,97 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — `pip-suppression` IS TEN COLOURS OF ONE GLYPH, NOT A BAR THAT FILLS
+
+`WORKSPACE/garrison-proposals.md:112` describes the suppression readout as *"a bar that fills and reddens
+as fire lands"*. It reddens. It does not fill, and there is no bar.
+
+Decoded from `mods/ww3mod/bits/units/pips/pip-suppression.shp` (ShpTS, 6×3, 10 frames) by rendering with
+`./utility.sh --png <shp> <pal>` — note the utility takes **no mod argument**, `./utility.sh ww3mod --png …`
+fails with `No such command 'ww3mod'`. All ten frames are the *same* downward chevron:
+
+```
+##..##
+.####.
+..##..
+```
+
+Only the palette index changes, giving a hue ramp through the `chrome` palette:
+
+| tier | suppression | colour |   | tier | suppression | colour |
+|---|---|---|---|---|---|---|
+| 1 | 1–10 | `#FFD77D` pale yellow | | 6 | 51–60 | `#D77910` |
+| 2 | 11–20 | `#F7C771` | | 7 | 61–70 | `#C76100` |
+| 3 | 21–30 | `#EFAE55` | | 8 | 71–80 | `#B64900` |
+| 4 | 31–40 | `#EBA241` | | 9 | 81–90 | `#A63800` |
+| 5 | 41–50 | `#E79228` | | 10 | 91–100 | `#9A2800` |
+
+**Practical consequence:** at 6×3 px this is a two-or-three-state readout, not a ten-state one. Adjacent
+tiers differ by ~10 in one channel and are not separable on screen, still less at the 0.7 scale / 0.35 alpha
+an unselected building's pips are drawn at (`WithGarrisonDecoration.cs:226-227`). What a player can actually
+read is "there is a chevron" (suppressed at all) and "yellow vs dark red" (mild vs severe). In particular
+the pip **cannot** signal "about to hit the recall threshold": tier 5 `#E79228` and tier 6 `#D77910` are
+adjacent oranges, and recall fires at 60 — the boundary between them.
+
+So any design that needs an exact level, or needs to warn about an imminent recall, has to say it in text
+(the garrison panel does) or needs new art. Don't plan around the ten tiers being individually legible.
+
+## 2026-08-17 — AN ACTOR REMOVED FROM THE WORLD STILL RUNS ITS `ITick` TRAITS. ONLY ACTIVITIES STOP
+
+`World.Tick` has two separate loops (`World.cs:498-502`):
+
+```csharp
+foreach (var a in actors.Values)   // actors removed by World.Remove are NOT in here
+    a.Tick();                      // → activities, and only activities
+ApplyToActorsWithTraitTimed<ITick>((actor, trait) => trait.Tick(actor), "Trait");
+```
+
+The second loop goes through `TraitDictionary`, and `ApplyToAllTimed` (`TraitDictionary.cs:305-316`) is a
+bare `for` over its actor/trait lists with **no `IsInWorld` filter**. Trait entries are only dropped by
+`TraitDict.RemoveActor`, whose sole caller is `Actor.Dispose` (`Actor.cs:469`). `World.Remove` clears
+`IsInWorld` and drops the actor from `actors` (`World.cs:398-406`) — it does not touch the TraitDictionary.
+
+**So "out of the world" means "activities frozen", not "everything frozen".** A passenger inside a `Cargo`,
+a garrison soldier recalled to shelter, anything held out of world: its `ITick` traits keep running.
+
+Live consequence, and the reason this was traced: infantry suppression is an `ExternalCondition`, which is
+`ITick` and self-decays `ReduceAmount: 1` per `ReduceTicks: 5`. `GarrisonManager.RecallToShelter` does
+`w.Remove(soldier)` (`:419`) — and the soldier's suppression **keeps decaying in shelter**, which is what
+makes `SuppressionRedeployThreshold` (`:105`, default 30) a temporary hold rather than a permanent bench.
+Had the tick been gated on `IsInWorld`, a soldier recalled at suppression 60 could never have been
+redeployed for the rest of the match. The hysteresis comment at `GarrisonManager.cs:460-466` assumes this
+decay and is correct.
+
+Do not reason from `IsInWorld` about whether trait state is advancing. Check which loop the trait is in.
+
+## 2026-08-17 — GARRISON FIRE IS ALREADY SUPPRESSION-DEGRADED: `AttackGarrisoned` FIRES THE **SOLDIER'S OWN** ARMAMENT
+
+Three workspace docs assert that garrisoned soldiers "under moderate fire keep firing at full rate", and two
+of them recommend adding a rate-of-fire hook to fix it. All three are wrong, and the fix would have been a
+double-apply.
+
+`AttackGarrisoned.DoGarrisonedAttack` iterates `ps.DeployedSoldier.TraitsImplementing<Armament>()` and calls
+`a.CheckFire(a.Actor, …)` (`AttackGarrisoned.cs:288-301`) — the armament belongs to the **soldier**, not the
+building. `Armament.Created` captures its modifier sets from its own actor (`Armament.cs:253-258`):
+
+```csharp
+burstModifiers      = self.TraitsImplementing<IBurstModifier>()...
+burstWaitModifiers  = self.TraitsImplementing<IBurstWaitModifier>()...
+inaccuracyModifiers = self.TraitsImplementing<IInaccuracyModifier>()...
+```
+
+Those are exactly the traits `^SuppressionEffects` (`infantry.yaml:381-392`) installs on every infantryman.
+So a garrisoned soldier's fire is degraded across all ten tiers **starting at suppression 1**, not at some
+threshold — the building contributes no fire logic of its own beyond target selection.
+
+What the building *does* own is `garrisoned-at-port`, which pauses the soldier's `AttackFrontal` and
+`AutoTarget` (`infantry.yaml:185-187`). That is what makes it look like the building is doing the shooting.
+It isn't; it is driving the soldier's armament directly.
+
+The dead `PortState.IsDucking` / `SuppressionDuckThreshold` pair was a vestigial second implementation of a
+mechanic that already shipped in YAML. Both are now deleted, with `// PITFALL:` markers at the former
+declaration and at the firing loop.
+
 ## 2026-08-17 — `Class=Unknown` DOES NOT HIDE A MAP FOLDER FROM THE LINTER: `HasFlag(0)` IS ALWAYS TRUE
 
 Found while re-cordoning the nine shipped maps. `mods/ww3mod/mod.yaml:105` registers

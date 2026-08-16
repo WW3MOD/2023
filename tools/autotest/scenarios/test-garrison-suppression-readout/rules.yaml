@@ -1,0 +1,29 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's
+	# unit-defaults.yaml (AutoTarget.cs:355-388). Strip it so the tower and its
+	# riflemen behave identically on every machine that runs this scenario.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-garrison-suppression-readout.lua
+
+E3:
+	# The enemy riflemen exist only to give the tower's ports a target to deploy
+	# against. HoldFire so the suppression in the capture is exactly what the script
+	# granted, and an absurd HP pool so the tower cannot kill them and lose its target
+	# (IdleRecallTicks 250) before the second capture.
+	AutoTarget:
+		InitialStance: HoldFire
+	Health:
+		HP: 2000000

@@ -180,14 +180,22 @@ Map coverage is adequate for civilian buildings — garrisonable `V01`–`V13`/`
 all three carry `Prerequisites: ~disabled` (`structures-defenses.yaml:191`, `:278`, `:91`) so
 they can never be built either. That is the `afld`/`hpad` pattern at much lower stakes.
 
-### **[SHOULD-FIX]** Suppression "duck" is computed every tick and read by nothing
+### ~~**[SHOULD-FIX]** Suppression "duck" is computed every tick and read by nothing~~ — WITHDRAWN 2026-08-17
 
-- **Perceived:** soldiers under moderate fire (suppression 30–59) keep firing at full rate. Only
-  the hard recall at 60 is visible, so the intended graduated response reads as binary. The
-  design's "duck (reduced fire)" tier is absent from play.
-- Evidence: `GarrisonManager.cs:641` writes `ps.IsDucking`; a repo-wide grep for `IsDucking`
-  returns only `:153`, `:636`, `:641`, `:645` — declaration and writes, **zero reads**.
-- Confidence: high. Fix size: small — gate rate-of-fire in `AttackGarrisoned.DoGarrisonedAttack`.
+The dead-field half was right. The conclusion drawn from it was wrong, and acting on the
+recommendation would have shipped a bug.
+
+**"Soldiers under moderate fire keep firing at full rate" is false.** `AttackGarrisoned` fires
+the deployed soldier's *own* `Armament` (`AttackGarrisoned.cs:288-301`), and an `Armament`
+captures its burst / burst-wait / inaccuracy modifiers from its own actor
+(`Armament.cs:253-258`) — i.e. from the soldier. The ten-tier `^SuppressionEffects` ladder
+(`infantry.yaml:381-392`) therefore already degrades garrison fire, and it starts biting at
+suppression 1, not 30. Gating rate-of-fire in `DoGarrisonedAttack` as recommended would have
+applied a **second** penalty on top of `^SuppressionBurstMultiplier`, with a cliff at exactly 30.
+
+`IsDucking` and its only input `SuppressionDuckThreshold` were deleted for that reason; a
+`// PITFALL:` now sits at the former declaration site. The real defect was never simulation —
+it was that none of this was drawn. See the `[POLISH]` item below, now fixed.
 
 ### **[SHOULD-FIX]** Phase 4 sidebar panel was never rewritten; it is still the text placeholder
 
@@ -204,13 +212,25 @@ they can never be built either. That is the `afld`/`hpad` pattern at much lower 
 - Evidence: `GarrisonPanelLogic.cs:51` and `:204` are the only `IssueOrder` calls in the file.
 - Confidence: high. Fix size: medium.
 
-### **[POLISH]** Suppression state is invisible in the panel (design item 10)
+### ~~**[POLISH]** Suppression state is invisible in the panel (design item 10)~~ — FIXED 2026-08-17
 
-- **Perceived:** a pinned or about-to-be-recalled soldier looks identical to a healthy one; the
-  port just goes empty with no explanation. The cover figure is a hardcoded literal.
-- Evidence: `GarrisonPanelLogic.cs:179` prints `(80% cover)` unconditionally; no read of
-  `SuppressionLockoutRemaining` or `IsDucking` anywhere in the file.
-- Confidence: high. Fix size: small.
+This was the whole defect, and it was larger than "the panel": the building's pip grid
+(`WithGarrisonDecoration`) rendered three rows — damage, class, ammo — and no suppression row
+either, while the soldier's own `^SuppressionPips` carry `RequiresSelection: true` and the
+soldier is a 40%-alpha ghost standing on the building's cell.
+
+Fixed presentation-only, no new simulation state and no new order: a fourth pip row below ammo
+draws `pip-suppression-1..10` for every occupant with suppression > 0 (shelter included — see
+below), and the panel prints the live level. The hardcoded `(80% cover)` is now derived from the
+soldier's enabled `DamageMultiplier` traits, so retuning `DamageMultiplier@GarrisonCover` in
+`infantry.yaml` retunes the readout instead of silently making it a lie.
+
+**Shelter occupants matter here and the original framing missed them.** A soldier recalled at
+`SuppressionRecallThreshold` keeps its suppression in shelter (`ExternalCondition` is an `ITick`
+trait, and `TraitDictionary.ApplyToAllTimed` does not filter on `IsInWorld` — so it keeps
+decaying even though `RecallToShelter` removed the actor from the world), and
+`SuppressionRedeployThreshold` refuses to redeploy it until that decays below 30. That is why a
+port sits empty with soldiers standing by, and it is now the visible part.
 
 ### **[COSMETIC]** `mods/ww3mod/chrome/garrison-panel.yaml` is dead weight
 
@@ -228,8 +248,9 @@ mislead whoever picks it up.
 houses, the building flips colour, pips appear, they fire out of the correct sides, only
 attackers inside a port's arc can shoot back, the house degrades to rubble rather than dying, and
 heavy fire drives them inside. What is unfinished is the *interface* to it. The `[T]` marker is
-honest. One focused session on `GarrisonPanelLogic.cs` plus a rate-of-fire hook for `IsDucking`
-closes the whole list.
+honest. (Updated 2026-08-17: the suppression readout is now built; **do not** add the
+rate-of-fire hook this paragraph used to recommend — it double-applies, see the withdrawn item
+above. What remains on the interface list is the icon panel and the four unreachable orders.)
 
 ---
 
@@ -507,8 +528,9 @@ turn immediately mid-cell — better than vanilla.
    about the mod's headline economy. Currently self-contradicting on screen.
 3. **Truck cannot replenish a dropped cache** — closes the urgent item at `RELEASE_V1.md:52` and
    completes the supply loop on the seven maps with no Logistics Center.
-4. **Garrison `IsDucking`** — small fix, restores the graduated suppression tier the system was
-   designed around.
+4. ~~**Garrison `IsDucking`**~~ — withdrawn 2026-08-17. The graduated tier was never missing;
+   `^SuppressionEffects` already applies it to garrison fire. Adding the hook would double-apply.
+   The readout gap it was really pointing at is now fixed.
 5. **Heli capture yields a wreck that explodes** — decide: gate `CrashBurn` off when re-crewed,
    or remove the capture path. Either way stop offering the player a dead end.
 6. **Commander substitution** — the largest genuinely-missing feature in this slice.
