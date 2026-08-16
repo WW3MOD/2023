@@ -261,7 +261,11 @@ namespace OpenRA.Mods.Common.Traits
 					foreach (var ap in ammoPools)
 						ap.NeedsResupply = false;
 
-					var amount = self.GetSellValue();
+					// GetEvacuationRefund, not GetSellValue: this is the same disposition the
+					// Evacuate order reaches, so it must pay the same handicap-adjusted amount.
+					// m270/grad/tos default to InitialResupplyBehavior: Evacuate, so for them
+					// this is the NORMAL way they leave the map, not an edge case.
+					var amount = self.GetEvacuationRefund();
 					self.QueueActivity(false, new RotateToEdge(self, true, amount));
 					self.ShowTargetLines();
 					break;

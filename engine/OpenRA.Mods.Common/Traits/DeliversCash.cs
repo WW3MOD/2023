@@ -95,15 +95,12 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var amount = info.Payload == -1 ? self.GetSellValue() : info.Payload;
 
-			// When rotating units out of the battlefield, adjust value for handicap
+			// When rotating units out of the battlefield, adjust value for handicap.
+			// Shared with the self-evacuation paths (AmmoPool, DropsSupplyCache) so every
+			// route off the map edge pays the same amount — see ApplyHandicapRefundAdjustment.
 			if (info.Type == "Rotation")
 			{
-				var handicap = self.Owner.Handicap;
-				if (handicap > 0)
-				{
-					var div = 100F / (100 - handicap);
-					amount = (int)(amount * div);
-				}
+				amount = CustomSellValueExts.ApplyHandicapRefundAdjustment(amount, self.Owner);
 
 				// Rotation: walk to map edge (not to the Supply Route) and refund
 				self.QueueActivity(queued, new RotateToEdge(self, true, amount));

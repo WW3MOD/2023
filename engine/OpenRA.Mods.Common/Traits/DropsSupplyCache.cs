@@ -521,7 +521,10 @@ namespace OpenRA.Mods.Common.Traits
 					goto case ResupplyBehavior.Evacuate;
 
 				case ResupplyBehavior.Evacuate:
-					var amount = self.GetSellValue();
+					// GetEvacuationRefund, not GetSellValue — TRUK defaults to Evacuate for both
+					// human and AI, so an empty truck reaches this instead of the Evacuate order
+					// and has to be paid the same handicap-adjusted amount.
+					var amount = self.GetEvacuationRefund();
 					self.QueueActivity(false, new RotateToEdge(self, true, amount));
 					self.ShowTargetLines();
 					return;
