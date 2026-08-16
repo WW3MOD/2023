@@ -176,3 +176,83 @@ demand gate and sizing intact, so it isolates the axis under test rather than th
 **If M1 fails on Russia, do not raise a quantity.** The named cause is the unattributed residual drain
 (§3.3), and the fix is to attribute that spender — not to widen the stall tolerance, which is already
 measured as unwidenable in both directions.
+
+---
+
+# ADDENDUM 2026-08-17, after the run was granted: the run is NOT EXECUTABLE, and my own §5 prediction is refuted
+
+**The run was granted and I did not spend it.** Two findings, and the second one retracts the bar I
+registered above.
+
+## A. There is no way to run a bot-vs-bot LOBBY game headlessly
+
+- `Launch.Map` → `Game.LoadMap` (`Game.cs:1176-1197`) → `CreateAndStartLocalServer` →
+  `JoinServer(CreateLocalServer(mapUID), "")` at `Game.cs:287`. `CreateLocalServer` takes
+  `bool isSkirmish = false` (`Game.cs:1140`) and **the launch path never passes true.**
+- `SkirmishLogic.ClientJoined` — the one file-driven lobby restore, which reads
+  `skirmish.ww3mod.yaml` from the support dir and can set Map, Options, faction, team **and
+  `SpawnPoint`** per slot (`SkirmishSlot`, `:25-45`) — early-returns on
+  `server.Type != ServerType.Skirmish` (`:167-168`). So it never fires on a `Launch.Map` run.
+- Every other `slot_bot` issuer is `Widgets/Logic/Lobby/*` — lobby UI. Driving it needs synthetic
+  input, which is a standing refusal in this project.
+
+So the granted configuration requires either a harness change (make the launch path create a
+skirmish-type server, or add a `Test.LobbySetup` hook issuing `slot_bot` + spawn/faction orders before
+the existing `state Ready`) or UI automation. **Neither is a run, and neither was granted.**
+
+## B. A tournament substitute would answer a DIFFERENT question — established, not assumed
+
+I checked this before considering a substitute, because spending the run on the wrong economy is worse
+than not running.
+
+`b91b5a88` (the map-player economy fix) states it directly: *"`Playable` … reads 'occupies a lobby slot'
+… **No shipped map declares a `Bot:` map player, so the shipped game was never affected**"*, and
+*"`Player.Playable` is `true` for every client-slot player"*.
+
+**Therefore a lobby bot has ALWAYS had an economy.** The `56bf7355` finding that anchored this whole
+subsystem — *"the gate is fine; the bot is broke"*, `cash=0` on 194 of 195 snapshots where a truck was
+wanted — was measured on the **map-player path with the economy bug live**. It was never a property of
+the game the user plays.
+
+## C. Consequence: the merged precedence fix is INERT on the user's profile — this refutes my §5
+
+`PlayerResources` defaults (`PlayerResources.cs:32,63,66`) are **`DefaultCash = 20000`** and
+**`PassiveIncome = 100` every 50 ticks**; `player.yaml:164-169` leaves all of them commented out, so the
+engine defaults stand and both are lobby dropdowns the user sets.
+
+`ShouldBankForSupply`'s own comment (`UnitBuilderBotModule.cs:1096-1098`): *"True only when the fleet is
+short and the truck is **genuinely unaffordable** — if we could afford it, `ChooseSupplyFleetShortfall`
+would already have bought it and we would never be asked."*
+
+**A 1000-cost truck against 20,000 starting cash is never unaffordable, so the bank never engages.**
+`SupplyPrecedenceStallCycles: 4` — the mechanism merged for item 66, the one that implements the user's
+precedence ruling — **cannot fire in a default lobby game.**
+
+**My §5 prediction is wrong, and wrong structurally rather than numerically.** I predicted USA ~740 PASS
+and Russia ~1700–1800 FAIL on the strength of banking spells. In a lobby game neither player banks at
+all. Corrected prediction: **M1 is small for both players** — bounded by the `GateResupplyOnAmmoNeed`
+onset and the build-cycle interval, not by affordability — and the 27-cycle / ~810-tick tempo cost
+recorded in `1bbfdb7c` does not apply to the user either.
+
+## D. What this does to item 66
+
+The user's report — *"almost no supply trucks being built"* — came from lobby play, where the bot was
+never broke. **The merged fix targets affordability, and affordability was a tournament-path artifact.**
+So item 66 should be treated as **still open on the user's profile**, with the affordability explanation
+eliminated rather than confirmed. Remaining candidates, none tested:
+
+1. `DesiredTrucks` returns 0 because the demand predicate reads low in lobby conditions
+   (`SupplySizeFromNeed: true` was the robustness fix for exactly this and is unverified in lobby).
+2. `UnitLimits` truk cap, or the composition ceiling striking the slot.
+3. The truck IS bought promptly in lobby and the user's complaint is about *fleet size* rather than
+   first-order latency — in which case M4, not M1, is the metric that matters.
+
+**Do not raise a quantity to chase this.** That is the exact pendulum this item is made of.
+
+## E. What I recommend instead
+
+The cheapest instrument that answers D is **not a match at all**: `--composition-plan` already replays
+the shipped argmax offline (it is how `UnitFloorPer` was verified), and a run of it at a lobby-realistic
+starting balance would show whether the truck is ever selected when affordability is removed as a
+blocker. That costs no game session and no serial-queue slot. If a live match is still wanted afterwards,
+the harness hook in §A should be built first so the lobby arm is actually reachable.
