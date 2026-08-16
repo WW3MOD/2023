@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — Selective Passenger Unload: three interaction options</title>
+<style>
+  :root {
+    --bg: #14171a;
+    --ink: #d6dde3;
+    --dim: #8a949c;
+    --panel: #1e2429;
+    --panel-edge: #39434b;
+    --accent: #29c5f6;
+    --warn: #f2a33c;
+    --good: #5fd07a;
+    --bad: #e2564a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 40px 80px;
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: .2px; }
+  h2 { font-size: 16px; margin: 44px 0 6px; padding-bottom: 6px; border-bottom: 1px solid var(--panel-edge); }
+  .sub { color: var(--dim); margin: 0 0 6px; max-width: 900px; }
+  .note { color: var(--dim); font-size: 12.5px; max-width: 900px; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .92em; color: var(--accent); }
+
+  .row { display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-start; margin-top: 16px; }
+  .cap { font-size: 12px; color: var(--dim); margin: 8px 0 0; text-align: center; max-width: 456px; }
+  .cap b { color: var(--ink); font-weight: 600; }
+
+  /* ---- The panel is drawn at 2x its real size. Real geometry from
+         mods/ww3mod/chrome/ingame-player.yaml: 228x320 container, 12px rows
+         at Y = 18 + 14*i, Tiny font. Every coordinate below is that x2. ---- */
+  .panel {
+    width: 456px; height: 640px; position: relative;
+    background: linear-gradient(180deg, #232a30 0%, #1b2126 100%);
+    border: 2px solid var(--panel-edge);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: #cfd8de;
+    box-shadow: 0 8px 28px rgba(0,0,0,.5);
+    overflow: hidden;
+  }
+  .panel.short { height: 560px; }
+  .w { position: absolute; }
+  .hdr {
+    left: 0; top: 0; width: 440px; height: 28px; line-height: 28px;
+    text-align: center; font-size: 15px; font-weight: 700; letter-spacing: .5px;
+    color: #eaf1f6; text-shadow: 0 1px 2px #000;
+  }
+  .slot { height: 24px; line-height: 24px; font-size: 14px; }
+  .mark  { left: 0px;   width: 40px;  text-align: center; }
+  .name  { left: 44px;  width: 324px; }
+  .rally { left: 372px; width: 28px;  text-align: center; }
+  .ejct  { left: 408px; width: 32px;  text-align: center; }
+
+  .btn {
+    background: #2c353c; border: 1px solid #48545e; color: #cfd8de;
+    text-align: center; cursor: default; user-select: none;
+    text-shadow: 0 1px 1px #000;
+  }
+  .btn.lit { background: #17506b; border-color: var(--accent); color: #eaf6fb; }
+  .btn.dis { color: #5d666e; border-color: #333c43; background: #232a30; }
+  .btn.prime { background: #1d5e37; border-color: #4fae72; color: #e8f8ee; font-weight: 700; }
+
+  .dim { color: var(--dim); }
+  .ammo { color: var(--warn); }
+  .hurt { color: var(--bad); }
+  .tecn { color: var(--good); }
+
+  /* Option A row-buttons */
+  .rowbtn {
+    left: 8px; width: 440px; height: 30px; line-height: 30px;
+    font-size: 14.5px; padding: 0 10px;
+    border: 1px solid transparent; background: rgba(255,255,255,.02);
+  }
+  .rowbtn .r { float: right; color: var(--dim); font-size: 12.5px; }
+  .rowbtn.hov {
+    background: #17506b; border-color: var(--accent); color: #eaf6fb;
+    box-shadow: inset 0 0 0 1px rgba(41,197,246,.35);
+  }
+  .rowbtn.hov .r { color: #bfe9fb; }
+  .cursorlbl {
+    position: absolute; font-size: 12px; background: #0d1114; color: var(--accent);
+    border: 1px solid var(--accent); padding: 2px 7px; white-space: nowrap; z-index: 5;
+  }
+  .ghost { opacity: .32; text-decoration: line-through; }
+
+  /* Option B — world view */
+  .world {
+    width: 456px; height: 380px; position: relative; overflow: hidden;
+    border: 2px solid var(--panel-edge);
+    background:
+      radial-gradient(circle at 30% 40%, #3d4436 0%, #2f3529 55%, #262b20 100%);
+  }
+  .terrain-road {
+    position: absolute; left: -30px; top: 210px; width: 520px; height: 46px;
+    background: #4a4740; transform: rotate(-7deg); opacity: .85;
+  }
+  .apc {
+    position: absolute; left: 196px; top: 168px; width: 64px; height: 44px;
+    background: #59614a; border: 2px solid #7d8768; border-radius: 3px;
+  }
+  .apc:after {
+    content: ""; position: absolute; left: 10px; top: 10px; width: 44px; height: 10px;
+    background: #767f60;
+  }
+  .selring {
+    position: absolute; left: 182px; top: 158px; width: 92px; height: 64px;
+    border: 2px dashed var(--good); border-radius: 50%;
+  }
+  .paxicon {
+    position: absolute; width: 62px; height: 62px; border: 2px solid #6d7a84;
+    background: #212a31; color: #cfd8de; font-family: ui-monospace, Menlo, monospace;
+    font-size: 10.5px; text-align: center; padding-top: 6px; line-height: 1.25;
+    border-radius: 4px;
+  }
+  .paxicon .glyph { font-size: 20px; display: block; margin-bottom: 1px; }
+  .paxicon.sel { border-color: var(--accent); background: #17506b; color: #eaf6fb; }
+  .modkey {
+    position: absolute; right: 10px; top: 10px; font-size: 12px;
+    background: rgba(0,0,0,.65); border: 1px solid var(--warn); color: var(--warn);
+    padding: 3px 8px; font-family: ui-monospace, Menlo, monospace;
+  }
+  .droppin {
+    position: absolute; left: 92px; top: 292px; width: 18px; height: 18px;
+    border: 2px solid var(--accent); border-radius: 50%;
+  }
+  .dropline {
+    position: absolute; left: 100px; top: 190px; width: 2px; height: 108px;
+    background: repeating-linear-gradient(180deg, var(--accent) 0 5px, transparent 5px 10px);
+    transform: rotate(-30deg); transform-origin: top center;
+  }
+
+  table { border-collapse: collapse; margin-top: 14px; width: 100%; max-width: 1080px; font-size: 13px; }
+  th, td { border: 1px solid var(--panel-edge); padding: 8px 10px; vertical-align: top; text-align: left; }
+  th { background: #232a30; font-weight: 600; }
+  td.opt { white-space: nowrap; font-weight: 600; }
+  .verdict { border-left: 3px solid var(--good); padding: 10px 16px; background: #1b2620; margin-top: 14px; max-width: 1000px; }
+  .caution { border-left: 3px solid var(--warn); padding: 10px 16px; background: #262117; margin-top: 14px; max-width: 1000px; }
+  .legend { font-size: 12px; color: var(--dim); margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>Selective passenger unload — three interaction options</h1>
+<p class="sub">
+  Scenario throughout: one APC holding <b>5 passengers</b> — 2 Technicians and 3 riflemen. The player wants
+  <b>the technicians out</b> and the riflemen kept aboard. Panels are drawn at <b>2&times; real size</b>;
+  every coordinate is doubled from the shipped geometry in
+  <code>mods/ww3mod/chrome/ingame-player.yaml</code> (228&times;320 container, 12&nbsp;px rows at Y = 18 + 14<i>i</i>, Tiny font).
+</p>
+
+<h2>Baseline — what ships today at <code>main</code> @ d1ad445d</h2>
+<p class="sub">
+  Selective unload is <b>not a missing feature</b>. It is already built twice over: a per-row <code>X</code> that ejects
+  one passenger, and a mark-then-deploy flow that sends chosen passengers to a clicked waypoint. Both already travel as
+  proper orders. What is missing is any chance a stranger finds them.
+</p>
+
+<div class="row">
+  <div>
+    <div class="panel">
+      <div class="w hdr" style="top:8px">CARGO [5 troops, 40 supply]</div>
+
+      <div class="w slot mark  btn" style="top:36px">[ ]</div>
+      <div class="w slot name"      style="top:36px"><span class="tecn">Technician</span></div>
+      <div class="w slot rally btn" style="top:36px">R</div>
+      <div class="w slot ejct  btn" style="top:36px">X</div>
+
+      <div class="w slot mark  btn" style="top:64px">[ ]</div>
+      <div class="w slot name"      style="top:64px"><span class="tecn">Technician</span></div>
+      <div class="w slot rally btn" style="top:64px">R</div>
+      <div class="w slot ejct  btn" style="top:64px">X</div>
+
+      <div class="w slot mark  btn" style="top:92px">[ ]</div>
+      <div class="w slot name"      style="top:92px">Rifleman <span class="ammo">[5/5]</span></div>
+      <div class="w slot rally btn" style="top:92px">R</div>
+      <div class="w slot ejct  btn" style="top:92px">X</div>
+
+      <div class="w slot mark  btn" style="top:120px">[ ]</div>
+      <div class="w slot name"      style="top:120px">Rifleman <span class="ammo">[2/5]</span></div>
+      <div class="w slot rally btn" style="top:120px">R</div>
+      <div class="w slot ejct  btn" style="top:120px">X</div>
+
+      <div class="w slot mark  btn" style="top:148px">[ ]</div>
+      <div class="w slot name"      style="top:148px">Rocket Soldier <span class="hurt">(61%)</span></div>
+      <div class="w slot rally btn" style="top:148px">R</div>
+      <div class="w slot ejct  btn" style="top:148px">X</div>
+
+      <div class="w btn" style="left:0;top:324px;width:140px;height:32px;line-height:32px;font-size:13px">Mark All</div>
+      <div class="w btn dis" style="left:150px;top:324px;width:290px;height:32px;line-height:32px;font-size:13px">Deploy Marked &gt;&gt;</div>
+
+      <div class="w" style="left:0;top:370px;width:440px;height:24px;line-height:24px;font-size:13px" >Supply: 40 / 100</div>
+      <div class="w btn" style="left:220px;top:400px;width:220px;height:36px;line-height:36px;font-size:13px">Drop All Supply</div>
+      <div class="w btn" style="left:0;top:448px;width:440px;height:40px;line-height:40px;font-size:13.5px">Unload All Troops</div>
+    </div>
+    <p class="cap"><b>Baseline.</b> Four controls per row &times; 10 rows = 40 widgets. The two selective paths are
+    <code>X</code> (eject this one) and <code>[ ]</code>&nbsp;&rarr;&nbsp;<code>Deploy Marked</code>. Nothing labels either.</p>
+  </div>
+
+  <div style="max-width:520px">
+    <p class="note" style="margin-top:0">
+      <b>Read this panel as a stranger.</b> You have selected a transport. You see a checkbox with no caption, a letter
+      <code>R</code>, a letter <code>X</code>, and three bottom buttons that sound similar — <i>Mark All</i>,
+      <i>Deploy Marked</i>, <i>Unload All Troops</i>. Nothing tells you that <code>X</code> is how you get one man out,
+      and nothing connects <code>[&nbsp;]</code> to <i>Deploy Marked</i>.
+    </p>
+    <p class="note">
+      <b>The mechanism underneath is already correct.</b> <code>X</code> issues
+      <code>UnloadCargoPassenger</code> carrying <code>ExtraData = passenger.ActorID</code>
+      (<code>CargoPanelLogic.cs:354</code>), resolved in <code>Cargo.ResolveOrder</code> at
+      <code>Cargo.cs:350&ndash;357</code>, which looks the actor up by ID and queues
+      <code>UnloadCargo(self, LoadRange, passenger)</code>. That is a fully replicated, per-passenger unload. It works today.
+    </p>
+    <p class="note">
+      <b>So the design question is not "how do we build this".</b> It is "which affordance replaces
+      <code>[&nbsp;] R X</code>", given the order underneath is already the right one.
+    </p>
+    <div class="caution">
+      <b>The marks are client-local — and must stay that way.</b> <code>markedPassengerIds</code>
+      (<code>CargoPanelLogic.cs:36</code>) is mutated straight from click handlers with no order, and that is
+      <i>correct</i>: it is never read by simulation (it reaches only <code>CargoUnloadOrderGenerator</code>, which
+      issues real orders). It is intent, like unit selection. The eject-rally desync was a different animal — that
+      dictionary lives in the <code>Cargo</code> <i>trait</i> and <code>UnloadCargo</code> reads it inside the
+      simulation. Any design that "improves" marks by storing them on <code>Cargo</code> so they persist or replicate
+      would <b>create</b> the very desync class we just fixed.
+    </div>
+  </div>
+</div>
+
+<h2>Option A — the passenger row <i>is</i> the button</h2>
+<p class="sub">
+  Delete the checkbox and the <code>X</code>. Make each row one full-width button. Click a man, he gets out. One click,
+  one complete action, no mode, no staging, nothing to remember.
+</p>
+
+<div class="row">
+  <div>
+    <div class="panel short">
+      <div class="w hdr" style="top:8px">CARGO [5 troops, 40 supply]</div>
+      <div class="w" style="left:8px;top:34px;width:440px;font-size:12.5px;color:#8a949c">Click a soldier to drop him off</div>
+
+      <div class="w rowbtn hov" style="top:56px"><span class="tecn">Technician</span><span class="r">click to drop &#9654;</span></div>
+      <div class="w rowbtn"     style="top:90px"><span class="tecn">Technician</span></div>
+      <div class="w rowbtn"     style="top:124px">Rifleman <span class="ammo">[5/5]</span></div>
+      <div class="w rowbtn"     style="top:158px">Rifleman <span class="ammo">[2/5]</span></div>
+      <div class="w rowbtn"     style="top:192px">Rocket Soldier <span class="hurt">(61%)</span></div>
+
+      <div class="cursorlbl" style="left:150px;top:82px">Drop off Technician</div>
+
+      <div class="w btn" style="left:8px;top:440px;width:440px;height:40px;line-height:40px;font-size:13.5px">Unload All Troops</div>
+      <div class="w" style="left:8px;top:392px;width:440px;height:24px;line-height:24px;font-size:13px">Supply: 40 / 100</div>
+      <div class="w btn" style="left:228px;top:490px;width:220px;height:34px;line-height:34px;font-size:12.5px">Drop All Supply</div>
+    </div>
+    <p class="cap"><b>A — before.</b> Hovering the first Technician. The whole row lights; the cursor says what will happen.</p>
+  </div>
+
+  <div>
+    <div class="panel short">
+      <div class="w hdr" style="top:8px">CARGO [3 troops, 40 supply]</div>
+      <div class="w" style="left:8px;top:34px;width:440px;font-size:12.5px;color:#8a949c">Click a soldier to drop him off</div>
+
+      <div class="w rowbtn ghost" style="top:56px"><span class="tecn">Technician</span><span class="r">leaving&hellip;</span></div>
+      <div class="w rowbtn ghost" style="top:90px"><span class="tecn">Technician</span><span class="r">leaving&hellip;</span></div>
+      <div class="w rowbtn"       style="top:124px">Rifleman <span class="ammo">[5/5]</span></div>
+      <div class="w rowbtn"       style="top:158px">Rifleman <span class="ammo">[2/5]</span></div>
+      <div class="w rowbtn"       style="top:192px">Rocket Soldier <span class="hurt">(61%)</span></div>
+
+      <div class="w btn" style="left:8px;top:440px;width:440px;height:40px;line-height:40px;font-size:13.5px">Unload All Troops</div>
+      <div class="w" style="left:8px;top:392px;width:440px;height:24px;line-height:24px;font-size:13px">Supply: 40 / 100</div>
+      <div class="w btn" style="left:228px;top:490px;width:220px;height:34px;line-height:34px;font-size:12.5px">Drop All Supply</div>
+    </div>
+    <p class="cap"><b>A — after two clicks.</b> Both Technicians are walking out; three riflemen still aboard, header already
+    reads 3. Rows fade out as the unload activity runs rather than vanishing instantly, so a misclick is <i>visible</i>.</p>
+  </div>
+
+  <div style="max-width:470px">
+    <p class="note" style="margin-top:0"><b>1 passenger:</b> one row, one click — identical effort to <i>Unload All</i>, so
+    the two never compete.</p>
+    <p class="note"><b>5 passengers:</b> click the two Technicians. Two clicks, two orders, riflemen untouched. There is no
+    counting, no staging step to forget, and no way to end up in a mode you did not know you entered.</p>
+    <p class="note"><b>Composes with unload-all:</b> cleanly, because they are different verbs at different grain.
+    <i>Unload All Troops</i> stays exactly as-is (<code>"Unload"</code>, <code>Cargo.cs:343</code>). Row-click is the
+    scalpel. Neither has state the other can corrupt.</p>
+    <p class="note"><b>Replicates as:</b> the order that already exists, unchanged —
+    <code>new Order("UnloadCargoPassenger", transport, false) { ExtraData = passenger.ActorID }</code>. <b>No new order
+    string, no wire-format change, no <code>ProtocolVersion.Orders</code> bump.</b></p>
+    <p class="note"><b>Cost:</b> smallest of the three. In <code>CargoPanelLogic.cs</code>, move the existing
+    <code>EjectPassenger(slotIndex)</code> handler off <code>EJECT_CARGO_{i}</code> onto a new full-width
+    <code>CARGO_ROW_{i}</code> button; delete <code>ToggleMark</code>, <code>IsPassengerMarked</code>,
+    <code>CountValidMarks</code>, <code>markedPassengerIds</code> and the <code>MARK_ALL_CARGO</code> handler. In YAML,
+    each of the 10 rows loses two widgets and the label becomes a button. Net <i>deletion</i>.</p>
+    <p class="note"><b>Risk:</b> a misclick ejects a man into a firefight, and given units are permanent budget loss that
+    walked in from the map edge, that stings. Mitigated by the hover highlight, the explicit cursor text, and keeping the
+    departing row visible while it leaves.</p>
+  </div>
+</div>
+
+<h2>Option B — modifier + world radial (no panel involvement)</h2>
+<p class="sub">
+  Attack the problem by removing the panel from the loop entirely. With the transport selected, hold <code>Alt</code>;
+  passenger portraits fan out around the vehicle in the world. Click one, then click a cell — that man alone gets out and
+  walks there.
+</p>
+
+<div class="row">
+  <div>
+    <div class="world">
+      <div class="terrain-road"></div>
+      <div class="modkey">ALT held</div>
+      <div class="selring"></div>
+      <div class="apc"></div>
+
+      <div class="paxicon sel" style="left:120px;top:104px"><span class="glyph">&#9822;</span>TECN</div>
+      <div class="paxicon"     style="left:196px;top:82px"><span class="glyph">&#9822;</span>TECN</div>
+      <div class="paxicon"     style="left:272px;top:104px"><span class="glyph">&#9823;</span>RIFL</div>
+      <div class="paxicon"     style="left:296px;top:178px"><span class="glyph">&#9823;</span>RIFL</div>
+      <div class="paxicon"     style="left:272px;top:246px"><span class="glyph">&#9823;</span>ROCK</div>
+
+      <div class="dropline"></div>
+      <div class="droppin"></div>
+      <div class="cursorlbl" style="left:116px;top:316px">drop TECN here</div>
+    </div>
+    <p class="cap"><b>B.</b> Portraits fan around the selected APC while <code>Alt</code> is held. One is picked; the
+    dashed line previews where he will be dropped.</p>
+  </div>
+
+  <div style="max-width:520px">
+    <p class="note" style="margin-top:0"><b>1 passenger:</b> heavy. Holding a modifier and aiming a radial to move one man
+    is more ceremony than <i>Unload All</i>, which does the same thing with one right-click.</p>
+    <p class="note"><b>5 passengers:</b> good — and it is the only option that puts the choice and the <i>destination</i>
+    in one gesture, in the world, without ever looking at the sidebar.</p>
+    <p class="note"><b>Composes with unload-all:</b> well. Plain deploy still unloads everyone; <code>Alt</code> is a
+    strict refinement layered on the same actor.</p>
+    <p class="note"><b>Replicates as:</b> two existing orders, in sequence on one transport —
+    <code>SetEjectRally</code> (<code>ExtraData</code> + <code>Target</code>, <code>Cargo.cs:358&ndash;365</code>) to
+    record the destination, then <code>UnloadCargoPassenger</code> to make him leave. Still no new order strings, but the
+    <i>sequencing</i> is the exposure: an <code>IOrderGenerator</code> runs only on the machine holding the mouse, so
+    every write between those two clicks must be an order and nothing may be stashed in the generator and applied later.
+    This is precisely the shape that produced the live desync in <code>EjectRallyOrderGenerator</code>.</p>
+    <p class="note"><b>Cost:</b> highest by a wide margin. A new <code>IOrderGenerator</code> with world-space portrait
+    rendering, radial hit-testing, two-stage click state, cursor states, and correct cancel/deselect behaviour — plus the
+    determinism review that shape now demands.</p>
+    <div class="caution" style="margin-top:12px">
+      <b>Fails the stated audience test outright.</b> The brief asks for something a stranger finds <i>by accident</i>.
+      A held modifier key is the canonical example of an interaction that cannot be discovered — it is invisible until
+      taught. Listed because it was asked for and because it is genuinely the most powerful of the three, not because it
+      fits the constraint.
+    </div>
+  </div>
+</div>
+
+<h2>Option C — keep marks, promote the waypoint, replace the ASCII</h2>
+<p class="sub">
+  Commit to the two-step that already exists — mark, then deploy to a clicked waypoint — and fix its presentation:
+  the mark becomes a lit row rather than <code>[x]</code>, portraits replace the bare names, and
+  <i>Deploy Marked</i> becomes the primary green action.
+</p>
+
+<div class="row">
+  <div>
+    <div class="panel short">
+      <div class="w hdr" style="top:8px">CARGO [5 troops &middot; 2 selected]</div>
+      <div class="w" style="left:8px;top:34px;width:440px;font-size:12.5px;color:#8a949c">Pick who leaves, then choose where</div>
+
+      <div class="w rowbtn hov" style="top:56px"><span>&#9822;&nbsp; Technician</span><span class="r">&#10003; selected</span></div>
+      <div class="w rowbtn hov" style="top:90px"><span>&#9822;&nbsp; Technician</span><span class="r">&#10003; selected</span></div>
+      <div class="w rowbtn"     style="top:124px"><span>&#9823;&nbsp; Rifleman</span><span class="r">5/5</span></div>
+      <div class="w rowbtn"     style="top:158px"><span>&#9823;&nbsp; Rifleman</span><span class="r">2/5</span></div>
+      <div class="w rowbtn"     style="top:192px"><span>&#9823;&nbsp; Rocket Soldier</span><span class="r">61%</span></div>
+
+      <div class="w btn prime" style="left:8px;top:250px;width:440px;height:38px;line-height:38px;font-size:13.5px">Drop these 2 &mdash; click a location &gt;&gt;</div>
+
+      <div class="w" style="left:8px;top:392px;width:440px;height:24px;line-height:24px;font-size:13px">Supply: 40 / 100</div>
+      <div class="w btn" style="left:8px;top:440px;width:440px;height:40px;line-height:40px;font-size:13.5px">Unload All Troops</div>
+      <div class="w btn" style="left:228px;top:490px;width:220px;height:34px;line-height:34px;font-size:12.5px">Drop All Supply</div>
+    </div>
+    <p class="cap"><b>C.</b> Two rows selected; the action button names the count and states what the next click does. The
+    waypoint step is the point of the design, not an afterthought.</p>
+  </div>
+
+  <div style="max-width:520px">
+    <p class="note" style="margin-top:0"><b>1 passenger:</b> poor. Select a row, read a button, click the map — three
+    deliberate acts to move one man, where <i>Unload All</i> does it in one.</p>
+    <p class="note"><b>5 passengers:</b> the strongest of the three. Drop the two Technicians at the bridge while the
+    transport keeps rolling with the riflemen aboard — a genuinely different tactical act that neither A nor a plain
+    unload can express.</p>
+    <p class="note"><b>Composes with unload-all:</b> worst of the three, and this is the existing complaint. The player
+    now has three verbs — unload all, drop selected here, drop selected <i>there</i> — and the panel must make the
+    difference legible without a manual.</p>
+    <p class="note"><b>Replicates as:</b> unchanged and already correct —
+    <code>CargoUnloadOrderGenerator</code> issues <code>Move</code> then one queued
+    <code>UnloadCargoPassenger</code> per marked ID (<code>CargoUnloadOrderGenerator.cs:103&ndash;110</code>). Selection
+    stays client-local in <code>markedPassengerIds</code>, which is the correct side of the line.</p>
+    <p class="note"><b>Cost:</b> medium, and mostly art and YAML rather than C#. The logic already exists; what changes
+    is row geometry, portrait assets, and the button copy. No new orders at all.</p>
+  </div>
+</div>
+
+<h2>Side by side</h2>
+<table>
+  <tr>
+    <th></th><th>A — row is the button</th><th>B — Alt + world radial</th><th>C — marks + waypoint, polished</th>
+  </tr>
+  <tr>
+    <td class="opt">Invocation</td>
+    <td>Click the passenger's row</td>
+    <td>Hold <code>Alt</code>, click portrait, click cell</td>
+    <td>Click rows, click green button, click cell</td>
+  </tr>
+  <tr>
+    <td class="opt">1 passenger</td>
+    <td>One click. Same cost as unload-all</td>
+    <td>Heavy — modifier + two clicks</td>
+    <td>Heavy — three deliberate acts</td>
+  </tr>
+  <tr>
+    <td class="opt">5 passengers<br>(2 out, 3 stay)</td>
+    <td>Two clicks, no staging</td>
+    <td>Two rounds of modifier+aim</td>
+    <td>Two clicks + one destination — best expressiveness</td>
+  </tr>
+  <tr>
+    <td class="opt">Composes with<br>Unload All</td>
+    <td>Cleanly — different grain, no shared state</td>
+    <td>Cleanly — strict refinement of deploy</td>
+    <td>Poorly — three similar-sounding verbs</td>
+  </tr>
+  <tr>
+    <td class="opt">Order shape</td>
+    <td><code>UnloadCargoPassenger</code> + <code>ExtraData</code>. <b>Exists, unchanged</b></td>
+    <td><code>SetEjectRally</code> then <code>UnloadCargoPassenger</code>. Exists, but the generator is the desync-prone shape</td>
+    <td><code>Move</code> + queued <code>UnloadCargoPassenger</code>. <b>Exists, unchanged</b></td>
+  </tr>
+  <tr>
+    <td class="opt">New order strings</td>
+    <td>None</td><td>None</td><td>None</td>
+  </tr>
+  <tr>
+    <td class="opt">Build cost</td>
+    <td>Smallest — a net deletion</td>
+    <td>Largest — new order generator + world rendering</td>
+    <td>Medium — art and YAML, little C#</td>
+  </tr>
+  <tr>
+    <td class="opt">Found by accident?</td>
+    <td><b>Yes</b> — a list of names that highlights on hover</td>
+    <td><b>No</b> — a modifier key must be taught</td>
+    <td>Partly — the panel advertises, the two-step does not</td>
+  </tr>
+</table>
+
+<div class="verdict">
+  <b>Recommendation: build A.</b> Selective unload already works and already replicates correctly; the only thing
+  actually broken is that nobody can find it. A is the only one of the three a stranger discovers by accident — a list of
+  soldiers that lights up when you point at it — and it is the cheapest, because it reuses the existing order verbatim
+  and <i>deletes</i> more code than it adds. Units in WW3MOD are permanent budget loss that walked in from the map edge,
+  so the overwhelmingly common case is "get that one man out right now", not "orchestrate a two-waypoint drop"; A makes
+  the common case one click and leaves the rare case to <i>Unload All</i>.
+  <br><br>
+  Keep C's waypoint flow as a second, clearly-labelled path if it is worth its complexity — but it should not be the
+  thing a new player meets first. B should not be built: it is the most powerful and the most expensive, it is the one
+  shape that just caused a live desync, and a held modifier key is disqualified by the audience constraint on its own.
+</div>
+
+<p class="legend">
+  Mockup is static HTML — nothing here is interactive, and no part of it has been rendered by the game. Geometry is
+  transcribed from <code>ingame-player.yaml</code> at 2&times;; colours and fonts are indicative only, since the shipped
+  panel uses the engine's Tiny/TinyBold bitmap fonts and sidebar palette, which this file cannot reproduce.
+</p>
+
+</body>
+</html>
