@@ -571,6 +571,58 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (order.OrderString == "SetResupplyBehavior" && Info.EnableStances)
 				SetResupplyBehavior(self, (ResupplyBehavior)order.ExtraData);
+
+			// ExtraData: 1 grants the ambush-tactics gate, 0 revokes it. Issued by LaneAmbushBotModule
+			// when it posts or releases an ambusher. It is an ORDER rather than the bot granting the
+			// condition itself because bot ticks are suppressed during a saved-game restore
+			// (ModularBot.cs:206), so a direct grant is not in the order stream, the restored world never
+			// gates the unit, and AttackMoveActivity's halt-before-contact silently stops firing.
+			if (order.OrderString == "SetAmbushGate")
+				SetAmbushGate(self, order.ExtraData != 0);
+		}
+
+		// PITFALL: ambushGateToken is deliberately NOT [Sync]. A condition token is an allocation handle
+		// whose value counts how many conditions the actor has ever been granted, so syncing one makes
+		// handle identity a determinism requirement — exactly the Detectable desync fixed in e1bbf244.
+		// The synced gameplay state is the condition itself, which the gate reads by count.
+		int ambushGateToken = Actor.InvalidConditionToken;
+		ExternalCondition ambushGateExternal;
+
+		void SetAmbushGate(Actor self, bool grant)
+		{
+			var gate = Info.AmbushTacticsCondition;
+			if (string.IsNullOrEmpty(gate))
+				return;
+
+			// Idempotent in both directions. The module re-offers this order on its own cadence, and a
+			// duplicate grant would leak a second token that the matching single revoke could not clear.
+			if (grant)
+			{
+				if (ambushGateToken != Actor.InvalidConditionToken)
+					return;
+
+				var ec = self.TraitsImplementing<ExternalCondition>()
+					.FirstOrDefault(e => e.Info.Condition == gate && e.CanGrantCondition(this));
+
+				if (ec == null)
+					return;
+
+				var token = ec.GrantCondition(self, this);
+				if (token == Actor.InvalidConditionToken)
+					return;
+
+				ambushGateExternal = ec;
+				ambushGateToken = token;
+			}
+			else
+			{
+				if (ambushGateToken == Actor.InvalidConditionToken)
+					return;
+
+				ambushGateExternal?.TryRevokeCondition(self, this, ambushGateToken);
+				ambushGateExternal = null;
+				ambushGateToken = Actor.InvalidConditionToken;
+			}
 		}
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
