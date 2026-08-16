@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — Garrison legibility mockup</title>
+<style>
+  :root{
+    --bg:#0d1013; --panel:#161b20; --panel2:#1d242b; --line:#2b343d;
+    --ink:#d7e0e8; --dim:#8a97a3; --faint:#5d6a76;
+    --ok:#4ea36b; --warn:#d9a441; --bad:#c8503f; --acc:#5a9fd4;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:13px/1.5 "SF Mono",Menlo,Consolas,monospace;
+    padding:28px 22px 60px;
+  }
+  h1{font-size:17px;margin:0 0 4px;letter-spacing:.5px;font-weight:600}
+  h2{font-size:13px;margin:34px 0 12px;color:var(--acc);text-transform:uppercase;letter-spacing:1.4px;font-weight:600}
+  .sub{color:var(--dim);margin:0 0 8px;max-width:900px}
+  .note{color:var(--faint);font-size:11.5px;max-width:900px;margin:6px 0 0}
+  .rule{height:1px;background:var(--line);margin:26px 0 0}
+
+  .cols{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+  .col{flex:1;min-width:340px}
+  .tag{display:inline-block;font-size:10.5px;letter-spacing:1.2px;padding:2px 8px;border-radius:2px;margin-bottom:10px}
+  .tag.now{background:#3a2420;color:#e0a294;border:1px solid #573129}
+  .tag.new{background:#16302a;color:#7fd6a5;border:1px solid #245040}
+
+  /* ---- building + pip grid ---- */
+  .scene{background:linear-gradient(#12181d,#0e1317);border:1px solid var(--line);border-radius:4px;
+         padding:26px 16px 20px;display:flex;justify-content:center;align-items:flex-end;min-height:210px}
+  .bstack{display:flex;flex-direction:column;align-items:center;gap:7px}
+  .pipgrid{display:flex;gap:5px}
+  .slot{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .prow{display:flex;gap:1.5px;height:5px;align-items:center}
+  .pip{width:4px;height:4px;border-radius:1px;background:#39434d}
+  .pip.cls{width:7px;height:5px;border-radius:1px}
+  .pip.mg{background:#d8c96a}.pip.at{background:#cf7a4e}.pip.sn{background:#9b7fd4}
+  .pip.dmg{background:var(--bad)}
+  .pip.ammo{background:#d8c96a}.pip.ammo.off{background:#3a4149}
+  .pip.sup{width:4px;height:4px}
+  .pip.sup.on0{background:var(--ok)} .pip.sup.on1{background:var(--warn)} .pip.sup.on2{background:var(--bad)}
+  .spacer{height:5px}
+  .bldg{width:104px;height:74px;border-radius:3px;position:relative;
+        background:linear-gradient(#4a5058,#333940);border:1px solid #232a31;
+        box-shadow:0 5px 14px rgba(0,0,0,.5)}
+  .bldg::after{content:"GTWR";position:absolute;bottom:5px;left:0;right:0;text-align:center;
+        font-size:9px;color:#98a2ac;letter-spacing:1.5px}
+  .win{position:absolute;width:13px;height:13px;background:#10151a;border:1px solid #232a31;border-radius:1px}
+  .win.n{top:9px;left:45px}.win.e{top:31px;right:9px}.win.s{bottom:24px;left:45px}.win.w{top:31px;left:9px}
+  .win .man{position:absolute;inset:2px;border-radius:1px;background:#7f8a95;opacity:.4}
+  .win.act .man{opacity:1;background:#9fb0bd}
+  .win.act.duck .man{background:var(--warn);opacity:.85}
+  .win.act.pin  .man{background:var(--bad);opacity:.6}
+  .muzzle{position:absolute;width:5px;height:5px;border-radius:50%;background:#ffe9a8;
+          box-shadow:0 0 7px 3px rgba(255,214,120,.65);top:4px;right:-6px}
+
+  /* ---- sidebar panel ---- */
+  .side{background:var(--panel);border:1px solid var(--line);border-radius:4px;overflow:hidden;width:100%}
+  .shead{background:var(--panel2);padding:8px 11px;font-size:11px;letter-spacing:1.5px;color:#b9c6d2;
+         border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+  .shead .shield{color:var(--acc)}
+  .grp{padding:7px 11px 3px;font-size:10px;letter-spacing:1.3px;color:var(--faint)}
+  .row{display:flex;align-items:center;gap:8px;padding:5px 11px;border-bottom:1px solid #1b2229}
+  .row:last-child{border-bottom:none}
+  .rname{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rname .port{color:var(--faint)}
+  .rmeta{color:var(--dim);font-size:11.5px;white-space:nowrap}
+  .x{width:15px;height:15px;line-height:13px;text-align:center;border:1px solid #3a444e;border-radius:2px;
+     color:var(--dim);font-size:10px;cursor:default;flex-shrink:0}
+  .empty{color:var(--faint)}
+  .btn{margin:9px 11px 11px;padding:5px;text-align:center;border:1px solid #3a444e;border-radius:2px;
+       color:#b9c6d2;font-size:11px;letter-spacing:1px}
+
+  /* suppression bar in panel */
+  .sbar{width:74px;height:7px;background:#252d35;border-radius:1px;display:flex;gap:1px;padding:1px;flex-shrink:0}
+  .sseg{flex:1;background:#333c45;border-radius:.5px}
+  .sseg.on0{background:var(--ok)}.sseg.on1{background:var(--warn)}.sseg.on2{background:var(--bad)}
+  .slabel{font-size:10px;letter-spacing:1px;width:62px;text-align:right;flex-shrink:0}
+  .slabel.s0{color:var(--ok)}.slabel.s1{color:var(--warn)}.slabel.s2{color:var(--bad)}
+
+  /* ---- controls ---- */
+  .ctl{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:13px 16px;margin:0 0 18px;
+       display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .ctl label{color:var(--dim);font-size:11.5px;letter-spacing:1px}
+  input[type=range]{width:300px;accent-color:var(--acc)}
+  .val{font-size:19px;min-width:46px;font-weight:600}
+  .state{font-size:11px;letter-spacing:1.4px;padding:3px 10px;border-radius:2px;border:1px solid}
+  .state.s0{color:var(--ok);border-color:#2c5a3d;background:#13251b}
+  .state.s1{color:var(--warn);border-color:#5e4a1e;background:#26200f}
+  .state.s2{color:var(--bad);border-color:#5e2f26;background:#261512}
+
+  /* three-up */
+  .three{display:flex;gap:16px;flex-wrap:wrap}
+  .card{flex:1;min-width:280px;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:14px}
+  .card h3{margin:0 0 3px;font-size:12px;letter-spacing:1px}
+  .card .lvl{color:var(--faint);font-size:11px;margin:0 0 12px}
+  .card .scene{min-height:150px;padding:18px 10px 14px;margin-bottom:12px}
+  .effects{list-style:none;padding:0;margin:10px 0 0;font-size:11px;color:var(--dim)}
+  .effects li{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted #232b33}
+  .effects li:last-child{border-bottom:none}
+  .effects b{color:var(--ink);font-weight:500}
+  code{background:#1c232a;padding:1px 5px;border-radius:2px;color:#a9bccb;font-size:11.5px}
+</style>
+</head>
+<body>
+
+<h1>Garrison legibility — proposed readout</h1>
+<p class="sub">Suppression is already simulated at ten tiers and already changes rate of fire, accuracy, vision and
+speed. None of it is drawn anywhere the player looks. This mockup shows the same garrison as it reads
+<b>today</b> and as it would read <b>proposed</b>. Nothing here changes simulation state.</p>
+
+<div class="ctl">
+  <label for="sup">SUPPRESSION</label>
+  <input type="range" id="sup" min="0" max="100" value="38">
+  <span class="val" id="supval">38</span>
+  <span class="state s1" id="supstate">DUCKING</span>
+  <span class="note" style="margin:0">Drag to feel the ramp. Duck threshold 30 · forced recall 60.</span>
+</div>
+
+<div class="cols">
+  <div class="col">
+    <span class="tag now">TODAY</span>
+    <div class="scene"><div class="bstack">
+      <div class="pipgrid" id="gridNow"></div>
+      <div class="bldg">
+        <div class="win n act" id="wNowN"><div class="man"></div></div>
+        <div class="win e act" id="wNowE"><div class="man"></div></div>
+        <div class="win s"><div class="man"></div></div>
+        <div class="win w"><div class="man"></div></div>
+      </div>
+    </div></div>
+    <p class="note">Damage, class and ammo pips only. The soldiers slow, miss, stop firing and are eventually
+      pulled inside — the grid and the panel look identical the whole way down.</p>
+    <div class="side" style="margin-top:12px" id="sideNow"></div>
+  </div>
+
+  <div class="col">
+    <span class="tag new">PROPOSED</span>
+    <div class="scene"><div class="bstack">
+      <div class="pipgrid" id="gridNew"></div>
+      <div class="bldg">
+        <div class="win n act" id="wNewN"><div class="man"></div></div>
+        <div class="win e act" id="wNewE"><div class="man"></div></div>
+        <div class="win s"><div class="man"></div></div>
+        <div class="win w"><div class="man"></div></div>
+      </div>
+    </div></div>
+    <p class="note">One extra pip row, top of the stack, using the existing <code>pip-suppression-1..10</code>
+      art. Plus a bar and a state word per firing position in the panel.</p>
+    <div class="side" style="margin-top:12px" id="sideNew"></div>
+  </div>
+</div>
+
+<div class="rule"></div>
+<h2>The three states, drawn</h2>
+<p class="sub">Left to right: what the player must be able to tell apart at a glance without clicking anything.</p>
+
+<div class="three" id="three"></div>
+
+<div class="rule"></div>
+<h2>What is not being proposed</h2>
+<p class="sub">No new simulation state, no new order, and no change to how suppression accumulates or decays.
+Everything above is read at render time from <code>GetConditionCount("suppressed")</code> — the same synced
+actor state the simulation already reads. There is no desync surface because nothing is written.</p>
+<p class="note">Separately: <code>PortState.IsDucking</code> is written every tick and read by nothing. It is a
+vestigial duplicate of <code>^SuppressionBurstMultiplier</code>, not a missing feature — wiring it to rate of
+fire would double-apply a penalty that already ships. The proposal is to delete it.</p>
+
+<script>
+(function(){
+  var SOLDIERS = [
+    {cls:'mg', name:'Rifleman',      port:'north', ammo:[3,3], dmg:0, deployed:true},
+    {cls:'at', name:'AT Trooper',    port:'east',  ammo:[1,2], dmg:1, deployed:true},
+    {cls:'sn', name:'Marksman',      port:null,    ammo:[2,2], dmg:0, deployed:false},
+    {cls:'mg', name:'Rifleman',      port:null,    ammo:[3,3], dmg:0, deployed:false}
+  ];
+
+  function band(s){ return s>=60?2 : s>=30?1 : 0; }
+  function word(s){ return s>=60?'PINNED' : s>=30?'DUCKING' : s>0?'STEADY':'STEADY'; }
+
+  function pipRow(cls, n, filled, fillCls){
+    var h='<div class="prow">';
+    for(var i=0;i<n;i++) h+='<div class="pip '+cls+' '+(i<filled?(fillCls||''):'off')+'"></div>';
+    return h+'</div>';
+  }
+
+  // one soldier slot: [suppression row] / damage / class / ammo
+  function slot(s, sup, withSup){
+    var h='<div class="slot">';
+    if(withSup){
+      var lit = s.deployed ? Math.round(sup/10) : 0;
+      var b = band(sup);
+      var r='<div class="prow">';
+      for(var i=0;i<10;i++){
+        r += '<div class="pip sup '+(i<lit?('on'+b):'')+'"></div>';
+      }
+      h += r+'</div>';
+    }
+    h += s.dmg ? '<div class="prow"><div class="pip dmg"></div></div>' : '<div class="spacer"></div>';
+    h += '<div class="prow"><div class="pip cls '+s.cls+'"></div></div>';
+    h += pipRow('ammo', s.ammo[1], s.ammo[0], '');
+    return h+'</div>';
+  }
+
+  function grid(el, sup, withSup){
+    el.innerHTML = SOLDIERS.map(function(s){return slot(s,sup,withSup);}).join('');
+  }
+
+  function sbar(sup){
+    var lit=Math.round(sup/10), b=band(sup), h='<div class="sbar">';
+    for(var i=0;i<10;i++) h+='<div class="sseg '+(i<lit?('on'+b):'')+'"></div>';
+    return h+'</div>';
+  }
+
+  function panel(el, sup, isNew){
+    var b=band(sup), h='';
+    h += '<div class="shead"><span>GARRISON</span><span class="shield">SHIELD 62%</span></div>';
+
+    if(isNew) h += '<div class="grp">FIRING POSITIONS &mdash; 80% COVER</div>';
+
+    SOLDIERS.filter(function(s){return s.deployed;}).forEach(function(s){
+      h += '<div class="row">';
+      h += '<span class="rname"><span class="port">'+s.port+'</span> &middot; '+s.name+'</span>';
+      if(isNew){
+        h += sbar(sup);
+        h += '<span class="slabel s'+b+'">'+word(sup)+'</span>';
+      } else {
+        h += '<span class="rmeta">['+s.ammo[0]+'/'+s.ammo[1]+'] (80% cover)</span>';
+      }
+      h += '<span class="x">&times;</span></div>';
+    });
+
+    if(isNew){
+      h += '<div class="row"><span class="rname empty">south &middot; (empty)</span></div>';
+      h += '<div class="row"><span class="rname empty">west &middot; (empty)</span></div>';
+      h += '<div class="grp">IN SHELTER &mdash; WAITING FOR TARGETS</div>';
+      SOLDIERS.filter(function(s){return !s.deployed;}).forEach(function(s){
+        h += '<div class="row"><span class="rname">'+s.name+'</span>'
+           + '<span class="rmeta">62% cover</span><span class="x">&times;</span></div>';
+      });
+    } else {
+      h += '<div class="row"><span class="rname empty">south: (empty)</span></div>';
+      h += '<div class="row"><span class="rname empty">west: (empty)</span></div>';
+      SOLDIERS.filter(function(s){return !s.deployed;}).forEach(function(s){
+        h += '<div class="row"><span class="rname">[S] '+s.name+' (62% cover)</span>'
+           + '<span class="x">&times;</span></div>';
+      });
+    }
+    h += '<div class="btn">EJECT ALL</div>';
+    el.innerHTML = h;
+  }
+
+  var winsNow=[document.getElementById('wNowN'),document.getElementById('wNowE')];
+  var winsNew=[document.getElementById('wNewN'),document.getElementById('wNewE')];
+
+  function windows(ws, sup, withSup){
+    var b=band(sup);
+    ws.forEach(function(w,i){
+      w.className='win '+(i?'e':'n')+' act'+(withSup?(b===1?' duck':b===2?' pin':''):'');
+      var m=w.querySelector('.muzzle'); if(m) m.remove();
+      if(sup<60 && (i===0||sup<30)){
+        var d=document.createElement('div'); d.className='muzzle'; w.appendChild(d);
+      }
+    });
+  }
+
+  function render(sup){
+    document.getElementById('supval').textContent=sup;
+    var st=document.getElementById('supstate');
+    st.className='state s'+band(sup); st.textContent=word(sup);
+    grid(document.getElementById('gridNow'), sup, false);
+    grid(document.getElementById('gridNew'), sup, true);
+    panel(document.getElementById('sideNow'), sup, false);
+    panel(document.getElementById('sideNew'), sup, true);
+    windows(winsNow, sup, false);
+    windows(winsNew, sup, true);
+  }
+
+  var r=document.getElementById('sup');
+  r.addEventListener('input', function(){ render(parseInt(r.value,10)); });
+
+  // ---- three-up frozen states ----
+  var STATES=[
+    {s:12, t:'STEADY', d:'suppression 12 — light contact (tier 2)',
+     fx:[['Burst','80%'],['Cadence','×1.2 slower'],['Vision','80%'],['Behaviour','holds the window']]},
+    {s:42, t:'DUCKING', d:'suppression 42 — pinned down but firing (tier 5)',
+     fx:[['Burst','50%'],['Cadence','×1.5 slower'],['Vision','50%'],['Behaviour','still deployed, visibly worse']]},
+    {s:74, t:'PINNED', d:'suppression 74 — past the recall threshold (tier 8)',
+     fx:[['Burst','20%'],['Vision','20%'],['Behaviour','forced back to shelter'],['Port','locked ~50 ticks']]}
+  ];
+  document.getElementById('three').innerHTML = STATES.map(function(S){
+    var b=band(S.s), lit=Math.round(S.s/10);
+    var pips='<div class="prow">';
+    for(var i=0;i<10;i++) pips+='<div class="pip sup '+(i<lit?('on'+b):'')+'"></div>';
+    pips+='</div>';
+    var slots='';
+    for(var k=0;k<4;k++){
+      var dep=k<2;
+      slots+='<div class="slot">'+(dep?pips:'<div class="prow"></div>')
+           + '<div class="spacer"></div>'
+           + '<div class="prow"><div class="pip cls '+(k===1?'at':k===2?'sn':'mg')+'"></div></div>'
+           + '<div class="prow"><div class="pip ammo"></div><div class="pip ammo"></div><div class="pip ammo off"></div></div>'
+           + '</div>';
+    }
+    var cls = b===1?' duck':b===2?' pin':'';
+    var fx = S.fx.map(function(p){return '<li><span>'+p[0]+'</span><b>'+p[1]+'</b></li>';}).join('');
+    return '<div class="card"><h3 class="slabel s'+b+'" style="width:auto;text-align:left">'+S.t+'</h3>'
+      + '<p class="lvl">'+S.d+'</p>'
+      + '<div class="scene"><div class="bstack"><div class="pipgrid">'+slots+'</div>'
+      + '<div class="bldg">'
+      + '<div class="win n act'+cls+'"><div class="man"></div>'+(S.s<60?'<div class="muzzle"></div>':'')+'</div>'
+      + '<div class="win e act'+cls+'"><div class="man"></div></div>'
+      + '<div class="win s"><div class="man"></div></div><div class="win w"><div class="man"></div></div>'
+      + '</div></div></div>'
+      + '<ul class="effects">'+fx+'</ul></div>';
+  }).join('');
+
+  render(38);
+})();
+</script>
+</body>
+</html>
