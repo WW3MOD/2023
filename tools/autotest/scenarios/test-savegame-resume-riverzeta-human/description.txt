@@ -1,0 +1,1 @@
+Auto: River Zeta HUMAN-vs-bot — the local client plays a combatant slot (not spectating), save 3000 ticks in, reload in-process; the restored world must resume.
