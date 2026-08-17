@@ -278,6 +278,13 @@ EXITCODE=0 ELAPSED=5.2s
 
 Both warnings are the same NU1901 advisory, restore-level, not code. Zero C# compiler warnings.
 
+> **STALE as of 2026-08-17 — do not spend the "minutes" this finding asks for.** A from-scratch `make all`
+> on macOS at `main @ f5998c6d` reports `0 Warning(s), 0 Error(s)` and **zero** `NU1901`, and `NU1901`
+> appears zero times in CI runs `31981227086` / `31978609314`. The advisory has aged out; there is nothing
+> to bump. This also answers the caveat below: the from-scratch Release warning count is **0**. That says
+> nothing about the analyzers — `engine/Directory.Build.props:50-55` strips them in Release, and the Debug
+> analyzer build reports **106 errors** in CI (see `DISCOVERIES.md`, 2026-08-16 determinism sweep entry).
+
 **Caveat I want on the record:** the run completed in 5.2s with *"All projects are up-to-date for
 restore"* — this was an **incremental** build against an already-warm tree, so it proves the tree
 compiles but does **not** establish a from-scratch warning count. I deliberately did not force a clean

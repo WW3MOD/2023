@@ -24,11 +24,17 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 		static int errors = 0;
 
+		// Every error is recorded under the map being tested (or "mod" for mod-wide passes) so that the
+		// baseline can tell "this known-bad map is still bad" from "a second map just went bad the same way".
+		static string scope = "mod";
+		static readonly SortedSet<string> Signatures = new SortedSet<string>(StringComparer.Ordinal);
+
 		// mimic Windows compiler error format
 		static void EmitError(string e)
 		{
 			Console.WriteLine($"OpenRA.Utility(1,1): Error: {e}");
 			++errors;
+			Signatures.Add(LintBaseline.Signature(scope, e));
 		}
 
 		static void EmitWarning(string e)
@@ -101,14 +107,22 @@ namespace OpenRA.Mods.Common.UtilityCommands
 						continue;
 
 					using (var testMap = new Map(modData, package))
-						TestMap(testMap, modData);
+						TestMap(testMap, modData, map.Map);
 				}
 
 				if (errors > 0)
-				{
 					Console.WriteLine($"Errors: {errors}");
-					Environment.Exit(1);
+
+				// A single-map run only exercises a fraction of the baseline, so it cannot judge one.
+				if (args.Length >= 2)
+				{
+					if (errors > 0)
+						Environment.Exit(1);
+					return;
 				}
+
+				if (!LintBaseline.Judge(modData, Signatures, errors, Console.WriteLine))
+					Environment.Exit(1);
 			}
 			catch (Exception e)
 			{
@@ -117,15 +131,17 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			}
 		}
 
-		void TestMap(Map map, ModData modData)
+		void TestMap(Map map, ModData modData, string packageName)
 		{
 			Console.WriteLine($"Testing map: {map.Title}");
+			scope = packageName;
 
 			// Lint tests can't be trusted if the map rules are bogus
 			// so report that problem then skip the tests
 			if (map.InvalidCustomRules)
 			{
 				EmitError(map.InvalidCustomRulesException.ToString());
+				scope = "mod";
 				return;
 			}
 
@@ -150,6 +166,8 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					EmitError($"{customMapPassType} failed with exception: {e}");
 				}
 			}
+
+			scope = "mod";
 		}
 
 		void CheckRules(ModData modData, Ruleset rules)

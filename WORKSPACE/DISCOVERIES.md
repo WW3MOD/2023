@@ -36,6 +36,58 @@ minimum, with margin, in the *worst* regime — not the typical one. Sweep it; t
 Refs: `DumpCompositionPlanCommand.cs` (`--floor-per N` sweeps the ratio without editing YAML),
 `SupportFloorMath.cs`, `ai-america.yaml` / `ai-russia.yaml` `UnitFloorPer`.
 
+## 2026-08-17 — THE 437 LINT ERRORS ARE 82 DEFECTS AND ONE MISSING CI DEPENDENCY; AND THE ONLY CI LANE THAT STAYS GREEN IS THE ONE THAT THROWS ITS OWN EXIT CODE AWAY
+
+Branch `wt/lint-baseline`. Written while building the baseline floor for `--check-yaml`; the CI facts here are
+verified against runs `31981227086` and `31978609314` (`gh`, full job logs, not workflow YAML). The two
+corrections in the 2026-08-16 determinism-sweep entry carry the detail; this is what generalises.
+
+**A `--log-failed` transcript cannot tell you what CI enforces, because it omits the steps that passed.**
+`Windows (.NET 6.0)` is the only lane that reaches the mod lint, and it reaches it because its `Check Code`
+step reports success while logging `106 Error(s)`: `make.ps1`'s `Check-Command` runs the analyzer build,
+prints `Build failed.` on failure and then **returns 0**. Two separate write-ups reasoned from that green tick
+this week. **A step's conclusion is a claim about the script's exit code, not about the work it did** — grep
+the passing step's log for the build summary before believing it.
+
+**`Linux (mono)` has not compiled since 2026-08-11** — `Convert.ToHexString` (`BuildFingerprint.cs:246,308`,
+`SequenceIntegrity.cs:91`, landed at `bedf18e0`/`d836bd07`) is .NET 5+ and absent from mono's BCL. It reads as
+part of the same "CI is red on style" noise and is not: it is a portability regression.
+
+**The two lint numbers this project quotes are 437 and 87, and they reconcile exactly: `437 = 87 + 350`.**
+Both measured — CI run `31981227086` and a local `make test` on 2026-08-17. It is the same check over the
+same single mod (`MOD_ID="ww3mod"`; the CI job logs exactly one `Testing mod:` line and one `Errors:` line,
+so the "CI lints four mods" theory is dead). The 350 are RA sprites that exist only where the content is
+installed, which the runner never installs (`mods/ww3mod/mod.yaml:15` mounts `~^SupportDir|Content/ra/v2/`).
+**So 437 is not a defect count and never was — 87 is, and 4/5 of the CI figure is one missing dependency.**
+Of the 87: **62 are one class** (maps with no cordon), one of which — `test-edge-spawn-shadow` — must stay
+that way because `bounds == MapSize` is the regression it tests.
+
+**Five sprite errors survive in BOTH environments and are real**: `b2bomb.shp`, `pip-cloak.shp`,
+`pip-cover.shp`, `mslo.int`, `bib3.int` are absent from this repo, from `engine/mods`, and from the RA
+content. **The reason this matters beyond five sequences: the same error text was 355 lines of environment
+noise and 5 lines of genuine defect, and nothing but running it in both environments could tell them
+apart.** A class of error is not environment-dependent because most of its instances are.
+
+**Sizing the burn-down, statically, before believing it is cheap.** The fix for the cordon class is the
+one-line `Bounds` shrink `097738f4` used on the nine shipped maps (`0,0,66,34` → `1,1,64,32`). Applied to
+the 62: on **38** it evicts no actor and is a pure text edit; on the other **24** actors sit on the
+outermost ring (the river-zeta-derived scenarios carry ~196 each) and would fall outside the new bounds.
+So it is 38 free, 23 needing actor moves, 1 that must not be touched — and the verification, not the edit,
+is the price: the shipped-map re-cordon needed a 2058-line `nav-guard` baseline regeneration, and nav-guard
+covers 10 of 167 maps, so scenario breakage surfaces only in autotest runs.
+
+**Two silently-zero widget substitution symbols are live** (`Y: PARENT_TOP`, `Y: PARENT_TOP + 35`,
+`chrome/ingame-player.yaml`, HPF debug overlay, from the `a8b28ede` upstream-rename merge). Both are latent
+because `PARENT_TOP` evaluates to 0 and 0 is what a parent-relative `Y` already meant — which is exactly why
+this class survives: **the failure mode of an unknown symbol is a plausible number, not an error.**
+
+**The floor itself: `mods/ww3mod/lint-baseline.txt` + `LintBaseline.cs`.** `--check-yaml` now fails on
+signatures that are *not* recorded, where a signature is `<map package folder> | <first line of the error>`.
+Scoping by map is what stops a second map going bad behind the first; keying on the first line only is what
+lets an error message carry file:line detail on later lines without churning the baseline. The automated edit
+path can only **remove** entries (`LINT_BASELINE_PRUNE=true`), never add — and a fixed entry **fails** the run
+until it is pruned, so the number cannot sit still while the code improves.
+
 ## 2026-08-17 — THE PHANTOM-ANCHOR CLASS IS CLOSED, AND WHAT CLOSED IT WAS A SOURCE SCAN, NOT A THIRD FIX
 
 Three bot resolvers shipped the same map/grid round-trip mistake independently over eleven days. The third
@@ -2224,7 +2276,8 @@ When the user says a vehicle "goes critical" they mean *it caught fire and is no
 - **The reason `Killed` stays lethal for a one-shot is that `AttackInfo.Damage` carries the *unclamped* value.** `Health.InflictDamage` clamps `HP` but passes the original `Damage` into `AttackInfo` (`Health.cs:189-197`), so a 20000 tank round on a 14000 hull reports 20000, and `passengerMaxHP * 20000 / 14000` overshoots a 200 HP rifleman. Conversely, finishing off an already-crippled transport with a small hit reports that small hit and is survivable — the asymmetry is free, not designed.
 - **`INotifyDamage.Damaged` sees `DamageState.Dead` on the killing blow, and `Dead` is numerically ABOVE `Critical`.** `Health.InflictDamage` clamps `HP` to 0 at `Health.cs:189` and then evaluates `DamageState` at line 195 for the `AttackInfo` — so any `Damaged` handler that reads the live damage state reads **Dead** on the hit that kills. Combined with `[Flags]` ordering (`Undamaged=1 … Critical=16, Dead=32`), **every `if (state >= SomeThreshold)` in a `Damaged` handler silently fires on death too.** This cost a real bug: a bail-out gated on `>= Heavy` ran on the killing blow, emptied the hold synchronously, and left `INotifyKilled.Killed` iterating an empty list — so `EjectOnDeath` never executed and a one-shot kill on a loaded transport left the entire squad alive. **Any damage-state threshold test in a `Damaged` handler needs an explicit upper bound (`&& state < DamageState.Dead`) unless you positively want it to fire on death.** `INotifyDamageStateChanged` does not have this problem in the same way, since it also gives you `PreviousDamageState`.
 - **Both curves are now pure static functions** (`Cargo.PassengerDamageFromTransportHit` / `PassengerDamageFromTransportDeath`) taking a pre-rolled variance so the caller owns the RNG — testable without a World, see `CargoPassengerDamageTest`. **Test the guard as a named predicate too, not just the arithmetic:** the one-shot-kill assertion passed throughout the bug above, because it exercised the formula and the defect was in the wiring that decides whether the formula is ever reached.
-- **Analyzers do not run in Release.** `engine/Directory.Build.props:51` strips `@(Analyzer)` when `Configuration=Release`, and `make.ps1 check` (which builds Debug) currently dies at restore on a pre-existing `NU1901` NuGet-audit error — so **StyleCop/Roslynator effectively never run on new code**. `dotnet build -c Debug -p:NuGetAudit=false --no-incremental` gets them running again and is worth doing before any C# lands.
+- **Analyzers do not run in Release.** `engine/Directory.Build.props:50-55` strips `@(Analyzer)` when `Configuration=Release` — still true, verified 2026-08-17. ~~and `make.ps1 check` (which builds Debug) currently dies at restore on a pre-existing `NU1901` NuGet-audit error — so **StyleCop/Roslynator effectively never run on new code**.~~ `dotnet build -c Debug -p:NuGetAudit=false --no-incremental` gets them running again and is worth doing before any C# lands.
+  > **CORRECTED 2026-08-17 — same stale-CI family as the 2026-08-16 determinism sweep entry; verified against runs `31981227086` and `31978609314`.** `NU1901` appears **zero** times in either run. The analyzers **do** run, on every push, in both jobs that get as far as a Debug build — they report **106 errors** (84 `RCS1226`), so new C# is being checked and is failing that check. What is true is that **nothing acts on the result**: `Linux (.NET 6.0)` fails on it (nobody has fixed it since at least 2026-08-16), and `Windows (.NET 6.0)` logs the identical 106 and reports `success` anyway, because `make.ps1`'s `Check-Command` prints `Build failed.` and returns 0. **"Analyzers never run" was the wrong diagnosis of a real symptom; the right one is "analyzers run and their verdict is discarded on the only lane that stays green."**
 - **Where a variance roll sits relative to a scaling factor changes the tuning, not just the spread.** Folding the roll in *before* a 50% cut halves the curve end to end; adding it *after* leaves the unlucky rolls — the ones that decide who lives — barely moved.
 ## 2026-08-10 — `Mobile.MoveResult` IS NEVER ASSIGNED, SO A MOVE TOWARD AN UNREACHABLE DESTINATION CAN NEVER TERMINATE — two exit conditions are silently dead engine-wide
 
@@ -6106,9 +6159,15 @@ So before this branch the scout helicopter's minigun was **five times better tha
 
 **Instrument warning — `tools/combat-sim/data/stats.json` is committed and goes stale.** The checked-in dump was generated `2026-05-11`; `ab64b15a` retuned the littlebird minigun (`range 15→8c0, inaccuracy 0c256→0c64`) afterwards. Reading the committed file gave range `15360` and inaccuracy `256` — both wrong, and both wrong in the direction that would have justified a bogus "the gun is inaccurate" conclusion. `BALANCE.md` says to re-run `dump-stats.sh`; treat that as mandatory rather than advisory, because the stale file is plausible rather than obviously broken.
 
-## 2026-08-16 — two IOrderGenerators mutate simulation state with no Order; the visibility lead is a false alarm; the lint suite is dark
+## 2026-08-16 — two IOrderGenerators mutate simulation state with no Order; the visibility lead is a false alarm; ~~the lint suite is dark~~ the lint suite runs on every push and is permanently red
 
 Read-only determinism sweep, no production code changed. Repo state `main @ 43d55ace`.
+
+> **Heading corrected 2026-08-17.** The third clause was false; this entry's CI paragraph has now been
+> audited twice — see the two correction blocks below. **Scope of that audit: the CI paragraph only.** The
+> determinism findings in this entry (the two `IOrderGenerator` sites, the visibility refutation, the three
+> dead `[Sync]` attributes) were **not** re-verified by either correction and are neither confirmed nor
+> impeached by them.
 
 **The general shape: an `IOrderGenerator` runs only on the client holding the mouse.** Any simulation mutation it performs that is not carried by a yielded `Order` happens on exactly one machine. A full audit of all 22 `IOrderGenerator` implementations found **two** live instances, both WW3MOD-authored; every upstream generator is clean.
 
@@ -6129,6 +6188,17 @@ Read-only determinism sweep, no production code changed. Repo state `main @ 43d5
 > - **`NU1901` is no longer the cause anywhere.** Both Linux jobs fail at `Check Code` on **Roslynator `RCS1226`** ("Add paragraph to documentation comment"), **105 errors**, nearly all in `engine/OpenRA.Mods.Common/Traits/BotModules/*Math.cs` — this project's own doc-comment style, not a NuGet advisory.
 >
 > **The closing slogan survives, for a different and worse reason.** The suite is not dark; it is **permanently red at a 437-error pre-existing baseline**, so a newly added rule's finding arrives as error #438 in a tally nobody reads, on a job that is already failing for everyone. **That argues for a baseline floor — fail only on NEW errors — not for declining to write rules.** Until such a floor exists, say *that*, rather than repeating the claim that the suite never executes.
+
+> **SECOND CORRECTION, 2026-08-17 — the first correction is right in its conclusion and wrong in three of its details, and one of those details is the dangerous kind.** Audited against the two most recent completed runs, `31981227086` (the newest completed at the time of writing, `main` @ the `wt/garrison-suppression` merge) and `31978609314` (the run the first correction cites); job logs pulled with `gh run view --log-failed` and `gh api .../actions/jobs/<id>/logs`, not read off the workflow YAML. **The two runs agree on every point below**, so none of this is a one-run artifact.
+>
+> 1. **"Both Linux jobs fail at `Check Code` on Roslynator `RCS1226`" is wrong about `Linux (mono)`. That job never reaches an analyzer — it fails to COMPILE.** Three hard `CS0117`s: `'Convert' does not contain a definition for 'ToHexString'`, at `Network/BuildFingerprint.cs:246`, `:308` and `Graphics/SequenceIntegrity.cs:91`. `Convert.ToHexString` is .NET 5+ and is absent from mono's BCL. Both call sites landed 2026-08-11 (`bedf18e0`, `d836bd07`), so **the mono lane has not built the engine since 2026-08-11** — a portability regression that is invisible while everyone reads the failure as "CI is red on style".
+> 2. **The count is 106, not 105, and RCS1226 is 84 of it, not "nearly all".** MSBuild prints each error twice (once at emission, once in the summary), so raw log-line counts double. The `Linux (.NET 6.0)` summary line reads `106 Error(s)`: 84 `RCS1226` + 5 `CA1862` + 4 `SA1013` + 4 `RCS1155` + 3 `CS1734` + 2 `SA1509` + 1 each of `SA1612`, `SA1514`, `IDE0251`, `CA2231`. Across 48 files.
+> 3. **THE DANGEROUS ONE: `Windows (.NET 6.0)` does not pass `Check Code` because the code is clean. It passes because `make.ps1` throws the exit code away.** `Check-Command` (`make.ps1`) runs the same `dotnet build -c Debug -warnaserror -p:EnforceCodeStyleInBuild=true`, and on failure prints `Build failed.` **in red and then returns 0** — no `exit 1`, no `$LASTEXITCODE` propagation. The Windows job log carries the identical `106 Error(s)` summary twice, and its `Check Code` step still reports `success`. **So "Windows passes `Check Code`" is not evidence of anything about the code**, and any future reader tempted to conclude "the analyzers are clean on Windows, so this is a Linux-only style problem" would be wrong in the same shape as the original entry.
+> 4. **437 is not 437 defects, and it is not a property of this repo.** The 437 errors are **369 distinct messages**, and **355 of them (81%) are one class: `:0: sprite file \`X\` not found.`** — one line per missing RA sprite. The runner has no Red Alert content: `mods/ww3mod/mod.yaml:15` mounts `~^SupportDir|Content/ra/v2/`, which is downloaded at first run and is never installed in CI. **A local `make test` on a machine with content installed will not report these**, so the CI total and any local total are not comparable numbers, and neither is "the" error count. Repo-owned remainder: **82** — 62 `This map does not define a valid cordon` (scenario maps), 6 `must specify LockFaction: True`, 4 invalid-enemy, 4 unknown-owner, 3 unconsumed-condition on `halo`, 2 spawn-count, 1 `CheckFluentReferences` know-how.
+>
+> **What in the original paragraph survives verification** (checked, not assumed): the suite really is **38** passes (`engine/OpenRA.Mods.Common/Lint/` holds exactly 38 `ILint*` files); `ww3-dev.ps1 check` really does only grep for `Console.WriteLine` and `Cost: 1`; `CheckSyncAnnotations` really does emit at *warning* severity (`:55,:57`); and `TREAT_WARNINGS_AS_ERRORS` really is **read** at `CheckYaml.cs:51` and **set nowhere** in the repo — so warning-severity findings still cannot fail anything.
+>
+> **The method note is the transferable part.** Both the original claim and the first correction were produced by reading one artifact and generalising: the original read the workflow YAML, the correction read one run's `--log-failed` output — which by construction omits the *passing* steps, which is exactly where the swallowed Windows failure was hiding. **A claim about what CI does needs the full job log of a passing step too, not just the failed ones.**
 
 **A detector nobody runs is a bug list nobody reads** — and a detector everyone runs but nobody can hear is the same thing wearing a green tick's clothes.
 

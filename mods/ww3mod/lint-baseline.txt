@@ -1,0 +1,505 @@
+# WW3MOD lint baseline — the known-bad floor for `./utility.sh --check-yaml` (`make test`).
+#
+# HOW IT IS READ. Every error the lint emits is reduced to a signature `<scope> | <first line of the
+# message>`, where <scope> is the map's package folder name, or `mod` for the mod-wide passes. A signature
+# listed here does not fail the run. A signature NOT listed here does.
+#
+# HOW TO CHANGE IT. Lowering is automatic, raising is not, and that asymmetry is the whole point:
+#   * You fixed something -> the run names the entries that no longer occur and FAILS until they are gone.
+#     Re-run with LINT_BASELINE_PRUNE=true to remove them and commit this file with your fix. The prune
+#     path can only REMOVE lines; it can never add one.
+#   * You hit a NEW error -> fix it. Adding a line here is a deliberate act that shows up as an added line
+#     in review, and it belongs in the right section, with a reason if it is going in [accepted].
+#
+# SECTIONS.
+#   [repo]                 DEBT. Errors this repository owns and has not fixed. Every run prints this count
+#                          as a standing amnesty, with the age of the oldest entry and the largest single
+#                          class in it, because the way a baseline fails is not by letting a regression
+#                          through — it is by becoming furniture nobody reads. THIS is the number that is
+#                          supposed to fall.
+#   [accepted]             Errors that are CORRECT and must keep occurring: a map that has to breach a rule
+#                          in order to be the test it is. Enforced the same way — if one stops occurring it
+#                          still has to be removed — but never counted as debt, because counting a decision
+#                          as debt is how a debt figure stops meaning anything. Every entry needs a comment
+#                          above it saying why.
+#   [requires-ra-content]  Only occur where the Red Alert content is absent. `mods/ww3mod/mod.yaml:15` mounts
+#                          `~^SupportDir|Content/ra/v2/`, downloaded at first run; the CI runner never
+#                          installs it, so every RA sprite reads as missing there and none of these appear on
+#                          a developer machine that has run the game. Matched but never required, so both
+#                          environments pass, and never pruned — an environment that cannot produce an entry
+#                          has nothing to say about whether it is fixed. NOT defects and NOT lint debt:
+#                          installing content in CI deletes this entire section at a stroke.
+#
+# THE TWO NUMBERS, RECONCILED (2026-08-17, both measured, neither guessed).
+#   CI run 31981227086 (Windows, `Check Mods`):  Errors: 437
+#   local `make test` on this branch:            Errors:  89
+# They are the same check over the same single mod (`MOD_ID="ww3mod"`; the CI job logs exactly one
+# `Testing mod:` line and one `Errors:` line), and they reconcile exactly:
+#   437  =  87  +  350
+#           87   the repo's own errors, identical in both environments
+#          350   RA sprites that exist only where the content is installed; absent on the CI runner
+# and the local 89 is that same 87 plus the 2 findings of the unregistered-symbol rule added in this
+# commit, which CI has not run yet. So: 437 is not a defect count and never was. 87 is. Anyone quoting
+# 437 as lint debt is quoting a missing CI dependency 4x over.
+#
+# Five `sprite file X not found` errors occur in BOTH environments and are therefore real; they are in
+# [repo] above, not in the content section.
+
+[repo]
+# since 2026-08-17
+# PENDING A DECISION, NOT ACCEPTED — found by the unregistered-symbol rule when it was added
+# (2026-08-17), recorded only so the floor could land in the same commit as the rule. Both are in the
+# HPF debug overlay and both are latent: PARENT_TOP resolves to 0, and 0 is what a parent-relative Y
+# already meant. Fix them and prune these two lines.
+mod | Unknown widget substitution symbol `PARENT_TOP` in ww3mod|chrome/ingame-player.yaml (`Y: PARENT_TOP`). It is not registered anywhere and evaluates to 0 with no warning. Registered here: WINDOW_WIDTH, WINDOW_HEIGHT, PARENT_WIDTH, PARENT_HEIGHT, WIDTH, HEIGHT, DROPDOWN_WIDTH.
+mod | Unknown widget substitution symbol `PARENT_TOP` in ww3mod|chrome/ingame-player.yaml (`Y: PARENT_TOP + 35`). It is not registered anywhere and evaluates to 0 with no warning. Registered here: WINDOW_WIDTH, WINDOW_HEIGHT, PARENT_WIDTH, PARENT_HEIGHT, WIDTH, HEIGHT, DROPDOWN_WIDTH.
+demo-experimental-capture-coordinator | Actor `OpponentSR` is owned by unknown player `Russia-bot`.
+demo-experimental-capture-coordinator | Actor `OwnSR` is owned by unknown player `USA-bot`.
+demo-experimental-capture-coordinator | The player `Russia-bot (Normal)` enemy list contains an invalid player `USA-bot`.
+demo-experimental-capture-coordinator | The player `USA-bot (experimental)` enemy list contains an invalid player `Russia-bot`.
+demo-experimental-capture-coordinator | This map does not define a valid cordon.
+demo-layered-defence | This map does not define a valid cordon.
+demo-tactical-positioning | This map does not define a valid cordon.
+mod | Lint pass (CheckFluentReferences) lacks the know-how to test translatable field `ResourceTypeInfo.Name` - previous warnings may be incorrect
+test-aa-breakoff-critical | Actor type `halo` consumes conditions that are not granted: crash-disabled, autorotation, crash-landing, rotor-stopped.
+test-aa-overkill-cadence | Actor type `halo` consumes conditions that are not granted: crash-disabled, autorotation, crash-landing, rotor-stopped.
+test-aa-overkill-pump | Actor type `halo` consumes conditions that are not granted: crash-disabled, autorotation, crash-landing, rotor-stopped.
+test-cohesion-river-zeta-actual | The player `Multi0` must specify LockFaction: True.
+test-cohesion-river-zeta-actual | The player `Multi1` must specify LockFaction: True.
+test-cohesion-river-zeta-actual | The player `Multi2` must specify LockFaction: True.
+test-cohesion-river-zeta-actual | The player `Multi3` must specify LockFaction: True.
+test-cohesion-river-zeta-actual | The player `Multi4` must specify LockFaction: True.
+test-cohesion-river-zeta-actual | The player `Multi5` must specify LockFaction: True.
+test-cohesion-river-zeta-actual | This map does not define a valid cordon.
+test-combined-arms-rendezvous | This map does not define a valid cordon.
+test-crate-rearm | The map allows 2 possible players, but defines only 1 spawn points.
+test-crate-rearm | This map does not define a valid cordon.
+test-crate-targetable | This map does not define a valid cordon.
+test-experimental-poi-capture | This map does not define a valid cordon.
+test-experimental-poi-harness | This map does not define a valid cordon.
+test-experimental-poi-observe | Actor `OpponentSR` is owned by unknown player `Russia-bot`.
+test-experimental-poi-observe | Actor `OwnSR` is owned by unknown player `USA-bot`.
+test-experimental-poi-observe | The player `Russia-bot (Normal)` enemy list contains an invalid player `USA-bot`.
+test-experimental-poi-observe | The player `USA-bot (experimental)` enemy list contains an invalid player `Russia-bot`.
+test-experimental-poi-observe | This map does not define a valid cordon.
+test-ferry-fills-seats | This map does not define a valid cordon.
+test-field-crate-drop | This map does not define a valid cordon.
+test-field-heli-unload | This map does not define a valid cordon.
+test-frontline-reachability | This map does not define a valid cordon.
+test-heli-squad-forms | This map does not define a valid cordon.
+test-infantry-seek-supplies | The map allows 2 possible players, but defines only 1 spawn points.
+test-infantry-seek-supplies | This map does not define a valid cordon.
+test-offense-ammo-guard | This map does not define a valid cordon.
+test-savegame-resume-riverzeta | This map does not define a valid cordon.
+test-savegame-resume-riverzeta-human | This map does not define a valid cordon.
+test-stance-anchor-move | This map does not define a valid cordon.
+test-stance-optout | This map does not define a valid cordon.
+test-stance-positioning | This map does not define a valid cordon.
+test-stance-redirect-midadjust | This map does not define a valid cordon.
+test-supply-far-front-reached | This map does not define a valid cordon.
+test-supply-safe-front-keeps-cargo | This map does not define a valid cordon.
+test-supply-under-danger | This map does not define a valid cordon.
+test-tecn-purpose | This map does not define a valid cordon.
+test-tecn-ride | This map does not define a valid cordon.
+test-unit-defaults-apply | This map does not define a valid cordon.
+tournament-arena-composition-2p | This map does not define a valid cordon.
+tournament-arena-diagonal-2p | This map does not define a valid cordon.
+tournament-arena-mirror-2p | This map does not define a valid cordon.
+tournament-arena-skirmish-2p | This map does not define a valid cordon.
+tournament-capture-arena-2p | This map does not define a valid cordon.
+tournament-capture-arena-mirror-2p | This map does not define a valid cordon.
+tournament-experimental-vs-normal-2p | This map does not define a valid cordon.
+tournament-experimental-vs-normal-mirror-2p | This map does not define a valid cordon.
+tournament-parity-cross-usru | This map does not define a valid cordon.
+tournament-parity-cross-usru-swapped | This map does not define a valid cordon.
+tournament-parity-mirror-ru | This map does not define a valid cordon.
+tournament-parity-mirror-us | This map does not define a valid cordon.
+tournament-s1-eco-cal-nn | This map does not define a valid cordon.
+tournament-s1-eco-floor-vs-normal | This map does not define a valid cordon.
+tournament-s1-eco-polar-disorder | This map does not define a valid cordon.
+tournament-s1-eco-polar-disorder-cal-nn | This map does not define a valid cordon.
+tournament-s1-eco-polar-disorder-mirror | This map does not define a valid cordon.
+tournament-s1-eco-river-zeta | This map does not define a valid cordon.
+tournament-s1-eco-river-zeta-mirror | This map does not define a valid cordon.
+tournament-s1-eco-woodland-warfare | This map does not define a valid cordon.
+tournament-s1-eco-woodland-warfare-cal-nn | This map does not define a valid cordon.
+tournament-s1-eco-woodland-warfare-mirror | This map does not define a valid cordon.
+tournament-s2-combat-polar-disorder | This map does not define a valid cordon.
+tournament-s2-combat-polar-disorder-cal-nn | This map does not define a valid cordon.
+tournament-s2-combat-polar-disorder-mirror | This map does not define a valid cordon.
+tournament-s2-combat-river-zeta | This map does not define a valid cordon.
+tournament-s2-combat-river-zeta-cal-nn | This map does not define a valid cordon.
+tournament-s2-combat-river-zeta-mirror | This map does not define a valid cordon.
+tournament-s2-combat-woodland-warfare | This map does not define a valid cordon.
+tournament-s2-combat-woodland-warfare-cal-nn | This map does not define a valid cordon.
+tournament-s2-combat-woodland-warfare-mirror | This map does not define a valid cordon.
+wip-transport-delivers | This map does not define a valid cordon.
+
+# These five occur WITH the Red Alert content installed (verified by a local `make test`,
+# 2026-08-17), so they are not the CI-runner artifact the section below describes: the files are
+# absent from this repo, from engine/mods, and from the RA content. Real debt, five sequences.
+# since 2026-08-17
+mod | :0: sprite file `b2bomb.shp` not found.
+mod | :0: sprite file `pip-cloak.shp` not found.
+mod | :0: sprite file `pip-cover.shp` not found.
+mod | :0: sprite file `mslo.int` not found.
+mod | :0: sprite file `bib3.int` not found.
+
+[accepted]
+# since 2026-08-17
+# test-edge-spawn-shadow exists to test the edge case where the playable bounds ARE the map size, so
+# it must not be cordoned. The lint is right and the map is right; the exception is the resolution.
+test-edge-spawn-shadow | This map does not define a valid cordon.
+
+[requires-ra-content]
+# since 2026-08-17
+mod | :0: sprite file `120mm.shp` not found.
+mod | :0: sprite file `1tnk.shp` not found.
+mod | :0: sprite file `2tnk.shp` not found.
+mod | :0: sprite file `3tnk.shp` not found.
+mod | :0: sprite file `4tnk.shp` not found.
+mod | :0: sprite file `50cal.shp` not found.
+mod | :0: sprite file `afld.shp` not found.
+mod | :0: sprite file `afldmake.shp` not found.
+mod | :0: sprite file `agun.shp` not found.
+mod | :0: sprite file `agunmake.shp` not found.
+mod | :0: sprite file `apc.shp` not found.
+mod | :0: sprite file `apwr.shp` not found.
+mod | :0: sprite file `apwrmake.shp` not found.
+mod | :0: sprite file `armor.shp` not found.
+mod | :0: sprite file `art-exp1.shp` not found.
+mod | :0: sprite file `atek.shp` not found.
+mod | :0: sprite file `atekmake.shp` not found.
+mod | :0: sprite file `atomicdn.shp` not found.
+mod | :0: sprite file `atomicup.shp` not found.
+mod | :0: sprite file `atomsfx.shp` not found.
+mod | :0: sprite file `badr.shp` not found.
+mod | :0: sprite file `badricon.shp` not found.
+mod | :0: sprite file `barb.shp` not found.
+mod | :0: sprite file `barl.shp` not found.
+mod | :0: sprite file `barr.shp` not found.
+mod | :0: sprite file `barrmake.shp` not found.
+mod | :0: sprite file `bib2.des` not found.
+mod | :0: sprite file `bib2.sno` not found.
+mod | :0: sprite file `bib2.tem` not found.
+mod | :0: sprite file `bib3.des` not found.
+mod | :0: sprite file `bib3.sno` not found.
+mod | :0: sprite file `bib3.tem` not found.
+mod | :0: sprite file `bio.shp` not found.
+mod | :0: sprite file `biomake.shp` not found.
+mod | :0: sprite file `bomb.shp` not found.
+mod | :0: sprite file `bomblet.shp` not found.
+mod | :0: sprite file `boxes01.int` not found.
+mod | :0: sprite file `boxes02.int` not found.
+mod | :0: sprite file `boxes03.int` not found.
+mod | :0: sprite file `boxes04.int` not found.
+mod | :0: sprite file `boxes05.int` not found.
+mod | :0: sprite file `boxes06.int` not found.
+mod | :0: sprite file `boxes07.int` not found.
+mod | :0: sprite file `boxes08.int` not found.
+mod | :0: sprite file `boxes09.int` not found.
+mod | :0: sprite file `brik.shp` not found.
+mod | :0: sprite file `brl3.shp` not found.
+mod | :0: sprite file `burn-l.shp` not found.
+mod | :0: sprite file `burn-m.shp` not found.
+mod | :0: sprite file `burn-s.shp` not found.
+mod | :0: sprite file `chronbox.shp` not found.
+mod | :0: sprite file `clock.shp` not found.
+mod | :0: sprite file `corpse1.sno` not found.
+mod | :0: sprite file `corpse1.tem` not found.
+mod | :0: sprite file `cr1.des` not found.
+mod | :0: sprite file `cr1.sno` not found.
+mod | :0: sprite file `cr1.tem` not found.
+mod | :0: sprite file `cr2.des` not found.
+mod | :0: sprite file `cr2.sno` not found.
+mod | :0: sprite file `cr2.tem` not found.
+mod | :0: sprite file `cr3.des` not found.
+mod | :0: sprite file `cr3.sno` not found.
+mod | :0: sprite file `cr3.tem` not found.
+mod | :0: sprite file `cr4.des` not found.
+mod | :0: sprite file `cr4.tem` not found.
+mod | :0: sprite file `cr5.des` not found.
+mod | :0: sprite file `cr5.tem` not found.
+mod | :0: sprite file `cr6.des` not found.
+mod | :0: sprite file `cr6.sno` not found.
+mod | :0: sprite file `cr6.tem` not found.
+mod | :0: sprite file `ctnk.shp` not found.
+mod | :0: sprite file `cycl.shp` not found.
+mod | :0: sprite file `dd-crnr.shp` not found.
+mod | :0: sprite file `deviator.shp` not found.
+mod | :0: sprite file `dollar.shp` not found.
+mod | :0: sprite file `dome.shp` not found.
+mod | :0: sprite file `domemake.shp` not found.
+mod | :0: sprite file `dragon.shp` not found.
+mod | :0: sprite file `dtrk.shp` not found.
+mod | :0: sprite file `dtrkicon.shp` not found.
+mod | :0: sprite file `earth.shp` not found.
+mod | :0: sprite file `electro.sno` not found.
+mod | :0: sprite file `electro.tem` not found.
+mod | :0: sprite file `empulse.shp` not found.
+mod | :0: sprite file `facficon.shp` not found.
+mod | :0: sprite file `fb1.shp` not found.
+mod | :0: sprite file `fb2.shp` not found.
+mod | :0: sprite file `fball1.shp` not found.
+mod | :0: sprite file `fcom.shp` not found.
+mod | :0: sprite file `fenc.shp` not found.
+mod | :0: sprite file `fire1.shp` not found.
+mod | :0: sprite file `fire2.shp` not found.
+mod | :0: sprite file `fire4.shp` not found.
+mod | :0: sprite file `fix.shp` not found.
+mod | :0: sprite file `fixmake.shp` not found.
+mod | :0: sprite file `flagfly.shp` not found.
+mod | :0: sprite file `flak.shp` not found.
+mod | :0: sprite file `flmspt.shp` not found.
+mod | :0: sprite file `fpls.shp` not found.
+mod | :0: sprite file `fpower.shp` not found.
+mod | :0: sprite file `frag1.shp` not found.
+mod | :0: sprite file `ftur.shp` not found.
+mod | :0: sprite file `fturmake.shp` not found.
+mod | :0: sprite file `gem01.sno` not found.
+mod | :0: sprite file `gem01.tem` not found.
+mod | :0: sprite file `gem02.sno` not found.
+mod | :0: sprite file `gem02.tem` not found.
+mod | :0: sprite file `gem03.sno` not found.
+mod | :0: sprite file `gem03.tem` not found.
+mod | :0: sprite file `gem04.sno` not found.
+mod | :0: sprite file `gem04.tem` not found.
+mod | :0: sprite file `gold01.sno` not found.
+mod | :0: sprite file `gold01.tem` not found.
+mod | :0: sprite file `gold02.sno` not found.
+mod | :0: sprite file `gold02.tem` not found.
+mod | :0: sprite file `gold03.sno` not found.
+mod | :0: sprite file `gold03.tem` not found.
+mod | :0: sprite file `gold04.sno` not found.
+mod | :0: sprite file `gold04.tem` not found.
+mod | :0: sprite file `gpsbox.shp` not found.
+mod | :0: sprite file `gun.shp` not found.
+mod | :0: sprite file `gunmake.shp` not found.
+mod | :0: sprite file `h2o_exp1.shp` not found.
+mod | :0: sprite file `h2o_exp2.shp` not found.
+mod | :0: sprite file `h2o_exp3.shp` not found.
+mod | :0: sprite file `hbox.sno` not found.
+mod | :0: sprite file `hbox.tem` not found.
+mod | :0: sprite file `hboxmake.sno` not found.
+mod | :0: sprite file `hboxmake.tem` not found.
+mod | :0: sprite file `hosp.shp` not found.
+mod | :0: sprite file `hospmake.shp` not found.
+mod | :0: sprite file `hpad.shp` not found.
+mod | :0: sprite file `hpadmake.shp` not found.
+mod | :0: sprite file `ice01.sno` not found.
+mod | :0: sprite file `ice02.sno` not found.
+mod | :0: sprite file `ice03.sno` not found.
+mod | :0: sprite file `ice04.sno` not found.
+mod | :0: sprite file `ice05.sno` not found.
+mod | :0: sprite file `invulbox.shp` not found.
+mod | :0: sprite file `jeep.shp` not found.
+mod | :0: sprite file `lar1.shp` not found.
+mod | :0: sprite file `lar2.shp` not found.
+mod | :0: sprite file `litning.shp` not found.
+mod | :0: sprite file `lores|atomicon.shp` not found.
+mod | :0: sprite file `lores|camicon.shp` not found.
+mod | :0: sprite file `lores|pbmbicon.shp` not found.
+mod | :0: sprite file `lores|pinficon.shp` not found.
+mod | :0: sprite file `lrotor.shp` not found.
+mod | :0: sprite file `lst.shp` not found.
+mod | :0: sprite file `mcv.shp` not found.
+mod | :0: sprite file `mgun.shp` not found.
+mod | :0: sprite file `mig.shp` not found.
+mod | :0: sprite file `minigun.shp` not found.
+mod | :0: sprite file `minp.shp` not found.
+mod | :0: sprite file `minv.shp` not found.
+mod | :0: sprite file `miss.shp` not found.
+mod | :0: sprite file `missile.shp` not found.
+mod | :0: sprite file `missile2.shp` not found.
+mod | :0: sprite file `mnly.shp` not found.
+mod | :0: sprite file `mouse.shp` not found.
+mod | :0: sprite file `moveflsh.int` not found.
+mod | :0: sprite file `moveflsh.sno` not found.
+mod | :0: sprite file `moveflsh.tem` not found.
+mod | :0: sprite file `mrj.shp` not found.
+mod | :0: sprite file `mslo.sno` not found.
+mod | :0: sprite file `mslo.tem` not found.
+mod | :0: sprite file `mslomake.sno` not found.
+mod | :0: sprite file `mslomake.tem` not found.
+mod | :0: sprite file `msub.shp` not found.
+mod | :0: sprite file `napalm2.shp` not found.
+mod | :0: sprite file `napalm3.shp` not found.
+mod | :0: sprite file `parabomb.shp` not found.
+mod | :0: sprite file `parabox.shp` not found.
+mod | :0: sprite file `parach.shp` not found.
+mod | :0: sprite file `patriot.shp` not found.
+mod | :0: sprite file `pbox.shp` not found.
+mod | :0: sprite file `pboxmake.shp` not found.
+mod | :0: sprite file `pdox.shp` not found.
+mod | :0: sprite file `pdoxmake.shp` not found.
+mod | :0: sprite file `piff.shp` not found.
+mod | :0: sprite file `piffpiff.shp` not found.
+mod | :0: sprite file `pinficon.shp` not found.
+mod | :0: sprite file `pips.shp` not found.
+mod | :0: sprite file `powr.shp` not found.
+mod | :0: sprite file `powrmake.shp` not found.
+mod | :0: sprite file `procmake.shp` not found.
+mod | :0: sprite file `pt.shp` not found.
+mod | :0: sprite file `quee.shp` not found.
+mod | :0: sprite file `rock1.des` not found.
+mod | :0: sprite file `rock2.des` not found.
+mod | :0: sprite file `rock3.des` not found.
+mod | :0: sprite file `rock4.des` not found.
+mod | :0: sprite file `rock5.des` not found.
+mod | :0: sprite file `rock6.des` not found.
+mod | :0: sprite file `rock7.des` not found.
+mod | :0: sprite file `rrotor.shp` not found.
+mod | :0: sprite file `samfire.shp` not found.
+mod | :0: sprite file `samicon.shp` not found.
+mod | :0: sprite file `sammake.shp` not found.
+mod | :0: sprite file `sbag.shp` not found.
+mod | :0: sprite file `sc1.des` not found.
+mod | :0: sprite file `sc1.sno` not found.
+mod | :0: sprite file `sc1.tem` not found.
+mod | :0: sprite file `sc2.des` not found.
+mod | :0: sprite file `sc2.sno` not found.
+mod | :0: sprite file `sc2.tem` not found.
+mod | :0: sprite file `sc3.des` not found.
+mod | :0: sprite file `sc3.sno` not found.
+mod | :0: sprite file `sc3.tem` not found.
+mod | :0: sprite file `sc4.des` not found.
+mod | :0: sprite file `sc4.tem` not found.
+mod | :0: sprite file `sc5.des` not found.
+mod | :0: sprite file `sc5.sno` not found.
+mod | :0: sprite file `sc5.tem` not found.
+mod | :0: sprite file `sc6.des` not found.
+mod | :0: sprite file `sc6.sno` not found.
+mod | :0: sprite file `sc6.tem` not found.
+mod | :0: sprite file `select.shp` not found.
+mod | :0: sprite file `smoke_m.shp` not found.
+mod | :0: sprite file `smokey.shp` not found.
+mod | :0: sprite file `sonarbox.shp` not found.
+mod | :0: sprite file `speed.shp` not found.
+mod | :0: sprite file `spen.shp` not found.
+mod | :0: sprite file `spenmake.shp` not found.
+mod | :0: sprite file `sputdoor.shp` not found.
+mod | :0: sprite file `sputnik.shp` not found.
+mod | :0: sprite file `ss.shp` not found.
+mod | :0: sprite file `ssam.shp` not found.
+mod | :0: sprite file `stealth2.shp` not found.
+mod | :0: sprite file `stek.shp` not found.
+mod | :0: sprite file `stekmake.shp` not found.
+mod | :0: sprite file `stnk.shp` not found.
+mod | :0: sprite file `syrd.shp` not found.
+mod | :0: sprite file `syrdicon.shp` not found.
+mod | :0: sprite file `syrdmake.shp` not found.
+mod | :0: sprite file `syrficon.shp` not found.
+mod | :0: sprite file `t01.sno` not found.
+mod | :0: sprite file `t01.tem` not found.
+mod | :0: sprite file `t02.sno` not found.
+mod | :0: sprite file `t02.tem` not found.
+mod | :0: sprite file `t03.sno` not found.
+mod | :0: sprite file `t03.tem` not found.
+mod | :0: sprite file `t04.des` not found.
+mod | :0: sprite file `t05.sno` not found.
+mod | :0: sprite file `t05.tem` not found.
+mod | :0: sprite file `t06.sno` not found.
+mod | :0: sprite file `t06.tem` not found.
+mod | :0: sprite file `t07.sno` not found.
+mod | :0: sprite file `t07.tem` not found.
+mod | :0: sprite file `t08.des` not found.
+mod | :0: sprite file `t08.sno` not found.
+mod | :0: sprite file `t08.tem` not found.
+mod | :0: sprite file `t09.des` not found.
+mod | :0: sprite file `t10.sno` not found.
+mod | :0: sprite file `t10.tem` not found.
+mod | :0: sprite file `t11.sno` not found.
+mod | :0: sprite file `t11.tem` not found.
+mod | :0: sprite file `t12.sno` not found.
+mod | :0: sprite file `t12.tem` not found.
+mod | :0: sprite file `t13.sno` not found.
+mod | :0: sprite file `t13.tem` not found.
+mod | :0: sprite file `t14.sno` not found.
+mod | :0: sprite file `t14.tem` not found.
+mod | :0: sprite file `t15.sno` not found.
+mod | :0: sprite file `t15.tem` not found.
+mod | :0: sprite file `t16.sno` not found.
+mod | :0: sprite file `t16.tem` not found.
+mod | :0: sprite file `t17.sno` not found.
+mod | :0: sprite file `t17.tem` not found.
+mod | :0: sprite file `tabs.shp` not found.
+mod | :0: sprite file `tc01.sno` not found.
+mod | :0: sprite file `tc01.tem` not found.
+mod | :0: sprite file `tc02.sno` not found.
+mod | :0: sprite file `tc02.tem` not found.
+mod | :0: sprite file `tc03.sno` not found.
+mod | :0: sprite file `tc03.tem` not found.
+mod | :0: sprite file `tc04.sno` not found.
+mod | :0: sprite file `tc04.tem` not found.
+mod | :0: sprite file `tc05.sno` not found.
+mod | :0: sprite file `tc05.tem` not found.
+mod | :0: sprite file `tquake.shp` not found.
+mod | :0: sprite file `trans.icn` not found.
+mod | :0: sprite file `tsla.shp` not found.
+mod | :0: sprite file `tslamake.shp` not found.
+mod | :0: sprite file `ttnk.shp` not found.
+mod | :0: sprite file `u2.shp` not found.
+mod | :0: sprite file `v01.sno` not found.
+mod | :0: sprite file `v01.tem` not found.
+mod | :0: sprite file `v02.sno` not found.
+mod | :0: sprite file `v02.tem` not found.
+mod | :0: sprite file `v03.sno` not found.
+mod | :0: sprite file `v03.tem` not found.
+mod | :0: sprite file `v04.sno` not found.
+mod | :0: sprite file `v04.tem` not found.
+mod | :0: sprite file `v05.sno` not found.
+mod | :0: sprite file `v05.tem` not found.
+mod | :0: sprite file `v06.sno` not found.
+mod | :0: sprite file `v06.tem` not found.
+mod | :0: sprite file `v07.sno` not found.
+mod | :0: sprite file `v07.tem` not found.
+mod | :0: sprite file `v08.sno` not found.
+mod | :0: sprite file `v08.tem` not found.
+mod | :0: sprite file `v09.sno` not found.
+mod | :0: sprite file `v09.tem` not found.
+mod | :0: sprite file `v10.sno` not found.
+mod | :0: sprite file `v10.tem` not found.
+mod | :0: sprite file `v11.sno` not found.
+mod | :0: sprite file `v11.tem` not found.
+mod | :0: sprite file `v12.sno` not found.
+mod | :0: sprite file `v12.tem` not found.
+mod | :0: sprite file `v13.sno` not found.
+mod | :0: sprite file `v13.tem` not found.
+mod | :0: sprite file `v14.sno` not found.
+mod | :0: sprite file `v14.tem` not found.
+mod | :0: sprite file `v15.sno` not found.
+mod | :0: sprite file `v15.tem` not found.
+mod | :0: sprite file `v16.sno` not found.
+mod | :0: sprite file `v16.tem` not found.
+mod | :0: sprite file `v17.sno` not found.
+mod | :0: sprite file `v17.tem` not found.
+mod | :0: sprite file `v18.sno` not found.
+mod | :0: sprite file `v18.tem` not found.
+mod | :0: sprite file `v19.shp` not found.
+mod | :0: sprite file `v2.shp` not found.
+mod | :0: sprite file `v20.des` not found.
+mod | :0: sprite file `v21.des` not found.
+mod | :0: sprite file `v22.des` not found.
+mod | :0: sprite file `v23.des` not found.
+mod | :0: sprite file `v24.des` not found.
+mod | :0: sprite file `v25.des` not found.
+mod | :0: sprite file `v26.des` not found.
+mod | :0: sprite file `v27.des` not found.
+mod | :0: sprite file `v28.des` not found.
+mod | :0: sprite file `v29.des` not found.
+mod | :0: sprite file `v30.des` not found.
+mod | :0: sprite file `v31.des` not found.
+mod | :0: sprite file `v32.des` not found.
+mod | :0: sprite file `v33.des` not found.
+mod | :0: sprite file `v34.des` not found.
+mod | :0: sprite file `v35.des` not found.
+mod | :0: sprite file `v36.des` not found.
+mod | :0: sprite file `v37.des` not found.
+mod | :0: sprite file `veh-hit1.shp` not found.
+mod | :0: sprite file `veh-hit2.shp` not found.
+mod | :0: sprite file `veh-hit3.shp` not found.
+mod | :0: sprite file `weap.shp` not found.
+mod | :0: sprite file `weap2.shp` not found.
+mod | :0: sprite file `weapmake.shp` not found.
+mod | :0: sprite file `wood.shp` not found.
+mod | :0: sprite file `wwcrate.shp` not found.
