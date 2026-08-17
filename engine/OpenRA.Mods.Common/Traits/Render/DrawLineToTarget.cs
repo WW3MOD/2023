@@ -11,6 +11,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Activities;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Primitives;
@@ -96,18 +97,45 @@ namespace OpenRA.Mods.Common.Traits
 			return RenderAboveShroud(self, wr);
 		}
 
+		/// <summary>
+		/// The tile-marker nodes an actor's activity queue would stamp on the map right now, in draw
+		/// order, with exact duplicates collapsed.
+		/// </summary>
+		/// <remarks>
+		/// ONE MARKER PER CELL, NOT ONE PER ACTIVITY. Several queued activities can legitimately
+		/// predict the SAME cell — unloading a whole class queues one UnloadCargo per man, so ten
+		/// riflemen sent to one waypoint stamped ten copies of the same sprite on the same spot.
+		/// Alpha does not survive that. A TileAlpha below 1 is the cue that a tile is a PREVIEW of
+		/// something that has not happened yet, and ten ghosts at 0.6 composite toward fully opaque,
+		/// which reads as the thing already being real — the marker ends up asserting the opposite
+		/// of what it exists to say. Keyed on the sprite as well as the position, so two genuinely
+		/// different markers landing on one cell both still draw; only exact duplicates collapse.
+		///
+		/// <para>This is the single walk shared by the renderer and by Test.GetTargetLineCells,
+		/// deliberately: that binding's whole value is that its answer cannot disagree with what is
+		/// on screen, and it can only keep that promise by asking the same question.</para>
+		/// </remarks>
+		public static IEnumerable<TargetLineNode> TileNodes(Actor self)
+		{
+			var drawn = new HashSet<(WPos Pos, Sprite Tile)>();
+
+			for (var a = self.CurrentActivity; a != null; a = a.NextActivity)
+				if (!a.IsCanceling)
+					foreach (var n in a.TargetLineNodes(self))
+						if (n.Tile != null && n.Target.Type != TargetType.Invalid
+							&& drawn.Add((n.Target.CenterPosition, n.Tile)))
+							yield return n;
+		}
+
 		static IEnumerable<IRenderable> RenderAboveShroud(Actor self, WorldRenderer wr)
 		{
 			var terrainPal = wr.Palette(TileSet.TerrainPaletteInternalName);
-			var a = self.CurrentActivity;
-			for (; a != null; a = a.NextActivity)
-				if (!a.IsCanceling)
-					foreach (var n in a.TargetLineNodes(self))
-						if (n.Tile != null && n.Target.Type != TargetType.Invalid)
-						{
-							var pal = n.TilePalette != null ? wr.Palette(n.TilePalette) : terrainPal;
-							yield return new SpriteRenderable(n.Tile, n.Target.CenterPosition, WVec.Zero, -511, pal, 1f, n.TileAlpha, float3.Ones, TintModifiers.IgnoreWorldTint, true);
-						}
+
+			foreach (var n in TileNodes(self))
+			{
+				var pal = n.TilePalette != null ? wr.Palette(n.TilePalette) : terrainPal;
+				yield return new SpriteRenderable(n.Tile, n.Target.CenterPosition, WVec.Zero, -511, pal, 1f, n.TileAlpha, float3.Ones, TintModifiers.IgnoreWorldTint, true);
+			}
 		}
 
 		bool IRenderAboveShroud.SpatiallyPartitionable => false;

@@ -1,0 +1,1 @@
+TEST: Unloading a whole class queues one activity per man at one cell - assert the ghosted dismount marker is stamped ONCE there, not once per soldier
