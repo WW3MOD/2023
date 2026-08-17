@@ -802,23 +802,29 @@
 # Note Top negates margin.X, so NEGATIVE X here means RIGHT of centre. Spotted takes y=0, the
 # slot nearest the unit and the one clear of cargo even on a full transport; the two stance
 # glyphs sit side by side on the row above it.
+#
+# The lateral offsets were 13 and 21 on the first screenshot pass and read as ORPHANED: an
+# infantry selection box is only a few px wide, so a glyph 13px off centre floats roughly a
+# cell clear of its soldier and you cannot tell which unit it belongs to in a crowd. Halved to
+# 8 and 16, which tucks the mark against the damage pip (6px wide at x=0, so ±3) without
+# overlapping it. Vehicles have a wider box and were never the problem.
 ^UnitIndicators:
 	WithSpottedDecoration:
 		RequiresSelection: false
 		Position: Top
-		Margin: -13,0
+		Margin: -8,0
 		Text: !
 		Color: FF4A3C
 	WithStanceDecoration@Fire:
 		RequiresSelection: false
 		Axis: Fire
 		Position: Top
-		Margin: -13,-9
+		Margin: -8,-10
 	WithStanceDecoration@Engagement:
 		RequiresSelection: false
 		Axis: Engagement
 		Position: Top
-		Margin: -21,-9
+		Margin: -16,-10
 
 ^AmmoDecoration:
 	ExternalCondition@WeaponPrimary:

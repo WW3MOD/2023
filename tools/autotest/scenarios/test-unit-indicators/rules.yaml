@@ -31,9 +31,9 @@ e1hunt:
 		InitialEngagementStance: Hunt
 		InitialEngagementStanceAI: Hunt
 
-# Sees 20 cells at full strength instead of the standard 4. Paired with an 18-cell standoff
-# this manufactures the one-sided contact the asymmetry rule is about.
+# Sees 24 cells at full strength instead of the standard 4. Paired with the 22-cell standoff
+# in map.yaml this manufactures the one-sided contact the asymmetry rule is about.
 e1watcher:
 	Inherits: E1.russia
 	Vision@10:
-		Range: 20c0
+		Range: 24c0

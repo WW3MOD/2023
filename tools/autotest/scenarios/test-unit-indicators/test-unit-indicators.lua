@@ -7,9 +7,9 @@
 --                with a loaded + damaged + suppressed + selected transport in the middle so
 --                the new glyphs are judged against cargo, damage and suppression rows that
 --                are already competing for the same box.
---   02-probe   — the asymmetry case. Probe is inside Watcher's 20-cell vision but Watcher is
---                outside Probe's, so Watcher should not be on screen and Probe should carry
---                NO spotted mark despite genuinely being seen.
+--   02-probe   — the asymmetry case. Probe is inside Watcher's 24-cell Strength-10 vision but
+--                Watcher is outside anything Probe can resolve, so Probe should carry NO
+--                spotted mark despite genuinely being seen.
 --
 -- Every capture gets its own delay and nothing mutates the world after one is armed:
 -- Test.Screenshot only ARMS the grab, which lands at the end of the next RenderTick, so a
@@ -60,9 +60,12 @@ WorldLoaded = function()
 
 	Trigger.AfterDelay(175, function()
 		TestHarness.Screenshot("02-probe",
-			"expects: one lone blue USA rifleman, NO red '!' beside it, and no Russian unit " ..
-			"visible anywhere in frame. That combination is the asymmetry rule working: Probe " ..
-			"IS being seen, but only by an enemy Probe has not spotted, so nothing is drawn.")
+			"expects: the lone USA rifleman carries NO red '!'. It IS being seen — the Watcher 22 " ..
+			"cells south reveals it at Strength 10 — but Probe's own vision has decayed to Strength 4 " ..
+			"at that range and cannot reveal infantry, which need 9. So we are spotted by an enemy we " ..
+			"have not spotted, and the asymmetry rule draws nothing. NOTE: the harness has no render " ..
+			"player, so there is no fog and enemy units render marks a real player would never see — " ..
+			"judge ONLY the USA rifleman at frame centre.")
 	end)
 
 	Trigger.AfterDelay(225, function()

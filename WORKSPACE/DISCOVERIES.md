@@ -3,6 +3,49 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — AUTOTEST CAPTURES HAVE NO RENDER PLAYER, SO EVERY `ValidRelationships` GATE IS OFF
+
+**Any screenshot of a decoration shows marks a real player would never see.** `WithDecorationBase.ShouldRender`
+(`engine/OpenRA.Mods.Common/Traits/Render/WithDecorationBase.cs:99-105`) only applies its relationship filter
+**inside `if (self.World.RenderPlayer != null)`**. Under `run-test.sh` there is no render player, so the whole
+check is skipped and enemy units happily draw decorations declared `ValidRelationships: Ally` — which is the
+default on `WithDecorationInfo`, i.e. on most pips in the mod.
+
+Found while capturing the spotted/stance indicators: the Russian scout drew the friendly-only spotted mark, and
+so did an enemy unit 26 cells away. Both vanish in a real game. **A capture therefore OVERSTATES clutter**, and
+worse, it can make a leak-prevention rule look broken when it is fine.
+
+**Confirming it costs nothing and does not need a second run:** sample mean terrain brightness at several
+distances from your units in the PNG. Under a real render player, ground outside vision is visibly darker; in
+the harness it was uniform (44.7–48.2 across the whole map), i.e. **no fog is being applied at all**. Uniform
+brightness is the tell.
+
+Two consequences worth carrying: any indicator whose correctness depends on *who is looking* cannot be
+validated by an autotest capture alone; and when a decoration falls back to `self.Owner` for its viewer (as the
+spotted mark does), the fallback is what the capture exercises, not the render-player path.
+
+## 2026-08-17 — A REDUNDANT TRAIT REMOVAL SILENTLY REVERTS THE MAP TO DEFAULT RULES, THEN DIES ELSEWHERE
+
+`-SomeTrait:` on a node that does **not** actually carry the trait is a **hard error**, not a no-op:
+`There are no elements with key SomeTrait to remove`. The trap is that this is easy to author by accident — strip a
+trait from a base actor type, then strip it again on a derived type that `Inherits:` the already-stripped
+parent. The second removal has nothing left to remove.
+
+**The error surfaces nowhere near the cause.** `Map.PostInit` (`engine/OpenRA.Game/Map/Map.cs:533-547`) catches
+any rules-load failure, sets `InvalidCustomRules`, and **falls back to the entire DEFAULT ruleset**. Every custom
+actor type the map defined then ceases to exist, and the map dies later in `SetDensityLayer` with
+`KeyNotFoundException: The given key 'e1hold' was not present in the dictionary` — which reads like a typo in the
+map's actor list and is nothing of the sort. The real message is only in `debug.log` as
+`Failed to load rules for <map title> with error`.
+
+**Rule: on a `KeyNotFoundException` for a map-defined actor type, do not debug the actor list — grep debug.log
+for `Failed to load rules` first.** Cost a full run to learn.
+
+Also found in the same pass: `Cargo.LoadPassenger` on an actor **already in the world** crashes `World.Add` with
+a duplicate `ActorID`, and the `ArgumentException` escapes a Lua `pcall`, so guarding the call does not save the
+run. The `CargoInit` map init (`Cargo: type,type`) exists in C# but is used by no map in this repo and was not
+verified either.
+
 ## 2026-08-17 — A RATIO FLOOR HAS A CLIFF, AND THE FAILURE MODE IS SILENT: THE FLOOR SIMPLY NEVER EXISTS
 
 `SupportFloorMath.EffectiveFloor` is `min(cap, supported/per)`, so the floor is **exactly zero on every cycle

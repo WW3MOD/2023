@@ -61,4 +61,4 @@ e1hunt:
 e1watcher:
 	Inherits: E1.russia
 	Vision@10:
-		Range: 20c0
+		Range: 24c0
