@@ -108,7 +108,13 @@ namespace OpenRA.Network
 			}
 		}
 
-		internal void DumpSyncReport(int frame)
+		/// <summary>
+		/// Writes the desync report and returns its absolute path, or null when no report could be
+		/// produced for that frame. Null is the signal the desync dialog needs: pointing a player at a
+		/// file whose entire content is "No sync report available!" wastes the one chance to collect
+		/// evidence, so the dialog says the report is missing instead of naming a useless file.
+		/// </summary>
+		internal string DumpSyncReport(int frame)
 		{
 			var timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHHmmssZ", CultureInfo.InvariantCulture);
 
@@ -122,7 +128,7 @@ namespace OpenRA.Network
 			// restarting the game is the normal way this gets hit. The channel name has to be
 			// unique per dump for the file name to mean anything.
 			var channel = $"sync-{timestamp}-{frame}";
-			WriteReport(channel, reportName, frame);
+			return WriteReport(channel, reportName, frame) ? Log.ChannelFilename(channel) : null;
 		}
 
 		// DIAGNOSTIC ONLY (Test.ForceSyncReports) — never reached in normal play.
@@ -138,7 +144,7 @@ namespace OpenRA.Network
 			WriteReport($"syncdiag-{tag}-{frame}", reportName, frame);
 		}
 
-		void WriteReport(string channel, string reportName, int frame)
+		bool WriteReport(string channel, string reportName, int frame)
 		{
 			Log.AddChannel(channel, reportName);
 
@@ -199,6 +205,8 @@ namespace OpenRA.Network
 
 			if (!desyncFrameFound)
 				Log.Write(channel, $"Recorded frames do not contain the frame {frame}. No sync report available!");
+
+			return desyncFrameFound;
 		}
 
 		sealed class Report

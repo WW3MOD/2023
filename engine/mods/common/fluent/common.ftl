@@ -864,9 +864,33 @@ notification-edited-actor-id = Edited { $name } ({ $old-id }-> { $new-id })
 notification-player-is-victorious = { $player } is victorious.
 notification-player-is-defeated = { $player } is defeated.
 
+## ConcedeOnDisconnect
+notification-player-conceded-disconnect = { $player } left the game and forfeits.
+
 ## OrderManager
 notification-desync-compare-logs = Out of sync in frame { $frame }.
-    Compare syncreport.log with other players.
+
+## DesyncWatcherLogic
+dialog-desync =
+    .title = Out of Sync
+    .prompt = The players' games stopped agreeing about what was happening
+    at frame { $frame }, so this match cannot continue. Nothing you did
+    caused this, and nothing on your computer is broken.
+    It is a bug, and it can only be diagnosed from the players' own logs.
+    Please send the file saved here:
+    { $folder }
+    { $file }
+    Every player has their own copy under a different name, and the report
+    only makes sense when they are read side by side - so please ask the
+    others to send theirs too.
+    .prompt-no-report = The players' games stopped agreeing about what was
+    happening at frame { $frame }, so this match cannot continue.
+    No sync report could be written for that frame, so there is nothing
+    useful to send. If it happens again, please report it together with
+    the debug.log saved in:
+    { $folder }
+    .confirm = Quit to Menu
+    .cancel = Stay
 
 ## SupportPowerTimerWidget
 support-power-timer = { $player }'s { $support-power }: { $time }

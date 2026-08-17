@@ -174,6 +174,12 @@ namespace OpenRA
 			}
 		}
 
+		/// <summary>Absolute path of the file backing a channel, or null if the channel is unknown or fileless.</summary>
+		public static string ChannelFilename(string channelName)
+		{
+			return Channels.TryGetValue(channelName, out var info) ? info.Filename : null;
+		}
+
 		public static void Write(string channelName, string value)
 		{
 			ChannelWriter.TryWrite(new ChannelData(channelName, value));
