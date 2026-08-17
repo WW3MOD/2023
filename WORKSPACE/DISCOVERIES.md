@@ -3,6 +3,61 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — THE LIVE INFANTRY COUNT IS ~2.4x THE OFFLINE REPLAY'S, SO BOTH `…FloorPer: 10` CLIFFS CLEAR COMFORTABLY — AND THE TRUCK FLOOR'S THIRD STEP IS UNREACHABLE
+
+Branch `wt/composition-census`. First live measurement of the `[composition]` census; **no archived run in
+`tools/autotest/tournament-results` contains one**, because the instrument postdates all of them.
+
+**The census did not need enabling — it already ships on.** `CensusLogInterval: 40` is set on both
+@experimental blocks (`ai-america.yaml:222`, `ai-russia.yaml:144`). Turning it on for `@stable` as well would
+be **inert, not merely noisy**: `LogCensusSnapshot` returns early when `compositionTypes == null`
+(`UnitBuilderBotModule.cs:675`), that array is built from `UnitTargetShares` (`:555`), and the @normal blocks
+define no `UnitTargetShares` at all. A census line naming a player is therefore *proof* that player ran the
+experimental module — which is what supplied bot-identity ground truth here after the wall clock killed every
+verdict (see below).
+
+**Measured** — `tournament-arena-composition-2p`, 3 seeds, `tournament-combat-12min-combatweighted.yaml`.
+Denominators reconstructed per census sample and validated against the engine's own counts (below).
+
+| faction | denominator | cliff | peak | median | cleared the cliff | at floor cap |
+|---|---|---|---|---|---|---|
+| america | supported (medic) | 10 | 27 | 20 | 86.1% of samples | 56.8% |
+| russia  | supported (medic) | 10 | 28 | 17 | 72.7% | 44.9% |
+| america | resupply-capable (truck) | 10 | 26 | 19 | 80.9% | **0%** |
+| russia  | resupply-capable (truck) | 10 | 27 | 16 | 71.4% | **0%** |
+
+Offline `--composition-plan --start none --attrition 15` (`none` is the live default — `SpawnStartingUnits.cs:25`,
+unoverridden) reports **mean 8.96, max 11, engaged 32%** on both factions. So the live count peaks at ~2.4x the
+offline peak and clears the cliff more than twice as often. **The 18-19 peak quoted in the ai-*.yaml comments is
+the `--start platoon` figure**, not the live-default one; at `--start none` the offline peak is 11, i.e. the
+shipped `10` sits nearly ON the offline cliff and only the live run shows it is genuinely clear.
+
+**Engine ground truth, not inference.** `LogPick` prints the real `CountSupportedForce()` at every floor-lane
+buy: `floor=1 supported=10` appears in **all three matches on both factions**, and `floor=2 supported=20`
+follows — the medic floor fires, then saturates its cap of 2. That is the decision itself, logged.
+
+**THE NEW FINDING: `SupplyTruckFloor: 3` is effectively 2.** The third step needs 30 resupply-capable units
+(`min(3, n/10)`); the observed peak is 27, and the floor stood at 3 in **zero** of 1036 samples on either
+faction. The cap is not reached by the ratio path under live conditions. Note the truck denominator is
+`CountResupplyCapableUnits` — units whose `Rearmable.RearmActors` overlaps `ResupplyUnitTypes` (`truk`), which
+in this ruleset is **combat infantry only**: vehicles rearm at `logisticscenter` and never qualify, and
+medi/tecn carry no ammo pool. It is a near-twin of the medic denominator, not a whole-army count.
+
+**Validating a reconstruction against the engine rather than trusting it.** Two independent controls, both
+required before any number above was believed: (a) census-derived supported vs the `supported=` field
+`LogPick` prints — exact at every bracketing sample; (b) census-derived `min(3, n/10)` vs the engine's
+`trucks-desired`, which equals the truck floor exactly when `starving=0 needy=0` — **89 agreements, 0
+disagreements**. (b) also bounds the census's blind spot: `e1/sf/dr/e4` are truk-rearmable but absent from
+`UnitTargetShares`, so an unseen one would have desynced the two counts. None did.
+
+**`SpeedMultiplier: 8` bought nothing on this machine, and the wall cap then truncated every match.**
+`fastest` is Timestep 40 ms = 25 ticks/s (`mod.yaml:392`), so x8 intends 200 ticks/s; match 1 delivered 9120
+ticks in 360 s = **25.3 ticks/s**, ~1x. `run-tournament.sh:164` sizes the wall budget as
+`TIME_LIMIT_SECS * 4 / SPEED_BUDGET_DIV` = 720*4/8 = 360 s, so all three matches were SIGKILLed at 360 s with
+**no verdict file** at 6 / 5 / 2 game-minutes of the intended 12. The census is written continuously and was
+unaffected, but the consequence for any future run of this config is that it silently measures half a match.
+The scenario's own `tournament.yaml` (`TimeLimitSeconds: 360`) completes; the 720 s config does not.
+
 ## 2026-08-17 — `setup-dotnet` INSTALLING 6.0.428 DOES NOT MEAN CI *BUILDS* ON 6.0.428; THE IMAGE'S NEWER SDK WINS BECAUSE THE MUXER TAKES THE HIGHEST
 
 Branch `wt/sdk-pin`. The CI-integrity entry below said "nothing pins the choice" — this is the measured
