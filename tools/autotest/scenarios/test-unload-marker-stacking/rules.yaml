@@ -1,0 +1,23 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-unload-marker-stacking.lua
+
+# Four men of ONE class, so unloading the class queues four UnloadCargo activities and each
+# stamps its own dismount marker. Four is enough for a stack to be unmistakable and small
+# enough that the test does not wait on a long dismount. TRAN, not tran — rules merge by
+# exact case, and a lowercase key adds a second actor instead of merging.
+TRAN:
+	Cargo:
+		InitialUnits: E3,E3,E3,E3

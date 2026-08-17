@@ -561,21 +561,36 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			"order. `withTile` picks which half: false (default) returns the LINE nodes — the waypoint " +
 			"chain a player sees — and true returns the TILE nodes, the sprite overlays stamped onto a " +
 			"cell (a queued deploy's ghosted crate, LayMines' minefield stamp). " +
-			"The walk is DrawLineToTarget's own, down to skipping cancelling activities and Invalid " +
-			"targets, and `withTile` is the exact test it splits on, so an answer here cannot disagree " +
-			"with what is on screen. That is the point of the binding: a marker's CELL is otherwise " +
-			"checkable only by looking at a screenshot, which no assertion can do, so a regression that " +
-			"moved it to a different waypoint would render wrongly and pass every test. Test mode only.")]
+			"The tile half literally calls DrawLineToTarget.TileNodes, the same enumeration the renderer " +
+			"draws from, so an answer here cannot disagree with what is on screen — including the " +
+			"collapsing of duplicate markers, so ten unloads queued onto one cell report ONE cell here " +
+			"because one is what is drawn. That is the point of the binding: a marker's CELL is " +
+			"otherwise checkable only by looking at a screenshot, which no assertion can do, so a " +
+			"regression that moved it to a different waypoint, or stamped it ten times over, would " +
+			"render wrongly and pass every test. Test mode only.")]
 		public CPos[] GetTargetLineCells(Actor actor, bool withTile = false)
 		{
 			if (!TestMode.IsActive || actor == null)
 				return Array.Empty<CPos>();
 
 			var cells = new List<CPos>();
+
+			// The tile half defers to DrawLineToTarget.TileNodes rather than re-walking the queue,
+			// so this binding keeps the promise in its own description: it collapses duplicate
+			// markers on a cell exactly as the renderer does, instead of reporting ten stamps where
+			// the screen shows one.
+			if (withTile)
+			{
+				foreach (var n in DrawLineToTarget.TileNodes(actor))
+					cells.Add(actor.World.Map.CellContaining(n.Target.CenterPosition));
+
+				return cells.ToArray();
+			}
+
 			for (var a = actor.CurrentActivity; a != null; a = a.NextActivity)
 				if (!a.IsCanceling)
 					foreach (var n in a.TargetLineNodes(actor))
-						if (n.Target.Type != TargetType.Invalid && (n.Tile != null) == withTile)
+						if (n.Target.Type != TargetType.Invalid && n.Tile == null)
 							cells.Add(actor.World.Map.CellContaining(n.Target.CenterPosition));
 
 			return cells.ToArray();
