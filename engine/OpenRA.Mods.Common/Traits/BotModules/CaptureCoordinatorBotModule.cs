@@ -1577,9 +1577,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>The reserve muster cell: steepest descent on the believed frontier-distance gradient from our
 		/// own SR, halting ReserveStandoffCells short of the line and never stepping into a believed anti-ground
 		/// danger envelope. Same primitive as PoiOffensiveBotModule's forward staging, seeded and tuned for an
-		/// unarmed consumable. Returns the SR cell itself when the field is flat (no believed contact — the
-		/// opening), which is the intended "hold at the beachhead". Null only when there is no field or no SR,
-		/// in which case we have nothing honest to say and issue nothing.
+		/// unarmed consumable. Null when there is no field, no SR, or the descent never left the SR's grid cell
+		/// — in each case we have nothing honest to say and issue nothing, so the capturers stay put.
+		///
+		/// <para>THAT LAST CASE USED TO BE UNTESTED, and this summary used to claim the descent "returns the SR
+		/// cell itself when the field is flat, which is the intended hold at the beachhead". It never did: the
+		/// stall was not detected, and the map cell handed back was GridCellToMapCell's block CENTRE — the SR
+		/// re-projected through a lossy round trip, one cell off it for 3 of 4 placements and never a cell any
+		/// descent chose. Caught in a seed-1017 run on 2026-08-17 publishing anchor=7,17 from an SR at 6,16.
+		/// Fixing it CHANGES @stable, which configures this path (ai.yaml:2103) as @experimental does (:277).</para>
 		///
 		/// <para>NOTE the HasField conjunct below is the opposite polarity to GarrisonBotModule.ThreatGateActive,
 		/// which deliberately does NOT test it. Both are correct because both fail CLOSED toward doing nothing,
@@ -1611,20 +1617,30 @@ namespace OpenRA.Mods.Common.Traits
 				return null;
 			}
 
-			var (sgx, sgy) = reserveControlField.MapCellToGridCell(sr.Location);
-			var (agx, agy) = ForwardStagingMath.StagingCell(sgx, sgy,
-				Info.ReserveStandoffCells,
-				Info.ReserveDangerSafeUnits <= 0 || reserveDangerField == null
-					? Info.ReserveDangerSafeUnits
-					: reserveDangerField.GroundDangerUnitsToField(Info.ReserveDangerSafeUnits),
-				Info.ReserveMaxDescentSteps,
-				(gx, gy) => reserveControlField.FrontierDistanceAt(player, gx, gy),
-				(gx, gy) => reserveDangerField != null
-					? reserveDangerField.GroundDanger(player, reserveControlField.GridCellToMapCell(gx, gy)) : 0,
-				(gx, gy) => gx >= 0 && gx < reserveControlField.GridWidth
-					&& gy >= 0 && gy < reserveControlField.GridHeight);
+			// The descent stalled at the SR's GRID cell ⇒ no forward gradient (the field is unpopulated, or the
+			// front is already inside the standoff): no muster this scan, and clear the hysteresis memory so a
+			// later populated field re-adopts cleanly. The stall test lives inside TryResolveAnchorCell because
+			// it must be made in GRID space — this method made no such test at all and published the SR's block
+			// CENTRE as an anchor, for every placement (InfluenceGridMath; pinned by GridDescentGuardTest).
+			if (!ForwardStagingMath.TryResolveAnchorCell(
+					reserveControlField.Info.CellSize, sr.Location.X, sr.Location.Y,
+					Info.ReserveStandoffCells,
+					Info.ReserveDangerSafeUnits <= 0 || reserveDangerField == null
+						? Info.ReserveDangerSafeUnits
+						: reserveDangerField.GroundDangerUnitsToField(Info.ReserveDangerSafeUnits),
+					Info.ReserveMaxDescentSteps,
+					(gx, gy) => reserveControlField.FrontierDistanceAt(player, gx, gy),
+					(gx, gy) => reserveDangerField != null
+						? reserveDangerField.GroundDanger(player, reserveControlField.GridCellToMapCell(gx, gy)) : 0,
+					(gx, gy) => gx >= 0 && gx < reserveControlField.GridWidth
+						&& gy >= 0 && gy < reserveControlField.GridHeight,
+					out var anchorX, out var anchorY))
+			{
+				lastReserveAnchor = null;
+				return null;
+			}
 
-			var candidate = reserveControlField.GridCellToMapCell(agx, agy);
+			var candidate = new CPos(anchorX, anchorY);
 
 			// Hold the adopted anchor until the new one has moved far enough to be worth re-laying the reserve for.
 			// Compared in MAP space, matching ResolveStagingAnchor — the threshold is expressed in map cells, and
