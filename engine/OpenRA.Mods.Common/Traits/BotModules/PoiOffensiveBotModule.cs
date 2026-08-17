@@ -2430,6 +2430,10 @@ namespace OpenRA.Mods.Common.Traits
 			// consumer in the same eval and is precisely the second variable this change must not introduce.
 			var effectiveAnchor = stagingAnchor;
 			var onFallback = false;
+
+			// Null on the gradient path ⇒ the SpreadCell call below keeps its historical bounds-only guard and is
+			// byte-identical. Only the fallback path tightens it (see where it is assigned).
+			Func<int, int, bool> spreadGuard = null;
 			if (!effectiveAnchor.HasValue && ordered.Count > 0 && Info.StagingFallbackCells > 0 && rallyCell.HasValue)
 			{
 				var bounds = world.Map.Bounds;
@@ -2443,6 +2447,19 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					effectiveAnchor = new CPos(fx, fy);
 					onFallback = true;
+
+					// A terrain-tested ANCHOR with bounds-only RING SLOTS is the same defect one level down: the
+					// slots are where units are actually sent, and SpreadCell's guard here has always been
+					// Map.Contains, which admits on-map water and cliff. That is pre-existing and stays exactly as
+					// it was on the gradient path — but the fallback fires in the OPENING on every map, where the
+					// gradient path fires only once belief exists, so it makes the hole far easier to reach. Scoped
+					// to this path alone: when the guard rejects a slot SpreadCell collapses it onto the anchor,
+					// which the line above has already proved passable.
+					spreadGuard = (mx, my) =>
+					{
+						var c = new CPos(mx, my);
+						return world.Map.Contains(c) && passable(c);
+					};
 				}
 			}
 
@@ -2520,7 +2537,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				var slot = ForwardStagingMath.StableSlot(u.ActorID, rings);
 				var (cx, cy) = ForwardStagingMath.SpreadCell(groupAnchor.X, groupAnchor.Y, slot, Info.StagingSpreadStepCells,
-					(mx, my) => world.Map.Contains(new CPos(mx, my)));
+					spreadGuard ?? ((mx, my) => world.Map.Contains(new CPos(mx, my))));
 				var target = new CPos(cx, cy);
 
 				// The walk's "never enters believed-enemy ground" property is about the ANCHOR. One spread ring is
