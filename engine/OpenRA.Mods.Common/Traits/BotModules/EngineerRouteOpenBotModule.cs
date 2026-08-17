@@ -371,8 +371,13 @@ namespace OpenRA.Mods.Common.Traits
 			CommitUnit(engineer, RepairObjectiveKey(hut.ActorID));
 
 			// Screen holds a standoff behind the crossing (toward our SR); commit under bridge-screen:<hutId>.
-			var holdCell = ShiftToward(hutCell, ownSR.Location, Info.ScreenStandoffCells);
-			if (!world.Map.Contains(holdCell))
+			// Standing off behind a BRIDGE is the worst possible geometry for a bounds-only guard: the cell a
+			// fixed vector back from a crossing is, on a fair number of maps, in the river the crossing spans.
+			// One hold cell serves the whole screen, so the test answers for every unit in it.
+			var screenPassable = screen.Select(s => BotTerrain.PassableFor(s)).ToArray();
+			var idealHold = ShiftToward(hutCell, ownSR.Location, Info.ScreenStandoffCells);
+			if (!BotTerrain.TryNearestStandable(idealHold, BotTerrain.EngineRelocationCells,
+					world.Map.Contains, c => screenPassable.All(p => p(c)), out var holdCell))
 				holdCell = hutCell;
 
 			missionScreen.Clear();

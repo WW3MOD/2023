@@ -84,6 +84,78 @@ build and the same analyzer errors as everyone else.
 AppImage/macOS jobs call `make engine` (net6 default), so today's release path does not hit it — but the
 mono packaging code is still present and reachable.
 
+## 2026-08-17 — BOT PROFILE SCOPING IS A CONDITION, NOT A TRAIT-NAME SUFFIX (`@stable` / `@experimental` MEAN NOTHING)
+
+**Reading `SomeBotModule@stable:` as "this is the stable bot's copy" is wrong, and it is the natural misreading
+because the suffixes so often line up with the answer.** MiniYaml `@suffix` is only an *instance key* — it makes
+two entries of the same trait distinct. It carries no scoping meaning whatsoever. `@poi`, `@supply`, `@america`
+and `@aiplayer` are the same kind of token as `@stable`.
+
+**What actually scopes a module to a personality** is `GrantConditionOnBotOwner` (`mods/ww3mod/rules/ai/ai.yaml:58-71`),
+which grants a condition based on the bot `Type`, and each module's `RequiresCondition` consuming it:
+
+| Condition | Granted to | Meaning |
+|---|---|---|
+| `enable-ai-player` | experimental, stable | shared baseline |
+| `enable-ai-experimental` | experimental | experimental-only |
+| `enable-ai-stable` | stable | the frozen benchmark control |
+| `enable-ai-any` | experimental, stable | shared modules |
+
+So `ScoutBotModule@america` is **not** unscoped-therefore-shared by accident — it is shared because it declares
+`RequiresCondition: enable-ai-any && player.nato`. Read the `RequiresCondition`, never the suffix.
+
+**Three personalities exist, not two.** `ModularBot@experimental` / `@stable` (`ai.yaml:44-51`) plus
+`ModularBot@CampaignAI` with `Type: campaign` (`rules/campaign/campaign-rules.yaml:13-15`). Every
+`GrantConditionOnBotOwner` above lists `Bots: experimental, stable` only, so **campaign receives none of these
+conditions and therefore none of these bot modules.** A change that "moves both profiles" still does not touch
+campaign.
+
+**Traits on the World actor are outside this system entirely.** `ThreatMapManager` is declared in
+`rules/world.yaml:283`, unconditionally — it is not in `ai.yaml` at all, has no `RequiresCondition`, and serves
+every bot including campaign. Searching `ai.yaml` for a module and finding nothing does not mean it is disabled;
+it may not be a bot-owner trait at all.
+
+## 2026-08-17 — A BOT "ORDERED INTO WATER" DOES NOT DROWN; THE ENGINE MOVES IT 10 CELLS AND DOESN'T TELL THE BOT
+
+**The obvious mental model of the bounds-only-guard defect class is wrong, and being wrong about it in the
+optimistic direction leaves the expensive half of the class unfixed.** Both order paths a bot module uses run
+the destination through `Mobile.NearestMoveableCell`, which scans a **radius-1..10 annulus** for a cell the
+mover can enter *and stay in*:
+
+* `Order("Move")` → `Mobile.ResolveOrder` builds `new Move(..., nearEnough: 8 cells, evaluateNearestMovableCell: true)`
+  (`engine/OpenRA.Mods.Common/Traits/Mobile.cs:1030`); `Move.OnFirstRun` then relocates
+  (`Activities/Move/Move.cs:139-143`).
+* `Order("AttackMove")` → `AttackMove.ResolveOrder` calls `move.NearestMoveableCell(cell)` directly
+  (`Traits/AttackMove.cs:116`).
+* The budget is the default in `Mobile.NearestMoveableCell(target)` → `NearestMoveableCell(target, 1, 10)`
+  (`Traits/Mobile.cs:808-812`); the search itself is `Mobile.cs:834-856`.
+
+So a ground unit ordered a short way into the sea **walks to the beach and looks fine**. It only fails to move
+at all when there is no standable cell within 10 — i.e. real open water, where `NearestMoveableCell` returns
+the original cell, `CanEnterCell` then fails and `Move.OnFirstRun` sets `destination = null`.
+
+**The consequence that matters is not the movement, it is the bookkeeping.** The bot is never told it was
+relocated, so any module that later measures against the cell it *asked for* is now measuring against a cell
+its unit will never occupy. The worst instance found: `MountedTransportBotModule` tests delivery arrival as
+`(carrier.Location - task.DropOff).LengthSquared <= DropOffArrivalRadius²` with `DropOffArrivalRadius: 3`
+(`MountedTransportBotModule.cs:864, :882`, `ai.yaml:1516/:1574`). **3 is tighter than the engine's 10.** A drop
+cell 4–10 cells offshore therefore parks the carrier where the arrival test can never pass; the carrier is
+idle, so the re-issue guard at `:872` queues the identical Move, which completes instantly because it is
+already there — and the loaded carrier never unloads for the rest of the match. *The engine's own repair is
+what makes the stall permanent.* A rejection would have been recoverable; a silent relocation is not.
+
+**Corollary for triage.** "Does a unit get stranded?" is the wrong question to ask of a bounds-only guard, and
+answering it produces false CLEARs. The right questions are: does the module **store** the cell, **compare**
+against it, or **key** anything on it (a ledger claim, a re-issue deadband, an arrival radius)? If so the
+10-cell relocation is not a mitigation, it is the mechanism.
+
+**Second-order trap, same family as the spread-slot census metric.** `ThreatMapManager` scores a retreat cell
+at `-threat` where threat is `enemyValue - friendlyValue` (`ThreatMapManager.cs:227`), so an **empty** cell
+scores 0 and beats every cell with a live enemy near it. Open water is the emptiest terrain on any map, which
+means the metric does not merely tolerate the sea — **it prefers it**. Any "pick the calmest cell" scoring
+built on an occupancy-derived field has this bias and needs the terrain test in the *candidate filter*, not as
+a post-hoc clamp.
+
 ## 2026-08-17 — THE BOT IS RICH FOR 60 CYCLES AND POOR FOR THE REST; "20,000 STARTING CASH" IS NOT THE ECONOMY IT PLAYS IN
 
 **Claim retired:** *"a 1000-cost truck against 20,000 starting cash is never unaffordable, so

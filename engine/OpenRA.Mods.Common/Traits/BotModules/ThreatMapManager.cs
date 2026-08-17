@@ -228,7 +228,17 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>Find the grid cell with the weakest enemy presence (best attack target).
-		/// Returns the map cell center of that grid cell.</summary>
+		/// Returns the map cell center of that grid cell.
+		///
+		/// <para>THE BOUNDS GUARD BELOW IS NOT A TERRAIN TEST, AND THIS CELL IS A DESTINATION — it becomes a
+		/// helicopter drop zone (HelicopterSquadBotModule.cs:1072 and :1164 -> task.DropZone -> the Move at
+		/// :1273 with a queued Unload at :1276) and a target-search centre (HelicopterStates.cs:440). It is
+		/// nonetheless SAFE, but for a reason worth writing down because it is not the obvious one: the mover is
+		/// an AIRCRAFT, which ignores ground passability, and an unlandable drop is recovered by
+		/// EnsureTransportsUnload (:529), which re-issues the Unload wherever the transport ends up. The 2026-08-17
+		/// census first cleared this as "a score, never a destination", which was simply wrong — see the corollary
+		/// in WORKSPACE/DISCOVERIES.md: asking "is it a destination?" is what produces false clears. If a GROUND
+		/// consumer is ever added, this guard has to grow a terrain half.</para></summary>
 		public CPos FindWeakestEnemyCell(Player perspective)
 		{
 			var bestCell = CPos.Zero;
@@ -273,45 +283,19 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>Find the safest retreat cell (highest friendly influence, lowest enemy).
-		/// Searches within maxRange cells of the given position.</summary>
-		public CPos FindSafestRetreatCell(CPos from, Player perspective, int maxRange = 20)
+		/// Searches within maxRange cells of the given position. <paramref name="passable"/> must answer for the
+		/// units that will be SENT here — see <see cref="ThreatRetreatMath.ChooseSafestCell"/> for why the sea
+		/// wins this scoring outright when nothing terrain-tests the candidates. An air caller passes all-true.</summary>
+		public CPos FindSafestRetreatCell(CPos from, Player perspective, Func<CPos, bool> passable, int maxRange = 20)
 		{
-			var bestCell = from;
-			var bestScore = float.MinValue;
-
 			var fromGrid = ToGridPos(from);
 			var searchRadius = maxRange / info.CellSize + 1;
 
-			for (var dx = -searchRadius; dx <= searchRadius; dx++)
-			{
-				for (var dy = -searchRadius; dy <= searchRadius; dy++)
-				{
-					var gx = fromGrid.X + dx;
-					var gy = fromGrid.Y + dy;
-					if (gx < 0 || gx >= gridWidth || gy < 0 || gy >= gridHeight)
-						continue;
-
-					var mapCell = new CPos(gx * info.CellSize + info.CellSize / 2, gy * info.CellSize + info.CellSize / 2);
-					if (!world.Map.Contains(mapCell))
-						continue;
-
-					// Score: negative threat is good (means friendly advantage)
-					var threat = GetThreat(mapCell, perspective);
-					var score = -threat;
-
-					// Prefer cells closer to the start position (don't retreat across the map)
-					var dist = (mapCell - from).Length;
-					score -= dist * 0.1f;
-
-					if (score > bestScore)
-					{
-						bestScore = score;
-						bestCell = mapCell;
-					}
-				}
-			}
-
-			return bestCell;
+			return ThreatRetreatMath.ChooseSafestCell(from, fromGrid.X, fromGrid.Y,
+				gridWidth, gridHeight, info.CellSize, searchRadius,
+				c => GetThreat(c, perspective),
+				c => world.Map.Contains(c),
+				passable);
 		}
 
 		/// <summary>Get the economic value at a map position.</summary>

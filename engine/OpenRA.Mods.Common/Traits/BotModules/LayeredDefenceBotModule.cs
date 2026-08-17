@@ -522,7 +522,13 @@ namespace OpenRA.Mods.Common.Traits
 					targetCell = ShiftToward(bestSlot, srCell, Info.MainLineStandoffCells);
 				}
 
-				if (!world.Map.Contains(targetCell))
+				// Both arms above produce a bounds-untested cell: ShiftToward is raw vector arithmetic away from
+				// a contested influence-grid CENTRE, and the screen arm falls back to that same centre whenever
+				// no cover is found. Clamp to ground THIS unit can hold — the ledger claim below is keyed on the
+				// slot, so a unit the engine quietly parks elsewhere would hold a claim on a cell it never
+				// reaches and offense would defer to it for the whole cooldown.
+				if (!BotTerrain.TryNearestStandable(targetCell, BotTerrain.EngineRelocationCells,
+						world.Map.Contains, BotTerrain.PassableFor(actor), out targetCell))
 					continue;
 
 				// A dropped order must not leave a ledger claim (or a bespoke booking) behind: that would
@@ -671,11 +677,15 @@ namespace OpenRA.Mods.Common.Traits
 					used.Add(best);
 
 					// Screen units picket at the crossing (prefer nearby cover); main-line units stand off behind it.
-					var targetCell = bestScreen
+					var idealCell = bestScreen
 						? (Info.CoverSearchRadiusCells > 0 ? FindCoverNear(slot, Info.CoverSearchRadiusCells) ?? slot : slot)
 						: ShiftToward(slot, srCell, Info.MainLineStandoffCells);
 
-					if (!world.Map.Contains(targetCell))
+					// Same clamp as the contested path: a crossing slot is a control-field cell, and standing
+					// off behind it is raw arithmetic that can put a main-line unit in the river the crossing
+					// exists to span.
+					if (!BotTerrain.TryNearestStandable(idealCell, BotTerrain.EngineRelocationCells,
+							world.Map.Contains, BotTerrain.PassableFor(best), out var targetCell))
 						continue;
 
 					// Same rule as the contested path: no acceptance, no cooldown stamp and no ledger claim.

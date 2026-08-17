@@ -27,6 +27,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Traits;
@@ -1216,8 +1217,14 @@ namespace OpenRA.Mods.Common.Traits
 			var corridorOn = Info.PickupCorridorCells > 0;
 			CPos? dropOff = null;
 			var dropWhy = (string)null;
+
+			// ONE drop cell serves EVERY carrier in this pass, so the terrain test has to answer for all of
+			// them rather than for a representative. Built once per pass, not per candidate cell.
+			var carriersPassable = candidates.Select(c => BotTerrain.PassableFor(c)).ToArray();
+			Func<CPos, bool> dropPassable = c => carriersPassable.All(p => p(c));
+
 			if (corridorOn)
-				dropOff = PickDropOffCell(srCell, out dropWhy);
+				dropOff = PickDropOffCell(srCell, dropPassable, out dropWhy);
 
 			var reserveRadiusSq = (long)Info.ReserveZoneRadiusCells * Info.ReserveZoneRadiusCells;
 			var availablePassengers = world.Actors
@@ -1234,7 +1241,7 @@ namespace OpenRA.Mods.Common.Traits
 			// All carriers in this pass deliver to it; next pass picks a fresh one. Already computed
 			// above when a corridor is active; otherwise compute it now (frozen call-site preserved).
 			if (!corridorOn)
-				dropOff = PickDropOffCell(srCell, out dropWhy);
+				dropOff = PickDropOffCell(srCell, dropPassable, out dropWhy);
 			if (!dropOff.HasValue)
 			{
 				// One of three silent exits between "we have a carrier and passengers" and "a task exists".
@@ -1388,7 +1395,35 @@ namespace OpenRA.Mods.Common.Traits
 		// `why` names the exact reason on a null return. Without it, "no drop cell" covered four
 		// distinct causes and a run could not tell which fired — the gap that left this module's
 		// total inactivity unexplained across four runs and two branches.
-		CPos? PickDropOffCell(CPos srCell, out string why)
+		/// <summary>The drop cell, clamped to ground the carriers can actually enter.
+		///
+		/// <para>WHY THE CLAMP IS NOT COSMETIC. This cell is not only where a loaded GROUND carrier is sent — it
+		/// is the cell its arrival is MEASURED against: CarrierState.Delivering compares the carrier's position
+		/// to it within DropOffArrivalRadius (3). Every producer below is bounds-tested only; the frontline scan
+		/// and the pre-contact lerp are coarse grid arithmetic and ResolveRendezvous interpolates toward another
+		/// module's anchor, so any of them can land in on-map water. The engine then relocates the carrier by up
+		/// to <see cref="BotTerrain.EngineRelocationCells"/> — FURTHER than the arrival radius — so the carrier
+		/// stops short, never reports arrival, re-issues the identical move on every scan (line 878) and never
+		/// unloads for the rest of the match. The engine's own repair is what makes the stall permanent. Clamping
+		/// here is what keeps the cell we measure against the cell the carrier can actually stand on.</para></summary>
+		CPos? PickDropOffCell(CPos srCell, Func<CPos, bool> passable, out string why)
+		{
+			var ideal = PickDropOffCellUnclamped(srCell, out why);
+			if (!ideal.HasValue)
+				return null;
+
+			if (BotTerrain.TryNearestStandable(ideal.Value, BotTerrain.EngineRelocationCells,
+					world.Map.Contains, passable, out var cell))
+				return cell;
+
+			// No task beats an undeliverable one: a task built on a cell no carrier can reach loads infantry,
+			// drives to the shore and holds them there permanently. `why` keeps the existing no-drop-cell log
+			// able to name this cause rather than folding it into "unknown".
+			why = (why ?? "unknown") + "+drop-cell-unreachable";
+			return null;
+		}
+
+		CPos? PickDropOffCellUnclamped(CPos srCell, out string why)
 		{
 			why = null;
 

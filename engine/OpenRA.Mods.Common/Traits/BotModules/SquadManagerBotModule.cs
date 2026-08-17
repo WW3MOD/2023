@@ -387,7 +387,23 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (canSplit)
 			{
-				var targets = threatMap.FindAttackTargets(Player, 2, 12);
+				var rawTargets = threatMap.FindAttackTargets(Player, 2, 12);
+
+				// An approach waypoint is a cell the squad is AttackMoved to, but FindAttackTargets returns
+				// coarse GRID CENTRES (CellSize 8) that are only bounds-tested. A coastal cluster qualifies on
+				// enemies standing on the adjacent land while its centre sits offshore, and an enemy HELICOPTER
+				// over open water qualifies a centre with no land near it at all. The engine relocates a move by
+				// at most 10 cells and then resolves no destination (Mobile.cs:1030 -> NearestMoveableCell), so
+				// an unclamped centre far enough out leaves the whole pincer squad standing at base — the AI
+				// simply never attacks, with nothing in any log to say why. Clamp to ground the units can hold,
+				// using the engine's own reach so the bot's cell and the engine's cell agree.
+				var passableForAll = unitsHangingAroundTheBase.Select(u => BotTerrain.PassableFor(u)).ToArray();
+				var targets = new List<CPos>();
+				foreach (var t in rawTargets)
+					if (BotTerrain.TryNearestStandable(t, BotTerrain.EngineRelocationCells,
+							World.Map.Contains, c => passableForAll.All(p => p(c)), out var standable))
+						targets.Add(standable);
+
 				if (targets.Count >= 2)
 				{
 					// Split units roughly in half, with some randomness
