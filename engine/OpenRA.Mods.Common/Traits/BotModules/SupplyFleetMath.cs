@@ -33,22 +33,22 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public static class SupplyFleetMath
 	{
-		/// <summary>How many supply trucks the fleet should hold, given how many customers are currently
-		/// starving.
+		/// <summary><para>How many supply trucks the fleet should hold, given how many customers are currently
+		/// starving.</para>
 		///
-		/// <c>ceil(starving / customersPerTruck)</c> is the honest requirement — one truck per load-out of
+		/// <para><c>ceil(starving / customersPerTruck)</c> is the honest requirement — one truck per load-out of
 		/// demand. That is then scaled by <paramref name="overcompensationPercent"/> (100 = the honest
-		/// number, 200 = double it) and clamped into [<paramref name="floor"/>, <paramref name="ceiling"/>].
+		/// number, 200 = double it) and clamped into [<paramref name="floor"/>, <paramref name="ceiling"/>].</para>
 		///
-		/// The floor applies even with ZERO starving customers, and that is the point of having one: a fleet
+		/// <para>The floor applies even with ZERO starving customers, and that is the point of having one: a fleet
 		/// that is only bought once men are already dry arrives after the fight it was needed for. The
 		/// ceiling is the budget guard — supply must never be able to consume the whole call-in allowance,
-		/// however bad the front gets.
+		/// however bad the front gets.</para>
 		///
-		/// Degenerate config is absorbed rather than trusted: a non-positive customersPerTruck reads as 1
+		/// <para>Degenerate config is absorbed rather than trusted: a non-positive customersPerTruck reads as 1
 		/// (one truck per starving man — expensive, but never a divide-by-zero), a non-positive
 		/// overcompensationPercent reads as 100, a negative floor reads as 0, and a ceiling below the floor
-		/// is raised to it so the returned range is never empty.</summary>
+		/// is raised to it so the returned range is never empty.</para></summary>
 		public static int DesiredTrucks(int starvingCustomers, int customersPerTruck,
 			int overcompensationPercent, int floor, int ceiling)
 		{

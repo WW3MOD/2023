@@ -170,14 +170,14 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// "This actor cannot shoot anything" — it has at least one pool and every pool is empty.
+		/// <para>"This actor cannot shoot anything" — it has at least one pool and every pool is empty.</para>
 		///
-		/// EVERY pool, deliberately, and this is the one definition of the phrase in the codebase. The
+		/// <para>EVERY pool, deliberately, and this is the one definition of the phrase in the codebase. The
 		/// tempting narrower set is <see cref="Rearmable.RearmableAmmoPools"/>, which is filtered to
 		/// Rearmable.AmmoPools — but that field answers a DIFFERENT question ("which pools can a host
 		/// refill for me"), and the two sets are not the same actor-for-actor. The combat engineer
 		/// declares only his C4 charges as rearmable while also carrying an SMG pool, so a
-		/// rearmable-only test calls him out of ammo with a full magazine (infantry.yaml, ^E6).
+		/// rearmable-only test calls him out of ammo with a full magazine (infantry.yaml, ^E6).</para>
 		/// </summary>
 		public static bool AllPoolsEmpty(Actor self)
 		{
@@ -200,27 +200,27 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// "This actor must not be holding an attack order" — every pool empty
-		/// (<see cref="AllPoolsEmpty(Actor)"/>) on an actor that is not an aircraft.
+		/// <para>"This actor must not be holding an attack order" — every pool empty
+		/// (<see cref="AllPoolsEmpty(Actor)"/>) on an actor that is not an aircraft.</para>
 		///
-		/// Aircraft are carved out deliberately, matching <see cref="AutoRearmIfAllEmpty"/> and
+		/// <para>Aircraft are carved out deliberately, matching <see cref="AutoRearmIfAllEmpty"/> and
 		/// <see cref="AutoRearmIfAnyNotFull"/> directly below. A dry aircraft rearms through its own
 		/// idle ReturnToBase flow (Aircraft.cs), which is reached by the attack activity ending on the
 		/// aircraft's terms; tearing that activity down from the outside fights that flow instead of
-		/// helping it. Ground units have no such self-recovery, which is why they need this.
+		/// helping it. Ground units have no such self-recovery, which is why they need this.</para>
 		///
-		/// Note what this is NOT keyed on, because each alternative has already been wrong once:
+		/// <para>Note what this is NOT keyed on, because each alternative has already been wrong once:
 		/// not <see cref="Rearmable.RearmableAmmoPools"/> (answers a different question — see
 		/// AllPoolsEmpty), not "every armament paused" (armament PauseOnCondition also carries
 		/// suppressed >= 10, empdisable, heavy-damage-attained and inwater, any of which would call a
 		/// suppressed or EMP'd man with a full magazine dry), and not the red-ammo-pip YAML condition
-		/// (implied by this, but not equal to it).
+		/// (implied by this, but not equal to it).</para>
 		///
-		/// PITFALL corrected 2026-08-12: this note previously cited garrisoned-at-port as the example.
+		/// <para>PITFALL corrected 2026-08-12: this note previously cited garrisoned-at-port as the example.
 		/// That is wrong — no Armament in this mod carries it; it appears on Mobile and AttackFrontal
 		/// only. The caveat stands on the terms above. Note also that it attaches to the QUESTION, not
 		/// to the predicate: pause-for-any-reason is the RIGHT test for "should I stop moving to aim at
-		/// THIS target?", and is wrong only as a stand-in for "send this man to resupply".
+		/// THIS target?", and is wrong only as a stand-in for "send this man to resupply".</para>
 		/// </summary>
 		public static bool CannotFight(Actor self)
 		{
@@ -341,15 +341,15 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Send this actor to the nearest rearm source.
+		/// <para>Send this actor to the nearest rearm source.</para>
 		///
-		/// <paramref name="dispatchedBecauseDry"/> records WHY, and has no default on purpose: every
+		/// <para><paramref name="dispatchedBecauseDry"/> records WHY, and has no default on purpose: every
 		/// caller must say whether this errand is the unit's own answer to being unable to fight
 		/// (<see cref="AllPoolsEmpty(Actor)"/>) or a destination the player asked for. Both walking
 		/// branches now honour it — <see cref="Activities.SeekSupplyProvider"/> for a provider with
 		/// no docking gate, <see cref="Activities.Resupply"/> for one that has (the Logistics
 		/// Centre). The <see cref="Activities.RideTransport"/> branch does not, and no shipped rearm
-		/// host is boardable, so it is unreachable rather than merely unhandled.
+		/// host is boardable, so it is unreachable rather than merely unhandled.</para>
 		/// </summary>
 		public static void AutoRearm(Actor self, bool dispatchedBecauseDry)
 		{
@@ -398,20 +398,20 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Is this actor already on its way to (or sitting at) a rearm source? Covers every activity
-		/// AutoRearm can queue, plus the infantry-only proximity errand.
+		/// <para>Is this actor already on its way to (or sitting at) a rearm source? Covers every activity
+		/// AutoRearm can queue, plus the infantry-only proximity errand.</para>
 		///
-		/// AutoRearm queues with QueueActivity(false, …), which CANCELS the current activity — so any
+		/// <para>AutoRearm queues with QueueActivity(false, …), which CANCELS the current activity — so any
 		/// caller that re-dispatches on a cadence must ask this first, or a unit whose scan interval
-		/// beats its travel time tears down and re-plans the same run forever without ever arriving.
+		/// beats its travel time tears down and re-plans the same run forever without ever arriving.</para>
 		///
-		/// WALKS THE WHOLE QUEUE, not just the head, and that is load-bearing. CancelActivity only calls
+		/// <para>WALKS THE WHOLE QUEUE, not just the head, and that is load-bearing. CancelActivity only calls
 		/// Cancel on the current activity (Actor.cs:400-403), which raises IsCanceling — the cancelled
 		/// activity stays HEAD until it winds down, and the resupply we just queued sits BEHIND it. A
 		/// foot soldier takes ~41 ticks to finish the cell he is crossing, which is longer than the
 		/// scan intervals asking this question, so a head-only test answers "no" during exactly the
 		/// window it exists to cover: the errand is issued twice, and any bot module gating on this is
-		/// free to re-task the unit and destroy it.
+		/// free to re-task the unit and destroy it.</para>
 		/// </summary>
 		public static bool IsSeekingRearm(Actor self)
 		{

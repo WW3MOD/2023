@@ -158,17 +158,17 @@ namespace OpenRA.Mods.Common.Traits
 			return 0;
 		}
 
-		/// <summary>Assign each piece a standing bombardment target (or none). Pure, deterministic, zero RNG.
+		/// <summary><para>Assign each piece a standing bombardment target (or none). Pure, deterministic, zero RNG.</para>
 		///
-		/// Pieces are processed in the caller-supplied order (the module fixes it by ActorID). For each piece the
+		/// <para>Pieces are processed in the caller-supplied order (the module fixes it by ActorID). For each piece the
 		/// candidate set is every target that is IN REACH, WORTHWHILE for that piece, and either under the
 		/// per-target cap OR is that piece's own current target (a committed piece always keeps its own slot —
-		/// the cap only limits NEW pile-on). The best candidate is <see cref="CompareCandidate"/>'s minimum.
+		/// the cap only limits NEW pile-on). The best candidate is <see cref="CompareCandidate"/>'s minimum.</para>
 		///
-		/// RE-TARGET HYSTERESIS (the anti-flip-flop discipline): a piece already shelling a still-valid target
+		/// <para>RE-TARGET HYSTERESIS (the anti-flip-flop discipline): a piece already shelling a still-valid target
 		/// keeps it unless another candidate is closer by MORE THAN <paramref name="retargetHysteresisCells"/> —
 		/// so a marginally-nearer position never steals a committed piece mid-mission; only a materially better
-		/// one (or the current target going invalid) re-tasks it.</summary>
+		/// one (or the current target going invalid) re-tasks it.</para></summary>
 		public static IReadOnlyList<Assignment> SelectAssignments(
 			IReadOnlyList<FiresPiece> pieces,
 			IReadOnlyList<StaticTarget> targets,

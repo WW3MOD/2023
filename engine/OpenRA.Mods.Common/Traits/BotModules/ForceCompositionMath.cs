@@ -126,19 +126,19 @@ namespace OpenRA.Mods.Common.Traits
 			return result;
 		}
 
-		/// <summary>Nudge the designer's <paramref name="baseTargets"/> toward countering the believed enemy,
-		/// then renormalise to exactly <see cref="Total"/>.
+		/// <summary><para>Nudge the designer's <paramref name="baseTargets"/> toward countering the believed enemy,
+		/// then renormalise to exactly <see cref="Total"/>.</para>
 		///
-		/// For own-role <c>i</c>: <c>bias_i = sum_j matrixPct[j,i] * threatShares[j] / 1000</c> — i.e. each
+		/// <para>For own-role <c>i</c>: <c>bias_i = sum_j matrixPct[j,i] * threatShares[j] / 1000</c> — i.e. each
 		/// enemy class j contributes its counter weight in proportion to how much of the believed enemy force
 		/// it is. A threat share strictly below <paramref name="deadbandPerMille"/> contributes NOTHING (one
 		/// scouted scout must not re-plan the army). The summed bias is clamped to
 		/// +/-<paramref name="biasMaxPct"/>, applied as <c>base_i * (100 + bias) / 100</c>, and the result is
-		/// re-apportioned by largest remainder so the vector still sums to exactly 1000.
+		/// re-apportioned by largest remainder so the vector still sums to exactly 1000.</para>
 		///
-		/// <paramref name="matrixPct"/> is indexed [enemyClass, ownRole]; a null matrix, a null/empty threat
+		/// <para><paramref name="matrixPct"/> is indexed [enemyClass, ownRole]; a null matrix, a null/empty threat
 		/// vector, or <paramref name="biasMaxPct"/> &lt;= 0 makes this an identity pass (targets renormalised
-		/// only) — the inert default.</summary>
+		/// only) — the inert default.</para></summary>
 		public static int[] ApplyCounterBias(int[] baseTargets, int[] threatShares, int[,] matrixPct,
 			int biasMaxPct, int deadbandPerMille)
 		{
@@ -187,22 +187,22 @@ namespace OpenRA.Mods.Common.Traits
 			return SharesPerMille(adjusted);
 		}
 
-		/// <summary>Pick the eligible entry with the LARGEST <c>target - census</c> — the type the army is
-		/// furthest short of. Strict-greater comparison walking ordinally, so ties resolve to the LOWER index.
+		/// <summary><para>Pick the eligible entry with the LARGEST <c>target - census</c> — the type the army is
+		/// furthest short of. Strict-greater comparison walking ordinally, so ties resolve to the LOWER index.</para>
 		///
-		/// There is deliberately NO positive-deficit requirement: when every eligible type already sits at or
+		/// <para>There is deliberately NO positive-deficit requirement: when every eligible type already sits at or
 		/// above its target this returns the LEAST-OVER one. That keeps the purchase VOLUME identical to the
 		/// frozen path (we still buy on every cycle — budget is spent, not withheld) while keeping the
 		/// proportions as close to target as a single buy can. Returns -1 ONLY when nothing is eligible, which
-		/// the caller treats as "this queue has no composition opinion" and falls back to the legacy pick.
+		/// the caller treats as "this queue has no composition opinion" and falls back to the legacy pick.</para>
 		///
-		/// NOTE for anyone tempted to add a "only buy classes under target" filter here: restricting this
+		/// <para>NOTE for anyone tempted to add a "only buy classes under target" filter here: restricting this
 		/// argmax to deficit &gt; 0 and falling back to the unrestricted argmax when that finds nothing is a
 		/// PROVABLE NO-OP. If any eligible slot is under target then the unrestricted maximizer is itself under
 		/// target, so it lies in the restricted candidate set and both walks tie-break to the same lowest
 		/// index; if none is, the restricted pass returns -1 and the fallback runs the unrestricted pass
 		/// anyway. The useful property — an over-target class is never bought while any class is still short —
-		/// is already a property of the plain argmax below.</summary>
+		/// is already a property of the plain argmax below.</para></summary>
 		public static int SelectDeficit(int[] targetsPerMille, int[] censusPerMille, bool[] eligible)
 		{
 			if (targetsPerMille == null || eligible == null)
@@ -229,17 +229,17 @@ namespace OpenRA.Mods.Common.Traits
 			return best;
 		}
 
-		/// <summary>Drop eligibility for every slot STRICTLY OVER its target share (deficit &lt; 0), so the argmax
-		/// can only pick a class the army is not already carrying too much of.
+		/// <summary><para>Drop eligibility for every slot STRICTLY OVER its target share (deficit &lt; 0), so the argmax
+		/// can only pick a class the army is not already carrying too much of.</para>
 		///
-		/// Strictly-over, not at-or-over, on purpose. Census and targets are both apportioned to exactly
+		/// <para>Strictly-over, not at-or-over, on purpose. Census and targets are both apportioned to exactly
 		/// <see cref="Total"/>, so if any slot is over then some other slot MUST be under — striking the
 		/// over-target slots can therefore never empty a set that had a genuinely short member in it. Striking
 		/// at-target slots too would break that guarantee in the one case where every slot sits exactly on its
 		/// target: everything would be removed and the bot would stop buying entirely instead of growing an
-		/// army that is already the right shape.
+		/// army that is already the right shape.</para>
 		///
-		/// This is what makes CompositionEnforceTargetCeiling bound the module's OWN pick and not just the
+		/// <para>This is what makes CompositionEnforceTargetCeiling bound the module's OWN pick and not just the
 		/// external request lane. <see cref="SelectDeficit"/> deliberately has no positive-deficit requirement —
 		/// when every ELIGIBLE type is over target it returns the least-over one so a buy still happens. But
 		/// eligibility is affordability-filtered, and a bot spends to zero routinely, so in the low-cash band the
@@ -247,9 +247,9 @@ namespace OpenRA.Mods.Common.Traits
 		/// cheapest thing" every cycle, without limit, however far over target that type already is — the
 		/// standing army fills up with the cheap screening type while the expensive core it is saving for is
 		/// never reached. Removing those slots instead makes the caller's decline path fire, banking the cash
-		/// until something under target becomes affordable.
+		/// until something under target becomes affordable.</para>
 		///
-		/// Returns a NEW array (inputs are never mutated). A null/short input reads as ineligible.</summary>
+		/// <para>Returns a NEW array (inputs are never mutated). A null/short input reads as ineligible.</para></summary>
 		public static bool[] ApplyCeilingEligibility(int[] targetsPerMille, int[] censusPerMille, bool[] eligible)
 		{
 			if (eligible == null)
@@ -267,30 +267,30 @@ namespace OpenRA.Mods.Common.Traits
 			return result;
 		}
 
-		/// <summary>Should this build cycle DECLINE rather than fall back to the legacy uniform lottery?
+		/// <summary><para>Should this build cycle DECLINE rather than fall back to the legacy uniform lottery?</para>
 		///
-		/// Only when the ceiling is enabled, the deficit pick found nothing, AND at least one composed type is
+		/// <para>Only when the ceiling is enabled, the deficit pick found nothing, AND at least one composed type is
 		/// actually buildable from this queue. That last term is the whole point: "no composed type is
 		/// buildable here at all" is genuine no-opinion (a heli-only pool) and MUST still fall back so purchase
 		/// volume is unchanged, whereas "composed types exist but every one is priced out or at its UnitLimit"
 		/// is a decision not to buy — and falling back there draws the lifetime-proportional lottery that
-		/// composition-directed purchasing exists to remove.</summary>
+		/// composition-directed purchasing exists to remove.</para></summary>
 		public static bool ShouldDeclineCycle(bool ceilingEnabled, bool selectionFound, bool anyComposedTypeBuildable)
 		{
 			return ceilingEnabled && !selectionFound && anyComposedTypeBuildable;
 		}
 
-		/// <summary>Is an externally requested call-in of <paramref name="candidateCost"/> at slot
+		/// <summary><para>Is an externally requested call-in of <paramref name="candidateCost"/> at slot
 		/// <paramref name="slot"/> ALREADY at or over its target share — i.e. excluding the request's own
-		/// pending credit?
+		/// pending credit?</para>
 		///
-		/// The caller's census credits every entry of its request lists, and the request under test is still on
+		/// <para>The caller's census credits every entry of its request lists, and the request under test is still on
 		/// one of them when this is asked, so its own cost has to come back out first. Without that subtraction
 		/// the rule silently becomes "would be over AFTER this buy", which refuses a class that is legitimately
-		/// still short by less than one unit's worth of share.
+		/// still short by less than one unit's worth of share.</para>
 		///
-		/// <paramref name="censusValues"/> is the raw per-slot VALUE census (not yet apportioned); it is
-		/// copied, never mutated. A slot outside either array, or a null input, reads as "not over".</summary>
+		/// <para><paramref name="censusValues"/> is the raw per-slot VALUE census (not yet apportioned); it is
+		/// copied, never mutated. A slot outside either array, or a null input, reads as "not over".</para></summary>
 		public static bool RequestExceedsCeiling(int[] censusValues, int slot, int candidateCost, int[] targetsPerMille)
 		{
 			if (censusValues == null || targetsPerMille == null || slot < 0 || slot >= censusValues.Length)

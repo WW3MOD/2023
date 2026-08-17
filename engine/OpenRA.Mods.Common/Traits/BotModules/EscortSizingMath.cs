@@ -38,28 +38,28 @@ namespace OpenRA.Mods.Common.Traits
 			Full,
 		}
 
-		/// <summary>Bucket a capture target into an escort tier from its BELIEVED surroundings. Order of tests
+		/// <summary><para>Bucket a capture target into an escort tier from its BELIEVED surroundings. Order of tests
 		/// is load-bearing: a target is FULL the moment either threat channel reads contested (a believed weapon
 		/// envelope over the cell, OR the ring-averaged control reads deep believed-enemy), so a hot target is
 		/// never shrunk. Only a target that clears BOTH threat tests AND reads strongly-ours + low-danger +
-		/// near-SR falls to NONE; everything in between is LIGHT.
+		/// near-SR falls to NONE; everything in between is LIGHT.</para>
 		///
-		/// Inputs (all caller-sampled, fog-legal):
+		/// <para>Inputs (all caller-sampled, fog-legal):
 		///   <paramref name="neighborhoodControlScore"/> — ring-averaged ControlField score around the target
 		///     (positive = believed ours, negative = believed enemy). The RING, not the target's own cell, which
 		///     a site anchor floors to deep-enemy regardless of who surrounds it.
 		///   <paramref name="groundDanger"/> — DangerFieldLayer.GroundDanger at the target cell.
 		///   <paramref name="distanceFromSRCells"/> — target distance from our own SR in cells, or a negative
-		///     value when unknown (legacy no-PoiMap path); unknown never satisfies the near-SR gate.
+		///     value when unknown (legacy no-PoiMap path); unknown never satisfies the near-SR gate.</para>
 		///
-		/// Thresholds:
+		/// <para>Thresholds:
 		///   <paramref name="safeControlScore"/> — ring control at/above which the surroundings count strongly-ours.
 		///   <paramref name="safeDangerThreshold"/> — ground danger at/below which the cell counts low-danger.
 		///   <paramref name="safeMaxDistanceFromSRCells"/> — target within this many cells of our SR counts near;
 		///     &lt;= 0 disables the distance gate (near always satisfied).
 		///   <paramref name="contestedControlBand"/> — ring control STRICTLY below its negation counts deep-enemy
 		///     (pass ControlField.GrayBand so the tri-state matches the field's own classification).
-		///   <paramref name="contestedDangerThreshold"/> — ground danger ABOVE which the cell counts contested.</summary>
+		///   <paramref name="contestedDangerThreshold"/> — ground danger ABOVE which the cell counts contested.</para></summary>
 		public static EscortTier Resolve(
 			int neighborhoodControlScore,
 			int groundDanger,
@@ -84,19 +84,19 @@ namespace OpenRA.Mods.Common.Traits
 			return EscortTier.Light;
 		}
 
-		/// <summary>The more protective of two tiers — an escort FLOOR. For a caller that knows something the
-		/// believed fields cannot tell it and must refuse to shrink below a minimum.
+		/// <summary><para>The more protective of two tiers — an escort FLOOR. For a caller that knows something the
+		/// believed fields cannot tell it and must refuse to shrink below a minimum.</para>
 		///
-		/// The reclaim pass is that caller, because its inputs are ANTI-CORRELATED with the threat. In WW3MOD a
+		/// <para>The reclaim pass is that caller, because its inputs are ANTI-CORRELATED with the threat. In WW3MOD a
 		/// building is itself a vision source (^BasicBuilding carries Vision@3/2/1 out to 3 cells), so the flip
 		/// to Neutral that CREATES a reclaim target is the same event that blinds us to the raiders who made it.
 		/// Believed mobile danger then decays out from under us in ~175 ticks while ControlField persists several
 		/// times longer, so the cell can read "strongly ours, zero danger" — tier None, technician alone — while
 		/// the raid is still standing on it. No threshold retune fixes that shape, so the reclaim caller floors
-		/// at Light rather than trusting the read.
+		/// at Light rather than trusting the read.</para>
 		///
-		/// Relies on the enum being ordered by protection (None &lt; Light &lt; Full), which the declaration above
-		/// fixes deliberately. Pure, total, zero RNG.</summary>
+		/// <para>Relies on the enum being ordered by protection (None &lt; Light &lt; Full), which the declaration above
+		/// fixes deliberately. Pure, total, zero RNG.</para></summary>
 		public static EscortTier AtLeast(EscortTier tier, EscortTier minimum)
 			=> tier > minimum ? tier : minimum;
 

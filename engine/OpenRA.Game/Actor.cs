@@ -486,15 +486,15 @@ namespace OpenRA
 		}
 
 		/// <summary>
-		/// Lightweight ownership change that skips World.Remove/Add cycle.
+		/// <para>Lightweight ownership change that skips World.Remove/Add cycle.
 		/// Safe for stationary actors (buildings) where spatial position doesn't change.
 		/// Avoids expensive INotifyRemovedFromWorld/INotifyAddedToWorld cascade
-		/// (shroud recalc on 10+ Vision traits per player).
+		/// (shroud recalc on 10+ Vision traits per player).</para>
 		///
-		/// Pass <paramref name="updateGeneration"/> = false for "soft" claims (e.g. garrison
+		/// <para>Pass <paramref name="updateGeneration"/> = false for "soft" claims (e.g. garrison
 		/// ownership flip from Neutral to the entering player) where in-flight orders from
 		/// other allied units should remain valid — Generation bump invalidates Target
-		/// references via Target.Recalculate.
+		/// references via Target.Recalculate.</para>
 		/// </summary>
 		public void ChangeOwnerInPlace(Player newOwner, bool updateGeneration = true)
 		{

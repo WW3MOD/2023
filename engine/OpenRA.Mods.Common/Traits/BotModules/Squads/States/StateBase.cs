@@ -134,14 +134,14 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		}
 
 		/// <summary>
-		/// True when the squad layer can leave this actor's ammo to the resupply system and stop
-		/// reasoning about it.
+		/// <para>True when the squad layer can leave this actor's ammo to the resupply system and stop
+		/// reasoning about it.</para>
 		///
-		/// The host term is the correction. Stock OpenRA reads "every pool is covered by Rearmable"
+		/// <para>The host term is the correction. Stock OpenRA reads "every pool is covered by Rearmable"
 		/// as "a pad will handle it", so it returns true and the squad skips the unit. That premise
 		/// is a property of the WORLD, not of the actor's rules: with no host present nothing
 		/// handles it, and returning true made every ammo gate read a full-ammo attack helicopter as
-		/// if it carried no ammo at all.
+		/// if it carried no ammo at all.</para>
 		/// </summary>
 		protected static bool ReloadsAutomatically(Actor self, IEnumerable<AmmoPool> ammoPools, Rearmable rearmable)
 		{

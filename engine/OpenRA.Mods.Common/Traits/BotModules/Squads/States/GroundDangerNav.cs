@@ -74,20 +74,20 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			return max;
 		}
 
-		/// <summary>When the straight route from <paramref name="from"/> to <paramref name="to"/> would
+		/// <summary><para>When the straight route from <paramref name="from"/> to <paramref name="to"/> would
 		/// cross ground-danger above <paramref name="safeThreshold"/>, returns a lateral waypoint that
 		/// reduces the worst-case exposure of the two-leg route (from→wp→to); otherwise null (go direct).
 		/// Candidates are perpendicular offsets of the midpoint at ±<paramref name="lateralCells"/> ×
 		/// {1..<paramref name="maxSteps"/>}, evaluated in a fixed order. The SAFER side is chosen on
 		/// strict merit, so against the Stage-B/C danger gradient the rear-lateral detour emerges by
-		/// itself; a larger <paramref name="maxSteps"/> lets a high-value mover route deeper into safety.
+		/// itself; a larger <paramref name="maxSteps"/> lets a high-value mover route deeper into safety.</para>
 		///
-		/// A candidate whose WAYPOINT CELL the mover cannot stand on (<paramref name="waypointPassable"/>
+		/// <para>A candidate whose WAYPOINT CELL the mover cannot stand on (<paramref name="waypointPassable"/>
 		/// false — on-map water/cliff or off-map) is discarded, so the chosen waypoint is always a cell the
 		/// mover can actually reach. NOTE this guards only the waypoint CELL: the line-walk sampler is left
 		/// blind to terrain (feeding impassable line cells as Impassable would make a route merely clipping a
 		/// water edge read max-exposed — the declared v2 terrain-flow problem), so a route whose straight
-		/// legs cross unreachable ground is still possible in v1 and left to the pathfinder to resolve.</summary>
+		/// legs cross unreachable ground is still possible in v1 and left to the pathfinder to resolve.</para></summary>
 		public static CPos? DetourWaypoint(CPos from, CPos to, int lateralCells, int maxSteps,
 			int safeThreshold, Func<CPos, int> groundDangerAt, Func<CPos, bool> waypointPassable)
 		{

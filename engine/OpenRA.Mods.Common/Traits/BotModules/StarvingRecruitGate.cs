@@ -39,7 +39,7 @@ namespace OpenRA.Mods.Common.Traits
 {
 	/// <summary>
 	/// Per-module gate answering "is this unit too low on ammo to be given a job". One instance per bot module
-	/// instance; the <paramref name="module"/> tag names the tasking that was refused in the log.
+	/// instance; the <c>module</c> tag names the tasking that was refused in the log.
 	/// </summary>
 	public sealed class StarvingRecruitGate
 	{
@@ -70,16 +70,16 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// The call-site form: the predicate plus a one-line log on each TRANSITION, so a platoon sitting still
+		/// <para>The call-site form: the predicate plus a one-line log on each TRANSITION, so a platoon sitting still
 		/// reads as a decision rather than as the bot being passive. Logged on transition only — the eligibility
-		/// sites run every scan, and a line per scan per unit per module would bury the event it exists to show.
+		/// sites run every scan, and a line per scan per unit per module would bury the event it exists to show.</para>
 		///
-		/// A unit already WALKING TO A REARM SOURCE is withheld unconditionally, threshold or no threshold.
+		/// <para>A unit already WALKING TO A REARM SOURCE is withheld unconditionally, threshold or no threshold.
 		/// That clause is not a tuning knob and must not become one: every tasking order in this codebase is
 		/// issued with QueueActivity(false, …), which cancels the current activity — so re-tasking a unit that
 		/// is mid-resupply does not merely reorder its priorities, it destroys the errand and sends an empty
 		/// gun back at the enemy. Making it depend on thresholdPerMille would mean the disposition works on
-		/// @experimental and silently self-cancels on @stable, where the threshold is 0.
+		/// @experimental and silently self-cancels on @stable, where the threshold is 0.</para>
 		/// </summary>
 		public bool Withhold(Actor a, int thresholdPerMille)
 		{

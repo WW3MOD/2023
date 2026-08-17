@@ -51,12 +51,12 @@ namespace OpenRA.Mods.Common.Activities
 		}
 
 		/// <summary>
-		/// Whether any resupplier for this aircraft EXISTS in the world right now.
+		/// <para>Whether any resupplier for this aircraft EXISTS in the world right now.</para>
 		///
-		/// Existence only. <see cref="ChooseResupplier"/> additionally requires a path, so the two can
+		/// <para>Existence only. <see cref="ChooseResupplier"/> additionally requires a path, so the two can
 		/// disagree for a pad that exists but is unreachable — this returns true there and the
 		/// activity will still find nothing. That is the intended split: the order gate should refuse
-		/// only when the host is absent outright, not adjudicate reachability at order time.
+		/// only when the host is absent outright, not adjudicate reachability at order time.</para>
 		/// </summary>
 		public static bool AnyResupplierExists(Actor self)
 		{

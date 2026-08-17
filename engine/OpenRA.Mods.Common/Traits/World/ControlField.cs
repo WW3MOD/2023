@@ -153,16 +153,16 @@ namespace OpenRA.Mods.Common.Traits
 			return ControlOwner.Contested;
 		}
 
-		/// <summary>Multi-source BFS distance-to-believed-ENEMY-region over the coarse score grid, written
+		/// <summary><para>Multi-source BFS distance-to-believed-ENEMY-region over the coarse score grid, written
 		/// into <paramref name="dist"/> (same dims). Seeds every cell that classifies ENEMY (score &lt; −grayBand)
 		/// at distance 0, then flood-fills outward by 4-connectivity — one coarse cell per step. Cells farther
 		/// than <paramref name="maxDistance"/>, and EVERY cell when no believed enemy region exists anywhere,
 		/// read the <paramref name="maxDistance"/> FAR sentinel. This is the data seam standoff placement reads
-		/// to hold BEHIND the believed front line (the boundary <see cref="IsFrontlineEdge"/> draws).
+		/// to hold BEHIND the believed front line (the boundary <see cref="IsFrontlineEdge"/> draws).</para>
 		///
-		/// DETERMINISM (influence-stack invariant): row-major seeding, FIFO queue, integer only, ZERO RNG.
+		/// <para>DETERMINISM (influence-stack invariant): row-major seeding, FIFO queue, integer only, ZERO RNG.
 		/// Distance is an edge count, so neighbour visit order can never change a stored value — the fixed
-		/// order is belt-and-braces. Bounded work: the flood stops expanding once a ring would exceed the cap.</summary>
+		/// order is belt-and-braces. Bounded work: the flood stops expanding once a ring would exceed the cap.</para></summary>
 		public static void ComputeFrontierDistance(int[,] score, int[,] dist, int gridWidth, int gridHeight,
 			int grayBand, int maxDistance)
 		{
@@ -208,18 +208,18 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		/// <summary>The FRONTLINE is the boundary of the believed-ENEMY region — the forward line of
+		/// <summary><para>The FRONTLINE is the boundary of the believed-ENEMY region — the forward line of
 		/// contact. A cell is "enemy side" when its control score classifies Enemy (score &lt; −grayBand,
 		/// exactly the red wash); everything else — believed-ours AND the CONTESTED no-man's-land — is
 		/// "our side" of the front. True when two adjacent cells fall on opposite sides of that split,
-		/// so their shared border is a frontline edge.
+		/// so their shared border is a frontline edge.</para>
 		///
-		/// Keyed on a BINARY half-plane (enemy vs not-enemy), NOT a raw sign flip, on purpose: the
+		/// <para>Keyed on a BINARY half-plane (enemy vs not-enemy), NOT a raw sign flip, on purpose: the
 		/// verified-clear rule relaxes every observed-empty cell to score 0, opening a wide neutral
 		/// buffer between the two armies. A strict +/− sign-flip contour vanishes in that buffer (0 is
 		/// neither sign); a half-plane boundary is ALWAYS a continuous closed contour around the enemy
 		/// region — no gaps — which is what "reliably say where the front line is" needs. Where the two
-		/// territories directly abut (no buffer) this degenerates to the true own/enemy divide.</summary>
+		/// territories directly abut (no buffer) this degenerates to the true own/enemy divide.</para></summary>
 		public static bool IsFrontlineEdge(int scoreA, int scoreB, int grayBand)
 			=> scoreA < -grayBand != scoreB < -grayBand;
 

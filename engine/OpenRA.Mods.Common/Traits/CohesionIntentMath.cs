@@ -54,16 +54,16 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	/// <summary>
-	/// The formation-intent classification arithmetic, split out of CohesionMoveModifier.ClassifyIntent
-	/// so that it can be exercised without a Map.
+	/// <para>The formation-intent classification arithmetic, split out of CohesionMoveModifier.ClassifyIntent
+	/// so that it can be exercised without a Map.</para>
 	///
-	/// DETERMINISM HAZARD: this is double-precision math on the SYNCED path — ModifyGroupOrder runs on
+	/// <para>DETERMINISM HAZARD: this is double-precision math on the SYNCED path — ModifyGroupOrder runs on
 	/// every client (UnitOrders.cs) and its result picks each actor's destination cell. OpenRA's
 	/// determinism model is integer-only (WDist/WAngle/WPos are all ints) precisely to avoid this. The
 	/// hazardous shapes here are the a*b - c*d discriminant (an FMA-contraction candidate, where a JIT
 	/// that fuses and one that does not disagree in the last bits) and the comparisons at the Treeline
 	/// branch, which turn a one-ULP difference into a different formation strategy. Isolated here so
-	/// it can be measured across runtimes and, ultimately, replaced with fixed-point.
+	/// it can be measured across runtimes and, ultimately, replaced with fixed-point.</para>
 	/// </summary>
 	public static class CohesionIntentMath
 	{

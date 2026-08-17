@@ -199,20 +199,20 @@ namespace OpenRA.Mods.Common.Tournament
 	}
 
 	/// <summary>
-	/// Read-only integrator for a player's GROSS building income — the cumulative cash
+	/// <para>Read-only integrator for a player's GROSS building income — the cumulative cash
 	/// that income structures (CashTrickler-bearing buildings) they own or capture have
-	/// granted them over a match, ignoring upkeep.
+	/// granted them over a match, ignoring upkeep.</para>
 	///
-	/// The unified economy pays out PlayerResources.TotalBuildingIncome (the sum of the
+	/// <para>The unified economy pays out PlayerResources.TotalBuildingIncome (the sum of the
 	/// currently-owned income entries, before upkeep) once every PassiveIncomeInterval
 	/// ticks. Observing that value each tick and integrating the per-tick rate
 	/// (TotalBuildingIncome / PassiveIncomeInterval) reconstructs the cumulative gross
 	/// grant without ever touching sim state — the watcher only READS TotalBuildingIncome
-	/// and writes to this accumulator, so it cannot affect determinism or the experiment.
+	/// and writes to this accumulator, so it cannot affect determinism or the experiment.</para>
 	///
-	/// It is naturally robust to mid-match ownership changes: CashTrickler re-registers
+	/// <para>It is naturally robust to mid-match ownership changes: CashTrickler re-registers
 	/// under the new owner on capture (INotifyOwnerChanged), so TotalBuildingIncome — and
-	/// therefore this integral — follows whoever currently owns each structure.
+	/// therefore this integral — follows whoever currently owns each structure.</para>
 	/// </summary>
 	public class GrossIncomeIntegrator
 	{

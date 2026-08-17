@@ -362,14 +362,14 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	/// <summary>
-	/// The funnel's per-player order gate. Engine-free by construction (uints, strings, bools) so the
+	/// <para>The funnel's per-player order gate. Engine-free by construction (uints, strings, bools) so the
 	/// COMPOSITION — urgency handling, the whitelist, all-or-nothing over grouped targets, the standing
-	/// record and its lifetime — is pinned in NUnit rather than only its leaf predicates.
+	/// record and its lifetime — is pinned in NUnit rather than only its leaf predicates.</para>
 	///
-	/// RECORD LIFETIME, which is the entire point (see the file header): a record is born when an order
+	/// <para>RECORD LIFETIME, which is the entire point (see the file header): a record is born when an order
 	/// is admitted and can only die from (i) the dwell elapsing, (ii) the unit no longer executing
 	/// anything, (iii) an explicit Stop, or (iv) an age-based prune. Nothing a module does — no
-	/// eligibility set, no roster rebuild, no TTL expiry, no pool exit — can reach it.
+	/// eligibility set, no roster rebuild, no TTL expiry, no pool exit — can reach it.</para>
 	/// </summary>
 	public sealed class BotOrderGate
 	{

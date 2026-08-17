@@ -1057,13 +1057,13 @@ namespace OpenRA.Mods.Common.Traits
 		CPos? stagingAnchor;
 
 		/// <summary>
-		/// The cell the free pool is mustering on this eval, published so the MOUNTED TRANSPORT can deliver its
+		/// <para>The cell the free pool is mustering on this eval, published so the MOUNTED TRANSPORT can deliver its
 		/// infantry to the armour instead of to a destination it computes for itself (RendezvousMath). Read-only:
-		/// this is a rendezvous channel, not a control surface — no consumer may steer the offensive's staging.
+		/// this is a rendezvous channel, not a control surface — no consumer may steer the offensive's staging.</para>
 		///
-		/// Null carries real information and must not be papered over by the consumer: it means staging has not
+		/// <para>Null carries real information and must not be papered over by the consumer: it means staging has not
 		/// resolved (off, no control field / SR, or a flat field with no believed enemy anywhere), so there is no
-		/// force to rendezvous WITH and a transport should keep its own destination.
+		/// force to rendezvous WITH and a transport should keep its own destination.</para>
 		/// </summary>
 		public CPos? ForwardStagingAnchor => stagingAnchor;
 
@@ -4504,20 +4504,21 @@ namespace OpenRA.Mods.Common.Traits
 			return hostileMul;
 		}
 
-		/// <summary>Phase 1c leg (a) — SNAP each axis score to the nearest multiple of a coarse band before
+		/// <summary><para>Phase 1c leg (a) — SNAP each axis score to the nearest multiple of a coarse band before
 		/// score-PROPORTIONAL sizing, so believed-field jitter between axes of comparable score cannot flip the
 		/// axis sizes (and thereby hand a marginal unit to a rival axis pointing the other way — root cause B).
 		/// Two NEAR-TIED scores snap to the same multiple, get identical weights, and therefore size identically:
-		/// nothing to shed, nothing to top up, no reshuffle.
+		/// nothing to shed, nothing to top up, no reshuffle.</para>
 		///
-		/// The band is RELATIVE to the TOP score in the set, mirroring
+		/// <para>The band is RELATIVE to the TOP score in the set, mirroring
 		/// <see cref="MissionCommitmentMath.BetterOpportunityQuantized"/>'s pair-relative band, because offense
 		/// scores span ~1e8–1e12 and no absolute band is coarse across that range. Whole-set relative (not
 		/// pairwise) is what makes the result ORDER-INDEPENDENT: max is order-independent, so every axis is banded
-		/// against the same yardstick and the sizing is a function of the score SET, not of its enumeration.
+		/// against the same yardstick and the sizing is a function of the score SET, not of its enumeration.</para>
 		///
-		/// ROUND-TO-NEAREST, not floor-to-band and not a band index — the review killed both alternatives, and the
-		/// reasons are the pins in PoiOffenseTest:
+		/// <para>ROUND-TO-NEAREST, not floor-to-band and not a band index — the review killed both alternatives, and the
+		/// reasons are the pins in PoiOffenseTest:</para>
+		///
 		/// <list type="bullet">
 		/// <item>FLOOR (the rival-compare primitive <see cref="MissionCommitmentMath.QuantizeAxisScore"/>) is right
 		/// for a ratio test with a margin, but fed to a proportional allocator it zeroes every axis below one band
@@ -4535,8 +4536,8 @@ namespace OpenRA.Mods.Common.Traits
 		/// band instead of collapsing. That is inherent to any quantiser (only hysteresis removes it), it is
 		/// bounded by one band, and round centres the error where floor biased it.
 		///
-		/// A bandPct ≤ 0, an empty set, or an all-zero set returns the scores unchanged — a bitwise pass-through,
-		/// which is the frozen default. Integer-only, deterministic, zero RNG.</summary>
+		/// <para>A bandPct ≤ 0, an empty set, or an all-zero set returns the scores unchanged — a bitwise pass-through,
+		/// which is the frozen default. Integer-only, deterministic, zero RNG.</para></summary>
 		public static List<long> QuantizeSizingScores(IReadOnlyList<long> scores, int bandPct)
 		{
 			var snapped = new List<long>(scores.Count);

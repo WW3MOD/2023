@@ -7,12 +7,12 @@
 namespace OpenRA.Mods.Common.Tournament
 {
 	/// <summary>
-	/// Computes a per-player score snapshot from current world state + tracked
+	/// <para>Computes a per-player score snapshot from current world state + tracked
 	/// cumulative state. Implementations should be cheap — called every tick the
-	/// watcher evaluates the win rule.
+	/// watcher evaluates the win rule.</para>
 	///
-	/// Register implementations in MatchHarness, then reference by name from
-	/// tournament.yaml's "Scorer:" field.
+	/// <para>Register implementations in MatchHarness, then reference by name from
+	/// tournament.yaml's "Scorer:" field.</para>
 	/// </summary>
 	public interface IMatchScorer
 	{

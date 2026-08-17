@@ -14,19 +14,19 @@ using System;
 namespace OpenRA.Mods.Common.Traits
 {
 	/// <summary>
-	/// The floating-point kernels of CohesionMoveModifier's slot layout, split out so they can be
-	/// exercised without a Map (see tools/fp-determinism).
+	/// <para>The floating-point kernels of CohesionMoveModifier's slot layout, split out so they can be
+	/// exercised without a Map (see tools/fp-determinism).</para>
 	///
-	/// DETERMINISM HAZARD — this is the arithmetic that produces the actual destination CELLS. It runs
+	/// <para>DETERMINISM HAZARD — this is the arithmetic that produces the actual destination CELLS. It runs
 	/// inside ModifyGroupOrder, i.e. on the synced path on every client (UnitOrders.cs). Every kernel
 	/// here has the same shape: integers in, double math, then a cast or Math.Round back to an integer
 	/// cell offset. That final rounding is what turns a one-ULP disagreement between two machines into
-	/// a unit standing in a different cell.
+	/// a unit standing in a different cell.</para>
 	///
-	/// OpenRA's determinism model is integer-only — WDist, WAngle and WPos are all ints precisely to
+	/// <para>OpenRA's determinism model is integer-only — WDist, WAngle and WPos are all ints precisely to
 	/// avoid this — so this whole class is a standing convention breach and wants replacing with
 	/// fixed-point. The Map lookups the layout code performs around these kernels (Clamp, Contains,
-	/// CellContaining, density and passability) are all integer and are deliberately NOT in here.
+	/// CellContaining, density and passability) are all integer and are deliberately NOT in here.</para>
 	/// </summary>
 	public static class CohesionLayoutMath
 	{

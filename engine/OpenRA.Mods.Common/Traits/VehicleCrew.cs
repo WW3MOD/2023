@@ -77,6 +77,11 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class VehicleCrew : INotifyCreated, INotifyDamageStateChanged, ITick, INotifyKilled
 	{
+		// Clockwise from north. Indexed by SharedRandom.Next(8) when walking an ejected
+		// crew clear of the husk; shared by both evacuation paths so they cannot drift.
+		static readonly int[] EvacOffsetX = { 0, 1, 1, 1, 0, -1, -1, -1 };
+		static readonly int[] EvacOffsetY = { -1, -1, 0, 1, 1, 1, 0, -1 };
+
 		readonly Actor self;
 		readonly VehicleCrewInfo info;
 		readonly string[] ejectionOrder;
@@ -382,8 +387,8 @@ namespace OpenRA.Mods.Common.Traits
 				if (mobile != null && !crew.IsDead)
 				{
 					var dir = w.SharedRandom.Next(8);
-					var dx = new[] { 0, 1, 1, 1, 0, -1, -1, -1 }[dir];
-					var dy = new[] { -1, -1, 0, 1, 1, 1, 0, -1 }[dir];
+					var dx = EvacOffsetX[dir];
+					var dy = EvacOffsetY[dir];
 					var dist = 2 + w.SharedRandom.Next(2);
 					var target = spawnLocation + new CVec(dx * dist, dy * dist);
 					crew.QueueActivity(false, mobile.MoveTo(target, 0, null, true));
@@ -563,8 +568,8 @@ namespace OpenRA.Mods.Common.Traits
 					if (mobile != null)
 					{
 						var dir = w.SharedRandom.Next(8);
-						var dx = new[] { 0, 1, 1, 1, 0, -1, -1, -1 }[dir];
-						var dy = new[] { -1, -1, 0, 1, 1, 1, 0, -1 }[dir];
+						var dx = EvacOffsetX[dir];
+						var dy = EvacOffsetY[dir];
 						var dist = 2 + w.SharedRandom.Next(2);
 						var target = spawnLocation + new CVec(dx * dist, dy * dist);
 						crew.QueueActivity(false, mobile.MoveTo(target, 0, null, true));

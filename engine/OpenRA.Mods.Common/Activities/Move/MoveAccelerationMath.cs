@@ -26,38 +26,38 @@ namespace OpenRA.Mods.Common.Activities
 {
 	public static class MoveAccelerationMath
 	{
-		/// <summary>Index into <c>Mobile.AccelerationSteps</c> for a unit at <paramref name="currentSpeed"/> heading
+		/// <summary><para>Index into <c>Mobile.AccelerationSteps</c> for a unit at <paramref name="currentSpeed"/> heading
 		/// for <paramref name="maxSpeed"/> — the cell's speed cap after terrain and speed modifiers. The steps array
 		/// is a falloff curve sampled across that range, so the index is which band of the ramp we are in:
-		/// <c>ceil(currentSpeed * stepCount / maxSpeed) - 1</c>, floored at 0 for a standing start.
+		/// <c>ceil(currentSpeed * stepCount / maxSpeed) - 1</c>, floored at 0 for a standing start.</para>
 		///
-		/// Computed as <c>(a + b - 1) / b</c>, the standard exact integer ceiling division, valid because the
-		/// numerator is non-negative (CurrentSpeed is clamped at 0 by every writer) and maxSpeed is positive.
+		/// <para>Computed as <c>(a + b - 1) / b</c>, the standard exact integer ceiling division, valid because the
+		/// numerator is non-negative (CurrentSpeed is clamped at 0 by every writer) and maxSpeed is positive.</para>
 		///
-		/// PRECONDITION: <c>0 &lt;= currentSpeed &lt; maxSpeed</c>, which the caller guarantees — the
+		/// <para>PRECONDITION: <c>0 &lt;= currentSpeed &lt; maxSpeed</c>, which the caller guarantees — the
 		/// <c>currentSpeed &gt; maxSpeed</c> case decelerates instead and equality skips the branch. Under it the
 		/// result is in <c>[0, stepCount - 1]</c>. Deliberately NOT clamped at the top: a caller that breaks the
-		/// precondition should throw on the array index rather than silently accelerate by the wrong step.
+		/// precondition should throw on the array index rather than silently accelerate by the wrong step.</para>
 		///
-		/// maxSpeed of 0 is unreachable here for the same reason (a positive speed decelerates, a zero one fails the
+		/// <para>maxSpeed of 0 is unreachable here for the same reason (a positive speed decelerates, a zero one fails the
 		/// inequality) and divides by zero if it ever becomes reachable — loudly, which is the intent. Widened to
-		/// long only to keep the intermediate product safe from a pathological ruleset speed. Pure.</summary>
+		/// long only to keep the intermediate product safe from a pathological ruleset speed. Pure.</para></summary>
 		public static int AccelerationStepIndex(int currentSpeed, int maxSpeed, int stepCount)
 		{
 			var index = (int)(((long)currentSpeed * stepCount + maxSpeed - 1) / maxSpeed) - 1;
 			return index > 0 ? index : 0;
 		}
 
-		/// <summary>Percentage of its speed a unit keeps when it redirects mid-cell through a turn of
+		/// <summary><para>Percentage of its speed a unit keeps when it redirects mid-cell through a turn of
 		/// <paramref name="angleDiff"/> (0-512, where 512 is a full reversal). Falls linearly from 100% at 256 (90°)
-		/// to <paramref name="redirectSpeedPenalty"/>% at 512 (180°).
+		/// to <paramref name="redirectSpeedPenalty"/>% at 512 (180°).</para>
 		///
-		/// PRECONDITION: <c>256 &lt; angleDiff &lt;= 512</c> — the caller applies no penalty below 90°.
+		/// <para>PRECONDITION: <c>256 &lt; angleDiff &lt;= 512</c> — the caller applies no penalty below 90°.</para>
 		///
-		/// This one is a determinism fix with no behaviour change: the divisor is 256, so the old float form
+		/// <para>This one is a determinism fix with no behaviour change: the divisor is 256, so the old float form
 		/// `(angleDiff - 256) / 256f * (100 - penalty)` was exactly representable and already agreed with exact
 		/// arithmetic on every reachable input. It is converted anyway so that no float remains on the path that
-		/// writes CurrentSpeed, and so a later edit to either constant cannot quietly reintroduce rounding. Pure.</summary>
+		/// writes CurrentSpeed, and so a later edit to either constant cannot quietly reintroduce rounding. Pure.</para></summary>
 		public static int RedirectSpeedRetained(int angleDiff, int redirectSpeedPenalty)
 		{
 			return 100 - ((angleDiff - 256) * (100 - redirectSpeedPenalty) / 256);

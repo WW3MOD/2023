@@ -160,16 +160,16 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Resolve one eval's forward staging anchor as a MAP cell, or report that the descent never left the
-		/// Supply Route's grid cell.
+		/// <para>Resolve one eval's forward staging anchor as a MAP cell, or report that the descent never left the
+		/// Supply Route's grid cell.</para>
 		///
-		/// This owns the whole coordinate handoff — map in, grid descent, map out — because splitting it across
+		/// <para>This owns the whole coordinate handoff — map in, grid descent, map out — because splitting it across
 		/// the caller is exactly what produced the bug it exists to prevent. The caller supplies the samplers and
-		/// keeps its hysteresis; every decision about WHEN there is no anchor lives here, under NUnit.
+		/// keeps its hysteresis; every decision about WHEN there is no anchor lives here, under NUnit.</para>
 		///
-		/// Returns false when the descent stalled at its seed: a flat/unpopulated field (no believed enemy
+		/// <para>Returns false when the descent stalled at its seed: a flat/unpopulated field (no believed enemy
 		/// anywhere) or a front already inside the standoff. The caller must then publish NO anchor, so the
-		/// reserve idles at the SR exactly as the legacy path did.
+		/// reserve idles at the SR exactly as the legacy path did.</para>
 		/// </summary>
 		public static bool TryResolveAnchorCell(
 			int cellSize, int srMapX, int srMapY,

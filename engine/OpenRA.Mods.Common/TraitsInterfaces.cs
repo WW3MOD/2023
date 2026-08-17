@@ -461,6 +461,9 @@ namespace OpenRA.Mods.Common.Traits
 	[RequireExplicitImplementation]
 	public interface IOverrideAutoTarget
 	{
+		/// <param name="self">The actor whose trait is being asked for an override.</param>
+		/// <param name="target">The target to engage instead of AutoTarget's own scan result. Only
+		/// meaningful when the method returns true.</param>
 		/// <param name="canYieldToHigherPriority">True only when this override is an engagement the
 		/// trait picked automatically, so AutoTarget may replace it with a STRICTLY higher-priority
 		/// target. Must be false for anything a player, Lua or a bot ordered, and for any force-attack
@@ -614,6 +617,7 @@ namespace OpenRA.Mods.Common.Traits
 			WPos? initialTargetPosition = null, Color? targetLineColor = null);
 		Activity MoveFollow(Actor self, in Target target, WDist minRange, WDist maxRange,
 			WPos? initialTargetPosition = null, Color? targetLineColor = null);
+
 		/// <summary>
 		/// Move adjacent to a target actor. May be wrapped by <see cref="IWrapMove"/> traits
 		/// (e.g. SmartMove pauses the unit to fire at intervening enemies). For movement that

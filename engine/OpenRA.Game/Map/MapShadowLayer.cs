@@ -15,21 +15,21 @@ using OpenRA.Primitives;
 namespace OpenRA
 {
 	/// <summary>
-	/// WW3MOD shadow cache: for every "from" cell, the pre-computed (ground, airborne) shadow toward
-	/// every "to" cell in the radius-<see cref="MinRange"/>..<see cref="MaxRange"/> annulus around it.
+	/// <para>WW3MOD shadow cache: for every "from" cell, the pre-computed (ground, airborne) shadow toward
+	/// every "to" cell in the radius-<see cref="MinRange"/>..<see cref="MaxRange"/> annulus around it.</para>
 	///
-	/// Storage is one flat array holding only that annulus window per from-cell. The representation
+	/// <para>Storage is one flat array holding only that annulus window per from-cell. The representation
 	/// this replaces was CellLayer&lt;CellLayer&lt;(byte, byte)&gt;&gt; — a full-map array per cell, of
 	/// which only the annulus was ever written: 98x82 cost 123 MB across 8,036 arrays of ~16 KB, all of
-	/// them just under the 85,000-byte LOH threshold and so promoted into gen2.
+	/// them just under the 85,000-byte LOH threshold and so promoted into gen2.</para>
 	///
-	/// Read semantics are deliberately identical to the nested CellLayer, because shadow feeds
+	/// <para>Read semantics are deliberately identical to the nested CellLayer, because shadow feeds
 	/// visibility and visibility feeds the simulation:
 	///  - a pair outside the annulus reads (0, 0), the default the dense array returned because
 	///    nothing ever wrote there;
 	///  - an index outside the map throws IndexOutOfRangeException, as indexing CellLayer.Entries did;
 	///  - two MPos that resolve to the same linear cell index alias onto the same entry, as they did
-	///    when CellLayer stored them by that index.
+	///    when CellLayer stored them by that index.</para>
 	/// </summary>
 	public sealed class MapShadowLayer
 	{

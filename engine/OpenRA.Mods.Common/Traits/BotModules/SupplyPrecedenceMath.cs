@@ -61,15 +61,15 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public static class SupplyPrecedenceMath
 	{
-		/// <summary>The stall counter for this banking spell: reset to 0 when the balance sets a NEW HIGH,
-		/// incremented otherwise.
+		/// <summary><para>The stall counter for this banking spell: reset to 0 when the balance sets a NEW HIGH,
+		/// incremented otherwise.</para>
 		///
-		/// "New high" rather than "rose since last cycle" on purpose — income arrives in lumps and upkeep
+		/// <para>"New high" rather than "rose since last cycle" on purpose — income arrives in lumps and upkeep
 		/// nibbles between them, so a spell that is genuinely working still shows flat and even slightly
 		/// falling cycles (a measured good spell ran 92/92/158/224/224/290/…/554/521/521/587, i.e. two flat
 		/// cycles and a dip, while climbing overall). Comparing against the spell's best absorbs that
 		/// jitter while still catching a balance that has stopped advancing, which is the thing that
-		/// distinguishes "saving up slowly" from "another spender is taking the income".</summary>
+		/// distinguishes "saving up slowly" from "another spender is taking the income".</para></summary>
 		public static int UpdateStall(long cashNow, long bestCashThisSpell, int stalledCycles)
 		{
 			if (cashNow > bestCashThisSpell)
@@ -78,22 +78,22 @@ namespace OpenRA.Mods.Common.Traits
 			return stalledCycles + 1;
 		}
 
-		/// <summary>Should this build cycle buy NOTHING and keep banking toward a supply truck?
+		/// <summary><para>Should this build cycle buy NOTHING and keep banking toward a supply truck?</para>
 		///
-		/// True only when the fleet is genuinely short of what current demand wants
+		/// <para>True only when the fleet is genuinely short of what current demand wants
 		/// (<paramref name="fleetShort"/> — itself demand-derived, so false whenever nobody needs resupply),
 		/// the truck is not affordable yet (<paramref name="truckAffordable"/> false — if we CAN afford it the
 		/// caller buys it outright and never asks), and the balance has not stalled for
-		/// <paramref name="maxStalledCycles"/> consecutive cycles.
+		/// <paramref name="maxStalledCycles"/> consecutive cycles.</para>
 		///
-		/// TERMINATION, which is the property the previous cycle-count bound lacked: banking persists only
+		/// <para>TERMINATION, which is the property the previous cycle-count bound lacked: banking persists only
 		/// while <see cref="UpdateStall"/> keeps returning 0, i.e. only while cash sets new highs. A balance
 		/// that keeps setting new highs reaches any fixed price in finite time; one that does not ends the
 		/// spell. So this cannot become a permanent production freeze, and it cannot become the
 		/// bank-to-just-under-the-price-then-spend-it-all loop either, because it gives up at the point
-		/// progress stops rather than at an arbitrary tick count further on.
+		/// progress stops rather than at an arbitrary tick count further on.</para>
 		///
-		/// <paramref name="maxStalledCycles"/> &lt;= 0 is the OFF switch and returns false unconditionally.</summary>
+		/// <para><paramref name="maxStalledCycles"/> &lt;= 0 is the OFF switch and returns false unconditionally.</para></summary>
 		public static bool ShouldBankCycle(bool fleetShort, bool truckAffordable, int stalledCycles, int maxStalledCycles)
 		{
 			if (maxStalledCycles <= 0)
@@ -105,16 +105,16 @@ namespace OpenRA.Mods.Common.Traits
 			return stalledCycles < maxStalledCycles;
 		}
 
-		/// <summary>How many customers to size the supply fleet from.
+		/// <summary><para>How many customers to size the supply fleet from.</para>
 		///
-		/// <paramref name="useNeedBar"/> off ⇒ <paramref name="starvingCustomers"/> verbatim, today's answer.
-		/// On ⇒ <paramref name="needyCustomers"/>, the count at SupplyProvider's own service bar.
+		/// <para><paramref name="useNeedBar"/> off ⇒ <paramref name="starvingCustomers"/> verbatim, today's answer.
+		/// On ⇒ <paramref name="needyCustomers"/>, the count at SupplyProvider's own service bar.</para>
 		///
-		/// The max() is not defensive padding, it is a monotonicity guarantee worth stating: the need bar is
+		/// <para>The max() is not defensive padding, it is a monotonicity guarantee worth stating: the need bar is
 		/// LOOSER than the starving bar, so needy should always be the larger of the two, and taking the max
 		/// means switching this flag on can only ever raise the fleet, never lower it. If the two counts ever
 		/// cross — a config that sets SupplyStarvingThresholdPerMille above the need threshold — this keeps
-		/// the change one-directional instead of silently shrinking the fleet on a threshold edit.</summary>
+		/// the change one-directional instead of silently shrinking the fleet on a threshold edit.</para></summary>
 		public static int SizingCustomers(bool useNeedBar, int starvingCustomers, int needyCustomers)
 		{
 			if (starvingCustomers < 0)

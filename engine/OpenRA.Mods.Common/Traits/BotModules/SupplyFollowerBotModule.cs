@@ -2021,11 +2021,11 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Tier 2 idle-truck hunt: drive an unassigned truck to the neediest starving soldier inside its
+		/// <para>Tier 2 idle-truck hunt: drive an unassigned truck to the neediest starving soldier inside its
 		/// leash. Called only for a truck the follow pass left with nothing to do, and only for the
-		/// @experimental bot with IdleTruckHunt on.
+		/// @experimental bot with IdleTruckHunt on.</para>
 		///
-		/// Infantry only, and by construction rather than by a name list: the candidate must carry the
+		/// <para>Infantry only, and by construction rather than by a name list: the candidate must carry the
 		/// truck's OWN RearmCondition — replenish-soldiers for TRUK (vehicles.yaml:546), which only soldiers
 		/// HOLD as an ExternalCondition (infantry.yaml:215). LOGISTICSCENTER names the same condition
 		/// (structures.yaml:382-386) but as a ProximityExternalCondition GRANTER, which is not an
@@ -2033,11 +2033,11 @@ namespace OpenRA.Mods.Common.Traits
 		/// match it, and the building never reads as demand. A vehicle therefore never appears
 		/// as demand here, which is correct: the only provider that serves replenish-vehicles is the static
 		/// Logistics Centre (structures.yaml:394), and it is docking-gated, so vehicles PULL and trucks
-		/// cannot push to them.
+		/// cannot push to them.</para>
 		///
-		/// The candidate scan is a leash-radius spatial query, so the bound holds twice over: FindActorsInCircle
+		/// <para>The candidate scan is a leash-radius spatial query, so the bound holds twice over: FindActorsInCircle
 		/// applies the identical inclusive squared-distance filter SupplyHuntMath.WithinLeash does, and the
-		/// pure selection re-checks it. No candidate ⇒ no order ⇒ the truck stays put.
+		/// pure selection re-checks it. No candidate ⇒ no order ⇒ the truck stays put.</para>
 		/// </summary>
 		void HuntStarvingInfantry(Actor truck)
 		{
@@ -2419,13 +2419,13 @@ namespace OpenRA.Mods.Common.Traits
 			return Math.Max(danger, dangerField.GroundDanger(player, representative));
 		}
 
-		/// <summary>Run the DAMPED danger-evac decision for one truck and, when it is on the evac branch, issue
-		/// the retreat. Returns true when the caller should skip the follow path this scan.
+		/// <summary><para>Run the DAMPED danger-evac decision for one truck and, when it is on the evac branch, issue
+		/// the retreat. Returns true when the caller should skip the follow path this scan.</para>
 		///
-		/// Believed ground danger (DangerFieldLayer) at the truck and at its target cluster centroid drives the
-		/// decision — fog-legal by construction; dangerField is non-null only for participating profiles.
+		/// <para>Believed ground danger (DangerFieldLayer) at the truck and at its target cluster centroid drives the
+		/// decision — fog-legal by construction; dangerField is non-null only for participating profiles.</para>
 		///
-		/// Two pieces of memory live here, and they are what stop the branch oscillating (the full reasoning is
+		/// <para>Two pieces of memory live here, and they are what stop the branch oscillating (the full reasoning is
 		/// in SupplyLogisticsMath's EVAC DAMPER note):
 		///   * the DWELL latches the branch for EvacDwellScans so a retreat already ordered is not re-decided
 		///     while it is still being driven, and the RELEASE DEADBAND then requires danger to fall clear of
@@ -2436,7 +2436,7 @@ namespace OpenRA.Mods.Common.Traits
 		///     is the pre-fix failure verbatim. A leg is therefore issued once and then left alone until it
 		///     has actually been driven (or the truck went idle because it could not be), at which point the
 		///     next one is stepped. The dwell alone does NOT bound this: the counter arms on the entry edge,
-		///     so from the scan after it expires every scan would re-issue.
+		///     so from the scan after it expires every scan would re-issue.</para>
 		/// </summary>
 		bool StepEvac(Actor truck, Actor srActor, UnitCluster cluster)
 		{

@@ -18,14 +18,14 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Activities
 {
 	/// <summary>
-	/// Walks a low-ammo unit to a supply provider's push aura, waits there while the aura refills
+	/// <para>Walks a low-ammo unit to a supply provider's push aura, waits there while the aura refills
 	/// it, then walks back to the cell it started from. Queued by <see cref="AutoSeekSupplies"/>
-	/// when an idle unit trips its ammo threshold and its stances permit the errand.
+	/// when an idle unit trips its ammo threshold and its stances permit the errand.</para>
 	///
-	/// The return leg is the point of the activity: without it a squad drains toward the trucks and
+	/// <para>The return leg is the point of the activity: without it a squad drains toward the trucks and
 	/// the line it was holding quietly empties. Cancelling (a player order, or anything else that
 	/// replaces the activity) ends the run immediately and the unit simply stays where it is —
-	/// a player order always wins over an errand the unit gave itself.
+	/// a player order always wins over an errand the unit gave itself.</para>
 	/// </summary>
 	public class SeekSuppliesAndReturn : Activity
 	{

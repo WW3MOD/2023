@@ -1080,24 +1080,25 @@ namespace OpenRA
 			}
 		}
 
+		public const int ForestShadowKneeDensity = 20; // ~2 fully-dense tree cells stay linear
+
 		/// <summary>
-		/// WW3MOD forest-concealment curve. <paramref name="crossedDensity"/> is the summed tree
+		/// <para>WW3MOD forest-concealment curve. <paramref name="crossedDensity"/> is the summed tree
 		/// Building.Density of every cell strictly BETWEEN viewer and target on the sightline
-		/// (a fully-dense tree cell contributes 10). Returns the ground vision-strength to subtract.
+		/// (a fully-dense tree cell contributes 10). Returns the ground vision-strength to subtract.</para>
 		///
-		/// Below the knee the response is linear — a thin 1-cell treeline barely dents detection
+		/// <para>Below the knee the response is linear — a thin 1-cell treeline barely dents detection
 		/// (density 10 → 1). Above it, each further unit of crossed density counts double, so a
 		/// genuinely DEEP cluster ramps up to real concealment (4 dense cells → 6, enough to hide
 		/// stock Vision-3 infantry from a moderate-range viewer) without a thin line ever cloaking.
 		/// Deliberately superlinear: linear alone cannot keep 1 cell weak AND make 4 cells hide.
 		/// Pure integer, deterministic, zero RNG. Conservative first values (item 26) — the goal is
-		/// "deep forest genuinely hides", not invisibility; calibration/review may retune the knee.
+		/// "deep forest genuinely hides", not invisibility; calibration/review may retune the knee.</para>
 		///
-		/// Reference table (uniform density-10 cells): 1→1, 2→2, 3→4, 4→6, 5→8, 6→10.
+		/// <para>Reference table (uniform density-10 cells): 1→1, 2→2, 3→4, 4→6, 5→8, 6→10.
 		/// Vision-strength ladder (^StandardVision): str 10 @0-4c, 9 @4-7c, 8 @7-10c, 7 @10-13c,
-		/// 6 @13-16c … Detection hides Vision-3 when (strength - shadow) &lt;= 3.
+		/// 6 @13-16c … Detection hides Vision-3 when (strength - shadow) &lt;= 3.</para>
 		/// </summary>
-		public const int ForestShadowKneeDensity = 20; // ~2 fully-dense tree cells stay linear
 		public static int ForestGroundShadow(int crossedDensity)
 		{
 			if (crossedDensity <= 0)

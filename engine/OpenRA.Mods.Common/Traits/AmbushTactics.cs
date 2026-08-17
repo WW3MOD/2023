@@ -28,11 +28,11 @@ namespace OpenRA.Mods.Common.Traits
 	public static class AmbushTactics
 	{
 		/// <summary>
-		/// Stage 2 — "halt before contact". Decides whether an Ambush unit that is attack-moving or
+		/// <para>Stage 2 — "halt before contact". Decides whether an Ambush unit that is attack-moving or
 		/// auto-moving and has just scanned an enemy should HALT into an idle ambush (drop the march,
-		/// hold fire, pre-aim) instead of the stock stop-and-fire-on-contact.
+		/// hold fire, pre-aim) instead of the stock stop-and-fire-on-contact.</para>
 		///
-		/// Precedence — any earlier gate failing returns false, i.e. "take the original engage path"
+		/// <para>Precedence — any earlier gate failing returns false, i.e. "take the original engage path"
 		/// (which keeps the ungated path byte-identical to stock):
 		///   <paramref name="tacticsEnabled"/> — the default-off gate (AmbushTacticsCondition granted).
 		///       Off ⇒ never halt. This is the clause that keeps every ungated unit on the stock path.
@@ -43,7 +43,7 @@ namespace OpenRA.Mods.Common.Traits
 		///   <paramref name="hasValidTarget"/> — nothing scanned ⇒ nothing to halt for.
 		///   !<paramref name="groupDetected"/> — halt ONLY while the group is still unseen by the target's
 		///       owner. Once the ambush is blown (any group member visible to the enemy) fall through and
-		///       engage immediately; holding fire from an exposed position just wastes the alpha strike.
+		///       engage immediately; holding fire from an exposed position just wastes the alpha strike.</para>
 		/// </summary>
 		public static bool ShouldHaltBeforeContact(bool tacticsEnabled, UnitStance stance, bool hasValidTarget, bool groupDetected)
 		{
@@ -137,11 +137,11 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// The Stage-3 trigger table (design §5.2), evaluated in the fixed 1→5 precedence order so the
+		/// <para>The Stage-3 trigger table (design §5.2), evaluated in the fixed 1→5 precedence order so the
 		/// returned <see cref="AmbushSpringTrigger"/> names the FIRST satisfied trigger. Pure: every input
-		/// is a scalar/bool the caller has already extracted, so this is fully NUnit-pinnable.
+		/// is a scalar/bool the caller has already extracted, so this is fully NUnit-pinnable.</para>
 		///
-		///   1 Detected            — <paramref name="detected"/> (a group member is visible to the enemy).
+		/// <para>  1 Detected            — <paramref name="detected"/> (a group member is visible to the enemy).
 		///   2 Damaged             — <paramref name="damaged"/> (took fire).
 		///   3 BestStrikeDegrading — <paramref name="bestTargetPredictedExit"/> AND score ≥
 		///        <paramref name="minSpringThreshold"/> AND <paramref name="consecutiveDegradeSamples"/> ≥
@@ -152,11 +152,11 @@ namespace OpenRA.Mods.Common.Traits
 		///        <paramref name="requiredHighSamples"/> (the caller only advances that counter while the
 		///        score ≥ HighSpringThreshold). Handles the "enemy stops / never decreases" degenerate
 		///        case (§3.6) — the column is fully in the zone, spring at peak density.
-		///   5 Overrun             — <paramref name="overrun"/>.
+		///   5 Overrun             — <paramref name="overrun"/>.</para>
 		///
-		/// Detection and damage dominate the score-derived triggers because an exposed or hit ambush must
+		/// <para>Detection and damage dominate the score-derived triggers because an exposed or hit ambush must
 		/// commit its alpha strike immediately — waiting for a "nicer" score once seen just eats return
-		/// fire (the AT-suppression trap, §3.3).
+		/// fire (the AT-suppression trap, §3.3).</para>
 		/// </summary>
 		public static AmbushSpringTrigger EvaluateSpring(
 			bool detected,

@@ -197,15 +197,15 @@ namespace OpenRA.Graphics
 		/// Reserved sprite filenames that the file system cannot open, without decoding anything.
 		/// </summary>
 		/// <remarks>
-		/// <see cref="MissingFiles"/> only fills in during <see cref="LoadReservations"/>, which decodes
+		/// <para><see cref="MissingFiles"/> only fills in during <see cref="LoadReservations"/>, which decodes
 		/// every sprite in the mod and packs it into sheets - far too slow to run from a lint pass, which
 		/// is invoked once per tileset and again per map. This reports the same "file not found" class by
-		/// asking the file system directly, so the check costs an Exists call per referenced filename.
+		/// asking the file system directly, so the check costs an Exists call per referenced filename.</para>
 		///
-		/// Only valid BEFORE <see cref="LoadReservations"/>, which clears the reservation tables. That
+		/// <para>Only valid BEFORE <see cref="LoadReservations"/>, which clears the reservation tables. That
 		/// suits lint, which never loads sprites, and is why this does not simply reuse missingFiles.
 		/// Unlike <see cref="MissingFiles"/> this does NOT catch a file that exists but no loader can
-		/// parse - that case still surfaces only at load time.
+		/// parse - that case still surfaces only at load time.</para>
 		/// </remarks>
 		public IEnumerable<(string Filename, MiniYamlNode.SourceLocation Location)> UnreadableReservedFiles
 		{

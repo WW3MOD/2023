@@ -48,22 +48,22 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public static class SupportFloorMath
 	{
-		/// <summary>The standing floor to hold for a support type right now, given how much of the force it
-		/// supports actually exists.
+		/// <summary><para>The standing floor to hold for a support type right now, given how much of the force it
+		/// supports actually exists.</para>
 		///
-		/// <paramref name="perSupported"/> is the ratio denominator — "one of these per N supported units",
+		/// <para><paramref name="perSupported"/> is the ratio denominator — "one of these per N supported units",
 		/// the user's "about one medic per 20-man squad". When it is &lt;= 0 the type has no ratio configured
 		/// and <paramref name="flatFloor"/> is returned unchanged (the off-switch: every existing config keeps
-		/// its current behaviour).
+		/// its current behaviour).</para>
 		///
-		/// Otherwise the floor is <c>min(flatFloor, supportedCount / perSupported)</c> — it PHASES IN as the
+		/// <para>Otherwise the floor is <c>min(flatFloor, supportedCount / perSupported)</c> — it PHASES IN as the
 		/// supported force grows and is capped by the flat floor so it can never exceed the standing
 		/// population the designer already signed off on. Integer division floors, which is the intended
-		/// rounding: with a ratio of 20 the first unit is warranted at 20 supported, not at 1.
+		/// rounding: with a ratio of 20 the first unit is warranted at 20 supported, not at 1.</para>
 		///
-		/// <paramref name="supportedCount"/> at zero — no army yet — therefore yields ZERO, which is what
+		/// <para><paramref name="supportedCount"/> at zero — no army yet — therefore yields ZERO, which is what
 		/// stops a floored support type being the opening call-in. Negative inputs are clamped to 0 rather
-		/// than trusted, since a miscounted denominator must never invent a floor.</summary>
+		/// than trusted, since a miscounted denominator must never invent a floor.</para></summary>
 		public static int EffectiveFloor(int flatFloor, int perSupported, int supportedCount)
 		{
 			if (flatFloor <= 0)

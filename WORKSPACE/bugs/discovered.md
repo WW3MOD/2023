@@ -1761,3 +1761,19 @@ make: *** [test] Error 143
 **The real damage is the guard rail.** `CLAUDE.md` tells every worker `make test` is the YAML validation step. A check that is already red teaches everyone who runs it to ignore it, and hides the next genuine YAML break — including the blank-line-merge trap that the same file warns about. Whoever picks this up: the goal is getting `make test` green again, not fixing one map.
 
 **Process note attached to the discovery.** The failure was nearly missed because the command was chained through `tail`, so the harness reported exit code 0 while `make` had returned 143. That is the third recorded instance of a verdict being inverted by `tail` — see the standing rule in `DOCS/recipes/AUTOTEST.md`. It applies to `make`, not only to `run-test.sh`.
+
+### [info] `UnloadCargo.cs:108` carries a latent `CA2021` that will turn `Check Code` red the day the runner's SDK advances — 2026-08-17
+
+Found while clearing the 106 analyzer errors (`wt/analyzer-burndown`). Because there is still no `global.json`,
+the analyzer set is whatever SDK the runner happens to have. To verify the 5 `CA1862` fixes — which do NOT
+reproduce on the local 6.0.428 SDK — I temporarily pinned `Microsoft.CodeAnalysis.NetAnalyzers` 8.0.0 and rebuilt.
+`CA1862` was confirmed gone, but the newer pack also reported a rule CI does not currently run:
+
+`engine/OpenRA.Mods.Common/Activities/UnloadCargo.cs(108,11): error CA2021` — *"Do not call `Enumerable.Cast<T>`
+or `OfType<T>` with incompatible types"*, i.e. a cast the analyzer can prove always yields an empty sequence.
+
+**Not fixed here, deliberately** — it is outside this branch's scope and is not part of the 106 CI reports today.
+Two things make it worth recording. It is a *correctness* rule, not a style one, so the cast may be a real dead
+code path worth reading. And it is the concrete demonstration of the SDK-drift hazard the CI-integrity entry in
+`DISCOVERIES.md` described in the abstract: the gate is now honest, so the next runner-image bump turns this red
+with no repo change at all. Pinning a `global.json` would convert that from a surprise into a decision.

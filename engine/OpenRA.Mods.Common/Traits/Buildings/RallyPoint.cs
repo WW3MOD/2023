@@ -45,6 +45,8 @@ namespace OpenRA.Mods.Common.Traits
 		public bool Equals(RallyPointWaypoint other) => Cell == other.Cell && OrderType == other.OrderType;
 		public override bool Equals(object obj) => obj is RallyPointWaypoint w && Equals(w);
 		public override int GetHashCode() => Cell.GetHashCode() ^ ((int)OrderType << 24);
+		public static bool operator ==(RallyPointWaypoint left, RallyPointWaypoint right) => left.Equals(right);
+		public static bool operator !=(RallyPointWaypoint left, RallyPointWaypoint right) => !left.Equals(right);
 	}
 
 	[Desc("Used to waypoint units after production or repair is finished.")]

@@ -9,13 +9,13 @@ using System.Collections.Generic;
 namespace OpenRA.Mods.Common.Tournament
 {
 	/// <summary>
-	/// Decides when the match ends and who won. Called once per watcher tick.
+	/// <para>Decides when the match ends and who won. Called once per watcher tick.</para>
 	///
-	/// Returning null = match continues. Returning a verdict = match ends, that
-	/// verdict is persisted to disk and the game exits.
+	/// <para>Returning null = match continues. Returning a verdict = match ends, that
+	/// verdict is persisted to disk and the game exits.</para>
 	///
-	/// Register implementations in MatchHarness, reference by name from
-	/// tournament.yaml's "WinRule:" field.
+	/// <para>Register implementations in MatchHarness, reference by name from
+	/// tournament.yaml's "WinRule:" field.</para>
 	/// </summary>
 	public interface IWinRuleEvaluator
 	{
