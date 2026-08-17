@@ -180,9 +180,17 @@ namespace OpenRA.Mods.Common.Traits
 			"type list, so it cannot drift out of agreement with the ruleset the way UnitFloorSupportedTypes can.",
 			"SPARSER THAN THE DEMAND RATE ON PURPOSE. SupplyCustomersPerTruck (6) sizes the SURGE from men who",
 			"are actually dry; this sizes the STANDING RESERVE from men who might become dry. A reserve as dense",
-			"as the surge rate would be a fleet that never shrinks. Set this well above 6.",
-			"0 (default) ⇒ the flat floor verbatim, so every existing profile — including @stable, which sets no",
-			"supply flags at all — keeps its current answer exactly.")]
+			"as the surge rate would be a fleet that never shrinks, so this belongs above 6.",
+			"TUNE IT ON THE `[composition] supply fleet over the run: dry N/200` LINE, never on the end-of-run",
+			"`standing` column. A truck is replaced ~12 times in a 200-cycle replay at a heavy loss rate, so the",
+			"final-cycle count is close to a coin flip on whether one was alive at cycle 199 — an earlier cut of",
+			"this work picked its ratio off that artefact and got it wrong. Shipped value 10, measured against",
+			"8 and 12: dry fraction at attrition 15 runs 12%/19%/30% (america) and mean fleet at attrition 35",
+			"runs 2.43/1.71/1.55, so 10 keeps nearly all of 12's restraint while halving its worst outage.",
+			"0 (default) ⇒ EffectiveFloor returns its flatFloor argument LITERALLY, so the module passes exactly",
+			"the value it passed before this field existed. That is an identity by construction and holds for",
+			"any profile at any configuration — it needs no claim about which profiles set which flags, which",
+			"is the form architecture.md asks for (phrase flag-relative, never '@stable is frozen').")]
 		public readonly int SupplyTruckFloorPer = 0;
 
 		[Desc("Hard upper bound on the demand-sized fleet, so supply can never eat the whole call-in budget",

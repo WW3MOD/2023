@@ -254,21 +254,49 @@ Player:
 		# THE DENOMINATOR IS INFANTRY AS A FACT ABOUT THE RULESET, not a modelling choice: `RearmActors` naming
 		# `truk` appears only on infantry (rules/ingame/infantry.yaml) — vehicles rearm from logisticscenter,
 		# aircraft from hpad/afld — so no vehicle or aircraft can ever be a truck customer.
-		# 12, NOT 6: SupplyCustomersPerTruck (6) sizes the SURGE from men who are already dry; this sizes the
+		# PILOT IS A CUSTOMER THE OFFLINE MODEL CANNOT SEE. `^PILOT` (ejected aircrew, infantry.yaml:2442) has
+		# `RearmActors: truk, logisticscenter` and a matching AmmoPool, so it counts in the LIVE denominator —
+		# but it is absent from UnitTargetShares because nothing ever buys one, so --composition-plan never
+		# counts it. The live floor therefore phases in slightly EARLIER than every number below says.
+		# 10, NOT 6: SupplyCustomersPerTruck (6) sizes the SURGE from men who are already dry; this sizes the
 		# STANDING RESERVE from men who might become dry. A reserve as dense as the surge rate never shrinks.
-		# 12 holds one truck per platoon-and-a-half of riflemen and leaves the ceiling (6) free for demand.
+		# 10 IS MEASURED, NOT PICKED, and both 8 and 12 were tried and rejected on the same numbers. The
+		# instrument that decides it is `[composition] supply fleet over the run: dry N/200` — the count of
+		# cycles with NO truck at all, which is what the user's complaint is about. The end-of-run `standing`
+		# column CANNOT decide this: for a type replaced ~12 times in 200 cycles it is near a coin flip on
+		# whether one happened to be alive at cycle 199, and an earlier cut of this branch shipped 8 on exactly
+		# that artefact. Measured, america / russia:
+		#            dry @ attrition 15      dry @ attrition 35      mean fleet @ 35
+		#   per 8        12% / 12%                6% / 6%              2.43 / 2.33
+		#   per 10       19% / 13%                7% / 6%              1.71 / 1.72
+		#   per 12       30% / 16%                9% / 7%              1.55 / 1.57
+		# 10 DOMINATES 12: it costs 0.15 of a standing truck and halves the worst dry fraction (30% -> 19%).
+		# 8 costs 0.72 of a standing truck permanently — a 5.75x-over-target spike at attrition 35 — to buy
+		# 7 further points of availability, which is the wrong trade for a type that drives into fire.
+		# WHAT THE FIX ACTUALLY BUYS, before vs after on the same instrument (dry % of cycles, america/russia):
+		#   attrition 0    8% / 6%   ->   7% / 6%      (mean fleet 1.44 -> 2.60)
+		#   attrition 15  86% / 34%  ->  19% / 13%     (mean fleet 0.14 -> 0.81)
+		#   attrition 35  11% /  9%  ->   7% /  6%     (mean fleet 0.89 -> 1.71)
+		#   attrition 40  10% /  8%  ->   7% /  6%     (mean fleet 0.90 -> 2.01)
+		# The attrition-15 america row is the headline: the bot used to have NO truck for 86% of the match.
 		# CAP 3, not 6: the cap binds the reserve only; demand sizing can still climb to the ceiling when men
-		# are actually starving. At attrition 0 the deficit route already reaches 3, so the rich end is
-		# deliberately unchanged — this fix is aimed at the collapsed-army regime and must not inflate the
-		# healthy one.
+		# are actually starving.
+		# THE RICH END DOES MOVE, and an earlier revision of this comment wrongly said it did not — that claim
+		# came from the end-of-run `standing` column, which reads 3 both before and after at attrition 0 and
+		# hid the change. On the run-integrated metric the mean fleet there goes 1.44 -> 2.60, i.e. the bot now
+		# REACHES and HOLDS its three trucks instead of sawtoothing up to them. That is ~2,600 of a
+		# 57,750-value army, or 45 per-mille against the 40 per-mille target, so it is at target rather than
+		# over it — acceptable, but it is a change and it should not be described as none.
 		# NO CASH TERM, and that is required rather than incidental (user ruling 2026-08-17: "the bot should of
 		# course be able to adapt to any settings"). V_fit is a share of army VALUE, so the ceiling closes the
 		# deficit route identically at 1,000 and at 20,000 starting cash; the floor that reopens it must be
 		# cash-free too or it would only work at one end of the range.
-		# @stable is STILL UNAFFECTED: both fields are read only under SupplyDemandSizing, which no frozen
-		# profile sets, and SupplyTruckFloorPer defaults to 0 (= flat floor verbatim) in C# regardless.
+		# WHEN SupplyTruckFloorPer IS 0 THE PATH IS THE PRE-FEATURE ONE, by construction rather than by
+		# argument: EffectiveFloor returns its flatFloor argument literally, so the module passes exactly what
+		# it passed before. That holds for any profile at any value, so no claim about which profiles set
+		# which flags is needed to support it.
 		SupplyTruckFloor: 3
-		SupplyTruckFloorPer: 8
+		SupplyTruckFloorPer: 10
 		SupplyTruckCeiling: 6
 		# ===== RESUPPLY PRECEDENCE (user ruling 2026-08-15) =====
 		# "There are a lot of soldiers now that are out of ammo but still I see almost no supply trucks being

@@ -160,17 +160,24 @@ Player:
 		# strikes it, so the deficit route holds at most one. Measured offline (--composition-plan --start
 		# none, russia): standing trucks 3 with no losses, 1 at --attrition 40, 0 at --attrition 15.
 		# A constant can only pick one of the two failures (2 = trucks at t=0, 0 = no fleet all match). The
-		# floor is now min(3, customers/12) via SupportFloorMath.EffectiveFloor — the same function the medic
+		# floor is now min(3, customers/10) via SupportFloorMath.EffectiveFloor — the same function the medic
 		# floor uses — so it is ZERO with no infantry and non-zero once there is an army to feed.
 		# Denominator is infantry as a fact about the ruleset: `RearmActors: truk, logisticscenter` appears
-		# only on infantry; vehicles rearm from logisticscenter, aircraft from hpad/afld.
-		# 12 rather than SupplyCustomersPerTruck's 6 because that one sizes the SURGE from men already dry and
-		# this sizes the STANDING RESERVE. No cash term, per the 2026-08-17 user ruling that the bot must
-		# adapt to any settings — V_fit is a share of army value, so the fix has to be cash-free to work at
-		# both ends of the starting-cash range.
-		# @stable unaffected: both read only under SupplyDemandSizing, and the Per field defaults to 0 in C#.
+		# only on infantry; vehicles rearm from logisticscenter, aircraft from hpad/afld. `^PILOT` (ejected
+		# aircrew) also qualifies and is invisible to the offline model, so the live floor phases in a little
+		# earlier than the measured numbers say.
+		# 10 rather than SupplyCustomersPerTruck's 6 because that one sizes the SURGE from men already dry and
+		# this sizes the STANDING RESERVE. The value is MEASURED on dry-cycle fraction, not picked — russia at
+		# attrition 15 reads dry 12% / 13% / 16% of cycles at per 8 / 10 / 12, and the mean fleet at attrition
+		# 35 reads 2.33 / 1.72 / 1.57. 10 takes almost all of 12's restraint for a fraction of its outages.
+		# Do NOT tune this against the end-of-run `standing` column; see ai-america.yaml for why that number
+		# is close to a coin flip for a continuously-replaced type.
+		# No cash term, per the 2026-08-17 user ruling that the bot must adapt to any settings — V_fit is a
+		# share of army value, so the fix has to be cash-free to work at both ends of the starting-cash range.
+		# When SupplyTruckFloorPer is 0 the path is the pre-feature one by construction: EffectiveFloor returns
+		# its flatFloor argument literally, so the module passes exactly what it passed before.
 		SupplyTruckFloor: 3
-		SupplyTruckFloorPer: 8
+		SupplyTruckFloorPer: 10
 		SupplyTruckCeiling: 6
 		# ===== RESUPPLY PRECEDENCE (user ruling 2026-08-15) — mirror of the America block =====
 		# See ai-america.yaml for the full measurement and the derivation of the stall tolerance.

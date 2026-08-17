@@ -159,10 +159,21 @@ namespace OpenRA.Test
 		}
 
 		// ===== The standing floor with a denominator (SupplyTruckFloorPer) =====
-		// These pin the COMPOSITION SupplyFleetUnderDesired performs — SupportFloorMath.EffectiveFloor feeding
-		// DesiredTrucks' floor argument — rather than either function alone, because the defect being fixed
-		// lives in the join: a floor correct in isolation was being passed in as a constant.
-		// Shipped @experimental config: cap 3, per 8, customersPerTruck 6, overcompensation 200, ceiling 6.
+		//
+		// SCOPE — READ THIS BEFORE TRUSTING THESE AS REGRESSION COVER. These cases pin the ARITHMETIC of a
+		// scaled floor clamped by DesiredTrucks, and nothing else. The helper below composes the two pure
+		// functions HERE, in the test file; it does not call UnitBuilderBotModule. Both functions are
+		// unchanged by the commit that added these tests, so **every case here passes on the unfixed code**
+		// — delete the three wiring lines in SupplyFleetUnderDesired and the suite stays green.
+		//
+		// What is therefore NOT covered: that the module actually passes EffectiveFloor's result into
+		// DesiredTrucks rather than the raw Info field, which is precisely where the defect lived. That join
+		// needs a world (Rearmable traits on owned actors, a per-tick cache), so it is out of reach of this
+		// fixture and is not claimed. The cheap partial substitute is a config lint — any profile setting
+		// SupplyDemandSizing with a positive SupplyTruckFloor should also set SupplyTruckFloorPer — which
+		// catches a YAML regression but still not a C# one.
+		//
+		// Shipped @experimental config: cap 3, per 10, customersPerTruck 6, overcompensation 200, ceiling 6.
 		static int DesiredWithScaledFloor(int starving, int customers, int cap, int per)
 		{
 			return SupplyFleetMath.DesiredTrucks(starving, 6, 200,
@@ -174,18 +185,18 @@ namespace OpenRA.Test
 		{
 			// The t=0 case the user reported first (PIPELINE 57(a)): no infantry, so no floor, so no truck is
 			// called in before anyone has fired a shot. A constant floor cannot have this property.
-			Assert.That(DesiredWithScaledFloor(0, 0, 3, 8), Is.EqualTo(0));
+			Assert.That(DesiredWithScaledFloor(0, 0, 3, 10), Is.EqualTo(0));
 
 			// And it stays zero until the ratio is actually met, rather than rounding one up early.
-			Assert.That(DesiredWithScaledFloor(0, 7, 3, 8), Is.EqualTo(0));
+			Assert.That(DesiredWithScaledFloor(0, 9, 3, 10), Is.EqualTo(0));
 		}
 
 		[Test]
 		public void ScaledFloor_PhasesInWithTheInfantryItResupplies()
 		{
-			Assert.That(DesiredWithScaledFloor(0, 8, 3, 8), Is.EqualTo(1));
-			Assert.That(DesiredWithScaledFloor(0, 16, 3, 8), Is.EqualTo(2));
-			Assert.That(DesiredWithScaledFloor(0, 24, 3, 8), Is.EqualTo(3));
+			Assert.That(DesiredWithScaledFloor(0, 10, 3, 10), Is.EqualTo(1));
+			Assert.That(DesiredWithScaledFloor(0, 20, 3, 10), Is.EqualTo(2));
+			Assert.That(DesiredWithScaledFloor(0, 30, 3, 10), Is.EqualTo(3));
 		}
 
 		[Test]
@@ -193,7 +204,7 @@ namespace OpenRA.Test
 		{
 			// A large army must not turn the standing reserve into the whole fleet: the cap binds well below
 			// the ceiling, leaving the remaining headroom for actual measured starvation.
-			Assert.That(DesiredWithScaledFloor(0, 800, 3, 8), Is.EqualTo(3));
+			Assert.That(DesiredWithScaledFloor(0, 800, 3, 10), Is.EqualTo(3));
 		}
 
 		[Test]
@@ -201,7 +212,7 @@ namespace OpenRA.Test
 		{
 			// The floor is a MINIMUM, never a maximum: measured starvation must still size the fleet above the
 			// reserve, up to the ceiling. 18 starving at 6 per truck x 200% = 6.
-			Assert.That(DesiredWithScaledFloor(18, 8, 3, 8), Is.EqualTo(6));
+			Assert.That(DesiredWithScaledFloor(18, 10, 3, 10), Is.EqualTo(6));
 		}
 
 		[Test]
