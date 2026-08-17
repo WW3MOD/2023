@@ -1,9 +1,14 @@
 # .NET 6 → .NET 10: costed decision
 
 **Researched against `main @ 708b5f70`, 2026-08-17.** Read-only; no engine, project or CI file was
-modified to produce this. Only SDK 6.0.428 is installed on this machine, so **nothing here was
-compiled against a newer SDK** — every number is labelled MEASURED (by someone, at some point,
-with the evidence cited) or ESTIMATED or UNKNOWN.
+modified to produce this. Every number is labelled MEASURED (by someone, at some point, with the
+evidence cited) or ESTIMATED or UNKNOWN.
+
+> **Updated 2026-08-17 (branch `wt/sdk10-measure`, against `main @ 6c9e8149`).** SDK 10.0.400 is now
+> installed side by side with 6.0.428 and **§3 has been recompiled rather than estimated** — the
+> answer is zero new `CA*`/`IDE*`. The original caveat "nothing here was compiled against a newer
+> SDK" no longer applies to §3; it still applies everywhere else. `global.json` remains authoritative
+> and ordinary builds still resolve 6.0.428 (verified: `make check` exit 0 post-install).
 
 ---
 
@@ -129,37 +134,94 @@ Scope of the deletion: `Directory.Build.props:23` and the Mono conditionals at `
 (`PACKAGING_OSX_MONO_SOURCE`, `PACKAGING_APPIMAGE_DEPENDENCIES_SOURCE`) are referenced only by the
 unreachable branch — but whether out-of-repo tooling fetches them was not determinable by reading.
 
-### 3. New analyzer findings: **ESTIMATE 5–40, central ~15**
+### 3. New analyzer findings: **MEASURED — ZERO new `CA*`, ZERO new `IDE*`**
 
-The mechanism: **`AnalysisLevel` is set nowhere** in any `.props`/`.csproj`/`.targets`/`.editorconfig`,
-so it floats with the TFM. `net6.0` → level 6.0; `net10.0` → level 10.0, auto-enabling every CA rule
-added in 7, 8, 9 and 10.
+> **Superseded 2026-08-17 by direct measurement on SDK 10.0.400** (branch `wt/sdk10-measure`, against
+> `main @ 6c9e8149`). This section previously carried an ESTIMATE of 5–40, central ~15, extrapolated
+> from a net6→net8 anchor. The estimate was wrong by its whole magnitude, in the *safe* direction.
+> Everything below is compiled, not reasoned.
 
-**The one MEASURED anchor:** at commit `8656bd3c`, `make check` reported **106 errors on the CI
-runner vs 100 locally on 6.0.428** — a delta of exactly **6** (`CA1862 ×5` + `IDE0251 ×1`), across
-**320 KLOC / 1878 `.cs` files**. That is **0.019 findings per KLOC** for one major-version step.
-Crucially, **those 6 were already burned down** in `a7142780`, verified by temporarily pinning
-`Microsoft.CodeAnalysis.NetAnalyzers 8.0.0`. The tree today is already clean against a .NET 8
-analyzer pack. **UNKNOWN:** the runner's actual SDK is recorded nowhere; the diagnostics bound it at
-**≥ 8.0**, so the 6-error delta is a net6→net8 measurement and does not generalise to 10 unassisted.
+**Headline: the analyzer half of this upgrade costs nothing.** Not "little" — nothing. A full engine
+Debug build at `AnalysisLevel` 10.0 produces **0 `CA*` and 0 `IDE*` diagnostics** on WW3MOD source.
+One rule that fires today (`IDE0220`, `StancePositioningFireStanceTest.cs:187`) *stops* firing, so
+the strict delta is **−1**.
 
-Three large de-riskers, all verified:
-- **StyleCop 1.2.0-beta.435 and Roslynator 4.2.0 are pinned by `PackageReference`**
-  (`Directory.Build.props:59-63`). A TFM bump cannot change `SA*`/`RCS*` — that removes 90 of the
-  original 106 from upgrade risk entirely.
-- **`engine/.editorconfig` (1433 lines, 414 `dotnet_diagnostic.*.severity` entries) came from upstream
-  `release-20250330` and was authored against a .NET 9-era SDK.** It already pre-neutralises the
-  dangerous new rules: `CA1863-1870` → `suggestion`, `IDE0300-0305` → `silent`.
-- **`LangVersion 9` blocks the entire collection-expression / primary-constructor class**
-  (`IDE0290`, `IDE0300-0305`, `IDE0330` are C# 12/13-gated) — the largest theoretical source.
-- **Analyzers only bite `make check`** — `Directory.Build.props:51-56` strips all analyzers on
-  Release, and `EnforceCodeStyleInBuild` is Debug-only (`:35-44`). Packaging is unaffected.
+What the bump *does* surface is **6 source diagnostics in 4 files, forming 2 mechanical classes
+rather than 6 problems** — none of them `CA*`/`IDE*`, all of them BCL obsoletions the estimate never
+considered.
 
-**One guaranteed, dated hit:** `UnloadCargo.cs:108` — `CA2021`, the proven false positive, is guarded
-by **a comment only**, no `#pragma` and no `SuppressMessage`, while `.editorconfig` sets
-`CA2021.severity = warning`. It *will* break the build the day the SDK moves. Converting the comment
-guard to a scoped `#pragma warning disable CA2021` carrying the existing rationale is a ten-minute
-prerequisite, and should be done regardless of whether the upgrade proceeds.
+Deduped by `file:line:col:rule`, engine Debug build, net6.0/SDK 6.0.428 → net10.0/SDK 10.0.400:
+
+| Rule | net6 | net10 | Δ | Class |
+|---|---|---|---|---|
+| `CA*` (any) | 0 | 0 | **0** | — |
+| `IDE*` (8 solution projects) | 0 | 0 | **0** | — |
+| `IDE0220` (`OpenRA.Test`) | 1 | 0 | **−1** | rule stops firing |
+| `SYSLIB0051` + `CS0672` | 0 | 4 | +4 | mechanical, class A |
+| `SYSLIB0050` | 0 | 2 | +2 | mechanical, class B |
+| `NU1510` | 0 | 3 | +3 | mechanical, restore-level |
+| `NU1902` | 0 | 1 | +1 | real, supply-chain |
+
+**Class A — legacy exception binary serialization** (`SYSLIB0051`, plus `CS0672` "overrides obsolete
+member" as its shadow, so one site yields two diagnostics). `engine/OpenRA.Game/FieldLoader.cs:51-53`
+(`MissingFieldsException`) and `engine/OpenRA.Utility/Program.cs:32-34` (`NoSuchCommandException`).
+Both are `public override void GetObjectData(SerializationInfo, StreamingContext)`. Nothing in the
+engine serializes an exception across a remoting or AppDomain boundary; the fix is to **delete the
+override**, ~12 lines total.
+
+**Class B — `FormatterServices.GetUninitializedObject`** (`SYSLIB0050`).
+`engine/OpenRA.Game/Map/ActorReference.cs:73` and
+`engine/OpenRA.Mods.Common/Scripting/Global/ActorGlobal.cs:39`. The supported replacement is
+`RuntimeHelpers.GetUninitializedObject`, identical semantics, available since .NET 5. One line each.
+
+**Zero real defects. No finding implies a behavioural change.**
+
+**What actually stops the build first is not analyzers — it is restore.** With `-warnaserror` the
+gate fails in **4 seconds with 6 errors, before a single `.cs` file is compiled**, all of them NuGet:
+- `NU1510` ×3 — `Microsoft.Win32.Registry`, `System.Runtime.Loader`, `System.Threading.Channels` are
+  in the shared framework now; the `PackageReference`s must be deleted. (New .NET 10 SDK pruning
+  diagnostic.)
+- `NU1902` ×1 — `NuGet.CommandLine 4.4.1`, moderate advisory GHSA-3885-8gqc-3wpf, pulled
+  **transitively by `NUnit.Console 3.16.3`** in `OpenRA.Test`. `NuGetAudit` is off on 6.0.428 and
+  default-on from SDK 8, so this is an **SDK** effect, not a TFM effect — it appears on any newer SDK
+  regardless of target. It is the only finding in the whole set with real-world content.
+
+**The de-riskers held, and they are why the number is zero.** All four re-verified: StyleCop
+1.2.0-beta.435 / Roslynator 4.2.0 pinned by `PackageReference` (`Directory.Build.props:59-63`) so
+`SA*`/`RCS*` cannot move; `engine/.editorconfig` (414 severity entries, authored against a .NET 9-era
+upstream) pre-neutralises `CA1863-1870` → `suggestion` and `IDE0300-0305` → `silent`; `LangVersion 9`
+gates out the whole collection-expression / primary-constructor class; analyzers are stripped on
+Release (`:51-56`), so packaging is untouched. **The `.editorconfig` pre-neutralisation is doing real
+work and must not be "cleaned up" ahead of the bump** — a WW3MOD block at `:1265+` additionally
+downgrades 28 `IDE*` rules to `suggestion`; 42 remain at `warning`, and none of them fire.
+
+**CORRECTION — `CA2021` at `UnloadCargo.cs:108` does NOT fire under SDK 10; the "guaranteed, dated
+hit" is withdrawn.** It was the one dated certainty in the previous draft, and it is wrong: Roslyn's
+`CA2021` now handles the `.Cast<(T,U)?>()` shape correctly. **This is not analyzer silence**, which
+was ruled out with a RED control — a probe file in the *same project and same compilation*, holding a
+genuine `List<string>.Cast<int>()`, produced `warning CA2021`, alongside `CA1862` (a .NET 8-era
+NetAnalyzers rule) and `IDE0034` (an SDK-Roslyn IDE rule). Both halves of the pipeline are therefore
+demonstrably live at level 10, and the real site is simply no longer flagged. **No `#pragma` is
+needed and none was applied.** If it ever regresses the correct suppression is a scoped
+`#pragma warning disable CA2021` around the `return`, carrying the existing comment as its rationale
+— never deleting the cast, which would make a fully blocked transport stop reporting itself blocked.
+
+**Coverage correction that affects every analyzer count ever quoted for this repo:** `OpenRA.Test` is
+**not built** by `dotnet build` of `engine/OpenRA.sln`. Its solution entry carries `ActiveCfg` but
+**no `.Build.0` line**, unlike every other project — so `make check` never compiles it, and its ~50
+existing `SA*`/`RCS*`/`IDE*` violations gate nothing. It was measured here by building the `.csproj`
+directly; its net6→net10 delta is also zero new `CA*`/`IDE*`.
+
+**Reproduction recipe.** Measure *without* `-warnaserror`, or an early project failure hides
+everything downstream — that is exactly why the gate's own output undercounts:
+```bash
+cd engine && rm -rf ./bin ./*/obj
+dotnet build -c Debug -nologo --no-incremental -p:TargetPlatform=osx-x64 \
+  -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true > /tmp/m.log 2>&1
+echo "EXIT=$?"   # read directly, never through a pipe
+dotnet build OpenRA.Test/OpenRA.Test.csproj -c Debug --no-incremental ...   # separately; the sln skips it
+grep -oE '/[^ ]+\.cs\([0-9]+,[0-9]+\): (warning|error) [A-Z]+[0-9]+' /tmp/m.log | sort -u
+```
 
 ### 4. What the upgrade does to the SDK pin (`c1f7e697`)
 
@@ -184,10 +246,17 @@ commit, exit 145). The bump also **erases the pin's stated cost** — its own me
 - `Makefile:10,22,25,67`; `engine/Makefile:10,13,16,19,59,181,184,187,190,194`
 - No `*.runtimeconfig.json` is tracked — they regenerate from `Directory.Build.props`.
 
+**Also mechanical, added by the 2026-08-17 measurement** (§3): delete 3 now-in-framework
+`PackageReference`s (`NU1510`), delete 2 obsolete `GetObjectData` overrides, swap 2 calls to
+`RuntimeHelpers.GetUninitializedObject`. Roughly 20 further lines, no judgement required.
+
 **Needs human judgement.** (a) Mono deletion scope, incl. the `mod.config` packaging sources.
-(b) The analyzer burn-down — unbounded until measured. (c) The `CA2021` pragma. (d) The determinism
-acceptance test: extending `tools/fp-determinism/` to `DamageWarhead`, `BallisticMissileFly` and
-`Aircraft.CalculateAccelerationToWaypoint`.
+(b) ~~The analyzer burn-down — unbounded until measured.~~ **Measured 2026-08-17: it is empty.** The
+residue is the `NU1902` advisory on `NuGet.CommandLine 4.4.1`, which needs a decision rather than a
+burn-down — bump `NUnit.Console` past it, or set `NuGetAuditMode`/suppress with a stated reason.
+(c) ~~The `CA2021` pragma.~~ **Withdrawn — the rule no longer fires; nothing to do.** (d) The
+determinism acceptance test: extending `tools/fp-determinism/` to `DamageWarhead`,
+`BallisticMissileFly` and `Aircraft.CalculateAccelerationToWaypoint`.
 
 ---
 
@@ -199,30 +268,29 @@ acceptance test: extending `tools/fp-determinism/` to `DamageWarhead`, `Ballisti
    goes red, runtime heterogeneity is the desync cause, the net10 bump is the **fix**, and it ships
    immediately. If green, the bump is determinism-neutral and gets scheduled on its own merits.
    Either way you learn this before changing the variable you are currently debugging.
-2. Convert the `CA2021` comment guard to a scoped `#pragma`. Ten minutes, independently correct.
-3. Measure the CA\* half of the analyzer delta **without installing anything** (see below).
+2. ~~Convert the `CA2021` comment guard to a scoped `#pragma`.~~ **Dropped 2026-08-17 — the rule does
+   not fire under SDK 10. Do not add a pragma for a diagnostic that no longer exists.**
+3. ~~Measure the CA\* half of the analyzer delta without installing anything.~~ **Done 2026-08-17, and
+   done properly: SDK 10.0.400 is installed side by side, so both halves are measured, not one. §3.**
 4. Delete the Mono lane. That is most of the upgrade, and it is separable and independently useful.
 5. Extend `tools/fp-determinism/` to the three unprobed kernels.
-6. Bump TFM + `global.json`, burn down whatever the analyzers say.
+6. Bump TFM + `global.json`. **There is no analyzer burn-down to schedule** — the residue is ~20 lines
+   of mechanical BCL/NuGet cleanup listed in §3, plus one decision on the `NU1902` advisory.
 
-## What I could not measure, and the one cheap unblock
+## What is still unmeasured
 
-Only SDK 6.0.428 is installed and I was instructed not to install another, so **no number in §3 above
-the measured 6 was compiled.** Specifically unmeasured: the true net10 analyzer count.
+§3 is now compiled; everything below it is not, and the following remain genuinely open.
 
-**Half of it is measurable today with no SDK install** — precedent exists, `a7142780` did exactly this
-with version 8.0.0. Add to `engine/Directory.Build.props`, run, revert:
-
-```xml
-<PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.0" PrivateAssets="All" />
-<AnalysisLevel>10.0</AnalysisLevel>
-```
-```bash
-make check 2>&1 | grep -oE '(error|warning) (CA|IDE)[0-9]+' | sort | uniq -c   # read exit code separately
-```
-
-**The `IDE*` half cannot be measured this way** — those rules ship inside the SDK's own Roslyn and
-have no supported standalone package. Getting a real number there requires installing SDK 10.0.x,
-setting `global.json` to it and the TFM to `net10.0`. That is a cheap, reversible machine change
-(side-by-side install; `global.json` keeps the existing pin authoritative until deliberately moved),
-and it is the only thing standing between this document and a measured figure.
+- **The CI runner's SDK version is still recorded nowhere.** The local measurement is
+  macOS x64 / SDK 10.0.400. Analyzer sets are keyed on `AnalysisLevel` (the TFM) rather than the exact
+  SDK build, so a runner on any 10.0.x should agree — but a runner on 10.0.1xx with a different
+  Roslyn could differ by a rule or two, and `CA2021` specifically is a rule whose behaviour has
+  already changed once between SDK bands. Pinning `global.json` to a specific 10.0.x is what makes
+  local and CI agree; that is the same argument `c1f7e697` already made for 6.0.428.
+- **Windows and Linux were not measured.** Analyzer output should be platform-independent, but
+  `TargetPlatform` differs and the Windows lane discards its own exit code (see the CI-integrity
+  entry), so a green Windows tick would not prove agreement anyway.
+- **The Mono/netstandard2.1 lane is unmeasurable here** — no Mono on this machine, and that lane is
+  already red on `CS0117`. §2 recommends deleting it regardless.
+- **Nothing about §"the decisive question" changed.** The three unprobed float kernels are still
+  unprobed; the analyzer result says nothing about determinism.
