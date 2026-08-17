@@ -40,3 +40,18 @@ PowerDown: # X
 	Description: Power-down mode
 	Types: OrderGenerator
 	Contexts: Player
+
+# A key, not a mouse gesture, because the viewport has none left to give: right-click issues
+# orders (UseClassicMouseStyle is false and nothing in the mod overrides it), Ctrl / Alt /
+# Ctrl+Alt / Shift + right are ForceMove / AttackMove / ForceAttack / queue, left+modifier is
+# selection priority, and double-left is select-all-of-type. J and K are the only unbound
+# letters left; J is the closer reach.
+# The description deliberately does not say "at the cursor". The menu opens there, but the
+# men do not come out there: both unload orders pass Target.Invalid and the exit cell is only
+# chosen when the activity runs, shuffled per passenger among the transport's adjacent cells
+# (UnloadCargo.cs:69). Wording that ties the gesture to a location would promise placement
+# this feature does not have.
+UnloadMenu: J
+	Description: Unload menu — choose which class leaves the transport
+	Types: World
+	Contexts: Player

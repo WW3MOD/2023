@@ -249,6 +249,79 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return palette.SimulateIconClick(actorType, MouseButton.Left, mods);
 		}
 
+		[Desc("State of the class-grouped unload menu: an empty string when it is closed, otherwise " +
+			"'<menus>:<rows>' — how many CARGO_UNLOAD_MENU widgets are attached to the UI root, and " +
+			"how many class rows the first of them lists. A test needs this because PressHotkey's " +
+			"return value cannot tell opening from closing, and a menu left over from a previous " +
+			"transport photographs just as happily as a fresh one. A `menus` count above 1 means a " +
+			"close failed to detach its widget. Test mode only.")]
+		public string GetUnloadMenuState()
+		{
+			if (!TestMode.IsActive)
+				return "";
+
+			var menus = Ui.Root.Children.Where(c => c.Id == "CARGO_UNLOAD_MENU").ToArray();
+			if (menus.Length == 0)
+				return "";
+
+			var list = menus[0].GetOrNull<ScrollPanelWidget>("CLASS_LIST");
+			return $"{menus.Length}:{(list == null ? -1 : list.Children.Count)}";
+		}
+
+		[Desc("Click a row of the open unload menu: the row itself drops one man of that class, or " +
+			"set `all` to hit its ALL chip and drop the whole class. Rows are indexed from 0 in the " +
+			"order the menu lists them. Drives the real click handlers, so the orders issued are the " +
+			"ones a player's click would issue. Returns false if the menu is closed or the index is " +
+			"out of range. Test mode only.")]
+		public bool ClickUnloadMenuRow(int index, bool all = false)
+		{
+			if (!TestMode.IsActive)
+				return false;
+
+			var menu = Ui.Root.Children.FirstOrDefault(c => c.Id == "CARGO_UNLOAD_MENU");
+			var list = menu?.GetOrNull<ScrollPanelWidget>("CLASS_LIST");
+			if (list == null || index < 0 || index >= list.Children.Count)
+				return false;
+
+			if (list.Children[index] is not ScrollItemWidget row)
+				return false;
+
+			if (!all)
+			{
+				row.OnClick();
+				return true;
+			}
+
+			var allButton = row.GetOrNull<ButtonWidget>("CLASS_ALL");
+			if (allButton == null)
+				return false;
+
+			allButton.OnClick();
+			return true;
+		}
+
+		[Desc("Press whatever key is currently bound to `hotkeyName` (as named in the mod's hotkey " +
+			"definitions, e.g. 'UnloadMenu'). Dispatched through Ui.HandleKeyPress, so it walks the " +
+			"real widget chain in the real order and honours a rebind rather than hardcoding a key. " +
+			"Returns true if a widget consumed it. Test mode only.")]
+		public bool PressHotkey(string hotkeyName)
+		{
+			if (!TestMode.IsActive)
+				return false;
+
+			var hotkey = Game.ModData.Hotkeys[hotkeyName].GetValue();
+			if (!hotkey.IsValid())
+				return false;
+
+			return Ui.HandleKeyPress(new KeyInput
+			{
+				Event = KeyInputEvent.Down,
+				Key = hotkey.Key,
+				Modifiers = hotkey.Modifiers,
+				MultiTapCount = 1,
+			});
+		}
+
 		[Desc("Number of actors currently selected. Test mode only.")]
 		public int GetSelectedCount()
 		{

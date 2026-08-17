@@ -3,8 +3,9 @@ Container@PLAYER_WIDGETS:
 	Children:
 		Container@CHAT_ROOT:
 		LogicKeyListener@PLAYER_KEYHANDLER:
-			Logic: RemoveFromControlGroupHotkeyLogic
+			Logic: RemoveFromControlGroupHotkeyLogic, CargoUnloadMenuLogic
 				RemoveFromControlGroupKey: RemoveFromControlGroup
+				UnloadMenuKey: UnloadMenu
 		ControlGroups@CONTROLGROUPS:
 			SelectGroupKeyPrefix: ControlGroupSelect
 			CreateGroupKeyPrefix: ControlGroupCreate
@@ -785,9 +786,9 @@ Container@PLAYER_WIDGETS:
 		Container@CARGO_PANEL:
 			Logic: CargoPanelLogic
 			X: WINDOW_WIDTH - 240
-			Y: WINDOW_HEIGHT - 340
+			Y: WINDOW_HEIGHT - 112
 			Width: 228
-			Height: 320
+			Height: 92
 			Children:
 				LogicTicker@CARGO_TICKER:
 				Label@CARGO_HEADER:
@@ -796,338 +797,32 @@ Container@PLAYER_WIDGETS:
 					Font: TinyBold
 					Align: Center
 					Contrast: true
-				Button@MARK_CARGO_0:
-					Y: 18
-					Width: 20
-					Height: 12
-					Font: Tiny
-					VisualHeight: 0
-				Label@CARGO_LABEL_0:
-					X: 22
-					Y: 18
-					Width: 162
-					Height: 12
-					Font: Tiny
-					Contrast: true
-				Button@RALLY_CARGO_0:
-					X: 186
-					Y: 18
-					Width: 14
-					Height: 12
-					Font: Tiny
-					Text: R
-					VisualHeight: 0
-				Button@EJECT_CARGO_0:
-					X: 204
-					Y: 18
-					Width: 16
-					Height: 12
-					Font: Tiny
-					Text: X
-					VisualHeight: 0
-				Button@MARK_CARGO_1:
-					Y: 32
-					Width: 20
-					Height: 12
-					Font: Tiny
-					VisualHeight: 0
-				Label@CARGO_LABEL_1:
-					X: 22
-					Y: 32
-					Width: 162
-					Height: 12
-					Font: Tiny
-					Contrast: true
-				Button@RALLY_CARGO_1:
-					X: 186
-					Y: 32
-					Width: 14
-					Height: 12
-					Font: Tiny
-					Text: R
-					VisualHeight: 0
-				Button@EJECT_CARGO_1:
-					X: 204
-					Y: 32
-					Width: 16
-					Height: 12
-					Font: Tiny
-					Text: X
-					VisualHeight: 0
-				Button@MARK_CARGO_2:
-					Y: 46
-					Width: 20
-					Height: 12
-					Font: Tiny
-					VisualHeight: 0
-				Label@CARGO_LABEL_2:
-					X: 22
-					Y: 46
-					Width: 162
-					Height: 12
-					Font: Tiny
-					Contrast: true
-				Button@RALLY_CARGO_2:
-					X: 186
-					Y: 46
-					Width: 14
-					Height: 12
-					Font: Tiny
-					Text: R
-					VisualHeight: 0
-				Button@EJECT_CARGO_2:
-					X: 204
-					Y: 46
-					Width: 16
-					Height: 12
-					Font: Tiny
-					Text: X
-					VisualHeight: 0
-				Button@MARK_CARGO_3:
-					Y: 60
-					Width: 20
-					Height: 12
-					Font: Tiny
-					VisualHeight: 0
-				Label@CARGO_LABEL_3:
-					X: 22
-					Y: 60
-					Width: 162
-					Height: 12
-					Font: Tiny
-					Contrast: true
-				Button@RALLY_CARGO_3:
-					X: 186
-					Y: 60
-					Width: 14
-					Height: 12
-					Font: Tiny
-					Text: R
-					VisualHeight: 0
-				Button@EJECT_CARGO_3:
-					X: 204
-					Y: 60
-					Width: 16
-					Height: 12
-					Font: Tiny
-					Text: X
-					VisualHeight: 0
-				Button@MARK_CARGO_4:
-					Y: 74
-					Width: 20
-					Height: 12
-					Font: Tiny
-					VisualHeight: 0
-				Label@CARGO_LABEL_4:
-					X: 22
-					Y: 74
-					Width: 162
-					Height: 12
-					Font: Tiny
-					Contrast: true
-				Button@RALLY_CARGO_4:
-					X: 186
-					Y: 74
-					Width: 14
-					Height: 12
-					Font: Tiny
-					Text: R
-					VisualHeight: 0
-				Button@EJECT_CARGO_4:
-					X: 204
-					Y: 74
-					Width: 16
-					Height: 12
-					Font: Tiny
-					Text: X
-					VisualHeight: 0
-				Button@MARK_CARGO_5:
-					Y: 88
-					Width: 20
-					Height: 12
-					Font: Tiny
-					VisualHeight: 0
-				Label@CARGO_LABEL_5:
-					X: 22
-					Y: 88
-					Width: 162
-					Height: 12
-					Font: Tiny
-					Contrast: true
-				Button@RALLY_CARGO_5:
-					X: 186
-					Y: 88
-					Width: 14
-					Height: 12
-					Font: Tiny
-					Text: R
-					VisualHeight: 0
-				Button@EJECT_CARGO_5:
-					X: 204
-					Y: 88
-					Width: 16
-					Height: 12
-					Font: Tiny
-					Text: X
-					VisualHeight: 0
-				Button@MARK_CARGO_6:
-					Y: 102
-					Width: 20
-					Height: 12
-					Font: Tiny
-					VisualHeight: 0
-				Label@CARGO_LABEL_6:
-					X: 22
-					Y: 102
-					Width: 162
-					Height: 12
-					Font: Tiny
-					Contrast: true
-				Button@RALLY_CARGO_6:
-					X: 186
-					Y: 102
-					Width: 14
-					Height: 12
-					Font: Tiny
-					Text: R
-					VisualHeight: 0
-				Button@EJECT_CARGO_6:
-					X: 204
-					Y: 102
-					Width: 16
-					Height: 12
-					Font: Tiny
-					Text: X
-					VisualHeight: 0
-				Button@MARK_CARGO_7:
-					Y: 116
-					Width: 20
-					Height: 12
-					Font: Tiny
-					VisualHeight: 0
-				Label@CARGO_LABEL_7:
-					X: 22
-					Y: 116
-					Width: 162
-					Height: 12
-					Font: Tiny
-					Contrast: true
-				Button@RALLY_CARGO_7:
-					X: 186
-					Y: 116
-					Width: 14
-					Height: 12
-					Font: Tiny
-					Text: R
-					VisualHeight: 0
-				Button@EJECT_CARGO_7:
-					X: 204
-					Y: 116
-					Width: 16
-					Height: 12
-					Font: Tiny
-					Text: X
-					VisualHeight: 0
-				Button@MARK_CARGO_8:
-					Y: 130
-					Width: 20
-					Height: 12
-					Font: Tiny
-					VisualHeight: 0
-				Label@CARGO_LABEL_8:
-					X: 22
-					Y: 130
-					Width: 162
-					Height: 12
-					Font: Tiny
-					Contrast: true
-				Button@RALLY_CARGO_8:
-					X: 186
-					Y: 130
-					Width: 14
-					Height: 12
-					Font: Tiny
-					Text: R
-					VisualHeight: 0
-				Button@EJECT_CARGO_8:
-					X: 204
-					Y: 130
-					Width: 16
-					Height: 12
-					Font: Tiny
-					Text: X
-					VisualHeight: 0
-				Button@MARK_CARGO_9:
-					Y: 144
-					Width: 20
-					Height: 12
-					Font: Tiny
-					VisualHeight: 0
-				Label@CARGO_LABEL_9:
-					X: 22
-					Y: 144
-					Width: 162
-					Height: 12
-					Font: Tiny
-					Contrast: true
-				Button@RALLY_CARGO_9:
-					X: 186
-					Y: 144
-					Width: 14
-					Height: 12
-					Font: Tiny
-					Text: R
-					VisualHeight: 0
-				Button@EJECT_CARGO_9:
-					X: 204
-					Y: 144
-					Width: 16
-					Height: 12
-					Font: Tiny
-					Text: X
-					VisualHeight: 0
-				Button@MARK_ALL_CARGO:
-					Y: 162
-					Width: 70
-					Height: 16
-					Font: Tiny
-					Text: Mark All
-					VisualHeight: 0
-				Button@DEPLOY_MARKED:
-					X: 75
-					Y: 162
-					Width: 145
-					Height: 16
-					Font: Tiny
-					Text: Deploy Marked >>
-					VisualHeight: 0
-				Label@SUPPLY_LABEL:
-					Y: 185
+				Label@CARGO_HINT:
+					Y: 16
 					Width: 220
 					Height: 12
 					Font: Tiny
+					Align: Center
 					Contrast: true
-				Button@DROP_ONE_SUPPLY:
-					Y: 200
-					Width: 105
-					Height: 18
-					Font: Tiny
-					Text: Drop 1
-					VisualHeight: 0
-				Button@DROP_SUPPLY:
-					X: 110
-					Y: 200
-					Width: 110
-					Height: 18
-					Font: Tiny
-					Text: Drop All Supply
-					VisualHeight: 0
 				Button@UNLOAD_ALL_TROOPS:
-					Y: 224
+					Y: 32
 					Width: 220
 					Height: 20
 					Font: Tiny
 					Text: Unload All Troops
+					VisualHeight: 0
+				Label@SUPPLY_LABEL:
+					Y: 56
+					Width: 220
+					Height: 12
+					Font: Tiny
+					Contrast: true
+				Button@DROP_SUPPLY:
+					Y: 70
+					Width: 220
+					Height: 18
+					Font: Tiny
+					Text: Drop All Supply
 					VisualHeight: 0
 		Container@MUTE_INDICATOR:
 			Logic: MuteIndicatorLogic

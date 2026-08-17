@@ -184,6 +184,7 @@ ChromeLayout:
 	common|chrome/ingame-menu.yaml
 	ww3mod|chrome/ingame-observer.yaml
 	ww3mod|chrome/ingame-player.yaml
+	ww3mod|chrome/unload-menu.yaml
 	common|chrome/ingame-perf.yaml
 	ww3mod|chrome/ingame-debug.yaml
 	ww3mod|chrome/ingame-testmode.yaml

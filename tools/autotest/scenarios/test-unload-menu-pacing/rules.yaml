@@ -1,0 +1,22 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-unload-menu-pacing.lua
+
+# Both Chinooks carry the same four men of a single class, so the only variable
+# between the two arms is which path unloads them. TRAN, not tran — rules merge by
+# exact case, and a lowercase key adds a second actor instead of merging.
+TRAN:
+	Cargo:
+		InitialUnits: E3,E3,E3,E3

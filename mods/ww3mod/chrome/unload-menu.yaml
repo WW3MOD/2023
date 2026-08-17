@@ -1,0 +1,60 @@
+# Class-grouped unload menu, opened at the mouse cursor by CargoUnloadMenuLogic (hotkey
+# UnloadMenu, default J). It is parented straight to Ui.Root at runtime rather than living
+# inside PLAYER_WIDGETS, so the X/Y below are never used -- the logic overwrites both, and
+# Height, every time the menu opens. Width is the one dimension that is honoured from here.
+Background@CARGO_UNLOAD_MENU:
+	Width: 186
+	Height: 221
+	Background: commandbar-background
+	Children:
+		LogicKeyListener@MENU_KEYHANDLER:
+		Label@MENU_HEADER:
+			X: 4
+			Y: 4
+			Width: 178
+			Height: 14
+			Font: TinyBold
+			Align: Center
+			Contrast: true
+		ScrollPanel@CLASS_LIST:
+			X: 4
+			Y: 19
+			Width: 178
+			Height: 198
+			TopBottomSpacing: 0
+			ItemSpacing: 1
+			BorderWidth: 0
+			Background:
+			# The bar is drawn whether or not the content overflows, and a right-hand bar does not
+			# inset the rows, so it lands on top of the count column. The menu sizes itself to its
+			# content instead — all 16 classes at once is only ~370px, which fits.
+			ScrollBar: Hidden
+			Children:
+				ScrollItem@CLASS_TEMPLATE:
+					Width: PARENT_WIDTH - 2
+					Height: 22
+					EnableChildMouseOver: true
+					Children:
+						Label@CLASS_NAME:
+							X: 6
+							Width: 100
+							Height: 22
+							Font: Tiny
+							VAlign: Middle
+							Contrast: true
+						Button@CLASS_ALL:
+							X: 108
+							Y: 4
+							Width: 28
+							Height: 14
+							Font: Tiny
+							Text: ALL
+							VisualHeight: 0
+						Label@CLASS_COUNT:
+							X: 140
+							Width: 34
+							Height: 22
+							Font: TinyBold
+							Align: Right
+							VAlign: Middle
+							Contrast: true

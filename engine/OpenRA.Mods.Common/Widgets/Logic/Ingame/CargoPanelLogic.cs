@@ -9,9 +9,7 @@
  */
 #endregion
 
-using System.Collections.Generic;
 using System.Linq;
-using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 using OpenRA.Widgets;
@@ -19,9 +17,10 @@ using OpenRA.Widgets;
 namespace OpenRA.Mods.Common.Widgets
 {
 	/// <summary>
-	/// Sidebar panel showing cargo contents of a selected transport.
-	/// Displays individual passengers with mark/eject buttons and supply count.
-	/// Supports waypoint-based selective unloading via CargoUnloadOrderGenerator.
+	/// Sidebar panel for a selected transport: what it is carrying, and the transport-level
+	/// actions that are not per-passenger. Choosing individual passengers is the unload menu's
+	/// job (<see cref="Logic.Ingame.CargoUnloadMenuLogic"/>) — this panel only advertises the key for it,
+	/// because a panel pinned to the screen edge is the wrong place to aim a drop from.
 	/// </summary>
 	public class CargoPanelLogic : ChromeLogic
 	{
@@ -33,17 +32,12 @@ namespace OpenRA.Mods.Common.Widgets
 		Cargo cargo;
 		SupplyProvider supplyProvider;
 
-		readonly HashSet<uint> markedPassengerIds = new HashSet<uint>();
-
-		const int MaxDisplaySlots = 10;
-
 		[ObjectCreator.UseCtor]
-		public CargoPanelLogic(Widget widget, World world)
+		public CargoPanelLogic(Widget widget, World world, ModData modData)
 		{
 			this.world = world;
 			panel = widget;
 
-			// Header label
 			var headerLabel = panel.GetOrNull<LabelWidget>("CARGO_HEADER");
 			if (headerLabel != null)
 			{
@@ -54,116 +48,28 @@ namespace OpenRA.Mods.Common.Widgets
 
 					var passengerCount = cargo?.PassengerCount ?? 0;
 					var supplyCount = supplyProvider?.CurrentSupply ?? 0;
-					var markedCount = CountValidMarks();
-
-					var markedSuffix = markedCount > 0 ? $" | {markedCount} marked" : "";
 
 					if (supplyCount > 0 && passengerCount > 0)
-						return $"CARGO [{passengerCount} troops, {supplyCount} supply{markedSuffix}]";
+						return $"CARGO [{passengerCount} troops, {supplyCount} supply]";
 					else if (supplyCount > 0)
-						return $"CARGO [{supplyCount} supply{markedSuffix}]";
+						return $"CARGO [{supplyCount} supply]";
 					else if (passengerCount > 0)
-						return $"CARGO [{passengerCount} troops{markedSuffix}]";
+						return $"CARGO [{passengerCount} troops]";
 					else
 						return "CARGO [empty]";
 				};
 			}
 
-			// Passenger slots (CARGO_LABEL_0 through CARGO_LABEL_9)
-			for (var i = 0; i < MaxDisplaySlots; i++)
+			// Read the binding rather than hardcoding "J", so a rebind does not leave the panel
+			// telling the player to press a key that no longer opens anything.
+			var unloadMenuKey = modData.Hotkeys["UnloadMenu"];
+			var hintLabel = panel.GetOrNull<LabelWidget>("CARGO_HINT");
+			if (hintLabel != null)
 			{
-				var slotIndex = i;
-
-				// Mark/toggle button — left side of each row
-				var markBtn = panel.GetOrNull<ButtonWidget>($"MARK_CARGO_{i}");
-				if (markBtn != null)
-				{
-					markBtn.OnClick = () => ToggleMark(slotIndex);
-					markBtn.IsVisible = () => IsPassengerSlotVisible(slotIndex);
-					markBtn.GetText = () => IsPassengerMarked(slotIndex) ? "[x]" : "[ ]";
-					markBtn.IsHighlighted = () => IsPassengerMarked(slotIndex);
-				}
-
-				var label = panel.GetOrNull<LabelWidget>($"CARGO_LABEL_{i}");
-				if (label != null)
-				{
-					label.GetText = () => GetPassengerText(slotIndex);
-					label.IsVisible = () => IsPassengerSlotVisible(slotIndex);
-				}
-
-				var ejectBtn = panel.GetOrNull<ButtonWidget>($"EJECT_CARGO_{i}");
-				if (ejectBtn != null)
-				{
-					ejectBtn.OnClick = () => EjectPassenger(slotIndex);
-					ejectBtn.IsDisabled = () => !IsPassengerSlotVisible(slotIndex);
-					ejectBtn.IsVisible = () => IsPassengerSlotVisible(slotIndex);
-				}
-
-				// Rally button — set post-eject move target
-				var rallyBtn = panel.GetOrNull<ButtonWidget>($"RALLY_CARGO_{i}");
-				if (rallyBtn != null)
-				{
-					rallyBtn.OnClick = () => SetPassengerRally(slotIndex);
-					rallyBtn.IsVisible = () => IsPassengerSlotVisible(slotIndex);
-					rallyBtn.GetText = () => HasPassengerRally(slotIndex) ? "R!" : "R";
-					rallyBtn.IsHighlighted = () => HasPassengerRally(slotIndex);
-				}
+				hintLabel.GetText = () => $"Press [{unloadMenuKey.GetValue().DisplayString()}] to unload by class";
+				hintLabel.IsVisible = () => cargo != null && !cargo.IsEmpty();
 			}
 
-			// Deploy Marked button — activates waypoint unload mode
-			var deployMarkedButton = panel.GetOrNull<ButtonWidget>("DEPLOY_MARKED");
-			if (deployMarkedButton != null)
-			{
-				deployMarkedButton.OnClick = () =>
-				{
-					if (selectedTransport == null || markedPassengerIds.Count == 0)
-						return;
-
-					// Activate waypoint unload order generator
-					world.OrderGenerator = new CargoUnloadOrderGenerator(
-						selectedTransport,
-						() => new HashSet<uint>(markedPassengerIds),
-						ids => markedPassengerIds.Clear());
-				};
-				deployMarkedButton.IsDisabled = () => CountValidMarks() == 0;
-				deployMarkedButton.IsVisible = () => selectedTransport != null && cargo != null && !cargo.IsEmpty();
-				deployMarkedButton.IsHighlighted = () => world.OrderGenerator is CargoUnloadOrderGenerator;
-			}
-
-			// Mark All / Unmark All toggle
-			var markAllButton = panel.GetOrNull<ButtonWidget>("MARK_ALL_CARGO");
-			if (markAllButton != null)
-			{
-				markAllButton.OnClick = () =>
-				{
-					if (cargo == null)
-						return;
-
-					var passengers = cargo.Passengers.ToArray();
-					if (markedPassengerIds.Count >= passengers.Length)
-					{
-						// All marked — unmark all
-						markedPassengerIds.Clear();
-					}
-					else
-					{
-						// Mark all
-						markedPassengerIds.Clear();
-						foreach (var p in passengers)
-							if (!p.IsDead)
-								markedPassengerIds.Add(p.ActorID);
-					}
-				};
-				markAllButton.IsVisible = () => selectedTransport != null && cargo != null && !cargo.IsEmpty();
-				markAllButton.GetText = () =>
-				{
-					if (cargo == null)
-						return "Mark All";
-					return markedPassengerIds.Count >= cargo.PassengerCount ? "Unmark All" : "Mark All";
-				};
-			}
-
-			// Unload All Troops button (excludes supply)
 			var unloadAllButton = panel.GetOrNull<ButtonWidget>("UNLOAD_ALL_TROOPS");
 			if (unloadAllButton != null)
 			{
@@ -175,7 +81,6 @@ namespace OpenRA.Mods.Common.Widgets
 				unloadAllButton.IsDisabled = () => selectedTransport == null || cargo == null || cargo.IsEmpty();
 			}
 
-			// Supply info label
 			var supplyLabel = panel.GetOrNull<LabelWidget>("SUPPLY_LABEL");
 			if (supplyLabel != null)
 			{
@@ -202,12 +107,6 @@ namespace OpenRA.Mods.Common.Widgets
 				dropSupplyButton.IsVisible = () => supplyProvider != null && supplyProvider.CurrentSupply > 0;
 			}
 
-			// "Drop 1 Supply" is a remnant of the SupplyPerUnit model — supply is a single
-			// number now and the unload trait drops all of it, so this button is hidden.
-			var dropOneSupplyButton = panel.GetOrNull<ButtonWidget>("DROP_ONE_SUPPLY");
-			if (dropOneSupplyButton != null)
-				dropOneSupplyButton.IsVisible = () => false;
-
 			// Panel visibility — use IsVisible function so it evaluates every frame
 			// (LogicTicker inside a hidden container never ticks, causing chicken-and-egg)
 			panel.IsVisible = () =>
@@ -227,7 +126,6 @@ namespace OpenRA.Mods.Common.Widgets
 			selectedTransport = null;
 			cargo = null;
 			supplyProvider = null;
-			markedPassengerIds.Clear();
 
 			var selected = world.Selection.Actors
 				.Where(a => a.Owner == world.LocalPlayer && a.IsInWorld && !a.IsDead)
@@ -261,141 +159,6 @@ namespace OpenRA.Mods.Common.Widgets
 			selectedTransport = selected[0];
 			cargo = c;
 			supplyProvider = sp;
-		}
-
-		int CountValidMarks()
-		{
-			if (cargo == null)
-				return 0;
-
-			// Only count marks for passengers still in cargo
-			var passengers = cargo.Passengers.ToArray();
-			return markedPassengerIds.Count(id => passengers.Any(p => p.ActorID == id && !p.IsDead));
-		}
-
-		bool IsPassengerMarked(int slotIndex)
-		{
-			if (cargo == null)
-				return false;
-
-			var passengers = cargo.Passengers.ToArray();
-			if (slotIndex >= passengers.Length)
-				return false;
-
-			return markedPassengerIds.Contains(passengers[slotIndex].ActorID);
-		}
-
-		void ToggleMark(int slotIndex)
-		{
-			if (cargo == null)
-				return;
-
-			var passengers = cargo.Passengers.ToArray();
-			if (slotIndex >= passengers.Length)
-				return;
-
-			var id = passengers[slotIndex].ActorID;
-			if (markedPassengerIds.Contains(id))
-				markedPassengerIds.Remove(id);
-			else
-				markedPassengerIds.Add(id);
-		}
-
-		string GetPassengerText(int slotIndex)
-		{
-			if (cargo == null)
-				return "";
-
-			var passengers = cargo.Passengers.ToArray();
-			if (slotIndex >= passengers.Length)
-				return "";
-
-			var pax = passengers[slotIndex];
-			if (pax == null || pax.IsDead)
-				return "(dead)";
-
-			var tooltip = pax.TraitOrDefault<Tooltip>();
-			var name = tooltip?.Info.Name ?? pax.Info.Name;
-
-			// Show ammo status if unit has ammo
-			var ammo = pax.TraitsImplementing<AmmoPool>().FirstOrDefault();
-			if (ammo != null)
-				return $"{name} [{ammo.CurrentAmmoCount}/{ammo.Info.Ammo}]";
-
-			// Show HP for non-ammo units
-			var health = pax.TraitOrDefault<Health>();
-			if (health != null && health.DamageState != DamageState.Undamaged)
-				return $"{name} ({health.HP * 100 / health.MaxHP}%)";
-
-			return name;
-		}
-
-		bool IsPassengerSlotVisible(int slotIndex)
-		{
-			if (cargo == null)
-				return false;
-
-			return slotIndex < cargo.PassengerCount;
-		}
-
-		void EjectPassenger(int slotIndex)
-		{
-			if (cargo == null || selectedTransport == null)
-				return;
-
-			var passengers = cargo.Passengers.ToArray();
-			if (slotIndex >= passengers.Length)
-				return;
-
-			var passenger = passengers[slotIndex];
-			if (passenger == null || passenger.IsDead)
-				return;
-
-			world.IssueOrder(new Order("UnloadCargoPassenger", selectedTransport, false) { ExtraData = passenger.ActorID });
-		}
-
-		void SetPassengerRally(int slotIndex)
-		{
-			if (cargo == null || selectedTransport == null)
-				return;
-
-			var passengers = cargo.Passengers.ToArray();
-			if (slotIndex >= passengers.Length)
-				return;
-
-			var passenger = passengers[slotIndex];
-			if (passenger == null || passenger.IsDead)
-				return;
-
-			var tooltip = passenger.TraitOrDefault<Tooltip>();
-			var name = tooltip?.Info.Name ?? passenger.Info.Name;
-
-			// If already has rally, clear it (toggle). PITFALL: this must go through an order —
-			// clearing the dictionary locally desyncs, because UnloadCargo reads it in simulation.
-			if (cargo.HasEjectRally(passenger.ActorID))
-			{
-				world.IssueOrder(new Order(Cargo.ClearEjectRallyOrderString, selectedTransport, false)
-				{
-					ExtraData = passenger.ActorID
-				});
-
-				return;
-			}
-
-			// Enter rally target selection mode
-			world.OrderGenerator = new EjectRallyOrderGenerator(selectedTransport, passenger.ActorID, name);
-		}
-
-		bool HasPassengerRally(int slotIndex)
-		{
-			if (cargo == null)
-				return false;
-
-			var passengers = cargo.Passengers.ToArray();
-			if (slotIndex >= passengers.Length)
-				return false;
-
-			return cargo.HasEjectRally(passengers[slotIndex].ActorID);
 		}
 	}
 }
