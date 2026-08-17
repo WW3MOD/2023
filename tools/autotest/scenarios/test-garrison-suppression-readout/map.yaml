@@ -1,0 +1,102 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Garrison suppression readout (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Tower: gtwr
+		Owner: USA
+		Location: 33,18
+	R1: e1
+		Owner: USA
+		Location: 30,21
+	R2: e1
+		Owner: USA
+		Location: 31,21
+	R3: e1
+		Owner: USA
+		Location: 32,21
+	# Layout witness, not part of the verdict: a civilian building is capacity 10 with
+	# perRow 5, so six occupants make the pip grid wrap to a second slot row — the only
+	# case where the taller (4-row) slot moves anything that already existed.
+	House: v01
+		Owner: Neutral
+		Location: 26,18
+	H1: e1
+		Owner: USA
+		Location: 24,21
+	H2: e1
+		Owner: USA
+		Location: 25,21
+	H3: e1
+		Owner: USA
+		Location: 26,21
+	H4: e1
+		Owner: USA
+		Location: 27,21
+	H5: e1
+		Owner: USA
+		Location: 24,22
+	H6: e1
+		Owner: USA
+		Location: 25,22
+	# Infantry, NOT a tank: ^5.56mm carries InvalidTargets: Light, Medium, Heavy
+	# (weapons-ballistics.yaml:84), so a rifleman's weapon is never valid against a
+	# T-90 and GarrisonManager.ScanForTarget never confirms one — the ports would
+	# never deploy. Held on HoldFire and given absurd HP in rules.yaml so they are a
+	# stable target for the whole run rather than a fight.
+	Enemy: e3
+		Owner: Russia
+		Location: 33,22
+	Enemy2: e3
+		Owner: Russia
+		Location: 34,22
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,14
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,26
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 30,21
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 33,22
+
+Rules: rules.yaml

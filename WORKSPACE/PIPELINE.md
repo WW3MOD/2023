@@ -158,8 +158,8 @@ _Filed as SHOULD-FIX by the auditor; **promoted to blocker** because under a pub
 
 ### SHOULD-FIX — noticed within the first few matches
 
-**R13. Garrison suppression is silently binary — the graduated "duck" response is computed and read by nothing.** *(systems)*
-**Perceived:** soldiers under moderate fire (suppression 30–59) keep firing at full rate, so suppression reads as an on/off switch rather than the graduated system it was built as. `GarrisonManager.cs:641` writes `ps.IsDucking`; a repo-wide grep finds **only writes, zero reads**. **Size:** small.
+**~~R13. Garrison suppression is silently binary~~** *(systems)* — **DONE, premise corrected 2026-08-17 (`wt/garrison-suppression`)**
+The dead field was real; the diagnosis built on it was not. **Do not implement a duck-tier fire penalty — it double-applies.** `AttackGarrisoned` fires the soldier's *own* `Armament`, which reads burst / burst-wait / inaccuracy modifiers off the soldier (`Armament.cs:253-258`), so the ten-tier `^SuppressionEffects` ladder already degrades garrison fire, from suppression 1 upward rather than 30. What was actually missing was the *readout* — no suppression row in the building's pip grid, none in the panel, and the soldier's own pips need him selected while he is a 40%-alpha ghost on the building's cell. Fixed presentation-only. `IsDucking` and its sole input `SuppressionDuckThreshold` deleted, with a `// PITFALL:` left at the site.
 
 **R14. Capturing a helicopter by pilot entry yields a burning wreck that explodes in ~12 seconds.** *(systems)*
 **Perceived:** the player pulls off the capture — a genuinely cool mechanic — and the prize is speed-zero, firepower-zero and on fire. The recovery gate at `HeliEmergencyLanding.cs:411-416` **can never be satisfied**, because the repair traits it depends on were deleted in the 260509 design reversal. Either the reward works or the mechanic should not be presented. **Size:** hours; needs a design call first.

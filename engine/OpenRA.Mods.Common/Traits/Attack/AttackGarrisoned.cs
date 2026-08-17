@@ -284,7 +284,11 @@ namespace OpenRA.Mods.Common.Traits
 				portWorldPos = new WPos(portWorldPos.X, portWorldPos.Y, terrainZ);
 				paxPos[ps.DeployedSoldier].SetCenterPosition(ps.DeployedSoldier, portWorldPos);
 
-				// Fire each of the occupant's armaments
+				// Fire each of the occupant's armaments.
+				// PITFALL: these are the SOLDIER's armaments, so they already carry the soldier's
+				// ^SuppressionEffects burst / burst-wait / inaccuracy modifiers (Armament.cs:253-258).
+				// Suppression is applied here whether or not you can see it — do not add a second
+				// suppression gate around this loop, it double-applies.
 				foreach (var a in ps.DeployedSoldier.TraitsImplementing<Armament>())
 				{
 					if (a.IsTraitDisabled)

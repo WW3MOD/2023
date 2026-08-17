@@ -1,0 +1,46 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's
+	# unit-defaults.yaml (AutoTarget.cs:355-388). Strip it so the tower and its
+	# riflemen behave identically on every machine that runs this scenario.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-garrison-suppression-readout.lua
+
+E3:
+	# The enemy riflemen exist only to give the tower's ports a target to deploy
+	# against: held silent so the suppression in the capture is exactly what the script
+	# granted, and given an absurd HP pool so the tower cannot kill them and lose its
+	# target (IdleRecallTicks 250) before the second capture.
+	#
+	# PITFALL: BOTH stance fields, and InitialStanceAI is the one that fires here.
+	# AutoTarget.cs:497 picks `Owner.IsBot || !Owner.Playable ? InitialStanceAI :
+	# InitialStance`, and a scenario opponent declared without `Playable: True` is NOT
+	# Playable — so InitialStance alone is silently never read. Setting only
+	# InitialStance left these riflemen on the FireAtWill default and they killed the
+	# garrison squad on its way to the tower, twice.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 2000000
+
+E1:
+	# The garrison squad is USA-owned and USA IS Playable, so this one reads
+	# InitialStance. Held silent so nobody diverts to fight on the way in; the tower's
+	# own AutoTarget is untouched, and port deployment does not depend on the soldiers'
+	# stance (GarrisonManager scans for targets itself).
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
