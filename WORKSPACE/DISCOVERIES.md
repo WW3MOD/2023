@@ -20,12 +20,28 @@ the passing step's log for the build summary before believing it.
 `SequenceIntegrity.cs:91`, landed at `bedf18e0`/`d836bd07`) is .NET 5+ and absent from mono's BCL. It reads as
 part of the same "CI is red on style" noise and is not: it is a portability regression.
 
-**81% of the mod's lint errors are one absent dependency.** Of 437 errors, **355 are `sprite file X not
-found`** — the runner never installs the Red Alert content that `mods/ww3mod/mod.yaml:15` mounts from
-`^SupportDir|Content/ra/v2/`. They do not occur on a developer machine that has run the game once. **So the
-CI error count and any local error count are different quantities and must never be compared**, and the
-repo's actual lint debt is **82**, of which **62 are one class** (scenario maps with no cordon). Anyone
-quoting "437" is quoting a number that would fall to 82 by installing content in CI, touching no YAML.
+**The two lint numbers this project quotes are 437 and 87, and they reconcile exactly: `437 = 87 + 350`.**
+Both measured — CI run `31981227086` and a local `make test` on 2026-08-17. It is the same check over the
+same single mod (`MOD_ID="ww3mod"`; the CI job logs exactly one `Testing mod:` line and one `Errors:` line,
+so the "CI lints four mods" theory is dead). The 350 are RA sprites that exist only where the content is
+installed, which the runner never installs (`mods/ww3mod/mod.yaml:15` mounts `~^SupportDir|Content/ra/v2/`).
+**So 437 is not a defect count and never was — 87 is, and 4/5 of the CI figure is one missing dependency.**
+Of the 87: **62 are one class** (maps with no cordon), one of which — `test-edge-spawn-shadow` — must stay
+that way because `bounds == MapSize` is the regression it tests.
+
+**Five sprite errors survive in BOTH environments and are real**: `b2bomb.shp`, `pip-cloak.shp`,
+`pip-cover.shp`, `mslo.int`, `bib3.int` are absent from this repo, from `engine/mods`, and from the RA
+content. **The reason this matters beyond five sequences: the same error text was 355 lines of environment
+noise and 5 lines of genuine defect, and nothing but running it in both environments could tell them
+apart.** A class of error is not environment-dependent because most of its instances are.
+
+**Sizing the burn-down, statically, before believing it is cheap.** The fix for the cordon class is the
+one-line `Bounds` shrink `097738f4` used on the nine shipped maps (`0,0,66,34` → `1,1,64,32`). Applied to
+the 62: on **38** it evicts no actor and is a pure text edit; on the other **24** actors sit on the
+outermost ring (the river-zeta-derived scenarios carry ~196 each) and would fall outside the new bounds.
+So it is 38 free, 23 needing actor moves, 1 that must not be touched — and the verification, not the edit,
+is the price: the shipped-map re-cordon needed a 2058-line `nav-guard` baseline regeneration, and nav-guard
+covers 10 of 167 maps, so scenario breakage surfaces only in autotest runs.
 
 **Two silently-zero widget substitution symbols are live** (`Y: PARENT_TOP`, `Y: PARENT_TOP + 35`,
 `chrome/ingame-player.yaml`, HPF debug overlay, from the `a8b28ede` upstream-rename merge). Both are latent

@@ -24,10 +24,23 @@ namespace OpenRA.Test
 		{
 			"# a comment",
 			"[repo]",
+			"# since 2026-08-17",
 			"map-a | Something is wrong.",
 			"map-b | Something is wrong.",
 			"",
+			"[accepted]",
+			"# this map has to breach the rule to be the test it is",
+			"map-d | Something is wrong.",
+			"",
 			"[requires-ra-content]",
+			"mod | :0: sprite file `x.shp` not found."
+		};
+
+		static readonly string[] AllSeen =
+		{
+			"map-a | Something is wrong.",
+			"map-b | Something is wrong.",
+			"map-d | Something is wrong.",
 			"mod | :0: sprite file `x.shp` not found."
 		};
 
@@ -51,22 +64,28 @@ namespace OpenRA.Test
 		public void ParseAssignsEntriesToSectionsAndDropsCommentsAndBlanks()
 		{
 			var entries = LintBaseline.Parse(Sample);
-			Assert.That(entries.Count, Is.EqualTo(3));
+			Assert.That(entries.Count, Is.EqualTo(4));
 			Assert.That(entries.Count(e => e.Section == LintBaseline.EnforcedSection), Is.EqualTo(2));
+			Assert.That(entries.Count(e => e.Section == LintBaseline.AcceptedSection), Is.EqualTo(1));
 			Assert.That(entries.Count(e => e.Section == "requires-ra-content"), Is.EqualTo(1));
+		}
+
+		[Test]
+		public void ParseCarriesTheAmnestyDateForwardWithinItsSection()
+		{
+			// The date is what lets a run say how long the debt has stood; a section without one must not
+			// inherit the previous section's.
+			var entries = LintBaseline.Parse(Sample);
+			Assert.That(entries.First(e => e.Text.StartsWith("map-a", System.StringComparison.Ordinal)).Since,
+				Is.EqualTo("2026-08-17"));
+			Assert.That(entries.First(e => e.Text.StartsWith("mod |", System.StringComparison.Ordinal)).Since,
+				Is.Null);
 		}
 
 		[Test]
 		public void AnUnrecordedErrorIsReportedAsNew()
 		{
-			var seen = new[]
-			{
-				"map-a | Something is wrong.",
-				"map-b | Something is wrong.",
-				"mod | :0: sprite file `x.shp` not found.",
-				"map-c | Something is wrong."
-			};
-
+			var seen = AllSeen.Append("map-c | Something is wrong.").ToArray();
 			var (added, fixedUp, _) = LintBaseline.Compare(LintBaseline.Parse(Sample), seen);
 			Assert.That(added, Is.EqualTo(new[] { "map-c | Something is wrong." }));
 			Assert.That(fixedUp, Is.Empty);
@@ -76,12 +95,8 @@ namespace OpenRA.Test
 		public void TheSameErrorCountWithADifferentErrorStillFails()
 		{
 			// The trap a count-based floor walks into: one map fixed, another broken, total unchanged.
-			var seen = new[]
-			{
-				"map-a | Something is wrong.",
-				"map-c | Something is wrong.",
-				"mod | :0: sprite file `x.shp` not found."
-			};
+			var seen = AllSeen.Where(s => !s.StartsWith("map-b", System.StringComparison.Ordinal))
+				.Append("map-c | Something is wrong.").ToArray();
 
 			var (added, fixedUp, _) = LintBaseline.Compare(LintBaseline.Parse(Sample), seen);
 			Assert.That(added, Is.EqualTo(new[] { "map-c | Something is wrong." }));
@@ -91,7 +106,7 @@ namespace OpenRA.Test
 		[Test]
 		public void AnEnforcedEntryThatStopsOccurringIsReportedAsFixed()
 		{
-			var seen = new[] { "map-a | Something is wrong.", "mod | :0: sprite file `x.shp` not found." };
+			var seen = AllSeen.Where(s => !s.StartsWith("map-b", System.StringComparison.Ordinal)).ToArray();
 			var (added, fixedUp, absent) = LintBaseline.Compare(LintBaseline.Parse(Sample), seen);
 			Assert.That(added, Is.Empty);
 			Assert.That(fixedUp, Is.EqualTo(new[] { "map-b | Something is wrong." }));
@@ -99,11 +114,21 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void AnAcceptedExceptionThatStopsOccurringMustAlsoBeRemoved()
+		{
+			// A deliberate exception is not a licence to leave a dead line behind: the map it describes may
+			// have been changed, and then the exception is a claim about nothing.
+			var seen = AllSeen.Where(s => !s.StartsWith("map-d", System.StringComparison.Ordinal)).ToArray();
+			var (_, fixedUp, _) = LintBaseline.Compare(LintBaseline.Parse(Sample), seen);
+			Assert.That(fixedUp, Is.EqualTo(new[] { "map-d | Something is wrong." }));
+		}
+
+		[Test]
 		public void AnEnvironmentDependentEntryThatDoesNotOccurIsNotTreatedAsFixed()
 		{
 			// A developer machine with RA content installed sees none of that section. That must not
 			// look like progress, and must not fail the run either.
-			var seen = new[] { "map-a | Something is wrong.", "map-b | Something is wrong." };
+			var seen = AllSeen.Where(s => !s.StartsWith("mod |", System.StringComparison.Ordinal)).ToArray();
 			var (added, fixedUp, absent) = LintBaseline.Compare(LintBaseline.Parse(Sample), seen);
 			Assert.That(added, Is.Empty);
 			Assert.That(fixedUp, Is.Empty);
@@ -111,18 +136,23 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void ClassOfGroupsTheSameRuleFailingInDifferentPlaces()
+		{
+			// 62 maps failing one rule is one fix, and the run should be able to say so.
+			Assert.That(
+				LintBaseline.ClassOf("map-a | The player `Multi0` must specify LockFaction: True."),
+				Is.EqualTo(LintBaseline.ClassOf("map-b | The player `Multi5` must specify LockFaction: True.")));
+
+			Assert.That(
+				LintBaseline.ClassOf("map-a | This map does not define a valid cordon."),
+				Is.Not.EqualTo(LintBaseline.ClassOf("map-a | The player `Multi0` must specify LockFaction: True.")));
+		}
+
+		[Test]
 		public void PruneRemovesOnlyTheNamedEnforcedEntriesAndKeepsEverythingElseInPlace()
 		{
 			var pruned = LintBaseline.Prune(Sample, new[] { "map-b | Something is wrong." });
-			Assert.That(pruned, Is.EqualTo(new[]
-			{
-				"# a comment",
-				"[repo]",
-				"map-a | Something is wrong.",
-				"",
-				"[requires-ra-content]",
-				"mod | :0: sprite file `x.shp` not found."
-			}));
+			Assert.That(pruned, Is.EqualTo(Sample.Where(l => l != "map-b | Something is wrong.")));
 		}
 
 		[Test]

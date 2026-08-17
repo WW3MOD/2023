@@ -1,37 +1,56 @@
 # WW3MOD lint baseline — the known-bad floor for `./utility.sh --check-yaml` (`make test`).
 #
-# HOW IT IS READ. Every error the lint emits is reduced to a signature of the form
-# `<scope> | <first line of the message>`, where <scope> is the map's package folder name, or `mod` for
-# the mod-wide passes. A signature listed here does not fail the run. A signature NOT listed here does.
+# HOW IT IS READ. Every error the lint emits is reduced to a signature `<scope> | <first line of the
+# message>`, where <scope> is the map's package folder name, or `mod` for the mod-wide passes. A signature
+# listed here does not fail the run. A signature NOT listed here does.
 #
 # HOW TO CHANGE IT. Lowering is automatic, raising is not, and that asymmetry is the whole point:
-#   * You fixed something -> the run tells you which entries no longer occur and fails until you drop
-#     them. Re-run with LINT_BASELINE_PRUNE=true to remove them, and commit this file with your fix.
-#     The prune path can only REMOVE lines from [repo]; it can never add one.
-#   * You hit a NEW error -> the correct move is to fix it. Adding a line here is a deliberate act that
-#     shows up as an added line in review; if you add one, say in the commit message why it is acceptable.
+#   * You fixed something -> the run names the entries that no longer occur and FAILS until they are gone.
+#     Re-run with LINT_BASELINE_PRUNE=true to remove them and commit this file with your fix. The prune
+#     path can only REMOVE lines; it can never add one.
+#   * You hit a NEW error -> fix it. Adding a line here is a deliberate act that shows up as an added line
+#     in review, and it belongs in the right section, with a reason if it is going in [accepted].
 #
 # SECTIONS.
-#   [repo]                 Errors this repository owns. Reproducible on any checkout, so an entry that
-#                          stops occurring means it was FIXED — the run enforces that this list shrinks.
-#                          THIS is the number that is supposed to fall. Everything else here is noise.
-#   [requires-ra-content]  Only occur where the Red Alert content is not installed. `mods/ww3mod/mod.yaml`
-#                          mounts `~^SupportDir|Content/ra/v2/`, downloaded at first run; the CI runner
-#                          never installs it, so every RA sprite reads as missing there and none of these
-#                          appear on a developer machine that has run the game. They are matched but never
-#                          required, so both environments pass. They are NOT defects and NOT lint debt:
-#                          installing content in CI would delete this entire section at a stroke.
+#   [repo]                 DEBT. Errors this repository owns and has not fixed. Every run prints this count
+#                          as a standing amnesty, with the age of the oldest entry and the largest single
+#                          class in it, because the way a baseline fails is not by letting a regression
+#                          through — it is by becoming furniture nobody reads. THIS is the number that is
+#                          supposed to fall.
+#   [accepted]             Errors that are CORRECT and must keep occurring: a map that has to breach a rule
+#                          in order to be the test it is. Enforced the same way — if one stops occurring it
+#                          still has to be removed — but never counted as debt, because counting a decision
+#                          as debt is how a debt figure stops meaning anything. Every entry needs a comment
+#                          above it saying why.
+#   [requires-ra-content]  Only occur where the Red Alert content is absent. `mods/ww3mod/mod.yaml:15` mounts
+#                          `~^SupportDir|Content/ra/v2/`, downloaded at first run; the CI runner never
+#                          installs it, so every RA sprite reads as missing there and none of these appear on
+#                          a developer machine that has run the game. Matched but never required, so both
+#                          environments pass, and never pruned — an environment that cannot produce an entry
+#                          has nothing to say about whether it is fixed. NOT defects and NOT lint debt:
+#                          installing content in CI deletes this entire section at a stroke.
 #
-# Captured 2026-08-17 from CI run 31981227086 (the last completed run before this file existed), which
-# reported `Errors: 437` = 82 [repo] + 355 [requires-ra-content]. That 437 is quoted in several WORKSPACE
-# documents as though it were a defect count; 82 is the defect count, and 62 of the 82 are one class
-# (scenario maps with no cordon) in one place.
+# THE TWO NUMBERS, RECONCILED (2026-08-17, both measured, neither guessed).
+#   CI run 31981227086 (Windows, `Check Mods`):  Errors: 437
+#   local `make test` on this branch:            Errors:  89
+# They are the same check over the same single mod (`MOD_ID="ww3mod"`; the CI job logs exactly one
+# `Testing mod:` line and one `Errors:` line), and they reconcile exactly:
+#   437  =  87  +  350
+#           87   the repo's own errors, identical in both environments
+#          350   RA sprites that exist only where the content is installed; absent on the CI runner
+# and the local 89 is that same 87 plus the 2 findings of the unregistered-symbol rule added in this
+# commit, which CI has not run yet. So: 437 is not a defect count and never was. 87 is. Anyone quoting
+# 437 as lint debt is quoting a missing CI dependency 4x over.
+#
+# Five `sprite file X not found` errors occur in BOTH environments and are therefore real; they are in
+# [repo] above, not in the content section.
 
 [repo]
-# PENDING A DECISION, NOT ACCEPTED — the two entries below are what CheckChromeIntegerExpressions found
-# when the unregistered-symbol rule was added (2026-08-17). They are recorded here only so the floor could
-# be established in the same commit as the rule. Both are in the HPF debug overlay and both are latent:
-# PARENT_TOP resolves to 0, and 0 is what a parent-relative Y meant anyway. Fix them and prune these lines.
+# since 2026-08-17
+# PENDING A DECISION, NOT ACCEPTED — found by the unregistered-symbol rule when it was added
+# (2026-08-17), recorded only so the floor could land in the same commit as the rule. Both are in the
+# HPF debug overlay and both are latent: PARENT_TOP resolves to 0, and 0 is what a parent-relative Y
+# already meant. Fix them and prune these two lines.
 mod | Unknown widget substitution symbol `PARENT_TOP` in ww3mod|chrome/ingame-player.yaml (`Y: PARENT_TOP`). It is not registered anywhere and evaluates to 0 with no warning. Registered here: WINDOW_WIDTH, WINDOW_HEIGHT, PARENT_WIDTH, PARENT_HEIGHT, WIDTH, HEIGHT, DROPDOWN_WIDTH.
 mod | Unknown widget substitution symbol `PARENT_TOP` in ww3mod|chrome/ingame-player.yaml (`Y: PARENT_TOP + 35`). It is not registered anywhere and evaluates to 0 with no warning. Registered here: WINDOW_WIDTH, WINDOW_HEIGHT, PARENT_WIDTH, PARENT_HEIGHT, WIDTH, HEIGHT, DROPDOWN_WIDTH.
 demo-experimental-capture-coordinator | Actor `OpponentSR` is owned by unknown player `Russia-bot`.
@@ -56,7 +75,6 @@ test-combined-arms-rendezvous | This map does not define a valid cordon.
 test-crate-rearm | The map allows 2 possible players, but defines only 1 spawn points.
 test-crate-rearm | This map does not define a valid cordon.
 test-crate-targetable | This map does not define a valid cordon.
-test-edge-spawn-shadow | This map does not define a valid cordon.
 test-experimental-poi-capture | This map does not define a valid cordon.
 test-experimental-poi-harness | This map does not define a valid cordon.
 test-experimental-poi-observe | Actor `OpponentSR` is owned by unknown player `Russia-bot`.
@@ -117,7 +135,24 @@ tournament-s2-combat-woodland-warfare-cal-nn | This map does not define a valid 
 tournament-s2-combat-woodland-warfare-mirror | This map does not define a valid cordon.
 wip-transport-delivers | This map does not define a valid cordon.
 
+# These five occur WITH the Red Alert content installed (verified by a local `make test`,
+# 2026-08-17), so they are not the CI-runner artifact the section below describes: the files are
+# absent from this repo, from engine/mods, and from the RA content. Real debt, five sequences.
+# since 2026-08-17
+mod | :0: sprite file `b2bomb.shp` not found.
+mod | :0: sprite file `pip-cloak.shp` not found.
+mod | :0: sprite file `pip-cover.shp` not found.
+mod | :0: sprite file `mslo.int` not found.
+mod | :0: sprite file `bib3.int` not found.
+
+[accepted]
+# since 2026-08-17
+# test-edge-spawn-shadow exists to test the edge case where the playable bounds ARE the map size, so
+# it must not be cordoned. The lint is right and the map is right; the exception is the resolution.
+test-edge-spawn-shadow | This map does not define a valid cordon.
+
 [requires-ra-content]
+# since 2026-08-17
 mod | :0: sprite file `120mm.shp` not found.
 mod | :0: sprite file `1tnk.shp` not found.
 mod | :0: sprite file `2tnk.shp` not found.
@@ -138,7 +173,6 @@ mod | :0: sprite file `atekmake.shp` not found.
 mod | :0: sprite file `atomicdn.shp` not found.
 mod | :0: sprite file `atomicup.shp` not found.
 mod | :0: sprite file `atomsfx.shp` not found.
-mod | :0: sprite file `b2bomb.shp` not found.
 mod | :0: sprite file `badr.shp` not found.
 mod | :0: sprite file `badricon.shp` not found.
 mod | :0: sprite file `barb.shp` not found.
@@ -149,7 +183,6 @@ mod | :0: sprite file `bib2.des` not found.
 mod | :0: sprite file `bib2.sno` not found.
 mod | :0: sprite file `bib2.tem` not found.
 mod | :0: sprite file `bib3.des` not found.
-mod | :0: sprite file `bib3.int` not found.
 mod | :0: sprite file `bib3.sno` not found.
 mod | :0: sprite file `bib3.tem` not found.
 mod | :0: sprite file `bio.shp` not found.
@@ -284,7 +317,6 @@ mod | :0: sprite file `moveflsh.int` not found.
 mod | :0: sprite file `moveflsh.sno` not found.
 mod | :0: sprite file `moveflsh.tem` not found.
 mod | :0: sprite file `mrj.shp` not found.
-mod | :0: sprite file `mslo.int` not found.
 mod | :0: sprite file `mslo.sno` not found.
 mod | :0: sprite file `mslo.tem` not found.
 mod | :0: sprite file `mslomake.sno` not found.
@@ -303,8 +335,6 @@ mod | :0: sprite file `pdoxmake.shp` not found.
 mod | :0: sprite file `piff.shp` not found.
 mod | :0: sprite file `piffpiff.shp` not found.
 mod | :0: sprite file `pinficon.shp` not found.
-mod | :0: sprite file `pip-cloak.shp` not found.
-mod | :0: sprite file `pip-cover.shp` not found.
 mod | :0: sprite file `pips.shp` not found.
 mod | :0: sprite file `powr.shp` not found.
 mod | :0: sprite file `powrmake.shp` not found.
