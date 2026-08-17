@@ -3,6 +3,30 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-17: [medium] OPEN, DIAGNOSED NOT FIXED — `Linux (mono)` CI has not compiled since 2026-08-11: `Convert.ToHexString` is net5.0+ and the mono lane targets netstandard2.1 (found while: CI reporting-integrity audit, branch `wt/ci-integrity`, `main @ 8656bd3c`)
+
+**Three call sites, one API.** `engine/OpenRA.Game/Network/BuildFingerprint.cs:246,308` and
+`engine/OpenRA.Game/Graphics/SequenceIntegrity.cs:91` call `Convert.ToHexString`, added in `bedf18e0` and
+`d836bd07` (both 2026-08-11, refined by `d068f4ae`). CI run `31997060463` job `Linux (mono)` fails at **36s**
+with three `CS0117: 'Convert' does not contain a definition for 'ToHexString'`.
+
+**Why, precisely:** `engine/Directory.Build.props:23` switches the whole engine to `netstandard2.1` when
+`MSBuildRuntimeType == Mono`. `Convert.ToHexString` is net5.0+, so it is not on that surface. This is a
+target-framework mismatch, not a stale-mono-install problem, and it dies in the `engine` prerequisite before
+the analyzer build is ever reached.
+
+**Not a one-liner, which is why this is filed rather than fixed.** The obvious rewrite
+(`BitConverter.ToString(b).Replace("-", "")`) is blocked by our own config: `engine/.editorconfig:943` sets
+`dotnet_diagnostic.CA1872.severity = warning` — *"prefer `Convert.ToHexString` over call chains based on
+`BitConverter.ToString`"* — and `check` builds `-warnaserror`. So the naive fix trades 3 mono errors for 3
+new analyzer errors **on every platform**. A correct fix is a shared helper plus one scoped suppression.
+**And it would still not make the lane green**, because mono then proceeds to the same `-warnaserror` Debug
+build and the same analyzer errors as the other lanes. Sequence the analyzer burn-down first.
+
+**Before anyone proposes deleting the job:** `packaging/functions.sh:26-31` still has a live `RUNTIME = mono`
+branch, and `mod.config` still references `PACKAGING_OSX_MONO_SOURCE` / `PACKAGING_APPIMAGE_DEPENDENCIES_SOURCE`.
+Today's `packaging.yml` uses `make engine` (net6) so releases do not currently hit that path — but it exists.
+
 ## 2026-08-16: [high] UNTRIAGED — LIVE MONEY PUMP: buy an LCCV for 1200, deploy it, sell the Logistics Centre for 3500. +2300 per cycle, unlimited (found while: economy audit, `main @ d919c81a`)
 
 **The loop, entirely in shipped UI:** `LCCV` is buildable (`vehicles.yaml:612-617`,

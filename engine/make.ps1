@@ -119,6 +119,11 @@ function Check-Command
 	if ($lastexitcode -ne 0)
 	{
 		Write-Host "Build failed." -ForegroundColor Red
+
+		# See the matching comment in ../make.ps1: without this the utility calls below reset
+		# $LASTEXITCODE to 0 and the failure never reaches the caller. This build is the only
+		# one that covers Utility/Server/Cnc/D2k/Test -- WW3MOD.sln builds none of them.
+		exit $lastexitcode
 	}
 
 	if ((CheckForUtility) -eq 0)

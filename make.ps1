@@ -163,6 +163,11 @@ function Check-Command
 	if ($lastexitcode -ne 0)
 	{
 		Write-Host "Build failed." -ForegroundColor Red
+
+		# Must exit here, not just report: the utility calls below are the last commands the
+		# script runs, so they would overwrite $LASTEXITCODE with their own 0 and hand CI a
+		# green tick for a failed build. The Makefile aborts at the same point.
+		exit $lastexitcode
 	}
 
 	if ((CheckForUtility) -eq 0)
@@ -352,8 +357,16 @@ if ($command -eq "all" -or $command -eq "clean" -or $command -eq "check")
 	{
 		cd $env:ENGINE_DIRECTORY
 		Invoke-Expression ".\make.cmd $command"
+		$engineExitCode = $lastexitcode
 		Write-Host ""
 		cd $templateDir
+
+		# `check` is a CI gate, so a failed engine build has to stop us. Scoped to `check` on
+		# purpose: `all` keeps its softer "you may still be able to run the game" behaviour.
+		if (($command -eq "check") -and ($engineExitCode -ne 0))
+		{
+			exit $engineExitCode
+		}
 	}
 	elseif ($env:AUTOMATIC_ENGINE_MANAGEMENT -ne "True")
 	{
