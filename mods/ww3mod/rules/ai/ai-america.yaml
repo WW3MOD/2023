@@ -158,15 +158,55 @@ Player:
 		# The user's objection is about ORDER, not quantity: "at the start we need lots of soldiers to be able
 		# to defend ourselves ... but the medics can come a bit later when they are actually needed". A medic
 		# bought before there is a squad has nobody to treat; the same medic bought later is correct.
-		# 20 is the user's own ratio ("I usually have around 1 medic per 20 man squad"). The floor is now
-		# min(2, supported/20): 0 medics below 20 soldiers, 1 at 20, 2 at 40 and never more — so the opening
-		# call-ins go to line infantry and the medic phases in with the platoon it serves.
+		# The floor is min(2, supported/N): no medic below N soldiers, 1 at N, 2 at 2N and never more — so the
+		# opening call-ins go to line infantry and the medic phases in with the platoon it serves.
 		# WHY THIS IS NOT REDUNDANT WITH THE 17-per-mille SHARE: they are the same ratio in different regimes,
 		# and that is deliberate. The share cannot hold a specialist under losses (the argmax never descends
 		# to a small slot — the whole finding of 47e4ede5), so the floor is the guarantee; scaling it only
 		# stops the guarantee firing before the thing it guarantees is needed.
+		# ===== 10, NOT 20 — THE RATIO HAS A CLIFF AND 20 WAS PAST IT (re-derived 2026-08-17) =====
+		# 20 shipped as the user's own phrasing ("I usually have around 1 medic per 20 man squad") and was
+		# checked on the end-of-run `standing` snapshot, the same instrument that mis-tuned the supply truck.
+		# On the run-integrated metric it is not a conservative ratio, it is an INERT one.
+		# THE CLIFF IS ARITHMETIC, NOT EMPIRICAL: EffectiveFloor is min(cap, supported/N), so the floor is
+		# ZERO on every cycle where supported < N. A ratio against a denominator that COLLAPSES under attrition
+		# therefore has a threshold above which it never fires at all — the identical failure a reviewer found
+		# on the truck, where per 12 gave 30% dry and per 14 gave 86%, the pre-fix behaviour exactly.
+		# WHERE THE MEDIC'S DENOMINATOR ACTUALLY SITS (standing non-medic infantry, --composition-plan 200
+		# cycles; `UnitFloorPer denominator over the run`) — mean / max:
+		#   attrition 15: 10.7 / 18     attrition 25: 18.2 / 20     attrition 40: 27.3 / 31
+		#   attrition 20: 14.8 / 19     attrition 35: 24.8 / 28     attrition  0: 98.2 / 183
+		# Lower --attrition N is HEAVIER loss (a unit dies at N hazard points), so the denominator is smallest
+		# exactly where a medic matters most. At 20 the bot's whole infantry force never once reaches the
+		# denominator in the two heaviest regimes: `engaged 0/200 cycles`, the floor never existed.
+		# MEASURED CONSEQUENCE, per 20 -> per 10 (america / russia), mean standing medics and the fraction of
+		# cycles with NO medic at all. Read these lines, never the `standing` column or the final census‰,
+		# which for a type replaced this often is the coin flip that caused this bug:
+		#                  mean medics            cycles with none        floor engaged
+		#   attrition 15   0.07 -> 0.94           93% -> 6%   / 93% -> 6%     0% -> 52%
+		#   attrition 20   0.10 -> 0.95           90% -> 5%   / 90% -> 5%     0% -> 100%
+		#   attrition 25   0.48 -> 1.03           52% -> 3%   / 17% -> 4%     9% -> 100%
+		#   attrition 35   0.98 -> 1.89            2% -> 0%   /  2% -> 0%    94% -> 100%
+		#   attrition 40   0.98 -> 1.90            2% -> 0%   /  2% -> 0%    96% -> 100%
+		#   attrition  0   4.51 -> 4.63            0% -> 0%   /  0% -> 0%    96% -> 100%
+		# The attrition-15 row is the headline: the bot fielded a medic on 7% of cycles and bought ZERO in 200
+		# (`first-buy NEVER`) — the starting medic died and was never replaced, on both factions.
+		# WHY NOT 8 OR 6, which engage even harder: they give the t=0 defect back. With --start platoon the
+		# first medic lands on cycle 1 at both 6 and 8 — the original complaint's shape — against cycle 8 at
+		# 10 and cycle 12 at 12. With --start none (the live default, StartingUnitsClass = "none",
+		# SpawnStartingUnits.cs:25, unoverridden in any mod YAML) it is cycle 9/11/14/27 for 6/8/10/20 and the
+		# opening four buys are line units at every value. 10 is the SMALLEST ratio that keeps the medic out of
+		# the opening under BOTH start classes.
+		# WHY NOT 12: at attrition 15 it is already on the shoulder — 55% of cycles with no medic, mean 0.45.
+		# THE CAP OF 2 IS UNCHANGED, so the worst-case medic allocation is exactly what it was; only the point
+		# at which the floor phases in moves. The run-integrated medic value stays at or under the 17-per-mille
+		# target at every attrition level measured, i.e. this closes a shortfall rather than opening an excess.
+		# NOT INDEPENDENTLY CONFIRMED: the denominator above is the offline replay's, which buys one unit per
+		# cycle on an unlimited budget and never buys 4 of the 10 supported types (e6/mt/sn/tecn — the small-slot
+		# argmax finding again), so a live infantry count could run higher. CensusLogInterval below exists to
+		# measure it and no live match has been read for it yet.
 		UnitFloorPer:
-			medi.america: 20
+			medi.america: 10
 		# The denominator: every non-medic infantry type. Chosen to match the medi share derivation below
 		# EXACTLY (the same per-type sum, medics excluded) so the floor and the share express ONE ratio rather
 		# than two that have to be reconciled. Vehicles are deliberately absent — the user said "20 man
