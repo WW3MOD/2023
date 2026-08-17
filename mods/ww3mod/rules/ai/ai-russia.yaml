@@ -149,11 +149,43 @@ Player:
 		SupplyStarvingThresholdPerMille: 250
 		SupplyCustomersPerTruck: 6
 		SupplyDemandOvercompensationPercent: 200
-		# 0, was 2 — mirror of the America block; see ai-america.yaml for the measurement and the cost of
-		# deleting the floor. Short version: USER RULING 2026-08-14 "no supply truck until at least one unit is
-		# below full ammo", and the live census read `truk=0+0/909v40` at tick 40 because the floor's two
-		# trucks were the first two call-ins of the match. @stable unaffected (no SupplyDemandSizing).
-		SupplyTruckFloor: 0
+		# HISTORY, kept because the reasoning was right about t=0 and wrong about the rest of the match: this
+		# was 2, then 0. USER RULING 2026-08-14 "no supply truck until at least one unit is below full ammo",
+		# and the live census read `truk=0+0/909v40` at tick 40 because the floor's two trucks were the first
+		# two call-ins of the match. Setting it to 0 fixed that opening and created the opposite defect.
+		# ===== THE FLOOR NEEDS A DENOMINATOR (2026-08-17) — mirror of the America block =====
+		# See ai-america.yaml for the full derivation. Short version: setting the floor to 0 deleted the
+		# truck's only ceiling-EXEMPT route. V_fit for a 1000-cost truck at a 40 per-mille target is 25,000
+		# army VALUE; below that, one truck already puts the slot over target and ApplyCeilingEligibility
+		# strikes it, so the deficit route holds at most one. Measured offline (--composition-plan --start
+		# none, russia): standing trucks 3 with no losses, 1 at --attrition 40, 0 at --attrition 15.
+		# A constant can only pick one of the two failures (2 = trucks at t=0, 0 = no fleet all match). The
+		# floor is now min(3, customers/10) via SupportFloorMath.EffectiveFloor — the same function the medic
+		# floor uses — so it is ZERO with no infantry and non-zero once there is an army to feed.
+		# Denominator is infantry as a fact about the ruleset: `RearmActors: truk, logisticscenter` appears
+		# only on infantry; vehicles rearm from logisticscenter, aircraft from hpad/afld. `^PILOT` (ejected
+		# aircrew) also qualifies and is invisible to the offline model, so the live floor phases in a little
+		# earlier than the measured numbers say.
+		# 10 rather than SupplyCustomersPerTruck's 6 because that one sizes the SURGE from men already dry and
+		# this sizes the STANDING RESERVE. The value is MEASURED on dry-cycle fraction, not picked — russia at
+		# attrition 15 reads dry 12% / 13% / 16% of cycles at per 8 / 10 / 12, and the mean fleet at attrition
+		# 35 reads 2.33 / 1.72 / 1.57. 10 takes almost all of 12's restraint for a fraction of its outages.
+		# Do NOT tune this against the end-of-run `standing` column; see ai-america.yaml for why that number
+		# is close to a coin flip for a continuously-replaced type.
+		# No cash term, per the 2026-08-17 user ruling that the bot must adapt to any settings — V_fit is a
+		# share of army value, so the fix has to be cash-free to work at both ends of the starting-cash range.
+		# `dry` HAS A RAMP FLOOR: the opening cycles before the first buy count as dry, so russia's floor is 13
+		# and the metric is SATURATED (cannot discriminate) at every attrition level except 15/20/25. Raw dry
+		# figures therefore overstate outage by ~6 points; mid-match outage at attrition 15 is 28% -> 7%, and
+		# at attrition 35/40 it reaches zero. See ai-america.yaml for the full table.
+		# THIS FLOOR SWITCHES GateResupplyOnAmmoNeed OFF (UnitBuilderBotModule.cs:846, :1932 — a fleet
+		# shortfall short-circuits the ammo gate), so the guard against a t=0 truck is really "10 infantry /
+		# ~17 s", not "somebody is dry". That does not literally honour the USER RULING quoted above; the
+		# question is with the user as of 2026-08-17 and behaviour is deliberately unchanged pending it.
+		# When SupplyTruckFloorPer is 0 the path is the pre-feature one by construction: EffectiveFloor returns
+		# its flatFloor argument literally, so the module passes exactly what it passed before.
+		SupplyTruckFloor: 3
+		SupplyTruckFloorPer: 10
 		SupplyTruckCeiling: 6
 		# ===== RESUPPLY PRECEDENCE (user ruling 2026-08-15) — mirror of the America block =====
 		# See ai-america.yaml for the full measurement and the derivation of the stall tolerance.

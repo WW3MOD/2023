@@ -123,16 +123,29 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				aaGated[i] = info.ScaleAntiAirToThreat && info.AntiAirUnitTypes.Contains(types[i]);
 
 			var openingAaAllowed = AntiAirDemand.MaxAllowed(0, info.AntiAirBaseline, info.AntiAirPerObservedAir);
+
+			// The truck's standing floor is scaled by SupplyTruckFloorPer against the units a truck can
+			// actually rearm, so — exactly like UnitFloorPer — it is no longer a constant and has to be
+			// recomputed every cycle inside the loop. The denominator is read from the REAL Rearmable trait
+			// rather than a type list, mirroring the module's CountResupplyCapableUnits: a unit is a customer
+			// iff its RearmActors overlaps ResupplyUnitTypes. On this ruleset that resolves to infantry only.
+			var isTruckCustomer = new bool[types.Length];
+			for (var i = 0; i < types.Length; i++)
+				isTruckCustomer[i] = rules.Actors.TryGetValue(types[i], out var customerInfo)
+					&& customerInfo.TraitInfoOrDefault<RearmableInfo>()?.RearmActors.Overlaps(info.ResupplyUnitTypes) == true;
+
+			var openingFloor = SupportFloorMath.EffectiveFloor(info.SupplyTruckFloor, info.SupplyTruckFloorPer, 0);
 			var openingTrucks = SupplyFleetMath.DesiredTrucks(0, info.SupplyCustomersPerTruck,
-				info.SupplyDemandOvercompensationPercent, info.SupplyTruckFloor, info.SupplyTruckCeiling);
+				info.SupplyDemandOvercompensationPercent, openingFloor, info.SupplyTruckCeiling);
 
 			var start = StartingCounts(rules, types, faction, startClass);
 
 			Console.WriteLine($"[composition] faction={faction} start={startClass} cycles={cycles} "
 				+ $"slots={types.Length} ceiling={info.CompositionEnforceTargetCeiling} "
 				+ $"supply-demand-sizing={info.SupplyDemandSizing}");
-			Console.WriteLine($"[composition] opening supply fleet floor={info.SupplyTruckFloor} "
-				+ $"=> desired at zero starving customers = {openingTrucks} truck(s) "
+			Console.WriteLine($"[composition] supply fleet floor cap={info.SupplyTruckFloor} "
+				+ $"per={info.SupplyTruckFloorPer} customer(s) => floor at ZERO customers = {openingFloor}, "
+				+ $"desired at zero starving customers = {openingTrucks} truck(s) "
 				+ $"= {openingTrucks * cost[Array.IndexOf(types, info.ResupplyUnitTypes.FirstOrDefault() ?? "truk")]} budget");
 			Console.WriteLine($"[composition] gated AA allowed at zero observed enemy air = {openingAaAllowed} "
 				+ $"(baseline={info.AntiAirBaseline}, per-observed={info.AntiAirPerObservedAir})");
@@ -172,6 +185,19 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			var truckSlots = types.Select((t, i) => (t, i)).Where(x => info.ResupplyUnitTypes.Contains(x.t))
 				.Select(x => x.i).ToArray();
 
+			// ===== Fleet AVAILABILITY over the whole run, not just at the final cycle =====
+			// The end-of-run `standing` column is a SNAPSHOT, and for a type that is continuously replaced it
+			// is close to a coin flip: at a 1-in-15 loss rate the truck is bought and killed ~12 times in 200
+			// cycles, so whether the last cycle happens to catch one alive says almost nothing about whether
+			// the army had supply. Tuning the floor ratio against that snapshot tunes against the instrument.
+			// These three integrate the whole trajectory instead, and `dry` — cycles with NO truck at all — is
+			// the one that answers the user's complaint ("soldiers out of ammo are useless"), because it is
+			// the fraction of the match during which nobody could be resupplied.
+			var truckDryCycles = 0;
+			var truckCycleSum = 0;
+			var truckMin = int.MaxValue;
+			var truckMax = 0;
+
 			for (var cycle = 0; cycle < cycles; cycle++)
 			{
 				// Proportional-hazard attrition, applied BEFORE the buy so the cycle sees the losses it is
@@ -194,6 +220,20 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					}
 				}
 
+				// Sampled AFTER attrition and BEFORE this cycle's buy: this is the fleet the army actually had
+				// while it needed supply, which is the quantity the user's complaint is about. Sampling here
+				// also keeps it unaffected by the `continue` on a declined cycle.
+				var truckAlive = truckSlots.Sum(s => counts[s]);
+				truckCycleSum += truckAlive;
+				if (truckAlive == 0)
+					truckDryCycles++;
+
+				if (truckAlive < truckMin)
+					truckMin = truckAlive;
+
+				if (truckAlive > truckMax)
+					truckMax = truckAlive;
+
 				var values = new int[types.Length];
 				for (var i = 0; i < types.Length; i++)
 					values[i] = counts[i] * cost[i];
@@ -203,10 +243,25 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					info.CounterBiasMaxPct, info.ThreatDeadbandPerMille);
 
 				// Supply-fleet pre-empt (ahead of the deficit pick, exactly as ChooseByDeficit orders it).
+				//
+				// The floor is re-derived from the STANDING customer population every cycle, matching
+				// SupplyFleetUnderDesired. Starving customers stay pinned at zero here (the replay has no ammo
+				// model), so what this measures is precisely the STANDING reserve the floor guarantees —
+				// which is the quantity under test. Live behaviour can only be at or above it, since real
+				// starvation only ever raises DesiredTrucks.
+				var truckCustomers = 0;
+				for (var i = 0; i < types.Length; i++)
+					if (isTruckCustomer[i])
+						truckCustomers += counts[i];
+
+				var cycleFloor = SupportFloorMath.EffectiveFloor(info.SupplyTruckFloor, info.SupplyTruckFloorPer, truckCustomers);
+				var cycleTrucks = SupplyFleetMath.DesiredTrucks(0, info.SupplyCustomersPerTruck,
+					info.SupplyDemandOvercompensationPercent, cycleFloor, info.SupplyTruckCeiling);
+
 				var preempt = -1;
 				if (info.SupplyDemandSizing)
 					foreach (var s in truckSlots)
-						if (counts[s] < limit[s] && counts[s] < openingTrucks)
+						if (counts[s] < limit[s] && counts[s] < cycleTrucks)
 						{
 							preempt = s;
 							break;
@@ -272,6 +327,15 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 			Console.WriteLine($"[composition] after {cycles} cycles: {declines} declined, army value {totalValue}"
 				+ (attrition > 0 ? $", attrition 1-in-{attrition} per unit per cycle ({lost.Sum()} lost)" : ", no losses"));
+
+			// Read THIS line, not the `standing` column, when tuning the supply fleet: `dry` is the number of
+			// cycles the army had no truck at all, which is the thing the user complains about, and unlike the
+			// final-cycle snapshot it does not turn on whether a truck happened to die on cycle 199.
+			if (truckSlots.Length > 0)
+				Console.WriteLine($"[composition] supply fleet over the run: dry {truckDryCycles}/{cycles} cycles "
+					+ $"({100 * truckDryCycles / cycles}%), mean {truckCycleSum / (double)cycles:0.00}, "
+					+ $"min {(truckMin == int.MaxValue ? 0 : truckMin)}, max {truckMax}");
+
 			Console.WriteLine();
 			Console.WriteLine("type                  start  bought    lost  standing  census‰  target‰  first-buy");
 			for (var i = 0; i < types.Length; i++)

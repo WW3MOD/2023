@@ -157,5 +157,76 @@ namespace OpenRA.Test
 		{
 			Assert.That(SupplyFleetMath.DesiredTrucks(1000000, 1, int.MaxValue, 0, 6), Is.EqualTo(6));
 		}
+
+		// ===== The standing floor with a denominator (SupplyTruckFloorPer) =====
+		//
+		// SCOPE — READ THIS BEFORE TRUSTING THESE AS REGRESSION COVER. These cases pin the ARITHMETIC of a
+		// scaled floor clamped by DesiredTrucks, and nothing else. The helper below composes the two pure
+		// functions HERE, in the test file; it does not call UnitBuilderBotModule. Both functions are
+		// unchanged by the commit that added these tests, so **every case here passes on the unfixed code**
+		// — delete the three wiring lines in SupplyFleetUnderDesired and the suite stays green.
+		//
+		// What is therefore NOT covered: that the module actually passes EffectiveFloor's result into
+		// DesiredTrucks rather than the raw Info field, which is precisely where the defect lived. That join
+		// needs a world (Rearmable traits on owned actors, a per-tick cache), so it is out of reach of this
+		// fixture and is not claimed. The cheap partial substitute would be a config lint — any profile
+		// setting SupplyDemandSizing with a positive SupplyTruckFloor should also set SupplyTruckFloorPer —
+		// which catches a YAML regression but still not a C# one. NOT ADDED, and the reason is worth knowing
+		// before someone tries: `--check-yaml` DOES run in CI (Windows job, every push) but is permanently
+		// red at a 437-error pre-existing baseline, so a new rule's finding lands as error #438 on a job that
+		// already fails for everyone. The prerequisite is a baseline floor that fails only on NEW errors.
+		// (An earlier version of this comment said the suite never runs at all, citing a DISCOVERIES entry
+		// that turned out to be wrong on both scope and cause; that entry is corrected 2026-08-17.)
+		//
+		// Shipped @experimental config: cap 3, per 10, customersPerTruck 6, overcompensation 200, ceiling 6.
+		static int DesiredWithScaledFloor(int starving, int customers, int cap, int per)
+		{
+			return SupplyFleetMath.DesiredTrucks(starving, 6, 200,
+				SupportFloorMath.EffectiveFloor(cap, per, customers), 6);
+		}
+
+		[Test]
+		public void ScaledFloor_ZeroCustomersHoldsNoStandingFleet()
+		{
+			// The t=0 case the user reported first (PIPELINE 57(a)): no infantry, so no floor, so no truck is
+			// called in before anyone has fired a shot. A constant floor cannot have this property.
+			Assert.That(DesiredWithScaledFloor(0, 0, 3, 10), Is.EqualTo(0));
+
+			// And it stays zero until the ratio is actually met, rather than rounding one up early.
+			Assert.That(DesiredWithScaledFloor(0, 9, 3, 10), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void ScaledFloor_PhasesInWithTheInfantryItResupplies()
+		{
+			Assert.That(DesiredWithScaledFloor(0, 10, 3, 10), Is.EqualTo(1));
+			Assert.That(DesiredWithScaledFloor(0, 20, 3, 10), Is.EqualTo(2));
+			Assert.That(DesiredWithScaledFloor(0, 30, 3, 10), Is.EqualTo(3));
+		}
+
+		[Test]
+		public void ScaledFloor_IsCappedByTheFlatFloorNotByTheCeiling()
+		{
+			// A large army must not turn the standing reserve into the whole fleet: the cap binds well below
+			// the ceiling, leaving the remaining headroom for actual measured starvation.
+			Assert.That(DesiredWithScaledFloor(0, 800, 3, 10), Is.EqualTo(3));
+		}
+
+		[Test]
+		public void ScaledFloor_DemandStillOutranksTheReserve()
+		{
+			// The floor is a MINIMUM, never a maximum: measured starvation must still size the fleet above the
+			// reserve, up to the ceiling. 18 starving at 6 per truck x 200% = 6.
+			Assert.That(DesiredWithScaledFloor(18, 10, 3, 10), Is.EqualTo(6));
+		}
+
+		[Test]
+		public void ScaledFloor_UnconfiguredRatioKeepsTheFlatFloorVerbatim()
+		{
+			// The byte-identity contract: per <= 0 is the default, so every profile that does not opt in keeps
+			// its existing answer. (@stable never reaches this path at all — SupplyDemandSizing gates it.)
+			Assert.That(DesiredWithScaledFloor(0, 0, 2, 0), Is.EqualTo(2));
+			Assert.That(DesiredWithScaledFloor(0, 100, 2, 0), Is.EqualTo(2));
+		}
 	}
 }
