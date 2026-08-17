@@ -276,6 +276,15 @@ Player:
 		# left standing where it is; the garrison gate is what keeps that idle-and-unclaimed state harmless).
 		StageIdleCapturers: true
 		ReserveStandoffCells: 10
+		# THE FLAT-FIELD CASE ABOVE NOW HAS A DESTINATION. Measured 2026-08-17 (test-clog-census, both arms):
+		# with no anchor the reserve does not merely stand still, it ACCUMULATES on the beachhead — 2 of 4 idle
+		# technicians within 2 cells of the SR and 3 within 4, unchanged for a whole run, while every arriving
+		# reinforcement joined them. The phantom anchor removed by 85d5c868 had been dispersing that same reserve
+		# to 0 and 1, issuing real moves 3-7 cells off the SR toward a cell derived by rounding. 6 map cells puts
+		# the muster clear of BOTH census bands while staying deep inside friendly ground (the SR contestation
+		# circle is 10), and the fan-out is bounded by this distance rather than the 20-cell standoff so no slot
+		# is thrown back across the beachhead.
+		ReserveFallbackCells: 6
 		# Reclaim our own cleared base. Since c513f358 a soldier entering ANY enemy building evicts the owner to
 		# Neutral and walks out alive, so a raided base is a row of NEUTRAL AA defences, airfields and production
 		# — and the capture layer could not see one of them, because PoiMap.Discover only admits the actor names
@@ -663,6 +672,10 @@ Player:
 		StagingStandoffCells: 6
 		StagingDangerSafeUnits: 10
 		StagingSpreadStepCells: 2
+		# NO-GRADIENT FALLBACK, @experimental only (this trait is not configured on @stable). Same measurement and
+		# same 6-cell reasoning as ReserveFallbackCells above; on this path the pre-contact clog was heavier still,
+		# 8 of a 12-unit pool within 2 cells of the SR and 11 within 4, with 100% of arrivals retained.
+		StagingFallbackCells: 6
 		StagingHysteresisCells: 3
 		StagingMaxDescentSteps: 64
 		# PHASE 3 (frontline-influence) — RETREAT-OSCILLATION DAMPER. Builds on RetreatWhenLosing to stop small
@@ -2102,6 +2115,14 @@ Player:
 		# so the reserve muster's ControlField descent works here identically. See @experimental.tecn.
 		StageIdleCapturers: true
 		ReserveStandoffCells: 10
+		# @stable BEHAVIOUR MOVES HERE, DELIBERATELY — the next benchmark baseline must be re-taken knowingly.
+		# Enabled on both twins for the same reason ReclaimNeutralisedStructures below is: the beachhead clog is a
+		# measured defect in shared code, not a tuning lever, and withholding a fix from the control only makes
+		# the control less like the game. The C# default is 0 (OFF) precisely so this line is a visible act rather
+		# than silent drift. NOT separately measured on @stable: the reserve path, its config and its arithmetic
+		# are identical across the twins, so the @experimental measurement carries — but that is an argument, and
+		# the baseline re-take is what will confirm it.
+		ReserveFallbackCells: 6
 		# Reclaim our own cleared base — enabled on BOTH twins for the same reason RetreatCapturerWhenDone is: it
 		# is a regression fix, not a tuning lever. Without it a raided @stable bot sits next to its own neutralised
 		# AA defences, airfields and production forever, because PoiMap never discovers a non-income structure as
