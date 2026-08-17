@@ -40,3 +40,13 @@ PowerDown: # X
 	Description: Power-down mode
 	Types: OrderGenerator
 	Contexts: Player
+
+# A key, not a mouse gesture, because the viewport has none left to give: right-click issues
+# orders (UseClassicMouseStyle is false and nothing in the mod overrides it), Ctrl / Alt /
+# Ctrl+Alt / Shift + right are ForceMove / AttackMove / ForceAttack / queue, left+modifier is
+# selection priority, and double-left is select-all-of-type. J and K are the only unbound
+# letters left; J is the closer reach.
+UnloadMenu: J
+	Description: Unload menu — pick a class to drop, at the cursor
+	Types: World
+	Contexts: Player
