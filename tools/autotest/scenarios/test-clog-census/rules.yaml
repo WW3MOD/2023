@@ -1,0 +1,22 @@
+# No cash anywhere, so nothing is produced and the placed force IS the whole force.
+# A named-actor census is only valid if the named actors are the ones the system
+# actually uses, and production removes that guarantee (test-transport-delivers, 2026-08-15).
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+# The inert opponent must never move: a single believed contact populates the control
+# field, an anchor resolves, and the pre-contact state under measurement is gone. Its
+# player is non-playable, so AutoTarget reads the *AI variants of these fields
+# (AutoTarget.cs:497) — setting InitialStance / InitialEngagementStance here would do
+# nothing at all, silently.
+t90:
+	AutoTarget:
+		InitialStanceAI: HoldFire
+		InitialEngagementStanceAI: HoldPosition
+
+World:
+	-StartGameNotification:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-clog-census.lua

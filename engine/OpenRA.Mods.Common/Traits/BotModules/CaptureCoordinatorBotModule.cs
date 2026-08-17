@@ -1514,17 +1514,53 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.StageIdleCapturers || undispatched.Count == 0)
 				return;
 
-			var anchor = ResolveReserveAnchor();
-			if (anchor == null)
-				return;
+			// Resolved HERE rather than inside ResolveReserveAnchor so the census below can name the Supply
+			// Route on every null-anchor path — which is the case worth measuring — without a second world scan.
+			var sr = FindOwnSupplyRoute();
+			var anchor = ResolveReserveAnchor(sr);
 
 			// Prune the memory to units still ours, so a dead/consumed capturer can't pin an entry.
+			// ABOVE the null-anchor return: 85d5c868 made that return materially more common (a flat field now
+			// yields no anchor instead of a phantom one), and a prune that runs only when an anchor resolves
+			// retains dead Actor references for as long as the field stays flat. Order-inert wherever it runs —
+			// every entry it can drop belongs to an actor that is dead / not ours, and no such actor can appear
+			// in `undispatched`, so no dedup lookup below can change.
 			if (reserveCells.Count > 0)
 			{
 				var stale = reserveCells.Keys.Where(a => a.IsDead || !a.IsInWorld || a.Owner != player).ToList();
 				foreach (var a in stale)
 					reserveCells.Remove(a);
 			}
+
+			// DIAGNOSTIC ONLY — nothing reads this. Sibling of PoiOffensiveBotModule's [exp-clog] line
+			// (f5571c6d) and emitted for the same reason, BEFORE the early return, because the case that
+			// returns is the case worth measuring: with no anchor the reserve is never dispersed and sits where
+			// it mustered in, on the beachhead. This path is the one that was dispersing FURTHEST — the phantom
+			// anchor fed SpreadCell with maxRings 9 at ringStep 2, so a reserved capturer could be sent 18 map
+			// cells off it. Counts `undispatched`, already computed — no extra world scan. Same origin
+			// (the SR's own cell) and same Chebyshev metric as the offensive line, so the two are comparable.
+			if (sr != null)
+			{
+				var near2 = 0;
+				var near4 = 0;
+				foreach (var tp in undispatched)
+				{
+					var d = PoiOffenseMath.Chebyshev(tp.Actor.Location.X, tp.Actor.Location.Y,
+						sr.Location.X, sr.Location.Y);
+					if (d <= 2)
+						near2++;
+					if (d <= 4)
+						near4++;
+				}
+
+				Log.Write("debug",
+					$"[exp-clog] reserve player={player.PlayerName} sr={sr.Location} pool={undispatched.Count}" +
+					$" near2={near2} near4={near4} anchor={anchor?.ToString() ?? "none"}" +
+					$" targets={targetCount} tick={world.WorldTick}");
+			}
+
+			if (anchor == null)
+				return;
 
 			// Bound the fan-out so the widest ring stays STRICTLY inside the standoff — a reserve slot must never
 			// sit forward of the frontier the anchor descent already cleared of believed danger, because
@@ -1595,7 +1631,9 @@ namespace OpenRA.Mods.Common.Traits
 		/// the muster stays silent. The consequence is a real coupling worth naming — in the opening window this
 		/// module issues nothing, so a capturer with no target is idle and unclaimed, and it is the garrison gate
 		/// that keeps that state harmless. Weakening that gate re-opens this hole, not only its own.</para></summary>
-		CPos? ResolveReserveAnchor()
+		/// <param name="sr">Our own Supply Route, resolved by the caller so its census can name the cell on
+		/// every path this method returns null from. Null ⇒ no anchor, exactly as the internal lookup gave.</param>
+		CPos? ResolveReserveAnchor(Actor sr)
 		{
 			if (!reserveFieldsResolved)
 			{
@@ -1610,7 +1648,6 @@ namespace OpenRA.Mods.Common.Traits
 				return null;
 			}
 
-			var sr = FindOwnSupplyRoute();
 			if (sr == null)
 			{
 				lastReserveAnchor = null;
