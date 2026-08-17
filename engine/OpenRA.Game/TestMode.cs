@@ -102,6 +102,15 @@ namespace OpenRA
 		// Set via Test.ForceSyncReports=true.
 		public static bool ForceSyncReports { get; private set; }
 
+		// Resolved output path for the per-net-frame sync-hash trace (OrderManager). Null/empty
+		// = no file and no work. Set via Test.SyncHashLog, same shape as Test.MissileTraceLog.
+		// Exists because the sync-report ring holds 32 frames and only dumps on a game-save
+		// acknowledgement, and reports are hard-disabled under a ReplayConnection — so nothing
+		// shipped can answer "at which net frame did these two runs first disagree?" across a
+		// whole match. Records exactly the hash SendSync already computes, so the trace is the
+		// network's own view of the simulation and not a second, differently-derived one.
+		public static string SyncHashLogPath { get; private set; }
+
 		// Resolved output path for the UnitLifecycleLogger world trait's JSONL
 		// event stream. Null/empty = the logger is inert (no file, no per-tick
 		// work). Set via the Test.UnitLifecycleLog launch arg:
@@ -197,6 +206,18 @@ namespace OpenRA
 					MissileTraceLogPath = missileArg;
 			}
 
+			var syncHashArg = args.GetValue("Test.SyncHashLog", null);
+			if (!string.IsNullOrEmpty(syncHashArg))
+			{
+				var lower = syncHashArg.ToLowerInvariant();
+				if (lower == "true" || lower == "1")
+					SyncHashLogPath = string.IsNullOrEmpty(ResultPath)
+						? null
+						: Path.ChangeExtension(ResultPath, ".synchash.tsv");
+				else
+					SyncHashLogPath = syncHashArg;
+			}
+
 			MissileTraceTicks = !string.Equals(args.GetValue("Test.MissileTraceMode", "full"), "summary", StringComparison.OrdinalIgnoreCase);
 
 			TestModeScreenshots.Initialize(ScreenshotDir);
@@ -214,6 +235,8 @@ namespace OpenRA
 				Log.Write("debug", $"[TestMode] unit lifecycle log: {UnitLifecycleLogPath}");
 			if (!string.IsNullOrEmpty(MissileTraceLogPath))
 				Log.Write("debug", $"[TestMode] missile trace log: {MissileTraceLogPath} (ticks={MissileTraceTicks})");
+			if (!string.IsNullOrEmpty(SyncHashLogPath))
+				Log.Write("debug", $"[TestMode] sync hash log: {SyncHashLogPath}");
 		}
 
 		public static void WriteResult(string status, string notes)
