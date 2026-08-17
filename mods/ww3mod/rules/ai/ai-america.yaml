@@ -48,7 +48,8 @@ Player:
 	# Byte-for-byte copy of @america.normal's UnitsToBuild/UnitLimits PLUS three default-off
 	# early-econ gates (behaviours 1 & 2). Experimental-only condition; Stable keeps the
 	# frozen twin above. The engine flags default false, so this block is the ONLY place they turn on.
-	#   * GateResupplyOnAmmoNeed — no supply trucks while every truck-rearmable unit has full ammo.
+	#   * GateResupplyOnAmmoNeed — no FIRST supply truck while every truck-rearmable unit has full ammo;
+	#     once one exists the demand-sized reserve buys freely (2026-08-17 split).
 	#   * ScaleAntiAirToThreat — cap vehicle AA (strykershorad) to OBSERVED enemy air; aa.america
 	#     (cheap AA infantry) stays ungated as the baseline picket.
 	UnitBuilderBotModule@america.experimental:
@@ -238,7 +239,9 @@ Player:
 		# design.
 		UnitDelays:
 			aa.america: 2000
-		# Early-econ behaviour 1: don't call in trucks while no fielded unit needs ammo.
+		# Early-econ behaviour 1: don't call in the FIRST truck while no fielded unit needs ammo. After that
+		# truck exists the standing reserve below governs alone and this no longer binds (user ruling
+		# 2026-08-17 — see the SupplyTruckFloorPer block for the split and why it is a split).
 		GateResupplyOnAmmoNeed: true
 		ResupplyUnitTypes: truk
 		# ===== DEMAND-SIZED SUPPLY FLEET =====
@@ -343,18 +346,31 @@ Player:
 		# course be able to adapt to any settings"). V_fit is a share of army VALUE, so the ceiling closes the
 		# deficit route identically at 1,000 and at 20,000 starting cash; the floor that reopens it must be
 		# cash-free too or it would only work at one end of the range.
-		# THIS FLOOR SWITCHES GateResupplyOnAmmoNeed OFF, AND THAT IS UNRESOLVED — stated here because the file
-		# must describe what it does, not what it was meant to do. UnitBuilderBotModule.cs:846 and :1932 both
-		# read `... && !SupplyFleetUnderDesired(name) && !AnyFieldedUnitNeedsResupply()`, so a fleet shortfall
-		# SHORT-CIRCUITS the ammo gate. With the floor at 0 that never fired at zero starving customers and the
-		# gate was effective; with a scaled floor it fires as soon as the bot owns 10 customers, all at full
-		# ammo — first truck at cycle 13, tick ~390, about 17 seconds in.
-		# So the guard against the 57(a) t=0 complaint is really "10 infantry / ~17 s", NOT "somebody is dry".
-		# The USER RULING cited above is "no supply truck until at least one unit is below full ammo", and this
-		# does not literally honour it. Whether that ruling should be read as a hard precondition or as a
-		# rejection of the t=0 buy is WITH THE USER as of 2026-08-17; behaviour deliberately unchanged pending
-		# that answer. If it must be honoured literally, the fix is to stop the floor satisfying the gate — not
-		# to move this ratio.
+		# THIS FLOOR NO LONGER SWITCHES GateResupplyOnAmmoNeed OFF — RESOLVED 2026-08-17, and the shape of the
+		# resolution matters more than the fact of it. Until then both call sites read
+		# `... && !SupplyFleetUnderDesired(name) && !AnyFieldedUnitNeedsResupply()`, so ANY fleet shortfall
+		# SHORT-CIRCUITED the ammo gate: with the floor at 0 that never fired at zero starving customers and
+		# the gate was effective, but with a scaled floor it fired the moment the bot owned 10 customers, all
+		# at full ammo — first truck around cycle 11-13, roughly 14-17 seconds in. The guard against the 57(a)
+		# t=0 complaint was really "10 infantry / ~15 s", NOT "somebody is dry".
+		# THE USER SPLIT IT BY SCOPE rather than picking a winner, because BOTH claims are true and they are
+		# about different parts of the match ("I still don't want unnecessary trucks... We don't want bots to
+		# spend money on things it doesn't need at the start"):
+		#   * THE FIRST TRUCK obeys the 2026-08-14 ruling literally — no truck until a unit is genuinely below
+		#     full ammo. This floor is IGNORED until then, so the opening cannot buy a truck no matter how many
+		#     customers appear.
+		#   * EVERY TRUCK AFTER IT is governed by this floor alone, ammo need irrelevant. A reserve that waits
+		#     for somebody to run dry is not a reserve — the truck arrives after the fight it was meant to
+		#     supply, which is the defect the floor was reintroduced to fix.
+		# The switch is a LATCH (UnitBuilderBotModule.heldFirstSupplyTruck, folded in
+		# SupplyPrecedenceMath.LatchFirstTruck), set once and never cleared. It is deliberately NOT a live "do
+		# I own one" reading: that would re-arm the gate whenever the fleet is wiped mid-match and stall the
+		# rebuild at the worst possible moment. Predicate and latch are pinned in SupplyPrecedenceMathTest.
+		# WHAT THIS COSTS, stated because it is a real cost and the table above cannot show it: every dry-cycle
+		# figure below is measured with --composition-plan, which HAS NO AMMO MODEL, so it reports the floor
+		# from cycle one and cannot see the opening delay. Live, the first truck now waits for first ammo
+		# demand, so real opening outage is LONGER than any raw `dry` number here. The table remains valid for
+		# comparing ratios, which is all it was ever used for.
 		# WHEN SupplyTruckFloorPer IS 0 THE PATH IS THE PRE-FEATURE ONE, by construction rather than by
 		# argument: EffectiveFloor returns its flatFloor argument literally, so the module passes exactly what
 		# it passed before. That holds for any profile at any value, so no claim about which profiles set

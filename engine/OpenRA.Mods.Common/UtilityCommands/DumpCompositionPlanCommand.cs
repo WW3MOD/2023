@@ -449,8 +449,15 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				// The floor is re-derived from the STANDING customer population every cycle, matching
 				// SupplyFleetUnderDesired. Starving customers stay pinned at zero here (the replay has no ammo
 				// model), so what this measures is precisely the STANDING reserve the floor guarantees —
-				// which is the quantity under test. Live behaviour can only be at or above it, since real
-				// starvation only ever raises DesiredTrucks.
+				// which is the quantity under test.
+				//
+				// "LIVE BEHAVIOUR CAN ONLY BE AT OR ABOVE THIS" USED TO FOLLOW HERE AND NO LONGER DOES. Since
+				// the 2026-08-17 first-truck ruling the reserve does not override the ammo gate until the
+				// player has held one truck, so live behaviour sits BELOW this line for the whole opening:
+				// live trucks are 0 while this reports the floor. After the first truck the old direction
+				// holds again (real starvation only ever raises DesiredTrucks). The replay cannot see the
+				// crossover because it has no ammo model at all — which is exactly why the override was
+				// invisible here for six merges. Do not read an opening truck count off this tool.
 				var truckCustomers = 0;
 				for (var i = 0; i < types.Length; i++)
 					if (isTruckCustomer[i])

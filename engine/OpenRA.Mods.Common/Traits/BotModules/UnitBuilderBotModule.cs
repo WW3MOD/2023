@@ -109,6 +109,11 @@ namespace OpenRA.Mods.Common.Traits
 			"is full just sits as a target. Simple CURRENT-need gate — reads the SAME signal SupplyProvider",
 			"uses (missing ammo weighted by SupplyValue over capacity, over units whose Rearmable.RearmActors",
 			"lists a ResupplyUnitType). Designed so an anticipated-need model can replace the predicate later.",
+			"SCOPE, user ruling 2026-08-17 — this gates the FIRST truck ONLY. Once the player has ever held",
+			"one, a SupplyDemandSizing shortfall buys freely and this flag no longer binds: a standing reserve",
+			"that waits for somebody to run dry arrives after the fight. See",
+			"SupplyPrecedenceMath.RefuseResupplyBuy. With SupplyDemandSizing off there is no shortfall to",
+			"override it and the gate binds for the whole match, as it always did.",
 			"Default false ⇒ frozen production, byte-identical for the normal/rush/turtle/stable profiles.")]
 		public readonly bool GateResupplyOnAmmoNeed = false;
 
@@ -442,6 +447,14 @@ namespace OpenRA.Mods.Common.Traits
 		// the decision it claims to explain.
 		int supplyFleetFloor;
 
+		// Has this player ever held a supply truck? LATCHED — set once, never cleared, deliberately not a live
+		// "do I own one" reading. It scopes the ammo gate to the OPENING (SupplyPrecedenceMath.RefuseResupplyBuy):
+		// a live reading would re-arm the gate when the fleet is wiped mid-match and stall the rebuild exactly
+		// when the bot most needs a truck.
+		// Deterministic: a monotone OR over SupplyTrucksOwnedOrPending, itself an order-independent sum, folded
+		// in the one place that count is taken. Zero random draws.
+		bool heldFirstSupplyTruck;
+
 		// Consecutive cycles spent banking toward a truck, and the tick the last one was counted on. The tick
 		// guard is load-bearing: ChooseByDeficit runs once PER QUEUE, so an ungated counter would burn two or
 		// three of the allowance on a single bot tick and the bound would mean whatever the queue count
@@ -740,7 +753,7 @@ namespace OpenRA.Mods.Common.Traits
 			Log.Write("debug", $"[composition] census tick={world.WorldTick} player={player.InternalName} "
 				+ $"cash={AvailableBudget()} starving={starving} needy={needy} trucks-desired={desired} "
 				+ $"bank-spell={supplyBankedCycles} bank-best={supplyBankBestCash} bank-stalled={supplyBankStalled} "
-				+ $"ammo-need={AnyFieldedUnitNeedsResupply()} {econ} "
+				+ $"ammo-need={AnyFieldedUnitNeedsResupply()} held-first-truck={heldFirstSupplyTruck} {econ} "
 				+ $"(type=inWorld+inCargo/census‰vtarget‰) {string.Join(" ", parts)}");
 		}
 
@@ -838,8 +851,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			// EXPERIMENTAL early-econ gates (default-off; only the @experimental UnitBuilder twin enables them,
 			// so normal/rush/turtle/stable reach QueueOrder byte-identically). Both draw ZERO random.
-			// SupplyFleetUnderDesired satisfies this gate on its own: the standing floor exists precisely to be
-			// held while nobody is dry, and this gate is the one thing that would forbid reaching it. False when
+			// SupplyFleetUnderDesired satisfies the resupply gate ONLY AFTER THE FIRST TRUCK — the standing floor
+			// exists to be held while nobody is dry, but the user ruling forbids it buying the OPENING truck.
+			// SupplyPrecedenceMath.RefuseResupplyBuy carries that split and the reasoning. False when
 			// SupplyDemandSizing is off ⇒ the frozen evaluation order is unchanged.
 			// A type under its standing floor is exempt from the demand gates below — otherwise the AA gate
 			// would refuse the very AA floor whose purpose is to hold AA BEFORE enemy air is observed, and the
@@ -852,7 +866,8 @@ namespace OpenRA.Mods.Common.Traits
 			var belowFloor = floor > 0 && OwnedOrPending(name) < floor;
 
 			if (!belowFloor && Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name)
-				&& !SupplyFleetUnderDesired(name) && !AnyFieldedUnitNeedsResupply())
+				&& SupplyPrecedenceMath.RefuseResupplyBuy(
+					SupplyFleetUnderDesired(name), heldFirstSupplyTruck, AnyFieldedUnitNeedsResupply()))
 				return;
 
 			if (!belowFloor && Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())
@@ -946,6 +961,7 @@ namespace OpenRA.Mods.Common.Traits
 				supplyFleetNeedy = Info.SupplySizeFromNeed ? CountResupplyCustomers() : 0;
 
 				supplyFleetOwned = SupplyTrucksOwnedOrPending();
+				heldFirstSupplyTruck = SupplyPrecedenceMath.LatchFirstTruck(heldFirstSupplyTruck, supplyFleetOwned);
 
 				// The standing floor, scaled to the force it resupplies. Only walk the actor list for the
 				// denominator when a ratio is actually configured: with SupplyTruckFloorPer at its 0 default
@@ -1937,8 +1953,11 @@ namespace OpenRA.Mods.Common.Traits
 				world.Actors.Count(a => a.Owner == player && a.Info.Name == name) >= limit)
 				return false;
 
+			// Same predicate as BuildUnit's, through the same helper — these two drifting apart is how a slot
+			// becomes "eligible" for a buy that the buy path then refuses, wasting the cycle.
 			if (Info.GateResupplyOnAmmoNeed && Info.ResupplyUnitTypes.Contains(name)
-				&& !SupplyFleetUnderDesired(name) && !AnyFieldedUnitNeedsResupply())
+				&& SupplyPrecedenceMath.RefuseResupplyBuy(
+					SupplyFleetUnderDesired(name), heldFirstSupplyTruck, AnyFieldedUnitNeedsResupply()))
 				return false;
 
 			if (Info.ScaleAntiAirToThreat && Info.AntiAirUnitTypes.Contains(name) && !ShouldBuildMoreAntiAir())

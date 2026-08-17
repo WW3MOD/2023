@@ -47,7 +47,8 @@ Player:
 	# ===== Experimental AI — Russia ground production (early-econ PIPELINE 12) =====
 	# Byte-for-byte copy of @russia.normal's UnitsToBuild/UnitLimits PLUS the default-off early-econ
 	# gates (behaviours 1 & 2). Experimental-only; Stable keeps the frozen twin above.
-	#   * GateResupplyOnAmmoNeed — no supply trucks while every truck-rearmable unit has full ammo.
+	#   * GateResupplyOnAmmoNeed — no FIRST supply truck while every truck-rearmable unit has full ammo;
+	#     once one exists the demand-sized reserve buys freely (2026-08-17 split).
 	#   * ScaleAntiAirToThreat — cap vehicle AA (tunguska) to OBSERVED enemy air; aa.russia (cheap AA
 	#     infantry) stays ungated as the baseline picket.
 	UnitBuilderBotModule@russia.experimental:
@@ -148,7 +149,9 @@ Player:
 		# contact).
 		UnitDelays:
 			aa.russia: 2000
-		# Early-econ behaviour 1: don't call in trucks while no fielded unit needs ammo.
+		# Early-econ behaviour 1: don't call in the FIRST truck while no fielded unit needs ammo. After that
+		# truck exists the standing reserve below governs alone and this no longer binds (user ruling
+		# 2026-08-17 — full reasoning in ai-america.yaml's SupplyTruckFloorPer block).
 		GateResupplyOnAmmoNeed: true
 		ResupplyUnitTypes: truk
 		# ===== DEMAND-SIZED SUPPLY FLEET =====
@@ -189,10 +192,13 @@ Player:
 		# and the metric is SATURATED (cannot discriminate) at every attrition level except 15/20/25. Raw dry
 		# figures therefore overstate outage by ~6 points; mid-match outage at attrition 15 is 28% -> 7%, and
 		# at attrition 35/40 it reaches zero. See ai-america.yaml for the full table.
-		# THIS FLOOR SWITCHES GateResupplyOnAmmoNeed OFF (UnitBuilderBotModule.cs:846, :1932 — a fleet
-		# shortfall short-circuits the ammo gate), so the guard against a t=0 truck is really "10 infantry /
-		# ~17 s", not "somebody is dry". That does not literally honour the USER RULING quoted above; the
-		# question is with the user as of 2026-08-17 and behaviour is deliberately unchanged pending it.
+		# THIS FLOOR NO LONGER SWITCHES GateResupplyOnAmmoNeed OFF — resolved 2026-08-17 by splitting the two
+		# rulings by SCOPE: the FIRST truck obeys "no supply truck until at least one unit is below full ammo"
+		# literally (this floor is ignored until one exists), and every truck after it is governed by this
+		# floor alone. The switch is a latch, so a mid-match fleet wipe cannot re-arm the gate and stall the
+		# rebuild. Full reasoning and the cost in ai-america.yaml; predicate pinned in SupplyPrecedenceMathTest.
+		# The dry-cycle figures above cannot see this: --composition-plan has no ammo model, so it reports the
+		# floor from cycle one and real opening outage is longer than any raw `dry` number.
 		# When SupplyTruckFloorPer is 0 the path is the pre-feature one by construction: EffectiveFloor returns
 		# its flatFloor argument literally, so the module passes exactly what it passed before.
 		SupplyTruckFloor: 3
