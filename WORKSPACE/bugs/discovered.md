@@ -1777,3 +1777,20 @@ Two things make it worth recording. It is a *correctness* rule, not a style one,
 code path worth reading. And it is the concrete demonstration of the SDK-drift hazard the CI-integrity entry in
 `DISCOVERIES.md` described in the abstract: the gate is now honest, so the next runner-image bump turns this red
 with no repo change at all. Pinning a `global.json` would convert that from a surprise into a decision.
+
+**RESOLVED 2026-08-17 (`wt/sdk-pin`) — the analyzer is WRONG here, and the "obvious fix" is a real bug. Do not
+remove the `Cast<T?>`.** CA2021's claim is that the cast always yields an *empty* sequence. Measured false on
+the 6.0.428 SDK with a standalone probe mirroring the real shape — a `readonly struct` and an `enum : byte`
+in a `ValueTuple`, matching `CPos` (`CPos.cs:19`) and `SubCell` (`TraitsInterfaces.cs:335`):
+`.Select(...).Cast<(T,U)?>()` over a 2-element source enumerates **2** elements, not 0. Unboxing a boxed `T`
+to `Nullable<T>` is supported by `unbox.any`, which `Enumerable.CastIterator` compiles to; the analyzer does
+not model the `Nullable<T>` case. So the code path is live and this is a false positive.
+
+**The cast is load-bearing.** It is what makes `FirstOrDefault` return `null` rather than
+`(default(CPos), SubCell.Invalid)` when no adjacent cell has a free subcell, and `UnloadCargo.cs:163` branches
+on exactly that `null` to call `NotifyBlocker` and re-queue a `Wait(10)`. Delete the `Cast<T?>` and that branch
+becomes unreachable: a fully blocked transport would stop reporting itself blocked and would place passengers
+at `SubCell.Invalid`. Anyone who later sees this rule fire should suppress or ignore it, not "simplify" the
+chain. Left as-is; a one-line comment now guards it in the source.
+
+The SDK-drift half is fixed: `global.json` pins the 6.0 band, so CA2021 cannot appear without a deliberate bump.

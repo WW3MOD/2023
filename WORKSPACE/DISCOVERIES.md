@@ -3,6 +3,54 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — `setup-dotnet` INSTALLING 6.0.428 DOES NOT MEAN CI *BUILDS* ON 6.0.428; THE IMAGE'S NEWER SDK WINS BECAUSE THE MUXER TAKES THE HIGHEST
+
+Branch `wt/sdk-pin`. The CI-integrity entry below said "nothing pins the choice" — this is the measured
+mechanism, and it is more specific than "the runner has .NET 8/9 lying around".
+
+**The workflow does ask for 6.0, and gets it — that is exactly what makes this invisible.** `ci.yml:19-22,72-75`
+run `actions/setup-dotnet@v4` with `dotnet-version: '6.0.x'`, and the job log for run `31998037533` shows it
+doing two separate installs: `-Runtime dotnet -Channel LTS` → **runtime** `10.0.11`, then `-Channel 6.0` →
+**SDK** `6.0.428`. So a reader checking "does CI use .NET 6?" sees `Installed version is 6.0.428` and stops.
+But `setup-dotnet` *adds* to the image's existing SDKs rather than replacing them, and with no `global.json`
+the `dotnet` muxer selects the **highest installed SDK**, not the one the workflow just installed.
+
+**Proof it is not 6.0.428 doing the build, from the diagnostics themselves.** The same run reports
+`error CA1862` and `error IDE0251`. `CA1862` ships in the .NET **8** NetAnalyzers pack and `IDE0251` needs
+Roslyn ≥ 4.5 (SDK 7+); neither rule exists in 6.0.428's pack, which is why a local `make check` on 6.0.428
+reported 100 where the runner reported 106. **The delta is not noise — it is a different compiler.**
+(Raw counts in the log are ×4 the deduped figures: `RCS1226` 336 = 84×4, `CA1862` 20 = 5×4, `IDE0251` 4 = 1×4.)
+
+**Only two of the four analyzer sources were ever pinned.** `engine/Directory.Build.props:59-63` pins
+StyleCop (`1.2.0-beta.435`) and Roslynator (`4.2.0`) by `PackageReference`. NetAnalyzers (`CA*`) and the code
+style rules (`IDE*`, via `EnforceCodeStyleInBuild`) carry no reference at all — they are whatever the SDK
+ships. So `SA*`/`RCS*` counts were always reproducible and `CA*`/`IDE*` never were. **Pinning NetAnalyzers by
+`PackageReference` would fix only half of that**: `IDE*` rules are versioned with the Roslyn compiler inside
+the SDK and have no supported standalone package, so `global.json` is the only lever that covers both.
+
+**`global.json` at the repo root does reach the engine sub-build.** Verified by putting an unsatisfiable
+`6.0.999`/`disable` pin in place and running `dotnet --version` from both the worktree root and `engine/`:
+both failed with exit **145** naming `Requested SDK version: 6.0.999` and the root `global.json` path. Then
+the real pin resolved to `6.0.428` from both, exit 0. This matters because `WW3MOD.sln` holds only
+`OpenRA.Game` and `OpenRA.Mods.Common` — the other eight engine projects are compiled by the `engine/`
+sub-make, from that directory.
+
+**`rollForward` is the whole pin, so it was measured rather than read off the docs.** With only 6.0.428
+installed: `5.0.100`/`latestFeature` **fails** (exit 145) even though 6.0.428 is right there, while
+`5.0.100`/`latestMajor` happily resolves **6.0.428**. That contrast is the proof that `latestFeature` cannot
+cross a major/minor boundary — so `6.0.428`/`latestFeature` can never select 8/9/10, which is the property
+the pin exists for. `6.0.100`/`latestFeature` also resolves 6.0.428, i.e. it accepts a *higher* feature band;
+`6.0.428` was chosen over `6.0.100` because 6.0.428 is exactly what `setup-dotnet` lands on every lane, so
+local and CI get the same Roslyn, not merely the same major.
+
+**What the pin cannot reach: the mono lane.** Under `RUNTIME=mono` every build call in `Makefile:158-200`
+goes through `$(MSBUILD)` (`msbuild`, Mono's) and never `$(DOTNET)`, so the muxer that reads `global.json` is
+not in the path. Whether Mono's MSBuild SDK resolver honours or chokes on the `sdk` block is **unmeasured** —
+no mono on the dev machine. Bounded: that lane is already red on `CS0117`/netstandard2.1 (entry below).
+
+**General lesson: "CI installs version X" and "CI builds with version X" are different claims.** Any toolchain
+with a muxer that picks the highest installed version needs a pin to make the first imply the second.
+
 ## 2026-08-17 — THE WINDOWS GREEN TICK IS NOT "RETURN 0", IT IS THE UTILITY OVERWRITING `$LASTEXITCODE` AFTER THE BUILD ALREADY FAILED
 
 Branch `wt/ci-integrity`. Confirms the 2026-08-17 lint-baseline entry's two CI claims and corrects its
