@@ -59,6 +59,10 @@ namespace OpenRA.Network
 		readonly List<ClientOrder> processClientOrders = new();
 		readonly List<int> processClientsToRemove = new();
 
+		// DIAGNOSTIC ONLY (Test.SyncHashLog). Per-net-frame trace of the hash this client
+		// puts on the wire. Null unless the launch arg asked for it.
+		StreamWriter syncHashLog;
+
 		bool disposed;
 		bool generateSyncReport = false;
 		int sentOrdersFrame = 0;
@@ -148,6 +152,8 @@ namespace OpenRA.Network
 			Log.Write("debug", $"Sync reports {(generateSyncReport ? "enabled" : "disabled")} " +
 				$"(setting {LobbyInfo.GlobalSettings.EnableSyncReports}, human clients {humanClients}, " +
 				$"replay {Connection is ReplayConnection}).");
+
+			OpenSyncHashLog();
 
 			NetFrameNumber = 1;
 			LocalFrameNumber = 0;
@@ -303,17 +309,23 @@ namespace OpenRA.Network
 			foreach (var clientId in processClientsToRemove)
 				pendingOrders.Remove(clientId);
 
+			var syncHash = 0;
+			var defeatState = 0UL;
 			if (NetFrameNumber >= GameSaveLastSyncFrame)
 			{
-				var defeatState = 0UL;
 				for (var i = 0; i < World.Players.Length; i++)
 					if (World.Players[i].WinState == WinState.Lost)
 						defeatState |= 1UL << i;
 
-				Connection.SendSync(NetFrameNumber, World.SyncHash(), defeatState);
+				syncHash = World.SyncHash();
 			}
-			else
-				Connection.SendSync(NetFrameNumber, 0, 0);
+
+			Connection.SendSync(NetFrameNumber, syncHash, defeatState);
+
+			// The trace records the hash that was actually sent, including the pre-GameSave
+			// zeroes, so a reader never has to reconstruct which branch a frame took.
+			syncHashLog?.WriteLine(
+				$"{NetFrameNumber}\t{syncHash}\t{World.SharedRandom.Last}\t{World.SharedRandom.TotalCount}\t{defeatState}");
 
 			if (generateSyncReport)
 				using (new PerfSample("sync_report"))
@@ -346,9 +358,42 @@ namespace OpenRA.Network
 			Log.Write("debug", $"[syncdiag] recording-side sync reports dumped for frames {first}-{last}.");
 		}
 
+		// DIAGNOSTIC ONLY (Test.SyncHashLog). The header names the runtime that produced the
+		// trace, so a cross-runtime comparison cannot be fooled by a launcher that silently
+		// selected the wrong one — the evidence and the proof of provenance are the same file.
+		void OpenSyncHashLog()
+		{
+			var path = TestMode.IsActive ? TestMode.SyncHashLogPath : null;
+			if (string.IsNullOrEmpty(path))
+				return;
+
+			try
+			{
+				var dir = Path.GetDirectoryName(path);
+				if (!string.IsNullOrEmpty(dir))
+					Directory.CreateDirectory(dir);
+
+				// AutoFlush on: a match killed by a wall-clock watchdog must still leave every
+				// frame it reached on disk, or the trace silently ends before the interesting one.
+				syncHashLog = new StreamWriter(path, append: false) { AutoFlush = true };
+				syncHashLog.WriteLine($"# runtime\t{Platform.RuntimeVersion}");
+				syncHashLog.WriteLine($"# platform\t{Platform.CurrentPlatform}\t{Environment.OSVersion}");
+				syncHashLog.WriteLine($"# seed\t{TestMode.ResolvedSeed}");
+				syncHashLog.WriteLine($"# build\t{BuildFingerprint.ForMod(Game.ModData)}");
+				syncHashLog.WriteLine("# netframe\tsynchash\tsharedrandom\trandomdraws\tdefeatstate");
+			}
+			catch (Exception e)
+			{
+				syncHashLog = null;
+				Log.Write("debug", $"[synchash] could not open {path}: {e.Message}");
+			}
+		}
+
 		public void Dispose()
 		{
 			disposed = true;
+			syncHashLog?.Dispose();
+			syncHashLog = null;
 			Connection?.Dispose();
 		}
 

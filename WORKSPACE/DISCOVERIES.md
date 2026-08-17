@@ -3,6 +3,109 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — .NET 6, 8 AND 10 PRODUCE A BYTE-IDENTICAL SIMULATION OVER A FULL 12-MINUTE MATCH: CROSS-RUNTIME IS NOT THE 2026-08-16 DESYNC
+
+Branch `wt/runtime-desync`, against `main @ 83342799`. The 2026-08-16 two-human desync had **host on CLR
+8.0.27 and friend on 10.0.10**, and `RESUME-260816.md:47` names replaying one match under both runtimes as
+*"the one run that would settle it"*. It is now measured, by a different route (see the instrument entry
+below — the briefed route cannot work).
+
+**Result: all four runs are byte-identical.** Per-net-frame trace (`Test.SyncHashLog`) of the hash
+`OrderManager` puts on the wire, `tournament-arena-composition-2p` +
+`tournament-combat-12min-combatweighted.yaml`, seed 20260817, one machine:
+
+| run | runtime | frames | md5 of trace rows |
+|---|---|---|---|
+| control | .NET CLR 6.0.36 | 6000 | `0d638c84…a21a18` |
+| A | .NET CLR 8.0.30 | 6000 | `0d638c84…a21a18` |
+| B | .NET CLR 10.0.11 | 6000 | `0d638c84…a21a18` |
+| A′ (repeat) | .NET CLR 8.0.30 | 6000 | `0d638c84…a21a18` |
+
+**How far the negative extends, precisely.** 6000 net frames is the COMPLETE match — 18000 world ticks, the
+full 12 sim-minutes, ended by the time-limit win rule, not by a wall-clock kill. The 2026-08-16 desync was
+detected at **net frame 1264 / world tick 3792**, so the identical region runs **4.7× past the point where
+the real fault appeared**. The match was not idle: 55 kills, 22 unit types, and 4 aircraft produced.
+
+**Three controls, because "identical" is also what a broken instrument returns.**
+- *Determinism* — 8.0.30 twice, same seed: identical over all 6000. Without this, "8 matches 10" could
+  just mean the trace does not vary at all.
+- *Sensitivity* — 8.0.30, seed 700017 vs 700018: **diverges at net frame 1**. The comparison can see a
+  difference when one exists.
+- *Hook inertness* — `test-balance-tank-mass` hooked on 8.0.30 vs **unhooked** on 6.0.36 produced the same
+  verdict to the hit point (`ttk=13.2s | survivors=2/4 | hp=30392/112000`). So `Test.SyncHashLog` does not
+  perturb the simulation, and the traces are evidence about unhooked play rather than only about each other.
+
+A second, narrower probe on the shortest float→hash path in the codebase — `DamageWarhead`'s range-falloff
+and directional-armour float arithmetic feeding `[Sync] Health` — ran 4v4 Abrams vs T-90 to the death on
+8.0.30 / 8.0.30 / 10.0.11 at seed 700017: identical across 111 frames **and** identical final HP.
+
+**What this changes.** The .NET 10 upgrade's main risk argument was cross-runtime simulation drift; that
+argument is now empirically empty, and homogenising the fleet remains the one lever that removes the
+variable. The desync hunt goes back to the two-human path. Note also that `RESUME-260816.md:43` already
+listed runtime mismatch as "ruled out", but on the grounds that `string.GetHashCode()` is per-process
+randomised — an argument that addresses only string-hash-ordered iteration, and is moot anyway because
+`Sync.cs:71` throws at IL-generation time for any `[Sync]` member that is not `int`, `bool` or one of
+eleven registered types. **The claim was right; the stated reason did not support it.** It does now.
+
+**What this does NOT clear.** Both runs were the same machine, so same CPU, same OS, same libm — a
+cross-*machine* difference is untested and the 2026-08-16 desync was two physical machines.
+`BallisticMissileFly` (`Activities/BallisticMissileFly.cs:64-79`, a 10000-iteration float accumulation
+loop) is reachable only from `HIMARSMissile`/`IskanderMissile`, and neither HIMARS nor Iskander appears in
+any bot `UnitsToBuild` or `UnitTargetShares` — **no bot match of any length reaches that file.**
+Helicopters *are* covered: `UnitBuilderBotModule@america.heli` (`ai.yaml:1803`) runs under `@stable` with a
+2500-tick delay and four aircraft were produced.
+
+## 2026-08-17 — NO ROLL-FORWARD SETTING CAN SELECT .NET 8 ON THIS MACHINE, AND SYNC REPORTS ARE DEAD UNDER A REPLAY CONNECTION — BOTH WOULD HAVE SILENTLY FAKED A CROSS-RUNTIME RESULT
+
+Branch `wt/runtime-desync`, against `main @ 83342799`. Two instrument traps found while building the
+cross-runtime determinism probe. Each one, taken alone, produces a **confident and meaningless
+"identical"** — which is the answer the experiment was hoping for, so neither would have been questioned.
+
+**1. `DOTNET_ROLL_FORWARD` cannot reach 8.0.30 while 6.0.36 is installed. Measured, not reasoned**, with
+`COREHOST_TRACE=1` against `engine/bin/OpenRA.Utility.dll` (same `net6.0` / `rollForward: Major`
+runtimeconfig as `OpenRA.dll`):
+
+| policy | chosen framework |
+|---|---|
+| *(none — the shipped default)* | **6.0.36** |
+| `Major` | 6.0.36 |
+| `LatestMinor` | 6.0.36 |
+| `LatestMajor` | 10.0.11 |
+
+The reason is structural: roll-forward only *rolls* when the requested version is **absent**. `6.0.0` is
+requested and 6.0.36 satisfies it exactly, so every policy short of `LatestMajor` stops there — and
+`LatestMajor` overshoots straight past 8 to the newest installed. **There is no roll-forward value that
+lands on a middle major.** Only `dotnet exec --fx-version 8.0.30 <app>.dll` pins it, which is why the probe
+shims `PATH` with a two-line `dotnet` wrapper rather than exporting an env var.
+
+This also **narrows the standing `RollForward: Major` finding** in the entry below. That entry is right
+that the TFM does not control the runtime, but the corollary is sharper than "three runtimes get in":
+a player who has 6.0 installed *at all* runs on 6.0 no matter what else is present. Cross-runtime exposure
+comes from players who **lack** 6.0, not from players who have newer runtimes alongside it.
+
+**2. `Test.ForceSyncReports` cannot be used on a replay — the gate is one clause up from the flag.**
+`OrderManager.cs:141` reads `generateSyncReport = Connection is not ReplayConnection && … && (humanClients > 1
+|| (TestMode.IsActive && TestMode.ForceSyncReports))`. The override lifts the *human-client* floor and
+nothing else, so "replay the desyncing match with `Test.ForceSyncReports=true` and diff the `syncdiag-*`
+files" — the plan the 2026-08-16 handoff names as *"the one run that would settle it"*
+(`WORKSPACE/RESUME-260816.md:47`) — **produces no files at all**. Two further limits make the sync-report
+path unusable for whole-match comparison even in a live game: the ring holds 32 frames
+(`SyncReport.cs:30`) and `DumpDiagnosticReport` is only ever called from `DumpRecordingSideSyncReports`,
+on a game-save acknowledgement.
+
+**The generalising lesson: put provenance INSIDE the artifact.** The probe's `Test.SyncHashLog` trace
+header is written by the engine from `Platform.RuntimeVersion`, alongside the build fingerprint and the
+resolved seed, so every trace file states which runtime produced it. Nothing downstream has to trust the
+command line anyone typed, the launcher, or the shim — and a run that silently landed on the wrong runtime
+is visible in the evidence itself rather than invisible in the conclusion. This repo's instrument failures
+have repeatedly been of exactly this shape: a measurement that was never of the thing named.
+
+**Also worth knowing, because it silently halves a measurement:** `TestMode.SpeedMultiplier` is applied by
+the tournament watcher only. Launching a non-tournament scenario, or a tournament config that omits
+`SpeedMultiplier`, with `OPENRA_WINDOW_HIDDEN=1` leaves the sim gated on the suspended-render cadence and
+it crawls — measured at **~0.4 ticks/s**, versus ~20 ticks/s for the same launch with a config that sets
+the field. Under a wall-clock cap that is the difference between a full match and 4 seconds of one.
+
 ## 2026-08-17 — THE SIMULATION USES NO TRANSCENDENTAL MATH, AND `RollForward: Major` MEANS THE net6 TARGET IS ALREADY LETTING THREE RUNTIMES INTO ONE MATCH
 
 Branch `wt/dotnet-scope`, research-only against `main @ 708b5f70`. Full costing in
