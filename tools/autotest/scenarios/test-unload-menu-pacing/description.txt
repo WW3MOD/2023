@@ -1,0 +1,1 @@
+TEST: Unload menu pacing - does dropping a class one-order-per-man cost a Chinook a land/take-off cycle per soldier, versus one bulk Unload

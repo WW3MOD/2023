@@ -338,6 +338,29 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IIssueDeployOrder.CanIssueDeployOrder(Actor self, bool queued) { return !IsEmpty(); }
 
+		/// <summary>
+		/// Resolves a passenger by ActorID against this transport's own hold.
+		/// </summary>
+		/// <remarks>
+		/// PITFALL: do NOT reach for World.GetActorById here. Boarding REMOVES the passenger from
+		/// the world (RideTransport.cs:85 calls w.Remove(self)), and World.Remove drops it from the
+		/// id dictionary that GetActorById reads — so that lookup returns null for every passenger
+		/// that is actually inside a transport, which is precisely the set this order can address.
+		/// Both per-passenger orders used it and therefore did nothing at all, silently, for every
+		/// transport on the map. It went unnoticed because the only UI that issued them was the
+		/// cargo panel, and that panel had never rendered until c9fdf334 fixed its coordinates.
+		/// Scanning the hold is also the stronger check: it subsumes the old Contains() guard, so a
+		/// stale or dead pick still fails safe rather than desyncing.
+		/// </remarks>
+		Actor PassengerById(uint actorId)
+		{
+			foreach (var passenger in cargo)
+				if (passenger.ActorID == actorId && !passenger.IsDead)
+					return passenger;
+
+			return null;
+		}
+
 		public void ResolveOrder(Actor self, Order order)
 		{
 			if (order.OrderString == "Unload")
@@ -349,16 +372,15 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			else if (order.OrderString == "UnloadCargoPassenger")
 			{
-				var passenger = self.World.GetActorById(order.ExtraData);
-				if (passenger == null || !cargo.Contains(passenger))
+				var passenger = PassengerById(order.ExtraData);
+				if (passenger == null)
 					return;
 
 				self.QueueActivity(order.Queued, new UnloadCargo(self, Info.LoadRange, passenger));
 			}
 			else if (order.OrderString == SetEjectRallyOrderString)
 			{
-				var passenger = self.World.GetActorById(order.ExtraData);
-				if (passenger == null || !cargo.Contains(passenger))
+				if (PassengerById(order.ExtraData) == null)
 					return;
 
 				SetEjectRally(order.ExtraData, order.Target);

@@ -268,6 +268,38 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return $"{menus.Length}:{(list == null ? -1 : list.Children.Count)}";
 		}
 
+		[Desc("Click a row of the open unload menu: the row itself drops one man of that class, or " +
+			"set `all` to hit its ALL chip and drop the whole class. Rows are indexed from 0 in the " +
+			"order the menu lists them. Drives the real click handlers, so the orders issued are the " +
+			"ones a player's click would issue. Returns false if the menu is closed or the index is " +
+			"out of range. Test mode only.")]
+		public bool ClickUnloadMenuRow(int index, bool all = false)
+		{
+			if (!TestMode.IsActive)
+				return false;
+
+			var menu = Ui.Root.Children.FirstOrDefault(c => c.Id == "CARGO_UNLOAD_MENU");
+			var list = menu?.GetOrNull<ScrollPanelWidget>("CLASS_LIST");
+			if (list == null || index < 0 || index >= list.Children.Count)
+				return false;
+
+			if (list.Children[index] is not ScrollItemWidget row)
+				return false;
+
+			if (!all)
+			{
+				row.OnClick();
+				return true;
+			}
+
+			var allButton = row.GetOrNull<ButtonWidget>("CLASS_ALL");
+			if (allButton == null)
+				return false;
+
+			allButton.OnClick();
+			return true;
+		}
+
 		[Desc("Press whatever key is currently bound to `hotkeyName` (as named in the mod's hotkey " +
 			"definitions, e.g. 'UnloadMenu'). Dispatched through Ui.HandleKeyPress, so it walks the " +
 			"real widget chain in the real order and honours a rebind rather than hardcoding a key. " +
