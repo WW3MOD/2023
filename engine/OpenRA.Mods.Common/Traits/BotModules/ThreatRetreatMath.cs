@@ -25,7 +25,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// <paramref name="from"/>. Score is the negated threat at the cell minus a tenth of the distance from
 		/// <paramref name="from"/>, so a squad prefers quiet ground without running across the map for it.
 		///
-		/// <para>WHY <paramref name="standable"/> IS NOT OPTIONAL, and why this is the one guard that cannot be
+		/// <para>WHY <paramref name="passable"/> IS NOT OPTIONAL, and why this is the one guard that cannot be
 		/// left to the engine. The score is <c>-threat</c>, and threat is <c>enemyValue - friendlyValue</c> — so
 		/// an EMPTY cell scores <c>-0</c>, beating any cell with a live enemy near it. Open water is the emptiest
 		/// terrain on any map, which makes it a structurally attractive retreat: the metric does not merely

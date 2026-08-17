@@ -25,7 +25,7 @@ namespace OpenRA.Mods.Common.Traits
 	public static class BotTerrain
 	{
 		/// <summary>How far the ENGINE will silently move a bot's destination. Both order paths a bot uses run
-		/// the cell through <see cref="Mobile.NearestMoveableCell"/>, whose default budget is a radius-10 annulus
+		/// the cell through <see cref="Mobile.NearestMoveableCell(CPos, int, int)"/>, whose default budget is a radius-10 annulus
 		/// (Mobile.cs:811) — "Move" via Mobile.ResolveOrder (Mobile.cs:1030), "AttackMove" via
 		/// AttackMove.ResolveOrder (AttackMove.cs:116). A bot clamping its own destination should use the same
 		/// reach: clamping SHORTER gives up on deliveries the engine would have completed, and clamping FURTHER
@@ -62,7 +62,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// no order rather than a doomed one.
 		///
 		/// <para>WHY A CLAMP AND NOT JUST A REJECTION. The engine already relocates: both order paths a bot uses
-		/// run the destination through <see cref="Mobile.NearestMoveableCell"/> over a radius-10 annulus
+		/// run the destination through <see cref="Mobile.NearestMoveableCell(CPos, int, int)"/> over a radius-10 annulus
 		/// (Mobile.cs:1030 for "Move", AttackMove.cs:116 for "AttackMove"). So a bounds-only destination rarely
 		/// strands a unit — it silently MOVES THE GOALPOSTS, and the bot is never told. That is worse than a
 		/// stall wherever the module then measures against the cell it asked for: MountedTransportBotModule

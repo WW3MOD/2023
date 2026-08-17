@@ -1395,6 +1395,7 @@ namespace OpenRA.Mods.Common.Traits
 		// `why` names the exact reason on a null return. Without it, "no drop cell" covered four
 		// distinct causes and a run could not tell which fired — the gap that left this module's
 		// total inactivity unexplained across four runs and two branches.
+
 		/// <summary>The drop cell, clamped to ground the carriers can actually enter.
 		///
 		/// <para>WHY THE CLAMP IS NOT COSMETIC. This cell is not only where a loaded GROUND carrier is sent — it

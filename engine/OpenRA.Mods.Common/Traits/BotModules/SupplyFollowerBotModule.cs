@@ -2292,7 +2292,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// with an effect it cannot currently have. `SupplyFollowerBotModule@supply` (ai.yaml:1037) is the ONLY
 		/// instance in the mod and it sets `IgnoreDangerForDelivery: true`, so the early return fires on every
 		/// call and the scan never runs. The evac precompute that also feeds this is off for the same reason —
-		/// its gate is `DangerEvac && dangerField != null && !IgnoreDangerForDelivery`. The filter is correct if
+		/// its gate is <c>DangerEvac &amp;&amp; dangerField != null &amp;&amp; !IgnoreDangerForDelivery</c>. The filter is correct if
 		/// the flag ever flips; it is not doing anything today.</summary>
 		CPos? FindSafeFollowPosition(UnitCluster cluster, Func<CPos, bool> passable)
 		{
