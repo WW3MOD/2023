@@ -167,39 +167,148 @@ namespace OpenRA.Test
 			Assert.That(cell, Is.EqualTo((4, 0)), "halts at the last on-grid cell, never off-grid");
 		}
 
-		// ---------- SpreadCell ----------
+		// ---------- SpreadSlot ----------
 
-		[Test]
-		public void SpreadCell_IndexZeroIsTheAnchor()
+		// Everything on the map, and every cell standable. The geometry pins below are about ring layout, not
+		// about the guard, so they say so once here rather than repeating two all-true lambdas each.
+		static (int X, int Y) Spread(int anchorX, int anchorY, int index, int ringStep, Func<int, int, bool> inBounds)
 		{
-			Assert.That(ForwardStagingMath.SpreadCell(20, 20, index: 0, ringStep: 2, onGrid: (x, y) => true),
-				Is.EqualTo((20, 20)));
+			return ForwardStagingMath.SpreadSlot(anchorX, anchorY, index, ringStep,
+				inBounds, (x, y) => true, out _);
 		}
 
 		[Test]
-		public void SpreadCell_FirstRingFansOverEightDistinctCells()
+		public void SpreadSlot_IndexZeroIsTheAnchor()
+		{
+			Assert.That(Spread(20, 20, index: 0, ringStep: 2, (x, y) => true), Is.EqualTo((20, 20)));
+		}
+
+		[Test]
+		public void SpreadSlot_FirstRingFansOverEightDistinctCells()
 		{
 			var seen = new System.Collections.Generic.HashSet<(int, int)>();
 			for (var i = 1; i <= 8; i++)
-				seen.Add(ForwardStagingMath.SpreadCell(20, 20, i, ringStep: 2, onGrid: (x, y) => true));
+				seen.Add(Spread(20, 20, i, ringStep: 2, (x, y) => true));
 
 			Assert.That(seen.Count, Is.EqualTo(8), "the first eight units fan out over eight distinct cells");
 			Assert.That(seen, Does.Not.Contain((20, 20)), "no ring-1 unit piles on the anchor");
 		}
 
 		[Test]
-		public void SpreadCell_RollsToTheSecondRing()
+		public void SpreadSlot_RollsToTheSecondRing()
 		{
 			// Index 9 starts ring 2 (first octant), 2 * ringStep out.
-			Assert.That(ForwardStagingMath.SpreadCell(20, 20, index: 9, ringStep: 2, onGrid: (x, y) => true),
+			Assert.That(Spread(20, 20, index: 9, ringStep: 2, (x, y) => true),
 				Is.EqualTo((20, 20 - 2 * 2)), "the ninth unit rolls onto the second ring");
 		}
 
 		[Test]
-		public void SpreadCell_OffGridFallsBackToTheAnchor()
+		public void SpreadSlot_OffGridFallsBackToTheAnchor()
 		{
-			Assert.That(ForwardStagingMath.SpreadCell(0, 0, index: 4, ringStep: 2, onGrid: (x, y) => x >= 0 && y >= 0),
+			Assert.That(Spread(0, 0, index: 4, ringStep: 2, (x, y) => x >= 0 && y >= 0),
 				Is.EqualTo((0, 0)), "an off-grid spread cell falls back to the anchor");
+		}
+
+		// ---------- SpreadSlot: the terrain guard (2026-08-17) ----------
+		//
+		// THE DEFECT THESE EXIST TO STOP. Until this was closed, the guard the two call sites handed the spread
+		// was bounds-only Map.Contains unless the anchor had come from the fallback path — so on the gradient
+		// path a ring slot could be on-map WATER or CLIFF and the unit was ordered into it. It survived because
+		// the only instrumentation watching this counts DISTANCE FROM THE SUPPLY ROUTE: a unit walking into the
+		// sea makes that number BETTER. The assertions below are the property a distance census cannot express.
+
+		// A coast running down x = 12: everything at or east of it is water. `AnchorX` sits 2 cells inland, so at
+		// ringStep 2 the eastern octants of ring 1 land exactly ON the waterline and ring 2 lands past it.
+		const int CoastX = 12;
+		const int AnchorX = 10;
+		const int AnchorY = 10;
+		static bool Ashore(int x, int y) => x < CoastX;
+		static bool OnMap(int x, int y) => x >= 0 && x < 40 && y >= 0 && y < 40;
+
+		[Test]
+		public void SpreadSlot_CoastalAnchor_NeverOrdersAUnitOntoImpassableGround()
+		{
+			// Every slot a full pool can occupy at the shipped fallback geometry (6 cells / step 2 => 2 rings).
+			var rings = ForwardStagingMath.MaxSpreadRings(6, 2);
+			var slots = rings * ForwardStagingMath.RingOctants;
+			var drowned = new System.Collections.Generic.List<string>();
+			var collapses = 0;
+
+			for (var slot = 0; slot <= slots; slot++)
+			{
+				var (sx, sy) = ForwardStagingMath.SpreadSlot(AnchorX, AnchorY, slot, ringStep: 2,
+					OnMap, Ashore, out var collapsed);
+
+				if (collapsed)
+					collapses++;
+
+				if (!Ashore(sx, sy))
+					drowned.Add($"slot {slot} -> ({sx},{sy})");
+			}
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(drowned, Is.Empty,
+					$"{drowned.Count} of {slots + 1} slots ordered a unit onto impassable ground " +
+					$"(anchor {AnchorX},{AnchorY}; coast at x={CoastX}): {string.Join("; ", drowned)}");
+				Assert.That(collapses, Is.GreaterThan(0),
+					"the rejection signal must fire — several ring slots genuinely are in the sea here, " +
+					"so zero collapses means the terrain test never ran");
+			});
+		}
+
+		[Test]
+		public void SpreadSlot_RejectedSlotCollapsesOntoTheAnchorAndSignals()
+		{
+			// WHICH ANSWER a rejected slot gets, pinned so it cannot drift silently. The anchor is the one cell
+			// every caller has already proved it wants units at (TryResolveFallbackCell terrain-tests it, and the
+			// gradient descent walked onto it), so collapsing there is the same answer the fallback path gives one
+			// level down. Cost, accepted knowingly: on a coastal anchor several units share a cell.
+			// Slot 2 is the EAST octant of ring 1 => (12,10), exactly on the waterline.
+			var (sx, sy) = ForwardStagingMath.SpreadSlot(AnchorX, AnchorY, index: 2, ringStep: 2,
+				OnMap, Ashore, out var collapsed);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(collapsed, Is.True, $"slot 2 resolves to ({sx},{sy}), which is water — it must be rejected");
+				Assert.That((sx, sy), Is.EqualTo((AnchorX, AnchorY)), "a rejected slot collapses onto the anchor");
+			});
+		}
+
+		[Test]
+		public void SpreadSlot_OmittingTheTerrainTestIsRejectedAtTheContract()
+		{
+			// THE PIN THAT KEEPS THIS CLOSED RATHER THAN MERELY FIXED. The defect was never in the ring math — it
+			// was that a call site could assemble a guard WITHOUT the terrain half and nothing said so. Both call
+			// sites did exactly that, identically, for thirteen days. Reintroducing that assembly now throws here
+			// instead of quietly ordering a unit into the sea, so the hole cannot be reopened by omission.
+			Assert.Throws<ArgumentNullException>(
+				() => ForwardStagingMath.SpreadSlot(AnchorX, AnchorY, index: 2, ringStep: 2, OnMap, null, out _),
+				"a bounds-only spread guard must be a hard error, not a silent default");
+		}
+
+		[Test]
+		public void SpreadSlot_GuardIsBoundToTheMover_NotToTheTerrainAlone()
+		{
+			// WHAT IS IMPASSABLE DEPENDS ON THE MOVER. A ridge line at x = 12 that infantry can cross and armour
+			// cannot must produce different slots for the two, from the identical anchor and index — which is only
+			// true if the caller binds the predicate to the unit being ORDERED rather than to a representative of
+			// its group. A mixed pool slotted off one representative is how a tank gets sent where the scout went.
+			bool ArmourCanStand(int x, int y) => x < CoastX;
+			bool InfantryCanStand(int x, int y) => true;
+
+			var armour = ForwardStagingMath.SpreadSlot(AnchorX, AnchorY, index: 2, ringStep: 2,
+				OnMap, ArmourCanStand, out var armourCollapsed);
+			var infantry = ForwardStagingMath.SpreadSlot(AnchorX, AnchorY, index: 2, ringStep: 2,
+				OnMap, InfantryCanStand, out var infantryCollapsed);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(armourCollapsed, Is.True, "the ridge is impassable for armour ⇒ its slot is rejected");
+				Assert.That(infantryCollapsed, Is.False, "the same cell is fine for infantry ⇒ its slot stands");
+				Assert.That(armour, Is.Not.EqualTo(infantry),
+					$"same anchor and index must resolve differently per mover (armour {armour}, infantry {infantry})");
+			});
 		}
 
 		// ---------- StableSlot (NIT-1: no composition churn) ----------
@@ -496,7 +605,7 @@ namespace OpenRA.Test
 			var worst = 0;
 			for (var slot = 0; slot <= rings * ForwardStagingMath.RingOctants; slot++)
 			{
-				var (sx, sy) = ForwardStagingMath.SpreadCell(ax, ay, slot, 2, (x, y) => true);
+				var (sx, sy) = Spread(ax, ay, slot, 2, (x, y) => true);
 				var d = Math.Max(Math.Abs(sx - 6), Math.Abs(sy - 16));
 				if (d > worst)
 					worst = d;

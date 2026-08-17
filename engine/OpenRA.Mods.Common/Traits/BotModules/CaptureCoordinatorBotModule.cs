@@ -23,7 +23,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -1541,42 +1540,21 @@ namespace OpenRA.Mods.Common.Traits
 			var effectiveAnchor = anchor;
 			var onFallback = false;
 
-			// Null on the gradient path => the SpreadCell call below keeps its historical bounds-only guard and is
-			// byte-identical. Only the fallback path tightens it; see the note where it is assigned.
-			Func<int, int, bool> spreadGuard = null;
 			if (effectiveAnchor == null && sr != null && Info.ReserveFallbackCells > 0)
 			{
 				// Representative mover, chosen by lowest ActorID so the terrain test cannot depend on scan order.
 				var rep = undispatched.OrderBy(p => p.Actor.ActorID).First().Actor;
-				var loco = rep.TraitOrDefault<Mobile>()?.Locomotor;
+				var passable = BotTerrain.PassableFor(rep);
 				var bounds = world.Map.Bounds;
 				if (ForwardStagingMath.TryResolveFallbackCell(
 						sr.Location.X, sr.Location.Y,
 						bounds.Left + bounds.Width / 2, bounds.Top + bounds.Height / 2,
 						Info.ReserveFallbackCells,
-						(mx, my) =>
-						{
-							var c = new CPos(mx, my);
-							return world.Map.Contains(c)
-								&& (loco == null || loco.MovementCostForCell(c) != PathGraph.MovementCostForUnreachableCell);
-						},
+						(mx, my) => world.Map.Contains(new CPos(mx, my)) && passable(new CPos(mx, my)),
 						out var fx, out var fy))
 				{
 					effectiveAnchor = new CPos(fx, fy);
 					onFallback = true;
-
-					// A terrain-tested ANCHOR with bounds-only RING SLOTS is the same defect one level down: the
-					// slots are where capturers are actually sent, and SpreadCell's guard here has always been
-					// Map.Contains, which admits on-map water and cliff. Pre-existing, and left exactly as it was
-					// on the gradient path — but the fallback fires in the OPENING on every map, and this reserve
-					// runs on BOTH profiles, so it makes the hole far easier to reach. Scoped to this path alone;
-					// a rejected slot collapses onto the anchor, which was just proved passable.
-					spreadGuard = (mx, my) =>
-					{
-						var c = new CPos(mx, my);
-						return world.Map.Contains(c)
-							&& (loco == null || loco.MovementCostForCell(c) != PathGraph.MovementCostForUnreachableCell);
-					};
 				}
 			}
 
@@ -1646,10 +1624,16 @@ namespace OpenRA.Mods.Common.Traits
 				// Slot by a STABLE per-unit key rather than list position, so a capturer leaving the reserve
 				// (dispatched, or consumed by a capture) does not re-slot everyone else and re-issue their moves.
 				// Without any fan-out at all every reserved capturer is sent to the identical cell and clogs it.
+				// Bound to THIS capturer rather than to the representative that resolved the anchor: the reserve
+				// admits both foot engineers and vehicle-borne technicians, so one locomotor cannot answer for the
+				// pool. See ForwardStagingMath.SpreadSlot for why the terrain test is not optional.
+				var slotPassable = BotTerrain.PassableFor(unit);
 				var slot = ForwardStagingMath.StableSlot(unit.ActorID, maxRings);
-				var (cx, cy) = ForwardStagingMath.SpreadCell(effectiveAnchor.Value.X, effectiveAnchor.Value.Y, slot,
+				var (cx, cy) = ForwardStagingMath.SpreadSlot(effectiveAnchor.Value.X, effectiveAnchor.Value.Y, slot,
 					Info.ReserveSpreadStepCells,
-					spreadGuard ?? ((mx, my) => world.Map.Contains(new CPos(mx, my))));
+					(mx, my) => world.Map.Contains(new CPos(mx, my)),
+					(mx, my) => slotPassable(new CPos(mx, my)),
+					out _);
 				var target = new CPos(cx, cy);
 
 				// Re-issue only when the destination CHANGED (newly reserved, or the anchor advanced with the

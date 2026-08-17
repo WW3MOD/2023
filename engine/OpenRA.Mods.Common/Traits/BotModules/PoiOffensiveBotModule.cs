@@ -40,7 +40,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Activities;
-using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Mods.Common.Traits.BotModules.Squads;
 using OpenRA.Traits;
 
@@ -2431,9 +2430,6 @@ namespace OpenRA.Mods.Common.Traits
 			var effectiveAnchor = stagingAnchor;
 			var onFallback = false;
 
-			// Null on the gradient path ⇒ the SpreadCell call below keeps its historical bounds-only guard and is
-			// byte-identical. Only the fallback path tightens it (see where it is assigned).
-			Func<int, int, bool> spreadGuard = null;
 			if (!effectiveAnchor.HasValue && ordered.Count > 0 && Info.StagingFallbackCells > 0 && rallyCell.HasValue)
 			{
 				var bounds = world.Map.Bounds;
@@ -2447,19 +2443,6 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					effectiveAnchor = new CPos(fx, fy);
 					onFallback = true;
-
-					// A terrain-tested ANCHOR with bounds-only RING SLOTS is the same defect one level down: the
-					// slots are where units are actually sent, and SpreadCell's guard here has always been
-					// Map.Contains, which admits on-map water and cliff. That is pre-existing and stays exactly as
-					// it was on the gradient path — but the fallback fires in the OPENING on every map, where the
-					// gradient path fires only once belief exists, so it makes the hole far easier to reach. Scoped
-					// to this path alone: when the guard rejects a slot SpreadCell collapses it onto the anchor,
-					// which the line above has already proved passable.
-					spreadGuard = (mx, my) =>
-					{
-						var c = new CPos(mx, my);
-						return world.Map.Contains(c) && passable(c);
-					};
 				}
 			}
 
@@ -2535,9 +2518,16 @@ namespace OpenRA.Mods.Common.Traits
 				var groupAnchor = onAdvance ? advanceAnchor.Value : anchor;
 				var rings = onAdvance ? Math.Max(0, Info.AdvanceSpreadRings) : maxRings;
 
+				// Bound to THIS unit, not to a representative of the pool: what is impassable depends on the mover,
+				// and the free pool is mixed (infantry alongside armour), so one representative's locomotor would
+				// send a tank where a scout could stand. The predicate is rebuilt per unit per eval — a trait
+				// lookup over a pool of tens, against an order that walks a unit across the map.
+				var slotPassable = WaypointPassable(u);
 				var slot = ForwardStagingMath.StableSlot(u.ActorID, rings);
-				var (cx, cy) = ForwardStagingMath.SpreadCell(groupAnchor.X, groupAnchor.Y, slot, Info.StagingSpreadStepCells,
-					spreadGuard ?? ((mx, my) => world.Map.Contains(new CPos(mx, my))));
+				var (cx, cy) = ForwardStagingMath.SpreadSlot(groupAnchor.X, groupAnchor.Y, slot, Info.StagingSpreadStepCells,
+					(mx, my) => world.Map.Contains(new CPos(mx, my)),
+					(mx, my) => slotPassable(new CPos(mx, my)),
+					out _);
 				var target = new CPos(cx, cy);
 
 				// The walk's "never enters believed-enemy ground" property is about the ANCHOR. One spread ring is
@@ -3933,14 +3923,7 @@ namespace OpenRA.Mods.Common.Traits
 		// detour WAYPOINTS that read "safe" only because unstamped impassable ground carries no danger.
 		// Falls back to "all passable" if the representative has no Mobile (never rejects) — rare for a
 		// combat axis (every member has IPositionable + AttackBase).
-		Func<CPos, bool> WaypointPassable(Actor mover)
-		{
-			var loco = mover.TraitOrDefault<Mobile>()?.Locomotor;
-			if (loco == null)
-				return _ => true;
-
-			return c => loco.MovementCostForCell(c) != PathGraph.MovementCostForUnreachableCell;
-		}
+		static Func<CPos, bool> WaypointPassable(Actor mover) => BotTerrain.PassableFor(mover);
 
 		// True when the Stage-E flow-around waypoint changed enough to warrant re-issuing the axis order:
 		// appeared, vanished, or shifted by >= threshold cells. Keeps the flow-around responsive as the

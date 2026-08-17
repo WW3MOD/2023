@@ -2347,14 +2347,7 @@ namespace OpenRA.Mods.Common.Traits
 		// A terrain-passability predicate bound to the truck's locomotor: true when it can actually stand
 		// on the cell (not on-map water/cliff, not off-map). Rejects detour WAYPOINTS that read "safe"
 		// only because unstamped impassable ground carries no danger. All-passable fallback if no Mobile.
-		Func<CPos, bool> WaypointPassable(Actor mover)
-		{
-			var loco = mover.TraitOrDefault<Mobile>()?.Locomotor;
-			if (loco == null)
-				return _ => true;
-
-			return c => loco.MovementCostForCell(c) != PathGraph.MovementCostForUnreachableCell;
-		}
+		static Func<CPos, bool> WaypointPassable(Actor mover) => BotTerrain.PassableFor(mover);
 
 		// The player's own Supply Routes (our own actors — fog-legal to read), the safe rear an evacuating
 		// truck pulls back toward. A player can hold SEVERAL (the starting beachhead plus any captured
