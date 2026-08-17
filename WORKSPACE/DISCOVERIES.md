@@ -3,6 +3,70 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — THE BOT IS RICH FOR 60 CYCLES AND POOR FOR THE REST; "20,000 STARTING CASH" IS NOT THE ECONOMY IT PLAYS IN
+
+**Claim retired:** *"a 1000-cost truck against 20,000 starting cash is never unaffordable, so
+`SupplyPrecedenceStallCycles` cannot fire in a default lobby game"*
+(`WORKSPACE/recon/260817-procurement-ordering-axis-status.md` §C/§K, and the premise of the banking-gate
+brief). **Measured false.** At the shipped lobby economy the gate banks **38/200 cycles (19%)** and roughly
+halves the fraction of the run with no truck alive.
+
+**WW3MOD has no renewable income other than the passive tick.** The harvester actor is entirely commented out
+(`rules/ingame/vehicles.yaml:827-839`), `world.yaml` declares no resource layer, no structure grants income or
+upkeep, and the kill-bounty lobby default is 0. `player.yaml:164-169` leaves every `PlayerResources` field
+commented, so the engine defaults stand: `DefaultCash 20000`, `PassiveIncome 100` per `PassiveIncomeInterval 50`
+ticks. Against `UnitBuilderBotModule.FeedbackTime` (30) that is **60 credits per build cycle** — so a 1000-cost
+truck costs **~17 cycles of the bot's entire income**.
+
+**The 20,000 is an opening bonus, not a standing balance.** Modelled offline
+(`--composition-plan --cash 20000`): mean cash **3,246**, min **60**, first cycle unable to afford even the
+cheapest composed slot at **cycle 85**, broke on 12–17% of cycles. Reading the *starting* balance and stopping
+is what produced the retired claim.
+
+**Why the gate still looked inert on the first run, and this is the subtler half.** With `--attrition 0` it
+banks **0/200** — correctly. The fleet is short only during the opening ramp, when the bot is still rich; the
+bot is poor only after ~cycle 67-85, by which time `SupplyTruckFloorPer` has already filled the fleet. The two
+conditions `ShouldBankCycle` needs (`fleetShort && !truckAffordable`) are each true for a long stretch and
+their **intersection is empty in a no-loss run**. Add losses — trucks die while the bot is poor — and the
+intersection opens. **A conjunction of two individually-common conditions can be empty for a structural
+reason; testing each half separately proves nothing about the conjunction.**
+
+**Paired control (`--no-bank`), america/russia, `--cash 20000 --attrition 40`:**
+
+| | dry cycles | mean fleet |
+|---|---|---|
+| gate ON | **51/200 (25%)** | 0.98 |
+| gate OFF | 112/200 (56%) | 0.59 |
+
+Across the cash sweep at attrition 40 (dry, ON vs OFF): 2,000 → 100%/100% (too poor for anything);
+5,000 → **80%/100%**; 10,000 → **61%/80%**; 20,000 → **25%/56%**; 50,000 → 7%/7% (genuinely rich, nothing to
+arbitrate). Income sweep at cash 20,000: 0 and 30 → no benefit, **60 (shipped) and 120 → large benefit**, 250+
+→ inert. **The shipped point sits inside the benefit window on both axes rather than at an edge.**
+
+**General lesson: "can the bot afford X" is a question about the whole trajectory, not the starting balance.**
+An economy with no renewable income and a fixed opening pot spends most of a match near zero, and any predicate
+gated on affordability will look inert to anyone who checks it at t=0.
+
+## 2026-08-17 — `--floor-per` AND `SupplyTruckFloorPer` ARE DIFFERENT KNOBS, AND SWEEPING THE FIRST LOOKS LIKE A WEAK RESPONSE FROM THE SECOND
+
+`--composition-plan --floor-per N` rewrites **`UnitFloorPer`**, which drives `ChooseBelowFloor` (the medic).
+The truck's standing floor is a **separate field**, `SupplyTruckFloorPer`, read directly by the demand
+pre-empt. Sweeping `--floor-per` therefore moves the truck's `dry N/200` line only *indirectly*, through the
+medic's effect on army composition — which reads as a weak-but-real response and is nothing of the kind. A
+sweep of 8/10/12 that way returned 19%/19%/20% and was one step from being reported as "the truck ratio barely
+matters". `--supply-floor-per N` was added so the truck ratio can actually be moved without a YAML edit; the
+shipped `SupplyTruckFloorPer` [Desc] tells the next reader to tune on that line and, before this flag, gave
+them no way to.
+
+**Consequence, recorded and deliberately NOT acted on.** With the economy modelled the truck ratio matters far
+more than the budgetless model showed. At `--attrition 40`, dry for per = 8/10/12/14 is **6%/7%/9%/9%**
+budgetless but **14%/25%/52%/41%** with `--cash 20000` — a 3-point spread becoming a 38-point one, and the
+shipped value 10 is no longer the best of the four. **This is not a mandate to re-tune to 8.** The sweep is
+non-monotonic (12 worse than 14), which is the signature of an artefact in the metric rather than a clean
+optimum; and re-tuning a shipped constant against an instrument built in the same session is precisely how the
+two constants before it had to be re-derived. The right next step is an independent look at that ratio with
+this instrument already on the shelf, not a value change bundled into the change that built the instrument.
+
 ## 2026-08-17 — UNIT DETECTABILITY IS DYNAMIC, SO A "SPOTTED/NOT SPOTTED" TEST ON THE BAND EDGE FLIPS BETWEEN RUNS
 
 WW3MOD grades vision into concentric `Strength` bands (`^StandardVision`: Strength 10 at 4c0 decaying to

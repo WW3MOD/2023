@@ -216,6 +216,12 @@ the game the user plays.
 
 ## C. Consequence: the merged precedence fix is INERT on the user's profile — this refutes my §5
 
+> **RETRACTED 2026-08-17 by measurement — see §N. §C and §K's first bullet are WRONG.** They read the
+> *starting* balance and stop there. WW3MOD has no renewable income beyond a 60-credit-per-cycle passive
+> tick, so the 20,000 is an opening bonus that is gone by ~cycle 85 and the bot then plays most of the match
+> near zero. At the shipped economy the gate banks 19% of cycles and halves the fraction of the run with no
+> truck alive. The paragraphs below are left in place because the reasoning error is the useful part.
+
 `PlayerResources` defaults (`PlayerResources.cs:32,63,66`) are **`DefaultCash = 20000`** and
 **`PassiveIncome = 100` every 50 ticks**; `player.yaml:164-169` leaves all of them commented out, so the
 engine defaults stand and both are lobby dropdowns the user sets.
@@ -376,3 +382,58 @@ depends on.
 Routes as explicit actors** (`tournament-s1-eco-river-zeta/map.yaml` describes "2 Supply Routes + 2 bot
 spawn markers"), so the offset does not apply and their SR cells must be read from the actor list
 directly. Do not carry the table across.
+
+---
+
+# ADDENDUM 3 — §C IS RETRACTED: the gate fires at the shipped economy, and it roughly halves the dry fraction
+
+`wt/banking-gate`, off `main @ e67f4e41`. **No bot behaviour changed.** `--composition-plan` gained a cash
+model (`--cash`, `--income`, `--no-bank`, `--supply-floor-per`); without `--cash` its output is unchanged, and
+the identity was checked against the figures §G published (army 57,750 / dry 14 at no losses).
+
+## N. The economy §C assumed does not exist
+
+§C reasons from `DefaultCash = 20000` and stops. The term it omits is that **WW3MOD has no renewable income at
+all** beyond the passive tick: the harvester actor is commented out (`rules/ingame/vehicles.yaml:827-839`),
+`world.yaml` declares no resource layer, nothing grants building income or upkeep, and the bounty default is 0.
+`PassiveIncome 100` per 50 ticks against `FeedbackTime 30` is **60 credits per build cycle** — so the 1000-cost
+truck §C calls "never unaffordable" costs **~17 cycles of the bot's entire income**.
+
+Modelled at `--cash 20000`: mean cash **3,246**, min **60**, first cycle unable to afford even the cheapest
+composed slot at **cycle 85**. The 20,000 is an opening bonus, not the economy the bot plays in.
+
+## O. The gate fires, and the paired control says it works
+
+`--no-bank` reverts precedence at the same economy — one flag, so nothing else can differ between the arms.
+
+| america, `--cash 20000 --attrition 40` | dry cycles | mean fleet |
+|---|---|---|
+| gate ON (shipped, stall-cycles 4) | **51/200 (25%)** | 0.98 |
+| gate OFF (`--no-bank`) | 112/200 (56%) | 0.59 |
+
+Russia is the same to within a cycle (50/200 vs 112/200). Cash sweep at attrition 40, dry ON vs OFF:
+2,000 → 100%/100%, 5,000 → **80%/100%**, 10,000 → **61%/80%**, 20,000 → **25%/56%**, 50,000 → 7%/7%.
+Income sweep at cash 20,000: 0/30 → no benefit, **60 (shipped) and 120 → large benefit**, 250+ → inert.
+**The shipped configuration sits inside the benefit window on both axes, not at an edge.**
+
+## P. Why §C nonetheless looked right on the first run
+
+At `--attrition 0` the gate banks **0/200**, exactly as §C predicts — but not for §C's reason. The fleet is
+short only during the opening ramp, while the bot is still rich; the bot is poor only from ~cycle 67-85, by
+which time `SupplyTruckFloorPer` has filled the fleet. `ShouldBankCycle` needs `fleetShort && !truckAffordable`
+and **the intersection is empty in a no-loss run** even though each half is true for a long stretch. Losses
+open it. Anyone checking the two halves separately — which is what §C did — concludes the gate is dead.
+
+## Q. What this does to item 66
+
+The affordability explanation is **restored**, not eliminated: §D's "the merged fix targets affordability, and
+affordability was a tournament-path artifact" is wrong, because a lobby bot is broke for most of a match too.
+That does not resurrect §C's opposite error either — §H's ceiling diagnosis is still correct and still the
+larger effect. Both are live, and §K's closing judgement ("the ceiling diagnosis is robust across the whole
+cash range; only the 'precedence is inert' claim is cash-dependent") survives intact; it is only that claim
+which was decided the wrong way.
+
+**Still not measured, and it is the same gap §A named:** every number here is offline. The replay buys one
+unit per cycle where the live `BotTick` drains a priority request, a FIFO request and one pick per queue, so
+the modelled bot spends slower and is *richer* than the live one; evacuation refunds are absent, pulling the
+other way. A lobby match remains the only way to settle magnitudes, and it remains unreachable headlessly.
