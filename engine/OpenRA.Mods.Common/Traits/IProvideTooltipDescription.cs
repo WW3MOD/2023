@@ -14,17 +14,17 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	/// <summary>
-	/// Implemented on a TraitInfo to contribute auto-generated text to the
+	/// <para>Implemented on a TraitInfo to contribute auto-generated text to the
 	/// production tooltip (and any future tooltip surface). Implementations
 	/// run at rules-load time, not on a live actor, so they only depend on
 	/// static info. Runs AFTER the static <see cref="BuildableInfo.Description"/>
-	/// is rendered.
+	/// is rendered.</para>
 	///
-	/// Conventional priorities (lower = earlier in the block):
+	/// <para>Conventional priorities (lower = earlier in the block):
 	///   100 — weapons / ammo
 	///   200 — armor / health
 	///   300 — speed / mobility
-	///   400 — capabilities (cargo capacity, special abilities)
+	///   400 — capabilities (cargo capacity, special abilities)</para>
 	/// </summary>
 	public interface IProvideTooltipDescription : ITraitInfoInterface
 	{

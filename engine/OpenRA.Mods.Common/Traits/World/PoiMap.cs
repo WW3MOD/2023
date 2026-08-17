@@ -229,14 +229,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		// ---------- Public query API ----------
 
-		/// <summary>All POIs scored from `perspective`, best first. Includes own-owned POIs
-		/// tagged Defend so a defense/garrison consumer can read the same list.
+		/// <summary><para>All POIs scored from `perspective`, best first. Includes own-owned POIs
+		/// tagged Defend so a defense/garrison consumer can read the same list.</para>
 		///
-		/// suppressOmniscientThreat mirrors the Stage-F GetOffensiveTargets seam: when true the
+		/// <para>suppressOmniscientThreat mirrors the Stage-F GetOffensiveTargets seam: when true the
 		/// threat term is forced to the SAFE bucket (enemyInfluence = 0) and the omniscient enemy
 		/// grid is never sampled, so an @experimental caller can re-apply a FOG-LEGAL believed
 		/// shaping itself (CaptureCoordinatorBotModule). Default false ⇒ byte-identical to the frozen
-		/// omniscient behaviour for every existing caller.</summary>
+		/// omniscient behaviour for every existing caller.</para></summary>
 		public List<ScoredPoi> GetScoredPois(Player perspective, bool suppressOmniscientThreat = false)
 		{
 			ResolveInfluence();
@@ -268,7 +268,7 @@ namespace OpenRA.Mods.Common.Traits
 				.Where(p => p.Action == PoiAction.Capture || p.Action == PoiAction.DenyCapture)
 				.ToList();
 
-		/// <summary>OFFENSIVE targets for the general army (Phase 3), best first: every
+		/// <summary><para>OFFENSIVE targets for the general army (Phase 3), best first: every
 		/// ENEMY-owned POI projected as an army objective — enemy income/utility as
 		/// Attack, the enemy Supply Route as Pressure (its circle chokes reinforcements,
 		/// and the SR IS the enemy beachhead, so this is also "attack the enemy base").
@@ -284,16 +284,16 @@ namespace OpenRA.Mods.Common.Traits
 		/// As money POIs are captured they become own (dropped here → their Secure axis
 		/// retires) and the ranking naturally shifts toward the enemy: offense emerges
 		/// AFTER income is secured, no separate "opening mode". Scored value x distance x
-		/// threat from OUR SR. The capture layer (TECN) is unaffected.
+		/// threat from OUR SR. The capture layer (TECN) is unaffected.</para>
 		///
-		/// STAGE F (strategic repoint): the threat term is sourced from the OMNISCIENT
+		/// <para>STAGE F (strategic repoint): the threat term is sourced from the OMNISCIENT
 		/// InfluenceMap enemy grid (built from world.Actors regardless of fog). An
 		/// @experimental caller migrating off omniscient grids passes suppressOmniscientThreat
 		/// = true, which produces a threat-NEUTRAL base score (no InfluenceMap read at all) so
 		/// the caller can re-apply a FOG-LEGAL believed-danger/control shaping itself
 		/// (PoiOffensiveBotModule.RescaleByBelievedFields). Default false ⇒ byte-identical to
 		/// the frozen behaviour for every existing caller (control-bot MountedTransport + the
-		/// @stable offense twin).</summary>
+		/// @stable offense twin).</para></summary>
 		public List<ScoredPoi> GetOffensiveTargets(Player perspective, bool suppressOmniscientThreat = false,
 			Func<CPos, int?> throughCrossingDistance = null)
 		{
@@ -382,7 +382,7 @@ namespace OpenRA.Mods.Common.Traits
 			return result;
 		}
 
-		/// <summary>DEFENSIVE targets for the garrison layer (Phase 4), best first: every money
+		/// <summary><para>DEFENSIVE targets for the garrison layer (Phase 4), best first: every money
 		/// POI WE ALREADY OWN, projected as a Defend objective. Scored value x distance x
 		/// DEFENCE-urgency from OUR SR — threat RAISES the score (a held POI under assault is
 		/// the most urgent to garrison), the mirror of the capture gate where threat deters.
@@ -390,12 +390,12 @@ namespace OpenRA.Mods.Common.Traits
 		/// out of scope per decision #2). Consumed by PoiGarrisonBotModule, which sizes a small
 		/// garrison (1-3, by value + threat) per returned POI and commits it in the shared
 		/// PoiGoalGuard ledger so offense/capture never scoop the defenders. Offense/capture
-		/// layers are unaffected — they read GetOffensiveTargets / GetCaptureTargets.
+		/// layers are unaffected — they read GetOffensiveTargets / GetCaptureTargets.</para>
 		///
-		/// suppressOmniscientThreat mirrors the Stage-F GetOffensiveTargets seam: when true the defend
+		/// <para>suppressOmniscientThreat mirrors the Stage-F GetOffensiveTargets seam: when true the defend
 		/// urgency is forced to the CALM bucket (enemyInfluence = 0, no omniscient grid read) so an
 		/// @experimental caller can re-apply a FOG-LEGAL believed-danger RAISE itself (PoiGarrisonBotModule).
-		/// Default false ⇒ byte-identical to the frozen omniscient behaviour for every existing caller.</summary>
+		/// Default false ⇒ byte-identical to the frozen omniscient behaviour for every existing caller.</para></summary>
 		public List<ScoredPoi> GetDefendTargets(Player perspective, bool suppressOmniscientThreat = false)
 		{
 			ResolveInfluence();
@@ -557,7 +557,8 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (actor.IsDead || !actor.IsInWorld || actor.Owner != perspective)
 					continue;
-				if (actor.Info.Name.ToLowerInvariant() != Info.SupplyRouteActorType)
+				var name = actor.Info.Name.ToLowerInvariant();
+				if (name != Info.SupplyRouteActorType)
 					continue;
 
 				best = actor;

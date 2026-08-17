@@ -33,17 +33,17 @@ namespace OpenRA.Mods.Common.Traits
 		/// that the honest duration would be a visible crawl.</summary>
 		public const int MaxDriveOffTicks = 500;
 
-		/// <summary>Ticks to move <paramref name="distance"/> world units at <paramref name="speed"/> world units per
-		/// tick — the Drag duration that makes the off-map leg travel at the unit's own pace.
+		/// <summary><para>Ticks to move <paramref name="distance"/> world units at <paramref name="speed"/> world units per
+		/// tick — the Drag duration that makes the off-map leg travel at the unit's own pace.</para>
 		///
-		/// Rounds UP: a leg shorter than one tick's travel still takes a tick, because Drag lerps over
+		/// <para>Rounds UP: a leg shorter than one tick's travel still takes a tick, because Drag lerps over
 		/// <c>length - 1</c> and a length of 0 or 1 snaps straight to the end — the teleport this change exists to
-		/// remove.
+		/// remove.</para>
 		///
-		/// Defensive on both inputs because both come from the ruleset: a non-positive speed (immobilised or
+		/// <para>Defensive on both inputs because both come from the ruleset: a non-positive speed (immobilised or
 		/// misconfigured) would divide by zero, and a non-positive distance means the unit is already there. Both
 		/// collapse to the 1-tick floor rather than throwing, because this runs inside an activity that must
-		/// terminate. Capped at <see cref="MaxDriveOffTicks"/>. Pure.</summary>
+		/// terminate. Capped at <see cref="MaxDriveOffTicks"/>. Pure.</para></summary>
 		public static int DriveOffTicks(int distance, int speed)
 		{
 			if (distance <= 0 || speed <= 0)

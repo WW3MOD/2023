@@ -717,24 +717,24 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Release the rearm condition when this provider leaves play. Without this the grant is
+		/// <para>Release the rearm condition when this provider leaves play. Without this the grant is
 		/// ORPHANED: ExternalCondition.permanentTokens is keyed by granting source and has no
 		/// source-death sweep (the Tick expiry loop only walks timedTokens, and the ReduceTicks
 		/// decay path is inert unless configured — infantry's ExternalCondition@AmmoReplenish sets
 		/// only Condition). So a provider destroyed while serving leaves its target holding
 		/// replenish-soldiers forever, which keeps ReloadAmmoPool trickling free ammo for the rest
 		/// of the match. A parked truck is a prime artillery target and the token is held during
-		/// every serving cycle, so this is an ordinary occurrence, not a corner case.
+		/// every serving cycle, so this is an ordinary occurrence, not a corner case.</para>
 		///
-		/// Note what does NOT stop the trait: leaving the world. ITick traits are not driven from the
+		/// <para>Note what does NOT stop the trait: leaving the world. ITick traits are not driven from the
 		/// `actors` dict (World.cs:496-497 ticks that only for ACTIVITIES) but through
 		/// ApplyToActorsWithTraitTimed&lt;ITick&gt; → TraitDictionary.ApplyToAllTimed
 		/// (TraitDictionary.cs:305-316), which walks the trait container with NO IsInWorld or
 		/// Disposed filter. An actor leaves that container only in Actor.Dispose's frame-end task
 		/// (Actor.cs:469), so a removed-but-not-disposed provider KEEPS TICKING — see the IsInWorld
-		/// guard at the top of Tick, which is what actually stops it.
+		/// guard at the top of Tick, which is what actually stops it.</para>
 		///
-		/// Three notifications, because they answer different questions:
+		/// <para>Three notifications, because they answer different questions:
 		///  - Killed and Disposing are the terminal pair, and between them they cover every way a
 		///    provider permanently leaves play: combat death, the RemoveBelowSupply self-Dispose in
 		///    Tick, sell, and the TRUK/LCCV transform. Killed fires at the moment of death, ahead of
@@ -745,11 +745,11 @@ namespace OpenRA.Mods.Common.Traits
 		///  - RemovedFromWorld is belt and braces at the removal moment, and the only one that fires
 		///    for a NON-terminal exit — a Carryall pickup removes the truck without disposing it
 		///    (PickupUnit.cs:174), as does loading into cargo. It revokes immediately; the Tick
-		///    guard then keeps the trait from re-granting on the following tick.
+		///    guard then keeps the trait from re-granting on the following tick.</para>
 		///
-		/// Redundant revokes are harmless: TryRevokeCondition returns false once the token is gone,
+		/// <para>Redundant revokes are harmless: TryRevokeCondition returns false once the token is gone,
 		/// and conditionToken is zeroed on the first call. It is world-independent and acts on the
-		/// TARGET's trait, so running it while SELF is dead or disposing is safe.
+		/// TARGET's trait, so running it while SELF is dead or disposing is safe.</para>
 		/// </summary>
 		void ReleaseTargetOnExit()
 		{
@@ -991,20 +991,20 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// The whole per-tick "what may I do with this target" rule, kept pure so both the delivery
-		/// path and the condition tracker read it from one place.
+		/// <para>The whole per-tick "what may I do with this target" rule, kept pure so both the delivery
+		/// path and the condition tracker read it from one place.</para>
 		///
-		/// The aura is a proximity push, so an out-of-aura target gets neither ammo NOR the
+		/// <para>The aura is a proximity push, so an out-of-aura target gets neither ammo NOR the
 		/// RearmCondition — the condition enables the target's own ReloadAmmoPool (a free in-place
 		/// trickle that carries no range check of its own), so leaving it granted at unlimited range
 		/// is the same exploit as delivering at unlimited range. The target is still KEPT, because
 		/// selection can legitimately hand us something we are only just driving toward; we simply
-		/// serve it on arrival.
+		/// serve it on arrival.</para>
 		///
-		/// Sheltered garrison passengers are the exception: they are removed from the world with a
+		/// <para>Sheltered garrison passengers are the exception: they are removed from the world with a
 		/// stale CenterPosition, and their building was in range when they were picked, so they are
 		/// served — but never granted the condition, which would be invisible and would leak if the
-		/// soldier later deployed out.
+		/// soldier later deployed out.</para>
 		/// </summary>
 		public static SupplyServeDecision DecideServe(bool targetInWorld, bool inAura)
 		{

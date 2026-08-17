@@ -74,7 +74,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Totals as if an open span were closed at closeTick, WITHOUT mutating — used
 		// for the end census so a survivor still idle at match end is counted.
-		public (int Total, int Longest) Snapshot(int closeTick)
+		public readonly (int Total, int Longest) Snapshot(int closeTick)
 		{
 			var total = TotalIdle;
 			var longest = LongestIdle;

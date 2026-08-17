@@ -30,27 +30,27 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public static class LateralSpreadMath
 	{
-		/// <summary>Cap the Supply-Route Pressure axis's share of the pool and redistribute the freed units across
+		/// <summary><para>Cap the Supply-Route Pressure axis's share of the pool and redistribute the freed units across
 		/// the non-SR axes by OPPORTUNITY, conserving the total. Inputs are aligned by axis index:
 		///   * <paramref name="baseSizes"/> — the score-proportional sizes from AllocateProportional (authoritative
 		///     base; this only RESHAPES it).
 		///   * <paramref name="isSrPressure"/> — true for the enemy-Supply-Route Pressure axis (the funnel to cap).
 		///   * <paramref name="opportunity"/> — per non-SR axis, "how weak is the enemy where this axis presses"
 		///     (higher ⇒ more mass). Values &lt; 1 are floored to 1 so every non-SR axis is still covered. Ignored
-		///     for SR axes.
+		///     for SR axes.</para>
 		///
-		/// <paramref name="srCapPct"/> is the SR axis's max share of <paramref name="total"/> (e.g. 40 = at most
+		/// <para><paramref name="srCapPct"/> is the SR axis's max share of <paramref name="total"/> (e.g. 40 = at most
 		/// 40% of the pool), floored at <paramref name="minAxisSize"/> so a capped SR axis is never pushed below
 		/// its funding minimum. <paramref name="srCapPct"/> &lt;= 0 OR &gt;= 100 ⇒ INERT (returns a copy of
 		/// baseSizes unchanged — no cap). If there is no non-SR axis to receive the excess, the cap is NOT applied
 		/// (the units would otherwise strand): when the enemy SR is the only viable target, funnelling onto it is
-		/// correct.
+		/// correct.</para>
 		///
-		/// Reuses <see cref="FrontlineAllocationMath.AllocateAcrossAvenues"/> for the redistribution: the per-axis
+		/// <para>Reuses <see cref="FrontlineAllocationMath.AllocateAcrossAvenues"/> for the redistribution: the per-axis
 		/// opportunity is passed as the avenue ENEMY weight with a null OWN, so the mass weight is max(0, opp) = opp
 		/// and coverage-first (minThreat 1) mans every non-SR axis. The returned add-vector sums to exactly the
 		/// excess (coverage + Hamilton distribute the whole budget when at least one slot is manned), so
-		/// sum(result) == sum(baseSizes). Pure, zero RNG.</summary>
+		/// sum(result) == sum(baseSizes). Pure, zero RNG.</para></summary>
 		public static int[] Rebalance(IReadOnlyList<int> baseSizes, IReadOnlyList<bool> isSrPressure,
 			IReadOnlyList<int> opportunity, int total, int srCapPct, int minAxisSize)
 		{

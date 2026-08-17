@@ -40,15 +40,15 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public static class CaptureSupplyMath
 	{
-		/// <summary>How many capturers (TECN) to keep alive-or-pending this scan.
+		/// <summary><para>How many capturers (TECN) to keep alive-or-pending this scan.</para>
 		///
-		/// <paramref name="scaleEnabled"/> off ⇒ the STATIC <paramref name="staticFloor"/> verbatim (today's
+		/// <para><paramref name="scaleEnabled"/> off ⇒ the STATIC <paramref name="staticFloor"/> verbatim (today's
 		/// behaviour — byte-identical for any config that does not opt in). On ⇒ scale to opportunity: one
 		/// capturer per reachable neutral money POI (<paramref name="neutralMoneyPoiCount"/>), never BELOW the
 		/// static floor (so an opted-in build is at least as aggressive as today) and never above
 		/// <paramref name="floorCap"/> (so the request pool can't balloon on a POI-dense map). Callers must set
 		/// <paramref name="floorCap"/> >= <paramref name="staticFloor"/>; if mis-set below, the cap wins (the
-		/// clamp is the outer bound), which only ever LOWERS demand — a safe direction. Pure integer, zero RNG.</summary>
+		/// clamp is the outer bound), which only ever LOWERS demand — a safe direction. Pure integer, zero RNG.</para></summary>
 		public static int EffectiveFloor(bool scaleEnabled, int staticFloor, int neutralMoneyPoiCount, int floorCap)
 		{
 			if (!scaleEnabled)
@@ -79,9 +79,9 @@ namespace OpenRA.Mods.Common.Traits
 			return floor < cap ? floor : cap;
 		}
 
-		/// <summary>Should the coordinator issue a floor production request this scan?
+		/// <summary><para>Should the coordinator issue a floor production request this scan?</para>
 		///
-		/// Reproduces today's gate EXACTLY when <paramref name="staleTicks"/> &lt;= 0 (the frozen path requests
+		/// <para>Reproduces today's gate EXACTLY when <paramref name="staleTicks"/> &lt;= 0 (the frozen path requests
 		/// iff <c>alive + pending &lt; floor</c>):
 		///   * <paramref name="alive"/> &gt;= <paramref name="floor"/> ⇒ false (enough capturers on the map).
 		///   * <paramref name="alive"/> + <paramref name="pending"/> &lt; <paramref name="floor"/> ⇒ true
@@ -90,9 +90,9 @@ namespace OpenRA.Mods.Common.Traits
 		///     returns false here (and can deadlock if that request never delivers). With
 		///     <paramref name="staleTicks"/> &gt; 0 we RE-ISSUE once the outstanding request has gone
 		///     undelivered for <paramref name="staleTicks"/> ticks (<paramref name="currentTick"/> −
-		///     <paramref name="lastRequestTick"/> &gt;= staleTicks) — the un-deadlock. Tick-based, no wall-clock.
+		///     <paramref name="lastRequestTick"/> &gt;= staleTicks) — the un-deadlock. Tick-based, no wall-clock.</para>
 		///
-		/// Pure integer, zero RNG.</summary>
+		/// <para>Pure integer, zero RNG.</para></summary>
 		public static bool ShouldRequestTecn(int floor, int alive, int pending,
 			int currentTick, int lastRequestTick, int staleTicks)
 		{
@@ -122,17 +122,17 @@ namespace OpenRA.Mods.Common.Traits
 
 	public static class CaptureFanoutMath
 	{
-		/// <summary>Pick up to <paramref name="capturerCount"/> DISTINCT capture targets from the ordered
+		/// <summary><para>Pick up to <paramref name="capturerCount"/> DISTINCT capture targets from the ordered
 		/// candidate list, skipping any target that an in-flight capturer has already claimed
 		/// (<paramref name="inFlightTargetIds"/>). Preserves input order (the caller's deterministic
-		/// value×distance ranking), so the top not-yet-claimed oilbs are taken first, one per capturer.
+		/// value×distance ranking), so the top not-yet-claimed oilbs are taken first, one per capturer.</para>
 		///
-		/// This is the fan-out invariant: with K free capturers and a ranked target list, the K capturers are
+		/// <para>This is the fan-out invariant: with K free capturers and a ranked target list, the K capturers are
 		/// assigned to the K best DISTINCT targets none of which is already being walked to — never two onto the
 		/// same derrick. An empty <paramref name="inFlightTargetIds"/> reproduces "take the top-K distinct", the
 		/// frozen assignment. Duplicates in the input (defensive — real target lists are already distinct actors)
 		/// are collapsed. Pure, ordered, zero RNG; only membership of the sets is queried, never their
-		/// enumeration order, so no hash-order leaks into a sim decision.</summary>
+		/// enumeration order, so no hash-order leaks into a sim decision.</para></summary>
 		public static List<uint> SelectDistinctTargets(IReadOnlyList<uint> orderedTargetIds,
 			ISet<uint> inFlightTargetIds, int capturerCount)
 		{

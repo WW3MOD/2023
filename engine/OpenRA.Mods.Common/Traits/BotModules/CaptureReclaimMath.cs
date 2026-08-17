@@ -42,18 +42,18 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public static class CaptureReclaimMath
 	{
-		/// <summary>Total capturer demand to feed the supply floor: the reachable neutral MONEY POIs the floor
-		/// already scales to, plus the reclaim backlog (our own structures sitting Neutral after an eviction).
+		/// <summary><para>Total capturer demand to feed the supply floor: the reachable neutral MONEY POIs the floor
+		/// already scales to, plus the reclaim backlog (our own structures sitting Neutral after an eviction).</para>
 		///
-		/// <paramref name="reclaimEnabled"/> off ⇒ <paramref name="neutralMoneyPoiCount"/> verbatim, so a config
+		/// <para><paramref name="reclaimEnabled"/> off ⇒ <paramref name="neutralMoneyPoiCount"/> verbatim, so a config
 		/// that does not opt in reads exactly the number it read before. On ⇒ the two are summed: both are a
 		/// "one capturer could be spent here" count, and a technician is CONSUMED by the capture it performs
 		/// (ConsumedByCapture on ^CapturesNeutralBuildings), so backlog really is per-body demand rather than a
-		/// pool that can be reused across targets.
+		/// pool that can be reused across targets.</para>
 		///
-		/// The sum is the floor's INPUT, not the floor — the caller still clamps it to [TecnFloor, TecnFloorMax]
+		/// <para>The sum is the floor's INPUT, not the floor — the caller still clamps it to [TecnFloor, TecnFloorMax]
 		/// via CaptureSupplyMath.EffectiveFloor, so a 12-building backlog cannot balloon the request pool.
-		/// Pure integer, zero RNG.</summary>
+		/// Pure integer, zero RNG.</para></summary>
 		public static int CombinedCaptureDemand(int neutralMoneyPoiCount, int reclaimCandidateCount, bool reclaimEnabled)
 		{
 			if (!reclaimEnabled)
@@ -62,16 +62,16 @@ namespace OpenRA.Mods.Common.Traits
 			return neutralMoneyPoiCount + reclaimCandidateCount;
 		}
 
-		/// <summary>May we send a capturer to a reclaim target sitting under this much BELIEVED anti-ground
+		/// <summary><para>May we send a capturer to a reclaim target sitting under this much BELIEVED anti-ground
 		/// danger? Both arguments are RAW danger-field units (the caller converts its yaml "danger units" knob
 		/// through DangerFieldLayer.GroundDangerUnitsToField), so this is a bare comparison and cannot disagree
-		/// with the field's scale.
+		/// with the field's scale.</para>
 		///
-		/// A NEGATIVE <paramref name="maxDangerField"/> disables the guard (always safe) — the escape hatch for
+		/// <para>A NEGATIVE <paramref name="maxDangerField"/> disables the guard (always safe) — the escape hatch for
 		/// a config that wants recovery attempted regardless. Zero means "outside every believed envelope",
 		/// which converts losslessly since 0 units is 0 raw field units at any scale. The comparison is
 		/// inclusive (at the ceiling is still safe) so a threshold set exactly at the ambient territory baseline
-		/// does not refuse every target in our own back yard. Pure integer, zero RNG.</summary>
+		/// does not refuse every target in our own back yard. Pure integer, zero RNG.</para></summary>
 		public static bool IsSafeToReclaim(int groundDangerField, int maxDangerField)
 		{
 			if (maxDangerField < 0)
@@ -80,31 +80,31 @@ namespace OpenRA.Mods.Common.Traits
 			return groundDangerField <= maxDangerField;
 		}
 
-		/// <summary>Apply the combat-army share cap to the capturer floor WITHOUT letting it touch the
-		/// pre-reclaim floor — so the cap restrains the reclaim increment and nothing else.
+		/// <summary><para>Apply the combat-army share cap to the capturer floor WITHOUT letting it touch the
+		/// pre-reclaim floor — so the cap restrains the reclaim increment and nothing else.</para>
 		///
-		/// <paramref name="moneyFloor"/> is the floor this scan would have had before the reclaim lever
+		/// <para><paramref name="moneyFloor"/> is the floor this scan would have had before the reclaim lever
 		/// existed (money POIs only); <paramref name="combinedFloor"/> is the floor including the reclaim
 		/// backlog. The capped result is raised back to <paramref name="moneyFloor"/>, which gives the property
 		/// that decides whether this is mergeable: WITH NO RECLAIM CANDIDATES the two floors are equal, so the
 		/// result is <paramref name="moneyFloor"/> exactly and the ordinary capture race is BYTE-IDENTICAL to a
 		/// config that never enabled the cap. Not "tuned and hoped" — provable, and pinned in
-		/// CaptureReclaimMathTest.
+		/// CaptureReclaimMathTest.</para>
 		///
-		/// That matters because a GLOBAL share cap mutates the benchmark control in precisely the opening race
+		/// <para>That matters because a GLOBAL share cap mutates the benchmark control in precisely the opening race
 		/// TecnFloor was built to win (the measured S2 loss: zero capturers fielded in 6/10 games), and would
 		/// corrupt the next baseline in a way that is awkward to unpick. The property deliberately given up is
 		/// the cap restraining a genuinely high money-POI demand on a thin army — which IS the S2 behaviour, so
-		/// giving it up is the point rather than a regression.
+		/// giving it up is the point rather than a regression.</para>
 		///
-		/// It also subsumes the zero-trap by construction: ClampFloorToArmyShare scales to the army with no
+		/// <para>It also subsumes the zero-trap by construction: ClampFloorToArmyShare scales to the army with no
 		/// lower bound, so a wiped army yields cap 0 and the floor would refuse capturers forever
 		/// (ShouldRequestTecn returns false at alive >= floor with both 0) — the exact state a cleared base is
 		/// in. Raising to <paramref name="moneyFloor"/> cannot land below the pre-reclaim floor, so that state
-		/// is unreachable without a separate patch.
+		/// is unreachable without a separate patch.</para>
 		///
-		/// <paramref name="sharePct"/> &gt;= 100 returns <paramref name="combinedFloor"/> verbatim (the cap is
-		/// inert), so this is total and the caller may still skip counting the army. Pure integer, zero RNG.</summary>
+		/// <para><paramref name="sharePct"/> &gt;= 100 returns <paramref name="combinedFloor"/> verbatim (the cap is
+		/// inert), so this is total and the caller may still skip counting the army. Pure integer, zero RNG.</para></summary>
 		public static int ScopedFloorWithArmyShare(int moneyFloor, int combinedFloor, int totalCombatArmy, int sharePct)
 		{
 			if (sharePct >= 100)
@@ -114,17 +114,17 @@ namespace OpenRA.Mods.Common.Traits
 			return capped > moneyFloor ? capped : moneyFloor;
 		}
 
-		/// <summary>How many of the free capturers the reclaim pass may consume this scan.
+		/// <summary><para>How many of the free capturers the reclaim pass may consume this scan.</para>
 		///
-		/// Reclaim runs BEFORE the ranked PoiMap pass and would otherwise drain the pool to empty, so a bot
+		/// <para>Reclaim runs BEFORE the ranked PoiMap pass and would otherwise drain the pool to empty, so a bot
 		/// with three formerly-ours structures and one free derrick next door sends everybody to the former and
 		/// nobody to the latter. Leaving exactly ONE capturer keeps reclaim's priority intact — it still gets
-		/// every body but one — while guaranteeing the ranked pass is never starved to zero.
+		/// every body but one — while guaranteeing the ranked pass is never starved to zero.</para>
 		///
-		/// Two cases hand back the whole pool, both deliberate: <paramref name="rankedTargetCount"/> of 0 (the
+		/// <para>Two cases hand back the whole pool, both deliberate: <paramref name="rankedTargetCount"/> of 0 (the
 		/// ranked pass has nothing to do, so reserving for it would just idle a capturer) and a single free
 		/// capturer (reclaim is the priority; splitting one body is not possible and reclaim wins the tie).
-		/// Pure integer, zero RNG.</summary>
+		/// Pure integer, zero RNG.</para></summary>
 		public static int ReclaimBudget(int freeCapturerCount, int rankedTargetCount)
 		{
 			if (freeCapturerCount <= 1 || rankedTargetCount <= 0)
@@ -133,16 +133,16 @@ namespace OpenRA.Mods.Common.Traits
 			return freeCapturerCount - 1;
 		}
 
-		/// <summary>Reclaim targets that have no body on them — the shortfall that should pull production even
-		/// though this scan DID dispatch somebody.
+		/// <summary><para>Reclaim targets that have no body on them — the shortfall that should pull production even
+		/// though this scan DID dispatch somebody.</para>
 		///
-		/// <paramref name="coveredCount"/> is candidates the caller has actually accounted for: dispatched this
+		/// <para><paramref name="coveredCount"/> is candidates the caller has actually accounted for: dispatched this
 		/// scan, PLUS those an in-flight capturer is already walking to. It is deliberately NOT "free capturers
 		/// left over", which is the reading that makes this test fire unconditionally — dispatching 3 candidates
-		/// with 3 capturers leaves 0 free and would report a shortfall of 3 when the true answer is 0.
+		/// with 3 capturers leaves 0 free and would report a shortfall of 3 when the true answer is 0.</para>
 		///
-		/// Zero when every candidate is covered, and never negative, so the caller can treat it as a plain
-		/// "> 0" gate. Pure integer, zero RNG.</summary>
+		/// <para>Zero when every candidate is covered, and never negative, so the caller can treat it as a plain
+		/// "> 0" gate. Pure integer, zero RNG.</para></summary>
 		public static int UnmetReclaimDemand(int reclaimCandidateCount, int coveredCount)
 		{
 			var shortfall = reclaimCandidateCount - coveredCount;

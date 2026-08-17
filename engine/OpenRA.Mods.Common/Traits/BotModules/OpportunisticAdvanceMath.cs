@@ -109,20 +109,20 @@ namespace OpenRA.Mods.Common.Traits
 			return Math.Max(0, PoiOffenseMath.ShiftByKnob(baseCap, aggressiveness, slopePct));
 		}
 
-		/// <summary>The §2.6 grant test for ONE sector, as an explicit conjunction (house style — cf.
+		/// <summary><para>The §2.6 grant test for ONE sector, as an explicit conjunction (house style — cf.
 		/// SupplyTruckHuntMath.ShouldHunt, CommitOnOrderMath.ShouldCommitShared): the ground must not be
 		/// BELIEVED enemy-held, must carry no believed contact, must read at/under the danger ceiling, and must
-		/// be terrain the mover can actually occupy.
+		/// be terrain the mover can actually occupy.</para>
 		///
-		/// The passability term is not decoration. Unstamped impassable ground (water, cliff) reads
+		/// <para>The passability term is not decoration. Unstamped impassable ground (water, cliff) reads
 		/// GroundDanger 0 — maximally "safe" — so a danger-only test would actively PREFER a lake, and the
 		/// resulting Move would no-op while the reserve stood still believing it was advancing. This is the same
 		/// trap GroundDangerNav guards its detour waypoint against; here every accepted cell is a waypoint, so
-		/// every accepted cell is guarded.
+		/// every accepted cell is guarded.</para>
 		///
-		/// Note what is deliberately NOT required: that the sector be OURS. Contested/neutral no-man's-land is
+		/// <para>Note what is deliberately NOT required: that the sector be OURS. Contested/neutral no-man's-land is
 		/// exactly the ground §2.6 wants taken by walking into it, so only the Enemy classification is
-		/// disqualifying.</summary>
+		/// disqualifying.</para></summary>
 		public static bool SectorIsClear(bool believedEnemyOwned, bool contactPresent, int danger, int dangerCeiling, bool passable)
 		{
 			return !believedEnemyOwned
@@ -159,25 +159,25 @@ namespace OpenRA.Mods.Common.Traits
 				&& groupSize > 0;
 		}
 
-		/// <summary>Whether to adopt the freshly-walked <paramref name="candidateDepth"/> cell over the anchor
+		/// <summary><para>Whether to adopt the freshly-walked <paramref name="candidateDepth"/> cell over the anchor
 		/// already being held, given plain Chebyshev hysteresis in
-		/// <paramref name="shiftedPastHysteresis"/>. Depth is FRONTIER DISTANCE, so a LARGER value is SHALLOWER.
+		/// <paramref name="shiftedPastHysteresis"/>. Depth is FRONTIER DISTANCE, so a LARGER value is SHALLOWER.</para>
 		///
-		/// Plain hysteresis alone is wrong here, and the reason is the asymmetry with staging. A stale STAGING
+		/// <para>Plain hysteresis alone is wrong here, and the reason is the asymmetry with staging. A stale STAGING
 		/// anchor is still safe ground — it was chosen a standoff behind the line, so holding it one eval too
 		/// long costs nothing and the jitter damping is pure win. A stale ADVANCE anchor is the opposite: it was
 		/// chosen precisely because it passed a grant test, so the moment it stops passing, holding it means
 		/// ordering the screen at ground we have just decided is not free. Worse, the candidates are grid-cell
 		/// CENTRES spaced one coarse cell apart, so a one-sector shortening moves the candidate by exactly
 		/// CellSize map cells — below a hysteresis of 3 — and the §2.6 abort would be suppressed exactly when it
-		/// is needed most.
+		/// is needed most.</para>
 		///
-		/// So the guard is an enter/exit asymmetry, the same shape as the Stage-E/F strict-improvement rule:
+		/// <para>So the guard is an enter/exit asymmetry, the same shape as the Stage-E/F strict-improvement rule:
 		/// hysteresis may only ever damp a DEEPENING or lateral move. Either of the two retreat cases adopts
 		/// immediately — the held anchor no longer passing the grant test, or the fresh walk not reaching as far
-		/// as the held anchor. Giving ground is never damped.
+		/// as the held anchor. Giving ground is never damped.</para>
 		///
-		/// THE SHIPPED CONFIG PASSES <paramref name="shiftedPastHysteresis"/> = true ALWAYS, so in practice this
+		/// <para>THE SHIPPED CONFIG PASSES <paramref name="shiftedPastHysteresis"/> = true ALWAYS, so in practice this
 		/// reduces to "adopt the fresh walk". That is deliberate. Making the asymmetry one-way removed the danger
 		/// from damping, but it also exposed that damping had nothing safe left to do: the anchor moves only in
 		/// whole sectors, so any scalar threshold either admits every move or blocks a one-sector re-deepening —
@@ -185,7 +185,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// each eval. The advance would ratchet to the shallowest depth it had ever reached. See
 		/// PoiOffensiveBotModule.AdvanceHysteresisCells for the full argument and for why grid-space units do not
 		/// rescue it. The parameter is kept — the asymmetry is the load-bearing part and must survive anyone who
-		/// sets a non-zero threshold — but the shipped answer is 0.</summary>
+		/// sets a non-zero threshold — but the shipped answer is 0.</para></summary>
 		public static bool AdoptAdvanceAnchor(bool heldStillGranted, int heldDepth, int candidateDepth, bool shiftedPastHysteresis)
 		{
 			return !heldStillGranted
@@ -193,20 +193,20 @@ namespace OpenRA.Mods.Common.Traits
 				|| shiftedPastHysteresis;
 		}
 
-		/// <summary>Walk forward from the muster seed (<paramref name="startX"/>,<paramref name="startY"/>) down
+		/// <summary><para>Walk forward from the muster seed (<paramref name="startX"/>,<paramref name="startY"/>) down
 		/// the distance-to-enemy-frontier gradient, taking only steps into sectors that pass
 		/// <see cref="SectorIsClear"/>, and return the deepest cell reached. Each step moves to the 8-neighbour
 		/// with the STRICTLY smallest frontier distance among the CLEAR neighbours, so a covered lane is not
-		/// merely deprioritised — it is not a candidate at all.
+		/// merely deprioritised — it is not a candidate at all.</para>
 		///
-		/// Returns the seed unchanged whenever nothing qualifies: <paramref name="maxSectors"/> non-positive, an
+		/// <para>Returns the seed unchanged whenever nothing qualifies: <paramref name="maxSectors"/> non-positive, an
 		/// unpopulated/flat field (every cell reads the same 'far' sentinel ⇒ no neighbour is strictly closer),
 		/// or the ground ahead reading contested/dangerous. The caller treats "returned the seed" as "no
 		/// advance this evaluation" and falls back to the plain muster anchor — which is also, unchanged, the
-		/// §2.6 abort: a contact appearing in the corridor simply removes those steps from the next walk.
+		/// §2.6 abort: a contact appearing in the corridor simply removes those steps from the next walk.</para>
 		///
-		/// Terminates by two independent bounds: the step budget, and the strict decrease in frontier distance
-		/// that every accepted step forces.</summary>
+		/// <para>Terminates by two independent bounds: the step budget, and the strict decrease in frontier distance
+		/// that every accepted step forces.</para></summary>
 		public static (int X, int Y) AdvanceCell(
 			int startX, int startY,
 			int maxSectors, int dangerCeiling,

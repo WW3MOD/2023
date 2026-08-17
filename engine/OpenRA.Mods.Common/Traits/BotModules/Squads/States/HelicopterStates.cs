@@ -124,16 +124,16 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		}
 
 		/// <summary>
-		/// Whether any unit in this squad can still shoot.
+		/// <para>Whether any unit in this squad can still shoot.</para>
 		///
-		/// There is deliberately no "this one reloads automatically, skip it" branch. Inherited, this
+		/// <para>There is deliberately no "this one reloads automatically, skip it" branch. Inherited, this
 		/// loop skipped every unit whose pools are all covered by a Rearmable and then returned false
 		/// if none survived the skip — so an all-attack-heli squad reported NO ammo at full ammo, and
 		/// the launch gates never opened. Making the skip conditional on a host existing does not fix
 		/// that; it only moves it from "always" to "whenever a pad exists", which is worse, because
 		/// the case it breaks is the one nobody can play today. MemberStillShoots already branches on
 		/// host presence, so asking it about every unit is right in both worlds — and it takes the
-		/// coverage fact purely so that ignoring it is pinned by test.
+		/// coverage fact purely so that ignoring it is pinned by test.</para>
 		/// </summary>
 		protected static bool SquadHasAmmo(Squad owner)
 		{
@@ -161,18 +161,18 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 		}
 
 		/// <summary>
-		/// The squad-average health a squad must hold to be worth committing — the flee bar, always.
+		/// <para>The squad-average health a squad must hold to be worth committing — the flee bar, always.</para>
 		///
-		/// The inherited bars (launch at 80, re-engage at 70, give up at 50) are RECOVERY bars: they
+		/// <para>The inherited bars (launch at 80, re-engage at 70, give up at 50) are RECOVERY bars: they
 		/// presuppose a damaged squad can be repaired back above them, which nothing in this mod can
 		/// do. The bar that still means something is the one the squad already acts on: above the
 		/// flee bar it stands and fights, so it is worth sending; below it, it would turn round on
-		/// arrival anyway.
+		/// arrival anyway.</para>
 		///
-		/// Unconditional on purpose. Keying this off "does a repair host exist" would make capturing
+		/// <para>Unconditional on purpose. Keying this off "does a repair host exist" would make capturing
 		/// one RAISE the bar, so a gain of territory would make the squad more timid — see the
 		/// monotonicity rule on AirframeReadiness. Repair, when it is possible at all, belongs in
-		/// SendDamagedUnitsHome's routing decision, not in permission to fly.
+		/// SendDamagedUnitsHome's routing decision, not in permission to fly.</para>
 		/// </summary>
 		protected static int CommitHealthThreshold(Squad owner)
 		{

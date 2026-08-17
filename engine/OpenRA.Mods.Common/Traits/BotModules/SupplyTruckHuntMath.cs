@@ -43,7 +43,7 @@ namespace OpenRA.Mods.Common.Traits
 		public const int NoDemand = -1;
 
 		/// <summary>One starving soldier under consideration, reduced to the three facts the pick depends on.
-		/// <paramref name="ShortfallPerMille"/> is how EMPTY his worst servable pool is (higher = needier);
+		/// <see cref="ShortfallPerMille"/> is how EMPTY his worst servable pool is (higher = needier);
 		/// ActorID is the deterministic tie-break of last resort.</summary>
 		public readonly struct Demand
 		{
@@ -153,21 +153,21 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Where an approaching truck should STOP: the point on the soldier→truck line sitting one cell
+		/// <para>Where an approaching truck should STOP: the point on the soldier→truck line sitting one cell
 		/// short of the aura edge, measured from the SOLDIER. Driving onto his cell instead would buy up to
 		/// a full aura's worth of extra exposure (5 cells for TRUK) for nothing — the push only needs him
 		/// inside the aura, and the truck is a soft, high-value target in a position the caller reaches
-		/// precisely when the line has scattered.
+		/// precisely when the line has scattered.</para>
 		///
-		/// THE MARGIN IS NOT COSMETIC — it is what stops the truck stalling. The destination is quantized to
+		/// <para>THE MARGIN IS NOT COSMETIC — it is what stops the truck stalling. The destination is quantized to
 		/// a cell (Map.CellContaining) before it is ordered, and a cell centre sits up to half a cell
 		/// diagonal — 1024 * sqrt(2) / 2 ≈ 724 — from the point that produced it. Clamping to the exact aura
 		/// edge would therefore resolve, half the time, to a cell OUTSIDE the aura; a truck at aura + ε would
 		/// order itself somewhere it still cannot push from, re-derive the same point next scan, and park
 		/// just out of range while the soldier starves. One CellLength of margin covers the error with room
-		/// to spare (aura - 1024 + 724 = aura - 300, strictly inside).
+		/// to spare (aura - 1024 + 724 = aura - 300, strictly inside).</para>
 		///
-		/// The same margin is what keeps the order from being a no-op, i.e. from resolving to the cell the
+		/// <para>The same margin is what keeps the order from being a no-op, i.e. from resolving to the cell the
 		/// truck is already standing in. The chain: this function only runs behind NeedsApproach, which
 		/// compares squared lengths as integers (WDist.LengthSquared is (long)Length * Length — no sqrt on
 		/// that side), so dSq > auraSq gives true distance D > aura exactly. The stop point then sits within
@@ -181,13 +181,13 @@ namespace OpenRA.Mods.Common.Traits
 		/// the truck's own cell. Caveat: a truck caught MID-MOVE is off
 		/// centre, so it can in principle resolve to the cell it currently occupies — it then halts there,
 		/// and the next scan recomputes from a cell centre and moves it. That is a one-scan delay, not the
-		/// stall this margin exists to prevent.
+		/// stall this margin exists to prevent.</para>
 		///
-		/// Total by construction: an aura no wider than the margin has no room to stop short, so it falls
+		/// <para>Total by construction: an aura no wider than the margin has no room to stop short, so it falls
 		/// back to the soldier's own position (TRUK's 5c0 never reaches that branch); a truck already inside
 		/// the stop radius is returned unmoved rather than pushed back out. Integer WPos/WVec math with a
 		/// long intermediate so the scale never overflows; WVec.HorizontalLength is the engine's
-		/// deterministic integer sqrt. Zero RNG.
+		/// deterministic integer sqrt. Zero RNG.</para>
 		/// </summary>
 		public static WPos ApproachTarget(WPos truckPos, WPos soldierPos, int auraLength)
 		{

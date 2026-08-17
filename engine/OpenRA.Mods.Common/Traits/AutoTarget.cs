@@ -1005,18 +1005,18 @@ namespace OpenRA.Mods.Common.Traits
 			TickPreemption(self);
 		}
 
-		/// <summary>Target preemption: switch off a low-priority target when a strictly higher-priority one
-		/// becomes attackable (the SHORAD that keeps shooting infantry while a helicopter hovers in range).
+		/// <summary><para>Target preemption: switch off a low-priority target when a strictly higher-priority one
+		/// becomes attackable (the SHORAD that keeps shooting infantry while a helicopter hovers in range).</para>
 		///
-		/// The ordinary priority scan is IDLE-ONLY — ChooseTarget is reachable only via ScanForTarget from
+		/// <para>The ordinary priority scan is IDLE-ONLY — ChooseTarget is reachable only via ScanForTarget from
 		/// INotifyIdle.TickIdle, and Actor.IsIdle is CurrentActivity == null, so an engaged unit never rescans.
 		/// Even a forced rescan returns the incumbent, because AttackFollow.TryGetAutoTargetOverride hands
-		/// RequestedTarget straight back ahead of the scan. See WORKSPACE/DISCOVERIES.md (2026-08-11).
+		/// RequestedTarget straight back ahead of the scan. See WORKSPACE/DISCOVERIES.md (2026-08-11).</para>
 		///
-		/// Determinism: cadence is WorldTick + ActorID, zero RNG, and ChooseTarget is called DIRECTLY rather
+		/// <para>Determinism: cadence is WorldTick + ActorID, zero RNG, and ChooseTarget is called DIRECTLY rather
 		/// than through ScanForTarget — the latter re-arms nextScanTime off SharedRandom, which would shift the
 		/// shared RNG stream (breaking byte-identity, see DOCS/reference/influence-stack.md) and starve the
-		/// existing scanners (that starvation mode is documented at AttackMoveActivity.cs:110-115).</summary>
+		/// existing scanners (that starvation mode is documented at AttackMoveActivity.cs:110-115).</para></summary>
 		void TickPreemption(Actor self)
 		{
 			// This and the ScanForTarget yield are two PHASES of one cycle, not two disjoint states: a
@@ -1215,17 +1215,17 @@ namespace OpenRA.Mods.Common.Traits
 			return best;
 		}
 
-		/// <summary>The band one AutoTargetPriority entry assigns to a target, or
+		/// <summary><para>The band one AutoTargetPriority entry assigns to a target, or
 		/// <see cref="NoTargetPriorityBand"/> if it does not match. Pure, so it can be pinned by unit
-		/// test — see AutoTargetPriorityBandTest.
+		/// test — see AutoTargetPriorityBandTest.</para>
 		///
-		/// PITFALL: this deliberately does NOT consult OnlyTargets. Until this branch the matcher led
+		/// <para>PITFALL: this deliberately does NOT consult OnlyTargets. Until this branch the matcher led
 		/// with `!ati.OnlyTargets.Except(targetTypes).Any()`, but OnlyTargets defaults to an EMPTY
 		/// BitSet and nothing in mods/ ever sets it — and empty.Except(x) is empty, so that term was
 		/// `!false` for every candidate and skipped EVERY priority entry unconditionally. The predicate
 		/// must also stay identical to ChooseTarget's own per-target filter, or an incumbent and a
 		/// candidate get matched by different rules and any band comparison between them is
-		/// meaningless.</summary>
+		/// meaningless.</para></summary>
 		public static int MatchTargetPriorityBand(AutoTargetPriorityInfo ati, PlayerRelationship relationship,
 			BitSet<TargetableType> targetTypes)
 		{

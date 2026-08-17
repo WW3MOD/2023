@@ -27,14 +27,14 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public static class AdaptiveRoutingMath
 	{
-		/// <summary>Index of the UnitBuilder twin a call-in should be routed to, or -1 when the player carries
-		/// no producer at all.
+		/// <summary><para>Index of the UnitBuilder twin a call-in should be routed to, or -1 when the player carries
+		/// no producer at all.</para>
 		///
-		/// <paramref name="routeToEnabled"/> off ⇒ the pre-fix path: producer index 0 verbatim, even when
+		/// <para><paramref name="routeToEnabled"/> off ⇒ the pre-fix path: producer index 0 verbatim, even when
 		/// producer 0 is condition-disabled. No live profile selects this any more (see the file header).
 		/// On — which since b8d2e601 is every live profile, @stable and @experimental alike — ⇒ the first
 		/// producer whose <paramref name="producerEnabled"/> flag is true, skipping the disabled twins
-		/// whose BotTick never runs; -1 if somehow none is enabled. A single ordered walk, zero RNG.</summary>
+		/// whose BotTick never runs; -1 if somehow none is enabled. A single ordered walk, zero RNG.</para></summary>
 		public static int SelectProducerIndex(IReadOnlyList<bool> producerEnabled, bool routeToEnabled)
 		{
 			if (producerEnabled == null || producerEnabled.Count == 0)

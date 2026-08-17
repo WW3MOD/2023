@@ -141,7 +141,7 @@ namespace OpenRA
 		public static void Initialize(Arguments args)
 		{
 			var modeArg = args.GetValue("Test.Mode", null);
-			if (string.IsNullOrEmpty(modeArg) || modeArg.ToLowerInvariant() != "true")
+			if (string.IsNullOrEmpty(modeArg) || !string.Equals(modeArg, "true", StringComparison.OrdinalIgnoreCase))
 				return;
 
 			IsActive = true;
@@ -163,12 +163,12 @@ namespace OpenRA
 
 			ScreenshotDir = args.GetValue("Test.ScreenshotDir", null);
 			ScreenshotCmdFile = args.GetValue("Test.ScreenshotCmdFile", null);
-			OpenSkirmishLobby = args.GetValue("Test.OpenSkirmishLobby", "").ToLowerInvariant() == "true";
+			OpenSkirmishLobby = string.Equals(args.GetValue("Test.OpenSkirmishLobby", ""), "true", StringComparison.OrdinalIgnoreCase);
 			OpenLobbyTab = args.GetValue("Test.OpenLobbyTab", null);
 			LaunchLobbyMap = args.GetValue("Test.LaunchLobbyMap", null);
 			LobbyReadyFile = args.GetValue("Test.LobbyReadyFile", null);
 			OpenIngameInfoPanel = args.GetValue("Test.OpenIngameInfoPanel", null);
-			ForceSyncReports = args.GetValue("Test.ForceSyncReports", "").ToLowerInvariant() == "true";
+			ForceSyncReports = string.Equals(args.GetValue("Test.ForceSyncReports", ""), "true", StringComparison.OrdinalIgnoreCase);
 
 			// UnitLifecycleLogger gate. "true"/"1" derives a sibling of the verdict
 			// file; anything else is an explicit output path. Left null (inert) when
@@ -197,7 +197,7 @@ namespace OpenRA
 					MissileTraceLogPath = missileArg;
 			}
 
-			MissileTraceTicks = args.GetValue("Test.MissileTraceMode", "full").ToLowerInvariant() != "summary";
+			MissileTraceTicks = !string.Equals(args.GetValue("Test.MissileTraceMode", "full"), "summary", StringComparison.OrdinalIgnoreCase);
 
 			TestModeScreenshots.Initialize(ScreenshotDir);
 

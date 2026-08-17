@@ -120,11 +120,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ "passiveincome", SectionEconomy },
 			{ "incomemodifier", SectionEconomy },
 			{ "bounty", SectionEconomy },
-
+			// Match
 			{ "gamespeed", SectionMatch },
 			{ "timelimit", SectionMatch },
 			{ "startingunits", SectionMatch },
-
+			// World
 			{ "explored", SectionWorld },
 			{ "fog", SectionWorld },
 			{ "separateteamspawns", SectionWorld },

@@ -75,18 +75,18 @@ namespace OpenRA.Mods.Common.Traits
 
 	public static class AdvanceUnderCoverMath
 	{
-		/// <summary>Fires Phase 3 — normalise a fog-legal suppression gather into the scalar
+		/// <summary><para>Fires Phase 3 — normalise a fog-legal suppression gather into the scalar
 		/// <see cref="ScreenMayAdvance"/> tests. The gather is a SUM over the armed enemy defenders the player
 		/// can legally see at the objective, so comparing it raw to a threshold would make the bar EASIER the
 		/// more defenders there are — five lightly-rattled defenders would read as "suppressed" while one pinned
 		/// defender would not, which is backwards (review FIX 7). Averaging over the observed defender count
 		/// makes the threshold mean "the defenders are suppressed" independent of how many there are, on the
 		/// same per-actor scale the suppression mechanic itself uses (GarrisonManager ducks a soldier at 30
-		/// stacks and recalls it at 60).
+		/// stacks and recalls it at 60).</para>
 		///
-		/// No observed defenders ⇒ 0 ⇒ below any positive threshold ⇒ keep prepping. That is the honest
+		/// <para>No observed defenders ⇒ 0 ⇒ below any positive threshold ⇒ keep prepping. That is the honest
 		/// fog-legal answer: an objective we cannot see into is not known to be soft, and the prep window still
-		/// bounds the wait. Integer division (floor), deterministic, zero RNG.</summary>
+		/// bounds the wait. Integer division (floor), deterministic, zero RNG.</para></summary>
 		public static int NormalizeSuppression(int totalSuppression, int observedDefenders)
 		{
 			if (observedDefenders <= 0)
@@ -95,21 +95,21 @@ namespace OpenRA.Mods.Common.Traits
 			return totalSuppression / observedDefenders;
 		}
 
-		/// <summary>Fires Phase 3 — may the SCREEN step off now? This is the release predicate that upgrades
+		/// <summary><para>Fires Phase 3 — may the SCREEN step off now? This is the release predicate that upgrades
 		/// Phase 2's pure timer with a suppression read: the screen advances as soon as the OBSERVED suppression
 		/// on the objective reaches <paramref name="suppressThreshold"/> (the barrage has suppressed the
 		/// defenders — go now, while it lasts), and otherwise waits out the prep window. The hard release at
 		/// <paramref name="prepMaxTicks"/> is kept so an objective that never suppresses (empty, fogged, or
-		/// defenders immune) can still be assaulted — the coordination never becomes a deadlock.
+		/// defenders immune) can still be assaulted — the coordination never becomes a deadlock.</para>
 		///
-		/// <paramref name="observedSuppression"/> is the per-defender average from
+		/// <para><paramref name="observedSuppression"/> is the per-defender average from
 		/// <see cref="NormalizeSuppression"/>, supplied by the caller — this class never reads the world, so no
 		/// omniscient read can leak in through it. IT IS RE-EVALUATED ON EVERY EVALUATION PASS WHILE THE HOLD IS
 		/// ACTIVE (review FIX 5): evaluating it once at the start of the window would sample the objective
 		/// before a single shell had landed, so its only reachable effect would be cancelling the prep of an
 		/// objective that happened to be suppressed already — the inverse of the intent. A threshold of 0 means
 		/// "any state counts", which advances immediately; that is intentional and matches the fail-open
-		/// discipline above. Pure, integer-only, zero RNG.</summary>
+		/// discipline above. Pure, integer-only, zero RNG.</para></summary>
 		public static bool ScreenMayAdvance(int observedSuppression, int suppressThreshold, int prepTicksElapsed, int prepMaxTicks)
 		{
 			if (prepMaxTicks <= 0)

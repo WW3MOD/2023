@@ -333,21 +333,21 @@ namespace OpenRA.Mods.Common.Traits
 			return false;
 		}
 
-		/// <summary>True if `actor` is one this module would order aboard on its NEXT scan — it passes the
-		/// ordinary passenger filter and an empty carrier with a free seat exists for it right now.
+		/// <summary><para>True if `actor` is one this module would order aboard on its NEXT scan — it passes the
+		/// ordinary passenger filter and an empty carrier with a free seat exists for it right now.</para>
 		///
-		/// IsPassengerReserved above answers "have I already claimed this one"; this answers "would I claim
+		/// <para>IsPassengerReserved above answers "have I already claimed this one"; this answers "would I claim
 		/// it if it were still free". The gap between those two questions is the whole defect: the ledger
 		/// (CommitPassengers) protects a passenger only from the moment its EnterTransport is ADMITTED, and
 		/// the offensive reserve recruits from tick 3 — long before this module's first scan at
 		/// ScanInterval. The soldier is therefore already walking under an AttackMove when the offer
 		/// arrives, and BotOrderGate's dwell rule (ReorderDwellTicks 120, refreshed by the offensive's
 		/// 100-tick re-eval beat) suppresses the EnterTransport for as long as that stays true. Nobody is
-		/// misconfigured; the two modules simply race and the offensive always wins.
+		/// misconfigured; the two modules simply race and the offensive always wins.</para>
 		///
-		/// PURE QUERY. It reserves nothing, orders nothing and keeps no claim — the caller decides what to
+		/// <para>PURE QUERY. It reserves nothing, orders nothing and keeps no claim — the caller decides what to
 		/// do with the answer, and the only caller today is PoiOffensiveBotModule.BuildFreePool behind its
-		/// own default-off flag. Nothing here runs unless somebody asks.</summary>
+		/// own default-off flag. Nothing here runs unless somebody asks.</para></summary>
 		public bool IsPassengerWanted(Actor actor)
 		{
 			if (IsTraitDisabled || actor == null || actor.IsDead || !actor.IsInWorld)
@@ -596,15 +596,15 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
-		/// <summary>Board ordinary soldiers into a capture ferry's unused seats. Returns the ones actually
+		/// <summary><para>Board ordinary soldiers into a capture ferry's unused seats. Returns the ones actually
 		/// told to board, so a refused order never leaves a phantom reservation the carrier then waits on.
-		/// Empty (and completely inert) at the default CaptureFerryEscortSeats of 0.
+		/// Empty (and completely inert) at the default CaptureFerryEscortSeats of 0.</para>
 		///
-		/// Draws from PassengerTypes, which deliberately does NOT contain tecn — that exclusion is the
+		/// <para>Draws from PassengerTypes, which deliberately does NOT contain tecn — that exclusion is the
 		/// standing protection against a capture-layer unit being pulled into a general transport pool
 		/// (dd441876 / 09877fd5), and this method must never be the thing that erodes it. Candidates are
 		/// measured from the CARRIER rather than the SR because a ferry carrier is chosen for its proximity
-		/// to the capturer, which is not necessarily the reserve bubble's centre.</summary>
+		/// to the capturer, which is not necessarily the reserve bubble's centre.</para></summary>
 		List<Actor> RecruitCaptureFerryEscorts(IBot bot, Actor carrier, Actor capturer)
 		{
 			var boarded = new List<Actor>();
@@ -994,15 +994,15 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		/// <summary>Re-offer boarding to the free pool while a carrier is loading, so seats the arbitration
+		/// <summary><para>Re-offer boarding to the free pool while a carrier is loading, so seats the arbitration
 		/// gate refused at task creation do not travel empty. See TopUpDuringLoading for why this cannot
 		/// extend the wait; the guarantee is enforced here (offer only while the carrier is already waiting on
 		/// a committed passenger) and in the Loading state above (stillComing and the progress clock read the
-		/// original cohort only, so the release that ends the load is the one that ended it before).
+		/// original cohort only, so the release that ends the load is the one that ended it before).</para>
 		///
-		/// The candidate census runs whether or not the flag is set: it is the measurement that says whether
+		/// <para>The candidate census runs whether or not the flag is set: it is the measurement that says whether
 		/// the seats were winnable from this side at all, and a baseline that cannot answer that is a baseline
-		/// that only tells you the number is bad.</summary>
+		/// that only tells you the number is bad.</para></summary>
 		void TopUpLoad(IBot bot, CarrierTask task, int aboard, int stillComing, int farthestComing)
 		{
 			// A capture ferry's spare seats belong to CaptureFerryEscortSeats, which fills them at dispatch
@@ -1634,7 +1634,7 @@ namespace OpenRA.Mods.Common.Traits
 	// influence-stack math classes (GroundDangerNav, DangerKernelMath). Zero RNG; integer-only.
 	public static class MountedTransportMath
 	{
-		/// <summary>Decide whether a loading carrier drives now, keeps waiting, or gives up.
+		/// <summary><para>Decide whether a loading carrier drives now, keeps waiting, or gives up.
 		///   <paramref name="fillBeforeDeparture"/> — false reproduces the legacy rule exactly (depart the
 		///     instant <paramref name="minPassengers"/> are aboard) so a profile that does not opt in is
 		///     unchanged; true waits for the seats it actually ordered.
@@ -1649,9 +1649,9 @@ namespace OpenRA.Mods.Common.Traits
 		///     passenger reached a new closest approach". Boarding ALONE is not progress: it sits at zero
 		///     for the whole of a walk, so a bound keyed on it calls every young load stalled and tears
 		///     down tasks whose passengers are closing normally.
-		///   <paramref name="ticksLoading"/>/<paramref name="loadTimeoutTicks"/> — hard patience bound.
+		///   <paramref name="ticksLoading"/>/<paramref name="loadTimeoutTicks"/> — hard patience bound.</para>
 		///
-		/// WHY A WAITING CARRIER CAN NEVER HANG. Waiting for a fuller load is only safe if something ends
+		/// <para>WHY A WAITING CARRIER CAN NEVER HANG. Waiting for a fuller load is only safe if something ends
 		/// the wait no matter what the passengers do, so there are three independent releases and the last
 		/// two do not consult passenger state at all:
 		///   (a) stillComing hits 0 — every reserved passenger has boarded or died. Covers the case the
@@ -1660,7 +1660,7 @@ namespace OpenRA.Mods.Common.Traits
 		///       re-tasked away by another module and will never arrive, which (a) cannot see.
 		///   (c) ticksLoading passes the hard timeout — the unconditional backstop.
 		/// (b) and (c) are monotonic functions of elapsed time alone, so Wait is unreachable once either
-		/// bound is passed. NUnit pins that as an invariant rather than leaving it as a claim.</summary>
+		/// bound is passed. NUnit pins that as an invariant rather than leaving it as a claim.</para></summary>
 		public static CarrierDeparture DecideDeparture(
 			bool fillBeforeDeparture,
 			int aboard, int seatTarget, int stillComing, int minPassengers,

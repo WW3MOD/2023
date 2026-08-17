@@ -39,20 +39,20 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		// ---------- (1) Man-the-line defend allocation ----------
 
-		/// <summary>Spread <paramref name="totalForce"/> reserve pickets across avenues from the per-sector believed
+		/// <summary><para>Spread <paramref name="totalForce"/> reserve pickets across avenues from the per-sector believed
 		/// strength profile. <paramref name="avenueEnemy"/>/<paramref name="avenueOwn"/> carry, PER AVENUE, the
 		/// believed ENEMY / OWN strength of the frontier sector that avenue opens into (so two crossings in one
 		/// sector each read that sector's strength — both get manned). Returns a per-avenue picket count (length =
-		/// avenue count), summing to at most <paramref name="totalForce"/>.
+		/// avenue count), summing to at most <paramref name="totalForce"/>.</para>
 		///
-		/// Two phases, both deterministic:
+		/// <para>Two phases, both deterministic:
 		///   * COVERAGE — every avenue with a MEANINGFUL threat (avenueEnemy &gt;= <paramref name="minThreat"/>) gets
 		///     one guaranteed picket, in (enemy desc, index asc) order, until the budget runs out. This is the
 		///     "man every crossing the enemy can actually use" guarantee.
 		///   * MASS — any leftover budget is distributed across the manned avenues by largest-remainder (Hamilton),
 		///     weighted by how far the enemy OUTNUMBERS us there (max(0, enemy − own)) — surplus concentrates where
 		///     we are outweighed; a sector we already hold draws none of the surplus but keeps its picket.
-		/// Zero RNG; tie-break is highest remainder then highest weight then lowest index.</summary>
+		/// Zero RNG; tie-break is highest remainder then highest weight then lowest index.</para></summary>
 		public static int[] AllocateAcrossAvenues(IReadOnlyList<int> avenueEnemy, IReadOnlyList<int> avenueOwn,
 			int totalForce, int minThreat)
 		{
@@ -166,27 +166,27 @@ namespace OpenRA.Mods.Common.Traits
 
 		// ---------- (3) Sector posture hold ----------
 
-		/// <summary>Should an axis standing in a frontier sector HOLD/defend instead of pressing, because the
+		/// <summary><para>Should an axis standing in a frontier sector HOLD/defend instead of pressing, because the
 		/// believed enemy force there is too strong relative to our own committed strength? True when the sector is
 		/// ON THE FRONT (<paramref name="frontierEdges"/> &gt; 0), carries believed enemy force, we actually OCCUPY
 		/// it (<paramref name="sectorOwn"/> ≥ <paramref name="ownStrengthFloor"/>), and <paramref name="sectorEnemy"/>
-		/// ≥ <paramref name="sectorOwn"/> × <paramref name="holdRatioPct"/>/100.
+		/// ≥ <paramref name="sectorOwn"/> × <paramref name="holdRatioPct"/>/100.</para>
 		///
-		/// <paramref name="holdRatioPct"/> &lt;= 0 ⇒ false (inert / disabled). The ratio comparison is cross-
+		/// <para><paramref name="holdRatioPct"/> &lt;= 0 ⇒ false (inert / disabled). The ratio comparison is cross-
 		/// multiplied (no division), so the boundary is exact: at holdRatioPct 200, own 5 vs enemy 10 HOLDS (enemy
-		/// is exactly 2× own) while own 5 vs enemy 9 presses.
+		/// is exactly 2× own) while own 5 vs enemy 9 presses.</para>
 		///
-		/// OWN-STRENGTH FLOOR (<paramref name="ownStrengthFloor"/>): you cannot HOLD a sector you do not occupy.
+		/// <para>OWN-STRENGTH FLOOR (<paramref name="ownStrengthFloor"/>): you cannot HOLD a sector you do not occupy.
 		/// Below the floor of believed own presence the ratio is meaningless — own ≈ 0 makes "enemy ≥ own × ratio"
 		/// trivially true, which (when the caller mistakenly evaluated the enemy-REAR target sector, where our
 		/// believed presence is ~0) froze every offensive axis at home. The consumer now evaluates the axis's own
 		/// CONTACT sector — where its units stand, so sectorOwn reflects the committed force — and this floor is the
 		/// backstop that keeps an unoccupied sector from ever reading as a hold. <paramref name="ownStrengthFloor"/>
-		/// &lt;= 0 disables the floor (legacy: own = 0 vs enemy present ⇒ hold).
+		/// &lt;= 0 disables the floor (legacy: own = 0 vs enemy present ⇒ hold).</para>
 		///
-		/// SAFETY: this is a HOLD trigger the consumer runs AFTER its genuine-retreat gate, so it can never block a
+		/// <para>SAFETY: this is a HOLD trigger the consumer runs AFTER its genuine-retreat gate, so it can never block a
 		/// truly-losing withdrawal (that decision is upstream). It composes with the retreat/damper FSM by reusing
-		/// the same fall-back-to-rally order, not by writing a competing order stream. Zero RNG.</summary>
+		/// the same fall-back-to-rally order, not by writing a competing order stream. Zero RNG.</para></summary>
 		public static bool SectorPostureHold(int sectorOwn, int sectorEnemy, int frontierEdges, int holdRatioPct,
 			int ownStrengthFloor)
 		{

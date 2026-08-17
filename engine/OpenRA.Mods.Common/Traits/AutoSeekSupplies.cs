@@ -200,18 +200,18 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// The empty-pool half, which cannot be idle-triggered: the whole complaint is a soldier who is
+		/// <para>The empty-pool half, which cannot be idle-triggered: the whole complaint is a soldier who is
 		/// BUSY — walking an attack-move onto the line — with nothing left to fire. Unlike the idle seek
-		/// this one interrupts, because the order it interrupts is the problem.
+		/// this one interrupts, because the order it interrupts is the problem.</para>
 		///
-		/// Deliberately narrower than the idle seek in two ways. It requires EVERY pool empty
+		/// <para>Deliberately narrower than the idle seek in two ways. It requires EVERY pool empty
 		/// (AmmoPool.AllPoolsEmpty — every pool on the actor, NOT the Rearmable-filtered subset the idle
 		/// seek reads), so a rifleman still holding his RPG round keeps fighting; and it hands off to
 		/// AmmoPool.AutoRearm rather than SeekSuppliesAndReturn, so a Logistics Centre counts as a
 		/// destination (the proximity errand skips docking-gated hosts, and when a man is dry the dock is
-		/// often the only source on the map).
+		/// often the only source on the map).</para>
 		///
-		/// INVARIANT worth preserving: "breaks off" IMPLIES "is deprioritised in selection". Every pool
+		/// <para>INVARIANT worth preserving: "breaks off" IMPLIES "is deprioritised in selection". Every pool
 		/// empty revokes every AmmoCondition, and Armament.Created grants weapon-&lt;name&gt;
 		/// unconditionally (Armament.cs:260) with every armed soldier class carrying an armament named
 		/// primary — so the ^AmmoDecoration expression that drives the empty-ammo pip and the
@@ -219,7 +219,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// therefore always visibly dry and always deprioritised; the reverse is deliberately NOT
 		/// guaranteed (the engineer with a dry SMG and C4 left is deprioritised but keeps his order),
 		/// and that is the harmless direction. If you widen this trigger, re-check the implication —
-		/// getting it backwards means soldiers leaving the line looking perfectly healthy.
+		/// getting it backwards means soldiers leaving the line looking perfectly healthy.</para>
 		/// </summary>
 		void ITick.Tick(Actor _)
 		{
@@ -425,18 +425,18 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// The ONE eligibility test — used both to pick a provider and, by SeekSuppliesAndReturn,
+		/// <para>The ONE eligibility test — used both to pick a provider and, by SeekSuppliesAndReturn,
 		/// to decide every tick whether the one it is walking to is still worth reaching. Sharing it
 		/// is the point: a provider we would not walk to must also be one we stop walking to, and two
-		/// separate copies of this rule drifted apart the moment one of them gained a clause.
+		/// separate copies of this rule drifted apart the moment one of them gained a clause.</para>
 		///
-		/// Mirrors the gates SupplyProvider applies from the other side, so a unit never walks to a
-		/// source that would refuse it on arrival.
+		/// <para>Mirrors the gates SupplyProvider applies from the other side, so a unit never walks to a
+		/// source that would refuse it on arrival.</para>
 		///
-		/// An instance method reading cached per-actor traits, so the every-tick call from the
+		/// <para>An instance method reading cached per-actor traits, so the every-tick call from the
 		/// activity allocates nothing — and answering only for its OWN actor, which is why it takes
 		/// no seeker argument. The provider trait is passed in rather than looked up: the activity
-		/// already holds it, and the scan resolves it once per candidate anyway.
+		/// already holds it, and the scan resolves it once per candidate anyway.</para>
 		/// </summary>
 		public bool CanServe(Actor providerActor, SupplyProvider provider)
 		{

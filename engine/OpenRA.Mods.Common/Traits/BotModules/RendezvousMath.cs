@@ -60,13 +60,13 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// True if the offensive reserve's staging anchor is an acceptable rendezvous for a transport starting
+		/// <para>True if the offensive reserve's staging anchor is an acceptable rendezvous for a transport starting
 		/// from <paramref name="srX"/>,<paramref name="srY"/>, given the destination the transport would
-		/// otherwise have picked for itself.
+		/// otherwise have picked for itself.</para>
 		///
-		/// The test is purely comparative: the anchor may sit up to <paramref name="marginCells"/> further out
+		/// <para>The test is purely comparative: the anchor may sit up to <paramref name="marginCells"/> further out
 		/// than the fallback, and no further. A negative margin is clamped to zero rather than rejected, so a
-		/// mis-set config can only make the rendezvous MORE conservative, never inverted.
+		/// mis-set config can only make the rendezvous MORE conservative, never inverted.</para>
 		/// </summary>
 		public static bool AnchorAcceptable(int srX, int srY, int anchorX, int anchorY, int fallbackX, int fallbackY, int marginCells)
 		{
@@ -78,15 +78,15 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Resolve the cell a mounted transport should deliver its passengers to before contact.
+		/// <para>Resolve the cell a mounted transport should deliver its passengers to before contact.</para>
 		///
-		/// Returns the offensive reserve's staging anchor when the rendezvous is enabled, an anchor was
+		/// <para>Returns the offensive reserve's staging anchor when the rendezvous is enabled, an anchor was
 		/// published, and it passes <see cref="AnchorAcceptable"/>; otherwise the caller's own fallback.
 		/// <paramref name="hasAnchor"/> is passed separately rather than using a nullable so the function stays
-		/// engine-free and trivially portable.
+		/// engine-free and trivially portable.</para>
 		///
-		/// Every rejection path returns the fallback unchanged — with <paramref name="enabled"/> false this is
-		/// the identity function on the fallback, which is what keeps the frozen profile byte-identical.
+		/// <para>Every rejection path returns the fallback unchanged — with <paramref name="enabled"/> false this is
+		/// the identity function on the fallback, which is what keeps the frozen profile byte-identical.</para>
 		/// </summary>
 		public static void ResolveDropOff(
 			bool enabled, bool hasAnchor,
