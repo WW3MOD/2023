@@ -93,6 +93,22 @@ Players:
 # literally on the beachhead. Every cell used here is one an already-committed
 # scenario on this same map.bin places an actor on.
 Actors:
+	# THIS MAP HAS TWO USA SUPPLY ROUTES AND ONLY ONE OF THEM IS WRITTEN HERE. The mpspawn
+	# below makes SpawnStartingUnits place a second `supplyroute` at HomeLocation +
+	# BaseActorOffset, and that offset defaults to CVec(-1,-1) and is overridden nowhere
+	# (SpawnStartingUnits.cs:91, MapStartingUnits.cs:37) — so a spawn at 6,16 yields an SR
+	# at 5,15. Observed: the capture layer reported `targets=1 top=supplyroute@5,15
+	# action=DenyCapture` from tick 100 on, having reported 0 at tick 25 before PoiMap's
+	# next Discover() pass.
+	#
+	# HARMLESS TO THIS MEASUREMENT, checked rather than assumed. It is OURS, not the
+	# enemy's — which is why the offense saw `targets=0` on all 9 evals, since
+	# GetOffensiveTargets only counts an ENEMY-owned SR. It consumed no technician either,
+	# because SUPPLYROUTE carries no CaptureManager (see supply-route.md: capture is
+	# designed, not wired) so QueueCaptureOrdersFromPoiMap skips it and all four capturers
+	# fall through to the reserve muster. Both census lines printed sr=6,16 on every scan,
+	# so the origin never moved. It does mean the reserve's `reason` bucket is
+	# no-cantarget rather than no-targets — which exercises MORE of the path, not less.
 	OwnSR: supplyroute
 		Owner: USA-bot
 		Location: 6,16
