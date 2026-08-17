@@ -848,8 +848,10 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 				{
 					var threatMap = owner.World.WorldActor.TraitOrDefault<ThreatMapManager>();
 					if (threatMap != null)
+						// All-true, said explicitly: this squad is aircraft, which ignore ground passability
+						// entirely. The argument exists so a GROUND caller cannot silently omit it.
 						retreatCell = threatMap.FindSafestRetreatCell(
-							owner.Units.First().Location, owner.Bot.Player, 15);
+							owner.Units.First().Location, owner.Bot.Player, _ => true, 15);
 					else
 						retreatCell = RandomBuildingLocation(owner);
 				}

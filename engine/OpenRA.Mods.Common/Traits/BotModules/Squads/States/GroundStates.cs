@@ -272,7 +272,15 @@ namespace OpenRA.Mods.Common.Traits.BotModules.Squads
 			{
 				var squadCenter = owner.CenterPosition;
 				var squadCell = owner.World.Map.CellContaining(squadCenter);
-				retreatTarget = threatMap.FindSafestRetreatCell(squadCell, owner.Bot.Player, 20);
+
+				// ONE cell is issued to EVERY unit in the squad (see Tick below), so the terrain test has to
+				// answer for the whole squad rather than for a representative — a mixed squad slotted off one
+				// locomotor is how the tank gets sent where the scout could stand. Built once per Activate,
+				// not per candidate cell. When nothing suits everyone the scan returns the squad's own cell and
+				// the retreat degrades to standing and fighting, which beats walking into the sea.
+				var passableForAll = owner.Units.Select(u => BotTerrain.PassableFor(u)).ToArray();
+				retreatTarget = threatMap.FindSafestRetreatCell(squadCell, owner.Bot.Player,
+					c => passableForAll.All(p => p(c)), 20);
 			}
 			else
 			{

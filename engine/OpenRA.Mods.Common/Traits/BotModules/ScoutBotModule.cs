@@ -123,13 +123,31 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				var target = FindScoutTarget(scout);
-				if (target.HasValue)
-				{
-					bot.QueueOrder(new Order("Move", scout, Target.FromCell(world, target.Value), false));
+				if (!target.HasValue)
+					continue;
 
-					if (threatMap != null)
-						threatMap.MarkExplored(target.Value);
+				// Both producers are bounds-only: the exploration-grid scan returns coarse grid CENTRES and the
+				// random fallback draws a raw cell inside the map bounds, so either can be open water. Clamp to
+				// ground this scout can hold.
+				var reachable = BotTerrain.TryNearestStandable(target.Value, BotTerrain.EngineRelocationCells,
+					world.Map.Contains, BotTerrain.PassableFor(scout), out var scoutCell);
+
+				// MARK THE CELL WE AIMED AT, ALWAYS, AND BEFORE ANY EARLY-OUT. FindScoutTarget ranks by
+				// exploration AGE, and an unvisited square sits at int.MaxValue — so a square the scout can never
+				// stand in stays the top-ranked candidate for the rest of the match. Skipping the mark on an
+				// unreachable target (or marking only the clamped cell, which lands in a DIFFERENT grid square at
+				// CellSize 8) re-selects that square every scan and the scout stops scouting entirely. Retiring
+				// the square is what the pre-clamp code did by accident; it is load-bearing, so it is deliberate
+				// here. The clamped square is marked too when it differs — the scout really does go there.
+				if (threatMap != null)
+				{
+					threatMap.MarkExplored(target.Value);
+					if (reachable && scoutCell != target.Value)
+						threatMap.MarkExplored(scoutCell);
 				}
+
+				if (reachable)
+					bot.QueueOrder(new Order("Move", scout, Target.FromCell(world, scoutCell), false));
 			}
 		}
 

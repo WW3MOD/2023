@@ -961,9 +961,13 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			else if (evac)
 			{
+				// Precomputed per cluster, BEFORE trucks are assigned, and the evac path at the order site reuses
+				// this cell rather than recomputing it — so the terrain test has to answer for whichever truck
+				// ends up taking the cluster, i.e. for all of them.
+				var trucksPassable = trucks.Select(t => WaypointPassable(t)).ToArray();
 				foreach (var c in clusters)
 				{
-					c.FollowCell = FindSafeFollowPosition(c) ?? c.CenterCell;
+					c.FollowCell = FindSafeFollowPosition(c, cell => trucksPassable.All(p => p(cell))) ?? c.CenterCell;
 					c.Danger = GroundDangerAt(c.FollowCell);
 				}
 
@@ -1221,7 +1225,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				// The follow cell. On the evac path it was already resolved (and danger-gated) above, so reuse
 				// it rather than recomputing — the gate must apply to the cell actually ordered.
-				var followPos = evac ? (CPos?)bestCluster.FollowCell : FindSafeFollowPosition(bestCluster);
+				var followPos = evac ? (CPos?)bestCluster.FollowCell : FindSafeFollowPosition(bestCluster, WaypointPassable(truck));
 
 				if (followPos.HasValue)
 				{
@@ -2284,10 +2288,13 @@ namespace OpenRA.Mods.Common.Traits
 		/// the argmax of the negation, which moves the destination up to ~4 cells off the centroid on a field
 		/// that is rebuilt continuously; against RepathThresholdCells: 3 a re-derived cell can shift far enough
 		/// to re-issue the follow Move, cancel the drive and restart the path, forever.</para></summary>
-		CPos? FindSafeFollowPosition(UnitCluster cluster)
+		CPos? FindSafeFollowPosition(UnitCluster cluster, Func<CPos, bool> passable)
 		{
 			if (Info.IgnoreDangerForDelivery || threatMap == null)
 				return cluster.CenterCell;
+
+			if (passable == null)
+				throw new ArgumentNullException(nameof(passable), "a follow cell must be terrain-tested for the truck being sent to it");
 
 			// Find the safest cell near the cluster (behind the front line)
 			var bestCell = cluster.CenterCell;
@@ -2297,8 +2304,14 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				for (var dy = -3; dy <= 3; dy++)
 				{
+					// Terrain-tested as well as bounds-tested. The score is -threat and threat is
+					// enemyValue - friendlyValue, so an EMPTY cell wins outright — and open water is the emptiest
+					// ground on the map. Unfiltered, the safest-looking follow cell in a ±3 box beside a coastal
+					// cluster is the sea, and the cell is also written to lastFollow as the deadband ShouldReissueFollow
+					// measures against, so the engine relocating the truck would leave the deadband anchored on a
+					// cell the truck never reaches.
 					var cell = new CPos(cluster.CenterCell.X + dx, cluster.CenterCell.Y + dy);
-					if (!world.Map.Contains(cell))
+					if (!world.Map.Contains(cell) || !passable(cell))
 						continue;
 
 					var threat = threatMap.GetThreat(cell, player);

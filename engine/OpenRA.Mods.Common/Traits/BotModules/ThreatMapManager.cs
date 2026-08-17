@@ -273,45 +273,19 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>Find the safest retreat cell (highest friendly influence, lowest enemy).
-		/// Searches within maxRange cells of the given position.</summary>
-		public CPos FindSafestRetreatCell(CPos from, Player perspective, int maxRange = 20)
+		/// Searches within maxRange cells of the given position. <paramref name="passable"/> must answer for the
+		/// units that will be SENT here — see <see cref="ThreatRetreatMath.ChooseSafestCell"/> for why the sea
+		/// wins this scoring outright when nothing terrain-tests the candidates. An air caller passes all-true.</summary>
+		public CPos FindSafestRetreatCell(CPos from, Player perspective, Func<CPos, bool> passable, int maxRange = 20)
 		{
-			var bestCell = from;
-			var bestScore = float.MinValue;
-
 			var fromGrid = ToGridPos(from);
 			var searchRadius = maxRange / info.CellSize + 1;
 
-			for (var dx = -searchRadius; dx <= searchRadius; dx++)
-			{
-				for (var dy = -searchRadius; dy <= searchRadius; dy++)
-				{
-					var gx = fromGrid.X + dx;
-					var gy = fromGrid.Y + dy;
-					if (gx < 0 || gx >= gridWidth || gy < 0 || gy >= gridHeight)
-						continue;
-
-					var mapCell = new CPos(gx * info.CellSize + info.CellSize / 2, gy * info.CellSize + info.CellSize / 2);
-					if (!world.Map.Contains(mapCell))
-						continue;
-
-					// Score: negative threat is good (means friendly advantage)
-					var threat = GetThreat(mapCell, perspective);
-					var score = -threat;
-
-					// Prefer cells closer to the start position (don't retreat across the map)
-					var dist = (mapCell - from).Length;
-					score -= dist * 0.1f;
-
-					if (score > bestScore)
-					{
-						bestScore = score;
-						bestCell = mapCell;
-					}
-				}
-			}
-
-			return bestCell;
+			return ThreatRetreatMath.ChooseSafestCell(from, fromGrid.X, fromGrid.Y,
+				gridWidth, gridHeight, info.CellSize, searchRadius,
+				c => GetThreat(c, perspective),
+				c => world.Map.Contains(c),
+				passable);
 		}
 
 		/// <summary>Get the economic value at a map position.</summary>
