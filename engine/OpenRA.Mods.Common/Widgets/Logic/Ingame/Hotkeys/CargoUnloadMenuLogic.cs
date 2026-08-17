@@ -98,9 +98,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 			menu = Ui.LoadWidget("CARGO_UNLOAD_MENU", null, new WidgetArgs());
 
+			// Name the transport rather than the action. The menu floats over open ground at the
+			// cursor, and a player could reasonably read that as "the men come out here" — they do
+			// not, so the header points back at the vehicle the menu is actually about.
 			var header = menu.GetOrNull<LabelWidget>("MENU_HEADER");
 			if (header != null)
-				header.GetText = () => cargo == null ? "" : $"Unload  {cargo.PassengerCount}/{cargo.Info.MaxWeight}";
+			{
+				var title = DisplayName(candidate).ToUpperInvariant();
+				header.GetText = () => cargo == null ? "" : $"{title}  {cargo.PassengerCount}/{cargo.Info.MaxWeight}";
+			}
 
 			list = menu.Get<ScrollPanelWidget>("CLASS_LIST");
 			rowTemplate = list.Get<ScrollItemWidget>("CLASS_TEMPLATE");
