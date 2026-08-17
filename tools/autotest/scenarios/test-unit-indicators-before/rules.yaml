@@ -21,6 +21,13 @@ World:
 # Stripped per concrete actor type rather than on ^SelectableCombatUnit, because removal on a
 # concrete node that picked the trait up through Inherits@ is the pattern with precedent here
 # (test-burn-compare/rules.yaml:635-645); removal on the shared template is not.
+#
+# PITFALL: strip ONLY the base types. The derived types below inherit an ALREADY-stripped
+# parent, so repeating the removals there finds nothing to remove — and OpenRA treats that as
+# a hard error, not a no-op. Worse, the failure surfaces nowhere near the cause: Map.PostInit
+# catches it, sets InvalidCustomRules, and silently falls back to the DEFAULT ruleset, so the
+# map then dies in SetDensityLayer with "key 'e1hold' was not present in the dictionary". The
+# real error is only in debug.log as "Failed to load rules for <title>".
 E1.america:
 	-WithSpottedDecoration:
 	-WithStanceDecoration@Fire:
@@ -44,23 +51,14 @@ e1hold:
 		# does so silently with no lint error or log line. Setting both means the stance holds
 		# however the harness ends up assigning USA.
 		InitialEngagementStanceAI: HoldPosition
-	-WithSpottedDecoration:
-	-WithStanceDecoration@Fire:
-	-WithStanceDecoration@Engagement:
 
 e1hunt:
 	Inherits: E1.america
 	AutoTarget:
 		InitialEngagementStance: Hunt
 		InitialEngagementStanceAI: Hunt
-	-WithSpottedDecoration:
-	-WithStanceDecoration@Fire:
-	-WithStanceDecoration@Engagement:
 
 e1watcher:
 	Inherits: E1.russia
 	Vision@10:
 		Range: 20c0
-	-WithSpottedDecoration:
-	-WithStanceDecoration@Fire:
-	-WithStanceDecoration@Engagement:

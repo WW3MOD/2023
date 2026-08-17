@@ -70,13 +70,14 @@ Actors:
 		Owner: USA
 		Location: 29,17
 		Facing: 512
-	# Loaded transport: cargo pips are always-on at Top 0,-10 and spread sideways as
-	# passengers load, which is the row the spotted mark has to stay clear of.
+	# Transport, deliberately EMPTY. Passengers were dropped after Cargo.LoadPassenger on an
+	# already-in-world actor crashed World.Add with a duplicate ActorID, and the Cargo: map init
+	# is used by no map in this repo. The cargo row at Top 0,-10 is therefore the one neighbour
+	# these glyphs have NOT been checked against on screen.
 	Apc: m113
 		Owner: USA
 		Location: 27,17
 		Facing: 512
-		Cargo: e1.america,e1.america,e1.america
 	# --- The observer that makes the cluster spotted. Close enough that USA sees it too, so
 	# the asymmetry rule permits the mark.
 	Scout: e1.russia

@@ -34,7 +34,7 @@ WorldLoaded = function()
 	try(function() InfBoth.Stance = "HoldFire" end)
 
 	-- Load the transport's own decoration rows up: damage pips, a mid-tier suppression
-	-- chevron, and the cargo row from its three passengers.
+	-- chevron. No cargo row — see map.yaml.
 	try(function() Apc.Health = math.floor(Apc.MaxHealth * 0.45) end)
 	try(function()
 		for _ = 1, 25 do
