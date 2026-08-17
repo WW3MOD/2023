@@ -3,6 +3,45 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — `InitialStance` IS SILENTLY IGNORED FOR A SCENARIO OPPONENT: NON-PLAYABLE READS `InitialStanceAI`
+
+Cost two autotest runs before it was found, and it fails **silently** — no lint error, no warning, no log
+line. `AutoTarget.cs:497`:
+
+```csharp
+stance = init.GetValue<StanceInit, UnitStance>(
+    self.Owner.IsBot || !self.Owner.Playable ? info.InitialStanceAI : info.InitialStance);
+```
+
+`!Owner.Playable` — not just `IsBot`. A scenario's enemy `PlayerReference` is normally declared *without*
+`Playable: True` (only the human side gets it), so **every scenario opponent takes the `*AI` field**. An
+author who writes
+
+```yaml
+T90:
+    AutoTarget:
+        InitialStance: HoldFire
+```
+
+has set a field the engine never reads for that actor, and the unit stays on the `InitialStanceAI` default
+(`FireAtWill`). The same split applies to `InitialEngagementStance`, `InitialCohesion` and
+`InitialResupplyBehavior` (`:499-502`).
+
+The observed symptom was not "the enemy shot" — it was **the test's own units quietly missing** from a
+census, because a supposedly-silent enemy killed the squad in the first ten seconds. Set **both** fields
+unless you specifically want the human/AI asymmetry.
+
+This is a sibling of the `UnitDefaultsManager` gotcha already in `conventions.md` (human-owned units read
+per-machine persisted stance defaults). Together: **a unit's starting stance comes from a different source
+depending on who owns it, and neither source is the YAML field you probably wrote.** For a deterministic
+scenario, strip `UnitDefaultsManager` from the World trait *and* set both `InitialStance` and
+`InitialStanceAI`.
+
+Second-order lesson, worth as much: the gate that hid this counted "soldiers at ports" and read 0. Walking,
+in shelter, and **dead** all produce 0. Two runs were indistinguishable afterwards because the failure
+message did not name the state it found. A census assertion should report every bucket it can distinguish,
+including `dead`, or a failure teaches you nothing.
+
 ## 2026-08-17 — `pip-suppression` IS TEN COLOURS OF ONE GLYPH, NOT A BAR THAT FILLS
 
 `WORKSPACE/garrison-proposals.md:112` describes the suppression readout as *"a bar that fills and reddens

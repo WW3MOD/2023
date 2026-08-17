@@ -31,25 +31,37 @@ local SuppressionToGrant = 45
 local Squad = nil
 local HouseSquad = nil
 
--- Returns atPorts, inShelter.
+-- Returns atPorts, inShelter, outside, dead.
 --
 -- DeployToPort does SetPosition(soldier, self.Location) — a port soldier occupies the
 -- BUILDING's own cell while in-world. A soldier in shelter has been removed from the
--- world entirely. A soldier still walking is in-world on some other cell. Those three
--- are distinguishable; IsInWorld alone is not.
+-- world entirely. A soldier still walking is in-world on some other cell.
+--
+-- Count all four states separately and report them. Two earlier runs of this scenario
+-- were lost to a gate that collapsed them into one number: "0 soldiers here" reads
+-- identically whether they are walking, in shelter, or dead, and the runs could not be
+-- told apart afterwards. A failing test must say which state it actually found.
 local function GarrisonCensus(squad, building)
-	local atPorts, inShelter = 0, 0
+	local atPorts, inShelter, outside, dead = 0, 0, 0, 0
 	for _, s in ipairs(squad) do
-		if not s.IsDead then
-			if not s.IsInWorld then
-				inShelter = inShelter + 1
-			elseif s.Location.X == building.Location.X and s.Location.Y == building.Location.Y then
-				atPorts = atPorts + 1
-			end
+		if s.IsDead then
+			dead = dead + 1
+		elseif not s.IsInWorld then
+			inShelter = inShelter + 1
+		elseif s.Location.X == building.Location.X and s.Location.Y == building.Location.Y then
+			atPorts = atPorts + 1
+		else
+			outside = outside + 1
 		end
 	end
 
-	return atPorts, inShelter
+	return atPorts, inShelter, outside, dead
+end
+
+local function CensusText(label, squad, building)
+	local atPorts, inShelter, outside, dead = GarrisonCensus(squad, building)
+	return label .. ": " .. atPorts .. " at ports, " .. inShelter .. " in shelter, " ..
+		outside .. " still outside, " .. dead .. " dead"
 end
 
 WorldLoaded = function()
@@ -84,7 +96,9 @@ WorldLoaded = function()
 		-- photographing. Never fail in a way that produces no pictures.
 		local atPorts, inShelter = GarrisonCensus(Squad, Tower)
 		if atPorts + inShelter == 0 then
-			Test.Fail("no rifleman got inside the tower within 10s — nothing to photograph")
+			Test.Fail("nobody got inside the tower within 10s — " ..
+				CensusText("tower squad", Squad, Tower) .. "; " ..
+				CensusText("house squad", HouseSquad, House))
 			return
 		end
 
@@ -125,9 +139,7 @@ WorldLoaded = function()
 	-- (Game.cs:926-930). Test.Pass begins teardown, so it counts as a state change and
 	-- needs its own delay after the last capture, exactly like a world mutation would.
 	Trigger.AfterDelay(325, function()
-		local atPorts, inShelter = GarrisonCensus(Squad, Tower)
-		local houseAtPorts, houseInShelter = GarrisonCensus(HouseSquad, House)
-		Test.Pass("tower: " .. atPorts .. " at ports, " .. inShelter .. " in shelter; " ..
-			"house: " .. houseAtPorts .. " at ports, " .. houseInShelter .. " in shelter")
+		Test.Pass(CensusText("tower", Squad, Tower) .. "; " ..
+			CensusText("house", HouseSquad, House))
 	end)
 end
