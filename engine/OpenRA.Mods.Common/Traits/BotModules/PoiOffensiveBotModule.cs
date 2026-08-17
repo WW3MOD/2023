@@ -575,6 +575,17 @@ namespace OpenRA.Mods.Common.Traits
 			"the muster anchor — the anti-clog spread. Only read when ForwardStagingEnabled.")]
 		public readonly int StagingSpreadStepCells = 2;
 
+		[Desc("Forward staging FALLBACK distance (map cells) for the case where the descent finds NO gradient —",
+			"an unpopulated belief field, i.e. every opening before first contact. 0 (default) = OFF, and the",
+			"free pool then idles at the Supply Route exactly as it does today; the frozen profiles are untouched.",
+			"When set, the pool musters this far from the SR along the bearing toward the map CENTRE, at the",
+			"farthest passable cell at or inside the distance.",
+			"MEASURED 2026-08-17 (test-clog-census, both arms): pre-contact with no anchor, 8 of a 12-unit pool sat",
+			"within 2 cells of the SR and 11 within 4, and 100% of arriving reinforcements stopped there and stayed.",
+			"The phantom anchor removed by be487dfe had been dispersing that same pool to 1 and 5 — accidentally,",
+			"toward a cell derived by rounding. This keeps the dispersal and drops the meaninglessness.")]
+		public readonly int StagingFallbackCells = 0;
+
 		[Desc("Forward staging: hysteresis (map cells, Chebyshev) — the muster anchor is only re-ADOPTED (and the",
 			"formation re-laid) when it advances at least this far from the last adopted anchor, so a small field",
 			"wobble doesn't spam staging orders. Only read when ForwardStagingEnabled.")]
@@ -2402,6 +2413,49 @@ namespace OpenRA.Mods.Common.Traits
 			// phantom anchor this module used to publish was accidentally fanning the pool out via SpreadCell,
 			// so suppressing it trades a bogus destination for real Supply Route congestion. This line is the
 			// only way to see that trade. Counts the FREE POOL, already computed — no extra world scan.
+			// Iterate ActorID-sorted (deterministic order), but slot each unit by a STABLE per-unit key
+			// (StableSlot(ActorID)) rather than its list position — so a pool-composition change re-slots nobody
+			// else (no order churn). Collisions (two ids sharing a slot) just share a cell.
+			var ordered = idle.OrderBy(u => u.ActorID).ToList();
+
+			// NO GRADIENT ⇒ the DELIBERATE fallback, if one is configured. Resolved here rather than inside
+			// ResolveStagingAnchor for two reasons: the passability test needs a representative mover, which only
+			// exists once the pool is built; and keeping it out of that method leaves `lastStagingAnchor` null on
+			// this path, so the first REAL gradient anchor is adopted immediately instead of being suppressed by
+			// hysteresis against a fallback it never advanced from. Off (0) ⇒ stagingAnchor stays null and every
+			// line below is the untouched path.
+			// LOCAL, never the module field. `stagingAnchor` is shared state read by the Phase-3 damper's
+			// `ResolveMusterAnchor(axis) ?? stagingAnchor ?? rallyCell` chain and resolved once per eval at the
+			// top of Reevaluate; writing the fallback into it would leak this method's decision into every later
+			// consumer in the same eval and is precisely the second variable this change must not introduce.
+			var effectiveAnchor = stagingAnchor;
+			var onFallback = false;
+			if (!effectiveAnchor.HasValue && ordered.Count > 0 && Info.StagingFallbackCells > 0 && rallyCell.HasValue)
+			{
+				var bounds = world.Map.Bounds;
+				var passable = WaypointPassable(ordered[0]);
+				if (ForwardStagingMath.TryResolveFallbackCell(
+						rallyCell.Value.X, rallyCell.Value.Y,
+						bounds.Left + bounds.Width / 2, bounds.Top + bounds.Height / 2,
+						Info.StagingFallbackCells,
+						(mx, my) => world.Map.Contains(new CPos(mx, my)) && passable(new CPos(mx, my)),
+						out var fx, out var fy))
+				{
+					effectiveAnchor = new CPos(fx, fy);
+					onFallback = true;
+				}
+			}
+
+			// DIAGNOSTIC ONLY — nothing reads this. Emitted BEFORE the early return precisely because the
+			// interesting case is the one that returns: with no anchor the reserve is never dispersed, so it sits
+			// where it mustered in. That is the designed "inert until the field is populated" path, but the
+			// phantom anchor this module used to publish was accidentally fanning the pool out via SpreadCell,
+			// so suppressing it trades a bogus destination for real Supply Route congestion. This line is the
+			// only way to see that trade. Counts the FREE POOL, already computed — no extra world scan.
+			//
+			// `anchorsrc` is the term the phantom could never have supplied: gradient / fallback / none. Being
+			// INDISTINGUISHABLE from a real anchor is how the rounding artifact survived thirteen days, so a
+			// deliberate destination has to announce which kind it is.
 			if (rallyCell.HasValue)
 			{
 				var near2 = 0;
@@ -2417,26 +2471,29 @@ namespace OpenRA.Mods.Common.Traits
 
 				Log.Write("debug",
 					$"[exp-clog] player={player.PlayerName} sr={rallyCell.Value} pool={idle.Count}" +
-					$" near2={near2} near4={near4} anchor={stagingAnchor?.ToString() ?? "none"} tick={tick}");
+					$" near2={near2} near4={near4} anchor={effectiveAnchor?.ToString() ?? "none"}" +
+					$" anchorsrc={(effectiveAnchor.HasValue ? (onFallback ? "fallback" : "gradient") : "none")} tick={tick}");
 			}
 
-			if (!stagingAnchor.HasValue || idle.Count == 0)
+			if (!effectiveAnchor.HasValue || idle.Count == 0)
 				return;
 
-			var anchor = stagingAnchor.Value;
+			var anchor = effectiveAnchor.Value;
 
 			// Bound the fan-out so the widest ring radius (maxRings * StagingSpreadStepCells map cells) stays
 			// STRICTLY inside the standoff (StagingStandoffCells coarse cells = *CellSize map cells) — so a spread
 			// slot can never sit forward of the frontier the anchor descent already cleared of believed danger
 			// (SpreadCell is not danger-guarded per cell; this is the invariant it documents). standoffMapCells-1
 			// keeps radius < standoff even at the outermost ring.
+			//
+			// ON THE FALLBACK the bound is the FALLBACK DISTANCE instead, and it is load-bearing rather than
+			// tidy: the standoff bound is ~11 cells here, so fanning a pool that sits 6 cells out over rings of
+			// that radius would put a third of it straight back on the beachhead the fallback exists to clear.
+			// Bounding by the distance keeps every slot strictly nearer the anchor than the SR is.
 			var standoffMapCells = Info.StagingStandoffCells * controlField.Info.CellSize;
-			var maxRings = Math.Max(0, (standoffMapCells - 1) / Math.Max(1, Info.StagingSpreadStepCells));
-
-			// Iterate ActorID-sorted (deterministic order), but slot each unit by a STABLE per-unit key
-			// (StableSlot(ActorID)) rather than its list position — so a pool-composition change re-slots nobody
-			// else (no order churn). Collisions (two ids sharing a slot) just share a cell.
-			var ordered = idle.OrderBy(u => u.ActorID).ToList();
+			var maxRings = onFallback
+				? ForwardStagingMath.MaxSpreadRings(Info.StagingFallbackCells, Info.StagingSpreadStepCells)
+				: Math.Max(0, (standoffMapCells - 1) / Math.Max(1, Info.StagingSpreadStepCells));
 
 			// Item 31: split the reserve when the ground ahead is granted. The advance takes the LOWEST-ActorID
 			// prefix — a stable rule, so one unit leaving the pool pulls in at most one replacement rather than

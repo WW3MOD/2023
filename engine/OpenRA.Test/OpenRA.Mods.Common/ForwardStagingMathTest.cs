@@ -17,6 +17,7 @@
  */
 #endregion
 
+using System;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
 
@@ -392,6 +393,123 @@ namespace OpenRA.Test
 
 			Assert.That(published, Is.False,
 				$"a front already inside the standoff must publish no anchor (got {ax},{ay})");
+		}
+		// ===== The deliberate fallback (TryResolveFallbackCell) =====
+		//
+		// Context these pin, measured 2026-08-17 in test-clog-census across both arms: with no gradient the
+		// reserve does not merely fail to advance, it ACCUMULATES on the beachhead — 8 of a 12-unit pool within
+		// 2 cells of the SR, and 100% of arriving reinforcements stopping there. The phantom anchor that used to
+		// be published dispersed that same pool to 1 within 2 cells. The fallback has to reproduce the dispersal
+		// while having a destination that means something, and must NEVER put a unit somewhere it cannot stand.
+
+		[Test]
+		public void TryResolveFallbackCell_OffByDefault_PublishesNothing()
+		{
+			// The baseline default is 0 and MUST stay inert: this trait is configured on BOTH bot profiles, so a
+			// non-inert default would move the benchmark control silently.
+			var published = ForwardStagingMath.TryResolveFallbackCell(
+				srX: 6, srY: 16, towardX: 33, towardY: 17, maxCells: 0, (x, y) => true,
+				out var cx, out var cy);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(published, Is.False, "maxCells 0 is OFF and must publish no fallback");
+				Assert.That(cx, Is.EqualTo(6), "the out params must degrade to the SR, never to a stray cell");
+				Assert.That(cy, Is.EqualTo(16));
+			});
+		}
+
+		[Test]
+		public void TryResolveFallbackCell_ClearBearing_LandsExactlyMaxCellsFromTheSupplyRoute()
+		{
+			// SR 6,16 on a 66x34 map: centre is 33,17, so the bearing is almost due east.
+			var published = ForwardStagingMath.TryResolveFallbackCell(
+				srX: 6, srY: 16, towardX: 33, towardY: 17, maxCells: 6, (x, y) => true,
+				out var cx, out var cy);
+
+			var chebyshev = Math.Max(Math.Abs(cx - 6), Math.Abs(cy - 16));
+			Assert.Multiple(() =>
+			{
+				Assert.That(published, Is.True);
+				Assert.That(chebyshev, Is.EqualTo(6),
+					$"the fallback must sit EXACTLY maxCells from the SR in the metric the census counts in (got {cx},{cy})");
+				Assert.That(cx, Is.GreaterThan(6), "and on the map-centre side of the SR, not behind it");
+			});
+		}
+
+		[Test]
+		public void TryResolveFallbackCell_WaterOnTheBearing_WalksBackToTheFarthestCellItCanStandOn()
+		{
+			// THE FAILURE THIS EXISTS TO STOP: a 'sensible default' that puts a unit in the sea. Everything past
+			// x=9 is impassable, so the answer is the farthest legal cell at or inside the distance, not the
+			// ideal one and not nothing.
+			var published = ForwardStagingMath.TryResolveFallbackCell(
+				srX: 6, srY: 16, towardX: 33, towardY: 17, maxCells: 6, (x, y) => x <= 9,
+				out var cx, out var cy);
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(published, Is.True, "a blocked bearing must degrade toward the SR, not give up");
+				Assert.That(cx, Is.EqualTo(9), $"the FARTHEST passable cell wins (got {cx},{cy})");
+				Assert.That(cx, Is.Not.EqualTo(6), "and it must still have left the Supply Route");
+			});
+		}
+
+		[Test]
+		public void TryResolveFallbackCell_NothingPassableAnywhere_PublishesNothing()
+		{
+			// Fully walled in: publish nothing and let the caller idle at the SR exactly as it does today.
+			// UNRESOLVABLE and OFF must collapse to the same behaviour — no half-measure destination.
+			var published = ForwardStagingMath.TryResolveFallbackCell(
+				srX: 6, srY: 16, towardX: 33, towardY: 17, maxCells: 6, (x, y) => false,
+				out _, out _);
+
+			Assert.That(published, Is.False, "no passable cell on the bearing must publish no fallback");
+		}
+
+		[Test]
+		public void TryResolveFallbackCell_SupplyRouteAtTheMapCentre_PublishesNothingRatherThanGuessing()
+		{
+			// Degenerate bearing. An SR mid-map should not happen (supply-route.md: SRs are an edge phenomenon)
+			// but a neutral SR can be placed anywhere, and a zero-length bearing must not be normalised into an
+			// arbitrary direction — that would be inventing a destination, which is the defect being fixed.
+			var published = ForwardStagingMath.TryResolveFallbackCell(
+				srX: 33, srY: 17, towardX: 33, towardY: 17, maxCells: 6, (x, y) => true,
+				out _, out _);
+
+			Assert.That(published, Is.False, "a degenerate bearing must publish nothing, not a guessed direction");
+		}
+
+		[Test]
+		public void TryResolveFallbackCell_ClearsTheBandTheCensusCounts()
+		{
+			// The acceptance bar in cell terms. The census buckets are Chebyshev <= 2 and <= 4 from the SR; a
+			// fallback at 6 with rings bounded by MaxSpreadRings(6, 2) = 2 puts the WIDEST slot 4 cells from the
+			// anchor, so the nearest any unit can end up is 6 - 4 = 2... which would still register in near2.
+			// Assert the tighter property the wiring actually relies on: no slot lands ON the SR, and the anchor
+			// itself is clear of both bands.
+			ForwardStagingMath.TryResolveFallbackCell(
+				srX: 6, srY: 16, towardX: 33, towardY: 17, maxCells: 6, (x, y) => true,
+				out var ax, out var ay);
+
+			var rings = ForwardStagingMath.MaxSpreadRings(6, 2);
+			var worst = 0;
+			for (var slot = 0; slot <= rings * ForwardStagingMath.RingOctants; slot++)
+			{
+				var (sx, sy) = ForwardStagingMath.SpreadCell(ax, ay, slot, 2, (x, y) => true);
+				var d = Math.Max(Math.Abs(sx - 6), Math.Abs(sy - 16));
+				if (d > worst)
+					worst = d;
+				Assert.That(d, Is.GreaterThan(0), $"slot {slot} landed on the Supply Route cell itself");
+			}
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(Math.Max(Math.Abs(ax - 6), Math.Abs(ay - 16)), Is.GreaterThan(4),
+					"the anchor must be outside BOTH census bands");
+				Assert.That(worst, Is.LessThanOrEqualTo(10),
+					"and the fan-out must stay bounded — the phantom's was 18 cells");
+			});
 		}
 	}
 }

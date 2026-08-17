@@ -198,6 +198,65 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
+		/// <summary>A DELIBERATE muster cell for the case <see cref="TryResolveAnchorCell"/> reports no gradient:
+		/// <paramref name="maxCells"/> map cells from the Supply Route along the bearing toward
+		/// (<paramref name="towardX"/>,<paramref name="towardY"/>), the first such cell at or inside that distance
+		/// that <paramref name="passable"/> accepts. Returns false when the fallback is off
+		/// (<paramref name="maxCells"/> &lt;= 0), when the bearing is degenerate (the SR IS the target point), or
+		/// when no cell on the bearing is passable — in each case the caller publishes nothing and the reserve
+		/// idles at the SR exactly as it does today, so OFF and UNRESOLVABLE both collapse to current behaviour.
+		///
+		/// <para>WHY A BEARING AND NOT A ROUNDING. The anchor this replaces was the SR re-projected through a
+		/// lossy grid round trip — a cell that meant nothing, and whose only virtue was being somewhere other
+		/// than the beachhead. Measured 2026-08-17, that accidental virtue was doing real work: with it the
+		/// reserve's within-2-cells count was 0 and within-4 was 1; without it, 2 and 3, and every arriving
+		/// reinforcement stayed put. So the dispersal has to be kept and the meaninglessness dropped. The map
+		/// CENTRE is the defensible bearing: every SR sits near a map edge by construction (it spawns at the
+		/// player's spawn point, and spawns are an edge phenomenon — DOCS/reference/supply-route.md), so
+		/// "toward the middle" is the direction the front will form on every map, is well-defined without any
+		/// belief, and is stable for the whole match.</para>
+		///
+		/// <para>Chebyshev-exact: the dominant axis moves by exactly d, so the returned cell is d cells from the
+		/// SR in the same metric the censuses and the standoff arithmetic use. Walks d DOWNWARD from
+		/// <paramref name="maxCells"/> so the farthest legal cell wins and a blocked bearing degrades toward the
+		/// SR one cell at a time rather than giving up — the "sensible default puts a unit in the sea" failure
+		/// is what <paramref name="passable"/> exists to stop, and it must be a real terrain test, not a bounds
+		/// test. Pure integer, zero RNG, no allocation.</para></summary>
+		public static bool TryResolveFallbackCell(
+			int srX, int srY, int towardX, int towardY, int maxCells,
+			Func<int, int, bool> passable,
+			out int cellX, out int cellY)
+		{
+			cellX = srX;
+			cellY = srY;
+
+			if (maxCells <= 0)
+				return false;
+
+			var dx = towardX - srX;
+			var dy = towardY - srY;
+			var span = Math.Max(Math.Abs(dx), Math.Abs(dy));
+			if (span == 0)
+				return false;
+
+			for (var d = maxCells; d >= 1; d--)
+			{
+				var cx = srX + dx * d / span;
+				var cy = srY + dy * d / span;
+				if (cx == srX && cy == srY)
+					continue;
+
+				if (passable != null && !passable(cx, cy))
+					continue;
+
+				cellX = cx;
+				cellY = cy;
+				return true;
+			}
+
+			return false;
+		}
+
 		/// <summary>The spread cell for a staged unit's <paramref name="index"/> (its <see cref="StableSlot"/>)
 		/// around the anchor (<paramref name="anchorX"/>,<paramref name="anchorY"/>) in MAP cells. Index 0 sits on
 		/// the anchor; each subsequent index takes the next octant on the current ring, incrementing the ring every

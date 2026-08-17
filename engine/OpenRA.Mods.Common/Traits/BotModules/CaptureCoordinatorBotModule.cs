@@ -23,6 +23,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -370,6 +371,20 @@ namespace OpenRA.Mods.Common.Traits
 			"PoiOffensiveBotModule.StagingSpreadStepCells; the ring count is bounded so the widest ring stays",
 			"strictly inside the standoff. 0 disables the fan-out (all capturers muster on the anchor cell).")]
 		public readonly int ReserveSpreadStepCells = 2;
+
+		[Desc("Idle-capturer reserve FALLBACK distance (map cells) for the case where the descent finds NO gradient",
+			"— an unpopulated belief field, i.e. every opening before first contact, and any match with nothing",
+			"capturable. 0 (default) = OFF, and the reserve then idles on the Supply Route exactly as it does",
+			"today. When set, undispatched capturers muster this far from the SR along the bearing toward the map",
+			"CENTRE, at the farthest passable cell at or inside the distance.",
+			"NOTE THIS TRAIT IS CONFIGURED ON BOTH BOT PROFILES, unlike its PoiOffensiveBotModule sibling. The",
+			"default is baseline-OFF precisely so enabling it is a visible, deliberate act per profile rather than",
+			"silent drift in the benchmark control.",
+			"MEASURED 2026-08-17 (test-clog-census, both arms): with no anchor, 2 of 4 idle technicians sat within 2",
+			"cells of the SR and 3 within 4, unchanged for the whole run. The phantom anchor removed by 85d5c868",
+			"had been dispersing that same reserve to 0 and 1, issuing real moves 3-7 cells off the beachhead —",
+			"toward a cell that meant nothing. This keeps the dispersal and gives it a destination.")]
+		public readonly int ReserveFallbackCells = 0;
 
 		[Desc("RECLAIM our own cleared base. Since c513f358 a soldier entering ANY enemy building evicts the",
 			"owner to Neutral and walks out alive; only a technician ever re-owns one. So a raided base is a row",
@@ -1519,6 +1534,35 @@ namespace OpenRA.Mods.Common.Traits
 			var sr = FindOwnSupplyRoute();
 			var anchor = ResolveReserveAnchor(sr);
 
+			// NO GRADIENT ⇒ the DELIBERATE fallback, if one is configured for this profile. Held in a LOCAL and
+			// never written back into lastReserveAnchor: that field is the hysteresis memory for the gradient
+			// anchor, and seeding it with a fallback would make the first real anchor compete with a cell it never
+			// advanced from. Off (0) ⇒ effectiveAnchor stays null and everything below is the untouched path.
+			var effectiveAnchor = anchor;
+			var onFallback = false;
+			if (effectiveAnchor == null && sr != null && Info.ReserveFallbackCells > 0)
+			{
+				// Representative mover, chosen by lowest ActorID so the terrain test cannot depend on scan order.
+				var rep = undispatched.OrderBy(p => p.Actor.ActorID).First().Actor;
+				var loco = rep.TraitOrDefault<Mobile>()?.Locomotor;
+				var bounds = world.Map.Bounds;
+				if (ForwardStagingMath.TryResolveFallbackCell(
+						sr.Location.X, sr.Location.Y,
+						bounds.Left + bounds.Width / 2, bounds.Top + bounds.Height / 2,
+						Info.ReserveFallbackCells,
+						(mx, my) =>
+						{
+							var c = new CPos(mx, my);
+							return world.Map.Contains(c)
+								&& (loco == null || loco.MovementCostForCell(c) != PathGraph.MovementCostForUnreachableCell);
+						},
+						out var fx, out var fy))
+				{
+					effectiveAnchor = new CPos(fx, fy);
+					onFallback = true;
+				}
+			}
+
 			// Prune the memory to units still ours, so a dead/consumed capturer can't pin an entry.
 			// ABOVE the null-anchor return: 85d5c868 made that return materially more common (a flat field now
 			// yields no anchor instead of a phantom one), and a prune that runs only when an anchor resolves
@@ -1555,18 +1599,27 @@ namespace OpenRA.Mods.Common.Traits
 
 				Log.Write("debug",
 					$"[exp-clog] reserve player={player.PlayerName} sr={sr.Location} pool={undispatched.Count}" +
-					$" near2={near2} near4={near4} anchor={anchor?.ToString() ?? "none"}" +
+					$" near2={near2} near4={near4} anchor={effectiveAnchor?.ToString() ?? "none"}" +
+					$" anchorsrc={(effectiveAnchor.HasValue ? (onFallback ? "fallback" : "gradient") : "none")}" +
 					$" targets={targetCount} tick={world.WorldTick}");
 			}
 
-			if (anchor == null)
+			if (effectiveAnchor == null)
 				return;
 
 			// Bound the fan-out so the widest ring stays STRICTLY inside the standoff — a reserve slot must never
 			// sit forward of the frontier the anchor descent already cleared of believed danger, because
 			// SpreadCell is not danger-guarded per cell. Same invariant, and same arithmetic, as StageFreePool.
-			var standoffMapCells = Info.ReserveStandoffCells * reserveControlField.Info.CellSize;
-			var maxRings = ForwardStagingMath.MaxSpreadRings(standoffMapCells, Info.ReserveSpreadStepCells);
+			//
+			// ON THE FALLBACK the bound is the fallback DISTANCE, for two reasons. The standoff bound is 20 map
+			// cells here, which fanned around a cell 6 cells out would scatter half the reserve back across the
+			// beachhead it was moved off — that is how the phantom managed to disperse 18 cells. And
+			// reserveControlField is NULL on part of the fallback path (ResolveReserveAnchor returns before it is
+			// resolved when there is no field at all), so the standoff expression cannot even be evaluated here.
+			var maxRings = onFallback
+				? ForwardStagingMath.MaxSpreadRings(Info.ReserveFallbackCells, Info.ReserveSpreadStepCells)
+				: ForwardStagingMath.MaxSpreadRings(
+					Info.ReserveStandoffCells * reserveControlField.Info.CellSize, Info.ReserveSpreadStepCells);
 
 			// ActorID order so the issue sequence cannot depend on the pool's composition.
 			foreach (var tp in undispatched.OrderBy(p => p.Actor.ActorID))
@@ -1577,7 +1630,7 @@ namespace OpenRA.Mods.Common.Traits
 				// (dispatched, or consumed by a capture) does not re-slot everyone else and re-issue their moves.
 				// Without any fan-out at all every reserved capturer is sent to the identical cell and clogs it.
 				var slot = ForwardStagingMath.StableSlot(unit.ActorID, maxRings);
-				var (cx, cy) = ForwardStagingMath.SpreadCell(anchor.Value.X, anchor.Value.Y, slot,
+				var (cx, cy) = ForwardStagingMath.SpreadCell(effectiveAnchor.Value.X, effectiveAnchor.Value.Y, slot,
 					Info.ReserveSpreadStepCells, (mx, my) => world.Map.Contains(new CPos(mx, my)));
 				var target = new CPos(cx, cy);
 
@@ -1604,7 +1657,7 @@ namespace OpenRA.Mods.Common.Traits
 				// ordinary play — reason distinguishes "nothing to capture" from "nothing I can capture".
 				Log.Write("debug",
 					$"[exp-capture] reserve player={player.PlayerName} unit={unit.Info.Name}#{unit.ActorID} " +
-					$"from={unit.Location} to={target} anchor={anchor.Value} " +
+					$"from={unit.Location} to={target} anchor={effectiveAnchor.Value} src={(onFallback ? "fallback" : "gradient")} " +
 					$"reason={(targetCount == 0 ? "no-targets" : "no-cantarget")} " +
 					$"targets={targetCount} tick={world.WorldTick}");
 			}
