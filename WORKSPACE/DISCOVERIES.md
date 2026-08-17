@@ -3,6 +3,82 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — THE net10 ANALYZER BILL IS ZERO, THE REAL BILL IS FOUR BCL OBSOLETIONS AND A RESTORE FAILURE — AND `OpenRA.Test` IS NOT COMPILED BY THE SOLUTION AT ALL
+
+Branch `wt/sdk10-measure`, against `main @ 6c9e8149`. SDK **10.0.400** installed side by side with
+6.0.428; full costing updated in
+[`WORKSPACE/plans/260817_dotnet_upgrade_scope.md`](plans/260817_dotnet_upgrade_scope.md) §3, which
+previously carried an ESTIMATE of 5–40 new analyzer findings (central ~15).
+
+**1. Measured: 0 new `CA*`, 0 new `IDE*`. The estimate was wrong by its whole magnitude.** A full
+engine Debug build at `AnalysisLevel` 10.0 produces no `CA*` or `IDE*` diagnostic anywhere in WW3MOD
+source. One rule that fires on 6.0.428 (`IDE0220`, `StancePositioningFireStanceTest.cs:187`) *stops*
+firing, so the strict delta is **−1**. The de-riskers are why: `SA*`/`RCS*` are pinned by
+`PackageReference`, `LangVersion 9` gates out the collection-expression class, and
+`engine/.editorconfig` (upstream, .NET 9-era) already pre-neutralises `CA1863-1870` and `IDE0300-0305`
+— plus a WW3MOD block at `:1265+` downgrading 28 more `IDE*` rules. **That pre-neutralisation is
+load-bearing and must not be "tidied up" before the bump.**
+
+**2. A zero is worthless without a RED control, and this one has three.** "No findings" and "the
+analyzers did not run" produce identical output. Probe file dropped into `OpenRA.Mods.Common`, same
+compilation as the real source: `List<string>.Cast<int>()` → `warning CA2021`;
+`a.ToLowerInvariant() == b.ToLowerInvariant()` → `warning CA1862` (a .NET 8-era NetAnalyzers rule, so
+the pack really is at level 10); `default(int)` → `warning IDE0034` (an SDK-Roslyn IDE rule, the half
+that has no standalone package and was the entire reason for installing an SDK). Both halves live.
+
+**3. `CA2021` at `UnloadCargo.cs:108` does NOT fire under SDK 10 — the "guaranteed, dated hit" is
+withdrawn.** It was the single most confident prediction in the prior scope doc. Roslyn now handles
+the `.Cast<(T,U)?>()` shape correctly. Because of finding 2 this is a real negative, not silence.
+**No `#pragma` was added, and none should be** — do not suppress a diagnostic that does not exist. If
+it regresses, the correct fix is a scoped `#pragma warning disable CA2021`, never deleting the cast
+(that would make a fully blocked transport stop reporting itself blocked).
+
+**4. What the bump actually costs: 6 diagnostics in 4 files, in 2 mechanical classes, zero defects.**
+`SYSLIB0051` + its `CS0672` shadow on two `Exception.GetObjectData` overrides
+(`OpenRA.Game/FieldLoader.cs:51-53`, `OpenRA.Utility/Program.cs:32-34` — delete the overrides); and
+`SYSLIB0050` on two `FormatterServices.GetUninitializedObject` calls
+(`OpenRA.Game/Map/ActorReference.cs:73`, `OpenRA.Mods.Common/Scripting/Global/ActorGlobal.cs:39` —
+swap to `RuntimeHelpers.GetUninitializedObject`, identical semantics since .NET 5).
+
+**5. The gate does not fail where anyone was looking: it fails at restore, in 4 seconds, before one
+`.cs` file compiles.** With `-warnaserror`, net10 dies on 6 NuGet errors — `NU1510` ×3
+(`Microsoft.Win32.Registry`, `System.Runtime.Loader`, `System.Threading.Channels` are in the shared
+framework now, delete the references) and `NU1902` ×1 (`NuGet.CommandLine 4.4.1`, GHSA-3885-8gqc-3wpf,
+pulled **transitively by `NUnit.Console 3.16.3`**). `NuGetAudit` is off on 6.0.428 and default-on from
+SDK 8, so `NU1902` is an **SDK** effect, not a TFM effect — it lands on any newer SDK regardless of
+target.
+
+**6. General method lesson: measure analyzers WITHOUT `-warnaserror`.** Under the real gate,
+`OpenRA.Game` fails first and every downstream project never compiles, so the gate's own output is a
+lower bound, not a census. Building without `-warnaserror` compiles all projects and reports every
+diagnostic; dedupe by `file:line:col:rule` (MSBuild repeats each one ~2–4× across nodes/targets, which
+is the ×4 the CI log shows).
+
+**7. `OpenRA.Test` is not built by `dotnet build engine/OpenRA.sln` at all.** Its solution entry has
+`ActiveCfg` but **no `.Build.0` line** — every other project has one. So `make check` never compiles
+it, and its ~50 existing `RCS1226`/`SA1210`/`SA1139`/`IDE0062` violations gate nothing; only
+`dotnet test`, which builds the `.csproj` directly, ever sees them. **Any statement of the form "the
+engine build checks Utility, Server, Cnc, D2k and Test" is false for Test.**
+
+**8. Installing an SDK over a running one bricks `dotnet` on macOS, and the error names the wrong
+cause.** `dotnet-install.sh` overwrites the shared `~/.dotnet/dotnet` muxer **in place**. With MSBuild
+nodes and `VBCSCompiler` still holding the old binary mmapped, every subsequent `dotnet` invocation
+died instantly with **exit 137 and no output** — while `codesign -v` reported the file perfectly
+valid on disk. `~/Library/Logs/DiagnosticReports/dotnet-*.ips` gave the real cause:
+`SIGKILL (Code Signature Invalid)`, `namespace CODESIGNING`, `Taskgated Invalid Signature`, with
+`codeSigningID` empty at load time. **Fix: rewrite the binary to a fresh inode**
+(`cp ~/.dotnet/dotnet /tmp/f && mv -f /tmp/f ~/.dotnet/dotnet && chmod +x ~/.dotnet/dotnet`) — no
+reboot, no reinstall. **Before installing any SDK, expect this and prefer a quiet machine.** Note the
+trap for the next reader: an exit-137-with-no-stderr looks exactly like a sandbox kill or an OOM, and
+`codesign -v` passing actively argues *against* the true diagnosis. Only the `.ips` report is honest.
+
+**9. `global.json` held, which is the whole reason side-by-side is safe.** Post-install,
+`dotnet --version` returns **6.0.428** at the repo root, in `engine/`, and in a worktree, but
+**10.0.400** from `/tmp` — that contrast is the proof the pin is doing work rather than merely
+agreeing with the default, since the muxer otherwise takes the highest installed SDK. `make check` on
+`main` still exits 0 and still builds on 6.0.428. Installing SDK 10 changed nothing about an ordinary
+build.
+
 ## 2026-08-17 — .NET 6, 8 AND 10 PRODUCE A BYTE-IDENTICAL SIMULATION OVER A FULL 12-MINUTE MATCH: CROSS-RUNTIME IS NOT THE 2026-08-16 DESYNC
 
 Branch `wt/runtime-desync`, against `main @ 83342799`. The 2026-08-16 two-human desync had **host on CLR
