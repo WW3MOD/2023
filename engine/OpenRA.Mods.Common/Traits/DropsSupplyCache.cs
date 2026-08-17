@@ -318,25 +318,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// so this is a prediction; it is read off the last waypoint of the queue as it exists at ISSUE
 		/// time, which is exactly the set of orders that will run before ours.
 		///
-		/// <para>Captured now rather than recomputed at render time ON PURPOSE. Anything the player
-		/// appends AFTER the deploy runs after it and must not drag the marker along — recomputing would
-		/// walk the icon onto a waypoint the truck will only reach once the crate is already on the
-		/// ground. The walk mirrors DrawLineToTarget's own, so the marker lands on the last waypoint the
-		/// player can actually see rather than on some cell only the activity graph knows about.</para></summary>
+		/// <para>Captured now rather than recomputed at render time ON PURPOSE — see
+		/// <see cref="Activity.PredictedFinalWaypoint"/>, which owns the walk and the reasoning.</para></summary>
 		CPos PredictedDropCell(bool queued)
 		{
 			// An unqueued deploy cancels whatever is running, so there are no preceding waypoints left.
 			if (!queued)
 				return self.Location;
 
-			var cell = self.Location;
-			for (var a = self.CurrentActivity; a != null; a = a.NextActivity)
-				if (!a.IsCanceling)
-					foreach (var n in a.TargetLineNodes(self))
-						if (n.Tile == null && n.Target.Type != TargetType.Invalid)
-							cell = self.World.Map.CellContaining(n.Target.CenterPosition);
-
-			return cell;
+			return Activity.PredictedFinalWaypoint(self);
 		}
 
 		/// <summary>Unload the whole load as a ground cache at the errand's ordered cell, if we actually

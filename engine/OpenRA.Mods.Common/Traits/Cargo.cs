@@ -12,7 +12,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Activities;
 using OpenRA.Effects;
+using OpenRA.Graphics;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Widgets;
@@ -156,6 +158,21 @@ namespace OpenRA.Mods.Common.Traits
 		[GrantedConditionReference]
 		public IEnumerable<string> LinterPassengerConditions => PassengerConditions.Values;
 
+		[Desc("Image whose sprite marks the waypoint a QUEUED unload will stop and open its doors at.",
+			"An infantryman rather than a glyph, for the same reason the supply truck's marker is a",
+			"picture of a crate: the player reads 'troops get out here' without having to learn a",
+			"symbol. It does NOT forecast which cell any given passenger ends up on — see the comment",
+			"in UnloadCargo.TargetLineNodes. Leave empty to draw no marker.")]
+		public readonly string UnloadMarkerImage = "e1";
+
+		[SequenceReference(nameof(UnloadMarkerImage), allowNullImage: true)]
+		[Desc("Sequence within UnloadMarkerImage to draw.")]
+		public readonly string UnloadMarkerSequence = "stand";
+
+		[Desc("Alpha of that marker. Held below 1 so a queued unload reads as a PLAN — a ghosted",
+			"soldier over the waypoint — and can never be mistaken for a man already on the ground.")]
+		public readonly float UnloadMarkerAlpha = 0.6f;
+
 		public override object Create(ActorInitializer init) { return new Cargo(init, this); }
 	}
 
@@ -221,6 +238,10 @@ namespace OpenRA.Mods.Common.Traits
 		public IEnumerable<Actor> Passengers => cargo;
 		public int PassengerCount => cargo.Count;
 
+		/// <summary>Sprite drawn on the waypoint a queued unload will dismount at. Null if the mod cleared
+		/// UnloadMarkerImage or named a sequence this tileset has no artwork for.</summary>
+		public readonly Sprite UnloadMarker;
+
 		enum State { Free, Locked }
 		State state = State.Free;
 
@@ -229,6 +250,10 @@ namespace OpenRA.Mods.Common.Traits
 			self = init.Self;
 			Info = info;
 			checkTerrainType = info.UnloadTerrainTypes.Count > 0;
+
+			var sequences = self.World.Map.Sequences;
+			if (!string.IsNullOrEmpty(info.UnloadMarkerImage) && sequences.HasSequence(info.UnloadMarkerImage, info.UnloadMarkerSequence))
+				UnloadMarker = sequences.GetSequence(info.UnloadMarkerImage, info.UnloadMarkerSequence).GetSprite(0);
 
 			currentAdjacentCells = new CachedTransform<CPos, IEnumerable<CPos>>(loc =>
 			{
@@ -345,7 +370,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (!order.Queued && !CanUnload())
 					return;
 
-				self.QueueActivity(order.Queued, new UnloadCargo(self, Info.LoadRange));
+				self.QueueActivity(order.Queued, new UnloadCargo(self, Info.LoadRange, markerCell: PredictedUnloadCell(order.Queued)));
 			}
 			else if (order.OrderString == "UnloadCargoPassenger")
 			{
@@ -353,7 +378,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (passenger == null || !cargo.Contains(passenger))
 					return;
 
-				self.QueueActivity(order.Queued, new UnloadCargo(self, Info.LoadRange, passenger));
+				self.QueueActivity(order.Queued, new UnloadCargo(self, Info.LoadRange, passenger, PredictedUnloadCell(order.Queued)));
 			}
 			else if (order.OrderString == SetEjectRallyOrderString)
 			{
@@ -365,6 +390,24 @@ namespace OpenRA.Mods.Common.Traits
 			}
 			else if (order.OrderString == ClearEjectRallyOrderString)
 				ClearEjectRally(order.ExtraData);
+		}
+
+		/// <summary>Which waypoint to draw the queued unload's marker on. The dismount itself happens
+		/// wherever the transport is standing when the activity comes up — <see cref="UnloadCargo"/>
+		/// resolves its own destination in OnFirstRun, not at construction — so this is a PREDICTION of
+		/// that cell, not a destination handed to the activity. Nothing downstream reads it but the
+		/// marker.
+		///
+		/// <para>Note what it does and does not promise. It marks where the TRANSPORT will stop and open
+		/// its doors; it cannot mark where the men will end up, because they take a shuffled pick of
+		/// CurrentAdjacentCells at dismount time and that roll has not happened yet.</para></summary>
+		CPos PredictedUnloadCell(bool queued)
+		{
+			// An unqueued unload cancels whatever is running, so there are no preceding waypoints left.
+			if (!queued)
+				return self.Location;
+
+			return Activity.PredictedFinalWaypoint(self);
 		}
 
 		public bool CanUnload(BlockedByActor check = BlockedByActor.None)
