@@ -67,11 +67,13 @@ namespace OpenRA.Test
 		// Known-dead annotations, pending a separate decision (adding ISync changes the sync hash).
 		// This list may SHRINK freely. It must not grow: a new entry means someone wrote [Sync] on a
 		// trait that is never hashed, which hides divergence rather than catching it.
-		static readonly string[] KnownUnhashedWithSyncMembers =
-		{
-			"OpenRA.Mods.Common.Traits.VehicleCrew",
-			"OpenRA.Mods.Common.Traits.SupplyRouteContestation",
-		};
+		//
+		// Now EMPTY. VehicleCrew and SupplyRouteContestation were the last two entries; both gained
+		// ISync once replay/save-hash stability was explicitly waived, which was the "separate
+		// decision" this list was waiting on. Keeping it empty rather than deleting it is deliberate:
+		// the empty array is what makes the assertion below a standing guard instead of a one-off
+		// cleanup, so the next trait to acquire an inert [Sync] fails immediately.
+		static readonly string[] KnownUnhashedWithSyncMembers = Array.Empty<string>();
 
 		[Test]
 		public void NoNewTraitCarriesInertSyncAnnotations()

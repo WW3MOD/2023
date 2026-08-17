@@ -90,27 +90,82 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new SupplyRouteContestation(init.Self, this); }
 	}
 
+	// ISync is load-bearing here, not decoration: Actor.cs:206 hashes a trait only when `trait is ISync`,
+	// so without it the [Sync] members below were inert and this trait was absent from every sync report.
+	// This trait decides production speed and player defeat, so an unhashed divergence here ends the
+	// game differently on the two machines with nothing in the report to say so.
+	//
+	// This trait needed real per-field judgement rather than a blanket annotation, because it also
+	// implements ISelectionBar/IAlwaysVisibleBar and carries genuinely client-local state. The
+	// exclusions below are as deliberate as the inclusions — see lastNotifyTime in particular.
 	public class SupplyRouteContestation : ITick, ISelectionBar, IAlwaysVisibleBar, IProductionSpeedModifier,
-		INotifyAddedToWorld, INotifyRemovedFromWorld
+		INotifyAddedToWorld, INotifyRemovedFromWorld, ISync
 	{
 		readonly SupplyRouteContestationInfo info;
 		readonly Actor self;
+
+		// Not hashable (the hasher takes only int, bool and 11 built-in types), but its aggregate IS
+		// hashed via the two cached surpluses below, which is the coverage that matters.
 		readonly List<Actor> actorsInRange = new List<Actor>();
 
+		// An opaque registration handle from ActorMap.AddProximityTrigger, used only to unregister in
+		// RemovedFromWorld. Deterministic, but it encodes no decision — deliberately not hashed.
 		int proximityTrigger;
+
+		// SIMULATION. Feeds IProductionSpeedModifier (production speed is simulation, not display) and
+		// `controlBar > 0` selects the deplete-vs-defeat phase. ISelectionBar reads it too, but the
+		// render path only ever READS it — that is what makes hashing it correct rather than dangerous.
 		[Sync]
 		int controlBar;
+
+		// SIMULATION. `defeatBar >= BarMax` calls OnDefeatBarFull, which makes the player passive and
+		// can resolve the whole game's win/loss.
 		[Sync]
 		int defeatBar;
+
+		// SIMULATION, and the best canaries in this trait — both previously unannotated. The sign of
+		// cachedNetEnemySurplus selects the entire Tick branch and scales CalculateTickRate; the
+		// friendly surplus multiplies the recovery rate. They are derived from actorsInRange, which is
+		// maintained by ActorMap proximity-trigger callbacks — precisely the kind of state that can
+		// diverge without any other symptom until the bar timings drift apart.
+		[Sync]
 		int cachedNetEnemySurplus;
+
+		[Sync]
 		int cachedNetFriendlySurplus;
+
+		// SIMULATION, previously unannotated. Seeded from World.SharedRandom in AddedToWorld and then
+		// decides WHICH tick RecalculateForces runs on, so a divergence shifts the entire bar timeline.
+		// Being RNG-seeded also makes it a direct check that the shared stream was aligned at actor-add.
+		[Sync]
 		int scanTick;
+
+		// DELIBERATELY NOT [Sync] — hashing these would be actively harmful, for two independent
+		// reasons, and this is the exclusion that most needed getting right.
+		// 1. They are assigned from Game.RunTime: local wall-clock milliseconds since this process
+		//    started. Two clients launch at different moments, so these values legitimately DIFFER on
+		//    every machine. Hashing them would manufacture a desync report in every multiplayer game
+		//    — turning the sync system into a false-positive generator rather than a detector.
+		// 2. They are `long`, which Sync.EmitSyncOpcodes rejects outright: the annotation would compile
+		//    and then throw NotImplementedException the first time a Supply Route was hashed.
+		// They only gate notification/ping/flash rate limiting. That path is hash-inert: the FlashTarget
+		// it queues is a plain IEffect, never enters World.SyncedEffects, and so cannot reach the hash.
 		long lastNotifyTime;
 		long lastDefeatNotifyTime;
+
+		// Deliberately NOT [Sync]. Notification latches: their only consumers are OnContestationStarted
+		// and OnDefeatPhaseStarted, which do speech, radar pings and a screen flash — never a
+		// simulation decision. They are written solely from comparisons on controlBar/defeatBar, both of
+		// which ARE hashed, so they carry no divergence signal those two do not already carry.
 		bool wasContested;
 		bool wasInDefeatPhase;
+
+		// SIMULATION. Forces the production modifier to 0 and is the flag HasActiveTeamSupplyRoute reads
+		// across every player when deciding team elimination.
 		[Sync]
 		bool isPassive;
+
+		// Render-only trait reference (radar pings); not hashable and not simulation.
 		MiniMapPings radarPings;
 
 		public SupplyRouteContestation(Actor self, SupplyRouteContestationInfo info)
