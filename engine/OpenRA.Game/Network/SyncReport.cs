@@ -57,6 +57,24 @@ namespace OpenRA.Network
 				syncReports[i] = new Report();
 		}
 
+		// Highest frame currently held in the ring, or 0 if nothing has been recorded. Only the test
+		// hook needs this: a real desync is detected by ReceiveSync against a frame that was recorded
+		// by construction, whereas a forced one has to pick a frame, and NetFrameNumber is the wrong
+		// answer - ProcessOrders stamps the report and only then increments, so by the time a script
+		// runs the counter has already moved past the newest report.
+		internal int LastRecordedFrame
+		{
+			get
+			{
+				var frame = 0;
+				foreach (var r in syncReports)
+					if (r.Frame > frame)
+						frame = r.Frame;
+
+				return frame;
+			}
+		}
+
 		internal void UpdateSyncReport(IEnumerable<OrderManager.ClientOrder> orders)
 		{
 			GenerateSyncReport(syncReports[curIndex], orders);

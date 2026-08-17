@@ -110,9 +110,12 @@ namespace OpenRA.Network
 		// Test hook, reached only via World.ForceOutOfSync (Test.ForceDesync). Drives the real desync
 		// path rather than faking its symptoms, so a capture proves the whole chain - sync report
 		// written, world latched, dialog raised - and not just that a window can be opened.
-		internal void ForceOutOfSync(int frame)
+		// Desyncs on the newest RECORDED frame, not NetFrameNumber: ReceiveSync only ever reports a
+		// frame the ring holds, so anything else produces a report reading "No sync report
+		// available!" and misrepresents what a real desync looks like.
+		internal void ForceOutOfSync()
 		{
-			OutOfSync(frame);
+			OutOfSync(syncReport.LastRecordedFrame);
 		}
 
 		public void StartGame()

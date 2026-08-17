@@ -707,7 +707,7 @@ namespace OpenRA
 			if (!TestMode.IsActive)
 				return;
 
-			OrderManager.ForceOutOfSync(OrderManager.NetFrameNumber);
+			OrderManager.ForceOutOfSync();
 		}
 	}
 
