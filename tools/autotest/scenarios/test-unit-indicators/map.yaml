@@ -39,20 +39,27 @@ Players:
 		Enemies: USA
 
 Actors:
-	# --- The density cluster. Mixed stances, one loaded + damaged + suppressed transport.
+	# --- The density cluster. Mixed stances, one damaged + suppressed transport.
+	#
+	# The three units below sit at x=21, ELEVEN cells from the scout, not the 8 they were first
+	# authored at. Eight cells is Vision@8's band, i.e. Strength 8 — which is exactly standard
+	# infantry's detection threshold, so whether they were marked flipped between two runs of
+	# the identical scenario as their prone/cover state changed the requirement by 1. Eleven
+	# cells lands in the Strength-7 band, comfortably under, so "these three are NOT spotted"
+	# is a stable fact rather than a coin flip. UNVERIFIED: no run since this move.
 	# USA is Playable: True, so AutoTarget reads InitialStance / InitialEngagementStance and
 	# NOT the *AI variants (AutoTarget.cs:497 picks on IsBot || !Playable, silently).
 	InfDefault: e1.america
 		Owner: USA
-		Location: 24,15
+		Location: 21,15
 		Facing: 512
 	InfHoldFire: e1.america
 		Owner: USA
-		Location: 24,17
+		Location: 21,17
 		Facing: 512
 	InfAmbush: e1.america
 		Owner: USA
-		Location: 24,19
+		Location: 21,19
 		Facing: 512
 	InfHold: e1hold
 		Owner: USA
@@ -112,7 +119,7 @@ Actors:
 		Location: 62,31
 	SpawnUSA: mpspawn
 		Owner: Neutral
-		Location: 24,17
+		Location: 21,17
 	SpawnRussia: mpspawn
 		Owner: Neutral
 		Location: 32,17

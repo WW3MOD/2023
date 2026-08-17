@@ -3,6 +3,26 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — UNIT DETECTABILITY IS DYNAMIC, SO A "SPOTTED/NOT SPOTTED" TEST ON THE BAND EDGE FLIPS BETWEEN RUNS
+
+WW3MOD grades vision into concentric `Strength` bands (`^StandardVision`: Strength 10 at 4c0 decaying to
+Strength 1 at 32c0) and `Detectable` reveals an actor when a band reaching it still carries
+`CurrentVisibility` strength. **That threshold is not a constant per unit type.**
+`^DetectableInfantryStandard` adds `+1` for `prone` and up to `+3` for `object-proximity` cover
+(`mods/ww3mod/rules/ingame/infantry.yaml`), so the same rifleman needs a *stronger* observer while prone or in
+cover than it does standing in the open.
+
+**Consequence for scenario authoring:** two runs of an identical scenario disagreed about whether three units
+8 cells from an enemy scout were spotted. Eight cells is Vision@8, i.e. Strength exactly 8, and standard
+infantry sit at 8–9 — so a `prone` modifier of `+1` was enough to flip all three, with no seed, position or
+rules difference. The first run's clean "4 marked, 3 unmarked" split was a **knife-edge artifact**, not a
+reproducible property, and it was nearly reported as headline evidence.
+
+**Rule: never place a visibility assertion on a band boundary.** Compute which band the distance falls in and
+pick a distance at least one full band clear of the threshold. This is the same class as picking exactly `4c0`
+for a Strength-10 test — the arithmetic passes and the observation is a coin flip. That the mark *does* track
+prone/cover is correct and arguably desirable behaviour; it just cannot be the thing a test hangs on.
+
 ## 2026-08-17 — AUTOTEST CAPTURES HAVE NO RENDER PLAYER, SO EVERY `ValidRelationships` GATE IS OFF
 
 **Any screenshot of a decoration shows marks a real player would never see.** `WithDecorationBase.ShouldRender`
