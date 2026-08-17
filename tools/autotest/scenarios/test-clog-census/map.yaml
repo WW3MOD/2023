@@ -1,0 +1,189 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Supply Route proximity census of the undispersed reserve
+
+Author: WW3MOD autotest
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# MEASURES A NUMBER. There is no prior value and no pass/fail claim about the
+# number itself — the assertion only gates the measurement's VALIDITY.
+#
+# WHAT IS BEING MEASURED. be487dfe and 85d5c868 removed a phantom staging anchor
+# that three bot resolvers were publishing by rounding the Supply Route through a
+# lossy grid round trip. That phantom was accidentally doing real work: both fixed
+# paths fed ForwardStagingMath.SpreadCell, which fanned units into rings around
+# the artifact — genuine anti-clog dispersal, up to 18 map cells on the capture
+# reserve (maxRings 9 at ringStep 2). Post-fix and pre-contact both populations
+# get NO orders and stand where they mustered, on the beachhead. Neither merge
+# could test that: the only scenario that exercised the path measured pool 0 or 1,
+# so there was nothing to congest.
+#
+# THE PREDICATE TRAP THIS SCENARIO IS BUILT AROUND. `near2 = 0` means "nothing is
+# congesting the Supply Route" AND "there are no units", and those are the same
+# number. The placement below makes them distinguishable by construction: at t=0
+# the census must read near2 STRICTLY BETWEEN 0 AND pool on both lines. So
+#   * pool = 0        ⇒ the population never reached the code path (invalid run)
+#   * near2 = 0       ⇒ everything dispersed (would be the good news)
+#   * near2 = pool    ⇒ everything converged onto the beachhead
+#   * near2 = 4 of 8  ⇒ nothing moved anyone; the placement is the answer
+# (and 2 of 4 on the reserve line — the armed line and the technicians are counted
+# separately, and measurement showed they are disjoint populations; see below.)
+# and the Lua gate FAILS the run unless the populations are intact, so a number is
+# only ever reported from a world that was actually built.
+#
+# WHY THERE IS NO ENEMY SUPPLY ROUTE, and it is load-bearing. PoiMap.Discover is
+# owner-agnostic and NOT fog-gated, so an enemy SR is a scoreable Pressure POI from
+# tick 1 for the whole match. With any POI at all, DesiredAxisCount clamps k to the
+# POI count (=1) and AllocateProportional hands that single axis the ENTIRE pool
+# (sum(sizes) == totalOffensive), so BuildFreePool is drained and StageFreePool sees
+# pool=0 — exactly what the earlier run measured, for a reason that had nothing to
+# do with its transport standoff. targets==0 is therefore the ONLY state in which
+# the offensive free pool is populated, and PoiOffensiveBotModule:1354 has an
+# explicit branch for it ("a DISPOSITION state, not a nothing-to-do state") that
+# calls StageFreePool with the whole ground line. The enemy here is units-only so
+# that branch is the one under measurement. TestMode disables both defeat paths
+# (ConquestVictoryConditions.Tick and SupplyRouteContestation:427), so the usual
+# "one supplyroute per faction to avoid a Mission Accomplished overlay" rule does
+# not bind — an SR-less enemy cannot end the run early.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-inert
+	# NO Bot: — this side must never move, or contact populates the belief field,
+	# an anchor resolves and the pre-contact window under measurement is over.
+	# Non-playable, so its units read InitialStanceAI / InitialEngagementStanceAI
+	# (AutoTarget.cs:497), which rules.yaml pins to HoldFire / HoldPosition.
+	PlayerReference@Russia-inert:
+		Name: Russia-inert
+		LockFaction: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA-bot
+
+# The SUPPLYROUTE footprint is `=+= +++ =+=` over 6..8 x 16..18 and contains NO
+# blocking cells: '=' is OccupiedPassable and '+' OccupiedPassableTransitOnly
+# (Building.cs:20-26). Units may STOP on the '=' cells (6,16 / 8,16 / 6,18 / 8,18)
+# and only transit the '+' ones, so 8,16 below is a legal muster cell standing
+# literally on the beachhead. Every cell used here is one an already-committed
+# scenario on this same map.bin places an actor on.
+Actors:
+	# THIS MAP HAS TWO USA SUPPLY ROUTES AND ONLY ONE OF THEM IS WRITTEN HERE. The mpspawn
+	# below makes SpawnStartingUnits place a second `supplyroute` at HomeLocation +
+	# BaseActorOffset, and that offset defaults to CVec(-1,-1) and is overridden nowhere
+	# (SpawnStartingUnits.cs:91, MapStartingUnits.cs:37) — so a spawn at 6,16 yields an SR
+	# at 5,15. Observed: the capture layer reported `targets=1 top=supplyroute@5,15
+	# action=DenyCapture` from tick 100 on, having reported 0 at tick 25 before PoiMap's
+	# next Discover() pass.
+	#
+	# HARMLESS TO THIS MEASUREMENT, checked rather than assumed. It is OURS, not the
+	# enemy's — which is why the offense saw `targets=0` on all 9 evals, since
+	# GetOffensiveTargets only counts an ENEMY-owned SR. It consumed no technician either,
+	# because SUPPLYROUTE carries no CaptureManager (see supply-route.md: capture is
+	# designed, not wired) so QueueCaptureOrdersFromPoiMap skips it and all four capturers
+	# fall through to the reserve muster. Both census lines printed sr=6,16 on every scan,
+	# so the origin never moved. It does mean the reserve's `reason` bucket is
+	# no-cantarget rather than no-targets — which exercises MORE of the path, not less.
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+
+	# THE MUSTERED LINE — armed, so BuildFreePool admits all of it (IsEligibleCombatUnit
+	# wants IPositionableInfo + AttackBaseInfo and not-aircraft). Deliberately laid in
+	# three bands by Chebyshev distance from the SR cell 6,16 so near2 can neither
+	# saturate nor read zero by construction:
+	#   d<=2 (near2): Rifle1 Rifle2 Rifle3 Tank1     — plus Tecn1 Tecn2 below
+	#   d=3..4       : Rifle4 Tank2 Rifle5           — plus Tecn3 below
+	#   d>4          : Rifle6                        — plus Tecn4 below
+	Rifle1: e3.america
+		Owner: USA-bot
+		Location: 7,14
+	Rifle2: e3.america
+		Owner: USA-bot
+		Location: 7,15
+	Rifle3: e3.america
+		Owner: USA-bot
+		Location: 8,15
+	Tank1: abrams
+		Owner: USA-bot
+		Location: 8,16
+	Rifle4: e3.america
+		Owner: USA-bot
+		Location: 8,13
+	Tank2: abrams
+		Owner: USA-bot
+		Location: 9,16
+	Rifle5: e3.america
+		Owner: USA-bot
+		Location: 10,14
+	Rifle6: e3.america
+		Owner: USA-bot
+		Location: 11,15
+
+	# THE CAPTURE RESERVE. Nothing on the map is capturable, so OrderedCaptureTargets
+	# is empty, no technician is dispatched and all four land in StageIdleCapturersReserve
+	# as `undispatched` with targetCount=0 — the population the phantom anchor was
+	# scattering 18 cells.
+	#
+	# THEY ARE NOT IN THE OFFENSIVE POOL, and I predicted the opposite before measuring.
+	# ^TECN does inherit ^ArmedCivilian, which carries `Armament: Weapon: Pistol` and
+	# AttackFrontal, so a technician passes the trait half of IsEligibleCombatUnit despite
+	# its own Buildable description reading "Unarmed" — but @experimental sets UseUnitRoles,
+	# and the role filter at PoiOffensiveBotModule.cs:2604 drops capturers by CLASS several
+	# screens further down. Measured at tick 1 on 2026-08-17: the offensive census reads
+	# pool=8, exactly the armed line, with all four technicians absent. So the two census
+	# lines are DISJOINT, not overlapping, and each population has exactly one owner.
+	Tecn1: tecn.america
+		Owner: USA-bot
+		Location: 8,14
+	Tecn2: tecn.america
+		Owner: USA-bot
+		Location: 8,18
+	Tecn3: tecn.america
+		Owner: USA-bot
+		Location: 9,19
+	Tecn4: tecn.america
+		Owner: USA-bot
+		Location: 11,17
+
+	# Far corner, ~54 cells from the SR — far outside any vision radius, so nothing
+	# here is ever believed and the control field stays flat. They exist only so the
+	# world contains a real Enemy relationship rather than a lone player.
+	EnemyTank1: t90
+		Owner: Russia-inert
+		Location: 60,30
+	EnemyTank2: t90
+		Owner: Russia-inert
+		Location: 62,31
+
+# LOAD-BEARING and silent when missing: without it rules.yaml is never read, so
+# LuaScript is never attached and the run burns the watchdog with an empty lua.log.
+Rules: rules.yaml

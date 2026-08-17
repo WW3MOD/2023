@@ -6231,3 +6231,59 @@ spawn** to be healthy. Worked trap: `siberian-pass-ww3` is the only 2-player map
 odd/odd (`95,15`, `1,51`), which makes it look like the ideal clean measurement map — its SRs are `94,14`
 and `0,50`, both even/even, **both polluted**. The only map where two players can both sit on a healthy
 anchor is `twin-rivers-ww3` at spawn slots `112,92` and `112,28`.
+
+## 2026-08-17 — the beachhead census: `DefaultCash: 0` does not freeze a force, and the undispersed reserve accumulates
+
+Measured in `test-clog-census`, seed -1387489882, log attributed by worktree path. The
+scenario exists because be487dfe and 85d5c868 removed a phantom staging anchor that was
+accidentally doing real anti-clog work, and neither merge could measure what replaced it.
+
+**`DefaultCash: 0` DOES NOT FREEZE THE FORCE.** Several scenarios carry a comment saying it
+does — `test-tecn-ride`'s says "no cash anywhere, so nothing is produced — the only actors are
+the pre-placed ones" — and it is false. `[composition] census` shows the bot at `cash=0` on
+tick 40 and `cash=1437` by tick 750, because `passive=100 upkeep=33 net=67` is a **per-tick
+allocation stream independent of starting cash**. It bought `medi.america` at tick 160 and
+`ar.america` at tick 200. Any scenario relying on "the placed force is the whole force" for
+attribution is relying on something that is not true; use **named-actor** counting instead,
+which stays valid because the named actors keep their identity while the population around
+them grows.
+
+**A scenario with an `mpspawn` has one more Supply Route than its `map.yaml` lists.**
+`SpawnStartingUnits` places the base actor at `HomeLocation + BaseActorOffset`, default
+`CVec(-1,-1)` and overridden nowhere — so an `mpspawn` at `6,16` yields a second, *own*
+`supplyroute` at `5,15` alongside the one the map places. It is invisible in the actor list
+and shows up only as a POI: the capture layer reported `targets=1 top=supplyroute@5,15
+action=DenyCapture`. It is not an offensive target (`GetOffensiveTargets` counts only
+ENEMY-owned SRs, and the offense read `targets=0` on all 9 evals) and it dispatches no
+capturer (SUPPLYROUTE has no `CaptureManager`), so it is harmless — but a scenario that
+counts SRs, or that assumes its own SR is unique, is counting wrong.
+
+**THE NUMBER, and it is not reassuring.** With no scoreable POI and no believed enemy, the
+staging anchor is `none` on **21 of 21 evaluations across both paths** and nothing is ever
+dispersed:
+
+| | pool | within 2 cells of SR | within 4 |
+|---|---|---|---|
+| offensive free pool, tick 80 | 8 | 4 | 7 |
+| offensive free pool, tick 880 | 12 | **8 (67%)** | 11 (92%) |
+| capture reserve, all 12 scans | 4 | **2**, unchanged | 3, unchanged |
+
+The trajectory matters more than the level. Over the run the pool grew by 4 as reinforcements
+arrived and `near2` grew by **exactly 4** — every single unit that walked in from the map edge
+to the SR rally point stopped there and was never moved off it, a 100% retention rate at the
+beachhead. The 12 placed actors did not move at all (independent named-actor count, static
+from tick 1 to 898), so the entire rise is new arrivals. `near2/pool` is therefore rising
+monotonically toward 1 for as long as reinforcements keep coming.
+
+**NOT MEASURED, and it is the thing that would make this actionable:** the pre-fix arm. The
+phantom anchor sat at `7,17`, one cell off the SR, so its `SpreadCell` rings were centred on
+the beachhead too; whether that dispersal actually cleared the road out, or merely fanned the
+jam into a wider ring around the same place, is unknown. This is a post-fix baseline, not a
+regression measurement.
+
+**Also corrected by running it:** technicians are NOT in the offensive free pool, despite
+`^TECN` inheriting `^ArmedCivilian` with `Armament: Weapon: Pistol` and `AttackFrontal`.
+`@experimental` sets `UseUnitRoles` and the role filter at `PoiOffensiveBotModule.cs:2604`
+drops capturers by class, several screens below the trait test. The two census lines are
+disjoint populations with one owner each. A trait-level argument about pool membership on this
+bot is worth very little without the role filter.

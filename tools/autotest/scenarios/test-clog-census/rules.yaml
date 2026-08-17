@@ -1,0 +1,32 @@
+# DefaultCash: 0 DOES NOT FREEZE THE FORCE, and every scenario that says it does is
+# wrong — this one said it too until it was run. Measured 2026-08-17: the bot starts at
+# cash=0 and still reaches 1437 by tick 750, because `passive=100 upkeep=33 net=67` is a
+# per-tick allocation stream independent of starting cash. It bought medi.america at tick
+# 160 and ar.america at tick 200, and the offensive free pool grew 8 -> 12 over the run.
+#
+# LEFT AS IS DELIBERATELY. The arrivals are the measurement's best evidence rather than a
+# contaminant: reinforcements enter at the map edge and walk to the SR's rally point
+# (DOCS/reference/supply-route.md), so each one musters onto the beachhead and — with no
+# staging anchor — is never moved off it. That is the congestion mechanism itself, observed
+# live, and it is not something the placed force could ever have shown. The named-actor
+# gate in the Lua is unaffected: it counts the 12 placed actors by name and they stayed
+# 8 and 4 throughout, which is what makes "the growth is all new arrivals" attributable.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+# The inert opponent must never move: a single believed contact populates the control
+# field, an anchor resolves, and the pre-contact state under measurement is gone. Its
+# player is non-playable, so AutoTarget reads the *AI variants of these fields
+# (AutoTarget.cs:497) — setting InitialStance / InitialEngagementStance here would do
+# nothing at all, silently.
+t90:
+	AutoTarget:
+		InitialStanceAI: HoldFire
+		InitialEngagementStanceAI: HoldPosition
+
+World:
+	-StartGameNotification:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-clog-census.lua
