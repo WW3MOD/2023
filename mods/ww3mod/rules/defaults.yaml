@@ -778,6 +778,48 @@
 		Position: TopRight
 		Margin: 0,0
 
+# Two render-only marks: "an enemy I know about can see this unit", and "this unit is in a
+# stance I deliberately set". Neither changes behaviour and neither grants a condition —
+# both read their source from the render path, which is what keeps them off the desync path
+# that condition-driven visibility marks have fallen into twice (PITFALL at Detectable.cs:152).
+#
+# Text, not a pip, on purpose. The existing pip vocabulary is 4x4 colour dots (cargo, class)
+# and 6x3 solid chevrons (suppression, damage, defense), and every colour in both idioms is
+# already spoken for — a new pip would read as one of those. WithTextDecoration is used
+# nowhere else in the mod, so a glyph is distinguishable from every existing pip by medium
+# alone, before colour or position do any work.
+#
+# Slots. All three sit in the Top RIGHT lane, which deleting the abandoned ^VisibilityPips
+# gradient row freed up. Everything else around the box is spoken for, and two of those were
+# not obvious from grepping Position: in rules/ —
+#   Top centre  y=0 damage, -3 suppression, -5 critical, and -10 AND UPWARD cargo, which is
+#               always-on and spreads sideways at PipStride 6,6 as passengers load
+#   TopLeft     WithSpriteControlGroupDecoration, which declares no Position: anywhere in
+#               YAML because TopLeft is its C# default
+#   TopRight    the holding-fire pip
+#   Top left lane (margin.X +16)  rank chevrons
+#   Bottom      ISelectionBar stack and the ammo row
+# Note Top negates margin.X, so NEGATIVE X here means RIGHT of centre. Spotted takes y=0, the
+# slot nearest the unit and the one clear of cargo even on a full transport; the two stance
+# glyphs sit side by side on the row above it.
+^UnitIndicators:
+	WithSpottedDecoration:
+		RequiresSelection: false
+		Position: Top
+		Margin: -13,0
+		Text: !
+		Color: FF4A3C
+	WithStanceDecoration@Fire:
+		RequiresSelection: false
+		Axis: Fire
+		Position: Top
+		Margin: -13,-9
+	WithStanceDecoration@Engagement:
+		RequiresSelection: false
+		Axis: Engagement
+		Position: Top
+		Margin: -21,-9
+
 ^AmmoDecoration:
 	ExternalCondition@WeaponPrimary:
 		Condition: weapon-primary
@@ -856,16 +898,19 @@
 	DrawLineToTarget:
 ^SelectableCombatUnit:
 	Inherits@SelectionDecorations: ^Selectable
+	Inherits@UnitIndicators: ^UnitIndicators
 	Selectable:
 		Priority: 10
 		PriorityModifiers: Ctrl
 ^SelectableSupportUnit:
 	Inherits@SelectionDecorations: ^Selectable
+	Inherits@UnitIndicators: ^UnitIndicators
 	Selectable:
 		Priority: 8
 		PriorityModifiers: Ctrl, Alt
 ^SelectableEconomicUnit:
 	Inherits@SelectionDecorations: ^Selectable
+	Inherits@UnitIndicators: ^UnitIndicators
 	Selectable:
 		Priority: 6
 		PriorityModifiers: Ctrl, Alt

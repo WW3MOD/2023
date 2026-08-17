@@ -1,0 +1,108 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Unit indicators — spotted + stance (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# --- The density cluster. Mixed stances, one loaded + damaged + suppressed transport.
+	# USA is Playable: True, so AutoTarget reads InitialStance / InitialEngagementStance and
+	# NOT the *AI variants (AutoTarget.cs:497 picks on IsBot || !Playable, silently).
+	InfDefault: e1.america
+		Owner: USA
+		Location: 24,15
+		Facing: 512
+	InfHoldFire: e1.america
+		Owner: USA
+		Location: 24,17
+		Facing: 512
+	InfAmbush: e1.america
+		Owner: USA
+		Location: 24,19
+		Facing: 512
+	InfHold: e1hold
+		Owner: USA
+		Location: 27,15
+		Facing: 512
+	InfHunt: e1hunt
+		Owner: USA
+		Location: 27,19
+		Facing: 512
+	# Both axes non-default at once — the worst case for glyph collision.
+	InfBoth: e1hold
+		Owner: USA
+		Location: 29,17
+		Facing: 512
+	# Loaded transport: cargo pips are always-on at Top 0,-10 and spread sideways as
+	# passengers load, which is the row the spotted mark has to stay clear of.
+	Apc: m113
+		Owner: USA
+		Location: 27,17
+		Facing: 512
+		Cargo: e1.america,e1.america,e1.america
+	# --- The observer that makes the cluster spotted. Close enough that USA sees it too, so
+	# the asymmetry rule permits the mark.
+	Scout: e1.russia
+		Owner: Russia
+		Location: 33,17
+		Facing: 512
+	# --- Asymmetry probe, deliberately far from everything above. Watcher has 20c0 of
+	# full-strength vision and stands 18 cells away, so it sees Probe while Probe's own vision
+	# has decayed to Strength 5 at that range. Expected: Probe draws NO spotted mark, and
+	# Watcher is not on screen at all.
+	Probe: e1.america
+		Owner: USA
+		Location: 50,6
+		Facing: 512
+	Watcher: e1watcher
+		Owner: Russia
+		Location: 50,24
+		Facing: 512
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,16
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,28
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 24,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 33,17
+
+Rules: rules.yaml
