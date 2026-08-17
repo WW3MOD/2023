@@ -25,6 +25,10 @@ Background@CARGO_UNLOAD_MENU:
 			ItemSpacing: 1
 			BorderWidth: 0
 			Background:
+			# The bar is drawn whether or not the content overflows, and a right-hand bar does not
+			# inset the rows, so it lands on top of the count column. The menu sizes itself to its
+			# content instead — all 16 classes at once is only ~370px, which fits.
+			ScrollBar: Hidden
 			Children:
 				ScrollItem@CLASS_TEMPLATE:
 					Width: PARENT_WIDTH - 2

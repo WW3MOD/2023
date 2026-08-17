@@ -28,9 +28,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 	[ChromeLogicArgsHotkeys("UnloadMenuKey")]
 	public class CargoUnloadMenuLogic : SingleHotkeyBaseLogic
 	{
-		// A 36-slot Chinook can legally hold one of every class, which is taller than some
-		// viewports. Past this the list scrolls rather than growing off the screen.
-		const int MaxListHeight = 198;
+		// Tall enough for all 16 combat classes at once (16 rows x 23px). A 36-slot Chinook can
+		// legally hold one of everything, and that worst case is still only ~370px — so the menu
+		// grows to fit instead of scrolling. A scrollbar was tried and removed: ScrollPanelWidget
+		// draws it unconditionally rather than on overflow, and for a right-hand bar ChildOrigin
+		// does not inset the rows (ScrollPanelWidget.cs:236), so it sat on top of the count column
+		// and hid it — visible in the first capture of this menu as rows with no counts at all.
+		const int MaxListHeight = 380;
 		const int ScreenMargin = 4;
 
 		readonly World world;
@@ -57,15 +61,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 
 		protected override bool OnHotkeyActivated(KeyInput e)
 		{
-			if (menu != null)
-			{
-				Close();
-				return true;
-			}
-
 			var candidate = SelectedTransport();
-			if (candidate == null)
-				return false;
+			var openFor = transport;
+
+			if (menu != null)
+				Close();
+
+			// Toggle shut only when the menu already belonged to what is selected now. Pressing the
+			// key after switching transports RETARGETS it: closing there would make the player press
+			// twice to see the transport they just clicked, for no reason they could infer. The old
+			// unconditional close also made "did it open?" untestable, because both outcomes
+			// returned true — which is how a capture of a stale menu passed its own assertion.
+			if (candidate == null || ReferenceEquals(candidate, openFor))
+				return openFor != null;
 
 			Open(candidate);
 			return true;

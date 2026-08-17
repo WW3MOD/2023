@@ -1,0 +1,36 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-unload-menu.lua
+
+# 3 men across 2 classes — the small end, where a fixed panel costs the most travel.
+bradley:
+	Cargo:
+		InitialUnits: E3,E3,AT
+
+# Exactly 36, the Chinook's MaxWeight, across 9 classes. This is the mockup's own
+# "realistic air-assault package", and it is the case the design has to survive:
+# 10 Rifleman, 6 Automatic Rifleman, 5 AT, 4 Grenadier, 3 Medic, 2 each of Team
+# Leader, Mortar, Combat Engineer and Sniper. Every passenger is Weight 1 (nothing
+# in infantry.yaml overrides it), so 36 men is a full hold and not an overfill that
+# would silently drop the tail of this list.
+#
+# TRAN, not tran: rules keys merge by exact case. aircraft-america.yaml defines the
+# Chinook as `TRAN:`, and a lowercase override here does not merge with it, it adds a
+# SECOND actor under a near-identical key — which fails the whole rules load with
+# "duplicate values found for the following keys: tran". The map's actor reference
+# below is a lookup rather than a merge, so `tran` is fine there.
+TRAN:
+	Cargo:
+		InitialUnits: E3,E3,E3,E3,E3,E3,E3,E3,E3,E3,AR,AR,AR,AR,AR,AR,AT,AT,AT,AT,AT,E2,E2,E2,E2,MEDI,MEDI,MEDI,TL,TL,MT,MT,E6,E6,SN,SN
