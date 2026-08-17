@@ -118,10 +118,21 @@ Player:
 		# floored support type is GUARANTEED to be the opening call-in, not merely allowed to be. Measured on
 		# the shipped default start class: cycles 0 and 1 both buy medi.russia. This is the second instance of
 		# the defect that first showed up as two supply trucks (PIPELINE 57(a)).
-		# 20 is the user's own ratio ("1 medic per 20 man squad"); the floor is min(2, supported/20), so there
-		# are 0 medics below 20 soldiers and the opening call-ins go to line infantry instead.
+		# The floor is min(2, supported/N), so there are no medics below N soldiers and the opening call-ins go
+		# to line infantry instead.
+		# 10, NOT 20 — re-derived 2026-08-17, mirror of the America block; the full sweep, the cliff argument
+		# and the caveats live there. Short version: 20 was checked on the end-of-run snapshot, and on the
+		# run-integrated metric it is INERT rather than conservative. EffectiveFloor is min(cap, supported/N),
+		# so the floor is zero on every cycle where supported < N, and russia's standing infantry force peaks
+		# at 18 under attrition 15 and 19 under attrition 20 — `engaged 0/200 cycles`, the floor never fired.
+		# Measured at 20 -> 10, mean standing medics and cycles with NO medic: attrition 15 0.07 -> 0.94 and
+		# 93% -> 6%; attrition 20 0.10 -> 0.95 and 90% -> 5%; attrition 25 0.83 -> 0.98 and 17% -> 4%;
+		# attrition 35 0.98 -> 1.89 and 2% -> 0%. At 20 the bot bought ZERO medics in 200 cycles at attrition
+		# 15 (`first-buy NEVER`) — the starting medic died and was never replaced.
+		# 10 is the smallest ratio that still keeps the medic out of the opening buys under both start classes;
+		# 6 and 8 put it back at cycle 1 with --start platoon. The cap of 2 is unchanged.
 		UnitFloorPer:
-			medi.russia: 20
+			medi.russia: 10
 		# Denominator: every non-medic infantry type, matching the medi share derivation in ai-america.yaml so
 		# the floor and the 17-per-mille share express ONE ratio rather than two. aa.russia deliberately has
 		# no ratio — its denominator is enemy AIR, not own army size, and UnitDelays 2000 below is the

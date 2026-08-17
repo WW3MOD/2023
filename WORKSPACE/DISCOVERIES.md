@@ -3,6 +3,39 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — A RATIO FLOOR HAS A CLIFF, AND THE FAILURE MODE IS SILENT: THE FLOOR SIMPLY NEVER EXISTS
+
+`SupportFloorMath.EffectiveFloor` is `min(cap, supported/per)`, so the floor is **exactly zero on every cycle
+where `supported < per`**. That is arithmetic, not a tuning question — which means any ratio whose denominator
+**collapses under attrition** has a threshold above which the floor stops firing *entirely* and behaviour
+reverts to the pre-fix state. Found first on the supply truck (a reviewer's nine-value sweep: `per` 12 gave 30%
+dry, `per` 14 gave 86% — the pre-fix number exactly), then confirmed on the medic, where the *shipped* value
+was already past its own cliff.
+
+**The medic case, because it shows how invisible this is.** `UnitFloorPer: medi.* 20` was tuned on end-of-run
+snapshot evidence. Measured on `--composition-plan`, the bot's standing non-medic infantry force peaks at **18**
+under `--attrition 15` and **19** under `--attrition 20`. So the floor reported `engaged 0/200 cycles` — it
+never once existed — and the bot bought **zero** medics in 200 cycles (`first-buy NEVER`), on both factions.
+The starting medic died and was never replaced. Every symptom sat in the heavy-loss regime, i.e. precisely
+where the support type matters most, because heavier losses shrink the denominator.
+
+**Why no existing column caught it.** `standing`, `bought` and the final `census‰` are all end-of-cycle
+snapshots of a continuously-replaced type. Worse, *a floor that never engaged* and *a floor that is fully
+satisfied* both show *zero pre-empts* — they are indistinguishable on any count of what the floor did. The
+discriminator has to be the floor's own value: `--composition-plan` now reports, per ratio-floored type,
+`engaged` (cycles where the effective floor was >= 1 at all) beside `short` (cycles where it was non-zero AND
+unmet). `engaged 0/N` prints an explicit `INERT` marker.
+
+**Generalisable rule: a ratio is only meaningful against a MEASURED denominator.** `20` came from the user's
+own phrasing ("about 1 medic per 20 man squad") and was never checked against how many soldiers the bot
+actually fields — which under losses is ~10. A denominator sourced from a human's mental model of the game is a
+hypothesis, not a measurement. When adding any `UnitFloorPer`-shaped knob, print the denominator's own
+trajectory (`UnitFloorPer denominator over the run: mean/min/max`) and confirm the ratio sits **below** the
+minimum, with margin, in the *worst* regime — not the typical one. Sweep it; two values cannot find a cliff.
+
+Refs: `DumpCompositionPlanCommand.cs` (`--floor-per N` sweeps the ratio without editing YAML),
+`SupportFloorMath.cs`, `ai-america.yaml` / `ai-russia.yaml` `UnitFloorPer`.
+
 ## 2026-08-17 — THE PHANTOM-ANCHOR CLASS IS CLOSED, AND WHAT CLOSED IT WAS A SOURCE SCAN, NOT A THIRD FIX
 
 Three bot resolvers shipped the same map/grid round-trip mistake independently over eleven days. The third

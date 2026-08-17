@@ -41,7 +41,9 @@ namespace OpenRA.Test
 		[Test]
 		public void FloorPhasesInWithTheSupportedForce()
 		{
-			// The user's own ratio: "around 1 medic per 20 man squad".
+			// 20 here is an illustrative denominator, NOT the shipped medic ratio — that is 10 (ai-america.yaml).
+			// The user's phrasing was "around 1 medic per 20 man squad", but the bot's standing infantry force
+			// under losses peaks below 20, so a denominator of 20 left the floor permanently at zero.
 			Assert.That(SupportFloorMath.EffectiveFloor(2, 20, 20), Is.EqualTo(1), "one squad ⇒ one medic");
 			Assert.That(SupportFloorMath.EffectiveFloor(2, 20, 39), Is.EqualTo(1), "still short of the second");
 			Assert.That(SupportFloorMath.EffectiveFloor(2, 20, 40), Is.EqualTo(2), "two squads ⇒ two medics");

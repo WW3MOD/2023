@@ -14,6 +14,12 @@
  *   MOD_SEARCH_PATHS=<repo>/mods,<repo>/engine/mods \
  *   dotnet engine/bin/OpenRA.Utility.dll ww3mod --composition-plan [--faction america] [--cycles 200] [--verbose]
  *
+ * TUNING A FLOOR RATIO: read the run-integrated `over the run` lines, never the end-of-run `standing`
+ * column or the final census‰ — for a type that is continuously replaced those are close to a coin flip on
+ * whether one happened to be alive at the last cycle, and they have now mis-tuned two ratios (the supply
+ * truck, then the medic). `--floor-per N` sweeps every configured UnitFloorPer without editing YAML; the
+ * `engaged` count is what catches a ratio whose denominator collapses out from under it.
+ *
  * WHAT THE REPLAY MODELS, stated plainly so the numbers are not over-read:
  *   * budget is UNLIMITED, and by default NOTHING DIES. That default is deliberately the case most
  *     FAVOURABLE to a small target share: with no losses the army converges toward the target vector,
@@ -56,7 +62,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 		bool IUtilityCommand.ValidateArguments(string[] args) => true;
 
-		[Desc("[--faction america|russia] [--cycles N] [--start <class>] [--verbose]",
+		[Desc("[--faction america|russia] [--cycles N] [--start <class>] [--attrition N] [--floor-per N] [--verbose]",
 			"Re-derive the @experimental bot's composition-directed buy sequence from YAML, no game run.")]
 		void IUtilityCommand.Run(Utility utility, string[] args)
 		{
@@ -104,6 +110,16 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			for (var i = 0; i < types.Length; i++)
 				floorPer[i] = info.UnitFloorPer != null && info.UnitFloorPer.TryGetValue(types[i], out var p) ? p : 0;
 
+			// --floor-per N sweeps the ratio without editing YAML, so a nine-value sweep cannot leave an edited
+			// config behind or silently compare two runs that differed in more than the ratio. It rewrites only
+			// slots that ALREADY carry a ratio: the override can retune a configured floor, never invent one on
+			// a type the designer left flat, which would measure a config that does not exist.
+			var floorPerOverride = int.TryParse(ArgValue(args, "--floor-per"), out var fpo) ? fpo : 0;
+			if (floorPerOverride > 0)
+				for (var i = 0; i < types.Length; i++)
+					if (floorPer[i] > 0)
+						floorPer[i] = floorPerOverride;
+
 			var isSupported = new bool[types.Length];
 			for (var i = 0; i < types.Length; i++)
 				isSupported[i] = info.UnitFloorSupportedTypes.Contains(types[i]);
@@ -149,6 +165,10 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				+ $"= {openingTrucks * cost[Array.IndexOf(types, info.ResupplyUnitTypes.FirstOrDefault() ?? "truk")]} budget");
 			Console.WriteLine($"[composition] gated AA allowed at zero observed enemy air = {openingAaAllowed} "
 				+ $"(baseline={info.AntiAirBaseline}, per-observed={info.AntiAirPerObservedAir})");
+
+			if (floorPerOverride > 0)
+				Console.WriteLine($"[composition] *** UnitFloorPer OVERRIDDEN to {floorPerOverride} for every "
+					+ "ratio-floored slot (--floor-per) — this is NOT the shipped config ***");
 			Console.WriteLine();
 
 			// ===== The reachability table. V_fit is the whole medic argument in one column. =====
@@ -198,6 +218,35 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			var truckMin = int.MaxValue;
 			var truckMax = 0;
 
+			// ===== The same run-integrated reading, for every type with a UnitFloorPer =====
+			// The truck block above exists because the final-cycle snapshot could not tune SupplyTruckFloorPer.
+			// A UnitFloorPer type has exactly the same problem for exactly the same reason — it is continuously
+			// replaced under losses — so it gets the same instrument rather than a second one.
+			//
+			// ENGAGED and SHORT are the pair that locates the CLIFF, and they answer different questions.
+			// A ratio against a denominator that COLLAPSES under attrition has a threshold above which it stops
+			// firing at all: measured on the truck, per 12 gave 30% dry and per 14 gave 86% — the pre-fix
+			// behaviour exactly — because the thinned army no longer carries enough customers to clear the
+			// denominator. `engaged` is the cycles on which the effective floor was >= 1 at all, i.e. the ratio
+			// cleared its denominator; 0/N is a floor that is INERT, not a floor that is satisfied. `short` is
+			// the cycles on which the floor was both non-zero AND unmet, i.e. the pre-empt would actually fire.
+			// Reading only `standing` or only `dry` cannot tell those two apart: a type with no floor engaged
+			// and a type with a floor fully met both show zero pre-empts.
+			var slotDry = new int[types.Length];
+			var slotSum = new int[types.Length];
+			var slotMin = new int[types.Length];
+			var slotMax = new int[types.Length];
+			var slotEngaged = new int[types.Length];
+			var slotShort = new int[types.Length];
+			for (var i = 0; i < types.Length; i++)
+				slotMin[i] = int.MaxValue;
+
+			// The denominator's own trajectory. Without this the sweep can report THAT a ratio stopped engaging
+			// but not WHERE the cliff is, which is the number that decides whether the shipped value has margin.
+			var supportedSum = 0;
+			var supportedMin = int.MaxValue;
+			var supportedMax = 0;
+
 			for (var cycle = 0; cycle < cycles; cycle++)
 			{
 				// Proportional-hazard attrition, applied BEFORE the buy so the cycle sees the losses it is
@@ -233,6 +282,47 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 				if (truckAlive > truckMax)
 					truckMax = truckAlive;
+
+				// The UnitFloorPer denominator: the STANDING count of supported types, matching
+				// CountSupportedForce (alive units, pending excluded). Sampled here, after attrition and before
+				// this cycle's buy, so the floor pre-empt below and the run-integrated reading above are
+				// computed from ONE value and cannot disagree about what the denominator was.
+				var supported = 0;
+				for (var i = 0; i < types.Length; i++)
+					if (isSupported[i])
+						supported += counts[i];
+
+				supportedSum += supported;
+				if (supported < supportedMin)
+					supportedMin = supported;
+
+				if (supported > supportedMax)
+					supportedMax = supported;
+
+				for (var i = 0; i < types.Length; i++)
+				{
+					if (floorPer[i] <= 0 || flatFloor[i] <= 0)
+						continue;
+
+					var held = counts[i];
+					slotSum[i] += held;
+					if (held == 0)
+						slotDry[i]++;
+
+					if (held < slotMin[i])
+						slotMin[i] = held;
+
+					if (held > slotMax[i])
+						slotMax[i] = held;
+
+					var effNow = SupportFloorMath.EffectiveFloor(flatFloor[i], floorPer[i], supported);
+					if (effNow > 0)
+					{
+						slotEngaged[i]++;
+						if (held < effNow)
+							slotShort[i]++;
+					}
+				}
 
 				var values = new int[types.Length];
 				for (var i = 0; i < types.Length; i++)
@@ -271,14 +361,8 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				// same order ChooseBelowFloor walks. Exempt from the ceiling and the AA threat gate by
 				// construction, exactly as the module's early return is.
 				//
-				// The denominator is the STANDING count of supported types, matching CountSupportedForce
-				// (alive units, pending excluded). At cycle 0 with no starting units it is 0, so every scaled
-				// floor is 0 and nothing is pre-empted — which is the behaviour under test.
-				var supported = 0;
-				for (var i = 0; i < types.Length; i++)
-					if (isSupported[i])
-						supported += counts[i];
-
+				// `supported` is the denominator sampled above. At cycle 0 with no starting units it is 0, so
+				// every scaled floor is 0 and nothing is pre-empted — which is the behaviour under test.
 				if (preempt < 0)
 					for (var i = 0; i < types.Length; i++)
 					{
@@ -335,6 +419,29 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				Console.WriteLine($"[composition] supply fleet over the run: dry {truckDryCycles}/{cycles} cycles "
 					+ $"({100 * truckDryCycles / cycles}%), mean {truckCycleSum / (double)cycles:0.00}, "
 					+ $"min {(truckMin == int.MaxValue ? 0 : truckMin)}, max {truckMax}");
+
+			// Same reading for the ratio-floored types, plus the denominator that decides whether their ratio
+			// engages at all. Tune a UnitFloorPer on THESE lines, never on the `standing` column below.
+			if (floorPer.Any(p => p > 0))
+			{
+				Console.WriteLine($"[composition] UnitFloorPer denominator over the run: mean "
+					+ $"{supportedSum / (double)cycles:0.00} supported, min {(supportedMin == int.MaxValue ? 0 : supportedMin)}, "
+					+ $"max {supportedMax}");
+
+				for (var i = 0; i < types.Length; i++)
+				{
+					if (floorPer[i] <= 0 || flatFloor[i] <= 0)
+						continue;
+
+					Console.WriteLine($"[composition] {types[i]} over the run: dry {slotDry[i]}/{cycles} cycles "
+						+ $"({100 * slotDry[i] / cycles}%), mean {slotSum[i] / (double)cycles:0.00}, "
+						+ $"min {(slotMin[i] == int.MaxValue ? 0 : slotMin[i])}, max {slotMax[i]}");
+					Console.WriteLine($"[composition] {types[i]} floor (cap {flatFloor[i]} @ 1 per {floorPer[i]}): "
+						+ $"engaged {slotEngaged[i]}/{cycles} cycles ({100 * slotEngaged[i] / cycles}%), "
+						+ $"short {slotShort[i]}/{cycles}"
+						+ (slotEngaged[i] == 0 ? "  <-- INERT: denominator never reached " + floorPer[i] : ""));
+				}
+			}
 
 			Console.WriteLine();
 			Console.WriteLine("type                  start  bought    lost  standing  census‰  target‰  first-buy");
