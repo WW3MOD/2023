@@ -62,7 +62,10 @@ Actors:
 		Owner: USA
 		Location: 27,19
 		Facing: 512
-	# Both axes non-default at once — the worst case for glyph collision.
+	# Both axes non-default at once, AND close enough to the scout to be spotted, so this is
+	# the unit that carries all three new glyphs simultaneously. 3 cells from Scout keeps it
+	# inside the Strength-10 band (0..4c0) in both directions rather than sitting on the
+	# boundary, where the mark would be a coin flip.
 	InfBoth: e1hold
 		Owner: USA
 		Location: 29,17
@@ -78,7 +81,7 @@ Actors:
 	# the asymmetry rule permits the mark.
 	Scout: e1.russia
 		Owner: Russia
-		Location: 33,17
+		Location: 32,17
 		Facing: 512
 	# --- Asymmetry probe, deliberately far from everything above. Watcher has 20c0 of
 	# full-strength vision and stands 18 cells away, so it sees Probe while Probe's own vision
@@ -103,6 +106,6 @@ Actors:
 		Location: 24,17
 	SpawnRussia: mpspawn
 		Owner: Neutral
-		Location: 33,17
+		Location: 32,17
 
 Rules: rules.yaml
