@@ -74,18 +74,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			"gamespeed", "timelimit", "startingunits",
 			// Player-level
 			"bounty",
-			// Developer toggle promoted out of its own section — see comment on `sync`
-			// in HiddenOptionIds. Debug Menu is the one developer-flagged option that's
-			// useful to skirmish players, so we surface it in the Match panel directly.
+			// Debug Menu is the one developer-flagged option that's useful to skirmish
+			// players, so we surface it in the Match panel directly.
 			"cheats",
+			// Both sides pay the cost of sync reports, so both sides agree on it here.
+			Session.SyncReportsOptionId,
 		};
 
 		// Options never shown in the lobby (deliberately removed from WW3MOD).
-		// `sync` is a netcode-debug toggle (off by default; lowers performance when
-		// enabled) — meaningless in skirmish and an attractive-nuisance for players.
 		internal static readonly HashSet<string> HiddenOptionIds = new()
 		{
-			"shortgame", "crates", "creeps", "buildradius", "allybuild", "techlevel", "sync"
+			"shortgame", "crates", "creeps", "buildradius", "allybuild", "techlevel"
 		};
 
 		// Section grouping within the ADVANCED tab. Sections render in the declared order.
@@ -129,6 +128,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ "fog", SectionWorld },
 			{ "separateteamspawns", SectionWorld },
 			{ "cheats", SectionWorld },
+			// Last in World, and last overall by display order, deliberately. The Match panel fits
+			// its three rows exactly, so ANY added row costs a scroll; putting this one at the very
+			// end means the row that falls below the fold is this option rather than four
+			// pre-existing ones. Measured, not assumed — see the before/after lobby captures.
+			{ Session.SyncReportsOptionId, SectionWorld },
 		};
 
 		static readonly Dictionary<string, string> OptionSection = new()

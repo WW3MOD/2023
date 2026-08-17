@@ -100,7 +100,13 @@ namespace OpenRA.Network
 			if (IsOutOfSync)
 				return;
 
-			OutOfSyncReportPath = syncReport.DumpSyncReport(frame);
+			// Only dump when something was actually recorded. WriteReport decides "we have data for
+			// this frame" by matching r.Frame == frame against the ring, but the ring is zero
+			// initialised, so with recording off every one of its 32 slots claims to be frame 0. A
+			// desync detected AT frame 0 therefore matched all of them and produced a 16KB file of
+			// empty records, which DesyncWatcherLogic then asked the player to send. Null here is
+			// the signal it needs to say the report is missing instead of naming a useless file.
+			OutOfSyncReportPath = generateSyncReport ? syncReport.DumpSyncReport(frame) : null;
 			OutOfSyncFrame = frame;
 			World.OutOfSync();
 			IsOutOfSync = true;
@@ -141,17 +147,28 @@ namespace OpenRA.Network
 			// saved-game restore DOES have a second side to diff against — the recorded match — and
 			// it is single-client by construction, so without the override a restore desync reports
 			// a frame number and "No sync report available!", which cannot name what diverged.
+			// Two separate questions, and either may answer no. "Is there anyone to diff against"
+			// is the human-client floor below; "do the players want to pay for it" is the lobby
+			// option, which both sides agree on before the match starts. The option falls back to
+			// the server setting, so a map carrying no SyncReportsOptionInfo behaves exactly as it
+			// did before the option existed. EnableSyncReports stays ANDed on top as a hard
+			// ceiling: a dedicated host started with Server.EnableSyncReports=False is not
+			// overridden by players ticking the box.
 			var humanClients = LobbyInfo.Clients.Count(c => !c.IsBot);
+			var reportsWanted = LobbyInfo.GlobalSettings.OptionOrDefault(
+				Session.SyncReportsOptionId, LobbyInfo.GlobalSettings.EnableSyncReports);
+
 			generateSyncReport = Connection is not ReplayConnection
 				&& LobbyInfo.GlobalSettings.EnableSyncReports
+				&& reportsWanted
 				&& (humanClients > 1 || (TestMode.IsActive && TestMode.ForceSyncReports));
 
 			// Stated out loud so a missing report is diagnosable BEFORE the next desync rather
 			// than after it. If a game ever ends in "No sync report available", this line says
-			// whether reporting was ever armed.
+			// whether reporting was ever armed, and which gate said no.
 			Log.Write("debug", $"Sync reports {(generateSyncReport ? "enabled" : "disabled")} " +
-				$"(setting {LobbyInfo.GlobalSettings.EnableSyncReports}, human clients {humanClients}, " +
-				$"replay {Connection is ReplayConnection}).");
+				$"(setting {LobbyInfo.GlobalSettings.EnableSyncReports}, lobby option {reportsWanted}, " +
+				$"human clients {humanClients}, replay {Connection is ReplayConnection}).");
 
 			OpenSyncHashLog();
 

@@ -29,6 +29,11 @@ namespace OpenRA.Network
 
 		public Global GlobalSettings = new();
 
+		// Declared here rather than on the trait because the two sides live in assemblies that
+		// cannot see each other: SyncReportsOptionInfo (OpenRA.Mods.Common) publishes the option,
+		// OrderManager (OpenRA.Game) consumes it, and Mods.Common references Game, not the reverse.
+		public const string SyncReportsOptionId = "syncreports";
+
 		public static string AnonymizeIP(IPAddress ip)
 		{
 			if (ip.AddressFamily == AddressFamily.InterNetwork)
