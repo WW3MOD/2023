@@ -3,6 +3,87 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — THE WINDOWS GREEN TICK IS NOT "RETURN 0", IT IS THE UTILITY OVERWRITING `$LASTEXITCODE` AFTER THE BUILD ALREADY FAILED
+
+Branch `wt/ci-integrity`. Confirms the 2026-08-17 lint-baseline entry's two CI claims and corrects its
+mechanism. Verified against full `gh` job logs for runs `31992009079` (commit `7492f152`) and `31997060463`
+(`8656bd3c`), plus a local `make check` on `8656bd3c`.
+
+**The lie is not that `Check-Command` "returns 0" — it is that it keeps going.** `make.ps1:163` reacts to a
+failed analyzer build by printing `Build failed.` and falling through to `InvokeCommand
+"$utilityPath ww3mod --check-explicit-interfaces"` (`make.ps1:176,179`). Those two `OpenRA.Utility.exe` calls
+are the **last external commands the script runs**, so they set `$LASTEXITCODE` to their own `0`, and GitHub's
+`powershell` shell wrapper reports that. The distinction is load-bearing: had the utility been missing or
+failing, the same code would have gone red — the green tick is an accident of ordering, not a stable property,
+which is why it looks trustworthy. **The same file proves the fix works**: `InvokeCommand`'s `exit 1`
+(`make.ps1:291`) is what turned the *`Check Mods`* step red in that identical job, so `exit` inside a
+`make.ps1` function does reach the runner.
+
+**The bug is in two files, and the second one is the one that matters.** `engine/make.ps1:119` is identical.
+It is not redundant with the mod-level copy: `WW3MOD.sln` contains **only `OpenRA.Game` and
+`OpenRA.Mods.Common`**, so the engine's own Debug build is the only one that ever compiles
+`OpenRA.Utility`, `OpenRA.Server`, `OpenRA.Mods.Cnc`, `OpenRA.Mods.D2k`, `OpenRA.Platforms.Default` and
+`OpenRA.Test` under `-warnaserror`. An analyzer error in any of those is invisible to the mod-level gate.
+`make.ps1:359` also discarded the engine sub-build's exit code entirely, where the Makefile propagates it
+(`Makefile:191` `check: engine`, proven by `make[1]: *** Error 1` → `make: *** Error 2` in the mono log).
+
+**There is no `global.json`, so the analyzer set is whatever SDK the machine happens to have — the error
+count is not a stable number.** Same commit, same `-warnaserror`: the runner reports **106**, a local
+`make check` on SDK 6.0.428 reports **100**. The delta is exactly `5 × CA1862 + 1 × IDE0251`, both rules that
+ship with newer analyzer packs; GitHub's runners carry .NET 8/9 alongside the 6.0.x `setup-dotnet` installs
+and nothing pins the choice. **Anything that baselines analyzer errors by count would flap between machines.**
+
+**The shape of the 106 is one rule.** Deduped by `file(line,col)`: **84 are RCS1226** ("Add paragraph to
+documentation comment") — Roslynator wanting `<para>` around the second and later paragraphs of WW3MOD's own
+`<summary>` blocks, a pure formatting edit. The rest: `CA1862` 5, `SA1013` 4, `RCS1155` 4, `CS1734` 3,
+`SA1509` 2, `SA1612`/`SA1514`/`IDE0251`/`CA2231` 1 each. All 106 are in `engine/`; none in `mods/`.
+Only `CS1734` (a paramref naming a parameter that does not exist) is a defect rather than formatting.
+
+**Why an analyzer baseline is not the same shape as the YAML one.** `lint-baseline.txt` works because
+`--check-yaml` is our code emitting our messages — we own the reporting path. Roslyn's we do not: `-warnaserror`
+makes `dotnet build` return 1 regardless, so a per-occurrence floor means either 106 hand-verified
+`[assembly: SuppressMessage]` entries (and `CS1734` is a **compiler** diagnostic, which `SuppressMessage` does
+not suppress at all), or parsing MSBuild output and re-deriving the exit code — which is the exact bug class
+being fixed here. **CI was already red at `8656bd3c` on both honest lanes before any of this**, so an honest
+Windows gate costs no green tick that existed.
+
+**Cost of the fix, stated plainly: `Windows / Check Mods` was the only lane still reaching the mod lint,
+and it only got there because `Check Code` lied.** With the gate honest, the map-lint / cordon signal
+(`440 errors emitted`, `NEW: test-clog-census`) disappears from CI until the analyzer errors are cleared.
+That is the correct trade — the lint was running against a build that had failed — but the signal does go dark.
+
+**Observed and unexplained:** in the failing run the engine's own interface checks did not check anything.
+`engine/make.ps1:132` passes `all` as the mod, and the utility answered with its usage banner
+(`The available mods are: modcontent, ra`) and still exited 0, even though `engine/mods/all/mod.yaml` exists.
+Cause not established — plausibly the aggregate mod cannot load when the Debug build it needs has failed.
+After this change the question is moot in the failure case, because the script exits before reaching it.
+
+## 2026-08-17 — `Linux (mono)` IS A netstandard2.1 TARGET, AND `.editorconfig` ACTIVELY PUSHES CODE THAT CANNOT COMPILE THERE
+
+Confirms "broken since 2026-08-11" and adds the mechanism that makes it a porting job rather than a one-liner.
+
+**Root cause is a target-framework switch, not "mono's BCL is old" in the abstract.**
+`engine/Directory.Build.props:23` reads
+`<TargetFramework Condition="'$(MSBuildRuntimeType)'=='Mono'">netstandard2.1</TargetFramework>`, so under
+`make RUNTIME=mono` the whole engine compiles against netstandard2.1. `Convert.ToHexString` is **net5.0+** and
+absent from that surface, giving three `CS0117` at `BuildFingerprint.cs:246,308` and `SequenceIntegrity.cs:91`
+(landed `bedf18e0`/`d836bd07`, both 2026-08-11, refined `d068f4ae`). The job dies in the `engine` prerequisite
+at **36s**, before it ever reaches the analyzer build.
+
+**The obvious rewrite is blocked by our own analyzer config.** `engine/.editorconfig:943` sets
+`dotnet_diagnostic.CA1872.severity = warning` — *"Prefer `Convert.ToHexString` over call chains based on
+`BitConverter.ToString`"* — and `check` builds with `-warnaserror`. So swapping to
+`BitConverter.ToString(b).Replace("-", "")` trades 3 mono errors for 3 new analyzer errors **on every
+platform**. A real fix needs the rewrite *plus* a scoped suppression or a shared helper. **And it still would
+not make the lane green**, because after the engine builds, mono proceeds to the same `-warnaserror` Debug
+build and the same analyzer errors as everyone else.
+
+**Mono is not vestigial — check before deleting the job.** `packaging/functions.sh:26-31` has a live
+`RUNTIME = mono` branch driving `msbuild -p:Mono=true`, and `mod.config` still ships
+`PACKAGING_OSX_MONO_SOURCE` and `PACKAGING_APPIMAGE_DEPENDENCIES_SOURCE`. The current `packaging.yml`
+AppImage/macOS jobs call `make engine` (net6 default), so today's release path does not hit it — but the
+mono packaging code is still present and reachable.
+
 ## 2026-08-17 — THE BOT IS RICH FOR 60 CYCLES AND POOR FOR THE REST; "20,000 STARTING CASH" IS NOT THE ECONOMY IT PLAYS IN
 
 **Claim retired:** *"a 1000-cost truck against 20,000 starting cash is never unaffordable, so
