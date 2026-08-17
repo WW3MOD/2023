@@ -18,7 +18,11 @@ WW3MOD is a **total conversion** of OpenRA Red Alert (`release-20230225`, engine
 ```bash
 ./make.ps1 all          # Windows build (targets net6, runs on .NET 8+); `make all` on Linux/macOS
 ./launch-game.sh        # run (launch-game.cmd on Windows); auto-builds first
-make test               # YAML validation (needs .NET 6 runtime specifically)
+make test               # YAML validation (needs .NET 6 runtime specifically). Fails on lint errors that
+                        # are NOT in mods/ww3mod/lint-baseline.txt — and also when a recorded one stops
+                        # occurring, because you fixed something and the floor must drop with it:
+                        # LINT_BASELINE_PRUNE=true ./utility.sh --check-yaml, then commit the file.
+                        # Never hand-add a line to that file to make a red run green without saying why.
 dotnet test engine/OpenRA.Test/OpenRA.Test.csproj --configuration Release   # unit tests (NUnit 3)
 ./ww3-dev.ps1           # dev helper: build, run, test, pre-flight, log cleanup
 ```
