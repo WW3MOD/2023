@@ -20,8 +20,24 @@
  * truck, then the medic). `--floor-per N` sweeps every configured UnitFloorPer without editing YAML; the
  * `engaged` count is what catches a ratio whose denominator collapses out from under it.
  *
+ * CASH IS OPT-IN, via --cash. WITHOUT IT THE BUDGET IS UNLIMITED exactly as before, so every figure ever
+ * published from this tool reproduces byte-for-byte — the same rule the mod applies to a new trait field,
+ * applied to an instrument. WITH IT the replay carries a balance: the ruleset's own DefaultCash, the
+ * ruleset's own PassiveIncome converted to a per-cycle rate, minus what each cycle actually buys. The three
+ * affordability filters (pre-empt, floor, deficit eligibility) and the banking gate then evaluate for real,
+ * through the SHIPPED SupplyPrecedenceMath / CompositionNeedMath functions rather than a second copy.
+ *
+ * WHY IT WAS BUILT: SupplyPrecedenceStallCycles was believed inert on the user's profile because a 1000-cost
+ * truck is trivially affordable against 20,000 starting cash. That reads the OPENING balance and stops. The
+ * question that decides the matter is what the balance does over a match, and no instrument could see it —
+ * the replay had no cash term at all. Now it does, so the claim is measurable instead of arguable.
+ *
+ * READ THE SWEEP, NOT A POINT ESTIMATE. Per-cycle income is the one genuinely free parameter here, so a
+ * single run at one income is exactly the kind of number this project has twice had to re-derive. Sweep
+ * --income and read where the behaviour CHANGES; the crossover is robust in a way a point value is not.
+ *
  * WHAT THE REPLAY MODELS, stated plainly so the numbers are not over-read:
- *   * budget is UNLIMITED, and by default NOTHING DIES. That default is deliberately the case most
+ *   * budget is UNLIMITED unless --cash is given, and by default NOTHING DIES. That default is deliberately the case most
  *     FAVOURABLE to a small target share: with no losses the army converges toward the target vector,
  *     which is the only regime in which a 9-per-mille slot's deficit can ever be the argmax. A type
  *     starved there is starved a fortiori in a real match.
@@ -42,9 +58,17 @@
  *     SupplyTruckFloor and never fires on demand — there the replay UNDERSTATES. Net: this tool cannot
  *     answer "how many trucks will the bot field". Read the [composition] census line from a real match for
  *     that; it now carries starving / trucks-desired / ammo-need for exactly this reason.
+ *   * WITH --cash, TWO UNMODELLED TERMS PULL IN OPPOSITE DIRECTIONS and neither is small enough to wave at.
+ *     SPEND IS UNDERSTATED: the replay buys at most ONE unit per cycle, while the live BotTick drains a
+ *     priority request, a FIFO request AND one pick per queue in Info.UnitQueues — so the real bot spends
+ *     several times faster from the same treasury. INCOME IS ALSO UNDERSTATED: evacuation refunds
+ *     (RotateToEdge) are absent, and a bot that rotates spent artillery and drained trucks off the map
+ *     recovers real cash. The spend gap is structural and multiplies with queue count; the refund gap is
+ *     conditional and partial (scaled by HP/MaxHP and net of missing ammo). Expect the modelled bot to be
+ *     RICHER than the live one, but do not treat that as proven — it is an argument about magnitudes.
  * Everything else — ordinal slot order, target apportionment, ceiling eligibility, the argmax and its
- * tie-break, UnitLimits, UnitDelays, UnitFloors and their UnitFloorPer scaling, the supply-fleet pre-empt —
- * is the shipped code path,
+ * tie-break, UnitLimits, UnitDelays, UnitFloors and their UnitFloorPer scaling, the supply-fleet pre-empt,
+ * and with --cash the affordability filters and the banking gate — is the shipped code path,
  * called directly.
  */
 #endregion
@@ -62,7 +86,8 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 		bool IUtilityCommand.ValidateArguments(string[] args) => true;
 
-		[Desc("[--faction america|russia] [--cycles N] [--start <class>] [--attrition N] [--floor-per N] [--verbose]",
+		[Desc("[--faction america|russia] [--cycles N] [--start <class>] [--attrition N] [--floor-per N]",
+			"[--cash N] [--income N] [--no-bank] [--supply-floor-per N] [--verbose]",
 			"Re-derive the @experimental bot's composition-directed buy sequence from YAML, no game run.")]
 		void IUtilityCommand.Run(Utility utility, string[] args)
 		{
@@ -76,6 +101,20 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			var attrition = int.TryParse(ArgValue(args, "--attrition"), out var at) ? at : 0;
 
 			var rules = utility.ModData.DefaultRules;
+
+			// Economy, read off the ruleset rather than typed in here, so the modelled bot is the shipped bot
+			// and a lobby-option change cannot leave this command quoting a stale number.
+			var (defaultCash, defaultIncome) = EconomyDefaults(rules);
+
+			// --cash is what switches the balance on at all. Absent ⇒ unlimited budget, no banking, and the
+			// output is identical to every run published before this existed.
+			var modelCash = args.Contains("--cash");
+			var startCash = int.TryParse(ArgValue(args, "--cash"), out var sc) ? sc : defaultCash;
+			var incomePerCycle = int.TryParse(ArgValue(args, "--income"), out var ic) ? ic : defaultIncome;
+
+			// The paired control: model the same economy with the precedence gate forced off, so a
+			// before/after is one flag rather than a YAML edit and two runs that differed in more than the gate.
+			var noBank = args.Any(a => a == "--no-bank");
 
 			var info = FindCompositionTrait(rules, faction);
 			if (info == null)
@@ -120,6 +159,19 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					if (floorPer[i] > 0)
 						floorPer[i] = floorPerOverride;
 
+			// --supply-floor-per is the TRUCK's ratio, and it is a separate flag because SupplyTruckFloorPer is a
+			// separate field on a separate lane: --floor-per rewrites UnitFloorPer, which drives ChooseBelowFloor
+			// (the medic), while the truck's standing floor is read straight off info.SupplyTruckFloorPer by the
+			// demand pre-empt. They are not interchangeable and the names invite believing they are — a sweep of
+			// --floor-per moves the truck's `dry` line only indirectly, via the medic's effect on army
+			// composition, which reads as a weak-but-real response and is nothing of the kind. The shipped
+			// [Desc] on SupplyTruckFloorPer says to tune it on the `dry N/200` line; before this flag there was
+			// no way to move it without editing YAML.
+			var supplyFloorPerOverride = int.TryParse(ArgValue(args, "--supply-floor-per"), out var sfp) ? sfp : 0;
+			var supplyFloorPer = supplyFloorPerOverride > 0 && info.SupplyTruckFloorPer > 0
+				? supplyFloorPerOverride
+				: info.SupplyTruckFloorPer;
+
 			var isSupported = new bool[types.Length];
 			for (var i = 0; i < types.Length; i++)
 				isSupported[i] = info.UnitFloorSupportedTypes.Contains(types[i]);
@@ -150,7 +202,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				isTruckCustomer[i] = rules.Actors.TryGetValue(types[i], out var customerInfo)
 					&& customerInfo.TraitInfoOrDefault<RearmableInfo>()?.RearmActors.Overlaps(info.ResupplyUnitTypes) == true;
 
-			var openingFloor = SupportFloorMath.EffectiveFloor(info.SupplyTruckFloor, info.SupplyTruckFloorPer, 0);
+			var openingFloor = SupportFloorMath.EffectiveFloor(info.SupplyTruckFloor, supplyFloorPer, 0);
 			var openingTrucks = SupplyFleetMath.DesiredTrucks(0, info.SupplyCustomersPerTruck,
 				info.SupplyDemandOvercompensationPercent, openingFloor, info.SupplyTruckCeiling);
 
@@ -160,7 +212,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 				+ $"slots={types.Length} ceiling={info.CompositionEnforceTargetCeiling} "
 				+ $"supply-demand-sizing={info.SupplyDemandSizing}");
 			Console.WriteLine($"[composition] supply fleet floor cap={info.SupplyTruckFloor} "
-				+ $"per={info.SupplyTruckFloorPer} customer(s) => floor at ZERO customers = {openingFloor}, "
+				+ $"per={supplyFloorPer} customer(s) => floor at ZERO customers = {openingFloor}, "
 				+ $"desired at zero starving customers = {openingTrucks} truck(s) "
 				+ $"= {openingTrucks * cost[Array.IndexOf(types, info.ResupplyUnitTypes.FirstOrDefault() ?? "truk")]} budget");
 			Console.WriteLine($"[composition] gated AA allowed at zero observed enemy air = {openingAaAllowed} "
@@ -169,6 +221,15 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			if (floorPerOverride > 0)
 				Console.WriteLine($"[composition] *** UnitFloorPer OVERRIDDEN to {floorPerOverride} for every "
 					+ "ratio-floored slot (--floor-per) — this is NOT the shipped config ***");
+
+			if (modelCash)
+				Console.WriteLine($"[composition] economy MODELLED: start {startCash}, income {incomePerCycle}/cycle "
+					+ $"(ruleset default {defaultCash} / {defaultIncome} per cycle), precedence gate "
+					+ $"{(noBank ? "FORCED OFF (--no-bank)" : "stall-cycles " + info.SupplyPrecedenceStallCycles)}");
+			else
+				Console.WriteLine($"[composition] economy NOT modelled: budget unlimited, banking gate never "
+					+ $"evaluated. Pass --cash {defaultCash} for the shipped lobby economy.");
+
 			Console.WriteLine();
 
 			// ===== The reachability table. V_fit is the whole medic argument in one column. =====
@@ -247,6 +308,28 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			var supportedMin = int.MaxValue;
 			var supportedMax = 0;
 
+			// ===== The balance, and the banking spell it drives =====
+			// bankBest / bankStall are the module's own spell trail (supplyBankBestCash / supplyBankStalled),
+			// stepped through the shipped SupplyPrecedenceMath so the offline answer cannot drift from the live
+			// one. `broke` is the poverty metric that actually matters: not "cash is low" but "cash cannot buy
+			// the CHEAPEST thing this bot would consider", which is the state in which the argmax stops being a
+			// choice at all.
+			long cash = startCash;
+			long bankBest = 0;
+			var bankStall = 0;
+			var bankedCycles = 0;
+			var brokeCycles = 0;
+			var firstBrokeCycle = -1;
+			long cashSum = 0;
+			var cashMin = long.MaxValue;
+			long cashMax = 0;
+			var stallCycles = noBank ? 0 : info.SupplyPrecedenceStallCycles;
+
+			var cheapest = int.MaxValue;
+			for (var i = 0; i < types.Length; i++)
+				if (cost[i] > 0 && cost[i] < cheapest)
+					cheapest = cost[i];
+
 			for (var cycle = 0; cycle < cycles; cycle++)
 			{
 				// Proportional-hazard attrition, applied BEFORE the buy so the cycle sees the losses it is
@@ -266,6 +349,35 @@ namespace OpenRA.Mods.Common.UtilityCommands
 							counts[i]--;
 							lost[i]++;
 						}
+					}
+				}
+
+				// Income lands before the decision, so this cycle can spend what it just earned — the live
+				// PassiveIncome tick is on its own interval and is not synchronised to the build cycle, so
+				// either side of the pick is equally defensible and this is the one that flatters the bot.
+				// NOT long.MaxValue: CompositionNeedMath.Affordable computes `budget * 100`, which overflows
+				// silently at that value and wraps NEGATIVE — so an "unlimited" budget expressed the obvious
+				// way makes every slot unaffordable and the replay declines all 200 cycles. A billion is
+				// unreachable by any unit cost in the ruleset and leaves three orders of magnitude of headroom
+				// under the multiply.
+				var budget = 1_000_000_000L;
+				if (modelCash)
+				{
+					cash += incomePerCycle;
+					budget = cash;
+
+					cashSum += cash;
+					if (cash < cashMin)
+						cashMin = cash;
+
+					if (cash > cashMax)
+						cashMax = cash;
+
+					if (cheapest != int.MaxValue && !CompositionNeedMath.Affordable(cash, cheapest, 100))
+					{
+						brokeCycles++;
+						if (firstBrokeCycle < 0)
+							firstBrokeCycle = cycle;
 					}
 				}
 
@@ -344,14 +456,55 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					if (isTruckCustomer[i])
 						truckCustomers += counts[i];
 
-				var cycleFloor = SupportFloorMath.EffectiveFloor(info.SupplyTruckFloor, info.SupplyTruckFloorPer, truckCustomers);
+				var cycleFloor = SupportFloorMath.EffectiveFloor(info.SupplyTruckFloor, supplyFloorPer, truckCustomers);
 				var cycleTrucks = SupplyFleetMath.DesiredTrucks(0, info.SupplyCustomersPerTruck,
 					info.SupplyDemandOvercompensationPercent, cycleFloor, info.SupplyTruckCeiling);
+
+				// ===== The banking gate, mirroring ShouldBankForSupply =====
+				// Same two inputs the module derives (is the fleet short of what demand wants, and can we
+				// afford the truck yet), fed to the same SupplyPrecedenceMath functions. Inert without --cash,
+				// because without a balance `truckAffordable` is unconditionally true and ShouldBankCycle
+				// declines — which is the very property under test, so it is left to fall out of the arithmetic
+				// rather than special-cased.
+				var fleetShort = false;
+				var truckAffordable = false;
+				if (info.SupplyDemandSizing)
+					foreach (var s in truckSlots)
+					{
+						if (counts[s] >= limit[s] || counts[s] >= cycleTrucks)
+							continue;
+
+						fleetShort = true;
+						if (CompositionNeedMath.Affordable(budget, cost[s], 100))
+						{
+							truckAffordable = true;
+							break;
+						}
+					}
+
+				if (modelCash && stallCycles > 0)
+				{
+					bankStall = SupplyPrecedenceMath.UpdateStall(cash, bankBest, bankStall);
+					if (cash > bankBest)
+						bankBest = cash;
+
+					if (SupplyPrecedenceMath.ShouldBankCycle(fleetShort, truckAffordable, bankStall, stallCycles))
+					{
+						bankedCycles++;
+						continue;
+					}
+
+					// EndBankingSpell: the module clears the trail on every cycle that reaches the pick, so a
+					// high-water mark from a richer moment cannot make the next spell look stalled from birth.
+					bankBest = 0;
+					bankStall = 0;
+				}
 
 				var preempt = -1;
 				if (info.SupplyDemandSizing)
 					foreach (var s in truckSlots)
-						if (counts[s] < limit[s] && counts[s] < cycleTrucks)
+						if (counts[s] < limit[s] && counts[s] < cycleTrucks
+							&& CompositionNeedMath.Affordable(budget, cost[s], 100))
 						{
 							preempt = s;
 							break;
@@ -367,7 +520,8 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					for (var i = 0; i < types.Length; i++)
 					{
 						var eff = SupportFloorMath.EffectiveFloor(flatFloor[i], floorPer[i], supported);
-						if (counts[i] < eff && counts[i] < limit[i] && cycle >= delayCycle[i])
+						if (counts[i] < eff && counts[i] < limit[i] && cycle >= delayCycle[i]
+							&& CompositionNeedMath.Affordable(budget, cost[i], 100))
 						{
 							preempt = i;
 							break;
@@ -382,7 +536,8 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					var eligible = new bool[types.Length];
 					for (var i = 0; i < types.Length; i++)
 						eligible[i] = counts[i] < limit[i] && cycle >= delayCycle[i]
-							&& !(aaGated[i] && counts[i] >= openingAaAllowed);
+							&& !(aaGated[i] && counts[i] >= openingAaAllowed)
+							&& CompositionNeedMath.Affordable(budget, cost[i], 100);
 
 					if (info.CompositionEnforceTargetCeiling)
 						eligible = ForceCompositionMath.ApplyCeilingEligibility(targets, census, eligible);
@@ -398,6 +553,9 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 				counts[idx]++;
 				bought[idx]++;
+				if (modelCash)
+					cash -= cost[idx];
+
 				if (firstBuy[idx] < 0)
 					firstBuy[idx] = cycle;
 
@@ -411,6 +569,23 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 			Console.WriteLine($"[composition] after {cycles} cycles: {declines} declined, army value {totalValue}"
 				+ (attrition > 0 ? $", attrition 1-in-{attrition} per unit per cycle ({lost.Sum()} lost)" : ", no losses"));
+
+			// The balance, and how much of the run the precedence gate was reachable at all. `broke` is the
+			// headline: cycles on which the bot could not afford even the cheapest slot it composes, i.e. the
+			// regime the whole precedence argument is about. `banked` counts the cycles the gate actually
+			// silenced — 0 there with a non-zero SupplyPrecedenceStallCycles is the gate proven inert AT THIS
+			// ECONOMY, which is a much narrower claim than "inert", and the difference is the point.
+			if (modelCash)
+			{
+				Console.WriteLine($"[composition] cash over the run: mean {cashSum / (double)cycles:0}, "
+					+ $"min {(cashMin == long.MaxValue ? 0 : cashMin)}, max {cashMax}, final {cash}");
+				Console.WriteLine($"[composition] precedence gate: banked {bankedCycles}/{cycles} cycles "
+					+ $"({100 * bankedCycles / cycles}%), broke {brokeCycles}/{cycles} "
+					+ $"({100 * brokeCycles / cycles}%, first at cycle "
+					+ $"{(firstBrokeCycle < 0 ? "NEVER" : firstBrokeCycle.ToString())}), "
+					+ $"cheapest slot {(cheapest == int.MaxValue ? 0 : cheapest)}"
+					+ (stallCycles <= 0 ? "  <-- GATE OFF" : bankedCycles == 0 ? "  <-- INERT at this economy" : ""));
+			}
 
 			// Read THIS line, not the `standing` column, when tuning the supply fleet: `dry` is the number of
 			// cycles the army had no truck at all, which is the thing the user complains about, and unlike the
@@ -459,6 +634,27 @@ namespace OpenRA.Mods.Common.UtilityCommands
 		{
 			var i = Array.IndexOf(args, name);
 			return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+		}
+
+		// The shipped economy, as the ruleset states it. PassiveIncome is quoted per PassiveIncomeInterval
+		// TICKS and the replay steps in BUILD CYCLES, so it is converted once here — FeedbackTime (30) ticks
+		// per cycle against a 50-tick interval turns the engine's 100 into 60 a cycle. Integer division is
+		// deliberate: it rounds the modelled bot's income DOWN, i.e. toward poverty, and a poverty claim
+		// should never rest on a rounding that flattered it.
+		static (int Cash, int IncomePerCycle) EconomyDefaults(Ruleset rules)
+		{
+			if (!rules.Actors.TryGetValue("player", out var player))
+				return (0, 0);
+
+			var res = player.TraitInfoOrDefault<PlayerResourcesInfo>();
+			if (res == null)
+				return (0, 0);
+
+			var perCycle = res.PassiveIncomeInterval > 0
+				? res.PassiveIncome * UnitBuilderBotModule.FeedbackTime / res.PassiveIncomeInterval
+				: 0;
+
+			return (res.DefaultCash, perCycle);
 		}
 
 		// The CompositionDirected UnitBuilder twin for this faction. Matched on the trait's own
