@@ -412,3 +412,347 @@ can be keyed off conditions that are **already granted today** with no C# at all
   emits **warnings, not errors**, and only checks that `ISync` and `[Sync]` are paired. I
   did not confirm whether this repo's `make test` promotes lint warnings to failures — so
   I would not rely on it to catch a bad sync annotation on this feature.
+
+---
+
+# Addendum — "almost spotted" and reactive hiding (round 2)
+
+**Date:** 2026-08-17 · **Base:** `main @ e1e80ef2` (round-one recon merged)
+**Status:** read-only. No code changed. Game never launched.
+
+The headline: **most of what the user is speculating about is already built and
+shipped.** The graded quantity exists, the threshold exists, the per-observer strength
+ladder exists, and "actions increase your visibility" is live YAML with tuned numbers.
+The request/response mechanism they propose is unnecessary — the value is a public field
+on a synced trait, readable directly. What is genuinely missing is small: nobody *reads*
+the margin, and nobody *reacts* to it.
+
+There is also one inverted-sign trap that will produce a backwards indicator if it is
+missed, and one "explored ≠ observed" trap that will produce a permanently-lit one. Both
+are in §A.6.
+
+---
+
+## A.1 The graded quantity exists, and so does the threshold
+
+Both sides of "requires 5 vision, enemy has 3 or 4" are real, shipped, and synced.
+
+**Observer side.** `MapLayers.ResolvedVisibility` — `public ProjectedCellLayer<byte>`
+(`engine/OpenRA.Game/Traits/Player/MapLayers.cs:131`) — holds, per projected cell, the
+**highest vision strength any of that player's sources has on that cell**, resolved at
+`:239-264`:
+
+```csharp
+for (var i = (byte)(visibilityCount[index].Length - 1); i > 0; i--)
+    if (visibilityCount[index][i] > 0) { visibility = i; break; }
+```
+
+Scale is `VisionLayers = 11` (`:75`), so strengths run **0..10**.
+
+**Actor side.** `Detectable.CurrentVisibility` — `[Sync] public int`
+(`engine/OpenRA.Mods.Common/Traits/Modifiers/Detectable.cs:62-63`) — is the **required**
+observer strength, recomputed every tick from `Vision` plus modifiers and clamped to
+**[1, 10]** (`:80-87`).
+
+**The threshold is a single comparison** (`MapLayers.cs:574-580`):
+
+```csharp
+public bool IsVisible(PPos puv, int visibility)
+{
+    if (!FogEnabled) return map.Contains(puv);
+    return ResolvedVisibility.Contains(puv) && ResolvedVisibility[puv] > visibility;
+}
+```
+
+So, for enemy player `E` and our unit at cell `c`:
+
+```
+margin = E.MapLayers.ResolvedVisibility[c] - myDetectable.CurrentVisibility
+margin >= 1  →  spotted
+margin <= 0  →  not spotted, and |margin| is how many strength steps of slack remain
+```
+
+**"Almost spotted" is that subtraction.** No new field, no new state, no accumulator.
+
+**And the strength ladder is distance.** `^StandardVision`
+(`mods/ww3mod/rules/defaults.yaml:47-84`) is ten concentric annuli — strength 10 within
+4 cells, 9 from 4–7c, 8 from 7–10c, … 1 from 28–32c. So `ResolvedVisibility` is
+effectively a **distance-quantised proximity-to-detection metric**, and one step of
+margin is roughly **three cells of approach**. That makes "almost spotted" a tunable
+warning distance rather than an abstraction.
+
+Terrain is already folded in: `AddSource` subtracts a per-cell shadow term,
+`modifiedStrength = strength - shadowModify` (`MapLayers.cs:355-378`), sourced from
+`map.ShadowLayer`. So the number already accounts for forest/terrain shadow along the
+real sightline.
+
+**Answer to Q1: the quantity exists, the threshold exists, and "3 or 4 against a required
+5" is a literal computable statement, not a metaphor. This is an afternoon, not a week.**
+
+## A.2 Actions already modify detectability — with tuned numbers
+
+Not aspirational. `DetectableAddativeModifier` (`Traits/Multipliers/DetectableAddativeModifier.cs`)
+applies an additive `VisionModifier` to the required threshold, gated by a condition.
+Live set:
+
+| Modifier | Condition | `VisionModifier` | Effect | Site |
+|---|---|---|---|---|
+| Firing | `firinganyweapon` | **−2** | easier to see | `infantry.yaml:728-730` |
+| Moving | `moving` | **−1** | easier to see | `infantry.yaml:731-733` |
+| Prone | `prone` | +1 | harder | `infantry.yaml:717-719` |
+| Dug in | `dugin` | +1 | harder | `infantry.yaml:720-722` |
+| In cover ×3 | `object-proximity == 1/2/>=3` | +1/+2/+3 | harder | `infantry.yaml:708-716` |
+| Rank ×4 | `rank-veteran == 1..4` | +1/+2/+3/+4 | harder | `defaults.yaml:211-222` |
+| Landed aircraft | `!airborne` | +3 | harder | `aircraft.yaml:46-48` |
+| Sniper firing | `firinganyweapon` | −1 | easier | `infantry.yaml:2077-2079` |
+
+Base thresholds: standard infantry `Vision: 3` (`infantry.yaml:95-96`), sniper and
+infiltrator `Vision: 5` (`:1625-1626`, `:2071-2072`), vehicles/husks `Vision: 1`.
+
+Firing is transient and self-revoking: `GrantConditionOnAttack@Firing` grants
+`firinganyweapon` with `RevokeDelay: 12` (`infantry.yaml:723-727`) — you glow for 12
+ticks after shooting.
+
+**The stop-to-hide loop already exists in one direction.** `GrantConditionOnMovement`
+(`infantry.yaml:138-141`) grants `moving` while moving and — critically —
+`ConditionWhenStill: dugin` after `TimeToBeStill: 200`. So standing still already
+*removes* the −1 and eventually *adds* +1. A unit that stops genuinely becomes harder to
+see. The user's "stop instead of move" is not a new mechanic; it is an existing mechanic
+with nothing choosing to use it.
+
+**Answer to Q2: modelled, tuned, and live. Range in practice is the full clamp** — a
+firing, moving rifleman is 3−2−1 = 0 → clamped to 1 (near-certain detection); a dug-in
+rank-4 veteran in heavy cover is 3+1+4+3 = 11 → clamped to 10 (effectively invisible).
+
+## A.3 Q3 — the request mechanism: **refuted, and the manager's read is correct**
+
+Confirmed on all three points.
+
+1. **There is nothing to pass.** `ResolvedVisibility` is a **public field**
+   (`MapLayers.cs:131`) on a trait that is `ISync` (`:73`) and lives on every player's
+   `PlayerActor`, reachable as `player.MapLayers` (the idiom `BeliefStore.cs:190` already
+   uses). Any unit can read any enemy player's vision at its own cell **directly**, this
+   tick, with an array index. The information the user wants "requested" is already
+   sitting in a synced array that every client maintains.
+
+2. **It is cheaper than they think.** The per-unit cost is one `ProjectedCellLayer<byte>`
+   index per enemy player — call it ≤7 array reads — against `Detectable`'s existing
+   per-tick `ITick` recompute (`Detectable.cs:78-93`) which every actor already pays.
+
+3. **Message-passing would add the exact hazard that has bitten this project twice.** A
+   request/response between actors introduces **ordering**: who asks first, whose answer
+   lands in which tick, and what happens when the responder dies between request and
+   reply. Both logged desyncs here are ordering/mutation-path failures —
+   `LaneAmbushBotModule`'s unordered condition grant and `Detectable`'s `[Sync]`ed token
+   (`WORKSPACE/bugs/discovered.md:538,556`). A pull-model array read has no ordering at
+   all: it is a pure function of state both clients already agree on.
+
+**What the request mechanism buys that a direct query does not: nothing.** The user's
+underlying instinct — that this is deterministic and can piggyback on work already being
+done — is exactly right, and it is *more* right than they realised: the work is not just
+already being done, its result is already public.
+
+## A.4 Q4 — the interval is a good idea, for cost, and the phase source is settled
+
+Correct on both counts: sampling every N ticks is a real saving, and the phase must come
+from a deterministic per-actor source.
+
+**The house idiom already exists**, `AutoTarget.cs:1072`:
+
+```csharp
+return (self.World.WorldTick + (int)(self.ActorID % (uint)interval)) % interval == 0;
+```
+
+`ActorID` is synced identity, `WorldTick` is synced time — every client agrees on which
+tick a given unit samples. Four other traits use the same shape (`AutoSeekSupplies.cs:148-149`,
+`AffectsMapLayer.cs:183`, `ExternalCondition.cs:212`, `DropsSupplyCache.cs:124`). **Never
+seed the offset from spawn-time RNG**; `ActorID` is the answer and it is already the
+convention.
+
+**Staleness cost.** At N=15 (≈0.6 s at 25 fps) a unit can be spotted for up to 15 ticks
+before it knows. Weigh that against the ladder: one strength step is ~3 cells, and a
+rifleman crosses ~3 cells in appreciably more than 15 ticks, so **N=15 loses well under
+one strength step of warning for ground units**. Aircraft cross rings far faster and
+would want a shorter N or no interval at all. For the *indicator* alone, staleness is
+nearly free. For *behaviour*, it is the difference between stopping in time and not.
+
+## A.5 Q5 — the counterfactual, honestly costed
+
+"Stop instead of move, if they would be spotted if they moved" is a counterfactual, and
+the manager is right that it is a different question. But it decomposes into a cheap part
+and an expensive part, and **the cheap part captures the user's own example almost
+exactly.**
+
+**The cheap version — one extra comparison, no probing.** The move penalty is a property
+of the *actor*, not the destination: `moving` grants a flat −1. So "would moving expose me
+right here" is:
+
+```
+ResolvedVisibility[myCell] > CurrentVisibility - 1
+```
+
+Same array read already being done, one subtraction. **Zero additional cost.** This
+answers "I am one step from being seen and moving would cross it" — which is precisely
+the user's scenario, because their example is about the *movement penalty* tipping the
+balance, not about walking into a better-observed cell.
+
+**The expensive version — a true per-destination test.** Two components, very different
+prices:
+
+- *Visibility at the destination cell*: cheap. One `ResolvedVisibility[destCell]` read per
+  candidate per enemy player. Even a 9-cell neighbourhood is trivial.
+- *Cover at the destination*: **expensive, and not a pure function.** The cover term is
+  `object-proximity`, an `ExternalCondition` (`infantry.yaml:706-707`, `TotalCap: 3`)
+  granted by `ProximityExternalCondition` emitters on *other* actors — husks and wrecks
+  (`husks.yaml:118+`). There is no function to ask "what would my cover be at cell X"; you
+  would have to scan emitters near the destination and replicate their granting logic.
+  Likewise `dugin` depends on having been still for 200 ticks, which a hypothetical move
+  destroys by definition.
+
+**So the cost is dominated by cover re-evaluation, not by the visibility lookup** — which
+is the opposite of what one would guess, and is the reason to prefer the cheap version.
+
+**Recommendation: ship "don't start moving while almost-spotted" and do not build the
+per-destination test.** It is free, it matches the user's stated example, and it fails
+safe (a unit that stays put stays hidden). The expensive version buys "move *there*
+instead, it's darker" — a genuinely different and more ambitious feature, and one that
+`CohesionMoveModifier` already approximates from the terrain side (§A.7).
+
+## A.6 Two traps that will produce a wrong indicator
+
+**Trap 1 — the sign is inverted from the user's mental model.** `VisionModifier` is added
+to the *required* threshold, so **higher `Vision` = harder to see**. "Taking actions
+increases their visibility" is therefore a **negative** `VisionModifier` (firing is −2,
+moving is −1). An implementer who reads `Vision` as "how visible I am" builds an indicator
+that lights up when the unit is *safest*.
+
+This is not hypothetical confusion: **the shipped unit description already uses the
+opposite convention from the field.** The sniper's tooltip says *"Low visibility (−2
+detection)"* (`infantry.yaml:1620`) while its trait is `Vision: 5` — the highest, i.e.
+stealthiest, in the mod. Description and field disagree in sign. Player-facing copy for
+this feature should be written against the *field*, and the tooltip convention should not
+be copied.
+
+**Trap 2 — `ResolvedVisibility == 1` means "explored", not "faintly observed".** In the
+resolve loop (`MapLayers.cs:241-256`), any **explored** cell floors at 1 even with no live
+observer:
+
+```csharp
+if (explored[index]) {
+    for (...) { ... }          // no source found → visibility stays 0
+    if (visibility <= 0) visibility = 1;
+}
+```
+
+The spotted *boolean* is safe from this, because `CurrentVisibility` is clamped to ≥1
+(`Detectable.cs:80-84`) so `RV > CV` needs `RV ≥ 2`. **But an "almost spotted" band is
+not safe.** Standard infantry (CV = 3) with a two-step band would fire on `RV ∈ {1, 2}` —
+and `RV == 1` is true of **every explored cell on the map, with no enemy anywhere near**.
+That ships a permanently-lit indicator.
+
+**The band must require `RV >= 2`** (or equivalently ignore the explored-floor). This is
+the single most likely way to get this feature visibly wrong.
+
+## A.7 Q6 — is "almost spotted" the abandoned gradient?
+
+**No, and the code makes the distinction natural rather than awkward** — they are
+different quantities, not different resolutions of one quantity.
+
+- `^VisibilityPips` (dead, `infantry.yaml:841-928`) rendered `visibility-N`, the
+  conditions `Detectable` grants from its **own** `CurrentVisibility`
+  (`VisionDetectableConditionPrefix = "visibility-"`, `Detectable.cs:44,162`). That is a
+  property of **self alone** — "how stealthy I am". It does not change when an enemy walks
+  toward you. It is not actionable, which is very likely why it was abandoned.
+- "Almost spotted" is `RV − CV`: a **relation between self and a specific enemy player's
+  vision at this cell**. It moves as enemies move. It is actionable — that is the whole
+  point.
+
+So the user is not contradicting their earlier steer. "Spotted means spotted" governs the
+*spotted* axis, and it still holds: one boolean, drawn or not. "Almost spotted" adds a
+**distinct pre-detection state** on a different axis — the one where you can still do
+something about it.
+
+**But there is a real way to slide back into the abandoned design, and it should be said
+plainly:** `margin` is an integer over a 10-step ladder. If more than one "almost" level
+is ever rendered, that **is** a severity gradient, and it is the thing that was already
+built and thrown away. The honest recommendation is **exactly one pre-detection state** —
+three discrete states total: *hidden* (nothing drawn), *almost* (one mark), *spotted* (the
+other mark) — with the band width a single tunable constant that nobody surfaces to the
+player.
+
+**One consequence worth flagging for the render implementer already working from round
+one:** "almost spotted" is a *second* mark on the same axis. §3.1 of the original report
+warned that `Top` is already contested and rows are hand-placed with no automatic
+stacking. Two mutually-exclusive states can share one anchor (only one is ever drawn), so
+this costs one lane, not two — but it should be one `WithDecoration` pair on a shared
+margin, not two independently-placed rows.
+
+## A.8 What already reacts, and where the gap actually is
+
+Two existing behaviours sit right next to what the user is asking for.
+
+**Ambushers already refuse to be repositioned.** `StancePositioningExecutor.cs:305-323` —
+a unit in Ambush or HoldFire opts out of repositioning entirely, with the rationale that
+walking it off its cell "silently defeats a human ambush placement (the un-ambush bug)".
+So "an ambusher stays put" is already the shipped behaviour.
+
+**Ambushers already seek concealment — but blind to the enemy.**
+`CohesionMoveModifier.cs:1070-1080` enables `RefineSlotsForConcealment` for human Ambush
+units on group moves ("hide my ambushers in the trees"), scored by `ConcealmentScore`
+(`:338-346`). That function's own comment names the exact gap:
+
+> *"Viewer-independent by necessity: at order time there is no enemy position, so we score
+> 'how deep in shadow this cell sits' rather than shadow along one sightline."*
+
+**That is precisely the limitation `ResolvedVisibility` removes.** The existing pass is
+viewer-independent because it runs at *order* time; reading `ResolvedVisibility` at *tick*
+time is viewer-dependent by construction, and it already has terrain shadow baked in
+(§A.1). The gap is not capability — it is that nothing reads the number.
+
+## A.9 Staged answer
+
+**Free today — already built, nothing to write**
+- The graded scale (`ResolvedVisibility`, 0–10, synced, public) and the required threshold
+  (`Detectable.CurrentVisibility`, `[Sync]`, clamped 1–10).
+- Firing (−2), moving (−1), prone/dugin (+1), cover (+1..+3), rank (+1..+4) — tuned and live.
+- Stop-to-hide: `moving` drops on halt, `dugin` (+1) accrues after 200 still ticks.
+- Ambushers already decline repositioning.
+- The deterministic per-actor sampling idiom (`ActorID % interval`).
+
+**An afternoon**
+- Read the margin: `enemy.MapLayers.ResolvedVisibility[cell] − CurrentVisibility`, over
+  enemy players, on an `ActorID`-phased interval. Render-only, zero desync exposure
+  (decorations already read `RenderPlayer` and write nothing — §1.3 of round one).
+- The "almost spotted" mark, as one extra mutually-exclusive state on the spotted lane.
+- The cheap counterfactual — "don't start moving while within one step" — one extra
+  comparison against `CurrentVisibility − 1`, no destination probing.
+
+**A project**
+- True per-destination hiding ("move *there*, it's darker"), because destination **cover**
+  is not a pure function — `object-proximity` comes from external emitters and `dugin` from
+  elapsed stillness. The visibility half is cheap; the cover half is not.
+- Knowledge-limiting any of this to "enemies we are aware of" — still §2.3 of round one:
+  `BeliefStore` has no behavioural consumer and adding one needs the per-player opt-in gate
+  so `@stable` is not mutated.
+- Anything that grants a **condition** from a visibility change. That is the
+  `Detectable`/`LaneAmbush` desync shape (§2.4, round one). If behaviour must key on this,
+  read the trait directly in C#, as `StancePositioningExecutor` deliberately does rather
+  than taking a `RequiresCondition` on stance (`:314-319`).
+
+## A.10 What I did not verify
+
+- **Still never launched the game.** No visual confirmation of anything, including whether
+  a second mark on the spotted lane reads clearly.
+- **I did not measure the per-tick cost** of the margin read. I argue it is cheap by
+  analogy — it is an array index against `Detectable`'s existing per-tick recompute — but
+  I did not profile it, and `ResolvedVisibility` is a `ProjectedCellLayer` whose indexing
+  I read but did not benchmark.
+- **The N=15 staleness argument in §A.4 is arithmetic, not measurement.** I did not check
+  actual unit speeds against ring widths; "well under one strength step" is a claim about
+  3-cell rings and infantry pace that deserves one real check before it sets a constant.
+- **I did not confirm the `moving` condition is granted on every actor class** that would
+  want this — I verified infantry (`:138-141`), vehicles (`vehicles.yaml:315`) and aircraft
+  (`aircraft.yaml:156`), but did not audit the full actor list, and `^DetectableInfantryStandard`
+  is an infantry-only template. Vehicles have `Detectable: Vision: 1` and **no**
+  firing/moving modifiers that I found — so on current YAML this feature is **substantially
+  an infantry mechanic**, and the user should know that before designing around it.
