@@ -261,14 +261,42 @@ namespace OpenRA.Mods.Common.Traits
 		/// around the anchor (<paramref name="anchorX"/>,<paramref name="anchorY"/>) in MAP cells. Index 0 sits on
 		/// the anchor; each subsequent index takes the next octant on the current ring, incrementing the ring every
 		/// <see cref="RingOctants"/> slots, so slots fan out over concentric octagons at <paramref name="ringStep"/>-
-		/// cell spacing. Falls back to the anchor when the computed cell is off <paramref name="onGrid"/> (or when
-		/// ringStep &lt;= 0). Deterministic: a given index always maps to the same cell — and because the caller
-		/// feeds a per-unit STABLE slot (not a list position), a unit keeps its cell across evals (no churn).
-		/// NOTE: the ring is NOT danger-guarded per cell; correctness relies on the caller bounding the max ring
-		/// radius below the staging standoff (via StableSlot's maxRings) so slots stay behind the frontier the
-		/// anchor descent already cleared of danger.</summary>
-		public static (int X, int Y) SpreadCell(int anchorX, int anchorY, int index, int ringStep, Func<int, int, bool> onGrid)
+		/// cell spacing. Deterministic: a given index always maps to the same cell — and because the caller feeds a
+		/// per-unit STABLE slot (not a list position), a unit keeps its cell across evals (no churn).
+		///
+		/// <para>A slot is LEGAL only when it is on the map (<paramref name="inBounds"/>) AND the mover can stand on
+		/// it (<paramref name="passable"/>). A slot failing either collapses onto the anchor and raises
+		/// <paramref name="collapsed"/>.</para>
+		///
+		/// <para>WHY <paramref name="passable"/> IS NOT OPTIONAL. Until 2026-08-17 the guard was assembled at the
+		/// CALL SITE, and both call sites assembled it from bounds alone unless the anchor had come from the
+		/// fallback path — so on the gradient path a ring slot could be on-map WATER or CLIFF and the unit was
+		/// ordered into it. Measured on the shipped fallback geometry (2 rings at step 2) with the anchor 2 cells
+		/// inland of a coast: 6 of 17 slots were in the sea. It survived thirteen days because the only
+		/// instrumentation watching this counts DISTANCE FROM THE SUPPLY ROUTE, and a unit walking into the water
+		/// improves that number. A null here is therefore a contract violation, not a default: the two call sites
+		/// carried the same wrong assembly, which is the shape that produced the phantom-anchor class (three copies
+		/// of one grid descent, two of them wrong), and a guard that is optional is a guard that will be omitted.
+		/// <paramref name="inBounds"/> stays nullable because "no grid" is a meaningful caller state; "this mover
+		/// can stand anywhere" is not — that is what an all-true predicate says explicitly.</para>
+		///
+		/// <para>A rejected slot collapses onto the ANCHOR rather than searching outward for the nearest standable
+		/// cell. That is the answer <see cref="TryResolveFallbackCell"/> gives one level down, and the anchor is the
+		/// one cell every caller has already proved it wants units at. The cost is real and accepted knowingly: on
+		/// a coastal anchor several units share a cell, which is the clog the fan-out exists to prevent.
+		/// <c>FiresStandoffMath.NearestPassableCell</c> is the better answer and would keep the dispersal, but it
+		/// needs a clamp radius — a new behavioural lever — and a measured run to set it.</para>
+		///
+		/// <para>NOTE: the ring is NOT danger-guarded per cell; correctness relies on the caller bounding the max
+		/// ring radius below the staging standoff (via StableSlot's maxRings) so slots stay behind the frontier the
+		/// anchor descent already cleared of danger. Pure integer, zero RNG, no allocation.</para></summary>
+		public static (int X, int Y) SpreadSlot(int anchorX, int anchorY, int index, int ringStep,
+			Func<int, int, bool> inBounds, Func<int, int, bool> passable, out bool collapsed)
 		{
+			if (passable == null)
+				throw new ArgumentNullException(nameof(passable), "a spread slot must be terrain-tested for the mover it is ordering");
+
+			collapsed = false;
 			if (index <= 0 || ringStep <= 0)
 				return (anchorX, anchorY);
 
@@ -276,8 +304,12 @@ namespace OpenRA.Mods.Common.Traits
 			var dir = (index - 1) % SpreadDirs.Length;
 			var cx = anchorX + SpreadDirs[dir].Dx * ring * ringStep;
 			var cy = anchorY + SpreadDirs[dir].Dy * ring * ringStep;
-			if (onGrid != null && !onGrid(cx, cy))
+
+			if ((inBounds != null && !inBounds(cx, cy)) || !passable(cx, cy))
+			{
+				collapsed = true;
 				return (anchorX, anchorY);
+			}
 
 			return (cx, cy);
 		}
