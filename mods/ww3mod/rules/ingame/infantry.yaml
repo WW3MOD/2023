@@ -701,7 +701,6 @@
 		Margin: 10,0
 
 ^DetectableInfantryStandard:
-	# Inherits: ^VisibilityPips
 	ExternalCondition@ObjectProximity:
 		Condition: object-proximity
 		TotalCap: 3
@@ -837,92 +836,6 @@
 		Visible: WhenSelected
 		Color: 888888
 		ValidRelationships: Neutral, Ally, Enemy
-
-^VisibilityPips:
-	WithDecoration@Visibility_1:
-		RequiresSelection: true
-		Image: pips
-		Sequence: pip-numbers-1
-		Position: Top
-		Margin: -15,0
-		RequiresCondition: visibility-1
-	WithDecoration@Visibility_2:
-		RequiresSelection: true
-		Image: pips
-		Sequence: pip-numbers-2
-		Position: Top
-		Margin: -15,0
-		RequiresCondition: visibility-2
-	WithDecoration@Visibility_3:
-		RequiresSelection: true
-		Image: pips
-		Sequence: pip-numbers-3
-		Position: Top
-		Margin: -15,0
-		RequiresCondition: visibility-3
-	WithDecoration@Visibility_4:
-		RequiresSelection: true
-		Image: pips
-		Sequence: pip-numbers-4
-		Position: Top
-		Margin: -15,0
-		RequiresCondition: visibility-4
-	WithDecoration@Visibility_5:
-		RequiresSelection: true
-		Image: pips
-		Sequence: pip-numbers-5
-		Position: Top
-		Margin: -15,0
-		RequiresCondition: visibility-5
-	WithDecoration@Visibility_6:
-		RequiresSelection: true
-		Image: pips
-		Sequence: pip-numbers-6
-		Position: Top
-		Margin: -15,0
-		RequiresCondition: visibility-6
-	WithDecoration@Visibility_7:
-		RequiresSelection: true
-		Image: pips
-		Sequence: pip-numbers-7
-		Position: Top
-		Margin: -15,0
-		RequiresCondition: visibility-7
-	WithDecoration@Visibility_8:
-		RequiresSelection: true
-		Image: pips
-		Sequence: pip-numbers-8
-		Position: Top
-		Margin: -15,0
-		RequiresCondition: visibility-8
-	WithDecoration@Visibility_9:
-		RequiresSelection: true
-		Image: pips
-		Sequence: pip-numbers-9
-		Position: Top
-		Margin: -15,0
-		RequiresCondition: visibility-9
-	WithDecoration@Visibility_10:
-		RequiresSelection: true
-		Image: pips
-		Sequence: pip-numbers-10
-		Position: Top
-		Margin: -15,0
-		RequiresCondition: visibility-10
-	WithDecoration@Visibility_11:
-		RequiresSelection: true
-		Image: pips
-		Sequence: pip-numbers-11
-		Position: Top
-		Margin: -15,0
-		RequiresCondition: visibility-11
-	WithDecoration@Visibility_12:
-		RequiresSelection: true
-		Image: pips
-		Sequence: pip-numbers-12
-		Position: Top
-		Margin: -15,0
-		RequiresCondition: visibility-12
 
 ^CapturesOccupiedBuildings:
 	CaptureManager:

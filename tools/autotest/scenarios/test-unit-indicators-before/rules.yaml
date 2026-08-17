@@ -1,0 +1,64 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-unit-indicators-before.lua
+
+# THE ONLY DIFFERENCE FROM test-unit-indicators: the two new decorations are stripped from
+# every actor type this map places, so the identical scene renders exactly as it did before
+# this branch. That is what makes the pair a fair before/after rather than two scenes.
+#
+# Stripped per concrete actor type rather than on ^SelectableCombatUnit, because removal on a
+# concrete node that picked the trait up through Inherits@ is the pattern with precedent here
+# (test-burn-compare/rules.yaml:635-645); removal on the shared template is not.
+#
+# PITFALL: strip ONLY the base types. The derived types below inherit an ALREADY-stripped
+# parent, so repeating the removals there finds nothing to remove — and OpenRA treats that as
+# a hard error, not a no-op. Worse, the failure surfaces nowhere near the cause: Map.PostInit
+# catches it, sets InvalidCustomRules, and silently falls back to the DEFAULT ruleset, so the
+# map then dies in SetDensityLayer with "key 'e1hold' was not present in the dictionary". The
+# real error is only in debug.log as "Failed to load rules for <title>".
+E1.america:
+	-WithSpottedDecoration:
+	-WithStanceDecoration@Fire:
+	-WithStanceDecoration@Engagement:
+
+E1.russia:
+	-WithSpottedDecoration:
+	-WithStanceDecoration@Fire:
+	-WithStanceDecoration@Engagement:
+
+m113:
+	-WithSpottedDecoration:
+	-WithStanceDecoration@Fire:
+	-WithStanceDecoration@Engagement:
+
+e1hold:
+	Inherits: E1.america
+	AutoTarget:
+		InitialEngagementStance: HoldPosition
+		# Belt and braces: AutoTarget.cs:497 picks the *AI variant on IsBot || !Playable, and it
+		# does so silently with no lint error or log line. Setting both means the stance holds
+		# however the harness ends up assigning USA.
+		InitialEngagementStanceAI: HoldPosition
+
+e1hunt:
+	Inherits: E1.america
+	AutoTarget:
+		InitialEngagementStance: Hunt
+		InitialEngagementStanceAI: Hunt
+
+e1watcher:
+	Inherits: E1.russia
+	Vision@10:
+		Range: 24c0

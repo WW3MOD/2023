@@ -1,0 +1,127 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Unit indicators — spotted + stance (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# --- The density cluster. Mixed stances, one damaged + suppressed transport.
+	#
+	# The three units below sit at x=21, ELEVEN cells from the scout, not the 8 they were first
+	# authored at. Eight cells is Vision@8's band, i.e. Strength 8 — which is exactly standard
+	# infantry's detection threshold, so whether they were marked flipped between two runs of
+	# the identical scenario as their prone/cover state changed the requirement by 1. Eleven
+	# cells lands in the Strength-7 band, comfortably under, so "these three are NOT spotted"
+	# is a stable fact rather than a coin flip. UNVERIFIED: no run since this move.
+	# USA is Playable: True, so AutoTarget reads InitialStance / InitialEngagementStance and
+	# NOT the *AI variants (AutoTarget.cs:497 picks on IsBot || !Playable, silently).
+	InfDefault: e1.america
+		Owner: USA
+		Location: 21,15
+		Facing: 512
+	InfHoldFire: e1.america
+		Owner: USA
+		Location: 21,17
+		Facing: 512
+	InfAmbush: e1.america
+		Owner: USA
+		Location: 21,19
+		Facing: 512
+	InfHold: e1hold
+		Owner: USA
+		Location: 27,15
+		Facing: 512
+	InfHunt: e1hunt
+		Owner: USA
+		Location: 27,19
+		Facing: 512
+	# Both axes non-default at once, AND close enough to the scout to be spotted, so this is
+	# the unit that carries all three new glyphs simultaneously. 3 cells from Scout keeps it
+	# inside the Strength-10 band (0..4c0) in both directions rather than sitting on the
+	# boundary, where the mark would be a coin flip.
+	InfBoth: e1hold
+		Owner: USA
+		Location: 29,17
+		Facing: 512
+	# Transport, deliberately EMPTY. Passengers were dropped after Cargo.LoadPassenger on an
+	# already-in-world actor crashed World.Add with a duplicate ActorID, and the Cargo: map init
+	# is used by no map in this repo. The cargo row at Top 0,-10 is therefore the one neighbour
+	# these glyphs have NOT been checked against on screen.
+	Apc: m113
+		Owner: USA
+		Location: 27,17
+		Facing: 512
+	# --- The observer that makes the cluster spotted. Close enough that USA sees it too, so
+	# the asymmetry rule permits the mark.
+	Scout: e1.russia
+		Owner: Russia
+		Location: 32,17
+		Facing: 512
+	# --- Asymmetry probe. Geometry sized from a number the first capture MEASURED rather than
+	# guessed: cluster units 5 cells from the scout (its Strength-9 band) were marked and units
+	# at 8 cells (Strength-8) were not, so standard infantry need Strength 9 to be revealed.
+	#
+	# So: Watcher carries Strength-10 vision out to 24c0 and stands 22 cells off, which reveals
+	# Probe (10 >= 9). Probe's own vision has decayed to the Strength-4 band at 22 cells, which
+	# cannot reveal Watcher (4 < 9). One-sided contact, by construction.
+	#
+	# The first attempt used an 18-cell standoff and Probe drew a mark anyway. The likely cause
+	# was not the standoff but the Russian supply route sitting ~24 cells away — a large, easily
+	# seen building with its own vision, i.e. an observer the scenario never accounted for. It
+	# is moved out of range below.
+	Probe: e1.america
+		Owner: USA
+		Location: 50,4
+		Facing: 512
+	Watcher: e1watcher
+		Owner: Russia
+		Location: 50,26
+		Facing: 512
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,16
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,31
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 21,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 32,17
+
+Rules: rules.yaml

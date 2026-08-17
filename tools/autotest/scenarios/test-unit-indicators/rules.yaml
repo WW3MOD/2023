@@ -1,0 +1,39 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-unit-indicators.lua
+
+# Engagement stance has no Lua binding (only UnitStance does, via actor.Stance), so the two
+# engagement states come from derived types instead of being set at runtime.
+e1hold:
+	Inherits: E1.america
+	AutoTarget:
+		InitialEngagementStance: HoldPosition
+		# Belt and braces: AutoTarget.cs:497 picks the *AI variant on IsBot || !Playable, and it
+		# does so silently with no lint error or log line. Setting both means the stance holds
+		# however the harness ends up assigning USA.
+		InitialEngagementStanceAI: HoldPosition
+
+e1hunt:
+	Inherits: E1.america
+	AutoTarget:
+		InitialEngagementStance: Hunt
+		InitialEngagementStanceAI: Hunt
+
+# Sees 24 cells at full strength instead of the standard 4. Paired with the 22-cell standoff
+# in map.yaml this manufactures the one-sided contact the asymmetry rule is about.
+e1watcher:
+	Inherits: E1.russia
+	Vision@10:
+		Range: 24c0
