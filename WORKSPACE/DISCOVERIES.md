@@ -3,6 +3,48 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — THE SIMULATION USES NO TRANSCENDENTAL MATH, AND `RollForward: Major` MEANS THE net6 TARGET IS ALREADY LETTING THREE RUNTIMES INTO ONE MATCH
+
+Branch `wt/dotnet-scope`, research-only against `main @ 708b5f70`. Full costing in
+[`WORKSPACE/plans/260817_dotnet_upgrade_scope.md`](plans/260817_dotnet_upgrade_scope.md). Four findings worth
+keeping independently of whether the upgrade ever happens.
+
+**1. The TFM does not control what runtime players execute on — `RollForward: Major` does**
+(`engine/Directory.Build.props:26`). A player whose only installed runtime is .NET 10 already runs the game on
+.NET 10 under today's `net6.0` target. The 2026-08-16 two-human desync had **host on CLR 8.0.27 and friend on
+10.0.10**. So cross-runtime exposure is *live now* and is not something a target-framework bump would
+introduce — bumping to `net10.0` raises the floor and is the only lever that makes the fleet homogeneous.
+This inverts the intuitive framing, in which upgrading is the risky move.
+
+**2. No transcendental function is on any synced path.** Grepped all 30
+`Math.{Sin,Cos,Tan,Atan2,Pow,Exp,Log}` / `MathF.*` hits in `engine/`: every one is rendering, UI, map-editor,
+or an `IOrderGenerator` (`SelectDirectionalTarget.cs:22` — client-side, result travels as a networked order,
+so it is computed once, not twice). Simulation trigonometry is an **integer lookup table**
+(`engine/OpenRA.Game/WAngle.cs:69-77`, `CosineTable`). This matters because libm-backed transcendentals are
+the class of float that genuinely varies between runtime versions and OSes; `+ - * /`, casts, `Math.Round`
+and `Math.Sqrt` — which is all the four known synced float sites use — are IEEE-754 correctly-rounded and
+spec-mandated, and RyuJIT does not auto-contract FMA. The risk is narrower than "there is floating point in
+the sim" suggests, though not zero.
+
+**3. Strings and floats cannot reach the sync hash by construction, not by convention.**
+`Sync.EmitSyncOpcodes` (`engine/OpenRA.Game/Sync.cs:58-75`) accepts only `int`, `bool` and eleven registered
+types, and **throws `NotImplementedException` at IL-generation time** for anything else. All eleven hash as
+XORs of `int.GetHashCode()`, which returns the value itself. So `string.GetHashCode` per-process randomisation
+is structurally excluded from desync hypotheses — worth knowing before anyone re-raises it. Actor iteration is
+equally safe: `World.actors` is a `SortedDictionary` (`World.cs:32`) and `TraitDictionary` keeps parallel lists
+insertion-sorted by ActorID (`TraitDictionary.cs:22-35,150-154`).
+
+**4. `LangVersion 9` is a floor WW3MOD raised, not a Mono cap** — the standing assumption is wrong.
+`git log -S LangVersion` shows the upstream import `7362fbc6` carried `7.3`; `c4f0739e` **raised** it to 9
+*"matching upstream"*, mentioning Mono nowhere. The engine has no `record`, no `init` accessor and no
+`IsExternalInit` polyfill, so nothing netstandard2.1-incompatible is in use. **Deleting the Mono lane would
+not unblock `LangVersion`** — it unblocks the netstandard2.1 *BCL ceiling*, which is a different thing and has
+already bitten once (`Convert.ToHexString`, `WORKSPACE/bugs/discovered.md:6-28`).
+
+**Also recorded, because it is dated and will break a build:** `UnloadCargo.cs:108`'s `CA2021` false positive
+is guarded by **a comment only** — no `#pragma`, no `SuppressMessage` — while `engine/.editorconfig` sets
+`CA2021.severity = warning`. It will hard-fail `make check` the day the SDK moves off the 6.0 pin.
+
 ## 2026-08-17 — THE LIVE INFANTRY COUNT IS ~2.4x THE OFFLINE REPLAY'S, SO BOTH `…FloorPer: 10` CLIFFS CLEAR COMFORTABLY — AND THE TRUCK FLOOR'S THIRD STEP IS UNREACHABLE
 
 Branch `wt/composition-census`. First live measurement of the `[composition]` census; **no archived run in
