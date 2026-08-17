@@ -203,6 +203,132 @@ ticks in 360 s = **25.3 ticks/s**, ~1x. `run-tournament.sh:164` sizes the wall b
 unaffected, but the consequence for any future run of this config is that it silently measures half a match.
 The scenario's own `tournament.yaml` (`TimeLimitSeconds: 360`) completes; the 720 s config does not.
 
+## 2026-08-17 — `[Sync]` FOLDS WITH POSITION-INDEPENDENT XOR, SO TWO BOOLS THAT CHANGE TOGETHER ARE INVISIBLE; AND THE "SYNC TOGGLE" IS THREE DIFFERENT THINGS, ONLY ONE OF WHICH IS REACHABLE
+
+Branch `wt/sync-audit`. Two findings, both measured rather than reasoned.
+
+### 1. A trait's `[Sync]` members are XORed together with no position weighting
+
+`Sync.GenerateHashFunc` (`engine/OpenRA.Game/Sync.cs:77-106`) emits `Ldfld; <coerce>; Xor` per
+annotated member into one accumulator. `EmitSyncOpcodes` (`Sync.cs:58-75`) coerces a `bool` to raw
+**0 or 1**. Measured via reflection on `GenerateHashFunc` (`SyncFoldingTest.cs`):
+
+| two `[Sync] bool` fields | trait hash |
+|---|---|
+| `false,false` | 0 |
+| `true,false` | 1 |
+| `false,true` | 1 |
+| `true,true` | **0** — identical to both-false |
+
+So **any even number of bools differing at once cancels**, and two bools can never be told apart
+from each other. `int` fields differing only in bit 0 collide the same way (`A=1,B=1` hashed 0, same
+as `A=0,B=0`).
+
+**This is not the dead-constant bug it looks like.** `EmitSyncOpcodes` pushes `0xaaa`, then `Brtrue`
+on *that constant* — so the branch is always taken and the `Pop; Ldc_I4 0x555` is unreachable. It is
+tempting to "restore" the intended `0x555`/`0xaaa` encoding. **Do not:** both bools would use the
+same encoding, so `0x555^0x555 == 0xaaa^0xaaa == 0` and the cancellation is unchanged. Only distinct
+bit *positions* fix it. Restoring the constants would change every sync hash in the game (breaking
+replays and saves) and buy zero detection.
+
+**Where it bites concretely.** `VehicleCrew.DamageStateChanged` sets `ejecting` and `waitingForStop`
+true in the same statement block (`VehicleCrew.cs:171-181`), so on the critical transition — the exact
+tick the trait starts mattering — its two raw bools cancel and the per-field annotations leave the
+event invisible. Fix used: one `[Sync] int` packing the flags at distinct bit positions, XORed once
+(`VehicleCrew.SyncCrewState`). The same property carries `slotOccupied`/`slotReserved`, which cannot
+be annotated at all — the hasher accepts only `int`, `bool` and 11 built-in types, so `[Sync]` on an
+array throws `NotImplementedException` at hash-generation time.
+
+Scope of the blind spot: cancellation is **intra-trait only**. `World.SyncHash` multiplies each trait's
+hash by `n++ * (1 + ActorID)` before summing (`World.cs:553-563`), so it does not propagate across
+traits. And *persistent* divergence is only delayed, not lost, because other members keep changing on
+later frames. The permanent-loss case is a **transient** simultaneous flip, which is exactly what a
+state-machine transition is.
+
+### 2. "Disable sync" is three separate mechanisms with three different costs and three different reachabilities
+
+| Layer | Where | Default | Reachable from UI? |
+|---|---|---|---|
+| Hash computation — `World.SyncHash()` per net frame | `OrderManager.cs:306-311` | always on | **No toggle exists at all** |
+| Sync report — rolling 32-frame trait/field history | `OrderManager.cs:141-143` | on, but also needs ≥2 human clients | **No UI anywhere** |
+| Unsynced-code checks — hashes the whole world **twice** around suspect code | `Sync.cs:187,200`; `Settings.cs:186,189` | **off** | **Yes** — Advanced settings, developer-mode gated |
+
+The reachability is inverted from what you would guess. `ServerSettings.EnableSyncReports`
+(`Settings.cs:97`, a deliberate WW3MOD divergence to `true`) is copied into `LobbyInfo.GlobalSettings`
+**once, at server construction** (`Server.cs:349`) and never mutated: it is not an `ILobbyOptions`
+provider, has no chrome widget and no `.ftl` string. The only ways to change it are
+`Server.EnableSyncReports=` on the command line or hand-editing `settings.yaml` — which the game
+rewrites on exit (noted in the `Settings.cs:87-96` comment). **It is not a lobby toggle.**
+Meanwhile `SyncCheckUnsyncedCode`/`SyncCheckBotModuleCode` — the only genuinely expensive layer, two
+extra full-world hashes per guarded call — *are* checkboxes (`AdvancedSettingsLogic.cs:55-56,60-61`,
+visible only when `Debug.DisplayDeveloperSettings`), and are already off.
+
+**Cadence, which bounds the whole cost question.** `SyncHash()` runs from `ProcessOrders`, gated by
+`IsNetFrame => LocalFrameNumber % NetFrameInterval == 0` with `NetFrameInterval = 3`
+(`Session.cs:221`), and WW3MOD's default game speed is `Timestep: 60` — 16.7 logic ticks/s
+(`mod.yaml:381-383`), not the RA-typical 25. So the unconditional hash runs about **5.6×/second**, not
+per frame.
+
+**Two consequences nobody had written down:**
+
+- **Saved-game restore is validated by the sync hash and by nothing else.** `GameSave.RestoreOrders`
+  replays a recorded `lastSyncPacket` for `LastSyncFrame` (`GameSave.cs:262-263`); the restored client
+  computes its own and `OrderManager.ReceiveSync` (`:202-211`) compares the two entries for that frame.
+  If hashing were disabled (sending 0), `0 == 0` and **restore validation silently always passes** —
+  there is no second mechanism. The engine already does exactly this for pre-restore frames
+  (`SendSync(NetFrameNumber, 0, 0)` when `NetFrameNumber < GameSaveLastSyncFrame`), which is the
+  precedent showing a disabled hash fails *quietly*.
+- **`World.SyncHash()` is not strictly side-effect-free.** `BodyOrientation.QuantizedFacings`
+  (`BodyOrientation.cs:64-67`) is `[Sync]` on a `Lazy<int>.Value`, so the first hash of a new actor
+  forces that lazy's evaluation and takes its lock. Benign — deterministic and idempotent, it cannot
+  change a simulation outcome — but it means "hashing only reads" is not literally true, and disabling
+  hashing would shift *when* that memoisation happens.
+
+### 3. MEASURED: the hash costs 4.3 ms per net frame and the report 10.4 ms — the CPU hypothesis was RIGHT
+
+One run, `test-savegame-resume-riverzeta` (River Zeta, two bots, `--hidden --sync-reports`),
+1000 timed `World.SyncHash()` calls, converged and stable. Full verdicts and caveats in
+[`audit/260817-sync-cost-predictions.md`](../audit/260817-sync-cost-predictions.md).
+
+| | per net frame | per second @ 5.56 net frames/s | share of one core |
+|---|---|---|---|
+| `World.SyncHash()` — every game, **no toggle exists** | **4.30 ms** | 23.9 ms | **2.4%** |
+| Sync report — armed in 2-human games by default | **10.43 ms** | 58.0 ms | **5.8%** |
+| Both — what a 2-human WW3MOD game pays | 14.73 ms | 81.9 ms | **8.2%** |
+
+Population: **4,738 actors but ~57,000 synced trait instances** — about 12 synced traits per
+actor, so the trait loop, not the actor loop, is the cost. **~76 ns per synced trait** for the
+hash and **~185 ns** for the report; those per-trait figures are the part that transfers to
+another machine, the percentages are not. Maxima were 41.7 ms (hash) and 172 ms (report) on
+single frames — consistent with GC pauses from the report's per-trait boxing, and a likelier
+cause of *felt* stutter than the mean.
+
+**Do not repeat the static estimate that got this wrong.** Reading the code suggested 50-250 us
+(delegate call plus a few field loads, low-tens-of-ns per item, "hundreds to low thousands" of
+synced traits). Both factors were wrong in the same direction — ~5x on per-item cost, ~50x on
+instance count — compounding to ~20x. `ISync` instance counts are not estimable by eye because
+every `ConditionalTrait` subclass inherits `ISync`, which is most of the trait system.
+
+**Also refuted: there is no wasted hashing to reclaim.** The obvious optimisation is to skip
+traits that are `ISync` only by inheritance and declare no `[Sync]` members, since their hash
+function returns a constant 0. Measured by reflection over the mod assembly: **319 `ISync`
+types, 319 of them with at least one `[Sync]` member, 0 empty.** The cost is genuine work and
+cannot be cut without cutting coverage.
+
+**Consequence for the reachability gap in (2).** The expensive layer is NOT already disabled by
+default, which is the opposite of what the static read suggested. In a 2-human game — the exact
+case WW3MOD's `EnableSyncReports = true` divergence exists to serve — the report costs ~5.8% of
+a core, and it is the one layer with a working disable path that no UI exposes. A settings
+checkbox (not a lobby one) is the correct surface, because `Server.cs:349` reads the value once
+at server construction: a mid-lobby toggle would appear to work and do nothing.
+
+**Adding `ISync` to a trait raises the sync-report cost specifically.** `SyncReport.Values` holds 4
+members inline and allocates an array beyond that (`SyncReport.cs:345-356`), and every non-bool value
+type is boxed once per member per net frame (`SyncReport.cs:296-311`). `VehicleCrew` now has 8 synced
+members, so each vehicle costs one array plus several boxes per net frame *while reports are armed*.
+`DumpSyncTrait` also takes `lock (TypeInfoCache)` once per synced trait per net frame
+(`SyncReport.cs:42-43`). None of this touches the hash path.
+
 ## 2026-08-17 — `setup-dotnet` INSTALLING 6.0.428 DOES NOT MEAN CI *BUILDS* ON 6.0.428; THE IMAGE'S NEWER SDK WINS BECAUSE THE MUXER TAKES THE HIGHEST
 
 Branch `wt/sdk-pin`. The CI-integrity entry below said "nothing pins the choice" — this is the measured

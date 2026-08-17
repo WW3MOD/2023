@@ -75,7 +75,13 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new VehicleCrew(init.Self, this); }
 	}
 
-	public class VehicleCrew : INotifyCreated, INotifyDamageStateChanged, ITick, INotifyKilled
+	// ISync is load-bearing here, not decoration: Actor.cs:206 hashes a trait only when `trait is ISync`,
+	// so without it every [Sync] below was inert and this trait's state was absent from every sync
+	// report — while reading as though it were covered. That is the worst case for a desync hunt,
+	// because a matching report looks exculpatory when it never examined the field at all.
+	// Every [Sync] member here is simulation state; see the per-field notes. The one deliberate
+	// exclusion is AllowForeignCrew.
+	public class VehicleCrew : INotifyCreated, INotifyDamageStateChanged, ITick, INotifyKilled, ISync
 	{
 		// Clockwise from north. Indexed by SharedRandom.Next(8) when walking an ejected
 		// crew clear of the husk; shared by both evacuation paths so they cannot drift.
@@ -96,32 +102,94 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Damage value of the hit that pushed the vehicle into critical state.
 		// Locked in on the critical transition and used to scale crew damage.
+		// SIMULATION, and the highest-value field in this trait: EjectCrewMember gates
+		// `finishingDamage > threshold` around both a SharedRandom.Next call and the
+		// `crewDamage >= crewMaxHP` early return that decides whether a crew actor is spawned AT ALL.
+		// A divergence here therefore changes the world's actor population AND shifts the shared RNG
+		// stream for every other consumer. It carried no annotation at all, so nobody had flagged it.
+		[Sync]
 		int finishingDamage;
 
 		// Between entering critical and beginning the eject countdown, we wait
 		// for the vehicle to stop (or StopTimeout to expire).
+		// SIMULATION: selects the branch in Tick, so it decides when ejection actually begins.
 		[Sync]
 		bool waitingForStop;
 
+		// SIMULATION: counted against StopTimeout; picks the tick the crew starts leaving.
 		[Sync]
 		int stopWaitCounter;
 
 		/// <summary>Whether non-allied crew can currently enter this vehicle (e.g., crash-disabled helicopter).
 		/// Set by HeliEmergencyLanding on safe landing to allow capture-by-pilot.</summary>
+		// Deliberately NOT [Sync]. It is written only by synced code (HeliEmergencyLanding's tick), so
+		// hashing it would be safe — but it is never read by any simulation decision. Its only readers
+		// are EnterAlliedActorTargeter.CanTargetActor/CanTargetFrozenActor (Orders/
+		// EnterAlliedActorTargeter.cs:44,64), which run in the LOCAL order-generation path and only pick
+		// a cursor; the resulting order is still validated through the network like any other. So
+		// hashing it would add hash churn without adding detection. The synced landing state it mirrors
+		// is already covered by SuppressEjection below, which shares the same writer.
 		public bool AllowForeignCrew { get; set; }
 
 		/// <summary>When true, crew ejection is suppressed (e.g., critical crash — everyone dies).
 		/// Set by HeliEmergencyLanding when suppress-eject condition is active.</summary>
+		// SIMULATION, unambiguously: read as an early-return in ITick.Tick below, so it decides whether
+		// the whole ejection machine runs. Written by HeliEmergencyLanding, whose own state is NOT
+		// hashed (that trait declares no [Sync] members), making this the only window onto it.
+		[Sync]
 		public bool SuppressEjection { get; set; }
 
+		// SIMULATION: the countdown whose expiry calls EjectCrewMember.
 		[Sync]
 		int ejectionCountdown;
 
+		// SIMULATION: indexes ejectionOrder, so it decides WHICH crew actor type spawns next.
 		[Sync]
 		int nextEjectionIndex;
 
+		// SIMULATION: master gate on ITick.
 		[Sync]
 		bool ejecting;
+
+		// Distinct-bit-position mirror of the boolean/slot state above. This exists because Sync folds a
+		// trait's members with position-independent XOR (Sync.GenerateHashFunc emits Ldfld; Xor per
+		// member) and a bool contributes only 0 or 1 — MEASURED, not assumed: two bools set together
+		// hash identically to both clear. That is not academic here. DamageStateChanged sets `ejecting`
+		// and `waitingForStop` true in the same statement block, so on the critical transition — the
+		// exact tick this trait starts mattering — their two contributions cancel and the per-field
+		// hashes alone leave it invisible. Folding them into ONE int at distinct bit positions removes
+		// the cancellation, because a single field is XORed once.
+		// It also covers slotOccupied/slotReserved, which cannot be annotated directly: the hasher
+		// handles only int, bool and 11 built-in types, so [Sync] on an array throws at hash-generation
+		// time. They are real simulation state — slotOccupied drives HasOccupiedCrewToEject and
+		// AdvanceToNextOccupiedSlot (which crew leaves), slotReserved gates crew re-entry.
+		// Side-effect free and allocation free, as a hashed getter must be.
+		// conditionTokens is deliberately absent: a token exists exactly when its slot is occupied, so
+		// it carries no signal independent of slotOccupied.
+		[Sync]
+		int SyncCrewState
+		{
+			get
+			{
+				var packed = (ejecting ? 1 : 0)
+					| (waitingForStop ? 1 << 1 : 0)
+					| (SuppressEjection ? 1 << 2 : 0)
+					| ((nextEjectionIndex & 0xf) << 3);
+
+				// Slots are few (CrewSlots is 2-4 in practice); clamp so a longer list cannot collide
+				// the two masks into each other.
+				var slots = Math.Min(slotOccupied.Length, 8);
+				for (var i = 0; i < slots; i++)
+				{
+					if (slotOccupied[i])
+						packed |= 1 << (7 + i);
+					if (slotReserved[i])
+						packed |= 1 << (15 + i);
+				}
+
+				return packed;
+			}
+		}
 
 		public VehicleCrew(Actor self, VehicleCrewInfo info)
 		{
