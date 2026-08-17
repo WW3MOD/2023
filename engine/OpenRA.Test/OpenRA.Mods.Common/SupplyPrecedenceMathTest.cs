@@ -168,6 +168,84 @@ namespace OpenRA.Test
 			Assert.That(SupplyPrecedenceMath.SizingCustomers(false, -4, 9), Is.EqualTo(0));
 		}
 
+		// ---- RefuseResupplyBuy: the ammo gate binds the FIRST truck only ----
+		//
+		// USER RULING 2026-08-17: "I still don't want unnecessary trucks... We don't want bots to spend money
+		// on things it doesn't need at the start", resolved as a SPLIT — gate the first truck on a genuine ammo
+		// need, free every truck after it to the standing reserve.
+		//
+		// WHAT THESE WOULD STILL PASS ON, stated because a one-sided suite here is worthless. "No truck at the
+		// start" is satisfied just as happily by a bot that never buys anything at all, so every refusal case
+		// below is paired with an allow case: a predicate stuck on True fails BuysOnGenuineAmmoNeed and
+		// SecondTruckDoesNotWaitForAmmoNeed, one stuck on False fails
+		// FirstTruckWaitsForAmmoNeedEvenWhenTheReserveWantsOne and FleetAtTargetWithNobodyDryStillRefuses. No
+		// constant passes this block. What it still does NOT cover is the join to the world — that the module
+		// feeds these three bools from the traits it claims to, which needs a mounted world and is not claimed.
+
+		[Test]
+		public void FirstTruckWaitsForAmmoNeedEvenWhenTheReserveWantsOne()
+		{
+			// THE DEFECT THIS FIXES. The reserve wants a truck (floor reached at ~10 infantry, ~14 s in) and
+			// every soldier is at full ammo. The old predicate read `!underDesired && !ammoNeed`, so a
+			// shortfall short-circuited it to False here — the ammo test never ran and the truck was the
+			// opening buy, which is exactly what the user ruling forbids.
+			Assert.That(SupplyPrecedenceMath.RefuseResupplyBuy(true, false, false), Is.True);
+		}
+
+		[Test]
+		public void BuysOnGenuineAmmoNeed()
+		{
+			// The positive half: the first truck DOES arrive once a unit is actually dry — with or without a
+			// reserve shortfall. Without this, "no truck at the start" would be satisfied by buying none ever.
+			Assert.That(SupplyPrecedenceMath.RefuseResupplyBuy(false, false, true), Is.False);
+			Assert.That(SupplyPrecedenceMath.RefuseResupplyBuy(true, false, true), Is.False);
+		}
+
+		[Test]
+		public void SecondTruckDoesNotWaitForAmmoNeed()
+		{
+			// The other half of the split: once the first truck exists the reserve governs alone, so a fleet
+			// shortfall buys with nobody dry. A reserve that waits for someone to run out is not a reserve —
+			// the truck would arrive after the fight it was meant to supply.
+			Assert.That(SupplyPrecedenceMath.RefuseResupplyBuy(true, true, false), Is.False);
+		}
+
+		[Test]
+		public void FleetAtTargetWithNobodyDryStillRefuses()
+		{
+			// The reserve is not a licence to buy without bound: at target and nobody dry, still no truck.
+			Assert.That(SupplyPrecedenceMath.RefuseResupplyBuy(false, true, false), Is.True);
+		}
+
+		[Test]
+		public void SizingOffReproducesThePreFeaturePredicate()
+		{
+			// OFF-SWITCH. With SupplyDemandSizing off the caller's shortfall is constantly false, so the answer
+			// must be exactly `!ammoNeed` — the pre-feature predicate — whatever the latch says.
+			foreach (var held in new[] { false, true })
+			{
+				Assert.That(SupplyPrecedenceMath.RefuseResupplyBuy(false, held, false), Is.True);
+				Assert.That(SupplyPrecedenceMath.RefuseResupplyBuy(false, held, true), Is.False);
+			}
+		}
+
+		// ---- LatchFirstTruck: monotone, so a mid-match wipe cannot re-arm the gate ----
+
+		[Test]
+		public void LatchClosesOnTheFirstTruckAndSurvivesAFleetWipe()
+		{
+			Assert.That(SupplyPrecedenceMath.LatchFirstTruck(false, 0), Is.False, "no truck yet, gate still armed");
+
+			var held = SupplyPrecedenceMath.LatchFirstTruck(false, 1);
+			Assert.That(held, Is.True, "first truck ordered, latch closes");
+
+			// THE FLIP-FLOP THIS EXISTS TO PREVENT: fleet wiped to zero mid-match. A live "do I own one"
+			// reading would re-arm the ammo gate here and stall the rebuild at the worst possible moment.
+			Assert.That(SupplyPrecedenceMath.LatchFirstTruck(held, 0), Is.True, "latch must NOT re-arm on a wipe");
+			Assert.That(SupplyPrecedenceMath.RefuseResupplyBuy(true, SupplyPrecedenceMath.LatchFirstTruck(held, 0), false),
+				Is.False, "rebuild after a wipe must not wait for someone to run dry");
+		}
+
 		// ---- The composed behaviour the fix depends on ----
 
 		[Test]

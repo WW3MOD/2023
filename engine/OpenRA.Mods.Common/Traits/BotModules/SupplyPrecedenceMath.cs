@@ -105,6 +105,53 @@ namespace OpenRA.Mods.Common.Traits
 			return stalledCycles < maxStalledCycles;
 		}
 
+		/// <summary><para>Has this player ever held a supply truck? Monotone: once true it stays true for the rest
+		/// of the match, whatever happens to the fleet afterwards.</para>
+		///
+		/// <para>THE MONOTONICITY IS THE WHOLE POINT, not tidiness. <see cref="RefuseResupplyBuy"/> uses this to
+		/// decide whether the ammo gate still binds, and a non-latching "do I own one right now" would re-arm
+		/// the gate the moment the fleet is wiped — stalling the rebuild at the exact moment the bot most needs
+		/// a truck, and oscillating between gated and ungated for the rest of the match. The user ruling being
+		/// honoured is about the OPENING ("we don't want bots to spend money on things it doesn't need at the
+		/// start"), so the thing it keys on has to be a once-per-match event, not a live fleet reading.</para>
+		///
+		/// <para><paramref name="ownedOrPending"/> counts queued and in-flight call-ins, so the latch closes on
+		/// the cycle the first truck is ORDERED rather than waiting for it to walk in from the map edge.</para></summary>
+		public static bool LatchFirstTruck(bool alreadyHeld, int ownedOrPending)
+		{
+			return alreadyHeld || ownedOrPending > 0;
+		}
+
+		/// <summary><para>Should this build cycle REFUSE to buy a resupply unit? The supply-truck procurement gate,
+		/// shared by both call sites so the two cannot drift apart.</para>
+		///
+		/// <para>USER RULING 2026-08-17, splitting a genuine tension: "I still don't want unnecessary trucks… We
+		/// don't want bots to spend money on things it doesn't need at the start", resolved by SCOPE — the
+		/// earlier ruling ("no supply truck until at least one unit is below full ammo") governs the FIRST
+		/// truck, and the standing reserve governs every truck after it. The tension is real rather than a bug:
+		/// a reserve that waits until someone is dry is not a reserve, because a truck bought after the men are
+		/// dry arrives after the fight — but a reserve that applies from t=0 makes trucks the opening buy,
+		/// which is what the first ruling exists to forbid.</para>
+		///
+		/// <para>So <paramref name="fleetUnderDesired"/> may only override the ammo test once
+		/// <paramref name="heldFirstTruck"/> is set. Before that the shortfall is ignored and a genuine ammo
+		/// need is the only thing that buys a truck. This is the defect the previous shape had: both sites read
+		/// `!fleetUnderDesired &amp;&amp; !anyUnitNeedsResupply`, so the standing floor SHORT-CIRCUITED the gate and the
+		/// ammo test never ran at all — first truck at cycle 11, ~14 s in, with every soldier at full ammo.</para>
+		///
+		/// <para>OFF-SWITCH CONTRACT: with SupplyDemandSizing off the caller's
+		/// <paramref name="fleetUnderDesired"/> is constantly false, so the returned answer is
+		/// `!anyUnitNeedsResupply` regardless of the latch — the pre-feature predicate verbatim. Profiles that
+		/// leave GateResupplyOnAmmoNeed off (every one but @experimental) short-circuit at the call site and
+		/// never reach this at all, so they pay neither the decision nor the two actor walks behind it.</para></summary>
+		public static bool RefuseResupplyBuy(bool fleetUnderDesired, bool heldFirstTruck, bool anyUnitNeedsResupply)
+		{
+			if (anyUnitNeedsResupply)
+				return false;
+
+			return !heldFirstTruck || !fleetUnderDesired;
+		}
+
 		/// <summary><para>How many customers to size the supply fleet from.</para>
 		///
 		/// <para><paramref name="useNeedBar"/> off ⇒ <paramref name="starvingCustomers"/> verbatim, today's answer.
