@@ -3,6 +3,42 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-17 — THE PHANTOM-ANCHOR CLASS IS CLOSED, AND WHAT CLOSED IT WAS A SOURCE SCAN, NOT A THIRD FIX
+
+Three bot resolvers shipped the same map/grid round-trip mistake independently over eleven days. The third
+(`CaptureCoordinatorBotModule.ResolveReserveAnchor`) had **no degenerate-descent guard of any kind** and was
+live on `@stable`. What is worth keeping is not the fix — it is why prose failed three times and a test did not.
+
+**The correct guard, and a comment naming this exact hazard, sat twenty lines from a broken sibling since
+`d91e10f7` and did not carry across — twice.** Every fix in this class was written by someone who had just read
+the explanation. So the explanation is not the countermeasure. `GridDescentGuardTest` is: it walks
+`Traits/BotModules/**`, finds every `var (ax, ay) = ….StagingCell|AdvanceCell(sx, sy, …)`, and fails unless the
+enclosing method tests `ax == sx && ay == sy` **over those exact variables** before converting. It found the
+offender by file:line with no prior knowledge of which resolver was broken.
+
+**The full census (5 sites) — the class is closed as of `be487dfe` + this:**
+
+| Site | Shape |
+|---|---|
+| `ForwardStagingMath.TryResolveAnchorCell:183` | guarded — the seam; prefer routing new resolvers here |
+| `PoiOffensiveBotModule:2258` (opportunistic advance) | guarded in grid space |
+| `PoiOffensiveBotModule:2323` (`ResolveMusterAnchor`) | guarded in grid space |
+| `SupplyFollowerBotModule:1824` (drop anchor) | guarded in grid space |
+| `CaptureCoordinatorBotModule:1615` (reserve muster) | **was unguarded** → now routed through the seam |
+
+**Two near-misses that are NOT instances, so nobody re-audits them:**
+`HelicopterSquadBotModule.ForwardStagingCell:737` and `MountedTransportBotModule.PreContactStagingCell:1483`
+are both named like staging resolvers and both compute a forward muster cell, but they are `WPos` lerps between
+two `CenterOfCell`s — they never touch the coarse grid, so the lossy round trip cannot arise.
+
+**The generalisable trap, worth more than the specific bug:** a pure-math test can be green, correct, and
+completely uninformative about shipped behaviour when the defect is that **the call site does not use the seam
+the test covers.** `ForwardStagingMathTest`'s parity pins passed against the broken reserve resolver, because
+that resolver never called the guarded function at all. When a math helper exists to prevent a mistake, pin the
+CALL SITES, not only the helper. Precedent for the technique: `BotOrderGateCallerTest`'s source scan, including
+its exact-site-count assertion — a count is what stops the scan's scope silently shrinking until it polices
+nothing.
+
 ## 2026-08-17 — A WORKER'S `make test` RED IS USUALLY ITS OWN STALE BASE. CHECK `git merge-base --is-ancestor` BEFORE ANYONE SPENDS TIME ON IT
 
 Hit **twice in one hour** by two unrelated workers, and in both cases the worker correctly declined to chase it

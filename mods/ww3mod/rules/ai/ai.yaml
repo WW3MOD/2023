@@ -272,7 +272,8 @@ Player:
 		# both registries, i.e. exactly the pool GarrisonBotModule recruits from. This module has to own it:
 		# PoiOffensiveBotModule's StageFreePool structurally cannot, because BuildFreePool narrows to role
 		# MainBattle/IndirectFire and a capturer is CaptureSpecialist. Musters it behind the believed frontier
-		# (flat field / opening => the descent returns its seed, so it holds at the beachhead).
+		# (flat field / opening => the descent finds no gradient, so NO anchor is published and the capturer is
+		# left standing where it is; the garrison gate is what keeps that idle-and-unclaimed state harmless).
 		StageIdleCapturers: true
 		ReserveStandoffCells: 10
 		# Reclaim our own cleared base. Since c513f358 a soldier entering ANY enemy building evicts the owner to
