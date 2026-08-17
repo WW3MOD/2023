@@ -105,6 +105,9 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			var pos = passenger.Trait<IPositionable>();
 
+			// Cast<T?> so FirstOrDefault yields null, not (default, Invalid), when no cell is free — Tick's
+			// exitSubCell == null branch (NotifyBlocker + retry) is unreachable without it. A post-6.0 analyzer
+			// calls this cast always-empty (CA2021); that is a false positive, do not "simplify" it away.
 			return cargo.CurrentAdjacentCells
 				.Shuffle(self.World.SharedRandom)
 				.Select(c => (c, pos.GetAvailableSubCell(c)))
