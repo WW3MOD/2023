@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Activities
@@ -28,6 +29,11 @@ namespace OpenRA.Mods.Common.Activities
 		readonly bool assignTargetOnFirstRun;
 		readonly WDist unloadRange;
 		readonly Actor specificPassenger;
+		readonly IMoveInfo moveInfo;
+
+		/// <summary>Waypoint to stamp the dismount marker on, or null to draw none. Set only by the player
+		/// order path — an AI errand or an emergency bail is not a plan anybody asked to be shown.</summary>
+		readonly CPos? markerCell;
 
 		Target destination;
 		bool takeOffAfterUnload;
@@ -35,18 +41,20 @@ namespace OpenRA.Mods.Common.Activities
 		// Passengers unloaded so far by this activity — drives the group pacing.
 		int unloaded;
 
-		public UnloadCargo(Actor self, WDist unloadRange, bool unloadAll = true)
+		public UnloadCargo(Actor self, WDist unloadRange, bool unloadAll = true, CPos? markerCell = null)
 			: this(self, Target.Invalid, unloadRange, unloadAll)
 		{
 			assignTargetOnFirstRun = true;
+			this.markerCell = markerCell;
 		}
 
 		/// <summary>Unload a specific passenger (used by cargo panel individual eject).</summary>
-		public UnloadCargo(Actor self, WDist unloadRange, Actor specificPassenger)
+		public UnloadCargo(Actor self, WDist unloadRange, Actor specificPassenger, CPos? markerCell = null)
 			: this(self, Target.Invalid, unloadRange, false)
 		{
 			assignTargetOnFirstRun = true;
 			this.specificPassenger = specificPassenger;
+			this.markerCell = markerCell;
 		}
 
 		public UnloadCargo(Actor self, in Target destination, WDist unloadRange, bool unloadAll = true)
@@ -59,6 +67,38 @@ namespace OpenRA.Mods.Common.Activities
 			mobile = self.TraitOrDefault<Mobile>();
 			this.destination = destination;
 			this.unloadRange = unloadRange;
+			moveInfo = self.Info.TraitInfoOrDefault<IMoveInfo>();
+		}
+
+		public override IEnumerable<TargetLineNode> TargetLineNodes(Actor self)
+		{
+			if (markerCell == null || cargo.UnloadMarker == null)
+				yield break;
+
+			// WHAT THIS MARKER CLAIMS: "THE DOORS OPEN HERE" — not "a soldier will be on this cell".
+			// The distinction is easy to lose because the sprite is a man, and the icon actively invites
+			// the stronger reading. Two separate reasons it cannot promise placement. First, this cell is
+			// a PREDICTION of where the transport will be standing, not a destination: the order carries
+			// no cell at all and OnFirstRun assigns destination = self.Location whenever the activity
+			// happens to come up. Second, even once it has stopped, each passenger takes a SHUFFLED pick
+			// of CurrentAdjacentCells (see ChooseExitSubCell) rolled per passenger at dismount time — so
+			// no soldier's cell exists to be drawn when this node is emitted. The infantryman is kept
+			// over a neutral glyph because it reads as "troops out here" at a glance where a crate reads
+			// as cargo; that is a legibility trade made knowingly, not a placement forecast.
+			//
+			// A TILE node only — deliberately no line node. The leg out to this cell is already drawn by
+			// the move that precedes us, and emitting a second node for the same cell would stack a
+			// zero-length leg and a duplicate end marker on top of it. What is missing from the picture
+			// without this is not the line, it is WHAT happens at the end of it.
+			//
+			// The marker is an infantry sprite, so it needs the owner's palette; the terrain palette that
+			// cell-overlay tiles use would render it in scrambled colours.
+			yield return new TargetLineNode(
+				Target.FromCell(self.World, markerCell.Value),
+				moveInfo?.GetTargetLineColor() ?? Color.White,
+				cargo.UnloadMarker,
+				"player" + self.Owner.InternalName,
+				cargo.Info.UnloadMarkerAlpha);
 		}
 
 		public (CPos Cell, SubCell SubCell)? ChooseExitSubCell(Actor passenger)

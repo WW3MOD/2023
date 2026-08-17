@@ -274,6 +274,30 @@ namespace OpenRA.Activities
 			yield break;
 		}
 
+		/// <summary>The cell an activity queued RIGHT NOW would find <paramref name="self"/> standing on
+		/// when it comes up — i.e. the last waypoint of the queue as it stands at ISSUE time. Falls back
+		/// to the actor's current cell when nothing is queued ahead of it.
+		///
+		/// <para>Captured at issue time rather than recomputed while rendering ON PURPOSE: anything the
+		/// player appends afterwards runs AFTER the queued activity, so recomputing would walk the answer
+		/// onto a cell the actor only reaches once that activity has already fired.</para>
+		///
+		/// <para>The walk mirrors DrawLineToTarget's own, down to skipping cancelling activities and
+		/// Invalid targets, so the answer lands on the last waypoint the PLAYER can actually see rather
+		/// than on some cell only the activity graph knows about. Kept in one place because two callers
+		/// drawing markers from two subtly different walks would disagree on screen.</para></summary>
+		public static CPos PredictedFinalWaypoint(Actor self)
+		{
+			var cell = self.Location;
+			for (var a = self.CurrentActivity; a != null; a = a.NextActivity)
+				if (!a.IsCanceling)
+					foreach (var n in a.TargetLineNodes(self))
+						if (n.Tile == null && n.Target.Type != TargetType.Invalid)
+							cell = self.World.Map.CellContaining(n.Target.CenterPosition);
+
+			return cell;
+		}
+
 		public IEnumerable<string> DebugLabelComponents()
 		{
 			var act = this;

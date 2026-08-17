@@ -1,0 +1,18 @@
+Player:
+	# Russia owns no actors, so conquest would end the match on tick one.
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	# Keeps the actor census on this map exactly as authored: the verdict counts infantry
+	# standing in the world, and a crate that spawned a free unit would poison that count.
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-unload-queued-after-waypoints.lua

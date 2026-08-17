@@ -1,0 +1,83 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a shift-queued unload dismounts at the END of the waypoints (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# THE GEOMETRY IS THE ASSERTION. Everything on this map exists to make "the unload ran now"
+# and "the unload ran at the end of the queue" land 20 cells apart, so the verdict cannot be
+# read two ways and no tolerance can blur them.
+#
+#   x=8    Apc (m113, loaded in Lua) — where an UNqueued unload would drop its squad
+#   x=18   first shift-waypoint
+#   x=28   last shift-waypoint as of issue time — where a correctly QUEUED unload dismounts
+#   x=38   a waypoint appended AFTER the unload — the marker must NOT be dragged onto it
+#
+# Row 16 is clear ground the whole way, so the drive is uneventful and the only thing that
+# decides where the squad steps out is whether the unload order respected its queued flag.
+#
+# THE PASSENGERS ARE NOT PLACED HERE. They are built out-of-world in Lua and loaded straight
+# aboard, so their starting cell can never be what makes the verdict, and so nothing is ever
+# in the world and in cargo at once. An `e1.america` standing anywhere on this map is
+# therefore one this APC put there, and its cell is half the verdict.
+#
+# NO BOT PLAYER, on purpose. A bot transport module issues unload errands of its own, and a
+# dismount it ordered would be indistinguishable from the one this test is asking about.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Apc: m113
+		Owner: USA
+		Location: 8,16
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+	# One SR per faction per AUTOTEST.md — Russia owns no units, and an actorless faction ends
+	# the match with a Mission-Accomplished overlay before the Lua poller can write a verdict.
+	# Both are parked well off row 16 so neither footprint touches the APC's lane.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml
