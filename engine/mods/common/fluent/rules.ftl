@@ -55,6 +55,12 @@ dropdown-time-limit =
     .label = Time Limit
     .description = The player or team with the highest score at the end of this time wins
 
+## SyncReportsOption
+checkbox-sync-reports =
+    .label = Out of Sync Reports
+    .description = Record what the players disagreed about if the match goes out of sync
+    Without this the cause cannot be found afterwards. Costs some performance in large battles.
+
 ## Tooltip
 label-tooltip-prefix =
     .ally = Ally
