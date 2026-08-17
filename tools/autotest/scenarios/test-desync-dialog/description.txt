@@ -1,0 +1,5 @@
+Auto: Force a real desync and capture the Out of Sync dialog.
+MUST be invoked as: run-test.sh --sync-reports test-desync-dialog
+Flags AFTER the test name are silently ignored — run-test.sh's parse loop breaks on the first
+non-flag argument, so `run-test.sh test-desync-dialog --sync-reports` drops the flag, sync
+reporting is never armed, and the test fails on its own no-report assertion.

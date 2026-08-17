@@ -115,6 +115,8 @@ namespace OpenRA
 		public bool ShroudObscures(PPos uv) { return RenderPlayer != null && !RenderPlayer.MapLayers.IsExplored(uv); }
 
 		public bool IsReplay => OrderManager.Connection is ReplayConnection;
+		public bool IsOutOfSync => OrderManager.IsOutOfSync;
+		public string OutOfSyncReportPath => OrderManager.OutOfSyncReportPath;
 
 		public bool IsLoadingGameSave => OrderManager.NetFrameNumber <= OrderManager.GameSaveLastFrame;
 
@@ -695,6 +697,17 @@ namespace OpenRA
 
 			// In the event the replay goes out of sync, it becomes no longer usable. For polish we permanently pause the world.
 			ReplayTimestep = 0;
+		}
+
+		// Test hook (Test.ForceDesync). A desync needs a second client to disagree with, which a
+		// single-client autotest does not have, so this is the only way to get the out-of-sync UI in
+		// front of a camera. Guarded: unreachable outside Test.Mode=true.
+		public void ForceOutOfSync()
+		{
+			if (!TestMode.IsActive)
+				return;
+
+			OrderManager.ForceOutOfSync();
 		}
 	}
 

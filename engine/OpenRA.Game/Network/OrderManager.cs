@@ -71,6 +71,15 @@ namespace OpenRA.Network
 		/// <remarks>Should only be set in <see cref="OutOfSync"/>.</remarks>
 		public bool IsOutOfSync { get; private set; } = false;
 
+		/// <summary>The net frame the divergence was detected on. Only meaningful once <see cref="IsOutOfSync"/>.</summary>
+		public int OutOfSyncFrame { get; private set; }
+
+		/// <summary>
+		/// Absolute path of the sync report written for this desync, or null if no usable report exists.
+		/// Only meaningful once <see cref="IsOutOfSync"/>.
+		/// </summary>
+		public string OutOfSyncReportPath { get; private set; }
+
 		public struct ClientOrder
 		{
 			public int Client;
@@ -87,11 +96,26 @@ namespace OpenRA.Network
 			if (IsOutOfSync)
 				return;
 
-			syncReport.DumpSyncReport(frame);
+			OutOfSyncReportPath = syncReport.DumpSyncReport(frame);
+			OutOfSyncFrame = frame;
 			World.OutOfSync();
 			IsOutOfSync = true;
 
+			// Kept for the log and for observers, but it is not the player-facing explanation: this
+			// lands in the chat panel that World.OutOfSync has just disabled. DesyncWatcherLogic
+			// raises the dialog that actually names the report file.
 			TextNotificationsManager.AddSystemLine(DesyncCompareLogs, "frame", frame);
+		}
+
+		// Test hook, reached only via World.ForceOutOfSync (Test.ForceDesync). Drives the real desync
+		// path rather than faking its symptoms, so a capture proves the whole chain - sync report
+		// written, world latched, dialog raised - and not just that a window can be opened.
+		// Desyncs on the newest RECORDED frame, not NetFrameNumber: ReceiveSync only ever reports a
+		// frame the ring holds, so anything else produces a report reading "No sync report
+		// available!" and misrepresents what a real desync looks like.
+		internal void ForceOutOfSync()
+		{
+			OutOfSync(syncReport.LastRecordedFrame);
 		}
 
 		public void StartGame()

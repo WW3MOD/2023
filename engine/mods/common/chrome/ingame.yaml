@@ -23,6 +23,13 @@ Container@INGAME_ROOT:
 				SelectAllUnitsKey: SelectAllUnits
 				SelectUnitsByTypeKey: SelectUnitsByType
 				GroupScatterKey: GroupScatter
+		# Deliberately OUTSIDE WORLD_ROOT. A desync ends the game, and World.EndGame fires GameOver,
+		# whose handler clicks OPTIONS_BUTTON — whose HideIngameUI defaults true and sets
+		# WORLD_ROOT.IsVisible false. Widget.TickOuter only ticks visible subtrees, so a watcher
+		# parented under WORLD_ROOT stops ticking at exactly the moment it is supposed to fire, and
+		# the dialog never appears. INGAME_ROOT is only ever hidden while loading a saved game.
+		LogicTicker@DESYNC_WATCHER:
+			Logic: DesyncWatcherLogic
 		Container@WORLD_ROOT:
 			Logic: LoadIngamePerfLogic
 			Children:

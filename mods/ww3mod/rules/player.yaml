@@ -159,6 +159,7 @@ Player:
 		LoseNotification: Lose
 		LeaveNotification: Leave
 	ConquestVictoryConditions:
+	ConcedeOnDisconnect:
 	# PowerManager:
 	AllyRepair:
 	PlayerResources:

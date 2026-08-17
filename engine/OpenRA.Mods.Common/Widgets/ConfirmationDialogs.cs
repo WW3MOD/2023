@@ -27,9 +27,12 @@ namespace OpenRA.Mods.Common.Widgets
 			Action onCancel = null,
 			string cancelText = null,
 			Action onOther = null,
-			string otherText = null)
+			string otherText = null,
+			string promptName = null)
 		{
-			var promptName = onOther != null ? "THREEBUTTON_PROMPT" : "TWOBUTTON_PROMPT";
+			// Callers whose text does not fit the stock 370px panel - a file path, say - can name a
+			// wider background with the same child widget ids.
+			promptName ??= onOther != null ? "THREEBUTTON_PROMPT" : "TWOBUTTON_PROMPT";
 			var prompt = Ui.OpenWindow(promptName);
 			var confirmButton = prompt.GetOrNull<ButtonWidget>("CONFIRM_BUTTON");
 			var cancelButton = prompt.GetOrNull<ButtonWidget>("CANCEL_BUTTON");

@@ -9,6 +9,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Eluant;
 using OpenRA.Mods.Common.Projectiles;
@@ -99,6 +100,70 @@ namespace OpenRA.Mods.Common.Scripting.Global
 
 			var tick = Context.World != null ? Context.World.WorldTick : -1;
 			return TestModeScreenshots.Capture(label, note ?? "", tick);
+		}
+
+		[Desc("Force the real out-of-sync path the netcode takes when two clients disagree, wait for the " +
+			"resulting dialog to appear, capture it as `label`, then mark the test passed. " +
+			"Force, capture and verdict are one verb because a desync permanently pauses the world " +
+			"(World.OutOfSync -> EndGame -> SetPauseState), so Trigger.AfterDelay never fires again and " +
+			"neither a follow-up screenshot nor Test.Pass could be scheduled from Lua. " +
+			"Run with --sync-reports, or the report the dialog names will not have been generated. " +
+			"No-op outside test mode.")]
+		public void ForceDesyncAndCapture(string label, string note = "")
+		{
+			if (!TestMode.IsActive || Context.World == null)
+				return;
+
+			var world = Context.World;
+			world.ForceOutOfSync();
+
+			if (!world.IsOutOfSync)
+			{
+				ExitWhenCapturesFlushed("fail", "ForceOutOfSync did not latch the world out of sync.");
+				return;
+			}
+
+			if (string.IsNullOrEmpty(world.OutOfSyncReportPath))
+			{
+				ExitWhenCapturesFlushed("fail",
+					"No sync report was written for the desynced frame - rerun with --sync-reports.");
+				return;
+			}
+
+			// DesyncWatcherLogic reacts on the next UI tick and opens the dialog through RunAfterTick,
+			// so the capture has to land after both. Real time, because game ticks have stopped.
+			Game.RunAfterDelay(1000, () =>
+			{
+				// The verdict is decided HERE, on state, and the screenshot is only ever asked whether
+				// the text fits. A dialog that failed to open and a desync that never happened
+				// photograph identically, so a passing verdict must not rest on reading the image.
+				// Topmost specifically: World.EndGame fires GameOver, whose handler opens the ingame
+				// menu, so "the dialog exists" is not the same claim as "the player can see it".
+				var window = Ui.CurrentWindow();
+				if (window == null || window.Id != "DESYNC_PROMPT")
+				{
+					ExitWhenCapturesFlushed("fail",
+						$"Desync dialog is not the topmost window (found '{window?.Id ?? "none"}').");
+					return;
+				}
+
+				// ButtonPrompt clones PROMPT_TEXT once per line, so the report filename lives in one
+				// of the clones. Naming that file is the entire point of the dialog, so assert it
+				// rather than trusting a human to spot its absence in a screenshot.
+				var wanted = Path.GetFileName(world.OutOfSyncReportPath);
+				var namesReport = window.Children
+					.OfType<LabelWidget>()
+					.Any(l => l.GetText?.Invoke()?.Contains(wanted, StringComparison.Ordinal) == true);
+
+				if (!namesReport)
+				{
+					ExitWhenCapturesFlushed("fail", $"Desync dialog does not name the sync report '{wanted}'.");
+					return;
+				}
+
+				TestModeScreenshots.Capture(label, note ?? "", world.WorldTick);
+				ExitWhenCapturesFlushed("pass", $"Desync dialog raised on top and names {wanted}.");
+			});
 		}
 
 		[Desc("Set the camera zoom to `scale` × the viewport's default (minimum) zoom, so screenshots " +
