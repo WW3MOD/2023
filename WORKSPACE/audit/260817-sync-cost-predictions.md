@@ -56,3 +56,63 @@ Two known ways this run could mislead:
 - **The probe's own overhead.** Two `Stopwatch.GetTimestamp()` calls (~20-25 ns each) plus two
   counter increments per hash call. Against a predicted 50-250 us that is under 0.1%, but it
   is inside the measurement, not outside it.
+  _(Resolved before the run rather than caveated: the per-item counters were moved OUT of the
+  timed region into a separate untimed counting pass that runs only on flush frames, leaving the
+  timed span byte-identical to the unprobed body. So the measured mean is an estimate of
+  unprobed cost, not an upper bound.)_
+
+---
+
+# VERDICTS — measured 2026-08-17
+
+One run: `run-test.sh --hidden --sync-reports --timeout 600 test-savegame-resume-riverzeta`,
+verdict `PASS`, 1000 timed `SyncHash()` calls. Run dir
+`260817_144511_p32548_test-savegame-resume-riverzeta`, `result.synccost.txt`.
+
+**Four of five predictions were WRONG, and the user's hypothesis was RIGHT.** This is the
+entry's reason for existing, so it is recorded plainly rather than softened.
+
+| # | Predicted | Measured | Verdict |
+|---|---|---|---|
+| C1 | mean 50-250 us | **4300 us** | **REFUTED** — ~20x under |
+| C2 | < 0.25% of a core; hypothesis refuted | **2.4% of a core**; hypothesis **SUPPORTED** | **REFUTED** |
+| C3 | report >= 5x the hash | report **2.4x** the hash (10430 us) | **REFUTED** — expensive, but the ratio was wrong |
+| C4 | hundreds-to-low-thousands synced traits, below actor count | **57,000** synced traits vs **4,738** actors | **REFUTED** — 12x MORE than actors, not fewer |
+| C5 | run reaches tick 3000 and completes | `PASS` | **CONFIRMED** |
+
+**Why it was wrong, since the error compounded.** Per-item cost was ~76 ns per synced trait,
+not the 5-20 ns predicted (~5x), and the instance count was ~57,000, not ~1,200 (~50x). The
+static model got both factors wrong in the same direction. No amount of reading would have
+caught this; only the run did.
+
+**A separate hypothesis, also refuted.** I suspected much of the 4.3 ms was wasted on traits
+that are `ISync` only by inheriting `ConditionalTrait` while declaring no `[Sync]` members
+(their hash function returns a constant 0). Measured by reflection over the mod assembly:
+**319 `ISync` types, 319 with at least one `[Sync]` member, 0 empty.** There is no free
+optimisation there; the cost is genuine work and cannot be reduced without reducing coverage.
+
+**Derived per-second cost** at the design cadence of 5.56 net frames/s (`NetFrameInterval = 3`
+at `Timestep: 60`):
+
+| Layer | Per net frame | Per second | Share of one core |
+|---|---|---|---|
+| Hash only (every game, no toggle exists) | 4.30 ms | 23.9 ms | **2.4%** |
+| Sync report only (armed in 2-human games by default) | 10.43 ms | 58.0 ms | **5.8%** |
+| Both (what a 2-human WW3MOD game actually pays) | 14.73 ms | 81.9 ms | **8.2%** |
+
+Maxima were 41.7 ms (hash) and 172 ms (report) — single frames, consistent with GC pauses on
+the report's per-trait boxing, and the likelier cause of felt stutter than the mean.
+
+**Caveats on these numbers, stated because they bound what they can be used for.**
+
+- Measured on THIS machine. The per-trait figures (76 ns hash, ~185 ns report) are the part
+  that transfers; the percentages do not.
+- The timed region was byte-identical to the unprobed body (counting was a separate untimed
+  pass), so these are estimates of unprobed cost rather than upper bounds inflated by probing.
+- The observed net-frame rate in this run was ~2.9/s, roughly half the 5.56/s design cadence —
+  River Zeta with 4,738 actors and two bots does not sustain `Timestep: 60` on this machine at
+  all. The per-second figures above therefore use the DESIGN cadence, which is the higher
+  frequency and so the less favourable assumption for the "it's cheap" conclusion.
+- `--sync-reports` forced the report path on. That is not the default for a bot game, so the
+  2.4% hash figure is what a single-player or autotest run pays; the 8.2% applies to 2-human
+  games, where `ServerSettings.EnableSyncReports = true` arms reports automatically.

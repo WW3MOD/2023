@@ -84,6 +84,44 @@ per frame.
   change a simulation outcome — but it means "hashing only reads" is not literally true, and disabling
   hashing would shift *when* that memoisation happens.
 
+### 3. MEASURED: the hash costs 4.3 ms per net frame and the report 10.4 ms — the CPU hypothesis was RIGHT
+
+One run, `test-savegame-resume-riverzeta` (River Zeta, two bots, `--hidden --sync-reports`),
+1000 timed `World.SyncHash()` calls, converged and stable. Full verdicts and caveats in
+[`audit/260817-sync-cost-predictions.md`](../audit/260817-sync-cost-predictions.md).
+
+| | per net frame | per second @ 5.56 net frames/s | share of one core |
+|---|---|---|---|
+| `World.SyncHash()` — every game, **no toggle exists** | **4.30 ms** | 23.9 ms | **2.4%** |
+| Sync report — armed in 2-human games by default | **10.43 ms** | 58.0 ms | **5.8%** |
+| Both — what a 2-human WW3MOD game pays | 14.73 ms | 81.9 ms | **8.2%** |
+
+Population: **4,738 actors but ~57,000 synced trait instances** — about 12 synced traits per
+actor, so the trait loop, not the actor loop, is the cost. **~76 ns per synced trait** for the
+hash and **~185 ns** for the report; those per-trait figures are the part that transfers to
+another machine, the percentages are not. Maxima were 41.7 ms (hash) and 172 ms (report) on
+single frames — consistent with GC pauses from the report's per-trait boxing, and a likelier
+cause of *felt* stutter than the mean.
+
+**Do not repeat the static estimate that got this wrong.** Reading the code suggested 50-250 us
+(delegate call plus a few field loads, low-tens-of-ns per item, "hundreds to low thousands" of
+synced traits). Both factors were wrong in the same direction — ~5x on per-item cost, ~50x on
+instance count — compounding to ~20x. `ISync` instance counts are not estimable by eye because
+every `ConditionalTrait` subclass inherits `ISync`, which is most of the trait system.
+
+**Also refuted: there is no wasted hashing to reclaim.** The obvious optimisation is to skip
+traits that are `ISync` only by inheritance and declare no `[Sync]` members, since their hash
+function returns a constant 0. Measured by reflection over the mod assembly: **319 `ISync`
+types, 319 of them with at least one `[Sync]` member, 0 empty.** The cost is genuine work and
+cannot be cut without cutting coverage.
+
+**Consequence for the reachability gap in (2).** The expensive layer is NOT already disabled by
+default, which is the opposite of what the static read suggested. In a 2-human game — the exact
+case WW3MOD's `EnableSyncReports = true` divergence exists to serve — the report costs ~5.8% of
+a core, and it is the one layer with a working disable path that no UI exposes. A settings
+checkbox (not a lobby one) is the correct surface, because `Server.cs:349` reads the value once
+at server construction: a mid-lobby toggle would appear to work and do nothing.
+
 **Adding `ISync` to a trait raises the sync-report cost specifically.** `SyncReport.Values` holds 4
 members inline and allocates an array beyond that (`SyncReport.cs:345-356`), and every non-bool value
 type is boxed once per member per net frame (`SyncReport.cs:296-311`). `VehicleCrew` now has 8 synced
