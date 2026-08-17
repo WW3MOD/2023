@@ -273,12 +273,24 @@ Player:
 		# 10 DOMINATES 12: it costs 0.15 of a standing truck and halves the worst dry fraction (30% -> 19%).
 		# 8 costs 0.72 of a standing truck permanently — a 5.75x-over-target spike at attrition 35 — to buy
 		# 7 further points of availability, which is the wrong trade for a type that drives into fire.
-		# WHAT THE FIX ACTUALLY BUYS, before vs after on the same instrument (dry % of cycles, america/russia):
-		#   attrition 0    8% / 6%   ->   7% / 6%      (mean fleet 1.44 -> 2.60)
-		#   attrition 15  86% / 34%  ->  19% / 13%     (mean fleet 0.14 -> 0.81)
-		#   attrition 35  11% /  9%  ->   7% /  6%     (mean fleet 0.89 -> 1.71)
-		#   attrition 40  10% /  8%  ->   7% /  6%     (mean fleet 0.90 -> 2.01)
-		# The attrition-15 america row is the headline: the bot used to have NO truck for 86% of the match.
+		# `dry` HAS AN IRREDUCIBLE RAMP FLOOR AND IS NOT ALL OUTAGE — read this before quoting the numbers.
+		# The opening cycles before the first truck is bought are counted dry, so `dry` can never fall below
+		# that ramp: 14 cycles after this change (first buy cycle 13), 16 before it (first buy 15) for america,
+		# 13 for russia. The shipped config reports dry 14 at attrition 0, 30, 35, 40, 50 AND 80 — identically
+		# — because across that whole band it is SATURATED at the ramp and cannot discriminate at all. Only
+		# attrition 15/20/25 carry signal. That does not affect the per-ratio comparison above (ramp differs by
+		# 1-2 cycles between 8 and 12), but every absolute figure overstates outage by ~7 points.
+		# Also slightly pessimistic: the sample is taken BEFORE each cycle's buy, so a truck that dies and is
+		# replaced within one cycle still counts as dry. Consistent across configs, so comparisons are fair.
+		# WHAT THE FIX ACTUALLY BUYS. Raw dry %, then MID-MATCH outage with the ramp subtracted, which is the
+		# honest number (america / russia):
+		#                  raw dry %            mid-match outage        mean fleet (am)
+		#   attrition 0    8/6  ->  7/6         0% -> 0%                1.44 -> 2.60
+		#   attrition 15  86/34 -> 19/13        78%/28% -> 12%/7%       0.14 -> 0.81
+		#   attrition 35  11/9  ->  7/6         3%/3%   ->  0%/0%       0.89 -> 1.71
+		#   attrition 40  10/8  ->  7/6         2%/2%   ->  0%/0%       0.90 -> 2.01
+		# The attrition-15 america row is the headline and survives the correction: the bot used to have NO
+		# truck for 78% of the match after the opening. At attrition 35 and 40 mid-match outage reaches ZERO.
 		# CAP 3, not 6: the cap binds the reserve only; demand sizing can still climb to the ceiling when men
 		# are actually starving.
 		# THE RICH END DOES MOVE, and an earlier revision of this comment wrongly said it did not — that claim
@@ -291,6 +303,18 @@ Player:
 		# course be able to adapt to any settings"). V_fit is a share of army VALUE, so the ceiling closes the
 		# deficit route identically at 1,000 and at 20,000 starting cash; the floor that reopens it must be
 		# cash-free too or it would only work at one end of the range.
+		# THIS FLOOR SWITCHES GateResupplyOnAmmoNeed OFF, AND THAT IS UNRESOLVED — stated here because the file
+		# must describe what it does, not what it was meant to do. UnitBuilderBotModule.cs:846 and :1932 both
+		# read `... && !SupplyFleetUnderDesired(name) && !AnyFieldedUnitNeedsResupply()`, so a fleet shortfall
+		# SHORT-CIRCUITS the ammo gate. With the floor at 0 that never fired at zero starving customers and the
+		# gate was effective; with a scaled floor it fires as soon as the bot owns 10 customers, all at full
+		# ammo — first truck at cycle 13, tick ~390, about 17 seconds in.
+		# So the guard against the 57(a) t=0 complaint is really "10 infantry / ~17 s", NOT "somebody is dry".
+		# The USER RULING cited above is "no supply truck until at least one unit is below full ammo", and this
+		# does not literally honour it. Whether that ruling should be read as a hard precondition or as a
+		# rejection of the t=0 buy is WITH THE USER as of 2026-08-17; behaviour deliberately unchanged pending
+		# that answer. If it must be honoured literally, the fix is to stop the floor satisfying the gate — not
+		# to move this ratio.
 		# WHEN SupplyTruckFloorPer IS 0 THE PATH IS THE PRE-FEATURE ONE, by construction rather than by
 		# argument: EffectiveFloor returns its flatFloor argument literally, so the module passes exactly what
 		# it passed before. That holds for any profile at any value, so no claim about which profiles set

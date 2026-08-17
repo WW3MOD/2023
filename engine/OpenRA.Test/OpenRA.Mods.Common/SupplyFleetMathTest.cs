@@ -169,9 +169,14 @@ namespace OpenRA.Test
 		// What is therefore NOT covered: that the module actually passes EffectiveFloor's result into
 		// DesiredTrucks rather than the raw Info field, which is precisely where the defect lived. That join
 		// needs a world (Rearmable traits on owned actors, a per-tick cache), so it is out of reach of this
-		// fixture and is not claimed. The cheap partial substitute is a config lint — any profile setting
-		// SupplyDemandSizing with a positive SupplyTruckFloor should also set SupplyTruckFloorPer — which
-		// catches a YAML regression but still not a C# one.
+		// fixture and is not claimed. The cheap partial substitute would be a config lint — any profile
+		// setting SupplyDemandSizing with a positive SupplyTruckFloor should also set SupplyTruckFloorPer —
+		// which catches a YAML regression but still not a C# one. NOT ADDED, and the reason is worth knowing
+		// before someone tries: `--check-yaml` DOES run in CI (Windows job, every push) but is permanently
+		// red at a 437-error pre-existing baseline, so a new rule's finding lands as error #438 on a job that
+		// already fails for everyone. The prerequisite is a baseline floor that fails only on NEW errors.
+		// (An earlier version of this comment said the suite never runs at all, citing a DISCOVERIES entry
+		// that turned out to be wrong on both scope and cause; that entry is corrected 2026-08-17.)
 		//
 		// Shipped @experimental config: cap 3, per 10, customersPerTruck 6, overcompensation 200, ceiling 6.
 		static int DesiredWithScaledFloor(int starving, int customers, int cap, int per)
