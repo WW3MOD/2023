@@ -228,7 +228,17 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>Find the grid cell with the weakest enemy presence (best attack target).
-		/// Returns the map cell center of that grid cell.</summary>
+		/// Returns the map cell center of that grid cell.
+		///
+		/// <para>THE BOUNDS GUARD BELOW IS NOT A TERRAIN TEST, AND THIS CELL IS A DESTINATION — it becomes a
+		/// helicopter drop zone (HelicopterSquadBotModule.cs:1072 and :1164 -> task.DropZone -> the Move at
+		/// :1273 with a queued Unload at :1276) and a target-search centre (HelicopterStates.cs:440). It is
+		/// nonetheless SAFE, but for a reason worth writing down because it is not the obvious one: the mover is
+		/// an AIRCRAFT, which ignores ground passability, and an unlandable drop is recovered by
+		/// EnsureTransportsUnload (:529), which re-issues the Unload wherever the transport ends up. The 2026-08-17
+		/// census first cleared this as "a score, never a destination", which was simply wrong — see the corollary
+		/// in WORKSPACE/DISCOVERIES.md: asking "is it a destination?" is what produces false clears. If a GROUND
+		/// consumer is ever added, this guard has to grow a terrain half.</para></summary>
 		public CPos FindWeakestEnemyCell(Player perspective)
 		{
 			var bestCell = CPos.Zero;

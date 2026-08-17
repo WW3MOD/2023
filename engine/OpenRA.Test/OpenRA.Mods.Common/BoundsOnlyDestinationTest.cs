@@ -132,7 +132,7 @@ namespace OpenRA.Test
 		{
 			// THE PIN THAT KEEPS THIS CLOSED RATHER THAN MERELY FIXED, following ForwardStagingMath.SpreadSlot.
 			// The defect was never the arithmetic — it was that a call site could assemble a guard without the
-			// terrain half and nothing said so. Eleven sites across four modules did exactly that.
+			// terrain half and nothing said so. Twelve sites across six modules did exactly that.
 			Assert.Throws<ArgumentNullException>(
 				() => BotTerrain.TryNearestStandable(new CPos(10, 10), 4, OnMap, null, out _),
 				"a bounds-only destination guard must be a hard error, not a silent default");
@@ -171,14 +171,17 @@ namespace OpenRA.Test
 			// at :872 fires, queues the identical Move, the carrier is already there so it goes idle again, and
 			// it never unloads for the rest of the match.
 			//
-			// This asserts the RELATIONSHIP, not either number: raising DropOffArrivalRadius above 10 would also
-			// close the gap, and this pin says so out loud rather than silently passing.
-			const int DropOffArrivalRadius = 3;
-			const int EngineRelocationRadius = 10;
+			// BOTH NUMBERS ARE READ FROM THE PRODUCTION CODE. An earlier cut of this test declared them as local
+			// consts and asserted 3 < 10, which is a tautology: raising the real DropOffArrivalRadius to 12 left
+			// it green while the defect it claims to pin was gone. A pin that cannot fail is not a pin, and this
+			// is the most expensive claim in the change.
+			var arrivalRadius = new MountedTransportBotModuleInfo().DropOffArrivalRadius;
 
-			Assert.That(DropOffArrivalRadius, Is.LessThan(EngineRelocationRadius),
-				"if this ever stops being true the drop cell no longer needs clamping — until then, a drop cell " +
-				"the carrier cannot enter is an unloadable delivery, so the cell must be clamped before it is stored");
+			Assert.That(arrivalRadius, Is.LessThan(BotTerrain.EngineRelocationCells),
+				$"DropOffArrivalRadius ({arrivalRadius}) is no longer tighter than the engine's relocation " +
+				$"({BotTerrain.EngineRelocationCells}), so a carrier can no longer be parked permanently short of " +
+				"its own arrival test. If that is deliberate, the drop-cell clamp in PickDropOffCell is now " +
+				"belt-and-braces rather than load-bearing and this test should be retired knowingly.");
 		}
 	}
 }

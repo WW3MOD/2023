@@ -400,7 +400,8 @@ namespace OpenRA.Mods.Common.Traits
 				var passableForAll = unitsHangingAroundTheBase.Select(u => BotTerrain.PassableFor(u)).ToArray();
 				var targets = new List<CPos>();
 				foreach (var t in rawTargets)
-					if (BotTerrain.TryNearestStandable(t, 10, World.Map.Contains, c => passableForAll.All(p => p(c)), out var standable))
+					if (BotTerrain.TryNearestStandable(t, BotTerrain.EngineRelocationCells,
+							World.Map.Contains, c => passableForAll.All(p => p(c)), out var standable))
 						targets.Add(standable);
 
 				if (targets.Count >= 2)

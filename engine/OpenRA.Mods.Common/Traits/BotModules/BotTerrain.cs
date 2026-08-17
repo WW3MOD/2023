@@ -29,7 +29,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// (Mobile.cs:811) — "Move" via Mobile.ResolveOrder (Mobile.cs:1030), "AttackMove" via
 		/// AttackMove.ResolveOrder (AttackMove.cs:116). A bot clamping its own destination should use the same
 		/// reach: clamping SHORTER gives up on deliveries the engine would have completed, and clamping FURTHER
-		/// picks a cell the engine would not have chosen, so the two disagree again in the other direction.</summary>
+		/// picks a cell the engine would not have chosen, so the two disagree again in the other direction.
+		///
+		/// <para>MATCHING THE RADIUS DOES NOT MAKE THE TWO AGREE OUTRIGHT, and the difference is a real if narrow
+		/// hole. <see cref="PassableFor"/> tests TERRAIN only, whereas NearestMoveableCell additionally requires
+		/// <c>CanEnterCell(..., BlockedByActor.Immovable)</c> and <c>CanStayInCell</c> (Mobile.cs:847-852). So a
+		/// cell this clamp accepts as terrain-passable but which is occupied by a building — or is transit-only —
+		/// is still relocated by the engine, and any module measuring against the cell it asked for is back in the
+		/// original trap. Closing that needs an occupancy-aware oracle, which is not a pure predicate and is not
+		/// what this helper provides.</para></summary>
 		public const int EngineRelocationCells = 10;
 
 		/// <summary>A terrain-passability predicate bound to <paramref name="mover"/>'s locomotor: true when that
