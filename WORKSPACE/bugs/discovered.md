@@ -2022,6 +2022,20 @@ to be valid today, but nothing would catch it if they stopped being.
 
 ## 2026-08-19 — `Button@TAKE_COVER` is inert at three separate levels, and its removal is a 12-widget reflow (found on `wt/command-bar`, `main @ 815804f1`)
 
+> **[FIXED on `wt/take-cover`, off `main @ de78a1ed`]** — all three levels re-verified against
+> `de78a1ed` before touching anything, and all three still held. The button and its dead C# are gone;
+> the 12 numeric edits below were applied exactly as tabled (every value re-derived on the newer ref
+> first — none had drifted). Two things this entry did **not** record, both found while verifying:
+> the button was a **deliberate placeholder, not an oversight** — `84a1ee69`'s own message reads
+> *"New command buttons (dummy): Patrol, Evacuate, Take Cover, Auto-Enter"* — and its three siblings
+> have since been wired, leaving it the last unfinished member of that batch. It could not be wired
+> the same way because `82f0b8eb` (2023-04-06) renamed `TakeCover` → `InfantryStates` and made prone
+> automatic **three years before the button was authored**. So it is *unfinished*, not *cut* and not
+> an RA leftover. The `3ae6e473` follow-up ("was always clickable but did nothing") added only the
+> greying, which made a dummy look exactly as live as the working buttons.
+> **The reflow is still unverified visually** — a capture request is filed with the manager, and
+> `tools/autotest/scenarios/demo-command-bar-reflow/` stages the shot.
+
 **Symptom the player sees:** a command-bar button that renders **ungreyed** whenever infantry are selected —
 so it looks live — and does nothing at all when clicked. `takeCoverDisabled` keys off `InfantryStatesInfo`
 (`CommandBarLogic.cs:444`), which every infantry actor has, so the enabled state is genuine.
@@ -2131,3 +2145,27 @@ just replace one unverified figure with another.
 Whoever owns the economy (`DOCS/reference/economy.md`) should settle it and fix all three lines together.
 Flagging rather than guessing; the tick→second half of the same doc's errors *was* fixed on this branch
 (see `DISCOVERIES.md` 2026-08-19), so `capturing.md` is now internally consistent on delays but not on income.
+
+---
+
+## 2026-08-19 — five command-bar visibility settings are declared and never read (found on `wt/take-cover`)
+
+`Settings.cs:341-345` declares `CommandBarVisible`, `FireStanceBarVisible`, `EngagementBarVisible`,
+`CohesionBarVisible` and `ResupplyBarVisible`, all defaulting to `true`. **Nothing reads any of them** —
+`grep -rn` for all five across every `*.cs` and `*.yaml` in the tree returns only those five declaration
+lines. They are written to `settings.yaml` and persisted, and no widget consults them.
+
+Same origin as the TAKE_COVER button: commit `84a1ee69`, whose message says *"Bar visibility settings
+added to GameSettings (persisted)"* in the same breath as *"New command buttons (dummy)"*. The settings
+were the persistence half of a toggle whose consuming half was never written.
+
+**Effect:** none on screen today — the bars and their background panels are unconditionally visible, which
+is why a chrome capture of the command bar is deterministic regardless of the dev's saved settings. The
+trap is for whoever adds a settings-menu toggle for these: the checkbox would bind, save, persist, and
+change nothing, which reads as a settings-persistence bug rather than a missing consumer.
+
+Left alone here because it is a judgement call the chrome owner should make deliberately — either wire the
+five to `IsVisible` on `CMD_BG_*`/`FIRE_BG`/`ENGAGE_BG`/`COHESION_BG`/`RESUPPLY_BG` and their bars, or
+delete them. Note that wiring them means deciding what a hidden bar does to the panels *right* of it,
+since every panel X is an absolute literal with nothing tying it to its neighbour (`ingame-player.yaml:53-57`
+PITFALL) — hiding one bar would leave a hole, not close up.

@@ -1,0 +1,64 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: command bar after the TAKE_COVER removal
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# A rifle squad and one APC, nothing else. The squad is what gets selected: infantry
+# satisfy Passenger (AUTO_ENTER) and IMove (PATROL), so the right-hand panel comes up
+# with live buttons rather than four greyed ones, which is the state the reflow has to
+# look right in. The APC exists so AUTO_ENTER has a real transport to point at.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	Rifle1: e1
+		Owner: Me
+		Location: 20,16
+		Facing: 768
+	Rifle2: e1
+		Owner: Me
+		Location: 21,16
+		Facing: 768
+	Rifle3: e1
+		Owner: Me
+		Location: 22,16
+		Facing: 768
+
+	Apc: m113
+		Owner: Me
+		Location: 24,16
+		Facing: 768
+
+Rules: rules.yaml
