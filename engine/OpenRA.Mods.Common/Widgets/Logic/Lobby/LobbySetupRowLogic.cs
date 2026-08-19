@@ -82,6 +82,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (botController == null)
 				return;
 
+			var bot = AIUtils.SelectDefaultBotType(botTypes);
 			foreach (var slot in orderManager.LobbyInfo.Slots)
 			{
 				if (!slot.Value.AllowBots)
@@ -89,7 +90,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var c = orderManager.LobbyInfo.ClientInSlot(slot.Key);
 				if (c != null && c.Bot == null)
 					continue;
-				var bot = botTypes.Random(Game.CosmeticRandom);
 				orderManager.IssueOrder(Order.Command($"slot_bot {slot.Key} {botController.Index} {bot}"));
 			}
 		}

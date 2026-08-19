@@ -95,6 +95,20 @@ namespace OpenRA.Mods.Common
 				TextNotificationsManager.Debug(format, args);
 		}
 
+		// WW3MOD: the bot type a one-click "add bot" lands on. Every such path used to roll
+		// Game.CosmeticRandom across all shipped types, so the player could not tell which
+		// opponent they had just added (upstream OpenRA #18914). SkirmishLogic already seeded
+		// the frozen, benchmark-validated profile on a fresh skirmish, so that is the default
+		// the lobby now agrees with instead of contradicting.
+		// This lives in ONE place because four call sites make this choice and a silent
+		// divergence between them is the bug being fixed. Matches on Type, never on Name.
+		public const string DefaultBotType = "stable";
+
+		public static string SelectDefaultBotType(IEnumerable<string> botTypes)
+		{
+			return botTypes.FirstOrDefault(t => t == DefaultBotType) ?? botTypes.FirstOrDefault();
+		}
+
 		public static IEnumerable<Order> ClearBlockersOrders(List<CPos> tiles, Player owner, Actor ignoreActor = null)
 		{
 			var world = owner.World;

@@ -41,13 +41,17 @@ Player:
 	# well under the shortest commitment TTL (250 t) so a dwell can never outlive the commitment it is
 	# protecting. It only ever holds a unit that is STILL EXECUTING something — an idle unit is
 	# re-orderable immediately — and Reflex orders (retreat / evacuation / damage response) bypass it.
+	# NOTE — Name is player-facing only (slot dropdown, and the in-game player name via
+	# Player.ResolvePlayerName). Type is the wire identifier: it is what `slot_bot` orders
+	# carry and what replays/saves store, and it is what every benchmark and tournament
+	# script selects on. Rename Name freely; NEVER rename Type.
 	ModularBot@experimental:
 		Name: Experimental AI
 		Type: experimental
 		RespectCommitmentsOnIssue: true
 		ReorderDwellTicks: 120
 	ModularBot@stable:
-		Name: Stable AI 0802
+		Name: Standard AI
 		Type: stable
 		RespectCommitmentsOnIssue: true
 		ReorderDwellTicks: 120
