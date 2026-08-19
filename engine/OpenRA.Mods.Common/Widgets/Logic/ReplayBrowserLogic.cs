@@ -776,14 +776,20 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		void WatchReplay()
 		{
-			if (selectedReplay != null && ReplayUtils.PromptConfirmReplayCompatibility(selectedReplay, modData))
+			if (selectedReplay == null)
+				return;
+
+			// Captured, because a build warning lets the player watch anyway and the selection can
+			// move between the prompt opening and them clicking through it.
+			var replay = selectedReplay;
+			ReplayUtils.PromptReplayCompatibility(replay, modData, () =>
 			{
 				cancelLoadingReplays = true;
 
 				DiscordService.UpdateStatus(DiscordState.WatchingReplay);
 
-				Game.JoinReplay(selectedReplay.FilePath);
-			}
+				Game.JoinReplay(replay.FilePath);
+			});
 		}
 
 		void AddReplay(ReplayMetadata replay, ScrollItemWidget template)

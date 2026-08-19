@@ -47,23 +47,45 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[FluentReference]
 		const string UnverifiableBuild = "dialog-incompatible-replay.prompt-unverifiable-build";
 
+		[FluentReference]
+		const string DesyncRiskTitle = "dialog-replay-desync-risk.title";
+
+		[FluentReference]
+		const string WatchAnyway = "dialog-replay-desync-risk.watch-anyway";
+
+		[FluentReference]
+		const string DoNotWatch = "dialog-replay-desync-risk.cancel";
+
 		static readonly Action DoNothing = () => { };
 
-		public static bool PromptConfirmReplayCompatibility(ReplayMetadata replayMeta, ModData modData, Action onCancel = null)
+		/// <summary>
+		/// Runs <paramref name="onWatch"/> if the replay can be played, and otherwise puts a dialog
+		/// on screen. A build mismatch is a WARNING: the dialog offers to watch anyway, and
+		/// <paramref name="onWatch"/> runs if the player takes it. Everything else is a blocker and
+		/// only offers to dismiss.
+		/// </summary>
+		/// <remarks>
+		/// Callback-shaped rather than returning a bool because the watch-anyway path is decided
+		/// after this returns - ButtonPrompt opens a window and does not block.
+		/// </remarks>
+		public static void PromptReplayCompatibility(ReplayMetadata replayMeta, ModData modData, Action onWatch, Action onCancel = null)
 		{
 			onCancel ??= DoNothing;
 
 			if (replayMeta == null)
-				return IncompatibleReplayDialog(modData, onCancel, IncompatibleReplayPrompt);
+			{
+				IncompatibleReplayDialog(modData, onCancel, IncompatibleReplayPrompt);
+				return;
+			}
 
 			var info = replayMeta.GameInfo;
 			var mod = info.Mod;
 			var modInstalled = mod != null && Game.Mods.ContainsKey(mod);
 
-			// Only meaningful against the mod that is actually loaded. A replay from a DIFFERENT
-			// installed mod reaches here before BlankLoadScreen.cs:94-95 switches to it, and
-			// fingerprinting the mod we happen to be running would compare two unrelated builds and
-			// refuse it with a reason that names the wrong thing.
+			// Only meaningful against the mod that is actually loaded; we cannot compute another
+			// mod's fingerprint from here. Defence in depth rather than the thing that saves the
+			// case - a foreign-mod replay is already stopped by the map check, since its map is not
+			// in this mod's cache.
 			var currentFingerprint = mod == modData.Manifest.Id ? BuildFingerprint.ForMod(modData) : null;
 
 			// MapPreview indexes MapCache by uid, and a null uid would throw where the checks above
@@ -75,43 +97,58 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				modInstalled, modInstalled ? Game.Mods[mod].Metadata.Version : null, currentFingerprint,
 				mapAvailable);
 
+			if (result == ReplayCompatibility.Compatible)
+			{
+				onWatch();
+				return;
+			}
+
+			if (ReplayCompatibilityCheck.IsAdvisory(result))
+			{
+				var text = result == ReplayCompatibility.UnverifiableBuild ? UnverifiableBuild : IncompatibleBuild;
+				var args = result == ReplayCompatibility.UnverifiableBuild
+					? Array.Empty<object>()
+					: new object[] { "difference", BuildFingerprint.DescribeReplayDifference(currentFingerprint, info.BuildFingerprint) };
+
+				ConfirmationDialogs.ButtonPrompt(
+					modData, DesyncRiskTitle, text, textArguments: args,
+					onConfirm: onWatch, confirmText: WatchAnyway,
+					onCancel: onCancel, cancelText: DoNotWatch);
+				return;
+			}
+
 			switch (result)
 			{
-				case ReplayCompatibility.Compatible:
-					return true;
-
 				case ReplayCompatibility.UnknownVersion:
-					return IncompatibleReplayDialog(modData, onCancel, UnknownVersion);
+					IncompatibleReplayDialog(modData, onCancel, UnknownVersion);
+					break;
 
 				case ReplayCompatibility.UnknownMod:
-					return IncompatibleReplayDialog(modData, onCancel, UnknownMod);
+					IncompatibleReplayDialog(modData, onCancel, UnknownMod);
+					break;
 
 				case ReplayCompatibility.UnavailableMod:
-					return IncompatibleReplayDialog(modData, onCancel, UnvailableMod, "mod", mod);
+					IncompatibleReplayDialog(modData, onCancel, UnvailableMod, "mod", mod);
+					break;
 
 				case ReplayCompatibility.IncompatibleVersion:
-					return IncompatibleReplayDialog(modData, onCancel, IncompatibleVersion, "version", info.Version);
-
-				case ReplayCompatibility.UnverifiableBuild:
-					return IncompatibleReplayDialog(modData, onCancel, UnverifiableBuild);
-
-				case ReplayCompatibility.IncompatibleBuild:
-					return IncompatibleReplayDialog(modData, onCancel, IncompatibleBuild,
-						"difference", BuildFingerprint.DescribeReplayDifference(currentFingerprint, info.BuildFingerprint));
+					IncompatibleReplayDialog(modData, onCancel, IncompatibleVersion, "version", info.Version);
+					break;
 
 				case ReplayCompatibility.UnavailableMap:
-					return IncompatibleReplayDialog(modData, onCancel, UnvailableMap, "map", info.MapUid);
+					IncompatibleReplayDialog(modData, onCancel, UnvailableMap, "map", info.MapUid);
+					break;
 
 				default:
-					return IncompatibleReplayDialog(modData, onCancel, IncompatibleReplayPrompt);
+					IncompatibleReplayDialog(modData, onCancel, IncompatibleReplayPrompt);
+					break;
 			}
 		}
 
-		static bool IncompatibleReplayDialog(ModData modData, Action onCancel, string text, params object[] args)
+		static void IncompatibleReplayDialog(ModData modData, Action onCancel, string text, params object[] args)
 		{
 			ConfirmationDialogs.ButtonPrompt(
 				modData, IncompatibleReplayTitle, text, textArguments: args, onCancel: onCancel, cancelText: IncompatibleReplayAccept);
-			return false;
 		}
 	}
 }

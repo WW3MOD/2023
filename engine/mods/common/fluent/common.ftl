@@ -623,8 +623,18 @@ dialog-incompatible-replay =
     { $version }.
     .prompt-unavailable-map = { -incompatible-replay-recorded } an unavailable map:
     { $map }.
-    .prompt-incompatible-build = { -incompatible-replay-recorded } a different build of this mod: the { $difference } changed since it was recorded. The replay file is not damaged — it would play back into a different game than the one recorded, so it is refused rather than shown desyncing. Rebuild from the commit that recorded it to watch it.
-    .prompt-unverifiable-build = { -incompatible-replay-recorded } a build made before replays carried a build stamp, so it cannot be checked against the one running now. The replay file is not damaged — it is refused because it would silently play back into a different game if the build has moved on. Replays recorded from now on carry the stamp and are checked properly.
+    .prompt-incompatible-build = { -incompatible-replay-recorded } a different build:
+    { $difference } changed since then.
+    The file is fine, but playback may desync.
+    .prompt-unverifiable-build = { -incompatible-replay-recorded } a build from before
+    replays carried a build stamp.
+    It cannot be checked against this one.
+    The file is fine, but playback may desync.
+
+dialog-replay-desync-risk =
+    .title = Replay May Desync
+    .watch-anyway = Watch Anyway
+    .cancel = Cancel
 
 # SelectUnitsByTypeHotkeyLogic
 nothing-selected = Nothing selected.

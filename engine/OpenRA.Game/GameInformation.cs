@@ -26,8 +26,9 @@ namespace OpenRA
 		public string Version;
 
 		/// <summary>
-		/// Identifies the build that recorded this replay, so playback under a different one is
-		/// refused rather than silently diverging. Null on replays recorded before this was stamped;
+		/// Identifies the build that recorded this replay, so playback under a different one can say
+		/// so up front instead of leaving the player to infer it from a desync prompt several minutes
+		/// in. Null on replays recorded before this was stamped;
 		/// <see cref="OpenRA.Network.BuildFingerprint"/> owns the format.
 		/// </summary>
 		public string BuildFingerprint;

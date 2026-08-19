@@ -1861,21 +1861,35 @@ The SDK-drift half is fixed: `global.json` pins the 6.0 band, so CA2021 cannot a
 ## The replay compatibility gate is dead code — WW3MOD's mod version is a frozen literal
 
 **FIXED 2026-08-19 on `wt/replay-version` (against `bc168d8b`)** — by the second of the two candidates
-below, with one correction to it. Replay metadata now carries `BuildFingerprint` (`GameInformation.cs`,
-stamped at `World.cs:272`) and `ReplayCompatibilityCheck.Resolve` refuses a mismatch. The correction:
-only the engine-revision and rules-hash segments are compared, never the asset digest, because that
-segment digests the Red Alert install under `^SupportDir` and differs between two machines running the
-identical build — gating on it would refuse the ordinary record-here-watch-there case. The first
-candidate (stamping `mod.yaml` during `make all`) was rejected: `mod.yaml` is itself hashed into the
-fingerprint's rules segment (`BuildFingerprint.cs:225-228`), so stamping it every build would churn the
-multiplayer fingerprint on commits that changed no rule and make `DescribeDifference` blame "mod rules"
-for a version bump. Still unverified end to end — see the branch report; it needs one live run to
-confirm a recorded replay round-trips through a real `.orarep`.
+below, with three corrections to it after review. Replay metadata now carries `BuildFingerprint`
+(`GameInformation.cs`, stamped at `World.cs:272`) and `ReplayCompatibilityCheck.Resolve` reports a
+mismatch.
+
+1. **It WARNS, it does not refuse.** The premise that drove "refuse" — that a stale replay diverges
+   silently — is false: recorded sync hashes are replayed back through `OrderManager.ReceiveSync`
+   (`ReplayConnection.cs:101-109`, `:117-118`; `OrderManager.cs:225-234`) and a mismatch raises the
+   OutOfSync prompt. So the dialog offers "Watch Anyway", matching the settled precedent for the join
+   path in `WORKSPACE/closeout/54ab3880.md` §4: a guard that blocks play is worse than the bug it
+   diagnoses.
+2. **Only the engine-revision and rules-hash segments are compared, never the asset digest** — but NOT
+   for the reason first written here. The digest is not machine-specific (`Folder.cs:35-38` hashes leaf
+   names only, so identical extractions agree). It is excluded because two installs can legitimately
+   hold different content SETS and the digest cannot tell that from real divergence.
+3. **The engine-revision segment needed a pathspec first.** It was stamped from bare `rev-parse HEAD`,
+   so any commit — including a `WORKSPACE/`-only one — changed it, which would have made a replay
+   watchable for roughly one commit. Now `git log -1 ... -- engine mods`.
+
+The first candidate (stamping `mod.yaml` during `make all`) was rejected: `mod.yaml` is itself hashed
+into the fingerprint's rules segment (`BuildFingerprint.cs:297-300`), so stamping it every build would
+churn the multiplayer fingerprint on commits that changed no rule and make `DescribeDifference` blame
+"mod rules" for a version bump. Still unverified end to end — it needs one live run to confirm a
+recorded replay round-trips through a real `.orarep`, and the dialog has never been seen on screen.
 
 Found 2026-08-19 while costing out a sync-hash change (`wt/sync-traits`, against `08b255f7`). Recorded
 rather than acted on at the time, on the grounds that the fix was a release-process decision.
 
-`ReplayUtils.cs:63` refuses a replay when `Game.Mods[mod].Metadata.Version != version`. But
+`ReplayUtils.cs:63` (as it stood then; now `ReplayCompatibility.cs:87`) refuses a replay when
+`Game.Mods[mod].Metadata.Version != version`. But
 `mods/ww3mod/mod.yaml:3` hardcodes `Version: release-20230225`, and only the manual `version` make target
 rewrites it (`Makefile:177-179`) — `all: engine` (`Makefile:157`) never does. Every build reports the same
 version, so the comparison is always equal and the gate has never fired.
@@ -1891,7 +1905,7 @@ older-build replays anyone cares about is roughly nil. This gets worse the momen
 Two candidate fixes, both cheap, neither obviously right without a call from the user:
 - Wire `make all` to stamp a real version (the `VERSION` recipe at `Makefile:46` already derives
   `git-<short-sha>`), which makes the existing gate work as designed. Costs: mod.yaml churns on every build.
-- Or record `BuildFingerprint.ForMod` (`BuildFingerprint.cs:88`) into replay metadata and check *that* on
+- Or record `BuildFingerprint.ForMod` (`BuildFingerprint.cs:99`) into replay metadata and check *that* on
   load — strictly better signal, since it covers rebuild-forgotten and content-mismatch cases the version
   string cannot, and the fingerprint already exists and is already computed for the handshake.
 

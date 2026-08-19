@@ -72,26 +72,41 @@
     embedded), so two machines compiling identical sources would disagree forever
     and nobody could ever join anybody.
 
+    The COMMIT is resolved with a pathspec - the last commit that touched engine/
+    or mods/ - and NOT `rev-parse HEAD`. This matters more than it looks. Bare
+    HEAD moves on every commit in the repo, including one that edits only
+    WORKSPACE notes, so it reported a different build for two commits whose
+    engine/ and mods/ trees were byte-identical. Anything comparing this value
+    then calls the builds different and names "engine build" as the reason, which
+    is simply false. At 50-122 commits a day here that made the revision a clock
+    rather than an identity: a replay or a join would have been rejected for a
+    docs commit, and a second machine could only ever match by sitting on the
+    exact same commit.
+
     Dirty trees are covered: uncommitted changes under engine/ append a hash of
     `git diff HEAD` (actual content, so two people editing the same file
     differently do not collide) plus the porcelain status list (which catches
     untracked new files that a diff cannot see).
 
-    The pathspec is engine/ ONLY, deliberately. Two reasons, and the second is
-    the important one:
+    The DIRTY pathspec is engine/ ONLY, deliberately, and it is a different
+    question from the commit pathspec above. Two reasons, and the second is the
+    important one:
       1. mods/ yaml is already hashed at RUN time by BuildFingerprint's rules
          segment, which is strictly better measurement - it sees the file that
          actually gets loaded, not the one that happened to be on disk at the
          last compile.
       2. This stamp is a Compile input, so anything that moves it recompiles the
-         engine. With mods/ in the pathspec a single untracked file under mods/
-         flipped the revision, which turned a YAML-only edit into a full engine
-         rebuild (6.3 s vs 3.1 s) - and per CLAUDE.md that build fails fast on
-         Windows while the game holds the DLLs, breaking the edit-YAML-while-
-         playing loop.
+         engine. With mods/ in the DIRTY pathspec a single untracked file under
+         mods/ flipped the revision, which turned a YAML-only edit into a full
+         engine rebuild (6.3 s vs 3.1 s) - and per CLAUDE.md that build fails
+         fast on Windows while the game holds the DLLs, breaking the edit-YAML-
+         while-playing loop. Committing yaml recompiles once, which is a
+         deliberate checkpoint rather than a hot loop, so mods/ stays in the
+         commit pathspec.
     Known gap accepted in exchange: an UNCOMMITTED change to a repo-tracked
     binary asset under mods/ (a .shp, a .png) is invisible to the fingerprint.
-    Committing it moves HEAD and is caught; the yaml is caught either way.
+    Committing it moves the scoped revision and is caught; the yaml is caught
+    either way.
 
     Every git call is ContinueOnError: no git, or a source zip rather than a clone,
     degrades to the literal "unknown" rather than failing the build.
@@ -103,7 +118,7 @@
       <_RevisionRepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_RevisionRepoRoot>
     </PropertyGroup>
 
-    <Exec Command="git -C &quot;$(_RevisionRepoRoot)&quot; rev-parse --short=10 HEAD"
+    <Exec Command="git -C &quot;$(_RevisionRepoRoot)&quot; log -1 --abbrev=10 --format=%25h -- engine mods"
           ConsoleToMSBuild="true" ContinueOnError="true" IgnoreExitCode="true"
           StandardOutputImportance="low" StandardErrorImportance="low">
       <Output TaskParameter="ConsoleOutput" PropertyName="_RevisionCommit" />
