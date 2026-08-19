@@ -144,6 +144,19 @@ All ten frames are the same chevron in different hues (`WithGarrisonDecoration.c
 
 Verified by reading `GarrisonManager.cs:1489-1512`: the handler swaps `DeployedSoldier` (`:1500,:1502`) and `ConditionToken` (`:1501,:1503`) and resets targeting, but **never touches `CachedArmaments`** — which is the field the firing path actually reads (`:858`). After a swap each port would fire through the other soldier's weapons. It is latent only because nothing issues the order. `AssignGarrisonPort` handles it correctly at `:1447-1449`, in the same file, so this is an asymmetric omission rather than a design choice. **Fix this before anyone exposes the port orders.**
 
+> **Addendum 2026-08-19 (`wt/garrison-swap`, then `wt/token-leak`) — B1 is CLOSED, and the "`AssignGarrisonPort` handles it correctly" clause above was wrong.**
+> B1 itself was fixed by extracting `GarrisonManager.SwapPortOccupants`. But `AssignGarrisonPort` was
+> *not* a clean reference implementation: it carried a second defect of the same family, a
+> **condition-token leak**, in both of its port→port branches. With the destination manned it read
+> `PortStates[fromPort].ConditionToken` back after having already overwritten it, so both ports ended
+> up recording the same soldier's token and the passenger's own token was tracked nowhere; with the
+> destination vacant it zeroed the token in transit. Tokens are per-actor counters starting at 1
+> (`Actor.cs:104`), so a foreign token is not an inert integer — it very often matches on the wrong
+> soldier and revokes an unrelated condition there. Fixed by collapsing both branches onto
+> `SwapPortOccupants` (`GarrisonManager.cs:1483`); pinned in `GarrisonPortSwapTest`. Full write-up in
+> `DISCOVERIES.md`. **Both swap landmines are now cleared** — but see the B4 addendum: they were not
+> the only thing blocking B4.
+
 **B2 · Reopening the unload menu cancels queued unloads · small**
 
 Read, not run. `Open()` resets `hasDropped = false` (`CargoUnloadMenuLogic.cs:103`); `Drop` sends `queued: hasDropped` (`:236`) and latches it true (`:241`). The comment at `:49-51` states plainly that sending `queued:false` twice "would `CancelActivity()` the unload that…". So: drop three men → ESC → press J → drop again, and the second order arrives unqueued and cancels the first three. The latch exists precisely to prevent this and does not survive a close/reopen. **The code path is verified; the in-game consequence is not** — see §5.
@@ -155,6 +168,41 @@ Fully wired at both ends, issued by nothing (`Cargo.cs:406-414`, `:560-582`, `Un
 **B4 · Surface the four garrison orders · medium-to-large** *(old #5, unchanged)*
 
 Real control — put the AT soldier on the north port, aim that port at that tank. Blocked on B1. Also fights the auto-deploy loop: `IdleRecallTicks` (250, `:66`), `SuppressionRedeployThreshold` (`:107`), `RedeployBlackoutTicks`. `PlayerOverride` is honoured for targeting only (`:1479-1484`, `:1521`), so a hand-placed soldier being auto-recalled 250 ticks later would feel worse than no control at all.
+
+> **Addendum 2026-08-19 (`wt/token-leak`) — costed, and NOT done. The verdict "medium-to-large" survives contact; B1 was never the expensive part.**
+> The two swap defects are now fixed, so the stated blocker is gone. I re-read the auto-deploy loop to
+> check whether that was the last of it. It was not, and the remaining work is the majority of the item:
+>
+> 1. **There is no "the player put this man here" state, and that is the whole feature.** `PlayerOverride`
+>    (`:147`) marks a *target* as player-chosen, not an *occupant*. Nothing in `Tick` consults it before
+>    recalling: the idle path fires at `IdleRecallTicks` with only a `MinDeployTicks` floor (`:663-668`),
+>    and the suppression path at `:631-636` doesn't consult it either. Worse, `DeployToPort` clears
+>    `PlayerOverride` (`:379`), so the flag cannot even survive the redeploy that follows. A hand-placed
+>    soldier is therefore silently undone after ~250 idle ticks, and whoever `FindBestShelterSoldier`
+>    scores highest (`:449-503`) takes the slot instead. This needs a new pinned-occupant field on
+>    `PortState`, honoured at both recall sites, respected as a preference in `FindBestShelterSoldier`,
+>    and cleared on death / eject / unload / explicit release. That is the design half, and it is a
+>    behavioural change to a trait both bot profiles share — so per `CLAUDE.md` it must default to
+>    baseline and be called out.
+> 2. **The port names are engineering identifiers, not player-facing strings.** `AssignGarrisonPort`
+>    addresses ports by `order.TargetString` = `GarrisonPortInfo.Name`, and the shipped values are
+>    `north`, `front`, `northeast1` (`structures-defenses.yaml:129,225,315`, `civilian.yaml:65-66`).
+>    A row-and-dropdown UI would show the player `northeast1`. So this wants a spatial picker — click the
+>    port on the building — which means hit-testing port offsets, or else a new player-facing label field
+>    plus Fluent strings (A8 says the existing garrison strings are hardcoded English; following the
+>    pattern properly means converting, not adding more).
+> 3. **`SetGarrisonPortTarget` needs a cursor mode of its own** — a new `IOrderTargeter` and cursor, on a
+>    building whose only current targeter is `Unload` (`:1257-1269`). A9 already wants a garrison cursor.
+> 4. Plus a scenario under `tools/autotest/scenarios/` and a screenshot pass, since `AUTOTEST.md` and
+>    `SCREENSHOT.md` both apply by default here.
+>
+> **Estimate: 3–5 worker-sessions across sim, UI and verification, and it should not be one worker.**
+> Item 1 is a self-contained sim change that can be built and pinned on its own; do it first and
+> separately, because until a hand-placed soldier reliably *stays* placed, every hour spent on the UI is
+> spent on a control the game will undo. Items 2–4 are the UI half and want the visual loop.
+> **The `@stable` note for whoever picks this up:** surfacing these orders makes previously dead code
+> reachable, which is itself the behavioural change — the four `case` blocks have never executed in a
+> shipped build.
 
 **B5 · Design question: should garrison cover damp suppression? · needs a ruling first**
 
@@ -210,3 +258,8 @@ Everything above §6 is measured. This is judgement.
 **The documentation is the actual liability.** I found eight false statements across five workspace files, one of them in a user-facing HTML mockup and one of them shaped like a dispatch brief. In the same week, four pipeline items turned out to describe already-merged work. The pattern is consistent: **the fix lands, the fixer updates the code and the commit message, and nothing updates the queue.** Item 58 is sitting in the top-of-queue batch right now with a false header. I would rank re-reading the top of `PIPELINE.md` against `git log` above any of the proposals in §4 — it is the cheapest thing on this page and it is the one that has repeatedly cost a full worker dispatch.
 
 **One thing I would not do.** Do not wire the four garrison orders yet. The sim half is written, which makes it look like a cheap win, but `SwapGarrisonPorts` is quietly wrong (B1), hand-assignment fights three separate auto-deploy timers, and `PlayerOverride` only covers targeting. It is a medium-to-large piece of work wearing a small piece of work's clothes.
+
+> **Updated 2026-08-19 (`wt/token-leak`):** the first clause is now out of date and the rest is not.
+> `SwapGarrisonPorts` and `AssignGarrisonPort` are both fixed (see the B1 addendum). The judgement
+> stands anyway, because the timers and the targeting-only `PlayerOverride` were always the expensive
+> part — costed in the B4 addendum at 3–5 sessions. **Still: do not wire them yet.**

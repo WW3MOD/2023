@@ -90,6 +90,77 @@ namespace OpenRA.Test
 				"the vacated port must not retain armaments for a soldier that has left it");
 		}
 
+		// ConditionToken is minted per-actor: Actor.nextConditionToken starts at 1 on every actor
+		// (Actor.cs:104), so two soldiers in one building routinely hold the same integer. A port
+		// left holding a token minted on the OTHER soldier is therefore not inert — RevokePortCondition
+		// (:440) asks the wrong actor whether that integer is valid, very often gets yes, and revokes
+		// whatever unrelated condition happens to carry that id. Meanwhile the token actually granted
+		// to the soldier at :352 is tracked by no port and can never be revoked, so that soldier keeps
+		// `garrisoned-at-port` for the rest of the match: sprite hidden, movement disabled, forever.
+		[Test]
+		public void NeitherPortIsLeftHoldingTheOtherSoldiersToken()
+		{
+			var north = Port(null, RiflemanArmaments, TokenA);
+			var south = Port(null, AtSoldierArmaments, TokenB);
+
+			GarrisonManager.SwapPortOccupants(north, south);
+
+			Assert.That(north.ConditionToken, Is.EqualTo(TokenB),
+				"north took the other soldier but did not take their condition token");
+
+			Assert.That(south.ConditionToken, Is.EqualTo(TokenA),
+				"condition-token leak: south is still holding token " + TokenB + ", which north now " +
+				"holds too, so one soldier's token is recorded at two ports and the other soldier's " +
+				"token (" + TokenA + ") is recorded nowhere and can never be revoked — that soldier " +
+				"stays garrisoned-at-port permanently");
+
+			Assert.That(north.ConditionToken, Is.Not.EqualTo(south.ConditionToken),
+				"both ports hold the same token: tokens are per-actor counters, so revoking through " +
+				"one of these ports will revoke an unrelated condition on the wrong soldier");
+		}
+
+		// The other shape the port→port path hits: destination empty. The hand-rolled version in
+		// AssignGarrisonPort cleared the source slot to InvalidConditionToken and only then copied the
+		// source's token to the destination, so the moved soldier's token was zeroed in transit.
+		// RevokePortCondition silently no-ops on InvalidConditionToken (:440), so the leak is total
+		// and completely quiet.
+		[Test]
+		public void TokenTravelsWithTheSoldierIntoAnEmptyPort()
+		{
+			var manned = Port(null, RiflemanArmaments, TokenA);
+			var empty = Port(null, null, Actor.InvalidConditionToken);
+
+			GarrisonManager.SwapPortOccupants(manned, empty);
+
+			Assert.That(empty.ConditionToken, Is.EqualTo(TokenA),
+				"the port that just received the soldier records no condition token: the token granted " +
+				"at GarrisonManager.cs:352 is now tracked nowhere, RevokePortCondition no-ops on it, and " +
+				"the soldier can never shed garrisoned-at-port");
+
+			Assert.That(manned.ConditionToken, Is.EqualTo(Actor.InvalidConditionToken),
+				"the vacated port still records a token for a soldier that has left it — a later recall " +
+				"here would revoke a condition on whoever occupies this port next");
+		}
+
+		// PlayerOverride marks CurrentTarget as player-chosen. The helper invalidates CurrentTarget,
+		// so leaving the flag set hands the incoming occupant a stale claim to a target that is gone.
+		// Every other occupant-changing site clears it (:280, :379, :410, :604, :1372, :1410).
+		[Test]
+		public void SwapClearsPlayerOverrideOnBothPorts()
+		{
+			var north = Port(null, RiflemanArmaments, TokenA);
+			var south = Port(null, AtSoldierArmaments, TokenB);
+			north.PlayerOverride = true;
+			south.PlayerOverride = true;
+
+			GarrisonManager.SwapPortOccupants(north, south);
+
+			Assert.That(north.PlayerOverride, Is.False,
+				"the new occupant inherited the previous occupant's player-override claim");
+			Assert.That(south.PlayerOverride, Is.False,
+				"the new occupant inherited the previous occupant's player-override claim");
+		}
+
 		[Test]
 		public void SwapInvalidatesTargetingOnBothPorts()
 		{

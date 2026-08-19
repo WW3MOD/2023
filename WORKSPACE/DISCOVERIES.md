@@ -3,6 +3,62 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-19 — condition tokens are per-actor counters, so "wrong soldier's token" is a live mis-revoke, not a dead integer
+
+Branch `wt/token-leak`. Finishing the port-swap family: `AssignGarrisonPort` had the same
+move-the-triple-together bug as its sibling, in both of its port→port branches.
+
+**Why holding another soldier's token is actively dangerous, not merely useless.**
+`Actor.nextConditionToken` is initialised to `1` on **every actor** (`Actor.cs:104`) and incremented
+per grant. Tokens are therefore not globally unique — two soldiers in one garrison routinely both hold
+token `1`, `2`, `3`. So when a port slot records a token minted on soldier A and later revokes it
+against soldier B, `B.TokenValid(token)` (`Actor.cs:701`) very often answers **yes**, and
+`RevokeCondition` (`:690`) then removes whatever unrelated condition on B happens to carry that id.
+The natural assumption — "a foreign token just won't match, so it's a harmless no-op" — is wrong, and
+it is wrong in the direction that produces a silent, mislocated state change.
+
+The reciprocal half is the leak proper: A's real token is now recorded at no port, so
+`RevokePortCondition` (`:430`) can never revoke it and A keeps `garrisoned-at-port` for the rest of the
+match — sprite suppressed, movement disabled, standing in the world as furniture.
+
+**The empty-destination variant is quieter still.** Moving a deployed soldier to a *vacant* port
+cleared the source slot to `Actor.InvalidConditionToken` and only then copied the source's token to the
+destination, so the token was zeroed in transit. `RevokePortCondition` no-ops on
+`InvalidConditionToken` (`:440`) without complaint, so nothing anywhere reports it.
+
+**Generalising: a read-after-overwrite in a hand-rolled swap is invisible at review size.** Both
+branches were ~8 plausible-looking assignment lines. What made the bug legible was not reading harder
+but *collapsing both branches onto the shared helper* — `SwapPortOccupants(from, to)` is correct for a
+vacant destination too, because swapping in the empty triple **is** the "vacate the source" outcome.
+Two special cases turned out to be one operation. Fixed at `GarrisonManager.cs:1483`; pinned in
+`GarrisonPortSwapTest`.
+
+**Still latent, not live:** all four garrison orders (`AssignGarrisonPort`, `SwapGarrisonPorts`,
+`SetGarrisonPortTarget`, `ClearGarrisonPortTarget`) still grep to exactly one hit each — the `case`
+label. Nothing issues them, so no shipped build reaches this.
+
+## 2026-08-19 — `GarrisonPortOccupant.PortIndex` goes stale on any port→port move (found, NOT fixed)
+
+Same branch, adjacent defect, deliberately left. `SetPort` is called from exactly one place —
+`DeployToPort` (`GarrisonManager.cs:356`) — and `ClearPort` from `RevokePortCondition` (`:438`).
+Neither runs when a soldier moves between two ports of the same building, so the occupant's
+`PortIndex` keeps pointing at the port it *left*.
+
+That field is not bookkeeping: `GarrisonPortOccupant.TargetableBy` reads
+`gm.PortStates[PortIndex].Port` to decide which firing arc an enemy must stand in to target the
+soldier. A soldier standing at the south port therefore stays targetable only through the **north**
+port's arc — shootable from a direction they are not visible from, and immune from the direction they
+are.
+
+So the port slot's identity is really a **quadruple**, not the triple the existing PITFALL comment and
+tests describe: `DeployedSoldier`, `CachedArmaments`, `ConditionToken`, **and the occupant's own
+`PortIndex`**. Not fixed here for a concrete reason: `SwapPortOccupants` is `static` over two
+`PortState`s with no access to the building actor or the port indices, which is precisely what lets it
+be unit-tested from `OpenRA.Test` (`Actor` has no constructor reachable from that assembly). Fixing
+this means either passing indices + the building in — losing the test seam — or calling `SetPort` at
+the two order-handler call sites, which leaves the helper still able to produce the bad state. Wants a
+deliberate decision, not a drive-by. Unreachable today for the same reason as the entry above.
+
 ## 2026-08-19 — `GarrisonManager.CachedArmaments` is a TARGETING cache, not the firing path; the port-swap bug is real but its symptom is silence, not a wrong weapon
 
 Branch `wt/garrison-swap`. `cargo-garrison-status-260819.md` §4-B1 and `garrison-proposals.md:169`
