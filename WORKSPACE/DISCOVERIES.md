@@ -570,6 +570,8 @@ The scenario's own `tournament.yaml` (`TimeLimitSeconds: 360`) completes; the 72
 
 ## 2026-08-17 — `[Sync]` FOLDS WITH POSITION-INDEPENDENT XOR, SO TWO BOOLS THAT CHANGE TOGETHER ARE INVISIBLE; AND THE "SYNC TOGGLE" IS THREE DIFFERENT THINGS, ONLY ONE OF WHICH IS REACHABLE
 
+> **[promoted (finding 1) / rejected (finding 2): situational]** → `architecture.md` §sync (curation 2026-08-19, verified against `de78a1ed`). The folding half is re-verified at source — `Sync.GenerateHashFunc` emits `Ldfld; <coerce>; Xor` per member into one accumulator (`Sync.cs:77-106`), `EmitSyncOpcodes` coerces `bool` to raw 0/1 and pushes `0xaaa` then `Brtrue`s on that constant so the `0x555` arm is unreachable (`:62-70`), and `OpenRA.Test/OpenRA.Mods.Common/SyncFoldingTest.cs` pins the truth table. Banked **with the do-not-fix warning**, which is the load-bearing part: restoring the intended constants leaves the cancellation identical (`0x555^0x555 == 0xaaa^0xaaa == 0`) while changing every sync hash in the game and breaking existing replays and saves. The "sync toggle is three different things" half is a description of one branch's lobby wiring and was rejected as situational.
+
 Branch `wt/sync-audit`. Two findings, both measured rather than reasoned.
 
 ### 1. A trait's `[Sync]` members are XORed together with no position weighting
@@ -6971,6 +6973,8 @@ Measured, not reasoned. Corpus: `C:/Users/fredr/worktrees/ww3mod/verify-results/
 
 ## 2026-08-14 — every bot-vs-bot tournament ever run was a no-income match: `PlayerResources` gates income AND upkeep on `Playable`, which map-player bots are not
 
+> **[promoted — as the retro-invalidation warning, not as current behaviour]** → `economy.md` §Where cash comes from (curation 2026-08-19, verified against `de78a1ed`). **The gate is FIXED**: `PlayerResources.cs:208` now reads `if (self.Owner.Playable || (self.Owner.IsBot && !self.Owner.NonCombatant))`, with a PITFALL at the site recording this incident. So the entry must NOT be promoted as current behaviour. What was banked is the mechanism (one line pays passive income, pays building income and charges upkeep, so failing it disconnects a player from the economy in **both** directions) plus the consequence that outlives the bug: **any benchmark artefact predating the fix measured bots that could not buy anything** and cannot be compared against a current run. This also forced a qualifier onto the income statement promoted earlier in this same pass, which had said only that income is independent of `DefaultCash`.
+
 Measured on `wt/bot-economy` off `main` @ `dd99a17f`. Dispatched to find why the `@experimental` bot has no money after its opening; the answer is that it never has *any* money at any point, and neither does `@stable`, and the reason is in the harness rather than in either bot.
 
 - **The gate.** `PlayerResources.Tick` wraps the entire economy line in `if (self.Owner.Playable)` (`PlayerResources.cs:201-202`). That one line pays passive income, building income **and** charges upkeep. A player that fails it is not "poor" — it is disconnected from the economy in both directions.
@@ -6988,6 +6992,8 @@ Measured on `wt/bot-economy` off `main` @ `dd99a17f`. Dispatched to find why the
 **What this invalidates.** Every economy-sensitive conclusion drawn from the `tournament-*` suite, which is all of `tournament-s1-eco-*` (nine scenarios named for the economy they were not exercising) and any composition/attrition finding measured past the point where a bot's opening allocation ran out — roughly tick 640 of a 6-minute match. Winrate results are less affected than they look, since both sides were broke symmetrically, but any claim of the form "the bot stops buying X" or "mechanism Y never fires in a live match" measured on this suite should be re-taken before it is trusted. The two casualties already attributed to bot logic — no truck bought after the opening despite correct demand, and the AA floor that could not be caught firing — are both explained by this and neither needs a bot-side fix.
 
 ## 2026-08-14 — `Playable` means "occupies a lobby slot", not "is a real participant"; the economy gate is fixed and both predicted casualties confirmed live
+
+> **[promoted — merged into the entry above]** (curation 2026-08-19, verified against `de78a1ed`). This is the fix half of the same finding; `Playable` defaulting to `false` for map players (`PlayerReference.cs:24`) while a lobby-slot player keeps the `true` initialiser is what makes the distinction load-bearing, and it is banked in `economy.md` with the gate. Not tagged separately to avoid two homes for one fact.
 
 Follow-on from the recon entry directly above. Fixed on `wt/econ-gate` off `main` @ `2c274589`. The recon's untested hypothesis — that the gate exists to keep Neutral/`Everyone` out of the economy — turns out to be **half right for the wrong reason**, and the reason is what makes the fix safe.
 
