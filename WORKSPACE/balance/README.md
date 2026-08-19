@@ -10,6 +10,10 @@ every balance-motivated YAML change behind explicit user sign-off.
 - `260819-strike-shorad-parity.md` — re-audit of AWAITING-USER items 4 and 5
   (Iskander↔HIMARS, Tunguska↔SHORAD). Confirms and enlarges the item-4 gap,
   refutes item 5, and corrects proposal 002's evidence. Analysis only.
+- `260819-penetration-default.md` — chases the `Penetration: 1` lead recorded in
+  the strike/SHORAD audit. Corrects the count to 167/238, shows it collapses to
+  **zero new defects**, and prices the bulk "fix" the lead invites at a silent
+  +15-20% mod-wide buff. Analysis only; no stat changed.
 - `NNN-short-name.md` — numbered change proposals (see flow below).
 
 ## Proposal flow
