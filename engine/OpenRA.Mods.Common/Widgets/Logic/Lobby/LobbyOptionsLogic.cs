@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Graphics;
 using OpenRA.Network;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -45,6 +46,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// declared via a hidden Label@CATEGORY_FILTER inside the panel widget.
 		// Defaults to Advanced if no marker is found, so existing callers keep working.
 		readonly string category;
+
+		// Set when Test.HoverLobbyOption names an option rendered by this panel.
+		CheckboxWidget pendingHover;
 
 		// Accordion state per section name. Initialised so the two big placeholder sections
 		// default to collapsed — the user only opens them when they want to look at the soup.
@@ -128,10 +132,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ "fog", SectionWorld },
 			{ "separateteamspawns", SectionWorld },
 			{ "cheats", SectionWorld },
-			// Last in World, and last overall by display order, deliberately. The Match panel fits
-			// its three rows exactly, so ANY added row costs a scroll; putting this one at the very
-			// end means the row that falls below the fold is this option rather than four
-			// pre-existing ones. Measured, not assumed — see the before/after lobby captures.
 			{ Session.SyncReportsOptionId, SectionWorld },
 		};
 
@@ -235,6 +235,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		public override void Tick()
 		{
+			// Deferred to Tick: RenderBounds is only meaningful after a layout pass,
+			// and the tooltip is positioned from the cursor, not from the widget.
+			if (pendingHover != null && pendingHover.RenderBounds.Width > 0)
+			{
+				var bounds = pendingHover.RenderBounds;
+				Viewport.LastMousePos = new int2(bounds.X + bounds.Width / 4, bounds.Y + bounds.Height / 2);
+				pendingHover.MouseEntered();
+				pendingHover = null;
+			}
+
 			var newMapPreview = getMap();
 			if (newMapPreview == mapPreview)
 				return;
@@ -422,6 +432,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var (cbText, cbDesc) = ResolveTooltip(option);
 				checkbox.GetTooltipText = () => cbText;
 				checkbox.GetTooltipDesc = () => cbDesc;
+
+				if (TestMode.IsActive && option.Id == TestMode.HoverLobbyOption)
+					pendingHover = checkbox;
 
 				if (option.Placeholder)
 					checkbox.GetColor = () => PlaceholderTextColor;

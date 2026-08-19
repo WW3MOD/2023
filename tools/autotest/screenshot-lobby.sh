@@ -20,6 +20,14 @@
 #   --map=<id>       Override Test.LaunchLobbyMap (default: river-zeta-ww3).
 #                    Matched against MapPreview Title, package folder, or Uid.
 #   --tab=<name>     Test.OpenLobbyTab — "match" (default), "advanced", "music".
+#   --hover=<id>     Test.HoverLobbyOption — hover the checkbox for this lobby
+#                    option id (e.g. "syncreports") so the capture shows its
+#                    tooltip. Tooltips are not word-wrapped, so their rendered
+#                    width can only be judged by looking at one.
+#   --window=<WxH>   Capture at a specific window size instead of the desktop
+#                    resolution, e.g. --window=1280x720. The options panel is
+#                    height-proportional (PARENT_HEIGHT * 3 / 5 - 52), so which
+#                    rows fall below its fold only shows up on a small screen.
 #   --no-quit        Leave the game running after the screenshot. Useful when
 #                    iterating on lobby YAML in one terminal while shooting
 #                    follow-up screenshots via tools/autotest/screenshot.sh.
@@ -31,6 +39,8 @@ set -e
 LABEL=""
 LOBBY_MAP="river-zeta-ww3"
 LOBBY_TAB=""
+HOVER_OPTION=""
+WINDOW_SIZE=""
 DO_QUIT=1
 PHASE_TIMEOUT=30
 
@@ -38,6 +48,8 @@ while [ $# -gt 0 ]; do
 	case "$1" in
 		--map=*)     LOBBY_MAP="${1#*=}"; shift ;;
 		--tab=*)     LOBBY_TAB="${1#*=}"; shift ;;
+		--hover=*)   HOVER_OPTION="${1#*=}"; shift ;;
+		--window=*)  WINDOW_SIZE="${1#*=}"; shift ;;
 		--no-quit)   DO_QUIT=0; shift ;;
 		--timeout=*) PHASE_TIMEOUT="${1#*=}"; shift ;;
 		--help|-h)
@@ -57,7 +69,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "${LABEL}" ]; then
-	echo "Usage: $0 <label> [--map=<id>] [--tab=<name>] [--no-quit] [--timeout=<sec>]" >&2
+	echo "Usage: $0 <label> [--map=<id>] [--tab=<name>] [--hover=<id>] [--window=<WxH>] [--no-quit] [--timeout=<sec>]" >&2
 	exit 1
 fi
 
@@ -87,6 +99,18 @@ echo "==> Run dir: ${SCREENSHOT_DIR}" >&2
 LOBBY_TAB_ARG=""
 if [ -n "${LOBBY_TAB}" ]; then
 	LOBBY_TAB_ARG="Test.OpenLobbyTab=${LOBBY_TAB}"
+fi
+
+HOVER_ARG=""
+if [ -n "${HOVER_OPTION}" ]; then
+	HOVER_ARG="Test.HoverLobbyOption=${HOVER_OPTION}"
+fi
+
+# settings.yaml is backed up and restored below, so a windowed override here
+# cannot leak into the user's saved graphics settings.
+WINDOW_ARGS=""
+if [ -n "${WINDOW_SIZE}" ]; then
+	WINDOW_ARGS="Graphics.Mode=Windowed Graphics.WindowedSize=$(echo "${WINDOW_SIZE}" | tr 'x' ',')"
 fi
 
 # Backup settings.yaml around the run — same pattern as run-test.sh, since the
@@ -136,6 +160,8 @@ fi
 	"Test.LaunchLobbyMap=${LOBBY_MAP}" \
 	"Test.LobbyReadyFile=${READY_FILE}" \
 	${LOBBY_TAB_ARG} \
+	${HOVER_ARG} \
+	${WINDOW_ARGS} \
 	"Sound.Mute=true" \
 	>/dev/null 2>&1 &
 GAME_PID=$!

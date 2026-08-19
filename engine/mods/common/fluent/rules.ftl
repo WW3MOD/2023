@@ -57,9 +57,16 @@ dropdown-time-limit =
 
 ## SyncReportsOption
 checkbox-sync-reports =
-    .label = Out of Sync Reports
-    .description = Record what the players disagreed about if the match goes out of sync
-    Without this the cause cannot be found afterwards. Costs some performance in large battles.
+    .label = Sync
+    .description = Saves a diagnostic file if the match goes out of sync
+    Players' games can silently disagree about what happened: a unit you
+    killed still shooting, a battle you won reported as lost. This records
+    exactly what diverged.
+    { "" }
+    Leaving it off is slightly faster, which can help on a weaker machine.
+    { "" }
+    But going out of sync gives no crash and no warning. With this off,
+    nothing is recorded, and nothing afterwards can tell a bug from cheating.
 
 ## Tooltip
 label-tooltip-prefix =
