@@ -2019,3 +2019,25 @@ existing 120px pitch between them.
 
 **Verification this needs and did not get:** a launched game, eyes on the bar. The numbers above are
 arithmetic, not evidence — that is precisely why the change was not made blind.
+
+## 2026-08-19 — `test-supply-under-danger`'s drift allowance is read LIVE, so a consumed crate can retro-fail the platoon
+
+`driftAllowance()` in `tools/autotest/scenarios/test-supply-under-danger/test-supply-under-danger.lua`
+decides between `MAX_DRIFT` (6) and `HOLD_DRIFT` (1) from `#crateList() > 0` — a **live count at the
+moment of the check**, not a latch over the run. SUPPLYCACHE self-removes once drained
+(`RemoveBelowSupply: 1`, `rules/misc.yaml:437`), so a crate that was dropped, legitimately walked to,
+and then consumed is **gone by verdict time**. The allowance snaps back from 6 to 1 while the peak drift
+it authorised (up to 6) stays recorded, and the run reports "THE FRONT COLLAPSED BACKWARDS" for a trip
+the doctrine asked for.
+
+Same family as the peak-vs-final-position trap that clause already documents, one level up: the
+MEASUREMENT is correctly taken over the whole run, but the THRESHOLD it is compared against is sampled
+at an instant, so a transient licensing condition is lost. Direction of the defect is a false FAIL, not
+a false PASS — it cannot manufacture a green run.
+
+**Not fixed here.** The fix is a one-line latch (`crateEver`, which is what the sibling
+`test-supply-safe-front-keeps-cargo` now uses for exactly this reason), but this session had no game
+launches allocated, and this scenario is currently the cheapest deterministic instrument pointing at
+PIPELINE item 56's mode selector. Changing the verdict logic of a live instrument without being able to
+run it once is not worth the risk of a one-line improvement to a failure direction that cannot fabricate
+a pass. Whoever next has a launch slot for this scenario should latch it and re-run.
