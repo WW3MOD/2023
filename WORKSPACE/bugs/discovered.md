@@ -2187,3 +2187,26 @@ false with no teammates).
 
 Found during the DISCOVERIES curation pass; docs-only branch, so not fixed here.
 Related: the public `IsPassive` accessor (`:186`) has zero call sites repo-wide.
+
+## 2026-08-19 — "Built:" on the info panels shows today's date, not the build date [low]
+
+`MainMenuLogic.cs:282` and `ModInfoPanelLogic.cs:24` both set the label with
+`DateTime.Now.ToString("yyyy-MM-dd")`. That is evaluated when the widget is constructed — i.e. when the
+player opens the menu — so it reports **the date the player is playing**, never the date the build was
+made. A stranger running a three-month-old download sees today's date and reads it as a fresh build.
+
+The `MainMenuLogic` copy is live — the main-menu **i** dropdown (`mainmenu.yaml:87` button, `:101`
+panel), so it is on the first screen a new player touches. The `ModInfoPanelLogic` copy is **dead**, and
+that is worth recording separately: its root `MOD_INFO_PANEL` occurs exactly once repo-wide
+(`info-panel.yaml:1`, its own declaration), nothing opens it, and its ctor requires
+`Action onExit, string shellmapName` that no caller supplies — so it cannot even be instantiated as a
+plain child. The file sits in `ChromeLayout` (`mod.yaml:204`), so it is parsed and never used. Net: a
+fix must touch `MainMenuLogic.cs`; editing only the info panel changes nothing on screen. The same trap
+applies to the "Pre-Alpha" version string on the line above it (see `AWAITING-USER.md` item 2).
+
+Not fixed here because there is no build date to read. `engine/Directory.Build.targets:135-177` stamps
+only `[AssemblyMetadata("BuildRevision", ...)]` (the git revision, consumed by
+`BuildFingerprint.ReadRevision`); nothing stamps a timestamp. A real fix means adding a second
+`AssemblyAttribute` alongside `BuildRevision` and reading it back the same way — a build-system change,
+and out of scope for a release-identity branch that deliberately touched no yaml or build files.
+Cheapest alternative if that is unwanted: drop the line, since a wrong date is worse than no date.
