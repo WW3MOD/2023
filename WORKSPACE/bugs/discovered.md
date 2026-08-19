@@ -155,6 +155,30 @@ Not done here only because it is a separate concern from the gate's *shape* and 
 `CA1850`'s comment also gates on ".NET 7 or later", which net6 does not satisfy — so that one may be a no-op
 until the TFM moves, and its 0 may mean "cannot fire" rather than "nothing to fix".
 
+> **DONE 2026-08-19 in `e5f03d73` (merged).** Two of the three were flipped and the one violation fixed.
+> The caution in the paragraph directly above was borne out on both counts, so read the outcome, not the
+> prediction:
+>
+> - `CA1845` → `warning`, and `ImportTiberianDawnLegacyMapCommand.cs:168` fixed. That was the whole bill.
+> - `CA2263` → `warning`, but **INERT on the pinned SDK**. A canonical violation planted in a
+>   provably-compiled file produced nothing on `6.0.428`, in the same build where `CA1839`, `CA1845` and
+>   `RCS1041` all fired. Do not count it as coverage until `global.json` moves off `6.0.x`.
+> - `CA1850` **stays at `none`** — correctly. Its original TODO read "once using .NET 7 or later AND once
+>   supported by mono", i.e. *two* preconditions, and dropping mono satisfies one. Item 4 above lists it
+>   among rules disabled "solely because mono cannot satisfy them"; that is item 4's one inaccuracy.
+>   `CA1850` was never mono-only.
+>
+> Also landed there: `OpenRA.WindowsLauncher` gained its missing `Debug|Any CPU.Build.0` line, taking the
+> analyzer gate to 10 of 10 projects.
+>
+> **Full `RUNTIME=mono` support removal is still NOT done, and the recommendation is to keep it that way.**
+> Scoped and costed in [`WORKSPACE/plans/260819_mono_removal_scope.md`](../plans/260819_mono_removal_scope.md).
+> Short form: the coverage payoff was those three CA rules and it is now banked, so removal buys tidiness
+> only, against real vendored-engine delta. Read that plan's consumer table before touching `mod.config` —
+> `PACKAGING_APPIMAGE_DEPENDENCIES_TEMP_ARCHIVE_NAME` has "mono" in its *value* and a live consumer in the
+> Linux AppImage build, while the neighbouring `MONO`-named variables have none. The names do not predict
+> which is which.
+
 ## 2026-08-16: [high] UNTRIAGED — LIVE MONEY PUMP: buy an LCCV for 1200, deploy it, sell the Logistics Centre for 3500. +2300 per cycle, unlimited (found while: economy audit, `main @ d919c81a`)
 
 **The loop, entirely in shipped UI:** `LCCV` is buildable (`vehicles.yaml:612-617`,
