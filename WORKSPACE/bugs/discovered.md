@@ -2290,3 +2290,56 @@ only `[AssemblyMetadata("BuildRevision", ...)]` (the git revision, consumed by
 `AssemblyAttribute` alongside `BuildRevision` and reading it back the same way — a build-system change,
 and out of scope for a release-identity branch that deliberately touched no yaml or build files.
 Cheapest alternative if that is unwanted: drop the line, since a wrong date is worse than no date.
+
+## 2026-08-20: [medium] The infantry concealment cover bonus is granted only by BURNT trees, never living ones (found while: designing the ambush legibility readout, branch `wt/ambush-legibility`, `main @ 4bb3fae9`)
+
+Static read only — **not observed in a running game**; this branch launches nothing.
+
+`^DetectableInfantryStandard` (`mods/ww3mod/rules/ingame/infantry.yaml:703-716`) consumes
+`object-proximity` for the largest single term in the concealment stack: `+1` at 1, `+2` at 2, `+3` at
+`>= 3`, capped by `ExternalCondition@ObjectProximity  TotalCap: 3`.
+
+`object-proximity` has **exactly one granter repo-wide**:
+`ProximityExternalCondition@ObjectProximity` on `^TreeHusk` (`mods/ww3mod/rules/husks/husks.yaml:118-121`,
+`Range: 384`), inherited by the 21 `*.Husk` tree actors (`T01.Husk`–`T17.Husk`, `TC01.Husk`–`TC05.Husk`).
+The only other repo hits are the consumer above and a commented-out `^DetectionProximity` block at
+`defaults.yaml:161-169`.
+
+`mods/ww3mod/rules/ingame/decoration.yaml`, which defines the **living** trees `T01`–`T17` /
+`TC01`–`TC05` (`:100`, `:152`, `:315`), contains **zero** `ProximityExternalCondition`. So standing in
+a live forest grants `+0` concealment; the bonus appears only once the forest has burned down and been
+replaced by husks. Living trees do carry `Density` (`decoration.yaml:101`), but that feeds
+`DensityModifiesDamage` — a damage reduction, a separate system with a separate meaning.
+
+Looks inverted by accident. It matters because it is the biggest term in the stack and it is
+unobtainable in the terrain built for it, which is a live candidate for the user's report that
+concealment "is hard to detect ... I am not sure what is actually active in game".
+
+Not fixed here: research-only branch, no behaviour changes. **Sequencing note** — fixing this makes
+the bug below go from rare to common, so fix that one first or in the same change.
+
+## 2026-08-20: [low] At maximum concealment the gauge draws nothing, so "perfectly hidden" and "broken" look identical (found while: designing the ambush legibility readout, branch `wt/ambush-legibility`, `main @ 4bb3fae9`)
+
+Static read only — **not observed in a running game**.
+
+`Detectable` clamps its level to `[1, MapLayers.VisionLayers - 1]` = `[1,10]`
+(`Detectable.cs:90-93`; `MapLayers.cs:75` sets `VisionLayers = 11`). The concealment gauge ladder
+`^DetectableRangeCircles` (`infantry.yaml:751-840`) defines tiers for `visibility-1`..`visibility-9`
+only. `visibility-10` deliberately has no entry, documented at `infantry.yaml:746-747`: no
+`^StandardVision` band carries strength 11, so such a unit is undetectable by standard vision.
+
+The *behaviour* is right; the *readout* is not. A selected unit at `visibility-10` draws no ring at
+all, which is pixel-identical to the trait being disabled, the unit being unselected, or the feature
+being broken — and it happens exactly when the player has done everything right.
+
+It is reachable, and only by the units a player ambushes with. Sniper (`infantry.yaml:1542`) and
+Special Forces (`:1988`) both have base `Detectable.Vision: 5`, so
+`5 + 3 (cover) + 1 (prone) + 1 (dug in) = 10`. Standard infantry (base `3`, `:97`) tops out at `8` and
+always draws a ring.
+
+Currently rare because the `+3` cover term needs burnt husks (see the entry above). Fixing that bug
+makes this one common.
+
+Cheapest fix: one more tier drawing a visually distinct innermost marker (dashed, or faintly filled)
+meaning "no standard vision can see you at any range", so the state reads as an achievement rather
+than an absence. Design discussion: `WORKSPACE/design/260820-ambush-legibility.md` §7.2.
