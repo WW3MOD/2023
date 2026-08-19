@@ -41,7 +41,10 @@ worked since 2026-08-11.
 ### Consumer map for the `MONO`-named variables — this is the part that needed human eyes
 
 The flag on `mod.config:78,133-143` was well placed. **These variables are not uniformly dead, and
-their names do not predict their function.** Measured by grep across `*.sh`, `*.config`, `*.yml`, `Makefile`:
+their names do not predict their function.** Measured twice: once by grep restricted to
+`*.sh`/`*.config`/`*.yml`/`Makefile`, then again unrestricted across every file type in the repo, in case
+a consumer lived somewhere the filter excluded. Both agree, and the unrestricted pass found no
+consumer outside the one below:
 
 | Variable | Defined | Consumers |
 |---|---|---|
