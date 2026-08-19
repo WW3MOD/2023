@@ -1,7 +1,7 @@
 # Hotboard
 
 > What's actively in motion **right now**. The v1 release tracker (`RELEASE_V1.md`) is the source of truth for scope and status.
-> The ordered roadmap of what's next lives in [`PIPELINE.md`](PIPELINE.md) — the user steers by reordering it.
+> The ordered roadmap of what's next lives in [`PIPELINE.md`](PIPELINE.md) — the user steers by reordering it. It holds stubs; per-item dossiers and the archive are under [`pipeline/`](pipeline/README.md).
 > Cap ~40 lines. Rotate stale entries out — once shipped or `[T]`, the tracker / commit history tells the story.
 
 **Reconciled 2026-08-13.** Main @ `dc899995`, **in sync with `origin/main`**. **One worktree outstanding:** `wt/missile-trace` (`C:\Users\fredr\worktrees\ww3mod\missile-trace`, based on `dc899995`, no commits yet) — PIPELINE item 45's Phase 0. `exp-terr-bias` remains the only branch `--no-merged main`. **Push policy:** the user tests from a second computer, so the *manager* pushes `main` once a merge is verified (build clean + NUnit green) and never before; workers still never push. Two machines push to `main` concurrently, and the conflicts seen are append-vs-append in `DISCOVERIES.md` / `bugs/discovered.md`: **resolve keep-both, never pick a side.**
