@@ -8,7 +8,34 @@
 > audit touches the three-commit delta (heli tuning + a maestro records commit), so the
 > findings hold for both refs — but the stamp is `81e5a440`.
 
-**Verdict up front: no. A stranger cannot install and play WW3MOD today, and the gap is not
+> ## SUPERSEDED IN PART — re-verified 2026-08-19 against `main` @ `4f5123dc`
+>
+> **Findings A, B and D have all shipped. Do not dispatch work against them.**
+>
+> - **A (`mods/ra` not packaged)** — FIXED. `mod.config` now sets
+>   `PACKAGING_COPY_ENGINE_FILES="./mods/ra ./mods/modcontent"`, and all three platform
+>   scripts gained the loop that consumes it (`packaging/{linux,macos,windows}/buildpackage.sh`).
+> - **B (content installer is dead configuration)** — FIXED, by a different route than this
+>   audit proposed. `mod.yaml` still reads `FileSystem: DefaultFileSystem`, but
+>   `BlankLoadScreen.BeforeLoad` gained a WW3MOD fallback (`:134-148`) that reads the
+>   `ModContent` manifest directly and calls `Game.InitializeMod(ContentInstallerMod)`.
+>   `ContentInstallerMod` defaults to `"modcontent"` (`ModContent.cs:101`), which packaging
+>   now ships. **Switching to `ContentInstallerFileSystemLoader` is no longer needed.**
+> - **D (no artifact; retired runners)** — runners are now `ubuntu-22.04` / `macos-15` /
+>   `windows-2022`, and **the packaging workflow has run green on all three platforms**
+>   (`workflow_dispatch` run `31972210309`, 2026-08-16): `linux-appimage` 95 MB,
+>   `macos-dmg` 129 MB, `windows-installers` 354 MB. The sentence below claiming no
+>   distributable artifact has ever been produced is **no longer true.**
+> - **The GPLv3 gap** recorded in `WORKSPACE/closeout/art-6cde8456.md` is also satisfied:
+>   `SOURCE-OFFER.txt` exists and is installed by all three scripts, alongside the `COPYING`
+>   that `install_data` already copied.
+>
+> **What is still true:** there is no git tag and no GitHub release, so a stranger still has
+> nothing to download — those artefacts sit behind GitHub auth (anonymous download returns
+> 401) and expire 2026-11-14. Findings C, E, F, G, H and I are unchanged.
+
+**Verdict up front (as written 2026-08-16 — read the correction above first): no. A stranger
+cannot install and play WW3MOD today, and the gap is not
 cosmetic.** No distributable artifact has ever been produced, and if one were produced right
 now from these scripts it would fail to reach the main menu on a clean machine.
 

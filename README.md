@@ -15,11 +15,13 @@ A modern total conversion of [OpenRA](https://www.openra.net/), set in an altern
 - **Stance system** — fire discipline, engagement, cohesion, resupply behavior. Per-unit and per-type defaults persist across games.
 - **Three-mode movement** — Move (smart self-defense only), Attack-Move (fire at everything), Force-Move (pure travel, never fire).
 - **Scenario system** — scripted map variants in Lua, including a "Frontline" co-op mode with garrisons and waves.
-- **13 maps** across snow, temperate, and urban tilesets.
+- **8 skirmish maps** across snow and temperate tilesets.
 
 ## Screenshots
 
-> _Drop 3–6 in-game screenshots in this section. Suggested mix: a wide tactical shot, a close-up firefight, a garrisoned building, and a minimap/strategic view._
+<!-- Drop 3–6 in-game screenshots in this section. Suggested mix: a wide tactical
+     shot, a close-up firefight, a garrisoned building, and a minimap/strategic view. -->
+
 
 ## Download & play
 
