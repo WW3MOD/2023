@@ -161,20 +161,44 @@ namespace OpenRA.Test
 				"the new occupant inherited the previous occupant's player-override claim");
 		}
 
+		// Both ports are seated with a REAL target before the swap. Terrain targets are the only
+		// kind constructible here — Target.FromActor needs an Actor and FromCell needs a World —
+		// but they are enough: Target.Type returns Terrain unconditionally for them (Target.cs:104),
+		// so the port must actually be overwritten for these assertions to pass. Seating them is not
+		// optional dressing: TargetType.Invalid is the zero value of a byte enum and CurrentTarget is
+		// a plain field, so an unseated port reads Invalid before the helper is ever called and the
+		// assertion cannot fail. The two positions differ so a helper that SWAPS targets instead of
+		// invalidating them also fails, and says which port kept which.
 		[Test]
 		public void SwapInvalidatesTargetingOnBothPorts()
 		{
+			var northTarget = Target.FromPos(new WPos(1024, 0, 0));
+			var southTarget = Target.FromPos(new WPos(0, 2048, 0));
+
 			var north = Port(null, RiflemanArmaments, TokenA);
 			var south = Port(null, AtSoldierArmaments, TokenB);
+			north.CurrentTarget = northTarget;
+			south.CurrentTarget = southTarget;
 			north.TargetLockTicks = 25;
 			south.TargetLockTicks = 25;
+
+			Assert.That(north.CurrentTarget.Type, Is.EqualTo(TargetType.Terrain),
+				"test setup is broken: north must hold a live target before the swap or the " +
+				"post-swap assertion below passes against a port nobody ever aimed");
+			Assert.That(south.CurrentTarget.Type, Is.EqualTo(TargetType.Terrain),
+				"test setup is broken: south must hold a live target before the swap or the " +
+				"post-swap assertion below passes against a port nobody ever aimed");
 
 			GarrisonManager.SwapPortOccupants(north, south);
 
 			Assert.That(north.CurrentTarget.Type, Is.EqualTo(TargetType.Invalid),
-				"a target chosen for the previous occupant must not survive the swap");
+				"north still holds a target chosen for the soldier who just left it: the incoming " +
+				"occupant opens fire on the previous occupant's pick, selected against a weapon " +
+				"profile it does not have");
 			Assert.That(south.CurrentTarget.Type, Is.EqualTo(TargetType.Invalid),
-				"a target chosen for the previous occupant must not survive the swap");
+				"south still holds a target chosen for the soldier who just left it: the incoming " +
+				"occupant opens fire on the previous occupant's pick, selected against a weapon " +
+				"profile it does not have");
 			Assert.That(north.TargetLockTicks, Is.Zero,
 				"the lock must clear or the new occupant is held to the old occupant's target until it expires");
 			Assert.That(south.TargetLockTicks, Is.Zero,

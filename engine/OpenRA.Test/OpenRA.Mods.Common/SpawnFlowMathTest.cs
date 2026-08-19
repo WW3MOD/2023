@@ -130,10 +130,21 @@ namespace OpenRA.Test
 		{
 			// The damper's load-bearing safety property, re-pinned through the new composition: a Retreating
 			// axis is owned by the retreat path under EITHER arm of the fork.
+			//
+			// readvanceHold is 1 and NOT 0 in the gate-on case, and that IS the assertion. At 0,
+			// SuppressMassingHold(true, 0) is true, so the composition's && short-circuits to false
+			// before RetreatDamperMath.ShouldHold is ever called — the assertion then held for ANY
+			// RetreatDecision and would have survived deleting the Retreating guard
+			// (RetreatDamperMath.cs:153-154) outright. At 1 the gate stands down, ShouldHold runs, and
+			// its Retreating guard is the only thing returning false: that guard precedes the
+			// readvanceHold > 0 dwell arm at :156, which would otherwise hold this axis.
 			Assert.Multiple(() =>
 			{
-				Assert.That(DamperShouldHold(true, RetreatDecision.Retreating, 0, true, 300, MinAxisSize, Allocated, 0), Is.False);
-				Assert.That(DamperShouldHold(false, RetreatDecision.Retreating, 0, true, 300, MinAxisSize, Allocated, 0), Is.False);
+				Assert.That(DamperShouldHold(true, RetreatDecision.Retreating, 1, true, 300, MinAxisSize, Allocated, 0), Is.False,
+					"gate on but not suppressing: a retreating axis must be released by the retreat guard "
+					+ "itself, not merely by the gate happening to fire");
+				Assert.That(DamperShouldHold(false, RetreatDecision.Retreating, 0, true, 300, MinAxisSize, Allocated, 0), Is.False,
+					"gate off: the retreat guard owns the decision alone");
 			});
 		}
 
