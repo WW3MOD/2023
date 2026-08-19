@@ -1,5 +1,7 @@
 using System;
+using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
 using Eluant;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
@@ -42,6 +44,35 @@ namespace OpenRA.Test
 			}
 
 			return null;
+		}
+
+		/// <summary>
+		/// Read a `local NAME = <int>` declaration out of a scenario script. The allowance the drift
+		/// clause rests on lives in the scenario file and nowhere else, so a test that restates the
+		/// number as its own constant pins nothing — it agrees with itself no matter what the scenario
+		/// says. Reading the real declaration is what makes the assertion able to fail.
+		/// </summary>
+		static int ReadScenarioConstant(string scenario, string name)
+		{
+			var dir = new DirectoryInfo(AppContext.BaseDirectory);
+			string path = null;
+			for (var i = 0; i < 10 && dir != null && path == null; i++, dir = dir.Parent)
+			{
+				var candidate = Path.Combine(dir.FullName, "tools", "autotest", "scenarios", scenario, scenario + ".lua");
+				if (File.Exists(candidate))
+					path = candidate;
+			}
+
+			if (path == null)
+				Assert.Ignore($"tools/autotest/scenarios/{scenario}/{scenario}.lua not reachable from the test assembly — drift allowance check skipped, not passed");
+
+			var match = Regex.Match(File.ReadAllText(path), @"^\s*local\s+" + name + @"\s*=\s*(\d+)\s*$", RegexOptions.Multiline);
+			Assert.That(match.Success, Is.True,
+				$"{scenario}.lua no longer declares `local {name} = <integer>`; the drift allowance this "
+				+ "fixture pins has been renamed or made dynamic, and the pin must be re-pointed rather "
+				+ "than deleted");
+
+			return int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
 		}
 
 		/// <summary>
@@ -204,6 +235,12 @@ namespace OpenRA.Test
 		// The geometry behind HOLD_DRIFT = 1.
 		// ---------------------------------------------------------------------------------------
 
+		// The platoon column's x, documented in the scenario itself
+		// (test-supply-safe-front-keeps-cargo.lua:72), and the x a truck sits at once it has closed to
+		// the centre man's aura edge (:73).
+		const int PlatoonColumnX = 44;
+		const int TruckAuraEdgeX = 39;
+
 		// Flat-grid cell centre in world units: 1c = 1024, and the centre of cell n sits at 1024n + 512.
 		static WPos CellCentre(int x, int y)
 		{
@@ -260,18 +297,37 @@ namespace OpenRA.Test
 			var range = new WDist(5 * 1024);
 			var truck = CellCentre(39, 16);
 
-			const int SiblingMaxDrift = 6;
-			const int WalkToReachTruckAura = 1;
+			// Both numbers are READ FROM THE SCENARIOS, not restated here. Restating them was the
+			// original defect: the assertion compared two constants declared in this file, so it
+			// agreed with itself whatever the scenarios actually shipped, and the one edit it exists
+			// to catch — nudging the safe scenario's allowance up to make a red run green — could not
+			// fail it.
+			var safeHoldDrift = ReadScenarioConstant("test-supply-safe-front-keeps-cargo", "HOLD_DRIFT");
+			var siblingMaxDrift = ReadScenarioConstant("test-supply-under-danger", "MAX_DRIFT");
 
-			Assert.That(WalkToReachTruckAura, Is.LessThan(SiblingMaxDrift),
-				"a 6-cell allowance is strictly looser than the 1 cell the doctrine's own service "
-				+ "pattern requires, and the slack is exactly the room a platoon needs to abandon the "
-				+ "front and be scored as holding it");
+			Assert.That(safeHoldDrift, Is.EqualTo(1),
+				"test-supply-safe-front-keeps-cargo now allows a peak drift of " + safeHoldDrift + " cells. "
+				+ "One cell is the number OneCellIsExactlyEnoughToReachATruckAtAuraRange derives from the "
+				+ "map geometry; anything larger is no longer derivable from it and has been nudged rather "
+				+ "than re-derived. At 6 this scenario becomes the configuration measured broken at "
+				+ "9861bcf4, where five men walked out to meet the truck and the run passed at drift 5 "
+				+ "with `crate=NONE placed`");
+
+			// A man who has spent the sibling's whole allowance is not merely loose — he is PAST the
+			// truck's cell, so the platoon has crossed the thing it was supposed to wait for.
+			Assert.That(PlatoonColumnX - siblingMaxDrift, Is.LessThanOrEqualTo(TruckAuraEdgeX),
+				"the sibling's " + siblingMaxDrift + "-cell allowance no longer reaches the truck at x="
+				+ TruckAuraEdgeX + " from the platoon column at x=" + PlatoonColumnX + ", so the reason "
+				+ "this scenario refuses to inherit it has changed and the refusal must be re-argued");
+
+			Assert.That(SupplyProvider.InAuraRange(truck, CellCentre(PlatoonColumnX - siblingMaxDrift, 16), range), Is.True,
+				"a man who has spent the sibling's full allowance is inside the truck's aura and therefore "
+				+ "fed — by clauses 1-3 indistinguishable from one who never left the front");
 
 			// The men do not even have to reach the truck's cell — entering its aura is enough to be fed,
 			// which is why the loose allowance is dangerous rather than merely imprecise.
 			Assert.That(SupplyProvider.InAuraRange(truck, CellCentre(40, 16), range), Is.True,
-				"a man who has walked 4 cells is deep inside the truck's aura — well within a 6-cell "
+				"a man who has walked 4 cells is deep inside the truck's aura — well within the sibling's "
 				+ "allowance, and fed, and by clauses 1-3 indistinguishable from one who never moved");
 		}
 	}

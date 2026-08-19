@@ -15,13 +15,11 @@ namespace OpenRA.Test
 	[TestFixture]
 	public class InfluenceMapMathTest
 	{
-		[Test]
-		public void EmptyGrid_AllZeros()
-		{
-			var grid = new int[10, 10];
-			Assert.That(grid[5, 5], Is.EqualTo(0));
-			Assert.That(grid[0, 0], Is.EqualTo(0));
-		}
+		// EmptyGrid_AllZeros was removed here. It allocated `new int[10, 10]` and asserted two cells
+		// read 0, calling no InfluenceMapMath member at all — it pinned the CLR's array
+		// zero-initialisation, so no change to InfluenceMap.cs could ever have reddened it. The claims
+		// it appeared to make are held live by Contribution_ZeroBeyondRadius and the DeriveFrontline
+		// cases below, which do call production.
 
 		[Test]
 		public void Contribution_AccumulatesAtCentre()

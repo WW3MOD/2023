@@ -128,15 +128,24 @@ namespace OpenRA.Test
 			}
 		}
 
+		// This method carried no [Test] attribute until 2026-08-20, so NUnit never discovered it and
+		// it had never run. When first executed it failed: the old byte array declared a 13-byte IHDR
+		// but supplied only 8, so the parse died in ReadInt32 with EndOfStreamException long before
+		// reaching the compression check — the same truncation its neighbour above had to rename its
+		// expectation around. The IHDR below is complete, so the compression byte is now the ONLY
+		// reason the constructor throws.
+		[Test]
 		public void PngConstructor_CompressionMethodNotSupported_ThrowsInvalidDataException()
 		{
-			// Arrange
+			// Arrange: signature, then one well-formed 13-byte IHDR for a 1x1 truecolour image whose
+			// compression method is 1. Zero is the only value the format defines.
 			var invalidPngData = new byte[]
 			{
 				0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 				0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
-				0x00, 0x00, 0x00, 0x00, 0x08, 0x02, 0x00, 0x00,
-				0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+				0x08, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00,
 			};
 
 			using (var stream = new MemoryStream(invalidPngData))
