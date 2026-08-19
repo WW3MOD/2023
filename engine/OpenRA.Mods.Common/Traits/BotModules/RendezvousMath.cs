@@ -23,11 +23,28 @@
  * here. When the anchor is absent or rejected the caller falls back to the legacy lerp and behaves exactly as
  * it did before, which is also the escape hatch: a rendezvous that cannot be resolved degrades to today.
  *
- * BOUNDED DIVERGENCE (the one safety term). The staging anchor ADVANCES as the believed front moves, so a
- * transport that chased it unconditionally could be walked steadily deeper — and the standing user constraint
- * on this pair is that transports must not drive into enemy territory, because one AA/AT hit takes the
- * carrier, its passengers and the tempo together. So the anchor is accepted only while it is not further from
- * our own SR than the fallback already was, plus a margin.
+ * BOUNDED DIVERGENCE, IN BOTH DIRECTIONS. The anchor is accepted only while its distance from our own SR sits
+ * within a band around the fallback's: no more than an ADVANCE margin further out, and no more than a WITHDRAW
+ * margin further back.
+ *
+ * FORWARD (the original term). The staging anchor ADVANCES as the believed front moves, so a transport that
+ * chased it unconditionally could be walked steadily deeper — and the standing user constraint on this pair is
+ * that transports must not drive into enemy territory, because one AA/AT hit takes the carrier, its passengers
+ * and the tempo together.
+ *
+ * BACKWARD (added 2026-08-19 on a MEASUREMENT that refuted the reasoning this file used to carry). The header
+ * previously argued a nearer anchor was unconditionally safe, and RendezvousMathTest pinned that as intended
+ * behaviour. Run 260815_202509, seed 1017, refuted both: the carrier's SR was at 6,16, its lerp at 32,10 — a
+ * 26-cell forward delivery — and the published anchor at 7,17, ONE cell from the SR. The one-sided gate
+ * accepted it, and the carrier then looped: load five, drive one cell, unload, reload, four times inside 1400
+ * ticks. The forward delivery became a shuttle in place.
+ *
+ * That is not a rare edge. Before contact the frontier descent has nothing to descend toward, so the anchor
+ * sits on the Supply Route and is ALWAYS behind the lerp — the gate failed hardest in exactly the pre-contact
+ * opening DeliverBeforeContact exists to serve. The null-anchor guard does not cover it either:
+ * ResolveStagingAnchor returns null only when the descent stalls on the SR's GRID cell, so a single grid step
+ * still publishes an anchor a map-cell off the SR. A grid-granular null check cannot stand in for a map-cell
+ * distance bound.
  *
  * Deliberately expressed as a DISTANCE RATIO against the caller's own fallback, never as a danger threshold.
  * The danger field is currently mis-scaled (PIPELINE item 40: evacLevel 1,706 against live median cells of
@@ -64,17 +81,25 @@ namespace OpenRA.Mods.Common.Traits
 		/// from <paramref name="srX"/>,<paramref name="srY"/>, given the destination the transport would
 		/// otherwise have picked for itself.</para>
 		///
-		/// <para>The test is purely comparative: the anchor may sit up to <paramref name="marginCells"/> further out
-		/// than the fallback, and no further. A negative margin is clamped to zero rather than rejected, so a
-		/// mis-set config can only make the rendezvous MORE conservative, never inverted.</para>
+		/// <para>The test is purely comparative and TWO-SIDED: measured from the SR, the anchor may sit up to
+		/// <paramref name="advanceMarginCells"/> further out than the fallback and up to
+		/// <paramref name="withdrawMarginCells"/> nearer than it, and no more in either direction. Either margin
+		/// given negative is clamped to zero rather than rejected, so a mis-set config can only make the
+		/// rendezvous MORE conservative, never inverted.</para>
+		///
+		/// <para>The withdraw side is not symmetry for its own sake — an anchor far behind the fallback is the
+		/// measured failure that made this gate two-sided (run 260815_202509; see the file header).</para>
 		/// </summary>
-		public static bool AnchorAcceptable(int srX, int srY, int anchorX, int anchorY, int fallbackX, int fallbackY, int marginCells)
+		public static bool AnchorAcceptable(int srX, int srY, int anchorX, int anchorY, int fallbackX, int fallbackY,
+			int advanceMarginCells, int withdrawMarginCells)
 		{
-			var margin = Math.Max(0, marginCells);
+			var advance = Math.Max(0, advanceMarginCells);
+			var withdraw = Math.Max(0, withdrawMarginCells);
 			var anchorReach = CellDistance(srX, srY, anchorX, anchorY);
 			var fallbackReach = CellDistance(srX, srY, fallbackX, fallbackY);
 
-			return anchorReach <= fallbackReach + margin;
+			return anchorReach <= fallbackReach + advance
+				&& anchorReach >= fallbackReach - withdraw;
 		}
 
 		/// <summary>
@@ -90,7 +115,8 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public static void ResolveDropOff(
 			bool enabled, bool hasAnchor,
-			int srX, int srY, int anchorX, int anchorY, int fallbackX, int fallbackY, int marginCells,
+			int srX, int srY, int anchorX, int anchorY, int fallbackX, int fallbackY,
+			int advanceMarginCells, int withdrawMarginCells,
 			out int cellX, out int cellY)
 		{
 			cellX = fallbackX;
@@ -99,7 +125,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!enabled || !hasAnchor)
 				return;
 
-			if (!AnchorAcceptable(srX, srY, anchorX, anchorY, fallbackX, fallbackY, marginCells))
+			if (!AnchorAcceptable(srX, srY, anchorX, anchorY, fallbackX, fallbackY, advanceMarginCells, withdrawMarginCells))
 				return;
 
 			cellX = anchorX;
