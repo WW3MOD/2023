@@ -3,6 +3,42 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-20 — a failed build launched the game anyway, and the crash named the wrong thing entirely
+
+Branch `wt/build-abort`. The user lost a session to a 60-line stack trace reading `Cannot locate type:
+SyncReportsOptionInfo`. That trait was fine. The real failure was three steps earlier and the launcher
+had already discarded it.
+
+**The chain.** `dotnet build` failed with *"A compatible .NET SDK was not found. Requested SDK version:
+6.0.428"* — their machine had only 8.0.421, and the `global.json` pin from `e4453e6b` uses
+`rollForward: latestFeature`, which **cannot cross a major version**. `make.ps1`'s `All-Command` printed
+`"Build failed. If just the development tools failed to build, try installing Visual Studio. You may
+also still be able to run the game."` and **returned without a non-zero exit**. `launch-game.cmd` line 1
+invokes `make.ps1 ... all` with **no `errorlevel` check**, so it fell straight through and ran the game
+on binaries older than the working tree. The engine then loaded new YAML against a stale `engine/bin`
+and reported the first trait it could not resolve — a trait added *after* the last successful build.
+
+**The lesson is about what the error names.** A stale-binary crash always indicts whatever source
+changed most recently, never the build that failed. It is maximally misdirecting: it points at real,
+freshly-edited code and says something false about it. Any pipeline that can run the game after a failed
+build will eventually produce one of these, and the person reading it has no route from symptom to cause.
+
+**Two independent fall-throughs, not one.** Beyond the PowerShell path, `Makefile`'s `all` target built
+the mod solution via `find . -maxdepth 1 -name '*.sln' -exec dotnet build ... \;`. **`find` exits 0
+regardless of what the command it ran returned** (verified: a `-exec` of `sh -c 'exit 7'` yields `$? =
+0`). So a failed mod-solution build reported success to every consumer, `make test`'s `all` prerequisite
+included. This one never bit anyone only because `WW3MOD.sln` currently holds just `OpenRA.Game` and
+`OpenRA.Mods.Common`, both of which the `engine:` prerequisite builds first through a sub-`make` that
+*does* propagate — so a compile error always failed earlier. Add one mod-specific project to that
+solution and the hole opens. `find -exec` is never a safe way to run something whose exit code matters.
+
+**Checking a pin is satisfiable without reimplementing `rollForward`.** The muxer being on `PATH` is not
+the same claim as the pinned SDK being installed, and hand-rolling the `latestFeature`/`latestPatch`
+matrix in a shell script is how such a check drifts away from what `dotnet` really does. `dotnet
+--version` honours `global.json`, costs nothing, and exits **155** with *"A compatible .NET SDK was not
+found"* when the pin is unsatisfiable and **0** otherwise. That makes it an authoritative pre-flight that
+cannot rot: `make.ps1:CheckForDotnetSdk` and the `Makefile`'s `check-dotnet-sdk` target both just ask it.
+
 ## 2026-08-19 — condition tokens are per-actor counters, so "wrong soldier's token" is a live mis-revoke, not a dead integer
 
 Branch `wt/token-leak`. Finishing the port-swap family: `AssignGarrisonPort` had the same
