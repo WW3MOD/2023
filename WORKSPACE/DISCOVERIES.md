@@ -3,6 +3,89 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-19 — the Linux/macOS analyzer gap was never in the solution files, and the mono lane was SUBTRACTING analyzer coverage from every other lane
+
+Branch `wt/gate-coverage`, against `main @ bc168d8b`. Extends the `wt/build-gate` entry directly
+below; **it does not contradict its counts** — 3 of 10 on Linux/macOS and 9 of 10 on Windows are both
+re-confirmed here. It corrects the *cause*, and the cause changes the fix from seven csproj names to
+one line.
+
+### 1. The gate asymmetry is a Makefile routing difference, not a solution-membership difference
+
+Both platforms read the same `WW3MOD.sln` (2 projects) and the same `engine/OpenRA.sln` (10). They
+diverge on which **engine target** the mod's `check` depends on:
+
+- `make.ps1:355-380` routes `check` into `engine\make.cmd check` → `engine/make.ps1:113-137`, which is
+  `dotnet build -c Debug -warnaserror` over `engine/OpenRA.sln`. **8 projects, analyzers on.**
+- `Makefile:191` is `check: engine`, and `Makefile:153-155` defines `engine:` as
+  `cd $(ENGINE_DIRECTORY) && make ... all` — the engine's **`all`** target, which is **Release**
+  (`engine/Makefile:92-99`), and `engine/Directory.Build.props:51-56` removes every `Analyzer` item
+  from Release builds. **Zero analyzer coverage contributed.**
+
+Linux/macOS was not missing projects from a solution; it was building the right solution in the wrong
+configuration. Adding a Debug `-warnaserror` build of `engine/OpenRA.sln` to the mod's `check`
+(`Makefile:200-207`) takes Linux/macOS from 3/10 to 9/10 and makes both platforms cover an identical
+project set.
+
+**Generalise this:** when Windows CI and Linux CI disagree about what they catch, diff the *target
+graph*, not the solution files. `make.ps1` and `Makefile` are independent implementations of the same
+target names in this repo and have drifted before.
+
+### 2. Six of the seven "ungated" projects had ZERO violations — and that is not luck
+
+Measured on `main @ bc168d8b`, macOS, each project built alone with
+`dotnet build engine/<P>/<P>.csproj -t:Rebuild -c Debug -nologo -p:TargetPlatform=osx-x64
+-p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true` — **no `-warnaserror`**, because
+the gate's early exit hides every project after the first failure. `-t:Rebuild` matters: without it an
+up-to-date project reports 0 warnings because `CoreCompile` never runs, which is indistinguishable
+from clean.
+
+| Project | unique violations | had `Build.0`, so gated on Windows? |
+|---|---|---|
+| `OpenRA.Mods.Cnc` | 0 | yes |
+| `OpenRA.Mods.D2k` | 0 | yes |
+| `OpenRA.Utility` | 0 | yes |
+| `OpenRA.Server` | 0 | yes |
+| `OpenRA.Platforms.Default` | 0 | yes |
+| `OpenRA.Launcher` | 0 | yes |
+| `OpenRA.WindowsLauncher` | **1** (`CA1839`, `Program.cs:89`) | **no** |
+
+The correlation is the whole story: the six clean ones have `Debug|Any CPU.Build.0` lines in
+`engine/OpenRA.sln`, so **Windows CI has been enforcing analyzers on them all along**. Widening the
+Linux gate was nearly free *because Windows already paid for it*. The one project with no `Build.0` on
+any lane is the one project carrying a violation — the same mechanism that left `OpenRA.Test` at 47
+violations until `bc168d8b`.
+
+**Do not generalise "ungated ⇒ expensive backlog".** Ask first whether some *other* lane gates it.
+
+### 3. The mono lane cost analyzer coverage; it never added any
+
+The tempting argument for keeping `Linux (mono)` was that `engine/Directory.Build.props:62-63` drops
+both Roslynator packages under Mono, making it "a different analyzer configuration". It is different
+but **strictly weaker** — mono ran StyleCop + `CA` + `IDE`, a subset of net6's StyleCop + `CA` + `IDE`
++ Roslynator. A subset gate cannot catch anything the superset misses, so deleting it retired **zero**
+rules.
+
+The inversion: three `CA` rules are `severity = none` in the *shared* `engine/.editorconfig` **solely
+because mono cannot satisfy them** — `CA1845` (`:872`, "Not available on mono"), `CA1850` (`:884`,
+"once supported by mono"), `CA2263` (`:1047`, "once mono is dropped"). `.editorconfig` is read by every
+lane, so mono's existence disabled those three rules on **Windows and Linux net6 too**. The lane was a
+net negative on analyzer coverage even in the period when it still compiled.
+
+### 4. `engine/` carries a full vendored upstream CI + packaging tree that never runs
+
+`engine/.github/workflows/{ci,packaging}.yml` and `engine/packaging/**` are upstream OpenRA's own
+release machinery. GitHub Actions reads workflows **only from the repository root**, so nothing under
+`engine/.github/` is ever executed. This matters when auditing call sites:
+`engine/packaging/macos/buildpackage.sh:80` passes `install_assemblies ... "mono"`, which looks like
+live mono usage and is not. WW3MOD's real release path is
+`.github/workflows/packaging.yml:38,88,132` → `packaging/{linux,macos,windows}/buildpackage.sh`, whose
+four `install_assemblies` call sites all pass the literal `"net6"`.
+
+The prior count in `WORKSPACE/plans/260817_dotnet_upgrade_scope.md:117-119` — "all seven packaging call
+sites pass the literal `net6`" — is off by one in raw terms: there are **eight**, and one passes
+`"mono"`. The conclusion it supports still holds, because that one is in the unreachable tree.
+
 ## 2026-08-19 — `make check` NEVER COVERED WHAT ANYONE THOUGHT, THE VULNERABLE PACKAGE IS NOT NUnit'S, AND THE NuGet AUDIT IS A TFM EFFECT NOT AN SDK ONE
 
 Branch `wt/build-gate`, against `main @ 08b255f7`. This entry **corrects three statements** in the
