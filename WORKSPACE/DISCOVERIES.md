@@ -5,6 +5,8 @@
 
 ## 2026-08-19 — the Linux/macOS analyzer gap was never in the solution files, and the mono lane was SUBTRACTING analyzer coverage from every other lane
 
+> **[promoted]** → conventions.md §"A green analyzer gate means what the TARGET GRAPH reaches, not what the solution lists". Re-verified against the code rather than the entry: `engine/Directory.Build.props:51-56` is the `DisableAnalyzers` target on Release (the sibling entry below cites `:56-61`, which has since drifted); `Makefile:191` is `check: engine`; `Makefile:157` is `all: engine`; `:61-63` drops both Roslynator packages under Mono. What landed is the generalisation — *diff the target graph, not the solution files* — plus the mono-lane-is-a-different-gate rule. Per-project violation counts and burn-down sequencing are branch material and stay here. (curation 2026-08-19, verified against main @ 815804f1).
+
 Branch `wt/gate-coverage`, against `main @ bc168d8b`. Extends the `wt/build-gate` entry directly
 below; **it does not contradict its counts** — 3 of 10 on Linux/macOS and 9 of 10 on Windows are both
 re-confirmed here. It corrects the *cause*, and the cause changes the fix from seven csproj names to
@@ -87,6 +89,8 @@ sites pass the literal `net6`" — is off by one in raw terms: there are **eight
 `"mono"`. The conclusion it supports still holds, because that one is in the unreachable tree.
 
 ## 2026-08-19 — `make check` NEVER COVERED WHAT ANYONE THOUGHT, THE VULNERABLE PACKAGE IS NOT NUnit'S, AND THE NuGet AUDIT IS A TFM EFFECT NOT AN SDK ONE
+
+> **[promoted in part]** → conventions.md §"A green analyzer gate means what the TARGET GRAPH reaches". Landed: §5's `NuGetAuditMode` finding (defaults to `direct`, flips to `all` only at `net10.0`, so an SDK pin is not what hides a transitive advisory), §6's inverse — the four `System.*` references that read as redundant at `net6.0` are load-bearing at `netstandard2.1`, which is the mono lane's TFM (`Directory.Build.props:22-23`, verified) — and §8's method note that `0 Warning(s)` may mean "up-to-date, never compiled". **Not promoted:** the 47-violation census, the `.Build.0` solution-membership bookkeeping and the BeaconLib assets-graph detail are branch/tracker material, and the BeaconLib fix has since landed (`OpenRA.Mods.Common.csproj:13-17` now carries the explanatory comment). Note two of this entry's own citations have drifted at HEAD: `Directory.Build.props:56-61` → `:51-56`, and `Makefile:52` is now `HAS_LUAC`. (curation 2026-08-19, verified against main @ 815804f1).
 
 Branch `wt/build-gate`, against `main @ 08b255f7`. This entry **corrects three statements** in the
 2026-08-17 `wt/sdk10-measure` entry below (§5, and the implied fix in §7). Those were honest readings
@@ -1142,6 +1146,8 @@ parsed, so a Lua syntax or API error still surfaces only on a real run.
 
 ## 2026-08-17 — AN UNKNOWN WIDGET SUBSTITUTION SILENTLY EVALUATES TO ZERO, AND IT HID A WHOLE PANEL OFF-SCREEN
 
+> **[promoted]** → architecture.md §Widget / chrome authoring gotchas. Both cited mechanisms re-read at HEAD and exact: `VariableExpression.cs:664-667` is `symbols.TryGetValue(symbol, out var value); return value;`, and `Widget.cs:294-297` registers exactly the four substitutions. Promoted with the two lessons that generalise (check resolved bounds before the visibility predicate; a YAML design review cannot establish that a widget is visible) and merged with the 2026-08-19 lint entry, which supplies the guard and its blind spot. The `PIPELINE.md:114` staleness note at the end is tracker material. (curation 2026-08-19, verified against main @ 815804f1).
+
 `CARGO_PANEL` was declared at `X: WINDOW_RIGHT - 240` / `Y: WINDOW_BOTTOM - 340`
 (`mods/ww3mod/chrome/ingame-player.yaml`, since `eb5e5de0`). **`WINDOW_RIGHT` and `WINDOW_BOTTOM` are not
 substitutions this engine defines.** `Widget.ApplyBounds` registers exactly four —
@@ -1414,6 +1420,8 @@ unit-conversion bug, grep the same file for every other call site of that conver
 it. `InfluenceGridMath` now exists so there is one place to hang the warning.
 
 ## 2026-08-17 — A MATCHING SYNC REPORT ONLY CLEARS A TRAIT'S **HASHED** FIELDS. CHECK WHICH ONES THOSE ARE BEFORE CALLING IT EXCULPATORY
+
+> **[promoted]** → architecture.md §"`[Sync]` is inert without `ISync` — and the same type test guards synced effects" (new subsection), with a pointer from conventions.md §Engine code rules. `Actor.cs:206` re-read and still exactly `{ if (trait is ISync t) syncHashesList.Add(new SyncHash(t)); }`. Merged with the effects half of the 2026-08-16 determinism sweep (`World.cs:421-422`), because the two are the same mechanism at two sites and belong in one place. Corrections applied while promoting: the throw is at `Sync.cs:72`, not `:71`; `TREAT_WARNINGS_AS_ERRORS` is read at `CheckYaml.cs:57`. The three named instances (`CohesionSlotMemory`, `VehicleCrew`, `SupplyRouteContestation`) are all fixed since and were left out as incident detail — the general rule is what was banked. (curation 2026-08-19, verified against main @ 815804f1).
 
 Sibling of the "null result is not evidence" rule below, and it invalidated real conclusions rather than
 just wasting time: during the 2026-08-16 two-human desync investigation, `AutoTarget (4)` appearing
@@ -7105,6 +7113,12 @@ So before this branch the scout helicopter's minigun was **five times better tha
 
 ## 2026-08-16 — two IOrderGenerators mutate simulation state with no Order (both since FIXED); the visibility lead is a false alarm; ~~the lint suite is dark~~ ~~the lint suite runs on every push and is permanently red~~ the lint suite runs on every push and is GREEN as of 2026-08-17
 
+> **[promoted in part]** → architecture.md §`RenderPlayer` is render-side only (extended) and a new §"An `IOrderGenerator` runs only on the client holding the mouse"; the effects half went into §"`[Sync]` is inert without `ISync`". The determinism findings are what landed, in their exhaustive fourth-correction form. Re-derived rather than trusted: 47 `CanBeViewedByPlayer` lines at HEAD, minus the definition (`Actor.cs:591`), 5 comment lines and one `[Desc]` string (`PoiOffensiveBotModule.cs:438`) = **40 call sites**, matching the entry exactly; `World.cs:421-422`, `:566`, `:109`, `WithSpottedDecoration.cs:86,105`, `ResourceLayer.cs:301`, `PatrolOrder.cs:28` and the PITFALL at `PatrolOrderGenerator.cs:52-56` all confirmed at the cited lines; `EjectRallyOrderGenerator.cs` confirmed absent; all six `FloatingText` sites (`Sell.cs:48`, `DonateCash.cs:40`, `GainsExperience.cs:128`, `GivesBounty.cs:89`, `Refinery.cs:155`, `RotateToEdge.cs:392`) confirmed, and `FloatingText` is `IEffect, IEffectAnnotation` — not `ISync`.
+>
+> **ONE ENUMERATION IN THE FOURTH CORRECTION IS WRONG, and it is corrected in the promoted text rather than carried over.** It states that `TargetExtensions.cs:62,79` "take a `viewer` parameter and looked open-ended; its only caller is `AttackOmni.cs:68`, passing `self.Owner`." Those lines are inside `Target.Recalculate`, which has **about a dozen** callers — `Attack.cs:103`, `AttackFollow.cs:133,357`, `LeapAttack.cs:85`, `Enter.cs:76`, `Follow.cs:55`, `MoveAdjacentTo.cs:77`, `Fly.cs:146`, `FlyFollow.cs:58`, `FlyAttack.cs:107,272,323` — with `AttackOmni.cs:68` reaching it only through the wrapper `RecalculateInvalidatingHiddenTargets`. **The conclusion survives** (every one of those callers passes `self.Owner`), but the justification did not, which is exactly README §Four-shapes #1: proof quantified over one code path when several reach the same state. A pass that called itself exhaustive was not, at this one site.
+>
+> **Not promoted:** the CI paragraph and its three corrections are tracker material about a moving target, and the entry itself records them as stale. (curation 2026-08-19, verified against main @ 815804f1).
+
 Read-only determinism sweep, no production code changed. Repo state `main @ 43d55ace`.
 
 > **Heading corrected 2026-08-17.** The third clause was false; this entry's CI paragraph has now been
@@ -7394,6 +7408,8 @@ bot is worth very little without the role filter.
 
 ## 2026-08-19 — Changing the sync hash costs NOTHING in replay/save compatibility, because the gate that would have charged for it is inert
 
+> **[promoted]** → architecture.md §"Replays: the version gate is inert for dev builds, and divergence is reported rather than silent" (new section). **The in-place correction was promoted, not the struck text** — the promoted section states plainly that divergence is reported, and the word "silently" appears nowhere in it. Verified at HEAD: `ReplayCompatibility.cs:87`, `World.cs:272`, `mod.yaml:3`, `Makefile:157`/`:177-179`, `GameSave.cs:107-140` (grep confirms no version or mod check in the file), `GameSave.cs:262-263`, `Server.cs:545-562`, and the whole correction chain `ReplayConnection.cs:101-104,108-109,117-118` → `OrderManager.cs:225-234` → `DesyncWatcherLogic.cs:51-52`. (curation 2026-08-19, verified against main @ 815804f1).
+
 Investigated while re-checking whether adding `ISync` to a trait is expensive (it changes every
 hash value in the game). The standing assumption — "OpenRA stamps a version and refuses mismatched
 replays, so cross-build replays never validate anyway" — is **half right, and the wrong half is the
@@ -7446,6 +7462,8 @@ refuse to load" as a safety net; measure the claim at `ReplayCompatibility.cs:87
 
 ## 2026-08-19 — The build fingerprint's segments differ in KIND, and only two of three can carry a gate
 
+> **[promoted]** → architecture.md §"`BuildFingerprint`: three segments that differ in KIND, and only two can carry a gate". **The CORRECTED claim is what landed:** the promoted text says the asset digest is NOT machine-specific and gives the reason (`ComputeAssetDigest`, `BuildFingerprint.cs:369-396`, hashes leaf names only because `Folder.Contents` selects `Path.GetFileName`, `Folder.cs:35-38` — both re-read at HEAD), and it explicitly flags the struck "machine-local by construction" as the wrong version so a future reader cannot restore it. Also verified: `ForMod` at `:99`, `ReplaySegmentsMatch` at `:158`, `DescribeReplayDifference` at `:186`, the pathspec `git log -1 --abbrev=10 --format=%h -- engine mods` at `Directory.Build.targets:121`, and `mod.yaml:18` (movies commented out). (curation 2026-08-19, verified against main @ 815804f1).
+
 Found while wiring `BuildFingerprint` into the replay-load path (`wt/replay-version`, against
 `bc168d8b`). Superseded an earlier draft of this entry that justified the same conclusion with a
 claim that is **false** — see the correction below, which matters because the wrong reason would have
@@ -7486,6 +7504,8 @@ the culprit when game content was not weighed.
 
 ## 2026-08-19 — Packaged releases DO carry a real mod version; only dev builds are frozen
 
+> **[promoted]** → architecture.md §Replays, merged into the version-gate paragraph rather than kept separate, since it is the other half of one fact. All three packaging citations re-read and exact — `packaging/macos/buildpackage.sh:158`, `packaging/linux/buildpackage.sh:86`, `packaging/windows/buildpackage.sh:108`, each stamping `mods/${MOD_ID}/mod.yaml`. Worth recording for the next reader: the repo carries BOTH `packaging/` and `engine/packaging/`, and only the former stamps ww3mod — the engine's Windows script stamps `cnc`/`d2k`/`ra`/`modcontent` and no `${MOD_ID}`, so checking the wrong copy makes this claim look false. `git log -p` over `mods/ww3mod/mod.yaml` confirms the `Version:` line was touched once ever, in `4894008b`. (curation 2026-08-19, verified against main @ 815804f1).
+
 Corollary to the frozen-`Version` finding above, and the reason the version comparison at
 `ReplayCompatibility.cs:87` was kept rather than deleted once the fingerprint check landed.
 
@@ -7505,6 +7525,8 @@ dev builds (the case that produced the silent divergence) but live between a rel
 else — worth keeping, and worth not trusting on its own.
 
 ## 2026-08-19 — the unregistered-symbol lint has a blind spot, and the unload menu's worst case is 24 classes not 16
+
+> **[promoted]** → architecture.md §Widget / chrome authoring gotchas, merged into the substitution-symbol bullet it guards. Independently re-derived rather than taken from the entry: diffing `mods/ww3mod/chrome/*.yaml` against the manifest's `ChromeLayout` list returns exactly the two files named, and `CheckChromeIntegerExpressions.cs:65` is the `foreach (var filename in modData.Manifest.ChromeLayout)` at that exact line. `garrison-panel.yaml:1` and the live `ingame-player.yaml:629` both confirmed. The **24** is dated `(as of 2026-08)` per README §Standards — counts are volatile — and the class breakdown was re-derived from `crew.yaml`: `crew.{pilot,copilot}.{america,russia}` all set `Selectable: Class: Pilot` (`:66-67,82-83,130-131,146-147`) so four actors collapse to one key, while `crew.{commander,driver,gunner}.{america,russia}` set no `Class` and contribute six. The durable half — *whenever a group key falls back to an actor name, every class-less actor is its own row* — is what leads the bullet. (curation 2026-08-19, verified against main @ 815804f1).
 
 **A chrome layout file that is not in the manifest is invisible to the symbol lint, and to the game.**
 `CheckChromeIntegerExpressions.Run` (`CheckChromeIntegerExpressions.cs:65`) iterates
@@ -7529,6 +7551,8 @@ answerable from the infantry roster alone when the group key falls back to an ac
 class-less passenger actor is its own row.
 
 ## 2026-08-19 — A diverging replay is NOT silent: the sync check runs during playback
+
+> **[promoted]** → architecture.md §Replays, merged with the entry above (same fact, and README §"One home per fact" applies). The whole chain was re-read at HEAD and every citation is exact. The consequence the entry draws — a build mismatch is a reason to WARN, not to refuse, because the engine already detects and reports the real divergence — is what the promoted paragraph leads with, since it is the part that changes what anyone building a replay guard should DO. (curation 2026-08-19, verified against main @ 815804f1).
 
 This corrects a premise that had propagated into two task briefs and one commit message before a
 review caught it, and it is worth its own heading because it changes what any future replay guard
