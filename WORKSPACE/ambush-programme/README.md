@@ -277,11 +277,36 @@ ever asserting simultaneity.
 
 ---
 
-## 7. Open questions with the user
+## 7. Rulings and open questions
 
-- **`WciHcfgxJIr7oS4bEpp_s`** — gauge cliff: at maximum concealment the ring vanishes, so perfectly
-  hidden and broken look identical. `visibility-10` **is** reachable (Sniper and SF have base
-  `Vision: 5`; 5+3+1+1 = 10), and fixing §3.2 would turn that from rare into common.
+### RULED 2026-08-20 — total invisibility is a bug, not a tier
+
+Asked whether a vanishing ring is the right way to say "undetectable", the user rejected the
+premise of the question:
+
+> *"I think it is an error that they can become fully invisible… it feels a bit strange that you
+> cannot find an enemy if you are basically standing on top of him… I think their visibility should
+> be at least 1 at all times."*
+
+**So: clamp minimum detectability to 1 unconditionally. No unit is ever undetectable by standard
+vision.** This is a floor on the mechanic, not a change to the readout — and once it holds, the
+gauge's top tier can no longer be reached, so the cliff this question was about stops existing on
+its own.
+
+**Sequencing note that matters.** §3.2a says infantry CV tops out at 9 while the legibility strand
+computed 10 as `5+3+1+1`. That arithmetic includes the `+3` cover term §3.2 shows is unreachable,
+so tier 10 is very probably **not reachable today** — the cliff is latent, not live. But it becomes
+live the moment anyone repairs the cover ladder. **The clamp is therefore cheap now and urgent
+later: land it BEFORE fixing §3.2, not after.**
+
+### OPEN — dogs as a detector unit
+
+The user raised RA's dogs as a way to detect hidden units and explicitly asked for an opinion,
+while saying they are unsure. Recorded as a separate feature, deliberately **not** coupled to the
+ruling above: if the visibility floor exists, dogs are optional and judged on whether they are fun;
+if dogs are the *only* counter to invisibility, they become compulsory in every match, which is a
+much worse constraint than the problem they solve. Decide the clamp first, then dogs on their own
+merits.
 
 ---
 
