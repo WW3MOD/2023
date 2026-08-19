@@ -230,7 +230,7 @@ HIND:
 		Color: FF0000
 		Width: 3
 	Rearmable:
-		RearmActors: hpad
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	WithIdleOverlay@ROTORAIR:
 		Sequence: rotor
@@ -416,7 +416,7 @@ MI28:
 		Color: 00FFBB
 		Width: 3
 	Rearmable:
-		RearmActors: hpad
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	WithIdleOverlay@ROTORAIR:
 		Offset: 0,0,85
@@ -571,7 +571,7 @@ FROG:
 	Selectable:
 		DecorationBounds: 720,372,0,48
 	Rearmable:
-		RearmActors: afld
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo
 	RenderSprites:
 		Scale: 1.25
@@ -666,7 +666,7 @@ MIG:
 		RequiresSelection: true
 	Rearmable:
 		AmmoPools: primary-ammo, secondary-ammo
-		RearmActors: afld
+		RearmActors: logisticscenter
 	Contrail@1:
 		Offset: -598,-683,0
 		TrailLength: 6

@@ -1,0 +1,35 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-aircraft-rearms-at-captured-lc.lua
+
+^Combatant:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+
+# Dry on arrival, both pools, so "did it rearm" is a question about the host and not about how much
+# it happened to have left. Zero is also what makes the RED unambiguous: before the fix the Apache
+# names hpad, no hpad exists, ChooseResupplier returns null, and ReturnToBase degrades to FlyIdle --
+# so the ammo counts stay at exactly these values for the whole run.
+HELI:
+	AmmoPool@1:
+		InitialAmmo: 0
+	AmmoPool@2:
+		InitialAmmo: 0

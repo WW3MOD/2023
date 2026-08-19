@@ -232,7 +232,7 @@ littlebird:
 		Color: 00FFFF
 		Width: 3
 	Rearmable:
-		RearmActors: hpad
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	WithMuzzleOverlay:
 	Cargo:
@@ -396,7 +396,7 @@ HELI:
 		RequiresSelection: true
 		AmmoPools: secondary-ammo
 	Rearmable:
-		RearmActors: hpad
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	WithIdleOverlay@ROTORAIR:
 		Offset: 0,0,85
@@ -527,7 +527,7 @@ A10:
 		Color: 00FF00
 		Width: 3
 	Rearmable:
-		RearmActors: afld
+		RearmActors: logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	AutoTarget:
 		InitialStance: FireAtWill

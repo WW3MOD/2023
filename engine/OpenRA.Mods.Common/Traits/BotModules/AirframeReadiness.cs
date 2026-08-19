@@ -37,16 +37,47 @@ namespace OpenRA.Mods.Common.Traits
 	public static class AirframeReadiness
 	{
 		/// <summary>
+		/// <para>Which of the two host kinds actually restores THIS actor: the Reservable landing pad an
+		/// aircraft flies to, or the RearmsUnits / SupplyProvider dock a ground unit drives to.</para>
+		///
+		/// <para>The dock term does not count for an aircraft, and that asymmetry is the whole point of this
+		/// function. Reaching a dock is <see cref="AmmoPool.AutoRearm"/>'s job, and all three of its
+		/// entry points refuse aircraft outright (<see cref="AmmoPool.AutoRearmIfAllEmpty"/>,
+		/// <see cref="AmmoPool.AutoRearmIfAnyNotFull"/>, and the bot sweep's own candidate filter), so
+		/// an aircraft is never dispatched to one. <see cref="Activities.Resupply"/> would not carry it
+		/// there either — its approach block is guarded on the actor NOT being an aircraft, because in
+		/// stock OpenRA a pad-bound aircraft has already been flown in by
+		/// <see cref="Activities.ReturnToBase"/>, which selects on <see cref="Reservable"/> alone.</para>
+		///
+		/// <para>So for an aircraft, a dock it can never be sent to and could never be carried to is not a
+		/// host. Counting it would report the airframe as hosted and flip its gates to the strict
+		/// restore-first bars — full ammo to launch, the recovery bar to re-engage — with nothing on
+		/// the map able to satisfy them. That is precisely the unsatisfiable-gate defect this class
+		/// exists to prevent, re-entered through the other term.</para>
+		/// </summary>
+		public static bool CountsAsRearmHost(bool isAircraft, bool hasReservablePad, bool hasDockHost)
+		{
+			return hasReservablePad || (hasDockHost && !isAircraft);
+		}
+
+		/// <summary>
 		/// Whether a host that could refill this actor's ammo pools is present and usable by it.
-		/// Covers both host kinds: the RearmsUnits / SupplyProvider dock that ground units pull from,
-		/// and the Reservable landing pad that aircraft fly to.
+		/// Covers both host kinds, subject to <see cref="CountsAsRearmHost"/> deciding which of them
+		/// this actor can actually reach.
 		/// </summary>
 		public static bool HasRearmHost(Actor self)
 		{
 			// Reservable-pad term first: it is a plain Any() over a trait index that is empty in this
 			// mod, where ChooseResupplier walks two indices and sorts the result. These run per unit
 			// per squad tick, so the order matters more than it looks.
-			return ReturnToBase.AnyResupplierExists(self) || AmmoPool.ChooseResupplier(self) != null;
+			var hasReservablePad = ReturnToBase.AnyResupplierExists(self);
+			if (hasReservablePad)
+				return true;
+
+			return CountsAsRearmHost(
+				self.Info.HasTraitInfo<AircraftInfo>(),
+				false,
+				AmmoPool.ChooseResupplier(self) != null);
 		}
 
 		/// <summary>
