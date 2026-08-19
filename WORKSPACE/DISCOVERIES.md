@@ -3,6 +3,69 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-19 — three merged-but-unobserved claims put in front of a running game; two confirmed, and the row-count assertion that would have "confirmed" the third was worthless
+
+Branch `wt/run-verify`, against `main @ 815804f1`, on a grant of exactly two launches. Covers the
+replay build stamp (`61e46e64`) and the unload-menu height ceiling (`b7bd4c73`), both of which shipped
+with "no launch this session" written into their own commit messages.
+
+### 1. The assertion a capture test naturally reaches for could not have failed
+
+`CargoUnloadMenuLogic.Refresh` adds **every** class row to the scroll panel and only then sizes the
+panel. The row count is therefore identical on the broken and the fixed build — 24 either way — and
+`Test.GetUnloadMenuState()`, which reports `list.Children.Count`, reports 24 either way. A scenario
+asserting `"1:24"` goes green **against the exact defect it was written for**, and the screenshot
+beside it would have been read as corroboration.
+
+What separates the builds is the **clip** height: pre-fix `list.Bounds.Height = Math.Min(380, …)`,
+post-fix `Math.Min(screen-derived ceiling, …)`. Measured live: `rows=24 content=551 clip=551
+panel=574 screen=1224`. 551 is unreachable under a 380 cap, so the number is self-controlling — it is
+the one observable in the menu that the pre-fix build could not produce. Added
+`Test.GetUnloadMenuGeometry()` for it.
+
+**Generalising: when a fix changes how much of a collection is DRAWN, every count in the widget tree
+is a false control.** `Children.Count`, `PassengerCount`, the group count — all sit upstream of the
+clip and all survive the bug. Assert the geometry, or assert nothing.
+
+### 2. A build fingerprint round-trips into a real `.orarep`, verified against the file
+
+`World.cs:272` stamps `BuildFingerprint.ForMod`. The replay recorded by the run above carries
+`BuildFingerprint: d32e3e6de3+7a4da276/ba36cc45/1749f466`, byte-identical to
+`./utility.sh --build-fingerprint` from the same tree. Pre-stamp replays carry no such line at all,
+so the two cases are distinguishable in the file itself with no game involved — `tail -c 3000 <file>
+| strings` reads any replay's stamp, mod, version, map uid and map title.
+
+`GameInformationStampTest` stopped at `Serialize`/`Deserialize`, which is a **string** round trip.
+`ReplayMetadata.Read` does not parse from the top: it seeks from the END, reads a length and an end
+marker, then seeks *backwards* by that length. The stamp lengthens the very byte count Read navigates
+by, and no string test can see an error in it. Two file-level tests added.
+
+### 3. Choosing which replay to open is a map-cache problem, and the ordering hides it
+
+`ReplayCompatibilityCheck.Resolve` returns `UnavailableMap` **before** any build check, deliberately.
+So a replay whose map has since changed raises the *map* dialog, and a session spent to photograph
+the build warning gets the wrong dialog and no second chance. Map uid is a content hash: River Zeta
+was re-cordoned in `097738f4` (2026-08-17), which invalidates every River Zeta replay recorded before
+it — the newest was 2026-08-12. Pick a replay whose map package has not been touched since
+(`git log -1 -- <scenario dir>` against the replay's date) and confirm the uid is stable across
+several replays spanning months. Autotest scenarios ARE in the map cache (`mod.yaml` registers the
+folder), so they are fair game and in practice more stable than the shipped maps.
+
+### 4. `Launch.Replay` is the whole dialog path, and does not need the browser
+
+`BlankLoadScreen.cs:79-99` hands `Launch.Replay` straight to `ReplayUtils.PromptReplayCompatibility`
+with `onWatch: Game.JoinReplay` and `onCancel: Game.LoadShellMap`. That is the same call the replay
+browser makes, so one launch arg exercises the shipped decision, the shipped strings and the shipped
+buttons. `tools/autotest/watch-replay.sh` wraps it, driving the button through a new `click
+<widget-id>` command-file verb rather than the host's mouse.
+
+**The cancel branch is why "a dialog appeared" and "the button was consumed" are both untrustworthy
+predicates here.** Cancel loads the shellmap — a real world, with terrain and units — so "the screen
+shows a game" is satisfied by the dismissal just as well. The discriminators that actually separate
+them: the in-game HUD with a running clock (`00:01`, `1x`) versus the main menu, the pause panel
+titled with the *recorded* map's name, and, non-visually, the engine log line `Sync reports disabled
+(… replay True)` emitted when a replay world is created.
+
 ## 2026-08-19 — the Linux/macOS analyzer gap was never in the solution files, and the mono lane was SUBTRACTING analyzer coverage from every other lane
 
 Branch `wt/gate-coverage`, against `main @ bc168d8b`. Extends the `wt/build-gate` entry directly
