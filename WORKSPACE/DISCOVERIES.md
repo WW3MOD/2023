@@ -7671,3 +7671,73 @@ this repo for any harness Lua that is pure enough to isolate** — previously sc
 verified by spending a game run, and one existing test could only regex-scan it
 (`StancePositioningFireStanceTest.cs`). The allowance stays per-scenario (it is doctrine and the two
 scenarios sit on opposite sides of it); only the measurement is shared.
+
+## 2026-08-19 — `make check` was already an intermittent coin flip before the tenth project joined it
+
+Measured on `main @ 61e46e64`, with the WindowsLauncher `Build.0` line verifiably absent (`grep -c`
+= 0): two consecutive, byte-identical `dotnet build engine/OpenRA.sln -c Debug -warnaserror` runs
+returned exit 0, then exit 1 with 22x `MSB3026`. So the 9-of-10 gate landed at `2c9368ac` could fail
+for reasons having nothing to do with the code under test, and anyone re-measuring a "zero violation"
+claim could have been reading a spurious red or believing a lucky green.
+
+The mechanism is a three-way interaction that is invisible from any one file:
+1. Every engine project shares one `OutputPath`, `engine/bin` (`engine/Directory.Build.props:11`).
+2. `UnlinkReferenceCopiesForMmapSafety` in `engine/Directory.Build.targets` DELETES each dependency
+   from that shared directory before `_CopyFilesMarkedCopyLocal` runs. That is correct and load-
+   bearing for its own purpose (mmap safety while the game is running), but its side effect is that
+   the copies are never up-to-date, so every leaf project re-copies every NuGet DLL on every build.
+3. MSBuild builds those leaf projects (`Launcher`, `Utility`, `Server`, and now `WindowsLauncher`)
+   in parallel, so two of them open the same destination path for writing and one loses.
+
+`MSB3026` is only the Copy task's "beginning retry N" notification, and it is a WARNING —
+`-warnaserror` is what promoted it to a build failure. The retries always won: `MSB3027` (retries
+exhausted, a genuine error) appeared zero times across every run measured. The fix applied is
+`MSBuildWarningsAsMessages` for `MSB3026` only, which leaves `MSB3027` fatal, so a copy that really
+fails still fails the gate. Three consecutive green solution builds and three green `make check` runs
+followed, where the same command on `main` was a coin flip.
+
+**Generalises to:** a shared output directory plus a pre-copy delete plus parallel projects is a race
+by construction, and `-warnaserror` converts MSBuild's ordinary self-healing chatter into a hard
+failure. Before trusting any measurement taken through `-warnaserror`, check whether the failure is a
+diagnostic about the code or an `MSB*` message about the build machinery.
+
+## 2026-08-19 — Roslynator does fire in the newly-gated projects, but a duplicate later key hides which rules are live
+
+Two separate things, found while trying to answer "was Roslynator measured or only inferred".
+
+**It fires.** A planted `RCS1041` (remove empty initializer) in `OpenRA.Server` — one of the six
+projects the solution build added at `2c9368ac` — produced `error RCS1041` and a non-zero exit, in the
+same build where `CA1839` and `CA1845` also fired. The instrument is real, so the six zero-violation
+measurements do not rest on a dead analyzer.
+
+**But the first probe wrongly said it did not.** `RCS1058` was chosen from the block at
+`engine/.editorconfig:1094`, which sets it to `warning`. It produced nothing, which looks exactly like
+a broken analyzer. The cause is that `engine/.editorconfig:1392` sets `RCS1058` to `suggestion` — a
+SECOND key for the same rule, ~300 lines later, in the same `[*.{cs,csproj,yaml,lua,sh,ps1}]` section,
+so last-wins and the earlier `warning` is dead text. A whole block of SA and RCS rules is downgraded
+this way. Reading the curated "enabled rules" list at 1065-1150 and believing it is therefore wrong:
+of the RCS rules named there, the effective severity after overrides leaves 45 at `warning`.
+
+**Generalises to:** effective severity in this `.editorconfig` is "the LAST assignment for that id",
+not the one under the explanatory comment. Compute it (`awk` over every
+`dotnet_diagnostic.<id>.severity` keeping the final value) before concluding a rule is enabled,
+disabled, or broken — and before picking a rule to test a gate with.
+
+## 2026-08-19 — CA2263 is inert on the pinned SDK, so "mono is gone" does not make it coverage
+
+`engine/.editorconfig` carried `CA2263` at `none` with the note "once mono is dropped". Mono is now
+dropped, so the stated reason is spent — but flipping it to `warning` buys nothing today. A canonical
+violation (`Enum.Parse(typeof(DayOfWeek), s)`) planted in a file PROVEN to be compiled (the same file
+produced `CS0103` when given a bad symbol, and `RCS1041` when given an empty initializer) produced no
+`CA2263` diagnostic on SDK `6.0.428`, which `global.json` pins via `"version": "6.0.428"` with
+`rollForward: latestFeature` (so it stays inside 6.0.x). The rule is set to `warning` anyway, because
+that is the honest record of why it is no longer suppressed, with a comment saying it is inert.
+
+Contrast `CA1850`, which was left at `none`: its TODO reads "once using .NET 7 or later AND once
+supported by mono", and only the mono half is satisfied. The ".NET 7 or later" half is a house pattern
+carried by 16 other rules in the same file, all still parked. Dropping mono satisfies exactly one of
+CA1850's two preconditions, so it stays off.
+
+**Generalises to:** "the reason in the comment is gone" is necessary but not sufficient to re-enable a
+rule here. The analyzer set is a function of the pinned SDK, so a rule can be un-suppressed and still
+measure nothing — and a zero-violation result from such a rule is not evidence of clean code.

@@ -868,8 +868,8 @@ dotnet_diagnostic.CA1843.severity = warning
 # Provide memory-based overrides of async methods when subclassing 'Stream'.
 dotnet_diagnostic.CA1844.severity = warning
 
-# Use span-based 'string.Concat'. (Not available on mono)
-dotnet_diagnostic.CA1845.severity = none
+# Use span-based 'string.Concat'.
+dotnet_diagnostic.CA1845.severity = warning
 
 # Prefer AsSpan over Substring.
 dotnet_diagnostic.CA1846.severity = warning
@@ -880,8 +880,11 @@ dotnet_diagnostic.CA1847.severity = warning
 # Call async methods when in an async method.
 dotnet_diagnostic.CA1849.severity = suggestion # TODO: Change to warning once using .NET 7 or later.
 
-# Prefer static HashData method over ComputeHash. (Not available on mono)
-dotnet_diagnostic.CA1850.severity = none # TODO: Change to warning once using .NET 7 or later AND once supported by mono.
+# Prefer static HashData method over ComputeHash.
+# The mono half of this condition is now satisfied (mono lane dropped), but global.json pins the SDK
+# to 6.0.x, so the .NET 7 half is not. Left at none for that reason alone, matching the other
+# "once using .NET 7 or later" rules above.
+dotnet_diagnostic.CA1850.severity = none # TODO: Change to warning once using .NET 7 or later.
 
 # Possible multiple enumerations of IEnumerable collection.
 #dotnet_code_quality.CA1851.enumeration_methods =
@@ -1044,7 +1047,11 @@ dotnet_diagnostic.CA2251.severity = warning
 dotnet_diagnostic.CA2259.severity = suggestion # TODO: Change to warning once using .NET 7 or later.
 
 # Prefer generic overload when type is known.
-dotnet_diagnostic.CA2263.severity = none # TODO: Change to warning once mono is dropped.
+# The mono reason for disabling this is gone, so it is set honestly here -- but it is INERT on the
+# currently pinned SDK. Measured on 6.0.428: a canonical violation (Enum.Parse(typeof(DayOfWeek), s))
+# in a file proven to be compiled produced no diagnostic, in the same build where CA1839, CA1845 and
+# RCS1041 all fired. Do not count CA2263 as coverage until global.json moves off 6.0.x.
+dotnet_diagnostic.CA2263.severity = warning
 
 # Do not pass a non-nullable value to 'ArgumentNullException.ThrowIfNull'.
 dotnet_diagnostic.CA2264.severity = warning
