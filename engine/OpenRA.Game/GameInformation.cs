@@ -25,6 +25,13 @@ namespace OpenRA
 		public string Mod;
 		public string Version;
 
+		/// <summary>
+		/// Identifies the build that recorded this replay, so playback under a different one is
+		/// refused rather than silently diverging. Null on replays recorded before this was stamped;
+		/// <see cref="OpenRA.Network.BuildFingerprint"/> owns the format.
+		/// </summary>
+		public string BuildFingerprint;
+
 		public string MapUid;
 		public string MapTitle;
 		public int FinalGameTick;

@@ -7237,7 +7237,9 @@ one that matters**. The gate exists. It cannot fire in WW3MOD.
 
 **Replays are gated on the mod version string, and only that.**
 `ReplayUtils.cs:63` — `if (Game.Mods[mod].Metadata.Version != version)` → incompatible dialog. The
-recorded value comes from `UnitOrders.cs:285` (`Version = mod.Metadata.Version`).
+recorded value comes from `World.cs:272` (`Version = Game.ModData.Manifest.Metadata.Version`), where
+the replay's `GameInformation` is built. (`UnitOrders.cs:285` reads the same field, but that is the
+multiplayer handshake rather than the replay recording path — corrected 2026-08-19 while fixing this.)
 
 **That string is a frozen literal.** `mods/ww3mod/mod.yaml:3` reads `Version: release-20230225`. It
 is rewritten only by the `version` make target (`Makefile:177-179`), and `all: engine`
@@ -7265,3 +7267,47 @@ by the replay or save load paths at all.
 but not for the comforting reason. Nothing validates it, so nothing breaks visibly — old replays
 just quietly stop meaning what they say. Do not cite "replays would refuse to load" as a safety net;
 measure the claim at `ReplayUtils.cs:63` against `mod.yaml:3` first.
+
+## 2026-08-19 — The build fingerprint's third segment is machine-local, so it cannot be a fatal gate anywhere
+
+Found while wiring `BuildFingerprint` into the replay-load path (`wt/replay-version`, against
+`bc168d8b`). The obvious move — record `BuildFingerprint.ForMod` into replay metadata and refuse on
+any difference — is wrong, and the reason generalises to any future consumer that wants to make the
+fingerprint fatal.
+
+`ForMod` (`BuildFingerprint.cs:87`) is `engineRevision/rulesHash/assetDigest`. The first two are
+properties of the repo: two people on the same commit with the same build compute the same values.
+The third is not. `ComputeAssetDigest` (`BuildFingerprint.cs:284-311`) digests the file lists of the
+mounted packages under `Platform.SupportDir` — a Red Alert installation that lives outside the repo
+and legitimately differs between machines (Origin vs. The First Decade vs. the freeware mirror, plus
+optional content like the movies folder). **Any gate that treats the whole fingerprint as one value
+will refuse two installs that play together perfectly.** For replays that is not hypothetical: the
+user records on one machine and watches on another by design.
+
+So the replay gate compares only the first two segments (`BuildFingerprint.ReplaySegmentsMatch`), and
+`DescribeReplayDifference` truncates before describing, so the refusal never names game content as
+the culprit when game content was not weighed. **The cost is real and is not a rounding error:** a
+missing sprite shortens an animation rather than erroring, and `WithMakeAnimation` grants a condition
+for exactly as long as its sequence plays, so a content difference genuinely can move the simulation.
+That case is left to the sync check rather than refused up front. If someone later wants assets to be
+fatal, that is a deliberate trade against cross-machine playback, not a tightening.
+
+## 2026-08-19 — Packaged releases DO carry a real mod version; only dev builds are frozen
+
+Corollary to the frozen-`Version` finding above, and the reason the version comparison at
+`ReplayUtils.cs:63` was kept rather than deleted once the fingerprint check landed.
+
+`make all` never stamps `mods/ww3mod/mod.yaml` — confirmed two ways: the `version` target
+(`Makefile:177-179`) is not a dependency of `all` (`Makefile:157`), and the `make version` call in
+`fetch-engine.sh:86` runs after `cd "${ENGINE_DIRECTORY}"` (`fetch-engine.sh:84`), so it hits
+`engine/Makefile:157`, whose file list is `mods/ra mods/cnc mods/d2k mods/ts mods/modcontent mods/all`
+— ww3mod is not among them. `git log -p` over `mods/ww3mod/mod.yaml` shows the `Version:` line touched
+exactly once ever, in `4894008b` (2023-03-19), which introduced the literal.
+
+But the release packaging scripts DO stamp it, into the staged copy rather than the working tree:
+`packaging/macos/buildpackage.sh:158`, `packaging/linux/buildpackage.sh:86`,
+`packaging/windows/buildpackage.sh:108`, each calling `set_mod_version "${TAG}"` on
+`mods/${MOD_ID}/mod.yaml` under the build output directory. So a shipped build reports a real tag
+while every dev build reports `release-20230225`. The version check is therefore inert between two
+dev builds (the case that produced the silent divergence) but live between a release and anything
+else — worth keeping, and worth not trusting on its own.

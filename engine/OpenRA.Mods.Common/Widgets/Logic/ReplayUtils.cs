@@ -11,6 +11,7 @@
 
 using System;
 using OpenRA.FileFormats;
+using OpenRA.Network;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
@@ -40,6 +41,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[FluentReference("map")]
 		const string UnvailableMap = "dialog-incompatible-replay.prompt-unavailable-map";
 
+		[FluentReference("difference")]
+		const string IncompatibleBuild = "dialog-incompatible-replay.prompt-incompatible-build";
+
+		[FluentReference]
+		const string UnverifiableBuild = "dialog-incompatible-replay.prompt-unverifiable-build";
+
 		static readonly Action DoNothing = () => { };
 
 		public static bool PromptConfirmReplayCompatibility(ReplayMetadata replayMeta, ModData modData, Action onCancel = null)
@@ -49,24 +56,55 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (replayMeta == null)
 				return IncompatibleReplayDialog(modData, onCancel, IncompatibleReplayPrompt);
 
-			var version = replayMeta.GameInfo.Version;
-			if (version == null)
-				return IncompatibleReplayDialog(modData, onCancel, UnknownVersion);
+			var info = replayMeta.GameInfo;
+			var mod = info.Mod;
+			var modInstalled = mod != null && Game.Mods.ContainsKey(mod);
 
-			var mod = replayMeta.GameInfo.Mod;
-			if (mod == null)
-				return IncompatibleReplayDialog(modData, onCancel, UnknownMod);
+			// Only meaningful against the mod that is actually loaded. A replay from a DIFFERENT
+			// installed mod reaches here before BlankLoadScreen.cs:94-95 switches to it, and
+			// fingerprinting the mod we happen to be running would compare two unrelated builds and
+			// refuse it with a reason that names the wrong thing.
+			var currentFingerprint = mod == modData.Manifest.Id ? BuildFingerprint.ForMod(modData) : null;
 
-			if (!Game.Mods.ContainsKey(mod))
-				return IncompatibleReplayDialog(modData, onCancel, UnvailableMod, "mod", mod);
+			// MapPreview indexes MapCache by uid, and a null uid would throw where the checks above
+			// used to return first. Truncated metadata should still reach a dialog, not an exception.
+			var mapAvailable = info.MapUid != null && info.MapPreview.Status == MapStatus.Available;
 
-			if (Game.Mods[mod].Metadata.Version != version)
-				return IncompatibleReplayDialog(modData, onCancel, IncompatibleVersion, "version", version);
+			var result = ReplayCompatibilityCheck.Resolve(
+				mod, info.Version, info.BuildFingerprint,
+				modInstalled, modInstalled ? Game.Mods[mod].Metadata.Version : null, currentFingerprint,
+				mapAvailable);
 
-			if (replayMeta.GameInfo.MapPreview.Status != MapStatus.Available)
-				return IncompatibleReplayDialog(modData, onCancel, UnvailableMap, "map", replayMeta.GameInfo.MapUid);
+			switch (result)
+			{
+				case ReplayCompatibility.Compatible:
+					return true;
 
-			return true;
+				case ReplayCompatibility.UnknownVersion:
+					return IncompatibleReplayDialog(modData, onCancel, UnknownVersion);
+
+				case ReplayCompatibility.UnknownMod:
+					return IncompatibleReplayDialog(modData, onCancel, UnknownMod);
+
+				case ReplayCompatibility.UnavailableMod:
+					return IncompatibleReplayDialog(modData, onCancel, UnvailableMod, "mod", mod);
+
+				case ReplayCompatibility.IncompatibleVersion:
+					return IncompatibleReplayDialog(modData, onCancel, IncompatibleVersion, "version", info.Version);
+
+				case ReplayCompatibility.UnverifiableBuild:
+					return IncompatibleReplayDialog(modData, onCancel, UnverifiableBuild);
+
+				case ReplayCompatibility.IncompatibleBuild:
+					return IncompatibleReplayDialog(modData, onCancel, IncompatibleBuild,
+						"difference", BuildFingerprint.DescribeReplayDifference(currentFingerprint, info.BuildFingerprint));
+
+				case ReplayCompatibility.UnavailableMap:
+					return IncompatibleReplayDialog(modData, onCancel, UnvailableMap, "map", info.MapUid);
+
+				default:
+					return IncompatibleReplayDialog(modData, onCancel, IncompatibleReplayPrompt);
+			}
 		}
 
 		static bool IncompatibleReplayDialog(ModData modData, Action onCancel, string text, params object[] args)

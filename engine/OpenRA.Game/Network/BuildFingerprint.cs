@@ -55,6 +55,15 @@ namespace OpenRA.Network
 		/// <summary>Separates the engine revision, the rules hash and the asset digest.</summary>
 		const char Separator = '/';
 
+		/// <summary>Stands in for a segment whose computation threw. See <see cref="ContentHashes"/>.</summary>
+		const string ComputeFailed = "error";
+
+		/// <summary>
+		/// How many leading segments <see cref="ReplaySegmentsMatch"/> weighs: the engine revision
+		/// and the rules hash. The asset digest is deliberately outside this window.
+		/// </summary>
+		const int ReplaySegmentCount = 2;
+
 		const int ContentHashChars = 8;
 
 		static readonly string Revision = ReadRevision();
@@ -117,6 +126,69 @@ namespace OpenRA.Network
 		}
 
 		/// <summary>
+		/// Whether two fingerprints agree closely enough that a replay recorded under one will
+		/// re-simulate identically under the other. Only the engine revision and the rules hash are
+		/// weighed; an empty fingerprint never matches, because a replay that carries no stamp
+		/// cannot be shown to agree with anything.
+		/// </summary>
+		/// <remarks>
+		/// The asset digest is excluded, and that is a judgement call rather than an oversight.
+		/// It is machine-local by construction — it digests the Red Alert installation under
+		/// ^SupportDir, which differs between two computers that are running the identical build
+		/// (see <see cref="ComputeAssetDigest"/>). Weighing it would refuse the ordinary case of
+		/// recording a replay on one machine and watching it on another, which is a thing people
+		/// do on purpose. The cost of excluding it is real and worth stating: a missing sprite
+		/// shortens an animation rather than erroring, and WithMakeAnimation grants a condition for
+		/// exactly as long as its sequence plays, so a content difference CAN move the simulation.
+		/// That case is left to the sync check rather than refused up front.
+		/// <para/>
+		/// A segment that failed to compute (<see cref="ComputeFailed"/>) is skipped rather than
+		/// treated as a difference. A transient file system error while hashing must not be the
+		/// reason a replay will not open — the same principle <see cref="ContentHashes"/> applies
+		/// to the join path.
+		/// </remarks>
+		public static bool ReplaySegmentsMatch(string mine, string theirs)
+		{
+			if (string.IsNullOrEmpty(mine) || string.IsNullOrEmpty(theirs))
+				return false;
+
+			var a = mine.Split(Separator);
+			var b = theirs.Split(Separator);
+
+			for (var i = 0; i < ReplaySegmentCount; i++)
+			{
+				if (i >= a.Length || i >= b.Length)
+					return false;
+
+				if (a[i] == ComputeFailed || b[i] == ComputeFailed)
+					continue;
+
+				if (a[i] != b[i])
+					return false;
+			}
+
+			return true;
+		}
+
+		/// <summary>
+		/// Names what differs between two fingerprints, considering only the segments
+		/// <see cref="ReplaySegmentsMatch"/> weighs, so the reason given to the player matches the
+		/// reason the replay was actually refused.
+		/// </summary>
+		public static string DescribeReplayDifference(string mine, string theirs)
+		{
+			if (string.IsNullOrEmpty(theirs))
+				return "an older build that predates this check";
+
+			return DescribeDifference(ReplaySegments(mine), ReplaySegments(theirs));
+		}
+
+		static string ReplaySegments(string fingerprint)
+		{
+			return string.Join(Separator, fingerprint.Split(Separator).Take(ReplaySegmentCount));
+		}
+
+		/// <summary>
 		/// Formats a fingerprint for a human. Only used in warning paths, so it spells out the
 		/// cases a bare hash cannot explain by itself.
 		/// </summary>
@@ -167,7 +239,7 @@ namespace OpenRA.Network
 					// that have nothing to do with the match. A diagnostic must never be the
 					// reason nobody can play.
 					Log.Write("debug", $"Could not compute the build fingerprint: {e}");
-					return "error" + Separator + "error";
+					return ComputeFailed + Separator + ComputeFailed;
 				}
 			}
 		}
