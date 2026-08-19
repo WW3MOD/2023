@@ -26,6 +26,19 @@ The case bundles three separable pieces; only the first partially exists:
 
 NOT ratified. First calibration batch measures what the combat math actually yields — first-strike alpha at point-blank may make 3× trivially easy, or armor/DPS asymmetries may make it impossible. Ratify (possibly adjusting the ratio or the force composition) before the bar gates autoburn iteration.
 
+**Where each clause is enforced** (2026-08-19 — a pointer, not a change; nothing measured here has been altered, and the ratification question below is still open):
+
+| Clause | Level | Enforced by |
+|---|---|---|
+| Bar A — *mean def ≤ 50cr* | batch (a MEAN over ≥6 seeds) | `tools/autotest/parse-case01-bar.py` |
+| Bar A — *mean att ≥ 300cr* | batch (a MEAN over ≥6 seeds) | `tools/autotest/parse-case01-bar.py` |
+| Bar B — *every seed def = 0* | per seed | `test-case01-forest-ambush.lua` — `Test.Pass`/`Test.Fail` |
+| *(setup validity: item-21 seated 5/5, ambush engaged)* | per seed | same, checked **before** Bar B |
+
+**The two Bar A clauses are deliberately NOT collapsed into the per-run test.** A per-seed `attLoss ≥ 300` is a stricter and different bar than the one written: the 2026-07-28 batch Bar A was mined from — the batch being offered for ratification as GREEN — contains seed 5005 at attLoss=200 and two seeds at exactly 300. Gating each run on the mean would call that reference batch RED.
+
+**Still open, and still the user's call:** whether to ratify Bar A (+B) at all. The scenario now gates on Bar B because it is the only clause a single seed can decide; `BAR_B_DEF_MAX_LOSS` at the top of the Lua is the one constant to change if the answer is different.
+
 ## Dependencies
 
 - Pipeline item 20 (recon: terrain concealment mechanics) — gates everything.
@@ -33,6 +46,8 @@ NOT ratified. First calibration batch measures what the combat math actually yie
 - A test-run grant for the calibration batch — user-gated, per CLAUDE.md hard rule.
 
 ## Status log
+
+- **2026-08-19 — The scenario can now go RED (code change only; NO runs, bar unchanged, still CALIBRATING).** `test-case01-forest-ambush.lua:220` called **`Test.Pass(note)` unconditionally** from a bare `Trigger.AfterDelay`, so the case could not fail — and therefore its green carried no information (audit: `WORKSPACE/audit/260819-case-corpus-audit.md` §3). Replaced with a two-stage conditional verdict: **setup-validity first** (item-21 seated 5/5 in cover, and ≥1 attacker died), because `defLoss == 0` is *also* what a world that never happened produces — an inert run where the attackers never engage would otherwise report PASS, which is the false-green shape `AUTOTEST.md` warns about. Then **Bar B** (`defLoss ≤ 0`) decides Pass/Fail with a message naming the real failure. Bar A's two MEAN clauses cannot be decided by one run and are enforced by the new `tools/autotest/parse-case01-bar.py` over a ≥6-seed batch (it also refuses to evaluate an under-sized batch, a batch with a repeated seed, or a batch containing a SETUP-INVALID run — each reports UNEVALUABLE, never green). The checker was proved offline against the 2026-07-28 table (GREEN, mean 0/350) and against a defenders-die batch (RED); no game was launched. **Nothing measured was re-authored**, and no bar is ratified. RED/GREEN certification of the scenario itself is still owed — sabotage is `FogCheckboxEnabled: False` + `FogCheckboxLocked: True` in `rules.yaml` (`MapLayers.IsVisible` short-circuits `if (!FogEnabled) return map.Contains(puv)`, making every defender detectable and removing exactly the detection asymmetry the case measured). Noted while verifying: **lowering `Detectable.Vision` would NOT work as a sabotage** — it clamps to a floor of 1 and the comparison is strictly `visibility > threshold`, so the measured `vis=1` still fails `1 > 1` and the defenders stay hidden; that control would have falsely passed.
 
 - **2026-07-29 — Batch re-mined for ratification (analysis only, no new runs; `main` @ `b3d5d7e1`).** Deep-mined the 2026-07-28 batch artifacts → `WORKSPACE/plans/260729_case01_bar_mining.md`. Data is thin by design: the harness clobbers a single `result.json` per run and never archives `debug.log`, so only seed 6006's raw verdict survives (it corroborates the transcribed table exactly); the case-01 Lua never emitted per-unit events, so kill-timestamps / time-to-first-shot / return-fire counts were never measured. Findings: defender loss = 0/30 (zero variance); attacker loss WIDE — kills {4,3,5,4,2,3}, mean 3.5, σ≈1 kill, range 2–5, floor 200cr; only 1/6 seeds fully resolved (@83s), consistent with an early-burst-then-stall kill-curve. The defender edge is confirmed to be **detection asymmetry** (attackers can't acquire, ~0 return fire), not a fair-fight cover win. **Refined bar-ADJUST (supersedes the coarse recommendation below):** ratify **Bar A** — *mean def cost-loss ≤ 50cr AND mean att cost-loss ≥ 300cr over ≥6 seeds* (this batch GREEN: 0 / 350) — with optional per-seed hard guard **Bar B** *every seed def = 0*; teeth sit on the zero-variance defender axis, attacker clause kept soft (noisy). Fire-lane axis delegated to `test-case01b-detect`. See the plan for the regression-mode coverage table.
 

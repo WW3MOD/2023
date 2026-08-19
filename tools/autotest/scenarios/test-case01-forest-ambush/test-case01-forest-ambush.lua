@@ -11,9 +11,10 @@
 -- Measurement: cost-weighted losses (e3 = 100cr both factions, verified from ^E3 Valued.Cost).
 -- The verdict note carries machine-parseable metrics; the debug.log gets the same via print().
 --
--- CALIBRATION MODE: this test PASSES whenever the sim resolves and losses are captured — it does
--- NOT fail on the provisional >=1:3 ratio (the bar is not ratified yet). Once ratified, replace
--- the `Test.Pass(note)` at finish with a ratio gate (see the FINISH block).
+-- VERDICT: this test CAN GO RED. It asserts, in order, (a) that the run actually built the ambush
+-- it describes, and (b) Bar B — "every seed def = 0". See the VERDICT block at the bottom for why
+-- Bar A's two MEAN clauses are NOT asserted here and where they are asserted instead.
+-- (Capture-mode — an unconditional `Test.Pass` — from 2026-07-28 until 2026-08-19.)
 --
 -- Item-21 gate verification: applyAmbushConcealment fires iff (subject human) && (stance==Ambush)
 -- && (cohesion!=Tight) at order time (CohesionMoveModifier.cs:1145). All three are set below BEFORE
@@ -22,6 +23,12 @@
 
 local DEF_COST = 100   -- e3.america Valued.Cost
 local ATT_COST = 100   -- e3.russia Valued.Cost (same ^E3 base)
+
+-- Bar B, verbatim from the case (`WORKSPACE/cases/case-01-forest-ambush.md`, status log
+-- 2026-07-29): "every seed def = 0". Cost-denominated here; 0 deaths = 0cr. This is the ONE
+-- clause of the mined bar that a single seed can decide, so it is the one the per-run verdict
+-- carries. Flip this constant only with the user's say-so — the bar is theirs.
+local BAR_B_DEF_MAX_LOSS = 0
 
 local SETTLE_TICKS   = 250            -- ~10s for the squad to walk in and item-21 to reseat
 local MEASURE_SECS   = 90             -- combat deadline after the attackers launch
@@ -214,10 +221,54 @@ WorldLoaded = function()
 
 				print("[case01] RESULT " .. note)
 
-				-- CALIBRATION: capture-mode pass. After ratification, replace with a ratio gate, e.g.:
-				--   if defLoss == 0 or (attLoss / defLoss) >= RATIFIED_RATIO then Test.Pass(note)
-				--   else Test.Fail(note) end
-				Test.Pass(note)
+				-- ---- VERDICT ----------------------------------------------------------------
+				-- The bar has two levels, so the assertion does too.
+				--
+				--   Bar B  "every seed def = 0"                    -> per-seed. Asserted HERE.
+				--   Bar A  "mean def <= 50cr AND mean att >= 300cr
+				--           over >=6 seeds"                        -> a MEAN. Asserted by
+				--          `tools/autotest/parse-case01-bar.py` over a >=6-run batch.
+				--
+				-- Bar A is deliberately NOT collapsed into a per-run test. A per-seed
+				-- `attLoss >= 300` is a DIFFERENT and stricter bar than the one written: the
+				-- 2026-07-28 batch the bar was mined from — the batch the user is being asked to
+				-- ratify as GREEN — contains seed 5005 at attLoss=200 and two seeds at exactly
+				-- 300. Gating each run on the mean would call that reference batch RED.
+				--
+				-- Setup validity is checked FIRST, because defLoss==0 is also what a world that
+				-- never happened produces: if the attackers never launch, never close, or never
+				-- engage, the defenders lose nothing and a bare Bar-B test reports PASS. That is
+				-- the false-green shape in AUTOTEST.md ("a green run is not evidence unless
+				-- something could have made it RED") — so the run must show it built the ambush
+				-- before its zero is allowed to mean anything.
+				local invalid = nil
+				if refinedCount ~= #Defenders then
+					invalid = string.format(
+						"item-21 seated %d/%d defenders in cover (densWin>0), expected %d; "
+						.. "the concealment mechanism under test did not run",
+						refinedCount, #Defenders, #Defenders)
+				elseif attDead < 1 then
+					-- No other damage source exists on this map (the only other actors are the
+					-- two supplyroutes, which are NoAutoTarget), so an attacker death is
+					-- attributable to the defenders. Zero of them means no ambush occurred.
+					-- Threshold 1 sits well below the 2026-07-28 per-seed floor of 2 kills, so
+					-- it cannot flip a seed the mined bar counts as green.
+					invalid = "no attacker died; the ambush never engaged, so defLoss=0 is vacuous"
+				end
+
+				if invalid ~= nil then
+					Test.Fail("case01 SETUP-INVALID: " .. invalid .. " | " .. note)
+					return
+				end
+
+				if defLoss <= BAR_B_DEF_MAX_LOSS then
+					Test.Pass(string.format("case01 BAR-B PASS defLoss=%d | %s", defLoss, note))
+				else
+					Test.Fail(string.format(
+						"case01 BAR-B FAIL: defenders lost %dcr (%d/%d killed, %d took damage), "
+						.. "bar requires %dcr | %s",
+						defLoss, defDead, #Defenders, defDmgd, BAR_B_DEF_MAX_LOSS, note))
+				end
 				return
 			end
 
