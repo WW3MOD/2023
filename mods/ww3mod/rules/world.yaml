@@ -527,6 +527,7 @@ World:
 	DebugPauseState:
 	MiniMapPings:
 	StartGameNotification:
+		TextNotification: notification-match-start
 	ObjectivesPanel:
 		PanelName: SKIRMISH_STATS
 	LoadWidgetAtGameStart:
