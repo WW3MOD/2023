@@ -1187,10 +1187,15 @@ namespace OpenRA.Mods.Common.Traits
 			b.ConditionToken = token;
 
 			// Targeting is derived from the occupant, so it is invalidated rather than moved.
+			// PlayerOverride is part of that state — it marks the CURRENT target as player-chosen,
+			// and every other site that changes a port's occupant clears it (:280, :379, :410,
+			// :604, :1372, :1410). This helper was the sole exception.
 			a.CurrentTarget = Target.Invalid;
 			a.TargetLockTicks = 0;
+			a.PlayerOverride = false;
 			b.CurrentTarget = Target.Invalid;
 			b.TargetLockTicks = 0;
+			b.PlayerOverride = false;
 		}
 
 		// Called by AutoTarget.TriggerNearbyAmbushAllies to coordinate garrison buildings with ambush units
@@ -1467,48 +1472,24 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (fromPort >= 0)
 					{
-						// Swap deployed soldiers between ports
+						// Port → port is an exchange of the two slots' occupancy, whether or not the
+						// destination is manned: an empty destination trades in the vacant triple,
+						// which is exactly the "leave fromPort empty" outcome. Going through the
+						// shared helper is what keeps ConditionToken with the soldier it was granted
+						// on. The hand-rolled version here read fromPort's token back AFTER having
+						// already overwritten it with the other soldier's, so the destination ended
+						// up holding a token minted on a different actor while the passenger's own
+						// token went untracked and could never be revoked.
+						SwapPortOccupants(PortStates[fromPort], PortStates[targetPortIndex]);
+					}
+					else if (shelterPassengers.Contains(passenger))
+					{
+						// Shelter → port. If the destination is manned, its occupant goes to shelter
+						// first; RecallToShelter revokes that soldier's condition on the way out.
 						if (PortStates[targetPortIndex].DeployedSoldier != null)
-						{
-							var otherSoldier = PortStates[targetPortIndex].DeployedSoldier;
-							var otherToken = PortStates[targetPortIndex].ConditionToken;
-							var otherArmaments = PortStates[targetPortIndex].CachedArmaments;
-							PortStates[fromPort].DeployedSoldier = otherSoldier;
-							PortStates[fromPort].CachedArmaments = otherArmaments;
-							PortStates[fromPort].ConditionToken = otherToken;
-							PortStates[fromPort].CurrentTarget = Target.Invalid;
-							PortStates[fromPort].TargetLockTicks = 0;
-						}
-						else
-						{
-							PortStates[fromPort].DeployedSoldier = null;
-							PortStates[fromPort].CachedArmaments = null;
-							PortStates[fromPort].ConditionToken = Actor.InvalidConditionToken;
-							PortStates[fromPort].CurrentTarget = Target.Invalid;
-						}
-					}
-					else
-					{
-						// From shelter — deploy to port
-						if (shelterPassengers.Contains(passenger))
-						{
-							// If target port occupied, recall current occupant
-							if (PortStates[targetPortIndex].DeployedSoldier != null)
-								RecallToShelter(targetPortIndex);
+							RecallToShelter(targetPortIndex);
 
-							DeployToPort(targetPortIndex, passenger);
-							return;
-						}
-					}
-
-					if (fromPort >= 0)
-					{
-						PortStates[targetPortIndex].DeployedSoldier = passenger;
-						PortStates[targetPortIndex].CachedArmaments = passenger.TraitsImplementing<Armament>().ToArray();
-						PortStates[targetPortIndex].ConditionToken = PortStates[fromPort >= 0 ? fromPort : targetPortIndex].ConditionToken;
-						PortStates[targetPortIndex].CurrentTarget = Target.Invalid;
-						PortStates[targetPortIndex].TargetLockTicks = 0;
-						PortStates[targetPortIndex].PlayerOverride = false;
+						DeployToPort(targetPortIndex, passenger);
 					}
 
 					break;
