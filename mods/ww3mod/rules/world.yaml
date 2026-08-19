@@ -435,7 +435,11 @@ World:
 		TechLevelDropdownVisible: false
 		GameSpeed: default
 	SyncReportsOption:
-		CheckboxDisplayOrder: 91
+		# Slots into the World checkbox block right after separate-team-spawns (54),
+		# ahead of Debug Menu (90). The block is 50/51/54 + this; four columns per
+		# row, so this fills the first row and the developer-only toggle is what
+		# wraps instead of a decision every player has to make.
+		CheckboxDisplayOrder: 55
 	LobbyDummyOptions:
 	CreateMapPlayers:
 

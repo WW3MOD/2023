@@ -44,6 +44,12 @@ namespace OpenRA
 		// drift). Set via Test.LaunchLobbyMap=<map-id> for deterministic captures.
 		public static string LaunchLobbyMap { get; private set; }
 
+		// Lobby option id whose checkbox should be hovered once the options panel is
+		// built, so a capture can show its tooltip. ButtonTooltipLogic lays tooltips
+		// out with no word wrapping, so the only way to judge the width one produces
+		// is to look at it. Set via Test.HoverLobbyOption=<option-id>.
+		public static string HoverLobbyOption { get; private set; }
+
 		// Ingame info panel to open automatically once a match is running, so
 		// screenshot drivers can capture the ingame menu's tabs without simulating
 		// input. "Debug" opens the debug/cheats panel (needs the cheats lobby
@@ -175,6 +181,7 @@ namespace OpenRA
 			OpenSkirmishLobby = string.Equals(args.GetValue("Test.OpenSkirmishLobby", ""), "true", StringComparison.OrdinalIgnoreCase);
 			OpenLobbyTab = args.GetValue("Test.OpenLobbyTab", null);
 			LaunchLobbyMap = args.GetValue("Test.LaunchLobbyMap", null);
+			HoverLobbyOption = args.GetValue("Test.HoverLobbyOption", null);
 			LobbyReadyFile = args.GetValue("Test.LobbyReadyFile", null);
 			OpenIngameInfoPanel = args.GetValue("Test.OpenIngameInfoPanel", null);
 			ForceSyncReports = string.Equals(args.GetValue("Test.ForceSyncReports", ""), "true", StringComparison.OrdinalIgnoreCase);
