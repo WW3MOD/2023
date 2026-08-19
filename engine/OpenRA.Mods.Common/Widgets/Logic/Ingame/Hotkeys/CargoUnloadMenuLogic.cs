@@ -110,7 +110,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			var header = menu.GetOrNull<LabelWidget>("MENU_HEADER");
 			if (header != null)
 			{
-				var title = DisplayName(candidate).ToUpperInvariant();
+				var title = CargoManifest.DisplayName(candidate).ToUpperInvariant();
 				header.GetText = () => cargo == null ? "" : $"{title}  {cargo.PassengerCount}/{cargo.Info.MaxWeight}";
 			}
 
@@ -182,30 +182,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			menu.Bounds.Height = list.Bounds.Y + list.Bounds.Height + ScreenMargin;
 		}
 
-		/// <summary>
-		/// Groups live passengers by <see cref="ISelectable.Class"/>. Grouping on actor type
-		/// instead would split the veteran variants (E1R1, E3R1, E2R1) into rows of their own —
-		/// but those inherit their base Tooltip verbatim, so the player would just see two rows
-		/// both reading "Rifleman" with no way to tell them apart.
-		/// </summary>
-		IEnumerable<(string Key, string Label)> GroupByClass()
+		/// <summary>Grouped rows for the live passenger list. Shared with the sidebar panel via
+		/// <see cref="CargoManifest"/> so the two cannot disagree about what is aboard.</summary>
+		List<CargoManifestRow> GroupByClass()
 		{
-			return cargo.Passengers
-				.Where(p => p != null && !p.IsDead)
-				.GroupBy(GroupKey)
-				.Select(g => (g.Key, DisplayName(g.First())))
-				.ToList();
-		}
-
-		static string GroupKey(Actor p)
-		{
-			var selectable = p.TraitOrDefault<ISelectable>();
-			return string.IsNullOrEmpty(selectable?.Class) ? p.Info.Name : selectable.Class;
-		}
-
-		static string DisplayName(Actor p)
-		{
-			return p.TraitOrDefault<Tooltip>()?.Info.Name ?? p.Info.Name;
+			return CargoManifest.Group(cargo.Passengers);
 		}
 
 		int CountIn(string key)
@@ -213,7 +194,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			if (cargo == null)
 				return 0;
 
-			return cargo.Passengers.Count(p => p != null && !p.IsDead && GroupKey(p) == key);
+			return cargo.Passengers.Count(p => p != null && !p.IsDead && CargoManifest.GroupKey(p) == key);
 		}
 
 		void Drop(string key, bool wholeClass)
@@ -225,7 +206,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			// and Cargo.ResolveOrder revalidates cargo.Contains(passenger), so a pick that went
 			// stale between the click and the order resolving is dropped rather than desyncing.
 			var members = cargo.Passengers
-				.Where(p => p != null && !p.IsDead && GroupKey(p) == key)
+				.Where(p => p != null && !p.IsDead && CargoManifest.GroupKey(p) == key)
 				.ToArray();
 
 			if (members.Length == 0)

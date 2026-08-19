@@ -104,7 +104,14 @@ WorldLoaded = function()
 				"with a name, an ALL chip and 'x1'. Rifleman/Grenadier/Sniper/Medic/Pilot etc, " ..
 				"then Civilian and Scientist, then Driver, Gunner and Commander appearing TWICE " ..
 				"(America and Russia crew share Tooltip names). The whole list must sit on screen " ..
-				"with nothing cut off at the bottom and no scrollbar")
+				"with nothing cut off at the bottom and no scrollbar. " ..
+				"SECOND THING IN THIS SHOT, unasserted and written without ever having been seen: " ..
+				"the sidebar CARGO panel, bottom-right, should show its own manifest for the same " ..
+				"Chinook — 9 named class rows with right-aligned 'x1' counts, then a tenth row " ..
+				"reading '+15 more' with 'x15'. It must NOT simply stop after ten class names as if " ..
+				"that were the whole hold. If the panel is absent, misplaced, overlapping the " ..
+				"command bar, or its rows collide with the buttons below them, say so — no capture " ..
+				"of it exists yet")
 
 			Trigger.AfterDelay(DateTime.Seconds(1), function()
 				Test.Pass("unload menu listed " .. tostring(ExpectedRows) ..
