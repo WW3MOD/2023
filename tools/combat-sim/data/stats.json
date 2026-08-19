@@ -2,7 +2,7 @@
   "_meta": {
     "mod": "ww3mod",
     "version": "release-20230225",
-    "generated_at": "2026-08-15T09:28:25.1053420Z",
+    "generated_at": "2026-08-19T20:30:09.2040800Z",
     "note": "Generated from live YAML by --dump-balance-json. Do not edit by hand; re-run the dump after rules changes."
   },
   "actors": {
@@ -1874,6 +1874,13 @@
         {
           "name": "secondary",
           "weapon": "Ataka",
+          "aiming_delay": 15,
+          "fire_delay": 3,
+          "ammo_usage": 1
+        },
+        {
+          "name": "secondary-air",
+          "weapon": "Ataka.AA",
           "aiming_delay": 15,
           "fire_delay": 3,
           "ammo_usage": 1
@@ -10860,7 +10867,7 @@
       "invalid_targets": [],
       "projectile_kind": "Bullet",
       "projectile_speed": 1024,
-      "inaccuracy": 48,
+      "inaccuracy": 320,
       "inaccuracy_type": "Maximum",
       "warheads": [
         {
@@ -10882,7 +10889,7 @@
         },
         {
           "type": "SpreadDamageWarhead",
-          "damage": 200,
+          "damage": 60,
           "penetration": 1,
           "damage_at_max_range": 100,
           "damage_percent": 0,
@@ -11072,7 +11079,7 @@
       "invalid_targets": [],
       "projectile_kind": "Bullet",
       "projectile_speed": 1024,
-      "inaccuracy": 256,
+      "inaccuracy": 192,
       "inaccuracy_type": "Maximum",
       "warheads": [
         {
@@ -14152,6 +14159,97 @@
           "valid_targets": [
             "Ground",
             "Water"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
+    "ataka.aa": {
+      "range": 22528,
+      "min_range": 3072,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 60,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 3,
+      "free_line_density": 1,
+      "miss_chance_per_density": 15,
+      "valid_targets": [
+        "Air"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": "Missile",
+      "projectile_speed": 400,
+      "inaccuracy": 22,
+      "inaccuracy_type": "PerCellIncrement",
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 200,
+          "penetration": 1,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Infantry",
+            "Unarmored"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "TargetDamageWarhead",
+          "damage": 10000,
+          "penetration": 900,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 2000,
+          "penetration": 20,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 192,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Air"
           ],
           "invalid_targets": []
         }

@@ -7,6 +7,9 @@ every balance-motivated YAML change behind explicit user sign-off.
 
 - `260802-parity-audit.md` — static US/RU parity audit (PIPELINE item 32).
   Dated audit docs use `YYMMDD-short-name.md`.
+- `260819-strike-shorad-parity.md` — re-audit of AWAITING-USER items 4 and 5
+  (Iskander↔HIMARS, Tunguska↔SHORAD). Confirms and enlarges the item-4 gap,
+  refutes item 5, and corrects proposal 002's evidence. Analysis only.
 - `NNN-short-name.md` — numbered change proposals (see flow below).
 
 ## Proposal flow
