@@ -1,7 +1,13 @@
 # 002 — HIMARS ↔ Iskander: equal cost, strictly dominant warhead
 
-Status: PROPOSED
+Status: SUPERSEDED 2026-08-20 — do not act on the recommendation below
 Source: `260802-parity-audit.md` §2 (himars ↔ iskander)
+
+> **Superseded by [`260819-strike-shorad-parity.md`](260819-strike-shorad-parity.md).** The headline conclusion — Iskander dominates at equal cost — **holds, and is larger than recorded here.** But this doc's line references have gone stale (HIMARS `Cost` is at `vehicles-america.yaml:1009`, Iskander at `vehicles-russia.yaml:912`), and, more importantly, **it never mentions HP or armour**, which is where much of the gap actually lives: HIMARS `HP: 6000` vs Iskander `HP: 10000`, and HIMARS declares `Armor: Type: Light` with **no `Thickness` node at all** (`vehicles-america.yaml:1026-1027`) where Iskander has `Thickness: 15`. `Thickness: 0` makes `DamageWarhead` skip armour reduction entirely (`DamageWarhead.cs:217`), so HIMARS takes 100% of every hit.
+>
+> **Do not apply this doc's Option A ("Iskander → 8000").** It would price Russia out of a unit to hide a US authoring omission. Fix the omission first and re-measure. The successor's ranked options, and the live user question, are in [`../AWAITING-USER.md`](../AWAITING-USER.md) item 3.
+>
+> Also note the §22-25 claim *"no compensating US advantage visible in the static stats"* is now known to be **understated rather than wrong** — the platform comparison it waves off is itself part of the gap.
 
 ## Evidence
 
