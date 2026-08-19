@@ -54,6 +54,9 @@ agrees, it says so; where it corrects 260819 or the shipped comments, it says so
   `1802191e` (2024-02-13) stripped those from every live weapon. Prone has given **0% damage
   reduction** for two and a half years (§3.2). It still shrinks the hitshape, which is real but is a
   hit-probability effect, not damage.
+- **Know that veterancy is his biggest concealment lever.** Ranks 1–4 give **+1/+2/+3/+4** to required
+  vision — more than prone and dug-in combined — and nothing says so (§1.3). A rank-4 soldier *running*
+  is harder to spot than a rank-0 soldier dug in.
 - **Get meaningful protection from trees.** Position-based damage reduction exists and is live, but it
   caps at **20%**, and it keys on obstacle *density* rather than on trees specifically: one rock cell
   (density 50) grants the full 20% instantly, while one tree (density 10) falls below the 15 floor and
@@ -103,7 +106,13 @@ All on `^DetectableInfantryStandard` (`infantry.yaml:703-732`), inherited by bas
 | `@InCover1` | `object-proximity == 1` | **+1** | — | **DEAD** |
 | `@InCover2` | `object-proximity == 2` | **+2** | — | **DEAD** |
 | `@InCover3` | `object-proximity >= 3` | **+3** | — | **DEAD** |
-| `@Rank_1..4` | `rank-veteran == N` | see `defaults.yaml:211-223` | veterancy | live (see agent section) |
+| `@Rank_1..4` | `rank-veteran == N` | **+1 / +2 / +3 / +4** | `^GainsExperience` at 100/200/400/800 XP (`defaults.yaml:198-206`), inherited by `^Infantry` (`infantry.yaml:4`) | **YES** |
+
+⚠ **Veterancy is the largest live concealment modifier in the game — larger than prone and dug-in
+combined** (`defaults.yaml:211-222`). Nothing in the UI says so. A rank-4 veteran rifleman that has
+stood still for 200 ticks computes to `3 + 4 + 1 + 1 = 9`, i.e. **seen only from 4 cells** — effectively
+invisible until it is on top of you. The same soldier at rank 0 is seen from 16c. This is a 4× swing in
+detection radius driven by a stat the player never chose and is never shown.
 
 ### 1.4 ⚠ The dead modifiers — `object-proximity` is granted by nothing
 
@@ -125,6 +134,61 @@ combined — can never apply. "Being next to cover" contributes exactly zero to 
 
 This is the answer to the user's *"is any modifier unreachable in practice?"* — yes, three of the eight,
 and they are the largest.
+
+### 1.4b How the modifiers compose, and the resulting detection radii
+
+**Composition is plain addition, then a clamp — nothing is multiplicative and nothing is mutually
+exclusive.** `Detectable.ITick.Tick` and `IsVisibleInner` both do
+`Util.ApplyAddativeModifiers(DetectableInfo.Vision, detectableModifiers)`, then clamp to
+`[1, MapLayers.VisionLayers - 1]` = **[1, 10]** (`Modifiers/Detectable.cs:86-94,110-116`;
+`VisionLayers = 11` at `MapLayers.cs:75`). Reveal is **strictly greater**:
+`ResolvedVisibility[puv] > visibility` (`MapLayers.cs:579`).
+
+Two consequences worth stating:
+
+- **The lower clamp swallows over-exposure.** Base infantry `Vision: 3` (`infantry.yaml:96-97`) that is
+  both moving (−1) and firing (−2) computes to 0, which clamps to 1 — the same as if it were only −2.
+  So beyond −2 total, further exposure is free.
+- **The upper clamp makes level 10 undetectable by standard vision**, since no band carries strength 11.
+
+Derived ladder (level *N* is revealed by strength *N+1*, so its radius is the outer `Range` of the
+`^StandardVision` band at strength *N+1*, `defaults.yaml:47-84`). This matches the shipped
+`^DetectableRangeCircles` gauge radii exactly (`infantry.yaml:750,759,768,777`), which is a good
+independent check on the derivation:
+
+| Detectable level | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Seen from | 28c | 25c | 22c | 19c | 16c | 13c | 10c | 7c | 4c | never |
+
+**Realistic combinations for a standard rifleman (`Vision: 3`).** Note `prone` is granted by `!moving`,
+so *every* stationary soldier is prone — "stopped" and "prone" are not independent choices:
+
+| State | Modifiers | Level | Seen from |
+|---|---|---|---|
+| Running | moving −1 | 2 | **25c** |
+| Running and firing | moving −1, firing −2 → −3, clamped | 1 | **28c** |
+| Stopped (auto-prone) | prone +1 | 4 | **19c** |
+| Stopped ≥200 ticks (prone + dug in) | +1 +1 | 5 | **16c** |
+| Dug in, then fires | +1 +1 −2 | 3 | **22c** |
+| Stopped, fires | +1 −2 | 2 | **25c** |
+| Any of the above, "in cover" | `@InCover1/2/3` | **no change — dead (§1.4)** | — |
+| Rank-4 veteran, stopped ≥200 ticks | +4 +1 +1 | 9 | **4c** |
+| Rank-4 veteran, running | +4 −1 | 6 | **13c** |
+
+So for a **rank-0** soldier the whole player-accessible span is **28c at worst to 16c at best**, and
+firing costs him almost everything he gained by stopping. **Veterancy moves that span more than
+anything the player can do deliberately** — a rank-4 soldier running (13c) is harder to see than a
+rank-0 soldier dug in (16c). *(Derived from code and cross-checked against the shipped
+gauge radii; **not measured in game** — the arithmetic is verified, the felt effect is not.)*
+
+**Trees do not appear in this table, and that is the point.** Forest concealment is not a `Detectable`
+modifier at all — it subtracts from the **observer's** strength along the sightline
+(`modifiedStrength = strength - shadowModify`, `MapLayers.cs:355-378`, fed by `map.ShadowLayer`). The
+two systems compose by acting on opposite sides of the same comparison. Depth is superlinear —
+1 dense cell → 1, 4 → 6, 6 → 10 (`Map.ForestGroundShadow`, `Map.cs:1098,1102-1120`; knee at density 20,
+`:1083`). A rifleman four cells deep in trees costs an observer 6 strength, which at 16c (strength 6)
+takes the observer to 0 — i.e. **deep forest is worth far more than every stance and posture modifier
+combined**, and unlike them it is invisible in the concealment gauge, which is viewer-independent.
 
 ### 1.5 There is no "almost spotted" reaction
 
