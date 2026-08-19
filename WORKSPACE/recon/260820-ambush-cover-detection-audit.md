@@ -49,8 +49,16 @@ agrees, it says so; where it corrects 260819 or the shipped comments, it says so
   `!moving`), and the dead `TAKE_COVER` button was removed on 2026-08-19 (`b62ee52f`, `486575a8`).
   Verified at HEAD: `TakeCover` appears nowhere in `mods/` and `TAKE_COVER` nowhere in the chrome (§3.1).
 - **Benefit from being near cover objects for concealment.** The three largest concealment modifiers in
-  the game — `@InCover1/2/3`, worth **+1/+2/+3** — are gated on a condition that **nothing anywhere
-  grants**. They are dead (§1.4). This is the "modifier that can never fire" the audit was asked to find.
+  the game — `@InCover1/2/3`, worth **+1/+2/+3** — are emitted only by **burnt** tree husks, at a radius
+  of 0.18–0.63 cells centred inside a cell infantry **cannot stand on**. Zero of 23 husk types are
+  reachable: they are dead (§1.4). This is the "modifier that can never fire" the audit was asked to
+  find. Knock-on: infantry CV therefore tops out at 9, so the "invisible to standard vision" state
+  cannot be reached at all.
+- **Pay a detectability cost for firing an RPG, grenade launcher, or from a garrison.** The −2 firing
+  penalty is filtered to the `primary` armament only (§1.4a b).
+- **Dig in with a unit that has never moved.** A timer bug means the still-counter is only ever armed by
+  a stop *transition*, so a map-placed soldier never reaches the dug-in tier — and a second bug can
+  grant `dugin` to a unit that is running (§1.4a a).
 - **Get damage reduction from going prone.** The five-tier `ProneDamageModifiers` block is still in the
   YAML, but the reduction only applies against warheads declaring a matching `DamageType`, and commit
   `1802191e` (2024-02-13) stripped those from every live weapon. Prone has given **0% damage
@@ -116,26 +124,76 @@ stood still for 200 ticks computes to `3 + 4 + 1 + 1 = 9`, i.e. **seen only from
 invisible until it is on top of you. The same soldier at rank 0 is seen from 16c. This is a 4× swing in
 detection radius driven by a stat the player never chose and is never shown.
 
-### 1.4 ⚠ The dead modifiers — `object-proximity` is granted by nothing
+### 1.4 ⚠ The dead modifiers — the cover ladder is granted, but geometrically unreachable
 
-`object-proximity` is declared as an `ExternalCondition` on `^DetectableInfantryStandard`
-(`infantry.yaml:704-706`, `TotalCap: 3`) and on husks (`husks.yaml:119`). An `ExternalCondition` is a
-*seam*: it makes the token grantable but never grants it. **Nothing grants it.** Searched:
+`object-proximity` **does have an emitter**, and an earlier draft of this document was wrong to say it
+did not. The grantor is `ProximityExternalCondition@ObjectProximity` on `^TreeHusk` — a **burnt** tree —
+with `Range: 384` (`husks.yaml:118-121`), plus 22 per-actor overrides tightening it to 182–640 WDist.
+Living trees emit nothing. The `ExternalCondition` on `^DetectableInfantryStandard`
+(`infantry.yaml:704-706`, `TotalCap: 3`) is the receiving seam.
 
-- all `*.cs` in `engine/` — no occurrence of `object-proximity` or `ObjectProximity` at all;
-- all `*.yaml` and `*.lua` in `mods/` — only the two declarations above and the three consumers;
-- `mods/ww3mod/maps/**` (map dirs, not archives) — no occurrence.
+**It nonetheless cannot fire, for a geometric reason:**
 
-The only other trace is a **commented-out** `^DetectionProximity` template (`defaults.yaml:161-170`)
-and its **commented-out** inherit on base infantry (`infantry.yaml:20`) — and note that template is
-itself a *consumer* (`VisionModifier@1/2/3`, a different trait), not the grantor. So the grantor never
-existed in shipped rules, or was removed with no trace left in the seam.
+1. `Range: 384` is **0.375 cells**; the per-actor overrides go as low as 182 (0.18 cells).
+2. The trigger point is the husk's `CenterPosition + Offset`, i.e. the centre of its own cell
+   (`ProximityExternalCondition.cs:72-78,104`; `Building.cs:207-211,350`).
+3. Containment is strict `<` on horizontal distance (`ActorMap.cs:143-144`).
+4. **`^TreeHusk` carries `Building: Footprint: x` and no `Passable` trait** (`husks.yaml:91-121`), so it
+   **blocks infantry** — unlike a *living* `^Tree`, which does carry `Passable: PassClasses: tree`
+   (`decoration.yaml:12-14`) and is walkable. So no soldier can stand on the husk's cell.
+5. Infantry occupy one of five quantised sub-cell offsets (`MapGrid.cs:117-125`; the mod does not
+   override `SubCellOffsets`).
+
+The nearest sub-cell an infantryman can legally occupy is therefore **244–771 WDist** from the trigger
+point, against radii of **182–640** — and enumerating all 23 husk types, **zero are reachable**. The
+radius is always smaller than the distance to the nearest standable cell.
+
+*(This enumeration is arithmetic over the four code sites above, not measurement. The premises —
+husk radii, husk impassability, the strict `<`, the sub-cell offsets — are each verified from code.)*
+
+The one residual path is an accident: a soldier standing *under a live tree* when it burns down gets
+the husk spawned on his own cell (`SpawnActorOnDeath`, `decoration.yaml:108-109`), and `Building`
+does not eject occupants. From inside the cell, 12 of 23 husk types become reachable from some
+sub-cell — until he takes one step.
 
 **Consequence:** the three biggest concealment bonuses in the game — bigger than prone and dug-in
-combined — can never apply. "Being next to cover" contributes exactly zero to concealment.
+combined — never apply in practice. "Being next to cover" contributes zero to concealment, and the
+thing that would grant it is a burnt tree you cannot stand next to closely enough.
 
-This is the answer to the user's *"is any modifier unreachable in practice?"* — yes, three of the eight,
-and they are the largest.
+**Knock-on:** with the ladder dead, infantry CV tops out at `3 + 1 (prone) + 1 (dugin) + 4 (rank 4) = 9`,
+so the CV-10 "invisible to any standard-vision observer" state **cannot be reached by any infantry
+configuration in shipped rules**.
+
+This is the answer to the user's *"is any modifier unreachable in practice?"* — yes, three of the
+eleven, and they are the largest.
+
+### 1.4a ⚠ Three further defects in the live modifiers
+
+**(a) `dugin` has two timer bugs** — `GrantConditionOnMovement.cs:44,52-61,68-80`:
+
+- **A unit that has never moved never digs in.** `cooldown` initialises to `0` (`:44`) and `Tick`
+  decrements it unconditionally while `dugin` is ungranted (`:54-56`), so it goes to `−1` on tick 1 and
+  never equals 0 again. It is re-armed *only* in the stop branch (`:71`), which requires the unit to
+  have been moving. **A map-placed or scenario-spawned soldier that is never ordered anywhere sits at
+  CV 4 forever and never reaches CV 5.**
+- **`dugin` can be granted while running.** If a unit stops (arming `cooldown = 200`) and moves again
+  before the timer expires, `:73-79` grants `moving` but does not reset `cooldown`, and `Tick` has no
+  "am I still?" guard. The countdown completes mid-stride and grants `+1`, held until the *next*
+  stop→move transition. So `moving` (−1) and `dugin` (+1) are **not** mutually exclusive in practice.
+
+`TimeToBeStill: 200` at `Timestep: 60` ms (`mod.yaml:380-383`) = **12.0 seconds**, not 8.
+
+**(b) The −2 firing penalty applies to the primary armament only.** `GrantConditionOnAttackInfo.ArmamentNames`
+defaults to `{ "primary" }` (`GrantConditionOnAttack.cs:25`, filtered at `:133-134`) and
+`@Firing` (`infantry.yaml:722-726`) does not override it. So a soldier pays **no** detectability cost
+for firing an RPG (`infantry.yaml:1154-1156`), a grenade launcher (`:1411-1413`), or the `garrisoned`
+armament used from inside a building (`:1271-1274`, `:1577-1580`). Whether that is intended is a design
+call; the code is unambiguous.
+
+**(c) Prone and moving are not always exclusive.** `ProneCondition` contains `!moving`
+(`infantry.yaml:294`), but `GrantCondition@HeavyDamageProne` (`infantry.yaml:988-990`) grants `prone`
+while `heavy-damage-attained` — so a badly wounded soldier is prone *while running*, at CV 3 rather
+than CV 2.
 
 ### 1.5 How the modifiers compose, and the resulting detection radii
 
@@ -176,6 +234,11 @@ so *every* stationary soldier is prone — "stopped" and "prone" are not indepen
 | Any of the above, "in cover" | `@InCover1/2/3` | **no change — dead (§1.4)** | — |
 | Rank-4 veteran, stopped ≥200 ticks | +4 +1 +1 | 9 | **4c** |
 | Rank-4 veteran, running | +4 −1 | 6 | **13c** |
+| Map-placed, never ordered, standing still forever | prone +1 only (`dugin` bug A) | 4 | **19c** |
+| Running while wounded to Heavy+ | moving −1, prone +1 | 3 | **22c** |
+| Stopped, fires an **RPG** (not primary) | prone +1, **no firing penalty** | 4 | **19c** |
+| Sniper `^SN` (`Vision: 5`), stopped ≥200 ticks | +1 +1 | 7 | **10c** |
+| Any vehicle (`^Vehicle`, bare `Detectable:`) | none — no modifiers at all | 2 | **25c, permanently** |
 
 So for a **rank-0** soldier the whole player-accessible span is **28c at worst to 16c at best**, and
 firing costs him almost everything he gained by stopping. **Veterancy moves that span more than
@@ -622,6 +685,10 @@ Every claim above is read from source. These need play:
    matters depends on where maps actually place `ROCK*` actors relative to contested ground. That is a
    map-data question, answerable by inspection rather than a run, and this pass did not open it.
 
+5. **Do the two just-merged capture scenarios actually fail?** §7.1 predicts both
+   `test-visual-gauge-truth` and `test-visual-concealment-gauge` are calibrated one tier low. One run of
+   either settles it, and it is worth doing before their output is trusted.
+
 **Needs no run:** the `object-proximity` death (§1.4), the prone-damage death (§3.2), and the
 `enable-ambush-tactics` gate (§2.3) are all code facts, settled by grep. They are listed here only so
 nobody schedules a run to confirm them.
@@ -640,3 +707,27 @@ Recorded so a curation pass can act; **no curated document was edited by this au
 | A prior pass's conclusion | `stance-ambush` has zero consumers **and** `StancePositioningExecutor.cs:313-314` explains why it deliberately does not consume it | **first half right, second half wrong** — the comment explains why the opt-out is written in C# rather than YAML; the executor *does* honour Ambush (§2.1) |
 | `infantry.yaml:41` (shipped comment) | "a lone treeline barely helps" | **wrong** — one tree is density 10, below the 15 floor, so it helps exactly zero (§3.3) |
 | `defaults.yaml:312-319` (shipped comment) | implies the gate is meaningfully live | **misleading in effect** — technically accurate (it *is* granted, to bot-posted units) but reads as though the machinery is generally on. No human unit ever carries it (§2.3) |
+| An earlier draft of **this** document | `object-proximity` "is granted by nothing" | **wrong, and corrected in §1.4** — it *is* granted, by `ProximityExternalCondition` on tree husks (`husks.yaml:118-121`). The conclusion (dead) survives; the mechanism is geometric unreachability, not absence of a grantor |
+
+### 7.1 ⚠ Two just-merged capture scenarios look mis-calibrated by one tier
+
+Both scenarios from `88170a30` (2026-08-11, *"Five scripted capture scenarios"*) predict a **tier 3**
+rifleman and derive their whole geometry from it:
+
+- `tools/autotest/scenarios/test-visual-gauge-truth/test-visual-gauge-truth.lua:10-16` reasons *"Rifle is
+  map-placed and never ordered anywhere, so he is not moving (no −1) and never gets `dugin` … He sits on
+  tier 3"* and predicts a **22c** ring.
+- `tools/autotest/scenarios/test-visual-concealment-gauge/test-visual-concealment-gauge.lua:21-27,57-59`
+  asserts *"stopped ⇒ tier 3; dug in ⇒ tier 4"*.
+
+**Both omit `prone`.** `ProneCondition` includes `!moving` (`infantry.yaml:294`), so a stationary
+soldier is prone from spawn — `+1`. The correct tiers are **stopped 4** (ring 19c) and **dug in 5**
+(ring 16c). Note the gauge-truth scenario reasons *correctly* about `dugin` bug A (§1.4a) and then
+misses prone, so its "never ordered ⇒ no modifiers" conclusion is one modifier short.
+
+`test-visual-concealment-gauge.lua:44-45` additionally derives 200 ticks as 8.0 s from 25 ticks/s; the
+mod runs `Timestep: 60` ms (`mod.yaml:380-383`), so it is **12.0 s**. Its 13-second wait still clears
+the timer, so that error is harmless in effect.
+
+**Derived, not run.** This predicts both scenarios fail their own premise checks; a single run of
+either would settle it, and is worth spending before anyone trusts their output.
