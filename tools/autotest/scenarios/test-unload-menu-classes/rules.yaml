@@ -1,0 +1,40 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-unload-menu-classes.lua
+
+# The widest hold the game can legally produce: 24 DISTINCT class rows in one Chinook.
+#
+# The menu groups by ISelectable.Class, falling back to the actor name when a unit sets
+# none (CargoUnloadMenuLogic.GroupKey), so the row count is a property of the class set,
+# not of the passenger count. The 24:
+#
+#   16 combat classes  E1 E3 AR E2 TL MT SN AT AA E6 E4 SF MEDI TECN DR PILOT
+#    2 civilian        C2 -> Class CivInfantry, CHAN -> Class CHAN (it overrides)
+#    6 vehicle crew    driver/gunner/commander x2 factions. ^CrewMember sets no
+#                      Selectable Class, so each falls back to its own ACTOR NAME and
+#                      gets a row. crew.pilot.* and crew.copilot.* are deliberately
+#                      absent: both set Class: Pilot and would collapse into PILOT's row.
+#
+# Every one of them inherits ^Infantry, so all are Passenger CargoType Infantry and all
+# are Weight 1 (nothing overrides it). 24 into MaxWeight 36 is a legal load with room to
+# spare - this is not an overfill that the engine would trim.
+#
+# TRAN, not tran: rules keys merge by exact case, and aircraft-america.yaml defines the
+# Chinook as `TRAN:`. A lowercase override adds a SECOND actor rather than merging, which
+# fails the rules load outright. The map's actor reference is a lookup, so `tran` is fine
+# there.
+TRAN:
+	Cargo:
+		InitialUnits: E1,E3,AR,E2,TL,MT,SN,AT,AA,E6,E4,SF,MEDI,TECN,DR,PILOT,C2,CHAN,crew.driver.america,crew.gunner.america,crew.commander.america,crew.driver.russia,crew.gunner.russia,crew.commander.russia

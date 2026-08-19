@@ -155,9 +155,11 @@ namespace OpenRA
 		//
 		// Command grammar (minimal):
 		//   screenshot <label>          — capture a screenshot tagged <label>
+		//   click <widget-id>           — invoke a visible widget's OnClick
+		//   quit                        — exit the game
 		//
 		// Anything else is ignored (logged to debug). Phase 3 would extend to
-		// click/key/text commands for full UI automation.
+		// key/text commands for full UI automation.
 
 		static DateTime lastCmdFileMtime;
 
@@ -209,6 +211,19 @@ namespace OpenRA
 					SaveManifest();
 					Log.Write("debug", $"[TestMode] external screenshot: {label} → {path}");
 				}
+				else if (line.StartsWith("click ", StringComparison.OrdinalIgnoreCase))
+				{
+					var id = line.Substring("click ".Length).Trim();
+
+					// Deferred for the same reason CargoUnloadMenuLogic.Close is: a click handler
+					// opens or closes a window, and PollCommands runs from LogicTick inside
+					// Ui.Root's own Children traversal.
+					Game.RunAfterTick(() =>
+					{
+						var hit = ClickWidget(id);
+						Log.Write("debug", $"[TestMode] external click: {id} → {(hit ? "dispatched" : "NO SUCH VISIBLE WIDGET")}");
+					});
+				}
 				else if (string.Equals(line, "quit", StringComparison.OrdinalIgnoreCase))
 				{
 					// Defer to RunAfterTick so this LogicTick can unwind cleanly
@@ -223,6 +238,45 @@ namespace OpenRA
 					Log.Write("debug", $"[TestMode] unknown cmd: {line}");
 				}
 			}
+		}
+
+		// Invokes the OnClick of the first VISIBLE widget in the UI tree carrying this id.
+		// Reflection rather than a cast because ButtonWidget lives in OpenRA.Mods.Common,
+		// which OpenRA.Game does not reference. Test-only, so the cost does not matter.
+		//
+		// Visibility is part of the match, not a detail: ConfirmationDialogs.ButtonPrompt
+		// leaves CONFIRM_BUTTON in the tree and merely hidden when a prompt offers no
+		// confirm action, so an id-only match would "click" a button no player could.
+		static bool ClickWidget(string id)
+		{
+			var target = FindVisible(Widgets.Ui.Root, id);
+			if (target == null)
+				return false;
+
+			var onClick = target.GetType().GetField("OnClick")?.GetValue(target) as Action;
+			if (onClick == null)
+				return false;
+
+			onClick();
+			return true;
+		}
+
+		static Widgets.Widget FindVisible(Widgets.Widget w, string id)
+		{
+			if (!w.Visible)
+				return null;
+
+			if (w.Id == id)
+				return w;
+
+			foreach (var child in w.Children)
+			{
+				var found = FindVisible(child, id);
+				if (found != null)
+					return found;
+			}
+
+			return null;
 		}
 
 		// True when every captured screenshot's path exists on disk. Used by

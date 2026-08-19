@@ -268,6 +268,26 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return $"{menus.Length}:{(list == null ? -1 : list.Children.Count)}";
 		}
 
+		[Desc("Geometry of the open unload menu as 'rows=N content=N clip=N panel=N screen=N', or an " +
+			"empty string when it is closed. `content` is what the rows need, `clip` is the height the " +
+			"scroll panel actually gives them. A row count ALONE cannot see the bug this exists for: " +
+			"Refresh adds every class row to the list whatever the panel's height, so rows past the " +
+			"cap were counted but drawn nowhere — with ScrollBar Hidden advertising nothing. " +
+			"clip < content is that bug, in a number. Test mode only.")]
+		public string GetUnloadMenuGeometry()
+		{
+			if (!TestMode.IsActive)
+				return "";
+
+			var menu = Ui.Root.Children.FirstOrDefault(c => c.Id == "CARGO_UNLOAD_MENU");
+			var list = menu?.GetOrNull<ScrollPanelWidget>("CLASS_LIST");
+			if (list == null)
+				return "";
+
+			return $"rows={list.Children.Count} content={list.ContentHeight} clip={list.Bounds.Height} " +
+				$"panel={menu.Bounds.Height} screen={Game.Renderer.Resolution.Height}";
+		}
+
 		[Desc("Click a row of the open unload menu: the row itself drops one man of that class, or " +
 			"set `all` to hit its ALL chip and drop the whole class. Rows are indexed from 0 in the " +
 			"order the menu lists them. Drives the real click handlers, so the orders issued are the " +

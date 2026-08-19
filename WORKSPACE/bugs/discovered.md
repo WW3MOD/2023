@@ -3,6 +3,42 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-19: [low] OPEN, NOT FIXED — past 18 classes the unload menu lists `Driver`, `Gunner` and `Commander` TWICE, with nothing distinguishing the pair (found while: photographing the menu at 24 classes, branch `wt/run-verify`, `main @ 815804f1`)
+
+Observed, not inferred: the 24-row capture in `260819_173016_p8981_test-unload-menu-classes` ends
+`… Civilian, Scientist, Driver, Gunner, Commander, Driver, Gunner, Commander`. The three repeats are
+the America and Russia crew.
+
+**It is the exact failure `GroupByClass` documents itself as avoiding.** Its docstring rejects
+grouping on actor type because the veteran variants "inherit their base Tooltip verbatim, so the
+player would just see two rows both reading 'Rifleman' with no way to tell them apart". `^CrewMember`
+sets no `Selectable.Class`, so `GroupKey` falls back to `p.Info.Name` — six distinct keys — while the
+row LABEL comes from `DisplayName`, which reads `Tooltip.Name`. `crew.driver.america` and
+`crew.driver.russia` are different keys with the same tooltip, so the rejected shape returns through
+the fallback path rather than through the grouping rule.
+
+Harmless in practice today: it needs both factions' ejected crews in one hold, and either row drops
+the men you would expect. Filed rather than fixed because the fix is a product decision, not a bug
+fix — either give `^CrewMember` a `Selectable.Class` so the six collapse to one `Crew` row, or put a
+faction word in the crew tooltips. Left alone because this branch's remit was to verify the height
+fix, which does not depend on which is chosen.
+
+## 2026-08-19: [low] OPEN, NOT FIXED — `ReplayMetadata.Read` cannot fail safely under NUnit: its catch block crashes the test host (found while: RED-testing the replay-file round trip, branch `wt/run-verify`, `main @ 815804f1`)
+
+`ReplayMetadata.Read` swallows every exception into `Log.Write("debug", ex.ToString())`
+(`ReplayMetadata.cs:102-105`). Under NUnit no `debug` channel is registered, so the logging thread
+throws `ArgumentException: Tried logging to non-existent channel debug` (`Log.cs:140`) on a
+BACKGROUND thread and takes the process with it.
+
+Measured: with `Write` sabotaged to emit `dataLength - 1`, the run died at `Test host process
+crashed` after 585 tests instead of failing an assertion; restored, 1602 pass.
+
+**The consequence is a coverage hole, not a product bug.** Well-formed files never enter that catch,
+so the committed tests are unaffected — but no test can assert what a *malformed or truncated*
+replay does, which is precisely the input the compatibility dialog exists to be graceful about.
+Anyone wanting that coverage has to register a log channel in the fixture first; the failure path is
+unobservable from a test today.
+
 ## 2026-08-19: [low] OPEN, NOT FIXED — a stray Italian phrase sits in the root `.editorconfig` analyzer block (found while: auditing the `make check` analyzer gate, branch `wt/build-gate`, `main @ 08b255f7`)
 
 `.editorconfig:167` reads `pagare qui sotto` — an accidental paste, landed in `c6b0232f` (2025-04-22,
