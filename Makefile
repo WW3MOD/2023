@@ -197,6 +197,15 @@ ifeq ($(RUNTIME), mono)
 else
 # Enabling EnforceCodeStyleInBuild and GenerateDocumentationFile as a workaround for some code style rules (in particular IDE0005) being bugged and not reporting warnings/errors otherwise.
 	@$(DOTNET) build -c Debug -nologo -warnaserror -p:TargetPlatform=$(TARGETPLATFORM) -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true
+# The line above builds WW3MOD.sln, which is only OpenRA.Game + OpenRA.Mods.Common. OpenRA.Test is
+# in no solution this target reaches -- upstream leaves it out of engine/OpenRA.sln on purpose (it
+# has an ActiveCfg but no Build.0) -- so until this line was added its analyzer violations gated
+# nothing. Named explicitly rather than via a solution edit because the mono lane is a DIFFERENT
+# gate, not the same one run twice: engine/Directory.Build.props:61-63 drops both Roslynator packages
+# when MSBuildRuntimeType is Mono, so no RCS* rule can fire there -- 23 of the 47 violations this
+# line was opened on. Adding OpenRA.Test to the solution would put it in front of two gates that
+# disagree about what "clean" means; keeping it in the net6 branch keeps one gate authoritative.
+	@$(DOTNET) build engine/OpenRA.Test/OpenRA.Test.csproj -c Debug -nologo -warnaserror -p:TargetPlatform=$(TARGETPLATFORM) -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true
 endif
 endif
 	@echo "Checking for explicit interface violations..."

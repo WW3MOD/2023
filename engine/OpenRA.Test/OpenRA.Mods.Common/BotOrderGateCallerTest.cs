@@ -62,7 +62,7 @@ namespace OpenRA.Test
 			=> new() { new BotOrderTarget(id, objective, busy) };
 
 		/// <summary>A miniature of the shipped order-then-cache shape: dedup on the remembered
-		/// destination, issue, then advance the memory. <paramref name="honourRefusal"/> switches between
+		/// destination, issue, then advance the memory. <c>honourRefusal</c> switches between
 		/// the fixed caller and the defective one the review found.</summary>
 		sealed class ModelCaller
 		{

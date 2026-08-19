@@ -301,7 +301,7 @@ namespace OpenRA.Test
 			// cell directly would always damp (the shipped-before-fix defect); the ring read must ignore the
 			// centre and see the surrounding +500 → boost. Every ring point sits ≥ radius from the centre, so
 			// the −800 centre is never sampled.
-			int Sampler(int x, int y) => x == 10 && y == 10 ? -800 : 500;
+			static int Sampler(int x, int y) => x == 10 && y == 10 ? -800 : 500;
 			var neighborhood = PoiOffenseMath.NeighborhoodControlScore(Sampler, 10, 10, RingRadius);
 			Assert.That(neighborhood, Is.EqualTo(500), "centre excluded → reads the surrounding +500, not the anchor floor");
 			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(neighborhood, GrayBand, BopBoost, BopDamp),
@@ -313,7 +313,7 @@ namespace OpenRA.Test
 		{
 			// A target whose surrounding territory is uniformly believed-enemy (−600) → damp, even though
 			// the centre anchor is not sampled. This is the correct "don't lunge into strength" behaviour.
-			int Sampler(int x, int y) => -600;
+			static int Sampler(int x, int y) => -600;
 			var neighborhood = PoiOffenseMath.NeighborhoodControlScore(Sampler, 10, 10, RingRadius);
 			Assert.That(neighborhood, Is.EqualTo(-600));
 			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(neighborhood, GrayBand, BopBoost, BopDamp), Is.EqualTo(BopDamp));
@@ -324,7 +324,7 @@ namespace OpenRA.Test
 		{
 			// Surrounding balance near zero (a genuine contested front, not an artefact of the centre anchor)
 			// → neutral. Mixed +100/−100 ring averages inside the gray band.
-			int Sampler(int x, int y) => (x + y) % 2 == 0 ? 100 : -100;
+			static int Sampler(int x, int y) => (x + y) % 2 == 0 ? 100 : -100;
 			var neighborhood = PoiOffenseMath.NeighborhoodControlScore(Sampler, 10, 10, RingRadius);
 			Assert.That(PoiOffenseMath.BalanceOfPowerFactor(neighborhood, GrayBand, BopBoost, BopDamp), Is.EqualTo(100));
 		}

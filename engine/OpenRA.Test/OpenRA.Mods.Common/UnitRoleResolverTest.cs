@@ -79,20 +79,20 @@ namespace OpenRA.Test
 			("t90",           Facts(mobile: true, speed: 90, armed: true, targetsEnemy: true, maxRangeCells: 24, maxMinRangeUnits: 1536), UnitRole.MainBattle),
 
 			// Aircraft split via AIHelicopterRole (Scout -> Recon, armed).
-			("littlebird",    Facts(aircraft: true, armed: true, heliRole: true, heli: HelicopterAIRole.Scout), UnitRole.Recon),
+			("littlebird",    Facts(armed: true, aircraft: true, heliRole: true, heli: HelicopterAIRole.Scout), UnitRole.Recon),
 
 			// --- Phase-4b air consumer coverage ---
 			// Fixed-wing strike: aircraft + armament, NO AIHelicopterRole -> AttackAir. The experimental
 			// fixed-wing SquadManager selects its Air squad from these (Buildable AttackAir, non-heli).
-			("a10",           Facts(aircraft: true, armed: true), UnitRole.AttackAir),
-			("f16",           Facts(aircraft: true, armed: true), UnitRole.AttackAir),
-			("mig",           Facts(aircraft: true, armed: true), UnitRole.AttackAir),
-			("frog",          Facts(aircraft: true, armed: true), UnitRole.AttackAir),
+			("a10",           Facts(armed: true, aircraft: true), UnitRole.AttackAir),
+			("f16",           Facts(armed: true, aircraft: true), UnitRole.AttackAir),
+			("mig",           Facts(armed: true, aircraft: true), UnitRole.AttackAir),
+			("frog",          Facts(armed: true, aircraft: true), UnitRole.AttackAir),
 			// Attack helicopter maps AttackHeavy -> AttackAir; it carries AIHelicopterRole, so the air gate
 			// below excludes it by trait (owned by HelicopterSquadBotModule, never the fixed-wing manager).
-			("hind",          Facts(aircraft: true, armed: true, heliRole: true, heli: HelicopterAIRole.AttackHeavy), UnitRole.AttackAir),
+			("hind",          Facts(armed: true, aircraft: true, heliRole: true, heli: HelicopterAIRole.AttackHeavy), UnitRole.AttackAir),
 			// Transport helicopter: no armament, has Cargo, Transport role -> TransportLift.
-			("halo",          Facts(aircraft: true, cargo: true, heliRole: true, heli: HelicopterAIRole.Transport), UnitRole.TransportLift),
+			("halo",          Facts(cargo: true, aircraft: true, heliRole: true, heli: HelicopterAIRole.Transport), UnitRole.TransportLift),
 
 			// --- Phase-4 consumer coverage: the LayeredDefence / PoiOffensive / PoiGarrison roster ---
 			// Line + screen infantry (base Mobile.Speed 25, direct-fire, no MinRange) -> MainBattle.
@@ -352,7 +352,7 @@ namespace OpenRA.Test
 			var antiVehicle = new[] { UnitRole.MainBattle, UnitRole.IndirectFire };
 			var antiInfantry = new[] { UnitRole.MainBattle, UnitRole.IndirectFire, UnitRole.Recon };
 
-			UnitRole R(UnitRoleFacts f) => UnitRoleResolver.Classify(f, Defaults);
+			static UnitRole R(UnitRoleFacts f) => UnitRoleResolver.Classify(f, Defaults);
 
 			// Representative pool members (facts mirror the ww3mod stats used elsewhere in this file).
 			var shorad = R(Facts(mobile: true, speed: 120, armed: true, targetsEnemy: true, airWeapon: true, maxRangeCells: 28, cargo: true)); // strykershorad

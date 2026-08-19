@@ -3,6 +3,18 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-19: [low] OPEN, NOT FIXED — a stray Italian phrase sits in the root `.editorconfig` analyzer block (found while: auditing the `make check` analyzer gate, branch `wt/build-gate`, `main @ 08b255f7`)
+
+`.editorconfig:167` reads `pagare qui sotto` — an accidental paste, landed in `c6b0232f` (2025-04-22,
+commit message `1`), sitting between the `RCS1080` and `RCS1170` severity settings.
+
+**Almost certainly harmless, which is the only reason it is filed rather than fixed.** The
+EditorConfig spec says parsers ignore lines that are not a section header, comment or `key = value`
+pair, and the analyzer severities around it demonstrably still apply (`make check` enforces the
+`RCS*` rules on both sides of it). Left alone here because this branch's remit was the gate itself
+and deleting a line from a shared config is not free of the risk that *some* reader is stricter than
+the spec. A one-line deletion is the whole fix if someone wants it; there is nothing to preserve.
+
 ## 2026-08-17: [medium] OPEN, DIAGNOSED NOT FIXED — `Linux (mono)` CI has not compiled since 2026-08-11: `Convert.ToHexString` is net5.0+ and the mono lane targets netstandard2.1 (found while: CI reporting-integrity audit, branch `wt/ci-integrity`, `main @ 8656bd3c`)
 
 **Three call sites, one API.** `engine/OpenRA.Game/Network/BuildFingerprint.cs:246,308` and

@@ -197,8 +197,8 @@ namespace OpenRA.Test
 				var danger = eval * 2;                    // 0..38, below the 40 floor
 				var strength = eval < 10 ? 6 : 4;         // loses two, still above half of 6
 
-				if (ShouldReassign(committedScore: score, bestAlternativeScore: rival,
-					commitDanger: 0, currentDanger: danger, commitStrength: 6, currentStrength: strength))
+				if (ShouldReassign(commitDanger: 0, currentDanger: danger,
+					committedScore: score, bestAlternativeScore: rival, commitStrength: 6, currentStrength: strength))
 					releases++;
 			}
 

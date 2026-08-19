@@ -1,0 +1,15 @@
+# Scoped to OpenRA.Test. Everything in engine/.editorconfig still applies here; this file only
+# subtracts the one rule below, so the test project is otherwise held to the full engine bar.
+
+[*.cs]
+
+# RCS1226: Add paragraph to documentation comment.
+#
+# The fixtures carry long multi-paragraph <summary> blocks recording which regression each test
+# guards and the file:line the behaviour lives at, and Roslynator wants every blank line inside a
+# summary wrapped in <para>. That is a rule about generated API documentation: OpenRA.Test sets
+# IsPublishable=false and nothing consumes its XML, so the tags would buy nothing and cost the
+# readability of the rationale. Engine code never trips this only because it has no multi-paragraph
+# summaries anywhere (zero <para> tags across the entire engine), so there is no house style to
+# match here either.
+dotnet_diagnostic.RCS1226.severity = none

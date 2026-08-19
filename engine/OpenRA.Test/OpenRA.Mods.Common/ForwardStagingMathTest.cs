@@ -104,7 +104,7 @@ namespace OpenRA.Test
 			// slow-moving field does not "miss once" — it re-derives the identical bad answer forever.
 			//
 			// Reverting the passability filter puts this back at (3,0) and turns the assertion red.
-			bool Passable(int gx, int gy) => !(gx == 3 && gy == 0);
+			static bool Passable(int gx, int gy) => !(gx == 3 && gy == 0);
 
 			var cell = ForwardStagingMath.StagingCell(10, 0, standoffCells: 3, dangerSafeThreshold: 40, maxSteps: 20,
 				FrontierByX, NoDanger, BigGrid, Passable);
@@ -123,7 +123,7 @@ namespace OpenRA.Test
 			// descent is therefore actively ATTRACTED to water and cliffs. That is what makes this a systematic
 			// failure rather than a rare accident: here the whole forward column x<=4 is impassable but quiet,
 			// while the passable route is merely un-hot. The walk must hold on passable ground at x=5.
-			bool Passable(int gx, int gy) => gx > 4;
+			static bool Passable(int gx, int gy) => gx > 4;
 
 			var cell = ForwardStagingMath.StagingCell(10, 0, standoffCells: 1, dangerSafeThreshold: 40, maxSteps: 20,
 				FrontierByX, NoDanger, BigGrid, Passable);

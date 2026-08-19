@@ -185,7 +185,7 @@ namespace OpenRA.Test
 		public void AnyOnLineDetectsAWaterCrossingAndExcludesEndpoints()
 		{
 			// Water is a vertical strip at x==5, y in [3,7].
-			bool Water(int x, int y) => x == 5 && y >= 3 && y <= 7;
+			static bool Water(int x, int y) => x == 5 && y >= 3 && y <= 7;
 
 			Assert.Multiple(() =>
 			{
