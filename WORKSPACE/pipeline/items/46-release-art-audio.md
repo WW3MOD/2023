@@ -1,6 +1,20 @@
 ### 46. Release artwork and audio — the four asset slots that are still empty or still somebody else's
 
-> ⚠️ **PREMISE CHECK 2026-08-19 (`main @ de78a1ed`) — TWO OF FOUR SLOTS CONFIRMED STILL OPEN, ONE NEEDS A DIFFERENT CHECK. **Still open, verified:** `mods/ww3mod/icon.png` is md5-identical to stock RA (`e9b6dc3d42d3f3e28d2747c69a1dd412`), and `bits/sounds/music/` still contains only `journey.aud`. **Needs a pixel check, not a file check:** `loadscreen.png`, `-2x` and `-3x` all now EXIST in `uibits/`, but this finding's claim is about their *content* (0/65536 non-transparent pixels in the logo rect), which a directory listing cannot settle. The Russian-cameo slot was not re-checked.**
+> ❌ **VERDICT 2026-08-19 (`main @ 5890b053`) — NOTHING HAS CLOSED. Every slot re-verified open; one is worse than filed; one cannot be settled in-repo.**
+>
+> **Load screen logo — STILL OPEN, and settled at PIXEL level, which is what the flag correctly said a directory listing could not do.** All three files exist and all three are RGBA 8-bit; decoded directly (PIL is not installed on this machine, so the PNGs were zlib-decoded by hand):
+> - `loadscreen.png` — 512×256, left half **0 / 65536** non-transparent. Right half fully opaque.
+> - `loadscreen-2x.png` — 1024×512, left half **0 / 262144**.
+> - `loadscreen-3x.png` — 2048×1024, 97,152 non-transparent pixels **but bounded to x 771–1023, y 195–578** — a solid 253×384 block hard against the mid-seam, i.e. **spillover from the right-half art, not a logo**, and outside the specified left-768×768 logo area entirely.
+> **`1218bd90` "Loadscreen, removed logo for now" is still the last logo touch.** The finding stands exactly as written; the files existing was never the claim.
+>
+> **Russian infantry cameos — STILL OPEN, AND WORSE THAN FILED.** The finding names `e3russiaicon.shp`. **All 15 `*russiaicon.shp` files in `mods/ww3mod/bits/misc/icons/` are md5-identical to their America twins — zero of them differ**: aa, ar, at, e1, e2, e3, e4, e6, medi, mt, sf, sn, spy, tecn, tl. (`e3russiaicon.shp` = `e3americaicon.shp` = `9b7f3745f2adc609b604f4e02cf84485`.) `dr` still has no Russian file at all, as recorded. **The "15 units are pure file swaps" estimate below is confirmed as the true scope, not an upper bound.**
+>
+> **Mod-chooser icon — STILL OPEN**, as flagged: `mods/ww3mod/icon.png` md5-identical to `engine/mods/ra/icon.png` (`e9b6dc3d42d3f3e28d2747c69a1dd412`).
+>
+> **Music — STILL OPEN**, as flagged: `bits/sounds/music/` contains only `journey.aud`.
+>
+> **Installer / exe icon set — CANNOT SETTLE IN-REPO, and this is the honest state rather than an assumption.** All nine sizes exist in `packaging/artwork/`, but **there is no OpenRA SDK copy in this tree to diff against** (`find engine -path "*artwork*" -name "icon_*.png"` returns nothing), and the only commits touching that directory (`80919776`, `282bc829`) are generic packaging work with no art change. The evidence is *consistent* with "still the SDK 'Ex' placeholder" but does not prove it. **What settles it, neither needing a launch:** md5 against a fresh `OpenRAModSDK` checkout's `packaging/artwork/`, or simply viewing `icon_256x256.png` multimodally.
 
 **Perceived:** the game stops looking like a mod of another game at every point before the battlefield. Today startup shows a **gray bar with an empty hole** where the logo should be, the installer ships a black "Ex" on white, the mod chooser shows **stock Red Alert's icon**, Russian infantry use **American cameos**, and a stock install plays **exactly one music track on infinite loop**.
 _Source: [`closeout/art-6cde8456.md`](../../closeout/art-6cde8456.md) §1. All of it is **user-side art/audio production** — the tooling and the wiring are done and merged (`2c110a67` `tools/cameo`, `2f31404e` Ogg enabled, `4836ceed` shipped text). Frames the remaining half of queue item **39**._

@@ -1,6 +1,18 @@
-### 54. Carried defects and hygiene — found, recorded, unowned **[PARTIAL — two of eight lines are DONE (`25396a33`); the rest verified untouched 2026-08-13]**
+### 54. Carried defects and hygiene — found, recorded, unowned **[RE-SCOPED 2026-08-19 — only TWO lines survive]**
 
-> ⚠️ **PREMISE CHECK 2026-08-19 (`main @ de78a1ed`) — ONE STILL-OPEN LINE IS DEAD. **`TEMPmt.txt` is no longer in the repo root** — the entry below says "still in the repo root, still untracked" and instructs that it is safe to delete only on the user's say-so. It is gone; nothing is owed. The other still-open lines were not re-checked.**
+> ✅ **VERDICT 2026-08-19 (`main @ 5890b053`) — every line re-checked, not just the flagged one. Four are dead or done; two remain.**
+>
+> **DEAD — `TEMPmt.txt`.** Not in the worktree root, and `git log --all --diff-filter=D` shows it was **never tracked** — it was an untracked stray. **The instruction below that it "is safe to delete only if the user says so" is discharged: there is nothing to delete and no decision to ask for.**
+>
+> **DEAD — the two desynced-game replays.** Confirmed unrecoverable: 1,398 replays under `~/Library/Application Support/OpenRA/Replays/ww3mod/release-20230225/`, 107 of them from 2026-08-11, and neither `…T170129Z.orarep` nor `…T170300Z.orarep` survives; no file from that date matches the recorded 108 KB / 76 KB sizes. Nearest neighbours are `T170009Z` and `T170229Z`. **The "preserve them" line is discharged by impossibility — the standing lesson (copy replays out IMMEDIATELY, do not file a note to do it later) is the part that survives, and it is why this matters.**
+>
+> **DONE — the `river-zeta` map edits.** Landed at `8343900b` *"river-zeta: fine-tuning pass on terrain and prop placement"*, plus `097738f4` re-cordon. `mods/ww3mod/maps/` is clean.
+>
+> **⚠️ STALE, BOTH CLAUSES — the `exp-terr-bias` line.** It says the branch is *"confirmed still the ONLY branch `--no-merged main`"* and *"still needing the `Passenger.cs:187` fix rebased in before any future run"*. **Neither holds.** `git branch --no-merged main` now returns **six** — `auto/preserved-wip-260520`, `auto/saved-game-load`, `mac-autoburn-260521-unpushed`, `wt/curation`, `wt/lint-clear`, `wt/passenger-row` — and `exp-terr-bias` **has no local branch at all**; it survives only as `origin/exp-terr-bias` (alongside `origin/wt/shellmap-session` and `origin/xavi`, also unmerged). **And the Passenger fix is now on `main`**: the dead/FrozenActor guard sits at `Passenger.cs:194`, landed `cb9d54c7`. Anyone branching off `main` today already has it.
+>
+> **STILL OPEN — the husk that may smoke indefinitely.** Untraced, and nothing has looked at it: `TrailWhileStationary: true` appears 17× in `mods/ww3mod/rules/husks/husks-aircraft.yaml` (`:52,60,82,90,112,120,146,172,261,315,370,405,481,532,587,626,663`); last touch is still `f2468743`; `FallsToEarth.cs` has no commit since the upstream merge `c5bb5ece`. No commit or WORKSPACE note addresses reachability.
+>
+> **STILL OPEN — the per-frame cost of sync reporting.** Still unmeasured. `PerfSample("sync_report")` exists at `engine/OpenRA.Game/Network/OrderManager.cs:348`; the only other mentions repo-wide are the two documents that filed it. **Needs a real game, so it stays user-side** — read it out of `perf.log` after any real match rather than spending a dedicated run.
 
 _**RECONCILED 2026-08-13 against `main @ dc899995`.**_
 _**DONE — `SpawnStartingUnits` `CPos.Zero` sentinel**, fixed at `e00b9f72` (merged `25396a33`). Switched to `List.FindIndex`, where −1 cannot collide with any legal cell. Worth keeping the reachability note: **8 of 9 ww3mod maps declare `Bounds` at 0,0**, so `Map.Contains(CPos.Zero)` is true and `FindTilesInAnnulus` can yield the origin — but **no current map triggers it** (the nearest spawn, `woodland-warfare-ww3` at 1,4, puts the origin at ceiling-Euclidean distance 5, just inside the `InnerSupportRadius+1` = 6 hole). Latent today; fires on the first map placing a spawn ~6 cells out. Deterministic either way, **so this was never a sync hazard** — do not cite it in item 42._

@@ -1,6 +1,16 @@
 ### 45. Missile system — ground-truth audit → agreed spec → staged repair **[LARGELY DONE. The Javelin loop sub-item is PARKED BY USER RULING 2026-08-14 pending a video capture — do NOT re-dispatch it.]**
 
-> ⚠️ **PREMISE CHECK 2026-08-19 (`main @ de78a1ed`) — ONE OF THE TWO "STILL OPEN" DELIVERABLES NOW EXISTS. This item's *Still open* paragraph says "`DOCS/reference/missiles.md`, which still does not exist" — **it exists, 11,500 bytes.** The per-weapon-class miss-detonation rule was not checked and is presumed still open. The Javelin park (user ruling, needs video) is unaffected.**
+> ✅ **VERDICT 2026-08-19 (`main @ 5890b053`) — BOTH "still open" deliverables are DISCHARGED. The item does not close: the spec names its own successor question.**
+>
+> **The flag checked one and presumed the other. Both are done.** `DOCS/reference/missiles.md` exists (11,500 bytes, `85d146c8` *"missiles: commit the agreed intent spec (it has been referenced while untracked)"*). **And the per-weapon-class miss-detonation rule — the deliverable this item said was outstanding — is written**: §2 defines the class taxonomy (SACLOS wire-guided / fire-and-forget / top-attack / anti-air / cruise-strategic) and §3 states the rule per class, marked *"Agreed 2026-08-13"*. The three ground classes self-destruct at closest approach; **AA flies on to fuel-out**, which is the user's explicit exemption.
+>
+> **⚠️ But it is a SPEC, not an implementation.** `85d146c8` commits intent. Nothing here establishes that the shipped code obeys §3 — and the document's own framing says the opposite is expected: *"where the shipped code disagrees with this document, the code is wrong."*
+>
+> **THE NEW OPEN QUESTION, named by §3 itself and worth carrying as this item's remaining scope.** The miss test now runs on **physical** 3D separation (fixed at `1ec6f17c`, after the shipped code was found testing a *lead-inflated* distance against a *physical* constant — 38 of 44 traced latches fired while the missile was still physically closing). **That fix exposed a latent defect it had been masking:** the *detonation* test still measures to the aim point (`targetPosition + leadTarget + offset`), so the two are no longer commensurable. Nothing bounds `offset` by `CloseEnough`, and **`ATGM` rolls `Inaccuracy: 512` against the default `CloseEnough: 298` — so a missile can sit physically inside the proximity radius without fusing.** The doc marks this *"Open, not yet decided"* and warns it **changes when every missile in the game detonates, so it needs its own measurement.**
+>
+> **Also recorded in §3 and easy to re-derive wrongly: the anti-air exemption is about DISPOSAL only, never reacquisition.** An earlier draft said an AA missile "may reacquire"; that was an over-reading of the user's wording, which grants continued *flight*, not renewed *homing*. **I2b overrides it and is fleet-wide with no exceptions.**
+>
+> **The Javelin park is untouched by any of this** — still user-ruled, still needs a video recording. Do not reopen it.
 
 _**RECONCILED 2026-08-14 against `main @ f0f058ea`. THE 2026-08-13 BLOCK BELOW IS SUPERSEDED — read this first and ignore its "nothing has landed" / "get answers to the three design questions" / "`wt/missile-trace` exists" claims, all three of which are now false.**_
 
