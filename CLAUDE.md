@@ -15,9 +15,18 @@ WW3MOD is a **total conversion** of OpenRA Red Alert (`release-20230225`, engine
 
 ## Build & Run
 
+**Prerequisite: a `6.0.4xx` .NET SDK must be installed.** `global.json` pins `6.0.428` with
+`rollForward: latestFeature`, which **cannot cross a major version** — a machine carrying only 8.x/10.x
+fails every project with *"A compatible .NET SDK was not found"*, and a 6.0.1xx band is rejected too.
+`winget install Microsoft.DotNet.SDK.6` on Windows, else <https://dotnet.microsoft.com/download/dotnet/6.0>.
+Side-by-side installation is safe; the pin governs which SDK *compiles*, not which runtime executes.
+.NET 6 is EOL and this is a deliberate tradeoff for analyzer determinism between CI and `make check` —
+reasoning in commit `e4453e6b`; read it before proposing a bump.
+
 ```bash
 ./make.ps1 all          # Windows build (targets net6, runs on .NET 8+); `make all` on Linux/macOS
-./launch-game.sh        # run (launch-game.cmd on Windows); auto-builds first
+./launch-game.cmd       # Windows: builds, then runs (aborts without launching if the build fails)
+./launch-game.sh        # Linux/macOS: runs an ALREADY-BUILT tree; does NOT build first
 make test               # YAML validation (needs .NET 6 runtime specifically). Fails on lint errors that
                         # are NOT in mods/ww3mod/lint-baseline.txt — and also when a recorded one stops
                         # occurring, because you fixed something and the floor must drop with it:

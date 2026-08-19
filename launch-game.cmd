@@ -1,4 +1,5 @@
 @powershell -NoProfile -ExecutionPolicy Bypass -File make.ps1 %* all
+@if errorlevel 1 goto buildfailed
 
 @echo off
 setlocal EnableDelayedExpansion
@@ -26,6 +27,20 @@ cd %TEMPLATE_DIR%
 
 if %ERROR% neq 0 goto crashdialog
 exit /b
+
+:buildfailed
+@rem Reached by the line-2 goto, which jumps over this script's `@echo off`, so set it here
+@rem or every line below is printed twice.
+@echo off
+echo.
+echo ----------------------------------------
+echo Build failed - not launching.
+echo The build messages above are the real error. Launching now would run the
+echo game on stale binaries from an older build, which reports itself as an
+echo unrelated "Cannot locate type" trait error and hides the actual cause.
+echo ----------------------------------------
+pause
+exit /b 1
 
 :noengine
 echo Required engine files not found.

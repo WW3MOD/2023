@@ -33,7 +33,7 @@ For the latest development build, clone the repo and run the launcher — it bui
 | --------------------- | --------------------- |
 | `launch-game.cmd`     | `./launch-game.sh`    |
 
-.NET 8 or later is required.
+Running the game needs a .NET 8 or later **runtime**. Building it needs a specific **SDK** — see below.
 
 ## Build from source
 
@@ -44,6 +44,26 @@ make all
 # Windows (PowerShell)
 ./make.ps1 all
 ```
+
+### Prerequisite: a 6.0.4xx .NET SDK
+
+`global.json` pins the SDK to `6.0.428` with `rollForward: latestFeature`. **A newer SDK will not do**:
+`latestFeature` cannot roll forward across a major version, so a machine carrying only 8.x or 10.x fails
+to build every project with *"A compatible .NET SDK was not found"*. It must be a **6.0.4xx** band — a
+6.0.1xx SDK is also rejected.
+
+```powershell
+winget install Microsoft.DotNet.SDK.6     # Windows
+```
+
+Or download from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/6.0). Installing
+side by side is safe and leaves an existing 8.x or 10.x SDK untouched — the pin only decides which SDK
+*compiles*, not which runtime executes.
+
+.NET 6 is end-of-life, and depending on it is a deliberate tradeoff, not an oversight: the pin is what
+makes CI and a local `make check` run the identical analyzer set, so the code-style gate cannot go red
+for reasons unrelated to any commit. The full reasoning is in commit `e4453e6b` — read it before
+proposing a bump.
 
 The solution file is `WW3MOD.sln`. The OpenRA engine lives in-repo under `engine/` (forked from `release-20230225`); there is no submodule and `AUTOMATIC_ENGINE_MANAGEMENT` is disabled.
 

@@ -32,7 +32,7 @@
 #   make check-sdk-scripts
 #   make check-packaging-scripts
 
-.PHONY: check-sdk-scripts check-packaging-scripts check-variables engine all clean version check-scripts check test nav-guard
+.PHONY: check-sdk-scripts check-packaging-scripts check-variables check-dotnet-sdk engine all clean version check-scripts check test nav-guard
 .DEFAULT_GOAL := all
 
 PYTHON = $(shell command -v python3 2> /dev/null)
@@ -47,6 +47,9 @@ VERSION = $(shell git name-rev --name-only --tags --no-undefined HEAD 2>/dev/nul
 MOD_ID = $(shell cat user.config mod.config 2> /dev/null | awk -F= '/MOD_ID/ { print $$2; exit }')
 ENGINE_DIRECTORY = $(shell cat user.config mod.config 2> /dev/null | awk -F= '/ENGINE_DIRECTORY/ { print $$2; exit }')
 MOD_SEARCH_PATHS = "$(shell $(PYTHON) -c "import os; print(os.path.realpath('.'))")/mods,./mods"
+
+SDK_PIN = $(shell awk -F'"' '/"version"/ { print $$4; exit }' global.json 2>/dev/null)
+SDK_BAND = $(shell echo "$(SDK_PIN)" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]).*/\1xx/')
 
 MANIFEST_PATH = "mods/$(MOD_ID)/mod.yaml"
 HAS_LUAC = $(shell command -v luac 2> /dev/null)
@@ -150,18 +153,37 @@ check-variables:
 		exit 1; \
 	fi
 
+# The `dotnet` muxer being on PATH is not the same thing as the SDK global.json pins being
+# installed: rollForward=latestFeature cannot cross a major version, so a machine whose only SDK
+# is newer resolves `dotnet` fine and still cannot build a single project. Ask the muxer to
+# resolve the pin rather than reimplementing the rollForward rules here -- `dotnet --version`
+# honours global.json and fails with exactly the error a build would hit, so this cannot drift
+# away from what dotnet actually does. Runs before anything compiles so the one real cause is
+# not buried under a per-project wall of identical muxer errors.
+check-dotnet-sdk:
+	@$(DOTNET) --version >/dev/null 2>&1 || ( \
+		echo "No .NET SDK matching global.json is installed; it requires a $(SDK_BAND) SDK."; \
+		echo "A newer SDK is not a substitute: rollForward=latestFeature cannot cross a major version."; \
+		echo "Installed SDKs:"; \
+		$(DOTNET) --list-sdks; \
+		echo "Install from https://dotnet.microsoft.com/download/dotnet/ (side-by-side is safe)."; \
+		exit 1)
+
 engine: check-variables check-sdk-scripts
 	@./fetch-engine.sh || (printf "Unable to continue without engine files\n"; exit 1)
 	@cd $(ENGINE_DIRECTORY) && make RUNTIME=$(RUNTIME) TARGETPLATFORM=$(TARGETPLATFORM) all
 
-all: engine
+all: check-dotnet-sdk engine
 ifeq ($(RUNTIME), mono)
 	@command -v $(MSBUILD) >/dev/null || (echo "OpenRA requires the '$(MSBUILD)' tool provided by Mono >= 6.4."; exit 1)
 ifneq ("$(MOD_SOLUTION_FILES)","")
-	@find . -maxdepth 1 -name '*.sln' -exec $(MSBUILD) -t:Build -restore -p:Configuration=${CONFIGURATION} -p:TargetPlatform=$(TARGETPLATFORM) -p:Mono=true \;
+# NOT `find -exec`: find exits 0 whatever the command it ran returned, so a failed mod-solution
+# build reported success here and every consumer downstream believed it -- including the
+# launchers, which then started the game on stale binaries.
+	@set -e; for sln in $(MOD_SOLUTION_FILES); do $(MSBUILD) -t:Build -restore -p:Configuration=${CONFIGURATION} -p:TargetPlatform=$(TARGETPLATFORM) -p:Mono=true "$$sln"; done
 endif
 else
-	@find . -maxdepth 1 -name '*.sln' -exec $(DOTNET) build -c ${CONFIGURATION} -p:TargetPlatform=$(TARGETPLATFORM) \;
+	@set -e; for sln in $(MOD_SOLUTION_FILES); do $(DOTNET) build "$$sln" -c ${CONFIGURATION} -p:TargetPlatform=$(TARGETPLATFORM); done
 endif
 
 clean: engine

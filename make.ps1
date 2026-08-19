@@ -28,12 +28,15 @@ function All-Command
 
 	if ($lastexitcode -ne 0)
 	{
-		Write-Host "Build failed. If just the development tools failed to build, try installing Visual Studio. You may also still be able to run the game." -ForegroundColor Red
+		# Must exit, not just report. launch-game.cmd invokes this script and then launches
+		# unconditionally; with no non-zero exit it starts the game on whatever stale binaries
+		# are still in engine/bin, so the player sees a "Cannot locate type" trait error from
+		# the new YAML instead of the build failure that actually happened.
+		Write-Host "Build failed." -ForegroundColor Red
+		exit $lastexitcode
 	}
-	else
-	{
-		Write-Host "Build succeeded." -ForegroundColor Green
-	}
+
+	Write-Host "Build succeeded." -ForegroundColor Green
 }
 
 function Clean-Command
@@ -229,6 +232,49 @@ function CheckForDotnet
 	return 0
 }
 
+# The `dotnet` muxer being on PATH is not the same thing as the SDK global.json pins being
+# installed. The pin uses rollForward=latestFeature, which cannot cross a major version, so a
+# machine whose only SDK is newer (8.x, 10.x) passes CheckForDotnet and still cannot build a
+# single project. Ask the muxer to resolve the pin rather than reimplementing the rollForward
+# rules here: `dotnet --version` honours global.json and fails with exactly the error a build
+# would hit, so this check cannot drift away from what dotnet actually does.
+function CheckForDotnetSdk
+{
+	$null = & dotnet --version 2>&1
+	if ($lastexitcode -eq 0)
+	{
+		return 0
+	}
+
+	$pin = $null
+	if (Test-Path "global.json")
+	{
+		$pin = (Get-Content "global.json" -Raw | ConvertFrom-Json).sdk.version
+	}
+
+	if ($pin -match '^(\d+)\.(\d+)\.(\d)')
+	{
+		$band = "{0}.{1}.{2}xx" -f $matches[1], $matches[2], $matches[3]
+		$major = $matches[1]
+	}
+	else
+	{
+		$band = "the version named in global.json"
+		$major = "6"
+	}
+
+	Write-Host "No .NET SDK matching global.json is installed; it requires a $band SDK." -ForegroundColor Red
+	Write-Host "A newer SDK is not a substitute: rollForward=latestFeature cannot cross a major version." -ForegroundColor Red
+	Write-Host "Installed SDKs:" -ForegroundColor Red
+	# Out-Host, not a bare call: this function's contract is to return an int, and anything a
+	# native command leaves on the success stream would be returned alongside it.
+	& dotnet --list-sdks | Out-Host
+	Write-Host "Fix:  winget install Microsoft.DotNet.SDK.$major" -ForegroundColor Yellow
+	Write-Host "      or https://dotnet.microsoft.com/download/dotnet/$major.0" -ForegroundColor Yellow
+	Write-Host "Installing side-by-side is safe; it does not disturb your existing SDKs." -ForegroundColor Yellow
+	return 1
+}
+
 function WaitForInput
 {
 	Write-Host "Press enter to continue."
@@ -354,6 +400,14 @@ $env:ENGINE_DIR = ".." # Set to potentially be used by the Utility and different
 # Fetch the engine if required
 if ($command -eq "all" -or $command -eq "clean" -or $command -eq "check")
 {
+	# Pre-flight before anything compiles. An unsatisfiable global.json pin fails every
+	# project, so catching it here reports the one real cause instead of burying it under a
+	# per-project wall of identical muxer errors from the engine sub-build below.
+	if ((CheckForDotnet) -eq 1 -or (CheckForDotnetSdk) -eq 1)
+	{
+		exit 1
+	}
+
 	$versionFile = $env:ENGINE_DIRECTORY + "/VERSION"
 	$currentEngine = ""
 	if (Test-Path $versionFile)
@@ -371,9 +425,11 @@ if ($command -eq "all" -or $command -eq "clean" -or $command -eq "check")
 		Write-Host ""
 		cd $templateDir
 
-		# `check` is a CI gate, so a failed engine build has to stop us. Scoped to `check` on
-		# purpose: `all` keeps its softer "you may still be able to run the game" behaviour.
-		if (($command -eq "check") -and ($engineExitCode -ne 0))
+		# A failed engine build stops us for every command, not just the `check` CI gate. It
+		# used to be scoped to `check` so that `all` could keep a softer "you may still be able
+		# to run the game" posture -- but `all` is what launch-game.cmd runs, and that posture
+		# is precisely what launched the game on stale binaries.
+		if ($engineExitCode -ne 0)
 		{
 			exit $engineExitCode
 		}
