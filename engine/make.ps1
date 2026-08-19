@@ -15,12 +15,19 @@ function All-Command
 
 	if ($lastexitcode -ne 0)
 	{
-		Write-Host "Build failed. If just the development tools failed to build, try installing Visual Studio. You may also still be able to run the game." -ForegroundColor Red
+		# Must exit, not fall through. This is the ONLY build that covers Utility/Server/Cnc/
+		# D2k/Test -- WW3MOD.sln contains just OpenRA.Game and OpenRA.Mods.Common, while
+		# mods/ww3mod/mod.yaml also loads OpenRA.Mods.Cnc.dll at runtime. Falling through here
+		# returned 0 to the caller, so the mod-level build succeeded on its two projects, the
+		# launcher saw errorlevel 0, and the game started against a stale OpenRA.Mods.Cnc.dll.
+		# A mixed-version engine/bin is what surfaces as "Cannot locate type". Check-Command
+		# below already exits for exactly this reason; `all` needs it just as much, because
+		# `all` is what launch-game.cmd runs.
+		Write-Host "Build failed." -ForegroundColor Red
+		exit $lastexitcode
 	}
-	else
-	{
-		Write-Host "Build succeeded." -ForegroundColor Green
-	}
+
+	Write-Host "Build succeeded." -ForegroundColor Green
 
 	if (!(Test-Path "IP2LOCATION-LITE-DB1.IPV6.BIN.ZIP") -Or (((get-date) - (get-item "IP2LOCATION-LITE-DB1.IPV6.BIN.ZIP").LastWriteTime) -gt (new-timespan -days 30)))
 	{

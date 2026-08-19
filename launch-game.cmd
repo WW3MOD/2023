@@ -1,5 +1,8 @@
 @powershell -NoProfile -ExecutionPolicy Bypass -File make.ps1 %* all
-@if errorlevel 1 goto buildfailed
+@rem `if errorlevel 1` is a signed >= 1 test, so a powershell.exe that dies on an access
+@rem violation (-1073741819) would slip through it and launch on stale binaries. neq 0 is
+@rem airtight, and %errorlevel% expands at parse time so it works here, above `@echo off`.
+@if %errorlevel% neq 0 goto buildfailed
 
 @echo off
 setlocal EnableDelayedExpansion
