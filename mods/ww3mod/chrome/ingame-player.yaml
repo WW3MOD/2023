@@ -1209,13 +1209,13 @@ Container@PLAYER_WIDGETS:
 			Height: 60
 			Children:
 				DropDownButton@HPF_OVERLAY_LOCOMOTOR:
-					Y: PARENT_TOP
+					Y: 0
 					Width: PARENT_WIDTH
 					Height: 25
 					Text: Select Locomotor
 					Font: Regular
 				DropDownButton@HPF_OVERLAY_CHECK:
-					Y: PARENT_TOP + 35
+					Y: 35
 					Width: PARENT_WIDTH
 					Height: 25
 					Text: Select BlockedByActor

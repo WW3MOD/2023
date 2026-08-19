@@ -1836,3 +1836,18 @@ Two candidate fixes, both cheap, neither obviously right without a call from the
 
 Note the same frozen string is sent in the multiplayer handshake (`UnitOrders.cs:285`), so the version half of
 join validation is equally inert; there, `BuildFingerprint` at least logs a mismatch (`Server.cs:557-562`).
+
+## 2026-08-19 — `mods/ww3mod/chrome/garrison-panel.yaml` is a dead file (found on `wt/widget-symbols`)
+
+It defines `Container@GARRISON_PANEL` (`garrison-panel.yaml:1`) with `X: WINDOW_WIDTH - 240` /
+`Y: WINDOW_HEIGHT - 260`, but it is not listed in `mod.yaml`'s `ChromeLayout`, so it is never loaded. The
+panel the game actually shows is the identically-named container defined inline at
+`ingame-player.yaml:629`. Nothing reads the standalone file — the only other mention of the string
+`garrison-panel` in the tree is the file itself.
+
+Not fixed here because deleting it is a judgement call I could not verify by running the game this session:
+if it is someone's staging copy for an in-progress panel rework, deleting it destroys that. It is harmless
+where it sits (dead weight, not wrong behaviour). Worth deciding deliberately: either delete it, or add it
+to `ChromeLayout` and remove the inline copy so there is one definition. Note it is also unchecked by the
+unregistered-symbol lint for the same reason (see `DISCOVERIES.md`, 2026-08-19) — its two expressions happen
+to be valid today, but nothing would catch it if they stopped being.

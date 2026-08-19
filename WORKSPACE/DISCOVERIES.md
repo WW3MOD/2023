@@ -7265,3 +7265,27 @@ by the replay or save load paths at all.
 but not for the comforting reason. Nothing validates it, so nothing breaks visibly — old replays
 just quietly stop meaning what they say. Do not cite "replays would refuse to load" as a safety net;
 measure the claim at `ReplayUtils.cs:63` against `mod.yaml:3` first.
+
+## 2026-08-19 — the unregistered-symbol lint has a blind spot, and the unload menu's worst case is 24 classes not 16
+
+**A chrome layout file that is not in the manifest is invisible to the symbol lint, and to the game.**
+`CheckChromeIntegerExpressions.Run` (`CheckChromeIntegerExpressions.cs:65`) iterates
+`modData.Manifest.ChromeLayout` — so a `chrome/*.yaml` that nobody listed is never opened, and every
+expression in it is unchecked. Two such files exist today: `chrome/_lobby-palette.yaml` (deliberate — it is
+a colour reference cited only from comments, e.g. `LobbyActiveChangesLogic.cs:53`, and defines no widgets)
+and `chrome/garrison-panel.yaml`, which DOES define `Container@GARRISON_PANEL` (`garrison-panel.yaml:1`)
+and is dead: the live panel of that name is defined inline at `ingame-player.yaml:629`. So the silent-failure
+family has two members, and only one is guarded. Unknown symbol → widget at (0,0)-ish garbage: guarded since
+a72a88ba. Whole layout file never loaded: still unguarded, and reads exactly like working code.
+
+**`Cargo: Types: Infantry` admits 24 distinct unload-menu rows, not the 16 the code assumed.**
+`CargoUnloadMenuLogic` groups by `ISelectable.Class` falling back to the actor name
+(`CargoUnloadMenuLogic.cs:196-200`). Counting every actor that inherits a `Passenger` with
+`CargoType: Infantry` (the base is `infantry.yaml:85-86`) and resolving its `Class` through inheritance gives
+**24** distinct keys, not 16: the 16 combat classes plus `CivInfantry`, `Pilot`, and six separate
+`crew.{commander,driver,gunner}.{america,russia}` keys — ejected vehicle crews, which have no `Class` and so
+group under their own actor names. All 24 fit inside one 36-weight Chinook
+(`aircraft-america.yaml:72-73`), so the worst case is 24 rows x 23px = 552px, not the ~370px the old
+`MaxListHeight = 380` was sized for. The lesson that generalises: "how many classes are there" is not
+answerable from the infantry roster alone when the group key falls back to an actor name — every
+class-less passenger actor is its own row.
