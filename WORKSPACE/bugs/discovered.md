@@ -2100,3 +2100,21 @@ just replace one unverified figure with another.
 Whoever owns the economy (`DOCS/reference/economy.md`) should settle it and fix all three lines together.
 Flagging rather than guessing; the tick→second half of the same doc's errors *was* fixed on this branch
 (see `DISCOVERIES.md` 2026-08-19), so `capturing.md` is now internally consistent on delays but not on income.
+
+## 2026-08-19 — the SR defeat system line claims income is frozen; it is not [low]
+
+`SupplyRouteContestation.OnDefeatBarFull` (`engine/OpenRA.Mods.Common/Traits/SupplyRouteContestation.cs:417`)
+prints `"<player> has lost their Supply Route! Production and income frozen."` The trait's
+interface list (`:101-102`) is `ITick, ISelectionBar, IAlwaysVisibleBar, IProductionSpeedModifier,
+INotifyAddedToWorld, INotifyRemovedFromWorld, ISync` — no income hook — and the file contains no
+reference to `PlayerResources`, cash or income. So a passive player keeps accruing the passive
+income stream (`PlayerResources.cs:63-69`, 100 per 50 ticks) while being told it has stopped.
+
+Production really does halt, so only the second half of the sentence is wrong. Cheapest fix is to
+drop "and income" from the message. If the intent was that income *should* stop, that is a design
+change and a bigger one — note it would only matter in team games, since in a 1v1 the player is
+marked `Lost` in the same tick anyway (`HasActiveTeamSupplyRoute`, `:433`, is unconditionally
+false with no teammates).
+
+Found during the DISCOVERIES curation pass; docs-only branch, so not fixed here.
+Related: the public `IsPassive` accessor (`:186`) has zero call sites repo-wide.

@@ -1008,6 +1008,8 @@ spotted mark does), the fallback is what the capture exercises, not the render-p
 
 ## 2026-08-17 — A REDUNDANT TRAIT REMOVAL SILENTLY REVERTS THE MAP TO DEFAULT RULES, THEN DIES ELSEWHERE
 
+> **[promoted]** → `conventions.md` (curation 2026-08-19, verified against `de78a1ed`). And it **corrected a standing claim in the bank**: the doc said a `-Key:` mismatch surfaces "as a load-error dialog", which is true for mod rules and false for MAP rules — `Map.PostInit` catches, logs `Failed to load rules for <title>`, sets `InvalidCustomRules` and falls back to `Ruleset.LoadDefaultsForTileSet` (`Map.cs:540-547`). The map then dies later and elsewhere with a `KeyNotFoundException` on its own actor type (`:988`), which reads like a typo in the actor list and is not. The doc was pointing debuggers away from the one log line that names the real fault.
+
 `-SomeTrait:` on a node that does **not** actually carry the trait is a **hard error**, not a no-op:
 `There are no elements with key SomeTrait to remove`. The trap is that this is easy to author by accident — strip a
 trait from a base actor type, then strip it again on a derived type that `Inherits:` the already-stripped
@@ -1266,6 +1268,8 @@ comment saying why it must. Both rally paths (set and clear) travel as orders.
 
 ## 2026-08-17 — `InitialStance` IS SILENTLY IGNORED FOR A SCENARIO OPPONENT: NON-PLAYABLE READS `InitialStanceAI`
 
+> **[promoted]** → `conventions.md` (curation 2026-08-19, verified against `de78a1ed`). Re-verified at `AutoTarget.cs:497`: the selector is `self.Owner.IsBot || !self.Owner.Playable ? info.InitialStanceAI : info.InitialStance`, and the same disjunction repeats for engagement stance, cohesion and resupply behaviour (`:498-502`). So a non-playable scenario opponent takes the AI value even with no bot attached.
+
 Cost two autotest runs before it was found, and it fails **silently** — no lint error, no warning, no log
 line. `AutoTarget.cs:497`:
 
@@ -1340,6 +1344,8 @@ So any design that needs an exact level, or needs to warn about an imminent reca
 
 ## 2026-08-17 — AN ACTOR REMOVED FROM THE WORLD STILL RUNS ITS `ITick` TRAITS. ONLY ACTIVITIES STOP
 
+> **[rejected: already banked]** (curation 2026-08-19, verified against `de78a1ed`). Already at `conventions.md:179`; re-verified against `World.cs:499-502`, `TraitDictionary.cs:305-316` and `Actor.cs:469`. The claim holds — no second copy added.
+
 `World.Tick` has two separate loops (`World.cs:498-502`):
 
 ```csharp
@@ -1396,6 +1402,8 @@ declaration and at the firing loop.
 
 ## 2026-08-17 — `Class=Unknown` DOES NOT HIDE A MAP FOLDER FROM THE LINTER: `HasFlag(0)` IS ALWAYS TRUE
 
+> **[promoted]** → `conventions.md` (curation 2026-08-19, verified against `de78a1ed`). Re-verified: `MapPreview.cs:35` defines `Unknown = 0`, `MapCache.cs:194` tests `classification.HasFlag(packageClassification)`, and `HasFlag(0)` is unconditionally true. Default argument is `MapClassification.System` (`:212`).
+
 Found while re-cordoning the nine shipped maps. `mods/ww3mod/mod.yaml:105` registers
 `^EngineDir|../tools/autotest/scenarios` as `Unknown`, and the comment above it explains that
 `Class=Unknown` keeps the scenarios out of every UI tab. **It does not keep them out of `--check-yaml`.**
@@ -1421,6 +1429,8 @@ which is an upstream file — so the realistic options are to fix the scenario m
 linted content.
 
 ## 2026-08-17 — "A DUPLICATE TRAIT KEY DOES NOT THROW" IS TRUE FOR ONE SOURCE AND FALSE FOR TWO. A SECOND SOURCE NAMING THE ACTOR TURNS IT INTO A LOAD ERROR
+
+> **[rejected: already banked]** (curation 2026-08-19, verified against `de78a1ed`). Already the scope caveat at `conventions.md:85`; the `MiniYaml.cs:525-528` → `Exts.cs:442+` throw path re-verified.
 
 Two existing entries say a duplicate child key inside one actor merges last-value-wins at the first key's
 position and **does not throw** (`conventions.md` §"A duplicate trait key inside ONE actor", and the
@@ -1574,6 +1584,8 @@ stale binary and burned two clean rebuilds on it. The build was always fine. Whe
 no effect, prove the flag ARRIVED before blaming compilation, caching or the runtime.
 ## 2026-08-16 — HUMAN-vs-BOT GREEN: the last caveat on the saved-game fix is retired. Five greens, four seeds, both configurations
 
+> **[promoted — merged into the GREEN entry's correction above]** (curation 2026-08-19, verified against `de78a1ed`). This is the run that closes the configuration caveat carried through the whole investigation, and with it the last reason to describe restore determinism as open. Banked via the `architecture.md` correction, not as a separate claim.
+
 Replacement run for the one killed by a broken `dotnet` host (exit 137 / SIGKILL from a stale code-signature cache after an in-place runtime install — not a crash, not the scenario, not the product). Host repaired and verified (`dotnet --version` → `6.0.428`, exit 0) before spending the run; tree synced to `main @ cd60f3d0`, build clean, NUnit **1508/1508**.
 
 - **`test-savegame-resume-riverzeta-human` PASSES.** Runner exit 0 captured without a pipe, `status=pass`, `gameover=False`, `worldticks-since-resume=75`. Full probe path exercised: paused at tick 3000, `requesting save — paused=True` (so the order stream really ends with a Pause), restore returned `paused=True`, menu dismissed, then 75 world ticks of real progress. **No `syncreport-*` bearing this run's timestamp** — written only from `OutOfSync()` — so the restore passed its validating sync-hash comparison.
@@ -1680,6 +1692,8 @@ handicap is 0 — but it means "the evac refund" has no single definition in cod
 
 ## 2026-08-16 — BREADTH: the saved-game fix holds across FOUR seeds, but the human-vs-bot configuration is STILL untested — and that is the configuration players actually use
 
+> **[promoted — merged into the GREEN entry's correction above]** (curation 2026-08-19, verified against `de78a1ed`). Seed breadth is the evidence half; the banked claim is the corrected determinism statement in `architecture.md` §Saved games. The human-vs-bot NO-RESULT recorded here was superseded within the day by the run below it.
+
 Follow-up to the GREEN entry below. Four runs granted, serialised.
 
 - **Seed breadth: 4/4 green, so the fix is not seed-specific.** `test-savegame-resume-riverzeta` passes at `-324877760` (the original), `1017`, `-777333` and `20260816`. Every run: runner exit 0 captured without a pipe, `status=pass`, `gameover=False`, and real post-resume progress (`worldticks-since-resume` 140 / 75 / 140 / 81). Each verified non-vacuous the same way — ~120 `[exp-ambush]` lines per run proving the gated-ambusher mechanism was live rather than idle, and no `syncreport-*` bearing the run's timestamp (that file is written only from `OutOfSync()`). **The "one seed" caveat is retired.**
@@ -1688,6 +1702,8 @@ Follow-up to the GREEN entry below. Four runs granted, serialised.
 - **Also still open and unchanged: the reverse hazard.** The static audit bounded *bot mutates → synced reads*; it does not bound *synced code reading state that only bot ticks refresh*, and no detector exists for that shape. Four greens do not speak to it.
 
 ## 2026-08-16 — GREEN: `test-savegame-resume-riverzeta` PASSES for the first time. Ordering the ambush-gate condition closed the last known leak — and the gap that remains is now the most important open question about saved games
+
+> **[promoted — as the correction that retires a stale bank claim]** (curation 2026-08-19, verified against `de78a1ed`). This entry, with the seed-breadth and human-vs-bot entries above it, is the evidence that `architecture.md` §Saved games' line "as of 2026-08-12, WW3MOD's saved-game restore is not reliably deterministic at real-match scale" is now FALSE. Fix `61546a51`, then 4/4 seeds and both player configurations green; all commits confirmed ancestors of `de78a1ed`. Corrected in the bank in this pass. The run-by-run measurements stay here as the record.
 
 - **The result.** `status=pass`, runner exit 0, `worldticks-since-resume=140 gameover=False paused=False`. First pass in the scenario's history — it was RED on every prior run (3 lifetime before the first fix, and again after it).
 - **Verified the green is real, not a scenario that failed to fire** — the same discipline that caught the first false read on this bug. (a) The probe exercised the whole path: paused at tick 3000, `requesting save — paused=True` so the save's order stream really ends with a Pause, restore returned `paused=True`, menu dismissed, then 140 world ticks of progress. (b) **No `syncreport-*` bearing this run's timestamp.** That file is written only from `OutOfSync()`, so its absence is positive evidence the restore passed its single validating sync-hash comparison. (Two syncreports sit in the log dir named for 08-12 and the 20:37Z run; filename timestamps are authoritative because `cp` rewrites mtimes.) (c) **The mechanism was live**: `[exp-ambush]` posted lanes with units from tick 100, 128 log lines — the gate really was being granted, so the green is not vacuous.
@@ -2012,6 +2028,8 @@ Not fixed here — the harness is shared with every worker and the change belong
 
 ## 2026-08-16 — losing the Supply Route link IS elimination, not just a passive state
 
+> **[promoted]** → `supply-route.md` §Contestation to zero (curation 2026-08-19, verified against `de78a1ed`). Every anchor had drifted and was re-derived: `OnDefeatBarFull` `:409` (entry said `:354`), `HasActiveTeamSupplyRoute` `:433`, `ResolveTeamElimination` `:478`, `IsPassive` `:186` (entry said `:131`). The 1v1 sharpening is the promoted part — the doc already said elimination fires only with no other team SR, which is true but reads as though passivity is commonly survivable; with no teammates the scan is unconditionally false, so passive and `Lost` land in the same tick. **The entry's 'worth someone confirming' suspicion is CONFIRMED**: the trait's interface list (`:101-102`) carries no income hook and the file references neither `PlayerResources` nor cash, so the system line's "and income frozen" (`:417`) is wrong — filed in `WORKSPACE/bugs/discovered.md` rather than fixed, since this branch is docs-only. `IsPassive` having zero call sites also re-confirmed repo-wide.
+
 `SupplyRouteContestation.OnDefeatBarFull` (`engine/OpenRA.Mods.Common/Traits/SupplyRouteContestation.cs:354-376`)
 sets `isPassive = true` and freezes production — and then, at `:374-375`, calls
 `ResolveTeamElimination()` whenever `HasActiveTeamSupplyRoute()` is false. In a 1v1 there are no
@@ -2332,6 +2350,8 @@ predicate.
 
 ## 2026-08-15 — an actor with a HitShape but no `Targetable` SUPPRESSES the explosion and sound of any shell landing on it; only the effect warhead is gated, damage never was
 
+> **[promoted]** → `conventions.md` (curation 2026-08-19, verified against `de78a1ed`). **Promoted as the general rule, with its field instance marked spent.** The mechanism holds — one unlisted target type on the victim sets `anyInvalidActor` (`CreateEffectWarhead.cs:92`) and the early return at `:124-125` precedes `Game.Sound.Play` (`:155`), so the whole effect is suppressed rather than degraded. The specific in-game case was fixed by `db01b0ae`, which skips ground cover at `:82`; the carve-out is stated alongside the rule.
+
 Found on `wt/field-impact` from a live-play report that artillery shells landing on a field "vanish".
 
 *(All line refs below are POST-fix, i.e. against commit `db01b0ae`+ of this branch.)*
@@ -2426,6 +2446,8 @@ nothing. Its first execution came back FAIL — not because fields were missing,
 could not see them. A prediction confirmed on first contact; the guard paid for itself immediately.
 
 ## 2026-08-15 — a Lua API can be PHASE-DEPENDENT: `Map.ActorsInCircle` returns nothing when called from `WorldLoaded`, and the same mistake in setup code fails silently
+
+> **[promoted]** → `conventions.md` (curation 2026-08-19, verified against `de78a1ed`). Re-verified: the spatial bins are filled from `addActorPosition` (`ActorMap.cs:595`) and drained only in `TickFunction` (`:495`) off `ITick.Tick` (`:473`) — so nothing an actor placed during world load has been binned yet when `WorldLoaded` runs, and the query returns empty rather than erroring.
 
 Found on `wt/field-impact` when a brand-new setup assertion failed against a world that was fine.
 
@@ -2576,6 +2598,8 @@ Found verifying whether the bot could reclaim its own base after the c513f358 ev
 
 ## 2026-08-14 — don't hand-roll a MiniYaml inheritance resolver: `OpenRA.Utility --resolved-rules` already does it, and the hand-rolled version gets `-Trait:` removals wrong
 
+> **[promoted]** → `conventions.md` (curation 2026-08-19, verified against `de78a1ed`). Folded as a clause onto the doc's existing `--resolved-rules` bullet rather than added as a new one (one home per fact). The `-Trait:` removals the hand-rolled version got wrong are still present at `civilian.yaml:6-10`.
+
 The 2026-08-13 entry below recommends resolving inheritance "mechanically — a 40-line script". **Prefer the shipped tool.** `OutputResolvedRulesCommand` (`--resolved-rules ACTOR [MAP]`) prints the fully merged rules for an actor using the engine's own loader, so it cannot disagree with the game. On Windows it needs the environment the launcher scripts set up, which is why it looks broken if invoked directly:
 
 ```
@@ -2590,6 +2614,8 @@ Without `MOD_SEARCH_PATHS` it reports "The available mods are:" and an empty lis
 So: use `--resolved-rules`. If a bulk sweep really needs a script, cross-check its output against the utility on a spread of actors that includes at least one with an explicit removal — the removal cases are the only ones where the two can disagree.
 
 ## 2026-08-13 — resolving the Neutral player by `InternalName` is a silent-failure pattern; the world owner is guaranteed structurally
+
+> **[promoted]** → `conventions.md` (curation 2026-08-19, verified against `de78a1ed`). Re-verified: `CreateMapPlayers.cs:105-106` throws if no world owner is found and `World.cs:372-375` assigns `WorldActor.Owner`, so the world owner is structurally guaranteed where a name lookup is not. Both `FirstOrDefault` sites and `OwnerLostAction.cs:52`'s `.First(...)` are still live.
 
 Found while implementing evict-to-Neutral (`wt/neutralise-capture`). Three call sites look up the neutral player by matching `InternalName == "Neutral"`: `GarrisonManager.cs:227` (`DynamicOwnership`), `HeliEmergencyLanding.cs:354`, and `CaptureActor.cs` — the last **fixed** on that branch, the other two deliberately left alone.
 
@@ -2607,6 +2633,8 @@ Also from `wt/neutralise-capture`, where reading it as five would have shipped a
 Only `OILB`/`FCOM`/`BIO` carry `CashTrickler`, so "money structure" and "capturable" are wildly different sets. **Anything scoped as "affects capturable buildings" must be checked against the resolved inheritance graph, not against the five tech buildings named in the docs** — `DOCS/gameplay/capturing.md` said "five capturable tech buildings" and the original scoping note repeated it. Hand-tracing MiniYaml inheritance is what produced the wrong number both times; resolving it mechanically is a 40-line script and worth it whenever a template on `^BasicBuilding` is in play.
 
 ## 2026-08-13 — `IHitShape.PercentFromEdge` measured from the CENTRE, not the edge, and only two of its four implementations returned a percentage at all
+
+> **[promoted]** → `conventions.md` (curation 2026-08-19, verified against `de78a1ed`). **Promoted under its current name** — the method is now `CenterProximityPercent`, so the entry's symbol no longer exists and a future grep for it would have found nothing. The defect survives the rename: `Capsule.cs:92` and `Polygon.cs:110` still return raw world units rather than a percentage, consumed at `TargetDamageWarhead.cs:83`.
 
 Found while renaming the method to `CenterProximityPercent` (branch `wt/hitshape-rename`, off `12a0d194`). **No arithmetic was changed** — the rename is identifier-and-comment only. Full working, worked numbers and balance analysis: [`WORKSPACE/audit/hitshape-percent-semantics.md`](audit/hitshape-percent-semantics.md).
 
@@ -3661,6 +3689,8 @@ From `auto/unit-purpose` (base `5be3b98b`), acting on `WORKSPACE/recon/260808-un
 
 ## 2026-08-08 — two engine mechanisms that make "obvious" activity reasoning wrong: `SetCenterPosition` moves an actor WITHOUT moving its cell, and `Activity.Cancel` tests `IsInterruptible` on the PARENT, not the child
 
+> **[promoted]** → `conventions.md` (curation 2026-08-19, verified against `de78a1ed`). **Promoted with a correction — the entry over-generalised (README shape 1).** `SetCenterPosition` moving an actor without moving its cell is confirmed (`Mobile.cs:554` sets `CenterPosition` only; `SetLocation` is `:607`). But "a non-interruptible child can be silently orphaned by an interruptible parent" holds **only for `ChildHasPriority = false`** activities — nine classes. Under the default `true`, `TickOuter`'s `TickChild(self) && (finishing || Tick(self))` (`Activity.cs:125`) short-circuits and the parent's `Tick` is never reached until the child finishes, so the child is safe. The qualified version is what was banked.
+
 > **[PARTLY SUPERSEDED 2026-08-10 by the knowledge-bank audit entry at the top of this file.** The bullet below claiming *"every `CPos`-keyed consumer … is safe **by construction** rather than by guard"* is **UNSUPPORTED — it is a `Mobile`-only property asserted for all of `IOccupySpace`.** `Mobile.TopLeft => ToCell` (`Mobile.cs:297`) is indeed always in-bounds, but `Aircraft.TopLeft => self.World.Map.CellContaining(CenterPosition)` (`Aircraft.cs:263`), so an **aircraft's `Actor.Location` IS off-map whenever the aircraft is** — the engine relies on exactly that (`FlyOffMap.cs:116` terminates on `!Map.Contains(self.Location)`; `FiringLOS.cs:98-99` notes off-map actors are "routine"). The supporting enumeration is also mis-sorted: `GrantConditionOnTerrain` is listed as unguarded-but-safe when it has carried `if (!self.World.Map.Contains(cell)) return;` since 2023 (`GrantConditionOnTerrain.cs:49-50`), and three genuinely unguarded members remain (`DamagedByTerrain.cs:55`, `Cargo.cs:348`, `Parachutable.cs:105` — the last reached *because* its early-out at `:98` only fires for an enterable cell). No reachable off-map crash was found in the shipping ruleset, so this is an unproved generalisation, not a live defect. **Trust `conventions.md:124` instead** — it states the safe rule (`Map.GetTerrainInfo`/`GetTerrainIndex` are unguarded; `Contains`-guard or `Map.Clamp`).]**
 
 Found by adversarial review of `auto/evac-polish` (`bd3abacf..418e9c60`), which refuted two load-bearing comments I had written from design intent. Both generalise far past evacuation.
@@ -3720,6 +3750,8 @@ Building drop-and-leave (`auto/supply-drop`) after three review rounds of dampin
 - **A re-issue dedup keyed on "already dispatched" silently disables every retry the design was relying on.** Adding the dedup broke two self-correcting refusals (arrival on an occupied cell; a destination that became unreachable after issue), converting both from "retries next scan" into "parks forever" — a latch introduced by the fix for a stutter. **The repair is a responsive term, not a timeout: a unit that is IDLE while its errand's precondition still holds has finished that errand without effect, so the record is void.** `IsIdle` is the observable this codebase already uses for exactly that (`StepEvac`'s leg model uses it to notice a Move that never arrived). **Whenever you add suppression, enumerate what used to happen on the suppressed path and confirm each still happens.**
 
 ## 2026-08-08 — an unreachable destination does NOT fail loudly in OpenRA: the pathfinder returns no path, `Move` calls that "arrived", and any queued follow-on runs at the wrong cell
+
+> **[promoted]** → `conventions.md` (curation 2026-08-19, verified against `de78a1ed`). Chain re-verified end to end: `PathFinder.cs:99` returns `NoPath`; `Move.cs:173-177` then sets `destination = mobile.ToCell`, which `:169`'s `if (destination == mobile.ToCell) return true;` reads as arrival. The move-tolerance branch is separate, at `:267`.
 
 Found by adversarial review of the drop-and-leave errand, where the follow-on was "unload 750 supply". Worth recording on its own because the trap belongs to the engine, not to that feature, and any `MoveTo(cell)` → `CallFunc(do the thing)` chain inherits it.
 
@@ -3951,6 +3983,8 @@ Shipped `ForceCompositionMath` + `UnitBuilderBotModule.CompositionDirected` (def
 - **A counter-matrix keyed by ROLE must be expanded to TYPE columns at flatten time, or the bias silently self-disables.** The natural YAML shape is `"enemyclass>ownrole"`, but the vector the bias multiplies is the per-TYPE target-share array. `ForceCompositionMath.ApplyCounterBias` guards on `matrixPct.GetLength(1) == baseTargets.Length` and treats a mismatch as "no bias" (an inert identity pass) — which is the safe failure but an INVISIBLE one. Caught in review, not by a test: the module now expands `roleMatrix[class, role]` into `counterMatrix[class, typeSlot]` once in `Created` via the per-type role index. Worth a pin if more role-keyed config lands.
 
 ## 2026-08-04 — `ITick` traits KEEP FIRING for an actor removed from the world but not disposed — `IsInWorld` is not a tick gate (branch `auto/supply-hunt`)
+
+> **[merged into the 2026-08-17 `ITick` entry]** (curation 2026-08-19, verified against `de78a1ed`). Same fact, already banked at `conventions.md:179`.
 
 > **[promoted: → conventions.md §Engine behaviors that surprise, in full — every sub-claim re-verified against code, line drift only. `World.Tick`'s actor walk drives ACTIVITIES (`World.cs:499-500`); `ITick` traits go through `ApplyToActorsWithTraitTimed<ITick>` (`:502`) → `TraitDictionary.ApplyToAllTimed` (`TraitDictionary.cs:305-316`), a bare indexed walk with no `IsInWorld`/`Disposed` filter; `World.Remove` (`:398-405`) never touches the trait container; the actor leaves it only in `Actor.Dispose`'s frame-end task (`Actor.cs:469`); the reachable case is `Activities/PickupUnit.cs:174` (`World.Remove` with no `Dispose`). One refinement banked from verification: `SupplyProvider`'s guard is now in code at `:186` and is a *release-then-return* (`ReleaseTargetOnExit(); return;`), not a bare return — and it is specific to `ITick.Tick`; the same file deliberately leaves other paths unguarded so a condition revoke still runs while out of world.]** (curation 2026-08-06).
 
