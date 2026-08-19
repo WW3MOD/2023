@@ -2,7 +2,7 @@
 
 Each report has the same four sections: **§1** open work with a next concrete step, **§2** uncommitted or unmerged artifacts, **§3** questions put to the user that were never answered, **§4** knowledge that lived only in the session transcript. All nine validated their own claims against **`main` @ `35876332`**, and were committed together at `9d11d72f`.
 
-**Their open work is folded into [`../PIPELINE.md`](../PIPELINE.md) as queue items 42–54, and their unanswered questions into [`../AWAITING-USER.md`](../AWAITING-USER.md).** Those two files are the working queues; this directory is the evidence behind them. Read a report when you need the reasoning, the file:line specifics, or the caveat that a summary dropped.
+**Their open work is folded into [`../PIPELINE.md`](../PIPELINE.md) as queue items 42–54, and their unanswered questions into [`../AWAITING-USER.md`](../AWAITING-USER.md).** _(2026-08-19: the pipeline was split. Items 42–46, 48, 49, 53, 54 now have dossiers under [`../pipeline/items/`](../pipeline/items/); 47, 50, 51 and 52 are closed and live in [`../pipeline/archive/closed-items.md`](../pipeline/archive/closed-items.md).)_ Those two files are the working queues; this directory is the evidence behind them. Read a report when you need the reasoning, the file:line specifics, or the caveat that a summary dropped.
 
 **No report left uncommitted or unmerged work.** All nine §2 sections are "none" — every branch merged, every worktree removed. The one branch still `--no-merged main` is `exp-terr-bias`, which belonged to none of them (see `e929eb99`).
 

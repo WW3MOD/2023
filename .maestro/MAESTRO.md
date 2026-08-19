@@ -34,7 +34,7 @@ Deliberate experiment: larger per-worker batches vs one-item-per-worker, across 
 
 Orientation order for a fresh manager told "work the pipeline":
 
-1. `WORKSPACE/PIPELINE.md` — the ordered queue; top item = next to start. Items marked user-gated need explicit grants — never self-authorize.
+1. `WORKSPACE/PIPELINE.md` — the ordered queue; top item = next to start. Items marked user-gated need explicit grants — never self-authorize. **It holds stubs only and is meant to be read whole**; the dossier for a chosen item is `WORKSPACE/pipeline/items/<NN>-<slug>.md`, and finished work lives in `WORKSPACE/pipeline/archive/` ([map](../WORKSPACE/pipeline/README.md)). **Check an item's central premise with one `git log -S`/grep before dispatching** — stale items have twice cost a worker.
 2. `WORKSPACE/cases/README.md` — the scenario-case model: user-authored cases with ONE measurable bar each are the preferred unit of autonomous work. Iterate features/tuning until the case reads GREEN. Case files carry their own dependencies and status logs.
 3. `WORKSPACE/HOTBOARD.md` + `git log --oneline -20` — what just happened.
 4. The routing table in CLAUDE.md for anything a specific item touches.

@@ -181,7 +181,8 @@ re-baseline if shipped to everyone, per the split SPEC's governance rules.*
   not a one-shot feature.
 
 *Roadmap mapping (agent, same date): the aim-at-clumps half is already queued
-as the AoE-aware cluster-targeting item (`WORKSPACE/PIPELINE.md` item 14, shared
+as the AoE-aware cluster-targeting item (PIPELINE item 14 — shipped; see
+`WORKSPACE/pipeline/archive/shipped-log.md`, shared
 AutoTarget layer per §4); the fire-worthiness half — the ammo-EV gate and
 tube-vs-rocket differentiation — is queued as its own PIPELINE item beside it.
 Ammo costs live in the economy model (`DOCS/reference/economy.md`); the role

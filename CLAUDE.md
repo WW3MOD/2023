@@ -44,7 +44,8 @@ Pull only what your task needs. Indexes: [`DOCS/README.md`](DOCS/README.md), [`W
 | Economy / ammo / resupply | [`DOCS/reference/economy.md`](DOCS/reference/economy.md) |
 | Movement/blocking rules, locomotors, or map terrain & actor edits | [`tools/nav-guard/README.md`](tools/nav-guard/README.md) — run `make nav-guard` (static, no build). Fails if a map lost reachable ground; a blocking change can seal off a region nobody thinks to look at |
 | Current status, what's in flight | `WORKSPACE/RELEASE_V1.md` + `WORKSPACE/HOTBOARD.md` + `git log --oneline -20` |
-| What comes next, roadmap order | `WORKSPACE/PIPELINE.md` — living queue, top item = next to start |
+| What comes next, roadmap order | `WORKSPACE/PIPELINE.md` — living queue of **stubs only**, top item = next to start. Read it whole; it is short by design. The full dossier for the item you pick is `WORKSPACE/pipeline/items/<NN>-<slug>.md`, linked from its stub — **do not read the others.** Finished work, with its vocabulary rulings and traps intact, is under `WORKSPACE/pipeline/archive/` (map: [`WORKSPACE/pipeline/README.md`](WORKSPACE/pipeline/README.md)) |
+| Picking up ANY queue item | **Spend one `git log -S <symbol>` or one grep on the item's central premise before you start.** In the week to 2026-08-19, five queue items described already-merged work and two cost a worker dispatched at nothing. It costs seconds; it is the single most expensive recurring mistake in this project |
 | A user-typed trigger word (`PLAN`, `TRIAGE`, `FINALIZE`, …) | [`DOCS/recipes/README.md`](DOCS/recipes/README.md) — these are docs to read, NOT harness Skills; never call the `Skill` tool for them |
 
 Modes: RELEASE (default, scope-locked v1) vs EXPERIMENTAL — [`DOCS/modes/`](DOCS/modes/README.md).
