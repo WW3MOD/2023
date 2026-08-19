@@ -17,7 +17,7 @@ Placing a PITFALL where the broken *code* lives (rather than where the *temptati
 ## Format
 
 - Literal tag `PITFALL` (greppable). One line, WHY only — what breaks if you ignore it.
-- Link out for longer context: `// PITFALL: facing is counterclockwise — see DOCS/reference/architecture.md#wangle`.
+- Link out for longer context: `// PITFALL: facing is counterclockwise — see DOCS/reference/conventions.md#wangle`. *(Corrected 2026-08-19: this example pointed at `architecture.md#wangle`, which has never existed — the WAngle section is in `conventions.md`. A template's example gets copied verbatim into real comments, so a broken one propagates.)*
 - At the temptation line, not in a function header. Cap ~3 per file — more is a refactor signal.
 - Date when tied to an incident: `// PITFALL (2026-03): Cost: 1 shipped to main, broke balance`.
 

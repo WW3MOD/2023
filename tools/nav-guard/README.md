@@ -201,5 +201,6 @@ far.
    (`BlockedByActor.None`, `Locomotor.cs:236-239`) and a bug in *its* invalidation could
    make a unit fail to find a path that geometrically exists. That is a pathfinder bug, not
    a connectivity regression, and this tool is blind to it by construction.
-8. **The baseline can be blessed away.** `bless` is one command and nothing forces a human
+8. **Coverage is `mods/ww3mod/maps` and nothing else — so a green run on a SCENARIO change is real but vacuous.** The baseline gates exactly the ten shipped mod maps (`baseline.json` → `states.live`/`states.dead`: `arena-tank-duel`, `nuclear-winter-ww3`, `polar-disorder-ww3`, `river-zeta-ww3`, `seventh-woods-ww3`, `shellmap-open-field`, `siberian-pass-ww3`, `twin-rivers-ww3`, `woodland-warfare-ww3`, `x-lake-ww3`). The **190 autotest scenario maps under `tools/autotest/scenarios/`** are outside it entirely (counts re-derived 2026-08-19; `find … -name map.yaml`). An autotest scenario is exactly the place a movement-rule change gets exercised and exactly the place this gate is blind — so "`make nav-guard` is green" answers a question about the shipped maps, never about the scenario you just edited. Verify a scenario-map blocking change by running it.
+9. **The baseline can be blessed away.** `bless` is one command and nothing forces a human
    to look at the diff. The gate is only as strong as the review of `baseline.json`.
