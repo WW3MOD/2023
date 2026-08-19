@@ -18,6 +18,17 @@ World:
 # the value that ships in rules/defaults.yaml. Setting it to 0 here is the way to
 # reproduce the original RED.
 #
+# WHAT THE RED CONTROL NOW PROVES, and what it did not before. Pinning this to 0
+# disables BOTH preemption phases: TickPreemption returns early on PreemptionDue, and
+# the yield inside ScanForTarget's override loop is gated on the same predicate. What it
+# does NOT disable is the unaided re-acquisition — the attack activity lapses,
+# AttackFollow.cs:176 wipes opportunityTargetIsPersistentTarget, and the next free
+# ChooseTarget finds the helicopter anyway. That is why the control PASSED on 2026-08-12
+# against an outcome-only assertion. The test now asserts attribution via
+# Test.GetUncommittedScanCount, which counts exactly the uncommitted scans that unaided
+# route requires and preemption never produces, so the control fails on the attribution
+# clause even when the helicopter does get shot.
+#
 # PITFALL, learned while running that control on 2026-08-12: pin it on the ACTOR, not
 # on ^Combatant. strykershorad lists Inherits@AutoTarget: ^AutoTargetAAIFV AFTER
 # Inherits@Combatant, and that chain reaches ^AutoTargetGround's PreemptScanInterval: 25,

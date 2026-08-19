@@ -15,49 +15,56 @@
 -- spawned airborne 10 cells NORTH once the SHORAD is committed, well inside
 -- Stinger range (28c0).
 --
---   Pass: the HIND takes damage within DeadlineTicks OF ITS OWN ARRIVAL.
---   Fail: the deadline passes with the HIND untouched (the pre-fix behaviour).
+-- WHY THIS TEST WAS REWRITTEN, 2026-08-19. The previous revision asserted only
+-- "the HIND takes damage within 110 ticks of its arrival". That outcome is reached
+-- by TWO different mechanisms, and the assertion sat downstream of both, so it could
+-- not tell them apart. The control run of 2026-08-12 (f910ac7d) proved it: with the
+-- fix disabled the test STILL PASSED. A sabotaged control that passes is measuring
+-- nothing, and the green that stood beside it was never evidence for preemption.
 --
--- WHY THE DEADLINE IS SHORT, AND WHY IT MUST STAY SHORT.
--- The lock is not permanent. CanAttack returns false while an armament reloads
--- (AttackBase.cs:274, reloadingIsInvalid: true), which drops IsAiming, and the
--- opportunity-fire branch (AttackFollow.cs:176) clears the persistent flag — so
--- the SHORAD eventually rescans and finds the helicopter WITHOUT the fix. An
--- earlier 22-second version of this test therefore passed with the fix disabled
--- and proved nothing. That unaided break is a per-tick race against the idle
--- rescan re-establishing the stale target, so it has no clean closed form and
--- must NOT be "derived" into a comfortable-looking number.
+--   MECHANISM A, the fix: TickPreemption (AutoTarget.cs) runs on a NON-idle unit and
+--     hands the engagement over while the incumbent is still held.
+--   MECHANISM B, the unaided break: the attack activity ends, the t90 is promoted to
+--     a persistent OpportunityTarget, and then AttackFollow.cs:176 opportunity-fire
+--     overwrites it and sets opportunityTargetIsPersistentTarget = FALSE. With the
+--     persistent flag gone, TryGetAutoTargetOverride declines, the next scan runs a
+--     free ChooseTarget, and THAT finds the helicopter. No preemption involved.
 --
--- The deadline is instead budgeted from what the FIX costs to respond:
+-- Mechanism B is not slow. The ordinary scan cadence in this scenario's rules.yaml is
+-- MinimumScanTimeInterval 16 / MaximumScanTimeInterval 32 — the same order as
+-- PreemptScanInterval 25. No tick budget in that neighbourhood can separate them, which
+-- is why the 110-tick deadline never had a chance of discriminating and why widening or
+-- narrowing it cannot rescue this test. Timing is the wrong instrument here.
+--
+-- THE DISCRIMINATING OBSERVABLE. The two mechanisms differ in a way that survives:
+-- mechanism B must pass through a state where the unit holds NO commitment at all —
+-- no live RequestedTarget and no persistent OpportunityTarget — because that is the
+-- only condition under which a free ChooseTarget runs. Mechanism A never does; it
+-- swaps target while the incumbent is still held. Test.GetUncommittedScanCount latches
+-- exactly that state in the simulation.
+--
+--   Pass: the HIND takes damage within DeadlineTicks of its own arrival AND the
+--         SHORAD's uncommitted-scan count has not moved since the HIND arrived.
+--   Fail: the deadline passes untouched, OR the HIND is engaged but only after the
+--         count rose — i.e. the unit re-acquired after losing its grip, which is the
+--         pre-fix behaviour and must not be scored as a pass.
+--
+-- WHY THE COUNT AND NOT Shorad.IsIdle. IsIdle looks like the natural oracle — preemption
+-- requires a non-idle unit — but it CANNOT be sampled from Lua. Actor.Tick (Actor.cs:285-302)
+-- ends the activity and re-issues a replacement inside a SINGLE tick, while Lua trigger
+-- callbacks run later, in the trait phase (World.cs:506-508). The lapse is therefore
+-- invisible to per-tick polling and an "it never went idle" assertion would pass on the
+-- broken build too — a second false control. The counter is latched in the simulation at
+-- the moment it happens, so sampling granularity cannot hide it.
+--
+-- WHY THE DEADLINE IS STILL SHORT. It no longer carries the discrimination — the count
+-- does — but it keeps the test honest about responsiveness. Budgeted from what the FIX
+-- costs to respond:
 --     up to  25 ticks  PreemptScanInterval cadence (defaults.yaml)
 --     up to ~26 ticks  turret slew, Turreted TurnSpeed 20 over at most a half turn
 --     up to ~40 ticks  Stinger launch ramp + flight (Speed 600, ~10 cells)
 --     ------------------
 --          ~91 ticks  worst case; 110 is that plus headroom and no more.
--- CONTROL ESTABLISHED 2026-08-12, AND IT DID NOT GO RED. THIS TEST DOES NOT CURRENTLY
--- DISCRIMINATE THE FIX. Both runs PASSED at this deadline:
---   * PreemptScanInterval pinned to 0 on the ACTOR (seed 1298325022) -> pass
---   * shipped default, 25                        (seed -1641486964) -> pass
--- The pin was verified to have resolved, not assumed: a temporary trace in
--- AutoTarget.Created printed `strykershorad PreemptScanInterval=0` on the control run
--- and `=25` on the confirm run, with t90 reading 25 in both.
---
--- So the unaided break described above BEATS 110 ticks, which is exactly what the
--- budget below was supposed to rule out. Read together with the merge that shipped the
--- fix (68b627ce), this says the green here is not evidence for preemption.
---
--- TWO THINGS THIS DOES *NOT* ESTABLISH, both of which matter before anyone acts on it:
---   1. It does not show the preempt scan is inert in play. PreemptScanInterval: 0 is NOT
---      a clean revert of 68b627ce — that merge also repaired an inverted OnlyTargets
---      clause in HasValidTargetPriority which does NOT sit behind this flag, so the
---      control still carries half the merge. The unaided rescan finding the helicopter
---      may itself be that repair working.
---   2. It does not say by how much either configuration beat the deadline. Both runs
---      predate the margin reporting added below, so there is no with/without number to
---      compare. That instrumentation is IN but UNEXERCISED — the first person to run
---      this gets the figure for free, and should take it for BOTH configurations.
--- Widening the deadline would destroy what discrimination remains; tighten it against
--- measured margins instead, once there are some.
 --
 -- PITFALL: this deadline is in TICKS on purpose — there are two different time
 -- bases in play and mixing them silently halves or doubles the budget.
@@ -90,6 +97,7 @@ WorldLoaded = function()
 
 	local Heli = nil
 	local heliStartHealth = nil
+	local uncommittedAtSpawn = nil
 	local ticksSinceSpawn = 0
 
 	-- PITFALL: Test.Pass is NOT idempotent — TestGlobal.ExitWhenCapturesFlushed writes the
@@ -122,6 +130,11 @@ WorldLoaded = function()
 
 		Heli.Stance = "HoldFire"
 		heliStartHealth = Heli.Health
+
+		-- Baseline AFTER the SHORAD is committed to the t90, so the free scan that
+		-- acquired the t90 in the first place is excluded. Everything counted from
+		-- here on is a lapse that happened while the helicopter was already available.
+		uncommittedAtSpawn = Test.GetUncommittedScanCount(Shorad)
 	end)
 
 	-- Outer timeout is on TestHarness's 25 ticks/s base and must comfortably exceed the
@@ -147,13 +160,30 @@ WorldLoaded = function()
 		end
 
 		if Heli.IsDead or Heli.Health < heliStartHealth then
-			-- Report the MARGIN, not just the boolean. A bare pass cannot be compared
-			-- against the PreemptScanInterval: 0 control, so a control that also passes
-			-- leaves nothing to reason about — which is exactly what happened on
-			-- 2026-08-12 (see the header note below).
+			local lapses = Test.GetUncommittedScanCount(Shorad) - uncommittedAtSpawn
 			reported = true
-			Test.Pass(string.format("engaged the band-5 helicopter %d ticks after its arrival (deadline %d)",
-				ticksSinceSpawn, DeadlineTicks))
+
+			-- ATTRIBUTION, not just outcome. Damage alone is reached by the unaided
+			-- rescan too — that is exactly how the 2026-08-12 control passed — so a
+			-- switch that happened after the unit lost its grip is NOT a pass here.
+			if lapses > 0 then
+				return string.format(
+					"fail: SHORAD engaged the band-5 helicopter %d ticks after its arrival, but only after "
+					.. "its commitment to the band-3 t90 lapsed (%d uncommitted scan(s) since the helicopter "
+					.. "arrived). That is the unaided re-acquisition via AttackFollow.cs:176 clearing the "
+					.. "persistent-target flag, not target preemption — preemption hands over while the "
+					.. "incumbent is still held and never raises this count.",
+					ticksSinceSpawn, lapses)
+			end
+
+			-- Report the MARGIN as well as the attribution. A bare pass cannot be compared
+			-- against the PreemptScanInterval: 0 control, and a control that also passes
+			-- leaves nothing to reason about — which is what happened on 2026-08-12.
+			Test.Pass(string.format(
+				"preempted mid-engagement: engaged the band-5 helicopter %d ticks after its arrival "
+				.. "(deadline %d, margin %d) with 0 uncommitted scans — the SHORAD never lost its grip "
+				.. "on the t90, so only preemption can have made the switch",
+				ticksSinceSpawn, DeadlineTicks, DeadlineTicks - ticksSinceSpawn))
 			return false
 		end
 
@@ -161,8 +191,9 @@ WorldLoaded = function()
 		if ticksSinceSpawn >= DeadlineTicks then
 			return string.format(
 				"fail: SHORAD did not engage the band-5 helicopter within %d ticks of its arrival — "
-				.. "it stayed on the band-3 t90 (heli HP %d/%d)",
-				DeadlineTicks, Heli.Health, heliStartHealth)
+				.. "it stayed on the band-3 t90 (heli HP %d/%d, %d uncommitted scan(s) since arrival)",
+				DeadlineTicks, Heli.Health, heliStartHealth,
+				Test.GetUncommittedScanCount(Shorad) - uncommittedAtSpawn)
 		end
 
 		return false
