@@ -55,29 +55,29 @@ Container@PLAYER_WIDGETS:
 			# this panel and shifting every panel after it by the same 34px pitch.
 			# Convention (set by CMD_BG_A, and by commandbar-background's 9px
 			# PanelRegion corner) is that a panel spans 9 + content + 9.
-			Width: 188
+			Width: 154
 			Height: 44
 			Background: commandbar-background
 		Background@FIRE_BG:
-			X: 483
+			X: 449
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@ENGAGE_BG:
-			X: 603
+			X: 569
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@COHESION_BG:
-			X: 723
+			X: 689
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
 			Background: commandbar-background
 		Background@RESUPPLY_BG:
-			X: 843
+			X: 809
 			Y: WINDOW_HEIGHT - HEIGHT - 5
 			Width: 120
 			Height: 44
@@ -86,7 +86,7 @@ Container@PLAYER_WIDGETS:
 			Logic: CommandBarLogic
 			X: 14
 			Y: WINDOW_HEIGHT - HEIGHT - 14
-			Width: 460
+			Width: 426
 			Height: 26
 			Children:
 				LogicKeyListener@MODIFIER_OVERRIDES:
@@ -230,28 +230,9 @@ Container@PLAYER_WIDGETS:
 							Y: 1
 							ImageCollection: command-icons
 							ImageName: guard
-				Button@TAKE_COVER:
-					Logic: AddFactionSuffixLogic
-					X: 358
-					Width: 34
-					Height: 26
-					VisualHeight: 0
-					Background: command-button
-					AnchorTooltipDirection: Above
-					DisableKeyRepeat: true
-					DisableKeySound: true
-					TooltipText: Take Cover
-					TooltipDesc: Selected infantry will seek the nearest cover position
-					TooltipContainer: TOOLTIP_CONTAINER
-					Children:
-						Image@ICON:
-							X: 5
-							Y: 1
-							ImageCollection: command-icons
-							ImageName: deploy
 				Button@AUTO_ENTER:
 					Logic: AddFactionSuffixLogic
-					X: 392
+					X: 358
 					Width: 34
 					Height: 26
 					VisualHeight: 0
@@ -332,7 +313,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: queue-orders
 				Button@EVACUATE:
 					Logic: AddFactionSuffixLogic
-					X: 426
+					X: 392
 					Width: 34
 					Height: 26
 					VisualHeight: 0
@@ -352,7 +333,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: defend
 		Container@STANCE_BAR:
 			Logic: StanceSelectorLogic
-			X: 492
+			X: 458
 			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -421,7 +402,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@ENGAGEMENT_STANCE_BAR:
 			Logic: EngagementStanceSelectorLogic
-			X: 612
+			X: 578
 			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -490,7 +471,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@COHESION_BAR:
 			Logic: CohesionSelectorLogic
-			X: 732
+			X: 698
 			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26
@@ -559,7 +540,7 @@ Container@PLAYER_WIDGETS:
 							ImageName: hold-fire
 		Container@RESUPPLY_BEHAVIOR_BAR:
 			Logic: ResupplyBehaviorSelectorLogic
-			X: 852
+			X: 818
 			Y: WINDOW_HEIGHT - HEIGHT - 14
 			Width: 102
 			Height: 26

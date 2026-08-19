@@ -1,0 +1,1 @@
+Eyeball the command bar after Button@TAKE_COVER was removed: rifle squad selected, one capture of the reflowed bar.
