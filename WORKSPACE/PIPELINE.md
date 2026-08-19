@@ -654,7 +654,15 @@ _**One launch confirming:** (a) **the credits screen opens** — duplicate widge
 _**If one of the three is wrong, Ogg decoding is the bet** — NVorbis 0.10.5 on net6 has never executed in this build._
 _Adjacent live checks owed from a different session and worth folding into the same play window ([`closeout/6361c2be.md`](closeout/6361c2be.md) §4 — **zero on-screen verification across that entire session**, four merges of static analysis reviewed twice), in its stated order of value: a **Grad or TOS salvo** (the only edits needing a new sequence *and* a new trait to both be right, neither lint-covered end to end); whether **27 new smoke trails at `MovingInterval: 2`** read as plumes or walls (one number in 27 places); whether a **soldier actually rearms at a Logistics Centre** (infantry have never walked that path); and whether the **turret lock at 50%** feels too early._
 
-### 50. FX audit items 10 and 12 — two one-line edits, held on a verdict that was skipped **[OPEN — unchanged, verified untouched 2026-08-13]**
+### 50. ~~FX audit items 10 and 12 — two one-line edits, held on a verdict that was skipped~~ — **RETIRED 2026-08-19: DECLINED BY THE USER. Do not re-propose.**
+
+> **The silence WAS a rejection.** Asked directly on 2026-08-19 whether items 10 and 12 had been missed or declined during the FX verdict pass, the user chose *"Declined — retire both from the queue"*. The manager's standing read — that skipping them without comment was an oversight, because item 17 had been declined explicitly and in the user's own words — **was wrong**. Both are struck.
+>
+> **This lands the same way as item 17: the explosion ladder and the cook-off effects are as the user wants them, and neither is to be re-proposed without new art or a fresh instruction.** The entry below is retained only so nobody re-derives the proposal from scratch and re-files it as new.
+>
+> _Holding them rather than assuming in either direction was still correct — the cost of asking was one question, and the assumption would have shipped two unwanted changes to how the game looks and sounds._
+
+### 50 (original entry, retained so it is not re-derived). FX audit items 10 and 12 — two one-line edits, held on a verdict that was skipped **[RETIRED — see above]**
 
 _**RECONCILED 2026-08-13 against `main @ dc899995`: `git log 4d3c8f90..HEAD -- mods/ww3mod/rules/weapons/` returns ZERO commits.** Both edits are still exactly as filed and both are still held on the same skipped verdict. No action._
 
