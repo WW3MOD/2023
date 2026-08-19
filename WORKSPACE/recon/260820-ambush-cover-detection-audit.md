@@ -43,11 +43,21 @@ agrees, it says so; where it corrects 260819 or the shipped comments, it says so
   because the behaviour does not otherwise happen (§2.4). This is the single biggest gap in the audit.
 - **Stop running to avoid being spotted.** Nothing predicts detection. There is no "about to be seen"
   reaction anywhere (§1.5). The margin is computable and nothing reads it.
-- **Take cover as a command.** The `TAKE_COVER` button in the command bar is wired to nothing, at three
-  independent levels, and no ww3mod actor carries a `TakeCover` trait to receive the order (§3).
+- **Take cover as a command.** There is no such control. Prone is fully automatic (it fires on
+  `!moving`), and the dead `TAKE_COVER` button was removed on 2026-08-19 (`b62ee52f`, `486575a8`).
+  Verified at HEAD: `TakeCover` appears nowhere in `mods/` and `TAKE_COVER` nowhere in the chrome (§3.1).
 - **Benefit from being near cover objects for concealment.** The three largest concealment modifiers in
   the game — `@InCover1/2/3`, worth **+1/+2/+3** — are gated on a condition that **nothing anywhere
   grants**. They are dead (§1.4). This is the "modifier that can never fire" the audit was asked to find.
+- **Get damage reduction from going prone.** The five-tier `ProneDamageModifiers` block is still in the
+  YAML, but the reduction only applies against warheads declaring a matching `DamageType`, and commit
+  `1802191e` (2024-02-13) stripped those from every live weapon. Prone has given **0% damage
+  reduction** for two and a half years (§3.2). It still shrinks the hitshape, which is real but is a
+  hit-probability effect, not damage.
+- **Get meaningful protection from trees.** Position-based damage reduction exists and is live, but it
+  caps at **20%**, and it keys on obstacle *density* rather than on trees specifically: one rock cell
+  (density 50) grants the full 20% instantly, while one tree (density 10) falls below the 15 floor and
+  grants **nothing** (§3.3). Buildings, at 80–97%, are the only cover in the game with a felt effect.
 
 **Against the user's stated vision:** the *second* half of his vision (hold fire until one is
 detected, then all fire at once) is **built and works for humans**. The *first* half (behave so as to
@@ -297,7 +307,152 @@ to be built.
 
 ## 3. Cover and protection
 
-*(Section assembled from the dedicated pass; see §3.x below.)*
+**Short answer: yes, position gives damage reduction — one mechanism, capped at 20%, and it is
+triggered far more reliably by rocks than by trees. Meanwhile the prone damage reduction that the
+YAML still configures has been dead since February 2024.**
+
+### 3.1 The damage pipeline, and every modifier on it
+
+All reduction flows through one loop (`Health.cs:166-186`): each `IDamageModifier` on the victim
+returns a percentage and they multiply. Healing is never modified (`:166`). There are exactly **eight**
+`IDamageModifier` implementations in the tree; on WW3MOD infantry only these are attached:
+
+| Implementation | `file:line` | On infantry? |
+|---|---|---|
+| `InfantryStates` (prone) | `InfantryStates.cs:74` | attached but **inert** — §3.2 |
+| `DensityModifiesDamage` | `DensityModifiesDamage.cs:47` | **the only live positional reduction** — §3.3 |
+| `TerrainModifiesDamage` | `TerrainModifiesDamage.cs:29` | **attached to nothing, in any mod** |
+| `DamageMultiplier` | `DamageMultiplier.cs:27` | yes — veterancy + garrison |
+| `GarrisonManager` | `GarrisonManager.cs:176` | buildings only |
+| `HandicapDamageMultiplier` | `HandicapDamageMultiplier.cs:22` | commented out, `defaults.yaml:967` |
+| `DrainPrerequisitePowerOnDamage`, `AttackPopupTurreted` | Cnc mod | no |
+
+There is no "Take Cover" order. `82f0b8eb` (2023-04-06) renamed RA's `TakeCover` trait to
+`InfantryStates` and made prone automatic and condition-driven; the vestigial UI button was removed on
+2026-08-19 (`b62ee52f`, `486575a8`). Verified at HEAD: **zero** hits for `TakeCover` in `mods/`, zero
+for `TAKE_COVER` in the chrome.
+
+### 3.2 ⚠ Prone gives no damage reduction, and has not since 2024
+
+`InfantryStates` implements the modifier (`InfantryStates.cs:195-205`) and `^CamoSoldier` configures
+five tiers (`infantry.yaml:297-302`, `Prone10Percent: 10` … `Prone80Percent: 80`). Prone itself is
+reached constantly — `ProneCondition: deployed || suppressed > 30 || !moving || critical-damage`
+(`infantry.yaml:294`).
+
+But the reduction only applies if the **incoming warhead** declares a matching string in its
+`DamageTypes` (`InfantryStates.cs:200-203`). Exactly **one** warhead in the mod still does — `EmpBomb`
+(`weapons-superweapons.yaml:399`) — and `EmpBomb` is referenced by **no actor anywhere in the repo**.
+
+**Cause:** commit `1802191e` (2024-02-13), titled *"Remove all ProneXXPercent DamageTypes"*, stripped
+them from six weapon files (~80 edits) and missed the one dead `EmpBomb` line. Empty commit body — no
+rationale recorded.
+
+**Prone does still protect, by a different route that never appears in damage arithmetic:** the
+hitshape shrinks from radius **30** standing to **20** prone (`infantry.yaml:143-150`) — roughly a 56%
+smaller cross-section, so fewer projectiles connect at all. It costs 40% speed
+(`ProneSpeedModifier: 60`, `infantry.yaml:296`).
+
+This also means `WORKSPACE/recon/260728-deploy-prone.md:13,52` **over-credits prone** with a damage
+benefit it lost in 2024. Flagged for curation; not edited by this pass.
+
+### 3.3 ⚠ "Forest cover" is really obstacle cover, and rocks beat trees five to one
+
+`DensityModifiesDamage` is attached once, on `^Infantry` (`infantry.yaml:37`) — so every infantryman,
+human and bot. Vehicles, aircraft and structures get nothing. It sums `Map.DensityLayer` over a **3×3
+window including the centre cell** (`DensityModifiesDamage.cs:61-88`, `SampleRadius: 1` at `:39`) and
+picks the highest threshold ≤ that sum (`:95-109`). Configured (`infantry.yaml:42-45`):
+
+| Windowed density sum | Damage taken | Reduction |
+|---|---|---|
+| < 15 | 100% | none |
+| ≥ 15 | 94% | 6% |
+| ≥ 30 | 88% | 12% |
+| ≥ 50 | 80% | **20% — the game maximum outside buildings** |
+
+**`DensityLayer` is not a tree layer.** It is populated from *any* actor carrying `Building.Density`
+(`Map.cs:976-1001`, `Building.cs:141-144`). In `decoration.yaml`:
+
+- **Trees** `T01`–`T07`: `Density: 0,0, 10,0` — **10, on one cell** of a 2×2 footprint
+  (`decoration.yaml:104,117,130,143,156,169,182`). `T08` gives **5** (`:195`).
+- **Rocks** `ROCK1`–`ROCK7`: **50 per occupied cell** (`decoration.yaml:469,475,481,487,493,499,505`).
+- **Tank traps**: **20** on one cell (`decoration.yaml:531,546`).
+
+Consequences, which look unintended:
+
+- **One tree beside you = 10, below the 15 floor = exactly zero protection.** The YAML comment at
+  `infantry.yaml:41` says *"a lone treeline barely helps"*; in fact it does not help at all.
+- **One rock cell anywhere in your 3×3 = 50 = the full 20%, instantly.** One rock outperforms five trees.
+- Reaching 50 from trees needs five trunk cells among your nine — very tight packing.
+
+So the mechanic that ships as forest cover is in practice **rock cover**, and trees — the feature the
+user associates with hiding — are the weakest contributor per actor in the game. *(Whether maps
+actually place rocks near contested ground is a map-data question this pass did not open — unverified.)*
+
+### 3.4 Buildings dwarf everything else
+
+- **Firing-port soldiers**: `DamageMultiplier@GarrisonCover`, `Modifier: 20` — **80% reduction** —
+  on `^Soldier` under `RequiresCondition: garrisoned-at-port` (`infantry.yaml:190-192`), granted from
+  C# (`GarrisonManager.cs:63`).
+- **Shelter occupants**: not an `IDamageModifier` at all. Occupants take no direct fire; a fraction of
+  the *building's* damage passes to one randomly-chosen occupant (`GarrisonProtection.cs:76-116`).
+  Shipped `BaseProtection` 95–97 (`structures-defenses.yaml:153-156,238-241,328-331`,
+  `civilian.yaml:109-113`), so an occupant of a healthy garrison takes **3–5%**, and `MinPassThrough: 15`
+  (`GarrisonProtection.cs:108-109`) makes any hit under 15 pass-through deal **exactly zero**.
+
+**So: buildings 80–97%, everything else ≤20%.** That two-order-of-magnitude gap in survivability is the
+most likely reason none of the terrain cover is perceptible in play.
+
+### 3.5 Edge versus interior of a forest
+
+**For damage — an implicit depth effect only.** A cell deep in a cluster has more neighbours carrying
+density, so the 3×3 sum is higher and a higher tier is selected. Nothing in the damage path knows the
+words "edge" or "interior"; there is no falloff and no adjacency test beyond the fixed window.
+
+**For visibility — depth is explicit and deliberately superlinear.** `Map.ForestGroundShadow`
+(`Map.cs:1102-1120`) converts crossed tree density along the sightline into an observer-strength
+subtraction: below the knee (`ForestShadowKneeDensity = 20`, `:1083`) it is `ceil(density/10)`; above
+it, `2 + ceil(extra/5)`. Its own reference table (`:1098`): **1 dense cell → 1, 2 → 2, 3 → 4, 4 → 6,
+5 → 8, 6 → 10**. The comment states the design intent outright (`:1090-1094`): *"a thin 1-cell treeline
+barely dents detection … a genuinely DEEP cluster ramps up to real concealment … linear alone cannot
+keep 1 cell weak AND make 4 cells hide."*
+
+**So the user's forest-road picture is correct for concealment and wrong for protection:** soldiers 3–4
+cells deep in trees are meaningfully harder to see than ones at the treeline, but they take essentially
+the same damage once shot at.
+
+**The engine does compute edge-vs-interior explicitly — and no damage code reads it.**
+`TerrainAffordanceLayer` (registered at `world.yaml:340`) computes per cell at map load:
+`CoverQuality` (`:101,115,126`), `IsCoverEdge` from the local density gradient (`:129-132`), and
+`OutwardFacing` (`:133`). Its **only** consumer is `StancePositioningExecutor` (`:541,544,559`) — i.e.
+where an idle unit chooses to stand. Note also that the two systems disagree about what "in cover"
+means: the affordance layer **skips** cells that themselves carry density and **excludes** the centre
+cell (`TerrainAffordanceLayer.cs:98-99,108-109`) because it is bidding for somewhere to stand, while
+`DensityModifiesDamage` **includes** the centre and has no such guard (documented at
+`DensityModifiesDamage.cs:14-17`).
+
+### 3.6 Dug in gives no protection at all
+
+`dugin` is granted after `TimeToBeStill: 200` ticks (`infantry.yaml:139-142`) and has exactly **one**
+consumer in the mod: `DetectableAddativeModifier@Dugin` (`infantry.yaml:719-721`), which is
+concealment. There is no damage or protection effect attached to it anywhere.
+
+### 3.7 History of "hiding/hunkering behind trees"
+
+**Shipped 2026-07-28, never reverted, still live at HEAD.**
+
+| Date | SHA | Event |
+|---|---|---|
+| 2023-04-06 | `82f0b8eb` | `TakeCover` → `InfantryStates`; prone becomes automatic |
+| 2024-02-13 | `1802191e` | **"Remove all ProneXXPercent DamageTypes"** — prone damage reduction killed |
+| 2026-07-28 | `69e6ee86` | **"forest-concealment (item 26 ph2): tree-density-aware cover damage reduction"** — this *is* the hunkering-behind-trees work |
+| 2026-07-28 | `fc9fe396` / `37cef097` | item 26 merged and recorded as shipped |
+| 2026-07-28 | `243d8da0`, `25d599df` | item 21 cover *positioning* (the concealment re-seat in §2) |
+| 2026-08-19 | `1492b225`, `b62ee52f`, `486575a8` | dead `TAKE_COVER` button documented, then removed |
+
+`git log --all --grep='hunker'` returns **zero** commits. There is no revert of `DensityModifiesDamage`.
+So the user is not misremembering a lost feature — he is failing to feel a live one whose ceiling is
+20% and whose floor excludes single trees entirely. The thing that genuinely *was* lost is prone's
+damage reduction, in 2024.
 
 ---
 
