@@ -2150,6 +2150,35 @@ Flagging rather than guessing; the tick→second half of the same doc's errors *
 
 ## 2026-08-19 — five command-bar visibility settings are declared and never read (found on `wt/take-cover`)
 
+> **[FIXED by deletion on `wt/dead-settings`, off `main @ 4f5123dc`]** — finding re-verified (the grep still
+> returns only the five declarations), then the five fields and their comment were deleted.
+>
+> **One claim below is wrong, and it is the reason deletion is free.** They were *not* "written to
+> `settings.yaml` and persisted". `Settings.Save()` skips any field still at its default (`Settings.cs:441-443`,
+> *"Fields with their default value are not saved"*), and since nothing ever wrote these they never left
+> `true` — so they never reached disk at all. Confirmed empirically: the dev's own
+> `~/Library/Application Support/OpenRA/settings.yaml` contains none of the five keys. There was no user data
+> to migrate. A stale file that *did* contain them is safe anyway, because `Settings` overrides
+> `FieldLoader.UnknownFieldAction` to log-and-ignore (`Settings.cs:390`) rather than throw.
+>
+> **Chose delete over wire** because the entry frames the choice as symmetric and it is not. `ScaleInfantry`
+> is the exemplar of a *finished* WW3MOD setting and has three parts: the declaration, a consumer
+> (`RenderSprites.cs:220`), and a checkbox binding (`DisplaySettingsLogic.cs:167`). These five have only the
+> first — so "wire them" is not finishing a feature, it is building both remaining thirds of one nobody has
+> asked for, plus a reflow no other setting here needs. Deletion is six lines and cannot alter a pixel, since
+> nothing read them. If configurable bars are ever actually wanted, re-adding five booleans is the cheapest
+> part of that job and this commit reverts cleanly.
+>
+> **Measured cost of the rejected option, for whoever revisits it.** The panels are a 120px pitch of ten
+> absolute literals — `CMD_BG_A` X5/W290, `CMD_BG_B` X295/W154, then `FIRE_BG` 449, `ENGAGE_BG` 569,
+> `COHESION_BG` 689, `RESUPPLY_BG` 809, each bar container sitting at panel+9. Prior art sets the price:
+> `b62ee52f` removed a single 34px button and had to rewrite **13** of those literals. A settings toggle is
+> strictly harder, because the reflow becomes *runtime* rather than static and YAML absolute literals cannot
+> express it — there is no flow-layout widget in the engine (searched: no `HorizontalLayout`/`FlowLayout`
+> type exists). It would have to be hand-packed in a logic class in the style of `IngameMenuLogic.cs:327`.
+> Hiding `COMMAND_BAR` is the worst case: it is the leftmost 449px, so the gap opens at the screen edge and
+> every remaining panel is stranded mid-bar.
+
 `Settings.cs:341-345` declares `CommandBarVisible`, `FireStanceBarVisible`, `EngagementBarVisible`,
 `CohesionBarVisible` and `ResupplyBarVisible`, all defaulting to `true`. **Nothing reads any of them** —
 `grep -rn` for all five across every `*.cs` and `*.yaml` in the tree returns only those five declaration
