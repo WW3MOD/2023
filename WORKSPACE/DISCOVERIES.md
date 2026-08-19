@@ -7225,6 +7225,87 @@ Read-only determinism sweep, no production code changed. Repo state `main @ 43d5
 > audit cheap and targeted — without it, a reader would reasonably have assumed a corrected entry was a
 > checked entry. **When you correct part of an entry, state what you did not check.**
 
+> **FOURTH CORRECTION, 2026-08-19 — the two determinism claims the third block verified only by spot-check
+> are now verified EXHAUSTIVELY, against `main @ 61e46e64`. Both conclusions HOLD. One enumeration in the
+> third block is stale, and it is stale in the direction that reads as "verified".** The third block marked
+> the visibility refutation TRUE while flagging it in its own Watch as the weakest verdict in the table —
+> it had checked the two named `RenderPlayer` sites and spot-checked consumers, but had not walked every
+> `CanBeViewedByPlayer` caller; the same caveat applied to the 22 `IOrderGenerator` count, where 3 sites
+> were confirmed and 19 were not. This block closes both. No game was launched and no autotest was run.
+>
+> **Pass 1 — all 40 `CanBeViewedByPlayer` call sites read (previously ~5 named).** `grep` over `engine/**/*.cs`
+> returns 47 lines; minus the definition (`Actor.cs:591`), 5 comment lines and one `[Desc]` string
+> (`PoiOffensiveBotModule.cs:438`) that is prose, not a call, that is **40 real call sites**. No `.cs` outside
+> `engine/` mentions the method. **38 pass a simulation `Player`** — `self.Owner`, `manager.Self.Owner`,
+> `Self.Owner`, a `player`/`Bot.Player`/`firedBy` loop-or-parameter binding, or `targetOwner`, which is
+> `target.Actor.Owner ?? target.FrozenActor.Owner` (`AutoTarget.cs:748`, `AttackMoveActivity.cs:203`).
+> `TargetExtensions.cs:62,79` take a `viewer` parameter and looked open-ended; its only caller is
+> `AttackOmni.cs:68`, passing `self.Owner`. **Two sites receive a client-local player, and both are confined
+> to render/UI:**
+> - **`World.cs:109` — `FogObscures(Actor a)` passes `RenderPlayer` straight into `CanBeViewedByPlayer`.**
+>   The entry never names this, and it is the first thing a reader who greps the method will hit, so it
+>   reads as a refutation. It is not one: the entry scopes itself to "every *simulation* consumer", and all
+>   14 callers of this overload are render, UI or order-generator code (`WithDecorationBase.cs:88`,
+>   `SelectionDecorationsBase.cs:65`, `RenderMouseBounds.cs:46`, `WithParachute.cs:177,199` — both inside
+>   `IRender.Render`/`IRender.ScreenBounds` — `CombatDebugOverlay.cs:54`, `Selection.cs:171`,
+>   `MiniMapWidget.cs:419`, `ViewportControllerWidget.cs:249`, `SelectionUtils.cs:57,122`,
+>   `UnitOrderGenerator.cs:32,160`, `RepairOrderGenerator.cs:37`, `GuardOrderGenerator.cs:90`,
+>   `ChronoshiftPower.cs:192`). **Cite the exception explicitly next time; an unnamed one costs the reader
+>   the whole claim.**
+> - **`WithSpottedDecoration.cs:105` — `viewer = self.World.RenderPlayer ?? self.Owner` (`:86`). This is a
+>   THIRD `RenderPlayer` read in visibility code that the entry's enumeration does not have.** The entry
+>   says the only such reads are `Detectable.cs:230` and `FrozenUnderFog.cs:182`, which was **true at its own
+>   base `43d55ace`** — this file was added at `f5634522` (2026-08-17 04:47), *after* it. **But the third
+>   correction re-asserted that enumeration as "still true" against `08b255f7`, which already contained the
+>   file.** So the stale enumeration belongs to the audit, not to the original entry. It is harmless in
+>   substance: `ShouldRender` is reached only from `WithDecorationBase.cs:117` (`IDecoration.RenderDecoration`),
+>   the trait declares no `[Sync]` and no `ISync`, and its `cachedTick`/`cachedSpotted` fields (`:50-51`) are
+>   read by nothing but `ShouldRender` itself.
+>
+> **Why the many `RenderPlayer` reads inside sim-ticked activities are safe — the mechanism, recorded because
+> the shape looks alarming.** `Sell.cs:48`, `DonateCash.cs:40`, `RotateToEdge.cs:392`, `GainsExperience.cs:128`,
+> `GivesBounty.cs:89`, `Refinery.cs:155` and others read `RenderPlayer` inside `Tick` to gate a cosmetic
+> `FloatingText`. That cannot reach the sync hash: `World.Add(IEffect)` files an effect into `syncedEffects`
+> **only when `e is ISync`** (`World.cs:421-422`), `World.SyncHash()` folds only `SyncedEffects`
+> (`World.cs:566`), and `FloatingText` is `IEffect, IEffectAnnotation` — not `ISync`. **The guard is the
+> `is ISync` test, not the caller's discipline**; a cosmetic effect that ever gains `ISync` would convert
+> every one of these into a desync at once.
+>
+> **Adjacent trap found, clean today.** `IResourceLayer.IsVisible(CPos)` is implemented as
+> `!world.FogObscures(cell)` (`ResourceLayer.cs:301`) — a `RenderPlayer` read behind an interface whose name
+> promises nothing about rendering. Its only consumers are `ResourceRenderer.cs:211` and
+> `TSVeinsRenderer.cs:243`, both renderers, so nothing is wrong now. **But `resourceLayer.IsVisible(cell)` is
+> exactly what sim code would reach for**, and the leak would be invisible at the call site.
+>
+> **Pass 2 — all 20 concrete `IOrderGenerator` implementations read (previously 3). No third instance
+> exists.** The count was re-derived rather than carried over, by two independent methods that agree
+> exactly: a transitive-closure walk of class declarations over `engine/**/*.cs`, and a **reflection pass over
+> the compiled assemblies** (`OpenRA.Game`, `.Mods.Common`, `.Mods.Cnc`, `.Mods.D2k`, built at this SHA;
+> `Type.IsAssignableFrom` + `Type.IsAbstract`). Both return **22 assignable, 2 abstract
+> (`OrderGenerator`, `GlobalButtonOrderGenerator<T>`), 20 concrete.** The closure script re-run at
+> `43d55ace` returns **24 / 2 / 22**, reproducing the third block's number exactly — which is what licenses
+> the delta: the drop of 2 is `CargoUnloadOrderGenerator` and `EjectRallyOrderGenerator`, both deleted.
+> **So "22 concrete" is right for `43d55ace` and wrong for today; the live figure is 20.**
+> **Every one of the 20 yields `Order`s and mutates nothing else.** The only writes are client-local:
+> `world.CancelInputMode()`, `world.Selection.Clear()`, `world.OrderGenerator = …`
+> (`ChronoshiftPower.cs:175`), `Game.Cursor.Lock()`/`mouseAttachment` (`SelectDirectionalTarget.cs:66,85`),
+> notification sound/text, and the generator's own fields. `RepairOrderGenerator.cs:61` calls a trait method
+> directly — `Repairable.FindRepairBuilding` — which is the known-bad *shape*, but the method is a pure LINQ
+> query (`Repairable.cs:156-167`) and writes nothing. `PatrolOrderGenerator` is confirmed fixed in place:
+> it yields a grouped `Order` at `:63-68`. `UnitOrderGenerator.cs:71` (`MarkPlayerControlled`) is unchanged
+> and still behind `DeveloperMode.IsControlAllUnitsActive`, exactly as the entry describes.
+>
+> **Method note — the count is the part that lies.** A first-pass grep for classes whose base list names
+> `IOrderGenerator`/`OrderGenerator`/`GlobalButtonOrderGenerator` found only 18 types and **missed
+> `GuardOrderGenerator`**, which had already appeared in an unrelated grep minutes earlier — the miss was
+> visible only because of that accident. Depth-1 base-type matching under-counts wherever a generator
+> subclasses a *concrete* generator (`GuardOrderGenerator`, `AttackMoveOrderGenerator`,
+> `ForceModifiersOrderGenerator` ← `UnitOrderGenerator`; `SelectNukePowerTarget` ← `SelectGenericPowerTarget`),
+> and an under-count presents as a clean sweep. **Compute the transitive closure and cross-check it against
+> compiled-assembly reflection; do not report an implementor count from a single grep.** Related: the
+> closure script strips comments before matching, so its line numbers are shifted — cite line numbers from
+> `grep` on the real file, never from the analysis script.
+
 ## 2026-08-17 — the procurement ordering axis was already shipped; and the SR parity rule inverts under the spawn offset
 
 Read-only status recon, no production code changed. Repo state `main @ 0475fb9a`. Full write-up:
