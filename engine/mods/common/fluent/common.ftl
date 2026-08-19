@@ -623,6 +623,18 @@ dialog-incompatible-replay =
     { $version }.
     .prompt-unavailable-map = { -incompatible-replay-recorded } an unavailable map:
     { $map }.
+    .prompt-incompatible-build = { -incompatible-replay-recorded } a different build:
+    { $difference } changed since then.
+    The file is fine, but playback may desync.
+    .prompt-unverifiable-build = { -incompatible-replay-recorded } a build from before
+    replays carried a build stamp.
+    It cannot be checked against this one.
+    The file is fine, but playback may desync.
+
+dialog-replay-desync-risk =
+    .title = Replay May Desync
+    .watch-anyway = Watch Anyway
+    .cancel = Cancel
 
 # SelectUnitsByTypeHotkeyLogic
 nothing-selected = Nothing selected.

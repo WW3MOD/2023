@@ -7319,15 +7319,28 @@ replays, so cross-build replays never validate anyway" — is **half right, and 
 one that matters**. The gate exists. It cannot fire in WW3MOD.
 
 **Replays are gated on the mod version string, and only that.**
-`ReplayUtils.cs:63` — `if (Game.Mods[mod].Metadata.Version != version)` → incompatible dialog. The
-recorded value comes from `UnitOrders.cs:285` (`Version = mod.Metadata.Version`).
+`ReplayUtils.cs:63` as it stood then — `if (Game.Mods[mod].Metadata.Version != version)` →
+incompatible dialog. (That comparison now lives at `ReplayCompatibility.cs:87`, moved 2026-08-19
+when the fingerprint check landed.) The
+recorded value comes from `World.cs:272` (`Version = Game.ModData.Manifest.Metadata.Version`), where
+the replay's `GameInformation` is built. (`UnitOrders.cs:285` reads the same field, but that is the
+multiplayer handshake rather than the replay recording path — corrected 2026-08-19 while fixing this.)
 
 **That string is a frozen literal.** `mods/ww3mod/mod.yaml:3` reads `Version: release-20230225`. It
 is rewritten only by the `version` make target (`Makefile:177-179`), and `all: engine`
 (`Makefile:157`) does not depend on it. So every WW3MOD build ever made — every commit, every
-machine — reports the same version. `ReplayUtils.cs:63` compares `release-20230225` against
+machine — reports the same version. That comparison weighs `release-20230225` against
 `release-20230225` and passes. **The replay compatibility check has never once fired in this
-project and cannot.** An old replay loads, plays, and diverges silently.
+project and cannot.** An old replay loads and plays.
+
+> **Correction, 2026-08-19:** the original wording here ended "and diverges silently". That is
+> **wrong**, and the error propagated into two briefs before a review caught it. Replay divergence is
+> NOT silent. `ReplayConnection` feeds the locally recomputed sync hash back in alongside the recorded
+> one (`ReplayConnection.cs:101-109`, and recorded sync packets at `:117-118`), both reach
+> `OrderManager.ReceiveSync` (`OrderManager.cs:225-234`), and a mismatch calls `OutOfSync(frame)` and
+> raises the Quit/Stay prompt. `DesyncWatcherLogic.cs:51-52` says as much directly — a null report is
+> "the normal case in a replay". The version gate being inert means a stale replay is not stopped up
+> front; it does not mean the divergence goes unreported.
 
 **Saves have no version check at all.** `GameSave(string filepath)` (`GameSave.cs:107-140`) reads
 offsets, markers, settings and slots; it never looks at mod or version. Restore is validated
@@ -7336,7 +7349,7 @@ comment "Send sync hash to validate restore". So an old save fails loudly at tha
 misbehaving quietly. Saves are the well-behaved case; replays are not.
 
 **`BuildFingerprint` is the mechanism that would catch this, and it is deliberately advisory.**
-`BuildFingerprint.ForMod` (`BuildFingerprint.cs:88`) = engine git revision (build time) + rules hash
+`BuildFingerprint.ForMod` (`BuildFingerprint.cs:99`) = engine git revision (build time) + rules hash
 + asset digest (run time), and it is genuinely good — it catches the "same commit, forgot to
 rebuild" and "different Red Alert content" cases that a version string cannot. But it is consulted
 **only** in the multiplayer handshake, and only to log: `Server.cs:557-562` computes `buildMismatch`
@@ -7346,8 +7359,69 @@ by the replay or save load paths at all.
 
 **Consequence for anyone weighing a hash-changing change:** the replay-compatibility cost is zero,
 but not for the comforting reason. Nothing validates it, so nothing breaks visibly — old replays
-just quietly stop meaning what they say. Do not cite "replays would refuse to load" as a safety net;
-measure the claim at `ReplayUtils.cs:63` against `mod.yaml:3` first.
+just stop meaning what they say until the sync check says so mid-playback. Do not cite "replays would
+refuse to load" as a safety net; measure the claim at `ReplayCompatibility.cs:87` against
+`mod.yaml:3` first.
+
+## 2026-08-19 — The build fingerprint's segments differ in KIND, and only two of three can carry a gate
+
+Found while wiring `BuildFingerprint` into the replay-load path (`wt/replay-version`, against
+`bc168d8b`). Superseded an earlier draft of this entry that justified the same conclusion with a
+claim that is **false** — see the correction below, which matters because the wrong reason would have
+misled the next person to touch this.
+
+`ForMod` (`BuildFingerprint.cs:99`) is `engineRevision/rulesHash/assetDigest`.
+
+**Segment 1, engine revision, is only as good as its pathspec.** It is stamped at build time from git
+(`engine/Directory.Build.targets`). As originally written that was `git rev-parse --short=10 HEAD` —
+whole-repo HEAD, with the `-- engine` pathspec applying only to the dirty-tree suffix. So a commit
+touching nothing but `WORKSPACE/` produced a different revision: `dcaac3ba` (which edits only
+`WORKSPACE/DISCOVERIES.md`) stamped `dcaac3ba91` where its parent stamped `88b54424d6`. At 50-122
+commits a day here that makes the segment a clock, not an identity — anything gating on it rejects
+for a docs edit and names "engine build" as the reason, which is false. Now resolved with a pathspec
+(`git log -1 --abbrev=10 --format=%h -- engine mods`), which maps both those commits to `88b54424d6`.
+The DIRTY pathspec stays `engine`-only for a separate and still-valid reason recorded in that file:
+mods/ in it turned every YAML edit into a full engine rebuild.
+
+**Segment 3, asset digest, is NOT machine-specific — the earlier claim here that it was "machine-local
+by construction" was wrong.** `ComputeAssetDigest` (`BuildFingerprint.cs:369-396`) hashes only the
+leaf names inside each mounted package, sorted and lower-cased, because `Folder.Contents`
+(`Folder.cs:35-38`) selects `Path.GetFileName`. Two machines holding the same Red Alert extraction
+therefore produce the SAME digest despite the packages sitting at different absolute paths — the
+function's own docstring says so, three lines from where the wrong claim was written. The real reason
+to keep it out of a gate is different and narrower: two installs can legitimately hold different
+content SETS (a different Red Alert release; an optional package one side mounted — though note the
+movies folder that `Server.cs` cites as the example is commented out at `mods/ww3mod/mod.yaml:18`),
+and a digest cannot tell "different but equivalent for this replay" from "actually divergent".
+
+**The cost of excluding it is real and is not a rounding error:** a missing sprite shortens an
+animation rather than erroring, and `WithMakeAnimation` grants a condition for exactly as long as its
+sequence plays, so a content difference genuinely can move the simulation. That case is left to the
+sync check, which runs during playback and reports rather than guesses.
+
+So the replay check compares only the first two segments (`BuildFingerprint.ReplaySegmentsMatch`), and
+`DescribeReplayDifference` truncates before describing, so the warning never names game content as
+the culprit when game content was not weighed.
+
+## 2026-08-19 — Packaged releases DO carry a real mod version; only dev builds are frozen
+
+Corollary to the frozen-`Version` finding above, and the reason the version comparison at
+`ReplayCompatibility.cs:87` was kept rather than deleted once the fingerprint check landed.
+
+`make all` never stamps `mods/ww3mod/mod.yaml` — confirmed two ways: the `version` target
+(`Makefile:177-179`) is not a dependency of `all` (`Makefile:157`), and the `make version` call in
+`fetch-engine.sh:86` runs after `cd "${ENGINE_DIRECTORY}"` (`fetch-engine.sh:84`), so it hits
+`engine/Makefile:157`, whose file list is `mods/ra mods/cnc mods/d2k mods/ts mods/modcontent mods/all`
+— ww3mod is not among them. `git log -p` over `mods/ww3mod/mod.yaml` shows the `Version:` line touched
+exactly once ever, in `4894008b` (2023-03-19), which introduced the literal.
+
+But the release packaging scripts DO stamp it, into the staged copy rather than the working tree:
+`packaging/macos/buildpackage.sh:158`, `packaging/linux/buildpackage.sh:86`,
+`packaging/windows/buildpackage.sh:108`, each calling `set_mod_version "${TAG}"` on
+`mods/${MOD_ID}/mod.yaml` under the build output directory. So a shipped build reports a real tag
+while every dev build reports `release-20230225`. The version check is therefore inert between two
+dev builds (the case that produced the silent divergence) but live between a release and anything
+else — worth keeping, and worth not trusting on its own.
 
 ## 2026-08-19 — the unregistered-symbol lint has a blind spot, and the unload menu's worst case is 24 classes not 16
 
@@ -7372,3 +7446,29 @@ group under their own actor names. All 24 fit inside one 36-weight Chinook
 `MaxListHeight = 380` was sized for. The lesson that generalises: "how many classes are there" is not
 answerable from the infantry roster alone when the group key falls back to an actor name — every
 class-less passenger actor is its own row.
+
+## 2026-08-19 — A diverging replay is NOT silent: the sync check runs during playback
+
+This corrects a premise that had propagated into two task briefs and one commit message before a
+review caught it, and it is worth its own heading because it changes what any future replay guard
+should DO rather than just being a detail.
+
+The belief was that a replay recorded by a stale build "loads and plays back a silently different
+game", which argues for refusing it up front. The engine does not behave that way. `ReplayConnection`
+implements `SendSync` by enqueueing the hash the LOCAL simulation just computed
+(`ReplayConnection.cs:101-104`) and drains that queue into `orderManager.ReceiveSync` on the next
+receive (`:108-109`); the hashes RECORDED in the file arrive through the same door, parsed out of the
+replay's packets at `:117-118`. Both land in `OrderManager.ReceiveSync` (`OrderManager.cs:225-234`),
+which keeps the first value seen for a frame and calls `OutOfSync(frame)` when the second disagrees —
+raising the ordinary Quit/Stay desync prompt. `DesyncWatcherLogic.cs:51-52` states the same thing from
+the other side: a null desync report is "the normal case in a replay".
+
+**Why it matters beyond accuracy:** it removes the case for a hard refusal. A build mismatch is a
+thing the player should be TOLD, because the sync prompt when it comes will not explain that the cause
+was a rebuild — but it is not a thing to block on, because the engine already detects and reports the
+actual divergence, and a guard that blocks play is worse than the bug it diagnoses (the same
+conclusion the join path reached independently, `WORKSPACE/closeout/54ab3880.md` §4). Note the
+asymmetry with saves: `GameSave` has no version check and relies on the same sync mechanism
+(`GameSave.cs:262-263`), so "saves are the well-behaved case, replays are not" was never the right
+framing — both rely on the sync hash, and replays additionally have a version field that happens to
+be inert.

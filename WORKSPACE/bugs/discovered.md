@@ -1860,10 +1860,36 @@ The SDK-drift half is fixed: `global.json` pins the 6.0 band, so CA2021 cannot a
 
 ## The replay compatibility gate is dead code — WW3MOD's mod version is a frozen literal
 
-Found 2026-08-19 while costing out a sync-hash change (`wt/sync-traits`, against `08b255f7`). Not fixed;
-recording rather than acting because the fix is a release-process decision, not a code one.
+**FIXED 2026-08-19 on `wt/replay-version` (against `bc168d8b`)** — by the second of the two candidates
+below, with three corrections to it after review. Replay metadata now carries `BuildFingerprint`
+(`GameInformation.cs`, stamped at `World.cs:272`) and `ReplayCompatibilityCheck.Resolve` reports a
+mismatch.
 
-`ReplayUtils.cs:63` refuses a replay when `Game.Mods[mod].Metadata.Version != version`. But
+1. **It WARNS, it does not refuse.** The premise that drove "refuse" — that a stale replay diverges
+   silently — is false: recorded sync hashes are replayed back through `OrderManager.ReceiveSync`
+   (`ReplayConnection.cs:101-109`, `:117-118`; `OrderManager.cs:225-234`) and a mismatch raises the
+   OutOfSync prompt. So the dialog offers "Watch Anyway", matching the settled precedent for the join
+   path in `WORKSPACE/closeout/54ab3880.md` §4: a guard that blocks play is worse than the bug it
+   diagnoses.
+2. **Only the engine-revision and rules-hash segments are compared, never the asset digest** — but NOT
+   for the reason first written here. The digest is not machine-specific (`Folder.cs:35-38` hashes leaf
+   names only, so identical extractions agree). It is excluded because two installs can legitimately
+   hold different content SETS and the digest cannot tell that from real divergence.
+3. **The engine-revision segment needed a pathspec first.** It was stamped from bare `rev-parse HEAD`,
+   so any commit — including a `WORKSPACE/`-only one — changed it, which would have made a replay
+   watchable for roughly one commit. Now `git log -1 ... -- engine mods`.
+
+The first candidate (stamping `mod.yaml` during `make all`) was rejected: `mod.yaml` is itself hashed
+into the fingerprint's rules segment (`BuildFingerprint.cs:297-300`), so stamping it every build would
+churn the multiplayer fingerprint on commits that changed no rule and make `DescribeDifference` blame
+"mod rules" for a version bump. Still unverified end to end — it needs one live run to confirm a
+recorded replay round-trips through a real `.orarep`, and the dialog has never been seen on screen.
+
+Found 2026-08-19 while costing out a sync-hash change (`wt/sync-traits`, against `08b255f7`). Recorded
+rather than acted on at the time, on the grounds that the fix was a release-process decision.
+
+`ReplayUtils.cs:63` (as it stood then; now `ReplayCompatibility.cs:87`) refuses a replay when
+`Game.Mods[mod].Metadata.Version != version`. But
 `mods/ww3mod/mod.yaml:3` hardcodes `Version: release-20230225`, and only the manual `version` make target
 rewrites it (`Makefile:177-179`) — `all: engine` (`Makefile:157`) never does. Every build reports the same
 version, so the comparison is always equal and the gate has never fired.
@@ -1879,12 +1905,36 @@ older-build replays anyone cares about is roughly nil. This gets worse the momen
 Two candidate fixes, both cheap, neither obviously right without a call from the user:
 - Wire `make all` to stamp a real version (the `VERSION` recipe at `Makefile:46` already derives
   `git-<short-sha>`), which makes the existing gate work as designed. Costs: mod.yaml churns on every build.
-- Or record `BuildFingerprint.ForMod` (`BuildFingerprint.cs:88`) into replay metadata and check *that* on
+- Or record `BuildFingerprint.ForMod` (`BuildFingerprint.cs:99`) into replay metadata and check *that* on
   load — strictly better signal, since it covers rebuild-forgotten and content-mismatch cases the version
   string cannot, and the fingerprint already exists and is already computed for the handshake.
 
 Note the same frozen string is sent in the multiplayer handshake (`UnitOrders.cs:285`), so the version half of
 join validation is equally inert; there, `BuildFingerprint` at least logs a mismatch (`Server.cs:557-562`).
+
+---
+
+## `mods/ww3mod/languages/en.ftl` carries a dead copy of the replay dialog strings
+
+Found 2026-08-19 on `wt/replay-version` (against `bc168d8b`) while adding two new strings to that
+dialog. Pre-existing, not caused by that work, and cosmetic.
+
+`mods/ww3mod/languages/en.ftl:585-595` defines `incompatible-replay-title`,
+`incompatible-replay-prompt`, `incompatible-replay-accept`, `incompatible-replay-unknown-version`,
+`incompatible-replay-unknown-mod`, `incompatible-replay-unavailable-mod`,
+`incompatible-replay-incompatible-version` and `incompatible-replay-unavailable-map` — an older flat
+key scheme. The engine moved to attribute keys (`dialog-incompatible-replay.title` and friends), which
+is what `ReplayUtils.cs:19-41` actually references and what `engine/mods/common/fluent/common.ftl:615`
+supplies. Nothing in C# reads the flat keys (`grep -rn "incompatible-replay-title" --include="*.cs"`
+returns nothing), and `--check-yaml` reports all eight as `Unused key`.
+
+**Effect:** none at runtime — the live strings come from `common.ftl`. The trap is for whoever next
+edits the replay dialog wording: editing the ww3mod copy changes nothing on screen, and the eight
+warnings are noise in every lint run. They are warnings rather than errors, so they are not in
+`lint-baseline.txt`. Deleting the block is the fix; left alone here because it is unrelated to the
+gate being fixed and the release is scope-locked.
+
+---
 
 ## 2026-08-19 — `mods/ww3mod/chrome/garrison-panel.yaml` is a dead file (found on `wt/widget-symbols`)
 

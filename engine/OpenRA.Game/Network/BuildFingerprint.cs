@@ -55,6 +55,15 @@ namespace OpenRA.Network
 		/// <summary>Separates the engine revision, the rules hash and the asset digest.</summary>
 		const char Separator = '/';
 
+		/// <summary>Stands in for a segment whose computation threw. See <see cref="ContentHashes"/>.</summary>
+		const string ComputeFailed = "error";
+
+		/// <summary>
+		/// How many leading segments <see cref="ReplaySegmentsMatch"/> weighs: the engine revision
+		/// and the rules hash. The asset digest is deliberately outside this window.
+		/// </summary>
+		const int ReplaySegmentCount = 2;
+
 		const int ContentHashChars = 8;
 
 		static readonly string Revision = ReadRevision();
@@ -81,8 +90,11 @@ namespace OpenRA.Network
 
 		/// <summary>
 		/// The full fingerprint for a mod, in the form "engineRevision/rulesHash/assetDigest".
-		/// The hashes are computed on first use and cached, so this is free after the first call
-		/// and costs nothing at all in a session that never opens a network game.
+		/// The hashes are computed on first use and cached, so this is free after the first call.
+		/// Every session pays that first call now, including one that never opens a network game:
+		/// World stamps the fingerprint into the replay metadata of every game it creates, so the
+		/// startup shellmap triggers it. Measured at ~10-30 ms (SHA256 over the ~1 MiB of simulation
+		/// yaml plus a package file listing), once per process.
 		/// </summary>
 		public static string ForMod(ModData modData)
 		{
@@ -114,6 +126,79 @@ namespace OpenRA.Network
 				differences.Add("game content (the Red Alert files under Content/ra/v2)");
 
 			return differences.Count == 0 ? "a different build" : differences.JoinWith(" and ");
+		}
+
+		/// <summary>
+		/// Whether two fingerprints agree closely enough that a replay recorded under one will
+		/// re-simulate identically under the other. Only the engine revision and the rules hash are
+		/// weighed; an empty fingerprint never matches, because a replay that carries no stamp
+		/// cannot be shown to agree with anything.
+		/// </summary>
+		/// <remarks>
+		/// The asset digest is excluded, and that is a judgement call rather than an oversight.
+		/// It is NOT excluded for being machine-specific: <see cref="ComputeAssetDigest"/> hashes
+		/// only the leaf names inside each package, sorted and lower-cased (Folder.cs:35-38 selects
+		/// Path.GetFileName), so two machines holding the same Red Alert extraction produce the same
+		/// digest even though the packages sit at different absolute paths. It is excluded because
+		/// two installs can legitimately hold DIFFERENT content sets — a different Red Alert release,
+		/// or an optional package one player mounted and the other did not — and the digest cannot
+		/// tell "different but equivalent for this replay" from "actually divergent". The cost is
+		/// real and worth stating: a missing sprite shortens an animation rather than erroring, and
+		/// WithMakeAnimation grants a condition for exactly as long as its sequence plays, so a
+		/// content difference CAN move the simulation. That case is left to the sync check, which
+		/// runs during playback and reports rather than guesses.
+		/// <para/>
+		/// A LOCAL segment that failed to compute (<see cref="ComputeFailed"/>) is skipped rather
+		/// than treated as a difference: a transient file system error while hashing must not be the
+		/// reason a replay will not open, the same principle <see cref="ContentHashes"/> applies to
+		/// the join path. The recorded side is NOT given that benefit — a stored fingerprint reading
+		/// "error" would otherwise match every build there is, which is exactly the wave-everything-
+		/// through behaviour this check exists to end.
+		/// </remarks>
+		public static bool ReplaySegmentsMatch(string mine, string theirs)
+		{
+			if (string.IsNullOrEmpty(mine) || string.IsNullOrEmpty(theirs))
+				return false;
+
+			var a = mine.Split(Separator);
+			var b = theirs.Split(Separator);
+
+			for (var i = 0; i < ReplaySegmentCount; i++)
+			{
+				if (i >= a.Length || i >= b.Length)
+					return false;
+
+				if (a[i] == ComputeFailed)
+					continue;
+
+				if (a[i] != b[i])
+					return false;
+			}
+
+			return true;
+		}
+
+		/// <summary>
+		/// Names what differs between two fingerprints, considering only the segments
+		/// <see cref="ReplaySegmentsMatch"/> weighs, so the reason shown to the player matches the
+		/// reason the replay was actually flagged.
+		/// </summary>
+		public static string DescribeReplayDifference(string mine, string theirs)
+		{
+			// DescribeDifference guards theirs but dereferences mine, so guard it here: this runs on
+			// a warning path, and a diagnostic that throws would replace the warning with a crash.
+			if (string.IsNullOrEmpty(mine))
+				return "a different build";
+
+			if (string.IsNullOrEmpty(theirs))
+				return "an older build that predates this check";
+
+			return DescribeDifference(ReplaySegments(mine), ReplaySegments(theirs));
+		}
+
+		static string ReplaySegments(string fingerprint)
+		{
+			return string.Join(Separator, fingerprint.Split(Separator).Take(ReplaySegmentCount));
 		}
 
 		/// <summary>
@@ -167,7 +252,7 @@ namespace OpenRA.Network
 					// that have nothing to do with the match. A diagnostic must never be the
 					// reason nobody can play.
 					Log.Write("debug", $"Could not compute the build fingerprint: {e}");
-					return "error" + Separator + "error";
+					return ComputeFailed + Separator + ComputeFailed;
 				}
 			}
 		}

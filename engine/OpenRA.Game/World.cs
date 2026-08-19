@@ -271,6 +271,10 @@ namespace OpenRA
 				Mod = Game.ModData.Manifest.Id,
 				Version = Game.ModData.Manifest.Metadata.Version,
 
+				// Metadata.Version is a literal in mod.yaml that no build step moves, so it is the
+				// same string on every build ever made and cannot date a replay. The fingerprint can.
+				BuildFingerprint = Network.BuildFingerprint.ForMod(Game.ModData),
+
 				MapUid = Map.Uid,
 				MapTitle = Map.Title
 			};
