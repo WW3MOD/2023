@@ -6,19 +6,30 @@
 explicitly and give the falsifier.
 
 **Scope note.** This started as "fix the three named irritations" and was widened mid-review to
-"re-examine the whole lobby, including what the redesign already changed." Section 5 is the
-result of that widening and is the part I would read first — the biggest finding in this document
-is not one of the three irritations.
+"re-examine the whole lobby, including what the redesign already changed." The single most actionable
+finding is **§6.1 / §L1 — every faction tooltip renders mangled** — and it is not one of the three
+irritations.
+
+**Revision history.** Rev 1 (`a9afd4c6`) led with a claim that the Advanced tab renders empty. The
+manager's check A **refuted it**; rev 2 retracts that in §5.1, corrects §1.1, and re-ranks. Where rev 1
+was wrong the text is struck rather than deleted, so the error and its cause stay legible.
 
 ---
 
 ## 0. Headline
 
 Two of the user's three irritations are **already solved in code** and are discoverability or
-semantics problems, not missing features. The third is a **real design flaw**. And separately from
-all three, the review turned up **one defect that would embarrass the project in front of a
-stranger within about fifteen seconds** (§5.1) and **one dead end a player can walk into by
-clicking two prominent buttons in sequence** (§3.3).
+semantics problems, not missing features. The third is a **real design flaw**. Separately, the review
+turned up **every faction tooltip in the lobby rendering as one mangled line with a visible `\n`**
+(§6.1) and **one dead end a player can walk into by clicking two prominent buttons in sequence**
+(§3.3).
+
+> **Retraction, 2026-08-19.** An earlier version of this document led with the claim that the
+> **Advanced tab opens onto nothing**. That was **wrong** — there is no Advanced tab at all, and the
+> always-visible options panel renders 12 real options. The manager's check A refuted it. **§5.1 is
+> rewritten as a retraction** with the reasoning error named; the residual finding there is a scope
+> question, not a defect, and is re-ranked down accordingly. Nothing else in this document depended
+> on it.
 
 | # | Irritation | Verdict |
 |---|---|---|
@@ -37,12 +48,21 @@ citations below are `engine/mods/common/chrome/`, and all logic is
 
 ### 1.1 Layout
 
-Two tabs: **Match** and **Advanced** (plus **Music**). The Match tab is a 2×2 quadrant grid:
+**Corrected 2026-08-19 after check A** — an earlier draft of this section described "Match / Advanced
+/ Music" tabs. That was wrong; there is no such tab row. The screen is a single 2×2 quadrant grid with
+**all four quadrants visible at once**, and the only tab-like controls are local toggles inside two of
+them:
 
 | | Left | Right |
 |---|---|---|
-| **Top** | Map preview + inline map browser | Player roster (`CELL_LABEL: PLAYERS`, `lobby-players.yaml:47-54`) |
-| **Bottom** | Common options + Active Changes chips + Preset bar | Chat |
+| **Top** | Map preview — toggles `MAP` / `CHANGE MAP` (inline browser) | Player roster (`CELL_LABEL: PLAYERS`, `lobby-players.yaml:47-54`) |
+| **Bottom** | Options panel (always visible) + Active Changes chips + Preset bar | Chat — toggles `CHAT` / `MUSIC` |
+
+The options panel renders **12 real options** with real values (Income Modifier, Starting Cash,
+Passive Income, Kill Bounties, Game Speed, Doomsday Clock, Starting Units, Explored Map, Fog of War,
+Separate Team Spawns, Sync, Debug Menu). There is exactly one `CATEGORY_FILTER` in the lobby chrome —
+`lobby-players.yaml:854-856`, text **`All`** — so that one panel is the whole options surface. See
+§5.1 for why I originally got this wrong.
 
 Bottom of the roster cell carries two anchored strips:
 - `LOBBY_SETUP_ROW` (`lobby-players.yaml:740-778`) — **Add Bots · Remove Bots · Auto-Team · Replay last**
@@ -249,12 +269,17 @@ client's ready flag**. *New state* = new synchronised data. **Nothing here is in
 
 | # | Proposal | Player sees | Sync class | Cost |
 |---|---|---|---|---|
-| **L1** | **Spectators in their own tray** | Spectators leave the player list for a labelled, shorter-row tray | **Chrome** | **S–M** |
-| **L2** | **Fix or hide the Advanced tab** | A top-level tab stops opening onto nothing (§5.1) | **Chrome** | **XS–S** |
+| **L1** | **Faction tooltips unescape `\n`** | Faction tooltips stop being one mangled line; descriptions reappear | **Chrome** | **XS** |
+| **L2** | **Spectators in their own tray** | Spectators leave the player list for a labelled, shorter-row tray | **Chrome** | **S–M** |
 | **L3** | **Rename the bots** | "Stable AI 0802" stops appearing in a shipping opponent picker | **Data** | **XS** |
 | **L4** | **Disable placeholder options** | Dead settings stop being clickable (pre-emptive; §5.1) | **Chrome** | **XS** |
 | **L5** | **1366×768 overflow** | Buttons stop overlapping at a very common laptop width | **Chrome** | **S** |
-| **L6** | **Faction tooltip `\n`** | Tooltips stop showing a literal `\n`, if confirmed | **Chrome** | **XS** |
+| — | ~~Fix or hide the Advanced tab~~ | **Withdrawn** — there is no Advanced tab (§5.1). What remains is a scope question below, not a proposal. | — | — |
+
+**Not a proposal — a question for the user.** §5.1 leaves one real item: **22 of the 34 designed
+lobby options were never implemented and are silently hidden.** The hiding works correctly and the
+lobby looks finished, so there is nothing to fix. The only question is **whether those 22 features
+are still wanted** — a roadmap call, not UX work.
 
 ### Tier 2 — Behaviour (needs more care; all still low-risk)
 
@@ -271,7 +296,42 @@ client's ready flag**. *New state* = new synchronised data. **Nothing here is in
 > instantiates. L3 alone removes the embarrassment; B1 removes the confusion. **L3 is worth shipping
 > on its own even if B1 is never done.**
 
-### L1 — Spectators in their own tray — *the visible win*
+### L1 — Faction tooltips unescape `\n` — *confirmed statically; smallest fix in this document*
+
+Promoted to the top after check A removed the Advanced-tab finding. **This one is confirmed by a
+complete read of the chain**, and it is worse than the version on record at
+`WORKSPACE/bugs/discovered.md:197-213`.
+
+The chain, every link read:
+
+1. `mods/ww3mod/rules/world.yaml` stores descriptions with `\n` as an intended title/body delimiter —
+   e.g. `Description: America\nNATO's lead power. Precision airpower, networked armour…`
+2. **MiniYaml does not unescape `\n`.** The proof is that four separate engine sites do it by hand:
+   `LobbyCommands.cs:1444`, `MainMenuLogic.cs:713`, `GameInfoBriefingLogic.cs:32`,
+   `ProductionTooltipLogic.cs:191` — all `.Replace("\\n", "\n")`.
+3. The faction path does **not** do that replace (`LobbyUtils.cs:235-238`, `701`).
+4. `SplitOnFirstToken(input, token = "\n")` (`LobbyUtils.cs:206-215`) splits on a **real newline**
+   (0x0A). Against a literal backslash-`n`, `IndexOf` returns **-1**, so `split > 0` is false →
+   `first = the entire input`, `second = null`.
+
+**Result:** the tooltip *title* is the whole string including a visible `\n`, and the *description* is
+empty. Every faction, every time the dropdown is opened.
+
+**The sharp part:** commit `75ac6941` (2026-08-16, three days ago) set out to fix exactly this — its
+message says the descriptions "carried a header and an empty body… so every faction showed a blank
+description." It wrote real bodies. But the bodies are being swallowed into the title, because the
+split never fires. **The symptom it fixed is still present, for a reason one layer below the one it
+addressed.**
+
+**Fix:** add `.Replace("\\n", "\n")` before the split, matching the four existing precedents. One
+line.
+
+*Falsifier, stated because I have not seen it rendered:* this is wrong if `FluentProvider.GetMessage`
+unescapes, or if MiniYaml unescapes for this field specifically. Both are unlikely given that four
+call sites do the replace manually — but a single screenshot of an open faction dropdown settles it,
+and §9 explains why that screenshot is currently out of reach.
+
+### L2 — Spectators in their own tray — *the visible win*
 
 Move the spectator loop (`LobbyLogic.cs:1178-1229`) out of the `players` ScrollPanel into a distinct
 container below it, headed with the **already-existing, already-translated** count string
@@ -284,11 +344,6 @@ addressable as a group by the bulk-kick feature. **Nothing synchronised changes.
 lowest-risk item with the largest visible effect.
 
 Three layout options are mocked up side by side — see §7.
-
-### L2 — Fix or hide the Advanced tab
-
-See §5.1. **Decision needed from the user before anything is built**, and one screenshot should
-confirm the diagnosis first (§9).
 
 ### L3 — Rename the bots
 
@@ -306,12 +361,12 @@ assuming a one-line edit is enough.
 Add `|| option.Placeholder` to the disable predicate at `LobbyOptionsLogic.cs:444`. Placeholders are
 currently dimmed by colour only and remain clickable, firing a real network order for a setting that
 does nothing (§5.1). Unreachable today; live the moment one real option joins those sections. Worth
-doing regardless of what happens to the Advanced tab.
+doing regardless of the roadmap call on the 22 hidden options.
 
-### L5 / L6 — Overflow and tooltips
+### L5 — 1366×768 overflow
 
-Both are on record and both are cheap; see §6.3 and §6.4. L6 needs a screenshot to confirm before
-it is worth touching.
+On record at `lobby-players.yaml:736-739` and `WORKSPACE/BACKLOG.md:17`; see §6.2 item 2. L2 helps
+incidentally by freeing vertical space.
 
 ### B1 — Stop the random bot pick
 
@@ -357,50 +412,70 @@ ends and B4 then needs no separate work.
 Per the widened mandate, treating the merged `feature/lobby-redesign` as a draft. Roughly **35 lobby
 commits** across five waves are in `main` — far more than the three "Step" commits.
 
-### 5.1 The Advanced tab appears to open onto nothing — **the embarrassment finding**
+### 5.1 ~~The Advanced tab opens onto nothing~~ — **RETRACTED. I was wrong.**
 
-This is the one I would fix first for a public release.
+> **Correction, 2026-08-19.** The manager ran check A
+> (`./tools/autotest/screenshot-lobby.sh advanced-tab --tab=advanced`, map `river-zeta-ww3`, at
+> `66fd33d3`; screenshot `manual_lobby_260819_190518/001_advanced-tab.png`). **My conclusion was
+> wrong, and the premise under it was wrong too.** The falsifier I wrote did its job. This section is
+> rewritten; the original claim is struck rather than deleted so the error stays legible.
 
-The chain, all read from source:
+**What I claimed:** that a top-level **Advanced** tab renders with no options in it, and that this was
+the single most embarrassing thing a stranger would hit.
 
-1. `LobbyDummyOptions.cs` defines **34 lobby options** — "Weapon Range", "Damage Scale", "Snipers",
-   "MANPADS", "Friendly Fire" and so on, each with a polished description.
-2. Every one of them is stamped **`opt.Placeholder = true`** (`LobbyDummyOptions.cs:36-38`). They do
-   nothing whatsoever.
-3. An option is "Common" **iff** its id is in a 12-item allow-list; **everything else is "Advanced"**
-   (`LobbyOptionsLogic.cs:180-183`). All 12 Common ids are real options.
-4. `RenderAdvancedSections` **skips any section that is entirely placeholders**
-   (`LobbyOptionsLogic.cs:379-380`) — a deliberate and correct call: *"a section consisting entirely
-   of placeholder options is just visual noise."*
-5. All three Advanced sections — Unit Availability, Combat Tuning, Game Rules — draw **only** from
-   that all-placeholder pool.
-6. The one real option that could land in Advanced is the **Scenario** dropdown, and it
-   `yield break`s when the map defines no scenarios (`ScenarioLobbyDropdown.cs:27-29`) — which is the
-   normal case for a conquest map.
+**What is actually there:** **there is no Advanced tab at all.** The lobby's only top-level tabs are
+`MAP` / `CHANGE MAP` and `CHAT` / `MUSIC`. The options panel is **always visible**, sits under the map
+preview, and renders **12 real options with real values** — Income Modifier 100%, Starting Cash
+$20000, Passive Income $100, Kill Bounties Off, Game Speed Real Time, Doomsday Clock No limit,
+Starting Units None, Explored Map, Fog of War, Separate Team Spawns, Sync, Debug Menu — plus the
+preset row and the "All settings at default" hint. **Nothing opens onto nothing. The lobby reads as
+complete and coherent.**
 
-**Therefore, on a standard multiplayer map, the ADVANCED tab renders with no options in it.** A
-top-level tab, given equal billing beside Match, that opens onto an empty panel.
+**Where my reasoning broke.** I verified the *render* logic and never verified that anything
+*invokes* it with the Advanced category. There is exactly **one** `CATEGORY_FILTER` in the whole lobby
+chrome — `lobby-players.yaml:854-856`, whose text is **`All`**. No widget anywhere instantiates an
+Advanced-filtered panel. `grep -ri advanced mods/ww3mod/chrome/` returns **nothing**. The only
+"advanced" string in the lobby path is `LobbyLogic.cs:634`:
 
-> **Inference flag — read this before acting.** This is a static read of the render path; I did not
-> launch the game. The falsifier is precise: **if any non-placeholder `LobbyOption` exists whose id is
-> not in `CommonOptionIds` and not in `HiddenOptionIds`, Advanced is not empty.** I enumerated the
-> `ILobbyOptions` implementers and checked ww3mod's `world.yaml` — `PowersLobbyOptions` is commented
-> out (`world.yaml:554`), and `shortgame/crates/creeps/buildradius/allybuild/techlevel` are explicitly
-> hidden (`LobbyOptionsLogic.cs:88-92`). I believe the conclusion holds, but **one screenshot settles
-> it and should be taken before any work starts.**
+```csharp
+case "advanced": case "options": pendingTestTab = PanelType.Options; break;
+```
 
-If confirmed, the options are: hide the tab when it would be empty (smallest); promote a few real
-options back into it so it has a reason to exist; or remove it for v1 and restore it when the
-features ship. **This is a user decision, not mine.**
+— and that sits inside `if (TestMode.IsActive && ...)`. **"Advanced" is a test-driver alias for the
+Options panel, not a tab.** I read the `CategoryAdvanced` vocabulary in `LobbyOptionsLogic.cs` and the
+"Options → Advanced" phrasing in old redesign commit messages, and inferred a user-facing tab from
+both. Neither is evidence about what the chrome instantiates. **Commit messages describe an intent at
+a point in time; later waves superseded them. I should have grepped the chrome for the tab before
+building a headline finding on it.**
 
-*Related latent hazard, not currently live:* placeholder options are dimmed by **colour only** —
-`checkbox.IsDisabled` does **not** include `option.Placeholder` (`LobbyOptionsLogic.cs:439-446`). A
-placeholder is fully clickable and its `OnClick` issues a real `option <id> <state>` network order,
-syncing to all clients and resetting everyone's ready flag, for a setting that does nothing. Today
-this is unreachable because the sections are hidden. It becomes live the instant anyone adds one real
-option to one of those sections. **Recommend adding `|| option.Placeholder` to the disable predicate
-regardless of what happens to the tab** — a one-line pre-emptive fix.
+**What survives, and it is much smaller.** The *mechanism* I traced is correct — 12 real options
+render, and the remaining **22 of the 34 designed options are placeholders whose sections are
+suppressed wholesale** (`LobbyOptionsLogic.cs:379-380`). Restated honestly:
 
+> **22 of 34 designed lobby options were never implemented, and are silently hidden.**
+
+That is a **scope and roadmap question, not a visible defect**. A player sees a coherent 12-option
+panel and has no way to know the other 22 were ever designed. The suppression is working exactly as
+intended and is the reason the lobby looks finished. **The only open question is whether those 22
+features are still wanted** — that is the user's call, not a bug. `L2` is re-ranked accordingly in §4:
+**not a release blocker, not a defect.**
+
+**A correction to my own check-A instructions, which makes the refutation stronger.** I specified "a
+map with **no** scenarios defined — that condition is what makes this bite." That was inverted:
+`river-zeta-ww3` **has 2 scenarios** and is the **only** one of the nine maps that defines any (I
+re-verified: it is the sole `scenarios.yaml` under `mods/ww3mod/maps/`). So the check ran on the one
+map most likely to *populate* an options panel, and the result still refuted me — which is a stronger
+disconfirmation than the condition I asked for. Worth recording separately: **the Scenario dropdown is
+a real, populated lobby control** ("No Scenario" + "CONQUEST | 2 SCENARIOS") on that map, so my §1
+aside that it "yields nothing on the normal case" is true for 8 of 9 maps but should not be read as
+"it is never seen."
+
+**Still valid, and independent of all of the above:** placeholder options are dimmed by **colour
+only** — `checkbox.IsDisabled` does not test `option.Placeholder` (`LobbyOptionsLogic.cs:439-446`).
+A placeholder is fully clickable and its `OnClick` fires a real `option <id> <state>` network order
+that resets every client's ready flag, for a setting that does nothing. Unreachable today *because*
+the suppression hides them — so this is latent, not live, and it becomes live the instant one real
+option joins those sections. **L4 stands as a one-line pre-emptive fix.**
 ### 5.2 Common options on the Match panel — **keep**
 
 Sound call, and it is what makes the Advanced tab empty rather than making the lobby worse. The 12
@@ -446,22 +521,32 @@ room for the spectator tray. **Worth asking the user directly.**
 
 Not raised by the user; found during the review.
 
-1. **§5.1 — the empty Advanced tab.** Highest severity.
-2. **Bot names** — "Stable AI 0802" in a shipping opponent picker (§1.3). Already `PIPELINE.md:132` R4.
-3. **1366×768 overflow** — the setup-row buttons overflow into `SPECTATE_AREA` by ~80px at that width.
+### 6.1 Faction tooltips render one mangled line — **now the most severe item here**
+
+Full chain in §L1. Every faction tooltip shows its whole description as a single title line with a
+visible `\n`, and an empty body — including on the faction dropdown a new player opens on their first
+lobby. Confirmed by a complete static read; the fix is one `.Replace("\\n", "\n")` with four existing
+precedents in the engine. **Commit `75ac6941` tried to fix this three days ago and treated the layer
+above it**, so the symptom is still live.
+
+*(This item replaces the retracted Advanced-tab finding as the top "stranger would notice" entry.)*
+
+### 6.2 The rest
+
+1. **Bot names** — "Stable AI 0802" in a shipping opponent picker (§1.3). Already `PIPELINE.md:132` R4.
+2. **1366×768 overflow** — the setup-row buttons overflow into `SPECTATE_AREA` by ~80px at that width.
    Documented and accepted at `lobby-players.yaml:736-739` and `WORKSPACE/BACKLOG.md:17` ("fix only if
    a player reports it"). 1366×768 is still one of the most common laptop resolutions; for a public
    release I would raise this above "only if reported". **Overlapping buttons are a first-impression
-   defect.** L1 helps incidentally by freeing vertical space.
-4. **Faction tooltips may render a literal `\n`** — on record at `WORKSPACE/bugs/discovered.md:197-213`;
-   `LobbyUtils.cs:235-238` passes the description through `SplitOnFirstToken` with no unescape. Static
-   trace only; **one screenshot settles it.** Faction tooltips are on the path of every new player.
-5. **~38 orphan lobby/server Fluent keys** in `mods/ww3mod/languages/en.ftl`
+   defect.** L2 helps incidentally by freeing vertical space.
+3. **~38 orphan lobby/server Fluent keys** in `mods/ww3mod/languages/en.ftl`
    (`WORKSPACE/bugs/discovered.md:1229-1235`) — edits there are silent no-ops. A trap for whoever does
    the copy pass; worth knowing *before* L3's renaming work, since renaming is a copy edit.
-6. **Dead chrome** — `SKIRMISH_TABS`/`MULTIPLAYER_TABS` (~100 lines, force-hidden, **duplicate child
+4. **Dead chrome** — `SKIRMISH_TABS`/`MULTIPLAYER_TABS` (~100 lines, force-hidden, **duplicate child
    IDs**) and an unreachable Servers panel (`WORKSPACE/BACKLOG.md:13`). Invisible to players; a
    correctness hazard for anyone editing lobby YAML, since duplicate IDs make `Get<T>` ambiguous.
+5. **22 of 34 designed lobby options were never implemented** and are silently hidden (§5.1). Not a
+   visible defect — a roadmap question.
 
 ---
 
@@ -472,59 +557,72 @@ Not raised by the user; found during the review.
 
 ---
 
-## 8. What I did not verify
+## 8. What I did not verify — and one thing I got wrong
 
-- **No game was launched** — launches are serialized through the manager, so I took none. Every
-  behavioural claim in this document is a source read. The three that most deserve confirmation are
-  written up as runnable requests in §9.
-- **I did not confirm the 1366×768 overflow visually** — I am repeating the in-repo comment and
-  backlog entry, both of which state it as measured.
+**I got §5.1 wrong.** I claimed a user-facing Advanced tab renders empty. There is no such tab. The
+error was inferring UI structure from code vocabulary (`CategoryAdvanced`) and from old commit
+messages, without grepping the chrome to see whether anything instantiates it. Nothing did. **The
+lesson worth keeping: a commit message describes an intent at a point in time; five later waves
+superseded it. Read the chrome, not the changelog, for what a screen contains.** The falsifier I
+wrote is what caught this, and it caught it in one screenshot — that discipline paid for itself.
+
+Still unverified:
+
+- **No game was launched by me** — launches are serialized through the manager. Every behavioural
+  claim here is a source read.
+- **L1 (faction tooltip)** is a complete static chain but I have not seen it rendered. Falsifier
+  stated in §L1. This is the claim I would most like a human eye on, and §9 explains why that is
+  currently blocked.
+- **The 1366×768 overflow** — I am repeating the in-repo comment and backlog entry, both of which
+  state it as measured. I did not measure it.
 - **BAR's lobby layout** could not be confirmed from text sources; the `MainList2` pattern I cite is
-  from BAR's *in-game* player list. The pattern is sound; the provenance is narrower than I would like.
-- **I did not audit the Music tab or the chat panel** beyond noting their positions.
+  from BAR's *in-game* player list. Sound pattern, narrower provenance than I would like.
+- **The Music tab and chat panel** were not audited beyond noting their positions.
 - **`WORKSPACE/BACKLOG.md:15` is stale** (§1.2) and I have not removed it — that is an edit, and this
   branch is research-only.
 
 ---
 
-## 9. MANAGER: please run this
+## 9. Outstanding checks — status and cost
 
-Three checks I could not make myself. All three are **static observations of a lobby screen** — none
-needs a match played, and all three can be answered from **a single skirmish lobby on a normal
-conquest map**. None of my Tier 1 proposals should be built before check A returns.
+### Check A — DONE, and it refuted me
 
-### A. Is the Advanced tab empty? *(blocks L2 — highest value)*
+Run by the manager: `./tools/autotest/screenshot-lobby.sh advanced-tab --tab=advanced`,
+`river-zeta-ww3`, at `66fd33d3`. Screenshot `manual_lobby_260819_190518/001_advanced-tab.png`.
+Result and correction in §5.1. **Working as intended; no follow-up.**
 
-- **Setup:** open a skirmish lobby on any standard conquest map (one with **no scenarios** defined —
-  that condition is what makes this bite).
-- **Do:** click the **Advanced** tab.
-- **Capture:** one screenshot of the Advanced panel.
-- **The answer is:** whether any option rows render at all.
-  - **No rows** → §5.1 confirmed; L2 becomes a release-blocking fix and the user picks
-    hide / repopulate / drop.
-  - **Some rows** → my inference is wrong. Please note **which** options appear, because that tells me
-    exactly which non-placeholder option escaped the 12-item Common allow-list, and I will correct §5.1.
-- **Bonus, same screenshot:** if any row is **greyed out**, try clicking it. If it toggles, L4 is live
-  today rather than latent and moves up the ranking.
+### Check B — WITHDRAWN, resolved statically instead
 
-### B. Do faction tooltips show a literal `\n`? *(blocks L6)*
+I originally asked for a screenshot of a faction tooltip. **That is no longer needed.** Following the
+chain through `world.yaml` → MiniYaml → `SplitOnFirstToken` closed it without a launch, and produced
+a *stronger* result than a screenshot would have: not just "the tooltip looks wrong" but the exact
+mechanism, the one-line fix, four in-engine precedents for that fix, and the reason the commit from
+three days ago missed it. See §L1. **A screenshot would now only be belt-and-braces confirmation of a
+chain I can already show end to end.**
 
-- **Setup:** same lobby, **Match** tab.
-- **Do:** hover the **faction dropdown** on any player row, then open it and hover an entry.
-- **Capture:** one screenshot with the tooltip visible.
-- **The answer is:** whether the description contains a visible `\n` instead of a line break.
-  On record at `WORKSPACE/bugs/discovered.md:197-213`; I only traced it statically.
+### Check C — NOT WORTH A STAGING HOOK. My recommendation: skip it.
 
-### C. The spectate dead end *(confirms §3.3 — lowest priority of the three)*
+The spectate dead end (§3.3) needs mouse input — click `Add Bots`, then `Spectate` — and the agent
+does not drive the game's UI. The available route would be a `Test.OpenLobbyTab`-style staging hook,
+per the technique at `WORKSPACE/DISCOVERIES.md:6687`, where a case was temporarily added to that
+switch to reach an otherwise-unreachable lobby state.
 
-- **Setup:** same lobby.
-- **Do:** click **Add Bots** (fills every empty slot), then click **Spectate**.
-- **Capture:** one screenshot of the players panel afterwards.
-- **The answer is:** whether any control offers a route back into a player slot. I expect the
-  Spectate strip to have vanished entirely and every slot to be occupied.
-- **Note:** in *skirmish* you are always host, so you can always click `Remove Bots` to escape. The
-  genuinely trapped case is a **non-host in multiplayer**, which is harder to stage — if that is
-  expensive, the skirmish screenshot plus the admin gate at `LobbyCommands.cs:463` is enough
-  corroboration and I would not spend a multiplayer setup on it.
+**I do not think it earns its cost, for three reasons:**
 
-**If only one can be run, run A.**
+1. **The mechanism is fully read, not inferred.** `SPECTATE_AREA.IsVisible` requires `Slot != null`
+   (`LobbyLogic.cs:321`); `slot_open` is admin-gated (`LobbyCommands.cs:463`,
+   `ValidateSlotCommand(..., true)`); `ShowPlayerActionDropDown` has no reverse of "Move to Spectator"
+   (`LobbyUtils.cs:117-142`). The only residual doubt is whether some *other* widget offers a route
+   back, and I grepped for one and found none.
+2. **The fix does not depend on the answer.** B2 and B3 are each small, independently useful, and
+   worth doing whether or not the dead end is reachable exactly as I describe. Confirming it would not
+   change what gets built.
+3. **A hook is the wrong instrument anyway.** The hook would stage the *state*; it still could not
+   click the buttons. What it would actually prove is what the panel looks like for a slotless
+   client — which is the thing I already read off the visibility predicates.
+
+**If it is ever worth pinning, an NUnit test is the better instrument than a launch** — there is
+precedent in this repo at `f2e19907`, which pinned the force-start confirm state machine with unit
+tests. The visibility predicates are lambdas over `OrderManager` state and are testable the same way,
+with no launch and no focus theft. **I would only spend that if B2/B3 get built, as a regression pin
+rather than a diagnosis.**

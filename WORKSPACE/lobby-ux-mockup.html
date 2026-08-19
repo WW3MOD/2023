@@ -341,60 +341,74 @@
   </div>
 
   <!-- ============ 4 ============ -->
-  <h2><span class="n">4</span>The thing nobody asked about — Advanced may open onto nothing</h2>
+  <h2><span class="n">4</span>The thing nobody asked about — every faction tooltip is mangled</h2>
   <p class="lede">
-    Traced statically, and the most likely thing to embarrass the project in front of a stranger.
+    <b>Revised.</b> This slot previously held a claim that the <i>Advanced tab opens onto nothing</i>.
+    A screenshot refuted it — <b>there is no Advanced tab at all</b>, and the always-visible options
+    panel renders 12 real options. That claim is retracted; see the box at the foot of this section.
+    What replaces it is smaller to fix and, unlike the retracted one, <b>confirmed by a complete read
+    of the chain</b>.
   </p>
 
   <div class="grid g2">
     <div class="card bad">
-      <div class="chead"><span class="ctag now">Today (inferred)</span><span class="ctitle">An empty top-level tab</span></div>
+      <div class="chead"><span class="ctag now">Today (confirmed)</span><span class="ctitle">Faction tooltips lose their body</span></div>
       <div class="cbody">
-        <div class="panel" style="min-height:190px">
-          <div style="display:flex;gap:18px;border-bottom:1px solid #2a2a2a;padding:0 4px 8px;margin-bottom:14px">
-            <span style="font-size:11.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink3)">Match</span>
-            <span style="font-size:11.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--accent);border-bottom:2px solid var(--accent);padding-bottom:6px">Advanced</span>
-            <span style="font-size:11.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink3)">Music</span>
-          </div>
-          <div style="text-align:center;color:var(--ink3);font-style:italic;padding:46px 0;font-size:13px">
-            (no options)
-          </div>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">What the tooltip shows now</div>
+        <div class="menu" style="width:100%;margin-bottom:14px">
+          <div class="mitem" style="color:var(--red);line-height:1.45">America\nNATO's lead power. Precision airpower, networked armour and air cavalry: fewer units, costlier, striking first and at range.</div>
+        </div>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">What it should show</div>
+        <div class="menu" style="width:100%">
+          <div class="mitem" style="font-weight:600;color:#fff">America</div>
+          <div class="mitem" style="color:var(--ink2);line-height:1.45">NATO's lead power. Precision airpower, networked armour and air cavalry: fewer units, costlier, striking first and at range.</div>
         </div>
       </div>
-      <div class="callout"><b>The chain.</b> 34 lobby options exist — "Weapon Range", "Snipers",
-        "MANPADS" — and <b>every one is stamped a placeholder</b>
-        (<code>LobbyDummyOptions.cs:36-38</code>). The renderer correctly <b>hides any section that is
-        entirely placeholders</b> (<code>LobbyOptionsLogic.cs:379-380</code>). All three Advanced
-        sections are exactly that. The only real fallback, the Scenario dropdown, yields nothing on a
-        map without scenarios (<code>ScenarioLobbyDropdown.cs:27-29</code>) — the normal case.</div>
-      <div class="callout warn"><b>Verify before acting.</b> This is a source read, not a screenshot.
-        It is false if any non-placeholder option exists outside the 12-item Common allow-list and the
-        6-item hidden list. I checked and believe it holds — <b>but one screenshot settles it and
-        should be taken first.</b></div>
+      <div class="callout"><b>The chain, every link read.</b> The description uses
+        <code>\n</code> as a title/body delimiter in <code>world.yaml</code>. <b>MiniYaml does not
+        unescape it</b> — four engine sites do the replace by hand
+        (<code>LobbyCommands.cs:1444</code>, <code>MainMenuLogic.cs:713</code>,
+        <code>GameInfoBriefingLogic.cs:32</code>, <code>ProductionTooltipLogic.cs:191</code>). The
+        faction path does not (<code>LobbyUtils.cs:235-238</code>), so
+        <code>SplitOnFirstToken</code> — which splits on a <b>real</b> newline
+        (<code>LobbyUtils.cs:206</code>) — finds nothing, returns the whole string as the title, and
+        leaves the body empty.</div>
+      <div class="callout warn"><b>The sharp part.</b> Commit <code>75ac6941</code> set out to fix
+        exactly this <b>three days ago</b> and wrote real description bodies. The bodies are being
+        swallowed into the title, because the split never fires. <b>The symptom it fixed is still
+        live, one layer down.</b></div>
     </div>
 
-    <div class="card">
-      <div class="chead"><span class="ctag">Decision needed</span><span class="ctitle">Three ways out</span></div>
+    <div class="card pick">
+      <div class="chead"><span class="ctag rec">Fix</span><span class="ctitle">One line — plus a retraction</span></div>
       <div class="cbody">
-        <table>
-          <tr><th>Option</th><th>Effect</th><th>Cost</th></tr>
-          <tr><td><b>Hide the tab</b> when it would render empty</td>
-              <td>Stranger never sees an empty panel. Reversible the moment a real option lands.</td>
-              <td><span class="tag-chrome">Chrome</span> · XS</td></tr>
-          <tr><td><b>Repopulate it</b> — move 2–3 real options back out of Match</td>
-              <td>Tab earns its billing, but Match gets thinner and that was the redesign's best idea.</td>
-              <td><span class="tag-chrome">Chrome</span> · S</td></tr>
-          <tr><td><b>Drop it for v1</b>, restore when the features ship</td>
-              <td>Cleanest first impression; loses the place the features will eventually live.</td>
-              <td><span class="tag-chrome">Chrome</span> · XS</td></tr>
-        </table>
+        <div class="menu" style="width:100%;margin-bottom:14px">
+          <div class="mitem hdr">LobbyUtils.cs — before the split</div>
+          <div class="mitem" style="color:var(--green);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px">description = description.Replace("\\n", "\n");</div>
+        </div>
+        <div class="note" style="padding:0">Matches four existing precedents in the engine. Chrome
+          only — no order sent, no lobby state written.</div>
       </div>
-      <div class="callout warn"><b>Do this regardless of which you pick.</b> Placeholder options are
-        dimmed by <b>colour only</b> — <code>IsDisabled</code> does not test
-        <code>Placeholder</code> (<code>LobbyOptionsLogic.cs:439-446</code>). They are fully clickable
-        and clicking fires a real network order that resets every client's ready flag, for a setting
-        that does nothing. Unreachable today; live the instant one real option joins those sections.
-        <b>One line to pre-empt.</b></div>
+      <div class="callout" style="border-left-color:var(--amber);background:#1a1710">
+        <b>RETRACTED: "the Advanced tab opens onto nothing."</b> This panel previously carried that
+        claim. A screenshot refuted it — <b>there is no Advanced tab at all</b>. The lobby's only
+        tab-like toggles are <code>MAP / CHANGE MAP</code> and <code>CHAT / MUSIC</code>; the options
+        panel is always visible and shows <b>12 real options with real values</b>. "Advanced" exists
+        only as a <i>test-driver alias</i> for the options panel
+        (<code>LobbyLogic.cs:634</code>, inside <code>if (TestMode.IsActive)</code>).<br><br>
+        <b>Why I got it wrong:</b> I read the <code>CategoryAdvanced</code> vocabulary in the render
+        logic and inferred a tab, without grepping the chrome to see whether anything instantiates it.
+        Nothing does — there is one <code>CATEGORY_FILTER</code> in the lobby and its text is
+        <code>All</code>.<br><br>
+        <b>What honestly remains:</b> 22 of 34 designed options were never implemented and are
+        silently hidden. The hiding works correctly and the lobby looks finished — so this is a
+        <b>roadmap question, not a defect</b>, and it is no longer ranked as work.</div>
+      <div class="callout warn"><b>Still worth doing.</b> Placeholder options are dimmed by
+        <b>colour only</b> — <code>IsDisabled</code> does not test <code>Placeholder</code>
+        (<code>LobbyOptionsLogic.cs:439-446</code>). Clicking one fires a real network order that
+        resets every client's ready flag, for a setting that does nothing. Unreachable today because
+        the suppression hides them; live the instant one real option joins those sections.
+        <b>One line to pre-empt (L4).</b></div>
     </div>
   </div>
 
@@ -408,12 +422,12 @@
   <table>
     <tr><th>#</th><th>Proposal</th><th>Sync class</th><th>Cost</th><th>Status</th></tr>
     <tr><td colspan="5" style="background:#131a15;color:var(--green);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:600">Tier 1 — legibility</td></tr>
-    <tr><td>L1</td><td><b>Spectators in their own tray</b></td><td class="tag-chrome">Chrome only</td><td>S–M</td><td><b>Pick layout A, B or C</b> (§1)</td></tr>
-    <tr><td>L2</td><td><b>Fix or hide the Advanced tab</b></td><td class="tag-chrome">Chrome only</td><td>XS–S</td><td><b>Needs your decision</b> — after screenshot A</td></tr>
+    <tr><td>L1</td><td><b>Faction tooltips unescape <code>\n</code></b></td><td class="tag-chrome">Chrome only</td><td>XS</td><td><b>Confirmed statically</b> — one line (§4)</td></tr>
+    <tr><td>L2</td><td><b>Spectators in their own tray</b></td><td class="tag-chrome">Chrome only</td><td>S–M</td><td><b>Pick layout A, B or C</b> (§1)</td></tr>
     <tr><td>L3</td><td><b>Rename the bots</b></td><td class="tag-chrome">Data edit</td><td>XS</td><td>Ready — no code path touched</td></tr>
     <tr><td>L4</td><td><b>Disable placeholder options</b></td><td class="tag-chrome">Chrome only</td><td>XS</td><td>Ready — one line, pre-emptive</td></tr>
     <tr><td>L5</td><td><b>1366×768 button overflow</b></td><td class="tag-chrome">Chrome only</td><td>S</td><td>On record, <code>BACKLOG.md:17</code></td></tr>
-    <tr><td>L6</td><td><b>Faction tooltip <code>\n</code></b></td><td class="tag-chrome">Chrome only</td><td>XS</td><td>Confirm with screenshot B first</td></tr>
+    <tr><td style="color:var(--ink3)">—</td><td style="color:var(--ink3)"><s>Fix or hide the Advanced tab</s></td><td style="color:var(--ink3)">—</td><td style="color:var(--ink3)">—</td><td style="color:var(--ink3)"><b>Withdrawn</b> — no such tab (§4)</td></tr>
     <tr><td colspan="5" style="background:#1a1710;color:var(--amber);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:600">Tier 2 — behaviour</td></tr>
     <tr><td>B1</td><td><b>Stop the random bot pick</b></td><td class="tag-order">Existing order</td><td>S</td><td>Pick option 1 or 2 (§3)</td></tr>
     <tr><td>B2</td><td><b>"Join as player" while spectating</b></td><td class="tag-order">Existing order</td><td>S</td><td>Ready</td></tr>
@@ -428,18 +442,24 @@
     even if B1 never is.</b>
   </div>
 
-  <div class="callout warn" style="margin:14px 0 0">
-    <b>Three screenshots needed before building (manager runs these — I launch nothing).</b>
-    <b>A:</b> open a skirmish lobby on a normal conquest map, click <b>Advanced</b> — does anything
-    render? <i>Blocks L2, and is the highest-value single check in this document.</i> &nbsp;
-    <b>B:</b> hover a faction dropdown entry — literal <code>\n</code> in the tooltip? <i>Blocks L6.</i> &nbsp;
-    <b>C:</b> click <b>Add Bots</b> then <b>Spectate</b> — is there any route back into a slot?
-    <i>Confirms the dead end.</i> Full instructions in §9 of the write-up. <b>If only one runs, run A.</b>
+  <div class="callout ok" style="margin:14px 0 0">
+    <b>Verification status — nothing further is blocked.</b>
+    <b>Check A</b> (is the Advanced tab empty?) was <b>run and refuted me</b>; the claim is retracted
+    above and re-ranked out. &nbsp;
+    <b>Check B</b> (faction tooltip) is <b>withdrawn</b> — following the chain through MiniYaml and
+    <code>SplitOnFirstToken</code> settled it statically, and gave a stronger result than a screenshot
+    would have: the exact mechanism, a one-line fix, and four precedents for it. &nbsp;
+    <b>Check C</b> (the dead end) needs mouse input, which the agent does not drive.
+    <b>My recommendation is to skip it</b> — the mechanism is fully read, and B2/B3 are worth building
+    either way, so confirming it would not change what gets done. If it is ever worth pinning, an
+    NUnit test is the right instrument, not a launch. Reasoning in §9 of the write-up.
   </div>
 
   <div class="callout warn" style="margin:22px 0 0">
     <b>Two open questions I could not decide for you.</b><br>
-    1. <b>Advanced tab</b> (§4) — hide, repopulate, or drop for v1?<br>
+    1. <b>22 of 34 designed lobby options were never implemented</b> and are silently hidden (§4).
+    Nothing is broken and the lobby looks finished — the question is purely whether those features are
+    still wanted. A roadmap call, not UX work.<br>
     2. <b>Preset bar</b> — <code>PRESET [Default ▾] [Save As] [Reset]</code> holds permanent space on the
     main panel for a feature a first-time player cannot use, and <b>"Replay last" in the setup row is
     the same thing in one click</b>. It is also the most netcode-adjacent control on the screen: applying
