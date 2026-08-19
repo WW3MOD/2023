@@ -175,68 +175,19 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (range == WDist.Zero)
 				yield break;
 
-			// Gather other selected units' circles with the same range for grouped rendering.
-			// Use a 3% boundary margin so segments near circle intersection points also dim,
-			// preventing outer arcs from two circles crossing each other visually.
-			(WPos Center, long RadiusSq)[] otherCircles = null;
-			var expandedRadius = range.Length + range.Length * 3 / 100;
-			var expandedRadiusSq = (long)expandedRadius * expandedRadius;
-			var others = new System.Collections.Generic.List<(WPos, long)>();
-			foreach (var a in self.World.Selection.Actors)
-			{
-				if (a == self || !a.IsInWorld || a.Disposed)
-					continue;
-
-				if (!a.Owner.IsAlliedWith(self.World.RenderPlayer))
-					continue;
-
-				foreach (var t in a.TraitsImplementing<RenderRangeCircle>())
-				{
-					if (t.IsTraitDisabled)
-						continue;
-
-					if (t.Info.RangeCircleType != Info.RangeCircleType)
-						continue;
-
-					var r = t.GetRange();
-					if (r == range)
-						others.Add((a.CenterPosition, expandedRadiusSq));
-				}
-			}
-
-			if (others.Count > 0)
-				otherCircles = others.ToArray();
-
 			var info = RenderRangeCircleInfo;
-			if (otherCircles != null)
-			{
-				var dimAlpha = Math.Max(info.Color.A / 4, 3);
-				var dimColor = Color.FromArgb(dimAlpha, info.Color);
-				var dimBorderColor = Color.FromArgb(Math.Max(info.BorderColor.A / 4, 1), info.BorderColor);
-
-				yield return new RangeCircleAnnotationRenderable(
-					self.CenterPosition,
-					range,
-					0,
-					info.Color,
-					info.Width,
-					info.BorderColor,
-					info.BorderWidth,
-					otherCircles,
-					dimColor,
-					dimBorderColor);
-			}
-			else
-			{
-				yield return new RangeCircleAnnotationRenderable(
-					self.CenterPosition,
-					range,
-					0,
-					info.Color,
-					info.Width,
-					info.BorderColor,
-					info.BorderWidth);
-			}
+			yield return RangeCircleGrouping.Render(
+				self,
+				self.CenterPosition,
+				range,
+				0,
+				info.Color,
+				info.Width,
+				info.BorderColor,
+				info.BorderWidth,
+				a => a.TraitsImplementing<RenderRangeCircle>()
+					.Where(t => !t.IsTraitDisabled && t.Info.RangeCircleType == Info.RangeCircleType)
+					.Select(t => (a.CenterPosition, t.GetRange())));
 		}
 
 		bool IRenderAnnotationsWhenSelected.SpatiallyPartitionable => false;

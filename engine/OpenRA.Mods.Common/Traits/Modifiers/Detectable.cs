@@ -43,6 +43,14 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string CounterBatteryRadarDetectableGrantsCondition = "counter-battery-radar-detectable";
 		public readonly string VisionDetectableConditionPrefix = "visibility-";
 
+		// DetectableVisionChanged grants "<prefix><CurrentVisibility>", a name built at runtime, and the level is
+		// clamped to [1, MapLayers.VisionLayers - 1] before the grant. Declare that whole reachable set so the
+		// condition lint can see it: without this, every consumer (e.g. ^DetectableRangeCircles) reads as
+		// "consumes conditions that are not granted". The bounds must track the clamp in ITick.Tick.
+		[GrantedConditionReference]
+		public IEnumerable<string> VisionDetectableConditions =>
+			Enumerable.Range(1, MapLayers.VisionLayers - 1).Select(i => VisionDetectableConditionPrefix + i);
+
 		[Desc("Players with these relationships can always see the actor.")]
 		public readonly PlayerRelationship AlwaysVisibleRelationships = PlayerRelationship.Ally;
 
