@@ -2,8 +2,10 @@
 
 **Date:** 2026-08-20 · **Branch:** `wt/ambush-audit` · **Base:** `main @ 4bb3fae9` (level with `origin/main`)
 **Status:** read-only research. No code changed. **Game never launched** — launches are serialized
-through the manager and none was requested for this pass. Every claim below is read from source.
-Claims that can only be settled by playing are marked `[NEEDS RUN]` and collected in §6.
+through the manager and none was requested for this pass. Every claim below is read from source, and
+every number carries a `file:line`. Where a claim is derived rather than directly read, it says so
+inline. Claims that can only be settled by playing are collected in §6; corrections this pass makes to
+existing documents are collected in §7.
 
 **Scope:** the three questions the user asked, in his order — (1) is the detection model correct,
 (2) does coordinated ambush exist, (3) does cover/protection exist at all.
@@ -42,7 +44,7 @@ agrees, it says so; where it corrects 260819 or the shipped comments, it says so
   it, on any map, in any mode.** Every one of the four ambush autotests grants it by hand in Lua
   because the behaviour does not otherwise happen (§2.4). This is the single biggest gap in the audit.
 - **Stop running to avoid being spotted.** Nothing predicts detection. There is no "about to be seen"
-  reaction anywhere (§1.5). The margin is computable and nothing reads it.
+  reaction anywhere (§1.6). The margin is computable and nothing reads it.
 - **Take cover as a command.** There is no such control. Prone is fully automatic (it fires on
   `!moving`), and the dead `TAKE_COVER` button was removed on 2026-08-19 (`b62ee52f`, `486575a8`).
   Verified at HEAD: `TakeCover` appears nowhere in `mods/` and `TAKE_COVER` nowhere in the chrome (§3.1).
@@ -135,7 +137,7 @@ combined — can never apply. "Being next to cover" contributes exactly zero to 
 This is the answer to the user's *"is any modifier unreachable in practice?"* — yes, three of the eight,
 and they are the largest.
 
-### 1.4b How the modifiers compose, and the resulting detection radii
+### 1.5 How the modifiers compose, and the resulting detection radii
 
 **Composition is plain addition, then a clamp — nothing is multiplicative and nothing is mutually
 exclusive.** `Detectable.ITick.Tick` and `IsVisibleInner` both do
@@ -190,7 +192,7 @@ two systems compose by acting on opposite sides of the same comparison. Depth is
 takes the observer to 0 — i.e. **deep forest is worth far more than every stance and posture modifier
 combined**, and unlike them it is invisible in the concealment gauge, which is viewer-independent.
 
-### 1.5 There is no "almost spotted" reaction
+### 1.6 There is no "almost spotted" reaction
 
 The *quantity* exists and is cheap: detection is `observer strength > required level`, so
 `required − strength` is a graded margin, and one step of margin is roughly three cells of approach
@@ -204,7 +206,7 @@ Detection is read only as the after-the-fact boolean `CanBeViewedByPlayer` (47 c
 **So the user's first scenario — "a soldier almost spotted stops running to stay hidden" — has no
 implementation, in any stance, gated or not.**
 
-### 1.6 What the player is shown
+### 1.7 What the player is shown
 
 Two indicators ship and both are attached to base infantry (`defaults.yaml:811-827` via
 `^UnitIndicators`; circles via `infantry.yaml:22`):
@@ -520,6 +522,89 @@ damage reduction, in 2024.
 
 ---
 
+### 3.8 Two other detectability modifiers, for completeness
+
+- **Aircraft on the ground**: `DetectableAddativeModifier@Ground`, `VisionModifier: 3` while
+  `!airborne` (`aircraft.yaml:46-48`). Live; not infantry.
+- **Special Forces have a quieter weapon**: `^SF` overrides the firing penalty to **−1** instead of −2
+  (`infantry.yaml:1993-1995`) and carries `Detectable.Vision: 5` rather than 3 (`:1987`) — the one unit
+  built around concealment. But `^SF` is `Prerequisites: ~disabled` (`infantry.yaml:1981`), i.e. **not
+  buildable**, so no player can field it today.
+
+---
+
+## 4. The biggest gap between the vision and the code
+
+The user's vision has two halves. They are in very different states.
+
+**Half two — "detection of any one member makes them all open fire" — is BUILT AND REACHES HUMANS.**
+`AmbushTickIdle`'s stock path plus `TriggerNearbyAmbushAllies` does exactly this, ungated, within 10
+cells, and the damage-triggered variant works too (§2.2). It has been in the tree since `fea4617c`
+(2026-03-17) and was never reverted. If the user cannot see it, the causes are most likely the three
+caveats in §2.2 — it is **idle-only**, the volley is spread over a few ticks rather than simultaneous,
+and the latch is terminal — not that it is missing.
+
+**Half one — "behave so as to stay hidden; stop running when nearly spotted" — DOES NOT EXIST.**
+There is no predictive detection anywhere (§1.6); detection is only ever read after the fact. The one
+behaviour in the codebase that is close — Stage-2 halt-before-contact, which stops an advancing Ambush
+unit *while its group is still unseen* — is **locked behind `enable-ambush-tactics`, which only
+`LaneAmbushBotModule` grants, and only to the ≤4 units it posts itself** (§2.3).
+
+**So the single biggest gap is a wiring gap, not a design gap.** The most sophisticated ambush
+behaviour in the game — halt-before-contact plus a four-trigger spring table with hysteresis — is
+finished, unit-tested, and reachable only by the AI. The four ambush autotests all grant the gate by
+hand in Lua because it does not otherwise happen (§2.4). Every green ambush test validates a
+configuration no player can reach.
+
+A second, quieter gap: **the stance the user reached for is not the concealment lever, and the real
+levers are unadvertised.** Concealment is driven by posture (automatic), veterancy (invisible), and
+forest depth (invisible) — never by stance (§1.3, §1.5). Ambush changes *fire discipline*, not
+detectability, which is exactly what the user said he wanted — but he also expected it to drive
+hiding behaviour, and it does not.
+
+---
+
+## 5. What already exists that could be built on
+
+Listed roughly by ratio of value to effort. **This section is orientation for a future implementation
+pass; nothing here is a recommendation this audit is qualified to make without the user's call.**
+
+1. **The gate is one condition.** Everything in §2.3 becomes player-facing the moment
+   `enable-ambush-tactics` is granted to human-owned units. The grantor seam already exists and is
+   already lint-clean — `ExternalCondition@ambushtactics` on `^AutoTarget` (`defaults.yaml:344-345`) —
+   and there is an established idiom for exactly this grant shape next door:
+   `GrantConditionOnHumanOwner@tacpos` (`defaults.yaml:44-45`), which is how
+   `StancePositioningExecutor` was made default-ON for humans. **Caveat:** the gate was authored as
+   default-off for benchmark byte-identity, so turning it on for humans is a behaviour change that
+   needs the user's sign-off, and `AmbushMinSpringThreshold`/`AmbushHighSpringThreshold` have never
+   been tuned against human play — their `[Desc]` says they are "meant to be tuned in autotest"
+   (`AutoTarget.cs:104`).
+2. **The "almost spotted" margin is already computed.** `required − observer strength` is a graded,
+   distance-quantised quantity available on a synced trait; `260817-unit-indicators.md` §A.1 works out
+   that one step ≈ three cells of approach. Nothing reads it. A "don't start moving while
+   almost-spotted" behaviour is the cheap version of the user's scenario 1 and needs no new state.
+3. **The concealment gauge already renders the right number.** `^DetectableRangeCircles`
+   (`infantry.yaml:733-…`) draws the detection radius for a selected unit and its ladder is derived
+   from code. Extending it to signal "almost spotted" is a render-side change — but see the PITFALL at
+   `Detectable.cs:152`: driving visibility marks from a granted condition caused two shipped desyncs,
+   which is why `WithSpottedDecoration` is deliberately render-only.
+4. **Forest depth is already modelled, superlinearly, on both sides.** `Map.ForestGroundShadow` for
+   concealment (`Map.cs:1102-1120`) and `ConcealmentScore` for order-time seating
+   (`CohesionMoveModifier.cs:338-346`). The user's "dense forest either side of a road" picture is
+   already expressible; what is missing is protection depth, not concealment depth.
+5. **Edge-vs-interior is already computed and has exactly one consumer.** `TerrainAffordanceLayer`
+   ships `CoverQuality`, `IsCoverEdge` and `OutwardFacing` per cell (`world.yaml:340`), read only by
+   `StancePositioningExecutor` (§3.5). Any "hug the treeline facing the road" behaviour has its
+   substrate already.
+6. **Group detection is already a solved primitive.** `GroupDetectedBy`
+   (`AttackMoveActivity.cs:201-230`) answers "has anyone in my ambush group been seen" and is the exact
+   predicate the user's description needs.
+
+**Two things that would need building from nothing:** an aim delay (there is none for infantry — §2.5),
+and any reaction to imminent detection (§1.6).
+
+---
+
 ## 6. What would need a run to settle
 
 Every claim above is read from source. These need play:
@@ -529,5 +614,29 @@ Every claim above is read from source. These need play:
    Settles whether the coordination the code performs is visible to a player.
 2. **Is the concealment gauge legible?** Screenshot a selected squad, then have it stop for 200+ ticks
    (dug-in) and re-shoot. The circle should shrink twice (prone at `!moving`, dug-in at 200 ticks).
-3. **Does the `object-proximity` death matter in play?** It cannot be measured while dead — this is a
-   code fact, not a play question. Listed only to note it needs no run.
+3. **Does the 20% forest damage reduction read as anything?** Two equal squads, one in deep trees
+   (windowed density ≥50), one in the open, same attacker. 20% is inside normal combat variance, so
+   this needs several seeds to say anything — and it is worth knowing whether the effect is
+   *perceptible* before anyone spends effort tuning it.
+4. **Is the rock/tree density asymmetry visible on real maps?** §3.3 is a rules fact; whether it
+   matters depends on where maps actually place `ROCK*` actors relative to contested ground. That is a
+   map-data question, answerable by inspection rather than a run, and this pass did not open it.
+
+**Needs no run:** the `object-proximity` death (§1.4), the prone-damage death (§3.2), and the
+`enable-ambush-tactics` gate (§2.3) are all code facts, settled by grep. They are listed here only so
+nobody schedules a run to confirm them.
+
+---
+
+## 7. Corrections this pass makes to existing documents
+
+Recorded so a curation pass can act; **no curated document was edited by this audit.**
+
+| Document | Claim | Status |
+|---|---|---|
+| `WORKSPACE/recon/260819-infantry-visibility-stances.md` §0 #4 | concealment is "reported by nothing" | **outdated at HEAD** — the concealment gauge (`^DetectableRangeCircles`) and the spotted `!` marker both ship (§1.6) |
+| `WORKSPACE/recon/260819-…` §0 #2 | Ambush "switches OFF the game's only automatic take-cover behaviour" | **half right** — it does opt out of `StancePositioningExecutor` (`:318`), but it opts *in* to the order-time concealment re-seat (`CohesionMoveModifier.cs:1079`). "Only" is wrong |
+| `WORKSPACE/recon/260728-deploy-prone.md:13,52` | prone gives "per-damage-type damage reduction (down to 10–80%)" | **dead since `1802191e`, 2024-02-13** — no live weapon declares a matching `DamageType` (§3.2) |
+| A prior pass's conclusion | `stance-ambush` has zero consumers **and** `StancePositioningExecutor.cs:313-314` explains why it deliberately does not consume it | **first half right, second half wrong** — the comment explains why the opt-out is written in C# rather than YAML; the executor *does* honour Ambush (§2.1) |
+| `infantry.yaml:41` (shipped comment) | "a lone treeline barely helps" | **wrong** — one tree is density 10, below the 15 floor, so it helps exactly zero (§3.3) |
+| `defaults.yaml:312-319` (shipped comment) | implies the gate is meaningfully live | **misleading in effect** — technically accurate (it *is* granted, to bot-posted units) but reads as though the machinery is generally on. No human unit ever carries it (§2.3) |
