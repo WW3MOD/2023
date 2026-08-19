@@ -40,6 +40,31 @@ one place: `GarrisonManager.SwapPortOccupants`, pinned in `GarrisonPortSwapTest`
 **Still latent, not live:** repo-wide grep for `SwapGarrisonPorts` returns exactly one hit — the
 `case` label. Nothing issues the order, so no shipped build can reach either failure.
 
+## 2026-08-19 — deleting a control deletes the readout printed on it, and the commit log cannot show you that
+
+Branch `wt/cargo-parity`, against `main @ de78a1ed`. A reconciliation pass had flagged the cargo
+passenger rows as built (`eb5e5de0`) then deleted (`7b5c692b`) and asked whether restoring them was
+right. Reading both commits splits the question in two, and the halves have opposite answers.
+
+`7b5c692b` deleted a row that was doing **two** jobs. Its buttons were CONTROL — MARK / EJECT / RALLY,
+plus a `Deploy Marked` order generator. Its label was READOUT — `Rifleman [3/6]`, the passenger's name
+and ammo. The commit reasoned about control only, and reasoned correctly: the J menu is a better home
+for aiming a drop, and `CargoUnloadOrderGenerator` carried a real defect (N ghosted markers stacked
+toward opaque) that deserved to go with it. **Nothing in the commit, its message, or the replacement
+inherits the readout.** The J menu shows class name and count, never ammo or HP;
+`WithCargoPipsDecoration` shows a count and a per-type pip colour; the panel header shows a total. So
+after a well-reasoned deletion the game had nowhere at all that named who was aboard a transport.
+
+**The general shape: when one widget carries both an action and a fact, a deletion argued on the
+action silently takes the fact with it — and every artefact you would audit with (the diff, the commit
+message, the replacement's own docstring) is written in the vocabulary of the action.** The right
+answer to "was it deleted for a good reason?" was *yes for the buttons, no for the label*. Before
+deleting a control, ask what its label said and where that fact moves.
+
+Corollary for reading a log: `7b5c692b`'s message is honest, complete and specific, and still leaves
+this invisible. "Deletes the superseded per-passenger panel" is true of the buttons and false of the
+label, and no reviewer reading the message alone can tell.
+
 ## 2026-08-19 — three merged-but-unobserved claims put in front of a running game; two confirmed, and the row-count assertion that would have "confirmed" the third was worthless
 
 Branch `wt/run-verify`, against `main @ 815804f1`, on a grant of exactly two launches. Covers the

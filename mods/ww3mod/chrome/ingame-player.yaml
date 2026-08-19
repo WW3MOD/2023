@@ -783,12 +783,15 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: Eject All
 					VisualHeight: 0
+		# Shares GARRISON_PANEL's exact footprint above. The two are mutually exclusive
+		# (CargoPanelLogic bails on an actor carrying a GarrisonManager), so one rectangle serves both
+		# and the readout does not change size depending on which kind of hold you clicked.
 		Container@CARGO_PANEL:
 			Logic: CargoPanelLogic
 			X: WINDOW_WIDTH - 240
-			Y: WINDOW_HEIGHT - 112
+			Y: WINDOW_HEIGHT - 260
 			Width: 228
-			Height: 92
+			Height: 240
 			Children:
 				LogicTicker@CARGO_TICKER:
 				Label@CARGO_HEADER:
@@ -797,28 +800,168 @@ Container@PLAYER_WIDGETS:
 					Font: TinyBold
 					Align: Center
 					Contrast: true
+				Label@CARGO_CLASS_0:
+					Y: 18
+					Width: 170
+					Height: 12
+					Font: Tiny
+					Contrast: true
+				Label@CARGO_COUNT_0:
+					X: 174
+					Y: 18
+					Width: 46
+					Height: 12
+					Font: Tiny
+					Align: Right
+					Contrast: true
+				Label@CARGO_CLASS_1:
+					Y: 32
+					Width: 170
+					Height: 12
+					Font: Tiny
+					Contrast: true
+				Label@CARGO_COUNT_1:
+					X: 174
+					Y: 32
+					Width: 46
+					Height: 12
+					Font: Tiny
+					Align: Right
+					Contrast: true
+				Label@CARGO_CLASS_2:
+					Y: 46
+					Width: 170
+					Height: 12
+					Font: Tiny
+					Contrast: true
+				Label@CARGO_COUNT_2:
+					X: 174
+					Y: 46
+					Width: 46
+					Height: 12
+					Font: Tiny
+					Align: Right
+					Contrast: true
+				Label@CARGO_CLASS_3:
+					Y: 60
+					Width: 170
+					Height: 12
+					Font: Tiny
+					Contrast: true
+				Label@CARGO_COUNT_3:
+					X: 174
+					Y: 60
+					Width: 46
+					Height: 12
+					Font: Tiny
+					Align: Right
+					Contrast: true
+				Label@CARGO_CLASS_4:
+					Y: 74
+					Width: 170
+					Height: 12
+					Font: Tiny
+					Contrast: true
+				Label@CARGO_COUNT_4:
+					X: 174
+					Y: 74
+					Width: 46
+					Height: 12
+					Font: Tiny
+					Align: Right
+					Contrast: true
+				Label@CARGO_CLASS_5:
+					Y: 88
+					Width: 170
+					Height: 12
+					Font: Tiny
+					Contrast: true
+				Label@CARGO_COUNT_5:
+					X: 174
+					Y: 88
+					Width: 46
+					Height: 12
+					Font: Tiny
+					Align: Right
+					Contrast: true
+				Label@CARGO_CLASS_6:
+					Y: 102
+					Width: 170
+					Height: 12
+					Font: Tiny
+					Contrast: true
+				Label@CARGO_COUNT_6:
+					X: 174
+					Y: 102
+					Width: 46
+					Height: 12
+					Font: Tiny
+					Align: Right
+					Contrast: true
+				Label@CARGO_CLASS_7:
+					Y: 116
+					Width: 170
+					Height: 12
+					Font: Tiny
+					Contrast: true
+				Label@CARGO_COUNT_7:
+					X: 174
+					Y: 116
+					Width: 46
+					Height: 12
+					Font: Tiny
+					Align: Right
+					Contrast: true
+				Label@CARGO_CLASS_8:
+					Y: 130
+					Width: 170
+					Height: 12
+					Font: Tiny
+					Contrast: true
+				Label@CARGO_COUNT_8:
+					X: 174
+					Y: 130
+					Width: 46
+					Height: 12
+					Font: Tiny
+					Align: Right
+					Contrast: true
+				Label@CARGO_CLASS_9:
+					Y: 144
+					Width: 170
+					Height: 12
+					Font: Tiny
+					Contrast: true
+				Label@CARGO_COUNT_9:
+					X: 174
+					Y: 144
+					Width: 46
+					Height: 12
+					Font: Tiny
+					Align: Right
+					Contrast: true
 				Label@CARGO_HINT:
-					Y: 16
+					Y: 160
 					Width: 220
 					Height: 12
 					Font: Tiny
 					Align: Center
 					Contrast: true
 				Button@UNLOAD_ALL_TROOPS:
-					Y: 32
+					Y: 176
 					Width: 220
 					Height: 20
 					Font: Tiny
 					Text: Unload All Troops
 					VisualHeight: 0
 				Label@SUPPLY_LABEL:
-					Y: 56
+					Y: 200
 					Width: 220
 					Height: 12
 					Font: Tiny
 					Contrast: true
 				Button@DROP_SUPPLY:
-					Y: 70
+					Y: 214
 					Width: 220
 					Height: 18
 					Font: Tiny

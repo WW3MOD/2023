@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -21,11 +22,28 @@ namespace OpenRA.Mods.Common.Widgets
 	/// actions that are not per-passenger. Choosing individual passengers is the unload menu's
 	/// job (<see cref="Logic.Ingame.CargoUnloadMenuLogic"/>) — this panel only advertises the key for it,
 	/// because a panel pinned to the screen edge is the wrong place to aim a drop from.
+	///
+	/// <para>The manifest rows below are READ-ONLY, and that is the whole of the distinction this
+	/// panel draws. The per-passenger BUTTONS deleted at 7b5c692b are not coming back here: aiming a
+	/// drop from the screen edge is what the unload menu exists to replace. What went with them by
+	/// accident was the READOUT. The menu names what is aboard too, but only while it is open, only
+	/// over the battlefield, and only for one selected transport — so between 7b5c692b and here, a
+	/// loaded transport at rest was a number and nothing else. Rows are grouped and labelled by the
+	/// same <see cref="CargoManifest"/> the menu uses, so the panel reads as a preview of the menu
+	/// rather than a second, differently-shaped account of the same hold. A 36-slot Chinook takes
+	/// `Types: Infantry`, which admits more distinct classes than the chrome has rows for;
+	/// <see cref="CargoManifest.Fit"/> spends the last row saying so.</para>
 	/// </summary>
 	public class CargoPanelLogic : ChromeLogic
 	{
 		readonly World world;
 		readonly Widget panel;
+		readonly List<CargoManifestRow> rows = new List<CargoManifestRow>();
+
+		// Counted off the chrome rather than declared here. Fit sizes its "+n more" row against this
+		// number, so a constant that disagreed with the YAML would not leave a blank row — it would
+		// print a wrong count of hidden classes above one.
+		readonly int slots;
 
 		int selectionHash;
 		Actor selectedTransport;
@@ -70,6 +88,26 @@ namespace OpenRA.Mods.Common.Widgets
 				hintLabel.IsVisible = () => cargo != null && !cargo.IsEmpty();
 			}
 
+			for (var i = 0; ; i++)
+			{
+				var classLabel = panel.GetOrNull<LabelWidget>($"CARGO_CLASS_{i}");
+				if (classLabel == null)
+					break;
+
+				var slot = i;
+				slots = i + 1;
+
+				classLabel.GetText = () => slot < rows.Count ? rows[slot].Label : "";
+				classLabel.IsVisible = () => slot < rows.Count;
+
+				var countLabel = panel.GetOrNull<LabelWidget>($"CARGO_COUNT_{i}");
+				if (countLabel != null)
+				{
+					countLabel.GetText = () => slot < rows.Count ? $"x{rows[slot].Count}" : "";
+					countLabel.IsVisible = () => slot < rows.Count;
+				}
+			}
+
 			var unloadAllButton = panel.GetOrNull<ButtonWidget>("UNLOAD_ALL_TROOPS");
 			if (unloadAllButton != null)
 			{
@@ -112,8 +150,21 @@ namespace OpenRA.Mods.Common.Widgets
 			panel.IsVisible = () =>
 			{
 				UpdateSelection();
+				UpdateRows();
 				return selectedTransport != null;
 			};
+		}
+
+		// Rebuilt here rather than in each label's GetText, so the ten rows of one frame are ten
+		// slices of one manifest instead of ten independent reads that a mid-frame unload could
+		// disagree across.
+		void UpdateRows()
+		{
+			rows.Clear();
+			if (cargo == null)
+				return;
+
+			rows.AddRange(CargoManifest.Fit(CargoManifest.Group(cargo.Passengers), slots));
 		}
 
 		void UpdateSelection()

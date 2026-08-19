@@ -3,6 +3,37 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+## 2026-08-19: [medium] OPEN, NOT FIXED — reopening the unload menu discards EVERY queued unload, not just the one mid-wait (found while: auditing why the cargo passenger rows were deleted, branch `wt/cargo-parity`, `main @ de78a1ed`)
+
+Confirmed by reading the whole chain; **not yet observed in a running game** — the branch report
+carries a MANAGER block for it. Filed as unverified at `cargo-garrison-status-260819.md:147-149`; the
+chain now resolves, and it is **worse than that entry and worse than the code's own comment claim**.
+
+`CargoUnloadMenuLogic.Open` resets `hasDropped = false` (`:103`) on every open, including a reopen of
+the same transport. `Drop` sends `queued: hasDropped` (`:236`). So the first click after any reopen
+issues an UNQUEUED order, and `Actor.QueueActivity(false, …)` calls `CancelActivity()` first
+(`Actor.cs:381-387`).
+
+The comment at `CargoUnloadMenuLogic.cs:48-51` describes the cost as one man lost inside his
+`BeforeUnloadDelay` wait. The cost is the whole queue:
+
+- `CancelActivity()` → `CurrentActivity.Cancel(self)` with `keepQueue: false` (`Actor.cs:400-403`).
+- `Activity.Cancel` sets `NextActivity = null` **before** the `IsInterruptible` check
+  (`Activity.cs:233-236`), and that setter writes the `nextActivity` field (`:71-76`).
+- Queued unloads live on exactly that chain: `Activity.Queue` walks `nextActivity` and appends
+  (`:222-228`).
+- `UnloadCargo` never sets `IsInterruptible = false`, so it also flips to `Canceling`, and its `Tick`
+  returns `true` on `IsCanceling` before dropping anyone (`UnloadCargo.cs:149-151`).
+
+So: drop five men, ESC, press J, click once — the four still queued are severed along with the one in
+flight, and only the newly clicked man dismounts. Nothing on screen reports it; the queued-unload
+waypoint markers vanish with the activities that emitted them.
+
+**Not fixed here deliberately.** The obvious patch (never reset `hasDropped`) is wrong: once the
+transport has been given a move order, a fresh drop *should* cancel the move. The sound predicate is
+"queue if this transport already has a pending `UnloadCargo`", which is a behavioural change needing a
+run, and this branch's remit was legibility.
+
 ## 2026-08-19: [low] OPEN, NOT FIXED — past 18 classes the unload menu lists `Driver`, `Gunner` and `Commander` TWICE, with nothing distinguishing the pair (found while: photographing the menu at 24 classes, branch `wt/run-verify`, `main @ 815804f1`)
 
 Observed, not inferred: the 24-row capture in `260819_173016_p8981_test-unload-menu-classes` ends
