@@ -30,7 +30,7 @@ agrees, it says so; where it corrects 260819 or the shipped comments, it says so
   (`AutoTarget.cs:634-681`).
 - Get real, automatic concealment by **standing still and not shooting** — and now *see* it, as a grey
   circle drawn at the range from which a standard observer would spot the unit
-  (`^DetectableRangeCircles`, `infantry.yaml:750-…`).
+  (`^DetectableRangeCircles`, `infantry.yaml:750-800`).
 - Get a one-shot **"seat my ambushers in the trees"** pass: a human, Ambush-stance, non-Tight squad
   given a **group move order** has each formation slot re-seated onto the most tree-dense nearby cell
   (`CohesionMoveModifier.cs:1079,1183`; scoring at `:338-346`).
@@ -155,7 +155,7 @@ Two consequences worth stating:
 
 Derived ladder (level *N* is revealed by strength *N+1*, so its radius is the outer `Range` of the
 `^StandardVision` band at strength *N+1*, `defaults.yaml:47-84`). This matches the shipped
-`^DetectableRangeCircles` gauge radii exactly (`infantry.yaml:750,759,768,777`), which is a good
+`^DetectableRangeCircles` gauge radii exactly (`infantry.yaml:754,764,774,784`), which is a good
 independent check on the derivation:
 
 | Detectable level | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
@@ -216,7 +216,7 @@ Two indicators ship and both are attached to base infantry (`defaults.yaml:811-8
   can see you but that you have not spotted does **not** light it, because that would be a wallhack.
 - **Concealment gauge** — a grey circle at the range from which a standard observer first sees the
   unit, so stopping / going prone / digging in visibly shrinks it (`^DetectableRangeCircles`,
-  `infantry.yaml:733-…`). Its own comment records that the tier→radius ladder is derived **from the
+  `infantry.yaml:733-800`). Its own comment records that the tier→radius ladder is derived **from the
   code, not from the arithmetic table in 260819 §3.4**, and that a previous version of the ladder was
   one band (~3 cells) too wide.
 
@@ -584,7 +584,7 @@ pass; nothing here is a recommendation this audit is qualified to make without t
    that one step ≈ three cells of approach. Nothing reads it. A "don't start moving while
    almost-spotted" behaviour is the cheap version of the user's scenario 1 and needs no new state.
 3. **The concealment gauge already renders the right number.** `^DetectableRangeCircles`
-   (`infantry.yaml:733-…`) draws the detection radius for a selected unit and its ladder is derived
+   (`infantry.yaml:733-800`) draws the detection radius for a selected unit and its ladder is derived
    from code. Extending it to signal "almost spotted" is a render-side change — but see the PITFALL at
    `Detectable.cs:152`: driving visibility marks from a granted condition caused two shipped desyncs,
    which is why `WithSpottedDecoration` is deliberately render-only.
