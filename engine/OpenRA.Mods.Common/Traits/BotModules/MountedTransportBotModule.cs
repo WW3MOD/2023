@@ -99,6 +99,15 @@ namespace OpenRA.Mods.Common.Traits
 			"field is rescaled. Only used when RendezvousWithOffensiveStaging is set.")]
 		public readonly int RendezvousMaxAdvanceCells = 6;
 
+		[Desc("Cells the offensive staging anchor may sit BEHIND this module's own drop-off cell (measured",
+			"from our SR) and still be accepted as a rendezvous. Symmetric partner to",
+			"RendezvousMaxAdvanceCells, and the bound whose absence run 260815_202509 measured: before",
+			"contact the frontier descent has nothing to descend toward, so the published anchor sits on the",
+			"Supply Route and is always behind this module's lerp. Unbounded, that swapped a 26-cell forward",
+			"delivery for a 1-cell shuttle — the carrier looped load/drive/unload/reload four times. Only",
+			"used when RendezvousWithOffensiveStaging is set.")]
+		public readonly int RendezvousMaxWithdrawCells = 6;
+
 		[Desc("Experimental (default false = frozen): issue the engine-correct \"Unload\" order on arrival",
 			"so carriers actually disembark their passengers. The frozen default issues \"UnloadCargo\" —",
 			"which is the UnloadCargo ACTIVITY class name, not an order string, so Cargo.ResolveOrder",
@@ -1577,7 +1586,7 @@ namespace OpenRA.Mods.Common.Traits
 				srCell.X, srCell.Y,
 				anchor?.X ?? 0, anchor?.Y ?? 0,
 				fallback.Value.X, fallback.Value.Y,
-				Info.RendezvousMaxAdvanceCells,
+				Info.RendezvousMaxAdvanceCells, Info.RendezvousMaxWithdrawCells,
 				out var x, out var y);
 
 			var rendezvous = new CPos(x, y);

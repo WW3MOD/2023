@@ -423,7 +423,7 @@ wreck is a total loss — but if so, being repairable at all is the odd part, wh
 question. Worth an autotest before anyone acts on it: damage a Bradley past `EjectionDamageState`, let the
 crew bail, repair it, and check whether it moves.
 
-## 2026-08-15: [high] OPEN — `RendezvousMath.AnchorAcceptable` has NO LOWER BOUND, so the combined-arms rendezvous drags the drop-off BACKWARDS to the Supply Route and the carrier shuttles in place (found while: offensive transport standoff, branch `wt/offense-standoff`)
+## 2026-08-15: [high] BOUND ADDED 2026-08-19, FLAG STILL OFF — `RendezvousMath.AnchorAcceptable` had NO LOWER BOUND, so the combined-arms rendezvous dragged the drop-off BACKWARDS to the Supply Route and the carrier shuttled in place (found while: offensive transport standoff, branch `wt/offense-standoff`)
 
 **Measured, not reasoned.** Run `260815_202509`, seed 1017, `wip-transport-delivers`, with
 `RendezvousWithOffensiveStaging: true` on `MountedTransportBotModule@experimental`:
@@ -461,6 +461,26 @@ behavioural change is what this project's discipline forbids.** `RendezvousWithO
 function — reject an anchor materially nearer our own SR than the fallback — plus a scenario in which the
 armour actually musters forward, which `wip-transport-delivers` cannot provide because it contains no
 combat units at all.
+
+**UPDATE 2026-08-19 (`wt/rendezvous`): the second comparison now exists; the flag does NOT.**
+`AnchorAcceptable` is two-sided — `anchorReach >= fallbackReach - withdraw`, config
+`RendezvousMaxWithdrawCells` (default 6) — RED-pinned on the exact measured geometry above
+(`AnchorParkedOnOurOwnSupplyRoute_IsRejected`: SR 6,16 / anchor 7,17 / lerp 32,10 resolved to `7` before
+the fix, `32` after). Full suite 1640/1640.
+
+Two things this update does NOT claim. **(1) The flag is still `false`** — the bound removes the known
+blocker, it is not evidence the rendezvous helps, and flipping it is a behavioural change to
+`@experimental` that needs its own measured run. Both profiles remain byte-identical on this path.
+**(2) The scenario gap named above is untouched** — `wip-transport-delivers` still has no combat units, so
+it still cannot show the armour mustering forward, and it is still the scenario that went green on a
+walked distance (see the entry below). A run that flips the flag on *that* scenario would re-measure the
+shuttle, not the rendezvous. Whoever flips it needs a scenario with armour first.
+
+The deeper lesson, banked in DISCOVERIES 2026-08-19: the guard that was *supposed* to cover this —
+`ResolveStagingAnchor` returning null on a degenerate anchor — is **grid**-granular, so a single grid step
+publishes an anchor a map-cell off the SR and sails through. A grid-granular null check cannot stand in
+for a map-cell distance bound, and the header comment asserting a nearer anchor was "unconditionally
+safe" was reasoning that the fixture then pinned as truth.
 
 ## 2026-08-15: [medium] OPEN — `wip-transport-delivers` can go GREEN on a one-cell carry: its "moved ≥ 10 cells" clause is satisfiable by the passenger WALKING after it is set down (found while: offensive transport standoff, branch `wt/offense-standoff`)
 

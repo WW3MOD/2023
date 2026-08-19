@@ -59,6 +59,36 @@ this means either passing indices + the building in — losing the test seam —
 the two order-handler call sites, which leaves the helper still able to produce the bad state. Wants a
 deliberate decision, not a drive-by. Unreachable today for the same reason as the entry above.
 
+## 2026-08-19 — a GRID-granular null guard cannot stand in for a MAP-cell distance bound: how the rendezvous shipped a one-sided gate with a comment explaining why the other side was safe
+
+Branch `wt/rendezvous`, fixing the 2026-08-15 `AnchorAcceptable` bug. Two transferable shapes, both
+about a guard believed to cover a direction it did not.
+
+**1. The resolution granularity of a guard is part of its contract.** `RendezvousMath`'s header argued
+a degenerate anchor could not drag the drop-off backwards because "`ResolveStagingAnchor` already
+returns null when the descent stays at the SR". That is true *at grid resolution*:
+`ForwardStagingMath.TryResolveAnchorCell` (`PoiOffensiveBotModule.cs:2137`) makes the stall test in the
+ControlField's **grid** space, sized by `controlField.Info.CellSize`. One grid step spans several map
+cells, so the descent can advance a single grid cell — clearing the null guard — and still publish a
+map cell adjacent to the Supply Route. Measured: SR `6,16`, published anchor `7,17`. The guard fired
+never, and the consumer compared **map**-cell distances against it. When a guard and its consumer work
+in different coordinate resolutions the guard's guarantee does not transfer; check the units before
+citing an upstream check as your own safety term.
+
+**2. A confident header comment became a test that pinned the bug as intended behaviour.** The file
+asserted a nearer anchor was "unconditionally safe", and `RendezvousMathTest` encoded that verbatim as
+`AnchorNearerThanTheFallback_IsAlwaysAccepted` — at an anchor 13 cells behind the fallback. The suite
+was therefore **green on the defect**, and green in a way that obstructs the fix: whoever adds the lower
+bound meets a red test named "IsAlwaysAccepted" and must decide whether the test or the code is wrong.
+This is the failure mode where the documentation and the tests agree with each other and neither has
+met the world. The tell is a test justified by a *rationale* ("pulling back is safe") rather than an
+*observation*; the replacement is pinned to run `260815_202509`'s literal geometry and named for the
+symptom (`AnchorParkedOnOurOwnSupplyRoute_IsRejected`) rather than the rule.
+
+Corollary for the RED-before-green discipline: when a RED test contradicts an existing GREEN one, that
+is a signal to read the old test's provenance, not to route around it. Narrow it and record what
+refuted it — deleting it lets the next reader re-derive the same wrong rationale from the same header.
+
 ## 2026-08-19 — `GarrisonManager.CachedArmaments` is a TARGETING cache, not the firing path; the port-swap bug is real but its symptom is silence, not a wrong weapon
 
 Branch `wt/garrison-swap`. `cargo-garrison-status-260819.md` §4-B1 and `garrison-proposals.md:169`
