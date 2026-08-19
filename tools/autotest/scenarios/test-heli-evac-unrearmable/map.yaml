@@ -1,0 +1,65 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: spent helicopter evacuates when no helipad exists
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# User ruling 2026-08-19: "helicopters use helipad, if those do not exist they must
+# evacuate (They cannot be rearmed in that case)."
+#
+# NO hpad is placed on this map, and hpad is unbuildable (Buildable.Prerequisites:
+# ~disabled), so AirframeReadiness.HasRearmHost is false for every airframe here —
+# which is the state of all ten shipped maps.
+#
+# Three airframes, all owned by the same HUMAN player (Playable, no Bot: line), so
+# this exercises the player path. EvacuateWhenUnrearmable skips bot owners by
+# default; bot helis stay owned by HelicopterSquadBotModule.EvacuateWhenIdle.
+#
+#   SpentHeli     (16,16) — Apache, drained to zero by the Lua. MUST leave.
+#   LoadedHeli    (16,24) — Apache, never touched. MUST STAY (proves the trait keys
+#                           on being spent, not merely on the absent host — every
+#                           heli on every shipped map has the absent host).
+#   SpentTransport(16,8)  — Chinook. MUST STAY. It carries NO AmmoPool and NO
+#                           Rearmable (a Cargo airframe with no armament, as is HALO),
+#                           so it sits in the absent-host state permanently without
+#                           ever being "spent". Nothing to drain; if this leaves, the
+#                           trait is retiring transports for lacking a host they were
+#                           never meant to use.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	SpentHeli: heli
+		Location: 16,16
+		Owner: Me
+	LoadedHeli: heli
+		Location: 16,24
+		Owner: Me
+	SpentTransport: tran
+		Location: 16,8
+		Owner: Me
+
+Rules: rules.yaml
