@@ -1008,6 +1008,24 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return player.MapLayers.RadarCover(cell);
 		}
 
+		[Desc("Count of AutoTarget scans on `actor` that ran a free ChooseTarget because NOTHING held " +
+			"the unit to its current fight — no live RequestedTarget and no persistent OpportunityTarget. " +
+			"This is the signature of an engagement having LAPSED, and it is the only route by which a " +
+			"unit re-acquires a better target WITHOUT target preemption. Preemption never increments it: " +
+			"it hands over while the incumbent is still held. Sample it when the provoking target arrives " +
+			"and again when the unit engages, and compare — an unchanged count means the switch happened " +
+			"mid-engagement, a raised one means the unit merely re-scanned after losing its grip. " +
+			"Monotonic and latched in the simulation, so it cannot be missed by per-tick Lua polling the " +
+			"way an intra-tick idle window can. Returns 0 for an actor with no AutoTarget. Test mode only.")]
+		public int GetUncommittedScanCount(Actor actor)
+		{
+			if (!TestMode.IsActive || actor == null || actor.IsDead || !actor.IsInWorld)
+				return 0;
+
+			var autoTarget = actor.TraitOrDefault<AutoTarget>();
+			return autoTarget?.UncommittedScanCount ?? 0;
+		}
+
 		[Desc("Returns the resolved fog-of-war visibility strength (0-10) for `player` at `cell`. " +
 			"0 = shrouded, 1 = explored-fog or minimum visible, higher values = more vision sources / less shadow attenuation. " +
 			"Used by tests to verify that obstacles (trees, etc.) actually attenuate vision via the ShadowLayer path. " +

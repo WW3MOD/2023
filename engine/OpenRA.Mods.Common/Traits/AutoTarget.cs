@@ -322,6 +322,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		int nextScanTime = 0;
 
+		/// <summary>Count of scans that reached ChooseTarget with NO trait holding a commitment —
+		/// neither a live RequestedTarget nor a persistent OpportunityTarget. Deliberately NOT [Sync]
+		/// and read by nothing in the simulation; it exists so an autotest can tell a mid-engagement
+		/// handover apart from a re-acquisition after the engagement lapsed. Those two produce the
+		/// SAME end state (the unit shoots the better target), which is why an outcome-only assertion
+		/// cannot discriminate target preemption — see tools/autotest/scenarios/test-autotarget-preempt-air.</summary>
+		public int UncommittedScanCount { get; private set; }
+
 		/// <summary>WorldTick of the last scan that found something it could have shot and
 		/// declined it anyway — overkill or break-off — leaving the unit with no target at all.
 		/// Deliberately NOT [Sync] and read by nothing in the simulation: it exists so
@@ -1136,6 +1144,14 @@ namespace OpenRA.Mods.Common.Traits
 						fromProtectedOverride = !canYield;
 						return existingTarget;
 					}
+
+				// Reaching here means every IOverrideAutoTarget declined: the unit holds no commitment
+				// at all, so the free ChooseTarget below may pick anything. That state is the signature
+				// of the engagement having LAPSED — AttackFollow.cs:176 wiping opportunityTargetIsPersistentTarget
+				// is the route into it. Preemption never passes through here: it hands over while the
+				// incumbent is still held (TickPreemption bypasses this method entirely, and the yield
+				// at the top of the override loop returns before this line).
+				++UncommittedScanCount;
 
 				if (!ignoreScanInterval)
 					nextScanTime = self.World.SharedRandom.Next(Info.MinimumScanTimeInterval, Info.MaximumScanTimeInterval);
