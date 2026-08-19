@@ -2077,3 +2077,26 @@ launches allocated, and this scenario is currently the cheapest deterministic in
 PIPELINE item 56's mode selector. Changing the verdict logic of a live instrument without being able to
 run it once is not worth the risk of a one-line improvement to a failure direction that cannot fabricate
 a pass. Whoever next has a launch slot for this scenario should latch it and re-run.
+
+## 2026-08-19 — `DOCS/gameplay/capturing.md` states an OILB income rate I could not reconcile (found on `wt/neutralise`)
+
+`capturing.md:72` says *"At a 25-tick base interval ($50/sec for OILB), a single Oil Derrick pays for one
+Conscript every 4 seconds"*, and `:58` and `:3` build on that ("repay that in 4 seconds of income",
+"pay you cash every second"). Two things do not line up and I did **not** change them:
+
+- **The 25-tick interval has no source I can find.** `CashTricklerInfo.Interval` defaults to **60**
+  (`engine/OpenRA.Mods.Common/Traits/CashTrickler.cs:26`) and **no `Interval` override exists anywhere in
+  `mods/`** — the only `CashTrickler` blocks are `structures-neutral.yaml:19` (OILB, `Amount: 50`), `:51`
+  (FCOM, `100`) and `:83` (BIO, `150`), each setting `Amount` alone.
+- **60 ticks is 3.6 s at this mod's speed**, not 1 s (`Timestep: 60` ⇒ 16.67 ticks/s), which would make OILB
+  roughly $14/s rather than $50/s — a 3.6× difference in a doc that uses the figure to argue build order.
+
+**Deliberately not "corrected", because the naive arithmetic is probably not the real answer either.** The
+`Interval` Desc at `CashTrickler.cs:24-25` says it is *"used to normalize the income rate when registering
+with the unified economy tick"* — so the trait does not pay on its own cadence, and the true payout rate is
+set by that unified economy tick, which I did not trace. Rewriting the number from `Amount / Interval` would
+just replace one unverified figure with another.
+
+Whoever owns the economy (`DOCS/reference/economy.md`) should settle it and fix all three lines together.
+Flagging rather than guessing; the tick→second half of the same doc's errors *was* fixed on this branch
+(see `DISCOVERIES.md` 2026-08-19), so `capturing.md` is now internally consistent on delays but not on income.
