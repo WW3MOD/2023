@@ -7553,3 +7553,78 @@ asymmetry with saves: `GameSave` has no version check and relies on the same syn
 (`GameSave.cs:262-263`), so "saves are the well-behaved case, replays are not" was never the right
 framing — both rely on the sync hash, and replays additionally have a version field that happens to
 be inert.
+
+## 2026-08-19 — Pipeline 59 was already shipped six days before it was scoped; and bots NEVER soldier-capture, so the uniform-clear rule did not drift `@stable`
+
+Branch `wt/neutralise`, against `main @ 815804f1`. The queue entry for item 59 ("a soldier should
+NEUTRALISE a captured money structure, not capture it") is **stale, not wrong** — its audit is dated
+2026-08-13, which is the same day the feature landed, so it was written against pre-fix code and the
+entry was never closed. No code change was needed.
+
+### 1. The feature is fully shipped, including the custom hook the entry called missing
+
+The entry's central claim — that "goes Neutral instead" cannot be built from vanilla capture traits
+and needs a custom on-capture hook — was true when written and is now obsolete. **The hook exists:**
+
+- `CapturesInfo.CaptureToNeutral` (`engine/OpenRA.Mods.Common/Traits/Captures.cs:51`, defaults `false`)
+- honoured at `engine/OpenRA.Mods.Common/Activities/CaptureActor.cs:125` —
+  `var newOwner = captures.Info.CaptureToNeutral ? w.WorldActor.Owner : self.Owner;`
+- the world owner is resolved **structurally**, not by matching `InternalName == "Neutral"`
+  (`CaptureActor.cs:120-124`); `CreateMapPlayers.cs:105-106` throws at world creation unless some
+  player claims the world, so it is guaranteed non-null on every loadable map.
+- ejection is `EnterBehaviour: Exit`, and `ApplyEnterBehaviour` (`CaptureActor.cs:148-162`) handles it
+  by **falling through the switch with no case** — no `Dispose()`, no `Kill()`, so `Enter`'s own exit
+  path walks the soldier out. Un-consumed by omission, which is correct but easy to misread as a gap.
+- both flags are set on `^CapturesOccupiedBuildings` (`mods/ww3mod/rules/ingame/infantry.yaml:852-853`).
+
+Landed in `d3978f32` (2026-08-13, scoped to tech buildings), widened in `072d30d9` (2026-08-14) after an
+explicit user ruling. History is written up at `DOCS/gameplay/capturing.md` §"Resolved decisions (2026-08-14)".
+*(The "23 capturable actors" figure quoted there was obtained by resolving the inheritance graph with
+`OpenRA.Utility --resolved-rules`. I did not re-run that resolution — I am relaying the count, not
+confirming it.)*
+
+**This same hook already serves the parked Supply-Route-capture item (17)** — `DOCS/reference/supply-route.md:74`
+was updated when the hook landed and already says so. The entry's "check whether one hook serves both"
+is answered: yes, and it is documented. Do not re-derive it a third time.
+
+### 2. ANSWER to the entry's open question 1: bots never reach the soldier-capture path
+
+Exhaustively checked, not spot-checked. `CapturingActorTypes` appears in exactly **two** places in
+`mods/`, and both are technician-only:
+
+- `mods/ww3mod/rules/ai/ai.yaml:113` — `CaptureCoordinatorBotModule@experimental.tecn`
+- `mods/ww3mod/rules/ai/ai.yaml:2049` — `CaptureCoordinatorBotModule@stable.tecn`
+
+both `CapturingActorTypes: tecn,tecn.russia,tecn.america`. No soldier (`e1`/`e3`/`ar`/`tl`/`pilot`)
+is ever dispatched to capture. Vanilla `CaptureManagerBotModule` is **never instantiated anywhere in
+`mods/`** despite `ai.yaml:120` describing it as "competing" — that comment is stale.
+
+**Consequence: the 2026-08-14 uniform-clear change did NOT silently mutate `@stable` on the
+capture-issuing side.** Bots could not soldier-capture before it and cannot now. The change is
+human-player-facing only, *offensively*. Bots are still affected as **victims** — they have no reclaim
+logic and a technician cap of three — which is already flagged as known-unfixed at
+`DOCS/gameplay/capturing.md` open question 5, and is the real follow-up.
+
+### 3. ANSWER to open question 2, and a doc error it exposed: the clear takes 60 s, not 40
+
+`CaptureDelay: 1000` (`infantry.yaml:845`) is on the **occupied** path, so the user's observation went
+through it. But `DOCS/gameplay/capturing.md` described this as "40 seconds" in **five** places
+(overview, threat section, and two open questions) and framed a live balance argument on that number.
+
+**40 s is 1000/25 — the Lua harness's `TestHarness.TicksPerSecond = 25`.** `DOCS/reference/conventions.md:166`
+already warns, in as many words, that this constant is "a scaling factor, not a fact about the mod":
+`DefaultSpeed: default` (`mods/ww3mod/mod.yaml:358`) resolves to `Timestep: 60` (`:382`) ⇒ **16.67
+ticks/s** ⇒ 1000 ticks = **60 seconds**. Corrected in this branch.
+
+The durable lesson is that the banked hazard at `conventions.md:166` **claimed a victim in prose, not
+in code** — a balance discussion anchored 50 % off. When a doc converts ticks to seconds, re-derive
+from `mod.yaml`; do not trust the harness constant, and do not assume the RA-default 25 ticks/s.
+
+The same doc also listed the **wrong five capturers**, which the tick error masked because both live in the
+same table row. `capturing.md:17` said *Conscript / Rifleman / Team Leader / AT / Sniper* (`e1, ar, tl, at,
+sn`). Ground truth is the five actors that inherit `^CapturesOccupiedBuildings` — `^E1` Conscript
+(`infantry.yaml:1042`), `^E3` Rifleman (`:1109`), `^AR` Automatic Rifleman (`:1228`), `^TL` Team Leader
+(`:1365`), `^PILOT` Pilot (`:2322`). **`^AT` (`:1595`) and `^SN` (`:1523`) do not inherit it and cannot clear
+anything**; `^E3` and `^PILOT` were missing. Names taken from each actor's `Tooltip.Name`, not from the
+section comments. Corrected here. Worth knowing that this table was wrong on *who* as well as *how long* —
+if you are checking a player-facing capability list, resolve it from the `Inherits@` lines, not the prose.

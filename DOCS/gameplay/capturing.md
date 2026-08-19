@@ -13,15 +13,15 @@ This produces two unit roles:
 
 | Unit | What they can do | Delay | When you use them |
 |---|---|---|---|
-| **Technician** (`tecn`, `tecn.america`, `tecn.russia`) | **Capture** neutral buildings **and** enemy-owned ones. The only unit that ever *gains* a building. | 20 ticks (~0.8 s) | Early game expansion (claim neutrals); throughout the match as the precision tool |
-| **Conscript / Rifleman / Team Leader / AT / Sniper** (`e1`, `ar`, `tl`, `at`, `sn`) | **Clear only, enemy-owned only.** Cannot touch neutrals, and never gains ownership of anything. The building goes Neutral; the soldier survives. | 1000 ticks (~40 s) | Denying an enemy their derricks, defences, airfields or silos |
+| **Technician** (`tecn`, `tecn.america`, `tecn.russia`) | **Capture** neutral buildings **and** enemy-owned ones. The only unit that ever *gains* a building. | 20 ticks (~1.2 s) | Early game expansion (claim neutrals); throughout the match as the precision tool |
+| **Conscript / Rifleman / Automatic Rifleman / Team Leader / Pilot** (`e1`, `e3`, `ar`, `tl`, `pilot`) | **Clear only, enemy-owned only.** Cannot touch neutrals, and never gains ownership of anything. The building goes Neutral; the soldier survives. | 1000 ticks (~60 s) | Denying an enemy their derricks, defences, airfields or silos |
 | **Engineer** (`e6`) | — | — | Does **not** capture. Engineer is the repair/mine specialist, not a capturer |
 
 The Technician carries a gold wrench cursor (`goldwrench`) on a capture order; soldiers use the default capture cursor and a slower targeting line. The Technician is **always** consumed by the capture (one unit, one capture). A soldier is **never** consumed — clearing always ends with them walking back out.
 
 **Why soldiers can't take neutrals.** Neutral buildings are unowned and unoperated. A soldier squad has no Technician of their own, so even after killing all defenders they'd just be standing in an empty building with no way to power it back up. A Technician must do that first walk-in. This makes late-game smoother in two ways: it removes a hack route (running Conscripts into a contested neutral) and it preserves the Technician as a meaningful asset throughout the match — you can't shortcut the choice to build one.
 
-**Why the 40-second soldier delay matters.** Late-game when both sides have soldiers swirling around contested capturables, the 40-sec window is the time you have to either reinforce or break the takeover. In practice you'll lose half the timer to enemies engaging the soldier squad — so soldier capture is a commitment, not a quick swap.
+**Why the 60-second soldier delay matters.** Late-game when both sides have soldiers swirling around contested capturables, the 60-sec window is the time you have to either reinforce or break the takeover. In practice you'll lose half the timer to enemies engaging the soldier squad — so soldier capture is a commitment, not a quick swap.
 
 **Clearing is denial, not acquisition.** Sending a Rifleman into an enemy Oil Derrick does not give you the income — it stops *them* earning it and leaves the building sitting Neutral for whoever brings a Technician first. That may well be the player you just took it from. The same is true of an enemy SAM or airfield: you have taken it away from them, you have not gained it. Treat clearing as a way to cut an enemy's economy or defensive network, or to prepare ground your own Technician is already walking toward — not as a cheap substitute for one.
 
@@ -104,9 +104,9 @@ A determined enemy can destroy or recapture them. Two practical defenses:
 1. **Station a small force nearby** — even one IFV near a captured FCOM forces the enemy to commit multiple units to take it back.
 2. **Repair on damage** — `EngineerRepairable` is on every tech building. An idle Engineer (which can't capture but *can* repair) near a captured FCOM is a much better use of the unit than nothing.
 
-Recapture by the enemy is a real risk: their Technician can take the building back in the same 20 ticks. There is no "captured by you = locked to you" — every tech building remains capturable forever, every owner change costs 0.8 sim-sec of standing-still time.
+Recapture by the enemy is a real risk: their Technician can take the building back in the same 20 ticks. There is no "captured by you = locked to you" — every tech building remains capturable forever, every owner change costs 1.2 sim-sec of standing-still time.
 
-There is a second, cheaper threat: enemy **soldiers** can clear you out. They can't take the building, but 40 seconds of an unopposed Rifleman turns your captured derrick Neutral and stops the income, and then it's a race between two Technicians. Because the soldier survives, this costs the enemy nothing but time — so a captured building far from your army is not safe just because the enemy has no Technician nearby. This applies to your **defences and airfields** as much as your derricks: a cleared SAM stops firing, and its footprint still blocks you from rebuilding there until you spend a Technician on it.
+There is a second, cheaper threat: enemy **soldiers** can clear you out. They can't take the building, but 60 seconds of an unopposed Rifleman turns your captured derrick Neutral and stops the income, and then it's a race between two Technicians. Because the soldier survives, this costs the enemy nothing but time — so a captured building far from your army is not safe just because the enemy has no Technician nearby. This applies to your **defences and airfields** as much as your derricks: a cleared SAM stops firing, and its footprint still blocks you from rebuilding there until you spend a Technician on it.
 
 ## How the AI handles capture
 
@@ -131,7 +131,7 @@ For the curious:
 - **Captures trait** (capturers) — `engine/OpenRA.Mods.Common/Traits/Captures.cs`
 - **CaptureManager** (per-actor) — `engine/OpenRA.Mods.Common/Traits/CaptureManager.cs:120` (`CanTarget` decides whether a given capturer can take a given building, based on `CaptureTypes` overlap + `ValidRelationships` of capturer vs owner)
 - **CaptureActor activity** — `engine/OpenRA.Mods.Common/Activities/CaptureActor.cs` (the walk-in → flash → ownership change pipeline)
-- **Templates** — `^NeutralOrOccupiedCapturable` in `mods/ww3mod/rules/ingame/structures.yaml:149` (capturable side, one type pair for every building); `^CapturesOccupiedBuildings` (`infantry.yaml:927`, the soldier clear rule) and `^CapturesNeutralBuildings` (`:941`, the Technician) (capturer side)
+- **Templates** — `^NeutralOrOccupiedCapturable` in `mods/ww3mod/rules/ingame/structures.yaml:149` (capturable side, one type pair for every building); `^CapturesOccupiedBuildings` (`infantry.yaml:840`, the soldier clear rule) and `^CapturesNeutralBuildings` (`:854`, the Technician) (capturer side)
 - **Clearing flags** — `CaptureToNeutral` and `EnterBehaviour` on `CapturesInfo` (`Captures.cs`), honoured in `CaptureActor.DoCapture`. Both default to classic capture-and-be-consumed, so only `^CapturesOccupiedBuildings` opts in and the Technician is unaffected
 - **Income** — `engine/OpenRA.Mods.Common/Traits/CashTrickler.cs`; building amounts in `mods/ww3mod/rules/ingame/structures-neutral.yaml`
 
@@ -139,8 +139,8 @@ For the curious:
 
 1. **Hospital effect.** The current trait list on `HOSP` doesn't include any healing — no `RallyPointHealthRegen`, no `HealthRegenAura`. The tooltip just says "Hospital". Either an effect is planned or the building is currently purely decorative. *(Marking as [planned] until told otherwise.)*
 2. **Sabotage damage values in WW3MOD.** The `^CapturesNeutralBuildings` template doesn't appear to override sabotage damage. Worth a check on whether Technicians actually trigger the sabotage path on high-HP enemy buildings, or whether the threshold is effectively unreachable.
-3. **40-second soldier clear in practice.** The 1000-tick delay frames a real decision: stand around for 40 sim-sec while contested. Open question whether the delay lands at the right point — too short and clearing trivialises defensive lines, too long and it never happens. Watch playtest data.
-4. **Clearing has no cost, and now reaches defences.** The soldier survives, so denial is repeatable and limited only by the 40-second timer, and since 2026-08-14 it applies to AA guns, SAMs, airfields, silos and the Logistics Centre as well as the derricks. If this proves too cheap in practice, the cleanest lever is `EnterBehaviour: Suicide` (soldier dies, building still goes Neutral) rather than reverting the rule; the next-cleanest is raising `CaptureDelay`.
+3. **60-second soldier clear in practice.** The 1000-tick delay (`infantry.yaml:845`) frames a real decision: stand around for 60 sim-sec while contested. *(This doc said 40 sec until 2026-08-19 — that was 1000/25, the Lua harness's `TicksPerSecond = 25`, which `DOCS/reference/conventions.md:166` explicitly flags as a scaling factor rather than a fact about the mod. `DefaultSpeed: default` is `Timestep: 60` (`mod.yaml:358`, `:382`) ⇒ 16.67 ticks/s ⇒ **60 s**. Re-derive from `mod.yaml`, never from the harness constant.)* Open question whether the delay lands at the right point — too short and clearing trivialises defensive lines, too long and it never happens. Watch playtest data.
+4. **Clearing has no cost, and now reaches defences.** The soldier survives, so denial is repeatable and limited only by the 60-second timer, and since 2026-08-14 it applies to AA guns, SAMs, airfields, silos and the Logistics Centre as well as the derricks. If this proves too cheap in practice, the cleanest lever is `EnterBehaviour: Suicide` (soldier dies, building still goes Neutral) rather than reverting the rule; the next-cleanest is raising `CaptureDelay`.
 5. **The bot cannot recover from being cleared.** See the AI section above — no reclaim logic, technician cap of three. This is the largest known consequence of the uniform rule and is queued as follow-up work, not solved.
 
 ## Resolved decisions (260512)
