@@ -113,8 +113,7 @@ namespace OpenRA.Test
 
 				// The invariant, exhaustively across every tier and a range of sizes: the resolved count never
 				// exceeds the pre-lever want — the lever is provably incapable of enlarging an escort.
-				foreach (var tier in new[]
-					{ EscortSizingMath.EscortTier.None, EscortSizingMath.EscortTier.Light, EscortSizingMath.EscortTier.Full })
+				foreach (var tier in new[] { EscortSizingMath.EscortTier.None, EscortSizingMath.EscortTier.Light, EscortSizingMath.EscortTier.Full })
 					for (var want = 0; want <= 4; want++)
 						for (var light = 0; light <= 6; light++)
 							Assert.That(EscortSizingMath.ResolveEscortCount(want, tier, light), Is.LessThanOrEqualTo(want),

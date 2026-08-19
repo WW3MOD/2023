@@ -197,6 +197,13 @@ ifeq ($(RUNTIME), mono)
 else
 # Enabling EnforceCodeStyleInBuild and GenerateDocumentationFile as a workaround for some code style rules (in particular IDE0005) being bugged and not reporting warnings/errors otherwise.
 	@$(DOTNET) build -c Debug -nologo -warnaserror -p:TargetPlatform=$(TARGETPLATFORM) -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true
+# The line above builds WW3MOD.sln, which is only OpenRA.Game + OpenRA.Mods.Common. OpenRA.Test is
+# in no solution this target reaches -- upstream leaves it out of engine/OpenRA.sln on purpose (it
+# has an ActiveCfg but no Build.0) -- so until this line was added its analyzer violations gated
+# nothing. Named explicitly rather than via a solution edit because under RUNTIME=mono the engine
+# builds as netstandard2.1, which Microsoft.NET.Test.Sdk does not target; keeping it in the net6
+# branch is what stops the mono CI job inheriting a build it cannot do.
+	@$(DOTNET) build engine/OpenRA.Test/OpenRA.Test.csproj -c Debug -nologo -warnaserror -p:TargetPlatform=$(TARGETPLATFORM) -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true
 endif
 endif
 	@echo "Checking for explicit interface violations..."

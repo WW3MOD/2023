@@ -16,8 +16,8 @@
  */
 #endregion
 
-using OpenRA.Mods.Common.Traits;
 using NUnit.Framework;
+using OpenRA.Mods.Common.Traits;
 
 namespace OpenRA.Test
 {

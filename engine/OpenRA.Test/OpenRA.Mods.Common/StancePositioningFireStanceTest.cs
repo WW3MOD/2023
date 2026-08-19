@@ -184,7 +184,8 @@ namespace OpenRA.Test
 			var result = new List<(string, string)>();
 			foreach (var line in lua)
 			{
-				foreach (Match m in StanceAssign.Matches(line))
+				IEnumerable<Match> matches = StanceAssign.Matches(line);
+				foreach (var m in matches)
 				{
 					if (!bindings.TryGetValue(m.Groups[1].Value, out var actors))
 						continue;

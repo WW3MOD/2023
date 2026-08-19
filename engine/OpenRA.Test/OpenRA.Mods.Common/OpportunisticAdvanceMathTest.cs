@@ -299,7 +299,7 @@ namespace OpenRA.Test
 			// reaches the deep cell again — this MUST adopt. With a non-zero map-cell threshold it never could
 			// (next test), so the advance would ratchet to the shallowest depth it had ever seen and quietly
 			// bias the very dial the sweep is meant to read.
-			bool Shifted(int fromX, int toX) =>
+			static bool Shifted(int fromX, int toX) =>
 				ForwardStagingMath.AnchorShifted(fromX, 0, toX, 0, ShippedHysteresisCells);
 
 			// B: held at frontier distance 1, candidate one sector shallower (distance 2).
@@ -482,7 +482,7 @@ namespace OpenRA.Test
 		{
 			// Two neighbours equally closer to the front must break by the fixed scan order, identically every
 			// call — the influence-stack determinism invariant (two clients advance to the same cell).
-			(int X, int Y) Run() => OpportunisticAdvanceMath.AdvanceCell(10, 0, maxSectors: 3, dangerCeiling: 20,
+			static (int X, int Y) Run() => OpportunisticAdvanceMath.AdvanceCell(10, 0, maxSectors: 3, dangerCeiling: 20,
 				(gx, gy) => gx + gy, NoDanger, NoEnemyGround, NoContact, AllPassable, BigGrid);
 
 			var first = Run();

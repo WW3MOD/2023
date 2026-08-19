@@ -142,7 +142,7 @@ namespace OpenRA.Test
 			// The consumer's effective hold is ShouldHoldScreen AND NOT ScreenMayAdvance, re-evaluated on EVERY
 			// evaluation pass while the hold is active (FIX 5 — evaluating once at elapsed 0 would sample the
 			// objective before a shell had landed). Pin the two properties that composition must have.
-			bool Holds(int suppression, int elapsed)
+			static bool Holds(int suppression, int elapsed)
 				=> PrepFireMath.ShouldHoldScreen(18, AssaultRadius, FiresReach, elapsed, PrepMax)
 					&& !AdvanceUnderCoverMath.ScreenMayAdvance(suppression, SuppressThreshold, elapsed, PrepMax);
 

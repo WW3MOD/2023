@@ -180,10 +180,10 @@ namespace OpenRA.Test
 		{
 			var totalSupply = 500;
 
-			Assert.That((float)500 / totalSupply, Is.EqualTo(1.0f));
-			Assert.That((float)250 / totalSupply, Is.EqualTo(0.5f));
-			Assert.That((float)0 / totalSupply, Is.EqualTo(0.0f));
-			Assert.That((float)100 / totalSupply, Is.EqualTo(0.2f));
+			Assert.That(500f / totalSupply, Is.EqualTo(1.0f));
+			Assert.That(250f / totalSupply, Is.EqualTo(0.5f));
+			Assert.That(0f / totalSupply, Is.EqualTo(0.0f));
+			Assert.That(100f / totalSupply, Is.EqualTo(0.2f));
 		}
 	}
 }

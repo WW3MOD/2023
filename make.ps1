@@ -170,6 +170,16 @@ function Check-Command
 		exit $lastexitcode
 	}
 
+	# WW3MOD.sln above is only OpenRA.Game + OpenRA.Mods.Common, and OpenRA.Test is excluded from
+	# engine\OpenRA.sln upstream (ActiveCfg, no Build.0), so the test project reaches no gate unless
+	# it is named. Mirrors the same line in the Makefile's check target.
+	dotnet build engine/OpenRA.Test/OpenRA.Test.csproj -c Debug --nologo -warnaserror -p:TargetPlatform=win-x64 -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true
+	if ($lastexitcode -ne 0)
+	{
+		Write-Host "Test project build failed." -ForegroundColor Red
+		exit $lastexitcode
+	}
+
 	if ((CheckForUtility) -eq 0)
 	{
 		Write-Host "Checking $modID for explicit interface violations..." -ForegroundColor Cyan

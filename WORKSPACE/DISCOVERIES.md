@@ -3,6 +3,106 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-19 — `make check` NEVER COVERED WHAT ANYONE THOUGHT, THE VULNERABLE PACKAGE IS NOT NUnit'S, AND THE NuGet AUDIT IS A TFM EFFECT NOT AN SDK ONE
+
+Branch `wt/build-gate`, against `main @ 08b255f7`. This entry **corrects three statements** in the
+2026-08-17 `wt/sdk10-measure` entry below (§5, and the implied fix in §7). Those were honest readings
+taken while the TFM had been bumped to net10 for costing; the observations were real, the causal
+attributions were not, and both wrong attributions had already propagated into a work brief.
+
+**1. The `-warnaserror` gate on Linux/macOS covers exactly TWO projects, and always did.** `make
+check`'s Debug phase runs `dotnet build` in the repo root (`Makefile:199`), and `MOD_SOLUTION_FILES`
+(`Makefile:52`) resolves to `WW3MOD.sln` — whose entire project list is `OpenRA.Game` and
+`OpenRA.Mods.Common` (`WW3MOD.sln:5,7`). The `check: engine` prerequisite builds the engine solution
+in **Release**, where `engine/Directory.Build.props:56-61` strips every analyzer. Verbatim from a
+green run on `main`:
+
+```
+Compiling in Debug mode...
+  OpenRA.Game -> .../engine/bin/OpenRA.Game.dll
+  OpenRA.Mods.Common -> .../engine/bin/OpenRA.Mods.Common.dll
+```
+
+`Cnc`, `D2k`, `Utility`, `Server`, `Platforms.Default`, `Launcher` and `Test` are all outside it.
+That the 106-error burn-down `a7142780` touched *only* `OpenRA.Game` and `OpenRA.Mods.Common` is the
+corroborating fingerprint. **Windows is not the same gate**: `make.ps1:345-366` calls
+`engine\make.cmd check`, and `engine/Makefile:111-120` builds `engine/OpenRA.sln` under
+`-warnaserror`, so the Windows lane covers 8 projects to Linux's 2. Any claim about "what `make
+check` compiles" has to name the platform.
+
+**2. So adding the missing `.Build.0` would NOT have put `OpenRA.Test` in front of the Linux gate.**
+§7 below is right that the line is missing (`engine/OpenRA.sln:60-61` has `ActiveCfg` and no
+`Build.0`, uniquely among built projects) and right that the violations gate nothing. The inferred
+fix does not follow: on Linux it would only add the project to the *Release* engine build, where
+analyzers are off. It would bite on Windows only — an asymmetric red. The file is also untouched
+since the engine import (`7362fbc6`, 2023-03-20), i.e. **upstream's own choice**, and under
+`RUNTIME=mono` the engine builds as `netstandard2.1` (`engine/Directory.Build.props:23`), which
+`Microsoft.NET.Test.Sdk` does not target — so a solution-level edit would hand the mono lane a build
+it cannot do. Naming the `.csproj` in the `check` target's net6 branch is what actually gates it.
+
+**3. Measured violation census for `OpenRA.Test`: 47 unique, 8 rules, all in WW3MOD-authored
+files.** `RCS1226` ×15, `IDE0062` ×10, `RCS1205` ×8, `SA1210` ×6, `SA1139` ×4, `SA1500` ×2,
+`IDE0220` ×1, `CS1734` ×1. (Raw log shows 94 — MSBuild repeats each exactly ×2 here; dedupe by
+`file:line:col:rule`.) Two were real defects rather than style: `CS1734` at
+`BotOrderGateCallerTest.cs:65` (a `<paramref>` on a *type* doc naming a non-existent parameter) and
+`IDE0220` at `StancePositioningFireStanceTest.cs:187` (`foreach (Match m in ...Matches(line))` taking
+the non-generic `IEnumerable` path — `MatchCollection` assigns straight to `IEnumerable<Match>`, as
+`Lint/CheckFluentReferences.cs:198` already does).
+
+**4. `NuGet.CommandLine 4.4.1` is pulled by `rix0rrr.BeaconLib`, NOT by `NUnit.Console`.** §5 below
+names NUnit; the assets graph does not. From `project.assets.json`:
+
+```
+PARENT: rix0rrr.BeaconLib/1.0.2 -> {'NuGet.CommandLine': '4.4.1'}
+NUnit.Console/3.16.3 -> {NUnit.ConsoleRunner, NUnit.Extension.*}   # no NuGet.* anywhere
+```
+
+BeaconLib is referenced by **`OpenRA.Mods.Common`** (`.csproj:12`), so the advisory sits in the
+*engine* graph, not the test one. This matters practically: updating NUnit, the briefed fix, would
+have changed nothing. BeaconLib 1.0.2 is its final published version (nuget.org lists 1.0.0/1.0.1/
+1.0.2 only), so there is no update path; a direct pinned reference at a patched version is the lever.
+The package contributes **no assets at all** — `compile`, `runtime` and `build` are each `None` in
+the assets file — so `ExcludeAssets="All"` costs nothing.
+
+**5. `NuGetAudit`'s transitive reach is a TARGET-FRAMEWORK effect, not an SDK effect.** §5 below says
+it "lands on any newer SDK regardless of target". Directly measured, one package
+(`rix0rrr.BeaconLib 1.0.2`), one SDK (10.0.400), bare `dotnet restore`, three TFMs:
+
+| TFM | NU1902 |
+|---|---|
+| `net6.0` | not raised |
+| `net8.0` | not raised |
+| `net10.0` | **raised** |
+
+The knob is `NuGetAuditMode`, which defaults to `direct` and only flips to `all` at `net10.0`;
+forcing `-p:NuGetAuditMode=all` reproduces the warning at `net6.0` on demand. **Consequence: the
+`global.json` pin at 6.0.428 is not what hides this.** Remove the pin, take SDK 10, and restore stays
+clean at the current TFM. It surfaces on the TFM bump commit itself — which makes the "clear it
+before the bump" sequencing *more* right than the reason given for it.
+
+**6. The `NU1510` "redundant" references are load-bearing — do not delete them.** §5 below says to
+delete `Microsoft.Win32.Registry`, `System.Runtime.Loader`, `System.Threading.Channels` (it is
+actually four; `System.Collections.Immutable` too). They *are* redundant at `net6.0` — a bare
+`net6.0` project using `ImmutableArray`, `Channel`, `AssemblyLoadContext` and `Registry` with zero
+`PackageReference`s compiles. The same file at **`netstandard2.1`**, which is what the mono lane
+builds (`engine/Directory.Build.props:23`), fails `CS0234` on all three `System.*` namespaces.
+`NU1510` only fires at `net10.0`, so this is a job for the bump — after the mono lane's fate is
+decided — and never before it.
+
+**7. Building `OpenRA.Test` writes 43 extra files into `engine/bin`.** `OutputPath` is
+`$(EngineRootPath)/bin` unconditionally (`engine/Directory.Build.props:12`), so the whole NUnit
+engine, the VS TestPlatform assemblies, `testhost.dll` and `Newtonsoft.Json.dll` land in the game's
+output directory: 59 files → 102. This is not new — the documented `dotnet test` command already does
+it — and it does **not** reach installers, because packaging builds `WW3MOD.sln` after
+`rm -rf engine/bin` (`packaging/functions.sh:28-36`) and the default path publishes rather than globs.
+Worth knowing before blaming a stray `nunit.framework.dll` on something else.
+
+**8. Method note, restated because it changed the answer twice here.** A `dotnet build` reporting
+`0 Warning(s)` may simply have been up-to-date; check for the `-> ...dll` line and a plausible
+elapsed time before believing a zero. And every zero here carries a RED control: reverting the one
+scoped suppression brings back exactly 30 raw `RCS1226` lines (15 × 2) and nothing else, and the same
+sabotage that makes the new gate exit 2 with `error SA1210` leaves the pre-change gate at exit 0.
+
 ## 2026-08-17 — THE net10 ANALYZER BILL IS ZERO, THE REAL BILL IS FOUR BCL OBSOLETIONS AND A RESTORE FAILURE — AND `OpenRA.Test` IS NOT COMPILED BY THE SOLUTION AT ALL
 
 Branch `wt/sdk10-measure`, against `main @ 6c9e8149`. SDK **10.0.400** installed side by side with
