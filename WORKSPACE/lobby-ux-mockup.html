@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WW3MOD — Lobby UX proposals (main @ 66fd33d3)</title>
+<style>
+  :root{
+    --bg:#0d0d0d; --cell:#141414; --bevel:#3a3a3a; --hover:#222;
+    --ink:#d4d4d4; --ink2:#969696; --ink3:#6a6a6a;
+    --green:#6ed68a; --red:#e77d7d; --amber:#f0b060; --blue:#5b9ad6;
+    --accent:#c8a24a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI",-apple-system,Roboto,sans-serif;font-size:14px;line-height:1.5}
+  .wrap{max-width:1500px;margin:0 auto;padding:28px 24px 80px}
+  h1{font-size:22px;margin:0 0 4px;letter-spacing:.06em;text-transform:uppercase;color:#fff}
+  .sub{color:var(--ink2);font-size:13px;margin-bottom:6px}
+  .sha{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accent)}
+  h2{font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);
+     margin:44px 0 6px;padding-bottom:7px;border-bottom:1px solid #2a2a2a}
+  h2 .n{color:var(--ink3);margin-right:8px}
+  .lede{color:var(--ink2);margin:0 0 18px;max-width:940px}
+  .grid{display:grid;gap:16px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:1150px){.g3,.g2{grid-template-columns:1fr}}
+
+  .card{background:var(--cell);border:1px solid var(--bevel);border-radius:2px;
+        padding:0 0 14px;display:flex;flex-direction:column}
+  .card.pick{border-color:var(--green);box-shadow:0 0 0 1px rgba(110,214,138,.25)}
+  .card.bad{border-color:#5a2020}
+  .chead{padding:11px 14px;border-bottom:1px solid #262626;display:flex;
+         align-items:baseline;gap:9px;flex-wrap:wrap}
+  .ctag{font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+        padding:2px 7px;border-radius:2px;background:#262626;color:var(--ink2);white-space:nowrap}
+  .ctag.rec{background:rgba(110,214,138,.16);color:var(--green)}
+  .ctag.now{background:#3a2020;color:var(--red)}
+  .ctitle{font-weight:600;color:#fff;font-size:14px}
+  .cbody{padding:14px}
+  .note{padding:0 14px;color:var(--ink2);font-size:12.5px}
+  .note b{color:var(--ink)}
+  .cost{margin:10px 14px 0;font-size:12px;color:var(--ink3);
+        border-top:1px dashed #2a2a2a;padding-top:9px}
+  .cost b{color:var(--ink2);font-weight:600}
+
+  /* ---- lobby row primitives ---- */
+  .panel{background:#101010;border:1px solid #262626;border-radius:2px;padding:8px}
+  .phead{display:flex;justify-content:space-between;align-items:center;
+         font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+         color:var(--ink3);padding:2px 4px 8px}
+  .row{display:flex;align-items:center;gap:6px;height:34px;padding:0 6px;
+       margin-bottom:4px;background:#171717;border:1px solid #242424;border-radius:2px}
+  .row.me{border-color:#3f4f63;background:#16191d}
+  .row.empty{background:#121212;border-style:dashed;border-color:#2e2e2e}
+  .swatch{width:16px;height:16px;border-radius:2px;flex:0 0 auto}
+  .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+  .fac,.tm,.sp{font-size:11.5px;color:var(--ink2);background:#1e1e1e;border:1px solid #2b2b2b;
+       border-radius:2px;padding:2px 7px;white-space:nowrap}
+  .tm{min-width:30px;text-align:center}
+  .tick{color:var(--green);font-size:14px;width:16px;text-align:center;flex:0 0 auto}
+  .tick.off{color:#333}
+  .btn{font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:2px;
+       background:#2a2a2a;border:1px solid #3a3a3a;color:var(--ink);cursor:default;white-space:nowrap}
+  .btn.g{background:rgba(110,214,138,.14);border-color:rgba(110,214,138,.4);color:var(--green)}
+  .btn.a{background:rgba(240,176,96,.13);border-color:rgba(240,176,96,.38);color:var(--amber)}
+  .btn.x{width:26px;padding:5px 0;text-align:center;color:var(--ink3)}
+  .btn.dim{opacity:.4}
+  .btn.sm{font-size:11px;padding:4px 9px}
+
+  /* spectator treatments */
+  .specrow{display:flex;align-items:center;gap:8px;height:34px;padding:0 6px;margin-bottom:4px;
+           background:#171717;border:1px solid #242424;border-radius:2px}
+  .spec-word{font-size:12px;color:var(--ink2);font-weight:400}
+  .tray{margin-top:9px;border-top:1px solid #2a2a2a;padding-top:9px}
+  .trayhead{display:flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.13em;
+            text-transform:uppercase;color:var(--ink3);padding:0 4px 6px;cursor:default}
+  .trayhead .caret{color:var(--ink3);font-size:9px}
+  .trayhead .cnt{color:var(--ink2)}
+  .srow{display:flex;align-items:center;gap:7px;height:25px;padding:0 8px;margin-bottom:3px;
+        background:#131313;border:1px solid #1f1f1f;border-radius:2px;
+        font-size:12px;color:var(--ink2)}
+  .srow .eye{color:var(--ink3);font-size:11px}
+  .chipbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+           background:#131313;border:1px solid #202020;border-radius:2px;padding:7px 9px;margin-top:9px}
+  .schip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink2);
+         background:#1c1c1c;border:1px solid #292929;border-radius:11px;padding:3px 9px}
+  .sidecol{background:#131313;border:1px solid #202020;border-radius:2px;padding:8px;height:100%}
+
+  .arrow{color:var(--ink3);padding:0 4px}
+  .callout{margin:10px 14px 0;background:#1a1414;border-left:2px solid var(--red);
+           padding:8px 11px;font-size:12.5px;color:var(--ink2);border-radius:0 2px 2px 0}
+  .callout.ok{background:#131a15;border-left-color:var(--green)}
+  .callout.warn{background:#1a1710;border-left-color:var(--amber)}
+  .callout b{color:var(--ink)}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;
+       background:#1c1c1c;padding:1px 5px;border-radius:2px;color:var(--ink2)}
+  .menu{background:#181818;border:1px solid var(--bevel);border-radius:2px;
+        width:230px;box-shadow:0 6px 18px rgba(0,0,0,.6)}
+  .mitem{padding:8px 11px;font-size:12.5px;border-bottom:1px solid #212121;color:var(--ink)}
+  .mitem:last-child{border-bottom:0}
+  .mitem.hdr{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink3);
+             background:#131313;padding:5px 11px}
+  .mitem.sel{background:#1f2620;color:var(--green)}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;color:var(--ink3);font-size:12px;margin:14px 0 0}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:2px;display:inline-block}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid #232323;vertical-align:top}
+  th{color:var(--ink3);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;font-weight:600}
+  td b{color:#fff}
+  .tag-chrome{color:var(--green)}.tag-order{color:var(--amber)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Lobby UX — proposals</h1>
+  <div class="sub">WW3MOD · researched against <span class="sha">main @ 66fd33d3</span> · no game launched; all behaviour read from source</div>
+  <div class="sub">Full write-up: <code>WORKSPACE/lobby/UX_REVIEW_260819.md</code></div>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--green)"></i> chrome only — no network effect</span>
+    <span><i class="dot" style="background:var(--amber)"></i> sends an order the lobby already sends</span>
+    <span><i class="dot" style="background:var(--red)"></i> today's behaviour / problem</span>
+  </div>
+
+  <!-- ============ 1 ============ -->
+  <h2><span class="n">1</span>Spectators — the real design flaw</h2>
+  <p class="lede">
+    Today spectators are appended into the <b>same scroll panel</b> as players
+    (<code>LobbyLogic.cs:1178-1229</code>), at the <b>same 36px full-width row size</b>
+    (<code>lobby-players.yaml:625-631</code>), with <b>no header and no divider</b> — I grepped for one and
+    found none. The only cue is the word "Spectator", which the redesign deliberately toned down to
+    regular weight. Three alternatives follow. All three are <b>chrome only</b>.
+  </p>
+
+  <div class="grid g2">
+    <div class="card bad">
+      <div class="chead"><span class="ctag now">Today</span><span class="ctitle">One flat list</span></div>
+      <div class="cbody">
+        <div class="panel">
+          <div class="phead"><span>Players</span><span>Ready</span></div>
+          <div class="row me"><span class="swatch" style="background:#4a7fc1"></span><span class="nm">Fredrik</span><span class="fac">NATO</span><span class="tm">1</span><span class="tick">✓</span></div>
+          <div class="row"><span class="swatch" style="background:#c14a4a"></span><span class="nm">Stable AI 0802</span><span class="fac">Russia</span><span class="tm">2</span><span class="tick">✓</span></div>
+          <div class="row"><span class="swatch" style="background:#5aa86a"></span><span class="nm">Anna</span><span class="fac">NATO</span><span class="tm">1</span><span class="tick off">✓</span></div>
+          <div class="specrow"><span class="swatch" style="background:#2b2b2b"></span><span class="nm" style="font-weight:600">Marcus</span><span class="spec-word">Spectator</span><span class="tick off">✓</span></div>
+          <div class="specrow"><span class="swatch" style="background:#2b2b2b"></span><span class="nm" style="font-weight:600">Jonas</span><span class="spec-word">Spectator</span><span class="tick off">✓</span></div>
+        </div>
+      </div>
+      <div class="callout"><b>The problem.</b> Rows 4 and 5 are the same size, weight and position as
+        rows 1–3. At a glance this reads as a five-player game.</div>
+    </div>
+
+    <div class="card pick">
+      <div class="chead"><span class="ctag rec">Recommended</span><span class="ctitle">A — Labelled tray</span></div>
+      <div class="cbody">
+        <div class="panel">
+          <div class="phead"><span>Players</span><span>Ready</span></div>
+          <div class="row me"><span class="swatch" style="background:#4a7fc1"></span><span class="nm">Fredrik</span><span class="fac">NATO</span><span class="tm">1</span><span class="tick">✓</span></div>
+          <div class="row"><span class="swatch" style="background:#c14a4a"></span><span class="nm">Ivan (Hard)</span><span class="fac">Russia</span><span class="tm">2</span><span class="tick">✓</span></div>
+          <div class="row"><span class="swatch" style="background:#5aa86a"></span><span class="nm">Anna</span><span class="fac">NATO</span><span class="tm">1</span><span class="tick off">✓</span></div>
+          <div class="tray">
+            <div class="trayhead"><span class="caret">▼</span><span>2 Spectators</span></div>
+            <div class="srow"><span class="eye">◉</span><span>Marcus</span></div>
+            <div class="srow"><span class="eye">◉</span><span>Jonas</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Own group, own heading, <b>shorter rows, dimmer text</b>. The per-row
+        "Spectator" word disappears — the heading carries it. Collapsible.</div>
+      <div class="callout ok"><b>Free win:</b> the heading string already exists and is already
+        translated — <code>en.ftl:644-649</code> renders "No / One / N Spectators". Unused today.</div>
+      <div class="cost"><b>Cost S–M.</b> <span class="tag-chrome">Chrome only.</span> Move the
+        spectator loop out of the players panel into its own container.</div>
+    </div>
+  </div>
+
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card">
+      <div class="chead"><span class="ctag">Alt</span><span class="ctitle">B — Collapsed chip bar</span></div>
+      <div class="cbody">
+        <div class="panel">
+          <div class="phead"><span>Players</span><span>Ready</span></div>
+          <div class="row me"><span class="swatch" style="background:#4a7fc1"></span><span class="nm">Fredrik</span><span class="fac">NATO</span><span class="tm">1</span><span class="tick">✓</span></div>
+          <div class="row"><span class="swatch" style="background:#c14a4a"></span><span class="nm">Ivan (Hard)</span><span class="fac">Russia</span><span class="tm">2</span><span class="tick">✓</span></div>
+          <div class="row"><span class="swatch" style="background:#5aa86a"></span><span class="nm">Anna</span><span class="fac">NATO</span><span class="tm">1</span><span class="tick off">✓</span></div>
+          <div class="row empty"><span class="btn dim">Play</span><span class="btn a">+ Add bot</span><span style="flex:1"></span><span class="btn x">✕</span></div>
+          <div class="chipbar">
+            <span style="font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink3)">Watching</span>
+            <span class="schip">◉ Marcus</span><span class="schip">◉ Jonas</span>
+          </div>
+        </div>
+      </div>
+      <div class="note">Spectators stop being rows entirely and become name chips on one line.
+        <b>Cheapest on vertical space</b> — which matters, because the setup row already overflows at
+        1366×768 (<code>BACKLOG.md:17</code>).</div>
+      <div class="cost"><b>Cost S.</b> <span class="tag-chrome">Chrome only.</span> Weakest option
+        if a spectator ever needs a per-row control (kick, promote).</div>
+    </div>
+
+    <div class="card">
+      <div class="chead"><span class="ctag">Alt</span><span class="ctitle">C — Side column</span></div>
+      <div class="cbody">
+        <div style="display:grid;grid-template-columns:1fr 128px;gap:8px">
+          <div class="panel" style="border:0;padding:0">
+            <div class="phead"><span>Players</span><span>Ready</span></div>
+            <div class="row me"><span class="swatch" style="background:#4a7fc1"></span><span class="nm">Fredrik</span><span class="fac">NATO</span><span class="tick">✓</span></div>
+            <div class="row"><span class="swatch" style="background:#c14a4a"></span><span class="nm">Ivan</span><span class="fac">RUS</span><span class="tick">✓</span></div>
+            <div class="row"><span class="swatch" style="background:#5aa86a"></span><span class="nm">Anna</span><span class="fac">NATO</span><span class="tick off">✓</span></div>
+            <div class="row empty"><span class="btn dim">Play</span><span class="btn a">+ Add bot</span></div>
+          </div>
+          <div class="sidecol">
+            <div class="trayhead" style="padding-bottom:7px"><span>Spectators</span></div>
+            <div class="srow" style="padding:0 6px">◉ Marcus</div>
+            <div class="srow" style="padding:0 6px">◉ Jonas</div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Strongest possible separation — a different <b>axis</b>, not just a different
+        row style. Closest to Dota's Radiant/Dire/Unassigned split.</div>
+      <div class="callout warn"><b>Caution.</b> Steals horizontal width from rows that already carry
+        colour, faction, team, spawn and ready. Likely the first thing to break at 1366×768.</div>
+      <div class="cost"><b>Cost M.</b> <span class="tag-chrome">Chrome only,</span> but a real
+        re-layout of the players cell.</div>
+    </div>
+  </div>
+
+  <!-- ============ 2 ============ -->
+  <h2><span class="n">2</span>Getting back from spectating — and the dead end</h2>
+  <p class="lede">
+    Going <b>to</b> spectator is one click. Coming <b>back</b> has no button at all: the whole strip is
+    hidden while <code>Slot == null</code> (<code>LobbyLogic.cs:321</code>), so a spectating host also
+    loses the "Allow Spectators?" checkbox.
+  </p>
+
+  <div class="grid g2">
+    <div class="card bad">
+      <div class="chead"><span class="ctag now">Today</span><span class="ctitle">The strip vanishes</span></div>
+      <div class="cbody">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="font-size:11px;color:var(--ink3);width:76px">in a slot</span>
+          <span class="btn sm">☐ Allow Spectators?</span><span class="btn">Spectate</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:11px;color:var(--ink3);width:76px">spectating</span>
+          <span style="color:var(--ink3);font-style:italic;font-size:12.5px">— nothing —</span>
+        </div>
+      </div>
+      <div class="callout"><b>The dead end (two clicks, both prominent).</b> Click
+        <b>Add Bots</b> → every empty slot is now a bot. Click <b>Spectate</b> → you are out.
+        There is now no empty slot to return to, <code>slot_open</code> is admin-gated
+        (<code>LobbyCommands.cs:463</code>), and the host has no "move to player" action to rescue you.
+        A non-host must leave and rejoin the server.</div>
+    </div>
+
+    <div class="card pick">
+      <div class="chead"><span class="ctag rec">Proposed</span><span class="ctitle">The button swaps</span></div>
+      <div class="cbody">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="font-size:11px;color:var(--ink3);width:76px">in a slot</span>
+          <span class="btn sm">☐ Allow Spectators?</span><span class="btn">Spectate</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="font-size:11px;color:var(--ink3);width:76px">spectating</span>
+          <span class="btn sm">☐ Allow Spectators?</span><span class="btn g">Join as player</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:11px;color:var(--ink3);width:76px">no slot free</span>
+          <span class="btn dim">Join as player</span>
+          <span style="font-size:11.5px;color:var(--ink3)">disabled — "All slots are full"</span>
+        </div>
+      </div>
+      <div class="note">Same strip, same place, label follows your state. Issues <code>slot &lt;key&gt;</code>
+        — <b>the same order the "Play in this slot" button already sends</b>.</div>
+      <div class="callout ok"><b>Pair it with:</b> a "Move to player" entry in the host's dropdown,
+        mirroring the "Move to Spectator" that already exists (<code>LobbyUtils.cs:134-140</code>).
+        Together they close the dead end from both ends.</div>
+      <div class="cost"><b>Cost S.</b> <span class="tag-order">Existing order.</span> No new
+        synchronised state.</div>
+    </div>
+  </div>
+
+  <!-- ============ 3 ============ -->
+  <h2><span class="n">3</span>Bots — the buttons already exist; the meaning doesn't</h2>
+  <p class="lede">
+    Adding and removing bots is <b>already one click</b> in three different ways, and this is better
+    than upstream OpenRA. The defect is that both one-click paths pick the bot type <b>at random</b>
+    (<code>LobbySetupRowLogic.cs:92</code>, <code>LobbyUtils.cs:598</code>) from a pool of two named
+    after a dev branch and a datestamp.
+  </p>
+
+  <div class="grid g3">
+    <div class="card bad">
+      <div class="chead"><span class="ctag now">Today</span><span class="ctitle">Random, twice over</span></div>
+      <div class="cbody">
+        <div class="row empty" style="margin-bottom:10px"><span class="btn dim">Play</span><span class="btn a">+ Add bot</span><span style="flex:1"></span><span class="btn x">✕</span></div>
+        <div style="text-align:center;color:var(--ink3);font-size:18px;margin:2px 0 6px">↓</div>
+        <div class="row"><span class="swatch" style="background:#c14a4a"></span><span class="nm">Stable AI 0802</span><span class="fac">Russia</span><span class="tm">2</span></div>
+        <div class="row"><span class="swatch" style="background:#b06a3a"></span><span class="nm">Experimental AI</span><span class="fac">NATO</span><span class="tm">1</span></div>
+      </div>
+      <div class="callout"><b>Two defects.</b> The player cannot choose which AI they face, and the
+        names are build artifacts. There is <b>no difficulty concept anywhere in the lobby</b>.
+        Already logged: <code>PIPELINE.md:132</code> (R4).</div>
+    </div>
+
+    <div class="card">
+      <div class="chead"><span class="ctag">Option 1</span><span class="ctitle">Just stop the dice</span></div>
+      <div class="cbody">
+        <div class="row empty" style="margin-bottom:10px"><span class="btn dim">Play</span><span class="btn a">+ Add bot</span><span style="flex:1"></span><span class="btn x">✕</span></div>
+        <div style="text-align:center;color:var(--ink3);font-size:18px;margin:2px 0 6px">↓</div>
+        <div class="row"><span class="swatch" style="background:#c14a4a"></span><span class="nm">Ivan</span><span class="fac">Russia</span><span class="tm">2</span></div>
+        <div class="row"><span class="swatch" style="background:#b06a3a"></span><span class="nm">Ivan</span><span class="fac">NATO</span><span class="tm">1</span></div>
+      </div>
+      <div class="note">One deterministic default bot, decently named. <b>Smallest possible change</b>
+        — a data edit plus deleting two <code>Random()</code> calls.</div>
+      <div class="cost"><b>Cost XS.</b> <span class="tag-order">Existing order.</span> Matches the fix
+        OpenRA #18914 has been asking for since 2020.</div>
+    </div>
+
+    <div class="card pick">
+      <div class="chead"><span class="ctag rec">Recommended</span><span class="ctitle">Option 2 — pick from a menu</span></div>
+      <div class="cbody">
+        <div class="row empty" style="margin-bottom:10px"><span class="btn dim">Play</span><span class="btn a">+ Add bot ▾</span><span style="flex:1"></span><span class="btn x">✕</span></div>
+        <div class="menu" style="margin:0 auto">
+          <div class="mitem hdr">Opponent</div>
+          <div class="mitem sel">Ivan &nbsp;<span style="color:var(--ink3)">— default</span></div>
+          <div class="mitem">Ivan (Experimental)</div>
+        </div>
+      </div>
+      <div class="note">Clicking the button still adds the default in <b>one click</b>. The caret is
+        there only when you want the other one. <b>WC3 pattern</b> — identity folded into the menu
+        entry, not a second dropdown.</div>
+      <div class="callout warn"><b>Scope honesty.</b> A real <b>Easy / Normal / Hard</b> ladder is
+        <b>not</b> a lobby job — it needs new bot definitions and tuned AI, and it touches the
+        <code>@stable</code> benchmark policy. This proposal only asks that the <b>two bots that
+        already exist</b> be honestly named and deliberately chosen.</div>
+      <div class="cost"><b>Cost S.</b> <span class="tag-order">Existing order</span>
+        (<code>slot_bot</code>, different payload).</div>
+    </div>
+  </div>
+
+  <!-- ============ 4 ============ -->
+  <h2><span class="n">4</span>The thing nobody asked about — every faction tooltip is mangled</h2>
+  <p class="lede">
+    <b>Revised.</b> This slot previously held a claim that the <i>Advanced tab opens onto nothing</i>.
+    A screenshot refuted it — <b>there is no Advanced tab at all</b>, and the always-visible options
+    panel renders 12 real options. That claim is retracted; see the box at the foot of this section.
+    What replaces it is smaller to fix and, unlike the retracted one, <b>confirmed by a complete read
+    of the chain</b>.
+  </p>
+
+  <div class="grid g2">
+    <div class="card bad">
+      <div class="chead"><span class="ctag now">Today (confirmed)</span><span class="ctitle">Faction tooltips lose their body</span></div>
+      <div class="cbody">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">What the tooltip shows now</div>
+        <div class="menu" style="width:100%;margin-bottom:14px">
+          <div class="mitem" style="color:var(--red);line-height:1.45">America\nNATO's lead power. Precision airpower, networked armour and air cavalry: fewer units, costlier, striking first and at range.</div>
+        </div>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">What it should show</div>
+        <div class="menu" style="width:100%">
+          <div class="mitem" style="font-weight:600;color:#fff">America</div>
+          <div class="mitem" style="color:var(--ink2);line-height:1.45">NATO's lead power. Precision airpower, networked armour and air cavalry: fewer units, costlier, striking first and at range.</div>
+        </div>
+      </div>
+      <div class="callout"><b>The chain, every link read.</b> The description uses
+        <code>\n</code> as a title/body delimiter in <code>world.yaml</code>. <b>MiniYaml does not
+        unescape it</b> — four engine sites do the replace by hand
+        (<code>LobbyCommands.cs:1444</code>, <code>MainMenuLogic.cs:713</code>,
+        <code>GameInfoBriefingLogic.cs:32</code>, <code>ProductionTooltipLogic.cs:191</code>). The
+        faction path does not (<code>LobbyUtils.cs:235-238</code>), so
+        <code>SplitOnFirstToken</code> — which splits on a <b>real</b> newline
+        (<code>LobbyUtils.cs:206</code>) — finds nothing, returns the whole string as the title, and
+        leaves the body empty.</div>
+      <div class="callout warn"><b>The sharp part.</b> Commit <code>75ac6941</code> set out to fix
+        exactly this <b>three days ago</b> and wrote real description bodies. The bodies are being
+        swallowed into the title, because the split never fires. <b>The symptom it fixed is still
+        live, one layer down.</b></div>
+    </div>
+
+    <div class="card pick">
+      <div class="chead"><span class="ctag rec">Fix</span><span class="ctitle">One line — plus a retraction</span></div>
+      <div class="cbody">
+        <div class="menu" style="width:100%;margin-bottom:14px">
+          <div class="mitem hdr">LobbyUtils.cs — before the split</div>
+          <div class="mitem" style="color:var(--green);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px">description = description.Replace("\\n", "\n");</div>
+        </div>
+        <div class="note" style="padding:0">Matches four existing precedents in the engine. Chrome
+          only — no order sent, no lobby state written.</div>
+      </div>
+      <div class="callout" style="border-left-color:var(--amber);background:#1a1710">
+        <b>RETRACTED: "the Advanced tab opens onto nothing."</b> This panel previously carried that
+        claim. A screenshot refuted it — <b>there is no Advanced tab at all</b>. The lobby's only
+        tab-like toggles are <code>MAP / CHANGE MAP</code> and <code>CHAT / MUSIC</code>; the options
+        panel is always visible and shows <b>12 real options with real values</b>. "Advanced" exists
+        only as a <i>test-driver alias</i> for the options panel
+        (<code>LobbyLogic.cs:634</code>, inside <code>if (TestMode.IsActive)</code>).<br><br>
+        <b>Why I got it wrong:</b> I read the <code>CategoryAdvanced</code> vocabulary in the render
+        logic and inferred a tab, without grepping the chrome to see whether anything instantiates it.
+        Nothing does — there is one <code>CATEGORY_FILTER</code> in the lobby and its text is
+        <code>All</code>.<br><br>
+        <b>What honestly remains:</b> 22 of 34 designed options were never implemented and are
+        silently hidden. The hiding works correctly and the lobby looks finished — so this is a
+        <b>roadmap question, not a defect</b>, and it is no longer ranked as work.</div>
+      <div class="callout warn"><b>Still worth doing.</b> Placeholder options are dimmed by
+        <b>colour only</b> — <code>IsDisabled</code> does not test <code>Placeholder</code>
+        (<code>LobbyOptionsLogic.cs:439-446</code>). Clicking one fires a real network order that
+        resets every client's ready flag, for a setting that does nothing. Unreachable today because
+        the suppression hides them; live the instant one real option joins those sections.
+        <b>One line to pre-empt (L4).</b></div>
+    </div>
+  </div>
+
+  <!-- ============ 5 ============ -->
+  <h2><span class="n">5</span>Summary — and what needs a decision from you</h2>
+
+  <p class="lede" style="margin-bottom:14px">Ordered <b>legibility first</b>: Tier 1 changes only what
+    the player <i>sees</i> — no lobby state written, no order sent. Tier 2 changes what the lobby
+    <i>does</i>. Nothing here needs new synchronised data.</p>
+
+  <table>
+    <tr><th>#</th><th>Proposal</th><th>Sync class</th><th>Cost</th><th>Status</th></tr>
+    <tr><td colspan="5" style="background:#131a15;color:var(--green);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:600">Tier 1 — legibility</td></tr>
+    <tr><td>L1</td><td><b>Faction tooltips unescape <code>\n</code></b></td><td class="tag-chrome">Chrome only</td><td>XS</td><td><b>Confirmed statically</b> — one line (§4)</td></tr>
+    <tr><td>L2</td><td><b>Spectators in their own tray</b></td><td class="tag-chrome">Chrome only</td><td>S–M</td><td><b>Pick layout A, B or C</b> (§1)</td></tr>
+    <tr><td>L3</td><td><b>Rename the bots</b></td><td class="tag-chrome">Data edit</td><td>XS</td><td>Ready — no code path touched</td></tr>
+    <tr><td>L4</td><td><b>Disable placeholder options</b></td><td class="tag-chrome">Chrome only</td><td>XS</td><td>Ready — one line, pre-emptive</td></tr>
+    <tr><td>L5</td><td><b>1366×768 button overflow</b></td><td class="tag-chrome">Chrome only</td><td>S</td><td>On record, <code>BACKLOG.md:17</code></td></tr>
+    <tr><td style="color:var(--ink3)">—</td><td style="color:var(--ink3)"><s>Fix or hide the Advanced tab</s></td><td style="color:var(--ink3)">—</td><td style="color:var(--ink3)">—</td><td style="color:var(--ink3)"><b>Withdrawn</b> — no such tab (§4)</td></tr>
+    <tr><td colspan="5" style="background:#1a1710;color:var(--amber);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:600">Tier 2 — behaviour</td></tr>
+    <tr><td>B1</td><td><b>Stop the random bot pick</b></td><td class="tag-order">Existing order</td><td>S</td><td>Pick option 1 or 2 (§3)</td></tr>
+    <tr><td>B2</td><td><b>"Join as player" while spectating</b></td><td class="tag-order">Existing order</td><td>S</td><td>Ready</td></tr>
+    <tr><td>B3</td><td><b>Host moves a spectator into a slot</b></td><td class="tag-order">Existing order</td><td>S</td><td>Ready</td></tr>
+    <tr><td>B4</td><td><b>Close the Add-Bots dead end</b></td><td class="tag-order">Existing order</td><td>S</td><td>Falls out of B2 + B3</td></tr>
+  </table>
+
+  <div class="callout ok" style="margin:16px 0 0">
+    <b>The bot item split in two, and the split is useful.</b> <b>L3 (renaming)</b> is a pure data edit
+    that touches no code path and no order — it removes the embarrassment on its own. <b>B1 (stopping
+    the random pick)</b> changes which bot the lobby actually instantiates. <b>L3 is worth shipping
+    even if B1 never is.</b>
+  </div>
+
+  <div class="callout ok" style="margin:14px 0 0">
+    <b>Verification status — nothing further is blocked.</b>
+    <b>Check A</b> (is the Advanced tab empty?) was <b>run and refuted me</b>; the claim is retracted
+    above and re-ranked out. &nbsp;
+    <b>Check B</b> (faction tooltip) is <b>withdrawn</b> — following the chain through MiniYaml and
+    <code>SplitOnFirstToken</code> settled it statically, and gave a stronger result than a screenshot
+    would have: the exact mechanism, a one-line fix, and four precedents for it. &nbsp;
+    <b>Check C</b> (the dead end) needs mouse input, which the agent does not drive.
+    <b>My recommendation is to skip it</b> — the mechanism is fully read, and B2/B3 are worth building
+    either way, so confirming it would not change what gets done. If it is ever worth pinning, an
+    NUnit test is the right instrument, not a launch. Reasoning in §9 of the write-up.
+  </div>
+
+  <div class="callout warn" style="margin:22px 0 0">
+    <b>Two open questions I could not decide for you.</b><br>
+    1. <b>22 of 34 designed lobby options were never implemented</b> and are silently hidden (§4).
+    Nothing is broken and the lobby looks finished — the question is purely whether those features are
+    still wanted. A roadmap call, not UX work.<br>
+    2. <b>Preset bar</b> — <code>PRESET [Default ▾] [Save As] [Reset]</code> holds permanent space on the
+    main panel for a feature a first-time player cannot use, and <b>"Replay last" in the setup row is
+    the same thing in one click</b>. It is also the most netcode-adjacent control on the screen: applying
+    a preset fires a <i>loop</i> of orders (<code>LobbyPresetLogic.cs:323-407</code>), each resetting every
+    client's ready flag. I am not proposing removal — but it is my best guess at the "doesn't make sense
+    to me" you couldn't name, and it is the obvious thing to demote if the spectator tray needs room.
+  </div>
+
+  <div class="callout ok" style="margin:14px 0 0">
+    <b>Also worth knowing.</b> <code>WORKSPACE/BACKLOG.md:15</code> is <b>stale</b> — it says a non-host
+    can never set their own team, but the team column was restored and your own row is editable
+    regardless of host status (<code>LobbyLogic.cs:1113,1128</code>). That line should be deleted.
+  </div>
+
+</div>
+</body>
+</html>
