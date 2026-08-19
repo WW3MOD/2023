@@ -1794,3 +1794,33 @@ at `SubCell.Invalid`. Anyone who later sees this rule fire should suppress or ig
 chain. Left as-is; a one-line comment now guards it in the source.
 
 The SDK-drift half is fixed: `global.json` pins the 6.0 band, so CA2021 cannot appear without a deliberate bump.
+
+---
+
+## The replay compatibility gate is dead code — WW3MOD's mod version is a frozen literal
+
+Found 2026-08-19 while costing out a sync-hash change (`wt/sync-traits`, against `08b255f7`). Not fixed;
+recording rather than acting because the fix is a release-process decision, not a code one.
+
+`ReplayUtils.cs:63` refuses a replay when `Game.Mods[mod].Metadata.Version != version`. But
+`mods/ww3mod/mod.yaml:3` hardcodes `Version: release-20230225`, and only the manual `version` make target
+rewrites it (`Makefile:177-179`) — `all: engine` (`Makefile:157`) never does. Every build reports the same
+version, so the comparison is always equal and the gate has never fired.
+
+**Effect:** a replay recorded on any older build opens without complaint and then diverges — the failure is
+silent and looks like a replay bug rather than a version mismatch. Every rules edit and every hash-changing
+commit (e.g. `473928a2`, which added `ISync` to two traits and shifted every hash value in the game) adds to
+the pile of replays that claim to be valid and are not.
+
+**Low urgency today, and the reason is worth stating:** the mod is unreleased, so the population of
+older-build replays anyone cares about is roughly nil. This gets worse the moment there are real players.
+
+Two candidate fixes, both cheap, neither obviously right without a call from the user:
+- Wire `make all` to stamp a real version (the `VERSION` recipe at `Makefile:46` already derives
+  `git-<short-sha>`), which makes the existing gate work as designed. Costs: mod.yaml churns on every build.
+- Or record `BuildFingerprint.ForMod` (`BuildFingerprint.cs:88`) into replay metadata and check *that* on
+  load — strictly better signal, since it covers rebuild-forgotten and content-mismatch cases the version
+  string cannot, and the fingerprint already exists and is already computed for the handshake.
+
+Note the same frozen string is sent in the multiplayer handshake (`UnitOrders.cs:285`), so the version half of
+join validation is equally inert; there, `BuildFingerprint` at least logs a mismatch (`Server.cs:557-562`).

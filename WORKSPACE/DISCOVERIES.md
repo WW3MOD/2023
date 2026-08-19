@@ -7017,3 +7017,43 @@ regression measurement.
 drops capturers by class, several screens below the trait test. The two census lines are
 disjoint populations with one owner each. A trait-level argument about pool membership on this
 bot is worth very little without the role filter.
+
+---
+
+## 2026-08-19 — Changing the sync hash costs NOTHING in replay/save compatibility, because the gate that would have charged for it is inert
+
+Investigated while re-checking whether adding `ISync` to a trait is expensive (it changes every
+hash value in the game). The standing assumption — "OpenRA stamps a version and refuses mismatched
+replays, so cross-build replays never validate anyway" — is **half right, and the wrong half is the
+one that matters**. The gate exists. It cannot fire in WW3MOD.
+
+**Replays are gated on the mod version string, and only that.**
+`ReplayUtils.cs:63` — `if (Game.Mods[mod].Metadata.Version != version)` → incompatible dialog. The
+recorded value comes from `UnitOrders.cs:285` (`Version = mod.Metadata.Version`).
+
+**That string is a frozen literal.** `mods/ww3mod/mod.yaml:3` reads `Version: release-20230225`. It
+is rewritten only by the `version` make target (`Makefile:177-179`), and `all: engine`
+(`Makefile:157`) does not depend on it. So every WW3MOD build ever made — every commit, every
+machine — reports the same version. `ReplayUtils.cs:63` compares `release-20230225` against
+`release-20230225` and passes. **The replay compatibility check has never once fired in this
+project and cannot.** An old replay loads, plays, and diverges silently.
+
+**Saves have no version check at all.** `GameSave(string filepath)` (`GameSave.cs:107-140`) reads
+offsets, markers, settings and slots; it never looks at mod or version. Restore is validated
+instead by a single sync-hash comparison — `GameSave.cs:262-263` sends `lastSyncPacket` with the
+comment "Send sync hash to validate restore". So an old save fails loudly at that check rather than
+misbehaving quietly. Saves are the well-behaved case; replays are not.
+
+**`BuildFingerprint` is the mechanism that would catch this, and it is deliberately advisory.**
+`BuildFingerprint.ForMod` (`BuildFingerprint.cs:88`) = engine git revision (build time) + rules hash
++ asset digest (run time), and it is genuinely good — it catches the "same commit, forgot to
+rebuild" and "different Red Alert content" cases that a version string cannot. But it is consulted
+**only** in the multiplayer handshake, and only to log: `Server.cs:557-562` computes `buildMismatch`
+and writes it to the server log with no reject, by an explicit design argument at `Server.cs:550-556`
+(a dirty working tree legitimately differs, and refusing the game buys nothing). It is not consulted
+by the replay or save load paths at all.
+
+**Consequence for anyone weighing a hash-changing change:** the replay-compatibility cost is zero,
+but not for the comforting reason. Nothing validates it, so nothing breaks visibly — old replays
+just quietly stop meaning what they say. Do not cite "replays would refuse to load" as a safety net;
+measure the claim at `ReplayUtils.cs:63` against `mod.yaml:3` first.
