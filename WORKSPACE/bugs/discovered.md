@@ -2169,3 +2169,21 @@ five to `IsVisible` on `CMD_BG_*`/`FIRE_BG`/`ENGAGE_BG`/`COHESION_BG`/`RESUPPLY_
 delete them. Note that wiring them means deciding what a hidden bar does to the panels *right* of it,
 since every panel X is an absolute literal with nothing tying it to its neighbour (`ingame-player.yaml:53-57`
 PITFALL) — hiding one bar would leave a hole, not close up.
+
+## 2026-08-19 — the SR defeat system line claims income is frozen; it is not [low]
+
+`SupplyRouteContestation.OnDefeatBarFull` (`engine/OpenRA.Mods.Common/Traits/SupplyRouteContestation.cs:417`)
+prints `"<player> has lost their Supply Route! Production and income frozen."` The trait's
+interface list (`:101-102`) is `ITick, ISelectionBar, IAlwaysVisibleBar, IProductionSpeedModifier,
+INotifyAddedToWorld, INotifyRemovedFromWorld, ISync` — no income hook — and the file contains no
+reference to `PlayerResources`, cash or income. So a passive player keeps accruing the passive
+income stream (`PlayerResources.cs:63-69`, 100 per 50 ticks) while being told it has stopped.
+
+Production really does halt, so only the second half of the sentence is wrong. Cheapest fix is to
+drop "and income" from the message. If the intent was that income *should* stop, that is a design
+change and a bigger one — note it would only matter in team games, since in a 1v1 the player is
+marked `Lost` in the same tick anyway (`HasActiveTeamSupplyRoute`, `:433`, is unconditionally
+false with no teammates).
+
+Found during the DISCOVERIES curation pass; docs-only branch, so not fixed here.
+Related: the public `IsPassive` accessor (`:186`) has zero call sites repo-wide.
