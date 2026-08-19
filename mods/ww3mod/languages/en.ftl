@@ -740,4 +740,4 @@ terrain-geometry-overlay = toggles the terrain geometry overlay.
 # Shown once at match start, in the transient line at bottom-left (4s).
 # A new player arrives expecting Red Alert, so this names the first action
 # and where units come from. The rest of the model is in the How to Play panel.
-notification-match-start = No base building — order units from the sidebar. They arrive via your Supply Route.
+notification-match-start = No base building — order units from the sidebar. They march in from the map edge to your Supply Route.
