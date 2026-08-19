@@ -44,14 +44,32 @@ bug. That is worth more than any mockup.
 
 ## 2. So why *does* it feel unintuitive? Three real causes
 
-### Cause A — suppression is fully simulated and completely invisible while garrisoned
+### Cause A — ~~suppression is fully simulated and completely invisible while garrisoned~~ **FIXED 2026-08-17. This cause no longer exists.**
+
+> **Correction, 2026-08-19 (verified at `de78a1ed`).** Cause A was diagnosed correctly and then **acted
+> on** — proposal #1 below shipped at `97414046`. The two struck bullets are the measurements that were
+> true when this document was written and are false now. Nothing here was wrong when written; it was
+> simply never retired after the fix landed, and it has since been read as an open proposal set.
+> **What is left of this section is Cause B and Cause C, plus the vocabulary half of #4.**
 
 This is the answer. The state that drives everything the player sees is the one thing never shown.
 
-- The building's pip grid (`WithGarrisonDecoration.cs`) renders exactly **three** rows —
-  `DamageRow`, `ClassRow`, `AmmoRow` (render loop, `:240-369`). **There is no suppression row.**
-- The garrison panel prints `"{port}: {unit} [{ammo}/{max}] (80% cover)"`
-  (`GarrisonPanelLogic.cs:179`) and `"[S] {name} ({prot}% cover)"` (`:227`). **No suppression.**
+- ~~The building's pip grid (`WithGarrisonDecoration.cs`) renders exactly **three** rows —
+  `DamageRow`, `ClassRow`, `AmmoRow` (render loop, `:240-369`). **There is no suppression row.**~~
+  **FALSE since `97414046`:** the grid renders **four** rows. `SlotRows = 4` and `SuppressionRow = 3`
+  (`WithGarrisonDecoration.cs:84-88`); the pip is emitted in the render loop and its sequence picked by
+  `GetSuppressionSequence`, bucketing into ten tiers `pip-suppression-1..10`. It is drawn for shelter
+  occupants too. **The row's remaining weakness is different and is now tracked separately:** all ten
+  frames are the same chevron in different hues, so the grid shows severity but not *trend* — see
+  `cargo-garrison-status-260819.md` §4-A7.
+- ~~The garrison panel prints `"{port}: {unit} [{ammo}/{max}] (80% cover)"`
+  (`GarrisonPanelLogic.cs:179`) and `"[S] {name} ({prot}% cover)"` (`:227`). **No suppression.**~~
+  **FALSE on both counts.** The 80% is no longer hardcoded: `CoverPercent(Actor)`
+  (`GarrisonPanelLogic.cs:189-202`) walks the soldier's enabled `DamageMultiplier` traits, so it tracks
+  `DamageMultiplier@GarrisonCover` in `rules/ingame/infantry.yaml` automatically. And suppression *is*
+  printed — `SuppressionText` (`:180-183`) substitutes the live level for the cover figure while the
+  port is suppressed. **That substitution is itself now a small open question** (the cover number
+  disappears exactly when cover matters most): `cargo-garrison-status-260819.md` §4-A5.
 - The soldier's own suppression pips exist but carry `RequiresSelection: true`
   (`infantry.yaml:550`), so they render only when that individual soldier is selected. A garrisoned
   soldier is drawn at 40% alpha (`WithAlphaCondition@GarrisonGhost`, `infantry.yaml:192-194`)
@@ -125,10 +143,18 @@ Add a fourth row to the building pip grid and a suppression segment to each pane
   occupants — worth capping or showing suppression only above 0. Reading a condition per soldier
   per frame is cheap but is a per-frame `TraitsImplementing` walk if written carelessly.
 
-### #2 — Delete `IsDucking` · **trivial** · prevents a shipped bug
+### ~~#2 — Delete `IsDucking`~~ · **DONE — carried out at `97414046`. Nothing to dispatch.**
 
-Remove the field and its three writes. It is dead, and while it exists the standing recommendation
-in two workspace docs is to wire it — which would double-apply a fire penalty (§1).
+> **Correction, 2026-08-19 (verified at `de78a1ed`).** This proposal was accepted and executed.
+> `PortState.IsDucking` and its only input `SuppressionDuckThreshold` are gone; a repo-wide grep of
+> `engine/`, `mods/` and `tools/` returns exactly one hit for the token — the gravestone comment at
+> `GarrisonManager.cs:98`, left deliberately so the next reader does not re-invent it. The "standing
+> recommendation in two workspace docs" it warned about has also been retired: see
+> `audit/260816-systems-completeness.md:531` (withdrawn 2026-08-17) and `PIPELINE.md:162`, which now
+> reads "Do not implement a duck-tier fire penalty."
+
+~~Remove the field and its three writes. It is dead, and while it exists the standing recommendation
+in two workspace docs is to wire it — which would double-apply a fire penalty (§1).~~
 
 - **Player sees:** nothing. This is insurance, not a feature.
 - **Risk:** none functionally. The real risk is *not* doing it and someone implementing the audit's

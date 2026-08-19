@@ -19,6 +19,10 @@
   h2{font-size:13px;margin:34px 0 12px;color:var(--acc);text-transform:uppercase;letter-spacing:1.4px;font-weight:600}
   .sub{color:var(--dim);margin:0 0 8px;max-width:900px}
   .note{color:var(--faint);font-size:11.5px;max-width:900px;margin:6px 0 0}
+  .correction{color:var(--ink);font-size:11.5px;max-width:900px;margin:10px 0 0;
+    border-left:3px solid var(--warn);background:rgba(217,164,65,.07);padding:8px 12px}
+  .correction b{color:var(--warn)}
+  .correction s{color:var(--faint)}
   .rule{height:1px;background:var(--line);margin:26px 0 0}
 
   .cols{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
@@ -164,9 +168,21 @@ speed. None of it is drawn anywhere the player looks. This mockup shows the same
 <p class="sub">No new simulation state, no new order, and no change to how suppression accumulates or decays.
 Everything above is read at render time from <code>GetConditionCount("suppressed")</code> — the same synced
 actor state the simulation already reads. There is no desync surface because nothing is written.</p>
-<p class="note">Separately: <code>PortState.IsDucking</code> is written every tick and read by nothing. It is a
+<p class="note"><s>Separately: <code>PortState.IsDucking</code> is written every tick and read by nothing. It is a
 vestigial duplicate of <code>^SuppressionBurstMultiplier</code>, not a missing feature — wiring it to rate of
-fire would double-apply a penalty that already ships. The proposal is to delete it.</p>
+fire would double-apply a penalty that already ships. The proposal is to delete it.</s></p>
+
+<p class="correction"><b>Correction, 2026-08-19 — the struck paragraph above is out of date.</b>
+<code>PortState.IsDucking</code> and its only input <code>SuppressionDuckThreshold</code> <b>were deleted</b> at
+commit <code>97414046</code>. The proposal was accepted and carried out; a repo-wide grep now returns exactly one
+hit for the token, the gravestone comment at <code>GarrisonManager.cs:98</code>. The reasoning in the struck text
+was correct — it was a vestigial duplicate, and wiring it to rate of fire would have double-applied a penalty
+that already ships — it is only the tense that is wrong. <b>Also shipped since this mockup was drawn:</b> the
+suppression pip row is live on the building grid (<code>WithGarrisonDecoration.cs:84-88</code>,
+<code>SlotRows = 4</code>) and the panel's cover figure is derived from the soldier's actual
+<code>DamageMultiplier</code> traits rather than hardcoded at 80%
+(<code>GarrisonPanelLogic.cs:189-202</code>). The shipped readout has <b>not yet been screenshotted</b>, so this
+mockup remains the only picture of it.</p>
 
 <script>
 (function(){

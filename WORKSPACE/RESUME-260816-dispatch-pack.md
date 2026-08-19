@@ -116,7 +116,24 @@ Server browser, NAT guidance, disconnects, rejoin, lobby slot handling, replays.
 Walk every rule against the code. Re-check the five-point "Verify" list at `RELEASE_V1.md:44-48` independently. Check the T0=1 → T9=1500 tier table against ~63 AmmoPools. And check whether spent ammo is deducted from cashback at evac for **all** unit types — buy, fire everything, evacuate for full value would be a live money pump.
 
 ### 9. Garrison usability (research + mockups)
-**Anchor finding:** `GarrisonManager.cs:641` writes `ps.IsDucking` every tick and a repo-wide grep finds **only writes, zero reads** — so graduated suppression is inert and reads as binary. That may be most of why garrison feels unintuitive.
+> **Correction, 2026-08-19 — DO NOT DISPATCH ON THE STRUCK ANCHOR BELOW. The field it names no longer exists.**
+> `PortState.IsDucking` and its only input `SuppressionDuckThreshold` were **deleted** at `97414046`. A repo-wide
+> grep of `engine/`, `mods/` and `tools/` at `de78a1ed` returns exactly one hit for the token — the gravestone
+> comment at `GarrisonManager.cs:98`. `GarrisonManager.cs:641` is not the write site and has not been since.
+> The premise was also wrong in substance, not just stale: graduated suppression was never inert. It ships as ten
+> live tiers through `^SuppressionEffects` (`rules/ingame/infantry.yaml:381-392`) — speed, vision, burst,
+> burst-wait, inaccuracy and pips. `IsDucking` was a vestigial *duplicate* of that, so wiring it up would have
+> double-applied a penalty that already ships. See `WORKSPACE/audit/260816-systems-completeness.md:531`
+> (withdrawn 2026-08-17) and `WORKSPACE/cargo-garrison-status-260819.md` §1a.
+
+**~~Anchor finding:~~ ~~`GarrisonManager.cs:641` writes `ps.IsDucking` every tick and a repo-wide grep finds only writes, zero reads — so graduated suppression is inert and reads as binary. That may be most of why garrison feels unintuitive.~~**
+
+**Anchor finding, replaced 2026-08-19:** the simulation is no longer the problem — **the vocabulary is.** The
+suppression readout shipped at `97414046` (`WithGarrisonDecoration.cs:84-88`, `SlotRows = 4`) and panel cover is
+derived rather than hardcoded (`GarrisonPanelLogic.cs:189-202`). What remains unexplained to the player: the
+bare `[S]` shelter prefix (`GarrisonPanelLogic.cs:227`), two verbs for one act ("Eject All" vs "Unload All
+Troops"), **zero** garrison notifications/EVA/how-to-play entries, and no garrison-specific cursor
+(`cursors.yaml:105` is the generic `enter`). That is almost entirely strings.
 User wants ideas and will go hands-on. Deliver a ranked list plus an HTML mockup under `WORKSPACE/`.
 
 ### 10. Selective passenger unload (design + mockups)
@@ -177,8 +194,8 @@ Several are already satisfied by work that landed today; do not re-run those.
 | **U10 onboarding** | Not started. Repeat-firing cause still unexplained |
 | **U3 command bar** | Shipped — but wants one screenshot to confirm by eye |
 | **U4 icons** | Costed (14 icons needed); user's call on placeholders, recommendation is not to |
-| **U5 garrison** | Research not started |
-| **U6 selective unload** | Design not started |
+| **U5 garrison** | ~~Research not started~~ — **corrected 2026-08-19: research done AND largely implemented.** `WORKSPACE/garrison-proposals.md` + `garrison-mockup.html` delivered; three of its six proposals then shipped (suppression readout `97414046`, `IsDucking` deletion, derived cover %). Still open: #3 name the pinned moment, #5 the four dead orders, #6 a distinct cursor |
+| **U6 selective unload** | ~~Design not started~~ — **corrected 2026-08-19: designed and shipped.** Class-grouped unload menu is live on **J** (`CargoUnloadMenuLogic.cs`, `chrome/unload-menu.yaml`, `hotkeys.yaml:54`). It does travel as a proper `Order`, so the desync constraint above was honoured |
 | **U8 release plan** | Not started; sequenced after packaging |
 | **U9 art/audio** | Document delivered, work deferred to the user |
 | **U11 memory** | Shipped. Remaining action is the user's: disk space + a Defender exclusion |
