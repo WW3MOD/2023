@@ -1,0 +1,99 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Concealment gauge — tier ladder and squad grouping (captures)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Two subjects on one map, photographed in sequence so one launch covers both captures.
+# They never draw at the same time: WithRangeCircle here is Visible: WhenSelected, so an
+# unselected group contributes nothing but its sprites.
+#
+#   Walker  — the tier ladder. Ordered to walk west, so he is MOVING for shot 1, has
+#             STOPPED for shot 2, and has been still past TimeToBeStill for shot 3.
+#
+#             He MUST be given a move order, and that is not a convenience.
+#             GrantConditionOnMovement arms its still-timer only inside UpdateCondition's
+#             STOP branch (GrantConditionOnMovement.cs:66-70); the cooldown field starts
+#             at 0 and Tick decrements it unconditionally (:53-60), so a map-placed actor
+#             that never moves counts 0 -> -1 -> -2 and is NEVER granted `dugin`. A
+#             stationary rifleman sits on one tier for the whole match, all three shots
+#             come out identical, and that is exactly the "ring never changes size"
+#             signature that means BROKEN. Walking him is what makes tier 4 reachable.
+#
+#   Squad1-5 — the grouping capture. Five riflemen a few cells apart, so their equal-radius
+#             circles overlap almost entirely — the only geometry in which "one merged
+#             outline with dimmed inner arcs" looks different from "five stacked rings".
+#             Placed and never ordered, so all five share one tier and therefore one
+#             radius, which is what RangeCircleGrouping requires before it merges anything
+#             (it collects peers only at EQUAL radius).
+#
+# Both sit on the centre row. A 22-cell radius is 44 cells across on a 34-cell-tall map, so
+# every circle here is clipped top and bottom whatever we do; centring makes that clipping
+# symmetric and identical between shots, which is what matters since the captures are
+# compared against each other rather than measured absolutely.
+#
+# There is NO enemy on this map. An enemy would give the riflemen something to shoot at,
+# and firing grants `firinganyweapon` at -2 vision for 12 ticks — the tier would drop and
+# the radius jump mid-capture.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	Walker: e1.america
+		Owner: USA
+		Location: 50,16
+		Facing: 256
+
+	Squad1: e1.america
+		Owner: USA
+		Location: 18,15
+		Facing: 512
+	Squad2: e1.america
+		Owner: USA
+		Location: 21,15
+		Facing: 512
+	Squad3: e1.america
+		Owner: USA
+		Location: 24,15
+		Facing: 512
+	Squad4: e1.america
+		Owner: USA
+		Location: 19,18
+		Facing: 512
+	Squad5: e1.america
+		Owner: USA
+		Location: 22,18
+		Facing: 512
+
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 4,30
+
+Rules: rules.yaml

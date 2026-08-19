@@ -1,0 +1,47 @@
+Player:
+	-ConquestVictoryConditions:
+	PlayerResources:
+		DefaultCash: 0
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-visual-radar-circles.lua
+
+# THE ONE DELIBERATE DEVIATION FROM SHIPPED CONFIG, stated plainly so nobody reads this
+# capture as more than it is.
+#
+# WithRangeCircle.Visible returns false unless Shift is physically held
+# (WithRangeCircle.cs:103, reading Game.GetModifierKeys). Nothing in the harness can hold
+# a modifier key: Test.PressHotkey sends a bound hotkey, not a raw modifier, and there is
+# no binding for the shift state. A scripted capture of the radar circle is therefore
+# impossible at the shipped RequireShift: True.
+#
+# What this scenario CAN cover, and what the regression actually is: the concealment-gauge
+# commit rewrote RenderRangeCircle's body into a typed branch and an untyped branch. It did
+# NOT touch the shift gate at :103, which is upstream of both and unchanged. So flipping
+# RequireShift here exercises precisely the code that changed, and nothing that changed is
+# skipped by the flip. What is NOT covered is that the shift gate itself still works — that
+# is unverifiable from a script and is called out in the report rather than implied.
+#
+# Every other field is restated rather than inherited-and-hoped: a trait override merges
+# per field, but restating them makes it visible that Range/Color/Width/Alpha and the
+# deployed gate are the shipped ones and only RequireShift differs. Type is deliberately
+# absent — untyped is the property under test.
+MSAR:
+	WithRangeCircle@Radar:
+		Range: 42c0
+		Color: 000000
+		Width: 5
+		Alpha: 50
+		RequiresCondition: deployed
+		RequireShift: False

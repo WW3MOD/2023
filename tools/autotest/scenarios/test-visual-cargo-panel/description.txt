@@ -1,0 +1,1 @@
+Captures: cargo panel (10 rows) against the production sidebar. RUN TWICE — --size 1024x768 and --size 1920x1080.

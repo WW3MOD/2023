@@ -1,0 +1,52 @@
+Player:
+	-ConquestVictoryConditions:
+	PlayerResources:
+		DefaultCash: 0
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-visual-gauge-truth.lua
+
+# The observer. Three deviations from a stock Russian rifleman, each with a reason the
+# capture depends on.
+e1watcher:
+	Inherits: E1.russia
+
+	# 1. Detectable Vision 1 — how easily WE see IT, not how well it sees us. The "!" only
+	#    lights for an enemy the viewing player is aware of (the asymmetry rule in
+	#    WithSpottedDecoration), so a stock observer out at 21-26 cells would put that
+	#    precondition itself right on a vision-band edge and the mark would depend on a
+	#    coin flip rather than on the ladder under test. At Vision 1 we resolve it
+	#    anywhere inside 28 cells. Its OWN ^StandardVision is untouched, so how it sees
+	#    Rifle follows the ordinary ladder and the 22-cell prediction stands.
+	Detectable:
+		Vision: 1
+
+	# 2. No spotted mark of its own. With no render player the harness disables
+	#    WithDecorationBase's relationship gate, so enemy units draw marks a real player
+	#    would never see (SCREENSHOT.md). Watcher genuinely IS spotted by USA, so it would
+	#    carry a second red "!" in the same frame as the one being judged. Remove it and
+	#    there is exactly one "!" in the picture, on the unit the capture is about.
+	-WithSpottedDecoration:
+
+	# 3. Silent, both ways. AUTOTEST.md gotcha #9: silence the ENEMY, never the
+	#    unit-under-test, because fire stance gates traits the test may be measuring.
+	#    HoldFire stops Watcher shooting Rifle; NoAutoTarget stops Rifle acquiring
+	#    Watcher, which matters far more than it looks — firing grants `firinganyweapon`
+	#    at -2 vision for 12 ticks, dropping Rifle to tier 1 and jumping his ring from 22
+	#    to 28 cells in the middle of the ladder.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Targetable:
+		TargetTypes: NoAutoTarget

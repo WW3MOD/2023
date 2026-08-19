@@ -23,6 +23,16 @@
 #   --minimized            Old behavior: SDL_MinimizeWindow into the dock.
 #                          Restore by clicking the small icon next to Trash.
 #   --visible              Stay foreground. (Alias: --no-minimize.)
+#   --size WxH             Pin the windowed size exactly (e.g. --size 1024x768),
+#                          overriding the screen-derived size the position
+#                          shorthand computes. Chrome in this mod is laid out in
+#                          absolute pixels against WINDOW_WIDTH / WINDOW_HEIGHT,
+#                          so whether two panels overlap is a property of the
+#                          window, not of the build — and the default size is
+#                          derived from whatever monitor the runner happens to
+#                          have. Any capture making a claim about layout must
+#                          pin the size or it is a statement about one desktop.
+#                          Ignored under --fullscreen / F.
 #
 # Audio flags:
 #   --audio                Keep sound on. (run-demo.sh injects this.)
@@ -152,6 +162,7 @@ LIFECYCLE=0
 MISSILE_TRACE=0
 MISSILE_TRACE_MODE=full
 SYNC_REPORTS=0
+WINDOW_SIZE=""
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -172,6 +183,8 @@ while [ $# -gt 0 ]; do
 		                        WINDOW_BEHAVIOR="visible"; shift ;;
 		--audio)                AUDIO_MUTE=0; shift ;;
 		--mute)                 AUDIO_MUTE=1; shift ;;
+		--size=*)               WINDOW_SIZE="${1#*=}"; shift ;;
+		--size)                 WINDOW_SIZE="$2"; shift 2 ;;
 		--speed=*)              SPEED_MULT="${1#*=}"; shift ;;
 		--speed)                SPEED_MULT="$2"; shift 2 ;;
 		--seed=*)               SEED="${1#*=}"; shift ;;
@@ -195,7 +208,7 @@ done
 
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 [L|R|F] [--background|--hidden|--minimized|--visible] [--audio] [--speed N] [--seed N] [--timeout N] [--lifecycle] [--missile-trace] <test-folder-name>"
+	echo "Usage: $0 [L|R|F] [--background|--hidden|--minimized|--visible] [--audio] [--size WxH] [--speed N] [--seed N] [--timeout N] [--lifecycle] [--missile-trace] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
 fi
@@ -404,6 +417,26 @@ case "${POSITION}" in
 		echo "Unknown position: ${POSITION} (expected: centered, left, right, full)"
 		exit 3 ;;
 esac
+
+# --size overrides whatever the position shorthand derived from this machine's screen.
+# Position (WINDOW_POS_ENV) is deliberately left alone: only the SIZE decides whether
+# absolutely-positioned chrome overlaps, and a pinned size with a centered origin still
+# fits on any monitor at least that large.
+if [ -n "${WINDOW_SIZE}" ]; then
+	SIZE_W=$(echo "${WINDOW_SIZE}" | sed -n 's/^\([0-9][0-9]*\)[xX,]\([0-9][0-9]*\)$/\1/p')
+	SIZE_H=$(echo "${WINDOW_SIZE}" | sed -n 's/^\([0-9][0-9]*\)[xX,]\([0-9][0-9]*\)$/\2/p')
+	if [ -z "${SIZE_W}" ] || [ -z "${SIZE_H}" ]; then
+		echo "Bad --size '${WINDOW_SIZE}' (expected WxH, e.g. 1024x768)"
+		exit 3
+	fi
+
+	if [ "${POSITION}" = "full" ]; then
+		echo "Note: --size is ignored with F/--full/--fullscreen."
+	else
+		WINDOW_ARGS="Graphics.WindowedSize=${SIZE_W},${SIZE_H}"
+		echo "Window size pinned to ${SIZE_W}x${SIZE_H}."
+	fi
+fi
 
 # Pick a result path under the user's HOME so the engine can write to it
 # regardless of where Platform.SupportDir lands.

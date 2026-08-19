@@ -1,0 +1,26 @@
+# Nothing on this map should move or shoot except when the script says so — every
+# capture is a statement about one concealment tier, and the tier moves if the unit
+# fires (firinganyweapon, -2) or is pushed off its cell.
+
+Player:
+	-ConquestVictoryConditions:
+	PlayerResources:
+		DefaultCash: 0
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults to
+	# human-owned units. Left in place a dev's saved HoldFire default would change
+	# nothing about the gauge, but it would change which command-bar buttons light in
+	# the frame, so strip it and keep the captures machine-independent.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-visual-concealment-gauge.lua

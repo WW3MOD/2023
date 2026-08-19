@@ -1,0 +1,1 @@
+Captures: the command bar after the TAKE_COVER removal, and the renamed garrison buttons ("Out" / "Unload All", not "X" / "Eject All").
