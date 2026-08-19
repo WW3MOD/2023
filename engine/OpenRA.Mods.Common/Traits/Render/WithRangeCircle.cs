@@ -10,6 +10,7 @@
 #endregion
 
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Graphics;
 using OpenRA.Primitives;
@@ -107,23 +108,50 @@ namespace OpenRA.Mods.Common.Traits.Render
 			}
 		}
 
+		WPos CirclePosition(Actor a)
+		{
+			var position = a.CenterPosition;
+			if (Info.Offset != null)
+				position += (WVec)Info.Offset;
+
+			return position;
+		}
+
 		public IEnumerable<IRenderable> RenderRangeCircle(Actor self, RangeCircleVisibility visibility)
 		{
-			if (Info.Visible == visibility && Visible)
-			{
-				var position = self.CenterPosition;
-				if (Info.Offset != null)
-					position += (WVec)Info.Offset;
+			if (Info.Visible != visibility || !Visible)
+				yield break;
 
+			var color = Info.UsePlayerColor ? self.OwnerColor() : Info.Color;
+
+			// Grouping is opt-in via Type, so untyped circles (radar, contestation) keep drawing
+			// independently of each other exactly as before.
+			if (Info.Type == null)
+			{
 				yield return new RangeCircleAnnotationRenderable(
-					position,
+					CirclePosition(self),
 					Info.Range,
 					0,
-					Info.UsePlayerColor ? self.OwnerColor() : Info.Color,
+					color,
 					Info.Width,
 					Info.BorderColor,
 					Info.BorderWidth);
+
+				yield break;
 			}
+
+			yield return RangeCircleGrouping.Render(
+				self,
+				CirclePosition(self),
+				Info.Range,
+				0,
+				color,
+				Info.Width,
+				Info.BorderColor,
+				Info.BorderWidth,
+				a => a.TraitsImplementing<WithRangeCircle>()
+					.Where(t => !t.IsTraitDisabled && t.Info.Type == Info.Type)
+					.Select(t => (t.CirclePosition(a), t.Info.Range)));
 		}
 
 		IEnumerable<IRenderable> IRenderAnnotationsWhenSelected.RenderAnnotations(Actor self, WorldRenderer wr)

@@ -19,6 +19,7 @@
 	Inherits@Vision: ^StandardVision
 	# Inherits@DetectionProximity: ^DetectionProximity
 	Inherits@Visibility: ^DetectableInfantryStandard
+	Inherits@DetectableRangeCircles: ^DetectableRangeCircles
 	Inherits@RankPipsAdjustmentInfantry: ^RankPipsAdjustmentInfantry
 	ExternalCondition@Evacuating:
 		Condition: evacuating
@@ -282,7 +283,6 @@
 ^CamoSoldier:
 	Inherits@Combatant: ^Combatant
 	Inherits@Soldier: ^Soldier
-	# Inherits@DetectableRangeCircles: ^DetectableRangeCircles
 	Inherits@Rotting: ^RottingInfantry
 	AutoTarget:
 		ScanRadius: 25
@@ -731,111 +731,114 @@
 		RequiresCondition: moving
 		VisionModifier: -1
 
+# Concealment gauge: one grey circle at the range from which a standard-vision observer first sees
+# this unit, so stopping / going prone / digging in visibly shrinks it.
+#
+# Tier -> radius is derived from the code, NOT from the arithmetic table in
+# WORKSPACE/recon/260819-infantry-visibility-stances.md §3.4:
+#   - Detectable clamps its level to [1, MapLayers.VisionLayers - 1] = [1, 10] BEFORE assigning
+#     CurrentVisibility and granting "visibility-<N>" (Detectable.cs:82-87,162; MapLayers.cs:75).
+#     visibility-0, -11 and -12 therefore CANNOT be granted, and have no entry here.
+#   - Reveal requires an observer strength STRICTLY greater than the level (MapLayers.cs:579), so the
+#     radius for visibility-N is the outer Range of the ^StandardVision band at Strength N+1
+#     (defaults.yaml:47-84). PITFALL: this ladder previously reused band N's own Range, which made
+#     every circle one band (~3 cells) too wide.
+#   - visibility-10 would need strength 11, which no band carries, so such a unit is undetectable by
+#     standard vision and deliberately draws NO circle.
+#
+# Type: concealment opts these into grouped rendering, so a selected squad sharing one tier draws as a
+# single outline instead of a pile of rings (RangeCircleGrouping.Render).
 ^DetectableRangeCircles:
-	# WithRangeCircle@Detectable0:
-	# 	RequiresCondition: visibility-0
-	# 	Range: 32c0
-	# 	Alpha: 25
-	# 	Width: 3
-	# 	Visible: WhenSelected
-	# 	Color: 888888
-	# 	ValidRelationships: Neutral, Ally, Enemy
 	WithRangeCircle@Detectable1:
 		RequiresCondition: visibility-1
-		Range: 32c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Detectable2:
-		RequiresCondition: visibility-2
 		Range: 28c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Detectable3:
-		RequiresCondition: visibility-3
+		ValidRelationships: Ally
+		RequireShift: False
+		Type: concealment
+	WithRangeCircle@Detectable2:
+		RequiresCondition: visibility-2
 		Range: 25c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Detectable4:
-		RequiresCondition: visibility-4
+		ValidRelationships: Ally
+		RequireShift: False
+		Type: concealment
+	WithRangeCircle@Detectable3:
+		RequiresCondition: visibility-3
 		Range: 22c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Detectable5:
-		RequiresCondition: visibility-5
+		ValidRelationships: Ally
+		RequireShift: False
+		Type: concealment
+	WithRangeCircle@Detectable4:
+		RequiresCondition: visibility-4
 		Range: 19c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Detectable6:
-		RequiresCondition: visibility-6
+		ValidRelationships: Ally
+		RequireShift: False
+		Type: concealment
+	WithRangeCircle@Detectable5:
+		RequiresCondition: visibility-5
 		Range: 16c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Detectable7:
-		RequiresCondition: visibility-7
+		ValidRelationships: Ally
+		RequireShift: False
+		Type: concealment
+	WithRangeCircle@Detectable6:
+		RequiresCondition: visibility-6
 		Range: 13c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Detectable8:
-		RequiresCondition: visibility-8
+		ValidRelationships: Ally
+		RequireShift: False
+		Type: concealment
+	WithRangeCircle@Detectable7:
+		RequiresCondition: visibility-7
 		Range: 10c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Detectable9:
-		RequiresCondition: visibility-9
+		ValidRelationships: Ally
+		RequireShift: False
+		Type: concealment
+	WithRangeCircle@Detectable8:
+		RequiresCondition: visibility-8
 		Range: 7c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Detectable10:
-		RequiresCondition: visibility-10
+		ValidRelationships: Ally
+		RequireShift: False
+		Type: concealment
+	WithRangeCircle@Detectable9:
+		RequiresCondition: visibility-9
 		Range: 4c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
 		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Detectable11:
-		RequiresCondition: visibility-11
-		Range: 3c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
-	WithRangeCircle@Detectable12:
-		RequiresCondition: visibility-12
-		Range: 2c0
-		Alpha: 25
-		Width: 3
-		Visible: WhenSelected
-		Color: 888888
-		ValidRelationships: Neutral, Ally, Enemy
+		ValidRelationships: Ally
+		RequireShift: False
+		Type: concealment
 
 ^CapturesOccupiedBuildings:
 	CaptureManager:
