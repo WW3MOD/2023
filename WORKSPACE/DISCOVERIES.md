@@ -967,6 +967,8 @@ this instrument already on the shelf, not a value change bundled into the change
 
 ## 2026-08-17 — UNIT DETECTABILITY IS DYNAMIC, SO A "SPOTTED/NOT SPOTTED" TEST ON THE BAND EDGE FLIPS BETWEEN RUNS
 
+> **[promoted, with the entry's numbers dropped]** → `DOCS/recipes/AUTOTEST.md` (curation 2026-08-19, verified against `de78a1ed`). The mechanism holds — `Detectable.cs:78-80` recomputes each tick through `Util.ApplyAddativeModifiers`, with prone/dug-in/cover contributing +1/+1/+1..+3 (`infantry.yaml:703-721`) against the bands at `defaults.yaml:47-`. **The entry's "infantry sit at 8–9" did not reproduce** — `^Infantry` is `Detectable: Vision: 3` — so the banked form is the qualitative rule: a spotted/not-spotted assertion placed on a band edge flips between runs, and a detection test must be placed clear of the edge or must pin the modifiers.
+
 WW3MOD grades vision into concentric `Strength` bands (`^StandardVision`: Strength 10 at 4c0 decaying to
 Strength 1 at 32c0) and `Detectable` reveals an actor when a band reaching it still carries
 `CurrentVisibility` strength. **That threshold is not a constant per unit type.**
@@ -986,6 +988,8 @@ for a Strength-10 test — the arithmetic passes and the observation is a coin f
 prone/cover is correct and arguably desirable behaviour; it just cannot be the thing a test hangs on.
 
 ## 2026-08-17 — AUTOTEST CAPTURES HAVE NO RENDER PLAYER, SO EVERY `ValidRelationships` GATE IS OFF
+
+> **[promoted]** → `DOCS/recipes/AUTOTEST.md` (curation 2026-08-19, verified against `de78a1ed`). Chain re-verified: `TestModeLogic.cs:31` sets `world.RenderPlayer = null`, `WithDecorationBase.cs:101` applies the relationship filter only inside `if (self.World.RenderPlayer != null)` (default `ValidRelationships = PlayerRelationship.Ally`, `:44`), and `World.cs:109-115` short-circuits fog to false. So every `ValidRelationships` gate is off in a capture and a screenshot shows decorations a player would not see.
 
 **Any screenshot of a decoration shows marks a real player would never see.** `WithDecorationBase.ShouldRender`
 (`engine/OpenRA.Mods.Common/Traits/Render/WithDecorationBase.cs:99-105`) only applies its relationship filter
@@ -1476,6 +1480,8 @@ fix; `--resolved-rules <actor>` before/after proves behaviour-neutrality (694 id
 
 ## 2026-08-17 — `debug.log` IS GLOBAL AND SHARED. A CONCURRENT AGENT'S RUN DESTROYS YOUR EVIDENCE, AND THE EMPTY GREP LOOKS LIKE A FINDING
 
+> **[promoted]** → `DOCS/recipes/AUTOTEST.md` (curation 2026-08-19, verified against `de78a1ed`). Merged with the truncation entry below. The doc's existing section warned only about a *stale* log; what was missing and is now banked is the tell — an **erased** log reads as a clean grep, i.e. as a finding — plus the `stat`-mtime check and the name of the `poll-copy-logs.sh` workaround. Re-confirmed that `run-test.sh` still never copies the log into the run dir.
+
 The harness writes `result.json` **per run** (`~/.ww3mod-tests/screenshots/<run-id>/`), which is why the
 docs say results are per-run. **The game's `debug.log` is not.** Every launch on this machine writes
 `~/Library/Application Support/OpenRA/Logs/debug.log`, from *any* worktree, and truncates it. With many
@@ -1553,6 +1559,8 @@ double compiles fine and throws only in a live game. (`Sync.cs:71` accepts `int`
 struct table; for an enum, sync an `int` projection — `int SyncStance => (int)stance;`.)
 
 ## 2026-08-16 — A NULL RESULT IS NOT EVIDENCE UNTIL THE INSTRUMENT HAS BEEN SHOWN CAPABLE OF A NON-NULL ONE
+
+> **[rejected: already banked]** (curation 2026-08-19, verified against `de78a1ed`). `AUTOTEST.md` already states this in two places — §"A green run is not evidence unless something could have made it RED" (step 1: a control that passes has falsified your test) and §"an UNCHANGED verdict is not evidence of safety". No second copy added. The one novel durable fact underneath it was the **zsh word-splitting** mechanism that produced the false null, which was promoted separately to `conventions.md`.
 
 Earned twice in one day, by two different workers, from the same root cause. Read this before you
 report "no difference", "no change", "nothing found" or a passing comparison.
@@ -1754,6 +1762,8 @@ no `WebServices` override.
 
 ## 2026-08-16 — the engine unescapes `\n` at six specific call sites, and the faction picker is not one of them
 
+> **[promoted (the rule) / rejected (the incident): superseded]** (curation 2026-08-19, verified against `de78a1ed`). The faction-picker bug it reports was fixed at `1c30bef7`, which added the unescape at `LobbyUtils.cs:222` — so the count is now **seven** live consumers, not six, and the entry's own example no longer reproduces. That is why the rule and not the list was banked: **there is no central unescaping in `FieldLoader` or `MiniYaml`; each consumer hand-rolls `.Replace("\\n", "\n")` itself**, so before using `\n` in a new YAML description field, check that field's consumer does it. `engine/OpenRA.Test/FactionDescriptionSplitTest.cs` now pins the faction case.
+
 Explains a whole class of "why does my YAML description show a literal `\n`" bug. There is no
 central unescaping in `FieldLoader` or `MiniYaml`; instead six consumers each call
 `.Replace("\\n", "\n")` themselves — `MissionBrowserLogic.cs:306`, `GameInfoBriefingLogic.cs:32`,
@@ -1799,6 +1809,8 @@ should also hunt `world.SharedRandom` *reads*, which desync because drawing adva
 
 ## 2026-08-16 — a screenshot fired off a "world loaded" log line can precede the first rendered frame, and reads as a blank-screen regression
 
+> **[promoted in part]** → `DOCS/recipes/SCREENSHOT.md` (curation 2026-08-19, verified against `de78a1ed`). The in-`WorldLoaded` blank case was already covered and its citation (`Game.cs:926-930`) re-verified as still correct. What was new and is now banked: the same blank frame is reachable from an **external** trigger racing the first render, plus the byte-size tell that distinguishes it from a genuine black-screen regression.
+
 Sixth measured-nothing shape, and the first that produces a **false positive** rather than a false green.
 
 Verifying the shell-map crash fix, an external Mode-2 capture was fired as soon as
@@ -1822,6 +1834,8 @@ capture twice and compare. When a capture comes back blank, check its byte size 
 believing it. The null result here would have sent someone reverting a correct fix.
 
 ## 2026-08-16 — screenshot.sh picked its run directory lexicographically, so one named run shadowed every later one
+
+> **[rejected: superseded]** (curation 2026-08-19, verified against `de78a1ed`). Fixed at `b3944d24` ("pick the newest run dir by mtime, not by name"), confirmed an ancestor of `de78a1ed`; `screenshot.sh:61-70` now selects on mtime and carries the lesson as an in-file PITFALL at the site. Nothing left to bank.
 
 `tools/autotest/screenshot.sh` resolved the target run dir with `find … | sort | tail -1`. Run-ids are
 a mix of timestamps (`manual_260816_223042`) and caller-supplied names (`manual_smallfixes_210545`),
@@ -2004,6 +2018,8 @@ indexer but `previews` is a `Cache<string, MapPreview>` (`MapCache.cs:34,75`) th
 It cannot throw `KeyNotFoundException`.
 ## 2026-08-16 — `run-test.sh` restores `settings.yaml` after every autotest, so anything the engine persists during a run is silently reverted
 
+> **[promoted (the mechanism) / rejected in part: the incident is NOT explained by it]** (curation 2026-08-19, verified against `de78a1ed`). The snapshot/restore is real and verified — `run-test.sh:633-634` copies aside and `:773-774` moves back, with `screenshot-lobby.sh:135-136`/`:177-178` doing the same — so anything the engine persists during a run is silently reverted. **But the entry pins the repeating how-to-play briefing on that restore, and that cannot be the cause**: `MainMenuLogic.cs:826` returns `!TestMode.IsActive && …`, so an autotest never shows the briefing and never writes `HowToPlayVersion`. The restore cannot discard a write the test never made. Only the mechanism and its forward-looking consequence were banked; **the briefing bug should be treated as unexplained rather than closed.**
+
 `tools/autotest/run-test.sh:632-634` copies the live `settings.yaml` to a backup before launching,
 and `:773-774` `mv`s it back unconditionally after. `tools/autotest/screenshot-lobby.sh:108-111`
 does the same. The stated purpose is narrow — stop a test's `Sound.Mute=true` / `Graphics.Mode`
@@ -2050,6 +2066,8 @@ production is genuinely halted, but nothing in this trait touches income. Not ch
 I did not trace the income path itself, only this trait's outputs.
 
 ## 2026-08-15 — the littlebird deals ZERO damage with every weapon it carries, because it declares no Gunner crew slot and `^Airborne` reads a missing slot as `FirepowerMultiplier: 0`
+
+> **[rejected: superseded]** (curation 2026-08-19, verified against `de78a1ed`). Fixed by `1af91a7a`, and the crew-slot gate that caused it was deleted outright in `2344bef2`. Both confirmed ancestors of `de78a1ed`. Promoting this would have put a dead bug into the bank as current behaviour.
 
 Measured on `main @ 4c4d8a49` in `wt/heli-gun`, scenario `test-littlebird-strafe` (one littlebird, one
 `e1`, 2 cells, flat clear terrain), engine trace `WW3_GUNTRACE=1`.
@@ -2224,6 +2242,8 @@ cover the **pre-claim window** — here ticks 7→65, about 58 ticks — then ha
 handshake, not a reservation.
 
 ## 2026-08-15 — the engine TRUNCATES `debug.log` at startup, so a "only copy if it grew" log guard preserves the PREVIOUS run's file for the whole run
+
+> **[promoted]** → `DOCS/recipes/AUTOTEST.md` (curation 2026-08-19, verified against `de78a1ed`). Re-verified at `engine/OpenRA.Game/Support/Log.cs:159`: `File.CreateText(filename)` truncates rather than appends (the entry's path was bare `Log.cs`). This is what defeats a "copy only if it grew" guard — the file shrinks at launch, so the guard preserves the PREVIOUS run's log for the whole of the current one. Merged with the global-log entry above.
 
 Sibling to the stale-log entry of the same date, and it defeats the defence that entry recommends.
 `AUTOTEST.md` says to poll-copy the log rather than `rm -f` it, because a concurrent worker's cleanup can
@@ -2479,6 +2499,8 @@ before acting on it.** An empty result from a lookup should never be allowed to 
 
 ## 2026-08-14 — `Matchup.P1Bot` in a tournament config is INFORMATIONAL; the bot is assigned in the scenario's `map.yaml`, and `--config` cannot override it
 
+> **[rejected: already banked]** (curation 2026-08-19, verified against `de78a1ed`). Present verbatim in `AUTOTEST.md` §"The setup you wrote is not always the setup that ran", including the `p1_bot`/`p2_bot` ground-truth remedy.
+
 Found on `wt/composition` while trying to measure `@experimental` procurement. I wrote a new config
 file with `P1Bot: experimental` / `P2Bot: experimental`, passed it with `--config`, and got a clean
 match with a plausible verdict. It measured **`@stable`**. `TournamentConfig.cs:8` says so in a
@@ -2542,6 +2564,8 @@ of all of them; the *reasons* remain unobservable.
 
 ## 2026-08-14 — the Javelin's fuse is THREE spheres, not two, and the third one is what catches every miss
 
+> **[promoted]** → `missiles.md` §3 (curation 2026-08-19, verified against `de78a1ed`). The doc named only two centres. Three distinct ones confirmed: the aim point `targetPosition + leadTarget + offset` (`Missile.cs:1104-1105`, feeding `:1163`), a second at `targetPosition + leadTarget` with **no** `offset` (`:1194`), and the bare target at `:878`. The third is what catches every miss.
+
 Found while executing the §6 measurement run in `WORKSPACE/audit/javelin-terminal-geometry.md`
 (branch `wt/javelin-probe`, 556 shipped-configuration ATGM flights).
 
@@ -2570,6 +2594,8 @@ distance. The corpus maxes out at 6 because it was fired from 10-12 cells; the s
 from 6-8 cells reaches 655 while still hitting every time.
 
 ## 2026-08-14 — a Humvee's real top speed is 105 wdist/tick, not the 150 its `Mobile.Speed` reads
+
+> **[promoted, with the mechanism corrected]** → `conventions.md` (curation 2026-08-19, verified against `de78a1ed`). The entry said only that "something takes 30% off". It is exactly the locomotor terrain modifier: `MovementSpeedForCell` appends `Locomotor.MovementSpeedForCell(cell)` to the modifier list (`Mobile.cs:826-831`), and `lightwheeled` sets `Clear: 70` (`world.yaml:98-101`), so `Speed: 150` (`vehicles-america.yaml:70`) is 105 on open ground and 150 only on Road/Bridge. Banked as the general rule that `Mobile.Speed` is not the speed at the point of use.
 
 Measured from 2486 per-tick target-position deltas in a `--missile-trace` JSONL (same run as above):
 maximum 105, median 49 over a short patrol leg, 8% of ticks at a standstill. `Speed: 150`
@@ -2647,6 +2673,8 @@ Found while renaming the method to `CenterProximityPercent` (branch `wt/hitshape
 
 ## 2026-08-13 — a `WAngle` YAML field that the engine re-decodes through `(sbyte)(Angle >> 2)` has a usable range of `[0, 511]`, not `[0, 1023]`; and `Missile` decodes that one field three DIFFERENT ways
 
+> **[promoted in part / already covered in part]** (curation 2026-08-19, verified against `de78a1ed`). The `[0,511]` headline was already in `missiles.md` §4 verbatim. The **three-decodings** half was new and is now banked: `:384` shifts with no cast, `:412-413` casts to `sbyte` as a bisection bound, `:458-459` clamps. Both dormant sites sit under `TerrainHeightAware` (`:432`, `:439`), and no shipped weapon sets both that and a `MaximumLaunchAngle` — checked: `TerrainHeightAware` is on WGM/Ataka/Hellfire, `MaximumLaunchAngle: 252` only on MANPAD/Stinger. The general form went to `conventions.md` §WAngle.
+
 Found fixing `MaximumLaunchAngle: 1000` on `MANPAD`/`Stinger` (branch `wt/missile-yaml-fixes`, off `dc899995`). The wrong value is banked elsewhere; these are the general lessons under it.
 
 - **Two independent wraps compose, and only the second one bites.** `FieldLoader` parses a bare integer for a `WAngle` field as the *raw* angle, 1024 = 360° (`FieldLoader.cs:250-253`), and `WAngle`'s constructor normalises into `[0, 1023]` (`WAngle.cs:28-32`) — so `1000` survives as `1000` and looks fine. The damage is done by the *consumer*: `Missile` converts to a signed-byte facing with `(sbyte)(Angle >> 2)` (`Missile.cs:433-434`). `1000 >> 2 = 250`, `(sbyte)250 = -6`. **The value that reads as "a large upward angle" after WAngle normalisation is a small DOWNWARD one after the consumer's cast.** The cast's own safe window is raw `[0, 511]` (facing 0..127); **raw `512` is `(sbyte)128 = -128`, i.e. straight down** — the cliff is one step past the highest value anyone would plausibly type. (The lint bound below is tighter still, at 255.) Generalisation worth carrying: *`WAngle`'s own normalisation guarantees nothing about the range a consumer will accept.* Grep the consumer for `>> 2` / `(sbyte)` before trusting any raw angle in YAML.
@@ -2656,6 +2684,8 @@ Found fixing `MaximumLaunchAngle: 1000` on `MANPAD`/`Stinger` (branch `wt/missil
 - **Why an `Air`-only `CreateEffect` alongside a `Ground` one cannot double-draw — the reason is `Invalid`, not non-overlapping `ValidTargets`.** `ActorTypeAtImpact` returns `ImpactActorType.Invalid` (not `None`) when an actor's hitshape contains the impact but the warhead is not valid against it (`CreateEffectWarhead.cs:81-87`), and `DoImpact` returns immediately on `Invalid` (`:116-117`). So a detonation inside a tank's hitshape actively **suppresses** the `Air` warhead while the `Ground` one draws; with no actor overlap, terrain resolution (`:155-156`, `dat > AirThreshold` → `Air`) selects exactly one. The existing comment at `weapons-missiles.yaml` (Ataka) warns that listing `Air, Helicopter` would draw two explosions — that is about one warhead matching a target twice over, and is a *different* mechanism from this one. Both matter when adding effect warheads.
 - **Residual, not fixed here because it was out of scope.** `SurfaceToAirMissile` (SAM site) never sets `MaximumLaunchAngle` and so takes the engine default `WAngle(128)` → facing `+32` = `+45°`. It has no `MinRange` and launches from `LocalOffset` Z=320 (`structures-defenses.yaml:801`) against aircraft cruising at 1536–3840 (`aircraft-russia.yaml:692` = `1c512`, `aircraft.yaml:367` = `3c768`), so any engagement inside roughly `altitude` horizontal w-units wants a launch pitch steeper than 45° and gets clamped. Narrow, and nothing like the below-horizon bug — but it is the same shape, and the default is not evidence that anyone chose 45°.
 ## 2026-08-13 — `Missile.cs` has three separate ways to end that are INDISTINGUISHABLE from outside the class, and one whole guidance branch that no call site can reach
+
+> **[split: promoted / already covered / rejected]** (curation 2026-08-19, verified against `de78a1ed`). The pre-arm dud was already `missiles.md` §I2. The `targetPassedBy` overshoot path and the APS double-detonation (`:928` calls `Explode(world)` with no `return`, falling through to `:1220`; latent only because `vehicles-america.yaml:499` is commented out) are promoted. The "horizontal-only miss detector" claim is **rejected: superseded by `1ec6f17c`**. **One correction to the entry**: it called the whole `else` arm dead; that arm is reachable via `allowPassBy`, and what is actually dead is narrower — `:688`'s disjunct, the `:704-705` clamp and the `:796-805` else-arm, all downstream of the single `false` call site at `:908`.
 
 Found while building the Phase-0 missile trace (`engine/OpenRA.Mods.Common/Projectiles/MissileTrace.cs`, branch `wt/missile-trace`). **Nothing below was changed** — the trace was built to measure these rather than to argue about them, after a previous attempt hand-integrated missile geometry and reached a confidently wrong conclusion twice over. Line numbers are on that branch, post-instrumentation.
 
@@ -6893,6 +6923,8 @@ Found fixing the missile reacquisition regression (branch `wt/missile-no-reacqui
 
 ## 2026-08-13 — `HorizontalRateOfTurn` is a raw `WAngle`, not facings (third recurrence)
 
+> **[promoted]** → `conventions.md` §WAngle (general form) and `missiles.md` (the missile instance) (curation 2026-08-19, verified against `de78a1ed`). `Missile.cs:99` is `HorizontalRateOfTurn = new(20)`, read as `.Facing` at `:949` — `WAngle.Facing` is `Angle / 4` (`WAngle.cs:67`), so YAML `20` means 5 facings/tick ≈ 7.03°/tick. **That this is the THIRD recurrence is the reason it was banked as a general rule rather than a missile note**: the durable instruction is to grep the consumer for `.Facing` / `>> 2` / `(sbyte)` before trusting any raw angle in YAML.
+
 This unit error has now been made three separate times in the missile programme, each time inflating a predicted turn rate by 4×. Recording it as a unit rule rather than as a fact about one weapon.
 
 - **The rule.** `HorizontalRateOfTurn` / `VerticalRateOfTurn` are `WAngle`s. `new WAngle(20)` is **20 raw angle units**, and every consumer reads `.Facing`, which is `Angle / 4` (`WAngle.cs:67`). So `HorizontalRateOfTurn: 20` means **5 facings/tick = 7.03°/tick**, not 20 facings = 28°/tick. One facing is 360/256 = 1.40625°.
@@ -6900,6 +6932,8 @@ This unit error has now been made three separate times in the missile programme,
 - **Confirmed against the trace, which is why this is now settled.** The largest single-tick heading change anywhere in the 1 071-missile corpus is exactly **21.1°**, appearing repeatedly and never exceeded. The measured ceiling matches the derived one to the digit. Any future estimate that predicts a missile turning ~28°/tick has made this error again.
 
 ## 2026-08-13 — the retained missile corpus contains no loop at all; the Javelin report is still undiagnosed
+
+> **[rejected: tracker]** (curation 2026-08-19, verified against `de78a1ed`). The headline is a status statement about a moving target, resting on a corpus held outside the repo — unverifiable later and false as soon as the next capture lands, which is exactly what `DOCS/reference/README.md` keeps out of the bank. One durable sub-fact was lifted before rejecting: the airburst gate is `!flyStraight && …` at both `Missile.cs:1171` and `:1245`.
 
 Measured, not reasoned. Corpus: `C:/Users/fredr/worktrees/ww3mod/verify-results/*.jsonl`, 1 071 missile flights with full per-tick records. Recorded so the sixth diagnosis attempt starts from data instead of from the same source re-read.
 
@@ -7013,6 +7047,8 @@ Offline (`--composition-plan`, real ruleset): with the **shipped default start c
 ---
 
 ## 2026-08-15 — a scenario missing `Rules: rules.yaml` runs its whole match with NO scenario rules and reports an ordinary timeout: the third "measured nothing" shape
+
+> **[promoted in part]** → `DOCS/recipes/AUTOTEST.md` §`map.yaml` (curation 2026-08-19, verified against `de78a1ed`). The false-green consequence was already noted as a parenthetical in the false-green section; the **authoring requirement was missing from the section where a scenario author actually looks**, and is now item 5 there, citing a correct example (`test-experimental-poi-observe/map.yaml:96`). Swept every `test-*` scenario: none is currently missing the line.
 
 `tools/autotest/scenarios/<test>/map.yaml` must carry a top-level `Rules: rules.yaml` line or the sibling `rules.yaml` is **never read**. Working example: `tools/autotest/scenarios/test-experimental-poi-observe/map.yaml:96` (last line, preceded by a blank line — adjacent MiniYaml top-level entries merge).
 
@@ -7228,6 +7264,8 @@ were **never carried**, they walked to the front under the offensive layer, whil
 world never returned. In WW3MOD, zero cash is not zero units — that is the whole point of the model
 (`game-model.md`), and any scenario relying on cash to pin its force is relying on the wrong lever.
 ## 2026-08-15 — helicopter guns: accuracy is the dominant term against aircraft, and three weapon-mounting fields are inert
+
+> **[split: promoted / rejected]** (curation 2026-08-19, verified against `de78a1ed`). Three mounting facts are promoted to `missiles.md` — `LocalYaw` is inert for missiles (`Missile.cs:292-296` uses `args.Facing` only when the source→target vector is zero-length), `MinRange` is taken across armaments (`AttackBase.cs:616-617` keeps the minimum), and `TargetDamage`'s `Spread` of 1 (`TargetDamageWarhead.cs:23`, tested at `:76`) makes it effectively a direct-hit warhead against an aircraft's `Circle Radius 32` hitshape. The Inaccuracy-dominance/TTK modelling and the stale `tools/combat-sim/data/stats.json` are **rejected from the bank** as balance-measurement material rather than mechanism — they belong with `BALANCE.md`/`WORKSPACE`. The two globally-inert accuracy fields found alongside them went to `conventions.md` §Engine behaviors that surprise.
 
 Diagnosing "the littlebird's missiles never do damage" and "its miniguns are very inaccurate". Both premises turned out to be about something other than what they name, and the investigation turned up three fields that look load-bearing and do nothing.
 

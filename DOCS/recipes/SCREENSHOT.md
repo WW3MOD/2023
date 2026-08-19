@@ -79,6 +79,13 @@ The shot passes its `PassengerCount == 10` assertion and then photographs **3** 
 
 Two corollaries: a capture fired in `WorldLoaded` can land **blank**, because no frame has been rendered yet; and a run that exits promptly after a shot can lose it, which is why `Test.Pass` goes through `ExitWhenCapturesFlushed`.
 
+**AN AUTOTEST CAPTURE HAS NO RENDER PLAYER, SO IT IS NOT A PICTURE OF WHAT A PLAYER SEES.** `TestModeLogic.cs:31` sets `world.RenderPlayer = null` for every autotest with a real player slot — deliberately, so the window shows the whole map. Two things follow, and both make a capture *overstate* what is on screen:
+
+- **Every `ValidRelationships` gate is off.** `WithDecorationBase.ShouldRender` applies its relationship filter only inside `if (self.World.RenderPlayer != null)` (`WithDecorationBase.cs:101-105`), so enemy units happily draw decorations declared `ValidRelationships: Ally` — which is the **default** (`:44`), i.e. most pips in the mod. Marks a real player would never see appear on every unit on the map.
+- **No fog or shroud is applied.** `World.FogObscures`/`ShroudObscures` all short-circuit to `false` on a null render player (`World.cs:109-115`).
+
+So a capture cannot validate any indicator whose correctness depends on *who is looking*, and it can make a leak-prevention rule look broken when it is fine. Confirming it costs nothing and no extra run: sample mean terrain brightness at several distances from your units in the PNG — under a real render player, ground outside vision is visibly darker; in the harness it is uniform. **Uniform brightness is the tell.** Note also that when a decoration falls back to `self.Owner` for its viewer, the fallback is what the capture exercises, never the render-player path.
+
 **What *is* synchronous is the PNG write.** `Renderer.SaveScreenshot` normally dispatches encoding to a `ThreadPool` worker, which `Game.Exit()` can kill mid-flush; under `TestMode.IsActive` it writes inline instead, so the file lands before teardown. Costs ~100–300 ms per shot at 2k+ resolutions. Sync *write*, deferred *sample* — do not read the first as the second.
 
 ---
@@ -99,6 +106,10 @@ For screenshots outside an autotest scenario — main menu, server lobby, mid-ma
 With `--wait`, the CLI polls `manifest.json` until the new entry appears and prints the resulting PNG path on stdout — pipe directly into a `Read` call.
 
 ### How it works
+
+**NEVER FIRE AN EXTERNAL CAPTURE OFF A LOAD-COMPLETION LOG LINE.** World *setup* is logged well before that world's first render pass, so a shot triggered the instant `ApplyScenario: applying '<map>' …` appears in `debug.log` comes back with the menu widgets drawn over a **completely black** background — indistinguishable from a map that failed to load, and the same one-frame-late sampling as Mode 1. This happened on 2026-08-16 while verifying a shellmap fix and was nearly reported as a regression from a correct change; a capture six seconds later showed the map rendering normally. Wait a beat, or capture twice and compare.
+
+**The tell for a blank frame is file size, not the image.** An almost-flat PNG compresses to nothing: 59 KB for the black frame vs 1.6 MB for the real one. **Check the byte size and re-shoot before believing a blank capture** — it costs no context and no `Read` call. This is the one shape in this pipeline that produces a false *positive* (a regression report against working code) rather than a false green.
 
 `start-screenshot-mode.sh` launches `Test.Mode=true Test.ScreenshotCmdFile=<path>` with no `Launch.Map`. The engine's `LogicTick` polls the command file each tick (~40 ms) when this arg is set. `screenshot.sh` writes a `screenshot <label>` line; the engine reads, deletes the file, captures synchronously, appends to `manifest.json`. Zero overhead when `Test.Mode=false`.
 
