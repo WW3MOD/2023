@@ -15,7 +15,13 @@ pair, and the analyzer severities around it demonstrably still apply (`make chec
 and deleting a line from a shared config is not free of the risk that *some* reader is stricter than
 the spec. A one-line deletion is the whole fix if someone wants it; there is nothing to preserve.
 
-## 2026-08-17: [medium] OPEN, DIAGNOSED NOT FIXED — `Linux (mono)` CI has not compiled since 2026-08-11: `Convert.ToHexString` is net5.0+ and the mono lane targets netstandard2.1 (found while: CI reporting-integrity audit, branch `wt/ci-integrity`, `main @ 8656bd3c`)
+## 2026-08-17: [medium] CLOSED 2026-08-19 by deleting the CI job — `Linux (mono)` CI had not compiled since 2026-08-11: `Convert.ToHexString` is net5.0+ and the mono lane targets netstandard2.1 (found while: CI reporting-integrity audit, branch `wt/ci-integrity`, `main @ 8656bd3c`)
+
+> **Resolved 2026-08-19 (branch `wt/gate-coverage`, `main @ bc168d8b`) by deleting the `linux-mono` job
+> from `.github/workflows/ci.yml`, NOT by making the code mono-compatible.** Read the closure note at the
+> bottom of this entry before acting on anything above it: **the source-level incompatibility described
+> below is still present and is now unmonitored.** The diagnosis is preserved because it is correct and is
+> the cost estimate for anyone who wants mono back.
 
 **Three call sites, one API.** `engine/OpenRA.Game/Network/BuildFingerprint.cs:246,308` and
 `engine/OpenRA.Game/Graphics/SequenceIntegrity.cs:91` call `Convert.ToHexString`, added in `bedf18e0` and
@@ -38,6 +44,49 @@ build and the same analyzer errors as the other lanes. Sequence the analyzer bur
 **Before anyone proposes deleting the job:** `packaging/functions.sh:26-31` still has a live `RUNTIME = mono`
 branch, and `mod.config` still references `PACKAGING_OSX_MONO_SOURCE` / `PACKAGING_APPIMAGE_DEPENDENCIES_SOURCE`.
 Today's `packaging.yml` uses `make engine` (net6) so releases do not currently hit that path — but it exists.
+
+**Closure note, 2026-08-19.** The caution directly above is sound and was *honoured*, not overruled: only the
+**CI job** was deleted (`.github/workflows/ci.yml`, the `linux-mono` job). **`RUNTIME=mono` build support is
+untouched** — `packaging/functions.sh:26-31`, the `mod.config` variables, the `RUNTIME=mono` branches in both
+Makefiles and the `netstandard2.1` switch at `engine/Directory.Build.props:23` all remain exactly as they were.
+Deleting the *job* and deleting *mono support* are separable, and only the first was done.
+
+Why the job went, on four checks:
+
+1. **It was contributing zero coverage.** It died in the `engine` prerequisite at 36s, before any analyzer
+   build. A lane that does not compile gates nothing.
+2. **Nothing downstream consumed it.** `.github/workflows/ci.yml` has no `needs:`, no `upload-artifact` and no
+   `download-artifact` anywhere in the file — the job produced no output any other job read.
+3. **It is not a shipping configuration.** `.github/workflows/packaging.yml:38,88,132` invokes only
+   `packaging/{linux,macos,windows}/buildpackage.sh`, and all four `install_assemblies` call sites in those
+   pass the literal `"net6"`. The single `"mono"` call site is `engine/packaging/macos/buildpackage.sh:80`,
+   reachable only from `engine/.github/workflows/packaging.yml` — a vendored upstream workflow that GitHub
+   never runs, because Actions reads workflows only from the repository root.
+4. **The lane cost coverage rather than adding it.** Under Mono, `engine/Directory.Build.props:62-63` drops
+   both Roslynator packages, so the mono rule set was a strict *subset* of the net6 one — it could not catch
+   anything the net6 lane missed. Meanwhile three `CA` rules are globally `severity = none` in the shared
+   `engine/.editorconfig` *solely because mono cannot satisfy them*: `CA1845` (`:872`, "Not available on
+   mono"), `CA1850` (`:884`, "once supported by mono") and `CA2263` (`:1047`, "once mono is dropped").
+   Those are off on **every** lane. See the follow-up item below.
+
+**What is still broken, and is now unwatched.** `make RUNTIME=mono all` still fails locally with the same
+three `CS0117`. Nothing above this note was fixed; the lane that used to report it is simply gone. If mono
+support is ever wanted back, the diagnosis above is the cost estimate and is still accurate.
+
+**Follow-up this unblocks, and it is nearly free — MEASURED, not estimated.** `CA1845`, `CA1850` and `CA2263`
+can now be raised from `none` to `warning` in `engine/.editorconfig`. All three were flipped to `warning` and
+all 10 projects rebuilt (`-t:Rebuild -c Debug`, no `-warnaserror`, so nothing is hidden by an early exit).
+**Total backlog across the whole engine: one violation.**
+
+| Rule | violations | where |
+|---|---|---|
+| `CA1845` | **1** | `engine/OpenRA.Mods.Cnc/UtilityCommands/ImportTiberianDawnLegacyMapCommand.cs:168` |
+| `CA1850` | 0 | — |
+| `CA2263` | 0 | — |
+
+Not done here only because it is a separate concern from the gate's *shape* and wants its own commit. Note
+`CA1850`'s comment also gates on ".NET 7 or later", which net6 does not satisfy — so that one may be a no-op
+until the TFM moves, and its 0 may mean "cannot fire" rather than "nothing to fix".
 
 ## 2026-08-16: [high] UNTRIAGED — LIVE MONEY PUMP: buy an LCCV for 1200, deploy it, sell the Logistics Centre for 3500. +2300 per cycle, unlimited (found while: economy audit, `main @ d919c81a`)
 
