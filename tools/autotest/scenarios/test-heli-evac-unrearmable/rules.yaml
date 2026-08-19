@@ -1,0 +1,19 @@
+# Spent-helicopter evacuation autotest. No enemy, no economy, no helipad.
+#
+# Nothing here enables the behaviour under test — EvacuateWhenUnrearmable is on
+# ^Helicopter in the shipped rules. This file only removes sources of nondeterminism.
+
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	# UnitDefaultsManager applies THIS MACHINE's saved per-type stance defaults to
+	# human-owned units in Created (AutoTarget.cs). The airframes here are human-owned,
+	# so without this the verdict would depend on the dev's saved settings.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-heli-evac-unrearmable.lua

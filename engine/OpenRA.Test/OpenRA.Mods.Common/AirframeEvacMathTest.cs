@@ -53,7 +53,9 @@ namespace OpenRA.Test
 		[Test]
 		public void NoAmmoPoolsNeverEvacuates()
 		{
-			// The Mi-8 (HALO) inherits ^Helicopter and carries no AmmoPool at all.
+			// THE LIVE TRANSPORT GUARD. Both shipped transports (TRAN Chinook, HALO Mi-8) inherit
+			// ^Helicopter and carry no AmmoPool and no Rearmable — Cargo airframes with no armament. This
+			// is the term that actually refuses them today.
 			Assert.Multiple(() =>
 			{
 				Assert.That(AirframeEvacMath.Decide(0, 0, true, false, false), Is.EqualTo(AirframeEvacAction.None),
@@ -65,11 +67,12 @@ namespace OpenRA.Test
 		[Test]
 		public void ArmedTransportWithoutRearmableNeverEvacuates()
 		{
-			// THE TRANSPORT TRAP, and the expensive one. The Chinook (TRAN) has TWO live ammo pools for
-			// self-defence but `-Rearmable:` — so it is spent-able and permanently hostless at the same time.
-			// Every other term in this function reads exactly like a dry Apache with no helipad. Keyed on the
-			// host term alone, the first time a Chinook empties its door gun it flies off the map with a full
-			// load of infantry aboard, and the player is never told why.
+			// FORWARD GUARD — no shipped actor reaches this row today (both transports also have zero pools,
+			// so the pool term refuses them first). It is pinned because it, not the pool count, is what the
+			// ruling says: an ARMED transport would be spent-able and permanently hostless at the same time —
+			// RearmableInfo being null makes AnyResupplierExists false forever — so it would read identically
+			// to a dry Apache on every other term and the pool count would wave it through, flying a loaded
+			// troop transport off the map the first time its door gun emptied.
 			Assert.Multiple(() =>
 			{
 				Assert.That(AirframeEvacMath.Decide(2, 0, false, false, false), Is.EqualTo(AirframeEvacAction.None),

@@ -15,6 +15,13 @@
  * just a permanent hold. The bot has covered its own helicopters since HelicopterSquadBotModule's EvacuateWhenIdle
  * (@experimental only); nothing covered a HUMAN player's.
  *
+ * SCOPE OF THE TWO REFUSAL TERMS, stated honestly. Both shipped transports (TRAN Chinook, HALO Mi-8) inherit
+ * ^Helicopter and carry NEITHER an AmmoPool NOR a Rearmable — they are Cargo airframes with no armament — so
+ * today they are refused by the pool term and the Rearmable term alike, and no shipped actor separates the two.
+ * The Rearmable term is kept anyway because it, not the pool count, is what the ruling actually says: an armed
+ * transport (pools, no Rearmable) would read identically to a dry Apache on every other term, and the pool count
+ * would wave it through. That case does not exist yet; the term costs one line and is pinned below.
+ *
  * DETERMINISM (influence-stack invariant): zero RNG, pure integer/bool comparisons, no collection iteration.
  *
  * v3-portable: engine-free static math (NUnit-pinned in AirframeEvacMathTest); only the world-reading plumbing that
@@ -43,15 +50,12 @@ namespace OpenRA.Mods.Common.Traits
 		/// <list type="bullet">
 		/// <item><paramref name="alreadyEvacuating"/> — re-issuing cancels the running RotateToEdge, so an
 		/// undamped re-decision restarts the exit every tick and the airframe never reaches the edge.</item>
-		/// <item><paramref name="designedToRearm"/> — the airframe carries a Rearmable naming a host. THE
-		/// TRANSPORT TERM, and the one that is easy to leave out: an airframe with no Rearmable makes the host
-		/// term false PERMANENTLY (<see cref="ReturnToBase.AnyResupplierExists"/> returns false the moment
-		/// RearmableInfo is null), so a rule phrased only as "no host ⇒ leave" flies the armed Chinook off the
-		/// map — passengers aboard — the first time its door gun runs dry. The ruling is about airframes that
-		/// rearm; one that was never meant to rearm has not lost anything by running dry.</item>
-		/// <item><paramref name="totalPools"/> of zero — NOT "out of ammo", but unarmed by design (the Mi-8
-		/// carries no AmmoPool at all). Separate from the term above because the two transports fail different
-		/// halves of it: the Chinook has pools and no Rearmable, the Mi-8 has neither.</item>
+		/// <item><paramref name="designedToRearm"/> — the airframe carries a Rearmable naming a host. This is the
+		/// term that states the ruling's actual scope: an airframe with no Rearmable makes the host term false
+		/// PERMANENTLY (<see cref="ReturnToBase.AnyResupplierExists"/> returns false the moment RearmableInfo is
+		/// null), so a rule phrased only as "no host ⇒ leave" retires airframes that were never meant to rearm
+		/// and have therefore lost nothing by running dry.</item>
+		/// <item><paramref name="totalPools"/> of zero — NOT "out of ammo", but unarmed by design.</item>
 		/// <item><paramref name="hasRearmHost"/> — a host means ReturnToBase owns this airframe and will fly it to
 		/// the pad. Evacuating a helicopter a captured helipad could have refilled throws it away.</item>
 		/// </list>

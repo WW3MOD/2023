@@ -1,0 +1,1 @@
+A spent helicopter with no helipad on the map evacuates off the map edge; a loaded helicopter and a spent Chinook (no Rearmable) both stay. Auto-asserts at 60s.

@@ -65,7 +65,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			// A Rearmable naming at least one host is what makes this airframe one the ruling covers. Read from
 			// the RULES, not from the world: whether a pad is actually PRESENT is the separate host term below,
-			// and conflating the two is what would fly the armed Chinook away (see AirframeEvacMath remarks).
+			// and conflating the two is what would retire an airframe that never rearmed to begin with. Today
+			// both transports are already refused by the pool count (neither carries an AmmoPool) — see the
+			// scope note in AirframeEvacMath for why this term is kept regardless.
 			var rearmInfo = self.Info.TraitInfoOrDefault<RearmableInfo>();
 			var designedToRearm = rearmInfo != null && rearmInfo.RearmActors.Count > 0;
 
