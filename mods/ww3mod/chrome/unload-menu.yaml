@@ -27,7 +27,8 @@ Background@CARGO_UNLOAD_MENU:
 			Background:
 			# The bar is drawn whether or not the content overflows, and a right-hand bar does not
 			# inset the rows, so it lands on top of the count column. The menu sizes itself to its
-			# content instead — all 16 classes at once is only ~370px, which fits.
+			# content instead, capped only by the screen height (CargoUnloadMenuLogic.Refresh) — the
+			# worst case is 24 classes / 552px, which fits on any resolution the game runs at.
 			ScrollBar: Hidden
 			Children:
 				ScrollItem@CLASS_TEMPLATE:

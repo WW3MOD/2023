@@ -28,13 +28,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 	[ChromeLogicArgsHotkeys("UnloadMenuKey")]
 	public class CargoUnloadMenuLogic : SingleHotkeyBaseLogic
 	{
-		// Tall enough for all 16 combat classes at once (16 rows x 23px). A 36-slot Chinook can
-		// legally hold one of everything, and that worst case is still only ~370px — so the menu
-		// grows to fit instead of scrolling. A scrollbar was tried and removed: ScrollPanelWidget
-		// draws it unconditionally rather than on overflow, and for a right-hand bar ChildOrigin
-		// does not inset the rows (ScrollPanelWidget.cs:236), so it sat on top of the count column
-		// and hid it — visible in the first capture of this menu as rows with no counts at all.
-		const int MaxListHeight = 380;
+		// A scrollbar was tried and removed: ScrollPanelWidget draws it unconditionally rather than on
+		// overflow, and for a right-hand bar ChildOrigin does not inset the rows
+		// (ScrollPanelWidget.cs:236), so it sat on top of the count column and hid it — visible in the
+		// first capture of this menu as rows with no counts at all. The menu therefore grows to fit its
+		// content instead, and the only ceiling on it is the screen (see Refresh).
 		const int ScreenMargin = 4;
 
 		readonly World world;
@@ -174,7 +172,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 				list.AddChild(row);
 			}
 
-			list.Bounds.Height = Math.Min(MaxListHeight, list.ContentHeight);
+			// Size to the content, capped by the screen rather than by a fixed row count. The previous
+			// fixed 380px held 16 rows, chosen for the 16 combat classes — but Cargo `Types: Infantry`
+			// also accepts civilians, pilots and ejected vehicle crews, which is 24 distinct classes
+			// (552px of rows) all loadable into one 36-slot Chinook. Rows past the cap were drawn
+			// nowhere, and with `ScrollBar: Hidden` nothing advertised that they existed.
+			var ceiling = Math.Max(rowTemplate.Bounds.Height, Game.Renderer.Resolution.Height - list.Bounds.Y - 2 * ScreenMargin);
+			list.Bounds.Height = Math.Min(ceiling, list.ContentHeight);
 			menu.Bounds.Height = list.Bounds.Y + list.Bounds.Height + ScreenMargin;
 		}
 

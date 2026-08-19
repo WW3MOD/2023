@@ -47,12 +47,6 @@
 
 [repo]
 # since 2026-08-17
-# PENDING A DECISION, NOT ACCEPTED — found by the unregistered-symbol rule when it was added
-# (2026-08-17), recorded only so the floor could land in the same commit as the rule. Both are in the
-# HPF debug overlay and both are latent: PARENT_TOP resolves to 0, and 0 is what a parent-relative Y
-# already meant. Fix them and prune these two lines.
-mod | Unknown widget substitution symbol `PARENT_TOP` in ww3mod|chrome/ingame-player.yaml (`Y: PARENT_TOP`). It is not registered anywhere and evaluates to 0 with no warning. Registered here: WINDOW_WIDTH, WINDOW_HEIGHT, PARENT_WIDTH, PARENT_HEIGHT, WIDTH, HEIGHT, DROPDOWN_WIDTH.
-mod | Unknown widget substitution symbol `PARENT_TOP` in ww3mod|chrome/ingame-player.yaml (`Y: PARENT_TOP + 35`). It is not registered anywhere and evaluates to 0 with no warning. Registered here: WINDOW_WIDTH, WINDOW_HEIGHT, PARENT_WIDTH, PARENT_HEIGHT, WIDTH, HEIGHT, DROPDOWN_WIDTH.
 demo-experimental-capture-coordinator | Actor `OpponentSR` is owned by unknown player `Russia-bot`.
 demo-experimental-capture-coordinator | Actor `OwnSR` is owned by unknown player `USA-bot`.
 demo-experimental-capture-coordinator | The player `Russia-bot (Normal)` enemy list contains an invalid player `USA-bot`.
