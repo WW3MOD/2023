@@ -21,6 +21,7 @@ Living state for the project. Mutable. Frequently edited. The agent reads and up
 |---|---|
 | `cases/` | **User-authored scenarios with measurable acceptance bars** — the unit of autonomous work under the scenario-case model (2026-07-26). See `cases/README.md`. |
 | `recon/` | Read-only recon reports — code-verified ground truth (file:line) gathered before feature/pipeline decisions. Historical once written. |
+| `ambush-programme/` | **Ambush, concealment & cover (2026-08-20)** — nine-strand research programme, self-contained. Start at `ambush-programme/README.md`. RESEARCH ONLY: nothing is implemented and nothing may be until the user says so. Headline finding: the feature shipped, and its widened half is gated to bots. |
 | `plans/` | In-progress plans only — archived to `archive/plans/` when their work ships. |
 | `playtests/` | Raw playtest reports — historical, never edited after the session. |
 | `ai/` | AI overhaul workspace — problem statement, substrate design, phase tracking (older stage docs in `ai/archive/`). |
