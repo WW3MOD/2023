@@ -76,8 +76,12 @@
 ^Airborne:
 	Inherits: ^NeutralAirborne
 	Inherits@UnitExperience: ^GainsExperience
+	# AFLD carries Buildable.Prerequisites: ~disabled and nothing provides `disabled`, so it can
+	# never be built, and it is placed on none of the ten maps — this named a host that cannot
+	# exist. LOGISTICSCENTER has RepairsUnits and is obtainable (Neutral pre-placed capturable);
+	# it also carries Reservable, which is what lets ReturnToBase fly the airframe in and land it.
 	Repairable:
-		RepairActors: afld
+		RepairActors: logisticscenter
 	Aircraft:
 		TakeOffOnCreation: False
 
@@ -159,8 +163,10 @@
 	Hovers@Cruising:
 		RequiresCondition: cruising
 	ClassicFacingBodyOrientation:
+	# HPAD is unbuildable (~disabled, unprovided) and on no map — see ^Airborne above for the
+	# same swap and the reasoning.
 	Repairable:
-		RepairActors: hpad
+		RepairActors: logisticscenter
 	Targetable@Helicopter:
 		TargetTypes: Helicopter
 	DeliversCash@Rotation:
