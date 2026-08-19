@@ -6,6 +6,12 @@ If anything here disagrees with code, the doc is right and the code needs to cha
 
 > **Related:** [`supply-route.md`](supply-route.md) covers the Supply Route (the sector beachhead — fixed at spawn, not a factory). This doc is about the cash/ammo/supply pipeline; that doc is about the building those flow through.
 
+## Where cash comes from
+
+**Income is a per-tick allocation stream, not a starting balance** — `PassiveIncome` 100 every `PassiveIncomeInterval` 50 ticks after a `PassiveIncomeInitialDelay` of 50 (`PlayerResources.cs:63-69`), entirely independent of `DefaultCash` (`:32`, 20000; the mod leaves it at the engine default — `player.yaml:167` has it commented out). There is no harvesting and no resource patch: this stream and evacuation refunds are the whole of a player's income.
+
+**Consequence for scenario authors, and it has burned tests: `DefaultCash: 0` does NOT freeze a force.** Several scenarios carry a comment claiming "no cash anywhere, so nothing is produced — the only actors are the pre-placed ones", and it is false: a bot observed at `cash=0` on tick 40 had 1437 by tick 750 and had bought two units in between. **Any scenario relying on "the placed force is the whole force" for attribution is relying on something untrue — count named actors instead**, since named actors keep their identity while the population around them grows.
+
 ## Core principles
 
 1. **Every unit, every magazine, every supply box has a cost.** Cash spent buys ammo + body together. Selling or evacuating refunds what's left.

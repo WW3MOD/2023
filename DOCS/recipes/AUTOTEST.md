@@ -45,6 +45,8 @@ AUTOTEST_VERDICT outcome=<OUTCOME> exit=<n> test=<name> run=<run-id>
 
 where OUTCOME is one of `PASS`, `FAIL`, `SKIP`, `TIMEOUT-FAIL`, `CRASH`, `NO-RESULT`, `BAD-VERDICT`, `INTERRUPTED`, `HARNESS-ERROR`. It distinguishes what the exit code collapses: `CRASH` (the game threw — the exception log is named, and a crash is sometimes the *finding*, as when a sync guard fires) vs `NO-RESULT` (hung or closed by hand) vs `HARNESS-ERROR`; and `TIMEOUT-FAIL` (never answered) vs `FAIL` (answered no).
 
+**`NO-RESULT` also covers "the game never launched", and a fresh worktree hits this on its first run.** `launch-game.sh:42` aborts with `Required engine files not found.` when `engine/bin/OpenRA.dll` is missing — and build output is neither shared between worktrees nor tracked in git, so a new `git worktree add` fails this and burns a granted run slot. **Run `make all` in a new worktree before the first `run-test.sh`, even when the diff contains no compiled code** — being built is a property of the worktree, not of the change. Tells: `lua.log` 0 bytes, run dir empty, `test -f engine/bin/OpenRA.dll` fails. (Related, and launch-free: `./utility.sh --check-yaml <MAPDIR>` lints a single map without starting the game, but `utility.sh:61` `cd`s into `engine/` first, so the path you pass is `../tools/autotest/scenarios/<name>`.)
+
 **PITFALL: `run-test.sh <test> | tail` reports `tail`'s exit status, so a FAIL arrives as exit 0.** This has inverted a result twice. The harness defends what it can — the verdict line is last, so a tail-truncating filter still shows it, and non-PASS is also written to stderr whenever stdout is redirected — but the exit code itself is the **caller's** to preserve:
 
 ```bash

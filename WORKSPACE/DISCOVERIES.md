@@ -286,6 +286,8 @@ sabotage that makes the new gate exit 2 with `error SA1210` leaves the pre-chang
 
 ## 2026-08-17 — THE net10 ANALYZER BILL IS ZERO, THE REAL BILL IS FOUR BCL OBSOLETIONS AND A RESTORE FAILURE — AND `OpenRA.Test` IS NOT COMPILED BY THE SOLUTION AT ALL
 
+> **[rejected: superseded + mis-attributed + wrong folder]** (curation 2026-08-19, verified against `de78a1ed`). Three separate grounds. (1) The §7 headline — "`OpenRA.Test` is not compiled by the solution at all" — **has expired**: `b21fdf00` made both `Makefile:216` and `make.ps1:174-181` build `OpenRA.Test.csproj` by name. The underlying `.sln` defect (a config with `ActiveCfg` and no `.Build.0`) survives, so this is README shape 3 exactly — the mechanism outlived the conclusion, and the conclusion is what was written in absolute form. (2) **§5's causal attribution is wrong and reads confidently**: the vulnerable package is `NuGet.CommandLine 4.4.1` arriving via `rix0rrr.BeaconLib 1.0.2` (`OpenRA.Mods.Common.csproj:13-18`), not "transitively by NUnit.Console", and the audit is a **TFM** effect, not the SDK effect claimed here — `conventions.md:156` already records it correctly, so the bank is right and this entry is the stale copy. (3) The rest is upgrade *costing*, which per `DOCS/reference/README.md` belongs in `WORKSPACE/` — and already lives in `WORKSPACE/plans/260817_dotnet_upgrade_scope.md`.
+
 Branch `wt/sdk10-measure`, against `main @ 6c9e8149`. SDK **10.0.400** installed side by side with
 6.0.428; full costing updated in
 [`WORKSPACE/plans/260817_dotnet_upgrade_scope.md`](plans/260817_dotnet_upgrade_scope.md) §3, which
@@ -362,6 +364,8 @@ build.
 
 ## 2026-08-17 — .NET 6, 8 AND 10 PRODUCE A BYTE-IDENTICAL SIMULATION OVER A FULL 12-MINUTE MATCH: CROSS-RUNTIME IS NOT THE 2026-08-16 DESYNC
 
+> **[promoted, narrowed — merged with the two entries below]** (curation 2026-08-19, verified against `de78a1ed`). Promoted to `architecture.md` §Sync-hash coverage as a **measurement, not a proof**: one machine, one 12-minute match, one seed, same CPU and same libm, so a cross-*machine* difference is still untested. What carries the weight in the bank is the structural half, which is verifiable statically — no transcendental function sits on a synced path (`WAngle.cs:72-77` is an integer cosine table) and `Sync.EmitSyncOpcodes` (`Sync.cs:58-72`) cannot admit a float or string at all, throwing at IL-generation time. Stating the measurement without that structural half would be the exact over-generalisation `README.md` shape 1 warns about.
+
 Branch `wt/runtime-desync`, against `main @ 83342799`. The 2026-08-16 two-human desync had **host on CLR
 8.0.27 and friend on 10.0.10**, and `RESUME-260816.md:47` names replaying one match under both runtimes as
 *"the one run that would settle it"*. It is now measured, by a different route (see the instrument entry
@@ -414,6 +418,8 @@ Helicopters *are* covered: `UnitBuilderBotModule@america.heli` (`ai.yaml:1803`) 
 
 ## 2026-08-17 — NO ROLL-FORWARD SETTING CAN SELECT .NET 8 ON THIS MACHINE, AND SYNC REPORTS ARE DEAD UNDER A REPLAY CONNECTION — BOTH WOULD HAVE SILENTLY FAKED A CROSS-RUNTIME RESULT
 
+> **[promoted in part]** (curation 2026-08-19, verified against `de78a1ed`). The **`Test.ForceSyncReports`-is-dead-under-a-replay** half is promoted (`architecture.md` §Sync-hash coverage): the gate at `OrderManager.cs:161-164` conjoins `Connection is not ReplayConnection`, and the `TestMode` override lifts only the human-client floor — so "replay the desyncing match with `ForceSyncReports` and diff the dumps" produces no files. That is a durable property of the code. The roll-forward table is **rejected**: it enumerates one machine's installed runtime set and is perishable by construction.
+
 Branch `wt/runtime-desync`, against `main @ 83342799`. Two instrument traps found while building the
 cross-runtime determinism probe. Each one, taken alone, produces a **confident and meaningless
 "identical"** — which is the answer the experiment was hoping for, so neither would have been questioned.
@@ -464,6 +470,8 @@ it crawls — measured at **~0.4 ticks/s**, versus ~20 ticks/s for the same laun
 the field. Under a wall-clock cap that is the difference between a full match and 4 seconds of one.
 
 ## 2026-08-17 — THE SIMULATION USES NO TRANSCENDENTAL MATH, AND `RollForward: Major` MEANS THE net6 TARGET IS ALREADY LETTING THREE RUNTIMES INTO ONE MATCH
+
+> **[promoted, narrowed]** (curation 2026-08-19, verified against `de78a1ed`). Merged into the sync-hash promotion above. **The entry's own headline was narrowed before banking**: "`RollForward: Major` is already letting three runtimes into one match" is over-broad — roll-forward only *rolls* when the requested version is absent, so a player who has 6.0 installed runs 6.0 under every policy short of `LatestMajor`. The exposure is players who LACK 6.0. The banked form says the TFM does not choose the runtime, `RollForward: Major` does (`engine/Directory.Build.props:26`), and that a TFM bump raises the floor rather than introducing the risk. The unnarrowed sentence should not be promoted anywhere.
 
 Branch `wt/dotnet-scope`, research-only against `main @ 708b5f70`. Full costing in
 [`WORKSPACE/plans/260817_dotnet_upgrade_scope.md`](plans/260817_dotnet_upgrade_scope.md). Four findings worth
@@ -688,6 +696,8 @@ members, so each vehicle costs one array plus several boxes per net frame *while
 
 ## 2026-08-17 — `setup-dotnet` INSTALLING 6.0.428 DOES NOT MEAN CI *BUILDS* ON 6.0.428; THE IMAGE'S NEWER SDK WINS BECAUSE THE MUXER TAKES THE HIGHEST
 
+> **[rejected]** (curation 2026-08-19, verified against `de78a1ed`). superseded by `e4453e6b` — `global.json` now pins `6.0.428`/`latestFeature`, so the muxer no longer takes the highest. The generalisation ("installs X" is not "builds with X") is now a fixed-and-commented condition rather than live knowledge.
+
 Branch `wt/sdk-pin`. The CI-integrity entry below said "nothing pins the choice" — this is the measured
 mechanism, and it is more specific than "the runner has .NET 8/9 lying around".
 
@@ -735,6 +745,8 @@ no mono on the dev machine. Bounded: that lane is already red on `CS0117`/netsta
 with a muxer that picks the highest installed version needs a pin to make the first imply the second.
 
 ## 2026-08-17 — THE WINDOWS GREEN TICK IS NOT "RETURN 0", IT IS THE UTILITY OVERWRITING `$LASTEXITCODE` AFTER THE BUILD ALREADY FAILED
+
+> **[rejected]** (curation 2026-08-19, verified against `de78a1ed`). superseded by `7764eb20` — `make.ps1:171` and `engine/make.ps1:127` now `exit $lastexitcode`, each carrying the mechanism as an in-code comment, and `make.ps1:376-380` propagates the engine sub-build's code.
 
 Branch `wt/ci-integrity`. Confirms the 2026-08-17 lint-baseline entry's two CI claims and corrects its
 mechanism. Verified against full `gh` job logs for runs `31992009079` (commit `7492f152`) and `31997060463`
@@ -790,6 +802,8 @@ Cause not established — plausibly the aggregate mod cannot load when the Debug
 After this change the question is moot in the failure case, because the script exits before reaching it.
 
 ## 2026-08-17 — `Linux (mono)` IS A netstandard2.1 TARGET, AND `.editorconfig` ACTIVELY PUSHES CODE THAT CANNOT COMPILE THERE
+
+> **[rejected]** (curation 2026-08-19, verified against `de78a1ed`). superseded by `70fd483e` — the mono CI lane no longer exists; `ci.yml` has two jobs. The durable half (a netstandard2.1 TFM makes the `System.*` refs load-bearing) is already banked at `conventions.md:155`.
 
 Confirms "broken since 2026-08-11" and adds the mechanism that makes it a porting job rather than a one-liner.
 
@@ -1049,6 +1063,8 @@ Refs: `DumpCompositionPlanCommand.cs` (`--floor-per N` sweeps the ratio without 
 
 ## 2026-08-17 — THE 437 LINT ERRORS ARE 82 DEFECTS AND ONE MISSING CI DEPENDENCY; AND THE ONLY CI LANE THAT STAYS GREEN IS THE ONE THAT THROWS ITS OWN EXIT CODE AWAY
 
+> **[rejected]** (curation 2026-08-19, verified against `de78a1ed`). counts, not mechanics — `lint-baseline.txt` no longer matches the entry's arithmetic, and the CI-lane half is superseded by `7764eb20`. Tracker material per `README.md` §Reference is not a tracker.
+
 Branch `wt/lint-baseline`. Written while building the baseline floor for `--check-yaml`; the CI facts here are
 verified against runs `31981227086` and `31978609314` (`gh`, full job logs, not workflow YAML). The two
 corrections in the 2026-08-16 determinism-sweep entry carry the detail; this is what generalises.
@@ -1137,6 +1153,8 @@ nothing.
 
 ## 2026-08-17 — A WORKER'S `make test` RED IS USUALLY ITS OWN STALE BASE. CHECK `git merge-base --is-ancestor` BEFORE ANYONE SPENDS TIME ON IT
 
+> **[rejected]** (curation 2026-08-19, verified against `de78a1ed`). manager/worker process guidance, not "how a system works". Belongs in a dispatch template or `WORKSPACE/`, not the engineering bank.
+
 Hit **twice in one hour** by two unrelated workers, and in both cases the worker correctly declined to chase it
 but could not prove it was not theirs — which cost report space and left the manager holding an unresolved
 caveat.
@@ -1167,6 +1185,8 @@ branch point, not about `main`.** The same shape produced a stale-`[IN FLIGHT]`-
 where work that had shipped two days earlier was briefed as open.
 
 ## 2026-08-17 — A FRESH WORKTREE HAS NO `engine/bin`, SO THE FIRST `run-test.sh` IN IT BURNS A RUN ON `NO-RESULT`
+
+> **[promoted]** → `DOCS/recipes/AUTOTEST.md`, at the verdict-outcome list (curation 2026-08-19, verified against `de78a1ed`). Structural and unfixed: `launch-game.sh:42` aborts when `engine/bin/OpenRA.dll` is missing, build output is neither shared across worktrees nor in git, so the first `run-test.sh` in a new worktree burns a slot on `NO-RESULT`. Banked with the tells and with the launch-free `utility.sh --check-yaml` alternative (`utility.sh:61` `cd`s into `engine/`, so the path is `../tools/autotest/scenarios/<name>`).
 
 Cost a **granted** autotest run, which is the scarce kind. `run-test.sh` launches the game from the
 worktree's OWN `engine/bin`, and `launch-game.sh:42` gates on
@@ -7409,6 +7429,8 @@ Read-only determinism sweep, no production code changed. Repo state `main @ 43d5
 
 ## 2026-08-17 — the procurement ordering axis was already shipped; and the SR parity rule inverts under the spawn offset
 
+> **[promoted (the SR-parity half) / rejected (the PIPELINE half): situational]** (curation 2026-08-19, verified against `de78a1ed`). The spawn-offset mechanism is promoted to `supply-route.md` §Spatial layout, re-verified line by line: `SpawnStartingUnits.cs:91` places the base actor at `HomeLocation + BaseActorOffset` and `MapStartingUnits.cs:37` defaults that to `CVec(-1,-1)`, with **zero** overrides anywhere under `mods/` and no map placing a `supplyroute` explicitly — so SR parity really is the inverse of spawn parity. **One correction to this entry**: it calls `twin-rivers-ww3` "the only map where two players can both sit on a healthy anchor". Re-deriving from all ten shipped maps' spawns, `arena-tank-duel` (`6,16` / `58,16`) and `shellmap-open-field` (`6,30` / `84,30`) are all-even too and therefore also qualify; twin-rivers is the only *competitive* map that does, which is what the bank now says. The PIPELINE-tag half is tracker state and rejected.
+
 Read-only status recon, no production code changed. Repo state `main @ 0475fb9a`. Full write-up:
 [`recon/260817-procurement-ordering-axis-status.md`](recon/260817-procurement-ordering-axis-status.md).
 
@@ -7436,6 +7458,8 @@ and `0,50`, both even/even, **both polluted**. The only map where two players ca
 anchor is `twin-rivers-ww3` at spawn slots `112,92` and `112,28`.
 
 ## 2026-08-17 — the beachhead census: `DefaultCash: 0` does not freeze a force, and the undispersed reserve accumulates
+
+> **[promoted]** → `economy.md` §Where cash comes from (new) and `supply-route.md` §Spatial layout (curation 2026-08-19, verified against `de78a1ed`). `PassiveIncome = 100` every `PassiveIncomeInterval = 50` ticks after a 50-tick delay (`PlayerResources.cs:63-69`) is independent of `DefaultCash` (`:32`), which the mod leaves at the engine default (`player.yaml:167` comments it out) — so the several scenario comments asserting "no cash anywhere, so nothing is produced" are false, and named-actor counting is the fix. The extra own-SR-per-`mpspawn` finding went to `supply-route.md` with the parity entry above. The census table itself is a measurement of one seed and stays here.
 
 Measured in `test-clog-census`, seed -1387489882, log attributed by worktree path. The
 scenario exists because be487dfe and 85d5c868 removed a phantom staging anchor that was
@@ -7761,6 +7785,8 @@ scenarios sit on opposite sides of it); only the measurement is shared.
 
 ## 2026-08-19 — `make check` was already an intermittent coin flip before the tenth project joined it
 
+> **[rejected]** (curation 2026-08-19, verified against `de78a1ed`). superseded by `e5f03d73` — `engine/Directory.Build.targets:19-21` sets `MSBuildWarningsAsMessages;MSB3026` with the full three-way mechanism written out at `:2-17`, so the generalisation now lives at the site.
+
 Measured on `main @ 61e46e64`, with the WindowsLauncher `Build.0` line verifiably absent (`grep -c`
 = 0): two consecutive, byte-identical `dotnet build engine/OpenRA.sln -c Debug -warnaserror` runs
 returned exit 0, then exit 1 with 22x `MSB3026`. So the 9-of-10 gate landed at `2c9368ac` could fail
@@ -7790,6 +7816,8 @@ diagnostic about the code or an `MSB*` message about the build machinery.
 
 ## 2026-08-19 — Roslynator does fire in the newly-gated projects, but a duplicate later key hides which rules are live
 
+> **[promoted]** → `conventions.md` analyzer-gate section (curation 2026-08-19, verified against `de78a1ed`). Still live and re-verified: `RCS1058` is `warning` at `engine/.editorconfig:1098` and `suggestion` at `:1396`, both inside the same `[*.{cs,csproj,yaml,lua,sh,ps1}]` section, so **effective severity is the LAST assignment for an id, not the one under the explanatory comment**. A whole block of `SA`/`RCS` rules is silently downgraded this way.
+
 Two separate things, found while trying to answer "was Roslynator measured or only inferred".
 
 **It fires.** A planted `RCS1041` (remove empty initializer) in `OpenRA.Server` — one of the six
@@ -7811,6 +7839,8 @@ not the one under the explanatory comment. Compute it (`awk` over every
 disabled, or broken — and before picking a rule to test a gate with.
 
 ## 2026-08-19 — CA2263 is inert on the pinned SDK, so "mono is gone" does not make it coverage
+
+> **[rejected]** (curation 2026-08-19, verified against `de78a1ed`). already recorded in-code at `engine/.editorconfig:1050-1054`, and it is a README shape-2 dated observation that expires the day `global.json` moves.
 
 `engine/.editorconfig` carried `CA2263` at `none` with the note "once mono is dropped". Mono is now
 dropped, so the stated reason is spent — but flipping it to `warning` buys nothing today. A canonical
