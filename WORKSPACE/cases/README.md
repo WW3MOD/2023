@@ -16,6 +16,13 @@ One file per case: `case-NN-<slug>.md`, containing:
 - **Dependencies** — pipeline items / features / recon that must land before the case is even buildable.
 - **Status log** — dated entries, newest first: `RED`/`GREEN` + measured value + main SHA + scenario/seed refs. Never edit old entries.
 
+## A case whose scenario cannot fail is not a case
+
+Learned expensively on case-01, which spent three weeks calling `Test.Pass` unconditionally (`WORKSPACE/audit/260819-case-corpus-audit.md` §3). The whole reason cases are the preferred unit of autonomous work is that a green bar self-certifies — which holds only while the bar can go red. Two rules follow, and both are cheap:
+
+- **A bar stated as an aggregate needs a checker at that level.** "Mean X over ≥6 seeds" is not decidable from one run, and collapsing it into a per-run threshold silently authors a *stricter, different* bar — on case-01 the per-seed version would have failed the very batch the bar was mined from. Assert the per-seed clauses in the scenario, the aggregate clauses in a parser over the batch (`tools/autotest/parse-case01-bar.py`, `parse-s2-bar.py`). Make the parser report an under-sized or seed-duplicated batch as UNEVALUABLE, never as a pass.
+- **Check setup validity before the bar, or a zero means nothing.** Most case bars are floors on losses, and a world that never happened produces the same numbers as a world the defenders won. Assert the mechanism ran and the fight occurred *first*, then assert the bar — and certify it with a sabotage run per `DOCS/recipes/AUTOTEST.md`, confirming the **specific** failure text rather than merely that something failed.
+
 ## Lifecycle
 
 `DRAFT` (intent captured, not yet buildable) → `BUILDABLE` (dependencies landed, scenario authored) → `CALIBRATING` (bar provisional, measuring) → `ACTIVE` (bar ratified — this is the state autoburn iterates against) → `GREEN` (bar met at a recorded SHA; regressions reopen it).

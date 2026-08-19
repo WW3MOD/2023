@@ -9,6 +9,15 @@ Player:
 		# via TREE-DENSITY shadow attenuation (item 26), so the spring is earned by concealment,
 		# not gifted. NO Detectable.Vision override here (unlike test-ambush-convoy) — stock
 		# Vision 3 defenders are hidden purely by the grove's depth.
+		#
+		# PITFALL: this line is the case's RED control — do not tidy it away. Setting it False
+		# (with FogCheckboxLocked: True) is the sabotage that proves the scenario discriminates:
+		# MapLayers.IsVisible short-circuits `if (!FogEnabled) return map.Contains(puv)`, so
+		# fog-off makes every defender detectable regardless of threshold — exactly the detection
+		# asymmetry the case measured. Do NOT sabotage by lowering Detectable.Vision instead: it
+		# clamps to a floor of 1 and the test is strictly `visibility > threshold`, so the
+		# measured vis=1 still fails 1>1, the defenders stay hidden, and the control would
+		# falsely PASS. (Detectable.cs Tick/IsVisibleInner; MapLayers.cs IsVisible.)
 		FogCheckboxEnabled: true
 
 World:
