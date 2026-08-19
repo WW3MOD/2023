@@ -27,7 +27,17 @@ namespace OpenRA.Test
 	[TestFixture]
 	public class SyncAnnotationTest
 	{
-		static IEnumerable<Type> ModTypes => typeof(AutoTarget).Assembly.GetTypes()
+		// Both assemblies that can define a synced trait AND are reachable from this test project.
+		// OpenRA.Game earns its place: DebugPauseState, FrozenActorLayer and MapLayers all carry
+		// [Sync], so a regression there was previously invisible to this guard. OpenRA.Mods.Cnc is
+		// NOT covered — the test project does not reference it, and adding one to widen a guard is a
+		// bigger change than it looks.
+		//
+		// !IsAbstract is deliberate, not an oversight. The hash walks the CONCRETE instance's type,
+		// so an abstract base carrying [Sync] is correctly hashed whenever its descendants declare
+		// ISync. Including abstract types below would flag those bases as offenders when they are fine.
+		static IEnumerable<Type> ModTypes => new[] { typeof(AutoTarget).Assembly, typeof(Actor).Assembly }
+			.SelectMany(a => a.GetTypes())
 			.Where(t => t.IsClass && !t.IsAbstract);
 
 		static bool HasSyncMember(Type t)
