@@ -97,12 +97,20 @@ namespace OpenRA.Mods.Common
 
 		// WW3MOD: the bot type a one-click "add bot" lands on. Every such path used to roll
 		// Game.CosmeticRandom across all shipped types, so the player could not tell which
-		// opponent they had just added (upstream OpenRA #18914). SkirmishLogic already seeded
-		// the frozen, benchmark-validated profile on a fresh skirmish, so that is the default
-		// the lobby now agrees with instead of contradicting.
+		// opponent they had just added (upstream OpenRA #18914).
 		// This lives in ONE place because four call sites make this choice and a silent
 		// divergence between them is the bug being fixed. Matches on Type, never on Name.
-		public const string DefaultBotType = "stable";
+		//
+		// USER RULING 2026-08-19: the default is "experimental", NOT the frozen,
+		// benchmark-validated "stable" that SkirmishLogic used to seed. The user plays this mod
+		// to exercise the bot actively being improved, and under the old random pick they met it
+		// roughly half the time by accident; defaulting to "stable" would have removed that
+		// exposure entirely. Stable is one dropdown away.
+		// This deliberately means a fresh skirmish ALSO seeds @experimental, since SkirmishLogic
+		// shares this constant — intended, not a divergence to "fix".
+		// Benchmarks are unaffected: ai-bench and the tournament harness assign by Type through
+		// map.yaml PlayerReferences and tournament.yaml P1Bot/P2Bot, never through the lobby.
+		public const string DefaultBotType = "experimental";
 
 		public static string SelectDefaultBotType(IEnumerable<string> botTypes)
 		{

@@ -4,13 +4,16 @@
  *
  * Every one-click "add a bot" path used to roll Game.CosmeticRandom across the shipped bot types
  * (upstream OpenRA #18914), so a player could not tell which opponent they had just added — and the
- * lobby buttons disagreed with SkirmishLogic, which had always deliberately seeded the frozen,
- * benchmark-validated profile. Four call sites now share AIUtils.SelectDefaultBotType.
+ * lobby buttons disagreed with SkirmishLogic. Four call sites now share AIUtils.SelectDefaultBotType.
  *
- * The load-bearing property is that the choice is DETERMINISTIC and lands on the benchmark-validated
- * profile whenever it ships. These tests exist because the four call sites are UI/server paths that
+ * The load-bearing property is that the choice is DETERMINISTIC and lands on AIUtils.DefaultBotType
+ * whenever that type ships. These tests exist because the four call sites are UI/server paths that
  * cannot be exercised without launching the game, so the shared predicate is the only thing that can
  * be pinned directly.
+ *
+ * USER RULING 2026-08-19: the default is "experimental", not "stable". The user tests this mod to
+ * exercise the bot being actively improved. Benchmarks do not go through the lobby — they assign by
+ * Type via map.yaml PlayerReferences and tournament.yaml — so this does not touch the control.
  */
 #endregion
 
@@ -23,13 +26,16 @@ namespace OpenRA.Test
 	public class DefaultBotTypeTest
 	{
 		[Test]
-		public void PrefersTheBenchmarkValidatedProfileRegardlessOfDeclarationOrder()
+		public void PrefersTheUserChosenDefaultRegardlessOfDeclarationOrder()
 		{
-			Assert.That(AIUtils.SelectDefaultBotType(new[] { "experimental", "stable" }), Is.EqualTo("stable"));
+			Assert.That(AIUtils.SelectDefaultBotType(new[] { "experimental", "stable" }), Is.EqualTo("experimental"),
+				"a one-click add must land on the user-chosen default bot type");
 
-			// The rules file declares @experimental first. Order must not decide the default,
-			// otherwise reordering two YAML blocks silently changes who the player faces.
-			Assert.That(AIUtils.SelectDefaultBotType(new[] { "stable", "experimental" }), Is.EqualTo("stable"));
+			// Order must not decide the default, otherwise reordering two YAML blocks silently
+			// changes who the player faces. This is the load-bearing assertion in this fixture:
+			// it fails for BOTH a wrong default and an order-dependent one.
+			Assert.That(AIUtils.SelectDefaultBotType(new[] { "stable", "experimental" }), Is.EqualTo("experimental"),
+				"declaration order in the rules file must not decide which bot a one-click add gives");
 		}
 
 		[Test]
