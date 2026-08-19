@@ -106,12 +106,10 @@ WorldLoaded = function()
 		end
 	end
 
-	local spawnCell = {}
-	local worstDrift = {}
-	for i, r in ipairs(platoon) do
-		spawnCell[i] = r.Location
-		worstDrift[i] = 0
-	end
+	-- Peak-over-the-run drift, shared with test-supply-safe-front-keeps-cargo (test-helpers.lua).
+	-- The MEASUREMENT is shared; the ALLOWANCE is not — see driftAllowance below, which is this
+	-- scenario's own doctrine.
+	local driftTracker = TestHarness.DriftTracker(platoon)
 
 	local truckStartX = Truck.Location.X
 	local truckMaxX = Truck.Location.X
@@ -145,42 +143,6 @@ WorldLoaded = function()
 			if not r.IsDead and r.AmmoCount("primary-ammo") > STARVING then n = n + 1 end
 		end
 		return n
-	end
-
-	-- Chebyshev cells from spawn. Both axes, because a platoon shoved sideways off its
-	-- position has left it just as surely as one that walked west.
-	local function sample()
-		for i, r in ipairs(platoon) do
-			if not r.IsDead then
-				local dx = math.abs(r.Location.X - spawnCell[i].X)
-				local dy = math.abs(r.Location.Y - spawnCell[i].Y)
-				local d = math.max(dx, dy)
-				if d > worstDrift[i] then worstDrift[i] = d end
-			end
-		end
-	end
-
-	local function peakDrift()
-		local m = 0
-		for _, d in ipairs(worstDrift) do
-			if d > m then m = d end
-		end
-		return m
-	end
-
-	-- "spawnX->nowX(worst)" per man — says at a glance whether they held, walked out, or
-	-- walked out and came home again (the SeekSuppliesAndReturn signature: worst is large
-	-- while nowX is back at spawnX).
-	local function driftTrace()
-		local parts = {}
-		for i, r in ipairs(platoon) do
-			if r.IsDead then
-				parts[i] = "dead"
-			else
-				parts[i] = string.format("%d->%d(%d)", spawnCell[i].X, r.Location.X, worstDrift[i])
-			end
-		end
-		return table.concat(parts, " ")
 	end
 
 	-- THE CRATE IS THE DOCTRINE'S CENTRAL ACT, so the verdict states it rather than leaving it to be
@@ -263,7 +225,7 @@ WorldLoaded = function()
 				if truckLastHealth < truckMinHealth then truckMinHealth = truckLastHealth end
 			end
 
-			sample()
+			driftTracker.Sample()
 
 			local back = resupplied()
 			if back > bestBack then bestBack = back end
@@ -273,11 +235,11 @@ WorldLoaded = function()
 			-- already happened, and walking home does not undo it.
 			local allowance = driftAllowance()
 			local crateOk = not REQUIRE_CRATE or #crateList() > 0
-			if back >= NEED_BACK and peakDrift() <= allowance and crateOk then
+			if back >= NEED_BACK and driftTracker.Peak() <= allowance and crateOk then
 				done = true
 				Test.Pass(string.format(
 					"%d of 5 resupplied holding position (peak drift %d, allowed %d). %s",
-					back, peakDrift(), allowance, crateReport()))
+					back, driftTracker.Peak(), allowance, crateReport()))
 			end
 		end)
 	end
@@ -295,7 +257,7 @@ WorldLoaded = function()
 			Test.Skip(string.format(
 				"the supply truck was DESTROYED before the window closed (health fell to %d/%d) — "
 				.. "inconclusive. last seen at x=%d, furthest x=%d. %s. platoon spawnX->nowX(peak drift): %s",
-				truckMinHealth, truckFullHealth, truckLastX, truckMaxX, crateReport(), driftTrace()))
+				truckMinHealth, truckFullHealth, truckLastX, truckMaxX, crateReport(), driftTracker.Trace()))
 			return
 		end
 
@@ -310,7 +272,7 @@ WorldLoaded = function()
 			return
 		end
 
-		local drift = peakDrift()
+		local drift = driftTracker.Peak()
 		local allowance = driftAllowance()
 		local held = drift <= allowance
 		local fed = bestBack >= NEED_BACK
@@ -326,7 +288,7 @@ WorldLoaded = function()
 				.. "was ever unloaded (%d of 5 fed from the truck aura instead, peak drift %d). "
 				.. "primary ammo now %s. platoon spawnX->nowX(peak drift): %s. "
 				.. "truck went from x=%d to a furthest x=%d, %s",
-				bestBack, drift, ammoTrace(), driftTrace(), truckStartX, truckMaxX, truckFate))
+				bestBack, drift, ammoTrace(), driftTracker.Trace(), truckStartX, truckMaxX, truckFate))
 			return
 		end
 
@@ -359,7 +321,7 @@ WorldLoaded = function()
 			"%s primary ammo now %s (drained to %d, starving at <=%d). "
 			.. "platoon spawnX->nowX(peak drift): %s. %s. "
 			.. "truck went from x=%d to a furthest x=%d (aura 5c), %s; danger wall starts at x=16",
-			why, ammoTrace(), DRAINED, STARVING, driftTrace(), crateReport(),
+			why, ammoTrace(), DRAINED, STARVING, driftTracker.Trace(), crateReport(),
 			truckStartX, truckMaxX, truckFate))
 	end)
 end

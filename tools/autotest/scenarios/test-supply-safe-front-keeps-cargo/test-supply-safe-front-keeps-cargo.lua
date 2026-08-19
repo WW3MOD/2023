@@ -7,7 +7,7 @@
 --   "If there is no danger the truck can go up to them and resupply them directly and not
 --    unload, if more resupplying is needed elsewhere."
 --
--- Three clauses, ALL of which must hold, evaluated together when the window closes:
+-- Four clauses, ALL of which must hold, evaluated together when the window closes:
 --
 --   (1) AMMO CAME UP. At least 2 of the 5 riflemen climb clear of the starving threshold.
 --       Same shape as the danger scenario: measured on the ammo pool, never on an order or a
@@ -29,9 +29,22 @@
 --       the crate has already been consumed; and honest service cannot empty it, because
 --       refilling five riflemen costs ~25 of 750 (^E3 primary: 20 rounds per 1 supply).
 --
---   PASS = all three clauses hold.
+--   (4) THE PLATOON HELD THE FRONT. No rifleman ever strayed further than the allowance from
+--       where it started, measured as the PEAK over the run rather than the value at verdict
+--       time. Without this clause the scenario could pass while the doctrine was violated in
+--       the one way clauses 1-3 cannot see: AutoSeekSupplies sends a man under 25% ammo to the
+--       nearest provider inside a 20-cell leash and a loaded truck IS a provider, so the
+--       platoon can walk backwards to meet the truck, get fed, and walk home again. Ammo up,
+--       no crate, truck still loaded — clauses 1, 2 and 3 all satisfied by a front that
+--       collapsed into its own supply line. Peak and not final position because
+--       SeekSuppliesAndReturn walks the man BACK to `origin` (HomeNearEnough = 2 cells), so
+--       the excursion is transient and a verdict-time sample sees the platoon home and tidy.
+--       Measurement shared with test-supply-under-danger via TestHarness.DriftTracker.
+--
+--   PASS = all four clauses hold.
 --   FAIL = any clause broke; the message says which, and reports enough to tell "the truck
---          never went" from "it went and served" from "it went and dumped a crate".
+--          never went" from "it went and served" from "it went and dumped a crate" from "the
+--          platoon went and fetched it".
 --   SKIP = the setup did not hold (drain failed, platoon died) — inconclusive rather than a
 --          false verdict about the doctrine.
 
@@ -45,6 +58,52 @@ local STARVING = 25       -- 250 per mille of ^E3's 100-round pool — what the 
 local NEED_BACK = 2       -- how many of the 5 must climb clear for the platoon to count as resupplied
 local WINDOW = 90         -- harness-seconds of simulation before the window closes
 local CACHE_TYPE = "supplycache"
+
+-- Cells a rifleman may stray from spawn and still count as holding the front WITH NO CRATE on the
+-- ground — which here is the doctrine's steady state, not an edge case: clause 2 fails the run if a
+-- crate ever appears, so this is the allowance that governs every run that could pass.
+--
+-- ONE CELL, AND THE NUMBER IS GEOMETRIC RATHER THAN CONVENTIONAL. This scenario's safe branch is
+-- "the truck closes to aura range, serves in place and KEEPS its cargo" (SupplyFollowerBotModule.cs
+-- :354, :1468) — the truck comes to the platoon, so the platoon has nothing it needs to walk to.
+-- What it may need is a step to get INSIDE the aura, and one cell covers that on this map's exact
+-- geometry. TRUK's aura is Range: 5c0 (rules/ingame/vehicles.yaml:569), tested as horizontal
+-- distance SQUARED (SupplyProvider.InAuraRange, SupplyProvider.cs:1124-1127, so dx*dx + dy*dy <= 25
+-- in cells, not Chebyshev). The platoon is a column at x=44, y=14..18 and the truck drives in along
+-- y=16. A truck that has closed to the CENTRE man's aura edge sits at (39,16) and covers only him:
+-- (44,16) is 25 <= 25, but (44,15) is 26 and (44,14) is 29, both outside. One cell west puts every
+-- man inside — (43,15) is 17, (43,14) is 20 — so a single cell is exactly enough for the doctrine's
+-- own service pattern, and it is enough for clause 1 too (the centre man is served at drift 0, a
+-- second man at drift 1, which is the 2-of-5 bar).
+--
+-- SO A PEAK ABOVE 1 INDICTS SOMETHING REAL, and the verdict does not have to guess which: either the
+-- platoon abandoned the front to meet the truck, or the truck never closed to aura range and the men
+-- walked the rest of the way. Both break the safe doctrine, which is why one number can carry both.
+--
+-- NOT 6. The sibling's 6-cell MAX_DRIFT is licensed by ONE specific correct behaviour — walking to a
+-- crate dropped short of the platoon — and that behaviour cannot legitimately occur here, because a
+-- crate existing at all is clause 2 failing. The sibling records what happens when 6 is applied with
+-- no crate on the ground: at 9861bcf4 all five men walked out to meet the TRUCK and the run PASSED at
+-- drift 5 with `crate=NONE placed`, which is precisely the front collapse the clause exists to catch.
+-- A permanently-no-crate scenario with a 6-cell allowance would be that broken configuration
+-- permanently, so the sibling's HOLD_DRIFT is the number that transfers here, not its MAX_DRIFT.
+local HOLD_DRIFT = 1
+
+-- Cells allowed once a supplycache HAS existed: the doctrine's 5-cell crate standoff plus a cell of
+-- tolerance, same number and same reason as the sibling's MAX_DRIFT.
+--
+-- This is unreachable in a PASSING run — clause 2 has already failed any run where a crate appeared —
+-- and it is here so that when clause 2 fails, the verdict stays ABOUT THE CRATE instead of also
+-- reporting a bogus front collapse for men who legitimately walked to one. That is not hypothetical:
+-- this scenario is currently red for exactly that reason (a crate dropped on a quiet front, PIPELINE
+-- item 51 / item 56), and a new clause that piles a second wrong diagnosis on top of a real signal
+-- would make the instrument worse rather than better.
+--
+-- Latched on crateEver, not on a live count: SUPPLYCACHE self-removes when drained
+-- (RemoveBelowSupply: 1, misc.yaml:437), so a crate that was walked to and then consumed must still
+-- license the walk it caused. An allowance read from a live count would relax while the crate existed
+-- and snap back to 1 at verdict time, failing the platoon for a trip the run itself authorised.
+local MAX_DRIFT = 6
 
 WorldLoaded = function()
 	local platoon = { Rifle1, Rifle2, Rifle3, Rifle4, Rifle5 }
@@ -60,6 +119,12 @@ WorldLoaded = function()
 			if have > DRAINED then r.Reload("primary-ammo", -(have - DRAINED)) end
 		end
 	end
+
+	-- Peak-over-the-run drift, measured by the same code as test-supply-under-danger
+	-- (TestHarness.DriftTracker, mods/ww3mod/scripts/test-helpers.lua). The MEASUREMENT is shared
+	-- deliberately; the ALLOWANCE is not, because how far a man may stray is doctrine and the two
+	-- scenarios sit on opposite sides of it.
+	local driftTracker = TestHarness.DriftTracker(platoon)
 
 	local truckStartX = Truck.Location.X
 	local truckMaxX = truckStartX
@@ -147,6 +212,11 @@ WorldLoaded = function()
 				truckGoneAtSecond = s
 			end
 
+			-- Once per second, which is the same cadence the other three clauses are latched at. A
+			-- walk out to a truck five cells away takes several seconds at infantry speed, so a
+			-- 1 Hz sample cannot miss one; a sub-second excursion is not a front collapse.
+			driftTracker.Sample()
+
 			local back = resupplied()
 			if back > bestBack then bestBack = back end
 
@@ -174,13 +244,25 @@ WorldLoaded = function()
 			return
 		end
 
+		-- Relaxed only by a crate having EXISTED, which is clause 2's own failure — see MAX_DRIFT.
+		local driftAllowance = crateEver > 0 and MAX_DRIFT or HOLD_DRIFT
+		local peakDrift = driftTracker.Peak()
+
 		local truckHere = not Truck.IsDead
 		local clause1 = bestBack >= NEED_BACK
 		local clause2 = crateEver == 0
 		local clause3 = truckHere
+		local clause4 = peakDrift <= driftAllowance
 
-		if clause1 and clause2 and clause3 then
-			Test.Pass()
+		if clause1 and clause2 and clause3 and clause4 then
+			-- The green verdict carries its numbers on purpose. A drift clause that passes silently
+			-- cannot be told apart from a drift clause that never measured anything, and this
+			-- scenario's own history is a test that "passed for the right reason but did not assert
+			-- it". The peak belongs in the record so the next reader can see it was 0 or 1, not 6.
+			Test.Pass(string.format(
+				"%d of 5 resupplied from the truck aura with no crate dropped, truck still loaded at %s, "
+				.. "platoon held the front (peak drift %d, allowed %d). platoon spawnX->nowX(peak drift): %s",
+				bestBack, cellText(truckLastCell), peakDrift, driftAllowance, driftTracker.Trace()))
 			return
 		end
 
@@ -199,16 +281,24 @@ WorldLoaded = function()
 				"(3) the truck emptied itself (gone after %ds, last seen at %s) instead of keeping its "
 				.. "remainder for the next platoon", truckGoneAtSecond, cellText(truckLastCell))
 		end
+		if not clause4 then
+			broke[#broke + 1] = string.format(
+				"(4) the platoon left the front to be resupplied — peak drift %d cells, allowed %d. "
+				.. "Either it walked back to meet the truck, or the truck never closed to aura range "
+				.. "(5c) and the men covered the rest; compare the peak against the truck's furthest x "
+				.. "below to tell which", peakDrift, driftAllowance)
+		end
 
 		Test.Fail(string.format(
 			"safe-front supply doctrine broken: %s. "
+			.. "platoon spawnX->nowX(peak drift): %s. "
 			.. "primary ammo now %s (drained to %d, starving at <=%d). "
 			.. "truck went from x=%d to a furthest x=%d and is %s; platoon is at x=44, no enemy actor "
 			.. "exists and believed danger is 0 everywhere. Read it as: furthest x still near %d = the "
 			.. "truck never committed; furthest x in the low 40s with no crate and the truck still here = "
 			.. "it served from its aura, which is the doctrine; a crate anywhere = it unloaded when it "
 			.. "did not have to.",
-			table.concat(broke, "; "), ammoTrace(), DRAINED, STARVING,
+			table.concat(broke, "; "), driftTracker.Trace(), ammoTrace(), DRAINED, STARVING,
 			truckStartX, truckMaxX, truckHere and "still on the map" or "gone",
 			truckStartX))
 	end)

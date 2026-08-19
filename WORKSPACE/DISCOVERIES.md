@@ -7553,3 +7553,47 @@ asymmetry with saves: `GameSave` has no version check and relies on the same syn
 (`GameSave.cs:262-263`), so "saves are the well-behaved case, replays are not" was never the right
 framing — both rely on the sync hash, and replays additionally have a version field that happens to
 be inert.
+
+## 2026-08-19 — The 6-cell drift allowance does NOT transfer to the safe-front scenario; 1 cell is derivable from the map's aura geometry
+
+Recorded because a queued next-step said to copy `test-supply-under-danger`'s peak-drift clause into
+`test-supply-safe-front-keeps-cargo` at "allowance **6 cells** (5-cell crate walk + 1 tolerance)", and
+that number is licensed by a behaviour which **cannot legitimately occur in the safe scenario at all**.
+
+The 6 exists for exactly one correct act: walking to a crate the truck dropped short of the platoon
+(`test-supply-under-danger.lua:52-57`). The safe scenario's clause 2 **fails any run in which a
+supplycache ever existed** (`test-supply-safe-front-keeps-cargo.lua:19-23`) — keeping the cargo is the
+doctrine it asserts. So in every run that could pass there is no crate, and a 6-cell allowance is
+permanently the configuration the sibling already measured as broken: at `9861bcf4`, with 6 applied and
+no crate on the ground, all five men walked out to meet the TRUCK and the run **passed at drift 5 with
+`crate=NONE placed`** — the exact front collapse the clause exists to catch. The sibling's fix was to
+split the allowance and use `HOLD_DRIFT = 1` whenever no crate is present (`:59-66`); it is that half,
+not `MAX_DRIFT`, that transfers.
+
+**1 cell is not a convention here, it is arithmetic.** TRUK's aura is `Range: 5c0`
+(`rules/ingame/vehicles.yaml:569`) and `SupplyProvider.InAuraRange` compares horizontal distance
+SQUARED (`SupplyProvider.cs:1124-1127`), so the boundary is `dx² + dy² <= 25` in cells — **not**
+Chebyshev 5, and that difference is the whole reason any slack is needed. The platoon is a column at
+x=44, y=14..18 and the truck drives in along y=16, closing to "just inside its own aura"
+(`SupplyFollowerBotModule.cs:354`, `:1468`). A truck at the centre man's aura edge, (39,16), covers
+**only him**: (44,16) is 25 ≤ 25, but (44,15) is 26 and (44,14) is 29, both outside. One cell west puts
+every man inside — (43,15) is 17, (43,14) is 20. So one cell is exactly sufficient for the doctrine's
+own service pattern (and for clause 1's 2-of-5 bar: centre man at drift 0, a second at drift 1), and
+nothing in the column needs two. Asserted rather than argued in
+`engine/OpenRA.Test/.../SupplyDriftClauseTest.cs::OneCellIsExactlyEnoughToReachATruckAtAuraRange`,
+which fails with an instruction to re-derive rather than nudge if the aura or the geometry changes.
+
+**A peak above 1 therefore indicts something real without the verdict having to guess which**: either
+the platoon abandoned the front to meet the truck, or the truck never closed to aura range and the men
+covered the remainder. Both break the safe doctrine, which is why one number can carry both.
+
+**Method note, and the reusable part:** the drift measurement is now shared
+(`TestHarness.DriftTracker`, `mods/ww3mod/scripts/test-helpers.lua`) rather than existing once per
+scenario, and it is **executed under NUnit via Eluant** — `new LuaRuntime()` + `DoBuffer` loads the real
+helper file and drives it against stub actor tables (`{ IsDead = ..., Location = { X = ..., Y = ... } }`).
+This works with no world, no ModData and no game launch, because Lua resolves globals at call time, so
+the engine-bound helpers in that file are never touched. **That is a generally available technique in
+this repo for any harness Lua that is pure enough to isolate** — previously scenario Lua could only be
+verified by spending a game run, and one existing test could only regex-scan it
+(`StancePositioningFireStanceTest.cs`). The allowance stays per-scenario (it is doctrine and the two
+scenarios sit on opposite sides of it); only the measurement is shared.

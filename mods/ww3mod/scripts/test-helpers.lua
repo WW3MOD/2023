@@ -89,6 +89,84 @@ function TestHarness.AssertAfter(seconds, predicate, failReason)
 	end)
 end
 
+-- Chebyshev cell distance. Both axes, because a platoon shoved sideways off its position
+-- has left it just as surely as one that walked west. Pure, and separately pinned by
+-- LuaDriftTrackerTest so the two supply scenarios cannot drift apart on the metric itself.
+function TestHarness.CellDrift(fromX, fromY, toX, toY)
+	return math.max(math.abs(toX - fromX), math.abs(toY - fromY))
+end
+
+-- Track how far each of `actors` strays from where it started, keeping the WORST value seen
+-- per actor across the whole run.
+--
+-- WHY PEAK AND NOT FINAL POSITION — this is the trap, and a final-position check walks
+-- straight into it. SeekSuppliesAndReturn walks the soldier BACK to where it was standing
+-- (`origin`, settling for `HomeNearEnough = 2` cells), so the excursion is TRANSIENT: sample
+-- at the end and the platoon is home, fed, and the abandonment is invisible. The drift that
+-- matters is the worst seen over the run, not the drift at verdict time.
+--
+-- Shared rather than copied: this exact descent existed once per supply scenario and the
+-- standing rule in this repo is that three copies of one grid computation diverged, two of
+-- them wrong. Callers keep their OWN allowance — how many cells are forgivable is doctrine
+-- and differs per scenario — but the measurement is one implementation.
+--
+-- Usage:
+--     local drift = TestHarness.DriftTracker(platoon)
+--     -- once per poll:  drift.Sample()
+--     -- at verdict:     drift.Peak(), drift.Trace()
+function TestHarness.DriftTracker(actors)
+	local spawnX = {}
+	local spawnY = {}
+	local worst = {}
+
+	-- X/Y copied out as numbers at construction rather than holding the CPos: a cell reaches
+	-- Lua as a bound object and this must not depend on whether that object keeps value
+	-- semantics for the life of the run.
+	for i, a in ipairs(actors) do
+		spawnX[i] = a.Location.X
+		spawnY[i] = a.Location.Y
+		worst[i] = 0
+	end
+
+	local tracker = {}
+
+	-- Dead actors stop contributing but KEEP the peak they already reached: a man shot while
+	-- out of position still left it, and the run should say so.
+	function tracker.Sample()
+		for i, a in ipairs(actors) do
+			if not a.IsDead then
+				local d = TestHarness.CellDrift(spawnX[i], spawnY[i], a.Location.X, a.Location.Y)
+				if d > worst[i] then worst[i] = d end
+			end
+		end
+	end
+
+	function tracker.Peak()
+		local m = 0
+		for _, d in ipairs(worst) do
+			if d > m then m = d end
+		end
+		return m
+	end
+
+	-- "spawnX->nowX(worst)" per actor — says at a glance whether they held, walked out, or
+	-- walked out and came home again (the SeekSuppliesAndReturn signature: worst is large
+	-- while nowX is back at spawnX).
+	function tracker.Trace()
+		local parts = {}
+		for i, a in ipairs(actors) do
+			if a.IsDead then
+				parts[i] = "dead"
+			else
+				parts[i] = string.format("%d->%d(%d)", spawnX[i], a.Location.X, worst[i])
+			end
+		end
+		return table.concat(parts, " ")
+	end
+
+	return tracker
+end
+
 -- Capture a screenshot tagged with `label`. Thin wrapper around the Test.Screenshot
 -- engine binding; included here so test code calls a consistent TestHarness.* API.
 -- Optional `note` is a semantic expectation surfaced in the verdict JSON, e.g.
