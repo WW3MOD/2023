@@ -214,7 +214,7 @@ Per-player visibility is queried as `player.MapLayers.IsVisible(cell, 1)` — th
 | CargoSupply.cs | TRUK-only numeric supply pool. Auto-rearms nearby allied AmmoPool units within RearmRange. Pool drains as ammo is given; never regenerates. `IIssueDeployOrder` drops the entire pool as a SUPPLYCACHE on the truck's cell (merges into existing cache if present). `IIssueOrder` lets the player right-click an LC to queue a delivery move. Empty + Auto stance seeks nearest LC for refill (LC's pool drains 1:1); Hold sits; Evacuate rotates to map edge for credit return |
 | CargoPanelLogic.cs | Sidebar panel for transport cargo management: individual eject, mark for waypoint unload, rally points, supply drop |
 | CargoUnloadOrderGenerator.cs | Click-on-map order generator for waypoint-based selective unloading of marked passengers |
-| EjectRallyOrderGenerator.cs | Click-on-map to set per-passenger post-eject rally point (move target on ejection) |
+| ~~EjectRallyOrderGenerator.cs~~ | **File deleted at `7b5c692b` (2026-08-17); corrected here 2026-08-19.** Per-passenger post-eject rally points now travel as replicated orders handled in `Cargo.cs` — `SetEjectRally`/`ClearEjectRally` order strings (`Cargo.cs:560-561`) resolved at `Cargo.cs:406-414`. The old generator set the rally point client-locally with no `Order`, which was a live desync; do not reintroduce that shape. |
 
 ### Heavily modified systems
 
