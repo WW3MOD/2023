@@ -23,31 +23,61 @@ Compiling in Debug mode...
   OpenRA.Mods.Common -> .../engine/bin/OpenRA.Mods.Common.dll
 ```
 
-`Cnc`, `D2k`, `Utility`, `Server`, `Platforms.Default`, `Launcher` and `Test` are all outside it.
-That the 106-error burn-down `a7142780` touched *only* `OpenRA.Game` and `OpenRA.Mods.Common` is the
-corroborating fingerprint. **Windows is not the same gate**: `make.ps1:345-366` calls
-`engine\make.cmd check`, and `engine/Makefile:111-120` builds `engine/OpenRA.sln` under
-`-warnaserror`, so the Windows lane covers 8 projects to Linux's 2. Any claim about "what `make
-check` compiles" has to name the platform.
+`Cnc`, `D2k`, `Utility`, `Server`, `Platforms.Default`, `Launcher`, `Test` and `WindowsLauncher` —
+**eight** of the solution's ten projects — are all outside it. That the 106-error burn-down
+`a7142780` touched *only* `OpenRA.Game` and `OpenRA.Mods.Common` is the corroborating fingerprint.
+**Windows is not the same gate**: `make.ps1:345-366` calls `engine\make.cmd check`, and
+`engine/Makefile:111-120` builds `engine/OpenRA.sln` under `-warnaserror`. Any claim about "what
+`make check` compiles" has to name the platform, and any single coverage number is misleading —
+**after this branch it is 3 of 10 on Linux/macOS and 9 of 10 on Windows.**
+
+`OpenRA.WindowsLauncher` is the one that survives everything: it is outside **every** gate on
+**every** platform, for exactly the reason `OpenRA.Test` was, and it is still there after this
+branch. Enumerated rather than eyeballed — parsing `engine/OpenRA.sln` for GUIDs with no
+`Debug|Any CPU.Build.0` returns precisely two, `{6CB8E1B7…}` (Test) and `{912B578E…}`
+(WindowsLauncher), out of ten projects. Widening the gate to the remaining seven is deliberately
+*not* done here: each one brings its own burn-down and wants its own sequencing.
 
 **2. So adding the missing `.Build.0` would NOT have put `OpenRA.Test` in front of the Linux gate.**
 §7 below is right that the line is missing (`engine/OpenRA.sln:60-61` has `ActiveCfg` and no
 `Build.0`, uniquely among built projects) and right that the violations gate nothing. The inferred
 fix does not follow: on Linux it would only add the project to the *Release* engine build, where
 analyzers are off. It would bite on Windows only — an asymmetric red. The file is also untouched
-since the engine import (`7362fbc6`, 2023-03-20), i.e. **upstream's own choice**, and under
-`RUNTIME=mono` the engine builds as `netstandard2.1` (`engine/Directory.Build.props:23`), which
-`Microsoft.NET.Test.Sdk` does not target — so a solution-level edit would hand the mono lane a build
-it cannot do. Naming the `.csproj` in the `check` target's net6 branch is what actually gates it.
+since the engine import (`7362fbc6`, 2023-03-20), i.e. **upstream's own choice**.
+
+The reason to keep it out of the solution is that **the mono lane is a different gate, not the same
+gate run again**: `engine/Directory.Build.props:61-63` drops both Roslynator packages when
+`MSBuildRuntimeType` is `Mono` (upstream comment: they fail there with `AD0001`), so no `RCS*` rule
+can fire on that lane — 23 of the 47 violations measured below. A solution-level edit would put the
+test project in front of two gates that disagree about what "clean" means. Naming the `.csproj` in
+the `check` target's net6 branch keeps one gate authoritative.
+
+**An earlier version of this entry, and the `Makefile` comment, justified that with "`netstandard2.1`
+is a TFM `Microsoft.NET.Test.Sdk` does not target". That was wrong and is corrected here.** Adversarial
+review built the shape — `netstandard2.1`, `Microsoft.NET.Test.Sdk 17.10.0` + `NUnit 3.13.3`, a real
+`[TestFixture]`, SDK 6.0.428, `dotnet build -warnaserror -c Debug` — and got exit 0 with no
+diagnostics. The package's `build/` folder carries only `net462` and `netcoreapp3.1`, so the test-*host*
+wiring genuinely does not apply, but nothing fails and nothing warns. Note also that the *whole-engine*
+mono build cannot be simulated faithfully from `dotnet` on this machine: forcing
+`-p:TargetFramework=netstandard2.1` on the test project alone leaves its `ProjectReference`s at
+`net6.0` (MSBuild strips `TargetFramework` from properties passed to project references) and the build
+dies on a TFM mismatch that the real lane would never see. The Roslynator fact above needs no
+simulation — it is read straight off the props file — which is why it, and not a build result, is the
+rationale now.
 
 **3. Measured violation census for `OpenRA.Test`: 47 unique, 8 rules, all in WW3MOD-authored
 files.** `RCS1226` ×15, `IDE0062` ×10, `RCS1205` ×8, `SA1210` ×6, `SA1139` ×4, `SA1500` ×2,
 `IDE0220` ×1, `CS1734` ×1. (Raw log shows 94 — MSBuild repeats each exactly ×2 here; dedupe by
-`file:line:col:rule`.) Two were real defects rather than style: `CS1734` at
-`BotOrderGateCallerTest.cs:65` (a `<paramref>` on a *type* doc naming a non-existent parameter) and
-`IDE0220` at `StancePositioningFireStanceTest.cs:187` (`foreach (Match m in ...Matches(line))` taking
-the non-generic `IEnumerable` path — `MatchCollection` assigns straight to `IEnumerable<Match>`, as
-`Lint/CheckFluentReferences.cs:198` already does).
+`file:line:col:rule`.) **One** was a real defect rather than style: `CS1734` at
+`BotOrderGateCallerTest.cs:65`, a `<paramref>` on a *type* doc naming a parameter that does not
+exist — a compiler error the moment `GenerateDocumentationFile` is on, which the gate now is.
+
+`IDE0220` at `StancePositioningFireStanceTest.cs:187` was **overclaimed as a second defect in the
+first version of this entry and is not one.** `foreach (Match m in ...Matches(line))` did take
+`MatchCollection`'s non-generic `GetEnumerator()`, which `foreach` prefers — but `Match` is a
+reference type, so nothing was boxed and the per-element cast could never fail. It is a style/perf
+nit. The rewrite (assign to `IEnumerable<Match>` first, as `Lint/CheckFluentReferences.cs:198`
+already does) is still the right shape; it just fixed nothing that was broken.
 
 **4. `NuGet.CommandLine 4.4.1` is pulled by `rix0rrr.BeaconLib`, NOT by `NUnit.Console`.** §5 below
 names NUnit; the assets graph does not. From `project.assets.json`:
