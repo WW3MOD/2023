@@ -1,0 +1,47 @@
+Player:
+	-ConquestVictoryConditions:
+	# Cash, unusually for a capture scenario, is deliberately NOT zero. The whole point of
+	# this shot is the production sidebar being drawn with real icons in it, and an
+	# unaffordable queue greys them out.
+	PlayerResources:
+		DefaultCash: 20000
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-visual-cargo-panel.lua
+
+# The widest manifest the panel can be handed: 24 DISTINCT classes in one Chinook.
+# Copied wholesale from test-unload-menu-classes, including the reasoning, because the
+# class set is the thing being drawn and it is easy to break by substitution.
+#
+# The menu and the panel both group by ISelectable.Class with an actor-name fallback
+# (CargoManifest.GroupKey), so the row count is a property of the CLASS set, not the
+# passenger count. The 24:
+#
+#   16 combat classes  E1 E3 AR E2 TL MT SN AT AA E6 E4 SF MEDI TECN DR PILOT
+#    2 civilian        C2 -> Class CivInfantry, CHAN -> Class CHAN (it overrides)
+#    6 vehicle crew    driver/gunner/commander x2 factions. ^CrewMember sets no Selectable
+#                      Class, so each falls back to its own ACTOR NAME and earns a row.
+#                      crew.pilot.* and crew.copilot.* are deliberately absent: both set
+#                      Class: Pilot and would collapse into PILOT's row.
+#
+# All 24 inherit ^Infantry, so all are CargoType Infantry at Weight 1; 24 into MaxWeight 36
+# is a legal load, not an overfill the engine would trim.
+#
+# TRAN, not tran: rules keys merge by exact case and aircraft-america.yaml defines the
+# Chinook as `TRAN:`. A lowercase override would add a SECOND actor rather than merge and
+# fail the rules load outright. The map's actor reference is a lookup, so `tran` is fine
+# there.
+TRAN:
+	Cargo:
+		InitialUnits: E1,E3,AR,E2,TL,MT,SN,AT,AA,E6,E4,SF,MEDI,TECN,DR,PILOT,C2,CHAN,crew.driver.america,crew.gunner.america,crew.commander.america,crew.driver.russia,crew.gunner.russia,crew.commander.russia

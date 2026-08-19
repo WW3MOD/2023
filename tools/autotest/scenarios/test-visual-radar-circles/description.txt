@@ -1,0 +1,1 @@
+Captures: two deployed radars selected — the untyped 42-cell circles must still draw in full and cross, not merge.

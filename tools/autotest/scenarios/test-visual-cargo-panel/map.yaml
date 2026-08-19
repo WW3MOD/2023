@@ -1,0 +1,80 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Cargo panel against the production sidebar (captures)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# CARGO_PANEL sits at Y = WINDOW_HEIGHT - 260, Height 240, so its top edge is at
+# WINDOW_HEIGHT - 260. SIDEBAR_PRODUCTION is at Y 300, Height 250, so its bottom edge is
+# at 550, a constant. They overlap whenever WINDOW_HEIGHT - 260 < 550, i.e. on any window
+# shorter than 810px — which includes the 1024x768 default. Production is declared later
+# in ingame-player.yaml (:1149 against :797) and so draws on top.
+#
+# Whether that is a defect is exactly what the capture answers, and the qualifier matters:
+# GARRISON_PANEL has had this identical rectangle since before today, so if garrisons
+# render acceptably at a short window then cargo will too.
+#
+# THE SIDEBAR MUST ACTUALLY HAVE ICONS IN IT or the shot proves nothing — an empty
+# production palette cannot overlap anything, and "no overlap" would then be a statement
+# about the scenario rather than about the layout. The player therefore gets a Supply
+# Route (which is what provides the queues in this mod) and the script asserts it can
+# click a real production icon before taking any picture.
+#
+# The Chinook carries 24 distinct passenger CLASSES, lifted from test-unload-menu-classes.
+# CargoManifest fits 24 classes into the panel's ten label slots as 9 named rows plus a
+# tenth reading "+15 more", so this is the widest manifest the panel can be asked to draw
+# and every one of the ten rows is populated.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	BigTransport: tran
+		Owner: USA
+		Location: 33,14
+		Facing: 768
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 8,14
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,28
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 33,20
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 33,26
+
+Rules: rules.yaml

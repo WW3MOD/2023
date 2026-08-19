@@ -1,0 +1,63 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Radar circles still draw ungrouped (captures)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Regression check for the concealment-gauge commit. WithRangeCircle.RenderRangeCircle was
+# split into two branches: circles that declare a Type go through RangeCircleGrouping, and
+# untyped ones keep the old independent path. The radar circle on MSAR is untyped, so it
+# must still draw exactly as it did — two selected radars, two complete 42-cell circles,
+# no merging and no dimmed arcs.
+#
+# Two MSAR sixteen cells apart. Close enough that two 42-cell circles overlap enormously,
+# which is the only arrangement in which "grouped" and "ungrouped" look different at all;
+# far enough apart that the two centres are individually visible.
+#
+# MSAR's radar circle carries RequiresCondition: deployed, so both are deployed by the
+# script before anything is photographed.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	Radar1: msar
+		Owner: USA
+		Location: 25,16
+		Facing: 768
+	Radar2: msar
+		Owner: USA
+		Location: 41,16
+		Facing: 768
+
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 4,30
+
+Rules: rules.yaml

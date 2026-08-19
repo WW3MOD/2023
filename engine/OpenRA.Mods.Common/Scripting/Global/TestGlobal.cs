@@ -342,6 +342,41 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			});
 		}
 
+		[Desc("Replace the local player's selection with ALL of `actors`. UserInterface.Select takes a " +
+			"single actor and replaces the selection, so it cannot build a multi-unit selection at " +
+			"all — and anything that renders per-selection (range circles, the grouped concealment " +
+			"gauge, the command bar's multi-unit state) is unreachable without one. The only other " +
+			"route in the corpus is Ctrl+Alt on a build-menu icon, which selects by TYPE and selects " +
+			"nothing when the icon is hidden by prerequisites. Test mode only.")]
+		public void SelectActors(Actor[] actors)
+		{
+			if (!TestMode.IsActive || actors == null || actors.Length == 0)
+				return;
+
+			var alive = actors.Where(a => a != null && a.IsInWorld && !a.IsDead).ToArray();
+			if (alive.Length == 0)
+				return;
+
+			alive[0].World.Selection.Combine(alive[0].World, alive, false, true);
+		}
+
+		[Desc("Detectable.CurrentVisibility for `actor` — the observer vision STRENGTH (1-10) required " +
+			"to reveal it, after every DetectableAddativeModifier has been applied. Higher means " +
+			"HARDER to see, which is the opposite of the intuitive reading of the word. Returns -1 " +
+			"when the actor carries no Detectable trait. " +
+			"This is the tier the concealment gauge draws a radius for, so a capture scenario can " +
+			"assert WHICH tier it photographed rather than hoping the rings look different: three " +
+			"shots of an unchanged tier and three of a working gauge are distinguished by this value " +
+			"and by nothing else the verdict records. Test mode only.")]
+		public int GetVisibilityLevel(Actor actor)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return -1;
+
+			var detectable = actor.TraitOrDefault<Detectable>();
+			return detectable == null ? -1 : detectable.CurrentVisibility;
+		}
+
 		[Desc("Number of actors currently selected. Test mode only.")]
 		public int GetSelectedCount()
 		{

@@ -1,0 +1,92 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Command bar reflow and the renamed garrison buttons (captures)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Two chrome subjects that both need a selection to appear, so one run covers both.
+#
+# 1. The command bar after Button@TAKE_COVER was deleted. It sat at container-X 358 in the
+#    middle of the right-hand panel; removing it pulled AUTO_ENTER and EVACUATE left by
+#    34px, narrowed CMD_BG_B (188->154) and COMMAND_BAR (460->426), and shifted all four
+#    right-hand panels and their stance bars left by 34. Every one of those is an absolute
+#    literal with nothing tying it to its neighbour, so the only way to know the bar still
+#    lines up is to look at it. Infantry are what must be selected: TAKE_COVER's disabled
+#    state keyed off InfantryStatesInfo, so infantry-selected is exactly the state it used
+#    to render ungreyed in.
+#
+# 2. The eleven garrison and cargo buttons that used to be labelled "X" with no tooltip.
+#    Eight of them are EJECT_PORT_0-7, one per manned firing position, plus EJECT_ALL —
+#    all inside GARRISON_PANEL, which needs a garrison with occupied ports selected.
+#    (The remaining two, UNLOAD_ALL_TROOPS and DROP_SUPPLY, live in CARGO_PANEL and are
+#    photographed by test-visual-cargo-panel instead.)
+#
+#    House is a ^CivBuilding: MaxWeight 10 and EIGHT ports (northeast1/2, southeast1/2,
+#    southwest1/2, northwest1/2), which is the only garrison in the mod wide enough to
+#    populate all eight port rows at once. The defence structures carry two ports and the
+#    guard tower four, so neither would show that the eighth row is laid out correctly.
+#    Its occupants arrive through Cargo InitialUnits rather than by walking men in, so
+#    they are aboard at tick 0 and GarrisonManager only has to deploy them to ports.
+#
+# There is no enemy. Garrison ports deploy on their own and hold; adding a target would
+# start a firefight over the frame being photographed.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	Rifle1: e1.america
+		Owner: USA
+		Location: 20,16
+		Facing: 768
+	Rifle2: e1.america
+		Owner: USA
+		Location: 21,16
+		Facing: 768
+	Rifle3: e1.america
+		Owner: USA
+		Location: 22,16
+		Facing: 768
+
+	# Gives AUTO_ENTER a real transport to point at, so the right-hand command panel comes
+	# up with live buttons rather than four greyed ones.
+	Apc: m113
+		Owner: USA
+		Location: 24,16
+		Facing: 768
+
+	House: v01
+		Owner: USA
+		Location: 34,16
+
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 6,28
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,28
+
+Rules: rules.yaml

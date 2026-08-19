@@ -1,0 +1,1 @@
+Captures: concealment gauge tier ladder (25/22/19 cells) and squad grouping. Asserts the tier, never the appearance.

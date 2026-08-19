@@ -1,0 +1,29 @@
+Player:
+	-ConquestVictoryConditions:
+	PlayerResources:
+		DefaultCash: 0
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults to
+	# human-owned units, which decides WHICH stance button reads as active in the shot.
+	# Strip it or the frame depends on the dev's settings.yaml.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-visual-command-bar.lua
+
+# Eight men aboard at tick 0, one per firing position, so all eight EJECT_PORT rows are
+# populated and the renamed "Out" buttons are all on screen together. ^CivBuilding is
+# MaxWeight 10, so eight is a legal load with room spare rather than an overfill the
+# engine would trim.
+V01:
+	Cargo:
+		InitialUnits: E1.america,E1.america,E1.america,E1.america,E1.america,E1.america,E1.america,E1.america
