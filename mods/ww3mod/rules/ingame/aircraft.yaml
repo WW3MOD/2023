@@ -161,6 +161,14 @@
 	ClassicFacingBodyOrientation:
 	Repairable:
 		RepairActors: hpad
+	# USER RULING 2026-08-19: "helicopters use helipad, if those do not exist they must evacuate (They cannot be
+	# rearmed in that case)". hpad is map-placed only (Buildable.Prerequisites: ~disabled) and appears on zero
+	# shipped maps, so on every map today a spent attack heli's ammunition is ONE-WAY. Aircraft are excluded from
+	# the whole ResupplyBehavior axis by AmmoPool.cs:233, and ReturnToBase's no-resupplier branch queues FlyIdle
+	# (ReturnToBase.cs:126-128) — so without this the heli hovers, disarmed, for the rest of the match.
+	# Inert for TRAN/HALO: neither carries a Rearmable, and the trait refuses any airframe that lacks one.
+	# Player-owned only by default; bot helis stay owned by HelicopterSquadBotModule's EvacuateWhenIdle.
+	EvacuateWhenUnrearmable:
 	Targetable@Helicopter:
 		TargetTypes: Helicopter
 	DeliversCash@Rotation:
