@@ -422,9 +422,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 								IsSelected = () => false,
 								OnClick = () =>
 								{
+									var bot = AIUtils.SelectDefaultBotType(botTypes);
 									foreach (var slot in orderManager.LobbyInfo.Slots)
 									{
-										var bot = botTypes.Random(Game.CosmeticRandom);
 										var c = orderManager.LobbyInfo.ClientInSlot(slot.Key);
 										if (slot.Value.AllowBots && (c == null || c.Bot != null))
 											orderManager.IssueOrder(Order.Command($"slot_bot {slot.Key} {botController.Index} {bot}"));

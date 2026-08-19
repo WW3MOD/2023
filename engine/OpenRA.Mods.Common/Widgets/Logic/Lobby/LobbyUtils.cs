@@ -603,7 +603,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (botController == null)
 				return;
 
-			var botType = botTypes[Game.CosmeticRandom.Next(botTypes.Length)];
+			var botType = AIUtils.SelectDefaultBotType(botTypes);
 			orderManager.IssueOrder(Order.Command($"slot_bot {slotKey} {botController.Index} {botType}"));
 
 			// Schedule the faction order to fire once the bot exists in LobbyInfo.
