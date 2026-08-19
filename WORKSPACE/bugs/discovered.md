@@ -2195,8 +2195,9 @@ Related: the public `IsPassive` accessor (`:186`) has zero call sites repo-wide.
 player opens the menu — so it reports **the date the player is playing**, never the date the build was
 made. A stranger running a three-month-old download sees today's date and reads it as a fresh build.
 
-The `MainMenuLogic` copy is live — the main-menu **i** dropdown (`mainmenu.yaml:87` button, `:101`
-panel), so it is on the first screen a new player touches. The `ModInfoPanelLogic` copy is **dead**, and
+The `MainMenuLogic` copy is live — the main-menu **`v`** dropdown (`mainmenu.yaml:87` `INFO_BUTTON`,
+`:101` panel), reachable from the first screen a new player touches, though `Visible: false` until the
+button is clicked (`mainmenu.yaml:106`). The `ModInfoPanelLogic` copy is **dead**, and
 that is worth recording separately: its root `MOD_INFO_PANEL` occurs exactly once repo-wide
 (`info-panel.yaml:1`, its own declaration), nothing opens it, and its ctor requires
 `Action onExit, string shellmapName` that no caller supplies — so it cannot even be instantiated as a
