@@ -55,7 +55,14 @@ namespace OpenRA.Test
 		{
 			// A map or mod may ship without the default profile; picking nothing would leave the
 			// slot empty and make the button look broken.
-			Assert.That(AIUtils.SelectDefaultBotType(new[] { "experimental" }), Is.EqualTo("experimental"));
+			//
+			// The list here must NOT contain AIUtils.DefaultBotType, or this test stops exercising
+			// the `?? botTypes.FirstOrDefault()` branch it is named for and passes vacuously.
+			// That is exactly what happened on 2026-08-19: the list was ["experimental"] while the
+			// default was flipped TO "experimental", and deleting the fallback failed nothing.
+			Assert.That(AIUtils.DefaultBotType, Is.Not.EqualTo("stable"),
+				"this test's list must exclude the default; update it if DefaultBotType changes");
+			Assert.That(AIUtils.SelectDefaultBotType(new[] { "stable" }), Is.EqualTo("stable"));
 		}
 
 		[Test]

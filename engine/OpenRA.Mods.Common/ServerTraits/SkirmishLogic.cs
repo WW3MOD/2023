@@ -172,9 +172,15 @@ namespace OpenRA.Mods.Common.Server
 
 			// WW3MOD: always seed the default AI opponent if the lobby has no bots —
 			// either fresh skirmish, or the saved file has no bots in it. (Normal/Rush/Turtle
-			// were removed 2026-07-30; only Experimental + Stable ship. Stable is the frozen,
-			// benchmark-validated default — see AIUtils.DefaultBotType, which the lobby's
-			// add-bot buttons now share so the two cannot disagree about what "a bot" means.)
+			// were removed 2026-07-30; only Experimental + Stable ship.) The type comes from
+			// AIUtils.DefaultBotType, which the lobby's add-bot buttons also share so the two
+			// cannot disagree about what "a bot" means.
+			//
+			// That constant is "experimental" by USER RULING 2026-08-19 — NOT the frozen,
+			// benchmark-validated "stable" this comment previously named. A fresh skirmish
+			// therefore seeds @experimental on purpose. Benchmarks are unaffected: every
+			// tournament and ai-bench scenario names its Bot explicitly in map.yaml
+			// PlayerReferences, and this method early-returns unless ServerType.Skirmish.
 			if (loaded && server.LobbyInfo.Clients.Any(c => c.IsBot))
 				return;
 
