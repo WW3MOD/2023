@@ -6889,7 +6889,7 @@ So before this branch the scout helicopter's minigun was **five times better tha
 
 **Instrument warning — `tools/combat-sim/data/stats.json` is committed and goes stale.** The checked-in dump was generated `2026-05-11`; `ab64b15a` retuned the littlebird minigun (`range 15→8c0, inaccuracy 0c256→0c64`) afterwards. Reading the committed file gave range `15360` and inaccuracy `256` — both wrong, and both wrong in the direction that would have justified a bogus "the gun is inaccurate" conclusion. `BALANCE.md` says to re-run `dump-stats.sh`; treat that as mandatory rather than advisory, because the stale file is plausible rather than obviously broken.
 
-## 2026-08-16 — two IOrderGenerators mutate simulation state with no Order; the visibility lead is a false alarm; ~~the lint suite is dark~~ the lint suite runs on every push and is permanently red
+## 2026-08-16 — two IOrderGenerators mutate simulation state with no Order (both since FIXED); the visibility lead is a false alarm; ~~the lint suite is dark~~ ~~the lint suite runs on every push and is permanently red~~ the lint suite runs on every push and is GREEN as of 2026-08-17
 
 Read-only determinism sweep, no production code changed. Repo state `main @ 43d55ace`.
 
@@ -6898,18 +6898,31 @@ Read-only determinism sweep, no production code changed. Repo state `main @ 43d5
 > determinism findings in this entry (the two `IOrderGenerator` sites, the visibility refutation, the three
 > dead `[Sync]` attributes) were **not** re-verified by either correction and are neither confirmed nor
 > impeached by them.
+>
+> **That gap is now closed — see the THIRD correction block at the end of this entry (2026-08-19),** which
+> audits all 20 factual claims in this entry, determinism half included. Headline: the determinism findings
+> were **accurate when written** and are now **fixed, not wrong** — every defect this entry names has since
+> been closed. **Do not cite this entry as a description of live code.**
 
 **The general shape: an `IOrderGenerator` runs only on the client holding the mouse.** Any simulation mutation it performs that is not carried by a yielded `Order` happens on exactly one machine. A full audit of all 22 `IOrderGenerator` implementations found **two** live instances, both WW3MOD-authored; every upstream generator is clean.
 
 1. **`PatrolOrderGenerator.Confirm()` (`Orders/PatrolOrderGenerator.cs:59-61`) is the worst of the two and was previously unknown.** It calls `actor.CancelActivity()` then `actor.QueueActivity(false, new PatrolActivity(...))` on every selected actor, then `world.CancelInputMode()` — **no `Order` is yielded and no order handler for patrol exists anywhere in the engine** (`grep '"Patrol'` finds only script docs). So the clicking client's units start patrolling and every other client's units do not. It *moves units*, which is the fastest possible route to a position desync. It is reachable in a normal match: the button is wired at `chrome/ingame-player.yaml:212` → `CommandBarLogic.cs:203-220`, enabled for any selection containing an `IMoveInfo` actor (`:442`).
 
+   > **SUPERSEDED 2026-08-19 by `409b0fd2` (merged `c9f6a6c0`), 24 minutes after this entry was written.** Verified TRUE as of the audited base `43d55ace` — `git show 43d55ace:.../PatrolOrderGenerator.cs` shows `actor.CancelActivity()` + `actor.QueueActivity(false, new PatrolActivity(...))` with no `Order`, and `git grep '"Patrol' 43d55ace` returned only two `[Desc(...)]` strings in `Scripting/Properties/CombatProperties.cs:50,65`, so "no order handler exists" held too. **Both halves are now fixed:** `PatrolOrderGenerator.cs:63-68` yields a real grouped `Order(PatrolOrder.OrderString, ...)`, and the handler exists at `Orders/PatrolOrder.cs:28` (`OrderString = "Patrol"`). The file now carries a PITFALL comment at `:52-56` stating the rule this entry discovered.
+
 2. **`EjectRallyOrderGenerator.cs:62`** calls `cargo.SetEjectRally(...)` and yields nothing. Not cosmetic: the dictionary it writes is read by `Activities/UnloadCargo.cs:131`, i.e. inside simulation, so ejected passengers walk to a rally point only one client knows about.
+
+   > **SUPERSEDED 2026-08-19 by `409b0fd2` (merged `c9f6a6c0`).** Verified TRUE as written: at `43d55ace` the call `cargo.SetEjectRally(passengerActorId, target)` sits at line 62 with `yield break` and no `Order`, and `UnloadCargo.cs:131` reads it back via `cargo.GetEjectRally(actor.ActorID)` inside the activity. **`EjectRallyOrderGenerator.cs` no longer exists in the tree** — the path is gone at `08b255f7`, so any doc still describing this file as live is describing a deleted file.
 
 3. `UnitOrderGenerator.cs:71` (`controlAllManager.MarkPlayerControlled`) is the same shape and mutates a synced world trait that gates bot order issuance (`ModularBot.cs:260-263`), but it is behind `DeveloperMode.IsControlAllUnitsActive` and so should not fire in a release match.
 
 **Visibility is NOT a network-desync risk — this refutes a plausible lead.** Every simulation consumer of `Actor.CanBeViewedByPlayer` passes an explicit *simulation* `Player` (`self.Owner`, `manager.Self.Owner`, a loop variable), never `LocalPlayer`/`RenderPlayer`; per-player frozen/shroud state is maintained for all players on every client. The only `RenderPlayer`/`LocalPlayer` reads in the visibility traits are inside `IRenderModifier.ModifyRender` (`Detectable.cs:230`, `FrozenUnderFog.cs:182`) — render-only. **A synced code path branching on visibility is therefore safe in network play.** The sibling finding that `AttackMoveActivity` ends a march on `CanBeViewedByPlayer` is real for *saved-game restore* (where shroud must be reconstructed and bot ticks are not replayed) but **does not generalise to network desync**; the two cases must not be conflated.
 
 **Three traits carry `[Sync]` attributes that do nothing, and this is exactly the complete list.** `Actor.cs:206` only hashes a trait when `trait is ISync`; `CohesionSlotMemory` (`:37`), `VehicleCrew` (`:78`) and `SupplyRouteContestation` (`:93`) declare `[Sync]` members but do not implement `ISync` (directly or by inheritance — `ConditionalTrait<T>` and `AttackBase` supply it for everything else). These cannot *cause* a desync; they **hide** one, which is worse, because the annotation reads as coverage. `CohesionSlotMemory` matters most by reach — it is on `^Combatant` (`rules/defaults.yaml:20`), i.e. every combat unit, and `TryReturnToSlot` queues `new Move(self, assignedSlot)` gated on the two unhashed fields. Its `Assign` callers run inside `UnitOrders.ProcessOrder` (the replicated path), so the state *should* be identical on every client — but nothing verifies that, and that is the point.
+
+> **SUPERSEDED 2026-08-19 — all three are now hashed; the "exactly three / complete list" claim was TRUE when written and is independently confirmed.** Re-derived rather than taken on trust: a scan of every `.cs` file containing `[Sync]` at `43d55ace`, checking each declaring class for `ISync` directly or via an `ISync`-supplying base (`ConditionalTrait<T>`, `AttackBase`, `Turreted`, `Mobile`, …), returns exactly these three **traits** — `CohesionSlotMemory` (`:37`), `VehicleCrew` (`:78`), `SupplyRouteContestation` (`:93`), each line number exact. The scan also surfaced `VisionSource` (`Traits/Player/MapLayers.cs`) and `UnitTypeTally` (`Traits/Player/PlayerStatistics.cs`), and **both are false positives** — a private nested class and a plain data class respectively, neither a trait and neither carrying a `[Sync]` member of its own (`PlayerStatistics.cs` says so in a comment). Worth recording because a naive `grep` for `[Sync]` reports five and the right answer is three. **All three now implement `ISync`** at `08b255f7`: `CohesionSlotMemory.cs:41`, `VehicleCrew.cs:84`, `SupplyRouteContestation.cs:101-102`. `VehicleCrew.cs:78` now carries a comment naming `Actor.cs:206` as the reason, which is this entry's finding written back into the code.
+>
+> **`Actor.cs:206` is still exactly `{ if (trait is ISync t) syncHashesList.Add(new SyncHash(t)); }`** — the mechanism this entry rests on is unchanged, so the *general rule* (a `[Sync]` on a non-`ISync` trait is silently dead) remains live guidance even though all three instances are closed.
 
 ~~**The engine's 38-rule lint suite has never run in CI.** Every CI run fails at `Check Code` on `NU1901` (a NuGet advisory promoted to an error by `-warnaserror`, `Makefile:186`), so the later `Check Mod` step — `./utility.sh --check-yaml`, which hosts all 38 lint passes — never executes.~~ No local path compensates (`ww3-dev.ps1 check` only greps for `Console.WriteLine`/`Cost: 1`). Separately, `CheckSyncAnnotations` reports at *warning* severity and `TREAT_WARNINGS_AS_ERRORS` is set nowhere, so the three dead-`[Sync]` findings would print and pass even if it did run.
 
@@ -6933,6 +6946,70 @@ Read-only determinism sweep, no production code changed. Repo state `main @ 43d5
 **A detector nobody runs is a bug list nobody reads** — and a detector everyone runs but nobody can hear is the same thing wearing a green tick's clothes.
 
 **Correction to `WORKSPACE/audit/260816-desync-rootcause.md`:** its §5 one-third rounding argument is wrong (`18f/54f*3f` = 1.0000000298, under half a ULP in [1,2), rounds back to exactly 1.0f), and separately the "all `[Sync]` state matched" evidence **never covered `Mobile.CurrentSpeed`** — the sync reports were captured 2026-08-16T16:25Z and `[Sync]` was added to that field at `fe9f2cc0`, 21:16 local the same day. That evidence does not clear the accelerator.
+
+> **THIRD CORRECTION, 2026-08-19 — full-entry audit, against `main @ 08b255f7`.** The two 2026-08-17 blocks
+> above scoped themselves to the CI paragraph and said so. This block closes the gap: **all 20 factual
+> claims in this entry were extracted and checked against primary evidence** (the file at the cited line at
+> the *audited* revision `43d55ace`, not at HEAD; the workflow YAML; and `gh run view` on real runs). No
+> game was launched and no autotest was run.
+>
+> **Result: 20 claims checked. Zero were false when written. One number was off by one. Five are now
+> stale because the defects they describe have been fixed.** The entry's determinism half was accurate
+> work — which is worth saying plainly, because the entry's CI half being wrong twice makes it tempting to
+> distrust the whole thing. That would be the wrong lesson.
+>
+> **Off by one — the only as-written error in the determinism half.** "The engine's **38**-rule lint
+> suite" was **37** at `43d55ace`. Counting files in `engine/OpenRA.Mods.Common/Lint/` gives 38, but
+> `LintExts.cs` is a helper, not a pass. The figure is *correct today* (**38** passes at `08b255f7`, one
+> having been added since) — so the second correction's re-assertion of 38 was right for its own date and
+> the coincidence hides the original slip. **Count implementors of the five `ILint*Pass` interfaces, not
+> files** — and note `CheckSpriteFiles.cs` implements `ILintSequencesPass`, which a grep for the four
+> obvious interface names misses.
+>
+> **Now stale (fixed, not wrong)** — each carries a `SUPERSEDED` note at the claim above: the Patrol
+> generator (`409b0fd2`), the eject-rally generator (`409b0fd2`; its file is deleted), and all three dead
+> `[Sync]` traits (now `ISync`). **A reader citing this entry for live code state would be wrong on five
+> counts today and was right on all five when it was written.**
+>
+> **Verified TRUE and still true** (so these remain citable): `Actor.cs:206` hashes only `trait is ISync`;
+> `UnitOrderGenerator.cs:71` mutates `ControlAllUnitsManager` behind `DeveloperMode.IsControlAllUnitsActive`
+> with the bot gate at `ModularBot.cs:260-263`; the visibility refutation, including that the only
+> `RenderPlayer` reads are inside `IRenderModifier.ModifyRender` at `Modifiers/Detectable.cs:230` and
+> `Modifiers/FrozenUnderFog.cs:182`; `CohesionSlotMemory` on `^Combatant` at `rules/defaults.yaml:20`;
+> `ww3-dev.ps1` greps only `Console.WriteLine` (`:33`) and `Cost: 1` (`:58`); `CheckSyncAnnotations` emits
+> at *warning* severity (`:55,:57`); `TREAT_WARNINGS_AS_ERRORS` is read only at `CheckYaml.cs:57` and set
+> nowhere in the repo (the second correction cites `:51`; the line has since drifted to `:57`). The
+> `18f/54f*3f` rounding argument reproduces exactly — IEEE-754 single gives `0.3333333432674408`, and
+> `× 3f` returns **exactly** `1.0f`. `fe9f2cc0` is indeed `2026-08-16 21:16:32 +0200`.
+>
+> **The "all 22 `IOrderGenerator` implementations" count is exact, and nearly reads as wrong.** A
+> transitive walk at `43d55ace` finds **24** types assignable to `IOrderGenerator`; two of them
+> (`OrderGenerator`, `GlobalButtonOrderGenerator<T>`) are `abstract`. 24 − 2 = **22 concrete**. Recorded
+> because the naive counts (16, 17, 23, 24) are all easy to reach and all wrong.
+>
+> **The CI corrections above are THEMSELVES now stale, and this is the part most likely to mislead next.**
+> Against the latest *completed* `main` run, **`32042519552`** (2026-08-17T15:30Z) — `gh run view --json jobs`:
+> - `Linux (.NET 6.0)`: **success**. The 106 analyzer errors were cleared at `a7142780`; `RCS1226` no
+>   longer fails anything.
+> - `Windows (.NET 6.0)`: **success** — and now honestly, the swallowed exit code having been fixed at
+>   `f149dce3` and the SDK pinned at `c1f7e697`. A job cannot succeed with a failing step, so **`Check Mods`
+>   passes: the lint suite is GREEN, not "permanently red at 437"**, the baseline floor having landed at
+>   `68cf9205`. **The heading's surviving clause "and is permanently red" is stale as of 2026-08-17.**
+> - `Linux (mono)`: **failure**, and it is now the *only* red lane. Failure mode unchanged — 3× `CS0117`
+>   on `Convert.ToHexString`, exactly as the second correction found. **The mono lane still exists**
+>   (`.github/workflows/ci.yml:40-41`); the 2026-08-17 plan to delete it (`211ab6d9`) has not been executed.
+>
+> **Propagation check: clean.** `DOCS/reference/`, `DOCS/recipes/`, `DOCS/modes/` and the rest of
+> `WORKSPACE/` were searched for every claim found false or stale here. **None of them was ever copied into
+> the curated `DOCS/reference/` tree** — no reference doc carries a CI-gating or `[Sync]`-coverage section
+> at all. The damage stayed inside `DISCOVERIES.md` and the two parties it misled on 2026-08-16. That is
+> the good outcome, and it is the reason the curation rule (new knowledge lands in `DISCOVERIES.md`, not
+> in `reference/`) is worth keeping.
+>
+> **Method note, and the reason this block exists.** The 2026-08-17 corrections were right to scope
+> themselves to the CI paragraph and to *say* they had done so. That explicit scope line is what made this
+> audit cheap and targeted — without it, a reader would reasonably have assumed a corrected entry was a
+> checked entry. **When you correct part of an entry, state what you did not check.**
 
 ## 2026-08-17 — the procurement ordering axis was already shipped; and the SR parity rule inverts under the spawn offset
 
