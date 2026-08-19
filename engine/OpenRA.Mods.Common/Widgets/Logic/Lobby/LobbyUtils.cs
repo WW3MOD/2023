@@ -214,6 +214,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return (first, second);
 		}
 
+		/// <summary>Splits a "title\nbody" description into its two parts.</summary>
+		// MiniYaml does not unescape, so a description authored as "title\nbody" arrives carrying the
+		// literal two-character escape and SplitOnFirstToken's real-newline search never matches it.
+		public static (string Title, string Body) SplitDescription(string description)
+		{
+			return SplitOnFirstToken(description?.Replace("\\n", "\n"));
+		}
+
 		public static void ShowFactionDropDown(DropDownButtonWidget dropdown, Session.Client client,
 			OrderManager orderManager, Dictionary<string, LobbyFaction> factions)
 		{
@@ -233,7 +241,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				flag.GetImageName = () => factionId;
 
 				var description = faction.Description != null ? FluentProvider.GetMessage(faction.Description) : null;
-				var (text, desc) = SplitOnFirstToken(description);
+				var (text, desc) = SplitDescription(description);
 				item.GetTooltipText = () => text;
 				item.GetTooltipDesc = () => desc;
 
@@ -698,7 +706,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			dropdown.OnMouseDown = _ => ShowFactionDropDown(dropdown, c, orderManager, factions);
 
 			var description = factions[c.Faction].Description != null ? FluentProvider.GetMessage(factions[c.Faction].Description) : null;
-			var (text, desc) = SplitOnFirstToken(description);
+			var (text, desc) = SplitDescription(description);
 			dropdown.GetTooltipText = () => text;
 			dropdown.GetTooltipDesc = () => desc;
 
