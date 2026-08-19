@@ -1,5 +1,26 @@
 <Project>
   <!--
+    MSB3026 is the Copy task's "could not copy, beginning retry N" notification. It is a WARNING,
+    and `make check` builds with -warnaserror, so a single benign retry turned the whole gate red.
+    It fired because every project in engine/OpenRA.sln shares one OutputPath (engine/bin, see
+    Directory.Build.props:11) and the unlink shim below deletes each dependency before copying it.
+    That combination means every leaf project (Launcher, Utility, Server, WindowsLauncher) re-copies
+    the same NuGet DLLs on every build instead of skipping them as up-to-date, and MSBuild builds
+    those projects in parallel, so two of them open the same destination for writing and one loses.
+
+    Measured on main @ 61e46e64, before OpenRA.WindowsLauncher was in the solution build: two
+    consecutive identical `check` builds gave exit 0 then exit 1 with 22x MSB3026. So this is not a
+    consequence of adding a tenth project; it is a pre-existing coin flip that the new gate inherited.
+
+    Downgrading MSB3026 to a message keeps the retry silent but does NOT weaken the gate: when the
+    retries are actually exhausted the Copy task raises MSB3027, which is an error and is untouched.
+    Across the runs measured here MSB3027 never appeared; every retry eventually succeeded.
+  -->
+  <PropertyGroup>
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3026</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+
+  <!--
     Atomic-replace shim for engine/bin/ output on Unix.
 
     Problem: macOS/Linux let you overwrite files that another process has open.

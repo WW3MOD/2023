@@ -198,17 +198,20 @@ else
 # Enabling EnforceCodeStyleInBuild and GenerateDocumentationFile as a workaround for some code style rules (in particular IDE0005) being bugged and not reporting warnings/errors otherwise.
 	@$(DOTNET) build -c Debug -nologo -warnaserror -p:TargetPlatform=$(TARGETPLATFORM) -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true
 # The line above builds WW3MOD.sln, which is only OpenRA.Game + OpenRA.Mods.Common -- 2 of the
-# engine's 10 projects. The two lines below take this target to 9 of 10, matching what Windows has
-# always had. The asymmetry was never in the solution files: make.ps1 routes `check` through the
-# ENGINE's check target (engine/make.ps1:113-137, a Debug -warnaserror build of engine/OpenRA.sln),
-# whereas `check: engine` here routes through the engine's *all* target, which is Release -- and
+# engine's 10 projects. The two lines below take this target to 10 of 10, and Windows with it. The
+# asymmetry was never in the solution files: make.ps1 routes `check` through the ENGINE's check
+# target (engine/make.ps1:113-137, a Debug -warnaserror build of engine/OpenRA.sln), whereas
+# `check: engine` here routes through the engine's *all* target, which is Release -- and
 # engine/Directory.Build.props:51-56 strips every analyzer from Release builds. So this line is not
 # new coverage in the project-wide sense; it is Linux/macOS catching up to Windows.
 	@$(DOTNET) build $(ENGINE_DIRECTORY)/OpenRA.sln -c Debug -nologo -warnaserror -p:TargetPlatform=$(TARGETPLATFORM) -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true
 # OpenRA.Test needs naming separately even so: upstream gives it an ActiveCfg but no Build.0 in
-# engine/OpenRA.sln, so a solution build skips it. OpenRA.WindowsLauncher is the 10th project and is
-# missing Build.0 the same way -- it stays out here because it is the one project carrying a live
-# violation (1x CA1839, Program.cs:89). Adding its Build.0 line is the follow-up, not this branch.
+# engine/OpenRA.sln, so a solution build skips it. OpenRA.WindowsLauncher was missing Build.0 the
+# same way; it now has a Debug one, which is what puts it in the line above on every platform. Do
+# NOT give it a Release Build.0: OutputPath is engine/bin for every project
+# (engine/Directory.Build.props:11) and packaging copies bin/*.dll by wildcard
+# (engine/packaging/functions.sh:67), so a Release build would ship the Windows launcher DLL inside
+# the Linux and macOS packages.
 	@$(DOTNET) build engine/OpenRA.Test/OpenRA.Test.csproj -c Debug -nologo -warnaserror -p:TargetPlatform=$(TARGETPLATFORM) -p:EnforceCodeStyleInBuild=true -p:GenerateDocumentationFile=true
 endif
 endif
