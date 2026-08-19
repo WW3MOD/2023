@@ -337,13 +337,6 @@ namespace OpenRA
 		[Desc("Scale infantry sprites for realism. Disable to use original sprite sizes.")]
 		public bool ScaleInfantry = true;
 
-		// WW3MOD: Bar visibility (persisted between games)
-		public bool CommandBarVisible = true;
-		public bool FireStanceBarVisible = true;
-		public bool EngagementBarVisible = true;
-		public bool CohesionBarVisible = true;
-		public bool ResupplyBarVisible = true;
-
 		// WW3MOD: How-to-play briefing
 		[Desc("Version of the how-to-play briefing the player last saw. Bump",
 			"MainMenuLogic.HowToPlayVersion to re-show it after a material copy change.")]
