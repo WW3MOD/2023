@@ -1165,6 +1165,34 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// Exchange the occupancy of two ports.
+		// PITFALL: DeployedSoldier, CachedArmaments and ConditionToken are one soldier's identity at a
+		// port and must move together. CachedArmaments is the easy one to drop because it is not what
+		// the shot comes from — AttackGarrisoned fires the soldier's live armaments
+		// (AttackGarrisoned.cs:292) — but ScanForTarget picks the port's target from it (:858), and
+		// every other write site keeps it in lockstep with DeployedSoldier, so a slot holding a soldier
+		// and a null cache is a NullReferenceException at :859.
+		public static void SwapPortOccupants(PortState a, PortState b)
+		{
+			var soldier = a.DeployedSoldier;
+			a.DeployedSoldier = b.DeployedSoldier;
+			b.DeployedSoldier = soldier;
+
+			var armaments = a.CachedArmaments;
+			a.CachedArmaments = b.CachedArmaments;
+			b.CachedArmaments = armaments;
+
+			var token = a.ConditionToken;
+			a.ConditionToken = b.ConditionToken;
+			b.ConditionToken = token;
+
+			// Targeting is derived from the occupant, so it is invalidated rather than moved.
+			a.CurrentTarget = Target.Invalid;
+			a.TargetLockTicks = 0;
+			b.CurrentTarget = Target.Invalid;
+			b.TargetLockTicks = 0;
+		}
+
 		// Called by AutoTarget.TriggerNearbyAmbushAllies to coordinate garrison buildings with ambush units
 		public void TriggerAmbush()
 		{
@@ -1495,18 +1523,7 @@ namespace OpenRA.Mods.Common.Traits
 						dstPortIdx < 0 || dstPortIdx >= PortStates.Length)
 						return;
 
-					var tempSoldier = PortStates[srcPortIdx].DeployedSoldier;
-					var tempToken = PortStates[srcPortIdx].ConditionToken;
-					PortStates[srcPortIdx].DeployedSoldier = PortStates[dstPortIdx].DeployedSoldier;
-					PortStates[srcPortIdx].ConditionToken = PortStates[dstPortIdx].ConditionToken;
-					PortStates[dstPortIdx].DeployedSoldier = tempSoldier;
-					PortStates[dstPortIdx].ConditionToken = tempToken;
-
-					// Reset targeting for both
-					PortStates[srcPortIdx].CurrentTarget = Target.Invalid;
-					PortStates[srcPortIdx].TargetLockTicks = 0;
-					PortStates[dstPortIdx].CurrentTarget = Target.Invalid;
-					PortStates[dstPortIdx].TargetLockTicks = 0;
+					SwapPortOccupants(PortStates[srcPortIdx], PortStates[dstPortIdx]);
 
 					break;
 				}

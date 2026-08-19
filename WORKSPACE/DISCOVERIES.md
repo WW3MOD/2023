@@ -3,6 +3,43 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-19 — `GarrisonManager.CachedArmaments` is a TARGETING cache, not the firing path; the port-swap bug is real but its symptom is silence, not a wrong weapon
+
+Branch `wt/garrison-swap`. `cargo-garrison-status-260819.md` §4-B1 and `garrison-proposals.md:169`
+both state that `CachedArmaments` "is the field the firing path actually reads (`:858`)" and that
+after a `SwapGarrisonPorts` "each port would fire through the other soldier's weapons." **The defect
+is real; that mechanism is not.** Anyone fixing this from the docs will look for the wrong evidence.
+
+**The shot never comes from the cache.** `AttackGarrisoned.DoGarrisonedAttack` iterates
+`ps.DeployedSoldier.TraitsImplementing<Armament>()` live (`AttackGarrisoned.cs:292`) and re-checks
+weapon validity (`:298`) and range (`:302`) against the real occupant. `GetAllArmaments`
+(`GarrisonManager.cs:1146`), the other path `AttackGarrisoned` uses, also reads live traits. A stale
+cache cannot fire a weapon the occupant does not have.
+
+`CachedArmaments` has exactly **one** reader: `ScanForTarget` (`:858`), which uses it to size the
+port's scan circle (`:859-866`) and to filter candidates by weapon validity (`:908-922`). So a port
+holding another soldier's cache **chooses** targets on the wrong weapon profile, then hands them to a
+firing loop that rejects them on the occupant's real range/validity. The port sits on a locked target
+it cannot shoot and goes quiet — or scans too small a circle and ignores targets it could kill.
+**Damage numbers are never wrong; the port just stops working.** That is the symptom to look for, and
+it is why this wants a pin rather than an eyeball.
+
+**The sharper half is a null-deref, and it is the one the docs miss entirely.** Every other write site
+keeps `DeployedSoldier` and `CachedArmaments` in lockstep (`:375-376`, `:1456-1458`, `:1478-1479`), so
+`ScanForTarget` dereferences the array at `:859` behind nothing but a null-*soldier* check at `:856`.
+Swapping an occupied port with an **empty** one left the receiving slot holding a soldier and a null
+cache ⇒ `NullReferenceException` on the next scan tick. `SwapGarrisonPorts` was the sole violator of
+that invariant.
+
+**Generalising: "cached X" next to "live X" is a two-reader hazard — find the readers before naming
+the symptom.** Here the cache and the truth coexist, the *authoritative* consumer reads the truth, and
+the cache drives only selection. Reasoning from the field name gives a loud symptom (wrong weapon);
+reading the readers gives the real one (a silent port, plus a crash). Fixed by swapping the triple in
+one place: `GarrisonManager.SwapPortOccupants`, pinned in `GarrisonPortSwapTest`.
+
+**Still latent, not live:** repo-wide grep for `SwapGarrisonPorts` returns exactly one hit — the
+`case` label. Nothing issues the order, so no shipped build can reach either failure.
+
 ## 2026-08-19 — three merged-but-unobserved claims put in front of a running game; two confirmed, and the row-count assertion that would have "confirmed" the third was worthless
 
 Branch `wt/run-verify`, against `main @ 815804f1`, on a grant of exactly two launches. Covers the
