@@ -133,8 +133,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// rather than accumulating offsets.
 		readonly Widget setupRow;
 		readonly Widget spectateArea;
+		readonly Widget returnArea;
 		readonly int setupRowOriginalY;
 		readonly int spectateAreaOriginalY;
+		readonly int returnAreaOriginalY;
 
 		// Inline map browser (Change Map tab) state. Fields rather than ctor-locals
 		// so UpdateCurrentMap can close the browser when the host switches maps.
@@ -319,6 +321,42 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					(orderManager.LobbyInfo.GlobalSettings.AllowSpectators || orderManager.LocalClient.IsAdmin);
 
 				spectateArea.IsVisible = () => orderManager.LocalClient != null && orderManager.LocalClient.Slot != null;
+			}
+
+			// WW3MOD: the way back. SPECTATE_AREA hides itself the instant spectating
+			// succeeds, so without this the only route back is noticing that an empty
+			// roster row's Join button also un-spectates you — and when every slot is
+			// taken there is no such row and nothing at all explains why.
+			// This asks for a slot with the same "slot <key>" order Join issues; the
+			// server's Slot handler is not admin-gated, so a non-host returning needs
+			// no new permission. What a non-host still cannot do is FREE a slot —
+			// slot_open is admin-only and stays that way — hence the disabled state
+			// below naming the real obstacle instead of the button just vanishing.
+			returnArea = playerBin.GetOrNull("RETURN_AREA");
+			if (returnArea != null)
+			{
+				returnAreaOriginalY = returnArea.Bounds.Y;
+
+				// PITFALL: same as SPECTATE above — LocalClient is null during the early
+				// lobby tick and during disconnect teardown, and these run every tick.
+				var returnBtn = returnArea.Get<ButtonWidget>("RETURN_TO_SLOT");
+				returnBtn.OnClick = () =>
+				{
+					var slot = SpectatorReturn.FirstAvailableSlot(orderManager.LobbyInfo);
+					if (slot != null)
+						orderManager.IssueOrder(Order.Command("slot " + slot));
+				};
+
+				returnBtn.IsDisabled = () => !SpectatorReturn.CanReturn(orderManager.LobbyInfo, orderManager.LocalClient);
+
+				// Readiness greys every other lobby button without explaining itself, so
+				// it does not get its own text here. The novel condition does: a lobby
+				// with no free slot is the one case the player cannot resolve alone.
+				returnBtn.GetText = () => SpectatorReturn.FirstAvailableSlot(orderManager.LobbyInfo) == null
+					? "No Open Slot"
+					: "Return to Slot";
+
+				returnArea.IsVisible = () => SpectatorReturn.IsSpectating(orderManager.LocalClient);
 			}
 
 			// Bottom action row (Add Bots / Remove Bots / Auto-Team / Replay last) —
@@ -1247,6 +1285,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				setupRow.Bounds.Y = Math.Min(setupRowOriginalY, contentBottom);
 			if (spectateArea != null)
 				spectateArea.Bounds.Y = Math.Min(spectateAreaOriginalY, contentBottom);
+			if (returnArea != null)
+				returnArea.Bounds.Y = Math.Min(returnAreaOriginalY, contentBottom);
 
 			tabCompletion.Names = orderManager.LobbyInfo.Clients.Where(c => !c.IsBot).Select(c => c.Name).Distinct().ToList();
 		}
