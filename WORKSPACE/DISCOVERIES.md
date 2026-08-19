@@ -831,6 +831,8 @@ mono packaging code is still present and reachable.
 
 ## 2026-08-17 — BOT PROFILE SCOPING IS A CONDITION, NOT A TRAIT-NAME SUFFIX (`@stable` / `@experimental` MEAN NOTHING)
 
+> **[promoted]** → `architecture.md` (curation 2026-08-19, verified against `de78a1ed`). Verified end to end — the grants are at `ai.yaml:58-71`, `campaign-rules.yaml:13-15` carries a third personality (`Type: campaign`) nobody had banked, and `world.yaml:283` registers `ThreatMapManager` unconditionally. The `@stable`/`@experimental` in a trait NAME is only a MiniYaml instance label; what actually scopes behaviour is the `RequiresCondition` on the instance.
+
 **Reading `SomeBotModule@stable:` as "this is the stable bot's copy" is wrong, and it is the natural misreading
 because the suffixes so often line up with the answer.** MiniYaml `@suffix` is only an *instance key* — it makes
 two entries of the same trait distinct. It carries no scoping meaning whatsoever. `@poi`, `@supply`, `@america`
@@ -861,6 +863,8 @@ every bot including campaign. Searching `ai.yaml` for a module and finding nothi
 it may not be a bot-owner trait at all.
 
 ## 2026-08-17 — A BOT "ORDERED INTO WATER" DOES NOT DROWN; THE ENGINE MOVES IT 10 CELLS AND DOESN'T TELL THE BOT
+
+> **[promoted]** → `architecture.md` (curation 2026-08-19, verified against `de78a1ed`). The mechanism is live: `Mobile.cs:850-852` walks `FindTilesInAnnulus` for a substitute cell and `BotTerrain.cs:41` sets `EngineRelocationCells = 10`, so the engine silently relocates up to 10 cells and tells the bot nothing — a module that then compares against its own arrival radius (e.g. `MountedTransportBotModule.cs:874` vs `DropOffArrivalRadius` 3) sees a failure it cannot explain. The specific instance is fixed; the **guard** it produced is what was banked.
 
 **The obvious mental model of the bounds-only-guard defect class is wrong, and being wrong about it in the
 optimistic direction leaves the expensive half of the class unfixed.** Both order paths a bot module uses run
@@ -1035,6 +1039,8 @@ run. The `CargoInit` map init (`Cargo: type,type`) exists in C# but is used by n
 verified either.
 
 ## 2026-08-17 — A RATIO FLOOR HAS A CLIFF, AND THE FAILURE MODE IS SILENT: THE FLOOR SIMPLY NEVER EXISTS
+
+> **[promoted]** → `architecture.md` (curation 2026-08-19, verified against `de78a1ed`). `EffectiveFloor` is integer division (`SupportFloorMath.cs:79-80`, `var scaled = supportedCount / perSupported;`), so below one full denominator the floor is simply **0** — it does not exist rather than being small, and nothing reports that it is missing. The `engaged`/`INERT` reporting the entry describes is present. **Caveat carried into the bank**: the medic denominator this was measured against (`ai-america.yaml:205-208`) is self-flagged NOT INDEPENDENTLY CONFIRMED (offline replay, no live match read); the entry presents it as settled and the promoted text does not.
 
 `SupportFloorMath.EffectiveFloor` is `min(cap, supported/per)`, so the floor is **exactly zero on every cycle
 where `supported < per`**. That is arithmetic, not a tuning question — which means any ratio whose denominator
@@ -1235,6 +1241,8 @@ parsed, so a Lua syntax or API error still surfaces only on a real run.
 
 ## 2026-08-17 — AN UNKNOWN WIDGET SUBSTITUTION SILENTLY EVALUATES TO ZERO, AND IT HID A WHOLE PANEL OFF-SCREEN
 
+> **[rejected: already banked]** (curation 2026-08-19, verified against `de78a1ed`). Covered at `architecture.md:601-602`. The one live `PARENT_TOP` instance a later entry named is gone from `mods/`.
+
 > **[promoted]** → architecture.md §Widget / chrome authoring gotchas. Both cited mechanisms re-read at HEAD and exact: `VariableExpression.cs:664-667` is `symbols.TryGetValue(symbol, out var value); return value;`, and `Widget.cs:294-297` registers exactly the four substitutions. Promoted with the two lessons that generalise (check resolved bounds before the visibility predicate; a YAML design review cannot establish that a widget is visible) and merged with the 2026-08-19 lint entry, which supplies the guard and its blind spot. The `PIPELINE.md:114` staleness note at the end is tracker material. (curation 2026-08-19, verified against main @ 815804f1).
 
 `CARGO_PANEL` was declared at `X: WINDOW_RIGHT - 240` / `Y: WINDOW_BOTTOM - 340`
@@ -1313,6 +1321,8 @@ including `dead`, or a failure teaches you nothing.
 
 ## 2026-08-17 — `pip-suppression` IS TEN COLOURS OF ONE GLYPH, NOT A BAR THAT FILLS
 
+> **[promoted]** → `architecture.md` (curation 2026-08-19, verified against `de78a1ed`). **Structural half only.** The SHP header (`w=6 h=3 frames=10`) and the ten `Length: 1` sequences (`sequences-misc.yaml:334-363`) were re-derived directly. The colour ramp is carried as a **dated decode**, explicitly not re-derived in this pass — it is a claim about image bytes, and the honest provenance is "decoded once" rather than "verified".
+
 `WORKSPACE/garrison-proposals.md:112` describes the suppression readout as *"a bar that fills and reddens
 as fire lands"*. It reddens. It does not fill, and there is no bar.
 
@@ -1377,6 +1387,8 @@ decay and is correct.
 Do not reason from `IsInWorld` about whether trait state is advancing. Check which loop the trait is in.
 
 ## 2026-08-17 — GARRISON FIRE IS ALREADY SUPPRESSION-DEGRADED: `AttackGarrisoned` FIRES THE **SOLDIER'S OWN** ARMAMENT
+
+> **[promoted]** → `architecture.md` (curation 2026-08-19, verified against `de78a1ed`). `AttackGarrisoned.cs:292` iterates `ps.DeployedSoldier.TraitsImplementing<Armament>()` — the **soldier's own** armament, which already reads the soldier's `^SuppressionEffects` ladder. So a garrison-side rate-of-fire penalty keyed on suppression would **double-apply**. There is already a PITFALL at the temptation site (`GarrisonManager.cs:93-97`) saying exactly this.
 
 Three workspace docs assert that garrisoned soldiers "under moderate fire keep firing at full rate", and two
 of them recommend adding a rate-of-fire hook to fix it. All three are wrong, and the fix would have been a
@@ -2342,6 +2354,8 @@ provable rather than argued;
 
 ## 2026-08-15 — `BotOrderDamping.Recurring` silently zeroed a one-shot fill: 3 candidates found, 0 orders admitted, and the run still went GREEN
 
+> **[promoted]** → `architecture.md` (curation 2026-08-19, verified against `de78a1ed`). The rule is live and comment-enforced at the call site (`OrderArbitrationMath.cs:527`, `if (damping != BotOrderDamping.Recurring)`; `MountedTransportBotModule.cs:642` marks the deliberate unmarked case). Promoting it **forced a rewrite of a materially stale section**: `architecture.md` said `ModularBot.QueueOrder` "just enqueues" and listed `currentModuleTag` as future work — both wrong. `QueueOrder` returns `bool`, runs `BotOrderQueue.Admit` and can DROP the order (`ModularBot.cs:127-145`), and the tag already exists (`:84`, `:224-229`). Every citation in that section had drifted by ~120 lines.
+
 Same branch. The capture ferry's new spare-seat boarding was first marked `Recurring`, copied from
 the frontline pool's call site. Measured result: `ferry-escort … candidates=3 boarded=0`, and the
 ferry departed `aboard=1` — the technician alone, exactly the behaviour the change existed to remove.
@@ -2538,6 +2552,8 @@ you, and it is the only thing that does.
 
 ## 2026-08-14 — `AIUtils.BotDebug` is default-OFF *and* chat-only, so whole bot lanes are structurally unmeasurable — one hypothesis sat unmeasured behind this for a year
 
+> **[promoted]** → `architecture.md` (curation 2026-08-19, verified against `de78a1ed`). Re-verified: `AIUtils.cs:94` gates on `Game.Settings.Debug.BotDebug` and `Settings.cs:171` defaults it false, and the sink is chat rather than `debug.log`. Banked because it explains a whole class of bot questions that are structurally unanswerable — one hypothesis sat unmeasured behind this for a year.
+
 `AIUtils.BotDebug` (`AIUtils.cs:92-96`) gates on `Game.Settings.Debug.BotDebug` (default **`false`**,
 `Settings.cs:171`) and routes to `TextNotificationsManager.Debug` → `AddSystemLine` → the in-game
 **chat pool**. It never reaches `debug.log`. A lane whose only instrumentation is `BotDebug` therefore
@@ -2612,6 +2628,8 @@ available either. A measured `Stop`/reverse order collapses the Humvee from 103 
 over the following **eight** ticks. At a missile speed of 300 that is 2400 wdist of missile travel —
 longer than the entire terminal phase the swing is supposed to act on.
 ## 2026-08-14 — the bot's entire capture vocabulary is one five-name whitelist in `world.yaml`, and it is NOT the list you find by grepping the AI config
+
+> **[promoted]** → `architecture.md` (curation 2026-08-19, verified against `de78a1ed`). Merged with the never-soldier-capture entry. **One claim in this entry is CORRECTED**: it says `CapturableActorTypes` applies "only in the legacy no-PoiMap branch and in telemetry". False — it also gates `QueueDefenseOrders`' own-structure list (`CaptureCoordinatorBotModule.cs:2130-2134`), which runs unconditionally on its own countdown (`:699-703`). The corrected version is what was banked, alongside the PoiMap aperture at `PoiMap.cs:214` (`if (!isIncome && !isSupplyRoute) continue;`).
 
 Found verifying whether the bot could reclaim its own base after the c513f358 eviction rule (branch `wt/bot-reclaim`, off `68e7c09f`). The premise held, but the *reason* is structural and much wider than capture: it silently bounds what the strategic layer can perceive at all.
 
@@ -6254,6 +6272,8 @@ Reported symptom: cargo/ammo pips disappear once the player zooms out about half
 
 ## 2026-08-08 — a diagonal cell step is produced by THREE independent code paths, and only one of them is the pathfinder (fixed @ auto/tank-trap)
 
+> **[promoted — the whole 2026-08-08 diagonal-squeeze cluster merged into one]** → `conventions.md` §Engine behaviors that surprise (curation 2026-08-19, verified against `de78a1ed`). The three producers are re-verified, including the one the entry rightly calls easy to miss: `PathFinder.FindPathToTargetCell` (`Traits/World/PathFinder.cs:106-113`) returns a two-cell path **without building a graph** when `LengthSquared < 3`, and a diagonal is exactly `LengthSquared == 2`. Banked with the both-shoulders admissibility argument and the `Move.cs:296-303` escape (a rule whose blockage is in the EDGE rather than the destination cell is invisible to every destination-only predicate). The five follow-up entries below are folded in here rather than tagged separately, since the RE-SCOPE entry supersedes the scope in the earlier ones.
+
 Reported from live play: two tank traps placed diagonally (touching only at a corner) do not stop vehicles — they drive between them, so a trap line laid on a diagonal blocks nothing.
 
 **The passability layer never had a corner rule at all.** `Locomotor.MovementCostToEnterCell(actor, srcNode, destNode, check, ignoreActor)` (`Locomotor.cs:227`) takes `srcNode` but used it for exactly one thing — the height-discontinuity test inside `MovementCostForCell(cell, fromCell)` (`:191-205`). Everything else (`CanMoveFreelyInto`, `:239`) is a pure *destination* test, so a diagonal was costed identically whether or not the two cells flanking it were solid. `CalculateCellPathCost` (`DensePathGraph.cs:194-198`) detects the diagonal only to scale the cost by sqrt(2).
@@ -6331,6 +6351,8 @@ Consequence of the `ignoreActor` concession in `Locomotor.IsDiagonalSqueeze` (se
 
 ## 2026-08-08 — RE-SCOPE: the diagonal-squeeze rule is tank-traps-only, via a tag; and vehicles CANNOT crush trees in this mod
 
+> **[promoted — merged into the cluster entry above]** (curation 2026-08-19, verified against `de78a1ed`). Shipped state re-verified rather than taken from the entry: `BlocksDiagonalSqueeze` exists as a marker trait, `CellFlag.HasDiagonalSqueezeBlocker = 64` (`Locomotor.cs:33`, set `:575`, read `:303`), and exactly two actors carry the tag — `TANKTRAP1` (`decoration.yaml:535`) and `TANKTRAP2` (`:548`), with the deliberate absence from `^Rock`/`^Tree` recorded in-file. The **crush** finding was banked separately because it is the one a reader is most likely to get wrong: `^Tree` has `PassClasses: tree` and **no `CrushedByRelationships`** (`:13-14`), so no vehicle in this mod can crush or drive through a tree — while sandbag/fence/wire genuinely are crushable, and only an *enemy's*.
+
 User ruling (2026-08-08, from live play): *"That should not be applied to trees, tank traps are special that way."* The rule as first written was scoped far too broadly and this entry supersedes the scope described in the three entries above.
 
 **What it keyed on before.** `Locomotor.CellBlocksCorner` asked a generic passability question — `!cellCache.Passable.Overlaps(actor.Owner.PlayerMask)`, plus "off-map or unreachable terrain counts as solid". That catches **every** permanent blocker: trees, hedges, rocks, buildings, cliffs and the map edge. `^Tree` carries `Passable: PassClasses: tree` (`decoration.yaml:12-14`) and the vehicle locomotors only `Passes: field`, so every tree cell was a solid shoulder to a vehicle — which is why the map audit found tree-corner pockets closing all over the mod.
@@ -6352,6 +6374,8 @@ Only **`river-zeta`** has traps: 25 of them, forming **13 diagonally-adjacent pa
 **Verified:** build clean, `dotnet test` 1169/1169, and `test-tanktrap-diagonal` **passes** on the re-scoped build (seed -537156915) with all three lanes green — vehicle denied the trap corner, control vehicle through the orthogonal gap, and the infantry lane, running for the first time ever, confirming a rifleman still walks the same corner.
 
 ## 2026-08-08 — a movement rule that `CanEnterCell` cannot see spins `Move` forever: the escape at `Move.cs:297` asks about the wrong cell
+
+> **[promoted — merged into the diagonal-squeeze cluster entry above]** (curation 2026-08-19, verified against `de78a1ed`). Re-verified at the site: `Move/Move.cs:296-303` now carries both the explanatory comment and the `squeeze ||` disjunct that fixed it. Banked in its general form, which is what outlives the branch — if a rule is a property of the EDGE rather than of the CELL, every destination-only predicate in the movement stack is blind to it and `PopPath` will spin.
 
 Found by adversarial review of the tank-trap re-scope. Generalises past this branch: **any new "you may not take this step" rule whose blockage is not located in the destination cell will hang `Move` unless it is also taught to `Move.cs:297`.**
 
@@ -7934,6 +7958,8 @@ rule here. The analyzer set is a function of the pinned SDK, so a rule can be un
 measure nothing — and a zero-violation result from such a rule is not evidence of clean code.
 
 ## 2026-08-19 — Pipeline 59 was already shipped six days before it was scoped; and bots NEVER soldier-capture, so the uniform-clear rule did not drift `@stable`
+
+> **[promoted in part: merged into the capture-vocabulary entry] / [rejected in part: tracker]** (curation 2026-08-19, verified against `de78a1ed`). The **bots-never-soldier-capture** half is verified on both paths — the list path and the live role path (`UnitRoleResolver.cs:351`, `if (f.CapturesNeutral)`) — and is banked with the capture aperture in `architecture.md`. The PIPELINE-scoping half is tracker state and rejected.
 
 Branch `wt/neutralise`, against `main @ 815804f1`. The queue entry for item 59 ("a soldier should
 NEUTRALISE a captured money structure, not capture it") is **stale, not wrong** — its audit is dated
