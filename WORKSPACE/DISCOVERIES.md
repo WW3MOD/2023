@@ -40,9 +40,10 @@ branch. Enumerated rather than eyeballed — parsing `engine/OpenRA.sln` for GUI
 
 **2. So adding the missing `.Build.0` would NOT have put `OpenRA.Test` in front of the Linux gate.**
 §7 below is right that the line is missing (`engine/OpenRA.sln:60-61` has `ActiveCfg` and no
-`Build.0`, uniquely among built projects) and right that the violations gate nothing. The inferred
-fix does not follow: on Linux it would only add the project to the *Release* engine build, where
-analyzers are off. It would bite on Windows only — an asymmetric red. The file is also untouched
+`Build.0` — one of only two projects in that state, per the census above) and right that the
+violations gate nothing. The inferred fix does not follow: on Linux it would only add the project to
+the *Release* engine build, where analyzers are off. It would bite on Windows only — an asymmetric
+red. The file is also untouched
 since the engine import (`7362fbc6`, 2023-03-20), i.e. **upstream's own choice**.
 
 The reason to keep it out of the solution is that **the mono lane is a different gate, not the same
