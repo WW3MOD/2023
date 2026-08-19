@@ -400,18 +400,6 @@ LOGISTICSCENTER:
 		FinishRepairingNotification: UnitRepaired
 		PauseOnCondition: disabled || build-incomplete
 		RequiresCondition: !build-incomplete && !disabled
-	# THE ONE TRAIT THAT MAKES THIS BUILDING REACHABLE BY AIRCRAFT, and it is not decorative.
-	# Ground units reach a rearm host through AmmoPool.AutoRearm, which refuses aircraft at all
-	# three of its entry points, and Resupply's approach is guarded on `aircraft == null` — so an
-	# aircraft's ONLY route to any host is ReturnToBase, and ReturnToBase.ChooseResupplier filters
-	# `ActorsHavingTrait<Reservable>()` (ReturnToBase.cs:45-50). Without this line the seven
-	# airframes below would name a host they can never be flown to, which is worse than naming
-	# none: AmmoPool.ChooseResupplier WOULD match it (SupplyProvider + RearmActors membership,
-	# no reachability test), reporting them hosted and flipping their readiness gates to the
-	# strict restore-first bars with nothing able to satisfy them. AirframeReadiness.CountsAsRearmHost
-	# holds that line from the other side; this trait is what makes the claim true rather than merely
-	# guarded. Removing it re-opens the benched-for-the-match defect that fba34159 fixed.
-	Reservable:
 	ProximityExternalCondition@ReplenishSoldiers:
 		Condition: replenish-soldiers
 		Range: 4c0
