@@ -7577,3 +7577,53 @@ asymmetry with saves: `GameSave` has no version check and relies on the same syn
 (`GameSave.cs:262-263`), so "saves are the well-behaved case, replays are not" was never the right
 framing — both rely on the sync hash, and replays additionally have a version field that happens to
 be inert.
+
+---
+
+## 2026-08-19 — The `hotkey-description-*` fluent block is inert for every mod in the tree; and WW3MOD has no player-issuable "take cover" (found on `wt/command-bar`)
+
+Three findings from re-verifying PIPELINE items 60 and 61 against `main @ 815804f1`. **Both items were
+already implemented** — `746c592c` ("commandbar: add an Evacuate button, and give every command a visible
+hotkey"), `87b2b74d` (panel realignment) and `a7047f11` (Auto-Enter hotkey), all ancestors of `815804f1`.
+The queue entries describing them as open were written on 2026-08-13 and are stale. What follows is the
+part not already recorded elsewhere; the command-bar icon duplication is **not** repeated here because
+`WORKSPACE/audit/260816-command-bar-research.md` §3 already covers it more thoroughly (I re-derived its
+duplicate table independently on this newer ref and it still holds exactly).
+
+**1. `engine/mods/common/fluent/hotkeys.ftl:100-108` is not "stale for the newer commands" — it is dead
+for all of them.** The queue entry reads it as holding live descriptions for attackmove/stop/scatter/
+deploy/guard while patrol/autoenter/evacuate "fall back to `game.yaml`'s `Description:`". That fallback is
+the **only** path, for every hotkey in the repo. `HotkeyDefinition.Description` (`HotkeyDefinition.cs:24-25`)
+is loaded verbatim from the yaml node, and `HotkeysSettingsLogic.cs:72,229,240,339` renders it through
+`FluentProvider.GetMessage`, which returns its argument unchanged when no bundle matches
+(`FluentProvider.cs:64`). Every hotkey yaml in this tree puts literal English in `Description:` —
+`grep -rn "Description: hotkey-description" engine/mods/` returns **zero** hits across all five bundled
+mods. So the five `hotkey-description-*` entries that DO exist are exactly as unused as the ones that do
+not; the settings screen already shows correct English for every command, bound or unbound; and there is
+**no user-visible defect to fix**. Deleting the block is cosmetic churn in a vanilla engine file.
+
+**2. Zero hotkey collisions — checked with the engine's own rule across all nine loaded files.** Earlier
+passes checked `game.yaml` + `ww3mod/hotkeys.yaml` only; `mod.yaml:261-270` loads **nine** hotkey files.
+The engine's definition of a clash is `GetFirstDuplicate` (`HotkeyManager.cs:91-106`): equal `Hotkey` value
+**and** `Contexts.Overlaps` — `Types` is not consulted. Applying exactly that across all nine, after
+name-override merge, gives 185 unique names, 175 bound, and **no context-overlapping duplicates**. Two
+traps for whoever re-runs this: (a) merge by name FIRST — `HotkeyManager.cs:32` is a plain dictionary
+assignment, so the last definition of a name wins outright; (b) skipping that step produces a false
+positive on `SPACE` between `ToLastEvent` (`game.yaml:7`) and `ShowAllOrders` (`ww3mod/hotkeys.yaml:29`),
+which is already resolved by ww3mod redefining `ToLastEvent: BACKSPACE` (`hotkeys.yaml:24`). The
+`S`-on-both-`Stop`-and-`Scatter` clash recorded in PIPELINE item 61 is likewise gone: `Scatter` is now `X`
+(`game.yaml:82`).
+
+**3. `Button@TAKE_COVER` cannot be "wired up" cheaply — WW3MOD deliberately removed the mechanic it
+implies.** The button (`ingame-player.yaml:233`) has no `Key:`, and `CommandBarLogic.cs:262-268` binds only
+`IsDisabled` — no `OnClick`, no `OnKeyPress`. The reason it was never finished is structural rather than an
+oversight: WW3MOD **replaced** the RA-era `TakeCover.cs` trait with `InfantryStates.cs`, in which going
+prone is automatic and condition-driven (`ProneCondition` is a `BooleanExpression` observed via
+`IObservesVariables`, `InfantryStates.cs:25`; `DOCS/reference/architecture.md:176` records the swap as
+"prone at suppression > 30"). **No ww3mod actor carries a `TakeCover` trait** — the only `TakeCover:` lines
+left in the tree are in the bundled vanilla `engine/mods/{ra,cnc,ts,d2k}` rules, which ww3mod does not load.
+The button's *enabled* state is nonetheless real: `takeCoverDisabled` keys off `InfantryStatesInfo`
+(`CommandBarLogic.cs:444`), so it lights up, ungreyed, whenever infantry are selected — and then does
+nothing when clicked. It is a vestige of a system this mod deleted. Implementing it means designing a new
+orderable behaviour layered on top of the automatic one, which is a **gameplay** change, not the chrome fix
+its presence in the command bar suggests.

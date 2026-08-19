@@ -1950,3 +1950,72 @@ where it sits (dead weight, not wrong behaviour). Worth deciding deliberately: e
 to `ChromeLayout` and remove the inline copy so there is one definition. Note it is also unchecked by the
 unregistered-symbol lint for the same reason (see `DISCOVERIES.md`, 2026-08-19) — its two expressions happen
 to be valid today, but nothing would catch it if they stopped being.
+
+---
+
+## 2026-08-19 — `Button@TAKE_COVER` is inert at three separate levels, and its removal is a 12-widget reflow (found on `wt/command-bar`, `main @ 815804f1`)
+
+**Symptom the player sees:** a command-bar button that renders **ungreyed** whenever infantry are selected —
+so it looks live — and does nothing at all when clicked. `takeCoverDisabled` keys off `InfantryStatesInfo`
+(`CommandBarLogic.cs:444`), which every infantry actor has, so the enabled state is genuine.
+
+**Decision taken 2026-08-19: LEAVE IT for now**, and the reason is the launch budget, not the merits. The
+removal below is verifiable only by looking at the rendered bar, and no launch was available. It is being
+filed as its own pipeline item with the launch requirement attached. This is **not** a judgement that the
+button is acceptable to ship — a control that lights up and does nothing is exactly the class the release
+audit promoted from polish to blocker.
+
+### It is inert at three levels, and fixing only the outer one fixes nothing
+
+This distinction matters because "give it a hotkey" is the obvious cheap fix and it would accomplish nothing.
+
+1. **No hotkey definition exists.** The button has no `Key:` in YAML, and there is no `TakeCover` entry in
+   any of the nine hotkey files `mod.yaml:261-270` loads. Adding `Key: TakeCover` alone would resolve
+   through `HotkeyManager.GetHotkeyReference` (`:48-58`) → not in `keys` → `Hotkey.TryParse("TakeCover")`
+   fails → `Hotkey.Invalid`, so the tooltip would show no key and nothing would fire.
+2. **No handler.** `CommandBarLogic.cs:262-268` binds `BindButtonIcon` and `IsDisabled` only — it never
+   assigns `OnClick`. Note the key *routing* is present by default (`ButtonWidget.cs:96-97` wires
+   `OnKeyPress = _ => OnClick()`), so a working binding would successfully route a press into `OnClick`,
+   which is still the default no-op `() => { }` (`ButtonWidget.cs:73`).
+3. **No receiving trait.** WW3MOD replaced RA's `TakeCover.cs` with `InfantryStates.cs`, where prone is
+   automatic and condition-driven (`ProneCondition`, `InfantryStates.cs:25`; `architecture.md:176`). No
+   ww3mod actor carries a `TakeCover` trait — the surviving `TakeCover:` lines are all in the bundled
+   vanilla `engine/mods/{ra,cnc,ts,d2k}` rules, which ww3mod does not load. There is no order to send and
+   nothing that would receive one.
+
+So the only two coherent outcomes are **remove the button** or **design a new orderable behaviour** on top of
+the automatic prone system. The latter is gameplay work, not chrome.
+
+### Exact cost of removal — inherit this rather than re-deriving it
+
+All in `mods/ww3mod/chrome/ingame-player.yaml`. Delete the `Button@TAKE_COVER` block at **lines 233–251**
+(19 lines, `X: 358` on line 235), then apply **12 numeric edits**. The pitch is 34px throughout; the file's
+own PITFALL comment at `:52-57` is the reason the panels move independently — they are **not** parented to
+the button containers and each carries its own absolute X.
+
+| Widget | Decl line | Field | From | To |
+|---|---|---|---|---|
+| `Button@AUTO_ENTER` | 252 | `X` (line 254) | 392 | **358** |
+| `Button@EVACUATE` | 333 | `X` (line 335) | 426 | **392** |
+| `Container@COMMAND_BAR` | 85 | `Width` | 460 | **426** |
+| `Background@CMD_BG_B` | 50 | `Width` | 188 | **154** |
+| `Background@FIRE_BG` | 61 | `X` | 483 | **449** |
+| `Background@ENGAGE_BG` | 67 | `X` | 603 | **569** |
+| `Background@COHESION_BG` | 73 | `X` | 723 | **689** |
+| `Background@RESUPPLY_BG` | 79 | `X` | 843 | **809** |
+| `Container@STANCE_BAR` | 353 | `X` | 492 | **458** |
+| `Container@ENGAGEMENT_STANCE_BAR` | 422 | `X` | 612 | **578** |
+| `Container@COHESION_BAR` | 491 | `X` | 732 | **698** |
+| `Container@RESUPPLY_BEHAVIOR_BAR` | 560 | `X` | 852 | **818** |
+
+`Background@CMD_BG_A` (line 44, X=5 W=290) is **unchanged** — it covers the eight buttons at container-X
+0…272, all of which sit left of the deletion.
+
+**Check the arithmetic holds after editing:** the panel convention is `Width = 9 + content + 9`.
+`CMD_BG_B` then spans 295…449 with content 304…440 — four 34px buttons at container-X 290/324/358/392,
+absolute 304/338/372/406, ending 440, leaving the 9px right margin. `COMMAND_BAR` at X=14 with Width 426
+ends at absolute 440 to match. Every panel from `FIRE_BG` rightward simply shifts −34, preserving the
+existing 120px pitch between them.
+
+**Verification this needs and did not get:** a launched game, eyes on the bar. The numbers above are
+arithmetic, not evidence — that is precisely why the change was not made blind.
