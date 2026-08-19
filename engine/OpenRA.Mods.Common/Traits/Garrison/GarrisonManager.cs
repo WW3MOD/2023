@@ -1174,17 +1174,9 @@ namespace OpenRA.Mods.Common.Traits
 		// and a null cache is a NullReferenceException at :859.
 		public static void SwapPortOccupants(PortState a, PortState b)
 		{
-			var soldier = a.DeployedSoldier;
-			a.DeployedSoldier = b.DeployedSoldier;
-			b.DeployedSoldier = soldier;
-
-			var armaments = a.CachedArmaments;
-			a.CachedArmaments = b.CachedArmaments;
-			b.CachedArmaments = armaments;
-
-			var token = a.ConditionToken;
-			a.ConditionToken = b.ConditionToken;
-			b.ConditionToken = token;
+			(a.DeployedSoldier, b.DeployedSoldier) = (b.DeployedSoldier, a.DeployedSoldier);
+			(a.CachedArmaments, b.CachedArmaments) = (b.CachedArmaments, a.CachedArmaments);
+			(a.ConditionToken, b.ConditionToken) = (b.ConditionToken, a.ConditionToken);
 
 			// Targeting is derived from the occupant, so it is invalidated rather than moved.
 			a.CurrentTarget = Target.Invalid;
