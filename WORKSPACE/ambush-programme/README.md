@@ -81,19 +81,50 @@ Normal / Rush / Turtle never instantiate it."*
 **So a human clicking the Ambush button gets the narrow stance. The bots get the feature.** Five
 passing autotests do not contradict this; they pass *because* they grant the gate by hand.
 
-### 3.2 Concealment: the largest cover term is dead
+### 3.2 Concealment: the largest cover term is dead — and not for the obvious reason
 
 `object-proximity` (`+1/+2/+3`, the biggest term in the concealment stack, consumed at
-`infantry.yaml:704-715`) has **exactly one granter in the entire mod**:
-`ProximityExternalCondition@ObjectProximity` on `^TreeHusk` (`husks.yaml:118-121`).
+`infantry.yaml:704-715`) has **exactly one emitter in the entire mod**:
+`ProximityExternalCondition@ObjectProximity` on `^TreeHusk` (`husks.yaml:118-121`). **Living trees
+emit nothing at all.**
 
-**A living tree grants nothing. You must burn the forest down before it hides you.** `Range: 384`
-is 0.375 cells. Verified by direct grep — two lines across `mods/`, the husk emitter and the
-infantry receiver.
+> **CORRECTED 2026-08-20 by the ground-truth audit — read this, the first version was wrong.**
+> The first pass through this (and the manager's own grep, and every message sent to the user
+> before the audit landed) concluded "you must burn the forest down before it hides you." That is
+> **not right**, and the truth is worse. The husks do emit — but the trigger radius is 0.18–0.63
+> cells, centred inside a cell `^TreeHusk` **blocks**: it carries `Building: Footprint: x` with no
+> `Passable`, unlike a living `^Tree`, which is walkable. The nearest sub-cell a soldier can
+> occupy is 244–771 WDist away against radii of 182–640, so **zero of 23 husk types are
+> reachable.** Burning the forest down does not help either. The ladder is dead outright, not
+> merely misdirected. See `WORKSPACE/recon/260820-ambush-cover-detection-audit.md` §1.4.
+>
+> This is a worked example of why the synthesis exists: a confident grep by three separate
+> parties produced a plausible, quotable, wrong story, and only a fourth pass that checked the
+> *geometry* rather than the *grant* caught it.
 
-This was documented in `WORKSPACE/recon/260728-trees-concealment.md` on **28 July**, restated in
-`WORKSPACE/recon/260819-infantry-visibility-stances.md` on **19 August** (*"this is almost
-certainly not intended"*), and never acted on.
+The dead ladder was documented in `WORKSPACE/recon/260728-trees-concealment.md` on **28 July**,
+restated in `260819-infantry-visibility-stances.md` on **19 August** (*"this is almost certainly
+not intended"*), and never acted on.
+
+### 3.2a Three more defects, from the ground-truth audit
+
+- **`dugin` has two timer bugs** (`GrantConditionOnMovement.cs:44,52-80`). The still-counter is
+  armed only by a stop *transition*, so **a map-placed soldier who is never ordered anywhere never
+  digs in** — capped at CV 4 forever. And the counter is not reset when movement resumes, so
+  `dugin` can be granted mid-stride and held for the rest of the leg: `moving` (−1) and `dugin`
+  (+1) are not actually exclusive.
+- **The −2 firing penalty is `primary`-armament only** (`GrantConditionOnAttack.cs:25` defaults to
+  `{"primary"}`, not overridden at `infantry.yaml:722-726`). **Firing an RPG, a grenade launcher or
+  the `garrisoned` armament costs no detectability at all.**
+- **Infantry CV tops out at 9**, so the CV-10 "invisible to standard vision" state is unreachable
+  in any shipped configuration.
+
+> **UNRESOLVED CONTRADICTION — do not paper over this.** The legibility strand states
+> `visibility-10` *is* reachable (Sniper and SF have base `Vision: 5`; 5+3+1+1 = 10) and that the
+> gauge deliberately draws nothing there. The audit states infantry CV tops out at 9. Both cannot
+> be true. Note the legibility arithmetic includes the `+3` cover term that §3.2 says is
+> unreachable, which is the likely reconciliation — but it has not been checked, and the open
+> question `WciHcfgxJIr7oS4bEpp_s` to the user depends on the answer.
 
 ### 3.3 Stance does not touch detectability at all
 
@@ -180,10 +211,11 @@ trusted until the baseline is re-taken.**
 | `260820-ambush-failure-modes.md` | 19 ranked ways Ambush reads as a broken game |
 | `260820-ambush-bot-blast-radius.md` | Bot/benchmark impact + a measurement plan (~80 matches, 2.5 h) |
 
-**Ninth strand, still running when this was written:** the ground-truth detection audit (worker
-`95315db0`) — is the detection model actually correct, and does coordinated ambush exist. Its
-finding is NOT in this folder. Check `git log --oneline -- WORKSPACE/ambush-programme/` for a later
-commit, or treat it as missing.
+**Ninth strand — landed after the first version of this README, and it corrected it.** The
+ground-truth detection audit lives at `WORKSPACE/recon/260820-ambush-cover-detection-audit.md`
+(kept in `recon/` because that is where code-verified ground truth belongs). It is the only
+document here that has been through a second independent pass, and that pass caught a real error
+in its own author's work — **treat it as outranking the other eight wherever they disagree.**
 
 ---
 
@@ -201,6 +233,17 @@ Take this seriously — almost nothing here was measured.
 - **`test-case01b-detect` exists, was authored specifically to measure time-to-first-shot spread,
   and has never been run once.** It would settle §3.4 directly. This is the highest-value single
   run available.
+- **Two capture scenarios merged nine days ago look calibrated one tier low.**
+  `test-visual-gauge-truth.lua:10-16` reasons a map-placed rifleman "sits on tier 3" and derives a
+  22c ring; `test-visual-concealment-gauge.lua:21-27` asserts "stopped ⇒ tier 3". Both omit
+  `prone`, which `ProneCondition` grants on `!moving`, making a stationary soldier tier 4 (19c).
+  The audit predicts both fail their own premise checks. One run of either settles it, and it is
+  worth spending **before** trusting their output. Note the gauge-truth scenario reasons
+  *correctly* about the `dugin` bug and then misses prone — which is exactly why it reads
+  convincingly.
+- **The husk-reachability enumeration in §3.2 is arithmetic over four code sites, not
+  measurement.** Each premise (radii, impassability, the strict `<`, sub-cell quantisation) was
+  verified; nobody watched a soldier fail to receive the condition.
 - Two workers self-corrected mid-report — one had written the wrong aim-delay verdict off
   `FireDelay` (3 ticks, negligible) before finding `AimingDelay`; another had claimed the project
   draws nothing for concealment before finding `^DetectableRangeCircles` already ships. Good
