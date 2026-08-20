@@ -2,7 +2,7 @@
   "_meta": {
     "mod": "ww3mod",
     "version": "release-20230225",
-    "generated_at": "2026-08-20T19:21:39.7719180Z",
+    "generated_at": "2026-08-20T20:28:05.9040620Z",
     "note": "Generated from live YAML by --dump-balance-json. Do not edit by hand; re-run the dump after rules changes."
   },
   "actors": {
@@ -6756,7 +6756,7 @@
     "humvee": {
       "name": "Humvee",
       "cost": 500,
-      "hp": 8000,
+      "hp": 4000,
       "armor": {
         "type": "Light",
         "thickness": 10,
@@ -13826,8 +13826,8 @@
       "invalid_targets": [],
       "projectile_kind": "Missile",
       "projectile_speed": 300,
-      "inaccuracy": 25,
-      "inaccuracy_type": "PerCellIncrement",
+      "inaccuracy": 512,
+      "inaccuracy_type": "Absolute",
       "warheads": [
         {
           "type": "SpreadDamageWarhead",
