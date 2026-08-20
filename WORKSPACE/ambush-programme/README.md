@@ -222,8 +222,16 @@ trusted until the baseline is re-taken.**
 ground-truth detection audit lives at `WORKSPACE/recon/260820-ambush-cover-detection-audit.md`
 (kept in `recon/` because that is where code-verified ground truth belongs). It is the only
 document here that has been through a second independent pass, and that pass caught a real error
-in its own author's work — **treat it as outranking the other eight wherever they disagree, with
-one named exception.**
+in its own author's work.
+
+> **WITHDRAWN: "treat the audit as outranking the other eight" was bad advice and is revoked.**
+> The synthesis found that following it would have propagated **four** errors. Its mistakes all
+> sit in one layer — engine default versus mod override, abstract template versus fielded actor,
+> base `Vision: 3` versus the `Vision: 5` it documents itself two rows below. A document can be
+> the most carefully verified in a set and still be systematically wrong about *which* value
+> ships. **Read `260820-synthesis.md` for adjudicated verdicts instead; it settled six
+> cross-strand contradictions from code.** The named exceptions below are examples of the
+> pattern, not the complete list.
 
 **The exception: the audit is wrong about aim delay.** Its §2.5 concludes "there is no aim delay
 for anyone." It examined `FireDelay` and `FacingTolerance` and never looked at `AimingDelay`,
@@ -315,16 +323,33 @@ premise of the question:
 > cannot find an enemy if you are basically standing on top of him… I think their visibility should
 > be at least 1 at all times."*
 
-**So: clamp minimum detectability to 1 unconditionally. No unit is ever undetectable by standard
-vision.** This is a floor on the mechanic, not a change to the readout — and once it holds, the
-gauge's top tier can no longer be reached, so the cliff this question was about stops existing on
-its own.
+**THE RULING AS RECORDED IS A NO-OP. It must be re-put to the user before anything is built.**
 
-**Sequencing note that matters.** §3.2a says infantry CV tops out at 9 while the legibility strand
-computed 10 as `5+3+1+1`. That arithmetic includes the `+3` cover term §3.2 shows is unreachable,
-so tier 10 is very probably **not reachable today** — the cliff is latent, not live. But it becomes
-live the moment anyone repairs the cover ladder. **The clamp is therefore cheap now and urgent
-later: land it BEFORE fixing §3.2, not after.**
+The synthesis established why, and it is a language problem rather than a design one. The user
+said *"visibility should be at least 1 at all times"*, meaning **always findable**. In this
+codebase the axis runs the other way: `Vision` / concealment value counts **upward** for stealth,
+and a floor of 1 **already exists** (`Detectable.cs:90-91`) — it is one of the three ingredients
+*producing* the invisibility. Implementing the words literally changes nothing. Do not build it.
+
+**And the cliff is live today, not latent.** The earlier guess in this section — that tier 10 was
+unreachable and the clamp merely urgent-later — is wrong in the direction that changes the plan. A
+Sniper or SF at rank 3, stopped, computes CV 10 from `5` base + prone + dug-in + `rank-veteran`,
+with no cover term needed at all. Reveal is a strict comparison and `^StandardVision` stops at
+strength 10, so no vision band can exceed it.
+
+> **One tension left open, deliberately.** `^SN` (`infantry.yaml:1535`) and `^SF` (`:1980`) both
+> carry `Prerequisites: ~disabled`, so neither is *buildable* today — which is what the earlier
+> "latent" reading rested on. But not-buildable is not not-existing: a map can place either
+> directly, which is exactly how the capture scenarios put units on the field. Whether "live
+> today" means *in a normal match* or *only on a map that places one* has *not* been settled, and
+> the two readings imply different urgencies. Settle it before acting.
+
+**A second invisibility route exists that no strand found**, and it needs no Sniper. Forest shadow
+subtracts from the **observer's** strength (`MapLayers.cs:371`) and floors it at 1; target CV also
+floors at 1 (`Detectable.cs:90-91`); the comparison is strict (`MapLayers.cs:578`). `1 > 1` fails
+— so deep forest hides **anything from anyone** at 2–32 cells, whatever the CV. This one is
+mechanism-level and does not depend on unit type at all. Its *depth threshold* is baked per-map
+into `shadows.bin`, and there is a one-cell escape hatch; none of it has been observed running.
 
 ### OPEN — dogs as a detector unit
 
