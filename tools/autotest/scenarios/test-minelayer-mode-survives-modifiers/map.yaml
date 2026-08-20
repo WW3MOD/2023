@@ -1,0 +1,87 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: the minefield selector survives the modifiers that opened it
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# =====================================================================
+	# MANUAL. There is no scripted route to this bug: it is triggered by a
+	# KEY event arriving while Ctrl+Alt are physically held, and Lua cannot
+	# synthesise keyboard input. So this scenario stages the gesture and a
+	# human reads the verdict. The decision itself is pinned offline by
+	# engine/OpenRA.Test/ModifierOrderGeneratorMathTest.cs.
+	#
+	# Layer, alone and pre-selected, standing on open Clear ground with room
+	# on every side -- Minelayer.TerrainTypes for E6 is
+	# `Clear, Road, Beach, Rough, Bridge` (infantry.yaml:1832), so the tiles
+	# around it must render VALID, not blocked, or the overlay is unreadable
+	# and you cannot tell "cancelled" from "drawn as invalid".
+	#
+	# It carries 3 charges in `secondary-ammo` (infantry.yaml:1836). That pool
+	# is shared with Demolition, and it is what AmmoPoolName consumes, so the
+	# selector has something to lay when you commit.
+	# =====================================================================
+
+	Layer: e6.america
+		Owner: USA
+		Location: 32,16
+		Facing: 0
+
+	# No enemy actor is placed. The gesture under test is Ctrl+Alt on BARE
+	# GROUND, which is the only target BeginMinefieldOrderTargeter accepts
+	# (Minelayer.cs:379 rejects anything that is not TargetType.Terrain).
+	# An enemy near the click would let a stray Attack order be mistaken for
+	# the selector failing to open.
+
+	# `supplyroute` carries Targetable.TargetTypes: NoAutoTarget so it is never
+	# acquired by a scan. Present because faction elimination would end the match
+	# before a verdict could be given (AUTOTEST.md map.yaml rule 6).
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,2
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 32,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,2
+
+Rules: rules.yaml

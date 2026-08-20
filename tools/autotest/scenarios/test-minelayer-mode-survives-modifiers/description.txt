@@ -1,0 +1,1 @@
+MANUAL. An engineer with 3 mine charges is pre-selected. Hold Ctrl+Alt and right-click bare ground to open the minefield selector, then KEEP HOLDING Ctrl+Alt for a couple of seconds. The tiled overlay must stay up until you click again to commit or left-click to cancel. Before the fix it vanished on the next key event while the modifiers were still down.

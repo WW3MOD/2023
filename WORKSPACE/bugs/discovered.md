@@ -3082,3 +3082,34 @@ has survived — the harness is mostly used to compare A against B, not to read 
 Not fixed here deliberately: correcting the constant re-times every existing `test-balance-*`
 verdict at once, so it wants its own change with the affected numbers re-taken, rather than riding
 along in a humvee tuning commit.
+
+---
+
+## The move-fallback gate also closed the only route to the minefield selector on an occupied cell
+
+Found 2026-08-21 on `wt/minelayer` (`main @ 6fa1d736`) while ruling `08915556` in or out as the
+cause of the "minelaying mode flashes and cancels" report. It is **not** that bug — but it is a
+real, narrower behaviour change that `08915556` introduced and nobody has looked at.
+
+`BeginMinefieldOrderTargeter.CanTarget` accepts **only** `TargetType.Terrain`
+(`Minelayer.cs:379`). So when the cell you Ctrl+Alt-click is occupied by an actor,
+`UnitOrderGenerator.OrderForUnit`'s first pass runs against the ACTOR target, the minefield
+targeter refuses it, and the selector used to be reached on the **second** pass — the terrain
+retry — exactly like a move order was.
+
+`08915556` gates that retry on `OrderFallbackMath.AllowsMoveFallback`, which returns false for a
+hostile actor under a force-attack modifier. Consequence: **Ctrl+Alt on a cell occupied by an enemy
+the layer cannot shoot no longer opens the minefield selector at all.** For the E6 engineer, whose
+MP5 is not valid against armour, that is every enemy tank. The click now produces nothing.
+
+Not fixed here, deliberately, and it should not be fixed by reopening the retry — that is the
+behaviour the user asked to remove and it is pinned by `OrderFallbackMathTest` (8 cases) plus
+`test-order-no-move-fallback`. If it is worth fixing, the honest fix is at the other end: let
+`BeginMinefieldOrderTargeter` accept an actor target and use its cell, since laying a minefield is
+a terrain intent that happens to have been clicked on top of something. That is a real design
+decision about what Ctrl+Alt-on-an-enemy should mean for a minelayer, so it wants asking rather
+than assuming.
+
+Severity: low. The natural gesture is to click bare ground, which is unaffected — verified by
+control flow, `OrderForUnit` returns from the FIRST pass at `UnitOrderGenerator.cs:248` and never
+consults the gate at `:254`.
