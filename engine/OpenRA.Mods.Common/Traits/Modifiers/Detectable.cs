@@ -116,12 +116,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (DetectableInfo.Position == DetectablePosition.Footprint)
 			{
-				return byPlayer.MapLayers.AnyVisible(self.OccupiesSpace.OccupiedCells(), detectable)
+				return byPlayer.MapLayers.AnyDetectable(self.OccupiesSpace.OccupiedCells(), detectable)
 					|| (RadarDetectionActive() && byPlayer.MapLayers.AnyVisibleOnRader(self.OccupiesSpace.OccupiedCells()))
 					|| (CounterBatteryRadarDetectionActive() && byPlayer.MapLayers.AnyVisibleOnCounterBatteryRadar(self.OccupiesSpace.OccupiedCells()));
 			}
 
-			return byPlayer.MapLayers.IsVisible(pos, detectable)
+			return byPlayer.MapLayers.IsDetectable(pos, detectable)
 				|| (RadarDetectionActive() && byPlayer.MapLayers.RadarCover(pos))
 				|| (CounterBatteryRadarDetectionActive() && byPlayer.MapLayers.CounterBatteryRadarCover(pos));
 		}

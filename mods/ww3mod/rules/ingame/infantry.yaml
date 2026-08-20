@@ -739,12 +739,14 @@
 #   - Detectable clamps its level to [1, MapLayers.VisionLayers - 1] = [1, 10] BEFORE assigning
 #     CurrentVisibility and granting "visibility-<N>" (Detectable.cs:82-87,162; MapLayers.cs:75).
 #     visibility-0, -11 and -12 therefore CANNOT be granted, and have no entry here.
-#   - Reveal requires an observer strength STRICTLY greater than the level (MapLayers.cs:579), so the
-#     radius for visibility-N is the outer Range of the ^StandardVision band at Strength N+1
-#     (defaults.yaml:47-84). PITFALL: this ladder previously reused band N's own Range, which made
-#     every circle one band (~3 cells) too wide.
-#   - visibility-10 would need strength 11, which no band carries, so such a unit is undetectable by
-#     standard vision and deliberately draws NO circle.
+#   - Reveal requires an observer strength greater than OR EQUAL TO the level (MapLayers.IsDetected),
+#     so the radius for visibility-N is the outer Range of the ^StandardVision band at Strength N
+#     (defaults.yaml:47-84). PITFALL: this ladder reused band N+1's Range while the comparison was
+#     strict, and every circle moved out one band (~3 cells) when the comparison did. Do not "restore"
+#     the old numbers without also restoring the strict compare -- they are one fact, not two.
+#   - visibility-1 is the exception: band 1 (28c-32c) can never reveal, because MapLayers stamps level
+#     1 on merely-explored cells too and IsDetected therefore floors the threshold at 2. Tier 1 and
+#     tier 2 share band 2's 28c radius.
 #
 # Type: concealment opts these into grouped rendering, so a selected squad sharing one tier draws as a
 # single outline instead of a pile of rings (RangeCircleGrouping.Render).
@@ -761,7 +763,7 @@
 		Type: concealment
 	WithRangeCircle@Detectable2:
 		RequiresCondition: visibility-2
-		Range: 25c0
+		Range: 28c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
@@ -771,7 +773,7 @@
 		Type: concealment
 	WithRangeCircle@Detectable3:
 		RequiresCondition: visibility-3
-		Range: 22c0
+		Range: 25c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
@@ -781,7 +783,7 @@
 		Type: concealment
 	WithRangeCircle@Detectable4:
 		RequiresCondition: visibility-4
-		Range: 19c0
+		Range: 22c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
@@ -791,7 +793,7 @@
 		Type: concealment
 	WithRangeCircle@Detectable5:
 		RequiresCondition: visibility-5
-		Range: 16c0
+		Range: 19c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
@@ -801,7 +803,7 @@
 		Type: concealment
 	WithRangeCircle@Detectable6:
 		RequiresCondition: visibility-6
-		Range: 13c0
+		Range: 16c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
@@ -811,7 +813,7 @@
 		Type: concealment
 	WithRangeCircle@Detectable7:
 		RequiresCondition: visibility-7
-		Range: 10c0
+		Range: 13c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
@@ -821,7 +823,7 @@
 		Type: concealment
 	WithRangeCircle@Detectable8:
 		RequiresCondition: visibility-8
-		Range: 7c0
+		Range: 10c0
 		Alpha: 25
 		Width: 3
 		Visible: WhenSelected
@@ -831,6 +833,16 @@
 		Type: concealment
 	WithRangeCircle@Detectable9:
 		RequiresCondition: visibility-9
+		Range: 7c0
+		Alpha: 25
+		Width: 3
+		Visible: WhenSelected
+		Color: 888888
+		ValidRelationships: Ally
+		RequireShift: False
+		Type: concealment
+	WithRangeCircle@Detectable10:
+		RequiresCondition: visibility-10
 		Range: 4c0
 		Alpha: 25
 		Width: 3

@@ -579,6 +579,56 @@ namespace OpenRA.Traits
 			return ResolvedVisibility.Contains(puv) && ResolvedVisibility[puv] > visibility;
 		}
 
+		/// <summary>
+		/// Whether an observer whose resolved strength on a cell is <paramref name="resolvedVisibility"/>
+		/// detects an actor concealed at <paramref name="concealment"/>.
+		/// </summary>
+		/// <remarks>
+		/// The comparison is NON-STRICT: matching the target's concealment is enough. It used to be strict,
+		/// which made the top of the ladder unwinnable — concealment is clamped into the same 1..VisionLayers-1
+		/// range the vision bands occupy (Detectable), so a target at the ceiling could not be exceeded by any
+		/// observer and was undetectable at every range, standing next to an enemy included.
+		///
+		/// PITFALL: level 1 can never carry detection, which is why this is a separate predicate rather than a
+		/// relaxed <see cref="IsVisible(PPos, int)"/>. Tick stamps ResolvedVisibility 1 on every EXPLORED cell
+		/// whether or not a vision source is on it, so 1 means "seen at the weakest band" and "nobody is looking"
+		/// interchangeably. Admitting it would reveal every actor standing on ground the player has ever
+		/// explored. IsVisible answers a question about the CELL and keeps the strict comparison for that
+		/// reason: its callers pass 1 meaning "better than merely explored".
+		/// </remarks>
+		public static bool IsDetected(int resolvedVisibility, int concealment)
+		{
+			return resolvedVisibility >= (concealment < 2 ? 2 : concealment);
+		}
+
+		public bool IsDetectable(WPos pos, int concealment)
+		{
+			return IsDetectable(map.ProjectedCellCovering(pos), concealment);
+		}
+
+		public bool IsDetectable(CPos cell, int concealment)
+		{
+			return IsDetectable(cell.ToMPos(map), concealment);
+		}
+
+		public bool IsDetectable(MPos uv, int concealment)
+		{
+			foreach (var puv in map.ProjectedCellsCovering(uv))
+				if (IsDetectable(puv, concealment))
+					return true;
+
+			return false;
+		}
+
+		// In internal shroud coords
+		public bool IsDetectable(PPos puv, int concealment)
+		{
+			if (!FogEnabled)
+				return map.Contains(puv);
+
+			return ResolvedVisibility.Contains(puv) && IsDetected(ResolvedVisibility[puv], concealment);
+		}
+
 		public bool Contains(PPos uv)
 		{
 			// Check that uv is inside the map area. There is nothing special
