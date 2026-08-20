@@ -40,11 +40,17 @@
 -- PREDICTION. Vision strength decays with range (defaults.yaml:47-86): a
 -- 20-cell line starts at strength 4. MapLayers subtracts groundShadow and
 -- floors at 1 (MapLayers.cs:371-374), and detection needs resolved visibility
--- STRICTLY GREATER than Detectable.Vision = 2 (MapLayers.cs:579 is
--- `> visibility`, not >=) i.e. >= 3:
+-- greater than OR EQUAL TO Detectable.Vision = 2 (MapLayers.IsDetected):
 --   lane 0: 0 trees -> density  0 -> gs 0 -> vis 4 -> DETECTED  (control)
 --   lane 1: 1 tree  -> density 10 -> gs 1 -> vis 3 -> DETECTED
---   lane 2: 2 trees -> density 20 -> gs 2 -> vis 2 -> BLIND
+--   lane 2: 2 trees -> density 20 -> gs 2 -> vis 2 -> DETECTED
+--
+-- REPREDICTED when reveal became non-strict. Under the old strict compare lane 2
+-- read BLIND (2 > 2 is false) and the MEASURED block below recorded exactly that.
+-- The blinding threshold has therefore moved OUT by one tree cell: it now takes a
+-- third tree cell (gs 3 -> vis 1) to blind this lane. The measured block is kept
+-- as the pre-change record, NOT as a current expectation -- this scenario has not
+-- been re-run since.
 -- Note the asymmetry that makes this worth testing: two tree cells BLIND the
 -- unit, while the companion test measured two tree cells as comfortably
 -- non-blocking for line of fire. Vision fails first.
@@ -131,13 +137,21 @@ local function forestGroundShadow(d)
 end
 
 -- Detectable.IsVisibleInner's airborne branch, reimplemented from the two
--- primitives the harness exposes. NOT a call into CanBeViewedByPlayer — no Lua
--- binding reaches that — so this is the harness's reconstruction of the engine's
--- decision, and it is labelled as such everywhere it is reported.
+-- primitives the harness exposes, and labelled as a reconstruction everywhere it
+-- is reported.
+--
+-- KEEP THIS IN STEP WITH MapLayers.IsDetected. It is a hand copy of a comparison
+-- that has already changed once underneath it: the compare is now non-strict, and
+-- IsDetected additionally floors its threshold at 2 because ResolvedVisibility 1
+-- also means "explored, nobody looking". Test.IsDetectedBy(actor, player) now
+-- exists and calls the real path -- the binding this comment used to say did not
+-- exist -- so the honest fix is to route through it and delete the copy. Not done
+-- here only because this scenario cannot be re-run in the session that changed the
+-- comparison.
 local function detectedByUsa(usa, cell)
 	local vis = Test.GetVisibility(usa, cell)
 	local radar = Test.HasRadarCover(usa, cell)
-	return (vis > DetectableVision) or radar, vis, radar
+	return (vis >= math.max(DetectableVision, 2)) or radar, vis, radar
 end
 
 local function firedSince(l, baseAmmo, baseHealth)

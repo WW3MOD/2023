@@ -11,14 +11,14 @@
 -- gets `dugin` either — the still-timer is armed only by a stop transition, and he has
 -- never had one (GrantConditionOnMovement.cs:53-70). He sits on tier 3 for the whole run.
 --
---   drawn ring   tier 3 -> the ^StandardVision S4 band's outer range -> 22c0
---   real reveal  needs observer strength STRICTLY > 3 (MapLayers.cs:579), i.e. >= 4,
---                i.e. the S4 band, which reaches 22c0
+--   drawn ring   tier 3 -> the ^StandardVision S3 band's outer range -> 25c0
+--   real reveal  needs observer strength >= 3 (MapLayers.IsDetected), i.e. the S3 band,
+--                which reaches 25c0
 --
--- Same 22 cells. So the red "!" should switch on as the observer crosses the drawn circle.
--- Under the PRE-FIX ladder the ring for tier 3 was one band wider — 25c0 — while the
--- reveal distance is a property of the vision bands and would not have moved. The mark
--- would then light with the observer some three cells INSIDE the ring.
+-- Same 25 cells. So the red "!" should switch on as the observer crosses the drawn circle.
+-- BOTH numbers moved out one band when the reveal comparison went non-strict, and they
+-- moved TOGETHER — which is the point of this scenario. A disagreement of about three
+-- cells means one of the two halves was changed without the other.
 --
 -- =====================================================================================
 -- HOW TO READ THE FIVE FRAMES — this is the whole verdict
@@ -30,12 +30,12 @@
 --
 --   CORRECT   the last frame WITHOUT a "!" has the observer OUTSIDE the circle, and the
 --             first frame WITH a "!" has him just INSIDE it. The mark switches on across
---             the drawn boundary. (Predicted: off at 26 and 24, on from 21 inward.)
+--             the drawn boundary. (Predicted: off at 27 and 26, on from 24 inward.)
 --   BROKEN    the observer is already inside the circle in a frame that has no "!" — the
 --             ring is claiming he can be seen from further out than he really can, which
 --             is the one-band-too-wide ladder.
 --
--- 22 cells is deliberately never sampled. AUTOTEST.md gotcha #8: an assertion sitting
+-- 25 cells is deliberately never sampled. AUTOTEST.md gotcha #8: an assertion sitting
 -- exactly on a vision-band edge flips between runs of an identical scenario on posture
 -- alone.
 --
@@ -44,15 +44,15 @@
 -- — a teleport on the following line would be photographed under the previous label.
 
 local Rifle_ExpectedTier = 3
-local RingCells = 22
+local RingCells = 25
 
--- Cells east of Rifle. 22 omitted on purpose (band edge). 24 and 21 straddle the boundary
+-- Cells east of Rifle. 25 omitted on purpose (band edge). 26 and 24 straddle the boundary
 -- by one cell each, which is where the answer lives.
 local Ladder = {
-	{ cells = 26, mark = "OFF", why = "clear of the S3 band's reach; observer OUTSIDE the ring" },
-	{ cells = 24, mark = "OFF", why = "S3 strength 3 is not > tier 3; observer still OUTSIDE the ring" },
-	{ cells = 21, mark = "ON",  why = "S4 strength 4 > tier 3; observer just INSIDE the ring" },
-	{ cells = 18, mark = "ON",  why = "S5, comfortably inside" },
+	{ cells = 27, mark = "OFF", why = "S2 strength 2 is below tier 3; observer OUTSIDE the ring" },
+	{ cells = 26, mark = "OFF", why = "still S2; observer just OUTSIDE the ring" },
+	{ cells = 24, mark = "ON",  why = "S3 strength 3 MATCHES tier 3, and a match now reveals; just INSIDE the ring" },
+	{ cells = 21, mark = "ON",  why = "S4, comfortably inside" },
 	{ cells = 16, mark = "ON",  why = "S5/S6, deep inside" },
 }
 
@@ -83,7 +83,7 @@ WorldLoaded = function()
 	step = function(index)
 		local entry = Ladder[index]
 		if entry == nil then
-			Test.Pass("walked the observer 26 -> 16 cells across a predicted " ..
+			Test.Pass("walked the observer 27 -> 16 cells across a predicted " ..
 				tostring(RingCells) .. "-cell ring; 5 captures")
 			return
 		end

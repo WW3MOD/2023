@@ -256,7 +256,7 @@ plus the consumer list; **no one has shelled a forest and re-measured**.
 **Confirm by:** a scenario that records `CurrentVisibility` for a soldier in trees, destroys the
 trees, and re-records. No such scenario exists.
 
-## 2026-08-20: [medium] OPEN, NOT FIXED — detectability level 10 is unreachable only because the two units that could reach it are `~disabled`; re-enabling the Sniper makes total invisibility live immediately (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+## 2026-08-20: [medium] FIXED 2026-08-20 (`wt/invisibility-fix`) — detectability level 10 is unreachable only because the two units that could reach it are `~disabled`; re-enabling the Sniper makes total invisibility live immediately (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
 
 **This resolves the contradiction flagged as unresolved in `WORKSPACE/ambush-programme/README.md`
 §3.2a**, where the audit said infantry CV tops out at 9 and the legibility strand said 10 is
@@ -290,6 +290,17 @@ would connect to concealment.
 by addition over those sites. **Not measured.**
 **Confirm by:** a scenario granting `rank-veteran == 4` to a stationary rifleman and asserting
 `CurrentVisibility == 9`; the same with `^SN` re-enabled asserting 10.
+
+> **FIXED 2026-08-20 on `wt/invisibility-fix`, both halves, on the user's explicit ruling.** The
+> ceiling is now `VisionLayers - 2` = 9, so concealment cannot reach the top vision band and
+> standard vision always wins somewhere; and reveal is non-strict (`MapLayers.IsDetected`), so a
+> matching observer strength reveals. Note the entry above is ALSO wrong about fieldability in the
+> way `260820-synthesis.md` §1.1 records: `^SN`/`^SF` are templates, and the faction variants
+> (`SN.america` etc.) override `Buildable`, so both units ship. That made this live rather than
+> latent, which is why it was fixed rather than queued. Reveal moving out one band is a global
+> balance change and the `@stable` benchmark control changed with it — the next baseline must be
+> re-taken knowingly. Not launched: verified by NUnit plus a new scenario,
+> `tools/autotest/scenarios/test-detect-no-invisibility`, which has not been run.
 
 ## 2026-08-20: [medium] OPEN, NOT FIXED — one tree gives exactly zero damage reduction and one rock gives the maximum; the shipped comment saying otherwise is wrong, and no building carries density at all (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
 
@@ -410,7 +421,7 @@ behaviour is POSIX-specified, not tested here.
 **Confirm by:** `make clean` with a deliberately broken solution file; expect exit 0. Not run —
 this branch is filing only.
 
-## 2026-08-20: [low] OPEN, NOT FIXED — `WithSpottedDecoration.VisionCovers` accepts an observer band one strength short of actually revealing (masked today by the truth gate) (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+## 2026-08-20: [low] RESOLVED 2026-08-20 as a side effect of `wt/invisibility-fix` — `WithSpottedDecoration.VisionCovers` accepts an observer band one strength short of actually revealing (masked today by the truth gate) (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
 
 `VisionCovers` skips a band only when `visionInfo.Strength < requiredStrength`
 (`WithSpottedDecoration.cs:142`), i.e. it **accepts `Strength == required`**. Actual reveal is
@@ -422,6 +433,12 @@ optimistic by one band — roughly three cells of approach.
 what stops the optimism becoming a false positive. Filed because the looseness is real, undocumented
 as an off-by-one, and would surface immediately if anyone reordered the checks for performance —
 which the comment invites by explaining the gate is "checked last because it is the most expensive."
+
+> **RESOLVED 2026-08-20, accidentally and in the right direction.** Reveal is now non-strict
+> (`MapLayers.IsDetected`), so accepting `Strength == required` is exactly what reveal does —
+> `VisionCovers` was pre-emptively correct for a comparison that did not exist yet. **Do not
+> "fix" it back to `<=`**, and if the reveal comparison is ever reverted to strict, this entry
+> reopens with it. The two are one fact.
 
 **Established:** READ at HEAD — the comparison, the reveal comparison and the ordering of the truth
 gate all read directly. **DERIVED:** that the two comparisons differ by one band. Not observed, and

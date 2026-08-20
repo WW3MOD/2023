@@ -73,15 +73,16 @@ Actors:
 	# PREDICTION. Vision strength falls with range (10 inside 4 cells ... 4 in
 	# the 19-22 band, defaults.yaml:47-86), so a 20-cell line starts at
 	# strength 4. MapLayers subtracts groundShadow and floors the result at 1
-	# (MapLayers.cs:371-374), and detection needs resolved visibility STRICTLY
-	# GREATER than Detectable.Vision = 2 (MapLayers.cs:579 — `> visibility`,
-	# not >=), i.e. >= 3. groundShadow = ForestGroundShadow(density):
+	# (MapLayers.cs:371-374), and detection needs resolved visibility greater
+	# than OR EQUAL TO Detectable.Vision = 2 (MapLayers.IsDetected).
+	# groundShadow = ForestGroundShadow(density):
 	# ceil(d/10) up to the knee at 20, then 2 + ceil((d-20)/5) (Map.cs:1102-1120).
-	#   0 trees -> density  0 -> gs 0 -> vis 4 -> 4 > 2  DETECTED   (control)
-	#   1 tree  -> density 10 -> gs 1 -> vis 3 -> 3 > 2  DETECTED
-	#   2 trees -> density 20 -> gs 2 -> vis 2 -> 2 > 2  UNDETECTED
-	# so the predicted blinding threshold is the SECOND tree cell — one cell
-	# earlier than the same trees would block line of fire.
+	#   0 trees -> density  0 -> gs 0 -> vis 4 -> 4 >= 2  DETECTED   (control)
+	#   1 tree  -> density 10 -> gs 1 -> vis 3 -> 3 >= 2  DETECTED
+	#   2 trees -> density 20 -> gs 2 -> vis 2 -> 2 >= 2  DETECTED
+	# REPREDICTED when reveal became non-strict: the old strict compare made the
+	# SECOND tree cell blinding, and it now takes a THIRD (gs 3 -> vis 1). Not
+	# re-run since the change.
 	#
 	# T01 footprint `__ x_` / Density `0,0, 10,0` puts density 10 at offset
 	# (0,1) from Location, so Location (X,Y-1) -> density 10 on cell (X,Y).

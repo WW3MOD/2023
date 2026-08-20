@@ -12,15 +12,17 @@
 -- ^DetectableInfantryStandard adjusts it: moving -1, dug in +1, prone +1, firing -2.
 --
 -- ^DetectableRangeCircles draws tier N at the OUTER range of the ^StandardVision band at
--- Strength N+1, because reveal needs strength STRICTLY greater than the tier
--- (MapLayers.cs:579). Bands (defaults.yaml:47-84): S10 0-4c, S9 4-7c, S8 7-10c, S7
+-- Strength N, because reveal needs strength greater than OR EQUAL TO the tier
+-- (MapLayers.IsDetected). Bands (defaults.yaml:47-84): S10 0-4c, S9 4-7c, S8 7-10c, S7
 -- 10-13c, S6 13-16c, S5 16-19c, S4 19-22c, S3 22-25c, S2 25-28c, S1 28-32c.
 --
---   moving          3 - 1 = tier 2  ->  band S3 outer  ->  25c0
---   stopped         3     = tier 3  ->  band S4 outer  ->  22c0
---   stopped, dug in 3 + 1 = tier 4  ->  band S5 outer  ->  19c0
+--   moving          3 - 1 = tier 2  ->  band S2 outer  ->  28c0
+--   stopped         3     = tier 3  ->  band S3 outer  ->  25c0
+--   stopped, dug in 3 + 1 = tier 4  ->  band S4 outer  ->  22c0
 --
--- So the ladder is 25 -> 22 -> 19 cells, three cells per step. NOTE this differs from the
+-- So the ladder is 28 -> 25 -> 22 cells, three cells per step. These moved out one band
+-- when the reveal comparison went non-strict; the SHAPE the capture judges -- three rings
+-- shrinking by three cells a step -- is unchanged, and so are the tiers asserted below. NOTE this differs from the
 -- 25 / 19 / 16 in the capture request: 19 and 16 are tiers 4 and 5, and tier 5 needs a
 -- SECOND +1 (prone, or one step of cover) on top of dug in, which standing still alone
 -- never supplies. The SHAPE of the expectation — three radii shrinking in that order —
@@ -37,7 +39,7 @@
 -- sits at tier 3 forever.
 --
 -- If this scenario had simply placed a rifleman and waited, all three shots would show one
--- 22c0 ring — which is precisely the "a ring that never changes size" signature that the
+-- 25c0 ring — which is precisely the "a ring that never changes size" signature that the
 -- capture request calls BROKEN. Walker is given a real move order for exactly this reason.
 --
 -- TimeToBeStill is 200 ticks (infantry.yaml:139-142) at 25 ticks/s = 8.0 seconds, not the
@@ -81,7 +83,7 @@ end
 WorldLoaded = function()
 	Squad = { Squad1, Squad2, Squad3, Squad4, Squad5 }
 
-	-- A 22-cell radius is 44 cells across, so pull all the way out. SetZoom's scale is a
+	-- A 25-cell radius is 50 cells across, so pull all the way out. SetZoom's scale is a
 	-- multiple of the viewport's MinZoom, which IS the fully-zoomed-out end, so 1 is as
 	-- wide as the viewport goes and anything below it clamps back to the same value.
 	-- Logged rather than assumed, because how much map that shows depends on the WINDOW:
@@ -120,10 +122,10 @@ WorldLoaded = function()
 	Trigger.AfterDelay(DateTime.Seconds(5), function()
 		if not requireTier(Walker, ExpectedMovingTier, "shot 01 (moving)") then return end
 
-		TestHarness.Screenshot("01-gauge-moving-25c",
+		TestHarness.Screenshot("01-gauge-moving-28c",
 			"expects: ONE selected rifleman, centred, inside a single thin grey circle. " ..
-			"He is walking, so this is the WIDEST of the three rings — radius 25 cells, " ..
-			"i.e. 50 cells across. CORRECT = a grey ring is drawn at all and it is visibly " ..
+			"He is walking, so this is the WIDEST of the three rings — radius 28 cells, " ..
+			"i.e. 56 cells across. CORRECT = a grey ring is drawn at all and it is visibly " ..
 			"wider than shots 02 and 03 taken at the same zoom with the same unit centred. " ..
 			"MERELY PRESENT = a ring is there but shots 01/02/03 are the same size, which " ..
 			"means the prone/dugin/moving modifiers are not reaching the visibility level. " ..
@@ -151,10 +153,10 @@ WorldLoaded = function()
 		Trigger.AfterDelay(DateTime.Seconds(2), function()
 			if not requireTier(Walker, ExpectedStoppedTier, "shot 02 (stopped)") then return end
 
-			TestHarness.Screenshot("02-gauge-stopped-22c",
+			TestHarness.Screenshot("02-gauge-stopped-25c",
 				"expects: the same rifleman, same camera, same zoom, now STOPPED and not yet " ..
-				"dug in. His ring should be NOTICEABLY TIGHTER than shot 01 — radius 22 cells " ..
-				"against 25, a 12% shrink in radius. CORRECT = smaller than 01 and larger " ..
+				"dug in. His ring should be NOTICEABLY TIGHTER than shot 01 — radius 25 cells " ..
+				"against 28, an 11% shrink in radius. CORRECT = smaller than 01 and larger " ..
 				"than 03. BROKEN = identical to 01.")
 		end)
 
@@ -162,10 +164,10 @@ WorldLoaded = function()
 		Trigger.AfterDelay(DateTime.Seconds(13), function()
 			if not requireTier(Walker, ExpectedDuginTier, "shot 03 (dug in)") then return end
 
-			TestHarness.Screenshot("03-gauge-dugin-19c",
+			TestHarness.Screenshot("03-gauge-dugin-22c",
 				"expects: same rifleman, same camera, same zoom, now dug in (still for over " ..
-				"8 seconds). TIGHTEST of the three — radius 19 cells. CORRECT = the three " ..
-				"rings read 25 > 22 > 19 in that order, each step clearly smaller than the " ..
+				"8 seconds). TIGHTEST of the three — radius 22 cells. CORRECT = the three " ..
+				"rings read 28 > 25 > 22 in that order, each step clearly smaller than the " ..
 				"last. BROKEN = 03 is the same size as 02, meaning `dugin` is granted but " ..
 				"its +1 never reaches the drawn radius.")
 		end)

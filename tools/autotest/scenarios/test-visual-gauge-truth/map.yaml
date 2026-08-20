@@ -33,13 +33,13 @@ Categories: Test
 #
 # Rifle is map-placed and never ordered, so he never gets `dugin` either (the still-timer
 # is armed only by a stop transition — GrantConditionOnMovement.cs:53-70). He sits on
-# tier 3 for the whole run: ring 22c0, and reveal needs observer strength strictly greater
-# than 3, i.e. >= 4, i.e. the ^StandardVision S4 band whose outer range is 22c0. Ring and
-# truth are the same 22 cells, by construction.
+# tier 3 for the whole run: ring 25c0, and reveal needs observer strength >= 3, i.e. the
+# ^StandardVision S3 band whose outer range is 25c0. Ring and truth are the same 25 cells,
+# by construction — both moved out one band together when reveal became non-strict.
 #
-# Rifle is at x=32, the map's centre column, so a 44-cell-wide circle keeps both its east
+# Rifle is at x=32, the map's centre column, so a 50-cell-wide circle keeps both its east
 # and west edges inside the 64-cell playable width. The observer is teleported along the
-# centre row east of him to 26, 24, 21, 19 and 17 cells. 22 is deliberately NOT sampled:
+# centre row east of him to 27, 26, 24, 21 and 16 cells. 25 is deliberately NOT sampled:
 # gotcha #8 in AUTOTEST.md is that a visibility assertion sitting exactly on a band edge
 # flips between runs on posture alone.
 #
@@ -51,7 +51,7 @@ Categories: Test
 #     flip rather than on the thing under test. Watcher is Detectable Vision 1, which our
 #     vision resolves comfortably anywhere inside 28 cells.
 #   * Its ^StandardVision is untouched, so how it SEES Rifle follows the ordinary ladder
-#     and the 22-cell prediction stands.
+#     and the 25-cell prediction stands.
 
 Players:
 	PlayerReference@Neutral:

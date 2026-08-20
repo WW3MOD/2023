@@ -1,0 +1,98 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: No unit is undetectable at point-blank range
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# ASSERTS the invisibility fix: a unit whose concealment is pinned ABOVE the clamp ceiling
+# must still be seen by an enemy standing on top of it, and must still be unseen from far
+# away. Both halves matter -- the second is what stops "detected everywhere" reading as a
+# pass.
+#
+# Ghost is a rifleman with Detectable.Vision forced to 12 in rules.yaml, i.e. above
+# anything the live modifier stack can compose, so it lands on the ceiling however the
+# open questions about prone and dugin resolve. Before the fix that ceiling was 10 -- the
+# same value as ^StandardVision's strongest band -- and reveal was a STRICT comparison, so
+# nothing in the game could exceed it at any range. That is the bug: 10 > 10 is false.
+#
+# Ghost is map-placed and never ordered anywhere, so its tier cannot drift mid-run the way
+# a walking unit's would (moving = -1). The only variable is the observer's distance.
+#
+# Ghost is at x=32 on the centre row, and the observer is teleported along that row to the
+# east. That sightline was verified bare in test-visual-gauge-truth and the Lua re-checks
+# it: forest shadow is subtracted from the OBSERVER's strength before it is stamped
+# (MapLayers.AddSource), so a tree on the line would confound both assertions.
+#
+# WATCHER, not a standard rifleman: Detectable Vision 1 and silenced both ways, inherited
+# unchanged from test-visual-gauge-truth. Firing would grant `firinganyweapon` at -2 and
+# move Ghost's tier in the middle of the run.
+#
+# The Russian Supply Route sits in the far corner. SUPPLYROUTE stamps no vision bands at
+# all, so it cannot reveal Ghost -- but the Lua prints Russia's resolved strength at
+# Ghost's cell anyway, so if that ever changes the failure says so instead of looking like
+# the fix regressed.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Ghost: e1ghost
+		Owner: USA
+		Location: 32,16
+		Facing: 768
+
+	# Starts well outside anything, teleported down the ladder by the script.
+	Watcher: e1watcher
+		Owner: Russia
+		Location: 60,16
+		Facing: 256
+
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,30
+	# Far corner on purpose. A Supply Route is a large building with its own vision, i.e.
+	# an observer the ladder does not account for — test-unit-indicators lost a run to
+	# exactly that, its Russian SR sitting ~24 cells from the probe and lighting the mark
+	# the scenario was trying to prove absent.
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,2
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,30
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 62,2
+
+Rules: rules.yaml

@@ -1073,6 +1073,19 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return player.MapLayers.GetVisibility(player.World.Map.CenterOfCell(cell));
 		}
 
+		[Desc("Whether `player` can currently see `actor` — the real engine answer, straight through " +
+			"Actor.CanBeViewedByPlayer into Detectable and MapLayers.IsDetected, so a test asserts the " +
+			"shipped detection path instead of re-deriving it from a cell's visibility strength and the " +
+			"unit's tier. NOTE the ally shortcut: Detectable.AlwaysVisibleRelationships defaults to Ally, " +
+			"so this is only meaningful for an ENEMY observer. Test mode only.")]
+		public bool IsDetectedBy(Actor actor, Player player)
+		{
+			if (!TestMode.IsActive || actor == null || player == null)
+				return false;
+
+			return actor.CanBeViewedByPlayer(player);
+		}
+
 		[Desc("Invoke a registered chat command (as if typed into the chatbox), e.g. \"intel\" or " +
 			"\"/intel\" to toggle the Phase-1 intel overlay's dev always-on switch. Test mode only.")]
 		public void RunChatCommand(string command)

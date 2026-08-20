@@ -1,0 +1,58 @@
+Player:
+	-ConquestVictoryConditions:
+	PlayerResources:
+		DefaultCash: 0
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-detect-no-invisibility.lua
+
+# The subject. A rifleman pinned above the concealment ceiling.
+e1ghost:
+	Inherits: E1.america
+
+	# 12 is not a number the live modifier stack can produce -- it is chosen to be beyond
+	# it. A Sniper at rank 3, stopped, composes 10 from base 5 + prone + dug-in +
+	# rank-veteran, and the whole point of the ceiling is that even THAT must not reach the
+	# top vision band. Forcing the raw value above the ceiling means this scenario asserts
+	# the clamp itself, and stays valid whichever way the still-open questions about prone
+	# and the dugin timers are eventually settled.
+	Detectable:
+		Vision: 12
+
+	# Silent. Firing grants `firinganyweapon` at -2 vision for 12 ticks, which would drop
+	# Ghost off the ceiling in the middle of the run and turn a real failure into a pass.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+
+# The observer. Inherited verbatim from test-visual-gauge-truth, where each deviation is
+# justified at length; the short version is below.
+e1watcher:
+	Inherits: E1.russia
+
+	# How easily WE see IT, not how well it sees us. Keeps the reciprocal question out of
+	# the way at every distance on the ladder. Its own ^StandardVision is untouched, so how
+	# it sees Ghost follows the ordinary band ladder -- that is the thing under test.
+	Detectable:
+		Vision: 1
+
+	-WithSpottedDecoration:
+
+	# Silence the ENEMY, never the unit under test (AUTOTEST.md gotcha #9). NoAutoTarget
+	# also stops Ghost acquiring Watcher, which matters for the same -2 reason as above.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Targetable:
+		TargetTypes: NoAutoTarget
