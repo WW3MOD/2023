@@ -50,6 +50,7 @@ namespace OpenRA.Test
 
 		[TestCase(0)]
 		[TestCase(-7)]
+		[TestCase(int.MinValue)]
 		public void ConcealmentFloorIsPreserved(int composed)
 		{
 			// Pre-existing and deliberate: 0 is shroud's level and must never be a concealment value.
@@ -57,10 +58,28 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void ConcealmentBelowTheCeilingIsUntouched()
+		public void ClampNeverProducesZero()
 		{
-			for (var i = 1; i < MapLayers.VisionLayers - 1; i++)
-				Assert.That(Detectable.ClampConcealment(i), Is.EqualTo(i <= MapLayers.VisionLayers - 2 ? i : MapLayers.VisionLayers - 2));
+			// Diagnostic, and it earned its place: a scenario read Detectable.CurrentVisibility before
+			// the actor's first tick, got the uninitialised 0, and the failure text invited the reading
+			// that the clamp had produced it. It cannot. 0 from GetVisibilityLevel always means "has not
+			// ticked yet"; -1 means "no Detectable trait". Neither is a statement about the ceiling.
+			foreach (var composed in new[] { int.MinValue, -100, -1, 0, 1, 5, 9, 10, 11, 100, int.MaxValue })
+				Assert.That(Detectable.ClampConcealment(composed), Is.Not.Zero,
+					$"ClampConcealment({composed}) returned 0, which would make an uninitialised " +
+					"CurrentVisibility indistinguishable from a computed one.");
+		}
+
+		[Test]
+		public void ConcealmentIsUntouchedBelowTheCeilingAndCappedAbove()
+		{
+			// The loop must run PAST the ceiling or the capped branch is unreachable and this asserts
+			// nothing about the ceiling at all — which is what the first version of it did.
+			var ceiling = MapLayers.VisionLayers - 2;
+
+			for (var i = 1; i <= MapLayers.VisionLayers + 2; i++)
+				Assert.That(Detectable.ClampConcealment(i), Is.EqualTo(i <= ceiling ? i : ceiling),
+					$"ClampConcealment({i}) with ceiling {ceiling}");
 		}
 	}
 }

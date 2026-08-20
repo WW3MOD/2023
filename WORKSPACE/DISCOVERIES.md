@@ -3,6 +3,38 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-20 — a tier of 0 from `Test.GetVisibilityLevel` means "has not ticked yet", and it reads exactly like a broken clamp
+
+Branch `wt/invisibility-fix`. A new scenario asserting the concealment ceiling failed with
+*"Ghost is on concealment tier 0, expected 9"*. The note went on to reason about tier 10 and about a
+pinned `Detectable.Vision: 12`, so the failure text presented three numbers and invited the reading
+that the clamp under test had produced the 0.
+
+**It cannot.** `Detectable.ClampConcealment` returns 1 for any input below 1, so 0 is not in its range
+at all. `Detectable.CurrentVisibility` is an auto-property (`Detectable.cs:73`) written in exactly one
+place — inside `ITick.Tick` (`:115`) — and `Test.GetVisibilityLevel` returns it verbatim, reserving
+**-1** for "actor has no `Detectable` trait" (`TestGlobal.cs:377`). The scenario read it from
+`WorldLoaded`, which `World.LoadComplete` (`World.cs:334-347`) runs **before the first tick**. So the
+value was the uninitialised default and the scenario aborted at its own premise check, without ever
+exercising the thing it was written to test.
+
+**The reusable rule: `GetVisibilityLevel` has three distinct zero-ish returns and only one of them is
+about concealment.** `-1` = no trait. `0` = not ticked yet. `>= 1` = a real level. A scenario that
+checks `< 0` to mean "trait missing" — `test-visual-concealment-gauge:101` does — passes happily on a
+0 that means something else entirely. Any tier read must sit behind a `Trigger.AfterDelay`; only the
+per-cell `Test.GetDensity` and similar map queries are safe at `WorldLoaded`.
+
+**The wider trap, which is what makes this worth banking:** a premise check that fires before the
+state it guards exists converts a working fix into a red run, and its message will describe the
+fix rather than the timing. Read what the assertion MEASURED (here, 0) before reading what its prose
+claims, and ask whether the code under test can produce that value at all. It could not, which
+settled the diagnosis in one step.
+
+**Related, unfixed and deliberately left alone:** `WithSpottedDecoration.cs:93` reads the same
+`CurrentVisibility` field, so the spotted badge is working from a level that is one tick stale and, on
+the first tick of an actor's life, zero. No wrong badge can reach the screen — `IsSpotted` gates on
+the authoritative `CanBeViewedByPlayer` last (`:115`) — but the same 0 is in that path.
+
 ## 2026-08-20 — a failed build launched the game anyway, and the crash named the wrong thing entirely
 
 > **[promoted]** → `conventions.md` §"A build that fails and launches anyway indicts the WRONG code, every time" (curation 2026-08-20, verified against `main @ 57822b4e`). Every mechanism re-derived, and two of them re-measured rather than re-read: `find . -maxdepth 0 -exec sh -c 'exit 7' \;` really does yield `$? = 0`, and `dotnet --version` really is pin-aware. All three fixes are present and each carries its reasoning in-code — `launch-game.cmd:5` (`neq 0`, not `if errorlevel 1`), `Makefile:183`/`:186` (`set -e; for sln …` replacing `find -exec`), `Makefile:163` + `make.ps1:241`/`:406` (the `dotnet --version` pre-flight). What was banked is the diagnostic rule (a stale-binary crash always indicts the most recently edited source) plus the two reusable traps; the branch narrative stays here. Note `clean` still uses `find -exec` (`Makefile:192`, `:194`) and that is fine — nothing gates on its exit code.

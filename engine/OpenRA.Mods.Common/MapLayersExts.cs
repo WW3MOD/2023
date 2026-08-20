@@ -45,16 +45,6 @@ namespace OpenRA.Mods.Common
 			return false;
 		}
 
-		public static bool AnyVisible(this MapLayers mapLayers, (CPos Cell, SubCell SubCell)[] cells, int visibility)
-		{
-			// PERF: Avoid LINQ.
-			foreach (var cell in cells)
-				if (mapLayers.IsVisible(cell.Cell, visibility))
-					return true;
-
-			return false;
-		}
-
 		public static bool AnyDetectable(this MapLayers mapLayers, (CPos Cell, SubCell SubCell)[] cells, int concealment)
 		{
 			// PERF: Avoid LINQ.
