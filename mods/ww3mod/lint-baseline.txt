@@ -145,6 +145,32 @@ mod | :0: sprite file `bib3.int` not found.
 # it must not be cordoned. The lint is right and the map is right; the exception is the resolution.
 test-edge-spawn-shadow | This map does not define a valid cordon.
 
+# since 2026-08-20
+# THE SHORTFALL IS THE MECHANISM UNDER TEST, NOT AN OVERSIGHT. Both scenarios cut MANPAD's projectile
+# RangeLimit from 24c0 to 4c0 while leaving the weapon's Range at 23c0, so every missile expires ~16
+# cells short of an aircraft 20.2 cells away and no damage is ever dealt. The lint is right that this
+# is a strange weapon; it is strange on purpose.
+#
+# WHY IT HAS TO BE THIS WAY. The overkill mark and the damage are the same number by construction --
+# EstimatePercentDamage sums the weapon's damage warheads and the weapon then deals them -- so a mark
+# large enough to suppress is a shot large enough to kill, and the target dies before a second AA
+# could ever have joined. Measuring whether a battery volleys or serialises is impossible while the
+# two stay coupled. Cutting the flight distance decouples them without touching the warheads, so the
+# claim being measured is the REAL shipped arithmetic: min(3000 * 100 / 600, 100) = 100, exactly
+# OverkillThreshold. It is also the honest live case, since MANPAD carries Inaccuracy 256 against
+# moving aircraft and nothing releases the mark when a shot resolves into nothing.
+#
+# DO NOT "FIX" THIS BY RESTORING RangeLimit. It would not make the scenarios wrong-looking, it would
+# make them silently measure nothing -- helicopters would die to the first missile and the spread
+# measurement would have one shooter in it. That is precisely how afa18718 disarmed
+# test-aa-overkill-cadence for eight days: it closed the ValidTargets over-count that the scenario's
+# old payload split depended on, nobody re-ran it, and a pure diagnostic went on reporting confident
+# answers about a mechanism that was switched off. The RangeLimit approach was chosen to replace that
+# split BECAUSE it depends on no divergence between the estimate and the damage model, so a future
+# fix to either cannot disarm it the same way. Full reasoning is in each scenario's weapons.yaml.
+test-aa-battery-volleys | Weapon `manpad`: projectile RangeLimit lower than weapon range.
+test-aa-overkill-cadence | Weapon `manpad`: projectile RangeLimit lower than weapon range.
+
 [requires-ra-content]
 # since 2026-08-17
 mod | :0: sprite file `120mm.shp` not found.
