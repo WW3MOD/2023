@@ -1,0 +1,73 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: an ordinary attack order on a critically wounded soldier fires (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# One USA rifleman, one Russian conscript drained to 15% HP (critical damage).
+# The Lua issues an ORDINARY attack order — forceAttack=false, the plain
+# left/right-click path, not Ctrl+click — and measures the shooter's ammo.
+#
+# ATTRIBUTION: the wounded conscript is the only enemy actor that can be
+# attacked at all (the Russian supply route is NoAutoTarget), and AutoTarget's
+# break-off filter still hard-skips critically damaged candidates, so the
+# shooter cannot acquire him on its own. Any ammo drop is therefore the manual
+# order and nothing else.
+#
+# PASS = the shooter's primary-ammo count falls.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Shooter: e3
+		Owner: USA
+		Location: 33,16
+		Facing: 768
+	Wounded: e1
+		Owner: Russia
+		Location: 33,21
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 58,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 33,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 33,21
+
+Rules: rules.yaml

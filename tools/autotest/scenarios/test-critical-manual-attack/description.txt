@@ -1,0 +1,1 @@
+Auto: an ordinary (non-force) attack order on a soldier at 15% HP must still fire. Pins that BreakOffCondition is a preference, not target validity — only Ctrl+click worked before.

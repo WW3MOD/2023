@@ -210,8 +210,11 @@ namespace OpenRA.Mods.Common.Activities
 				return AttackStatus.UnableToAttack;
 
 			// Break off if the target has acquired the autotarget break-off condition (critical
-			// damage in WW3MOD). Force-attacks ignore this — the player explicitly asked.
-			if (!forceAttack && target.Type == TargetType.Actor && autoTarget != null
+			// damage in WW3MOD). PITFALL: this is a PREFERENCE, not a target-validity rule — scope it
+			// through BreakOffApplies or a player's ordinary attack order lands here as
+			// Default/forceAttack=false, gets refused every tick, and the soldier stands in range
+			// firing nothing. That shipped, and on screen it reads as the unit ignoring the player.
+			if (AttackBase.BreakOffApplies(source, forceAttack) && target.Type == TargetType.Actor && autoTarget != null
 				&& !string.IsNullOrEmpty(autoTarget.Info.BreakOffCondition)
 				&& target.Actor.GetConditionCount(autoTarget.Info.BreakOffCondition) > 0)
 				return AttackStatus.UnableToAttack;

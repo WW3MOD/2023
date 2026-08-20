@@ -227,7 +227,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("If a target has this condition, autotarget treats it as already-finished and skips it.",
 			"In-progress autotarget/opportunity attacks also break off when the current target acquires this condition.",
-			"Only force-attacks (Ctrl+click, Lua Actor.Attack(..., forceAttack=true), AI direct AttackTarget with forceAttack=true) still fire on these targets.",
+			"This is a preference, never a validity rule: an explicitly ordered attack (a player order, the Lua",
+			"Actor.Attack binding, or any force-attack) still fires on these targets. See AttackBase.BreakOffApplies.",
 			"Set to empty string to disable.")]
 		public readonly string BreakOffCondition = "critical-damage";
 

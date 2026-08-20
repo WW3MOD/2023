@@ -654,6 +654,16 @@ namespace OpenRA.Mods.Common.Traits
 			return max != WDist.Zero ? max : maxFallback;
 		}
 
+		/// <summary>Whether an in-progress engagement must abandon a target that has acquired
+		/// <see cref="AutoTargetInfo.BreakOffCondition"/>. Break-off expresses a preference, so it may
+		/// only cancel an engagement the unit chose for itself: AttackSource.Default is a player- or
+		/// Lua-issued order, and an explicit order is answered at the targeting layer or not at all —
+		/// never accepted and then silently dropped mid-activity. Force-attacks are exempt likewise.</summary>
+		public static bool BreakOffApplies(AttackSource source, bool forceAttack)
+		{
+			return !forceAttack && source != AttackSource.Default;
+		}
+
 		public void AttackTarget(in Target target, AttackSource source, bool queued, bool allowMove, bool forceAttack = false, Color? targetLineColor = null)
 		{
 			if (IsTraitDisabled)
