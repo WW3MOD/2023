@@ -319,8 +319,15 @@ namespace OpenRA.Mods.Common.Widgets
 						}
 					}
 
+					// PITFALL: every World.OrderGenerator write below fires on merely HOLDING a
+					// modifier, and repeats for every key event until it is released. A mode entered
+					// by modifier+click — the minefield selector — is therefore still exposed to this
+					// at the instant it opens, and was being overwritten one key event later. Ask
+					// ModifierOrderGeneratorMath before each such write; reasoning lives there.
+					var mayOwnOrderGenerator = ModifierOrderGeneratorMath.AllowsModifierOverride(world.OrderGenerator?.GetType());
+
 					// WW3MOD: Assault Move is disabled; only AttackMove is triggered
-					if (attackMoveButton != null && !attackMoveDisabled)
+					if (attackMoveButton != null && !attackMoveDisabled && mayOwnOrderGenerator)
 					{
 						// Prioritize ForceAttack (Ctrl + Alt), strip Shift so queued force-attack works
 						if ((currentModifiers & ~Modifiers.Shift) == Game.Settings.Game.ForceAttackModifiers)
