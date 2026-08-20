@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Eluant;
+using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Projectiles;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Widgets;
@@ -548,29 +549,19 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (queued)
 				mods |= TargetModifiers.ForceQueue;
 
-			var t = Target.FromActor(target);
-			var xy = target.Location;
-			var actorsAt = self.World.ActorMap.GetActorsAt(xy).ToList();
+			// Delegates rather than replicating the chain. The private copy this replaced omitted
+			// UnitOrderGenerator's terrain retry, so it answered a question the real click does not
+			// ask — it could never report the Move that a refused attack used to produce.
+			var result = UnitOrderGenerator.OrderForUnit(self, Target.FromActor(target), target.Location, mods);
+			if (result == null)
+				return null;
 
-			var candidates = self.TraitsImplementing<IIssueOrder>()
-				.SelectMany(trait => trait.Orders.Select(o => (Trait: trait, Order: o)))
-				.OrderByDescending(x => x.Order.OrderPriority);
+			var order = result.Trait.IssueOrder(self, result.Order, result.Target, queued);
+			if (order == null)
+				return null;
 
-			foreach (var c in candidates)
-			{
-				string cursor = null;
-				if (!c.Order.CanTarget(self, t, actorsAt, xy, mods, ref cursor))
-					continue;
-
-				var order = c.Trait.IssueOrder(self, c.Order, t, queued);
-				if (order == null)
-					continue;
-
-				self.World.IssueOrder(order);
-				return order.OrderString;
-			}
-
-			return null;
+			self.World.IssueOrder(order);
+			return order.OrderString;
 		}
 
 		[Desc("Issue a real AttackMove order, going through AttackMove.ResolveOrder the way a player's " +

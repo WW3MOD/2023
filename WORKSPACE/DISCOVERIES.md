@@ -3,6 +3,32 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-20 — a harness helper that "does what the real path does" had quietly dropped one step, and that step was the whole bug
+
+Branch `wt/order-fallback`. `Test.ClickOrder` is documented as resolving "the IIssueOrder targeter
+chain in descending OrderPriority exactly as UnitOrderGenerator does", and it did — except
+`UnitOrderGenerator.OrderForUnit` ran that chain **twice**: once against the clicked actor, then
+again against the terrain cell underneath it (`UnitOrderGenerator.cs:227-237` before this change).
+That second pass is where "this unit cannot attack that" became "this unit walks to that".
+`ClickOrder` had only the first pass, so it returned `nil` for a refused attack where a real click
+produced a `Move`.
+
+**The consequence is the part worth banking: the defect was unreachable from any scripted path in
+the repo.** Every `Test.Issue*` helper builds an `Order` object directly and hands it to
+`World.IssueOrder`; none of them enters the order *generator*. So a scenario written against
+`ClickOrder` to catch this bug goes **green on the broken build** — not because the setup failed or
+the predicate was wrong, but because the harness was measuring a shorter pipeline than the player
+uses. This is the false-green family from AUTOTEST.md with a new cause: not a default that reverted,
+not a second mechanism satisfying the predicate, but **a duplicated copy of the code under test that
+was missing the branch containing the bug.**
+
+Fixed by deletion rather than by patching the copy: `ClickOrder` now calls the same public
+`UnitOrderGenerator.OrderForUnit` the mouse path calls. **The general rule — whenever a test helper's
+docstring says "exactly as X does", that is a claim about a copy, and the copy is only as good as the
+day it was written.** Prefer delegating to X. Where you cannot, the docstring should name which parts
+of X it does *not* reproduce, because the omitted part is exactly where a bug can hide from every
+test you write.
+
 ## 2026-08-20 — a tier of 0 from `Test.GetVisibilityLevel` means "has not ticked yet", and it reads exactly like a broken clamp
 
 Branch `wt/invisibility-fix`. A new scenario asserting the concealment ceiling failed with

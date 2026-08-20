@@ -1,0 +1,19 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-order-no-move-fallback.lua
+
+# StancePositioningExecutor is NOT disabled here and does not need to be: it is gated on
+# `enable-tactical-positioning || enable-ai-experimental` (defaults.yaml:28) and a human player
+# grants neither, so it never ticks for USA. AutoFollowAlly — the other trait that could walk the
+# Rejector somewhere nobody ordered it — is attached to ^MEDI only (infantry.yaml:2143).
+# Both are named because "nothing else could have moved it" is half of what this scenario asserts.

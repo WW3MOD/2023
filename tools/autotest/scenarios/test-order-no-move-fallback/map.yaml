@@ -1,0 +1,93 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a refused attack order issues no move fallback
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# =====================================================================
+	# A MIXED GROUP ORDERED ONTO ONE TARGET. The user's own case.
+	#
+	# Gunner (abrams, TankRound.Abrams) can engage the t90 and must.
+	# Rejector (aa, MANPAD, `ValidTargets: Air` -- weapons-missiles.yaml:475)
+	# can NEVER engage a ground target, so ChooseArmamentsForTarget returns
+	# empty and AttackOrderTargeter refuses at AttackBase.cs:738. That refusal
+	# is what used to fall through to a bare Move onto the t90's cell.
+	#
+	# GEOMETRY IS THE ASSERTION. Everything sits on row 16. The t90 is EAST of
+	# both, and the Rejector's standing move order sends it WEST. So the two
+	# outcomes separate on a single axis and cannot be confused:
+	#   fallback removed  -> Rejector keeps walking west, X decreases
+	#   fallback present  -> Rejector turns round and walks east, X increases
+	# There is no arrangement of "it didn't happen to move" that satisfies the
+	# green half: it has to travel four cells in the direction NOBODY ordered
+	# it in during this click, which only its pre-existing activity can do.
+	#
+	# The Gunner sits 6 cells off the t90, comfortably inside tank-round range,
+	# so the positive half resolves without a long approach drive.
+	# =====================================================================
+
+	Rejector: aa
+		Owner: USA
+		Location: 42,16
+		Facing: 0
+	Gunner: abrams
+		Owner: USA
+		Location: 44,16
+		Facing: 0
+	Enemy: t90
+		Owner: Russia
+		Location: 50,16
+		Facing: 768
+
+	# `supplyroute` carries Targetable.TargetTypes: NoAutoTarget so it is never
+	# acquired by a scan. Present because faction elimination would end the match
+	# before the poller writes a verdict (AUTOTEST.md map.yaml rule 6).
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,2
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 42,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 50,16
+
+Rules: rules.yaml

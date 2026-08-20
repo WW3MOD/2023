@@ -219,24 +219,59 @@ namespace OpenRA.Mods.Common.Orders
 			if (modsNoShift == settings.AttackMoveModifiers && mi.Button == settings.AttackMoveButton)
 				modifiers |= TargetModifiers.AttackMove; // Custom modifier for WW3MOD
 
+			return OrderForUnit(self, target, xy, modifiers);
+		}
+
+		/// <summary>
+		/// Resolves the click on <paramref name="target"/> against this actor's targeter chain, in
+		/// descending OrderPriority, exactly as a mouse click does. Returns null when the actor
+		/// refuses the click outright — which for a hostile target is now the normal outcome for a
+		/// unit that cannot engage it, rather than a Move order onto its cell.
+		/// </summary>
+		public static UnitOrderResult OrderForUnit(Actor self, in Target target, CPos xy, TargetModifiers modifiers)
+		{
+			if (self.Disposed || !target.IsValidFor(self))
+				return null;
+
 			var actorsAt = self.World.ActorMap.GetActorsAt(xy).ToList();
 			var orders = self.TraitsImplementing<IIssueOrder>()
 				.SelectMany(trait => trait.Orders.Select(x => new { Trait = trait, Order = x }))
 				.OrderByDescending(x => x.Order.OrderPriority);
 
+			var candidate = target;
 			for (var i = 0; i < 2; i++)
 			{
 				foreach (var o in orders)
 				{
 					string cursor = null;
-					if (o.Order.CanTarget(self, target, actorsAt, xy, modifiers, ref cursor))
-						return new UnitOrderResult(self, o.Order, o.Trait, cursor, target);
+					if (o.Order.CanTarget(self, candidate, actorsAt, xy, modifiers, ref cursor))
+						return new UnitOrderResult(self, o.Order, o.Trait, cursor, candidate);
 				}
 
-				target = Target.FromCell(self.World, xy);
+				// PITFALL: the retry below is the ONLY route to a Move order on a cell an actor
+				// occupies — MoveOrderTargeter and AttackMoveTargeter are both terrain-only — so it
+				// cannot simply be deleted. It is gated instead; reasoning in OrderFallbackMath.
+				if (!AllowsMoveFallback(self, candidate, modifiers))
+					return null;
+
+				candidate = Target.FromCell(self.World, xy);
 			}
 
 			return null;
+		}
+
+		static bool AllowsMoveFallback(Actor self, in Target target, TargetModifiers modifiers)
+		{
+			Player owner = null;
+			if (target.Type == TargetType.Actor)
+				owner = target.Actor.Owner;
+			else if (target.Type == TargetType.FrozenActor)
+				owner = target.FrozenActor.Owner;
+
+			return OrderFallbackMath.AllowsMoveFallback(
+				owner != null,
+				owner != null ? self.Owner.RelationshipWith(owner) : PlayerRelationship.None,
+				modifiers);
 		}
 
 		static Order CheckSameOrder(IOrderTargeter iot, Order order)
@@ -248,7 +283,7 @@ namespace OpenRA.Mods.Common.Orders
 			return order;
 		}
 
-		protected sealed class UnitOrderResult
+		public sealed class UnitOrderResult
 		{
 			public readonly Actor Actor;
 			public readonly IOrderTargeter Order;
