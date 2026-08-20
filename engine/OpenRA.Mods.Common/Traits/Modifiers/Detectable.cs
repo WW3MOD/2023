@@ -43,10 +43,12 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string CounterBatteryRadarDetectableGrantsCondition = "counter-battery-radar-detectable";
 		public readonly string VisionDetectableConditionPrefix = "visibility-";
 
-		// DetectableVisionChanged grants "<prefix><CurrentVisibility>", a name built at runtime, and the level is
-		// clamped to [1, MapLayers.VisionLayers - 1] before the grant. Declare that whole reachable set so the
-		// condition lint can see it: without this, every consumer (e.g. ^DetectableRangeCircles) reads as
-		// "consumes conditions that are not granted". The bounds must track the clamp in ITick.Tick.
+		// DetectableVisionChanged grants "<prefix><CurrentVisibility>", a name built at runtime. Declare the
+		// whole set so the condition lint can see it: without this, every consumer (e.g.
+		// ^DetectableRangeCircles) reads as "consumes conditions that are not granted".
+		// This is deliberately a SUPERSET of what Detectable.ClampConcealment can now produce -- it still
+		// declares the top level, which the ceiling put out of reach. Narrowing it would strand the tier-10
+		// ring as a consumer of an undeclared condition, and that ring must survive a revert of the ceiling.
 		[GrantedConditionReference]
 		public IEnumerable<string> VisionDetectableConditions =>
 			Enumerable.Range(1, MapLayers.VisionLayers - 1).Select(i => VisionDetectableConditionPrefix + i);
@@ -83,14 +85,32 @@ namespace OpenRA.Mods.Common.Traits
 			detectableModifiers = self.TraitsImplementing<IDetectableAddativeModifier>().ToArray().Select(x => x.GetDetectableVisionAddativeModifier());
 		}
 
+		/// <summary>
+		/// Clamps a composed concealment level into the range detection can actually resolve.
+		/// </summary>
+		/// <remarks>
+		/// The ceiling is VisionLayers - 2 — one BELOW the top vision band — and that gap is the whole point.
+		/// Concealment and observer strength share a single 1..VisionLayers-1 ladder, so while concealment
+		/// could reach the top, the strongest observer in the game could at best match it and a unit at the
+		/// ceiling was undetectable at every range by everything. Reserving the top level for observers means
+		/// standard vision always wins somewhere: a maximally concealed unit is seen by ^StandardVision's
+		/// strength-9 band, i.e. inside 7 cells. That holds whether reveal is strict or not, so it does not
+		/// depend on MapLayers.IsDetected staying non-strict.
+		///
+		/// The floor of 1 is pre-existing and stays: 0 is shroud's level and must not be a concealment value.
+		/// </remarks>
+		public static int ClampConcealment(int concealment)
+		{
+			if (concealment < 1)
+				return 1;
+
+			var ceiling = MapLayers.VisionLayers - 2;
+			return concealment > ceiling ? ceiling : concealment;
+		}
+
 		void ITick.Tick(Actor self)
 		{
-			var detectable = Util.ApplyAddativeModifiers(DetectableInfo.Vision, detectableModifiers);
-
-			if (detectable <= 0)
-				detectable = 1;
-			else if (detectable > MapLayers.VisionLayers - 1)
-				detectable = MapLayers.VisionLayers - 1;
+			var detectable = ClampConcealment(Util.ApplyAddativeModifiers(DetectableInfo.Vision, detectableModifiers));
 
 			CurrentVisibility = detectable;
 
@@ -107,12 +127,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (DetectableInfo.Position == DetectablePosition.Ground)
 				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
 
-			var detectable = Util.ApplyAddativeModifiers(DetectableInfo.Vision, detectableModifiers);
-
-			if (detectable <= 0)
-				detectable = 1;
-			else if (detectable > MapLayers.VisionLayers - 1)
-				detectable = MapLayers.VisionLayers - 1;
+			var detectable = ClampConcealment(Util.ApplyAddativeModifiers(DetectableInfo.Vision, detectableModifiers));
 
 			if (DetectableInfo.Position == DetectablePosition.Footprint)
 			{
