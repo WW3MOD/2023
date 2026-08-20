@@ -53,7 +53,7 @@ humvee:
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	Health:
-		HP: 8000
+		HP: 4000
 	Armor:
 		Type: Light
 		Thickness: 10
