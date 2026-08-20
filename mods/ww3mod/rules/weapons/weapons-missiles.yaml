@@ -9,16 +9,7 @@ ATGM:
 	BurstWait: 200
 	Report: missile6.aud
 	Projectile: Missile
-		# Accuracy (260820): was a flat Absolute 512 -- the only guided anti-armour
-		# missile in the mod not scaling with firing range (WGM 20/cell, Ataka
-		# 22/cell). Flat 512 exceeds the humvee's 220 cross-axis half-width by 2.3x,
-		# and TargetDamage's Spread defaults to 1wd, so an offset landing outside the
-		# hitshape drops the whole 10000 warhead. 25/cell reproduces 500 at the 20c
-		# max range -- deliberately a no-op there -- while restoring precision in the
-		# close band where a light vehicle actually closes on infantry. Kept above
-		# both peers so the ATGM stays the least accurate of the three.
-		Inaccuracy: 25
-		InaccuracyType: PerCellIncrement
+		Inaccuracy: 512
 		Speed: 300
 		Acceleration: 30
 		RangeLimit: 21c0
