@@ -1,0 +1,14 @@
+# Manual-attack-on-crate autotest overrides. Minimal — one enemy crate, one MBT.
+
+# No cash -> no production, so the crate cannot be damaged by anything the player
+# bought. That is what makes any damage attributable to the manual order.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-crate-force-attack.lua

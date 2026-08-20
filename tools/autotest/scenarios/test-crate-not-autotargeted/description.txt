@@ -1,0 +1,1 @@
+A dropped SUPPLYCACHE must never be auto-targeted: an enemy MBT in FireAtWill must leave the crate at full health while demonstrably shooting an equally-distant supply truck (the control that proves the tank could have fired).

@@ -1,0 +1,16 @@
+# Crate proximity-capture autotest overrides. Minimal — one enemy crate, one rifleman.
+
+# No cash -> no production, so no engineer, truck or Logistics Center can appear and
+# change the crate's owner by some route other than the one under test.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	# A randomly-spawned RA-era crate wandering into a capture test is pure noise.
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-crate-proximity-capture.lua

@@ -66,9 +66,11 @@ test-cohesion-river-zeta-actual | The player `Multi4` must specify LockFaction: 
 test-cohesion-river-zeta-actual | The player `Multi5` must specify LockFaction: True.
 test-cohesion-river-zeta-actual | This map does not define a valid cordon.
 test-combined-arms-rendezvous | This map does not define a valid cordon.
+test-crate-force-attack | This map does not define a valid cordon.
+test-crate-not-autotargeted | This map does not define a valid cordon.
+test-crate-proximity-capture | This map does not define a valid cordon.
 test-crate-rearm | The map allows 2 possible players, but defines only 1 spawn points.
 test-crate-rearm | This map does not define a valid cordon.
-test-crate-targetable | This map does not define a valid cordon.
 test-experimental-poi-capture | This map does not define a valid cordon.
 test-experimental-poi-harness | This map does not define a valid cordon.
 test-experimental-poi-observe | Actor `OpponentSR` is owned by unknown player `Russia-bot`.

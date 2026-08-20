@@ -1,0 +1,1 @@
+Excluding a dropped SUPPLYCACHE from auto-target must not break the player's own attack order: an MBT given an explicit attack order on an enemy crate, firing from 4 cells so it never enters capture range, must damage it.

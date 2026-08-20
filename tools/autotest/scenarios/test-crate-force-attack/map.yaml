@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TEST: dropped supply crate is auto-targeted and destroyed by the enemy
+Title: TEST: a dropped supply crate can still be attacked manually
 
 Author: WW3MOD
 
@@ -16,12 +16,13 @@ Visibility: MissionSelector
 
 Categories: Test
 
-# A dropped SUPPLYCACHE (Crate, owned by Me) sits 4 cells from an enemy MBT
-# (EnemyTank) in default FireAtWill stance. With NoAutoTarget removed, the crate's
-# "Ground" target type matches the base FireAtWill auto-target priority, so the
-# enemy tank acquires and destroys it on its own — exactly like it would a truck.
-#   PASS = Crate is dead within the window (enemy auto-engaged and destroyed it).
-#   FAIL = Crate survives (still NoAutoTarget / not auto-targetable) or tank dies.
+# An ENEMY-owned SUPPLYCACHE (Crate) 4 cells from MyTank. The Lua issues an ordinary
+# attack order with allowMove=false, so the tank fires from where it stands and never
+# enters proximity-capture range (which would take the crate instead of shooting it).
+# NoAutoTarget must not reach this path: an explicit order binds through weapon
+# ValidTargets, which the crate still satisfies via `Ground`.
+#   PASS = Crate takes damage (the manual order bound).
+#   FAIL = Crate untouched — the exclusion broke manual attack too.
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral
@@ -60,15 +61,14 @@ Actors:
 		Owner: Neutral
 		Location: 60,30
 
-	# The dropped supply crate under test.
+	# The enemy's dropped supply crate — the thing the player wants to deny.
 	Crate: supplycache
-		Owner: Me
+		Owner: Enemy
 		Location: 20,16
 
-	# Enemy MBT in default FireAtWill stance, 4 cells east — within vision and gun
-	# range of the crate.
-	EnemyTank: abrams
-		Owner: Enemy
+	# The player's MBT, 4 cells east. Ordered to attack the crate at t=0.
+	MyTank: abrams
+		Owner: Me
 		Location: 24,16
 		Facing: 768
 
