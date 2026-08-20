@@ -1,0 +1,1 @@
+Auto: two identical 4-AA batteries, one healthy helicopter each, nobody ordered. The control battery has overkill prevention off. Measures how far apart the four first shots land in each arm — the stock battery serialising (measured 173 ticks against the control's 7) is the live "my AA won't autotarget" bug.

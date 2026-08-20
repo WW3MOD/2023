@@ -29,6 +29,130 @@
 
 ---
 
+## 2026-08-20: [high] PARTIALLY FIXED on `wt/aa-autotarget` — one AA soldier's overkill claim is EXACTLY the overkill threshold, so a single committed AA hard-skips the whole rest of the battery off a healthy aircraft (found while: diagnosing the user's live "my AA won't autotarget until I click" report, branch `wt/aa-autotarget`, `main @ e3a5250d`)
+
+> **UPDATE 2026-08-20, and the entry below is now MEASURED rather than derived.**
+> Run `260820_033930_p76804` of `test-aa-battery-volleys`, unfixed stock code:
+>
+> | lane | fired | spread | first shots |
+> |---|---|---|---|
+> | TEST (stock) | 4/4 | **173** | AA1=144 AA2=35 AA3=84 AA4=208 |
+> | CTRL (`OverkillThreshold: -1`) | 4/4 | **7** | AA1=43 AA2=47 AA3=41 AA4=40 |
+>
+> Both helicopters ended 600/600. Consecutive first shots in the stock lane are 49, 60 and 64 ticks
+> apart — **one decay period each**, the arithmetic confirming itself. The user-facing shape is
+> therefore *"the battery fires one at a time instead of together"*, not *"fewer AA fire"*: all four
+> engage in both arms, and only the spacing differs.
+>
+> **The comparison `>=` is now `>` (`AutoTarget.cs:1436`).** A single shooter's claim exactly
+> equalling the threshold is the minimum possible commitment, not overkill; under `>=` the threshold
+> could only be tripped, never approached.
+>
+> **This is expected to be a PARTIAL fix, and the residual is predicted rather than measured.**
+> `AverageDamagePercent` is additive, so `>` lets exactly TWO shooters through per window: the first
+> commits (0 → 100), the second passes `100 > 100` and commits (→ 200), and the third is blocked
+> until a halving. Four AA should therefore engage in pairs across roughly one to two decay periods —
+> a predicted spread near **60–130 ticks**, down from 173 but still far above the control's 7.
+> **`test-aa-battery-volleys` is likely to stay RED after this fix**, which is the documented
+> multi-layer pattern in `AUTOTEST.md` ("fix what I can, leave the test RED for the unfixed parts"),
+> not a sign the change did nothing. The remaining layer is the release defect described below, left
+> unfixed by explicit instruction so this run gives a clean before/after for exactly one change.
+
+**This is an INCOMPLETE FIX, not a regression.** `afa18718` (2026-08-12) is intact and nothing in
+this path has changed since — the only commits touching `AutoTarget.cs`/`Actor.cs` after it are
+`3d9500e2`, `be6a2ed0`, `8afcbbf8`, `61546a51`, none of which touch the accumulator or the threshold.
+That commit reduced the magnitude of the defect and left its structure standing, and its own message
+says so: it treats a residual 55-tick stand-down as the correct cost of "a 100 claim" and ships
+`test-aa-overkill-suppression` with `MaxSuppressionTicks = 90`, so the shipped test passes on the
+residue.
+
+The residue is a boundary equality. Three shipped constants meet exactly:
+
+1. `EstimatePercentDamage` clamps ONE shooter's claim at **100** (`AutoTarget.cs:1654`,
+   `Math.Min(totalDamage * 100 / health.MaxHP, 100)`).
+2. `OverkillThreshold` defaults to **100** (`AutoTarget.cs:217`).
+3. `ChooseTarget` skips on **`>=`** (`AutoTarget.cs:1436`).
+
+So the smallest possible unit of commitment is precisely sufficient to trip the hard skip. Against
+aircraft an AA soldier always reaches the clamp and never sits below it: MANPAD `Damage: 3000`,
+`Penetration: 15` against the Halo's `Armor.Thickness: 3` (`^Airborne`, `aircraft.yaml:22-23`) so the
+`penetration < thickness` branch is not taken, and no `Versus` table —
+`min(3000 * 100 / 600, 100) = 100`. There is no aircraft in the roster for which an AA soldier claims
+less.
+
+Consequences, and they line up with every clause of the user's report:
+
+- **A second AA will not autotarget a completely healthy helicopter** while the first one's claim
+  stands. Nothing is wrong with the target: full health, in range, clear line, no fog.
+- **A manual order fires immediately**, because `AttackBase.AttackTarget` never consults
+  `ChooseTarget`. Already measured in `test-aa-overkill-suppression` lane B (fired at t38, inside a
+  window where the auto lane was still standing down).
+- **It looks intermittent**, because release is only the `WorldTick % 60` halving
+  (`Actor.cs:309-310`) — a scan landing just before the boundary waits nearly a full period, one
+  landing just after does not, and `^CamoSoldier` re-scans on a per-unit random 16–32 tick interval
+  (`infantry.yaml:289-290`) on top of that.
+- **The battery serialises rather than volleys.** Each new joiner re-loads the accumulator, so AA
+  engage one at a time. `b47cdf7a` measured this shape directly at the pre-clamp magnitude: four AA,
+  one helicopter, nobody ordered, first shots at **t37, t200, t386, t571** — 34 real seconds for four
+  units to engage one target. The clamp divides the per-joiner spacing by roughly three; it does not
+  make them volley.
+
+**Nothing releases the claim when the shot resolves.** The accumulator models "damage is coming" and
+is never told the missile hit, missed, or was never fired. `test-aa-overkill-suppression` measured
+that a marker **killed at tick 40** still suppressed its neighbour to t206 — only decay clears it.
+With MANPAD `Inaccuracy: 256` against moving aircraft, "the shot missed and the battery stayed blind
+anyway" is ordinary play, not an edge case.
+
+**Established:** READ at HEAD for every constant and every call site, then **DERIVED** by arithmetic
+over them, plus the two prior MEASURED runs cited above (`b47cdf7a`, and the lane figures in
+`afa18718`). **Nothing was launched for this entry.**
+**Confirm by:** `tools/autotest/scenarios/test-aa-battery-volleys`, added on this branch and
+**COMMITTED UNRUN** — two identical 4-AA batteries differing only in `OverkillThreshold`, which fails
+when the stock battery fields fewer shooters than the control.
+
+**NOT FIXED HERE, deliberately.** Every candidate fix — relaxing `>=` to `>`, or dropping the clamp
+below the threshold — sits on shared behaviour. `AutoTarget` has no per-profile gating, and
+`EstimatePercentDamage` has exactly one caller outside itself: `PoiOffensiveBotModule.cs:3586`, the
+fires-economy gate, with `FiresEvGate: true` on **both** bot profiles —
+`PoiOffensiveBotModule@experimental` (`ai.yaml:586`) and `PoiOffensiveBotModule@stable`
+(`ai.yaml:2184`). `afa18718` disclosed both of those as `@stable` moves when it changed the same
+function; its line references have since drifted (it cited `:3375`, `ai.yaml:515` and `:1960`) and
+the numbers above are re-derived at HEAD. Needs the user's call.
+
+## 2026-08-20: [medium] FIXED (unrun) on `wt/aa-autotarget` — `test-aa-overkill-cadence` had been measuring nothing since 2026-08-12: the fix for the estimate's over-count silently disarmed the scenario that exploited it (found while: the AA autotarget diagnosis above, branch `wt/aa-autotarget`, `main @ e3a5250d`)
+
+The scenario decoupled the overkill mark from the damage by splitting MANPAD into a real Air warhead
+(`Damage: 20`) and a `ValidTargets: Ground` warhead (`Damage: 3000`) that the damage path would
+refuse to apply to an airborne target but that `EstimatePercentDamage` would count anyway. Its
+`weapons.yaml` stated the premise plainly: the estimate *"does NOT check ValidTargets at all"*.
+
+That was true when written and **stopped being true four days later.** `afa18718` added
+`if (!warhead.IsValidAgainst(target.Actor, attacker)) continue;` to the estimate's warhead walk
+(`AutoTarget.cs:1623`) — the exact over-count the split depended on. The Ground warhead is now
+skipped, the estimate collapses from 3020 to 20, and the mark against a 600-HP Halo is
+`20 * 100 / 600 = 3` against a threshold of 100. **Suppression is simply off.**
+
+**The failure mode is a false green of the shape the file itself documented.** Its own PITFALL block
+warned that a 1/10 scaling had once produced *"a clean pass with all four AA firing, which looks
+exactly like 'suppression does not sustain' and actually meant 'suppression was never switched on'"*.
+The same trap was then re-armed from the other side, by the fix. `afa18718` touched
+`test-aa-overkill-suppression.lua` and not this scenario, and `git log` shows no commit to it since
+`b47cdf7a` — so it has not been run since it was disarmed. It is a pure diagnostic that cannot fail
+on behaviour, so a bad setup here reports a confident wrong answer rather than an error.
+
+Repaired on this branch by dropping the payload split for a projectile `RangeLimit` cut (24c0 → 4c0):
+missiles expire ~16 cells short, nothing takes damage, and the warheads are left stock so the
+estimate is the real shipped arithmetic. That decoupling depends on no divergence between the
+estimate and the damage model, so a future fix to either cannot silently disarm it the same way.
+
+**Established:** READ at HEAD — both the scenario's premise and the commit that invalidated it.
+**DERIVED** for the collapsed estimate arithmetic. **The repair is COMMITTED UNRUN.**
+**Confirm by:** running `test-aa-overkill-cadence` and checking the first-shot spacing is not the
+prompt all-four-fire pattern that the disarmed setup would produce.
+**Also corrected in passing:** the scenario's commentary states the Halo's `Armor.Thickness` as 10;
+the value on `^Airborne` at HEAD is 3. Conclusion unaffected (Penetration 15 exceeds both), but the
+10 should not be carried forward.
+
 ## 2026-08-20: [high] OPEN, NOT FIXED — the `object-proximity` cover ladder is geometrically unreachable: the three largest concealment bonuses in the game can never be granted (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
 
 Standing next to cover contributes **exactly zero** concealment. `@InCover1/2/3`

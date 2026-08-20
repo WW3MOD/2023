@@ -1,0 +1,122 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: AA battery volleys rather than serialising
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# =====================================================================
+	# TWO BATTERIES, IDENTICAL IN EVERY RESPECT EXCEPT OverkillThreshold.
+	#
+	# `aa` and `aa.america` both inherit ^AA verbatim -- the only differences
+	# in the shipped rules are RenderSprites.Image and a Buildable prerequisite
+	# (infantry-america.yaml:74-79). Neither touches targeting. rules.yaml then
+	# sets OverkillThreshold: -1 on `aa.america` only, which is the documented
+	# off-switch for overkill prevention (AutoTarget.cs:216).
+	#
+	# So the CONTROL lane is the same units, the same weapon, the same scan
+	# cadence and the same aim delay, with the mechanism under test removed.
+	# That is what makes the comparison readable: `^CamoSoldier` draws its scan
+	# interval randomly per unit from 16-32 ticks (infantry.yaml:289-290), so
+	# four AA never acquire on the same tick even with nothing suppressing
+	# them. An absolute "all four must fire by tick N" assertion would be
+	# measuring that stagger. The difference between the lanes is not.
+	#
+	# Geometry: each battery sits 20.2 cells from its own helicopter, inside
+	# MANPAD's 23c0 Range. The lanes are 38.6 cells apart -- beyond the
+	# ScanRadius of 30 set in rules.yaml -- so neither battery can see the
+	# other's aircraft. No trees, fog off: line of fire and detection are held
+	# wide open, because the user's report is explicitly "there was no
+	# obstacles in some of the cases and they still didn't fire".
+	# =====================================================================
+
+	# --- TEST battery: stock overkill prevention ---
+	TestAA1: aa
+		Owner: USA
+		Location: 10,28
+		Facing: 0
+	TestAA2: aa
+		Owner: USA
+		Location: 12,28
+		Facing: 0
+	TestAA3: aa
+		Owner: USA
+		Location: 14,28
+		Facing: 0
+	TestAA4: aa
+		Owner: USA
+		Location: 16,28
+		Facing: 0
+
+	# --- CONTROL battery: overkill prevention disabled ---
+	CtlAA1: aa.america
+		Owner: USA
+		Location: 46,28
+		Facing: 0
+	CtlAA2: aa.america
+		Owner: USA
+		Location: 48,28
+		Facing: 0
+	CtlAA3: aa.america
+		Owner: USA
+		Location: 50,28
+		Facing: 0
+	CtlAA4: aa.america
+		Owner: USA
+		Location: 52,28
+		Facing: 0
+
+	# `supplyroute` carries Targetable.TargetTypes: NoAutoTarget, so it is never
+	# picked up by a scan even though OpponentSR sits 27 cells from CtlAA4.
+	# Present because faction elimination would end the match before the poller
+	# writes a verdict (AUTOTEST.md map.yaml rule 6).
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,2
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 31,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 31,8
+
+Rules: rules.yaml
+
+Weapons: weapons.yaml

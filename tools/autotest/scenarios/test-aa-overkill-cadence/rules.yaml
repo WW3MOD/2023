@@ -26,13 +26,15 @@ AA:
 	AmmoPool@1:
 		Ammo: 30
 
-# The MANPAD payload split that makes a multi-cycle fight possible lives in
-# weapons.yaml, where weapon overrides belong. It is explained in full there.
+# The RangeLimit cut that makes a multi-cycle fight possible lives in
+# weapons.yaml, where weapon overrides belong. It is explained in full there,
+# including why it REPLACED the old payload split on 2026-08-20.
 
-# Stock 600 HP is required -- it is what makes the mark 500. Autorotation
-# begins at Heavy (<50% = 300), which twelve 50-damage hits would cross
-# partway through, and a descending or crashing aircraft would move the
-# geometry underneath the measurement.
+# Stock 600 HP is required -- it is what makes the mark reach 100, i.e. exactly
+# OverkillThreshold. Raising it would put the claim UNDER the threshold and
+# switch the mechanism off entirely. Nothing damages the aircraft now (missiles
+# expire ~16 cells short), but these two stay removed anyway: a descending or
+# crashing aircraft would move the geometry underneath the measurement.
 
 HALO:
 	-HeliEmergencyLanding:
