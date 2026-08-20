@@ -18,6 +18,7 @@ The highest-traffic entries, and why they are still worth reading:
 | **52** (lint noise) | `--check-yaml` re-runs the whole rules lint **once per map** and never deduplicates. **Diff the error LIST, never the count.** |
 | **63 / 66** (procurement) | The floor mechanisms and the precedence axis these built are what make item 57's remaining scope smaller than it reads. |
 | **47** (GPLv3) | **A grep's scope is part of its claim.** Two separate false findings on one day traced to exactly this. |
+| **8** (ambush implementation) | **The load-bearing line is ruling D — *"human-settable + bot behind the same default-off gate from day one."*** What shipped grants `enable-ambush-tactics` to bot-posted units only, so **the bot-only gate is a regression against this item's own design decision, not a design choice** (live item **68**, 2026-08-20). Also the origin of the "gate (b) benchmark pricing" thread, parked as void-corpus in `AWAITING-USER.md`. **Do not re-file ambush as unbuilt: all four stages are here.** |
 
 ---
 

@@ -102,7 +102,7 @@ The systems audit expected to find the `ForwardStaging` failure mode repeating (
 
 | System | Tracker says | Actually |
 |---|---|---|
-| **Stance rework (4 phases)** | `[ ]` open | **LIVE AND COMPLETE** — all four modifier axes plus patrol are wired |
+| **Stance rework (4 phases)** | `[ ]` open | **LIVE** — all four modifier axes plus patrol are wired. ⚠️ *"complete" narrowed 2026-08-20:* the **fire** axis ships, but no stance touches detectability (`stance-ambush`/`stance-holdfire` have **zero** `RequiresCondition` consumers in `mods/` — which is correct per the user's design ruling), and the **Ambush** stance's widened half reaches bot-posted units only. See items 67–71 |
 | **Supply Route contestation** | `[ ]` open | **LIVE AND COMPLETE** — control bar, production slowdown and notifications all ship |
 | **Three-mode move system** | `[ ]` open | **LIVE AND COMPLETE** |
 
@@ -202,6 +202,8 @@ It says losing the Route "puts them out of the match"; the shipped mechanic make
 >
 > **⚠️ Standing hazard, and it is this queue's most expensive recurring defect.** In the week to 2026-08-19, **five items were found to describe already-merged work**; two of them cost a worker dispatched at nothing. Entries tagged `[IN FLIGHT]` have twice outlived their own merge. **Before dispatching anyone, spend one `git log -S <symbol>` or one grep on the item's central premise.**
 >
+> **⚠️ The subject with the freshest research is at the BOTTOM of this file, not the top.** Everything on ambush, concealment, cover, stances and detection lives in the user-gated block immediately above `## PARKED` — **items 67–71**, plus a re-framed **item 22**. It is last in execution order *only* because the user has gated it. **Read the block header before touching any of it: ambush SHIPPED and is not a feature to be built.**
+>
 > **VERDICT PASS COMPLETE 2026-08-19 (`main @ 5890b053`).** The 17 one-grep-deep ⚠️ flags set during the file split have all been converted to verdicts and the ⚠️ markers removed; each item now carries a dated ✅/❌ block naming the commit or the evidence. **Read that block before re-checking anything — it exists so the next person does not repeat the grep.** Two lessons from the pass, both worth generalising:
 > - **A merged branch is not a finished item.** Item 64's branch merged carrying a rendezvous that is *switched off by default*; item 65's named branch carried test hygiene while the actual fix rode a different one. Always read what the branch *contained*.
 > - **A flag can be wrong in the expensive direction.** R6 was flagged "count is stale, needs a re-count not a dispatch" on the strength of a commit (`ed5ee6b6`) that turned out to be a `PIPELINE.md` edit, not command-bar work. Eight placeholder `X` buttons are still there. **Two documents agreeing on a number is not evidence; the file is.**
@@ -225,7 +227,7 @@ Impact classification skips `IsGroundCover()` actors in **both** copies of `Acto
 ### 40. Danger-scale rework — stop the bot treating ordinary ground as lethal
 `[stage (a) DONE ddcc5d6c; stage (b) instrument landed; stage (c) OPEN and is now the whole item]`
 **Perceived:** the bot stops flinching at nothing. Supply trucks actually deliver instead of driving part-way and turning back; units stop refusing to advance across terrain that is not in fact dangerous.
-All 18 ground thresholds (plus 1 air) sit 8×–459× below the live median cell of the field they gate. **Gates the `@stable` benchmark re-baseline (item 43), which in turn gates 22, 25, 31 and ambush gate (b)** — nothing downstream of a measurement moves until the instrument is right. Moves BOTH bot profiles by construction; no seam exists to hide behind. → [`items/40-danger-scale-rework.md`](pipeline/items/40-danger-scale-rework.md)
+All 18 ground thresholds (plus 1 air) sit 8×–459× below the live median cell of the field they gate. **Gates the `@stable` benchmark re-baseline (item 43), which in turn gates item 22 and ambush gate (b)** — nothing downstream of a measurement moves until the instrument is right. _(Cross-reference corrected 2026-08-20: the old list read "22, 25, 31". **Items 25 and 31 are archived** — 25 shipped `5dc14934` on 2026-07-29, 31 merged `af8bca1f` with its gates off — so neither can be gated by a future measurement. **The dossier still carries the old list**; it was left unedited because item 40's subject was not researched here.)_ Moves BOTH bot profiles by construction; no seam exists to hide behind. → [`items/40-danger-scale-rework.md`](pipeline/items/40-danger-scale-rework.md)
 
 ---
 
@@ -317,6 +319,8 @@ Explicitly wanted for HUMAN play too. Recon landed, nothing implemented: **batch
 
 ### 32. Faction balance audit — RU testing + US-vs-RU imbalance detection **[IN FLIGHT 2026-08-02, user-gated on runs + sign-off]**
 **Perceived:** RU bots get the same test coverage as US bots; a measured verdict on whether US-vs-RU is imbalanced; and any stat rebalancing goes through an explicit user sign-off flow. From user 2026-08-02: mirror tests (US/US, RU/RU) isolate bot skill from faction imbalance; US-vs-RU probes measure the imbalance itself; **"I do not want you to change any unit stats without my explicit review and approval."**
+> ⚠️ **FLAGGED STALE 2026-08-20 — not researched here, not rewritten. Verify before dispatching.** Two cheap signals, both against `main @ 57822b4e`: **(1) the named branch `auto/balance-audit` does not exist** — the balance work that landed came through `wt/balance-parity` (merge `c8ad2baa`) and `7ec36b8c`. **(2) Part (a) looks DONE:** `WORKSPACE/balance/260802-parity-audit.md` exists, and part (c)'s numbered-proposal flow is clearly in use (`001-tunguska-duplicate-health.md`, `002-himars-iskander-parity.md`, `003-mi28-secondary-air.md`, plus two dated 260819 docs). The `[IN FLIGHT 2026-08-02]` tag is 18 days old and this queue's header warns that tag has twice outlived its own merge. **Someone who owns this subject should re-cut the stub to whatever is actually left.**
+
 _Three parts: (a) static parity audit — US vs RU roster stat/cost comparison from YAML alone, no game runs; (b) mirror + cross-faction test configs authored ready-to-run (runs need a user grant, see `AWAITING-USER.md`); (c) proposals land as numbered docs in `WORKSPACE/balance/` — evidence, proposed change, expected effect — each individually signed off by the user before any YAML edit. Worker on `auto/balance-audit`._
 
 ### 22. Case 01 — forest ambush measurement (`cases/case-01-forest-ambush.md`) — **AWAITING ONE USER YES/NO, NOT MORE MEASUREMENT**
@@ -325,6 +329,11 @@ _Three parts: (a) static parity audit — US vs RU roster stat/cost comparison f
 > **Read this before opening the file:** its own `## Bar` header at `:23-27` still says "NOT ratified… ratify before the bar gates autoburn iteration". True, but it reads as though no candidate exists — **the candidate is 14 lines further down.** The header is stale relative to the body.
 > **Next step is a single user yes/no on Bar A (+B). No run is needed to get there.**
 
+> ⚠️ **RE-FRAMED 2026-08-20 by the ambush research programme — the ASK is unchanged, what the test MEASURES is not. Do not close this on the strength of the research.** Re-verified at `main @ 57822b4e`: the bar numbers are live and still unratified (`parse-case01-bar.py:33-36` — `BAR_A_DEF_MAX_MEAN = 50`, `BAR_A_ATT_MIN_MEAN = 300`, `BAR_A_MIN_SEEDS = 6`, `BAR_B_DEF_MAX = 0`), so `AWAITING-USER.md` §4 is genuinely open.
+> **But the scenario grants its own gate.** `test-case01-forest-ambush.lua:3` posts the defenders as *"USA, HUMAN, Ambush stance, `enable-ambush-tactics` granted"* — a configuration **no human player can reach in a real match**, because nothing outside `LaneAmbushBotModule` and the autotests' own Lua grants that token (item **68**). A green here prices the **bot's** ambush, not the one the player gets.
+> **And the defence it measures rests on a cover term that is unreachable** (item **69**): the `+1/+2/+3` `object-proximity` ladder has one emitter repo-wide and no soldier can stand inside its radius. `AWAITING-USER.md:123`'s reassurance that the correction "widens the defenders' margin" was written before that was known — **it is not wrong about the bar, but it is no longer the whole picture.**
+> **Consequence, stated plainly:** ratifying is still worth one word — it makes a red result actionable instead of arguable. Just do not read a green as *"ambush works for players."* **Do not cite this scenario as evidence the coordination works** (`ambush-programme/README.md` §5): it is ~1000 commits stale and never asserts simultaneity.
+
 **Perceived:** the payoff of 20+21, proven by a number: an equal-cost force walking into the treeline ambush is destroyed at ~3× the defenders' losses, repeatably.
 _Scenario authored (`tools/autotest/scenarios/test-case01-forest-ambush/`, scripted attacker + defender squad under test); calibration batch RUN. Finding: the provisional **1:3 cost-weighted ratio is ill-posed** — a holding concealment drives defender losses to **zero** (÷0), so the bar must reframe to "def casualties ≤ X AND att casualties ≥ Y over N seeds" (DISCOVERIES 2026-07-28). **Bar ratification awaits user** before iterating to GREEN. Detect-enabled fire-lane variant authored as case-01b (`4846a60a`)._
 
@@ -332,6 +341,46 @@ _Scenario authored (`tools/autotest/scenarios/test-case01-forest-ambush/`, scrip
 `[Phase C polish, NOT new v1 scope]`
 **Perceived:** the game stops introducing itself as somebody else's. Nothing about the battlefield changes — this is the frame around it, and it is the first thing a new player reads.
 Overlaps items 46 and R7. The asset-licensing half was split out as item 41. → [`items/39-branding-release-polish.md`](pipeline/items/39-branding-release-polish.md)
+
+---
+
+## AMBUSH, CONCEALMENT & COVER — 2026-08-20 research programme **[USER-GATED: NOTHING IN THIS BLOCK MAY BE IMPLEMENTED]**
+
+> **Two hard gates, both the user's, both load-bearing. Neither is a manager call.**
+>
+> 1. **Nothing on stances, ambush, concealment or cover may be implemented until the user says so.** Verbatim: *"I will let you know when we are ready to implement, until then just ask me"* and *"it is my wish that you really get to the bottom of this before we start implementing."* This block therefore sits **last in execution order only because it is gated** — not because it ranks low. It is the most recent and best-evidenced work in this file.
+> 2. **Item 67 lands BEFORE item 69.** Ruled 2026-08-20 (`57822b4e`): repairing the cover ladder first makes a currently-unreachable invisibility tier reachable, so the visibility floor is cheap now and urgent later.
+>
+> **What the research settled, and it inverts the framing every earlier ambush item used: ambush is NOT a feature to be built — it shipped.** `UnitStance { HoldFire, Ambush, FireAtWill }` is live at `AutoTarget.cs:22` (re-verified here at `main @ 57822b4e`) with a bound button, a gold `A` glyph, pre-aim, a coordinated spring, a five-trigger state machine, five passing autotests and both bot profiles. **Nine strands were dispatched and every one that examined a mechanism found it already built and quietly broken, not missing.** An item reading "design ambush", "build the ambush stance" or "add hold-fire" is describing merged work — the implementation is archived as **item 8** in [`closed-items.md`](pipeline/archive/closed-items.md).
+>
+> **Programme: [`ambush-programme/README.md`](ambush-programme/README.md).** The ninth strand, [`recon/260820-ambush-cover-detection-audit.md`](recon/260820-ambush-cover-detection-audit.md), is the only document there with a second independent pass behind it and **outranks the other eight wherever they disagree** — it already overturned one confident, widely-repeated, wrong story. **Defect detail belongs in [`bugs/discovered.md`](bugs/discovered.md), not here. These stay stubs.**
+>
+> **Deliberately NOT queued: a legibility / readout item.** That is precisely the mistake manager decision 08 records — shipping a readout *around* an absent behaviour and reporting it as the answer. Legibility is a sequencing rule, not a scope rule: it follows a behaviour fix, it does not substitute for one.
+
+### 67. Clamp minimum detectability to 1 — nothing is ever fully invisible
+`[RULED by the user 2026-08-20; implementation user-gated. MUST LAND BEFORE ITEM 69]`
+**Perceived:** you can always find a man you are standing on top of. Today a sufficiently concealed unit can drop out of standard vision entirely, which the user reads as a bug, not a reward.
+User verbatim: *"I think it is an error that they can become fully invisible… I think their visibility should be at least 1 at all times."* **No clamp exists** — verified 2026-08-20, no `MinDetectab*` / `VisibilityFloor` / `MinVisibility` symbol anywhere under `engine/OpenRA.Mods.Common/Traits/` or `mods/`. Once it holds, the concealment gauge's top tier becomes unreachable and the "vanishing ring" cliff stops existing on its own. Ruling and sequencing: `57822b4e`, `ambush-programme/README.md` §7.
+
+### 68. A human clicking Ambush gets a different feature from the one the bots get
+`[HEADLINE DEFECT of the 2026-08-20 programme; user-gated]`
+**Perceived:** the player picks Ambush, reads a tooltip promising a coordinated hold-and-spring, and gets plain hold-fire. The bots get the real thing.
+Stages 2–4 — halt-before-contact, the stationary hide-and-spring machine, the coordinated spring — are gated on `enable-ambush-tactics`, granted by `LaneAmbushBotModule` (`:451,474`) and by **six autotest scenarios** — five in Lua, plus `test-case01-forest-ambush`, which grants it in its own `map.yaml` as well — **and by nothing else** (re-verified by grep at `main @ 57822b4e`: 7 files, 6 scenarios). `AutoTarget.cs:93` describes the gate as *"a human opt-in / bot ledger commit / test map grants"* — **no human opt-in path ships**, and `LaneAmbushBotModule.cs:48` says so outright. **This is a regression against this feature's own shipped design ruling D** (item 8: *"human-settable + bot behind the same default-off gate from day one"*), not a design choice. **Five passing autotests do not contradict it — they pass because they grant the gate by hand.** *(Five passing against six granting is not an inconsistency: the sixth, `test-case01b-detect`, has never been run — see item 70.)* The grantor seam already exists, so this is a gating question, not a design one, and it is the strongest single candidate for the user's original complaint.
+
+### 69. The concealment cover ladder is dead end-to-end
+`[user-gated; AND BLOCKED BEHIND ITEM 67 by the user's sequencing ruling]`
+**Perceived:** hiding in a forest does nothing. The largest single term in the concealment stack never fires, so the treeline a player picks for cover is worth exactly what open ground is worth.
+`object-proximity` (`+1/+2/+3`, consumed at `infantry.yaml:704-715`) has **exactly one emitter repo-wide** — `^TreeHusk` (`husks.yaml:118-121`). Living trees emit nothing. **And burning the forest down does not help:** the audit's geometry pass shows the husk's trigger radius sits inside a cell the husk itself blocks, so zero of 23 husk types are reachable. **Three separate parties grepped this and produced the same plausible wrong story, because all three checked the GRANT and none checked the GEOMETRY** (`534e36d6`) — do not re-derive this from the grant. Carries three sibling detectability-input defects from the same audit: the two `dugin` timer bugs, the −2 firing penalty being `primary`-armament only, and infantry CV topping out at 9. **One contradiction is deliberately preserved, not papered over** — the legibility strand computes a reachable CV 10, the audit says 9; both cannot be true. ⚠️ **The existing `bugs/discovered.md` 2026-08-20 entry still carries the superseded "only burnt trees" framing**; the parallel bug-filing pass owns correcting it.
+
+### 70. The coordinated spring is not coordinated, and the tooltip promises a zero aim delay that does not exist
+`[user-gated]`
+**Perceived:** the trap springs and nothing happens for a beat — the volley smears over a second or two, and an MBT stands in the open for ~3 s before firing. The Ambush tooltip promises *"zero aim delay."*
+`TriggerNearbyAmbushAllies` sets a flag on each nearby ambusher and **never makes any of them shoot** — each fires on its own next scan, at WW3MOD's overridden 16–32-tick infantry interval against an engine default of 3–8, drawn per unit. Separately `Armament.AimingDelay` is 15 ticks on infantry and 30–50 on vehicles, is charged **in full after the spring**, and pre-aim never touches it (`PreAimAtTarget` only rotates facing). **The two are the same order of magnitude — fixing either alone leaves about half the lag.** **Trap:** the obvious fix routes through `ScanForTarget`, which re-arms off `SharedRandom` and would shift the shared RNG stream and break the frozen `@stable` baseline; the codebase already solved this exact problem for target preemption — copy that pattern verbatim. **Unmeasured:** the 1–2 s figure is derived from YAML and the timestep, not observed. `test-case01b-detect` was authored to measure precisely this and **has never been run once** — the cheapest measurement available anywhere in the programme.
+
+### 71. Cover protects almost nothing, and Take Cover would march a squad onto burnt ground
+`[user-gated; needs a design call before any code]`
+**Perceived:** going prone or digging in feels like it should save you and does not — and a Take Cover button would confidently send soldiers to a position that stopped being cover several minutes ago.
+Of the mod's **109 `DamageTypes:` declarations, exactly one** carries a `Prone*` token, and `InfantryStates.cs:200-203` applies `ProneDamageModifiers` only to warheads declaring a match — so prone reduces damage from one superweapon and nothing else. `dugin` is concealment-only, zero damage reduction. **The dominant protective effect is not damage reduction at all:** `ClearSightThreshold` (`Armament.cs:364`) refuses the shot outright once foliage on the line exceeds the weapon's threshold, which is almost certainly what players perceive as "cover working" — and nothing in the UI says so. **Map density is static:** `UpdateDensityForBuilding` and the shadow-update queue ship with their callers commented out, so a forest shelled flat still grants full cover, full concealment, and still refuses rifle shots. **The Take Cover button was deleted 2026-08-19 and the user has ruled it must be both automatic AND a button**, so building this means restoring it; item 61's dead-button analysis in [`closed-items.md`](pipeline/archive/closed-items.md) is the costing and records that it was inert at three levels.
 
 ---
 
