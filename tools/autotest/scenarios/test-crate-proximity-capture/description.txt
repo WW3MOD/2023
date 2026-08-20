@@ -1,0 +1,1 @@
+Getting close to an enemy supply crate must capture it instantly with no order: a rifleman given one plain Move order to a cell six past the crate must own it by the time he walks by.

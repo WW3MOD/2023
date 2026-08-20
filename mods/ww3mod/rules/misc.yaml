@@ -417,8 +417,28 @@ SUPPLYCACHE:
 		# the bug: shooting a crate destroys resources both sides would rather capture.
 		TargetTypes: Ground, Structure, NoAutoTarget
 	ProximityCapturable:
-		Range: 1c512
+		# "Getting close to one should capture it for ourselves instantly." No order, no activity —
+		# any ground unit that walks within this radius takes the crate, contents intact.
+		#
+		# 2c512 is not a feel-good number: it is what the Logistics Center already absorbs a cache at
+		# (AbsorbsSupplyCache, structures.yaml:418). Both answer "how close must you be for a crate to
+		# come to you", so they should not disagree. The previous 1c512 required a unit to stop
+		# essentially ON the box, which is the "I walked up to it and nothing happened" report.
+		#
+		# CEILING, pinned by CrateProximityCaptureTest: this must never exceed SupplyProvider.Range
+		# below (4c0). Capturing from beyond the aura in which the crate would already be serving you
+		# would let a unit take a box it has no other relationship with.
+		#
+		# Own-side crates are unaffected: ActorEntered classifies by relationship to the ORIGINAL owner
+		# (ProximityCapturable.cs:111), so a friendly unit — including the truck that just dropped it —
+		# is never a captor. That is why widening this cannot re-swallow a deliberate forward dump the
+		# way a proximity ABSORBER on the truck would (economy.md, SUPPLYCACHE).
+		Range: 2c512
 		Sticky: true
+		# Ground contact only. `Plane` is deliberately absent: the proximity trigger is registered with
+		# vRange 0 and ProximityTrigger treats that as NO altitude filter (ActorMap.cs:144), so adding it
+		# would let any aircraft capture crates by flying over them at cruise height. `Tank` is vestigial
+		# — no unit in this mod declares it — but is left in place as it costs nothing.
 		CaptorTypes: Player, Vehicle, Tank, Infantry
 	HitShape:
 		Type: Circle

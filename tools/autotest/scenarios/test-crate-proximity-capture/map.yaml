@@ -1,0 +1,78 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: walking past an enemy supply crate captures it
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# An ENEMY-owned SUPPLYCACHE (Crate) at (20,16) with a rifleman (Walker) 6 cells west.
+# The Lua gives Walker ONE plain Move order to (26,16) — six cells PAST the crate — so
+# he is never ordered to interact with it and merely walks by. Nothing else here can
+# change the crate's owner: no Logistics Center, no supply truck, no engineer, and
+# DefaultCash 0 so neither side can produce one.
+#   PASS = Crate owner flips to Me as Walker passes (proximity alone did it).
+#   FAIL = Crate still Enemy when the window closes.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		LockFaction: True
+		Faction: america
+		Enemies: Enemy
+	PlayerReference@Enemy:
+		Name: Enemy
+		LockFaction: True
+		Faction: america
+		Enemies: Me
+
+Actors:
+	MySR: supplyroute
+		Owner: Me
+		Location: 4,4
+	EnemySR: supplyroute
+		Owner: Enemy
+		Location: 60,30
+
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,4
+	SpawnEnemy: mpspawn
+		Owner: Neutral
+		Location: 60,30
+
+	# The enemy's dropped supply crate — the loot under test.
+	Crate: supplycache
+		Owner: Enemy
+		Location: 20,16
+
+	# A rifleman 6 cells west. The Lua gives him ONE plain Move order to (26,16), six
+	# cells PAST the crate, so he is never ordered to interact with it — he only walks
+	# by. Infantry declare `ProximityCaptor: Types: Infantry`, which SUPPLYCACHE's
+	# CaptorTypes accepts.
+	Walker: e1
+		Owner: Me
+		Location: 14,16
+		Facing: 512
+
+Rules: rules.yaml
