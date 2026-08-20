@@ -372,10 +372,19 @@
 		CustomPipType: empty_class
 	ProximityCaptor:
 		Types: CivilianInfantry
+	# A critically damaged man is prone and still: he does not panic and he does not wander. Soldiers get
+	# this from InfantryStates' `PanicCondition: onfire && !critical-damage`; the civilian family carries
+	# no InfantryStates at all and panics through ScaredyCat instead, so the rule has to be restated here.
+	# PITFALL: SpeedMultiplier@CriticalDamage (^EffectsWhenDamagedInfantry) is NOT this gate and does not
+	# substitute for it. It zeroes how fast a move crosses a cell, not whether the actor decides to move —
+	# a speed-0 panicking man still plays `panic-run` on the spot and still claims the next cell, because
+	# Move queues SetLocation before it ever asks Mobile how fast the actor can travel.
 	ScaredyCat:
+		RequiresCondition: !critical-damage
 	Voiced:
 		VoiceSet: CivilianMaleVoice
 	Wanders:
+		RequiresCondition: !critical-damage
 		MinMoveDelay: 150
 		MaxMoveDelay: 750
 	MapEditorData:

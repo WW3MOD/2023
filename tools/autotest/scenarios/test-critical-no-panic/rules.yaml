@@ -1,0 +1,12 @@
+# No cash, so nothing is produced and the technician is the only mobile actor in the match.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-critical-no-panic.lua
