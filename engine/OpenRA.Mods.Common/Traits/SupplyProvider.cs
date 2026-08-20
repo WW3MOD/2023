@@ -355,7 +355,7 @@ namespace OpenRA.Mods.Common.Traits
 			// down to the last usable batch — once the residue is genuinely unusable,
 			// CountsAsEmpty carries it to evac. Reserving supply it will never restock would
 			// just strand it, amber-barred, next to a unit it could still help.
-			if (currentSupply < Info.RestockThreshold && currentTarget == null && !KeepServingBelowThreshold())
+			if (ReservesRemainderForRestock(currentSupply, Info.RestockThreshold, currentTarget != null, KeepServingBelowThreshold()))
 			{
 				RevokeTargetCondition();
 				currentTarget = null;
@@ -1107,7 +1107,7 @@ namespace OpenRA.Mods.Common.Traits
 				// Tick: below the restock threshold with no active customer, and not one of the
 				// evacuating trucks that keep serving down to the last usable batch — it is about
 				// to reserve its remainder and drive home.
-				if (currentSupply < Info.RestockThreshold && currentTarget == null && !KeepServingBelowThreshold())
+				if (ReservesRemainderForRestock(currentSupply, Info.RestockThreshold, currentTarget != null, KeepServingBelowThreshold()))
 					return false;
 
 				return true;
@@ -1124,6 +1124,32 @@ namespace OpenRA.Mods.Common.Traits
 		public static bool InAuraRange(WPos providerPos, WPos targetPos, WDist range)
 		{
 			return (targetPos - providerPos).HorizontalLengthSquared <= range.LengthSquared;
+		}
+
+		/// <summary>
+		/// Is this provider holding its remaining supply back for a drive home rather than serving it?
+		///
+		/// <para>THE POINT OF THE THRESHOLD is a trip to reserve for: a truck that keeps handing out
+		/// batches until it is empty cannot reach a Logistics Center to refill, so it stops at
+		/// <c>RestockThreshold</c> and drives. A provider that will never drive anywhere has no such trip,
+		/// and holding supply back for it is pure loss — the supply is spent when the provider dies or is
+		/// captured, and in the meantime it is a box with a visible supply bar that serves nobody.</para>
+		///
+		/// <para>Pure, and shared by <see cref="TickServing"/> and <see cref="CanServeNow"/> — which is the
+		/// reason it exists as a function at all. The clause was written out twice, once in the tick ladder
+		/// and once in the predicate that claims to mirror that ladder, so the two could disagree about
+		/// whether a provider serves without anything failing.</para>
+		///
+		/// <para>A <paramref name="restockThreshold"/> of 0 disables the reservation outright: a stationary
+		/// cache serves down to its last batch, which is what <c>RemoveBelowSupply</c> already assumes when
+		/// it waits for supply 0 to despawn. The two fields are a matched pair — a non-zero reservation
+		/// under a lower removal floor strands the provider permanently in the gap between them, holding
+		/// supply it will not spend and sitting above the level at which it would clean itself up.</para>
+		/// </summary>
+		public static bool ReservesRemainderForRestock(
+			int currentSupply, int restockThreshold, bool hasActiveTarget, bool keepServingBelowThreshold)
+		{
+			return currentSupply < restockThreshold && !hasActiveTarget && !keepServingBelowThreshold;
 		}
 
 		/// <summary>

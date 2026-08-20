@@ -29,6 +29,25 @@
 
 ---
 
+## 2026-08-21: [low] OPEN, NOT FIXED — `AmmoPool.ChooseResupplier`'s comment names SUPPLYCACHE as a seekable host, but no `RearmActors` list in the corpus contains it, so a crate can never be walked to (found while: fixing the crate rearm defect, branch `wt/cache-rearm`, `main @ c8848496`)
+
+`AmmoPool.cs:438` labels its second query "SupplyProvider hosts (TRUK, SUPPLYCACHE) with supply
+remaining", and the filter immediately under it is `rearmInfo.RearmActors.Contains(a.Info.Name)`.
+Every `RearmActors` declaration in the corpus is either `truk, logisticscenter` (infantry) or
+`logisticscenter` (vehicles) — **none names `supplycache`** — so the cache branch of that comment is
+unreachable. `AutoSeekSupplies` routes solely through this method (`AutoSeekSupplies.cs:281`), so no
+unit ever walks to a dropped crate of its own accord; crates are push-only, serving whoever happens
+to stand inside the aura.
+
+**This is documented behaviour, not obviously a defect**: `economy.md:47` states the push-only
+property correctly and deliberately ("no `RearmActors` list anywhere names `supplycache`, so a cache
+can never be *walked to*"). Filed at [low] because the CODE COMMENT contradicts it and will mislead
+the next reader into thinking the seek path covers crates. Two candidate resolutions, and the choice
+is a design call, not a cleanup: correct the comment to match the intent, or add `supplycache` to
+infantry `RearmActors` so dropped crates become a destination. The second is a real gameplay change
+(forward dumps would start pulling idle infantry off the line toward them) and must not be made
+casually — it is deliberately NOT part of the crate rearm-parity fix.
+
 ## 2026-08-20: [high] PARTIALLY FIXED on `wt/aa-autotarget` — one AA soldier's overkill claim is EXACTLY the overkill threshold, so a single committed AA hard-skips the whole rest of the battery off a healthy aircraft (found while: diagnosing the user's live "my AA won't autotarget until I click" report, branch `wt/aa-autotarget`, `main @ e3a5250d`)
 
 > **UPDATE 2026-08-20, and the entry below is now MEASURED rather than derived.**

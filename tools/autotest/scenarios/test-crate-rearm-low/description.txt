@@ -1,0 +1,1 @@
+A SUPPLYCACHE holding less than the truck's restock threshold must still spend it: a crate set to 30 supply should rearm a drained rifleman beside it, not park inert on a load it never despawns with.
