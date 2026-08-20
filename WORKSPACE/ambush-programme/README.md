@@ -323,7 +323,18 @@ premise of the question:
 > cannot find an enemy if you are basically standing on top of him… I think their visibility should
 > be at least 1 at all times."*
 
-**THE RULING AS RECORDED IS A NO-OP. It must be re-put to the user before anything is built.**
+> **RE-RULED 2026-08-20, and this one IS a go to implement.** Told that their first ruling was a
+> no-op, the user chose **"both, comparison first"**: make the reveal comparison non-strict *and*
+> cap the concealment ceiling, closing the mechanism-level route first because it is the one no
+> unit choice can avoid. This lifts the research freeze **for this fix only** — everything else in
+> this folder is still research-only until they say otherwise.
+>
+> The comparison change sits in the detection path shared with `@stable`, so it **requires a
+> benchmark re-take**, which is user-gated and cannot be run autonomously. Per project policy
+> `@stable` inherits the improvement rather than being gated off it — but the commit must say so
+> plainly, so the next baseline is re-taken knowingly.
+
+**THE FIRST RULING WAS A NO-OP — kept here because the reasoning is the reusable part.**
 
 The synthesis established why, and it is a language problem rather than a design one. The user
 said *"visibility should be at least 1 at all times"*, meaning **always findable**. In this
