@@ -41,10 +41,29 @@ AA.america:
 	AmmoPool@1:
 		Ammo: 30
 
-# No damage is dealt in this scenario (see weapons.yaml), so neither of these
-# should ever trigger. Removed anyway: a descending or crashing aircraft would
-# move the geometry underneath the measurement, and a silent altitude change
-# is exactly the kind of thing that turns "did not fire" into "could not fire".
-HALO:
-	-HeliEmergencyLanding:
-	-ChangesHealth@CrashBurn:
+# THE HELICOPTER IS DELIBERATELY LEFT COMPLETELY STOCK. No `HALO:` block at all.
+#
+# The sibling AA scenarios (test-aa-overkill-pump, test-aa-breakoff-critical)
+# all carry `HALO: Health: HP: <big>` plus `-HeliEmergencyLanding:` and
+# `-ChangesHealth@CrashBurn:`, because they hold the aircraft at a chosen health
+# fraction and must stop it autorotating out from under the measurement. Neither
+# is needed here, and both would be actively wrong:
+#
+#   * Raising HP would DISARM THE MECHANISM UNDER TEST. The mark is
+#     min(3000 * 100 / MaxHP, 100), so anything above 3000 HP puts a single AA's
+#     claim under OverkillThreshold and there is nothing left to suppress. Stock
+#     600 is what makes the claim land on exactly 100. This is the same shape of
+#     false green that disarmed test-aa-overkill-cadence for eight days.
+#   * Removing HeliEmergencyLanding is unnecessary because NOTHING DAMAGES THE
+#     AIRCRAFT: the RangeLimit cut in weapons.yaml expires every missile ~16
+#     cells short. Measured run 260820_033930_p76804 ended with both helicopters
+#     at 600/600. A crash sequence that can never begin does not need disabling,
+#     and stripping the trait would leave crash-disabled, autorotation and
+#     crash-landing consumed but ungranted — which is exactly the lint error the
+#     three scenarios that DO strip it carry in lint-baseline.txt.
+#
+# So the aircraft here behaves as it does in a real match, and this scenario adds
+# no `Actor type halo consumes conditions that are not granted` entry to the
+# baseline. If a future edit ever lets damage reach these helicopters, that
+# reasoning lapses and the setup guard in the Lua will fail the run rather than
+# let it report a number.
