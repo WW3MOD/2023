@@ -3053,3 +3053,32 @@ than an absence. Design discussion: `WORKSPACE/design/260820-ambush-legibility.m
 > the gauge fix proposed above and the user's ruled visibility floor (clamp minimum detectability to
 > 1, `WORKSPACE/ambush-programme/README.md` §7) should be sequenced against that wider trigger, not
 > against the cover fix alone.
+
+---
+
+## `TestHarness.TicksPerSecond` is 25, but a plain `run-test.sh` runs at 60ms/tick — every balance `ttk=Xs` is understated 1.5×
+
+Found 2026-08-20 on `wt/humvee-balance` (`main @ cccd5f81`) while deriving the AT specialist's
+firing cadence for the humvee balance work.
+
+`mods/ww3mod/scripts/test-helpers.lua:9` hardcodes `TestHarness.TicksPerSecond = 25`, which is the
+Red Alert 40ms tick. WW3MOD's default game speed is **60ms** (`mods/ww3mod/mod.yaml:379-381`,
+`default: Name: normal, Timestep: 60`), i.e. **16.67 simulated ticks per second**.
+
+`BalanceHarness.RunDuel` (`balance-helpers.lua:45-50`) converts elapsed ticks to its reported
+`ttk=%.1fs` by dividing by that 25. So the seconds figure in every
+`WINNER=X | ttk=Ys | survivors=...` verdict is **1.5× smaller than the real simulated time**. A
+verdict reading `ttk=8.0s` is 200 ticks, which is 12.0s at Timestep 60.
+
+Scope — this is the plain-`run-test.sh` path only, and that is the path every `test-balance-*`
+uses. `Test.GameSpeed` is set solely by `run-tournament.sh:302` and `run-synchash.sh:48`; nothing
+in `run-test.sh` overrides the mod default. `--speed N` divides `world.Timestep` for wall-clock
+only and does not change the tick count, so it neither causes nor masks this.
+
+Consequence: the absolute seconds in balance verdicts and in any doc quoting them are wrong by
+1.5×. **Relative comparisons between two balance runs are unaffected**, which is presumably why it
+has survived — the harness is mostly used to compare A against B, not to read an absolute clock.
+
+Not fixed here deliberately: correcting the constant re-times every existing `test-balance-*`
+verdict at once, so it wants its own change with the affected numbers re-taken, rather than riding
+along in a humvee tuning commit.
