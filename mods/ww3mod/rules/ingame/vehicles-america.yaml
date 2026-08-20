@@ -60,11 +60,17 @@ humvee:
 		Distribution: 100,80,80,80,60
 	Targetable:
 		TargetTypes: Ground, Vehicle, Light
+	# Cross-axis half-width 220 -> 235. The long axis stays at 1000 (which is the
+	# ^Vehicle default, unlike the width, which was always hand-authored): misses
+	# concentrate on the narrow axis, so widening buys ~2.3x the hit-rate per wdist
+	# that lengthening would, and is invisible on screen. Ceiling is measured, not
+	# guessed — at 500 wide the humvee is overtaken by HIMARS/grad and stops being
+	# the hardest target in the game. See tools/combat-sim/scripts/humvee-hitshape-ladder.py.
 	HitShape:
 		Type: Rectangle
 			VerticalTopOffset: 350
-			TopLeft: -220, -500
-			BottomRight: 220, 500
+			TopLeft: -235, -500
+			BottomRight: 235, 500
 	Mobile:
 		Locomotor: lightwheeled
 		Speed: 150
