@@ -403,7 +403,19 @@ SUPPLYCACHE:
 	Armor:
 		Type: Light
 	Targetable:
-		TargetTypes: Ground, Structure
+		# A dropped crate is LOOT, not a threat: it must never be auto-acquired, but the player must
+		# still be able to force-fire one to deny it. `NoAutoTarget` is exactly that primitive — it is
+		# read in ONE place engine-wide, AutoTargetPriorityInfo.InvalidTargets (AutoTargetPriority.cs:27),
+		# so it suppresses band resolution while leaving weapon validity untouched.
+		#
+		# PITFALL: `Ground` is what force-fire binds through (WeaponInfo.IsValidTarget). It MUST stay —
+		# dropping it, or the whole Targetable, makes the crate untargetable and breaks the player's
+		# manual attack order along with the auto one. Pinned both ways by CrateAutoTargetExclusionTest.
+		#
+		# This reverses 092db848, which removed NoAutoTarget to give the crate "truck parity" (enemies
+		# auto-engage a dropped crate like the truck it came from). Reported from live play 2026-08-20 as
+		# the bug: shooting a crate destroys resources both sides would rather capture.
+		TargetTypes: Ground, Structure, NoAutoTarget
 	ProximityCapturable:
 		Range: 1c512
 		Sticky: true

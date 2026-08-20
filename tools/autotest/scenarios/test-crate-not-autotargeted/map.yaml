@@ -1,0 +1,85 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: dropped supply crate is never auto-targeted by the enemy
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# A dropped SUPPLYCACHE (Crate, owned by Me) sits 4 cells WEST of an enemy MBT
+# (EnemyTank) in default FireAtWill stance. The crate carries NoAutoTarget, so its
+# "Ground" type no longer matches the base FireAtWill priority and the tank must
+# ignore it. Decoy — a TRUK at the SAME range on the far side, auto-targetable
+# through that same band — is the control that proves the tank could have shot.
+#   PASS = Decoy damaged AND Crate untouched for the whole window.
+#   FAIL = Crate took damage (the bug), or the control never fired (inconclusive).
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		LockFaction: True
+		Faction: america
+		Enemies: Enemy
+	PlayerReference@Enemy:
+		Name: Enemy
+		LockFaction: True
+		Faction: america
+		Enemies: Me
+
+Actors:
+	MySR: supplyroute
+		Owner: Me
+		Location: 4,4
+	EnemySR: supplyroute
+		Owner: Enemy
+		Location: 60,30
+
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,4
+	SpawnEnemy: mpspawn
+		Owner: Neutral
+		Location: 60,30
+
+	# The dropped supply crate under test.
+	Crate: supplycache
+		Owner: Me
+		Location: 20,16
+
+	# Enemy MBT in default FireAtWill stance, 4 cells east of the crate — within
+	# vision and gun range of BOTH the crate and the Decoy.
+	EnemyTank: abrams
+		Owner: Enemy
+		Location: 24,16
+		Facing: 768
+
+	# CONTROL. An auto-targetable TRUK (Ground, Vehicle, Unarmored — no exclusion) at
+	# the same 4-cell range on the opposite side. It is engaged through the same base
+	# FireAtWill band the crate is denied, so damage here proves the tank is armed, in
+	# range, with LOS and in the right stance. Without it, a tank that never fired at
+	# all would pass this test.
+	Decoy: truk
+		Owner: Me
+		Location: 28,16
+
+Rules: rules.yaml

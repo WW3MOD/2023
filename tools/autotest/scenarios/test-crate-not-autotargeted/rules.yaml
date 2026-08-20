@@ -1,0 +1,15 @@
+# Crate auto-target-exclusion autotest overrides. Minimal — pre-placed crate, enemy
+# tank, and the auto-targetable truck that serves as the control.
+
+# No cash -> no production; the only actors are the pre-placed ones, so the tank
+# cannot be distracted by units it bought itself.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-crate-not-autotargeted.lua
