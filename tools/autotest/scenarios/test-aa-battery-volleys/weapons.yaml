@@ -1,0 +1,75 @@
+# =====================================================================
+# THE ONE MANIPULATION: THE MISSILES FALL SHORT. NOTHING ELSE CHANGES.
+#
+# Why a manipulation is needed at all. The overkill mark and the damage are
+# the same number by construction: EstimatePercentDamage sums the weapon's
+# damage warheads (AutoTarget.cs:1610-1643) and the weapon then deals that
+# damage. A mark big enough to suppress is therefore a shot big enough to
+# kill, and the target dies before a second AA could ever have joined -- so
+# "did the battery volley or serialise?" is unanswerable while the two stay
+# coupled. Something has to break the coupling.
+#
+# WHY NOT THE WAY test-aa-overkill-cadence DID IT. That scenario split the
+# payload into a real Air warhead and a 3000-damage Ground warhead that the
+# estimate would count but the damage path would refuse to apply, exploiting
+# the fact that EstimatePercentDamage did not check warhead ValidTargets.
+# THAT HOLE WAS CLOSED on 2026-08-12 by afa18718, which added
+# `if (!warhead.IsValidAgainst(target.Actor, attacker)) continue;`
+# (AutoTarget.cs:1623). The cadence scenario has not been re-run since and its
+# setup no longer switches the mechanism on -- see the entry filed in
+# WORKSPACE/bugs/discovered.md. Reusing that trick here would inherit a dead
+# setup, so this scenario deliberately does not depend on any divergence
+# between the estimate and the damage model.
+#
+# WHAT THIS DOES INSTEAD. Only the projectile's RangeLimit is cut, from 24c0
+# to 4c0. The missile launches normally, flies four cells and expires ~16
+# cells short of a target that is 20.2 cells away, so no damage is ever dealt
+# and both helicopters stay at full health for the whole window. The weapon's
+# Range stays 23c0, so the AA still considers the target in range and still
+# fires; the warheads are untouched, so EstimatePercentDamage is EXACTLY the
+# shipped arithmetic -- 3000 damage, Penetration 15 against the Halo's
+# Thickness 3 (no reduction), no Versus table, min(3000*100/600, 100) = 100
+# against an OverkillThreshold of 100. The claim under test is the real one,
+# not a reconstruction of it.
+#
+# This is also the honest live-play case. A MANPAD carries Inaccuracy 256
+# against aircraft that move, so missiles miss; the mark is applied when the
+# shooter commits, not when a missile connects, and nothing releases it when
+# the shot resolves into nothing. "The shot missed and the battery stayed
+# blind anyway" is the bug, not an artefact of the staging.
+#
+# PITFALL: weapon overrides belong in the map's `Weapons:` file, NOT in
+# `Rules:`. In rules.yaml the loader reads MANPAD as an ACTOR and its children
+# as traits, failing with "Cannot locate type: WarheadInfo" and hanging the
+# test until the 300s runner timeout.
+#
+# PITFALL, and it voided a run of the cadence scenario: overriding a composite
+# node REPLACES it rather than merging into it, so every field the override
+# omits reverts to the ENGINE default -- not to the mod's value. Every child
+# of Projectile is therefore restated below verbatim from
+# rules/weapons/weapons-missiles.yaml:479-495, with RangeLimit the only edit.
+# Dropping MaximumLaunchAngle alone would be enough to break this: the engine
+# default sends a launch pitch below the horizon on a weapon that only shoots
+# upward, and the missiles would fail for a reason that has nothing to do with
+# the range cut while still producing a plausible-looking run.
+# =====================================================================
+
+MANPAD:
+	Projectile: Missile
+		MaximumLaunchSpeed: 20
+		MaximumLaunchAngle: 252
+		Acceleration: 25
+		Speed: 450
+		Inaccuracy: 256
+		CloseEnough: 192
+		# THE EDIT. 24c0 -> 4c0.
+		RangeLimit: 4c0
+		HorizontalRateOfTurn: 20
+		Arm: 5
+		Blockable: false
+		ExplodeWhenEmpty: true
+		Image: dragon
+		TrailImage: smokey
+		TrailScalePercent: 50
+		ContrailLength: 40
+		ContrailStartWidth: 8

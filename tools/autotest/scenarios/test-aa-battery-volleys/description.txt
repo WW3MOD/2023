@@ -1,0 +1,1 @@
+Auto: two identical 4-AA batteries, one healthy helicopter each, nobody ordered. The control battery has overkill prevention off; the test battery is stock. Both must put the same number of AA into the fight — the test battery serialising is the live "my AA won't autotarget" bug.
