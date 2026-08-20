@@ -127,5 +127,42 @@ namespace OpenRA.Test
 				"these templates re-state a panic trait's RequiresCondition and so OVERRIDE ^CivInfantry's, " +
 				$"dropping the `{Gate}` gate for every unit that inherits them: " + string.Join(", ", offenders));
 		}
+
+		[Test]
+		public void CriticallyDamagedInfantryHaveZeroSpeed()
+		{
+			var effects = Templates("infantry.yaml").FirstOrDefault(n => n.Key == "^EffectsWhenDamagedInfantry");
+			Assert.That(effects, Is.Not.Null, "^EffectsWhenDamagedInfantry not found — this test is scanning nothing");
+
+			var speed = effects.Value.Nodes.FirstOrDefault(n => n.Key == "SpeedMultiplier@CriticalDamage");
+			Assert.That(speed, Is.Not.Null, "^EffectsWhenDamagedInfantry has no SpeedMultiplier@CriticalDamage");
+
+			var modifier = speed.Value.Nodes.FirstOrDefault(n => n.Key == "Modifier")?.Value.Value;
+			Assert.That(modifier, Is.EqualTo("0"),
+				"a critically damaged man must not be able to cross a cell at any speed");
+
+			var condition = speed.Value.Nodes.FirstOrDefault(n => n.Key == "RequiresCondition")?.Value.Value;
+			Assert.That(condition, Is.EqualTo("critical-damage"));
+		}
+
+		[Test]
+		public void ProneIsGrantedByTheDamageStateNotMerelyPermitted()
+		{
+			var effects = Templates("infantry.yaml").FirstOrDefault(n => n.Key == "^EffectsWhenDamagedInfantry");
+			Assert.That(effects, Is.Not.Null, "^EffectsWhenDamagedInfantry not found — this test is scanning nothing");
+
+			// ^Infantry inherits this, so it reaches the civilian family too — which carries no
+			// InfantryStates and therefore has no other route to the prone condition.
+			var grant = effects.Value.Nodes.FirstOrDefault(n => n.Key == "GrantCondition@HeavyDamageProne");
+			Assert.That(grant, Is.Not.Null,
+				"prone must be GRANTED by the damage state, not merely made available by InfantryStates' " +
+				"`!moving` clause — a civilian-family actor has no InfantryStates to grant it");
+
+			Assert.That(grant.Value.Nodes.FirstOrDefault(n => n.Key == "Condition")?.Value.Value, Is.EqualTo("prone"));
+			Assert.That(grant.Value.Nodes.FirstOrDefault(n => n.Key == "RequiresCondition")?.Value.Value,
+				Is.EqualTo("heavy-damage-attained"),
+				"heavy-damage-attained covers Heavy AND Critical; a bare `heavy-damage` would leave a " +
+				"critically damaged man standing up");
+		}
 	}
 }
