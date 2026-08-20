@@ -184,7 +184,22 @@
 		FacingTolerance: 50
 		AlignBodyToTarget: true
 		TargetFrozenActors: True
-		PauseOnCondition: garrisoned-at-port
+		# `critical-damage` is the infantry half of the rule that already stops a wrecked vehicle
+		# shooting (every vehicle Armament pauses on heavy-damage-attained, vehicles.yaml:243-256).
+		# ^EffectsWhenDamagedInfantry below already zeroes this man's speed and guts his burst,
+		# vision and accuracy at the same 25% line; without this he still fired, just slowly — and
+		# AutoTarget's break-off skip is justified in code by a comment claiming critical damage
+		# means the unit "can't fight", which for infantry was simply untrue.
+		#
+		# NOT heavy-damage-attained (50%), which is where the vehicle cutoff sits: infantry stopping
+		# at half health is a much larger balance change than was asked for, and 25% keeps this
+		# aligned with AutoTargetInfo.BreakOffCondition so one threshold governs both.
+		#
+		# PITFALL: MiniYaml OVERRIDES this scalar rather than merging it, so a descendant template
+		# that re-states PauseOnCondition for its own reasons silently drops the gate for every unit
+		# under it — no lint error, no symptom but a wounded man who keeps shooting.
+		# CriticalWoundFireGateTest fails the build on that.
+		PauseOnCondition: garrisoned-at-port || critical-damage
 	AutoTarget:
 		RequiresCondition: !garrisoned-at-port
 	DamageMultiplier@GarrisonCover:
@@ -2130,6 +2145,12 @@ SF:
 		# indistinguishable from the order having been refused. Give up instead and stay available.
 		# Covers this trait's own PauseOnCondition (garrisoned-at-port) too, which wedges the same way.
 		AbandonWhenArmamentsPaused: true
+		# Deliberately DROPS ^Soldier's `|| critical-damage`. That gate exists to stop a wounded man
+		# shooting, and the medic's only Armament is Heal — he carries nothing offensive, so applying
+		# it here would not stop a single bullet. All it would do is stop a wounded medic treating his
+		# squad, which is a balance change nobody asked for and exactly when he is most needed.
+		# Re-add the clause the moment a medic is given a weapon.
+		PauseOnCondition: garrisoned-at-port
 	Armament@1:
 		Name: primary
 		Weapon: Heal
