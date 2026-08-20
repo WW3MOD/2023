@@ -1,0 +1,1 @@
+Auto: one Stryker SHORAD vs one stationary Halo at 10/15/20/25/27 cells, fresh shooter per rung. Counts Stingers launched (secondary AmmoPool) strictly before the kill and fails if any rung spends more than one. RED at BurstDelays: 30 fails the 15c and longer rungs; rung 10 stays green because the old delay was only ever long enough at short range.

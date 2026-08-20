@@ -558,7 +558,33 @@ Stinger.quad:
 	Inherits: Stinger
 	Magazine: 4
 	Burst: 2
-	BurstDelays: 30
+	# 260821: 30 -> 58. One Stinger already kills a helicopter outright
+	# (5000 dmg / Pen 20 vs 600-800 HP, see weapons-ballistics.yaml:400), so the
+	# second missile of the pair is pure waste whenever the first is still in
+	# the air. At 30 ticks the pair only stopped overlapping inside ~13 cells,
+	# while AutoTarget opens fire the moment a target crosses the 28-cell ring.
+	#
+	# 58 is the missile's MAXIMUM POSSIBLE LIFETIME, derived rather than guessed.
+	# Missile.cs:536 adds Acceleration (35) per tick clamped to Speed (600),
+	# starting from MaximumLaunchSpeed (50), so cumulative distance is 4950 by
+	# tick 15 and 5550 + 600*(n-16) after that; Missile.cs:1159,1164 detonates
+	# the tick distanceCovered passes RangeLimit (30c0 = 30720), which is tick
+	# 58 (5550 + 600*42 = 30750). Every Stinger is therefore resolved -- impact,
+	# ground, or fuel-out -- by tick 58 whatever path it flew. Sizing on that
+	# ceiling rather than on straight-line flight time is what makes the
+	# guarantee hold against a MOVING helicopter, whose curved intercept covers
+	# more distance than range-to-target arithmetic predicts.
+	#
+	# Straight-line flight for reference: ~24 ticks at 10 cells, ~33 at 15,
+	# ~41 at 20, ~50 at 25, ~55 at the weapon's full 28c0 range.
+	#
+	# MUST STAY BELOW BurstWait. Armament.cs:367 rearms a stale burst when
+	# WorldTick - lastFiredTick > Weapon.BurstWait; the wait for shot 2 elapses
+	# BurstDelays (58) or BurstDelays+1 (59) ticks depending on trait order, and
+	# both are <= 60, so the burst state survives. BurstDelays >= 60 would trip
+	# it. BurstWait stays at 60 so the post-pair cadence is untouched and this
+	# edit moves exactly one lever.
+	BurstDelays: 58
 	BurstWait: 60
 	ReloadDelay: 1000
 
