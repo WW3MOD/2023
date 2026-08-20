@@ -119,12 +119,16 @@ not intended"*), and never acted on.
 - **Infantry CV tops out at 9**, so the CV-10 "invisible to standard vision" state is unreachable
   in any shipped configuration.
 
-> **UNRESOLVED CONTRADICTION — do not paper over this.** The legibility strand states
-> `visibility-10` *is* reachable (Sniper and SF have base `Vision: 5`; 5+3+1+1 = 10) and that the
-> gauge deliberately draws nothing there. The audit states infantry CV tops out at 9. Both cannot
-> be true. Note the legibility arithmetic includes the `+3` cover term that §3.2 says is
-> unreachable, which is the likely reconciliation — but it has not been checked, and the open
-> question `WciHcfgxJIr7oS4bEpp_s` to the user depends on the answer.
+> **RESOLVED 2026-08-20 by the bug-filing verification pass — and it widened.** The clamp is
+> `[1,10]`. Base infantry reach **9** via veterancy, which *both* prior accounts omitted. Level
+> **10** is reachable only by `^SN` and `^SF` — and both currently carry
+> `Prerequisites: ~disabled`.
+>
+> So both strands were partly wrong, and the consequence is bigger than either: **total
+> invisibility goes live the moment EITHER the cover ladder is repaired OR the Sniper is made
+> buildable.** The second is a one-word YAML edit that nobody would ever connect to concealment.
+> §7's sequencing was written against the cover fix alone and is therefore too narrow — the
+> visibility clamp guards two independent doors, not one.
 
 ### 3.3 Stance does not touch detectability at all
 
@@ -154,9 +158,12 @@ The two stack and are the same order of magnitude; fixing either alone leaves ab
   to warheads declaring a match, so **going prone reduces damage from one superweapon and nothing
   else.** Every bullet is `BulletDeath`, every shell `ExplosionDeath`.
 - **Dug in is concealment only** — zero damage reduction.
-- `DensityModifiesDamage` (`infantry.yaml:37-45`) works but is capped at 20%, and a single
-  density-50 building neighbour clears all three tiers — standing next to a house is maximal
-  "forest cover".
+- `DensityModifiesDamage` (`infantry.yaml:37-45`) works but is capped at 20%. **CORRECTED: the
+  "standing next to a house is maximal forest cover" line that appeared here, and was reported to
+  the user, is wrong** — no building in the mod carries `Building.Density` at all; `Density:` is
+  declared in `decoration.yaml` and nowhere else. The asymmetry beside it *is* real, but it is
+  rocks, not houses: one rock cell is 50 and maxes the tier instantly, one tree is 10 and falls
+  below the 15 floor.
 - **The dominant protective effect is not damage reduction at all.** `ClearSightThreshold`
   (`Armament.cs:364`) refuses the shot outright once foliage on the line exceeds the weapon's
   threshold. A rifle at threshold 4 simply cannot fire through 4+ dense tree cells. Nothing in the
@@ -215,7 +222,27 @@ trusted until the baseline is re-taken.**
 ground-truth detection audit lives at `WORKSPACE/recon/260820-ambush-cover-detection-audit.md`
 (kept in `recon/` because that is where code-verified ground truth belongs). It is the only
 document here that has been through a second independent pass, and that pass caught a real error
-in its own author's work — **treat it as outranking the other eight wherever they disagree.**
+in its own author's work — **treat it as outranking the other eight wherever they disagree, with
+one named exception.**
+
+**The exception: the audit is wrong about aim delay.** Its §2.5 concludes "there is no aim delay
+for anyone." It examined `FireDelay` and `FacingTolerance` and never looked at `AimingDelay`,
+which is 15 ticks on infantry, 30–50 on nine vehicles, reset on every target change
+(`Armament.cs:345-350`) and blocking the shot at `:327`. The coordination strand is right here and
+the audit is not. This is the same wrong-field trap that caught an earlier worker, twice, in the
+same file.
+
+**Also corrected by the same pass: three documents claim humans never re-arm after springing an
+ambush. They do** — `AutoTarget.cs:746` clears the latch on the human path. The "SPRUNG is
+terminal, DO NOT clear" comment those documents quote sits in the *bot-gated* branch. Nobody
+should go fix that bug; it is not there.
+
+### The defect list
+
+All 18 defects are filed in `WORKSPACE/bugs/discovered.md`, each with a symptom, `file:line`, an
+**Established:** line separating read-from-code from derived-by-arithmetic, and a **Confirm by:**
+line. Read those rather than mining the design docs — the docs are the reasoning, the bug list is
+the actionable form, and the bug list is the one that has been re-verified against source.
 
 ---
 
