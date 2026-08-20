@@ -1,0 +1,88 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a critically damaged technician neither panics nor changes cell
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 0,0,66,34
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# User rule, 2026-08-21: "Technicians (or any units) should not be able to 'panic' when they are
+# critically damaged, they should not move at all in fact instead they are prone and not moving at all."
+#
+# ^TECN inherits ^ArmedCivilian -> ^CivInfantry, which carries ScaredyCat. ScaredyCat shipped UNGATED,
+# so any damage — including damage taken while already critical — put the man into a 250-tick panic:
+# it cancels his activity and, once idle, queues a MoveTo an adjacent cell.
+#
+# WHY THE SPEED MULTIPLIER DOES NOT ALREADY COVER THIS, and why this scenario measures Location:
+# ^EffectsWhenDamagedInfantry gives every infantryman SpeedMultiplier@CriticalDamage: 0, so a critically
+# damaged man crosses a cell at zero speed. That governs the RATE of a move, not the DECISION to make
+# one — and Move calls mobile.SetLocation (Move.cs:217) to claim the destination cell BEFORE it ever asks
+# Mobile how fast the actor can travel. Actor.Location is Mobile.ToCell, so the claim is visible from Lua
+# the moment the move starts, at zero speed, with the sprite still standing on the old cell.
+#
+# That makes Location the discriminating observable: it changes in the ungated build and cannot change in
+# the gated one. Asserting "did not visibly travel" would have passed on BOTH builds, because the speed
+# multiplier already pins displacement at zero — the trap this repo keeps hitting.
+#
+# NOBODY ELSE CAN MOVE THIS MAN. He is owned by a Playable: False slot with no Bot:, so no AI issues him
+# orders; ^TECN carries `-Wanders:` so the other unordered-movement trait is absent; and no order is ever
+# issued from Lua. ScaredyCat is the only mechanism in the sim that can move him.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 6,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	# Keeps Russia alive so faction elimination never ends the match before the verdict fires.
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 58,30
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,30
+
+	# Unit under test, in open ground with free cells on every side so a panic move always has
+	# somewhere to go. A blocked-in technician would hold its cell for the wrong reason.
+	Tecn: tecn.america
+		Owner: USA
+		Location: 20,16
+
+Rules: rules.yaml

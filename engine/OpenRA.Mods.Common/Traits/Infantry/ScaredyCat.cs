@@ -18,7 +18,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Makes the unit automatically run around when taking damage.")]
-	sealed class ScaredyCatInfo : TraitInfo, Requires<MobileInfo>
+	sealed class ScaredyCatInfo : ConditionalTraitInfo, Requires<MobileInfo>
 	{
 		[Desc("Chance (out of 100) the unit has to enter panic mode when attacked.")]
 		public readonly int PanicChance = 100;
@@ -41,9 +41,8 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new ScaredyCat(init.Self, this); }
 	}
 
-	sealed class ScaredyCat : ITick, INotifyIdle, INotifyDamage, INotifyAttack, ISpeedModifier, ISync, IRenderInfantrySequenceModifier
+	sealed class ScaredyCat : ConditionalTrait<ScaredyCatInfo>, ITick, INotifyIdle, INotifyDamage, INotifyAttack, ISpeedModifier, ISync, IRenderInfantrySequenceModifier
 	{
-		readonly ScaredyCatInfo info;
 		readonly Mobile mobile;
 		readonly Actor self;
 		readonly Func<CPos, bool> avoidTerrainFilter;
@@ -53,21 +52,41 @@ namespace OpenRA.Mods.Common.Traits
 		int panicStartedTick;
 		bool Panicking => panicStartedTick > 0;
 
-		bool IRenderInfantrySequenceModifier.IsModifyingSequence => Panicking;
-		string IRenderInfantrySequenceModifier.SequencePrefix => info.PanicSequencePrefix;
+		bool IRenderInfantrySequenceModifier.IsModifyingSequence => !IsTraitDisabled && Panicking;
+		string IRenderInfantrySequenceModifier.SequencePrefix => Info.PanicSequencePrefix;
 
 		public ScaredyCat(Actor self, ScaredyCatInfo info)
+			: base(info)
 		{
 			this.self = self;
-			this.info = info;
 			mobile = self.Trait<Mobile>();
 
 			if (info.AvoidTerrainTypes.Count > 0)
 				avoidTerrainFilter = c => info.AvoidTerrainTypes.Contains(self.World.Map.GetTerrainInfo(c).Type);
 		}
 
+		// A critically damaged man is prone and still. Ending the panic here rather than only refusing to
+		// start one is the load-bearing half: panic is triggered by ANY damage and runs for PanicDuration,
+		// so the shot that pushes him INTO critical almost always lands mid-panic.
+		protected override void TraitDisabled(Actor self)
+		{
+			if (!Panicking)
+				return;
+
+			panicStartedTick = 0;
+
+			// Deliberately dropped rather than resumed. Every stashed order is a go-somewhere-and-act
+			// intent (capture, demolish, board), and re-issuing one here would queue a fresh Move — which
+			// claims the next cell before Mobile is ever asked how fast the actor can cross it.
+			stashedOrders.Clear();
+			self.CancelActivity();
+		}
+
 		public void Panic()
 		{
+			if (IsTraitDisabled)
+				return;
+
 			if (!Panicking)
 			{
 				StashPendingTaskOrders();
@@ -126,7 +145,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Panicking)
 				return;
 
-			if (self.World.WorldTick >= panicStartedTick + info.PanicDuration)
+			if (self.World.WorldTick >= panicStartedTick + Info.PanicDuration)
 			{
 				self.CancelActivity();
 				panicStartedTick = 0;
@@ -145,15 +164,19 @@ namespace OpenRA.Mods.Common.Traits
 				self.QueueActivity(false, mobile.MoveTo(cell.Value, 0));
 		}
 
+		// PITFALL: do not hoist an IsTraitDisabled check above these SharedRandom draws. Panic() does the
+		// gating, deliberately AFTER the roll, so a disabled trait consumes the shared RNG stream exactly
+		// as an enabled one does. Skipping the draw would make every later consumer of World.SharedRandom
+		// depend on whether some civilian happened to be critically wounded.
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
-			if (e.Damage.Value > 0 && self.World.SharedRandom.Next(100) < info.PanicChance)
+			if (e.Damage.Value > 0 && self.World.SharedRandom.Next(100) < Info.PanicChance)
 				Panic();
 		}
 
 		void INotifyAttack.Attacking(Actor self, in Target target, Armament a, Barrel barrel)
 		{
-			if (self.World.SharedRandom.Next(100) < info.AttackPanicChance)
+			if (self.World.SharedRandom.Next(100) < Info.AttackPanicChance)
 				Panic();
 		}
 
@@ -161,7 +184,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		int ISpeedModifier.GetSpeedModifier()
 		{
-			return Panicking ? info.PanicSpeedModifier : 100;
+			return Panicking ? Info.PanicSpeedModifier : 100;
 		}
 	}
 }
