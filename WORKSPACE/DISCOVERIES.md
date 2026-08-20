@@ -5,6 +5,8 @@
 
 ## 2026-08-20 — a failed build launched the game anyway, and the crash named the wrong thing entirely
 
+> **[promoted]** → `conventions.md` §"A build that fails and launches anyway indicts the WRONG code, every time" (curation 2026-08-20, verified against `main @ 57822b4e`). Every mechanism re-derived, and two of them re-measured rather than re-read: `find . -maxdepth 0 -exec sh -c 'exit 7' \;` really does yield `$? = 0`, and `dotnet --version` really is pin-aware. All three fixes are present and each carries its reasoning in-code — `launch-game.cmd:5` (`neq 0`, not `if errorlevel 1`), `Makefile:183`/`:186` (`set -e; for sln …` replacing `find -exec`), `Makefile:163` + `make.ps1:241`/`:406` (the `dotnet --version` pre-flight). What was banked is the diagnostic rule (a stale-binary crash always indicts the most recently edited source) plus the two reusable traps; the branch narrative stays here. Note `clean` still uses `find -exec` (`Makefile:192`, `:194`) and that is fine — nothing gates on its exit code.
+
 Branch `wt/build-abort`. The user lost a session to a 60-line stack trace reading `Cannot locate type:
 SyncReportsOptionInfo`. That trait was fine. The real failure was three steps earlier and the launcher
 had already discarded it.
@@ -41,6 +43,8 @@ cannot rot: `make.ps1:CheckForDotnetSdk` and the `Makefile`'s `check-dotnet-sdk`
 
 ## 2026-08-19 — condition tokens are per-actor counters, so "wrong soldier's token" is a live mis-revoke, not a dead integer
 
+> **[promoted]** → `conventions.md` §Engine behaviors that surprise (curation 2026-08-20, verified against `main @ 57822b4e`). Re-derived: `int nextConditionToken = 1;` is a plain per-actor field (`Actor.cs:104`) and `TokenValid` is `conditionTokens.ContainsKey(token)` (`:701`), so cross-actor collision is not merely possible but ordinary. **One correction carried into the bank:** the entry says `RevokeCondition` "removes whatever unrelated condition on B happens to carry that id" — true, but note `RevokeCondition` *throws* on an unknown token (`:692-693`), so it is the surrounding `if (TokenValid(t))` guard (as at `GarrisonManager.cs:440`) that converts a loud crash into the silent mis-revoke. The banked rule names the guard, since that is the line a reader would otherwise add for safety. Fix location re-checked: the shared helper is `SwapPortOccupants` at `GarrisonManager.cs:1175` (the entry's `:1483` is the `AssignGarrisonPort` call site region), pinned by `GarrisonPortSwapTest`. "Still latent" re-verified — all four order strings grep to exactly one hit each, the `case` labels at `:1432`, `:1490`, `:1504`, `:1520`.
+
 Branch `wt/token-leak`. Finishing the port-swap family: `AssignGarrisonPort` had the same
 move-the-triple-together bug as its sibling, in both of its port→port branches.
 
@@ -75,6 +79,8 @@ label. Nothing issues them, so no shipped build reaches this.
 
 ## 2026-08-19 — `GarrisonPortOccupant.PortIndex` goes stale on any port→port move (found, NOT fixed)
 
+> **[rejected: tracker material — refiled as a bug]** (curation 2026-08-20, verified against `main @ 57822b4e`). **The claim is correct and was re-derived from code, not from this entry** — `PortIndex` has exactly two writers, `SetPort` (`GarrisonPortOccupant.cs:43-47`) and `ClearPort` (`:49-53`), reached only from `DeployToPort` (`GarrisonManager.cs:355-356`) and `RevokePortCondition` (`:437-438`); the static `SwapPortOccupants` (`:1175-1191`) touches no actor trait; and `TargetableBy` reads `gm.PortStates[PortIndex].Port` (`:70`) to gate the firing arc at `:83-90`. So the arc really does invert on a port→port move. Not promoted because it is an **unfixed defect**, and `DOCS/reference/README.md` §"Reference ≠ tracker" puts open work in `WORKSPACE/`. Filed instead at `WORKSPACE/bugs/discovered.md` (2026-08-20, `[low — LATENT, unreachable today]`) with the test-seam tension that makes it a deliberate decision rather than a drive-by, and with the reachability caveat: all four garrison orders still grep to one hit each, so no shipped build reaches it.
+
 Same branch, adjacent defect, deliberately left. `SetPort` is called from exactly one place —
 `DeployToPort` (`GarrisonManager.cs:356`) — and `ClearPort` from `RevokePortCondition` (`:438`).
 Neither runs when a soldier moves between two ports of the same building, so the occupant's
@@ -96,6 +102,8 @@ the two order-handler call sites, which leaves the helper still able to produce 
 deliberate decision, not a drive-by. Unreachable today for the same reason as the entry above.
 
 ## 2026-08-19 — a GRID-granular null guard cannot stand in for a MAP-cell distance bound: how the rendezvous shipped a one-sided gate with a comment explaining why the other side was safe
+
+> **[promoted]** → `influence-stack.md` §"A guard's coordinate RESOLUTION is part of its contract" (curation 2026-08-20, verified against `main @ 57822b4e`), **merged with the 2026-08-17 "PITFALL fixed in one anchor resolver" entry**, which is the same finding seen from the other side. Both halves re-derived: the grid-space comparison now lives once, in `ForwardStagingMath.TryResolveAnchorCell` (`:189-194`, the test itself at `:193`) with the hazard stated in-code, and **both** resolvers call it — `PoiOffensiveBotModule.cs:2137` and `CaptureCoordinatorBotModule.cs:1717`. The test rename is real and its provenance is recorded in-place rather than deleted (`RendezvousMathTest.cs:141-144`, replacement at `:183`), pinned to the entry's literal geometry (SR `6,16`, anchor `7,17`, lerp `32,10`). **This promotion also produced a doc correction** — see the note in the merged entry below.
 
 Branch `wt/rendezvous`, fixing the 2026-08-15 `AnchorAcceptable` bug. Two transferable shapes, both
 about a guard believed to cover a direction it did not.
@@ -126,6 +134,8 @@ is a signal to read the old test's provenance, not to route around it. Narrow it
 refuted it — deleting it lets the next reader re-derive the same wrong rationale from the same header.
 
 ## 2026-08-19 — `GarrisonManager.CachedArmaments` is a TARGETING cache, not the firing path; the port-swap bug is real but its symptom is silence, not a wrong weapon
+
+> **[promoted]** → `conventions.md` §Engine behaviors that surprise (curation 2026-08-20, verified against `main @ 57822b4e`). The correction is exact and re-derived: `AttackGarrisoned.DoGarrisonedAttack` iterates `ps.DeployedSoldier.TraitsImplementing<Armament>()` live (`AttackGarrisoned.cs:292`) and re-checks validity (`:298`) and range (`:302`), so the cache cannot fire anything; `CachedArmaments` has one reader, `ScanForTarget` (`GarrisonManager.cs:858`), which assigns `armaments = ps.CachedArmaments` behind only a null-*soldier* check and then iterates it — the `NullReferenceException` the entry names. What was banked is the generalisation (**"cached X" beside "live X" is a two-reader hazard; enumerate the readers before predicting the symptom**), because that is the part that transfers; the garrison specifics stay here and the PITFALL is already at the temptation site (`GarrisonManager.cs:1169-1174`). The entry's own framing is right that this is README shape 3 — a real citation that does not do the work claimed.
 
 Branch `wt/garrison-swap`. `cargo-garrison-status-260819.md` §4-B1 and `garrison-proposals.md:169`
 both state that `CachedArmaments` "is the field the firing path actually reads (`:858`)" and that
@@ -164,6 +174,8 @@ one place: `GarrisonManager.SwapPortOccupants`, pinned in `GarrisonPortSwapTest`
 
 ## 2026-08-19 — deleting a control deletes the readout printed on it, and the commit log cannot show you that
 
+> **[promoted]** → `architecture.md` §Widget / chrome authoring gotchas (curation 2026-08-20, verified against `main @ 57822b4e`). The durable half is the authoring rule — **a widget carrying both an action and a fact loses the fact to a deletion argued on the action, and every artefact you would audit with is written in the action's vocabulary.** Its load-bearing premise was re-checked at HEAD rather than taken from the entry, because it is a claim about what the *current* game shows: the unload menu still renders only a group label and an `x{N}` count (`CargoUnloadMenuLogic.cs:160-166`) under a `{title} {PassengerCount}/{MaxWeight}` header (`:114`), and `WithCargoPipsDecoration` still renders a count plus a per-type pip colour. So the readout has **not** been restored since the entry was written, and the claim is still live. The commit archaeology (`eb5e5de0` / `7b5c692b`) stays here.
+
 Branch `wt/cargo-parity`, against `main @ de78a1ed`. A reconciliation pass had flagged the cargo
 passenger rows as built (`eb5e5de0`) then deleted (`7b5c692b`) and asked whether restoring them was
 right. Reading both commits splits the question in two, and the halves have opposite answers.
@@ -188,6 +200,8 @@ this invisible. "Deletes the superseded per-passenger panel" is true of the butt
 label, and no reviewer reading the message alone can tell.
 
 ## 2026-08-19 — three merged-but-unobserved claims put in front of a running game; two confirmed, and the row-count assertion that would have "confirmed" the third was worthless
+
+> **[promoted]**, split by subject (curation 2026-08-20, verified against `main @ 57822b4e`). §1 → `DOCS/recipes/AUTOTEST.md`, as a sixth worked instance under §"A green run is not evidence unless something could have made it RED": the row count really is added before the panel is sized, so it survives the bug, and the clip height really is the discriminator — `list.Bounds.Height = Math.Min(ceiling, list.ContentHeight)` with a screen-derived ceiling (`CargoUnloadMenuLogic.cs:180-181`), read back by `Test.GetUnloadMenuGeometry()` (`Scripting/Global/TestGlobal.cs:277`). Banked as **when a fix changes how much of a collection is DRAWN, every count in the widget tree is a false control.** §2–§4 → `architecture.md` §"Replay metadata is read BACKWARDS from the end": `ReplayMetadata.Read` seeks `-(4+4)` from `SeekOrigin.End` then backwards by `-(4+4+dataLength+4+4)` (`FileFormats/ReplayMetadata.cs:92-97`), so a string round-trip is structurally blind to a stamp-length error — the two file-level tests exist alongside the two string ones (`GameInformationStampTest`). `ReplayCompatibility.Resolve` returns `UnavailableMap` at `:93-94`, **before** the build checks, with the reason in-code at `:90-92`. The cancel-branch discriminators are banked because "a dialog appeared" is satisfied by the dismissal too. The session-budget narrative and the specific fingerprint string stay here.
 
 Branch `wt/run-verify`, against `main @ 815804f1`, on a grant of exactly two launches. Covers the
 replay build stamp (`61e46e64`) and the unload-menu height ceiling (`b7bd4c73`), both of which shipped
@@ -1702,6 +1716,8 @@ copy, never the live file. Before treating any empty grep as evidence, `stat` th
 mtime still matches your run.
 
 ## 2026-08-17 — A PITFALL FIXED IN ONE ANCHOR RESOLVER AND NOT IN THE ONE TWENTY LINES AWAY
+
+> **[promoted]** → `influence-stack.md` §"A guard's coordinate RESOLUTION is part of its contract" (curation 2026-08-20, verified against `main @ 57822b4e`), merged with the 2026-08-19 rendezvous entry at the top of this file. **The defect this entry reports is now CLOSED, and closing it made a bank statement stale — which the promotion also fixed.** `9422576a` moved the stall test into the shared `ForwardStagingMath.TryResolveAnchorCell`, so `ResolveStagingAnchor` no longer compares in map space and both resolvers are on one implementation. `influence-stack.md:143` still ended "*a parity dependence `ResolveStagingAnchor`'s map-space comparison still carries*" — **corrected on sight** in this pass, per README §Corrections. The entry's own lesson is what was banked, and it is the durable part: *when you fix a coordinate-space or unit-conversion bug, grep the file for every other call site of that conversion pair before closing it* — the fix and a comment naming the hazard exactly had been in the same file since `d91e10f7` and did not carry twenty lines.
 
 `PoiOffensiveBotModule` has two functions that run a gradient descent on the coarse control grid and then
 ask "did it move?". `ResolveMusterAnchor` (`:2317`) compares in **grid** space and carries a comment naming

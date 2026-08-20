@@ -491,6 +491,39 @@ actors were **not** each checked for a per-actor `Detectable` override, so a spe
 differ from the template. Treat the "all vehicles" scope as unverified.
 **Confirm by:** `grep -n 'Detectable' mods/ww3mod/rules/ingame/vehicles-*.yaml` closes the scope gap
 without a run.
+## 2026-08-20: [low — LATENT, unreachable today] OPEN, NOT FIXED — `GarrisonPortOccupant.PortIndex` goes stale on any port→port move, inverting which firing arc can target the soldier (found while: curation pass over `DISCOVERIES.md`, branch `wt/curation-260820`, `main @ 57822b4e`)
+
+Filed here rather than promoted to the bank: it is an unfixed defect, and `DOCS/reference/README.md`
+§"Reference ≠ tracker" puts that in `WORKSPACE/`. Re-derived from code in this pass, not taken from the
+2026-08-19 entry that reported it.
+
+`PortIndex` has exactly two writers — `GarrisonPortOccupant.SetPort` (`:43-47`) and `ClearPort`
+(`:49-53`) — called from `GarrisonManager.DeployToPort` (`:355-356`) and `RevokePortCondition`
+(`:437-438`) respectively. **Neither runs when a soldier moves between two ports of the same building**,
+because that path goes through the static `SwapPortOccupants` (`GarrisonManager.cs:1175-1191`), which
+swaps `DeployedSoldier` / `CachedArmaments` / `ConditionToken` and touches no actor trait.
+
+The field is not bookkeeping. `GarrisonPortOccupant.TargetableBy` reads `gm.PortStates[PortIndex].Port`
+(`:70`) and returns true only for attackers inside that port's `Yaw ± Cone` (`:83-90`). So a soldier
+standing at the south port stays targetable **only through the north port's arc** — shootable from a
+direction he is not visible from, and immune from the direction he is.
+
+**The slot's identity is really a quadruple, not the triple the PITFALL at `GarrisonManager.cs:1169-1174`
+and `GarrisonPortSwapTest` describe:** `DeployedSoldier`, `CachedArmaments`, `ConditionToken`, **and the
+occupant's own `PortIndex`**.
+
+**Why it is deliberately not a drive-by fix.** `SwapPortOccupants` is `static` over two `PortState`s with
+no access to the building actor or the port indices, and that is exactly what lets it be unit-tested from
+`OpenRA.Test` (`Actor` has no constructor reachable from that assembly). Fixing it means either passing
+the indices + building in — losing the test seam — or calling `SetPort` at the two order-handler call
+sites, which leaves the helper still able to produce the bad state. Wants a deliberate decision.
+
+**Unreachable in any shipped build today.** All four garrison orders (`AssignGarrisonPort`,
+`SwapGarrisonPorts`, `SetGarrisonPortTarget`, `ClearGarrisonPortTarget`) still grep to exactly one hit
+each — the `case` label at `GarrisonManager.cs:1432`, `:1490`, `:1504`, `:1520`. Nothing issues them.
+**This is a prerequisite for wiring the port UI, not a live defect** — and it is the second such
+prerequisite found in that unreachable code in two days, which is itself the argument for auditing the
+whole port-order family before exposing any of it.
 
 ## 2026-08-19: [medium] OPEN, NOT FIXED — reopening the unload menu discards EVERY queued unload, not just the one mid-wait (found while: auditing why the cargo passenger rows were deleted, branch `wt/cargo-parity`, `main @ de78a1ed`)
 
