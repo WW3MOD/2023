@@ -1,0 +1,1 @@
+Auto: a conscript at 15% HP must fire nothing while an identical healthy conscript beside him engages the same target. The healthy twin is the control — if he stays silent the run reports SETUP INVALID.

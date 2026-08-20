@@ -1,0 +1,40 @@
+Player:
+	-ConquestVictoryConditions:
+	PlayerResources:
+		DefaultCash: 0
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults to human-owned
+	# units in Created (AutoTarget.cs), so a dev who once set riflemen to Hold Position would
+	# otherwise change what this scenario measures. Strip it; the stances are the YAML ones.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-critical-manual-attack.lua
+
+^Combatant:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+
+# The conscript is drained to 15% of MAX, so raising max raises the absolute HP he sits at while
+# staying inside the <25% Critical band. Without this he is at 30 HP and the bleed-out ramp
+# (ChangesHealth@BleedOut, StartIfBelow 50) can kill him before the shooter gets a round off —
+# and a dead target ends the activity for a reason that has nothing to do with the break-off rule
+# under test. 15% of 20000 = 3000 HP, which outlives the whole run.
+E1:
+	Health:
+		HP: 20000

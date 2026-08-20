@@ -1,0 +1,44 @@
+Player:
+	-ConquestVictoryConditions:
+	PlayerResources:
+		DefaultCash: 0
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults to human-owned
+	# units in Created (AutoTarget.cs). The Victim's stance is set explicitly in Lua, but the
+	# Russian pair's is not, so strip it and let the YAML stances below decide.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-critical-infantry-cannot-fire.lua
+
+^Combatant:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+		InitialEngagementStance: Defensive
+		InitialEngagementStanceAI: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+
+# All three soldiers are e1, so this one override does the work for the whole scenario, and the
+# Wounded/Control pair stays byte-identical apart from the health the Lua drains.
+#
+# Why raise it at all: the Victim has to survive being shot at for the entire observation window
+# WITHOUT crossing 25% himself. If he went critical, the break-off filter would drop him as a
+# target for BOTH attackers and the Control would fall silent for a reason unrelated to the fix —
+# the scenario's own control arm would break the scenario. At 20000 HP a conscript's rifle cannot
+# move him out of the Undamaged/Light band inside the window. It also puts the Wounded's 15% at
+# 3000 HP so the bleed-out ramp cannot kill him mid-run.
+E1:
+	Health:
+		HP: 20000
