@@ -603,3 +603,315 @@ IskanderExplosionAirborne:
 	# Warhead@2Eff: CreateEffect
 	# 	Explosions: artillery_explosion
 	# 	ImpactSounds: kaboom15.aud
+
+# ---------------------------------------------------------------------------
+# Volatile cargo — banded death explosions for supply and ammo carriers.
+#
+# Fired by the Explodes@Band* traits on TRUK, SUPPLYCACHE, LOGISTICSCENTER, grad,
+# m270 and HIMARS. The band is picked by a RequiresCondition comparison against a
+# stacked condition count (supply-level / ammo-primary), so which of these fires is
+# decided entirely in the actor YAML — see VolatileLoadBandTest for the partition.
+#
+# The ramp is linear in the band number N (1-8), landing at IskanderExplosion's
+# figures at band 8: MaxRadius N*512, shockwave damage N*1500, blast damage N*500.
+# A full carrier therefore detonates like a ballistic missile; that is deliberate
+# and is the balance question flagged to the user, not an accident of the maths.
+#
+# AffectsParent and the absence of any relationship filter match IskanderExplosion
+# and HIMARSExplosion exactly — these blasts hurt nearby FRIENDLY units. That is
+# existing behaviour being extended, not a new decision.
+# ---------------------------------------------------------------------------
+
+^VolatileLoadEffects:
+	ValidTargets: Ground, Trees, Water
+	Warhead@Smudge: LeaveSmudge
+		SmudgeType: Crater
+		InvalidTargets: Structure, Wall, Trees
+	Warhead@Scorch: LeaveSmudge
+		SmudgeType: Scorch
+		Size: 1
+	Warhead@EffectWater: CreateEffect
+		Explosions: splash_large
+		ImpactSounds: splash9.aud
+		ValidTargets: Water, Underwater
+		InvalidTargets: Ship, Structure, Bridge
+
+VolatileLoad1:
+	Inherits: ^VolatileLoadEffects
+	Warhead@Spread: SpreadDamage
+		Spread: 128
+		Damage: 500
+		Penetration: 1800
+		ValidTargets: Ground, Trees, Water
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Shockwave: ShockwaveDamage
+		StartDelay: 2
+		WaveSpeed: 5
+		MaxRadius: 512
+		Spread: 1c0
+		Damage: 1500
+		Penetration: 1500
+		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 25
+		ShockwaveColor: FFFFF0C8
+		ShockwaveThickness: 384
+		ShockwaveOuterAlpha: 20
+		ShockwaveInnerAlpha: 6
+		ShockwaveFadeInTicks: 6
+		ValidTargets: Ground, Water, Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_small
+		ImpactSounds: kaboom25.aud
+		ValidTargets: Ground, Trees
+
+VolatileLoad2:
+	Inherits: ^VolatileLoadEffects
+	Warhead@Spread: SpreadDamage
+		Spread: 256
+		Damage: 1000
+		Penetration: 1800
+		ValidTargets: Ground, Trees, Water
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Shockwave: ShockwaveDamage
+		StartDelay: 2
+		WaveSpeed: 5
+		MaxRadius: 1c0
+		Spread: 1c0
+		Damage: 3000
+		Penetration: 1500
+		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 25
+		ShockwaveColor: FFFFF0C8
+		ShockwaveThickness: 384
+		ShockwaveOuterAlpha: 20
+		ShockwaveInnerAlpha: 6
+		ShockwaveFadeInTicks: 6
+		ValidTargets: Ground, Water, Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_small
+		ImpactSounds: kaboom25.aud
+		ValidTargets: Ground, Trees
+
+VolatileLoad3:
+	Inherits: ^VolatileLoadEffects
+	Warhead@Spread: SpreadDamage
+		Spread: 384
+		Damage: 1500
+		Penetration: 1800
+		ValidTargets: Ground, Trees, Water
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Shockwave: ShockwaveDamage
+		StartDelay: 2
+		WaveSpeed: 5
+		MaxRadius: 1c512
+		Spread: 1c0
+		Damage: 4500
+		Penetration: 1500
+		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 25
+		ShockwaveColor: FFFFF0C8
+		ShockwaveThickness: 384
+		ShockwaveOuterAlpha: 20
+		ShockwaveInnerAlpha: 6
+		ShockwaveFadeInTicks: 6
+		ValidTargets: Ground, Water, Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_medium
+		ImpactSounds: kaboom30.aud
+		ValidTargets: Ground, Trees
+
+VolatileLoad4:
+	Inherits: ^VolatileLoadEffects
+	Warhead@Spread: SpreadDamage
+		Spread: 512
+		Damage: 2000
+		Penetration: 1800
+		ValidTargets: Ground, Trees, Water
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Shockwave: ShockwaveDamage
+		StartDelay: 2
+		WaveSpeed: 5
+		MaxRadius: 2c0
+		Spread: 1c0
+		Damage: 6000
+		Penetration: 1500
+		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 25
+		ShockwaveColor: FFFFF0C8
+		ShockwaveThickness: 512
+		ShockwaveOuterAlpha: 20
+		ShockwaveInnerAlpha: 6
+		ShockwaveFadeInTicks: 6
+		ValidTargets: Ground, Water, Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_medium
+		ImpactSounds: kaboom30.aud
+		ValidTargets: Ground, Trees
+
+VolatileLoad5:
+	Inherits: ^VolatileLoadEffects
+	Warhead@Spread: SpreadDamage
+		Spread: 640
+		Damage: 2500
+		Penetration: 1800
+		ValidTargets: Ground, Trees, Water
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Shockwave: ShockwaveDamage
+		StartDelay: 2
+		WaveSpeed: 5
+		MaxRadius: 2c512
+		Spread: 1c0
+		Damage: 7500
+		Penetration: 1500
+		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 25
+		ShockwaveColor: FFFFF0C8
+		ShockwaveThickness: 640
+		ShockwaveOuterAlpha: 20
+		ShockwaveInnerAlpha: 6
+		ShockwaveFadeInTicks: 6
+		ValidTargets: Ground, Water, Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_medium
+		ImpactSounds: kaboom30.aud
+		ValidTargets: Ground, Trees
+
+VolatileLoad6:
+	Inherits: ^VolatileLoadEffects
+	Warhead@Spread: SpreadDamage
+		Spread: 768
+		Damage: 3000
+		Penetration: 1800
+		ValidTargets: Ground, Trees, Water
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Shockwave: ShockwaveDamage
+		StartDelay: 2
+		WaveSpeed: 5
+		MaxRadius: 3c0
+		Spread: 1c0
+		Damage: 9000
+		Penetration: 1500
+		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 25
+		ShockwaveColor: FFFFF0C8
+		ShockwaveThickness: 768
+		ShockwaveOuterAlpha: 22
+		ShockwaveInnerAlpha: 7
+		ShockwaveFadeInTicks: 7
+		ValidTargets: Ground, Water, Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_large
+		ImpactSounds: kaboom22.aud
+		ValidTargets: Ground, Trees
+
+VolatileLoad7:
+	Inherits: ^VolatileLoadEffects
+	Warhead@Spread: SpreadDamage
+		Spread: 896
+		Damage: 3500
+		Penetration: 1800
+		ValidTargets: Ground, Trees, Water
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Shockwave: ShockwaveDamage
+		StartDelay: 2
+		WaveSpeed: 5
+		MaxRadius: 3c512
+		Spread: 1c0
+		Damage: 10500
+		Penetration: 1500
+		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 25
+		ShockwaveColor: FFFFF0C8
+		ShockwaveThickness: 896
+		ShockwaveOuterAlpha: 24
+		ShockwaveInnerAlpha: 8
+		ShockwaveFadeInTicks: 8
+		ValidTargets: Ground, Water, Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_large
+		ImpactSounds: kaboom22.aud
+		ValidTargets: Ground, Trees
+
+VolatileLoad8:
+	Inherits: ^VolatileLoadEffects
+	Warhead@Spread: SpreadDamage
+		Spread: 1c0
+		Damage: 4000
+		Penetration: 1800
+		ValidTargets: Ground, Trees, Water
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Shockwave: ShockwaveDamage
+		StartDelay: 2
+		WaveSpeed: 5
+		MaxRadius: 4c0
+		Spread: 1c0
+		Damage: 12000
+		Penetration: 1500
+		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 25
+		ShockwaveColor: FFFFF0C8
+		ShockwaveThickness: 1024
+		ShockwaveOuterAlpha: 25
+		ShockwaveInnerAlpha: 8
+		ShockwaveFadeInTicks: 8
+		ValidTargets: Ground, Water, Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+	Warhead@Effect: CreateEffect
+		Explosions: explosion_large
+		ImpactSounds: kaboom22.aud
+		ValidTargets: Ground, Trees
