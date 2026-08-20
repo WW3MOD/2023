@@ -1432,8 +1432,18 @@ namespace OpenRA.Mods.Common.Traits
 				if (target.Actor == null)
 					continue;
 
-				// Don't overkill — skip targets that already have enough incoming damage to destroy them
-				if (Info.OverkillThreshold >= 0 && target.Actor.AverageDamagePercent >= Info.OverkillThreshold)
+				// Don't overkill — skip targets that already have MORE incoming damage than it takes
+				// to destroy them.
+				//
+				// PITFALL: strictly greater, not >=. EstimatePercentDamage clamps ONE shooter's claim
+				// at 100 (see the cap below) and OverkillThreshold defaults to 100, so under >= the
+				// smallest possible unit of commitment was exactly sufficient to trip this skip: an AA
+				// soldier's first missile marked a Halo at precisely 100 and blinded every other AA to
+				// a full-health aircraft until the next 60-tick halving. The threshold could only be
+				// tripped, never approached. Measured 2026-08-20 (run 260820_033930_p76804): four AA
+				// against one helicopter took 173 ticks to all engage, against 7 for the same battery
+				// with this skip disabled — one decay period per joiner.
+				if (Info.OverkillThreshold >= 0 && target.Actor.AverageDamagePercent > Info.OverkillThreshold)
 				{
 					declinedShootableTarget = true;
 					continue;

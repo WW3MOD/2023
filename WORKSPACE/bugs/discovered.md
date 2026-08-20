@@ -29,7 +29,34 @@
 
 ---
 
-## 2026-08-20: [high] OPEN, NOT FIXED — one AA soldier's overkill claim is EXACTLY the overkill threshold, so a single committed AA hard-skips the whole rest of the battery off a healthy aircraft (found while: diagnosing the user's live "my AA won't autotarget until I click" report, branch `wt/aa-autotarget`, `main @ e3a5250d`)
+## 2026-08-20: [high] PARTIALLY FIXED on `wt/aa-autotarget` — one AA soldier's overkill claim is EXACTLY the overkill threshold, so a single committed AA hard-skips the whole rest of the battery off a healthy aircraft (found while: diagnosing the user's live "my AA won't autotarget until I click" report, branch `wt/aa-autotarget`, `main @ e3a5250d`)
+
+> **UPDATE 2026-08-20, and the entry below is now MEASURED rather than derived.**
+> Run `260820_033930_p76804` of `test-aa-battery-volleys`, unfixed stock code:
+>
+> | lane | fired | spread | first shots |
+> |---|---|---|---|
+> | TEST (stock) | 4/4 | **173** | AA1=144 AA2=35 AA3=84 AA4=208 |
+> | CTRL (`OverkillThreshold: -1`) | 4/4 | **7** | AA1=43 AA2=47 AA3=41 AA4=40 |
+>
+> Both helicopters ended 600/600. Consecutive first shots in the stock lane are 49, 60 and 64 ticks
+> apart — **one decay period each**, the arithmetic confirming itself. The user-facing shape is
+> therefore *"the battery fires one at a time instead of together"*, not *"fewer AA fire"*: all four
+> engage in both arms, and only the spacing differs.
+>
+> **The comparison `>=` is now `>` (`AutoTarget.cs:1436`).** A single shooter's claim exactly
+> equalling the threshold is the minimum possible commitment, not overkill; under `>=` the threshold
+> could only be tripped, never approached.
+>
+> **This is expected to be a PARTIAL fix, and the residual is predicted rather than measured.**
+> `AverageDamagePercent` is additive, so `>` lets exactly TWO shooters through per window: the first
+> commits (0 → 100), the second passes `100 > 100` and commits (→ 200), and the third is blocked
+> until a halving. Four AA should therefore engage in pairs across roughly one to two decay periods —
+> a predicted spread near **60–130 ticks**, down from 173 but still far above the control's 7.
+> **`test-aa-battery-volleys` is likely to stay RED after this fix**, which is the documented
+> multi-layer pattern in `AUTOTEST.md` ("fix what I can, leave the test RED for the unfixed parts"),
+> not a sign the change did nothing. The remaining layer is the release defect described below, left
+> unfixed by explicit instruction so this run gives a clean before/after for exactly one change.
 
 **This is an INCOMPLETE FIX, not a regression.** `afa18718` (2026-08-12) is intact and nothing in
 this path has changed since — the only commits touching `AutoTarget.cs`/`Actor.cs` after it are
