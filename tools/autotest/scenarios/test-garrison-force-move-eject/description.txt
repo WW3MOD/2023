@@ -1,0 +1,1 @@
+Force-moving one garrisoned soldier takes him alone out of the tower, westward, to the ordered cell — while the two men who were not ordered out stay inside.

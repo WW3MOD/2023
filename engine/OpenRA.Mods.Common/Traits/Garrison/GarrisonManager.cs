@@ -445,6 +445,92 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>
+		/// Releases ONE named soldier from this garrison, leaving everyone else where they are. This is
+		/// the single primitive behind both the unload menu's per-man eject and a force-move issued
+		/// directly to a soldier standing at a port; a second implementation is how the two drift apart.
+		/// <para>Two entry states, and they need opposite handling: a PORT soldier is already in the world
+		/// and only needs his condition revoked, while a SHELTER soldier is inside Cargo and has to be put
+		/// back into it.</para>
+		/// </summary>
+		/// <param name="exitToward">When set, a port soldier is stepped onto whichever free cell adjacent
+		/// to the building lies closest to this destination, so he leaves on the side the player pointed
+		/// at. Ignored for shelter soldiers, who keep the existing drop-at-the-building-cell behaviour.</param>
+		/// <returns>True if the passenger belonged to this garrison and was released.</returns>
+		public bool EjectPassenger(Actor self, Actor passenger, CPos? exitToward = null)
+		{
+			for (var i = 0; i < PortStates.Length; i++)
+			{
+				if (PortStates[i].DeployedSoldier != passenger)
+					continue;
+
+				// Revoke BEFORE nullifying DeployedSoldier — RevokePortCondition reads that field and
+				// silently no-ops when it is null, leaking the granted token. Same ordering as everywhere else.
+				RevokePortCondition(i);
+				PortStates[i].DeployedSoldier = null;
+				PortStates[i].CachedArmaments = null;
+				PortStates[i].CurrentTarget = Target.Invalid;
+				PortStates[i].TargetLockTicks = 0;
+				PortStates[i].PlayerOverride = false;
+
+				// He is already in the world; revoking the condition is what turns him back into ordinary
+				// infantry, since sprite alpha, Mobile and AutoTarget all key on garrisoned-at-port.
+				if (exitToward != null)
+					StepOutToward(self, passenger, exitToward.Value);
+
+				// A port soldier takes no Cargo exit, so INotifyPassengerExited never fires for him and
+				// nothing else hands the building back. Without this the last man to leave through a port
+				// leaves it owned by his player forever — for a neutral house a silent permanent
+				// annexation, and owned buildings feed ControlField's territory classification. The bulk
+				// "Unload" case carries the same call and documents the same reasoning; this per-passenger
+				// path had been missing it, which only became reachable once a soldier could be ordered out.
+				CheckOwnershipAfterExit();
+				return true;
+			}
+
+			if (!cargo.Passengers.Contains(passenger))
+				return false;
+
+			cargo.Unload(self, passenger);
+
+			self.World.AddFrameEndTask(w =>
+			{
+				w.Add(passenger);
+				var positionable = passenger.Trait<IPositionable>();
+				positionable.SetPosition(passenger, self.Location);
+			});
+
+			return true;
+		}
+
+		/// <summary>
+		/// Steps a just-released port soldier onto the free adjacent cell nearest <paramref name="destination"/>,
+		/// so he appears on the side he was sent toward instead of out of an arbitrary door.
+		/// </summary>
+		void StepOutToward(Actor self, Actor soldier, CPos destination)
+		{
+			var positionable = soldier.TraitOrDefault<IPositionable>();
+			if (positionable == null)
+				return;
+
+			// PITFALL: never place blind. Cargo's emergency bail learned this expensively — a man set down
+			// on ground his locomotor cannot stand on is then handed a move order he can never start.
+			// GetAvailableSubCell is the test that rejects both bad terrain and already-taken subcells.
+			var exit = GarrisonExitMath.ChooseExitCell(
+				cargo.CurrentAdjacentCells,
+				destination,
+				c => positionable.GetAvailableSubCell(c, SubCell.Any, soldier) != SubCell.Invalid);
+
+			// Nothing free: release him anyway, standing on the building's own cell with his move still
+			// queued. Deliberately not a refusal — the ghost clears and the port empties, so the order
+			// visibly took, and he walks off as soon as a neighbour opens up. Refusing here would be the
+			// one outcome the player cannot tell apart from the bug this feature exists to fix.
+			if (exit == null)
+				return;
+
+			positionable.SetPosition(soldier, exit.Value);
+		}
+
 		// Find the best shelter soldier to deploy at a given port for a given target
 		Actor FindBestShelterSoldier(int portIndex, in Target target)
 		{
@@ -1388,44 +1474,11 @@ namespace OpenRA.Mods.Common.Traits
 
 				case "EjectGarrisonPassenger":
 				{
-					var passengerID = order.ExtraData;
-					var passenger = self.World.GetActorById(passengerID);
+					var passenger = self.World.GetActorById(order.ExtraData);
 					if (passenger == null)
 						return;
 
-					// Check if passenger is deployed at a port
-					for (var i = 0; i < PortStates.Length; i++)
-					{
-						if (PortStates[i].DeployedSoldier == passenger)
-						{
-							// Revoke condition and clear port
-							RevokePortCondition(i);
-							PortStates[i].DeployedSoldier = null;
-							PortStates[i].CachedArmaments = null;
-							PortStates[i].CurrentTarget = Target.Invalid;
-							PortStates[i].TargetLockTicks = 0;
-							PortStates[i].PlayerOverride = false;
-
-							// Soldier is already in world, just needs to become normal infantry
-							// (condition revoked above enables sprite/movement/attack)
-							return;
-						}
-					}
-
-					// Check if passenger is in shelter (Cargo)
-					if (!cargo.Passengers.Contains(passenger))
-						return;
-
-					cargo.Unload(self, passenger);
-
-					// Position the ejected passenger
-					self.World.AddFrameEndTask(w =>
-					{
-						w.Add(passenger);
-						var positionable = passenger.Trait<IPositionable>();
-						positionable.SetPosition(passenger, self.Location);
-					});
-
+					EjectPassenger(self, passenger);
 					break;
 				}
 

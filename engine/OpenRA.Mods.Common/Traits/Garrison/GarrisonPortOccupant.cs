@@ -31,7 +31,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new GarrisonPortOccupant(this); }
 	}
 
-	public class GarrisonPortOccupant : ConditionalTrait<GarrisonPortOccupantInfo>, ITargetable
+	public class GarrisonPortOccupant : ConditionalTrait<GarrisonPortOccupantInfo>, ITargetable, IResolveOrder
 	{
 		// Set by GarrisonManager when deploying to a port, cleared on recall
 		public Actor GarrisonBuilding { get; private set; }
@@ -39,6 +39,39 @@ namespace OpenRA.Mods.Common.Traits
 
 		public GarrisonPortOccupant(GarrisonPortOccupantInfo info)
 			: base(info) { }
+
+		/// <summary>
+		/// Force-move (Ctrl) issued to a soldier standing at a port takes him, and only him, out of the
+		/// building — the direct-manipulation twin of the unload menu's per-man eject, so that choosing
+		/// who leaves no longer means emptying the whole garrison.
+		/// <para>Without this the order is not refused, it is swallowed: Mobile carries
+		/// PauseOnCondition: garrisoned-at-port (infantry.yaml:53) while MoveOrderTargeter accepts the
+		/// click regardless of pause (Mobile.cs:1174), so the player gets a move cursor, a real ForceMove
+		/// order and a Move activity that is queued and then never advances. Revoking the condition is
+		/// what releases it — Mobile's own contract is that a move queued while paused runs once unpaused,
+		/// so this works whichever of the two traits resolves the order first.</para>
+		/// <para>Scoped to ForceMove on purpose. Ctrl is the deliberate "yes, really leave the building"
+		/// gesture; a plain right-click near a garrison stays inert rather than emptying a port by accident.</para>
+		/// </summary>
+		void IResolveOrder.ResolveOrder(Actor self, Order order)
+		{
+			// A ConditionalTrait still receives orders while disabled, so this is what scopes the
+			// behaviour to a man actually standing at a port rather than any infantryman on the map.
+			if (IsTraitDisabled || order.OrderString != "ForceMove")
+				return;
+
+			if (GarrisonBuilding == null || GarrisonBuilding.IsDead || !GarrisonBuilding.IsInWorld)
+				return;
+
+			var manager = GarrisonBuilding.TraitOrDefault<GarrisonManager>();
+			if (manager == null)
+				return;
+
+			// Each selected soldier resolves his own ForceMove — the generator passes them through
+			// individually rather than grouping them (UnitOrderGenerator.cs:101-105), so force-moving a
+			// multi-soldier selection releases exactly those men and leaves the rest of the garrison in place.
+			manager.EjectPassenger(GarrisonBuilding, self, self.World.Map.CellContaining(order.Target.CenterPosition));
+		}
 
 		public void SetPort(Actor building, int portIndex)
 		{
