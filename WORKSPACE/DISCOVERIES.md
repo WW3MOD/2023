@@ -3,6 +3,42 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-21 — radar reveals ACTORS, not CELLS, and every cell-level fog check silently vetoes it
+
+Branch `wt/radar-targeting`. A helicopter held on radar with no line of sight rendered on screen
+and refused the attack order. The reason is a layer distinction that is easy to miss and is not
+stated anywhere the callers can see it: **`MapLayers` keeps radar in its own binary counter,
+`radarCount` (`MapLayers.cs:534-537`), which contributes NOTHING to `ResolvedVisibility`.** Vision
+writes graded strengths; radar writes a separate yes/no. `Detectable.IsVisibleInner` ORs the two,
+so `CanBeViewedByPlayer` answers yes and the unit draws.
+
+Anything that then asks a **cell** question — `MapLayers.IsVisible`, `IsDetectable`,
+`World.FogObscures(pos)` — is asking about `ResolvedVisibility` only, and so returns "fogged" for
+every radar contact that has ever existed. `UnitOrderGenerator.TargetForInput` required
+`!World.FogObscures(a.Actor.CenterPosition)` *in addition to* `CanBeViewedByPlayer`, so the actor
+was dropped from the mouse-target list and the right-click fell through to `Target.FromCell` — a
+Move order, no attack cursor, on a unit the player could plainly see.
+
+**The general shape, which is the part worth banking: a predicate about an ACTOR and a predicate
+about the CELL UNDER IT are not interchangeable, and substituting the cheaper one silently deletes
+every channel of knowledge that is not line-of-sight.** Two such channels have now been found this
+way — `FrozenUnderFog` buildings (`22a1ec34`, 2026-05-04) and radar contacts (this) — and both were
+found as user-visible bugs rather than by anyone reading the code. Both came from one commit,
+`8db9da9e` (2026-04-16), which added the cell check as defence-in-depth against a through-fog
+targeting bug whose root cause it says outright it never found ("the exact edge case is elusive").
+An unreproduced guard that overrides an authoritative predicate will keep doing this. If a third
+channel turns up, that is the signal to go find `8db9da9e`'s original bug and delete the guard,
+rather than to add a third exemption.
+
+Corollary for tests, and it disqualifies the three obvious assertions. `Test.IsDetectedBy` reads
+`CanBeViewedByPlayer`, which is **true for a radar contact on the broken build** — that
+disagreement *is* the bug. A Lua `Attack` order gates on the same predicate
+(`CombatProperties.cs:97`) and fires on the broken build. And `Test.ClickOrder`, which delegates
+honestly to `UnitOrderGenerator.OrderForUnit`, still builds `Target.FromActor` itself
+(`TestGlobal.cs:555`) and so begins one step *after* `TargetForInput`, the method that contains the
+defect. All three go green against it. `Test.IsMouseTargetable` was added to call the shipped
+predicate object directly.
+
 ## 2026-08-20 — a harness helper that "does what the real path does" had quietly dropped one step, and that step was the whole bug
 
 Branch `wt/order-fallback`. `Test.ClickOrder` is documented as resolving "the IIssueOrder targeter

@@ -146,14 +146,41 @@ namespace OpenRA.Mods.Common.Traits
 			var detectable = ClampConcealment(Util.ApplyAddativeModifiers(DetectableInfo.Vision, detectableModifiers));
 
 			if (DetectableInfo.Position == DetectablePosition.Footprint)
-			{
 				return byPlayer.MapLayers.AnyDetectable(self.OccupiesSpace.OccupiedCells(), detectable)
-					|| (RadarDetectionActive() && byPlayer.MapLayers.AnyVisibleOnRader(self.OccupiesSpace.OccupiedCells()))
-					|| (CounterBatteryRadarDetectionActive() && byPlayer.MapLayers.AnyVisibleOnCounterBatteryRadar(self.OccupiesSpace.OccupiedCells()));
-			}
+					|| IsRadarDetectedBy(self, byPlayer);
 
 			return byPlayer.MapLayers.IsDetectable(pos, detectable)
-				|| (RadarDetectionActive() && byPlayer.MapLayers.RadarCover(pos))
+				|| IsRadarDetectedBy(self, byPlayer);
+		}
+
+		/// <summary>
+		/// Whether <paramref name="byPlayer"/> holds this actor on radar or counter-battery radar,
+		/// independently of any line of sight.
+		/// </summary>
+		/// <remarks>
+		/// PITFALL: radar is a SEPARATE map layer from vision. It increments MapLayers.radarCount and
+		/// contributes nothing to ResolvedVisibility, so a radar-only contact sits on a cell that every
+		/// band-based query — IsVisible, IsDetectable, World.FogObscures(pos) — still reports as fogged.
+		/// A caller asking "does this player legitimately know the actor is here" must therefore ask this
+		/// as well, or it will veto real radar knowledge. See MouseTargetVisibility.
+		/// </remarks>
+		public bool IsRadarDetectedBy(Actor self, Player byPlayer)
+		{
+			if (byPlayer == null)
+				return false;
+
+			if (DetectableInfo.Position == DetectablePosition.Footprint)
+			{
+				var cells = self.OccupiesSpace.OccupiedCells();
+				return (RadarDetectionActive() && byPlayer.MapLayers.AnyVisibleOnRader(cells))
+					|| (CounterBatteryRadarDetectionActive() && byPlayer.MapLayers.AnyVisibleOnCounterBatteryRadar(cells));
+			}
+
+			var pos = self.CenterPosition;
+			if (DetectableInfo.Position == DetectablePosition.Ground)
+				pos -= new WVec(WDist.Zero, WDist.Zero, self.World.Map.DistanceAboveTerrain(pos));
+
+			return (RadarDetectionActive() && byPlayer.MapLayers.RadarCover(pos))
 				|| (CounterBatteryRadarDetectionActive() && byPlayer.MapLayers.CounterBatteryRadarCover(pos));
 		}
 

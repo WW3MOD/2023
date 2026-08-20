@@ -1077,6 +1077,19 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return actor.CanBeViewedByPlayer(player);
 		}
 
+		[Desc("Whether the RENDER player may click `actor` — right-click it as an order target, or " +
+			"select it. This is the predicate the mouse paths run (MouseTargetVisibility), not the one " +
+			"IsDetectedBy asks. PITFALL: the two disagree, and that gap IS the radar-targeting bug — " +
+			"IsDetectedBy returns true for a radar-only contact whether or not the bug is present, so a " +
+			"scenario asserting it goes green against the defect. Assert this instead. Test mode only.")]
+		public bool IsMouseTargetable(Actor actor)
+		{
+			if (!TestMode.IsActive || actor == null || actor.IsDead || !actor.IsInWorld)
+				return false;
+
+			return actor.IsRevealedForMouseInput(Context.World);
+		}
+
 		[Desc("Invoke a registered chat command (as if typed into the chatbox), e.g. \"intel\" or " +
 			"\"/intel\" to toggle the Phase-1 intel overlay's dev always-on switch. Test mode only.")]
 		public void RunChatCommand(string command)

@@ -1,0 +1,52 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# FOG ON and LOCKED: with fog off, GetVisibility takes the
+		# "explored => 10" branch and every cell reads unfogged, which
+		# switches off the very gate under test and turns this scenario into
+		# a guaranteed green that measures nothing.
+		#
+		# EXPLORED ON, deliberately. It puts the helicopters' cells at
+		# ResolvedVisibility 1 -- "explored, nobody looking" -- rather than 0.
+		# That is the harder and more honest case: 1 is the exact value that
+		# is ambiguous between "seen at the weakest band" and "not seen at
+		# all", and it is what a player's map actually looks like after
+		# scouting. If the fix worked only against raw shroud it would pass
+		# on 0 and fail here.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-radar-only-targetable.lua
+
+# Radar widened from the stock 30c0 so both rungs clear their thresholds by
+# ~10 cells instead of the ~2 the stock range would allow. Strength and
+# ValidRelationships are restated rather than inherited so a future change to
+# either default cannot silently move this scenario's geometry -- the range is
+# the only thing meant to differ from the shipped vehicle.
+STRYKERSHORAD:
+	Radar:
+		Range: 56c0
+		Strength: 1
+		ValidRelationships: Ally
+	WithRangeCircle@Radar:
+		Range: 56c0
+
+# The helicopters must not become a live engagement: an AA kill would remove
+# the subject mid-run, and a chase would change the geometry every number in
+# map.yaml depends on. Silence the ENEMY rather than the units under
+# observation (AUTOTEST.md gotcha #9) -- putting the Stryker or the MANPAD on
+# HoldFire would be setup that a gate reads.
+HALO:
+	Targetable@Airborne:
+		RequiresCondition: airborne
+		TargetTypes: NoAutoTarget
+	Health:
+		HP: 100000
