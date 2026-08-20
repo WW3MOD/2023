@@ -90,11 +90,19 @@ WorldLoaded = function()
 		-- his Selectable trait carries no garrisoned-at-port gate, so the selection system should
 		-- take him. If that ever stops being true this fails here, loudly, instead of surfacing as
 		-- a confusing "the order did nothing" further down.
-		Test.SelectActors({ R1 })
+		--
+		-- Deliberately the single-actor UserInterface.Select path rather than Test.SelectActors:
+		-- one man is all this needs, and that path is exercised by scenarios across the corpus,
+		-- so a count of 0 here points at the soldier rather than at an untried binding. Which
+		-- matters, because a harness failure at this gate would otherwise read as the finding
+		-- "garrisoned soldiers cannot be selected" — an absence manufactured by the instrument.
+		TestHarness.Select(R1)
 		if Test.GetSelectedCount() ~= 1 then
 			Test.Fail("a garrisoned soldier at a port could not be selected (selected count " ..
-				Test.GetSelectedCount() .. ") — the eject half of this feature is unreachable " ..
-				"without selection; " .. Census("squad", Squad))
+				Test.GetSelectedCount() .. "). Either UserInterface.Select rejected an in-world " ..
+				"port soldier — which would make the eject half of this feature unreachable — or " ..
+				"the harness failed to select at all; check a sibling scenario's selection before " ..
+				"reading this as a garrison finding. " .. Census("squad", Squad))
 			return
 		end
 
