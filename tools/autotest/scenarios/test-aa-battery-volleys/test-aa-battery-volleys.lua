@@ -46,10 +46,50 @@
 --     rather than suppressed, which is a different bug and must not be reported
 --     as this one
 --
--- EXPECTED VERDICT ON CURRENT CODE: FAIL, with the test battery fielding
--- markedly fewer shooters than the control. If it PASSES, that is a finding
--- about the diagnosis and must be reported as one -- do not retune the
--- threshold to force a red.
+-- =====================================================================
+-- MEASURED 2026-08-20, run 260820_033930_p76804, against unfixed stock code:
+--
+--   lane              fired   spread   first shots
+--   TEST (stock)       4/4      173    AA1=144 AA2=35 AA3=84 AA4=208
+--   CTRL (disabled)    4/4        7    AA1=43  AA2=47 AA3=41 AA4=40
+--
+-- Both helicopters ended at 600/600, so the RangeLimit cut held and nothing
+-- died: the two arms differ only in the mechanism under test.
+--
+-- THE FIRST VERSION OF THIS SCENARIO ASSERTED THE WRONG QUANTITY AND PASSED.
+-- It compared SHOOTER COUNTS, and all four AA eventually fire in both arms, so
+-- the count cannot separate them. The run did not refute the diagnosis -- it
+-- sharpened it. The stock battery took 173 ticks to bring four AA to bear where
+-- the control took 7: roughly ten seconds of serialisation against half a
+-- second. Since both arms carry the same randomised 16-32 tick rescan, the 7 IS
+-- the stagger floor and the 166-tick excess is suppression and nothing else.
+--
+-- So the bug is not "fewer AA fire". It is "the battery fires ONE AT A TIME
+-- INSTEAD OF TOGETHER" -- which fits the user's report better than the shooter
+-- count did, because an AA that engages ten seconds late reads in play as not
+-- firing, and then firing for no visible reason.
+--
+-- The spacing in the stock lane is ~50-64 ticks between consecutive first
+-- shots, which is one decay period each (Actor.cs:309-310 halves on
+-- WorldTick % 60). That is the arithmetic confirming itself: each joiner
+-- re-loads the accumulator to >= OverkillThreshold and the next one waits out
+-- exactly one halving.
+--
+-- The assertion below therefore measures SPREAD AGAINST THE CONTROL'S SPREAD.
+-- Applied to the numbers above it fails the stock lane (173 > allowance 32) and
+-- passes the control lane (7 <= 32), which is the discrimination it needs.
+-- =====================================================================
+--
+-- EXPECTED VERDICT ON CURRENT CODE: FAIL on spread. If it PASSES, that is a
+-- finding about the diagnosis and must be reported as one -- do not retune
+-- SpreadMultiple or StaggerFloorTicks to force a red.
+
+-- Stock spread is allowed this multiple of the control's spread before the
+-- battery counts as serialising, floored at one full rescan period. Neither
+-- number is a tuned pass/fail line -- see the assertion in finish() for the
+-- derivation of both.
+local SpreadMultiple = 3
+local StaggerFloorTicks = 32
 
 local ObserveSeconds = 20
 
@@ -208,12 +248,38 @@ local function finish()
 		return
 	end
 
+	-- Checked BEFORE the spread, and the order is load-bearing: a lane where only
+	-- one AA ever fired has first == last and therefore a spread of ZERO, which
+	-- would sail through the check below. The count check is what stops the most
+	-- severe form of the bug from reading as the healthiest possible result.
 	if test.firedCount < ctrl.firedCount then
-		Test.Fail("the stock battery serialised: " .. test.firedCount .. "/4 AA engaged a"
-			.. " healthy helicopter where the same battery with overkill prevention off"
-			.. " engaged " .. ctrl.firedCount .. "/4. One AA's commitment marks an aircraft"
-			.. " at exactly OverkillThreshold, so its neighbours hard-skip a target nothing"
-			.. " is wrong with. || " .. summary)
+		Test.Fail("the stock battery serialised so hard it never fielded a full battery: "
+			.. test.firedCount .. "/4 AA engaged a healthy helicopter where the same battery"
+			.. " with overkill prevention off engaged " .. ctrl.firedCount .. "/4. || " .. summary)
+		return
+	end
+
+	-- THE MEASUREMENT. Both arms are ^CamoSoldier with the same randomised 16-32
+	-- tick rescan, so the control's spread IS the stagger floor for this staging,
+	-- whatever it happens to be on the day. Everything above it is suppression.
+	-- Expressed against the control rather than a constant so it carries its own
+	-- baseline: if the scan interval is ever retuned, both arms move together and
+	-- this assertion stays honest without anyone editing a number here.
+	--
+	-- The floor is derived, not chosen. MaximumScanTimeInterval is 32
+	-- (infantry.yaml:290), so two units that both want to fire can legitimately
+	-- be one full rescan period apart even with nothing suppressing either. It
+	-- also stops a degenerate control spread of 0 from making any stock spread
+	-- at all a failure.
+	local allowance = math.max(ctrl.spread * SpreadMultiple, StaggerFloorTicks)
+	if test.spread > allowance then
+		Test.Fail("the stock battery fired one at a time instead of together: first shots"
+			.. " span " .. test.spread .. " ticks against the control's " .. ctrl.spread
+			.. " (allowance " .. allowance .. "). Same units, same weapon, same rescan"
+			.. " cadence, one healthy helicopter each; the only difference is that the"
+			.. " control has OverkillThreshold disabled. One AA's commitment marks the"
+			.. " aircraft at exactly OverkillThreshold, so each joiner waits out a decay"
+			.. " period before the next can engage. || " .. summary)
 		return
 	end
 
