@@ -1,0 +1,109 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a radar-only helicopter can be right-clicked
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# =====================================================================
+	# THE BUG. A helicopter held on radar but with no line of sight renders
+	# on screen and then refuses the attack order. Radar is a SEPARATE map
+	# layer from vision -- MapLayers.radarCount, a binary per-cell counter
+	# (MapLayers.cs:534-537) -- and contributes nothing to
+	# ResolvedVisibility. Detectable.IsVisibleInner ORs the radar clause in,
+	# so CanBeViewedByPlayer says yes and the unit draws; but the mouse
+	# paths ALSO required !World.FogObscures(CenterPosition), which is
+	# ResolvedVisibility > 1 on one cell (World.cs:111) and is therefore
+	# false for every radar contact that ever existed. The actor was dropped
+	# from the mouse-target list and the right-click fell through to
+	# Target.FromCell -- a Move order, no attack cursor.
+	#
+	# GEOMETRY, and why each number is where it is.
+	#   Radar is overridden to 56c0 (see rules.yaml). Vision reaches 32
+	#   cells at most -- ^StandardVision band 1 is 28c-32c, defaults.yaml:83
+	#   -- and band 1 stamps ResolvedVisibility 1, which FogObscures already
+	#   counts as fogged, so 32c is a hard outer edge for "unfogged".
+	#
+	#   Stryker (3,28) -> RadarHeli (45,10) = sqrt(42^2+18^2) = 45.7c
+	#     inside radar 56c by 10.3c; outside vision 32c by 13.7c.
+	#   MANPAD  (5,28) -> RadarHeli          = sqrt(40^2+18^2) = 43.9c
+	#     the NEAREST USA vision source to it; outside 32c by 11.9c.
+	#   Stryker (3,28) -> DarkHeli  (63,2)  = sqrt(60^2+26^2) = 65.4c
+	#     outside radar 56c by 9.4c, and outside vision by 33c.
+	#
+	#   Every margin is 9c or better, so no rung sits on a band edge
+	#   (AUTOTEST.md gotcha #8). Radar has no bands at all -- it is a plain
+	#   binary circle -- so its two margins are exact and cannot flip.
+	#
+	# The two helicopters are spawned airborne from Lua rather than placed
+	# here: Detectable.RadarDetectableCondition is `airborne`
+	# (aircraft.yaml:44), so a helicopter sitting on the ground is not a
+	# radar contact at all and would test nothing.
+	#
+	# ONLY the Stryker carries a Radar trait. The MANPAD is infantry and the
+	# Supply Route declares no Radar and no Vision block, so radar coverage
+	# on this map has exactly one source and its centre is known.
+	# =====================================================================
+
+	# The radar source, and an AA shooter in its own right (Stinger.quad).
+	Stryker: strykershorad
+		Owner: USA
+		Location: 3,28
+		Facing: 0
+
+	# The user's unit, in their words: "a AA soldier".
+	Manpad: aa
+		Owner: USA
+		Location: 5,28
+		Facing: 0
+
+	# One Supply Route per side so neither faction can be eliminated and end
+	# the match before the Lua poller writes a verdict.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 64,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 63,2
+
+Rules: rules.yaml

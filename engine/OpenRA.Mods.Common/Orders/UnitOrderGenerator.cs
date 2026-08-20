@@ -29,8 +29,7 @@ namespace OpenRA.Mods.Common.Orders
 			var controlAll = DeveloperMode.IsControlAllUnitsActive(world);
 			var actor = world.ScreenMap.ActorsAtMouse(mi)
 				.Where(a => !a.Actor.IsDead && a.Actor.Info.HasTraitInfo<ITargetableInfo>()
-					&& (controlAll || (!world.FogObscures(a.Actor)
-						&& (a.Actor.Info.HasTraitInfo<FrozenUnderFogInfo>() || !world.FogObscures(a.Actor.CenterPosition)))))
+					&& (controlAll || a.Actor.IsRevealedForMouseInput(world)))
 				.WithHighestSelectionPriority(worldPixel, mi.Modifiers);
 
 			if (actor != null)
@@ -157,8 +156,7 @@ namespace OpenRA.Mods.Common.Orders
 			var actor = world.ScreenMap.ActorsAtMouse(xy)
 				.Where(a => !a.Actor.IsDead && a.Actor.Info.HasTraitInfo<ISelectableInfo>()
 					&& (controlAll || a.Actor.Owner.IsAlliedWith(world.RenderPlayer)
-						|| (!world.FogObscures(a.Actor)
-							&& (a.Actor.Info.HasTraitInfo<FrozenUnderFogInfo>() || !world.FogObscures(a.Actor.CenterPosition)))))
+						|| a.Actor.IsRevealedForMouseInput(world)))
 				.WithHighestSelectionPriority(xy, mi.Modifiers);
 
 			if (actor == null)
