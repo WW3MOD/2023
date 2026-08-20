@@ -52,6 +52,14 @@ Players:
 		Color: 4488FF
 
 Actors:
+	# The map declares one Playable slot, so the lint requires a matching spawn point.
+	# Added 2026-08-20: the scenario shipped without one and was the ONLY new entry the
+	# lint floor refused — "allows 1 possible players, but defines only 0 spawn points".
+	# Placed clear of the three airframes so it cannot influence where they fly.
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
 	SpentHeli: heli
 		Location: 16,16
 		Owner: Me
