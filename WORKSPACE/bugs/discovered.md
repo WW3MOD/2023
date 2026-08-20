@@ -3,6 +3,495 @@
 > Bugs found while working on something else. Captured here so they don't get lost.
 > Format: `- [DATE] [severity] description (found while working on: X)`
 
+---
+
+> ### Reading note for the 2026-08-20 ambush/concealment/cover block below
+>
+> The eighteen entries immediately below were extracted from the nine-strand research programme in
+> `WORKSPACE/ambush-programme/` and the ground-truth audit
+> `WORKSPACE/recon/260820-ambush-cover-detection-audit.md`. **Every one was re-verified against
+> source at `main @ 57822b4e` before being written here**, and several corrections to the source
+> documents are recorded inline — read the `Established:` line on each entry, not the design doc.
+>
+> **Not one of them was measured. No strand in that programme launched the game, and neither did
+> this filing pass.** Where an entry says DERIVED, it is arithmetic over verified code sites and
+> nobody has watched the symptom occur. Where it says READ, the code was read at HEAD but the
+> player-visible consequence is still inferred. Treat the `Confirm by:` line as work not yet done.
+>
+> **None of these are fixed, and none may be fixed without the user's say-so** — their standing
+> instruction is that nothing on stances, ambush, concealment or cover is implemented until they
+> say. Filed so the defects survive independently of the design conversation that produced them.
+>
+> **Two entries already in this file, filed earlier the same day from `wt/ambush-legibility`, carry
+> claims this pass overturned** — the "burnt trees" cover-bonus entry and the "maximum concealment
+> draws nothing" entry. Both now carry dated correction blocks pointing back here. If you find them
+> by search rather than by reading top-down, read the correction before acting.
+
+---
+
+## 2026-08-20: [high] OPEN, NOT FIXED — the `object-proximity` cover ladder is geometrically unreachable: the three largest concealment bonuses in the game can never be granted (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+Standing next to cover contributes **exactly zero** concealment. `@InCover1/2/3`
+(`infantry.yaml:707-715`, worth **+1/+2/+3** — bigger than prone and dug-in combined) consume
+`object-proximity`, and the **only** emitter in the mod is
+`ProximityExternalCondition@ObjectProximity` on `^TreeHusk` — a *burnt* tree (`husks.yaml:117-121`).
+Living trees emit nothing.
+
+**The reason it cannot fire is geometric, not the earlier and widely-repeated "you must burn the
+forest down first".** That version was believed by three separate parties and is wrong:
+
+1. `Range: 384` is 0.375 cells; the 20 per-actor overrides go as low as **182** (0.18 cells) and as
+   high as 640 (`husks.yaml:120,131,141,…,322`).
+2. The trigger point is the husk's own cell centre (`ProximityExternalCondition.cs:72-78,104`).
+3. Containment is a strict `<` on horizontal distance (`ActorMap.cs:143-144`).
+4. `^TreeHusk` carries `Building: Footprint: x` with **no `Passable`** (`husks.yaml:105-107`), so it
+   **blocks infantry** — unlike a living `^Tree`, which carries `Passable: PassClasses: tree`
+   (`decoration.yaml:12-14`) and is walkable. Nobody can stand on the husk's cell.
+5. Infantry occupy quantised sub-cell offsets (`MapGrid.cs:117-125`, not overridden by the mod).
+
+Nearest occupiable sub-cell is therefore **244–771 WDist** against radii of **182–640**, and across
+all **23** husk types (`^TreeHusk` + 22 inheritors) **zero are reachable**. Burning the forest down
+does not help; the ladder is dead outright, not merely misdirected.
+
+One residual accident: a soldier standing under a live tree when it burns gets the husk spawned on
+his own cell (`decoration.yaml:108-109`), and `Building` does not eject occupants — so 12 of 23
+types become reachable from inside, until he takes one step.
+
+**Established:** READ at HEAD for every premise (radii, impassability, the strict `<`, sub-cell
+quantisation), then **DERIVED** by arithmetic over those four sites. **Nobody has watched a soldier
+fail to receive the condition.**
+**Confirm by:** a scenario that places a rifleman adjacent to each husk type and asserts
+`object-proximity` is never granted. No such scenario exists. Cheaper still: the condition is
+synced, so a debug readout of `ExternalCondition@ObjectProximity`'s grant count would settle it in
+one run.
+**First documented 2026-07-28** in `WORKSPACE/recon/260728-trees-concealment.md`, restated
+2026-08-19 in `260819-infantry-visibility-stances.md` (*"almost certainly not intended"*), never
+acted on.
+
+## 2026-08-20: [high] OPEN, NOT FIXED — the widened ambush (halt-before-contact + the smart spring table) is granted only to bot-posted units; no human opt-in path ships (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+A human clicking the Ambush button gets the narrow stance. The bots get the feature. Stages 2–4 —
+the attack-move halt that stops a squad walking into contact while it is still unseen, and the
+four-trigger spring table — sit behind `AutoTargetInfo.AmbushTacticsCondition`, wired to
+`enable-ambush-tactics` (`defaults.yaml:320`).
+
+**Exactly one thing grants it:** `LaneAmbushBotModule`, per-unit, only to the ≤4 units it posts
+itself (`LaneAmbushBotModule.cs:451,474`), on both bot profiles. The trait's own header states the
+gap outright at `LaneAmbushBotModule.cs:48`: *"humans / Normal / Rush / Turtle never instantiate
+it, and `enable-ambush-tactics` is granted ONLY by this module and only to its own posted units."*
+Meanwhile `AutoTarget.cs:93` advertises a path that does not exist: *"a human opt-in / bot ledger
+commit / test map grants."*
+
+**Five passing autotests do not contradict this — they pass *because* they grant the gate by hand
+in Lua.** `test-ambush-detection`, `test-ambush-enemy-stops`, `test-ambush-convoy`,
+`test-ambush-fast-convoy` and `test-case01-forest-ambush` all call
+`GrantCondition("enable-ambush-tactics")`; two of them name "comment out the GrantCondition line"
+as their own RED baseline. **Every green ambush test validates a configuration no player can
+reach.**
+
+**Established:** READ at HEAD — grant sites, gate name and the module header all verified directly.
+The *consequence* (a human never sees the behaviour) is DERIVED from "these are the only grant
+sites", which is a grep-completeness argument over `mods/**` and `engine/**`.
+**Confirm by:** this needs no run; it is settled by grep and is listed here only so nobody
+schedules one. What *would* need a run is whether granting it to humans is desirable —
+`AmbushMinSpringThreshold` / `AmbushHighSpringThreshold` have never been tuned against human play
+(`AutoTarget.cs:104` says they are "meant to be tuned in autotest").
+**Note for whoever acts on it:** the grantor seam already exists and is lint-clean
+(`ExternalCondition@ambushtactics`, `defaults.yaml:344-345`), and there is an established idiom for
+the exact grant shape next door — `GrantConditionOnHumanOwner@tacpos` (`defaults.yaml:44-45`). The
+gate was authored default-off for benchmark byte-identity, so turning it on is a behaviour change
+needing sign-off.
+
+## 2026-08-20: [medium] OPEN, NOT FIXED — two `dugin` timer bugs: a unit that has never moved never digs in, and `dugin` can be granted mid-stride (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+Both in `GrantConditionOnMovement` (`GrantConditionOnMovement.cs:44,52-58,68-80`), which drives
+`dugin` / `moving` for all infantry (`infantry.yaml:139-142`).
+
+**(a) A map-placed soldier never reaches the dug-in tier.** `cooldown` initialises to `0` (`:44`)
+and `Tick` decrements it unconditionally while `dugin` is ungranted (`:54-56`), so it goes to `−1`
+on tick 1 and never equals `0` again. It is re-armed **only** in the stop branch (`:71`), which
+requires the unit to have been moving first. A soldier placed by the map editor or spawned by a
+scenario and never ordered anywhere **sits one tier below its intended concealment forever**.
+
+**(b) `dugin` and `moving` are not mutually exclusive.** If a unit stops (arming `cooldown = 200`)
+and moves again before it expires, the movement branch (`:73-79`) grants `moving` and revokes the
+still-condition but **does not reset `cooldown`** — and `Tick` has no "am I actually still?" guard.
+The countdown completes mid-stride and grants `+1` to a running soldier, held until the next
+stop→move transition. So a runner can be carrying both `moving` (−1) and `dugin` (+1).
+
+Also: `TimeToBeStill: 200` at `Timestep: 60` ms (`mod.yaml:380-383`) is **12.0 s**, not the 8 s
+several documents and one autotest assume.
+
+**Established:** READ from code — both control-flow paths traced line by line at HEAD. The
+*consequences* stated (map-placed soldier stuck a tier low; runner carrying `dugin`) are DERIVED
+from that trace, **not observed**.
+**Confirm by:** `test-visual-gauge-truth` already reasons correctly about bug (a) and is the
+cheapest existing probe — but see the separate entry below, it is mis-calibrated for an unrelated
+reason and would fail for the wrong cause. A clean confirmation is a scenario asserting a
+never-ordered rifleman's `CurrentVisibility` after 300 ticks.
+
+## 2026-08-20: [medium] OPEN, NOT FIXED — the −2 firing detectability penalty applies to the `primary` armament only, so RPGs, grenade launchers and garrison fire are free (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+`GrantConditionOnAttackInfo.ArmamentNames` defaults to `{ "primary" }`
+(`GrantConditionOnAttack.cs:25`) and is filtered at `:133-134`. `GrantConditionOnAttack@Firing`
+(`infantry.yaml:722-726`) **does not override it**.
+
+Verified armament names that therefore cost nothing: `secondary` carrying the RPG
+(`infantry.yaml:1154-1156`), `secondary` carrying the GrenadeLauncher (`:1411-1413`), and
+`garrisoned` — the armament used from inside a building (`:1271-1274`, `:1577-1580`). A soldier
+firing an RPG from a window pays **zero** detectability, while the same soldier firing his rifle
+pays −2 for 12 ticks.
+
+Whether that is intended is a design call; the code is unambiguous.
+
+**Established:** READ at HEAD — the default, the filter and the four armament `Name:` fields all
+read directly.
+**Confirm by:** no run needed to establish the code fact. A run would only tell you whether players
+notice.
+
+## 2026-08-20: [medium] OPEN, NOT FIXED — prone has given zero damage reduction since February 2024: exactly one of 109 `DamageTypes:` declarations carries a `Prone*` token, and that weapon is unreferenced (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+`^CamoSoldier` still configures five tiers of `ProneDamageModifiers` (`infantry.yaml:297-302`,
+`Prone10Percent` … `Prone80Percent`) and prone is reached constantly (`ProneCondition: deployed ||
+suppressed > 30 || !moving || critical-damage`, `infantry.yaml:294`). But
+`InfantryStates.GetDamageModifier` returns `100` unless the incoming warhead declares a matching
+string (`InfantryStates.cs:195-205`, the `Where(x => damage.DamageTypes.Contains(x.Key))` at
+`:203`).
+
+**Counted at HEAD: 109 `DamageTypes:` declarations across `mods/ww3mod/rules/weapons/`, of which
+exactly one carries a `Prone*` token** — `weapons-superweapons.yaml:399`, `DamageTypes:
+Prone30Percent`, on `EmpBomb`, which no actor in the repo references. Every bullet is
+`BulletDeath`, every shell `ExplosionDeath`. **Prone reduces damage from nothing.**
+
+Cause: `1802191e` (2024-02-13, *"Remove all ProneXXPercent DamageTypes"*) stripped them from six
+weapon files and missed the one dead line. Empty commit body — no rationale recorded.
+
+Prone does still protect by a route that never appears in damage arithmetic: the hitshape shrinks
+from radius 30 to 20 (`infantry.yaml:143-150`), roughly a 56% smaller cross-section, at a cost of
+40% speed. That is a hit-probability effect, not damage reduction.
+
+**Established:** READ and **counted** at HEAD (`grep -c` over the weapons directory; the 109/1 split
+is a direct count, not an estimate). The claim that no live weapon reaches the modifier is READ.
+**Confirm by:** no run needed for the code fact. Note this also means
+`WORKSPACE/recon/260728-deploy-prone.md:13,52` over-credits prone with a benefit it lost in 2024 —
+flagged there for curation, not edited.
+
+## 2026-08-20: [medium] OPEN, NOT FIXED — the Ambush tooltip promises "Zero aim delay" and a 15-tick (infantry) / 30–50-tick (vehicle) aim delay is charged in full when the trap springs (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+`mods/ww3mod/chrome/ingame-player.yaml:373` reads *"Zero aim delay — turrets are already aimed when
+firing begins."* It is false.
+
+`Armament.AimingDelay` defaults to **15 ticks** (`Armament.cs:45`) and is overridden to **30–50** on
+nine vehicles (`vehicles-america.yaml:387,635,761,1056`;
+`vehicles-russia.yaml:216,458,576,702,963`). `CheckFire` **resets it to the full value whenever the
+target changes** (`Armament.cs:345-350`), and `Armament.cs:327` blocks the shot outright while
+`IsAiming` (`:677`, `AimingDelay > 0`). Ambush's pre-aim never touches it: `PreAimAtTarget`
+(`AutoTarget.cs:752-753`) rotates facing and never reaches an armament. So the delay is paid **in
+full after the trap springs** — around 3 s of an MBT standing in the open not shooting.
+
+> **This entry corrects the ground-truth audit, which is normally the ranking document.**
+> `260820-ambush-cover-detection-audit.md` §2.5 concludes *"there is no aim delay for anyone"* — it
+> examined `FireDelay` (3 ticks, negligible) and `FacingTolerance` and **never looked at
+> `AimingDelay`**. `260820-coordinated-ambush.md` is the one that is right here. The audit outranks
+> the design docs generally; it does not on this point.
+
+**Established:** READ at HEAD — the default, the nine YAML overrides, the reset-on-target-change and
+the fire gate all read directly. The **~3 s felt cost is DERIVED** (50 ticks × 60 ms) and not
+observed.
+**Confirm by:** `test-case01b-detect` was authored specifically to measure time-to-first-shot spread
+and **has never been run once** — it is the highest-value single run available and settles this
+entry and the next one together.
+
+## 2026-08-20: [medium] OPEN, NOT FIXED — the "simultaneous" ambush volley smears over 1–2 seconds: allies are latched, not fired (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+`TriggerNearbyAmbushAllies` (`AutoTarget.cs:976-993`) sets `ambushTriggered = true` on each nearby
+Ambush-stance ally and **never makes any of them shoot**. Each fires on its own next idle scan, and
+WW3MOD overrides the infantry scan interval to **16–32 ticks** on `^CamoSoldier`
+(`infantry.yaml:286-290`) against an engine default of 3–8 (`AutoTarget.cs:199,202`), drawn
+randomly per unit from `SharedRandom` (`:1157`). At 60 ms/tick that is a spread of roughly
+**1.0–1.9 s**.
+
+This stacks with the aim delay in the entry above; the two are the same order of magnitude, so
+fixing either alone leaves about half the lag.
+
+> **Two claims in the design docs are wrong here and should not be carried forward.**
+> `260820-ambush-failure-modes.md` F2 and the audit §2.2 both state the latch is terminal for
+> humans ("cleared only by changing stance"). **The code clears it on the human path**:
+> `AutoTarget.cs:746` sets `ambushTriggered = false` in the `else` of the `stage3` branch when a
+> scan finds no target. The "SPRUNG is terminal, DO NOT clear" comment they quote sits in the
+> **gated Stage-3 branch only** (`:740-745`) and applies to bot-posted units.
+> `260820-coordinated-ambush.md` §5 is right. Do not "fix" a human re-arm bug that does not exist.
+
+**Established:** READ at HEAD for every mechanism (the latch-only trigger, the scan-interval
+override, the engine default, the RNG draw). The **1–2 s figure is DERIVED** from the interval and
+`Timestep: 60`; nobody has observed the spread. The MiniYaml merge was **not** traced to confirm
+nothing later overrides the scan-interval fields — note four map `rules.yaml`/`scenarios.yaml` files
+also set 16/32, which is consistent but not proof of the general case.
+**Confirm by:** `test-case01b-detect` — exists, never run, authored for exactly this measurement.
+**Trap for whoever fixes it:** the obvious repair (force allies to scan immediately) routes through
+`ScanForTarget`, which re-arms its timer off `SharedRandom` and would shift the shared RNG stream,
+breaking the frozen `@stable` baseline. The codebase already solved this for target preemption —
+copy that pattern rather than inventing one.
+
+## 2026-08-20: [medium] OPEN, NOT FIXED — map density is frozen at load, so a forest shelled flat still grants full cover, full concealment and still refuses rifle shots (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+`Map.UpdateDensityForBuilding` and the shadow-update queue both exist, and **all three call sites
+are commented out**: `Building.AddedToWorld` (`Building.cs:372-383`),
+`Building.RemovedFromWorld` (`:391-397`) and the per-tick flush in `World.cs:512-517`.
+
+The disable was deliberate — the comments date it to 260503 and give the reason (recalc was too
+expensive mid-game, visible lag on building destruction). **The defect is the downstream
+consequence, which nothing accounts for:** `Map.DensityLayer` and `map.ShadowLayer` keep their
+map-load values for the whole match, so after a treeline is destroyed the ground beneath it still
+grants `DensityModifiesDamage` reduction, still subtracts from observer strength via
+`Map.ForestGroundShadow`, and still trips `ClearSightThreshold` so rifles decline the shot through
+foliage that is no longer there.
+
+**This is a live trap for the Take Cover feature under design**: a best-protected-cell search reads
+the frozen layer, so it would confidently march a squad onto burnt ground and report success.
+
+**Established:** READ at HEAD — all three commented call sites read directly, including their
+dated rationale. The **consequences are DERIVED** from "the layer is never mutated after load"
+plus the consumer list; **no one has shelled a forest and re-measured**.
+**Confirm by:** a scenario that records `CurrentVisibility` for a soldier in trees, destroys the
+trees, and re-records. No such scenario exists.
+
+## 2026-08-20: [medium] OPEN, NOT FIXED — detectability level 10 is unreachable only because the two units that could reach it are `~disabled`; re-enabling the Sniper makes total invisibility live immediately (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+**This resolves the contradiction flagged as unresolved in `WORKSPACE/ambush-programme/README.md`
+§3.2a**, where the audit said infantry CV tops out at 9 and the legibility strand said 10 is
+reachable. Both were reasoning from incomplete premises.
+
+The clamp is `[1, MapLayers.VisionLayers - 1]` = **[1, 10]** (`VisionLayers = 11` at
+`MapLayers.cs:75`; clamp at `Detectable.cs:92-93,114-115`) — the legibility strand is right about
+the clamp. Level 10 is undetectable by standard vision because no band carries strength 11 and
+reveal is strictly greater (`MapLayers.cs:579`).
+
+**Reachability, counted at HEAD.** `mods/ww3mod/rules/ingame/infantry.yaml` contains exactly three
+`Detectable.Vision` declarations: base **3** (`:97`), and **5** on `^SN` (`:1542`) and `^SF`
+(`:1988`). Live modifiers are prone +1, dugin +1, and veterancy +1/+2/+3/+4
+(`defaults.yaml:211-222` — the largest live concealment lever in the game, and nothing in the UI
+says so).
+
+- Base infantry: `3 + 4 + 1 + 1 = 9`. The audit's ceiling is right **for base infantry**.
+- `^SN` / `^SF`: `5 + 4 + 1 + 1 = 11 → clamps to 10`. **Level 10 is arithmetically reachable
+  without the cover ladder at all** — the legibility strand's `5+3+1+1` route via the dead `+3`
+  cover term was the wrong route to a right answer.
+- Both `^SN` and `^SF` carry `Prerequisites: ~disabled` (`:1535`, `:1980`), so neither can be
+  fielded today.
+
+**So the ruling recorded in README §7 — clamp minimum detectability to 1, "land it BEFORE fixing
+§3.2" — is under-scoped.** Total invisibility goes live the moment **either** the cover ladder is
+repaired **or** the Sniper is made buildable, and the second is a one-word YAML edit that nobody
+would connect to concealment.
+
+**Established:** READ and counted at HEAD (the three `Detectable.Vision` sites, the two
+`~disabled` prerequisites, the clamp constants, the veterancy block). The ceilings are **DERIVED**
+by addition over those sites. **Not measured.**
+**Confirm by:** a scenario granting `rank-veteran == 4` to a stationary rifleman and asserting
+`CurrentVisibility == 9`; the same with `^SN` re-enabled asserting 10.
+
+## 2026-08-20: [medium] OPEN, NOT FIXED — one tree gives exactly zero damage reduction and one rock gives the maximum; the shipped comment saying otherwise is wrong, and no building carries density at all (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+`DensityModifiesDamage` on `^Infantry` (`infantry.yaml:37-45`) sums `Map.DensityLayer` over a 3×3
+window and picks the highest threshold ≤ that sum. Thresholds are `15: 94`, `30: 88`, `50: 80`
+(`:42-45`) — a 20% maximum.
+
+Counted at HEAD, **`Building.Density` is declared in exactly one file in the entire mod** —
+`mods/ww3mod/rules/ingame/decoration.yaml`, 33 declarations:
+
+- **Trees** `T01`–`T07`: `10` on one cell of a 2×2 footprint (`:104,117,130,143,156,169,182`);
+  `T08` gives `5` (`:195`).
+- **Rocks** `ROCK1`–`ROCK7`: **50 per occupied cell** (`:469,475,481,487,493,499,505`).
+- **Tank traps**: `20` (`:531,546`).
+
+So: **one tree beside you = 10, below the 15 floor = zero protection.** One rock cell anywhere in
+your 3×3 = 50 = the full 20% instantly. **One rock outperforms five trees.** The shipped comment at
+`infantry.yaml:41` claims *"a lone treeline barely helps"*; it does not help at all.
+
+> **Correction to the design docs.** `WORKSPACE/ambush-programme/README.md` §3.5 and
+> `260820-cover-protection-and-take-cover.md` §1.6 both claim *"a single density-50 building
+> neighbour clears all three tiers — standing next to a house is maximal forest cover."* **No
+> building, defence or civilian structure carries `Building.Density` anywhere in the mod** —
+> `grep '^\s*Density:' mods/ww3mod/` returns `decoration.yaml` and nothing else. The house claim is
+> wrong; the rock claim is right and is the one worth acting on.
+
+`^CivField` (`civilian.yaml:129`) is a related instance: it carries a `Building:` block with no
+`Density:`, so fields — authored to read as cover — contribute nothing.
+
+**Established:** READ and counted at HEAD (`grep` over all mod YAML for `Density:` declarations,
+then each value read). The threshold consequences are **DERIVED** arithmetic. **Whether maps
+actually place `ROCK*` near contested ground is unexamined** — that is a map-data question nobody
+has opened, and it decides whether this matters in play.
+**Confirm by:** map inspection (no run needed) for the placement question; two equal squads, one in
+deep trees and one in the open, for whether 20% is perceptible at all — but 20% sits inside normal
+combat variance, so that needs several seeds.
+
+## 2026-08-20: [low] OPEN, NOT FIXED — springing an ambush force-deploys every nearby garrison regardless of its stance, and the code comment says it checks (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+In `TriggerNearbyAmbushAllies` (`AutoTarget.cs:976-993`) the infantry branch correctly filters on
+`allyAutoTarget.Stance == UnitStance.Ambush` (`:985`). The garrison branch immediately below does
+not:
+
+```
+// Also trigger garrisoned buildings in Ambush stance
+var gm = ally.TraitOrDefault<GarrisonManager>();
+if (gm != null)
+    gm.TriggerAmbush();
+```
+
+(`:987-991`.) Every friendly `GarrisonManager` within the 10-cell coordination radius is triggered
+whether or not it was ever put in Ambush — and `GarrisonManager.TriggerAmbush` force-deploys
+shelter occupants to firing ports. **The comment asserts a stance filter that the code does not
+apply.**
+
+**Established:** READ at HEAD. The consequence (a garrison you never set to Ambush pops its
+occupants into ports) is **DERIVED** from the call, and `TriggerAmbush`'s internals were **not**
+traced end to end by this pass.
+**Confirm by:** `TriggerNearbyAmbushAllies` has **zero NUnit coverage** — `AmbushTacticsTest.cs`
+pins the pure trigger predicate only. A unit test placing a non-Ambush garrison inside the radius
+is the cheapest confirmation and needs no game launch.
+
+## 2026-08-20: [low] OPEN, NOT FIXED — a bot ambusher that halts before contact never resumes its attack-move: `haltedForAmbush` is never cleared and the cached destination is never re-issued (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+`AttackMoveActivity` sets `haltedForAmbush = true` at `:167` and cancels the move child at `:169`.
+The flag is declared at `:36`, drained at `:84`, and **never set back to false anywhere in the
+file**. `OriginalDestination` is faithfully cached (`:44,57,59`) and **nothing re-issues it**. So a
+squad that halts to ambush stops permanently and never arrives.
+
+Reachable today **only through the bot-only gate** (the Stage-2 halt), so it affects bot ambushers
+and not players — but it becomes a player-facing bug the instant the gate in the entry above is
+opened to humans. Sequence accordingly.
+
+**Established:** READ at HEAD — the set, the drain and the absence of any clear were all read
+directly; `OriginalDestination` has no reader. **Not observed in a running game.**
+**Confirm by:** a scenario giving a gated Ambush unit an attack-move across a contact, then
+asserting it reaches the destination after the engagement ends. No such scenario exists;
+`test-ambush-enemy-stops` asserts the halt, not the resume.
+
+## 2026-08-20: [low] OPEN, NOT FIXED — `StancePositioningExecutor`'s file header claims humans are byte-identical; humans have been granted the token since Phase 3 shipped (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+`StancePositioningExecutor.cs:50-52` reads: *"Gated `enable-tactical-positioning ||
+enable-ai-experimental`: default-off everywhere except experimental bots (the former is granted by
+nothing in Phase 2; humans get it in Phase 3). @stable/@normal/humans are byte-identical."*
+
+`defaults.yaml:44-45` grants `enable-tactical-positioning` to every human-owned combatant via
+`GrantConditionOnHumanOwner@tacpos`, with a comment describing it as *"Phase-3 human enablement
+(RATIFIED default-ON)"*. Phase 3 shipped. **Humans are not byte-identical, and the header is the
+first thing a reader sees.**
+
+The same file's *body* comment (`:305-323`) is current and correct, which is exactly why the stale
+header is dangerous — a reader who trusts the header stops before reaching the body. The
+`06f0605a` staleness sweep, which corrected byte-identity claims elsewhere, missed this file.
+
+**Established:** READ at HEAD — both the header text and the grant read directly. This is a
+documentation defect with no runtime symptom.
+**Confirm by:** nothing to run. One-line fix when someone is next in the file; not fixed here
+because this branch is filing only.
+
+## 2026-08-20: [low] OPEN, NOT FIXED — `Makefile`'s `clean` target still uses `find -exec`, the exact exit-code-swallowing hole that was fixed in `all` the same day (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+`Makefile:192` (mono) and `:194` (dotnet) both run
+`@find . -maxdepth 1 -name '*.sln' -exec $(DOTNET) clean \;`. **`find` exits 0 whatever the command
+it ran returned**, so a failed clean reports success and every consumer downstream believes it.
+
+The `all` target at `:175-186` was repaired for precisely this and carries a comment naming the
+consequence: *"NOT `find -exec`: find exits 0 whatever the command it ran returned, so a failed
+mod-solution build reported success here and every consumer downstream believed it — including the
+launchers, which then started the game on stale binaries."* `clean` was not given the same
+treatment.
+
+Lower severity than the `all` case: a failed clean leaves stale artefacts rather than shipping
+them, and the next build usually overwrites. But it is the identical defect and the fix is the
+identical `@set -e; for sln in $(MOD_SOLUTION_FILES); do …; done` loop.
+
+**Established:** READ at HEAD — both targets read and compared directly. The `find` exit-code
+behaviour is POSIX-specified, not tested here.
+**Confirm by:** `make clean` with a deliberately broken solution file; expect exit 0. Not run —
+this branch is filing only.
+
+## 2026-08-20: [low] OPEN, NOT FIXED — `WithSpottedDecoration.VisionCovers` accepts an observer band one strength short of actually revealing (masked today by the truth gate) (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+`VisionCovers` skips a band only when `visionInfo.Strength < requiredStrength`
+(`WithSpottedDecoration.cs:142`), i.e. it **accepts `Strength == required`**. Actual reveal is
+strictly greater: `ResolvedVisibility[puv] > visibility` (`MapLayers.cs:579`). So the pre-filter is
+optimistic by one band — roughly three cells of approach.
+
+**No wrong badge can reach the screen today.** `IsSpotted` checks the authoritative
+`self.CanBeViewedByPlayer(owner)` last (`:115`), and the file's own comment says the truth gate is
+what stops the optimism becoming a false positive. Filed because the looseness is real, undocumented
+as an off-by-one, and would surface immediately if anyone reordered the checks for performance —
+which the comment invites by explaining the gate is "checked last because it is the most expensive."
+
+**Established:** READ at HEAD — the comparison, the reveal comparison and the ordering of the truth
+gate all read directly. **DERIVED:** that the two comparisons differ by one band. Not observed, and
+by design not observable.
+**Confirm by:** nothing to run while the gate stands. Relevant only as a note on the file.
+
+## 2026-08-20: [low] OPEN, NOT FIXED — `test-visual-gauge-truth` and `test-visual-concealment-gauge` are calibrated one tier low: both omit `prone`, which is granted on `!moving` (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+Both scenarios merged in `88170a30` (2026-08-11) and derive their whole geometry from a **tier 3**
+rifleman:
+
+- `test-visual-gauge-truth.lua:10-16` reasons *"map-placed and never ordered anywhere, so not moving
+  (no −1) and never gets `dugin` … He sits on tier 3"* and predicts a **22c** ring.
+- `test-visual-concealment-gauge.lua:21-27,57-59` asserts *"stopped ⇒ tier 3; dug in ⇒ tier 4"*.
+
+`ProneCondition` includes `!moving` (`infantry.yaml:294`), so **a stationary soldier is prone from
+spawn** — `+1`. Correct tiers are **stopped 4** (19c) and **dug in 5** (16c).
+
+Note `test-visual-gauge-truth` reasons *correctly* about the `dugin` timer bug filed above and then
+misses prone, which is exactly why it reads convincingly.
+
+`test-visual-concealment-gauge.lua:44-45` separately derives 200 ticks as 8.0 s from 25 ticks/s; the
+mod runs `Timestep: 60` ms, so it is 12.0 s. Its 13-second wait still clears the timer, so that
+error is harmless in effect.
+
+**Established:** READ at HEAD (the `ProneCondition` clause and both Lua premise blocks). The
+predicted failure is **DERIVED** — **neither scenario has been run, so this predicts a failure
+rather than reporting one.** If they pass, this entry is wrong and something else is compensating.
+**Confirm by:** one run of either. Worth spending **before** anyone trusts their output, since both
+are capture scenarios whose screenshots are the evidence for gauge correctness.
+
+## 2026-08-20: [low] OPEN, NOT FIXED — `stance-ambush` and `stance-holdfire` are granted in five places and consumed by nothing (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+Granted at `defaults.yaml:309-310,570-571,670-671,682-683` and `aircraft-russia.yaml:115`; grepping
+`mods/` for `RequiresCondition:.*stance-ambush` or `!stance-ambush` returns **no matches**. They are
+markers only. **No stance modifies detectability** — every `DetectableAddativeModifier` keys on
+`object-proximity`, `prone`, `dugin`, `firinganyweapon`, `moving`, `rank-veteran` or `!airborne`.
+
+This part of the user's original complaint ("in ambush stance staying hidden should take care of
+itself") is **literally true of the code**, and it is filed here rather than as a design item
+because the dangling tokens read to any future maintainer as a wired feature.
+
+**Important non-defect:** the *Ambush stance itself* is consumed heavily — `UnitStance.Ambush`
+(`AutoTarget.cs:22`) drives the whole `AutoTarget` state machine, `GarrisonManager`,
+`CohesionMoveModifier.cs:1079` and `AttackMoveActivity.cs:156`. And
+`StancePositioningExecutor.cs:318` **honours** Ambush by refusing to reposition, in C# rather than
+YAML. A prior pass concluded the executor deliberately ignores Ambush; it does not. Do not delete
+the stance on the strength of the dead tokens.
+
+**Established:** READ at HEAD — grant sites and the absence of consumers established by grep, which
+is a completeness argument over `mods/**`.
+**Confirm by:** nothing to run.
+
+## 2026-08-20: [low] OPEN, NOT FIXED — vehicles carry a bare `Detectable:` with no modifiers, so nothing a vehicle does changes its visibility — while the Ambush stance and its concealment-flavoured tooltip remain on offer (found while: extracting defects from the ambush/concealment research programme, branch `wt/bug-filing`, `main @ 57822b4e`)
+
+`vehicles.yaml:66` declares `Detectable:` with no `Vision:` and no `DetectableAddativeModifier`
+anywhere on the template. Stopping, being prone-equivalent, digging in and firing all change a
+vehicle's detectability by **zero** — it sits at level 2 (seen from 25c) permanently. Meanwhile the
+Ambush button remains available on vehicles, draws the amber `A`, and its tooltip
+(`ingame-player.yaml:373`) describes pre-aim and spotting behaviour that reads as concealment.
+
+Whether vehicles *should* have posture modifiers is a design question. The defect filed here is the
+mismatch between what the stance UI implies and what a vehicle's detection model can do.
+
+**Established:** READ at HEAD for the bare trait. **Not exhaustively audited:** individual vehicle
+actors were **not** each checked for a per-actor `Detectable` override, so a specific vehicle may
+differ from the template. Treat the "all vehicles" scope as unverified.
+**Confirm by:** `grep -n 'Detectable' mods/ww3mod/rules/ingame/vehicles-*.yaml` closes the scope gap
+without a run.
+
 ## 2026-08-19: [medium] OPEN, NOT FIXED — reopening the unload menu discards EVERY queued unload, not just the one mid-wait (found while: auditing why the cargo passenger rows were deleted, branch `wt/cargo-parity`, `main @ de78a1ed`)
 
 Confirmed by reading the whole chain; **not yet observed in a running game** — the branch report
@@ -2293,6 +2782,30 @@ Cheapest alternative if that is unwanted: drop the line, since a wrong date is w
 
 ## 2026-08-20: [medium] The infantry concealment cover bonus is granted only by BURNT trees, never living ones (found while: designing the ambush legibility readout, branch `wt/ambush-legibility`, `main @ 4bb3fae9`)
 
+> **SUPERSEDED the same day — the headline and the remedy are both wrong. See the entry
+> "the `object-proximity` cover ladder is geometrically unreachable" at the top of this file
+> (branch `wt/bug-filing`, `main @ 57822b4e`).**
+>
+> The *conclusion* below survives — standing in a live forest grants `+0` — but the *mechanism* does
+> not, and the difference decides what a fix would look like. This entry implies the bonus is
+> obtainable once the forest burns down. **It is not.** `^TreeHusk` carries `Building: Footprint: x`
+> with no `Passable` (`husks.yaml:105-107`), so it blocks infantry, unlike a living `^Tree` which is
+> walkable (`decoration.yaml:12-14`). The trigger point is the husk's own cell centre, containment is
+> a strict `<`, and the nearest sub-cell a soldier can occupy is **244–771 WDist** against radii of
+> **182–640**. Enumerated across all **23** husk types, **zero are reachable**. Burning the forest
+> down does not help; the ladder is dead outright, not merely misdirected.
+>
+> Two smaller corrections: the granter block is `husks.yaml:117-121`, and there are **22** actors
+> inheriting `^TreeHusk` (23 types including the base), not 21.
+>
+> The sequencing note at the foot of this entry — *"fixing this makes the bug below go from rare to
+> common"* — is built on the same wrong model and should not be acted on; see the correction appended
+> to that entry.
+>
+> Recorded as a worked example of why the ground-truth audit exists: a confident grep by three
+> separate parties produced a plausible, quotable, wrong story, and only a fourth pass that checked
+> the **geometry** rather than the **grant** caught it.
+
 Static read only — **not observed in a running game**; this branch launches nothing.
 
 `^DetectableInfantryStandard` (`mods/ww3mod/rules/ingame/infantry.yaml:703-716`) consumes
@@ -2343,3 +2856,26 @@ makes this one common.
 Cheapest fix: one more tier drawing a visually distinct innermost marker (dashed, or faintly filled)
 meaning "no standard vision can see you at any range", so the state reads as an achievement rather
 than an absence. Design discussion: `WORKSPACE/design/260820-ambush-legibility.md` §7.2.
+
+> **CORRECTED the same day (branch `wt/bug-filing`, `main @ 57822b4e`) — the readout problem is real
+> and the reachability arithmetic is wrong, in both directions.** Full working in the entry
+> "detectability level 10 is unreachable only because the two units that could reach it are
+> `~disabled`" at the top of this file.
+>
+> - **The `5 + 3 (cover) + 1 + 1 = 10` route does not exist.** It spends the `+3` cover term, which
+>   is dead outright — see the correction on the entry above.
+> - **"Standard infantry tops out at 8" is wrong; it is 9.** This entry omits veterancy, which grants
+>   **+1/+2/+3/+4** (`defaults.yaml:211-222`) and is the largest live concealment modifier in the
+>   game. Base `3` + rank-4 `4` + prone `1` + dugin `1` = **9**.
+> - **Level 10 is reachable without the cover ladder at all** — `^SN` and `^SF` carry
+>   `Detectable.Vision: 5` (`infantry.yaml:1542`, `:1988`), so `5 + 4 + 1 + 1 = 11`, clamped to 10.
+> - **But neither can be fielded.** Both carry `Prerequisites: ~disabled` (`:1535`, `:1980`). So
+>   "reachable, and only by the units a player ambushes with" is wrong twice over: not by those
+>   units, because nobody can build them.
+>
+> **The practical consequence inverts this entry's sequencing note.** It is not "rare until the cover
+> bug is fixed" — it is unreachable until **either** the cover ladder is repaired **or** the Sniper is
+> made buildable, and the second is a one-word YAML edit nobody would connect to concealment. Both
+> the gauge fix proposed above and the user's ruled visibility floor (clamp minimum detectability to
+> 1, `WORKSPACE/ambush-programme/README.md` §7) should be sequenced against that wider trigger, not
+> against the cover fix alone.
