@@ -3221,3 +3221,42 @@ the mod with no measurement behind it, and the widened dispatch predicate reache
 `ChooseResupplier` anyway once a pool is authored `Essential`. The narrow fix, if wanted, is to admit
 a docking-gated provider when it grants a proximity condition the seeker's own `ReloadAmmoPool`
 consumes — which is a real query, not a YAML tweak.
+---
+
+## 2026-08-21: [medium] `FTUR` Flame Turret is permanently disarmed by one close-range burst (found while: the `Essential` ammo-pool census, branch `wt/essential-census`, `main @ 697be28e`)
+
+`FTUR` carries a single `AmmoPool` of 10 (`mods/ww3mod/rules/ingame/structures-defenses.yaml:932-941`)
+shared by both of its armaments. `Armament@2` (`Flamespray.heavy`, the short-range turret) declares
+`AmmoUsage: 10` (`:927`) -- one burst consumes the entire pool.
+
+The actor has **no `Rearmable`** and, unlike its two siblings in the same file, **no
+`ReloadAmmoPool`**: `CRAM` has one at `:658` and `AGUN` at `:735`, `FTUR` has none. Nothing else
+refills a pool in the field -- `AmmoPool.Reload()` has zero callers engine-wide, so `ReloadDelay: 40`
+on this pool drives nothing (`DOCS/reference/economy.md`, "An `AmmoPool` never refills itself").
+
+Consequence: after a single secondary shot, a 1000-credit defensive structure is inert scenery for
+the remainder of the match, with no player-visible explanation. The primary `FireballLauncher` is
+disarmed with it, since both armaments draw the same pool.
+
+READ, not measured -- established from source at `697be28e`; nobody has watched a Flame Turret go
+silent in game. Confirm by: place an `FTUR`, walk one unit into melee range, verify it never fires
+again.
+
+Not fixed here (this branch is document-only). The likely fix is a `ReloadAmmoPool` mirroring
+`CRAM`/`AGUN`, but the `AmmoUsage: 10`-against-a-10-pool sizing looks like the more basic mistake and
+should be settled first.
+
+## 2026-08-21: [low] `strykershorad` sidebar description is copy-pasted from the Stryker IFV and never mentions air defence (found while: the `Essential` ammo-pool census, branch `wt/essential-census`, `main @ 697be28e`)
+
+`mods/ww3mod/rules/ingame/vehicles-america.yaml:879` reads
+`Description: Wheeled IFV for rapid troop transport.\n\n - Autocannon\n - Carries infantry\n - Armor: Medium`.
+
+The actor's `Tooltip.GenericName` is "Stryker Short Range Air Defense" (`:866`), and it carries
+8 `Stinger.quad` SAMs (`:941`) and 4 `Hellfire.strykershorad` (`:974`) -- neither of which the
+description mentions, while it advertises troop transport. The player-facing text for the faction's
+mobile SAM platform does not tell the player it can shoot aircraft.
+
+Related stale text at the same actor: `Armament@1` is `Weapon: 25mm.Bradley # 30mm.Stryker` (`:912`)
+-- the comment names a weapon the armament does not use.
+
+READ. Confirm by: opening the build sidebar and reading the tooltip.

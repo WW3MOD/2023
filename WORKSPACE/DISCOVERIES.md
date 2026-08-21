@@ -122,6 +122,36 @@ itself — `AutoRearm` queues with `QueueActivity(false, …)`, and `Activity.Ca
 (`SeekSupplyProvider.cs:83-92`). A unit that breaks off an attack-move returns to the cell and stands
 there; it does not resume the advance. Restoring the ORDER is a separate feature and should be costed
 as one.
+## 2026-08-21 — Pool NAME never implies pool ROLE, and the corpus breaks the convention three different ways
+
+Branch `wt/essential-census`, authoring the per-pool `Essential` verdicts across all 63 `AmmoPool`
+declarations in `mods/ww3mod/rules/`.
+
+`primary-ammo` is used 40 times and `secondary-ammo` 15, which is exactly enough regularity to make a
+name-based rule look safe. It is not, and the counterexamples are not obscure units:
+
+- **`tunguska`** (`vehicles-russia.yaml:864`) — `primary-ammo` is the self-defence 30mm, while the
+  9M311 SAMs that define the vehicle sit in `secondary-ammo` (`:894`). This is the case that kills
+  any "primary is the main weapon" default outright.
+- **`F16` (`aircraft-america.yaml:600`/`:626`) and `MIG` (`aircraft-russia.yaml:620`/`:646`)** — the
+  naming is *inverted* relative to every other airframe: `primary-ammo` is the 6-missile AAM rack
+  (SupplyValue 100) and `secondary-ammo` is the 150-round 20mm cannon (SupplyValue 1).
+- **`MNLY`** (`vehicles.yaml:484`) — `mines-ammo` feeds the `Minelayer` **trait**, not an `Armament`
+  at all, so resolving it as a weapon finds nothing.
+
+The reliable resolution is three hops every time: pool `Armaments:` → the matching `Armament@N.Weapon:`
+→ that weapon's `ValidTargets`/`InvalidTargets`. `SupplyValue` is a useful corroborator (1 for bulk
+autocannon, 65 for a Stinger, 200 for a Hellfire, 1500 for HIMARS/Iskander) but it measures expense,
+not role: the Stryker SHORAD's most expensive pool by far is its Hellfire rack (800, 32% of cost),
+which is not the capability the vehicle is named for.
+
+**A second fact from the same pass, load-bearing for anything that dispatches a unit to resupply.**
+`Rearmable.AmmoPools` and "every `AmmoPool` on the actor" are different sets, and **`^E6` is the only
+divergence in the entire corpus**: it declares `AmmoPools: secondary-ammo` (`infantry.yaml:1907`)
+while carrying a 100-round `primary-ammo` (`:1824`). Any per-pool trigger that sends a unit to a host
+for a pool the host will not refill produces a seek→refill→still-empty→seek loop. Checked across all
+14 infantry classes, both crew and every vehicle: `^E6` is the single case, which is precisely what
+makes it easy to test against 13 actors and conclude the sets are identical.
 
 ## 2026-08-21 — `RearmActors` is the whole of host discovery, and it is declared 14 times with no shared default
 
