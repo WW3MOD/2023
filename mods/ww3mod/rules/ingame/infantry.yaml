@@ -1111,7 +1111,17 @@
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		# `supplycache` added 2026-08-21 by USER RULING, on all 14 infantry templates carrying a
+		# Rearmable. RearmActors gates the recipient-initiated PULL -- AmmoPool.ChooseResupplier is the
+		# only host-discovery path in the engine -- so before this a dropped crate could never be walked
+		# to. It was push-only: it served whoever happened to stand inside its aura, and nothing ever put
+		# anyone there. economy.md documented that as a deliberate property; the user overruled it.
+		# NOT a licence to seek ENEMY crates: ChooseResupplier filters on `a.Owner == self.Owner`, so only
+		# your own crates are ever destinations. Taking an enemy crate remains a separate and unchanged
+		# mechanism (ProximityCapturable, on contact).
+		# This is the ONE place the reasoning is written down; the other 13 templates are bare. All 14 are
+		# pinned by SupplyCacheSeekTest, so a template drifting out of the set fails there.
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: primary-ammo # grenade-ammo
 	ReloadAmmoPool@1:
 		AmmoPool: primary-ammo
@@ -1229,7 +1239,7 @@ E1R1:
 	InfantryStates:
 		PauseOnCondition: preparing-secondary
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -1309,7 +1319,7 @@ E3R1:
 		Weapon: 5.56mm.AR
 		PauseOnCondition: !ammo-primary
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -1371,7 +1381,7 @@ AR:
 		Armaments: primary
 		Color: FF0000
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -1469,7 +1479,7 @@ E2R1:
 		AmmoPools: secondary-ammo
 		RequiresCondition: ammo-secondary
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	WithInfantryBody:
 		IdleSequences: idle1
@@ -1540,7 +1550,7 @@ TL:
 		Color: FF0000
 		Width: 2
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: primary-ammo
 	AttackFrontal:
 		TargetFrozenActors: True
@@ -1614,7 +1624,7 @@ MT:
 		Name: garrisoned
 		Weapon: 7.62mm.Sniper
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
@@ -1685,7 +1695,7 @@ SN:
 		Armaments: primary
 		Color: 00FF00
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
@@ -1754,7 +1764,7 @@ AT:
 		Armaments: primary
 		Color: 66B2FF
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
@@ -1893,7 +1903,7 @@ AA:
 	# 	BlinkInterval: 16
 	# 	BlinkPattern: On, Off
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: secondary-ammo
 	# The engineer's orders ARE his purpose and none of them need ammunition: capture, bridge repair,
 	# demolition and mine-laying are all walk-to-a-place errands, and breaking one off part-way wastes
@@ -1973,7 +1983,7 @@ E6:
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: primary-ammo
 	GrantConditionOnAttack:
 		Condition: dont-move
@@ -2080,7 +2090,7 @@ E4:
 		AmmoPools: secondary-ammo
 		RequiresCondition: ammo-secondary
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: primary-ammo, secondary-ammo
 	WithInfantryBody:
 		AttackSequences:
@@ -2318,7 +2328,7 @@ TECN:
 		Color: FFFFFF
 		Width: 3
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: primary-ammo
 	WithInfantryBody:
 		-IdleSequences:
@@ -2398,7 +2408,7 @@ DR:
 		AmmoPools: primary-ammo
 		RequiresCondition: ammo-primary
 	Rearmable:
-		RearmActors: truk, logisticscenter
+		RearmActors: truk, supplycache, logisticscenter
 		AmmoPools: primary-ammo # grenade-ammo
 	WithInfantryBody:
 		IdleSequences: idle1

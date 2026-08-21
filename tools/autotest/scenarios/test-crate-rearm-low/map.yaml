@@ -1,0 +1,73 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a low-load supply crate still spends its supply
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# As test-crate-rearm, but the Lua sets the crate's load to 30 before draining
+# the rifleman -- inside the band (1..49) where SUPPLYCACHE used to inherit the
+# truck's RestockThreshold and withhold its whole remaining load while sitting
+# above the RemoveBelowSupply floor that would have cleaned it up.
+# PASS = the rifleman's primary-ammo climbs back above zero within the window.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		Faction: america
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	# TWO spawns for two Playable slots (Me + the spectating Observer). The cordon and the
+	# spawn count are both lint requirements -- ./utility.sh --check-yaml <MAPDIR> reports them,
+	# and this scenario's parent test-crate-rearm fails BOTH and is carried on
+	# mods/ww3mod/lint-baseline.txt:72-73 rather than fixed. Do not copy that: a clone inherits
+	# the defects without inheriting the baseline entries, so it fails the gate outright.
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+	# Unused by the test -- the Observer spectates -- but the linter counts slots, not usage.
+	# Placed far from the crate so it cannot perturb the measurement if it is ever occupied.
+	SpawnOther: mpspawn
+		Owner: Neutral
+		Location: 60,16
+
+	# The out-of-ammo unit under test — drained to zero in Lua.
+	Customer: e3
+		Owner: Me
+		Location: 20,16
+		Facing: 768
+
+	# The dropped supply crate, pre-placed 2 cells east of the customer -- well
+	# inside the aura at either the old 4c0 or the new 5c0, so this scenario is
+	# deliberately blind to the radius change. Its load is set in Lua.
+	Crate: supplycache
+		Owner: Me
+		Location: 22,16
+
+Rules: rules.yaml

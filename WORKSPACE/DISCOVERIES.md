@@ -3,6 +3,83 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-21 — `RearmActors` is the whole of host discovery, and it is declared 14 times with no shared default
+
+Branch `wt/cache-rearm`, implementing the user's ruling that infantry should seek dropped crates.
+
+**One list decides whether a resupply source exists at all.** `AmmoPool.ChooseResupplier` is the only
+host-discovery path in the engine — `AutoSeekSupplies` routes solely through it, for both the idle
+low-ammo seek and the all-pools-empty break-off — and both of its branches filter on
+`rearmInfo.RearmActors.Contains(a.Info.Name)`. An actor absent from that list is not merely
+deprioritised; it is invisible, however close and however full. That is the entire mechanism by which
+SUPPLYCACHE was push-only, and it took no code to enforce and no code to undo.
+
+**The trap is that the field has no `^Soldier`-level declaration.** It appears 14 times, once per
+infantry template carrying a `Rearmable` (`^E1 ^E3 ^AR ^E2 ^TL ^MT ^SN ^AT ^AA ^E6 ^E4 ^SF ^DR
+^PILOT`), so there is no single place to edit and no inheritance to lean on. A 15th template added
+later, or an existing one edited by someone who has not read this, silently does not seek — and the
+failure is per-unit-type, so it presents as "the rifleman works and the sniper doesn't", which reads
+like a pathing or stance bug rather than a missing list entry. `SupplyCacheSeekTest` enumerates the
+templates FROM THE FILE rather than from a hardcoded roster, precisely so a new one is caught.
+
+**The counterpart fact, and the one that makes the ruling safe:** the same query filters hosts on
+`a.Owner == self.Owner` — strict equality, not a relationship test. So "seek ammo" can never become
+"take enemy loot" even though SUPPLYCACHE is `ProximityCapturable` by `Infantry` at `2c512`. An enemy
+crate is not a destination; capture stays a separate on-contact mechanism that a unit walking past one
+can still trigger incidentally. Worth knowing before designing anything else that reads this method:
+allied units do not share hosts either.
+
+**Unbounded tail — found here, closed by ruling the same day.** Of the paths that send a unit to a
+host, two were leashed — the idle seek at `SupplyHuntLeashCells` 20 (straight-line) and the live-order
+break-off at `ReturnWhenEmptyLeashCells` 30 (chessboard) — and `AutoRearmIfAllEmpty` applied no
+distance test at all. Tolerable while hosts were trucks and LCs, which sit near the army or the base;
+not once crates are scattered wherever a truck happened to unload. **Now bounded at 30 chessboard
+cells via `AmmoPoolInfo.DryRearmLeashCells`** (user ruling 2026-08-21, reusing the existing number
+rather than inventing one).
+
+Two things about that fix are worth keeping. First, it has **two entry points, not one** — the
+notorious `INotifyBecomingIdle` path AND `INotifyAttack.Attacking`, which calls the same method the
+moment a unit fires its last round. Bounding the method rather than the notification covered both;
+bounding the idle handler alone would have left the commoner of the two open. Second, the leash
+deliberately did NOT go on `AutoSeekSuppliesInfo` beside its sibling `ReturnWhenEmptyLeashCells`,
+despite carrying the identical 30: **`AutoSeekSupplies` is declared on `^Soldier` alone, while
+`AutoRearmIfAllEmpty` runs on every non-aircraft actor with an `AmmoPool`, vehicles included.**
+Reading the other trait's Info would have left every vehicle unleashed while looking complete at the
+only site anyone reads — the same "a rule added at one site looks complete because the site you are
+reading has it" failure this file records elsewhere. Shared VALUE (defaults pinned equal by
+`DryRearmLeashTest`) and shared MATH (`SupplyHuntMath.WithinCellBudget`); separate field.
+
+## 2026-08-21 — a trait default is a DECISION the actor never made, and an omitted field can cancel a stated one
+
+Branch `wt/cache-rearm`. Report: "the dropped supply crate doesn't seem to rearm units, even when it
+has plenty of supplies left." SUPPLYCACHE was not missing `SupplyProvider` — it carried one, with a
+comment stating outright that a crate "serves down to the last usable batch" because it has no drive
+home to reserve supply for. That sentence was true about the field it named (`RemoveBelowSupply: 1`)
+and false about the actor, because a **second** field governs the same outcome and was never written
+down: `SupplyProviderInfo.RestockThreshold` defaults to **50** (`SupplyProvider.cs`), and the tick
+ladder stops serving below it. So the crate withheld its last 49 supply — while sitting *above* the
+removal floor of 1, which serving was the only thing that could have carried it down to. It parked
+in the world permanently, supply bar visible, sprite intact, serving nobody.
+
+**The shape worth banking: two fields, both governing "when does this provider stop", one stated and
+one inherited, with the removal floor set BELOW the serving floor. That gap is an absorbing state.**
+Setting the stated field was a real fix to a real bug (a freshly dropped low-supply crate used to
+self-vanish on its first tick), and it moved the failure rather than removing it. Whenever you lower
+a despawn/cleanup threshold, ask what OTHER threshold decides whether the actor can still do the
+work that would carry it down to the new one — if the answer is a default you did not write, the
+actor now has a band it can never leave.
+
+Reachability is not exotic: `DropsSupplyCache` seeds a crate with the truck's exact remaining load
+(`DropsSupplyCache.cs:199`), and an Evacuate-stance truck keeps serving below its own threshold, so
+a crate can be **born** inside the dead band without ever being drained into it.
+
+Corollary for tests: the clause was written out twice — once in `TickServing`, once in `CanServeNow`,
+which exists precisely to mirror that ladder — so the two could have disagreed about whether a
+provider serves and nothing would have failed. Now extracted as
+`SupplyProvider.ReservesRemainderForRestock` and read by both. A YAML-corpus test that restated the
+crate's config in a fixture would have been green throughout; resolving unset fields through
+`new SupplyProviderInfo()` is what made the omission visible, because the omission WAS the bug.
+
 ## 2026-08-21 — radar reveals ACTORS, not CELLS, and every cell-level fog check silently vetoes it
 
 Branch `wt/radar-targeting`. A helicopter held on radar with no line of sight rendered on screen

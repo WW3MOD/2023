@@ -457,8 +457,14 @@ SUPPLYCACHE:
 		Sequence: idle-low
 		RequiresCondition: !supply-high && !supply-medium
 	SupplyProvider:
-		Range: 4c0
-		RearmDelay: 25
+		# PARITY WITH THE TRUCK, and deliberately not a softer version of it. "It should rearm just the
+		# same as the supply truck does, same radius/speed etc." (live play, 2026-08-21). A crate is the
+		# truck's own load set on the ground — the same 750 supply serving the same infantry through the
+		# same replenish-soldiers push — so a player who drops one has not chosen a weaker resupply, only
+		# a stationary one. These two numbers made it a quarter the rate and a cell shorter in reach for
+		# no stated reason. Both are pinned against TRUK by SupplyCacheTruckParityTest.
+		Range: 5c0
+		RearmDelay: 6
 		TotalSupply: 750
 		RearmCondition: replenish-soldiers
 		SupplyCreditValue: 750
@@ -467,11 +473,24 @@ SUPPLYCACHE:
 		# last usable batch. A higher threshold would silently vanish a freshly-dropped
 		# crate carrying less than that value — the "inert crate" report.
 		RemoveBelowSupply: 1
+		# THE OTHER HALF OF THAT SENTENCE, missing until 2026-08-21 — which made the claim above FALSE.
+		# RemoveBelowSupply governs when a crate DESPAWNS; RestockThreshold governs when it stops
+		# SERVING, and it defaults to 50 (SupplyProvider.cs), which was never overridden here. So a crate
+		# holding 1..49 supply served nobody, and — sitting above the removal floor of 1 — never
+		# despawned either. It parked permanently with a visible supply bar and an intact sprite, doing
+		# nothing: the "doesn't rearm even though it has supplies left" report. A truck reserves that
+		# remainder to afford the drive to a Logistics Center; a crate has nowhere to drive, so it
+		# reserves nothing. The two fields are a matched pair — a non-zero reservation above a lower
+		# removal floor strands the crate in the gap between them. See
+		# SupplyProvider.ReservesRemainderForRestock.
+		RestockThreshold: 0
 		SupplyHighCondition: supply-high
 		SupplyMediumCondition: supply-medium
 		SupplyLowCondition: supply-low
 	RenderRangeCircle@Supply:
-		FallbackRange: 4c0
+		# Must track SupplyProvider.Range above — this circle is the ONLY thing telling the player how far
+		# a crate reaches, so a stale value here is a lie drawn on the map. Pinned by SupplyCacheTruckParityTest.
+		FallbackRange: 5c0
 		RangeCircleType: supply
 		Color: C0C0C0
 		Width: 1.5

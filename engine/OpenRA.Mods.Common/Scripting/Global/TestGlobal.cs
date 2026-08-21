@@ -497,6 +497,29 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			truck.World.IssueOrder(new Order("DropSupplyCacheAt", truck, Target.FromCell(truck.World, cell), queued));
 		}
 
+		[Desc("Set a SupplyProvider's remaining supply (truck, cache or Logistics Center). Clamped to " +
+			"TotalSupply by the trait. Exists because a provider's behaviour near its own thresholds " +
+			"cannot otherwise be staged: a crate is born with whatever the truck was carrying, so " +
+			"reaching a specific low load in-scenario would mean draining one through real rearms and " +
+			"waiting. Test mode only.")]
+		public void SetSupply(Actor provider, int amount)
+		{
+			if (!TestMode.IsActive || provider == null)
+				return;
+
+			provider.TraitOrDefault<SupplyProvider>()?.SetSupply(amount);
+		}
+
+		[Desc("A SupplyProvider's remaining supply, or -1 if the actor has no SupplyProvider. Test mode only.")]
+		public int GetSupply(Actor provider)
+		{
+			if (!TestMode.IsActive || provider == null)
+				return -1;
+
+			var supply = provider.TraitOrDefault<SupplyProvider>();
+			return supply == null ? -1 : supply.CurrentSupply;
+		}
+
 		[Desc("Issue a real AttendAlly order on `healer` targeting `ally` — the order a left-click on a " +
 			"friendly unit produces. There is no scripting binding for arbitrary orders, and the " +
 			"behaviour under test exists only on the order path. Test mode only.")]

@@ -29,6 +29,32 @@
 
 ---
 
+## 2026-08-21: [low] CLOSED — RESOLVED BY DECISION, NOT BY BUG FIX — `AmmoPool.ChooseResupplier`'s comment named SUPPLYCACHE as a seekable host while no `RearmActors` list contained it (found while: fixing the crate rearm defect, branch `wt/cache-rearm`, `main @ c8848496`)
+
+`AmmoPool.cs:438` labels its second query "SupplyProvider hosts (TRUK, SUPPLYCACHE) with supply
+remaining", and the filter immediately under it is `rearmInfo.RearmActors.Contains(a.Info.Name)`.
+Every `RearmActors` declaration in the corpus is either `truk, logisticscenter` (infantry) or
+`logisticscenter` (vehicles) — **none names `supplycache`** — so the cache branch of that comment is
+unreachable. `AutoSeekSupplies` routes solely through this method (`AutoSeekSupplies.cs:281`), so no
+unit ever walks to a dropped crate of its own accord; crates are push-only, serving whoever happens
+to stand inside the aura.
+
+**This was documented behaviour, not a defect**: `economy.md:47` stated the push-only property
+correctly and deliberately. It was filed at [low] only because the CODE COMMENT contradicted the
+corpus and would mislead the next reader. Two resolutions were possible and the choice was a design
+call, not a cleanup: correct the comment to match the intent, or add `supplycache` to infantry
+`RearmActors` so dropped crates become a destination.
+
+> **CLOSED 2026-08-21 — the user took the second option.** All 14 infantry templates carrying a
+> `Rearmable` now name `supplycache`, so soldiers path to their own dropped crates. **Nothing here
+> was a bug and nothing was repaired**: the old behaviour was a working implementation of a design
+> the user has since changed their mind about, and this entry is closed as superseded rather than
+> fixed. The comment at `AmmoPool.cs` is now TRUE, so it was kept and extended (with the
+> corpus-dependence of the actor names, and the strict `a.Owner == self.Owner` filter that stops
+> "seek ammo" from also meaning "take enemy loot") rather than deleted. `economy.md:47` records the
+> supersession with its date and reason. Pinned by `SupplyCacheSeekTest`, which enumerates the
+> templates from the file so a NEW one that misses the list fails rather than silently not seeking.
+
 ## 2026-08-20: [high] PARTIALLY FIXED on `wt/aa-autotarget` — one AA soldier's overkill claim is EXACTLY the overkill threshold, so a single committed AA hard-skips the whole rest of the battery off a healthy aircraft (found while: diagnosing the user's live "my AA won't autotarget until I click" report, branch `wt/aa-autotarget`, `main @ e3a5250d`)
 
 > **UPDATE 2026-08-20, and the entry below is now MEASURED rather than derived.**
