@@ -31,7 +31,7 @@ World:
 # ValidRelationships are restated rather than inherited so a future change to
 # either default cannot silently move this scenario's geometry -- the range is
 # the only thing meant to differ from the shipped vehicle.
-STRYKERSHORAD:
+strykershorad:
 	Radar:
 		Range: 56c0
 		Strength: 1
