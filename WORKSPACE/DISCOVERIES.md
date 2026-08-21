@@ -129,6 +129,85 @@ that already existed): a claim whose holder dies before firing, and a claim whos
 elsewhere before firing. `test-aa-overkill-suppression` has measured the first directly — a marker
 killed at tick 40 still suppressed its neighbour to t206. Attributing the claim is the enabling
 change for fixing either; neither was possible before this.
+## 2026-08-21 — a shockwave's damage radius and its visual radius are separate knobs
+
+Branch `wt/volatile-load`. `ShockwaveDamage` looks like it has one size, `MaxRadius`. It has two,
+and they are independent:
+
+* **`MaxRadius` is the VISUAL travel limit.** `ShockwaveEffect.Tick` expands the ring by
+  `1024 / WaveSpeed` per tick and ends the effect once `currentRadius > MaxRadius`
+  (`ShockwaveEffect.cs:60-66`); `RenderAnnotation` divides by it to get the fade progress (`:107`).
+* **`Spread x Falloff.Length` is the DAMAGE limit.** `RulesetLoaded` builds
+  `effectiveRange = MakeArray(Falloff.Length, i => i * Spread)` (`ShockwaveDamageWarhead.cs:80`),
+  which never consults `MaxRadius`, and `ApplyBlastDamage` returns outright when the victim is past
+  the last step (`:130`) rather than clamping to the final `Falloff` entry. So the damage stops
+  DEAD at `(Falloff.Length - 1) * Spread`, with no tail.
+
+The effective damage radius is therefore `min(MaxRadius, (Falloff.Length - 1) * Spread)`, since the
+wavefront must also physically reach an actor before `ApplyBlastDamage` is called at all. **That is
+what lets a shockwave sweep four cells for spectacle while only hurting things within one** — the
+shape wanted for a cosmetic detonation, and not otherwise reachable by lowering `Damage`, which
+scales the whole curve uniformly and leaves the long tail intact.
+
+Two details that bite when calibrating:
+
+* `GetDamageFalloff` LERPs between adjacent steps (`:157`), so the curve is piecewise linear, not
+  stepwise — a coarse `Spread` cannot express a sharp cutoff no matter what the `Falloff` numbers
+  say. Tighten `Spread` to sharpen the knee.
+* The default `DamageCalculationType.HitShape` measures from the victim's hitshape EDGE
+  (`:120-123`), not its centre, so a unit "one cell away" takes slightly more than centre-to-centre
+  arithmetic predicts. Calibrate with headroom.
+
+Related: the ring's drawn thickness is not `ShockwaveThickness` directly. `RenderAnnotation` scales
+it by `min(1, progress * 2.5)` (`ShockwaveEffect.cs:120`), reaching the configured value at 40% of
+`MaxRadius`. A thickness anywhere near its own `MaxRadius` therefore renders as a filled disc for
+most of the wave's life rather than a travelling ring; `IskanderExplosion`'s 1024-on-4096 is a 1:4
+ratio and is the reference to match.
+
+## 2026-08-21 — a condition variable resolves to its STACK DEPTH, so a band selector needs no engine code
+
+Branch `wt/volatile-load`. `Actor.UpdateConditionState` assigns `conditionCache[condition] =
+conditionState.Tokens.Count` (`Actor.cs:660`), and `VariableExpression` implements the full set of
+comparison operators against those variables (`VariableExpression.cs:131-136`). So **any trait that
+grants one condition token per unit of something exposes a countable quantity to YAML for free.**
+`AmmoPool` already does exactly this — it pushes one token per remaining round and pops on spend
+(`AmmoPool.cs:456-460`) — which is what makes `RequiresCondition: ammo-primary == 2` on the
+Iskander's missile overlay (`vehicles-russia.yaml:996`) work. `ammo-primary >= 6 && ammo-primary
+<= 10` is equally valid and needs no C# at all.
+
+The general form worth banking: **before adding a named `FooHighCondition`/`FooMediumCondition`/
+`FooLowCondition` triple to a trait, grant one stacking token instead and let the YAML compare.**
+The threshold count then lives with the actor that cares, not baked into the C# field list.
+`SupplyProvider` had the triple (`SupplyProvider.cs:88-102`, each granted at most once) and could
+not express eighths; it now also offers `SupplyLevelCondition`/`SupplyLevelSteps`
+(`SupplyProvider.cs:104-129`), defaulting to 0/null so no existing actor changes.
+
+Note the operators require surrounding whitespace — `ammo-primary>=6` throws
+*"Missing whitespace at index N"* (`VariableExpression.cs:532-538`), not a silent false.
+
+## 2026-08-21 — every enabled `Explodes` fires on the same death; there is no arbitration
+
+Same branch. `Explodes` is a `ConditionalTrait<ExplodesInfo>` implementing `INotifyKilled`
+(`Explodes.cs:84`), and `Killed` unconditionally impacts its own weapon (`Explodes.cs:103-137`).
+Nothing consults the other `Explodes` instances on the actor. **So a set of `Explodes@Foo` traits
+whose `RequiresCondition` expressions overlap detonates the actor once per overlapping trait, and
+a set with a gap kills it silently.** Neither is visible to an autotest, which sees the unit die
+either way — the partition has to be pinned in a unit test (`VolatileLoadBandTest.cs`).
+
+The trap this actually sprang: `grad` and `m270` carry an **ungated** `Explodes@CrewCookoff` firing
+`VehicleCookoffLarge` (`vehicles-russia.yaml:519-522`, `vehicles-america.yaml:708-711`), so adding
+load-banded explosion traits alongside it produced two damage events per death until the cookoff
+was gated to `!ammo-primary`. The distinction that decides whether gating is needed is **whether
+the incumbent weapon carries a damage warhead at all**: `BuildingExplode`, inherited by every
+structure from `^BasicBuilding` (`structures.yaml:50-53`), is `CreateEffect` + `LeaveSmudge` only
+(`weapons-explosions.yaml:210-215`) and therefore stacks harmlessly, while `VehicleCookoffLarge`
+deals 14000 (`weapons-explosions.yaml:57-74`) and does not.
+
+Also worth recording because the brief predicted the opposite: **`DropsSupplyCache` does NOT drop a
+cache on death.** It implements `INotifyCreated, INotifyBecomingIdle, ITick, IResolveOrder,
+IIssueOrder, IIssueDeployOrder, IOrderVoice` and no death interface at all
+(`DropsSupplyCache.cs:94-95`), so a destroyed `TRUK` leaves no crate and cannot double-detonate
+through one.
 
 ## 2026-08-21 — radar reveals ACTORS, not CELLS, and every cell-level fog check silently vetoes it
 

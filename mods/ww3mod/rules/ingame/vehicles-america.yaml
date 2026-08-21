@@ -705,10 +705,39 @@ m270:
 		EjectionDelayVariance: 10
 		# MLRS rocket pod — catastrophic when hit, low crew survival.
 		CrewDamageThresholdPercent: 14
-	# MLRS rocket pod cookoff — catastrophic ammo detonation, biggest cookoff tier.
+	# MLRS rocket pod cookoff — catastrophic ammo detonation, biggest cookoff tier. Gated to the
+	# EMPTY pod for the same reason as grad: every enabled Explodes fires on the same death
+	# (Explodes.cs:103) and VehicleCookoffLarge deals real damage, so an ungated cookoff alongside
+	# the bands below would detonate the launcher twice.
 	Explodes@CrewCookoff:
+		RequiresCondition: !ammo-primary
 		Weapon: VehicleCookoffLarge
 		EmptyWeapon: VehicleCookoffLarge
+	# 12 rockets across 8 bands, so bands are 1 or 2 rockets wide: ceil(n * 8 / 12).
+	Explodes@Band1:
+		RequiresCondition: ammo-primary == 1
+		Weapon: VolatileLoad1
+	Explodes@Band2:
+		RequiresCondition: ammo-primary >= 2 && ammo-primary <= 3
+		Weapon: VolatileLoad2
+	Explodes@Band3:
+		RequiresCondition: ammo-primary == 4
+		Weapon: VolatileLoad3
+	Explodes@Band4:
+		RequiresCondition: ammo-primary >= 5 && ammo-primary <= 6
+		Weapon: VolatileLoad4
+	Explodes@Band5:
+		RequiresCondition: ammo-primary == 7
+		Weapon: VolatileLoad5
+	Explodes@Band6:
+		RequiresCondition: ammo-primary >= 8 && ammo-primary <= 9
+		Weapon: VolatileLoad6
+	Explodes@Band7:
+		RequiresCondition: ammo-primary == 10
+		Weapon: VolatileLoad7
+	Explodes@Band8:
+		RequiresCondition: ammo-primary >= 11 && ammo-primary <= 12
+		Weapon: VolatileLoad8
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: FireAtWill
@@ -1104,12 +1133,22 @@ HIMARS:
 		Actors: HIMARSMissile
 		LoadedCondition: loaded
 		LaunchingCondition: firing
+	# Every Explodes on this actor keys off ammo-primary alone. It previously used `loaded`, which
+	# MissileSpawnerMaster grants per replenished slave (MissileSpawnerMaster.cs:147-148) — separate
+	# accounting from the AmmoPool. Two independent variables gating traits that all fire on the same
+	# death is exactly how a carrier ends up detonating twice, so the bands and the empty case are
+	# now driven by one count.
 	Explodes:
-		RequiresCondition: !loaded
+		RequiresCondition: !ammo-primary
 		Weapon: ArtilleryExplode
-	Explodes@Loaded:
-		RequiresCondition: loaded
-		Weapon: HIMARSExplosion
+	# A 2-round magazine can only land on the half-full and full bands; the other six are
+	# unreachable, so no trait is emitted for them.
+	Explodes@Band4:
+		RequiresCondition: ammo-primary == 1
+		Weapon: VolatileLoad4
+	Explodes@Band8:
+		RequiresCondition: ammo-primary == 2
+		Weapon: VolatileLoad8
 	Selectable:
 		DecorationBounds: 2048,2048
 	SpawnActorOnDeath:

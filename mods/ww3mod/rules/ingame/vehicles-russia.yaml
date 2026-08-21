@@ -516,10 +516,39 @@ grad:
 		EjectionDelayVariance: 10
 		# Truck-mounted MLRS — soft skin + 40 rocket pod = catastrophic kill.
 		CrewDamageThresholdPercent: 14
-	# Catastrophic rocket-pod cookoff.
+	# Catastrophic rocket-pod cookoff. Now gated to the EMPTY pod: Explodes has no arbitration
+	# between instances — every enabled one fires on the same death (Explodes.cs:103) — and
+	# VehicleCookoffLarge deals real damage, so leaving this ungated alongside the bands below
+	# would detonate the launcher twice. A pod with rockets still aboard fires its band instead.
 	Explodes@CrewCookoff:
+		RequiresCondition: !ammo-primary
 		Weapon: VehicleCookoffLarge
 		EmptyWeapon: VehicleCookoffLarge
+	# 40 rockets across 8 bands — five rockets per band.
+	Explodes@Band1:
+		RequiresCondition: ammo-primary >= 1 && ammo-primary <= 5
+		Weapon: VolatileLoad1
+	Explodes@Band2:
+		RequiresCondition: ammo-primary >= 6 && ammo-primary <= 10
+		Weapon: VolatileLoad2
+	Explodes@Band3:
+		RequiresCondition: ammo-primary >= 11 && ammo-primary <= 15
+		Weapon: VolatileLoad3
+	Explodes@Band4:
+		RequiresCondition: ammo-primary >= 16 && ammo-primary <= 20
+		Weapon: VolatileLoad4
+	Explodes@Band5:
+		RequiresCondition: ammo-primary >= 21 && ammo-primary <= 25
+		Weapon: VolatileLoad5
+	Explodes@Band6:
+		RequiresCondition: ammo-primary >= 26 && ammo-primary <= 30
+		Weapon: VolatileLoad6
+	Explodes@Band7:
+		RequiresCondition: ammo-primary >= 31 && ammo-primary <= 35
+		Weapon: VolatileLoad7
+	Explodes@Band8:
+		RequiresCondition: ammo-primary >= 36 && ammo-primary <= 40
+		Weapon: VolatileLoad8
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: FireAtWill

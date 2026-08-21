@@ -414,6 +414,37 @@ LOGISTICSCENTER:
 		RearmDelay: 25
 		RearmCondition: replenish-vehicles
 		DockedCondition: unit.docked
+		SupplyLevelCondition: supply-level
+		SupplyLevelSteps: 8
+	# Stacks with the BuildingExplode inherited from ^BasicBuilding rather than replacing it, and
+	# that is intended: BuildingExplode carries no damage warhead at all (weapons-explosions.yaml
+	# :210-215 is CreateEffect + LeaveSmudge only), so the rubble visual and the cargo detonation
+	# together are still ONE damage event. Contrast grad/m270 below, where the cookoff does damage
+	# and therefore had to be gated off.
+	Explodes@Band1:
+		RequiresCondition: supply-level == 1
+		Weapon: VolatileLoad1
+	Explodes@Band2:
+		RequiresCondition: supply-level == 2
+		Weapon: VolatileLoad2
+	Explodes@Band3:
+		RequiresCondition: supply-level == 3
+		Weapon: VolatileLoad3
+	Explodes@Band4:
+		RequiresCondition: supply-level == 4
+		Weapon: VolatileLoad4
+	Explodes@Band5:
+		RequiresCondition: supply-level == 5
+		Weapon: VolatileLoad5
+	Explodes@Band6:
+		RequiresCondition: supply-level == 6
+		Weapon: VolatileLoad6
+	Explodes@Band7:
+		RequiresCondition: supply-level == 7
+		Weapon: VolatileLoad7
+	Explodes@Band8:
+		RequiresCondition: supply-level == 8
+		Weapon: VolatileLoad8
 	AbsorbsSupplyCache:
 		Range: 2c512
 		TransferRate: 50

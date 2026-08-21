@@ -102,6 +102,29 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string SupplyAnyCondition = null;
 
 		[GrantedConditionReference]
+		[Desc("Condition granted once per occupied load step, so a condition expression can compare",
+			"against the resulting count — `supply-level >= 7` — in the same idiom AmmoPool.AmmoCondition",
+			"already allows for rounds. This keeps the band count in YAML instead of baking it into a",
+			"fixed set of named fields here. Inert unless SupplyLevelSteps is also set.")]
+		public readonly string SupplyLevelCondition = null;
+
+		[Desc("Number of load steps SupplyLevelCondition resolves to. 0 (default) disables it entirely,",
+			"so an actor that does not name the condition is unaffected.")]
+		public readonly int SupplyLevelSteps = 0;
+
+		// Ceiling division: any non-zero supply occupies at least step 1, and only a full load reaches
+		// the top step. That keeps "empty" distinguishable from "nearly empty" — the distinction the
+		// death-explosion bands are keyed on — and stops a partial load reaching the top band.
+		public static int SupplyLevel(int currentSupply, int totalSupply, int steps)
+		{
+			if (steps <= 0 || totalSupply <= 0 || currentSupply <= 0)
+				return 0;
+
+			var level = (currentSupply * steps + totalSupply - 1) / totalSupply;
+			return level < steps ? level : steps;
+		}
+
+		[GrantedConditionReference]
 		[Desc("Condition granted to self while this provider has somebody in its aura it could serve a",
 			"batch to right now — i.e. while it is doing its job. Intended for a MOBILE provider, whose",
 			"Mobile.PauseOnCondition should name it: the transport then HALTS for as long as there is",
@@ -238,6 +261,8 @@ namespace OpenRA.Mods.Common.Traits
 		int supplyMediumToken = Actor.InvalidConditionToken;
 		int supplyLowToken = Actor.InvalidConditionToken;
 		int supplyAnyToken = Actor.InvalidConditionToken;
+
+		readonly Stack<int> supplyLevelTokens = new Stack<int>();
 
 		public int CurrentSupply => currentSupply;
 
@@ -968,6 +993,16 @@ namespace OpenRA.Mods.Common.Traits
 					supplyAnyToken = self.GrantCondition(Info.SupplyAnyCondition);
 				else if (currentSupply <= 0 && supplyAnyToken != Actor.InvalidConditionToken)
 					supplyAnyToken = self.RevokeCondition(supplyAnyToken);
+			}
+
+			if (!string.IsNullOrEmpty(Info.SupplyLevelCondition) && Info.SupplyLevelSteps > 0)
+			{
+				var level = SupplyProviderInfo.SupplyLevel(currentSupply, Info.TotalSupply, Info.SupplyLevelSteps);
+				while (supplyLevelTokens.Count < level)
+					supplyLevelTokens.Push(self.GrantCondition(Info.SupplyLevelCondition));
+
+				while (supplyLevelTokens.Count > level)
+					self.RevokeCondition(supplyLevelTokens.Pop());
 			}
 		}
 

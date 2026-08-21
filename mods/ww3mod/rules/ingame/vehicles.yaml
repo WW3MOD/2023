@@ -589,6 +589,36 @@ TRUK:
 		# behaviour. NOTE the whole point is the ALTERNATING case: a verdict flipping every scan
 		# runs the counter 1,0,1,0 and never latches at all.
 		ResidueConfirmScans: 5
+		# Volatile cargo: one stacked condition per eighth of the load, so the Explodes@Band traits
+		# below can select a blast strength with a plain count comparison.
+		SupplyLevelCondition: supply-level
+		SupplyLevelSteps: 8
+	# A truck detonates in proportion to what it was carrying. An EMPTY truck still has no Explodes
+	# at all, which is the pre-existing behaviour — band 0 is deliberately silent.
+	Explodes@Band1:
+		RequiresCondition: supply-level == 1
+		Weapon: VolatileLoad1
+	Explodes@Band2:
+		RequiresCondition: supply-level == 2
+		Weapon: VolatileLoad2
+	Explodes@Band3:
+		RequiresCondition: supply-level == 3
+		Weapon: VolatileLoad3
+	Explodes@Band4:
+		RequiresCondition: supply-level == 4
+		Weapon: VolatileLoad4
+	Explodes@Band5:
+		RequiresCondition: supply-level == 5
+		Weapon: VolatileLoad5
+	Explodes@Band6:
+		RequiresCondition: supply-level == 6
+		Weapon: VolatileLoad6
+	Explodes@Band7:
+		RequiresCondition: supply-level == 7
+		Weapon: VolatileLoad7
+	Explodes@Band8:
+		RequiresCondition: supply-level == 8
+		Weapon: VolatileLoad8
 	DropsSupplyCache:
 		SupplyCacheActor: supplycache
 	Repairable:

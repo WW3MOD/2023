@@ -487,6 +487,34 @@ SUPPLYCACHE:
 		SupplyHighCondition: supply-high
 		SupplyMediumCondition: supply-medium
 		SupplyLowCondition: supply-low
+		# Independent of the three sprite-state conditions above, which keep their coarse
+		# thirds. This is the finer count the Explodes@Band traits compare against.
+		SupplyLevelCondition: supply-level
+		SupplyLevelSteps: 8
+	Explodes@Band1:
+		RequiresCondition: supply-level == 1
+		Weapon: VolatileLoad1
+	Explodes@Band2:
+		RequiresCondition: supply-level == 2
+		Weapon: VolatileLoad2
+	Explodes@Band3:
+		RequiresCondition: supply-level == 3
+		Weapon: VolatileLoad3
+	Explodes@Band4:
+		RequiresCondition: supply-level == 4
+		Weapon: VolatileLoad4
+	Explodes@Band5:
+		RequiresCondition: supply-level == 5
+		Weapon: VolatileLoad5
+	Explodes@Band6:
+		RequiresCondition: supply-level == 6
+		Weapon: VolatileLoad6
+	Explodes@Band7:
+		RequiresCondition: supply-level == 7
+		Weapon: VolatileLoad7
+	Explodes@Band8:
+		RequiresCondition: supply-level == 8
+		Weapon: VolatileLoad8
 	RenderRangeCircle@Supply:
 		# Must track SupplyProvider.Range above — this circle is the ONLY thing telling the player how far
 		# a crate reaches, so a stale value here is a lie drawn on the map. Pinned by SupplyCacheTruckParityTest.
