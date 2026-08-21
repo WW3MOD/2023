@@ -3,6 +3,62 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-21 — "partial dryness" is already handled for idle infantry; the real holes are vehicles and the exit predicate
+
+Branch `wt/resupply-tiers`, recon only. Report: "a rifleman without bullets should basically be
+considered out of ammo even if he has one AT round left." The diagnosis that `AmmoPool.AllPoolsEmpty`
+(`AmmoPool.cs:205`, `:239`) requires EVERY pool empty is correct, but it is **not the whole story, and
+the obvious fix is wrong in three specific places.**
+
+**The example is real and is the worst case in the mod.** `^E3` carries `primary-ammo: 100` and
+`secondary-ammo: 1` (`infantry.yaml:1181`, `:1209`). One unfired AT round holds `AllPoolsEmpty` false
+permanently, so both all-empty paths are dead for him for the rest of the match.
+
+**But an idle `^E3` still goes.** `AutoSeekSupplies`' idle seek is keyed on `BelowSeekThreshold`
+**per pool** over `Rearmable.RearmableAmmoPools` (`AutoSeekSupplies.cs:391-398`), not on all-empty —
+primary at 0/100 trips 25% on its own. It is enabled in this mod (`infantry.yaml:244-246`, on
+`^Soldier`) and it already walks the man out, tops him up, and walks him **back to the cell he left**
+(`SeekSuppliesAndReturn`). So the user's second paragraph describes behaviour that largely SHIPS. Do
+not rebuild it; find out why it is not visible (leash 20 straight-line, stances, `CanServe`).
+
+**The genuine gaps are elsewhere, and both are structural:**
+
+1. **Vehicles have no partial-dryness path at all.** `AutoSeekSupplies` is declared on `^Soldier` and
+   `^E6` ONLY (the sole two hits in `mods/`), so the four multi-pool ground vehicles — `bradley`
+   900+8, `bmp2` 900+8, `tunguska` 180+8, `strykershorad` 400+8+4 — reach only the all-empty paths. A
+   Bradley that burns 900 cannon rounds and holds 8 TOWs seeks nothing, ever. This is the same
+   "declared at one site, looks complete at the only site anyone reads" trap this file already records
+   for `DryRearmLeashCells`, hit a second time from the opposite direction.
+2. **The engineer's SMG is invisible to the idle seek.** `^E6`'s `Rearmable.AmmoPools` lists
+   `secondary-ammo` only (`infantry.yaml:1907`), and the idle seek iterates the *rearmable* set — so a
+   dry SMG is not seen there either. Deliberate for `^E6`; worth knowing before generalising.
+
+**The trap that would break a naive widening — the errand cancels itself on tick 1.**
+`SeekSupplyProvider.ErrandIsPointless()` (`SeekSupplyProvider.cs:118-124`) returns
+`dispatchedBecauseDry && !AmmoPool.AllPoolsEmpty(pools)`. The exit condition is deliberately the SAME
+predicate as the dispatcher, which is what makes the errand non-oscillating. Widen the dispatch to
+"essential pool empty" while a non-essential pool still holds rounds and `AllPoolsEmpty` is *already
+false at dispatch* — so the errand is pointless on its first tick, and the unit takes one step and
+stops. `Resupply.cs:239` carries the same coupling. **Dispatch predicate and exit predicate must move
+together or not at all.**
+
+**And the place the widened predicate must NOT go.** `AmmoPool.CannotFight` (`:276`) is the same
+all-empty test, but it answers a different question — it gates combat behaviour at seven sites
+(`Attack.cs:117`, `AttackFollow.cs:346`, `AttackBase.cs:492` `:779`, `AttackMove.cs:109`,
+`SmartMoveActivity.cs:104`, `AttackMoveActivity.cs:93`), where it means "stop trying to shoot". Feed
+it an essential-pool test and the `^E3` stops attacking while still holding the AT round he is
+supposed to fire. The dispatchers and `CannotFight` share a predicate today by coincidence of
+definition, not because they ask the same thing.
+
+**"And then return" is already built — the ORDER is what does not survive.** All three walking
+branches walk home to the origin cell when `dispatchedBecauseDry`: `SeekSuppliesAndReturn`,
+`SeekSupplyProvider` (`:140-153`), `Resupply` (`:327-357`). What is lost is the pre-empted order
+itself — `AutoRearm` queues with `QueueActivity(false, …)`, and `Activity.Cancel` nulls
+`NextActivity`, so "the origin cell is all that survives of where he came from"
+(`SeekSupplyProvider.cs:83-92`). A unit that breaks off an attack-move returns to the cell and stands
+there; it does not resume the advance. Restoring the ORDER is a separate feature and should be costed
+as one.
+
 ## 2026-08-21 — `RearmActors` is the whole of host discovery, and it is declared 14 times with no shared default
 
 Branch `wt/cache-rearm`, implementing the user's ruling that infantry should seek dropped crates.
