@@ -8,7 +8,7 @@
  * the `evacuating` condition and refunds GetEvacuationRefund).
  *
  * WHY A UNIT-SIDE LAYER EXISTS AT ALL. Every ground path for this question is closed to aircraft on purpose:
- * AmmoPool.AutoRearmIfAllEmpty returns immediately for anything with an AircraftInfo (AmmoPool.cs:233), so the
+ * AmmoPool.AutoRearmIfDry returns immediately for anything with an AircraftInfo (AmmoPool.cs:233), so the
  * whole ResupplyBehavior axis — including its Evacuate case — never sees an airframe. Aircraft instead go through
  * Aircraft.OnBecomingIdle ⇒ ReturnToBase, whose no-resupplier branch queues FlyIdle and returns
  * (ReturnToBase.cs:126-128). That is why a spent helicopter on a mod with no helipad simply hovers: not a wedge,

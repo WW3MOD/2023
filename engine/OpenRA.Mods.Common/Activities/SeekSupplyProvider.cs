@@ -32,8 +32,8 @@ namespace OpenRA.Mods.Common.Activities
 
 		/// <summary>
 		/// <para>
-		/// True when this errand was the unit's OWN idea, taken because every pool was empty —
-		/// AmmoPool.AutoRearmIfAllEmpty and the dispatchers that share its AllPoolsEmpty predicate.
+		/// True when this errand was the unit's OWN idea, taken because the unit had run dry —
+		/// AmmoPool.AutoRearmIfDry and the dispatchers that share its OutOfEssentialAmmo predicate.
 		/// False for the player's explicit Resupply order, which is a destination order and must run
 		/// to full wherever it was aimed.
 		/// </para>
@@ -43,9 +43,14 @@ namespace OpenRA.Mods.Common.Activities
 		/// walking BACK to where it set off from rather than stopping wherever the news arrived.
 		/// </para>
 		/// <para>
-		/// "Can fight again" is deliberately not a new definition: it is AmmoPool.AllPoolsEmpty
-		/// negated, the exact condition that dispatched us. Reusing it is what makes the errand
-		/// non-oscillating — no dispatcher keyed on AllPoolsEmpty can re-fire the instant we quit,
+		/// "Can fight again" is deliberately not a new definition: it is AmmoPool.OutOfEssentialAmmo
+		/// negated, the exact condition that dispatched us. Reusing THE SAME FUNCTION — not a second
+		/// test that happens to agree — is what makes the errand non-oscillating, and it is also what
+		/// keeps it from being stillborn. When the dispatch predicate widened past AllPoolsEmpty on
+		/// 2026-08-21, an exit still reading AllPoolsEmpty would have been false at the very moment a
+		/// partially-dry unit was dispatched: the errand would be pointless on its first tick and the
+		/// unit would take one step and stop. Dispatch and exit move together or not at all.
+		/// No dispatcher keyed on OutOfEssentialAmmo can re-fire the instant we quit,
 		/// and the one that can (AutoSeekSupplies' idle seek, keyed on BelowSeekThreshold) queues
 		/// SeekSuppliesAndReturn, which holds until FULL and so cannot ping-pong against this.
 		/// </para>
@@ -120,7 +125,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (pools.All(p => p.HasFullAmmo))
 				return true;
 
-			return dispatchedBecauseDry && !AmmoPool.AllPoolsEmpty(pools);
+			return AmmoPool.SelfAssignedErrandIsOver(dispatchedBecauseDry, pools);
 		}
 
 		public override bool Tick(Actor self)

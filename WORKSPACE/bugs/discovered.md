@@ -3196,3 +3196,28 @@ Fixable: `World.cs:100` explicitly permits setting RenderPlayer while `TestMode.
 so a `Test.SetRenderPlayer(player)` binding would make these scenarios discriminate. Until
 then, visibility behaviour must be pinned at the NUnit layer against a World-free core --
 which is exactly what the radar fix's own MouseTargetVisibilityTest already does.
+
+## 2026-08-21 — [med] The idle supply seek refuses the Logistics Centre for infantry, on a false premise
+
+`AutoSeekSupplies.CanServe` rejects any provider carrying a `DockedCondition`
+(`AutoSeekSupplies.cs:465`) with the comment *"A docking-gated provider (the Logistics Center's
+unit.docked) does not resupply by proximity — walking into its aura would achieve nothing"*, and
+rejects it again on the `RearmCondition` gate (`:471`) because the LC's SupplyProvider names
+`replenish-vehicles` while infantry hold `replenish-soldiers`.
+
+**Walking into its aura achieves a great deal.** `LOGISTICSCENTER` also carries
+`ProximityExternalCondition@ReplenishSoldiers` at `Range: 4c0` (`structures.yaml:407-411`), and every
+infantry `ReloadAmmoPool` is gated on `replenish-soldiers` (`infantry.yaml:1188`, `:1217`, +12). A
+soldier who stands within 4 cells of an LC reloads. The comment is true of the SupplyProvider push it
+describes and false of the actor it names.
+
+Effect: a PARTIALLY dry soldier (rifle spent, AT round left) beside an LC never moves — the idle seek
+is the only path that can fire for him and it refuses the only host in range. A fully dry soldier is
+fine, because the other two paths go through `AmmoPool.ChooseResupplier`, which applies neither gate
+and returns the LC (`^E3.RearmActors` names it, `infantry.yaml:1242`).
+
+Not fixed on `wt/resupply-tiers`: relaxing `CanServe` changes the idle seek for every infantryman in
+the mod with no measurement behind it, and the widened dispatch predicate reaches the LC through
+`ChooseResupplier` anyway once a pool is authored `Essential`. The narrow fix, if wanted, is to admit
+a docking-gated provider when it grants a proximity condition the seeker's own `ReloadAmmoPool`
+consumes — which is a real query, not a YAML tweak.

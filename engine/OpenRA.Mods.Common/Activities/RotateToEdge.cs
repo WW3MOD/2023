@@ -81,8 +81,20 @@ namespace OpenRA.Mods.Common.Activities
 			ChildHasPriority = false;
 		}
 
-		/// <summary>Find the SpawnArea closest to the player's Supply Route building.</summary>
-		static CPos? FindClosestSpawnAreaForOwner(Actor self)
+		/// <summary>
+		/// <para>Find the SpawnArea closest to the player's Supply Route building — the ANCHOR the exit is
+		/// chosen around. Both the aircraft and ground branches of OnFirstRun resolve their actual edge
+		/// cell as the closest usable one to this point.</para>
+		///
+		/// <para>Internal rather than private because AmmoPool's Evacuate arm needs to know roughly where
+		/// "the way out" is in order to decide whether a rearm host is nearer than it, and calling THIS
+		/// is the alternative to reimplementing a cheaper guess beside it. It deliberately does not
+		/// expose the edge cell itself: resolving that runs
+		/// <c>Map.ChooseClosestMatchingEdgeCell</c>, which sorts the entire map perimeter and issues a
+		/// pathfinder query per candidate — fine once, at the start of an evacuation, and far too
+		/// expensive for a decision taken every time a unit goes idle dry.</para>
+		/// </summary>
+		internal static CPos? FindClosestSpawnAreaForOwner(Actor self)
 		{
 			var spawnAreas = self.World.ActorsWithTrait<SpawnArea>()
 				.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld)

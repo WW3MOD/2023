@@ -47,8 +47,12 @@ namespace OpenRA.Mods.Common.Traits
 			"this throttles the provider scan; the phase is staggered per actor deterministically.")]
 		public readonly int ScanInterval = 40;
 
-		[Desc("Break off a LIVE order once the unit cannot shoot at all — EVERY AmmoPool empty, per",
-			"AmmoPool.AllPoolsEmpty — and walk to the nearest rearm actor.",
+		[Desc("Break off a LIVE order once the unit has run dry — AmmoPool.OutOfEssentialAmmo, i.e. every",
+			"pool marked Essential is empty, or (nothing marked, the shipped default) every pool at all —",
+			"and walk to the nearest rearm actor.",
+			"The LEASH is tiered by how dry: wholly dry earns ReturnWhenEmptyLeashCells below, merely",
+			"essential-dry earns the shorter AmmoPoolInfo.EssentialDryLeashCells, because a unit that can",
+			"still fire something should not abandon a live order to cross the map.",
 			"The seek above is idle-triggered, and a soldier marching under an attack-move order is never",
 			"idle (Actor.IsIdle is CurrentActivity == null) — so a man who empties on the advance keeps",
 			"advancing with nothing to shoot. AmmoPool's own dispatcher has the same blind spot: it fires",
@@ -246,7 +250,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			if (!AmmoPool.AllPoolsEmpty(allPools))
+			if (!AmmoPool.OutOfEssentialAmmo(allPools))
 				return;
 
 			// A resupply activity is already running or QUEUED — do not issue a second one. Note this
@@ -270,7 +274,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Same stance contract as the idle seek: Hold means "stay put, a truck will come to me",
 			// Ambush means "do not stand up", HoldPosition means "do not roam". Evacuate is not ours
-			// either — AmmoPool.AutoRearmIfAllEmpty owns that disposition and rotates the unit out.
+			// either — AmmoPool.AutoRearmIfDry owns that disposition and rotates the unit out.
 			if (!StancesPermit())
 				return;
 
@@ -279,7 +283,7 @@ namespace OpenRA.Mods.Common.Traits
 			// into a carryall is out of the world with a stale CenterPosition, so it would read as a
 			// perfectly good destination at wherever it was picked up.
 			var host = AmmoPool.ChooseResupplier(self);
-			if (host == null || !host.IsInWorld || !WithinReturnLeash(host))
+			if (host == null || !host.IsInWorld || !WithinBreakOffLeash(host))
 			{
 				// Nothing worth walking to. Raise the flag the Hunt-stance provider scan reads
 				// (SupplyProvider.FindNeedsResupplyTarget) so the supply side can come to us instead, and
@@ -369,18 +373,35 @@ namespace OpenRA.Mods.Common.Traits
 				pool.NeedsResupply = true;
 		}
 
-		bool WithinReturnLeash(Actor host)
+		/// <summary>
+		/// <para>The break-off budget, tiered by HOW dry the unit is. Wholly dry — it cannot shoot
+		/// anything — earns this trait's own <see cref="AutoSeekSuppliesInfo.ReturnWhenEmptyLeashCells"/>.
+		/// Merely ESSENTIAL-dry, still able to fire something, earns the shorter
+		/// <see cref="AmmoPoolInfo.EssentialDryLeashCells"/>, so a unit that can still contribute does not
+		/// abandon a live order to cross the map.</para>
+		///
+		/// <para>The partial budget is read off the POOLS rather than added to this trait's Info, and that
+		/// asymmetry is deliberate: AmmoPool's own dispatcher needs the identical number on actors that do
+		/// not carry this trait at all (every vehicle), so the field has to live where both can reach it.
+		/// Reading down into AmmoPoolInfo is safe; the reverse direction is the mistake
+		/// DryRearmLeashCells' own comment records.</para>
+		/// </summary>
+		bool WithinBreakOffLeash(Actor host)
 		{
+			var budget = AmmoPool.AllPoolsEmpty(allPools)
+				? info.ReturnWhenEmptyLeashCells
+				: AmmoPool.ResolveSeekLeash(allPools);
+
 			return SupplyHuntMath.WithinCellBudget(
 				host.Location.X - self.Location.X,
 				host.Location.Y - self.Location.Y,
-				info.ReturnWhenEmptyLeashCells);
+				budget);
 		}
 
 		bool StancesPermit()
 		{
 			// A unit without AutoTarget has no stances to consult; treat it as fully permissive,
-			// which is the same fallback AmmoPool.AutoRearmIfAllEmpty applies.
+			// which is the same fallback AmmoPool.AutoRearmIfDry applies.
 			var fire = autoTarget?.Stance ?? UnitStance.FireAtWill;
 			var engagement = autoTarget?.EngagementStanceValue ?? EngagementStance.Defensive;
 			var resupply = autoTarget?.ResupplyBehaviorValue ?? ResupplyBehavior.Auto;

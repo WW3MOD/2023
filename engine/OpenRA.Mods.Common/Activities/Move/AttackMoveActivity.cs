@@ -88,7 +88,7 @@ namespace OpenRA.Mods.Common.Activities
 			// on to the destination with nothing to fire. The attack children abort themselves (see
 			// Activities/Attack.cs), but without this the unit would just resume advancing and only
 			// reach idle at the far end of the order. Ending here hands the unit to
-			// AmmoPool.INotifyBecomingIdle -> AutoRearmIfAllEmpty, which is what picks the right
+			// AmmoPool.INotifyBecomingIdle -> AutoRearmIfDry, which is what picks the right
 			// disposition per resupply stance (Auto: rearm, Hold: stay put and flag, Evacuate: rotate out).
 			if (haltedForEmptyAmmo || AmmoPool.CannotFight(self))
 			{
