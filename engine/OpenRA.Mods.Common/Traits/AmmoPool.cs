@@ -17,7 +17,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Actor has a limited amount of ammo, after using it all the actor must reload in some way.")]
-	public class AmmoPoolInfo : TraitInfo, IProvideTooltipDescription
+	public class AmmoPoolInfo : TraitInfo, IProvideTooltipDescription, IRulesetLoaded
 	{
 		[Desc("Name of this ammo pool, used to link reload traits to this pool.")]
 		public readonly string Name = "primary";
@@ -135,6 +135,39 @@ namespace OpenRA.Mods.Common.Traits
 		public int PoolBudget => BatchCount * SupplyValue;
 
 		public override object Create(ActorInitializer init) { return new AmmoPool(this); }
+
+		/// <summary>
+		/// <para>An Essential pool that no host can refill is a permanent errand, so it is a load-time
+		/// error rather than something to discover in a match.</para>
+		///
+		/// <para>The failure it prevents: dispatch fires on OutOfEssentialAmmo and the errand's exit is
+		/// the negation of the same predicate, so the walk ends when the essential pool gains a round.
+		/// If that pool is absent from Rearmable.AmmoPools, no host will ever put a round in it —
+		/// Rearmable.RearmTick only touches RearmableAmmoPools — and the unit stands at the truck
+		/// forever, combat-inert, with every bot module withholding it because IsSeekingRearm stays
+		/// true. That is one YAML line away on ^E6, whose Rearmable lists secondary-ammo alone while he
+		/// also carries an SMG pool; marking the SMG Essential would delete him from the game.</para>
+		///
+		/// <para>Only checked when Essential is actually set, so an unauthored mod cannot trip it. An
+		/// actor with no Rearmable at all is exempt: nothing rearms it by any route, so this rule has
+		/// nothing to say — the pool simply never causes a dispatch worth bounding.</para>
+		/// </summary>
+		void IRulesetLoaded<ActorInfo>.RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			if (!Essential)
+				return;
+
+			var rearmable = ai.TraitInfoOrDefault<RearmableInfo>();
+			if (rearmable == null || rearmable.AmmoPools.Contains(Name))
+				return;
+
+			// Ruleset.cs:59 already prefixes "Actor type {name}: " when it catches this.
+			throw new YamlException(
+				$"AmmoPool '{Name}' is marked Essential but is not listed in Rearmable.AmmoPools " +
+				$"({string.Join(", ", rearmable.AmmoPools)}). A unit dispatched because this pool is empty " +
+				"can never have it refilled, so the resupply errand would never end and the unit would " +
+				"stand at the host permanently. Either add it to Rearmable.AmmoPools or drop Essential.");
+		}
 
 		string IProvideTooltipDescription.ProvideTooltipDescription(ActorInfo ai, Ruleset rules, out int priority)
 		{
