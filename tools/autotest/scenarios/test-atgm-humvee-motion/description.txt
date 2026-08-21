@@ -1,0 +1,1 @@
+ATGM hit RATE vs humvee motion state: 8 lanes at one trigger range (1400 wdist), each pinning a manoeuvre (control/straight, stopped, reversed, turning). Answer is in the .missiles.jsonl via analyze-atgm-hit-rate.py --by-launcher, not the verdict.

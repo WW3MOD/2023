@@ -14,6 +14,12 @@ every balance-motivated YAML change behind explicit user sign-off.
   the strike/SHORAD audit. Corrects the count to 167/238, shows it collapses to
   **zero new defects**, and prices the bulk "fix" the lead invites at a silent
   +15-20% mod-wide buff. Analysis only; no stat changed.
+- `260821-missile-hit-rate-vs-humvee.md` — why ATGMs miss humvees, and why the
+  AT screen fails anyway. Clears the fuse (all three plausible edits measure
+  *worse*), prices the lead-error term, and shows the binding constraint is
+  `BurstWait 200` against a 4.6-second engagement envelope — so accuracy is not
+  the lever. Analysis only; nothing applied. Ships three scripts and one unrun
+  scenario.
 - `NNN-short-name.md` — numbered change proposals (see flow below).
 
 ## Proposal flow
