@@ -1,0 +1,80 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Garrison force-move ejects one soldier (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Tower: gtwr
+		Owner: USA
+		Location: 33,18
+	# The three men of the garrison. R1 is the one who gets the force-move; R2 and R3
+	# exist to carry the other half of the assertion — that he leaves ALONE.
+	R1: e1
+		Owner: USA
+		Location: 30,21
+	R2: e1
+		Owner: USA
+		Location: 31,21
+	R3: e1
+		Owner: USA
+		Location: 32,21
+	# Port deployment needs a CONFIRMED target — GarrisonManager.ScanForTarget must find
+	# something a rifleman's weapon is actually valid against, so this is infantry and not
+	# armour (^5.56mm carries InvalidTargets: Light, Medium, Heavy). Held on HoldFire with
+	# an absurd HP pool in rules.yaml so it stays a stable target instead of becoming a
+	# fight that empties the tower by killing its occupants.
+	Enemy: e3
+		Owner: Russia
+		Location: 33,22
+	Enemy2: e3
+		Owner: Russia
+		Location: 34,22
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,14
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,26
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 30,21
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 33,22
+
+Rules: rules.yaml

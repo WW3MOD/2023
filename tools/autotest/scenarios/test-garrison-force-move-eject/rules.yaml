@@ -1,0 +1,41 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's unit-defaults.yaml
+	# (AutoTarget.cs:355-388). Strip it so the tower and its riflemen behave identically on
+	# every machine that runs this scenario.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-garrison-force-move-eject.lua
+
+E3:
+	# The enemy exists only to give the tower's ports a target to deploy against.
+	#
+	# PITFALL: BOTH stance fields, and InitialStanceAI is the one that fires here.
+	# AutoTarget.cs:497 picks `Owner.IsBot || !Owner.Playable ? InitialStanceAI : InitialStance`,
+	# and a scenario opponent declared without `Playable: True` is NOT Playable — so
+	# InitialStance alone is silently never read.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 2000000
+
+E1:
+	# Held silent so nobody diverts to fight on the way in, and — the part that matters for
+	# THIS scenario — so that the two soldiers who were not ordered out have no reason of
+	# their own to leave. If they could break off to chase something, "the rest of the
+	# garrison stayed inside" would be measuring their stance rather than the eject.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
