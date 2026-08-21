@@ -1,0 +1,44 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-shorad-single-missile.lua
+
+# Only the shooter is touched, and only its target ACQUISITION. Nothing here
+# alters Burst, BurstDelays, BurstWait, Magazine, ReloadDelay, ammo counts or
+# the Stinger weapon -- those are the quantities under measurement and the test
+# must read whatever weapons-missiles.yaml ships.
+#
+# The scan interval is pinned short so the acquisition delay in front of the
+# first launch is small and predictable. It cannot bias the result either way:
+# every tick this test asserts on is measured RELATIVE TO THE FIRST LAUNCH, so
+# a slow or fast acquisition shifts the whole rung and cancels out.
+STRYKERSHORAD:
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialEngagementStance: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+
+# THE HELICOPTER IS DELIBERATELY LEFT COMPLETELY STOCK -- no `HALO:` block.
+#
+# Its stock 600 HP dying to a single 5000-damage Stinger is not incidental to
+# this test, it IS the premise: the whole point is that missile two is wasted
+# because missile one already killed. Raising HP (as test-aa-overkill-pump
+# does, for its own good reasons) would let the target survive and silently
+# convert every rung into a legitimate two-missile engagement -- a green that
+# measures nothing. HeliEmergencyLanding and ChangesHealth@CrashBurn are left
+# in place for the same reason the battery-volleys scenario leaves them:
+# stripping them would leave crash-disabled / autorotation / crash-landing
+# consumed but ungranted, which is a lint-baseline entry this scenario has no
+# need to add.

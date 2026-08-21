@@ -38,6 +38,78 @@ honestly to `UnitOrderGenerator.OrderForUnit`, still builds `Target.FromActor` i
 (`TestGlobal.cs:555`) and so begins one step *after* `TargetForInput`, the method that contains the
 defect. All three go green against it. `Test.IsMouseTargetable` was added to call the shipped
 predicate object directly.
+## 2026-08-21 — a Missile has a computable maximum lifetime, and it is the right number to size burst timing against
+
+Branch `wt/shorad-burst`. The Stryker SHORAD fired Stingers in wasteful pairs, and the fix was to
+raise `BurstDelays` past the missile's flight time. Flight time to a *target* is the obvious quantity
+to compute, and it is the wrong one: it depends on range, on the target's motion, and on how much the
+missile weaves chasing it, so any number derived from it is a guess with an unbounded tail.
+
+**There is a bounded quantity right next to it.** `Missile.cs:1159` accumulates
+`distanceCovered += speed` every tick, and `:1164` detonates the projectile the tick that total passes
+`RangeLimit` (`ExplodeWhenEmpty: true`). Speed is fully determined: `ChangeSpeed` (`:536`) adds
+`Acceleration` per tick clamped to `Speed`, starting from `MaximumLaunchSpeed` (`:308`, `:421`). So for
+any Missile weapon the maximum number of ticks it can exist is arithmetic:
+
+```
+cum(n) = sum over k=1..n of min(Speed, MaximumLaunchSpeed + Acceleration*k)
+lifetime = smallest n where cum(n) > RangeLimit
+```
+
+For `Stinger` (launch 50, accel 35, cap 600, RangeLimit 30c0 = 30720): 4950 by tick 15, 5550 by
+tick 16, +600/tick after. `5550 + 600*42 = 30750 > 30720` at **tick 58**. Every Stinger is resolved —
+impact, ground, or fuel-out — by tick 58 *whatever path it flew*. Sizing the burst delay on that
+ceiling makes "the previous missile is no longer airborne" hold for a manoeuvring target, which
+sizing on straight-line flight time (~55 ticks at the weapon's full 28c0) does not.
+
+**The caveat, stated because it bounds the claim:** the ceiling is on distance, not ticks, so a
+missile that *decelerates* outlives it. `HomingInnerTick` calls `ChangeSpeed(-1)` on its `slowDown`
+branch (`:653-654`) once the target is inside `3 * loopRadius`. That only happens in the `Hitting`
+state, metres from a target it is about to reach, so it does not stretch the envelope in practice —
+but a weapon that orbits rather than hits is outside this arithmetic.
+
+## 2026-08-21 — `BurstDelays` must be strictly LESS than `BurstWait`, and the near-miss reading is the dangerous one
+
+Branch `wt/shorad-burst`. `Armament.cs:367` rearms a stale burst when
+`WorldTick - lastFiredTick > Weapon.BurstWait`. The natural reading is that the inter-shot delay is
+racing that timer for its whole duration, and therefore that `BurstDelays <= BurstWait` is the
+constraint. Both halves of that are wrong, in opposite directions.
+
+**Line 367 is unreachable during the wait.** `CheckFire` returns at `:355` when `CanFire` is false, and
+`CanFire` (`:327`) is false while `IsWaitingBurst` — which is just `BurstWait > 0` (`:678`) on the
+per-armament countdown that `SetBurstWait(BurstDelays[k])` loaded and `:295-296` decrements. So the
+stale-burst check is only ever evaluated on the tick the armament is READY, i.e. exactly once per
+inter-shot gap, with `WorldTick - lastFiredTick` equal to `BurstDelays` (or `+1`, depending on where
+`Armament.Tick` falls relative to the attack activity in trait order).
+
+So the real predicate is `BurstDelays + 1 > BurstWait`, i.e. **the trip happens at
+`BurstDelays >= BurstWait`, and safety requires `BurstDelays < BurstWait`** — one tick tighter than
+the `<=` reading, which would have put an exactly-equal value on the wrong side of the line.
+
+**Why it matters that it is silent.** Tripping it does not error or drop the shot. `UpdateBurst` runs
+an extra time *before* `FireBarrel`, so `--Burst` hits 0, the burst is declared complete, `BurstWait`
+is loaded, `ResetBurst` restores the count, and then the shot fires anyway — as shot 1 of a fresh
+burst, with a spurious `INotifyBurstComplete.FiredBurst` on every shot. The weapon keeps firing one
+at a time forever and never enters its real inter-burst pause. **The discriminator, if you ever need
+to test for it: measure the gap between shots 2 and 3.** Uncorrupted it is `BurstWait`; corrupted it
+is `BurstDelays` again, because no burst ever completes.
+
+## 2026-08-21 — `TestHarness.TicksPerSecond` is 25, but `run-test.sh` scenarios run at 16.67
+
+Branch `wt/shorad-burst`. `mods/ww3mod/scripts/test-helpers.lua:9` pins
+`TestHarness.TicksPerSecond = 25`, which is OpenRA's classic rate at `Timestep: 40`. WW3MOD's default
+game speed is `Timestep: 60` (`mods/ww3mod/mod.yaml:380-382`) — **16.67 ticks/second** — and
+`run-test.sh` sets neither `Test.GameSpeed` (only `run-tournament.sh:302` and `run-synchash.sh:48` do)
+nor `Test.SpeedMultiplier` (unset → 1×, `run-test.sh:599-603`).
+
+Every `AssertWithin(n)`, `AssertAfter(n)` and hand-rolled `seconds * TicksPerSecond` window in a
+scenario is therefore **1.5× longer in wall clock than its number claims** — a 10-second assert waits
+15 real seconds. It errs toward leniency, so it has not broken anything, but two consequences are
+worth carrying: a scenario tuned to "just barely times out" has 50% more slack than its author
+thought, and any *duration* a scenario reports in seconds is overstated by half again. **Prefer
+expressing tick-domain quantities (burst delays, reload times, projectile flight) in ticks and
+polling with `Trigger.AfterDelay(1, ...)`** — that is immune to the constant being wrong and to
+whatever game speed a run happens to use.
 
 ## 2026-08-20 — a harness helper that "does what the real path does" had quietly dropped one step, and that step was the whole bug
 
