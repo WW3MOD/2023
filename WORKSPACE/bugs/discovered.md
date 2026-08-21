@@ -3155,3 +3155,22 @@ than assuming.
 Severity: low. The natural gesture is to click bare ground, which is unaffected — verified by
 control flow, `OrderForUnit` returns from the FIRST pass at `UnitOrderGenerator.cs:248` and never
 consults the gate at `:254`.
+
+## 2026-08-21 — [med] A map-layer range at or above 56 cells CRASHES on actor spawn
+
+`Map.FindTilesInAnnulus` throws `ArgumentOutOfRangeException` when `maxRange` exceeds
+`MaximumTileSearchRange` (56). Reached via `AffectsMapLayer.ProjectedCells` ->
+`MapLayers.ProjectedCellsInRange` on `INotifyAddedToWorld.AddedToWorld`, so the game dies
+the instant the actor spawns -- not at load, not at lint.
+
+Observed: `test-radar-only-targetable` set `Radar.Range: 56c0` and crashed with
+"The requested range (57) cannot exceed the value of MaximumTileSearchRange (56)".
+Note 56c0 resolves to 57, so the effective ceiling is 55c0, not 56c0.
+
+Nothing shipped crashes today -- radar ranges in the mod are 24c0/30c0/42c0, and the
+largest map-layer range anywhere is 50c0 (structures-neutral.yaml:123). But that is only
+5 cells of headroom from a hard crash, `--check-yaml` does not catch it, and the failure
+presents as a crash rather than a validation error, so the next person to widen a radar
+for a scenario or a new unit hits it the same way.
+
+Worth a lint rule bounding any AffectsMapLayer-consuming range below 55c0.

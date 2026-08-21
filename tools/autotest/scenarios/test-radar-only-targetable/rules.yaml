@@ -33,11 +33,11 @@ World:
 # the only thing meant to differ from the shipped vehicle.
 strykershorad:
 	Radar:
-		Range: 56c0
+		Range: 50c0
 		Strength: 1
 		ValidRelationships: Ally
 	WithRangeCircle@Radar:
-		Range: 56c0
+		Range: 50c0
 
 # The helicopters must not become a live engagement: an AA kill would remove
 # the subject mid-run, and a chase would change the geometry every number in
