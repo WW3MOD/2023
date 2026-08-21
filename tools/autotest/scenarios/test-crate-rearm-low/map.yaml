@@ -10,7 +10,7 @@ Tileset: TEMPERAT
 
 MapSize: 66,34
 
-Bounds: 0,0,66,34
+Bounds: 1,1,64,32
 
 Visibility: MissionSelector
 
@@ -43,9 +43,19 @@ Actors:
 	OwnSR: supplyroute
 		Owner: Me
 		Location: 4,16
+	# TWO spawns for two Playable slots (Me + the spectating Observer). The cordon and the
+	# spawn count are both lint requirements -- ./utility.sh --check-yaml <MAPDIR> reports them,
+	# and this scenario's parent test-crate-rearm fails BOTH and is carried on
+	# mods/ww3mod/lint-baseline.txt:72-73 rather than fixed. Do not copy that: a clone inherits
+	# the defects without inheriting the baseline entries, so it fails the gate outright.
 	SpawnMe: mpspawn
 		Owner: Neutral
 		Location: 4,16
+	# Unused by the test -- the Observer spectates -- but the linter counts slots, not usage.
+	# Placed far from the crate so it cannot perturb the measurement if it is ever occupied.
+	SpawnOther: mpspawn
+		Owner: Neutral
+		Location: 60,16
 
 	# The out-of-ammo unit under test — drained to zero in Lua.
 	Customer: e3

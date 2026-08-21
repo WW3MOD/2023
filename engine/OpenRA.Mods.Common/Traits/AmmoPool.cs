@@ -46,6 +46,29 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Should actor automatically move to rearm when out of ammo.")]
 		public readonly bool AutoRearm = true;
 
+		[Desc("Furthest a rearm host can be, in CHESSBOARD cells, and still be worth self-dispatching to",
+			"when this actor has run DRY (every pool empty). Beyond it the unit stays put and raises",
+			"NeedsResupply so a Hunt-stance truck can come to it instead — the same disposition",
+			"AutoSeekSupplies adopts beyond its own budget. Boundary-inclusive; 0 or less admits nothing",
+			"(i.e. a dry unit never self-dispatches, only flags), matching",
+			"AutoSeekSuppliesInfo.ReturnWhenEmptyLeashCells rather than",
+			"PoiOffensiveBotModule.OutOfAmmoRearmSeekRadiusCells, whose 0 means UNLIMITED — there are",
+			"already two opposite zero-semantics in this codebase for this one idea, so state which you",
+			"mean and never infer it.",
+			"",
+			"WHY THIS IS ITS OWN FIELD instead of reading AutoSeekSuppliesInfo.ReturnWhenEmptyLeashCells,",
+			"which carries the same 30 and was the obvious thing to reuse: AutoSeekSupplies is declared on",
+			"^Soldier ALONE (infantry.yaml), while the path this bounds — AutoRearmIfAllEmpty, reached from",
+			"INotifyBecomingIdle and from firing the last round — runs on every non-aircraft actor with an",
+			"AmmoPool, vehicles included. Reading the other trait's Info would have left every vehicle",
+			"unleashed while looking complete at the only site anyone reads. The DEFAULTS are pinned equal",
+			"by DryRearmLeashTest, so the two move together deliberately or not at all; the distance MATH",
+			"is genuinely shared (SupplyHuntMath.WithinCellBudget), which is the part that must not drift.",
+			"",
+			"The two bound different things and that is why they are allowed to diverge: this one caps a",
+			"unit dispatching ITSELF having run out, that one caps interrupting an order the player gave.")]
+		public readonly int DryRearmLeashCells = 30;
+
 		[ConsumedConditionReference]
 		[Desc("Should actor automatically move to rearm when out of ammo.")]
 		public readonly string AutoRearmCondition = null;
@@ -184,6 +207,34 @@ namespace OpenRA.Mods.Common.Traits
 			return AllPoolsEmpty(self.TraitsImplementing<AmmoPool>());
 		}
 
+		/// <summary>
+		/// The dry-rearm leash for an ACTOR, from the pools it carries. Tightest wins.
+		///
+		/// <para>Needed because <see cref="DryRearmLeashCells"/> is declared per POOL while the decision it
+		/// governs is per ACTOR — <see cref="AutoRearmIfAllEmpty"/> is an instance method that acts on the
+		/// whole actor, and on a two-pool actor (several infantry carry primary + secondary)
+		/// <c>INotifyBecomingIdle</c> delivers to EACH pool in turn. Reading <c>Info</c> off whichever
+		/// instance happened to be notified would make the bound depend on trait ordering, so the answer
+		/// is resolved across all of them and is the same whoever asks.</para>
+		///
+		/// <para>Minimum rather than maximum: this is a bound, and two pools disagreeing about it is a
+		/// configuration mistake in which the safer reading is the shorter walk. An actor with no pools
+		/// cannot reach the caller (AllPoolsEmpty is false for an empty set), so the 0 fallback is
+		/// unreachable rather than meaningful — it inherits the "admits nothing" semantics either way.</para>
+		/// </summary>
+		/// <para>Takes the raw values rather than the pools so the tests can call THIS method instead of
+		/// restating its four lines beside it — a test that reimplements the rule it checks agrees with
+		/// itself no matter what the shipped code does.</para>
+		public static int ResolveDryRearmLeash(IEnumerable<int> poolLeashes)
+		{
+			var leash = int.MaxValue;
+			foreach (var l in poolLeashes)
+				if (l < leash)
+					leash = l;
+
+			return leash == int.MaxValue ? 0 : leash;
+		}
+
 		/// <summary>Array overload for the per-tick callers, which cache their pools in Created.</summary>
 		public static bool AllPoolsEmpty(IEnumerable<AmmoPool> pools)
 		{
@@ -240,7 +291,31 @@ namespace OpenRA.Mods.Common.Traits
 			switch (behavior)
 			{
 				case ResupplyBehavior.Auto:
-					// Clear flag and seek resupply
+					// LEASHED since 2026-08-21 (user ruling). This dispatch used to apply no distance
+					// test whatever, which was tolerable while the only hosts were trucks and Logistics
+					// Centers — both of which sit near the army or the base. Infantry now seek dropped
+					// SUPPLYCACHEs, which are wherever a truck happened to unload, so the set of things
+					// a dry unit will walk any distance to grew and the absent bound started to matter.
+					//
+					// Out of leash is NOT a failure: fall through to the same disposition
+					// AutoSeekSupplies adopts beyond its own budget — stay put, raise NeedsResupply, let
+					// a Hunt-stance provider come to us. That is why this returns rather than calling
+					// AutoRearm, whose no-host branch already sets exactly this flag.
+					var host = ChooseResupplier(self);
+					if (host != null && !SupplyHuntMath.WithinCellBudget(
+						host.Location.X - self.Location.X,
+						host.Location.Y - self.Location.Y,
+						ResolveDryRearmLeash(ammoPools.Select(p => p.Info.DryRearmLeashCells))))
+					{
+						foreach (var ap in ammoPools)
+							ap.NeedsResupply = true;
+
+						break;
+					}
+
+					// A null host falls through deliberately: AutoRearm's own else-branch raises
+					// NeedsResupply for that case, so duplicating it here would be two ways to say one
+					// thing. Only the too-far case is new.
 					foreach (var ap in ammoPools)
 						ap.NeedsResupply = false;
 

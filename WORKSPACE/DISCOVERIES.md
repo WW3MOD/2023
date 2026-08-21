@@ -29,12 +29,25 @@ crate is not a destination; capture stays a separate on-contact mechanism that a
 can still trigger incidentally. Worth knowing before designing anything else that reads this method:
 allied units do not share hosts either.
 
-**Unbounded tail worth remembering.** Of the three paths that send a unit to a host, two are leashed —
-the idle seek at `SupplyHuntLeashCells` 20 (straight-line) and the live-order break-off at
-`ReturnWhenEmptyLeashCells` 30 (chessboard) — but the third is not: `AmmoPool.INotifyBecomingIdle` →
-`AutoRearmIfAllEmpty` → `AutoRearm` applies no distance test at all. That was tolerable when hosts were
-trucks and LCs, which sit near the army or the base. Crates are scattered wherever a truck happened to
-unload, so the set of things a dry idle soldier will walk any distance to has just grown.
+**Unbounded tail — found here, closed by ruling the same day.** Of the paths that send a unit to a
+host, two were leashed — the idle seek at `SupplyHuntLeashCells` 20 (straight-line) and the live-order
+break-off at `ReturnWhenEmptyLeashCells` 30 (chessboard) — and `AutoRearmIfAllEmpty` applied no
+distance test at all. Tolerable while hosts were trucks and LCs, which sit near the army or the base;
+not once crates are scattered wherever a truck happened to unload. **Now bounded at 30 chessboard
+cells via `AmmoPoolInfo.DryRearmLeashCells`** (user ruling 2026-08-21, reusing the existing number
+rather than inventing one).
+
+Two things about that fix are worth keeping. First, it has **two entry points, not one** — the
+notorious `INotifyBecomingIdle` path AND `INotifyAttack.Attacking`, which calls the same method the
+moment a unit fires its last round. Bounding the method rather than the notification covered both;
+bounding the idle handler alone would have left the commoner of the two open. Second, the leash
+deliberately did NOT go on `AutoSeekSuppliesInfo` beside its sibling `ReturnWhenEmptyLeashCells`,
+despite carrying the identical 30: **`AutoSeekSupplies` is declared on `^Soldier` alone, while
+`AutoRearmIfAllEmpty` runs on every non-aircraft actor with an `AmmoPool`, vehicles included.**
+Reading the other trait's Info would have left every vehicle unleashed while looking complete at the
+only site anyone reads — the same "a rule added at one site looks complete because the site you are
+reading has it" failure this file records elsewhere. Shared VALUE (defaults pinned equal by
+`DryRearmLeashTest`) and shared MATH (`SupplyHuntMath.WithinCellBudget`); separate field.
 
 ## 2026-08-21 — a trait default is a DECISION the actor never made, and an omitted field can cancel a stated one
 
