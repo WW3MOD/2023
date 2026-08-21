@@ -3174,3 +3174,25 @@ presents as a crash rather than a validation error, so the next person to widen 
 for a scenario or a new unit hits it the same way.
 
 Worth a lint rule bounding any AffectsMapLayer-consuming range below 55c0.
+
+## 2026-08-21 — [high] Any scenario asserting on fog/visibility is VACUOUS under the test harness
+
+`TestModeLogic.cs:31` sets `world.RenderPlayer = null`, and every `World.FogObscures` /
+`ShroudObscures` overload is guarded `RenderPlayer != null && ...` (`World.cs:109-115`).
+So under Test.Mode **fog obscures nothing and shroud hides nothing** -- every actor on the
+map reads as visible and mouse-targetable regardless of actual visibility state.
+
+Found via `test-radar-only-targetable`, whose negative rung ("a helicopter revealed by
+NOTHING must not be targetable") failed. The scenario names both candidate causes in its
+own failure text, which is what made this diagnosable: it is NOT that the radar fix
+widened into a wallhack -- the fix is fine and its NUnit evidence stands -- it is that the
+predicate under test is short-circuited before it can be exercised.
+
+Consequence: the POSITIVE rung of such a scenario passes VACUOUSLY. Any existing scenario
+that asserts something is visible/targetable under fog has been proving nothing. Sibling
+`test-aa-detection-fog` is the first place to check.
+
+Fixable: `World.cs:100` explicitly permits setting RenderPlayer while `TestMode.IsActive`,
+so a `Test.SetRenderPlayer(player)` binding would make these scenarios discriminate. Until
+then, visibility behaviour must be pinned at the NUnit layer against a World-free core --
+which is exactly what the radar fix's own MouseTargetVisibilityTest already does.
