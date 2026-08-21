@@ -43,3 +43,19 @@
 
 # Custom for Visual Studio
 *.cs     diff=csharp
+
+# Append-only knowledge logs: use git's built-in union merge driver.
+#
+# WHY: every worker branch appends dated entries to the tail of these files, so two
+# branches merging almost always conflict append-vs-append even though both sides are
+# wanted. That conflict has been resolved by hand as keep-both on every multi-branch
+# merge, which is pure ceremony with a real risk of dropping an entry under pressure.
+# `merge=union` takes both sides automatically, which is exactly the correct
+# resolution for a log nobody edits in place.
+#
+# LIMIT: union is WRONG for files where two sides may edit the SAME line meaningfully
+# -- it would silently keep both versions of that line. These files are append-only by
+# convention (DOCS/reference/README.md), so that case does not arise. Do not extend
+# this to a file that gets edited in place.
+WORKSPACE/DISCOVERIES.md merge=union
+WORKSPACE/bugs/discovered.md merge=union
