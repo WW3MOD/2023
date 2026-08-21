@@ -3,7 +3,7 @@
 -- Bounds the overkill bug measured in test-aa-overkill-suppression, where one
 -- AA's commitment blinded a second AA to a healthy aircraft for 172 ticks.
 -- Ten seconds is annoying; indefinite is a different bug. The mark halves every
--- 60 ticks (Actor.cs:309-310), so a source adding A per 60 ticks settles at a
+-- 60 ticks (Actor.cs:345-346), so a source adding A per 60 ticks settles at a
 -- steady state of A: anything sustaining >= 100 per 60 ticks suppresses forever.
 --
 -- LANE R — REALISTIC BATTERY. Four AA, never ordered, one 30000-HP aircraft.

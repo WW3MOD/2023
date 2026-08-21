@@ -6,10 +6,19 @@
 -- released. It is a plain accumulator on the TARGET: AttackBase.AttackTarget
 -- calls MarkTargetForAttack (:644) which adds
 -- EstimatePercentDamage = totalDamage * 100 / MaxHP (AutoTarget.cs:1321), and
--- Actor.Tick halves it every 60 ticks (Actor.cs:309-310). There is no release
+-- Actor.Tick halves it every 60 ticks (Actor.cs:345-346). There is no release
 -- path and no owner, so an attacker dying, being given a new order, having its
 -- own target die, or entering a transport cannot strand it. It can only decay.
 -- Killing MarkerA mid-run puts that on the record empirically.
+--
+-- CORRECTION 2026-08-21 (wt/aa-claim): the paragraph above is now HALF WRONG,
+-- and the half that changed is the general claim, not this scenario's subject.
+-- The mark IS held by the attacker now (Actor.ClaimForAttack -> OverkillClaim)
+-- and IS released when the shot resolves, from Armament's delayed fire action
+-- (Armament.cs:483). What still holds is precisely what lane A measures: an
+-- attacker that DIES before firing cannot hand its claim back, and neither can
+-- one ordered elsewhere before firing. Those decay out as the leftover cases
+-- rather than as the rule, so the lane A measurement stands unchanged.
 --
 -- WHY IT MATTERS: THE MARK IS WILDLY OVERSIZED AGAINST AIRCRAFT. MANPAD deals
 -- 3000 with Penetration 15 against the Halo's Light/Thickness 10 (no reduction,

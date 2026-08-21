@@ -9,8 +9,21 @@
 -- THE MECHANISM UNDER TEST. Actor.AverageDamagePercent is a single unattributed
 -- accumulator on the TARGET (Actor.cs:83-87), bumped by MarkTargetForAttack
 -- whenever any unit commits (AttackBase.cs:673, AttackFollow.cs:189) and halved
--- once every 60 ticks (Actor.cs:309-310). ChooseTarget hard-skips any target
+-- once every 60 ticks (Actor.cs:345-346). ChooseTarget hard-skips any target
 -- whose accumulator is >= OverkillThreshold (AutoTarget.cs:1436).
+--
+-- FIXES LANDED SINCE THIS WAS WRITTEN, both of which this scenario measures and
+-- NEITHER of which is a reason to retune anything below:
+--   1. cccd5f81 — the skip is now strictly `>`, not `>=` (AutoTarget.cs:1447).
+--   2. wt/aa-claim, 2026-08-21 — the accumulator is no longer unattributed and
+--      no longer one-way. A commitment is a claim OWNED BY THE ATTACKER
+--      (Actor.ClaimForAttack -> OverkillClaim) and handed back when the shot
+--      resolves, from Armament's delayed fire action (Armament.cs:483).
+--      Re-committing now replaces a shooter's own claim instead of stacking.
+-- The prediction for (2) is that the TEST lane's spread collapses toward the
+-- CTRL lane's, because a claim no longer outlives the shot that justified it.
+-- If it does not, the diagnosis in this header is wrong and that is the finding
+-- — report it rather than moving SpreadMultiple or StaggerFloorTicks.
 --
 -- Against aircraft one AA soldier is enough to trip that on its own:
 --   MANPAD Damage 3000, Penetration 15 vs the Halo's Armor Thickness 3
@@ -70,7 +83,7 @@
 -- firing, and then firing for no visible reason.
 --
 -- The spacing in the stock lane is ~50-64 ticks between consecutive first
--- shots, which is one decay period each (Actor.cs:309-310 halves on
+-- shots, which is one decay period each (Actor.cs:345-346 halves on
 -- WorldTick % 60). That is the arithmetic confirming itself: each joiner
 -- re-loads the accumulator to >= OverkillThreshold and the next one waits out
 -- exactly one halving.
