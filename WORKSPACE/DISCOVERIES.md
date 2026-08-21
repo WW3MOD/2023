@@ -3,6 +3,31 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-21 — `IRulesetLoaded<ActorInfo>` on a TraitInfo is DEAD CODE; the engine only enumerates the non-generic `IRulesetLoaded`
+
+Branch `wt/resupply-tiers`, adding a load-time validation to `AmmoPoolInfo`.
+
+`Ruleset.cs:51` iterates `a.TraitInfos<IRulesetLoaded>()` — the **non-generic** interface, declared
+`public interface IRulesetLoaded : IRulesetLoaded<ActorInfo>, ITraitInfoInterface`
+(`TraitsInterfaces.cs:621-622`). A TraitInfo that declares only `IRulesetLoaded<ActorInfo>`:
+
+- **compiles cleanly**, because the method signature it must implement is identical;
+- **is never invoked**, because it does not satisfy `TraitInfos<IRulesetLoaded>()`;
+- **produces no warning of any kind**, at build or at load.
+
+The correct declaration is the bare `IRulesetLoaded` on the class, with the method implemented
+explicitly as `void IRulesetLoaded<ActorInfo>.RulesetLoaded(...)` — the interface you name on the
+class and the one you name on the method are deliberately different, which is exactly why the wrong
+version looks right.
+
+**The general lesson is not about this interface.** A validation that never runs is worse than no
+validation, because it is banked as safety by everyone who reads it afterwards. This one was caught
+only because it was deliberately tested with a hand-authored violation instead of being assumed to
+work from a green build. Any guard added to this codebase should be proven to FAIL against the thing
+it forbids before it is trusted — the same RED-first discipline the behavioural work already follows.
+(`ITraitInfoInterface` is the marker that makes a trait interface enumerable at all; an interface
+lacking it is invisible to `TraitInfos<T>()` regardless of what it inherits.)
+
 ## 2026-08-21 — the idle seek cannot walk infantry to a Logistics Centre, and the reason is a comment that is false for exactly one pairing
 
 Branch `wt/resupply-tiers`. This resolves the open question from the recon below — whether the idle
