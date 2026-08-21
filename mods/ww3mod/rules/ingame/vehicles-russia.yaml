@@ -69,6 +69,7 @@ btr:
 		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 500
 		ReloadCount: 50
@@ -191,6 +192,7 @@ bmp2:
 		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 900
 		ReloadCount: 100
@@ -220,6 +222,7 @@ bmp2:
 		PauseOnCondition: !ammo-secondary || empdisable || heavy-damage-attained
 	AmmoPool@2:
 		Name: secondary-ammo
+		Essential: true
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
@@ -344,6 +347,7 @@ t90:
 		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 40
 		ReloadCount: 5
@@ -458,6 +462,7 @@ giatsint:
 		AimingDelay: 35
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		# KEEP Ammo AN EXACT MULTIPLE OF ReloadCount — see the Paladin's pool for why
 		# (floor-vs-ceiling between the evac deduction and the tooltip; Ammo 39 refunded
@@ -607,6 +612,7 @@ grad:
 	WithMuzzleOverlay:
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 40
 		ReloadCount: 5
@@ -733,6 +739,7 @@ tos:
 	WithMuzzleOverlay:
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 24
 		ReloadCount: 3
@@ -893,6 +900,7 @@ tunguska:
 		Condition: firing-secondary
 	AmmoPool@2:
 		Name: secondary-ammo
+		Essential: true
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
@@ -992,6 +1000,7 @@ iskander:
 		AimingDelay: 40
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 2
 		AmmoCondition: ammo-primary

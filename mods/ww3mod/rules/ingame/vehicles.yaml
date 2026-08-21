@@ -483,6 +483,7 @@ MNLY:
 	# MineImmune: # if friendly mines?
 	AmmoPool:
 		Name: mines-ammo
+		Essential: true
 		Ammo: 10
 		AmmoCondition: ammo-mines
 		RearmSound: minelay1.aud

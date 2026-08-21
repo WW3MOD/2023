@@ -1096,6 +1096,7 @@
 		PauseOnCondition: !ammo-primary
 	AmmoPool:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 100
 		ReloadCount: 20
@@ -1177,6 +1178,7 @@ E1R1:
 		# FireDelay: 7
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 100
 		ReloadCount: 20
@@ -1293,6 +1295,7 @@ E3R1:
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary, garrisoned
 		Ammo: 500
 		ReloadCount: 50
@@ -1359,6 +1362,7 @@ AR:
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 30
 		ReloadCount: 6
@@ -1436,6 +1440,7 @@ E2R1:
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 100
 		ReloadCount: 20
@@ -1525,6 +1530,7 @@ TL:
 		FireDelay: 10
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 25
 		ReloadCount: 5
@@ -1592,6 +1598,7 @@ MT:
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 50
 		ReloadCount: 5
@@ -1666,6 +1673,7 @@ SN:
 		PauseOnCondition: !ammo-primary || suppressed >= 10
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 3
 		AmmoCondition: ammo-primary
@@ -1736,6 +1744,7 @@ AT:
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 3
 		AmmoCondition: ammo-primary
@@ -1851,6 +1860,7 @@ AA:
 		TerrainTypes: Clear, Road, Beach, Rough, Bridge
 	AmmoPool@2:
 		Name: secondary-ammo
+		Essential: true
 		Armaments: secondary
 		Ammo: 3
 		AmmoCondition: ammo-secondary
@@ -1908,8 +1918,20 @@ AA:
 	# The engineer's orders ARE his purpose and none of them need ammunition: capture, bridge repair,
 	# demolition and mine-laying are all walk-to-a-place errands, and breaking one off part-way wastes
 	# the whole trip. He keeps the idle seek above — finish the job, then go restock — but never
-	# interrupts himself for it. (The all-pools test already means he must have burned all 100 SMG
-	# rounds AND all 3 charges before this could fire; this makes it structural rather than unlikely.)
+	# interrupts himself for it.
+	#
+	# WHAT KEEPS THAT TRUE NOW THAT secondary-ammo IS Essential. The old reason given here — "he must
+	# have burned all 100 SMG rounds AND all 3 charges before this could fire" — died with the flag:
+	# the trigger is 3 charges alone. Two independent things bound it, and only the second is this
+	# trait, so do not read this field as covering both.
+	# (1) AmmoPool.AutoRearmIfDry also fires from INotifyAttack the moment a pool's last round goes
+	#     (AmmoPool.cs:662), which is NOT idle-gated. It cannot reach the C4: that path dispatches
+	#     only for a named Armament, and the charges are spent by the Demolition and Minelayer traits
+	#     instead (Demolish.cs:79, LayMines.cs:210) via TakeAmmo, whose own dispatch call is commented
+	#     out (AmmoPool.cs:263). There is no Armament named `secondary` on this actor at all.
+	# (2) ReturnWhenEmpty: false below, which stops THIS trait interrupting a standing order.
+	# If an Armament named `secondary` is ever added here, (1) evaporates and an engineer will break
+	# off a capture run the tick he plants his last charge.
 	AutoSeekSupplies:
 		ReturnWhenEmpty: false
 	RepairsBridges:
@@ -1964,6 +1986,7 @@ E6:
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 90
 		ReloadCount: 30
@@ -2041,6 +2064,7 @@ E4:
 		VisionModifier: -1
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 100
 		ReloadCount: 20
@@ -2304,6 +2328,7 @@ TECN:
 		RequiresForceFire: True
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 1
 		AmmoCondition: ammo-primary
@@ -2388,6 +2413,7 @@ DR:
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 100
 		ReloadCount: 20

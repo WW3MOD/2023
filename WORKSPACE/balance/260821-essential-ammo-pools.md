@@ -4,6 +4,26 @@
 **Scope:** authoring only. The `Essential` field is being built on `wt/resupply-tiers`; **nothing in
 this document has been applied**, and applying it before that branch lands will fail YAML validation.
 
+> **APPLIED 2026-08-21 on `wt/essential-apply`. The two lines above are superseded.** The mechanism
+> landed (`main @ 2d575a8e`) and all 34 flags from §2 are now authored, plus **one** SHORAD flag from
+> §3 — **35 `Essential: true` lines total.** The user ruled §3 **option A, Stinger-only**:
+> `secondary-ammo` is Essential, the Hellfire is not, on the rule that an AA vehicle flags only its AA
+> missiles. Note the arithmetic: §2's 34 never contained a SHORAD pool, so the ruling ADDS one — the
+> total is 35, not 34 and not 33.
+>
+> Three verdicts here rested on premises that the mechanism could have invalidated. All three survived,
+> but one of them only by accident:
+> - **§1 `^E6` C4 (`:69`)** — the stated safety ("`AutoSeekSupplies.ReturnWhenEmpty: false` … the seek
+>   is idle-only") is **wrong**. That field does not gate `AmmoPool.AutoRearmIfDry`, which now also
+>   fires from `INotifyAttack` the tick a pool empties. The verdict holds for an unrelated reason: the
+>   C4 is spent by the `Demolition`/`Minelayer` traits rather than an Armament, so the attack-path
+>   trigger cannot see it. The `^E6` comment rewritten in this commit states the real mechanism; see
+>   `WORKSPACE/DISCOVERIES.md`.
+> - **§1 / §5 Trap 2 `^E6` SMG (`:68`, `:371`)** — correct, and now **enforced at load time** rather
+>   than resting on authoring discipline. Verified RED: setting it fails `--check-yaml`.
+> - **§5 Trap 2's premise (`:371`)** — confirmed. A host refills only the pools named in
+>   `Rearmable.AmmoPools`, at all three refill sites.
+
 ## What the flag means, and what it replaces
 
 Today a unit only goes looking for resupply when **every** pool it carries is empty —

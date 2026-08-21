@@ -52,6 +52,7 @@ t72:
 		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 40
 		ReloadCount: 5

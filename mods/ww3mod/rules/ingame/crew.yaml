@@ -27,6 +27,7 @@
 		PauseOnCondition: !ammo-primary
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 24
 		ReloadCount: 8
