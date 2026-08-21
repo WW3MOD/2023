@@ -262,6 +262,10 @@ SUPPLYROUTE:
 		ReferenceValue: 2500
 		BaseTicks: 1500
 		MinTicks: 500
+		CollapseThreshold: 5000
+		MaxCollapseSpeedup: 800
+		CollapseMinTicks: 80
+		LockoutCollapseTicks: 17
 		BaseRecoveryTicks: 3000
 		FriendlyRecoveryMultiplier: 3
 		SlowdownThreshold: 50
