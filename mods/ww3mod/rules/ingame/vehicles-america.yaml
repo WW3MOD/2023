@@ -88,6 +88,7 @@ humvee:
 		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 300
 		ReloadCount: 50
@@ -243,6 +244,7 @@ m113:
 		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 500
 		ReloadCount: 50
@@ -373,6 +375,7 @@ bradley:
 		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 900
 		ReloadCount: 100
@@ -397,6 +400,7 @@ bradley:
 		PauseOnCondition: !ammo-secondary || empdisable || heavy-damage-attained
 	AmmoPool@2:
 		Name: secondary-ammo
+		Essential: true
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
@@ -525,6 +529,7 @@ abrams:
 		PauseOnCondition: !ammo-primary || empdisable || heavy-damage-attained
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 40
 		ReloadCount: 5
@@ -641,6 +646,7 @@ m109:
 		AimingDelay: 35
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		# KEEP Ammo AN EXACT MULTIPLE OF ReloadCount. The evac deduction floors
 		# (CustomSellValue.cs:43) while the tooltip's batch count ceilings
@@ -799,6 +805,7 @@ m270:
 		MuzzleSequence: muzzle-missile
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 12
 		AmmoCondition: ammo-primary
@@ -945,6 +952,7 @@ strykershorad:
 		MuzzleSequence: muzzle-missile
 	AmmoPool@2:
 		Name: secondary-ammo
+		Essential: true
 		Armaments: secondary
 		Ammo: 8
 		AmmoCondition: ammo-secondary
@@ -1093,6 +1101,7 @@ HIMARS:
 		MuzzleSequence: muzzle-missile
 	AmmoPool@1:
 		Name: primary-ammo
+		Essential: true
 		Armaments: primary
 		Ammo: 2
 		AmmoCondition: ammo-primary

@@ -3,6 +3,56 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-21 — there are TWO independent resupply-seek paths, and `AutoSeekSupplies.ReturnWhenEmpty` gates only one of them
+
+Branch `wt/essential-apply`, reconciling the `Essential` census against the mechanism that landed after
+it was written.
+
+The census justified leaving `^E6`'s C4 flag safe by citing `AutoSeekSupplies.ReturnWhenEmpty: false`
+(`infantry.yaml`), reasoning that the seek is therefore idle-only and cannot break off a capture run.
+**That field has no authority over the path in question.** `AmmoPool.AutoRearmIfDry` is reached from
+`AmmoPool`'s own `INotifyBecomingIdle` (`AmmoPool.cs:669`) *and* from `INotifyAttack.Attacking` the
+tick a pool's last round is spent (`AmmoPool.cs:662`). Neither consults `AutoSeekSuppliesInfo`. The
+two traits implement separate seeks that happen to agree on infantry; `ReturnWhenEmpty` bounds
+`AutoSeekSupplies` interrupting a standing order, nothing else.
+
+**The conclusion survived on a different mechanism entirely.** The `INotifyAttack` dispatch is keyed on
+`Info.Armaments` — it fires only for a *named Armament* that drew from the pool. `^E6`'s C4 is spent by
+the `Demolition` and `Minelayer` traits (`Demolish.cs:79`, `LayMines.cs:210`), which call `TakeAmmo`
+directly, and `TakeAmmo`'s own dispatch call is commented out (`AmmoPool.cs:263-266`). There is no
+Armament named `secondary` on `^E6` at all, so emptying the charges is invisible to the non-idle
+trigger. Right answer, wrong reason — and the wrong reason generalises to units where it is false.
+
+**General rule:** a pool consumed by a TRAIT rather than an Armament cannot trigger the attack-path
+dispatch. Any pool whose consumer is `Demolition`, `Minelayer` or similar is idle-triggered only,
+regardless of `Essential`.
+
+## 2026-08-21 — a rearm host refills ONLY the pools named in `Rearmable.AmmoPools`, at all three refill sites
+
+Checked while validating the `Essential` census's third premise. Every route that puts rounds back into
+a pool iterates the filtered `Rearmable.RearmableAmmoPools` (built at `Rearmable.cs:44`), never the
+actor's full pool set:
+
+- `Rearmable.RearmTick` — `Rearmable.cs:60` (docked hosts, Logistics Centre)
+- `SupplyProvider` passive aura — `SupplyProvider.cs:852` (TRUK, SUPPLYCACHE)
+- `QuickRearm` — `QuickRearm.cs:46` (transport passengers)
+
+`ReloadAmmoPool` is the only refill that bypasses `Rearmable`, and it is pool-targeted by name and
+self-inflicted, so it does not weaken the rule. This is what makes the `Essential ⊆ Rearmable.AmmoPools`
+load guard both necessary and sufficient.
+
+## 2026-08-21 — the `Essential` load guard is LIVE, and it reports against the concrete actor, not the template
+
+Verified RED-first rather than assumed from a green build, per the lesson in the entry below.
+Hand-authoring `Essential: true` on `^E6`'s `primary-ammo` (the SMG, absent from his `Rearmable`) makes
+`./utility.sh --check-yaml` fail with the trait's own message. Two things worth knowing:
+
+- the guard's declaration on `AmmoPoolInfo` is the *bare* `IRulesetLoaded` (`AmmoPool.cs:20`) with the
+  method implemented as `IRulesetLoaded<ActorInfo>.RulesetLoaded` — i.e. the corrected form. It runs.
+- the error names **`Actor type e6`**, not `^E6`. `Ruleset.cs:59` prefixes the *concrete* actor that
+  inherited the template, so a template-level mistake is reported once per inheriting actor and you
+  will not find the offending line by grepping for the name in the message.
+
 ## 2026-08-21 — `IRulesetLoaded<ActorInfo>` on a TraitInfo is DEAD CODE; the engine only enumerates the non-generic `IRulesetLoaded`
 
 Branch `wt/resupply-tiers`, adding a load-time validation to `AmmoPoolInfo`.
