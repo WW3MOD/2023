@@ -8355,3 +8355,31 @@ sn`). Ground truth is the five actors that inherit `^CapturesOccupiedBuildings` 
 anything**; `^E3` and `^PILOT` were missing. Names taken from each actor's `Tooltip.Name`, not from the
 section comments. Corrected here. Worth knowing that this table was wrong on *who* as well as *how long* —
 if you are checking a player-facing capability list, resolve it from the `Inherits@` lines, not the prose.
+
+## 2026-08-21 — SR contestation had no global term at all, and its comments were the 25-tps error again
+
+Two findings from adding collapse acceleration to `SupplyRouteContestation`.
+
+**1. "Defender strength" in the contestation rate was purely LOCAL, and it is easy to read it as global.**
+`RecalculateForces` (`engine/OpenRA.Mods.Common/Traits/SupplyRouteContestation.cs:239-261`) sums
+`Valued.Cost` only over `actorsInRange` — a list maintained by an `ActorMap` proximity trigger registered
+at `Range` = 10 cells (`:191-192`). So `cachedNetEnemySurplus` / `cachedNetFriendlySurplus` describe the
+contestation circle and nothing else. A defender who had been wiped off the entire map drained at exactly
+the same rate as one holding a full army two screens away, because neither has anything *in the circle*.
+The Info field names (`ReferenceValue`, "net enemy surplus") read as global quantities and do not say
+otherwise. **If you are reasoning about how strong a besieged player is, the two cached surpluses answer a
+different question than the one you are asking.** A genuinely map-wide term now exists alongside them
+(`RecalculateTeamValue`, `:cachedTeamValue`), scoped to mobile actors only.
+
+**2. Every duration comment in that file was the 25-ticks/second error, understating by 1.5x.**
+`BaseTicks: 1500` was annotated "60s at 25 tps", `MinTicks: 500` "20s", `BaseRecoveryTicks: 3000` "120s".
+`mod.yaml:358` selects the `default` game speed and `mod.yaml:381` gives it `Timestep: 60`, i.e.
+**16.67 ticks/second** — so the real figures are 90s, 30s and 180s. This is the same hazard already banked
+for `conventions.md:166` / `capturing.md:17`, at a third site, which makes it a pattern rather than an
+incident: **RA-era 25 tps is the default assumption of anyone writing these comments, and it is wrong for
+this mod everywhere.** Corrected in `SupplyRouteContestation.cs` in this branch. Worth a grep for
+`at 25 tps` across the tree — the two known instances were both found while chasing something else.
+
+A third, smaller note: a full overrun is **two** bars, not one. The control bar drains, then the defeat bar
+fills, both at the same computed rate (`:282-312`), so the wall-clock cost of finishing a player is 2x any
+single "ticks to deplete" figure — 180s at reference surplus, not 90s.

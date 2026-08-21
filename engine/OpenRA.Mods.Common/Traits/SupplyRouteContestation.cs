@@ -37,13 +37,34 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Reference net enemy surplus value. This surplus depletes the bar in BaseTicks.")]
 		public readonly int ReferenceValue = 2500;
 
-		[Desc("Ticks to deplete bar from full at ReferenceValue net enemy surplus. (60s at 25 tps)")]
+		// Durations here are quoted at the mod's real tick rate. mod.yaml:358 selects the `default`
+		// game speed, whose Timestep is 60ms (mod.yaml:381) = 16.67 ticks/second, NOT the 25 tps these
+		// comments claimed before. Every duration in this file was understated by 1.5x.
+		[Desc("Ticks to deplete bar from full at ReferenceValue net enemy surplus. (90s at 16.67 tps)")]
 		public readonly int BaseTicks = 1500;
 
-		[Desc("Minimum ticks to deplete bar from full, regardless of enemy surplus. (20s at 25 tps)")]
+		[Desc("Minimum ticks to deplete bar from full, regardless of enemy surplus. (30s at 16.67 tps)")]
 		public readonly int MinTicks = 500;
 
-		[Desc("Ticks to recover bar from zero to full with no friendlies present. (120s at 25 tps)")]
+		[Desc("Team army value at or above which contestation runs at its unmodified rate.",
+			"Below this, depletion accelerates toward MaxCollapseSpeedup as the defending team is ground down.",
+			"Only mobile actors count — a building cannot move to relieve a besieged Supply Route.")]
+		public readonly int CollapseThreshold = 5000;
+
+		[Desc("Maximum depletion speedup, as a percentage, reached when the defending team has nothing",
+			"mobile left anywhere on the map. 100 = no speedup.")]
+		public readonly int MaxCollapseSpeedup = 800;
+
+		[Desc("Floor on ticks to deplete the bar from full when the defending team is at zero army value.",
+			"Replaces MinTicks as the team is ground down. (~5s at 16.67 tps)")]
+		public readonly int CollapseMinTicks = 80;
+
+		[Desc("Ticks to fill the defeat bar once production is already hard-halted (control bar empty)",
+			"AND the defending team has no mobile units left anywhere. The outcome is settled at that",
+			"point, so the loser is not made to watch the bar. (~1s at 16.67 tps)")]
+		public readonly int LockoutCollapseTicks = 17;
+
+		[Desc("Ticks to recover bar from zero to full with no friendlies present. (180s at 16.67 tps)")]
 		public readonly int BaseRecoveryTicks = 3000;
 
 		[Desc("Recovery speed multiplier when friendly units are in range.")]
@@ -134,6 +155,19 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync]
 		int cachedNetFriendlySurplus;
 
+		// SIMULATION. Total Valued.Cost of every mobile actor owned by an undefeated combatant on the
+		// defender's team, anywhere on the map — the global counterpart to the two local surpluses
+		// above. It scales the depletion rate and, at zero, triggers the lockout collapse, so it feeds
+		// the win/loss decision just as directly as they do.
+		[Sync]
+		int cachedTeamValue;
+
+		// Memoized Valued.Cost per actor type. Pure ruleset data (an ActorInfo's trait list is fixed at
+		// load), so this is deterministic and identical on every client; it exists only to keep the
+		// map-wide scan off ActorInfo's linear trait lookup. Deliberately not hashed — it decides
+		// nothing, and cachedTeamValue already carries every value read out of it.
+		readonly Dictionary<ActorInfo, int> costCache = new Dictionary<ActorInfo, int>();
+
 		// SIMULATION, previously unannotated. Seeded from World.SharedRandom in AddedToWorld and then
 		// decides WHICH tick RecalculateForces runs on, so a divergence shifts the entire bar timeline.
 		// Being RNG-seeded also makes it a direct check that the shared stream was aligned at actor-add.
@@ -183,6 +217,7 @@ namespace OpenRA.Mods.Common.Traits
 		public int ControlBarFraction => info.BarMax > 0 ? controlBar * 100 / info.BarMax : 0;
 		public int NetEnemySurplus => cachedNetEnemySurplus;
 		public int NetFriendlySurplus => cachedNetFriendlySurplus;
+		public int TeamValue => cachedTeamValue;
 		public bool IsPassive => isPassive;
 
 		void INotifyAddedToWorld.AddedToWorld(Actor self)
@@ -258,13 +293,109 @@ namespace OpenRA.Mods.Common.Traits
 
 			cachedNetEnemySurplus = Math.Max(0, enemyValue - friendlyValue);
 			cachedNetFriendlySurplus = Math.Max(0, friendlyValue - enemyValue);
+
+			RecalculateTeamValue();
+		}
+
+		int CostOf(ActorInfo actorInfo)
+		{
+			if (costCache.TryGetValue(actorInfo, out var cost))
+				return cost;
+
+			var valued = actorInfo.TraitInfoOrDefault<ValuedInfo>();
+			return costCache[actorInfo] = valued != null ? Math.Max(0, valued.Cost) : 0;
+		}
+
+		// Everything the defending team still has that could move to relieve this Supply Route.
+		//
+		// Mobility is the whole criterion, and it is what makes "no units left" mean what a player
+		// expects. Buildings are excluded deliberately: a turret on the far side of the map can never
+		// affect this fight, and static defence that CAN affect it is already priced by
+		// RecalculateForces as friendly value inside the contestation circle. Excluding them is also
+		// what lets the total reach zero at all — every live player owns at least the Supply Route
+		// itself, so a building-inclusive total could never hit the floor the lockout collapse needs.
+		//
+		// Team-wide, not per-player, because the user asked for "how strong that team is": a 2v2 ally
+		// with a live army can still march over, so their SR must not fall at collapse speed. SameTeam
+		// rather than IsAlliedWith for the reason documented on SameTeam itself — RelationshipWith
+		// reports every Spectating player as an Ally, so a defeated player's leftovers would otherwise
+		// prop up the survivors' rate.
+		void RecalculateTeamValue()
+		{
+			var total = 0;
+			foreach (var a in self.World.ActorsHavingTrait<IMove>())
+			{
+				if (a.Disposed || !a.IsInWorld)
+					continue;
+
+				var owner = a.Owner;
+				if (owner.NonCombatant || !owner.Playable || owner.WinState != WinState.Undefined)
+					continue;
+
+				if (!SameTeam(owner, self.Owner))
+					continue;
+
+				total += CostOf(a.Info);
+			}
+
+			cachedTeamValue = total;
 		}
 
 		int CalculateTickRate(int valueSurplus)
 		{
-			var ticksToFull = Math.Max(info.MinTicks,
-				(long)info.BaseTicks * info.ReferenceValue / valueSurplus);
-			return Math.Max(1, info.BarMax / (int)Math.Max(1, ticksToFull));
+			var ticksToFull = ContestTicksToFull(valueSurplus, CollapseWeakness(cachedTeamValue, info.CollapseThreshold),
+				info.BaseTicks, info.ReferenceValue, info.MinTicks, info.CollapseMinTicks, info.MaxCollapseSpeedup);
+			return BarRate(info.BarMax, ticksToFull);
+		}
+
+		// Pure decision: bar units moved per tick to drain BarMax over ticksToFull ticks. Integer
+		// division rounds the rate DOWN, so the realised drain is a little slower than the requested
+		// ticksToFull — up to one tick per unit of truncation. Exposed so tests can quote realised
+		// durations rather than the requested ones.
+		public static int BarRate(int barMax, int ticksToFull)
+		{
+			return Math.Max(1, barMax / Math.Max(1, ticksToFull));
+		}
+
+		// Pure decision: how far the defending team has been ground down, 0 (healthy, or better than
+		// healthy) to 100 (nothing mobile left anywhere). Linear, so there is no cliff for a player to
+		// play around and no single unit whose death flips the rate.
+		public static int CollapseWeakness(int teamValue, int collapseThreshold)
+		{
+			if (collapseThreshold <= 0)
+				return 0;
+
+			var clamped = Math.Min(Math.Max(teamValue, 0), collapseThreshold);
+			return (collapseThreshold - clamped) * 100 / collapseThreshold;
+		}
+
+		// Pure decision: ticks to drain a full bar, given the attacker's local surplus and how beaten
+		// the defending team is globally.
+		//
+		// The weakness term SCALES the existing local result rather than replacing it, and that is the
+		// property that keeps this from becoming a new way to win. Replacing it would let one cheap
+		// scout end a player who momentarily owns nothing — and players DO momentarily own nothing:
+		// StartingUnitsClass defaults to "none" (SpawnStartingUnits.cs:24), so on the default lobby
+		// setting every player begins the match at zero army value, and rotating units out to the map
+		// edge for a refund returns them there voluntarily. Scaled, that scout still needs minutes; a real finishing force reaches the
+		// floor. The attacker must still bring something.
+		public static int ContestTicksToFull(int enemySurplus, int weakness, int baseTicks, int referenceValue,
+			int minTicks, int collapseMinTicks, int maxCollapseSpeedup)
+		{
+			var unfloored = (long)baseTicks * referenceValue / Math.Max(1, enemySurplus);
+
+			// A healthy defending team is the entire contested-game population, and it must come out
+			// byte-identical to the pre-collapse formula rather than merely close to it. Returning the
+			// original expression here says so directly instead of relying on the scaling arithmetic
+			// below to be a no-op at weakness 0.
+			if (weakness <= 0)
+				return (int)Math.Max(minTicks, unfloored);
+
+			var speedup = 100 + ((long)(maxCollapseSpeedup - 100) * weakness / 100);
+			var scaled = unfloored * 100 / Math.Max(1, speedup);
+			var floor = minTicks - ((long)(minTicks - collapseMinTicks) * weakness / 100);
+
+			return (int)Math.Max(1, Math.Max(floor, scaled));
 		}
 
 		void ITick.Tick(Actor self)
@@ -297,8 +428,19 @@ namespace OpenRA.Mods.Common.Traits
 				}
 				else
 				{
-					// Phase 2: Fill defeat bar (red fills up)
-					defeatBar = Math.Min(info.BarMax, defeatBar + rate);
+					// Phase 2: Fill defeat bar (red fills up).
+					//
+					// Once the control bar is empty the owner can no longer call anything in —
+					// GetProductionSpeedModifier returns 0 on exactly this condition, which is the hard
+					// lockout (SlowdownThreshold only tapers production; it never stops it). If the team
+					// also has nothing mobile left, no input to this outcome remains: they cannot buy,
+					// and they have nothing to march over. Collapse it instead of making them watch.
+					// Never a slowdown — Max, so a faster ordinary rate still wins.
+					var defeatRate = cachedTeamValue <= 0
+						? Math.Max(rate, Math.Max(1, info.BarMax / Math.Max(1, info.LockoutCollapseTicks)))
+						: rate;
+
+					defeatBar = Math.Min(info.BarMax, defeatBar + defeatRate);
 
 					if (!wasInDefeatPhase)
 					{
