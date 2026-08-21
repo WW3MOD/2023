@@ -435,7 +435,19 @@ namespace OpenRA.Mods.Common.Traits
 					&& a.Owner == self.Owner
 					&& rearmInfo.RearmActors.Contains(a.Info.Name));
 
-			// SupplyProvider hosts (TRUK, SUPPLYCACHE) with supply remaining
+			// SupplyProvider hosts (TRUK, SUPPLYCACHE) with supply remaining.
+			//
+			// The parenthetical is CORPUS-DEPENDENT, not a property of this method: the set is whatever
+			// the recipient's RearmActors names. It was false for SUPPLYCACHE until 2026-08-21 — no
+			// RearmActors list anywhere contained it, so the cache branch of this query was unreachable
+			// and crates were push-only. Infantry now name it, so a soldier walks to his own crate.
+			// Re-read the YAML before trusting the names here; do not infer them from this comment.
+			//
+			// `a.Owner == self.Owner` is STRICT EQUALITY, and that is what keeps "seek ammo" from also
+			// meaning "steal loot": an enemy or merely-allied crate is never a destination, however
+			// close or however full. Taking an enemy crate is a separate mechanism (ProximityCapturable
+			// on contact), and one a unit sent here can still trigger incidentally by passing an enemy
+			// crate en route — that is pre-existing and unrelated to this filter.
 			var supplyProviderActors = self.World.ActorsHavingTrait<SupplyProvider>()
 				.Where(a => !a.IsDead
 					&& a.Owner == self.Owner

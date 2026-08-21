@@ -1,0 +1,1 @@
+Auto: a dry rifleman must walk to a dropped SUPPLYCACHE and rearm — the crate sibling of test-dry-resupply-reaches-truck, differing by one actor, so a red here against a green there isolates the crate seek.

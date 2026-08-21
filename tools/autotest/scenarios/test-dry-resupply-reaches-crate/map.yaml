@@ -1,0 +1,75 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Dry Unit Reaches A Dropped Supply Crate Under Contact (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# The user's headline symptom, staged directly: a dry rifleman, a supply truck he is sent to
+	# on his own, and an enemy still in weapon range of him. test-queued-attackmove-survives-
+	# resupply already stages the first two and passes -- it has NO enemy on the map, which is
+	# exactly why it never saw this. The enemy is the whole difference.
+	Hunter: ar
+		Owner: USA
+		Location: 14,16
+		Facing: 768
+	# 9 cells west. SUPPLYCACHE's push aura is Range: 5c0 (misc.yaml) -- identical to TRUK's since
+	# the 2026-08-21 parity change, which is what lets this scenario keep the sibling's exact
+	# geometry. Comfortably out of reach, so the crate cannot serve him where he stands: he has to
+	# walk, which is the thing being measured. Owned by USA because ChooseResupplier filters hosts
+	# on strict `a.Owner == self.Owner` -- a Neutral or Russia-owned crate is not a candidate at all
+	# and would make this test measure the owner filter instead of the seek list.
+	Supply: supplycache
+		Owner: USA
+		Location: 5,16
+	Bait: e1
+		Owner: Russia
+		Location: 22,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 14,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 22,16
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml

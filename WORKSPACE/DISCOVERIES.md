@@ -3,6 +3,39 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-21 — `RearmActors` is the whole of host discovery, and it is declared 14 times with no shared default
+
+Branch `wt/cache-rearm`, implementing the user's ruling that infantry should seek dropped crates.
+
+**One list decides whether a resupply source exists at all.** `AmmoPool.ChooseResupplier` is the only
+host-discovery path in the engine — `AutoSeekSupplies` routes solely through it, for both the idle
+low-ammo seek and the all-pools-empty break-off — and both of its branches filter on
+`rearmInfo.RearmActors.Contains(a.Info.Name)`. An actor absent from that list is not merely
+deprioritised; it is invisible, however close and however full. That is the entire mechanism by which
+SUPPLYCACHE was push-only, and it took no code to enforce and no code to undo.
+
+**The trap is that the field has no `^Soldier`-level declaration.** It appears 14 times, once per
+infantry template carrying a `Rearmable` (`^E1 ^E3 ^AR ^E2 ^TL ^MT ^SN ^AT ^AA ^E6 ^E4 ^SF ^DR
+^PILOT`), so there is no single place to edit and no inheritance to lean on. A 15th template added
+later, or an existing one edited by someone who has not read this, silently does not seek — and the
+failure is per-unit-type, so it presents as "the rifleman works and the sniper doesn't", which reads
+like a pathing or stance bug rather than a missing list entry. `SupplyCacheSeekTest` enumerates the
+templates FROM THE FILE rather than from a hardcoded roster, precisely so a new one is caught.
+
+**The counterpart fact, and the one that makes the ruling safe:** the same query filters hosts on
+`a.Owner == self.Owner` — strict equality, not a relationship test. So "seek ammo" can never become
+"take enemy loot" even though SUPPLYCACHE is `ProximityCapturable` by `Infantry` at `2c512`. An enemy
+crate is not a destination; capture stays a separate on-contact mechanism that a unit walking past one
+can still trigger incidentally. Worth knowing before designing anything else that reads this method:
+allied units do not share hosts either.
+
+**Unbounded tail worth remembering.** Of the three paths that send a unit to a host, two are leashed —
+the idle seek at `SupplyHuntLeashCells` 20 (straight-line) and the live-order break-off at
+`ReturnWhenEmptyLeashCells` 30 (chessboard) — but the third is not: `AmmoPool.INotifyBecomingIdle` →
+`AutoRearmIfAllEmpty` → `AutoRearm` applies no distance test at all. That was tolerable when hosts were
+trucks and LCs, which sit near the army or the base. Crates are scattered wherever a truck happened to
+unload, so the set of things a dry idle soldier will walk any distance to has just grown.
+
 ## 2026-08-21 — a trait default is a DECISION the actor never made, and an omitted field can cancel a stated one
 
 Branch `wt/cache-rearm`. Report: "the dropped supply crate doesn't seem to rearm units, even when it
