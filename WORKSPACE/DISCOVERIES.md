@@ -3,6 +3,57 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-21 — a reservation with no owner cannot be given back, and decays into a permanent debt
+
+Branch `wt/aa-claim`. Overkill prevention is a **reservation** system: before firing, a unit claims a
+share of its target's health (`AutoTarget.MarkTargetForAttack`, `AutoTarget.cs:1679`) so that other
+units scanning in the same window see the target as spoken for. The claim was applied as
+`target.Actor.MarkForDestruction(percentDamage)` — a bare `+=` on a single shared int
+(`Actor.cs:83`). **That one line is both the mechanism and the bug: an anonymous `+=` has no owner,
+and a reservation with no owner has no way back.** Nothing could release it, because nothing knew
+whose it was.
+
+The only downward force was the periodic halving in `Actor.Tick` (`Actor.cs:309-310`), which is a
+*cleanup* mechanism being asked to do a *release* mechanism's job. Commitments therefore accumulated
+and the tally described history rather than the present: a target under sustained attention read as
+permanently over-committed, `ChooseTarget` hard-skipped it (`AutoTarget.cs:1447`), and a battery
+engaged one unit at a time — each joiner waiting out one halving. This is the user's live "my AA
+won't autotarget until I click" report; a manual order fires because `AttackBase.AttackTarget` never
+consults `ChooseTarget`.
+
+**The generalisable shape, which is the part worth banking: if you model an intention as an
+anonymous increment on a shared counter, you have not built a reservation — you have built a debt.**
+Give the claim an owner and both the release *and* the "one claimant is one claim" invariant fall
+out for free. Before the fix, one shooter re-acquiring the same target on three rescans pushed the
+tally to 300; after it, to 100. That second property was never separately designed — it is a
+consequence of the claim having an identity, and it is pinned in
+`engine/OpenRA.Test/OverkillClaimTest.cs`.
+
+The claim now lives on the attacker (`Actor.ClaimForAttack`, `Actor.cs:98`; `OverkillClaim` in
+`engine/OpenRA.Game/OverkillClaim.cs`) and is handed back the moment the trigger resolves, in
+`Armament`'s delayed fire action (`Armament.cs:483`) — **above** the target re-validation return, so
+a shot aborted because the target died in the `FireDelay` gap releases too.
+
+**Two traps found while placing it, both worth remembering:**
+
+- **"Release on impact" is wrong, and attractively so.** Impact is where the target's health actually
+  drops, so it reads as the honest release point. But a shot that misses, expires short or is
+  intercepted never impacts, and MANPAD `Inaccuracy: 256` against moving aircraft makes that
+  ordinary play rather than an edge case. The projectile also carries no back-reference to the
+  claim. The release belongs to the *trigger pull*, not the *outcome*.
+- **The decay runs underneath the claim, so release must be clamped.** A claim of 100 held across
+  two halvings is only worth 25 on the tally when it comes back; subtracting the recorded 100
+  unclamped leaves −75 and makes every later comparison nonsense. `OverkillClaimMath.Release`
+  (`OverkillClaim.cs:90`) clamps at zero. The clamp can under-count when a second shooter still
+  holds a live claim, and that is the deliberate direction to err in — under-counting makes units
+  *more* willing to engage, over-counting is the defect itself.
+
+**Still not released, and left that way deliberately** (out of scope, and both bounded by the decay
+that already existed): a claim whose holder dies before firing, and a claim whose holder is ordered
+elsewhere before firing. `test-aa-overkill-suppression` has measured the first directly — a marker
+killed at tick 40 still suppressed its neighbour to t206. Attributing the claim is the enabling
+change for fixing either; neither was possible before this.
+
 ## 2026-08-21 — radar reveals ACTORS, not CELLS, and every cell-level fog check silently vetoes it
 
 Branch `wt/radar-targeting`. A helicopter held on radar with no line of sight rendered on screen

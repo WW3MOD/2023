@@ -1665,10 +1665,16 @@ namespace OpenRA.Mods.Common.Traits
 			return Math.Min(totalDamage * 100 / health.MaxHP, 100);
 		}
 
-		/// <summary>Register intent to attack — bumps the target's AverageDamagePercent
+		/// <summary>Register intent to attack — reserves a share of the target's AverageDamagePercent
 		/// so other units' autotarget scans see this target as partially-committed.
 		/// Called from every committed attack path: autotarget pick, force-attack,
-		/// Lua Actor.Attack, AI direct AttackTarget, opportunity-fire pick.</summary>
+		/// Lua Actor.Attack, AI direct AttackTarget, opportunity-fire pick.
+		///
+		/// The reservation is held by the ATTACKER (Actor.ClaimForAttack), not merged anonymously into the
+		/// target's tally, so that it can be handed back the moment the shot resolves. Marking used to be a
+		/// bare += with no owner and therefore no way back: every commitment pushed the tally up and only the
+		/// 60-tick halving in Actor.Tick ever pulled it down, so a target under sustained attention read as
+		/// permanently over-committed and ChooseTarget declined it.</summary>
 		public static void MarkTargetForAttack(Actor attacker, in Target target)
 		{
 			if (target.Actor == null || target.Actor.IsDead)
@@ -1676,7 +1682,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var percentDamage = EstimatePercentDamage(attacker, target);
 			if (percentDamage > 0)
-				target.Actor.MarkForDestruction(percentDamage);
+				attacker.ClaimForAttack(target.Actor, percentDamage);
 		}
 
 		static bool PreventsAutoTarget(Actor attacker, Actor target)

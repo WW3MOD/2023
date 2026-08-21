@@ -31,6 +31,22 @@
 
 ## 2026-08-20: [high] PARTIALLY FIXED on `wt/aa-autotarget` — one AA soldier's overkill claim is EXACTLY the overkill threshold, so a single committed AA hard-skips the whole rest of the battery off a healthy aircraft (found while: diagnosing the user's live "my AA won't autotarget until I click" report, branch `wt/aa-autotarget`, `main @ e3a5250d`)
 
+> **CORRECTION 2026-08-21 (`wt/aa-claim`) — the closing paragraph of this entry, "NOT FIXED HERE,
+> deliberately … Needs the user's call", IS NOW STALE. Read this block before acting on it.**
+> The user gave the call and the second layer — the missing release, described below under
+> *"Nothing releases the claim when the shot resolves"* — is fixed. The claim is now owned by the
+> attacker (`Actor.ClaimForAttack`, `Actor.cs:98`; `OverkillClaim` in
+> `engine/OpenRA.Game/OverkillClaim.cs`) and handed back when the trigger resolves
+> (`Armament.cs:483`). The `@stable` exposure this entry flagged is real and was accepted knowingly,
+> not overlooked — `AutoTarget` has no per-profile gating, so this moves both bot profiles;
+> the commit message says so, and the next benchmark baseline needs re-taking.
+> `EstimatePercentDamage` itself is unchanged, so the `FiresEvGate` caller at
+> `PoiOffensiveBotModule.cs:3586` sees no difference.
+> **Still unreleased, deliberately out of scope:** a claim whose holder dies before firing (the
+> t40-killed-marker-suppresses-to-t206 measurement below still stands) and one whose holder is
+> ordered elsewhere before firing. Both remain bounded by the 60-tick decay, as before.
+> Reasoning and the two placement traps: `WORKSPACE/DISCOVERIES.md`, 2026-08-21.
+
 > **UPDATE 2026-08-20, and the entry below is now MEASURED rather than derived.**
 > Run `260820_033930_p76804` of `test-aa-battery-volleys`, unfixed stock code:
 >

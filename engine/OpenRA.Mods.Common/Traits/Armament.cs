@@ -466,6 +466,22 @@ namespace OpenRA.Mods.Common.Traits
 			var delayedTarget = target;
 			ScheduleDelayedAction(Info.FireDelay, Burst, (burst) =>
 			{
+				// THE SHOT HAS RESOLVED — hand back this shooter's overkill claim
+				// (Actor.ReleaseAttackClaim / OverkillClaim). The claim was a PREDICTION registered when the
+				// unit committed, so that other units scanning in the same window saw the target as spoken
+				// for; the trigger has now been pulled and the prediction is settled. Held past this point it
+				// double-counts against damage that is now either inbound or never coming, and since nothing
+				// else ever gave it back, a target under sustained attention read as permanently
+				// over-committed and AutoTarget.ChooseTarget declined it for everyone.
+				//
+				// ABOVE the re-validation return below, deliberately: a shot aborted because the target died
+				// in the FireDelay gap is the case where holding the reservation is least defensible. Above
+				// the projectile spawn for the same reason — a shot that misses, expires short or spawns
+				// nothing must release too, and a projectile carries no back-reference to the claim.
+				// In Armament rather than in a trait because this is the one choke point every armament in
+				// the game fires through, including the garrison paths with their own notify loops.
+				self.ReleaseAttackClaim();
+
 				// Re-validate the captured target. With FireDelay > 0 the target can
 				// die / leave the world / drop targetable status during the gap
 				// between aim-and-pull and the actual barrel-fire. Without this check

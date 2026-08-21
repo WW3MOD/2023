@@ -33,7 +33,7 @@ namespace OpenRA
 		EditorWorld = 4
 	}
 
-	public sealed class Actor : IScriptBindable, IScriptNotifyBind, ILuaTableBinding, ILuaEqualityBinding, ILuaToStringBinding, IEquatable<Actor>, IDisposable
+	public sealed class Actor : IScriptBindable, IScriptNotifyBind, ILuaTableBinding, ILuaEqualityBinding, ILuaToStringBinding, IEquatable<Actor>, IOverkillTally, IDisposable
 	{
 		/// <summary>Value used to represent an invalid token.</summary>
 		public const int InvalidConditionToken = -1;
@@ -82,9 +82,40 @@ namespace OpenRA
 
 		public int AverageDamagePercent = 0;
 
+		// Lazily created: only actors that actually commit to a target ever hold a claim.
+		OverkillClaim overkillClaim;
+
+		/// <summary>Raw, unowned bump of this actor's incoming-damage tally. Nothing hands it back, so it decays
+		/// out rather than being released — prefer <see cref="ClaimForAttack"/> from any path that represents a
+		/// shooter committing, so the reservation can be given back when the shot resolves.</summary>
 		public void MarkForDestruction(int percentDamage)
 		{
 			AverageDamagePercent += percentDamage;
+		}
+
+		/// <summary>Reserve <paramref name="percentDamage"/> of <paramref name="target"/> against this actor's
+		/// upcoming shot, replacing any claim it already holds. See <see cref="OverkillClaim"/>.</summary>
+		public void ClaimForAttack(Actor target, int percentDamage)
+		{
+			overkillClaim ??= new OverkillClaim();
+			overkillClaim.Claim(target, percentDamage);
+		}
+
+		/// <summary>Hand back this actor's outstanding claim, if any. Called from Armament the moment a shot is
+		/// actually created: the prediction has resolved, so the reservation must stop counting.</summary>
+		public void ReleaseAttackClaim()
+		{
+			overkillClaim?.Release();
+		}
+
+		void IOverkillTally.AddIncomingDamage(int percent)
+		{
+			AverageDamagePercent += percent;
+		}
+
+		void IOverkillTally.RemoveIncomingDamage(int percent)
+		{
+			AverageDamagePercent = OverkillClaimMath.Release(AverageDamagePercent, percent);
 		}
 
 		public class ConditionState
@@ -306,6 +337,11 @@ namespace OpenRA
 			// shots the mark went 71 → 35 → 17 → ... → 0, and other units would re-target the
 			// "free" tank mid-engagement. Slowed to 60 ticks (~1s at 60 TPS) so a single shot's
 			// mark persists across a typical reload cycle.
+			//
+			// This decay is now the CLEANUP path, not the only one: a claim registered through
+			// ClaimForAttack is handed back when the shot resolves (see OverkillClaim). What still
+			// needs decaying is everything that never resolves — a raw MarkForDestruction bump, and
+			// a claim whose holder died or was ordered elsewhere before it ever fired.
 			if (AverageDamagePercent > 0 && World.WorldTick % 60 == 0)
 				AverageDamagePercent /= 2;
 
