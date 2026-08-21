@@ -13,7 +13,7 @@ units scanning in the same window see the target as spoken for. The claim was ap
 and a reservation with no owner has no way back.** Nothing could release it, because nothing knew
 whose it was.
 
-The only downward force was the periodic halving in `Actor.Tick` (`Actor.cs:309-310`), which is a
+The only downward force was the periodic halving in `Actor.Tick` (`Actor.cs:345-346`), which is a
 *cleanup* mechanism being asked to do a *release* mechanism's job. Commitments therefore accumulated
 and the tally described history rather than the present: a target under sustained attention read as
 permanently over-committed, `ChooseTarget` hard-skipped it (`AutoTarget.cs:1447`), and a battery
