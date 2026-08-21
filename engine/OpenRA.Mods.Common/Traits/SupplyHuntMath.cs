@@ -110,9 +110,38 @@ namespace OpenRA.Mods.Common.Traits
 			if (budgetCells <= 0)
 				return false;
 
+			return ChessboardCells(dx, dy) <= budgetCells;
+		}
+
+		/// <summary>
+		/// Chessboard distance — max(|dx|, |dy|), the "cells away" a player reads off the map. Factored
+		/// out of <see cref="WithinCellBudget"/> so the budget test and the exit comparison below cannot
+		/// end up measuring in two different metrics.
+		/// </summary>
+		public static int ChessboardCells(int dx, int dy)
+		{
 			var ax = dx < 0 ? -dx : dx;
 			var ay = dy < 0 ? -dy : dy;
-			return (ax > ay ? ax : ay) <= budgetCells;
+			return ax > ay ? ax : ay;
+		}
+
+		/// <summary>
+		/// <para>For a unit under a standing Evacuate disposition that has run dry: is a rearm host worth
+		/// detouring to, or should it keep leaving? True only when the host is STRICTLY nearer than the
+		/// way out, so a unit ordered off the map never travels backwards — deeper into the battlefield
+		/// it was told to quit — to fetch ammunition.</para>
+		///
+		/// <para>Ties go to evacuating. The evacuation is an order the player (or the unit's shipped
+		/// InitialResupplyBehavior) actually expressed; the detour is the unit's own idea, and an
+		/// unordered errand does not get to win a coin flip against an ordered one.</para>
+		///
+		/// <para>Both distances are chessboard, from the same origin, so the comparison is
+		/// apples-to-apples. Caller supplies the exit's offset — see AmmoPool's Evacuate arm for what it
+		/// measures to and why that is a proxy rather than the literal edge cell.</para>
+		/// </summary>
+		public static bool ResupplyBeatsExit(int hostDx, int hostDy, int exitDx, int exitDy)
+		{
+			return ChessboardCells(hostDx, hostDy) < ChessboardCells(exitDx, exitDy);
 		}
 
 		/// <summary>A provider under consideration, reduced to the two facts the pick depends on.</summary>

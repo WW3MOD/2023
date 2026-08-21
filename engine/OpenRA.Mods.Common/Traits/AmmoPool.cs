@@ -46,6 +46,49 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Should actor automatically move to rearm when out of ammo.")]
 		public readonly bool AutoRearm = true;
 
+		[Desc("Marks this pool as one the actor cannot meaningfully fight without. Once EVERY essential",
+			"pool on an actor is empty it counts as dry for RESUPPLY-SEEKING purposes even if other",
+			"pools still hold rounds — a rifleman out of bullets with one AT round left is, in the",
+			"user's words, 'basically out of ammo'. See AmmoPool.OutOfEssentialAmmo.",
+			"",
+			"DEFAULTS TO FALSE, and the default is the whole safety of this feature: with nothing",
+			"flagged anywhere, OutOfEssentialAmmo is byte-identical to AllPoolsEmpty and every dispatch",
+			"path behaves exactly as it did before this field existed (pinned by",
+			"EssentialAmmoTest.NoEssentialPoolsAuthored_MatchesAllPoolsEmpty). Turning the feature on is",
+			"an authoring act, per pool, and it ships inert until someone does it.",
+			"",
+			"WHY THERE IS NO NAME-BASED DEFAULT, since 'primary-ammo is essential' is the obvious guess",
+			"and 40 pools in this mod carry that name: it is WRONG on the first unit anyone reaches for.",
+			"The tunguska's primary-ammo is its cannon and its secondary-ammo is its missiles, and a",
+			"tunguska out of missiles is in far more trouble than one out of bullets. A rule that",
+			"encodes the wrong answer on the motivating example is not a default, it is a coin flip",
+			"applied to 40 pools at once. Author it per pool or leave it off.",
+			"",
+			"This is a SEEKING predicate only. It deliberately does not reach AmmoPool.CannotFight,",
+			"which gates combat at seven call sites — an AT specialist down to his last round must",
+			"still be allowed to fire it.")]
+		public readonly bool Essential = false;
+
+		[Desc("Furthest a rearm host can be, in CHESSBOARD cells, and still be worth self-dispatching to",
+			"when this actor is ESSENTIAL-dry but not wholly dry — i.e. it can still shoot something,",
+			"just not the thing that matters. Deliberately shorter than DryRearmLeashCells so the tier",
+			"reads as the weaker impulse it is: 'there is a truck right here', not 'go find one'. A unit",
+			"that can still fight should not abandon its position to cross the map.",
+			"",
+			"Same semantics as DryRearmLeashCells in every other respect — chessboard metric via",
+			"SupplyHuntMath.WithinCellBudget, boundary-inclusive, 0 or less admits nothing (the unit",
+			"stays put and raises NeedsResupply so a Hunt-stance truck can come to it). Do NOT infer the",
+			"zero-semantics from PoiOffensiveBotModule.OutOfAmmoRearmSeekRadiusCells, whose 0 means",
+			"UNLIMITED.",
+			"",
+			"Lives HERE rather than on AutoSeekSuppliesInfo beside ReturnWhenEmptyLeashCells, and both",
+			"dry paths read it from the pools, because AmmoPoolInfo is present on every actor that can",
+			"reach either path while AutoSeekSupplies is declared on ^Soldier alone. That asymmetry is",
+			"why DryRearmLeashCells is its own field, and it points the same way here: reading down from",
+			"AmmoPool is safe, reading up into AutoSeekSuppliesInfo is what would leave vehicles",
+			"unleashed while looking complete.")]
+		public readonly int EssentialDryLeashCells = 15;
+
 		[Desc("Furthest a rearm host can be, in CHESSBOARD cells, and still be worth self-dispatching to",
 			"when this actor has run DRY (every pool empty). Beyond it the unit stays put and raises",
 			"NeedsResupply so a Hunt-stance truck can come to it instead — the same disposition",
@@ -58,7 +101,7 @@ namespace OpenRA.Mods.Common.Traits
 			"",
 			"WHY THIS IS ITS OWN FIELD instead of reading AutoSeekSuppliesInfo.ReturnWhenEmptyLeashCells,",
 			"which carries the same 30 and was the obvious thing to reuse: AutoSeekSupplies is declared on",
-			"^Soldier ALONE (infantry.yaml), while the path this bounds — AutoRearmIfAllEmpty, reached from",
+			"^Soldier ALONE (infantry.yaml), while the path this bounds — AutoRearmIfDry, reached from",
 			"INotifyBecomingIdle and from firing the last round — runs on every non-aircraft actor with an",
 			"AmmoPool, vehicles included. Reading the other trait's Info would have left every vehicle",
 			"unleashed while looking complete at the only site anyone reads. The DEFAULTS are pinned equal",
@@ -186,7 +229,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			/* if (CurrentAmmoCount == 0)
 			{
-				AutoRearmIfAllEmpty(self);
+				AutoRearmIfDry(self);
 			} */
 
 			return true;
@@ -208,10 +251,148 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// <para>"This actor cannot fight with the thing that matters" — the SEEKING predicate, and the
+		/// one every resupply dispatcher and every self-assigned errand's exit test now shares.</para>
+		///
+		/// <para>If any pool on the actor is marked <see cref="AmmoPoolInfo.Essential"/>, this is "every
+		/// ESSENTIAL pool is empty" and non-essential pools are ignored entirely. If none is marked — the
+		/// shipped default everywhere — it falls back to <see cref="AllPoolsEmpty(IEnumerable{AmmoPool})"/>
+		/// exactly, so a mod that authors nothing sees no behavioural change at all. That equivalence is
+		/// the feature's whole safety story and is pinned by
+		/// <c>EssentialAmmoTest.NoEssentialPoolsAuthored_MatchesAllPoolsEmpty</c>.</para>
+		///
+		/// <para>DO NOT substitute this into <see cref="CannotFight"/>. That predicate gates COMBAT at
+		/// seven sites (Attack, AttackFollow, AttackBase ×2, AttackMove, SmartMoveActivity,
+		/// AttackMoveActivity) where it means "stop trying to shoot" — feeding it this test would stop a
+		/// rifleman attacking while he still holds the AT round he is supposed to fire. The two
+		/// predicates coincide today only because nothing is authored Essential yet; they answer
+		/// different questions and must not be merged on the strength of that coincidence.</para>
+		///
+		/// <para>THE OTHER HALF OF THE CONTRACT: this same function is the errand's EXIT test
+		/// (<see cref="Activities.SeekSupplyProvider"/>, <see cref="Activities.Resupply"/>). Dispatch and
+		/// exit must be literally this one function, not two tests that agree today. Widening dispatch
+		/// alone while the exit still read AllPoolsEmpty would make a partially-dry unit's errand
+		/// pointless on its FIRST tick — AllPoolsEmpty is already false at the moment such a unit is
+		/// dispatched — and the unit would take one step and stop.</para>
+		///
+		/// <para>Single pass, no allocation and no LINQ: reached from ITick on every armed actor.</para>
+		/// </summary>
+		public static bool OutOfEssentialAmmo(IEnumerable<AmmoPool> pools)
+		{
+			var any = false;
+			var allEmpty = true;
+			var anyEssential = false;
+			var allEssentialEmpty = true;
+
+			foreach (var p in pools)
+			{
+				any = true;
+				var hasAmmo = p.HasAmmo;
+				if (hasAmmo)
+					allEmpty = false;
+
+				if (p.Info.Essential)
+				{
+					anyEssential = true;
+					if (hasAmmo)
+						allEssentialEmpty = false;
+				}
+			}
+
+			// An actor with no pools is not dry — it simply has no ammunition model. Matches
+			// AllPoolsEmpty, whose `any` flag exists for the same reason.
+			if (!any)
+				return false;
+
+			return anyEssential ? allEssentialEmpty : allEmpty;
+		}
+
+		/// <summary>Actor overload, for the notification paths that have not cached their pools.</summary>
+		public static bool OutOfEssentialAmmo(Actor self)
+		{
+			return OutOfEssentialAmmo(self.TraitsImplementing<AmmoPool>());
+		}
+
+		/// <summary>
+		/// <para>Has a SELF-ASSIGNED resupply errand lost its reason? An errand nobody ordered lasts
+		/// exactly as long as the dryness that prompted it; a player's explicit Resupply order
+		/// (<paramref name="dispatchedBecauseDry"/> false) is a destination order and never expires here.</para>
+		///
+		/// <para>THIS IS A FUNCTION RATHER THAN A LINE IN EACH ACTIVITY on purpose. Both walking branches
+		/// need it — <see cref="Activities.SeekSupplyProvider"/> and <see cref="Activities.Resupply"/> —
+		/// and the rule that matters is not the expression but its IDENTITY with the dispatch predicate
+		/// above. Two sites each writing <c>!AllPoolsEmpty(pools)</c> agreed with the dispatcher right up
+		/// until the dispatcher widened, at which point they would have ended every partially-dry errand
+		/// on its first tick. Naming one function is what makes that class of drift impossible instead of
+		/// merely unlikely, and it is what lets a test pin the real rule rather than a copy of it
+		/// (<c>EssentialAmmoTest.TheErrandExitTestCannotBeSatisfiedAtDispatch</c>).</para>
+		/// </summary>
+		public static bool SelfAssignedErrandIsOver(bool dispatchedBecauseDry, IEnumerable<AmmoPool> pools)
+		{
+			return dispatchedBecauseDry && !OutOfEssentialAmmo(pools);
+		}
+
+		/// <summary>
+		/// <para>Could this host actually pay for a batch of something we are short of? Only asked on the
+		/// EVACUATE detour, and it is the one gate there that is not about distance.</para>
+		///
+		/// <para>Everywhere else a wasted walk costs a walk. Here it costs the unit's exit: an evacuating
+		/// actor that detours to a host which cannot serve it does not resume leaving — it parks in
+		/// <see cref="Activities.SeekSupplyProvider"/>'s in-range branch, which stands still waiting for a
+		/// push that never comes and has no stall guard of its own (AutoSeekSupplies' guard covers only
+		/// errands that trait dispatched, on infantry). So the m270/grad/tos, which ship with
+		/// InitialResupplyBehavior: Evacuate, would trade a banked refund for a combat-inert vehicle
+		/// standing at a truck for the rest of the match. <see cref="ChooseResupplier"/> filters on
+		/// CurrentSupply &gt; 0 only, which is not the same question when a pool costs 50 a batch and the
+		/// truck is holding 3.</para>
+		///
+		/// <para>Same affordability test AutoSeekSupplies.CanServe applies from the other side, deliberately
+		/// — a host we would refuse to walk to must also be one we refuse to abandon an exit for. A host
+		/// with no SupplyProvider charges nothing (the pure RearmsUnits depot), so it always passes.</para>
+		/// </summary>
+		static bool HostCanAffordSomethingWeNeed(Actor host, IEnumerable<AmmoPool> pools)
+		{
+			var provider = host.TraitOrDefault<SupplyProvider>();
+			if (provider == null)
+				return true;
+
+			foreach (var p in pools)
+				if (!p.HasFullAmmo && provider.CurrentSupply >= p.Info.SupplyValue)
+					return true;
+
+			return false;
+		}
+
+		/// <summary>
+		/// <para>Which leash applies to a self-dispatch right now: the full
+		/// <see cref="AmmoPoolInfo.DryRearmLeashCells"/> when the actor cannot shoot at all, the shorter
+		/// <see cref="AmmoPoolInfo.EssentialDryLeashCells"/> when it has merely lost the pool that
+		/// matters and can still fire something.</para>
+		///
+		/// <para>Callers must already have established <see cref="OutOfEssentialAmmo(IEnumerable{AmmoPool})"/>;
+		/// this only picks which of the two budgets that dryness earns. Resolved across all pools by
+		/// <see cref="ResolveDryRearmLeash"/> (tightest wins) for the reasons given there.</para>
+		/// </summary>
+		public static int ResolveSeekLeash(IEnumerable<AmmoPool> pools)
+		{
+			var fullyDry = AllPoolsEmpty(pools);
+
+			var leash = int.MaxValue;
+			foreach (var p in pools)
+			{
+				var l = fullyDry ? p.Info.DryRearmLeashCells : p.Info.EssentialDryLeashCells;
+				if (l < leash)
+					leash = l;
+			}
+
+			return leash == int.MaxValue ? 0 : leash;
+		}
+
+		/// <summary>
 		/// The dry-rearm leash for an ACTOR, from the pools it carries. Tightest wins.
 		///
 		/// <para>Needed because <see cref="DryRearmLeashCells"/> is declared per POOL while the decision it
-		/// governs is per ACTOR — <see cref="AutoRearmIfAllEmpty"/> is an instance method that acts on the
+		/// governs is per ACTOR — <see cref="AutoRearmIfDry"/> is an instance method that acts on the
 		/// whole actor, and on a two-pool actor (several infantry carry primary + secondary)
 		/// <c>INotifyBecomingIdle</c> delivers to EACH pool in turn. Reading <c>Info</c> off whichever
 		/// instance happened to be notified would make the bound depend on trait ordering, so the answer
@@ -254,7 +435,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// <para>"This actor must not be holding an attack order" — every pool empty
 		/// (<see cref="AllPoolsEmpty(Actor)"/>) on an actor that is not an aircraft.</para>
 		///
-		/// <para>Aircraft are carved out deliberately, matching <see cref="AutoRearmIfAllEmpty"/> and
+		/// <para>Aircraft are carved out deliberately, matching <see cref="AutoRearmIfDry"/> and
 		/// <see cref="AutoRearmIfAnyNotFull"/> directly below. A dry aircraft rearms through its own
 		/// idle ReturnToBase flow (Aircraft.cs), which is reached by the attack activity ending on the
 		/// aircraft's terms; tearing that activity down from the outside fights that flow instead of
@@ -278,10 +459,20 @@ namespace OpenRA.Mods.Common.Traits
 			return AllPoolsEmpty(self) && !self.Info.HasTraitInfo<AircraftInfo>();
 		}
 
-		public void AutoRearmIfAllEmpty(Actor self)
+		/// <summary>
+		/// <para>Self-dispatch to a rearm host, or adopt whatever disposition the actor's ResupplyBehavior
+		/// stance calls for, once it has run dry.</para>
+		///
+		/// <para>"Dry" is <see cref="OutOfEssentialAmmo(IEnumerable{AmmoPool})"/>, NOT AllPoolsEmpty —
+		/// renamed from AutoRearmIfDry on 2026-08-21 because the old name became a lie the moment
+		/// the predicate widened, and a method whose name states the wrong trigger is exactly the kind of
+		/// thing that costs an afternoon. With nothing authored Essential the two are identical, so the
+		/// rename is the only thing that changes for an unmodified mod.</para>
+		/// </summary>
+		public void AutoRearmIfDry(Actor self)
 		{
 			var ammoPools = self.TraitsImplementing<AmmoPool>();
-			if (!AllPoolsEmpty(ammoPools) || self.Info.HasTraitInfo<AircraftInfo>())
+			if (!OutOfEssentialAmmo(ammoPools) || self.Info.HasTraitInfo<AircraftInfo>())
 				return;
 
 			// Check resupply behavior stance
@@ -305,7 +496,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (host != null && !SupplyHuntMath.WithinCellBudget(
 						host.Location.X - self.Location.X,
 						host.Location.Y - self.Location.Y,
-						ResolveDryRearmLeash(ammoPools.Select(p => p.Info.DryRearmLeashCells))))
+						ResolveSeekLeash(ammoPools)))
 					{
 						foreach (var ap in ammoPools)
 							ap.NeedsResupply = true;
@@ -332,6 +523,56 @@ namespace OpenRA.Mods.Common.Traits
 					break;
 
 				case ResupplyBehavior.Evacuate:
+					// DETOUR FIRST, if and only if the ammunition is nearer than the way out (user ruling
+					// 2026-08-21: "they should still go to any nearby resupply first if it is available,
+					// otherwise they evacuate"). A unit told to leave must never travel BACKWARDS, deeper
+					// into the fight it was pulled from, to rearm — so this is a strict-nearer test rather
+					// than a plain "is there a truck about", and ties go to leaving
+					// (SupplyHuntMath.ResupplyBeatsExit).
+					//
+					// PROXY, stated plainly: the distance compared against is to the evacuation ANCHOR
+					// (the SpawnArea the exit is chosen around), not to the literal edge cell the unit
+					// will drive to. Resolving that cell means Map.ChooseClosestMatchingEdgeCell, which
+					// sorts the whole perimeter and pathfinds per candidate — acceptable once when an
+					// evacuation begins, not on every idle-while-dry decision. The anchor sits at the map
+					// edge the unit is heading for, so the two agree to within the width of the spawn
+					// area; where they disagree, it is by a handful of cells at the destination end, and
+					// the error cannot flip a host that is genuinely behind the unit into looking ahead
+					// of it. Sharing RotateToEdge's own helper rather than guessing beside it is what
+					// keeps even that much honest.
+					//
+					// No anchor (no SpawnArea on the map) means there is no exit to be nearer than, and
+					// RotateToEdge would fall back to the closest edge cell to the unit itself. The leash
+					// alone then decides, which is the user's primary criterion anyway — "any NEARBY
+					// resupply".
+					var evacHost = ChooseResupplier(self);
+					if (evacHost != null && HostCanAffordSomethingWeNeed(evacHost, ammoPools) && SupplyHuntMath.WithinCellBudget(
+							evacHost.Location.X - self.Location.X,
+							evacHost.Location.Y - self.Location.Y,
+							ResolveSeekLeash(ammoPools)))
+					{
+						var anchor = RotateToEdge.FindClosestSpawnAreaForOwner(self);
+						var beatsExit = anchor == null || SupplyHuntMath.ResupplyBeatsExit(
+							evacHost.Location.X - self.Location.X,
+							evacHost.Location.Y - self.Location.Y,
+							anchor.Value.X - self.Location.X,
+							anchor.Value.Y - self.Location.Y);
+
+						if (beatsExit)
+						{
+							foreach (var ap in ammoPools)
+								ap.NeedsResupply = false;
+
+							// dispatchedBecauseDry: this is the unit's own errand, bounded by the dryness
+							// that prompted it, and it walks home afterwards. If the rearm does not take
+							// (host drained, unreachable), the unit goes idle still dry and arrives back
+							// here — where the host is now filtered out by CurrentSupply and it leaves.
+							AutoRearm(self, true);
+							self.ShowTargetLines();
+							break;
+						}
+					}
+
 					// Leave the battlefield via Supply Route
 					foreach (var ap in ammoPools)
 						ap.NeedsResupply = false;
@@ -386,13 +627,13 @@ namespace OpenRA.Mods.Common.Traits
 				TakeAmmo(self, a.Info.AmmoUsage);
 
 				if (!HasAmmo && self.TraitOrDefault<IMove>() != null && !self.Info.HasTraitInfo<AircraftInfo>())
-					AutoRearmIfAllEmpty(self);
+					AutoRearmIfDry(self);
 			}
 		}
 
 		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
 		{
-			AutoRearmIfAllEmpty(self);
+			AutoRearmIfDry(self);
 		}
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)

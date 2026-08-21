@@ -3,6 +3,45 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-21 — the idle seek cannot walk infantry to a Logistics Centre, and the reason is a comment that is false for exactly one pairing
+
+Branch `wt/resupply-tiers`. This resolves the open question from the recon below — whether the idle
+seek genuinely works for infantry — and the answer is "yes, except where it matters most".
+
+**Infantry rearm at a Logistics Centre by PROXIMITY, not by the supply push.** `LOGISTICSCENTER`
+carries `ProximityExternalCondition@ReplenishSoldiers` granting `replenish-soldiers` to allies within
+**4 cells** (`structures.yaml:407-411`), and every infantry `ReloadAmmoPool` is gated on exactly that
+condition (`infantry.yaml:1188`, `:1217`, and 12 more). So a soldier who simply STANDS next to an LC
+refills. The LC's own `SupplyProvider` is a separate mechanism aimed at vehicles
+(`RearmCondition: replenish-vehicles`, `structures.yaml:419`).
+
+**`AutoSeekSupplies.CanServe` rejects the LC twice over** — once for having a `DockedCondition`
+(`AutoSeekSupplies.cs:465`) and again for the `replenish-vehicles` gate infantry cannot satisfy
+(`:471`). The first rejection carries the comment *"Walking into its aura would achieve nothing"*.
+**That sentence is false for this one pairing**, and it is false in the most expensive possible place:
+walking into the LC's aura is precisely what rearms a soldier. The comment is right about the
+SupplyProvider aura it was written about and wrong about the actor, which is the same shape as the
+`RestockThreshold` entry further down this file.
+
+**The consequence, and it matches the user's report exactly.** For a soldier who is PARTIALLY dry —
+rifle spent, one AT round left — the idle seek was the only path that could fire at all (the other two
+required every pool empty). It rejects the LC. So a rifleman out of bullets standing beside a
+Logistics Centre stood there indefinitely: the seek refused the only host in range, and the all-empty
+paths never triggered. No launch was needed to establish this; it is four YAML declarations and two
+early-returns.
+
+Fully-dry soldiers were unaffected, because `AmmoPool.ChooseResupplier` — which the other two paths
+use — applies neither gate and returns the LC happily (`^E3.RearmActors` names it,
+`infantry.yaml:1242`). **Two host-discovery paths with different answers for the same actor** is the
+durable lesson: `CanServe` is the strict one and is proximity-push-shaped, `ChooseResupplier` is the
+permissive one and is destination-shaped, and which one a unit gets depends only on which trigger
+fired.
+
+**Left unfixed deliberately.** Relaxing `CanServe` would change the idle seek for every infantryman in
+the mod against no measurement, and the widened dispatch predicate now reaches the LC through
+`ChooseResupplier` anyway once a pool is authored `Essential`. Logged in
+`WORKSPACE/bugs/discovered.md` instead.
+
 ## 2026-08-21 — "partial dryness" is already handled for idle infantry; the real holes are vehicles and the exit predicate
 
 Branch `wt/resupply-tiers`, recon only. Report: "a rifleman without bullets should basically be

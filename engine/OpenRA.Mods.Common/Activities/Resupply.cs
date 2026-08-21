@@ -53,8 +53,11 @@ namespace OpenRA.Mods.Common.Activities
 		/// </para>
 		/// <para>
 		/// It buys exactly one thing: permission to re-ask the question the constructor froze. The
-		/// answer is <see cref="AmmoPool.AllPoolsEmpty(IEnumerable{AmmoPool})"/> negated — the
-		/// dispatch condition, not a second definition of "enough ammo" — matching
+		/// answer is <see cref="AmmoPool.OutOfEssentialAmmo(IEnumerable{AmmoPool})"/> negated — the
+		/// dispatch condition itself, not a second definition of "enough ammo". Both sides must name
+		/// the SAME function: an exit still reading AllPoolsEmpty after the dispatch predicate widened
+		/// would already be satisfied when a partially-dry unit set off, ending the errand on tick one.
+		/// Matching
 		/// <see cref="SeekSupplyProvider"/>, which runs the truck/cache half of the same errand.
 		/// </para>
 		/// </summary>
@@ -236,7 +239,7 @@ namespace OpenRA.Mods.Common.Activities
 				// rather than a new one.
 				if (!actualResupplyStarted
 					&& activeResupplyTypes.HasFlag(ResupplyType.Rearm)
-					&& !AmmoPool.AllPoolsEmpty(pools))
+					&& AmmoPool.SelfAssignedErrandIsOver(dispatchedBecauseDry, pools))
 				{
 					activeResupplyTypes &= ~ResupplyType.Rearm;
 

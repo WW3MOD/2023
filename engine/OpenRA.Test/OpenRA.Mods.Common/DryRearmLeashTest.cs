@@ -3,14 +3,14 @@
  * WW3MOD dry-rearm leash — contract + anti-drift pin.
  *
  * USER RULING, 2026-08-21: the self-dispatch path that had no distance test at all
- * (AmmoPool.INotifyBecomingIdle -> AutoRearmIfAllEmpty, and the same method reached from firing the
+ * (AmmoPool.INotifyBecomingIdle -> AutoRearmIfDry, and the same method reached from firing the
  * last round) gets a 30-cell bound, "reusing a limit that already exists and was already thought
  * about, rather than inventing a new number".
  *
  * THE VALUE IS SHARED; THE FIELD IS NOT, and that split is the thing this file exists to keep honest.
  * The obvious implementation was to read AutoSeekSuppliesInfo.ReturnWhenEmptyLeashCells, which already
  * carries 30. It would have been wrong: AutoSeekSupplies is declared on ^Soldier alone, while
- * AutoRearmIfAllEmpty runs on every non-aircraft actor holding an AmmoPool — vehicles included. A
+ * AutoRearmIfDry runs on every non-aircraft actor holding an AmmoPool — vehicles included. A
  * vehicle would have kept no leash at all, and the gap would have been invisible at the only site
  * anyone reads.
  *

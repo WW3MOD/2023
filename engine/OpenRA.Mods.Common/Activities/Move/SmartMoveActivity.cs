@@ -81,7 +81,7 @@ namespace OpenRA.Mods.Common.Activities
 				// (Mobile.cs:1032) and so never enters this activity.
 				//
 				// Deliberately the SAME predicate the resupply dispatch uses (AutoSeekSupplies'
-				// ReturnWhenEmpty and AmmoPool.AutoRearmIfAllEmpty): the set of units sent away to rearm
+				// ReturnWhenEmpty and AmmoPool.AutoRearmIfDry): the set of units sent away to rearm
 				// is then exactly the set this refuses to pin, so the two cannot drift into disagreeing
 				// about what "empty" means. Skipping the scan outright rather than filtering its result
 				// also stops a unit that cannot shoot from paying for a full target scan every interval.

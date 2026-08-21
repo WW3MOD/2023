@@ -533,7 +533,7 @@ namespace OpenRA.Mods.Common.Scripting.Global
 
 		[Desc("Issue the Resupply order the RESUPPLY command-bar button produces (CommandBarLogic.cs:187). " +
 			"This is the only route into AmmoPool.AutoRearmIfAnyNotFull, which — unlike the dry " +
-			"AutoRearmIfAllEmpty path everything else uses — dispatches a unit that is merely " +
+			"AutoRearmIfDry path everything else uses — dispatches a unit that is merely " +
 			"PARTIALLY empty. Test mode only.")]
 		public void IssueResupply(Actor self, bool queued = false)
 		{
