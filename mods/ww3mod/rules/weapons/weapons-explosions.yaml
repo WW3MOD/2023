@@ -612,14 +612,32 @@ IskanderExplosionAirborne:
 # stacked condition count (supply-level / ammo-primary), so which of these fires is
 # decided entirely in the actor YAML — see VolatileLoadBandTest for the partition.
 #
-# The ramp is linear in the band number N (1-8), landing at IskanderExplosion's
-# figures at band 8: MaxRadius N*512, shockwave damage N*1500, blast damage N*500.
-# A full carrier therefore detonates like a ballistic missile; that is deliberate
-# and is the balance question flagged to the user, not an accident of the maths.
+# THE VISUAL AND THE DAMAGE ARE DELIBERATELY DECOUPLED, and the split is the whole
+# point of this weapon family. Per the ruling of 2026-08-21 these are a SPECTACLE,
+# not an area-denial weapon:
+#
+#   * MaxRadius drives how far the ring TRAVELS, and it stays wide — band 8 still
+#     sweeps four cells. ShockwaveEffect.Tick uses it purely to bound the wave's
+#     expansion (ShockwaveEffect.cs:60-66).
+#   * Spread x Falloff.Length drives how far the ring HURTS, and it is short.
+#     ShockwaveDamageWarhead builds effectiveRange as i * Spread, independent of
+#     MaxRadius (ShockwaveDamageWarhead.cs:80), and returns NO damage at all past
+#     the last step rather than clamping to it (:130). So a tight Spread with a
+#     steep Falloff gives a hard cutoff, not a long tail.
+#
+# Net damage radius is min(MaxRadius, (Falloff.Length - 1) * Spread), because the
+# wavefront also has to physically reach an actor to damage it. The shockwave dies
+# at 1364 (1.33 cells) and the blast at 1024 (1 cell); bands 1-2 are tighter still
+# because their MaxRadius binds first.
+#
+# Calibrated against 200 HP infantry: standing on the carrier is fatal in every
+# band, a cell away is a survivable scratch, and beyond ~1.33 cells it is exactly
+# zero. VEHICLES CONSEQUENTLY TAKE VERY LITTLE — a full carrier removes about 5%
+# of an Abrams. That is the intended outcome of the ruling, not a miscalibration;
+# do not "fix" it by raising these numbers.
 #
 # AffectsParent and the absence of any relationship filter match IskanderExplosion
-# and HIMARSExplosion exactly — these blasts hurt nearby FRIENDLY units. That is
-# existing behaviour being extended, not a new decision.
+# exactly: these blasts hurt nearby FRIENDLY units, confirmed as intended.
 # ---------------------------------------------------------------------------
 
 ^VolatileLoadEffects:
@@ -639,8 +657,9 @@ IskanderExplosionAirborne:
 VolatileLoad1:
 	Inherits: ^VolatileLoadEffects
 	Warhead@Spread: SpreadDamage
-		Spread: 128
-		Damage: 500
+		Spread: 256
+		Falloff: 100, 37, 14, 5, 0
+		Damage: 100
 		Penetration: 1800
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
@@ -649,17 +668,17 @@ VolatileLoad1:
 		StartDelay: 2
 		WaveSpeed: 5
 		MaxRadius: 512
-		Spread: 1c0
-		Damage: 1500
+		Spread: 341
+		Damage: 150
 		Penetration: 1500
-		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Falloff: 100, 60, 25, 5, 0
 		Versus:
 			Light: 80
 			Medium: 60
 			Heavy: 40
 			Concrete: 25
 		ShockwaveColor: FFFFF0C8
-		ShockwaveThickness: 384
+		ShockwaveThickness: 192
 		ShockwaveOuterAlpha: 20
 		ShockwaveInnerAlpha: 6
 		ShockwaveFadeInTicks: 6
@@ -675,7 +694,8 @@ VolatileLoad2:
 	Inherits: ^VolatileLoadEffects
 	Warhead@Spread: SpreadDamage
 		Spread: 256
-		Damage: 1000
+		Falloff: 100, 37, 14, 5, 0
+		Damage: 200
 		Penetration: 1800
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
@@ -684,17 +704,17 @@ VolatileLoad2:
 		StartDelay: 2
 		WaveSpeed: 5
 		MaxRadius: 1c0
-		Spread: 1c0
-		Damage: 3000
+		Spread: 341
+		Damage: 300
 		Penetration: 1500
-		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Falloff: 100, 60, 25, 5, 0
 		Versus:
 			Light: 80
 			Medium: 60
 			Heavy: 40
 			Concrete: 25
 		ShockwaveColor: FFFFF0C8
-		ShockwaveThickness: 384
+		ShockwaveThickness: 256
 		ShockwaveOuterAlpha: 20
 		ShockwaveInnerAlpha: 6
 		ShockwaveFadeInTicks: 6
@@ -709,8 +729,9 @@ VolatileLoad2:
 VolatileLoad3:
 	Inherits: ^VolatileLoadEffects
 	Warhead@Spread: SpreadDamage
-		Spread: 384
-		Damage: 1500
+		Spread: 256
+		Falloff: 100, 37, 14, 5, 0
+		Damage: 300
 		Penetration: 1800
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
@@ -719,10 +740,10 @@ VolatileLoad3:
 		StartDelay: 2
 		WaveSpeed: 5
 		MaxRadius: 1c512
-		Spread: 1c0
-		Damage: 4500
+		Spread: 341
+		Damage: 450
 		Penetration: 1500
-		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Falloff: 100, 60, 25, 5, 0
 		Versus:
 			Light: 80
 			Medium: 60
@@ -744,8 +765,9 @@ VolatileLoad3:
 VolatileLoad4:
 	Inherits: ^VolatileLoadEffects
 	Warhead@Spread: SpreadDamage
-		Spread: 512
-		Damage: 2000
+		Spread: 256
+		Falloff: 100, 37, 14, 5, 0
+		Damage: 400
 		Penetration: 1800
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
@@ -754,10 +776,10 @@ VolatileLoad4:
 		StartDelay: 2
 		WaveSpeed: 5
 		MaxRadius: 2c0
-		Spread: 1c0
-		Damage: 6000
+		Spread: 341
+		Damage: 600
 		Penetration: 1500
-		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Falloff: 100, 60, 25, 5, 0
 		Versus:
 			Light: 80
 			Medium: 60
@@ -779,8 +801,9 @@ VolatileLoad4:
 VolatileLoad5:
 	Inherits: ^VolatileLoadEffects
 	Warhead@Spread: SpreadDamage
-		Spread: 640
-		Damage: 2500
+		Spread: 256
+		Falloff: 100, 37, 14, 5, 0
+		Damage: 500
 		Penetration: 1800
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
@@ -789,10 +812,10 @@ VolatileLoad5:
 		StartDelay: 2
 		WaveSpeed: 5
 		MaxRadius: 2c512
-		Spread: 1c0
-		Damage: 7500
+		Spread: 341
+		Damage: 750
 		Penetration: 1500
-		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Falloff: 100, 60, 25, 5, 0
 		Versus:
 			Light: 80
 			Medium: 60
@@ -814,8 +837,9 @@ VolatileLoad5:
 VolatileLoad6:
 	Inherits: ^VolatileLoadEffects
 	Warhead@Spread: SpreadDamage
-		Spread: 768
-		Damage: 3000
+		Spread: 256
+		Falloff: 100, 37, 14, 5, 0
+		Damage: 600
 		Penetration: 1800
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
@@ -824,10 +848,10 @@ VolatileLoad6:
 		StartDelay: 2
 		WaveSpeed: 5
 		MaxRadius: 3c0
-		Spread: 1c0
-		Damage: 9000
+		Spread: 341
+		Damage: 900
 		Penetration: 1500
-		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Falloff: 100, 60, 25, 5, 0
 		Versus:
 			Light: 80
 			Medium: 60
@@ -849,8 +873,9 @@ VolatileLoad6:
 VolatileLoad7:
 	Inherits: ^VolatileLoadEffects
 	Warhead@Spread: SpreadDamage
-		Spread: 896
-		Damage: 3500
+		Spread: 256
+		Falloff: 100, 37, 14, 5, 0
+		Damage: 700
 		Penetration: 1800
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
@@ -859,10 +884,10 @@ VolatileLoad7:
 		StartDelay: 2
 		WaveSpeed: 5
 		MaxRadius: 3c512
-		Spread: 1c0
-		Damage: 10500
+		Spread: 341
+		Damage: 1050
 		Penetration: 1500
-		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Falloff: 100, 60, 25, 5, 0
 		Versus:
 			Light: 80
 			Medium: 60
@@ -884,8 +909,9 @@ VolatileLoad7:
 VolatileLoad8:
 	Inherits: ^VolatileLoadEffects
 	Warhead@Spread: SpreadDamage
-		Spread: 1c0
-		Damage: 4000
+		Spread: 256
+		Falloff: 100, 37, 14, 5, 0
+		Damage: 800
 		Penetration: 1800
 		ValidTargets: Ground, Trees, Water
 		AffectsParent: true
@@ -894,10 +920,10 @@ VolatileLoad8:
 		StartDelay: 2
 		WaveSpeed: 5
 		MaxRadius: 4c0
-		Spread: 1c0
-		Damage: 12000
+		Spread: 341
+		Damage: 1200
 		Penetration: 1500
-		Falloff: 100, 80, 60, 40, 25, 12, 5
+		Falloff: 100, 60, 25, 5, 0
 		Versus:
 			Light: 80
 			Medium: 60

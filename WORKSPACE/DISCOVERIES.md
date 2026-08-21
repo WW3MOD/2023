@@ -3,6 +3,41 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-21 — a shockwave's damage radius and its visual radius are separate knobs
+
+Branch `wt/volatile-load`. `ShockwaveDamage` looks like it has one size, `MaxRadius`. It has two,
+and they are independent:
+
+* **`MaxRadius` is the VISUAL travel limit.** `ShockwaveEffect.Tick` expands the ring by
+  `1024 / WaveSpeed` per tick and ends the effect once `currentRadius > MaxRadius`
+  (`ShockwaveEffect.cs:60-66`); `RenderAnnotation` divides by it to get the fade progress (`:107`).
+* **`Spread x Falloff.Length` is the DAMAGE limit.** `RulesetLoaded` builds
+  `effectiveRange = MakeArray(Falloff.Length, i => i * Spread)` (`ShockwaveDamageWarhead.cs:80`),
+  which never consults `MaxRadius`, and `ApplyBlastDamage` returns outright when the victim is past
+  the last step (`:130`) rather than clamping to the final `Falloff` entry. So the damage stops
+  DEAD at `(Falloff.Length - 1) * Spread`, with no tail.
+
+The effective damage radius is therefore `min(MaxRadius, (Falloff.Length - 1) * Spread)`, since the
+wavefront must also physically reach an actor before `ApplyBlastDamage` is called at all. **That is
+what lets a shockwave sweep four cells for spectacle while only hurting things within one** — the
+shape wanted for a cosmetic detonation, and not otherwise reachable by lowering `Damage`, which
+scales the whole curve uniformly and leaves the long tail intact.
+
+Two details that bite when calibrating:
+
+* `GetDamageFalloff` LERPs between adjacent steps (`:157`), so the curve is piecewise linear, not
+  stepwise — a coarse `Spread` cannot express a sharp cutoff no matter what the `Falloff` numbers
+  say. Tighten `Spread` to sharpen the knee.
+* The default `DamageCalculationType.HitShape` measures from the victim's hitshape EDGE
+  (`:120-123`), not its centre, so a unit "one cell away" takes slightly more than centre-to-centre
+  arithmetic predicts. Calibrate with headroom.
+
+Related: the ring's drawn thickness is not `ShockwaveThickness` directly. `RenderAnnotation` scales
+it by `min(1, progress * 2.5)` (`ShockwaveEffect.cs:120`), reaching the configured value at 40% of
+`MaxRadius`. A thickness anywhere near its own `MaxRadius` therefore renders as a filled disc for
+most of the wave's life rather than a travelling ring; `IskanderExplosion`'s 1024-on-4096 is a 1:4
+ratio and is the reference to match.
+
 ## 2026-08-21 — a condition variable resolves to its STACK DEPTH, so a band selector needs no engine code
 
 Branch `wt/volatile-load`. `Actor.UpdateConditionState` assigns `conditionCache[condition] =
