@@ -86,7 +86,33 @@ namespace OpenRA.Mods.Common.Traits
 			// Players want to see the lines when in waypoint mode.
 			var force = Game.GetModifierKeys().HasModifier(Modifiers.Shift) || self.World.OrderGenerator is ForceModifiersOrderGenerator;
 
-			return force || Game.RunTime <= lifetime;
+			// An AUTOMATIC order does not time out: it is shown for as long as the unit is still acting
+			// on it. The Delay timeout is calibrated for an order the PLAYER just gave — they know where
+			// they sent the unit, so the line is a brief confirmation. Nobody announces an automatic
+			// order, so the only way to see one is to select the unit and ask; and because
+			// INotifySelected.Selected is what re-arms `lifetime`, asking bought exactly Delay
+			// milliseconds and then went dark while the unit was visibly still walking. That is the
+			// "works somewhat, but not great" the user reported about the healer's line.
+			return force || Game.RunTime <= lifetime || HasAutomaticNode(self);
+		}
+
+		/// <summary>Whether this actor's activity queue currently draws any automatic-order line.</summary>
+		/// <remarks>Checked only after the ordinary timeout has lapsed, so the queue walk costs nothing
+		/// on the common path. Line nodes are the ones with no Tile; tile-marker nodes are handled by
+		/// <see cref="TileNodes"/> and are never order lines.</remarks>
+		static bool HasAutomaticNode(Actor self)
+		{
+			for (var a = self.CurrentActivity; a != null; a = a.NextActivity)
+			{
+				if (a.IsCanceling)
+					continue;
+
+				foreach (var n in a.TargetLineNodes(self))
+					if (n.Tile == null && n.Target.Type != TargetType.Invalid && AutomaticOrder.IsAutomatic(n.Color))
+						return true;
+			}
+
+			return false;
 		}
 
 		IEnumerable<IRenderable> IRenderAboveShroud.RenderAboveShroud(Actor self, WorldRenderer wr)

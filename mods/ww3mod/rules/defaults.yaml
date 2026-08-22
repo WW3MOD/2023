@@ -6,7 +6,31 @@
 		PlayerExperienceModifier: 1
 	ScriptTriggers:
 	RenderDebugState:
+	# Two complementary readouts for "this unit is being treated", both on the PATIENT, never the
+	# medic — the player's question is "is this soldier being healed", not "is that medic busy".
+	# The flash marks each heal IMPACT; the pip below marks the durative STATE. Deliberately both:
+	# a flash alone cannot say "still under treatment", a pip alone cannot say "a tick just landed".
 	WithHealFlash:
+		# Was white / 0.3 / Count 2 / Interval 2 — two 60ms tinted ticks of near-transparent white on
+		# a ~30px sprite. Shipped since 82938ec8 but effectively subliminal, which is why the user
+		# reports no healing feedback at all. FlashTarget tints only on `tick % Interval == 0`, so
+		# Interval 1 is what turns a strobe into one continuous glow: 6 ticks ~= 360ms at Timestep 60.
+		Color: 40FF60
+		Alpha: 0.5
+		Count: 6
+		Interval: 1
+		Cooldown: 20
+	GrantConditionOnHealed:
+		Condition: being-healed
+	WithDecoration@Healed:
+		RequiresSelection: false
+		Image: pips
+		Sequence: pip-heal
+		Position: Top
+		Margin: 8,0
+		RequiresCondition: being-healed
+		BlinkInterval: 6
+		BlinkPattern: On, Off
 ^SpriteActor:
 	BodyOrientation:
 	QuantizeFacingsFromSequence:

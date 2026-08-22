@@ -54,7 +54,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
-			if (e.Damage.Value >= 0 || cooldownRemaining > 0)
+			if (!HealEvent.IsHealing(e) || cooldownRemaining > 0)
 				return;
 
 			cooldownRemaining = info.Cooldown;
