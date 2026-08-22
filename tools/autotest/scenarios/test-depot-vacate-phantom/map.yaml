@@ -58,6 +58,18 @@ Actors:
 		Owner: USA
 		Location: 20,17
 		Facing: 512
+	# The SECOND customer, and the reason this scenario earns its run twice over. The suite has no
+	# other two-vehicles-one-depot case: test-lc-rearm-partial-order's only contention is PairA/PairB,
+	# both `ar` INFANTRY sharing a cell via subcells, and its lone vehicle has a depot to itself.
+	# Without this actor, a change making the dock cell stayable would go green through the whole
+	# suite while shipping a hard stall — MoveOnto.CalculatePathToTarget waits rather than stacking
+	# when the dock is occupied (MoveOnto.cs:41-58), and the LC's isCloseEnough is WDist.Zero, so
+	# there is no near-enough fallback to rescue it.
+	# Offset one row south so the two do not contend for approach cells before the depot itself.
+	Tank2: abrams
+		Owner: USA
+		Location: 20,20
+		Facing: 512
 	SpawnUSA: mpspawn
 		Owner: Neutral
 		Location: 20,17

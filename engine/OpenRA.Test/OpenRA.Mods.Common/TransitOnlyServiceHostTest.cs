@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * WW3MOD phantom-movement tests: a serviced unit must not be parked on a cell it cannot stay in.
+ * WW3MOD phantom-movement tests: the depot dock cell must STAY unstayable.
  *
  * The player-visible symptom is "a vehicle ordered to a position arrives, then backs up a bit, like
  * it got a hidden extra order". There IS a hidden extra order. Mobile.OnBecomingIdle (Mobile.cs:945)
@@ -25,9 +25,11 @@
  * unit goes idle ON the host and is bounced off. That override is precisely what Mobile.cs:944's "activities
  * should be making sure that this can't happen in the first place!" is complaining about.
  *
- * So the invariant is: a building that ground units are driven ONTO to be serviced must not declare its
- * footprint transit-only. This is a data assertion because the defect is in the data — the engine paths
- * above are upstream OpenRA and behave as designed.
+ * The tempting conclusion — "so the dock cell should be stayable" — is WRONG, and this fixture exists to
+ * stop it. See the comment on the assertion below: the bounce is what keeps the dock free for a docking
+ * system with no queue and no reservation, and removing it strands the next customer at the door. The real
+ * defect was that the correction was INVISIBLE, fixed on wt/heal-legibility by painting it in
+ * AutomaticOrder.LineColor; test-depot-vacate-phantom proves both halves in a running game.
  */
 #endregion
 
@@ -98,31 +100,41 @@ namespace OpenRA.Test
 				"LOGISTICSCENTER is the ground-vehicle repair and supply depot; if it is no longer found, this fixture is looking in the wrong place");
 		}
 
-		// EXPLICIT because this currently FAILS: it is the proof of an unfixed defect, not a regression gate
-		// yet. Both fixes are gameplay-data decisions that were not mine to take — '+' -> '=' makes the depot
-		// occupy nothing at all (it stops blocking, and placement/BuildingInfluence move with it), '+' -> 'x'
-		// stops the docking drive-on that repair depends on. Delete this attribute as part of whichever fix
-		// lands; the assertion is already the right gate for it.
-		// Run it with:
-		//   dotnet test engine/OpenRA.Test/OpenRA.Test.csproj -c Release \
-		//     --filter "FullyQualifiedName~AServicedUnitIsNeverParkedOnACellItCannotStayIn"
-		[Test, Explicit]
-		public void AServicedUnitIsNeverParkedOnACellItCannotStayIn()
+		// This assertion is INVERTED from the one first written here, and the inversion is the finding.
+		//
+		// The obvious reading of the bug is "a serviced unit should never be parked on a cell it cannot
+		// stay in", and the obvious fix is to make the dock cell stayable. Both are wrong. The bounce is
+		// LOAD-BEARING: it is what keeps the dock free by construction for a docking system that has no
+		// queue and no reservation — the LC carries no Reservable, unlike HPAD (structures.yaml:513) and
+		// AFLD (:588). Make the dock stayable and the serviced vehicle parks there forever, while the next
+		// one waits forever: MoveOnto.CalculatePathToTarget returns NoPath and WAITS rather than stacking
+		// when the target cell is occupied (MoveOnto.cs:41-58), and Resupply's isCloseEnough for the LC is
+		// WDist.Zero (no RearmsUnits trait supplies a CloseEnough), so exact coincidence with the building
+		// centre is required and nothing rescues it. That trades a cosmetic bug for a hard stall.
+		//
+		// So this pins the '+' rather than forbidding it. It fails if someone "fixes" the footprint, and
+		// the failure text is the argument for why they should not — the real bug was legibility, fixed by
+		// painting the correction in AutomaticOrder.LineColor, and test-depot-vacate-phantom is what
+		// proves both halves in a running game.
+		[Test]
+		public void ServiceHostDockCellsStayTransitOnlyBecauseTheVacateDependsOnIt()
 		{
-			var offenders = Structures()
+			var dockCellsAreTransitOnly = Structures()
 				.Where(IsServiceHost)
 				.Select(a => (a.Key, Print: Footprint(a)))
 				.Where(x => x.Print != null && x.Print.Contains('+'))
-				.Select(x => $"{x.Key} (Footprint: {x.Print})")
+				.Select(x => x.Key)
 				.ToArray();
 
-			Assert.That(offenders, Is.Empty,
-				"these buildings service units that are driven onto them (Resupply.cs:274 -> MoveOnto, whose " +
-				"CalculatePathToTarget override drops the base class's CanStayInCell filter), but declare " +
-				"transit-only '+' footprint cells. A unit that " +
-				"finishes servicing there falls idle on a cell it may not stop on, and Mobile.OnBecomingIdle " +
-				"(Mobile.cs:945) issues an unordered move to shove it off — the 'it backs up by itself' report. " +
-				"Offenders: " + string.Join(", ", offenders));
+			Assert.That(dockCellsAreTransitOnly, Contains.Item("LOGISTICSCENTER"),
+				"LOGISTICSCENTER's footprint no longer declares transit-only '+' cells. If that was deliberate, " +
+				"it just broke depot queueing rather than fixing the phantom-move report: a serviced vehicle " +
+				"now parks on the dock forever and the next one stalls at the door forever, because " +
+				"MoveOnto.CalculatePathToTarget waits instead of stacking (MoveOnto.cs:41-58) and the LC's " +
+				"isCloseEnough is WDist.Zero so there is no near-enough fallback. The unordered vacate is what " +
+				"keeps the dock free; the fix for it being invisible was AutomaticOrder.LineColor, not this. " +
+				"Making the dock stayable is only safe alongside a real reservation system (Reservable / " +
+				"DockHost), which this building does not have.");
 		}
 	}
 }
