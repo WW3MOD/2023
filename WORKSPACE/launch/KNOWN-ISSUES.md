@@ -194,8 +194,11 @@ Ranked by how likely someone is to hit them in the first half hour.
    so short descriptions look padded.
 7. **The missions browser is empty.** `missions.yaml` names 49 Red Alert campaign missions, none
    of which ship. A player who clicks Missions finds nothing.
-8. **A contested Supply Route tells the player something false** — the notification says
-   "Production and income frozen". Income is not frozen.
+8. ~~**A contested Supply Route tells the player something false** — the notification says
+   "Production and income frozen". Income is not frozen.~~ **Fixed 2026-08-22** (`wt/sr-message`):
+   both notifications now read "Production frozen", and the freeze line is suppressed entirely when
+   the overrun player is being defeated in the same tick (free-for-all, a solo lobby team, or the
+   last survivor of a team) — it previously printed one line above "is defeated".
 9. **Aircraft and ships cannot contest a Supply Route.** Only ground units can. Not obviously
    communicated.
 10. **Helicopters and airfields cannot rearm on-map.** `HPAD` and `AFLD` both carry

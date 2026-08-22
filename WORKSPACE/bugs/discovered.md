@@ -2954,7 +2954,14 @@ delete them. Note that wiring them means deciding what a hidden bar does to the 
 since every panel X is an absolute literal with nothing tying it to its neighbour (`ingame-player.yaml:53-57`
 PITFALL) — hiding one bar would leave a hole, not close up.
 
-## 2026-08-19 — the SR defeat system line claims income is frozen; it is not [low]
+## 2026-08-19 — the SR defeat system line claims income is frozen; it is not [low] — **FIXED 2026-08-22 (`wt/sr-message`)**
+
+> Fixed alongside the larger defect a user reported against the same line: it also fired for players
+> being defeated in the same tick. Both notifications now read "Production frozen", and the whole
+> freeze announcement is gated on `HasActiveTeamSupplyRoute()`. This entry's own closing remark —
+> that a frozen-income message "would only matter in team games, since in a 1v1 the player is marked
+> `Lost` in the same tick anyway" — is exactly the reasoning the bigger fix runs on. See DISCOVERIES
+> 2026-08-22.
 
 `SupplyRouteContestation.OnDefeatBarFull` (`engine/OpenRA.Mods.Common/Traits/SupplyRouteContestation.cs:417`)
 prints `"<player> has lost their Supply Route! Production and income frozen."` The trait's

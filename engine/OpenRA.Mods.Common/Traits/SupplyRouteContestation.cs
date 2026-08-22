@@ -21,8 +21,9 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Graduated contestation system for Supply Routes.",
 		"Tracks enemy vs friendly unit values in range to fill/deplete a control bar.",
 		"Production speed scales with bar level below the slowdown threshold.",
-		"When control bar is fully depleted, a defeat bar fills. At 100% defeat bar,",
-		"the player is defeated (no allies) or becomes passive (has allies).")]
+		"When control bar is fully depleted, a defeat bar fills. At 100% defeat bar, the player",
+		"becomes passive if a teammate still holds an active Supply Route (they can be relieved),",
+		"and is defeated outright if nobody is left to relieve them.")]
 	public class SupplyRouteContestationInfo : TraitInfo
 	{
 		[Desc("Range to detect enemy and friendly forces.")]
@@ -90,8 +91,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Text notification when defeat bar starts filling.")]
 		public readonly string DefeatWarningTextNotification = "Supply Route lost! Defeat imminent!";
 
+		// Not "production and income": passivity's only behavioural hook is IProductionSpeedModifier.
+		// Nothing in this trait — or anywhere reading IsPassive — touches PlayerResources, so a passive
+		// player's CashTrickler and passive income keep accruing while this line claims otherwise.
 		[Desc("Text notification when player becomes passive.")]
-		public readonly string PassiveTextNotification = "Supply Route overrun! Production and income frozen.";
+		public readonly string PassiveTextNotification = "Supply Route overrun! Production frozen.";
 
 		[Desc("Text notification when player is reinstated from passive.")]
 		public readonly string ReinstatedTextNotification = "Supply Route reclaimed! Production resuming.";
@@ -554,25 +558,51 @@ namespace OpenRA.Mods.Common.Traits
 			if (isPassive || self.Owner.WinState != WinState.Undefined)
 				return;
 
+			// ONE evaluation, TWO consumers — this is the whole point of the local.
+			//
+			// "Can anybody still relieve this Supply Route?" IS the passive-versus-defeated fork: true
+			// means the owner freezes and can be rescued, false means the team is eliminated in this
+			// same tick. The freeze notifications must be gated on THIS value and not on a re-derived
+			// "is this a team game?", because no such question is answerable here: a lobby team of one,
+			// the last survivor of a team, a player whose only ally is itself overrun, and a
+			// free-for-all player are all indistinguishable and all unrescuable. Deriving the message
+			// separately is what printed "has lost their Supply Route!" one line above "is defeated".
+			//
+			// Evaluated BEFORE isPassive is set for readability only — HasActiveTeamSupplyRoute skips
+			// this actor, so the order does not affect the result.
+			var rescuable = HasActiveTeamSupplyRoute();
+
 			// Become passive immediately — production halts and the bar drives notifications.
 			isPassive = true;
-			TextNotificationsManager.AddSystemLine(self.Owner.PlayerName + " has lost their Supply Route! Production and income frozen.");
 
-			var localPlayer = self.World.LocalPlayer;
-			if (localPlayer != null && !localPlayer.Spectating &&
-				(self.Owner == localPlayer || localPlayer.IsAlliedWith(self.Owner)))
+			if (rescuable)
 			{
-				TextNotificationsManager.AddTransientLine(self.Owner, info.PassiveTextNotification);
-			}
+				TextNotificationsManager.AddSystemLine(self.Owner.PlayerName + " has lost their Supply Route! Production frozen.");
 
-			// If any allied player still has a non-passive Supply Route, the team is still in play —
-			// stay passive and wait for either reinstatement or the last team SR to fall.
-			// Otherwise (no remaining active team SRs, or no allies at all) the entire team is defeated.
-			if (!HasActiveTeamSupplyRoute())
+				var localPlayer = self.World.LocalPlayer;
+				if (localPlayer != null && !localPlayer.Spectating &&
+					(self.Owner == localPlayer || localPlayer.IsAlliedWith(self.Owner)))
+				{
+					TextNotificationsManager.AddTransientLine(self.Owner, info.PassiveTextNotification);
+				}
+			}
+			else
+			{
+				// No remaining active team SRs, or no allies at all — the entire team is defeated.
+				// Announcing a freeze here would be announcing a state the player never occupies for
+				// longer than this tick; the defeat line that follows is the correct and only report.
 				ResolveTeamElimination();
+			}
 		}
 
 		bool HasActiveTeamSupplyRoute()
+		{
+			return HasRescuer(OtherSupplyRoutes());
+		}
+
+		// (same-team, win-state, passive) for every OTHER live Supply Route — the input to HasRescuer.
+		// Lazy, so HasRescuer's short-circuit still stops the world scan at the first live teammate.
+		IEnumerable<(bool SameTeam, WinState State, bool IsPassive)> OtherSupplyRoutes()
 		{
 			foreach (var actor in self.World.ActorsHavingTrait<SupplyRouteContestation>())
 			{
@@ -583,7 +613,19 @@ namespace OpenRA.Mods.Common.Traits
 				if (owner.NonCombatant || !owner.Playable)
 					continue;
 
-				if (!SameTeam(owner, self.Owner))
+				yield return (SameTeam(owner, self.Owner), owner.WinState, actor.Trait<SupplyRouteContestation>().isPassive);
+			}
+		}
+
+		// Pure decision: can this overrun Supply Route's owner still be relieved by a teammate? The
+		// single predicate behind both halves of OnDefeatBarFull's fork — freeze-and-announce when
+		// true, eliminate the team when false — so the two can never disagree about whether a rescue
+		// is possible.
+		public static bool HasRescuer(IEnumerable<(bool SameTeam, WinState State, bool IsPassive)> otherSupplyRoutes)
+		{
+			foreach (var sr in otherSupplyRoutes)
+			{
+				if (!sr.SameTeam)
 					continue;
 
 				// An ally that has already won means the whole team has won — the team is not
@@ -591,13 +633,14 @@ namespace OpenRA.Mods.Common.Traits
 				// victory (which skips it below via the Undefined guard) would leave a still-in-play
 				// teammate looking "unsupported" and drive ResolveTeamElimination to mark it Lost,
 				// producing a winning team with one member wrongly shown as defeated.
-				if (owner.WinState == WinState.Won)
+				if (sr.State == WinState.Won)
 					return true;
 
-				if (owner.WinState != WinState.Undefined)
+				if (sr.State != WinState.Undefined)
 					continue;
 
-				if (!actor.Trait<SupplyRouteContestation>().isPassive)
+				// A passive teammate is itself waiting to be relieved and cannot relieve anyone.
+				if (!sr.IsPassive)
 					return true;
 			}
 
