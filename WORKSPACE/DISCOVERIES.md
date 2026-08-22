@@ -10109,3 +10109,64 @@ cell has an actor sprite, so it tracks sprite pixels rather than terrain. Not ex
 (`WorldType.Shellmap`) takes the same path as the TestMode world view — A is a render-player-null frame,
 which is the same branch, but it is not literally a shellmap frame. And only the right edge was
 measured; the other three are assumed symmetric on the strength of the `Bounds` arithmetic alone.
+
+## 2026-08-22 — `MapLayers.GetVisibility` is NOT render-only, and `MapLayers.Disabled` is never set: the map-edge ring fix as scoped cannot be built
+
+Investigation only — **no code changed**. This is the caller census that was made a precondition for
+fixing the black ring at `MapLayers.GetVisibility` (`engine/OpenRA.Game/Traits/Player/MapLayers.cs:659-693`),
+plus two findings that invalidate the approach that census was guarding.
+
+### 1. `GetVisibility` feeds the simulation through `FrozenActorLayer`. It is not a render-only read.
+
+The render consumers are the expected ones — `ShroudRenderer.cs:134`/`:218`, `WorldRenderer.cs:521-673`,
+`MiniMapWidget.cs:252`, `GpsDotEffect.cs:76`. But `FrozenActorLayer.UpdateVisibility`
+(`engine/OpenRA.Game/Traits/Player/FrozenActorLayer.cs:176`) also calls it, per footprint cell, and assigns
+`FrozenActor.Visible` / `Shrouded` from the result. `Visible` is then consumed by:
+
+| Consumer | Site | Why it is simulation |
+|---|---|---|
+| `Target.IsValidFor` | `OpenRA.Game/Traits/Target.cs:120` | order validation for frozen-actor targets |
+| `AutoTarget` | `Traits/AutoTarget.cs:1330` (`FrozenActorsInCircle`) | autotarget acquisition |
+| `BeliefStore` | `Traits/World/BeliefStore.cs:232` (`onlyVisible: true`) | AI belief field |
+| `SightingThreatLayer` | `Traits/World/SightingThreatLayer.cs:225` | AI threat field |
+| `SupportPowerDecision` | `BotModuleLogic/SupportPowerDecision.cs:188` | AI support-power targeting |
+| `Order` deserialization | `OpenRA.Game/Network/Order.cs:141` | order wire path |
+
+`FrozenUnderFog` is live on ww3mod content (`rules/ingame/structures.yaml:60,132,220`,
+`structures-defenses.yaml:65`, `husks/husks.yaml:33`, `misc.yaml:15,400`), so the layer is populated in a
+real match. **Making ring cells resolve non-zero is therefore a gameplay and determinism change, not a
+render fix** — `FrozenActor.Visible` is `[Sync]`-adjacent state that gates targeting. Any future edit here
+must either stay off the `FrozenActorLayer` path or be treated as a sim change with the desync risk that
+implies.
+
+### 2. `MapLayers.Disabled` is never assigned anywhere in the repository. The `Disabled` branch is dead code.
+
+`shroudDisabled` (`MapLayers.cs:135`) is initialised `false`; the only write is its own property setter
+(`:140-147`), and **no caller anywhere in C# or Lua invokes it**. The only two reads are
+`EnemyWatcher.cs:58` and `ObserverStatsLogic.cs:356`. The observer UI's "Disable Shroud" camera option is
+not this — it sets `world.RenderPlayer = null`
+(`Widgets/Logic/Ingame/ObserverShroudSelectorLogic.cs:87`), a different mechanism entirely.
+
+So `if (Disabled && map.Contains(puv)) return 10;` (`:684`) **cannot execute in a shipped match**, and any
+fix targeting that branch is inert. Two prior write-ups reasoned about this branch as if it were live —
+including the 2026-08-22 entry above, whose "with shroud **Disabled** the ring still resolves to 0" is
+true only of unreachable code.
+
+### 3. "No shroud" in the mod's own lobby text is `ExploreMapEnabled`, a different mechanism — and it is Bounds-limited
+
+`mods/ww3mod/rules/player.yaml:182` labels the Explored Map checkbox *"Start with the entire map revealed
+(no shroud)"*, `ExploredMapCheckboxEnabled: true` (`:183`). That is the setting a player means by "I play
+with no shroud", and it routes to `ExploreAll()` (`MapLayers.cs:466-478`) — **not** to `Disabled`.
+
+`ExploreAll` iterates `map.ProjectedCells`, which is built from `Bounds`-derived corners
+(`Map.cs:1600-1606`, `:1624`), so **ring cells are never marked explored**. `ExploreProjectedCells`
+(`:436`) and vision accumulation in `AddSource` (`:347`) are both independently gated on `map.Contains`
+too. Net: `ResolvedVisibility[ring] == 0` permanently regardless of lobby settings, and the ring is black
+in the default configuration through the `fogEnabled` branch (`:671-681`), not through `Disabled`.
+
+**The reusable rule.** There are *four* independent `Bounds`-only gates between a ring cell and a non-zero
+visibility — `AddSource:347`, `ExploreAll` via `ProjectedCells`, `GetVisibility:664/684`, and the
+`OnShroudChanged` notification at `:268`. Changing only the one in `GetVisibility` moves no pixels,
+because the layer it reads is still all zeros and the renderer is still never told to repaint. A fix has
+to move the data path, not the last read of it — and moving the data path is what crosses into
+`FrozenActorLayer` and the simulation.
