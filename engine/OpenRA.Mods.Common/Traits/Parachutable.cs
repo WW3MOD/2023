@@ -98,7 +98,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (positionable.CanEnterCell(cell, self))
 				return;
 
-			if (IgnoreActor != null && !self.World.ActorMap.GetActorsAt(cell)
+			// BlockingActorsAt, not GetActorsAt: this is the "nobody but my transport is down there, so don't kill
+			// me" escape hatch, reached only once CanEnterCell has already refused. Ground cover satisfied the
+			// predicate and defeated the hatch, killing a paratrooper who had landed on nothing but a field.
+			if (IgnoreActor != null && !self.World.BlockingActorsAt(cell)
 				.Any(a => a != IgnoreActor && a != self && self.World.Map.DistanceAboveTerrain(a.CenterPosition) == WDist.Zero))
 				return;
 

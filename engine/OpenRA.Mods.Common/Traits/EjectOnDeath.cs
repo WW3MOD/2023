@@ -77,7 +77,7 @@ namespace OpenRA.Mods.Common.Traits
 				var spawnPos = cp;
 				if (inAir)
 				{
-					var subCell = self.World.ActorMap.FreeSubCell(self.Location);
+					var subCell = self.World.FreeBlockingSubCell(self.Location);
 					if (subCell != SubCell.Invalid)
 					{
 						td.Add(new SubCellInit(subCell));

@@ -3,6 +3,74 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-22 — ground-cover census: a "flat actor" flag is only as good as the number of occupancy indices it is applied to, and there are three
+
+Branch `wt/ground-cover-sweep`, base `main @ 0c15c6bc`. Following the LCCV deploy fix, I audited every
+"is this cell free" test in `OpenRA.Mods.Common` + `OpenRA.Mods.Cnc` (the two assemblies `mod.yaml:170`
+loads) for whether it sees through `Passable`/`GroundCover: true`. Seven sites were genuinely wrong and
+are fixed here; the rest are deliberate exceptions recorded below so nobody re-audits them.
+
+**The generalisable finding is that "the ActorMap and BuildingInfluence" was an undercount.** There is a
+third way to consult occupancy, and it fails in a way neither of the first two do:
+`ActorMap.FreeSubCell`. Ground cover cannot be filtered out of its *result*, because a field does not
+occupy one subcell — it is a `Building` registered as `SubCell.FullCell`, and `ActorMap.AnyActorsAt`
+matches a FullCell occupant against **every** subcell query (`ActorMap.cs:353`). So a single field makes
+the whole cell report full and the plain overload returns `SubCell.Invalid`. The predicate overload
+(`ActorMap.cs:315`) is the only way through; `CellOccupancy.FreeBlockingSubCell` now wraps it.
+
+That matters more than it looks at `SpawnStartingUnits.cs:158`, because `SubCell.Invalid` is **not** the
+same as the `SubCell.FullCell` that non-sharing units legitimately get there (`FullCell = 0`,
+`Invalid = byte.MaxValue` — `TraitsInterfaces.cs:335`; the `: 0` branch is FullCell, which reads as
+"Invalid" to anyone who assumes the usual enum ordering). `Mobile` pins `FromSubCell`/`ToSubCell` to the
+init value and sets `returnToCellOnCreationRecalculateSubCell = false` (`Mobile.cs:337-338`), so the unit
+keeps an out-of-range subcell for the rest of the match. It does not crash — the offset lookup is guarded
+at `Map.cs:1446` and falls back to cell centre.
+
+**A partial sweep can be worse than no sweep.** `CrateSpawner.ChooseDropCell` (`CrateSpawner.cs:182`) was
+already converted to `BlockingActorsAt`, so it deliberately selects field cells — but `Crate.OnLanded`
+(`Crate.cs:124`) was not, and disposed of any crate whose cell held an actor with no `Mobile`. The
+earlier half-conversion turned "crates never spawn in fields" into "crates spawn in fields and then
+vanish". When converting one end of a producer/consumer pair, convert both or neither.
+
+**Fixed:** `LayMines.cs:181` (a minefield order laid nothing on its field cells), `Crate.cs:124`,
+`Parachutable.cs:101` (the "only my transport is below me" survival hatch was defeated by ground cover,
+killing the paratrooper), `LeaveSmudgeWarhead.cs:63` (no crater or scorch mark was ever drawn on
+farmland — the same "full-cell HitShape, no `Targetable`, therefore an invalid actor under the shell"
+root cause already fixed in `CreateEffectWarhead.cs:82` and `WarheadAS.cs:48`, and the last unconverted
+member of that trio), `Gate.cs:142`, `SpawnStartingUnits.cs:158`, `EjectOnDeath.cs:80`.
+
+**`Gate.cs:142` is a consequence of the deploy fix, not an independent bug.** Placement now sees through
+fields, so a gate can be built across one — and a field never leaves the cell, so `IsBlocked()` was
+pinned true and the gate would never have closed again. Widening one "is this cell free" test can make a
+neighbouring one newly reachable; check what the cell can now contain that it could not before.
+
+**Deliberate exceptions — these consult occupancy and should NOT filter ground cover:**
+`Building.cs:283`+`:291` (`IsCloseEnoughToBase`) consults *both* indices unfiltered and is correct
+because it is a **permissive** query — a hit grants placement, so unfiltered cover could only ever
+wrongly allow, and cannot even do that since `^CivField` is neutral with no `GivesBuildableArea`.
+Direction of the test decides whether the two-index trap bites at all. `Aircraft.cs:1024` (`PassAction`)
+filters to `IPassable`, which fields implement *on purpose* — that is the pass mechanic, not a bug.
+`LayMines.cs:152`, `DropsSupplyCache.cs:158`, `Aircraft.cs:714`/`:1562`, `BuildingUtils.cs:131`,
+`PlaceBuilding.cs:117`/`:151`, `AIUtils.cs:126`, `ActorExts.cs:71`/`:76`, `WorldUtils.cs:92`,
+`GrantExternalConditionPower.cs:105`, `WithWallSpriteBody.cs:120`/`:157`, `WithGateSpriteBody.cs:110`,
+`Bridge.cs:263` all narrow by name or by a trait `^CivField` does not carry, so fields can never match.
+`BlocksSight.cs:63` and `BlocksProjectiles.cs:90` are moot: `^CivField` carries neither trait, so fields
+neither block sight nor stop bullets. `ResourceLayer.cs:183` is a genuine unfiltered `AnyBuildingAt` but
+ww3mod mounts no `ResourceLayer` at all.
+
+**Two unproven, deliberately not fixed:** `Bridge.cs:366` (`RemoveActorsFromFootprint`) kills everything
+in the footprint with no trait filter, so destroying a bridge would delete any field tiled under it — I
+could not establish that any shipped map places fields on a bridge footprint (bridges sit on water/shore,
+fields on Clear), and would rather not change bridge death behaviour on speculation.
+`PlaceBuilding.cs:172` (`PlacePlug`) returns on the first enumerated actor lacking `Pluggable`, so a
+co-located field could abort the order and disagree with its preview counterpart at
+`PlaceBuildingOrderGenerator.cs:237` — dead today, no `Pluggable` anywhere in ww3mod rules.
+
+**Preview and validation now agree.** `PlaceBuildingOrderGenerator` (`:283`/`:289`/`:301`) and
+`PlaceBuilding.CanPlaceBuilding` both funnel into `IsCellBuildable`, so there is no green-footprint-then-
+rejected-order split on fields. One knock-on worth knowing: `GetLineBuildCells` also routes through it,
+so wall runs that used to **stop at the first field cell** now extend across field regions.
+
 ## 2026-08-22 — `AutoTarget` never re-arms its scan timer on a tick an override answers, so an always-answering override is consulted EVERY idle tick
 
 > **[promoted]** → `conventions.md` §Engine behaviors that surprise (curation 2026-08-22, verified against `main @ 12e0addd`). Re-derived: the gate is `AutoTarget.cs:1127`, the override loop returns at `:1143`/`:1146`, and the re-arm is at `:1158` on the ChooseTarget path only, with the deliberate-omission comment at `:1138-1140`. `^CamoSoldier`'s 16/32 confirmed at `infantry.yaml:304-305` (C# defaults are 3/8). Banked as the transferable rule — **rate-limiting an override relies on must live inside the override** — beside the existing bullet on `ScanForTarget` returning `Invalid` for two indistinguishable reasons, which is a different defect on the same method.

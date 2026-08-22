@@ -177,8 +177,10 @@ namespace OpenRA.Mods.Common.Activities
 
 		static bool CanLayMine(Actor self, CPos p)
 		{
-			// If there is no unit (other than me) here, we can place a mine here
-			return self.World.ActorMap.GetActorsAt(p).All(a => a == self);
+			// If there is no unit (other than me) here, we can place a mine here.
+			// BlockingActorsAt, not GetActorsAt: a crop field is cosmetic ground cover the layer drove over to
+			// get here, so counting it as a unit made every field cell of a minefield order silently lay nothing.
+			return self.World.BlockingActorsAt(p).All(a => a == self);
 		}
 
 		bool StartLayingMine(Actor self)

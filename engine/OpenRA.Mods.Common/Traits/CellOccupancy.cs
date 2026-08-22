@@ -10,6 +10,7 @@
 #endregion
 
 using System.Collections.Generic;
+using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
@@ -73,6 +74,18 @@ namespace OpenRA.Mods.Common.Traits
 					return true;
 
 			return false;
+		}
+
+		/// <summary>A free subcell of this cell, ignoring cosmetic ground cover.
+		///
+		/// <para>PITFALL — <c>ActorMap.FreeSubCell(cell)</c> cannot be filtered by taking its result apart,
+		/// because ground cover does not occupy one subcell: a field is a <see cref="Building"/> registered as
+		/// <c>SubCell.FullCell</c>, and <c>ActorMap.AnyActorsAt</c> matches a FullCell occupant against EVERY
+		/// subcell query (<c>ActorMap.cs:353</c>). So one field makes the whole cell report full and the plain
+		/// overload returns <see cref="SubCell.Invalid"/>. The predicate overload is the only way through.</para></summary>
+		public static SubCell FreeBlockingSubCell(this World world, CPos cell, SubCell preferredSubCell = SubCell.Any)
+		{
+			return world.ActorMap.FreeSubCell(cell, preferredSubCell, a => !a.IsGroundCover());
 		}
 	}
 }
