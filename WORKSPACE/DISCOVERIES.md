@@ -10170,3 +10170,61 @@ visibility — `AddSource:347`, `ExploreAll` via `ProjectedCells`, `GetVisibilit
 because the layer it reads is still all zeros and the renderer is still never told to repaint. A fix has
 to move the data path, not the last read of it — and moving the data path is what crosses into
 `FrozenActorLayer` and the simulation.
+
+## 2026-08-22 — the map-edge ring, fixed render-only: four Bounds gates, and why only one of them is the renderer's to move
+
+Follow-up to the census entry above, which established that `MapLayers.GetVisibility` feeds the
+simulation and must not be touched. Fix landed in `ShroudRenderer` instead (`b4f0db94`).
+
+### The renderer owns exactly two of the four gates
+
+Of the four `Bounds`-only gates between a ring cell and a lit pixel, two are in `MapLayers` and are
+off-limits (`AddSource:347`, `ExploreAll` via `Map.ProjectedCells`); the other two are in
+`ShroudRenderer` and were both required:
+
+| Gate | Was | Now |
+|---|---|---|
+| `RenderShroud`'s region | `map.ProjectedCells` — Bounds-derived (`Map.cs:1600-1624`) | the whole `MapSize` |
+| `UpdateShroudCell`'s neighbour spread | `map.Contains` (Bounds) | `cellsDirty.Contains` (the sprite layer's extent) |
+
+Plus the sprite decision itself: `ClampToPlayable` maps an out-of-Bounds cell onto the nearest playable
+one, so a ring cell renders whatever its neighbour renders.
+
+**The notification gap was real and would have silently defeated a correct sprite choice.**
+`MapLayers` fires `OnShroudChanged` only for playable cells (`MapLayers.cs:268`), so nothing ever marks
+a ring cell dirty except the neighbour spread — and `RenderShroud` never visited it even when marked.
+Before the fix, ring cells were painted **once**, at world load via `WorldOnRenderPlayerChanged`'s
+full-`MapSize` pass (`:231`), and never repainted for the rest of the match. A fix that changed only the
+sprite choice would have produced a ring frozen at its load-time appearance. **Any future edit to
+edge-cell rendering must check both the dirty-marking and the iterated region, not just the predicate.**
+
+### The clamp is configuration-agnostic, so there is no seam between "explored" and "fogged"
+
+The work was scoped expecting the Explored-Map fix and the shroud-on behaviour to be separable commits.
+**They are not.** `ClampToPlayable` does not consult fog, `Disabled`, or `ExploreMapEnabled` — it changes
+which *cell* is sampled, and every configuration reads through the same sample. Fixing the shipped
+default necessarily fixes the fogged case. Splitting them would have required inventing a gate on fog
+state whose only purpose was to withhold the fix from one configuration.
+
+The safety property that made this cheap: **the clamp is the identity inside `Bounds`**, so mid-map
+shroud drawing is unchanged by construction rather than by measurement.
+
+### Residual: a 3px black sliver survives on rows with no ring scenery
+
+Measured at 1600x1000, camera cell 92,40, River Zeta right edge. One ring cell spans x 908..934 and the
+`MapSize`-anchored fill starts at 935, but **terrain only reaches 931**. Rows whose ring cell carries an
+actor sprite are lit continuously to 934 (the sprite covers it); rows without one show black at 932-934.
+
+This is the same 3px boundary logged as unexplained in the 2026-08-22 entry above ("the shroud stops at
+931 while the ring cell runs to 934"), and it is **pre-existing, not caused by this change** — clearing a
+shroud sprite cannot draw terrain that was never drawn. Before the fix it was invisible because the whole
+24px band was black; the fix exposes it. It is a terrain-coverage question, not a shroud one.
+
+### Incidental: no ring actor on River Zeta carries `FrozenUnderFog`
+
+Resolved through the full `Inherits` chain for all 18 ring actor types (189 actors: 102 `v17`, 29 `rice`,
+the rest trees). All inherit `^Tree` or `^CivField`; **none** reaches `FrozenUnderFog` (sanity-checked
+against `SUPPLYROUTE`, which does). So today's map content would not in fact have exercised the
+`FrozenActorLayer` path. This does **not** make the `MapLayers` fix safe — the desync exposure is that
+the predicate applies to every cell on every map, not that a particular map ships a frozen ring actor —
+but it does mean the sim risk was latent rather than live.
