@@ -8861,3 +8861,36 @@ this mod everywhere.** Corrected in `SupplyRouteContestation.cs` in this branch.
 A third, smaller note: a full overrun is **two** bars, not one. The control bar drains, then the defeat bar
 fills, both at the same computed rate (`:282-312`), so the wall-clock cost of finishing a player is 2x any
 single "ticks to deplete" figure — 180s at reference surplus, not 90s.
+
+---
+
+## 2026-08-22 — UnitOrderGenerator's second pass is not "the move fallback", and the cursor rides on the order
+
+Three findings from the report that an Iskander gives *no cursor at all* over an enemy.
+
+**1. The cursor and the order are the same function, so suppressing one suppresses the other.**
+`UnitOrderGenerator.GetCursor` (`engine/OpenRA.Mods.Common/Orders/UnitOrderGenerator.cs:123-144`) and
+`Order` (`:49-52`) both resolve through `OrderForUnit`. When `08915556` made that method return `null` for
+a click a unit cannot carry out, the cursor died with the order and fell through to
+`worldDefaultCursor` — a bare pointer. **Any future change that suppresses an order suppresses its
+cursor too; there is no separate cursor path to fix afterwards.** The rule is now per-SELECTION
+(`OrdersForSelection`, `:184`): refusers are silenced only while another selected unit is acting, so a
+selection in which nothing can act still gets the default order and still previews it.
+
+**2. The second pass is the only route to force-attack-GROUND, not just to Move.**
+The retry replaces the clicked actor with `Target.FromCell` and re-runs the whole targeter chain
+(`:283-300`). `AttackBase.AttackOrderTargeter.CanTargetLocation` (`Attack/AttackBase.cs:762`) is reached
+*only* there. So a gate that skips the retry — which is what `AllowsMoveFallback` did — silently deletes
+force-fire at the ground under every enemy the firing unit cannot itself target. The gate now runs the
+pass and filters the RESULT (`OrderFallbackMath.AllowsRetryResult`): a relocation is refused, a
+`ForceAttack` is not. **The old name is the trap: "move fallback" describes one of at least three things
+the pass produces.**
+
+**3. `AttackOrderTargeter` never consults MinRange — only `MaxRange` (`AttackBase.cs:747`, `:785`).**
+So a weapon's `MinRange` cannot explain a missing cursor or a refused click; a target too CLOSE still
+targets and the attack activity backs off. `IskanderTargeter`'s `MinRange: 16c0`
+(`mods/ww3mod/rules/weapons/weapons-missiles.yaml:382`) was a red herring. What DOES explain the
+Iskander is `RequiresForceFire: True` on its armament (`rules/ingame/vehicles-russia.yaml:999`, and
+HIMARS at `vehicles-america.yaml:1098`): `ChooseArmamentsForTarget` returns empty for every actor click
+that is not force-fire, so those two launchers refuse *all* plain right-clicks on actors by design. That
+is a deliberate design choice, not a bug — but combined with (1) it is why they showed no cursor at all.
