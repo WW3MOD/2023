@@ -1,0 +1,107 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: the cursor survives a refused order, and force-fire reaches the ground
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# =====================================================================
+	# Everything sits on row 16 so the geometry stays trivial. Three clicking
+	# units, two things to click.
+	#
+	# Gunner (abrams, TankRound.Abrams) can engage the t90.
+	# Rejector (aa, MANPAD, `ValidTargets: Air` -- weapons-missiles.yaml:475)
+	# can NEVER engage a ground target: ChooseArmamentsForTarget returns empty
+	# and AttackOrderTargeter refuses at AttackBase.cs:738.
+	# Launcher (iskander) is the reported unit. Its armament carries
+	# `RequiresForceFire: True` (vehicles-russia.yaml:999), so
+	# ChooseArmamentsForTarget hands back nothing for ANY actor click that is
+	# not force-fire -- which is why a plain hover over an enemy resolved to
+	# no order, and so to no cursor at all.
+	#
+	# EnemyAir is the one the Launcher genuinely cannot target: an airborne
+	# helicopter is Air/AirDetonateAttack (aircraft.yaml:36-38) plus Helicopter
+	# and Heavy, and IskanderTargeter is `ValidTargets: Ground, Water`
+	# (weapons-missiles.yaml:381). The CELL under it is plain Clear, which IS
+	# Ground (temperat.yaml:11) -- so force-attack-ground there is legal and
+	# must resolve, which is the whole of the second half of this test.
+	#
+	# Launcher stands 18 cells off EnemyAir: past IskanderTargeter's
+	# MinRange 16c0, well inside its Range 50c0. Neither bound is consulted by
+	# the targeter (CanTargetActor and CanTargetLocation test MaxRange only,
+	# AttackBase.cs:747 and :785) but the geometry is honest anyway, so a
+	# failure here can never be argued down to "it was out of range".
+	# =====================================================================
+
+	Launcher: iskander
+		Owner: USA
+		Location: 30,16
+		Facing: 0
+	Rejector: aa
+		Owner: USA
+		Location: 42,16
+		Facing: 0
+	Gunner: abrams
+		Owner: USA
+		Location: 44,16
+		Facing: 0
+	EnemyAir: hind
+		Owner: Russia
+		Location: 48,16
+		Facing: 768
+	Enemy: t90
+		Owner: Russia
+		Location: 50,16
+		Facing: 768
+
+	# `supplyroute` carries Targetable.TargetTypes: NoAutoTarget so it is never
+	# acquired by a scan. Present because faction elimination would end the match
+	# before the poller writes a verdict (AUTOTEST.md map.yaml rule 6).
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,2
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 42,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 50,16
+
+Rules: rules.yaml

@@ -134,8 +134,19 @@ namespace OpenRA.Mods.Common.Traits
 			// activity, it does not queue behind it. That is only safe because this trait dispatches
 			// solely from the idle path: a player order makes the actor non-idle, which silences this
 			// trait entirely until the order ends. Do not move this dispatch off TickIdle.
+			//
+			// Being on the idle path is NOT on its own enough to keep us off AutoTarget's toes, because
+			// Actor.Tick walks every INotifyIdle in one sweep WITHOUT re-checking IsIdle between them
+			// (Actor.cs, `else if (wasIdle)`). So AutoTarget.TickIdle issuing an attack does not stop this
+			// method running afterwards and cancelling it — or the reverse, depending on trait construction
+			// order. What actually keeps the two apart is that they are never both willing to act on the
+			// same tick: HealerAutoTarget hands AutoTarget a patient ONLY when he is already within
+			// GetMaxHealRange, and that is exactly the case the arrival early-out above returns on.
+			// Both predicates are plain centre-to-centre distance against the same range, so they cannot
+			// disagree. Change either one and the medic starts trading walk orders with attack orders every
+			// idle tick — which looks precisely like the aimless shuffling this trait exists to prevent.
 			self.QueueActivity(false, move.MoveWithinRange(Target.FromActor(target), range,
-				targetLineColor: self.Owner.Color));
+				targetLineColor: AutomaticOrder.LineColor));
 		}
 
 		/// <summary>Watch for a follow that is making no progress and break out of it. Returns true if the

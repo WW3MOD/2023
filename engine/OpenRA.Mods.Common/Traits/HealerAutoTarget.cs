@@ -44,11 +44,32 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Ticks a patient stays benched after the healer failed to reach him.")]
 		public readonly int AbandonCooldown = 250;
 
+		[Desc("Score penalty per cell of distance to a candidate, in the same units as the base score —",
+			"health percentage points. At 3, a patient four cells away must be 12 points worse off than",
+			"one at the healer's feet to be worth walking to. Critical patients are scored far below",
+			"everyone else, so this only ever decides between patients on the same side of",
+			"StabilizeThreshold.",
+			"PITFALL: this used to be `distance / 10240` — one point per TEN cells — which integer-divides",
+			"to exactly zero at every distance inside an 8-cell SearchRange. Distance played no part in the",
+			"choice at all. 0 restores that (absent) behaviour.")]
+		public readonly int DistancePenaltyPerCell = 0;
+
+		[Desc("A candidate must beat the patient already being treated by this many health percentage",
+			"points before the healer abandons him. Set it ABOVE the health percentage one heal pulse",
+			"delivers, or the healer ping-pongs: each pulse moves its patient up by that much, which",
+			"re-inverts the ranking against any rival within the same margin, so the healer walks away",
+			"from the man he just treated and back again. 0 = no hysteresis.")]
+		public readonly int SwitchMargin = 0;
+
 		public override object Create(ActorInitializer init) { return new HealerAutoTarget(init.Self, this); }
 	}
 
 	public class HealerAutoTarget : IOverrideAutoTarget, ITick, INotifyCreated, INotifyActorDisposing
 	{
+		/// <summary>Score discount for a patient below StabilizeThreshold. Deliberately orders of magnitude
+		/// above the distance and stickiness margins so triage can never be outvoted by them.</summary>
+		const int CriticalPriority = 10000;
+
 		readonly HealerAutoTargetInfo info;
 		readonly BitSet<TargetableType> validTargetTypes;
 		HealerClaimLayer claimLayer;
@@ -251,6 +272,34 @@ namespace OpenRA.Mods.Common.Traits
 				&& health.HP * 100 / health.MaxHP <= info.MaxPatientHealthPercent;
 		}
 
+		/// <summary>Lower is more deserving. The base score is the patient's health percentage, so every
+		/// other term here is denominated in health percentage points and the weights stay comparable.
+		/// Both selection paths score through this — they pick from different candidate sets, but they must
+		/// not disagree about which of two patients is worse off.</summary>
+		int ScorePatient(Actor self, Actor patient, Health health)
+		{
+			var hpPct = health.HP * 100 / health.MaxHP;
+			var score = hpPct;
+
+			// A dying man outranks distance and stickiness both — the margins below are tens of points and
+			// this is ten thousand, so crossing StabilizeThreshold always wins the argument.
+			if (info.StabilizeThreshold > 0 && hpPct < info.StabilizeThreshold)
+				score -= CriticalPriority;
+
+			if (info.DistancePenaltyPerCell != 0)
+			{
+				var cells = (self.CenterPosition - patient.CenterPosition).HorizontalLength / 1024;
+				score += cells * info.DistancePenaltyPerCell;
+			}
+
+			// Stickiness. Treating a man is what the healer is FOR, so the case he already holds gets a
+			// discount and a rival has to be clearly worse off to take it off him.
+			if (patient == currentTarget)
+				score -= info.SwitchMargin;
+
+			return score;
+		}
+
 		Actor FindBestTarget(Actor self)
 		{
 			var maxRange = GetEffectiveSearchRange();
@@ -281,16 +330,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (claimLayer != null && claimLayer.IsClaimed(a, self))
 					continue;
 
-				var hpPct = health.HP * 100 / health.MaxHP;
-				var score = hpPct;
-
-				// Critical targets get massive priority bonus
-				if (info.StabilizeThreshold > 0 && hpPct < info.StabilizeThreshold)
-					score -= 10000;
-
-				// Slight distance tiebreaker (1 point per 10 cells)
-				var dist = (self.CenterPosition - a.CenterPosition).Length;
-				score += dist / 10240;
+				var score = ScorePatient(self, a, health);
 
 				if (score < bestScore)
 				{
@@ -309,7 +349,7 @@ namespace OpenRA.Mods.Common.Traits
 				return null;
 
 			Actor best = null;
-			var bestHpPct = int.MaxValue;
+			var bestScore = int.MaxValue;
 
 			foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, maxRange))
 			{
@@ -327,16 +367,16 @@ namespace OpenRA.Mods.Common.Traits
 				if (health == null || !IsWorthTreating(health))
 					continue;
 
-				var hpPct = health.HP * 100 / health.MaxHP;
-				if (hpPct >= info.StabilizeThreshold)
+				if (health.HP * 100 / health.MaxHP >= info.StabilizeThreshold)
 					continue;
 
 				if (claimLayer != null && claimLayer.IsClaimed(a, self))
 					continue;
 
-				if (hpPct < bestHpPct)
+				var score = ScorePatient(self, a, health);
+				if (score < bestScore)
 				{
-					bestHpPct = hpPct;
+					bestScore = score;
 					best = a;
 				}
 			}

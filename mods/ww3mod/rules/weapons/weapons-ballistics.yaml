@@ -626,20 +626,60 @@ AACannon:
 	Projectile: Bullet
 		Speed: 900
 		Inaccuracy: 1c0
+		# PITFALL: this is DEAD. The branch that reads it is gated on Bullet.cs's
+		# `lastPosIsSet`, a `readonly bool = false` that is never assigned (Bullet.cs:170,
+		# used at :213), so every round scatters independently about the target centre and
+		# no burst-walk happens. Left in place only because removing it changes nothing;
+		# do not tune against it. Same for 30mm.A10's 32,32,0.
 		InaccuracyPerProjectile: 12,12,0
 		Image: tracer_small
+	# Both children below override Inaccuracy. Neither did before 260822, so both took the
+	# 1c0 above — one full cell of scatter against a Littlebird's Circle r32 hitshape.
+	# Measured with tools/combat-sim/scripts/tunguska-aa-hit-rate.py: at 18c0 that gave the
+	# AA gun a 24% chance of killing ONE helicopter with the entire 180-round pool, which is
+	# the playtest report ("could not even destroy a littlebird at max distance") exactly.
+	# InaccuracyType is Maximum, so these values are the scatter AT 18c0 and scale down
+	# linearly with firing distance — close-range accuracy is much better than the number
+	# suggests.
 30mm.Tunguska.AG:
 	Inherits@Caliber: ^30mm.Tunguska
 	# PITFALL: piffs are the small-arms ricochet spark (.50cal and below). An autocannon
 	# impact is hit_small + shrapnel_small from ^MinimalExplosionEffects, not a spark.
 	ValidTargets: Infantry, Vehicle, Defense
 	MinRange: 1c512
+	# 1c0 -> 0c768. Only 25% tighter, and deliberately 1.7x LOOSER than the AA mount: the
+	# ground gun was never the broken one (at 1c0 it already killed ~15 humvees per load at
+	# 9c0). Lifts max-range humvee kills/load 3.7 -> 5.8 and mid-range 14.8 -> 19.9 without
+	# turning a shared-pool AA vehicle into a dominant ground platform.
+	# 0c768 also sits at the PEAK for moving infantry (2.47 kills/load at 18c0 vs 2.13 at
+	# 1c0 and 0.01 at 0c256) — see the counter-intuitive note on the AA mount below.
+	# PITFALL: Inaccuracy belongs to the Projectile sub-block. Setting it at weapon top
+	# level parses without complaint and does NOTHING — the resolved value stayed 1c0.
+	Projectile: Bullet
+		Inaccuracy: 0c768
 	Warhead@Target: TargetDamage
 		ValidTargets: Ground
 30mm.Tunguska.AA:
 	Inherits@Caliber: ^30mm.Tunguska
 	Inherits@HitEffects: ^MinimalExplosionEffectsAir
 	ValidTargets: Helicopter
+	# 1c0 -> 0c448 against a HOVERING Littlebird at 18c0:
+	#   kills per 180-round load  0.74 -> 3.42   (user's bar was "multiple", read as >= 3)
+	#   rounds that do any damage   12% -> 49%
+	#   rounds per kill            242  -> 53    (29.1s -> 6.3s of sustained fire)
+	# 0c480 is the exact 3-kill threshold (3.03); 0c448 is the first ladder step with margin.
+	# Deliberately NOT tighter: 0c256 would give 8.8 kills/load and 92% damaging rounds,
+	# which is the "super accurate" the user explicitly did not want.
+	#
+	# COUNTER-INTUITIVE, and the reason not to keep tightening: against a MOVING target,
+	# less scatter is a NERF. Bullets do not lead (Bullet.cs:200 aims at the target's
+	# position at fire time) and do not collide en route, so the aim point is displaced by
+	# speed x flight-time. Wide scatter accidentally bridges that displacement; tight
+	# scatter cannot. A Littlebird at its 265 u/tick cruise is unhittable by this gun at
+	# ANY Inaccuracy — that case is what the 9M311 is for, and what
+	# AttackBase.EngageAtLongestArmamentRange now actually lets the unit reach for.
+	Projectile: Bullet
+		Inaccuracy: 0c448
 30mm.A10:
 	Inherits@Caliber: ^30mm
 	Range: 20c0

@@ -66,9 +66,9 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			if (isAircraft)
-				self.QueueActivity(new Land(self, Target.FromActor(crushableActor), targetLineColor: moveInfo.GetTargetLineColor()));
+				self.QueueActivity(new Land(self, Target.FromActor(crushableActor), targetLineColor: AutomaticOrder.LineColor));
 			else
-				self.QueueActivity(move.MoveTo(crushableActor.Location, targetLineColor: moveInfo.GetTargetLineColor()));
+				self.QueueActivity(move.MoveTo(crushableActor.Location, targetLineColor: AutomaticOrder.LineColor));
 
 			nextScanTime = self.World.SharedRandom.Next(Info.MinimumScanTimeInterval, Info.MaximumScanTimeInterval);
 		}

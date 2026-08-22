@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
@@ -48,10 +49,7 @@ namespace OpenRA.Mods.Common.Orders
 		public virtual IEnumerable<Order> Order(World world, CPos cell, int2 worldPixel, MouseInput mi)
 		{
 			var target = TargetForInput(world, cell, worldPixel, mi);
-			var orderResults = world.Selection.Actors
-				.Select(a => OrderForUnit(a, target, cell, mi))
-				.Where(o => o != null)
-				.ToList();
+			var orderResults = OrdersForSelection(world.Selection.Actors, target, cell, mi);
 
 			var actorsInvolved = orderResults.Select(o => o.Actor).Distinct();
 			if (!actorsInvolved.Any())
@@ -131,13 +129,12 @@ namespace OpenRA.Mods.Common.Orders
 				useSelect = target.Type == TargetType.Actor && target.Actor.Info.HasTraitInfo<ISelectableInfo>();
 			else
 			{
-				var ordersWithCursor = world.Selection.Actors
-					.Select(a => OrderForUnit(a, target, cell, mi))
-					.Where(o => o != null && o.Cursor != null);
-
-				var cursorOrder = ordersWithCursor.MaxByOrDefault(o => o.Order.OrderPriority);
-				if (cursorOrder != null)
-					return cursorOrder.Cursor;
+				// Resolved for the whole selection, exactly as the click will be: the cursor has to
+				// name the order the player is about to get, or the two disagree and the pointer
+				// stops meaning anything.
+				var cursor = CursorForOrders(OrdersForSelection(world.Selection.Actors, target, cell, mi));
+				if (cursor != null)
+					return cursor;
 
 				useSelect = target.Type == TargetType.Actor && target.Actor.Info.HasTraitInfo<ISelectableInfo>() &&
 					(mi.Modifiers.HasModifier(Modifiers.Shift) || world.Selection.Actors.Count == 0);
@@ -178,19 +175,59 @@ namespace OpenRA.Mods.Common.Orders
 			if (modsNoShift == settings.AttackMoveModifiers && mi.Button == settings.AttackMoveButton)
 				modifiers |= TargetModifiers.AttackMove; // Custom modifier for WW3MOD
 
-			foreach (var a in world.Selection.Actors)
-			{
-				var o = OrderForUnit(a, target, cell, mi);
-				if (o != null && o.Order.TargetOverridesSelection(a, target, actorsAt, cell, modifiers))
+			foreach (var o in OrdersForSelection(world.Selection.Actors, target, cell, mi))
+				if (o.Order.TargetOverridesSelection(o.Actor, target, actorsAt, cell, modifiers))
 					return true;
-			}
 
 			return false;
 		}
 
 		public virtual void SelectionChanged(World world, IEnumerable<Actor> selected) { }
 
-		static UnitOrderResult OrderForUnit(Actor self, Target target, CPos xy, MouseInput mi)
+		/// <summary>
+		/// Resolves one click for a whole selection, and is the only entry point the mouse should use.
+		/// </summary>
+		/// <remarks>
+		/// A unit that cannot carry out the click gets no order rather than a walk into the target —
+		/// but that is a rule about a SPECIFIC order some of the selection is carrying out, so it only
+		/// applies while somebody is. When nothing selected accepted the click, it re-resolves with the
+		/// default order permitted for everyone: the player gets the move they asked for, and — because
+		/// GetCursor comes through here too — a cursor that says so beforehand.
+		/// </remarks>
+		public static List<UnitOrderResult> OrdersForSelection(IEnumerable<Actor> actors, Target target, CPos xy, MouseInput mi)
+		{
+			return ResolveSelection(actors, (a, allowRelocation) => OrderForUnit(a, target, xy, mi, allowRelocation));
+		}
+
+		/// <summary>
+		/// <see cref="OrdersForSelection(IEnumerable{Actor}, Target, CPos, MouseInput)"/> for callers
+		/// that already hold the modifiers — the scripted test API, which has no mouse.
+		/// </summary>
+		public static List<UnitOrderResult> OrdersForSelection(IEnumerable<Actor> actors, Target target, CPos xy, TargetModifiers modifiers)
+		{
+			return ResolveSelection(actors, (a, allowRelocation) => OrderForUnit(a, target, xy, modifiers, allowRelocation));
+		}
+
+		// The selection rule itself, shared by both overloads so the two entry points cannot drift.
+		static List<UnitOrderResult> ResolveSelection(IEnumerable<Actor> actors, Func<Actor, bool, UnitOrderResult> resolve)
+		{
+			var results = actors.Select(a => resolve(a, false)).Where(o => o != null).ToList();
+			if (OrderFallbackMath.SelectionSuppressesRefusers(results.Count))
+				return results;
+
+			return actors.Select(a => resolve(a, true)).Where(o => o != null).ToList();
+		}
+
+		/// <summary>
+		/// The cursor for an already-resolved selection: the highest-priority order that names one.
+		/// </summary>
+		public static string CursorForOrders(IEnumerable<UnitOrderResult> results)
+		{
+			return results.Where(o => o.Cursor != null)
+				.MaxByOrDefault(o => o.Order.OrderPriority)?.Cursor;
+		}
+
+		static UnitOrderResult OrderForUnit(Actor self, Target target, CPos xy, MouseInput mi, bool allowRelocationOntoEnemy)
 		{
 			if (mi.Button != Game.Settings.Game.MouseButtonPreference.Action &&
 				!(mi.Button == Game.Settings.Game.AttackMoveButton && (mi.Modifiers & ~Modifiers.Shift) == Game.Settings.Game.AttackMoveModifiers))
@@ -217,16 +254,22 @@ namespace OpenRA.Mods.Common.Orders
 			if (modsNoShift == settings.AttackMoveModifiers && mi.Button == settings.AttackMoveButton)
 				modifiers |= TargetModifiers.AttackMove; // Custom modifier for WW3MOD
 
-			return OrderForUnit(self, target, xy, modifiers);
+			return OrderForUnit(self, target, xy, modifiers, allowRelocationOntoEnemy);
 		}
 
 		/// <summary>
 		/// Resolves the click on <paramref name="target"/> against this actor's targeter chain, in
 		/// descending OrderPriority, exactly as a mouse click does. Returns null when the actor
-		/// refuses the click outright — which for a hostile target is now the normal outcome for a
-		/// unit that cannot engage it, rather than a Move order onto its cell.
+		/// refuses the click outright — which for a hostile target it cannot engage is the normal
+		/// outcome, rather than a Move order onto its cell.
 		/// </summary>
-		public static UnitOrderResult OrderForUnit(Actor self, in Target target, CPos xy, TargetModifiers modifiers)
+		/// <param name="allowRelocationOntoEnemy">
+		/// Set by <see cref="OrdersForSelection"/> when no other unit in the selection accepted the
+		/// click, which reopens the default order for this one. Callers resolving a single unit in
+		/// isolation want the default, false.
+		/// </param>
+		public static UnitOrderResult OrderForUnit(Actor self, in Target target, CPos xy, TargetModifiers modifiers,
+			bool allowRelocationOntoEnemy = false)
 		{
 			if (self.Disposed || !target.IsValidFor(self))
 				return null;
@@ -236,21 +279,28 @@ namespace OpenRA.Mods.Common.Orders
 				.SelectMany(trait => trait.Orders.Select(x => new { Trait = trait, Order = x }))
 				.OrderByDescending(x => x.Order.OrderPriority);
 
+			// Whether an order that drives this unit ONTO the clicked cell is acceptable.
+			var relocationAllowed = allowRelocationOntoEnemy || AllowsMoveFallback(self, target, modifiers);
+
 			var candidate = target;
 			for (var i = 0; i < 2; i++)
 			{
 				foreach (var o in orders)
 				{
 					string cursor = null;
-					if (o.Order.CanTarget(self, candidate, actorsAt, xy, modifiers, ref cursor))
-						return new UnitOrderResult(self, o.Order, o.Trait, cursor, candidate);
-				}
+					if (!o.Order.CanTarget(self, candidate, actorsAt, xy, modifiers, ref cursor))
+						continue;
 
-				// PITFALL: the retry below is the ONLY route to a Move order on a cell an actor
-				// occupies — MoveOrderTargeter and AttackMoveTargeter are both terrain-only — so it
-				// cannot simply be deleted. It is gated instead; reasoning in OrderFallbackMath.
-				if (!AllowsMoveFallback(self, candidate, modifiers))
-					return null;
+					// PITFALL: the second pass is the only route to ANY order against a cell an actor
+					// occupies — every terrain-only targeter, Move and AttackMove among them, but also
+					// force-fire at the ground. So it always runs and the RESULT is gated instead;
+					// skipping the pass took out force-attack-ground under an untargetable enemy.
+					// Reasoning in OrderFallbackMath.
+					if (i == 1 && !OrderFallbackMath.AllowsRetryResult(o.Order.OrderID, relocationAllowed))
+						continue;
+
+					return new UnitOrderResult(self, o.Order, o.Trait, cursor, candidate);
+				}
 
 				candidate = Target.FromCell(self.World, xy);
 			}

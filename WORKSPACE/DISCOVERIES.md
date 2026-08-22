@@ -3,6 +3,146 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-22 — `AutoTarget` never re-arms its scan timer on a tick an override answers, so an always-answering override is consulted EVERY idle tick
+
+Branch `wt/medic-behaviour`. `AutoTarget.ScanForTarget` (`AutoTarget.cs:1124-1147`) gates on
+`nextScanTime <= 0`, then consults each `IOverrideAutoTarget` **and returns from inside that loop**.
+`nextScanTime` is only re-armed further down, on the ordinary `ChooseTarget` path that an answering
+override never reaches — the code says so deliberately (*"Deliberately NOT re-arming nextScanTime on
+this path"*, to keep the `SharedRandom` draw pattern unchanged).
+
+The consequence is not in that comment. Once `nextScanTime` first reaches 0, an override that answers
+**unconditionally** — `HealerAutoTarget` does, by design since `6609711f` — pins it at 0 forever. So
+`MinimumScanTimeInterval`/`MaximumScanTimeInterval` (16–32 on `^CamoSoldier`) stop bounding anything
+for that actor, and `TryGetAutoTargetOverride` runs on **every idle tick** instead of every 16–32.
+
+**Why it matters:** any rate-limiting an override relies on must live inside the override itself.
+`HealerAutoTarget` happens to have its own `ScanInterval` (8), so it re-picks its patient at 2 Hz
+rather than every tick — but nothing in `AutoTarget` was providing that bound, and a future override
+written to lean on the AutoTarget interval would silently run 16–32× more often than intended.
+
+## 2026-08-22 — a distance tiebreaker of `distance / 10240` is identically zero inside any search radius under ten cells
+
+`HealerAutoTarget.FindBestTarget` scored candidate patients as `hpPct`, plus `-10000` when critical,
+plus `distance / 10240` — commented as *"slight distance tiebreaker (1 point per 10 cells)"*. That is
+integer division on a WDist length, and `SearchRange` on `^MEDI` is `8c0` = 8192. **8192 / 10240 == 0.**
+Distance therefore played no part in patient choice at any reachable distance, so selection was purely
+by health percentage and ties fell to `FindActorsInCircle` enumeration order.
+
+This is the second time the same shape has bitten this exact trait: `434b7555` fixed a search radius
+pinned to `min(1c0, DefensiveRange)`, which made every wider-radius feature built on it inert. **When a
+scoring or range expression is written in raw world units, check it against the actual configured
+radius before trusting the comment next to it.**
+
+## 2026-08-22 — a healer with no switch hysteresis ping-pongs, because one heal pulse is larger than the gap it is comparing
+
+`^MEDI`'s Heal warhead is `DamagePercent: -5`, i.e. every pulse lifts its patient by five percentage
+points of max health. `HealerAutoTarget` re-ran a full `FindBestTarget` every `ScanInterval` (8 ticks)
+and gave the incumbent **no preference at all** (`if (score < bestScore)`, incumbent scored like anyone
+else). So treating the worse of two comparable patients moved him *past* the other one, and the very
+next rescan handed the case over.
+
+The gap does not need to be a tie: any two patients within five points of each other oscillate
+deterministically. Because `AutoFollowAlly` walks the medic to whichever patient `CurrentPatient`
+currently names, and crossing the ground between two patients takes far longer than the 50-tick heal
+reload, the medic delivered roughly one pulse per crossing and finished nobody.
+
+**General rule:** when a periodic re-selection feeds a mover, the selection needs hysteresis larger
+than the per-step change the action itself causes — otherwise the action inverts its own ranking.
+
+## 2026-08-22 — the autotest harness converts seconds to ticks at 25 tps; the mod runs at 16.67
+
+`TestHarness.TicksPerSecond = 25` (`mods/ww3mod/scripts/test-helpers.lua:9`), but `GameSpeeds` `default`
+is `Timestep: 60` (`mod.yaml:379`) = 16.67 ticks/second. `AssertWithin(N)` therefore waits `N * 25`
+ticks, which is `N * 1.5` real seconds.
+
+Every existing scenario deadline is consequently 1.5× more generous than it reads, and every "within
+Ns" string in a failure message overstates the time actually allowed by the same factor. **Not changed
+here** — correcting the constant would tighten every existing deadline by a third in one step, which is
+a fleet-wide retune, not a medic fix. Size new deadlines in ticks and divide.
+## 2026-08-22 — a multi-weapon unit closes to its SHORTEST weapon's range, not its longest
+
+Branch `wt/tunguska-guns`, chasing "the tunguska refused to shoot a helicopter with missiles and went
+closer to use the guns instead".
+
+`Attack.TickAttack` computed `maxRange = armaments.Min(a => a.MaxRange())`
+(`engine/OpenRA.Mods.Common/Activities/Attack.cs:261`) — the shortest reach among every armament valid
+against the target. A Tunguska ordered at a helicopter has two valid armaments, the 30mm AA gun at
+`18c0` and the 9M311 at `28c0`, so a target 24 cells out read as **out of range** and the unit drove
+forward until the gun could fire, with all eight missiles loaded.
+
+**This was never a condition lockout, which is what it looks like.** The missile armament carries
+`PauseOnCondition: ... || firing-primary` (`vehicles-russia.yaml:896`) and that reads like a mutual
+exclusion that could strand it — but `firing-primary` is granted by `GrantConditionOnPreparingAttack@1`
+with `ArmamentNames: primary`, and `primary` is the **AG** gun (`ValidTargets: Infantry, Vehicle,
+Defense`). The missile is `ValidTargets: Air`. The two can never contend for one target, and
+`Armament.CanFire` validates `IsValidAgainst` *before* `PreparingAttack` is notified
+(`Armament.cs:326-340`, notification at `:420`), so the AG gun cannot grant the condition while
+shooting at air at all. **That whole condition is inert.** Left in place; documented rather than
+removed.
+
+The same activity was already inconsistent with itself: `lastVisibleMaximumRange` at `Attack.cs:86`
+and `:140` uses `GetMaximumRangeVersusTarget`, which takes the **maximum** and skips paused armaments.
+Only the engage path took the minimum.
+
+Fixed opt-in via `AttackBaseInfo.EngageAtLongestArmamentRange` (default `false`, so nothing else in the
+mod moves) routing through the pure `AttackBase.EngagementMaxRange`, pinned by `EngagementMaxRangeTest`.
+**The longest branch must skip PAUSED armaments** with a fallback when all are paused: a dry armament is
+paused, never disabled, so `ChooseArmamentsForTarget` keeps returning it, and a naive `Max` would strand
+a Tunguska that had spent its missiles at 28c0, out of its own gun's reach, firing nothing.
+
+## 2026-08-22 — a weapon field set at the wrong nesting level parses clean and does nothing
+
+`Inaccuracy` is a field of the **`Projectile:` sub-block**, not of the weapon. Writing
+
+```
+30mm.Tunguska.AA:
+	Inherits@Caliber: ^30mm.Tunguska
+	Inaccuracy: 0c448          # <- silently ignored
+```
+
+parses without a warning, survives `--check-yaml` with zero errors, and leaves the resolved value at
+the inherited `1c0`. The correct form re-opens the sub-block, which **merges** with the parent rather
+than replacing it — `Speed`, `Image` and the rest survive, verified in the resolved dump:
+
+```
+	Projectile: Bullet
+		Inaccuracy: 0c448
+```
+
+This nearly shipped as a no-op balance change. **The countermeasure is not care, it is the dump:**
+`./tools/combat-sim/scripts/dump-stats.sh` then read the value back out of
+`tools/combat-sim/data/stats.json` (keys are lowercased). The dump comes from the engine's resolved
+Ruleset, so it is the only thing that can tell you an override actually took. The tell here was that
+the regenerated file was **byte-identical** to the previous one.
+
+## 2026-08-22 — three inert fields in the projectile/warhead pipeline that YAML sets and nothing reads
+
+All three found while modelling the Tunguska's 30mm accuracy. Each is a field the mod sets in the
+belief it does something.
+
+**`InaccuracyPerProjectile` does nothing on `Bullet`.** Its branch is gated on `lastPosIsSet`
+(`Projectiles/Bullet.cs:213`), declared `readonly bool lastPosIsSet = false` at `:170` and never
+assigned anywhere. The else-branch always runs, so every round in a burst scatters independently about
+the target centre and no burst-walk occurs. `^30mm.Tunguska`'s `InaccuracyPerProjectile: 12,12,0` and
+`30mm.A10`'s `32,32,0` are both dead.
+
+**`DamageAtMaxRange` does nothing on a `SpreadDamage` warhead.** `RangeDamageMultiplier` is defined on
+`DamageWarhead` (`:111`) but called from exactly one place in the engine,
+`TargetDamageWarhead.cs:89`. `SpreadDamageWarhead` never calls it, so its damage is flat with range.
+`^30mm`'s `Warhead@Spread` sets `DamageAtMaxRange: 50` and gets full damage at every range. This is
+mod-wide, not Tunguska-specific — worth a sweep before anyone tunes a spread warhead by that field.
+
+**Bullets do not collide en route, and do not lead.** `target = args.PassiveTarget`
+(`Bullet.cs:200`) is the target's position *at fire time*; nothing solves for intercept, and
+`args.TargetingVector` is the `FirstBurst`/`FollowingBurstTargetOffset` walk pattern, not a lead. The
+per-tick `AnyValidTargetsInRadius` check is gated on `remainingBounces < info.BounceCount`
+(`Bullet.cs:349`), and `BounceCount` defaults to 0, so a non-bouncing bullet only ever detonates at the
+end of its flight path. **Consequence: gun accuracy against a fast mover is bounded by target motion,
+not by `Inaccuracy`.** A Littlebird at its 265 u/tick cruise travels ~5 cells during a 30mm round's
+20-tick flight to 18c0, against a `Circle Radius 32` hitshape — no `Inaccuracy` value can fix that.
+Tuning scatter only helps against targets that are hovering or slow.
+
 ## 2026-08-21 — there are TWO independent resupply-seek paths, and `AutoSeekSupplies.ReturnWhenEmpty` gates only one of them
 
 Branch `wt/essential-apply`, reconciling the `Essential` census against the mechanism that landed after
@@ -8862,6 +9002,26 @@ A third, smaller note: a full overrun is **two** bars, not one. The control bar 
 fills, both at the same computed rate (`:282-312`), so the wall-clock cost of finishing a player is 2x any
 single "ticks to deplete" figure — 180s at reference surplus, not 90s.
 
+## 2026-08-22 — "units back up after arriving": `Mobile.OnBecomingIdle` can only fire on FOUR actors, and a plain move order is NOT how a unit gets there
+
+The player report is *"vehicles ordered to a position, when they get there they back up a bit, like they got a hidden extra order"*. There is a literal hidden extra order — `Mobile.OnBecomingIdle` (`Mobile.cs:937-948`) re-orders any unit that falls idle on a cell it may transit but not stop on, via `MoveTo(self.Location, evaluateNearestMovableCell: true)`. `NearestMoveableCell` searches an annulus of radius 1–10 (`Mobile.cs:808-856`), so the correction is typically a **one-cell shuffle** — precisely "backs up a bit".
+
+**The geographic constraint is the most useful diagnostic here, and it is very tight.** `Locomotor.CanStayInCell` (`Locomotor.cs:368-374`) is *purely* `!CellFlag.HasTransitOnlyActor`. It consults no terrain, no pass classes and no locomotor state, so it is locomotor-independent. That flag is set only at `Locomotor.cs:565-569`, from `actor.OccupiesSpace is Building b && b.TransitOnlyCells().Contains(cell)` — i.e. footprint cells written `+` (`FootprintCellType.OccupiedPassableTransitOnly`, `Building.cs:26`). **Exactly four actors in the whole mod declare a `+` cell:** `SUPPLYROUTE` (`structures.yaml:242`), `LOGISTICSCENTER` (`:366`), `AFLD` (`:551`), `FIX.Husk` (`husks-buildings.yaml:105`). **Therefore this trait can never fire anywhere else on any map.** If a unit wobbles in open ground with none of those nearby, the cause is something else (`Nudge` via `Mobile.OnNotifyBlockingMove` `:959-971` is the only other unordered-movement source on `Mobile`).
+
+**`^CivField` is NOT involved and the shared-root hypothesis with the LCCV/fields work is FALSE.** Fields declare `Footprint: x` (`Occupied`, `civilian.yaml`), contributing zero transit-only cells, so `CanStayInCell` returns **true** on a field. Recorded so this is not re-derived: the fields angle and the idle-bounce angle are unrelated defects.
+
+**A plain move order does not strand a unit, which refutes the obvious theory.** Every player order (`Mobile.ResolveOrder` `:1030`, `:1041`) and every production/rally move (`ProductionFromMapEdge.cs:223-230`) passes `evaluateNearestMovableCell: true`, and `Move.OnFirstRun` (`Move.cs:139-143`) rewrites the destination through `Mobile.NearestMoveableCell`, which filters on `CanStayInCell` (`Mobile.cs:844-852`). Both give-up branches in `Move.PopPath` re-check it (`Move.cs:268`) and `Move.Cancel` only clears the path when it holds (`Move.cs:428`). A move ordered onto the Supply Route's centre therefore lands the unit on a corner — no bounce. **The engine's `Move` is thorough; the HACK comment's "activities should be making sure this can't happen" is already satisfied by `Move` itself.**
+
+**The two unguarded entry points — this is where the defect actually lives.**
+
+1. **`MoveOnto` overrides away the `CanStayInCell` filter its own base class applies.** *(CORRECTED 2026-08-22 — an earlier revision named `LocalMoveIntoTarget` here and that was WRONG: `LocalMoveIntoTarget` is reached from `Mobile.MoveIntoTarget`/`MoveIntoTargetRaw` (`Mobile.cs:781, :789`), never from `MoveOntoTarget`, and `Resupply` does not use it. The conclusion survives; the mechanism named did not.)* `Resupply.cs:274` calls `move.MoveOntoTarget` → `MoveOntoAndTurn : MoveOnto : MoveAdjacentTo` (`Mobile.cs:792`). The virtual base `MoveAdjacentTo.CalculatePathToTarget` builds its candidates through `Mobile.CanStayInCell(cell) && Mobile.CanEnterCell(cell)` (`MoveAdjacentTo.cs:129`) — but `MoveOnto` **overrides that method**, replacing the filtered set with a single unfiltered cell, `CellContaining(Target.CenterPosition + offset)` (`MoveOnto.cs:41-58`). Also reached from `DockHost.cs:141`. `LOGISTICSCENTER` carries both `RepairsUnits` (`structures.yaml:402`) and `SupplyProvider` (`:412`) and its centre cell is `+`, so a serviced ground vehicle is parked on a cell it may not stop on; when servicing ends with nothing queued behind it, the unit goes idle there and is shoved off. `Resupply` has its own leave-host logic (`:434-445`) but it is conditional on there being a next activity.
+2. **Production *places* units at exit cells rather than moving them there, so no correction runs.** On `SUPPLYROUTE` the split is exact and explains the user's own hedge: **all four vehicle exits (`1,0`, `2,1`, `1,2`, `0,1`, `structures.yaml:291-302`) are `+` cells; all four infantry exits (corners `0,0`, `2,0`, `2,2`, `0,2`, `:279-290`) are `=` and stayable.** Vehicles bounce at the Supply Route; infantry do not.
+
+**The ammo activation `6ac54870` is ruled OUT as the cause and IN only as a possible amplifier.** `AmmoPool.AutoRearmIfDry` (`AmmoPool.cs:505-549`, entered from `INotifyBecomingIdle` at `:667`) dispatches a unit on a *long leashed trip* (15/30 cells) to a resupply host — it cannot produce a one-cell back-up. But it is what sends more vehicles more often to the `LOGISTICSCENTER`, which is exactly where entry point 1 bites, so it plausibly raised the frequency of a pre-existing defect at the moment the user began testing. **That frequency claim is unmeasured.**
+
+Aircraft are exempt from all of the above: they do not use `Mobile`, and `AutoRearmIfDry` early-returns on `AircraftInfo`.
+
+Proof artifact: `engine/OpenRA.Test/OpenRA.Mods.Common/TransitOnlyServiceHostTest.cs`. Its two non-vacuity guards run always; the invariant assertion is `[Explicit]` because it currently fails and both candidate fixes are gameplay-data decisions (`+`→`=` makes the depot occupy nothing and stop blocking; `+`→`x` breaks the docking drive-on repair depends on).
 ## 2026-08-22 — AA double-launch is a class; the audit is interval-vs-lifetime, and Penetration decides who is exempt
 
 Second report of an AA unit firing two homing missiles at one target (Tunguska, after the Stryker SHORAD a
@@ -9015,3 +9175,194 @@ check — so removing a target type should close all three together. **This was 
 code, not observed in a running game.** Confirming it needs a scenario: a grenadier ordered onto a
 hovering littlebird should have the order refused, and one standing beneath it on FireAtWill should never
 open fire. If either behaves differently, this note is where the assumption was made.
+## 2026-08-22 (follow-up) — path 2 is CLOSED, the phantom move draws NO target line, and the two HACK comments are accusing each other
+
+Follow-up to the entry above. Three settled questions.
+
+**1. Production can never strand a ground unit — close path 2.** The Supply Route's four *vehicle* exit cells really are `+`, but nothing is ever placed on them. `ProductionFromMapEdge.Produce` spawns ground units on **map-edge cells** (`ProductionFromMapEdge.cs:113-155`) and never consults `Exit`; each rally waypoint is then replayed as `move.MoveTo(wp.Cell, …, evaluateNearestMovableCell: true)` (`:217-230`), which is the guarded path. With no rally set it drives to `self.Location` — the SR's **TopLeft**, an `=` corner (`:173-175`). `SUPPLYROUTE`'s only local producer is `Production@Local: Produces: Building, Defense` (`structures.yaml:319`), which is placement, not exiting. Of the other three `+` actors: `LOGISTICSCENTER` has no `Production`/`Exit` at all, `FIX.Husk` produces nothing, and `AFLD` produces only `Aircraft, Plane` with `Exit@1: ExitCell: 1,1` — which on footprint `xxx xx+` (Dimensions 3,2) is an `x`, not the `+` at (2,1). **So the sole live route to an unstayable cell is service docking.** Recorded as a negative so nobody re-derives it: the SR vehicle-exit asymmetry is real but inert.
+
+**2. The correction is invisible, which decides what a waypoint-marker feature can and cannot fix.** `Mobile.cs:946` queues the correction as `MoveTo(self.Location, evaluateNearestMovableCell: true)` — the `targetLineColor` parameter defaults to `null` (`Mobile.cs:677-681`) — and `Move.TargetLineNodes` yields **nothing at all** unless `targetLineColor != null` (`Move.cs:450-455`). `Mobile.ShowTargetLines()` is called on the order path (`:1031`, `:1047`) but not here. **A marker system keyed on target lines therefore cannot render this move**, and making it legible requires giving the correction a colour at the queueing site, not only building the marker renderer.
+
+**3. `OnBecomingIdle` fires only with an empty queue, and performs zero contention checking.** `Actor.Tick` raises it exactly on the `!wasIdle && IsIdle` edge (`Actor.cs:319-324`), i.e. the tick the activity queue empties — so by construction nothing is queued behind the unit. `Mobile.OnBecomingIdle` then tests only `CanStayInCell`: no check for whether another unit wants the cell, is approaching, or is blocked. **A repaired vehicle alone on an empty map still shuffles off the pad.** `LOGISTICSCENTER` also carries no `Reservable` (unlike `HPAD` `:513` and `AFLD` `:588`), so there is no queueing system being served — "clearing the pad for the next customer" is not a behaviour this building implements.
+
+**The two HACK comments describe each other, which is the real shape of the defect.** `Resupply.cs:269` — *"HACK: Repairable needs the actor to move to host center. TODO: Get rid of this or at least replace it with something less hacky."* `Mobile.cs:944` — *"HACK: activities should be making sure that this can't happen in the first place!"* The activity that isn't making sure is the one directly above. Neither is wrong locally; they disagree about whether a host's centre cell is a place a unit may rest.
+
+**Prior art that stopped one question short.** `test-lc-rearm-partial-order`'s header already analysed this exact footprint and concluded the LC centre is *"walk-on-able, not blocked"* — correct, and it asked only whether a unit could **arrive**. Stayability is a different predicate from blockedness (`Locomotor.IsBlockedBy:426-431` explicitly returns "not blocked" for transit-only cells, while `CanStayInCell:373` returns false for the same cell), and nothing there asked what happens after arrival. New scenario `test-depot-vacate-phantom` asks that question; it is authored and lint-clean but **not yet run**.
+
+## 2026-08-22 (third pass) — the idle bounce is LOAD-BEARING: making the dock cell stayable would stall the next customer at the door
+
+Settles the fix question from the entry above, and reverses the recommendation made there.
+
+**The proposed fix was `+`→`=` on the `LOGISTICSCENTER` centre, on the reasoning that the bounce serves no purpose (it does no contention check, and the LC has no `Reservable`). That reasoning was wrong, and the counter-argument is better: bouncing unconditionally is what keeps the dock cell free BY CONSTRUCTION, which is exactly the property a docking system with no queue and no reservation needs in order to work at all.**
+
+**The decisive code is `MoveOnto.CalculatePathToTarget` (`MoveOnto.cs:41-58`):**
+
+```csharp
+// If we are close to the target but can't enter, we wait.
+if (!Mobile.CanEnterCell(lastVisibleTargetLocation) && Util.AreAdjacentCells(lastVisibleTargetLocation, self.Location))
+    return (false, PathFinder.NoPath);
+```
+
+A second vehicle that reaches adjacency and finds the dock cell occupied returns `NoPath` and **waits** — it does not stack, does not sidestep and does not re-path. `Mobile.CanEnterCell(cell)` defaults to `BlockedByActor.All` and vehicles do not share cells, so a squatting vehicle blocks absolutely. There is no near-enough fallback either: `Resupply`'s `isCloseEnough` for the LC is `WDist.Zero`, because the LC carries no `RearmsUnits` trait for `AmmoPool.cs:374` to read a `CloseEnough` off, so **exact coincidence with the building centre is required**. Net effect of `+`→`=`: vehicle 1 parks on the dock forever, vehicle 2 stalls at the door forever. **That trades a cosmetic bug for a functional one.**
+
+**So the fix is legibility, not suppression, and the site is the one this investigation already located.** `Mobile.cs:946` queues the correction as `MoveTo(self.Location, evaluateNearestMovableCell: true)` with `targetLineColor` defaulted to `null` (`Mobile.cs:677-681`), and `Move.TargetLineNodes` yields nothing without a colour (`Move.cs:450-455`). Giving it a colour — and a colour DISTINCT from the player-order vocabulary already in use (`Green` = Move, `OrangeRed` = AttackMove, `DeepSkyBlue` = ForceMove, `ProductionFromMapEdge.cs:223-230`) — is what turns "my tank moved on its own" into "the game vacated the pad". It should NOT become a real `Order`: `OnBecomingIdle` is raised deterministically on every client from identical state (`Actor.cs:319-324`), so ordering it would add network traffic and put a simulation invariant into the player's order history.
+
+**The principled fix, if this ever justifies the machinery:** keep the dock stayable AND keep it free, by vacating on reservation rather than on idleness. The engine already has the shape — `Reservable` (used by `HPAD`, `structures.yaml:513`, and `AFLD`, `:588`, but NOT by the LC) and `DockHost.cs`. That is a real option rather than a hypothetical one, but it is far more than this bug is worth.
+
+**The existing suite cannot catch this regression, which is how it nearly shipped.** `test-lc-rearm-partial-order` has four subjects: `Rifleman` (`ar`) at `InfDepot`, `Bradley` at `VehDepot`, and `PairA`/`PairB` (both `ar`) sharing `OffsetDepot`. **The only contention case is two INFANTRY on one depot, and infantry share a cell via subcells — a different mechanism entirely. The single vehicle has a depot to itself.** So there is no two-vehicles-one-depot case anywhere in the suite. Its pass condition is also `ammo >= Full and IsIdle` (`:159`), with the running-minimum `ClosestCells` feeding only the failure-report string (`:170-171`) — so it would have stayed green through the footprint change while the game acquired a hard stall.
+
+**Autotest scenario Lua can now be parsed without launching a game.** No `luac` or interpreter exists on the box and `engine/lua/` holds only helper scripts, but `OpenRA.Game` pulls in `OpenRA-Eluant` and `engine/bin/lua51.dylib` ships, so the engine's own Lua 5.1 parser is reachable from NUnit. `ScenarioLuaParsesTest` compiles every `tools/autotest/scenarios/**/*.lua`, wrapping each chunk as a function body (`"return function()\n" + src + "\nend"`) so the tokens are parsed but nothing executes — scenario top-levels assign globals and touch harness tables that do not exist outside a game, so `DoBuffer` on the raw text would fail for the wrong reason. Verified RED against a planted `//`: *"unexpected symbol near '/'"*. This matters because a syntax error is otherwise invisible until launch, where it presents as `TIMEOUT-FAIL`/`NO-RESULT` — indistinguishable from a scenario that merely failed to reach its assertion, and it costs a serialized run slot to discover.
+## 2026-08-22 — target lines: null draws NOTHING, and the "blue automatic line" was never a colour
+
+Four findings from making automatic orders legible. All four are *silent* — nothing logs, lints or fails.
+
+**1. A null `targetLineColor` draws NO LINE AT ALL. It is not a fallback to a default colour.**
+`Move.TargetLineNodes` (`engine/OpenRA.Mods.Common/Activities/Move/Move.cs:453`) and the equivalent in
+`Attack.cs` both guard `if (targetLineColor != null)` before yielding, and `Activity.TargetLineNodes`
+(`engine/OpenRA.Game/Activities/Activity.cs:272`) is `yield break`. So every call site that omitted the
+argument produced a unit that moves or opens fire with **zero** on-screen explanation — that was
+`AutoTarget`'s attacks (`AutoTarget.cs:1194`, via `AttackBase.AttackTarget`'s defaulted parameter),
+`Mobile`'s idle-cell correction (`Mobile.cs:945,956`), `ScaredyCat` (`:164`),
+`StancePositioningExecutor` (`:414`) and aircraft RTB. **If you are wondering why a unit moved and there
+was no line, the answer may be that there was never going to be one.**
+
+**2. The "blue line for automatic heal orders" was `self.Owner.Color` — the player's own colour.**
+`AutoFollowAlly.cs:138`. It looked blue only because that player was blue. A player who picks green in
+the lobby got a line identical to `MobileInfo.TargetLineColor` (`Mobile.cs:80`, `Color.Green`); one who
+picks red collided with `AttackBaseInfo.TargetLineColor` (`AttackBase.cs:28`, `Color.Crimson`). It
+carried no semantics whatsoever. Do not cite it as precedent for "blue means automatic".
+
+**3. Target lines render ONLY for selected actors, and time out 2400ms after *selection*.**
+Two independent gates, easy to conflate. The lines come from `IRenderAnnotationsWhenSelected`, which
+`WorldRenderer.cs:277-290` walks over `World.Selection.Actors` only (plus everything friendly while
+`ShowAllOrders` — spacebar — is held). *On top of that*, `DrawLineToTarget.ShouldRender` requires
+`Game.RunTime <= lifetime`, and `lifetime` is re-armed only by `LineTargetExts.ShowTargetLines` (called
+from order resolution) or by `INotifySelected.Selected`. Consequence: **selecting a unit to find out
+where it is going buys exactly `Delay` ms of answer, then goes dark while the unit is still walking.**
+Automatic sources mostly never call `ShowTargetLines` at all — `AutoFollowAlly`, `Wanders` and
+`AutoCarryall` have zero references to it, though `AutoSeekSupplies` (`:203,:302`) and `AmmoPool`
+(`:604,:619`) do.
+
+**4. `AttackSource` already encodes order provenance, and nothing was using it for display.**
+`AttackBase.cs:12` — `enum AttackSource { Default, AutoTarget, AttackMove }`, with a ready-made predicate
+`AutoTarget.IsAutoAcquiredSource` (`AutoTarget.cs:1068`) and a second consumer in
+`AttackBase.BreakOffApplies` (`:662`). Provenance and colour already travel side by side down
+`GetAttackActivity(self, source, target, allowMove, forceAttack, targetLineColor)`. There is **no**
+equivalent for moves: `Order` carries no provenance flag, and `IMoveInfo.GetTargetLineColor()`
+(`TraitsInterfaces.cs:607`) takes no arguments, so it physically cannot distinguish caller intent.
+
+## 2026-08-22 — `WithHealFlash` shipped invisible, and `pip-heal` art was sitting unused
+
+The user reported "no effect when medics heal". The effect **already existed and was already applied**:
+`WithHealFlash` (`engine/OpenRA.Mods.Common/Traits/Render/WithHealFlash.cs`, commit `82938ec8`,
+2026-03-28) on `^ExistsInWorld` at `mods/ww3mod/rules/defaults.yaml:9` with no overrides. Its defaults
+made it imperceptible: white at `Alpha: 0.3`, `Count: 2`, `Interval: 2`.
+
+**The Interval field is the strobe/glow switch and it is not obvious.** `FlashTarget.Render`
+(`engine/OpenRA.Mods.Common/Effects/FlashTarget.cs:64`) tints only when `tick % interval == 0`, and the
+effect lives for `count * interval` ticks. So `Count: 2, Interval: 2` is **two single-tick tints 120ms
+apart**, not 240ms of tint — at `Timestep: 60` a tick is 60ms. `Interval: 1` is the only way to get a
+continuous glow. A feature can be fully wired, lint-clean and still invisible; **before building a visual
+effect, check whether one is already mounted and merely tuned to nothing.**
+
+Two more, both cheap to trip over:
+
+- **`pip-heal` art already ships and was referenced by nothing.** Sequence at
+  `mods/ww3mod/sequences/sequences-misc.yaml:198`, backed by real
+  `mods/ww3mod/bits/units/pips/pip-heal.shp`. Grep the pips set before commissioning pip art.
+- **`GrantConditionOnHealingReceived` cannot fire in this mod.** Its `DamageTypes` is
+  `[FieldLoader.Require]` (`Conditions/GrantConditionOnHealingReceived.cs:32-34`) and it tests
+  `Overlaps`, but the `Heal` and `Repair` warheads (`weapons/weapons-other.yaml:339,:352`) declare no
+  `DamageTypes` at all, so the overlap can never succeed. Its `MinimumHealing: 1000` default is also far
+  above a 5% infantry heal. Detecting healing by the **sign** of `AttackInfo.Damage.Value` is what works
+  — and it picks up non-weapon healers (`RepairsUnits` service depots) for free. Note `0` is NOT healing:
+  `ReplenishSoldiersTargeter` (`weapons-other.yaml:367`) fires `DamagePercent: 0` at allies.
+---
+
+## 2026-08-22 — UnitOrderGenerator's second pass is not "the move fallback", and the cursor rides on the order
+
+Three findings from the report that an Iskander gives *no cursor at all* over an enemy.
+
+**1. The cursor and the order are the same function, so suppressing one suppresses the other.**
+`UnitOrderGenerator.GetCursor` (`engine/OpenRA.Mods.Common/Orders/UnitOrderGenerator.cs:123-144`) and
+`Order` (`:49-52`) both resolve through `OrderForUnit`. When `08915556` made that method return `null` for
+a click a unit cannot carry out, the cursor died with the order and fell through to
+`worldDefaultCursor` — a bare pointer. **Any future change that suppresses an order suppresses its
+cursor too; there is no separate cursor path to fix afterwards.** The rule is now per-SELECTION
+(`OrdersForSelection`, `:184`): refusers are silenced only while another selected unit is acting, so a
+selection in which nothing can act still gets the default order and still previews it.
+
+**2. The second pass is the only route to force-attack-GROUND, not just to Move.**
+The retry replaces the clicked actor with `Target.FromCell` and re-runs the whole targeter chain
+(`:283-300`). `AttackBase.AttackOrderTargeter.CanTargetLocation` (`Attack/AttackBase.cs:762`) is reached
+*only* there. So a gate that skips the retry — which is what `AllowsMoveFallback` did — silently deletes
+force-fire at the ground under every enemy the firing unit cannot itself target. The gate now runs the
+pass and filters the RESULT (`OrderFallbackMath.AllowsRetryResult`): a relocation is refused, a
+`ForceAttack` is not. **The old name is the trap: "move fallback" describes one of at least three things
+the pass produces.**
+
+**3. `AttackOrderTargeter` never consults MinRange — only `MaxRange` (`AttackBase.cs:747`, `:785`).**
+So a weapon's `MinRange` cannot explain a missing cursor or a refused click; a target too CLOSE still
+targets and the attack activity backs off. `IskanderTargeter`'s `MinRange: 16c0`
+(`mods/ww3mod/rules/weapons/weapons-missiles.yaml:382`) was a red herring. What DOES explain the
+Iskander is `RequiresForceFire: True` on its armament (`rules/ingame/vehicles-russia.yaml:999`, and
+HIMARS at `vehicles-america.yaml:1098`): `ChooseArmamentsForTarget` returns empty for every actor click
+that is not force-fire, so those two launchers refuse *all* plain right-clicks on actors by design. That
+is a deliberate design choice, not a bug — but combined with (1) it is why they showed no cursor at all.
+
+## 2026-08-22 (fourth pass) — the phantom-move fix landed on another branch; this one keeps the invariant test that stops it being "fixed" wrongly
+
+The legibility fix for the idle-cell correction was authored on `wt/heal-legibility` (`4a696e2c`), not here — it reached `Mobile.cs:946` first, and its design is better than the per-category colour this investigation was going to add. `AutomaticOrder.LineColor` (DodgerBlue) is **one** colour meaning "the GAME issued this", threaded through the `targetLineColor` parameter that already reaches the renderer rather than a new provenance flag on `TargetLineNode` (which would have needed 29 call sites). Its `DrawLineToTarget.ShouldRender` change also exempts automatic lines from the `Delay` timeout via `HasAutomaticNode`, which matters specifically for the vacate: it is a ONE-CELL move, so a line calibrated to confirm a player's own click would have expired while the unit was still visibly moving.
+
+**Checked, because it was the obvious gap and it is NOT one:** the colour alone does not display a line — `lifetime` is armed only by `INotifySelected.Selected` and by the `LineTargetExts.ShowTargetLines()` extension the ORDER paths call, and nothing calls it for a self-issued move. `HasAutomaticNode` is what closes that, so no `ShowTargetLines()` call is needed at the queueing site. Recorded so nobody "fixes" it by adding one.
+
+**The invariant test here was INVERTED, and the inversion is the durable lesson.** It first asserted *"a serviced unit is never parked on a cell it cannot stay in"* — the obvious reading, and wrong. It now asserts the opposite: `LOGISTICSCENTER` must KEEP its transit-only `+` dock cell (`ServiceHostDockCellsStayTransitOnlyBecauseTheVacateDependsOnIt`). The bounce is what keeps the dock free by construction for a docking system with no queue and no reservation; making the dock stayable parks the serviced vehicle forever and stalls the next at the door. **A test that encodes a rejected goal is worse than no test, because the next reader takes it as settled policy.**
+
+**New Lua binding: `Test.GetAutomaticTargetLineCells(actor)`** (`TestGlobal.cs`). `GetTargetLineCells` returns cells only, so node COLOUR was unreachable from Lua — meaning a scenario could assert that a self-issued move draws a line but not that the line is marked automatic. A regression painting the vacate in the ordinary move colour would still return a node and pass a count-only check while reading to the player as an order they never gave, which is the original bug wearing the fix's clothes.
+
+**`test-depot-vacate-phantom` now carries a second damaged vehicle, and that is the reusable part.** It is the only two-vehicles-one-depot case in the suite (see the third-pass entry above). One run now confirms both halves: that the serviced vehicle vacates the dock unordered *and* that the next customer is served because it did.
+
+**Two claims on the other branch's coverage table, verified rather than assumed:** `HealerAutoTarget` really does queue no activity — it is `IOverrideAutoTarget, ITick, INotifyCreated, INotifyActorDisposing` with no `QueueActivity`/`MoveTo` anywhere, so the medic's line comes from the `AttackBase` auto-acquire path that branch also touches, not from the healer trait. And `AttendAlly` really is a player order: `IIssueOrder, IResolveOrder` (`AttendAlly.cs:48`). Both entries stand.
+---
+
+## 2026-08-22 — A weapon `Report` on a missile-spawner launcher is early by the whole erection phase
+
+**The mechanism, generally.** A missile launcher (`MissileSpawnerMaster`) fires a dummy weapon whose only
+job is to spawn the missile actor. `Armament.FireBarrel` plays the weapon's `Report` and calls
+`INotifyAttack.Attacking` — which is what spawns the missile — as **consecutive statements in one delayed
+action** (`engine/OpenRA.Mods.Common/Traits/Armament.cs:621-628`). So the report is simultaneous with the
+missile *appearing*, not with it *launching*. When the missile has `BallisticMissile.LaunchRiseTicks > 0`
+it then sits on the rail erecting, and `BallisticMissileFly` does not reach Phase 2 / `Ignite()` until
+`LaunchRiseTicks + PostErectionWaitTicks` ticks later
+(`engine/OpenRA.Mods.Common/Activities/BallisticMissileFly.cs:146-188`). The report is early by exactly
+that figure.
+
+For the Iskander that is **80 ticks** (60 + 20), and at the mod's `Timestep: 60` — 16.67 ticks/s, *not* the
+25 tps several of these YAML comments were written against — **4.8 seconds**. Long enough that the sound
+reads as belonging to the tilt animation, which is exactly how it was reported.
+
+Fixed by adding `BallisticMissileInfo.IgnitionSound`, played once from `BallisticMissile.Ignite()`.
+`Ignite()` is called on *every* arc-flight tick, and its pre-existing token guard could not carry
+once-only semantics for a sound: when `IgnitionCondition` is null the token stays invalid forever, so the
+sound would have replayed every tick of the flight. It now has its own `bool ignited`.
+
+**The Iskander was the only actor affected** — it is the sole `LaunchRiseErect` user in the mod. HIMARS
+shares the weapon by inheritance (`HIMARSTargeter: Inherits: IskanderTargeter`) but `HIMARSMissile` sets no
+`LaunchRiseTicks`, so it ignites on its first tick in the world and a weapon `Report` is correct for it to
+within one tick. `HIMARSTargeter` therefore now declares its own `Report` rather than inheriting one.
+
+Guarded by the `CheckMissileLaunchReport` lint rule
+(`engine/OpenRA.Mods.Common/Lint/CheckMissileLaunchReport.cs`), which walks every `MissileSpawnerMaster`,
+computes `PreLaunchTicks` over its slaves and errors if an armament it drives fires a weapon carrying a
+`Report`. It derives the tick figure from the real rules tree, so the error message states the actual
+lateness rather than a hard-coded number.
+
+**NON-OBVIOUS, and the reason this needed a lint rule rather than an autotest: the autotest harness cannot
+observe audio at all.** `tools/autotest/run-test.sh:157` defaults `AUDIO_MUTE=1` (`--audio` opts out), and
+more fundamentally there is **no sound-logging or trace surface anywhere in the engine** — `Game.Sound.Play`
+records nothing. So no scenario can ever produce a verdict on *which* sound played *when*; audio-timing
+work has to be pinned on the tick arithmetic and the data wiring, with a human listening test as the only
+end-to-end confirmation. Anyone reaching for `run-test.sh` to verify a sound bug should stop here.
+
+Tick arithmetic pinned without a World in `engine/OpenRA.Test/MissileLaunchTimingTest.cs`, via the new pure
+`BallisticMissileInfo.PreLaunchTicks` property that `BallisticMissileFly` now shares.

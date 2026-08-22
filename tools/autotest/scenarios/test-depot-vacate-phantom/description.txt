@@ -1,0 +1,1 @@
+Auto: an Abrams that finishes repairing at the Logistics Centre must be seen shoving itself off the dock cell with no order behind it — the player's "hidden extra order".

@@ -557,6 +557,31 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (!TestMode.IsActive || self == null || target == null)
 				return null;
 
+			var mods = ParseClickModifiers(modifiers);
+			var queued = modifiers.Contains("Shift");
+
+			// Delegates rather than replicating the chain. The private copy this replaced omitted
+			// UnitOrderGenerator's terrain retry, so it answered a question the real click does not
+			// ask — it could never report the Move that a refused attack used to produce.
+			//
+			// PITFALL: this is the PER-UNIT layer. A real click is resolved for the whole SELECTION,
+			// and a selection in which nothing accepts the click falls back to the default order for
+			// everybody — so a lone unit here reports "refused" where the same unit alone under a real
+			// mouse now gets a move. Use ClickOrderGroup when the selection is part of the question.
+			var result = UnitOrderGenerator.OrderForUnit(self, Target.FromActor(target), target.Location, mods);
+			if (result == null)
+				return null;
+
+			var order = result.Trait.IssueOrder(self, result.Order, result.Target, queued);
+			if (order == null)
+				return null;
+
+			self.World.IssueOrder(order);
+			return order.OrderString;
+		}
+
+		static TargetModifiers ParseClickModifiers(string modifiers)
+		{
 			var mods = TargetModifiers.None;
 			if (modifiers.Contains("CtrlAlt"))
 				mods |= TargetModifiers.ForceAttack;
@@ -568,23 +593,60 @@ namespace OpenRA.Mods.Common.Scripting.Global
 					mods |= TargetModifiers.AttackMove;
 			}
 
-			var queued = modifiers.Contains("Shift");
-			if (queued)
+			if (modifiers.Contains("Shift"))
 				mods |= TargetModifiers.ForceQueue;
 
-			// Delegates rather than replicating the chain. The private copy this replaced omitted
-			// UnitOrderGenerator's terrain retry, so it answered a question the real click does not
-			// ask — it could never report the Move that a refused attack used to produce.
-			var result = UnitOrderGenerator.OrderForUnit(self, Target.FromActor(target), target.Location, mods);
-			if (result == null)
-				return null;
+			return mods;
+		}
 
-			var order = result.Trait.IssueOrder(self, result.Order, result.Target, queued);
-			if (order == null)
-				return null;
+		[Desc("Resolve ONE right-click on `target` for a whole SELECTION, exactly as UnitOrderGenerator " +
+			"resolves it for the mouse, and issue whatever comes out. Returns one OrderString per actor " +
+			"in the order given, empty string where that unit got no order at all. " +
+			"Use this rather than ClickOrder whenever the SELECTION is part of what is under test: the " +
+			"rule that a unit which cannot carry out the click gets nothing applies only while another " +
+			"selected unit IS carrying it out, and ClickOrder, being per-unit, cannot see that. " +
+			"`modifiers` is as for ClickOrder. Test mode only.")]
+		public string[] ClickOrderGroup(Actor[] actors, Actor target, string modifiers = "")
+		{
+			if (!TestMode.IsActive || actors == null || target == null)
+				return Array.Empty<string>();
 
-			self.World.IssueOrder(order);
-			return order.OrderString;
+			var queued = modifiers.Contains("Shift");
+			var results = UnitOrderGenerator.OrdersForSelection(
+				actors, Target.FromActor(target), target.Location, ParseClickModifiers(modifiers));
+
+			var issued = new string[actors.Length];
+			for (var i = 0; i < actors.Length; i++)
+			{
+				issued[i] = "";
+				var result = results.FirstOrDefault(o => o.Actor == actors[i]);
+				if (result == null)
+					continue;
+
+				var order = result.Trait.IssueOrder(actors[i], result.Order, result.Target, queued);
+				if (order == null)
+					continue;
+
+				actors[i].World.IssueOrder(order);
+				issued[i] = order.OrderString;
+			}
+
+			return issued;
+		}
+
+		[Desc("The cursor name a player hovering `target` with `actors` selected would see, resolved " +
+			"through the same path as the click so the two cannot disagree. Empty string when no order " +
+			"names one, which is the bare pointer the player is left with. Issues nothing. " +
+			"Test mode only.")]
+		public string ClickCursor(Actor[] actors, Actor target, string modifiers = "")
+		{
+			if (!TestMode.IsActive || actors == null || target == null)
+				return "";
+
+			var results = UnitOrderGenerator.OrdersForSelection(
+				actors, Target.FromActor(target), target.Location, ParseClickModifiers(modifiers));
+
+			return UnitOrderGenerator.CursorForOrders(results) ?? "";
 		}
 
 		[Desc("Issue a real AttackMove order, going through AttackMove.ResolveOrder the way a player's " +
@@ -660,6 +722,29 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				if (!a.IsCanceling)
 					foreach (var n in a.TargetLineNodes(actor))
 						if (n.Target.Type != TargetType.Invalid && n.Tile == null)
+							cells.Add(actor.World.Map.CellContaining(n.Target.CenterPosition));
+
+			return cells.ToArray();
+		}
+
+		[Desc("The subset of `actor`'s target-line cells whose node is painted in AutomaticOrder.LineColor " +
+			"— the one colour meaning \"the GAME issued this, not the player\". Compare against " +
+			"GetTargetLineCells to assert not merely THAT a self-issued move draws a line, but that the " +
+			"line is marked automatic: a regression painting it in the ordinary move colour would still " +
+			"return a node from GetTargetLineCells and pass a count-only check, while reading to the " +
+			"player as an order they never gave. Node colour is otherwise unreachable from Lua, because " +
+			"GetTargetLineCells returns cells only. Test mode only.")]
+		public CPos[] GetAutomaticTargetLineCells(Actor actor)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return Array.Empty<CPos>();
+
+			var cells = new List<CPos>();
+
+			for (var a = actor.CurrentActivity; a != null; a = a.NextActivity)
+				if (!a.IsCanceling)
+					foreach (var n in a.TargetLineNodes(actor))
+						if (n.Target.Type != TargetType.Invalid && n.Tile == null && AutomaticOrder.IsAutomatic(n.Color))
 							cells.Add(actor.World.Map.CellContaining(n.Target.CenterPosition));
 
 			return cells.ToArray();

@@ -1,0 +1,1 @@
+A click no selected unit can carry out must still show and issue the default order, while a click some of them can carry out still leaves the rest alone. Also: force-attack-ground must reach the cell under an enemy the firing unit cannot itself target -- the Iskander, whose armament is force-fire-only, hovering a helicopter it can never engage.

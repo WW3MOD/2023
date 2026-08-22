@@ -1,0 +1,61 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Tunguska Missile Standoff / No Closing (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Both combatants are spawned by the Lua script: the Tunguska at col 10 and the
+	# Littlebird airborne at col 34, 24 cells apart. That gap is the test — inside the
+	# 9M311's 28c0, outside the 30mm AA gun's 18c0 — so only the missile can reach and
+	# any eastward movement is the unit picking the worse weapon.
+	# One Supply Route per side so neither faction can be eliminated mid-test
+	# (a mission-end overlay short-circuits the Lua verdict poller).
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 34,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 10,17
+
+Rules: rules.yaml

@@ -146,7 +146,7 @@ namespace OpenRA.Mods.Common.Activities
 			{
 				if (!moveQueued)
 				{
-					QueueChild(move.MoveTo(origin, HomeNearEnough, targetLineColor: moveInfo.GetTargetLineColor()));
+					QueueChild(move.MoveTo(origin, HomeNearEnough, targetLineColor: AutomaticOrder.LineColor));
 					moveQueued = true;
 				}
 
@@ -215,7 +215,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (!moveQueued)
 			{
 				QueueChild(move.MoveWithinRange(Target.FromActor(currentTarget), rearmRange,
-					targetLineColor: moveInfo.GetTargetLineColor()));
+					targetLineColor: AutomaticOrder.LineColor));
 				moveQueued = true;
 			}
 
@@ -247,9 +247,9 @@ namespace OpenRA.Mods.Common.Activities
 		public override IEnumerable<TargetLineNode> TargetLineNodes(Actor self)
 		{
 			if (returning)
-				yield return new TargetLineNode(Target.FromCell(self.World, origin), moveInfo.GetTargetLineColor());
+				yield return new TargetLineNode(Target.FromCell(self.World, origin), AutomaticOrder.LineColor);
 			else if (currentTarget != null && !currentTarget.IsDead && currentTarget.IsInWorld)
-				yield return new TargetLineNode(Target.FromActor(currentTarget), moveInfo.GetTargetLineColor());
+				yield return new TargetLineNode(Target.FromActor(currentTarget), AutomaticOrder.LineColor);
 		}
 	}
 }

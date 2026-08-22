@@ -71,6 +71,19 @@ namespace OpenRA.Mods.Common.Traits
 			"Use this to gate exhaust trails / muzzle effects so they only appear after launch, not during erection.")]
 		public readonly string IgnitionCondition = null;
 
+		[Desc("Sounds played once at the moment the rocket motor lights and the missile leaves the tube.",
+			"This is where a launch report belongs on an erecting launcher: the weapon's own `Report` plays when",
+			"the armament fires, which for LaunchRiseTicks > 0 is PreLaunchTicks BEFORE anything visibly launches.")]
+		public readonly string[] IgnitionSound = System.Array.Empty<string>();
+
+		/// <summary>
+		/// Ticks the missile sits on the launcher after spawning, before the motor lights: the erection
+		/// animation plus the hold at full elevation. Zero when the missile flies straight from the tube.
+		/// Mirrors the Phase 1 guard in <see cref="Activities.BallisticMissileFly"/>, which skips the whole
+		/// pre-launch phase unless LaunchRiseTicks > 0 — so PostErectionWaitTicks alone buys nothing.
+		/// </summary>
+		public int PreLaunchTicks => LaunchRiseTicks > 0 ? LaunchRiseTicks + PostErectionWaitTicks : 0;
+
 		[Desc("Maximum speed in WDist/tick during the terminal dive phase (past apex).",
 			"0 = no terminal phase; missile keeps its cruise speed cap.",
 			"Values higher than Speed allow the missile to exceed cruise speed in the dive.")]
@@ -151,13 +164,27 @@ namespace OpenRA.Mods.Common.Traits
 		public CPos TopLeft { get { return self.World.Map.CellContaining(CenterPosition); } }
 
 		bool airborne;
+		bool ignited;
 		int airborneToken = Actor.InvalidConditionToken;
 		int ignitionToken = Actor.InvalidConditionToken;
 
+		/// <summary>
+		/// Called on every arc-flight tick, so everything here must be once-only. The token guard alone
+		/// could not carry that: when IgnitionCondition is null the token stays invalid forever, so a
+		/// sound keyed off it would have replayed every tick of the flight.
+		/// </summary>
 		public void Ignite()
 		{
-			if (ignitionToken == Actor.InvalidConditionToken && Info.IgnitionCondition != null)
+			if (ignited)
+				return;
+
+			ignited = true;
+
+			if (Info.IgnitionCondition != null)
 				ignitionToken = self.GrantCondition(Info.IgnitionCondition);
+
+			if (Info.IgnitionSound.Length > 0)
+				Game.Sound.Play(SoundType.World, Info.IgnitionSound, self.World, CenterPosition);
 		}
 
 		public BallisticMissile(ActorInitializer init, BallisticMissileInfo info)
