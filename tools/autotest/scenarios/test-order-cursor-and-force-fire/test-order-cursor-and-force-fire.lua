@@ -141,6 +141,11 @@ WorldLoaded = function()
 			return "fail: hovering the tank with only the AA specialist selected gave NO cursor at all -- the default order must still be previewed"
 		end
 
+		if r.rejectorCursor == r.gunnerCursor then
+			return "fail: the AA specialist previewed the ATTACK cursor '" .. shown(r.rejectorCursor)
+				.. "' over a tank it can never shoot; a cursor that promises an attack it will not deliver is worse than the bare pointer it replaced"
+		end
+
 		-- 4. the reported unit, on the click the user actually made.
 		if r.launcherAlone ~= "Move" then
 			return "fail: the Iskander alone got '" .. shown(r.launcherAlone)
@@ -149,6 +154,11 @@ WorldLoaded = function()
 
 		if r.launcherCursor == "" then
 			return "fail: hovering an enemy tank with the Iskander selected gave NO cursor at all -- this is the reported bug"
+		end
+
+		if r.launcherCursor == r.gunnerCursor then
+			return "fail: the Iskander previewed the ATTACK cursor '" .. shown(r.launcherCursor)
+				.. "' over a tank a plain click will only MOVE it toward; the cursor has to name the order the click produces"
 		end
 
 		-- 5. the half no cursor work can reach: force-fire at the ground under an untargetable enemy.
