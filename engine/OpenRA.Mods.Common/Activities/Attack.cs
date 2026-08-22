@@ -258,7 +258,10 @@ namespace OpenRA.Mods.Common.Activities
 
 			// Update ranges
 			minRange = armaments.Max(a => a.Weapon.MinRange);
-			maxRange = armaments.Min(a => a.MaxRange());
+			maxRange = AttackBase.EngagementMaxRange(
+				armaments.ConvertAll(a => a.MaxRange()),
+				armaments.ConvertAll(a => a.IsTraitPaused),
+				attack.Info.EngageAtLongestArmamentRange);
 
 			var pos = self.CenterPosition;
 			var checkTarget = useLastVisibleTarget ? lastVisibleTarget : target;

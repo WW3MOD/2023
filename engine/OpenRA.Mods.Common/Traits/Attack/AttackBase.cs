@@ -71,6 +71,16 @@ namespace OpenRA.Mods.Common.Traits
 			"(suppression) and whose idle behaviour matters more than the aim, e.g. medics.")]
 		public readonly bool AbandonWhenArmamentsPaused = false;
 
+		[Desc("Close to the range of the LONGEST-reaching armament that can hit the target, rather than",
+			"the shortest. Defaults to false, which is the engine's shipped behaviour: Attack.TickAttack",
+			"takes the MINIMUM of every valid armament's range, so a unit carrying both a long-range",
+			"specialist weapon and a short-range one drives into the short weapon's range even when the",
+			"long one could already fire. On a dedicated AA vehicle that reads to the player as the unit",
+			"refusing its own missiles and closing to gun range — the Tunguska's 9M311 reaches 28c0 while",
+			"its 30mm reaches 18c0, and both are valid against a helicopter. Turn it on for units whose",
+			"weapons are SPECIALISED by target; leave it off where massing every barrel is the point.")]
+		public readonly bool EngageAtLongestArmamentRange = false;
+
 		[Desc("Hold fire while the unit is mid-cell (still rolling between cells). " +
 			"Enable on artillery / MLRS / units that should require a full stop before firing. " +
 			"Independent of Mobile.PauseOnCondition: firing — that gates STARTING new cell transitions, " +
@@ -662,6 +672,51 @@ namespace OpenRA.Mods.Common.Traits
 		public static bool BreakOffApplies(AttackSource source, bool forceAttack)
 		{
 			return !forceAttack && source != AttackSource.Default;
+		}
+
+		/// <summary>How close a unit must get before it will engage, given every armament that is valid
+		/// against the target. <paramref name="maxRanges"/> and <paramref name="paused"/> are parallel.
+		///
+		/// Shipped behaviour (engageAtLongest false) is the MINIMUM, which brings every barrel to bear
+		/// but silently downgrades a specialist: a unit whose long-range weapon is the RIGHT weapon
+		/// closes to its short-range weapon's band anyway, and the player sees it refuse the good
+		/// weapon and drive at the target.
+		///
+		/// The longest branch deliberately ignores PAUSED armaments and only falls back to them when
+		/// every one is paused, mirroring <see cref="GetMaximumRangeVersusTarget"/>. Without that a
+		/// Tunguska that had spent all 8 missiles would still hold out at the missile's 28c0 — the dry
+		/// armament is PAUSED, never disabled, so it stays in the candidate list — and would sit there
+		/// firing nothing, its 18c0 gun forever out of reach.</summary>
+		public static WDist EngagementMaxRange(IReadOnlyList<WDist> maxRanges, IReadOnlyList<bool> paused, bool engageAtLongest)
+		{
+			if (maxRanges.Count == 0)
+				return WDist.Zero;
+
+			if (!engageAtLongest)
+			{
+				var min = maxRanges[0];
+				for (var i = 1; i < maxRanges.Count; i++)
+					if (maxRanges[i] < min)
+						min = maxRanges[i];
+
+				return min;
+			}
+
+			var max = WDist.Zero;
+			var fallback = WDist.Zero;
+			for (var i = 0; i < maxRanges.Count; i++)
+			{
+				if (fallback < maxRanges[i])
+					fallback = maxRanges[i];
+
+				if (paused[i])
+					continue;
+
+				if (max < maxRanges[i])
+					max = maxRanges[i];
+			}
+
+			return max != WDist.Zero ? max : fallback;
 		}
 
 		public void AttackTarget(in Target target, AttackSource source, bool queued, bool allowMove, bool forceAttack = false, Color? targetLineColor = null)

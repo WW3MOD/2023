@@ -930,6 +930,13 @@ tunguska:
 	AttackTurreted:
 		Armaments: primary, primary-air, secondary
 		PauseOnCondition: empdisable || unit.docked
+		# The 9M311 reaches 28c0 and the 30mm AA gun 18c0, and BOTH are valid against a
+		# helicopter. Without this the attack activity takes the SHORTEST of the two, so an
+		# order at a heli 25 cells out read as out of range and the Tunguska drove into gun
+		# range with eight missiles still loaded. Reported from playtest 260822; pinned by
+		# EngagementMaxRangeTest. This unit's weapons are specialised by target rather than
+		# meant to be massed, which is the case the flag exists for.
+		EngageAtLongestArmamentRange: true
 	WithSpriteTurret:
 	WithMuzzleOverlay:
 	SpawnActorOnDeath:
