@@ -60,7 +60,11 @@ namespace OpenRA.Mods.Common.Warheads
 				if (smudgeType == null)
 					continue;
 
-				var cellActors = world.ActorMap.GetActorsAt(sc);
+				// BlockingActorsAt, not GetActorsAt: a field has a full-cell HitShape but no Targetable, so its
+				// target-type set is empty and IsValidAgainst always says "invalid actor under the shell" — which
+				// suppressed every crater and scorch mark on farmland. Same root cause and same fix as
+				// CreateEffectWarhead and WarheadAS, which swallowed the explosion itself for this reason.
+				var cellActors = world.BlockingActorsAt(sc);
 				if (cellActors.Any(a => !IsValidAgainst(a, firedBy)))
 					continue;
 

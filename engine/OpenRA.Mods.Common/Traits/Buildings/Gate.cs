@@ -139,7 +139,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IsBlocked()
 		{
-			return blockedPositions.Any(loc => self.World.ActorMap.GetActorsAt(loc).Any(a => a != self));
+			// BlockingActorsAt, not GetActorsAt: placement sees through ground cover, so a gate can legitimately
+			// be built across a field — and a field never leaves. Counting it here pinned IsBlocked true forever
+			// and the gate would have stayed open for the rest of the match.
+			return blockedPositions.Any(loc => self.World.BlockingActorsAt(loc).Any(a => a != self));
 		}
 
 		WDist IBlocksProjectiles.BlockingHeight => new(Info.BlocksProjectilesHeight.Length * (OpenPosition - Position) / OpenPosition);

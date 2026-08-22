@@ -155,7 +155,13 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				var validCell = candidates[validIndex];
-				var subCell = ip.SharesCell ? w.ActorMap.FreeSubCell(validCell) : 0;
+				// FreeBlockingSubCell, not ActorMap.FreeSubCell: the CanEnterCell test above passes on a field
+				// (it routes through Locomotor, which honours Passable), so a field cell can be chosen here —
+				// and the unfiltered call then reported every subcell full and returned Invalid. That is not
+				// the same as the FullCell used for non-sharing units: Mobile pins FromSubCell/ToSubCell to it
+				// and suppresses recalculation (Mobile.cs:337-338), so the unit kept an out-of-range subcell
+				// for the rest of the game.
+				var subCell = ip.SharesCell ? w.FreeBlockingSubCell(validCell) : 0;
 				var facing = unitGroup.SupportActorsFacing.HasValue ? unitGroup.SupportActorsFacing.Value : new WAngle(w.SharedRandom.Next(1024));
 
 				w.CreateActor(s.ToLowerInvariant(), new TypeDictionary

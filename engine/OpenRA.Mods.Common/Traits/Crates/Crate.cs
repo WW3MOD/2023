@@ -121,7 +121,11 @@ namespace OpenRA.Mods.Common.Traits
 			// Check whether the crate landed on anything
 			var anyOtherActors = false;
 			Actor collector = null;
-			foreach (var otherActor in self.World.ActorMap.GetActorsAt(self.Location))
+			// BlockingActorsAt, not GetActorsAt: ground cover is not something a crate can land "on". A field set
+			// anyOtherActors but could never be a collector (it has no Mobile), so the else branch below disposed
+			// of the crate. CrateSpawner.ChooseDropCell already filters ground cover and so deliberately picks
+			// field cells — leaving this half unfiltered turned "never spawns there" into "spawns, then vanishes".
+			foreach (var otherActor in self.World.BlockingActorsAt(self.Location))
 			{
 				if (self == otherActor)
 					continue;
