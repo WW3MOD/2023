@@ -2173,6 +2173,17 @@ SF:
 		# no oscillation at the boundary and nobody is abandoned half-healed at 90%. Below
 		# StabilizeThreshold (50) the critical-first scoring still overrides distance.
 		MaxPatientHealthPercent: 90
+		# The two numbers that stop him treating everyone a little and nobody enough.
+		# PITFALL: SwitchMargin must stay ABOVE the health percentage a single heal pulse delivers —
+		# the Heal warhead's DamagePercent is 5, so every pulse lifts the man being treated by 5
+		# points and would otherwise hand his case straight to any rival within 5 points of him. That
+		# is a ping-pong that needs no tie to start it: two men at 60% and 62% traded the medic back
+		# and forth indefinitely, and since crossing the ground between them takes far longer than the
+		# 50-tick reload, neither of them was meaningfully healed. 10 clears one pulse with room.
+		SwitchMargin: 10
+		# 3 points per cell is at most 24 over the 8-cell SearchRange — enough to prefer the nearer of
+		# two comparably wounded men, never enough to outweigh the 10000 a critical patient gets.
+		DistancePenaltyPerCell: 3
 	# Clicking a friendly soldier orders the medic to go and stay with him. Without this the click
 	# produces nothing at all when that soldier is unhurt: the heal Armament can only target the
 	# `Heal` type, which the `damaged` condition grants, so ChooseArmamentsForTarget comes back

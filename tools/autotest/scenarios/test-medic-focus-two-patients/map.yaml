@@ -1,0 +1,74 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a medic between two patients finishes one of them
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Two wounded soldiers, 3 cells either side of an unselected, unordered medic,
+# at 60% and 62% health. Both are ABOVE StabilizeThreshold (50) on purpose: the
+# critical-first bonus is 10000 and would otherwise mask the thing under test by
+# pinning the medic to one of them for reasons that have nothing to do with
+# stickiness.
+#
+# The 2-point gap is the whole point. One heal pulse is worth 5 points
+# (DamagePercent -5 on the Heal warhead), so treating the man at 60% lifts him
+# past the man at 62% and re-inverts the ranking. Without hysteresis the medic
+# hands his case over on the very next rescan and walks the 6 cells across —
+# which takes far longer than the 50-tick reload — so he arrives, fires once,
+# inverts the ranking again, and walks back. Neither man is ever finished.
+#
+# PASS = either soldier reaches full health. That is ~8 uninterrupted pulses,
+# which a medic that keeps changing his mind cannot deliver.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	Medic: medi
+		Owner: Me
+		Location: 18,16
+		Facing: 768
+
+	# 3 cells west. Drained to 60% in Lua.
+	PatientNear: e1
+		Owner: Me
+		Location: 15,16
+		Facing: 768
+
+	# 3 cells east. Drained to 62% — two points better off, so he is the LESS
+	# deserving of the two until the first pulse lands on the other man.
+	PatientFar: e1
+		Owner: Me
+		Location: 21,16
+		Facing: 768
+
+Rules: rules.yaml
