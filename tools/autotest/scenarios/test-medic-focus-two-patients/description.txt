@@ -1,0 +1,1 @@
+Auto: an unordered medic between two soldiers at 60% and 62% must finish one of them, not trade attention between the two.
