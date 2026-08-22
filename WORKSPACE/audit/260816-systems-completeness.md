@@ -433,7 +433,10 @@ overlaps `^Soldier`'s `Types: Infantry` (`infantry.yaml:177-178`) and `^Vehicle`
 - **Notifications:** contestation start (`:317-319`), defeat warning (`:342-344`), passive
   (`:362-368`), reinstated (`:607-614`), rate-limited and filtered to owner/allies.
 
-### **[SHOULD-FIX]** Passive notification claims income is frozen; income is not frozen
+### ~~**[SHOULD-FIX]** Passive notification claims income is frozen; income is not frozen~~ — FIXED 2026-08-22 (`wt/sr-message`)
+
+> Both notifications now read "Production frozen." The same change also stopped the freeze line
+> firing for a player being defeated in the same tick. See DISCOVERIES 2026-08-22.
 
 - **Perceived:** the player reads "Production and income frozen" and then watches credits keep
   accruing — the game tells them something untrue at the tensest moment of a match.

@@ -3,6 +3,62 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-22 — "is this a team game?" is not answerable at the Supply Route, and the freeze message asked it anyway (wt/sr-message)
+
+Branch `wt/sr-message`, base `main @ cc0775b1`. User report: in a free-for-all, the combat log read
+`"Experimental AI 4 has lost their Supply Route! Production and income frozen."` and then, on the very
+next line, `"Experimental AI 4 is defeated."` The first line announces a recoverable state the player
+occupied for exactly one tick.
+
+**The predicate was already there, one statement away, and unused by the message.**
+`OnDefeatBarFull` (`SupplyRouteContestation.cs:551`) printed the line unconditionally and then called
+`HasActiveTeamSupplyRoute()` to decide passive-versus-defeated. Same method, same tick, same actor —
+the message simply never consulted it. The fix is one local: evaluate once, fork on it (announce when
+true, `ResolveTeamElimination` when false). The `if`/`else` is what guarantees the two can never both
+happen; no test is needed to hold that, because the language construct is the invariant.
+
+**The durable lesson is the framing, not the fix.** The user asked for the message to appear "only in
+team games". Taken literally that gate is *wrong*, and wrong in four ways at once — a lobby team of
+one, the last living member of a team, a player whose only ally is itself already passive, and an FFA
+player are all in "team games" by some reading and none of them can be rescued. The answerable question
+at this site is **"can anybody still relieve this Supply Route?"**, and it subsumes every case
+including the ones nobody enumerated. When a user describes a gate in lobby-configuration terms, look
+for the mechanical predicate the outcome already runs on; the configuration is a proxy for it, and a
+lossy one.
+
+- **Extracted `HasRescuer` (`:592`)** as a pure static over `(SameTeam, WinState, IsPassive)` triples,
+  matching the `ShouldAwardVictory` / `TeamHasVictor` idiom already in this file, with
+  `OtherSupplyRoutes()` (`:576`) as the lazy world-side projection so the short-circuit still stops the
+  scan at the first live teammate. Nine NUnit cases in `SupplyRouteEliminationTest.cs`. RED verified by
+  reverting `HasRescuer` to `return true` (literally the shipped behaviour): all seven "nobody can
+  rescue" cases failed `Expected: False / But was: True` while both "can rescue" cases stayed green, so
+  the tests are not trivially satisfiable.
+- **"Production and income frozen" was half false** and is now "Production frozen." in both the system
+  line and `PassiveTextNotification` (`:98`). Re-verified rather than taken from the three existing
+  reports: `isPassive` is read in exactly three places, all in this file, and the only behavioural hook
+  is `IProductionSpeedModifier`. A repo-wide grep for `IsPassive` finds no consumer outside the trait
+  at all, and income arrives via `CashTrickler` on neutral structures plus `PlayerResources` passive
+  income — neither of which this trait can see. Was recorded at `KNOWN-ISSUES.md:198`,
+  `bugs/discovered.md:2957` and `audit/260816-systems-completeness.md:438`; all now marked fixed.
+
+**Two adjacent things that are NOT broken, checked because they looked like they might be.** Recovery
+*is* announced — `OnReinstated` (`:838`) emits a global "…'s Supply Route has been reclaimed!" plus an
+owner/ally transient and a speech cue, so a rescued player is told the state cleared. And the global
+scope of the loss line is worth keeping: the private warning ladder (contested → "Defeat imminent!")
+stays owner/ally-only, so nothing about a defender's danger leaks any earlier than the moment the
+outcome lands; the contesting enemy is standing on the SR and already knows; and the reclaim
+counterpart is global too, so making the loss private would leave a global "reclaimed!" with no global
+loss.
+
+**Latent, pre-existing, NOT fixed here — a passive player can be stranded.** A passive player is only
+ever un-stranded by two events: their own recovery, or a *teammate's* SR being contested to zero
+(whose `ResolveTeamElimination` sweeps the whole team). If the last teammate leaves play by any other
+route — surrender, or `ConquestVictoryConditions` — nothing re-runs the elimination check, and the
+passive player sits `Undefined` forever while `AwardDecidedSurvivors` refuses to award their enemies
+(it requires every hostile to be `Lost`). Independent of this change and untouched by it. Related: the
+same file's `mo == null` guard (`:651`) silently skips a player with no `MissionObjectives`, which
+would strand them the same way.
+
 ## 2026-08-22 — the Logistics Centre already rearmed soldiers and already had a bar; what was missing was the PRICE, and a truck→Centre order shadowed by a higher-priority targeter
 
 Branch `wt/lc-supplies`, base `main @ 7afb0b63`. Dispatched to "make the Logistics Centre rearm

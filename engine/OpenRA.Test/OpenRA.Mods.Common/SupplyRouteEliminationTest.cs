@@ -295,5 +295,128 @@ namespace OpenRA.Test
 					(false, WinState.Won))),       // an ENEMY won -- must not save us
 				Is.False);
 		}
+
+		// --- Rescuable-versus-doomed: the single predicate behind the freeze message ---
+		//
+		// HasRescuer is what OnDefeatBarFull forks on. True -> the owner freezes, stays in play and
+		// the "has lost their Supply Route! Production frozen." line is honest. False -> the team is
+		// eliminated in the same tick and that line must NOT be printed; the user reported seeing it
+		// immediately above "is defeated" in a free-for-all.
+		//
+		// Every case below that returns false is a case a naive "is this a team game?" gate would have
+		// got wrong, which is why the message is gated on THIS and not on lobby team counts.
+
+		static IEnumerable<(bool SameTeam, WinState State, bool IsPassive)> SRs(
+			params (bool, WinState, bool)[] supplyRoutes)
+		{
+			return supplyRoutes;
+		}
+
+		[Test]
+		public void FreeForAll_NobodyCanRescue()
+		{
+			// The reported case: no teammates at all, every other SR belongs to an enemy and is
+			// healthy. Overrun here is immediate defeat, so no freeze line.
+			Assert.That(
+				SupplyRouteContestation.HasRescuer(SRs(
+					(false, WinState.Undefined, false),
+					(false, WinState.Undefined, false))),
+				Is.False);
+		}
+
+		[Test]
+		public void LobbyTeamOfOne_IsIndistinguishableFromFreeForAll()
+		{
+			// A "team" game whose team has one member. Mechanically identical to FFA -- the entire
+			// reason the gate cannot ask whether teams are enabled.
+			Assert.That(
+				SupplyRouteContestation.HasRescuer(SRs(
+					(false, WinState.Undefined, false),
+					(false, WinState.Undefined, false))),
+				Is.False);
+		}
+
+		[Test]
+		public void NoOtherSupplyRoutes_NobodyCanRescue()
+		{
+			Assert.That(SupplyRouteContestation.HasRescuer(SRs()), Is.False);
+		}
+
+		[Test]
+		public void TeamGame_LivingTeammateHoldsSupplyRoute_CanRescue()
+		{
+			// The only shape the freeze message was ever meant for.
+			Assert.That(
+				SupplyRouteContestation.HasRescuer(SRs(
+					(true, WinState.Undefined, false),
+					(false, WinState.Undefined, false))),
+				Is.True);
+		}
+
+		[Test]
+		public void LastPlayerOnATeam_NobodyCanRescue()
+		{
+			// Teammates exist but are already Lost -- the user's second case. Their SRs are skipped,
+			// so this is defeat, not a freeze.
+			Assert.That(
+				SupplyRouteContestation.HasRescuer(SRs(
+					(true, WinState.Lost, false),
+					(true, WinState.Lost, true),
+					(false, WinState.Undefined, false))),
+				Is.False);
+		}
+
+		[Test]
+		public void OnlyTeammateIsItselfPassive_NobodyCanRescue()
+		{
+			// A passive teammate is waiting to be relieved and cannot relieve anyone. Both fall
+			// together, and only the FIRST of them (overrun while this SR was still active) ever
+			// printed a freeze line.
+			Assert.That(
+				SupplyRouteContestation.HasRescuer(SRs(
+					(true, WinState.Undefined, true),
+					(false, WinState.Undefined, false))),
+				Is.False);
+		}
+
+		[Test]
+		public void TeammateAlreadyWon_CanRescue()
+		{
+			// A team with a victor is never eliminable, so this owner must not be defeated -- and the
+			// message must follow the same predicate rather than second-guessing it.
+			Assert.That(
+				SupplyRouteContestation.HasRescuer(SRs(
+					(true, WinState.Won, true),
+					(false, WinState.Undefined, false))),
+				Is.True);
+		}
+
+		[Test]
+		public void EnemySupplyRoutesNeverRescue()
+		{
+			// Guards the obvious inversion: a healthy enemy SR, or even a victorious enemy, is not a
+			// rescuer. Without the SameTeam filter every FFA player would look rescuable.
+			Assert.That(
+				SupplyRouteContestation.HasRescuer(SRs(
+					(false, WinState.Undefined, false),
+					(false, WinState.Won, false))),
+				Is.False);
+		}
+
+		[Test]
+		public void RescuabilityIgnoresSupplyRoutesItCannotUse()
+		{
+			// Independence check: only a same-team, live, non-passive SR flips the answer. Every other
+			// combination in the set is inert, so no ordering of the world scan changes the verdict.
+			foreach (var state in new[] { WinState.Undefined, WinState.Lost })
+				foreach (var passive in new[] { true, false })
+					Assert.That(
+						SupplyRouteContestation.HasRescuer(SRs((false, state, passive))),
+						Is.False,
+						$"enemy SR (state {state}, passive {passive}) must never count as a rescuer");
+
+			Assert.That(SupplyRouteContestation.HasRescuer(SRs((true, WinState.Lost, false))), Is.False,
+				"a Lost teammate's Supply Route must never count as a rescuer");
+		}
 	}
 }
