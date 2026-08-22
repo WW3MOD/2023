@@ -45,6 +45,7 @@ namespace OpenRA.Test
 	public class AirborneArmorTargetableTest
 	{
 		const string ArmorTargetable = "Targetable@Armor";
+		const string AirArmorTargetable = "Targetable@AirArmor";
 		const string GroundOnly = "!airborne";
 
 		static readonly string[] AircraftRules = { "aircraft.yaml", "aircraft-america.yaml", "aircraft-russia.yaml" };
@@ -289,18 +290,145 @@ namespace OpenRA.Test
 		public void SmallArmsKeepTheirHelicopterCounterplay()
 		{
 			// Helicopters are meant to stay vulnerable to infantry. That counterplay rides on the
-			// `Helicopter` target type (^Helicopter, aircraft.yaml:172), which is deliberately ungated —
+			// `Helicopter` target type (^Helicopter, aircraft.yaml:196), which is deliberately ungated —
 			// unlike the armour class. Gating armour must not take rotorcraft out of small-arms reach.
 			var actors = Airframes();
 
+			// 5.56mm is deliberately NOT in this list — USER RULING 2026-08-22 moved it off the ungated
+			// `Helicopter` type and onto the airborne armour classes, so it reaches light rotorcraft only.
+			// See RiflesCannotReachHelicoptersTheyCannotPenetrate. The 12.7mm family keeps `Helicopter`
+			// wholesale by explicit user choice: "leave it as now — all helicopters, with effectiveness
+			// limited by penetration rather than by targeting."
 			foreach (var heli in new[] { "littlebird", "TRAN", "HALO", "HELI", "HIND", "MI28" })
 			{
 				var airborne = EnabledTargetTypes(actors, heli, airborne: true);
-				foreach (var arm in new[] { "7.62mm.MG", "12.7mm.MG", "5.56mm.AR" })
+				foreach (var arm in new[] { "7.62mm.MG", "12.7mm.MG" })
 					Assert.That(Weapon(arm).IsValidTarget(airborne), Is.True,
 						$"{arm} can no longer engage an airborne {heli}, so infantry have lost their counterplay " +
 						"against rotorcraft. It names `Helicopter` in ValidTargets and that must keep binding.");
 			}
+		}
+
+		/// <summary>
+		/// USER RULING 2026-08-22: "Riflemen should be able to shoot at helicopters that they are able to
+		/// penetrate their armor. For example a littlebird can be shot, but not an attack helicopter because
+		/// it has more armor and the rifleman weapon cannot penetrate."
+		///
+		/// `Helicopter` (^Helicopter, aircraft.yaml:196) is ungated and armour-blind — it covers a Hind
+		/// exactly as much as a littlebird — so a rifle naming it necessarily reaches attack helicopters.
+		/// A rifle must therefore name an armour-qualified air type instead, never `Helicopter`.
+		/// </summary>
+		[Test]
+		public void RiflesCannotReachHelicoptersTheyCannotPenetrate()
+		{
+			var actors = Airframes();
+			var rifles = new[] { "5.56mm.AR", "5.56mm.E3", "5.56mm.DMR", "5.56mm.DMR.silencer" };
+
+			foreach (var heavy in new[] { "HELI", "HIND", "MI28" })
+			{
+				var airborne = EnabledTargetTypes(actors, heavy, airborne: true);
+				foreach (var rifle in rifles)
+					Assert.That(Weapon(rifle).IsValidTarget(airborne), Is.False,
+						$"{rifle} can target an airborne {heavy}, an attack helicopter a 5.56mm round cannot " +
+						"penetrate. ^5.56mm reaches it through the ungated `Helicopter` target type, which is " +
+						"armour-blind by design; the rifle must name an airborne armour class instead.");
+			}
+
+			// Guard the guard: "cannot reach a Hind" must not be satisfied by the rifle being unable to
+			// reach anything at all. It is an infantry weapon first and that has to keep working.
+			Assert.That(Weapon("5.56mm.AR").IsValidTarget(new BitSet<TargetableType>("Infantry")), Is.True,
+				"5.56mm.AR can no longer target infantry, so the assertions above prove nothing about " +
+				"helicopters — the weapon has simply been disarmed.");
+		}
+
+		/// <summary>The other half of the same ruling: "For example a littlebird can be shot". A rifle that
+		/// reaches NO helicopter satisfies RiflesCannotReachHelicoptersTheyCannotPenetrate perfectly while
+		/// still being wrong, so the permitted case has to be pinned too.</summary>
+		[Test]
+		public void RiflesCanReachHelicoptersTheyCanPenetrate()
+		{
+			var actors = Airframes();
+
+			foreach (var light in new[] { "littlebird", "TRAN", "HALO" })
+			{
+				var airborne = EnabledTargetTypes(actors, light, airborne: true);
+				foreach (var rifle in new[] { "5.56mm.AR", "5.56mm.E3", "5.56mm.DMR", "5.56mm.DMR.silencer" })
+					Assert.That(Weapon(rifle).IsValidTarget(airborne), Is.True,
+						$"{rifle} cannot target an airborne {light}, a light airframe a 5.56mm round is meant " +
+						"to penetrate. It reaches one by naming `AirLight`; check the airframe advertises " +
+						"AirLight while airborne and that the weapon names it.");
+			}
+		}
+
+		/// <summary>
+		/// The vocabulary itself, pinned structurally so a future airframe cannot ship half of it.
+		///
+		/// `Air` — everything airborne; what AA missiles use.
+		/// `Helicopter` — all helicopters at any altitude, deliberately ungated and armour-blind.
+		/// `AirLight`/`AirMedium`/`AirHeavy` — airborne, BY ARMOUR CLASS. The airborne mirror of the
+		/// `!airborne`-gated ground class, and the only way a ground weapon can express "I can hurt a
+		/// littlebird but not a Hind".
+		///
+		/// An airframe that advertises a ground armour class but no air one is invisible to every
+		/// armour-discriminating weapon in flight — the failure is silent, which is why it is pinned here
+		/// rather than left to review.
+		/// </summary>
+		[Test]
+		public void EveryAirframeAdvertisesItsArmourClassInFlight()
+		{
+			var actors = Airframes();
+			var offenders = new List<string>();
+			var scanned = 0;
+
+			foreach (var (name, actor) in actors)
+			{
+				var ground = actor.Nodes.FirstOrDefault(n => n.Key == ArmorTargetable);
+				if (ground == null)
+					continue;
+
+				scanned++;
+				var groundClass = ground.Value.Nodes.FirstOrDefault(n => n.Key == "TargetTypes")?.Value.Value?.Trim();
+
+				var air = actor.Nodes.FirstOrDefault(n => n.Key == AirArmorTargetable);
+				if (air == null)
+				{
+					offenders.Add($"{name} (no {AirArmorTargetable}; ground class is {groundClass ?? "<none>"})");
+					continue;
+				}
+
+				var condition = air.Value.Nodes.FirstOrDefault(n => n.Key == "RequiresCondition")?.Value.Value;
+				if (condition != "airborne")
+					offenders.Add($"{name} ({AirArmorTargetable} RequiresCondition: {condition ?? "<none>"}, must be `airborne`)");
+
+				var airClass = air.Value.Nodes.FirstOrDefault(n => n.Key == "TargetTypes")?.Value.Value?.Trim();
+				if (airClass != "Air" + groundClass)
+					offenders.Add($"{name} (advertises {airClass ?? "<none>"} in flight but Air{groundClass} on the ground — they must agree)");
+			}
+
+			Assert.That(scanned, Is.GreaterThan(0), $"no {ArmorTargetable} found on any airframe — this test is scanning nothing");
+
+			Assert.That(offenders, Is.Empty,
+				$"every airframe carrying `{ArmorTargetable}` must carry a matching `{AirArmorTargetable}` gated " +
+				"`RequiresCondition: airborne` whose TargetTypes is the ground class prefixed with `Air`. That pair is " +
+				"the whole vocabulary: the ground class says what can hurt it parked, the air class what can hurt it " +
+				"flying. An airframe with only the ground half is unreachable in flight by every armour-discriminating " +
+				"weapon, and nothing else in the build will say so. Offenders: " + string.Join("; ", offenders));
+		}
+
+		/// <summary>Guard the guard for the pair above: `AirLight` must be what actually carries the rifle to
+		/// a flying littlebird. If reachability came from somewhere else, the air-class tests would pass while
+		/// measuring nothing.</summary>
+		[Test]
+		public void TheAirArmourClassIsWhatDoesTheWork()
+		{
+			var actors = Airframes();
+			var withoutAirClass = EnabledTargetTypes(actors, "littlebird", airborne: true)
+				.Except(new BitSet<TargetableType>("AirLight"));
+
+			Assert.That(Weapon("5.56mm.AR").IsValidTarget(withoutAirClass), Is.False,
+				"removing `AirLight` did NOT stop the rifle reaching an airborne littlebird, so the air armour " +
+				"class is not what grants the access and RiflesCanReachHelicoptersTheyCanPenetrate proves nothing. " +
+				"Something else on the airframe — most likely a re-added `Helicopter` on ^5.56mm — is carrying it.");
 		}
 
 		[Test]

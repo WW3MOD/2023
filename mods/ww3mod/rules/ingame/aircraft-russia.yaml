@@ -42,6 +42,9 @@ HALO:
 	Targetable@Armor:
 		RequiresCondition: !airborne
 		TargetTypes: Light
+	Targetable@AirArmor:
+		RequiresCondition: airborne
+		TargetTypes: AirLight
 	Aircraft:
 		TurnSpeed: 8
 		Speed: 220
@@ -147,6 +150,9 @@ HIND:
 	Targetable@Armor:
 		RequiresCondition: !airborne
 		TargetTypes: Heavy
+	Targetable@AirArmor:
+		RequiresCondition: airborne
+		TargetTypes: AirHeavy
 	Aircraft:
 		TurnSpeed: 10
 		Speed: 195
@@ -323,6 +329,9 @@ MI28:
 	Targetable@Armor:
 		RequiresCondition: !airborne
 		TargetTypes: Heavy
+	Targetable@AirArmor:
+		RequiresCondition: airborne
+		TargetTypes: AirHeavy
 	Aircraft:
 		TurnSpeed: 12
 		Speed: 245
@@ -479,6 +488,9 @@ FROG:
 	Targetable@Armor:
 		RequiresCondition: !airborne
 		TargetTypes: Heavy
+	Targetable@AirArmor:
+		RequiresCondition: airborne
+		TargetTypes: AirHeavy
 	AttackAircraft:
 		Armaments: primary
 		FacingTolerance: 5
@@ -602,6 +614,9 @@ MIG:
 	Targetable@Armor:
 		RequiresCondition: !airborne
 		TargetTypes: Medium
+	Targetable@AirArmor:
+		RequiresCondition: airborne
+		TargetTypes: AirMedium
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192

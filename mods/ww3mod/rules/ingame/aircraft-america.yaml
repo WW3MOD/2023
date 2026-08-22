@@ -40,6 +40,9 @@ TRAN:
 	Targetable@Armor:
 		RequiresCondition: !airborne
 		TargetTypes: Light
+	Targetable@AirArmor:
+		RequiresCondition: airborne
+		TargetTypes: AirLight
 	Selectable:
 		DecorationBounds: 1700,1536
 	Aircraft:
@@ -144,6 +147,9 @@ littlebird:
 	Targetable@Armor:
 		RequiresCondition: !airborne
 		TargetTypes: Light
+	Targetable@AirArmor:
+		RequiresCondition: airborne
+		TargetTypes: AirLight
 	Aircraft:
 		WaitDistanceFromResupplyBase: 4c0
 		TakeOffOnResupply: true
@@ -329,6 +335,9 @@ HELI:
 	Targetable@Armor:
 		RequiresCondition: !airborne
 		TargetTypes: Heavy
+	Targetable@AirArmor:
+		RequiresCondition: airborne
+		TargetTypes: AirHeavy
 	Aircraft:
 		TurnSpeed: 12
 		Speed: 245
@@ -460,6 +469,9 @@ A10:
 	Targetable@Armor:
 		RequiresCondition: !airborne
 		TargetTypes: Heavy
+	Targetable@AirArmor:
+		RequiresCondition: airborne
+		TargetTypes: AirHeavy
 	Aircraft:
 		CruiseAltitude: 2560
 		InitialFacing: 192
@@ -582,6 +594,9 @@ F16:
 	Targetable@Armor:
 		RequiresCondition: !airborne
 		TargetTypes: Medium
+	Targetable@AirArmor:
+		RequiresCondition: airborne
+		TargetTypes: AirMedium
 	AttackAircraft:
 		FacingTolerance: 30
 		PersistentTargeting: false
