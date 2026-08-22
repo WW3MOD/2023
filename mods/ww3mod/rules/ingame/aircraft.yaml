@@ -30,6 +30,12 @@
 		Bounds: 1024,1024
 	Aircraft:
 		AirborneCondition: airborne
+	# Every Targetable on an airframe must be gated on altitude, INCLUDING the per-airframe
+	# `Targetable@Armor` that advertises the armour class (see littlebird, aircraft-america.yaml:143).
+	# An armour class is a GROUND fact: ten weapons name Light/Medium/Heavy in ValidTargets, and an
+	# ungated armour targetable lets every one of them shoot an aircraft out of the sky. Airborne
+	# reachability is `Air` (all AA) plus `Helicopter` on ^Helicopter below (small arms) — both
+	# deliberate. Pinned by AirborneArmorTargetableTest.
 	Targetable@Ground:
 		RequiresCondition: !airborne
 		TargetTypes: Ground, Vehicle

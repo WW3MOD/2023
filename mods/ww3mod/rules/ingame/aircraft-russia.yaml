@@ -40,6 +40,7 @@ HALO:
 		Type: Light
 		Thickness: 10
 	Targetable@Armor:
+		RequiresCondition: !airborne
 		TargetTypes: Light
 	Aircraft:
 		TurnSpeed: 8
@@ -144,6 +145,7 @@ HIND:
 		Type: Heavy
 		Thickness: 10
 	Targetable@Armor:
+		RequiresCondition: !airborne
 		TargetTypes: Heavy
 	Aircraft:
 		TurnSpeed: 10
@@ -319,6 +321,7 @@ MI28:
 		Type: Heavy
 		Thickness: 20
 	Targetable@Armor:
+		RequiresCondition: !airborne
 		TargetTypes: Heavy
 	Aircraft:
 		TurnSpeed: 12
@@ -474,6 +477,7 @@ FROG:
 		Type: Heavy
 		Thickness: 20
 	Targetable@Armor:
+		RequiresCondition: !airborne
 		TargetTypes: Heavy
 	AttackAircraft:
 		Armaments: primary
@@ -596,6 +600,7 @@ MIG:
 	Armor:
 		Type: Medium
 	Targetable@Armor:
+		RequiresCondition: !airborne
 		TargetTypes: Medium
 	Aircraft:
 		CruiseAltitude: 2560

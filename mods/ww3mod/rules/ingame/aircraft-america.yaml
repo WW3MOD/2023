@@ -38,6 +38,7 @@ TRAN:
 		Type: Light
 		Thickness: 10
 	Targetable@Armor:
+		RequiresCondition: !airborne
 		TargetTypes: Light
 	Selectable:
 		DecorationBounds: 1700,1536
@@ -141,6 +142,7 @@ littlebird:
 		Type: Light
 		Thickness: 5
 	Targetable@Armor:
+		RequiresCondition: !airborne
 		TargetTypes: Light
 	Aircraft:
 		WaitDistanceFromResupplyBase: 4c0
@@ -325,6 +327,7 @@ HELI:
 		Type: Heavy
 		Thickness: 20
 	Targetable@Armor:
+		RequiresCondition: !airborne
 		TargetTypes: Heavy
 	Aircraft:
 		TurnSpeed: 12
@@ -455,6 +458,7 @@ A10:
 		Type: Heavy
 		Thickness: 20
 	Targetable@Armor:
+		RequiresCondition: !airborne
 		TargetTypes: Heavy
 	Aircraft:
 		CruiseAltitude: 2560
@@ -576,6 +580,7 @@ F16:
 		Type: Medium
 		Thickness: 10
 	Targetable@Armor:
+		RequiresCondition: !airborne
 		TargetTypes: Medium
 	AttackAircraft:
 		FacingTolerance: 30

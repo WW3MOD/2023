@@ -8914,3 +8914,104 @@ damage from every Pen-1 weapon than its counterpart. Looks like an authoring omi
 `./utility.sh --check-yaml` — the exact case trap `CLAUDE.md` warns about, confirmed live. A fix is
 uncommitted in the main checkout's working tree, so this is known; noting it because the scenario was
 believed to be passing.
+
+## 2026-08-22 — an armour class is a TARGET TYPE, and on aircraft it was never gated on altitude
+
+Branch `wt/air-targetable`, from the report *"Grenadiers can target helicopters it seems, and they should
+not be able to target anything flying."*
+
+`GrenadeLauncher` (`weapons-ballistics.yaml:448`) declares `ValidTargets: Infantry, Unarmored, Light` — no
+`Air`, no `Helicopter`. It reached the helicopter through **`Light`**. Every airframe carried a
+`Targetable@Armor` advertising its armour class with **no `RequiresCondition`**, so an airborne littlebird
+permanently announced `Light` and any ground weapon naming an armour class could shoot it out of the sky.
+All 10 armour-bearing airframes had it: `littlebird`/`TRAN`/`HALO` (Light), `HELI`/`HIND`/`MI28`/`A10`/
+`FROG` (Heavy), `F16`/`MIG` (Medium).
+
+**Why it was missed: ground vehicles and aircraft carry the armour class in structurally different
+places.** A vehicle folds it into its always-on ground targetable — `TargetTypes: Ground, Vehicle, Light`
+(`vehicles-america.yaml:62`) — which is correct, because a vehicle is never airborne. Aircraft split it
+into a separate `Targetable@Armor`, and while `^NeutralAirborne` gates its other three targetables
+carefully (`aircraft.yaml:33-41`: `Targetable@Ground` on `!airborne`, `Targetable@Airborne` on `airborne`,
+`Targetable@REPAIR` on `!airborne && damaged`), the per-airframe armour entry was the one nobody gated.
+
+**Three shipped comments independently assert armour classes are ground-only. All three were silently
+false.** `12.7mm.Hind` (`weapons-ballistics.yaml:368`) is commented *"GROUND ONLY as of 260815 —
+Helicopter moved to 12.7mm.Hind.AA"*; it still reached Light helicopters via `Light`, so that re-gate
+never took effect. `^5.56mm` (`:81`) names `Helicopter` in `ValidTargets` — see below. And
+`^NeutralAirborne`'s own gating of everything except the armour entry.
+
+**General rule:** any `Targetable` on an actor with an `airborne` condition must be gated on it. An armour
+class is a GROUND fact. Now pinned by `engine/OpenRA.Test/OpenRA.Mods.Common/AirborneArmorTargetableTest.cs`,
+which fails for any future airframe whose `Targetable@Armor` lacks `RequiresCondition: !airborne`.
+
+### `InvalidTargets` beats `ValidTargets`, so an armour class can silently cancel a deliberate capability
+
+`WeaponInfo.IsValidTarget` is `ValidTargets.Overlaps(t) && !InvalidTargets.Overlaps(t)`
+(`WeaponInfo.cs:218`) — the exclusion wins. `^5.56mm` (`weapons-ballistics.yaml:81`) declares
+`ValidTargets: Infantry, Vehicle, Helicopter` with `InvalidTargets: Light, Medium, Heavy`. The intent is
+plainly "rifles hit helicopters but not armour". But **every helicopter in the mod is Light or Heavy**, so
+the leaked armour class tripped `InvalidTargets` on every one of them and the rifle's declared
+anti-helicopter capability was **100% dead** — while `^9mm`, `^7.62mm` and `^12.7mm`, which name
+`Helicopter` without excluding armour, worked fine. Assault rifles were the *only* small arm in the game
+that could not shoot a helicopter, which is what made the defect visible once the census was structural
+rather than spot-checked.
+
+**General rule:** when a weapon both grants a capability in `ValidTargets` and excludes an armour class in
+`InvalidTargets`, check that no target of that capability advertises the excluded class. The grant fails
+silently — there is no lint for a `ValidTargets` entry that can never match.
+
+### Targetability and damage are independent axes
+
+Worth stating because the fix looks like it should change damage and does not. `Versus:` multipliers are
+resolved from the **`Armor` trait** — `DamageWarhead.DamageVersus` reads `victim.TraitsImplementing<Armor>()`
+and `a.Info.Type` (`DamageWarhead.cs:104-106`) — never from target types. `Targetable` decides *whether a
+shot is legal*; `Armor` decides *what it does on arrival*. Gating `Targetable@Armor` therefore changes
+reachability only: an AA missile still applies its `Versus: Light` against a littlebird exactly as before.
+
+### Census method note
+
+Every AA weapon in the mod reaches airborne targets via `Air` or `Helicopter` — **none via an armour
+class**. Verified by building the full weapon×airframe reachability matrix from the parsed corpus rather
+than by sampling, which is the only way to be sure a gate like this disarms nothing. The unconditioned
+`Targetable@Helicopter` on `^Helicopter` (`aircraft.yaml:172`) and `Targetable@Drone` on `^Drone` (`:330`)
+are **deliberate and must stay ungated** — they are the designed channels by which small arms and
+`DroneJammer` engage airborne rotorcraft and drones. They are not the same defect as the armour entry.
+
+### A whole class: the re-gate that shipped as a comment and was never actually in effect
+
+Worth naming on its own, because the artefact left behind is *more* convincing than no artefact at all.
+`12.7mm.Hind` (`weapons-ballistics.yaml:368`) carries a dated, specific, confident comment:
+
+> `# GROUND ONLY as of 260815 — Helicopter moved to 12.7mm.Hind.AA. Ground`
+> `# performance (Damage 600 / Pen 15 vs Infantry, Unarmored, Light) is`
+> `# untouched; only the air half is re-gated.`
+
+The edit it describes really was made — `Helicopter` was removed from `ValidTargets` and a separate
+`12.7mm.Hind.AA` was added. **It just did not do anything**, because the gun kept reaching Light
+helicopters through the leaked `Light` armour class. The corpus documented a capability split that did
+not exist, and the comment is exactly what would stop the next person checking. Same shape at
+`^5.56mm`, where the false artefact was a *declaration* rather than a comment: `Helicopter` sat in
+`ValidTargets` doing nothing at all.
+
+**General rule: a change believed made, documented as made, and inert.** When a re-gate works by
+narrowing `ValidTargets`, narrowing it is not sufficient — you must also confirm the target no longer
+advertises anything *else* the weapon still accepts. Neither the lint nor the type system will tell you:
+there is no check for a `ValidTargets` entry that can never match, and none for a removal that changes no
+behaviour. The only reliable instrument is the reachability matrix — enumerate weapon × target from the
+parsed corpus and diff it across the change. Sampling will not find these, because the sample you would
+skip is the one the comment tells you is already handled.
+
+### Inference, NOT verified: the order/cursor path should follow the same predicate
+
+Recorded so it is not cited as established later. `AirborneArmorTargetableTest` proves *target-type
+resolution* — it calls the engine's real `WeaponInfo.IsValidTarget` against the shipped corpus. It does
+**not** prove the player-facing order path: that the attack cursor refuses a force-fire order onto a
+hovering helicopter, or that `AutoTarget` declines to acquire one.
+
+The reasoning is that both route through the same predicate — `UnitOrderTargeter` checks
+`targetTypes.Overlaps(target.GetEnabledTargetTypes())` (`UnitOrderTargeter.cs:80`), and `AutoTarget`
+resolves bands from `GetEnabledTargetTypes` (`AutoTarget.cs:1289`) before applying an armament validity
+check — so removing a target type should close all three together. **This was reasoned from reading the
+code, not observed in a running game.** Confirming it needs a scenario: a grenadier ordered onto a
+hovering littlebird should have the order refused, and one standing beneath it on FireAtWill should never
+open fire. If either behaves differently, this note is where the assumption was made.
