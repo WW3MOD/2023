@@ -1,7 +1,18 @@
 ^9mm:
 	Inherits@HitEffects: ^SmallCaliberEffects
 	ClearSightThreshold: 4
-	ValidTargets: Infantry, Unarmored, Helicopter
+	# USER RULING 2026-08-22: "9mm should not work on any vehicles I think, 556 and 762 should work on
+	# light, but not medium". A pistol round is the bottom of the small-arms ladder: anti-infantry only,
+	# no vehicles at any armour class, and nothing in the air.
+	# `InvalidTargets: Vehicle` is doing real work and must not be "tidied" away -- `Unarmored` alone
+	# reaches TRUK (vehicles.yaml:549), which is a vehicle. Keeping `Unarmored` in ValidTargets is
+	# deliberate too: it is what preserves the pre-existing reach onto GTWR (structures-defenses.yaml:108),
+	# a STRUCTURE the ruling says nothing about, so dropping it would over-apply the ruling.
+	# NOTE this template has ZERO consumers as of 2026-08-22 -- no actor fields it and nothing inherits
+	# it. Pistol/SilencedPPK/MP5 are standalone and already infantry-only, so this change is inert today
+	# and is pinned only so a future 9mm weapon cannot inherit the trap.
+	ValidTargets: Infantry, Unarmored
+	InvalidTargets: Vehicle
 	Range: 14c0
 	Report: gun11.aud
 	Projectile: Bullet
@@ -10,7 +21,8 @@
 	Warhead@Target: TargetDamage
 		Damage: 100
 		Penetration: 3
-		ValidTargets: Infantry, Unarmored, Helicopter
+		ValidTargets: Infantry, Unarmored
+		InvalidTargets: Vehicle
 		DamageTypes: BulletDeath
 
 Pistol:
@@ -85,11 +97,13 @@ MP5:
 	# armour-blind: it covers a Hind exactly as much as a littlebird, so naming it is precisely the
 	# thing that must not happen here. `AirLight` is the armour-qualified form -- see the airborne
 	# target-type vocabulary at aircraft.yaml:33.
-	# NOTE `InvalidTargets: Light` does NOT cancel `AirLight`; they are unrelated strings. The
-	# exclusion applies to GROUND targets only, which is why a landed littlebird stays unshootable
-	# by rifles -- pre-existing, see DISCOVERIES 2026-08-22.
+	# USER RULING 2026-08-22 (follow-up): "556 and 762 should work on light, but not medium". `Light`
+	# therefore leaves InvalidTargets and the ladder stops at Medium.
+	# NOTE `InvalidTargets: Medium` does NOT cancel `AirMedium`; they are unrelated strings. The
+	# exclusion applies to GROUND targets only. Dropping `Light` also un-blocks a LANDED littlebird,
+	# which a rifle could not touch while a flying one could -- see DISCOVERIES 2026-08-22.
 	ValidTargets: Infantry, Vehicle, AirLight
-	InvalidTargets: Light, Medium, Heavy
+	InvalidTargets: Medium, Heavy
 	Range: 14c0
 	Report: gun11.aud
 	Projectile: Bullet
@@ -104,7 +118,7 @@ MP5:
 		DamageAtMaxRange: 50
 		Penetration: 4
 		ValidTargets: Infantry, Vehicle, AirLight
-		InvalidTargets: Light, Medium, Heavy
+		InvalidTargets: Medium, Heavy
 		DamageTypes: BulletDeath
 
 5.56mm.E3:
@@ -149,7 +163,20 @@ MP5:
 ^7.62mm:
 	Inherits@HitEffects: ^MediumCaliberEffects
 	ClearSightThreshold: 6
-	ValidTargets: Infantry, Unarmored, Helicopter
+	# USER RULING 2026-08-22: "556 and 762 should work on light, but not medium". Brought onto the same
+	# footing as ^5.56mm above -- read the note there first; the same two traps apply.
+	#   `Vehicle` is NEW: this template previously named no vehicle type at all, so 7.62 reached only
+	#   whatever was `Unarmored`. It is what grants Light-armoured vehicles, and `InvalidTargets` is what
+	#   stops it there -- WITHOUT that exclusion, `Vehicle` would hand a rifle every tank in the game.
+	#   `AirLight` REPLACES `Helicopter`. `Helicopter` (^Helicopter, aircraft.yaml:196) is ungated and
+	#   armour-blind -- it covers a Hind exactly as much as a littlebird, which is the thing the ruling
+	#   forbids. See the airborne target-type vocabulary at aircraft.yaml:33.
+	# `Unarmored` stays: it is what preserves the existing reach onto GTWR (structures-defenses.yaml:108)
+	# and TRUK (vehicles.yaml:549). TRUK is still reachable because it is Unarmored, not Medium/Heavy --
+	# the ruling narrows the ladder at the armoured end, it does not withdraw soft targets.
+	# The two Minigun variants below override ValidTargets outright and so are NOT on this ladder.
+	ValidTargets: Infantry, Unarmored, Vehicle, AirLight
+	InvalidTargets: Medium, Heavy
 	Range: 15c0
 	Report: pillbox1.aud
 	Projectile: Bullet
@@ -163,7 +190,8 @@ MP5:
 		Damage: 250
 		DamageAtMaxRange: 50
 		Penetration: 5
-		ValidTargets: Infantry, Unarmored, Helicopter
+		ValidTargets: Infantry, Unarmored, Vehicle, AirLight
+		InvalidTargets: Medium, Heavy
 		DamageTypes: BulletDeath
 
 7.62mm.DMR:

@@ -49,6 +49,16 @@ namespace OpenRA.Test
 		const string GroundOnly = "!airborne";
 
 		static readonly string[] AircraftRules = { "aircraft.yaml", "aircraft-america.yaml", "aircraft-russia.yaml" };
+		static readonly string[] VehicleRules = { "vehicles.yaml", "vehicles-america.yaml", "vehicles-russia.yaml" };
+
+		/// <summary>The 5.56mm and 7.62mm weapons that actually inherit their target lists from the
+		/// caliber template. 7.62mm.Minigun and 7.62mm.Minigun.AA are deliberately absent: both override
+		/// ValidTargets outright (weapons-ballistics.yaml:205 and :327) and so sit outside the ladder.</summary>
+		static readonly string[] Rifles =
+		{
+			"5.56mm.AR", "5.56mm.E3", "5.56mm.DMR", "5.56mm.DMR.silencer",
+			"7.62mm.DMR", "7.62mm.Sniper", "7.62mm.MG"
+		};
 
 		static string FindRules(params string[] parts)
 		{
@@ -63,17 +73,22 @@ namespace OpenRA.Test
 			throw new FileNotFoundException($"could not locate mods/ww3mod/rules/{string.Join("/", parts)}");
 		}
 
-		/// <summary>Every actor defined across the three aircraft rules files, keyed by name.</summary>
-		static Dictionary<string, MiniYaml> Airframes()
+		static Dictionary<string, MiniYaml> Actors(string[] files, string what)
 		{
 			var actors = new Dictionary<string, MiniYaml>();
-			foreach (var file in AircraftRules)
+			foreach (var file in files)
 				foreach (var node in MiniYaml.FromFile(FindRules("ingame", file)))
 					actors[node.Key] = node.Value;
 
-			Assert.That(actors, Is.Not.Empty, "no aircraft actors parsed — this test is scanning nothing");
+			Assert.That(actors, Is.Not.Empty, $"no {what} actors parsed — this test is scanning nothing");
 			return actors;
 		}
+
+		/// <summary>Every actor defined across the three aircraft rules files, keyed by name.</summary>
+		static Dictionary<string, MiniYaml> Airframes() => Actors(AircraftRules, "aircraft");
+
+		/// <summary>Every actor defined across the three ground-vehicle rules files, keyed by name.</summary>
+		static Dictionary<string, MiniYaml> GroundVehicles() => Actors(VehicleRules, "ground vehicle");
 
 		static IEnumerable<MiniYamlNode> Inherited(Dictionary<string, MiniYaml> actors, string name, HashSet<string> seen = null)
 		{
@@ -104,6 +119,14 @@ namespace OpenRA.Test
 				case "airborne": return airborne;
 				case "!airborne": return !airborne;
 				case "!airborne && damaged": return !airborne;  // evaluated undamaged
+
+				// Ground-vehicle shapes. Evaluated in the default state a unit is in when it drives out
+				// of a Supply Route: on its wheels, undamaged, not EMP'd. Each one only ever ADDS a
+				// target type in some other state, so reading them this way is the conservative choice.
+				case "!parachute": return true;
+				case "damaged": return false;
+				case "critical-damage": return false;
+				case "empdisable": return false;
 				default:
 					throw new InvalidOperationException(
 						$"unrecognised Targetable RequiresCondition '{requiresCondition}' on an aircraft. " +
@@ -294,15 +317,17 @@ namespace OpenRA.Test
 			// unlike the armour class. Gating armour must not take rotorcraft out of small-arms reach.
 			var actors = Airframes();
 
-			// 5.56mm is deliberately NOT in this list — USER RULING 2026-08-22 moved it off the ungated
-			// `Helicopter` type and onto the airborne armour classes, so it reaches light rotorcraft only.
-			// See RiflesCannotReachHelicoptersTheyCannotPenetrate. The 12.7mm family keeps `Helicopter`
+			// 5.56mm and 7.62mm are deliberately NOT in this list. USER RULING 2026-08-22 moved 5.56mm off
+			// the ungated `Helicopter` type and onto the airborne armour classes; the follow-up ruling
+			// ("9mm should not work on any vehicles I think, 556 and 762 should work on light, but not
+			// medium") put 7.62mm on the same footing. Both reach light rotorcraft only — see
+			// RiflesCannotReachHelicoptersTheyCannotPenetrate. The 12.7mm family keeps `Helicopter`
 			// wholesale by explicit user choice: "leave it as now — all helicopters, with effectiveness
 			// limited by penetration rather than by targeting."
 			foreach (var heli in new[] { "littlebird", "TRAN", "HALO", "HELI", "HIND", "MI28" })
 			{
 				var airborne = EnabledTargetTypes(actors, heli, airborne: true);
-				foreach (var arm in new[] { "7.62mm.MG", "12.7mm.MG" })
+				foreach (var arm in new[] { "12.7mm.MG" })
 					Assert.That(Weapon(arm).IsValidTarget(airborne), Is.True,
 						$"{arm} can no longer engage an airborne {heli}, so infantry have lost their counterplay " +
 						"against rotorcraft. It names `Helicopter` in ValidTargets and that must keep binding.");
@@ -322,23 +347,23 @@ namespace OpenRA.Test
 		public void RiflesCannotReachHelicoptersTheyCannotPenetrate()
 		{
 			var actors = Airframes();
-			var rifles = new[] { "5.56mm.AR", "5.56mm.E3", "5.56mm.DMR", "5.56mm.DMR.silencer" };
 
 			foreach (var heavy in new[] { "HELI", "HIND", "MI28" })
 			{
 				var airborne = EnabledTargetTypes(actors, heavy, airborne: true);
-				foreach (var rifle in rifles)
+				foreach (var rifle in Rifles)
 					Assert.That(Weapon(rifle).IsValidTarget(airborne), Is.False,
-						$"{rifle} can target an airborne {heavy}, an attack helicopter a 5.56mm round cannot " +
-						"penetrate. ^5.56mm reaches it through the ungated `Helicopter` target type, which is " +
-						"armour-blind by design; the rifle must name an airborne armour class instead.");
+						$"{rifle} can target an airborne {heavy}, an attack helicopter a rifle round cannot " +
+						"penetrate. It reaches one through the ungated `Helicopter` target type, which is " +
+						"armour-blind by design; the caliber template must name an airborne armour class instead.");
 			}
 
 			// Guard the guard: "cannot reach a Hind" must not be satisfied by the rifle being unable to
 			// reach anything at all. It is an infantry weapon first and that has to keep working.
-			Assert.That(Weapon("5.56mm.AR").IsValidTarget(new BitSet<TargetableType>("Infantry")), Is.True,
-				"5.56mm.AR can no longer target infantry, so the assertions above prove nothing about " +
-				"helicopters — the weapon has simply been disarmed.");
+			foreach (var rifle in Rifles)
+				Assert.That(Weapon(rifle).IsValidTarget(new BitSet<TargetableType>("Infantry")), Is.True,
+					$"{rifle} can no longer target infantry, so the assertions above prove nothing about " +
+					"helicopters — the weapon has simply been disarmed.");
 		}
 
 		/// <summary>The other half of the same ruling: "For example a littlebird can be shot". A rifle that
@@ -352,7 +377,7 @@ namespace OpenRA.Test
 			foreach (var light in new[] { "littlebird", "TRAN", "HALO" })
 			{
 				var airborne = EnabledTargetTypes(actors, light, airborne: true);
-				foreach (var rifle in new[] { "5.56mm.AR", "5.56mm.E3", "5.56mm.DMR", "5.56mm.DMR.silencer" })
+				foreach (var rifle in Rifles)
 					Assert.That(Weapon(rifle).IsValidTarget(airborne), Is.True,
 						$"{rifle} cannot target an airborne {light}, a light airframe a 5.56mm round is meant " +
 						"to penetrate. It reaches one by naming `AirLight`; check the airframe advertises " +
@@ -425,10 +450,11 @@ namespace OpenRA.Test
 			var withoutAirClass = EnabledTargetTypes(actors, "littlebird", airborne: true)
 				.Except(new BitSet<TargetableType>("AirLight"));
 
-			Assert.That(Weapon("5.56mm.AR").IsValidTarget(withoutAirClass), Is.False,
-				"removing `AirLight` did NOT stop the rifle reaching an airborne littlebird, so the air armour " +
-				"class is not what grants the access and RiflesCanReachHelicoptersTheyCanPenetrate proves nothing. " +
-				"Something else on the airframe — most likely a re-added `Helicopter` on ^5.56mm — is carrying it.");
+			foreach (var rifle in Rifles)
+				Assert.That(Weapon(rifle).IsValidTarget(withoutAirClass), Is.False,
+					$"removing `AirLight` did NOT stop {rifle} reaching an airborne littlebird, so the air armour " +
+					"class is not what grants the access and RiflesCanReachHelicoptersTheyCanPenetrate proves nothing. " +
+					"Something else on the airframe — most likely a re-added `Helicopter` on the caliber template — is carrying it.");
 		}
 
 		[Test]
@@ -443,6 +469,121 @@ namespace OpenRA.Test
 			Assert.That(Weapon("GrenadeLauncher").IsValidTarget(landed), Is.True,
 				"a grenadier can no longer hit a LANDED littlebird. The gate was supposed to remove the armour " +
 				"class only while airborne; removing it on the ground deletes intended counterplay.");
+		}
+
+		/// <summary>
+		/// USER RULING 2026-08-22: "9mm should not work on any vehicles I think, 556 and 762 should work on
+		/// light, but not medium". The ruling was given in an air-targeting conversation but is phrased in
+		/// armour classes, and the 9mm clause is plainly about ground — so it governs both domains.
+		///
+		/// Ground reachability is decided by the armour TARGET TYPE the actor advertises, not by its `Armor`
+		/// trait. The two disagree on four shipped actors (see DISCOVERIES 2026-08-22): m109 and giatsint are
+		/// `Armor: Type: Light` but advertise `Medium`, so they stay out of rifle reach. That is why this test
+		/// pins actor names rather than deriving the population from the Armor trait.
+		/// </summary>
+		[Test]
+		public void RiflesReachLightVehiclesButNotMediumOrHeavy()
+		{
+			var actors = GroundVehicles();
+
+			foreach (var light in new[] { "humvee", "m113", "btr", "m270", "HIMARS", "grad", "iskander", "MSAR", "MNLY", "LCCV" })
+			{
+				var types = EnabledTargetTypes(actors, light, airborne: false);
+				foreach (var rifle in Rifles)
+					Assert.That(Weapon(rifle).IsValidTarget(types), Is.True,
+						$"{rifle} cannot target {light}, a Light-armoured vehicle. USER RULING 2026-08-22 says " +
+						"5.56mm and 7.62mm work on light armour; check the caliber template names `Vehicle` and " +
+						"does not exclude `Light`.");
+			}
+
+			// m109 and giatsint sit here, not in the Light list, on purpose: `Armor: Type: Light` but
+			// `TargetTypes: ... Medium`. Targeting follows the target type, so they read as Medium.
+			foreach (var armoured in new[] { "bradley", "bmp2", "strykershorad", "m109", "giatsint", "abrams", "t90", "tos", "tunguska" })
+			{
+				var types = EnabledTargetTypes(actors, armoured, airborne: false);
+				foreach (var rifle in Rifles)
+					Assert.That(Weapon(rifle).IsValidTarget(types), Is.False,
+						$"{rifle} can target {armoured}, which advertises Medium or Heavy armour. USER RULING " +
+						"2026-08-22 stops the small-arms ladder at Light; the caliber template must keep " +
+						"`InvalidTargets: Medium, Heavy`.");
+			}
+		}
+
+		/// <summary>Guard the guard for the ladder: "reaches a humvee" must not be satisfied by the rifle
+		/// being able to reach everything, and "cannot reach an abrams" must not be satisfied by it reaching
+		/// nothing. Both directions have to be load-bearing.</summary>
+		[Test]
+		public void TheGroundArmourClassIsWhatDoesTheWork()
+		{
+			var actors = GroundVehicles();
+			var humvee = EnabledTargetTypes(actors, "humvee", airborne: false);
+
+			foreach (var rifle in Rifles)
+			{
+				Assert.That(Weapon(rifle).IsValidTarget(humvee.Union(new BitSet<TargetableType>("Medium"))), Is.False,
+					$"adding `Medium` to a humvee did NOT put it out of {rifle}'s reach, so the armour class is " +
+					"not what decides the ladder and RiflesReachLightVehiclesButNotMediumOrHeavy proves nothing.");
+
+				Assert.That(Weapon(rifle).IsValidTarget(new BitSet<TargetableType>("Infantry")), Is.True,
+					$"{rifle} can no longer target infantry — it is an infantry weapon first, and the ladder " +
+					"assertions above would pass on a weapon that had simply been disarmed.");
+			}
+		}
+
+		/// <summary>
+		/// The littlebird's dedicated air-to-air mount overrides ValidTargets but NOT InvalidTargets, so
+		/// giving ^7.62mm an `InvalidTargets: Medium, Heavy` reaches it by inheritance. Pinned because the
+		/// effect is asymmetric and easy to miss:
+		///   in flight  — a heavy heli advertises `AirHeavy`, never `Heavy`, so the exclusion does not bite
+		///                and the deliberate "AA mount reaches every helicopter" carve-out survives intact.
+		///   on the ground — a parked heavy heli advertises `Heavy`, so it is now out of reach. That IS a
+		///                behaviour change (small: the littlebird's other gun could never hit one either),
+		///                and it is the ruling's own logic applied consistently rather than an accident.
+		/// </summary>
+		[Test]
+		public void TheAaMountKeepsItsCarveOutInFlightAndLosesParkedHeavies()
+		{
+			var actors = Airframes();
+
+			foreach (var heavy in new[] { "HELI", "HIND", "MI28" })
+			{
+				Assert.That(Weapon("7.62mm.Minigun.AA").IsValidTarget(EnabledTargetTypes(actors, heavy, airborne: true)), Is.True,
+					$"7.62mm.Minigun.AA can no longer engage an airborne {heavy}. That mount names `Helicopter` " +
+					"wholesale on purpose (weapons-ballistics.yaml:327) and is limited by ammo and penetration, " +
+					"not by targeting — inheriting `InvalidTargets: Medium, Heavy` must not disarm it in flight.");
+
+				Assert.That(Weapon("7.62mm.Minigun.AA").IsValidTarget(EnabledTargetTypes(actors, heavy, airborne: false)), Is.False,
+					$"7.62mm.Minigun.AA can target a LANDED {heavy}. A parked heavy helicopter advertises the " +
+					"ground class `Heavy`, which USER RULING 2026-08-22 puts above the 7.62mm ceiling.");
+			}
+		}
+
+		/// <summary>
+		/// The 9mm clause, kept separate because it is the one that takes capability away.
+		///
+		/// NOTE this pins the `^9mm` TEMPLATE, which as of 2026-08-22 has ZERO consumers — no actor fields it
+		/// and nothing inherits it. The weapons players actually carry (Pistol, SilencedPPK, MP5) are
+		/// standalone and already infantry-only, so the ruling costs nothing today. The template is pinned
+		/// anyway: it is the trap a future weapon would inherit.
+		/// </summary>
+		[Test]
+		public void NineMillimetreReachesNoVehicleAndNothingAirborne()
+		{
+			var vehicles = GroundVehicles();
+			foreach (var vehicle in new[] { "humvee", "TRUK", "btr", "bradley", "abrams" })
+				Assert.That(Weapon("^9mm").IsValidTarget(EnabledTargetTypes(vehicles, vehicle, airborne: false)), Is.False,
+					$"^9mm can target {vehicle}. USER RULING 2026-08-22: \"9mm should not work on any vehicles\" — " +
+					"note `Unarmored` alone lets it reach TRUK, so the template needs `InvalidTargets: Vehicle`.");
+
+			var airframes = Airframes();
+			foreach (var heli in new[] { "littlebird", "TRAN", "HALO", "HELI", "HIND", "MI28" })
+				Assert.That(Weapon("^9mm").IsValidTarget(EnabledTargetTypes(airframes, heli, airborne: true)), Is.False,
+					$"^9mm can target an airborne {heli}. A pistol round is the bottom of the ladder and reaches " +
+					"nothing in the air; the template must name neither `Helicopter` nor any `Air*` type.");
+
+			Assert.That(Weapon("^9mm").IsValidTarget(new BitSet<TargetableType>("Infantry")), Is.True,
+				"^9mm can no longer target infantry, so the exclusions above prove nothing — the template has " +
+				"simply been emptied rather than narrowed to anti-infantry.");
 		}
 	}
 }
