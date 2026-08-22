@@ -1,0 +1,1 @@
+An LCCV standing in a patch of tiled crop-field actors deploys its logistics centre there. Fields are cosmetic ground cover, so the 3x3 placement footprint should ignore them; PASS also requires a second LCCV with a real building in its footprint to still be refused, and a third on bare ground to deploy, so a fix cannot pass by making every cell buildable.

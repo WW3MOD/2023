@@ -32,7 +32,17 @@ namespace OpenRA.Mods.Common.Traits
 	/// Warhead impact classification is one: a field has a full-cell HitShape but no <c>Targetable</c>, so
 	/// it counted as an *invalid* actor under the shell and suppressed the explosion and the impact sound
 	/// entirely. Those call sites use <see cref="IsGroundCover"/> directly, since they iterate
-	/// <c>FindActorsOnCircle</c> rather than a cell.</para></summary>
+	/// <c>FindActorsOnCircle</c> rather than a cell.</para>
+	///
+	/// <para>PITFALL — the ActorMap is not the only occupancy index. Because fields are <see cref="Building"/>
+	/// actors they are ALSO registered in <see cref="BuildingInfluence"/> (<c>Building.AddedToWorld</c> calls
+	/// <c>AddInfluence</c> over every footprint tile), which is a wholly separate layer that
+	/// <see cref="BlockingActorsAt"/> does not touch. A caller that consults both — as
+	/// <see cref="BuildingUtils.IsCellBuildable"/> does — is not fixed by swapping only the
+	/// <c>GetActorsAt</c> half: the <c>AnyBuildingAt</c> half re-imposes the block on the very actors just
+	/// filtered out, and the swap silently becomes a no-op. Use <see cref="AnyBlockingBuildingAt"/> for that
+	/// half. The two layers exist in parallel only because building bibs and pathable footprint cells are
+	/// absent from the ActorMap; see the TODO in <c>BuildingInfo.IsCloseEnoughToBase</c>.</para></summary>
 	public static class CellOccupancy
 	{
 		/// <summary>Whether this actor is purely cosmetic ground cover and so never occupies its cell.</summary>
@@ -51,6 +61,18 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var a in world.ActorMap.GetActorsAt(cell))
 				if (!a.IsGroundCover())
 					yield return a;
+		}
+
+		/// <summary>Whether the BuildingInfluence layer holds a building in this cell that actually occupies
+		/// it, ignoring cosmetic ground cover. The counterpart to <see cref="BlockingActorsAt"/> for the
+		/// second occupancy index — see the PITFALL on the class.</summary>
+		public static bool AnyBlockingBuildingAt(this World world, CPos cell)
+		{
+			foreach (var a in world.WorldActor.Trait<BuildingInfluence>().GetBuildingsAt(cell))
+				if (!a.IsGroundCover())
+					return true;
+
+			return false;
 		}
 	}
 }
