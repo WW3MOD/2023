@@ -372,15 +372,20 @@ LOGISTICSCENTER:
 		Description: Service depot for vehicle repair and rearming.\n\n - Repairs damaged vehicles\n - Restocks ammunition
 	Tooltip:
 		Name: Logistics Center
+	# USER RULING 2026-08-22: "the LC should cost 3000". Held EQUAL to LCCV's cost, because the same
+	# ruling says the driving and deployed forms are one thing — 3000 credits for 2250 supply is
+	# exactly 3x the truck's 1000 for 750 on both axes.
 	Valued:
-		Cost: 3500
+		Cost: 3000
 	# SALVAGE IS CAPPED AT THE LCCV'S COST, because this is the only building a player
 	# can obtain. `Buildable.Prerequisites: ~disabled` above gates the BUILD SIDEBAR only —
 	# Transforms.CanDeploy (Transforms.cs:93-99) never consults prerequisites, so LCCV
 	# (vehicles.yaml, Cost 1200) deploys one regardless. Selling it at the full 3500 was a
 	# money pump: 1200 in, 3500 out, repeatable.
 	#
-	# 34% of 3500 = 1190, i.e. just under the 1200 it costs to field one. Deliberately
+	# Now vastly inside the cap: 34% of 3000 = 1020 returned against the 3000 it costs to field one,
+	# where the constraint is RefundPercent <= 100 * 3000/3000 = 100. It was originally set from
+	# 34% of 3500 = 1190 against an LCCV costing 1200. Deliberately
 	# RefundPercent and NOT CustomSellValue: CustomSellValue would also lower GetSellValue,
 	# which bots rank capture targets by (CaptureManagerBotModule.cs:147) — and this building
 	# IS capturable via ^BasicBuilding -> ^NeutralOrOccupiedCapturable (:10, :149-157). Its
@@ -410,14 +415,36 @@ LOGISTICSCENTER:
 		RequiresCondition: !build-incomplete && !disabled
 		ValidRelationships: Ally
 	SupplyProvider:
-		TotalSupply: 3000
-		SupplyCreditValue: 3000
+		# 2250 = 3x the supply truck's 750, and IDENTICAL to LCCV's while undeployed. USER RULING
+		# 2026-08-22: "There is no difference between when it is driving or when it is deployed, it
+		# carries the supplies it carries." This is a REDUCTION from the previous 3000 and is
+		# deliberate, not a typo. ITransformActorInitModifier carries the MCV's remainder across the
+		# deploy, so a half-spent MCV deploys into a half-spent Centre.
+		TotalSupply: 2250
+		# Tracks TotalSupply, not Cost: this is "credit value of a full load" and the mod prices supply
+		# 1:1 (TRUK is 750/750, vehicles.yaml). Its old equality with Cost 3500 was never intentional —
+		# it equalled the old TotalSupply of 3000 and the cost was 3500.
+		SupplyCreditValue: 2250
 		# 2c0 matches ProximityExternalCondition@UNITDOCKED below: clients must be
 		# physically docked at the LC to receive resupply (see Phase 1 of supply spec).
 		Range: 2c0
 		RearmDelay: 25
 		RearmCondition: replenish-vehicles
 		DockedCondition: unit.docked
+		# THE SECOND CLIENTELE: infantry, drawn from the SAME 3000 as the docked vehicles above, so
+		# there is one pool and one supplies bar. This is why the aura arm exists at all rather than
+		# `RearmCondition: replenish-vehicles, replenish-soldiers` — PITFALL: DockedCondition is
+		# checked BEFORE RearmCondition (SupplyProvider.IsValidTarget), and only ^Vehicle declares
+		# unit.docked (vehicles.yaml:29), so a widened condition list would have been rejected by the
+		# dock gate before it was ever read. 4c0 and the 6-tick cadence deliberately match
+		# ProximityExternalCondition@ReplenishSoldiers above and the supply truck respectively.
+		#
+		# COST, so the drain rate is legible: a batch is ReloadCount rounds for SupplyValue supply.
+		# An E3 rifleman is Ammo 100 / ReloadCount 20 / SupplyValue 1 (infantry.yaml), i.e. 5 supply
+		# for a full refill — so 2250 buys ~450 rifleman refills against the truck's ~150.
+		AuraRearmCondition: replenish-soldiers
+		AuraRange: 4c0
+		AuraRearmDelay: 6
 		SupplyLevelCondition: supply-level
 		SupplyLevelSteps: 8
 	# Stacks with the BuildingExplode inherited from ^BasicBuilding rather than replacing it, and

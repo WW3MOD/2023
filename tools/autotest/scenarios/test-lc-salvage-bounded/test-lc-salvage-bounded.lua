@@ -2,10 +2,15 @@
 --
 -- WHY THIS EXISTS. `logisticscenter` carries `Buildable.Prerequisites: ~disabled`, which
 -- gates the build sidebar and nothing else — `Transforms.CanDeploy` (Transforms.cs:93-99)
--- never consults prerequisites, so any player can field one by deploying a 1200-credit
--- LCCV. Selling it paid the full `Valued.Cost` of 3500 in cash PLUS up to five 250-credit
--- technicians from `SpawnActorsOnSell`, i.e. ~4750 out for 1200 in, repeatable with no
--- cooldown. This test runs the whole cycle and asserts the payout is capped.
+-- never consults prerequisites, so any player can field one by deploying an LCCV. Selling
+-- it paid the full `Valued.Cost` in cash PLUS up to five 250-credit technicians from
+-- `SpawnActorsOnSell` — originally ~4750 out for 1200 in, repeatable with no cooldown.
+-- This test runs the whole cycle and asserts the payout is capped.
+--
+-- COSTS MOVED 2026-08-22 (user ruling): LCCV 1200 -> 3000 and LOGISTICSCENTER 3500 -> 3000,
+-- so the two forms cost the same. LccvCost below is the CAP and must track vehicles.yaml —
+-- left at the stale 1200 this test would still have gone green (the payout is now 34% of
+-- 3000 = 1020) while measuring a bound nobody set.
 --
 -- WHAT MAKES A GREEN MEANINGFUL HERE. The cap (`total <= LccvCost`) is trivially satisfied
 -- by a run that never built anything, so the cap alone would be a false green. The verdict
@@ -14,7 +19,7 @@
 -- `await-sold` until it has left it, and a payout of 0 fails explicitly. A scenario that
 -- silently failed to deploy or to sell times out rather than passing.
 
-local LccvCost = 1200       -- vehicles.yaml, LCCV Valued.Cost — the cap.
+local LccvCost = 3000       -- vehicles.yaml, LCCV Valued.Cost — the cap. Keep in sync.
 local TecnCost = 250        -- infantry.yaml, ^TECN Valued.Cost.
 local DeadlineSeconds = 45
 local SellGraceTicks = 150  -- ~6s: let the make animation finish so Sellable is enabled.

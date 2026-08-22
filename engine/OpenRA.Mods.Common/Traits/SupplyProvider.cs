@@ -76,6 +76,42 @@ namespace OpenRA.Mods.Common.Traits
 			"ground caches like SUPPLYCACHE should leave it empty for passive proximity refill.")]
 		public readonly string DockedCondition = null;
 
+		[Desc("A SECOND clientele served from the SAME supply pool, on its own terms: never subject to",
+			"DockedCondition, and using AuraRange/AuraRearmDelay instead of Range/RearmDelay. It exists",
+			"because a provider can owe service to two populations that one set of fields cannot",
+			"describe — the Logistics Center serves vehicles that must dock (2c0, unit.docked,",
+			"replenish-vehicles) and infantry that merely stand nearby (4c0, no dock,",
+			"replenish-soldiers). PITFALL: the dock gate is checked BEFORE RearmCondition in",
+			"IsValidTarget, and only ^Vehicle declares unit.docked (vehicles.yaml:29) — so widening",
+			"RearmCondition alone would NOT have let a soldier through, because the gate rejects him",
+			"first. ONE pool and ONE bar are the whole point; two trait instances would give the actor",
+			"two of each. Empty (the default) disables the mechanism, so a single-clientele provider —",
+			"the supply truck and SUPPLYCACHE, neither of which has a dock gate — is untouched.")]
+		public readonly string AuraRearmCondition = null;
+
+		[Desc("Range for the AuraRearmCondition clientele. Zero (the default) falls back to Range.")]
+		public readonly WDist AuraRange = WDist.Zero;
+
+		[Desc("Ticks between ammo increments for the AuraRearmCondition clientele.",
+			"Negative (the default) falls back to RearmDelay.")]
+		public readonly int AuraRearmDelay = -1;
+
+		/// <summary>Range of the aura clientele, resolving the fall-back to <see cref="Range"/>.</summary>
+		public WDist EffectiveAuraRange => AuraRange > WDist.Zero ? AuraRange : Range;
+
+		/// <summary>Cadence of the aura clientele, resolving the fall-back to <see cref="RearmDelay"/>.</summary>
+		public int EffectiveAuraRearmDelay => AuraRearmDelay >= 0 ? AuraRearmDelay : RearmDelay;
+
+		/// <summary>Whether a second, non-docking clientele is configured at all.</summary>
+		public bool HasAuraClientele => !string.IsNullOrEmpty(AuraRearmCondition);
+
+		/// <summary>
+		/// Radius the per-scan sweep must cover to see BOTH clienteles. The aura clientele is
+		/// routinely the wider of the two (the LC docks vehicles at 2c0 but reaches infantry at 4c0),
+		/// so scanning at <see cref="Range"/> alone would never enumerate a soldier to serve.
+		/// </summary>
+		public WDist ScanRange => HasAuraClientele && EffectiveAuraRange > Range ? EffectiveAuraRange : Range;
+
 		[Desc("How often (in ticks) to scan for new targets.")]
 		public readonly int ScanInterval = 7;
 
@@ -164,6 +200,27 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
+	/// <summary>
+	/// Which of a provider's two clienteles a candidate target belongs to. Produced by
+	/// <see cref="SupplyProvider.MatchClientele"/>.
+	/// </summary>
+	public readonly struct SupplyClienteleMatch
+	{
+		/// <summary>The target qualifies for service at all.</summary>
+		public readonly bool Matched;
+
+		/// <summary>It qualified as an AURA client, so the aura range/cadence/condition govern it.</summary>
+		public readonly bool IsAura;
+
+		public SupplyClienteleMatch(bool matched, bool isAura)
+		{
+			Matched = matched;
+			IsAura = isAura;
+		}
+
+		public static readonly SupplyClienteleMatch None = new SupplyClienteleMatch(false, false);
+	}
+
 	public class SupplyProvider : PausableConditionalTrait<SupplyProviderInfo>, ITick,
 		ITransformActorInitModifier, ISelectionBar, ICargoCanLoadFilter,
 		INotifyKilled, INotifyRemovedFromWorld, INotifyActorDisposing
@@ -176,6 +233,23 @@ namespace OpenRA.Mods.Common.Traits
 		Actor currentTarget;
 		ExternalCondition targetConditionTrait;
 		int conditionToken = Actor.InvalidConditionToken;
+
+		/// <summary>
+		/// Which clientele <see cref="currentTarget"/> was accepted as. Latched at selection rather than
+		/// recomputed per tick on purpose: the three consumers below (move-toward, condition tracking,
+		/// delivery) must all use the SAME range and condition the target was admitted under, or a
+		/// soldier admitted at 4c0 would be served on the 2c0 dock terms and dropped on the next tick.
+		/// </summary>
+		bool currentTargetIsAura;
+
+		/// <summary>Range governing the target currently held.</summary>
+		WDist ActiveRange => currentTargetIsAura ? Info.EffectiveAuraRange : Info.Range;
+
+		/// <summary>Cadence governing the target currently held.</summary>
+		int ActiveRearmDelay => currentTargetIsAura ? Info.EffectiveAuraRearmDelay : Info.RearmDelay;
+
+		/// <summary>Condition granted to the target currently held.</summary>
+		string ActiveRearmCondition => currentTargetIsAura ? Info.AuraRearmCondition : Info.RearmCondition;
 
 		/// <summary>
 		/// Is this provider on its way to (or settling at) a restock host? Read off the ACTIVITY QUEUE,
@@ -281,6 +355,12 @@ namespace OpenRA.Mods.Common.Traits
 			: base(info)
 		{
 			self = init.Self;
+
+			// ITransformActorInitModifier hands a transforming actor's remaining supply to the actor it
+			// becomes, so a Logistics Center MCV keeps exactly what it was carrying when it deployed.
+			// USER RULING 2026-08-22: "There is no difference between when it is driving or when it is
+			// deployed, it carries the supplies it carries." LCCV and LOGISTICSCENTER therefore share one
+			// TotalSupply (2250) and this transfer is the whole of the deploy behaviour — no top-up.
 			currentSupply = init.GetValue<SupplyInit, int>(info, info.TotalSupply);
 		}
 
@@ -419,7 +499,7 @@ namespace OpenRA.Mods.Common.Traits
 		void UpdateTarget()
 		{
 			// Always re-evaluate — pick unit with greatest need
-			var bestTarget = FindGreatestNeedTarget(out var hasUnaffordableTargets);
+			var bestTarget = FindGreatestNeedTarget(out var hasUnaffordableTargets, out var bestIsAura);
 
 			// Recorded HERE, before the Hunt fallback below can overwrite bestTarget with something
 			// anywhere on the map. The halt means "somebody within reach still needs me", so it must read
@@ -474,7 +554,15 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var autoTarget = self.TraitOrDefault<AutoTarget>();
 					if (autoTarget != null && autoTarget.EngagementStanceValue >= EngagementStance.Hunt)
+					{
 						bestTarget = FindNeedsResupplyTarget();
+
+						// The hunt sweep applies no clientele test at all, so classify what it returns
+						// rather than leaving the flag reading whatever the aura scan last set.
+						bestIsAura = bestTarget != null && Info.HasAuraClientele
+							&& DeclaresCondition(bestTarget, Info.AuraRearmCondition)
+							&& !HoldsGrantedCondition(bestTarget, Info.DockedCondition);
+					}
 				}
 			}
 
@@ -495,7 +583,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			SetTarget(bestTarget);
+			SetTarget(bestTarget, bestIsAura);
 		}
 
 		/// <summary>
@@ -536,15 +624,20 @@ namespace OpenRA.Mods.Common.Traits
 				.ClosestToIgnoringPath(self);
 		}
 
-		Actor FindGreatestNeedTarget(out bool hasUnaffordableTargets)
+		Actor FindGreatestNeedTarget(out bool hasUnaffordableTargets) { return FindGreatestNeedTarget(out hasUnaffordableTargets, out _); }
+
+		Actor FindGreatestNeedTarget(out bool hasUnaffordableTargets, out bool bestIsAura)
 		{
 			Actor best = null;
 			var bestNeed = 0f;
 			hasUnaffordableTargets = false;
+			bestIsAura = false;
 
-			foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, Info.Range))
+			// ScanRange, not Range: the aura clientele is routinely the wider of the two, and sweeping at
+			// Range would never enumerate the soldiers the aura arm exists to serve.
+			foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, Info.ScanRange))
 			{
-				if (IsValidTarget(a))
+				if (IsValidTarget(a, out var isAura))
 				{
 					var rearmable = a.TraitOrDefault<Rearmable>();
 					if (rearmable != null && rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo))
@@ -563,6 +656,7 @@ namespace OpenRA.Mods.Common.Traits
 							{
 								bestNeed = need;
 								best = a;
+								bestIsAura = isAura;
 							}
 						}
 					}
@@ -600,6 +694,12 @@ namespace OpenRA.Mods.Common.Traits
 						{
 							bestNeed = need;
 							best = soldier;
+
+							// A sheltered passenger is out of the world, so IsValidTarget cannot classify
+							// him. Class him by what he declares, preferring the aura arm — the garrison
+							// case is infantry, and on a two-clientele provider the dock arm is the one he
+							// could never have satisfied anyway.
+							bestIsAura = Info.HasAuraClientele && DeclaresCondition(soldier, Info.AuraRearmCondition);
 						}
 					}
 				}
@@ -631,54 +731,67 @@ namespace OpenRA.Mods.Common.Traits
 			return totalMissing / totalCapacity;
 		}
 
-		bool IsValidTarget(Actor a)
+		bool IsValidTarget(Actor a) { return IsValidTarget(a, out _); }
+
+		bool IsValidTarget(Actor a, out bool isAura)
 		{
+			isAura = false;
+
 			if (a == null || a.IsDead || !a.IsInWorld || a == self)
 				return false;
 
 			if (!Info.ValidRelationships.HasRelationship(self.Owner.RelationshipWith(a.Owner)))
 				return false;
 
-			// Must be in range
-			if (!InAuraRange(self.CenterPosition, a.CenterPosition, Info.Range))
-				return false;
-
-			// If a docking gate is configured (e.g. unit.docked on the LC), the target
-			// must already be holding that external condition. This implies stationary
-			// (the docking trigger only fires inside a tight proximity range).
-			if (!string.IsNullOrEmpty(Info.DockedCondition))
-			{
-				var docked = a.TraitsImplementing<ExternalCondition>()
-					.Any(e => e.Info.Condition == Info.DockedCondition && e.IsGranted);
-				if (!docked)
-					return false;
-			}
-
 			// Ammo target: Rearmable with at least one non-full pool.
 			var rearmable = a.TraitOrDefault<Rearmable>();
-			if (rearmable != null && rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo))
-			{
-				if (!string.IsNullOrEmpty(Info.RearmCondition))
-				{
-					var ec = a.TraitsImplementing<ExternalCondition>()
-						.FirstOrDefault(e => e.Info.Condition == Info.RearmCondition);
-					if (ec == null)
-						return false;
-				}
+			if (rearmable == null || !rearmable.RearmableAmmoPools.Any(p => !p.HasFullAmmo))
+				return false;
 
-				return true;
-			}
+			// A missing RearmCondition means "no condition required", so an unset field must read as
+			// SATISFIED rather than as an unmet requirement — the truck and the cache both rely on the
+			// primary arm behaving exactly as it did before the aura arm existed.
+			var match = MatchClientele(
+				inPrimaryRange: InAuraRange(self.CenterPosition, a.CenterPosition, Info.Range),
+				dockGateConfigured: !string.IsNullOrEmpty(Info.DockedCondition),
+				targetIsDocked: HoldsGrantedCondition(a, Info.DockedCondition),
+				targetDeclaresPrimaryCondition: DeclaresCondition(a, Info.RearmCondition),
+				auraConfigured: Info.HasAuraClientele,
+				inAuraRange: InAuraRange(self.CenterPosition, a.CenterPosition, Info.EffectiveAuraRange),
+				targetDeclaresAuraCondition: DeclaresCondition(a, Info.AuraRearmCondition));
 
-			return false;
+			isAura = match.IsAura;
+			return match.Matched;
 		}
 
-		void SetTarget(Actor target)
+		/// <summary>Does the actor DECLARE this ExternalCondition? An empty condition name is vacuously true.</summary>
+		static bool DeclaresCondition(Actor a, string condition)
+		{
+			if (string.IsNullOrEmpty(condition))
+				return true;
+
+			return a.TraitsImplementing<ExternalCondition>().Any(e => e.Info.Condition == condition);
+		}
+
+		/// <summary>Is the actor currently HOLDING this ExternalCondition? An empty condition name is vacuously true.</summary>
+		static bool HoldsGrantedCondition(Actor a, string condition)
+		{
+			if (string.IsNullOrEmpty(condition))
+				return true;
+
+			return a.TraitsImplementing<ExternalCondition>().Any(e => e.Info.Condition == condition && e.IsGranted);
+		}
+
+		void SetTarget(Actor target) { SetTarget(target, false); }
+
+		void SetTarget(Actor target, bool isAura)
 		{
 			if (currentTarget == target)
 				return;
 
 			RevokeTargetCondition();
 			currentTarget = target;
+			currentTargetIsAura = isAura;
 
 			// Sheltered passengers in garrison buildings aren't in the world; their
 			// CenterPosition is stale. The building they're inside is, by definition,
@@ -686,7 +799,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (currentTarget != null && currentTarget.IsInWorld)
 			{
 				// If target is out of range (Hunt mode found a distant flagged unit), move toward it
-				if (!InAuraRange(self.CenterPosition, currentTarget.CenterPosition, Info.Range))
+				if (!InAuraRange(self.CenterPosition, currentTarget.CenterPosition, ActiveRange))
 				{
 					var move = self.TraitOrDefault<IMove>();
 					if (move != null)
@@ -701,7 +814,7 @@ namespace OpenRA.Mods.Common.Traits
 			// let it latch on an out-of-aura target: this method early-returns when the target is
 			// unchanged, so it never gets a second look. SyncTargetCondition owns the whole
 			// grant/revoke lifecycle and re-evaluates every tick.
-			rearmTicks = Info.RearmDelay;
+			rearmTicks = ActiveRearmDelay;
 		}
 
 		/// <summary>
@@ -718,11 +831,11 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			if (string.IsNullOrEmpty(Info.RearmCondition))
+			if (string.IsNullOrEmpty(ActiveRearmCondition))
 				return;
 
 			var inWorld = currentTarget.IsInWorld;
-			var inAura = inWorld && InAuraRange(self.CenterPosition, currentTarget.CenterPosition, Info.Range);
+			var inAura = inWorld && InAuraRange(self.CenterPosition, currentTarget.CenterPosition, ActiveRange);
 			var shouldHold = DecideServe(inWorld, inAura).HoldCondition;
 			var held = conditionToken != Actor.InvalidConditionToken;
 
@@ -736,7 +849,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			targetConditionTrait = currentTarget.TraitsImplementing<ExternalCondition>()
-				.FirstOrDefault(e => e.Info.Condition == Info.RearmCondition);
+				.FirstOrDefault(e => e.Info.Condition == ActiveRearmCondition);
 			if (targetConditionTrait != null)
 				conditionToken = targetConditionTrait.GrantCondition(currentTarget, this);
 		}
@@ -836,14 +949,14 @@ namespace OpenRA.Mods.Common.Traits
 			// during the RearmDelay wait. Without this gate GiveAmmo fires at any distance.
 			var inWorld = currentTarget.IsInWorld;
 			var decision = DecideServe(inWorld,
-				inWorld && InAuraRange(self.CenterPosition, currentTarget.CenterPosition, Info.Range));
+				inWorld && InAuraRange(self.CenterPosition, currentTarget.CenterPosition, ActiveRange));
 
 			if (!decision.Deliver)
 			{
 				// Keep the target so an approaching provider serves it on arrival; just don't deliver
 				// yet. SyncTargetCondition has already taken the rearm condition off, and puts it
 				// back the tick we arrive.
-				rearmTicks = Info.RearmDelay;
+				rearmTicks = ActiveRearmDelay;
 				return;
 			}
 
@@ -886,10 +999,12 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-			// After giving ammo, drop target to re-evaluate on next scan
+			// After giving ammo, drop target to re-evaluate on next scan. Order matters: the delay is
+			// read off the clientele we just served, then the latch is cleared with the target.
 			RevokeTargetCondition();
+			rearmTicks = ActiveRearmDelay;
 			currentTarget = null;
-			rearmTicks = Info.RearmDelay;
+			currentTargetIsAura = false;
 		}
 
 		void TryRestock()
@@ -1041,6 +1156,34 @@ namespace OpenRA.Mods.Common.Traits
 		/// served — but never granted the condition, which would be invisible and would leak if the
 		/// soldier later deployed out.</para>
 		/// </summary>
+		/// <summary>
+		/// <para>Which clientele, if either, a candidate belongs to — kept pure so the selection sweep,
+		/// the delivery path and the condition tracker cannot drift apart about who is being served
+		/// and on whose terms.</para>
+		///
+		/// <para>THE ORDER MATTERS AND IS THE WHOLE POINT. The primary clientele is gated on the dock
+		/// condition FIRST and its rearm condition second; a soldier fails the dock gate before his
+		/// rearm condition is ever looked at, because only ^Vehicle declares unit.docked. That is why
+		/// the aura clientele is a separate arm rather than a widened RearmCondition: widening the
+		/// condition list would have changed a test that never runs.</para>
+		///
+		/// <para>Primary is tried first so an actor that could satisfy both — a docked vehicle inside
+		/// the wider aura, were a mod ever to declare both conditions on one actor — is served on the
+		/// docked terms it actually docked for.</para>
+		/// </summary>
+		public static SupplyClienteleMatch MatchClientele(
+			bool inPrimaryRange, bool dockGateConfigured, bool targetIsDocked, bool targetDeclaresPrimaryCondition,
+			bool auraConfigured, bool inAuraRange, bool targetDeclaresAuraCondition)
+		{
+			if (inPrimaryRange && (!dockGateConfigured || targetIsDocked) && targetDeclaresPrimaryCondition)
+				return new SupplyClienteleMatch(true, false);
+
+			if (auraConfigured && inAuraRange && targetDeclaresAuraCondition)
+				return new SupplyClienteleMatch(true, true);
+
+			return SupplyClienteleMatch.None;
+		}
+
 		public static SupplyServeDecision DecideServe(bool targetInWorld, bool inAura)
 		{
 			if (!targetInWorld)

@@ -645,8 +645,11 @@ LCCV:
 		BuildPaletteOrder: 150
 		Prerequisites: ~techlevel.low
 		Description: Deploys into a Logistics Center for field resupply of vehicles and infantry.\n\n - Unarmed\n - Armor: None
+	# USER RULING 2026-08-22: "the LC should cost 3000". Raised from 1200 and held equal to
+	# LOGISTICSCENTER's Cost, since the same ruling treats the driving and deployed forms as one thing.
+	# 3000 credits for 2250 supply is exactly 3x the supply truck's 1000 for 750 on both axes.
 	Valued:
-		Cost: 1200
+		Cost: 3000
 	Tooltip:
 		Name: Logistics Center MCV
 	Selectable:
@@ -658,6 +661,27 @@ LCCV:
 	Mobile:
 		Speed: 71
 		Locomotor: heavywheeled
+	# Field resupply while still mobile, on the supply truck's terms: same 5c0 aura, same 6-tick
+	# cadence, same replenish-soldiers clientele. No DockedCondition — a dock gate here would reject
+	# every soldier, since only ^Vehicle declares unit.docked (:29). SupplyProvider implements
+	# ISelectionBar, so this is also what gives the undeployed MCV its supplies bar.
+	#
+	# TotalSupply is 2250 — 3x the truck's 750 — and IDENTICAL to LOGISTICSCENTER's. USER RULING
+	# 2026-08-22: "There is no difference between when it is driving or when it is deployed, it carries
+	# the supplies it carries." One capacity across both forms is what makes that true, and it is why
+	# there is no top-up-on-deploy anywhere: ITransformActorInitModifier already carries the remainder
+	# across, so a half-spent MCV deploys into a half-spent Centre and the bar does not jump.
+	#
+	# THREE TRUCK FEATURES DELIBERATELY NOT COPIED, each of which would be a second, unmeasured
+	# behavioural change: ServingCondition (halt-to-serve would stop an MCV mid-drive to the spot the
+	# player picked to deploy it), RestockActors (its restock host is the building it turns into), and
+	# SupplyCreditValue (the LCCV/LOGISTICSCENTER sell economics are load-bearing and commented at
+	# structures.yaml:377-390 — leaving it 0 keeps remaining supply out of the refund maths).
+	SupplyProvider:
+		TotalSupply: 2250
+		Range: 5c0
+		RearmDelay: 6
+		RearmCondition: replenish-soldiers
 	Transforms:
 		IntoActor: logisticscenter
 		Offset: -1,-1

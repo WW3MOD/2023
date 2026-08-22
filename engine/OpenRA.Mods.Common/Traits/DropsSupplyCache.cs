@@ -654,6 +654,17 @@ namespace OpenRA.Mods.Common.Traits
 
 			public override bool CanTargetActor(Actor self, Actor target, TargetModifiers modifiers, ref string cursor)
 			{
+				// STAND ASIDE FOR Ctrl+click. DeliverSupplyOrderTargeter below is the truck -> LC
+				// direction and is correctly gated on ForceMove, but it sits at priority 6 against this
+				// one's 7, and UnitOrderGenerator.OrderForUnit returns the FIRST targeter that matches
+				// walking down priority order. Without this line Restock matched under Ctrl too, so the
+				// delivery order was unreachable for any truck that was `notFull` — i.e. every truck that
+				// had served anybody, which is exactly the set with a reason to deliver. The feature was
+				// fully built and could only ever fire from a 750/750 undamaged truck. Both targeters
+				// share info.RestockCursor, so nothing on screen told the player Ctrl had done nothing.
+				if (modifiers.HasModifier(TargetModifiers.ForceMove))
+					return false;
+
 				if (!self.Owner.IsAlliedWith(target.Owner))
 					return false;
 
