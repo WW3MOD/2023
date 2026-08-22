@@ -9957,3 +9957,44 @@ The only mechanism that survives is a partition by *source* in `GenerateRenderab
 clipped ground pass; Z>0 actors plus all `IEffect` renderables → unclipped late pass). Its cost is
 real and global: every effect would draw above all ground regardless of Y, and aircraft shadows land
 in the wrong pass. That is a game-wide ordering change to fix a cosmetic edge strip.
+
+### "Draw opaque beyond `MapSize` when there is no render player" is refuted by the main menu's own nuke button
+
+This is the obvious narrow escape from the previous section — the post-actor pass is inert exactly
+where the artefact shows (`DrawBeyondMapActorFog` early-returns on `RenderPlayer == null`), so make it
+opaque there and a real match, which always has a render player, cannot regress. It does not survive
+contact with what the shellmap actually is.
+
+**The shellmap is not a passive diorama; it has a live weapon aimed by the mouse.**
+`mods/ww3mod/chrome/mainmenu.yaml:54` declares `Button@NUKE_BUTTON`, wired in
+`MainMenuLogic.cs:308-323` to `ShellmapNukeOverlayWidget`. Arming it and clicking anywhere on the
+shellmap calls `FireNuke` (`ShellmapNukeOverlayWidget.cs:95-130`), which resolves the click through
+`Viewport.ViewToWorld`, takes `CenterOfCell` **with no bounds check at all**, and constructs a real
+`NukeLaunch` with `skipAscent: true` descending from `DetonationAltitude` 6400.
+
+`ViewToWorld` does not clamp to the grid — its final fallback is
+`CellContaining(ProjectedPosition(...))` (`Viewport.cs`) — and the viewport overhangs the map by ~27
+cells at 1080p (measured in `12e0addd`), so a click near or past the edge puts the descending missile
+*and* the mushroom cloud wholly outside `MapSize`. Painting that region opaque after actors would make
+the main menu's own nuke button silently do nothing, in precisely the view the change was for. All ten
+maps carry `Visibility: ... Shellmap`, so this is not river-zeta-specific.
+
+**The aircraft objection, which is the one everyone reaches for, is NOT the blocker.** The shellmap
+choreography is ground-only: river-zeta's waves list armour and infantry (`river-zeta-frontline.lua`
+`unitTypes` at :230-255), and only 3 of the 10 shellmap-eligible maps carry a lua at all. If the nuke
+did not exist this proposal would very likely have held. Worth recording so the next person does not
+re-litigate aircraft and miss the button.
+
+### Fixed: the two overlays now cover the same rectangle
+
+`DrawBeyondMapActorFog` was anchored on `Bounds` while `DrawBeyondMapFog` had moved to `MapSize`. Both
+now derive their inner boundary from `MapSize` (`gridTL`/`gridBR`), while the per-cell subdivision and
+visibility sampling stay keyed to playable cells — the alpha for the strip past the edge still comes
+from the nearest *playable* cell, which is the only cell that has a meaningful visibility. The first
+and last cell of each edge run extends to the grid corner so the union has no notch over the ring
+columns, and the four corner rects moved with it.
+
+**This is deliberately inert and should not change any pixel.** It only stops the actor pass washing
+over the one-cell ring, and the ring is already opaque from shroud in every configuration (traced
+above). The dependency is worth naming: if anything ever makes ring cells resolve to nonzero
+visibility, this becomes a visible change rather than a tidy-up.

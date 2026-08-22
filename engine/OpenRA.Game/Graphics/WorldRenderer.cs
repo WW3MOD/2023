@@ -484,11 +484,20 @@ namespace OpenRA.Graphics
 				fogAlphas[v] = 1f - transparency;
 			}
 
-			// Map boundary in screen coordinates
+			// Playable boundary in screen coordinates. The per-cell subdivision below is keyed
+			// to this, because the visibility samples come from playable cells.
 			var tl = new WPos(bounds.Left * TileScale, bounds.Top * TileScale, 0);
 			var br = new WPos(bounds.Right * TileScale, bounds.Bottom * TileScale, 0);
 			var mapTL = ScreenPxPosition(tl);
 			var mapBR = ScreenPxPosition(br);
+
+			// Cell-grid boundary, identical to DrawBeyondMapFog's. These two are the pre- and
+			// post-actor halves of one overlay and must cover the same region: everything
+			// outside the grid. The one-cell cordon ring lies INSIDE the grid and is the
+			// shroud's business — GetVisibility resolves ring cells to 0 under fog, FogDisabled
+			// and shroud-Disabled alike, so the shroud already paints it opaque.
+			var gridTL = ScreenPxPosition(new WPos(0, 0, 0));
+			var gridBR = ScreenPxPosition(new WPos(map.MapSize.X * TileScale, map.MapSize.Y * TileScale, 0));
 
 			// Cell dimensions in screen pixels
 			var mapWidth = bounds.Right - bounds.Left;
@@ -503,7 +512,7 @@ namespace OpenRA.Graphics
 			// Adjacent cells with the same visibility are batched into a single rect.
 
 			// Top edge
-			if (vpTL.Y < mapTL.Y)
+			if (vpTL.Y < gridTL.Y)
 			{
 				var x = bounds.Left;
 				while (x < bounds.Right)
@@ -525,9 +534,9 @@ namespace OpenRA.Graphics
 					if (alpha > 0.01f)
 					{
 						var fogColor = Color.FromArgb((int)(alpha * 255), 0, 0, 0);
-						var left = mapTL.X + (x - bounds.Left) * cellW;
-						var right = mapTL.X + (xEnd - bounds.Left) * cellW;
-						cr.FillRect(new float3(left, vpTL.Y, 0), new float3(right, mapTL.Y, 0), fogColor);
+						var left = x == bounds.Left ? gridTL.X : mapTL.X + (x - bounds.Left) * cellW;
+						var right = xEnd == bounds.Right ? gridBR.X : mapTL.X + (xEnd - bounds.Left) * cellW;
+						cr.FillRect(new float3(left, vpTL.Y, 0), new float3(right, gridTL.Y, 0), fogColor);
 					}
 
 					x = xEnd;
@@ -535,7 +544,7 @@ namespace OpenRA.Graphics
 			}
 
 			// Bottom edge
-			if (vpBR.Y > mapBR.Y)
+			if (vpBR.Y > gridBR.Y)
 			{
 				var x = bounds.Left;
 				while (x < bounds.Right)
@@ -556,17 +565,17 @@ namespace OpenRA.Graphics
 					if (alpha > 0.01f)
 					{
 						var fogColor = Color.FromArgb((int)(alpha * 255), 0, 0, 0);
-						var left = mapTL.X + (x - bounds.Left) * cellW;
-						var right = mapTL.X + (xEnd - bounds.Left) * cellW;
-						cr.FillRect(new float3(left, mapBR.Y, 0), new float3(right, vpBR.Y, 0), fogColor);
+						var left = x == bounds.Left ? gridTL.X : mapTL.X + (x - bounds.Left) * cellW;
+						var right = xEnd == bounds.Right ? gridBR.X : mapTL.X + (xEnd - bounds.Left) * cellW;
+						cr.FillRect(new float3(left, gridBR.Y, 0), new float3(right, vpBR.Y, 0), fogColor);
 					}
 
 					x = xEnd;
 				}
 			}
 
-			// Left edge (between map top and bottom)
-			if (vpTL.X < mapTL.X)
+			// Left edge (between grid top and bottom)
+			if (vpTL.X < gridTL.X)
 			{
 				var y = bounds.Top;
 				while (y < bounds.Bottom)
@@ -587,17 +596,17 @@ namespace OpenRA.Graphics
 					if (alpha > 0.01f)
 					{
 						var fogColor = Color.FromArgb((int)(alpha * 255), 0, 0, 0);
-						var top = mapTL.Y + (y - bounds.Top) * cellH;
-						var bottom = mapTL.Y + (yEnd - bounds.Top) * cellH;
-						cr.FillRect(new float3(vpTL.X, top, 0), new float3(mapTL.X, bottom, 0), fogColor);
+						var top = y == bounds.Top ? gridTL.Y : mapTL.Y + (y - bounds.Top) * cellH;
+						var bottom = yEnd == bounds.Bottom ? gridBR.Y : mapTL.Y + (yEnd - bounds.Top) * cellH;
+						cr.FillRect(new float3(vpTL.X, top, 0), new float3(gridTL.X, bottom, 0), fogColor);
 					}
 
 					y = yEnd;
 				}
 			}
 
-			// Right edge (between map top and bottom)
-			if (vpBR.X > mapBR.X)
+			// Right edge (between grid top and bottom)
+			if (vpBR.X > gridBR.X)
 			{
 				var y = bounds.Top;
 				while (y < bounds.Bottom)
@@ -618,9 +627,9 @@ namespace OpenRA.Graphics
 					if (alpha > 0.01f)
 					{
 						var fogColor = Color.FromArgb((int)(alpha * 255), 0, 0, 0);
-						var top = mapTL.Y + (y - bounds.Top) * cellH;
-						var bottom = mapTL.Y + (yEnd - bounds.Top) * cellH;
-						cr.FillRect(new float3(mapBR.X, top, 0), new float3(vpBR.X, bottom, 0), fogColor);
+						var top = y == bounds.Top ? gridTL.Y : mapTL.Y + (y - bounds.Top) * cellH;
+						var bottom = yEnd == bounds.Bottom ? gridBR.Y : mapTL.Y + (yEnd - bounds.Top) * cellH;
+						cr.FillRect(new float3(gridBR.X, top, 0), new float3(vpBR.X, bottom, 0), fogColor);
 					}
 
 					y = yEnd;
@@ -629,42 +638,42 @@ namespace OpenRA.Graphics
 
 			// Corners: use nearest corner cell's visibility
 			// Top-left
-			if (vpTL.Y < mapTL.Y && vpTL.X < mapTL.X)
+			if (vpTL.Y < gridTL.Y && vpTL.X < gridTL.X)
 			{
 				var vis = mapLayers.GetVisibility((PPos)new CPos(bounds.Left, bounds.Top).ToMPos(map));
 				var alpha = fogAlphas[vis];
 				if (alpha > 0.01f)
-					cr.FillRect(new float3(vpTL.X, vpTL.Y, 0), new float3(mapTL.X, mapTL.Y, 0),
+					cr.FillRect(new float3(vpTL.X, vpTL.Y, 0), new float3(gridTL.X, gridTL.Y, 0),
 						Color.FromArgb((int)(alpha * 255), 0, 0, 0));
 			}
 
 			// Top-right
-			if (vpTL.Y < mapTL.Y && vpBR.X > mapBR.X)
+			if (vpTL.Y < gridTL.Y && vpBR.X > gridBR.X)
 			{
 				var vis = mapLayers.GetVisibility((PPos)new CPos(bounds.Right - 1, bounds.Top).ToMPos(map));
 				var alpha = fogAlphas[vis];
 				if (alpha > 0.01f)
-					cr.FillRect(new float3(mapBR.X, vpTL.Y, 0), new float3(vpBR.X, mapTL.Y, 0),
+					cr.FillRect(new float3(gridBR.X, vpTL.Y, 0), new float3(vpBR.X, gridTL.Y, 0),
 						Color.FromArgb((int)(alpha * 255), 0, 0, 0));
 			}
 
 			// Bottom-left
-			if (vpBR.Y > mapBR.Y && vpTL.X < mapTL.X)
+			if (vpBR.Y > gridBR.Y && vpTL.X < gridTL.X)
 			{
 				var vis = mapLayers.GetVisibility((PPos)new CPos(bounds.Left, bounds.Bottom - 1).ToMPos(map));
 				var alpha = fogAlphas[vis];
 				if (alpha > 0.01f)
-					cr.FillRect(new float3(vpTL.X, mapBR.Y, 0), new float3(mapTL.X, vpBR.Y, 0),
+					cr.FillRect(new float3(vpTL.X, gridBR.Y, 0), new float3(gridTL.X, vpBR.Y, 0),
 						Color.FromArgb((int)(alpha * 255), 0, 0, 0));
 			}
 
 			// Bottom-right
-			if (vpBR.Y > mapBR.Y && vpBR.X > mapBR.X)
+			if (vpBR.Y > gridBR.Y && vpBR.X > gridBR.X)
 			{
 				var vis = mapLayers.GetVisibility((PPos)new CPos(bounds.Right - 1, bounds.Bottom - 1).ToMPos(map));
 				var alpha = fogAlphas[vis];
 				if (alpha > 0.01f)
-					cr.FillRect(new float3(mapBR.X, mapBR.Y, 0), new float3(vpBR.X, vpBR.Y, 0),
+					cr.FillRect(new float3(gridBR.X, gridBR.Y, 0), new float3(vpBR.X, vpBR.Y, 0),
 						Color.FromArgb((int)(alpha * 255), 0, 0, 0));
 			}
 
