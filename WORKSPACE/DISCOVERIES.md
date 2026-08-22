@@ -5,6 +5,8 @@
 
 ## 2026-08-22 — `AutoTarget` never re-arms its scan timer on a tick an override answers, so an always-answering override is consulted EVERY idle tick
 
+> **[promoted]** → `conventions.md` §Engine behaviors that surprise (curation 2026-08-22, verified against `main @ 12e0addd`). Re-derived: the gate is `AutoTarget.cs:1127`, the override loop returns at `:1143`/`:1146`, and the re-arm is at `:1158` on the ChooseTarget path only, with the deliberate-omission comment at `:1138-1140`. `^CamoSoldier`'s 16/32 confirmed at `infantry.yaml:304-305` (C# defaults are 3/8). Banked as the transferable rule — **rate-limiting an override relies on must live inside the override** — beside the existing bullet on `ScanForTarget` returning `Invalid` for two indistinguishable reasons, which is a different defect on the same method.
+
 Branch `wt/medic-behaviour`. `AutoTarget.ScanForTarget` (`AutoTarget.cs:1124-1147`) gates on
 `nextScanTime <= 0`, then consults each `IOverrideAutoTarget` **and returns from inside that loop**.
 `nextScanTime` is only re-armed further down, on the ordinary `ChooseTarget` path that an answering
@@ -23,6 +25,8 @@ written to lean on the AutoTarget interval would silently run 16–32× more oft
 
 ## 2026-08-22 — a distance tiebreaker of `distance / 10240` is identically zero inside any search radius under ten cells
 
+> **[promoted]** → `conventions.md` §"A change believed made, documented as made, and inert", as **instance 2 of six** (curation 2026-08-22, verified against `main @ 12e0addd`). `git show e305be21` confirms the original term and its comment verbatim. **Fixed at HEAD** — now `DistancePenaltyPerCell` in cell units (`HealerAutoTarget.cs:289-293`), with the trap preserved in-code as a `[Desc]` at `:52-54`; `^MEDI`'s `SearchRange: 8c0` is `infantry.yaml:2170`. `434b7555` re-verified as a real prior instance on the same trait. The entry's closing rule — *check a raw-world-unit expression against the actual configured radius* — is what generalised into the section's detector list.
+
 `HealerAutoTarget.FindBestTarget` scored candidate patients as `hpPct`, plus `-10000` when critical,
 plus `distance / 10240` — commented as *"slight distance tiebreaker (1 point per 10 cells)"*. That is
 integer division on a WDist length, and `SearchRange` on `^MEDI` is `8c0` = 8192. **8192 / 10240 == 0.**
@@ -35,6 +39,8 @@ scoring or range expression is written in raw world units, check it against the 
 radius before trusting the comment next to it.**
 
 ## 2026-08-22 — a healer with no switch hysteresis ping-pongs, because one heal pulse is larger than the gap it is comparing
+
+> **[promoted]** → `conventions.md` §Engine behaviors that surprise (curation 2026-08-22, verified against `main @ 12e0addd`). `DamagePercent: -5` confirmed (`weapons-other.yaml:349`). **One correction carried into the bank:** the heal cadence field is `BurstWait: 50` (`:342`), not `ReloadDelay` — this mod pace-limits with `BurstWait`, which `Armament.cs:128-129` makes mandatory by throwing without it. Hysteresis now ships as `SwitchMargin` (`HealerAutoTarget.cs:297-298`, `10` on `^MEDI`); note the strict `if (score < bestScore)` is unchanged — the preference is injected into the score, not the comparison.
 
 `^MEDI`'s Heal warhead is `DamagePercent: -5`, i.e. every pulse lifts its patient by five percentage
 points of max health. `HealerAutoTarget` re-ran a full `FindBestTarget` every `ScanInterval` (8 ticks)
@@ -52,6 +58,8 @@ than the per-step change the action itself causes — otherwise the action inver
 
 ## 2026-08-22 — the autotest harness converts seconds to ticks at 25 tps; the mod runs at 16.67
 
+> **[promoted]** → `DOCS/recipes/AUTOTEST.md` §`TestHarness.*` (curation 2026-08-22, verified against `main @ 12e0addd`), which is where a test author meets it. Merged with the duplicate 2026-08-21 entry below. The mechanism already lived in `conventions.md` §Engine behaviors (`world.Timestep` bullet) and is deep-linked rather than restated. Verified: `test-helpers.lua:9`, consumers `AssertWithin` `:51-52`, `AssertAfter` `:81-82`, `ScreenshotAfter` `:185-186`; `run-test.sh` sets neither `Test.GameSpeed` nor `Test.SpeedMultiplier`. **Citation corrected**: `Timestep: 60` is `mod.yaml:382`, not `:381` (`:381` is `Name: normal`) — the same off-by-one was in two existing docs and is fixed there too. The "do not change the constant" instruction is banked explicitly.
+
 `TestHarness.TicksPerSecond = 25` (`mods/ww3mod/scripts/test-helpers.lua:9`), but `GameSpeeds` `default`
 is `Timestep: 60` (`mod.yaml:379`) = 16.67 ticks/second. `AssertWithin(N)` therefore waits `N * 25`
 ticks, which is `N * 1.5` real seconds.
@@ -61,6 +69,8 @@ Ns" string in a failure message overstates the time actually allowed by the same
 here** — correcting the constant would tighten every existing deadline by a third in one step, which is
 a fleet-wide retune, not a medic fix. Size new deadlines in ticks and divide.
 ## 2026-08-22 — a multi-weapon unit closes to its SHORTEST weapon's range, not its longest
+
+> **[promoted]** → `conventions.md` §Engine behaviors that surprise (curation 2026-08-22, verified against `main @ 12e0addd`). Every link re-derived. `Attack.cs:261` now calls the helper, so the `Min` survives only as the default inside `AttackBase.EngagementMaxRange` (`:690`, paused-skip and all-paused fallback at `:705-719`); opt-in live on the Tunguska at `vehicles-russia.yaml:939`; `EngagementMaxRangeTest` exists with 5 cases. **One nuance the entry's wording misses:** the `Min` at `Attack.cs:86`/`:140` is across *AttackBase traits*, while `GetMaximumRangeVersusTarget` takes the max across *armaments* — so the self-inconsistency is Max-within-trait vs Min-across-armaments. The inert `firing-primary` half was promoted separately as instance 3 of the six-shapes section.
 
 Branch `wt/tunguska-guns`, chasing "the tunguska refused to shoot a helicopter with missiles and went
 closer to use the guns instead".
@@ -93,6 +103,8 @@ a Tunguska that had spent its missiles at 28c0, out of its own gun's reach, firi
 
 ## 2026-08-22 — a weapon field set at the wrong nesting level parses clean and does nothing
 
+> **[rejected in part, promoted in part]** (curation 2026-08-22, verified against `main @ 12e0addd`). **The headline is FALSE and must not be repeated: a misplaced weapon field is NOT silent.** `CheckUnknownWeaponFields` walks every file in `Manifest.Weapons` and emits *"refers to a weapon field `X` that does not exist"* for any weapon-level child that is not a `WeaponInfo` field, `Projectile`, `Warhead` or `Inherits` (`Lint/CheckUnknownWeaponFields.cs:107-108`); `NormalizeName` strips `@suffix` so `Inherits@Caliber` is exempt but `Inaccuracy` is not, and `lint-baseline.txt` records no such waiver. So `--check-yaml` errors on it — the entry's "survives with zero errors" was never tested. **Promoted:** that `Inaccuracy` belongs to `BulletInfo` (`Bullet.cs:31`) and not `WeaponInfo`; that re-opening `Projectile:` **merges** with the inherited block (`MiniYaml.cs:538`); and the resolved-dump countermeasure. Both went to `conventions.md` §"Weapons live under `Weapons:`" — with an explicit flag that the merge claim sits awkwardly beside that section's warhead-override-REPLACES claim, a discrepancy this pass did not run to ground.
+
 `Inaccuracy` is a field of the **`Projectile:` sub-block**, not of the weapon. Writing
 
 ```
@@ -117,6 +129,8 @@ Ruleset, so it is the only thing that can tell you an override actually took. Th
 the regenerated file was **byte-identical** to the previous one.
 
 ## 2026-08-22 — three inert fields in the projectile/warhead pipeline that YAML sets and nothing reads
+
+> **[promoted]** → `conventions.md` §Engine behaviors that surprise, merged into the existing inert-fields bullet (now three fields, not two) and one new bullet (curation 2026-08-22, verified against `main @ 12e0addd`). **`InaccuracyPerProjectile` was ALREADY BANKED** — the bullet cited `Bullet.cs:212`, now corrected to `:213`; the entry rediscovered it independently, which is itself evidence for the six-shapes section. Newly banked: `DamageAtMaxRange` inert on `SpreadDamage` (`RangeDamageMultiplier` has exactly one caller engine-wide, `TargetDamageWarhead.cs:89`), and bullets neither leading nor colliding en route. **Scale corrected:** 4 SpreadDamage warheads set `DamageAtMaxRange` (`weapons-ballistics.yaml:333, 420, 565, 823`) and 6 weapons set `InaccuracyPerProjectile` — smaller than "mod-wide" implies, so the sweep is bounded. Bounce gate is `:350`, not `:349`.
 
 All three found while modelling the Tunguska's 30mm accuracy. Each is a field the mod sets in the
 belief it does something.
@@ -145,6 +159,8 @@ Tuning scatter only helps against targets that are hovering or slow.
 
 ## 2026-08-21 — there are TWO independent resupply-seek paths, and `AutoSeekSupplies.ReturnWhenEmpty` gates only one of them
 
+> **[promoted]** → `economy.md` §"A pool consumed by a TRAIT rather than an Armament is idle-triggered only" (curation 2026-08-22, verified against `main @ 12e0addd`). Both entry points confirmed (`AmmoPool.cs:667-669` and `:656-663`), neither consulting `AutoSeekSuppliesInfo`; the commented-out dispatch at `:263-266` is real; `^E6` genuinely has no Armament named `secondary` (his are `primary`, `repair`, `clearmines`). Minor wording drift carried into the bank: `Demolish.cs:79` and `LayMines.cs:210` are *activities*, not the `Demolition`/`Minelayer` traits. The entry's own "right answer, wrong reason" framing is the durable part and is what got banked.
+
 Branch `wt/essential-apply`, reconciling the `Essential` census against the mechanism that landed after
 it was written.
 
@@ -169,6 +185,8 @@ regardless of `Essential`.
 
 ## 2026-08-21 — a rearm host refills ONLY the pools named in `Rearmable.AmmoPools`, at all three refill sites
 
+> **[promoted WITH A CORRECTION — the entry's absolute is FALSE]** → `economy.md` (curation 2026-08-22, verified against `main @ 12e0addd`). The three filtered sites are confirmed (`Rearmable.cs:60`, `SupplyProvider.cs:853`, `QuickRearm.cs:46`, all over `RearmableAmmoPools` built at `Rearmable.cs:44`). But **"`ReloadAmmoPool` is the only refill that bypasses `Rearmable`" does not survive enumeration**: `EnterCarrierMaster.cs:49-53` refills *every* pool via `self.TraitsImplementing<AmmoPool>()`, and `CarrierMaster` is in use in this mod (`infantry.yaml:2323`); the Lua `GiveAmmo` API (`AmmoPoolProperties.cs:62`) is a fourth writer. So `Essential ⊆ Rearmable.AmmoPools` is necessary but **not sufficient** on a carrier-capable actor, and the bank says so. Textbook README shape 1 — the enumeration was done by walking outward from the trait being edited.
+
 Checked while validating the `Essential` census's third premise. Every route that puts rounds back into
 a pool iterates the filtered `Rearmable.RearmableAmmoPools` (built at `Rearmable.cs:44`), never the
 actor's full pool set:
@@ -183,6 +201,8 @@ load guard both necessary and sufficient.
 
 ## 2026-08-21 — the `Essential` load guard is LIVE, and it reports against the concrete actor, not the template
 
+> **[promoted]** → `conventions.md` six-shapes §instance 6, and `economy.md` (curation 2026-08-22, verified against `main @ 12e0addd`). Guard body verified at `AmmoPool.cs:157-169` and the concrete-actor message construction at `Ruleset.cs:57-60`. Independently corroborated by resolving inheritance across all 879 rule entries: `Essential: true` appears on three pool names and there are **zero** violations today, with the 14 `Essential` actors that carry no `Rearmable` taking the `rearmable == null` exemption. The entry's RED-first discipline — hand-author a violation and watch it fail rather than infer from a green build — is banked as a detector in the six-shapes section, because it is the only thing that catches instance 6's failure mode.
+
 Verified RED-first rather than assumed from a green build, per the lesson in the entry below.
 Hand-authoring `Essential: true` on `^E6`'s `primary-ammo` (the SMG, absent from his `Rearmable`) makes
 `./utility.sh --check-yaml` fail with the trait's own message. Two things worth knowing:
@@ -194,6 +214,8 @@ Hand-authoring `Essential: true` on `^E6`'s `primary-ammo` (the SMG, absent from
   will not find the offending line by grepping for the name in the message.
 
 ## 2026-08-21 — `IRulesetLoaded<ActorInfo>` on a TraitInfo is DEAD CODE; the engine only enumerates the non-generic `IRulesetLoaded`
+
+> **[promoted]** → `conventions.md` §"A change believed made…" as **instance 6 of six** (curation 2026-08-22, verified against `main @ 12e0addd`). Re-derived by hand, not taken from the entry: `IRulesetLoaded<TInfo>` (`TraitsInterfaces.cs:621`) does **not** carry `ITraitInfoInterface`; only the bare `IRulesetLoaded` (`:622`) does; `Ruleset.cs:51` enumerates the bare form; and `ActorInfo.TraitInfos<T>()` → `TypeDictionary.WithInterface<T>()` is an **exact runtime-`Type` key lookup**, so a generic-only implementor is indexed under `typeof(IRulesetLoaded<ActorInfo>)` and simply never found. The `where T : ITraitInfoInterface` constraint means you cannot even write the generic query. Grepped `Lint/` and `UtilityCommands/`: nothing anywhere checks for the generic-only form. `AmmoPoolInfo` (`:20` + `:155`) is banked as the corrected reference pair.
 
 Branch `wt/resupply-tiers`, adding a load-time validation to `AmmoPoolInfo`.
 
@@ -219,6 +241,8 @@ it forbids before it is trusted — the same RED-first discipline the behavioura
 lacking it is invisible to `TraitInfos<T>()` regardless of what it inherits.)
 
 ## 2026-08-21 — the idle seek cannot walk infantry to a Logistics Centre, and the reason is a comment that is false for exactly one pairing
+
+> **[promoted]** → `economy.md` §"Two host-discovery paths disagree about the same actor" (curation 2026-08-22, verified against `main @ 12e0addd`). The pairing is confirmed and the comment quoted verbatim from `AutoSeekSupplies.cs:483-485` (rejections now at `:486`/`:492`, ~21 lines drifted). **One number corrected upward:** 18 infantry `ReloadAmmoPool` declarations are gated on `replenish-soldiers`, not the "14" the entry implies. The banked framing keeps the entry's precision about *why* the comment misleads — it is true of the `SupplyProvider` aura it names and false of the actor, because a separate `ProximityExternalCondition` at `4c0` is what actually rearms a soldier.
 
 Branch `wt/resupply-tiers`. This resolves the open question from the recon below — whether the idle
 seek genuinely works for infantry — and the answer is "yes, except where it matters most".
@@ -258,6 +282,8 @@ the mod against no measurement, and the widened dispatch predicate now reaches t
 `WORKSPACE/bugs/discovered.md` instead.
 
 ## 2026-08-21 — "partial dryness" is already handled for idle infantry; the real holes are vehicles and the exit predicate
+
+> **[promoted in part — two load-bearing claims have since been SUPERSEDED]** (curation 2026-08-22, verified against `main @ 12e0addd`). Still true and banked: vehicles have no partial-dryness path (the four multi-pool ground vehicles re-verified as the only ones); `CannotFight` gates combat at seven sites and must not be fed an essential-pool test; the idle seek is per-pool at 25%; the pre-empted ORDER does not survive. **Superseded:** (1) the `^E3` worked example no longer holds — his `primary-ammo` now carries `Essential: true` (`infantry.yaml:1181`) and dispatch keys on `OutOfEssentialAmmo`, so the single AT round no longer blocks it; (2) `ErrandIsPointless` no longer reads `!AllPoolsEmpty` — it delegates to `AmmoPool.SelfAssignedErrandIsOver` (`:363-366`), which is `dispatchedBecauseDry && !OutOfEssentialAmmo`. The entry's rule that **dispatch predicate and exit predicate must move together** survived intact and is now enforced by that single shared helper rather than by two copies, which is a stronger form of the same lesson.
 
 Branch `wt/resupply-tiers`, recon only. Report: "a rifleman without bullets should basically be
 considered out of ammo even if he has one AT round left." The diagnosis that `AmmoPool.AllPoolsEmpty`
@@ -314,6 +340,8 @@ there; it does not resume the advance. Restoring the ORDER is a separate feature
 as one.
 ## 2026-08-21 — Pool NAME never implies pool ROLE, and the corpus breaks the convention three different ways
 
+> **[promoted]** → `economy.md` §"Pool NAME never implies pool ROLE" (curation 2026-08-22, verified against `main @ 12e0addd`). All three counterexamples verified (lines drifted ~6-8). The `^E6`-is-the-only-divergence claim was **checked exhaustively rather than accepted** — inheritance resolved across all 879 entries; 110 carry a pool, 90 of those have a `Rearmable`, exactly one diverges. **Scope caveat now carried in the bank:** 20 actors hold pools with no `Rearmable` at all, so the absolute is true only as scoped to actors that have one. Two inline-comment near-misses (`^E1`/`^PILOT`, `humvee`) are noted as grep traps.
+
 Branch `wt/essential-census`, authoring the per-pool `Essential` verdicts across all 63 `AmmoPool`
 declarations in `mods/ww3mod/rules/`.
 
@@ -344,6 +372,8 @@ for a pool the host will not refill produces a seek→refill→still-empty→see
 makes it easy to test against 13 actors and conclude the sets are identical.
 
 ## 2026-08-21 — `RearmActors` is the whole of host discovery, and it is declared 14 times with no shared default
+
+> **[promoted]** → `economy.md` §"Host discovery is ONE list" (curation 2026-08-22, verified against `main @ 12e0addd`). The 14 declarations verified individually with current line numbers, and `SupplyCacheSeekTest.cs:58` really does enumerate from the file with its rationale in-code at `:52`. Strict owner equality confirmed at `AmmoPool.cs:784`/`:802`. **Scope note:** "14" is infantry-scoped; the field appears 40 times corpus-wide. The leash reasoning is verified and is the durable half — the field sits on `AmmoPoolInfo` because `AutoSeekSupplies` is declared on `^Soldier`/`^E6` only while the dry-rearm path runs on every non-aircraft actor with a pool. (The entry names the method `AutoRearmIfAllEmpty`; the symbol is `AutoRearmIfDry`.)
 
 Branch `wt/cache-rearm`, implementing the user's ruling that infantry should seek dropped crates.
 
@@ -391,6 +421,8 @@ reading has it" failure this file records elsewhere. Shared VALUE (defaults pinn
 
 ## 2026-08-21 — a trait default is a DECISION the actor never made, and an omitted field can cancel a stated one
 
+> **[promoted, in the PAST TENSE]** → `economy.md` §"A trait default is a DECISION the actor never made" (curation 2026-08-22, verified against `main @ 12e0addd`). The mechanism is verified and the extraction is real — `ReservesRemainderForRestock` (`SupplyProvider.cs:1184`) is now read by both `TickServing` (`:383`) and `CanServeNow` (`:1145`), with the duplication hazard noted in-code at `:1173`. **But the live defect is closed:** SUPPLYCACHE now sets `RestockThreshold: 0` explicitly (`misc.yaml:486`) with the dead band described in-file at `:477-485`, so the bank describes it as a fixed instance of a recurring shape rather than a standing bug. `RemoveBelowSupply` defaults to 0, not 1. The transferable rule — **when you lower a cleanup threshold, ask what other threshold decides whether the actor can still do the work that carries it there** — is what earned the promotion, along with the test corollary about resolving unset fields through a real `Info` rather than a fixture.
+
 Branch `wt/cache-rearm`. Report: "the dropped supply crate doesn't seem to rearm units, even when it
 has plenty of supplies left." SUPPLYCACHE was not missing `SupplyProvider` — it carried one, with a
 comment stating outright that a crate "serves down to the last usable batch" because it has no drive
@@ -420,6 +452,8 @@ provider serves and nothing would have failed. Now extracted as
 crate's config in a fixture would have been green throughout; resolving unset fields through
 `new SupplyProviderInfo()` is what made the omission visible, because the omission WAS the bug.
 ## 2026-08-21 — a reservation with no owner cannot be given back, and decays into a permanent debt
+
+> **[promoted]** → `conventions.md` §Engine behaviors that surprise (curation 2026-08-22, verified against `main @ 12e0addd`). Before-state established from `git show 27d25f1c` rather than inferred. Both placement traps verified as stated, and the more important one is exact: the release at `Armament.cs:483` really does sit **above** the target re-validation return at `:500`, so a shot aborted in the `FireDelay` gap still releases. `OverkillClaimTest` confirms the one-claimant-one-claim invariant. The generalisation — **an anonymous increment on a shared counter is a debt, not a reservation** — is the banked form; the AA-specific narrative stays here.
 
 Branch `wt/aa-claim`. Overkill prevention is a **reservation** system: before firing, a unit claims a
 share of its target's health (`AutoTarget.MarkTargetForAttack`, `AutoTarget.cs:1679`) so that other
@@ -471,6 +505,8 @@ killed at tick 40 still suppressed its neighbour to t206. Attributing the claim 
 change for fixing either; neither was possible before this.
 ## 2026-08-21 — a shockwave's damage radius and its visual radius are separate knobs
 
+> **[promoted]** → `conventions.md` §Engine behaviors that surprise (curation 2026-08-22, verified against `main @ 12e0addd`). Both radii and their independence verified; the outright `return` past the last falloff step (not a clamp) is `ShockwaveDamageWarhead.cs:133-134`, and the effective-radius formula holds. Line drift corrected throughout (`:81`, `:133-134`, `ShockwaveEffect.cs:108`, `:127`). `IskanderExplosion`'s 1:4 ratio confirmed — with the note that its `Spread: 1c0` × 7 falloff entries gives a 6144 damage limit, so `MaxRadius` 4096 is the binding constraint there.
+
 Branch `wt/volatile-load`. `ShockwaveDamage` looks like it has one size, `MaxRadius`. It has two,
 and they are independent:
 
@@ -506,6 +542,8 @@ ratio and is the reference to match.
 
 ## 2026-08-21 — a condition variable resolves to its STACK DEPTH, so a band selector needs no engine code
 
+> **[promoted]** → `conventions.md` §Conditions system (curation 2026-08-22, verified against `main @ 12e0addd`). Verified; line numbers badly drifted and corrected — `Actor.cs:696` (not `:660`), `AmmoPool.cs:817-821` (not `:456-460`), `vehicles-russia.yaml:1041` (not `:996`), and `VariableExpression.cs` lives under `OpenRA.Game/Support/`, not `Mods.Common`. The whitespace requirement is a genuine `InvalidDataException` at `:532`/`:538`, not a silent false. `SupplyLevelCondition`/`SupplyLevelSteps` confirmed double-guarded inert (null/0 defaults *and* an early return when `steps <= 0`), which is what makes it a safe pattern to recommend.
+
 Branch `wt/volatile-load`. `Actor.UpdateConditionState` assigns `conditionCache[condition] =
 conditionState.Tokens.Count` (`Actor.cs:660`), and `VariableExpression` implements the full set of
 comparison operators against those variables (`VariableExpression.cs:131-136`). So **any trait that
@@ -526,6 +564,8 @@ Note the operators require surrounding whitespace — `ammo-primary>=6` throws
 *"Missing whitespace at index N"* (`VariableExpression.cs:532-538`), not a silent false.
 
 ## 2026-08-21 — every enabled `Explodes` fires on the same death; there is no arbitration
+
+> **[promoted]** → `conventions.md` §Engine behaviors that surprise (curation 2026-08-22, verified against `main @ 12e0addd`). Mechanism verified (`Explodes.cs:84`, `Killed` at `:104-134`, no cross-instance arbitration). The `grad`/`m270` cookoff is confirmed **now gated** to `!ammo-primary` (`vehicles-russia.yaml:528-531`, `vehicles-america.yaml:715-718`), matching the entry's own account. The banked discriminator is the useful part — **whether the incumbent weapon carries a damage warhead at all** decides whether gating is needed, `BuildingExplode` being effect-only and `VehicleCookoffLarge` dealing 14000. `VolatileLoadBandTest` confirmed to walk every load value and assert exactly one band matches. The `DropsSupplyCache`-has-no-death-interface note is confirmed and kept.
 
 Same branch. `Explodes` is a `ConditionalTrait<ExplodesInfo>` implementing `INotifyKilled`
 (`Explodes.cs:84`), and `Killed` unconditionally impacts its own weapon (`Explodes.cs:103-137`).
@@ -550,6 +590,8 @@ IIssueOrder, IIssueDeployOrder, IOrderVoice` and no death interface at all
 through one.
 
 ## 2026-08-21 — radar reveals ACTORS, not CELLS, and every cell-level fog check silently vetoes it
+
+> **[promoted]** → `conventions.md` §Engine behaviors that surprise (curation 2026-08-22, verified against `main @ 12e0addd`). Layer separation verified (`radarCount` never enters the `ResolvedVisibility` loop at `MapLayers.cs:239-264`); `8db9da9e`'s *"the exact edge case is elusive"* quoted from the commit itself. **One correction the bank carries: the cell check was not removed, it was CONSOLIDATED.** `TargetForInput` now calls `MouseTargetVisibility.IsRevealed` (`:49-52`), which is `actorIsVisible && (isFrozenUnderFog || positionIsUnfogged || isRadarDetected)` — `!FogObscures` survives as the middle term, hoisted out of four drifted copies, with radar added as a third exemption. The entry's advice about a *third* channel therefore still applies to the next one. The test corollary is banked too, since it disqualifies the three assertions anyone would reach for first.
 
 Branch `wt/radar-targeting`. A helicopter held on radar with no line of sight rendered on screen
 and refused the attack order. The reason is a layer distinction that is easy to miss and is not
@@ -586,6 +628,8 @@ defect. All three go green against it. `Test.IsMouseTargetable` was added to cal
 predicate object directly.
 ## 2026-08-21 — a Missile has a computable maximum lifetime, and it is the right number to size burst timing against
 
+> **[promoted]** → `missiles.md` §9 (curation 2026-08-22, verified against `main @ 12e0addd`). **The Stinger arithmetic was re-derived independently rather than copied, and 58 is correct** — tick 57 reaches 30150 (≤ 30720), tick 58 reaches 30750. The tick-order detail that makes it come out right is worth having: `HomingTick` runs at `Missile.cs:1122`, before the `distanceCovered` accumulation at `:1159`, so tick *n* adds the post-acceleration speed. The deceleration caveat is confirmed real (`:653-654`, plus a second site at `:721`) and is banked as the bound on the claim.
+
 Branch `wt/shorad-burst`. The Stryker SHORAD fired Stingers in wasteful pairs, and the fix was to
 raise `BurstDelays` past the missile's flight time. Flight time to a *target* is the obvious quantity
 to compute, and it is the wrong one: it depends on range, on the target's motion, and on how much the
@@ -616,6 +660,8 @@ but a weapon that orbits rather than hits is outside this arithmetic.
 
 ## 2026-08-21 — `BurstDelays` must be strictly LESS than `BurstWait`, and the near-miss reading is the dangerous one
 
+> **[rejected: the off-by-one is wrong — a corrected version is promoted in its place]** (curation 2026-08-22, verified against `main @ 12e0addd`). The *mechanism* is right and survives: `Armament.cs:367` is unreachable during the wait, because `CheckFire` returns at `:356` on `!CanFire` and `CanFire` is false while `IsWaitingBurst` (`:694`), so the check is evaluated exactly once per gap. **But the arithmetic does not hold.** The per-armament countdown is loaded with `BurstDelays` and decremented once per tick, so `CanFire` first passes exactly `BurstDelays` ticks after the shot **under either trait ordering** — the entry's "+1, depending on where `Armament.Tick` falls" hedge is unnecessary. The delta is exactly `BurstDelays`, so `:367` trips iff `BurstDelays > BurstWait` and safety is `BurstDelays <= BurstWait` — **the natural `<=` reading the entry set out to overturn.** An exactly-equal value is safe. Promoted to `missiles.md` §9 in corrected form, carrying the silent-corruption failure mode and the shots-2-to-3 discriminator, which are both correct and valuable. **Action left open: the same wrong claim ships as a YAML comment at `weapons-missiles.yaml:589-594` and should be corrected there.** Nothing is mis-tuned today — `Stinger.quad`'s 58-against-60 is safe under either reading.
+
 Branch `wt/shorad-burst`. `Armament.cs:367` rearms a stale burst when
 `WorldTick - lastFiredTick > Weapon.BurstWait`. The natural reading is that the inter-shot delay is
 racing that timer for its whole duration, and therefore that `BurstDelays <= BurstWait` is the
@@ -641,6 +687,8 @@ to test for it: measure the gap between shots 2 and 3.** Uncorrupted it is `Burs
 is `BurstDelays` again, because no burst ever completes.
 
 ## 2026-08-21 — `TestHarness.TicksPerSecond` is 25, but `run-test.sh` scenarios run at 16.67
+
+> **[promoted — merged with the 2026-08-22 duplicate at the top of this file]** → `DOCS/recipes/AUTOTEST.md` (curation 2026-08-22, verified against `main @ 12e0addd`). This is the earlier and more precise of the two entries; both were verified together and promoted once. Its closing advice — **express tick-domain quantities in ticks and poll with `Trigger.AfterDelay(1, …)`** — is the part that went into the bank verbatim, because it is immune both to the constant and to whatever game speed a run happens to use. See the merged entry above for the full verification and the `mod.yaml:382` citation fix.
 
 Branch `wt/shorad-burst`. `mods/ww3mod/scripts/test-helpers.lua:9` pins
 `TestHarness.TicksPerSecond = 25`, which is OpenRA's classic rate at `Timestep: 40`. WW3MOD's default
@@ -8976,6 +9024,8 @@ if you are checking a player-facing capability list, resolve it from the `Inheri
 
 ## 2026-08-21 — SR contestation had no global term at all, and its comments were the 25-tps error again
 
+> **[promoted]** (curation 2026-08-22, verified against `main @ 12e0addd`). §1 verified — `RecalculateForces` (now `:274-298`) sums only over `actorsInRange`, trigger registered at `:226-227` with `Range` 10 cells (`structures.yaml:261`); `RecalculateTeamValue` (`:323-342`) is the new map-wide term and really is mobile-only (`ActorsHavingTrait<IMove>`). §2 drove a **correction to `CLAUDE.md`**, which still asserted the file's comments say 25 tps — they were corrected in-tree on 2026-08-22 (`:40-42`), so `CLAUDE.md` now states the real durations instead, and its `structures.yaml:202` cite for the trait is corrected to `:260` (`:202` is the actor header). §3 confirmed at `:413-454`, **with one exception the entry omits**: when `cachedTeamValue <= 0` the defeat phase takes `Math.Max(rate, BarMax / LockoutCollapseTicks)` (`:439-441`), ~1 s, so the second bar is not symmetric for a wiped-out team. The 25-tps pattern itself is banked in `conventions.md`.
+
 Two findings from adding collapse acceleration to `SupplyRouteContestation`.
 
 **1. "Defender strength" in the contestation rate was purely LOCAL, and it is easy to read it as global.**
@@ -9004,6 +9054,8 @@ single "ticks to deplete" figure — 180s at reference surplus, not 90s.
 
 ## 2026-08-22 — "units back up after arriving": `Mobile.OnBecomingIdle` can only fire on FOUR actors, and a plain move order is NOT how a unit gets there
 
+> **[promoted]**, as a set with the three passes below → `conventions.md` §Engine behaviors that surprise (curation 2026-08-22, verified against `main @ 12e0addd`). **Read the four passes together; this one contains a retracted mechanism.** The census is exact — 147 `Footprint:` lines in `mods/`, exactly 4 contain a `+`. `CanStayInCell`/`IsBlockedBy`, the guarded move paths, and the `+`-exit asymmetry all re-derived. The inline correction from `LocalMoveIntoTarget` to `MoveOnto` is itself **verified correct**: `LocalMoveIntoTarget` is constructed only at `Mobile.cs:781`/`:789` and reached only from `Enter.cs:131`, and `Resupply` never calls it. The `+`→`=` recommendation this pass leans toward is **superseded by the third pass** and was NOT banked. The `[Explicit]` proof-artifact note is also stale — see the fourth pass.
+
 The player report is *"vehicles ordered to a position, when they get there they back up a bit, like they got a hidden extra order"*. There is a literal hidden extra order — `Mobile.OnBecomingIdle` (`Mobile.cs:937-948`) re-orders any unit that falls idle on a cell it may transit but not stop on, via `MoveTo(self.Location, evaluateNearestMovableCell: true)`. `NearestMoveableCell` searches an annulus of radius 1–10 (`Mobile.cs:808-856`), so the correction is typically a **one-cell shuffle** — precisely "backs up a bit".
 
 **The geographic constraint is the most useful diagnostic here, and it is very tight.** `Locomotor.CanStayInCell` (`Locomotor.cs:368-374`) is *purely* `!CellFlag.HasTransitOnlyActor`. It consults no terrain, no pass classes and no locomotor state, so it is locomotor-independent. That flag is set only at `Locomotor.cs:565-569`, from `actor.OccupiesSpace is Building b && b.TransitOnlyCells().Contains(cell)` — i.e. footprint cells written `+` (`FootprintCellType.OccupiedPassableTransitOnly`, `Building.cs:26`). **Exactly four actors in the whole mod declare a `+` cell:** `SUPPLYROUTE` (`structures.yaml:242`), `LOGISTICSCENTER` (`:366`), `AFLD` (`:551`), `FIX.Husk` (`husks-buildings.yaml:105`). **Therefore this trait can never fire anywhere else on any map.** If a unit wobbles in open ground with none of those nearby, the cause is something else (`Nudge` via `Mobile.OnNotifyBlockingMove` `:959-971` is the only other unordered-movement source on `Mobile`).
@@ -9023,6 +9075,8 @@ Aircraft are exempt from all of the above: they do not use `Mobile`, and `AutoRe
 
 Proof artifact: `engine/OpenRA.Test/OpenRA.Mods.Common/TransitOnlyServiceHostTest.cs`. Its two non-vacuity guards run always; the invariant assertion is `[Explicit]` because it currently fails and both candidate fixes are gameplay-data decisions (`+`→`=` makes the depot occupy nothing and stop blocking; `+`→`x` breaks the docking drive-on repair depends on).
 ## 2026-08-22 — AA double-launch is a class; the audit is interval-vs-lifetime, and Penetration decides who is exempt
+
+> **[promoted]** → `missiles.md` §9 (new) (curation 2026-08-22, verified against `main @ 12e0addd`). All four numbered findings verified. `Burst` default 1 at `WeaponInfo.cs:113` and the dead `BurstDelays` branch at `Armament.cs:669-672` confirmed — plus one addition worth having: `UpdateBurst`'s whole body is gated on `Weapon.BurstWait > 0` (`:653`). The Stinger's 58-tick ceiling was **re-derived independently rather than copied** and is right (tick 57 = 30150 ≤ 30720; tick 58 = 30750). `Penetration` skip-on-zero is `DamageWarhead.cs:219-233`, not `:222-231`. §4 is **now FALSE** — the SHORAD scenario's case bug was fixed by `8a3b4754`; noted so nobody re-files it.
 
 Second report of an AA unit firing two homing missiles at one target (Tunguska, after the Stryker SHORAD a
 night earlier). Swept every weapon in `mods/ww3mod/rules/weapons/` with `Projectile: Missile` and `Air` in
@@ -9076,6 +9130,8 @@ uncommitted in the main checkout's working tree, so this is known; noting it bec
 believed to be passing.
 
 ## 2026-08-22 — an armour class is a TARGET TYPE, and on aircraft it was never gated on altitude
+
+> **[promoted]** → `conventions.md`, as two new sections beside the existing §"`Air` ⊃ `Helicopter`" (curation 2026-08-22, verified against `main @ 12e0addd`), plus **instances 4 and 5** of the six-shapes section. Verified exhaustively rather than by sampling: exactly 10 `Targetable@Armor` declarations, all gated by `15b6201a`, with every actor→class pair re-derived from each actor's own `Armor: Type:`; all six helicopters are Light or Heavy and **none is Medium**, so the `^5.56mm` kill is total; `^5.56mm` is the only small arm excluding armour classes. `AirborneArmorTargetableTest` really does parse the corpus from disk (`:50`, `:177-204`), though **only three rules files** — an airframe added to a fourth is unseen. **Corrections:** `WeaponInfo.cs` is under `OpenRA.Game`, not `Mods.Common`; `GrenadeLauncher`'s ValidTargets is `:451`; `12.7mm.Hind` is `:367`; the `^NeutralAirborne` targetables moved to `aircraft.yaml:39-47` and the deliberate ungated pair to `:178-179`/`:336-337`. **Caveat added to the bank:** the count is of declarations — there are 12 airframes, two inheriting. §"Inference, NOT verified" is preserved as inference and **not** banked as fact; note also the frozen-actor branches read `FrozenActor.TargetTypes`, a snapshot, so fogged-memory targeting may not follow the same predicate.
 
 Branch `wt/air-targetable`, from the report *"Grenadiers can target helicopters it seems, and they should
 not be able to target anything flying."*
@@ -9177,6 +9233,8 @@ hovering littlebird should have the order refused, and one standing beneath it o
 open fire. If either behaves differently, this note is where the assumption was made.
 ## 2026-08-22 (follow-up) — path 2 is CLOSED, the phantom move draws NO target line, and the two HACK comments are accusing each other
 
+> **[promoted]**, merged into the movement bullet in `conventions.md` and the target-line bullet in `architecture.md` §Widget / chrome authoring gotchas (curation 2026-08-22, verified against `main @ 12e0addd`). All three findings verified, including the negative — `ProductionFromMapEdge` spawns on map-edge cells and never consults `Exit`, and AFLD's `ExitCell: 1,1` really is an `x` on `xxx xx+`. Both HACK comments quoted verbatim from `Resupply.cs:270-271` and `Mobile.cs:943-944`. The prior-art observation (blockedness ≠ stayability) is banked as the lead sentence of the bullet, since that is the distinction the whole cluster turns on.
+
 Follow-up to the entry above. Three settled questions.
 
 **1. Production can never strand a ground unit — close path 2.** The Supply Route's four *vehicle* exit cells really are `+`, but nothing is ever placed on them. `ProductionFromMapEdge.Produce` spawns ground units on **map-edge cells** (`ProductionFromMapEdge.cs:113-155`) and never consults `Exit`; each rally waypoint is then replayed as `move.MoveTo(wp.Cell, …, evaluateNearestMovableCell: true)` (`:217-230`), which is the guarded path. With no rally set it drives to `self.Location` — the SR's **TopLeft**, an `=` corner (`:173-175`). `SUPPLYROUTE`'s only local producer is `Production@Local: Produces: Building, Defense` (`structures.yaml:319`), which is placement, not exiting. Of the other three `+` actors: `LOGISTICSCENTER` has no `Production`/`Exit` at all, `FIX.Husk` produces nothing, and `AFLD` produces only `Aircraft, Plane` with `Exit@1: ExitCell: 1,1` — which on footprint `xxx xx+` (Dimensions 3,2) is an `x`, not the `+` at (2,1). **So the sole live route to an unstayable cell is service docking.** Recorded as a negative so nobody re-derives it: the SR vehicle-exit asymmetry is real but inert.
@@ -9190,6 +9248,8 @@ Follow-up to the entry above. Three settled questions.
 **Prior art that stopped one question short.** `test-lc-rearm-partial-order`'s header already analysed this exact footprint and concluded the LC centre is *"walk-on-able, not blocked"* — correct, and it asked only whether a unit could **arrive**. Stayability is a different predicate from blockedness (`Locomotor.IsBlockedBy:426-431` explicitly returns "not blocked" for transit-only cells, while `CanStayInCell:373` returns false for the same cell), and nothing there asked what happens after arrival. New scenario `test-depot-vacate-phantom` asks that question; it is authored and lint-clean but **not yet run**.
 
 ## 2026-08-22 (third pass) — the idle bounce is LOAD-BEARING: making the dock cell stayable would stall the next customer at the door
+
+> **[promoted]** → `conventions.md`, deliberately phrased **as a rejected option with its reason**, because the footprint looks wrong and the next reader will otherwise "fix" it (curation 2026-08-22, verified against `main @ 12e0addd`). The decisive trace is confirmed verbatim (`MoveOnto.cs:46-48`) and so is the absence of a near-enough escape — **with one correction the bank now carries: it is not always `WDist.Zero`.** The ammo errand is zero (`AmmoPool.cs:736`, not `:374`; no actor in the mod carries `RearmsUnits`), but the repair errand uses `WDist(512)` (`Repairable.cs:141`). Both are under one cell, so the rejection stands — but "always zero" would have been a wrong reason for a right verdict. The suite-gap claim is verified: `test-lc-rearm-partial-order`'s only contention pair is two infantry, which share a cell by subcell.
 
 Settles the fix question from the entry above, and reverses the recommendation made there.
 
@@ -9213,6 +9273,8 @@ A second vehicle that reaches adjacency and finds the dock cell occupied returns
 
 **Autotest scenario Lua can now be parsed without launching a game.** No `luac` or interpreter exists on the box and `engine/lua/` holds only helper scripts, but `OpenRA.Game` pulls in `OpenRA-Eluant` and `engine/bin/lua51.dylib` ships, so the engine's own Lua 5.1 parser is reachable from NUnit. `ScenarioLuaParsesTest` compiles every `tools/autotest/scenarios/**/*.lua`, wrapping each chunk as a function body (`"return function()\n" + src + "\nend"`) so the tokens are parsed but nothing executes — scenario top-levels assign globals and touch harness tables that do not exist outside a game, so `DoBuffer` on the raw text would fail for the wrong reason. Verified RED against a planted `//`: *"unexpected symbol near '/'"*. This matters because a syntax error is otherwise invisible until launch, where it presents as `TIMEOUT-FAIL`/`NO-RESULT` — indistinguishable from a scenario that merely failed to reach its assertion, and it costs a serialized run slot to discover.
 ## 2026-08-22 — target lines: null draws NOTHING, and the "blue automatic line" was never a colour
+
+> **[promoted]** → `architecture.md` §Widget / chrome authoring gotchas (curation 2026-08-22, verified against `main @ 12e0addd`). All four verified. **Line corrections:** the selection walk is `WorldRenderer.cs:188-231`, not `:277-290`; `AutoFollowAlly`'s colour is now `AutomaticOrder.LineColor` at `:149`; `BreakOffApplies` is `AttackBase.cs:672`; `TraitsInterfaces.cs` is under `OpenRA.Game/Traits/`. The `ShowTargetLines` reference audit (`AutoFollowAlly`/`Wanders`/`AutoCarryall` zero; `AutoSeekSupplies`/`AmmoPool` non-zero) re-checked and holds. Finding 2 is banked specifically as a **do-not-cite-as-precedent** note, since "blue means automatic" is exactly the wrong lesson to carry forward from a line that was the player's own colour.
 
 Four findings from making automatic orders legible. All four are *silent* — nothing logs, lints or fails.
 
@@ -9253,6 +9315,8 @@ equivalent for moves: `Order` carries no provenance flag, and `IMoveInfo.GetTarg
 
 ## 2026-08-22 — `WithHealFlash` shipped invisible, and `pip-heal` art was sitting unused
 
+> **[promoted]** → `conventions.md` §"A change believed made…" as **instance 1 of six** (curation 2026-08-22, verified against `main @ 12e0addd`). Render logic exact: `FlashTarget.cs:64` tints on `tick % interval == 0`, `:58` ends at `++tick >= count * interval`, so `Count 2, Interval 2` is two single-tick tints at ticks 0 and 2 = 120 ms apart. **Two corrections:** the mount is `defaults.yaml:13`, not `:9`; and "with no overrides" is **no longer true** — `4a696e2c` retuned the mod to `Color: 40FF60, Alpha: 0.5, Count: 6, Interval: 1` (`:14-22`), so the C# defaults and the shipped values now differ and the bank says which is which. The `pip-heal` sub-claim is **now FALSE** — it is referenced, by `WithDecoration@Healed` (`defaults.yaml:23-33`). `GrantConditionOnHealingReceived` confirmed unusable, with the nuance that the runtime test would pass on an empty set; what blocks it is `[FieldLoader.Require]` forcing YAML to name types the warheads never carry.
+
 The user reported "no effect when medics heal". The effect **already existed and was already applied**:
 `WithHealFlash` (`engine/OpenRA.Mods.Common/Traits/Render/WithHealFlash.cs`, commit `82938ec8`,
 2026-03-28) on `^ExistsInWorld` at `mods/ww3mod/rules/defaults.yaml:9` with no overrides. Its defaults
@@ -9280,6 +9344,8 @@ Two more, both cheap to trip over:
 ---
 
 ## 2026-08-22 — UnitOrderGenerator's second pass is not "the move fallback", and the cursor rides on the order
+
+> **[promoted, with finding 2 corrected]** → recorded against the movement/order material in `conventions.md` (curation 2026-08-22, verified against `main @ 12e0addd`). Findings 1 and 3 verified (`OrdersForSelection` is `:197`, not `:184`; `AttackOrderTargeter` really reads only `MaxRange`, at `:806`/`:812`/`:847`/`:850`; `RequiresForceFire` is `vehicles-russia.yaml:1006`). **Finding 2 is FALSE as literally stated**: `CanTargetLocation` (`AttackBase.cs:827`, not `:762`) is reached for *any* `TargetType.Terrain` (`:866`), and pass 1 already returns `Target.FromCell` for empty ground (`UnitOrderGenerator.cs:46`). The true statement is the one the code itself carries at `:293-296` — **the second pass is the only route to any order against a cell an ACTOR OCCUPIES.** Banked in that form; the entry's phrasing would have sent the next reader looking for a nonexistent single call site.
 
 Three findings from the report that an Iskander gives *no cursor at all* over an enemy.
 
@@ -9312,6 +9378,8 @@ is a deliberate design choice, not a bug — but combined with (1) it is why the
 
 ## 2026-08-22 (fourth pass) — the phantom-move fix landed on another branch; this one keeps the invariant test that stops it being "fixed" wrongly
 
+> **[promoted]** (curation 2026-08-22, verified against `main @ 12e0addd`). This is the pass that supersedes the second pass's recommendation, and its test-inversion lesson is banked verbatim in the rejected-option paragraph: **a test that encodes a rejected goal is worse than no test, because the next reader takes it as settled policy.** Verified at HEAD — `TransitOnlyServiceHostTest` has three tests, the invariant one asserts the `+` cell must STAY transit-only, the in-code note at `:103` records the inversion, and **nothing in `engine/OpenRA.Test/OpenRA.Mods.Common/` is `[Explicit]` any more**, which retires the first pass's closing note. `AutomaticOrder.LineColor` verified as one shared colour at 9 sites / 16 usages, with the `HasAutomaticNode` timeout exemption at `DrawLineToTarget.cs:95`/`:103-116`. `Test.GetAutomaticTargetLineCells` exists (`TestGlobal.cs:737`); `ScenarioLuaParsesTest` exists.
+
 The legibility fix for the idle-cell correction was authored on `wt/heal-legibility` (`4a696e2c`), not here — it reached `Mobile.cs:946` first, and its design is better than the per-category colour this investigation was going to add. `AutomaticOrder.LineColor` (DodgerBlue) is **one** colour meaning "the GAME issued this", threaded through the `targetLineColor` parameter that already reaches the renderer rather than a new provenance flag on `TargetLineNode` (which would have needed 29 call sites). Its `DrawLineToTarget.ShouldRender` change also exempts automatic lines from the `Delay` timeout via `HasAutomaticNode`, which matters specifically for the vacate: it is a ONE-CELL move, so a line calibrated to confirm a player's own click would have expired while the unit was still visibly moving.
 
 **Checked, because it was the obvious gap and it is NOT one:** the colour alone does not display a line — `lifetime` is armed only by `INotifySelected.Selected` and by the `LineTargetExts.ShowTargetLines()` extension the ORDER paths call, and nothing calls it for a self-issued move. `HasAutomaticNode` is what closes that, so no `ShowTargetLines()` call is needed at the queueing site. Recorded so nobody "fixes" it by adding one.
@@ -9326,6 +9394,8 @@ The legibility fix for the idle-cell correction was authored on `wt/heal-legibil
 ---
 
 ## 2026-08-22 — A weapon `Report` on a missile-spawner launcher is early by the whole erection phase
+
+> **[promoted]** → `missiles.md` §8 (new) (curation 2026-08-22, verified against `main @ 12e0addd`). Re-derived directly: `Armament.cs:618-628` really does add the projectile, play `Report`, and call `INotifyAttack.Attacking` as consecutive statements in one delayed action; `BallisticMissileInfo.PreLaunchTicks` (`Traits/BallisticMissile.cs:85`) exposes `LaunchRiseTicks + PostErectionWaitTicks`; the Iskander's 60+20 is `vehicles-russia.yaml:1076`/`:1079` and is the mod's only user; `IgnitionSound` (`:77`), the `bool ignited` latch (`:167`) and its once-only rationale confirmed; `CheckMissileLaunchReport.cs` and `MissileLaunchTimingTest.cs` both exist. **The audio-unobservability finding is banked as prominently as the fix** — `run-test.sh:157` defaults `AUDIO_MUTE=1` and `Game.Sound.Play` records nothing anywhere, so no scenario can ever verdict on which sound played when. That is the part that saves someone a wasted run slot.
 
 **The mechanism, generally.** A missile launcher (`MissileSpawnerMaster`) fires a dummy weapon whose only
 job is to spawn the missile actor. `Armament.FireBarrel` plays the weapon's `Report` and calls
@@ -9369,6 +9439,8 @@ Tick arithmetic pinned without a World in `engine/OpenRA.Test/MissileLaunchTimin
 ---
 
 ## 2026-08-22 — The black band at map edges is a deliberate overlay, not a terrain render failure
+
+> **[promoted]** → `architecture.md` §"The black band at a map edge is a deliberate overlay" (new) (curation 2026-08-22, verified against `main @ 12e0addd`). Every mechanism re-derived, and the **actor counts re-parsed from the map files rather than trusted**: 10 maps, all `Bounds 1,1,N-2,M-2`, 8 of 10 with ring actors — river-zeta 189 (102 `v17`, 29 `rice`), woodland-warfare 115, siberian-pass 36. `DrawBeyondMapActorFog` is `WorldRenderer.cs:450`, not `:448`. The ~27-cell overhang arithmetic checks out (960 px ÷ (24 × 1.5)). Refinement added: with no render player `cellVisibility` is also reassigned to a `map.Contains` test (`ShroudRenderer.cs:223`), so the Bounds guard applies by two independent paths. The doc states the **post-`bc22c9d6`** behaviour, not the broken one; the `ChooseClosestEdgeCell` exclusive-bounds defect is carried as a known-unfixed note.
 
 Reported as "edge tiles are not rendered, but actors placed there are rendered" on the main-menu shellmap.
 Three things had to be true at once, and only the third is a bug.

@@ -383,3 +383,139 @@ current `main` on the dates given; re-derive line numbers before quoting them.**
 *(Superseded, so you do not re-derive it: the miss detector used to be
 horizontal-only. It is not — `minDistanceToTarget` has been fed the 3D physical
 separation `(targetPosition - pos).Length` since `1ec6f17c`, `Missile.cs:878`.)*
+
+## 8. Launch timing: the report fires when the missile SPAWNS, not when it LAUNCHES
+
+`Armament.FireBarrel` adds the projectile, plays the weapon's `Report`, and calls
+`INotifyAttack.Attacking` — which is what spawns a `MissileSpawnerMaster`'s missile actor
+— as **consecutive statements inside one delayed action** (`Traits/Armament.cs:618-628`).
+So a weapon `Report` on a missile-spawner launcher is simultaneous with the missile
+*appearing*, never with it *igniting*.
+
+For a `BallisticMissile` with `LaunchRiseTicks > 0` the missile then sits on the rail
+erecting, and `BallisticMissileFly` does not reach Phase 2 / `Ignite()` until
+`LaunchRiseTicks + PostErectionWaitTicks` ticks later. That quantity is exposed as the
+pure `BallisticMissileInfo.PreLaunchTicks` (`Traits/BallisticMissile.cs:85`) and pinned
+without a `World` in `engine/OpenRA.Test/MissileLaunchTimingTest.cs`. **The report is early
+by exactly that figure.**
+
+**The Iskander is the only affected actor** — the sole `LaunchRiseTicks` user in the mod
+(`vehicles-russia.yaml:1076`, `:1079`), at 60 + 20 = **80 ticks = 4.8 s** at `Timestep: 60` (`mod.yaml:382`)
+(16.67 tps, *not* the 25 tps several of these YAML comments were written against). Long
+enough that the sound reads as belonging to the tilt animation, which is exactly how it was
+reported. HIMARS shares the weapon by inheritance but `HIMARSMissile` sets no
+`LaunchRiseTicks`, so it ignites on its first tick in the world and a weapon `Report` is
+correct for it to within one tick — `HIMARSTargeter` therefore declares its own `Report`
+rather than inheriting one.
+
+Use `BallisticMissileInfo.IgnitionSound` (`:77`), played once from `Ignite()` (`:186-187`).
+**It needs its own `bool ignited` latch (`:167`) and the pre-existing condition-token guard
+could not be reused**: when `IgnitionCondition` is null the token stays invalid forever, and
+`Ignite()` is called on *every* arc-flight tick, so the sound would replay for the whole
+flight. Guarded going forward by the `CheckMissileLaunchReport` lint rule
+(`engine/OpenRA.Mods.Common/Lint/CheckMissileLaunchReport.cs`), which walks every
+`MissileSpawnerMaster`, computes `PreLaunchTicks` over its slaves from the real rules tree,
+and errors if an armament it drives fires a weapon carrying a `Report` — stating the actual
+lateness rather than a hard-coded number.
+
+**NO AUTOTEST CAN VERIFY THIS, and that is why it needed a lint rule.** `run-test.sh:157`
+defaults `AUDIO_MUTE=1` (`--audio` opts out), and more fundamentally **there is no
+sound-logging or trace surface anywhere in the engine** — `Game.Sound.Play` records nothing.
+No scenario can ever produce a verdict on *which* sound played *when*. Audio-timing work has
+to be pinned on tick arithmetic and data wiring, with a human listening test as the only
+end-to-end confirmation. Anyone reaching for `run-test.sh` to verify a sound bug should stop
+here.
+
+## 9. Sizing a burst interval: use the missile's maximum LIFETIME, not its flight time
+
+When a launcher fires wasteful pairs at one target, the fix is to space the shots past the
+first missile's resolution. **Flight time to a *target* is the obvious quantity and the wrong
+one** — it depends on range, on target motion, and on how much the missile weaves, so any
+number derived from it is a guess with an unbounded tail.
+
+**There is a bounded quantity next to it.** `Missile.cs:1159` accumulates
+`distanceCovered += speed` every tick and `:1164` detonates the tick that total exceeds
+`RangeLimit` (`ExplodeWhenEmpty` defaults to **true**, `:120`; `:305` falls back to the
+weapon's `Range` when `RangeLimit` is unset). Speed is fully determined: `ChangeSpeed`
+(`:536-538`) adds `Acceleration` per tick clamped to `Speed`, starting from
+`MaximumLaunchSpeed` (`:308`, `:421`). `HomingTick` runs before the accumulation, so tick *n*
+adds the post-acceleration speed. Maximum lifetime is therefore arithmetic:
+
+```
+speed(n)  = min(Speed, MaximumLaunchSpeed + Acceleration*n)
+lifetime  = smallest n where sum(speed(1..n)) > RangeLimit
+```
+
+For `Stinger` (launch 50, accel 35, cap 600, `RangeLimit: 30c0` = 30720): 4950 by tick 15,
+5550 by tick 16, +600/tick after; `5550 + 600*42 = 30750 > 30720` at **tick 58** (tick 57 is
+30150, under). Every Stinger is resolved — impact, ground or fuel-out — by tick 58 *whatever
+path it flew*. Computed the same way: 9M311 58, AirToAirMissile 48, SurfaceToAirMissile 55,
+Ataka.AA 61, Hellfire 61, MANPAD 63, TimerWolf_Missiles 45. At 16.67 tps, 58 ticks is 3.48 s.
+
+**Caveat that bounds the claim:** the ceiling is on *distance*, not ticks, so a missile that
+decelerates outlives it. `HomingInnerTick` calls `ChangeSpeed(-1)` on its `slowDown` branch
+(`:653-654`) once the target is inside `3 * loopRadius`. That happens in the `Hitting` state,
+metres from a target it is about to reach — but a weapon that orbits rather than hits is
+outside this arithmetic.
+
+### Resolve `Burst` FIRST; it decides which field you are even allowed to read
+
+`WeaponInfo.cs:113` defaults `Burst` to **1**. `Armament.UpdateBurst` (`Armament.cs:651-679`,
+whole body gated on `Weapon.BurstWait > 0` at `:653`) runs `--Burst < 1` after every shot,
+which at `Burst: 1` is always true — so it always takes the `SetBurstWait(Weapon.BurstWait)`
+branch and the `BurstDelays` branch at `:669-672` is **unreachable**. **At `Burst: 1`,
+`BurstWait` is the inter-shot interval and `BurstDelays` is dead code.** Two AA
+double-launch bugs found a night apart came through different fields for exactly this reason:
+the Stryker SHORAD had `Burst: 2` and was spaced by `BurstDelays` (intra-burst), the Tunguska
+has `Burst: 1` and was spaced by `BurstWait` (inter-burst). Same cause, different knob.
+
+### `BurstDelays` must not EXCEED `BurstWait`, and tripping it is silent
+
+`Armament.cs:367` rearms a stale burst when `WorldTick - lastFiredTick > Weapon.BurstWait`.
+That line is **unreachable during the wait**: `CheckFire` returns at `:356` when `CanFire` is
+false, and `CanFire` (`:325-327`) is false while `IsWaitingBurst`, which is just
+`BurstWait > 0` (`:694`) on the per-armament countdown that `SetBurstWait(BurstDelays[k])`
+loaded and `:295-296` decrements. So the check is evaluated only on the tick the armament is
+READY — exactly once per inter-shot gap, with `WorldTick - lastFiredTick` equal to
+`BurstDelays`. **The trip condition is therefore `BurstDelays > BurstWait`, and safety is
+`BurstDelays <= BurstWait`.** An exactly-equal value is SAFE.
+
+> *Corrected 2026-08-22 during curation.* A 2026-08-21 analysis concluded the predicate was
+> `BurstDelays + 1 > BurstWait` (trip at `>=`, safety at strict `<`), hedged on trait order.
+> Re-derived: the countdown reaches zero exactly `BurstDelays` ticks after the shot under
+> **either** ordering, so the delta is exactly `BurstDelays` and there is no off-by-one. The
+> stricter rule is merely conservative, not correct. **The same wrong claim ships as a YAML
+> comment at `weapons-missiles.yaml:589-594`** and should be corrected there; nothing is
+> actually mis-tuned, since `Stinger.quad`'s 58-against-60 is safe under either reading.
+
+**Why it matters that tripping it is silent.** It does not error and does not drop the shot.
+`UpdateBurst` runs an extra time *before* `FireBarrel`, so `--Burst` hits 0, the burst is
+declared complete, `BurstWait` is loaded, `ResetBurst` restores the count, and the shot fires
+anyway — as shot 1 of a fresh burst, with a spurious `INotifyBurstComplete.FiredBurst` on
+every shot. The weapon keeps firing one at a time forever and never enters its real
+inter-burst pause. **The discriminator, if you need to test for it: measure the gap between
+shots 2 and 3.** Uncorrupted it is `BurstWait`; corrupted it is `BurstDelays` again, because
+no burst ever completes.
+
+### Widening an interval is only correct if the FIRST missile is lethal
+
+Half the mod's AA missiles are exempt from the double-launch fix, and the reason is an unset
+`Penetration`. `DamageWarhead.cs:24` defaults `Penetration` to **1**, and `:219-233` scales
+`damage = damage * penetration / thickness` whenever `penetration < Armor.Thickness` —
+**skipped entirely when `Thickness` is 0**. Against a Heavy airframe (800 HP, Thickness 20):
+
+| weapon | Damage | Pen | effective | verdict |
+|---|---|---|---|---|
+| `9M311` / `Stinger` | 5000 | **20** | full 5000 (6× margin) | one-shot — interval must exceed lifetime |
+| `Ataka.AA` | 2000 | **20** | full 2000 | one-shot on a direct hit only |
+| `AirToAirMissile` | 1000+rand | *unset → 1* | 50–99 | needs 8–16 hits |
+| `SurfaceToAirMissile` | 2000+rand | *unset → 1* | 100–149 | needs 6–8 hits |
+
+`AirToAirMissile` and `SurfaceToAirMissile` were deliberately left alone: **their short
+intervals are load-bearing, not a bug.** That two AA missiles silently do ~1/20th of their
+printed damage is a separate balance finding, logged rather than fixed — raising their
+`Penetration` is a large unmeasured combat change. Related authoring omission from the same
+root: the MiG-29 has `Armor: Type: Medium` with **no `Thickness`**
+(`aircraft-russia.yaml:600-601`) while the F-16 it duels has `Thickness: 10`
+(`aircraft-america.yaml:578-580`) — Thickness 0 skips the scaling block outright, so the MiG
+takes 10–20× more damage from every Pen-1 weapon than its counterpart.

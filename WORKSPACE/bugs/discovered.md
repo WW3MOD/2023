@@ -3295,3 +3295,53 @@ aircraft it is matched against. Almost certainly an authoring omission rather th
 
 READ. Confirm by: `grep -n "Penetration" mods/ww3mod/rules/weapons/weapons-missiles.yaml` and checking
 which AA warheads are absent from the output.
+
+---
+
+### 2026-08-22 — found during the knowledge-bank curation pass (branch `wt/curation-0822`)
+
+Four defects surfaced while re-deriving DISCOVERIES entries against code at `main @ 12e0addd`.
+None was fixed here — this branch is docs-only. Each was read at HEAD; none was observed in a
+running game.
+
+- [2026-08-22] [low] **A shipped YAML comment repeats a wrong burst-timing rule.**
+  `mods/ww3mod/rules/weapons/weapons-missiles.yaml:589-594` asserts that `BurstDelays >= BurstWait`
+  trips the stale-burst rearm, and hedges "58 or 59 depending on trait order". Both are wrong: the
+  per-armament countdown reaches zero exactly `BurstDelays` ticks after the shot under either
+  ordering, so the trip condition is `BurstDelays > BurstWait` and an exactly-equal value is SAFE.
+  **Nothing is mis-tuned** — `Stinger.quad`'s 58-against-60 is safe under either reading — so this is
+  a comment fix, not a behaviour fix. Corrected version banked at `DOCS/reference/missiles.md` §9.
+  (found while working on: curating the 2026-08-21 `BurstDelays` entry, which is the source of the
+  wrong claim and is now tagged `[rejected]`)
+
+- [2026-08-22] [low] **Three helicopters advertise the wrong armour class in player-facing text.**
+  `HELI` (`aircraft-america.yaml:315`), `HIND` (`aircraft-russia.yaml:133`) and `MI28` (`:309`) carry
+  UI `Description` strings reading `Armor: Medium`, while each actor's actual `Armor: Type:` is
+  **Heavy** (`:328`, `:146`, `:322` respectively). The tooltip lies about a stat players use to pick
+  counters. Cosmetic/data only — no code reads the description.
+  (found while working on: enumerating airframe armour classes for the `Targetable@Armor` promotion)
+
+- [2026-08-22] [low] **Ten live sites assert a duration the code does not produce.** The mod runs at
+  16.67 tps (`mod.yaml:382`), not the RA-era 25. A tree sweep found ten comments still stating the
+  wrong figure: `scripts/test-helpers.lua:7`; `scripts/scenario.lua:31` ("~15 seconds at 25 tps",
+  really 22.5 s); `weapons-missiles.yaml:86` ("≈ 2 s", really 3.0 s); `SmartMove.cs:25` ("~3 sec at
+  25 tps", really 4.5 s); `CohesionSlotMemory.cs:27` and `:31`; `BotVsBotMatchWatcher.cs:93`;
+  `GroundStates.cs:310` (`// ~12.5 seconds` for 750 ticks — a *60*-tps error, really 45 s);
+  `Actor.cs:338` ("~1s at 60 TPS" — conflates 60 ms with 60 tps, really 3.6 s);
+  `DOCS/recipes/TELEMETRY.md:44`. `SupplyRouteContestation.cs` was corrected in-tree on 2026-08-22
+  and is not in this list. **`test-helpers.lua` must not be "fixed" by changing the constant** — that
+  tightens every existing scenario deadline by a third at once; see `DOCS/recipes/AUTOTEST.md`.
+  (found while working on: promoting the harness tick-rate entry)
+
+- [2026-08-22] [med — LATENT] **The `Essential ⊆ Rearmable.AmmoPools` load guard is necessary but not
+  sufficient, and the reasoning banked with it was an incomplete enumeration.** A 2026-08-21 entry
+  claimed `ReloadAmmoPool` is the only refill path bypassing `Rearmable`. It is not:
+  `EnterCarrierMaster.cs:49-53` refills **every** pool on the actor via
+  `self.TraitsImplementing<AmmoPool>()`, and `CarrierMaster` is in use in this mod
+  (`infantry.yaml:2323`); the Lua `GiveAmmo` API (`AmmoPoolProperties.cs:62`) is a fourth writer.
+  No actor today combines a carrier with a divergent `Rearmable.AmmoPools`, so nothing is broken —
+  but the guard's sufficiency argument does not hold for one, and the guard would not complain.
+  **Not fixed:** widening it needs a decision about whether carrier refill *should* respect
+  `Rearmable`, which is a gameplay question. Corrected text banked at `DOCS/reference/economy.md`.
+  (found while working on: verifying the three-refill-sites entry, now tagged
+  `[promoted WITH A CORRECTION]`)

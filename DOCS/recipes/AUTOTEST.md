@@ -141,6 +141,15 @@ end
 | `Screenshot(label, note?)` | Capture a PNG now. Wrapper around `Test.Screenshot`. See [`SCREENSHOT.md`](SCREENSHOT.md). |
 | `ScreenshotAfter(seconds, label, note?)` | Schedule a screenshot N game-seconds from now |
 
+**The `seconds` argument is not seconds. `TestHarness.TicksPerSecond = 25` (`test-helpers.lua:9`, consumed at `:52`/`:82`) while the mod runs at `Timestep: 60` (`mod.yaml:382`) = 16.67 ticks/second — so every window is `N × 1.5` real seconds.** `run-test.sh` sets neither `Test.GameSpeed` nor `Test.SpeedMultiplier`, so this applies to every scenario in the suite: `AssertWithin(10, …)` waits 15 seconds, and every "within Ns" string in a failure message overstates the time actually allowed by half again.
+
+The error is in the lenient direction, which is why nothing has broken and nobody noticed — and that is exactly what makes it dangerous now. Two consequences to carry:
+
+- **A scenario tuned to "just barely times out" has 50% more slack than its author believed**, so it is a weaker gate than it looks. Any *duration* a scenario reports in seconds is overstated by the same factor.
+- **Anyone TIGHTENING a deadline to a value that looks adequate in seconds is really setting two-thirds of it.** This is where the constant bites: the direction of the error flips from harmless to test-breaking the moment you shrink a window.
+
+**Do not "fix" the constant.** Correcting it would tighten every existing deadline in the suite by a third in one step, turning currently-green scenarios red all at once; that is a fleet-wide retune, filed separately. **Size new deadlines in ticks and divide** — prefer expressing tick-domain quantities (burst delays, reload times, projectile flight) in ticks and polling with `Trigger.AfterDelay(1, …)`, which is immune both to this constant and to whatever game speed a run happens to use. The underlying `world.Timestep`-vs-`GameSpeed.Timestep` mechanism, and a second consequence of the same baseline in `TimeLimitManager`, are in [`conventions.md` §Engine behaviors that surprise](../reference/conventions.md). This is one instance of a mod-wide pattern — comments and constants asserting a duration the code does not produce — collected in [`conventions.md` §A change believed made, documented as made, and inert](../reference/conventions.md#a-change-believed-made-documented-as-made-and-inert).
+
 ### `Test.*` (engine global, gated on TestMode.IsActive)
 
 | Function | Effect |
