@@ -53,13 +53,19 @@ local function horDist(a, b)
 	return math.floor(math.sqrt(dx * dx + dy * dy))
 end
 
--- The Humvee is left at its shipped 8000 HP and simply replaced when a missile kills it, rather
--- than given the usual test-rig health override. `humvee` carries TWO RenderSprites blocks in
--- vehicles-america.yaml (lines 28 and 156), and MiniYaml.Merge rejects duplicate sibling keys the
--- moment a second rules source mentions that actor — so ANY map rules node for `humvee` makes the
--- map fail to load. Recorded in WORKSPACE/bugs/discovered.md; not fixed here, because collapsing
--- the two blocks would drop the actor from two RenderSprites traits to one and that is a live
--- rendering change to shipped content, not a measurement-rig concern.
+-- The Humvee is left at its SHIPPED health and simply replaced when a missile kills it, rather
+-- than given the usual test-rig health override.
+--
+-- STALE ON BOTH COUNTS, corrected 2026-08-22 — this comment used to say "its shipped 8000 HP" and
+-- to justify the no-override on a duplicate-key trap. Neither still holds:
+--   * Shipped health is 4000, halved at ff14ece3. Any figure in this rig derived from 8000 is wrong
+--     by a factor of two. Worse, a landed ATGM is no longer automatically lethal at 4000 — damage
+--     scales with distance from the hitshape centre, so a hit in the corners does real but
+--     non-lethal damage (see tools/combat-sim/scripts/humvee-hitshape-ladder.py for the derivation).
+--     A probe that counts kills is therefore NOT counting hits.
+--   * The two RenderSprites blocks were folded into one at 493db4ce, so a map rules node for
+--     `humvee` no longer fails to load. The original reason for avoiding a health override is gone;
+--     the no-override is now simply a choice to measure the unit as it ships.
 local function spawnTarget(lane)
 	local target = Actor.Create("humvee", true, {
 		Owner = RUSSIA,

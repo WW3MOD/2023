@@ -16,8 +16,27 @@ averages over all 256 facings and also reports the extremes.
 
 Hit model: the missile detonates at the aim point and TargetDamage (Spread 1wd)
 lands iff that point is inside the hitshape rectangle. One landed ATGM does
-10250 to a humvee, which is lethal at both 8000 and 4000 HP, so
-P(hit) == P(kill) and expected missiles-to-kill is 1 / P(hit).
+10250 nominal to a humvee.
+
+CAUTION -- P(hit) != P(kill) SINCE ff14ece3. The missiles/kill column below is
+OPTIMISTIC and must not be quoted as a kill rate.
+
+This docstring previously asserted that 10250 is lethal at both 8000 and 4000 HP
+and therefore P(hit) == P(kill). That was true at 8000. It is false at 4000,
+because TargetDamage is scaled by distance from the hitshape CENTRE:
+CenterProximityPercent normalises against the half-diagonal (552) and appends the
+result as a damage modifier (Rectangle.cs:123-127, TargetDamageWarhead.cs:81-97).
+
+At Health.HP 4000 a landed ATGM kills only if the impact falls within ~331 wd of
+the humvee's centre. An impact out in the corners still lands, still does real
+damage, and does NOT kill. So P(hit) overstates P(kill) by the fraction of the
+rectangle outside that radius -- and widening the cross-axis, which is exactly
+what this script measures, makes the gap WORSE, since the area it adds is all
+corner.
+
+Fixing this properly means modelling the centre-distance falloff per trial rather
+than treating a landed hit as a kill. Until then, read the columns below as HIT
+rates. Derivation: WORKSPACE/balance/260821-missile-hit-rate-vs-humvee.md
 
 No game launch; this is arithmetic over the shipped rules.
 """
