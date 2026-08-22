@@ -9223,3 +9223,46 @@ The legibility fix for the idle-cell correction was authored on `wt/heal-legibil
 **`test-depot-vacate-phantom` now carries a second damaged vehicle, and that is the reusable part.** It is the only two-vehicles-one-depot case in the suite (see the third-pass entry above). One run now confirms both halves: that the serviced vehicle vacates the dock unordered *and* that the next customer is served because it did.
 
 **Two claims on the other branch's coverage table, verified rather than assumed:** `HealerAutoTarget` really does queue no activity — it is `IOverrideAutoTarget, ITick, INotifyCreated, INotifyActorDisposing` with no `QueueActivity`/`MoveTo` anywhere, so the medic's line comes from the `AttackBase` auto-acquire path that branch also touches, not from the healer trait. And `AttendAlly` really is a player order: `IIssueOrder, IResolveOrder` (`AttendAlly.cs:48`). Both entries stand.
+---
+
+## 2026-08-22 — A weapon `Report` on a missile-spawner launcher is early by the whole erection phase
+
+**The mechanism, generally.** A missile launcher (`MissileSpawnerMaster`) fires a dummy weapon whose only
+job is to spawn the missile actor. `Armament.FireBarrel` plays the weapon's `Report` and calls
+`INotifyAttack.Attacking` — which is what spawns the missile — as **consecutive statements in one delayed
+action** (`engine/OpenRA.Mods.Common/Traits/Armament.cs:621-628`). So the report is simultaneous with the
+missile *appearing*, not with it *launching*. When the missile has `BallisticMissile.LaunchRiseTicks > 0`
+it then sits on the rail erecting, and `BallisticMissileFly` does not reach Phase 2 / `Ignite()` until
+`LaunchRiseTicks + PostErectionWaitTicks` ticks later
+(`engine/OpenRA.Mods.Common/Activities/BallisticMissileFly.cs:146-188`). The report is early by exactly
+that figure.
+
+For the Iskander that is **80 ticks** (60 + 20), and at the mod's `Timestep: 60` — 16.67 ticks/s, *not* the
+25 tps several of these YAML comments were written against — **4.8 seconds**. Long enough that the sound
+reads as belonging to the tilt animation, which is exactly how it was reported.
+
+Fixed by adding `BallisticMissileInfo.IgnitionSound`, played once from `BallisticMissile.Ignite()`.
+`Ignite()` is called on *every* arc-flight tick, and its pre-existing token guard could not carry
+once-only semantics for a sound: when `IgnitionCondition` is null the token stays invalid forever, so the
+sound would have replayed every tick of the flight. It now has its own `bool ignited`.
+
+**The Iskander was the only actor affected** — it is the sole `LaunchRiseErect` user in the mod. HIMARS
+shares the weapon by inheritance (`HIMARSTargeter: Inherits: IskanderTargeter`) but `HIMARSMissile` sets no
+`LaunchRiseTicks`, so it ignites on its first tick in the world and a weapon `Report` is correct for it to
+within one tick. `HIMARSTargeter` therefore now declares its own `Report` rather than inheriting one.
+
+Guarded by the `CheckMissileLaunchReport` lint rule
+(`engine/OpenRA.Mods.Common/Lint/CheckMissileLaunchReport.cs`), which walks every `MissileSpawnerMaster`,
+computes `PreLaunchTicks` over its slaves and errors if an armament it drives fires a weapon carrying a
+`Report`. It derives the tick figure from the real rules tree, so the error message states the actual
+lateness rather than a hard-coded number.
+
+**NON-OBVIOUS, and the reason this needed a lint rule rather than an autotest: the autotest harness cannot
+observe audio at all.** `tools/autotest/run-test.sh:157` defaults `AUDIO_MUTE=1` (`--audio` opts out), and
+more fundamentally there is **no sound-logging or trace surface anywhere in the engine** — `Game.Sound.Play`
+records nothing. So no scenario can ever produce a verdict on *which* sound played *when*; audio-timing
+work has to be pinned on the tick arithmetic and the data wiring, with a human listening test as the only
+end-to-end confirmation. Anyone reaching for `run-test.sh` to verify a sound bug should stop here.
+
+Tick arithmetic pinned without a World in `engine/OpenRA.Test/MissileLaunchTimingTest.cs`, via the new pure
+`BallisticMissileInfo.PreLaunchTicks` property that `BallisticMissileFly` now shares.
