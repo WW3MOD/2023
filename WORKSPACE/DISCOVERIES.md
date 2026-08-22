@@ -3,6 +3,73 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-22 — an actor's armour class is TWO independent facts, and four shipped units disagree with themselves (wt/small-arms-ladder)
+
+Branch `wt/small-arms-ladder`, base `main @ 9f5a7bc0`. Implementing the small-arms ladder
+(USER RULING: *"9mm should not work on any vehicles I think, 556 and 762 should work on light, but not
+medium"*) required censusing "which vehicles are Light", and the question turns out to have two
+different answers.
+
+**`Armor: Type:` and the advertised armour TARGET TYPE are unrelated pieces of YAML.** `Armor: Type:`
+feeds `Versus:` and decides how much damage a hit does (`DamageWarhead.cs:104-106`). The `Light` /
+`Medium` / `Heavy` string inside a `Targetable`'s `TargetTypes` decides whether a weapon may *aim* at
+it at all. Nothing validates that the two agree, and on four shipped actors they do not:
+
+| actor | `Armor: Type:` | advertised target type | file |
+|---|---|---|---|
+| `m109` | Light | **Medium** | `vehicles-america.yaml:605` / `:609` |
+| `giatsint` | Light | **Medium** | `vehicles-russia.yaml:430` / `:434` |
+| `tos` | Medium | **Heavy** | `vehicles-russia.yaml:709` / `:713` |
+| `tunguska` | Medium | **Heavy** | `vehicles-russia.yaml:825` / `:829` |
+
+So `m109` and `giatsint` are **damaged as light armour but targeted as medium**: a rifleman cannot
+shoot at them, and an anti-tank weapon that does hit them tears through as if they were soft. Whether
+that is deliberate asymmetry or two edits that drifted apart is unknown — it is left alone here and
+flagged for the user, because "fixing" it silently would be a balance change nobody asked for. **The
+operational lesson: when a ruling is phrased in armour classes, census `TargetTypes`, not `Armor`.**
+Deriving the population from the `Armor` trait would have produced a wrong answer on four units.
+
+**Two smaller findings from the same census:**
+
+- **`^9mm` (`weapons-ballistics.yaml:1`) has zero consumers.** No actor fields it and nothing inherits
+  it. The 9mm weapons players actually carry — `Pistol` (`:16`, on crew and one infantry), `SilencedPPK`
+  (`:36`), `MP5` (`:54`, engineer and pilot) — are **standalone weapons, not derived from the template**,
+  and every one was already `ValidTargets: Infantry`. The 9mm half of the ruling was therefore already
+  satisfied in play and the template was the only thing violating it. A caliber template's name is not
+  evidence that the weapons named after it inherit from it; check `Inherits@Caliber` before assuming a
+  template edit changes anything.
+- **`^7.62mm` named no vehicle target type at all** before this change — `Infantry, Unarmored,
+  Helicopter`. Its apparent anti-vehicle capability came entirely through `Unarmored`, which reaches
+  exactly one vehicle (`TRUK`, `vehicles.yaml:549`) and one structure (`GTWR`,
+  `structures-defenses.yaml:108`). Giving it `Vehicle` without a matching `InvalidTargets: Medium, Heavy`
+  would have handed every rifle in the game an abrams.
+
+**Why a landed littlebird was unshootable by rifles** (the asymmetry noted in the previous day's entry,
+now dissolved): a parked helicopter advertises `Ground, Vehicle` from `^NeutralAirborne`'s
+`Targetable@Ground` (`aircraft.yaml:57`), reached through `^Helicopter → ^Airborne → ^NeutralAirborne`
+(`:160 → :100 → :2`), **plus** `Light` from its own `!airborne`-gated `Targetable@Armor`. `^5.56mm`
+matched it on `Vehicle` and then threw it away on `InvalidTargets: Light`. Dropping `Light` from that
+exclusion — which the ruling requires for its own reasons — fixes the parked-heli case as a side
+effect. Worth knowing that the inheritance chain is three deep and the `Vehicle` type comes from the
+*neutral* template: reading only `^Helicopter` suggests, wrongly, that a landed heli advertises just
+`Light` and `Helicopter`.
+
+**Overriding `ValidTargets` does NOT opt a weapon out of an inherited `InvalidTargets`.** The two lists
+inherit independently, and the exclusion wins (`WeaponInfo.cs:218`). Adding `InvalidTargets: Medium,
+Heavy` to `^7.62mm` therefore reached `7.62mm.Minigun.AA` (`:327`), which had replaced `ValidTargets`
+wholesale with `Helicopter` and looked, on a quick read, insulated from template changes. The effect is
+asymmetric and worth knowing in general: a **flying** heavy helicopter advertises `AirHeavy` and never
+`Heavy`, so the new exclusion does not bite and the mount's deliberate all-helicopters carve-out
+survives; a **parked** one advertises `Heavy` and is now out of reach. When adding an exclusion to a
+caliber template, enumerate the children that override `ValidTargets` — they are exactly the ones whose
+authors believed they had detached from it.
+
+**Censusing gotcha:** POSIX `awk` (macOS `/usr/bin/awk`) does not support `\b`. A pattern like
+`/TargetTypes:.*\b(Medium|Heavy)\b/` silently matches **nothing**, which reads exactly like "no such
+actors exist" — it briefly produced the conclusion that the mod has no Medium or Heavy ground vehicles,
+when it has nine. Use explicit alternation on the literal text, and sanity-check a census that returns
+empty against a `grep -c` of the same corpus.
+
 ## 2026-08-22 — "is this a team game?" is not answerable at the Supply Route, and the freeze message asked it anyway (wt/sr-message)
 
 Branch `wt/sr-message`, base `main @ cc0775b1`. User report: in a free-for-all, the combat log read
