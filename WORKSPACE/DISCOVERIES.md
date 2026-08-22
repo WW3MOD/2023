@@ -3,6 +3,64 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-22 — `AutoTarget` never re-arms its scan timer on a tick an override answers, so an always-answering override is consulted EVERY idle tick
+
+Branch `wt/medic-behaviour`. `AutoTarget.ScanForTarget` (`AutoTarget.cs:1124-1147`) gates on
+`nextScanTime <= 0`, then consults each `IOverrideAutoTarget` **and returns from inside that loop**.
+`nextScanTime` is only re-armed further down, on the ordinary `ChooseTarget` path that an answering
+override never reaches — the code says so deliberately (*"Deliberately NOT re-arming nextScanTime on
+this path"*, to keep the `SharedRandom` draw pattern unchanged).
+
+The consequence is not in that comment. Once `nextScanTime` first reaches 0, an override that answers
+**unconditionally** — `HealerAutoTarget` does, by design since `6609711f` — pins it at 0 forever. So
+`MinimumScanTimeInterval`/`MaximumScanTimeInterval` (16–32 on `^CamoSoldier`) stop bounding anything
+for that actor, and `TryGetAutoTargetOverride` runs on **every idle tick** instead of every 16–32.
+
+**Why it matters:** any rate-limiting an override relies on must live inside the override itself.
+`HealerAutoTarget` happens to have its own `ScanInterval` (8), so it re-picks its patient at 2 Hz
+rather than every tick — but nothing in `AutoTarget` was providing that bound, and a future override
+written to lean on the AutoTarget interval would silently run 16–32× more often than intended.
+
+## 2026-08-22 — a distance tiebreaker of `distance / 10240` is identically zero inside any search radius under ten cells
+
+`HealerAutoTarget.FindBestTarget` scored candidate patients as `hpPct`, plus `-10000` when critical,
+plus `distance / 10240` — commented as *"slight distance tiebreaker (1 point per 10 cells)"*. That is
+integer division on a WDist length, and `SearchRange` on `^MEDI` is `8c0` = 8192. **8192 / 10240 == 0.**
+Distance therefore played no part in patient choice at any reachable distance, so selection was purely
+by health percentage and ties fell to `FindActorsInCircle` enumeration order.
+
+This is the second time the same shape has bitten this exact trait: `434b7555` fixed a search radius
+pinned to `min(1c0, DefensiveRange)`, which made every wider-radius feature built on it inert. **When a
+scoring or range expression is written in raw world units, check it against the actual configured
+radius before trusting the comment next to it.**
+
+## 2026-08-22 — a healer with no switch hysteresis ping-pongs, because one heal pulse is larger than the gap it is comparing
+
+`^MEDI`'s Heal warhead is `DamagePercent: -5`, i.e. every pulse lifts its patient by five percentage
+points of max health. `HealerAutoTarget` re-ran a full `FindBestTarget` every `ScanInterval` (8 ticks)
+and gave the incumbent **no preference at all** (`if (score < bestScore)`, incumbent scored like anyone
+else). So treating the worse of two comparable patients moved him *past* the other one, and the very
+next rescan handed the case over.
+
+The gap does not need to be a tie: any two patients within five points of each other oscillate
+deterministically. Because `AutoFollowAlly` walks the medic to whichever patient `CurrentPatient`
+currently names, and crossing the ground between two patients takes far longer than the 50-tick heal
+reload, the medic delivered roughly one pulse per crossing and finished nobody.
+
+**General rule:** when a periodic re-selection feeds a mover, the selection needs hysteresis larger
+than the per-step change the action itself causes — otherwise the action inverts its own ranking.
+
+## 2026-08-22 — the autotest harness converts seconds to ticks at 25 tps; the mod runs at 16.67
+
+`TestHarness.TicksPerSecond = 25` (`mods/ww3mod/scripts/test-helpers.lua:9`), but `GameSpeeds` `default`
+is `Timestep: 60` (`mod.yaml:379`) = 16.67 ticks/second. `AssertWithin(N)` therefore waits `N * 25`
+ticks, which is `N * 1.5` real seconds.
+
+Every existing scenario deadline is consequently 1.5× more generous than it reads, and every "within
+Ns" string in a failure message overstates the time actually allowed by the same factor. **Not changed
+here** — correcting the constant would tighten every existing deadline by a third in one step, which is
+a fleet-wide retune, not a medic fix. Size new deadlines in ticks and divide.
+
 ## 2026-08-21 — there are TWO independent resupply-seek paths, and `AutoSeekSupplies.ReturnWhenEmpty` gates only one of them
 
 Branch `wt/essential-apply`, reconciling the `Essential` census against the mechanism that landed after
