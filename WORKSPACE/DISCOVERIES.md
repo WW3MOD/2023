@@ -3,6 +3,67 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-22 — the Logistics Centre already rearmed soldiers and already had a bar; what was missing was the PRICE, and a truck→Centre order shadowed by a higher-priority targeter
+
+Branch `wt/lc-supplies`, base `main @ 7afb0b63`. Dispatched to "make the Logistics Centre rearm
+soldiers and show a supplies bar like the truck". **Both were already true.** Recording this because
+the premise survived a careful ten-minute read by someone who was right about every individual fact.
+
+**1. The Centre has rearmed soldiers since it was built, free of charge.**
+`ProximityExternalCondition@ReplenishSoldiers` (`structures.yaml:407-411`) grants `replenish-soldiers`
+to allies within 4c0, and every infantry `ReloadAmmoPool` is gated on exactly that condition
+(`infantry.yaml:1189-1190` and 17 more). A soldier standing near a Centre refills. What that path does
+NOT do is touch the 3000 — it is `ReloadAmmoPool`'s own free trickle, not a `GiveAmmo` delivery. **The
+defect was never "soldiers cannot rearm"; it was "soldiers rearm for free, so the bar cannot move."**
+
+**2. The bar was never missing either, and git can prove it.** `SupplyProvider` implements
+`ISelectionBar` directly (`:1009`, `DisplayWhenEmpty => true`), and `SelectionDecorations`
+→ `SelectionBarsAnnotationRenderable.DrawExtraBars` (`:53`) draws every `ISelectionBar` on any
+`Selectable`. `ISelectionBar` landed in `48b73c21`; the Centre got `SupplyProvider` in `fcf1c198`
+(2026-04-17), which is a DESCENDANT — so there has never been a build where the Centre had the trait
+without the bar. **`git log -S` on the interface, not on the actor, is what settles this in one
+command.**
+
+**3. The one-word fix that would have been inert.** The obvious change is widening the Centre's
+`SupplyProvider.RearmCondition` from `replenish-vehicles` to `replenish-soldiers`. It does nothing:
+`IsValidTarget` checks `DockedCondition` **before** `RearmCondition`, and only `^Vehicle` declares
+`unit.docked` (`vehicles.yaml:29`). A soldier is rejected by the dock gate before the condition is
+read. Serving two populations needed four fields to diverge at once (condition, dock gate, 2c0 vs 4c0,
+25 vs 6 ticks), which is why the shipped answer is a second *clientele* arm on one trait —
+`AuraRearmCondition`/`AuraRange`/`AuraRearmDelay`, pinned by the pure `SupplyProvider.MatchClientele`
+and by `LogisticsCenterSupplyTest`. **One pool and one bar were the constraint that ruled out the
+otherwise-obvious two trait instances.**
+
+**4. `test-lc-rearm-partial-order` now measures something different, and this is a live warning.**
+That scenario's discriminator is "the free trickle never exceeds +1 round per tick, so a batch-sized
+jump proves a dock rearm happened" (its own header says so). The Centre's new aura arm delivers
+`ReloadCount` batches to infantry, so a batch-sized jump no longer implies the `Resupply` dock path.
+**The scenario can now go green while the defect it was written to catch is present.** Not fixed here —
+it needs an autotest run, which this work item could not take.
+
+**5. Truck → Centre delivery was fully built and unreachable.** The user reported it as a feature they
+had asked for that "doesn't seem to work". `DropsSupplyCache` has a `DeliverSupplyOrderTargeter` gated
+on Ctrl (`ForceMove`) at **priority 6**, and a `RestockOrderTargeter` at **priority 7** that never
+inspects modifiers. `UnitOrderGenerator.OrderForUnit` returns the first match walking down priority,
+so Ctrl+click resolved to *Restock* — supply flowing Centre → truck, the exact inverse — whenever the
+truck was `notFull || damaged`. A truck is `notFull` the instant it serves anybody, so the delivery
+order could only ever fire from a **750/750 undamaged** truck. Both targeters share
+`info.RestockCursor`, so nothing on screen said Ctrl had done nothing. Fixed by one early return.
+**Generalises: an order targeter that ignores `modifiers` silently outranks every lower-priority
+targeter that is GATED on one — the gate reads as the mechanism and the priority is invisible.**
+
+**6. Two directions that do work, recorded as negatives so nobody re-derives them.**
+`AbsorbsSupplyCache` on the Centre (`structures.yaml:470-472`, `Range: 2c512`) accepts `supplycache`
+crates, and a truck can park on the Centre's `=` corner and drop one 1448 units from centre — inside
+2560. So "park and deploy a cache beside the Centre" was always a working truck → Centre transfer.
+`AddSupply` (`:1067`) does **not** clamp, but `AbsorbsSupplyCache` clamps itself to
+`TotalSupply - CurrentSupply`, so topping up a drained Centre is representable and overfilling is not.
+
+**7. `SupplyCreditValue` tracks capacity, not cost.** The Centre's old `3000` equalled its old
+`TotalSupply` of 3000, not its `Cost` of 3500 — the mod prices supply 1:1 (`TRUK` is 750/750). Worth
+stating because the two were close enough to look deliberate, and `CustomSellValue.cs:51` is the only
+reader.
+
 ## 2026-08-22 — ground-cover census: a "flat actor" flag is only as good as the number of occupancy indices it is applied to, and there are three
 
 Branch `wt/ground-cover-sweep`, base `main @ 0c15c6bc`. Following the LCCV deploy fix, I audited every

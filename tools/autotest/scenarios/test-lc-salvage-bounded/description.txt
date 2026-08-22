@@ -1,1 +1,1 @@
-Deploy an LCCV into a Logistics Centre and sell it: total payout (cash + technicians) must not exceed the LCCV's 1200 cost.
+Deploy an LCCV into a Logistics Centre and sell it: total payout (cash + technicians) must not exceed the LCCV's 3000 cost.
