@@ -10065,3 +10065,166 @@ columns, and the four corner rects moved with it.
 over the one-cell ring, and the ring is already opaque from shroud in every configuration (traced
 above). The dependency is worth naming: if anything ever makes ring cells resolve to nonzero
 visibility, this becomes a visible change rather than a tidy-up.
+
+## 2026-08-22 — The map-edge black band is a MATCH bug, not a shellmap bug, and `bc22c9d6` only fixed the shellmap
+
+Measured on River Zeta's right edge (`MapSize: 98,82`, `Bounds: 1,1,96,80`, so the ring column is
+`x=97` and carries 74 authored actors — 47 `v17`, 14 `rice`, 13 trees). Four captures at identical
+framing (camera on cell 92,40; window pinned 1600x1000; three friendly `abrams` at `x=95` so a real
+render player actually has vision at the edge). Pixels sampled directly, not eyeballed.
+
+| # | code | Bounds | render player | screen x 900..945 |
+|---|---|---|---|---|
+| A | `2e2db01e` | 1,1,96,80 | null (world view) | lit to 934, black from 935 — **clean** |
+| B | `2e2db01e` | 1,1,96,80 | real, fog on | lit to 907, **black 908..931**, lit 932..934, black 935+ |
+| C | `2e2db01e` | 0,0,98,82 | real, fog on | lit to 934, black from 935 — **clean** |
+| D | `bc22c9d6~1` | 1,1,96,80 | null (world view) | row 500 byte-identical to A; row 350 **black from 908** |
+
+**A vs D is the verdict on `bc22c9d6`: it worked, and only for the case it named.** At row 500 the two
+frames are identical hex-for-hex across `908..934`, because that row's ring cell holds a `rice` sprite
+and actors draw *after* `DrawBeyondMapFog` — the black was there in D, just wallpapered. Row 350 has no
+ring actor, so D shows the bare band and A shows ground. That alternation — dark notches between
+stretches of field — is the reported screenshot, and `bc22c9d6` did remove it from the shellmap.
+
+**B vs C is the verdict on the actual bug.** Same binary, one variable — flipping `Bounds` back to the
+pre-`097738f4` value makes the band vanish in a fogged match. So `097738f4` (2026-08-17, the re-cordon)
+is the trigger, and it is still live on `main`: in a real match the ring is repainted opaque by
+*shroud*, three draw calls after `DrawBeyondMapFog` handed it its ground back.
+
+**The shroud trace in `bc22c9d6`'s message is CORRECT but the conclusion drawn from it is not.**
+`GetVisibility` (`engine/OpenRA.Game/Traits/Player/MapLayers.cs:659-693`) really does return 0 for every
+ring cell in every configuration — `ResolvedVisibility.Contains(puv)` is false and the `Disabled` branch
+is gated on `map.Contains(puv)`, which is `Bounds.Contains` (`Map.cs:1418-1421`). The commit read that
+as *"invisible in a match"*. It is the opposite: visibility 0 means the shroud paints it **opaque
+black**, and that opaque black IS the band being complained about. A cell being uniformly black is not
+the same as a cell not being drawn.
+
+**Second, separate defect: a 3-pixel unshrouded sliver.** In B the shroud stops at 931 while the ring
+cell runs to 934 (one cell measures 27 screen px in this framing: the `Bounds`-anchored fill in D
+starts at 908, the `MapSize`-anchored fill in A starts at 935). Those 3 px render at full brightness
+against black on both sides — a bright hairline down the whole edge. It only appears on rows whose ring
+cell has an actor sprite, so it tracks sprite pixels rather than terrain. Not explained; see below.
+
+**Not verified.** Why the shroud sprite covers 24 px of a 27 px cell. Whether the shellmap proper
+(`WorldType.Shellmap`) takes the same path as the TestMode world view — A is a render-player-null frame,
+which is the same branch, but it is not literally a shellmap frame. And only the right edge was
+measured; the other three are assumed symmetric on the strength of the `Bounds` arithmetic alone.
+
+## 2026-08-22 — `MapLayers.GetVisibility` is NOT render-only, and `MapLayers.Disabled` is never set: the map-edge ring fix as scoped cannot be built
+
+Investigation only — **no code changed**. This is the caller census that was made a precondition for
+fixing the black ring at `MapLayers.GetVisibility` (`engine/OpenRA.Game/Traits/Player/MapLayers.cs:659-693`),
+plus two findings that invalidate the approach that census was guarding.
+
+### 1. `GetVisibility` feeds the simulation through `FrozenActorLayer`. It is not a render-only read.
+
+The render consumers are the expected ones — `ShroudRenderer.cs:134`/`:218`, `WorldRenderer.cs:521-673`,
+`MiniMapWidget.cs:252`, `GpsDotEffect.cs:76`. But `FrozenActorLayer.UpdateVisibility`
+(`engine/OpenRA.Game/Traits/Player/FrozenActorLayer.cs:176`) also calls it, per footprint cell, and assigns
+`FrozenActor.Visible` / `Shrouded` from the result. `Visible` is then consumed by:
+
+| Consumer | Site | Why it is simulation |
+|---|---|---|
+| `Target.IsValidFor` | `OpenRA.Game/Traits/Target.cs:120` | order validation for frozen-actor targets |
+| `AutoTarget` | `Traits/AutoTarget.cs:1330` (`FrozenActorsInCircle`) | autotarget acquisition |
+| `BeliefStore` | `Traits/World/BeliefStore.cs:232` (`onlyVisible: true`) | AI belief field |
+| `SightingThreatLayer` | `Traits/World/SightingThreatLayer.cs:225` | AI threat field |
+| `SupportPowerDecision` | `BotModuleLogic/SupportPowerDecision.cs:188` | AI support-power targeting |
+| `Order` deserialization | `OpenRA.Game/Network/Order.cs:141` | order wire path |
+
+`FrozenUnderFog` is live on ww3mod content (`rules/ingame/structures.yaml:60,132,220`,
+`structures-defenses.yaml:65`, `husks/husks.yaml:33`, `misc.yaml:15,400`), so the layer is populated in a
+real match. **Making ring cells resolve non-zero is therefore a gameplay and determinism change, not a
+render fix** — `FrozenActor.Visible` is `[Sync]`-adjacent state that gates targeting. Any future edit here
+must either stay off the `FrozenActorLayer` path or be treated as a sim change with the desync risk that
+implies.
+
+### 2. `MapLayers.Disabled` is never assigned anywhere in the repository. The `Disabled` branch is dead code.
+
+`shroudDisabled` (`MapLayers.cs:135`) is initialised `false`; the only write is its own property setter
+(`:140-147`), and **no caller anywhere in C# or Lua invokes it**. The only two reads are
+`EnemyWatcher.cs:58` and `ObserverStatsLogic.cs:356`. The observer UI's "Disable Shroud" camera option is
+not this — it sets `world.RenderPlayer = null`
+(`Widgets/Logic/Ingame/ObserverShroudSelectorLogic.cs:87`), a different mechanism entirely.
+
+So `if (Disabled && map.Contains(puv)) return 10;` (`:684`) **cannot execute in a shipped match**, and any
+fix targeting that branch is inert. Two prior write-ups reasoned about this branch as if it were live —
+including the 2026-08-22 entry above, whose "with shroud **Disabled** the ring still resolves to 0" is
+true only of unreachable code.
+
+### 3. "No shroud" in the mod's own lobby text is `ExploreMapEnabled`, a different mechanism — and it is Bounds-limited
+
+`mods/ww3mod/rules/player.yaml:182` labels the Explored Map checkbox *"Start with the entire map revealed
+(no shroud)"*, `ExploredMapCheckboxEnabled: true` (`:183`). That is the setting a player means by "I play
+with no shroud", and it routes to `ExploreAll()` (`MapLayers.cs:466-478`) — **not** to `Disabled`.
+
+`ExploreAll` iterates `map.ProjectedCells`, which is built from `Bounds`-derived corners
+(`Map.cs:1600-1606`, `:1624`), so **ring cells are never marked explored**. `ExploreProjectedCells`
+(`:436`) and vision accumulation in `AddSource` (`:347`) are both independently gated on `map.Contains`
+too. Net: `ResolvedVisibility[ring] == 0` permanently regardless of lobby settings, and the ring is black
+in the default configuration through the `fogEnabled` branch (`:671-681`), not through `Disabled`.
+
+**The reusable rule.** There are *four* independent `Bounds`-only gates between a ring cell and a non-zero
+visibility — `AddSource:347`, `ExploreAll` via `ProjectedCells`, `GetVisibility:664/684`, and the
+`OnShroudChanged` notification at `:268`. Changing only the one in `GetVisibility` moves no pixels,
+because the layer it reads is still all zeros and the renderer is still never told to repaint. A fix has
+to move the data path, not the last read of it — and moving the data path is what crosses into
+`FrozenActorLayer` and the simulation.
+
+## 2026-08-22 — the map-edge ring, fixed render-only: four Bounds gates, and why only one of them is the renderer's to move
+
+Follow-up to the census entry above, which established that `MapLayers.GetVisibility` feeds the
+simulation and must not be touched. Fix landed in `ShroudRenderer` instead (`b4f0db94`).
+
+### The renderer owns exactly two of the four gates
+
+Of the four `Bounds`-only gates between a ring cell and a lit pixel, two are in `MapLayers` and are
+off-limits (`AddSource:347`, `ExploreAll` via `Map.ProjectedCells`); the other two are in
+`ShroudRenderer` and were both required:
+
+| Gate | Was | Now |
+|---|---|---|
+| `RenderShroud`'s region | `map.ProjectedCells` — Bounds-derived (`Map.cs:1600-1624`) | the whole `MapSize` |
+| `UpdateShroudCell`'s neighbour spread | `map.Contains` (Bounds) | `cellsDirty.Contains` (the sprite layer's extent) |
+
+Plus the sprite decision itself: `ClampToPlayable` maps an out-of-Bounds cell onto the nearest playable
+one, so a ring cell renders whatever its neighbour renders.
+
+**The notification gap was real and would have silently defeated a correct sprite choice.**
+`MapLayers` fires `OnShroudChanged` only for playable cells (`MapLayers.cs:268`), so nothing ever marks
+a ring cell dirty except the neighbour spread — and `RenderShroud` never visited it even when marked.
+Before the fix, ring cells were painted **once**, at world load via `WorldOnRenderPlayerChanged`'s
+full-`MapSize` pass (`:231`), and never repainted for the rest of the match. A fix that changed only the
+sprite choice would have produced a ring frozen at its load-time appearance. **Any future edit to
+edge-cell rendering must check both the dirty-marking and the iterated region, not just the predicate.**
+
+### The clamp is configuration-agnostic, so there is no seam between "explored" and "fogged"
+
+The work was scoped expecting the Explored-Map fix and the shroud-on behaviour to be separable commits.
+**They are not.** `ClampToPlayable` does not consult fog, `Disabled`, or `ExploreMapEnabled` — it changes
+which *cell* is sampled, and every configuration reads through the same sample. Fixing the shipped
+default necessarily fixes the fogged case. Splitting them would have required inventing a gate on fog
+state whose only purpose was to withhold the fix from one configuration.
+
+The safety property that made this cheap: **the clamp is the identity inside `Bounds`**, so mid-map
+shroud drawing is unchanged by construction rather than by measurement.
+
+### Residual: a 3px black sliver survives on rows with no ring scenery
+
+Measured at 1600x1000, camera cell 92,40, River Zeta right edge. One ring cell spans x 908..934 and the
+`MapSize`-anchored fill starts at 935, but **terrain only reaches 931**. Rows whose ring cell carries an
+actor sprite are lit continuously to 934 (the sprite covers it); rows without one show black at 932-934.
+
+This is the same 3px boundary logged as unexplained in the 2026-08-22 entry above ("the shroud stops at
+931 while the ring cell runs to 934"), and it is **pre-existing, not caused by this change** — clearing a
+shroud sprite cannot draw terrain that was never drawn. Before the fix it was invisible because the whole
+24px band was black; the fix exposes it. It is a terrain-coverage question, not a shroud one.
+
+### Incidental: no ring actor on River Zeta carries `FrozenUnderFog`
+
+Resolved through the full `Inherits` chain for all 18 ring actor types (189 actors: 102 `v17`, 29 `rice`,
+the rest trees). All inherit `^Tree` or `^CivField`; **none** reaches `FrozenUnderFog` (sanity-checked
+against `SUPPLYROUTE`, which does). So today's map content would not in fact have exercised the
+`FrozenActorLayer` path. This does **not** make the `MapLayers` fix safe — the desync exposure is that
+the predicate applies to every cell on every map, not that a particular map ships a frozen ring actor —
+but it does mean the sim risk was latent rather than live.

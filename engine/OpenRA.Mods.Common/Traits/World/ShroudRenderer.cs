@@ -67,6 +67,11 @@ namespace OpenRA.Mods.Common.Traits
 		bool anyCellDirty;
 		MapLayers shroud;
 		Func<PPos, byte> cellVisibility;
+
+		// The whole MapSize, not just the playable Bounds. RenderShroud used to walk
+		// map.ProjectedCells, which is Bounds-derived (Map.cs:1600-1624), so cells in
+		// the unplayable ring could be marked dirty but were never actually visited.
+		PPos[] allProjectedCells;
 		readonly Layer[] layers = new Layer[MapLayers.VisionLayers];
 
 		class Layer
@@ -120,6 +125,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IWorldLoaded.WorldLoaded(World w, WorldRenderer wr)
 		{
+			allProjectedCells = new ProjectedCellRegion(map, new PPos(0, 0), new PPos(map.MapSize.X - 1, map.MapSize.Y - 1)).ToArray();
+
 			foreach (var uv in w.Map.AllCells.MapCoords)
 			{
 				var pos = w.Map.CenterOfCell(uv.ToCPos(map));
@@ -162,24 +169,52 @@ namespace OpenRA.Mods.Common.Traits
 			WorldOnRenderPlayerChanged(world.RenderPlayer);
 		}
 
+		// WW3MOD: every map ships a one-cell unplayable ring between Bounds and MapSize
+		// that holds real terrain and authored scenery. Each of MapLayers' visibility
+		// sources is gated on Map.Contains — which is Bounds.Contains — so a ring cell
+		// resolves to 0 and the shroud paints it opaque black, three draw calls after
+		// DrawBeyondMapFog handed it its ground back. Sample the nearest playable cell
+		// instead, so a ring cell shows whatever its neighbour shows.
+		//
+		// This is deliberately confined to the renderer. MapLayers.GetVisibility also
+		// feeds FrozenActorLayer, and through it targeting, autotarget acquisition,
+		// BeliefStore and SightingThreatLayer — changing what it returns would be a
+		// simulation and determinism change, not a render fix.
+		//
+		// Clamping is exact for a one-cell ring, O(1) as this per-cell path requires,
+		// and the identity inside Bounds, so mid-map shroud drawing is untouched.
+		PPos ClampToPlayable(PPos puv)
+		{
+			var b = map.Bounds;
+			var u = puv.U < b.Left ? b.Left : (puv.U > b.Right - 1 ? b.Right - 1 : puv.U);
+			var v = puv.V < b.Top ? b.Top : (puv.V > b.Bottom - 1 ? b.Bottom - 1 : puv.V);
+
+			return u == puv.U && v == puv.V ? puv : new PPos(u, v);
+		}
+
+		byte CellVisibility(PPos puv)
+		{
+			return cellVisibility(ClampToPlayable(puv));
+		}
+
 		byte[] GetNeighborsVisbility(PPos puv)
 		{
 			var cell = ((MPos)puv).ToCPos(map);
-			var cv = cellVisibility(puv);
 
-			// WW3MOD: For neighbors outside the map, use the cell's own visibility
-			// instead of 0 (shroud). This prevents a false shroud gradient at map
-			// borders when the border cell is visible — the edge should fade into
-			// the DrawBeyondMapFog overlay, not into shroud.
+			// WW3MOD: a neighbour off the playable area is clamped back onto it rather
+			// than counted as 0 (shroud), which would paint a false shroud gradient down
+			// every map border. For a playable edge cell the clamp lands on the cell
+			// itself, so this keeps the previous "use the cell's own visibility" result
+			// exactly; for a ring cell it lands on the playable cell the ring abuts.
 			var topPos = (PPos)(cell + new CVec(0, -1)).ToMPos(map);
 			var rightPos = (PPos)(cell + new CVec(1, 0)).ToMPos(map);
 			var bottomPos = (PPos)(cell + new CVec(0, 1)).ToMPos(map);
 			var leftPos = (PPos)(cell + new CVec(-1, 0)).ToMPos(map);
 
-			neighbors[(int)Neighbor.Top] = map.Contains(topPos) ? cellVisibility(topPos) : cv;
-			neighbors[(int)Neighbor.Right] = map.Contains(rightPos) ? cellVisibility(rightPos) : cv;
-			neighbors[(int)Neighbor.Bottom] = map.Contains(bottomPos) ? cellVisibility(bottomPos) : cv;
-			neighbors[(int)Neighbor.Left] = map.Contains(leftPos) ? cellVisibility(leftPos) : cv;
+			neighbors[(int)Neighbor.Top] = CellVisibility(topPos);
+			neighbors[(int)Neighbor.Right] = CellVisibility(rightPos);
+			neighbors[(int)Neighbor.Bottom] = CellVisibility(bottomPos);
+			neighbors[(int)Neighbor.Left] = CellVisibility(leftPos);
 
 			return neighbors;
 		}
@@ -272,7 +307,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (!renderPlayerActive)
 					continue;
 
-				var cellVisibility = this.cellVisibility(puv);
+				var cellVisibility = CellVisibility(puv);
 				var tileInfo = tileInfos[uv];
 				var pos = tileInfo.ScreenPosition;
 
@@ -308,7 +343,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void UpdateLayer(bool allEdges, bool reset, float alpha, TerrainSpriteLayer terrainSpriteLayer, MPos uv, PPos puv, float3 pos, PaletteReference paletteReference, byte tileVariant, (Sprite, float, float)[] sprites, byte visionLayerIndex)
 		{
-			var cv = cellVisibility(puv);
+			var cv = CellVisibility(puv);
 
 			Sprite sprite;
 			if (reset)
@@ -328,7 +363,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IRenderShroud.RenderShroud(WorldRenderer wr)
 		{
-			UpdateShroud(map.ProjectedCells);
+			UpdateShroud(allProjectedCells);
 
 			for (var i = MapLayers.VisionLayers - 2; i >= 0; i--)
 			{
@@ -343,8 +378,16 @@ namespace OpenRA.Mods.Common.Traits
 			anyCellDirty = true;
 			var cell = uv.ToCPos(map);
 			foreach (var direction in CVec.Directions)
-				if (map.Contains((PPos)(cell + direction).ToMPos(map)))
-					cellsDirty[cell + direction] = true;
+			{
+				// Gate on the sprite layer's own extent (the whole MapSize), not on
+				// Map.Contains (the playable Bounds). MapLayers only reports changes for
+				// playable cells, so a ring cell is repainted solely by this spread from
+				// the playable cell it abuts — the Bounds gate here left it stuck on
+				// whatever it was painted at world load.
+				var neighbor = (cell + direction).ToMPos(map);
+				if (cellsDirty.Contains(neighbor))
+					cellsDirty[neighbor] = true;
+			}
 		}
 
 		(Sprite Sprite, float Scale, float Alpha) GetSprite((Sprite, float, float)[] sprites, Edges edges, int variant)
