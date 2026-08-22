@@ -110,5 +110,70 @@ namespace OpenRA.Test
 				Assert.That(OrderFallbackMath.AllowsMoveFallback(false, PlayerRelationship.None, TargetModifiers.None), Is.True);
 			});
 		}
+
+		// ---------- what the retry may PRODUCE, which is not the same question as whether it runs ----------
+		//
+		// The first version of this gate skipped the retry outright, and the retry is the only route to
+		// any order at all against the cell under an actor. Force-attack-ground is one of those orders,
+		// so refusing to retry silently deleted it under every enemy the firing unit could not target —
+		// artillery being the obvious victim, since a launcher whose armament is force-fire-only refuses
+		// every actor target on the first pass by design.
+
+		// The report that prompted this split: "I cannot force attack ground under an enemy I cannot
+		// target, even if it can target ground."
+		[Test]
+		public void ForceFireAtTheGroundReachesPastAnEnemyItCannotTarget()
+		{
+			Assert.That(OrderFallbackMath.AllowsRetryResult(OrderFallbackMath.ForceAttackOrderID, false), Is.True,
+				"force-attack-ground leaves the unit standing where it is, so the relocation gate has no business vetoing it");
+		}
+
+		// The half that must NOT come back: an order that drives the unit onto the enemy's cell. This is
+		// the whole of what the previous fix was protecting, restated at the layer that can tell the two
+		// apart.
+		[Test]
+		public void ARelocationStillCannotReachPastAnEnemy()
+		{
+			Assert.Multiple(() =>
+			{
+				Assert.That(OrderFallbackMath.AllowsRetryResult("Move", false), Is.False,
+					"a refused attack must not become a walk into the target");
+				Assert.That(OrderFallbackMath.AllowsRetryResult("AttackMove", false), Is.False);
+				Assert.That(OrderFallbackMath.AllowsRetryResult("Harvest", false), Is.False,
+					"any order that relocates the unit onto that cell is the same harm, not just Move");
+			});
+		}
+
+		// With relocation allowed — a friendly or neutral occupant, an explicit force-move, or a
+		// selection in which nothing could act — the gate must be fully transparent.
+		[Test]
+		public void WithRelocationAllowedTheRetryIsTransparent()
+		{
+			Assert.Multiple(() =>
+			{
+				Assert.That(OrderFallbackMath.AllowsRetryResult("Move", true), Is.True);
+				Assert.That(OrderFallbackMath.AllowsRetryResult("Harvest", true), Is.True);
+				Assert.That(OrderFallbackMath.AllowsRetryResult(OrderFallbackMath.ForceAttackOrderID, true), Is.True);
+			});
+		}
+
+		// ---------- the rule is per-SELECTION ----------
+
+		// "We should still see the default order; it is only when we give a specific order that only
+		// some can carry out that the ones that cannot will get no order." Applied per-unit instead, a
+		// selection where nothing can attack produces no order AND no cursor, and the player is left
+		// hovering an enemy with a bare pointer.
+		[Test]
+		public void ARefuserIsOnlySilencedWhileSomebodyElseIsActing()
+		{
+			Assert.Multiple(() =>
+			{
+				Assert.That(OrderFallbackMath.SelectionSuppressesRefusers(1), Is.True,
+					"one unit is attacking, so the rest must not be walked into the target alongside it");
+				Assert.That(OrderFallbackMath.SelectionSuppressesRefusers(5), Is.True);
+				Assert.That(OrderFallbackMath.SelectionSuppressesRefusers(0), Is.False,
+					"nothing selected can carry out the click, so there is no specific order to hold anyone to");
+			});
+		}
 	}
 }
