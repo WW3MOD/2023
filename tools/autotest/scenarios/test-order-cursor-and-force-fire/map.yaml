@@ -88,6 +88,18 @@ Actors:
 		Location: 50,16
 		Facing: 768
 
+	# CloseEnemy sits 5 cells off the Launcher -- well INSIDE IskanderTargeter's MinRange 16c0. Before
+	# RequiresForceFire came off the armament this case was nearly unreachable: ordering the launcher at
+	# anything took Ctrl+Alt, so nobody plain-clicked a target this close. Now a right-click puts the
+	# order through, because AttackOrderTargeter's CanTargetActor tests MaxRange ONLY (AttackBase.cs:785)
+	# -- minimum range is enforced later, by the ATTACK ACTIVITY, which pathfinds back out to the
+	# [minRange, maxRange] annulus (MoveWithinRange.cs:62) before firing. So the correct answer here is
+	# an ordinary Attack order and an ordinary attack cursor; the reversing-away is the activity's job.
+	CloseEnemy: t90
+		Owner: Russia
+		Location: 35,16
+		Facing: 768
+
 	# `supplyroute` carries Targetable.TargetTypes: NoAutoTarget so it is never
 	# acquired by a scan. Present because faction elimination would end the match
 	# before the poller writes a verdict (AUTOTEST.md map.yaml rule 6).

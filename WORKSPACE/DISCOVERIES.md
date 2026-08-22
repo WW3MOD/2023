@@ -9613,3 +9613,65 @@ Note the check never consults pass classes, so this answer is locomotor-independ
 three all 3x3 `=+= +++ =+=` with five transit-only cells each. `SUPPLYROUTE` is the one every
 player owns and clusters units around, which makes it the first place to look for an idle-bounce
 via `Mobile.OnBecomingIdle` (`Mobile.cs:941-948`).
+
+## 2026-08-22 — `RequiresForceFire` silently gags AUTO-target too, so `InitialStanceAI: FireAtWill` beside it was always inert
+
+Branch `wt/launcher-rightclick`. `RequiresForceFire` reads like a *player-input* rule ("this armament
+needs Ctrl+Alt"), and that is how the two launchers were configured: `iskander`
+(`vehicles-russia.yaml:999`) and `HIMARS` (`vehicles-america.yaml:1093`) each carried
+`InitialStance: HoldFire` + `InitialStanceAI: FireAtWill`, which reads as "players hold fire, bots
+shoot freely".
+
+It never meant that. The filter lives in `AttackBase.ChooseArmamentsForTarget`
+(`AttackBase.cs:460`, `!(a.Info.RequiresForceFire && !forceAttack)`), and **auto-target calls that
+method with `forceAttack: false`** (`AutoTarget.cs:1408` and `:1622`). So a force-fire-only armament
+returns no armaments to the auto-target scan, and a bot at `FireAtWill` never launched a single
+missile. The stance field was decorative for as long as `RequiresForceFire` sat below it.
+
+The transferable rule: **`RequiresForceFire` is an armament-level gate, not an input-level one — it
+disables autonomous fire as completely as `HoldFire` does.** Any actor pairing it with a permissive
+`InitialStanceAI` is describing a behaviour it does not have. When removing it, the stance beside it
+has to be re-decided in the same edit, or bot behaviour changes as an invisible side effect.
+
+## 2026-08-22 — A weapon's `MinRange` is not consulted at order time; the attack ACTIVITY enforces it by pathing back out
+
+Same branch, found while working out what a right-click on a too-close target does now that the
+launchers accept one. `AttackOrderTargeter`'s `CanTargetActor`/`CanTargetLocation` test **`MaxRange`
+only** (`AttackBase.cs:785`, `:827`) — a target well inside `MinRange` accepts the order and shows the
+ordinary attack cursor. Enforcement happens one layer down: `AttackFollow.AttackActivity.Tick`
+requires `IsInRange(pos, maxRange) && !IsInRange(pos, minRange)` (`AttackFollow.cs:421`) and otherwise
+queues `MoveWithinRange(target, minRange, maxRange)` (`:436`). That activity builds its candidate
+cells from `map.FindTilesInAnnulus(targetLocation, minCells, maxCells)` (`MoveWithinRange.cs:62`),
+i.e. the ring **`minRange`..`maxRange` from the target** — so a unit standing inside the minimum finds
+a non-empty search set *outward* and drives away to gain separation, then fires. It does not stall and
+it does not refuse.
+
+It gives up only on `move == null || maxRange == WDist.Zero || maxRange < minRange`
+(`MoveWithinRange`'s caller, `AttackFollow.cs:432`) — so an **immobile** actor with a minimum range,
+ordered at something too close, is the configuration that really does stall with no feedback.
+
+Worth knowing before "fixing" a min-range unit that appears to walk the wrong way: reversing out is
+the designed behaviour, and it already ships on every plain-right-clickable min-range unit
+(`GradRockets` `MinRange: 12c0`, `60mm_Mortar` `8c0` — neither carries `RequiresForceFire`).
+
+## 2026-08-22 — The bot fires-EV stance gate only ever touches `IndirectFireKind.Rocket`, which is decided by salvo `Burst >= 8`
+
+Same branch, checking whether a bot module would overwrite a stance set in YAML.
+`PoiOffensiveBotModule`'s EV gate is the only thing that writes `HoldFire`/`FireAtWill` onto artillery
+at runtime, and it is guarded by `resolver.GetIndirectKind(u) == IndirectFireKind.Rocket`
+(`PoiOffensiveBotModule.cs:3408`). That kind comes from `ClassifyIndirectKind`
+(`UnitRoleResolver.cs:315`): `MaxWeaponBurst >= RocketSalvoBurstFloor`, floor **8**
+(`UnitRoleResolver.cs:172`).
+
+So the split is not "is it artillery" but "does it fire a big salvo". `GradRockets` (`Burst: 40`) is
+Rocket; `IskanderTargeter`/`HIMARSTargeter` declare no `Burst` at all — default 1 — so both launchers
+classify **Tube** and the EV gate never touches them, despite being the most expensive ordnance in the
+game and the obvious candidates for an ammo-worth gate. `ai.yaml:580` names the intended members
+(Grad/TOS/M270) and matches.
+
+Two other stance writers were ruled out for these actors on the way past, both worth remembering:
+`UnitDefaultsManager` returns early on `local.IsBot` (`UnitDefaultsManager.cs:64`) so player unit
+defaults never reach bot units at all; and `LaneAmbushBotModule` recruits `UnitRole.IndirectFire`
+(`LaneAmbushBotModule.cs:580`) but gates first on `CanHostAmbush`, which demands a non-empty
+`AmbushTacticsCondition` (`:591-596`) — present on `^AutoTarget` (`defaults.yaml:344`) but **not** on
+the separate `^AutoTargetGround*` base (`defaults.yaml:590-597`), which is what both launchers inherit.

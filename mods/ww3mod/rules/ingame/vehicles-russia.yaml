@@ -996,14 +996,18 @@ iskander:
 	IndirectFire:
 	AutoTarget:
 		InitialStance: HoldFire
-		InitialStanceAI: FireAtWill
+		# Bots hold fire too. Until the armament's RequiresForceFire was dropped below, auto-target could
+		# never fire this weapon for ANYONE (ChooseArmamentsForTarget filters force-fire-only armaments
+		# when forceAttack is false — AttackBase.cs:460), so a FireAtWill bot never actually launched.
+		# Removing RequiresForceFire would have handed bots auto-launch as a side effect; this keeps their
+		# behaviour exactly as it shipped. Manager's addition, not the user's instruction.
+		InitialStanceAI: HoldFire
 	Passenger:
 		Voice: Move
 	Armament@1:
 		Weapon: IskanderTargeter
 		LocalOffset: -150,120,150, -150,-100,150 #BM - Where each missile spawns when fired (per barrel, in launcher-local coords). X=forward(+)/back(-), Y=right(+)/left(-), Z=up. Two barrels: right tube then left tube. Should match the WithWeaponOverlay positions below so the missile doesn't visually jump on launch.
 		PauseOnCondition: !ammo-primary || empdisable || unit.docked || heavy-damage-attained
-		RequiresForceFire: True
 		AimingDelay: 40
 	AmmoPool@1:
 		Name: primary-ammo
