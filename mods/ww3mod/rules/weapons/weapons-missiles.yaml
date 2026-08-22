@@ -382,7 +382,11 @@ IskanderTargeter:
 	Range: 50c0
 	MinRange: 16c0
 	BurstWait: 250
-	Report: vv3latta.aud, vv3lattb.aud
+	# No Report. This weapon is the launcher's dummy trigger: firing it spawns the IskanderMissile
+	# actor, which then spends 80 ticks erecting before the motor lights. A Report here would play
+	# 4.8s before anything leaves the tube. The launch sound lives on IskanderMissile's
+	# BallisticMissile.IgnitionSound instead. Inheritors that fire straight from the tube
+	# (PreLaunchTicks == 0) should set their own Report — see HIMARSTargeter.
 	Projectile: InstantHit
 	Warhead@Target: TargetDamage
 		ValidTargets: Ground, Water
@@ -400,6 +404,10 @@ HIMARSTargeter:
 	Inherits: IskanderTargeter
 	# Same stats as IskanderTargeter (Phase 1). Dedicated weapon so HIMARS-specific tuning
 	# can diverge later without affecting Iskander.
+	# HIMARSMissile sets no LaunchRiseTicks, so it ignites on its first tick in the world and a
+	# Report at armament-fire is correct to within one tick. Declared here rather than inherited
+	# because the Iskander, which does erect, must NOT have one.
+	Report: vv3latta.aud, vv3lattb.aud
 
 SurfaceToAirMissile:
 	Inherits@MediumAAMissileEffects: ^MediumExplosionEffectsAir

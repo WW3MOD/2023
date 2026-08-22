@@ -143,7 +143,7 @@ namespace OpenRA.Mods.Common.Activities
 			// The missile stays at spawnPos for launchRiseTicks + PostErectionWaitTicks ticks total.
 			// During the rise: tilts from horizontal toward the arc's initial pitch angle.
 			// After the rise: holds the erected pose until the wait period ends, then ignites.
-			var totalPrelaunchTicks = launchRiseTicks + sbm.Info.PostErectionWaitTicks;
+			var totalPrelaunchTicks = sbm.Info.PreLaunchTicks;
 			if (launchRiseTicks > 0 && ticks < totalPrelaunchTicks)
 			{
 				// Erection clamps to 1.0 once we're past launchRiseTicks (holding the erected pose).
