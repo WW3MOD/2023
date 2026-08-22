@@ -10065,3 +10065,47 @@ columns, and the four corner rects moved with it.
 over the one-cell ring, and the ring is already opaque from shroud in every configuration (traced
 above). The dependency is worth naming: if anything ever makes ring cells resolve to nonzero
 visibility, this becomes a visible change rather than a tidy-up.
+
+## 2026-08-22 — The map-edge black band is a MATCH bug, not a shellmap bug, and `bc22c9d6` only fixed the shellmap
+
+Measured on River Zeta's right edge (`MapSize: 98,82`, `Bounds: 1,1,96,80`, so the ring column is
+`x=97` and carries 74 authored actors — 47 `v17`, 14 `rice`, 13 trees). Four captures at identical
+framing (camera on cell 92,40; window pinned 1600x1000; three friendly `abrams` at `x=95` so a real
+render player actually has vision at the edge). Pixels sampled directly, not eyeballed.
+
+| # | code | Bounds | render player | screen x 900..945 |
+|---|---|---|---|---|
+| A | `2e2db01e` | 1,1,96,80 | null (world view) | lit to 934, black from 935 — **clean** |
+| B | `2e2db01e` | 1,1,96,80 | real, fog on | lit to 907, **black 908..931**, lit 932..934, black 935+ |
+| C | `2e2db01e` | 0,0,98,82 | real, fog on | lit to 934, black from 935 — **clean** |
+| D | `bc22c9d6~1` | 1,1,96,80 | null (world view) | row 500 byte-identical to A; row 350 **black from 908** |
+
+**A vs D is the verdict on `bc22c9d6`: it worked, and only for the case it named.** At row 500 the two
+frames are identical hex-for-hex across `908..934`, because that row's ring cell holds a `rice` sprite
+and actors draw *after* `DrawBeyondMapFog` — the black was there in D, just wallpapered. Row 350 has no
+ring actor, so D shows the bare band and A shows ground. That alternation — dark notches between
+stretches of field — is the reported screenshot, and `bc22c9d6` did remove it from the shellmap.
+
+**B vs C is the verdict on the actual bug.** Same binary, one variable — flipping `Bounds` back to the
+pre-`097738f4` value makes the band vanish in a fogged match. So `097738f4` (2026-08-17, the re-cordon)
+is the trigger, and it is still live on `main`: in a real match the ring is repainted opaque by
+*shroud*, three draw calls after `DrawBeyondMapFog` handed it its ground back.
+
+**The shroud trace in `bc22c9d6`'s message is CORRECT but the conclusion drawn from it is not.**
+`GetVisibility` (`engine/OpenRA.Game/Traits/Player/MapLayers.cs:659-693`) really does return 0 for every
+ring cell in every configuration — `ResolvedVisibility.Contains(puv)` is false and the `Disabled` branch
+is gated on `map.Contains(puv)`, which is `Bounds.Contains` (`Map.cs:1418-1421`). The commit read that
+as *"invisible in a match"*. It is the opposite: visibility 0 means the shroud paints it **opaque
+black**, and that opaque black IS the band being complained about. A cell being uniformly black is not
+the same as a cell not being drawn.
+
+**Second, separate defect: a 3-pixel unshrouded sliver.** In B the shroud stops at 931 while the ring
+cell runs to 934 (one cell measures 27 screen px in this framing: the `Bounds`-anchored fill in D
+starts at 908, the `MapSize`-anchored fill in A starts at 935). Those 3 px render at full brightness
+against black on both sides — a bright hairline down the whole edge. It only appears on rows whose ring
+cell has an actor sprite, so it tracks sprite pixels rather than terrain. Not explained; see below.
+
+**Not verified.** Why the shroud sprite covers 24 px of a 27 px cell. Whether the shellmap proper
+(`WorldType.Shellmap`) takes the same path as the TestMode world view — A is a render-player-null frame,
+which is the same branch, but it is not literally a shellmap frame. And only the right edge was
+measured; the other three are assumed symmetric on the strength of the `Bounds` arithmetic alone.
