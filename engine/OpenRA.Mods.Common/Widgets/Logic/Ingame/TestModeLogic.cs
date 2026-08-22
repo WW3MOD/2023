@@ -27,7 +27,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic.Ingame
 			// no unit is hidden. Each player's own shroud/MapLayers — which the AI and the
 			// verdict read — are untouched. Only for a real player slot (autotests);
 			// spectator/tournament clients (LocalPlayer null) keep their observer default.
-			if (world.LocalPlayer != null && !world.LocalPlayer.Spectating)
+			if (world.LocalPlayer != null && !world.LocalPlayer.Spectating && !TestMode.KeepRenderPlayer)
 				world.RenderPlayer = null;
 
 			var nameLabel = widget.GetOrNull<LabelWidget>("TEST_NAME");

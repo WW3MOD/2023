@@ -33,6 +33,10 @@ namespace OpenRA
 		// simulate input. Set via Test.OpenSkirmishLobby=true launch arg.
 		public static bool OpenSkirmishLobby { get; private set; }
 
+		// Investigation scaffolding: keep the autotest's real RenderPlayer instead of the
+		// full-map world view, so a capture shows what a fogged player actually sees.
+		public static bool KeepRenderPlayer { get; private set; }
+
 		// Tab to switch to once the lobby is open. "Match" (default) | "Advanced" | "Music".
 		// LobbyLogic checks this once after constructing the panel. Set via
 		// Test.OpenLobbyTab=Advanced launch arg.
@@ -165,6 +169,7 @@ namespace OpenRA
 			Description = args.GetValue("Test.Description", "");
 			ResultPath = args.GetValue("Test.ResultPath",
 				Path.Combine(Platform.SupportDir, "ww3mod-test-result.json"));
+			KeepRenderPlayer = string.Equals(args.GetValue("Test.KeepRenderPlayer", null), "true", StringComparison.OrdinalIgnoreCase);
 			TournamentConfigPath = args.GetValue("Test.TournamentConfig", null);
 			GameSpeedOverride = args.GetValue("Test.GameSpeed", null);
 
