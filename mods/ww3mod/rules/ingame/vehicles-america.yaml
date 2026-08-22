@@ -1090,12 +1090,13 @@ HIMARS:
 	IndirectFire:
 	AutoTarget:
 		InitialStance: HoldFire
-		InitialStanceAI: FireAtWill
+		# Bots hold fire too — see the matching note on `iskander` (vehicles-russia.yaml). Dropping the
+		# armament's RequiresForceFire below would otherwise hand bots auto-launch they never had.
+		InitialStanceAI: HoldFire
 	Armament@1:
 		Weapon: HIMARSTargeter
 		LocalOffset: 192,-64,176, 192,64,176 #BM - Where each rocket spawns when fired (per barrel, in turret-local coords). X=forward(+), Y=right(+)/left(-), Z=up. Two barrels alternate. Combined with the Turreted Offset (-300,0,150), the actual world spawn point is back+up of the vehicle center.
 		PauseOnCondition: !ammo-primary || empdisable || unit.docked || heavy-damage-attained
-		RequiresForceFire: True
 		AimingDelay: 40
 		# As M270 — the existing WithMuzzleOverlay had no armament to draw for.
 		MuzzleSequence: muzzle-missile
