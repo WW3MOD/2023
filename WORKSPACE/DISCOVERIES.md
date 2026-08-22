@@ -8882,3 +8882,55 @@ The player report is *"vehicles ordered to a position, when they get there they 
 Aircraft are exempt from all of the above: they do not use `Mobile`, and `AutoRearmIfDry` early-returns on `AircraftInfo`.
 
 Proof artifact: `engine/OpenRA.Test/OpenRA.Mods.Common/TransitOnlyServiceHostTest.cs`. Its two non-vacuity guards run always; the invariant assertion is `[Explicit]` because it currently fails and both candidate fixes are gameplay-data decisions (`+`→`=` makes the depot occupy nothing and stop blocking; `+`→`x` breaks the docking drive-on repair depends on).
+## 2026-08-22 — AA double-launch is a class; the audit is interval-vs-lifetime, and Penetration decides who is exempt
+
+Second report of an AA unit firing two homing missiles at one target (Tunguska, after the Stryker SHORAD a
+night earlier). Swept every weapon in `mods/ww3mod/rules/weapons/` with `Projectile: Missile` and `Air` in
+`ValidTargets`. Findings below; the method is the reusable part.
+
+**1. With `Burst: 1`, `BurstWait` IS the inter-shot interval and `BurstDelays` is dead code.**
+`WeaponInfo.cs:113` defaults `Burst` to 1. `Armament.UpdateBurst` (`Armament.cs:651-674`) runs `--Burst < 1`
+after every shot, which at `Burst: 1` is always true, so it takes the `SetBurstWait(Weapon.BurstWait)` branch
+every time and the `BurstDelays` branch at `:669-672` is unreachable. **The two reported bugs came through
+different fields for exactly this reason** — the SHORAD had `Burst: 2` and was spaced by `BurstDelays`
+(intra-burst), the Tunguska has `Burst: 1` and is spaced by `BurstWait` (inter-burst). Same cause. When
+auditing a weapon's cadence, resolve `Burst` FIRST; it decides which field you are even allowed to read.
+
+**2. Max missile lifetime is computable and is the correct interval floor.**
+`Missile.cs:538` adds `Acceleration` per tick clamped to `Speed`, starting at `MaximumLaunchSpeed`;
+`:1159` accumulates `distanceCovered` and `:1164` detonates the tick it strictly exceeds `RangeLimit`.
+`ExplodeWhenEmpty` **defaults to true** (`:120`), so the cull applies even where the YAML is silent, and
+`:305` falls back to the weapon's `Range` when `RangeLimit` is unset. Simulating that loop gives a hard
+ceiling no geometry can exceed. Computed: 9M311 58, Stinger 58, AirToAirMissile 48, SurfaceToAirMissile 55,
+Ataka.AA 61, Hellfire 61, MANPAD 63, TimerWolf_Missiles 45. At `Timestep: 60` (`mod.yaml:381`) =
+16.67 tps, 58 ticks is 3.48 s.
+
+**3. THE NON-OBVIOUS PART: half these weapons are exempt because they cannot one-shot, and the reason is an
+unset `Penetration`.** Widening an interval is only correct if missile one is lethal; otherwise a fast
+second launch is legitimate and "fixing" it is a nerf. `DamageWarhead.cs:24` defaults `Penetration` to **1**,
+and `:222-231` scales `damage = damage * penetration / thickness` whenever `penetration < Armor.Thickness`
+(skipped entirely when `Thickness` is 0). So:
+
+| weapon | Damage | Pen | vs Heavy aircraft (800 HP, Thickness 20) | verdict |
+|---|---|---|---|---|
+| `9M311` / `Stinger` | 5000 | **20** | full 5000 — 6x margin | one-shot; interval must exceed lifetime |
+| `Ataka.AA` | 2000 | **20** | full 2000 | one-shot on a direct hit only |
+| `AirToAirMissile` | 1000+rand | *unset → 1* | 50-99 | **needs 8-16**; vs its real duel partner the F-16 (400 HP/Thickness 10) 3-4 |
+| `SurfaceToAirMissile[.double]` | 2000+rand | *unset → 1* | 100-149 | **needs 6-8** |
+
+`AirToAirMissile` and `SurfaceToAirMissile` were left alone for this reason — their short intervals are
+load-bearing, not a bug. **Two AA missiles silently doing ~1/20th of their printed damage is a balance
+finding in its own right and is NOT fixed here** — raising their `Penetration` would be a large, unmeasured
+combat change. Logged to `WORKSPACE/bugs/discovered.md`.
+
+Incidental, same root: the MiG-29 has `Armor: Type: Medium` with **no `Thickness`**
+(`mods/ww3mod/rules/ingame/aircraft-russia.yaml:596`) while the F-16 it duels has `Thickness: 10`
+(`aircraft-america.yaml:577`). Thickness 0 skips the scaling block outright, so the MiG takes 10-20x more
+damage from every Pen-1 weapon than its counterpart. Looks like an authoring omission.
+
+**4. `test-shorad-single-missile` does not load in the committed tree.** Its `rules.yaml` says
+`STRYKERSHORAD:` where the actor is lowercase `strykershorad`, producing
+`LoadFromManifest<Rules>, duplicate values found for the following keys: strykershorad` from
+`./utility.sh --check-yaml` — the exact case trap `CLAUDE.md` warns about, confirmed live. A fix is
+uncommitted in the main checkout's working tree, so this is known; noting it because the scenario was
+believed to be passing.
