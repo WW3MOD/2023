@@ -9030,3 +9030,68 @@ A second vehicle that reaches adjacency and finds the dock cell occupied returns
 **The existing suite cannot catch this regression, which is how it nearly shipped.** `test-lc-rearm-partial-order` has four subjects: `Rifleman` (`ar`) at `InfDepot`, `Bradley` at `VehDepot`, and `PairA`/`PairB` (both `ar`) sharing `OffsetDepot`. **The only contention case is two INFANTRY on one depot, and infantry share a cell via subcells — a different mechanism entirely. The single vehicle has a depot to itself.** So there is no two-vehicles-one-depot case anywhere in the suite. Its pass condition is also `ammo >= Full and IsIdle` (`:159`), with the running-minimum `ClosestCells` feeding only the failure-report string (`:170-171`) — so it would have stayed green through the footprint change while the game acquired a hard stall.
 
 **Autotest scenario Lua can now be parsed without launching a game.** No `luac` or interpreter exists on the box and `engine/lua/` holds only helper scripts, but `OpenRA.Game` pulls in `OpenRA-Eluant` and `engine/bin/lua51.dylib` ships, so the engine's own Lua 5.1 parser is reachable from NUnit. `ScenarioLuaParsesTest` compiles every `tools/autotest/scenarios/**/*.lua`, wrapping each chunk as a function body (`"return function()\n" + src + "\nend"`) so the tokens are parsed but nothing executes — scenario top-levels assign globals and touch harness tables that do not exist outside a game, so `DoBuffer` on the raw text would fail for the wrong reason. Verified RED against a planted `//`: *"unexpected symbol near '/'"*. This matters because a syntax error is otherwise invisible until launch, where it presents as `TIMEOUT-FAIL`/`NO-RESULT` — indistinguishable from a scenario that merely failed to reach its assertion, and it costs a serialized run slot to discover.
+## 2026-08-22 — target lines: null draws NOTHING, and the "blue automatic line" was never a colour
+
+Four findings from making automatic orders legible. All four are *silent* — nothing logs, lints or fails.
+
+**1. A null `targetLineColor` draws NO LINE AT ALL. It is not a fallback to a default colour.**
+`Move.TargetLineNodes` (`engine/OpenRA.Mods.Common/Activities/Move/Move.cs:453`) and the equivalent in
+`Attack.cs` both guard `if (targetLineColor != null)` before yielding, and `Activity.TargetLineNodes`
+(`engine/OpenRA.Game/Activities/Activity.cs:272`) is `yield break`. So every call site that omitted the
+argument produced a unit that moves or opens fire with **zero** on-screen explanation — that was
+`AutoTarget`'s attacks (`AutoTarget.cs:1194`, via `AttackBase.AttackTarget`'s defaulted parameter),
+`Mobile`'s idle-cell correction (`Mobile.cs:945,956`), `ScaredyCat` (`:164`),
+`StancePositioningExecutor` (`:414`) and aircraft RTB. **If you are wondering why a unit moved and there
+was no line, the answer may be that there was never going to be one.**
+
+**2. The "blue line for automatic heal orders" was `self.Owner.Color` — the player's own colour.**
+`AutoFollowAlly.cs:138`. It looked blue only because that player was blue. A player who picks green in
+the lobby got a line identical to `MobileInfo.TargetLineColor` (`Mobile.cs:80`, `Color.Green`); one who
+picks red collided with `AttackBaseInfo.TargetLineColor` (`AttackBase.cs:28`, `Color.Crimson`). It
+carried no semantics whatsoever. Do not cite it as precedent for "blue means automatic".
+
+**3. Target lines render ONLY for selected actors, and time out 2400ms after *selection*.**
+Two independent gates, easy to conflate. The lines come from `IRenderAnnotationsWhenSelected`, which
+`WorldRenderer.cs:277-290` walks over `World.Selection.Actors` only (plus everything friendly while
+`ShowAllOrders` — spacebar — is held). *On top of that*, `DrawLineToTarget.ShouldRender` requires
+`Game.RunTime <= lifetime`, and `lifetime` is re-armed only by `LineTargetExts.ShowTargetLines` (called
+from order resolution) or by `INotifySelected.Selected`. Consequence: **selecting a unit to find out
+where it is going buys exactly `Delay` ms of answer, then goes dark while the unit is still walking.**
+Automatic sources mostly never call `ShowTargetLines` at all — `AutoFollowAlly`, `Wanders` and
+`AutoCarryall` have zero references to it, though `AutoSeekSupplies` (`:203,:302`) and `AmmoPool`
+(`:604,:619`) do.
+
+**4. `AttackSource` already encodes order provenance, and nothing was using it for display.**
+`AttackBase.cs:12` — `enum AttackSource { Default, AutoTarget, AttackMove }`, with a ready-made predicate
+`AutoTarget.IsAutoAcquiredSource` (`AutoTarget.cs:1068`) and a second consumer in
+`AttackBase.BreakOffApplies` (`:662`). Provenance and colour already travel side by side down
+`GetAttackActivity(self, source, target, allowMove, forceAttack, targetLineColor)`. There is **no**
+equivalent for moves: `Order` carries no provenance flag, and `IMoveInfo.GetTargetLineColor()`
+(`TraitsInterfaces.cs:607`) takes no arguments, so it physically cannot distinguish caller intent.
+
+## 2026-08-22 — `WithHealFlash` shipped invisible, and `pip-heal` art was sitting unused
+
+The user reported "no effect when medics heal". The effect **already existed and was already applied**:
+`WithHealFlash` (`engine/OpenRA.Mods.Common/Traits/Render/WithHealFlash.cs`, commit `82938ec8`,
+2026-03-28) on `^ExistsInWorld` at `mods/ww3mod/rules/defaults.yaml:9` with no overrides. Its defaults
+made it imperceptible: white at `Alpha: 0.3`, `Count: 2`, `Interval: 2`.
+
+**The Interval field is the strobe/glow switch and it is not obvious.** `FlashTarget.Render`
+(`engine/OpenRA.Mods.Common/Effects/FlashTarget.cs:64`) tints only when `tick % interval == 0`, and the
+effect lives for `count * interval` ticks. So `Count: 2, Interval: 2` is **two single-tick tints 120ms
+apart**, not 240ms of tint — at `Timestep: 60` a tick is 60ms. `Interval: 1` is the only way to get a
+continuous glow. A feature can be fully wired, lint-clean and still invisible; **before building a visual
+effect, check whether one is already mounted and merely tuned to nothing.**
+
+Two more, both cheap to trip over:
+
+- **`pip-heal` art already ships and was referenced by nothing.** Sequence at
+  `mods/ww3mod/sequences/sequences-misc.yaml:198`, backed by real
+  `mods/ww3mod/bits/units/pips/pip-heal.shp`. Grep the pips set before commissioning pip art.
+- **`GrantConditionOnHealingReceived` cannot fire in this mod.** Its `DamageTypes` is
+  `[FieldLoader.Require]` (`Conditions/GrantConditionOnHealingReceived.cs:32-34`) and it tests
+  `Overlaps`, but the `Heal` and `Repair` warheads (`weapons/weapons-other.yaml:339,:352`) declare no
+  `DamageTypes` at all, so the overlap can never succeed. Its `MinimumHealing: 1000` default is also far
+  above a 5% infantry heal. Detecting healing by the **sign** of `AttackInfo.Damage.Value` is what works
+  — and it picks up non-weapon healers (`RepairsUnits` service depots) for free. Note `0` is NOT healing:
+  `ReplenishSoldiersTargeter` (`weapons-other.yaml:367`) fires `DamagePercent: 0` at allies.

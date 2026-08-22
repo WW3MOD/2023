@@ -146,7 +146,7 @@ namespace OpenRA.Mods.Common.Traits
 			// disagree. Change either one and the medic starts trading walk orders with attack orders every
 			// idle tick — which looks precisely like the aimless shuffling this trait exists to prevent.
 			self.QueueActivity(false, move.MoveWithinRange(Target.FromActor(target), range,
-				targetLineColor: self.Owner.Color));
+				targetLineColor: AutomaticOrder.LineColor));
 		}
 
 		/// <summary>Watch for a follow that is making no progress and break out of it. Returns true if the

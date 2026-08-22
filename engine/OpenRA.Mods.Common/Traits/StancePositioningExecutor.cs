@@ -411,7 +411,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			CommitManagement(dest, tick);
 			State = AdjustmentState.Adjusting;
-			self.QueueActivity(new Move(self, dest));
+			self.QueueActivity(new Move(self, dest, WDist.Zero, null, false, AutomaticOrder.LineColor));
 		}
 
 		// Idle + we had a target: did we arrive where we intended, or did something else move us?
