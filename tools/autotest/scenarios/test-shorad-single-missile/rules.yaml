@@ -22,7 +22,7 @@ World:
 # first launch is small and predictable. It cannot bias the result either way:
 # every tick this test asserts on is measured RELATIVE TO THE FIRST LAUNCH, so
 # a slow or fast acquisition shifts the whole rung and cancels out.
-STRYKERSHORAD:
+strykershorad:
 	AutoTarget:
 		ScanRadius: 30
 		InitialStance: FireAtWill
