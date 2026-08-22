@@ -3260,3 +3260,38 @@ Related stale text at the same actor: `Armament@1` is `Weapon: 25mm.Bradley # 30
 -- the comment names a weapon the armament does not use.
 
 READ. Confirm by: opening the build sidebar and reading the tooltip.
+
+## 2026-08-22: [high] `AirToAirMissile` and `SurfaceToAirMissile` never set `Penetration`, so they do ~1/20th of their printed damage to armoured aircraft (found while: the AA inter-shot-interval sweep, branch `wt/aa-interval`, `main @ 84328dcc`)
+
+`DamageWarhead.cs:24` defaults `Penetration` to **1**, and `:222-231` applies
+`damage = damage * penetration / thickness` whenever `penetration < Armor.Thickness`. Neither of these two
+weapons declares `Penetration`, so both inherit 1:
+
+- `AirToAirMissile` (`mods/ww3mod/rules/weapons/weapons-missiles.yaml`, `Warhead@Spread` Damage 1000 +
+  `RandomDamageAddition: 1000`) — vs the F-16 it actually duels (400 HP, `Armor: Medium/Thickness: 10`,
+  `aircraft-america.yaml:575-577`) it lands **100-199 per missile, so 3-4 missiles per kill**. Against a
+  Heavy/Thickness-20 aircraft it is 50-99, i.e. 8-16 missiles.
+- `SurfaceToAirMissile` / `.double` (Damage 2000 + rand 1000), mounted on a defence structure at
+  `mods/ww3mod/rules/ingame/structures-defenses.yaml:799` — vs an 800 HP Heavy/Thickness-20 helicopter it
+  lands **100-149, so 6-8 missiles per kill**.
+
+By contrast `Stinger` / `9M311` set `Penetration: 20` and take full 5000 damage against every air target in
+the mod. That single field is the whole difference between a one-shot AA missile and one that needs eight.
+
+Consequence beyond the damage itself: these two are the reason the AA double-launch fix
+(`9M311` `BurstWait: 40 -> 58`) was NOT applied to them. Their short intervals are currently load-bearing —
+a SAM site that needs 6-8 missiles legitimately must fire fast. **If someone raises their `Penetration`,
+their intervals must be re-audited against missile lifetime in the same pass** (48 ticks for
+`AirToAirMissile`, 55 for `SurfaceToAirMissile`), or the fix will re-introduce the overkill bug on the
+weapons currently exempt from it.
+
+Not fixed here: raising `Penetration` is a large unmeasured combat change and needs the combat-sim
+(`tools/combat-sim/`) plus a balance pass, not a one-line YAML edit inside a timing branch.
+
+Related, same root: the MiG-29 has `Armor: Type: Medium` with **no `Thickness`**
+(`aircraft-russia.yaml:596`) where the F-16 has `Thickness: 10` (`aircraft-america.yaml:577`). Thickness 0
+skips the scaling block entirely, so the MiG takes 10-20x more damage from every Pen-1 weapon than the
+aircraft it is matched against. Almost certainly an authoring omission rather than a design choice.
+
+READ. Confirm by: `grep -n "Penetration" mods/ww3mod/rules/weapons/weapons-missiles.yaml` and checking
+which AA warheads are absent from the output.

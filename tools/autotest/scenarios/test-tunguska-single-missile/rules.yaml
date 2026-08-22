@@ -1,0 +1,74 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-tunguska-single-missile.lua
+
+# Lowercase `tunguska` matches vehicles-russia.yaml:830. The mod is inconsistent
+# about actor-name case and a mismatch silently creates a DUPLICATE actor rather
+# than overriding this one, which fails at load.
+#
+# Nothing here alters Burst, BurstWait, BurstDelays, Magazine, ReloadDelay, ammo
+# counts or the 9M311 weapon -- those are the quantities under measurement and
+# the test must read whatever weapons-missiles.yaml ships.
+tunguska:
+	# THE ONE EDIT THAT MATTERS, AND WHY THIS SCENARIO NEEDS IT WHERE THE SHORAD
+	# ONE DID NOT. The Tunguska carries a second AA weapon the Stryker has no
+	# equivalent of: Armament@1_Air / `primary-air` firing 30mm.Tunguska.AA,
+	# whose ValidTargets is `Helicopter` at Range: 18c0. The Stryker's 25mm
+	# inherits ^30mm (ValidTargets: Infantry, Vehicle, Defense) and physically
+	# cannot engage an aircraft, which is why test-shorad-single-missile could
+	# leave its shooter's armaments alone and merely ASSERT that primary ammo
+	# never moved.
+	#
+	# Here that assertion would not be enough. At the 10c and 15c rungs the
+	# Chinook sits inside 18 cells, so the cannon would open up and could land
+	# the killing burst before missile two is even due -- turning the two rungs
+	# where the bug bites hardest into a green that measures nothing. Restricting
+	# AttackTurreted to `secondary` removes the cannon from target acquisition
+	# entirely, so the only thing that can kill the target is the missile under
+	# test.
+	#
+	# This touches acquisition, not timing: the armaments still exist (AmmoPool@1
+	# and GrantConditionOnPreparingAttack@1 keep their references intact), they
+	# are simply never selected to fire. The Lua still faults if primary ammo
+	# moves, as a guard against this override silently failing to apply.
+	AttackTurreted:
+		Armaments: secondary
+	# Pinned short so the acquisition delay in front of the first launch is small
+	# and predictable. It cannot bias the result either way: every tick this test
+	# asserts on is measured RELATIVE TO THE FIRST LAUNCH, so a slow or fast
+	# acquisition shifts the whole rung and cancels out.
+	AutoTarget:
+		ScanRadius: 30
+		InitialStance: FireAtWill
+		InitialEngagementStance: Defensive
+		MinimumScanTimeInterval: 16
+		MaximumScanTimeInterval: 32
+
+# THE CHINOOK IS DELIBERATELY LEFT COMPLETELY STOCK -- no `TRAN:` block.
+#
+# Its stock 600 HP dying to a single 9M311 is not incidental to this test, it IS
+# the premise. 9M311 inherits Stinger's warhead untouched: 5000 damage at
+# Penetration 20 (weapons-missiles.yaml:547-550). DamageWarhead.cs:229 only
+# divides damage down when Penetration < Armor.Thickness, and the Chinook's
+# armour is Light/Thickness 10 (aircraft-america.yaml:36-39), so 20 >= 10 and the
+# full 5000 lands against 600 HP -- an eight-fold margin that survives any
+# falloff. Raising HP (as test-aa-overkill-pump does, for its own good reasons)
+# would let the target survive and silently convert every rung into a legitimate
+# two-missile engagement -- a green that measures nothing.
+#
+# TRAN is also unarmed (aircraft-america.yaml:26), so nothing on this map can
+# shoot back at the shooter. HeliEmergencyLanding and ChangesHealth@CrashBurn are
+# left in place for the same reason the SHORAD scenario leaves them: stripping
+# them would leave crash-disabled / autorotation / crash-landing consumed but
+# ungranted, which is a lint-baseline entry this scenario has no need to add.

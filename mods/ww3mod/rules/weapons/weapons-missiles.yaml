@@ -590,4 +590,34 @@ Stinger.quad:
 
 9M311:
 	Inherits: Stinger
-	BurstWait: 40
+	# 260822: 40 -> 58. Same bug the SHORAD's Stinger.quad had above, arriving
+	# through a different field. 9M311 does not override Burst, so it takes
+	# WeaponInfo.cs:113's default of 1 -- and with Burst: 1 the `--Burst < 1`
+	# branch at Armament.cs:655 is taken on EVERY shot, so BurstDelays is
+	# unreachable and BurstWait alone is the gap between consecutive missiles.
+	# There is nothing else in the chain either: 9M311 sets no Magazine and no
+	# ReloadDelay, so 40 ticks (2.4 s at Timestep: 60 = 16.67 tps) was the whole
+	# interval, against a missile that can stay airborne for 58 (3.48 s).
+	#
+	# 58 is the missile's MAXIMUM POSSIBLE LIFETIME, derived rather than guessed,
+	# and it is the same 58 as Stinger.quad because 9M311 inherits Stinger's
+	# projectile untouched: Missile.cs:538 adds Acceleration (35) per tick clamped
+	# to Speed (600) from MaximumLaunchSpeed (50), so cumulative distance is 4950
+	# by tick 15 and 5550 + 600*(n-16) after; Missile.cs:1159,1164 detonates the
+	# tick distanceCovered passes RangeLimit (30c0 = 30720), which is tick 58
+	# (5550 + 600*42 = 30750). ExplodeWhenEmpty defaults true (Missile.cs:120) and
+	# Stinger sets it explicitly, so that cull really applies.
+	#
+	# WHY THE SECOND MISSILE IS WASTE AND NOT INSURANCE. 9M311 inherits Stinger's
+	# warhead: 5000 damage at Penetration 20. DamageWarhead.cs:229 only divides
+	# damage down when Penetration < Armor.Thickness, and no aircraft in the mod
+	# exceeds Thickness 20 or 800 HP, so one hit kills any air target outright
+	# with a 6x margin. The kill RATE is therefore unchanged -- each kill already
+	# needed exactly one missile -- while the 8-round pool
+	# (vehicles-russia.yaml:906) now buys 8 kills instead of 4.
+	#
+	# No BurstWait/BurstDelays boundary to respect here, unlike Stinger.quad:
+	# Armament.cs:367's stale-burst rearm fires when the idle gap exceeds
+	# BurstWait, but with Burst: 1 the burst counter is reset to 1 after every
+	# shot regardless, so that path is a no-op for this weapon.
+	BurstWait: 58
