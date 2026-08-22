@@ -727,6 +727,29 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return cells.ToArray();
 		}
 
+		[Desc("The subset of `actor`'s target-line cells whose node is painted in AutomaticOrder.LineColor " +
+			"— the one colour meaning \"the GAME issued this, not the player\". Compare against " +
+			"GetTargetLineCells to assert not merely THAT a self-issued move draws a line, but that the " +
+			"line is marked automatic: a regression painting it in the ordinary move colour would still " +
+			"return a node from GetTargetLineCells and pass a count-only check, while reading to the " +
+			"player as an order they never gave. Node colour is otherwise unreachable from Lua, because " +
+			"GetTargetLineCells returns cells only. Test mode only.")]
+		public CPos[] GetAutomaticTargetLineCells(Actor actor)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return Array.Empty<CPos>();
+
+			var cells = new List<CPos>();
+
+			for (var a = actor.CurrentActivity; a != null; a = a.NextActivity)
+				if (!a.IsCanceling)
+					foreach (var n in a.TargetLineNodes(actor))
+						if (n.Target.Type != TargetType.Invalid && n.Tile == null && AutomaticOrder.IsAutomatic(n.Color))
+							cells.Add(actor.World.Map.CellContaining(n.Target.CenterPosition));
+
+			return cells.ToArray();
+		}
+
 		[Desc("Issue the deploy order that the command bar's Deploy button — and its hotkey — produce, " +
 			"through IIssueDeployOrder exactly as CommandBarLogic.PerformDeployOrderOnSelection does. " +
 			"`queued` is the Shift modifier. There is no activity-direct equivalent worth using here: " +
