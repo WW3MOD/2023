@@ -1,0 +1,74 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Serviced Tank Vacates The Dock Unordered (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# The depot is the whole point. LOGISTICSCENTER is Dimensions 3,3 with
+	# Footprint: =+= +++ =+= (structures.yaml:366), so placed at 32,16 it covers
+	# 32..34 x 16..18 and its CENTRE cell (33,17) is a '+' —
+	# FootprintCellType.OccupiedPassableTransitOnly. Resupply.cs:274 docks a
+	# Repairable unit on the host CENTRE via MoveOntoTarget, so the tank comes to
+	# rest on a cell Locomotor.CanStayInCell reports false for.
+	Depot: logisticscenter
+		Owner: USA
+		Location: 32,16
+	# Lowercase actor name deliberately: overrides merge case-sensitively and the
+	# shipped key is `abrams`. `Abrams` would define a NEW actor, not this one.
+	# ^Vehicle carries Repairable (vehicles.yaml:57), so this docks rather than
+	# standing off the way a RepairableNear unit would.
+	# 12 cells west of the depot: far enough that the approach is a real drive, so a
+	# failure to arrive is visible as a timeout rather than being masked by adjacency.
+	Tank: abrams
+		Owner: USA
+		Location: 20,17
+		Facing: 512
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 20,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+
+Rules: rules.yaml
