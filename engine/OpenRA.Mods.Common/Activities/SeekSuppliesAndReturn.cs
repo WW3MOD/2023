@@ -136,7 +136,7 @@ namespace OpenRA.Mods.Common.Activities
 					if (!childQueued)
 					{
 						QueueChild(move.MoveWithinRange(Target.FromActor(provider), providerTrait.Info.Range,
-							targetLineColor: moveInfo.GetTargetLineColor()));
+							targetLineColor: AutomaticOrder.LineColor));
 						childQueued = true;
 						approachAttempts++;
 					}
@@ -176,7 +176,7 @@ namespace OpenRA.Mods.Common.Activities
 				case SupplyHuntState.Returning:
 					if (!childQueued)
 					{
-						QueueChild(move.MoveTo(origin, HomeNearEnough, targetLineColor: moveInfo.GetTargetLineColor()));
+						QueueChild(move.MoveTo(origin, HomeNearEnough, targetLineColor: AutomaticOrder.LineColor));
 						childQueued = true;
 					}
 
@@ -196,9 +196,9 @@ namespace OpenRA.Mods.Common.Activities
 			// Standard target line, so a human player can see where a unit that walked off on its
 			// own is going and why.
 			if (state == SupplyHuntState.Returning || state == SupplyHuntState.Done)
-				yield return new TargetLineNode(Target.FromCell(self.World, origin), moveInfo.GetTargetLineColor());
+				yield return new TargetLineNode(Target.FromCell(self.World, origin), AutomaticOrder.LineColor);
 			else if (provider != null && !provider.IsDead && provider.IsInWorld)
-				yield return new TargetLineNode(Target.FromActor(provider), moveInfo.GetTargetLineColor());
+				yield return new TargetLineNode(Target.FromActor(provider), AutomaticOrder.LineColor);
 		}
 	}
 }

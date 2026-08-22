@@ -112,7 +112,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public virtual void DoAction(Actor self, CPos targetCell)
 		{
-			self.QueueActivity(Move.MoveTo(targetCell, targetLineColor: moveInfo.GetTargetLineColor()));
+			self.QueueActivity(Move.MoveTo(targetCell, targetLineColor: AutomaticOrder.LineColor));
 		}
 	}
 }

@@ -135,7 +135,7 @@ namespace OpenRA.Mods.Common.Traits
 			// solely from the idle path: a player order makes the actor non-idle, which silences this
 			// trait entirely until the order ends. Do not move this dispatch off TickIdle.
 			self.QueueActivity(false, move.MoveWithinRange(Target.FromActor(target), range,
-				targetLineColor: self.Owner.Color));
+				targetLineColor: AutomaticOrder.LineColor));
 		}
 
 		/// <summary>Watch for a follow that is making no progress and break out of it. Returns true if the

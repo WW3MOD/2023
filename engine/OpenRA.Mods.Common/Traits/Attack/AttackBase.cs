@@ -672,6 +672,16 @@ namespace OpenRA.Mods.Common.Traits
 			if (!target.IsValidFor(self))
 				return;
 
+			// An engagement the unit picked for itself draws as an automatic order. AttackSource has
+			// carried that provenance since it was introduced and travels down this very signature beside
+			// the colour — the two were simply never connected. Only fills a colour the caller left unset,
+			// so an explicit choice still wins (the player's own crimson line, ResolveOrder above).
+			// Note this ADDS lines rather than recolouring them: auto-acquired attacks passed null, and a
+			// null colour yields no TargetLineNode at all (Attack.cs), so until now a unit that opened
+			// fire on its own initiative did so with no on-screen explanation whatever.
+			if (targetLineColor == null && AutoTarget.IsAutoAcquiredSource(source))
+				targetLineColor = AutomaticOrder.LineColor;
+
 			var activity = GetAttackActivity(self, source, target, allowMove, forceAttack, targetLineColor);
 			self.QueueActivity(queued, activity);
 			OnResolveAttackOrder(self, activity, target, queued, forceAttack);

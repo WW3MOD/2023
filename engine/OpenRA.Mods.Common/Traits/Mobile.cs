@@ -943,7 +943,7 @@ namespace OpenRA.Mods.Common.Traits
 				// Make sure that units aren't left idling in a transit-only cell
 				// HACK: activities should be making sure that this can't happen in the first place!
 				if (!Locomotor.CanStayInCell(self.Location))
-					self.QueueActivity(MoveTo(self.Location, evaluateNearestMovableCell: true));
+					self.QueueActivity(MoveTo(self.Location, evaluateNearestMovableCell: true, targetLineColor: AutomaticOrder.LineColor));
 				return;
 			}
 
@@ -953,7 +953,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var moveTo = ClosestGroundCell();
 			if (moveTo != null)
-				self.QueueActivity(MoveTo(moveTo.Value, 0));
+				self.QueueActivity(MoveTo(moveTo.Value, 0, targetLineColor: AutomaticOrder.LineColor));
 		}
 
 		void INotifyBlockingMove.OnNotifyBlockingMove(Actor self, Actor blocking)

@@ -161,7 +161,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Note: This is just a modified copy of Mobile.Nudge
 			var cell = mobile.GetAdjacentCell(self.Location, avoidTerrainFilter);
 			if (cell != null)
-				self.QueueActivity(false, mobile.MoveTo(cell.Value, 0));
+				self.QueueActivity(false, mobile.MoveTo(cell.Value, 0, targetLineColor: AutomaticOrder.LineColor));
 		}
 
 		// PITFALL: do not hoist an IsTraitDisabled check above these SharedRandom draws. Panic() does the
