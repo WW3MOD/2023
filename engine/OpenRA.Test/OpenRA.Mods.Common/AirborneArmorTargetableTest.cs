@@ -293,14 +293,51 @@ namespace OpenRA.Test
 			// unlike the armour class. Gating armour must not take rotorcraft out of small-arms reach.
 			var actors = Airframes();
 
+			// 5.56mm is deliberately NOT in this list — USER RULING 2026-08-22 moved it off the ungated
+			// `Helicopter` type and onto the airborne armour classes, so it reaches light rotorcraft only.
+			// See RiflesCannotReachHelicoptersTheyCannotPenetrate. The 12.7mm family keeps `Helicopter`
+			// wholesale by explicit user choice: "leave it as now — all helicopters, with effectiveness
+			// limited by penetration rather than by targeting."
 			foreach (var heli in new[] { "littlebird", "TRAN", "HALO", "HELI", "HIND", "MI28" })
 			{
 				var airborne = EnabledTargetTypes(actors, heli, airborne: true);
-				foreach (var arm in new[] { "7.62mm.MG", "12.7mm.MG", "5.56mm.AR" })
+				foreach (var arm in new[] { "7.62mm.MG", "12.7mm.MG" })
 					Assert.That(Weapon(arm).IsValidTarget(airborne), Is.True,
 						$"{arm} can no longer engage an airborne {heli}, so infantry have lost their counterplay " +
 						"against rotorcraft. It names `Helicopter` in ValidTargets and that must keep binding.");
 			}
+		}
+
+		/// <summary>
+		/// USER RULING 2026-08-22: "Riflemen should be able to shoot at helicopters that they are able to
+		/// penetrate their armor. For example a littlebird can be shot, but not an attack helicopter because
+		/// it has more armor and the rifleman weapon cannot penetrate."
+		///
+		/// `Helicopter` (^Helicopter, aircraft.yaml:178) is ungated and armour-blind — it covers a Hind
+		/// exactly as much as a littlebird — so a rifle naming it necessarily reaches attack helicopters.
+		/// A rifle must therefore name an armour-qualified air type instead, never `Helicopter`.
+		/// </summary>
+		[Test]
+		public void RiflesCannotReachHelicoptersTheyCannotPenetrate()
+		{
+			var actors = Airframes();
+			var rifles = new[] { "5.56mm.AR", "5.56mm.E3", "5.56mm.DMR", "5.56mm.DMR.silencer" };
+
+			foreach (var heavy in new[] { "HELI", "HIND", "MI28" })
+			{
+				var airborne = EnabledTargetTypes(actors, heavy, airborne: true);
+				foreach (var rifle in rifles)
+					Assert.That(Weapon(rifle).IsValidTarget(airborne), Is.False,
+						$"{rifle} can target an airborne {heavy}, an attack helicopter a 5.56mm round cannot " +
+						"penetrate. ^5.56mm reaches it through the ungated `Helicopter` target type, which is " +
+						"armour-blind by design; the rifle must name an airborne armour class instead.");
+			}
+
+			// Guard the guard: "cannot reach a Hind" must not be satisfied by the rifle being unable to
+			// reach anything at all. It is an infantry weapon first and that has to keep working.
+			Assert.That(Weapon("5.56mm.AR").IsValidTarget(new BitSet<TargetableType>("Infantry")), Is.True,
+				"5.56mm.AR can no longer target infantry, so the assertions above prove nothing about " +
+				"helicopters — the weapon has simply been disarmed.");
 		}
 
 		[Test]
