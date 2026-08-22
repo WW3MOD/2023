@@ -77,7 +77,10 @@ WorldLoaded = function()
 	end
 
 	-- The player's order, exactly as the report describes it: a plain attack click.
-	Tunguska.Attack(Heli)
+	-- allowMove=true is load-bearing — the unit is PERMITTED to close, so a failure here
+	-- is it CHOOSING the worse weapon, not being unable to reach the better one.
+	-- forceAttack=false keeps this an ordinary click rather than a Ctrl-attack.
+	Tunguska.Attack(Heli, true, false)
 
 	TestHarness.AssertWithin(DeadlineSeconds, function()
 		if Tunguska.IsDead then
