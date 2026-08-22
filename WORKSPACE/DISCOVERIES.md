@@ -60,6 +60,88 @@ Every existing scenario deadline is consequently 1.5× more generous than it rea
 Ns" string in a failure message overstates the time actually allowed by the same factor. **Not changed
 here** — correcting the constant would tighten every existing deadline by a third in one step, which is
 a fleet-wide retune, not a medic fix. Size new deadlines in ticks and divide.
+## 2026-08-22 — a multi-weapon unit closes to its SHORTEST weapon's range, not its longest
+
+Branch `wt/tunguska-guns`, chasing "the tunguska refused to shoot a helicopter with missiles and went
+closer to use the guns instead".
+
+`Attack.TickAttack` computed `maxRange = armaments.Min(a => a.MaxRange())`
+(`engine/OpenRA.Mods.Common/Activities/Attack.cs:261`) — the shortest reach among every armament valid
+against the target. A Tunguska ordered at a helicopter has two valid armaments, the 30mm AA gun at
+`18c0` and the 9M311 at `28c0`, so a target 24 cells out read as **out of range** and the unit drove
+forward until the gun could fire, with all eight missiles loaded.
+
+**This was never a condition lockout, which is what it looks like.** The missile armament carries
+`PauseOnCondition: ... || firing-primary` (`vehicles-russia.yaml:896`) and that reads like a mutual
+exclusion that could strand it — but `firing-primary` is granted by `GrantConditionOnPreparingAttack@1`
+with `ArmamentNames: primary`, and `primary` is the **AG** gun (`ValidTargets: Infantry, Vehicle,
+Defense`). The missile is `ValidTargets: Air`. The two can never contend for one target, and
+`Armament.CanFire` validates `IsValidAgainst` *before* `PreparingAttack` is notified
+(`Armament.cs:326-340`, notification at `:420`), so the AG gun cannot grant the condition while
+shooting at air at all. **That whole condition is inert.** Left in place; documented rather than
+removed.
+
+The same activity was already inconsistent with itself: `lastVisibleMaximumRange` at `Attack.cs:86`
+and `:140` uses `GetMaximumRangeVersusTarget`, which takes the **maximum** and skips paused armaments.
+Only the engage path took the minimum.
+
+Fixed opt-in via `AttackBaseInfo.EngageAtLongestArmamentRange` (default `false`, so nothing else in the
+mod moves) routing through the pure `AttackBase.EngagementMaxRange`, pinned by `EngagementMaxRangeTest`.
+**The longest branch must skip PAUSED armaments** with a fallback when all are paused: a dry armament is
+paused, never disabled, so `ChooseArmamentsForTarget` keeps returning it, and a naive `Max` would strand
+a Tunguska that had spent its missiles at 28c0, out of its own gun's reach, firing nothing.
+
+## 2026-08-22 — a weapon field set at the wrong nesting level parses clean and does nothing
+
+`Inaccuracy` is a field of the **`Projectile:` sub-block**, not of the weapon. Writing
+
+```
+30mm.Tunguska.AA:
+	Inherits@Caliber: ^30mm.Tunguska
+	Inaccuracy: 0c448          # <- silently ignored
+```
+
+parses without a warning, survives `--check-yaml` with zero errors, and leaves the resolved value at
+the inherited `1c0`. The correct form re-opens the sub-block, which **merges** with the parent rather
+than replacing it — `Speed`, `Image` and the rest survive, verified in the resolved dump:
+
+```
+	Projectile: Bullet
+		Inaccuracy: 0c448
+```
+
+This nearly shipped as a no-op balance change. **The countermeasure is not care, it is the dump:**
+`./tools/combat-sim/scripts/dump-stats.sh` then read the value back out of
+`tools/combat-sim/data/stats.json` (keys are lowercased). The dump comes from the engine's resolved
+Ruleset, so it is the only thing that can tell you an override actually took. The tell here was that
+the regenerated file was **byte-identical** to the previous one.
+
+## 2026-08-22 — three inert fields in the projectile/warhead pipeline that YAML sets and nothing reads
+
+All three found while modelling the Tunguska's 30mm accuracy. Each is a field the mod sets in the
+belief it does something.
+
+**`InaccuracyPerProjectile` does nothing on `Bullet`.** Its branch is gated on `lastPosIsSet`
+(`Projectiles/Bullet.cs:213`), declared `readonly bool lastPosIsSet = false` at `:170` and never
+assigned anywhere. The else-branch always runs, so every round in a burst scatters independently about
+the target centre and no burst-walk occurs. `^30mm.Tunguska`'s `InaccuracyPerProjectile: 12,12,0` and
+`30mm.A10`'s `32,32,0` are both dead.
+
+**`DamageAtMaxRange` does nothing on a `SpreadDamage` warhead.** `RangeDamageMultiplier` is defined on
+`DamageWarhead` (`:111`) but called from exactly one place in the engine,
+`TargetDamageWarhead.cs:89`. `SpreadDamageWarhead` never calls it, so its damage is flat with range.
+`^30mm`'s `Warhead@Spread` sets `DamageAtMaxRange: 50` and gets full damage at every range. This is
+mod-wide, not Tunguska-specific — worth a sweep before anyone tunes a spread warhead by that field.
+
+**Bullets do not collide en route, and do not lead.** `target = args.PassiveTarget`
+(`Bullet.cs:200`) is the target's position *at fire time*; nothing solves for intercept, and
+`args.TargetingVector` is the `FirstBurst`/`FollowingBurstTargetOffset` walk pattern, not a lead. The
+per-tick `AnyValidTargetsInRadius` check is gated on `remainingBounces < info.BounceCount`
+(`Bullet.cs:349`), and `BounceCount` defaults to 0, so a non-bouncing bullet only ever detonates at the
+end of its flight path. **Consequence: gun accuracy against a fast mover is bounded by target motion,
+not by `Inaccuracy`.** A Littlebird at its 265 u/tick cruise travels ~5 cells during a 30mm round's
+20-tick flight to 18c0, against a `Circle Radius 32` hitshape — no `Inaccuracy` value can fix that.
+Tuning scatter only helps against targets that are hovering or slow.
 
 ## 2026-08-21 — there are TWO independent resupply-seek paths, and `AutoSeekSupplies.ReturnWhenEmpty` gates only one of them
 

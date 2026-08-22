@@ -2,7 +2,7 @@
   "_meta": {
     "mod": "ww3mod",
     "version": "release-20230225",
-    "generated_at": "2026-08-20T22:24:34.3527200Z",
+    "generated_at": "2026-08-22T01:37:18.5814830Z",
     "note": "Generated from live YAML by --dump-balance-json. Do not edit by hand; re-run the dump after rules changes."
   },
   "actors": {
@@ -10212,6 +10212,633 @@
         }
       ]
     },
+    "^volatileloadeffects": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Trees"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": []
+    },
+    "volatileload1": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Trees"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 100,
+          "penetration": 1800,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 150,
+          "penetration": 1500,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 25
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
+    "volatileload2": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Trees"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 200,
+          "penetration": 1800,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 300,
+          "penetration": 1500,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 25
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
+    "volatileload3": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Trees"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 300,
+          "penetration": 1800,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 450,
+          "penetration": 1500,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 25
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
+    "volatileload4": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Trees"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 400,
+          "penetration": 1800,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 600,
+          "penetration": 1500,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 25
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
+    "volatileload5": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Trees"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 500,
+          "penetration": 1800,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 750,
+          "penetration": 1500,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 25
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
+    "volatileload6": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Trees"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 600,
+          "penetration": 1800,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 900,
+          "penetration": 1500,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 25
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
+    "volatileload7": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Trees"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 700,
+          "penetration": 1800,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 1050,
+          "penetration": 1500,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 25
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
+    "volatileload8": {
+      "range": 0,
+      "min_range": 0,
+      "burst": 1,
+      "burst_delays": [
+        5
+      ],
+      "burst_wait": 0,
+      "magazine": 1,
+      "reload_delay": 0,
+      "top_attack": false,
+      "bottom_attack": false,
+      "clear_sight_threshold": 5,
+      "free_line_density": 0,
+      "miss_chance_per_density": 0,
+      "valid_targets": [
+        "Ground",
+        "Water",
+        "Trees"
+      ],
+      "invalid_targets": [],
+      "projectile_kind": null,
+      "projectile_speed": null,
+      "inaccuracy": null,
+      "inaccuracy_type": null,
+      "warheads": [
+        {
+          "type": "SpreadDamageWarhead",
+          "damage": 800,
+          "penetration": 1800,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": 256,
+          "falloff": [
+            100,
+            37,
+            14,
+            5,
+            0
+          ],
+          "versus": {},
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        },
+        {
+          "type": "ShockwaveDamageWarhead",
+          "damage": 1200,
+          "penetration": 1500,
+          "damage_at_max_range": 100,
+          "damage_percent": 0,
+          "random_damage_addition": 0,
+          "random_damage_subtraction": 0,
+          "spread": null,
+          "falloff": null,
+          "versus": {
+            "Light": 80,
+            "Medium": 60,
+            "Heavy": 40,
+            "Concrete": 25
+          },
+          "valid_targets": [
+            "Ground",
+            "Water",
+            "Trees"
+          ],
+          "invalid_targets": []
+        }
+      ]
+    },
     "^9mm": {
       "range": 14336,
       "min_range": 0,
@@ -12024,7 +12651,7 @@
       ],
       "projectile_kind": "Bullet",
       "projectile_speed": 900,
-      "inaccuracy": 1024,
+      "inaccuracy": 768,
       "inaccuracy_type": "Maximum",
       "warheads": [
         {
@@ -12115,7 +12742,7 @@
       ],
       "projectile_kind": "Bullet",
       "projectile_speed": 900,
-      "inaccuracy": 1024,
+      "inaccuracy": 448,
       "inaccuracy_type": "Maximum",
       "warheads": [
         {
@@ -14962,7 +15589,7 @@
       "min_range": 0,
       "burst": 2,
       "burst_delays": [
-        30
+        58
       ],
       "burst_wait": 60,
       "magazine": 4,
