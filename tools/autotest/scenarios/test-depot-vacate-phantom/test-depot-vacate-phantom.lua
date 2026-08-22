@@ -8,9 +8,11 @@
 --      and that flag is set only from a Building's '+' cells (Locomotor.cs:565-569). So the
 --      dock cell is passable but NOT stayable.
 --   3. Resupply.cs:274 docks a Repairable unit on the host CENTRE via MoveOntoTarget ->
---      LocalMoveIntoTarget, which contains no CanStayInCell test anywhere — it drives the unit
---      in with raw SetCenterPosition. Its own comment concedes the point: "HACK: Repairable
---      needs the actor to move to host center."
+--      MoveOntoAndTurn : MoveOnto : MoveAdjacentTo. The base picks candidates through
+--      `CanStayInCell(cell) && CanEnterCell(cell)` (MoveAdjacentTo.cs:129), but MoveOnto
+--      OVERRIDES that method with a single unfiltered cell — the host centre (MoveOnto.cs:41-58).
+--      Its own comment concedes the intent: "HACK: Repairable needs the actor to move to host
+--      center."
 --   4. Servicing ends, nothing is queued, the unit goes idle ON that cell, and
 --      Mobile.OnBecomingIdle (Mobile.cs:945) fires the correction the player sees as a phantom
 --      order. Its comment is the other half of the same argument: "HACK: activities should be

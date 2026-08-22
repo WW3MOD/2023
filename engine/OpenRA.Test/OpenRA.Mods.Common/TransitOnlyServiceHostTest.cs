@@ -17,9 +17,13 @@
  * Ordinary move orders cannot strand a unit this way: Move.OnFirstRun (Move.cs:139-143) pre-corrects the
  * destination through Mobile.NearestMoveableCell, which filters on CanStayInCell (Mobile.cs:844-852), and
  * every give-up branch in Move.PopPath re-checks it (Move.cs:268). The unguarded path is service docking:
- * Resupply.cs:274 uses move.MoveOntoTarget -> LocalMoveIntoTarget, which contains no CanStayInCell test at
- * all — it drives the unit onto the host's centre with SetCenterPosition and returns. When the repair or
- * rearm finishes and nothing is queued behind it, the unit goes idle ON the host and is bounced off.
+ * Resupply.cs:274 uses move.MoveOntoTarget -> MoveOntoAndTurn : MoveOnto : MoveAdjacentTo. The base
+ * MoveAdjacentTo.CalculatePathToTarget picks its candidates through `CanStayInCell(cell) &&
+ * CanEnterCell(cell)` (MoveAdjacentTo.cs:129) — but MoveOnto OVERRIDES that method and substitutes a
+ * single unfiltered cell, the host centre (MoveOnto.cs:41-58). So the docking activity overrides away the
+ * very stayability filter its own base class applies, and when servicing finishes with nothing queued the
+ * unit goes idle ON the host and is bounced off. That override is precisely what Mobile.cs:944's "activities
+ * should be making sure that this can't happen in the first place!" is complaining about.
  *
  * So the invariant is: a building that ground units are driven ONTO to be serviced must not declare its
  * footprint transit-only. This is a data assertion because the defect is in the data — the engine paths
@@ -113,8 +117,9 @@ namespace OpenRA.Test
 				.ToArray();
 
 			Assert.That(offenders, Is.Empty,
-				"these buildings service units that are driven onto them (Resupply.cs:274 -> LocalMoveIntoTarget, " +
-				"which does NOT check CanStayInCell), but declare transit-only '+' footprint cells. A unit that " +
+				"these buildings service units that are driven onto them (Resupply.cs:274 -> MoveOnto, whose " +
+				"CalculatePathToTarget override drops the base class's CanStayInCell filter), but declare " +
+				"transit-only '+' footprint cells. A unit that " +
 				"finishes servicing there falls idle on a cell it may not stop on, and Mobile.OnBecomingIdle " +
 				"(Mobile.cs:945) issues an unordered move to shove it off — the 'it backs up by itself' report. " +
 				"Offenders: " + string.Join(", ", offenders));
