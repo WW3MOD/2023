@@ -81,7 +81,11 @@ namespace OpenRA.Mods.Common.Traits
 		void IWorldLoaded.WorldLoaded(World world, WorldRenderer wr)
 		{
 			worldRenderer = wr;
-			spriteLayer = new TerrainSpriteLayer(world, wr, tileCache.MissingTile, BlendMode.Alpha, world.Type != WorldType.Editor);
+			// Never restrict to Bounds: the flag only clips whole rows (Draw picks a row range
+			// and emits each row full-width), so it was already drawing the left/right border
+			// columns while hiding the top/bottom ones. DrawBeyondMapFog is what blacks out
+			// everything past MapSize; this just makes the one-cell border ring consistent.
+			spriteLayer = new TerrainSpriteLayer(world, wr, tileCache.MissingTile, BlendMode.Alpha, false);
 			foreach (var cell in map.AllCells)
 				UpdateCell(cell);
 
