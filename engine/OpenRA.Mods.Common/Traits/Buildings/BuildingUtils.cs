@@ -51,8 +51,11 @@ namespace OpenRA.Mods.Common.Traits
 					}
 				}
 
-				// Replacements are enabled and the cell contained at least one (not ignored) actor or building bib
-				var foundBuilding = world.WorldActor.Trait<BuildingInfluence>().AnyBuildingAt(cell);
+				// Replacements are enabled and the cell contained at least one (not ignored) actor or building bib.
+				// AnyBlockingBuildingAt, not AnyBuildingAt: fields are Building actors and so sit in the
+				// BuildingInfluence layer as well as the ActorMap. Filtering only the BlockingActorsAt loop above
+				// leaves this line to re-block the very cells it just cleared, which made that filter a no-op here.
+				var foundBuilding = world.AnyBlockingBuildingAt(cell);
 				if (foundActors || foundBuilding)
 				{
 					// The cell contains at least one actor, and none were replaceable
@@ -71,7 +74,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				// HACK: To preserve legacy behaviour, AllowInvalidPlacement should display red placement indicators
 				// if (and only if) there is a building or bib in the cell
-				if (world.WorldActor.Trait<BuildingInfluence>().AnyBuildingAt(cell))
+				if (world.AnyBlockingBuildingAt(cell))
 					return false;
 			}
 

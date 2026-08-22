@@ -8861,3 +8861,59 @@ this mod everywhere.** Corrected in `SupplyRouteContestation.cs` in this branch.
 A third, smaller note: a full overrun is **two** bars, not one. The control bar drains, then the defeat bar
 fills, both at the same computed rate (`:282-312`), so the wall-clock cost of finishing a player is 2x any
 single "ticks to deplete" figure — 180s at reference surplus, not 90s.
+
+## 2026-08-22 — Cell occupancy is TWO parallel indexes, and `GroundCover` only taught one of them
+
+Chasing "the logistics center vehicle can no longer deploy on fields". Root cause is a gap in
+`73996d96`, not a regression after it — and the shape of the gap generalises.
+
+**1. `ActorMap` is not the only occupancy index. `BuildingInfluence` is a second one, and it is
+not derived from the first.** Any actor with a `Building` trait registers *both*: it lands in the
+`ActorMap` via `OccupiedCells()`, and separately in the `BuildingInfluence` `CellLayer` because
+`Building.AddedToWorld` calls `influence.AddInfluence(self, Info.Tiles(self.Location))`
+(`engine/OpenRA.Mods.Common/Traits/Buildings/Building.cs:370`). ww3mod fields (`^CivField`,
+`mods/ww3mod/rules/ingame/civilian.yaml:155-157`) carry `Building: Footprint: x`, so **every field
+cell is in both layers**. `World.BlockingActorsAt` filters only the `ActorMap` half.
+
+**2. That made the `73996d96` change to `IsCellBuildable` a silent no-op.** The method consults both
+layers in sequence. The `BlockingActorsAt` loop correctly skipped the field and left
+`foundActors = false`, and then the *next statement* asked
+`BuildingInfluence.AnyBuildingAt(cell)` — which returned true for the very same field — and
+`if (foundActors || foundBuilding)` refused with `acceptedReplacements == null`
+(`Traits/Buildings/BuildingUtils.cs:54-68`). Before and after that commit, placement on a field
+returned false at exactly the same line. The commit's two scenarios exercised
+`DropsSupplyCache.CanDropCache` and `Aircraft.CanLand`; `IsCellBuildable` was edited but never
+covered by a test, which is why the no-op was invisible. **Fixed here** by adding
+`World.AnyBlockingBuildingAt` (`Traits/CellOccupancy.cs`) and using it at both `BuildingUtils`
+sites. The remaining `AnyBuildingAt` callers were deliberately left alone: `ResourceLayer.cs:183`
+and `TSResourceLayer.cs:123` govern where resources may grow, and `Building.cs:291`
+(`IsCloseEnoughToBase`) asks about buildable area, which fields do not give.
+
+**3. `Transforms.CanDeploy` tests a footprint CENTRED on the vehicle, not the cell under it.**
+`LCCV` has `Transforms.Offset: -1,-1` (`rules/ingame/vehicles.yaml:660-661`) and
+`LOGISTICSCENTER` is `Dimensions: 3,3` with `Footprint: =+= +++ =+=`
+(`rules/ingame/structures.yaml:365-367`). Every one of those nine characters is `=` or `+`, and
+`BuildingInfo.Tiles()` returns both types, so **all nine cells are tested**. One field anywhere in
+that 3x3 refuses the deploy — which is why the refusal also happens standing *beside* a field
+patch, not only on one, and why it reads to a player as happening "for no reason".
+
+**4. `Transforms.CanDeploy` consults neither prerequisites nor buildable area.** It calls only
+`World.CanPlaceBuilding` (`Traits/Transforms.cs:97-99`). `IsCloseEnoughToBase` is reached only from
+`PlaceBuilding.cs:192`, `PlaceBuildingOrderGenerator.cs:193/284/290/295` and
+`BaseBuilderQueueManager.cs:362`. So `^Building`'s `RequiresBuildableArea: Adjacent: 5` does **not**
+gate a transform deploy, and an LCCV can legally deploy anywhere in the open.
+
+**5. NEGATIVE RESULT — fields do NOT make their cells transit-only, so they are not the cause of
+the "vehicles back up after arriving" report.** `Locomotor.CanStayInCell` is
+`!CellFlag.HasTransitOnlyActor` (`Traits/World/Locomotor.cs:368-374`), and that flag is set at
+`Locomotor.cs:565-569` from `actor.OccupiesSpace is Building b && b.TransitOnlyCells().Contains(cell)`.
+`Building.TransitOnlyCells()` is `TransitOnlyTiles()`, i.e. footprint cells of type `+`
+(`FootprintCellType.OccupiedPassableTransitOnly`) only. `^CivField` is `Footprint: x` = `Occupied`,
+so a field contributes **zero** transit-only cells and `CanStayInCell` is true on a field.
+Note the check never consults pass classes, so this answer is locomotor-independent.
+**Exactly four ww3mod actors declare `+` cells** and are the real transit-only population:
+`SUPPLYROUTE` (`structures.yaml:242`), `LOGISTICSCENTER` (`structures.yaml:366`), `AFLD`
+(`structures.yaml:551`, `xxx xx+`) and `FIX.Husk` (`husks/husks-buildings.yaml:105`) — the first
+three all 3x3 `=+= +++ =+=` with five transit-only cells each. `SUPPLYROUTE` is the one every
+player owns and clusters units around, which makes it the first place to look for an idle-bounce
+via `Mobile.OnBecomingIdle` (`Mobile.cs:941-948`).

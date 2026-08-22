@@ -1,0 +1,340 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: an LCCV can deploy its logistics centre on field cells
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# THE BUG: ww3mod tiles crop fields as one 1x1 Building actor PER CELL. 73996d96 taught the
+# ActorMap-based occupancy tests to see through them (World.BlockingActorsAt) and routed
+# BuildingUtils.IsCellBuildable through it -- but fields, being Building actors, are ALSO
+# registered in the SEPARATE BuildingInfluence layer, and the very next line of that method
+# asked BuildingInfluence.AnyBuildingAt. So the filter was a no-op at that call site and
+# placement on a field stayed refused. Transforms.CanDeploy -> World.CanPlaceBuilding ->
+# IsCellBuildable is the LCCV's deploy check, so the LCCV refuses with BuildingCannotPlaceAudio.
+#
+# LOGISTICSCENTER is Dimensions 3,3 with Footprint "=+= +++ =+=" -- every one of the nine
+# cells is in Tiles() -- and Transforms.Offset is -1,-1, so the tested footprint is the 3x3
+# block CENTRED on the LCCV. One field anywhere in that block is enough to refuse, which is
+# why the refusal also happens standing *next to* a field, not only on one.
+#
+# GEOMETRY (row 16 is the lane; each LCCV's tested footprint is the 3x3 centred on it)
+#   x=4          Supply Route + spawn
+#   x=18..26     A 9x9 patch of v14 field actors, y=12..20
+#   x=22,y=16    A: LCCV dead centre of the field patch      -> MUST deploy (the bug)
+#   x=44,y=16    B: LCCV with a v19 Oil Pump at 44,15        -> MUST refuse (over-fix guard)
+#   x=52,y=16    C: LCCV on bare ground, nothing in footprint -> MUST deploy (control for B)
+#
+# C is load-bearing. Without it a B that refused because of TERRAIN rather than because of
+# the Oil Pump would read as a pass, and the over-fix guard would be measuring nothing. C
+# sits on the same bare row as B, so if the terrain out there were unbuildable C fails and
+# says so.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	# A -- the case under test. Centre of the field patch; all nine footprint cells are fields.
+	# Facing 384 matches Transforms.Facing, so no turn is needed before the transform starts.
+	LccvField: lccv
+		Owner: Me
+		Location: 22,16
+		Facing: 384
+
+	# B -- over-fix guard. A v19 Oil Pump (^BasicBuilding: Dimensions 1,1, Footprint x, and no
+	# Passable/GroundCover) sits at 44,15, a '+' cell of B's footprint. A real building must
+	# still refuse the deploy after the fix.
+	LccvBlocked: lccv
+		Owner: Me
+		Location: 44,16
+		Facing: 384
+	Blocker: v19
+		Owner: Neutral
+		Location: 44,15
+
+	# C -- bare-ground control for B, same row and terrain, empty footprint.
+	LccvBare: lccv
+		Owner: Me
+		Location: 52,16
+		Facing: 384
+
+	# The field: one actor per cell, exactly how the map editor lays them down.
+	Fld0: v14
+		Owner: Neutral
+		Location: 18,12
+	Fld1: v14
+		Owner: Neutral
+		Location: 19,12
+	Fld2: v14
+		Owner: Neutral
+		Location: 20,12
+	Fld3: v14
+		Owner: Neutral
+		Location: 21,12
+	Fld4: v14
+		Owner: Neutral
+		Location: 22,12
+	Fld5: v14
+		Owner: Neutral
+		Location: 23,12
+	Fld6: v14
+		Owner: Neutral
+		Location: 24,12
+	Fld7: v14
+		Owner: Neutral
+		Location: 25,12
+	Fld8: v14
+		Owner: Neutral
+		Location: 26,12
+	Fld9: v14
+		Owner: Neutral
+		Location: 18,13
+	Fld10: v14
+		Owner: Neutral
+		Location: 19,13
+	Fld11: v14
+		Owner: Neutral
+		Location: 20,13
+	Fld12: v14
+		Owner: Neutral
+		Location: 21,13
+	Fld13: v14
+		Owner: Neutral
+		Location: 22,13
+	Fld14: v14
+		Owner: Neutral
+		Location: 23,13
+	Fld15: v14
+		Owner: Neutral
+		Location: 24,13
+	Fld16: v14
+		Owner: Neutral
+		Location: 25,13
+	Fld17: v14
+		Owner: Neutral
+		Location: 26,13
+	Fld18: v14
+		Owner: Neutral
+		Location: 18,14
+	Fld19: v14
+		Owner: Neutral
+		Location: 19,14
+	Fld20: v14
+		Owner: Neutral
+		Location: 20,14
+	Fld21: v14
+		Owner: Neutral
+		Location: 21,14
+	Fld22: v14
+		Owner: Neutral
+		Location: 22,14
+	Fld23: v14
+		Owner: Neutral
+		Location: 23,14
+	Fld24: v14
+		Owner: Neutral
+		Location: 24,14
+	Fld25: v14
+		Owner: Neutral
+		Location: 25,14
+	Fld26: v14
+		Owner: Neutral
+		Location: 26,14
+	Fld27: v14
+		Owner: Neutral
+		Location: 18,15
+	Fld28: v14
+		Owner: Neutral
+		Location: 19,15
+	Fld29: v14
+		Owner: Neutral
+		Location: 20,15
+	Fld30: v14
+		Owner: Neutral
+		Location: 21,15
+	Fld31: v14
+		Owner: Neutral
+		Location: 22,15
+	Fld32: v14
+		Owner: Neutral
+		Location: 23,15
+	Fld33: v14
+		Owner: Neutral
+		Location: 24,15
+	Fld34: v14
+		Owner: Neutral
+		Location: 25,15
+	Fld35: v14
+		Owner: Neutral
+		Location: 26,15
+	Fld36: v14
+		Owner: Neutral
+		Location: 18,16
+	Fld37: v14
+		Owner: Neutral
+		Location: 19,16
+	Fld38: v14
+		Owner: Neutral
+		Location: 20,16
+	Fld39: v14
+		Owner: Neutral
+		Location: 21,16
+	Fld40: v14
+		Owner: Neutral
+		Location: 22,16
+	Fld41: v14
+		Owner: Neutral
+		Location: 23,16
+	Fld42: v14
+		Owner: Neutral
+		Location: 24,16
+	Fld43: v14
+		Owner: Neutral
+		Location: 25,16
+	Fld44: v14
+		Owner: Neutral
+		Location: 26,16
+	Fld45: v14
+		Owner: Neutral
+		Location: 18,17
+	Fld46: v14
+		Owner: Neutral
+		Location: 19,17
+	Fld47: v14
+		Owner: Neutral
+		Location: 20,17
+	Fld48: v14
+		Owner: Neutral
+		Location: 21,17
+	Fld49: v14
+		Owner: Neutral
+		Location: 22,17
+	Fld50: v14
+		Owner: Neutral
+		Location: 23,17
+	Fld51: v14
+		Owner: Neutral
+		Location: 24,17
+	Fld52: v14
+		Owner: Neutral
+		Location: 25,17
+	Fld53: v14
+		Owner: Neutral
+		Location: 26,17
+	Fld54: v14
+		Owner: Neutral
+		Location: 18,18
+	Fld55: v14
+		Owner: Neutral
+		Location: 19,18
+	Fld56: v14
+		Owner: Neutral
+		Location: 20,18
+	Fld57: v14
+		Owner: Neutral
+		Location: 21,18
+	Fld58: v14
+		Owner: Neutral
+		Location: 22,18
+	Fld59: v14
+		Owner: Neutral
+		Location: 23,18
+	Fld60: v14
+		Owner: Neutral
+		Location: 24,18
+	Fld61: v14
+		Owner: Neutral
+		Location: 25,18
+	Fld62: v14
+		Owner: Neutral
+		Location: 26,18
+	Fld63: v14
+		Owner: Neutral
+		Location: 18,19
+	Fld64: v14
+		Owner: Neutral
+		Location: 19,19
+	Fld65: v14
+		Owner: Neutral
+		Location: 20,19
+	Fld66: v14
+		Owner: Neutral
+		Location: 21,19
+	Fld67: v14
+		Owner: Neutral
+		Location: 22,19
+	Fld68: v14
+		Owner: Neutral
+		Location: 23,19
+	Fld69: v14
+		Owner: Neutral
+		Location: 24,19
+	Fld70: v14
+		Owner: Neutral
+		Location: 25,19
+	Fld71: v14
+		Owner: Neutral
+		Location: 26,19
+	Fld72: v14
+		Owner: Neutral
+		Location: 18,20
+	Fld73: v14
+		Owner: Neutral
+		Location: 19,20
+	Fld74: v14
+		Owner: Neutral
+		Location: 20,20
+	Fld75: v14
+		Owner: Neutral
+		Location: 21,20
+	Fld76: v14
+		Owner: Neutral
+		Location: 22,20
+	Fld77: v14
+		Owner: Neutral
+		Location: 23,20
+	Fld78: v14
+		Owner: Neutral
+		Location: 24,20
+	Fld79: v14
+		Owner: Neutral
+		Location: 25,20
+	Fld80: v14
+		Owner: Neutral
+		Location: 26,20
+
+Rules: rules.yaml

@@ -1,0 +1,18 @@
+# LCCV field-deploy autotest overrides. Deliberately minimal — the point is what the
+# SHIPPING placement rules do on a field cell, so nothing here touches Transforms,
+# BuildingInfo, Passable, or any locomotor.
+
+Player:
+	# No cash -> no production; the only actors are the pre-placed ones and the field.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-field-lccv-deploy.lua
