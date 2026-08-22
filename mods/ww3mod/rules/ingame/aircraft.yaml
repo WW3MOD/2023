@@ -30,12 +30,30 @@
 		Bounds: 1024,1024
 	Aircraft:
 		AirborneCondition: airborne
-	# Every Targetable on an airframe must be gated on altitude, INCLUDING the per-airframe
-	# `Targetable@Armor` that advertises the armour class (see littlebird, aircraft-america.yaml:143).
-	# An armour class is a GROUND fact: ten weapons name Light/Medium/Heavy in ValidTargets, and an
-	# ungated armour targetable lets every one of them shoot an aircraft out of the sky. Airborne
-	# reachability is `Air` (all AA) plus `Helicopter` on ^Helicopter below (small arms) — both
-	# deliberate. Pinned by AirborneArmorTargetableTest.
+	# AIRBORNE TARGET-TYPE VOCABULARY — read this before giving any weapon air reach.
+	# Four ways to name something in the sky, and they are NOT interchangeable:
+	#   `Air`                              everything airborne. What AA missiles use.
+	#   `Helicopter`                       all helicopters at ANY altitude. Ungated on ^Helicopter
+	#                                      below, and ARMOUR-BLIND — it covers a 5-thickness
+	#                                      littlebird and a 20-thickness Mi-28 alike. A weapon naming
+	#                                      it CAN shoot down attack helicopters. Deliberate for the
+	#                                      12.7mm family (USER RULING 2026-08-22: "all helicopters,
+	#                                      with effectiveness limited by penetration rather than by
+	#                                      targeting"); wrong for anything smaller.
+	#   `AirLight`/`AirMedium`/`AirHeavy`  airborne, BY ARMOUR CLASS. Advertised by the per-airframe
+	#                                      `Targetable@AirArmor`. The only way to say "I can hurt a
+	#                                      littlebird but not a Hind" — ^5.56mm names AirLight for
+	#                                      exactly that reason.
+	#   an armour class alone              GROUND ONLY. `Targetable@Armor` is gated `!airborne` and
+	#                                      `Targetable@AirArmor` `airborne`, so Light/Medium/Heavy
+	#                                      never reach a flying actor. Leaving `Targetable@Armor`
+	#                                      ungated was the bug fixed in 078222b2: ten weapons name an
+	#                                      armour class and every one could shoot aircraft down.
+	# `InvalidTargets: Air` does NOT exclude `AirLight` — unrelated strings, no prefix matching.
+	# Every Targetable on an airframe must therefore be gated on altitude, and each airframe needs
+	# BOTH armour halves (see littlebird, aircraft-america.yaml:147-152). All of it is pinned by
+	# AirborneArmorTargetableTest. Damage is a separate axis entirely: Versus resolves off the Armor
+	# trait, not target types (DamageWarhead.cs:104-106), so none of this changes what a hit does.
 	Targetable@Ground:
 		RequiresCondition: !airborne
 		TargetTypes: Ground, Vehicle

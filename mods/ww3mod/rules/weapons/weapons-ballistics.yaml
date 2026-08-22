@@ -81,10 +81,14 @@ MP5:
 ^5.56mm:
 	Inherits@HitEffects: ^SmallCaliberEffects
 	# USER RULING 2026-08-22: a rifle may engage only helicopters whose armour it can penetrate --
-	# a littlebird yes, a Hind no. `Helicopter` (^Helicopter, aircraft.yaml:178) is ungated AND
+	# a littlebird yes, a Hind no. `Helicopter` (^Helicopter, aircraft.yaml:196) is ungated AND
 	# armour-blind: it covers a Hind exactly as much as a littlebird, so naming it is precisely the
-	# thing that must not happen here.
-	ValidTargets: Infantry, Vehicle
+	# thing that must not happen here. `AirLight` is the armour-qualified form -- see the airborne
+	# target-type vocabulary at aircraft.yaml:33.
+	# NOTE `InvalidTargets: Light` does NOT cancel `AirLight`; they are unrelated strings. The
+	# exclusion applies to GROUND targets only, which is why a landed littlebird stays unshootable
+	# by rifles -- pre-existing, see DISCOVERIES 2026-08-22.
+	ValidTargets: Infantry, Vehicle, AirLight
 	InvalidTargets: Light, Medium, Heavy
 	Range: 14c0
 	Report: gun11.aud
@@ -99,7 +103,7 @@ MP5:
 		Damage: 200
 		DamageAtMaxRange: 50
 		Penetration: 4
-		ValidTargets: Infantry, Vehicle
+		ValidTargets: Infantry, Vehicle, AirLight
 		InvalidTargets: Light, Medium, Heavy
 		DamageTypes: BulletDeath
 

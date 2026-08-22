@@ -9545,3 +9545,64 @@ Note the check never consults pass classes, so this answer is locomotor-independ
 three all 3x3 `=+= +++ =+=` with five transit-only cells each. `SUPPLYROUTE` is the one every
 player owns and clusters units around, which makes it the first place to look for an idle-bounce
 via `Mobile.OnBecomingIdle` (`Mobile.cs:941-948`).
+
+## 2026-08-22 — the airborne target-type vocabulary: `Air`, `Helicopter`, and the armour-qualified `AirLight`/`AirMedium`/`AirHeavy`
+
+Branch `wt/air-armour-classes`. USER RULING: *"Riflemen should be able to shoot at helicopters that
+they are able to penetrate their armor. For example a littlebird can be shot, but not an attack
+helicopter because it has more armor and the rifleman weapon cannot penetrate."*
+
+There are now **four** ways to name something in the sky and they are not interchangeable. Canonical
+copy lives at `aircraft.yaml:33-56`, where a weapon author will actually hit it:
+
+| Type | Reaches | Notes |
+|---|---|---|
+| `Air` | everything airborne | `Targetable@Airborne`, `aircraft.yaml:60`. What all AA uses. |
+| `Helicopter` | all helicopters, **any altitude** | `Targetable@Helicopter`, `aircraft.yaml:196`. Ungated and **armour-blind**. |
+| `AirLight`/`AirMedium`/`AirHeavy` | airborne, **by armour class** | `Targetable@AirArmor`, per-airframe, gated `airborne`. |
+| `Light`/`Medium`/`Heavy` | **ground only** | `Targetable@Armor`, gated `!airborne` since `078222b2`. |
+
+**`Helicopter` is armour-blind, and that is the whole trap.** One flat type covers a 5-thickness
+littlebird and a 20-thickness Mi-28 alike, so a weapon naming it *necessarily* reaches attack
+helicopters — no tuning expresses "light rotorcraft only". That is why `^5.56mm` had to give it up
+(`weapons-ballistics.yaml:91`) rather than be adjusted. `Helicopter` is retained deliberately on the
+12.7mm family by explicit user choice: *"leave it as now — all helicopters, with effectiveness limited
+by penetration rather than by targeting."*
+
+**`InvalidTargets: Air` does NOT exclude `AirLight`.** Target types are exact strings in a
+`BitSet<TargetableType>` — no prefix matching, no hierarchy. Seventeen sites in the weapon corpus
+carry `InvalidTargets: Air` to keep ground ordnance off aircraft; all remain correct only because
+`Targetable@Airborne` always advertises plain `Air` alongside the armour-qualified type. **Adding a
+target type can never reduce reachability, but it can defeat an exclusion that was written against a
+different string.** A future airframe that advertised `AirHeavy` *without* `Air` would silently walk
+through every one of those seventeen exclusions.
+
+### Fixing one direction of a leak opens the other
+
+`078222b2` gated `Targetable@Armor` on `!airborne` — correct, and it stopped grenadiers shooting
+helicopters. But `^5.56mm` declared `ValidTargets: Infantry, Vehicle, Helicopter` with
+`InvalidTargets: Light, Medium, Heavy`, and since every helicopter is Light or Heavy, **the leak was
+the only thing making that exclusion fire.** Removing the leak removed the exclusion's grip,
+`Helicopter` started binding for the first time, and riflemen gained the ability to shoot down Hinds —
+the exact inverse of the intended rule, shipped by the commit that fixed the rule's other half.
+`078222b2` predicted the gain and sized it as acceptable; the user ruled otherwise four hours later.
+
+**The transferable shape: an `InvalidTargets` entry that only ever fired because of a bug is
+load-bearing in reverse.** When you remove a leaked target type, audit every weapon whose
+`InvalidTargets` named it — each one may have been silently depending on the leak to suppress a
+`ValidTargets` entry that is about to come alive. Nothing lints for this; the weapon reads as
+unchanged in the diff because it *is* unchanged.
+
+### Reachability is not damage
+
+`Versus` resolves off the `Armor` **trait**, not target types (`DamageWarhead.cs:104-106`). Target
+types decide only whether a weapon may **engage**. Every change in this area moves reachability and
+nothing else — worth stating in the commit message, because "5.56mm can now hit a littlebird" reads
+to most people as a damage claim.
+
+### Pre-existing, deliberately NOT fixed: a landed littlebird is immune to rifles
+
+`^5.56mm`'s `InvalidTargets: Light, Medium, Heavy` blocks a **grounded** littlebird, which advertises
+plain `Light` via `Targetable@Armor`. So a parked helicopter is *less* vulnerable to small arms than a
+flying one — backwards. Untouched by any of this work and unchanged by it. Correcting it means letting
+rifles engage light *ground vehicles* too, which is a balance decision the user has not made.
