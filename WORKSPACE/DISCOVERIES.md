@@ -9852,3 +9852,108 @@ to most people as a damage claim.
 plain `Light` via `Targetable@Armor`. So a parked helicopter is *less* vulnerable to small arms than a
 flying one — backwards. Untouched by any of this work and unchanged by it. Correcting it means letting
 rifles engage light *ground vehicles* too, which is a balance decision the user has not made.
+
+## 2026-08-22 — the beyond-map fog: the cordon ring is opaque in a match, but the strip PAST `MapSize` is not
+
+Follow-up investigation to `bc22c9d6` / `12e0addd`. No code changed; this records what was measured.
+
+### The re-cordon landed, so `Bounds != MapSize` everywhere now
+
+All ten maps in `mods/ww3mod/maps/` now declare `Bounds: 1,1,W-2,H-2` under `MapSize: W,H`. Every map
+therefore carries a live one-cell ring. This is what makes the two anchors below disagree in practice
+rather than only in theory.
+
+### `bc22c9d6`'s most-distrusted claim VERIFIES — traced through all three branches
+
+The claim was that the ring is covered by opaque shroud in a match, so the `Bounds`→`MapSize` move is
+visible only where `RenderPlayer` is null. It holds, and the chain is:
+
+`Map.Contains(CPos)` short-circuits to `Bounds.Contains(...)` for flat rectangular maps
+(`engine/OpenRA.Game/Map/Map.cs:1363-1380`) — ww3mod is `MaximumTerrainHeight: 0` — so ring cells are
+**not** contained. Vision accumulation skips non-contained cells (`MapLayers.cs:347`), so
+`ResolvedVisibility[ring] == 0` permanently. All three branches of `GetVisibility(PPos)`
+(`MapLayers.cs:659-691`) then return 0 for a ring cell: `FogDisabled` returns 0 on `!map.Contains`;
+`fogEnabled` returns the resolved 0; `Disabled` fails its `map.Contains` guard and falls through to 0.
+ShroudRenderer does cover those cells — `tileInfos` is built over `Map.AllCells`
+(`ShroudRenderer.cs:123`) and the initial update spans `PPos(0,0)..PPos(MapSize-1)` (`:231`).
+
+Consequence worth keeping: with shroud **Disabled** the ring still resolves to 0 while the playable
+area resolves to 10, so a fully-revealed match still shows a black ring. That is pre-existing.
+
+### The claim covers the ring. It does NOT cover the strip beyond `MapSize` — and that strip is visible in a match
+
+`DrawBeyondMapFog` (`WorldRenderer.cs:403`) now anchors on `MapSize`, but `DrawBeyondMapActorFog`
+(`:450`) still anchors on `map.Bounds` — the `bc22c9d6` edit moved one anchor and left the other. Its
+right strip runs from `Bounds.Right` outward and takes its alpha from the **adjacent playable** cell,
+`bounds.Right - 1`. `fogAlphas[10] == 0f` and the loop skips any strip with `alpha <= 0.01f`, so
+**whenever a player has vision on the outermost playable column, nothing at all is painted past the
+map edge.**
+
+The ring itself is still black, because shroud is drawn earlier (`:371`) and covers those cells. But a
+ring actor's sprite **overflow past `MapSize`** sits over no shroud cell and gets no fog. So tree tops
+poking into the void beyond the edge are **reproducible in a real match**, not confined to the
+shellmap / observers / replays / TestMode. Any future reasoning that leans on "edges only differ where
+`RenderPlayer` is null" must exclude the overflow region specifically.
+
+### Nothing in the world render can draw a pixel BRIGHTER than the terrain at the map edge
+
+Established while chasing a reported thin light-grey vertical line at the terrain/black boundary. This
+is a useful standing negative, because it redirects any future edge-brightness report away from the
+render pipeline before anyone re-opens the coordinate arithmetic:
+
+- `emptySprite` is `new Sprite(sheet, Rectangle.Empty, ...)` at all five overlay layers
+  (`ShroudRenderer.cs:144`, `SmudgeLayer.cs:124`, `ResourceRenderer.cs:139` and `:151`,
+  `TSVeinsRenderer.cs:201`) → zero-area quad. The base terrain layer instead passes
+  `tileCache.MissingTile` (`TerrainRenderer.cs:88`), which is a **1×1 all-zero-byte sprite**
+  (`DefaultTileCache.cs:158`) → transparent. Neither can be bright.
+- Textures are `GL_CLAMP_TO_EDGE` (`Texture.cs:61-63`) and `SheetBuilder` inserts a **zero-filled**
+  1px margin around every sprite (`SheetBuilder.cs:72`, `:151`), so pixel-art neighbour sampling
+  (`combined.frag:122-140`) can only darken.
+- `postprocess_tint.frag:12` uses `texelFetch` and multiplies — cannot brighten black.
+- `TerrainLighting` is **not referenced anywhere in `mods/ww3mod/`**, so `UpdateTint` never runs and
+  the per-cell tint path is inert. (This was the one remaining mechanism that could brighten terrain.)
+- Shroud draws nothing at all when `RenderPlayer == null` (`ShroudRenderer.cs:259`, `:269-273`).
+
+Since the composite at that boundary is a convex combination of dark-green terrain and black, a
+*lighter-than-both* pixel cannot originate in the world buffer. It is map content, UI composited over
+the world, or an artefact of the capture itself.
+
+### `Map.AllCells` is the full grid, so ring terrain really does draw
+
+`AllCells` spans `MPos(0,0)..MPos(MapSize.X-1, MapSize.Y-1)` (`Map.cs:461-463`, and again at
+`:552-554`), so `TerrainRenderer.WorldLoaded`'s `foreach (var cell in map.AllCells) UpdateCell(cell)`
+(`TerrainRenderer.cs:84-88`) gives every ring cell a real tile sprite. Ring scenery stands on terrain;
+it is not floating on black. Rules out the obvious "the fix didn't take" reading of an edge report.
+
+### River Zeta's ring columns are dense authored decoration, not sparse props
+
+`mods/ww3mod/maps/river-zeta-ww3/map.yaml`: column 97 (right ring) holds **76 actors spanning y=0–80**
+— 47 `v17`, 14 `rice`, 12 trees. Column 0 mirrors it — 48 `v17`, 15 `rice`, ~10 trees. `v17` is the RA
+crop-field prop (flat, cell-sized), not a building, so this reads on screen as a near-continuous
+one-cell band of fields down the full map height, with a dozen trees whose sprites overflow the edge.
+Anyone reporting "a strip of something at the map edge" on this map is most likely looking at this.
+
+### The clean airborne/ground rule that would make a post-actor clip safe DOES NOT EXIST
+
+The tempting rule — clip ground-plane sprites, exempt the airborne things that legitimately live
+off-map — fails on a specific case, and it is worth knowing before a ninth swing at this code:
+
+- `IFinalizedRenderable` (`Renderable.cs:61-66`) exposes only `Render`/`RenderDebugGeometry`/
+  `ScreenBounds`. **No position survives to `Draw()` time**, so any partition must be made back in
+  `GenerateRenderables` (`WorldRenderer.cs:150-184`).
+- The sort key folds altitude additively into Y — `r.Pos.Y + r.Pos.Z + r.ZOffset` (`:28-29`) — so Z is
+  unrecoverable after sorting and is not a partition.
+- Z *is* a correct airborne test in principle here: `Map.DistanceAboveTerrain` is literally `pos.Z` on
+  rectangular grids (`Map.cs:1456-1462`). It separates a tall tree (Z=0, sprite grows upward via
+  `SpriteRenderable.cs:105-108`) from an aircraft correctly.
+- **It is defeated by the nuke.** The mushroom cloud is a `SpriteEffect` (`Effects/SpriteEffect.cs:35`)
+  anchored at the impact `WPos` with Z≈0 and a large upward sprite — byte-identical to a tree under
+  both a Z test and any screen-space test. Nuke clouds were one of the three regressions that got
+  `c620a9f2` reverted.
+- For the record, `c620a9f2` was **not** an altitude test. It gated on the border cell's fog
+  (`ResolvedVisibility[puv] >= 10`) — an axis orthogonal to the one that would actually work.
+
+The only mechanism that survives is a partition by *source* in `GenerateRenderables` (Z==0 actors →
+clipped ground pass; Z>0 actors plus all `IEffect` renderables → unclipped late pass). Its cost is
+real and global: every effect would draw above all ground regardless of Y, and aircraft shadows land
+in the wrong pass. That is a game-wide ordering change to fix a cosmetic edge strip.
