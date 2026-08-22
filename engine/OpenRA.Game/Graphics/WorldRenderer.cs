@@ -404,13 +404,15 @@ namespace OpenRA.Graphics
 		{
 			var map = World.Map;
 
-			// Calculate map boundaries from Bounds directly.
-			// ProjectedBottomRight.X has an off-by-one (uses br.U*scale-1 instead
-			// of (br.U+1)*scale-1), excluding the last column. We compute correct
-			// boundaries here to avoid modifying the shared Map formula.
-			var bounds = map.Bounds;
-			var tl = new WPos(bounds.Left * TileScale, bounds.Top * TileScale, 0);
-			var br = new WPos(bounds.Right * TileScale, bounds.Bottom * TileScale, 0);
+			// Anchored on the full cell grid (MapSize), not the playable Bounds: every map
+			// carries a one-cell unplayable border that holds authored scenery (river-zeta
+			// alone has 189 actors out there), and clipping to Bounds left those sprites
+			// standing on black. In a match the border ring is covered by opaque shroud
+			// anyway — ShroudRenderer builds tileInfos over Map.AllCells and GetVisibility
+			// returns 0 outside Bounds — so this is only visible where there is no render
+			// player: the shellmap, observers, and TestMode.
+			var tl = new WPos(0, 0, 0);
+			var br = new WPos(map.MapSize.X * TileScale, map.MapSize.Y * TileScale, 0);
 			var mapTL = ScreenPxPosition(tl);
 			var mapBR = ScreenPxPosition(br);
 			var vpTL = Viewport.TopLeft;

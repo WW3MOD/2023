@@ -8914,3 +8914,56 @@ damage from every Pen-1 weapon than its counterpart. Looks like an authoring omi
 `./utility.sh --check-yaml` — the exact case trap `CLAUDE.md` warns about, confirmed live. A fix is
 uncommitted in the main checkout's working tree, so this is known; noting it because the scenario was
 believed to be passing.
+
+---
+
+## 2026-08-22 — The black band at map edges is a deliberate overlay, not a terrain render failure
+
+Reported as "edge tiles are not rendered, but actors placed there are rendered" on the main-menu shellmap.
+Three things had to be true at once, and only the third is a bug.
+
+**1. `TerrainSpriteLayer`'s `restrictToBounds` clips ROWS ONLY, never columns.**
+`engine/OpenRA.Game/Graphics/TerrainSpriteLayer.cs:209-231` uses the visible-cell region solely to pick a
+`firstRow`/`lastRow`, then emits `DrawVertexBuffer(... indexRowStride * firstRow, indexRowStride * (lastRow -
+firstRow) ...)` — whole rows, full width. So the left/right one-cell border columns were **already being
+drawn** as terrain; only the top/bottom border rows were ever clipped. Anyone reasoning "restrictToBounds
+hides the border" (as I did) will predict the wrong edges.
+
+**2. What actually paints the black is `DrawBeyondMapFog`** (`engine/OpenRA.Game/Graphics/WorldRenderer.cs:403`,
+called at `:345`). It fills **fully opaque** black between the viewport edge and the map rect, deliberately
+**after terrain but before actors** so tall sprites near edges still show. That ordering is the whole reason
+actors appear to float: the black is painted, then actors draw on top of it.
+
+**3. The ring between `Bounds` and `MapSize` is full of authored scenery.** Every map is `MapSize N,M` /
+`Bounds 1,1,N-2,M-2`, and **8 of 10 maps author actors in that unplayable ring** — `river-zeta-ww3`
+(the `FirstTimeShellmap`) has **189**, incl. 102 `v17` village buildings, 29 `rice`; `woodland-warfare-ww3`
+115; `siberian-pass-ww3` 36. Those sprites were the things standing on black.
+
+**Why it only shows in the menu.** In a match the ring is covered by opaque shroud: `ShroudRenderer` builds
+`tileInfos` over `Map.AllCells` (full `MapSize`) at `ShroudRenderer.cs:123`, and
+`MapLayers.GetVisibility` returns **0 for any cell outside playable `Bounds`**
+(`engine/OpenRA.Game/Traits/Player/MapLayers.cs:659-669`, guard `if (!map.Contains(puv)) return 0`), and
+`Map.Contains(PPos)` is `Bounds.Contains` (`Map.cs:1420`). Visibility 0 ⇒ shroud sprite at full opacity.
+The shellmap has **`RenderPlayer == null`** (traced: `Game.JoinLocal` seats the local client with no `Slot`
+(`Game.cs:111-127`); `ShellmapBots.SeatBots` assigns bot client indices from `max+1` so none is index 1
+(`Network/ShellmapBots.cs:36-41`); `CreateMapPlayers` only sets `localPlayer` inside the slot loop
+(`CreateMapPlayers.cs:111-122`)) — and `ShroudRenderer.UpdateShroud` **clears every shroud sprite and
+repaints nothing** when there is no render player, so the ring loses its cover.
+`DrawBeyondMapActorFog` (`WorldRenderer.cs:448`), the pass that would fog actor overflow to match, also
+early-returns on `RenderPlayer == null`. Same root applies to observers and TestMode's full-map viewer.
+
+**Geometry rules out "just render the border".** `Viewport.Center`/`Scroll` clamp only the viewport
+**centre** into the playable rect (`Viewport.cs:326,339`), so the edges overhang by up to half a viewport —
+**~27 cells horizontally at 1080p/Medium**, more via the main menu's own zoom-out
+(`ShellmapViewportControllerWidget.cs:39-62` gives MMB-drag pan and 4x zoom-out, floor `MinZoom * 0.25`).
+The border is one cell. Rendering it can never fill a 27-cell overhang — the opaque overlay has to stay;
+it just has to start at `MapSize` instead of `Bounds`.
+
+**Reinforcements are NOT affected, contrary to the obvious worry.** `Map.GetSpawnCandidatesOnSameEdge`
+measures against `Bounds.Left` / `Bounds.Right - 1` (`Map.cs:1810-1826`), i.e. the **playable** edge, so
+`ProductionFromMapEdge` spawns inside `Bounds` and never in the unplayable ring. Rendering the ring changes
+nothing about where units appear or how they walk in.
+
+Incidental: `Map.ChooseClosestEdgeCell` (`Map.cs:1745-1758`) uses bare `Bounds.Right`/`Bounds.Bottom`
+(exclusive) rather than `-1`, so the legacy no-`SpawnArea` path *can* name a ring cell, unlike the primary
+path. Not exercised by the shipped maps; logged, not fixed.
