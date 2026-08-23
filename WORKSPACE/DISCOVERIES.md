@@ -3,6 +3,53 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-23 — a click resolves to ONE targeter and the target LINE is drawn from the move, so both halves of the order plumbing can advertise something the game is not doing (medic order lock, `wt/medic-order`, base `main @ 7f6e6460`)
+
+Two findings from making an explicit heal order stick. Both are general to the order system; the medic
+is just where they became visible.
+
+**`OrderForUnit` returns the FIRST accepting targeter and stops, so a lower-priority targeter on the
+same actor is not a fallback — it is unreachable.** `UnitOrderGenerator.cs:286-306` walks
+`TraitsImplementing<IIssueOrder>` in descending `OrderPriority` and `return`s on the first
+`CanTarget`. Every downstream consumer therefore sees **one** `UnitOrderResult` per actor, including
+`InputOverridesSelection` (`:178-182`), which iterates the resolved orders and asks each one's
+`TargetOverridesSelection`. Consequences worth having in advance:
+
+- **A high-priority targeter that accepts broadly silently disables the selection behaviour of every
+  targeter beneath it.** `AttendAlly` at priority 7 accepts any allied infantry, so `AttackBase`'s
+  targeter at 6 — whose `TargetOverridesSelection` returns true unconditionally (`AttackBase.cs:783`)
+  — is never consulted, and `AttendAlly`'s much narrower rule decides alone.
+- **The natural debugging story about this is wrong in a specific, costly way.** Reasoning from
+  `TargetOverridesSelection` alone predicts that a click on a *wounded* ally is rescued by the attack
+  targeter and only an *undamaged* one breaks — i.e. it predicts a damage-dependent bug. There is no
+  such dependency: priority resolved the question before damage was ever consulted. Anyone starting
+  from the targeter interface will build this theory; it is a dead end.
+- **Cursor and click are resolved by different rules and can disagree.** `GetCursor` goes through
+  `CursorForOrders` (`:135`), which reads the same resolved list but never consults
+  `TargetOverridesSelection`. So the cursor can promise an order the click will not issue. That is
+  exactly the user-reported medic symptom — *"I do get the special heal icon, so it looks like I can
+  issue a direct heal order"* — and the shape recurs for anything that overrides selection narrowly.
+
+Note the selection-override rule is reached ONLY under classic mouse style
+(`WorldInteractionControllerWidget.cs:110`), which ships off (`Settings.cs:280`). Filed as a latent
+bug with its trigger in `WORKSPACE/bugs/discovered.md`.
+
+**A target line is drawn from the top-level activity's MOVE node and never from the attack child, so
+an attack-move draws a line to a place while shooting at something else.** The renderer walks
+`CurrentActivity → NextActivity` and never descends into children (`Activity.cs:291-296`), and
+`AttackMoveActivity.TargetLineNodes` (`:246-252`) yields only `getMove().TargetLineNodes(self)`.
+
+For the medic that produced a game which **actively confirmed a promise it was not keeping**: an
+`AttendAlly` order drew its LimeGreen line to the man the player named and held it there for the whole
+order, while the attack layer treated whoever `HealerAutoTarget`'s ranking had picked. Not a missing
+readout — a wrong one, which is worse, because the player checks the line and it agrees with them.
+The patient lock added on this branch makes the line truthful; **it was not truthful before, and after
+the merge nothing in the tree will say so.** That is why this is written down.
+
+The same reasoning applies to every other `AttackMoveActivity` user: a unit attack-moving to a waypoint
+draws to the waypoint while engaging a target off to one side. Defensible for attack-move, which names
+a destination. Not defensible for a heal order, which names a person.
+
 ## 2026-08-23 — healing is DAMAGE WITH THE SIGN FLIPPED, and the sign decides which half of the modifier stack applies (medic numbers audit, read-only, `main @ 7f6e6460`)
 
 Substituting the mod's real numbers into the heal path, per conventions.md §"A change believed made,

@@ -29,6 +29,44 @@
 
 ---
 
+## 2026-08-23: [medium] OPEN, NOT FIXED — turning on classic mouse style makes a click on ANY ally select him instead of ordering the selected medic (found while: making the explicit heal order lock its patient, branch `wt/medic-order`, `main @ 7f6e6460`)
+
+**Trigger, exactly: Settings → classic mouse style ON.** `Settings.cs:280` ships
+`UseClassicMouseStyle = false` and nothing in the mod overrides it, so this is unreachable in a
+default install — which is why it has never been reported. It is one checkbox away for any player who
+prefers left-click-to-order, and there is no lint, no log line and no visual difference to warn them.
+
+**Symptom.** With a medic selected, left-clicking a friendly soldier selects that soldier. The medic
+receives no order. The `heal` cursor still displays beforehand, because `GetCursor` resolves through
+`CursorForOrders` (`UnitOrderGenerator.cs:135`), which never consults the selection-override rule — so
+the pointer promises an order the click does not deliver.
+
+**Mechanism, established by reading rather than inferred.** `WorldInteractionControllerWidget.cs:110`
+gates the whole order-instead-of-select branch on `useClassicMouseStyle`, so this rule is dead in the
+default configuration and live in the other one. When it IS live, `InputOverridesSelection`
+(`:178-182`) asks each resolved order's `TargetOverridesSelection`, and `AttendAlly`'s
+(`AttendAlly.cs:101-110`) returns true only when the ally is ALREADY selected or ForceMove is held.
+Neither holds for a plain click on an unselected ally, so the click falls through to selection.
+
+**The obvious reading of why is wrong, and the wrong reading is the expensive part.** It is natural to
+assume `AttackBase`'s targeter — whose `TargetOverridesSelection` returns true unconditionally
+(`AttackBase.cs:783`) — rescues the click on a *wounded* ally, leaving only undamaged allies broken.
+It cannot. `OrderForUnit` (`UnitOrderGenerator.cs:286-306`) returns the **first** accepting targeter in
+descending priority and stops, and `AttendAlly` sits at 7 against `AttackBase`'s 6. `AttackBase`'s
+targeter is never in the list `InputOverridesSelection` iterates. **The defect therefore affects every
+ally equally, hurt or not** — the damage state has nothing to do with it.
+
+**Confirm by:** setting classic mouse style, selecting a medic, left-clicking a wounded ally. Expect
+the ally to become selected and the medic not to move.
+
+**Fix shape when someone takes it:** `AttendAllyOrderTargeter.TargetOverridesSelection` returning true
+for an allied actor is the one-line version, but it changes what a click on a friendly means for every
+actor carrying `AttendAlly`, so it wants the same "does a plain click still select my own units"
+check by hand. Not attempted here — the branch that found it was scoped to ordering and target
+selection, and this is unreachable in the shipped configuration.
+
+---
+
 ## 2026-08-21: [low] CLOSED — RESOLVED BY DECISION, NOT BY BUG FIX — `AmmoPool.ChooseResupplier`'s comment named SUPPLYCACHE as a seekable host while no `RearmActors` list contained it (found while: fixing the crate rearm defect, branch `wt/cache-rearm`, `main @ c8848496`)
 
 `AmmoPool.cs:438` labels its second query "SupplyProvider hosts (TRUK, SUPPLYCACHE) with supply
