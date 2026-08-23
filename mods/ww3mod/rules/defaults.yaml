@@ -132,6 +132,18 @@
 	Vision@1:
 		RequiresCondition: loaded
 
+# Each trait key names the BAND it fires on; the Sequence it draws is deliberately one rung
+# further down the ladder — same shift as ^DamageInfantryPips, which carries the full rationale.
+# Flashing means critical and critical is 50%, so the pulse starts at the Heavy band and the
+# solid red pip slides up to Medium.
+#
+# Decoded from pip-damage-vehicle.shp (17x5 — a BAR, where the infantry pip is a 6x6 dot; five
+# frames): 0 yellow (255,255,85), 1 orange (255,138,0), 2 red (255,0,0), 3 dark red (101,0,0).
+# No green frame. The rung squeezed out is the ORANGE one, `pip-damage-vehicle-medium`, now
+# unreferenced. `-critical` is frames 2+3, a red <-> dark red pulse, not an on/off flash.
+#
+# The RequiresCondition lines are untouched ON PURPOSE: retuning ^DamageStates or Health.cs
+# instead would move AutoTargetInfo.BreakOffCondition off 25% along with it.
 ^DamageVehiclePips:
 	WithDecoration@DamageVehiclePips_Light:
 		Image: pips
@@ -141,13 +153,13 @@
 		RequiresCondition: light-damage
 	WithDecoration@DamageVehiclePips_Medium:
 		Image: pips
-		Sequence: pip-damage-vehicle-medium
+		Sequence: pip-damage-vehicle-heavy
 		Position: Top
 		Margin: 0,0
 		RequiresCondition: medium-damage
 	WithDecoration@DamageVehiclePips_Heavy:
 		Image: pips
-		Sequence: pip-damage-vehicle-heavy
+		Sequence: pip-damage-vehicle-critical
 		Position: Top
 		Margin: 0,0
 		RequiresCondition: heavy-damage
