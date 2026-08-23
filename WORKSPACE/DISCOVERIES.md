@@ -10228,3 +10228,59 @@ against `SUPPLYROUTE`, which does). So today's map content would not in fact hav
 `FrozenActorLayer` path. This does **not** make the `MapLayers` fix safe — the desync exposure is that
 the predicate applies to every cell on every map, not that a particular map ships a frozen ring actor —
 but it does mean the sim risk was latent rather than live.
+
+## 2026-08-23 — target selection had NO health term at all; the only health mechanism is a hard skip that abandons
+
+Census run before implementing a user ruling that units "should prioritize healthy units". The ruling's
+brief assumed `AutoTargetInfo.BreakOffCondition` was unset and warned it off as the wrong lever. **It is
+set, it is the entire health mechanism, and it abandons rather than deprioritises.**
+
+### There was no term reading the target's remaining HP anywhere in the scoring loop
+
+`AutoTarget.ChooseTarget` scored a candidate from range, cluster pull, priority bucket, and the
+soft-overkill penalty (`AutoTarget.cs:1548-1549`). The trap for anyone reading that quickly:
+**`Actor.AverageDamagePercent` is not the target's health.** It is damage OTHER shooters have already
+*claimed* against it (`Actor.cs:83-118`, halved every 60 ticks at `:346`) — pile-on prevention. So both
+overkill knobs (`OverkillThreshold`, `SoftOverkillThreshold`/`SoftOverkillScale`, `AutoTarget.cs:217-226`)
+are blind to how wounded a unit actually is. **A 30%-HP tank and a full-health tank at equal range scored
+byte-identically.** That is the gap this ruling names, and it was total, not partial.
+
+### The one health mechanism is a hard skip at three sites, with no fallback pass
+
+`BreakOffCondition` defaults to `"critical-damage"` (`AutoTarget.cs:244`) and is **never overridden in mod
+YAML** — the grep returns only a comment at `infantry.yaml:196`. The condition is granted mod-wide by
+`GrantConditionOnDamageState@CriticalDamage` (`defaults.yaml:218-220`) at `DamageState.Critical`, which
+`Health.cs:95-96` fixes at **HP < 25%** of max. It then fires at three places, all hard:
+
+- `AutoTarget.cs:1467-1472` — a bare `continue` on acquisition. `ChooseTarget` is a **single pass with no
+  relaxed retry**, so when the only in-range enemy is critical the unit holds fire (`:1584-1585` merely
+  records `LastHeldFireTick`). This is abandonment, not preference.
+- `AttackFollow.cs:163-167` — drops a locked opportunity target.
+- `Attack.cs:217-220` — returns `UnableToAttack` for self-chosen engagements.
+
+**Consequence for anyone tempted to soften only the acquisition site: don't.** A scoring term at
+`AutoTarget.cs` alone makes things *worse*, not better — the unit re-acquires the lone critical target and
+`Attack.cs:220` refuses it every tick, giving acquire/refuse oscillation that never fires a shot. The
+three sites are one mechanism and move together or not at all.
+
+### The abandonment is deliberate and twice-ruled, so it is not loose ground
+
+The hard skip replaced an older `CriticalDamage +50000` soft nudge in 2026-05, because the nudge was
+firing on every non-parachuting vehicle rather than only critical ones — the stated rationale was ammo
+efficiency, not a bug fix. `BreakOffScopeTest.cs:45` then pins the intent in prose: *"This is the
+behaviour the user explicitly wants KEPT."* A later pass (`AttackBase.BreakOffApplies`, `:672-675`) scoped
+it so **player orders are exempt** — an ordinary attack order on a critical target does fire; only
+self-chosen engagements break off.
+
+### What shipped instead: a preference above the fence, leaving the fence alone
+
+`FiresEconMath.HealthPreferencePenalty` — `penalty = targetRange * (100 - health%) / HealthPreferenceScale`,
+default scale 100 (`AutoTarget.cs:228-237`), applied at `:1555`. A wounded enemy scores as if further away;
+bounded by one range-length so it stays inside the range tiebreak and **can never cross a priority bucket
+or become a second break-off**. Health is read from `Actor.HealthPercent` (`Actor.cs:602-616`), a new O(1)
+accessor over the `IHealth` already cached at construction (`:162`) — no trait lookup on the scan path.
+
+The band this earns its keep in is **25-50%**: above the critical fence, so still a legal target, but —
+once the infantry fire/movement gates move from 25% to 50% — disarmed and stationary. A harmless unit is
+exactly what a healthy one should outrank. Pinned values at scale 100: 60% HP reads as 1.4x its range,
+40% as 1.6x, and full health as exactly 0 penalty.

@@ -225,6 +225,17 @@ namespace OpenRA.Mods.Common.Traits
 			"Lower = stronger penalty (target appears further). Default 50 = penalty doubles range at 100% mark.")]
 		public readonly int SoftOverkillScale = 50;
 
+		[Desc("Divisor for the healthy-target preference:",
+			"penalty = targetRange * (100 - target health %) / HealthPreferenceScale.",
+			"A wounded enemy scores as though it stood further away, so a healthy one at equal range always",
+			"wins. Linear in health, so it discriminates across the WHOLE band and not merely near-full vs",
+			"near-dead: at the default 100 a 60% target reads as 1.4x its range and a 40% target as 1.6x.",
+			"This is a PREFERENCE, not a filter — the penalty is bounded by one range-length and stays inside",
+			"the range tiebreak, so a wounded unit that is the only thing in range is still engaged and",
+			"finished off. Abandoning is BreakOffCondition's job, and that only reaches units already below",
+			"the critical line. Lower = stronger preference. Set to 0 to disable (byte-identical to no term).")]
+		public readonly int HealthPreferenceScale = 100;
+
 		[Desc("If a target has this condition, autotarget treats it as already-finished and skips it.",
 			"In-progress autotarget/opportunity attacks also break off when the current target acquires this condition.",
 			"This is a preference, never a validity rule: an explicitly ordered attack (a player order, the Lua",
@@ -1486,6 +1497,12 @@ namespace OpenRA.Mods.Common.Traits
 						clusterScore, Info.ClusterBonusScale, Info.ClusterMaxBonus.Length);
 				}
 
+				// Healthy-target preference: a wounded enemy scores as if it stood further away. Computed
+				// ONCE per candidate (health and range are both per-candidate, not per-priority-class) and
+				// read from the Actor's cached IHealth, so this costs no trait lookup on the scan path.
+				var healthPenalty = FiresEconMath.HealthPreferencePenalty(
+					targetRange, target.Actor.HealthPercent, Info.HealthPreferenceScale);
+
 				// PITFALL: priority MUST be categorical — a tank should always shoot a tank
 				// before a crewman, regardless of how close the crewman is. The pre-260511
 				// formula was `range / Priority`, which made an Infantry-priority target at
@@ -1505,6 +1522,10 @@ namespace OpenRA.Mods.Common.Traits
 				//     ExternalCondition is actually granted (>0) on the target.
 				//   - The old CriticalDamage +50000 nudge was removed in 2026-05; critically
 				//     damaged targets are now hard-skipped above via BreakOffCondition.
+					//   - HealthPreference (the target's REMAINING HP) sits inside the range tiebreak
+					//     too, so a healthy enemy outranks a wounded one at equal range. It is a
+					//     preference and not a second break-off: bounded by one range-length, so the
+					//     lone wounded target in range still wins its bucket and gets finished off.
 				const long PriorityBucketSize = 1L << 24;  // 16 777 216 — far above any plausible map range
 				long priorityValue;
 
@@ -1526,6 +1547,12 @@ namespace OpenRA.Mods.Common.Traits
 					// Knobs surface as SoftOverkillThreshold / SoftOverkillScale on AutoTargetInfo.
 					if (Info.SoftOverkillScale > 0 && target.Actor.AverageDamagePercent > Info.SoftOverkillThreshold)
 						priorityValue += targetRange * target.Actor.AverageDamagePercent / Info.SoftOverkillScale;
+
+					// Prefer a healthy enemy over a wounded one. Distinct from the soft-overkill term above:
+					// that reads AverageDamagePercent (damage OTHER shooters have already claimed, i.e. don't
+					// pile on), this reads the target's actual remaining HP. Before this term a 30%-HP tank
+					// and a full-health one at equal range scored identically.
+					priorityValue += healthPenalty;
 
 					// Categorical bucket: highest Priority always wins. ConditionalPriority
 					// promotes the bucket by 1 when its named condition is actually granted.

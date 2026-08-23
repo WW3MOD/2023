@@ -158,5 +158,69 @@ namespace OpenRA.Test
 			// A free / unpriced weapon is always worthy (no gate).
 			Assert.That(FiresEconMath.FireWorthy(0, 0, 100), Is.True, "zero salvo cost = always worthy");
 		}
+
+		// ---- (8) HealthPreferencePenalty ------------------------------------------------------------------
+
+		[Test]
+		public void HealthPreferencePenalty_IsProportionalAcrossTheWholeBand()
+		{
+			const int Scale = 100;
+
+			// An undamaged target is never penalised, so a field with no wounded in it scores exactly as
+			// it did before this term existed.
+			Assert.That(FiresEconMath.HealthPreferencePenalty(Cell, 100, Scale), Is.EqualTo(0),
+				"a full-health target must carry no penalty at all");
+
+			// The two values the ruling singled out. This is the band that matters: above the critical
+			// fence (25%) so they are still legal targets, and — once the infantry fire/move gates move
+			// to 50% — 40% is a disarmed, stationary unit that a healthy one should outrank.
+			Assert.That(FiresEconMath.HealthPreferencePenalty(Cell, 60, Scale), Is.EqualTo(409),
+				"60% HP at 1 cell must score as ~1.4 cells (1024 * 40 / 100)");
+			Assert.That(FiresEconMath.HealthPreferencePenalty(Cell, 40, Scale), Is.EqualTo(614),
+				"40% HP at 1 cell must score as ~1.6 cells (1024 * 60 / 100)");
+
+			// The point of the whole exercise: mid-band must DISCRIMINATE, not collapse to one step. A
+			// term that only separated near-full from near-dead could still satisfy the two asserts
+			// above by bucketing; this pins that 60% and 40% are genuinely different scores.
+			Assert.That(FiresEconMath.HealthPreferencePenalty(Cell, 40, Scale),
+				Is.GreaterThan(FiresEconMath.HealthPreferencePenalty(Cell, 60, Scale)),
+				"a 40% target must be deprioritised strictly more than a 60% one");
+
+			// Strictly monotonic the whole way down the legal band, one sample per damage state.
+			var prev = -1;
+			foreach (var hp in new[] { 100, 75, 60, 50, 40, 26 })
+			{
+				var penalty = FiresEconMath.HealthPreferencePenalty(Cell, hp, Scale);
+				Assert.That(penalty, Is.GreaterThan(prev),
+					$"penalty must rise monotonically as health falls (broke at {hp}% HP)");
+				prev = penalty;
+			}
+
+			// Bounded: even a 0% HP target (reachable only where the critical-damage grant was removed,
+			// e.g. civilians) can never earn more than one range-length of penalty at Scale 100, which
+			// keeps this WELL inside the range tiebreak and nowhere near the priority bucket.
+			Assert.That(FiresEconMath.HealthPreferencePenalty(Cell, 0, Scale), Is.EqualTo(Cell),
+				"worst case at Scale 100 is exactly one extra range-length");
+		}
+
+		[Test]
+		public void HealthPreferencePenalty_GuardsDegenerateInput()
+		{
+			// Disabled by scale — the off switch must be byte-identical to no term at all.
+			Assert.That(FiresEconMath.HealthPreferencePenalty(Cell, 30, 0), Is.EqualTo(0), "scale 0 = off");
+			Assert.That(FiresEconMath.HealthPreferencePenalty(Cell, 30, -1), Is.EqualTo(0), "negative scale = off");
+
+			// A target on top of the shooter has no range to inflate, so no penalty either.
+			Assert.That(FiresEconMath.HealthPreferencePenalty(0, 30, 100), Is.EqualTo(0), "zero range = no penalty");
+
+			// Health outside 0..100 is clamped rather than allowed to flip the sign of the term — an
+			// over-heal (>100) must not turn the penalty into a BONUS that outranks a full-health unit.
+			Assert.That(FiresEconMath.HealthPreferencePenalty(Cell, 150, 100), Is.EqualTo(0), "over-heal clamps to 0 penalty");
+			Assert.That(FiresEconMath.HealthPreferencePenalty(Cell, -5, 100), Is.EqualTo(Cell), "negative HP clamps to the 0% penalty");
+
+			// Long intermediate: a far target on a large map must not overflow int32 mid-multiply.
+			Assert.That(FiresEconMath.HealthPreferencePenalty(int.MaxValue, 0, 100), Is.GreaterThan(0),
+				"a huge range must not overflow to a negative penalty");
+		}
 	}
 }
