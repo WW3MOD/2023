@@ -15,8 +15,26 @@
 		# a ~30px sprite. Shipped since 82938ec8 but effectively subliminal, which is why the user
 		# reports no healing feedback at all. FlashTarget tints only on `tick % Interval == 0`, so
 		# Interval 1 is what turns a strobe into one continuous glow: 6 ticks ~= 360ms at Timestep 60.
-		Color: 40FF60
-		Alpha: 0.5
+		#
+		# WHITE BY BRIGHTNESS, NOT BY COLOUR (user ruling 2026-08-23: "a faint white flash, just very
+		# faint/opaque - just barely visible is enough"). Simply setting Color to white would NOT have
+		# delivered that. The Color+Alpha path flags TintModifiers.ReplaceColor and the shader then
+		# substitutes the colour outright instead of tinting (combined.frag: `if (vTint.a < 0.0) c =
+		# vec4(vTint.rgb, -vTint.a)`), so the soldier is REPLACED by a flat half-transparent white
+		# silhouette — which reads as a man fading out or dying, the opposite of the message. Brightness
+		# selects FlashTarget's other constructor, which leaves TintModifiers at None so the shader
+		# MULTIPLIES (`c *= vTint`): the sprite keeps its shading and its opacity and lifts toward white.
+		#
+		# Alpha is deliberately absent now: it is inert on the multiply path, because that constructor
+		# never calls WithAlpha and the actor keeps its own alpha — which is exactly what stops this
+		# reading as a fade. Was `Color: 40FF60 / Alpha: 0.5`, the green silhouette.
+		#
+		# 1.4 IS THE TUNING KNOB AND HAS NOT BEEN SEEN ON SCREEN. It is a 40% lift: a mid-tone pixel
+		# goes 0.5 -> 0.7, an already-bright one clips to white. Lower toward 1.15 if it reads too
+		# strong. Erring slightly bright is deliberate — the value this trait ORIGINALLY shipped with
+		# was white at Alpha 0.3, and the user's report against it was no healing feedback at all.
+		Color: FFFFFF
+		Brightness: 1.4
 		Count: 6
 		Interval: 1
 		Cooldown: 20
