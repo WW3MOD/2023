@@ -23,6 +23,8 @@ namespace OpenRA.Graphics
 		int Facings { get; }
 		int Tick { get; }
 		int[] ChangeTick { get; }
+		int HealthRampTick { get; }
+		int HealthRampStart { get; }
 		int ZOffset { get; }
 		int ShadowZOffset { get; }
 		Rectangle Bounds { get; }

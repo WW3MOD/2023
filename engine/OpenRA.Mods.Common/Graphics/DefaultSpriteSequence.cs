@@ -157,6 +157,18 @@ namespace OpenRA.Mods.Common.Graphics
 			"Format: frame1,tick1, frame2,tick2, ... When the current frame exceeds a threshold, the tick rate changes.")]
 		protected static readonly SpriteSequenceField<int[]> ChangeTick = new(nameof(ChangeTick), null);
 
+		[Desc("Milliseconds per frame at zero health, for decorations that accelerate as their actor dies. " +
+			"The interval ramps linearly from Tick at HealthRampStart health down to this value at zero health. " +
+			"0 disables the ramp and the sequence plays at a constant Tick. Read by WithDecoration only. " +
+			"It lives on the SEQUENCE rather than the trait so that every trait drawing this artwork ramps " +
+			"identically — the health pips are drawn by one trait per damage band, and a per-trait setting " +
+			"would let the rate jump at a band boundary if the two ever disagreed.")]
+		protected static readonly SpriteSequenceField<int> HealthRampTick = new(nameof(HealthRampTick), 0);
+
+		[Desc("Health percentage at which the HealthRampTick ramp begins — its slow end. Set this to the health " +
+			"band that turns the decoration on, so the ramp spans exactly the range the decoration is visible for.")]
+		protected static readonly SpriteSequenceField<int> HealthRampStart = new(nameof(HealthRampStart), 0);
+
 		[Desc("Value controlling the Z-order. A higher values means rendering on top of other sprites at the same position. " +
 			"Use power of 2 values to avoid glitches.")]
 		protected static readonly SpriteSequenceField<WDist> ZOffset = new(nameof(ZOffset), WDist.Zero);
@@ -239,6 +251,8 @@ namespace OpenRA.Mods.Common.Graphics
 		protected int? interpolatedFacings;
 		protected int tick;
 		protected int[] changeTick;
+		protected int healthRampTick;
+		protected int healthRampStart;
 		protected int zOffset;
 		protected int shadowZOffset;
 		protected bool ignoreWorldTint;
@@ -268,6 +282,8 @@ namespace OpenRA.Mods.Common.Graphics
 		int ISpriteSequence.Facings => interpolatedFacings ?? facings;
 		int ISpriteSequence.Tick => tick;
 		int[] ISpriteSequence.ChangeTick => changeTick;
+		int ISpriteSequence.HealthRampTick => healthRampTick;
+		int ISpriteSequence.HealthRampStart => healthRampStart;
 		int ISpriteSequence.ZOffset => zOffset;
 		int ISpriteSequence.ShadowZOffset => shadowZOffset;
 		bool ISpriteSequence.IgnoreWorldTint => ignoreWorldTint;
@@ -448,6 +464,8 @@ namespace OpenRA.Mods.Common.Graphics
 
 			tick = LoadField(Tick, data, defaults);
 			changeTick = LoadField(ChangeTick, data, defaults);
+			healthRampTick = LoadField(HealthRampTick, data, defaults);
+			healthRampStart = LoadField(HealthRampStart, data, defaults);
 			zOffset = LoadField(ZOffset, data, defaults).Length;
 
 			shadowStart = LoadField(ShadowStart, data, defaults);

@@ -10380,6 +10380,94 @@ and an index fetched from wall-clock cannot honour it. Harmless today — the mo
 on `nuke_large` (`sequences/sequences-ingame.yaml:236`), an explosion, not a decoration — but a future
 animated decoration using `ChangeTick` would lose its per-frame timing with no error.
 
+## 2026-08-23 — The blink now accelerates, and the constant that caused all of this
+
+### `Animation.cs:125` is the systemic tick-rate error, stated out loud, in the engine
+
+```csharp
+const int DefaultTick = 40; // 25 fps == 40 ms
+```
+
+This is the purest instance of the error catalogued in
+[`DOCS/reference/conventions.md` §"A change believed made, documented as made, and inert"](../DOCS/reference/conventions.md#a-change-believed-made-documented-as-made-and-inert):
+a comment asserting 25 ticks per second in a mod that runs **16.67** (`Timestep: 60`, `mod.yaml:382`).
+It is not merely a stale comment — `Animation.Tick()` (`Animation.cs:229-233`) *credits* that 40 against
+the sequence clock on every world tick, so any ticked animation runs at 40ms of pretend-time per
+`Timestep` ms of real time. Every animated sequence in the game was therefore 1.5x slow at the default
+speed and varied 4x across the speed range.
+
+**Do not "fix" the constant.** It is load-bearing for every non-decoration animation and for the sim
+paths that gate on animation completion (`Transform.cs:69`, `Sellable.cs:100`,
+`GenericDockSequence.cs:135-139`), because `RenderSprites` is `ITick` (`RenderSprites.cs:119`). Changing
+40 would move all of those at once and turn several greens red — the exact failure mode the conventions
+section warns about. The fix is to change the *consumer*, as `WithDecoration` now does: it fetches its
+frame from `Game.RunTime` and never consults `DefaultTick` at all. A future worker who finds that comment
+should inherit this finding rather than re-derive it or act on it.
+
+### Variable blink rate: the obstacle is phase, and the ramp lives on the sequence
+
+`WithDecoration` now accelerates a decoration's blink as its actor dies, so the rate itself reads as
+time remaining. Two new sequence fields drive it (`DefaultSpriteSequence.cs`, exposed on
+`ISpriteSequence` — one implementor, so the interface change is two files): `HealthRampTick` (ms per
+frame at zero health) and `HealthRampStart` (the health percentage where the ramp begins).
+
+**The ramp is a property of the SEQUENCE, not of the trait, and that is the load-bearing decision.**
+After the ladder shift the blinking artwork `pip-damage-*-critical` is drawn by *two* traits — the
+heavy-damage one from 50% and the critical-damage one from 25% (`rules/defaults.yaml`). A per-trait
+ramp would have meant four YAML sites that must agree, and any disagreement would show up as the blink
+rate **jumping at the 25% boundary** — a discontinuity in the exact signal the ramp exists to make
+readable. On the sequence it is stated once and rides along with the artwork, which is also the thing
+the band shift moves, so the two changes compose instead of needing to be kept in sync.
+
+**`HealthRampStart` is anchored to blink onset, not to a fixed band.** It must equal the health
+percentage at which some trait first draws the sequence. It is 50 because that is where blinking now
+begins; if the ladder shifts again this number moves with it, and the YAML comment says so.
+
+### The rejected implementation, and why the first test of it was worthless
+
+The obvious variable-rate implementation is `runTime / interval % length`. It is wrong, because it
+re-derives the index from absolute time: **the instant the interval changes, the index leaps somewhere
+unrelated.** At `runTime` 300000ms an interval of 450 gives frame 0 and 440 gives frame 1. With a
+health-scaled interval the rate changes on every damage event, so the pip would stutter and skip
+precisely while the unit is under fire. `BlinkPhase` (`WithDecorationBase.cs`) carries phase forward
+across rate changes instead, in thousandths of a frame to stay integer.
+
+**The first test written for this passed the broken implementation.** It drove one damage event and
+asserted a minimum gap between frame flips — reasoning that a leap would produce a flip too soon. It
+does not: **a leap can lengthen a gap exactly as easily as shorten it**, and at the chosen times it
+happened to do so. Gap size is the wrong property. The right one is that *at a fixed instant, changing
+the rate must not by itself change the displayed frame* — swept across many instants, because a leaping
+implementation only diverges at some of them. Only after the rewrite did sabotaging `BlinkPhase`
+produce a RED. **A continuity property tested at one sample point is not tested.**
+
+### Ramp shape: linear in the interval, and why not in the frequency
+
+Linear in the **interval**, giving (two-frame sequence, so cycle = 2x interval):
+
+| Health | ms/frame | Cycle | Step from previous |
+|---|---|---|---|
+| 50% (onset) | 450 | 900ms | — |
+| 40% | 384 | 768ms | 14.7% |
+| 30% | 318 | 636ms | 17.2% |
+| 20% | 252 | 504ms | 20.8% |
+| 10% | 186 | 372ms | 26.2% |
+| 0% | 120 | 240ms | 35.5% |
+
+Linear in the *frequency* was rejected: it front-loads almost all of the visible change into the last
+few percent of health, which is the "evaluates to nothing over most of its range" shape this project
+keeps producing. The linear-interval ramp is weakest at its slow end (14.7% per 10 health points) and
+accelerates from there, so every part of the range is readable. `RampIsPerceptibleAcrossItsWholeRange`
+pins that floor at 14% so a future retune cannot flatten it silently.
+
+### The 240ms floor is real and is the tick rate, not the ramp
+
+The `PlayFetchIndex` lambda runs once per **world tick**, not once per rendered frame. That is what
+makes carrying phase state safe here (unlike `ShouldRender`, which is on the render path and must stay
+stateless) — but it also means the blink cannot be resolved faster than about **two world ticks per
+cycle: a 240ms floor at `strategical`'s 120ms `Timestep`**. The ramp bottoms out at exactly 240ms, and
+reaches it only in the last few percent of health. Below that the blink would alias rather than speed
+up. Going finer requires moving the frame computation to the render path, which re-inherits the
+statelessness constraint and therefore the discontinuity problem.
 ## 2026-08-23 — Critical band moved to 50%; and WW3MOD has no health bar at all
 
 Branch `wt/critical-band`. User ruling: *"All units when they are critical (50%, flashing health pip)
