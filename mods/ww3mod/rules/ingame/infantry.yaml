@@ -688,6 +688,21 @@
 		Margin: 0,0
 		RequiresCondition: defense == 5
 
+# Each trait key names the BAND it fires on; the Sequence it draws is deliberately one rung
+# further down the ladder. Flashing means critical and critical is 50% (^Soldier stops firing
+# and moving on `heavy-damage-attained`), so the pulse starts at the Heavy band and the solid
+# red pip slides up to Medium to mean almost-critical.
+#
+# Decoded from pip-damage-infantry.shp (6x6, five frames): 0 yellow (255,255,85), 1 orange
+# (255,138,0), 2 red (255,0,0), 3 dark red (134,0,0). There is NO green frame — the pip only
+# exists once a unit is damaged, so the ladder starts at yellow. The rung this squeezes out is
+# the ORANGE one, `pip-damage-infantry-medium`, now unreferenced: three rungs, not four.
+# `-critical` is frames 2+3, so it pulses red <-> DARK red rather than flashing on and off.
+#
+# The RequiresCondition lines are untouched ON PURPOSE. Retuning the ladder by editing
+# ^DamageStates or the engine's Health.cs thresholds instead would drag every other consumer
+# of these bands with it — including AutoTargetInfo.BreakOffCondition, which keys off
+# `critical-damage` and must stay at 25%.
 ^DamageInfantryPips:
 	WithDecoration@DamageInfantryPips_Light:
 		Image: pips
@@ -697,13 +712,13 @@
 		RequiresCondition: light-damage
 	WithDecoration@DamageInfantryPips_Medium:
 		Image: pips
-		Sequence: pip-damage-infantry-medium
+		Sequence: pip-damage-infantry-heavy
 		Position: Top
 		Margin: 0,-5
 		RequiresCondition: medium-damage
 	WithDecoration@DamageInfantryPips_Heavy:
 		Image: pips
-		Sequence: pip-damage-infantry-heavy
+		Sequence: pip-damage-infantry-critical
 		Position: Top
 		Margin: 0,-5
 		RequiresCondition: heavy-damage
