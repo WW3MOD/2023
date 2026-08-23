@@ -1,0 +1,74 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a man goes critical at the medic's feet mid-treatment
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Both patients are ADJACENT to the medic — one cell either side. Distance is
+# deliberately removed as an explanation: whatever he does here, he does not do
+# it because someone was far away. DistancePenaltyPerCell (3) is worth at most
+# 3 points to either man, and they are symmetric.
+#
+# Scratch starts at 55%: above StabilizeThreshold (50), so he is an ordinary
+# patient rather than a triage emergency, and below MaxPatientHealthPercent (90)
+# so the medic will pick him up at all. 45 points to full is ~13.5s of treatment
+# — a long enough tunnel to see through.
+#
+# Bystander starts at FULL and is wounded to 20% by the Lua once treatment on
+# Scratch is confirmed under way. That ordering is the whole test: at
+# acquisition time the critical-first bonus (10000) would correctly send the
+# medic to him, so the only way to ask "will he DIVERT?" is to create the
+# casualty after the medic has already committed.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	Medic: medi
+		Owner: Me
+		Location: 18,16
+		Facing: 768
+
+	# One cell east. Drained to 55% in Lua — the light wound the medic commits to.
+	Scratch: e1
+		Owner: Me
+		Location: 19,16
+		Facing: 768
+
+	# One cell west. Starts UNHURT; the Lua puts him at 20% once the medic is
+	# already treating Scratch. He is as close as a patient can be.
+	Bystander: e1
+		Owner: Me
+		Location: 17,16
+		Facing: 768
+
+Rules: rules.yaml

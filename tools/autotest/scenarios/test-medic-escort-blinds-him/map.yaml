@@ -1,0 +1,77 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a healthy escort blinds the medic to a casualty just out of notice
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# The medic has TWO radii and they disagree by a factor of 2.5:
+#   HealerAutoTarget.SearchRange   8c0   — how far he NOTICES a casualty
+#   AutoFollowAlly.SearchRange    20c0   — how far he will trail a squadmate
+#
+# AutoFollowAlly.FindNearestAlly picks the NEAREST ally and does not look at
+# health at all. So a healthy man standing closer than a wounded one takes the
+# medic's escort duty, parks him at FollowDistance (3c0), and everything past
+# 8c0 stays invisible.
+#
+# Escort is unhurt and 2 cells away — already inside FollowDistance, so the
+# medic has no reason to take a single step.
+# Stranded is at 40% and 10 cells away — OUTSIDE the 8-cell notice radius but
+# well inside the 20-cell follow radius, and below StabilizeThreshold (50) so he
+# is bleeding out the whole time (ChangesHealth@BleedOut, -1% per 50 ticks).
+#
+# The Lua destroys Escort part-way through. That is the controlled variable: if
+# Stranded is treated promptly once the healthy man is gone, then it was the
+# escort and not the distance that stranded him.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	Medic: medi
+		Owner: Me
+		Location: 18,16
+		Facing: 768
+
+	# 2 cells east, unhurt. Inside FollowDistance, so the medic stands still.
+	Escort: e1
+		Owner: Me
+		Location: 20,16
+		Facing: 768
+
+	# 10 cells east. Outside the 8-cell notice radius, inside the 20-cell follow
+	# radius. Drained to 40% in Lua, so he is bleeding from the first tick.
+	Stranded: e1
+		Owner: Me
+		Location: 28,16
+		Facing: 768
+
+Rules: rules.yaml
