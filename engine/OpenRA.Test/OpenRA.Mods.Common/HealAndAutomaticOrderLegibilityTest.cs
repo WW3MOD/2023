@@ -9,21 +9,21 @@
  *
  *   1. Healing is NEGATIVE damage, and zero is not healing. This mod has a live zero-damage warhead
  *      (ReplenishSoldiersTargeter, weapons-other.yaml:367, DamagePercent: 0), so the >=/> boundary
- *      is not hypothetical: get it wrong and every soldier-replenish tick lights a heal pip.
+ *      is not hypothetical: get it wrong and every soldier-replenish tick flashes a man nobody is
+ *      treating. This got MORE load-bearing on 2026-08-23, not less: the "being treated" pip was
+ *      removed by user ruling, so WithHealFlash — and therefore this predicate — is now the only
+ *      thing that tells a player healing is happening at all.
  *   2. AutomaticOrder.LineColor is used by NOTHING ELSE. The automatic-order feature deliberately
  *      carries provenance in the colour value rather than threading a flag through 29 call sites
  *      (see AutomaticOrder.cs). That trade is only sound while the value stays unique — if some
  *      other trait is ever retuned onto the same ARGB, automatic lines silently stop timing out for
  *      orders the player DID give, and nothing anywhere would report it.
  *
- * These do NOT prove the flash is visible, the pip is positioned somewhere sensible, or that blue
- * reads as "the game did this" on screen. Those need eyes; the report names the capture to take.
+ * These do NOT prove the flash is visible, or that blue reads as "the game did this" on screen.
+ * Those need eyes; the report names the capture to take.
  */
 #endregion
 
-using System;
-using System.IO;
-using System.Linq;
 using NUnit.Framework;
 using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Traits;
@@ -100,76 +100,6 @@ namespace OpenRA.Test
 				$"{which} draws in the same colour as an automatic order, so the player can no longer " +
 				"tell an order they gave from one the game gave — and automatic lines' exemption from " +
 				"the display timeout would start applying to it too.");
-		}
-
-		static string FindModFile(params string[] parts)
-		{
-			var dir = new DirectoryInfo(AppContext.BaseDirectory);
-			for (var i = 0; i < 10 && dir != null; i++, dir = dir.Parent)
-			{
-				var candidate = Path.Combine(new[] { dir.FullName, "mods", "ww3mod" }.Concat(parts).ToArray());
-				if (File.Exists(candidate))
-					return candidate;
-			}
-
-			throw new FileNotFoundException($"could not locate mods/ww3mod/{string.Join("/", parts)}");
-		}
-
-		static MiniYaml Child(MiniYaml parent, string key, string where)
-		{
-			var node = parent.Nodes.FirstOrDefault(n => n.Key == key);
-			Assert.That(node, Is.Not.Null, $"{key} is no longer defined in {where} — this test is pinning nothing");
-			return node.Value;
-		}
-
-		static MiniYaml Top(string where, string key, params string[] parts)
-		{
-			var node = MiniYaml.FromFile(FindModFile(parts)).FirstOrDefault(n => n.Key == key);
-			Assert.That(node, Is.Not.Null, $"{key} is no longer defined in {where} — this test is pinning nothing");
-			return node.Value;
-		}
-
-		/// <summary>
-		/// The gap between successive heal IMPACTS on one patient, in ticks — the medic's Heal weapon
-		/// fires Burst 1, so its BurstWait IS the impact-to-impact spacing. Read from the shipped weapon
-		/// rather than restated, because the whole defect this test replaces was an assertion about two
-		/// DEFAULTS that had drifted away from the numbers actually in force.
-		/// </summary>
-		static int HealImpactGapTicks()
-		{
-			var heal = Top("weapons-other.yaml", "Heal", "rules", "weapons", "weapons-other.yaml");
-			return FieldLoader.GetValue<int>("BurstWait", Child(heal, "BurstWait", "the Heal weapon").Value);
-		}
-
-		/// <summary>
-		/// The shipped GrantConditionOnHealed, loaded through the real FieldLoader off ^ExistsInWorld —
-		/// so an explicit Duration in YAML is honoured and its absence correctly yields the Info default.
-		/// </summary>
-		static GrantConditionOnHealedInfo ShippedHealCondition()
-		{
-			var existsInWorld = Top("defaults.yaml", "^ExistsInWorld", "rules", "defaults.yaml");
-			var info = new GrantConditionOnHealedInfo();
-			FieldLoader.Load(info, Child(existsInWorld, "GrantConditionOnHealed", "^ExistsInWorld"));
-			return info;
-		}
-
-		[Test]
-		public void TheHealConditionOutlivesTheGapBetweenHealImpacts()
-		{
-			// The "being treated" pip is a DURATIVE readout driven by a condition that each heal impact
-			// refreshes for Duration ticks. If Duration is shorter than the spacing between impacts, the
-			// condition lapses in every gap and the pip strobes on a patient who is still being treated —
-			// the exact failure GrantConditionOnHealedInfo.Duration's own [Desc] warns about.
-			//
-			// WHAT THIS REPLACES, because the replacement is the point: this assertion used to compare
-			// GrantConditionOnHealedInfo.Duration against WithHealFlashInfo.Cooldown. Both were DEFAULTS,
-			// neither was the number in force (YAML ships Cooldown 20, not the default 25), and the flash
-			// cooldown is not the impact spacing in the first place — BurstWait is, and the old test never
-			// read it. It passed at a 50-tick spacing that was strobing 20 ticks dark in every 50.
-			var gap = HealImpactGapTicks();
-			Assert.That(ShippedHealCondition().Duration, Is.GreaterThan(gap),
-				$"the heal condition lapses between impacts that are still arriving ({gap}-tick spacing), " +
-				"so a patient under continuous treatment shows a strobing pip instead of a steady one.");
 		}
 	}
 }
