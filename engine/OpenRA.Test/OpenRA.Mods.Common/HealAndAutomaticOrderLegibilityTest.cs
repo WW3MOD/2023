@@ -21,10 +21,12 @@
  */
 #endregion
 
+using System;
+using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Mods.Common.Traits.Render;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -100,16 +102,74 @@ namespace OpenRA.Test
 				"the display timeout would start applying to it too.");
 		}
 
-		[Test]
-		public void TheHealConditionOutlivesTheFlashRetriggerWindow()
+		static string FindModFile(params string[] parts)
 		{
-			// The two readouts are complementary only while the pip spans the gaps between flashes.
-			// If the condition expired sooner than the flash can re-fire, continuous treatment would
-			// show a strobing pip instead of a steady one — the exact illegibility being fixed.
-			Assert.That(new GrantConditionOnHealedInfo().Duration,
-				Is.GreaterThan(new WithHealFlashInfo().Cooldown),
-				"GrantConditionOnHealed.Duration must exceed WithHealFlash.Cooldown, or the durative " +
-				"pip goes dark between heal impacts that are still arriving.");
+			var dir = new DirectoryInfo(AppContext.BaseDirectory);
+			for (var i = 0; i < 10 && dir != null; i++, dir = dir.Parent)
+			{
+				var candidate = Path.Combine(new[] { dir.FullName, "mods", "ww3mod" }.Concat(parts).ToArray());
+				if (File.Exists(candidate))
+					return candidate;
+			}
+
+			throw new FileNotFoundException($"could not locate mods/ww3mod/{string.Join("/", parts)}");
+		}
+
+		static MiniYaml Child(MiniYaml parent, string key, string where)
+		{
+			var node = parent.Nodes.FirstOrDefault(n => n.Key == key);
+			Assert.That(node, Is.Not.Null, $"{key} is no longer defined in {where} — this test is pinning nothing");
+			return node.Value;
+		}
+
+		static MiniYaml Top(string where, string key, params string[] parts)
+		{
+			var node = MiniYaml.FromFile(FindModFile(parts)).FirstOrDefault(n => n.Key == key);
+			Assert.That(node, Is.Not.Null, $"{key} is no longer defined in {where} — this test is pinning nothing");
+			return node.Value;
+		}
+
+		/// <summary>
+		/// The gap between successive heal IMPACTS on one patient, in ticks — the medic's Heal weapon
+		/// fires Burst 1, so its BurstWait IS the impact-to-impact spacing. Read from the shipped weapon
+		/// rather than restated, because the whole defect this test replaces was an assertion about two
+		/// DEFAULTS that had drifted away from the numbers actually in force.
+		/// </summary>
+		static int HealImpactGapTicks()
+		{
+			var heal = Top("weapons-other.yaml", "Heal", "rules", "weapons", "weapons-other.yaml");
+			return FieldLoader.GetValue<int>("BurstWait", Child(heal, "BurstWait", "the Heal weapon").Value);
+		}
+
+		/// <summary>
+		/// The shipped GrantConditionOnHealed, loaded through the real FieldLoader off ^ExistsInWorld —
+		/// so an explicit Duration in YAML is honoured and its absence correctly yields the Info default.
+		/// </summary>
+		static GrantConditionOnHealedInfo ShippedHealCondition()
+		{
+			var existsInWorld = Top("defaults.yaml", "^ExistsInWorld", "rules", "defaults.yaml");
+			var info = new GrantConditionOnHealedInfo();
+			FieldLoader.Load(info, Child(existsInWorld, "GrantConditionOnHealed", "^ExistsInWorld"));
+			return info;
+		}
+
+		[Test]
+		public void TheHealConditionOutlivesTheGapBetweenHealImpacts()
+		{
+			// The "being treated" pip is a DURATIVE readout driven by a condition that each heal impact
+			// refreshes for Duration ticks. If Duration is shorter than the spacing between impacts, the
+			// condition lapses in every gap and the pip strobes on a patient who is still being treated —
+			// the exact failure GrantConditionOnHealedInfo.Duration's own [Desc] warns about.
+			//
+			// WHAT THIS REPLACES, because the replacement is the point: this assertion used to compare
+			// GrantConditionOnHealedInfo.Duration against WithHealFlashInfo.Cooldown. Both were DEFAULTS,
+			// neither was the number in force (YAML ships Cooldown 20, not the default 25), and the flash
+			// cooldown is not the impact spacing in the first place — BurstWait is, and the old test never
+			// read it. It passed at a 50-tick spacing that was strobing 20 ticks dark in every 50.
+			var gap = HealImpactGapTicks();
+			Assert.That(ShippedHealCondition().Duration, Is.GreaterThan(gap),
+				$"the heal condition lapses between impacts that are still arriving ({gap}-tick spacing), " +
+				"so a patient under continuous treatment shows a strobing pip instead of a steady one.");
 		}
 	}
 }

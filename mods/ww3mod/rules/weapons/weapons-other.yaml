@@ -339,7 +339,14 @@ DogJaw:
 Heal:
 	ValidTargets: Heal
 	Range: 1c0
-	BurstWait: 50
+	# 25, was 50 — the heal rate doubles to 6.67 HP/s (10 HP per 1.5s at Timestep 60), delivered by
+	# HALVING THE INTERVAL rather than doubling the step. Deliberately the interval, because it is also
+	# what fixes the pip: GrantConditionOnHealed.Duration is 30 ticks, so at a 50-tick spacing the
+	# "being treated" pip went dark for 20 ticks in every 50 — the strobe its own [Desc] warns against.
+	# 30 > 25 closes that; doubling DamagePercent instead would double the rate and leave the strobe.
+	# IF THIS SWAPS TO PER-PULSE AMOUNT: put this line back to 50 and set DamagePercent below to -10.
+	# That reopens the strobe, so Duration would then have to be raised past 50 in defaults.yaml too.
+	BurstWait: 25
 	# Report: heal2.aud
 	Projectile: Bullet
 		Speed: 1c682
