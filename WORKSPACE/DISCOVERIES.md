@@ -73,6 +73,61 @@ gap between heal impacts is `BurstWait: 50`. `defaults.yaml:23-24` does not set 
 so the "being treated" pip is lit 30 ticks and dark 20 between every pulse** — the exact failure the
 field documents. Flagged, not fixed; it is a legibility call and belongs with the medic-experience work.
 
+## 2026-08-23 — a medic re-ranks his patients while WALKING and never while TREATING, so triage is an acquisition-time decision only (medic behaviour audit, read-only, `main @ 7f6e6460`)
+
+Companion to the numbers audit above; this half is control, autonomy and legibility.
+
+**`HealerAutoTarget.SelectPatient` is unreachable while the medic is treating anyone.** Its only
+caller is `TryGetAutoTargetOverride`, whose only caller is `AutoTarget.ScanForTarget`
+(`AutoTarget.cs:1141`), which is reached from exactly three places a medic can be in:
+`AutoTarget.TickIdle` → `ScanAndAttack` (`:711`, `:1188`) — idle only; `SmartMoveActivity:106` —
+while a move child is running; and `AttackMoveActivity:122` — the `AttendAlly` path. Treating is an
+`Attack` activity (`AttackBase.cs:740-741`, queued top-level with `queued: false`), and
+`Attack.Tick` returns `false` — keep running — for every status at or above `NeedsToTurn`
+(`Attack.cs:194-197`), so `Attacking` holds the activity open straight through the 50-tick
+`BurstWait` between pulses. The medic is therefore **non-idle for the whole treatment**, and the
+`AttendAlly` path gates its own scan on `ChildActivity == null || runningMoveActivity`
+(`AttackMoveActivity.cs:108`) — both false once the Attack child is queued. Consequences:
+
+- **`StabilizeThreshold`'s stabilize-and-switch (`HealerAutoTarget.cs:193-208`) cannot run in the
+  case it was written for.** A medic topping up a man at 80% will not divert to one who just went
+  critical at his feet; he finishes the first to FULL first. The block is live only in the idle gap
+  between patients, where `FindBestTarget`'s `CriticalPriority` already covers it.
+- **`SwitchMargin` and `DistancePenaltyPerCell` (`^MEDI`, `infantry.yaml:2220`, `:2223`) only bite
+  during the WALK.** That is also where the observable ping-pong lives, and its shape is worse than
+  the one `35044a13` describes: `SmartMoveActivity` re-ranks every 10 ticks and then **discards** the
+  result because the patient is not an enemy (`:110-117`) — but `SelectPatient` has already mutated
+  `currentTarget`. The move child still heads to the old patient. So the medic arrives at A, goes
+  idle, `AutoFollowAlly` reads the NEW `CurrentPatient` and walks him off to B — **without ever
+  firing a pulse.** "One pulse each" was the optimistic reading; "no pulse at all" is reachable.
+- **Nothing can preempt a treatment either.** `TickPreemption` needs a strictly higher
+  `AutoTargetPriority` band (`AutoTarget.cs`, `TryFindHigherBandTarget`, `candidateBand <=
+  incumbentBand`) and `^MEDI` declares exactly one, `AutoTargetPriority@Default` (`:2198`).
+
+**A medic below 50% HP cannot move at all, and the `^MEDI` exemption does not reach that.**
+`SpeedMultiplier@CriticalDamage: Modifier: 0` moved to `heavy-damage-attained` on 2026-08-23
+(`infantry.yaml:1082-1084`) and lives on `^EffectsWhenDamagedInfantry`, which `^MEDI` inherits
+through `^Infantry:13`. The deliberate exemption at `:2251-2256` drops only `^Soldier`'s Armament
+`PauseOnCondition`, so a wounded medic keeps *treating* — of whoever is already adjacent. He is
+frozen, prone (`GrantCondition@HeavyDamageProne`, `:1056-1058`), bleeding (`ChangesHealth@BleedOut`,
+`:1098-1102`), and his own `BurstWaitMultiplier@HeavyDamage: 300` (`:1069`) has tripled his cadence
+to 150 ticks per pulse. Nothing in the medic path avoids danger on the way in — `AutoFollowAlly`
+paths on distance alone — so walking into fire to reach a casualty and freezing mid-field is a
+reachable end state, not a corner case.
+
+**The green test pins the wrong quantity.** `TheHealConditionOutlivesTheFlashRetriggerWindow`
+(`HealAndAutomaticOrderLegibilityTest.cs:104-113`) asserts `GrantConditionOnHealedInfo().Duration >
+WithHealFlashInfo().Cooldown` — 30 > 25, both *defaults*. Its own comment states the invariant as
+"the pip spans the gaps between flashes", but the gap that matters is the gap between heal IMPACTS,
+`BurstWait: 50`, which the test never reads. It is green while the property it names is false in the
+shipped config (see the strobe entry above). A test asserting a documented invariant against a
+number that is not the invariant is the same failure shape as `distance / 10240`.
+
+**The heal is silent.** `Heal`'s `Report:` is commented out (`weapons-other.yaml:343`), as is the
+engineer's `Repair` (`:356`). There is no notification, no EVA line, and `MedicVoice`
+(`voices.yaml:31-37`) has no `Heal`/`Attack` entry — only Select/Action/Die. Every channel telling
+the player treatment is happening is visual.
+
 ## 2026-08-22 — an actor's armour class is TWO independent facts, and four shipped units disagree with themselves (wt/small-arms-ladder)
 
 Branch `wt/small-arms-ladder`, base `main @ 9f5a7bc0`. Implementing the small-arms ladder
