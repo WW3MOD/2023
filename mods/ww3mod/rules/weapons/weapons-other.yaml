@@ -339,21 +339,29 @@ DogJaw:
 Heal:
 	ValidTargets: Heal
 	Range: 1c0
-	# 25, was 50 — the heal rate doubles to 6.67 HP/s (10 HP per 1.5s at Timestep 60), delivered by
-	# HALVING THE INTERVAL rather than doubling the step. Deliberately the interval, because it is also
-	# what fixes the pip: GrantConditionOnHealed.Duration is 30 ticks, so at a 50-tick spacing the
-	# "being treated" pip went dark for 20 ticks in every 50 — the strobe its own [Desc] warns against.
-	# 30 > 25 closes that; doubling DamagePercent instead would double the rate and leave the strobe.
-	# IF THIS SWAPS TO PER-PULSE AMOUNT: put this line back to 50 and set DamagePercent below to -10.
-	# That reopens the strobe, so Duration would then have to be raised past 50 in defaults.yaml too.
-	BurstWait: 25
+	# 50, was 25 — user ruling 2026-08-23, chosen over the 10-HP/1.5s form that shipped in 0202b79d.
+	# The RATE IS UNCHANGED at 6.67 HP/s; this is a reshape, 20 HP every 3.0s instead of 10 every 1.5s
+	# (Timestep 60). Calmer rhythm, chunkier step. The pair below must move together or the rate moves:
+	# BurstWait and DamagePercent are the interval and the step of one quantity.
+	#
+	# The pip argument that previously pinned this line to 25 is GONE, not overruled — the "being
+	# treated" pip and GrantConditionOnHealed were removed in edb4e7bf, so there is no longer a
+	# condition Duration that a 50-tick spacing could strobe. Nothing else reads this spacing for a
+	# readout; WithHealFlash has its own Cooldown of 20 and fires per impact either way.
+	BurstWait: 50
 	# Report: heal2.aud
 	Projectile: Bullet
 		Speed: 1c682
 	Warhead@1Dam: SpreadDamage
 		ValidTargets: Heal
 		ValidRelationships: Ally
-		DamagePercent: -5
+		# -10, was -5. Percent of MaxHP, so 20 HP a pulse on a 200 HP soldier. The step size is what
+		# the ruling is actually about: one pulse now takes a man at 99 HP to 119, clearing the 50%
+		# cliff outright where 10 HP would have left him on it. That cliff is three gates at once —
+		# SpeedMultiplier@CriticalDamage (Modifier 0, a hard stop), AttackBase's PauseOnCondition, and
+		# ChangesHealth@BleedOut's StartIfBelow: 50 — so a single three-second contact gives him back
+		# movement, fire and a stopped bleed together. Paired with BurstWait above; see the note there.
+		DamagePercent: -10
 		DebugOverlayColor: 00FF00
 
 Repair:
