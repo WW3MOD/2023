@@ -33,11 +33,18 @@ namespace OpenRA.Mods.Common.Activities
 	{
 		readonly Target patient;
 		readonly HealerAutoTarget healer;
+		readonly StallWatcher stall = new StallWatcher();
+		readonly WDist range;
+		readonly int maxStalledTicks;
 
-		public AttendAllyActivity(Actor self, Func<Activity> getMove, in Target patient)
+		bool stalled;
+
+		public AttendAllyActivity(Actor self, Func<Activity> getMove, in Target patient, WDist range, int maxStalledTicks)
 			: base(self, getMove)
 		{
 			this.patient = patient;
+			this.range = range;
+			this.maxStalledTicks = maxStalledTicks;
 
 			// Nothing requires an attending actor to be a healer — AttendAlly is a general escort order.
 			healer = self.TraitOrDefault<HealerAutoTarget>();
@@ -47,8 +54,64 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			base.OnFirstRun(self);
 
+			stall.MarkProgress(self.Location);
+
 			if (patient.Type == TargetType.Actor)
 				healer?.LockPatient(self, patient.Actor);
+		}
+
+		public override bool Tick(Actor self)
+		{
+			if (healer != null && !IsCanceling && patient.Type == TargetType.Actor && patient.Actor.IsInWorld)
+				TickStallFallback(self);
+
+			return base.Tick(self);
+		}
+
+		/// <summary>
+		/// An ordered patient the healer cannot reach must not cost him the rest of the battle.
+		/// </summary>
+		/// <remarks>
+		/// The follow underneath this order chases a target it may never arrive at, and it will never say
+		/// so — <c>Mobile.MoveResult</c> is never assigned, so an unpathable move reports InProgress
+		/// forever. Before the patient lock that cost nothing visible, because the ranking would quietly
+		/// re-point the medic at somebody he could treat. The lock closes that escape, so without this a
+		/// medic ordered across a river stands on the bank healing nobody.
+		/// <para>The order is NOT dropped. He was told to attend that man and the follow keeps trying, so
+		/// the lock is merely suspended: he treats whoever the ranking names while he is stuck, and takes
+		/// his patient back the moment he makes ground again. That makes the state recoverable if the path
+		/// opens — a bridge repaired, a blocking unit moving — with nothing to re-issue.</para>
+		/// </remarks>
+		void TickStallFallback(Actor self)
+		{
+			// Guarded explicitly because the natural "off" value is violent without it: a zero budget is
+			// already spent on the first tick, so the healer would give up his patient before taking a step.
+			if (maxStalledTicks <= 0)
+				return;
+
+			// Standing still while treating, or standing with the man he is escorting, is the CORRECT
+			// state and must never read as a stall. Checked against the same range the follow uses, so
+			// the two cannot disagree about what "arrived" means.
+			var arrived = (patient.Actor.CenterPosition - self.CenterPosition).HorizontalLengthSquared <= range.LengthSquared;
+
+			// IsStalled is called on EVERY non-arrived tick, including while already stalled: it is what
+			// keeps MovedOnLastCheck fresh, and that is the signal the recovery below reads. Guarding the
+			// call on !stalled instead would freeze the watcher at the moment we gave up, and the healer
+			// would never take his patient back however far he walked.
+			if (arrived)
+				stall.MarkProgress(self.Location);
+			else if (stall.IsStalled(self.Location, 1, maxStalledTicks) && !stalled)
+			{
+				stalled = true;
+				healer.ReleaseLock();
+				return;
+			}
+
+			if (stalled && (arrived || stall.MovedOnLastCheck))
+			{
+				stalled = false;
+				healer.LockPatient(self, patient.Actor);
+			}
 		}
 
 		protected override void OnLastRun(Actor self)

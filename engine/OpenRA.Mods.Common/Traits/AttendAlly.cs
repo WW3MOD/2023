@@ -34,6 +34,14 @@ namespace OpenRA.Mods.Common.Traits
 			"ally attends him — stays with him afterwards — instead of issuing a one-shot heal.")]
 		public readonly int OrderPriority = 7;
 
+		[Desc("Ticks without changing cell before a healer stops holding his ordered patient exclusively.",
+			"The ORDER survives — the follow keeps trying and the patient is taken back the moment ground",
+			"is made again — but while stuck he treats whoever else needs it instead of nobody. Mobile's",
+			"MoveResult is never assigned, so an unpathable follow never reports failure and this is the",
+			"only evidence available. 0 disables the fallback and leaves an unreachable patient holding",
+			"the healer for as long as the order stands.")]
+		public readonly int MaxStalledTicks = 100;
+
 		public readonly string Cursor = "heal";
 
 		[VoiceReference]
@@ -127,7 +135,7 @@ namespace OpenRA.Mods.Common.Traits
 			// the order name a patient rather than a position: see AttendAllyActivity.
 			self.QueueActivity(order.Queued, new AttendAllyActivity(self,
 				() => move.MoveFollow(self, order.Target, WDist.Zero, info.Range, targetLineColor: info.TargetLineColor),
-				order.Target));
+				order.Target, info.Range, info.MaxStalledTicks));
 
 			self.ShowTargetLines();
 		}
