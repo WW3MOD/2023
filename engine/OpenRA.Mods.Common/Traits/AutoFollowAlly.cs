@@ -55,10 +55,9 @@ namespace OpenRA.Mods.Common.Traits
 		readonly IMove move;
 		AutoTarget autoTarget;
 		HealerAutoTarget healer;
+		readonly StallWatcher stall = new StallWatcher();
 		Actor followTarget;
 		Actor benched;
-		CPos lastCell;
-		int stalledTicks;
 		int benchedTicks;
 		int checkTick;
 
@@ -122,8 +121,7 @@ namespace OpenRA.Mods.Common.Traits
 				// keep the hysteresis state warm instead, or four quiet checks in a row would bench the
 				// very ally we are successfully escorting.
 				followTarget = target;
-				lastCell = self.Location;
-				stalledTicks = 0;
+				stall.MarkProgress(self.Location);
 				return;
 			}
 
@@ -156,21 +154,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (target != followTarget)
 			{
 				followTarget = target;
-				lastCell = self.Location;
-				stalledTicks = 0;
-				return false;
-			}
-
-			if (self.Location != lastCell)
-			{
-				lastCell = self.Location;
-				stalledTicks = 0;
+				stall.MarkProgress(self.Location);
 				return false;
 			}
 
 			// A move that cannot reach its destination never reports failure (Mobile.MoveResult is
-			// never assigned), so the only evidence of a stall is that we have not changed cell.
-			if ((stalledTicks += info.CheckInterval) < info.MaxStalledTicks)
+			// never assigned), so the only evidence of a stall is that we have not changed cell. We
+			// sample once per CheckInterval, so that is the elapsed count the budget is spent in.
+			if (!stall.IsStalled(self.Location, info.CheckInterval, info.MaxStalledTicks))
 				return false;
 
 			if (isPatient)
@@ -179,7 +170,6 @@ namespace OpenRA.Mods.Common.Traits
 			benched = target;
 			benchedTicks = info.MaxStalledTicks;
 			followTarget = null;
-			stalledTicks = 0;
 			return true;
 		}
 

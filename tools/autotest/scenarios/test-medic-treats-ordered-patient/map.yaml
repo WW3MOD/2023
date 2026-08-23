@@ -1,0 +1,78 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a medic ordered onto a patient treats THAT patient
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# The player orders the medic onto Ordered, seven cells east at 70%. Bait sits at
+# 55%, one cell off the path he must walk, and OUTRANKS him decisively — 55 plus
+# one cell of DistancePenaltyPerCell against 70 plus seven. Both are above
+# StabilizeThreshold (50), so the 10000-point critical bonus is not what decides
+# this; the ordinary ranking is.
+#
+# The steal is deliberately placed in the WALK and not at the start line. Bait is
+# diagonal from the medic's cell (1448 units, outside the 1c0 heal range), so he
+# is unreachable on the first scan and comes into range only once the medic has
+# stepped east. That is the phase that matters: treating is a top-level Attack
+# activity that keeps the medic non-idle and cannot be preempted, so a patient is
+# never stolen mid-treatment — the re-ranking only ever runs while he is marching,
+# which is exactly where AttackMoveActivity rescans every 10 ticks and hands the
+# attack layer whatever the ranking names.
+#
+# PASS = Ordered reaches full health. FAIL = the deadline expires, which is what
+# happens when the medic stops at Bait: he treats him to full and then, with the
+# ranking still preferring nobody in particular, has spent the budget.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	Medic: medi
+		Owner: Me
+		Location: 18,16
+		Facing: 512
+
+	# One cell off the medic's path east, drained to 55% in Lua. Diagonal from the
+	# medic's starting cell so he cannot be caught before he sets off.
+	Bait: e1
+		Owner: Me
+		Location: 19,15
+		Facing: 512
+
+	# Seven cells east, drained to 70%. Inside HealerAutoTarget's 8c0 SearchRange,
+	# so he is a candidate the ranking CAN see and still refuses to prefer.
+	Ordered: e1
+		Owner: Me
+		Location: 25,16
+		Facing: 512
+
+Rules: rules.yaml
