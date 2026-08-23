@@ -21,8 +21,19 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Color of the flash overlay.")]
 		public readonly Color Color = Color.White;
 
-		[Desc("Alpha of the flash overlay (0.0 to 1.0).")]
+		[Desc("Alpha of the flash overlay (0.0 to 1.0). Ignored when Brightness is set.")]
 		public readonly float Alpha = 0.3f;
+
+		[Desc("If greater than zero, MULTIPLY the sprite by Color scaled to this factor instead of",
+			"replacing it with a flat silhouette. 1.0 is no change; above 1.0 brightens toward white,",
+			"the highest channel saturating first. The sprite keeps its shading and its alpha, so the",
+			"actor stays fully readable underneath the flash.",
+			"WHY THIS EXISTS: the default path is FlashTarget's Color+Alpha constructor, which sets",
+			"TintModifiers.ReplaceColor — every pixel becomes one flat colour at that alpha, so the actor",
+			"is not tinted but REPLACED by a half-transparent silhouette. At a saturated colour that reads",
+			"as a flash; at a light one it reads as the unit fading out or dying, which for a heal is the",
+			"opposite of the intended message. Defaults to 0 so existing users are unchanged.")]
+		public readonly float Brightness = 0f;
 
 		[Desc("Number of flash pulses per heal event.")]
 		public readonly int Count = 2;
@@ -46,6 +57,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 			this.info = info;
 		}
 
+		float3 Tint => info.Brightness * (new float3(info.Color.R, info.Color.G, info.Color.B) / 255f);
+
 		void ITick.Tick(Actor self)
 		{
 			if (cooldownRemaining > 0)
@@ -58,8 +71,13 @@ namespace OpenRA.Mods.Common.Traits.Render
 				return;
 
 			cooldownRemaining = info.Cooldown;
-			self.World.AddFrameEndTask(w => w.Add(
-				new FlashTarget(self, info.Color, info.Alpha, info.Count, info.Interval)));
+
+			// Two different FlashTarget constructors, not two colours: the tint one leaves TintModifiers
+			// at None so the shader multiplies the sprite (combined.frag `c *= vTint`), while the
+			// Color+Alpha one sets ReplaceColor and the shader substitutes the colour outright.
+			self.World.AddFrameEndTask(w => w.Add(info.Brightness > 0f
+				? new FlashTarget(self, Tint, info.Count, info.Interval)
+				: new FlashTarget(self, info.Color, info.Alpha, info.Count, info.Interval)));
 		}
 	}
 }

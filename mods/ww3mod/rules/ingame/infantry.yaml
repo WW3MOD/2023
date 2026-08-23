@@ -2187,7 +2187,16 @@ SF:
 		Prerequisites: ~disabled
 		Description: Field medic that auto-heals nearby wounded soldiers.\n\n - Heals infantry automatically\n - Prioritizes critical casualties\n - Unarmed\n - No armor
 	Valued:
-		Cost: 100
+		# 250, was 100 (user ruling 2026-08-23: "we end up with too many medics, I think it should be a
+		# more specialized unit"). Upkeep follows automatically — InfersUpkeep PermilleCost: 5 on
+		# ^Infantry is a float, so 0.5 becomes 1.25 with no truncation.
+		# BOT NOTE: this moves @experimental medic BUDGET but not medic COUNT. The floor lane
+		# (UnitFloors/UnitFloorPer in ai-america.yaml, ai-russia.yaml) is a COUNT and is cost-blind
+		# apart from affordability, so it still holds min(2, supportedInfantry/10) medics. What shrinks
+		# is the share lane: UnitTargetShares medi 17 per-mille is a share of army VALUE, so the army
+		# value at which a medic first fits under target moves 5,882 -> 14,706, and the value at which
+		# the floor's two medics stop being over-target moves 11,765 -> 29,412.
+		Cost: 250
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
 	AutoTarget:
