@@ -6,10 +6,12 @@
 		PlayerExperienceModifier: 1
 	ScriptTriggers:
 	RenderDebugState:
-	# Two complementary readouts for "this unit is being treated", both on the PATIENT, never the
-	# medic — the player's question is "is this soldier being healed", not "is that medic busy".
-	# The flash marks each heal IMPACT; the pip below marks the durative STATE. Deliberately both:
-	# a flash alone cannot say "still under treatment", a pip alone cannot say "a tick just landed".
+	# THE ONLY readout for "this unit is being treated", and it is on the PATIENT, never the medic —
+	# the player's question is "is this soldier being healed", not "is that medic busy". It marks each
+	# heal IMPACT; there is deliberately no durative "still under treatment" readout to go with it.
+	# A pip answering that question shipped alongside this and was removed by user ruling 2026-08-23
+	# ("drop it — faint flash only"), taking GrantConditionOnHealed with it. So a player who looks
+	# between two pulses sees nothing; that gap is the Heal weapon's BurstWait. Accepted knowingly.
 	WithHealFlash:
 		# Was white / 0.3 / Count 2 / Interval 2 — two 60ms tinted ticks of near-transparent white on
 		# a ~30px sprite. Shipped since 82938ec8 but effectively subliminal, which is why the user
@@ -38,17 +40,6 @@
 		Count: 6
 		Interval: 1
 		Cooldown: 20
-	GrantConditionOnHealed:
-		Condition: being-healed
-	WithDecoration@Healed:
-		RequiresSelection: false
-		Image: pips
-		Sequence: pip-heal
-		Position: Top
-		Margin: 8,0
-		RequiresCondition: being-healed
-		BlinkInterval: 6
-		BlinkPattern: On, Off
 ^SpriteActor:
 	BodyOrientation:
 	QuantizeFacingsFromSequence:
