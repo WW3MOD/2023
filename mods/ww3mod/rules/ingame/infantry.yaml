@@ -184,22 +184,29 @@
 		FacingTolerance: 50
 		AlignBodyToTarget: true
 		TargetFrozenActors: True
-		# `critical-damage` is the infantry half of the rule that already stops a wrecked vehicle
+		# `heavy-damage-attained` is the infantry half of the rule that already stops a wrecked vehicle
 		# shooting (every vehicle Armament pauses on heavy-damage-attained, vehicles.yaml:243-256).
-		# ^EffectsWhenDamagedInfantry below already zeroes this man's speed and guts his burst,
-		# vision and accuracy at the same 25% line; without this he still fired, just slowly — and
-		# AutoTarget's break-off skip is justified in code by a comment claiming critical damage
-		# means the unit "can't fight", which for infantry was simply untrue.
+		# A critical soldier is now as silent as a critical tank, on the same 50% line.
 		#
-		# NOT heavy-damage-attained (50%), which is where the vehicle cutoff sits: infantry stopping
-		# at half health is a much larger balance change than was asked for, and 25% keeps this
-		# aligned with AutoTargetInfo.BreakOffCondition so one threshold governs both.
+		# This gate sat on `critical-damage` (25%) until 2026-08-23, and the comment here argued
+		# against moving it — that infantry stopping at half health was a larger balance change than
+		# had been asked for. It was asked for: flashing means critical, critical means 50%, and a
+		# unit the pip calls critical must not still be fighting. The old reasoning is deleted rather
+		# than left standing, so the file no longer argues against its own behaviour.
+		#
+		# What did NOT move: AutoTargetInfo.BreakOffCondition (AutoTarget.cs:233) still defaults to
+		# the `critical-damage` TOKEN, and that token still means the same 25% band it always did.
+		# The two were previously described as "one threshold governs both"; they are now separate
+		# thresholds and that is deliberate. Break-off is a targeting PREFERENCE — it deprioritises
+		# an already-dying target so gunners finish healthy ones first — and dragging it to 50% would
+		# leave every wounded unit on the field unengaged. Retuning this by editing ^DamageStates or
+		# Health.cs instead of swapping the token here would have done exactly that.
 		#
 		# PITFALL: MiniYaml OVERRIDES this scalar rather than merging it, so a descendant template
 		# that re-states PauseOnCondition for its own reasons silently drops the gate for every unit
 		# under it — no lint error, no symptom but a wounded man who keeps shooting.
 		# CriticalWoundFireGateTest fails the build on that.
-		PauseOnCondition: garrisoned-at-port || critical-damage
+		PauseOnCondition: garrisoned-at-port || heavy-damage-attained
 	AutoTarget:
 		RequiresCondition: !garrisoned-at-port
 	DamageMultiplier@GarrisonCover:
@@ -315,7 +322,13 @@
 			Prone30Percent: 30
 			Prone50Percent: 50
 			Prone80Percent: 80
-		PanicCondition: onfire && !critical-damage
+		# Moved off `!critical-damage` with the rest of the movement gate on 2026-08-23. Panic is a
+		# MOVEMENT decision, and SpeedMultiplier@CriticalDamage (now heavy-damage-attained) only sets
+		# the travel rate of a move already decided on. Leaving panic at 25% while speed-0 starts at
+		# 50% would give a man in the 25-50% band a panic state he can act on at zero speed — running
+		# on the spot and claiming the next cell, which is the exact defect PanicGateAtCriticalDamageTest
+		# was written for. The two must share a band.
+		PanicCondition: onfire && !heavy-damage-attained
 		PanicGrantsCondition: panicking
 		PanicSpeedModifier: 140
 ^AmphibiousSoldier:
@@ -373,18 +386,21 @@
 	ProximityCaptor:
 		Types: CivilianInfantry
 	# A critically damaged man is prone and still: he does not panic and he does not wander. Soldiers get
-	# this from InfantryStates' `PanicCondition: onfire && !critical-damage`; the civilian family carries
-	# no InfantryStates at all and panics through ScaredyCat instead, so the rule has to be restated here.
+	# this from InfantryStates' `PanicCondition: onfire && !heavy-damage-attained`; the civilian family
+	# carries no InfantryStates at all and panics through ScaredyCat instead, so the rule is restated here.
+	# Both moved from `!critical-damage` (25%) to `!heavy-damage-attained` (50%) on 2026-08-23 to track the
+	# fire and movement gates; the band has to match SpeedMultiplier@CriticalDamage below or the gap
+	# between the two bands becomes a run-on-the-spot window.
 	# PITFALL: SpeedMultiplier@CriticalDamage (^EffectsWhenDamagedInfantry) is NOT this gate and does not
 	# substitute for it. It zeroes how fast a move crosses a cell, not whether the actor decides to move —
 	# a speed-0 panicking man still plays `panic-run` on the spot and still claims the next cell, because
 	# Move queues SetLocation before it ever asks Mobile how fast the actor can travel.
 	ScaredyCat:
-		RequiresCondition: !critical-damage
+		RequiresCondition: !heavy-damage-attained
 	Voiced:
 		VoiceSet: CivilianMaleVoice
 	Wanders:
-		RequiresCondition: !critical-damage
+		RequiresCondition: !heavy-damage-attained
 		MinMoveDelay: 150
 		MaxMoveDelay: 750
 	MapEditorData:
@@ -1057,9 +1073,15 @@
 		RequiresCondition: heavy-damage
 		Modifier: 300
 
+	# The trait key still says @CriticalDamage but the band is now heavy-damage-attained (50%), moved
+	# 2026-08-23 so a critical soldier is as stationary as a critical tank. The key is deliberately NOT
+	# renamed: PanicGateAtCriticalDamageTest looks this trait up by that exact key, and a rename would
+	# silently empty the scan instead of failing it.
+	# SpeedMultiplier@HeavyDamage above (Modifier: 25) still applies in the same band; 25% of 0 is 0,
+	# so this remains a hard stop rather than a slow.
 	SpeedMultiplier@CriticalDamage:
 		Modifier: 0
-		RequiresCondition: critical-damage
+		RequiresCondition: heavy-damage-attained
 	VisionModifier@CriticalDamage:
 		RequiresCondition: critical-damage
 		Modifier: 10
@@ -2226,7 +2248,7 @@ SF:
 		# indistinguishable from the order having been refused. Give up instead and stay available.
 		# Covers this trait's own PauseOnCondition (garrisoned-at-port) too, which wedges the same way.
 		AbandonWhenArmamentsPaused: true
-		# Deliberately DROPS ^Soldier's `|| critical-damage`. That gate exists to stop a wounded man
+		# Deliberately DROPS ^Soldier's `|| heavy-damage-attained`. That gate exists to stop a wounded man
 		# shooting, and the medic's only Armament is Heal — he carries nothing offensive, so applying
 		# it here would not stop a single bullet. All it would do is stop a wounded medic treating his
 		# squad, which is a balance change nobody asked for and exactly when he is most needed.

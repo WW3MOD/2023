@@ -5,7 +5,14 @@
  * A critically damaged man is prone and immobile. He does not panic and he does not wander.
  * Reported from live play 2026-08-21 against the technician, but the rule is universal.
  *
- * ^Soldier-family infantry reach this through InfantryStates' `PanicCondition: onfire && !critical-damage`.
+ * "Critically damaged" here means the 50% line, not 25%. All three gates — panic, wander and speed —
+ * moved from `critical-damage` to `heavy-damage-attained` on 2026-08-23 by user ruling, so infantry
+ * fall silent and stop moving on the same band that already disarms a vehicle. They must move TOGETHER:
+ * a panic gate one band below the speed gate hands a man in the gap a panic state he can act on at
+ * zero speed, which is precisely the defect described below. The class name is kept — in the project's
+ * vocabulary a critically damaged man is one at or below half health.
+ *
+ * ^Soldier-family infantry reach this through InfantryStates' `PanicCondition: onfire && !heavy-damage-attained`.
  * The civilian family (^CivInfantry -> ^ArmedCivilian -> ^TECN) has no InfantryStates at all; it panics
  * through the SEPARATE ScaredyCat trait and moves through Wanders, and both shipped ungated. The speed
  * ladder in ^EffectsWhenDamagedInfantry zeroes displacement at critical, which is why this looked fixed
@@ -28,7 +35,7 @@ namespace OpenRA.Test
 	[TestFixture]
 	public class PanicGateAtCriticalDamageTest
 	{
-		const string Gate = "!critical-damage";
+		const string Gate = "!heavy-damage-attained";
 
 		// Traits that move an actor with no player order behind them.
 		static readonly string[] PanicTraits = { "ScaredyCat", "Wanders" };
@@ -142,7 +149,7 @@ namespace OpenRA.Test
 				"a critically damaged man must not be able to cross a cell at any speed");
 
 			var condition = speed.Value.Nodes.FirstOrDefault(n => n.Key == "RequiresCondition")?.Value.Value;
-			Assert.That(condition, Is.EqualTo("critical-damage"));
+			Assert.That(condition, Is.EqualTo("heavy-damage-attained"));
 		}
 
 		[Test]

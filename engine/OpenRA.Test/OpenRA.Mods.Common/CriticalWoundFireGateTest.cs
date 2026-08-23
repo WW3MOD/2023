@@ -8,6 +8,16 @@
  * 400% at critical (infantry.yaml ^EffectsWhenDamagedInfantry) — and no cutoff at the end of it, so a
  * man at 1% HP still put rounds downrange, slowly. Reported from live play 2026-08-20.
  *
+ * "Critical" here means the 50% line, not 25%. The gate moved from `critical-damage` to
+ * `heavy-damage-attained` on 2026-08-23 by user ruling: the flashing pip means critical, the pip
+ * flashes from 50% down, and a unit the pip calls critical must not still be fighting. Infantry now
+ * share the vehicle band rather than sitting a band below it. The class name is kept — in the
+ * project's vocabulary a critically wounded man is one at or below half health.
+ *
+ * NOT moved, and it must not be: AutoTargetInfo.BreakOffCondition (AutoTarget.cs:233) still defaults
+ * to the `critical-damage` token at 25%. That is a targeting preference — gunners finish healthy
+ * targets first — and widening it to 50% would leave every wounded unit unengaged.
+ *
  * The gate is one line on ^Soldier's AttackFrontal, which every soldier template reaches through
  * ^CamoSoldier. That makes it cheap to lose: MiniYaml OVERRIDES a scalar rather than merging it, so any
  * descendant that re-states PauseOnCondition for its own reasons silently drops `critical-damage` for
@@ -29,7 +39,7 @@ namespace OpenRA.Test
 	[TestFixture]
 	public class CriticalWoundFireGateTest
 	{
-		const string Condition = "critical-damage";
+		const string Condition = "heavy-damage-attained";
 
 		// ^MEDI is excluded BY DESIGN and this is the only exclusion. The medic's sole Armament is the
 		// Heal weapon — he carries nothing offensive — so gating him would not stop a single bullet; it
