@@ -9,6 +9,8 @@
  */
 #endregion
 
+using System;
+using System.IO;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits.Render;
 
@@ -163,6 +165,170 @@ namespace OpenRA.Test
 			Assert.That(strategical, Is.EqualTo(900));
 			Assert.That(insane, Is.EqualTo(225));
 			Assert.That(strategical / insane, Is.EqualTo(4), "old path varied 4x across the speed range");
+		}
+
+		// ── The blink ACCELERATES as the actor dies, so its rate reads as time remaining ──
+
+		const int RampFloorMs = 120;  // sequences-misc.yaml HealthRampTick
+		const int RampStart = 50;     // sequences-misc.yaml HealthRampStart — blink onset, the heavy band
+
+		static int Interval(int healthPercent)
+		{
+			return DecorationBlink.IntervalForHealth(CriticalPipTickMs, RampFloorMs, RampStart, healthPercent);
+		}
+
+		[Test]
+		public void CriticalPipRampGivesTheDocumentedIntervals()
+		{
+			// These are the numbers the YAML comment quotes; change one and change both.
+			// Cycle time is twice the interval, the sequence being two frames.
+			Assert.That(Interval(50), Is.EqualTo(450), "ramp start: 900ms cycle, unchanged from before the ramp");
+			Assert.That(Interval(30), Is.EqualTo(318), "636ms cycle");
+			Assert.That(Interval(10), Is.EqualTo(186), "372ms cycle");
+			Assert.That(Interval(0), Is.EqualTo(RampFloorMs), "240ms cycle");
+		}
+
+		[Test]
+		public void RampIsFlatAboveItsStartAndNeverInverts()
+		{
+			// Above blink onset the decoration is not drawn at all, but the maths must still be sane
+			// there — a healthier actor may never blink faster than a dying one.
+			Assert.That(Interval(100), Is.EqualTo(CriticalPipTickMs));
+			Assert.That(Interval(75), Is.EqualTo(CriticalPipTickMs));
+
+			for (var h = 100; h > 0; h--)
+				Assert.That(Interval(h - 1), Is.LessThanOrEqualTo(Interval(h)),
+					$"blink got slower as health fell from {h}% to {h - 1}%");
+		}
+
+		[Test]
+		public void RampIsPerceptibleAcrossItsWholeRangeNotJustTheEnd()
+		{
+			// The named failure mode for this work: a ramp that evaluates to nothing over most of its
+			// range, so the pip only visibly accelerates in the last moment. Every 10 points of health
+			// inside the ramp must shorten the cycle by a double-digit percentage. Linear-in-interval
+			// is weakest at the slow end (50->40 is ~14.7%) and strongest at the fast end (10->0 is
+			// ~35%), so the 14 bound below is the slow end, not a slack allowance.
+			for (var h = RampStart; h > 0; h -= 10)
+			{
+				var slower = Interval(h);
+				var faster = Interval(h - 10);
+				Assert.That((slower - faster) * 100 / slower, Is.GreaterThanOrEqualTo(14),
+					$"health {h}% -> {h - 10}% barely changes the blink ({slower}ms -> {faster}ms)");
+			}
+		}
+
+		[Test]
+		public void RampDisabledLeavesTheSequenceAtAConstantRate()
+		{
+			// Both switches off by default, so every other sequence in the mod is untouched.
+			Assert.That(DecorationBlink.IntervalForHealth(450, 0, 50, 10), Is.EqualTo(450));
+			Assert.That(DecorationBlink.IntervalForHealth(450, 120, 0, 10), Is.EqualTo(450));
+		}
+
+		// ── Phase is carried across rate changes rather than re-derived from absolute time ──
+
+		[Test]
+		public void NaiveAbsoluteTimePhaseLeapsWhenTheIntervalChanges()
+		{
+			// The REJECTED implementation, pinned so the reason BlinkPhase exists is not forgotten.
+			// runTime / interval % length re-rolls the index the instant the interval moves, and with
+			// a health-scaled interval that is every damage event.
+			const long AtMs = 300000;
+			var before = (int)(AtMs / 450 % 2);
+			var after = (int)(AtMs / 440 % 2);
+
+			Assert.That(before, Is.Not.EqualTo(after),
+				"documents the discontinuity the accumulator exists to avoid");
+		}
+
+		[Test]
+		public void PhaseNeverFlipsMerelyBecauseTheRateChanged()
+		{
+			// The property that actually defines continuity: at one fixed instant, changing the rate
+			// must not by itself change the displayed frame. Swept across many instants because a
+			// leaping implementation only diverges at *some* of them — an earlier version of this test
+			// picked one damage time, measured the gap between flips, and passed the naive formula
+			// happily. A leap can lengthen a gap as easily as shorten it, so gap size is the wrong
+			// property; equality across the change is the right one.
+			var naiveWouldHaveLeapt = 0;
+
+			for (var ms = 1000L; ms <= 400000; ms += 997)
+			{
+				var phase = new BlinkPhase();
+				phase.Advance(0, 450, 2);
+
+				var before = phase.Advance(ms, 450, 2);
+				var after = phase.Advance(ms, 318, 2); // same instant, unit just took a hit
+
+				Assert.That(after, Is.EqualTo(before), $"frame changed at {ms}ms purely from the rate change");
+
+				if ((int)(ms / 450 % 2) != (int)(ms / 318 % 2))
+					naiveWouldHaveLeapt++;
+			}
+
+			Assert.That(naiveWouldHaveLeapt, Is.GreaterThan(50),
+				"premise check: the rejected absolute-time formula must actually leap at these instants, "
+				+ "otherwise this test proves nothing");
+		}
+
+		[Test]
+		public void PhaseKeepsAdvancingMonotonicallyThroughManyRateChanges()
+		{
+			// A unit under sustained fire changes rate constantly. Re-anchoring must not stall the
+			// blink: an implementation that reset the frame's remaining time on every change would
+			// freeze the pip solid under rapid damage.
+			var phase = new BlinkPhase();
+			var flips = 0;
+			var previous = phase.Advance(0, 450, 2);
+
+			for (var ms = 10L; ms <= 10000; ms += 10)
+			{
+				var health = Math.Max(1, 50 - (int)(ms / 200)); // bleeding out over ten seconds
+				var frame = phase.Advance(ms, Interval(health), 2);
+				if (frame != previous)
+					flips++;
+
+				previous = frame;
+			}
+
+			Assert.That(flips, Is.GreaterThan(20), "the blink stalled while the rate was moving");
+		}
+
+		// ── Wiring ──
+
+		static string FindDecorationSource()
+		{
+			var dir = new DirectoryInfo(AppContext.BaseDirectory);
+			for (var i = 0; i < 8 && dir != null; i++, dir = dir.Parent)
+			{
+				var candidate = Path.Combine(dir.FullName, "OpenRA.Mods.Common", "Traits", "Render", "WithDecoration.cs");
+				if (File.Exists(candidate))
+					return candidate;
+			}
+
+			return null;
+		}
+
+		[Test]
+		public void WithDecorationStillFetchesItsFrameFromWallClock()
+		{
+			// Every arithmetic pin above would still pass if the wiring were reverted to PlayRepeating,
+			// because none of them touch WithDecoration. This is the only check here that covers the
+			// seam. It is a source scan rather than a behavioural test because exercising the trait
+			// needs a World; that remains a stated gap.
+			var source = FindDecorationSource();
+			if (source == null)
+				Assert.Ignore("WithDecoration.cs is not reachable from the test output directory");
+
+			var text = File.ReadAllText(source);
+
+			Assert.That(text, Does.Contain("PlayFetchIndex"),
+				"the wall-clock frame fetch is gone - the blink is back on the sim tick");
+			Assert.That(text, Does.Not.Contain("PlayRepeating"),
+				"PlayRepeating advances the frame off the sim tick, which is game-speed dependent");
+			Assert.That(text, Does.Contain("blinkPhase.Advance"),
+				"the phase accumulator is what stops a variable rate from jumping on every hit");
 		}
 	}
 }

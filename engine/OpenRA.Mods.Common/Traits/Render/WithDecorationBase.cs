@@ -33,6 +33,70 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var stepMs = Math.Max(1L, (long)blinkInterval * nominalTickMs);
 			return (int)(runTimeMs / stepMs % patternLength);
 		}
+
+		// Milliseconds per frame at the given health, ramping linearly from baseTickMs at (and above)
+		// rampStartHealth down to rampTickMs at zero health, so the blink rate itself reads as how much
+		// time the actor has left. Linear in the INTERVAL rather than in the frequency: a frequency ramp
+		// spends almost all of its visible change in the last few percent of health, which is the
+		// "evaluates to nothing over most of its range" shape this indicator has to avoid.
+		// Pure: no sim state, no RNG.
+		public static int IntervalForHealth(int baseTickMs, int rampTickMs, int rampStartHealth, int healthPercent)
+		{
+			if (rampTickMs <= 0 || rampStartHealth <= 0)
+				return baseTickMs;
+
+			var h = Math.Clamp(healthPercent, 0, rampStartHealth);
+			return rampTickMs + (baseTickMs - rampTickMs) * h / rampStartHealth;
+		}
+	}
+
+	// Accumulates blink phase so that the interval can CHANGE without the frame jumping.
+	//
+	// PITFALL: do not compute a variable-rate blink as runTime / interval % length. That re-derives the
+	// index from absolute time, so the moment the interval changes the index leaps somewhere unrelated —
+	// at runTime 300000ms an interval of 450 gives frame 0 and 440 gives frame 1. With a health-scaled
+	// interval that re-rolls on EVERY damage event, so the pip stutters and skips exactly while it is
+	// being shot at, which is the one moment it exists to be read. Phase is therefore carried forward
+	// across rate changes instead, in thousandths of a frame to keep it integer.
+	//
+	// This state is intentionally client-divergent — it is seeded from wall-clock, which differs between
+	// machines. Nothing synced may ever read it. It feeds one decoration's sprite and nothing else.
+	public sealed class BlinkPhase
+	{
+		long anchorMs;
+		long anchorMilliFrames;
+		int intervalMs = 1;
+		bool started;
+
+		public int Advance(long runTimeMs, int newIntervalMs, int patternLength)
+		{
+			if (patternLength <= 0)
+				return 0;
+
+			newIntervalMs = Math.Max(1, newIntervalMs);
+
+			if (!started)
+			{
+				anchorMs = runTimeMs;
+				intervalMs = newIntervalMs;
+				started = true;
+			}
+			else if (newIntervalMs != intervalMs)
+			{
+				// Re-anchor at the phase already reached, so the new rate continues from here.
+				anchorMilliFrames = MilliFrames(runTimeMs);
+				anchorMs = runTimeMs;
+				intervalMs = newIntervalMs;
+			}
+
+			return (int)(MilliFrames(runTimeMs) / 1000 % patternLength);
+		}
+
+		long MilliFrames(long runTimeMs)
+		{
+			var elapsed = Math.Max(0L, runTimeMs - anchorMs);
+			return anchorMilliFrames + elapsed * 1000 / intervalMs;
+		}
 	}
 
 	public abstract class WithDecorationBaseInfo : ConditionalTraitInfo

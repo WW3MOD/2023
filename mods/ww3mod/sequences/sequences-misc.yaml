@@ -378,6 +378,16 @@ pips:
 		# 40ms per world tick: 300/40 = 7.5 ticks x the default 60ms Timestep = 450ms per frame.
 		# It is no longer 4x faster on "insane" than on "strategical". Retune deliberately.
 		Tick: 450
+		# The blink accelerates as the unit dies, so its RATE reads as how much time is left.
+		# Linear in the interval, from Tick at HealthRampStart health to HealthRampTick at zero:
+		#   50% -> 450ms/frame (900ms cycle)   30% -> 318 (636ms)
+		#   10% -> 186ms/frame (372ms cycle)    0% -> 120 (240ms)
+		# HealthRampStart is anchored to BLINK ONSET, not to a fixed band: it must equal the health
+		# percentage at which a trait first draws this sequence. That is the heavy-damage band (50%),
+		# so if the ladder shifts again this number moves with it. It lives on the sequence precisely
+		# so both the heavy and critical pip traits ramp identically and cannot disagree at 25%.
+		HealthRampTick: 120
+		HealthRampStart: 50
 	pip-defense-1: pip-defense
 		Start: 0
 		Length: 1
@@ -406,8 +416,11 @@ pips:
 	pip-damage-vehicle-critical: pip-damage-vehicle
 		Start: 2
 		Length: 2
-		# Real milliseconds per frame — see pip-damage-infantry-critical above for why 450.
+		# Real milliseconds per frame, and the same acceleration ramp — see
+		# pip-damage-infantry-critical above for why 450/120/50 and the cycle times they give.
 		Tick: 450
+		HealthRampTick: 120
+		HealthRampStart: 50
 
 pip-ammored:
 	oneshot:

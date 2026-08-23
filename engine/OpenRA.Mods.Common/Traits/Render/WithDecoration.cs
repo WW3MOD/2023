@@ -41,6 +41,8 @@ namespace OpenRA.Mods.Common.Traits.Render
 	{
 		protected Animation anim;
 		readonly string image;
+		readonly BlinkPhase blinkPhase = new();
+		IHealth health;
 
 		public WithDecoration(Actor self, WithDecorationInfo info)
 			: base(self, info)
@@ -59,8 +61,34 @@ namespace OpenRA.Mods.Common.Traits.Render
 			// this in Animation itself — RenderSprites is ITick and PlayThen callbacks gate Transform,
 			// Sellable and the dock sequences, so changing Animation's advance rate would desync.
 			// Length-1 sequences (every other decoration in the mod) resolve to frame 0 as before.
-			anim.PlayFetchIndex(info.Sequence, () => DecorationBlink.PhaseIndex(
-				Game.RunTime, 1, anim.CurrentSequence.Tick, anim.CurrentSequence.Length));
+			anim.PlayFetchIndex(info.Sequence, FetchFrame);
+		}
+
+		protected override void Created(Actor self)
+		{
+			base.Created(self);
+
+			// Resolved here rather than in the constructor: the actor's traits are not all built yet
+			// while this one is being constructed. FetchFrame tolerates a null health (it just means
+			// no ramp), which is also what a decoration on a healthless actor gets.
+			health = self.TraitOrDefault<IHealth>();
+		}
+
+		// Runs once per world tick from ITick — NOT once per rendered frame — so carrying phase state
+		// across calls is safe here in a way it would not be inside ShouldRender on the render path.
+		int FetchFrame()
+		{
+			var sequence = anim.CurrentSequence;
+			if (sequence.Length <= 1)
+				return 0;
+
+			var interval = sequence.Tick;
+			if (sequence.HealthRampTick > 0 && health != null && health.MaxHP > 0)
+				interval = DecorationBlink.IntervalForHealth(
+					sequence.Tick, sequence.HealthRampTick, sequence.HealthRampStart,
+					health.HP * 100 / health.MaxHP);
+
+			return blinkPhase.Advance(Game.RunTime, interval, sequence.Length);
 		}
 
 		protected virtual PaletteReference GetPalette(Actor self, WorldRenderer wr)
