@@ -3,6 +3,94 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-24 — the medic ping-pong is FIXED on the automatic path; what is actually broken is triage, notice radius and danger (medic scenarios, `wt/medic-scenarios`, base `main @ 96f47c47`)
+
+Six scenarios run live against `96f47c47`. The headline is a negative result that closes a
+long-running suspicion, and it is worth more than the bugs below it.
+
+**A medic left alone with two casualties treats BOTH, to full.** `test-medic-treats-both-casualties`
+passes. This was expected to reproduce the "treated nobody" ping-pong that appears when the patient
+lock is sabotaged in `test-medic-treats-ordered-patient`, and it does not — not in the shipped config,
+and **not with `SwitchMargin` AND `DistancePenaltyPerCell` both zeroed**, which was the sabotage
+expected to bring it back. Two separate runs, both green.
+
+**So the "treated neither" failure is specific to the ORDER path, and the mechanism is now clear.**
+`AutoFollowAlly` dispatches solely from `TickIdle` and says so in its own PITFALL
+(`AutoFollowAlly.cs:131-134`): *"a player order makes the actor non-idle, which silences this trait
+entirely until the order ends."* An `AttendAlly` order therefore holds the medic non-idle in an
+`AttackMoveActivity`, so the follow layer cannot walk him. Meanwhile
+`HealerAutoTarget.TryGetAutoTargetOverride` only fills `target` when the ranked patient is already
+inside heal range (`:171-172`) and otherwise returns `Target.Invalid` — **so a medic can stand next to
+a treatable man and treat nobody, because his ranking named someone he cannot reach and nothing is
+free to walk him there.** On the automatic path the follow layer is live and always closes the
+distance, which is why it cannot happen there. **Do not "fix" the automatic ranking on the strength of
+the ordered-path RED; they are different failures.**
+
+**Verifying the green test could go red is what made this trustworthy.** The first sabotage
+(`SwitchMargin: 0`) still passed, and so did the second (`+ DistancePenaltyPerCell: 0`) — which looks
+exactly like a test that cannot fail. A control setting `MaxPatientHealthPercent: 1` produced the
+NEITHER branch verbatim, proving both that the YAML override path was live and that the assertion
+discriminates. Without that control the two passes would have been worthless. **Note the map-rules
+route does NOT work for this**: an actor override in a scenario's own `rules.yaml` fails to load with
+`duplicate values found for the following keys: medi`. Sabotage the mod YAML and revert.
+
+### The three real defects, measured
+
+**1. Triage cannot preempt a treatment — a man who goes critical at the medic's feet waits 15 seconds.**
+`test-medic-critical-at-his-feet`, measured twice (before and after the heal reshape, identical):
+a man collapsing to 20% one cell away waited **250 ticks / 15.0 real seconds**, and the medic finished
+the 55% scratch to **100%** first. `StabilizeThreshold`'s stabilize-and-switch block
+(`HealerAutoTarget.cs:216-229`) is written for exactly this case and is unreachable in it —
+`SelectPatient` runs only from `AutoTarget.ScanForTarget`, which needs the medic idle or moving, and
+treating is a top-level `Attack` activity that holds him non-idle through the whole `BurstWait`. The
+wait scales with how much the first man needs; the ceiling is ~15 s, since acquisition is gated at
+`MaxPatientHealthPercent: 90` and the critical bonus takes over below 50%.
+
+**2. A healthy escort blinds him to a man bleeding out 10 cells away.** `test-medic-escort-blinds-him`
+passes, and it is a controlled experiment rather than an observation: the casualty went untreated for
+400 ticks with a healthy squadmate 2 cells from the medic, and was picked up promptly once that
+squadmate was removed — **same distance throughout**. Cause is two radii that disagree by 2.5×:
+`HealerAutoTarget.SearchRange` is `8c0` (what he NOTICES) while `AutoFollowAlly.SearchRange` is `20c0`
+(what he FOLLOWS), and `FindNearestAlly` (`AutoFollowAlly.cs:191-207`) picks the nearest ally
+**without consulting health at all**. A healthy man standing closer wins, parks the medic at
+`FollowDistance`, and everything past 8 cells stays invisible.
+
+**3. He walks into fire, and the wound is what traps him.** `test-medic-walks-into-fire`, two seeds,
+both fatal: seed 1017 left the medic at **2%, frozen, with the casualty dead**; seed 4242 killed him
+outright at 125 ticks. Nothing in the approach reads danger — `AutoFollowAlly` paths on distance and
+`ScorePatient` scores health and distance only. The compounding is the point: `Health.cs:95-99` puts
+`heavy-damage-attained` at the **50% line**, where `SpeedMultiplier: 0` applies
+(`infantry.yaml:1082-1084`), so **the fire that wounds him is the fire that immobilises him, in the
+open, under the gun.** This happens with no player order — his autonomy walks him out there.
+
+**A wounded medic is not a degraded medic, he is a fixed installation.**
+`test-medic-wounded-is-immobile` passes: a medic at 40% finished the man at his elbow and never
+reached one 6 cells away. Hands live (the `^MEDI` exemption drops only `^Soldier`'s Armament
+`PauseOnCondition`), legs gone. He also cannot treat himself — `FindBestTarget` skips `a == self`
+(`HealerAutoTarget.cs:331`) — while bleeding below 50%, so a sub-50% medic with no other medic present
+is on an unrecoverable slope.
+
+### The white heal flash, measured for the first time
+
+`defaults.yaml:34` records that `Brightness: 1.4` "HAS NOT BEEN SEEN ON SCREEN". It has now.
+`test-medic-heal-flash-capture` triggers capture on the impact tick itself (the tick the patient's
+health rises) rather than on a clock, which is the only way to catch a 6-tick / ~360 ms window.
+**The trait works and the number is exactly right**: on the patient sprite,
+`(50, 98, 183) -> (67, 137, 255)` — ratios 1.34 / 1.40 / 1.39, i.e. a 1.4× multiply with the blue
+channel clipping. 124 sprite pixels lift. The two frames 2 ticks apart are **byte-identical**,
+confirming `Interval: 1` holds a steady tint rather than strobing.
+
+**But it is at the threshold of perceptibility.** On a ~15 px sprite for 360 ms I could not tell the
+flash frame from the mid-gap control by eye, and only a 12× magnified side-by-side makes it obvious
+(`WORKSPACE/medic-heal-flash-vs-control.png`). That may be the user's "just barely visible is enough"
+ruling landing correctly — but it is now the ONLY heal readout in the game (pip removed, `Report:`
+commented out at `weapons-other.yaml:352`, no `MedicVoice` heal line), so the whole channel rests on it.
+
+**Method note worth keeping: `--speed 8` makes event-triggered capture impossible.** Six ticks is
+~45 ms of wall clock at 8×, and `Test.Screenshot` is async, so the frame lands after the window every
+time. Capture runs go at 1×. And with no PIL or ImageMagick on this machine, `sips` crops but cannot
+measure — a ~60-line zlib PNG decoder answered the question that eyeballing could not.
+
 ## 2026-08-23 — a click resolves to ONE targeter and the target LINE is drawn from the move, so both halves of the order plumbing can advertise something the game is not doing (medic order lock, `wt/medic-order`, base `main @ 7f6e6460`)
 
 Two findings from making an explicit heal order stick. Both are general to the order system; the medic

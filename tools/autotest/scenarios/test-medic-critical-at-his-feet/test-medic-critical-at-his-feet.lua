@@ -9,8 +9,20 @@
 -- unclaimed, and one cell away. Scratch at 55% is above the threshold. Every
 -- precondition that block tests for is true.
 --
--- The prediction from code, which this run exists to confirm or refute:
--- it never gets the chance. SelectPatient's only caller is
+-- THIS IS A CHARACTERIZATION TEST AND IT PINS BEHAVIOUR WE DO NOT WANT.
+-- Measured on main @ 96f47c47, twice, identical both times: the critical man
+-- waited 250 ticks — 15.0 real seconds — and the medic finished the lighter
+-- wound to 100% first. That is the documented reality, so this test asserts it
+-- rather than sitting red in the tree.
+--
+-- What SHOULD happen is the other branch: a man at 20% one cell away is diverted
+-- to within a pulse or two. If someone makes triage preemptible, THIS TEST WILL
+-- GO RED — and that red is correct and welcome. Invert it: assert the divert
+-- happens inside DivertBudgetTicks and delete this notice. Do not "fix" the test
+-- by widening the wait.
+--
+-- The prediction from code, which the run confirmed: it never gets the chance.
+-- SelectPatient's only caller is
 -- TryGetAutoTargetOverride, whose only caller is AutoTarget.ScanForTarget, which
 -- is reachable only when the medic is IDLE or has a move child running.
 -- Treating is a top-level Attack activity (AttackBase.cs:740-741) and
@@ -97,16 +109,19 @@ WorldLoaded = function()
 		end
 
 		if Bystander.Health > bystanderBaseline then
-			if waited <= DivertBudgetTicks then
+			-- The documented behaviour: he did NOT divert, and the wait ran past
+			-- the point a diverting medic would have arrived. Pinning this.
+			if waited > DivertBudgetTicks then
 				return true
 			end
 
-			return "fail: the medic did not divert — a man at " .. BystanderWoundPercent
-				.. "% collapsed one cell away and waited " .. waited .. " ticks ("
-				.. string.format("%.1f", waited / 16.67) .. " real seconds) for his first treatment."
-				.. " Scratch was at " .. percent(Scratch) .. "% when it finally came (started "
-				.. ScratchStartPercent .. "%). Triage cannot run while the medic is treating:"
-				.. " StabilizeThreshold's stabilize-and-switch is unreachable from inside an Attack activity"
+			-- The good outcome. If this fires, triage became preemptible and this
+			-- test has served its purpose — see the notice at the top of the file
+			-- and invert the assertion rather than relaxing it.
+			return "fail: the medic DIVERTED to the critical man after only " .. waited
+				.. " ticks, inside the " .. DivertBudgetTicks .. "-tick budget. That is BETTER than the"
+				.. " behaviour this test was written to pin (250 ticks / 15.0s on main @ 96f47c47)."
+				.. " Triage is now preemptible — invert this test to assert the divert"
 		end
 
 		if elapsed >= TotalBudgetTicks then

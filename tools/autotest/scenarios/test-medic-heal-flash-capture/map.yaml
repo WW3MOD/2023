@@ -1,0 +1,64 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: the white heal flash, on the impact tick and mid-gap
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# A capture demo, NOT a verdict. It exists because WithHealFlash's Brightness of
+# 1.4 (defaults.yaml:39) is the tuning knob for the only heal readout left in the
+# game after the treatment pip was removed, and its own comment records that it
+# "HAS NOT BEEN SEEN ON SCREEN".
+#
+# The flash is Count 6 at Interval 1 — six consecutive ticks, ~360ms at
+# Timestep 60 — and fires on weapon impact. A capture triggered by wall-clock
+# would be luck; this one is triggered by the impact itself, on the tick the
+# patient's health rises, which is the same tick FlashTarget starts tinting.
+#
+# The patient is adjacent so no walking delays the first pulse, and wounded well
+# below full so there are several pulses to catch.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	Medic: medi
+		Owner: Me
+		Location: 18,16
+		Facing: 768
+
+	# Adjacent, so treatment starts immediately and every pulse is catchable.
+	Patient: e1
+		Owner: Me
+		Location: 19,16
+		Facing: 768
+
+Rules: rules.yaml

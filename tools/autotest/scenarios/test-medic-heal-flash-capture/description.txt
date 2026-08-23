@@ -1,0 +1,1 @@
+Auto: capture the white heal flash (Brightness 1.4) on the impact tick with a control frame mid-gap, and confirm treatment actually progressed.

@@ -1,0 +1,1 @@
+Auto: pins that a medic crossing ground covered by one rifleman does not come back intact — killed, or frozen below 50% in the open.
