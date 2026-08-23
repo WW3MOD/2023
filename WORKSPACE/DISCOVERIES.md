@@ -3,6 +3,76 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-23 — healing is DAMAGE WITH THE SIGN FLIPPED, and the sign decides which half of the modifier stack applies (medic numbers audit, read-only, `main @ 7f6e6460`)
+
+Substituting the mod's real numbers into the heal path, per conventions.md §"A change believed made,
+documented as made, and inert". Every infantry actor in the mod is **200 MaxHP** — `HP: 200` at
+`infantry.yaml:34` is the *only* `HP:` declaration in the file — so all of the below is exact, not
+representative.
+
+**The heal is negative damage, and `Health.InflictDamage` gates its modifier loop on
+`damage.Value > 0` (`Health.cs:167`).** That single comparison partitions the modifier stack:
+
+- **Victim-side modifiers are SKIPPED for healing.** The patient's veterancy `DamageMultiplier`
+  (`defaults.yaml:259-270`, down to 80 at rank 4), `DensityModifiesDamage` forest cover
+  (`infantry.yaml:37-46`, down to 80), prone `ProneDamageModifiers` (`:319-323`) and
+  `DamageMultiplier@GarrisonCover` (`:212-214`) **do not slow healing.** The intuitive reading — "a
+  tough unit is also hard to heal" — is wrong, and the arithmetic is the only place that says so.
+- **Firer-side modifiers still apply**, because they are attached at the warhead call site rather
+  than in `Health`: `Armament.cs:454` puts the firing actor's `IFirepowerModifier` values into
+  `args.DamageModifiers`, and `DamageWarhead.cs:236` applies them. So **a veteran medic heals more** —
+  `FirepowerMultiplier@Rank_1..4` = 105/110/115/120 (`defaults.yaml:271-282`) against a −10 base,
+  truncating through `(int)a` (`Util.cs:245`), gives 10/11/11/12 HP. Whether a medic can ever *reach*
+  a rank is a separate question and looks unlikely — healing an ally is not a kill.
+
+**Three things in the medic path evaluate to ~nothing at the shipped inputs.**
+
+1. **The heal's splash radius is 0.168 cells.** `Heal`'s warhead (`weapons-other.yaml:346-350`) is
+   `SpreadDamage` and sets neither `Spread` nor `Range`, so it takes the defaults `Spread = WDist(43)`
+   (`SpreadDamageWarhead.cs:25`) and `Falloff = {100,37,14,5,0}` (`:28`), and
+   `effectiveRange = i * Spread` (`:52`) = {0,43,86,129,**172**}. `FindActorsOnCircle(pos, 172)` (`:61`)
+   over a 1024-unit cell is a sixth of a cell. It is single-target by accident of a default, not by
+   design — and the falloff underneath it is brutal: **43 units of impact offset (4.2% of one cell)
+   costs 63 of the 100 falloff points.** Harmless today only because the bullet is `Speed: 1c682`
+   over a `Range: 1c0` (sub-tick flight) and because a patient below 50% HP is speed-0 and cannot
+   drift. Anything that lengthens that flight, or heals a moving man, starts silently paying falloff.
+2. **`BurstMultiplier` is a no-op on any `Burst: 1` weapon, which is every medic heal.**
+   `effectiveBurstStart = ApplyPercentageModifiers(Weapon.Burst, burstModifiers)` (`Armament.cs:413`)
+   and `ResetBurst` (`:684`) both compute `1 × 90/100 = 0`. Every suppression tier and every damage
+   band therefore drives `Burst` to zero — and nothing breaks, because `CanFire` never consults it
+   (`:325-341`) and `UpdateBurst`'s `if (--Burst < 1)` (`:655`) fires identically at 0 and at 1. So the
+   whole `^SuppressionBurstMultiplier` / `BurstMultiplier@*Damage` ladder is dead weight for the medic;
+   the cadence knob that *does* bite is `BurstWaitMultiplier`.
+3. **`ChangesHealth.PercentageStep` integer-divides to zero for any actor under 100 MaxHP.**
+   `-(Info.Step + Info.PercentageStep * MaxHP / 100)` (`ChangesHealth.cs:86`) at `PercentageStep: -1`
+   is `-1 * MaxHP / 100`, which truncates to 0 below MaxHP 100 — a **bleed-out that silently does not
+   bleed**. Not live: all infantry are 200. Recorded because the trait is used for bleed-out, vehicle
+   critical damage (`vehicles.yaml:153-156`) and the ten fire tiers (`infantry.yaml:939-987`), and the
+   first actor given a small health pool inherits an inert bleed with no lint and no symptom.
+
+**Two per-target-switch delays nobody has costed.** `ArmamentInfo` defaults are `AimingDelay = 15`
+and `FireDelay = 3` (`Armament.cs:42,45`); `^MEDI`'s Armament (`infantry.yaml:2257-2263`) sets
+neither. `CheckFire` resets `AimingDelay` to 15 on *any* target change (`:347-353`) and `CanFire`
+declines while `IsAiming` (`:327`). So the first pulse lands **18 ticks (1.08 s) after arrival**, and
+**every patient switch costs a further 0.9 s of re-aim** on top of the walk. That is the hidden second
+half of the ping-pong that `SwitchMargin: 10` was added to stop (`35044a13`): the margin stops the
+oscillation, but any *legitimate* switch still pays 15 ticks.
+
+**The heal exactly ties one stack of fire, and loses to two.** Medic: 10 HP per 50 ticks =
+**3.33 HP/s** (`weapons-other.yaml:342,349`). `ChangesHealth@BurnDamage_1` is 2 HP per 10 ticks =
+**3.33 HP/s** (`infantry.yaml:939-943`) — a dead heat to the decimal. `BurnDamage_2` at `Delay: 9` is
+3.70 HP/s and wins; `BurnDamage_10` at `Delay: 1` is 33.3 HP/s, ten times the medic. Bleed-out by
+contrast is 2 HP per 50 ticks = 0.67 HP/s, so **the medic beats the bleed 5:1 and cannot beat fire at
+all.** Whether that tie is intended is a user call; it is recorded here because a 1:1 rate coincidence
+between two independently-tuned ladders is much more likely to be accident than design.
+
+**One comment contradicted by arithmetic, in the trait's own `[Desc]`.**
+`GrantConditionOnHealedInfo.Duration` defaults to 30 ticks and its `[Desc]` says it *"must comfortably
+exceed the gap between heal impacts or the readout strobes"* (`GrantConditionOnHealed.cs:26-30`). The
+gap between heal impacts is `BurstWait: 50`. `defaults.yaml:23-24` does not set `Duration`. **30 < 50,
+so the "being treated" pip is lit 30 ticks and dark 20 between every pulse** — the exact failure the
+field documents. Flagged, not fixed; it is a legibility call and belongs with the medic-experience work.
+
 ## 2026-08-22 — an actor's armour class is TWO independent facts, and four shipped units disagree with themselves (wt/small-arms-ladder)
 
 Branch `wt/small-arms-ladder`, base `main @ 9f5a7bc0`. Implementing the small-arms ladder
