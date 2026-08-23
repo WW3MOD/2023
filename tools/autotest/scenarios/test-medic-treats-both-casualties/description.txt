@@ -1,0 +1,1 @@
+Auto: an unordered medic between two wounded soldiers must finish BOTH of them, not stop after one.

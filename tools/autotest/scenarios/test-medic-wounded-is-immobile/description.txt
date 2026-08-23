@@ -1,0 +1,1 @@
+Auto: a medic below 50% health is immobile, not slow — he treats the man at his elbow and cannot reach one 6 cells away.
