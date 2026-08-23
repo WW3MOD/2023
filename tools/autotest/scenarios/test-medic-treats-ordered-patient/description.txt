@@ -1,0 +1,1 @@
+Auto: a medic ordered onto a patient at 70% must treat HIM, walking past a better-ranked man at 55% one cell off his path.

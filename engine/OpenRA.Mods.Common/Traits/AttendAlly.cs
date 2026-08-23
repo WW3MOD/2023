@@ -123,9 +123,11 @@ namespace OpenRA.Mods.Common.Traits
 			// AttackMoveActivity around a Follow, exactly as Guard does. Follow never completes, so the
 			// unit stays with his man until the player orders otherwise; the attack-move wrapper is what
 			// makes him treat anyone in reach on the way — an actor running an activity is not idle, and
-			// AutoTarget only heals from the idle path.
-			self.QueueActivity(order.Queued, new AttackMoveActivity(self,
-				() => move.MoveFollow(self, order.Target, WDist.Zero, info.Range, targetLineColor: info.TargetLineColor)));
+			// AutoTarget only heals from the idle path. The AttendAlly subclass adds the half that makes
+			// the order name a patient rather than a position: see AttendAllyActivity.
+			self.QueueActivity(order.Queued, new AttendAllyActivity(self,
+				() => move.MoveFollow(self, order.Target, WDist.Zero, info.Range, targetLineColor: info.TargetLineColor),
+				order.Target));
 
 			self.ShowTargetLines();
 		}

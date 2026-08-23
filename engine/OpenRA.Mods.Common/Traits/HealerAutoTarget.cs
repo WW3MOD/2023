@@ -75,6 +75,7 @@ namespace OpenRA.Mods.Common.Traits
 		HealerClaimLayer claimLayer;
 		AttackBase[] attackBases;
 		Actor currentTarget;
+		Actor lockedPatient;
 		Actor abandoned;
 		int abandonedTicks;
 		int scanTick;
@@ -132,6 +133,28 @@ namespace OpenRA.Mods.Common.Traits
 					ReleaseClaim(self);
 					currentTarget = null;
 				}
+
+				return true;
+			}
+
+			var decision = HealerPatientLock.Resolve(
+				lockHeld: lockedPatient != null,
+				patientGone: lockedPatient != null && !IsPresent(lockedPatient),
+				patientNeedsTreatment: lockedPatient != null && IsValidTarget(self, lockedPatient));
+
+			if (decision == HealerPatientLockDecision.DropLock)
+				ReleaseLock();
+
+			if (decision == HealerPatientLockDecision.TreatLockedPatient)
+			{
+				// Deliberately does NOT call SelectPatient. Filtering its RESULT would not be enough: it
+				// reassigns currentTarget on the way past, and the follow layer reads currentTarget, so a
+				// ranked-then-discarded scan re-points a WALKING healer even though nobody used its answer.
+				// The lock has to be resolved before the scan, not after it.
+				Claim(self, lockedPatient);
+
+				if (IsInHealRange(self, lockedPatient))
+					target = Target.FromActor(lockedPatient);
 
 				return true;
 			}
@@ -199,9 +222,7 @@ namespace OpenRA.Mods.Common.Traits
 						var critical = FindCriticalUnclaimed(self);
 						if (critical != null)
 						{
-							ReleaseClaim(self);
-							currentTarget = critical;
-							TryClaimTarget(self, critical);
+							Claim(self, critical);
 							return critical;
 						}
 					}
@@ -226,12 +247,7 @@ namespace OpenRA.Mods.Common.Traits
 				return null;
 			}
 
-			if (best != currentTarget)
-			{
-				ReleaseClaim(self);
-				currentTarget = best;
-				TryClaimTarget(self, best);
-			}
+			Claim(self, best);
 
 			return best;
 		}
@@ -411,6 +427,51 @@ namespace OpenRA.Mods.Common.Traits
 			claimLayer?.RemoveClaim(self);
 		}
 
+		/// <summary>Take a patient on: hand back the previous claim and register the new one. Every route
+		/// that changes currentTarget goes through here, so the claim layer and the field cannot drift
+		/// apart — a stale claim leaves a casualty looking taken to every other medic on the field.</summary>
+		void Claim(Actor self, Actor patient)
+		{
+			if (currentTarget == patient)
+				return;
+
+			ReleaseClaim(self);
+			currentTarget = patient;
+			TryClaimTarget(self, patient);
+		}
+
+		static bool IsPresent(Actor a)
+		{
+			return a != null && !a.IsDead && !a.Disposed && a.IsInWorld;
+		}
+
+		/// <summary>Bind this healer to the man a player order named. Called by
+		/// <see cref="Activities.AttendAllyActivity"/> when the order starts running.</summary>
+		public void LockPatient(Actor self, Actor patient)
+		{
+			if (patient == self || !IsPresent(patient))
+				return;
+
+			lockedPatient = patient;
+			EnsureClaimLayer(self);
+
+			// The order supersedes whatever the ranking was part-way through, including its claim — a
+			// player naming a patient outranks de-confliction, so the claim is taken even if another
+			// healer holds it. TryClaim declining is not a refusal to treat; the lock bypasses IsClaimed.
+			Claim(self, patient);
+		}
+
+		/// <summary>The order ended — cancelled, superseded, or the actor is going away. Hands the healer
+		/// back to the automatic path immediately rather than at the end of the current scan window.</summary>
+		public void ReleaseLock()
+		{
+			if (lockedPatient == null)
+				return;
+
+			lockedPatient = null;
+			scanTick = 0;
+		}
+
 		/// <summary>Give up on the current patient — called by the follow layer when it cannot path to him.
 		/// Releases the claim so another healer can take the case, and benches this one for a while so the
 		/// very next scan doesn't just pick him again.</summary>
@@ -433,6 +494,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (abandonedTicks > 0 && --abandonedTicks == 0)
 				abandoned = null;
+
+			// Released here as well as in the override, because the override early-returns while the
+			// healer's armaments are paused — without this a patient who died during a long suppression
+			// would stay locked, and the reference would outlive him.
+			if (lockedPatient != null && !IsPresent(lockedPatient))
+				ReleaseLock();
 
 			// Clean up stale target
 			if (currentTarget != null && !IsValidTarget(self, currentTarget))
