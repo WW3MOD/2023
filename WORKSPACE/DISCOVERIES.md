@@ -10229,6 +10229,61 @@ against `SUPPLYROUTE`, which does). So today's map content would not in fact hav
 the predicate applies to every cell on every map, not that a particular map ships a frozen ring actor —
 but it does mean the sim risk was latent rather than live.
 
+## 2026-08-23 — target selection had NO health term at all; the only health mechanism is a hard skip that abandons
+
+Census run before implementing a user ruling that units "should prioritize healthy units". The ruling's
+brief assumed `AutoTargetInfo.BreakOffCondition` was unset and warned it off as the wrong lever. **It is
+set, it is the entire health mechanism, and it abandons rather than deprioritises.**
+
+### There was no term reading the target's remaining HP anywhere in the scoring loop
+
+`AutoTarget.ChooseTarget` scored a candidate from range, cluster pull, priority bucket, and the
+soft-overkill penalty (`AutoTarget.cs:1548-1549`). The trap for anyone reading that quickly:
+**`Actor.AverageDamagePercent` is not the target's health.** It is damage OTHER shooters have already
+*claimed* against it (`Actor.cs:83-118`, halved every 60 ticks at `:346`) — pile-on prevention. So both
+overkill knobs (`OverkillThreshold`, `SoftOverkillThreshold`/`SoftOverkillScale`, `AutoTarget.cs:217-226`)
+are blind to how wounded a unit actually is. **A 30%-HP tank and a full-health tank at equal range scored
+byte-identically.** That is the gap this ruling names, and it was total, not partial.
+
+### The one health mechanism is a hard skip at three sites, with no fallback pass
+
+`BreakOffCondition` defaults to `"critical-damage"` (`AutoTarget.cs:244`) and is **never overridden in mod
+YAML** — the grep returns only a comment at `infantry.yaml:196`. The condition is granted mod-wide by
+`GrantConditionOnDamageState@CriticalDamage` (`defaults.yaml:218-220`) at `DamageState.Critical`, which
+`Health.cs:95-96` fixes at **HP < 25%** of max. It then fires at three places, all hard:
+
+- `AutoTarget.cs:1467-1472` — a bare `continue` on acquisition. `ChooseTarget` is a **single pass with no
+  relaxed retry**, so when the only in-range enemy is critical the unit holds fire (`:1584-1585` merely
+  records `LastHeldFireTick`). This is abandonment, not preference.
+- `AttackFollow.cs:163-167` — drops a locked opportunity target.
+- `Attack.cs:217-220` — returns `UnableToAttack` for self-chosen engagements.
+
+**Consequence for anyone tempted to soften only the acquisition site: don't.** A scoring term at
+`AutoTarget.cs` alone makes things *worse*, not better — the unit re-acquires the lone critical target and
+`Attack.cs:220` refuses it every tick, giving acquire/refuse oscillation that never fires a shot. The
+three sites are one mechanism and move together or not at all.
+
+### The abandonment is deliberate and twice-ruled, so it is not loose ground
+
+The hard skip replaced an older `CriticalDamage +50000` soft nudge in 2026-05, because the nudge was
+firing on every non-parachuting vehicle rather than only critical ones — the stated rationale was ammo
+efficiency, not a bug fix. `BreakOffScopeTest.cs:45` then pins the intent in prose: *"This is the
+behaviour the user explicitly wants KEPT."* A later pass (`AttackBase.BreakOffApplies`, `:672-675`) scoped
+it so **player orders are exempt** — an ordinary attack order on a critical target does fire; only
+self-chosen engagements break off.
+
+### What shipped instead: a preference above the fence, leaving the fence alone
+
+`FiresEconMath.HealthPreferencePenalty` — `penalty = targetRange * (100 - health%) / HealthPreferenceScale`,
+default scale 100 (`AutoTarget.cs:228-237`), applied at `:1555`. A wounded enemy scores as if further away;
+bounded by one range-length so it stays inside the range tiebreak and **can never cross a priority bucket
+or become a second break-off**. Health is read from `Actor.HealthPercent` (`Actor.cs:602-616`), a new O(1)
+accessor over the `IHealth` already cached at construction (`:162`) — no trait lookup on the scan path.
+
+The band this earns its keep in is **25-50%**: above the critical fence, so still a legal target, but —
+once the infantry fire/movement gates move from 25% to 50% — disarmed and stationary. A harmless unit is
+exactly what a healthy one should outrank. Pinned values at scale 100: 60% HP reads as 1.4x its range,
+40% as 1.6x, and full health as exactly 0 penalty.
 ## 2026-08-23 — Decoration blink timing: two mechanisms, only one was ever fixed
 
 ### The census: exactly two decorations in the whole mod are game-speed dependent
@@ -10413,3 +10468,95 @@ cycle: a 240ms floor at `strategical`'s 120ms `Timestep`**. The ramp bottoms out
 reaches it only in the last few percent of health. Below that the blink would alias rather than speed
 up. Going finer requires moving the frame computation to the render path, which re-inherits the
 statelessness constraint and therefore the discontinuity problem.
+## 2026-08-23 — Critical band moved to 50%; and WW3MOD has no health bar at all
+
+Branch `wt/critical-band`. User ruling: *"All units when they are critical (50%, flashing health pip)
+should be disabled from firing and moving"* and *"soldiers have a dot, vehicles have a bar, they should
+function the same"*.
+
+### There is exactly ONE health indicator in this mod, and it is the damage pip
+
+This is the highest-value fact here. **`DrawHealthBar` is never called.** The call site is commented out
+at `engine/OpenRA.Mods.Common/Graphics/SelectionBarsAnnotationRenderable.cs:168`, disabled by the user in
+`e670ab96` on **2024-08-13**. `DrawHealthBar` has no other caller and `GetHealthColor` has no caller but
+`DrawHealthBar`, so the entire green→yellow→red gradient is unreachable code describing nothing a player
+can see. The other implementation, `IsometricSelectionBarsAnnotationRenderable`, needs
+`IsometricSelectionDecorations`, which appears nowhere in `mods/ww3mod/` — `SelectionDecorations.cs:82` is
+the only bar path and it feeds the dead renderable. `DrawExtraBars` IS live, but every `ISelectionBar`
+implementor is special-purpose (reload, capture, production, power, supply); none is a health bar.
+
+So **"the bar and the pip disagreeing" describes something that cannot happen.** Anyone reasoning about
+reconciling them is reasoning about one real indicator and one that does not render. An entire scoped
+work item was built on that premise before it was caught.
+
+What IS above a damaged vehicle: the damage pip (`^DamageVehiclePips`, `Position: Top`, `Margin: 0,0`).
+`WithDecorationBase.RequiresSelection` defaults to **false**, so it is on screen whenever the unit is
+damaged, selected or not. Everything else up there is offset left (stance icons at `Margin: -8,-10` and
+`-16,-10`, spotted "!" at `-8,0`) or selection-gated (`^SuppressionPips` sets `RequiresSelection: true`;
+control-group number). Ammo pips are `Position: Bottom`.
+
+This also settles which indicator a bug report is about, by elimination rather than by guesswork: a report
+of *"a vehicle at half health looks yellow"* can only be the pip, because in the 50-75% band the pip was
+**orange** and the alternative does not render.
+
+### The pip frame colours are NOT what the sequence names imply
+
+Decoded with the engine's own loader (`--png <shp> <temperat.pal>`; `WithDecoration` defaults to the
+`chrome` palette, which is `temperat.pal`). Five frames each:
+
+| Frame | Infantry | Vehicle |
+|---|---|---|
+| 0 | yellow `(255,255,85)` | yellow `(255,255,85)` |
+| 1 | orange `(255,138,0)` | orange `(255,138,0)` |
+| 2 | red `(255,0,0)` | red `(255,0,0)` |
+| 3 | dark red `(134,0,0)` | dark red `(101,0,0)` |
+| 4 | dark red / black | dark red / black |
+
+**There is no green frame.** The pip only exists once a unit is damaged (`light-damage` is
+`DamageState.Light`, not `Undamaged`), so the ladder starts at yellow. Reading "light/medium/heavy" as
+"green/yellow/red" is wrong and was the working assumption for most of this task.
+
+**The blink is a PULSE, not an on/off flash.** `pip-damage-*-critical` is `Start: 2, Length: 2`, so it
+alternates frame 2 (red) with frame 3 (**dark red**). Frame 3 is not blank. An earlier draft of this entry
+claimed it was; it is not.
+
+Declared canvas sizes: `pip-damage-infantry.shp` is **6x6** — a dot. `pip-damage-vehicle.shp` is **17x5** —
+a bar. So *"soldiers have a dot, vehicles have a bar"* describes the damage pip in its two shapes, and
+those two already shared one ladder and one set of conditions. Note `--nopadding` reports 18x6 for the
+vehicle (the data extent); the declared frame canvas, which is what renders, is 17x5.
+
+### Shift the ladder by SEQUENCE, never by condition
+
+The obvious move is to retune `^DamageStates` (`defaults.yaml:196-220`) or the band boundaries in
+`Health.cs:95-104`. **Both are traps.** Those bands are shared, and one consumer is
+`AutoTargetInfo.BreakOffCondition` (`AutoTarget.cs:244`), which keys off the `critical-damage` token.
+Moving the band under it silently widens auto-target break-off to 50% and leaves every wounded unit
+unengaged — the opposite of the intent.
+
+Repointing each pip trait's `Sequence` while leaving every `RequiresCondition` alone gets the same visual
+result and provably cannot reach any other consumer. Net effect: 50-75% goes orange → solid red, 25-50%
+goes solid red → pulse, and the orange rung (`pip-damage-*-medium`) falls out of the ladder unreferenced.
+
+### The panic gate and the speed gate must share a band
+
+`SpeedMultiplier` governs how fast a unit crosses a cell, not whether it decides to move. A speed-0
+panicking man still enters the panic state, renders `panic-run` on the spot and claims the next cell
+(`Move` queues `SetLocation` before consulting `Mobile`). So moving `SpeedMultiplier@CriticalDamage` to
+50% while leaving `PanicCondition`, `ScaredyCat` and `Wanders` at 25% opens a run-on-the-spot window
+across the whole 25-50% band — the defect `PanicGateAtCriticalDamageTest` exists for, re-created one band
+up. All four moved together.
+
+### Two NUnit corpus pins hard-code the token, and give a free RED
+
+`CriticalWoundFireGateTest.cs:32` (`const string Condition`) and `PanicGateAtCriticalDamageTest.cs:31`
+(`const string Gate`), plus an exact-equality assertion at `:145`. Flipping the constants first makes all
+three gate sites name themselves in the failure text with no game launch. `SpeedMultiplier@CriticalDamage`
+is looked up **by trait key**, so the key was deliberately left misnaming its band — a rename empties the
+scan silently instead of failing it.
+
+### Interaction with the two branches that landed in parallel
+
+`5ba8c951` (blink timing) retuned `pip-damage-*-critical` from `Tick: 300` to `Tick: 450` and left the
+sequence names alone, so this change composes with it cleanly: that branch owns how fast the pulse runs,
+this one owns which band pulses. `d83551fb` (target priority) added a `HealthPreferenceScale` scoring term
+and did not touch `BreakOffCondition`, whose default is still `critical-damage` at `AutoTarget.cs:244`.

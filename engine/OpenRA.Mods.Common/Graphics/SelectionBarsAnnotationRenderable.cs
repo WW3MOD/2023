@@ -165,6 +165,19 @@ namespace OpenRA.Mods.Common.Graphics
 			var start = wr.Viewport.WorldToViewPx(new float2(decorationBounds.Left + 1, decorationBounds.Bottom));
 			var end = wr.Viewport.WorldToViewPx(new float2(decorationBounds.Right - 1, decorationBounds.Bottom));
 
+			// WW3MOD HAS NO HEALTH BAR. This call was commented out deliberately in e670ab96 on
+			// 2024-08-13 and the mod has shipped without one ever since; unit health is read from the
+			// damage PIP instead (^DamageVehiclePips / ^DamageInfantryPips), which is not
+			// selection-gated and so is the only health indicator on screen.
+			//
+			// Everything it reaches is therefore UNREACHABLE: DrawHealthBar above has no other caller,
+			// and GetHealthColor has no caller but DrawHealthBar. Their green -> yellow -> red gradient
+			// describes nothing a player can see. This is the second time in 2026 that someone has
+			// spent real effort improving that chain believing it renders - do not be the third, and do
+			// not "fix" the gradient's disagreement with the pip, because the gradient is not drawn.
+			//
+			// Re-enabling this is a product decision, not a cleanup: it turns on an indicator the user
+			// switched off himself. Ask before uncommenting.
 			// if (DisplayHealth) DrawHealthBar(health, start, end);
 			if (DisplayExtra)
 				DrawExtraBars(start, end);
