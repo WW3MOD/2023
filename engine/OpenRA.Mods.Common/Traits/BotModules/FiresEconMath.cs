@@ -83,6 +83,31 @@ namespace OpenRA.Mods.Common.Traits
 			return bonus > cap ? cap : (int)bonus;
 		}
 
+		/// <summary>The AutoTarget priority penalty (a WDist length ADDED to a candidate's priorityValue) a
+		/// wounded target earns, so a healthy enemy is preferred over a damaged one: a target at
+		/// <paramref name="healthPercent"/> of its max HP scores as though it stood
+		/// <c>targetRange * (100 - healthPercent) / scale</c> further away. Linear in health, so it
+		/// discriminates across the WHOLE legal band rather than only separating near-full from near-dead —
+		/// at scale 100 a 60% target reads as 1.4x its range and a 40% target as 1.6x.
+		///
+		/// This is a PREFERENCE, never a filter: the penalty is bounded by <c>targetRange * 100 / scale</c>,
+		/// which stays far inside the range tiebreak and can never cross a priority bucket, so a wounded
+		/// unit that is the only thing in range is still chosen and finished off. Deprioritising is not
+		/// abandoning — the separate <see cref="AutoTargetInfo.BreakOffCondition"/> skip owns that, and it
+		/// only reaches units already below the critical line.
+		///
+		/// 0 (byte-identical to no term) when disabled, at zero range, or against a full-health target.
+		/// Health is clamped to 0..100 so an over-heal can never invert the sign into a bonus.</summary>
+		public static int HealthPreferencePenalty(int targetRange, int healthPercent, int scale)
+		{
+			if (scale <= 0 || targetRange <= 0)
+				return 0;
+
+			var hp = healthPercent < 0 ? 0 : (healthPercent > 100 ? 100 : healthPercent);
+			var penalty = (long)targetRange * (100 - hp) / scale;
+			return penalty > int.MaxValue ? int.MaxValue : (int)penalty;
+		}
+
 		/// <summary>Money one fire mission spends: <paramref name="burst"/> rounds priced at the ammo pool's
 		/// per-batch <paramref name="supplyValue"/> (a batch is <paramref name="reloadCount"/> rounds), rounded UP
 		/// to whole batches because a partial batch is still billed in full — mirrors the economy model's rearm/

@@ -600,6 +600,21 @@ namespace OpenRA
 			return (health == null) ? DamageState.Undamaged : health.DamageState;
 		}
 
+		/// <summary>Current HP as a percentage (0..100) of max. Reads the IHealth cached at construction,
+		/// so it costs no trait lookup and is safe on the target-acquisition hot path — unlike
+		/// <see cref="GetDamageState"/> it is continuous, which is what a proportional preference needs.
+		/// 100 for anything with no health trait, so such actors score as undamaged.</summary>
+		public int HealthPercent
+		{
+			get
+			{
+				if (Disposed || health == null || health.MaxHP <= 0)
+					return 100;
+
+				return (int)(health.HP * 100L / health.MaxHP);
+			}
+		}
+
 		public void InflictDamage(Actor attacker, Damage damage)
 		{
 			if (Disposed || health == null)
