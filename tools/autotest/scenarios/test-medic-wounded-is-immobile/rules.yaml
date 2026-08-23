@@ -1,0 +1,18 @@
+# Wounded-medic autotest overrides. A sub-50% medic, one patient adjacent, one 6 cells away.
+
+# No cash -> no production; the only actors are the pre-placed Medic + patients.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults to
+	# human-owned units in Created (AutoTarget.cs). The medic's autonomy is gated on
+	# engagement stance, so a dev who once set medics to Hold Position would otherwise
+	# silently fail this test. Strip it so the stances are the YAML ones.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-medic-wounded-is-immobile.lua

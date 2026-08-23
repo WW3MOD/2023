@@ -1,0 +1,83 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a medic crossing covered ground to reach a casualty
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Nothing in the medic's approach consults danger. AutoFollowAlly paths on
+# distance alone (FindNearestAlly / MoveWithinRange, AutoFollowAlly.cs:191-207,
+# :146) and HealerAutoTarget scores patients on health and distance only
+# (ScorePatient, HealerAutoTarget.cs:295-317). Neither reads a threat or danger
+# field. So the medic will cross ground he is being shot on.
+#
+# What makes that worse than an ordinary unit taking fire is the 50% line. At
+# heavy-damage-attained the medic's SpeedMultiplier goes to 0
+# (infantry.yaml:1082-1084) — so the moment covering fire takes him below half,
+# he stops DEAD IN THE OPEN, still under that fire, and cannot retreat, advance,
+# or be walked away by the player. Being wounded and being trapped are the same
+# event for this unit.
+#
+# Geometry: the casualty is 6 cells east of the medic, and one enemy rifleman
+# sits 3 cells north of the midpoint, covering the crossing. The medic must pass
+# through his engagement envelope to arrive.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Hostile
+	PlayerReference@Hostile:
+		Name: Hostile
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: Me
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	Medic: medi
+		Owner: Me
+		Location: 18,16
+		Facing: 768
+
+	# 6 cells east, inside the 8-cell notice radius so the medic commits to him
+	# without any order. Drained to 40% in Lua.
+	Casualty: e1
+		Owner: Me
+		Location: 24,16
+		Facing: 768
+
+	# Covers the crossing from 3 cells north of the midpoint.
+	Shooter: e1
+		Owner: Hostile
+		Location: 21,13
+		Facing: 512
+
+Rules: rules.yaml

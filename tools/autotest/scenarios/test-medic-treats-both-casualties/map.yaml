@@ -1,0 +1,75 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: an unordered medic finishes BOTH casualties, not just one
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# The same field as test-medic-focus-two-patients, asking the harder half of the
+# question. That test passes as soon as EITHER man is finished, because it was
+# written to catch a medic who finished nobody. It cannot tell "he treated one
+# and stopped" apart from "he treated both".
+#
+# This is the case a player actually relies on: two men come out of a firefight
+# hurt, nobody micromanages the medic, and the expectation is that he works
+# through them. Both start above StabilizeThreshold (50) so the critical-first
+# bonus is not doing the work, and both below MaxPatientHealthPercent (90) so he
+# is willing to acquire either.
+#
+# The 2-point gap between them is the ping-pong trap kept from the original: one
+# pulse is worth 10 points now (DamagePercent -10 at BurstWait 50), so the first
+# pulse on the man at 60% lifts him clear past the man at 62% and re-inverts the
+# ranking. SwitchMargin (10) is what is supposed to stop the medic handing his
+# case over on the next rescan.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	Medic: medi
+		Owner: Me
+		Location: 18,16
+		Facing: 768
+
+	# 3 cells west. Drained to 60% in Lua.
+	PatientNear: e1
+		Owner: Me
+		Location: 15,16
+		Facing: 768
+
+	# 3 cells east. Drained to 62% — marginally better off, so he is second in
+	# the ranking until the first pulse lands on the other man.
+	PatientFar: e1
+		Owner: Me
+		Location: 21,16
+		Facing: 768
+
+Rules: rules.yaml

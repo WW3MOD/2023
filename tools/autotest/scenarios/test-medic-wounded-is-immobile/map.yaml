@@ -1,0 +1,76 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a medic below 50% is immobile, not merely slow
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Health.cs:95-99 puts DamageState.Heavy at 25-50% and Critical below 25%, so
+# `heavy-damage-attained` is exactly the 50% line. On that condition
+# ^EffectsWhenDamagedInfantry carries SpeedMultiplier@CriticalDamage with
+# Modifier: 0 (infantry.yaml:1082-1084) — not a slow, a full stop — and ^MEDI
+# inherits it through ^Infantry. The deliberate ^MEDI exemption at :2251-2256
+# drops only ^Soldier's Armament PauseOnCondition, so his hands still work.
+#
+# The medic here starts at 40%: inside Heavy, immobile, prone, and bleeding
+# (ChangesHealth@BleedOut, StartIfBelow 50, -1% per 50 ticks). His heal cadence
+# is also tripled by BurstWaitMultiplier@HeavyDamage: 300.
+#
+# Two patients separate "cannot work" from "cannot walk":
+#   Elbow  — 1 cell away. If he treats this man, his armament is live.
+#   Across — 6 cells away. If he never treats this man, it is his legs.
+# Both start at 70%: above StabilizeThreshold (50) so neither gets the
+# critical-first bonus, and below MaxPatientHealthPercent (90) so he wants both.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Me:
+		Name: Me
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	OwnSR: supplyroute
+		Owner: Me
+		Location: 4,16
+	SpawnMe: mpspawn
+		Owner: Neutral
+		Location: 4,16
+
+	# Drained to 40% in Lua: below the 50% line, so immobile from the first tick.
+	Medic: medi
+		Owner: Me
+		Location: 18,16
+		Facing: 768
+
+	# 1 cell east — already inside the 1c0 heal range, so no walking is required.
+	Elbow: e1
+		Owner: Me
+		Location: 19,16
+		Facing: 768
+
+	# 6 cells east — inside the 8-cell notice radius, so he can SEE this man and
+	# will claim him. Reaching him is the part that needs legs.
+	Across: e1
+		Owner: Me
+		Location: 24,16
+		Facing: 768
+
+Rules: rules.yaml

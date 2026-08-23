@@ -1,0 +1,18 @@
+# Escort-blindness autotest overrides. Pre-placed medic, healthy escort, distant casualty.
+
+# No cash -> no production; the only actors are the pre-placed Medic + patients.
+Player:
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults to
+	# human-owned units in Created (AutoTarget.cs). The medic's autonomy is gated on
+	# engagement stance, so a dev who once set medics to Hold Position would otherwise
+	# silently fail this test. Strip it so the stances are the YAML ones.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-medic-escort-blinds-him.lua

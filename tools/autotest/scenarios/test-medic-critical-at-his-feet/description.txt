@@ -1,0 +1,1 @@
+Auto: pins that a man collapsing at the medic's feet waits for the lighter wound to finish (measured 250 ticks / 15.0s) — triage cannot preempt a treatment.
