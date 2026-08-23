@@ -47,7 +47,20 @@ namespace OpenRA.Mods.Common.Traits.Render
 		{
 			image = info.Image ?? self.Info.Name;
 			anim = new Animation(self.World, image, () => self.World.Paused);
-			anim.PlayRepeating(info.Sequence);
+
+			// PITFALL: an animated decoration must not advance its frame off the sim tick. Animation.Tick()
+			// credits a fixed 40ms per world tick (Animation.cs, "25 fps == 40 ms"), but a world tick is
+			// Timestep ms of REAL time — 120ms at the slowest game speed and 30ms at the fastest — so a
+			// ticked sequence runs 4x faster at "insane" than at "strategical", and 1.5x slower than its
+			// author intended at the default 60ms. Fetching the frame from wall-clock instead makes a
+			// sequence's Tick: value mean real milliseconds at every game speed, matching the sibling
+			// BlinkPattern mechanism in WithDecorationBase. Render-only: the fetched index feeds nothing
+			// but this decoration's own sprite, so it stays out of the synced trait state. Do NOT "fix"
+			// this in Animation itself — RenderSprites is ITick and PlayThen callbacks gate Transform,
+			// Sellable and the dock sequences, so changing Animation's advance rate would desync.
+			// Length-1 sequences (every other decoration in the mod) resolve to frame 0 as before.
+			anim.PlayFetchIndex(info.Sequence, () => DecorationBlink.PhaseIndex(
+				Game.RunTime, 1, anim.CurrentSequence.Tick, anim.CurrentSequence.Length));
 		}
 
 		protected virtual PaletteReference GetPalette(Actor self, WorldRenderer wr)

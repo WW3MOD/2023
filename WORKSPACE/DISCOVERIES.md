@@ -10284,3 +10284,98 @@ The band this earns its keep in is **25-50%**: above the critical fence, so stil
 once the infantry fire/movement gates move from 25% to 50% — disarmed and stationary. A harmless unit is
 exactly what a healthy one should outrank. Pinned values at scale 100: 60% HP reads as 1.4x its range,
 40% as 1.6x, and full health as exactly 0 penalty.
+## 2026-08-23 — Decoration blink timing: two mechanisms, only one was ever fixed
+
+### The census: exactly two decorations in the whole mod are game-speed dependent
+
+A selection decoration can blink two different ways, and they have **completely different clocks**.
+
+**(A) `BlinkPattern` / `BlinkInterval`** on `WithDecorationBaseInfo`
+(`engine/OpenRA.Mods.Common/Traits/Render/WithDecorationBase.cs:56-64`) — already wall-clock, via
+`DecorationBlink.PhaseIndex(Game.RunTime, ...)` at `WithDecorationBase.cs:96`. Fixed in `a9bbbc0f`.
+Five live sites: heal pip (`rules/defaults.yaml:25`), three ammo-none pips (`defaults.yaml:866/875/884`),
+mines-none (`rules/ingame/vehicles.yaml:513`). **These were never the problem.**
+
+**(B) an animated multi-frame `Sequence:`** on `WithDecoration` — tick-driven, therefore game-speed
+dependent. Only **two** live sites in the entire mod, and they are the critical-health pips:
+`pip-damage-infantry-critical` (`sequences/sequences-misc.yaml:373`, wired at
+`rules/ingame/infantry.yaml:710`) and `pip-damage-vehicle-critical` (`sequences-misc.yaml:402`, wired at
+`rules/defaults.yaml:154`). Every other decoration names a `Length: 1` sequence and has no timing at all.
+
+So the intuition that "this is an issue with many pips" is right about the *mechanism* and wrong about
+the *extent*: the fix landed on mechanism (A) and mechanism (B) was never revisited. The two were
+disjoint across the mod — no decoration mixed them.
+
+### The cause is the 25-tps assumption, hardcoded in the engine
+
+`Animation.Tick()` credits a **fixed 40** against the sequence clock per world tick
+(`engine/OpenRA.Game/Graphics/Animation.cs:229-233`), and the constant says so out loud:
+`const int DefaultTick = 40; // 25 fps == 40 ms` (`Animation.cs:125`). But a world tick is `Timestep`
+ms of **real** time, and WW3MOD runs 120ms (`strategical`) down to 30ms (`insane`), default 60
+(`mod.yaml:357-403`). So:
+
+- `Tick: 300` meant 300/40 = **7.5 world ticks** per frame, not 300ms.
+- At the default 60ms timestep that is **450ms** per frame — a 900ms blink cycle, **1.5x slower than
+  the author intended**, which is exactly the 25-vs-16.67 tps ratio.
+- Across the speed range the same pip cycled in **1800ms (strategical) to 450ms (insane) — a 4x spread**.
+
+This is a live instance of the systemic tick-rate error catalogued in
+`DOCS/reference/conventions.md`, showing up as a render bug rather than a duration comment.
+
+### Do NOT fix this in `Animation` — that is a determinism change, not a render change
+
+`RenderSprites` implements `ITick` (`Traits/Render/RenderSprites.cs:119`), so animations advance inside
+`World.Tick`'s synced trait loop (`World.cs:508`). `Animation.PlayThen`'s `after` callback fires from
+`tickFunc` (`Animation.cs:184-193`), and the sim gates real decisions on it: `Activities/Transform.cs:69`
+(actor replacement), `Traits/Sellable.cs:100` (refund), `Activities/GenericDockSequence.cs:135-139`
+(dock state machine). Changing how `Animation` advances would desync those across clients.
+
+The safe scope is `WithDecoration` alone: it builds its own `Animation` and its `PlayRepeating` tickFunc
+only increments a frame counter with no callback (`Animation.cs:158-163`), so it is purely decorative.
+
+### `PlayFetchIndex` is the seam — and its lambda runs on the tick path, not the render path
+
+`Animation.PlayFetchIndex(seq, func)` sets `tickAlways` and recomputes `frame = func()` every tick
+(`Animation.cs:202-210`). Fetching the index from `Game.RunTime` makes a sequence's `Tick:` mean real
+milliseconds at every game speed without touching `Animation` itself. `Length: 1` sequences fetch
+`x % 1 == 0` unconditionally, so the other 65 decorations are untouched by construction.
+
+Two properties worth keeping in mind for follow-on work:
+
+- **Pause is free.** `ITick` is inside the `if (!Paused ...)` guard at `World.cs:500`, so the fetch
+  lambda does not run while paused.
+- **The lambda is invoked exactly once per world tick**, not once per rendered frame. That makes
+  *stateful* accumulation safe here (no multi-viewport double-advance hazard), unlike
+  `WithDecorationBase.ShouldRender`, which is on the render path and must stay stateless.
+
+### A variable (health-proportional) blink rate is NOT expressible today, and the obstacle is phase
+
+`BlinkInterval` is a `readonly` Info field fixed at load, and a sequence's `Tick:` is fixed in the
+sequence definition. Neither can vary with health, so a rate that accelerates as a unit dies needs
+engine support.
+
+The non-obvious part is **not** the plumbing — it is that the obvious implementation looks bad.
+A stateless absolute-time phase (`RunTime / stepMs % length`) **re-phases discontinuously whenever
+`stepMs` changes**: at `RunTime` 300000ms, `stepMs` 450 gives index 0 and `stepMs` 440 gives index 1.
+With a health-proportional interval the rate changes on *every damage event*, so the pip would jitter
+and skip under fire rather than smoothly accelerate — the exact situation the indicator exists for.
+
+Three ways out, none free:
+
+1. **Phase anchor** (store `anchorMs` + phase, re-anchor when the interval changes) — smooth, and safe
+   in the `PlayFetchIndex` lambda because that runs once per tick. Cost: the fastest expressible blink
+   is bounded by the tick rate, roughly `2 x Timestep` for a visible on/off, i.e. a **240ms floor at
+   `strategical`**. Finer than that requires moving to the render path and re-inherits the statelessness
+   constraint.
+2. **Condition-keyed intervals** — a `BlinkIntervals: [condition]: [interval]` dictionary mirroring the
+   existing `BlinkPatterns` design (`WithDecorationBase.cs:62-64`). No health read, no discontinuity
+   worth worrying about (condition changes are rare and discrete), fits the existing architecture. But
+   it yields a *stepped* rate and needs more health-band conditions than exist today.
+3. **Stateless health-scaled interval** — smallest diff, and the one that jitters. Not recommended.
+
+### Incidental: `ChangeTick` is silently ignored by a fetched index
+
+`CurrentSequenceTickOrDefault()` supports per-frame durations via `ChangeTick` (`Animation.cs:127-129`),
+and an index fetched from wall-clock cannot honour it. Harmless today — the mod's only `ChangeTick` is
+on `nuke_large` (`sequences/sequences-ingame.yaml:236`), an explosion, not a decoration — but a future
+animated decoration using `ChangeTick` would lose its per-frame timing with no error.

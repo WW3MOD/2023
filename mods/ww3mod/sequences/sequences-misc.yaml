@@ -373,7 +373,11 @@ pips:
 	pip-damage-infantry-critical: pip-damage-infantry
 		Start: 2
 		Length: 2
-		Tick: 300
+		# Tick is REAL milliseconds per frame (WithDecoration fetches the frame from wall-clock).
+		# 450 preserves exactly what this looked like when it was 300 animation-ms advancing at
+		# 40ms per world tick: 300/40 = 7.5 ticks x the default 60ms Timestep = 450ms per frame.
+		# It is no longer 4x faster on "insane" than on "strategical". Retune deliberately.
+		Tick: 450
 	pip-defense-1: pip-defense
 		Start: 0
 		Length: 1
@@ -402,7 +406,8 @@ pips:
 	pip-damage-vehicle-critical: pip-damage-vehicle
 		Start: 2
 		Length: 2
-		Tick: 300
+		# Real milliseconds per frame — see pip-damage-infantry-critical above for why 450.
+		Tick: 450
 
 pip-ammored:
 	oneshot:

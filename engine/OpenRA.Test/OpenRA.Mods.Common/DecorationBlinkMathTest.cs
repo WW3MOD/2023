@@ -97,5 +97,72 @@ namespace OpenRA.Test
 			// of throwing DivideByZero as the original WorldTick / BlinkInterval expression would.
 			Assert.That(DecorationBlink.PhaseIndex(1000, 0, NominalTickMs, 2), Is.InRange(0, 1));
 		}
+
+		// ── Animated decoration SEQUENCES (the sibling mechanism) ──
+		// A decoration can also blink by naming a multi-frame sequence rather than a BlinkPattern.
+		// That path used to advance off the sim tick: Animation.Tick() credits a fixed 40 "animation
+		// ms" per world tick, but a world tick is Timestep ms of real time, so the on-screen rate
+		// scaled with game speed. WithDecoration now fetches the frame from wall-clock via
+		// PhaseIndex(Game.RunTime, 1, CurrentSequence.Tick, CurrentSequence.Length), which makes a
+		// sequence's Tick: mean real milliseconds per frame at every speed.
+
+		const int CriticalPipTickMs = 450;  // sequences-misc.yaml: pip-damage-{infantry,vehicle}-critical
+		const int CriticalPipLength = 2;
+		const int AnimationMsPerWorldTick = 40; // Animation.cs DefaultTick, "25 fps == 40 ms"
+
+		static int SequenceFrame(long runTimeMs, int sequenceTickMs, int length)
+		{
+			return DecorationBlink.PhaseIndex(runTimeMs, 1, sequenceTickMs, length);
+		}
+
+		[Test]
+		public void StaticDecorationSequencesAlwaysResolveToFrameZero()
+		{
+			// Every decoration in the mod except the two critical-damage pips names a Length: 1
+			// sequence. Switching WithDecoration from PlayRepeating to PlayFetchIndex must leave
+			// all of those pinned to their single frame.
+			for (var ms = 0L; ms < 10000; ms += 137)
+				Assert.That(SequenceFrame(ms, 40, 1), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void CriticalPipFrameFlipsEveryTickMillisecondsOfRealTime()
+		{
+			Assert.That(SequenceFrame(0, CriticalPipTickMs, CriticalPipLength), Is.EqualTo(0));
+			Assert.That(SequenceFrame(449, CriticalPipTickMs, CriticalPipLength), Is.EqualTo(0));
+			Assert.That(SequenceFrame(450, CriticalPipTickMs, CriticalPipLength), Is.EqualTo(1), "flips at 450ms");
+			Assert.That(SequenceFrame(900, CriticalPipTickMs, CriticalPipLength), Is.EqualTo(0), "900ms full cycle");
+		}
+
+		[Test]
+		public void CriticalPipTickPreservesTheOldDefaultSpeedCadence()
+		{
+			// The YAML moved from Tick: 300 to Tick: 450 because the unit changed, NOT because the
+			// pip was retuned. Old path: 300 animation-ms at 40 credited per world tick = 7.5 world
+			// ticks per frame; at the default 60ms Timestep that is 450ms of real time per frame.
+			// If someone edits Tick: without understanding this, that is the number to re-derive.
+			const int OldSequenceTick = 300;
+			const int DefaultTimestepMs = 60; // mod.yaml GameSpeeds: default
+			var oldRealMsPerFrame = OldSequenceTick * DefaultTimestepMs / AnimationMsPerWorldTick;
+
+			Assert.That(oldRealMsPerFrame, Is.EqualTo(CriticalPipTickMs),
+				"Tick: 450 must reproduce the pre-change appearance at the default game speed");
+		}
+
+		[Test]
+		public void OldSequenceCadenceWasGameSpeedDependent()
+		{
+			// Guards the premise of the fix rather than the fix: under the old ticked path the real
+			// time per frame carried a Timestep term, so the same pip blinked 4x faster at the
+			// fastest game speed than at the slowest. The replacement takes only wall-clock ms and
+			// a sequence Tick — there is no Timestep term left in it to diverge on.
+			const int OldSequenceTick = 300;
+			var strategical = OldSequenceTick * 120 / AnimationMsPerWorldTick; // slowest speed
+			var insane = OldSequenceTick * 30 / AnimationMsPerWorldTick;       // fastest speed
+
+			Assert.That(strategical, Is.EqualTo(900));
+			Assert.That(insane, Is.EqualTo(225));
+			Assert.That(strategical / insane, Is.EqualTo(4), "old path varied 4x across the speed range");
+		}
 	}
 }
