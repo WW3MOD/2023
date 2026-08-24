@@ -1,18 +1,27 @@
--- AUTO TEST: a medic escorting a healthy squadmate ignores a man bleeding out
--- 10 cells away — and picks him up promptly the moment the escort is gone.
+-- AUTO TEST: a medic escorting a HEALTHY squadmate still goes to the man
+-- bleeding out 10 cells away. The escort must not be able to anchor him.
 --
--- Two radii, one decision. HealerAutoTarget.SearchRange is 8c0 (infantry.yaml
--- :2216) and is the only thing that makes a casualty visible to the medic at
--- all. AutoFollowAlly.SearchRange is 20c0 (:2249), and FindNearestAlly
--- (AutoFollowAlly.cs:191-207) picks the nearest ally WITHOUT consulting health.
--- A healthy man closer than a wounded one therefore wins the medic's attention
--- and parks him at FollowDistance, from where the wounded man is out of sight.
+-- NAME IS HISTORICAL. This began life as a characterization test asserting the
+-- escort DID blind him, and its header said to invert rather than relax it once
+-- the behaviour was fixed. That happened; this is the inverted form. The
+-- directory keeps its name so the WORKSPACE/DISCOVERIES.md trail still resolves.
 --
--- The escort is destroyed at the halfway mark. That turns an observation into a
--- controlled experiment: distance to Stranded is unchanged across that moment,
--- so if treatment starts only after Escort disappears, the escort was the cause.
+-- The mechanism it guards. Two radii, and the FOLLOW layer decides where the
+-- HEAL layer is standing. HealerAutoTarget.SearchRange is 8c0 (infantry.yaml
+-- :2216) — the notice radius, measured from wherever the medic happens to be.
+-- AutoFollowAlly.SearchRange is 20c0 (:2249) and is what actually moves him.
+-- With the follow layer ranking allies by distance alone, a healthy man two
+-- cells away parked the medic at FollowDistance and the casualty at ten cells
+-- was never a CANDIDATE for the heal scan at all — not outranked, invisible.
+-- AutoFollowAlly.FindNearestAlly now puts anyone its healer would treat in a
+-- strictly higher tier than any healthy ally, so the medic walks to the
+-- casualty and the notice radius follows him there.
 --
--- PITFALL: TestHarness.TicksPerSecond is 25, but the mod runs at Timestep 60 —
+-- The escort is deliberately kept ALIVE for the whole run. That is the point:
+-- his presence must be irrelevant, so the test asserts treatment happens with
+-- him still standing there, rather than only after he is removed.
+--
+-- PITFALL: TestHarness.TicksPerSecond is 25, but the mod runs at Timestep 60 --
 -- 16.67 ticks/second. A "second" passed to AssertWithin is therefore 1.5 real
 -- seconds. Budget in ticks and convert.
 --
@@ -20,12 +29,9 @@
 -- reshaped from 10 HP/1.5s to 20 HP/3.0s at identical HP/s, so everything here
 -- is a duration or a direction of travel.
 local TotalBudgetTicks = 1200 -- ~72 real seconds
-local BlindPhaseTicks = 400 -- ~24 real seconds with the escort alive
 local StrandedStartPercent = 40
 
 local elapsed = 0
-local escortRemoved = false
-local removedAtTick = 0
 local strandedBaseline = 0
 
 WorldLoaded = function()
@@ -47,39 +53,18 @@ WorldLoaded = function()
 			return "fail: medic died"
 		end
 
-		elapsed = elapsed + 1
-
-		-- Phase 1: escort alive. Stranded is bleeding and must not be treated —
-		-- his health can only fall. If it RISES here the premise is wrong and the
-		-- medic sees further than his configured notice radius; say so loudly
-		-- rather than passing on a coincidence.
-		if not escortRemoved then
-			if Stranded.IsDead then
-				return "fail: the stranded man bled out before the experiment could run"
-			end
-
-			if Stranded.Health > strandedBaseline then
-				return "fail: premise wrong — the medic treated a casualty 10 cells away WITHOUT"
-					.. " losing his escort, so the 8-cell notice radius is not what gates him"
-			end
-
-			if elapsed >= BlindPhaseTicks then
-				Escort.Destroy()
-				escortRemoved = true
-				removedAtTick = elapsed
-			end
-
-			return false
+		-- The escort standing there unhurt IS the experiment. If something kills
+		-- him the medic is freed by accident and a later pass would mean nothing.
+		if Escort.IsDead then
+			return "fail: the healthy escort died, so this run no longer tests"
+				.. " whether he could anchor the medic"
 		end
 
-		-- Phase 2: nothing about Stranded changed except that the healthy man
-		-- next to the medic is gone. He is now the nearest ally, so the follow
-		-- layer walks the medic over and the notice radius does the rest.
-		local sinceRemoval = elapsed - removedAtTick
+		elapsed = elapsed + 1
 
 		if Stranded.IsDead then
-			return "fail: the stranded man bled out " .. sinceRemoval
-				.. " ticks after the escort was removed, still untreated"
+			return "fail: the stranded man bled out untreated after " .. elapsed
+				.. " ticks, with the medic still standing by his healthy escort"
 		end
 
 		if Stranded.Health > strandedBaseline then
@@ -87,12 +72,14 @@ WorldLoaded = function()
 		end
 
 		if elapsed >= TotalBudgetTicks then
-			return "fail: the stranded man was never treated at all — " .. BlindPhaseTicks
-				.. " ticks with an escort and " .. sinceRemoval .. " ticks without one."
-				.. " He is at " .. percent(Stranded) .. "% (wounded to " .. StrandedStartPercent
-				.. "). Removing the escort did not free the medic, so the cause is not the escort"
+			return "fail: a healthy escort still outranks a casualty — the medic spent "
+				.. TotalBudgetTicks .. " ticks beside an unhurt man 2 cells away while a"
+				.. " casualty 10 cells away went untreated, falling from " .. StrandedStartPercent
+				.. "% to " .. percent(Stranded) .. "%. The follow layer picked the nearest ally"
+				.. " without asking who needed treating, and parked the medic where his 8-cell"
+				.. " notice radius could not reach the wounded man"
 		end
 
 		return false
-	end, "escort-blindness assertion did not resolve within " .. TotalBudgetTicks .. " ticks")
+	end, "escort-precedence assertion did not resolve within " .. TotalBudgetTicks .. " ticks")
 end

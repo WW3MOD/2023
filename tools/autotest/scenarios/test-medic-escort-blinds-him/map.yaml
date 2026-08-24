@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TEST: a healthy escort blinds the medic to a casualty just out of notice
+Title: TEST: a healthy escort must not blind the medic to a casualty out of notice
 
 Author: WW3MOD
 
@@ -20,20 +20,22 @@ Categories: Test
 #   HealerAutoTarget.SearchRange   8c0   — how far he NOTICES a casualty
 #   AutoFollowAlly.SearchRange    20c0   — how far he will trail a squadmate
 #
-# AutoFollowAlly.FindNearestAlly picks the NEAREST ally and does not look at
-# health at all. So a healthy man standing closer than a wounded one takes the
-# medic's escort duty, parks him at FollowDistance (3c0), and everything past
-# 8c0 stays invisible.
+# The follow radius is what MOVES him, so it decides where the notice radius is
+# centred. AutoFollowAlly.FindNearestAlly used to pick the nearest ally without
+# looking at health at all: a healthy man standing closer than a wounded one took
+# the medic's escort duty, parked him at FollowDistance (3c0), and everything past
+# 8c0 stayed invisible — the casualty was never a candidate, not merely outranked.
+# It now ranks anyone the healer would treat strictly above any healthy ally, so
+# the medic walks to the casualty and his notice radius arrives with him.
 #
-# Escort is unhurt and 2 cells away — already inside FollowDistance, so the
-# medic has no reason to take a single step.
+# Escort is unhurt and 2 cells away — already inside FollowDistance, so under the
+# old ranking the medic had no reason to take a single step.
 # Stranded is at 40% and 10 cells away — OUTSIDE the 8-cell notice radius but
 # well inside the 20-cell follow radius, and below StabilizeThreshold (50) so he
 # is bleeding out the whole time (ChangesHealth@BleedOut, -1% per 50 ticks).
 #
-# The Lua destroys Escort part-way through. That is the controlled variable: if
-# Stranded is treated promptly once the healthy man is gone, then it was the
-# escort and not the distance that stranded him.
+# Escort stays ALIVE for the whole run. His presence has to be irrelevant, so the
+# assertion is that Stranded is treated with the healthy man still standing there.
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral
