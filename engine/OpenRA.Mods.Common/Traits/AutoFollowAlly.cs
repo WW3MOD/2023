@@ -16,7 +16,10 @@ namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Idle behavior: trail the nearest allied combat unit at a short distance.",
 		"Active on the engagement stances listed in FollowStances — gives medics/support units a",
-		"'stay with the group' default. HoldPosition means stay put and is never followed from.")]
+		"'stay with the group' default. HoldPosition means stay put and is never followed from.",
+		"On an actor that can heal, an ally its healer would treat outranks a healthy one outright,",
+		"whatever the distance between them — the follow target decides where the healer's notice",
+		"radius is centred, so trailing the nearest healthy man can hide a casualty entirely.")]
 	public class AutoFollowAllyInfo : TraitInfo, Requires<IMoveInfo>
 	{
 		[Desc("Engagement stances on which to trail an ally. Defaults to Defensive alone, which is the",
@@ -188,10 +191,20 @@ namespace OpenRA.Mods.Common.Traits
 			return !a.Info.HasTraitInfo<AutoFollowAllyInfo>();
 		}
 
+		/// <summary>A man this actor's healer would treat if he could reach him. Asking the healer rather
+		/// than reading Health here is deliberate — see <see cref="HealerAutoTarget.WouldTreat"/>. A
+		/// follower with no healer has no casualties, only allies, and ranks purely by distance as before.</summary>
+		bool IsCasualty(Actor self, Actor a)
+		{
+			return healer != null && healer.WouldTreat(self, a, out _);
+		}
+
 		Actor FindNearestAlly(Actor self)
 		{
 			Actor best = null;
-			var bestDistSq = info.SearchRange.LengthSquared + 1;
+			var maxDistSq = info.SearchRange.LengthSquared;
+			var bestDistSq = maxDistSq + 1;
+			var bestIsCasualty = false;
 
 			foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, info.SearchRange))
 			{
@@ -199,14 +212,37 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				var distSq = (a.CenterPosition - self.CenterPosition).HorizontalLengthSquared;
-				if (distSq < bestDistSq)
+				if (distSq > maxDistSq)
+					continue;
+
+				// A man who needs treating outranks a healthy one OUTRIGHT, however much nearer the
+				// healthy one is; distance only ever separates two allies of the same kind. Without this
+				// the medic anchors himself at FollowDistance from whoever happens to be closest, and his
+				// healer's notice radius is measured from wherever that leaves him — so a casualty
+				// further out than the radius is not merely outranked, he is never a candidate at all.
+				var isCasualty = IsCasualty(self, a);
+
+				if (best != null)
 				{
-					bestDistSq = distSq;
-					best = a;
+					if (bestIsCasualty && !isCasualty)
+						continue;
+
+					if (isCasualty == bestIsCasualty && distSq >= bestDistSq)
+						continue;
 				}
+
+				best = a;
+				bestDistSq = distSq;
+				bestIsCasualty = isCasualty;
 			}
 
 			if (best == null || followTarget == null || followTarget == best || !CanFollow(self, followTarget))
+				return best;
+
+			// The margin below is measured purely in distance, so on its own it would quietly undo the
+			// precedence above: an escort at two cells beats a casualty at ten by eight of them. Stickiness
+			// is a tie-breaker between equals — hand a casualty over the moment one appears.
+			if (bestIsCasualty && !IsCasualty(self, followTarget))
 				return best;
 
 			// Stickiness: two allies at near-equal range would otherwise swap places as the follower

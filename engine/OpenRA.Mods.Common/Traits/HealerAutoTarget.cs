@@ -316,6 +316,39 @@ namespace OpenRA.Mods.Common.Traits
 			return score;
 		}
 
+		/// <summary>Would this healer take <paramref name="a"/> as a patient, if only he were close
+		/// enough? Everything the choice turns on EXCEPT distance: present, allied, heal-targetable,
+		/// actually hurt enough to be worth a house call, not benched as unreachable, and not already
+		/// another healer's case.
+		///
+		/// <para>Public because <see cref="AutoFollowAlly"/> asks it to tell a casualty from a healthy
+		/// escort. It has to stay the single predicate both layers use: a follow layer carrying its own
+		/// notion of "wounded" would march the medic across the field to a man this trait then declines,
+		/// and park him there — which is the failure the shared answer exists to prevent.</para></summary>
+		public bool WouldTreat(Actor self, Actor a, out Health health)
+		{
+			health = null;
+
+			if (a == self || a == abandoned || a.IsDead || !a.IsInWorld)
+				return false;
+
+			if (!self.Owner.IsAlliedWith(a.Owner))
+				return false;
+
+			if (!a.GetEnabledTargetTypes().Overlaps(validTargetTypes))
+				return false;
+
+			health = a.TraitOrDefault<Health>();
+			if (health == null || !IsWorthTreating(health))
+				return false;
+
+			// Reached from the follow layer as well as from the scan below, and only the latter is
+			// guaranteed to have run TryGetAutoTargetOverride's EnsureClaimLayer first.
+			EnsureClaimLayer(self);
+
+			return claimLayer == null || !claimLayer.IsClaimed(a, self);
+		}
+
 		Actor FindBestTarget(Actor self)
 		{
 			var maxRange = GetEffectiveSearchRange();
@@ -328,22 +361,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var a in self.World.FindActorsInCircle(self.CenterPosition, maxRange))
 			{
-				if (a == self || a == abandoned || a.IsDead || !a.IsInWorld)
-					continue;
-
-				if (!self.Owner.IsAlliedWith(a.Owner))
-					continue;
-
-				var targetTypes = a.GetEnabledTargetTypes();
-				if (!targetTypes.Overlaps(validTargetTypes))
-					continue;
-
-				var health = a.TraitOrDefault<Health>();
-				if (health == null || !IsWorthTreating(health))
-					continue;
-
-				// Skip if claimed by another healer
-				if (claimLayer != null && claimLayer.IsClaimed(a, self))
+				if (!WouldTreat(self, a, out var health))
 					continue;
 
 				var score = ScorePatient(self, a, health);

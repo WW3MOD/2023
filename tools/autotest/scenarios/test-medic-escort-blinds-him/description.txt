@@ -1,1 +1,1 @@
-Auto: a medic escorting a healthy squadmate must not leave a man bleeding out 10 cells away; removing the escort frees him.
+Auto: a medic escorting a healthy squadmate must still go to a man bleeding out 10 cells away; the escort must not anchor him.

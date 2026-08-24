@@ -10820,3 +10820,49 @@ scan silently instead of failing it.
 sequence names alone, so this change composes with it cleanly: that branch owns how fast the pulse runs,
 this one owns which band pulses. `d83551fb` (target priority) added a `HealthPreferenceScale` scoring term
 and did not touch `BreakOffCondition`, whose default is still `critical-damage` at `AutoTarget.cs:244`.
+
+## 2026-08-24 — the follow layer decides where the medic's notice radius is standing
+
+### A casualty outside the notice radius was never a candidate, not merely outranked
+
+The escort-blindness defect looked like a ranking bug between two allies. It is not. The two layers are
+not competing over one decision — one of them **positions** the other.
+
+`HealerAutoTarget.SearchRange` (8c0 on `^MEDI`, `mods/ww3mod/rules/ingame/infantry.yaml:2216`) is measured
+from wherever the medic is standing, and nothing in `HealerAutoTarget` ever moves him. What moves him is
+`AutoFollowAlly`, whose own `SearchRange` is 20c0 (`:2249`). So the follow layer chooses the point the
+heal scan is centred on, and its choice was `FindNearestAlly` — pure distance, health never consulted
+(`AutoFollowAlly.cs:191-207` pre-fix).
+
+With a healthy man at 2 cells and a casualty at 10, the medic anchored on the healthy man (already inside
+`FollowDistance` 3c0, so he never took a step) and the casualty sat 2 cells beyond the notice radius.
+`FindBestTarget` therefore never enumerated him at all — `CurrentPatient` stayed null, and the
+patient-outranks-ally precedence that already exists at `AutoFollowAlly.cs:107-108` had nothing to fire on.
+Measured: 1200 ticks, casualty bled 40% → 15%, untreated, medic stationary throughout.
+
+Two readings that are wrong and worth naming, because both are plausible from the symptom:
+
+- **"`AutoFollowAlly` picks by distance and never consults health, so the healthy man outranked the dying
+  one."** Half right about the cause, wrong about the shape. There was no contest: the casualty was not in
+  the candidate set the healer scans.
+- **"The follow move pins the medic non-idle so acquisition cannot run."** Acquisition *is* idle-gated —
+  `TryGetAutoTargetOverride` is reachable only from `AutoTarget.TickIdle` via `ScanAndAttack`/`ScanForTarget`
+  (`AutoTarget.cs:696-711`, `:1134-1158`), and `TickPreemption` does not consult the override — so this is a
+  real mechanism in general. It is not this one: the medic here was already inside `FollowDistance`, never
+  queued a move, and was idle the entire time. He scanned continuously and found nobody.
+
+### The distance-only stickiness silently reverses a tier
+
+`AutoFollowAlly`'s `SwitchMargin` (1c0) compares raw distances, so adding a casualty-first tier to
+`FindNearestAlly` alone changes nothing: incumbent escort at 2 cells vs casualty challenger at 10 gives
+`2 - 10 = -8 < 1`, and the incumbent is returned. The tier has to be checked *before* the margin. Same
+shape as `HealerAutoTarget.ScorePatient`, where `CriticalPriority` (10000) is deliberately orders of
+magnitude above `SwitchMargin`/`DistancePenaltyPerCell` so triage cannot be outvoted by them.
+
+### One predicate, asked of the healer
+
+`AutoFollowAlly` decides "is this ally a casualty?" by calling `HealerAutoTarget.WouldTreat`, which is the
+extracted body of `FindBestTarget`'s filter (present, allied, heal-targetable, `IsWorthTreating`, not
+`abandoned`, not another healer's claim) minus distance. A second copy of "wounded" in the follow layer
+would let the two disagree, and the failure mode is specific: the medic marches to a man the healer then
+declines, and parks there — the same anchoring bug one step further out.
