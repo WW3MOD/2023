@@ -140,19 +140,8 @@ namespace OpenRA.Test
 			Assert.That(autorotation, Is.GreaterThan(NineM311BurstWait));
 		}
 
-		[Test]
-		public void BreakOffReachesEveryAutoAcquiredSourceThatLandsOnTheRequestedTargetPath()
-		{
-			// AttackFollow.Tick's requested-target guard is scoped through this predicate. Every
-			// engagement a turreted unit picks for itself arrives as one of these two sources via
-			// AttackBase.AttackTarget -> OnResolveAttackOrder -> SetRequestedTarget.
-			Assert.That(AttackBase.BreakOffApplies(AttackSource.AutoTarget, false), Is.True);
-			Assert.That(AttackBase.BreakOffApplies(AttackSource.AttackMove, false), Is.True);
-
-			// And the converse the guard depends on: a player's own order still fires on a doomed
-			// target. Clearing the requested target for these would eat the order outright.
-			Assert.That(AttackBase.BreakOffApplies(AttackSource.Default, false), Is.False);
-			Assert.That(AttackBase.BreakOffApplies(AttackSource.AutoTarget, true), Is.False);
-		}
+		// The scope of BreakOffApplies — which sources the AttackFollow guard may fire for — is pinned
+		// once, in BreakOffScopeTest. Deliberately not restated here: two files asserting one predicate
+		// drift apart, and that file is the older and more complete of the two.
 	}
 }

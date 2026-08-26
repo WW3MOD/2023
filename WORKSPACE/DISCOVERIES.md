@@ -10882,8 +10882,16 @@ Nothing guarded `RequestedTarget`, and that is the path every ordinary engagemen
 `AttackBase.AttackTarget` (`:748`) → `OnResolveAttackOrder` → `SetRequestedTarget`, with
 `queued: false` — including a target `AutoTarget` picked for itself (`AutoTarget.cs:1208`).
 `AttackFollow.AttackActivity` only manages range and movement; firing happens in
-`AttackFollow.Tick` at `:145`. So **no `AttackTurreted` unit broke off mid-engagement at all.**
-Census: 35 shipped actors declare `AttackTurreted` against 7 on `AttackFrontal`.
+`AttackFollow.Tick` at `:145`. So an `AttackFollow` unit could leave a doomed target only through
+`TickPreemption`, and only ever to a strictly higher band.
+
+**Census — the population is everything deriving from `AttackFollow`, not just turrets.**
+`AttackTurreted` 35 declarations, though ~8 are husk stubs on `Weapon: Dummy` with
+`PauseOnCondition: !alwaysdisabled` and permanently paused (`husks-vehicles.yaml:155,172,189…`);
+`AttackAircraft` 11, which has no `Tick` override and whose `FlyAttack.cs:108` calls
+`SetRequestedTarget(…, source)`, so **aircraft break off mid attack-run**; `AttackGarrisoned` 4,
+which overrides `Tick` but calls `base.Tick(self)` at `:212`. `AttackFrontal`'s 7 already had the
+guard (`Activities/Attack.cs:217`) and do not move.
 
 `TickPreemption` is not an escape hatch — it switches only to a **strictly higher** priority band
 (`AutoTarget.cs:1064`, `:1101`), and a helicopter is already band 5, the Tunguska's highest.
@@ -10935,3 +10943,43 @@ the two coupled changes (hold-to-impact plus a lethality flag that survives the 
 
 Zero callers (`Actor.cs:91`). The decay comment at `Actor.cs:335-344` describes it as a live feeder
 that still needs decaying; `ClaimForAttack` is now the only path in.
+
+## 2026-08-27 — `critical-damage` is a doom marker, and buildings could not honour it
+
+USER RULING: *"bunkers and stuff should not have this critical state at all, as critical means
+burning vehicle or bleeding out. Bunkers could just be destroyed."*
+
+Every family that carries `critical-damage` is already dying without further help — vehicles from
+`ChangesHealth@CriticalDamage` (`StartIfBelow: 50`, `vehicles.yaml:153`), infantry from
+`ChangesHealth@BleedOut` (`StartIfBelow: 50`, `infantry.yaml:1098`), helicopters from
+`HeliEmergencyLanding`'s unrecoverable descent. **Buildings had no such drain.** The only
+`ChangesHealth` reaching one is `@BurnDamage`, gated on `onfire`, an `ExternalCondition` granted by
+incendiary hits and never by health. So the condition is not a damage tier — it is a claim that the
+target is doomed, and on a building the claim was false.
+
+That matters because `AutoTargetInfo.BreakOffCondition` is `critical-damage`, so
+`AutoTarget.ChooseTarget` (`AutoTarget.cs:1467`) **already declined to acquire any defense under 25%
+HP** — a shipped bug, independent of the break-off work. Ordinary buildings were never exposed:
+`^BasicBuilding` is typed `Ground, C4, DetonateAttack, Structure`, and **no `AutoTargetPriority` band
+anywhere lists `Structure`**, so plain buildings are never auto-acquired at all and are reachable
+only by deliberate orders (which `BreakOffApplies` exempts). Defenses and civilian buildings carry
+`Defense`, which *is* in the bands — those were the exposed set.
+
+Fix at the source: `^Building` (`structures.yaml`) and `^CivBuilding` (`civilian.yaml`) drop only the
+`@CriticalDamage` rung. `^CivBuilding` needs its own removal because it does **not** descend from
+`^Building` — it reaches `^BasicBuilding` via `^TechBuilding` and pulls `^DamageStates` in separately.
+
+### Two traps this walked into
+
+- **A consumer goes dark, silently.** `^GarrisonHealthPips` lit its red pip on
+  `heavy-damage || critical-damage`. `heavy-damage` is `ValidDamageStates: Heavy` **alone**, so with
+  the critical token gone a building below 25% would carry no damage condition and show no pip.
+  Re-pointed at `heavy-damage-attained` (`ValidDamageStates: Heavy, Critical`), which spans the same
+  range. Change which token a consumer reads, never what a token means.
+- **A removal that finds nothing is fatal, not a no-op.** `V19.Husk` (`civilian.yaml:429`) already
+  stripped the whole ladder, so once `^CivBuilding` dropped the rung the descendant's own
+  `-GrantConditionOnDamageState@CriticalDamage:` threw *"There are no elements with key … to
+  remove"* (`MiniYaml.cs:483`). Useful in both directions: it means a removal that **did** resolve is
+  positive evidence the node was really there, so `Mod=ww3mod ./utility.sh --dump-balance-json`
+  exiting 0 proves these removals bit. It resolves the full ruleset in seconds and is a far cheaper
+  smoke test for inheritance edits than the hour-long `--check-yaml`.
