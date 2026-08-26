@@ -3,6 +3,35 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-27 — holding a unit at critical damage means fighting a mechanism built to kill it, on EVERY chassis (`test-breakoff-mid-engagement`, base `main @ eb2c4585`)
+
+Any scenario that needs a target to SIT at `DamageState.Critical` has to defeat a per-chassis death
+timer first, and each chassis hides it in a different trait:
+
+| chassis | what kills it | where |
+|---|---|---|
+| helicopter | `HeliEmergencyLanding` — unrecoverable crash descent, always destroyed on impact | `HeliEmergencyLanding.cs:22,102` |
+| vehicle | `ChangesHealth@CriticalDamage` — `PercentageStep: -1`, `Delay: 5`, `StartIfBelow: 50` | `vehicles.yaml:153` |
+| infantry | `ChangesHealth@BleedOut`, same `StartIfBelow: 50` shape | referenced at `structures.yaml:77` |
+
+Only **buildings** have no such drain (`structures.yaml:76-79`). `vehicles.yaml:244` states the
+design intent outright: *"A vehicle is doomed the moment it drops below 50% HP … with no way back."*
+
+The number that matters for test authors: a vehicle parked at **20% of max dies 100 ticks later**
+(1% of max per 5 ticks from 20 down to 0) — comfortably inside an ordinary measurement window. It
+cost a run here, and the setup guard caught it only because the scenario asserted its target was
+still alive. The sibling scenario `test-aa-breakoff-critical` already had to delete
+`-HeliEmergencyLanding` for the helicopter form of this, and its comment reads as a helicopter
+quirk; it is not. It is universal.
+
+The remedy that survives an unknown fourth drain is to **re-pin the health every tick** rather than
+only removing the trait you know about — `floor(20%)` never crosses the 25% Critical boundary, so
+the condition cannot flicker while the pin holds. `test-breakoff-mid-engagement` does both.
+
+**This is also a substantive design fact, not just a test-rig annoyance:** break-off is declining
+targets that every chassis is already independently killing, so the ammo it saves is genuinely
+wasted, and the doomed target's remaining lifetime is bounded and knowable in each case.
+
 ## 2026-08-27 — `lint-baseline.txt` "sprite file not found" is an artifact of running without RA content, and five aircraft husks have no aircraft (wreck gaps, `wt/wreck-gaps`, base `main @ eb2c4585`)
 
 **Never read `lint-baseline.txt` as evidence that art is missing.** 356 of its 527 lines are

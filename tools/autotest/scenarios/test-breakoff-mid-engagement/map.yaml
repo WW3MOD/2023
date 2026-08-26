@@ -1,0 +1,112 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: turreted unit breaks off a target that goes critical MID-ENGAGEMENT
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# =====================================================================
+	# WHAT THE SIBLING SCENARIO DOES NOT COVER.
+	#
+	# test-aa-breakoff-critical stages its target ALREADY critical, at 15% HP,
+	# before anyone shoots. Everything it measures therefore runs through
+	# AutoTarget.ChooseTarget's ACQUISITION filter (AutoTarget.cs:1135-1137),
+	# which has skipped break-off targets for as long as the field has existed.
+	# It would pass identically on the build before 70f3dc18.
+	#
+	# The fix in 70f3dc18 is a different thing entirely: AttackFollow.Tick now
+	# drops a RequestedTarget that acquires the break-off condition WHILE the
+	# engagement is already under way. Nothing reaches that code path unless
+	# the shooter first locks a HEALTHY target and the target degrades under it.
+	# That is what this scenario stages, and it is the only lane in the suite
+	# that does.
+	#
+	# SUBJECT IS AttackTurreted, DELIBERATELY. The whole population the fix
+	# concerns is turreted (35 shipped actors against 7 on AttackFrontal), and
+	# AttackFrontal already had the guard in Activities/Attack.cs. A frontal
+	# unit would go quiet on the pre-fix build too and prove nothing. `tunguska`
+	# is AttackTurreted (vehicles-russia.yaml:923) and is the actor from the
+	# original playtest report.
+	#
+	# GROUND TARGET, DELIBERATELY. The sibling scenario had to delete
+	# -HeliEmergencyLanding because driving a HELICOPTER critical crashes it —
+	# the manipulation destroys the state it is trying to hold. A t90 simply
+	# sits at 20% HP, so nothing has to be switched off to keep it there and
+	# the measurement is not entangled with a crash-descent timer.
+	#
+	# Lanes 54 cells apart. The 30mm AG gun reaches 18c0 and the 9M311 28c0
+	# (and is Air-only anyway), so neither Tunguska can see the other's target.
+	# =====================================================================
+
+	# --- lane 0: CONTROL. Target stays healthy for the whole run and the
+	#     Tunguska must keep firing throughout — this is what proves the ammo
+	#     observable still moves during the measurement window, so the
+	#     subject's silence is a decision and not a dry pool or a dead lane. ---
+	S0: tunguska
+		Owner: USA
+		Location: 3,28
+		Facing: 0
+	T0: t90
+		Owner: Russia
+		Location: 3,22
+		Facing: 0
+
+	# --- lane 1: SUBJECT. Target starts healthy, is acquired and shot at, and
+	#     is driven to 20% HP mid-engagement by the Lua. ---
+	S1: tunguska
+		Owner: USA
+		Location: 57,28
+		Facing: 0
+	T1: t90
+		Owner: Russia
+		Location: 57,22
+		Facing: 0
+
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,2
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 62,2
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 30,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 30,8
+
+Rules: rules.yaml
