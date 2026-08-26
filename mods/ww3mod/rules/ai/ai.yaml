@@ -853,6 +853,57 @@ Player:
 		# already AT a post are left alone. Default 0 (off) on the engine class => @stable twin byte-identical.
 		StarvingRecruitThresholdPerMille: 250
 
+	# ===== RECON DRONES (experimental-only; there is no @stable twin, deliberately) =====
+	# User report 2026-08-27: "I want the experimental bot to use drones ... but now they make none."
+	# Production is the other half and lives on the UnitBuilder twins (UnitFloors/UnitFloorPer
+	# dr.america / dr.russia). This module is what makes a bought operator actually fly anything.
+	# WHY A MODULE AND NOT A SETTING ON AN EXISTING ONE: launching a drone is a force-fire at a
+	# TERRAIN cell and nothing else. CarrierMaster.Attacking opens with a Terrain-only guard, so an
+	# ordinary attack order at an actor fires the weapon and spawns nothing — no existing module
+	# issues that order, and none of them know the operator must then stand still for 60s.
+	# NO @stable TWIN ON PURPOSE: a wholly new experimental-gated module cannot move the benchmark
+	# control, which sidesteps the shared-trait default-to-baseline rule entirely.
+	# See DOCS/reference/architecture.md "Adding a behavioural field to a trait shared by both bot
+	# profiles".
+	DroneOperatorBotModule@experimental:
+		RequiresCondition: enable-ai-experimental && (player.nato || player.brics)
+		# Slow by design: a sortie is ~80s end to end (3s FireDelay + 60s loiter + 9s rearm + 12s
+		# BurstWait) at the real 16.667 ticks/s, so a faster cadence cannot start more sorties and
+		# only risks disturbing a parked operator.
+		ReevaluateInterval: 200
+		OperatorActorTypes: dr.america, dr.russia
+		# Must exceed ReevaluateInterval with headroom: a commitment that lapses between two evals is
+		# an operator PoiOffensiveBotModule is free to recruit mid-sortie.
+		CommitmentTicks: 500
+		# The ENFORCED leash, in cells: CarrierSlave.MaxDistance on quadcopterdrone
+		# (aircraft.yaml:408), read at CarrierSlave.cs:131,138. NOT CarrierMasterInfo.MaxSlaveDistance,
+		# which has zero readers engine-wide and whose 20c0 was removed from ^DR on 2026-08-27.
+		LeashCells: 25
+		# The leash is re-checked only every MaxDistanceCheckTicks (20), and past it the drone is not
+		# recalled but dragged back and granted lost-connection, which ZEROES ITS VISION — a blind
+		# drone the bot still believes is scouting. Margin keeps it off that boundary.
+		LeashMarginCells: 3
+		MinStalenessTicks: 500
+		# The unreachable-corner guard. An unbounded staleness argmax sends the drone to the map
+		# corner nothing can reach and leaves it there — the failure ScoutBotModule.cs:213-222 had to
+		# patch.
+		MaxPoiDistanceCells: 40
+		# AIR danger at the cell the DRONE hovers over. It is unarmed and 50 HP: one Stinger kills it
+		# anywhere inside a cell, and its 1-world-unit hitshape buys no protection because
+		# HitShape.TargetablePositions never reads Radius. Losing it costs 25 supply and leaves the
+		# operator holding a respawned drone it cannot launch (ammo-primary 0 while `loaded` is
+		# re-granted).
+		MaxAirDanger: 100
+		# GROUND danger at the cell the OPERATOR stands on. Separate number, separate unit, separate
+		# reason: the operator is unarmoured infantry that must stay parked for the whole loiter.
+		MaxLaunchCellDanger: 60
+		ContactBonus: 2000
+		ContactRadiusCells: 6
+		# The enemy SR is fixed, indestructible and non-capturable, so a drone parked over it learns
+		# nothing that is not already known.
+		SupplyRouteExclusionCells: 8
+		StarvingRecruitThresholdPerMille: 250
+
 	# NOTE: No engineer (^E6) capture module wired anywhere — engineers
 	# don't capture in WW3MOD by design. The Captures trait sits on
 	# Technician (^TECN) only. See DOCS/gameplay/capturing.md.
