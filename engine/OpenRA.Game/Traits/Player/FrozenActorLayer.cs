@@ -257,6 +257,19 @@ namespace OpenRA.Traits
 		readonly Player owner;
 		readonly Dictionary<uint, FrozenActor> frozenActorsById;
 		readonly SpatiallyPartitioned<FrozenActor> partitionedFrozenActors;
+
+		// ORPHANS. These two are the remains of a complete id-based dirty-tracking design that
+		// worked at 7362fbc6 (Add/Remove populated partitionedFrozenActorIds; ITick.Tick called
+		// UpdateVisibility on every id in dirtyFrozenActorIds, then cleared it). The 112-conflict
+		// merge 71687440 kept these declarations and the OnShroudChanged producer below, but lost
+		// BOTH the Add/Remove population and the Tick consumer, leaving a set nobody reads fed
+		// from a partition nobody fills.
+		//
+		// Kept deliberately rather than deleted: they are the evidence that the design existed,
+		// and it is recoverable from git rather than something that would have to be reinvented.
+		// Restoring it is a performance question (it avoids re-testing every frozen actor on every
+		// shroud change) and should be a separate, measured decision. Correctness is handled by the
+		// flag mechanism in the constructor instead.
 		readonly SpatiallyPartitioned<uint> partitionedFrozenActorIds;
 		readonly HashSet<uint> dirtyFrozenActorIds = new HashSet<uint>();
 
@@ -273,7 +286,32 @@ namespace OpenRA.Traits
 			partitionedFrozenActorIds = new SpatiallyPartitioned<uint>(
 				world.Map.MapSize.X, world.Map.MapSize.Y, binSize);
 
-			self.Trait<MapLayers>().OnShroudChanged += uv => dirtyFrozenActorIds.UnionWith(partitionedFrozenActorIds.At(new int2(uv.U, uv.V)));
+			// THE ONLY THING THAT EVER MARKS A FROZEN ACTOR FOR RE-EVALUATION. Without it,
+			// FrozenActor.UpdateVisibility runs exactly once per actor -- from the constructor
+			// (:113) -- because its only other call site (:162) is gated on
+			// UpdateVisibilityNextTick. Merge 71687440 resolved a conflict marker here by keeping
+			// the id-based line (retained below) and dropping this loop, which set that flag. The
+			// flag then had no writer anywhere in the engine for six months, so every frozen
+			// actor's Visible was frozen at its construction-time value, FrozenUnderFog's
+			// FrozenState.IsVisible was permanently false for every non-ally viewer, and
+			// IsVisibleInner could never return true.
+			//
+			// That is what made 2d7603bf's correct strict-visibility restoration look broken in
+			// April, and what 12a9b91b papered over in May with an unconditional `return true` --
+			// the leak that let a player right-click structures on never-scouted ground.
+			//
+			// Uses partitionedFrozenActors, which Add/Remove actually populate. Do not switch this
+			// to partitionedFrozenActorIds without also restoring that partition's population.
+			self.Trait<MapLayers>().OnShroudChanged += uv =>
+			{
+				foreach (var fa in partitionedFrozenActors.At(new int2(uv.U, uv.V)))
+					fa.UpdateVisibilityNextTick = true;
+
+				// Vestigial; see the field comment. Retained so the orphaned design stays visible
+				// to a reader and its identifiers keep a reference. The partition is never filled,
+				// so this unions an empty set and costs nothing.
+				dirtyFrozenActorIds.UnionWith(partitionedFrozenActorIds.At(new int2(uv.U, uv.V)));
+			};
 		}
 
 		public void Add(FrozenActor fa)
