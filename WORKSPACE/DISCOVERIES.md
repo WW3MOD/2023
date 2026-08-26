@@ -10866,3 +10866,59 @@ extracted body of `FindBestTarget`'s filter (present, allied, heal-targetable, `
 `abandoned`, not another healer's claim) minus distance. A second copy of "wounded" in the follow layer
 would let the two disagree, and the failure mode is specific: the medic marches to a man the healer then
 declines, and parks there — the same anchoring bug one step further out.
+
+## 2026-08-27 — A large `Damage:` can arrive as zero, or as healing
+
+Reported as "the Iskander hit a tank directly and it didn't get destroyed". Three independent
+defaults stacked, and only the first was suspected. All are in the direct-hit `TargetDamage`
+warhead of `IskanderExplosion` / `HIMARSExplosion` (`weapons-explosions.yaml`).
+
+### `WarheadArgs.ImpactPosition` is set only by projectiles
+
+This is the one worth remembering. `ImpactPosition` is assigned in exactly seven places — `Bullet`,
+`Missile`, `GravityBomb`, `LaserZap`, `Railgun`, `AreaBeam`, `InstantHit` — plus the
+`WarheadArgs(ProjectileArgs)` constructor. The **projectile-less** path,
+`WeaponInfo.Impact(in Target, Actor firedBy)`, built its `WarheadArgs` with an object initializer that
+never mentioned it, so it stayed `WPos.Zero`: **the map origin**.
+
+Anything delivered by `Explodes` / `SpawnedExplodes` takes that path. Both ballistic missiles do —
+`BallisticMissileFly` queues `self.Kill(self)` (`BallisticMissileFly.cs:209`) and `Explodes` calls
+`weapon.Impact(Target.FromPos(self.CenterPosition + Offset), source)` (`Explodes.cs:133`, which
+comments "Cannot use Target.FromActor" because the actor is already dead).
+
+`TargetDamageWarhead` then scales damage by `CenterProximityPercent(victim, args.ImpactPosition)`.
+Measured from the map corner against a T-90's 1030-unit half-diagonal, that is **-2782%** — and
+`Health.InflictDamage` does `HP = (HP - damage).Clamp(0, MaxHP)`, so a negative damage value **heals**.
+The direct-hit warhead was a repair beam. `SpreadDamageWarhead` reads the same field for its impact
+*orientation* (`:119-120`), so every `Explodes` splash was also computing hit direction from the origin.
+
+### The proximity percentage is normalised against the wrong radius
+
+`Spread` admits victims by distance from the **hitshape edge**; `CenterProximityPercent` normalises
+against the victim's **centre-to-corner** distance. On a long, thin hull these disagree, so widening
+`Spread` admits victims whose percentage is negative — trading a direct-hit bug for a near-miss repair
+beam. `TargetDamageWarhead.ProximityDamagePercent` now floors it at zero.
+
+### `DamageAtMaxRange` is unusable on an `Explodes` payload
+
+`RangeDamageFactor` divides by `args.Weapon.Range`, which is `0` for a weapon never fired from an
+armament, so `(float)range / 0` is non-finite and the cast to int is not a percentage. It is also
+meaningless in principle here: `args.Source` is the missile's own position at detonation, so the
+"range" is always zero however far the launcher was. HIMARS carried `80`. **100 is the only safe value
+on any Explodes-delivered weapon** — and `TargetDamageWarhead` only consults the field when it is not
+100, which is why Iskander's `100` was inert rather than harmful.
+
+### The `Penetration` convention, and why the omission was a bug not a balance choice
+
+`DamageWarhead.Penetration` defaults to **1**, and damage is `damage * penetration / thickness` when it
+does not exceed the armour. The mod's convention is consistent across every other anti-armour weapon:
+the `Warhead@Target: TargetDamage` carries the armour-piercing value and the `Warhead@Spread:
+SpreadDamage` sibling deliberately has none, because splash is the anti-infantry half and unarmoured
+actors default to `Thickness: 0`, which skips the division entirely. The graded ladder is real design —
+12.7mm 15, 30mm 70, ATGM 100 (tuned to beat *top* armour, since it is `TopAttack`), RPG 500, tank round
+800, Ataka 900, artillery 1000. The two ballistic missiles were the only large `TargetDamage` warheads
+in the game with no value at all.
+
+**Thickest armour in the mod is 2000mm (`MSLO`, no `Distribution`, so never discounted by hit
+direction)** — not the 280mm of a T-90. Bridges are 1000, `abrams` 700, `pbox` 300. A "kills anything in
+one shot" warhead has to clear 2000.

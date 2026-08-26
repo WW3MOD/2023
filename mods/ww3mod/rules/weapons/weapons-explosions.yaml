@@ -523,6 +523,21 @@ IskanderExplosion:
 	ValidTargets: Ground, Trees, Water
 	Warhead@Target: TargetDamage
 		Damage: 54000
+		# Penetration (260827): was UNSET, and DamageWarhead.Penetration defaults to 1, so this
+		# warhead delivered 54000/thickness -- 192 against a T-90's 280mm, 0.8% of its 24000 HP.
+		# Every other anti-armour weapon in the mod sets this on its Warhead@Target (TankRound 800,
+		# ArtilleryRound 1000, Ataka 900, Hellfire 800, RPG 500); only the two ballistic-missile
+		# explosions omitted it. 2500 clears the thickest armour in the game -- MSLO at 2000, which
+		# carries no Distribution and so is never discounted by hit direction -- and matches the
+		# value already used by Warhead@Spread_impact below.
+		Penetration: 2500
+		# Spread (260827): was UNSET. TargetDamageWarhead.Spread defaults to WDist(1), ONE world
+		# unit, where a cell is 1024 -- so the direct-hit bonus only ever reached a victim whose
+		# hitshape the missile landed inside. Half a cell makes it the lethal core of the blast.
+		Spread: 512
+		# Keep at 100. This warhead is delivered by Explodes on the missile actor, so its weapon has
+		# no Range and RangeDamageFactor would divide by zero; 100 is the only value that leaves
+		# damage untouched. See BallisticPenetrationTest.
 		DamageAtMaxRange: 100
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
@@ -560,7 +575,16 @@ HIMARSExplosion:
 	ValidTargets: Ground, Trees, Water
 	Warhead@Target: TargetDamage
 		Damage: 36000
-		DamageAtMaxRange: 80
+		# See IskanderExplosion above for the full reasoning -- same defect, same fix.
+		Penetration: 2500
+		Spread: 512
+		# Was 80, which is worse than inert: TargetDamageWarhead only consults DamageAtMaxRange when
+		# it is NOT 100, and this warhead's weapon has no Range (it is an Explodes payload, never
+		# fired from an armament), so the falloff divided by zero and produced a non-finite
+		# percentage rather than a range taper. Range-based falloff is not expressible here at all --
+		# the "source" is the missile's own position at the moment it detonates, so the distance is
+		# always zero regardless of how far the launcher was.
+		DamageAtMaxRange: 100
 		InvalidTargets: Air
 		DamageTypes: ExplosionDeath
 	Warhead@Spread_impact: SpreadDamage
