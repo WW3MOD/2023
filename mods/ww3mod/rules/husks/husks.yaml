@@ -8,7 +8,13 @@
 	Detectable:
 		Vision: 1
 		Position: Center
-		AlwaysVisibleRelationships: None
+		# A dying unit is usually its own vision source, so its husk spawns into fog on the same
+		# tick and never renders for even one frame -- the unit just vanishes. Ally covers self
+		# (Player.RelationshipWith returns Ally for this == other), so owners keep watching their
+		# own wrecks; enemies still have to detect them. This grants no sight: Detectable.Vision is
+		# the concealment level an observer must beat, not a reveal radius, and no husk template
+		# carries RevealsShroud.
+		AlwaysVisibleRelationships: Ally
 	ScriptTriggers:
 	WithFacingSpriteBody:
 	HitShape:

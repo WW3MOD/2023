@@ -3,6 +3,47 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-27 — `FrozenUnderFog` is a dead end in this mod, and `Detectable.Vision` is concealment not sight (wreck visibility, `wt/wreck-visibility`, base `main @ 936f1fe9`)
+
+**Do not reach for `FrozenUnderFog` to make anything non-building survive fog.** Two independent
+blockers, either fatal. It is declared `Requires<BuildingInfo>`
+(`Traits/Modifiers/FrozenUnderFog.cs:21`), so putting it on an actor without a `Building` trait is a
+**load failure, not a no-op** — husks, units and vehicles are all out. And since the `QUICK FIX
+260503` short-circuit its `IsVisible` ends in an unconditional `return true` (`:140-148`), with the
+real `IsVisibleInner` call commented out beneath. So every actor that carries it today is visible to
+**everyone, always**, regardless of fog or relationship. Any reasoning that treats it as "remembered
+image, updated on re-observation" is reasoning about code that is not running.
+
+**There is no `HiddenUnderFog` in this engine.** `Detectable` (`Traits/Modifiers/Detectable.cs`) is
+the mod's `IDefaultVisibility`, and it is also the render gate — its `ModifyRender` returns
+`SpriteRenderable.None` when `IsVisible` is false, so the trait decides whether a sprite is drawn at
+all.
+
+**`Detectable.Vision` runs the opposite direction to the name.** It is *"what level of vision is
+required to detect this actor"* — a **concealment** stat the observer must beat (`IsVisibleInner`
+queries `byPlayer.MapLayers.AnyDetectable(cells, detectable)`). It is **not** a reveal radius and
+grants the actor no sight whatsoever. Raising it hides the actor better; it does not give it vision.
+`test-case01b-detect` leans on exactly this by dropping defenders 3→1 to make them *easier* to see.
+
+**`AlwaysVisibleRelationships: Ally` includes the owner themselves.** `Player.RelationshipWith`
+returns `Ally` for `this == other` (`Player.cs:250-251`), and also for spectators. So `Ally` is the
+idiom for "the owner keeps seeing this through fog, enemies still have to earn it" — no self-only
+relationship value is needed.
+
+**An autotest screenshot cannot verify any fog-dependent visibility change by default.**
+`TestModeLogic.cs:31` nulls `RenderPlayer`, and every `IDefaultVisibility.IsVisible` in the mod
+short-circuits to `true` on a null player — so a fogged-out actor renders in the capture anyway and
+the shot reads green before and after the fix. Pass
+`AUTOTEST_EXTRA_ARGS="Test.KeepRenderPlayer=true"` to `run-test.sh` (that env var is the generic
+launch-arg passthrough at `run-test.sh:735`; there is no dedicated flag).
+
+**Aircraft wrecks are two-stage, and six aircraft have no second stage.** A shot-down aircraft
+spawns an airborne `*.Husk`, which `FallsToEarth` → `FallToEarth` drives down until `self.Kill(self)`
+on impact; its own `SpawnActorOnDeath` then leaves the persistent `*.Husk.ground` (`^Husk`,
+`HuskDecay: Delay: 2240` ≈ 134 s at 16.67 tps). Every helicopter and attack plane has that second
+stage. `BADR`, `B52`, `BULL`, `U2`, `U2.NATO` and `SMIG` husks do **not** — they explode on impact
+and leave nothing behind.
+
 ## 2026-08-24 — the medic ping-pong is FIXED on the automatic path; what is actually broken is triage, notice radius and danger (medic scenarios, `wt/medic-scenarios`, base `main @ 96f47c47`)
 
 Six scenarios run live against `96f47c47`. The headline is a negative result that closes a
