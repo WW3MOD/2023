@@ -564,7 +564,7 @@ Container@PLAYER_WIDGETS:
 							X: 5
 							Y: 1
 							ImageCollection: command-icons
-							ImageName: guard
+							ImageName: stop
 				Button@RESUPPLY_AUTO:
 					Logic: AddFactionSuffixLogic
 					X: 34
