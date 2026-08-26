@@ -10866,3 +10866,72 @@ extracted body of `FindBestTarget`'s filter (present, allied, heal-targetable, `
 `abandoned`, not another healer's claim) minus distance. A second copy of "wounded" in the follow layer
 would let the two disagree, and the failure mode is specific: the medic marches to a man the healer then
 declines, and parks there — the same anchoring bug one step further out.
+
+## 2026-08-27 — Turreted units never break off a critically-damaged target
+
+Playtest report: a Tunguska spends a second 9M311 on a helicopter that is already going down.
+
+### `BreakOffCondition` has three consult sites and the one that matters is missing
+
+`AutoTargetInfo.BreakOffCondition` (`critical-damage`) is read in exactly three places:
+`AutoTarget.ChooseTarget` (`AutoTarget.cs:1467`, the scan path), `Attack.TickAttack`
+(`Activities/Attack.cs:217`, the **AttackFrontal** activity), and `AttackFollow.Tick`
+(`AttackFollow.cs:163-167`) — where it guards **`OpportunityTarget` only**.
+
+Nothing guarded `RequestedTarget`, and that is the path every ordinary engagement takes:
+`AttackBase.AttackTarget` (`:748`) → `OnResolveAttackOrder` → `SetRequestedTarget`, with
+`queued: false` — including a target `AutoTarget` picked for itself (`AutoTarget.cs:1208`).
+`AttackFollow.AttackActivity` only manages range and movement; firing happens in
+`AttackFollow.Tick` at `:145`. So **no `AttackTurreted` unit broke off mid-engagement at all.**
+Census: 35 shipped actors declare `AttackTurreted` against 7 on `AttackFrontal`.
+
+`TickPreemption` is not an escape hatch — it switches only to a **strictly higher** priority band
+(`AutoTarget.cs:1064`, `:1101`), and a helicopter is already band 5, the Tunguska's highest.
+
+### A critically-damaged helicopter is alive, targetable, and guaranteed dead
+
+WW3MOD helicopters do not use stock `FallsToEarth`. `^Helicopter` carries `HeliEmergencyLanding`
+(`aircraft.yaml:200-213`): at `DamageState.Critical` it grants `crash-landing` and begins an
+uncontrolled descent the airframe cannot recover from. The actor stays alive and keeps
+`Targetable@Helicopter`, so it remains an ordinary target — while `critical-damage` is granted
+alongside it by `^DamageStates` (`defaults.yaml:239-241`, reached via `^NeutralAirborne`).
+`CruiseAltitude` 1280 / `CrashDescentRate` 50 = **26 ticks** to the ground.
+
+The Tunguska can produce that state itself: `30mm.Tunguska.AA` is `Burst: 15 / BurstDelays: 1`,
+which walks a helicopter down without one-shotting it. The 9M311 cannot — 5000 damage at
+Penetration 20 against ≤800 HP and ≤Thickness 20 kills outright, so a missile hit skips the
+critical band entirely.
+
+### Two hypotheses this rules out, with the numbers
+
+- **"The fix is inert."** It is live. `Burst` is unset on 9M311 and base `Stinger`, so
+  `WeaponInfo`'s default 1 applies, `Armament.UpdateBurst`'s `--Burst < 1` branch runs on every
+  shot (`Armament.cs:655`), and `CanFire` refuses while `IsWaitingBurst` (`Armament.cs:327`).
+  No `BurstWaitMultiplier` can shrink it: the vehicle ones are suppression-gated and all ≥100
+  (`vehicles.yaml:360-374`); the sub-100 ones live on `^WhenDamagedAir` and are aircraft-only.
+- **"The second missile hits a dead helicopter still falling."** It cannot. A killed helicopter is
+  replaced by a husk carrying `NoAutoTarget, AirborneActor, Husk` (`husks-aircraft.yaml:20-24`),
+  which matches no `AutoTargetPriority` band and no `ValidTargets: Air` weapon; and the crash
+  window (26 ticks) is **shorter** than the burst gap (58), so no increase to `BurstWait` addresses it.
+  9M311 sets no `OperatorRetargetTicks`, so an airborne missile never re-homes onto a wreck either
+  (`Missile.cs:1014`) — it flies to last-known and detonates.
+
+### The overkill claim is released at launch, not at impact
+
+`Actor.ReleaseAttackClaim` is called from `Armament`'s delayed fire action (`Armament.cs:483`),
+i.e. at projectile creation. `OverkillClaim`'s doc justifies this with "the prediction has become a
+real projectile and the target's actual health carries the information" — true for a bullet, false
+for a missile with up to 3.48 s of flight. During that flight the target's `AverageDamagePercent`
+carries nothing from the inbound missile.
+
+Independently, the hard skip is `AverageDamagePercent > OverkillThreshold` with both the per-shooter
+cap and the threshold at 100 (`AutoTarget.cs:1458`, `:1692`), so **one committed shooter can never
+deter a second** — deliberately, per the 2026-08-20 measurement at `:1450-1457`. A second AA
+therefore engages a helicopter that already has a lethal missile inbound. Left unchanged here: both
+properties are load-bearing against a measured battery-serialisation defect, and fixing this needs
+the two coupled changes (hold-to-impact plus a lethality flag that survives the cap) measured together.
+
+### `Actor.MarkForDestruction` is dead code
+
+Zero callers (`Actor.cs:91`). The decay comment at `Actor.cs:335-344` describes it as a live feeder
+that still needs decaying; `ClaimForAttack` is now the only path in.

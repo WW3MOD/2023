@@ -142,6 +142,30 @@ namespace OpenRA.Mods.Common.Traits
 			if (mobile != null && !mobile.CanInteractWithGroundLayer(self))
 				return;
 
+			// Drop a locked REQUESTED target the moment it acquires the break-off condition (critical
+			// damage in WW3MOD). The opportunity-target twin of this guard is in the else branch below,
+			// and Activities/Attack.cs:217 is the AttackFrontal twin — this path had neither, so no
+			// turreted unit broke off at all. That is the whole population that matters: every attack
+			// reaches AttackFollow as RequestedTarget via OnResolveAttackOrder, INCLUDING one AutoTarget
+			// picked for itself, and AttackFollow.AttackActivity only manages range/movement — firing
+			// happens here. Symptom reported from playtest 260826: a Tunguska walks a helicopter to
+			// Critical with its 30mm, the heli enters HeliEmergencyLanding's crash descent (guaranteed
+			// dead within CruiseAltitude/CrashDescentRate = 1280/50 = 26 ticks), and the Tunguska spends
+			// a 65-supply 9M311 on it anyway.
+			//
+			// Scoped through BreakOffApplies, so a player / Lua / deliberate bot order still fires:
+			// refusing those is the shipped defect BreakOffScopeTest pins. Clearing rather than merely
+			// declining to fire is deliberate for the same reason — a unit that keeps the target and
+			// silently skips DoAttack aims at something it will never shoot and is never idle, so it
+			// never rescans. ChooseTarget already skips break-off targets, so the rescan this frees
+			// picks a healthy one or holds fire.
+			if (RequestedTarget.Type == TargetType.Actor
+				&& BreakOffApplies(requestedTargetSource, requestedForceAttack)
+				&& autoTarget != null
+				&& !string.IsNullOrEmpty(autoTarget.Info.BreakOffCondition)
+				&& RequestedTarget.Actor.GetConditionCount(autoTarget.Info.BreakOffCondition) > 0)
+				ClearRequestedTarget();
+
 			if (RequestedTarget.IsValidFor(self))
 			{
 				// Gate IsAiming on the same checks as fire (HoldFireWhileMoving, SetupTicks).
