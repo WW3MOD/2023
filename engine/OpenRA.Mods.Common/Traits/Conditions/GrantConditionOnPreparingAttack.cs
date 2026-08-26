@@ -24,15 +24,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Name of the armaments that grant this condition.")]
 		public readonly HashSet<string> ArmamentNames = new HashSet<string>() { "primary" };
 
-		[Desc("Shots required to apply an instance of the condition. If there are more instances of the condition granted than values listed,",
-			"the last value is used for all following instances beyond the defined range.")]
-		public readonly int[] RequiredShotsPerInstance = { 1 };
-
+		// This trait is a fork of GrantConditionOnAttack that moves the grant to the
+		// PreparingAttack hook. It carried that trait's RequiredShotsPerInstance and
+		// IsCyclic fields verbatim but never ported the shotsFired counter that reads
+		// them, so both were declared, documented and dead. Removed rather than
+		// implemented: all fourteen ww3mod sites use this as a plain "is firing" flag.
+		// Use GrantConditionOnAttack if you want the staged shot-counting semantics.
 		[Desc("Maximum instances of the condition to grant.")]
 		public readonly int MaximumInstances = 1;
-
-		[Desc("Should all instances reset if the actor passes the final stage?")]
-		public readonly bool IsCyclic = false;
 
 		[Desc("Amount of ticks required to pass without firing to revoke an instance.")]
 		public readonly int RevokeDelay = 50;
@@ -96,10 +95,25 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.ArmamentNames.Contains(a.Info.Name))
 				return;
 
+			// Refresh before the cap check, so sustained fire keeps holding the
+			// condition up once the stack is already full.
 			cooldown = Info.RevokeDelay;
 			/* preparingCooldown = Info.PreparingRevokeDelay; */
 
+			if (!ShouldGrantInstance(tokens.Count, Info.MaximumInstances))
+				return;
+
 			GrantInstance(self, Info.Condition);
+		}
+
+		// A shot may push another instance only while the stack is below the cap.
+		// Shared by both notification hooks so the two cannot drift apart again:
+		// PreparingAttack used to push one token per shot with no cap while Tick
+		// pops only one per RevokeDelay, so a burst of N shots pinned the condition
+		// up for N * RevokeDelay ticks after the firing stopped.
+		public static bool ShouldGrantInstance(int currentTokens, int maximumInstances)
+		{
+			return currentTokens < maximumInstances;
 		}
 
 		void INotifyAttack.Attacking(Actor self, in Target target, Armament a, Barrel barrel)
@@ -118,7 +132,7 @@ namespace OpenRA.Mods.Common.Traits
 				lastTarget = target;
 			} */
 
-			if (tokens.Count >= Info.MaximumInstances)
+			if (!ShouldGrantInstance(tokens.Count, Info.MaximumInstances))
 				return;
 
 			cooldown = Info.RevokeDelay;
