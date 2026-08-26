@@ -287,21 +287,31 @@ namespace OpenRA.GameRules
 			}
 		}
 
+		/// <summary>Builds the warhead arguments for an impact that happens immediately at
+		/// target.CenterPosition, with no projectile in between.</summary>
+		public static WarheadArgs ImmediateImpactArgs(WeaponInfo weapon, in Target target, Actor firedBy)
+		{
+			var args = new WarheadArgs
+			{
+				Weapon = weapon,
+				SourceActor = firedBy,
+				WeaponTarget = target,
+
+				// Only projectiles used to set this, so an Explodes payload left it at WPos.Zero and
+				// every warhead that scales by distance from the impact measured from the map corner.
+				ImpactPosition = target.CenterPosition
+			};
+
+			if (firedBy?.OccupiesSpace != null)
+				args.Source = firedBy.CenterPosition;
+
+			return args;
+		}
+
 		/// <summary>Applies all the weapon's warheads to the target. Only use for projectile-less, special-case impacts.</summary>
 		public void Impact(in Target target, Actor firedBy)
 		{
-			// The impact will happen immediately at target.CenterPosition.
-			var args = new WarheadArgs
-			{
-				Weapon = this,
-				SourceActor = firedBy,
-				WeaponTarget = target
-			};
-
-			if (firedBy.OccupiesSpace != null)
-				args.Source = firedBy.CenterPosition;
-
-			Impact(target, args);
+			Impact(target, ImmediateImpactArgs(this, target, firedBy));
 		}
 	}
 }

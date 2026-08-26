@@ -23,6 +23,16 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Damage will be applied to actors in this area. A value of zero means only targeted actor will be damaged.")]
 		public readonly WDist Spread = new WDist(1);
 
+		// Spread admits victims by distance from the HITSHAPE EDGE, but CenterProximityPercent
+		// normalises against the victim's CENTRE-to-corner distance. For a long, thin hull the two
+		// disagree, so an admitted victim can read a negative percentage. That is not a weak hit:
+		// a negative damage modifier makes the warhead HEAL, because Health.InflictDamage does
+		// HP = (HP - damage).Clamp(0, MaxHP). Floor it.
+		public static int ProximityDamagePercent(int centerProximityPercent)
+		{
+			return Math.Max(0, centerProximityPercent);
+		}
+
 		/* protected override void InflictDamage(Actor victim, Actor firedBy, HitShape shape, WarheadArgs args) {} */
 
 		protected override void DoImpact(WPos pos, Actor firedBy, WarheadArgs args)
@@ -80,7 +90,7 @@ namespace OpenRA.Mods.Common.Warheads
 					continue;
 				}
 
-				var damage = closestActiveShape.CenterProximityPercent(victim, args.ImpactPosition);
+				var damage = ProximityDamagePercent(closestActiveShape.CenterProximityPercent(victim, args.ImpactPosition));
 
 				if (GunTrace.Enabled)
 					GunTrace.Write($"  TargetDamage HIT victim={victim.Info.Name} closestDistance={closestDistance} proximityPct={damage} impact={args.ImpactPosition} victimPos={victim.CenterPosition}");

@@ -108,14 +108,34 @@ namespace OpenRA.Mods.Common.Warheads
 			return Util.ApplyPercentageModifiers(damage, armorVs.Select(a => Versus[a.Info.Type]));
 		}
 
+		// Interpolates 100% at the muzzle down to DamageAtMaxRange% at the weapon's maximum range.
+		// NOTE maxRange is the *warhead's own weapon* Range, which is zero for a weapon that is never
+		// fired from an armament (an Explodes/SpawnedExplodes payload). Zero maxRange makes ofMax
+		// non-finite, so the result is not a usable percentage — see BallisticPenetrationTest.
+		public static int RangeDamageFactor(int range, int maxRange, int damageAtMaxRange)
+		{
+			var ofMax = (float)range / maxRange;
+			var damage = ((1 - ofMax) * 100) + (ofMax * damageAtMaxRange);
+
+			return (int)damage;
+		}
+
+		// Armour subtracts from damage only when it out-thicknesses the warhead: a warhead that
+		// penetrates does full damage, one that does not keeps the fraction it got through.
+		// Penetration defaults to 1, so a warhead that omits it delivers damage/thickness — which
+		// against a 280mm tank is 0.4% of the number written in the YAML.
+		public static int ApplyPenetration(int damage, int penetration, int thickness)
+		{
+			if (thickness <= 0 || penetration >= thickness)
+				return damage;
+
+			return damage * penetration / thickness;
+		}
+
 		protected virtual int RangeDamageMultiplier(Actor victim, Actor firedBy, WarheadArgs args)
 		{
 			var range = (args.Source - args.ImpactPosition).Value.HorizontalLength;
-			var maxRange = args.Weapon.Range.Length;
-			var ofMax = (float)range / maxRange;
-			var damage = ((1 - ofMax) * 100) + (ofMax * DamageAtMaxRange);
-
-			return (int)damage;
+			return RangeDamageFactor(range, args.Weapon.Range.Length, DamageAtMaxRange);
 		}
 
 		protected virtual int ArmorDirectionPercent(Actor victim, HitShape shape, WarheadArgs args)
@@ -217,17 +237,7 @@ namespace OpenRA.Mods.Common.Warheads
 			if (thickness != 0)
 			{
 				var armorPercent = ArmorDirectionPercent(victim, shape, args);
-				thickness = thickness * armorPercent / 100;
-
-				var penetration = Penetration;
-
-				var diff = penetration - thickness;
-
-				if (diff < 0)
-				{
-					// Can't penetrate - Reduce damage by how much it penetrated
-					damage = damage * penetration / thickness;
-				} // TODO: damage more when penetrating? Or less if not?
+				damage = ApplyPenetration(damage, Penetration, thickness * armorPercent / 100);
 			}
 
 			if (DamagePercent != 0)
