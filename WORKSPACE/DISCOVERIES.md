@@ -11291,3 +11291,53 @@ broken: `AutoTargetPriorityInfo.ValidTargets` defaults to `Ground, Water, Air`
 the operator can already auto-acquire an enemy drone and fire `DroneJammer` through the generic band.
 Kept with a comment rather than deleted, because attaching it would **narrow** the operator to drones
 only, which is a behaviour change to make deliberately.
+
+## 2026-08-27 — A bot-issued `"ForceAttack"` is structurally ungateable, and that is why drones launch
+
+Verified statically end to end while building `DroneOperatorBotModule`, because the whole design rests
+on it and nobody had observed it.
+
+**`BotOrderGate` cannot suppress it.** Every bot order passes through `ModularBot.QueueOrder`
+(`ModularBot.cs:127`), which returns `bool` and consults `BotOrderGate.Admit` — and both
+`@experimental` twins arm that gate (`RespectCommitmentsOnIssue: true`, `ReorderDwellTicks: 120`,
+`ai.yaml:51-57`). `OrderArbitrationMath.Classify` has cases only for `Move`/`AttackMove`/
+`EnterTransport`/`DropSupplyCacheAt` (Tasking) and `Stop` (Cancel); **everything else falls to
+`default` => `Passthrough`, and `Admit` returns `Admitted` before any suppression predicate runs.** So
+`ForceAttack` can never be damped, while `Move` to the same unit can be. A module that walks a unit and
+then fires can have the walk dropped and the shot kept.
+
+**The rest of the chain**: `AttackBase.ResolveOrder` is at **`:487-510`** (not `:762-785`) and compares
+`order.OrderString` to the bare string `"ForceAttack"` (`:114`); `Target.IsValidFor` returns `true`
+unconditionally for `TargetType.Terrain` (`Target.cs:110-127`); `CarrierMaster`'s `ArmamentNames`
+defaults to `{ "primary" }` (`BaseSpawnerMaster.cs:47`), matching `^DR`'s `Armament@1`.
+
+**The spawn happens 3 s AFTER the order, not at order time.** `na.Attacking(...)` is invoked inside the
+`ScheduleDelayedAction(Info.FireDelay, ...)` callback (`Armament.cs:692`), and `FireDelay: 50` at the
+real 16.667 ticks/s is 3.0 s. Since `CarrierMaster.Attacking` early-returns on `IsTraitPaused` and
+`CarrierMaster` is `PauseOnCondition: moving`, the operator must be unpaused for that whole gap — an
+operator that starts moving during it fires the weapon and spawns nothing.
+
+**Turning is safe.** `GrantConditionOnMovementInfo.ValidMovementTypes` defaults to
+`{ Horizontal, Vertical }` and **excludes `Turn`** (`GrantConditionOnMovement.cs:25`), so rotating onto
+a target does not grant `moving`. Revocation is immediate on stop (`UpdateCondition`, `:64-80`), with
+hysteresis only on the separate `ConditionWhenStill`/`dugin` path.
+
+## 2026-08-27 — The fast YAML gates do NOT validate bot-module trait fields
+
+**Measured, not assumed.** A deliberately bogus field (`MaxAirDangerTYPO`) was inserted into a
+`DroneOperatorBotModule@experimental` block in `ai.yaml` and both fast checks returned **exit 0**:
+
+* `Mod=ww3mod ./utility.sh --dump-balance-json` — clean.
+* `Mod=ww3mod ./utility.sh --check-yaml ../mods/ww3mod/maps/<map>` (8.5 s) — clean.
+
+The reason is structural: `CheckYaml.Run` binds `FieldLoader.UnknownFieldAction` but calls
+`CheckRules(modData, modData.DefaultRules)` **only inside the `if (args.Length < 2)` branch**
+(`CheckYaml.cs`). Passing a map path skips mod-rule checking entirely and lints just that map, so the
+mod-wide rule pass — the only thing that would catch a misspelled trait field on the `Player` actor —
+runs solely in the pathless mode that takes over an hour.
+
+**Consequence for anyone adding a bot module:** a typo'd field name in an AI YAML block is silently
+ignored (the trait loads with the default), and no fast check will tell you. Until there is a
+mod-rules-only lint command, cross-check the block's keys against the `Info` class's
+`public readonly` fields directly. Note `--dump-balance-json` is still worth running — it catches
+load-order and resolution failures — it just does not cover this.
