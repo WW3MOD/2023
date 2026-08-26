@@ -69,6 +69,26 @@
 	Inherits: ^BasicBuilding
 	Inherits@EMPMechanic: ^BuildingAffectedByEMP
 	Inherits@DamageStates: ^DamageStates
+	# USER RULING 2026-08-27: "bunkers and stuff should not have this critical state at all, as
+	# critical means burning vehicle or bleeding out. Bunkers could just be destroyed."
+	#
+	# `critical-damage` is not a damage tier in WW3MOD, it is a DOOM MARKER: every family that carries
+	# it is already dying without further help — vehicles from ChangesHealth@CriticalDamage
+	# (StartIfBelow: 50, vehicles.yaml:153), infantry from ChangesHealth@BleedOut (StartIfBelow: 50,
+	# infantry.yaml:1098), helicopters from HeliEmergencyLanding's unrecoverable descent. A building has
+	# no such drain: the only ChangesHealth reaching one is @BurnDamage, gated on `onfire`, an
+	# ExternalCondition granted by incendiary hits and never by health. So a building below 25% wore a
+	# doom marker it could not honour.
+	#
+	# The marker is read as a REFUSAL TO SHOOT. AutoTargetInfo.BreakOffCondition is `critical-damage`,
+	# so AutoTarget.ChooseTarget (AutoTarget.cs:1467) already declined to ACQUIRE any defense under 25%
+	# — that ships today, independent of the break-off guard this lands alongside. Dropping the rung is
+	# what lets a bunker be finished off normally instead of parking at 24% until someone force-fires.
+	#
+	# ONLY the Critical rung goes; Light/Medium/Heavy are untouched, as are vehicles, infantry and
+	# aircraft. Consumers that need "badly hurt" should read `heavy-damage-attained`
+	# (ValidDamageStates: Heavy, Critical), which still fires below 25% — see ^GarrisonHealthPips.
+	-GrantConditionOnDamageState@CriticalDamage:
 	OwnerLostAction:
 		Action: ChangeOwner
 	# 	RequiresCondition: !building_cleared

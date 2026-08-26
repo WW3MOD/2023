@@ -3,6 +3,12 @@
 	Inherits@TechBuilding: ^TechBuilding
 	Inherits@DamageStates: ^DamageStates
 	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded
+	# See ^Building (structures.yaml) for the ruling and the reasoning. Repeated here because
+	# ^CivBuilding does NOT descend from ^Building — it reaches ^BasicBuilding through ^TechBuilding
+	# and pulls ^DamageStates in on its own — so the removal on ^Building does not reach these actors.
+	# A civilian building is auto-targetable (the Targetable below carries Defense), so it was exposed
+	# to exactly the same refusal-to-finish.
+	-GrantConditionOnDamageState@CriticalDamage:
 	-CaptureManager:
 	-Capturable@neutral:
 	-Capturable@occupied:
@@ -436,7 +442,8 @@ V19.Husk:
 	-GrantConditionOnDamageState@MediumDamageAttained:
 	-GrantConditionOnDamageState@HeavyDamage:
 	-GrantConditionOnDamageState@HeavyDamageAttained:
-	-GrantConditionOnDamageState@CriticalDamage:
+	# No @CriticalDamage removal here: ^CivBuilding already drops that rung, and MiniYaml throws
+	# ("no elements with key ... to remove") on a removal that finds nothing.
 	-WithDecoration@GarrisonHealth_Light:
 	-WithDecoration@GarrisonHealth_Medium:
 	-WithDecoration@GarrisonHealth_Heavy:
