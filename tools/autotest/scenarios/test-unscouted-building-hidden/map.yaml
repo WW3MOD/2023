@@ -1,0 +1,77 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: an unscouted enemy building is not mouse-targetable
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# GEOMETRY
+#
+# Scout at 5,16 with ^StandardVision: strength 10 out to 4c0, falling in bands
+# to the sight edge (defaults.yaml:80). NearBox at 8,16 is 3 cells away, so it
+# sits in the strength-10 band and its cell resolves well above the ">1" line
+# that MouseTargetVisibility's cell veto tests.
+#
+# FarBox at 58,16 is 53 cells from the scout and 30+ cells from every other USA
+# actor, so no vision band and no radar reaches it. With ExploredMap OFF its
+# cell is ResolvedVisibility 0 -- raw shroud, never scouted. That is the state
+# the whole scenario is about: not "seen once and now fogged", which is what
+# FrozenUnderFog legitimately reveals, but "never looked at".
+Actors:
+	Scout: abrams
+		Owner: USA
+		Location: 5,16
+		Facing: 0
+	NearBox: pbox
+		Owner: Russia
+		Location: 8,16
+	FarBox: pbox
+		Owner: Russia
+		Location: 58,16
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 64,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 63,2
+
+Rules: rules.yaml
