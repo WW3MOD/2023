@@ -27,10 +27,20 @@ side of a `<<<<<<<` marker and discarded the old, deleting the only line that se
 -			};
 ```
 
-The surviving new side is a stub: `dirtyFrozenActorIds` (`:261`) is filled by `OnShroudChanged`
+The surviving side is left a stub: `dirtyFrozenActorIds` (`:261`) is filled by `OnShroudChanged`
 (`:276`) and **never read by anything**, and it is filled from `partitionedFrozenActorIds` (`:260`),
 which **nothing ever adds to** — `Add` (`:279`) populates the differently-named
-`partitionedFrozenActors`. Two dead containers and a dead flag.
+`partitionedFrozenActors`. Two dead containers and a dead flag: the merge kept one mechanism's
+producer and the other mechanism's consumer, and dropped the halves that would have completed either.
+
+**Those orphans are RECOVERABLE, not an unfinished import — do not repeat the guess that they are.**
+At `7362fbc6` the id-based scheme was complete and working: `Add`/`Remove` populated
+`partitionedFrozenActorIds`, and `ITick.Tick` ran `if (dirtyFrozenActorIds.Contains(id))
+frozenActor.UpdateVisibility();` before clearing the set. `git show
+7362fbc6:engine/OpenRA.Game/Traits/Player/FrozenActorLayer.cs` has the source. Restoring it would be
+a revert against known code rather than a speculative rewrite — but it is a PERFORMANCE change
+(it avoids re-testing every frozen actor in a changed bin), and the flag mechanism is correct
+without it, so it is deliberately left undone as a separate measured decision.
 
 **This retroactively explains two commits that look like mistakes and were not.** `2d7603bf`
 (2026-04-16) correctly restored strict `IsVisibleInner`; every building went invisible, because the
