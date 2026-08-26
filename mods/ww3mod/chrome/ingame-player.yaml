@@ -561,10 +561,10 @@ Container@PLAYER_WIDGETS:
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
-							X: 9
-							Y: 5
-							ImageCollection: stance-icons
-							ImageName: hold-fire
+							X: 5
+							Y: 1
+							ImageCollection: command-icons
+							ImageName: guard
 				Button@RESUPPLY_AUTO:
 					Logic: AddFactionSuffixLogic
 					X: 34
@@ -577,15 +577,15 @@ Container@PLAYER_WIDGETS:
 					DisableKeyRepeat: true
 					DisableKeySound: true
 					TooltipText: Auto
-					TooltipDesc: Auto-seek nearest supply point when out of ammo\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Go resupply NOW
+					TooltipDesc: Auto-seek nearest supply point when out of ammo\nEvacuates instead if no resupply can reach the unit\n\nClick: Set for selection\nCtrl+Click: Set as unit default\nCtrl+Alt+Click: Set as type default (persists)\nAlt+Click: Go resupply NOW
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
-							X: 9
-							Y: 5
-							ImageCollection: stance-icons
-							ImageName: attack-anything
+							X: 5
+							Y: 1
+							ImageCollection: command-icons
+							ImageName: resupply
 				Button@RESUPPLY_EVACUATE:
 					Logic: AddFactionSuffixLogic
 					X: 68
@@ -603,10 +603,10 @@ Container@PLAYER_WIDGETS:
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:
 						Image@ICON:
-							X: 9
-							Y: 5
-							ImageCollection: stance-icons
-							ImageName: defend
+							X: 5
+							Y: 1
+							ImageCollection: command-icons
+							ImageName: force-move
 		Container@GARRISON_PANEL:
 			Logic: GarrisonPanelLogic
 			X: WINDOW_WIDTH - 240

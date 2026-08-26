@@ -144,6 +144,109 @@ namespace OpenRA.Mods.Common.Traits
 			return ChessboardCells(hostDx, hostDy) < ChessboardCells(exitDx, exitDy);
 		}
 
+		/// <summary>
+		/// <para>What an Auto-stance unit that has run dry should DO. The three outcomes are exhaustive
+		/// and mutually exclusive; see <see cref="DecideAutoDisposition"/> for which is chosen when.</para>
+		/// </summary>
+		public enum DryAutoDisposition
+		{
+			/// <summary>A host is reachable — self-dispatch to it and reload.</summary>
+			SeekRearm,
+
+			/// <summary>Stay put and raise NeedsResupply, because something can still come to us.</summary>
+			HoldAndFlag,
+
+			/// <summary>Nothing can deliver and nothing can be reached — leave via the Supply Route.</summary>
+			Evacuate,
+		}
+
+		/// <summary>
+		/// <para>The disposition of a unit on <see cref="ResupplyBehavior.Auto"/> that has run
+		/// ESSENTIAL-dry. USER RULING 2026-08-27: "'Auto' should mean that they evacuate if no rearm
+		/// actor exists" — leaving immediately, with no grace period. Before this, every no-host path
+		/// ended at "raise NeedsResupply and stand still", which is not a decision to hold; it is a unit
+		/// stuck with its hand up.</para>
+		///
+		/// <para>WHY HOLDING IS ONLY SOMETIMES WORTH IT, which is the whole content of this function:
+		/// NeedsResupply has exactly ONE reader in the engine —
+		/// <c>SupplyProvider.FindNeedsResupplyTarget</c>, swept only by a Hunt-stance provider that then
+		/// DRIVES to the flagged unit. So raising the flag pays off if and only if some host can travel.
+		/// Against a host that cannot move, the flag is addressed to nobody and the unit waits forever.
+		/// That is not hypothetical: in the shipped corpus every vehicle names
+		/// <c>RearmActors: logisticscenter</c> and nothing else, the Logistics Centre is a building, and
+		/// the two MOBILE providers (truk, supplycache) serve <c>RearmCondition: replenish-soldiers</c>
+		/// while vehicles declare replenish-vehicles — so no truck can rearm a vehicle even on arrival.
+		/// An Iskander with no Logistics Centre is therefore flagging for a rescue the ruleset makes
+		/// impossible, which is exactly the bug this was reported as.</para>
+		///
+		/// <para>ZERO-SEMANTICS, and this is the trap: <paramref name="seekingEnabled"/> is a SEPARATE
+		/// input from <paramref name="hostWithinLeash"/> precisely so a disabled leash cannot be
+		/// mistaken for a distant host. <c>AmmoPoolInfo.DryRearmLeashCells</c> at 0 or less is
+		/// documented as "a dry unit never self-dispatches, only flags" — a deliberate instruction not
+		/// to travel. Escalating THAT into leaving the map would turn an opt-out of one behaviour into
+		/// an opt-in to a louder one. Note the opposite convention next door:
+		/// <c>PoiOffensiveBotModule.OutOfAmmoRearmSeekRadiusCells</c> reads 0 as UNLIMITED. Two opposite
+		/// zero-semantics for one idea already exist here; state which you mean and never infer it.</para>
+		///
+		/// <para>Deliberately NOT reusing <c>AmmoEvacMath.Decide</c>, which answers a very similar
+		/// question for the bot module: its budget parameter carries the UNLIMITED-at-zero convention,
+		/// so feeding it a unit-side leash would silently invert the meaning of a 0. Same shape, opposite
+		/// dialect.</para>
+		///
+		/// <para>Pure integer/bool, zero RNG — two clients over the same synced state decide
+		/// identically (the influence-stack determinism invariant).</para>
+		/// </summary>
+		/// <param name="canMove">False for an immobile actor, which can reach neither a host nor the map
+		/// edge; ordering either would only cancel whatever it is doing. Matches AmmoEvacMath's guard.</param>
+		/// <param name="whollyDry">Whether EVERY pool is empty, not merely every Essential one. Gates
+		/// the evacuation tier only — see the tiering paragraph.</param>
+		/// <param name="hostExists">Whether the actor owns ANY actor named in its Rearmable.RearmActors
+		/// that still has something to give (AmmoPool.ChooseResupplier found a candidate).</param>
+		/// <param name="seekingEnabled">Whether self-dispatch is permitted at all, i.e. the dry leash is
+		/// positive. See the zero-semantics paragraph above.</param>
+		/// <param name="hostWithinLeash">Whether the nearest host is inside the dry leash.</param>
+		/// <param name="hostCanReachUs">Whether any candidate host could travel to us — in practice
+		/// whether any of them is mobile. A static depot beyond the leash can never close the gap.</param>
+		public static DryAutoDisposition DecideAutoDisposition(bool canMove, bool whollyDry,
+			bool hostExists, bool seekingEnabled, bool hostWithinLeash, bool hostCanReachUs)
+		{
+			// An immobile actor cannot act on any disposition; leave it exactly as it was. Static
+			// defences self-reload via ReloadAmmoPool (economy.md) and never needed this path.
+			if (!canMove)
+				return DryAutoDisposition.HoldAndFlag;
+
+			// TIERED BY HOW DRY, and this is the guard that keeps the ruling from over-reaching. The
+			// enclosing path triggers on OutOfEssentialAmmo, which is TRUE for a unit that can still
+			// shoot something — a rifleman whose magazine is spent but who still holds an RPG round, a
+			// tunguska out of SAMs with a full cannon (WORKSPACE/balance/260821-essential-ammo-pools.md).
+			// Seeking is recoverable and such a unit may well go looking; evacuation is TERMINAL, and
+			// spending a still-armed unit for a refund is a far larger commitment than walking it to a
+			// depot. So only a unit that can fire NOTHING may take the evacuation tier; the rest keep
+			// today's flag-and-stay. Exactly the tiering AutoSeekSupplies already applies to its leash,
+			// for the stated reason that "a unit that can still fire something should not abandon a live
+			// order to cross the map" — this says it should not abandon the map either.
+			if (!whollyDry)
+				return hostExists && seekingEnabled && hostWithinLeash
+					? DryAutoDisposition.SeekRearm
+					: DryAutoDisposition.HoldAndFlag;
+
+			// The user's ruling, and it ignores the leash on purpose: there is no distance to judge
+			// when there is no host. Nothing owned can ever serve us, so leaving is the only
+			// disposition that terminates.
+			if (!hostExists)
+				return DryAutoDisposition.Evacuate;
+
+			// Travel switched off by configuration. Hold, and do not escalate — see above.
+			if (!seekingEnabled)
+				return DryAutoDisposition.HoldAndFlag;
+
+			if (hostWithinLeash)
+				return DryAutoDisposition.SeekRearm;
+
+			// Too far to be worth driving to. Waiting is only worth it if it can come to us.
+			return hostCanReachUs ? DryAutoDisposition.HoldAndFlag : DryAutoDisposition.Evacuate;
+		}
+
 		/// <summary>A provider under consideration, reduced to the two facts the pick depends on.</summary>
 		public readonly struct Candidate
 		{

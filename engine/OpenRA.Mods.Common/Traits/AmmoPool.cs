@@ -521,31 +521,55 @@ namespace OpenRA.Mods.Common.Traits
 					// SUPPLYCACHEs, which are wherever a truck happened to unload, so the set of things
 					// a dry unit will walk any distance to grew and the absent bound started to matter.
 					//
-					// Out of leash is NOT a failure: fall through to the same disposition
-					// AutoSeekSupplies adopts beyond its own budget — stay put, raise NeedsResupply, let
-					// a Hunt-stance provider come to us. That is why this returns rather than calling
-					// AutoRearm, whose no-host branch already sets exactly this flag.
+					// FALLS BACK TO EVACUATION since 2026-08-27 (user ruling: "'Auto' should mean that
+					// they evacuate if no rearm actor exists"), immediately and with no grace period.
+					// Every no-host path here used to end at "raise NeedsResupply and stand still",
+					// which is not a decision to hold — it is a unit stuck with its hand up, because
+					// that flag's only reader is a Hunt-stance provider that has to DRIVE to it. The
+					// reported case was an iskander, which names `RearmActors: logisticscenter` alone;
+					// with no Logistics Centre nothing in the ruleset could ever answer the flag.
+					//
+					// The judgement itself is SupplyHuntMath.DecideAutoDisposition — pure, NUnit-pinned
+					// in ResupplyAutoFallbackTest, and deliberately NOT AmmoEvacMath.Decide, whose
+					// budget parameter reads 0 as UNLIMITED where this one reads 0 as "admits nothing".
+					var leash = ResolveSeekLeash(ammoPools);
 					var host = ChooseResupplier(self);
-					if (host != null && !SupplyHuntMath.WithinCellBudget(
+					var withinLeash = host != null && SupplyHuntMath.WithinCellBudget(
 						host.Location.X - self.Location.X,
 						host.Location.Y - self.Location.Y,
-						ResolveSeekLeash(ammoPools)))
-					{
-						foreach (var ap in ammoPools)
-							ap.NeedsResupply = true;
+						leash);
 
-						break;
+					// Short-circuited to the one case that reads it: a host exists, seeking is on, and
+					// it is out of leash. Anywhere else this would be a world scan whose answer the
+					// decision never consults.
+					var hostCanReachUs = host != null && leash > 0 && !withinLeash && AnyMobileRearmHost(self);
+
+					switch (SupplyHuntMath.DecideAutoDisposition(
+						self.TraitOrDefault<IMove>() != null, AllPoolsEmpty(ammoPools),
+						host != null, leash > 0, withinLeash, hostCanReachUs))
+					{
+						case SupplyHuntMath.DryAutoDisposition.SeekRearm:
+							foreach (var ap in ammoPools)
+								ap.NeedsResupply = false;
+
+							// Self-assigned because the unit has lost the weapon that defines it — which
+							// since the Essential predicate landed is NOT the same as "cannot fight at
+							// all". The errand is bounded by that reason and ends the moment it lapses.
+							// See SeekSupplyProvider.
+							AutoRearm(self, true);
+							break;
+
+						case SupplyHuntMath.DryAutoDisposition.HoldAndFlag:
+							foreach (var ap in ammoPools)
+								ap.NeedsResupply = true;
+
+							break;
+
+						case SupplyHuntMath.DryAutoDisposition.Evacuate:
+							EvacuateForRefund(self, ammoPools);
+							break;
 					}
 
-					// A null host falls through deliberately: AutoRearm's own else-branch raises
-					// NeedsResupply for that case, so duplicating it here would be two ways to say one
-					// thing. Only the too-far case is new.
-					foreach (var ap in ammoPools)
-						ap.NeedsResupply = false;
-
-					// Self-assigned because the unit cannot fight at all: the errand is bounded by
-					// that reason and ends the moment it lapses. See SeekSupplyProvider.
-					AutoRearm(self, true);
 					break;
 
 				case ResupplyBehavior.Hold:
@@ -607,18 +631,30 @@ namespace OpenRA.Mods.Common.Traits
 					}
 
 					// Leave the battlefield via Supply Route
-					foreach (var ap in ammoPools)
-						ap.NeedsResupply = false;
-
-					// GetEvacuationRefund, not GetSellValue: this is the same disposition the
-					// Evacuate order reaches, so it must pay the same handicap-adjusted amount.
-					// m270/grad/tos default to InitialResupplyBehavior: Evacuate, so for them
-					// this is the NORMAL way they leave the map, not an edge case.
-					var amount = self.GetEvacuationRefund();
-					self.QueueActivity(false, new RotateToEdge(self, true, amount));
-					self.ShowTargetLines();
+					EvacuateForRefund(self, ammoPools);
 					break;
 			}
+		}
+
+		/// <summary>
+		/// <para>Leave the map via the Supply Route and bank the refund. Shared by the standing
+		/// Evacuate disposition and by Auto's no-host fallback, which must be the SAME departure down
+		/// to the refund — a unit that leaves because nothing can rearm it is not owed less than one
+		/// that was told to leave.</para>
+		///
+		/// <para>GetEvacuationRefund, not GetSellValue: this is the disposition the Evacuate ORDER also
+		/// reaches, so it must pay the same handicap-adjusted amount. m270/grad/tos ship
+		/// <c>InitialResupplyBehavior: Evacuate</c>, so for them this is the normal way they leave the
+		/// map rather than an edge case.</para>
+		/// </summary>
+		static void EvacuateForRefund(Actor self, IEnumerable<AmmoPool> ammoPools)
+		{
+			foreach (var ap in ammoPools)
+				ap.NeedsResupply = false;
+
+			var amount = self.GetEvacuationRefund();
+			self.QueueActivity(false, new RotateToEdge(self, true, amount));
+			self.ShowTargetLines();
 		}
 
 		public void AutoRearmIfAnyNotFull(Actor self)
@@ -773,10 +809,52 @@ namespace OpenRA.Mods.Common.Traits
 
 		public static Actor ChooseResupplier(Actor self)
 		{
+			return RearmCandidates(self).ClosestToIgnoringPath(self);
+		}
+
+		/// <summary>
+		/// <para>Whether ANY rearm host this actor could use is able to travel to it. Asked when a host
+		/// exists but sits beyond the dry leash, to tell "someone may still drive to me" apart from
+		/// "nothing will ever come" — see <see cref="SupplyHuntMath.DecideAutoDisposition"/>, which is
+		/// where the consequence lives.</para>
+		///
+		/// <para>Mobility is the test because NeedsResupply's only reader,
+		/// <c>SupplyProvider.FindNeedsResupplyTarget</c>, is swept by a Hunt-stance provider that then
+		/// DRIVES to the flagged unit. A building cannot answer that flag however much supply it holds.</para>
+		///
+		/// <para>Asks the whole candidate set rather than just the nearest, because the nearest may be a
+		/// dropped SUPPLYCACHE (static) while a truck the unit could genuinely wait for sits further
+		/// out. Reading only <see cref="ChooseResupplier"/>'s single answer would evacuate that unit.</para>
+		///
+		/// <para>KNOWN NARROWING, stated rather than hidden: this asks whether a host can MOVE, not
+		/// whether it would be WILLING (a truck outside Hunt stance never sweeps) nor whether it could
+		/// serve this actor on arrival (a provider only pushes to units carrying its RearmCondition).
+		/// The second is exact in the shipped corpus — no vehicle names a mobile provider in RearmActors
+		/// at all, and truk/supplycache serve replenish-soldiers only — so a mobile candidate here is
+		/// always one that could really serve. Re-check that if a vehicle is ever given
+		/// <c>RearmActors: truk</c>.</para>
+		/// </summary>
+		public static bool AnyMobileRearmHost(Actor self)
+		{
+			foreach (var candidate in RearmCandidates(self))
+				if (candidate.TraitOrDefault<IMove>() != null)
+					return true;
+
+			return false;
+		}
+
+		/// <summary>
+		/// Every host this actor is entitled to rearm at, unordered. Factored out of
+		/// <see cref="ChooseResupplier"/> so the "is there a host" and "can one come to us" questions
+		/// cannot drift apart from the filters that define the set — two copies of this query with one
+		/// clause each would be exactly the divergence the ownership comment below exists to prevent.
+		/// </summary>
+		static IEnumerable<Actor> RearmCandidates(Actor self)
+		{
 			var rearmInfo = self.Info.TraitInfoOrDefault<RearmableInfo>();
 
 			if (rearmInfo == null)
-				return null;
+				return Enumerable.Empty<Actor>();
 
 			// Traditional RearmsUnits hosts (logisticscenter, etc.)
 			var rearmsUnitsActors = self.World.ActorsHavingTrait<RearmsUnits>()
@@ -803,8 +881,7 @@ namespace OpenRA.Mods.Common.Traits
 					&& rearmInfo.RearmActors.Contains(a.Info.Name)
 					&& a.Trait<SupplyProvider>().CurrentSupply > 0);
 
-			return rearmsUnitsActors.Concat(supplyProviderActors)
-				.ClosestToIgnoringPath(self);
+			return rearmsUnitsActors.Concat(supplyProviderActors);
 		}
 
 		void INotifyAttack.PreparingAttack(Actor self, in Target target, Armament a, Barrel barrel) { }
