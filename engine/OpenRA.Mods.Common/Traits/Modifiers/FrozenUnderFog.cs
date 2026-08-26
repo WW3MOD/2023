@@ -137,15 +137,23 @@ namespace OpenRA.Mods.Common.Traits
 			if (cloak != null && cloak.ShouldHide(self, byPlayer))
 				return false;
 
-			// QUICK FIX 260503: short-circuit to always-visible for buildings to unblock
-			// garrison playtesting. The proper IsVisibleInner path was made strict in
-			// commit 2d7603bf ("Fix buildings visible through fog") but that left
-			// neutral/civilian buildings invisible at game start even with shroud off,
-			// because frozen.Visible defaults to true and state.IsVisible inverts it.
-			// Tracked in RELEASE_V1.md → "Buildings invisible / fog visibility model".
-			return true;
-
-			// return IsVisibleInner(byPlayer);
+			// PITFALL: this must stay a real answer. It has been short-circuited to an
+			// unconditional `return true` twice (fixed by 2d7603bf, reintroduced by
+			// 12a9b91b as "QUICK FIX 260503"), and the second time it survived six months
+			// because the leak is nearly invisible in the viewport: actors are drawn
+			// before the shroud overlay (WorldRenderer.Draw:349 vs :368) and unexplored
+			// cells paint at alpha 1.0 (ShroudRenderer.Alpha, index 0), so a leaked sprite
+			// is painted over. The minimap masks it the same way.
+			//
+			// What is NOT masked is the mouse path. MouseTargetVisibility.IsRevealed is
+			//     actorIsVisible && (isFrozenUnderFog || positionIsUnfogged || ...)
+			// and isFrozenUnderFog is a bare HasTraitInfo check, true for every building.
+			// That exemption delegates "has this player earned sight of it" entirely to
+			// this method, so short-circuiting here makes both operands constants and
+			// every structure on the map right-clickable, tooltip and owner included, on
+			// ground nobody has ever scouted.
+			// Guarded by tools/autotest/scenarios/test-unscouted-building-hidden.
+			return IsVisibleInner(byPlayer);
 		}
 
 		void ITickRender.TickRender(WorldRenderer wr, Actor self)

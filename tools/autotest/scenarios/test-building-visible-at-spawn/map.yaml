@@ -1,0 +1,78 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a map-placed building is visible at t=0 under the shipped defaults
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# Both pillboxes are MAP-PLACED, not Lua-created, and that is the point.
+# FrozenUnderFog reads startsRevealed from SpawnedByMapInit (FrozenUnderFog.cs:61)
+# and uses it to decide whether to prime the frozen actor in its frame-end task
+# (:85). A runtime-spawned building takes a different branch and would not
+# reproduce the symptom 12a9b91b described.
+#
+# NearBox at 8,16 is 3 cells from the scout, inside ^StandardVision's strength-10
+# band, so it is ACTIVELY WATCHED from the first tick -- the case that must be
+# visible immediately.
+#
+# FarBox at 58,16 is 53 cells away with nothing looking at it. With Explored Map
+# ON its cell resolves to exactly 1: "explored, but nobody is looking". That is
+# the remembered-image case, and the one that must NOT report the live actor.
+Actors:
+	Scout: abrams
+		Owner: USA
+		Location: 5,16
+		Facing: 0
+	NearBox: pbox
+		Owner: Russia
+		Location: 8,16
+	FarBox: pbox
+		Owner: Russia
+		Location: 58,16
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 2,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 64,30
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 63,2
+
+Rules: rules.yaml

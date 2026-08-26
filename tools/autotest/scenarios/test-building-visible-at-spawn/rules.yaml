@@ -1,0 +1,45 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# THE SHIPPED DEFAULTS, pinned. player.yaml:183 sets
+		# ExploredMapCheckboxEnabled: true and MapLayers.cs:29 defaults
+		# FogCheckboxEnabled: true, so this is the configuration a default
+		# lobby actually produces. Both are LOCKED here so a future change to
+		# either default cannot quietly move this scenario off the case it
+		# exists to guard.
+		#
+		# This is deliberately the OPPOSITE configuration to
+		# test-unscouted-building-hidden, which runs Explored OFF. The two are
+		# a pair: that one proves unscouted ground stays dark, this one proves
+		# the fix that achieves it did not cost the default game its buildings.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-building-visible-at-spawn.lua
+
+# Nothing may shoot -- a dead pillbox removes the subject before the late rung
+# reads it. HoldFire rather than `-AutoTarget:`, which does not load:
+# AutoTargetPriority declares AutoTarget as a requirement. Both stance fields
+# are set because AutoTarget chooses between them on owner.IsBot/Playable
+# (AutoTarget.cs:517) and Russia is not a playable slot here.
+PBOX:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000
+
+abrams:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000

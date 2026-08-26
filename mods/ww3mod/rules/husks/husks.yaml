@@ -36,6 +36,24 @@
 	Targetable:
 		TargetTypes: NoAutoTarget, Ground
 		RequiresForceFire: true
+	# Deliberately left with the stock AlwaysVisibleRelationships (Ally), which for a
+	# Neutral-owned husk matches nobody and so contributes nothing. That is correct here,
+	# and the reason is NOT the one 99d75ee8 recorded ("carries FrozenUnderFog and is
+	# already visible to everyone"): that held only because IsVisible was short-circuited
+	# to an unconditional `return true`, which has since been removed.
+	#
+	# The Ally override 99d75ee8 added to ^BuildingHusk does not transfer. That husk uses
+	# Detectable and is owned by the player whose building died, so Ally is what lets an
+	# owner watch their own rubble burn. A civilian husk has no such owner -- it is
+	# Neutral, and an ally relationship reveals it to nobody, least of all to whoever
+	# destroyed the building.
+	#
+	# Plain FrozenUnderFog is the right answer instead, because it gives the rubble
+	# exactly the visibility rules the civilian building it replaced already had: seen
+	# where you have scouted, remembered under fog. Civilian husks are permanent (no
+	# Health, no burn-out, unlike ^BuildingHusk's 200 HP), so a discontinuity here would
+	# be permanent too. Forcing it unconditionally visible would instead leak a standing
+	# signal that someone is fighting over ground you have never scouted.
 	FrozenUnderFog:
 	ScriptTriggers:
 	MapEditorData:
