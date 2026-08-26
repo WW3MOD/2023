@@ -2371,7 +2371,13 @@ TECN:
 		Actors: quadcopterdrone
 		LoadedCondition: loaded
 		AmmoPool: primary-ammo
-		MaxSlaveDistance: 20c0
+		# MaxSlaveDistance removed 2026-08-27: it was set to 20c0 and enforced nothing.
+		# CarrierMasterInfo.MaxSlaveDistance (CarrierMaster.cs:38) has zero readers engine-wide,
+		# as do MaxSlaveDistanceCheckInterval (:41) and SpawnIsMissile (:22) — all three are
+		# declared and never consulted. The leash that IS enforced is the slave-side
+		# CarrierSlave.MaxDistance: 25 on quadcopterdrone (aircraft.yaml:408), read at
+		# CarrierSlave.cs:131,138 and denominated in CELLS. So the real recall range is 25 cells;
+		# this line claimed 20 and the game never agreed.
 		RearmTicks: 150
 	InfantryStates:
 		ActiveCondition: !loaded && ammo-primary
