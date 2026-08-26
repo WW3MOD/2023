@@ -3,6 +3,51 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-27 — the stale-burst path *decremented* the burst counter instead of restoring it, so an interrupted burst came back one shot short (`wt/burst-reset`, base `main @ fcb4b54d`)
+
+Reported from playtest: a Hind firing `RocketPods` (`Burst: 10`) sometimes put out one or two
+rockets instead of a pod. The reset the user wanted already existed and already fired on the right
+condition — `Armament.CheckFire` tested "idle longer than `BurstWait`" — but its **action** was
+`UpdateBurst`, which is the per-shot advance. It ran `--Burst`, so the "reset" removed a shot.
+
+**The arithmetic, for a burst interrupted with R shots remaining.** `UpdateBurst` only resets when
+the counter has already reached 1, so for R >= 2 the stale call decrements to R-1 and the engagement
+delivers **R-1** shots; the user's "one or two rockets" is a pod broken off with R = 2 or 3. For
+**R = 1** the decrement hits 0, which *completes* the burst — the counter resets to full and the next
+engagement fires a full burst, and this one accidentally-correct case is why the bug looked
+intermittent. It also emitted a spurious `FiredBurst` notification and scheduled an extra
+`AfterFireSound` with no shot fired (both inert in ww3mod today: nothing implements
+`INotifyBurstComplete` outside `Mods.Cnc`, and no ww3mod weapon sets `AfterFireSound`).
+
+**A second, separate failure: `BurstDelays >= BurstWait` made the check fire mid-burst.** The
+condition measured the raw gap since the last shot against `BurstWait`. `Mandible` (delay 14, wait
+10) and `MandibleHeavy` (delay 20, wait 15) schedule an inter-shot delay *longer* than their
+between-bursts wait, so a perfectly healthy burst tripped the stale check between its own two shots
+and the weapon could never complete a burst. `Stinger.quad` (58/58) sits exactly on the boundary and
+escapes by one tick — a comment at `weapons-missiles.yaml:627` shows someone had already noticed the
+hazard for that weapon without generalising it.
+
+**The fix keys the reset off when a shot goes overdue, not off the raw gap.** `BurstSequence.StaleTick`
+= `worldTick + interShotDelay + burstWait`: the clock starts when the next shot fails to arrive and
+runs for one full `BurstWait`, which is the user's "resetting should take as long as it takes between
+bursts". This is immune to the `BurstDelays >= BurstWait` shape, and it makes deliberate interruption
+provably never faster than finishing the burst — a burst broken after k shots pays k inter-shot
+delays where an uninterrupted one pays k-1, so `k/(k*d + W) < N/((N-1)*d + W)` for all k <= N whenever
+d > 0. Swept over every break point of six weapon shapes in `BurstSequenceTest`.
+
+**`BurstRandomize` is dead by overwrite, and was burning a synced RNG draw.** `ResetBurst` computed
+`SharedRandom.Next(...)` into `Burst` and then overwrote it with the modifier-adjusted `Burst` on the
+very next line. Three weapons set it (`^5.56mm`, two `^30mm`), so the draw was really being consumed
+and the value really was discarded — the field has never had an effect, and the balance of those
+three was tuned with it inert. The dead computation is now removed (it also blocked unit-testing the
+counter, since it dragged `World` into `ResetBurst`); the field is kept and its `[Desc]` now says
+NOT IMPLEMENTED. Deciding between deleting it and implementing it is a balance call, not a bug fix.
+
+**Watch:** `Burst` is never a stand-in for a magazine anywhere in the mod — `Magazine` / `ReloadDelay`
+/ `AmmoPool` are independent counters, and seven burst weapons set `Magazine` alongside `Burst`. That
+is what makes a universal reset safe; if a weapon is ever authored where `Burst` means "rounds in the
+pod", it will need an opt-out.
+
 ## 2026-08-24 — the medic ping-pong is FIXED on the automatic path; what is actually broken is triage, notice radius and danger (medic scenarios, `wt/medic-scenarios`, base `main @ 96f47c47`)
 
 Six scenarios run live against `96f47c47`. The headline is a negative result that closes a

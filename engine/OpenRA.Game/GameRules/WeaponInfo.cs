@@ -112,7 +112,12 @@ namespace OpenRA.GameRules
 		[Desc("Number of shots in a single ammo magazine.")]
 		public readonly int Burst = 1;
 
-		[Desc("Randomize burst by +/- this much for irregular shooting")]
+		[Desc("NOT IMPLEMENTED. Randomize burst by +/- this much for irregular shooting.",
+			"Armament.ResetBurst computed a randomized burst and then overwrote it with the",
+			"modifier-adjusted Burst on the next line, so this has never had an effect. The dead",
+			"computation was removed on 2026-08-27; the field is kept because ^5.56mm and ^30mm",
+			"still set it and their balance was tuned with it inert. Implementing it would put",
+			"SharedRandom back in the firing path and change those weapons' output.")]
 		public readonly int BurstRandomize = 0;
 
 		[Desc("Can this weapon target the attacker itself?")]

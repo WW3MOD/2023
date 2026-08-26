@@ -25,6 +25,62 @@ namespace OpenRA.Mods.Common.Traits
 		public WAngle Yaw;
 	}
 
+	public readonly struct BurstStep
+	{
+		public readonly int Burst;
+		public readonly int Wait;
+		public readonly bool Completed;
+		public readonly int StaleTick;
+
+		public BurstStep(int burst, int wait, bool completed, int staleTick)
+		{
+			Burst = burst;
+			Wait = wait;
+			Completed = completed;
+			StaleTick = staleTick;
+		}
+	}
+
+	// Burst-counter arithmetic, split out of Armament so the interrupted-burst rules can be
+	// driven without an Actor or World (see BurstSequenceTest).
+	public static class BurstSequence
+	{
+		// No partial burst is outstanding, so there is nothing that could go stale.
+		public const int NoPendingBurst = -1;
+
+		public static int InterShotDelay(int weaponBurst, int remaining, int[] burstDelays)
+		{
+			return burstDelays.Length == 1 ? burstDelays[0] : burstDelays[weaponBurst - (remaining + 1)];
+		}
+
+		// The reset clock starts when a shot fails to arrive on schedule and then runs for a full
+		// between-bursts wait, rather than measuring the raw gap since the last shot. Measuring the
+		// raw gap would call a healthy burst stale on any weapon whose inter-shot delay is not
+		// shorter than its BurstWait (Mandible 14/10, MandibleHeavy 20/15), and would let a unit
+		// that repeatedly interrupts itself out-shoot one that lets its bursts run to the end.
+		public static int StaleTick(int worldTick, int interShotDelay, int burstWait)
+		{
+			return worldTick + interShotDelay + burstWait;
+		}
+
+		public static bool IsStale(int staleTick, int worldTick)
+		{
+			return staleTick != NoPendingBurst && worldTick >= staleTick;
+		}
+
+		// One shot's effect on the counter. On completion the caller restores the full burst via
+		// ResetBurst; Burst is left below 1 here so that path stays the only one that knows the
+		// modifier-adjusted starting value.
+		public static BurstStep Advance(int burst, int weaponBurst, int[] burstDelays, int burstWait, int worldTick)
+		{
+			if (--burst < 1)
+				return new BurstStep(burst, burstWait, true, NoPendingBurst);
+
+			var delay = InterShotDelay(weaponBurst, burst, burstDelays);
+			return new BurstStep(burst, delay, false, StaleTick(worldTick, delay, burstWait));
+		}
+	}
+
 	[Desc("Allows you to attach weapons to the unit (use @IdentifierSuffix for > 1)")]
 	public class ArmamentInfo : PausableConditionalTraitInfo, Requires<AttackBaseInfo>
 	{
@@ -182,6 +238,15 @@ namespace OpenRA.Mods.Common.Traits
 		public Target? Target { get; protected set; }
 		Target? oldTarget = null;
 		int lastFiredTick = -1;
+
+		// Tick at which an unfinished burst counts as interrupted and is restarted from full.
+		// NoPendingBurst whenever the counter is already sitting at a fresh burst.
+		int burstStaleTick = BurstSequence.NoPendingBurst;
+
+		// Modifier-adjusted number of shots a fresh burst is worth. Suppression and damage-tier
+		// BurstMultipliers drive this down, so it is not interchangeable with Weapon.Burst —
+		// which stays the raw value the BurstDelays list is indexed against.
+		int FullBurst => Util.ApplyPercentageModifiers(Weapon.Burst, burstModifiers);
 
 		// LockAimPerBurst: lead-corrected impact point captured by the first shot's
 		// delayed action and reused by every subsequent shot in the same burst.
@@ -364,11 +429,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (!FiringLOS.HasClearLOS(self, target, Weapon.ClearSightThreshold))
 				return null;
 
-			if (lastFiredTick != -1 && self.World.WorldTick - lastFiredTick > Weapon.BurstWait)
-			{
-				// Reset burst if idle time exceeds Weapon.BurstWait
-				UpdateBurst(self, target);
-			}
+			// An interrupted burst starts again from full rather than delivering whatever was left
+			// of it. UpdateBurst was called here previously, which decremented the counter instead
+			// of restoring it, so a burst broken off partway came back one or two shots long.
+			if (BurstSequence.IsStale(burstStaleTick, self.World.WorldTick))
+				ResetBurst(self);
 
 			// If Weapon.Burst == 1, cycle through all LocalOffsets, otherwise use the offset corresponding to current Burst
 			currentBarrel %= barrelCount;
@@ -410,9 +475,8 @@ namespace OpenRA.Mods.Common.Traits
 				// Detect the first shot of a fresh burst so the upcoming delayed action recomputes the locked impact point.
 				// Burst counts down per shot and is reset to the modifier-adjusted starting value when the previous burst completes,
 				// so equality with that starting value (and the no-prior-fire / long-idle cases) marks a new burst.
-				var effectiveBurstStart = Util.ApplyPercentageModifiers(Weapon.Burst, burstModifiers);
 				var idleLongerThanBurstWait = previousLastFiredTick != -1 && lastFiredTick - previousLastFiredTick > Weapon.BurstWait;
-				if (Burst == effectiveBurstStart || previousLastFiredTick == -1 || idleLongerThanBurstWait)
+				if (Burst == FullBurst || previousLastFiredTick == -1 || idleLongerThanBurstWait)
 					lockedAimCenter = null;
 			}
 
@@ -652,10 +716,15 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (Weapon.BurstWait > 0)
 			{
-				if (--Burst < 1)
-				{
-					SetBurstWait(Util.ApplyPercentageModifiers(Weapon.BurstWait, burstWaitModifiers), true);
+				var step = BurstSequence.Advance(Burst, Weapon.Burst, Weapon.BurstDelays,
+					Util.ApplyPercentageModifiers(Weapon.BurstWait, burstWaitModifiers), self.World.WorldTick);
 
+				Burst = step.Burst;
+				burstStaleTick = step.StaleTick;
+				SetBurstWait(step.Wait, step.Completed);
+
+				if (step.Completed)
+				{
 					ResetBurst(self);
 
 					if (Weapon.AfterFireSound != null && Weapon.AfterFireSound.Any())
@@ -664,24 +733,13 @@ namespace OpenRA.Mods.Common.Traits
 					foreach (var nbc in notifyBurstComplete)
 						nbc.FiredBurst(self, target, this);
 				}
-				else
-				{
-					if (Weapon.BurstDelays.Length == 1)
-						SetBurstWait(Weapon.BurstDelays[0]);
-					else
-						SetBurstWait(Weapon.BurstDelays[Weapon.Burst - (Burst + 1)]);
-				}
 			}
 		}
 
 		protected virtual void ResetBurst(Actor self)
 		{
-			if (Weapon.BurstRandomize > 0)
-			{
-				Burst = self.World.SharedRandom.Next(Weapon.Burst - Weapon.BurstRandomize / 2, (Weapon.Burst + Weapon.BurstRandomize / 2) + Weapon.Burst % 2);
-			}
-
-			Burst = Util.ApplyPercentageModifiers(Weapon.Burst, burstModifiers);
+			Burst = FullBurst;
+			burstStaleTick = BurstSequence.NoPendingBurst;
 		}
 
 		void SetBurstWait(int delay, bool isBurstWait = false)
