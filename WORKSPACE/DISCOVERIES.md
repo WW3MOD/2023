@@ -3,6 +3,37 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-27 — `lint-baseline.txt` "sprite file not found" is an artifact of running without RA content, and five aircraft husks have no aircraft (wreck gaps, `wt/wreck-gaps`, base `main @ eb2c4585`)
+
+**Never read `lint-baseline.txt` as evidence that art is missing.** 356 of its 527 lines are
+`sprite file \`X.shp\` not found`, including `mig.shp`, `badr.shp` and `u2.shp` — all of which are
+stock Red Alert sprites that ship in `conquer.mix`, which `mod.yaml:24` mounts. The baseline was
+recorded in an environment without the downloaded RA content, so the check could not see inside the
+mixes. The authoritative question is answered by **`Mod=ww3mod ./utility.sh --check-missing-sprites`**
+on a machine with content installed: it is read-only, takes seconds, and on `eb2c4585` reports only
+five genuinely-absent files (`b2bomb.shp`, `pip-cloak.shp`, `pip-cover.shp`, `mslo.int`, `bib3.int`).
+Ruling "the sprites do not exist" off the baseline is a live trap — it was one step from being taken
+here.
+
+**`B52`, `BULL`, `U2`, `U2.NATO` and `SMIG` are husks with no parent actor.** Nothing in the ruleset
+defines those actors; the only things that ever referenced them are the support powers at
+`player.yaml:328,420,444,465,485,527,573`, every one commented out. So `*.Husk` and `*.Husk.EMP` for
+those five cannot be spawned by anything and are dead YAML. Of the six aircraft that lack a
+second-stage `.ground` husk, only **`BADR`** is reachable — it is the neutral crate-delivery plane
+(`CrateSpawner.DeliveryAircraft: badr.crate`, `world.yaml:407`), owned by the world actor's player
+(`CrateSpawner.cs:154`), `-Selectable`, `RejectsOrders`, and shootable via
+`^NeutralAirborne`'s `Targetable@Airborne`. Before authoring husk content for an aircraft, check the
+aircraft exists.
+
+**A living building is always visible to everyone; its husk was not.** `^BasicBuilding` carries
+`FrozenUnderFog` (`structures.yaml:60`), whose `IsVisible` short-circuits to unconditional `true`.
+`^BuildingHusk` instead carries `Detectable`, which had `AlwaysVisibleRelationships: None` — so a
+building was visible to every player right up to the tick it died, then its rubble vanished from its
+own owner. `^CivBuildingHusk` (and `^TechBuildingHusk` through it) is the third case and needs
+nothing: it carries `FrozenUnderFog`, so it is already always-visible. Note the husk is transient,
+not permanent rubble: `ChangesHealth@Burns` at `Step: -10, Delay: 8` against 200 HP burns it out in
+160 ticks (~10 s at 16.67 tps).
+
 ## 2026-08-27 — `FrozenUnderFog` is a dead end in this mod, and `Detectable.Vision` is concealment not sight (wreck visibility, `wt/wreck-visibility`, base `main @ 936f1fe9`)
 
 **Do not reach for `FrozenUnderFog` to make anything non-building survive fog.** Two independent

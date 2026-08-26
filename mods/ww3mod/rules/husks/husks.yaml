@@ -72,7 +72,14 @@
 	Detectable:
 		Vision: 1
 		Position: Center
-		AlwaysVisibleRelationships: None
+		# Same reasoning as ^BasicHusk above, and the discontinuity here was worse: a LIVING building
+		# carries FrozenUnderFog (^BasicBuilding, structures.yaml:60), whose IsVisible short-circuits
+		# to an unconditional true. So a building is visible to everyone right up to the tick it dies,
+		# then its husk switches to Detectable and vanished from its own owner. The husk is not
+		# permanent rubble either -- ChangesHealth@Burns takes it from 200 HP at -10/8 ticks, so it
+		# burns out in ~160 ticks (~10 s). Owners were being denied the death animation of their own
+		# base. Enemies still have to detect it.
+		AlwaysVisibleRelationships: Ally
 	ScriptTriggers:
 	Explodes:
 		Weapon: BuildingExplode
