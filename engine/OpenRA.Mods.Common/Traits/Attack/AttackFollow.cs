@@ -142,6 +142,49 @@ namespace OpenRA.Mods.Common.Traits
 			if (mobile != null && !mobile.CanInteractWithGroundLayer(self))
 				return;
 
+			// Drop a locked REQUESTED target the moment it acquires the break-off condition (critical
+			// damage in WW3MOD). The opportunity-target twin of this guard is in the else branch below,
+			// and Activities/Attack.cs:217 is the AttackFrontal twin — this path had neither. Every
+			// attack reaches AttackFollow as RequestedTarget via OnResolveAttackOrder, INCLUDING one
+			// AutoTarget picked for itself, and AttackFollow.AttackActivity only manages range and
+			// movement — firing happens here. Before this, an AttackFollow unit could leave a doomed
+			// target only through AutoTarget.TickPreemption, which switches solely to a STRICTLY higher
+			// priority band and so cannot fire when the doomed target already sits in the top band.
+			//
+			// POPULATION: everything deriving from AttackFollow, not just turrets. AttackTurreted (35
+			// declarations, though ~8 are husk stubs on Weapon: Dummy and permanently paused),
+			// AttackAircraft (11 — no Tick override, and FlyAttack.cs:108 calls SetRequestedTarget with
+			// the source, so this fires mid attack-run), and AttackGarrisoned (4 — overrides Tick but
+			// calls base.Tick). Aircraft and garrisoned infantry are IN SCOPE and their post-clear
+			// behaviour mid-run is unanalysed; queued for observation.
+			//
+			// Symptom reported from playtest 260826: a Tunguska walks a helicopter to Critical with its
+			// 30mm, the heli enters HeliEmergencyLanding's crash descent (guaranteed dead within
+			// CruiseAltitude/CrashDescentRate = 1280/50 = 26 ticks), and the Tunguska spends a
+			// 65-supply 9M311 on it anyway.
+			//
+			// Scoped through BreakOffApplies, so a player / Lua / deliberate bot order still fires:
+			// refusing those is the shipped defect BreakOffScopeTest pins. Clearing rather than merely
+			// declining to fire is deliberate for the same reason — a unit that keeps the target and
+			// silently skips DoAttack aims at something it will never shoot and is never idle, so it
+			// never rescans. ChooseTarget already skips break-off targets, so the rescan this frees
+			// picks a healthy one or holds fire.
+			//
+			// COUPLING, load-bearing and non-obvious: ClearRequestedTarget does not clear under
+			// PersistentTargeting — it PROMOTES the target to OpportunityTarget (:69-79). What undoes
+			// that is the opportunity guard below, and only by coincidence: its predicate is
+			// `!opportunityForceAttack`, a DIFFERENT test from this one, which today happens to be
+			// satisfied because BreakOffApplies already implies !forceAttack. Widen BreakOffApplies to
+			// admit any force-attack case and the promotion survives silently, locking the unit onto the
+			// doomed target — the exact failure this guard exists to prevent. Change both together, or
+			// give them one shared predicate.
+			if (RequestedTarget.Type == TargetType.Actor
+				&& BreakOffApplies(requestedTargetSource, requestedForceAttack)
+				&& autoTarget != null
+				&& !string.IsNullOrEmpty(autoTarget.Info.BreakOffCondition)
+				&& RequestedTarget.Actor.GetConditionCount(autoTarget.Info.BreakOffCondition) > 0)
+				ClearRequestedTarget();
+
 			if (RequestedTarget.IsValidFor(self))
 			{
 				// Gate IsAiming on the same checks as fire (HoldFireWhileMoving, SetupTicks).

@@ -181,8 +181,15 @@
 
 # Garrison-specific health pips: same vehicle pip sequences but no critical
 # blinking, since buildings can't be destroyed (no rubble transition yet).
-# Heavy pip covers both heavy-damage AND critical-damage so the red indicator
-# stays visible all the way to the building's lowest protection state.
+# Heavy pip covers the whole band below 50% so the red indicator stays visible
+# all the way to the building's lowest protection state.
+#
+# READS `heavy-damage-attained`, NOT `heavy-damage || critical-damage`. Buildings no longer take the
+# Critical rung at all (^Building / ^CivBuilding drop it — see the ruling there), so the old
+# expression would have gone dark below 25%: `heavy-damage` is ValidDamageStates: Heavy ALONE, and
+# with the critical token never granted nothing else covered that band. `heavy-damage-attained` is
+# ValidDamageStates: Heavy, Critical, so it spans exactly the same range the pair used to.
+# The token a consumer reads is what changed here; no token changed meaning.
 ^GarrisonHealthPips:
 	WithDecoration@GarrisonHealth_Light:
 		Image: pips
@@ -201,7 +208,7 @@
 		Sequence: pip-damage-vehicle-heavy
 		Position: Top
 		Margin: 0,0
-		RequiresCondition: heavy-damage || critical-damage
+		RequiresCondition: heavy-damage-attained
 
 # ^DetectionProximity:
 # 	VisionModifier@1:
