@@ -81,6 +81,14 @@ Player:
 			aa.america: 30
 			sn.america: 25
 			e6.america: 20
+			# Drone operator. THE WEIGHT IS NOT WHY THIS GETS BOUGHT — MEMBERSHIP IS. This type is
+			# deliberately absent from UnitTargetShares below, so it is ineligible for the directed
+			# pick (CompositionDirected and CompositionEnforceTargetCeiling are both on, and only
+			# UnitTargetShares members are eligible — UnitBuilderBotModule.cs:328). It is reached
+			# through the FLOOR lane instead, and ChooseBelowFloor gates on UnitsToBuild membership
+			# (:1299), which is what this line buys. The weight itself only acts as a share ceiling
+			# in the legacy uniform lottery (:1610).
+			dr.america: 20
 
 			# Vehicles -- balanced force composition
 			humvee: 30
@@ -105,6 +113,9 @@ Player:
 			m109: 3
 			strykershorad: 2
 			sn.america: 3
+			# User ruling 2026-08-27: "just a couple or so is enough usually". This is the hard
+			# ceiling behind the floor cap; both are 2 so the floor is the only thing that moves.
+			dr.america: 2
 		# ===== STANDING-POPULATION FLOORS (experimental-only; C# default is unset) =====
 		# USER RULING 2026-08-14: "build medics", and "there is always an AA soldier or two on the field".
 		# A UnitTargetShares entry CANNOT deliver either, and the reason is arithmetic, not tuning. Shares are
@@ -148,6 +159,9 @@ Player:
 		UnitFloors:
 			medi.america: 2
 			aa.america: 2
+			# Drone operator — the user's "they make none" is a FLOOR problem, not a weight problem.
+			# See the dr.america UnitFloorPer note below for why 2 here is a cap and not a target.
+			dr.america: 2
 		# ===== THE FLOOR NEEDS A DENOMINATOR (user report 2026-08-15) =====
 		# A flat floor is maximally unmet at t=0, because at t=0 every census is zero. The pre-empt outranks
 		# the ceiling and every demand gate, and floored support types are cheap, so a flat floor does not
@@ -208,6 +222,42 @@ Player:
 		# measure it and no live match has been read for it yet.
 		UnitFloorPer:
 			medi.america: 10
+			# ===== DRONE OPERATOR: 8, AND THE CLIFF IS WHY IT IS NOT 12 =====
+			# A flat floor here would be an opening buy by construction — the same defect as the two
+			# t=0 medics above and the two t=0 supply trucks (PIPELINE 57(a)). A drone operator bought
+			# before there is a force to scout FOR has nothing to look at, so it gets a denominator.
+			# MEASURED, not chosen by analogy with the medic (--composition-plan --start none, 200
+			# cycles, this ruleset, 2026-08-27). The denominator is CountSupportedForce() over
+			# UnitFloorSupportedTypes and is therefore SHARED with the medic — the same population,
+			# so it can be read off directly rather than inferred. mean / max supported:
+			#   attrition 10: 6.56 / 8     attrition 20: 12.30 / 15    attrition 35: 21.32 / 27
+			#   attrition 12: 7.87 / 9     attrition 25: 16.30 / 20    attrition  0: 83.64 / 171
+			#   attrition 15: 8.96 / 11
+			# (Lower --attrition N is HEAVIER loss.) Russia measures within 0.6 of America at every
+			# level, so one ratio serves both twins.
+			# WHY NOT 12: it is ALREADY INERT at attrition 15, where the denominator never exceeds 11
+			# — EffectiveFloor is min(cap, supported/N), so N above the denominator's ceiling means the
+			# floor never fires at all and the user's "they make none" comes straight back in exactly
+			# the regime where losses make recon matter most. That is the medic's per-20 defect
+			# repeated, and it is an arithmetic property of the ratio, not a tuning opinion.
+			# WHY NOT 6: it reaches the cap of 2 in every ordinary regime (12.30/6 = 2 at attrition
+			# 20), which overshoots "just a couple or so is enough usually" for a 150-cost unarmoured
+			# specialist that is free to re-fly (AmmoUsage 0 — a sortie costs nothing but time).
+			# 8 gives ONE operator through the common band and a second only once the supported force
+			# reaches 16, i.e. a healthy army — and it still fires at attrition 12 (mean 7.87, max 9).
+			# NOT MEASURED, STATED PLAINLY: --composition-plan models only UnitTargetShares members,
+			# and this type is deliberately not one, so the replay CANNOT report dr's own buy sequence
+			# or first-buy cycle — only the shared denominator above is measured. Two consequences are
+			# therefore unverified: (1) how dr and medi/aa trade against each other inside
+			# ChooseBelowFloor when several are below floor at once, and (2) the live infantry count,
+			# which the medic block already notes may run higher than the replay's. CensusLogInterval
+			# below is the instrument for both; no live match has been read for them yet.
+			# OPENING BUY IS SAFE UNDER THE SHIPPED DEFAULT: StartingUnitsClass = "none"
+			# (SpawnStartingUnits.cs:25, unoverridden in any mod YAML), so the denominator is 0 at t=0
+			# and no positive ratio can fire there. With a lobby-selected platoon start the denominator
+			# opens at 11 and this floor engages immediately — the medic at per-10 already behaves that
+			# way, so this is consistent with shipped behaviour rather than a new exposure.
+			dr.america: 8
 		# The denominator: every non-medic infantry type. Chosen to match the medi share derivation below
 		# EXACTLY (the same per-type sum, medics excluded) so the floor and the share express ONE ratio rather
 		# than two that have to be reconciled. Vehicles are deliberately absent — the user said "20 man
