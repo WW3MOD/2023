@@ -11154,3 +11154,85 @@ in the game with no value at all.
 **Thickest armour in the mod is 2000mm (`MSLO`, no `Distribution`, so never discounted by hit
 direction)** — not the 280mm of a T-90. Bridges are 1000, `abrams` 700, `pbox` 300. A "kills anything in
 one shot" warhead has to clear 2000.
+
+## 2026-08-27 — The drone's 1-unit hitshape is real, and it does NOT make the drone immune to AA
+
+`^Drone` sets `HitShape: Circle Radius: 1` (`aircraft.yaml:351-353`), overriding the `Radius: 32` it
+would inherit from `^NeutralAirborne` (`:89-91`). One world unit is ~1/1000 of a cell, and it looks
+like it should make the quadcopter unhittable. **It does not, and the reason is which of the two
+hitshape consumers a weapon goes through.**
+
+### The radius does not affect aiming at all
+
+`HitShape.TargetablePositions` returns `CenterPosition + TargetableOffsets` and never reads `Radius`
+(`HitShape.cs:122-133`; `TargetableOffsets` defaults to `{ WVec.Zero }` and `^Drone` sets none). So a
+weapon aims at the drone's centre regardless. The radius reaches damage only via `DistanceFromEdge`
+and `CenterProximityPercent`.
+
+### Door 1 — `SpreadDamageWarhead`: costs 31 units of lethal radius, nothing more
+
+Falloff distance is `DistanceFromEdge` (`SpreadDamageWarhead.cs:74`), which for a circle is
+`max(0, |d| - Radius)`. The envelope is four `Spread` steps wide. For the mod's real AA — MANPAD,
+Stinger.quad, 9M311, AACannon, SurfaceToAirMissile — that is the **only** warhead, and the numbers are
+lopsided: Stinger is `Damage: 5000, Spread: 256, Penetration: 20` against a **50 HP, Unarmored
+(thickness 3)** drone. `ApplyPenetration(5000, 20, 3)` is a clean pass-through, and the falloff table
+integer-truncates to 1% right out to the edge — 1% of 5000 is 50, exactly lethal. So:
+
+- at `Radius 1`, one Stinger kills the drone anywhere within **1024 units — a full cell**;
+- at `Radius 32` it would be **1055**.
+
+The entire cost of the tiny hitshape is those 31 units, against a weapon whose own `Inaccuracy` is
+300. Pinned by `DroneHitShapeTest`.
+
+### Door 2 — `TargetDamageWarhead`: genuinely shut, and it matters for exactly one weapon
+
+Damage is scaled by `CenterProximityPercent` (`TargetDamageWarhead.cs:93`), which for a circle is
+`100 * (Radius - d) / Radius` and hits **zero at the radius**. At `Radius 1` that is zero for any
+impact one world unit off the drone's exact centre, floored by `ProximityDamagePercent`.
+
+Almost every weapon carrying a `TargetDamage` warhead against `Air` also carries a damaging
+`SpreadDamage` sibling that still lands (`Ataka.aa`, `Hellfire`). **`20mm_CRAM` is the exception**
+(`weapons-ballistics.yaml:543-557`): its own block declares **only** `Warhead@Target: TargetDamage,
+Damage: 600`. The `SpreadDamage` that appears in the resolved ruleset comes from
+`Inherits@HitEffects: ^MinimalExplosionEffectsAir` (`weapons-effects.yaml:677-690`), which sets
+`ValidTargets: Air` and no `Damage:` at all — it is a target-type/visual scaffold so
+`Warhead@Effect: CreateEffect` renders, not a damage half. So CRAM's entire output against a drone is
+the `TargetDamage` warhead, and `Radius: 1` scales it to zero: **the CRAM does literally zero damage
+to a drone.** It is mounted (CRAM defence structure `structures-defenses.yaml:632`, plus
+`aircraft-america.yaml:642` / `aircraft-russia.yaml:662`). At `Radius 32` it would land
+`600 × proximity` on a near-centre impact, but with `Inaccuracy: 256` on a no-lead `Bullet` that is
+already rare. This is the one real hole, and it is small.
+
+### The no-lead bullet behaviour does NOT compound here
+
+`conventions.md` §"Bullets do not lead their target" applies to `Bullet` only. The mod's dedicated AA
+is `Missile`, which retargets every tick and solves for intercept (`Missile.cs:1079-1103`,
+`WVec.CalculateLeadTarget`) and detonates on `CloseEnough` (default 298) rather than on any hitshape
+test. For the `Bullet`-class AA that does suffer no-lead, the miss is governed by target motion at
+cell scale, which dwarfs both 1 and 32 units. **In neither branch is the hitshape radius the operative
+term.**
+
+### Provenance: silent
+
+`git log -S` gives one commit — `e62150de` "Drone operator jammer, still some todos" (2024-01-07),
+which changed it **8 → 1**, not 32 → 1. It has never been 32; `98a4dc09` created the drone at 8. The
+commit message says nothing about hitshapes, and the jammer path it was bundled with does not depend
+on the radius (`LaserZap` sets `ImpactPosition` to the target's own centre, `LaserZap.cs:163-182`, so
+`DistanceFromEdge` is 0 and falloff is 100% at any radius). **Intent is not recoverable from the
+record** — do not describe the value as deliberate or as a bug without new evidence.
+
+## 2026-08-27 — Two inert drone-subsystem declarations
+
+**`CarrierMasterInfo.MaxSlaveDistance` has zero readers engine-wide**, as do
+`MaxSlaveDistanceCheckInterval` and `SpawnIsMissile` (`CarrierMaster.cs:22,38,41` — grep finds only the
+declarations). `^DR` set `MaxSlaveDistance: 20c0`, so the YAML asserted a 20-cell leash while the game
+enforced the slave-side `CarrierSlave.MaxDistance: 25` on `quadcopterdrone` (`aircraft.yaml:408`, read
+at `CarrierSlave.cs:131,138`, denominated in **cells**). The dead line is removed and the three engine
+fields are now `[Desc("UNREAD - ...")]`.
+
+**`^AutoTargetDrone` (`defaults.yaml`) is inherited by zero actors.** It is redundant rather than
+broken: `AutoTargetPriorityInfo.ValidTargets` defaults to `Ground, Water, Air`
+(`AutoTargetPriority.cs:21`), the drone advertises `Air`, and `^DR` already inherits `^AutoTarget` — so
+the operator can already auto-acquire an enemy drone and fire `DroneJammer` through the generic band.
+Kept with a comment rather than deleted, because attaching it would **narrow** the operator to drones
+only, which is a behaviour change to make deliberately.
