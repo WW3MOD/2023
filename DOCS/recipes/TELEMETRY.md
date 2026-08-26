@@ -41,4 +41,4 @@ Looking at recent debug sessions: 30–50% of time is spent on add-trace → bui
 
 - **Ship in v1, or dev-only?** Pending in `RELEASE_V1.md`. Recommendation: dev-only initially (single-line gate), promote to v1 if the dev experience proves the channel is also useful for end-user bug reports.
 - **Format?** JSON-lines (`{"tick": 123, "category": "fires", ...}`) — easy to grep, easy to parse, easy to tail.
-- **Volume?** Per-tick events at 25 ticks/sec for a busy battle could hit 10k+ lines/sec. Buffer + flush per second; truncate file at session start.
+- **Volume?** Per-tick events at 16.67 ticks/sec (`Timestep: 60` on the `default` game speed — *not* the RA-era 25; see [`conventions.md`](../reference/conventions.md)) for a busy battle could hit 10k+ lines/sec. Buffer + flush per second; truncate file at session start.

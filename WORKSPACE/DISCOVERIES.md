@@ -3,6 +3,35 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-27 — holding a unit at critical damage means fighting a mechanism built to kill it, on EVERY chassis (`test-breakoff-mid-engagement`, base `main @ eb2c4585`)
+
+Any scenario that needs a target to SIT at `DamageState.Critical` has to defeat a per-chassis death
+timer first, and each chassis hides it in a different trait:
+
+| chassis | what kills it | where |
+|---|---|---|
+| helicopter | `HeliEmergencyLanding` — unrecoverable crash descent, always destroyed on impact | `HeliEmergencyLanding.cs:22,102` |
+| vehicle | `ChangesHealth@CriticalDamage` — `PercentageStep: -1`, `Delay: 5`, `StartIfBelow: 50` | `vehicles.yaml:153` |
+| infantry | `ChangesHealth@BleedOut`, same `StartIfBelow: 50` shape | referenced at `structures.yaml:77` |
+
+Only **buildings** have no such drain (`structures.yaml:76-79`). `vehicles.yaml:244` states the
+design intent outright: *"A vehicle is doomed the moment it drops below 50% HP … with no way back."*
+
+The number that matters for test authors: a vehicle parked at **20% of max dies 100 ticks later**
+(1% of max per 5 ticks from 20 down to 0) — comfortably inside an ordinary measurement window. It
+cost a run here, and the setup guard caught it only because the scenario asserted its target was
+still alive. The sibling scenario `test-aa-breakoff-critical` already had to delete
+`-HeliEmergencyLanding` for the helicopter form of this, and its comment reads as a helicopter
+quirk; it is not. It is universal.
+
+The remedy that survives an unknown fourth drain is to **re-pin the health every tick** rather than
+only removing the trait you know about — `floor(20%)` never crosses the 25% Critical boundary, so
+the condition cannot flicker while the pin holds. `test-breakoff-mid-engagement` does both.
+
+**This is also a substantive design fact, not just a test-rig annoyance:** break-off is declining
+targets that every chassis is already independently killing, so the ammo it saves is genuinely
+wasted, and the doomed target's remaining lifetime is bounded and knowable in each case.
+
 ## 2026-08-27 — `lint-baseline.txt` "sprite file not found" is an artifact of running without RA content, and five aircraft husks have no aircraft (wreck gaps, `wt/wreck-gaps`, base `main @ eb2c4585`)
 
 **Never read `lint-baseline.txt` as evidence that art is missing.** 356 of its 527 lines are
@@ -35,6 +64,8 @@ not permanent rubble: `ChangesHealth@Burns` at `Step: -10, Delay: 8` against 200
 160 ticks (~10 s at 16.67 tps).
 
 ## 2026-08-27 — `FrozenUnderFog` is a dead end in this mod, and `Detectable.Vision` is concealment not sight (wreck visibility, `wt/wreck-visibility`, base `main @ 936f1fe9`)
+
+> **[promoted]** → `architecture.md` §"Fog visibility: `Detectable` is the mod's visibility trait, and `FrozenUnderFog` is a dead end" (new section) (curation 2026-08-27, verified against `main @ eb2c4585`). **Every claim re-derived, and the aircraft census re-parsed from the file rather than trusted** — `husks/husks-aircraft.yaml` defines 16 airframe husks, exactly ten carry a `SpawnActorOnDeath → *.Husk.ground`, and the six that do not are precisely `BADR`, `B52`, `BULL`, `U2`, `U2.NATO`, `SMIG`. `Requires<BuildingInfo>` at `:21`, the `QUICK FIX 260503` unconditional `return true` at `:146` with `IsVisibleInner` commented at `:148`, `Detectable` as `IDefaultVisibilityInfo` at `:22` with `Vision = 2` and the "what level of vision is required to detect" `[Desc]` at `:24-25`, `AnyDetectable` at `:149`, `ModifyRender`/`SpriteRenderable.None` at `:293`/`:304`, `TestModeLogic.cs:31`, and `AUTOTEST_EXTRA_ARGS` at `tools/autotest/run-test.sh:735` all confirmed. **Three refinements the entry did not carry, now in the bank:** `Player.cs` self-relationship is `:250-251` (the entry's `:250-251` is right; `:248` is the signature) and the spectator branch at `:257-258` is conditional on `!NonCombatant`; `ModifyRender` has a dev-mode `CosmeticReveal` branch that returns ghosts rather than `None`; and frozen-actor *creation* via `ICreatesFrozenActors` is a separate path that **does** still run, which is why the short-circuit does not kill fog-frozen structure GPS dots. The six-airframe list is dated `(as of 2026-08)` per README §Standards. `HuskDecay: Delay: 2240` ≈ 134 s confirmed at 16.67 tps (`mod.yaml` `DefaultSpeed: default` → `Timestep: 60`).
 
 **Do not reach for `FrozenUnderFog` to make anything non-building survive fog.** Two independent
 blockers, either fatal. It is declared `Requires<BuildingInfo>`
@@ -75,6 +106,12 @@ on impact; its own `SpawnActorOnDeath` then leaves the persistent `*.Husk.ground
 stage. `BADR`, `B52`, `BULL`, `U2`, `U2.NATO` and `SMIG` husks do **not** — they explode on impact
 and leave nothing behind.
 ## 2026-08-27 — the stale-burst path *decremented* the burst counter instead of restoring it, so an interrupted burst came back one shot short (`wt/burst-reset`, base `main @ fcb4b54d`)
+
+> **[promoted, with one number corrected]** → `missiles.md` §9 (the `BurstDelays`/`BurstWait` subsection **rewritten**, since today's fix superseded its central rule) and `conventions.md` §"A change believed made…" as **instances 9 and 10** (curation 2026-08-27, verified against `main @ eb2c4585`). Mechanism verified end to end: `BurstSequence.StaleTick` = `worldTick + interShotDelay + burstWait` (`Armament.cs:61-64`), `IsStale`/`ResetBurst` at `:435-436` with the in-code comment confirming `UpdateBurst` was there before, `Advance`'s `--burst < 1` (`:74-80`) confirming the R−1 arithmetic and the accidentally-correct R = 1 case, `ResetBurst` restoring `FullBurst` (`:739-743`). `Mandible` 14/10 and `MandibleHeavy` 20/15 confirmed at `weapons-other.yaml:735-736`/`:745-746`. `BurstRandomize`'s `[Desc]` now says NOT IMPLEMENTED (`WeaponInfo.cs:118-121`) and exactly three weapons set it (`weapons-ballistics.yaml:137, 612, 638`).
+>
+> **CORRECTION — `Stinger.quad` is not "58/58".** It is `BurstDelays: 58` against `BurstWait: 60`. The 58-tick *wait* belongs to `9M311`, the weapon immediately below it in `weapons-missiles.yaml`, and the two were conflated. The entry's conclusion (it sits near the boundary and escapes narrowly) survives; the number does not. **`missiles.md:489` already said "58-against-60" and independently corroborated this** — the pre-existing bank caught the fresh entry, which is the curation flow working in the direction it is supposed to.
+>
+> **Added to the bank, not in the entry: the raw-gap shape survives at `Armament.cs:478`**, in `LockAimPerBurst`'s fresh-burst detection (`lastFiredTick - previousLastFiredTick > Weapon.BurstWait`). It is **currently inert** — all five setters have `BurstDelays` far below `BurstWait` (`GradRockets` 4/100, `TosRockets`/`M270Rockets` 10/200, `Flamespray`/`Flamespray.heavy` 1/30) — but it is the same comparison the fix removed elsewhere and would wake up on a locked-aim weapon with a long inter-shot delay. Also flagged, not fixed (this was a docs pass): the YAML comments on `Stinger.quad` and `9M311` still describe the raw-gap check and cite `Armament.cs:367`, a line that has moved and a rule that no longer exists.
 
 Reported from playtest: a Hind firing `RocketPods` (`Burst: 10`) sometimes put out one or two
 rockets instead of a pod. The reset the user wanted already existed and already fired on the right
@@ -10985,6 +11022,12 @@ declines, and parks there — the same anchoring bug one step further out.
 
 ## 2026-08-27 — Turreted units never break off a critically-damaged target
 
+> **[promoted in part] / [rejected in part: tracker + volatile balance detail]** → `conventions.md` §Engine behaviors that surprise, merged into the existing overkill/break-off bullet rather than kept separate (README §"One home per fact") (curation 2026-08-27, verified against `main @ eb2c4585`). **The census was re-counted, not trusted, and is exact**: `AttackTurreted` 35, `AttackAircraft` 11, `AttackGarrisoned` 4, `AttackFrontal` 7. `TryFindHigherBandTarget`'s strictly-higher-band contract confirmed in its own doc comment (`AutoTarget.cs:1095-1101`), so `TickPreemption` is genuinely not an escape hatch. `MarkForDestruction` really is dead code — `Actor.cs:91` is the only definition and grep finds no caller, just two comments describing it as live.
+>
+> **The entry's "three consult sites" is the PRE-fix state and was NOT promoted as written.** There are now **four**: the scan (`AutoTarget.cs:1467-1468`), `AttackFrontal` (`Activities/Attack.cs:217`), and both of `AttackFollow`'s targets — `OpportunityTarget` (`AttackFollow.cs:208-209`, which the entry cites as `:163-167`, pre-fix lines) and the new `RequestedTarget` guard (`:182-185`). A conclusion can outlive its own justification; the bank states the post-fix count.
+>
+> **Provenance sharpened:** `CruiseAltitude` 1280 is the **engine default** (`Aircraft.cs:29`), not a mod YAML value — `^Helicopter` sets none. That matters because the entry's 26-tick descent is load-bearing for ruling out "the second missile hits a dead helicopter still falling", so I enumerated every `CruiseAltitude` override in the mod: all six are fixed-wing (`FROG`, `MIG`, `A10`, `F16` and two airstrike variants). **No helicopter overrides it, so 26 ticks holds universally and the elimination is sound.** The overkill half is verified and banked — cap at `Math.Min(…, 100)` (`:1692`) against a threshold of 100 compared with strict `>` (`:1458`), so one committed shooter can never deter a second, deliberately, per the PITFALL at `:1450-1457`. **Rejected:** the release-at-launch coupling analysis and the proposed hold-to-impact fix are in-flight design state, not reference material — they belong in the pipeline item, and the entry itself says the change was left unmade pending a coupled measurement.
+
 Playtest report: a Tunguska spends a second 9M311 on a helicopter that is already going down.
 
 ### `BreakOffCondition` has three consult sites and the one that matters is missing
@@ -11062,6 +11105,12 @@ that still needs decaying; `ClaimForAttack` is now the only path in.
 
 ## 2026-08-27 — `critical-damage` is a doom marker, and buildings could not honour it
 
+> **[promoted, with one claim REJECTED as false]** → `conventions.md` §"Resolve the ruleset before you trust an inheritance edit" (new section) and the existing `critical-damage`-thresholds bullet (curation 2026-08-27, verified against `main @ eb2c4585`). The drains are confirmed per family — vehicles `ChangesHealth@CriticalDamage` `StartIfBelow: 50` in `^EffectsWhenDamagedVehicles`, infantry `ChangesHealth@BleedOut` `StartIfBelow: 50` (`infantry.yaml:1098`), helicopters via `HeliEmergencyLanding` (`aircraft.yaml:200-202`) — and buildings really do have no health-driven drain. Both removals are in place (`structures.yaml:91`, `civilian.yaml:11`) and `^CivBuilding`'s independent lineage is confirmed: it reaches `^BasicBuilding` through `^TechBuilding` (`structures.yaml:140-141`) and pulls `^DamageStates` in separately, so it does **not** descend from `^Building`. The `^GarrisonHealthPips` repoint is verified against the token definitions — `heavy-damage` is `ValidDamageStates: Heavy` alone (`defaults.yaml:241-242`), `heavy-damage-attained` is `Heavy, Critical` (`:243-245`) — and that Heavy-alone/`-attained` distinction is now banked, since it is the general trap and not a one-off. `MiniYaml.cs:483` throws exactly as quoted, and `V19.Husk` (`civilian.yaml:429`) really does pre-strip the ladder.
+>
+> **REJECTED as false: "no `AutoTargetPriority` band anywhere lists `Structure`".** One does — `HIND`'s `AutoTargetPriority@FireAtWill` (`aircraft-russia.yaml:127-130`, `ValidTargets: Infantry, Vehicle, Water, Underwater, Air, Structure, Defense, Mine`, gated on `stance-fireatwill`). I enumerated all 78 `AutoTargetPriority` `ValidTargets` declarations in the mod; it is the only one, but it exists. So the entry's "ordinary buildings were never exposed" is too strong: a Hind on Fire At Will could auto-acquire a plain building and would have declined one under 25% HP. Narrow, but real — and this is precisely README shape 1 (*for any "X can never happen", enumerate every writer*), committed while explaining a different bug. The **exposed set** claim itself survives and is stronger than the entry knew: `^CivBuilding` overrides `^TechBuilding`'s `NoAutoTarget` back to `Ground, C4, DetonateAttack, Structure, Defense` (`civilian.yaml:19`/`:22`), so civilian buildings are auto-targetable through `Defense` as stated.
+>
+> The `--dump-balance-json` half is promoted as **standing practice**, verified at the source rather than from the entry: the command reads `utility.ModData.DefaultRules` (`DumpBalanceJsonCommand.cs:40`) and then walks every actor and weapon, so it forces the full `ResolveInherits` pass, and `utility.sh` runs under `set -e`. **Not promoted: the "hour-long `--check-yaml`" comparison** — I was told not to run either command this pass, so I have no measurement, and an unmeasured duration is exactly the kind of asserted number this bank keeps having to correct. The banked text says "seconds" for the thing I read the code for and makes no claim about the other.
+
 USER RULING: *"bunkers and stuff should not have this critical state at all, as critical means
 burning vehicle or bleeding out. Bunkers could just be destroyed."*
 
@@ -11100,6 +11149,12 @@ Fix at the source: `^Building` (`structures.yaml`) and `^CivBuilding` (`civilian
   exiting 0 proves these removals bit. It resolves the full ruleset in seconds and is a far cheaper
   smoke test for inheritance edits than the hour-long `--check-yaml`.
 ## 2026-08-27 — A large `Damage:` can arrive as zero, or as healing
+
+> **[promoted, with one over-generalisation rejected]** → `missiles.md` §10 (new) and §6's `TargetDamage` falloff bullet, plus `conventions.md` §"A change believed made…" as **instances 7 and 8** (curation 2026-08-27, verified against `main @ eb2c4585`). `ImpactPosition` assignment sites re-derived by grep: seven projectile **types** — `Bullet`, `Missile`, `GravityBomb`, `LaserZap`, `Railgun`, `AreaBeam`, `InstantHit` — matching the entry's list exactly, though note `Railgun` assigns at two sites (`:208`, `:225`), so it is 8 literal assignments; plus the `WarheadArgs(ProjectileArgs)` constructor at `WeaponInfo.cs:51`. The fix is live at `:307` and carries the explanation in-code. `Health.InflictDamage`'s `HP = (HP - damage.Value).Clamp(0, MaxHP)` confirmed at `Health.cs:189`, so negative damage genuinely heals. `RangeDamageFactor`'s divide-by-`Weapon.Range` confirmed at `DamageWarhead.cs:138` with an in-code NOTE stating the zero-`maxRange` consequence. `Penetration = 1` at `DamageWarhead.cs:24`; `ApplyPenetration` at `:127-133`. `Thickness: 2000` on `MSLO` (`structures-defenses.yaml:1106`) is confirmed as the mod's maximum and carries no `Distribution`.
+>
+> **The Penetration ladder is CORRECT and I nearly rejected it wrongly.** A first pass that enumerated only concrete weapon names appeared to contradict every value (`12.7mm.Hind.AA` 5, `TankRound.T90` 1000). Re-deriving with the `^` caliber templates included resolves it exactly as the entry states: `^12.7mm` 15, `^30mm` 70, `ATGM` 100, `RPG` 500, `^TankRound` 800, `Ataka` 900, `^ArtilleryRound` 1000. **Recording the near-miss because the failure mode is general** — a census that silently excludes template definitions will contradict a true claim about a mod built on templates, and the wrong conclusion looks like diligence.
+>
+> **REJECTED: "the `Warhead@Spread: SpreadDamage` sibling deliberately has none."** Not a convention. True for `ATGM` and `RPG`, false for `Ataka` (20), `Hellfire` (20), and both ballistic missiles (2500 / 1800). The entry used it to argue the omission was a bug rather than a balance choice — that verdict stands on the far stronger ground that every comparable large `TargetDamage` warhead sets a value and the default of 1 is a divisor, so the weaker argument was dropped and the mismatch is recorded in `missiles.md` §10 as an explicit *not-a-convention* note, since the next reader will otherwise "tidy" one of the two shapes into the other.
 
 Reported as "the Iskander hit a tank directly and it didn't get destroyed". Three independent
 defaults stacked, and only the first was suspected. All are in the direct-hit `TargetDamage`
@@ -11154,3 +11209,85 @@ in the game with no value at all.
 **Thickest armour in the mod is 2000mm (`MSLO`, no `Distribution`, so never discounted by hit
 direction)** — not the 280mm of a T-90. Bridges are 1000, `abrams` 700, `pbox` 300. A "kills anything in
 one shot" warhead has to clear 2000.
+
+## 2026-08-27 — The drone's 1-unit hitshape is real, and it does NOT make the drone immune to AA
+
+`^Drone` sets `HitShape: Circle Radius: 1` (`aircraft.yaml:351-353`), overriding the `Radius: 32` it
+would inherit from `^NeutralAirborne` (`:89-91`). One world unit is ~1/1000 of a cell, and it looks
+like it should make the quadcopter unhittable. **It does not, and the reason is which of the two
+hitshape consumers a weapon goes through.**
+
+### The radius does not affect aiming at all
+
+`HitShape.TargetablePositions` returns `CenterPosition + TargetableOffsets` and never reads `Radius`
+(`HitShape.cs:122-133`; `TargetableOffsets` defaults to `{ WVec.Zero }` and `^Drone` sets none). So a
+weapon aims at the drone's centre regardless. The radius reaches damage only via `DistanceFromEdge`
+and `CenterProximityPercent`.
+
+### Door 1 — `SpreadDamageWarhead`: costs 31 units of lethal radius, nothing more
+
+Falloff distance is `DistanceFromEdge` (`SpreadDamageWarhead.cs:74`), which for a circle is
+`max(0, |d| - Radius)`. The envelope is four `Spread` steps wide. For the mod's real AA — MANPAD,
+Stinger.quad, 9M311, AACannon, SurfaceToAirMissile — that is the **only** warhead, and the numbers are
+lopsided: Stinger is `Damage: 5000, Spread: 256, Penetration: 20` against a **50 HP, Unarmored
+(thickness 3)** drone. `ApplyPenetration(5000, 20, 3)` is a clean pass-through, and the falloff table
+integer-truncates to 1% right out to the edge — 1% of 5000 is 50, exactly lethal. So:
+
+- at `Radius 1`, one Stinger kills the drone anywhere within **1024 units — a full cell**;
+- at `Radius 32` it would be **1055**.
+
+The entire cost of the tiny hitshape is those 31 units, against a weapon whose own `Inaccuracy` is
+300. Pinned by `DroneHitShapeTest`.
+
+### Door 2 — `TargetDamageWarhead`: genuinely shut, and it matters for exactly one weapon
+
+Damage is scaled by `CenterProximityPercent` (`TargetDamageWarhead.cs:93`), which for a circle is
+`100 * (Radius - d) / Radius` and hits **zero at the radius**. At `Radius 1` that is zero for any
+impact one world unit off the drone's exact centre, floored by `ProximityDamagePercent`.
+
+Almost every weapon carrying a `TargetDamage` warhead against `Air` also carries a damaging
+`SpreadDamage` sibling that still lands (`Ataka.aa`, `Hellfire`). **`20mm_CRAM` is the exception**
+(`weapons-ballistics.yaml:543-557`): its own block declares **only** `Warhead@Target: TargetDamage,
+Damage: 600`. The `SpreadDamage` that appears in the resolved ruleset comes from
+`Inherits@HitEffects: ^MinimalExplosionEffectsAir` (`weapons-effects.yaml:677-690`), which sets
+`ValidTargets: Air` and no `Damage:` at all — it is a target-type/visual scaffold so
+`Warhead@Effect: CreateEffect` renders, not a damage half. So CRAM's entire output against a drone is
+the `TargetDamage` warhead, and `Radius: 1` scales it to zero: **the CRAM does literally zero damage
+to a drone.** It is mounted (CRAM defence structure `structures-defenses.yaml:632`, plus
+`aircraft-america.yaml:642` / `aircraft-russia.yaml:662`). At `Radius 32` it would land
+`600 × proximity` on a near-centre impact, but with `Inaccuracy: 256` on a no-lead `Bullet` that is
+already rare. This is the one real hole, and it is small.
+
+### The no-lead bullet behaviour does NOT compound here
+
+`conventions.md` §"Bullets do not lead their target" applies to `Bullet` only. The mod's dedicated AA
+is `Missile`, which retargets every tick and solves for intercept (`Missile.cs:1079-1103`,
+`WVec.CalculateLeadTarget`) and detonates on `CloseEnough` (default 298) rather than on any hitshape
+test. For the `Bullet`-class AA that does suffer no-lead, the miss is governed by target motion at
+cell scale, which dwarfs both 1 and 32 units. **In neither branch is the hitshape radius the operative
+term.**
+
+### Provenance: silent
+
+`git log -S` gives one commit — `e62150de` "Drone operator jammer, still some todos" (2024-01-07),
+which changed it **8 → 1**, not 32 → 1. It has never been 32; `98a4dc09` created the drone at 8. The
+commit message says nothing about hitshapes, and the jammer path it was bundled with does not depend
+on the radius (`LaserZap` sets `ImpactPosition` to the target's own centre, `LaserZap.cs:163-182`, so
+`DistanceFromEdge` is 0 and falloff is 100% at any radius). **Intent is not recoverable from the
+record** — do not describe the value as deliberate or as a bug without new evidence.
+
+## 2026-08-27 — Two inert drone-subsystem declarations
+
+**`CarrierMasterInfo.MaxSlaveDistance` has zero readers engine-wide**, as do
+`MaxSlaveDistanceCheckInterval` and `SpawnIsMissile` (`CarrierMaster.cs:22,38,41` — grep finds only the
+declarations). `^DR` set `MaxSlaveDistance: 20c0`, so the YAML asserted a 20-cell leash while the game
+enforced the slave-side `CarrierSlave.MaxDistance: 25` on `quadcopterdrone` (`aircraft.yaml:408`, read
+at `CarrierSlave.cs:131,138`, denominated in **cells**). The dead line is removed and the three engine
+fields are now `[Desc("UNREAD - ...")]`.
+
+**`^AutoTargetDrone` (`defaults.yaml`) is inherited by zero actors.** It is redundant rather than
+broken: `AutoTargetPriorityInfo.ValidTargets` defaults to `Ground, Water, Air`
+(`AutoTargetPriority.cs:21`), the drone advertises `Air`, and `^DR` already inherits `^AutoTarget` — so
+the operator can already auto-acquire an enemy drone and fire `DroneJammer` through the generic band.
+Kept with a comment rather than deleted, because attaching it would **narrow** the operator to drones
+only, which is a behaviour change to make deliberately.
