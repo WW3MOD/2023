@@ -3,6 +3,56 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-27 — The frozen-actor visibility update loop is DEAD CODE, and it is the real cause of the six-month building-fog leak (`wt/fog-leak`, base `main @ 651322b3`)
+
+**`FrozenActor.UpdateVisibility()` runs exactly once per frozen actor — from the constructor
+(`FrozenActorLayer.cs:113`) — and never again.** Its only other call site (`:162`) is gated on
+`UpdateVisibilityNextTick`, and **nothing in the engine ever sets that flag to `true`**. It is
+declared at `:73`, read at `:161`, cleared at `:167`, and assigned nowhere. Grep it and see.
+
+The consequence is total: `FrozenActor.Visible` is computed once at construction and frozen there.
+`FrozenUnderFog` inverts it into `FrozenState.IsVisible` (`FrozenUnderFog.cs:73`), so for every
+non-ally player, for every building, **`IsVisibleInner` can never return true**. The strict
+visibility path is not merely racy at startup — it is permanently stuck at "invisible".
+
+**Root cause: a conflict resolution in `71687440` (2026-03-24, "Upstream merge: fix OpenRA.Game
+compilation + resolve duplicate types", one of 112 pending conflicts).** The merge kept the new
+side of a `<<<<<<<` marker and discarded the old, deleting the only line that set the flag:
+
+```
+-			self.Trait<Shroud>().OnShroudChanged += uv =>
+-			{
+-				foreach (var fa in partitionedFrozenActors.At(new int2(uv.U, uv.V)))
+-					fa.UpdateVisibilityNextTick = true;
+-			};
+```
+
+The surviving new side is a stub: `dirtyFrozenActorIds` (`:261`) is filled by `OnShroudChanged`
+(`:276`) and **never read by anything**, and it is filled from `partitionedFrozenActorIds` (`:260`),
+which **nothing ever adds to** — `Add` (`:279`) populates the differently-named
+`partitionedFrozenActors`. Two dead containers and a dead flag.
+
+**This retroactively explains two commits that look like mistakes and were not.** `2d7603bf`
+(2026-04-16) correctly restored strict `IsVisibleInner`; every building went invisible, because the
+loop had been dead for three weeks. `12a9b91b` (2026-05-03) reverted it to a blanket `return true`
+and turned shroud off by default in the same commit. Neither author was wrong about what they
+observed; both were looking at a symptom of the deleted line. The six-month intel leak (enemy
+structures right-clickable on never-scouted ground) is downstream of a botched merge, not of a
+visibility design decision.
+
+**Do not "fix" `FrozenUnderFog.IsVisible` without repairing the loop first.** Restoring
+`IsVisibleInner` on its own is strictly worse than the leak: measured on `wt/fog-leak`, a pillbox
+three cells from a live Abrams at cell visibility 10 reported `detected=false clickable=false`, i.e.
+every enemy building permanently invisible under fog. The minimal repair is to reinstate the deleted
+old-side handler, which uses `partitionedFrozenActors` — the partition that `Add` actually fills.
+
+**Two autotests now pin all of this** (`tools/autotest/scenarios/`):
+`test-unscouted-building-hidden` (Explored OFF) and `test-building-visible-at-spawn` (Explored ON,
+the shipped default). Both carry a positive control asserted on the same tick as the negative rung,
+and that control is what caught the dead loop: with buildings vetoed wholesale the negative rung
+passes on its own, so a scenario without the control would have reported a clean green on a build
+that had made every building invisible. Do not delete those control rungs.
+
 ## 2026-08-27 — `lint-baseline.txt` "sprite file not found" is an artifact of running without RA content, and five aircraft husks have no aircraft (wreck gaps, `wt/wreck-gaps`, base `main @ eb2c4585`)
 
 **Never read `lint-baseline.txt` as evidence that art is missing.** 356 of its 527 lines are
