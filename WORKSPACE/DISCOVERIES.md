@@ -11757,7 +11757,21 @@ revealed-area any candidate achieved this scan, threshold or not) alongside `min
 `bestreveal` means nothing was revealable and the model is still wrong; `bestreveal` sitting just
 under `minreveal` means the threshold is the only thing in the way. One match distinguishes them.
 
-**THE ARTEFACT IS LARGE ENOUGH TO MAKE THE REVEAL FLOOR INERT — measured, not estimated.** With a
+**CORRECTED BY A LIVE MATCH: THE FLOOR IS NOT INERT — IT BINDS HARD.** The paragraph below derived
+"inert" from a synthetic grid and a live run inverted it. Observed `bestreveal` values against a floor
+of 12 were **1, 3, 2, 6** — i.e. the floor refused every candidate on most evaluations. Both statements
+are true at once and that is the point: **the 228-square corner artefact is still there and still
+inflates every query, it is simply not enough to clear the floor when the real term is 1.**
+
+WHY THE SYNTHETIC TEST COULD NOT SEE IT, WHICH IS THE REUSABLE PART: the synthetic grid assumed
+unobserved ground is PLENTIFUL (everything outside the operator's disc was unseen). In a live match it
+is SCARCE — the bot's own units have already observed most of what is within a drone's reach, and near
+a map edge much of the query box is off-grid and clamped away by `SumInclusive` rather than counted as
+stale (`offmap` was 205, 171, 215, 115 on the observed evaluations). **A synthetic geometry test cannot
+model scarcity.** It can tell you what a formula computes; it cannot tell you what values the formula
+will actually be fed. That is the third confident derivation in one day overturned by a single run.
+
+**THE ARTEFACT ARITHMETIC ITSELF STANDS — measured, not estimated.** With a
 14-square vision radius the query box is 29x29 = 841 squares and the true disc is 613, so **up to 228
 squares of every query are corners the drone will never see**. Against a shipped
 `MinRevealedSquares: 12` that is ~19x the floor, so **every candidate clears the floor on corner
@@ -11868,3 +11882,51 @@ module isn't running", after a match that otherwise looked like the previous one
 
 **Rule of thumb:** a guard added for COST must gate only the expensive computation, never a call that
 also performs bookkeeping. Build lazily at the point of use instead — same saving, no coupling.
+
+## 2026-08-27 — First drone flights, and what one match could and could not settle
+
+**Drones fly.** Three sorties in one match, against a lifetime total of zero before this. Launch lines
+`op=30 cell=37,9 dist=21`, `op=69 cell=33,9 dist=21`, `op=142 cell=35,9 dist=22`, at ticks 1200, 2400
+and 13800. Every one is at `dist` 21-22 against a 22-cell maximum — the drone parks at the LEASH EDGE,
+which is what an argmax over revealed area predicts and is precisely the position the old
+hover-cell-staleness model could never select.
+
+**The air-danger gate is real, and its previous zeros were an artefact.** `ScoreCandidate` returns at
+the first failing gate, so the earlier run's "zero refused by danger" meant "staleness rejected
+everything first", not "danger passed". On live data it refused 35 candidates in one evaluation while
+`bestreveal` was 39 — i.e. revealable ground existed and the drone declined the contested cells rather
+than donating itself. Correct behaviour, observed for the first time.
+
+**The retask path is REACHED but was never USED.** At tick 15200 `op=142` was re-evaluated after its
+own launch with `covered=2` — the flown cell retired, the operator considered for a second sortie.
+That had never happened at any point in this module's history. But no operator ever issued a second
+distinct cell: three launches, three operators, one cell each, all `retask=first`. **Question left
+open, deliberately unresolved rather than squinted into a verdict:** "the retask path is broken" and
+"the retask path works but no operator survives to use it" both fit, and the log cannot separate them
+because an operator with an airborne drone is silent at every log site. A `[drone] ... operator-lost`
+line at the removal path now records an operator removed while holding a standing order, which
+distinguishes them on the next run at the cost of one line.
+
+**AND THE MODULE WENT SILENT AFTER TICK 15200** — no `[drone]` line at all for the remaining ~55,000
+ticks of a match that reached 70,548. Two readings: no operator existed (all lost, none replaced), or
+operators existed and never reached either log site. Same instrument settles it.
+
+**Clustering is measured; its CAUSE is not.** All three launches landed on `y=9` within a four-cell
+span of `x`. Two explanations produce an identical signature and want opposite fixes:
+* INSUFFICIENT DISCOUNTING — `covered` retires only the exact flown cell, and an adjacent grid centre
+  is 2 cells away against 28-cell vision, so the next operator scores near-identical revealed area.
+* GEOMETRIC CONSTRAINT — operators spawn at the Supply Route, a fixed beachhead near a map edge, so
+  much of every candidate disc is off-grid and only one direction offers unclamped unobserved ground.
+**Measured: 42-53% of every candidate disc was clamped off-map** (`offmap` 205/171/215/186/115 against
+`scored` 199/233/189/218/291). That is real support for the geometric reading, and it was in the data
+before anyone thought to look for it. It does NOT exclude the other. The timing separation of the
+three launches does not discriminate either, because the discounting effect works through `covered`
+across evaluations rather than through a shared table within one. **The observation that separates
+them is the operator's OWN position at launch**, which the launch line did not record and now does
+(`opcell=`): distinct operator positions converging on one lane favours geometry; operators sitting
+near each other leaves the two genuinely confounded, which is a result to report rather than a coin
+to flip.
+
+**Not checked: whether a drone flew toward unexplored ground and stopped short of it.** That is the
+corner-artefact prediction, and the log records the target cell but nothing about what the drone
+actually observed once there, so this match says nothing about it either way.

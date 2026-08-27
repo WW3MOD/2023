@@ -266,6 +266,19 @@ namespace OpenRA.Mods.Common.Traits
 				if (!a.IsDead && a.IsInWorld)
 					return false;
 
+				// THE LINE THAT SEPARATES TWO HYPOTHESES WITH ONE SYMPTOM. "Every sortie is
+				// retask=first" is compatible with "the retask path is broken" and with "the retask
+				// path works but no operator ever lives long enough to use it", and the ordinary log
+				// cannot tell them apart: an operator with an airborne drone is silent at BOTH other
+				// log sites, so a short-lived one leaves nothing behind but its launch. Recording the
+				// removal of an operator that still had a standing order closes that gap permanently,
+				// and costs one line on a path that runs at most twice per match.
+				if (sorties.TryGetValue(a, out var lost))
+					Log.Write("debug",
+						$"[drone] player={player.PlayerName} op={a.ActorID} operator-lost "
+						+ $"dead={a.IsDead} inworld={a.IsInWorld} standingcell={lost.OrderedCell.X},{lost.OrderedCell.Y} "
+						+ $"orderedtick={lost.OrderedTick} tick={tick}");
+
 				goalGuard?.Ledger.Release(a);
 				sorties.Remove(a);
 				return true;
@@ -496,9 +509,23 @@ namespace OpenRA.Mods.Common.Traits
 				// lived between the pure math and the static order chain, invisible to both — and it
 				// cannot be read from the null-case line below either, so the issue side is logged too.
 				// Count distinct `cell=` values per `op=` to settle it.
+				// opcell IS A DISCRIMINATOR, NOT DECORATION. Measured clustering — several operators
+				// launching into the same narrow lane — has two candidate causes that produce an
+				// identical signature and want opposite fixes:
+				//   (a) INSUFFICIENT DISCOUNTING: `covered` retires only the exact flown cell, and an
+				//       adjacent grid centre is 2 cells away against 28-cell vision, so the next
+				//       operator scores near-identical revealed area and re-picks the same ground.
+				//   (b) GEOMETRIC CONSTRAINT: operators spawn at the Supply Route, which is a fixed
+				//       beachhead near a map edge, so ~half of every candidate disc is clamped
+				//       off-grid (measured: 42-53%) and only one direction offers unclamped unobserved
+				//       ground. Every operator would then pick the same lane INDEPENDENTLY.
+				// Logging where the operator itself stood separates them: different operator positions
+				// converging on one lane favours (b); operators sitting near each other leaves the two
+				// confounded, which is a result to report rather than a coin to flip.
 				Log.Write("debug",
 					$"[drone] player={player.PlayerName} op={op.ActorID} launch cell={targetCell.X},{targetCell.Y} "
-					+ $"dist={distance} retask={(sortie != null ? "yes" : "first")} tick={tick}");
+					+ $"opcell={opCell.X},{opCell.Y} dist={distance} clamped={refusedOffMap} "
+					+ $"reveal={bestReveal} retask={(sortie != null ? "yes" : "first")} tick={tick}");
 
 				covered.Add(targetCell);
 
