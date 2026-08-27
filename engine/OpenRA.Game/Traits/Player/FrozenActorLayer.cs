@@ -297,9 +297,12 @@ namespace OpenRA.Traits
 			// THE ONLY THING THAT EVER MARKS A FROZEN ACTOR FOR RE-EVALUATION. Without it,
 			// FrozenActor.UpdateVisibility runs exactly once per actor -- from the constructor
 			// (:113) -- because its only other call site (:162) is gated on
-			// UpdateVisibilityNextTick. Merge 71687440 resolved a conflict marker here by keeping
-			// the id-based line (retained below) and dropping this loop, which set that flag. The
-			// flag then had no writer anywhere in the engine for six months, so every frozen
+			// UpdateVisibilityNextTick. 71687440 (the resolution of c5bb5ece's conflicts, not a
+			// merge) resolved a conflict marker here by keeping the id-based line and dropping this
+			// loop, which set that flag. That id-based line has since been deleted too — see the
+			// field comment above; it wrote to a set nothing reads and cost a second iterator
+			// allocation on this path. The flag then had no writer anywhere in the engine for six
+			// months, so every frozen
 			// actor's Visible was frozen at its construction-time value, FrozenUnderFog's
 			// FrozenState.IsVisible was permanently false for every non-ally viewer, and
 			// IsVisibleInner could never return true.
