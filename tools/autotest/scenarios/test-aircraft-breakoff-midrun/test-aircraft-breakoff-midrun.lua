@@ -61,6 +61,18 @@ local ObserveTicks = 250        -- watch window after the target goes critical
 local CriticalFraction = 15     -- % of max health; inside Critical's <25% band
 local ContaminationCells = 20
 
+-- Shots landing within GraceTicks of the trigger are RECORDED but not failed on.
+-- Measured 2026-08-27: shipped behaviour leaks exactly 2 shot-ticks on the A10 lane
+-- (firstMiss0 lastMiss1 -- the first two ticks and nothing for the remaining ~248) and
+-- ZERO on the Mi-28. Two ticks is 0.12s at the mod's 16.67 tps: the trigger fires from
+-- Lua inside the world tick, so the trait may already have run its DoAttack for that
+-- tick with pre-doom knowledge, and ordnance already released cannot be recalled.
+-- Failing on that would leave a permanently-red scenario over a latency nobody can act
+-- on. It does NOT weaken the gate: in the RED arm the lanes took 16 and 10 shot-ticks,
+-- and at most one decrement per lane per tick fits in the grace, so at least 14 and 8
+-- of them necessarily fall outside it. The grace cannot hide a disabled guard.
+local GraceTicks = 2
+
 local Lanes = {
 	{
 		id = "A10",
@@ -103,7 +115,7 @@ local function finish()
 	local totalShotsAfter = 0
 
 	for _, l in ipairs(Lanes) do
-		totalShotsAfter = totalShotsAfter + l.shotsAfter
+		totalShotsAfter = totalShotsAfter + l.shotsAfterGrace
 
 		local hpPct = -1
 		if not l.target.IsDead then
@@ -129,6 +141,7 @@ local function finish()
 			l.id,
 			"shotsBefore" .. l.shotsBefore,
 			"SHOTSAFTER" .. l.shotsAfter,
+			"postGrace" .. l.shotsAfterGrace,
 			"distAtCrit" .. l.distAtCritical,
 			"minDistAfter" .. l.minDistAfter,
 			"maxDistAfter" .. l.maxDistAfter,
@@ -136,6 +149,11 @@ local function finish()
 			"ticksToIdle" .. l.ticksToIdle,
 			"idleSpans" .. l.idleSpans,
 			"reEngage" .. l.reEngagements,
+			"firstMiss" .. l.firstMissTick,
+			"lastMiss" .. l.lastMissTick,
+			"diedTick" .. l.diedTick,
+			"trace[" .. table.concat(l.trace, ",") .. "]",
+			"hpAtCrit" .. l.hpAtCritical .. "%",
 			"tgtHp" .. hpPct .. "%",
 			"ammoLeft" .. totalAmmo(l.plane),
 			-- Altitude is pure diagnosis. Nothing in the suite has ever spawned a
@@ -156,7 +174,8 @@ local function finish()
 	-- death would otherwise surface as "target died" and hide why).
 	if totalShotsAfter > 0 then
 		Test.Fail("BREAK-OFF DID NOT FIRE: " .. totalShotsAfter
-			.. " shots taken at a critically damaged target after break-off || " .. summary)
+			.. " shots taken at a critically damaged target after break-off"
+			.. " (beyond a " .. GraceTicks .. "-tick grace) || " .. summary)
 		return
 	end
 
@@ -172,8 +191,15 @@ local function observeTick(l)
 	if l.plane.IsDead then return end
 
 	local ammo = totalAmmo(l.plane)
-	if ammo < l.prevAmmo then l.shotsAfter = l.shotsAfter + 1 end
+	if ammo < l.prevAmmo then
+		l.shotsAfter = l.shotsAfter + 1
+		if l.observed >= GraceTicks then l.shotsAfterGrace = l.shotsAfterGrace + 1 end
+		if l.firstMissTick < 0 then l.firstMissTick = l.observed end
+		l.lastMissTick = l.observed
+	end
 	l.prevAmmo = ammo
+
+	if l.diedTick < 0 and l.target.IsDead then l.diedTick = l.observed end
 
 	local here = l.plane.Location
 	local d = cellDist(here, l.targetCell)
@@ -194,6 +220,15 @@ local function observeTick(l)
 		l.reEngagements = l.reEngagements + 1
 	end
 	l.wasIdle = idle
+
+	-- The flight TRACE is the instrument that actually answers the question. IsIdle
+	-- turned out to be useless for aircraft (never true in either arm -- an idle
+	-- airframe is running FlyIdle/Hover, which is an activity, so IsIdle never goes
+	-- true), and a min/max pair cannot tell "flew over once and left" from "flew over,
+	-- came back, flew over again". A distance sample every 25 ticks can.
+	if l.observed % 25 == 0 then
+		table.insert(l.trace, d)
+	end
 
 	l.observed = l.observed + 1
 end
@@ -247,6 +282,22 @@ local function armPhase()
 
 					if l.firedBefore then
 						l.target.Health = math.floor(l.target.MaxHealth * CriticalFraction / 100)
+
+						-- SAME-TICK CONTROL. Read the fraction back on the tick the clock
+						-- starts, not merely at the end. There is no Lua API for
+						-- GetConditionCount, so the damage fraction is the closest available
+						-- proxy for "critical-damage is actually held" — and checking it HERE
+						-- rather than only in finish() is what separates "the manipulation
+						-- landed when the measurement began" from "it was true by the time
+						-- anyone looked". A zero shotsAfter is meaningless if the target was
+						-- never doomed at the moment the aircraft was supposed to notice.
+						l.hpAtCritical = math.floor(l.target.Health * 100 / l.target.MaxHealth)
+						if l.hpAtCritical >= 25 then
+							addFault(l.id .. " target was at hp" .. l.hpAtCritical
+								.. "% ON THE TRIGGER TICK - never entered the <25% Critical band,"
+								.. " so the guard was never given anything to react to")
+						end
+
 						l.distAtCritical = cellDist(l.plane.Location, l.targetCell)
 						l.altAtCritical = l.plane.CenterPosition.Z
 						l.minDistAfter = l.distAtCritical
@@ -319,6 +370,7 @@ WorldLoaded = function()
 		l.prevAmmo = totalAmmo(l.plane)
 		l.shotsBefore = 0
 		l.shotsAfter = 0
+		l.shotsAfterGrace = 0
 		l.firedBefore = false
 		l.armed = false
 		l.observed = 0
@@ -327,6 +379,11 @@ WorldLoaded = function()
 		l.ticksToIdle = -1
 		l.distAtCritical = -1
 		l.altAtCritical = -1
+		l.hpAtCritical = -1
+		l.firstMissTick = -1
+		l.lastMissTick = -1
+		l.diedTick = -1
+		l.trace = {}
 		l.finalAlt = -1
 		l.minDistAfter = 999
 		l.maxDistAfter = -1

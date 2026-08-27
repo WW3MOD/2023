@@ -11154,3 +11154,93 @@ in the game with no value at all.
 **Thickest armour in the mod is 2000mm (`MSLO`, no `Distribution`, so never discounted by hit
 direction)** — not the 280mm of a T-90. Bridges are 1000, `abrams` 700, `pbox` 300. A "kills anything in
 one shot" warhead has to clear 2000.
+
+---
+
+## 2026-08-27 — What an AIRCRAFT actually does when the break-off guard fires mid attack-run
+
+The break-off guard in `AttackFollow.Tick` (merged `936f1fe9`) reaches `AttackAircraft` — 11
+declarations, no `Tick` override. The turreted half had a decisive RED/GREEN pair; the aircraft half
+shipped unanalysed, with the merge commit itself recording *"nobody has established what an aircraft
+does after its requested target is cleared mid-run: clean abort, loiter, or re-entry."* Now measured,
+in `tools/autotest/scenarios/test-aircraft-breakoff-midrun`, with a RED arm (guard commented out of
+`AttackFollow.Tick`, rebuilt) and three greens across three different seeds.
+
+**The answer is different for the two airframe classes, and neither one is "aborts and returns to
+base".**
+
+**Mi-28 (`AttackType: Hover` + `CanHover`) — stops firing instantly, then holds station forever.**
+Zero shots after the target went doomed, on the same tick. Distance trace over 250 ticks:
+`[14,14,14,14,14,14,14,14,14,14,14]` — it did not move one cell, in any direction, for the whole
+window. It neither closed, nor withdrew, nor went idle. Guns cold, parked at weapon range over a
+target it has declined to shoot.
+
+**A10 (`AttackType: Default`, `!CanHover`) — stops firing after 2 ticks, then ORBITS the doomed
+target indefinitely.** Distance trace: `[8,5,13,11,4,11,12,8,7,13]` (second seed
+`[9,4,13,11,5,10,12,9,6,13]`) — it repeatedly closes to 4–5 cells and swings back out to 11–13, and
+`minDistAfter` is **0**, i.e. it passed directly over the target. It never left, never re-fired
+(`ammoLeft` unchanged for ~248 ticks), and never returned to base.
+
+So the guard is doing its job at the level it was written for — **the shooting stops** — but it
+cancels the *attack*, not the *engagement*. In both classes the airframe remains parked or orbiting
+in hostile airspace over an enemy it has decided not to kill. This is not a bug in the guard; it is
+the scope of the guard being narrower than the phrase "break off" suggests. Worth knowing before
+anyone reads a target-line or a player report and expects an aircraft to disengage.
+
+**A measured asymmetry, cause NOT established: the fixed-wing leaks exactly 2 shot-ticks and the
+hover leaks 0.** `firstMiss0 lastMiss1` — the A10's leak is the first two ticks and nothing
+afterwards; the Mi-28 never leaks at all. Two ticks is 0.12 s at the mod's 16.67 tps and is partly
+unavoidable (the trigger fires from Lua inside the world tick, and released ordnance cannot be
+recalled — the Mi-28's target still fell 15%→6% on in-flight hits while its gun stayed silent). The
+leading candidate for why the two lanes differ is that the A10 leaves `PersistentTargeting` at its
+default **true**, so `ClearRequestedTarget` *promotes* to `OpportunityTarget` and depends on the
+opportunity guard in the else branch to undo it, while the Mi-28 pins it false and takes the plain
+clear. **That is a hypothesis, not a finding** — it was not isolated, and burst state is an equally
+good candidate.
+
+**Why the fixed-wing keeps flying the pass: `Activity.TickOuter:123-126`.** With `ChildHasPriority`
+(FlyAttack's default) the parent tick is short-circuited by `TickChild(self) && …`, so
+`FlyAttack.Tick` does not run while a child activity is alive — and FlyAttack's own abort check for
+exactly this situation (*"Check that AttackFollow hasn't cancelled the target"*, `FlyAttack.cs:99-101`)
+lives in that tick. A `Default`/`!CanHover` aircraft is inside `MoveWithinRange` and then
+`FlyAttackRun`, so that check cannot be consulted until the run ends; `FlyAttackRun.Tick` self-cancels
+only when the target becomes *invalid* or has no valid weapons (`FlyAttack.cs:263-265`), and a
+critically damaged target is neither. A `Hover` aircraft queues no run child and so has the check live
+every tick. The trait-level guard in `AttackFollow.Tick` runs regardless, which is why the guns stop
+in both classes even though the flight path only responds in one.
+
+### `IsIdle` is useless as an observable for aircraft
+
+`ticksToIdle` was `-1` and `idleSpans` `0` in **every** arm, including the RED one. An idle airframe
+is running `FlyIdle`/`Hover`, which is an activity, so `IsIdle` never goes true. Anyone reaching for
+"did the aircraft go idle?" as a proxy for "did it stop attacking?" will get a constant. Use a
+**position trace**; a min/max pair is also insufficient, because it cannot separate "flew over once
+and left" from "flew over, came back, flew over again" — which is precisely the A10's behaviour and
+would have been invisible without sampling.
+
+### Every vehicle bleeds out below 50% HP, and it silently confounded two runs
+
+`ChangesHealth@CriticalDamage` (`vehicles.yaml:153` — `PercentageStep: -1`, `Delay: 5`,
+`StartIfBelow: 50`) is on `^Vehicle`, irreversible. A target parked at 15% therefore **dies on a fixed
+~75-tick clock with nothing shooting it**. The first two runs of this scenario both ended `tgtHp-1%`
+(dead) on both lanes — *including the lane that fired zero shots* — so two thirds of each observation
+window was measuring an aircraft against a corpse rather than against a doomed target, and the
+behavioural readout was worthless until `-ChangesHealth@CriticalDamage` was added to the scenario.
+The tell was the lane with `SHOTSAFTER0` also reporting a dead target: nothing in the verdict flagged
+it, and the shots-after number was unaffected, so a run that only asserted the shot count would have
+reported a clean green off a confounded window.
+
+This is also the fact that makes "already doomed" literally true in WW3MOD, and it is the premise the
+whole break-off feature rests on — a critically damaged vehicle really is unrecoverable.
+
+### Strafe aircraft look structurally EXEMPT from the guard — code-level inference, NOT observed
+
+`A10.Airstrike` and `FROG.Airstrike` are `AttackType: Strafe`, a third shape neither lane covers.
+`StrafeAttackRun.Tick` calls `attackAircraft.SetRequestedTarget(Target.FromTargetPositions(target),
+true)` **every tick** — with `isForceAttack: true` and `source` defaulting to `AttackSource.Default`.
+The guard's predicate needs `RequestedTarget.Type == TargetType.Actor` and
+`BreakOffApplies(source, forceAttack)` = `!forceAttack && source != Default`. A strafe run fails
+**both** clauses independently: the re-set target is a position, not an actor, and the re-set is a
+force-attack from the default source. So a strafing aircraft should keep firing at a doomed target for
+the length of its run. Nobody has run this; it is read off the code and should be measured before it
+is relied on.

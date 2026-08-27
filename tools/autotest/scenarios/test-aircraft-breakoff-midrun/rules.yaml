@@ -32,6 +32,22 @@ World:
 t90:
 	Health:
 		HP: 100000
+	# MEASURED 2026-08-27, and it silently confounded the first two runs of this
+	# scenario: EVERY vehicle carries ChangesHealth@CriticalDamage (vehicles.yaml:153,
+	# PercentageStep: -1, Delay: 5, StartIfBelow: 50), an irreversible bleed-out. A
+	# target parked at 15% therefore dies on a fixed ~75-tick clock with nothing
+	# shooting it — well inside this scenario's 250-tick observation window. Both early
+	# runs ended `tgtHp-1%` (dead) on BOTH lanes, including the lane that fired zero
+	# shots, so two thirds of each window was measuring an aircraft with a CORPSE rather
+	# than with a doomed target, which is a different question.
+	#
+	# Removing the bleed makes the t90 a stand-in carrier for "an actor holding
+	# critical-damage for a sustained period" rather than a claim about vehicles. It
+	# cannot manufacture a green: it makes the target live LONGER and stay shootable,
+	# so it strictly increases the opportunity for an unguarded aircraft to keep firing.
+	# The bleed itself is not a bug — it is what makes "already doomed" literally true
+	# in this mod, and it is the premise the break-off guard is built on.
+	-ChangesHealth@CriticalDamage:
 
 # NO AutoTarget override on the aircraft, and that is forced rather than chosen.
 #
