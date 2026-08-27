@@ -54,6 +54,23 @@ Measured on `test-case01-forest-ambush` (10 units manoeuvring, 2501 ticks, `Laun
 — under 1% of budget for *everything every actor does*, of which this handler is a fraction. The
 optimisation has nothing to win.
 
+**The leak was primarily an AI cheat, not a UI one — and it moved `@stable`.** `BeliefStore`'s
+`InjectLive` gates on `actor.CanBeViewedByPlayer(player)` (`:219`) and stores whatever survives at
+the **live-sighting** tier `Info.FreshConfidence` (`:222-223`). That call resolves to
+`FrozenUnderFog.IsVisible` for every structure, so every bot carried **every enemy building at full
+confidence from the first recompute, unscouted**, feeding enemy site anchors (`ControlField.cs:751`)
+and the confidence-scaled danger kernels. `influence-stack.md`'s "fog discipline (no cheating, by
+construction)" bullet asserted the opposite and has been corrected in place. Both participating
+profiles were affected, so **benchmark baselines taken before 2026-08-27 are not comparable to later
+ones** — re-take before trusting an A/B.
+
+**Restoring the loop REDUCES the frozen-actor population; it does not grow it.** `ITick.Tick`
+(`:380-386`) reaches its removal branch only when `Visible && !Hidden` is false *and* the backing
+actor is gone. With `Visible` pinned true by the dead loop that branch is unreachable for any
+non-hidden building — so **every destroyed enemy building left a permanent `FrozenActor`, per
+player, for the rest of the match**. Re-enabling visibility updates lets them be collected. Any
+perf argument about frozen-actor count therefore runs in this fix's favour over a long game.
+
 **This retroactively explains two commits that look like mistakes and were not.** `2d7603bf`
 (2026-04-16) correctly restored strict `IsVisibleInner`; every building went invisible, because the
 loop had been dead for three weeks. `12a9b91b` (2026-05-03) reverted it to a blanket `return true`

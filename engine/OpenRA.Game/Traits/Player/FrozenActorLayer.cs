@@ -258,18 +258,26 @@ namespace OpenRA.Traits
 		readonly Dictionary<uint, FrozenActor> frozenActorsById;
 		readonly SpatiallyPartitioned<FrozenActor> partitionedFrozenActors;
 
-		// ORPHANS. These two are the remains of a complete id-based dirty-tracking design that
-		// worked at 7362fbc6 (Add/Remove populated partitionedFrozenActorIds; ITick.Tick called
-		// UpdateVisibility on every id in dirtyFrozenActorIds, then cleared it). The 112-conflict
-		// merge 71687440 kept these declarations and the OnShroudChanged producer below, but lost
-		// BOTH the Add/Remove population and the Tick consumer, leaving a set nobody reads fed
-		// from a partition nobody fills.
+		// ORPHANS — INERT DOCUMENTATION. Neither of these is read or written anywhere; they are
+		// declared, constructed, and nothing else. They are the remains of a complete id-based
+		// dirty-tracking design whose last working revision is c4f0739e: Add/Remove populated
+		// partitionedFrozenActorIds, and ITick.Tick ran UpdateVisibility for every id in
+		// dirtyFrozenActorIds before clearing the set. Restore from there, NOT from the 2023 engine
+		// import 7362fbc6, which merely also has it.
 		//
-		// Kept deliberately rather than deleted: they are the evidence that the design existed,
-		// and it is recoverable from git rather than something that would have to be reinvented.
-		// Restoring it is a performance question (it avoids re-testing every frozen actor on every
-		// shroud change) and should be a separate, measured decision. Correctness is handled by the
-		// flag mechanism in the constructor instead.
+		// Lost when c5bb5ece landed release-20250330 with 112 conflicts pending and 71687440
+		// resolved them (71687440 is that resolution, not a merge — it has one parent). The
+		// resolution kept these two declarations while dropping both the Add/Remove population and
+		// the Tick consumer. Note UpdateVisibilityNextTick did not exist at c4f0739e: the flag is
+		// the upstream mechanism, so the two were never co-existing alternatives here — the
+		// resolution took one scheme's producer and the other's consumer, and neither survived
+		// whole.
+		//
+		// Do NOT restore it for performance. Measured 2026-08-27: both schemes iterate every frozen
+		// actor every tick (ITick.Tick loops frozenActorsById unconditionally) and call
+		// UpdateVisibility for exactly the changed ones, so the difference is a HashSet<uint> lookup
+		// per actor per tick versus the bool read at :161 — the bool is cheaper. Kept only so the
+		// next reader finds evidence rather than an absence.
 		readonly SpatiallyPartitioned<uint> partitionedFrozenActorIds;
 		readonly HashSet<uint> dirtyFrozenActorIds = new HashSet<uint>();
 
@@ -302,15 +310,19 @@ namespace OpenRA.Traits
 			//
 			// Uses partitionedFrozenActors, which Add/Remove actually populate. Do not switch this
 			// to partitionedFrozenActorIds without also restoring that partition's population.
+			//
+			// PITFALL: keep this to ONE At() call. At (SpatiallyPartitioned.cs:100) is a yield
+			// iterator, so every call allocates a state machine whether or not it yields anything —
+			// and this runs per cell per player on every ResolvedVisibility change
+			// (MapLayers.cs:262-269), which with VisionLayers = 11 re-fires on each band transition,
+			// not just on explored/visible flips. It is the hottest path in the shroud system. An
+			// earlier revision of this handler carried a second, vestigial At() call whose result
+			// was unioned into dirtyFrozenActorIds purely to keep the orphaned identifiers
+			// referenced; it doubled the allocations here and was removed.
 			self.Trait<MapLayers>().OnShroudChanged += uv =>
 			{
 				foreach (var fa in partitionedFrozenActors.At(new int2(uv.U, uv.V)))
 					fa.UpdateVisibilityNextTick = true;
-
-				// Vestigial; see the field comment. Retained so the orphaned design stays visible
-				// to a reader and its identifiers keep a reference. The partition is never filled,
-				// so this unions an empty set and costs nothing.
-				dirtyFrozenActorIds.UnionWith(partitionedFrozenActorIds.At(new int2(uv.U, uv.V)));
 			};
 		}
 

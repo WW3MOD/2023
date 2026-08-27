@@ -3409,3 +3409,22 @@ running game.
   non-reloading before "fixing" it.
   (found while working on: `test-aircraft-breakoff-midrun`, where an `A10: AutoTarget: ScanRadius`
   pin would not load)
+
+- [2026-08-27] [med] **A scenario that needs a launch argument cannot be run correctly in a mixed
+  batch, and will read as permanently red.** `run-test.sh:735` splices `AUTOTEST_EXTRA_ARGS`
+  straight from the environment into the launch command, and there is no per-scenario convention for
+  it — no `args` file, no `description.txt` key the harness reads. So a scenario whose correctness
+  depends on a flag has no way to declare it. `test-unscouted-building-hidden` is the live example:
+  it requires `Test.KeepRenderPlayer=true`, because `TestModeLogic.cs:30` nulls `World.RenderPlayer`
+  for a real player slot and every `World.FogObscures` overload returns false when it is null, which
+  reports the entire map as clickable and would show a fog leak whether or not one exists. In a mixed
+  batch the flag is either absent — that scenario fails — or exported globally, in which case **every
+  other scenario in the batch runs with a non-default `RenderPlayer`**, which is a silent change to
+  what they measure, not a loud one.
+  It fails loudly and its failure text names the cause, so a batch run is not misleading. The risk is
+  slower: a permanently-red scenario in a batch is how a guard gets deleted six weeks later by
+  someone tidying up.
+  **Suggested shape:** an optional `args` file in the scenario directory that `run-test.sh` appends
+  to `AUTOTEST_EXTRA_ARGS` for that scenario only. Not attempted here — it is a harness change and
+  wants its own review.
+  (found while working on: `wt/fog-leak`, verifying the FrozenUnderFog visibility restoration)
