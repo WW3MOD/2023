@@ -11447,13 +11447,28 @@ module.** (An earlier revision of this entry hedged this as "read from source, n
 hedge was about the wrong half. What was never observed is a typo being *caught*; that the pathless
 form is the one which lints the default ruleset is not in doubt.)
 
-**The runtime is the whole tradeoff, so record it next to the coverage.** The pathless form lints
-every system map as well as the default ruleset, and takes **order of an hour** — measured here at
-39m58s on an M-series Mac (75,913 lines of output; exit 0). The map-scoped shortcut is ~8.5 s and `--dump-balance-json` a
-few seconds. That gap is almost certainly *why* this project's working merge gate drifted to
-`make all` + NUnit + `--dump-balance-json`: the lint pass was not judged unnecessary, it was judged
-slow. Anyone re-deriving that gate should see the cost being traded rather than conclude the gate was
-simply wrong.
+**Record the runtime AND what it is holding back — either half alone is misleading.** The pathless
+form lints every system map as well as the default ruleset. Two independent measurements on the same
+M-series machine: **39m58s** (this branch, 75,913 lines, exit 0) and **39.1 min / 2346 s** (clean
+`main` at `e36ab29a`, 242 maps, 76,538 lines, exit 0). The runs overlapped for part of their lives, so
+both are upper bounds under contention rather than clean solo benchmarks. The map-scoped shortcut is
+~8.5 s and `--dump-balance-json` a few seconds.
+
+That gap is almost certainly *why* this project's working merge gate drifted to `make all` + NUnit +
+`--dump-balance-json`: the lint pass was not judged unnecessary, it was judged slow. But the honest
+framing is NOT "40 minutes to catch nothing". From the `main` run's summary:
+
+```
+Errors: 91 - 91 emitted, 91 distinct signatures.
+STANDING AMNESTY: 88 recorded as known-bad and did not fail this run,
+  oldest amnestied 2026-08-17 (10 days ago).
+  Largest class: 63 x "This map does not define a valid cordon."
+  (3 further entries accepted on purpose and are not debt.)
+  (350 environment-dependent, 350 of which did not occur here.)
+```
+
+So it is 40 minutes to check a floor currently carrying 88 amnestied errors, 63 of them one class.
+Anyone deciding whether to skip it needs both halves: what it costs, and what it is holding back.
 
 **Practical rule:** the fast per-map shortcut and `--dump-balance-json` are not substitutes for
 `make test` when you have added or renamed a trait field. They are still worth running — the latter
@@ -11659,3 +11674,37 @@ The residual on all three arms is `light-damage-attained, medium-damage-attained
 stance-ambush, stance-fireatwill` — carried by **311 distinct actors** mod-wide and unrelated to any of
 this. **The member ORDER of that list varies between occurrences within a single log** (it recurs once
 per map) while the set is stable: compare these warning lines as sets, never by text diff.
+
+## 2026-08-27 — A recon drone cannot outrange its own operator's eyes: 22 < 32
+
+**Measured in a live match, and it is a total block rather than a degradation.** One match of
+`tournament-experimental-vs-normal-2p` (`@experimental` america vs `@stable`), with
+`DroneOperatorBotModule` live: four drone operators were built across the run, and **zero drones were
+ever launched**. All 31 `[drone]` lines in `debug.log` read `no-eligible-cell`; not one `launch` line.
+
+**The arithmetic that makes it absorbing.** The drone's maximum hover distance is
+`min(weapon 25, leash 25 - margin 3)` = **22 cells** from the operator. Every unit inherits
+`^StandardVision` (`defaults.yaml:80`), a graded `Vision@10..@1` ladder running from `Range: 4c0` at
+strength 10 out to **`Range: 32c0`** at strength 1. So the operator continuously observes a 32-cell
+bubble, and the whole 22-cell disc the drone could reach sits strictly inside it. Every candidate cell
+therefore has `ControlField.TicksSinceVerified` ≈ 0, fails a `MinStalenessTicks: 500` gate, and is
+refused — on every evaluation, forever. **A drone can never be sent anywhere its own operator cannot
+already see.**
+
+**Two design choices combine to make the state absorbing**, and neither is wrong alone:
+* the candidate disc is centred on the operator's CURRENT cell, so reach is bounded by where it stands;
+* the module claims the operator in the `PoiGoalGuard` ledger so nothing else moves it — which means
+  its 32-cell bubble never goes stale, because the unit never travels.
+
+The module implements the launch leg and NOT the reposition leg. The original design called for "the
+operator walks to a launch cell, not to the target"; with 22 < 32 that walk is not an optimisation,
+it is the only thing that can ever produce an eligible cell. Any future fix must either move the
+operator toward the frontier, or choose the target FIRST and then walk the operator to within 22 of
+it — not filter cells around wherever it happens to be standing.
+
+**Method note worth keeping:** this was invisible to 17 passing pure-math tests and to five
+independently re-derived static links in the order path, because none of them could see the *field
+values* the predicates would be fed at runtime. The single instrument that settled it was one log line
+per refusal. Counting distinct issued target cells per operator — the stated settling observation —
+returned not "one" (fix did not take) or "two or more" (works) but **zero**, which is a third outcome
+neither arm of the planned test anticipated.
