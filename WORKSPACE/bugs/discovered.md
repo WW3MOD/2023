@@ -3390,3 +3390,41 @@ running game.
   `Rearmable`, which is a gameplay question. Corrected text banked at `DOCS/reference/economy.md`.
   (found while working on: verifying the three-refill-sites entry, now tagged
   `[promoted WITH A CORRECTION]`)
+
+- [2026-08-27] [med] **The A10 declares two traits twice, so it is silently mis-configured AND
+  un-overridable from any map.** `mods/ww3mod/rules/ingame/aircraft-america.yaml` gives `A10:` a
+  `ReloadAmmoPool@1` at `:499` (`AmmoPool: primary-ammo`) and a second `ReloadAmmoPool@1` at `:529`
+  (`AmmoPool: secondary-ammo` — evidently meant to be `@2`, which is exactly what `MI28` does
+  correctly at `aircraft-russia.yaml:414`), plus `RenderSprites` at `:456` (`PlayerPalette: playertd`)
+  and again at `:576` (`Scale: 1.2`). On an ordinary load the later declaration wins with no
+  diagnostic, so **the A10's 30mm GAU-8 pool has no reload rule at all** (only the Hellfire pool
+  does) and the `playertd` palette is dropped. The duplication only becomes loud when a map overrides
+  the actor: that forces `MiniYaml.Merge`, which refuses and throws
+  `"duplicate values found for the following keys: ReloadAmmoPool@1 ... RenderSprites ..."`, taking
+  the whole map's ruleset down. Reproduce without launching: add any `A10:` block to a scenario's
+  `rules.yaml` and run `Mod=ww3mod ./utility.sh --check-yaml <scenario>`.
+  **Not fixed here:** deduplicating restores a reload rule and a palette, i.e. a live behavioural
+  change to a shipped unit, which wants its own commit and its own test rather than riding along on a
+  diagnostic scenario. Whoever takes it should check whether the 30mm was *intended* to be
+  non-reloading before "fixing" it.
+  (found while working on: `test-aircraft-breakoff-midrun`, where an `A10: AutoTarget: ScanRadius`
+  pin would not load)
+
+- [2026-08-27] [med] **A scenario that needs a launch argument cannot be run correctly in a mixed
+  batch, and will read as permanently red.** `run-test.sh:735` splices `AUTOTEST_EXTRA_ARGS`
+  straight from the environment into the launch command, and there is no per-scenario convention for
+  it — no `args` file, no `description.txt` key the harness reads. So a scenario whose correctness
+  depends on a flag has no way to declare it. `test-unscouted-building-hidden` is the live example:
+  it requires `Test.KeepRenderPlayer=true`, because `TestModeLogic.cs:30` nulls `World.RenderPlayer`
+  for a real player slot and every `World.FogObscures` overload returns false when it is null, which
+  reports the entire map as clickable and would show a fog leak whether or not one exists. In a mixed
+  batch the flag is either absent — that scenario fails — or exported globally, in which case **every
+  other scenario in the batch runs with a non-default `RenderPlayer`**, which is a silent change to
+  what they measure, not a loud one.
+  It fails loudly and its failure text names the cause, so a batch run is not misleading. The risk is
+  slower: a permanently-red scenario in a batch is how a guard gets deleted six weeks later by
+  someone tidying up.
+  **Suggested shape:** an optional `args` file in the scenario directory that `run-test.sh` appends
+  to `AUTOTEST_EXTRA_ARGS` for that scenario only. Not attempted here — it is a harness change and
+  wants its own review.
+  (found while working on: `wt/fog-leak`, verifying the FrozenUnderFog visibility restoration)

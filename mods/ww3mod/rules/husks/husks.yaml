@@ -36,6 +36,26 @@
 	Targetable:
 		TargetTypes: NoAutoTarget, Ground
 		RequiresForceFire: true
+	# Deliberately left with the stock AlwaysVisibleRelationships (Ally), which for a
+	# Neutral-owned husk matches nobody and so contributes nothing. That is correct here,
+	# and the reason is NOT the one 99d75ee8 recorded ("carries FrozenUnderFog and is
+	# already visible to everyone"): that held only because IsVisible was short-circuited
+	# to an unconditional `return true`, which has since been removed.
+	#
+	# The Ally override 99d75ee8 added to ^BuildingHusk does not transfer. That husk uses
+	# Detectable and is owned by the player whose building died, so Ally is what lets an
+	# owner watch their own rubble burn. A civilian husk has no such owner to serve: these
+	# are map-placed scenery, typically Neutral (neither template hard-codes an owner, so
+	# treat that as the usual case rather than a guarantee). The argument does not rest on
+	# it -- for ANY non-ally owner, an Ally relationship reveals the rubble to nobody, least
+	# of all to whoever destroyed the building.
+	#
+	# Plain FrozenUnderFog is the right answer instead, because it gives the rubble
+	# exactly the visibility rules the civilian building it replaced already had: seen
+	# where you have scouted, remembered under fog. Civilian husks are permanent (no
+	# Health, no burn-out, unlike ^BuildingHusk's 200 HP), so a discontinuity here would
+	# be permanent too. Forcing it unconditionally visible would instead leak a standing
+	# signal that someone is fighting over ground you have never scouted.
 	FrozenUnderFog:
 	ScriptTriggers:
 	MapEditorData:
@@ -72,10 +92,14 @@
 	Detectable:
 		Vision: 1
 		Position: Center
-		# Same reasoning as ^BasicHusk above, and the discontinuity here was worse: a LIVING building
-		# carries FrozenUnderFog (^BasicBuilding, structures.yaml:60), whose IsVisible short-circuits
-		# to an unconditional true. So a building is visible to everyone right up to the tick it dies,
-		# then its husk switches to Detectable and vanished from its own owner. The husk is not
+		# Same reasoning as ^BasicHusk above. This was written while a LIVING building was visible to
+		# every player unconditionally — ^BasicBuilding carries FrozenUnderFog
+		# (ingame/structures.yaml:60) and its IsVisible short-circuited to `return true`. THAT IS NO
+		# LONGER TRUE: the short-circuit was a six-month regression and has been removed, so a living
+		# building is now visible only where its owner's enemy has scouted. The conclusion below
+		# survives anyway and on better grounds — the owner's OWN building was always visible to the
+		# owner (AlwaysVisibleRelationships: Ally on FrozenUnderFog), so the discontinuity this fixes
+		# is real regardless of what enemies could see. The husk is not
 		# permanent rubble either -- ChangesHealth@Burns takes it from 200 HP at -10/8 ticks, so it
 		# burns out in ~160 ticks (~10 s). Owners were being denied the death animation of their own
 		# base. Enemies still have to detect it.

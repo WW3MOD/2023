@@ -4,8 +4,25 @@
 
 TestHarness = {}
 
--- 25 ticks/sec at default game speed. Used for second→tick conversion in
--- AssertWithin and friends. Lifted into a helper so tests don't hardcode it.
+-- Second→tick conversion for AssertWithin and friends.
+--
+-- THIS IS NOT THE GAME'S TICK RATE, and the name has misled readers. Single-test runs play at the
+-- mod's "default" GameSpeed — Game.LoadMap hardcodes "default" and run-test.sh never passes
+-- Test.GameSpeed — whose Timestep is 60 ms (mod.yaml). The engine's own Lua converter derives
+-- 1000 / 60 = 16 ticks/second by INTEGER division (DateTimeGlobal.cs:31). So one "second" handed to
+-- AssertWithin is 25 ticks where DateTime.Seconds(1) is 16: harness deadlines are ~1.56x longer
+-- than they read, always in the lenient direction.
+--
+-- IT IS DELIBERATELY LEFT AT 25. 91 deadlines across 137 scenarios were authored and accepted
+-- against this value, several knowingly (test-tunguska-missile-standoff:25 "Left alone
+-- deliberately"; test-depot-vacate-phantom:32 "Generous on purpose"), and correcting it shortens
+-- all of them by a third in one edit that cannot be validated without running the whole suite.
+-- Two scenarios provably stop passing the moment it moves; both are pinned by
+-- engine/OpenRA.Test/OpenRA.Mods.Common/AutotestTickRateTest.cs, which fails at `dotnet test`
+-- rather than silently in a game nobody reran. Change this number only together with those.
+--
+-- WRITING A NEW SCENARIO: budget in TICKS and convert with `ticks / TestHarness.TicksPerSecond`,
+-- as the medic scenarios do. That round-trips exactly and is immune to whatever this value is.
 TestHarness.TicksPerSecond = 25
 
 -- Center the camera on the geometric midpoint of the given actors.

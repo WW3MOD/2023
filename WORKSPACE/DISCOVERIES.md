@@ -3,6 +3,100 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-27 — The frozen-actor visibility update loop is DEAD CODE, and it is the real cause of the six-month building-fog leak (`wt/fog-leak`, base `main @ 651322b3`)
+
+**`FrozenActor.UpdateVisibility()` runs exactly once per frozen actor — from the constructor
+(`FrozenActorLayer.cs:113`) — and never again.** Its only other call site (`:162`) is gated on
+`UpdateVisibilityNextTick`, and **nothing in the engine ever sets that flag to `true`**. It is
+declared at `:73`, read at `:161`, cleared at `:167`, and assigned nowhere. Grep it and see.
+
+The consequence is total: `FrozenActor.Visible` is computed once at construction and frozen there.
+`FrozenUnderFog` inverts it into `FrozenState.IsVisible` (`FrozenUnderFog.cs:73`), so for every
+non-ally player, for every building, **`IsVisibleInner` can never return true**. The strict
+visibility path is not merely racy at startup — it is permanently stuck at "invisible".
+
+**Root cause: a conflict resolution in `71687440` (2026-03-24, "Upstream merge: fix OpenRA.Game
+compilation + resolve duplicate types", one of 112 pending conflicts).** The merge kept the new
+side of a `<<<<<<<` marker and discarded the old, deleting the only line that set the flag:
+
+```
+-			self.Trait<Shroud>().OnShroudChanged += uv =>
+-			{
+-				foreach (var fa in partitionedFrozenActors.At(new int2(uv.U, uv.V)))
+-					fa.UpdateVisibilityNextTick = true;
+-			};
+```
+
+The surviving side is left a stub: `dirtyFrozenActorIds` (`:261`) is filled by `OnShroudChanged`
+(`:276`) and **never read by anything**, and it is filled from `partitionedFrozenActorIds` (`:260`),
+which **nothing ever adds to** — `Add` (`:279`) populates the differently-named
+`partitionedFrozenActors`. Two dead containers and a dead flag: the merge kept one mechanism's
+producer and the other mechanism's consumer, and dropped the halves that would have completed either.
+
+**Those orphans are RECOVERABLE, not an unfinished import — do not repeat the guess that they are.**
+At `7362fbc6` the id-based scheme was complete and working: `Add`/`Remove` populated
+`partitionedFrozenActorIds`, and `ITick.Tick` ran `if (dirtyFrozenActorIds.Contains(id))
+frozenActor.UpdateVisibility();` before clearing the set. `git show
+7362fbc6:engine/OpenRA.Game/Traits/Player/FrozenActorLayer.cs` has the source. Restoring it would be
+a revert against known code rather than a speculative rewrite. **It is still not worth doing, and
+the reason is now measured rather than deferred: there is no performance upside to recover.**
+
+Both mechanisms iterate every frozen actor every tick — `ITick.Tick` loops `frozenActorsById` and
+calls `frozenActor.Tick()` regardless. The id-based version then ran
+`if (dirtyFrozenActorIds.Contains(id)) UpdateVisibility()`; the flag version runs
+`if (UpdateVisibilityNextTick) UpdateVisibility()` inside that same call. **Identical iteration,
+identical `UpdateVisibility` call count** — the only difference is a `HashSet<uint>` lookup per
+actor per tick versus a bool field read, and the bool is the cheaper of the two. The id-based
+scheme's `At(bin)` spatial lookup on every shroud change is work the flag version also does.
+
+Measured on `test-case01-forest-ambush` (10 units manoeuvring, 2501 ticks, `Launch.Benchmark=`):
+`tick_actors` mean 0.52 ms, median 0.33 ms, p95 0.95 ms against a 60 ms tick budget at timestep 60
+— under 1% of budget for *everything every actor does*, of which this handler is a fraction. The
+optimisation has nothing to win.
+
+**The leak was primarily an AI cheat, not a UI one — and it moved `@stable`.** `BeliefStore`'s
+`InjectLive` gates on `actor.CanBeViewedByPlayer(player)` (`:219`) and stores whatever survives at
+the **live-sighting** tier `Info.FreshConfidence` (`:222-223`). That call resolves to
+`FrozenUnderFog.IsVisible` for every structure, so every bot carried **every enemy building at full
+confidence from the first recompute, unscouted**, feeding enemy site anchors (`ControlField.cs:751`)
+and the confidence-scaled danger kernels. `influence-stack.md`'s "fog discipline (no cheating, by
+construction)" bullet asserted the opposite and has been corrected in place. Both participating
+profiles were affected, so **benchmark baselines taken before 2026-08-27 are not comparable to later
+ones** — re-take before trusting an A/B.
+
+**Restoring the loop REDUCES the frozen-actor population; it does not grow it.** `ITick.Tick`
+(`:380-386`) reaches its removal branch only when `Visible && !Hidden` is false *and* the backing
+actor is gone. With `Visible` pinned true by the dead loop that branch is unreachable for any
+non-hidden building — so **every destroyed enemy building left a permanent `FrozenActor`, per
+player, for the rest of the match**. Re-enabling visibility updates lets them be collected. Any
+perf argument about frozen-actor count therefore runs in this fix's favour over a long game.
+
+**When a fix is "correct a factual claim", grep the FILE for the claim, not your diff.** The comment
+above cost four correction rounds — the original was wrong, the reviewer's replacement SHA was wrong,
+and the commit that fixed both left the same phrase (`"Merge 71687440"`) stale ten lines below,
+because I reviewed the change I had made rather than searching for the sentence I had just declared
+false. A factual claim is usually repeated near itself; the diff is the wrong search scope.
+
+**This retroactively explains two commits that look like mistakes and were not.** `2d7603bf`
+(2026-04-16) correctly restored strict `IsVisibleInner`; every building went invisible, because the
+loop had been dead for three weeks. `12a9b91b` (2026-05-03) reverted it to a blanket `return true`
+and turned shroud off by default in the same commit. Neither author was wrong about what they
+observed; both were looking at a symptom of the deleted line. The six-month intel leak (enemy
+structures right-clickable on never-scouted ground) is downstream of a botched merge, not of a
+visibility design decision.
+
+**Do not "fix" `FrozenUnderFog.IsVisible` without repairing the loop first.** Restoring
+`IsVisibleInner` on its own is strictly worse than the leak: measured on `wt/fog-leak`, a pillbox
+three cells from a live Abrams at cell visibility 10 reported `detected=false clickable=false`, i.e.
+every enemy building permanently invisible under fog. The minimal repair is to reinstate the deleted
+old-side handler, which uses `partitionedFrozenActors` — the partition that `Add` actually fills.
+
+**Two autotests now pin all of this** (`tools/autotest/scenarios/`):
+`test-unscouted-building-hidden` (Explored OFF) and `test-building-visible-at-spawn` (Explored ON,
+the shipped default). Both carry a positive control asserted on the same tick as the negative rung,
+and that control is what caught the dead loop: with buildings vetoed wholesale the negative rung
+passes on its own, so a scenario without the control would have reported a clean green on a build
+that had made every building invisible. Do not delete those control rungs.
 ## 2026-08-27 — holding a unit at critical damage means fighting a mechanism built to kill it, on EVERY chassis (`test-breakoff-mid-engagement`, base `main @ eb2c4585`)
 
 Any scenario that needs a target to SIT at `DamageState.Critical` has to defeat a per-chassis death
@@ -11351,3 +11445,137 @@ an hour — so the "pathless catches it" half is read from source, not observed.
 catches load-order and resolution failures neither of the others reach — but if you skip `make test`
 after touching an AI YAML block, cross-check the block's keys against the `Info` class's
 `public readonly` fields by hand.
+---
+
+## 2026-08-27 — What an AIRCRAFT actually does when the break-off guard fires mid attack-run
+
+The break-off guard in `AttackFollow.Tick` (merged `936f1fe9`) reaches `AttackAircraft` — 11
+declarations, no `Tick` override. The turreted half had a decisive RED/GREEN pair; the aircraft half
+shipped unanalysed, with the merge commit itself recording *"nobody has established what an aircraft
+does after its requested target is cleared mid-run: clean abort, loiter, or re-entry."* Now measured,
+in `tools/autotest/scenarios/test-aircraft-breakoff-midrun`, with a RED arm (guard commented out of
+`AttackFollow.Tick`, rebuilt) and three greens across three different seeds.
+
+**The answer is different for the two airframe classes, and neither one is "aborts and returns to
+base".**
+
+**Mi-28 (`AttackType: Hover` + `CanHover`) — stops firing instantly, then holds station forever.**
+Zero shots after the target went doomed, on the same tick. Distance trace over 250 ticks:
+`[14,14,14,14,14,14,14,14,14,14,14]` — it did not move one cell, in any direction, for the whole
+window. It neither closed, nor withdrew, nor went idle. Guns cold, parked at weapon range over a
+target it has declined to shoot.
+
+**A10 (`AttackType: Default`, `!CanHover`) — stops firing after 2 ticks, then ORBITS the doomed
+target indefinitely.** Distance trace: `[8,5,13,11,4,11,12,8,7,13]` (second seed
+`[9,4,13,11,5,10,12,9,6,13]`) — it repeatedly closes to 4–5 cells and swings back out to 11–13, and
+`minDistAfter` is **0**, i.e. it passed directly over the target. It never left, never re-fired
+(`ammoLeft` unchanged for ~248 ticks), and never returned to base.
+
+So the guard is doing its job at the level it was written for — **the shooting stops** — but it
+cancels the *attack*, not the *engagement*. In both classes the airframe remains parked or orbiting
+in hostile airspace over an enemy it has decided not to kill. This is not a bug in the guard; it is
+the scope of the guard being narrower than the phrase "break off" suggests. Worth knowing before
+anyone reads a target-line or a player report and expects an aircraft to disengage.
+
+**A measured asymmetry, cause NOT established: the fixed-wing leaks exactly 2 shot-ticks and the
+hover leaks 0.** `firstMiss0 lastMiss1` — the A10's leak is the first two ticks and nothing
+afterwards; the Mi-28 never leaks at all. Two ticks is 0.12 s at the mod's 16.67 tps and is partly
+unavoidable (the trigger fires from Lua inside the world tick, and released ordnance cannot be
+recalled — the Mi-28's target still fell 15%→6% on in-flight hits while its gun stayed silent). The
+leading candidate for why the two lanes differ is that the A10 leaves `PersistentTargeting` at its
+default **true**, so `ClearRequestedTarget` *promotes* to `OpportunityTarget` and depends on the
+opportunity guard in the else branch to undo it, while the Mi-28 pins it false and takes the plain
+clear. **That is a hypothesis, not a finding** — it was not isolated, and burst state is an equally
+good candidate.
+
+**Why the fixed-wing keeps flying the pass: `Activity.TickOuter:123-126`.** With `ChildHasPriority`
+(FlyAttack's default) the parent tick is short-circuited by `TickChild(self) && …`, so
+`FlyAttack.Tick` does not run while a child activity is alive — and FlyAttack's own abort check for
+exactly this situation (*"Check that AttackFollow hasn't cancelled the target"*, `FlyAttack.cs:99-101`)
+lives in that tick. A `Default`/`!CanHover` aircraft is inside `MoveWithinRange` and then
+`FlyAttackRun`, so that check cannot be consulted until the run ends; `FlyAttackRun.Tick` self-cancels
+only when the target becomes *invalid* or has no valid weapons (`FlyAttack.cs:263-265`), and a
+critically damaged target is neither. A `Hover` aircraft queues no run child and so has the check live
+every tick. The trait-level guard in `AttackFollow.Tick` runs regardless, which is why the guns stop
+in both classes even though the flight path only responds in one.
+
+### `IsIdle` is useless as an observable for aircraft
+
+`ticksToIdle` was `-1` and `idleSpans` `0` in **every** arm, including the RED one. An idle airframe
+is running `FlyIdle`/`Hover`, which is an activity, so `IsIdle` never goes true. Anyone reaching for
+"did the aircraft go idle?" as a proxy for "did it stop attacking?" will get a constant. Use a
+**position trace**; a min/max pair is also insufficient, because it cannot separate "flew over once
+and left" from "flew over, came back, flew over again" — which is precisely the A10's behaviour and
+would have been invisible without sampling.
+
+### Every vehicle bleeds out below 50% HP, and it silently confounded two runs
+
+`ChangesHealth@CriticalDamage` (`vehicles.yaml:153` — `PercentageStep: -1`, `Delay: 5`,
+`StartIfBelow: 50`) is on `^Vehicle`, irreversible. A target parked at 15% therefore **dies on a fixed
+~75-tick clock with nothing shooting it**. The first two runs of this scenario both ended `tgtHp-1%`
+(dead) on both lanes — *including the lane that fired zero shots* — so two thirds of each observation
+window was measuring an aircraft against a corpse rather than against a doomed target, and the
+behavioural readout was worthless until `-ChangesHealth@CriticalDamage` was added to the scenario.
+The tell was the lane with `SHOTSAFTER0` also reporting a dead target: nothing in the verdict flagged
+it, and the shots-after number was unaffected, so a run that only asserted the shot count would have
+reported a clean green off a confounded window.
+
+This is also the fact that makes "already doomed" literally true in WW3MOD, and it is the premise the
+whole break-off feature rests on — a critically damaged vehicle really is unrecoverable.
+
+### Strafe aircraft look structurally EXEMPT from the guard — code-level inference, NOT observed
+
+`A10.Airstrike` and `FROG.Airstrike` are `AttackType: Strafe`, a third shape neither lane covers.
+`StrafeAttackRun.Tick` calls `attackAircraft.SetRequestedTarget(Target.FromTargetPositions(target),
+true)` **every tick** — with `isForceAttack: true` and `source` defaulting to `AttackSource.Default`.
+The guard's predicate needs `RequestedTarget.Type == TargetType.Actor` and
+`BreakOffApplies(source, forceAttack)` = `!forceAttack && source != Default`. A strafe run fails
+**both** clauses independently: the re-set target is a position, not an actor, and the re-set is a
+force-attack from the default source. So a strafing aircraft should keep firing at a doomed target for
+the length of its run. Nobody has run this; it is read off the code and should be measured before it
+is relied on.
+
+## 2026-08-27 — The autotest harness has THREE tick bases, and the third is what breaks scenarios
+
+The known defect is that `TestHarness.TicksPerSecond = 25` (`test-helpers.lua:26`) while single-test
+runs play at `Timestep: 60` (`mod.yaml:382`). Confirmed as still live at `faac534a`, and confirmed to
+apply to **every** scenario: `Game.LoadMap` hardcodes the `"default"` speed unless `Test.GameSpeed`
+overrides it (`Game.cs:1184`) and `run-test.sh` never passes that. `Test.SpeedMultiplier` divides
+`world.Timestep` (`TestModeSpeedMultiplier.cs:40`) but is pure pacing — tick counts are unchanged — so
+it cannot rescue the conversion either.
+
+**The new finding is the third base.** `DateTime.Seconds(n)`, the engine's own Lua converter, computes
+`1000 / Timestep` in **integer** arithmetic (`DateTimeGlobal.cs:31`), yielding **16**, not 16.67. So
+the harness is 1.5× lenient against wall clock but **25/16 = 1.5625×** against `DateTime.Seconds`.
+Correcting the constant to the mathematically-exact 16.67 would therefore *open a new 4% divergence*
+against the engine converter of exactly the kind being closed. If the constant is ever corrected, the
+target is **16**, not 16.667.
+
+**Blast radius, measured statically (no launch).** 174 conversion call sites across 137 scenario files:
+**91 scale** with the constant, **8 are immune** because they round-trip (`AssertWithin(BudgetTicks /
+TestHarness.TicksPerSecond, …)`, the medic scenarios' idiom), and 65 more multiply through it directly.
+Authored deadlines run 1 s to 200 s; every one is 1.5× longer in wall clock than it reads.
+
+**Two scenarios provably stop passing the moment the constant moves, and this is arithmetic, not
+estimate.** `test-autotarget-preempt-air` sizes an outer `AssertWithin(10)` to cover a
+`DateTime.Seconds(4)` spawn delay (64 engine ticks) plus `DeadlineTicks = 110` — 174 ticks needed
+against 250 today. At 16.67 the outer becomes 166 and at 16 it becomes 160; both are **below 174**, so
+the scenario becomes structurally impossible to pass. Its own comment (`:141`) states the margin as
+`10 * 25 = 250 > 174`. `test-critical-no-panic` needs `25` setup ticks plus `ObserveTicks = 300` = 325
+raw ticks inside `AssertWithin(20)` — 500 today, **320 at 16 (red)**, 333 at 16.67 (green by 8 ticks).
+
+**Parts of the suite have adapted to the bug and depend on it.** Three scenarios document the 1.5× and
+deliberately keep it: `test-tunguska-missile-standoff:25` ("Left alone deliberately — correcting the
+helper would move every other scenario's deadline"), `test-depot-vacate-phantom:32` ("Generous on
+purpose"), `test-breakoff-mid-engagement:20`. Seven medic scenarios instead budget in ticks and divide,
+which round-trips exactly and is immune. The constant is no longer simply wrong — it is a de facto
+interface with 137 consumers, and at least one consumer's arithmetic inverts when it changes.
+
+**Comments that assert the wrong rate** (the values are raw ticks, so behaviour is unaffected — only
+the prose is false): `test-dry-inrange-idle-oscillation:21` calls 250 ticks "10s at 25 ticks/s" (really
+15 s), `test-critical-no-panic:10` calls 300 ticks "12s" (really 18 s), and
+`test-visual-concealment-gauge:45` computes `TimeToBeStill` 200 ticks as "8.0 seconds" when it is 12 s.
+
+Pinned by `engine/OpenRA.Test/OpenRA.Mods.Common/AutotestTickRateTest.cs`: the constant, the mod's
+default `Timestep`, the engine's integer rate, and both scenarios' arithmetic. Verified RED at 16 (3
+failures) and at 16.667 (2 failures) before restoring 25.
