@@ -1,0 +1,72 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: the Supply Route is exempt from fog, and only the Supply Route
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# GEOMETRY
+#
+# EnemySR and EnemyBox sit FOUR CELLS APART in the same unscouted corner. That
+# adjacency is the whole design: they share a neighbourhood, a tileset and a
+# distance from every USA actor, so the only thing that differs between them is
+# the actor type. If the two ever report the same visibility, the cause cannot be
+# geometry.
+#
+# Scout is deliberately far from both and given nothing to do. OwnSR is the
+# wholesale-veto control and is placed where the scout can see it anyway.
+Actors:
+	Scout: abrams
+		Owner: USA
+		Location: 5,16
+		Facing: 0
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 3,17
+	EnemySR: supplyroute
+		Owner: Russia
+		Location: 58,16
+	EnemyBox: pbox
+		Owner: Russia
+		Location: 58,20
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 3,28
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 63,2
+
+Rules: rules.yaml

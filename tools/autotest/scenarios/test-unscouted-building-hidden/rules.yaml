@@ -1,0 +1,46 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		# FOG ON and LOCKED: with fog off, MapLayers.GetVisibility takes the
+		# "explored => 10" branch and every cell reads unfogged, which switches
+		# off the cell veto under test and makes the run a guaranteed green.
+		FogCheckboxEnabled: true
+		FogCheckboxLocked: true
+		# EXPLORED **OFF** and LOCKED -- the opposite of test-radar-only-targetable,
+		# and the whole point. The shipped default is ExploredMapCheckboxEnabled:
+		# true (player.yaml:183), which reveals the entire map at t=0 and makes
+		# "unscouted ground" a state that never occurs. Unchecking this box in the
+		# lobby is a supported player choice, and it is the configuration in which
+		# a leak of never-scouted buildings is reachable.
+		ExploredMapCheckboxEnabled: false
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-unscouted-building-hidden.lua
+
+# Nothing may shoot. A dead PBOX removes the subject mid-run and a dead scout
+# removes the vision the NearBox control depends on; either turns the verdict
+# into noise. HoldFire rather than `-AutoTarget:`, which does not load --
+# AutoTargetPriority declares AutoTarget as a requirement, so removing it fails
+# actor initialisation. Both InitialStance and InitialStanceAI are set because
+# AutoTarget picks between them on owner.IsBot/Playable (AutoTarget.cs:517) and
+# Russia is not a playable slot here. HP is padded as a second line of defence
+# in case some path fires anyway.
+PBOX:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000
+
+abrams:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	Health:
+		HP: 100000

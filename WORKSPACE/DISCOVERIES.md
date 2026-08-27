@@ -3,6 +3,100 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-08-27 — The frozen-actor visibility update loop is DEAD CODE, and it is the real cause of the six-month building-fog leak (`wt/fog-leak`, base `main @ 651322b3`)
+
+**`FrozenActor.UpdateVisibility()` runs exactly once per frozen actor — from the constructor
+(`FrozenActorLayer.cs:113`) — and never again.** Its only other call site (`:162`) is gated on
+`UpdateVisibilityNextTick`, and **nothing in the engine ever sets that flag to `true`**. It is
+declared at `:73`, read at `:161`, cleared at `:167`, and assigned nowhere. Grep it and see.
+
+The consequence is total: `FrozenActor.Visible` is computed once at construction and frozen there.
+`FrozenUnderFog` inverts it into `FrozenState.IsVisible` (`FrozenUnderFog.cs:73`), so for every
+non-ally player, for every building, **`IsVisibleInner` can never return true**. The strict
+visibility path is not merely racy at startup — it is permanently stuck at "invisible".
+
+**Root cause: a conflict resolution in `71687440` (2026-03-24, "Upstream merge: fix OpenRA.Game
+compilation + resolve duplicate types", one of 112 pending conflicts).** The merge kept the new
+side of a `<<<<<<<` marker and discarded the old, deleting the only line that set the flag:
+
+```
+-			self.Trait<Shroud>().OnShroudChanged += uv =>
+-			{
+-				foreach (var fa in partitionedFrozenActors.At(new int2(uv.U, uv.V)))
+-					fa.UpdateVisibilityNextTick = true;
+-			};
+```
+
+The surviving side is left a stub: `dirtyFrozenActorIds` (`:261`) is filled by `OnShroudChanged`
+(`:276`) and **never read by anything**, and it is filled from `partitionedFrozenActorIds` (`:260`),
+which **nothing ever adds to** — `Add` (`:279`) populates the differently-named
+`partitionedFrozenActors`. Two dead containers and a dead flag: the merge kept one mechanism's
+producer and the other mechanism's consumer, and dropped the halves that would have completed either.
+
+**Those orphans are RECOVERABLE, not an unfinished import — do not repeat the guess that they are.**
+At `7362fbc6` the id-based scheme was complete and working: `Add`/`Remove` populated
+`partitionedFrozenActorIds`, and `ITick.Tick` ran `if (dirtyFrozenActorIds.Contains(id))
+frozenActor.UpdateVisibility();` before clearing the set. `git show
+7362fbc6:engine/OpenRA.Game/Traits/Player/FrozenActorLayer.cs` has the source. Restoring it would be
+a revert against known code rather than a speculative rewrite. **It is still not worth doing, and
+the reason is now measured rather than deferred: there is no performance upside to recover.**
+
+Both mechanisms iterate every frozen actor every tick — `ITick.Tick` loops `frozenActorsById` and
+calls `frozenActor.Tick()` regardless. The id-based version then ran
+`if (dirtyFrozenActorIds.Contains(id)) UpdateVisibility()`; the flag version runs
+`if (UpdateVisibilityNextTick) UpdateVisibility()` inside that same call. **Identical iteration,
+identical `UpdateVisibility` call count** — the only difference is a `HashSet<uint>` lookup per
+actor per tick versus a bool field read, and the bool is the cheaper of the two. The id-based
+scheme's `At(bin)` spatial lookup on every shroud change is work the flag version also does.
+
+Measured on `test-case01-forest-ambush` (10 units manoeuvring, 2501 ticks, `Launch.Benchmark=`):
+`tick_actors` mean 0.52 ms, median 0.33 ms, p95 0.95 ms against a 60 ms tick budget at timestep 60
+— under 1% of budget for *everything every actor does*, of which this handler is a fraction. The
+optimisation has nothing to win.
+
+**The leak was primarily an AI cheat, not a UI one — and it moved `@stable`.** `BeliefStore`'s
+`InjectLive` gates on `actor.CanBeViewedByPlayer(player)` (`:219`) and stores whatever survives at
+the **live-sighting** tier `Info.FreshConfidence` (`:222-223`). That call resolves to
+`FrozenUnderFog.IsVisible` for every structure, so every bot carried **every enemy building at full
+confidence from the first recompute, unscouted**, feeding enemy site anchors (`ControlField.cs:751`)
+and the confidence-scaled danger kernels. `influence-stack.md`'s "fog discipline (no cheating, by
+construction)" bullet asserted the opposite and has been corrected in place. Both participating
+profiles were affected, so **benchmark baselines taken before 2026-08-27 are not comparable to later
+ones** — re-take before trusting an A/B.
+
+**Restoring the loop REDUCES the frozen-actor population; it does not grow it.** `ITick.Tick`
+(`:380-386`) reaches its removal branch only when `Visible && !Hidden` is false *and* the backing
+actor is gone. With `Visible` pinned true by the dead loop that branch is unreachable for any
+non-hidden building — so **every destroyed enemy building left a permanent `FrozenActor`, per
+player, for the rest of the match**. Re-enabling visibility updates lets them be collected. Any
+perf argument about frozen-actor count therefore runs in this fix's favour over a long game.
+
+**When a fix is "correct a factual claim", grep the FILE for the claim, not your diff.** The comment
+above cost four correction rounds — the original was wrong, the reviewer's replacement SHA was wrong,
+and the commit that fixed both left the same phrase (`"Merge 71687440"`) stale ten lines below,
+because I reviewed the change I had made rather than searching for the sentence I had just declared
+false. A factual claim is usually repeated near itself; the diff is the wrong search scope.
+
+**This retroactively explains two commits that look like mistakes and were not.** `2d7603bf`
+(2026-04-16) correctly restored strict `IsVisibleInner`; every building went invisible, because the
+loop had been dead for three weeks. `12a9b91b` (2026-05-03) reverted it to a blanket `return true`
+and turned shroud off by default in the same commit. Neither author was wrong about what they
+observed; both were looking at a symptom of the deleted line. The six-month intel leak (enemy
+structures right-clickable on never-scouted ground) is downstream of a botched merge, not of a
+visibility design decision.
+
+**Do not "fix" `FrozenUnderFog.IsVisible` without repairing the loop first.** Restoring
+`IsVisibleInner` on its own is strictly worse than the leak: measured on `wt/fog-leak`, a pillbox
+three cells from a live Abrams at cell visibility 10 reported `detected=false clickable=false`, i.e.
+every enemy building permanently invisible under fog. The minimal repair is to reinstate the deleted
+old-side handler, which uses `partitionedFrozenActors` — the partition that `Add` actually fills.
+
+**Two autotests now pin all of this** (`tools/autotest/scenarios/`):
+`test-unscouted-building-hidden` (Explored OFF) and `test-building-visible-at-spawn` (Explored ON,
+the shipped default). Both carry a positive control asserted on the same tick as the negative rung,
+and that control is what caught the dead loop: with buildings vetoed wholesale the negative rung
+passes on its own, so a scenario without the control would have reported a clean green on a build
+that had made every building invisible. Do not delete those control rungs.
 ## 2026-08-27 — holding a unit at critical damage means fighting a mechanism built to kill it, on EVERY chassis (`test-breakoff-mid-engagement`, base `main @ eb2c4585`)
 
 Any scenario that needs a target to SIT at `DamageState.Critical` has to defeat a per-chassis death

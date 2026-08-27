@@ -257,6 +257,27 @@ namespace OpenRA.Traits
 		readonly Player owner;
 		readonly Dictionary<uint, FrozenActor> frozenActorsById;
 		readonly SpatiallyPartitioned<FrozenActor> partitionedFrozenActors;
+
+		// ORPHANS — INERT DOCUMENTATION. Neither of these is read or written anywhere; they are
+		// declared, constructed, and nothing else. They are the remains of a complete id-based
+		// dirty-tracking design whose last working revision is c4f0739e: Add/Remove populated
+		// partitionedFrozenActorIds, and ITick.Tick ran UpdateVisibility for every id in
+		// dirtyFrozenActorIds before clearing the set. Restore from there, NOT from the 2023 engine
+		// import 7362fbc6, which merely also has it.
+		//
+		// Lost when c5bb5ece landed release-20250330 with 112 conflicts pending and 71687440
+		// resolved them (71687440 is that resolution, not a merge — it has one parent). The
+		// resolution kept these two declarations while dropping both the Add/Remove population and
+		// the Tick consumer. Note UpdateVisibilityNextTick did not exist at c4f0739e: the flag is
+		// the upstream mechanism, so the two were never co-existing alternatives here — the
+		// resolution took one scheme's producer and the other's consumer, and neither survived
+		// whole.
+		//
+		// Do NOT restore it for performance. Measured 2026-08-27: both schemes iterate every frozen
+		// actor every tick (ITick.Tick loops frozenActorsById unconditionally) and call
+		// UpdateVisibility for exactly the changed ones, so the difference is a HashSet<uint> lookup
+		// per actor per tick versus the bool read at :161 — the bool is cheaper. Kept only so the
+		// next reader finds evidence rather than an absence.
 		readonly SpatiallyPartitioned<uint> partitionedFrozenActorIds;
 		readonly HashSet<uint> dirtyFrozenActorIds = new HashSet<uint>();
 
@@ -273,7 +294,39 @@ namespace OpenRA.Traits
 			partitionedFrozenActorIds = new SpatiallyPartitioned<uint>(
 				world.Map.MapSize.X, world.Map.MapSize.Y, binSize);
 
-			self.Trait<MapLayers>().OnShroudChanged += uv => dirtyFrozenActorIds.UnionWith(partitionedFrozenActorIds.At(new int2(uv.U, uv.V)));
+			// THE ONLY THING THAT EVER MARKS A FROZEN ACTOR FOR RE-EVALUATION. Without it,
+			// FrozenActor.UpdateVisibility runs exactly once per actor -- from the constructor
+			// (:113) -- because its only other call site (:162) is gated on
+			// UpdateVisibilityNextTick. 71687440 (the resolution of c5bb5ece's conflicts, not a
+			// merge) resolved a conflict marker here by keeping the id-based line and dropping this
+			// loop, which set that flag. That id-based line has since been deleted too — see the
+			// field comment above; it wrote to a set nothing reads and cost a second iterator
+			// allocation on this path. The flag then had no writer anywhere in the engine for six
+			// months, so every frozen
+			// actor's Visible was frozen at its construction-time value, FrozenUnderFog's
+			// FrozenState.IsVisible was permanently false for every non-ally viewer, and
+			// IsVisibleInner could never return true.
+			//
+			// That is what made 2d7603bf's correct strict-visibility restoration look broken in
+			// April, and what 12a9b91b papered over in May with an unconditional `return true` --
+			// the leak that let a player right-click structures on never-scouted ground.
+			//
+			// Uses partitionedFrozenActors, which Add/Remove actually populate. Do not switch this
+			// to partitionedFrozenActorIds without also restoring that partition's population.
+			//
+			// PITFALL: keep this to ONE At() call. At (SpatiallyPartitioned.cs:100) is a yield
+			// iterator, so every call allocates a state machine whether or not it yields anything —
+			// and this runs per cell per player on every ResolvedVisibility change
+			// (MapLayers.cs:262-269), which with VisionLayers = 11 re-fires on each band transition,
+			// not just on explored/visible flips. It is the hottest path in the shroud system. An
+			// earlier revision of this handler carried a second, vestigial At() call whose result
+			// was unioned into dirtyFrozenActorIds purely to keep the orphaned identifiers
+			// referenced; it doubled the allocations here and was removed.
+			self.Trait<MapLayers>().OnShroudChanged += uv =>
+			{
+				foreach (var fa in partitionedFrozenActors.At(new int2(uv.U, uv.V)))
+					fa.UpdateVisibilityNextTick = true;
+			};
 		}
 
 		public void Add(FrozenActor fa)
