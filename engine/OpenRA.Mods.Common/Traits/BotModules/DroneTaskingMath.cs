@@ -7,13 +7,15 @@
  */
 #endregion
 
+using System;
+
 namespace OpenRA.Mods.Common.Traits
 {
 	/// <summary>Why a candidate cell was refused. Diagnostic only — no decision reads it.</summary>
 	public enum DroneRefusal
 	{
 		None,
-		TooFresh,
+		TooLittleRevealed,
 		TooFarFromPoi,
 		TooDangerous
 	}
@@ -52,48 +54,57 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Score an observation cell. Higher is better; <see cref="Ineligible"/> means "do not send".
+		/// Score a candidate HOVER cell by the unobserved ground the drone would REVEAL from there.
 		///
-		/// ticksSinceVerified is ControlField.TicksSinceVerified — ticks since we actually OBSERVED
-		/// that square, int.MaxValue if never. It is fog-legal, which is the whole reason it is the
-		/// input here rather than an exploration age computed by walking world.Actors.
+		/// THIS REPLACED A SCORING MODEL THAT COULD NEVER FIRE, AND THE DIFFERENCE IS THE WHOLE POINT.
+		/// The previous version scored the hover cell by its OWN staleness. That is unsatisfiable by
+		/// construction: the hover cell must be within the drone's leash of the operator (22 cells),
+		/// while the operator itself verifies everything within 28 cells (^StandardVision's bands down
+		/// to strength 2 — the strength-1 band at 28-32 does NOT verify, because
+		/// ControlField.GridCellVisible tests MapLayers.IsVisible(cell, 1) and that comparison is
+		/// STRICT, MapLayers.cs:579). So every reachable hover cell sits inside the operator's own
+		/// verified bubble and is permanently fresh. Measured over one match: 674,584 of 674,584
+		/// candidates refused as too fresh, exactly 100%, across 582 evaluations and 70k ticks.
 		///
-		/// A PURE STALENESS ARGMAX IS A BUG, NOT A POLICY. The stalest square on any map is the one
-		/// nothing can reach, so an unbounded argmax parks the drone in a corner forever — the exact
-		/// failure ScoutBotModule.cs:213-222 had to patch. Hence two hard bounds (staleness floor,
-		/// POI distance ceiling) and a value term, so the drone is spent on ground someone might
-		/// actually contest rather than on blank map.
+		/// What makes a drone worth launching is not that the cell it sits on is unknown — it is that
+		/// the drone carries its own vision (quadcopterdrone inherits ^StandardVision via
+		/// ^Drone -> ^Airborne -> ^NeutralAirborne), so parked at the leash edge it verifies a bubble
+		/// centred 22 cells out and sees ground the operator cannot. Ground already inside the
+		/// operator's bubble contributes nothing here automatically, because it is not stale — the
+		/// exclusion needs no special case.
+		///
+		/// revealedStaleSquares is a count of COARSE ControlField grid squares, not map cells, and the
+		/// caller obtains it in O(1) from a summed-area table. See DroneOperatorBotModule for why the
+		/// resolution and the table are both load-bearing for cost rather than for correctness.
 		/// </summary>
 		/// <remarks>
-		/// The danger term here is AIR danger, not ground: this cell is where the DRONE hovers, and a
-		/// quadcopter in contested airspace is a soft, killable asset rather than an invulnerable eye.
-		/// Its 1-world-unit hitshape buys it nothing — HitShape.TargetablePositions never reads Radius,
-		/// so every weapon aims at its centre, and a single Stinger kills 50 HP anywhere inside a cell.
-		/// Losing it is a real outcome to steer around: it costs 25 supply (the ammo pool is decremented
-		/// only on slave death, CarrierMaster.cs:233) and leaves the operator holding a respawned drone
-		/// it cannot launch, because `loaded` is re-granted while ammo-primary is still 0.
-		/// The operator's own launch cell is judged on GROUND danger, separately, by the caller.
+		/// The danger term is AIR danger: this is where the DRONE hovers, and it dies to one hit of
+		/// real AA (50 HP; its 1-world-unit hitshape buys nothing, since HitShape.TargetablePositions
+		/// never reads Radius). Losing it costs 25 supply and leaves the operator holding a respawned
+		/// drone it cannot launch, because `loaded` is re-granted while ammo-primary is still 0. The
+		/// operator's own launch cell is judged on GROUND danger, separately, by the caller.
 		/// </remarks>
 		public static long ScoreCandidate(
-			int ticksSinceVerified,
-			int minStalenessTicks,
+			int revealedStaleSquares,
+			int minRevealedSquares,
 			int poiDistanceCells,
 			int maxPoiDistanceCells,
 			int airDanger,
 			int maxAirDanger,
 			int contactBonus)
 		{
-			return ScoreCandidate(ticksSinceVerified, minStalenessTicks, poiDistanceCells,
+			return ScoreCandidate(revealedStaleSquares, minRevealedSquares, poiDistanceCells,
 				maxPoiDistanceCells, airDanger, maxAirDanger, contactBonus, out _);
 		}
 
 		/// <summary>As the overload above, additionally reporting WHY a candidate was refused.
-		/// The reason is diagnostic only — no decision reads it — and exists because "no eligible
-		/// cell" and "which of three thresholds rejected every cell" are different questions, and only
-		/// the second one is actionable from a match log.</summary>
+		/// Diagnostic only — no decision reads it — and it exists because "no eligible cell" and
+		/// "which of three thresholds rejected every cell" are different questions, and only the
+		/// second is actionable from a match log. That distinction is what identified the defect this
+		/// function replaces.</summary>
 		public static long ScoreCandidate(
-			int ticksSinceVerified,
-			int minStalenessTicks,
+			int revealedStaleSquares,
+			int minRevealedSquares,
 			int poiDistanceCells,
 			int maxPoiDistanceCells,
 			int airDanger,
@@ -103,17 +114,19 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// SINGLE IMPLEMENTATION, deliberately. The refusal reason is reported through an out
 			// parameter rather than by a parallel diagnostic predicate, because a second copy of these
-			// three thresholds is exactly the kind of duplication that drifts and then lies in the log.
+			// thresholds is exactly the kind of duplication that drifts and then lies in the log.
 			refusal = DroneRefusal.None;
 
-			// Not stale enough to be worth a sortie: we already know what is there.
-			if (ticksSinceVerified < minStalenessTicks)
+			// Not enough unseen ground to be worth a 60s sortie. This is also the guard that stops the
+			// drone being spent to reveal one stale square at the edge of an otherwise-known area.
+			if (revealedStaleSquares < minRevealedSquares)
 			{
-				refusal = DroneRefusal.TooFresh;
+				refusal = DroneRefusal.TooLittleRevealed;
 				return Ineligible;
 			}
 
-			// Outside the band of ground anyone is contesting. This is the unreachable-corner guard.
+			// Outside the band of ground anyone is contesting. This is the unreachable-corner guard:
+			// the most unobserved ground on any map is usually where nothing will ever happen.
 			if (poiDistanceCells > maxPoiDistanceCells)
 			{
 				refusal = DroneRefusal.TooFarFromPoi;
@@ -128,15 +141,54 @@ namespace OpenRA.Mods.Common.Traits
 				return Ineligible;
 			}
 
-			// Saturate rather than overflow: a never-observed square reports int.MaxValue, and that
-			// must not be allowed to wrap when the bonus is added.
-			var staleness = (long)ticksSinceVerified;
-			if (staleness > int.MaxValue / 2)
-				staleness = int.MaxValue / 2;
+			// Revealed area dominates; the contact bonus expresses "prefer ground someone is believed
+			// to be on"; POI distance breaks ties toward the contested middle. Scaled so that one
+			// extra revealed square outweighs a one-cell POI-distance difference.
+			return ((long)revealedStaleSquares * 1000) + contactBonus - poiDistanceCells;
+		}
 
-			// Closer to a POI is better, so distance subtracts. The contact bonus is what expresses
-			// "prefer squares next to something we believe is there over blank map".
-			return staleness + contactBonus - poiDistanceCells;
+		/// <summary>
+		/// Build an inclusive summed-area table over a grid of 0/1 values.
+		/// <paramref name="sat"/> must be (gw+1) x (gh+1); row 0 and column 0 stay zero and are the
+		/// sentinel border the query subtracts against.
+		///
+		/// THE THRESHOLD IS APPLIED HERE, AT BUILD TIME, and that is not a detail. The table sums an
+		/// INDICATOR (is this square unobserved: 1 or 0). A table built over raw staleness values and
+		/// thresholded at query time would sum ticks, and the resulting number would be meaningless —
+		/// large where one square is ancient rather than where many squares are unseen.
+		/// </summary>
+		public static void BuildSummedArea(int[,] sat, int gw, int gh, Func<int, int, bool> isSet)
+		{
+			for (var x = 0; x < gw; x++)
+			{
+				for (var y = 0; y < gh; y++)
+				{
+					var v = isSet(x, y) ? 1 : 0;
+					sat[x + 1, y + 1] = v + sat[x, y + 1] + sat[x + 1, y] - sat[x, y];
+				}
+			}
+		}
+
+		/// <summary>
+		/// Count of set squares in the INCLUSIVE rectangle [x0..x1] x [y0..y1], clamped to the grid.
+		/// Four array reads regardless of the rectangle's size — which is the whole reason the drone's
+		/// vision radius costs nothing per candidate.
+		///
+		/// Clamping happens BEFORE the corner reads so a box hanging off two edges at once is still a
+		/// valid query rather than an index throw or a silently wrong sum. An off-by-one here does not
+		/// crash: it mis-scores every candidate near a grid edge, symmetrically, in a way that no
+		/// score-comparison test would notice — hence the explicit boundary tests.
+		/// </summary>
+		public static int SumInclusive(int[,] sat, int gw, int gh, int x0, int y0, int x1, int y1)
+		{
+			if (x0 < 0) x0 = 0;
+			if (y0 < 0) y0 = 0;
+			if (x1 > gw - 1) x1 = gw - 1;
+			if (y1 > gh - 1) y1 = gh - 1;
+			if (x0 > x1 || y0 > y1)
+				return 0;
+
+			return sat[x1 + 1, y1 + 1] - sat[x0, y1 + 1] - sat[x1 + 1, y0] + sat[x0, y0];
 		}
 
 		/// <summary>

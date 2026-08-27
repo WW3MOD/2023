@@ -48,8 +48,20 @@ namespace OpenRA.Mods.Common.Traits
 			"being dragged back and granted lost-connection, which zeroes its vision.")]
 		public readonly int LeashMarginCells = 3;
 
-		[Desc("Minimum ticks-since-verified before a square is worth a sortie at all.")]
+		[Desc("Ticks-since-verified above which a ControlField grid square counts as UNOBSERVED for",
+			"scoring. This no longer gates the hover cell (which can never be stale — see",
+			"DroneTaskingMath.ScoreCandidate); it decides which squares count toward revealed area.")]
 		public readonly int MinStalenessTicks = 500;
+
+		[Desc("The drone's own verifying vision radius in CELLS, used to size the revealed-area box.",
+			"28 because ^StandardVision's bands down to strength 2 reach 28c0, and the strength-1 band",
+			"(28c0-32c0) does NOT verify: ControlField.GridCellVisible tests IsVisible(cell, 1) and",
+			"that comparison is strict (MapLayers.cs:579).")]
+		public readonly int DroneVisionCells = 28;
+
+		[Desc("Minimum unobserved grid squares a hover cell must reveal to be worth a 60s sortie.",
+			"Counted in COARSE ControlField grid squares, not map cells.")]
+		public readonly int MinRevealedSquares = 12;
 
 		[Desc("Maximum distance from a known POI, in cells. This is the unreachable-corner guard: the",
 			"stalest square on a map is usually one nothing can reach.")]
@@ -180,6 +192,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var tick = world.WorldTick;
+			evalTick = tick;
 			foreach (var op in claimed)
 				if (!op.IsDead && op.IsInWorld)
 					goalGuard.Ledger.Commit(op, "drone:" + op.ActorID.ToString(), tick, Info.CommitmentTicks);
@@ -294,6 +307,18 @@ namespace OpenRA.Mods.Common.Traits
 				? poiMap.GetScoredPois(player, true)
 				: new List<ScoredPoi>();
 
+			// TaskOperator runs for EVERY operator, unconditionally. An earlier cut gated this on the
+			// summed-area table having been built, which looked like a pure cost saving and was not:
+			// the work ABOVE the launch check in TaskOperator — releasing a dry operator's claim,
+			// clearing its sortie, and above all re-committing the ledger every cycle — is not
+			// optional. CanLaunchNow is false precisely while a drone is airborne, i.e. the SUCCESS
+			// case, so gating here skipped the claim refresh for the whole ~1000-tick sortie against a
+			// 500-tick CommitmentTicks: the claim lapsed mid-flight and the offence module was free to
+			// walk the operator away, which recalls the drone. With both operators airborne — the
+			// intended steady state at UnitLimits 2 — nothing ran at all and the diagnostic log went
+			// silent too. The table is now built lazily at first use inside ChooseTargetCell, which
+			// keeps the saving without coupling it to anything else.
+			satValidTick = -1;
 			foreach (var op in operators)
 				TaskOperator(bot, op, tick, contacts, pois);
 		}
@@ -307,6 +332,38 @@ namespace OpenRA.Mods.Common.Traits
 				var (gx, gy) = controlField.MapCellToGridCell(c);
 				return !DroneTaskingMath.IsCovered(controlField.TicksSinceVerified(player, gx, gy), Info.MinStalenessTicks);
 			});
+		}
+
+		// THE SINGLE DEFINITION OF "this operator could launch right now", used by BOTH the
+		// table-build pre-check and the tasking path itself.
+		//
+		// It exists as a helper rather than as two agreeing copies because the copies WOULD drift: the
+		// next person editing the launch preconditions has no reason to know a second mirror of them
+		// governs whether the summed-area table gets built, and a comment saying so is not a
+		// countermeasure — that failure has already happened three times in this codebase.
+		//
+		// Returns the resolved carrier and armament so the caller does not look them up twice.
+		static bool CanLaunchNow(Actor op, out CarrierMaster carrier, out Armament armament)
+		{
+			armament = null;
+			carrier = op.TraitOrDefault<CarrierMaster>();
+			if (carrier == null)
+				return false;
+
+			// A sortie in progress is a sortie to leave alone: the operator must stay parked for the
+			// full loiter, and the retarget branch is unreachable for ^DR anyway.
+			if (carrier.SlaveEntries.Any(e => e.IsLaunched && e.IsValid))
+				return false;
+
+			armament = op.TraitsImplementing<Armament>().FirstOrDefault(a => a.Info.Name == "primary");
+			if (armament == null)
+				return false;
+
+			// The armament's own pause state IS the launch precondition ("!loaded || !ammo-primary"),
+			// so this cannot drift out of agreement with the YAML gate. It also catches the state that
+			// looks like success: after a kill the quadcopter respawns and re-grants `loaded`, but
+			// ammo-primary is 0, so the operator visibly has a drone it cannot launch.
+			return !armament.IsTraitDisabled && !armament.IsTraitPaused;
 		}
 
 		void TaskOperator(IBot bot, Actor op, int tick, List<BeliefContact> contacts, List<ScoredPoi> pois)
@@ -336,29 +393,13 @@ namespace OpenRA.Mods.Common.Traits
 			goalGuard?.Ledger.Commit(op, "drone:" + op.ActorID.ToString(), tick, Info.CommitmentTicks);
 			claimed.Add(op);
 
-			var carrier = op.TraitOrDefault<CarrierMaster>();
-			if (carrier == null)
+			// Same predicate the table-build pre-check uses — see CanLaunchNow. A sortie in progress is
+			// left strictly alone: the operator must stay parked for the full 60s loiter, because
+			// CarrierMaster is PauseOnCondition "moving" and TraitPaused calls SetConnection(false)
+			// AND Recall(), so any order that moves it here throws the sortie away.
+			if (!CanLaunchNow(op, out _, out var armament))
 				return;
 
-			var droneAirborne = carrier.SlaveEntries.Any(e => e.IsLaunched && e.IsValid);
-
-			// A SORTIE IN PROGRESS IS A SORTIE TO LEAVE ALONE. The operator must stay parked for the
-			// full 60s loiter: CarrierMaster is PauseOnCondition "moving", and TraitPaused calls
-			// SetConnection(false) AND Recall(). Any order that moves it here throws the sortie away.
-			if (droneAirborne)
-				return;
-
-			var armament = op.TraitsImplementing<Armament>()
-				.FirstOrDefault(a => a.Info.Name == "primary");
-
-			if (armament == null)
-				return;
-
-			// The armament's own pause state IS the launch precondition ("!loaded || !ammo-primary"),
-			// so this cannot drift out of agreement with the YAML gate.
-			var armamentReady = !armament.IsTraitDisabled && !armament.IsTraitPaused;
-			if (!armamentReady)
-				return;
 
 			// AttackBase.ResolveOrder early-returns on this for an unqueued order, so a launch issued
 			// here would be silently dropped.
@@ -388,9 +429,10 @@ namespace OpenRA.Mods.Common.Traits
 				// is compatible with three different defects that need three different fixes.
 				Log.Write("debug",
 					$"[drone] player={player.PlayerName} op={op.ActorID} no-eligible-cell "
-					+ $"hover={maxHover} scored={considered} fresh={refusedFresh} poi={refusedPoi} "
+					+ $"hover={maxHover} scored={considered} reveal={refusedReveal} poi={refusedPoi} "
 					+ $"danger={refusedDanger} sr={refusedSr} covered={refusedCovered} "
-					+ $"offmap={refusedOffMap} minstale={Info.MinStalenessTicks} tick={tick}");
+					+ $"offmap={refusedOffMap} bestreveal={bestReveal} minreveal={Info.MinRevealedSquares} "
+					+ $"minstale={Info.MinStalenessTicks} tick={tick}");
 
 				return;
 			}
@@ -407,7 +449,10 @@ namespace OpenRA.Mods.Common.Traits
 			// CarrierMaster and Recall()s the drone — so ask that directly.
 			var stationary = IsStationary(op);
 
-			if (!DroneTaskingMath.CanLaunch(armamentReady, true, stationary, distance, maxHover))
+			// armamentReady and noDroneAirborne are both already established by CanLaunchNow above; the
+			// pure function still takes them because it is the tested contract for "may we launch now",
+			// and collapsing it to the terms this one call site has left would untest the other two.
+			if (!DroneTaskingMath.CanLaunch(true, true, stationary, distance, maxHover))
 				return;
 
 			// Re-order only when it changes something. The engine re-fires the held activity by itself
@@ -489,21 +534,83 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Per-gate refusal tally for the last ChooseTargetCell call. Diagnostic only.
-		int refusedFresh, refusedPoi, refusedDanger, refusedSr, refusedCovered, refusedOffMap, considered;
+		int refusedReveal, refusedPoi, refusedDanger, refusedSr, refusedCovered, refusedOffMap, considered;
+
+		// Best revealed-area seen this scan, whether or not it cleared the threshold. THIS IS THE LINE
+		// THAT TELLS "threshold too high" FROM "still broken" WITHOUT A SECOND MATCH: if a scan ends with
+		// no launch and bestReveal is 0, nothing was revealable and the model is still wrong; if
+		// bestReveal sits just under MinRevealedSquares, the threshold is the only thing in the way.
+		int bestReveal;
+
+		// Inclusive-prefix-sum table over the control grid: staleSat[x+1,y+1] is the number of
+		// unobserved grid squares in the rectangle (0,0)-(x,y). Rebuilt once per evaluation and shared
+		// by every operator, which is what keeps the revealed-area score affordable — see BuildStaleSat.
+		int[,] staleSat;
+		int satGw, satGh;
+
+		// Evaluation tick the table was last built for; -1 forces a rebuild on the next use.
+		int satValidTick = -1;
+		int evalTick;
+
+		// COST, IN THE SAME TERMS THE PREVIOUS MODEL WAS JUSTIFIED IN.
+		// Old model: ~1520 map cells scored per operator per evaluation, one O(1) staleness read each.
+		// The obvious form of the new model — count unobserved squares inside the drone's vision for
+		// each candidate — is ~1520 candidates x ~615 squares = ~935,000 reads per operator, which is
+		// correct and unshippable. Two changes bring it back under the old cost:
+		//   1. CANDIDATES AT GRID RESOLUTION. A hover cell only needs to be distinct to the control
+		//      grid, so iterate grid squares rather than map cells: ~1520/CellSize^2 = ~380 candidates.
+		//   2. SUMMED-AREA TABLE. Built once per evaluation over the whole grid (gridW x gridH, e.g.
+		//      ~4,096 squares on a 128x128 map at CellSize 2) and shared by all operators, after which
+		//      each candidate's revealed count is FOUR array reads regardless of the drone's vision
+		//      radius.
+		// Net per evaluation: O(gridW x gridH) once, plus ~380 O(1) queries per operator. For the two
+		// operators this module may own, ~4,100 + 760 against the old ~3,040 — the same order, now
+		// independent of DroneVisionCells, and it replaces a scan that produced nothing at all.
+		// The table is skipped entirely when no operator is launch-ready.
+		void BuildStaleSat()
+		{
+			var gw = controlField.GridWidth;
+			var gh = controlField.GridHeight;
+			if (staleSat == null || satGw != gw || satGh != gh)
+			{
+				staleSat = new int[gw + 1, gh + 1];
+				satGw = gw;
+				satGh = gh;
+			}
+
+			// Reusing the array across evaluations is safe without clearing: every interior entry is
+			// overwritten below, and the zero border is never written at all.
+			DroneTaskingMath.BuildSummedArea(staleSat, gw, gh,
+				(gx, gy) => controlField.TicksSinceVerified(player, gx, gy) >= Info.MinStalenessTicks);
+		}
 
 		CPos? ChooseTargetCell(CPos opCell, int maxHover, List<BeliefContact> contacts, List<ScoredPoi> pois)
 		{
+			// Lazy, once per evaluation, shared by every operator that reaches this point.
+			if (satValidTick != evalTick)
+			{
+				BuildStaleSat();
+				satValidTick = evalTick;
+			}
+
 			CPos? best = null;
 			var bestScore = DroneTaskingMath.Ineligible;
-			refusedFresh = refusedPoi = refusedDanger = refusedSr = refusedCovered = refusedOffMap = considered = 0;
+			refusedReveal = refusedPoi = refusedDanger = refusedSr = refusedCovered = refusedOffMap = considered = 0;
+			bestReveal = 0;
 
-			// Only cells the drone could actually reach and hold are candidates, so the search is a
-			// disc around the operator rather than the whole map.
-			for (var dy = -maxHover; dy <= maxHover; dy++)
+			// Candidates are GRID squares, converted to their centre map cell only to issue the order.
+			// GridCellToMapCell is deliberately not the inverse of MapCellToGridCell, so the centre is
+			// used as the representative cell rather than round-tripped.
+			var lo = controlField.MapCellToGridCell(new CPos(opCell.X - maxHover, opCell.Y - maxHover));
+			var hi = controlField.MapCellToGridCell(new CPos(opCell.X + maxHover, opCell.Y + maxHover));
+
+			for (var gx = lo.X; gx <= hi.X; gx++)
 			{
-				for (var dx = -maxHover; dx <= maxHover; dx++)
+				for (var gy = lo.Y; gy <= hi.Y; gy++)
 				{
-					var cell = opCell + new CVec(dx, dy);
+					var cell = controlField.GridCellToMapCell(gx, gy);
+
+					// The disc, not the bounding box.
 					if ((cell - opCell).Length > maxHover)
 						continue;
 
@@ -521,16 +628,23 @@ namespace OpenRA.Mods.Common.Traits
 
 					// THE SUPPLY ROUTE IS NOT WORTH A SORTIE. It is a fixed, indestructible,
 					// non-buildable beachhead: nothing is ever built there and it cannot change hands
-					// (SUPPLYROUTE carries no Capturable). Watching it tells the bot only what it
-					// already knows, and the ground around it is the enemy's own back line.
+					// (SUPPLYROUTE carries no Capturable). Belief-gated, so it cannot fire before the
+					// enemy SR has actually been discovered.
 					if (NearEnemySupplyRoute(cell, contacts))
 					{
 						refusedSr++;
 						continue;
 					}
 
-					var (gx, gy) = controlField.MapCellToGridCell(cell);
-					var staleness = controlField.TicksSinceVerified(player, gx, gy);
+					// What this hover cell would BUY: unobserved squares inside the drone's own vision
+					// once it is parked there. Ground already inside the operator's bubble is not stale
+					// and so contributes nothing, which is why no explicit exclusion is needed.
+					var vlo = controlField.MapCellToGridCell(new CPos(cell.X - Info.DroneVisionCells, cell.Y - Info.DroneVisionCells));
+					var vhi = controlField.MapCellToGridCell(new CPos(cell.X + Info.DroneVisionCells, cell.Y + Info.DroneVisionCells));
+					var revealed = DroneTaskingMath.SumInclusive(staleSat, satGw, satGh, vlo.X, vlo.Y, vhi.X, vhi.Y);
+
+					if (revealed > bestReveal)
+						bestReveal = revealed;
 
 					var poiDistance = NearestPoiDistance(cell, pois);
 					var airDanger = dangerField != null ? dangerField.AirDanger(player, cell) : 0;
@@ -538,7 +652,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					considered++;
 					var score = DroneTaskingMath.ScoreCandidate(
-						staleness, Info.MinStalenessTicks,
+						revealed, Info.MinRevealedSquares,
 						poiDistance, Info.MaxPoiDistanceCells,
 						airDanger, Info.MaxAirDanger,
 						bonus, out var refusal);
@@ -547,7 +661,7 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						switch (refusal)
 						{
-							case DroneRefusal.TooFresh: refusedFresh++; break;
+							case DroneRefusal.TooLittleRevealed: refusedReveal++; break;
 							case DroneRefusal.TooFarFromPoi: refusedPoi++; break;
 							case DroneRefusal.TooDangerous: refusedDanger++; break;
 						}

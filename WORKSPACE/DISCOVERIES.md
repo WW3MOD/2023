@@ -11737,9 +11737,134 @@ operator's own bubble and can never be stale. What it must score is the unverifi
 would REVEAL from there — the stale ground within the drone's vision radius of the candidate cell.
 That is a scoring change of one function, not a new movement leg.
 
+**Implemented 2026-08-27. THE BENEFIT IS UNMEASURED AND MUST NOT HARDEN INTO A NUMBER.** The
+"~50 cells" reach and the claim that a drone at the leash edge reveals useful ground are arithmetic
+off the vision ladder, not observations: **no drone has ever flown in this mod under bot control.**
+The 100%-refusal figure is measured; the fix's benefit is not, and the new `MinRevealedSquares: 12`
+floor is a first estimate tuned against nothing. The next run is the first evidence either way, and
+it should be spent on a reviewed change rather than a first draft.
+
+**WHAT `MinRevealedSquares: 12` ACTUALLY MEANS ON THE GROUND, because this threshold fails
+INVISIBLY.** Set too high it reproduces the original bug exactly — zero launches forever — and the log
+looks identical to the 100%-refusal logs already collected. At `CellSize 2` one control-grid square is
+2x2 = **4 map cells**, so 12 squares is **48 map cells**, roughly a 7x7 patch. The drone's vision box
+is 2x28+1 = 57 map cells on a side, about 29x29 = ~840 grid squares. **So the threshold is ~1.4% of
+the drone's own field of view** — deliberately permissive, and "too high" is therefore an unlikely
+explanation if a future match still shows no launches.
+
+That distinction is no longer left to arithmetic: the refusal line now carries `bestreveal=` (the best
+revealed-area any candidate achieved this scan, threshold or not) alongside `minreveal=`. Zero
+`bestreveal` means nothing was revealable and the model is still wrong; `bestreveal` sitting just
+under `minreveal` means the threshold is the only thing in the way. One match distinguishes them.
+
+**THE ARTEFACT IS LARGE ENOUGH TO MAKE THE REVEAL FLOOR INERT — measured, not estimated.** With a
+14-square vision radius the query box is 29x29 = 841 squares and the true disc is 613, so **up to 228
+squares of every query are corners the drone will never see**. Against a shipped
+`MinRevealedSquares: 12` that is ~19x the floor, so **every candidate clears the floor on corner
+artefact alone**, whether or not it would reveal anything real. The floor cannot refuse anything, and
+any future attempt to make it bite has to clear 228 first. Ranking still works — a leash-edge square
+measures ~439 against ~228 for one sitting on the operator, so the argmax does prefer the frontier —
+but combined with `ContactBonus 2000` being worth exactly 2 revealed squares at the x1000 scale, and
+POI distance capped at 40 and so worth 0.04 squares, **the score is effectively a pure argmax of
+revealed area**. The only remaining brake on the corner-parking failure is `MaxPoiDistanceCells`, and
+an argmax will tend to sit exactly on that boundary in the least-known direction. Pinned by
+`Model_TheBoxCornerArtefactIsLargeEnoughToMakeTheRevealFloorInert`.
+
+**The over-count is isotropic, so it does not bias toward diagonals** — an earlier worry, checked and
+dropped. What it does do is worse than a bias: it credits a candidate for ground ~40 map cells out
+that the drone will never see, so a large unobserved mass sitting diagonally off a candidate can pull
+the drone to a cell from which it reveals none of it. **That is observable in a match** as a drone
+flying toward unexplored ground and stopping short of it.
+
+**The vision box is a SQUARE, not a disc.** The summed-area query is
+rectangular, so a candidate is credited with unobserved ground in its bounding box — including the
+four corners a circular vision radius would not actually reveal, about 4/pi ~ 27% more area than the
+true disc. The bias is not uniform: it favours candidates whose unobserved ground lies DIAGONALLY from
+them over candidates with the same amount of unobserved ground lying orthogonally. **Where that
+matters is near map corners and along diagonal frontiers**, since a drone can be credited for corner
+ground it will never see and then be sent to a cell that reveals less than scored. Accepted because
+the disc-accurate alternative costs a per-candidate scan instead of four array reads — i.e. the whole
+reason this is affordable. If drones are ever observed favouring map corners, this is the first
+suspect.
+
+**WHAT IS STILL UNVERIFIED, NAMED SO IT IS NOT RE-DERIVED.** `SumInclusive` is exhaustively tested
+against brute force, and the model is tested on synthetic geometry — but **nothing tests the WIRING
+between them**: that `ChooseTargetCell` centres the query box on the right cell, uses the right
+radius, and converts map cells to grid squares in the right units. That would need a `World` stood up
+in NUnit, which was judged not worth the fresh-bug risk immediately before a run; it is a disclosed
+gap, not an oversight. **Practical consequence: if a match produces zero launches but a NON-EMPTY
+counter log, look at that wiring first, not at the scoring model.** An empty counter log means
+something else entirely — see the cost-gate entry below.
+
+**The cost model is the part most likely to be wrong in a way tests cannot see.** Scoring revealed
+area naively is ~1520 candidates x ~615 squares = ~935,000 reads per operator per evaluation, against
+~1520 for the model it replaces. Two changes bring it back: candidates are enumerated at CONTROL-GRID
+resolution rather than per map cell (~380), and revealed area is read from a summed-area table built
+once per evaluation over the whole grid (~4,096 squares on a 128x128 map at `CellSize 2`) and shared
+by every operator, after which each candidate costs FOUR array reads regardless of the drone's vision
+radius. Net: O(gridW x gridH) once plus ~380 O(1) queries per operator — the same order as before and
+now independent of `DroneVisionCells`. A naive implementation of the same formula is correct and
+unshippable, which is the trap worth remembering.
+
 **Method note worth keeping:** this was invisible to 17 passing pure-math tests and to five
 independently re-derived static links in the order path, because none of them could see the *field
 values* the predicates would be fed at runtime. The single instrument that settled it was one log line
 per refusal. Counting distinct issued target cells per operator — the stated settling observation —
 returned not "one" (fix did not take) or "two or more" (works) but **zero**, which is a third outcome
 neither arm of the planned test anticipated.
+
+## 2026-08-27 — How to make the global `debug.log` trustworthy for one run
+
+This project's standing note says the engine's `debug.log` is global, has no run identity, and must
+not be trusted to belong to the run you just did. True, and it stops there — which leaves anyone
+needing log evidence with no method. There is one, it is two commands, and it removes the inference
+entirely rather than reducing it.
+
+**Rotate the log aside immediately before launching, then read what is left.**
+
+```sh
+mv "$HOME/Library/Application Support/OpenRA/Logs/debug.log" \
+   "$HOME/Library/Application Support/OpenRA/Logs/debug.log.pre-<run>.bak"
+./tools/autotest/run-test.sh --hidden --timeout <N> <scenario>
+```
+
+The harness takes a single-instance lock (`run-test.sh`, `LOCK_DIR`) precisely because the engine's
+support directory is shared, so with the file rotated away and the lock held, **every line in the new
+`debug.log` is necessarily from this run.** Provenance becomes structural instead of being argued from
+timestamps and actor-id alignment.
+
+**Why not just read the run directory:** the harness does NOT copy `debug.log` per-run. The support
+directory is shared and crash artifacts are attributed by MTIME (`run-test.sh:456`), so on a normal
+(non-crash) run the result dir contains `result.json` and nothing else. Rotating beforehand is the
+substitute for a per-run copy that does not exist.
+
+Keep the `.bak` until the evidence is extracted — the rotation is also what makes a second run's
+lines distinguishable from the first's, which matters when re-running the same scenario after a fix.
+
+## 2026-08-27 — A cost gate that skipped more than the cost
+
+Recorded because the shape recurs and the symptom is silence rather than an error.
+
+Building a shared summed-area table once per evaluation is a legitimate saving, and the obvious guard
+— "only build it if some operator could act on it" — was written as:
+
+```csharp
+if (!satBuilt && CanLaunchNow(op, out _, out _)) { BuildStaleSat(); satBuilt = true; }
+if (satBuilt) TaskOperator(bot, op, tick, contacts, pois);   // <-- the defect
+```
+
+The second line makes the whole of `TaskOperator` conditional on the table, not just the scan that
+needs it. Everything ABOVE the launch check — releasing a dry operator's ledger claim, clearing its
+sortie record, and **re-committing the claim every cycle** — is unrelated to the table and is not
+optional. And `CanLaunchNow` is false exactly while a drone is airborne, i.e. **the success case**, so
+the skipped cycles were the ones during a working sortie: `ReevaluateInterval 200` against
+`CommitmentTicks 500` and a ~1000-tick sortie means the claim lapses mid-flight, the offence module is
+free to recruit the operator, and moving it recalls the drone. Order-dependent too — an operator is
+skipped only if no lower-ActorID operator was ready first, so with both airborne nothing ran at all.
+
+**The diagnostic would have gone silent with it.** `TaskOperator` also owns the `no-eligible-cell`
+line, so the log would have been EMPTY rather than wrong — indistinguishable at a glance from "the
+module isn't running", after a match that otherwise looked like the previous one.
+
+**Rule of thumb:** a guard added for COST must gate only the expensive computation, never a call that
+also performs bookkeeping. Build lazily at the point of use instead — same saving, no coupling.
